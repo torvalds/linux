@@ -100,25 +100,6 @@ static void rpcrdma_xprt_drain(struct rpcrdma_xprt *r_xprt)
 }
 
 /**
- * rpcrdma_disconnect_worker - Force a disconnect
- * @work: endpoint to be disconnected
- *
- * Provider callbacks can possibly run in an IRQ context. This function
- * is invoked in a worker thread to guarantee that disconnect wake-up
- * calls are always done in process context.
- */
-static void
-rpcrdma_disconnect_worker(struct work_struct *work)
-{
-	struct rpcrdma_ep *ep = container_of(work, struct rpcrdma_ep,
-					     rep_disconnect_worker.work);
-	struct rpcrdma_xprt *r_xprt =
-		container_of(ep, struct rpcrdma_xprt, rx_ep);
-
-	xprt_force_disconnect(&r_xprt->rx_xprt);
-}
-
-/**
  * rpcrdma_qp_event_handler - Handle one QP event (error notification)
  * @event: details of the event
  * @context: ep that owns QP where event occurred
@@ -134,15 +115,6 @@ rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 						   rx_ep);
 
 	trace_xprtrdma_qp_event(r_xprt, event);
-	pr_err("rpcrdma: %s on device %s connected to %s:%s\n",
-	       ib_event_msg(event->event), event->device->name,
-	       rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));
-
-	if (ep->rep_connected == 1) {
-		ep->rep_connected = -EIO;
-		schedule_delayed_work(&ep->rep_disconnect_worker, 0);
-		wake_up_all(&ep->rep_connect_wait);
-	}
 }
 
 /**
@@ -571,8 +543,6 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 				   cdata->max_requests >> 2);
 	ep->rep_send_count = ep->rep_send_batch;
 	init_waitqueue_head(&ep->rep_connect_wait);
-	INIT_DELAYED_WORK(&ep->rep_disconnect_worker,
-			  rpcrdma_disconnect_worker);
 	ep->rep_receive_count = 0;
 
 	sendcq = ib_alloc_cq(ia->ri_device, NULL,
@@ -646,8 +616,6 @@ out1:
 void
 rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
-	cancel_delayed_work_sync(&ep->rep_disconnect_worker);
-
 	if (ia->ri_id && ia->ri_id->qp) {
 		rpcrdma_ep_disconnect(ep, ia);
 		rdma_destroy_qp(ia->ri_id);
