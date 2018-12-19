@@ -113,11 +113,14 @@ enum {
 			{(0xcbe),	"SYNCH_BEGIN_EVT"		},\
 			{(0xcee),	"SYNCH_END_EVT"			})
 
+extern unsigned long sysctl_tipc_sk_filter[5] __read_mostly;
+
 int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf);
 int tipc_list_dump(struct sk_buff_head *list, bool more, char *buf);
 int tipc_sk_dump(struct sock *sk, u16 dqueues, char *buf);
 int tipc_link_dump(struct tipc_link *l, u16 dqueues, char *buf);
 int tipc_node_dump(struct tipc_node *n, bool more, char *buf);
+bool tipc_sk_filtering(struct sock *sk);
 
 DECLARE_EVENT_CLASS(tipc_skb_class,
 
@@ -199,12 +202,33 @@ DECLARE_EVENT_CLASS(tipc_sk_class,
 		  __get_str(skb_buf), __get_str(buf))
 );
 
-#define DEFINE_SK_EVENT(name) \
-DEFINE_EVENT(tipc_sk_class, name, \
+#define DEFINE_SK_EVENT_FILTER(name) \
+DEFINE_EVENT_CONDITION(tipc_sk_class, name, \
 	TP_PROTO(struct sock *sk, struct sk_buff *skb, u16 dqueues, \
 		 const char *header), \
-	TP_ARGS(sk, skb, dqueues, header))
-DEFINE_SK_EVENT(tipc_sk_dump);
+	TP_ARGS(sk, skb, dqueues, header), \
+	TP_CONDITION(tipc_sk_filtering(sk)))
+DEFINE_SK_EVENT_FILTER(tipc_sk_dump);
+DEFINE_SK_EVENT_FILTER(tipc_sk_create);
+DEFINE_SK_EVENT_FILTER(tipc_sk_sendmcast);
+DEFINE_SK_EVENT_FILTER(tipc_sk_sendmsg);
+DEFINE_SK_EVENT_FILTER(tipc_sk_sendstream);
+DEFINE_SK_EVENT_FILTER(tipc_sk_poll);
+DEFINE_SK_EVENT_FILTER(tipc_sk_filter_rcv);
+DEFINE_SK_EVENT_FILTER(tipc_sk_advance_rx);
+DEFINE_SK_EVENT_FILTER(tipc_sk_rej_msg);
+DEFINE_SK_EVENT_FILTER(tipc_sk_drop_msg);
+DEFINE_SK_EVENT_FILTER(tipc_sk_release);
+DEFINE_SK_EVENT_FILTER(tipc_sk_shutdown);
+
+#define DEFINE_SK_EVENT_FILTER_COND(name, cond) \
+DEFINE_EVENT_CONDITION(tipc_sk_class, name, \
+	TP_PROTO(struct sock *sk, struct sk_buff *skb, u16 dqueues, \
+		 const char *header), \
+	TP_ARGS(sk, skb, dqueues, header), \
+	TP_CONDITION(tipc_sk_filtering(sk) && (cond)))
+DEFINE_SK_EVENT_FILTER_COND(tipc_sk_overlimit1, tipc_sk_overlimit1(sk, skb));
+DEFINE_SK_EVENT_FILTER_COND(tipc_sk_overlimit2, tipc_sk_overlimit2(sk, skb));
 
 DECLARE_EVENT_CLASS(tipc_link_class,
 

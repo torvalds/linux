@@ -37,6 +37,12 @@
 #include "trace.h"
 
 /**
+ * socket tuples for filtering in socket traces:
+ * (portid, sock type, name type, name lower, name upper)
+ */
+unsigned long sysctl_tipc_sk_filter[5] __read_mostly = {0, };
+
+/**
  * tipc_skb_dump - dump TIPC skb data
  * @skb: skb to be dumped
  * @more: dump more?

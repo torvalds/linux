@@ -72,5 +72,7 @@ int tipc_dump_start(struct netlink_callback *cb);
 int __tipc_dump_start(struct netlink_callback *cb, struct net *net);
 int tipc_dump_done(struct netlink_callback *cb);
 u32 tipc_sock_get_portid(struct sock *sk);
+bool tipc_sk_overlimit1(struct sock *sk, struct sk_buff *skb);
+bool tipc_sk_overlimit2(struct sock *sk, struct sk_buff *skb);
 
 #endif
