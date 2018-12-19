@@ -96,6 +96,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-edp-android-6.0.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-edp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-edp-avb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-linux-for-rk1808-cascade.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-tve1030g.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-tve1030g-avb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-tve1205g.dtb
