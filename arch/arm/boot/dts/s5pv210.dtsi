@@ -542,6 +542,15 @@
 			#dma-requests = <1>;
 		};
 
+		rotator: rotator@fa300000 {
+			compatible = "samsung,s5pv210-rotator";
+			reg = <0xfa300000 0x1000>;
+			interrupt-parent = <&vic2>;
+			interrupts = <4>;
+			clocks = <&clocks CLK_ROTATOR>;
+			clock-names = "rotator";
+		};
+
 		i2c1: i2c@fab00000 {
 			compatible = "samsung,s3c2440-i2c";
 			reg = <0xfab00000 0x1000>;
