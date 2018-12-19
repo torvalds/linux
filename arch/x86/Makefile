@@ -232,13 +232,6 @@ archscripts: scripts_basic
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/x86/entry/syscalls all
 
-archmacros:
-	$(Q)$(MAKE) $(build)=arch/x86/kernel arch/x86/kernel/macros.s
-
-ASM_MACRO_FLAGS = -Wa,arch/x86/kernel/macros.s
-export ASM_MACRO_FLAGS
-KBUILD_CFLAGS += $(ASM_MACRO_FLAGS)
-
 ###
 # Kernel objects
 
