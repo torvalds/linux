@@ -479,7 +479,7 @@ out_mapmr_err:
  * @ia: interface adapter
  * @req: Prepared RPC Call
  *
- * For FRMR, chain any FastReg WRs to the Send WR. Only a
+ * For FRWR, chain any FastReg WRs to the Send WR. Only a
  * single ib_post_send call is needed to register memory
  * and then post the Send WR.
  *
@@ -507,7 +507,7 @@ int frwr_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 	}
 
 	/* If ib_post_send fails, the next ->send_request for
-	 * @req will queue these MWs for recovery.
+	 * @req will queue these MRs for recovery.
 	 */
 	return ib_post_send(ia->ri_id->qp, post_wr, NULL);
 }
