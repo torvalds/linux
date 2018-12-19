@@ -14710,14 +14710,6 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 	drm_helper_mode_fill_fb_struct(&dev_priv->drm, fb, mode_cmd);
 
-	if (fb->format->format == DRM_FORMAT_NV12 &&
-	    (fb->width < SKL_MIN_YUV_420_SRC_W ||
-	     fb->height < SKL_MIN_YUV_420_SRC_H ||
-	     (fb->width % 4) != 0 || (fb->height % 4) != 0)) {
-		DRM_DEBUG_KMS("src dimensions not correct for NV12\n");
-		goto err;
-	}
-
 	for (i = 0; i < fb->format->num_planes; i++) {
 		u32 stride_alignment;
 
