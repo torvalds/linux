@@ -86,6 +86,10 @@ enum ice_status
 ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 			   struct ice_sq_cd *cd);
 enum ice_status
+ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
+		       struct ice_sq_cd *cd);
+
+enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 		u32 *q_teids, enum ice_disq_rst_src rst_src, u16 vmvf_num,
 		struct ice_sq_cd *cmd_details);

@@ -249,6 +249,29 @@ static void ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
+static int
+ice_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	bool led_active;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		led_active = true;
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		led_active = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (ice_aq_set_port_id_led(np->vsi->port_info, !led_active, NULL))
+		return -EIO;
+
+	return 0;
+}
+
 static int ice_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
@@ -1677,6 +1700,7 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.set_msglevel           = ice_set_msglevel,
 	.get_link		= ethtool_op_get_link,
 	.get_strings		= ice_get_strings,
+	.set_phys_id		= ice_set_phys_id,
 	.get_ethtool_stats      = ice_get_ethtool_stats,
 	.get_sset_count		= ice_get_sset_count,
 	.get_rxnfc		= ice_get_rxnfc,

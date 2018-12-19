@@ -2032,6 +2032,34 @@ ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 }
 
 /**
+ * ice_aq_set_port_id_led
+ * @pi: pointer to the port information
+ * @is_orig_mode: is this LED set to original mode (by the net-list)
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set LED value for the given port (0x06e9)
+ */
+enum ice_status
+ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
+		       struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_port_id_led *cmd;
+	struct ice_hw *hw = pi->hw;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.set_port_id_led;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_port_id_led);
+
+	if (is_orig_mode)
+		cmd->ident_mode = ICE_AQC_PORT_IDENT_LED_ORIG;
+	else
+		cmd->ident_mode = ICE_AQC_PORT_IDENT_LED_BLINK;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
  * __ice_aq_get_set_rss_lut
  * @hw: pointer to the hardware structure
  * @vsi_id: VSI FW index
