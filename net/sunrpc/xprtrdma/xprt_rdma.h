@@ -262,20 +262,12 @@ struct rpcrdma_frwr {
 	};
 };
 
-struct rpcrdma_fmr {
-	struct ib_fmr		*fm_mr;
-	u64			*fm_physaddrs;
-};
-
 struct rpcrdma_mr {
 	struct list_head	mr_list;
 	struct scatterlist	*mr_sg;
 	int			mr_nents;
 	enum dma_data_direction	mr_dir;
-	union {
-		struct rpcrdma_fmr	fmr;
-		struct rpcrdma_frwr	frwr;
-	};
+	struct rpcrdma_frwr	frwr;
 	struct rpcrdma_xprt	*mr_xprt;
 	u32			mr_handle;
 	u32			mr_length;
@@ -490,7 +482,6 @@ struct rpcrdma_memreg_ops {
 	const int	ro_send_w_inv_ok;
 };
 
-extern const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops;
 extern const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops;
 
 /*
@@ -545,7 +536,6 @@ int rpcrdma_ia_open(struct rpcrdma_xprt *xprt);
 void rpcrdma_ia_remove(struct rpcrdma_ia *ia);
 void rpcrdma_ia_close(struct rpcrdma_ia *);
 bool frwr_is_supported(struct rpcrdma_ia *);
-bool fmr_is_supported(struct rpcrdma_ia *);
 
 /*
  * Endpoint calls - xprtrdma/verbs.c
