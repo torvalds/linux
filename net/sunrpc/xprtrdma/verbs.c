@@ -78,6 +78,7 @@ static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf);
 static int rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt, bool temp);
 static void rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb);
+static void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);
 
 struct workqueue_struct *rpcrdma_receive_wq __read_mostly;
 
@@ -189,11 +190,13 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct rpcrdma_rep *rep = container_of(cqe, struct rpcrdma_rep,
 					       rr_cqe);
+	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 
-	/* WARNING: Only wr_id and status are reliable at this point */
+	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_receive(wc);
+	--r_xprt->rx_ep.rep_receive_count;
 	if (wc->status != IB_WC_SUCCESS)
-		goto out_fail;
+		goto out_flushed;
 
 	/* status == SUCCESS means all fields in wc are trustworthy */
 	rpcrdma_set_xdrlen(&rep->rr_hdrbuf, wc->byte_len);
@@ -204,17 +207,16 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 				   rdmab_addr(rep->rr_rdmabuf),
 				   wc->byte_len, DMA_FROM_DEVICE);
 
-out_schedule:
+	rpcrdma_post_recvs(r_xprt, false);
 	rpcrdma_reply_handler(rep);
 	return;
 
-out_fail:
+out_flushed:
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
 		pr_err("rpcrdma: Recv: %s (%u/0x%x)\n",
 		       ib_wc_status_msg(wc->status),
 		       wc->status, wc->vendor_err);
-	rpcrdma_set_xdrlen(&rep->rr_hdrbuf, 0);
-	goto out_schedule;
+	rpcrdma_recv_buffer_put(rep);
 }
 
 static void
@@ -581,6 +583,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	init_waitqueue_head(&ep->rep_connect_wait);
 	INIT_DELAYED_WORK(&ep->rep_disconnect_worker,
 			  rpcrdma_disconnect_worker);
+	ep->rep_receive_count = 0;
 
 	sendcq = ib_alloc_cq(ia->ri_device, NULL,
 			     ep->rep_attr.cap.max_send_wr + 1,
@@ -1174,7 +1177,6 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	}
 
 	buf->rb_credits = 1;
-	buf->rb_posted_receives = 0;
 	INIT_LIST_HEAD(&buf->rb_recv_bufs);
 
 	rc = rpcrdma_sendctxs_create(r_xprt);
@@ -1511,25 +1513,20 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 	return 0;
 }
 
-/**
- * rpcrdma_post_recvs - Maybe post some Receive buffers
- * @r_xprt: controlling transport
- * @temp: when true, allocate temp rpcrdma_rep objects
- *
- */
-void
+static void
 rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	struct ib_recv_wr *wr, *bad_wr;
 	int needed, count, rc;
 
 	rc = 0;
 	count = 0;
 	needed = buf->rb_credits + (buf->rb_bc_srv_max_requests << 1);
-	if (buf->rb_posted_receives > needed)
+	if (ep->rep_receive_count > needed)
 		goto out;
-	needed -= buf->rb_posted_receives;
+	needed -= ep->rep_receive_count;
 
 	count = 0;
 	wr = NULL;
@@ -1577,7 +1574,7 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 			--count;
 		}
 	}
-	buf->rb_posted_receives += count;
+	ep->rep_receive_count += count;
 out:
 	trace_xprtrdma_post_recvs(r_xprt, count, rc);
 }

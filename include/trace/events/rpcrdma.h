@@ -570,7 +570,7 @@ TRACE_EVENT(xprtrdma_post_recvs,
 		__entry->r_xprt = r_xprt;
 		__entry->count = count;
 		__entry->status = status;
-		__entry->posted = r_xprt->rx_buf.rb_posted_receives;
+		__entry->posted = r_xprt->rx_ep.rep_receive_count;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
