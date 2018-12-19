@@ -41,7 +41,7 @@ static bool __hyp_text __is_be(struct kvm_vcpu *vcpu)
  * Returns:
  *  1: GICV access successfully performed
  *  0: Not a GICV access
- * -1: Illegal GICV access
+ * -1: Illegal GICV access successfully performed
  */
 int __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
@@ -61,12 +61,16 @@ int __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		return 0;
 
 	/* Reject anything but a 32bit access */
-	if (kvm_vcpu_dabt_get_as(vcpu) != sizeof(u32))
+	if (kvm_vcpu_dabt_get_as(vcpu) != sizeof(u32)) {
+		__kvm_skip_instr(vcpu);
 		return -1;
+	}
 
 	/* Not aligned? Don't bother */
-	if (fault_ipa & 3)
+	if (fault_ipa & 3) {
+		__kvm_skip_instr(vcpu);
 		return -1;
+	}
 
 	rd = kvm_vcpu_dabt_get_rd(vcpu);
 	addr  = hyp_symbol_addr(kvm_vgic_global_state)->vcpu_hyp_va;
@@ -87,6 +91,8 @@ int __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		}
 		vcpu_set_reg(vcpu, rd, data);
 	}
+
+	__kvm_skip_instr(vcpu);
 
 	return 1;
 }

@@ -21,7 +21,6 @@
 
 #include <linux/clocksource.h>
 #include <linux/hrtimer.h>
-#include <linux/workqueue.h>
 
 struct arch_timer_context {
 	/* Registers: control register, timer value */
@@ -51,9 +50,6 @@ struct arch_timer_cpu {
 
 	/* Background timer used when the guest is not running */
 	struct hrtimer			bg_timer;
-
-	/* Work queued with the above timer expires */
-	struct work_struct		expired;
 
 	/* Physical timer emulation */
 	struct hrtimer			phys_timer;
