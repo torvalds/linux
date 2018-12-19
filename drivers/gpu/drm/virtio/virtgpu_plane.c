@@ -169,8 +169,10 @@ static void virtio_gpu_cursor_cleanup_fb(struct drm_plane *plane,
 		return;
 
 	vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
-	if (vgfb->fence)
-		virtio_gpu_fence_cleanup(vgfb->fence);
+	if (vgfb->fence) {
+		dma_fence_put(&vgfb->fence->f);
+		vgfb->fence = NULL;
+	}
 }
 
 static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
