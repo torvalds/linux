@@ -779,6 +779,22 @@ struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
 
+/**
+ * of_dev_pm_opp_get_cpu_power() - Estimates the power of a CPU
+ * @mW:		pointer to the power estimate in milli-watts
+ * @KHz:	pointer to the OPP's frequency, in kilo-hertz
+ * @cpu:	CPU for which power needs to be estimated
+ *
+ * Computes the power estimated by @CPU at the first OPP above @KHz (ceil),
+ * and updates @KHz and @mW accordingly.
+ *
+ * The power is estimated as P = C * V^2 * f, with C the CPU's capacitance
+ * (read from the 'dynamic-power-coefficient' devicetree binding) and V and f
+ * respectively the voltage and frequency of the OPP.
+ *
+ * Return: -ENODEV if the CPU device cannot be found, -EINVAL if the power
+ * calculation failed because of missing parameters, 0 otherwise.
+ */
 int of_dev_pm_opp_get_cpu_power(unsigned long *mW, unsigned long *KHz, int cpu)
 {
 	unsigned long mV, Hz, MHz;
