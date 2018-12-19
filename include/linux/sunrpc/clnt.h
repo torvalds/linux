@@ -128,8 +128,8 @@ struct rpc_create_args {
 };
 
 struct rpc_add_xprt_test {
-	int (*add_xprt_test)(struct rpc_clnt *,
-		struct rpc_xprt *,
+	void (*add_xprt_test)(struct rpc_clnt *clnt,
+		struct rpc_xprt *xprt,
 		void *calldata);
 	void *data;
 };

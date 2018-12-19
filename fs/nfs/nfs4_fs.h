@@ -65,7 +65,8 @@ struct nfs4_minor_version_ops {
 			nfs4_stateid *, const struct cred *);
 	struct nfs_seqid *
 		(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
-	int	(*session_trunk)(struct rpc_clnt *, struct rpc_xprt *, void *);
+	void	(*session_trunk)(struct rpc_clnt *clnt,
+			struct rpc_xprt *xprt, void *data);
 	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
