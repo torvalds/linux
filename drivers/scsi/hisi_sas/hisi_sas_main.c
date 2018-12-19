@@ -2630,12 +2630,68 @@ static const struct file_operations hisi_sas_debugfs_port_fops = {
 	.owner = THIS_MODULE,
 };
 
+static int hisi_sas_show_row_32(struct seq_file *s, int index,
+				int sz, u32 *ptr)
+{
+	int i;
+
+	/* completion header size not fixed per HW version */
+	seq_printf(s, "index %04d:\n\t", index);
+	for (i = 1; i <= sz / 4; i++, ptr++) {
+		if (!(i % 4))
+			seq_puts(s, "\n\t");
+	}
+	seq_puts(s, "\n");
+
+	return 0;
+}
+
+static int hisi_sas_cq_show_slot(struct seq_file *s, int slot, void *cq_ptr)
+{
+	struct hisi_sas_cq *cq = cq_ptr;
+	struct hisi_hba *hisi_hba = cq->hisi_hba;
+	void *complete_queue = hisi_hba->debugfs_complete_hdr[cq->id];
+	void *complete_hdr = complete_queue +
+			(hisi_hba->hw->complete_hdr_size * slot);
+
+	return hisi_sas_show_row_32(s, slot,
+				hisi_hba->hw->complete_hdr_size,
+				complete_hdr);
+}
+
+static int hisi_sas_debugfs_cq_show(struct seq_file *s, void *p)
+{
+	struct hisi_sas_cq *cq = s->private;
+	int slot, ret;
+
+	for (slot = 0; slot < HISI_SAS_QUEUE_SLOTS; slot++) {
+		ret = hisi_sas_cq_show_slot(s, slot, cq);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int hisi_sas_debugfs_cq_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_cq_show, inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_cq_fops = {
+	.open = hisi_sas_debugfs_cq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 {
 	struct dentry *dump_dentry;
 	struct dentry *dentry;
 	char name[256];
 	int p;
+	int c;
 
 	/* Create dump dir inside device dir */
 	dump_dentry = debugfs_create_dir("dump", hisi_hba->debugfs_dir);
@@ -2658,6 +2714,20 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 		if (!debugfs_create_file(name, 0400, dentry,
 					 &hisi_hba->phy[p],
 					 &hisi_sas_debugfs_port_fops))
+			goto fail;
+	}
+
+	/* Create CQ dir and files */
+	dentry = debugfs_create_dir("cq", dump_dentry);
+	if (!dentry)
+		goto fail;
+
+	for (c = 0; c < hisi_hba->queue_count; c++) {
+		snprintf(name, 256, "%d", c);
+
+		if (!debugfs_create_file(name, 0400, dentry,
+					 &hisi_hba->cq[c],
+					 &hisi_sas_debugfs_cq_fops))
 			goto fail;
 	}
 
