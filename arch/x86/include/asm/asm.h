@@ -120,25 +120,12 @@
 /* Exception table entry */
 #ifdef __ASSEMBLY__
 # define _ASM_EXTABLE_HANDLE(from, to, handler)			\
-	ASM_EXTABLE_HANDLE from to handler
-
-.macro ASM_EXTABLE_HANDLE from:req to:req handler:req
-	.pushsection "__ex_table","a"
-	.balign 4
-	.long (\from) - .
-	.long (\to) - .
-	.long (\handler) - .
+	.pushsection "__ex_table","a" ;				\
+	.balign 4 ;						\
+	.long (from) - . ;					\
+	.long (to) - . ;					\
+	.long (handler) - . ;					\
 	.popsection
-.endm
-#else /* __ASSEMBLY__ */
-
-# define _ASM_EXTABLE_HANDLE(from, to, handler)			\
-	"ASM_EXTABLE_HANDLE from=" #from " to=" #to		\
-	" handler=\"" #handler "\"\n\t"
-
-/* For C file, we already have NOKPROBE_SYMBOL macro */
-
-#endif /* __ASSEMBLY__ */
 
 # define _ASM_EXTABLE(from, to)					\
 	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
@@ -161,7 +148,6 @@
 	_ASM_PTR (entry);					\
 	.popsection
 
-#ifdef __ASSEMBLY__
 .macro ALIGN_DESTINATION
 	/* check for bad alignment of destination */
 	movl %edi,%ecx
@@ -185,7 +171,34 @@
 	_ASM_EXTABLE_UA(100b, 103b)
 	_ASM_EXTABLE_UA(101b, 103b)
 	.endm
-#endif /* __ASSEMBLY__ */
+
+#else
+# define _EXPAND_EXTABLE_HANDLE(x) #x
+# define _ASM_EXTABLE_HANDLE(from, to, handler)			\
+	" .pushsection \"__ex_table\",\"a\"\n"			\
+	" .balign 4\n"						\
+	" .long (" #from ") - .\n"				\
+	" .long (" #to ") - .\n"				\
+	" .long (" _EXPAND_EXTABLE_HANDLE(handler) ") - .\n"	\
+	" .popsection\n"
+
+# define _ASM_EXTABLE(from, to)					\
+	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
+
+# define _ASM_EXTABLE_UA(from, to)				\
+	_ASM_EXTABLE_HANDLE(from, to, ex_handler_uaccess)
+
+# define _ASM_EXTABLE_FAULT(from, to)				\
+	_ASM_EXTABLE_HANDLE(from, to, ex_handler_fault)
+
+# define _ASM_EXTABLE_EX(from, to)				\
+	_ASM_EXTABLE_HANDLE(from, to, ex_handler_ext)
+
+# define _ASM_EXTABLE_REFCOUNT(from, to)			\
+	_ASM_EXTABLE_HANDLE(from, to, ex_handler_refcount)
+
+/* For C file, we already have NOKPROBE_SYMBOL macro */
+#endif
 
 #ifndef __ASSEMBLY__
 /*
