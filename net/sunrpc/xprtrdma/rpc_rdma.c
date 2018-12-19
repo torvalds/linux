@@ -1356,7 +1356,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	clear_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
 
 	trace_xprtrdma_reply(rqst->rq_task, rep, req, credits);
-	queue_work(rpcrdma_receive_wq, &rep->rr_work);
+	queue_work(buf->rb_completion_wq, &rep->rr_work);
 	return;
 
 out_badversion:

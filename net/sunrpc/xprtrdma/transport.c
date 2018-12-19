@@ -444,10 +444,14 @@ xprt_rdma_close(struct rpc_xprt *xprt)
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
+	might_sleep();
+
 	dprintk("RPC:       %s: closing xprt %p\n", __func__, xprt);
 
+	/* Prevent marshaling and sending of new requests */
+	xprt_clear_connected(xprt);
+
 	if (test_and_clear_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags)) {
-		xprt_clear_connected(xprt);
 		rpcrdma_ia_remove(ia);
 		return;
 	}
@@ -858,8 +862,6 @@ void xprt_rdma_cleanup(void)
 		dprintk("RPC:       %s: xprt_unregister returned %i\n",
 			__func__, rc);
 
-	rpcrdma_destroy_wq();
-
 	rc = xprt_unregister_transport(&xprt_rdma_bc);
 	if (rc)
 		dprintk("RPC:       %s: xprt_unregister(bc) returned %i\n",
@@ -870,20 +872,13 @@ int xprt_rdma_init(void)
 {
 	int rc;
 
-	rc = rpcrdma_alloc_wq();
+	rc = xprt_register_transport(&xprt_rdma);
 	if (rc)
 		return rc;
-
-	rc = xprt_register_transport(&xprt_rdma);
-	if (rc) {
-		rpcrdma_destroy_wq();
-		return rc;
-	}
 
 	rc = xprt_register_transport(&xprt_rdma_bc);
 	if (rc) {
 		xprt_unregister_transport(&xprt_rdma);
-		rpcrdma_destroy_wq();
 		return rc;
 	}
 

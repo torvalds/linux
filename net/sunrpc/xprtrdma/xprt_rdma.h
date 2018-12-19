@@ -412,6 +412,7 @@ struct rpcrdma_buffer {
 
 	u32			rb_bc_max_requests;
 
+	struct workqueue_struct *rb_completion_wq;
 	struct delayed_work	rb_refresh_worker;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
@@ -547,8 +548,6 @@ void rpcrdma_ia_close(struct rpcrdma_ia *);
 bool frwr_is_supported(struct rpcrdma_ia *);
 bool fmr_is_supported(struct rpcrdma_ia *);
 
-extern struct workqueue_struct *rpcrdma_receive_wq;
-
 /*
  * Endpoint calls - xprtrdma/verbs.c
  */
@@ -602,9 +601,6 @@ rpcrdma_dma_map_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 		return true;
 	return __rpcrdma_dma_map_regbuf(ia, rb);
 }
-
-int rpcrdma_alloc_wq(void);
-void rpcrdma_destroy_wq(void);
 
 /*
  * Wrappers for chunk registration, shared by read/write chunk code.
