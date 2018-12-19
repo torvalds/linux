@@ -34,9 +34,9 @@ struct goldfish_battery_data {
 
 enum {
 	/* status register */
-	BATTERY_INT_STATUS	    = 0x00,
+	BATTERY_INT_STATUS	= 0x00,
 	/* set this to enable IRQ */
-	BATTERY_INT_ENABLE	    = 0x04,
+	BATTERY_INT_ENABLE	= 0x04,
 
 	BATTERY_AC_ONLINE       = 0x08,
 	BATTERY_STATUS          = 0x0C,
