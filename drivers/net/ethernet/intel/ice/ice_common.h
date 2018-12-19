@@ -75,7 +75,7 @@ void
 ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
 		    u16 link_speeds_bitmap);
 enum ice_status
-ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
+ice_aq_manage_mac_write(struct ice_hw *hw, const u8 *mac_addr, u8 flags,
 			struct ice_sq_cd *cd);
 enum ice_status ice_clear_pf_cfg(struct ice_hw *hw);
 enum ice_status

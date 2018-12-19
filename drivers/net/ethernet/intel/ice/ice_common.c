@@ -1685,7 +1685,7 @@ enum ice_status ice_get_caps(struct ice_hw *hw)
  * This function is used to write MAC address to the NVM (0x0108).
  */
 enum ice_status
-ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
+ice_aq_manage_mac_write(struct ice_hw *hw, const u8 *mac_addr, u8 flags,
 			struct ice_sq_cd *cd)
 {
 	struct ice_aqc_manage_mac_write *cmd;
@@ -1697,8 +1697,8 @@ ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
 	cmd->flags = flags;
 
 	/* Prep values for flags, sah, sal */
-	cmd->sah = htons(*((u16 *)mac_addr));
-	cmd->sal = htonl(*((u32 *)(mac_addr + 2)));
+	cmd->sah = htons(*((const u16 *)mac_addr));
+	cmd->sal = htonl(*((const u32 *)(mac_addr + 2)));
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
