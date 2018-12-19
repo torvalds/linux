@@ -3667,6 +3667,15 @@ static void pnv_pci_release_device(struct pci_dev *pdev)
 		pnv_ioda_release_pe(pe);
 }
 
+static void pnv_npu_disable_device(struct pci_dev *pdev)
+{
+	struct eeh_dev *edev = pci_dev_to_eeh_dev(pdev);
+	struct eeh_pe *eehpe = edev ? edev->pe : NULL;
+
+	if (eehpe && eeh_ops && eeh_ops->reset)
+		eeh_ops->reset(eehpe, EEH_RESET_HOT);
+}
+
 static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
@@ -3707,6 +3716,7 @@ static const struct pci_controller_ops pnv_npu_ioda_controller_ops = {
 	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
 	.dma_set_mask		= pnv_npu_dma_set_mask,
 	.shutdown		= pnv_pci_ioda_shutdown,
+	.disable_device		= pnv_npu_disable_device,
 };
 
 static const struct pci_controller_ops pnv_npu_ocapi_ioda_controller_ops = {
