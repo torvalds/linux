@@ -5108,6 +5108,7 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 
 	do {
+		try_again = false;
 		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
 				       &ctx);
 		if (ret) {
