@@ -184,7 +184,7 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 	if (unlikely(ret < 0))
 		goto err1;
 
-	qstr.hash_len	= ret;
+	qstr.len	= ret;
 	qstr.name	= kname;
 
 	ret = -ENOENT;
