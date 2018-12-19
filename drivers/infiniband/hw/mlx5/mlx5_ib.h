@@ -1208,10 +1208,10 @@ static inline void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 					 size_t nentries, struct mlx5_ib_mr *mr,
 					 int flags) {}
 
-static int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
-				      enum ib_uverbs_advise_mr_advice advice,
-				      u32 flags, struct ib_sge *sg_list,
-				      u32 num_sge)
+static inline int
+mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
+			   enum ib_uverbs_advise_mr_advice advice, u32 flags,
+			   struct ib_sge *sg_list, u32 num_sge)
 {
 	return -EOPNOTSUPP;
 }
