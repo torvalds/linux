@@ -747,6 +747,7 @@ struct AdapterControlBlock
 	uint32_t		outbound_int_enable;
 	uint32_t		cdb_phyaddr_hi32;
 	uint32_t		reg_mu_acc_handle0;
+	uint64_t		cdb_phyadd_hipart;
 	spinlock_t		eh_lock;
 	spinlock_t		ccblist_lock;
 	spinlock_t		postq_lock;
@@ -855,11 +856,11 @@ struct AdapterControlBlock
 *******************************************************************************
 */
 struct CommandControlBlock{
-	/*x32:sizeof struct_CCB=(32+60)byte, x64:sizeof struct_CCB=(64+60)byte*/
+	/*x32:sizeof struct_CCB=(64+60)byte, x64:sizeof struct_CCB=(64+60)byte*/
 	struct list_head		list;		/*x32: 8byte, x64: 16byte*/
 	struct scsi_cmnd		*pcmd;		/*8 bytes pointer of linux scsi command */
 	struct AdapterControlBlock	*acb;		/*x32: 4byte, x64: 8byte*/
-	uint32_t			cdb_phyaddr;	/*x32: 4byte, x64: 4byte*/
+	unsigned long			cdb_phyaddr;	/*x32: 4byte, x64: 8byte*/
 	uint32_t			arc_cdb_size;	/*x32:4byte,x64:4byte*/
 	uint16_t			ccb_flags;	/*x32: 2byte, x64: 2byte*/
 #define	CCB_FLAG_READ		0x0000
@@ -875,10 +876,10 @@ struct CommandControlBlock{
 	uint32_t			smid;
 #if BITS_PER_LONG == 64
 	/*  ======================512+64 bytes========================  */
-		uint32_t		reserved[4];	/*16 byte*/
+		uint32_t		reserved[3];	/*12 byte*/
 #else
 	/*  ======================512+32 bytes========================  */
-	//	uint32_t		reserved;	/*4  byte*/
+		uint32_t		reserved[8];	/*32  byte*/
 #endif
 	/*  =======================================================   */
 	struct ARCMSR_CDB		arcmsr_cdb;

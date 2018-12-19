@@ -694,11 +694,11 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 	dma_addr_t dma_coherent_handle;
 	struct CommandControlBlock *ccb_tmp;
 	int i = 0, j = 0;
-	dma_addr_t cdb_phyaddr;
+	unsigned long cdb_phyaddr, next_ccb_phy;
 	unsigned long roundup_ccbsize;
 	unsigned long max_xfer_len;
 	unsigned long max_sg_entrys;
-	uint32_t  firm_config_version;
+	uint32_t  firm_config_version, curr_phy_upper32;
 
 	for (i = 0; i < ARCMSR_MAX_TARGETID; i++)
 		for (j = 0; j < ARCMSR_MAX_TARGETLUN; j++)
@@ -726,9 +726,10 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 	memset(dma_coherent, 0, acb->uncache_size);
 	acb->ccbsize = roundup_ccbsize;
 	ccb_tmp = dma_coherent;
+	curr_phy_upper32 = upper_32_bits(dma_coherent_handle);
 	acb->vir2phy_offset = (unsigned long)dma_coherent - (unsigned long)dma_coherent_handle;
 	for(i = 0; i < acb->maxFreeCCB; i++){
-		cdb_phyaddr = dma_coherent_handle + offsetof(struct CommandControlBlock, arcmsr_cdb);
+		cdb_phyaddr = (unsigned long)dma_coherent_handle + offsetof(struct CommandControlBlock, arcmsr_cdb);
 		switch (acb->adapter_type) {
 		case ACB_ADAPTER_TYPE_A:
 		case ACB_ADAPTER_TYPE_B:
@@ -744,9 +745,16 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 		ccb_tmp->acb = acb;
 		ccb_tmp->smid = (u32)i << 16;
 		INIT_LIST_HEAD(&ccb_tmp->list);
-		list_add_tail(&ccb_tmp->list, &acb->ccb_free_list);
+		next_ccb_phy = dma_coherent_handle + roundup_ccbsize;
+		if (upper_32_bits(next_ccb_phy) != curr_phy_upper32) {
+			acb->maxFreeCCB = i;
+			acb->host->can_queue = i;
+			break;
+		}
+		else
+			list_add_tail(&ccb_tmp->list, &acb->ccb_free_list);
 		ccb_tmp = (struct CommandControlBlock *)((unsigned long)ccb_tmp + roundup_ccbsize);
-		dma_coherent_handle = dma_coherent_handle + roundup_ccbsize;
+		dma_coherent_handle = next_ccb_phy;
 	}
 	acb->dma_coherent_handle2 = dma_coherent_handle;
 	acb->dma_coherent2 = ccb_tmp;
@@ -3701,6 +3709,7 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 	cdb_phyaddr = lower_32_bits(dma_coherent_handle);
 	cdb_phyaddr_hi32 = upper_32_bits(dma_coherent_handle);
 	acb->cdb_phyaddr_hi32 = cdb_phyaddr_hi32;
+	acb->cdb_phyadd_hipart = ((uint64_t)cdb_phyaddr_hi32) << 32;
 	/*
 	***********************************************************************
 	**    if adapter type B, set window of "post command Q"
