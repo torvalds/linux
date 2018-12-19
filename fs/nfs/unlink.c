@@ -348,11 +348,6 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 	task_setup_data.callback_data = data;
 
 	data->cred = get_current_cred();
-	if (IS_ERR(data->cred)) {
-		struct rpc_task *task = ERR_CAST(data->cred);
-		kfree(data);
-		return task;
-	}
 
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;
