@@ -19,6 +19,7 @@
 #ifndef __ARM_KVM_HOST_H__
 #define __ARM_KVM_HOST_H__
 
+#include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <asm/cputype.h>
@@ -410,5 +411,8 @@ static inline int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type)
 		return -EINVAL;
 	return 0;
 }
+
+#define kvm_arm_vcpu_finalize(vcpu, what) (-EINVAL)
+#define kvm_arm_vcpu_is_finalized(vcpu) true
 
 #endif /* __ARM_KVM_HOST_H__ */
