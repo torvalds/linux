@@ -117,15 +117,15 @@ static void
 frwr_mr_recycle_worker(struct work_struct *work)
 {
 	struct rpcrdma_mr *mr = container_of(work, struct rpcrdma_mr, mr_recycle);
-	enum rpcrdma_frwr_state state = mr->frwr.fr_state;
 	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
 
 	trace_xprtrdma_mr_recycle(mr);
 
-	if (state != FRWR_FLUSHED_LI) {
+	if (mr->mr_dir != DMA_NONE) {
 		trace_xprtrdma_mr_unmap(mr);
 		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
+		mr->mr_dir = DMA_NONE;
 	}
 
 	spin_lock(&r_xprt->rx_buf.rb_mrlock);
@@ -150,6 +150,8 @@ frwr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	if (!mr->mr_sg)
 		goto out_list_err;
 
+	frwr->fr_state = FRWR_IS_INVALID;
+	mr->mr_dir = DMA_NONE;
 	INIT_LIST_HEAD(&mr->mr_list);
 	INIT_WORK(&mr->mr_recycle, frwr_mr_recycle_worker);
 	sg_init_table(mr->mr_sg, depth);
