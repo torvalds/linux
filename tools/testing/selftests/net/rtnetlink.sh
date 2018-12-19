@@ -1007,6 +1007,59 @@ kci_test_fdb_get()
 	echo "PASS: bridge fdb get"
 }
 
+kci_test_neigh_get()
+{
+	dstmac=de:ad:be:ef:13:37
+	dstip=10.0.2.4
+	dstip6=dead::2
+	ret=0
+
+	ip neigh help 2>&1 |grep -q 'ip neigh get'
+	if [ $? -ne 0 ];then
+		echo "SKIP: fdb get tests: iproute2 too old"
+		return $ksft_skip
+	fi
+
+	# ipv4
+	ip neigh add $dstip lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+	ip neigh get $dstip dev "$devdummy" 2> /dev/null | grep -q "$dstmac"
+	check_err $?
+	ip neigh del $dstip lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+
+	# ipv4 proxy
+	ip neigh add proxy $dstip dev "$devdummy" > /dev/null
+	check_err $?
+	ip neigh get proxy $dstip dev "$devdummy" 2>/dev/null | grep -q "$dstip"
+	check_err $?
+	ip neigh del proxy $dstip dev "$devdummy" > /dev/null
+	check_err $?
+
+	# ipv6
+	ip neigh add $dstip6 lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+	ip neigh get $dstip6 dev "$devdummy" 2> /dev/null | grep -q "$dstmac"
+	check_err $?
+	ip neigh del $dstip6 lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+
+	# ipv6 proxy
+	ip neigh add proxy $dstip6 dev "$devdummy" > /dev/null
+	check_err $?
+	ip neigh get proxy $dstip6 dev "$devdummy" 2>/dev/null | grep -q "$dstip6"
+	check_err $?
+	ip neigh del proxy $dstip6 dev "$devdummy" > /dev/null
+	check_err $?
+
+	if [ $ret -ne 0 ];then
+		echo "FAIL: neigh get"
+		return 1
+	fi
+
+	echo "PASS: neigh get"
+}
+
 kci_test_rtnl()
 {
 	kci_add_dummy
@@ -1032,6 +1085,7 @@ kci_test_rtnl()
 	kci_test_ipsec
 	kci_test_ipsec_offload
 	kci_test_fdb_get
+	kci_test_neigh_get
 
 	kci_del_dummy
 }
