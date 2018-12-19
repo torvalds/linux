@@ -129,6 +129,17 @@ struct ice_res_tracker {
 	u16 list[1];
 };
 
+struct ice_qs_cfg {
+	struct mutex *qs_mutex;  /* will be assgined to &pf->avail_q_mutex */
+	unsigned long *pf_map;
+	unsigned long pf_map_size;
+	unsigned int q_count;
+	unsigned int scatter_count;
+	u16 *vsi_map;
+	u16 vsi_map_offset;
+	u8 mapping_mode;
+};
+
 struct ice_sw {
 	struct ice_pf *pf;
 	u16 sw_id;		/* switch ID for this switch */
