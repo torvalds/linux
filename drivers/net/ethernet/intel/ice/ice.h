@@ -110,6 +110,9 @@ extern const char ice_drv_ver[];
 #define ice_for_each_alloc_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->alloc_rxq; (i)++)
 
+#define ice_for_each_q_vector(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->num_q_vectors; (i)++)
+
 struct ice_tc_info {
 	u16 qoffset;
 	u16 qcount_tx;
