@@ -9,4 +9,3 @@
 #include <linux/compiler.h>
 #include <asm/refcount.h>
 #include <asm/alternative-asm.h>
-#include <asm/bug.h>
