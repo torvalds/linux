@@ -299,6 +299,7 @@ static void pnv_npu_take_ownership(struct iommu_table_group *table_group)
 			table_group);
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
+	struct pci_dev *gpdev = NULL;
 
 	/*
 	 * Note: NPU has just a single TVE in the hardware which means that
@@ -320,12 +321,28 @@ static void pnv_npu_take_ownership(struct iommu_table_group *table_group)
 		return;
 	}
 	pnv_pci_ioda2_tce_invalidate_entire(npe->phb, false);
+
+	get_gpu_pci_dev_and_pe(npe, &gpdev);
+	if (gpdev)
+		pnv_npu2_unmap_lpar_dev(gpdev);
+}
+
+static void pnv_npu_release_ownership(struct iommu_table_group *table_group)
+{
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
+	struct pci_dev *gpdev = NULL;
+
+	get_gpu_pci_dev_and_pe(npe, &gpdev);
+	if (gpdev)
+		pnv_npu2_map_lpar_dev(gpdev, 0, MSR_DR | MSR_PR | MSR_HV);
 }
 
 static struct iommu_table_group_ops pnv_pci_npu_ops = {
 	.set_window = pnv_npu_set_window,
 	.unset_window = pnv_npu_unset_window,
 	.take_ownership = pnv_npu_take_ownership,
+	.release_ownership = pnv_npu_release_ownership,
 };
 #endif /* !CONFIG_IOMMU_API */
 
@@ -1236,3 +1253,37 @@ void pnv_npu2_map_lpar(struct pnv_ioda_pe *gpe, unsigned long msr)
 	list_for_each_entry(gpdev, &gpe->pbus->devices, bus_list)
 		pnv_npu2_map_lpar_dev(gpdev, 0, msr);
 }
+
+int pnv_npu2_unmap_lpar_dev(struct pci_dev *gpdev)
+{
+	int ret;
+	struct pci_dev *npdev = pnv_pci_get_npu_dev(gpdev, 0);
+	struct pci_controller *hose;
+	struct pnv_phb *nphb;
+
+	if (!npdev)
+		return -ENODEV;
+
+	hose = pci_bus_to_host(npdev->bus);
+	nphb = hose->private_data;
+
+	dev_dbg(&gpdev->dev, "destroy context opalid=%llu\n",
+			nphb->opal_id);
+	ret = opal_npu_destroy_context(nphb->opal_id, 0/*__unused*/,
+			PCI_DEVID(gpdev->bus->number, gpdev->devfn));
+	if (ret < 0) {
+		dev_err(&gpdev->dev, "Failed to destroy context: %d\n", ret);
+		return ret;
+	}
+
+	/* Set LPID to 0 anyway, just to be safe */
+	dev_dbg(&gpdev->dev, "Map LPAR opalid=%llu lparid=0\n", nphb->opal_id);
+	ret = opal_npu_map_lpar(nphb->opal_id,
+			PCI_DEVID(gpdev->bus->number, gpdev->devfn), 0 /*LPID*/,
+			0 /* LPCR bits */);
+	if (ret)
+		dev_err(&gpdev->dev, "Error %d mapping device to LPAR\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pnv_npu2_unmap_lpar_dev);
