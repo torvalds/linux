@@ -5156,6 +5156,48 @@ static int mlxsw_sp_netdevice_lag_port_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
+static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
+						struct net_device *br_dev,
+						unsigned long event, void *ptr,
+						u16 vid)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(vlan_dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *upper_dev;
+
+	if (!mlxsw_sp)
+		return 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (!netif_is_macvlan(upper_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+			return -EOPNOTSUPP;
+		}
+		if (!info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, vlan_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
+		}
+		break;
+	case NETDEV_CHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev))
+			mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
+		break;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 					 unsigned long event, void *ptr)
 {
@@ -5169,6 +5211,9 @@ static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 		return mlxsw_sp_netdevice_lag_port_vlan_event(vlan_dev,
 							      real_dev, event,
 							      ptr, vid);
+	else if (netif_is_bridge_master(real_dev))
+		return mlxsw_sp_netdevice_bridge_vlan_event(vlan_dev, real_dev,
+							    event, ptr, vid);
 
 	return 0;
 }
