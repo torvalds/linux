@@ -6302,6 +6302,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		err = -ENOMEM;
 		goto err_rif_alloc;
 	}
+	dev_hold(rif->dev);
 	rif->mlxsw_sp = mlxsw_sp;
 	rif->ops = ops;
 
@@ -6340,6 +6341,7 @@ err_configure:
 	if (fid)
 		mlxsw_sp_fid_put(fid);
 err_fid_get:
+	dev_put(rif->dev);
 	kfree(rif);
 err_rif_alloc:
 err_rif_index_alloc:
@@ -6367,6 +6369,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	if (fid)
 		/* Loopback RIFs are not associated with a FID. */
 		mlxsw_sp_fid_put(fid);
+	dev_put(rif->dev);
 	kfree(rif);
 	vr->rif_count--;
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
