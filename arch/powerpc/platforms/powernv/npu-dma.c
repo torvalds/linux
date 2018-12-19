@@ -1178,8 +1178,9 @@ int pnv_npu2_init(struct pci_controller *hose)
 
 	npu->nmmu_flush = of_property_read_bool(hose->dn, "ibm,nmmu-flush");
 
-	for (i = 0; !of_property_read_u64_index(hose->dn, "ibm,mmio-atsd",
-							i, &mmio_atsd); i++)
+	for (i = 0; i < ARRAY_SIZE(npu->mmio_atsd_regs) &&
+			!of_property_read_u64_index(hose->dn, "ibm,mmio-atsd",
+				i, &mmio_atsd); i++)
 		npu->mmio_atsd_regs[i] = ioremap(mmio_atsd, 32);
 
 	pr_info("NPU%d: Found %d MMIO ATSD registers", hose->global_number, i);
