@@ -223,9 +223,9 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	 * the length (as bytes) is needed to know the correct copy
 	 * length of data from tlvd->tlv.
 	 */
-	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv))) {
+	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
 		return -EFAULT;
-	}
+
 	/* The maximum length that can be copied is limited by IPC max
 	 * length and topology defined length for ext bytes control.
 	 */
@@ -244,9 +244,8 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (copy_from_user(cdata->data, tlvd->tlv, header.length)) {
+	if (copy_from_user(cdata->data, tlvd->tlv, header.length))
 		return -EFAULT;
-	}
 
 	if (cdata->data->magic != SOF_ABI_MAGIC) {
 		dev_err_ratelimited(sdev->dev, "error: Wrong ABI magic 0x%08x.\n",
