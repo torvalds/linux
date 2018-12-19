@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include "rk1808-evb.dtsi"
+
+/ {
+	model = "Rockchip RK1808 EVB X4 Board";
+	compatible = "rockchip,rk1808-evb-x4", "rockchip,rk1808";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff550000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootwait swiotlb=1 kpti=0";
+	};
+};
+
+&emmc {
+	status = "disabled";
+};
+
+&npu {
+	status = "disabled";
+};
+
+&rk809_codec {
+	status = "disabled";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&sdmmc {
+	status = "disabled";
+};
+
+&sdio {
+	status = "disabled";
+};
+
+&sfc {
+	status = "okay";
+};
+
+&tsadc {
+	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+	pinctrl-names = "init", "default";
+	pinctrl-0 = <&tsadc_otp_gpio>;
+	pinctrl-1 = <&tsadc_otp_out>;
+	status = "okay";
+};
