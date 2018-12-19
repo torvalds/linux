@@ -1316,6 +1316,15 @@ static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
 };
 
+bool mlx5e_eswitch_rep(struct net_device *netdev)
+{
+	if (netdev->netdev_ops == &mlx5e_netdev_ops_vf_rep ||
+	    netdev->netdev_ops == &mlx5e_netdev_ops_uplink_rep)
+		return true;
+
+	return false;
+}
+
 static void mlx5e_build_rep_params(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);

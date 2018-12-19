@@ -2583,6 +2583,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				    uplink_upper == out_dev)
 					out_dev = uplink_dev;
 
+				if (!mlx5e_eswitch_rep(out_dev))
+					return -EOPNOTSUPP;
+
 				out_priv = netdev_priv(out_dev);
 				rpriv = out_priv->ppriv;
 				attr->dests[attr->out_count].rep = rpriv->rep;
