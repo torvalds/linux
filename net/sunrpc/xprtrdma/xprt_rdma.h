@@ -80,8 +80,6 @@ struct rpcrdma_ia {
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
 	unsigned long		ri_flags;
-	struct ib_qp_attr	ri_qp_attr;
-	struct ib_qp_init_attr	ri_qp_init_attr;
 };
 
 enum {
