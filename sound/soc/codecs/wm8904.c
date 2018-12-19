@@ -2108,16 +2108,13 @@ static const struct regmap_config wm8904_regmap = {
 };
 
 #ifdef CONFIG_OF
-static enum wm8904_type wm8904_data = WM8904;
-static enum wm8904_type wm8912_data = WM8912;
-
 static const struct of_device_id wm8904_of_match[] = {
 	{
 		.compatible = "wlf,wm8904",
-		.data = &wm8904_data,
+		.data = (void *)WM8904,
 	}, {
 		.compatible = "wlf,wm8912",
-		.data = &wm8912_data,
+		.data = (void *)WM8912,
 	}, {
 		/* sentinel */
 	}
@@ -2158,7 +2155,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c,
 		match = of_match_node(wm8904_of_match, i2c->dev.of_node);
 		if (match == NULL)
 			return -EINVAL;
-		wm8904->devtype = *((enum wm8904_type *)match->data);
+		wm8904->devtype = (enum wm8904_type)match->data;
 	} else {
 		wm8904->devtype = id->driver_data;
 	}
