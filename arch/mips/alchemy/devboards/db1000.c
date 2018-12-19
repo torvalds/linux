@@ -82,6 +82,8 @@ static int db1500_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 	return -1;
 }
 
+static u64 au1xxx_all_dmamask = DMA_BIT_MASK(32);
+
 static struct resource alchemy_pci_host_res[] = {
 	[0] = {
 		.start	= AU1500_PCI_PHYS_ADDR,
@@ -120,13 +122,11 @@ static struct resource au1100_lcd_resources[] = {
 	}
 };
 
-static u64 au1100_lcd_dmamask = DMA_BIT_MASK(32);
-
 static struct platform_device au1100_lcd_device = {
 	.name		= "au1100-lcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1100_lcd_dmamask,
+		.dma_mask		= &au1xxx_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(au1100_lcd_resources),
@@ -170,6 +170,10 @@ static struct platform_device db1x00_codec_dev = {
 
 static struct platform_device db1x00_audio_dev = {
 	.name		= "db1000-audio",
+	.dev = {
+		.dma_mask		= &au1xxx_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 /******************************************************************************/
@@ -338,13 +342,11 @@ static struct resource au1100_mmc0_resources[] = {
 	}
 };
 
-static u64 au1xxx_mmc_dmamask =	 DMA_BIT_MASK(32);
-
 static struct platform_device db1100_mmc0_dev = {
 	.name		= "au1xxx-mmc",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
+		.dma_mask		= &au1xxx_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1100_mmc_platdata[0],
 	},
@@ -379,7 +381,7 @@ static struct platform_device db1100_mmc1_dev = {
 	.name		= "au1xxx-mmc",
 	.id		= 1,
 	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
+		.dma_mask		= &au1xxx_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1100_mmc_platdata[1],
 	},
@@ -416,6 +418,8 @@ static struct platform_device db1100_spi_dev = {
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &db1100_spictl_pd,
+		.dma_mask		= &au1xxx_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
