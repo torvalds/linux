@@ -775,6 +775,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
+void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 int mlx5e_self_test_num(struct mlx5e_priv *priv);
@@ -939,7 +940,7 @@ int mlx5e_create_tis(struct mlx5_core_dev *mdev, int tc,
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn);
 
 int mlx5e_create_tises(struct mlx5e_priv *priv);
-void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
+void mlx5e_update_carrier(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_ndo_stats(struct mlx5e_priv *priv);
@@ -948,6 +949,7 @@ void mlx5e_queue_update_stats(struct mlx5e_priv *priv);
 int mlx5e_bits_invert(unsigned long a, int size);
 
 typedef int (*change_hw_mtu_cb)(struct mlx5e_priv *priv);
+int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv);
 int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		     change_hw_mtu_cb set_mtu_cb);
 
@@ -971,12 +973,20 @@ int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal);
 int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal);
+int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
+				     struct ethtool_link_ksettings *link_ksettings);
+int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
+				     const struct ethtool_link_ksettings *link_ksettings);
 u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv);
 u32 mlx5e_ethtool_get_rxfh_indir_size(struct mlx5e_priv *priv);
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 			      struct ethtool_ts_info *info);
 int mlx5e_ethtool_flash_device(struct mlx5e_priv *priv,
 			       struct ethtool_flash *flash);
+void mlx5e_ethtool_get_pauseparam(struct mlx5e_priv *priv,
+				  struct ethtool_pauseparam *pauseparam);
+int mlx5e_ethtool_set_pauseparam(struct mlx5e_priv *priv,
+				 struct ethtool_pauseparam *pauseparam);
 
 /* mlx5e generic netdev management API */
 int mlx5e_netdev_init(struct net_device *netdev,
@@ -1002,4 +1012,16 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 u8 mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev);
 void mlx5e_rx_dim_work(struct work_struct *work);
 void mlx5e_tx_dim_work(struct work_struct *work);
+
+void mlx5e_add_vxlan_port(struct net_device *netdev, struct udp_tunnel_info *ti);
+void mlx5e_del_vxlan_port(struct net_device *netdev, struct udp_tunnel_info *ti);
+netdev_features_t mlx5e_features_check(struct sk_buff *skb,
+				       struct net_device *netdev,
+				       netdev_features_t features);
+#ifdef CONFIG_MLX5_ESWITCH
+int mlx5e_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
+int mlx5e_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate, int max_tx_rate);
+int mlx5e_get_vf_config(struct net_device *dev, int vf, struct ifla_vf_info *ivi);
+int mlx5e_get_vf_stats(struct net_device *dev, int vf, struct ifla_vf_stats *vf_stats);
+#endif
 #endif /* __MLX5_EN_H__ */

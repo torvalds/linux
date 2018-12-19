@@ -1630,6 +1630,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 		esw_warn(esw->dev, "E-Switch engress ACL is not supported by FW\n");
 
 	esw_info(esw->dev, "E-Switch enable SRIOV: nvfs(%d) mode (%d)\n", nvfs, mode);
+
 	esw->mode = mode;
 
 	mlx5_lag_update(esw->dev);
@@ -1637,8 +1638,8 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (mode == SRIOV_LEGACY) {
 		err = esw_create_legacy_fdb_table(esw);
 	} else {
+		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
-
 		err = esw_offloads_init(esw, nvfs + 1);
 	}
 
@@ -1669,8 +1670,10 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 abort:
 	esw->mode = SRIOV_NONE;
 
-	if (mode == SRIOV_OFFLOADS)
+	if (mode == SRIOV_OFFLOADS) {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
+	}
 
 	return err;
 }
@@ -1712,8 +1715,10 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 
 	mlx5_lag_update(esw->dev);
 
-	if (old_mode == SRIOV_OFFLOADS)
+	if (old_mode == SRIOV_OFFLOADS) {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
+	}
 }
 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
