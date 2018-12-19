@@ -155,36 +155,39 @@ frwr_mr_recycle_worker(struct work_struct *work)
 int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 {
 	unsigned int depth = ia->ri_max_frwr_depth;
-	struct rpcrdma_frwr *frwr = &mr->frwr;
+	struct scatterlist *sg;
+	struct ib_mr *frmr;
 	int rc;
 
-	frwr->fr_mr = ib_alloc_mr(ia->ri_pd, ia->ri_mrtype, depth);
-	if (IS_ERR(frwr->fr_mr))
+	frmr = ib_alloc_mr(ia->ri_pd, ia->ri_mrtype, depth);
+	if (IS_ERR(frmr))
 		goto out_mr_err;
 
-	mr->mr_sg = kcalloc(depth, sizeof(*mr->mr_sg), GFP_KERNEL);
-	if (!mr->mr_sg)
+	sg = kcalloc(depth, sizeof(*sg), GFP_KERNEL);
+	if (!sg)
 		goto out_list_err;
 
-	frwr->fr_state = FRWR_IS_INVALID;
+	mr->frwr.fr_mr = frmr;
+	mr->frwr.fr_state = FRWR_IS_INVALID;
 	mr->mr_dir = DMA_NONE;
 	INIT_LIST_HEAD(&mr->mr_list);
 	INIT_WORK(&mr->mr_recycle, frwr_mr_recycle_worker);
-	sg_init_table(mr->mr_sg, depth);
-	init_completion(&frwr->fr_linv_done);
+	init_completion(&mr->frwr.fr_linv_done);
+
+	sg_init_table(sg, depth);
+	mr->mr_sg = sg;
 	return 0;
 
 out_mr_err:
-	rc = PTR_ERR(frwr->fr_mr);
+	rc = PTR_ERR(frmr);
 	trace_xprtrdma_frwr_alloc(mr, rc);
 	return rc;
 
 out_list_err:
-	rc = -ENOMEM;
 	dprintk("RPC:       %s: sg allocation failure\n",
 		__func__);
-	ib_dereg_mr(frwr->fr_mr);
-	return rc;
+	ib_dereg_mr(frmr);
+	return -ENOMEM;
 }
 
 /**
