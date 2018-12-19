@@ -32,12 +32,6 @@ struct goldfish_battery_data {
 #define GOLDFISH_BATTERY_WRITE(data, addr, x) \
 	(writel(x, data->reg_base + addr))
 
-/*
- * Temporary variable used between goldfish_battery_probe() and
- * goldfish_battery_open().
- */
-static struct goldfish_battery_data *battery_data;
-
 enum {
 	/* status register */
 	BATTERY_INT_STATUS	    = 0x00,
@@ -205,7 +199,6 @@ static int goldfish_battery_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, data);
-	battery_data = data;
 
 	GOLDFISH_BATTERY_WRITE(data, BATTERY_INT_ENABLE, BATTERY_INT_MASK);
 	return 0;
@@ -217,7 +210,6 @@ static int goldfish_battery_remove(struct platform_device *pdev)
 
 	power_supply_unregister(data->battery);
 	power_supply_unregister(data->ac);
-	battery_data = NULL;
 	return 0;
 }
 
