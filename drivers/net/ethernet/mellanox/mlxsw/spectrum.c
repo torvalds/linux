@@ -4681,6 +4681,16 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		} else if (netif_is_macvlan(upper_dev)) {
 			if (!info->linking)
 				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
+		} else if (is_vlan_dev(upper_dev)) {
+			struct net_device *br_dev;
+
+			if (!netif_is_bridge_port(upper_dev))
+				break;
+			if (info->linking)
+				break;
+			br_dev = netdev_master_upper_dev_get(upper_dev);
+			mlxsw_sp_port_bridge_leave(mlxsw_sp_port, upper_dev,
+						   br_dev);
 		}
 		break;
 	}
