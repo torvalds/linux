@@ -2686,7 +2686,9 @@ static int trace__set_ev_qualifier_filter(struct trace *trace)
 {
 	if (trace->syscalls.map)
 		return trace__set_ev_qualifier_bpf_filter(trace);
-	return trace__set_ev_qualifier_tp_filter(trace);
+	if (trace->syscalls.events.sys_enter)
+		return trace__set_ev_qualifier_tp_filter(trace);
+	return 0;
 }
 
 static int bpf_map__set_filter_pids(struct bpf_map *map __maybe_unused,
