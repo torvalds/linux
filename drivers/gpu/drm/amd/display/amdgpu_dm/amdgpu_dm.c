@@ -4618,105 +4618,6 @@ static void update_freesync_state_on_stream(
 				  vrr_params.adjust.v_total_max);
 }
 
-/*
- * TODO this whole function needs to go
- *
- * dc_surface_update is needlessly complex. See if we can just replace this
- * with a dc_plane_state and follow the atomic model a bit more closely here.
- */
-static bool commit_planes_to_stream(
-		struct amdgpu_display_manager *dm,
-		struct dc *dc,
-		struct dc_plane_state **plane_states,
-		uint8_t new_plane_count,
-		struct dm_crtc_state *dm_new_crtc_state,
-		struct dm_crtc_state *dm_old_crtc_state,
-		struct dc_state *state)
-{
-	/* no need to dynamically allocate this. it's pretty small */
-	struct dc_surface_update updates[MAX_SURFACES];
-	struct dc_flip_addrs *flip_addr;
-	struct dc_plane_info *plane_info;
-	struct dc_scaling_info *scaling_info;
-	int i;
-	struct dc_stream_state *dc_stream = dm_new_crtc_state->stream;
-	struct dc_stream_update *stream_update =
-			kzalloc(sizeof(struct dc_stream_update), GFP_KERNEL);
-	unsigned int abm_level;
-
-	if (!stream_update) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	flip_addr = kcalloc(MAX_SURFACES, sizeof(struct dc_flip_addrs),
-			    GFP_KERNEL);
-	plane_info = kcalloc(MAX_SURFACES, sizeof(struct dc_plane_info),
-			     GFP_KERNEL);
-	scaling_info = kcalloc(MAX_SURFACES, sizeof(struct dc_scaling_info),
-			       GFP_KERNEL);
-
-	if (!flip_addr || !plane_info || !scaling_info) {
-		kfree(flip_addr);
-		kfree(plane_info);
-		kfree(scaling_info);
-		kfree(stream_update);
-		return false;
-	}
-
-	memset(updates, 0, sizeof(updates));
-
-	stream_update->src = dc_stream->src;
-	stream_update->dst = dc_stream->dst;
-	stream_update->out_transfer_func = dc_stream->out_transfer_func;
-
-	if (dm_new_crtc_state->abm_level != dm_old_crtc_state->abm_level) {
-		abm_level = dm_new_crtc_state->abm_level;
-		stream_update->abm_level = &abm_level;
-	}
-
-	for (i = 0; i < new_plane_count; i++) {
-		updates[i].surface = plane_states[i];
-		updates[i].gamma =
-			(struct dc_gamma *)plane_states[i]->gamma_correction;
-		updates[i].in_transfer_func = plane_states[i]->in_transfer_func;
-		flip_addr[i].address = plane_states[i]->address;
-		flip_addr[i].flip_immediate = plane_states[i]->flip_immediate;
-		plane_info[i].color_space = plane_states[i]->color_space;
-		plane_info[i].format = plane_states[i]->format;
-		plane_info[i].plane_size = plane_states[i]->plane_size;
-		plane_info[i].rotation = plane_states[i]->rotation;
-		plane_info[i].horizontal_mirror = plane_states[i]->horizontal_mirror;
-		plane_info[i].stereo_format = plane_states[i]->stereo_format;
-		plane_info[i].tiling_info = plane_states[i]->tiling_info;
-		plane_info[i].visible = plane_states[i]->visible;
-		plane_info[i].per_pixel_alpha = plane_states[i]->per_pixel_alpha;
-		plane_info[i].dcc = plane_states[i]->dcc;
-		scaling_info[i].scaling_quality = plane_states[i]->scaling_quality;
-		scaling_info[i].src_rect = plane_states[i]->src_rect;
-		scaling_info[i].dst_rect = plane_states[i]->dst_rect;
-		scaling_info[i].clip_rect = plane_states[i]->clip_rect;
-
-		updates[i].flip_addr = &flip_addr[i];
-		updates[i].plane_info = &plane_info[i];
-		updates[i].scaling_info = &scaling_info[i];
-	}
-
-	mutex_lock(&dm->dc_lock);
-	dc_commit_updates_for_stream(
-			dc,
-			updates,
-			new_plane_count,
-			dc_stream, stream_update, state);
-	mutex_unlock(&dm->dc_lock);
-
-	kfree(flip_addr);
-	kfree(plane_info);
-	kfree(scaling_info);
-	kfree(stream_update);
-	return true;
-}
-
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct dc_state *dc_state,
 				    struct drm_device *dev,
@@ -4728,7 +4629,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	uint64_t timestamp_ns;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
-	struct dc_plane_state *plane_states_constructed[MAX_SURFACES];
 	struct amdgpu_crtc *acrtc_attach = to_amdgpu_crtc(pcrtc);
 	struct drm_crtc_state *new_pcrtc_state =
 			drm_atomic_get_new_crtc_state(state, pcrtc);
@@ -4748,9 +4648,17 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct dc_stream_update stream_update;
 	} *flip;
 
-	flip = kzalloc(sizeof(*flip), GFP_KERNEL);
+	struct {
+		struct dc_surface_update surface_updates[MAX_SURFACES];
+		struct dc_plane_info plane_infos[MAX_SURFACES];
+		struct dc_scaling_info scaling_infos[MAX_SURFACES];
+		struct dc_stream_update stream_update;
+	} *full;
 
-	if (!flip)
+	flip = kzalloc(sizeof(*flip), GFP_KERNEL);
+	full = kzalloc(sizeof(*full), GFP_KERNEL);
+
+	if (!flip || !full)
 		dm_error("Failed to allocate update bundles\n");
 
 	/* update planes when needed */
@@ -4760,9 +4668,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct drm_framebuffer *fb = new_plane_state->fb;
 		struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
 		bool pflip_needed;
-		struct dc_plane_state *surface;
+		struct dc_plane_state *surface, *dc_plane;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
-
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
 			handle_cursor_update(plane, old_plane_state);
@@ -4778,14 +4685,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		pflip_needed = !state->allow_modeset;
 
-		if (!pflip_needed || plane->type == DRM_PLANE_TYPE_OVERLAY) {
-			WARN_ON(!dm_new_plane_state->dc_state);
+		dc_plane = dm_new_plane_state->dc_state;
 
-			plane_states_constructed[planes_count] = dm_new_plane_state->dc_state;
-
-			planes_count++;
-
-		} else if (new_crtc_state->planes_changed) {
+		if (pflip_needed) {
 			/*
 			 * Assume even ONE crtc with immediate flip means
 			 * entire can't wait for VBLANK
@@ -4869,8 +4771,42 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			flip_count += 1;
 		}
 
+		full->surface_updates[planes_count].surface = dc_plane;
+		if (new_pcrtc_state->color_mgmt_changed) {
+			full->surface_updates[planes_count].gamma = dc_plane->gamma_correction;
+			full->surface_updates[planes_count].in_transfer_func = dc_plane->in_transfer_func;
+		}
+
+
+		full->scaling_infos[planes_count].scaling_quality = dc_plane->scaling_quality;
+		full->scaling_infos[planes_count].src_rect = dc_plane->src_rect;
+		full->scaling_infos[planes_count].dst_rect = dc_plane->dst_rect;
+		full->scaling_infos[planes_count].clip_rect = dc_plane->clip_rect;
+		full->surface_updates[planes_count].scaling_info = &full->scaling_infos[planes_count];
+
+
+		full->plane_infos[planes_count].color_space = dc_plane->color_space;
+		full->plane_infos[planes_count].format = dc_plane->format;
+		full->plane_infos[planes_count].plane_size = dc_plane->plane_size;
+		full->plane_infos[planes_count].rotation = dc_plane->rotation;
+		full->plane_infos[planes_count].horizontal_mirror = dc_plane->horizontal_mirror;
+		full->plane_infos[planes_count].stereo_format = dc_plane->stereo_format;
+		full->plane_infos[planes_count].tiling_info = dc_plane->tiling_info;
+		full->plane_infos[planes_count].visible = dc_plane->visible;
+		full->plane_infos[planes_count].per_pixel_alpha = dc_plane->per_pixel_alpha;
+		full->plane_infos[planes_count].dcc = dc_plane->dcc;
+		full->surface_updates[planes_count].plane_info = &full->plane_infos[planes_count];
+
+		planes_count += 1;
+
 	}
 
+	/*
+	 * TODO: For proper atomic behaviour, we should be calling into DC once with
+	 * all the changes.  However, DC refuses to do pageflips and non-pageflip
+	 * changes in the same call.  Change DC to respect atomic behaviour,
+	 * hopefully eliminating dc_*_update structs in their entirety.
+	 */
 	if (flip_count) {
 		target = (uint32_t)drm_crtc_vblank_count(pcrtc) + *wait_for_vblank;
 		/* Prepare wait for target vblank early - before the fence-waits */
@@ -4925,29 +4861,26 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	}
 
 	if (planes_count) {
-		unsigned long flags;
-
-		if (new_pcrtc_state->event) {
-
-			drm_crtc_vblank_get(pcrtc);
-
-			spin_lock_irqsave(&pcrtc->dev->event_lock, flags);
-			prepare_flip_isr(acrtc_attach);
-			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
+		if (new_pcrtc_state->mode_changed) {
+			full->stream_update.src = acrtc_state->stream->src;
+			full->stream_update.dst = acrtc_state->stream->dst;
 		}
 
-		acrtc_state->stream->abm_level = acrtc_state->abm_level;
+		if (new_pcrtc_state->color_mgmt_changed)
+			full->stream_update.out_transfer_func = acrtc_state->stream->out_transfer_func;
 
-		if (false == commit_planes_to_stream(dm,
-							dm->dc,
-							plane_states_constructed,
-							planes_count,
-							acrtc_state,
-							dm_old_crtc_state,
-							dc_state))
-			dm_error("%s: Failed to attach plane!\n", __func__);
-	} else {
-		/*TODO BUG Here should go disable planes on CRTC. */
+		acrtc_state->stream->abm_level = acrtc_state->abm_level;
+		if (acrtc_state->abm_level != dm_old_crtc_state->abm_level)
+			full->stream_update.abm_level = &acrtc_state->abm_level;
+
+		mutex_lock(&dm->dc_lock);
+		dc_commit_updates_for_stream(dm->dc,
+						     full->surface_updates,
+						     planes_count,
+						     acrtc_state->stream,
+						     &full->stream_update,
+						     dc_state);
+		mutex_unlock(&dm->dc_lock);
 	}
 }
 
