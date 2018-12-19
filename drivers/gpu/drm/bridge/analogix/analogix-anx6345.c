@@ -827,8 +827,6 @@ static int anx6345_i2c_remove(struct i2c_client *client)
 
 	unregister_i2c_dummy_clients(anx6345);
 
-	kfree(anx6345->edid);
-
 	return 0;
 }
 
