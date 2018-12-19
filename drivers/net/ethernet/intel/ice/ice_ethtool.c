@@ -203,6 +203,55 @@ static void ice_set_msglevel(struct net_device *netdev, u32 data)
 #endif /* !CONFIG_DYNAMIC_DEBUG */
 }
 
+static int ice_get_eeprom_len(struct net_device *netdev)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_pf *pf = np->vsi->back;
+
+	return (int)(pf->hw.nvm.sr_words * sizeof(u16));
+}
+
+static int
+ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
+	       u8 *bytes)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	u16 first_word, last_word, nwords;
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+	struct device *dev;
+	int ret = 0;
+	u16 *buf;
+
+	dev = &pf->pdev->dev;
+
+	eeprom->magic = hw->vendor_id | (hw->device_id << 16);
+
+	first_word = eeprom->offset >> 1;
+	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
+	nwords = last_word - first_word + 1;
+
+	buf = devm_kcalloc(dev, nwords, sizeof(u16), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	status = ice_read_sr_buf(hw, first_word, &nwords, buf);
+	if (status) {
+		dev_err(dev, "ice_read_sr_buf failed, err %d aq_err %d\n",
+			status, hw->adminq.sq_last_status);
+		eeprom->len = sizeof(u16) * nwords;
+		ret = -EIO;
+		goto out;
+	}
+
+	memcpy(bytes, (u8 *)buf + (eeprom->offset & 1), eeprom->len);
+out:
+	devm_kfree(dev, buf);
+	return ret;
+}
+
 static void ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
@@ -1699,6 +1748,8 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.get_msglevel           = ice_get_msglevel,
 	.set_msglevel           = ice_set_msglevel,
 	.get_link		= ethtool_op_get_link,
+	.get_eeprom_len		= ice_get_eeprom_len,
+	.get_eeprom		= ice_get_eeprom,
 	.get_strings		= ice_get_strings,
 	.set_phys_id		= ice_set_phys_id,
 	.get_ethtool_stats      = ice_get_ethtool_stats,
