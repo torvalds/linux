@@ -739,7 +739,7 @@ struct AdapterControlBlock
 #define ACB_ADAPTER_TYPE_C		0x00000002	/* hbc L IOP */
 #define ACB_ADAPTER_TYPE_D		0x00000003	/* hbd M IOP */
 #define ACB_ADAPTER_TYPE_E		0x00000004	/* hba L IOP */
-	u32			roundup_ccbsize;
+	u32			ioqueue_size;
 	struct pci_dev *	pdev;
 	struct Scsi_Host *	host;
 	unsigned long		vir2phy_offset;
