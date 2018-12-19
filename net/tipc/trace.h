@@ -113,6 +113,17 @@ enum {
 			{(0xcbe),	"SYNCH_BEGIN_EVT"		},\
 			{(0xcee),	"SYNCH_END_EVT"			})
 
+/* Bearer, net device events: */
+#define dev_evt_sym(val)						  \
+	__print_symbolic(val,						  \
+			{(NETDEV_CHANGE),	"NETDEV_CHANGE"		},\
+			{(NETDEV_GOING_DOWN),	"NETDEV_GOING_DOWN"	},\
+			{(NETDEV_UP),		"NETDEV_UP"		},\
+			{(NETDEV_CHANGEMTU),	"NETDEV_CHANGEMTU"	},\
+			{(NETDEV_CHANGEADDR),	"NETDEV_CHANGEADDR"	},\
+			{(NETDEV_UNREGISTER),	"NETDEV_UNREGISTER"	},\
+			{(NETDEV_CHANGENAME),	"NETDEV_CHANGENAME"	})
+
 extern unsigned long sysctl_tipc_sk_filter[5] __read_mostly;
 
 int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf);
@@ -377,6 +388,38 @@ DEFINE_EVENT(tipc_fsm_class, fsm_name, \
 	TP_ARGS(name, os, ns, evt))
 DEFINE_FSM_EVENT(tipc_link_fsm);
 DEFINE_FSM_EVENT(tipc_node_fsm);
+
+TRACE_EVENT(tipc_l2_device_event,
+
+	TP_PROTO(struct net_device *dev, struct tipc_bearer *b,
+		 unsigned long evt),
+
+	TP_ARGS(dev, b, evt),
+
+	TP_STRUCT__entry(
+		__string(dev_name, dev->name)
+		__string(b_name, b->name)
+		__field(unsigned long, evt)
+		__field(u8, b_up)
+		__field(u8, carrier)
+		__field(u8, oper)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev_name, dev->name);
+		__assign_str(b_name, b->name);
+		__entry->evt = evt;
+		__entry->b_up = test_bit(0, &b->up);
+		__entry->carrier = netif_carrier_ok(dev);
+		__entry->oper = netif_oper_up(dev);
+	),
+
+	TP_printk("%s on: <%s>/<%s> oper: %s carrier: %s bearer: %s\n",
+		  dev_evt_sym(__entry->evt), __get_str(dev_name),
+		  __get_str(b_name), (__entry->oper) ? "up" : "down",
+		  (__entry->carrier) ? "ok" : "notok",
+		  (__entry->b_up) ? "up" : "down")
+);
 
 #endif /* _TIPC_TRACE_H */
 

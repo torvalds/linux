@@ -43,6 +43,7 @@
 #include "bcast.h"
 #include "netlink.h"
 #include "udp_media.h"
+#include "trace.h"
 
 #define MAX_ADDR_STR 60
 
@@ -608,6 +609,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	if (!b)
 		return NOTIFY_DONE;
 
+	trace_tipc_l2_device_event(dev, b, evt);
 	switch (evt) {
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev) && netif_oper_up(dev)) {
