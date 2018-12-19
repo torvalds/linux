@@ -90,6 +90,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 		.ops			= &(_ops),			\
 		.type			= REGULATOR_VOLTAGE,		\
 		.owner			= THIS_MODULE,			\
+		.n_voltages		= MCP16502_VSEL + 1,		\
 		.linear_ranges		= _ranges,			\
 		.n_linear_ranges	= ARRAY_SIZE(_ranges),		\
 		.of_match		= of_match_ptr(_name),		\
