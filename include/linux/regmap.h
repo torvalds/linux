@@ -1155,6 +1155,9 @@ struct regmap_irq {
  * @type_in_mask: Use the mask registers for controlling irq type. For
  *                interrupts defining type_rising/falling_mask use mask_base
  *                for edge configuration and never update bits in type_base.
+ * @clear_on_unmask: For chips with interrupts cleared on read: read the status
+ *                   registers before unmasking interrupts to clear any bits
+ *                   set when they were masked.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
@@ -1194,6 +1197,7 @@ struct regmap_irq_chip {
 	bool runtime_pm:1;
 	bool type_invert:1;
 	bool type_in_mask:1;
+	bool clear_on_unmask:1;
 
 	int num_regs;
 

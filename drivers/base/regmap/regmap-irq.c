@@ -44,6 +44,8 @@ struct regmap_irq_chip_data {
 
 	unsigned int irq_reg_stride;
 	unsigned int type_reg_stride;
+
+	bool clear_status:1;
 };
 
 static inline const
@@ -77,12 +79,27 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	int i, ret;
 	u32 reg;
 	u32 unmask_offset;
+	u32 val;
 
 	if (d->chip->runtime_pm) {
 		ret = pm_runtime_get_sync(map->dev);
 		if (ret < 0)
 			dev_err(map->dev, "IRQ sync failed to resume: %d\n",
 				ret);
+	}
+
+	if (d->clear_status) {
+		for (i = 0; i < d->chip->num_regs; i++) {
+			reg = d->chip->status_base +
+				(i * map->reg_stride * d->irq_reg_stride);
+
+			ret = regmap_read(map, reg, &val);
+			if (ret)
+				dev_err(d->map->dev,
+					"Failed to clear the interrupt status bits\n");
+		}
+
+		d->clear_status = false;
 	}
 
 	/*
@@ -216,6 +233,9 @@ static void regmap_irq_enable(struct irq_data *data)
 		mask = d->type_buf[irq_data->reg_offset / map->reg_stride];
 	else
 		mask = irq_data->mask;
+
+	if (d->chip->clear_on_unmask)
+		d->clear_status = true;
 
 	d->mask_buf[irq_data->reg_offset / map->reg_stride] &= ~mask;
 }
@@ -472,6 +492,9 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	u32 unmask_offset;
 
 	if (chip->num_regs <= 0)
+		return -EINVAL;
+
+	if (chip->clear_on_unmask && (chip->ack_base || chip->use_ack))
 		return -EINVAL;
 
 	for (i = 0; i < chip->num_irqs; i++) {
