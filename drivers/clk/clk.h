@@ -9,9 +9,14 @@ struct device;
 struct of_phandle_args;
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
-int of_parse_clkspec(const struct device_node *np, int index, const char *name,
-		     struct of_phandle_args *out_args);
-struct clk_hw *of_clk_get_hw_from_clkspec(struct of_phandle_args *clkspec);
+struct clk_hw *of_clk_get_hw(struct device_node *np,
+				    int index, const char *con_id);
+#else /* !CONFIG_COMMON_CLK || !CONFIG_OF */
+static inline struct clk_hw *of_clk_get_hw(struct device_node *np,
+				    int index, const char *con_id)
+{
+	return ERR_PTR(-ENOENT);
+}
 #endif
 
 #ifdef CONFIG_COMMON_CLK
