@@ -1203,19 +1203,19 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	u32 ddr = 0;
 
 #ifdef MT6575_SD_DEBUG
-	static char *vdd[] = {
+	static const char * const vdd[] = {
 		"1.50v", "1.55v", "1.60v", "1.65v", "1.70v", "1.80v", "1.90v",
 		"2.00v", "2.10v", "2.20v", "2.30v", "2.40v", "2.50v", "2.60v",
 		"2.70v", "2.80v", "2.90v", "3.00v", "3.10v", "3.20v", "3.30v",
 		"3.40v", "3.50v", "3.60v"
 	};
-	static char *power_mode[] = {
+	static const char * const power_mode[] = {
 		"OFF", "UP", "ON"
 	};
-	static char *bus_mode[] = {
+	static const char * const bus_mode[] = {
 		"UNKNOWN", "OPENDRAIN", "PUSHPULL"
 	};
-	static char *timing[] = {
+	static const char * const timing[] = {
 		"LEGACY", "MMC_HS", "SD_HS"
 	};
 
