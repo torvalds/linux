@@ -73,4 +73,7 @@ static inline bool kvm_stage2_has_pud(struct kvm *kvm)
 	return false;
 }
 
+#define S2_PMD_MASK				PMD_MASK
+#define S2_PMD_SIZE				PMD_SIZE
+
 #endif	/* __ARM_S2_PGTABLE_H_ */
