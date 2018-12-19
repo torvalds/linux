@@ -20,7 +20,7 @@ static inline struct bch_qid bch_qid(struct bch_inode_unpacked *u)
 	return (struct bch_qid) {
 		.q[QTYP_USR] = u->bi_uid,
 		.q[QTYP_GRP] = u->bi_gid,
-		.q[QTYP_PRJ] = u->bi_project,
+		.q[QTYP_PRJ] = u->bi_project ? u->bi_project - 1 : 0,
 	};
 }
 

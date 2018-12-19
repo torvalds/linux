@@ -104,19 +104,6 @@ static int bch2_ioc_fsgetxattr(struct bch_inode_info *inode,
 	return copy_to_user(arg, &fa, sizeof(fa));
 }
 
-static int bch2_set_projid(struct bch_fs *c,
-			   struct bch_inode_info *inode,
-			   u32 projid)
-{
-	struct bch_qid qid = inode->ei_qid;
-
-	qid.q[QTYP_PRJ] = projid;
-
-	return bch2_fs_quota_transfer(c, inode, qid,
-				      1 << QTYP_PRJ,
-				      KEY_TYPE_QUOTA_PREALLOC);
-}
-
 static int fssetxattr_inode_update_fn(struct bch_inode_info *inode,
 				      struct bch_inode_unpacked *bi,
 				      void *p)
@@ -124,11 +111,7 @@ static int fssetxattr_inode_update_fn(struct bch_inode_info *inode,
 	struct flags_set *s = p;
 
 	if (s->projid != bi->bi_project) {
-		if (s->projid)
-			bi->bi_fields_set |= 1U << Inode_opt_project;
-		else
-			bi->bi_fields_set &= ~(1U << Inode_opt_project);
-
+		bi->bi_fields_set |= 1U << Inode_opt_project;
 		bi->bi_project = s->projid;
 	}
 
@@ -151,7 +134,10 @@ static int bch2_ioc_fssetxattr(struct bch_fs *c,
 	if (fa.fsx_xflags)
 		return -EOPNOTSUPP;
 
-	s.projid = fa.fsx_projid;
+	if (fa.fsx_projid >= U32_MAX)
+		return -EINVAL;
+
+	s.projid = fa.fsx_projid + 1;
 
 	ret = mnt_want_write_file(file);
 	if (ret)
@@ -164,7 +150,7 @@ static int bch2_ioc_fssetxattr(struct bch_fs *c,
 	}
 
 	mutex_lock(&inode->ei_update_lock);
-	ret = bch2_set_projid(c, inode, fa.fsx_projid);
+	ret = bch2_set_projid(c, inode, s.projid);
 	if (ret)
 		goto err_unlock;
 

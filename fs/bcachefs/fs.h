@@ -121,6 +121,19 @@ int bch2_fs_quota_transfer(struct bch_fs *,
 			   unsigned,
 			   enum quota_acct_mode);
 
+static inline int bch2_set_projid(struct bch_fs *c,
+				  struct bch_inode_info *inode,
+				  u32 projid)
+{
+	struct bch_qid qid = inode->ei_qid;
+
+	qid.q[QTYP_PRJ] = projid;
+
+	return bch2_fs_quota_transfer(c, inode, qid,
+				      1 << QTYP_PRJ,
+				      KEY_TYPE_QUOTA_PREALLOC);
+}
+
 struct inode *bch2_vfs_inode_get(struct bch_fs *, u64);
 
 /* returns 0 if we want to do the update, or error is passed up */
