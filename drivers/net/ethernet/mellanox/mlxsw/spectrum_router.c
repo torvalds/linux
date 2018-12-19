@@ -71,6 +71,8 @@ struct mlxsw_sp_router {
 	bool aborted;
 	struct notifier_block fib_nb;
 	struct notifier_block netevent_nb;
+	struct notifier_block inetaddr_nb;
+	struct notifier_block inet6addr_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 };
@@ -6778,12 +6780,12 @@ static int __mlxsw_sp_inetaddr_event(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 }
 
-int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
-			    unsigned long event, void *ptr)
+static int mlxsw_sp_inetaddr_event(struct notifier_block *nb,
+				   unsigned long event, void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *) ptr;
 	struct net_device *dev = ifa->ifa_dev->dev;
-	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_router *router;
 	struct mlxsw_sp_rif *rif;
 	int err = 0;
 
@@ -6791,15 +6793,12 @@ int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 	if (event == NETDEV_UP)
 		goto out;
 
-	mlxsw_sp = mlxsw_sp_lower_get(dev);
-	if (!mlxsw_sp)
-		goto out;
-
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	router = container_of(nb, struct mlxsw_sp_router, inetaddr_nb);
+	rif = mlxsw_sp_rif_find_by_dev(router->mlxsw_sp, dev);
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
 		goto out;
 
-	err = __mlxsw_sp_inetaddr_event(mlxsw_sp, dev, event, NULL);
+	err = __mlxsw_sp_inetaddr_event(router->mlxsw_sp, dev, event, NULL);
 out:
 	return notifier_from_errno(err);
 }
@@ -6833,6 +6832,7 @@ out:
 
 struct mlxsw_sp_inet6addr_event_work {
 	struct work_struct work;
+	struct mlxsw_sp *mlxsw_sp;
 	struct net_device *dev;
 	unsigned long event;
 };
@@ -6841,15 +6841,12 @@ static void mlxsw_sp_inet6addr_event_work(struct work_struct *work)
 {
 	struct mlxsw_sp_inet6addr_event_work *inet6addr_work =
 		container_of(work, struct mlxsw_sp_inet6addr_event_work, work);
+	struct mlxsw_sp *mlxsw_sp = inet6addr_work->mlxsw_sp;
 	struct net_device *dev = inet6addr_work->dev;
 	unsigned long event = inet6addr_work->event;
-	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif *rif;
 
 	rtnl_lock();
-	mlxsw_sp = mlxsw_sp_lower_get(dev);
-	if (!mlxsw_sp)
-		goto out;
 
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
@@ -6863,25 +6860,25 @@ out:
 }
 
 /* Called with rcu_read_lock() */
-int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
-			     unsigned long event, void *ptr)
+static int mlxsw_sp_inet6addr_event(struct notifier_block *nb,
+				    unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *if6 = (struct inet6_ifaddr *) ptr;
 	struct mlxsw_sp_inet6addr_event_work *inet6addr_work;
 	struct net_device *dev = if6->idev->dev;
+	struct mlxsw_sp_router *router;
 
 	/* NETDEV_UP event is handled by mlxsw_sp_inet6addr_valid_event */
 	if (event == NETDEV_UP)
-		return NOTIFY_DONE;
-
-	if (!mlxsw_sp_port_dev_lower_find_rcu(dev))
 		return NOTIFY_DONE;
 
 	inet6addr_work = kzalloc(sizeof(*inet6addr_work), GFP_ATOMIC);
 	if (!inet6addr_work)
 		return NOTIFY_BAD;
 
+	router = container_of(nb, struct mlxsw_sp_router, inet6addr_nb);
 	INIT_WORK(&inet6addr_work->work, mlxsw_sp_inet6addr_event_work);
+	inet6addr_work->mlxsw_sp = router->mlxsw_sp;
 	inet6addr_work->dev = dev;
 	inet6addr_work->event = event;
 	dev_hold(dev);
@@ -7657,6 +7654,16 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp->router = router;
 	router->mlxsw_sp = mlxsw_sp;
 
+	router->inetaddr_nb.notifier_call = mlxsw_sp_inetaddr_event;
+	err = register_inetaddr_notifier(&router->inetaddr_nb);
+	if (err)
+		goto err_register_inetaddr_notifier;
+
+	router->inet6addr_nb.notifier_call = mlxsw_sp_inet6addr_event;
+	err = register_inet6addr_notifier(&router->inet6addr_nb);
+	if (err)
+		goto err_register_inet6addr_notifier;
+
 	INIT_LIST_HEAD(&mlxsw_sp->router->nexthop_neighs_list);
 	err = __mlxsw_sp_router_init(mlxsw_sp);
 	if (err)
@@ -7742,6 +7749,10 @@ err_ipips_init:
 err_rifs_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 err_router_init:
+	unregister_inet6addr_notifier(&router->inet6addr_nb);
+err_register_inet6addr_notifier:
+	unregister_inetaddr_notifier(&router->inetaddr_nb);
+err_register_inetaddr_notifier:
 	kfree(mlxsw_sp->router);
 	return err;
 }
@@ -7759,5 +7770,7 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_ipips_fini(mlxsw_sp);
 	mlxsw_sp_rifs_fini(mlxsw_sp);
 	__mlxsw_sp_router_fini(mlxsw_sp);
+	unregister_inet6addr_notifier(&mlxsw_sp->router->inet6addr_nb);
+	unregister_inetaddr_notifier(&mlxsw_sp->router->inetaddr_nb);
 	kfree(mlxsw_sp->router);
 }

@@ -5414,16 +5414,8 @@ static struct notifier_block mlxsw_sp_inetaddr_valid_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inetaddr_valid_event,
 };
 
-static struct notifier_block mlxsw_sp_inetaddr_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_inetaddr_event,
-};
-
 static struct notifier_block mlxsw_sp_inet6addr_valid_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inet6addr_valid_event,
-};
-
-static struct notifier_block mlxsw_sp_inet6addr_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_inet6addr_event,
 };
 
 static const struct pci_device_id mlxsw_sp1_pci_id_table[] = {
@@ -5451,9 +5443,7 @@ static int __init mlxsw_sp_module_init(void)
 	int err;
 
 	register_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
-	register_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	register_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	register_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 
 	err = mlxsw_core_driver_register(&mlxsw_sp1_driver);
 	if (err)
@@ -5480,9 +5470,7 @@ err_sp1_pci_driver_register:
 err_sp2_core_driver_register:
 	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
 err_sp1_core_driver_register:
-	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 	return err;
 }
@@ -5493,9 +5481,7 @@ static void __exit mlxsw_sp_module_exit(void)
 	mlxsw_pci_driver_unregister(&mlxsw_sp1_pci_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
-	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 }
 
