@@ -28,22 +28,30 @@ static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
-static struct clk *__of_clk_get(struct device_node *np, int index,
-			       const char *dev_id, const char *con_id)
+static struct clk_hw *of_clk_get_hw(struct device_node *np,
+				    int index, const char *con_id)
 {
+	int ret;
+	struct clk_hw *hw;
 	struct of_phandle_args clkspec;
-	struct clk *clk;
-	int rc;
 
-	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", index,
-					&clkspec);
-	if (rc)
-		return ERR_PTR(rc);
+	ret = of_parse_clkspec(np, index, con_id, &clkspec);
+	if (ret)
+		return ERR_PTR(ret);
 
-	clk = __of_clk_get_from_provider(&clkspec, dev_id, con_id);
+	hw = of_clk_get_hw_from_clkspec(&clkspec);
 	of_node_put(clkspec.np);
 
-	return clk;
+	return hw;
+}
+
+static struct clk *__of_clk_get(struct device_node *np,
+				int index, const char *dev_id,
+				const char *con_id)
+{
+	struct clk_hw *hw = of_clk_get_hw(np, index, con_id);
+
+	return clk_hw_create_clk(hw, dev_id, con_id);
 }
 
 struct clk *of_clk_get(struct device_node *np, int index)
@@ -51,46 +59,6 @@ struct clk *of_clk_get(struct device_node *np, int index)
 	return __of_clk_get(np, index, np->full_name, NULL);
 }
 EXPORT_SYMBOL(of_clk_get);
-
-static struct clk *__of_clk_get_by_name(struct device_node *np,
-					const char *dev_id,
-					const char *name)
-{
-	struct clk *clk = ERR_PTR(-ENOENT);
-
-	/* Walk up the tree of devices looking for a clock that matches */
-	while (np) {
-		int index = 0;
-
-		/*
-		 * For named clocks, first look up the name in the
-		 * "clock-names" property.  If it cannot be found, then
-		 * index will be an error code, and of_clk_get() will fail.
-		 */
-		if (name)
-			index = of_property_match_string(np, "clock-names", name);
-		clk = __of_clk_get(np, index, dev_id, name);
-		if (!IS_ERR(clk)) {
-			break;
-		} else if (name && index >= 0) {
-			if (PTR_ERR(clk) != -EPROBE_DEFER)
-				pr_err("ERROR: could not get clock %pOF:%s(%i)\n",
-					np, name ? name : "", index);
-			return clk;
-		}
-
-		/*
-		 * No matching clock found on this node.  If the parent node
-		 * has a "clock-ranges" property, then we can try one of its
-		 * clocks.
-		 */
-		np = np->parent;
-		if (np && !of_get_property(np, "clock-ranges", NULL))
-			break;
-	}
-
-	return clk;
-}
 
 /**
  * of_clk_get_by_name() - Parse and lookup a clock referenced by a device node
@@ -106,15 +74,14 @@ struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
 	if (!np)
 		return ERR_PTR(-ENOENT);
 
-	return __of_clk_get_by_name(np, np->full_name, name);
+	return __of_clk_get(np, -1, np->full_name, name);
 }
 EXPORT_SYMBOL(of_clk_get_by_name);
 
 #else /* defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK) */
 
-static struct clk *__of_clk_get_by_name(struct device_node *np,
-					const char *dev_id,
-					const char *name)
+static struct clk_hw *of_clk_get_hw(struct device_node *np,
+				    int index, const char *con_id)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -187,12 +154,12 @@ EXPORT_SYMBOL(clk_get_sys);
 struct clk *clk_get(struct device *dev, const char *con_id)
 {
 	const char *dev_id = dev ? dev_name(dev) : NULL;
-	struct clk *clk;
+	struct clk_hw *hw;
 
 	if (dev && dev->of_node) {
-		clk = __of_clk_get_by_name(dev->of_node, dev_id, con_id);
-		if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
-			return clk;
+		hw = of_clk_get_hw(dev->of_node, 0, con_id);
+		if (!IS_ERR(hw) || PTR_ERR(hw) == -EPROBE_DEFER)
+			return clk_hw_create_clk(hw, dev_id, con_id);
 	}
 
 	return clk_get_sys(dev_id, con_id);
