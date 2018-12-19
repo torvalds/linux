@@ -108,9 +108,15 @@
  * The driver is expected to initialize its private per-queue data for stations
  * and interfaces in the .add_interface and .sta_add ops.
  *
- * The driver can't access the queue directly. To dequeue a frame, it calls
- * ieee80211_tx_dequeue(). Whenever mac80211 adds a new frame to a queue, it
- * calls the .wake_tx_queue driver op.
+ * The driver can't access the queue directly. To dequeue a frame from a
+ * txq, it calls ieee80211_tx_dequeue(). Whenever mac80211 adds a new frame to a
+ * queue, it calls the .wake_tx_queue driver op.
+ *
+ * Drivers can optionally delegate responsibility for scheduling queues to
+ * mac80211, to take advantage of airtime fairness accounting. In this case, to
+ * obtain the next queue to pull frames from, the driver calls
+ * ieee80211_next_txq(). The driver is then expected to return the txq using
+ * ieee80211_return_txq().
  *
  * For AP powersave TIM handling, the driver only needs to indicate if it has
  * buffered packets in the driver specific data structures by calling
@@ -6103,7 +6109,8 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
  * ieee80211_tx_dequeue - dequeue a packet from a software tx queue
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @txq: pointer obtained from station or virtual interface
+ * @txq: pointer obtained from station or virtual interface, or from
+ *	ieee80211_next_txq()
  *
  * Returns the skb if successful, %NULL if no frame was available.
  *
@@ -6117,6 +6124,54 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
  */
 struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 				     struct ieee80211_txq *txq);
+
+/**
+ * ieee80211_next_txq - get next tx queue to pull packets from
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @ac: AC number to return packets from.
+ *
+ * Should only be called between calls to ieee80211_txq_schedule_start()
+ * and ieee80211_txq_schedule_end().
+ * Returns the next txq if successful, %NULL if no queue is eligible. If a txq
+ * is returned, it should be returned with ieee80211_return_txq() after the
+ * driver has finished scheduling it.
+ */
+struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac);
+
+/**
+ * ieee80211_return_txq - return a TXQ previously acquired by ieee80211_next_txq()
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @txq: pointer obtained from station or virtual interface
+ *
+ * Should only be called between calls to ieee80211_txq_schedule_start()
+ * and ieee80211_txq_schedule_end().
+ */
+void ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq);
+
+/**
+ * ieee80211_txq_schedule_start - acquire locks for safe scheduling of an AC
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @ac: AC number to acquire locks for
+ *
+ * Acquire locks needed to schedule TXQs from the given AC. Should be called
+ * before ieee80211_next_txq() or ieee80211_return_txq().
+ */
+void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
+	__acquires(txq_lock);
+
+/**
+ * ieee80211_txq_schedule_end - release locks for safe scheduling of an AC
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @ac: AC number to acquire locks for
+ *
+ * Release locks previously acquired by ieee80211_txq_schedule_end().
+ */
+void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
+	__releases(txq_lock);
 
 /**
  * ieee80211_txq_get_depth - get pending frame/byte count of given txq
