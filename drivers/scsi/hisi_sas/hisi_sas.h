@@ -221,7 +221,15 @@ struct hisi_sas_slot {
 	u16	idx;
 };
 
+#define HISI_SAS_DEBUGFS_REG(x) {#x, x}
+
+struct hisi_sas_debugfs_reg_lu {
+	char *name;
+	int off;
+};
+
 struct hisi_sas_debugfs_reg {
+	const struct hisi_sas_debugfs_reg_lu *lu;
 	int count;
 	int base_off;
 	union {
