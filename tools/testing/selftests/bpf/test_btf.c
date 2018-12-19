@@ -4254,6 +4254,33 @@ static struct prog_info_raw_test {
 },
 
 {
+	.descr = "line_info (Zero bpf insn code)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 64, 8),	/* [2] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0unsigned long\0u64\0u64 a=1;\0return a;"),
+	.insns = {
+		BPF_LD_IMM64(BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(1, 0, 0, 2, 9),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 8),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 1,
+	.err_str = "Invalid insn code at line_info[1]",
+	.expected_prog_load_failure = true,
+},
+
+{
 	.descr = "line_info (No subprog. zero tailing line_info",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
