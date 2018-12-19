@@ -381,11 +381,13 @@ TRACE_EVENT(xprtrdma_disconnect,
 DEFINE_RXPRT_EVENT(xprtrdma_conn_start);
 DEFINE_RXPRT_EVENT(xprtrdma_conn_tout);
 DEFINE_RXPRT_EVENT(xprtrdma_create);
-DEFINE_RXPRT_EVENT(xprtrdma_destroy);
+DEFINE_RXPRT_EVENT(xprtrdma_op_destroy);
 DEFINE_RXPRT_EVENT(xprtrdma_remove);
 DEFINE_RXPRT_EVENT(xprtrdma_reinsert);
 DEFINE_RXPRT_EVENT(xprtrdma_reconnect);
-DEFINE_RXPRT_EVENT(xprtrdma_inject_dsc);
+DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
+DEFINE_RXPRT_EVENT(xprtrdma_op_close);
+DEFINE_RXPRT_EVENT(xprtrdma_op_connect);
 
 TRACE_EVENT(xprtrdma_qp_event,
 	TP_PROTO(
@@ -834,7 +836,7 @@ TRACE_EVENT(xprtrdma_decode_seg,
  ** Allocation/release of rpcrdma_reqs and rpcrdma_reps
  **/
 
-TRACE_EVENT(xprtrdma_allocate,
+TRACE_EVENT(xprtrdma_op_allocate,
 	TP_PROTO(
 		const struct rpc_task *task,
 		const struct rpcrdma_req *req
@@ -864,7 +866,7 @@ TRACE_EVENT(xprtrdma_allocate,
 	)
 );
 
-TRACE_EVENT(xprtrdma_rpc_done,
+TRACE_EVENT(xprtrdma_op_free,
 	TP_PROTO(
 		const struct rpc_task *task,
 		const struct rpcrdma_req *req
