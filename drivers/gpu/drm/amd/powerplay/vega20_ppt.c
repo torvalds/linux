@@ -28,13 +28,109 @@
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
 #include "smu_v11_0.h"
-#include "smu_v11_0_ppsmc.h"
 #include "smu11_driver_if.h"
 #include "soc15_common.h"
 #include "atom.h"
 #include "vega20_ppt.h"
 #include "vega20_pptable.h"
-#include "vega20_ppt.h"
+#include "vega20_ppsmc.h"
+
+#define MSG_MAP(msg, index) \
+	[SMU_MSG_##msg] = index
+
+static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
+	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage),
+	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion),
+	MSG_MAP(GetDriverIfVersion,		PPSMC_MSG_GetDriverIfVersion),
+	MSG_MAP(SetAllowedFeaturesMaskLow,	PPSMC_MSG_SetAllowedFeaturesMaskLow),
+	MSG_MAP(SetAllowedFeaturesMaskHigh,	PPSMC_MSG_SetAllowedFeaturesMaskHigh),
+	MSG_MAP(EnableAllSmuFeatures,		PPSMC_MSG_EnableAllSmuFeatures),
+	MSG_MAP(DisableAllSmuFeatures,		PPSMC_MSG_DisableAllSmuFeatures),
+	MSG_MAP(EnableSmuFeaturesLow,		PPSMC_MSG_EnableSmuFeaturesLow),
+	MSG_MAP(EnableSmuFeaturesHigh,		PPSMC_MSG_EnableSmuFeaturesHigh),
+	MSG_MAP(DisableSmuFeaturesLow,		PPSMC_MSG_DisableSmuFeaturesLow),
+	MSG_MAP(DisableSmuFeaturesHigh,		PPSMC_MSG_DisableSmuFeaturesHigh),
+	MSG_MAP(GetEnabledSmuFeaturesLow,	PPSMC_MSG_GetEnabledSmuFeaturesLow),
+	MSG_MAP(GetEnabledSmuFeaturesHigh,	PPSMC_MSG_GetEnabledSmuFeaturesHigh),
+	MSG_MAP(SetWorkloadMask,		PPSMC_MSG_SetWorkloadMask),
+	MSG_MAP(SetPptLimit,			PPSMC_MSG_SetPptLimit),
+	MSG_MAP(SetDriverDramAddrHigh,		PPSMC_MSG_SetDriverDramAddrHigh),
+	MSG_MAP(SetDriverDramAddrLow,		PPSMC_MSG_SetDriverDramAddrLow),
+	MSG_MAP(SetToolsDramAddrHigh,		PPSMC_MSG_SetToolsDramAddrHigh),
+	MSG_MAP(SetToolsDramAddrLow,		PPSMC_MSG_SetToolsDramAddrLow),
+	MSG_MAP(TransferTableSmu2Dram,		PPSMC_MSG_TransferTableSmu2Dram),
+	MSG_MAP(TransferTableDram2Smu,		PPSMC_MSG_TransferTableDram2Smu),
+	MSG_MAP(UseDefaultPPTable,		PPSMC_MSG_UseDefaultPPTable),
+	MSG_MAP(UseBackupPPTable,		PPSMC_MSG_UseBackupPPTable),
+	MSG_MAP(RunBtc,				PPSMC_MSG_RunBtc),
+	MSG_MAP(RequestI2CBus,			PPSMC_MSG_RequestI2CBus),
+	MSG_MAP(ReleaseI2CBus,			PPSMC_MSG_ReleaseI2CBus),
+	MSG_MAP(SetFloorSocVoltage,		PPSMC_MSG_SetFloorSocVoltage),
+	MSG_MAP(SoftReset,			PPSMC_MSG_SoftReset),
+	MSG_MAP(StartBacoMonitor,		PPSMC_MSG_StartBacoMonitor),
+	MSG_MAP(CancelBacoMonitor,		PPSMC_MSG_CancelBacoMonitor),
+	MSG_MAP(EnterBaco,			PPSMC_MSG_EnterBaco),
+	MSG_MAP(SetSoftMinByFreq,		PPSMC_MSG_SetSoftMinByFreq),
+	MSG_MAP(SetSoftMaxByFreq,		PPSMC_MSG_SetSoftMaxByFreq),
+	MSG_MAP(SetHardMinByFreq,		PPSMC_MSG_SetHardMinByFreq),
+	MSG_MAP(SetHardMaxByFreq,		PPSMC_MSG_SetHardMaxByFreq),
+	MSG_MAP(GetMinDpmFreq,			PPSMC_MSG_GetMinDpmFreq),
+	MSG_MAP(GetMaxDpmFreq,			PPSMC_MSG_GetMaxDpmFreq),
+	MSG_MAP(GetDpmFreqByIndex,		PPSMC_MSG_GetDpmFreqByIndex),
+	MSG_MAP(GetDpmClockFreq,		PPSMC_MSG_GetDpmClockFreq),
+	MSG_MAP(GetSsVoltageByDpm,		PPSMC_MSG_GetSsVoltageByDpm),
+	MSG_MAP(SetMemoryChannelConfig,		PPSMC_MSG_SetMemoryChannelConfig),
+	MSG_MAP(SetGeminiMode,			PPSMC_MSG_SetGeminiMode),
+	MSG_MAP(SetGeminiApertureHigh,		PPSMC_MSG_SetGeminiApertureHigh),
+	MSG_MAP(SetGeminiApertureLow,		PPSMC_MSG_SetGeminiApertureLow),
+	MSG_MAP(SetMinLinkDpmByIndex,		PPSMC_MSG_SetMinLinkDpmByIndex),
+	MSG_MAP(OverridePcieParameters,		PPSMC_MSG_OverridePcieParameters),
+	MSG_MAP(OverDriveSetPercentage,		PPSMC_MSG_OverDriveSetPercentage),
+	MSG_MAP(SetMinDeepSleepDcefclk,		PPSMC_MSG_SetMinDeepSleepDcefclk),
+	MSG_MAP(ReenableAcDcInterrupt,		PPSMC_MSG_ReenableAcDcInterrupt),
+	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource),
+	MSG_MAP(SetUclkFastSwitch,		PPSMC_MSG_SetUclkFastSwitch),
+	MSG_MAP(SetUclkDownHyst,		PPSMC_MSG_SetUclkDownHyst),
+	MSG_MAP(GetCurrentRpm,			PPSMC_MSG_GetCurrentRpm),
+	MSG_MAP(SetVideoFps,			PPSMC_MSG_SetVideoFps),
+	MSG_MAP(SetTjMax,			PPSMC_MSG_SetTjMax),
+	MSG_MAP(SetFanTemperatureTarget,	PPSMC_MSG_SetFanTemperatureTarget),
+	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload),
+	MSG_MAP(DramLogSetDramAddrHigh,		PPSMC_MSG_DramLogSetDramAddrHigh),
+	MSG_MAP(DramLogSetDramAddrLow,		PPSMC_MSG_DramLogSetDramAddrLow),
+	MSG_MAP(DramLogSetDramSize,		PPSMC_MSG_DramLogSetDramSize),
+	MSG_MAP(SetFanMaxRpm,			PPSMC_MSG_SetFanMaxRpm),
+	MSG_MAP(SetFanMinPwm,			PPSMC_MSG_SetFanMinPwm),
+	MSG_MAP(ConfigureGfxDidt,		PPSMC_MSG_ConfigureGfxDidt),
+	MSG_MAP(NumOfDisplays,			PPSMC_MSG_NumOfDisplays),
+	MSG_MAP(RemoveMargins,			PPSMC_MSG_RemoveMargins),
+	MSG_MAP(ReadSerialNumTop32,		PPSMC_MSG_ReadSerialNumTop32),
+	MSG_MAP(ReadSerialNumBottom32,		PPSMC_MSG_ReadSerialNumBottom32),
+	MSG_MAP(SetSystemVirtualDramAddrHigh,	PPSMC_MSG_SetSystemVirtualDramAddrHigh),
+	MSG_MAP(SetSystemVirtualDramAddrLow,	PPSMC_MSG_SetSystemVirtualDramAddrLow),
+	MSG_MAP(WaflTest,			PPSMC_MSG_WaflTest),
+	MSG_MAP(SetFclkGfxClkRatio,		PPSMC_MSG_SetFclkGfxClkRatio),
+	MSG_MAP(AllowGfxOff,			PPSMC_MSG_AllowGfxOff),
+	MSG_MAP(DisallowGfxOff,			PPSMC_MSG_DisallowGfxOff),
+	MSG_MAP(GetPptLimit,			PPSMC_MSG_GetPptLimit),
+	MSG_MAP(GetDcModeMaxDpmFreq,		PPSMC_MSG_GetDcModeMaxDpmFreq),
+	MSG_MAP(GetDebugData,			PPSMC_MSG_GetDebugData),
+	MSG_MAP(SetXgmiMode,			PPSMC_MSG_SetXgmiMode),
+	MSG_MAP(RunAfllBtc,			PPSMC_MSG_RunAfllBtc),
+	MSG_MAP(ExitBaco,			PPSMC_MSG_ExitBaco),
+	MSG_MAP(PrepareMp1ForReset,		PPSMC_MSG_PrepareMp1ForReset),
+	MSG_MAP(PrepareMp1ForShutdown,		PPSMC_MSG_PrepareMp1ForShutdown),
+	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm),
+	MSG_MAP(GetAVFSVoltageByDpm,		PPSMC_MSG_GetAVFSVoltageByDpm),
+};
+
+static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
+{
+	if (index > SMU_MSG_MAX_COUNT || index > PPSMC_Message_Count)
+		return -EINVAL;
+	return vega20_message_map[index];
+
+}
 
 static int vega20_store_powerplay_table(struct smu_context *smu)
 {
@@ -75,6 +171,7 @@ static int vega20_check_powerplay_table(struct smu_context *smu)
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.store_powerplay_table = vega20_store_powerplay_table,
 	.check_powerplay_table = vega20_check_powerplay_table,
+	.get_smu_msg_index = vega20_get_smu_msg_index,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
