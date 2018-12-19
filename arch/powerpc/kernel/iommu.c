@@ -1078,11 +1078,8 @@ void iommu_release_ownership(struct iommu_table *tbl)
 }
 EXPORT_SYMBOL_GPL(iommu_release_ownership);
 
-int iommu_add_device(struct device *dev)
+int iommu_add_device(struct iommu_table_group *table_group, struct device *dev)
 {
-	struct iommu_table *tbl;
-	struct iommu_table_group_link *tgl;
-
 	/*
 	 * The sysfs entries should be populated before
 	 * binding IOMMU group. If sysfs entries isn't
@@ -1098,32 +1095,10 @@ int iommu_add_device(struct device *dev)
 		return -EBUSY;
 	}
 
-	tbl = get_iommu_table_base(dev);
-	if (!tbl) {
-		pr_debug("%s: Skipping device %s with no tbl\n",
-			 __func__, dev_name(dev));
-		return 0;
-	}
-
-	tgl = list_first_entry_or_null(&tbl->it_group_list,
-			struct iommu_table_group_link, next);
-	if (!tgl) {
-		pr_debug("%s: Skipping device %s with no group\n",
-			 __func__, dev_name(dev));
-		return 0;
-	}
 	pr_debug("%s: Adding %s to iommu group %d\n",
-		 __func__, dev_name(dev),
-		 iommu_group_id(tgl->table_group->group));
+		 __func__, dev_name(dev),  iommu_group_id(table_group->group));
 
-	if (PAGE_SIZE < IOMMU_PAGE_SIZE(tbl)) {
-		pr_err("%s: Invalid IOMMU page size %lx (%lx) on %s\n",
-		       __func__, IOMMU_PAGE_SIZE(tbl),
-		       PAGE_SIZE, dev_name(dev));
-		return -EINVAL;
-	}
-
-	return iommu_group_add_device(tgl->table_group->group, dev);
+	return iommu_group_add_device(table_group->group, dev);
 }
 EXPORT_SYMBOL_GPL(iommu_add_device);
 
@@ -1143,31 +1118,4 @@ void iommu_del_device(struct device *dev)
 	iommu_group_remove_device(dev);
 }
 EXPORT_SYMBOL_GPL(iommu_del_device);
-
-static int tce_iommu_bus_notifier(struct notifier_block *nb,
-                unsigned long action, void *data)
-{
-        struct device *dev = data;
-
-        switch (action) {
-        case BUS_NOTIFY_ADD_DEVICE:
-                return iommu_add_device(dev);
-        case BUS_NOTIFY_DEL_DEVICE:
-                if (dev->iommu_group)
-                        iommu_del_device(dev);
-                return 0;
-        default:
-                return 0;
-        }
-}
-
-static struct notifier_block tce_iommu_bus_nb = {
-        .notifier_call = tce_iommu_bus_notifier,
-};
-
-int __init tce_iommu_bus_notifier_init(void)
-{
-        bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
-        return 0;
-}
 #endif /* CONFIG_IOMMU_API */
