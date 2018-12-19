@@ -94,7 +94,7 @@ static void program_pix_dur(struct timing_generator *tg, uint32_t pix_clk_100hz)
 	if (pix_clk_100hz == 0)
 		return;
 
-	pix_dur = 10000000000ull / pix_clk_100hz;
+	pix_dur = div_u64(10000000000ull, pix_clk_100hz);
 
 	set_reg_field_value(
 		value,
