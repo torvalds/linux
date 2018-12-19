@@ -1170,8 +1170,6 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock(&host->lock);
 
 	mmc_request_done(mmc, mrq);
-
-	return;
 }
 
 /* called by ops.set_ios */
