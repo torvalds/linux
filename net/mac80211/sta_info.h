@@ -127,6 +127,16 @@ enum ieee80211_agg_stop_reason {
 	AGG_STOP_DESTROY_STA,
 };
 
+/* Debugfs flags to enable/disable use of RX/TX airtime in scheduler */
+#define AIRTIME_USE_TX		BIT(0)
+#define AIRTIME_USE_RX		BIT(1)
+
+struct airtime_info {
+	u64 rx_airtime;
+	u64 tx_airtime;
+	s64 deficit;
+};
+
 struct sta_info;
 
 /**
@@ -564,6 +574,9 @@ struct sta_info {
 		u64 msdu[IEEE80211_NUM_TIDS + 1];
 	} tx_stats;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
+
+	struct airtime_info airtime[IEEE80211_NUM_ACS];
+	u16 airtime_weight;
 
 	/*
 	 * Aggregation information, locked with lock.

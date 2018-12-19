@@ -2360,6 +2360,9 @@ enum ieee80211_hw_flags {
  * @tx_sk_pacing_shift: Pacing shift to set on TCP sockets when frames from
  *	them are encountered. The default should typically not be changed,
  *	unless the driver has good reasons for needing more buffers.
+ *
+ * @weight_multipler: Driver specific airtime weight multiplier used while
+ *	refilling deficit of each TXQ.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -2396,6 +2399,7 @@ struct ieee80211_hw {
 	const struct ieee80211_cipher_scheme *cipher_schemes;
 	u8 max_nan_de_entries;
 	u8 tx_sk_pacing_shift;
+	u8 weight_multiplier;
 };
 
 static inline bool _ieee80211_hw_check(struct ieee80211_hw *hw,
@@ -5408,6 +5412,34 @@ void ieee80211_sta_eosp(struct ieee80211_sta *pubsta);
 void ieee80211_send_eosp_nullfunc(struct ieee80211_sta *pubsta, int tid);
 
 /**
+ * ieee80211_sta_register_airtime - register airtime usage for a sta/tid
+ *
+ * Register airtime usage for a given sta on a given tid. The driver can call
+ * this function to notify mac80211 that a station used a certain amount of
+ * airtime. This information will be used by the TXQ scheduler to schedule
+ * stations in a way that ensures airtime fairness.
+ *
+ * The reported airtime should as a minimum include all time that is spent
+ * transmitting to the remote station, including overhead and padding, but not
+ * including time spent waiting for a TXOP. If the time is not reported by the
+ * hardware it can in some cases be calculated from the rate and known frame
+ * composition. When possible, the time should include any failed transmission
+ * attempts.
+ *
+ * The driver can either call this function synchronously for every packet or
+ * aggregate, or asynchronously as airtime usage information becomes available.
+ * TX and RX airtime can be reported together, or separately by setting one of
+ * them to 0.
+ *
+ * @pubsta: the station
+ * @tid: the TID to register airtime for
+ * @tx_airtime: airtime used during TX (in usec)
+ * @rx_airtime: airtime used during RX (in usec)
+ */
+void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
+				    u32 tx_airtime, u32 rx_airtime);
+
+/**
  * ieee80211_iter_keys - iterate keys programmed into the device
  * @hw: pointer obtained from ieee80211_alloc_hw()
  * @vif: virtual interface to iterate, may be %NULL for all
@@ -6172,6 +6204,33 @@ void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
  */
 void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
 	__releases(txq_lock);
+
+/**
+ * ieee80211_txq_may_transmit - check whether TXQ is allowed to transmit
+ *
+ * This function is used to check whether given txq is allowed to transmit by
+ * the airtime scheduler, and can be used by drivers to access the airtime
+ * fairness accounting without going using the scheduling order enfored by
+ * next_txq().
+ *
+ * Returns %true if the airtime scheduler thinks the TXQ should be allowed to
+ * transmit, and %false if it should be throttled. This function can also have
+ * the side effect of rotating the TXQ in the scheduler rotation, which will
+ * eventually bring the deficit to positive and allow the station to transmit
+ * again.
+ *
+ * The API ieee80211_txq_may_transmit() also ensures that TXQ list will be
+ * aligned aginst driver's own round-robin scheduler list. i.e it rotates
+ * the TXQ list till it makes the requested node becomes the first entry
+ * in TXQ list. Thus both the TXQ list and driver's list are in sync. If this
+ * function returns %true, the driver is expected to schedule packets
+ * for transmission, and then return the TXQ through ieee80211_return_txq().
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @txq: pointer obtained from station or virtual interface
+ */
+bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
+				struct ieee80211_txq *txq);
 
 /**
  * ieee80211_txq_get_depth - get pending frame/byte count of given txq
