@@ -5,5 +5,3 @@
  * commonly used. The macros are precompiled into assmebly file which is later
  * assembled together with each compiled file.
  */
-
-#include <linux/compiler.h>
