@@ -2604,9 +2604,38 @@ static const struct file_operations hisi_sas_debugfs_global_fops = {
 	.owner = THIS_MODULE,
 };
 
+static int hisi_sas_debugfs_port_show(struct seq_file *s, void *p)
+{
+	struct hisi_sas_phy *phy = s->private;
+	struct hisi_hba *hisi_hba = phy->hisi_hba;
+	const struct hisi_sas_hw *hw = hisi_hba->hw;
+	const struct hisi_sas_debugfs_reg *reg_port = hw->debugfs_reg_port;
+	u32 *databuf = hisi_hba->debugfs_port_reg[phy->sas_phy.id];
+
+	hisi_sas_debugfs_print_reg(databuf, reg_port, s);
+
+	return 0;
+}
+
+static int hisi_sas_debugfs_port_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_port_show, inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_port_fops = {
+	.open = hisi_sas_debugfs_port_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 {
 	struct dentry *dump_dentry;
+	struct dentry *dentry;
+	char name[256];
+	int p;
 
 	/* Create dump dir inside device dir */
 	dump_dentry = debugfs_create_dir("dump", hisi_hba->debugfs_dir);
@@ -2618,6 +2647,20 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	if (!debugfs_create_file("global", 0400, dump_dentry, hisi_hba,
 				 &hisi_sas_debugfs_global_fops))
 		goto fail;
+
+	/* Create port dir and files */
+	dentry = debugfs_create_dir("port", dump_dentry);
+	if (!dentry)
+		goto fail;
+
+	for (p = 0; p < hisi_hba->n_phy; p++) {
+		snprintf(name, 256, "%d", p);
+		if (!debugfs_create_file(name, 0400, dentry,
+					 &hisi_hba->phy[p],
+					 &hisi_sas_debugfs_port_fops))
+			goto fail;
+	}
+
 	return;
 fail:
 	debugfs_remove_recursive(hisi_hba->debugfs_dir);
