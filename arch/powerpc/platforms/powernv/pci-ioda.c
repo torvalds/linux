@@ -1278,7 +1278,7 @@ static void pnv_pci_ioda_setup_PEs(void)
 			pnv_ioda_reserve_pe(phb, 0);
 			pnv_ioda_setup_npu_PEs(hose->bus);
 			if (phb->model == PNV_PHB_MODEL_NPU2)
-				pnv_npu2_init(phb);
+				WARN_ON_ONCE(pnv_npu2_init(phb));
 		}
 		if (phb->type == PNV_PHB_NPU_OCAPI) {
 			bus = hose->bus;

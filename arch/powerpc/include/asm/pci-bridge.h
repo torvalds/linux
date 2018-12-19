@@ -129,6 +129,7 @@ struct pci_controller {
 #endif	/* CONFIG_PPC64 */
 
 	void *private_data;
+	struct npu *npu;
 };
 
 /* These are used for config access before all the PCI probing
