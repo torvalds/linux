@@ -4562,6 +4562,7 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 			      struct dc_state *state)
 {
 	unsigned long flags;
+	uint64_t timestamp_ns;
 	uint32_t target_vblank;
 	int r, vpos, hpos;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
@@ -4624,7 +4625,9 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	addr.address.grph.addr.low_part = lower_32_bits(afb->address);
 	addr.address.grph.addr.high_part = upper_32_bits(afb->address);
 	addr.flip_immediate = async_flip;
-	addr.flip_timestamp_in_us = ktime_get_ns() / 1000;
+
+	timestamp_ns = ktime_get_ns();
+	addr.flip_timestamp_in_us = div_u64(timestamp_ns, 1000);
 
 
 	if (acrtc->base.state->event)
