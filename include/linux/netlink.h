@@ -110,6 +110,15 @@ struct netlink_ext_ack {
 	}						\
 } while (0)
 
+static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
+					    u64 cookie)
+{
+	u64 __cookie = cookie;
+
+	memcpy(extack->cookie, &__cookie, sizeof(__cookie));
+	extack->cookie_len = sizeof(__cookie);
+}
+
 extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);

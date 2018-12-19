@@ -356,7 +356,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	bool hw_scan = local->ops->hw_scan;
+	bool hw_scan = test_bit(SCAN_HW_SCANNING, &local->scanning);
 	bool was_scanning = local->scanning;
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_sub_if_data *scan_sdata;
@@ -606,6 +606,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
+	bool hw_scan = local->ops->hw_scan;
 	int rc;
 
 	lockdep_assert_held(&local->mtx);
@@ -620,7 +621,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		return 0;
 	}
 
-	if (local->ops->hw_scan) {
+ again:
+	if (hw_scan) {
 		u8 *ies;
 
 		local->hw_scan_ies_bufsize = local->scan_ies_len + req->ie_len;
@@ -679,7 +681,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	else
 		memcpy(local->scan_addr, sdata->vif.addr, ETH_ALEN);
 
-	if (local->ops->hw_scan) {
+	if (hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
 	} else if ((req->n_channels == 1) &&
 		   (req->channels[0] == local->_oper_chandef.chan)) {
@@ -722,7 +724,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_recalc_idle(local);
 
-	if (local->ops->hw_scan) {
+	if (hw_scan) {
 		WARN_ON(!ieee80211_prep_hw_scan(local));
 		rc = drv_hw_scan(local, sdata, local->hw_scan_req);
 	} else {
@@ -738,6 +740,18 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 		local->scan_req = NULL;
 		RCU_INIT_POINTER(local->scan_sdata, NULL);
+	}
+
+	if (hw_scan && rc == 1) {
+		/*
+		 * we can't fall back to software for P2P-GO
+		 * as it must update NoA etc.
+		 */
+		if (ieee80211_vif_type_p2p(&sdata->vif) ==
+				NL80211_IFTYPE_P2P_GO)
+			return -EOPNOTSUPP;
+		hw_scan = false;
+		goto again;
 	}
 
 	return rc;

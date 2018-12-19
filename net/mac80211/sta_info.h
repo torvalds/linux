@@ -364,6 +364,7 @@ DECLARE_EWMA(mesh_fail_avg, 20, 8)
  * @nonpeer_pm: STA power save mode towards non-peer neighbors
  * @processed_beacon: set to true after peer rates and capabilities are
  *	processed
+ * @connected_to_gate: true if mesh STA has a path to a mesh gate
  * @fail_avg: moving percentage of failed MSDUs
  */
 struct mesh_sta {
@@ -381,6 +382,7 @@ struct mesh_sta {
 	u8 plink_retries;
 
 	bool processed_beacon;
+	bool connected_to_gate;
 
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;

@@ -2015,33 +2015,32 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 	case IEEE80211_VHT_CHANWIDTH_160MHZ:
 		if (supp_width == 0 &&
 		    (ext_nss_bw == 1 || ext_nss_bw == 2))
-			return DIV_ROUND_UP(max_vht_nss, 2);
+			return max_vht_nss / 2;
 		if (supp_width == 0 &&
 		    ext_nss_bw == 3)
-			return DIV_ROUND_UP(3 * max_vht_nss, 4);
+			return (3 * max_vht_nss) / 4;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 3)
 			return 2 * max_vht_nss;
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
-		if (supp_width == 0 &&
-		    (ext_nss_bw == 1 || ext_nss_bw == 2))
+		if (supp_width == 0 && ext_nss_bw == 1)
 			return 0; /* not possible */
 		if (supp_width == 0 &&
 		    ext_nss_bw == 2)
-			return DIV_ROUND_UP(max_vht_nss, 2);
+			return max_vht_nss / 2;
 		if (supp_width == 0 &&
 		    ext_nss_bw == 3)
-			return DIV_ROUND_UP(3 * max_vht_nss, 4);
+			return (3 * max_vht_nss) / 4;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 0)
 			return 0; /* not possible */
 		if (supp_width == 1 &&
 		    ext_nss_bw == 1)
-			return DIV_ROUND_UP(max_vht_nss, 2);
+			return max_vht_nss / 2;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 2)
-			return DIV_ROUND_UP(3 * max_vht_nss, 4);
+			return (3 * max_vht_nss) / 4;
 		break;
 	}
 
