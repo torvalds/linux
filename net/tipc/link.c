@@ -357,9 +357,11 @@ void tipc_link_remove_bc_peer(struct tipc_link *snd_l,
 	rcv_l->bc_peer_is_up = true;
 	rcv_l->state = LINK_ESTABLISHED;
 	tipc_link_bc_ack_rcv(rcv_l, ack, xmitq);
+	trace_tipc_link_reset(rcv_l, TIPC_DUMP_ALL, "bclink removed!");
 	tipc_link_reset(rcv_l);
 	rcv_l->state = LINK_RESET;
 	if (!snd_l->ackers) {
+		trace_tipc_link_reset(snd_l, TIPC_DUMP_ALL, "zero ackers!");
 		tipc_link_reset(snd_l);
 		snd_l->state = LINK_RESET;
 		__skb_queue_purge(xmitq);
@@ -523,6 +525,7 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 
 	l = *link;
 	strcpy(l->name, tipc_bclink_name);
+	trace_tipc_link_reset(l, TIPC_DUMP_ALL, "bclink created!");
 	tipc_link_reset(l);
 	l->state = LINK_RESET;
 	l->ackers = 0;
@@ -547,6 +550,7 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 int tipc_link_fsm_evt(struct tipc_link *l, int evt)
 {
 	int rc = 0;
+	int old_state = l->state;
 
 	switch (l->state) {
 	case LINK_RESETTING:
@@ -693,10 +697,12 @@ int tipc_link_fsm_evt(struct tipc_link *l, int evt)
 	default:
 		pr_err("Unknown FSM state %x in %s\n", l->state, l->name);
 	}
+	trace_tipc_link_fsm(l->name, old_state, l->state, evt);
 	return rc;
 illegal_evt:
 	pr_err("Illegal FSM event %x in state %x on link %s\n",
 	       evt, l->state, l->name);
+	trace_tipc_link_fsm(l->name, old_state, l->state, evt);
 	return rc;
 }
 
@@ -741,6 +747,18 @@ static void link_profile_stats(struct tipc_link *l)
 		l->stats.msg_length_profile[6]++;
 }
 
+/**
+ * tipc_link_too_silent - check if link is "too silent"
+ * @l: tipc link to be checked
+ *
+ * Returns true if the link 'silent_intv_cnt' is about to reach the
+ * 'abort_limit' value, otherwise false
+ */
+bool tipc_link_too_silent(struct tipc_link *l)
+{
+	return (l->silent_intv_cnt + 2 > l->abort_limit);
+}
+
 /* tipc_link_timeout - perform periodic task as instructed from node timeout
  */
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
@@ -754,6 +772,8 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 	u16 bc_acked = l->bc_rcvlink->acked;
 	struct tipc_mon_state *mstate = &l->mon_state;
 
+	trace_tipc_link_timeout(l, TIPC_DUMP_NONE, " ");
+	trace_tipc_link_too_silent(l, TIPC_DUMP_ALL, " ");
 	switch (l->state) {
 	case LINK_ESTABLISHED:
 	case LINK_SYNCHING:
@@ -816,6 +836,7 @@ static int link_schedule_user(struct tipc_link *l, struct tipc_msg *hdr)
 	TIPC_SKB_CB(skb)->chain_imp = msg_importance(hdr);
 	skb_queue_tail(&l->wakeupq, skb);
 	l->stats.link_congs++;
+	trace_tipc_link_conges(l, TIPC_DUMP_ALL, "wakeup scheduled!");
 	return -ELINKCONG;
 }
 
@@ -1037,6 +1058,7 @@ static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 	if (less(to, from))
 		return 0;
 
+	trace_tipc_link_retrans(r, from, to, &l->transmq);
 	/* Detect repeated retransmit failures on same packet */
 	if (r->prev_from != from) {
 		r->prev_from = from;
@@ -1044,6 +1066,9 @@ static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 		r->stale_cnt = 0;
 	} else if (++r->stale_cnt > 99 && time_after(jiffies, r->stale_limit)) {
 		link_retransmit_failure(l, skb);
+		trace_tipc_list_dump(&l->transmq, true, "retrans failure!");
+		trace_tipc_link_dump(l, TIPC_DUMP_NONE, "retrans failure!");
+		trace_tipc_link_dump(r, TIPC_DUMP_NONE, "retrans failure!");
 		if (link_is_bc_sndlink(l))
 			return TIPC_LINK_DOWN_EVT;
 		return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
@@ -1403,6 +1428,7 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 		l->stats.sent_nacks++;
 	skb->priority = TC_PRIO_CONTROL;
 	__skb_queue_tail(xmitq, skb);
+	trace_tipc_proto_build(skb, false, l->name);
 }
 
 void tipc_link_create_dummy_tnl_msg(struct tipc_link *l,
@@ -1566,6 +1592,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 	char *if_name;
 	int rc = 0;
 
+	trace_tipc_proto_rcv(skb, false, l->name);
 	if (tipc_link_is_blocked(l) || !xmitq)
 		goto exit;
 
@@ -1576,8 +1603,11 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 	hdr = buf_msg(skb);
 	data = msg_data(hdr);
 
-	if (!tipc_link_validate_msg(l, hdr))
+	if (!tipc_link_validate_msg(l, hdr)) {
+		trace_tipc_skb_dump(skb, false, "PROTO invalid (1)!");
+		trace_tipc_link_dump(l, TIPC_DUMP_NONE, "PROTO invalid (1)!");
 		goto exit;
+	}
 
 	switch (mtyp) {
 	case RESET_MSG:
@@ -1820,6 +1850,7 @@ void tipc_link_bc_ack_rcv(struct tipc_link *l, u16 acked,
 	if (!more(acked, l->acked))
 		return;
 
+	trace_tipc_link_bc_ack(l, l->acked, acked, &snd_l->transmq);
 	/* Skip over packets peer has already acked */
 	skb_queue_walk(&snd_l->transmq, skb) {
 		if (more(buf_seqno(skb), l->acked))

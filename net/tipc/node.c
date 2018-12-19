@@ -784,6 +784,7 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 		if (tipc_link_peer_is_down(l))
 			tipc_node_fsm_evt(n, PEER_LOST_CONTACT_EVT);
 		tipc_node_fsm_evt(n, SELF_LOST_CONTACT_EVT);
+		trace_tipc_link_reset(l, TIPC_DUMP_ALL, "link down!");
 		tipc_link_fsm_evt(l, LINK_RESET_EVT);
 		tipc_link_reset(l);
 		tipc_link_build_reset_msg(l, xmitq);
@@ -801,6 +802,7 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 	tipc_node_fsm_evt(n, NODE_SYNCH_END_EVT);
 	n->sync_point = tipc_link_rcv_nxt(tnl) + (U16_MAX / 2 - 1);
 	tipc_link_tnl_prepare(l, tnl, FAILOVER_MSG, xmitq);
+	trace_tipc_link_reset(l, TIPC_DUMP_ALL, "link down -> failover!");
 	tipc_link_reset(l);
 	tipc_link_fsm_evt(l, LINK_RESET_EVT);
 	tipc_link_fsm_evt(l, LINK_FAILOVER_BEGIN_EVT);
@@ -1022,6 +1024,7 @@ void tipc_node_check_dest(struct net *net, u32 addr,
 			*respond = false;
 			goto exit;
 		}
+		trace_tipc_link_reset(l, TIPC_DUMP_ALL, "link created!");
 		tipc_link_reset(l);
 		tipc_link_fsm_evt(l, LINK_RESET_EVT);
 		if (n->state == NODE_FAILINGOVER)
@@ -1599,8 +1602,11 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 		}
 	}
 
-	if (!tipc_link_validate_msg(l, hdr))
+	if (!tipc_link_validate_msg(l, hdr)) {
+		trace_tipc_skb_dump(skb, false, "PROTO invalid (2)!");
+		trace_tipc_link_dump(l, TIPC_DUMP_NONE, "PROTO invalid (2)!");
 		return false;
+	}
 
 	/* Check and update node accesibility if applicable */
 	if (state == SELF_UP_PEER_COMING) {

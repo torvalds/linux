@@ -74,6 +74,45 @@ enum {
 };
 #endif
 
+/* Link & Node FSM states: */
+#define state_sym(val)							  \
+	__print_symbolic(val,						  \
+			{(0xe),		"ESTABLISHED"			},\
+			{(0xe << 4),	"ESTABLISHING"			},\
+			{(0x1 << 8),	"RESET"				},\
+			{(0x2 << 12),	"RESETTING"			},\
+			{(0xd << 16),	"PEER_RESET"			},\
+			{(0xf << 20),	"FAILINGOVER"			},\
+			{(0xc << 24),	"SYNCHING"			},\
+			{(0xdd),	"SELF_DOWN_PEER_DOWN"		},\
+			{(0xaa),	"SELF_UP_PEER_UP"		},\
+			{(0xd1),	"SELF_DOWN_PEER_LEAVING"	},\
+			{(0xac),	"SELF_UP_PEER_COMING"		},\
+			{(0xca),	"SELF_COMING_PEER_UP"		},\
+			{(0x1d),	"SELF_LEAVING_PEER_DOWN"	},\
+			{(0xf0),	"FAILINGOVER"			},\
+			{(0xcc),	"SYNCHING"			})
+
+/* Link & Node FSM events: */
+#define evt_sym(val)							  \
+	__print_symbolic(val,						  \
+			{(0xec1ab1e),	"ESTABLISH_EVT"			},\
+			{(0x9eed0e),	"PEER_RESET_EVT"		},\
+			{(0xfa110e),	"FAILURE_EVT"			},\
+			{(0x10ca1d0e),	"RESET_EVT"			},\
+			{(0xfa110bee),	"FAILOVER_BEGIN_EVT"		},\
+			{(0xfa110ede),	"FAILOVER_END_EVT"		},\
+			{(0xc1ccbee),	"SYNCH_BEGIN_EVT"		},\
+			{(0xc1ccede),	"SYNCH_END_EVT"			},\
+			{(0xece),	"SELF_ESTABL_CONTACT_EVT"	},\
+			{(0x1ce),	"SELF_LOST_CONTACT_EVT"		},\
+			{(0x9ece),	"PEER_ESTABL_CONTACT_EVT"	},\
+			{(0x91ce),	"PEER_LOST_CONTACT_EVT"		},\
+			{(0xfbe),	"FAILOVER_BEGIN_EVT"		},\
+			{(0xfee),	"FAILOVER_END_EVT"		},\
+			{(0xcbe),	"SYNCH_BEGIN_EVT"		},\
+			{(0xcee),	"SYNCH_END_EVT"			})
+
 int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf);
 int tipc_list_dump(struct sk_buff_head *list, bool more, char *buf);
 int tipc_sk_dump(struct sock *sk, u16 dqueues, char *buf);
@@ -104,6 +143,8 @@ DEFINE_EVENT(tipc_skb_class, name, \
 	TP_PROTO(struct sk_buff *skb, bool more, const char *header), \
 	TP_ARGS(skb, more, header))
 DEFINE_SKB_EVENT(tipc_skb_dump);
+DEFINE_SKB_EVENT(tipc_proto_build);
+DEFINE_SKB_EVENT(tipc_proto_rcv);
 
 DECLARE_EVENT_CLASS(tipc_list_class,
 
@@ -192,6 +233,58 @@ DEFINE_EVENT(tipc_link_class, name, \
 	TP_PROTO(struct tipc_link *l, u16 dqueues, const char *header), \
 	TP_ARGS(l, dqueues, header))
 DEFINE_LINK_EVENT(tipc_link_dump);
+DEFINE_LINK_EVENT(tipc_link_conges);
+DEFINE_LINK_EVENT(tipc_link_timeout);
+DEFINE_LINK_EVENT(tipc_link_reset);
+
+#define DEFINE_LINK_EVENT_COND(name, cond) \
+DEFINE_EVENT_CONDITION(tipc_link_class, name, \
+	TP_PROTO(struct tipc_link *l, u16 dqueues, const char *header), \
+	TP_ARGS(l, dqueues, header), \
+	TP_CONDITION(cond))
+DEFINE_LINK_EVENT_COND(tipc_link_too_silent, tipc_link_too_silent(l));
+
+DECLARE_EVENT_CLASS(tipc_link_transmq_class,
+
+	TP_PROTO(struct tipc_link *r, u16 f, u16 t, struct sk_buff_head *tq),
+
+	TP_ARGS(r, f, t, tq),
+
+	TP_STRUCT__entry(
+		__array(char, name, TIPC_MAX_LINK_NAME)
+		__field(u16, from)
+		__field(u16, to)
+		__field(u32, len)
+		__field(u16, fseqno)
+		__field(u16, lseqno)
+	),
+
+	TP_fast_assign(
+		tipc_link_name_ext(r, __entry->name);
+		__entry->from = f;
+		__entry->to = t;
+		__entry->len = skb_queue_len(tq);
+		__entry->fseqno = msg_seqno(buf_msg(skb_peek(tq)));
+		__entry->lseqno = msg_seqno(buf_msg(skb_peek_tail(tq)));
+	),
+
+	TP_printk("<%s> retrans req: [%u-%u] transmq: %u [%u-%u]\n",
+		  __entry->name, __entry->from, __entry->to,
+		  __entry->len, __entry->fseqno, __entry->lseqno)
+);
+
+DEFINE_EVENT(tipc_link_transmq_class, tipc_link_retrans,
+	TP_PROTO(struct tipc_link *r, u16 f, u16 t, struct sk_buff_head *tq),
+	TP_ARGS(r, f, t, tq)
+);
+
+DEFINE_EVENT_PRINT(tipc_link_transmq_class, tipc_link_bc_ack,
+	TP_PROTO(struct tipc_link *r, u16 f, u16 t, struct sk_buff_head *tq),
+	TP_ARGS(r, f, t, tq),
+	TP_printk("<%s> acked: [%u-%u] transmq: %u [%u-%u]\n",
+		  __entry->name, __entry->from, __entry->to,
+		  __entry->len, __entry->fseqno, __entry->lseqno)
+);
 
 DECLARE_EVENT_CLASS(tipc_node_class,
 
@@ -220,6 +313,37 @@ DEFINE_EVENT(tipc_node_class, name, \
 	TP_PROTO(struct tipc_node *n, bool more, const char *header), \
 	TP_ARGS(n, more, header))
 DEFINE_NODE_EVENT(tipc_node_dump);
+
+DECLARE_EVENT_CLASS(tipc_fsm_class,
+
+	TP_PROTO(const char *name, u32 os, u32 ns, int evt),
+
+	TP_ARGS(name, os, ns, evt),
+
+	TP_STRUCT__entry(
+		__string(name, name)
+		__field(u32, os)
+		__field(u32, ns)
+		__field(u32, evt)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, name);
+		__entry->os = os;
+		__entry->ns = ns;
+		__entry->evt = evt;
+	),
+
+	TP_printk("<%s> %s--(%s)->%s\n", __get_str(name),
+		  state_sym(__entry->os), evt_sym(__entry->evt),
+		  state_sym(__entry->ns))
+);
+
+#define DEFINE_FSM_EVENT(fsm_name) \
+DEFINE_EVENT(tipc_fsm_class, fsm_name, \
+	TP_PROTO(const char *name, u32 os, u32 ns, int evt), \
+	TP_ARGS(name, os, ns, evt))
+DEFINE_FSM_EVENT(tipc_link_fsm);
 
 #endif /* _TIPC_TRACE_H */
 
