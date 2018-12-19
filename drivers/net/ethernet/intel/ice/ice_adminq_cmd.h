@@ -851,7 +851,7 @@ struct ice_aqc_get_phy_caps {
 
 struct ice_aqc_get_phy_caps_data {
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 reserved;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 	u8 caps;
 #define ICE_AQC_PHY_EN_TX_LINK_PAUSE			BIT(0)
 #define ICE_AQC_PHY_EN_RX_LINK_PAUSE			BIT(1)
@@ -916,7 +916,7 @@ struct ice_aqc_set_phy_cfg {
 /* Set PHY config command data structure */
 struct ice_aqc_set_phy_cfg_data {
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 rsvd0;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 	u8 caps;
 #define ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY		BIT(0)
 #define ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY		BIT(1)

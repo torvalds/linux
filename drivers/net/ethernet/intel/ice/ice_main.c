@@ -2945,12 +2945,91 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_force_phys_link_state - Force the physical link state
+ * @vsi: VSI to force the physical link state to up/down
+ * @link_up: true/false indicates to set the physical link to up/down
+ *
+ * Force the physical link state by getting the current PHY capabilities from
+ * hardware and setting the PHY config based on the determined capabilities. If
+ * link changes a link event will be triggered because both the Enable Automatic
+ * Link Update and LESM Enable bits are set when setting the PHY capabilities.
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
+{
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_set_phy_cfg_data *cfg;
+	struct ice_port_info *pi;
+	struct device *dev;
+	int retcode;
+
+	if (!vsi || !vsi->port_info || !vsi->back)
+		return -EINVAL;
+	if (vsi->type != ICE_VSI_PF)
+		return 0;
+
+	dev = &vsi->back->pdev->dev;
+
+	pi = vsi->port_info;
+
+	pcaps = devm_kzalloc(dev, sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	retcode = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
+				      NULL);
+	if (retcode) {
+		dev_err(dev,
+			"Failed to get phy capabilities, VSI %d error %d\n",
+			vsi->vsi_num, retcode);
+		retcode = -EIO;
+		goto out;
+	}
+
+	/* No change in link */
+	if (link_up == !!(pcaps->caps & ICE_AQC_PHY_EN_LINK) &&
+	    link_up == !!(pi->phy.link_info.link_info & ICE_AQ_LINK_UP))
+		goto out;
+
+	cfg = devm_kzalloc(dev, sizeof(*cfg), GFP_KERNEL);
+	if (!cfg) {
+		retcode = -ENOMEM;
+		goto out;
+	}
+
+	cfg->phy_type_low = pcaps->phy_type_low;
+	cfg->phy_type_high = pcaps->phy_type_high;
+	cfg->caps = pcaps->caps | ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
+	cfg->low_power_ctrl = pcaps->low_power_ctrl;
+	cfg->eee_cap = pcaps->eee_cap;
+	cfg->eeer_value = pcaps->eeer_value;
+	cfg->link_fec_opt = pcaps->link_fec_options;
+	if (link_up)
+		cfg->caps |= ICE_AQ_PHY_ENA_LINK;
+	else
+		cfg->caps &= ~ICE_AQ_PHY_ENA_LINK;
+
+	retcode = ice_aq_set_phy_cfg(&vsi->back->hw, pi->lport, cfg, NULL);
+	if (retcode) {
+		dev_err(dev, "Failed to set phy config, VSI %d error %d\n",
+			vsi->vsi_num, retcode);
+		retcode = -EIO;
+	}
+
+	devm_kfree(dev, cfg);
+out:
+	devm_kfree(dev, pcaps);
+	return retcode;
+}
+
+/**
  * ice_down - Shutdown the connection
  * @vsi: The VSI being stopped
  */
 int ice_down(struct ice_vsi *vsi)
 {
-	int i, tx_err, rx_err;
+	int i, tx_err, rx_err, link_err;
 
 	/* Caller of this function is expected to set the
 	 * vsi->state __ICE_DOWN bit
@@ -2975,13 +3054,19 @@ int ice_down(struct ice_vsi *vsi)
 
 	ice_napi_disable_all(vsi);
 
+	link_err = ice_force_phys_link_state(vsi, false);
+	if (link_err)
+		netdev_err(vsi->netdev,
+			   "Failed to set physical link down, VSI %d error %d\n",
+			   vsi->vsi_num, link_err);
+
 	ice_for_each_txq(vsi, i)
 		ice_clean_tx_ring(vsi->tx_rings[i]);
 
 	ice_for_each_rxq(vsi, i)
 		ice_clean_rx_ring(vsi->rx_rings[i]);
 
-	if (tx_err || rx_err) {
+	if (tx_err || rx_err || link_err) {
 		netdev_err(vsi->netdev,
 			   "Failed to close VSI 0x%04X on switch 0x%04X\n",
 			   vsi->vsi_num, vsi->vsw->sw_id);
@@ -3815,8 +3900,14 @@ static int ice_open(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 
-	err = ice_vsi_open(vsi);
+	err = ice_force_phys_link_state(vsi, true);
+	if (err) {
+		netdev_err(netdev,
+			   "Failed to set physical link up, error %d\n", err);
+		return err;
+	}
 
+	err = ice_vsi_open(vsi);
 	if (err)
 		netdev_err(netdev, "Failed to open VSI 0x%04X on switch 0x%04X\n",
 			   vsi->vsi_num, vsi->vsw->sw_id);
