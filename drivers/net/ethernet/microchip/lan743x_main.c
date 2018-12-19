@@ -802,14 +802,8 @@ static int lan743x_mac_init(struct lan743x_adapter *adapter)
 	u32 mac_addr_hi = 0;
 	u32 mac_addr_lo = 0;
 	u32 data;
-	int ret;
 
 	netdev = adapter->netdev;
-	lan743x_csr_write(adapter, MAC_CR, MAC_CR_RST_);
-	ret = lan743x_csr_wait_for_bit(adapter, MAC_CR, MAC_CR_RST_,
-				       0, 1000, 20000, 100);
-	if (ret)
-		return ret;
 
 	/* setup auto duplex, and speed detection */
 	data = lan743x_csr_read(adapter, MAC_CR);
