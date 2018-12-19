@@ -2332,6 +2332,12 @@ static struct device_attribute *host_attrs_v3_hw[] = {
 	NULL
 };
 
+static const struct hisi_sas_debugfs_reg debugfs_port_reg = {
+};
+
+static const struct hisi_sas_debugfs_reg debugfs_global_reg = {
+};
+
 static struct scsi_host_template sht_v3_hw = {
 	.name			= DRV_NAME,
 	.module			= THIS_MODULE,
@@ -2380,6 +2386,8 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.get_events = phy_get_events_v3_hw,
 	.write_gpio = write_gpio_v3_hw,
 	.wait_cmds_complete_timeout = wait_cmds_complete_timeout_v3_hw,
+	.debugfs_reg_global = &debugfs_global_reg,
+	.debugfs_reg_port = &debugfs_port_reg,
 };
 
 static struct Scsi_Host *
