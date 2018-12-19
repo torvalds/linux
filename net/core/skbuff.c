@@ -79,6 +79,9 @@
 
 struct kmem_cache *skbuff_head_cache __ro_after_init;
 static struct kmem_cache *skbuff_fclone_cache __ro_after_init;
+#ifdef CONFIG_SKB_EXTENSIONS
+static struct kmem_cache *skbuff_ext_cache __ro_after_init;
+#endif
 int sysctl_max_skb_frags __read_mostly = MAX_SKB_FRAGS;
 EXPORT_SYMBOL(sysctl_max_skb_frags);
 
@@ -606,7 +609,6 @@ fastpath:
 void skb_release_head_state(struct sk_buff *skb)
 {
 	skb_dst_drop(skb);
-	secpath_reset(skb);
 	if (skb->destructor) {
 		WARN_ON(in_irq());
 		skb->destructor(skb);
@@ -614,9 +616,7 @@ void skb_release_head_state(struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	nf_conntrack_put(skb_nfct(skb));
 #endif
-#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	nf_bridge_put(skb->nf_bridge);
-#endif
+	skb_ext_put(skb);
 }
 
 /* Free everything but the sk_buff shell. */
@@ -796,9 +796,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->dev		= old->dev;
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	skb_dst_copy(new, old);
-#ifdef CONFIG_XFRM
-	new->sp			= secpath_get(old->sp);
-#endif
+	__skb_ext_copy(new, old);
 	__nf_copy(new, old, false);
 
 	/* Note : this field could be in headers_start/headers_end section
@@ -3902,6 +3900,46 @@ done:
 }
 EXPORT_SYMBOL_GPL(skb_gro_receive);
 
+#ifdef CONFIG_SKB_EXTENSIONS
+#define SKB_EXT_ALIGN_VALUE	8
+#define SKB_EXT_CHUNKSIZEOF(x)	(ALIGN((sizeof(x)), SKB_EXT_ALIGN_VALUE) / SKB_EXT_ALIGN_VALUE)
+
+static const u8 skb_ext_type_len[] = {
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	[SKB_EXT_BRIDGE_NF] = SKB_EXT_CHUNKSIZEOF(struct nf_bridge_info),
+#endif
+#ifdef CONFIG_XFRM
+	[SKB_EXT_SEC_PATH] = SKB_EXT_CHUNKSIZEOF(struct sec_path),
+#endif
+};
+
+static __always_inline unsigned int skb_ext_total_length(void)
+{
+	return SKB_EXT_CHUNKSIZEOF(struct skb_ext) +
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+		skb_ext_type_len[SKB_EXT_BRIDGE_NF] +
+#endif
+#ifdef CONFIG_XFRM
+		skb_ext_type_len[SKB_EXT_SEC_PATH] +
+#endif
+		0;
+}
+
+static void skb_extensions_init(void)
+{
+	BUILD_BUG_ON(SKB_EXT_NUM >= 8);
+	BUILD_BUG_ON(skb_ext_total_length() > 255);
+
+	skbuff_ext_cache = kmem_cache_create("skbuff_ext_cache",
+					     SKB_EXT_ALIGN_VALUE * skb_ext_total_length(),
+					     0,
+					     SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+					     NULL);
+}
+#else
+static void skb_extensions_init(void) {}
+#endif
+
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create_usercopy("skbuff_head_cache",
@@ -3916,6 +3954,7 @@ void __init skb_init(void)
 						0,
 						SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 						NULL);
+	skb_extensions_init();
 }
 
 static int
@@ -5554,3 +5593,151 @@ void skb_condense(struct sk_buff *skb)
 	 */
 	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 }
+
+#ifdef CONFIG_SKB_EXTENSIONS
+static void *skb_ext_get_ptr(struct skb_ext *ext, enum skb_ext_id id)
+{
+	return (void *)ext + (ext->offset[id] * SKB_EXT_ALIGN_VALUE);
+}
+
+static struct skb_ext *skb_ext_alloc(void)
+{
+	struct skb_ext *new = kmem_cache_alloc(skbuff_ext_cache, GFP_ATOMIC);
+
+	if (new) {
+		memset(new->offset, 0, sizeof(new->offset));
+		refcount_set(&new->refcnt, 1);
+	}
+
+	return new;
+}
+
+static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old,
+					 unsigned int old_active)
+{
+	struct skb_ext *new;
+
+	if (refcount_read(&old->refcnt) == 1)
+		return old;
+
+	new = kmem_cache_alloc(skbuff_ext_cache, GFP_ATOMIC);
+	if (!new)
+		return NULL;
+
+	memcpy(new, old, old->chunks * SKB_EXT_ALIGN_VALUE);
+	refcount_set(&new->refcnt, 1);
+
+#ifdef CONFIG_XFRM
+	if (old_active & (1 << SKB_EXT_SEC_PATH)) {
+		struct sec_path *sp = skb_ext_get_ptr(old, SKB_EXT_SEC_PATH);
+		unsigned int i;
+
+		for (i = 0; i < sp->len; i++)
+			xfrm_state_hold(sp->xvec[i]);
+	}
+#endif
+	__skb_ext_put(old);
+	return new;
+}
+
+/**
+ * skb_ext_add - allocate space for given extension, COW if needed
+ * @skb: buffer
+ * @id: extension to allocate space for
+ *
+ * Allocates enough space for the given extension.
+ * If the extension is already present, a pointer to that extension
+ * is returned.
+ *
+ * If the skb was cloned, COW applies and the returned memory can be
+ * modified without changing the extension space of clones buffers.
+ *
+ * Returns pointer to the extension or NULL on allocation failure.
+ */
+void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id)
+{
+	struct skb_ext *new, *old = NULL;
+	unsigned int newlen, newoff;
+
+	if (skb->active_extensions) {
+		old = skb->extensions;
+
+		new = skb_ext_maybe_cow(old, skb->active_extensions);
+		if (!new)
+			return NULL;
+
+		if (__skb_ext_exist(old, id)) {
+			if (old != new)
+				skb->extensions = new;
+			goto set_active;
+		}
+
+		newoff = old->chunks;
+	} else {
+		newoff = SKB_EXT_CHUNKSIZEOF(*new);
+
+		new = skb_ext_alloc();
+		if (!new)
+			return NULL;
+	}
+
+	newlen = newoff + skb_ext_type_len[id];
+	new->chunks = newlen;
+	new->offset[id] = newoff;
+	skb->extensions = new;
+set_active:
+	skb->active_extensions |= 1 << id;
+	return skb_ext_get_ptr(new, id);
+}
+EXPORT_SYMBOL(skb_ext_add);
+
+#ifdef CONFIG_XFRM
+static void skb_ext_put_sp(struct sec_path *sp)
+{
+	unsigned int i;
+
+	for (i = 0; i < sp->len; i++)
+		xfrm_state_put(sp->xvec[i]);
+}
+#endif
+
+void __skb_ext_del(struct sk_buff *skb, enum skb_ext_id id)
+{
+	struct skb_ext *ext = skb->extensions;
+
+	skb->active_extensions &= ~(1 << id);
+	if (skb->active_extensions == 0) {
+		skb->extensions = NULL;
+		__skb_ext_put(ext);
+#ifdef CONFIG_XFRM
+	} else if (id == SKB_EXT_SEC_PATH &&
+		   refcount_read(&ext->refcnt) == 1) {
+		struct sec_path *sp = skb_ext_get_ptr(ext, SKB_EXT_SEC_PATH);
+
+		skb_ext_put_sp(sp);
+		sp->len = 0;
+#endif
+	}
+}
+EXPORT_SYMBOL(__skb_ext_del);
+
+void __skb_ext_put(struct skb_ext *ext)
+{
+	/* If this is last clone, nothing can increment
+	 * it after check passes.  Avoids one atomic op.
+	 */
+	if (refcount_read(&ext->refcnt) == 1)
+		goto free_now;
+
+	if (!refcount_dec_and_test(&ext->refcnt))
+		return;
+free_now:
+#ifdef CONFIG_XFRM
+	if (__skb_ext_exist(ext, SKB_EXT_SEC_PATH))
+		skb_ext_put_sp(skb_ext_get_ptr(ext, SKB_EXT_SEC_PATH));
+#endif
+
+	kmem_cache_free(skbuff_ext_cache, ext);
+}
+EXPORT_SYMBOL(__skb_ext_put);
+#endif /* CONFIG_SKB_EXTENSIONS */

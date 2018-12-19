@@ -3200,11 +3200,12 @@ EXPORT_SYMBOL(xfrm_lookup_route);
 static inline int
 xfrm_secpath_reject(int idx, struct sk_buff *skb, const struct flowi *fl)
 {
+	struct sec_path *sp = skb_sec_path(skb);
 	struct xfrm_state *x;
 
-	if (!skb->sp || idx < 0 || idx >= skb->sp->len)
+	if (!sp || idx < 0 || idx >= sp->len)
 		return 0;
-	x = skb->sp->xvec[idx];
+	x = sp->xvec[idx];
 	if (!x->type->reject)
 		return 0;
 	return x->type->reject(x, skb, fl);
@@ -3304,6 +3305,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	struct flowi fl;
 	int xerr_idx = -1;
 	const struct xfrm_if_cb *ifcb;
+	struct sec_path *sp;
 	struct xfrm_if *xi;
 	u32 if_id = 0;
 
@@ -3328,11 +3330,12 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	nf_nat_decode_session(skb, &fl, family);
 
 	/* First, check used SA against their selectors. */
-	if (skb->sp) {
+	sp = skb_sec_path(skb);
+	if (sp) {
 		int i;
 
-		for (i = skb->sp->len-1; i >= 0; i--) {
-			struct xfrm_state *x = skb->sp->xvec[i];
+		for (i = sp->len - 1; i >= 0; i--) {
+			struct xfrm_state *x = sp->xvec[i];
 			if (!xfrm_selector_match(&x->sel, &fl, family)) {
 				XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);
 				return 0;
@@ -3359,7 +3362,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	}
 
 	if (!pol) {
-		if (skb->sp && secpath_has_nontransport(skb->sp, 0, &xerr_idx)) {
+		if (sp && secpath_has_nontransport(sp, 0, &xerr_idx)) {
 			xfrm_secpath_reject(xerr_idx, skb, &fl);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINNOPOLS);
 			return 0;
@@ -3388,7 +3391,6 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 #endif
 
 	if (pol->action == XFRM_POLICY_ALLOW) {
-		struct sec_path *sp;
 		static struct sec_path dummy;
 		struct xfrm_tmpl *tp[XFRM_MAX_DEPTH];
 		struct xfrm_tmpl *stp[XFRM_MAX_DEPTH];
@@ -3396,7 +3398,8 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		int ti = 0;
 		int i, k;
 
-		if ((sp = skb->sp) == NULL)
+		sp = skb_sec_path(skb);
+		if (!sp)
 			sp = &dummy;
 
 		for (pi = 0; pi < npols; pi++) {

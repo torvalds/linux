@@ -570,6 +570,7 @@ int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sge_eth_txq *q;
 	struct port_info *pi;
 	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	struct sec_path *sp;
 	bool immediate = false;
 
 	if (!x->xso.offload_handle)
@@ -578,7 +579,8 @@ int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev)
 	sa_entry = (struct ipsec_sa_entry *)x->xso.offload_handle;
 	kctx_len = sa_entry->kctx_len;
 
-	if (skb->sp->len != 1) {
+	sp = skb_sec_path(skb);
+	if (sp->len != 1) {
 out_free:       dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
