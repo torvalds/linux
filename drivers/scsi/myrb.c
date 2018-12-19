@@ -2236,7 +2236,6 @@ struct scsi_host_template myrb_template = {
 	.shost_attrs		= myrb_shost_attrs,
 	.sdev_attrs		= myrb_sdev_attrs,
 	.this_id		= -1,
-	.dma_boundary           = PAGE_SIZE - 1,
 };
 
 /**
