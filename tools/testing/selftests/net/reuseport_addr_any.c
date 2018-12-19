@@ -203,7 +203,9 @@ static void test(int *rcv_fds, int count, int family, int proto, int fd)
 	close(epfd);
 }
 
-int main(void)
+
+static void run_one_test(int fam_send, int fam_rcv, int proto,
+			 const char *addr_str)
 {
 	/* Below we test that a socket listening on a specific address
 	 * is always selected in preference over a socket listening
@@ -214,95 +216,48 @@ int main(void)
 	 */
 	int rcv_fds[10], i;
 
-	fprintf(stderr, "---- UDP IPv4 ----\n");
-	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds + 4, 1, IP4_ADDR);
-	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET, SOCK_DGRAM, rcv_fds[4]);
+	build_rcv_fd(AF_INET, proto, rcv_fds, 2, NULL);
+	build_rcv_fd(AF_INET6, proto, rcv_fds + 2, 2, NULL);
+	build_rcv_fd(fam_rcv, proto, rcv_fds + 4, 1, addr_str);
+	build_rcv_fd(AF_INET, proto, rcv_fds + 5, 2, NULL);
+	build_rcv_fd(AF_INET6, proto, rcv_fds + 7, 2, NULL);
+	test(rcv_fds, 9, fam_send, proto, rcv_fds[4]);
 	for (i = 0; i < 9; ++i)
 		close(rcv_fds[i]);
+	fprintf(stderr, "pass\n");
+}
 
-	fprintf(stderr, "---- UDP IPv6 ----\n");
-	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 4, 1, IP6_ADDR);
-	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET6, SOCK_DGRAM, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
+static void test_proto(int proto, const char *proto_str)
+{
+	if (proto == SOCK_DCCP) {
+		int test_fd;
 
-	fprintf(stderr, "---- UDP IPv4 mapped to IPv6 ----\n");
-	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 4, 1, IP4_MAPPED6);
-	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DGRAM, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET, SOCK_DGRAM, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
+		test_fd = socket(AF_INET, proto, 0);
+		if (test_fd < 0) {
+			if (errno == ESOCKTNOSUPPORT) {
+				fprintf(stderr, "DCCP not supported: skipping DCCP tests\n");
+				return;
+			} else
+				error(1, errno, "failed to create a DCCP socket");
+		}
+		close(test_fd);
+	}
 
-	fprintf(stderr, "---- TCP IPv4 ----\n");
-	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds + 4, 1, IP4_ADDR);
-	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET, SOCK_STREAM, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
+	fprintf(stderr, "%s IPv4 ... ", proto_str);
+	run_one_test(AF_INET, AF_INET, proto, IP4_ADDR);
 
-	fprintf(stderr, "---- TCP IPv6 ----\n");
-	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 4, 1, IP6_ADDR);
-	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET6, SOCK_STREAM, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
+	fprintf(stderr, "%s IPv6 ... ", proto_str);
+	run_one_test(AF_INET6, AF_INET6, proto, IP6_ADDR);
 
-	fprintf(stderr, "---- TCP IPv4 mapped to IPv6 ----\n");
-	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 4, 1, IP4_MAPPED6);
-	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET, SOCK_STREAM, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
+	fprintf(stderr, "%s IPv4 mapped to IPv6 ... ", proto_str);
+	run_one_test(AF_INET, AF_INET6, proto, IP4_MAPPED6);
+}
 
-	fprintf(stderr, "---- DCCP IPv4 ----\n");
-	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 4, 1, IP4_ADDR);
-	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET, SOCK_DCCP, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
-
-	fprintf(stderr, "---- DCCP IPv6 ----\n");
-	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 4, 1, IP6_ADDR);
-	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET6, SOCK_DCCP, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
-
-	fprintf(stderr, "---- DCCP IPv4 mapped to IPv6 ----\n");
-	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 2, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 4, 1, IP4_MAPPED6);
-	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 5, 2, NULL);
-	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 7, 2, NULL);
-	test(rcv_fds, 9, AF_INET, SOCK_DCCP, rcv_fds[4]);
-	for (i = 0; i < 9; ++i)
-		close(rcv_fds[i]);
+int main(void)
+{
+	test_proto(SOCK_DGRAM, "UDP");
+	test_proto(SOCK_STREAM, "TCP");
+	test_proto(SOCK_DCCP, "DCCP");
 
 	fprintf(stderr, "SUCCESS\n");
 	return 0;
