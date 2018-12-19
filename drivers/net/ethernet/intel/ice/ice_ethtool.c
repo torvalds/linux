@@ -114,6 +114,22 @@ static const u32 ice_regs_dump_list[] = {
 	QRX_ITR(0),
 };
 
+struct ice_priv_flag {
+	char name[ETH_GSTRING_LEN];
+	u32 bitno;			/* bit position in pf->flags */
+};
+
+#define ICE_PRIV_FLAG(_name, _bitno) { \
+	.name = _name, \
+	.bitno = _bitno, \
+}
+
+static const struct ice_priv_flag ice_gstrings_priv_flags[] = {
+	ICE_PRIV_FLAG("link-down-on-close", ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA),
+};
+
+#define ICE_PRIV_FLAG_ARRAY_SIZE	ARRAY_SIZE(ice_gstrings_priv_flags)
+
 /**
  * ice_nvm_version_str - format the NVM version strings
  * @hw: ptr to the hardware info
@@ -152,6 +168,7 @@ ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(pf->pdev),
 		sizeof(drvinfo->bus_info));
+	drvinfo->n_priv_flags = ICE_PRIV_FLAG_ARRAY_SIZE;
 }
 
 static int ice_get_regs_len(struct net_device __always_unused *netdev)
@@ -293,6 +310,13 @@ static void ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		}
 
 		break;
+	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < ICE_PRIV_FLAG_ARRAY_SIZE; i++) {
+			snprintf(p, ETH_GSTRING_LEN, "%s",
+				 ice_gstrings_priv_flags[i].name);
+			p += ETH_GSTRING_LEN;
+		}
+		break;
 	default:
 		break;
 	}
@@ -321,6 +345,64 @@ ice_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 	return 0;
 }
 
+/**
+ * ice_get_priv_flags - report device private flags
+ * @netdev: network interface device structure
+ *
+ * The get string set count and the string set should be matched for each
+ * flag returned.  Add new strings for each flag to the ice_gstrings_priv_flags
+ * array.
+ *
+ * Returns a u32 bitmap of flags.
+ */
+static u32 ice_get_priv_flags(struct net_device *netdev)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	u32 i, ret_flags = 0;
+
+	for (i = 0; i < ICE_PRIV_FLAG_ARRAY_SIZE; i++) {
+		const struct ice_priv_flag *priv_flag;
+
+		priv_flag = &ice_gstrings_priv_flags[i];
+
+		if (test_bit(priv_flag->bitno, pf->flags))
+			ret_flags |= BIT(i);
+	}
+
+	return ret_flags;
+}
+
+/**
+ * ice_set_priv_flags - set private flags
+ * @netdev: network interface device structure
+ * @flags: bit flags to be set
+ */
+static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	u32 i;
+
+	if (flags > BIT(ICE_PRIV_FLAG_ARRAY_SIZE))
+		return -EINVAL;
+
+	for (i = 0; i < ICE_PRIV_FLAG_ARRAY_SIZE; i++) {
+		const struct ice_priv_flag *priv_flag;
+
+		priv_flag = &ice_gstrings_priv_flags[i];
+
+		if (flags & BIT(i))
+			set_bit(priv_flag->bitno, pf->flags);
+		else
+			clear_bit(priv_flag->bitno, pf->flags);
+	}
+
+	return 0;
+}
+
 static int ice_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
@@ -344,6 +426,8 @@ static int ice_get_sset_count(struct net_device *netdev, int sset)
 		 * not safe.
 		 */
 		return ICE_ALL_STATS_LEN(netdev);
+	case ETH_SS_PRIV_FLAGS:
+		return ICE_PRIV_FLAG_ARRAY_SIZE;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1753,6 +1837,8 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.get_strings		= ice_get_strings,
 	.set_phys_id		= ice_set_phys_id,
 	.get_ethtool_stats      = ice_get_ethtool_stats,
+	.get_priv_flags		= ice_get_priv_flags,
+	.set_priv_flags		= ice_set_priv_flags,
 	.get_sset_count		= ice_get_sset_count,
 	.get_rxnfc		= ice_get_rxnfc,
 	.get_ringparam		= ice_get_ringparam,

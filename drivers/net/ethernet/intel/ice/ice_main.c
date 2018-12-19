@@ -3029,7 +3029,7 @@ out:
  */
 int ice_down(struct ice_vsi *vsi)
 {
-	int i, tx_err, rx_err, link_err;
+	int i, tx_err, rx_err, link_err = 0;
 
 	/* Caller of this function is expected to set the
 	 * vsi->state __ICE_DOWN bit
@@ -3054,11 +3054,13 @@ int ice_down(struct ice_vsi *vsi)
 
 	ice_napi_disable_all(vsi);
 
-	link_err = ice_force_phys_link_state(vsi, false);
-	if (link_err)
-		netdev_err(vsi->netdev,
-			   "Failed to set physical link down, VSI %d error %d\n",
-			   vsi->vsi_num, link_err);
+	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags)) {
+		link_err = ice_force_phys_link_state(vsi, false);
+		if (link_err)
+			netdev_err(vsi->netdev,
+				   "Failed to set physical link down, VSI %d error %d\n",
+				   vsi->vsi_num, link_err);
+	}
 
 	ice_for_each_txq(vsi, i)
 		ice_clean_tx_ring(vsi->tx_rings[i]);

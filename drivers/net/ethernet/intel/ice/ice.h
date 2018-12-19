@@ -270,6 +270,7 @@ enum ice_pf_flags {
 	ICE_FLAG_RSS_ENA,
 	ICE_FLAG_SRIOV_ENA,
 	ICE_FLAG_SRIOV_CAPABLE,
+	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
