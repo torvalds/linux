@@ -10,6 +10,15 @@ menuconfig LOGO
 
 if LOGO
 
+config FB_LOGO_CENTER
+	bool "Center the logo"
+	depends on FB=y
+	help
+	  When this option is selected, the bootup logo is centered both
+	  horizontally and vertically. If more than one logo is displayed
+	  due to multiple CPUs, the collected line of logos is centered
+	  as a whole.
+
 config FB_LOGO_EXTRA
 	bool
 	depends on FB=y
