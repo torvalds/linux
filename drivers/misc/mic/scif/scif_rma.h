@@ -53,7 +53,7 @@
 #ifndef SCIF_RMA_H
 #define SCIF_RMA_H
 
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/mmu_notifier.h>
 
 #include "../bus/scif_bus.h"

@@ -34,7 +34,7 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0

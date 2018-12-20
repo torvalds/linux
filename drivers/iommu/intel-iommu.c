@@ -291,49 +291,6 @@ static inline void context_clear_entry(struct context_entry *context)
 }
 
 /*
- * 0: readable
- * 1: writable
- * 2-6: reserved
- * 7: super page
- * 8-10: available
- * 11: snoop behavior
- * 12-63: Host physcial address
- */
-struct dma_pte {
-	u64 val;
-};
-
-static inline void dma_clear_pte(struct dma_pte *pte)
-{
-	pte->val = 0;
-}
-
-static inline u64 dma_pte_addr(struct dma_pte *pte)
-{
-#ifdef CONFIG_64BIT
-	return pte->val & VTD_PAGE_MASK;
-#else
-	/* Must have a full atomic 64-bit read */
-	return  __cmpxchg64(&pte->val, 0ULL, 0ULL) & VTD_PAGE_MASK;
-#endif
-}
-
-static inline bool dma_pte_present(struct dma_pte *pte)
-{
-	return (pte->val & 3) != 0;
-}
-
-static inline bool dma_pte_superpage(struct dma_pte *pte)
-{
-	return (pte->val & DMA_PTE_LARGE_PAGE);
-}
-
-static inline int first_pte_in_page(struct dma_pte *pte)
-{
-	return !((unsigned long)pte & ~VTD_PAGE_MASK);
-}
-
-/*
  * This domain is a statically identity mapping domain.
  *	1. This domain creats a static 1:1 mapping to all usable memory.
  * 	2. It maps to each iommu if successful.
@@ -405,38 +362,16 @@ static int dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
-static int intel_iommu_ecs = 1;
-static int intel_iommu_pasid28;
+static int intel_iommu_sm = 1;
 static int iommu_identity_mapping;
 
 #define IDENTMAP_ALL		1
 #define IDENTMAP_GFX		2
 #define IDENTMAP_AZALIA		4
 
-/* Broadwell and Skylake have broken ECS support — normal so-called "second
- * level" translation of DMA requests-without-PASID doesn't actually happen
- * unless you also set the NESTE bit in an extended context-entry. Which of
- * course means that SVM doesn't work because it's trying to do nested
- * translation of the physical addresses it finds in the process page tables,
- * through the IOVA->phys mapping found in the "second level" page tables.
- *
- * The VT-d specification was retroactively changed to change the definition
- * of the capability bits and pretend that Broadwell/Skylake never happened...
- * but unfortunately the wrong bit was changed. It's ECS which is broken, but
- * for some reason it was the PASID capability bit which was redefined (from
- * bit 28 on BDW/SKL to bit 40 in future).
- *
- * So our test for ECS needs to eschew those implementations which set the old
- * PASID capabiity bit 28, since those are the ones on which ECS is broken.
- * Unless we are working around the 'pasid28' limitations, that is, by putting
- * the device into passthrough mode for normal DMA and thus masking the bug.
- */
-#define ecs_enabled(iommu) (intel_iommu_ecs && ecap_ecs(iommu->ecap) && \
-			    (intel_iommu_pasid28 || !ecap_broken_pasid(iommu->ecap)))
-/* PASID support is thus enabled if ECS is enabled and *either* of the old
- * or new capability bits are set. */
-#define pasid_enabled(iommu) (ecs_enabled(iommu) &&			\
-			      (ecap_pasid(iommu->ecap) || ecap_broken_pasid(iommu->ecap)))
+#define sm_supported(iommu)	(intel_iommu_sm && ecap_smts((iommu)->ecap))
+#define pasid_supported(iommu)	(sm_supported(iommu) &&			\
+				 ecap_pasid((iommu)->ecap))
 
 int intel_iommu_gfx_mapped;
 EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
@@ -447,21 +382,24 @@ static LIST_HEAD(device_domain_list);
 
 /*
  * Iterate over elements in device_domain_list and call the specified
- * callback @fn against each element. This helper should only be used
- * in the context where the device_domain_lock has already been holden.
+ * callback @fn against each element.
  */
 int for_each_device_domain(int (*fn)(struct device_domain_info *info,
 				     void *data), void *data)
 {
 	int ret = 0;
+	unsigned long flags;
 	struct device_domain_info *info;
 
-	assert_spin_locked(&device_domain_lock);
+	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry(info, &device_domain_list, global) {
 		ret = fn(info, data);
-		if (ret)
+		if (ret) {
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 			return ret;
+		}
 	}
+	spin_unlock_irqrestore(&device_domain_lock, flags);
 
 	return 0;
 }
@@ -516,15 +454,9 @@ static int __init intel_iommu_setup(char *str)
 		} else if (!strncmp(str, "sp_off", 6)) {
 			pr_info("Disable supported super page\n");
 			intel_iommu_superpage = 0;
-		} else if (!strncmp(str, "ecs_off", 7)) {
-			printk(KERN_INFO
-				"Intel-IOMMU: disable extended context table support\n");
-			intel_iommu_ecs = 0;
-		} else if (!strncmp(str, "pasid28", 7)) {
-			printk(KERN_INFO
-				"Intel-IOMMU: enable pre-production PASID support\n");
-			intel_iommu_pasid28 = 1;
-			iommu_identity_mapping |= IDENTMAP_GFX;
+		} else if (!strncmp(str, "sm_off", 6)) {
+			pr_info("Intel-IOMMU: disable scalable mode support\n");
+			intel_iommu_sm = 0;
 		} else if (!strncmp(str, "tboot_noforce", 13)) {
 			printk(KERN_INFO
 				"Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
@@ -771,7 +703,7 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 	u64 *entry;
 
 	entry = &root->lo;
-	if (ecs_enabled(iommu)) {
+	if (sm_supported(iommu)) {
 		if (devfn >= 0x80) {
 			devfn -= 0x80;
 			entry = &root->hi;
@@ -913,7 +845,7 @@ static void free_context_table(struct intel_iommu *iommu)
 		if (context)
 			free_pgtable_page(context);
 
-		if (!ecs_enabled(iommu))
+		if (!sm_supported(iommu))
 			continue;
 
 		context = iommu_context_addr(iommu, i, 0x80, 0);
@@ -1265,8 +1197,8 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 	unsigned long flag;
 
 	addr = virt_to_phys(iommu->root_entry);
-	if (ecs_enabled(iommu))
-		addr |= DMA_RTADDR_RTT;
+	if (sm_supported(iommu))
+		addr |= DMA_RTADDR_SMT;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, addr);
@@ -1280,7 +1212,7 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
-static void iommu_flush_write_buffer(struct intel_iommu *iommu)
+void iommu_flush_write_buffer(struct intel_iommu *iommu)
 {
 	u32 val;
 	unsigned long flag;
@@ -1691,6 +1623,16 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	 */
 	set_bit(0, iommu->domain_ids);
 
+	/*
+	 * Vt-d spec rev3.0 (section 6.2.3.1) requires that each pasid
+	 * entry for first-level or pass-through translation modes should
+	 * be programmed with a domain id different from those used for
+	 * second-level or nested translation. We reserve a domain id for
+	 * this purpose.
+	 */
+	if (sm_supported(iommu))
+		set_bit(FLPT_DEFAULT_DID, iommu->domain_ids);
+
 	return 0;
 }
 
@@ -1755,10 +1697,9 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 	free_context_table(iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-	if (pasid_enabled(iommu)) {
+	if (pasid_supported(iommu)) {
 		if (ecap_prs(iommu->ecap))
 			intel_svm_finish_prq(iommu);
-		intel_svm_exit(iommu);
 	}
 #endif
 }
@@ -1978,8 +1919,59 @@ static void domain_exit(struct dmar_domain *domain)
 	free_domain_mem(domain);
 }
 
+/*
+ * Get the PASID directory size for scalable mode context entry.
+ * Value of X in the PDTS field of a scalable mode context entry
+ * indicates PASID directory with 2^(X + 7) entries.
+ */
+static inline unsigned long context_get_sm_pds(struct pasid_table *table)
+{
+	int pds, max_pde;
+
+	max_pde = table->max_pasid >> PASID_PDE_SHIFT;
+	pds = find_first_bit((unsigned long *)&max_pde, MAX_NR_PASID_BITS);
+	if (pds < 7)
+		return 0;
+
+	return pds - 7;
+}
+
+/*
+ * Set the RID_PASID field of a scalable mode context entry. The
+ * IOMMU hardware will use the PASID value set in this field for
+ * DMA translations of DMA requests without PASID.
+ */
+static inline void
+context_set_sm_rid2pasid(struct context_entry *context, unsigned long pasid)
+{
+	context->hi |= pasid & ((1 << 20) - 1);
+	context->hi |= (1 << 20);
+}
+
+/*
+ * Set the DTE(Device-TLB Enable) field of a scalable mode context
+ * entry.
+ */
+static inline void context_set_sm_dte(struct context_entry *context)
+{
+	context->lo |= (1 << 2);
+}
+
+/*
+ * Set the PRE(Page Request Enable) field of a scalable mode context
+ * entry.
+ */
+static inline void context_set_sm_pre(struct context_entry *context)
+{
+	context->lo |= (1 << 4);
+}
+
+/* Convert value to context PASID directory size field coding. */
+#define context_pdts(pds)	(((pds) & 0x7) << 9)
+
 static int domain_context_mapping_one(struct dmar_domain *domain,
 				      struct intel_iommu *iommu,
+				      struct pasid_table *table,
 				      u8 bus, u8 devfn)
 {
 	u16 did = domain->iommu_did[iommu->seq_id];
@@ -1987,8 +1979,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	struct device_domain_info *info = NULL;
 	struct context_entry *context;
 	unsigned long flags;
-	struct dma_pte *pgd;
-	int ret, agaw;
+	int ret;
 
 	WARN_ON(did == 0);
 
@@ -2034,41 +2025,67 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		}
 	}
 
-	pgd = domain->pgd;
-
 	context_clear_entry(context);
-	context_set_domain_id(context, did);
 
-	/*
-	 * Skip top levels of page tables for iommu which has less agaw
-	 * than default.  Unnecessary for PT mode.
-	 */
-	if (translation != CONTEXT_TT_PASS_THROUGH) {
-		for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
-			ret = -ENOMEM;
-			pgd = phys_to_virt(dma_pte_addr(pgd));
-			if (!dma_pte_present(pgd))
-				goto out_unlock;
-		}
+	if (sm_supported(iommu)) {
+		unsigned long pds;
 
+		WARN_ON(!table);
+
+		/* Setup the PASID DIR pointer: */
+		pds = context_get_sm_pds(table);
+		context->lo = (u64)virt_to_phys(table->table) |
+				context_pdts(pds);
+
+		/* Setup the RID_PASID field: */
+		context_set_sm_rid2pasid(context, PASID_RID2PASID);
+
+		/*
+		 * Setup the Device-TLB enable bit and Page request
+		 * Enable bit:
+		 */
 		info = iommu_support_dev_iotlb(domain, iommu, bus, devfn);
 		if (info && info->ats_supported)
-			translation = CONTEXT_TT_DEV_IOTLB;
-		else
-			translation = CONTEXT_TT_MULTI_LEVEL;
-
-		context_set_address_root(context, virt_to_phys(pgd));
-		context_set_address_width(context, iommu->agaw);
+			context_set_sm_dte(context);
+		if (info && info->pri_supported)
+			context_set_sm_pre(context);
 	} else {
-		/*
-		 * In pass through mode, AW must be programmed to
-		 * indicate the largest AGAW value supported by
-		 * hardware. And ASR is ignored by hardware.
-		 */
-		context_set_address_width(context, iommu->msagaw);
+		struct dma_pte *pgd = domain->pgd;
+		int agaw;
+
+		context_set_domain_id(context, did);
+		context_set_translation_type(context, translation);
+
+		if (translation != CONTEXT_TT_PASS_THROUGH) {
+			/*
+			 * Skip top levels of page tables for iommu which has
+			 * less agaw than default. Unnecessary for PT mode.
+			 */
+			for (agaw = domain->agaw; agaw > iommu->agaw; agaw--) {
+				ret = -ENOMEM;
+				pgd = phys_to_virt(dma_pte_addr(pgd));
+				if (!dma_pte_present(pgd))
+					goto out_unlock;
+			}
+
+			info = iommu_support_dev_iotlb(domain, iommu, bus, devfn);
+			if (info && info->ats_supported)
+				translation = CONTEXT_TT_DEV_IOTLB;
+			else
+				translation = CONTEXT_TT_MULTI_LEVEL;
+
+			context_set_address_root(context, virt_to_phys(pgd));
+			context_set_address_width(context, agaw);
+		} else {
+			/*
+			 * In pass through mode, AW must be programmed to
+			 * indicate the largest AGAW value supported by
+			 * hardware. And ASR is ignored by hardware.
+			 */
+			context_set_address_width(context, iommu->msagaw);
+		}
 	}
 
-	context_set_translation_type(context, translation);
 	context_set_fault_enable(context);
 	context_set_present(context);
 	domain_flush_cache(domain, context, sizeof(*context));
@@ -2102,6 +2119,7 @@ out_unlock:
 struct domain_context_mapping_data {
 	struct dmar_domain *domain;
 	struct intel_iommu *iommu;
+	struct pasid_table *table;
 };
 
 static int domain_context_mapping_cb(struct pci_dev *pdev,
@@ -2110,25 +2128,31 @@ static int domain_context_mapping_cb(struct pci_dev *pdev,
 	struct domain_context_mapping_data *data = opaque;
 
 	return domain_context_mapping_one(data->domain, data->iommu,
-					  PCI_BUS_NUM(alias), alias & 0xff);
+					  data->table, PCI_BUS_NUM(alias),
+					  alias & 0xff);
 }
 
 static int
 domain_context_mapping(struct dmar_domain *domain, struct device *dev)
 {
+	struct domain_context_mapping_data data;
+	struct pasid_table *table;
 	struct intel_iommu *iommu;
 	u8 bus, devfn;
-	struct domain_context_mapping_data data;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
+	table = intel_pasid_get_table(dev);
+
 	if (!dev_is_pci(dev))
-		return domain_context_mapping_one(domain, iommu, bus, devfn);
+		return domain_context_mapping_one(domain, iommu, table,
+						  bus, devfn);
 
 	data.domain = domain;
 	data.iommu = iommu;
+	data.table = table;
 
 	return pci_for_each_dma_alias(to_pci_dev(dev),
 				      &domain_context_mapping_cb, &data);
@@ -2464,8 +2488,8 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 		    dmar_find_matched_atsr_unit(pdev))
 			info->ats_supported = 1;
 
-		if (ecs_enabled(iommu)) {
-			if (pasid_enabled(iommu)) {
+		if (sm_supported(iommu)) {
+			if (pasid_supported(iommu)) {
 				int features = pci_pasid_features(pdev);
 				if (features >= 0)
 					info->pasid_supported = features | 1;
@@ -2511,16 +2535,34 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 	list_add(&info->global, &device_domain_list);
 	if (dev)
 		dev->archdata.iommu = info;
+	spin_unlock_irqrestore(&device_domain_lock, flags);
 
-	if (dev && dev_is_pci(dev) && info->pasid_supported) {
+	/* PASID table is mandatory for a PCI device in scalable mode. */
+	if (dev && dev_is_pci(dev) && sm_supported(iommu)) {
 		ret = intel_pasid_alloc_table(dev);
 		if (ret) {
-			pr_warn("No pasid table for %s, pasid disabled\n",
-				dev_name(dev));
-			info->pasid_supported = 0;
+			pr_err("PASID table allocation for %s failed\n",
+			       dev_name(dev));
+			dmar_remove_one_dev_info(domain, dev);
+			return NULL;
+		}
+
+		/* Setup the PASID entry for requests without PASID: */
+		spin_lock(&iommu->lock);
+		if (hw_pass_through && domain_type_is_si(domain))
+			ret = intel_pasid_setup_pass_through(iommu, domain,
+					dev, PASID_RID2PASID);
+		else
+			ret = intel_pasid_setup_second_level(iommu, domain,
+					dev, PASID_RID2PASID);
+		spin_unlock(&iommu->lock);
+		if (ret) {
+			pr_err("Setup RID2PASID for %s failed\n",
+			       dev_name(dev));
+			dmar_remove_one_dev_info(domain, dev);
+			return NULL;
 		}
 	}
-	spin_unlock_irqrestore(&device_domain_lock, flags);
 
 	if (dev && domain_context_mapping(domain, dev)) {
 		pr_err("Domain context map for %s failed\n", dev_name(dev));
@@ -3277,7 +3319,7 @@ static int __init init_dmars(void)
 		 * We need to ensure the system pasid table is no bigger
 		 * than the smallest supported.
 		 */
-		if (pasid_enabled(iommu)) {
+		if (pasid_supported(iommu)) {
 			u32 temp = 2 << ecap_pss(iommu->ecap);
 
 			intel_pasid_max_id = min_t(u32, temp,
@@ -3338,7 +3380,7 @@ static int __init init_dmars(void)
 		if (!ecap_pass_through(iommu->ecap))
 			hw_pass_through = 0;
 #ifdef CONFIG_INTEL_IOMMU_SVM
-		if (pasid_enabled(iommu))
+		if (pasid_supported(iommu))
 			intel_svm_init(iommu);
 #endif
 	}
@@ -3442,7 +3484,7 @@ domains_done:
 		iommu_flush_write_buffer(iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-		if (pasid_enabled(iommu) && ecap_prs(iommu->ecap)) {
+		if (pasid_supported(iommu) && ecap_prs(iommu->ecap)) {
 			ret = intel_svm_enable_prq(iommu);
 			if (ret)
 				goto free_iommu;
@@ -4331,7 +4373,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 		goto out;
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-	if (pasid_enabled(iommu))
+	if (pasid_supported(iommu))
 		intel_svm_init(iommu);
 #endif
 
@@ -4348,7 +4390,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 	iommu_flush_write_buffer(iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-	if (pasid_enabled(iommu) && ecap_prs(iommu->ecap)) {
+	if (pasid_supported(iommu) && ecap_prs(iommu->ecap)) {
 		ret = intel_svm_enable_prq(iommu);
 		if (ret)
 			goto disable_iommu;
@@ -4883,6 +4925,10 @@ static void __dmar_remove_one_dev_info(struct device_domain_info *info)
 	iommu = info->iommu;
 
 	if (info->dev) {
+		if (dev_is_pci(info->dev) && sm_supported(iommu))
+			intel_pasid_tear_down_entry(iommu, info->dev,
+					PASID_RID2PASID);
+
 		iommu_disable_dev_iotlb(info);
 		domain_context_clear(iommu, info->dev);
 		intel_pasid_free_table(info->dev);
@@ -5210,19 +5256,6 @@ static void intel_iommu_put_resv_regions(struct device *dev,
 }
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-#define MAX_NR_PASID_BITS (20)
-static inline unsigned long intel_iommu_get_pts(struct device *dev)
-{
-	int pts, max_pasid;
-
-	max_pasid = intel_pasid_get_dev_max_id(dev);
-	pts = find_first_bit((unsigned long *)&max_pasid, MAX_NR_PASID_BITS);
-	if (pts < 5)
-		return 0;
-
-	return pts - 5;
-}
-
 int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sdev)
 {
 	struct device_domain_info *info;
@@ -5254,33 +5287,7 @@ int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sd
 	sdev->sid = PCI_DEVID(info->bus, info->devfn);
 
 	if (!(ctx_lo & CONTEXT_PASIDE)) {
-		if (iommu->pasid_state_table)
-			context[1].hi = (u64)virt_to_phys(iommu->pasid_state_table);
-		context[1].lo = (u64)virt_to_phys(info->pasid_table->table) |
-			intel_iommu_get_pts(sdev->dev);
-
-		wmb();
-		/* CONTEXT_TT_MULTI_LEVEL and CONTEXT_TT_DEV_IOTLB are both
-		 * extended to permit requests-with-PASID if the PASIDE bit
-		 * is set. which makes sense. For CONTEXT_TT_PASS_THROUGH,
-		 * however, the PASIDE bit is ignored and requests-with-PASID
-		 * are unconditionally blocked. Which makes less sense.
-		 * So convert from CONTEXT_TT_PASS_THROUGH to one of the new
-		 * "guest mode" translation types depending on whether ATS
-		 * is available or not. Annoyingly, we can't use the new
-		 * modes *unless* PASIDE is set. */
-		if ((ctx_lo & CONTEXT_TT_MASK) == (CONTEXT_TT_PASS_THROUGH << 2)) {
-			ctx_lo &= ~CONTEXT_TT_MASK;
-			if (info->ats_supported)
-				ctx_lo |= CONTEXT_TT_PT_PASID_DEV_IOTLB << 2;
-			else
-				ctx_lo |= CONTEXT_TT_PT_PASID << 2;
-		}
 		ctx_lo |= CONTEXT_PASIDE;
-		if (iommu->pasid_state_table)
-			ctx_lo |= CONTEXT_DINVE;
-		if (info->pri_supported)
-			ctx_lo |= CONTEXT_PRS;
 		context[0].lo = ctx_lo;
 		wmb();
 		iommu->flush.flush_context(iommu, sdev->did, sdev->sid,

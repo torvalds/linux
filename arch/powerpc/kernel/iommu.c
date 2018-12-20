@@ -1086,7 +1086,7 @@ int iommu_add_device(struct device *dev)
 	if (!device_is_registered(dev))
 		return -ENOENT;
 
-	if (dev->iommu_group) {
+	if (device_iommu_mapped(dev)) {
 		pr_debug("%s: Skipping device %s with iommu group %d\n",
 			 __func__, dev_name(dev),
 			 iommu_group_id(dev->iommu_group));
@@ -1129,7 +1129,7 @@ void iommu_del_device(struct device *dev)
 	 * and we needn't detach them from the associated
 	 * IOMMU groups
 	 */
-	if (!dev->iommu_group) {
+	if (!device_iommu_mapped(dev)) {
 		pr_debug("iommu_tce: skipping device %s with no tbl\n",
 			 dev_name(dev));
 		return;
@@ -1148,7 +1148,7 @@ static int tce_iommu_bus_notifier(struct notifier_block *nb,
         case BUS_NOTIFY_ADD_DEVICE:
                 return iommu_add_device(dev);
         case BUS_NOTIFY_DEL_DEVICE:
-                if (dev->iommu_group)
+                if (device_iommu_mapped(dev))
                         iommu_del_device(dev);
                 return 0;
         default:
