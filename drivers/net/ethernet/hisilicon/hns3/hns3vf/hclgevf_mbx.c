@@ -26,7 +26,7 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 				u8 *resp_data, u16 resp_len)
 {
 #define HCLGEVF_MAX_TRY_TIMES	500
-#define HCLGEVF_SLEEP_USCOEND	1000
+#define HCLGEVF_SLEEP_USECOND	1000
 	struct hclgevf_mbx_resp_status *mbx_resp;
 	u16 r_code0, r_code1;
 	int i = 0;
@@ -43,7 +43,7 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state))
 			return -EIO;
 
-		udelay(HCLGEVF_SLEEP_USCOEND);
+		usleep_range(HCLGEVF_SLEEP_USECOND, HCLGEVF_SLEEP_USECOND * 2);
 		i++;
 	}
 
