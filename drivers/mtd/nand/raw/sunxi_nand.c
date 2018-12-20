@@ -1442,6 +1442,20 @@ static int sunxi_nfc_setup_data_interface(struct nand_chip *nand, int csline,
 	if (timings->tRHW_min > (min_clk_period * 20))
 		min_clk_period = DIV_ROUND_UP(timings->tRHW_min, 20);
 
+	/*
+	 * In non-EDO, tREA should be less than tRP to guarantee that the
+	 * controller does not sample the IO lines too early. Unfortunately,
+	 * the sunxi NAND controller does not allow us to have different
+	 * values for tRP and tREH (tRP = tREH = tRW / 2).
+	 *
+	 * We have 2 options to overcome this limitation:
+	 *
+	 * 1/ Extend tRC to fulfil the tREA <= tRC / 2 constraint
+	 * 2/ Use EDO mode (only works if timings->tRLOH > 0)
+	 */
+	if (timings->tREA_max > min_clk_period && !timings->tRLOH_min)
+		min_clk_period = timings->tREA_max;
+
 	tWB  = sunxi_nand_lookup_timing(tWB_lut, timings->tWB_max,
 					min_clk_period);
 	if (tWB < 0) {
@@ -1497,14 +1511,16 @@ static int sunxi_nfc_setup_data_interface(struct nand_chip *nand, int csline,
 		return -EINVAL;
 	}
 
+	sunxi_nand->timing_ctl = 0;
+
 	/*
 	 * ONFI specification 3.1, paragraph 4.15.2 dictates that EDO data
 	 * output cycle timings shall be used if the host drives tRC less than
-	 * 30 ns.
+	 * 30 ns. We should also use EDO mode if tREA is bigger than tRP.
 	 */
 	min_clk_period = NSEC_PER_SEC / real_clk_rate;
-	sunxi_nand->timing_ctl = ((min_clk_period * 2) < 30) ?
-				 NFC_TIMING_CTL_EDO : 0;
+	if (min_clk_period * 2 < 30 || min_clk_period * 1000 < timings->tREA_max)
+		sunxi_nand->timing_ctl = NFC_TIMING_CTL_EDO;
 
 	return 0;
 }
