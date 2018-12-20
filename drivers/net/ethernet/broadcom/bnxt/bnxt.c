@@ -3755,6 +3755,8 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
 	u16 max_req_len = BNXT_HWRM_MAX_REQ_LEN;
 	struct hwrm_short_input short_input = {0};
+	u32 doorbell_offset = BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER;
+	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
 
 	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
 	memset(resp, 0, PAGE_SIZE);
@@ -3800,17 +3802,17 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	}
 
 	/* Write request msg to hwrm channel */
-	__iowrite32_copy(bp->bar0, data, msg_len / 4);
+	__iowrite32_copy(bp->bar0 + bar_offset, data, msg_len / 4);
 
 	for (i = msg_len; i < max_req_len; i += 4)
-		writel(0, bp->bar0 + i);
+		writel(0, bp->bar0 + bar_offset + i);
 
 	/* currently supports only one outstanding message */
 	if (intr_process)
 		bp->hwrm_intr_seq_id = le16_to_cpu(req->seq_id);
 
 	/* Ring channel doorbell */
-	writel(1, bp->bar0 + 0x100);
+	writel(1, bp->bar0 + doorbell_offset);
 
 	if (!timeout)
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
