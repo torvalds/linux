@@ -194,7 +194,7 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 			code->op = FETCH_OP_RETVAL;
 		else
 			ret = -EINVAL;
-	} else if (strncmp(arg, "stack", 5) == 0) {
+	} else if (str_has_prefix(arg, "stack")) {
 		if (arg[5] == '\0') {
 			code->op = FETCH_OP_STACKP;
 		} else if (isdigit(arg[5])) {
@@ -213,7 +213,7 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	} else if (((flags & TPARG_FL_MASK) ==
 		    (TPARG_FL_KERNEL | TPARG_FL_FENTRY)) &&
-		   strncmp(arg, "arg", 3) == 0) {
+		   str_has_prefix(arg, "arg")) {
 		if (!isdigit(arg[3]))
 			return -EINVAL;
 		ret = kstrtoul(arg + 3, 10, &param);
