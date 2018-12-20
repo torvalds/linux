@@ -3279,6 +3279,27 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 				  bp->hwrm_cmd_resp_dma_addr);
 		bp->hwrm_cmd_resp_addr = NULL;
 	}
+
+	if (bp->hwrm_cmd_kong_resp_addr) {
+		dma_free_coherent(&pdev->dev, PAGE_SIZE,
+				  bp->hwrm_cmd_kong_resp_addr,
+				  bp->hwrm_cmd_kong_resp_dma_addr);
+		bp->hwrm_cmd_kong_resp_addr = NULL;
+	}
+}
+
+static int bnxt_alloc_kong_hwrm_resources(struct bnxt *bp)
+{
+	struct pci_dev *pdev = bp->pdev;
+
+	bp->hwrm_cmd_kong_resp_addr =
+		dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
+				   &bp->hwrm_cmd_kong_resp_dma_addr,
+				   GFP_KERNEL);
+	if (!bp->hwrm_cmd_kong_resp_addr)
+		return -ENOMEM;
+
+	return 0;
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -3740,7 +3761,10 @@ void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 	req->req_type = cpu_to_le16(req_type);
 	req->cmpl_ring = cpu_to_le16(cmpl_ring);
 	req->target_id = cpu_to_le16(target_id);
-	req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
+	if (bnxt_kong_hwrm_message(bp, req))
+		req->resp_addr = cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr);
+	else
+		req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
 }
 
 static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
@@ -3758,17 +3782,30 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	u32 doorbell_offset = BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER;
 	u8 *resp_addr = (u8 *)bp->hwrm_cmd_resp_addr;
 	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
-
-	req->seq_id = cpu_to_le16(bnxt_get_hwrm_seq_id(bp));
-	memset(resp, 0, PAGE_SIZE);
-	cp_ring_id = le16_to_cpu(req->cmpl_ring);
-	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
+	u16 dst = BNXT_HWRM_CHNL_CHIMP;
 
 	if (msg_len > BNXT_HWRM_MAX_REQ_LEN) {
 		if (msg_len > bp->hwrm_max_ext_req_len ||
 		    !bp->hwrm_short_cmd_req_addr)
 			return -EINVAL;
 	}
+
+	if (bnxt_hwrm_kong_chnl(bp, req)) {
+		dst = BNXT_HWRM_CHNL_KONG;
+		bar_offset = BNXT_GRCPF_REG_KONG_COMM;
+		doorbell_offset = BNXT_GRCPF_REG_KONG_COMM_TRIGGER;
+		resp = bp->hwrm_cmd_kong_resp_addr;
+		resp_addr = (u8 *)bp->hwrm_cmd_kong_resp_addr;
+	}
+
+	memset(resp, 0, PAGE_SIZE);
+	cp_ring_id = le16_to_cpu(req->cmpl_ring);
+	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
+
+	req->seq_id = cpu_to_le16(bnxt_get_hwrm_seq_id(bp, dst));
+	/* currently supports only one outstanding message */
+	if (intr_process)
+		bp->hwrm_intr_seq_id = le16_to_cpu(req->seq_id);
 
 	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
 	    msg_len > BNXT_HWRM_MAX_REQ_LEN) {
@@ -3807,10 +3844,6 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 	for (i = msg_len; i < max_req_len; i += 4)
 		writel(0, bp->bar0 + bar_offset + i);
-
-	/* currently supports only one outstanding message */
-	if (intr_process)
-		bp->hwrm_intr_seq_id = le16_to_cpu(req->seq_id);
 
 	/* Ring channel doorbell */
 	writel(1, bp->bar0 + doorbell_offset);
@@ -6487,6 +6520,9 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	if ((dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED) &&
 	    (dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_REQUIRED))
 		bp->fw_cap |= BNXT_FW_CAP_SHORT_CMD;
+
+	if (dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_KONG_MB_CHNL_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_KONG_MB_CHNL;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -10225,6 +10261,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	if (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL) {
+		rc = bnxt_alloc_kong_hwrm_resources(bp);
+		if (rc)
+			bp->fw_cap &= ~BNXT_FW_CAP_KONG_MB_CHNL;
+	}
 
 	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
 	    bp->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {

@@ -584,6 +584,9 @@ struct nqe_cn {
 
 #define HWRM_VALID_BIT_DELAY_USEC	20
 
+#define BNXT_HWRM_CHNL_CHIMP	0
+#define BNXT_HWRM_CHNL_KONG	1
+
 #define BNXT_RX_EVENT	1
 #define BNXT_AGG_EVENT	2
 #define BNXT_TX_EVENT	4
@@ -1118,6 +1121,9 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS		0x4014
 #define BNXT_CAG_REG_BASE			0x300000
 
+#define BNXT_GRCPF_REG_KONG_COMM		0xA00
+#define BNXT_GRCPF_REG_KONG_COMM_TRIGGER	0xB00
+
 struct bnxt_tc_flow_stats {
 	u64		packets;
 	u64		bytes;
@@ -1458,20 +1464,24 @@ struct bnxt {
 	u32			msg_enable;
 
 	u32			fw_cap;
-	#define BNXT_FW_CAP_SHORT_CMD	0x00000001
-	#define BNXT_FW_CAP_LLDP_AGENT	0x00000002
-	#define BNXT_FW_CAP_DCBX_AGENT	0x00000004
-	#define BNXT_FW_CAP_NEW_RM	0x00000008
-	#define BNXT_FW_CAP_IF_CHANGE	0x00000010
+	#define BNXT_FW_CAP_SHORT_CMD			0x00000001
+	#define BNXT_FW_CAP_LLDP_AGENT			0x00000002
+	#define BNXT_FW_CAP_DCBX_AGENT			0x00000004
+	#define BNXT_FW_CAP_NEW_RM			0x00000008
+	#define BNXT_FW_CAP_IF_CHANGE			0x00000010
+	#define BNXT_FW_CAP_KONG_MB_CHNL		0x00000080
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
+	u16                     hwrm_cmd_kong_seq;
 	u16			hwrm_intr_seq_id;
 	void			*hwrm_short_cmd_req_addr;
 	dma_addr_t		hwrm_short_cmd_req_dma_addr;
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
+	void			*hwrm_cmd_kong_resp_addr;
+	dma_addr_t		hwrm_cmd_kong_resp_dma_addr;
 
 	struct rtnl_link_stats64	net_stats_prev;
 	struct rx_port_stats	*hw_rx_port_stats;
@@ -1673,16 +1683,63 @@ static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 	}
 }
 
-static inline void *bnxt_get_hwrm_resp_addr(struct bnxt *bp, void *req)
+static inline bool bnxt_cfa_hwrm_message(u16 req_type)
 {
-	return bp->hwrm_cmd_resp_addr;
+	switch (req_type) {
+	case HWRM_CFA_ENCAP_RECORD_ALLOC:
+	case HWRM_CFA_ENCAP_RECORD_FREE:
+	case HWRM_CFA_DECAP_FILTER_ALLOC:
+	case HWRM_CFA_DECAP_FILTER_FREE:
+	case HWRM_CFA_NTUPLE_FILTER_ALLOC:
+	case HWRM_CFA_NTUPLE_FILTER_FREE:
+	case HWRM_CFA_NTUPLE_FILTER_CFG:
+	case HWRM_CFA_EM_FLOW_ALLOC:
+	case HWRM_CFA_EM_FLOW_FREE:
+	case HWRM_CFA_EM_FLOW_CFG:
+	case HWRM_CFA_FLOW_ALLOC:
+	case HWRM_CFA_FLOW_FREE:
+	case HWRM_CFA_FLOW_INFO:
+	case HWRM_CFA_FLOW_FLUSH:
+	case HWRM_CFA_FLOW_STATS:
+	case HWRM_CFA_METER_PROFILE_ALLOC:
+	case HWRM_CFA_METER_PROFILE_FREE:
+	case HWRM_CFA_METER_PROFILE_CFG:
+	case HWRM_CFA_METER_INSTANCE_ALLOC:
+	case HWRM_CFA_METER_INSTANCE_FREE:
+		return true;
+	default:
+		return false;
+	}
 }
 
-static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp)
+static inline bool bnxt_kong_hwrm_message(struct bnxt *bp, struct input *req)
+{
+	return (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL &&
+		bnxt_cfa_hwrm_message(le16_to_cpu(req->req_type)));
+}
+
+static inline bool bnxt_hwrm_kong_chnl(struct bnxt *bp, struct input *req)
+{
+	return (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL &&
+		req->resp_addr == cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr));
+}
+
+static inline void *bnxt_get_hwrm_resp_addr(struct bnxt *bp, void *req)
+{
+	if (bnxt_hwrm_kong_chnl(bp, (struct input *)req))
+		return bp->hwrm_cmd_kong_resp_addr;
+	else
+		return bp->hwrm_cmd_resp_addr;
+}
+
+static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp, u16 dst)
 {
 	u16 seq_id;
 
-	seq_id = bp->hwrm_cmd_seq++;
+	if (dst == BNXT_HWRM_CHNL_CHIMP)
+		seq_id = bp->hwrm_cmd_seq++;
+	else
+		seq_id = bp->hwrm_cmd_kong_seq++;
 	return seq_id;
 }
 
