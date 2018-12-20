@@ -79,10 +79,10 @@ static int csky_mptimer_starting_cpu(unsigned int cpu)
 
 	to->clkevt.cpumask = cpumask_of(cpu);
 
+	enable_percpu_irq(csky_mptimer_irq, 0);
+
 	clockevents_config_and_register(&to->clkevt, timer_of_rate(to),
 					2, ULONG_MAX);
-
-	enable_percpu_irq(csky_mptimer_irq, 0);
 
 	return 0;
 }
