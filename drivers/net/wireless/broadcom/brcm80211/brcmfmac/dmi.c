@@ -43,6 +43,10 @@ static const struct brcmf_dmi_data meegopad_t08_data = {
 	BRCM_CC_43340_CHIP_ID, 2, "meegopad-t08"
 };
 
+static const struct brcmf_dmi_data pov_tab_p1006w_data = {
+	BRCM_CC_43340_CHIP_ID, 2, "pov-tab-p1006w-data"
+};
+
 static const struct dmi_system_id dmi_platform_data[] = {
 	{
 		/* Match for the GPDwin which unfortunately uses somewhat
@@ -80,6 +84,17 @@ static const struct dmi_system_id dmi_platform_data[] = {
 			DMI_MATCH(DMI_BOARD_VERSION, "V1.1"),
 		},
 		.driver_data = (void *)&meegopad_t08_data,
+	},
+	{
+		/* Point of View TAB-P1006W-232 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
+			/* Note 105b is Foxcon's USB/PCI vendor id */
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
+		},
+		.driver_data = (void *)&pov_tab_p1006w_data,
 	},
 	{}
 };
