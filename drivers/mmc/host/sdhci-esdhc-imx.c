@@ -1120,6 +1120,15 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 					<< ESDHC_TUNING_STEP_SHIFT;
 			}
 			writel(tmp, host->ioaddr + ESDHC_TUNING_CTRL);
+		} else if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING) {
+			/*
+			 * ESDHC_STD_TUNING_EN may be configed in bootloader
+			 * or ROM code, so clear this bit here to make sure
+			 * the manual tuning can work.
+			 */
+			tmp = readl(host->ioaddr + ESDHC_TUNING_CTRL);
+			tmp &= ~ESDHC_STD_TUNING_EN;
+			writel(tmp, host->ioaddr + ESDHC_TUNING_CTRL);
 		}
 	}
 }
