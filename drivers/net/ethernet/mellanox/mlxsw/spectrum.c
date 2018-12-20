@@ -3181,6 +3181,13 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_nve_init;
 	}
 
+	err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set PVID\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_pvid_set;
+	}
+
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_create(mlxsw_sp_port,
 						       MLXSW_SP_DEFAULT_VID);
 	if (IS_ERR(mlxsw_sp_port_vlan)) {
@@ -3210,6 +3217,7 @@ err_register_netdev:
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 err_port_vlan_create:
+err_port_pvid_set:
 	mlxsw_sp_port_nve_fini(mlxsw_sp_port);
 err_port_nve_init:
 	mlxsw_sp_tc_qdisc_fini(mlxsw_sp_port);
