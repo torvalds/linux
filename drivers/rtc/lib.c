@@ -100,7 +100,7 @@ int rtc_valid_tm(struct rtc_time *tm)
 	if (tm->tm_year < 70
 		|| ((unsigned)tm->tm_mon) >= 12
 		|| tm->tm_mday < 1
-		|| tm->tm_mday > rtc_month_days(tm->tm_mon, tm->tm_year + 1900)
+		|| tm->tm_mday > rtc_month_days(tm->tm_mon, ((unsigned)tm->tm_year + 1900))
 		|| ((unsigned)tm->tm_hour) >= 24
 		|| ((unsigned)tm->tm_min) >= 60
 		|| ((unsigned)tm->tm_sec) >= 60)
@@ -116,8 +116,8 @@ EXPORT_SYMBOL(rtc_valid_tm);
  */
 time64_t rtc_tm_to_time64(struct rtc_time *tm)
 {
-	return mktime64(tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
-			tm->tm_hour, tm->tm_min, tm->tm_sec);
+	return mktime64(((unsigned)tm->tm_year + 1900), tm->tm_mon + 1,
+			tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
 }
 EXPORT_SYMBOL(rtc_tm_to_time64);
 
