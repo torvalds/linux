@@ -3052,21 +3052,19 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
+	u8 dst_gpr = insn->dst_reg * 2;
 	swreg tmp_reg;
 
-	if (imm & ~0U) {
-		tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
+	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
+	emit_alu(nfp_prog, imm_b(nfp_prog),
+		 reg_a(dst_gpr), ALU_OP_AND, tmp_reg);
+	/* Upper word of the mask can only be 0 or ~0 from sign extension,
+	 * so either ignore it or OR the whole thing in.
+	 */
+	if (imm >> 32)
 		emit_alu(nfp_prog, reg_none(),
-			 reg_a(insn->dst_reg * 2), ALU_OP_AND, tmp_reg);
-		emit_br(nfp_prog, BR_BNE, insn->off, 0);
-	}
-
-	if (imm >> 32) {
-		tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
-		emit_alu(nfp_prog, reg_none(),
-			 reg_a(insn->dst_reg * 2 + 1), ALU_OP_AND, tmp_reg);
-		emit_br(nfp_prog, BR_BNE, insn->off, 0);
-	}
+			 reg_a(dst_gpr + 1), ALU_OP_OR, imm_b(nfp_prog));
+	emit_br(nfp_prog, BR_BNE, insn->off, 0);
 
 	return 0;
 }
