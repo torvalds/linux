@@ -1426,7 +1426,7 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 
 	/* for sdio, not set */
 	if ((hw->flags & MSDC_CD_PIN_EN) == 0) {
-		/* Pull down card detection pin since it is not avaiable */
+		/* Pull down card detection pin since it is not available */
 		/*
 		 * if (hw->config_gpio_pin)
 		 * hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_DOWN);
@@ -1523,7 +1523,7 @@ static void msdc_init_hw(struct msdc_host *host)
 	/* Configure to enable SDIO mode. it's must otherwise sdio cmd5 failed */
 	sdr_set_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
 
-	/* disable detect SDIO device interupt function */
+	/* disable detect SDIO device interrupt function */
 	sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIOIDE);
 
 	/* eneable SMT for glitch filter */
