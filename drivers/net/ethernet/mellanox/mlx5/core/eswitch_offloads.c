@@ -1250,7 +1250,8 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 {
 	int err, err1, num_vfs = esw->dev->priv.sriov.num_vfs;
 
-	if (esw->mode != SRIOV_LEGACY) {
+	if (esw->mode != SRIOV_LEGACY &&
+	    !mlx5_core_is_ecpf_esw_manager(esw->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't set offloads mode, SRIOV legacy not enabled");
 		return -EINVAL;
@@ -1846,7 +1847,8 @@ static int mlx5_devlink_eswitch_check(struct devlink *devlink)
 	if(!MLX5_ESWITCH_MANAGER(dev))
 		return -EPERM;
 
-	if (dev->priv.eswitch->mode == SRIOV_NONE)
+	if (dev->priv.eswitch->mode == SRIOV_NONE &&
+	    !mlx5_core_is_ecpf_esw_manager(dev))
 		return -EOPNOTSUPP;
 
 	return 0;
