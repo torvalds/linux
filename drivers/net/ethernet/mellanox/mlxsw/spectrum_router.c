@@ -6535,8 +6535,8 @@ static int mlxsw_sp_inetaddr_port_event(struct net_device *port_dev,
 	    netif_is_ovs_port(port_dev))
 		return 0;
 
-	return mlxsw_sp_inetaddr_port_vlan_event(port_dev, port_dev, event, 1,
-						 extack);
+	return mlxsw_sp_inetaddr_port_vlan_event(port_dev, port_dev, event,
+						 MLXSW_SP_DEFAULT_VID, extack);
 }
 
 static int __mlxsw_sp_inetaddr_lag_event(struct net_device *l3_dev,
@@ -6569,8 +6569,8 @@ static int mlxsw_sp_inetaddr_lag_event(struct net_device *lag_dev,
 	if (netif_is_bridge_port(lag_dev))
 		return 0;
 
-	return __mlxsw_sp_inetaddr_lag_event(lag_dev, lag_dev, event, 1,
-					     extack);
+	return __mlxsw_sp_inetaddr_lag_event(lag_dev, lag_dev, event,
+					     MLXSW_SP_DEFAULT_VID, extack);
 }
 
 static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
@@ -7260,11 +7260,15 @@ static struct mlxsw_sp_fid *
 mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 			  struct netlink_ext_ack *extack)
 {
+	struct net_device *br_dev = rif->dev;
 	u16 vid;
 	int err;
 
 	if (is_vlan_dev(rif->dev)) {
 		vid = vlan_dev_vlan_id(rif->dev);
+		br_dev = vlan_dev_real_dev(rif->dev);
+		if (WARN_ON(!netif_is_bridge_master(br_dev)))
+			return ERR_PTR(-EINVAL);
 	} else {
 		err = br_vlan_get_pvid(rif->dev, &vid);
 		if (err < 0 || !vid) {
@@ -7273,7 +7277,7 @@ mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 		}
 	}
 
-	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
+	return mlxsw_sp_bridge_fid_get(rif->mlxsw_sp, br_dev, vid, extack);
 }
 
 static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
@@ -7363,7 +7367,7 @@ static struct mlxsw_sp_fid *
 mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif,
 			 struct netlink_ext_ack *extack)
 {
-	return mlxsw_sp_fid_8021d_get(rif->mlxsw_sp, rif->dev->ifindex);
+	return mlxsw_sp_bridge_fid_get(rif->mlxsw_sp, rif->dev, 0, extack);
 }
 
 static void mlxsw_sp_rif_fid_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)

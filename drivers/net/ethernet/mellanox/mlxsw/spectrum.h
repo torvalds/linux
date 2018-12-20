@@ -25,6 +25,8 @@
 #include "core_acl_flex_actions.h"
 #include "reg.h"
 
+#define MLXSW_SP_DEFAULT_VID (VLAN_N_VID - 1)
+
 #define MLXSW_SP_FID_8021D_MAX 1024
 
 #define MLXSW_SP_MID_MAX 7000
@@ -240,6 +242,7 @@ struct mlxsw_sp_port {
 	} periodic_hw_stats;
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
+	struct mlxsw_sp_port_vlan *default_vlan;
 	struct mlxsw_sp_qdisc *root_qdisc;
 	struct mlxsw_sp_qdisc *tclass_qdiscs;
 	unsigned acl_rule_count;
@@ -387,6 +390,10 @@ int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
 			       struct netlink_ext_ack *extack);
 void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 				 const struct net_device *vxlan_dev);
+struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
+					     const struct net_device *br_dev,
+					     u16 vid,
+					     struct netlink_ext_ack *extack);
 extern struct notifier_block mlxsw_sp_switchdev_notifier;
 
 /* spectrum.c */

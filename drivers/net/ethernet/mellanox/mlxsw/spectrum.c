@@ -1140,20 +1140,34 @@ int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 	return 0;
 }
 
-static void mlxsw_sp_port_vlan_flush(struct mlxsw_sp_port *mlxsw_sp_port)
+static void mlxsw_sp_port_vlan_flush(struct mlxsw_sp_port *mlxsw_sp_port,
+				     bool flush_default)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan, *tmp;
 
 	list_for_each_entry_safe(mlxsw_sp_port_vlan, tmp,
-				 &mlxsw_sp_port->vlans_list, list)
+				 &mlxsw_sp_port->vlans_list, list) {
+		if (!flush_default &&
+		    mlxsw_sp_port_vlan->vid == MLXSW_SP_DEFAULT_VID)
+			continue;
 		mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
+	}
+}
+
+static void
+mlxsw_sp_port_vlan_cleanup(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
+{
+	if (mlxsw_sp_port_vlan->bridge_port)
+		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
+	else if (mlxsw_sp_port_vlan->fid)
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
 }
 
 struct mlxsw_sp_port_vlan *
 mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-	bool untagged = vid == 1;
+	bool untagged = vid == MLXSW_SP_DEFAULT_VID;
 	int err;
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
@@ -1186,11 +1200,7 @@ void mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 
-	if (mlxsw_sp_port_vlan->bridge_port)
-		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
-	else if (mlxsw_sp_port_vlan->fid)
-		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
-
+	mlxsw_sp_port_vlan_cleanup(mlxsw_sp_port_vlan);
 	list_del(&mlxsw_sp_port_vlan->list);
 	kfree(mlxsw_sp_port_vlan);
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, false, false);
@@ -3042,7 +3052,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	mlxsw_sp_port->dev = dev;
 	mlxsw_sp_port->mlxsw_sp = mlxsw_sp;
 	mlxsw_sp_port->local_port = local_port;
-	mlxsw_sp_port->pvid = 1;
+	mlxsw_sp_port->pvid = MLXSW_SP_DEFAULT_VID;
 	mlxsw_sp_port->split = split;
 	mlxsw_sp_port->mapping.module = module;
 	mlxsw_sp_port->mapping.width = width;
@@ -3181,13 +3191,22 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_nve_init;
 	}
 
-	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_create(mlxsw_sp_port, 1);
+	err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set PVID\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_pvid_set;
+	}
+
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_create(mlxsw_sp_port,
+						       MLXSW_SP_DEFAULT_VID);
 	if (IS_ERR(mlxsw_sp_port_vlan)) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to create VID 1\n",
 			mlxsw_sp_port->local_port);
 		err = PTR_ERR(mlxsw_sp_port_vlan);
 		goto err_port_vlan_create;
 	}
+	mlxsw_sp_port->default_vlan = mlxsw_sp_port_vlan;
 
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
 	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
@@ -3209,6 +3228,7 @@ err_register_netdev:
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 err_port_vlan_create:
+err_port_pvid_set:
 	mlxsw_sp_port_nve_fini(mlxsw_sp_port);
 err_port_nve_init:
 	mlxsw_sp_tc_qdisc_fini(mlxsw_sp_port);
@@ -3249,7 +3269,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
-	mlxsw_sp_port_vlan_flush(mlxsw_sp_port);
+	mlxsw_sp_port_vlan_flush(mlxsw_sp_port, true);
 	mlxsw_sp_port_nve_fini(mlxsw_sp_port);
 	mlxsw_sp_tc_qdisc_fini(mlxsw_sp_port);
 	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
@@ -4650,7 +4670,6 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct net_device *lag_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct mlxsw_sp_upper *lag;
 	u16 lag_id;
 	u8 port_index;
@@ -4684,9 +4703,8 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	lag->ref_count++;
 
 	/* Port is no longer usable as a router interface */
-	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, 1);
-	if (mlxsw_sp_port_vlan->fid)
-		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
+	if (mlxsw_sp_port->default_vlan->fid)
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
 
 	return 0;
 
@@ -4714,7 +4732,8 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 
 	/* Any VLANs configured on the port are no longer valid */
-	mlxsw_sp_port_vlan_flush(mlxsw_sp_port);
+	mlxsw_sp_port_vlan_flush(mlxsw_sp_port, false);
+	mlxsw_sp_port_vlan_cleanup(mlxsw_sp_port->default_vlan);
 	/* Make the LAG and its directly linked uppers leave bridges they
 	 * are memeber in
 	 */
@@ -4728,9 +4747,8 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->lagged = 0;
 	lag->ref_count--;
 
-	mlxsw_sp_port_vlan_create(mlxsw_sp_port, 1);
 	/* Make sure untagged frames are allowed to ingress */
-	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
 }
 
 static int mlxsw_sp_lag_dist_port_add(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -4808,7 +4826,7 @@ static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
 	err = mlxsw_sp_port_stp_set(mlxsw_sp_port, true);
 	if (err)
 		goto err_port_stp_set;
-	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, 1, VLAN_N_VID - 2,
 				     true, false);
 	if (err)
 		goto err_port_vlan_set;
@@ -4840,7 +4858,7 @@ static void mlxsw_sp_port_ovs_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 		mlxsw_sp_port_vid_learning_set(mlxsw_sp_port,
 					       vid, true);
 
-	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 1, VLAN_N_VID - 2,
 			       false, false);
 	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
 	mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
@@ -4972,11 +4990,6 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		}
 		if (netif_is_ovs_port(dev) && is_vlan_dev(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Can not put a VLAN on an OVS port");
-			return -EINVAL;
-		}
-		if (is_vlan_dev(upper_dev) &&
-		    vlan_dev_vlan_id(upper_dev) == 1) {
-			NL_SET_ERR_MSG_MOD(extack, "Creating a VLAN device with VID 1 is unsupported: VLAN 1 carries untagged traffic");
 			return -EINVAL;
 		}
 		break;

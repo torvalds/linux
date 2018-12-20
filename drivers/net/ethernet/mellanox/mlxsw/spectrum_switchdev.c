@@ -1974,19 +1974,14 @@ mlxsw_sp_bridge_8021q_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 				struct mlxsw_sp_port *mlxsw_sp_port,
 				struct netlink_ext_ack *extack)
 {
-	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-
 	if (is_vlan_dev(bridge_port->dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Can not enslave a VLAN device to a VLAN-aware bridge");
 		return -EINVAL;
 	}
 
-	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, 1);
-	if (WARN_ON(!mlxsw_sp_port_vlan))
-		return -EINVAL;
-
-	/* Let VLAN-aware bridge take care of its own VLANs */
-	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
+	/* Port is no longer usable as a router interface */
+	if (mlxsw_sp_port->default_vlan->fid)
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
 
 	return 0;
 }
@@ -1996,9 +1991,8 @@ mlxsw_sp_bridge_8021q_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 				 struct mlxsw_sp_bridge_port *bridge_port,
 				 struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	mlxsw_sp_port_vlan_create(mlxsw_sp_port, 1);
 	/* Make sure untagged frames are allowed to ingress */
-	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
 }
 
 static int
@@ -2169,7 +2163,7 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 	struct net_device *dev = bridge_port->dev;
 	u16 vid;
 
-	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : 1;
+	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : MLXSW_SP_DEFAULT_VID;
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
 	if (WARN_ON(!mlxsw_sp_port_vlan))
 		return -EINVAL;
@@ -2196,9 +2190,9 @@ mlxsw_sp_bridge_8021d_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 	struct net_device *dev = bridge_port->dev;
 	u16 vid;
 
-	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : 1;
+	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : MLXSW_SP_DEFAULT_VID;
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_port_vlan)
+	if (!mlxsw_sp_port_vlan || !mlxsw_sp_port_vlan->bridge_port)
 		return;
 
 	mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
@@ -2384,6 +2378,20 @@ void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_sp_nve_fid_disable(mlxsw_sp, fid);
 	mlxsw_sp_fid_put(fid);
+}
+
+struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
+					     const struct net_device *br_dev,
+					     u16 vid,
+					     struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_bridge_device *bridge_device;
+
+	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
+	if (WARN_ON(!bridge_device))
+		return ERR_PTR(-EINVAL);
+
+	return bridge_device->ops->fid_get(bridge_device, vid, extack);
 }
 
 static void

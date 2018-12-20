@@ -255,15 +255,18 @@ bridge_vlan_flags_test()
 
 vlan_1_test()
 {
-	# Test that VLAN 1 cannot be configured, as it is used internally for
-	# untagged traffic. See commit 47bf9df2e820 ("mlxsw: spectrum: Forbid
-	# creation of VLAN 1 over port/LAG") for more details
+	# Test that VLAN 1 can be configured over mlxsw ports. In the past it
+	# was used internally for untagged traffic. See commit 47bf9df2e820
+	# ("mlxsw: spectrum: Forbid creation of VLAN 1 over port/LAG") for more
+	# details
 	RET=0
 
-	ip link add link $swp1 name $swp1.1 type vlan id 1 &> /dev/null
-	check_fail $? "managed to create vlan 1 when should not"
+	ip link add link $swp1 name $swp1.1 type vlan id 1
+	check_err $? "did not manage to create vlan 1 when should"
 
 	log_test "vlan 1"
+
+	ip link del dev $swp1.1
 }
 
 lag_bridge_upper_test()
