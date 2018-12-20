@@ -6432,8 +6432,8 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 	}
 
 	mutex_lock(&dev_priv->drrs.mutex);
-	if (WARN_ON(dev_priv->drrs.dp)) {
-		DRM_ERROR("DRRS already enabled\n");
+	if (dev_priv->drrs.dp) {
+		DRM_DEBUG_KMS("DRRS already enabled\n");
 		goto unlock;
 	}
 
