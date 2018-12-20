@@ -265,7 +265,7 @@ static int hi3660_mbox_probe(struct platform_device *pdev)
 	for (ch = 0; ch < MBOX_CHAN_MAX; ch++)
 		chan[ch].con_priv = (void *)ch;
 
-	err = mbox_controller_register(&mbox->controller);
+	err = devm_mbox_controller_register(dev, &mbox->controller);
 	if (err) {
 		dev_err(dev, "Failed to register mailbox %d\n", err);
 		return err;
@@ -276,17 +276,8 @@ static int hi3660_mbox_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hi3660_mbox_remove(struct platform_device *pdev)
-{
-	struct hi3660_mbox *mbox = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&mbox->controller);
-	return 0;
-}
-
 static struct platform_driver hi3660_mbox_driver = {
 	.probe  = hi3660_mbox_probe,
-	.remove = hi3660_mbox_remove,
 	.driver = {
 		.name = "hi3660-mbox",
 		.of_match_table = hi3660_mbox_of_match,
