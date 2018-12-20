@@ -5154,6 +5154,17 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		goto err;
 	}
 
+	if (test_bit(WMI_SERVICE_VDEV_DISABLE_4_ADDR_SRC_LRN_SUPPORT,
+		     ar->wmi.svc_map)) {
+		vdev_param = ar->wmi.vdev_param->disable_4addr_src_lrn;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+						WMI_VDEV_DISABLE_4_ADDR_SRC_LRN);
+		if (ret && ret != -EOPNOTSUPP) {
+			ath10k_warn(ar, "failed to disable 4addr src lrn vdev %i: %d\n",
+				    arvif->vdev_id, ret);
+		}
+	}
+
 	ar->free_vdev_map &= ~(1LL << arvif->vdev_id);
 	spin_lock_bh(&ar->data_lock);
 	list_add(&arvif->list, &ar->arvifs);
