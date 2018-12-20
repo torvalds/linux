@@ -1277,13 +1277,9 @@ int vfs_get_tree(struct fs_context *fc)
 	sb->s_flags |= SB_BORN;
 
 	error = security_sb_set_mnt_opts(sb, fc->security, 0, NULL);
-	if (error)
-		goto out_sb;
-
-	if (!(fc->sb_flags & (MS_KERNMOUNT|MS_SUBMOUNT))) {
-		error = security_sb_kern_mount(sb);
-		if (error)
-			goto out_sb;
+	if (unlikely(error)) {
+		fc_drop_locked(fc);
+		return error;
 	}
 
 	/*
@@ -1296,11 +1292,6 @@ int vfs_get_tree(struct fs_context *fc)
 		"negative value (%lld)\n", fc->fs_type->name, sb->s_maxbytes);
 
 	return 0;
-out_sb:
-	dput(fc->root);
-	fc->root = NULL;
-	deactivate_locked_super(sb);
-	return error;
 }
 EXPORT_SYMBOL(vfs_get_tree);
 

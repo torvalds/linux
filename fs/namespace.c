@@ -2536,11 +2536,13 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 	struct super_block *sb = fc->root->d_sb;
 	int error;
 
-	if (mount_too_revealing(sb, &mnt_flags)) {
-		dput(fc->root);
-		fc->root = NULL;
-		deactivate_locked_super(sb);
-		return -EPERM;
+	error = security_sb_kern_mount(sb);
+	if (!error && mount_too_revealing(sb, &mnt_flags))
+		error = -EPERM;
+
+	if (unlikely(error)) {
+		fc_drop_locked(fc);
+		return error;
 	}
 
 	up_write(&sb->s_umount);
