@@ -408,6 +408,7 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	struct device_node *codec_ep		= NULL;
 	struct device_node *codec_port		= NULL;
 	struct device_node *codec_port_old	= NULL;
+	struct asoc_simple_card_data adata;
 	int rc, ret;
 	int link_idx, dai_idx, conf_idx;
 	int cpu;
@@ -453,7 +454,13 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 
 				dev_dbg(dev, "%pOFf <-> %pOFf\n", cpu_ep, codec_ep);
 
-				if (of_get_child_count(codec_port) > 1) {
+				memset(&adata, 0, sizeof(adata));
+				asoc_graph_card_get_conversion(dev, codec_ep, &adata);
+				asoc_graph_card_get_conversion(dev, cpu_ep,   &adata);
+
+				if ((of_get_child_count(codec_port) > 1) ||
+				    adata.convert_rate ||
+				    adata.convert_channels) {
 					/*
 					 * for DPCM sound
 					 */
@@ -495,7 +502,7 @@ static void asoc_graph_get_dais_count(struct device *dev,
 	struct device_node *codec_ep;
 	struct device_node *codec_port;
 	struct device_node *codec_port_old;
-	struct device_node *codec_port_old2;
+	struct asoc_simple_card_data adata;
 	int rc;
 
 	/*
@@ -534,9 +541,17 @@ static void asoc_graph_get_dais_count(struct device *dev,
 	 *	=> 6 links = 0xCPU-Codec + 4xCPU-dummy + 2xdummy-Codec
 	 *	=> 6 DAIs  = 4xCPU + 2xCodec
 	 *	=> 2 ccnf  = 2xdummy-Codec
+	 *
+	 * ex4)
+	 * CPU0 --- Codec0 (convert-rate)	link : 3
+	 * CPU1 --- Codec1			dais : 4
+	 *					ccnf : 1
+	 *
+	 *	=> 3 links = 1xCPU-Codec + 1xCPU-dummy + 1xdummy-Codec
+	 *	=> 4 DAIs  = 2xCPU + 2xCodec
+	 *	=> 1 ccnf  = 1xdummy-Codec
 	 */
 	codec_port_old = NULL;
-	codec_port_old2 = NULL;
 	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
 		cpu_port = it.node;
 		cpu_ep	 = NULL;
@@ -554,17 +569,22 @@ static void asoc_graph_get_dais_count(struct device *dev,
 			(*link_num)++;
 			(*dais_num)++;
 
-			if (codec_port_old == codec_port) {
-				if (codec_port_old2 != codec_port_old) {
-					(*link_num)++;
-					(*ccnf_num)++;
-				}
+			memset(&adata, 0, sizeof(adata));
+			asoc_graph_card_get_conversion(dev, codec_ep, &adata);
+			asoc_graph_card_get_conversion(dev, cpu_ep,   &adata);
 
-				codec_port_old2 = codec_port_old;
-				continue;
+			if ((of_get_child_count(codec_port) > 1) ||
+			    adata.convert_rate || adata.convert_channels) {
+
+				if (codec_port_old == codec_port)
+					continue;
+
+				(*link_num)++;
+				(*ccnf_num)++;
+				(*dais_num)++;
+			} else {
+				(*dais_num)++;
 			}
-
-			(*dais_num)++;
 			codec_port_old = codec_port;
 		}
 	}
