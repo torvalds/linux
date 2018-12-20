@@ -2759,17 +2759,17 @@ static int __noclone nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	asm(
 		/* Set HOST_RSP */
 		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
-		"mov %%" _ASM_SP ", %c[host_rsp](%0)\n\t"
+		"mov %%" _ASM_SP ", %c[host_rsp](%% " _ASM_CX")\n\t"
 
 		/* Check if vmlaunch or vmresume is needed */
-		"cmpl $0, %c[launched](%0)\n\t"
+		"cmpl $0, %c[launched](%% " _ASM_CX")\n\t"
 		"jne 1f\n\t"
 		__ex("vmlaunch") "\n\t"
 		"jmp 2f\n\t"
 		"1: " __ex("vmresume") "\n\t"
 		"2: "
 		/* Set vmx->fail accordingly */
-		"setbe %c[fail](%0)\n\t"
+		"setbe %c[fail](%% " _ASM_CX")\n\t"
 
 		".pushsection .rodata\n\t"
 		".global vmx_early_consistency_check_return\n\t"
