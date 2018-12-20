@@ -70,17 +70,67 @@ static int do_ipv4 = 1;
 static int do_ipv6 = 1;
 static int cfg_payload_len = 10;
 static int cfg_poll_timeout = 100;
+static int cfg_delay_snd;
+static int cfg_delay_ack;
 static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
 static bool cfg_loop_nodata;
 static bool cfg_no_delay;
 static bool cfg_use_cmsg;
 static bool cfg_use_pf_packet;
+static bool cfg_do_listen;
 static uint16_t dest_port = 9000;
 
 static struct sockaddr_in daddr;
 static struct sockaddr_in6 daddr6;
-static struct timespec ts_prev;
+static struct timespec ts_usr;
+
+static int saved_tskey = -1;
+static int saved_tskey_type = -1;
+
+static bool test_failed;
+
+static int64_t timespec_to_us64(struct timespec *ts)
+{
+	return ts->tv_sec * 1000 * 1000 + ts->tv_nsec / 1000;
+}
+
+static void validate_key(int tskey, int tstype)
+{
+	int stepsize;
+
+	/* compare key for each subsequent request
+	 * must only test for one type, the first one requested
+	 */
+	if (saved_tskey == -1)
+		saved_tskey_type = tstype;
+	else if (saved_tskey_type != tstype)
+		return;
+
+	stepsize = cfg_proto == SOCK_STREAM ? cfg_payload_len : 1;
+	if (tskey != saved_tskey + stepsize) {
+		fprintf(stderr, "ERROR: key %d, expected %d\n",
+				tskey, saved_tskey + stepsize);
+		test_failed = true;
+	}
+
+	saved_tskey = tskey;
+}
+
+static void validate_timestamp(struct timespec *cur, int min_delay)
+{
+	int max_delay = min_delay + 500 /* processing time upper bound */;
+	int64_t cur64, start64;
+
+	cur64 = timespec_to_us64(cur);
+	start64 = timespec_to_us64(&ts_usr);
+
+	if (cur64 < start64 + min_delay || cur64 > start64 + max_delay) {
+		fprintf(stderr, "ERROR: delay %lu expected between %d and %d\n",
+				cur64 - start64, min_delay, max_delay);
+		test_failed = true;
+	}
+}
 
 static void __print_timestamp(const char *name, struct timespec *cur,
 			      uint32_t key, int payload_len)
@@ -92,32 +142,19 @@ static void __print_timestamp(const char *name, struct timespec *cur,
 			name, cur->tv_sec, cur->tv_nsec / 1000,
 			key, payload_len);
 
-	if ((ts_prev.tv_sec | ts_prev.tv_nsec)) {
-		int64_t cur_ms, prev_ms;
+	if (cur != &ts_usr)
+		fprintf(stderr, "  (USR %+" PRId64 " us)",
+			timespec_to_us64(cur) - timespec_to_us64(&ts_usr));
 
-		cur_ms = (long) cur->tv_sec * 1000 * 1000;
-		cur_ms += cur->tv_nsec / 1000;
-
-		prev_ms = (long) ts_prev.tv_sec * 1000 * 1000;
-		prev_ms += ts_prev.tv_nsec / 1000;
-
-		fprintf(stderr, "  (%+" PRId64 " us)", cur_ms - prev_ms);
-	}
-
-	ts_prev = *cur;
 	fprintf(stderr, "\n");
 }
 
 static void print_timestamp_usr(void)
 {
-	struct timespec ts;
-	struct timeval tv;	/* avoid dependency on -lrt */
+	if (clock_gettime(CLOCK_REALTIME, &ts_usr))
+		error(1, errno, "clock_gettime");
 
-	gettimeofday(&tv, NULL);
-	ts.tv_sec = tv.tv_sec;
-	ts.tv_nsec = tv.tv_usec * 1000;
-
-	__print_timestamp("  USR", &ts, 0, 0);
+	__print_timestamp("  USR", &ts_usr, 0, 0);
 }
 
 static void print_timestamp(struct scm_timestamping *tss, int tstype,
@@ -125,15 +162,20 @@ static void print_timestamp(struct scm_timestamping *tss, int tstype,
 {
 	const char *tsname;
 
+	validate_key(tskey, tstype);
+
 	switch (tstype) {
 	case SCM_TSTAMP_SCHED:
 		tsname = "  ENQ";
+		validate_timestamp(&tss->ts[0], 0);
 		break;
 	case SCM_TSTAMP_SND:
 		tsname = "  SND";
+		validate_timestamp(&tss->ts[0], cfg_delay_snd);
 		break;
 	case SCM_TSTAMP_ACK:
 		tsname = "  ACK";
+		validate_timestamp(&tss->ts[0], cfg_delay_ack);
 		break;
 	default:
 		error(1, 0, "unknown timestamp type: %u",
@@ -389,6 +431,9 @@ static void do_test(int family, unsigned int report_opt)
 	if (fd < 0)
 		error(1, errno, "socket");
 
+	/* reset expected key on each new socket */
+	saved_tskey = -1;
+
 	if (cfg_proto == SOCK_STREAM) {
 		if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
 			       (char*) &val, sizeof(val)))
@@ -431,7 +476,6 @@ static void do_test(int family, unsigned int report_opt)
 
 	for (i = 0; i < cfg_num_pkts; i++) {
 		memset(&msg, 0, sizeof(msg));
-		memset(&ts_prev, 0, sizeof(ts_prev));
 		memset(buf, 'a' + i, total_len);
 
 		if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
@@ -506,7 +550,7 @@ static void do_test(int family, unsigned int report_opt)
 		error(1, errno, "close");
 
 	free(buf);
-	usleep(400 * 1000);
+	usleep(100 * 1000);
 }
 
 static void __attribute__((noreturn)) usage(const char *filepath)
@@ -522,12 +566,15 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -F:   poll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
+			"  -L    listen on hostname and port\n"
 			"  -n:   set no-payload option\n"
 			"  -p N: connect to port N\n"
 			"  -P:   use PF_PACKET\n"
 			"  -r:   use raw\n"
 			"  -R:   use raw (IP_HDRINCL)\n"
 			"  -u:   use udp\n"
+			"  -v:   validate SND delay (usec)\n"
+			"  -V:   validate ACK delay (usec)\n"
 			"  -x:   show payload (up to 70 bytes)\n",
 			filepath);
 	exit(1);
@@ -538,7 +585,7 @@ static void parse_opt(int argc, char **argv)
 	int proto_count = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "46c:CDFhIl:np:PrRux")) != -1) {
+	while ((c = getopt(argc, argv, "46c:CDFhIl:Lnp:PrRuv:V:x")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -563,6 +610,9 @@ static void parse_opt(int argc, char **argv)
 			break;
 		case 'l':
 			cfg_payload_len = strtoul(optarg, NULL, 10);
+			break;
+		case 'L':
+			cfg_do_listen = true;
 			break;
 		case 'n':
 			cfg_loop_nodata = true;
@@ -590,6 +640,12 @@ static void parse_opt(int argc, char **argv)
 			proto_count++;
 			cfg_proto = SOCK_DGRAM;
 			cfg_ipproto = IPPROTO_UDP;
+			break;
+		case 'v':
+			cfg_delay_snd = strtoul(optarg, NULL, 10);
+			break;
+		case 'V':
+			cfg_delay_ack = strtoul(optarg, NULL, 10);
 			break;
 		case 'x':
 			cfg_show_payload = true;
@@ -651,6 +707,27 @@ retry:
 	do_ipv6 &= have_ipv6;
 }
 
+static void do_listen(int family, void *addr, int alen)
+{
+	int fd, type;
+
+	type = cfg_proto == SOCK_RAW ? SOCK_DGRAM : cfg_proto;
+
+	fd = socket(family, type, 0);
+	if (fd == -1)
+		error(1, errno, "socket rx");
+
+	if (bind(fd, addr, alen))
+		error(1, errno, "bind rx");
+
+	if (type == SOCK_STREAM && listen(fd, 10))
+		error(1, errno, "listen rx");
+
+	/* leave fd open, will be closed on process exit.
+	 * this enables connect() to succeed and avoids icmp replies
+	 */
+}
+
 static void do_main(int family)
 {
 	fprintf(stderr, "family:       %s %s\n",
@@ -697,10 +774,17 @@ int main(int argc, char **argv)
 	fprintf(stderr, "server port:  %u\n", dest_port);
 	fprintf(stderr, "\n");
 
-	if (do_ipv4)
+	if (do_ipv4) {
+		if (cfg_do_listen)
+			do_listen(PF_INET, &daddr, sizeof(daddr));
 		do_main(PF_INET);
-	if (do_ipv6)
-		do_main(PF_INET6);
+	}
 
-	return 0;
+	if (do_ipv6) {
+		if (cfg_do_listen)
+			do_listen(PF_INET6, &daddr6, sizeof(daddr6));
+		do_main(PF_INET6);
+	}
+
+	return test_failed;
 }

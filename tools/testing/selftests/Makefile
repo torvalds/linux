@@ -25,6 +25,7 @@ TARGETS += mount
 TARGETS += mqueue
 TARGETS += net
 TARGETS += netfilter
+TARGETS += networking/timestamping
 TARGETS += nsfs
 TARGETS += powerpc
 TARGETS += proc
