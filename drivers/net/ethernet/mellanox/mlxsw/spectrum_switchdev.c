@@ -2386,6 +2386,20 @@ void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_fid_put(fid);
 }
 
+struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
+					     const struct net_device *br_dev,
+					     u16 vid,
+					     struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_bridge_device *bridge_device;
+
+	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
+	if (WARN_ON(!bridge_device))
+		return ERR_PTR(-EINVAL);
+
+	return bridge_device->ops->fid_get(bridge_device, vid, extack);
+}
+
 static void
 mlxsw_sp_switchdev_vxlan_addr_convert(const union vxlan_addr *vxlan_addr,
 				      enum mlxsw_sp_l3proto *proto,
