@@ -617,9 +617,12 @@ struct bnxt_sw_rx_agg_bd {
 struct bnxt_ring_mem_info {
 	int			nr_pages;
 	int			page_size;
-	u32			flags;
+	u16			flags;
 #define BNXT_RMEM_VALID_PTE_FLAG	1
 #define BNXT_RMEM_RING_PTE_FLAG		2
+#define BNXT_RMEM_USE_FULL_PAGE_FLAG	4
+
+	u16			depth;
 
 	void			**pg_arr;
 	dma_addr_t		*dma_arr;

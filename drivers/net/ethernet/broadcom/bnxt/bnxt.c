@@ -2375,7 +2375,11 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 		rmem->pg_arr[i] = NULL;
 	}
 	if (rmem->pg_tbl) {
-		dma_free_coherent(&pdev->dev, rmem->nr_pages * 8,
+		size_t pg_tbl_size = rmem->nr_pages * 8;
+
+		if (rmem->flags & BNXT_RMEM_USE_FULL_PAGE_FLAG)
+			pg_tbl_size = rmem->page_size;
+		dma_free_coherent(&pdev->dev, pg_tbl_size,
 				  rmem->pg_tbl, rmem->pg_tbl_map);
 		rmem->pg_tbl = NULL;
 	}
@@ -2393,9 +2397,12 @@ static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 
 	if (rmem->flags & (BNXT_RMEM_VALID_PTE_FLAG | BNXT_RMEM_RING_PTE_FLAG))
 		valid_bit = PTU_PTE_VALID;
-	if (rmem->nr_pages > 1) {
-		rmem->pg_tbl = dma_alloc_coherent(&pdev->dev,
-						  rmem->nr_pages * 8,
+	if ((rmem->nr_pages > 1 || rmem->depth > 0) && !rmem->pg_tbl) {
+		size_t pg_tbl_size = rmem->nr_pages * 8;
+
+		if (rmem->flags & BNXT_RMEM_USE_FULL_PAGE_FLAG)
+			pg_tbl_size = rmem->page_size;
+		rmem->pg_tbl = dma_alloc_coherent(&pdev->dev, pg_tbl_size,
 						  &rmem->pg_tbl_map,
 						  GFP_KERNEL);
 		if (!rmem->pg_tbl)
@@ -2412,7 +2419,7 @@ static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 		if (!rmem->pg_arr[i])
 			return -ENOMEM;
 
-		if (rmem->nr_pages > 1) {
+		if (rmem->nr_pages > 1 || rmem->depth > 0) {
 			if (i == rmem->nr_pages - 2 &&
 			    (rmem->flags & BNXT_RMEM_RING_PTE_FLAG))
 				extra_bits |= PTU_PTE_NEXT_TO_LAST;
