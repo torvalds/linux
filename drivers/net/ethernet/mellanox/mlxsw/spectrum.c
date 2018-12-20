@@ -4670,8 +4670,6 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct net_device *lag_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-	u16 vid = MLXSW_SP_DEFAULT_VID;
 	struct mlxsw_sp_upper *lag;
 	u16 lag_id;
 	u8 port_index;
@@ -4705,9 +4703,8 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	lag->ref_count++;
 
 	/* Port is no longer usable as a router interface */
-	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
-	if (mlxsw_sp_port_vlan->fid)
-		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
+	if (mlxsw_sp_port->default_vlan->fid)
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
 
 	return 0;
 
@@ -4735,7 +4732,8 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 
 	/* Any VLANs configured on the port are no longer valid */
-	mlxsw_sp_port_vlan_flush(mlxsw_sp_port, true);
+	mlxsw_sp_port_vlan_flush(mlxsw_sp_port, false);
+	mlxsw_sp_port_vlan_cleanup(mlxsw_sp_port->default_vlan);
 	/* Make the LAG and its directly linked uppers leave bridges they
 	 * are memeber in
 	 */
@@ -4749,7 +4747,6 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->lagged = 0;
 	lag->ref_count--;
 
-	mlxsw_sp_port_vlan_create(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
 	/* Make sure untagged frames are allowed to ingress */
 	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
 }
@@ -4829,7 +4826,7 @@ static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
 	err = mlxsw_sp_port_stp_set(mlxsw_sp_port, true);
 	if (err)
 		goto err_port_stp_set;
-	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, 1, VLAN_N_VID - 2,
 				     true, false);
 	if (err)
 		goto err_port_vlan_set;
@@ -4861,7 +4858,7 @@ static void mlxsw_sp_port_ovs_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 		mlxsw_sp_port_vid_learning_set(mlxsw_sp_port,
 					       vid, true);
 
-	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 1, VLAN_N_VID - 2,
 			       false, false);
 	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
 	mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
