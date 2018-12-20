@@ -1762,6 +1762,7 @@ const struct nla_policy nda_policy[NDA_MAX+1] = {
 	[NDA_VNI]		= { .type = NLA_U32 },
 	[NDA_IFINDEX]		= { .type = NLA_U32 },
 	[NDA_MASTER]		= { .type = NLA_U32 },
+	[NDA_PROTOCOL]		= { .type = NLA_U8 },
 };
 
 static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -1845,7 +1846,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err;
 
 	ASSERT_RTNL();
-	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL, extack);
+	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, nda_policy, extack);
 	if (err < 0)
 		goto out;
 
@@ -1881,13 +1882,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	dst = nla_data(tb[NDA_DST]);
 	lladdr = tb[NDA_LLADDR] ? nla_data(tb[NDA_LLADDR]) : NULL;
 
-	if (tb[NDA_PROTOCOL]) {
-		if (nla_len(tb[NDA_PROTOCOL]) != sizeof(u8)) {
-			NL_SET_ERR_MSG(extack, "Invalid protocol attribute");
-			goto out;
-		}
+	if (tb[NDA_PROTOCOL])
 		protocol = nla_get_u8(tb[NDA_PROTOCOL]);
-	}
 
 	if (ndm->ndm_flags & NTF_PROXY) {
 		struct pneigh_entry *pn;
@@ -2639,10 +2635,10 @@ static int neigh_valid_dump_req(const struct nlmsghdr *nlh,
 		}
 
 		err = nlmsg_parse_strict(nlh, sizeof(struct ndmsg), tb, NDA_MAX,
-					 NULL, extack);
+					 nda_policy, extack);
 	} else {
 		err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX,
-				  NULL, extack);
+				  nda_policy, extack);
 	}
 	if (err < 0)
 		return err;
@@ -2654,17 +2650,9 @@ static int neigh_valid_dump_req(const struct nlmsghdr *nlh,
 		/* all new attributes should require strict_check */
 		switch (i) {
 		case NDA_IFINDEX:
-			if (nla_len(tb[i]) != sizeof(u32)) {
-				NL_SET_ERR_MSG(extack, "Invalid IFINDEX attribute in neighbor dump request");
-				return -EINVAL;
-			}
 			filter->dev_idx = nla_get_u32(tb[i]);
 			break;
 		case NDA_MASTER:
-			if (nla_len(tb[i]) != sizeof(u32)) {
-				NL_SET_ERR_MSG(extack, "Invalid MASTER attribute in neighbor dump request");
-				return -EINVAL;
-			}
 			filter->master_idx = nla_get_u32(tb[i]);
 			break;
 		default:
