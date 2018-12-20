@@ -14376,8 +14376,10 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		/*
 		 * On some ICL SKUs port F is not present. No strap bits for
 		 * this, so rely on VBT.
+		 * Work around broken VBTs on SKUs known to have no port F.
 		 */
-		if (intel_bios_is_port_present(dev_priv, PORT_F))
+		if (IS_ICL_WITH_PORT_F(dev_priv) &&
+		    intel_bios_is_port_present(dev_priv, PORT_F))
 			intel_ddi_init(dev_priv, PORT_F);
 
 		icl_dsi_init(dev_priv);
