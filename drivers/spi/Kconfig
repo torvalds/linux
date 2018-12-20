@@ -397,6 +397,13 @@ config SPI_MT65XX
 	  say Y or M here.If you are not sure, say N.
 	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
+config SPI_NPCM_PSPI
+	tristate "Nuvoton NPCM PSPI Controller"
+	depends on ARCH_NPCM || COMPILE_TEST
+	help
+	  This driver provides support for Nuvoton NPCM BMC
+	  Peripheral SPI controller in master mode.
+
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
 	depends on ARCH_W90X900
@@ -435,7 +442,7 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP"
-	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on ARCH_OMAP2PLUS || ARCH_K3 || COMPILE_TEST
 	select SG_SPLIT
 	help
 	  SPI master controller for OMAP24XX and later Multichannel SPI
@@ -683,6 +690,12 @@ config SPI_SUN6I
 	depends on RESET_CONTROLLER
 	help
 	  This enables using the SPI controller on the Allwinner A31 SoCs.
+
+config SPI_MXIC
+        tristate "Macronix MX25F0A SPI controller"
+        depends on SPI_MASTER
+        help
+          This selects the Macronix MX25F0A SPI controller driver.
 
 config SPI_MXS
 	tristate "Freescale MXS SPI controller"
