@@ -172,7 +172,7 @@ static int bcm2835_mbox_probe(struct platform_device *pdev)
 	if (!mbox->controller.chans)
 		return -ENOMEM;
 
-	ret = mbox_controller_register(&mbox->controller);
+	ret = devm_mbox_controller_register(dev, &mbox->controller);
 	if (ret)
 		return ret;
 
@@ -180,13 +180,6 @@ static int bcm2835_mbox_probe(struct platform_device *pdev)
 	dev_info(dev, "mailbox enabled\n");
 
 	return ret;
-}
-
-static int bcm2835_mbox_remove(struct platform_device *pdev)
-{
-	struct bcm2835_mbox *mbox = platform_get_drvdata(pdev);
-	mbox_controller_unregister(&mbox->controller);
-	return 0;
 }
 
 static const struct of_device_id bcm2835_mbox_of_match[] = {
@@ -201,7 +194,6 @@ static struct platform_driver bcm2835_mbox_driver = {
 		.of_match_table = bcm2835_mbox_of_match,
 	},
 	.probe		= bcm2835_mbox_probe,
-	.remove		= bcm2835_mbox_remove,
 };
 module_platform_driver(bcm2835_mbox_driver);
 
