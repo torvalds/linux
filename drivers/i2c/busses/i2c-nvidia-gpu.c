@@ -342,7 +342,7 @@ static void gpu_i2c_remove(struct pci_dev *pdev)
 	pci_free_irq_vectors(pdev);
 }
 
-static int gpu_i2c_resume(struct device *dev)
+static __maybe_unused int gpu_i2c_resume(struct device *dev)
 {
 	struct gpu_i2c_dev *i2cd = dev_get_drvdata(dev);
 
