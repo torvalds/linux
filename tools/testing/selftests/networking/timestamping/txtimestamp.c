@@ -39,6 +39,7 @@
 #include <inttypes.h>
 #include <linux/errqueue.h>
 #include <linux/if_ether.h>
+#include <linux/ipv6.h>
 #include <linux/net_tstamp.h>
 #include <netdb.h>
 #include <net/if.h>
@@ -74,6 +75,7 @@ static bool cfg_do_pktinfo;
 static bool cfg_loop_nodata;
 static bool cfg_no_delay;
 static bool cfg_use_cmsg;
+static bool cfg_use_pf_packet;
 static uint16_t dest_port = 9000;
 
 static struct sockaddr_in daddr;
@@ -195,7 +197,9 @@ static void __recv_errmsg_cmsg(struct msghdr *msg, int payload_len)
 		} else if ((cm->cmsg_level == SOL_IP &&
 			    cm->cmsg_type == IP_RECVERR) ||
 			   (cm->cmsg_level == SOL_IPV6 &&
-			    cm->cmsg_type == IPV6_RECVERR)) {
+			    cm->cmsg_type == IPV6_RECVERR) ||
+			   (cm->cmsg_level = SOL_PACKET &&
+			    cm->cmsg_type == PACKET_TX_TIMESTAMP)) {
 			serr = (void *) CMSG_DATA(cm);
 			if (serr->ee_errno != ENOMSG ||
 			    serr->ee_origin != SO_EE_ORIGIN_TIMESTAMPING) {
@@ -270,9 +274,89 @@ static int recv_errmsg(int fd)
 	return ret == -1;
 }
 
+static uint16_t get_ip_csum(const uint16_t *start, int num_words,
+			    unsigned long sum)
+{
+	int i;
+
+	for (i = 0; i < num_words; i++)
+		sum += start[i];
+
+	while (sum >> 16)
+		sum = (sum & 0xFFFF) + (sum >> 16);
+
+	return ~sum;
+}
+
+static uint16_t get_udp_csum(const struct udphdr *udph, int alen)
+{
+	unsigned long pseudo_sum, csum_len;
+	const void *csum_start = udph;
+
+	pseudo_sum = htons(IPPROTO_UDP);
+	pseudo_sum += udph->len;
+
+	/* checksum ip(v6) addresses + udp header + payload */
+	csum_start -= alen * 2;
+	csum_len = ntohs(udph->len) + alen * 2;
+
+	return get_ip_csum(csum_start, csum_len >> 1, pseudo_sum);
+}
+
+static int fill_header_ipv4(void *p)
+{
+	struct iphdr *iph = p;
+
+	memset(iph, 0, sizeof(*iph));
+
+	iph->ihl	= 5;
+	iph->version	= 4;
+	iph->ttl	= 2;
+	iph->saddr	= daddr.sin_addr.s_addr;	/* set for udp csum calc */
+	iph->daddr	= daddr.sin_addr.s_addr;
+	iph->protocol	= IPPROTO_UDP;
+
+	/* kernel writes saddr, csum, len */
+
+	return sizeof(*iph);
+}
+
+static int fill_header_ipv6(void *p)
+{
+	struct ipv6hdr *ip6h = p;
+
+	memset(ip6h, 0, sizeof(*ip6h));
+
+	ip6h->version		= 6;
+	ip6h->payload_len	= htons(sizeof(struct udphdr) + cfg_payload_len);
+	ip6h->nexthdr		= IPPROTO_UDP;
+	ip6h->hop_limit		= 64;
+
+	ip6h->saddr             = daddr6.sin6_addr;
+	ip6h->daddr		= daddr6.sin6_addr;
+
+	/* kernel does not write saddr in case of ipv6 */
+
+	return sizeof(*ip6h);
+}
+
+static void fill_header_udp(void *p, bool is_ipv4)
+{
+	struct udphdr *udph = p;
+
+	udph->source = ntohs(dest_port + 1);	/* spoof */
+	udph->dest   = ntohs(dest_port);
+	udph->len    = ntohs(sizeof(*udph) + cfg_payload_len);
+	udph->check  = 0;
+
+	udph->check  = get_udp_csum(udph, is_ipv4 ? sizeof(struct in_addr) :
+						    sizeof(struct in6_addr));
+}
+
 static void do_test(int family, unsigned int report_opt)
 {
 	char control[CMSG_SPACE(sizeof(uint32_t))];
+	struct sockaddr_ll laddr;
 	unsigned int sock_opt;
 	struct cmsghdr *cmsg;
 	struct msghdr msg;
@@ -280,24 +364,28 @@ static void do_test(int family, unsigned int report_opt)
 	char *buf;
 	int fd, i, val = 1, total_len;
 
-	if (family == AF_INET6 && cfg_proto != SOCK_STREAM) {
-		/* due to lack of checksum generation code */
-		fprintf(stderr, "test: skipping datagram over IPv6\n");
-		return;
-	}
-
 	total_len = cfg_payload_len;
-	if (cfg_proto == SOCK_RAW) {
+	if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
 		total_len += sizeof(struct udphdr);
-		if (cfg_ipproto == IPPROTO_RAW)
-			total_len += sizeof(struct iphdr);
+		if (cfg_use_pf_packet || cfg_ipproto == IPPROTO_RAW)
+			if (family == PF_INET)
+				total_len += sizeof(struct iphdr);
+			else
+				total_len += sizeof(struct ipv6hdr);
+
+		/* special case, only rawv6_sendmsg:
+		 * pass proto in sin6_port if not connected
+		 * also see ANK comment in net/ipv4/raw.c
+		 */
+		daddr6.sin6_port = htons(cfg_ipproto);
 	}
 
 	buf = malloc(total_len);
 	if (!buf)
 		error(1, 0, "malloc");
 
-	fd = socket(family, cfg_proto, cfg_ipproto);
+	fd = socket(cfg_use_pf_packet ? PF_PACKET : family,
+		    cfg_proto, cfg_ipproto);
 	if (fd < 0)
 		error(1, errno, "socket");
 
@@ -346,29 +434,17 @@ static void do_test(int family, unsigned int report_opt)
 		memset(&ts_prev, 0, sizeof(ts_prev));
 		memset(buf, 'a' + i, total_len);
 
-		if (cfg_proto == SOCK_RAW) {
-			struct udphdr *udph;
+		if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
 			int off = 0;
 
-			if (cfg_ipproto == IPPROTO_RAW) {
-				struct iphdr *iph = (void *) buf;
-
-				memset(iph, 0, sizeof(*iph));
-				iph->ihl      = 5;
-				iph->version  = 4;
-				iph->ttl      = 2;
-				iph->daddr    = daddr.sin_addr.s_addr;
-				iph->protocol = IPPROTO_UDP;
-				/* kernel writes saddr, csum, len */
-
-				off = sizeof(*iph);
+			if (cfg_use_pf_packet || cfg_ipproto == IPPROTO_RAW) {
+				if (family == PF_INET)
+					off = fill_header_ipv4(buf);
+				else
+					off = fill_header_ipv6(buf);
 			}
 
-			udph = (void *) buf + off;
-			udph->source = ntohs(9000); 	/* random spoof */
-			udph->dest   = ntohs(dest_port);
-			udph->len    = ntohs(sizeof(*udph) + cfg_payload_len);
-			udph->check  = 0;	/* not allowed for IPv6 */
+			fill_header_udp(buf + off, family == PF_INET);
 		}
 
 		print_timestamp_usr();
@@ -377,7 +453,17 @@ static void do_test(int family, unsigned int report_opt)
 		iov.iov_len = total_len;
 
 		if (cfg_proto != SOCK_STREAM) {
-			if (family == PF_INET) {
+			if (cfg_use_pf_packet) {
+				memset(&laddr, 0, sizeof(laddr));
+
+				laddr.sll_family	= AF_PACKET;
+				laddr.sll_ifindex	= 1;
+				laddr.sll_protocol	= htons(family == AF_INET ? ETH_P_IP : ETH_P_IPV6);
+				laddr.sll_halen		= ETH_ALEN;
+
+				msg.msg_name = (void *)&laddr;
+				msg.msg_namelen = sizeof(laddr);
+			} else if (family == PF_INET) {
 				msg.msg_name = (void *)&daddr;
 				msg.msg_namelen = sizeof(daddr);
 			} else {
@@ -437,9 +523,10 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
 			"  -n:   set no-payload option\n"
+			"  -p N: connect to port N\n"
+			"  -P:   use PF_PACKET\n"
 			"  -r:   use raw\n"
 			"  -R:   use raw (IP_HDRINCL)\n"
-			"  -p N: connect to port N\n"
 			"  -u:   use udp\n"
 			"  -x:   show payload (up to 70 bytes)\n",
 			filepath);
@@ -451,7 +538,7 @@ static void parse_opt(int argc, char **argv)
 	int proto_count = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "46c:CDFhIl:np:rRux")) != -1) {
+	while ((c = getopt(argc, argv, "46c:CDFhIl:np:PrRux")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -474,8 +561,20 @@ static void parse_opt(int argc, char **argv)
 		case 'I':
 			cfg_do_pktinfo = true;
 			break;
+		case 'l':
+			cfg_payload_len = strtoul(optarg, NULL, 10);
+			break;
 		case 'n':
 			cfg_loop_nodata = true;
+			break;
+		case 'p':
+			dest_port = strtoul(optarg, NULL, 10);
+			break;
+		case 'P':
+			proto_count++;
+			cfg_use_pf_packet = true;
+			cfg_proto = SOCK_DGRAM;
+			cfg_ipproto = 0;
 			break;
 		case 'r':
 			proto_count++;
@@ -491,12 +590,6 @@ static void parse_opt(int argc, char **argv)
 			proto_count++;
 			cfg_proto = SOCK_DGRAM;
 			cfg_ipproto = IPPROTO_UDP;
-			break;
-		case 'l':
-			cfg_payload_len = strtoul(optarg, NULL, 10);
-			break;
-		case 'p':
-			dest_port = strtoul(optarg, NULL, 10);
 			break;
 		case 'x':
 			cfg_show_payload = true;
@@ -514,7 +607,9 @@ static void parse_opt(int argc, char **argv)
 	if (!do_ipv4 && !do_ipv6)
 		error(1, 0, "pass -4 or -6, not both");
 	if (proto_count > 1)
-		error(1, 0, "pass -r, -R or -u, not multiple");
+		error(1, 0, "pass -P, -r, -R or -u, not multiple");
+	if (cfg_do_pktinfo && cfg_use_pf_packet)
+		error(1, 0, "cannot ask for pktinfo over pf_packet");
 
 	if (optind != argc - 1)
 		error(1, 0, "missing required hostname argument");
@@ -522,10 +617,12 @@ static void parse_opt(int argc, char **argv)
 
 static void resolve_hostname(const char *hostname)
 {
+	struct addrinfo hints = { .ai_family = do_ipv4 ? AF_INET : AF_INET6 };
 	struct addrinfo *addrs, *cur;
 	int have_ipv4 = 0, have_ipv6 = 0;
 
-	if (getaddrinfo(hostname, NULL, NULL, &addrs))
+retry:
+	if (getaddrinfo(hostname, NULL, &hints, &addrs))
 		error(1, errno, "getaddrinfo");
 
 	cur = addrs;
@@ -545,14 +642,20 @@ static void resolve_hostname(const char *hostname)
 	if (addrs)
 		freeaddrinfo(addrs);
 
+	if (do_ipv6 && hints.ai_family != AF_INET6) {
+		hints.ai_family = AF_INET6;
+		goto retry;
+	}
+
 	do_ipv4 &= have_ipv4;
 	do_ipv6 &= have_ipv6;
 }
 
 static void do_main(int family)
 {
-	fprintf(stderr, "family:       %s\n",
-			family == PF_INET ? "INET" : "INET6");
+	fprintf(stderr, "family:       %s %s\n",
+			family == PF_INET ? "INET" : "INET6",
+			cfg_use_pf_packet ? "(PF_PACKET)" : "");
 
 	fprintf(stderr, "test SND\n");
 	do_test(family, SOF_TIMESTAMPING_TX_SOFTWARE);
