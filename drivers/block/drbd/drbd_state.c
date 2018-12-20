@@ -2109,9 +2109,8 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 			spin_unlock_irq(&connection->resource->req_lock);
 		}
 	}
-	kref_put(&connection->kref, drbd_destroy_connection);
-
 	conn_md_sync(connection);
+	kref_put(&connection->kref, drbd_destroy_connection);
 
 	return 0;
 }
