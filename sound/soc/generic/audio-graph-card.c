@@ -169,6 +169,22 @@ static int asoc_graph_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static void asoc_graph_card_get_conversion(struct device *dev,
+					   struct device_node *ep,
+					   struct asoc_simple_card_data *adata)
+{
+	struct device_node *top = dev->of_node;
+	struct device_node *port = of_get_parent(ep);
+	struct device_node *ports = of_get_parent(port);
+	struct device_node *node = of_graph_get_port_parent(ep);
+
+	asoc_simple_card_parse_convert(dev, top,   NULL,   adata);
+	asoc_simple_card_parse_convert(dev, node,  PREFIX, adata);
+	asoc_simple_card_parse_convert(dev, ports, NULL,   adata);
+	asoc_simple_card_parse_convert(dev, port,  NULL,   adata);
+	asoc_simple_card_parse_convert(dev, ep,    NULL,   adata);
+}
+
 static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
 					    struct device_node *cpu_ep,
 					    struct device_node *codec_ep,
@@ -194,11 +210,7 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
 	of_property_read_u32(port,  "mclk-fs", &dai_props->mclk_fs);
 	of_property_read_u32(ep,    "mclk-fs", &dai_props->mclk_fs);
 
-	asoc_simple_card_parse_convert(dev, top,   NULL,   &dai_props->adata);
-	asoc_simple_card_parse_convert(dev, node,  PREFIX, &dai_props->adata);
-	asoc_simple_card_parse_convert(dev, ports, NULL,   &dai_props->adata);
-	asoc_simple_card_parse_convert(dev, port,  NULL,   &dai_props->adata);
-	asoc_simple_card_parse_convert(dev, ep,    NULL,   &dai_props->adata);
+	asoc_graph_card_get_conversion(dev, ep, &dai_props->adata);
 
 	of_node_put(ports);
 	of_node_put(port);
