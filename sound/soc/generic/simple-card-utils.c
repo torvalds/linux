@@ -283,12 +283,20 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 	/* use endpoint/port reg if exist */
 	ret = of_graph_parse_endpoint(ep, &info);
 	if (ret == 0) {
-		if (info.id)
+		/*
+		 * Because it will count port/endpoint if it doesn't have "reg".
+		 * But, we can't judge whether it has "no reg", or "reg = <0>"
+		 * only of_graph_parse_endpoint().
+		 * We need to check "reg" property
+		 */
+		if (of_get_property(ep,   "reg", NULL))
 			return info.id;
-		if (info.port)
+
+		node = of_get_parent(ep);
+		of_node_put(node);
+		if (of_get_property(node, "reg", NULL))
 			return info.port;
 	}
-
 	node = of_graph_get_port_parent(ep);
 
 	/*
