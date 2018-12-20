@@ -5775,12 +5775,14 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	dev->advise_mr_wq = alloc_ordered_workqueue("mlx5_ib_advise_mr_wq", 0);
 	if (!dev->advise_mr_wq) {
 		err = -ENOMEM;
-		goto err_free_port;
+		goto err_mp;
 	}
 
 	err = init_srcu_struct(&dev->mr_srcu);
-	if (err)
-		goto err_free_port;
+	if (err) {
+		destroy_workqueue(dev->advise_mr_wq);
+		goto err_mp;
+	}
 #endif
 
 	return 0;
