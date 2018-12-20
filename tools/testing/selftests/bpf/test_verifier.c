@@ -1879,7 +1879,7 @@ static struct bpf_test tests[] = {
 				    offsetof(struct sk_msg_md, size) + 4),
 			BPF_EXIT_INSN(),
 		},
-		.errstr = "R0 !read_ok",
+		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 		.prog_type = BPF_PROG_TYPE_SK_MSG,
 	},
