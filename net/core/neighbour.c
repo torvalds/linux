@@ -2811,7 +2811,7 @@ errout:
 static inline size_t pneigh_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct ndmsg))
-	       + nla_total_size(MAX_ADDR_LEN); /* NDA_DST */
+	       + nla_total_size(MAX_ADDR_LEN) /* NDA_DST */
 	       + nla_total_size(1); /* NDA_PROTOCOL */
 }
 
