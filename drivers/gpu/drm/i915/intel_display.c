@@ -14362,9 +14362,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 * On SKL we don't have a way to detect DDI-E so we rely on VBT.
 		 */
 		if (IS_GEN9_BC(dev_priv) &&
-		    (dev_priv->vbt.ddi_port_info[PORT_E].supports_dp ||
-		     dev_priv->vbt.ddi_port_info[PORT_E].supports_dvi ||
-		     dev_priv->vbt.ddi_port_info[PORT_E].supports_hdmi))
+		    intel_bios_is_port_present(dev_priv, PORT_E))
 			intel_ddi_init(dev_priv, PORT_E);
 
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
