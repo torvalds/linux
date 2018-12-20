@@ -187,6 +187,8 @@ Takes xa_lock internally:
  * :c:func:`xa_erase_bh`
  * :c:func:`xa_erase_irq`
  * :c:func:`xa_cmpxchg`
+ * :c:func:`xa_cmpxchg_bh`
+ * :c:func:`xa_cmpxchg_irq`
  * :c:func:`xa_store_range`
  * :c:func:`xa_alloc`
  * :c:func:`xa_alloc_bh`
@@ -263,7 +265,8 @@ using :c:func:`xa_lock_irqsave` in both the interrupt handler and process
 context, or :c:func:`xa_lock_irq` in process context and :c:func:`xa_lock`
 in the interrupt handler.  Some of the more common patterns have helper
 functions such as :c:func:`xa_store_bh`, :c:func:`xa_store_irq`,
-:c:func:`xa_erase_bh` and :c:func:`xa_erase_irq`.
+:c:func:`xa_erase_bh`, :c:func:`xa_erase_irq`, :c:func:`xa_cmpxchg_bh`
+and :c:func:`xa_cmpxchg_irq`.
 
 Sometimes you need to protect access to the XArray with a mutex because
 that lock sits above another mutex in the locking hierarchy.  That does

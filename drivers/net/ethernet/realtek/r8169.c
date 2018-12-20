@@ -6415,7 +6415,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 		goto out;
 	}
 
-	if (status & LinkChg)
+	if (status & LinkChg && tp->dev->phydev)
 		phy_mac_interrupt(tp->dev->phydev);
 
 	if (unlikely(status & RxFIFOOver &&

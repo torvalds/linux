@@ -101,7 +101,7 @@ static noinline void nft_update_chain_stats(const struct nft_chain *chain,
 	struct nft_stats *stats;
 
 	base_chain = nft_base_chain(chain);
-	if (!base_chain->stats)
+	if (!rcu_access_pointer(base_chain->stats))
 		return;
 
 	local_bh_disable();

@@ -67,7 +67,6 @@
  */
 static void	 xprt_init(struct rpc_xprt *xprt, struct net *net);
 static __be32	xprt_alloc_xid(struct rpc_xprt *xprt);
-static void	xprt_connect_status(struct rpc_task *task);
 static void	 xprt_destroy(struct rpc_xprt *xprt);
 
 static DEFINE_SPINLOCK(xprt_list_lock);
@@ -680,7 +679,9 @@ void xprt_force_disconnect(struct rpc_xprt *xprt)
 	/* Try to schedule an autoclose RPC call */
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
 		queue_work(xprtiod_workqueue, &xprt->task_cleanup);
-	xprt_wake_pending_tasks(xprt, -EAGAIN);
+	else if (xprt->snd_task)
+		rpc_wake_up_queued_task_set_status(&xprt->pending,
+				xprt->snd_task, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
 EXPORT_SYMBOL_GPL(xprt_force_disconnect);
@@ -820,7 +821,7 @@ void xprt_connect(struct rpc_task *task)
 	if (!xprt_connected(xprt)) {
 		task->tk_timeout = task->tk_rqstp->rq_timeout;
 		task->tk_rqstp->rq_connect_cookie = xprt->connect_cookie;
-		rpc_sleep_on(&xprt->pending, task, xprt_connect_status);
+		rpc_sleep_on(&xprt->pending, task, NULL);
 
 		if (test_bit(XPRT_CLOSING, &xprt->state))
 			return;
@@ -837,34 +838,6 @@ void xprt_connect(struct rpc_task *task)
 		}
 	}
 	xprt_release_write(xprt, task);
-}
-
-static void xprt_connect_status(struct rpc_task *task)
-{
-	switch (task->tk_status) {
-	case 0:
-		dprintk("RPC: %5u xprt_connect_status: connection established\n",
-				task->tk_pid);
-		break;
-	case -ECONNREFUSED:
-	case -ECONNRESET:
-	case -ECONNABORTED:
-	case -ENETUNREACH:
-	case -EHOSTUNREACH:
-	case -EPIPE:
-	case -EAGAIN:
-		dprintk("RPC: %5u xprt_connect_status: retrying\n", task->tk_pid);
-		break;
-	case -ETIMEDOUT:
-		dprintk("RPC: %5u xprt_connect_status: connect attempt timed "
-				"out\n", task->tk_pid);
-		break;
-	default:
-		dprintk("RPC: %5u xprt_connect_status: error %d connecting to "
-				"server %s\n", task->tk_pid, -task->tk_status,
-				task->tk_rqstp->rq_xprt->servername);
-		task->tk_status = -EIO;
-	}
 }
 
 enum xprt_xid_rb_cmp {

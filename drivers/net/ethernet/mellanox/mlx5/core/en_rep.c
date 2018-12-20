@@ -47,6 +47,7 @@
 
 #define MLX5E_REP_PARAMS_LOG_SQ_SIZE \
 	max(0x6, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
+#define MLX5E_REP_PARAMS_DEF_NUM_CHANNELS 1
 
 static const char mlx5e_rep_driver_name[] = "mlx5e_rep";
 
@@ -586,8 +587,8 @@ static void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 
 	ASSERT_RTNL();
 
-	if ((!neigh_connected && (e->flags & MLX5_ENCAP_ENTRY_VALID)) ||
-	    !ether_addr_equal(e->h_dest, ha))
+	if ((e->flags & MLX5_ENCAP_ENTRY_VALID) &&
+	    (!neigh_connected || !ether_addr_equal(e->h_dest, ha)))
 		mlx5e_tc_encap_flows_del(priv, e);
 
 	if (neigh_connected && !(e->flags & MLX5_ENCAP_ENTRY_VALID)) {
@@ -1395,30 +1396,19 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->features |= netdev->hw_features;
 }
 
-static int mlx5e_rep_get_default_num_channels(struct mlx5_eswitch_rep *rep,
-					      struct net_device *netdev)
-{
-	if (rep->vport == FDB_UPLINK_VPORT)
-		return mlx5e_get_netdev_max_channels(netdev);
-	else
-		return 1;
-}
-
 static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
 			  struct net_device *netdev,
 			  const struct mlx5e_profile *profile,
 			  void *ppriv)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_rep_priv *rpriv = ppriv;
 	int err;
 
 	err = mlx5e_netdev_init(netdev, priv, mdev, profile, ppriv);
 	if (err)
 		return err;
 
-	priv->channels.params.num_channels =
-			mlx5e_rep_get_default_num_channels(rpriv->rep, netdev);
+	priv->channels.params.num_channels = MLX5E_REP_PARAMS_DEF_NUM_CHANNELS;
 
 	mlx5e_build_rep_params(netdev);
 	mlx5e_build_rep_netdev(netdev);

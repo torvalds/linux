@@ -11985,6 +11985,8 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 			kunmap(vmx->nested.pi_desc_page);
 			kvm_release_page_dirty(vmx->nested.pi_desc_page);
 			vmx->nested.pi_desc_page = NULL;
+			vmx->nested.pi_desc = NULL;
+			vmcs_write64(POSTED_INTR_DESC_ADDR, -1ull);
 		}
 		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->posted_intr_desc_addr);
 		if (is_error_page(page))

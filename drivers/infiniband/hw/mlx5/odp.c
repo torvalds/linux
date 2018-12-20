@@ -552,14 +552,13 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 			u64 io_virt, size_t bcnt, u32 *bytes_mapped)
 {
+	int npages = 0, current_seq, page_shift, ret, np;
+	bool implicit = false;
 	struct ib_umem_odp *odp_mr = to_ib_umem_odp(mr->umem);
 	u64 access_mask = ODP_READ_ALLOWED_BIT;
-	int npages = 0, page_shift, np;
 	u64 start_idx, page_mask;
 	struct ib_umem_odp *odp;
-	int current_seq;
 	size_t size;
-	int ret;
 
 	if (!odp_mr->page_list) {
 		odp = implicit_mr_get_data(mr, io_virt, bcnt);
@@ -567,7 +566,7 @@ static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 		if (IS_ERR(odp))
 			return PTR_ERR(odp);
 		mr = odp->private;
-
+		implicit = true;
 	} else {
 		odp = odp_mr;
 	}
@@ -646,7 +645,7 @@ next_mr:
 
 out:
 	if (ret == -EAGAIN) {
-		if (mr->parent || !odp->dying) {
+		if (implicit || !odp->dying) {
 			unsigned long timeout =
 				msecs_to_jiffies(MMU_NOTIFIER_TIMEOUT);
 

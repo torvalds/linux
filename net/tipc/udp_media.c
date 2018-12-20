@@ -245,10 +245,8 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 		}
 
 		err = tipc_udp_xmit(net, _skb, ub, src, &rcast->addr);
-		if (err) {
-			kfree_skb(_skb);
+		if (err)
 			goto out;
-		}
 	}
 	err = 0;
 out:
@@ -680,6 +678,11 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	err = tipc_parse_udp_addr(opts[TIPC_NLA_UDP_REMOTE], &remote, NULL);
 	if (err)
 		goto err;
+
+	if (remote.proto != local.proto) {
+		err = -EINVAL;
+		goto err;
+	}
 
 	/* Checking remote ip address */
 	rmcast = tipc_udp_is_mcast_addr(&remote);

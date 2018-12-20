@@ -1124,7 +1124,7 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 	u16 *p = _p;
 	int i;
 
-	regs->version = 0;
+	regs->version = chip->info->prod_num;
 
 	memset(p, 0xff, 32 * sizeof(u16));
 

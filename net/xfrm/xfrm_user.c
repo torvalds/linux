@@ -2288,13 +2288,13 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	}
 
-	kfree(x);
+	xfrm_state_free(x);
 	kfree(xp);
 
 	return 0;
 
 free_state:
-	kfree(x);
+	xfrm_state_free(x);
 nomem:
 	return err;
 }

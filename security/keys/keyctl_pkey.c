@@ -25,7 +25,7 @@ static void keyctl_pkey_params_free(struct kernel_pkey_params *params)
 }
 
 enum {
-	Opt_err = -1,
+	Opt_err,
 	Opt_enc,		/* "enc=<encoding>" eg. "enc=oaep" */
 	Opt_hash,		/* "hash=<digest-name>" eg. "hash=sha1" */
 };

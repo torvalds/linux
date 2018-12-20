@@ -2541,6 +2541,10 @@ S: Ormond
 S: Victoria 3163
 S: Australia
 
+N: Eric Miao
+E: eric.y.miao@gmail.com
+D: MMP support
+
 N: Pauline Middelink
 E: middelin@polyware.nl
 D: General low-level bug fixes, /proc fixes, identd support
@@ -4114,6 +4118,10 @@ D: XFree86 and kernel development
 S: 1507 145th Place SE #B5
 S: Bellevue, Washington 98007
 S: USA
+
+N: Haojian Zhuang
+E: haojian.zhuang@gmail.com
+D: MMP support
 
 N: Richard Zidlicky
 E: rz@linux-m68k.org, rdzidlic@geocities.com

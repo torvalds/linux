@@ -556,6 +556,11 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 	}
 
 	ieee80211_led_tx(local);
+
+	if (skb_has_frag_list(skb)) {
+		kfree_skb_list(skb_shinfo(skb)->frag_list);
+		skb_shinfo(skb)->frag_list = NULL;
+	}
 }
 
 /*

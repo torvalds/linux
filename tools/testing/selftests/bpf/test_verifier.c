@@ -14099,6 +14099,33 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "R1 leaks addr",
 		.result = REJECT,
 	},
+		"calls: cross frame pruning",
+		.insns = {
+			/* r8 = !!random();
+			 * call pruner()
+			 * if (r8)
+			 *     do something bad;
+			 */
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_get_prandom_u32),
+			BPF_MOV64_IMM(BPF_REG_8, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_MOV64_IMM(BPF_REG_8, 1),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_8),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 4),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_8, 1, 1),
+			BPF_LDX_MEM(BPF_B, BPF_REG_9, BPF_REG_1, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SOCKET_FILTER,
+		.errstr_unpriv = "function calls to other bpf functions are allowed for root only",
+		.result_unpriv = REJECT,
+		.errstr = "!read_ok",
+		.result = REJECT,
+	},
 };
 
 static int probe_filter_length(const struct bpf_insn *fp)
@@ -14124,7 +14151,7 @@ static int create_map(uint32_t type, uint32_t size_key,
 	return fd;
 }
 
-static int create_prog_dummy1(enum bpf_map_type prog_type)
+static int create_prog_dummy1(enum bpf_prog_type prog_type)
 {
 	struct bpf_insn prog[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 42),
@@ -14135,7 +14162,7 @@ static int create_prog_dummy1(enum bpf_map_type prog_type)
 				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 }
 
-static int create_prog_dummy2(enum bpf_map_type prog_type, int mfd, int idx)
+static int create_prog_dummy2(enum bpf_prog_type prog_type, int mfd, int idx)
 {
 	struct bpf_insn prog[] = {
 		BPF_MOV64_IMM(BPF_REG_3, idx),
@@ -14150,7 +14177,7 @@ static int create_prog_dummy2(enum bpf_map_type prog_type, int mfd, int idx)
 				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 }
 
-static int create_prog_array(enum bpf_map_type prog_type, uint32_t max_elem,
+static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 			     int p1key)
 {
 	int p2key = 1;
@@ -14221,7 +14248,7 @@ static int create_cgroup_storage(bool percpu)
 
 static char bpf_vlog[UINT_MAX >> 8];
 
-static void do_test_fixup(struct bpf_test *test, enum bpf_map_type prog_type,
+static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 			  struct bpf_insn *prog, int *map_fds)
 {
 	int *fixup_map_hash_8b = test->fixup_map_hash_8b;
@@ -14350,7 +14377,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_map_type prog_type,
 		do {
 			prog[*fixup_map_stacktrace].imm = map_fds[12];
 			fixup_map_stacktrace++;
-		} while (fixup_map_stacktrace);
+		} while (*fixup_map_stacktrace);
 	}
 }
 
