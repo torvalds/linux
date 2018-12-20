@@ -165,6 +165,21 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static void asoc_simple_card_get_conversion(struct device *dev,
+					    struct device_node *np,
+					    struct asoc_simple_card_data *adata)
+{
+	struct device_node *top = dev->of_node;
+	struct device_node *node = of_get_parent(np);
+
+	asoc_simple_card_parse_convert(dev, top,  PREFIX, adata);
+	asoc_simple_card_parse_convert(dev, node, PREFIX, adata);
+	asoc_simple_card_parse_convert(dev, node, NULL,   adata);
+	asoc_simple_card_parse_convert(dev, np,   NULL,   adata);
+
+	of_node_put(node);
+}
+
 static int asoc_simple_card_dai_link_of_dpcm(struct device_node *top,
 					     struct device_node *node,
 					     struct device_node *np,
@@ -260,9 +275,7 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *top,
 					     "prefix");
 	}
 
-	asoc_simple_card_parse_convert(dev, top,  PREFIX, &dai_props->adata);
-	asoc_simple_card_parse_convert(dev, node, prefix, &dai_props->adata);
-	asoc_simple_card_parse_convert(dev, np,   NULL,   &dai_props->adata);
+	asoc_simple_card_get_conversion(dev, np, &dai_props->adata);
 
 	ret = asoc_simple_card_of_parse_tdm(np, dai);
 	if (ret)
