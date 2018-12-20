@@ -243,6 +243,9 @@ struct intel_encoder {
 	void (*post_pll_disable)(struct intel_encoder *,
 				 const struct intel_crtc_state *,
 				 const struct drm_connector_state *);
+	void (*update_pipe)(struct intel_encoder *,
+			    const struct intel_crtc_state *,
+			    const struct drm_connector_state *);
 	/* Read out the current hw state of this connector, returning true if
 	 * the encoder is active. If the encoder is enabled it also set the pipe
 	 * it is connected to in the pipe parameter. */

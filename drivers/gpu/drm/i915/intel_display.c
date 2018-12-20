@@ -5578,6 +5578,26 @@ static void intel_encoders_post_pll_disable(struct drm_crtc *crtc,
 	}
 }
 
+static void intel_encoders_update_pipe(struct drm_crtc *crtc,
+				       struct intel_crtc_state *crtc_state,
+				       struct drm_atomic_state *old_state)
+{
+	struct drm_connector_state *conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
+		struct intel_encoder *encoder =
+			to_intel_encoder(conn_state->best_encoder);
+
+		if (conn_state->crtc != crtc)
+			continue;
+
+		if (encoder->update_pipe)
+			encoder->update_pipe(encoder, crtc_state, conn_state);
+	}
+}
+
 static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 				 struct drm_atomic_state *old_state)
 {
@@ -12750,6 +12770,9 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 	} else {
 		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state),
 				       pipe_config);
+
+		if (pipe_config->update_pipe)
+			intel_encoders_update_pipe(crtc, pipe_config, state);
 	}
 
 	if (pipe_config->update_pipe && !pipe_config->enable_fbc)
