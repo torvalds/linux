@@ -48,6 +48,16 @@ config DRM_LONTIUM_LT8912
 	help
 	  Lontium LT8912 MIPI-DSI to LVDS and HDMI/MHL bridge chip driver.
 
+config DRM_CHIPONE_ICN6211
+	tristate "Chipone ICN6211 MIPI-DSI to RGB bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	help
+	  Chipone ICN6211 MIPI-DSI TO RGB bridge chip driver.
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/synopsys/Kconfig"
