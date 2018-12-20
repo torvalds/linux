@@ -246,10 +246,6 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 			pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_fclk_mhz);
 			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_dcefclk_mhz);
 			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, smu_req.min_deep_sleep_dcefclk_mhz);
-		} else {
-			if (pp_smu->set_display_requirement)
-				pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-			dcn1_pplib_apply_display_requirements(dc, context);
 		}
 	}
 
@@ -272,10 +268,6 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 			pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_fclk_mhz);
 			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_dcefclk_mhz);
 			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, smu_req.min_deep_sleep_dcefclk_mhz);
-		} else {
-			if (pp_smu->set_display_requirement)
-				pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-			dcn1_pplib_apply_display_requirements(dc, context);
 		}
 	}
 
