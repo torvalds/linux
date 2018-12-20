@@ -4428,7 +4428,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info 
 		       (peer_state.disk == D_NEGOTIATING ||
 			os.disk == D_NEGOTIATING));
 		/* if we have both been inconsistent, and the peer has been
-		 * forced to be UpToDate with --overwrite-data */
+		 * forced to be UpToDate with --force */
 		cr |= test_bit(CONSIDER_RESYNC, &device->flags);
 		/* if we had been plain connected, and the admin requested to
 		 * start a sync by "invalidate" or "invalidate-remote" */
