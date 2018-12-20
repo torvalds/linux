@@ -12,6 +12,7 @@
 #endif
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -103,6 +104,8 @@ struct sccnxp_chip {
 	unsigned long		freq_max;
 	unsigned int		flags;
 	unsigned int		fifosize;
+	/* Time between read/write cycles */
+	unsigned int		trwd;
 };
 
 struct sccnxp_port {
@@ -137,6 +140,7 @@ static const struct sccnxp_chip sc2681 = {
 	.freq_max	= 4000000,
 	.flags		= SCCNXP_HAVE_IO,
 	.fifosize	= 3,
+	.trwd		= 200,
 };
 
 static const struct sccnxp_chip sc2691 = {
@@ -147,6 +151,7 @@ static const struct sccnxp_chip sc2691 = {
 	.freq_max	= 4000000,
 	.flags		= 0,
 	.fifosize	= 3,
+	.trwd		= 150,
 };
 
 static const struct sccnxp_chip sc2692 = {
@@ -157,6 +162,7 @@ static const struct sccnxp_chip sc2692 = {
 	.freq_max	= 4000000,
 	.flags		= SCCNXP_HAVE_IO,
 	.fifosize	= 3,
+	.trwd		= 30,
 };
 
 static const struct sccnxp_chip sc2891 = {
@@ -167,6 +173,7 @@ static const struct sccnxp_chip sc2891 = {
 	.freq_max	= 8000000,
 	.flags		= SCCNXP_HAVE_IO | SCCNXP_HAVE_MR0,
 	.fifosize	= 16,
+	.trwd		= 27,
 };
 
 static const struct sccnxp_chip sc2892 = {
@@ -177,6 +184,7 @@ static const struct sccnxp_chip sc2892 = {
 	.freq_max	= 8000000,
 	.flags		= SCCNXP_HAVE_IO | SCCNXP_HAVE_MR0,
 	.fifosize	= 16,
+	.trwd		= 17,
 };
 
 static const struct sccnxp_chip sc28202 = {
@@ -187,6 +195,7 @@ static const struct sccnxp_chip sc28202 = {
 	.freq_max	= 50000000,
 	.flags		= SCCNXP_HAVE_IO | SCCNXP_HAVE_MR0,
 	.fifosize	= 256,
+	.trwd		= 10,
 };
 
 static const struct sccnxp_chip sc68681 = {
@@ -197,6 +206,7 @@ static const struct sccnxp_chip sc68681 = {
 	.freq_max	= 4000000,
 	.flags		= SCCNXP_HAVE_IO,
 	.fifosize	= 3,
+	.trwd		= 200,
 };
 
 static const struct sccnxp_chip sc68692 = {
@@ -207,24 +217,36 @@ static const struct sccnxp_chip sc68692 = {
 	.freq_max	= 4000000,
 	.flags		= SCCNXP_HAVE_IO,
 	.fifosize	= 3,
+	.trwd		= 200,
 };
 
-static inline u8 sccnxp_read(struct uart_port *port, u8 reg)
+static u8 sccnxp_read(struct uart_port *port, u8 reg)
 {
-	return readb(port->membase + (reg << port->regshift));
+	struct sccnxp_port *s = dev_get_drvdata(port->dev);
+	u8 ret;
+
+	ret = readb(port->membase + (reg << port->regshift));
+
+	ndelay(s->chip->trwd);
+
+	return ret;
 }
 
-static inline void sccnxp_write(struct uart_port *port, u8 reg, u8 v)
+static void sccnxp_write(struct uart_port *port, u8 reg, u8 v)
 {
+	struct sccnxp_port *s = dev_get_drvdata(port->dev);
+
 	writeb(v, port->membase + (reg << port->regshift));
+
+	ndelay(s->chip->trwd);
 }
 
-static inline u8 sccnxp_port_read(struct uart_port *port, u8 reg)
+static u8 sccnxp_port_read(struct uart_port *port, u8 reg)
 {
 	return sccnxp_read(port, (port->line << 3) + reg);
 }
 
-static inline void sccnxp_port_write(struct uart_port *port, u8 reg, u8 v)
+static void sccnxp_port_write(struct uart_port *port, u8 reg, u8 v)
 {
 	sccnxp_write(port, (port->line << 3) + reg, v);
 }
