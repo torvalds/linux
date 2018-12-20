@@ -809,7 +809,9 @@ static int twl4030_bci_get_property(struct power_supply *psy,
 		is_charging = state & TWL4030_MSTATEC_AC;
 	if (!is_charging) {
 		u8 s;
-		twl4030_bci_read(TWL4030_BCIMDEN, &s);
+		ret = twl4030_bci_read(TWL4030_BCIMDEN, &s);
+		if (ret < 0)
+			return ret;
 		if (psy->desc->type == POWER_SUPPLY_TYPE_USB)
 			is_charging = s & 1;
 		else
