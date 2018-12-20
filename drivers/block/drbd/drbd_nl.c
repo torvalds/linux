@@ -1261,6 +1261,21 @@ static void fixup_discard_if_not_supported(struct request_queue *q)
 	}
 }
 
+static void fixup_write_zeroes(struct drbd_device *device, struct request_queue *q)
+{
+	/* Fixup max_write_zeroes_sectors after blk_queue_stack_limits():
+	 * if we can handle "zeroes" efficiently on the protocol,
+	 * we want to do that, even if our backend does not announce
+	 * max_write_zeroes_sectors itself. */
+	struct drbd_connection *connection = first_peer_device(device)->connection;
+	/* If the peer announces WZEROES support, use it.  Otherwise, rather
+	 * send explicit zeroes than rely on some discard-zeroes-data magic. */
+	if (connection->agreed_features & DRBD_FF_WZEROES)
+		q->limits.max_write_zeroes_sectors = DRBD_MAX_BBIO_SECTORS;
+	else
+		q->limits.max_write_zeroes_sectors = 0;
+}
+
 static void decide_on_write_same_support(struct drbd_device *device,
 			struct request_queue *q,
 			struct request_queue *b, struct o_qlim *o,
@@ -1371,6 +1386,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 		}
 	}
 	fixup_discard_if_not_supported(q);
+	fixup_write_zeroes(device, q);
 }
 
 void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev, struct o_qlim *o)
