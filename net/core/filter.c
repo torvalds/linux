@@ -6313,6 +6313,9 @@ static bool sk_msg_is_valid_access(int off, int size,
 	if (type == BPF_WRITE)
 		return false;
 
+	if (off % size != 0)
+		return false;
+
 	switch (off) {
 	case offsetof(struct sk_msg_md, data):
 		info->reg_type = PTR_TO_PACKET;
@@ -6324,16 +6327,20 @@ static bool sk_msg_is_valid_access(int off, int size,
 		if (size != sizeof(__u64))
 			return false;
 		break;
-	default:
+	case bpf_ctx_range(struct sk_msg_md, family):
+	case bpf_ctx_range(struct sk_msg_md, remote_ip4):
+	case bpf_ctx_range(struct sk_msg_md, local_ip4):
+	case bpf_ctx_range_till(struct sk_msg_md, remote_ip6[0], remote_ip6[3]):
+	case bpf_ctx_range_till(struct sk_msg_md, local_ip6[0], local_ip6[3]):
+	case bpf_ctx_range(struct sk_msg_md, remote_port):
+	case bpf_ctx_range(struct sk_msg_md, local_port):
+	case bpf_ctx_range(struct sk_msg_md, size):
 		if (size != sizeof(__u32))
 			return false;
+		break;
+	default:
+		return false;
 	}
-
-	if (off < 0 || off >= sizeof(struct sk_msg_md))
-		return false;
-	if (off % size != 0)
-		return false;
-
 	return true;
 }
 
