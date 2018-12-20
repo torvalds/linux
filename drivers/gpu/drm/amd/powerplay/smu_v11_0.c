@@ -520,6 +520,10 @@ static int smu_v11_0_parse_pptable(struct smu_context *smu)
 		return -ENOMEM;
 
 	ret = smu_store_powerplay_table(smu);
+	if (ret)
+		return -EINVAL;
+
+	ret = smu_append_powerplay_table(smu);
 
 	return ret;
 }
