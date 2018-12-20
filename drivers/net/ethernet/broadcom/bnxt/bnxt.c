@@ -9416,7 +9416,7 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	 * 1 coal_buf x bufs_per_record = 1 completion record.
 	 */
 	coal = &bp->rx_coal;
-	coal->coal_ticks = 14;
+	coal->coal_ticks = 10;
 	coal->coal_bufs = 30;
 	coal->coal_ticks_irq = 1;
 	coal->coal_bufs_irq = 2;
