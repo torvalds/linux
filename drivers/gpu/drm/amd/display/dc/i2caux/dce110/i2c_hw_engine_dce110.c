@@ -97,7 +97,6 @@ enum dc_i2c_arbitration {
 #define FN(reg_name, field_name) \
 	hw_engine->i2c_shift->field_name, hw_engine->i2c_mask->field_name
 
-#include "reg_helper.h"
 
 static void disable_i2c_hw_engine(
 	struct i2c_hw_engine_dce110 *hw_engine)
