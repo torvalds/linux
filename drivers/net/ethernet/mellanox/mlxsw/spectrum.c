@@ -1140,13 +1140,18 @@ int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 	return 0;
 }
 
-static void mlxsw_sp_port_vlan_flush(struct mlxsw_sp_port *mlxsw_sp_port)
+static void mlxsw_sp_port_vlan_flush(struct mlxsw_sp_port *mlxsw_sp_port,
+				     bool flush_default)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan, *tmp;
 
 	list_for_each_entry_safe(mlxsw_sp_port_vlan, tmp,
-				 &mlxsw_sp_port->vlans_list, list)
+				 &mlxsw_sp_port->vlans_list, list) {
+		if (!flush_default &&
+		    mlxsw_sp_port_vlan->vid == MLXSW_SP_DEFAULT_VID)
+			continue;
 		mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
+	}
 }
 
 struct mlxsw_sp_port_vlan *
@@ -3258,7 +3263,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
-	mlxsw_sp_port_vlan_flush(mlxsw_sp_port);
+	mlxsw_sp_port_vlan_flush(mlxsw_sp_port, true);
 	mlxsw_sp_port_nve_fini(mlxsw_sp_port);
 	mlxsw_sp_tc_qdisc_fini(mlxsw_sp_port);
 	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
@@ -4724,7 +4729,7 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 
 	/* Any VLANs configured on the port are no longer valid */
-	mlxsw_sp_port_vlan_flush(mlxsw_sp_port);
+	mlxsw_sp_port_vlan_flush(mlxsw_sp_port, true);
 	/* Make the LAG and its directly linked uppers leave bridges they
 	 * are memeber in
 	 */
