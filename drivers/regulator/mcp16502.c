@@ -497,7 +497,7 @@ static int mcp16502_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_SUSPEND
+#ifdef CONFIG_PM_SLEEP
 static int mcp16502_suspend_noirq(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -517,10 +517,7 @@ static int mcp16502_resume_noirq(struct device *dev)
 
 	return 0;
 }
-#else /* !CONFIG_SUSPEND */
-#define mcp16502_suspend_noirq NULL
-#define mcp16502_resume_noirq NULL
-#endif /* !CONFIG_SUSPEND */
+#endif
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops mcp16502_pm_ops = {
