@@ -1154,6 +1154,15 @@ static void mlxsw_sp_port_vlan_flush(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
+static void
+mlxsw_sp_port_vlan_cleanup(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
+{
+	if (mlxsw_sp_port_vlan->bridge_port)
+		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
+	else if (mlxsw_sp_port_vlan->fid)
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
+}
+
 struct mlxsw_sp_port_vlan *
 mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 {
@@ -1191,11 +1200,7 @@ void mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 
-	if (mlxsw_sp_port_vlan->bridge_port)
-		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
-	else if (mlxsw_sp_port_vlan->fid)
-		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
-
+	mlxsw_sp_port_vlan_cleanup(mlxsw_sp_port_vlan);
 	list_del(&mlxsw_sp_port_vlan->list);
 	kfree(mlxsw_sp_port_vlan);
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, false, false);
