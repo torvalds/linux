@@ -22,6 +22,7 @@
 #include "builtin.h"
 #include "util/cgroup.h"
 #include "util/color.h"
+#include "util/config.h"
 #include "util/debug.h"
 #include "util/env.h"
 #include "util/event.h"
@@ -76,6 +77,7 @@ struct trace {
 	struct {
 		int		max;
 		struct syscall  *table;
+		struct bpf_map  *map;
 		struct {
 			struct perf_evsel *sys_enter,
 					  *sys_exit,
@@ -110,6 +112,7 @@ struct trace {
 	} stats;
 	unsigned int		max_stack;
 	unsigned int		min_stack;
+	bool			sort_events;
 	bool			raw_augmented_syscalls;
 	bool			not_ev_qualifier;
 	bool			live;
@@ -124,6 +127,12 @@ struct trace {
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			kernel_syscallchains;
+	s16			args_alignment;
+	bool			show_tstamp;
+	bool			show_duration;
+	bool			show_zeros;
+	bool			show_arg_names;
+	bool			show_string_prefix;
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
@@ -352,21 +361,25 @@ out_delete:
 	({ struct syscall_tp *fields = evsel->priv; \
 	   fields->name.pointer(&fields->name, sample); })
 
-size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val)
+size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, bool show_prefix, int val)
 {
 	int idx = val - sa->offset;
 
-	if (idx < 0 || idx >= sa->nr_entries || sa->entries[idx] == NULL)
-		return scnprintf(bf, size, intfmt, val);
+	if (idx < 0 || idx >= sa->nr_entries || sa->entries[idx] == NULL) {
+		size_t printed = scnprintf(bf, size, intfmt, val);
+		if (show_prefix)
+			printed += scnprintf(bf + printed, size - printed, " /* %s??? */", sa->prefix);
+		return printed;
+	}
 
-	return scnprintf(bf, size, "%s", sa->entries[idx]);
+	return scnprintf(bf, size, "%s%s", show_prefix ? sa->prefix : "", sa->entries[idx]);
 }
 
 static size_t __syscall_arg__scnprintf_strarray(char *bf, size_t size,
 						const char *intfmt,
 					        struct syscall_arg *arg)
 {
-	return strarray__scnprintf(arg->parm, bf, size, intfmt, arg->val);
+	return strarray__scnprintf(arg->parm, bf, size, intfmt, arg->show_string_prefix, arg->val);
 }
 
 static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
@@ -377,34 +390,32 @@ static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
 
 #define SCA_STRARRAY syscall_arg__scnprintf_strarray
 
-struct strarrays {
-	int		nr_entries;
-	struct strarray **entries;
-};
+size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const char *intfmt, bool show_prefix, int val)
+{
+	size_t printed;
+	int i;
 
-#define DEFINE_STRARRAYS(array) struct strarrays strarrays__##array = { \
-	.nr_entries = ARRAY_SIZE(array), \
-	.entries = array, \
+	for (i = 0; i < sas->nr_entries; ++i) {
+		struct strarray *sa = sas->entries[i];
+		int idx = val - sa->offset;
+
+		if (idx >= 0 && idx < sa->nr_entries) {
+			if (sa->entries[idx] == NULL)
+				break;
+			return scnprintf(bf, size, "%s%s", show_prefix ? sa->prefix : "", sa->entries[idx]);
+		}
+	}
+
+	printed = scnprintf(bf, size, intfmt, val);
+	if (show_prefix)
+		printed += scnprintf(bf + printed, size - printed, " /* %s??? */", sas->entries[0]->prefix);
+	return printed;
 }
 
 size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
 					struct syscall_arg *arg)
 {
-	struct strarrays *sas = arg->parm;
-	int i;
-
-	for (i = 0; i < sas->nr_entries; ++i) {
-		struct strarray *sa = sas->entries[i];
-		int idx = arg->val - sa->offset;
-
-		if (idx >= 0 && idx < sa->nr_entries) {
-			if (sa->entries[idx] == NULL)
-				break;
-			return scnprintf(bf, size, "%s", sa->entries[idx]);
-		}
-	}
-
-	return scnprintf(bf, size, "%d", arg->val);
+	return strarrays__scnprintf(arg->parm, bf, size, "%d", arg->show_string_prefix, arg->val);
 }
 
 #ifndef AT_FDCWD
@@ -415,9 +426,10 @@ static size_t syscall_arg__scnprintf_fd_at(char *bf, size_t size,
 					   struct syscall_arg *arg)
 {
 	int fd = arg->val;
+	const char *prefix = "AT_FD";
 
 	if (fd == AT_FDCWD)
-		return scnprintf(bf, size, "CWD");
+		return scnprintf(bf, size, "%s%s", arg->show_string_prefix ? prefix : "", "CWD");
 
 	return syscall_arg__scnprintf_fd(bf, size, arg);
 }
@@ -434,6 +446,13 @@ size_t syscall_arg__scnprintf_hex(char *bf, size_t size, struct syscall_arg *arg
 	return scnprintf(bf, size, "%#lx", arg->val);
 }
 
+size_t syscall_arg__scnprintf_ptr(char *bf, size_t size, struct syscall_arg *arg)
+{
+	if (arg->val == 0)
+		return scnprintf(bf, size, "NULL");
+	return syscall_arg__scnprintf_hex(bf, size, arg);
+}
+
 size_t syscall_arg__scnprintf_int(char *bf, size_t size, struct syscall_arg *arg)
 {
 	return scnprintf(bf, size, "%d", arg->val);
@@ -448,13 +467,13 @@ static const char *bpf_cmd[] = {
 	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
 	"MAP_GET_NEXT_KEY", "PROG_LOAD",
 };
-static DEFINE_STRARRAY(bpf_cmd);
+static DEFINE_STRARRAY(bpf_cmd, "BPF_");
 
 static const char *epoll_ctl_ops[] = { "ADD", "DEL", "MOD", };
-static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
+static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, "EPOLL_CTL_", 1);
 
 static const char *itimers[] = { "REAL", "VIRTUAL", "PROF", };
-static DEFINE_STRARRAY(itimers);
+static DEFINE_STRARRAY(itimers, "ITIMER_");
 
 static const char *keyctl_options[] = {
 	"GET_KEYRING_ID", "JOIN_SESSION_KEYRING", "UPDATE", "REVOKE", "CHOWN",
@@ -463,7 +482,7 @@ static const char *keyctl_options[] = {
 	"ASSUME_AUTHORITY", "GET_SECURITY", "SESSION_TO_PARENT", "REJECT",
 	"INSTANTIATE_IOV", "INVALIDATE", "GET_PERSISTENT",
 };
-static DEFINE_STRARRAY(keyctl_options);
+static DEFINE_STRARRAY(keyctl_options, "KEYCTL_");
 
 static const char *whences[] = { "SET", "CUR", "END",
 #ifdef SEEK_DATA
@@ -473,7 +492,7 @@ static const char *whences[] = { "SET", "CUR", "END",
 "HOLE",
 #endif
 };
-static DEFINE_STRARRAY(whences);
+static DEFINE_STRARRAY(whences, "SEEK_");
 
 static const char *fcntl_cmds[] = {
 	"DUPFD", "GETFD", "SETFD", "GETFL", "SETFL", "GETLK", "SETLK",
@@ -481,7 +500,7 @@ static const char *fcntl_cmds[] = {
 	"SETLK64", "SETLKW64", "SETOWN_EX", "GETOWN_EX",
 	"GETOWNER_UIDS",
 };
-static DEFINE_STRARRAY(fcntl_cmds);
+static DEFINE_STRARRAY(fcntl_cmds, "F_");
 
 static const char *fcntl_linux_specific_cmds[] = {
 	"SETLEASE", "GETLEASE", "NOTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
@@ -489,7 +508,7 @@ static const char *fcntl_linux_specific_cmds[] = {
 	"GET_RW_HINT", "SET_RW_HINT", "GET_FILE_RW_HINT", "SET_FILE_RW_HINT",
 };
 
-static DEFINE_STRARRAY_OFFSET(fcntl_linux_specific_cmds, F_LINUX_SPECIFIC_BASE);
+static DEFINE_STRARRAY_OFFSET(fcntl_linux_specific_cmds, "F_", F_LINUX_SPECIFIC_BASE);
 
 static struct strarray *fcntl_cmds_arrays[] = {
 	&strarray__fcntl_cmds,
@@ -503,29 +522,31 @@ static const char *rlimit_resources[] = {
 	"MEMLOCK", "AS", "LOCKS", "SIGPENDING", "MSGQUEUE", "NICE", "RTPRIO",
 	"RTTIME",
 };
-static DEFINE_STRARRAY(rlimit_resources);
+static DEFINE_STRARRAY(rlimit_resources, "RLIMIT_");
 
 static const char *sighow[] = { "BLOCK", "UNBLOCK", "SETMASK", };
-static DEFINE_STRARRAY(sighow);
+static DEFINE_STRARRAY(sighow, "SIG_");
 
 static const char *clockid[] = {
 	"REALTIME", "MONOTONIC", "PROCESS_CPUTIME_ID", "THREAD_CPUTIME_ID",
 	"MONOTONIC_RAW", "REALTIME_COARSE", "MONOTONIC_COARSE", "BOOTTIME",
 	"REALTIME_ALARM", "BOOTTIME_ALARM", "SGI_CYCLE", "TAI"
 };
-static DEFINE_STRARRAY(clockid);
+static DEFINE_STRARRAY(clockid, "CLOCK_");
 
 static size_t syscall_arg__scnprintf_access_mode(char *bf, size_t size,
 						 struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *suffix = "_OK";
 	size_t printed = 0;
 	int mode = arg->val;
 
 	if (mode == F_OK) /* 0 */
-		return scnprintf(bf, size, "F");
+		return scnprintf(bf, size, "F%s", show_prefix ? suffix : "");
 #define	P_MODE(n) \
 	if (mode & n##_OK) { \
-		printed += scnprintf(bf + printed, size - printed, "%s", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", #n, show_prefix ? suffix : ""); \
 		mode &= ~n##_OK; \
 	}
 
@@ -550,11 +571,13 @@ static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
 static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "O_";
 	int printed = 0, flags = arg->val;
 
 #define	P_FLAG(n) \
 	if (flags & O_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~O_##n; \
 	}
 
@@ -580,11 +603,13 @@ static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 						   struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "GRND_";
 	int printed = 0, flags = arg->val;
 
 #define	P_FLAG(n) \
 	if (flags & GRND_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~GRND_##n; \
 	}
 
@@ -639,12 +664,15 @@ static struct syscall_fmt {
 } syscall_fmts[] = {
 	{ .name	    = "access",
 	  .arg = { [1] = { .scnprintf = SCA_ACCMODE,  /* mode */ }, }, },
+	{ .name	    = "arch_prctl",
+	  .arg = { [0] = { .scnprintf = SCA_X86_ARCH_PRCTL_CODE, /* code */ },
+		   [1] = { .scnprintf = SCA_PTR, /* arg2 */ }, }, },
 	{ .name	    = "bind",
 	  .arg = { [1] = { .scnprintf = SCA_SOCKADDR, /* umyaddr */ }, }, },
 	{ .name	    = "bpf",
 	  .arg = { [0] = STRARRAY(cmd, bpf_cmd), }, },
 	{ .name	    = "brk",	    .hexret = true,
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* brk */ }, }, },
+	  .arg = { [0] = { .scnprintf = SCA_PTR, /* brk */ }, }, },
 	{ .name     = "clock_gettime",
 	  .arg = { [0] = STRARRAY(clk_id, clockid), }, },
 	{ .name	    = "clone",	    .errpid = true, .nr_args = 5,
@@ -722,18 +750,14 @@ static struct syscall_fmt {
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "mknodat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
-	{ .name	    = "mlock",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
-	{ .name	    = "mlockall",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
 	{ .name	    = "mmap",	    .hexret = true,
 /* The standard mmap maps to old_mmap on s390x */
 #if defined(__s390x__)
 	.alias = "old_mmap",
 #endif
-	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* addr */ },
-		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
-		   [3] = { .scnprintf = SCA_MMAP_FLAGS,	/* flags */ }, }, },
+	  .arg = { [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
+		   [3] = { .scnprintf = SCA_MMAP_FLAGS,	/* flags */ },
+		   [5] = { .scnprintf = SCA_HEX,	/* offset */ }, }, },
 	{ .name	    = "mount",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* dev_name */ },
 		   [3] = { .scnprintf = SCA_MOUNT_FLAGS, /* flags */
@@ -744,13 +768,7 @@ static struct syscall_fmt {
 	{ .name	    = "mq_unlink",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* u_name */ }, }, },
 	{ .name	    = "mremap",	    .hexret = true,
-	  .arg = { [0] = { .scnprintf = SCA_HEX,	  /* addr */ },
-		   [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ },
-		   [4] = { .scnprintf = SCA_HEX,	  /* new_addr */ }, }, },
-	{ .name	    = "munlock",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
-	{ .name	    = "munmap",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
+	  .arg = { [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ }, }, },
 	{ .name	    = "name_to_handle_at",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
 	{ .name	    = "newfstatat",
@@ -779,7 +797,7 @@ static struct syscall_fmt {
 		   [3] = { .scnprintf = SCA_INT,	/* pkey */ }, }, },
 	{ .name	    = "poll", .timeout = true, },
 	{ .name	    = "ppoll", .timeout = true, },
-	{ .name	    = "prctl", .alias = "arch_prctl",
+	{ .name	    = "prctl",
 	  .arg = { [0] = { .scnprintf = SCA_PRCTL_OPTION, /* option */ },
 		   [1] = { .scnprintf = SCA_PRCTL_ARG2, /* arg2 */ },
 		   [2] = { .scnprintf = SCA_PRCTL_ARG3, /* arg3 */ }, }, },
@@ -797,7 +815,12 @@ static struct syscall_fmt {
 	{ .name	    = "recvmsg",
 	  .arg = { [2] = { .scnprintf = SCA_MSG_FLAGS, /* flags */ }, }, },
 	{ .name	    = "renameat",
-	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
+	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* olddirfd */ },
+		   [2] = { .scnprintf = SCA_FDAT, /* newdirfd */ }, }, },
+	{ .name	    = "renameat2",
+	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* olddirfd */ },
+		   [2] = { .scnprintf = SCA_FDAT, /* newdirfd */ },
+		   [4] = { .scnprintf = SCA_RENAMEAT2_FLAGS, /* flags */ }, }, },
 	{ .name	    = "rt_sigaction",
 	  .arg = { [0] = { .scnprintf = SCA_SIGNUM, /* sig */ }, }, },
 	{ .name	    = "rt_sigprocmask",
@@ -899,6 +922,10 @@ struct syscall {
 	const char	    *name;
 	struct syscall_fmt  *fmt;
 	struct syscall_arg_fmt *arg_fmt;
+};
+
+struct bpf_map_syscall_entry {
+	bool	enabled;
 };
 
 /*
@@ -1132,7 +1159,7 @@ static size_t syscall_arg__scnprintf_augmented_string(struct syscall_arg *arg, c
 {
 	struct augmented_arg *augmented_arg = arg->augmented.args;
 
-	return scnprintf(bf, size, "%.*s", augmented_arg->size, augmented_arg->value);
+	return scnprintf(bf, size, "\"%.*s\"", augmented_arg->size, augmented_arg->value);
 }
 
 static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
@@ -1201,8 +1228,12 @@ static size_t trace__fprintf_comm_tid(struct trace *trace, struct thread *thread
 static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thread,
 					u64 duration, bool duration_calculated, u64 tstamp, FILE *fp)
 {
-	size_t printed = trace__fprintf_tstamp(trace, tstamp, fp);
-	printed += fprintf_duration(duration, duration_calculated, fp);
+	size_t printed = 0;
+
+	if (trace->show_tstamp)
+		printed = trace__fprintf_tstamp(trace, tstamp, fp);
+	if (trace->show_duration)
+		printed += fprintf_duration(duration, duration_calculated, fp);
 	return printed + trace__fprintf_comm_tid(trace, thread, fp);
 }
 
@@ -1321,8 +1352,8 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 			  strcmp(field->name, "path") == 0 ||
 			  strcmp(field->name, "pathname") == 0))
 			sc->arg_fmt[idx].scnprintf = SCA_FILENAME;
-		else if (field->flags & TEP_FIELD_IS_POINTER)
-			sc->arg_fmt[idx].scnprintf = syscall_arg__scnprintf_hex;
+		else if ((field->flags & TEP_FIELD_IS_POINTER) || strstr(field->name, "addr"))
+			sc->arg_fmt[idx].scnprintf = SCA_PTR;
 		else if (strcmp(field->type, "pid_t") == 0)
 			sc->arg_fmt[idx].scnprintf = SCA_PID;
 		else if (strcmp(field->type, "umode_t") == 0)
@@ -1555,6 +1586,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		.mask	= 0,
 		.trace  = trace,
 		.thread = thread,
+		.show_string_prefix = trace->show_string_prefix,
 	};
 	struct thread_trace *ttrace = thread__priv(thread);
 
@@ -1586,6 +1618,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
  			 * strarray for it.
  			 */
 			if (val == 0 &&
+			    !trace->show_zeros &&
 			    !(sc->arg_fmt &&
 			      (sc->arg_fmt[arg.idx].show_zero ||
 			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAY ||
@@ -1593,8 +1626,11 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			      sc->arg_fmt[arg.idx].parm))
 				continue;
 
-			printed += scnprintf(bf + printed, size - printed,
-					     "%s%s: ", printed ? ", " : "", field->name);
+			printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
+
+			if (trace->show_arg_names)
+				printed += scnprintf(bf + printed, size - printed, "%s: ", field->name);
+
 			printed += syscall__scnprintf_val(sc, bf + printed, size - printed, &arg, val);
 		}
 	} else if (IS_ERR(sc->tp_format)) {
@@ -1707,7 +1743,7 @@ static int trace__printf_interrupted_entry(struct trace *trace)
 		return 0;
 
 	printed  = trace__fprintf_entry_head(trace, trace->current, 0, false, ttrace->entry_time, trace->output);
-	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
+	printed += fprintf(trace->output, ")%-*s ...\n", trace->args_alignment, ttrace->entry_str);
 	ttrace->entry_pending = false;
 
 	++trace->nr_events_printed;
@@ -1764,7 +1800,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 {
 	char *msg;
 	void *args;
-	size_t printed = 0;
+	int printed = 0;
 	struct thread *thread;
 	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
 	int augmented_args_size = 0;
@@ -1813,8 +1849,13 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->failure_only || trace->min_stack)) {
+			int alignment = 0;
+
 			trace__fprintf_entry_head(trace, thread, 0, false, ttrace->entry_time, trace->output);
-			fprintf(trace->output, "%-70s)\n", ttrace->entry_str);
+			printed = fprintf(trace->output, "%s)", ttrace->entry_str);
+			if (trace->args_alignment > printed)
+				alignment = trace->args_alignment - printed;
+			fprintf(trace->output, "%*s= ?\n", alignment, " ");
 		}
 	} else {
 		ttrace->entry_pending = true;
@@ -1909,7 +1950,8 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	u64 duration = 0;
 	bool duration_calculated = false;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1, callchain_ret = 0;
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1, callchain_ret = 0, printed = 0;
+	int alignment = trace->args_alignment;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
@@ -1957,28 +1999,37 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	trace__fprintf_entry_head(trace, thread, duration, duration_calculated, ttrace->entry_time, trace->output);
 
 	if (ttrace->entry_pending) {
-		fprintf(trace->output, "%-70s", ttrace->entry_str);
+		printed = fprintf(trace->output, "%s", ttrace->entry_str);
 	} else {
 		fprintf(trace->output, " ... [");
 		color_fprintf(trace->output, PERF_COLOR_YELLOW, "continued");
 		fprintf(trace->output, "]: %s()", sc->name);
 	}
 
+	printed++; /* the closing ')' */
+
+	if (alignment > printed)
+		alignment -= printed;
+	else
+		alignment = 0;
+
+	fprintf(trace->output, ")%*s= ", alignment, " ");
+
 	if (sc->fmt == NULL) {
 		if (ret < 0)
 			goto errno_print;
 signed_print:
-		fprintf(trace->output, ") = %ld", ret);
+		fprintf(trace->output, "%ld", ret);
 	} else if (ret < 0) {
 errno_print: {
 		char bf[STRERR_BUFSIZE];
 		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
 			   *e = errno_to_name(evsel, -ret);
 
-		fprintf(trace->output, ") = -1 %s %s", e, emsg);
+		fprintf(trace->output, "-1 %s (%s)", e, emsg);
 	}
 	} else if (ret == 0 && sc->fmt->timeout)
-		fprintf(trace->output, ") = 0 Timeout");
+		fprintf(trace->output, "0 (Timeout)");
 	else if (ttrace->ret_scnprintf) {
 		char bf[1024];
 		struct syscall_arg arg = {
@@ -1988,14 +2039,14 @@ errno_print: {
 		};
 		ttrace->ret_scnprintf(bf, sizeof(bf), &arg);
 		ttrace->ret_scnprintf = NULL;
-		fprintf(trace->output, ") = %s", bf);
+		fprintf(trace->output, "%s", bf);
 	} else if (sc->fmt->hexret)
-		fprintf(trace->output, ") = %#lx", ret);
+		fprintf(trace->output, "%#lx", ret);
 	else if (sc->fmt->errpid) {
 		struct thread *child = machine__find_thread(trace->host, ret, ret);
 
 		if (child != NULL) {
-			fprintf(trace->output, ") = %ld", ret);
+			fprintf(trace->output, "%ld", ret);
 			if (child->comm_set)
 				fprintf(trace->output, " (%s)", thread__comm_str(child));
 			thread__put(child);
@@ -2176,7 +2227,7 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 	trace__printf_interrupted_entry(trace);
 	trace__fprintf_tstamp(trace, sample->time, trace->output);
 
-	if (trace->trace_syscalls)
+	if (trace->trace_syscalls && trace->show_duration)
 		fprintf(trace->output, "(         ): ");
 
 	if (thread)
@@ -2547,7 +2598,7 @@ out_delete_sys_enter:
 	goto out;
 }
 
-static int trace__set_ev_qualifier_filter(struct trace *trace)
+static int trace__set_ev_qualifier_tp_filter(struct trace *trace)
 {
 	int err = -1;
 	struct perf_evsel *sys_exit;
@@ -2570,6 +2621,72 @@ out:
 out_enomem:
 	errno = ENOMEM;
 	goto out;
+}
+
+#ifdef HAVE_LIBBPF_SUPPORT
+static int trace__set_ev_qualifier_bpf_filter(struct trace *trace)
+{
+	int fd = bpf_map__fd(trace->syscalls.map);
+	struct bpf_map_syscall_entry value = {
+		.enabled = !trace->not_ev_qualifier,
+	};
+	int err = 0;
+	size_t i;
+
+	for (i = 0; i < trace->ev_qualifier_ids.nr; ++i) {
+		int key = trace->ev_qualifier_ids.entries[i];
+
+		err = bpf_map_update_elem(fd, &key, &value, BPF_EXIST);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int __trace__init_syscalls_bpf_map(struct trace *trace, bool enabled)
+{
+	int fd = bpf_map__fd(trace->syscalls.map);
+	struct bpf_map_syscall_entry value = {
+		.enabled = enabled,
+	};
+	int err = 0, key;
+
+	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
+		err = bpf_map_update_elem(fd, &key, &value, BPF_ANY);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int trace__init_syscalls_bpf_map(struct trace *trace)
+{
+	bool enabled = true;
+
+	if (trace->ev_qualifier_ids.nr)
+		enabled = trace->not_ev_qualifier;
+
+	return __trace__init_syscalls_bpf_map(trace, enabled);
+}
+#else
+static int trace__set_ev_qualifier_bpf_filter(struct trace *trace __maybe_unused)
+{
+	return 0;
+}
+
+static int trace__init_syscalls_bpf_map(struct trace *trace __maybe_unused)
+{
+	return 0;
+}
+#endif // HAVE_LIBBPF_SUPPORT
+
+static int trace__set_ev_qualifier_filter(struct trace *trace)
+{
+	if (trace->syscalls.map)
+		return trace__set_ev_qualifier_bpf_filter(trace);
+	return trace__set_ev_qualifier_tp_filter(trace);
 }
 
 static int bpf_map__set_filter_pids(struct bpf_map *map __maybe_unused,
@@ -2641,7 +2758,7 @@ static int trace__set_filter_pids(struct trace *trace)
 	return err;
 }
 
-static int trace__deliver_event(struct trace *trace, union perf_event *event)
+static int __trace__deliver_event(struct trace *trace, union perf_event *event)
 {
 	struct perf_evlist *evlist = trace->evlist;
 	struct perf_sample sample;
@@ -2656,7 +2773,7 @@ static int trace__deliver_event(struct trace *trace, union perf_event *event)
 	return 0;
 }
 
-static int trace__flush_ordered_events(struct trace *trace)
+static int __trace__flush_events(struct trace *trace)
 {
 	u64 first = ordered_events__first_time(&trace->oe.data);
 	u64 flush = trace->oe.last - NSEC_PER_SEC;
@@ -2668,12 +2785,19 @@ static int trace__flush_ordered_events(struct trace *trace)
 	return 0;
 }
 
-static int trace__deliver_ordered_event(struct trace *trace, union perf_event *event)
+static int trace__flush_events(struct trace *trace)
 {
-	struct perf_evlist *evlist = trace->evlist;
+	return !trace->sort_events ? 0 : __trace__flush_events(trace);
+}
+
+static int trace__deliver_event(struct trace *trace, union perf_event *event)
+{
 	int err;
 
-	err = perf_evlist__parse_sample_timestamp(evlist, event, &trace->oe.last);
+	if (!trace->sort_events)
+		return __trace__deliver_event(trace, event);
+
+	err = perf_evlist__parse_sample_timestamp(trace->evlist, event, &trace->oe.last);
 	if (err && err != -1)
 		return err;
 
@@ -2681,7 +2805,7 @@ static int trace__deliver_ordered_event(struct trace *trace, union perf_event *e
 	if (err)
 		return err;
 
-	return trace__flush_ordered_events(trace);
+	return trace__flush_events(trace);
 }
 
 static int ordered_events__deliver_event(struct ordered_events *oe,
@@ -2689,7 +2813,7 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 {
 	struct trace *trace = container_of(oe, struct trace, oe.data);
 
-	return trace__deliver_event(trace, event->event);
+	return __trace__deliver_event(trace, event->event);
 }
 
 static int trace__run(struct trace *trace, int argc, const char **argv)
@@ -2703,11 +2827,13 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	trace->live = true;
 
-	if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
-		goto out_error_raw_syscalls;
+	if (!trace->raw_augmented_syscalls) {
+		if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
+			goto out_error_raw_syscalls;
 
-	if (trace->trace_syscalls)
-		trace->vfs_getname = perf_evlist__add_vfs_getname(evlist);
+		if (trace->trace_syscalls)
+			trace->vfs_getname = perf_evlist__add_vfs_getname(evlist);
+	}
 
 	if ((trace->trace_pgfaults & TRACE_PFMAJ)) {
 		pgfault_maj = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
@@ -2802,13 +2928,18 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_mem;
 
+	if (trace->syscalls.map)
+		trace__init_syscalls_bpf_map(trace);
+
 	if (trace->ev_qualifier_ids.nr > 0) {
 		err = trace__set_ev_qualifier_filter(trace);
 		if (err < 0)
 			goto out_errno;
 
-		pr_debug("event qualifier tracepoint filter: %s\n",
-			 trace->syscalls.events.sys_exit->filter);
+		if (trace->syscalls.events.sys_exit) {
+			pr_debug("event qualifier tracepoint filter: %s\n",
+				 trace->syscalls.events.sys_exit->filter);
+		}
 	}
 
 	err = perf_evlist__apply_filters(evlist, &evsel);
@@ -2859,7 +2990,7 @@ again:
 		while ((event = perf_mmap__read_event(md)) != NULL) {
 			++trace->nr_events;
 
-			err = trace__deliver_ordered_event(trace, event);
+			err = trace__deliver_event(trace, event);
 			if (err)
 				goto out_disable;
 
@@ -2885,7 +3016,7 @@ again:
 
 			goto again;
 		} else {
-			if (trace__flush_ordered_events(trace))
+			if (trace__flush_events(trace))
 				goto out_disable;
 		}
 	} else {
@@ -2897,7 +3028,8 @@ out_disable:
 
 	perf_evlist__disable(evlist);
 
-	ordered_events__flush(&trace->oe.data, OE_FLUSH__FINAL);
+	if (trace->sort_events)
+		ordered_events__flush(&trace->oe.data, OE_FLUSH__FINAL);
 
 	if (!err) {
 		if (trace->summary)
@@ -3426,6 +3558,49 @@ static void trace__set_bpf_map_filtered_pids(struct trace *trace)
 	trace->filter_pids.map = bpf__find_map_by_name("pids_filtered");
 }
 
+static void trace__set_bpf_map_syscalls(struct trace *trace)
+{
+	trace->syscalls.map = bpf__find_map_by_name("syscalls");
+}
+
+static int trace__config(const char *var, const char *value, void *arg)
+{
+	struct trace *trace = arg;
+	int err = 0;
+
+	if (!strcmp(var, "trace.add_events")) {
+		struct option o = OPT_CALLBACK('e', "event", &trace->evlist, "event",
+					       "event selector. use 'perf list' to list available events",
+					       parse_events_option);
+		err = parse_events_option(&o, value, 0);
+	} else if (!strcmp(var, "trace.show_timestamp")) {
+		trace->show_tstamp = perf_config_bool(var, value);
+	} else if (!strcmp(var, "trace.show_duration")) {
+		trace->show_duration = perf_config_bool(var, value);
+	} else if (!strcmp(var, "trace.show_arg_names")) {
+		trace->show_arg_names = perf_config_bool(var, value);
+		if (!trace->show_arg_names)
+			trace->show_zeros = true;
+	} else if (!strcmp(var, "trace.show_zeros")) {
+		bool new_show_zeros = perf_config_bool(var, value);
+		if (!trace->show_arg_names && !new_show_zeros) {
+			pr_warning("trace.show_zeros has to be set when trace.show_arg_names=no\n");
+			goto out;
+		}
+		trace->show_zeros = new_show_zeros;
+	} else if (!strcmp(var, "trace.show_prefix")) {
+		trace->show_string_prefix = perf_config_bool(var, value);
+	} else if (!strcmp(var, "trace.no_inherit")) {
+		trace->opts.no_inherit = perf_config_bool(var, value);
+	} else if (!strcmp(var, "trace.args_alignment")) {
+		int args_alignment = 0;
+		if (perf_config_int(&args_alignment, var, value) == 0)
+			trace->args_alignment = args_alignment;
+	}
+out:
+	return err;
+}
+
 int cmd_trace(int argc, const char **argv)
 {
 	const char *trace_usage[] = {
@@ -3451,6 +3626,10 @@ int cmd_trace(int argc, const char **argv)
 		},
 		.output = stderr,
 		.show_comm = true,
+		.show_tstamp = true,
+		.show_duration = true,
+		.show_arg_names = true,
+		.args_alignment = 70,
 		.trace_syscalls = false,
 		.kernel_syscallchains = false,
 		.max_stack = UINT_MAX,
@@ -3516,6 +3695,8 @@ int cmd_trace(int argc, const char **argv)
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
+	OPT_BOOLEAN(0, "sort-events", &trace.sort_events,
+			"Sort batch of events before processing, use if getting out of order events"),
 	OPT_BOOLEAN(0, "print-sample", &trace.print_sample,
 			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for debugging"),
 	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
@@ -3546,6 +3727,10 @@ int cmd_trace(int argc, const char **argv)
 		goto out;
 	}
 
+	err = perf_config(trace__config, &trace);
+	if (err)
+		goto out;
+
 	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
 				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
@@ -3564,6 +3749,7 @@ int cmd_trace(int argc, const char **argv)
 	if (evsel) {
 		trace.syscalls.events.augmented = evsel;
 		trace__set_bpf_map_filtered_pids(&trace);
+		trace__set_bpf_map_syscalls(&trace);
 	}
 
 	err = bpf__setup_stdout(trace.evlist);
@@ -3609,8 +3795,10 @@ int cmd_trace(int argc, const char **argv)
 		}
 	}
 
-	ordered_events__init(&trace.oe.data, ordered_events__deliver_event, &trace);
-	ordered_events__set_copy_on_queue(&trace.oe.data, true);
+	if (trace.sort_events) {
+		ordered_events__init(&trace.oe.data, ordered_events__deliver_event, &trace);
+		ordered_events__set_copy_on_queue(&trace.oe.data, true);
+	}
 
 	/*
 	 * If we are augmenting syscalls, then combine what we put in the
