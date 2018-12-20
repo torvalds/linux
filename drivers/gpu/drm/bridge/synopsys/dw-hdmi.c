@@ -2068,12 +2068,12 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 		vmode->mtmdsclock /= 2;
 
-	/* Set up HDMI_FC_INVIDCONF */
-	inv_val = ((dw_hdmi_support_scdc(hdmi) &&
-		    (vmode->mtmdsclock > HDMI14_MAX_TMDSCLK ||
-		     hdmi_info->scdc.scrambling.low_rates)) ?
-		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE :
-		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_INACTIVE);
+	/* Set up HDMI_FC_INVIDCONF
+	 * Some display equipments require that the interval
+	 * between Video Data and Data island must be at least 58 pixels,
+	 * and fc_invidconf.HDCP_keepout set (1'b1) can meet the requirement.
+	 */
+	inv_val = HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE;
 
 	inv_val |= mode->flags & DRM_MODE_FLAG_PVSYNC ?
 		HDMI_FC_INVIDCONF_VSYNC_IN_POLARITY_ACTIVE_HIGH :
