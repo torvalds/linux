@@ -23,8 +23,6 @@ OS := $(shell uname -s)
 # features.
 SHELL := /bin/bash
 
-filechk_gen_header = $<
-
 core-y			+= $(ARCH_DIR)/kernel/		\
 			   $(ARCH_DIR)/drivers/		\
 			   $(ARCH_DIR)/os-$(OS)/
