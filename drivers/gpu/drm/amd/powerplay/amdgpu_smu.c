@@ -348,15 +348,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 		return ret;
 
 	/*
-	 * Set initialized values (get from vbios) to dpm tables context such as
-	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
-	 * type of clks.
-	 */
-	ret = smu_populate_smc_pptable(smu);
-	if (ret)
-		return ret;
-
-	/*
 	 * Send msg GetDriverIfVersion to check if the return value is equal
 	 * with DRIVER_IF_VERSION of smc header.
 	 */
@@ -390,6 +381,15 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	 * SetMinDeepSleepDcefclk MSG.
 	 */
 	ret = smu_set_min_dcef_deep_sleep(smu);
+	if (ret)
+		return ret;
+
+	/*
+	 * Set initialized values (get from vbios) to dpm tables context such as
+	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
+	 * type of clks.
+	 */
+	ret = smu_populate_smc_pptable(smu);
 	if (ret)
 		return ret;
 

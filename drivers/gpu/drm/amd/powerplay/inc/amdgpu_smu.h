@@ -208,6 +208,7 @@ struct pptable_funcs {
 	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
 	int (*run_afll_btc)(struct smu_context *smu);
 	int (*get_unallowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+	int (*set_default_dpm_table)(struct smu_context *smu);
 };
 
 struct smu_funcs
@@ -313,6 +314,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->check_powerplay_table ? (smu)->ppt_funcs->check_powerplay_table((smu)) : 0)
 #define smu_append_powerplay_table(smu) \
 	((smu)->ppt_funcs->append_powerplay_table ? (smu)->ppt_funcs->append_powerplay_table((smu)) : 0)
+#define smu_set_default_dpm_table(smu) \
+	((smu)->ppt_funcs->set_default_dpm_table ? (smu)->ppt_funcs->set_default_dpm_table((smu)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)

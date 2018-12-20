@@ -291,6 +291,241 @@ vega20_get_unallowed_feature_mask(struct smu_context *smu,
 	return 0;
 }
 
+static int
+vega20_set_single_dpm_table(struct smu_context *smu,
+			    struct vega20_single_dpm_table *single_dpm_table,
+			    PPCLK_e clk_id)
+{
+	int ret = 0;
+	uint32_t i, num_of_levels, clk;
+
+	ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_GetDpmFreqByIndex,
+			(clk_id << 16 | 0xFF));
+	if (ret) {
+		pr_err("[GetNumOfDpmLevel] failed to get dpm levels!");
+		return ret;
+	}
+
+	smu_read_smc_arg(smu, &num_of_levels);
+	if (!num_of_levels) {
+		pr_err("[GetNumOfDpmLevel] number of clk levels is invalid!");
+		return -EINVAL;
+	}
+
+	single_dpm_table->count = num_of_levels;
+
+	for (i = 0; i < num_of_levels; i++) {
+		ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_GetDpmFreqByIndex,
+				(clk_id << 16 | i));
+		if (ret) {
+			pr_err("[GetDpmFreqByIndex] failed to get dpm freq by index!");
+			return ret;
+		}
+		smu_read_smc_arg(smu, &clk);
+		if (!clk) {
+			pr_err("[GetDpmFreqByIndex] clk value is invalid!");
+			return -EINVAL;
+		}
+		single_dpm_table->dpm_levels[i].value = clk;
+		single_dpm_table->dpm_levels[i].enabled = true;
+	}
+	return 0;
+}
+
+static void vega20_init_single_dpm_state(struct vega20_dpm_state *dpm_state)
+{
+	dpm_state->soft_min_level = 0x0;
+	dpm_state->soft_max_level = 0xffff;
+        dpm_state->hard_min_level = 0x0;
+        dpm_state->hard_max_level = 0xffff;
+}
+
+static int vega20_set_default_dpm_table(struct smu_context *smu)
+{
+	int ret;
+
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct vega20_dpm_table *dpm_table = NULL;
+	struct vega20_single_dpm_table *single_dpm_table;
+
+	dpm_table = smu_dpm->dpm_context;
+
+	/* socclk */
+	single_dpm_table = &(dpm_table->soc_table);
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_SOCCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get socclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.socclk / 100;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* gfxclk */
+	single_dpm_table = &(dpm_table->gfx_table);
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_GFXCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get gfxclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* memclk */
+	single_dpm_table = &(dpm_table->mem_table);
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_UCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get memclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.uclk / 100;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+#if 0
+	/* eclk */
+	single_dpm_table = &(dpm_table->eclk_table);
+
+	if (feature->fea_enabled[FEATURE_DPM_VCE_BIT]) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_ECLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get eclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.eclock / 100;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* vclk */
+	single_dpm_table = &(dpm_table->vclk_table);
+
+	if (feature->fea_enabled[FEATURE_DPM_UVD_BIT]) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_VCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get vclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclock / 100;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* dclk */
+	single_dpm_table = &(dpm_table->dclk_table);
+
+	if (feature->fea_enabled[FEATURE_DPM_UVD_BIT]) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_DCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get dclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclock / 100;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+#endif
+
+	/* dcefclk */
+	single_dpm_table = &(dpm_table->dcef_table);
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_DCEFCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get dcefclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* pixclk */
+	single_dpm_table = &(dpm_table->pixel_table);
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_PIXCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get pixclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 0;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* dispclk */
+	single_dpm_table = &(dpm_table->display_table);
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_DISPCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get dispclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 0;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* phyclk */
+	single_dpm_table = &(dpm_table->phy_table);
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_PHYCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get phyclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 0;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	/* fclk */
+	single_dpm_table = &(dpm_table->fclk_table);
+
+	if (smu_feature_is_enabled(smu,FEATURE_DPM_FCLK_BIT)) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  PPCLK_FCLK);
+		if (ret) {
+			pr_err("[SetupDefaultDpmTable] failed to get fclk dpm levels!");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 0;
+	}
+	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -299,6 +534,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_smu_msg_index = vega20_get_smu_msg_index,
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_unallowed_feature_mask = vega20_get_unallowed_feature_mask,
+	.set_default_dpm_table = vega20_set_default_dpm_table,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
