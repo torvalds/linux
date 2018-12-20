@@ -221,6 +221,7 @@ struct smu_funcs
 	int (*system_features_control)(struct smu_context *smu, bool en);
 	int (*send_smc_msg)(struct smu_context *smu, uint16_t msg);
 	int (*send_smc_msg_with_param)(struct smu_context *smu, uint16_t msg, uint32_t param);
+	int (*read_smc_arg)(struct smu_context *smu, uint32_t *arg);
 
 };
 
@@ -270,6 +271,8 @@ struct smu_funcs
 	((smu)->funcs->send_smc_msg? (smu)->funcs->send_smc_msg((smu), (msg)) : 0)
 #define smu_send_smc_msg_with_param(smu, msg, param) \
 	((smu)->funcs->send_smc_msg_with_param? (smu)->funcs->send_smc_msg_with_param((smu), (msg), (param)) : 0)
+#define smu_read_smc_arg(smu, arg) \
+	((smu)->funcs->read_smc_arg? (smu)->funcs->read_smc_arg((smu), (arg)) : 0)
 #define smu_store_powerplay_table(smu) \
 	((smu)->ppt_funcs->store_powerplay_table ? (smu)->ppt_funcs->store_powerplay_table((smu)) : 0)
 #define smu_check_powerplay_table(smu) \

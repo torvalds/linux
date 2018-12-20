@@ -213,7 +213,7 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	if (ret)
 		goto err;
 
-	ret = smu_v11_0_read_arg(smu, &smu_version);
+	ret = smu_read_smc_arg(smu, &smu_version);
 	if (ret)
 		goto err;
 
@@ -670,6 +670,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.check_fw_version = smu_v11_0_check_fw_version,
 	.send_smc_msg = smu_v11_0_send_msg,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
+	.read_smc_arg = smu_v11_0_read_arg,
 	.read_pptable_from_vbios = smu_v11_0_read_pptable_from_vbios,
 	.init_smc_tables = smu_v11_0_init_smc_tables,
 	.fini_smc_tables = smu_v11_0_fini_smc_tables,
