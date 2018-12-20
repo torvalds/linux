@@ -75,8 +75,14 @@ Optional properties:
 	Usage: optional
 	Value type: <prop-encoded-array>
 	Definition: A list of phandle and IOMMU specifier pairs.
+- ext-fem-name:
+	Usage: Optional
+	Value type: string
+	Definition: Name of external front end module used. Some valid FEM names
+		    for example: "microsemi-lx5586", "sky85703-11"
+		    and "sky85803" etc.
 
-Example (to supply the calibration data alone):
+Example (to supply PCI based wifi block details):
 
 In this example, the node is defined as child node of the PCI controller.
 
@@ -91,6 +97,7 @@ pci {
 		wifi@0,0 {
 			reg = <0 0 0 0 0>;
 			qcom,ath10k-calibration-data = [ 01 02 03 ... ];
+			ext-fem-name = "microsemi-lx5586";
 		};
 	};
 };
