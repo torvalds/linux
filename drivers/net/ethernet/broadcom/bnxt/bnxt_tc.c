@@ -420,11 +420,11 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 				    __le16 ref_flow_handle,
 				    __le32 tunnel_handle, __le16 *flow_handle)
 {
-	struct hwrm_cfa_flow_alloc_output *resp = bp->hwrm_cmd_resp_addr;
 	struct bnxt_tc_actions *actions = &flow->actions;
 	struct bnxt_tc_l3_key *l3_mask = &flow->l3_mask;
 	struct bnxt_tc_l3_key *l3_key = &flow->l3_key;
 	struct hwrm_cfa_flow_alloc_input req = { 0 };
+	struct hwrm_cfa_flow_alloc_output *resp;
 	u16 flow_flags = 0, action_flags = 0;
 	int rc;
 
@@ -527,8 +527,10 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc)
+	if (!rc) {
+		resp = bnxt_get_hwrm_resp_addr(bp, &req);
 		*flow_handle = resp->flow_handle;
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
 	if (rc == HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR)
@@ -544,9 +546,8 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 				       __le32 ref_decap_handle,
 				       __le32 *decap_filter_handle)
 {
-	struct hwrm_cfa_decap_filter_alloc_output *resp =
-						bp->hwrm_cmd_resp_addr;
 	struct hwrm_cfa_decap_filter_alloc_input req = { 0 };
+	struct hwrm_cfa_decap_filter_alloc_output *resp;
 	struct ip_tunnel_key *tun_key = &flow->tun_key;
 	u32 enables = 0;
 	int rc;
@@ -599,10 +600,12 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc)
+	if (!rc) {
+		resp = bnxt_get_hwrm_resp_addr(bp, &req);
 		*decap_filter_handle = resp->decap_filter_id;
-	else
+	} else {
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
 	if (rc)
@@ -633,9 +636,8 @@ static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
 				       struct bnxt_tc_l2_key *l2_info,
 				       __le32 *encap_record_handle)
 {
-	struct hwrm_cfa_encap_record_alloc_output *resp =
-						bp->hwrm_cmd_resp_addr;
 	struct hwrm_cfa_encap_record_alloc_input req = { 0 };
+	struct hwrm_cfa_encap_record_alloc_output *resp;
 	struct hwrm_cfa_encap_data_vxlan *encap =
 			(struct hwrm_cfa_encap_data_vxlan *)&req.encap_data;
 	struct hwrm_vxlan_ipv4_hdr *encap_ipv4 =
@@ -667,10 +669,12 @@ static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc)
+	if (!rc) {
+		resp = bnxt_get_hwrm_resp_addr(bp, &req);
 		*encap_record_handle = resp->encap_record_id;
-	else
+	} else {
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
 	if (rc)
@@ -1401,8 +1405,8 @@ static int
 bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 			     struct bnxt_tc_stats_batch stats_batch[])
 {
-	struct hwrm_cfa_flow_stats_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_cfa_flow_stats_input req = { 0 };
+	struct hwrm_cfa_flow_stats_output *resp;
 	__le16 *req_flow_handles = &req.flow_handle_0;
 	int rc, i;
 
@@ -1417,8 +1421,12 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
-		__le64 *resp_packets = &resp->packet_0;
-		__le64 *resp_bytes = &resp->byte_0;
+		__le64 *resp_packets;
+		__le64 *resp_bytes;
+
+		resp = bnxt_get_hwrm_resp_addr(bp, &req);
+		resp_packets = &resp->packet_0;
+		resp_bytes = &resp->byte_0;
 
 		for (i = 0; i < num_flows; i++) {
 			stats_batch[i].hw_stats.packets =

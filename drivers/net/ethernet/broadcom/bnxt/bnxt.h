@@ -1673,6 +1673,19 @@ static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 	}
 }
 
+static inline void *bnxt_get_hwrm_resp_addr(struct bnxt *bp, void *req)
+{
+	return bp->hwrm_cmd_resp_addr;
+}
+
+static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp)
+{
+	u16 seq_id;
+
+	seq_id = bp->hwrm_cmd_seq++;
+	return seq_id;
+}
+
 extern const u16 bnxt_lhint_arr[];
 
 int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,

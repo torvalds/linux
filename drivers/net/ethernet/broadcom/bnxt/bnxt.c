@@ -3759,7 +3759,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	u8 *resp_addr = (u8 *)bp->hwrm_cmd_resp_addr;
 	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
 
-	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
+	req->seq_id = cpu_to_le16(bnxt_get_hwrm_seq_id(bp));
 	memset(resp, 0, PAGE_SIZE);
 	cp_ring_id = le16_to_cpu(req->cmpl_ring);
 	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
@@ -4143,12 +4143,11 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 					     struct bnxt_ntuple_filter *fltr)
 {
-	int rc = 0;
-	struct hwrm_cfa_ntuple_filter_alloc_input req = {0};
-	struct hwrm_cfa_ntuple_filter_alloc_output *resp =
-		bp->hwrm_cmd_resp_addr;
-	struct flow_keys *keys = &fltr->fkeys;
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[fltr->rxq + 1];
+	struct hwrm_cfa_ntuple_filter_alloc_input req = {0};
+	struct hwrm_cfa_ntuple_filter_alloc_output *resp;
+	struct flow_keys *keys = &fltr->fkeys;
+	int rc = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_NTUPLE_FILTER_ALLOC, -1, -1);
 	req.l2_filter_id = bp->vnic_info[0].fw_l2_filter_id[fltr->l2_fltr_idx];
@@ -4194,8 +4193,10 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc)
+	if (!rc) {
+		resp = bnxt_get_hwrm_resp_addr(bp, &req);
 		fltr->filter_id = resp->ntuple_filter_id;
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
