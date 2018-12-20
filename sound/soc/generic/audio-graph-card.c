@@ -425,21 +425,79 @@ static int asoc_graph_card_dai_link_of(struct graph_card_data *priv,
 	return 0;
 }
 
-static int asoc_graph_card_parse_of(struct graph_card_data *priv)
+static int asoc_graph_card_for_each_link(struct graph_card_data *priv,
+			struct link_info *li,
+			int (*func_noml)(struct graph_card_data *priv,
+					 struct device_node *cpu_ep,
+					 struct device_node *codec_ep,
+					 struct link_info *li),
+			int (*func_dpcm)(struct graph_card_data *priv,
+					 struct device_node *cpu_ep,
+					 struct device_node *codec_ep,
+					 struct link_info *li, int dup_codec))
 {
 	struct of_phandle_iterator it;
 	struct device *dev = graph_priv_to_dev(priv);
-	struct snd_soc_card *card = graph_priv_to_card(priv);
-	struct device_node *top = dev->of_node;
-	struct device_node *node = top;
+	struct device_node *node = dev->of_node;
 	struct device_node *cpu_port;
-	struct device_node *cpu_ep		= NULL;
-	struct device_node *codec_ep		= NULL;
-	struct device_node *codec_port		= NULL;
-	struct device_node *codec_port_old	= NULL;
+	struct device_node *cpu_ep;
+	struct device_node *codec_ep;
+	struct device_node *codec_port;
+	struct device_node *codec_port_old = NULL;
 	struct asoc_simple_card_data adata;
-	struct link_info li;
 	int rc, ret;
+
+	/* loop for all listed CPU port */
+	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
+		cpu_port = it.node;
+		cpu_ep	 = NULL;
+
+		/* loop for all CPU endpoint */
+		while (1) {
+			cpu_ep = of_get_next_child(cpu_port, cpu_ep);
+			if (!cpu_ep)
+				break;
+
+			/* get codec */
+			codec_ep = of_graph_get_remote_endpoint(cpu_ep);
+			codec_port = of_get_parent(codec_ep);
+
+			of_node_put(codec_ep);
+			of_node_put(codec_port);
+
+			/* get convert-xxx property */
+			memset(&adata, 0, sizeof(adata));
+			asoc_graph_card_get_conversion(dev, codec_ep, &adata);
+			asoc_graph_card_get_conversion(dev, cpu_ep,   &adata);
+
+			/*
+			 * It is DPCM
+			 * if Codec port has many endpoints,
+			 * or has convert-xxx property
+			 */
+			if ((of_get_child_count(codec_port) > 1) ||
+			    adata.convert_rate || adata.convert_channels)
+				ret = func_dpcm(priv, cpu_ep, codec_ep, li,
+						(codec_port_old == codec_port));
+			/* else normal sound */
+			else
+				ret = func_noml(priv, cpu_ep, codec_ep, li);
+
+			if (ret < 0)
+				return ret;
+
+			codec_port_old = codec_port;
+		}
+	}
+
+	return 0;
+}
+
+static int asoc_graph_card_parse_of(struct graph_card_data *priv)
+{
+	struct snd_soc_card *card = graph_priv_to_card(priv);
+	struct link_info li;
+	int ret;
 
 	ret = asoc_simple_card_of_parse_widgets(card, NULL);
 	if (ret < 0)
@@ -450,7 +508,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 		return ret;
 
 	memset(&li, 0, sizeof(li));
-	codec_port_old	= NULL;
 	for (li.cpu = 1; li.cpu >= 0; li.cpu--) {
 		/*
 		 * Detect all CPU first, and Detect all Codec 2nd.
@@ -464,47 +521,11 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 		 * To avoid random sub-device numbering,
 		 * detect "dummy-Codec" in last;
 		 */
-		of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
-			cpu_port = it.node;
-			cpu_ep	 = NULL;
-			while (1) {
-				cpu_ep = of_get_next_child(cpu_port, cpu_ep);
-				if (!cpu_ep)
-					break;
-
-				codec_ep   = of_graph_get_remote_endpoint(cpu_ep);
-				codec_port = of_get_parent(codec_ep);
-
-				of_node_put(codec_ep);
-				of_node_put(codec_port);
-
-				dev_dbg(dev, "%pOFf <-> %pOFf\n", cpu_ep, codec_ep);
-
-				memset(&adata, 0, sizeof(adata));
-				asoc_graph_card_get_conversion(dev, codec_ep, &adata);
-				asoc_graph_card_get_conversion(dev, cpu_ep,   &adata);
-
-				if ((of_get_child_count(codec_port) > 1) ||
-				    adata.convert_rate ||
-				    adata.convert_channels) {
-					/*
-					 * for DPCM sound
-					 */
-					ret = asoc_graph_card_dai_link_of_dpcm(
-						priv, cpu_ep, codec_ep, &li,
-						(codec_port_old == codec_port));
-				} else if (li.cpu) {
-					/*
-					 * for Normal sound
-					 */
-					ret = asoc_graph_card_dai_link_of(
-						priv, cpu_ep, codec_ep, &li);
-				}
-				if (ret < 0)
-					return ret;
-				codec_port_old = codec_port;
-			}
-		}
+		ret = asoc_graph_card_for_each_link(priv, &li,
+						    asoc_graph_card_dai_link_of,
+						    asoc_graph_card_dai_link_of_dpcm);
+		if (ret < 0)
+			return ret;
 	}
 
 	return asoc_simple_card_parse_card_name(card, NULL);
@@ -551,15 +572,6 @@ static void asoc_graph_get_dais_count(struct graph_card_data *priv,
 				      struct link_info *li)
 {
 	struct device *dev = graph_priv_to_dev(priv);
-	struct of_phandle_iterator it;
-	struct device_node *node = dev->of_node;
-	struct device_node *cpu_port;
-	struct device_node *cpu_ep;
-	struct device_node *codec_ep;
-	struct device_node *codec_port;
-	struct device_node *codec_port_old;
-	struct asoc_simple_card_data adata;
-	int rc;
 
 	/*
 	 * link_num :	number of links.
@@ -607,37 +619,11 @@ static void asoc_graph_get_dais_count(struct graph_card_data *priv,
 	 *	=> 4 DAIs  = 2xCPU + 2xCodec
 	 *	=> 1 ccnf  = 1xdummy-Codec
 	 */
-	codec_port_old = NULL;
-	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
-		cpu_port = it.node;
-		cpu_ep	 = NULL;
-		while (1) {
-			cpu_ep = of_get_next_child(cpu_port, cpu_ep);
-			if (!cpu_ep)
-				break;
-
-			codec_ep = of_graph_get_remote_endpoint(cpu_ep);
-			codec_port = of_get_parent(codec_ep);
-
-			of_node_put(codec_ep);
-			of_node_put(codec_port);
-
-			memset(&adata, 0, sizeof(adata));
-			asoc_graph_card_get_conversion(dev, codec_ep, &adata);
-			asoc_graph_card_get_conversion(dev, cpu_ep,   &adata);
-
-			if ((of_get_child_count(codec_port) > 1) ||
-			    adata.convert_rate || adata.convert_channels) {
-				asoc_graph_card_count_dpcm(priv,
-						cpu_ep, codec_ep, li,
-						(codec_port_old == codec_port));
-			} else {
-				asoc_graph_card_count_noml(priv,
-						cpu_ep, codec_ep, li);
-			}
-			codec_port_old = codec_port;
-		}
-	}
+	asoc_graph_card_for_each_link(priv, li,
+				      asoc_graph_card_count_noml,
+				      asoc_graph_card_count_dpcm);
+	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
+		li->link, li->dais, li->conf);
 }
 
 static int asoc_graph_soc_card_probe(struct snd_soc_card *card)
