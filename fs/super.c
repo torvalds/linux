@@ -1277,7 +1277,7 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 	if (error)
 		goto out_sb;
 
-	if (!(flags & MS_KERNMOUNT)) {
+	if (!(flags & (MS_KERNMOUNT|MS_SUBMOUNT))) {
 		error = security_sb_kern_mount(sb);
 		if (error)
 			goto out_sb;
