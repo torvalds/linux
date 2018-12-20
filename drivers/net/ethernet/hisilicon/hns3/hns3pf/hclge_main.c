@@ -960,7 +960,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 		hdev->pfc_max = hdev->tc_max;
 	}
 
-	hdev->tm_info.num_tc = hdev->tc_max;
+	hdev->tm_info.num_tc = 1;
 
 	/* Currently not support uncontiuous tc */
 	for (i = 0; i < hdev->tm_info.num_tc; i++)
