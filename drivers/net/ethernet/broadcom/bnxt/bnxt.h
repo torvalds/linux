@@ -1237,6 +1237,8 @@ struct bnxt_ctx_mem_info {
 	struct bnxt_ctx_pg_info cq_mem;
 	struct bnxt_ctx_pg_info vnic_mem;
 	struct bnxt_ctx_pg_info stat_mem;
+	struct bnxt_ctx_pg_info mrav_mem;
+	struct bnxt_ctx_pg_info tim_mem;
 	struct bnxt_ctx_pg_info *tqm_mem[9];
 };
 
