@@ -4808,6 +4808,10 @@ static int hclge_restore_fd_entries(struct hnae3_handle *handle)
 	if (!hnae3_dev_fd_supported(hdev))
 		return 0;
 
+	/* if fd is disabled, should not restore it when reset */
+	if (!hdev->fd_cfg.fd_en)
+		return 0;
+
 	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
 		ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
 		if (!ret)
