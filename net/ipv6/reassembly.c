@@ -384,6 +384,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		if (skb_try_coalesce(head, fp, &headstolen, &delta)) {
 			kfree_skb_partial(fp, headstolen);
 		} else {
+			fp->sk = NULL;
 			if (!skb_shinfo(head)->frag_list)
 				skb_shinfo(head)->frag_list = fp;
 			head->data_len += fp->len;
