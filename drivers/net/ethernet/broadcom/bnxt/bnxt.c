@@ -1812,7 +1812,7 @@ static int bnxt_hwrm_handler(struct bnxt *bp, struct tx_cmp *txcmp)
 	case CMPL_BASE_TYPE_HWRM_DONE:
 		seq_id = le16_to_cpu(h_cmpl->sequence_id);
 		if (seq_id == bp->hwrm_intr_seq_id)
-			bp->hwrm_intr_seq_id = HWRM_SEQ_ID_INVALID;
+			bp->hwrm_intr_seq_id = (u16)~bp->hwrm_intr_seq_id;
 		else
 			netdev_err(bp->dev, "Invalid hwrm seq id %d\n", seq_id);
 		break;
@@ -2375,7 +2375,11 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 		rmem->pg_arr[i] = NULL;
 	}
 	if (rmem->pg_tbl) {
-		dma_free_coherent(&pdev->dev, rmem->nr_pages * 8,
+		size_t pg_tbl_size = rmem->nr_pages * 8;
+
+		if (rmem->flags & BNXT_RMEM_USE_FULL_PAGE_FLAG)
+			pg_tbl_size = rmem->page_size;
+		dma_free_coherent(&pdev->dev, pg_tbl_size,
 				  rmem->pg_tbl, rmem->pg_tbl_map);
 		rmem->pg_tbl = NULL;
 	}
@@ -2393,9 +2397,12 @@ static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 
 	if (rmem->flags & (BNXT_RMEM_VALID_PTE_FLAG | BNXT_RMEM_RING_PTE_FLAG))
 		valid_bit = PTU_PTE_VALID;
-	if (rmem->nr_pages > 1) {
-		rmem->pg_tbl = dma_alloc_coherent(&pdev->dev,
-						  rmem->nr_pages * 8,
+	if ((rmem->nr_pages > 1 || rmem->depth > 0) && !rmem->pg_tbl) {
+		size_t pg_tbl_size = rmem->nr_pages * 8;
+
+		if (rmem->flags & BNXT_RMEM_USE_FULL_PAGE_FLAG)
+			pg_tbl_size = rmem->page_size;
+		rmem->pg_tbl = dma_alloc_coherent(&pdev->dev, pg_tbl_size,
 						  &rmem->pg_tbl_map,
 						  GFP_KERNEL);
 		if (!rmem->pg_tbl)
@@ -2412,7 +2419,7 @@ static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 		if (!rmem->pg_arr[i])
 			return -ENOMEM;
 
-		if (rmem->nr_pages > 1) {
+		if (rmem->nr_pages > 1 || rmem->depth > 0) {
 			if (i == rmem->nr_pages - 2 &&
 			    (rmem->flags & BNXT_RMEM_RING_PTE_FLAG))
 				extra_bits |= PTU_PTE_NEXT_TO_LAST;
@@ -3279,6 +3286,27 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 				  bp->hwrm_cmd_resp_dma_addr);
 		bp->hwrm_cmd_resp_addr = NULL;
 	}
+
+	if (bp->hwrm_cmd_kong_resp_addr) {
+		dma_free_coherent(&pdev->dev, PAGE_SIZE,
+				  bp->hwrm_cmd_kong_resp_addr,
+				  bp->hwrm_cmd_kong_resp_dma_addr);
+		bp->hwrm_cmd_kong_resp_addr = NULL;
+	}
+}
+
+static int bnxt_alloc_kong_hwrm_resources(struct bnxt *bp)
+{
+	struct pci_dev *pdev = bp->pdev;
+
+	bp->hwrm_cmd_kong_resp_addr =
+		dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
+				   &bp->hwrm_cmd_kong_resp_dma_addr,
+				   GFP_KERNEL);
+	if (!bp->hwrm_cmd_kong_resp_addr)
+		return -ENOMEM;
+
+	return 0;
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -3740,7 +3768,10 @@ void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 	req->req_type = cpu_to_le16(req_type);
 	req->cmpl_ring = cpu_to_le16(cmpl_ring);
 	req->target_id = cpu_to_le16(target_id);
-	req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
+	if (bnxt_kong_hwrm_message(bp, req))
+		req->resp_addr = cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr);
+	else
+		req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
 }
 
 static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
@@ -3755,17 +3786,33 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
 	u16 max_req_len = BNXT_HWRM_MAX_REQ_LEN;
 	struct hwrm_short_input short_input = {0};
-
-	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
-	memset(resp, 0, PAGE_SIZE);
-	cp_ring_id = le16_to_cpu(req->cmpl_ring);
-	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
+	u32 doorbell_offset = BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER;
+	u8 *resp_addr = (u8 *)bp->hwrm_cmd_resp_addr;
+	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
+	u16 dst = BNXT_HWRM_CHNL_CHIMP;
 
 	if (msg_len > BNXT_HWRM_MAX_REQ_LEN) {
 		if (msg_len > bp->hwrm_max_ext_req_len ||
 		    !bp->hwrm_short_cmd_req_addr)
 			return -EINVAL;
 	}
+
+	if (bnxt_hwrm_kong_chnl(bp, req)) {
+		dst = BNXT_HWRM_CHNL_KONG;
+		bar_offset = BNXT_GRCPF_REG_KONG_COMM;
+		doorbell_offset = BNXT_GRCPF_REG_KONG_COMM_TRIGGER;
+		resp = bp->hwrm_cmd_kong_resp_addr;
+		resp_addr = (u8 *)bp->hwrm_cmd_kong_resp_addr;
+	}
+
+	memset(resp, 0, PAGE_SIZE);
+	cp_ring_id = le16_to_cpu(req->cmpl_ring);
+	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
+
+	req->seq_id = cpu_to_le16(bnxt_get_hwrm_seq_id(bp, dst));
+	/* currently supports only one outstanding message */
+	if (intr_process)
+		bp->hwrm_intr_seq_id = le16_to_cpu(req->seq_id);
 
 	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
 	    msg_len > BNXT_HWRM_MAX_REQ_LEN) {
@@ -3800,17 +3847,13 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	}
 
 	/* Write request msg to hwrm channel */
-	__iowrite32_copy(bp->bar0, data, msg_len / 4);
+	__iowrite32_copy(bp->bar0 + bar_offset, data, msg_len / 4);
 
 	for (i = msg_len; i < max_req_len; i += 4)
-		writel(0, bp->bar0 + i);
-
-	/* currently supports only one outstanding message */
-	if (intr_process)
-		bp->hwrm_intr_seq_id = le16_to_cpu(req->seq_id);
+		writel(0, bp->bar0 + bar_offset + i);
 
 	/* Ring channel doorbell */
-	writel(1, bp->bar0 + 0x100);
+	writel(1, bp->bar0 + doorbell_offset);
 
 	if (!timeout)
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
@@ -3825,10 +3868,13 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	tmo_count = HWRM_SHORT_TIMEOUT_COUNTER;
 	timeout = timeout - HWRM_SHORT_MIN_TIMEOUT * HWRM_SHORT_TIMEOUT_COUNTER;
 	tmo_count += DIV_ROUND_UP(timeout, HWRM_MIN_TIMEOUT);
-	resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
+	resp_len = (__le32 *)(resp_addr + HWRM_RESP_LEN_OFFSET);
+
 	if (intr_process) {
+		u16 seq_id = bp->hwrm_intr_seq_id;
+
 		/* Wait until hwrm response cmpl interrupt is processed */
-		while (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID &&
+		while (bp->hwrm_intr_seq_id != (u16)~seq_id &&
 		       i++ < tmo_count) {
 			/* on first few passes, just barely sleep */
 			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
@@ -3839,14 +3885,14 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 					     HWRM_MAX_TIMEOUT);
 		}
 
-		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
+		if (bp->hwrm_intr_seq_id != (u16)~seq_id) {
 			netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
 				   le16_to_cpu(req->req_type));
 			return -1;
 		}
 		len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 		      HWRM_RESP_LEN_SFT;
-		valid = bp->hwrm_cmd_resp_addr + len - 1;
+		valid = resp_addr + len - 1;
 	} else {
 		int j;
 
@@ -3874,7 +3920,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		}
 
 		/* Last byte of resp contains valid bit */
-		valid = bp->hwrm_cmd_resp_addr + len - 1;
+		valid = resp_addr + len - 1;
 		for (j = 0; j < HWRM_VALID_BIT_DELAY_USEC; j++) {
 			/* make sure we read from updated DMA memory */
 			dma_rmb();
@@ -4009,6 +4055,10 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 			cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_VF_REQ_FWD);
 	}
 
+	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
+		req.flags |= cpu_to_le32(
+			FUNC_DRV_RGTR_REQ_FLAGS_FLOW_HANDLE_64BIT_MODE);
+
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
@@ -4137,12 +4187,11 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 					     struct bnxt_ntuple_filter *fltr)
 {
-	int rc = 0;
-	struct hwrm_cfa_ntuple_filter_alloc_input req = {0};
-	struct hwrm_cfa_ntuple_filter_alloc_output *resp =
-		bp->hwrm_cmd_resp_addr;
-	struct flow_keys *keys = &fltr->fkeys;
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[fltr->rxq + 1];
+	struct hwrm_cfa_ntuple_filter_alloc_input req = {0};
+	struct hwrm_cfa_ntuple_filter_alloc_output *resp;
+	struct flow_keys *keys = &fltr->fkeys;
+	int rc = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_NTUPLE_FILTER_ALLOC, -1, -1);
 	req.l2_filter_id = bp->vnic_info[0].fw_l2_filter_id[fltr->l2_fltr_idx];
@@ -4188,8 +4237,10 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc)
+	if (!rc) {
+		resp = bnxt_get_hwrm_resp_addr(bp, &req);
 		fltr->filter_id = resp->ntuple_filter_id;
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
@@ -6000,8 +6051,11 @@ static void bnxt_hwrm_set_pg_attr(struct bnxt_ring_mem_info *rmem, u8 *pg_attr,
 		pg_size = 2 << 4;
 
 	*pg_attr = pg_size;
-	if (rmem->nr_pages > 1) {
-		*pg_attr |= 1;
+	if (rmem->depth >= 1) {
+		if (rmem->depth == 2)
+			*pg_attr |= 2;
+		else
+			*pg_attr |= 1;
 		*pg_dir = cpu_to_le64(rmem->pg_tbl_map);
 	} else {
 		*pg_dir = cpu_to_le64(rmem->dma_arr[0]);
@@ -6078,6 +6132,22 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 				      &req.stat_pg_size_stat_lvl,
 				      &req.stat_page_dir);
 	}
+	if (enables & FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV) {
+		ctx_pg = &ctx->mrav_mem;
+		req.mrav_num_entries = cpu_to_le32(ctx_pg->entries);
+		req.mrav_entry_size = cpu_to_le16(ctx->mrav_entry_size);
+		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
+				      &req.mrav_pg_size_mrav_lvl,
+				      &req.mrav_page_dir);
+	}
+	if (enables & FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM) {
+		ctx_pg = &ctx->tim_mem;
+		req.tim_num_entries = cpu_to_le32(ctx_pg->entries);
+		req.tim_entry_size = cpu_to_le16(ctx->tim_entry_size);
+		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
+				      &req.tim_pg_size_tim_lvl,
+				      &req.tim_page_dir);
+	}
 	for (i = 0, num_entries = &req.tqm_sp_num_entries,
 	     pg_attr = &req.tqm_sp_pg_size_tqm_sp_lvl,
 	     pg_dir = &req.tqm_sp_page_dir,
@@ -6098,23 +6168,102 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 }
 
 static int bnxt_alloc_ctx_mem_blk(struct bnxt *bp,
-				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size)
+				  struct bnxt_ctx_pg_info *ctx_pg)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 
-	if (!mem_size)
-		return 0;
-
-	rmem->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
-	if (rmem->nr_pages > MAX_CTX_PAGES) {
-		rmem->nr_pages = 0;
-		return -EINVAL;
-	}
 	rmem->page_size = BNXT_PAGE_SIZE;
 	rmem->pg_arr = ctx_pg->ctx_pg_arr;
 	rmem->dma_arr = ctx_pg->ctx_dma_arr;
 	rmem->flags = BNXT_RMEM_VALID_PTE_FLAG;
+	if (rmem->depth >= 1)
+		rmem->flags |= BNXT_RMEM_USE_FULL_PAGE_FLAG;
 	return bnxt_alloc_ring(bp, rmem);
+}
+
+static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
+				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size,
+				  u8 depth)
+{
+	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+	int rc;
+
+	if (!mem_size)
+		return 0;
+
+	ctx_pg->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
+	if (ctx_pg->nr_pages > MAX_CTX_TOTAL_PAGES) {
+		ctx_pg->nr_pages = 0;
+		return -EINVAL;
+	}
+	if (ctx_pg->nr_pages > MAX_CTX_PAGES || depth > 1) {
+		int nr_tbls, i;
+
+		rmem->depth = 2;
+		ctx_pg->ctx_pg_tbl = kcalloc(MAX_CTX_PAGES, sizeof(ctx_pg),
+					     GFP_KERNEL);
+		if (!ctx_pg->ctx_pg_tbl)
+			return -ENOMEM;
+		nr_tbls = DIV_ROUND_UP(ctx_pg->nr_pages, MAX_CTX_PAGES);
+		rmem->nr_pages = nr_tbls;
+		rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg);
+		if (rc)
+			return rc;
+		for (i = 0; i < nr_tbls; i++) {
+			struct bnxt_ctx_pg_info *pg_tbl;
+
+			pg_tbl = kzalloc(sizeof(*pg_tbl), GFP_KERNEL);
+			if (!pg_tbl)
+				return -ENOMEM;
+			ctx_pg->ctx_pg_tbl[i] = pg_tbl;
+			rmem = &pg_tbl->ring_mem;
+			rmem->pg_tbl = ctx_pg->ctx_pg_arr[i];
+			rmem->pg_tbl_map = ctx_pg->ctx_dma_arr[i];
+			rmem->depth = 1;
+			rmem->nr_pages = MAX_CTX_PAGES;
+			if (i == (nr_tbls - 1))
+				rmem->nr_pages = ctx_pg->nr_pages %
+						 MAX_CTX_PAGES;
+			rc = bnxt_alloc_ctx_mem_blk(bp, pg_tbl);
+			if (rc)
+				break;
+		}
+	} else {
+		rmem->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
+		if (rmem->nr_pages > 1 || depth)
+			rmem->depth = 1;
+		rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg);
+	}
+	return rc;
+}
+
+static void bnxt_free_ctx_pg_tbls(struct bnxt *bp,
+				  struct bnxt_ctx_pg_info *ctx_pg)
+{
+	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+
+	if (rmem->depth > 1 || ctx_pg->nr_pages > MAX_CTX_PAGES ||
+	    ctx_pg->ctx_pg_tbl) {
+		int i, nr_tbls = rmem->nr_pages;
+
+		for (i = 0; i < nr_tbls; i++) {
+			struct bnxt_ctx_pg_info *pg_tbl;
+			struct bnxt_ring_mem_info *rmem2;
+
+			pg_tbl = ctx_pg->ctx_pg_tbl[i];
+			if (!pg_tbl)
+				continue;
+			rmem2 = &pg_tbl->ring_mem;
+			bnxt_free_ring(bp, rmem2);
+			ctx_pg->ctx_pg_arr[i] = NULL;
+			kfree(pg_tbl);
+			ctx_pg->ctx_pg_tbl[i] = NULL;
+		}
+		kfree(ctx_pg->ctx_pg_tbl);
+		ctx_pg->ctx_pg_tbl = NULL;
+	}
+	bnxt_free_ring(bp, rmem);
+	ctx_pg->nr_pages = 0;
 }
 
 static void bnxt_free_ctx_mem(struct bnxt *bp)
@@ -6127,16 +6276,18 @@ static void bnxt_free_ctx_mem(struct bnxt *bp)
 
 	if (ctx->tqm_mem[0]) {
 		for (i = 0; i < bp->max_q + 1; i++)
-			bnxt_free_ring(bp, &ctx->tqm_mem[i]->ring_mem);
+			bnxt_free_ctx_pg_tbls(bp, ctx->tqm_mem[i]);
 		kfree(ctx->tqm_mem[0]);
 		ctx->tqm_mem[0] = NULL;
 	}
 
-	bnxt_free_ring(bp, &ctx->stat_mem.ring_mem);
-	bnxt_free_ring(bp, &ctx->vnic_mem.ring_mem);
-	bnxt_free_ring(bp, &ctx->cq_mem.ring_mem);
-	bnxt_free_ring(bp, &ctx->srq_mem.ring_mem);
-	bnxt_free_ring(bp, &ctx->qp_mem.ring_mem);
+	bnxt_free_ctx_pg_tbls(bp, &ctx->tim_mem);
+	bnxt_free_ctx_pg_tbls(bp, &ctx->mrav_mem);
+	bnxt_free_ctx_pg_tbls(bp, &ctx->stat_mem);
+	bnxt_free_ctx_pg_tbls(bp, &ctx->vnic_mem);
+	bnxt_free_ctx_pg_tbls(bp, &ctx->cq_mem);
+	bnxt_free_ctx_pg_tbls(bp, &ctx->srq_mem);
+	bnxt_free_ctx_pg_tbls(bp, &ctx->qp_mem);
 	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
 }
 
@@ -6145,6 +6296,9 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	struct bnxt_ctx_pg_info *ctx_pg;
 	struct bnxt_ctx_mem_info *ctx;
 	u32 mem_size, ena, entries;
+	u32 extra_srqs = 0;
+	u32 extra_qps = 0;
+	u8 pg_lvl = 1;
 	int i, rc;
 
 	rc = bnxt_hwrm_func_backing_store_qcaps(bp);
@@ -6157,24 +6311,31 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
 		return 0;
 
+	if (bp->flags & BNXT_FLAG_ROCE_CAP) {
+		pg_lvl = 2;
+		extra_qps = 65536;
+		extra_srqs = 8192;
+	}
+
 	ctx_pg = &ctx->qp_mem;
-	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries;
+	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries +
+			  extra_qps;
 	mem_size = ctx->qp_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl);
 	if (rc)
 		return rc;
 
 	ctx_pg = &ctx->srq_mem;
-	ctx_pg->entries = ctx->srq_max_l2_entries;
+	ctx_pg->entries = ctx->srq_max_l2_entries + extra_srqs;
 	mem_size = ctx->srq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl);
 	if (rc)
 		return rc;
 
 	ctx_pg = &ctx->cq_mem;
-	ctx_pg->entries = ctx->cq_max_l2_entries;
+	ctx_pg->entries = ctx->cq_max_l2_entries + extra_qps * 2;
 	mem_size = ctx->cq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl);
 	if (rc)
 		return rc;
 
@@ -6182,26 +6343,47 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctx_pg->entries = ctx->vnic_max_vnic_entries +
 			  ctx->vnic_max_ring_table_entries;
 	mem_size = ctx->vnic_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
 	if (rc)
 		return rc;
 
 	ctx_pg = &ctx->stat_mem;
 	ctx_pg->entries = ctx->stat_max_entries;
 	mem_size = ctx->stat_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
 	if (rc)
 		return rc;
 
-	entries = ctx->qp_max_l2_entries;
+	ena = 0;
+	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
+		goto skip_rdma;
+
+	ctx_pg = &ctx->mrav_mem;
+	ctx_pg->entries = extra_qps * 4;
+	mem_size = ctx->mrav_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2);
+	if (rc)
+		return rc;
+	ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
+
+	ctx_pg = &ctx->tim_mem;
+	ctx_pg->entries = ctx->qp_mem.entries;
+	mem_size = ctx->tim_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
+	if (rc)
+		return rc;
+	ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM;
+
+skip_rdma:
+	entries = ctx->qp_max_l2_entries + extra_qps;
 	entries = roundup(entries, ctx->tqm_entries_multiple);
 	entries = clamp_t(u32, entries, ctx->tqm_min_entries_per_ring,
 			  ctx->tqm_max_entries_per_ring);
-	for (i = 0, ena = 0; i < bp->max_q + 1; i++) {
+	for (i = 0; i < bp->max_q + 1; i++) {
 		ctx_pg = ctx->tqm_mem[i];
 		ctx_pg->entries = entries;
 		mem_size = ctx->tqm_entry_size * entries;
-		rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
 		if (rc)
 			return rc;
 		ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TQM_SP << i;
@@ -6480,6 +6662,13 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	if ((dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED) &&
 	    (dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_REQUIRED))
 		bp->fw_cap |= BNXT_FW_CAP_SHORT_CMD;
+
+	if (dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_KONG_MB_CHNL_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_KONG_MB_CHNL;
+
+	if (dev_caps_cfg &
+	    VER_GET_RESP_DEV_CAPS_CFG_FLOW_HANDLE_64BIT_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_OVS_64BIT_HANDLE;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -9227,7 +9416,7 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	 * 1 coal_buf x bufs_per_record = 1 completion record.
 	 */
 	coal = &bp->rx_coal;
-	coal->coal_ticks = 14;
+	coal->coal_ticks = 10;
 	coal->coal_bufs = 30;
 	coal->coal_ticks_irq = 1;
 	coal->coal_bufs_irq = 2;
@@ -10218,6 +10407,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	if (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL) {
+		rc = bnxt_alloc_kong_hwrm_resources(bp);
+		if (rc)
+			bp->fw_cap &= ~BNXT_FW_CAP_KONG_MB_CHNL;
+	}
 
 	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
 	    bp->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
