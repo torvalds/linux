@@ -1721,7 +1721,7 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 static int hclgevf_alloc_hdev(struct hnae3_ae_dev *ae_dev)
 {
 	struct pci_dev *pdev = ae_dev->pdev;
-	struct hclgevf_dev *hdev = ae_dev->priv;
+	struct hclgevf_dev *hdev;
 
 	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
