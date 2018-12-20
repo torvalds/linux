@@ -1812,7 +1812,7 @@ static int bnxt_hwrm_handler(struct bnxt *bp, struct tx_cmp *txcmp)
 	case CMPL_BASE_TYPE_HWRM_DONE:
 		seq_id = le16_to_cpu(h_cmpl->sequence_id);
 		if (seq_id == bp->hwrm_intr_seq_id)
-			bp->hwrm_intr_seq_id = HWRM_SEQ_ID_INVALID;
+			bp->hwrm_intr_seq_id = (u16)~bp->hwrm_intr_seq_id;
 		else
 			netdev_err(bp->dev, "Invalid hwrm seq id %d\n", seq_id);
 		break;
@@ -3827,8 +3827,10 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	tmo_count += DIV_ROUND_UP(timeout, HWRM_MIN_TIMEOUT);
 	resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
 	if (intr_process) {
+		u16 seq_id = bp->hwrm_intr_seq_id;
+
 		/* Wait until hwrm response cmpl interrupt is processed */
-		while (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID &&
+		while (bp->hwrm_intr_seq_id != (u16)~seq_id &&
 		       i++ < tmo_count) {
 			/* on first few passes, just barely sleep */
 			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
@@ -3839,7 +3841,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 					     HWRM_MAX_TIMEOUT);
 		}
 
-		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
+		if (bp->hwrm_intr_seq_id != (u16)~seq_id) {
 			netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
 				   le16_to_cpu(req->req_type));
 			return -1;
