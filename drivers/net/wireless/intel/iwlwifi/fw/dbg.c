@@ -1058,7 +1058,7 @@ static int iwl_dump_ini_prph_iter(struct iwl_fw_runtime *fwrt,
 		addr = le32_to_cpu(range->start_addr) + i;
 		prph_val = iwl_read_prph(fwrt->trans, addr + offset);
 		if (prph_val == 0x5a5a5a5a)
-			return -1;
+			return -EBUSY;
 		*val++ = cpu_to_le32(prph_val);
 	}
 
@@ -1150,13 +1150,131 @@ iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
 					    MON_BUFF_BASE_ADDR_VER2);
 
 	if (start_addr == 0x5a5a5a5a)
-		return -1;
+		return -EBUSY;
 
 	range->start_addr = cpu_to_le32(start_addr);
 	range->range_data_size = cpu_to_le32(fwrt->trans->fw_mon[idx].size);
 
 	memcpy(range->data, fwrt->trans->fw_mon[idx].block,
 	       fwrt->trans->fw_mon[idx].size);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+struct iwl_ini_txf_iter_data {
+	int fifo;
+	int lmac;
+	u32 fifo_size;
+	bool internal_txf;
+	bool init;
+};
+
+static bool iwl_ini_txf_iter(struct iwl_fw_runtime *fwrt,
+			     struct iwl_fw_ini_region_cfg *reg)
+{
+	struct iwl_ini_txf_iter_data *iter = fwrt->dump.fifo_iter;
+	struct iwl_fwrt_shared_mem_cfg *cfg = &fwrt->smem_cfg;
+	int txf_num = cfg->num_txfifo_entries;
+	int int_txf_num = ARRAY_SIZE(cfg->internal_txfifo_size);
+	u32 lmac_bitmap = le32_to_cpu(reg->fifos.fid1);
+
+	if (!iter)
+		return false;
+
+	if (iter->init) {
+		if (le32_to_cpu(reg->offset) &&
+		    WARN_ONCE(cfg->num_lmacs == 1,
+			      "Invalid lmac offset: 0x%x\n",
+			      le32_to_cpu(reg->offset)))
+			return false;
+
+		iter->init = false;
+		iter->internal_txf = false;
+		iter->fifo_size = 0;
+		iter->fifo = -1;
+		if (le32_to_cpu(reg->offset))
+			iter->lmac = 1;
+		else
+			iter->lmac = 0;
+	}
+
+	if (!iter->internal_txf)
+		for (iter->fifo++; iter->fifo < txf_num; iter->fifo++) {
+			iter->fifo_size =
+				cfg->lmac[iter->lmac].txfifo_size[iter->fifo];
+			if (iter->fifo_size && (lmac_bitmap & BIT(iter->fifo)))
+				return true;
+		}
+
+	iter->internal_txf = true;
+
+	if (!fw_has_capa(&fwrt->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
+		return false;
+
+	for (iter->fifo++; iter->fifo < int_txf_num + txf_num; iter->fifo++) {
+		iter->fifo_size =
+			cfg->internal_txfifo_size[iter->fifo - txf_num];
+		if (iter->fifo_size && (lmac_bitmap & BIT(iter->fifo)))
+			return true;
+	}
+
+	return false;
+}
+
+static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_fw_ini_region_cfg *reg,
+				 void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_fifo_error_dump_range *range = range_ptr;
+	struct iwl_ini_txf_iter_data *iter;
+	u32 offs = le32_to_cpu(reg->offset), addr;
+	u32 registers_size =
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32);
+	__le32 *val = range->data;
+	unsigned long flags;
+	int i;
+
+	if (!iwl_ini_txf_iter(fwrt, reg))
+		return -EIO;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+		return -EBUSY;
+
+	iter = fwrt->dump.fifo_iter;
+
+	range->fifo_num = cpu_to_le32(iter->fifo);
+	range->num_of_registers = reg->fifos.num_of_registers;
+	range->range_data_size = cpu_to_le32(iter->fifo_size + registers_size);
+
+	iwl_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
+
+	/* read txf registers */
+	for (i = 0; i < le32_to_cpu(reg->fifos.num_of_registers); i++) {
+		addr = le32_to_cpu(reg->start_addr[i]) + offs;
+
+		*val++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+	}
+
+	if (reg->fifos.header_only) {
+		range->range_data_size = cpu_to_le32(registers_size);
+		goto out;
+	}
+
+	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
+	iwl_write_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
+			       TXF_WR_PTR + offs);
+
+	/* Dummy-read to advance the read pointer to the head */
+	iwl_read_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_DATA + offs);
+
+	/* Read FIFO */
+	addr = TXF_READ_MODIFY_DATA + offs;
+	for (i = 0; i < iter->fifo_size; i += sizeof(__le32))
+		*val++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+
+out:
+	iwl_trans_release_nic_access(fwrt->trans, &flags);
 
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
@@ -1195,6 +1313,15 @@ static void
 	return mon_dump->ranges;
 }
 
+static void *iwl_dump_ini_fifo_fill_header(struct iwl_fw_runtime *fwrt,
+					   struct iwl_fw_ini_region_cfg *reg,
+					   void *data)
+{
+	struct iwl_fw_ini_fifo_error_dump *dump = data;
+
+	return dump->ranges;
+}
+
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 				   struct iwl_fw_ini_region_cfg *reg)
 {
@@ -1217,6 +1344,22 @@ static u32 iwl_dump_ini_mon_dram_ranges(struct iwl_fw_runtime *fwrt,
 					struct iwl_fw_ini_region_cfg *reg)
 {
 	return 1;
+}
+
+static u32 iwl_dump_ini_txf_ranges(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg)
+{
+	struct iwl_ini_txf_iter_data iter = { .init = true };
+	void *fifo_iter = fwrt->dump.fifo_iter;
+	u32 num_of_fifos = 0;
+
+	fwrt->dump.fifo_iter = &iter;
+	while (iwl_ini_txf_iter(fwrt, reg))
+		num_of_fifos++;
+
+	fwrt->dump.fifo_iter = fifo_iter;
+
+	return num_of_fifos;
 }
 
 static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
@@ -1266,6 +1409,30 @@ static u32 iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
 	return size;
 }
 
+static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fw_ini_region_cfg *reg)
+{
+	struct iwl_ini_txf_iter_data iter = { .init = true };
+	void *fifo_iter = fwrt->dump.fifo_iter;
+	u32 size = 0;
+	u32 fifo_hdr = sizeof(struct iwl_fw_ini_fifo_error_dump_range) +
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32);
+
+	fwrt->dump.fifo_iter = &iter;
+	while (iwl_ini_txf_iter(fwrt, reg)) {
+		size += fifo_hdr;
+		if (!reg->fifos.header_only)
+			size += iter.fifo_size;
+	}
+
+	if (size)
+		size += sizeof(struct iwl_fw_ini_fifo_error_dump);
+
+	fwrt->dump.fifo_iter = fifo_iter;
+
+	return size;
+}
+
 /**
  * struct iwl_dump_ini_mem_ops - ini memory dump operations
  * @get_num_of_ranges: returns the number of memory ranges in the region.
@@ -1273,7 +1440,7 @@ static u32 iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
  * @fill_mem_hdr: fills region type specific headers and returns pointer to
  *	the first range or NULL if failed to fill headers.
  * @fill_range: copies a given memory range into the dump.
- *	Returns the size of the range or -1 otherwise.
+ *	Returns the size of the range or negative error value otherwise.
  */
 struct iwl_dump_ini_mem_ops {
 	u32 (*get_num_of_ranges)(struct iwl_fw_runtime *fwrt,
@@ -1369,7 +1536,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 			size += hdr_len + iwl_dump_ini_mem_get_size(fwrt, reg);
 			break;
 		case IWL_FW_INI_REGION_TXF:
-			size += iwl_fw_txf_len(fwrt, &fwrt->smem_cfg);
+			size += hdr_len + iwl_dump_ini_txf_get_size(fwrt, reg);
 			break;
 		case IWL_FW_INI_REGION_RXF:
 			size += iwl_fw_rxf_len(fwrt, &fwrt->smem_cfg);
@@ -1463,9 +1630,19 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
 		}
-		case IWL_FW_INI_REGION_TXF:
-			iwl_fw_dump_txf(fwrt, data);
+		case IWL_FW_INI_REGION_TXF: {
+			struct iwl_ini_txf_iter_data iter = { .init = true };
+			void *fifo_iter = fwrt->dump.fifo_iter;
+
+			fwrt->dump.fifo_iter = &iter;
+			ops.get_num_of_ranges = iwl_dump_ini_txf_ranges;
+			ops.get_size = iwl_dump_ini_txf_get_size;
+			ops.fill_mem_hdr = iwl_dump_ini_fifo_fill_header;
+			ops.fill_range = iwl_dump_ini_txf_iter;
+			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			fwrt->dump.fifo_iter = fifo_iter;
 			break;
+		}
 		case IWL_FW_INI_REGION_RXF:
 			iwl_fw_dump_rxf(fwrt, data);
 			break;

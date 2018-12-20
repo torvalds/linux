@@ -8,7 +8,7 @@
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -306,6 +306,31 @@ struct iwl_fw_ini_error_dump_header {
 struct iwl_fw_ini_error_dump {
 	struct iwl_fw_ini_error_dump_header header;
 	struct iwl_fw_ini_error_dump_range ranges[];
+} __packed;
+
+/**
+ * struct iwl_fw_ini_fifo_error_dump_range - ini fifo range dump
+ * @fifo_num: the fifo num. In case of rxf and umac rxf, set BIT(31) to
+ *	distinguish between lmac and umac
+ * @num_of_registers: num of registers to dump, dword size each
+ * @range_data_size: the size of the registers and fifo data
+ * @data: fifo data
+ */
+struct iwl_fw_ini_fifo_error_dump_range {
+	__le32 fifo_num;
+	__le32 num_of_registers;
+	__le32 range_data_size;
+	__le32 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_ini_fifo_error_dump - ini fifo region dump
+ * @header: the header of this region
+ * @ranges: the memory ranges of this region
+ */
+struct iwl_fw_ini_fifo_error_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	struct iwl_fw_ini_fifo_error_dump_range ranges[];
 } __packed;
 
 /**
