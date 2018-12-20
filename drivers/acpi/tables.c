@@ -712,8 +712,10 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 					  table_length);
 }
 
+#ifdef CONFIG_ACPI_CUSTOM_DSDT
 static void *amlcode __attribute__ ((weakref("AmlCode")));
 static void *dsdt_amlcode __attribute__ ((weakref("dsdt_aml_code")));
+#endif
 
 acpi_status
 acpi_os_table_override(struct acpi_table_header *existing_table,
