@@ -1343,7 +1343,8 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 					struct sk_buff *msdu,
 					struct ieee80211_rx_status *status,
 					enum htt_rx_mpdu_encrypt_type enctype,
-					bool is_decrypted)
+					bool is_decrypted,
+					const u8 first_hdr[64])
 {
 	struct ieee80211_hdr *hdr;
 	struct htt_rx_desc *rxd;
@@ -1351,6 +1352,9 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 	size_t crypto_len;
 	bool is_first;
 	bool is_last;
+	bool msdu_limit_err;
+	int bytes_aligned = ar->hw_params.decap_align_bytes;
+	u8 *qos;
 
 	rxd = (void *)msdu->data - sizeof(*rxd);
 	is_first = !!(rxd->msdu_end.common.info0 &
@@ -1368,15 +1372,44 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 	 * [FCS] <-- at end, needs to be trimmed
 	 */
 
+	/* Some hardwares(QCA99x0 variants) limit number of msdus in a-msdu when
+	 * deaggregate, so that unwanted MSDU-deaggregation is avoided for
+	 * error packets. If limit exceeds, hw sends all remaining MSDUs as
+	 * a single last MSDU with this msdu limit error set.
+	 */
+	msdu_limit_err = ath10k_rx_desc_msdu_limit_error(&ar->hw_params, rxd);
+
+	/* If MSDU limit error happens, then don't warn on, the partial raw MSDU
+	 * without first MSDU is expected in that case, and handled later here.
+	 */
 	/* This probably shouldn't happen but warn just in case */
-	if (WARN_ON_ONCE(!is_first))
+	if (WARN_ON_ONCE(!is_first && !msdu_limit_err))
 		return;
 
 	/* This probably shouldn't happen but warn just in case */
-	if (WARN_ON_ONCE(!(is_first && is_last)))
+	if (WARN_ON_ONCE(!(is_first && is_last) && !msdu_limit_err))
 		return;
 
 	skb_trim(msdu, msdu->len - FCS_LEN);
+
+	/* Push original 80211 header */
+	if (unlikely(msdu_limit_err)) {
+		hdr = (struct ieee80211_hdr *)first_hdr;
+		hdr_len = ieee80211_hdrlen(hdr->frame_control);
+		crypto_len = ath10k_htt_rx_crypto_param_len(ar, enctype);
+
+		if (ieee80211_is_data_qos(hdr->frame_control)) {
+			qos = ieee80211_get_qos_ctl(hdr);
+			qos[0] |= IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+		}
+
+		if (crypto_len)
+			memcpy(skb_push(msdu, crypto_len),
+			       (void *)hdr + round_up(hdr_len, bytes_aligned),
+			       crypto_len);
+
+		memcpy(skb_push(msdu, hdr_len), hdr, hdr_len);
+	}
 
 	/* In most cases this will be true for sniffed frames. It makes sense
 	 * to deliver them as-is without stripping the crypto param. This is
@@ -1651,7 +1684,7 @@ static void ath10k_htt_rx_h_undecap(struct ath10k *ar,
 	switch (decap) {
 	case RX_MSDU_DECAP_RAW:
 		ath10k_htt_rx_h_undecap_raw(ar, msdu, status, enctype,
-					    is_decrypted);
+					    is_decrypted, first_hdr);
 		break;
 	case RX_MSDU_DECAP_NATIVE_WIFI:
 		ath10k_htt_rx_h_undecap_nwifi(ar, msdu, status, first_hdr,
