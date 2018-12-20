@@ -1654,7 +1654,6 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc probe\n");
-	ath10k_warn(ar, "Warning: SNOC support is still work-in-progress, it will not work properly!");
 
 	return 0;
 
