@@ -112,3 +112,7 @@
 &usb1 {
 	status = "okay";
 };
+
+&pcie {
+	status = "okay";
+};
