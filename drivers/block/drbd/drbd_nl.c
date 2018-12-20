@@ -921,7 +921,6 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 	} prev;
 	sector_t u_size, size;
 	struct drbd_md *md = &device->ldev->md;
-	char ppb[10];
 	void *buffer;
 
 	int md_moved, la_size_changed;
@@ -999,8 +998,6 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		/* racy, see comments above. */
 		drbd_set_my_capacity(device, size);
 		md->la_size_sect = size;
-		drbd_info(device, "size = %s (%llu KB)\n", ppsize(ppb, size>>1),
-		     (unsigned long long)size>>1);
 	}
 	if (rv <= DS_ERROR)
 		goto err_out;

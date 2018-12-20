@@ -2034,6 +2034,21 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	device->local_max_bio_size = DRBD_MAX_BIO_SIZE_SAFE;
 }
 
+static void _drbd_set_my_capacity(struct drbd_device *device, sector_t size)
+{
+	/* set_capacity(device->this_bdev->bd_disk, size); */
+	set_capacity(device->vdisk, size);
+	device->this_bdev->bd_inode->i_size = (loff_t)size << 9;
+}
+
+void drbd_set_my_capacity(struct drbd_device *device, sector_t size)
+{
+	char ppb[10];
+	_drbd_set_my_capacity(device, size);
+	drbd_info(device, "size = %s (%llu KB)\n",
+		ppsize(ppb, size>>1), (unsigned long long)size>>1);
+}
+
 void drbd_device_cleanup(struct drbd_device *device)
 {
 	int i;
@@ -2059,7 +2074,7 @@ void drbd_device_cleanup(struct drbd_device *device)
 	}
 	D_ASSERT(device, first_peer_device(device)->connection->net_conf == NULL);
 
-	drbd_set_my_capacity(device, 0);
+	_drbd_set_my_capacity(device, 0);
 	if (device->bitmap) {
 		/* maybe never allocated. */
 		drbd_bm_resize(device, 0, 1);
