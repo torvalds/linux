@@ -339,14 +339,6 @@ static int cmdq_remove(struct platform_device *pdev)
 
 	clk_unprepare(cmdq->clock);
 
-	if (cmdq->mbox.chans)
-		devm_kfree(&pdev->dev, cmdq->mbox.chans);
-
-	if (cmdq->thread)
-		devm_kfree(&pdev->dev, cmdq->thread);
-
-	devm_kfree(&pdev->dev, cmdq);
-
 	return 0;
 }
 
