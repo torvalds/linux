@@ -510,25 +510,25 @@ static void tegra_sdhci_parse_pad_autocal_dt(struct sdhci_host *host)
 
 	err = device_property_read_u32(host->mmc->parent,
 			"nvidia,pad-autocal-pull-up-offset-3v3-timeout",
-			&autocal->pull_up_3v3);
+			&autocal->pull_up_3v3_timeout);
 	if (err)
 		autocal->pull_up_3v3_timeout = 0;
 
 	err = device_property_read_u32(host->mmc->parent,
 			"nvidia,pad-autocal-pull-down-offset-3v3-timeout",
-			&autocal->pull_down_3v3);
+			&autocal->pull_down_3v3_timeout);
 	if (err)
 		autocal->pull_down_3v3_timeout = 0;
 
 	err = device_property_read_u32(host->mmc->parent,
 			"nvidia,pad-autocal-pull-up-offset-1v8-timeout",
-			&autocal->pull_up_1v8);
+			&autocal->pull_up_1v8_timeout);
 	if (err)
 		autocal->pull_up_1v8_timeout = 0;
 
 	err = device_property_read_u32(host->mmc->parent,
 			"nvidia,pad-autocal-pull-down-offset-1v8-timeout",
-			&autocal->pull_down_1v8);
+			&autocal->pull_down_1v8_timeout);
 	if (err)
 		autocal->pull_down_1v8_timeout = 0;
 
