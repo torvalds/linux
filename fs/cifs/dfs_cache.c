@@ -1127,7 +1127,7 @@ err_free_domainname:
 err_free_unc:
 	kfree(new->UNC);
 err_free_password:
-	kfree(new->password);
+	kzfree(new->password);
 err_free_username:
 	kfree(new->username);
 	kfree(new);
