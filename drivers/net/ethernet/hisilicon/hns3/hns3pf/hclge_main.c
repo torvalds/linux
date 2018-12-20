@@ -4677,6 +4677,13 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 		u8 vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
 		u16 tqps;
 
+		if (vf > hdev->num_req_vfs) {
+			dev_err(&hdev->pdev->dev,
+				"Error: vf id (%d) > max vf num (%d)\n",
+				vf, hdev->num_req_vfs);
+			return -EINVAL;
+		}
+
 		dst_vport_id = vf ? hdev->vport[vf].vport_id : vport->vport_id;
 		tqps = vf ? hdev->vport[vf].alloc_tqps : vport->alloc_tqps;
 
@@ -4684,13 +4691,6 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 			dev_err(&hdev->pdev->dev,
 				"Error: queue id (%d) > max tqp num (%d)\n",
 				ring, tqps - 1);
-			return -EINVAL;
-		}
-
-		if (vf > hdev->num_req_vfs) {
-			dev_err(&hdev->pdev->dev,
-				"Error: vf id (%d) > max vf num (%d)\n",
-				vf, hdev->num_req_vfs);
 			return -EINVAL;
 		}
 
