@@ -24,6 +24,20 @@
 	};
 };
 
+&adc_key {
+	vol-down-key {
+		linux,code = <KEY_VOLUMEDOWN>;
+		label = "volume down";
+		press-threshold-microvolt = <300000>;
+	};
+
+	vol-up-key {
+		linux,code = <KEY_VOLUMEUP>;
+		label = "volume up";
+		press-threshold-microvolt = <18000>;
+	};
+};
+
 &display_subsystem {
 	status = "okay";
 };
