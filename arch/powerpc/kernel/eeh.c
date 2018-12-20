@@ -1808,10 +1808,10 @@ static int eeh_freeze_dbgfs_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(eeh_enable_dbgfs_ops, eeh_enable_dbgfs_get,
-			eeh_enable_dbgfs_set, "0x%llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(eeh_freeze_dbgfs_ops, eeh_freeze_dbgfs_get,
-			eeh_freeze_dbgfs_set, "0x%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(eeh_enable_dbgfs_ops, eeh_enable_dbgfs_get,
+			 eeh_enable_dbgfs_set, "0x%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(eeh_freeze_dbgfs_ops, eeh_freeze_dbgfs_get,
+			 eeh_freeze_dbgfs_set, "0x%llx\n");
 #endif
 
 static int __init eeh_init_proc(void)
@@ -1819,12 +1819,12 @@ static int __init eeh_init_proc(void)
 	if (machine_is(pseries) || machine_is(powernv)) {
 		proc_create_single("powerpc/eeh", 0, NULL, proc_eeh_show);
 #ifdef CONFIG_DEBUG_FS
-		debugfs_create_file("eeh_enable", 0600,
-                                    powerpc_debugfs_root, NULL,
-                                    &eeh_enable_dbgfs_ops);
-		debugfs_create_file("eeh_max_freezes", 0600,
-				    powerpc_debugfs_root, NULL,
-				    &eeh_freeze_dbgfs_ops);
+		debugfs_create_file_unsafe("eeh_enable", 0600,
+					   powerpc_debugfs_root, NULL,
+					   &eeh_enable_dbgfs_ops);
+		debugfs_create_file_unsafe("eeh_max_freezes", 0600,
+					   powerpc_debugfs_root, NULL,
+					   &eeh_freeze_dbgfs_ops);
 #endif
 	}
 
