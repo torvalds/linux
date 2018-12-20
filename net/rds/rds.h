@@ -386,6 +386,18 @@ static inline void rds_message_zcopy_queue_init(struct rds_msg_zcopy_queue *q)
 	INIT_LIST_HEAD(&q->zcookie_head);
 }
 
+struct rds_iov_vector {
+	struct rds_iovec *iov;
+	int               len;
+};
+
+struct rds_iov_vector_arr {
+	struct rds_iov_vector *vec;
+	int                    len;
+	int                    indx;
+	int                    incr;
+};
+
 struct rds_message {
 	refcount_t		m_refcount;
 	struct list_head	m_sock_item;
@@ -827,7 +839,8 @@ rds_conn_connecting(struct rds_connection *conn)
 
 /* message.c */
 struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp);
-struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents);
+struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents,
+					  int *ret);
 int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
 			       bool zcopy);
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len);
@@ -904,13 +917,13 @@ int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen);
 int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen);
 int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen);
 void rds_rdma_drop_keys(struct rds_sock *rs);
-int rds_rdma_extra_size(struct rds_rdma_args *args);
-int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
-			  struct cmsghdr *cmsg);
+int rds_rdma_extra_size(struct rds_rdma_args *args,
+			struct rds_iov_vector *iov);
 int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 			  struct cmsghdr *cmsg);
 int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
-			  struct cmsghdr *cmsg);
+			  struct cmsghdr *cmsg,
+			  struct rds_iov_vector *vec);
 int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 			  struct cmsghdr *cmsg);
 void rds_rdma_free_op(struct rm_rdma_op *ro);

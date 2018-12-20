@@ -2572,6 +2572,7 @@ static int bnxt_poll_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 static int bnxt_run_loopback(struct bnxt *bp)
 {
 	struct bnxt_tx_ring_info *txr = &bp->tx_ring[0];
+	struct bnxt_rx_ring_info *rxr = &bp->rx_ring[0];
 	struct bnxt_cp_ring_info *cpr;
 	int pkt_size, i = 0;
 	struct sk_buff *skb;
@@ -2579,7 +2580,9 @@ static int bnxt_run_loopback(struct bnxt *bp)
 	u8 *data;
 	int rc;
 
-	cpr = &txr->bnapi->cp_ring;
+	cpr = &rxr->bnapi->cp_ring;
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		cpr = cpr->cp_ring_arr[BNXT_RX_HDL];
 	pkt_size = min(bp->dev->mtu + ETH_HLEN, bp->rx_copy_thresh);
 	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)

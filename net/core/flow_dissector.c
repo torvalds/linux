@@ -783,6 +783,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 		/* Pass parameters to the BPF program */
 		cb->qdisc_cb.flow_keys = &flow_keys;
 		flow_keys.nhoff = nhoff;
+		flow_keys.thoff = nhoff;
 
 		bpf_compute_data_pointers((struct sk_buff *)skb);
 		result = BPF_PROG_RUN(attached, skb);
@@ -790,9 +791,12 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 		/* Restore state */
 		memcpy(cb, &cb_saved, sizeof(cb_saved));
 
+		flow_keys.nhoff = clamp_t(u16, flow_keys.nhoff, 0, skb->len);
+		flow_keys.thoff = clamp_t(u16, flow_keys.thoff,
+					  flow_keys.nhoff, skb->len);
+
 		__skb_flow_bpf_to_target(&flow_keys, flow_dissector,
 					 target_container);
-		key_control->thoff = min_t(u16, key_control->thoff, skb->len);
 		rcu_read_unlock();
 		return result == BPF_OK;
 	}

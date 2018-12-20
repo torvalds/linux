@@ -427,7 +427,7 @@ insert_tree(struct net *net,
 	count = 1;
 	rbconn->list.count = count;
 
-	rb_link_node(&rbconn->node, parent, rbnode);
+	rb_link_node_rcu(&rbconn->node, parent, rbnode);
 	rb_insert_color(&rbconn->node, root);
 out_unlock:
 	spin_unlock_bh(&nf_conncount_locks[hash % CONNCOUNT_LOCK_SLOTS]);

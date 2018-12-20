@@ -1559,24 +1559,6 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 }
 
 /**
- * i40e_receive_skb - Send a completed packet up the stack
- * @rx_ring:  rx ring in play
- * @skb: packet to send up
- * @vlan_tag: vlan tag for packet
- **/
-void i40e_receive_skb(struct i40e_ring *rx_ring,
-		      struct sk_buff *skb, u16 vlan_tag)
-{
-	struct i40e_q_vector *q_vector = rx_ring->q_vector;
-
-	if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
-	    (vlan_tag & VLAN_VID_MASK))
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
-
-	napi_gro_receive(&q_vector->napi, skb);
-}
-
-/**
  * i40e_alloc_rx_buffers - Replace used receive buffers
  * @rx_ring: ring to place buffers on
  * @cleaned_count: number of buffers to replace
@@ -1793,8 +1775,7 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
  * other fields within the skb.
  **/
 void i40e_process_skb_fields(struct i40e_ring *rx_ring,
-			     union i40e_rx_desc *rx_desc, struct sk_buff *skb,
-			     u8 rx_ptype)
+			     union i40e_rx_desc *rx_desc, struct sk_buff *skb)
 {
 	u64 qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
 	u32 rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
@@ -1802,6 +1783,8 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 	u32 tsynvalid = rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK;
 	u32 tsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
 		   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT;
+	u8 rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
+		      I40E_RXD_QW1_PTYPE_SHIFT;
 
 	if (unlikely(tsynvalid))
 		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
@@ -1811,6 +1794,13 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 	i40e_rx_checksum(rx_ring->vsi, skb, rx_desc);
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
+
+	if (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) {
+		u16 vlan_tag = rx_desc->wb.qword0.lo_dword.l2tag1;
+
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       le16_to_cpu(vlan_tag));
+	}
 
 	/* modifies the skb - consumes the enet header */
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
@@ -2350,8 +2340,6 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		struct i40e_rx_buffer *rx_buffer;
 		union i40e_rx_desc *rx_desc;
 		unsigned int size;
-		u16 vlan_tag;
-		u8 rx_ptype;
 		u64 qword;
 
 		/* return some buffers to hardware, one at a time is too slow */
@@ -2444,18 +2432,11 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
 
-		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-			   I40E_RXD_QW1_PTYPE_SHIFT;
-
 		/* populate checksum, VLAN, and protocol */
-		i40e_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
-
-		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
-			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
+		i40e_process_skb_fields(rx_ring, rx_desc, skb);
 
 		i40e_trace(clean_rx_irq_rx, rx_ring, rx_desc, skb);
-		i40e_receive_skb(rx_ring, skb, vlan_tag);
+		napi_gro_receive(&rx_ring->q_vector->napi, skb);
 		skb = NULL;
 
 		/* update budget accounting */

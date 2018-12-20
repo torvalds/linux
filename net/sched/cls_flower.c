@@ -1258,10 +1258,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		fnew->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
 
 	if (fold) {
-		if (!tc_skip_sw(fold->flags))
-			rhashtable_remove_fast(&fold->mask->ht,
-					       &fold->ht_node,
-					       fold->mask->filter_ht_params);
+		rhashtable_remove_fast(&fold->mask->ht,
+				       &fold->ht_node,
+				       fold->mask->filter_ht_params);
 		if (!tc_skip_hw(fold->flags))
 			fl_hw_destroy_filter(tp, fold, NULL);
 	}

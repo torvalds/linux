@@ -2494,8 +2494,13 @@ static int neigh_valid_dump_req(const struct nlmsghdr *nlh,
 
 		ndm = nlmsg_data(nlh);
 		if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_ifindex ||
-		    ndm->ndm_state || ndm->ndm_flags || ndm->ndm_type) {
+		    ndm->ndm_state || ndm->ndm_type) {
 			NL_SET_ERR_MSG(extack, "Invalid values in header for neighbor dump request");
+			return -EINVAL;
+		}
+
+		if (ndm->ndm_flags & ~NTF_PROXY) {
+			NL_SET_ERR_MSG(extack, "Invalid flags in header for neighbor dump request");
 			return -EINVAL;
 		}
 
