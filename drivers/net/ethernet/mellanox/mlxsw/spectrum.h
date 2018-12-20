@@ -242,6 +242,7 @@ struct mlxsw_sp_port {
 	} periodic_hw_stats;
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
+	struct mlxsw_sp_port_vlan *default_vlan;
 	struct mlxsw_sp_qdisc *root_qdisc;
 	struct mlxsw_sp_qdisc *tclass_qdiscs;
 	unsigned acl_rule_count;

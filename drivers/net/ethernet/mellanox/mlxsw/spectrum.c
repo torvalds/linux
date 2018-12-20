@@ -3201,6 +3201,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		err = PTR_ERR(mlxsw_sp_port_vlan);
 		goto err_port_vlan_create;
 	}
+	mlxsw_sp_port->default_vlan = mlxsw_sp_port_vlan;
 
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
 	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
