@@ -18,6 +18,7 @@
 #include <linux/spi/spi.h>
 #include <sound/pcm.h>
 #include <sound/sof.h>
+#include "intel/shim.h"
 #include "sof-priv.h"
 #include "hw-spi.h"
 #include "ops.h"
@@ -42,10 +43,7 @@ static const struct sof_dev_desc spi_desc = {
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = -1,
 	.resindex_dma_base = -1,
-};
-
-static const struct sof_ops_table spi_mach_ops[] = {
-	{&spi_desc, &snd_sof_spi_ops},
+	.chip_info = &spi_chip_info,
 };
 
 static int sof_spi_probe(struct spi_device *spi)
@@ -53,6 +51,7 @@ static int sof_spi_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	const struct sof_dev_desc *desc = of_device_get_match_data(dev);
 	struct snd_soc_acpi_mach *machines, *mach;
+	const struct sof_intel_dsp_desc *chip_info;
 	struct snd_sof_pdata *sof_pdata;
 	struct sof_platform_priv *priv;
 	const char *tplg, *fw;
@@ -123,9 +122,8 @@ static int sof_spi_probe(struct spi_device *spi)
 	 * to add a dedicated ops field in the generic soc-acpi structure
 	 * to avoid such issues
 	 */
-
-	mach->pdata = (void *)sof_get_ops(desc, spi_mach_ops,
-					  ARRAY_SIZE(spi_mach_ops));
+	chip_info = (const struct sof_intel_dsp_desc *)desc->chip_info;
+	mach->pdata = (void *)chip_info->ops;
 	if (!mach->pdata) {
 		dev_err(dev, "error: no matching SPI descriptor ops\n");
 		return -ENODEV;

@@ -27,6 +27,7 @@
 #include <linux/spi/spi.h>
 #include <sound/sof.h>
 #include <uapi/sound/sof/fw.h>
+#include "intel/shim.h"
 #include "sof-priv.h"
 #include "hw-spi.h"
 #include "ops.h"
@@ -311,5 +312,12 @@ const struct snd_sof_dsp_ops snd_sof_spi_ops = {
 	.load_firmware	= snd_sof_load_firmware_memcpy,
 };
 EXPORT_SYMBOL(snd_sof_spi_ops);
+
+const struct sof_intel_dsp_desc spi_chip_info = {
+	.cores_num = 2,
+	.cores_mask = 0x3,
+	.ops = &snd_sof_spi_ops,
+};
+EXPORT_SYMBOL(spi_chip_info);
 
 MODULE_LICENSE("Dual BSD/GPL");
