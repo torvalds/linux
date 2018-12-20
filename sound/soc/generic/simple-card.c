@@ -431,6 +431,74 @@ dai_link_of_err:
 	return ret;
 }
 
+static int asoc_simple_card_for_each_link(struct simple_card_data *priv,
+			struct link_info *li,
+			int (*func_noml)(struct simple_card_data *priv,
+					 struct device_node *np,
+					 struct device_node *codec,
+					 struct link_info *li, bool is_top),
+			int (*func_dpcm)(struct simple_card_data *priv,
+					 struct device_node *np,
+					 struct device_node *codec,
+					 struct link_info *li, bool is_top))
+{
+	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *top = dev->of_node;
+	struct device_node *node;
+	bool is_top = 0;
+
+	/* Check if it has dai-link */
+	node = of_get_child_by_name(top, PREFIX "dai-link");
+	if (!node) {
+		node = top;
+		is_top = 1;
+	}
+
+	/* loop for all dai-link */
+	do {
+		struct asoc_simple_card_data adata;
+		struct device_node *codec;
+		struct device_node *np;
+		int num = of_get_child_count(node);
+		int ret;
+
+		/* get codec */
+		codec = of_get_child_by_name(node, is_top ?
+					     PREFIX "codec" : "codec");
+		if (!codec)
+			return -ENODEV;
+
+		of_node_put(codec);
+
+		/* get convert-xxx property */
+		memset(&adata, 0, sizeof(adata));
+		for_each_child_of_node(node, np)
+			asoc_simple_card_get_conversion(dev, np, &adata);
+
+		/* loop for all CPU/Codec node */
+		for_each_child_of_node(node, np) {
+			/*
+			 * It is DPCM
+			 * if it has many CPUs,
+			 * or has convert-xxx property
+			 */
+			if (num > 2 ||
+			    adata.convert_rate || adata.convert_channels)
+				ret = func_dpcm(priv, np, codec, li, is_top);
+			/* else normal sound */
+			else
+				ret = func_noml(priv, np, codec, li, is_top);
+
+			if (ret < 0)
+				return ret;
+		}
+
+		node = of_get_next_child(top, node);
+	} while (!is_top && node);
+
+	return 0;
+}
+
 static int asoc_simple_card_parse_aux_devs(struct device_node *node,
 					   struct simple_card_data *priv)
 {
@@ -467,9 +535,8 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
 	struct snd_soc_card *card = simple_priv_to_card(priv);
-	struct device_node *node;
 	struct link_info li;
-	int ret, loop;
+	int ret;
 
 	if (!top)
 		return -EINVAL;
@@ -484,35 +551,7 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 
 	/* Single/Muti DAI link(s) & New style of DT node */
 	memset(&li, 0, sizeof(li));
-
-	/* FIXME */
-	li.cpu = 1;
-parse_loop:
-	loop		= 1;
-	node = of_get_child_by_name(top, PREFIX "dai-link");
-	if (!node) {
-		node = dev->of_node;
-		loop = 0;
-	}
-
-	do  {
-		struct asoc_simple_card_data adata;
-		struct device_node *codec;
-		struct device_node *np;
-		int num = of_get_child_count(node);
-		int ret;
-
-		codec = of_get_child_by_name(node, !loop ?
-					     PREFIX "codec" : "codec");
-		if (!codec)
-			return -ENODEV;
-
-		of_node_put(codec);
-
-		memset(&adata, 0, sizeof(adata));
-		for_each_child_of_node(node, np)
-			asoc_simple_card_get_conversion(dev, np, &adata);
-
+	for (li.cpu = 1; li.cpu >= 0; li.cpu--) {
 		/*
 		 * Detect all CPU first, and Detect all Codec 2nd.
 		 *
@@ -525,29 +564,12 @@ parse_loop:
 		 * To avoid random sub-device numbering,
 		 * detect "dummy-Codec" in last;
 		 */
-
-		/* loop for all CPU/Codec node */
-		for_each_child_of_node(node, np) {
-			if (num > 2 ||
-			    adata.convert_rate || adata.convert_channels) {
-				ret = asoc_simple_card_dai_link_of_dpcm(
-					priv, np, codec, &li, !loop);
-				if (ret < 0)
-					return ret;
-			} else {
-				ret = asoc_simple_card_dai_link_of(
-					priv, np, codec, &li, !loop);
-				if (ret < 0)
-					return ret;
-			}
-		}
-		node = of_get_next_child(top, node);
-	} while (loop && node);
-
-	/* FIXME */
-	li.cpu--;
-	if (li.cpu >= 0)
-		goto parse_loop;
+		ret = asoc_simple_card_for_each_link(priv, &li,
+						     asoc_simple_card_dai_link_of,
+						     asoc_simple_card_dai_link_of_dpcm);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = asoc_simple_card_parse_card_name(card, PREFIX);
 	if (ret < 0)
@@ -588,12 +610,6 @@ static void asoc_simple_card_get_dais_count(struct simple_card_data *priv,
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
-	struct device_node *node;
-	struct device_node *np;
-	struct device_node *codec;
-	struct asoc_simple_card_data adata;
-	int loop;
-	int num;
 
 	/*
 	 * link_num :	number of links.
@@ -648,39 +664,11 @@ static void asoc_simple_card_get_dais_count(struct simple_card_data *priv,
 		return;
 	}
 
-	loop = 1;
-	node = of_get_child_by_name(top, PREFIX "dai-link");
-	if (!node) {
-		node = top;
-		loop = 0;
-	}
-
-	do {
-		num = of_get_child_count(node);
-
-		codec = of_get_child_by_name(node, !loop ?
-					     PREFIX "codec" : "codec");
-		if (!codec)
-			return;
-
-		of_node_put(codec);
-
-		memset(&adata, 0, sizeof(adata));
-		for_each_child_of_node(node, np)
-			asoc_simple_card_get_conversion(dev, np, &adata);
-
-		for_each_child_of_node(node, np) {
-			if (num > 2 ||
-			    adata.convert_rate || adata.convert_channels) {
-				asoc_simple_card_count_dpcm(priv, np, codec,
-							    li, !loop);
-			} else {
-				asoc_simple_card_count_noml(priv, np, codec,
-							    li, !loop);
-			}
-		}
-		node = of_get_next_child(top, node);
-	} while (loop && node);
+	asoc_simple_card_for_each_link(priv, li,
+				       asoc_simple_card_count_noml,
+				       asoc_simple_card_count_dpcm);
+	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
+		li->link, li->dais, li->conf);
 }
 
 static int asoc_simple_soc_card_probe(struct snd_soc_card *card)
