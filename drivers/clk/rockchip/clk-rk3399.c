@@ -21,6 +21,12 @@
 #include <dt-bindings/clock/rk3399-cru.h>
 #include "clk.h"
 
+#define RK3399_I2S_FRAC_MAX_PRATE       600000000
+#define RK3399_UART_FRAC_MAX_PRATE	600000000
+#define RK3399_SPDIF_FRAC_MAX_PRATE	600000000
+#define RK3399_VOP_FRAC_MAX_PRATE	600000000
+#define RK3399_WIFI_FRAC_MAX_PRATE	600000000
+
 enum rk3399_plls {
 	lpll, bpll, dpll, cpll, gpll, npll, vpll,
 };
@@ -676,7 +682,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_spdif_frac", "clk_spdif_div", 0,
 			RK3399_CLKSEL_CON(99), 0,
 			RK3399_CLKGATE_CON(8), 14, GFLAGS,
-			&rk3399_spdif_fracmux, 0),
+			&rk3399_spdif_fracmux, RK3399_SPDIF_FRAC_MAX_PRATE),
 	GATE(SCLK_SPDIF_8CH, "clk_spdif", "clk_spdif_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 15, GFLAGS),
 
@@ -690,7 +696,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_i2s0_frac", "clk_i2s0_div", 0,
 			RK3399_CLKSEL_CON(96), 0,
 			RK3399_CLKGATE_CON(8), 4, GFLAGS,
-			&rk3399_i2s0_fracmux, 0),
+			&rk3399_i2s0_fracmux, RK3399_I2S_FRAC_MAX_PRATE),
 	GATE(SCLK_I2S0_8CH, "clk_i2s0", "clk_i2s0_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 5, GFLAGS),
 
@@ -700,7 +706,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_i2s1_frac", "clk_i2s1_div", 0,
 			RK3399_CLKSEL_CON(97), 0,
 			RK3399_CLKGATE_CON(8), 7, GFLAGS,
-			&rk3399_i2s1_fracmux, 0),
+			&rk3399_i2s1_fracmux, RK3399_I2S_FRAC_MAX_PRATE),
 	GATE(SCLK_I2S1_8CH, "clk_i2s1", "clk_i2s1_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 8, GFLAGS),
 
@@ -710,7 +716,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_i2s2_frac", "clk_i2s2_div", 0,
 			RK3399_CLKSEL_CON(98), 0,
 			RK3399_CLKGATE_CON(8), 10, GFLAGS,
-			&rk3399_i2s2_fracmux, 0),
+			&rk3399_i2s2_fracmux, RK3399_I2S_FRAC_MAX_PRATE),
 	GATE(SCLK_I2S2_8CH, "clk_i2s2", "clk_i2s2_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 11, GFLAGS),
 
@@ -729,7 +735,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart0_frac", "clk_uart0_div", 0,
 			RK3399_CLKSEL_CON(100), 0,
 			RK3399_CLKGATE_CON(9), 1, GFLAGS,
-			&rk3399_uart0_fracmux, 0),
+			&rk3399_uart0_fracmux, RK3399_UART_FRAC_MAX_PRATE),
 
 	MUX(SCLK_UART_SRC, "clk_uart_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(33), 15, 1, MFLAGS),
@@ -739,7 +745,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart1_frac", "clk_uart1_div", 0,
 			RK3399_CLKSEL_CON(101), 0,
 			RK3399_CLKGATE_CON(9), 3, GFLAGS,
-			&rk3399_uart1_fracmux, 0),
+			&rk3399_uart1_fracmux, RK3399_UART_FRAC_MAX_PRATE),
 
 	COMPOSITE_NOMUX(0, "clk_uart2_div", "clk_uart_src", 0,
 			RK3399_CLKSEL_CON(35), 0, 7, DFLAGS,
@@ -747,7 +753,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart2_frac", "clk_uart2_div", 0,
 			RK3399_CLKSEL_CON(102), 0,
 			RK3399_CLKGATE_CON(9), 5, GFLAGS,
-			&rk3399_uart2_fracmux, 0),
+			&rk3399_uart2_fracmux, RK3399_UART_FRAC_MAX_PRATE),
 
 	COMPOSITE_NOMUX(0, "clk_uart3_div", "clk_uart_src", 0,
 			RK3399_CLKSEL_CON(36), 0, 7, DFLAGS,
@@ -755,7 +761,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart3_frac", "clk_uart3_div", 0,
 			RK3399_CLKSEL_CON(103), 0,
 			RK3399_CLKGATE_CON(9), 7, GFLAGS,
-			&rk3399_uart3_fracmux, 0),
+			&rk3399_uart3_fracmux, RK3399_UART_FRAC_MAX_PRATE),
 
 	COMPOSITE(PCLK_DDR, "pclk_ddr", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(6), 15, 1, MFLAGS, 8, 5, DFLAGS,
@@ -1264,7 +1270,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	/* The VOP0 is main screen, it is able to re-set parent rate. */
 	COMPOSITE_FRACMUX_NOGATE(DCLK_VOP0_FRAC, "dclk_vop0_frac", "dclk_vop0_div", 0,
 			RK3399_CLKSEL_CON(106), 0,
-			&rk3399_dclk_vop0_fracmux, 0),
+			&rk3399_dclk_vop0_fracmux, RK3399_VOP_FRAC_MAX_PRATE),
 
 	COMPOSITE(SCLK_VOP0_PWM, "clk_vop0_pwm", mux_pll_src_dmyvpll_cpll_gpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(51), 6, 2, MFLAGS, 0, 5, DFLAGS,
@@ -1301,7 +1307,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 
 	COMPOSITE_FRACMUX_NOGATE(DCLK_VOP1_FRAC, "dclk_vop1_frac", "dclk_vop1_div", 0,
 			RK3399_CLKSEL_CON(107), 0,
-			&rk3399_dclk_vop1_fracmux, 0),
+			&rk3399_dclk_vop1_fracmux, RK3399_VOP_FRAC_MAX_PRATE),
 
 	COMPOSITE(SCLK_VOP1_PWM, "clk_vop1_pwm", mux_pll_src_dmyvpll_cpll_gpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(52), 6, 2, MFLAGS, 0, 5, DFLAGS,
@@ -1520,7 +1526,7 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 
 	COMPOSITE_FRACMUX_NOGATE(0, "clk_wifi_frac", "clk_wifi_div", 0,
 			RK3399_PMU_CLKSEL_CON(7), 0,
-			&rk3399_pmuclk_wifi_fracmux, 0),
+			&rk3399_pmuclk_wifi_fracmux, RK3399_WIFI_FRAC_MAX_PRATE),
 
 	MUX(0, "clk_timer_src_pmu", mux_pll_p, CLK_IGNORE_UNUSED,
 			RK3399_PMU_CLKSEL_CON(1), 15, 1, MFLAGS),
@@ -1552,7 +1558,7 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart4_frac", "clk_uart4_div", 0,
 			RK3399_PMU_CLKSEL_CON(6), 0,
 			RK3399_PMU_CLKGATE_CON(0), 6, GFLAGS,
-			&rk3399_uart4_pmu_fracmux, 0),
+			&rk3399_uart4_pmu_fracmux, RK3399_UART_FRAC_MAX_PRATE),
 
 	DIV(PCLK_SRC_PMU, "pclk_pmu_src", "ppll", CLK_IGNORE_UNUSED,
 			RK3399_PMU_CLKSEL_CON(0), 0, 5, DFLAGS),
