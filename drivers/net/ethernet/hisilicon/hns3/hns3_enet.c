@@ -379,6 +379,7 @@ out_start_err:
 
 static int hns3_nic_net_open(struct net_device *netdev)
 {
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo;
 	int i, ret;
@@ -404,6 +405,9 @@ static int hns3_nic_net_open(struct net_device *netdev)
 		netdev_set_prio_tc_map(netdev, i,
 				       kinfo->prio_tc[i]);
 	}
+
+	if (h->ae_algo->ops->set_timer_task)
+		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
 
 	return 0;
 }
@@ -437,9 +441,13 @@ static void hns3_nic_net_down(struct net_device *netdev)
 static int hns3_nic_net_stop(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
 		return 0;
+
+	if (h->ae_algo->ops->set_timer_task)
+		h->ae_algo->ops->set_timer_task(priv->ae_handle, false);
 
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
@@ -2542,9 +2550,16 @@ static void hns3_set_gro_param(struct sk_buff *skb, u32 l234info,
 static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
 				     struct sk_buff *skb)
 {
-	struct hns3_desc *desc = &ring->desc[ring->next_to_clean];
 	struct hnae3_handle *handle = ring->tqp->handle;
 	enum pkt_hash_types rss_type;
+	struct hns3_desc *desc;
+	int last_bd;
+
+	/* When driver handle the rss type, ring->next_to_clean indicates the
+	 * first descriptor of next packet, need -1 here.
+	 */
+	last_bd = (ring->next_to_clean - 1 + ring->desc_num) % ring->desc_num;
+	desc = &ring->desc[last_bd];
 
 	if (le32_to_cpu(desc->rx.rss_hash))
 		rss_type = handle->kinfo.rss_type;
@@ -3110,6 +3125,8 @@ map_ring_fail:
 
 static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 {
+#define HNS3_VECTOR_PF_MAX_NUM		64
+
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	struct hnae3_vector_info *vector;
@@ -3122,6 +3139,8 @@ static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 	/* RSS size, cpu online and vector_num should be the same */
 	/* Should consider 2p/4p later */
 	vector_num = min_t(u16, num_online_cpus(), tqp_num);
+	vector_num = min_t(u16, vector_num, HNS3_VECTOR_PF_MAX_NUM);
+
 	vector = devm_kcalloc(&pdev->dev, vector_num, sizeof(*vector),
 			      GFP_KERNEL);
 	if (!vector)

@@ -461,6 +461,7 @@ struct hnae3_ae_ops {
 	unsigned long (*ae_dev_reset_cnt)(struct hnae3_handle *handle);
 	int (*set_gro_en)(struct hnae3_handle *handle, int enable);
 	u16 (*get_global_queue_id)(struct hnae3_handle *handle, u16 queue_id);
+	void (*set_timer_task)(struct hnae3_handle *handle, bool enable);
 };
 
 struct hnae3_dcb_ops {
