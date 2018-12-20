@@ -337,18 +337,21 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 	return bnxt_tc_parse_actions(bp, &flow->actions, tc_flow_cmd->exts);
 }
 
-static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp, __le16 flow_handle)
+static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp,
+				   struct bnxt_tc_flow_node *flow_node)
 {
 	struct hwrm_cfa_flow_free_input req = { 0 };
 	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_FLOW_FREE, -1, -1);
-	req.flow_handle = flow_handle;
+	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
+		req.ext_flow_handle = flow_node->ext_flow_handle;
+	else
+		req.flow_handle = flow_node->flow_handle;
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
-		netdev_info(bp->dev, "Error: %s: flow_handle=0x%x rc=%d",
-			    __func__, flow_handle, rc);
+		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 
 	if (rc)
 		rc = -EIO;
@@ -418,7 +421,8 @@ static bool bits_set(void *key, int len)
 
 static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 				    __le16 ref_flow_handle,
-				    __le32 tunnel_handle, __le16 *flow_handle)
+				    __le32 tunnel_handle,
+				    struct bnxt_tc_flow_node *flow_node)
 {
 	struct bnxt_tc_actions *actions = &flow->actions;
 	struct bnxt_tc_l3_key *l3_mask = &flow->l3_mask;
@@ -529,7 +533,20 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
 		resp = bnxt_get_hwrm_resp_addr(bp, &req);
-		*flow_handle = resp->flow_handle;
+		/* CFA_FLOW_ALLOC response interpretation:
+		 *		    fw with	     fw with
+		 *		    16-bit	     64-bit
+		 *		    flow handle      flow handle
+		 *		    ===========	     ===========
+		 * flow_handle      flow handle      flow context id
+		 * ext_flow_handle  INVALID	     flow handle
+		 * flow_id	    INVALID	     flow counter id
+		 */
+		flow_node->flow_handle = resp->flow_handle;
+		if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE) {
+			flow_node->ext_flow_handle = resp->ext_flow_handle;
+			flow_node->flow_id = resp->flow_id;
+		}
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
@@ -1228,7 +1245,7 @@ static int __bnxt_tc_del_flow(struct bnxt *bp,
 	int rc;
 
 	/* send HWRM cmd to free the flow-id */
-	bnxt_hwrm_cfa_flow_free(bp, flow_node->flow_handle);
+	bnxt_hwrm_cfa_flow_free(bp, flow_node);
 
 	mutex_lock(&tc_info->lock);
 
@@ -1248,6 +1265,12 @@ static int __bnxt_tc_del_flow(struct bnxt *bp,
 
 	kfree_rcu(flow_node, rcu);
 	return 0;
+}
+
+static void bnxt_tc_set_flow_dir(struct bnxt *bp, struct bnxt_tc_flow *flow,
+				 u16 src_fid)
+{
+	flow->dir = (bp->pf.fw_fid == src_fid) ? BNXT_DIR_RX : BNXT_DIR_TX;
 }
 
 static void bnxt_tc_set_src_fid(struct bnxt *bp, struct bnxt_tc_flow *flow,
@@ -1297,6 +1320,9 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 
 	bnxt_tc_set_src_fid(bp, flow, src_fid);
 
+	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
+		bnxt_tc_set_flow_dir(bp, flow, src_fid);
+
 	if (!bnxt_tc_can_offload(bp, flow)) {
 		rc = -ENOSPC;
 		goto free_node;
@@ -1324,7 +1350,7 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 
 	/* send HWRM cmd to alloc the flow */
 	rc = bnxt_hwrm_cfa_flow_alloc(bp, flow, ref_flow_handle,
-				      tunnel_handle, &new_node->flow_handle);
+				      tunnel_handle, new_node);
 	if (rc)
 		goto put_tunnel;
 
@@ -1340,7 +1366,7 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 	return 0;
 
 hwrm_flow_free:
-	bnxt_hwrm_cfa_flow_free(bp, new_node->flow_handle);
+	bnxt_hwrm_cfa_flow_free(bp, new_node);
 put_tunnel:
 	bnxt_tc_put_tunnel_handle(bp, flow, new_node);
 put_l2:
@@ -1401,6 +1427,32 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 	return 0;
 }
 
+static void bnxt_fill_cfa_stats_req(struct bnxt *bp,
+				    struct bnxt_tc_flow_node *flow_node,
+				    __le16 *flow_handle, __le32 *flow_id)
+{
+	u16 handle;
+
+	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE) {
+		*flow_id = flow_node->flow_id;
+
+		/* If flow_id is used to fetch flow stats then:
+		 * 1. lower 12 bits of flow_handle must be set to all 1s.
+		 * 2. 15th bit of flow_handle must specify the flow
+		 *    direction (TX/RX).
+		 */
+		if (flow_node->flow.dir == BNXT_DIR_RX)
+			handle = CFA_FLOW_INFO_REQ_FLOW_HANDLE_DIR_RX |
+				 CFA_FLOW_INFO_REQ_FLOW_HANDLE_MAX_MASK;
+		else
+			handle = CFA_FLOW_INFO_REQ_FLOW_HANDLE_MAX_MASK;
+
+		*flow_handle = cpu_to_le16(handle);
+	} else {
+		*flow_handle = flow_node->flow_handle;
+	}
+}
+
 static int
 bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 			     struct bnxt_tc_stats_batch stats_batch[])
@@ -1408,6 +1460,7 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 	struct hwrm_cfa_flow_stats_input req = { 0 };
 	struct hwrm_cfa_flow_stats_output *resp;
 	__le16 *req_flow_handles = &req.flow_handle_0;
+	__le32 *req_flow_ids = &req.flow_id_0;
 	int rc, i;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_FLOW_STATS, -1, -1);
@@ -1415,7 +1468,8 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 	for (i = 0; i < num_flows; i++) {
 		struct bnxt_tc_flow_node *flow_node = stats_batch[i].flow_node;
 
-		req_flow_handles[i] = flow_node->flow_handle;
+		bnxt_fill_cfa_stats_req(bp, flow_node,
+					&req_flow_handles[i], &req_flow_ids[i]);
 	}
 
 	mutex_lock(&bp->hwrm_cmd_lock);
