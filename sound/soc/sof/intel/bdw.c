@@ -697,4 +697,11 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 };
 EXPORT_SYMBOL(sof_bdw_ops);
 
+const struct sof_intel_dsp_desc bdw_chip_info = {
+	.cores_num = 1,
+	.cores_mask = 1,
+	.ops = &sof_bdw_ops,
+};
+EXPORT_SYMBOL(bdw_chip_info);
+
 MODULE_LICENSE("Dual BSD/GPL");

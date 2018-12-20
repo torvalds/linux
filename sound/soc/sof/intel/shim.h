@@ -169,5 +169,10 @@ extern const struct snd_sof_dsp_ops sof_cht_ops;
 extern const struct snd_sof_dsp_ops sof_hsw_ops;
 extern const struct snd_sof_dsp_ops sof_bdw_ops;
 
+extern const struct sof_intel_dsp_desc byt_chip_info;
+extern const struct sof_intel_dsp_desc cht_chip_info;
+extern const struct sof_intel_dsp_desc bdw_chip_info;
+extern const struct sof_intel_dsp_desc hsw_chip_info;
 extern const struct sof_intel_dsp_desc tng_chip_info;
+
 #endif

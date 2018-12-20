@@ -31,6 +31,7 @@ static struct sof_dev_desc sof_acpi_haswell_desc = {
 	.resindex_pcicfg_base = 1,
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
+	.chip_info = &hsw_chip_info,
 	.nocodec_fw_filename = "intel/sof-hsw.ri",
 	.nocodec_tplg_filename = "intel/sof-hsw-nocodec.tplg"
 };
@@ -43,6 +44,7 @@ static struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.resindex_pcicfg_base = 1,
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
+	.chip_info = &bdw_chip_info,
 	.nocodec_fw_filename = "intel/sof-bdw.ri",
 	.nocodec_tplg_filename = "intel/sof-bdw-nocodec.tplg"
 };
@@ -57,6 +59,7 @@ static struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.resindex_pcicfg_base = 1,
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 0,
+	.chip_info = &byt_chip_info,
 	.nocodec_fw_filename = "intel/sof-byt.ri",
 	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg"
 };
@@ -67,6 +70,7 @@ static struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.resindex_pcicfg_base = 1,
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 5,
+	.chip_info = &byt_chip_info,
 	.nocodec_fw_filename = "intel/sof-byt.ri",
 	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg"
 };
@@ -116,6 +120,7 @@ static struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.resindex_pcicfg_base = 1,
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 5,
+	.chip_info = &cht_chip_info,
 	.nocodec_fw_filename = "intel/sof-cht.ri",
 	.nocodec_tplg_filename = "intel/sof-cht-nocodec.tplg"
 };
@@ -126,20 +131,6 @@ static const struct dev_pm_ops sof_acpi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
 			   NULL)
-};
-
-static const struct sof_ops_table acpi_mach_ops[] = {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HASWELL)
-	{&sof_acpi_haswell_desc, &sof_hsw_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
-	{&sof_acpi_broadwell_desc, &sof_bdw_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-	{&sof_acpi_baytrail_desc, &sof_byt_ops},
-	{&sof_acpi_baytrailcr_desc, &sof_byt_ops},
-	{&sof_acpi_cherrytrail_desc, &sof_cht_ops},
-#endif
 };
 
 static int sof_acpi_probe(struct platform_device *pdev)
@@ -172,7 +163,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 #endif
 
 	/* get ops for platform */
-	ops = sof_get_ops(desc, acpi_mach_ops, ARRAY_SIZE(acpi_mach_ops));
+	ops = ((const struct sof_intel_dsp_desc *)desc->chip_info)->ops;
 	if (!ops) {
 		dev_err(dev, "error: no matching ACPI descriptor ops\n");
 		return -ENODEV;

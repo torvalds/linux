@@ -698,4 +698,11 @@ const struct snd_sof_dsp_ops sof_hsw_ops = {
 };
 EXPORT_SYMBOL(sof_hsw_ops);
 
+const struct sof_intel_dsp_desc hsw_chip_info = {
+	.cores_num = 1,
+	.cores_mask = 1,
+	.ops = &sof_hsw_ops,
+};
+EXPORT_SYMBOL(hsw_chip_info);
+
 MODULE_LICENSE("Dual BSD/GPL");

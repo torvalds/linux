@@ -637,7 +637,6 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 EXPORT_SYMBOL(sof_tng_ops);
 
 const struct sof_intel_dsp_desc tng_chip_info = {
-	/* Tng */
 	.cores_num = 1,
 	.cores_mask = 1,
 	.ops = &sof_tng_ops,
@@ -806,6 +805,13 @@ const struct snd_sof_dsp_ops sof_byt_ops = {
 };
 EXPORT_SYMBOL(sof_byt_ops);
 
+const struct sof_intel_dsp_desc byt_chip_info = {
+	.cores_num = 1,
+	.cores_mask = 1,
+	.ops = &sof_byt_ops,
+};
+EXPORT_SYMBOL(byt_chip_info);
+
 /* cherrytrail and braswell ops */
 const struct snd_sof_dsp_ops sof_cht_ops = {
 	/* device init */
@@ -857,6 +863,13 @@ const struct snd_sof_dsp_ops sof_cht_ops = {
 	.num_drv = ARRAY_SIZE(byt_dai),
 };
 EXPORT_SYMBOL(sof_cht_ops);
+
+const struct sof_intel_dsp_desc cht_chip_info = {
+	.cores_num = 1,
+	.cores_mask = 1,
+	.ops = &sof_cht_ops,
+};
+EXPORT_SYMBOL(cht_chip_info);
 
 #endif /* CONFIG_SND_SOC_SOF_BAYTRAIL */
 
