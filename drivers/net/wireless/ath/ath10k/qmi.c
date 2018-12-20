@@ -931,9 +931,9 @@ static int ath10k_qmi_setup_msa_resources(struct ath10k_qmi *qmi, u32 msa_size)
 		qmi->msa_mem_size = resource_size(&r);
 		qmi->msa_va = devm_memremap(dev, qmi->msa_pa, qmi->msa_mem_size,
 					    MEMREMAP_WT);
-		if (!qmi->msa_va) {
+		if (IS_ERR(qmi->msa_va)) {
 			dev_err(dev, "failed to map memory region: %pa\n", &r.start);
-			return -EBUSY;
+			return PTR_ERR(qmi->msa_va);
 		}
 	} else {
 		qmi->msa_va = dmam_alloc_coherent(dev, msa_size,
