@@ -12752,7 +12752,9 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 				       pipe_config);
 	}
 
-	if (new_plane_state)
+	if (pipe_config->update_pipe && !pipe_config->enable_fbc)
+		intel_fbc_disable(intel_crtc);
+	else if (new_plane_state)
 		intel_fbc_enable(intel_crtc, pipe_config, new_plane_state);
 
 	intel_begin_crtc_commit(crtc, old_crtc_state);
