@@ -209,7 +209,7 @@ static int init_halmac_event_with_waittime(struct rtl_priv *rtlpriv,
 	if (!rtlpriv->halmac.indicator[id].comp) {
 		comp = kzalloc(sizeof(*comp), GFP_KERNEL);
 		if (!comp)
-			return -1;
+			return -ENOMEM;
 	} else {
 		RT_TRACE(rtlpriv, COMP_HALMAC, DBG_LOUD,
 			 "%s: <WARN> id(%d) sctx is not NULL!!\n", __func__,
@@ -359,7 +359,7 @@ static int init_priv(struct rtl_halmac *halmac)
 	size = sizeof(*indicator) * count;
 	indicator = kzalloc(size, GFP_KERNEL);
 	if (!indicator)
-		return -1;
+		return -ENOMEM;
 	halmac->indicator = indicator;
 
 	return 0;

@@ -432,6 +432,14 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (retval)
 		return retval;
 
+	hsotg->vbus_supply = devm_regulator_get_optional(hsotg->dev, "vbus");
+	if (IS_ERR(hsotg->vbus_supply)) {
+		retval = PTR_ERR(hsotg->vbus_supply);
+		hsotg->vbus_supply = NULL;
+		if (retval != -ENODEV)
+			return retval;
+	}
+
 	retval = dwc2_lowlevel_hw_enable(hsotg);
 	if (retval)
 		return retval;

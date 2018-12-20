@@ -32,6 +32,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "atom.h"
+#include "amdgpu_trace.h"
 
 #define AMDGPU_IB_TEST_TIMEOUT	msecs_to_jiffies(1000)
 
@@ -170,6 +171,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	     (amdgpu_sriov_vf(adev) && need_ctx_switch) ||
 	     amdgpu_vm_need_pipeline_sync(ring, job))) {
 		need_pipe_sync = true;
+
+		if (tmp)
+			trace_amdgpu_ib_pipe_sync(job, tmp);
+
 		dma_fence_put(tmp);
 	}
 
@@ -347,6 +352,14 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		long tmo;
 
 		if (!ring || !ring->ready)
+			continue;
+
+		/* skip IB tests for KIQ in general for the below reasons:
+		 * 1. We never submit IBs to the KIQ
+		 * 2. KIQ doesn't use the EOP interrupts,
+		 *    we use some other CP interrupt.
+		 */
+		if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
 			continue;
 
 		/* MM engine need more time */

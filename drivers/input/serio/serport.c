@@ -226,7 +226,7 @@ static int serport_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 
 #ifdef CONFIG_COMPAT
 #define COMPAT_SPIOCSTYPE	_IOW('q', 0x01, compat_ulong_t)
-static long serport_ldisc_compat_ioctl(struct tty_struct *tty,
+static int serport_ldisc_compat_ioctl(struct tty_struct *tty,
 				       struct file *file,
 				       unsigned int cmd, unsigned long arg)
 {

@@ -929,7 +929,7 @@ struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *_config,
 	struct i2c_board_info board_info = {};
 	struct lgdt330x_config config = *_config;
 
-	strlcpy(board_info.type, "lgdt330x", sizeof(board_info.type));
+	strscpy(board_info.type, "lgdt330x", sizeof(board_info.type));
 	board_info.addr = demod_address;
 	board_info.platform_data = &config;
 	client = i2c_new_device(i2c, &board_info);

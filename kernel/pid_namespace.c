@@ -216,7 +216,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	idr_for_each_entry_continue(&pid_ns->idr, pid, nr) {
 		task = pid_task(pid, PIDTYPE_PID);
 		if (task && !__fatal_signal_pending(task))
-			send_sig_info(SIGKILL, SEND_SIG_FORCED, task);
+			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, task, PIDTYPE_MAX);
 	}
 	read_unlock(&tasklist_lock);
 	rcu_read_unlock();

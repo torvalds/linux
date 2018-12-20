@@ -102,22 +102,19 @@ static inline struct sdma_txreq *get_sdma_txreq(struct verbs_txreq *tx)
 	return &tx->txreq;
 }
 
-static inline struct verbs_txreq *get_waiting_verbs_txreq(struct rvt_qp *qp)
+static inline struct verbs_txreq *get_waiting_verbs_txreq(struct iowait_work *w)
 {
 	struct sdma_txreq *stx;
-	struct hfi1_qp_priv *priv = qp->priv;
 
-	stx = iowait_get_txhead(&priv->s_iowait);
+	stx = iowait_get_txhead(w);
 	if (stx)
 		return container_of(stx, struct verbs_txreq, txreq);
 	return NULL;
 }
 
-static inline bool verbs_txreq_queued(struct rvt_qp *qp)
+static inline bool verbs_txreq_queued(struct iowait_work *w)
 {
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	return iowait_packet_queued(&priv->s_iowait);
+	return iowait_packet_queued(w);
 }
 
 void hfi1_put_txreq(struct verbs_txreq *tx);

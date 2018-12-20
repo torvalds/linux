@@ -1361,12 +1361,7 @@ static void ff_layout_read_prepare_v4(struct rpc_task *task, void *data)
 				task))
 		return;
 
-	if (ff_layout_read_prepare_common(task, hdr))
-		return;
-
-	if (nfs4_set_rw_stateid(&hdr->args.stateid, hdr->args.context,
-			hdr->args.lock_context, FMODE_READ) == -EIO)
-		rpc_exit(task, -EIO); /* lost lock, terminate I/O */
+	ff_layout_read_prepare_common(task, hdr);
 }
 
 static void ff_layout_read_call_done(struct rpc_task *task, void *data)
@@ -1542,12 +1537,7 @@ static void ff_layout_write_prepare_v4(struct rpc_task *task, void *data)
 				task))
 		return;
 
-	if (ff_layout_write_prepare_common(task, hdr))
-		return;
-
-	if (nfs4_set_rw_stateid(&hdr->args.stateid, hdr->args.context,
-			hdr->args.lock_context, FMODE_WRITE) == -EIO)
-		rpc_exit(task, -EIO); /* lost lock, terminate I/O */
+	ff_layout_write_prepare_common(task, hdr);
 }
 
 static void ff_layout_write_call_done(struct rpc_task *task, void *data)
@@ -1742,6 +1732,11 @@ ff_layout_read_pagelist(struct nfs_pgio_header *hdr)
 	fh = nfs4_ff_layout_select_ds_fh(lseg, idx);
 	if (fh)
 		hdr->args.fh = fh;
+
+	if (vers == 4 &&
+		!nfs4_ff_layout_select_ds_stateid(lseg, idx, &hdr->args.stateid))
+		goto out_failed;
+
 	/*
 	 * Note that if we ever decide to split across DSes,
 	 * then we may need to handle dense-like offsets.
@@ -1803,6 +1798,10 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 	fh = nfs4_ff_layout_select_ds_fh(lseg, idx);
 	if (fh)
 		hdr->args.fh = fh;
+
+	if (vers == 4 &&
+		!nfs4_ff_layout_select_ds_stateid(lseg, idx, &hdr->args.stateid))
+		goto out_failed;
 
 	/*
 	 * Note that if we ever decide to split across DSes,
@@ -2356,6 +2355,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.name			= "LAYOUT_FLEX_FILES",
 	.owner			= THIS_MODULE,
 	.flags			= PNFS_LAYOUTGET_ON_OPEN,
+	.max_layoutget_response	= 4096, /* 1 page or so... */
 	.set_layoutdriver	= ff_layout_set_layoutdriver,
 	.alloc_layout_hdr	= ff_layout_alloc_layout_hdr,
 	.free_layout_hdr	= ff_layout_free_layout_hdr,

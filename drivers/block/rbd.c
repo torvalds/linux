@@ -1500,9 +1500,6 @@ rbd_osd_req_create(struct rbd_obj_request *obj_req, unsigned int num_ops)
 			rbd_dev->header.object_prefix, obj_req->ex.oe_objno))
 		goto err_req;
 
-	if (ceph_osdc_alloc_messages(req, GFP_NOIO))
-		goto err_req;
-
 	return req;
 
 err_req:
@@ -1945,6 +1942,10 @@ static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 		}
 		if (ret)
 			return ret;
+
+		ret = ceph_osdc_alloc_messages(obj_req->osd_req, GFP_NOIO);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -2374,8 +2375,7 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
-	ret = osd_req_op_cls_init(obj_req->osd_req, 0, CEPH_OSD_OP_CALL, "rbd",
-				  "copyup");
+	ret = osd_req_op_cls_init(obj_req->osd_req, 0, "rbd", "copyup");
 	if (ret)
 		return ret;
 
@@ -2404,6 +2404,10 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	default:
 		rbd_assert(0);
 	}
+
+	ret = ceph_osdc_alloc_messages(obj_req->osd_req, GFP_NOIO);
+	if (ret)
+		return ret;
 
 	rbd_obj_request_submit(obj_req);
 	return 0;
@@ -3784,10 +3788,6 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	ceph_oloc_copy(&req->r_base_oloc, oloc);
 	req->r_flags = CEPH_OSD_FLAG_READ;
 
-	ret = ceph_osdc_alloc_messages(req, GFP_KERNEL);
-	if (ret)
-		goto out_req;
-
 	pages = ceph_alloc_page_vector(num_pages, GFP_KERNEL);
 	if (IS_ERR(pages)) {
 		ret = PTR_ERR(pages);
@@ -3797,6 +3797,10 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	osd_req_op_extent_init(req, 0, CEPH_OSD_OP_READ, 0, buf_len, 0, 0);
 	osd_req_op_extent_osd_data_pages(req, 0, pages, buf_len, 0, false,
 					 true);
+
+	ret = ceph_osdc_alloc_messages(req, GFP_KERNEL);
+	if (ret)
+		goto out_req;
 
 	ceph_osdc_start_request(osdc, req, false);
 	ret = ceph_osdc_wait_request(osdc, req);
@@ -6067,7 +6071,7 @@ static ssize_t rbd_remove_single_major(struct bus_type *bus,
  * create control files in sysfs
  * /sys/bus/rbd/...
  */
-static int rbd_sysfs_init(void)
+static int __init rbd_sysfs_init(void)
 {
 	int ret;
 
@@ -6082,13 +6086,13 @@ static int rbd_sysfs_init(void)
 	return ret;
 }
 
-static void rbd_sysfs_cleanup(void)
+static void __exit rbd_sysfs_cleanup(void)
 {
 	bus_unregister(&rbd_bus_type);
 	device_unregister(&rbd_root_dev);
 }
 
-static int rbd_slab_init(void)
+static int __init rbd_slab_init(void)
 {
 	rbd_assert(!rbd_img_request_cache);
 	rbd_img_request_cache = KMEM_CACHE(rbd_img_request, 0);

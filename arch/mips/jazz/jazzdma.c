@@ -13,7 +13,7 @@
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
 #include <linux/dma-direct.h>
@@ -564,13 +564,13 @@ static void *jazz_dma_alloc(struct device *dev, size_t size,
 {
 	void *ret;
 
-	ret = dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
+	ret = dma_direct_alloc_pages(dev, size, dma_handle, gfp, attrs);
 	if (!ret)
 		return NULL;
 
 	*dma_handle = vdma_alloc(virt_to_phys(ret), size);
 	if (*dma_handle == VDMA_ERROR) {
-		dma_direct_free(dev, size, ret, *dma_handle, attrs);
+		dma_direct_free_pages(dev, size, ret, *dma_handle, attrs);
 		return NULL;
 	}
 
@@ -587,7 +587,7 @@ static void jazz_dma_free(struct device *dev, size_t size, void *vaddr,
 	vdma_free(dma_handle);
 	if (!(attrs & DMA_ATTR_NON_CONSISTENT))
 		vaddr = (void *)CAC_ADDR((unsigned long)vaddr);
-	return dma_direct_free(dev, size, vaddr, dma_handle, attrs);
+	dma_direct_free_pages(dev, size, vaddr, dma_handle, attrs);
 }
 
 static dma_addr_t jazz_dma_map_page(struct device *dev, struct page *page,
@@ -682,7 +682,6 @@ static int jazz_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 const struct dma_map_ops jazz_dma_ops = {
 	.alloc			= jazz_dma_alloc,
 	.free			= jazz_dma_free,
-	.mmap			= arch_dma_mmap,
 	.map_page		= jazz_dma_map_page,
 	.unmap_page		= jazz_dma_unmap_page,
 	.map_sg			= jazz_dma_map_sg,

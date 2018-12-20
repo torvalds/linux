@@ -91,11 +91,24 @@ mt76_txq_get_qid(struct ieee80211_txq *txq)
 	return txq->ac;
 }
 
+static void
+mt76_check_agg_ssn(struct mt76_txq *mtxq, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (!ieee80211_is_data_qos(hdr->frame_control) ||
+	    !ieee80211_is_data_present(hdr->frame_control))
+		return;
+
+	mtxq->agg_ssn = le16_to_cpu(hdr->seq_ctrl) + 0x10;
+}
+
 void
 mt76_tx(struct mt76_dev *dev, struct ieee80211_sta *sta,
 	struct mt76_wcid *wcid, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct mt76_queue *q;
 	int qid = skb_get_queue_mapping(skb);
 
@@ -107,6 +120,19 @@ mt76_tx(struct mt76_dev *dev, struct ieee80211_sta *sta,
 	if (!wcid->tx_rate_set)
 		ieee80211_get_tx_rates(info->control.vif, sta, skb,
 				       info->control.rates, 1);
+
+	if (sta && ieee80211_is_data_qos(hdr->frame_control)) {
+		struct ieee80211_txq *txq;
+		struct mt76_txq *mtxq;
+		u8 tid;
+
+		tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+		txq = sta->txq[tid];
+		mtxq = (struct mt76_txq *) txq->drv_priv;
+
+		if (mtxq->aggr)
+			mt76_check_agg_ssn(mtxq, skb);
+	}
 
 	q = &dev->q_tx[qid];
 
@@ -141,17 +167,6 @@ mt76_txq_dequeue(struct mt76_dev *dev, struct mt76_txq *mtxq, bool ps)
 		return NULL;
 
 	return skb;
-}
-
-static void
-mt76_check_agg_ssn(struct mt76_txq *mtxq, struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-
-	if (!ieee80211_is_data_qos(hdr->frame_control))
-		return;
-
-	mtxq->agg_ssn = le16_to_cpu(hdr->seq_ctrl) + 0x10;
 }
 
 static void
@@ -442,3 +457,19 @@ void mt76_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq)
 	mtxq->hwq = &dev->q_tx[mt76_txq_get_qid(txq)];
 }
 EXPORT_SYMBOL_GPL(mt76_txq_init);
+
+u8 mt76_ac_to_hwq(u8 ac)
+{
+	static const u8 wmm_queue_map[] = {
+		[IEEE80211_AC_BE] = 0,
+		[IEEE80211_AC_BK] = 1,
+		[IEEE80211_AC_VI] = 2,
+		[IEEE80211_AC_VO] = 3,
+	};
+
+	if (WARN_ON(ac >= IEEE80211_NUM_ACS))
+		return 0;
+
+	return wmm_queue_map[ac];
+}
+EXPORT_SYMBOL_GPL(mt76_ac_to_hwq);

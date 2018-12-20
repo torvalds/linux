@@ -395,6 +395,26 @@ int pcie_port_device_resume(struct device *dev)
 	size_t off = offsetof(struct pcie_port_service_driver, resume);
 	return device_for_each_child(dev, &off, pm_iter);
 }
+
+/**
+ * pcie_port_device_runtime_suspend - runtime suspend port services
+ * @dev: PCI Express port to handle
+ */
+int pcie_port_device_runtime_suspend(struct device *dev)
+{
+	size_t off = offsetof(struct pcie_port_service_driver, runtime_suspend);
+	return device_for_each_child(dev, &off, pm_iter);
+}
+
+/**
+ * pcie_port_device_runtime_resume - runtime resume port services
+ * @dev: PCI Express port to handle
+ */
+int pcie_port_device_runtime_resume(struct device *dev)
+{
+	size_t off = offsetof(struct pcie_port_service_driver, runtime_resume);
+	return device_for_each_child(dev, &off, pm_iter);
+}
 #endif /* PM */
 
 static int remove_iter(struct device *dev, void *data)
@@ -466,6 +486,7 @@ struct device *pcie_port_find_device(struct pci_dev *dev,
 	device = pdrvs.dev;
 	return device;
 }
+EXPORT_SYMBOL_GPL(pcie_port_find_device);
 
 /**
  * pcie_port_device_remove - unregister PCI Express port service devices

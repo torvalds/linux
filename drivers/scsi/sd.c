@@ -45,6 +45,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/blk-pm.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/string_helpers.h>
@@ -1271,8 +1272,6 @@ static int sd_init_command(struct scsi_cmnd *cmd)
 	case REQ_OP_READ:
 	case REQ_OP_WRITE:
 		return sd_setup_read_write_cmnd(cmd);
-	case REQ_OP_ZONE_REPORT:
-		return sd_zbc_setup_report_cmnd(cmd);
 	case REQ_OP_ZONE_RESET:
 		return sd_zbc_setup_reset_cmnd(cmd);
 	default:
@@ -1801,6 +1800,7 @@ static const struct block_device_operations sd_fops = {
 	.check_events		= sd_check_events,
 	.revalidate_disk	= sd_revalidate_disk,
 	.unlock_native_capacity	= sd_unlock_native_capacity,
+	.report_zones		= sd_zbc_report_zones,
 	.pr_ops			= &sd_pr_ops,
 };
 
@@ -1946,16 +1946,6 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	case REQ_OP_ZONE_RESET:
 		if (!result) {
 			good_bytes = blk_rq_bytes(req);
-			scsi_set_resid(SCpnt, 0);
-		} else {
-			good_bytes = 0;
-			scsi_set_resid(SCpnt, blk_rq_bytes(req));
-		}
-		break;
-	case REQ_OP_ZONE_REPORT:
-		if (!result) {
-			good_bytes = scsi_bufflen(SCpnt)
-				- scsi_get_resid(SCpnt);
 			scsi_set_resid(SCpnt, 0);
 		} else {
 			good_bytes = 0;
@@ -3275,7 +3265,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	}
 
 	blk_pm_runtime_init(sdp->request_queue, dev);
-	device_add_disk(dev, gd);
+	device_add_disk(dev, gd, NULL);
 	if (sdkp->capacity)
 		sd_dif_config_host(sdkp);
 
@@ -3423,8 +3413,6 @@ static int sd_remove(struct device *dev)
 	device_del(&sdkp->dev);
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
-
-	sd_zbc_remove(sdkp);
 
 	free_opal_dev(sdkp->opal_dev);
 

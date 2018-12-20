@@ -101,6 +101,7 @@ struct bcm63xx_hsspi {
 
 	struct platform_device *pdev;
 	struct clk *clk;
+	struct clk *pll_clk;
 	void __iomem *regs;
 	u8 __iomem *fifo;
 
@@ -332,7 +333,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	struct resource *res_mem;
 	void __iomem *regs;
 	struct device *dev = &pdev->dev;
-	struct clk *clk;
+	struct clk *clk, *pll_clk = NULL;
 	int irq, ret;
 	u32 reg, rate, num_cs = HSSPI_SPI_MAX_CS;
 
@@ -358,7 +359,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 
 	rate = clk_get_rate(clk);
 	if (!rate) {
-		struct clk *pll_clk = devm_clk_get(dev, "pll");
+		pll_clk = devm_clk_get(dev, "pll");
 
 		if (IS_ERR(pll_clk)) {
 			ret = PTR_ERR(pll_clk);
@@ -373,19 +374,20 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 		clk_disable_unprepare(pll_clk);
 		if (!rate) {
 			ret = -EINVAL;
-			goto out_disable_clk;
+			goto out_disable_pll_clk;
 		}
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*bs));
 	if (!master) {
 		ret = -ENOMEM;
-		goto out_disable_clk;
+		goto out_disable_pll_clk;
 	}
 
 	bs = spi_master_get_devdata(master);
 	bs->pdev = pdev;
 	bs->clk = clk;
+	bs->pll_clk = pll_clk;
 	bs->regs = regs;
 	bs->speed_hz = rate;
 	bs->fifo = (u8 __iomem *)(bs->regs + HSSPI_FIFO_REG(0));
@@ -440,6 +442,8 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 
 out_put_master:
 	spi_master_put(master);
+out_disable_pll_clk:
+	clk_disable_unprepare(pll_clk);
 out_disable_clk:
 	clk_disable_unprepare(clk);
 	return ret;
@@ -453,6 +457,7 @@ static int bcm63xx_hsspi_remove(struct platform_device *pdev)
 
 	/* reset the hardware and block queue progress */
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
+	clk_disable_unprepare(bs->pll_clk);
 	clk_disable_unprepare(bs->clk);
 
 	return 0;
@@ -465,6 +470,7 @@ static int bcm63xx_hsspi_suspend(struct device *dev)
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
+	clk_disable_unprepare(bs->pll_clk);
 	clk_disable_unprepare(bs->clk);
 
 	return 0;
@@ -479,6 +485,12 @@ static int bcm63xx_hsspi_resume(struct device *dev)
 	ret = clk_prepare_enable(bs->clk);
 	if (ret)
 		return ret;
+
+	if (bs->pll_clk) {
+		ret = clk_prepare_enable(bs->pll_clk);
+		if (ret)
+			return ret;
+	}
 
 	spi_master_resume(master);
 

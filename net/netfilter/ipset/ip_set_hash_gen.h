@@ -15,7 +15,7 @@
 
 #define __ipset_dereference_protected(p, c)	rcu_dereference_protected(p, c)
 #define ipset_dereference_protected(p, set) \
-	__ipset_dereference_protected(p, spin_is_locked(&(set)->lock))
+	__ipset_dereference_protected(p, lockdep_is_held(&(set)->lock))
 
 #define rcu_dereference_bh_nfnl(p)	rcu_dereference_bh_check(p, 1)
 

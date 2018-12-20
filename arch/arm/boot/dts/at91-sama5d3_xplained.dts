@@ -297,12 +297,17 @@
 
 						bootloader@40000 {
 							label = "bootloader";
-							reg = <0x40000 0x80000>;
+							reg = <0x40000 0xc0000>;
 						};
 
-						bootloaderenv@c0000 {
+						bootloaderenvred@100000 {
+							label = "bootloader env redundant";
+							reg = <0x100000 0x40000>;
+						};
+
+						bootloaderenv@140000 {
 							label = "bootloader env";
-							reg = <0xc0000 0xc0000>;
+							reg = <0x140000 0x40000>;
 						};
 
 						dtb@180000 {

@@ -35,19 +35,6 @@ minstrel_ewma(int old, int new, int weight)
 	return old + incr;
 }
 
-/*
- * Perform EWMV (Exponentially Weighted Moving Variance) calculation
- */
-static inline int
-minstrel_ewmv(int old_ewmv, int cur_prob, int prob_ewma, int weight)
-{
-	int diff, incr;
-
-	diff = cur_prob - prob_ewma;
-	incr = (EWMA_DIV - weight) * diff / EWMA_DIV;
-	return weight * (old_ewmv + MINSTREL_TRUNC(diff * incr)) / EWMA_DIV;
-}
-
 struct minstrel_rate_stats {
 	/* current / last sampling period attempts/success counters */
 	u16 attempts, last_attempts;
@@ -56,11 +43,8 @@ struct minstrel_rate_stats {
 	/* total attempts/success counters */
 	u32 att_hist, succ_hist;
 
-	/* statistis of packet delivery probability
-	 *  prob_ewma - exponential weighted moving average of prob
-	 *  prob_ewmsd - exp. weighted moving standard deviation of prob */
+	/* prob_ewma - exponential weighted moving average of prob */
 	u16 prob_ewma;
-	u16 prob_ewmv;
 
 	/* maximum retry counts */
 	u8 retry_count;
@@ -109,11 +93,6 @@ struct minstrel_sta_info {
 
 	/* sampling table */
 	u8 *sample_table;
-
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *dbg_stats;
-	struct dentry *dbg_stats_csv;
-#endif
 };
 
 struct minstrel_priv {
@@ -137,7 +116,6 @@ struct minstrel_priv {
 	 *   - setting will be applied on next update
 	 */
 	u32 fixed_rate_idx;
-	struct dentry *dbg_fixed_rate;
 #endif
 };
 
@@ -146,17 +124,8 @@ struct minstrel_debugfs_info {
 	char buf[];
 };
 
-/* Get EWMSD (Exponentially Weighted Moving Standard Deviation) * 10 */
-static inline int
-minstrel_get_ewmsd10(struct minstrel_rate_stats *mrs)
-{
-	unsigned int ewmv = mrs->prob_ewmv;
-	return int_sqrt(MINSTREL_TRUNC(ewmv * 1000 * 1000));
-}
-
 extern const struct rate_control_ops mac80211_minstrel;
 void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
-void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 
 /* Recalculate success probabilities and counters for a given rate using EWMA */
 void minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs);
@@ -165,7 +134,5 @@ int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_ewma);
 /* debugfs */
 int minstrel_stats_open(struct inode *inode, struct file *file);
 int minstrel_stats_csv_open(struct inode *inode, struct file *file);
-ssize_t minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos);
-int minstrel_stats_release(struct inode *inode, struct file *file);
 
 #endif

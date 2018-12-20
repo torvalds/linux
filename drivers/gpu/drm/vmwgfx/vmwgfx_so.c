@@ -208,7 +208,7 @@ static int vmw_view_destroy(struct vmw_resource *res)
 		union vmw_view_destroy body;
 	} *cmd;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	lockdep_assert_held_once(&dev_priv->binding_mutex);
 	vmw_binding_res_list_scrub(&res->binding_head);
 
 	if (!view->committed || res->id == -1)
@@ -366,7 +366,8 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 	res = &view->res;
 	view->ctx = ctx;
 	view->srf = vmw_resource_reference(srf);
-	view->cotable = vmw_context_cotable(ctx, vmw_view_cotables[view_type]);
+	view->cotable = vmw_resource_reference
+		(vmw_context_cotable(ctx, vmw_view_cotables[view_type]));
 	view->view_type = view_type;
 	view->view_id = user_key;
 	view->cmd_size = cmd_size;
@@ -386,7 +387,7 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 		goto out_resource_init;
 
 	res->id = view->view_id;
-	vmw_resource_activate(res, vmw_hw_view_destroy);
+	res->hw_destroy = vmw_hw_view_destroy;
 
 out_resource_init:
 	vmw_resource_unreference(&res);
@@ -439,7 +440,7 @@ void vmw_view_cotable_list_destroy(struct vmw_private *dev_priv,
 {
 	struct vmw_view *entry, *next;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	lockdep_assert_held_once(&dev_priv->binding_mutex);
 
 	list_for_each_entry_safe(entry, next, list, cotable_head)
 		WARN_ON(vmw_view_destroy(&entry->res));
@@ -459,7 +460,7 @@ void vmw_view_surface_list_destroy(struct vmw_private *dev_priv,
 {
 	struct vmw_view *entry, *next;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	lockdep_assert_held_once(&dev_priv->binding_mutex);
 
 	list_for_each_entry_safe(entry, next, list, srf_head)
 		WARN_ON(vmw_view_destroy(&entry->res));

@@ -351,7 +351,8 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_PERSONAL_REG]		= { 0x19c, 2 },
 	[NISTC_RTSI_TRIGA_OUT_REG]	= { 0x19e, 2 },
 	[NISTC_RTSI_TRIGB_OUT_REG]	= { 0x1a0, 2 },
-	[NISTC_RTSI_BOARD_REG]		= { 0, 0 }, /* Unknown */
+	/* doc for following line: mhddk/nimseries/ChipObjects/tMSeries.h */
+	[NISTC_RTSI_BOARD_REG]		= { 0x1a2, 2 },
 	[NISTC_CFG_MEM_CLR_REG]		= { 0x1a4, 2 },
 	[NISTC_ADC_FIFO_CLR_REG]	= { 0x1a6, 2 },
 	[NISTC_DAC_FIFO_CLR_REG]	= { 0x1a8, 2 },
@@ -2006,7 +2007,6 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	int err = 0;
-	unsigned int tmp;
 	unsigned int sources;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -2047,12 +2047,9 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
-		tmp = CR_CHAN(cmd->start_arg);
-
-		if (tmp > 16)
-			tmp = 16;
-		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
-		err |= comedi_check_trigger_arg_is(&cmd->start_arg, tmp);
+		err |= ni_check_trigger_arg_roffs(CR_CHAN(cmd->start_arg),
+						  NI_AI_StartTrigger,
+						  &devpriv->routing_tables, 1);
 		break;
 	}
 
@@ -2064,12 +2061,9 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 						    0xffffff);
 	} else if (cmd->scan_begin_src == TRIG_EXT) {
 		/* external trigger */
-		unsigned int tmp = CR_CHAN(cmd->scan_begin_arg);
-
-		if (tmp > 16)
-			tmp = 16;
-		tmp |= (cmd->scan_begin_arg & (CR_INVERT | CR_EDGE));
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
+		err |= ni_check_trigger_arg_roffs(CR_CHAN(cmd->scan_begin_arg),
+						  NI_AI_SampleClock,
+						  &devpriv->routing_tables, 1);
 	} else {		/* TRIG_OTHER */
 		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
@@ -2087,12 +2081,9 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 	} else if (cmd->convert_src == TRIG_EXT) {
 		/* external trigger */
-		unsigned int tmp = CR_CHAN(cmd->convert_arg);
-
-		if (tmp > 16)
-			tmp = 16;
-		tmp |= (cmd->convert_arg & (CR_ALT_FILTER | CR_INVERT));
-		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
+		err |= ni_check_trigger_arg_roffs(CR_CHAN(cmd->convert_arg),
+						  NI_AI_ConvertClock,
+						  &devpriv->routing_tables, 1);
 	} else if (cmd->convert_src == TRIG_NOW) {
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
@@ -2118,7 +2109,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
+		unsigned int tmp = cmd->scan_begin_arg;
 		cmd->scan_begin_arg =
 		    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 						       cmd->scan_begin_arg,
@@ -2128,7 +2119,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (!devpriv->is_611x && !devpriv->is_6143) {
-			tmp = cmd->convert_arg;
+			unsigned int tmp = cmd->convert_arg;
 			cmd->convert_arg =
 			    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 							       cmd->convert_arg,
@@ -2206,8 +2197,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			   NISTC_AI_TRIG_START1_SEL(0);
 		break;
 	case TRIG_EXT:
-		ai_trig |= NISTC_AI_TRIG_START1_SEL(CR_CHAN(cmd->start_arg) +
-						    1);
+		ai_trig |= NISTC_AI_TRIG_START1_SEL(
+			ni_get_reg_value_roffs(CR_CHAN(cmd->start_arg),
+					       NI_AI_StartTrigger,
+					       &devpriv->routing_tables, 1));
 
 		if (cmd->start_arg & CR_INVERT)
 			ai_trig |= NISTC_AI_TRIG_START1_POLARITY;
@@ -2317,8 +2310,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		    (cmd->scan_begin_arg & ~CR_EDGE) !=
 		    (cmd->convert_arg & ~CR_EDGE))
 			start_stop_select |= NISTC_AI_START_SYNC;
-		start_stop_select |=
-		    NISTC_AI_START_SEL(1 + CR_CHAN(cmd->scan_begin_arg));
+		start_stop_select |= NISTC_AI_START_SEL(
+			ni_get_reg_value_roffs(CR_CHAN(cmd->scan_begin_arg),
+					       NI_AI_SampleClock,
+					       &devpriv->routing_tables, 1));
 		ni_stc_writew(dev, start_stop_select, NISTC_AI_START_STOP_REG);
 		break;
 	}
@@ -2346,8 +2341,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 		break;
 	case TRIG_EXT:
-		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(1 +
-						    CR_CHAN(cmd->convert_arg));
+		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(
+			ni_get_reg_value_roffs(CR_CHAN(cmd->convert_arg),
+					       NI_AI_ConvertClock,
+					       &devpriv->routing_tables, 1));
 		if ((cmd->convert_arg & CR_INVERT) == 0)
 			mode1 |= NISTC_AI_MODE1_CONVERT_POLARITY;
 		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
@@ -2464,6 +2461,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 
 	if (insn->n < 1)
@@ -2498,6 +2496,15 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			}
 		}
 		return 2;
+	case INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS:
+		/* we don't care about actual channels */
+		/* data[3] : chanlist_len */
+		data[1] = ni_min_ai_scan_period_ns(dev, data[3]);
+		if (devpriv->is_611x || devpriv->is_6143)
+			data[2] = 0; /* simultaneous output */
+		else
+			data[2] = board->ai_speed;
+		return 0;
 	default:
 		break;
 	}
@@ -2834,6 +2841,12 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 		return 0;
 	case INSN_CONFIG_ARM:
 		return ni_ao_arm(dev, s);
+	case INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS:
+		/* we don't care about actual channels */
+		/* data[3] : chanlist_len */
+		data[1] = board->ao_speed * data[3];
+		data[2] = 0;
+		return 0;
 	default:
 		break;
 	}
@@ -2955,7 +2968,10 @@ static void ni_ao_cmd_set_trigger(struct comedi_device *dev,
 		trigsel = NISTC_AO_TRIG_START1_EDGE |
 			  NISTC_AO_TRIG_START1_SYNC;
 	} else { /* TRIG_EXT */
-		trigsel = NISTC_AO_TRIG_START1_SEL(CR_CHAN(cmd->start_arg) + 1);
+		trigsel = NISTC_AO_TRIG_START1_SEL(
+			ni_get_reg_value_roffs(CR_CHAN(cmd->start_arg),
+					       NI_AO_StartTrigger,
+					       &devpriv->routing_tables, 1));
 		/* 0=active high, 1=active low. see daq-stc 3-24 (p186) */
 		if (cmd->start_arg & CR_INVERT)
 			trigsel |= NISTC_AO_TRIG_START1_POLARITY;
@@ -3117,7 +3133,9 @@ static void ni_ao_cmd_set_update(struct comedi_device *dev,
 		/* FIXME:  assert scan_begin_arg != 0, ret failure otherwise */
 		devpriv->ao_cmd2  |= NISTC_AO_CMD2_BC_GATE_ENA;
 		devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC(
-					CR_CHAN(cmd->scan_begin_arg));
+			ni_get_reg_value(CR_CHAN(cmd->scan_begin_arg),
+					 NI_AO_SampleClock,
+					 &devpriv->routing_tables));
 		if (cmd->scan_begin_arg & CR_INVERT)
 			devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC_POLARITY;
 	}
@@ -3313,12 +3331,9 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
-		tmp = CR_CHAN(cmd->start_arg);
-
-		if (tmp > 18)
-			tmp = 18;
-		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
-		err |= comedi_check_trigger_arg_is(&cmd->start_arg, tmp);
+		err |= ni_check_trigger_arg_roffs(CR_CHAN(cmd->start_arg),
+						  NI_AO_StartTrigger,
+						  &devpriv->routing_tables, 1);
 		break;
 	}
 
@@ -3328,6 +3343,10 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
 						    devpriv->clock_ns *
 						    0xffffff);
+	} else {		/* TRIG_EXT */
+		err |= ni_check_trigger_arg(CR_CHAN(cmd->scan_begin_arg),
+					    NI_AO_SampleClock,
+					    &devpriv->routing_tables);
 	}
 
 	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
@@ -3475,6 +3494,15 @@ static int ni_m_series_dio_insn_config(struct comedi_device *dev,
 {
 	int ret;
 
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		const struct ni_board_struct *board = dev->board_ptr;
+
+		/* we don't care about actual channels */
+		data[1] = board->dio_speed;
+		data[2] = 0;
+		return 0;
+	}
+
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)
 		return ret;
@@ -3516,8 +3544,8 @@ static int ni_cdio_check_chanlist(struct comedi_device *dev,
 static int ni_cdio_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	struct ni_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -3537,9 +3565,15 @@ static int ni_cdio_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	tmp = cmd->scan_begin_arg;
-	tmp &= CR_PACK_FLAGS(NI_M_CDO_MODE_SAMPLE_SRC_MASK, 0, 0, CR_INVERT);
-	if (tmp != cmd->scan_begin_arg)
+	/*
+	 * Although NI_D[IO]_SampleClock are the same, perhaps we should still,
+	 * for completeness, test whether the cmd is output or input?
+	 */
+	err |= ni_check_trigger_arg(CR_CHAN(cmd->scan_begin_arg),
+				    NI_DO_SampleClock,
+				    &devpriv->routing_tables);
+	if (CR_RANGE(cmd->scan_begin_arg) != 0 ||
+	    CR_AREF(cmd->scan_begin_arg) != 0)
 		err |= -EINVAL;
 
 	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
@@ -3627,9 +3661,16 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int retval;
 
 	ni_writel(dev, NI_M_CDO_CMD_RESET, NI_M_CDIO_CMD_REG);
+	/*
+	 * Although NI_D[IO]_SampleClock are the same, perhaps we should still,
+	 * for completeness, test whether the cmd is output or input(?)
+	 */
 	cdo_mode_bits = NI_M_CDO_MODE_FIFO_MODE |
 			NI_M_CDO_MODE_HALT_ON_ERROR |
-			NI_M_CDO_MODE_SAMPLE_SRC(CR_CHAN(cmd->scan_begin_arg));
+			NI_M_CDO_MODE_SAMPLE_SRC(
+				ni_get_reg_value(CR_CHAN(cmd->scan_begin_arg),
+						 NI_DO_SampleClock,
+						 &devpriv->routing_tables));
 	if (cmd->scan_begin_arg & CR_INVERT)
 		cdo_mode_bits |= NI_M_CDO_MODE_POLARITY;
 	ni_writel(dev, cdo_mode_bits, NI_M_CDO_MODE_REG);
@@ -4551,24 +4592,33 @@ static unsigned int ni_get_pfi_routing(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 
+	if (chan >= NI_PFI(0)) {
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+	}
 	return (devpriv->is_m_series)
 			? ni_m_series_get_pfi_routing(dev, chan)
 			: ni_old_get_pfi_routing(dev, chan);
 }
 
+/* Sets the output mux for the specified PFI channel. */
 static int ni_set_pfi_routing(struct comedi_device *dev,
 			      unsigned int chan, unsigned int source)
 {
 	struct ni_private *devpriv = dev->private;
 
+	if (chan >= NI_PFI(0)) {
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+	}
 	return (devpriv->is_m_series)
 			? ni_m_series_set_pfi_routing(dev, chan, source)
 			: ni_old_set_pfi_routing(dev, chan, source);
 }
 
-static int ni_config_filter(struct comedi_device *dev,
-			    unsigned int pfi_channel,
-			    enum ni_pfi_filter_select filter)
+static int ni_config_pfi_filter(struct comedi_device *dev,
+				unsigned int chan,
+				enum ni_pfi_filter_select filter)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned int bits;
@@ -4576,11 +4626,39 @@ static int ni_config_filter(struct comedi_device *dev,
 	if (!devpriv->is_m_series)
 		return -ENOTSUPP;
 
+	if (chan >= NI_PFI(0)) {
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+	}
+
 	bits = ni_readl(dev, NI_M_PFI_FILTER_REG);
-	bits &= ~NI_M_PFI_FILTER_SEL_MASK(pfi_channel);
-	bits |= NI_M_PFI_FILTER_SEL(pfi_channel, filter);
+	bits &= ~NI_M_PFI_FILTER_SEL_MASK(chan);
+	bits |= NI_M_PFI_FILTER_SEL(chan, filter);
 	ni_writel(dev, bits, NI_M_PFI_FILTER_REG);
 	return 0;
+}
+
+static void ni_set_pfi_direction(struct comedi_device *dev, int chan,
+				 unsigned int direction)
+{
+	if (chan >= NI_PFI(0)) {
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+	}
+	direction = (direction == COMEDI_OUTPUT) ? 1u : 0u;
+	ni_set_bits(dev, NISTC_IO_BIDIR_PIN_REG, 1 << chan, direction);
+}
+
+static int ni_get_pfi_direction(struct comedi_device *dev, int chan)
+{
+	struct ni_private *devpriv = dev->private;
+
+	if (chan >= NI_PFI(0)) {
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+	}
+	return devpriv->io_bidirection_pin_reg & (1 << chan) ?
+	       COMEDI_OUTPUT : COMEDI_INPUT;
 }
 
 static int ni_pfi_insn_config(struct comedi_device *dev,
@@ -4588,7 +4666,6 @@ static int ni_pfi_insn_config(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct ni_private *devpriv = dev->private;
 	unsigned int chan;
 
 	if (insn->n < 1)
@@ -4598,23 +4675,19 @@ static int ni_pfi_insn_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case COMEDI_OUTPUT:
-		ni_set_bits(dev, NISTC_IO_BIDIR_PIN_REG, 1 << chan, 1);
-		break;
 	case COMEDI_INPUT:
-		ni_set_bits(dev, NISTC_IO_BIDIR_PIN_REG, 1 << chan, 0);
+		ni_set_pfi_direction(dev, chan, data[0]);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (devpriv->io_bidirection_pin_reg & (1 << chan)) ?
-		    COMEDI_OUTPUT : COMEDI_INPUT;
-		return 0;
+		data[1] = ni_get_pfi_direction(dev, chan);
+		break;
 	case INSN_CONFIG_SET_ROUTING:
 		return ni_set_pfi_routing(dev, chan, data[1]);
 	case INSN_CONFIG_GET_ROUTING:
 		data[1] = ni_get_pfi_routing(dev, chan);
 		break;
 	case INSN_CONFIG_FILTER:
-		return ni_config_filter(dev, chan, data[1]);
+		return ni_config_pfi_filter(dev, chan, data[1]);
 	default:
 		return -EINVAL;
 	}
@@ -4980,7 +5053,10 @@ static int ni_valid_rtsi_output_source(struct comedi_device *dev,
 	case NI_RTSI_OUTPUT_G_SRC0:
 	case NI_RTSI_OUTPUT_G_GATE0:
 	case NI_RTSI_OUTPUT_RGOUT0:
-	case NI_RTSI_OUTPUT_RTSI_BRD_0:
+	case NI_RTSI_OUTPUT_RTSI_BRD(0):
+	case NI_RTSI_OUTPUT_RTSI_BRD(1):
+	case NI_RTSI_OUTPUT_RTSI_BRD(2):
+	case NI_RTSI_OUTPUT_RTSI_BRD(3):
 		return 1;
 	case NI_RTSI_OUTPUT_RTSI_OSC:
 		return (devpriv->is_m_series) ? 1 : 0;
@@ -4994,6 +5070,10 @@ static int ni_set_rtsi_routing(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 
+	if (chan >= TRIGGER_LINE(0))
+		/* allow new and old names of rtsi channels to work. */
+		chan -= TRIGGER_LINE(0);
+
 	if (ni_valid_rtsi_output_source(dev, chan, src) == 0)
 		return -EINVAL;
 	if (chan < 4) {
@@ -5001,11 +5081,18 @@ static int ni_set_rtsi_routing(struct comedi_device *dev,
 		devpriv->rtsi_trig_a_output_reg |= NISTC_RTSI_TRIG(chan, src);
 		ni_stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
 			      NISTC_RTSI_TRIGA_OUT_REG);
-	} else if (chan < 8) {
+	} else if (chan < NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series)) {
 		devpriv->rtsi_trig_b_output_reg &= ~NISTC_RTSI_TRIG_MASK(chan);
 		devpriv->rtsi_trig_b_output_reg |= NISTC_RTSI_TRIG(chan, src);
 		ni_stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
 			      NISTC_RTSI_TRIGB_OUT_REG);
+	} else if (chan != NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
+		/* probably should never reach this, since the
+		 * ni_valid_rtsi_output_source above errors out if chan is too
+		 * high
+		 */
+		dev_err(dev->class_dev, "%s: unknown rtsi channel\n", __func__);
+		return -EINVAL;
 	}
 	return 2;
 }
@@ -5015,18 +5102,74 @@ static unsigned int ni_get_rtsi_routing(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 
+	if (chan >= TRIGGER_LINE(0))
+		/* allow new and old names of rtsi channels to work. */
+		chan -= TRIGGER_LINE(0);
+
 	if (chan < 4) {
 		return NISTC_RTSI_TRIG_TO_SRC(chan,
 					      devpriv->rtsi_trig_a_output_reg);
 	} else if (chan < NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series)) {
 		return NISTC_RTSI_TRIG_TO_SRC(chan,
 					      devpriv->rtsi_trig_b_output_reg);
-	} else {
-		if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN)
-			return NI_RTSI_OUTPUT_RTSI_OSC;
-		dev_err(dev->class_dev, "bug! should never get here?\n");
-		return 0;
+	} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
+		return NI_RTSI_OUTPUT_RTSI_OSC;
 	}
+
+	dev_err(dev->class_dev, "%s: unknown rtsi channel\n", __func__);
+	return -EINVAL;
+}
+
+static void ni_set_rtsi_direction(struct comedi_device *dev, int chan,
+				  unsigned int direction)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned int max_chan = NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series);
+
+	if (chan >= TRIGGER_LINE(0))
+		/* allow new and old names of rtsi channels to work. */
+		chan -= TRIGGER_LINE(0);
+
+	if (direction == COMEDI_OUTPUT) {
+		if (chan < max_chan) {
+			devpriv->rtsi_trig_direction_reg |=
+			    NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series);
+		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
+			devpriv->rtsi_trig_direction_reg |=
+			    NISTC_RTSI_TRIG_DRV_CLK;
+		}
+	} else {
+		if (chan < max_chan) {
+			devpriv->rtsi_trig_direction_reg &=
+			    ~NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series);
+		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
+			devpriv->rtsi_trig_direction_reg &=
+			    ~NISTC_RTSI_TRIG_DRV_CLK;
+		}
+	}
+	ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
+		      NISTC_RTSI_TRIG_DIR_REG);
+}
+
+static int ni_get_rtsi_direction(struct comedi_device *dev, int chan)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned int max_chan = NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series);
+
+	if (chan >= TRIGGER_LINE(0))
+		/* allow new and old names of rtsi channels to work. */
+		chan -= TRIGGER_LINE(0);
+
+	if (chan < max_chan) {
+		return (devpriv->rtsi_trig_direction_reg &
+			NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series))
+			   ? COMEDI_OUTPUT : COMEDI_INPUT;
+	} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
+		return (devpriv->rtsi_trig_direction_reg &
+			NISTC_RTSI_TRIG_DRV_CLK)
+			   ? COMEDI_OUTPUT : COMEDI_INPUT;
+	}
+	return -EINVAL;
 }
 
 static int ni_rtsi_insn_config(struct comedi_device *dev,
@@ -5036,45 +5179,20 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int max_chan = NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series);
 
 	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		if (chan < max_chan) {
-			devpriv->rtsi_trig_direction_reg |=
-			    NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series);
-		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
-			devpriv->rtsi_trig_direction_reg |=
-			    NISTC_RTSI_TRIG_DRV_CLK;
-		}
-		ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-			      NISTC_RTSI_TRIG_DIR_REG);
+	case COMEDI_OUTPUT:
+	case COMEDI_INPUT:
+		ni_set_rtsi_direction(dev, chan, data[0]);
 		break;
-	case INSN_CONFIG_DIO_INPUT:
-		if (chan < max_chan) {
-			devpriv->rtsi_trig_direction_reg &=
-			    ~NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series);
-		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
-			devpriv->rtsi_trig_direction_reg &=
-			    ~NISTC_RTSI_TRIG_DRV_CLK;
-		}
-		ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-			      NISTC_RTSI_TRIG_DIR_REG);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		if (chan < max_chan) {
-			data[1] =
-			    (devpriv->rtsi_trig_direction_reg &
-			     NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series))
-				? INSN_CONFIG_DIO_OUTPUT
-				: INSN_CONFIG_DIO_INPUT;
-		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
-			data[1] = (devpriv->rtsi_trig_direction_reg &
-				   NISTC_RTSI_TRIG_DRV_CLK)
-				  ? INSN_CONFIG_DIO_OUTPUT
-				  : INSN_CONFIG_DIO_INPUT;
-		}
+	case INSN_CONFIG_DIO_QUERY: {
+		int ret = ni_get_rtsi_direction(dev, chan);
+
+		if (ret < 0)
+			return ret;
+		data[1] = ret;
 		return 2;
+	}
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		return ni_set_master_clock(dev, data[1], data[2]);
 	case INSN_CONFIG_GET_CLOCK_SRC:
@@ -5083,9 +5201,14 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 		return 3;
 	case INSN_CONFIG_SET_ROUTING:
 		return ni_set_rtsi_routing(dev, chan, data[1]);
-	case INSN_CONFIG_GET_ROUTING:
-		data[1] = ni_get_rtsi_routing(dev, chan);
+	case INSN_CONFIG_GET_ROUTING: {
+		int ret = ni_get_rtsi_routing(dev, chan);
+
+		if (ret < 0)
+			return ret;
+		data[1] = ret;
 		return 2;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -5102,9 +5225,275 @@ static int ni_rtsi_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+/*
+ * Default routing for RTSI trigger lines.
+ *
+ * These values are used here in the init function, as well as in the
+ * disconnect_route function, after a RTSI route has been disconnected.
+ */
+static const int default_rtsi_routing[] = {
+	[0] = NI_RTSI_OUTPUT_ADR_START1,
+	[1] = NI_RTSI_OUTPUT_ADR_START2,
+	[2] = NI_RTSI_OUTPUT_SCLKG,
+	[3] = NI_RTSI_OUTPUT_DACUPDN,
+	[4] = NI_RTSI_OUTPUT_DA_START1,
+	[5] = NI_RTSI_OUTPUT_G_SRC0,
+	[6] = NI_RTSI_OUTPUT_G_GATE0,
+	[7] = NI_RTSI_OUTPUT_RTSI_OSC,
+};
+
+/*
+ * Route signals through RGOUT0 terminal.
+ * @reg: raw register value of RGOUT0 bits (only bit0 is important).
+ * @dev: comedi device handle.
+ */
+static void set_rgout0_reg(int reg, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+
+	if (devpriv->is_m_series) {
+		devpriv->rtsi_trig_direction_reg &=
+			~NISTC_RTSI_TRIG_DIR_SUB_SEL1;
+		devpriv->rtsi_trig_direction_reg |=
+			(reg << NISTC_RTSI_TRIG_DIR_SUB_SEL1_SHIFT) &
+			NISTC_RTSI_TRIG_DIR_SUB_SEL1;
+		ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
+			      NISTC_RTSI_TRIG_DIR_REG);
+	} else {
+		devpriv->rtsi_trig_b_output_reg &= ~NISTC_RTSI_TRIGB_SUB_SEL1;
+		devpriv->rtsi_trig_b_output_reg |=
+			(reg << NISTC_RTSI_TRIGB_SUB_SEL1_SHIFT) &
+			NISTC_RTSI_TRIGB_SUB_SEL1;
+		ni_stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
+			      NISTC_RTSI_TRIGB_OUT_REG);
+	}
+}
+
+static int get_rgout0_reg(struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int reg;
+
+	if (devpriv->is_m_series)
+		reg = (devpriv->rtsi_trig_direction_reg &
+		       NISTC_RTSI_TRIG_DIR_SUB_SEL1)
+		    >> NISTC_RTSI_TRIG_DIR_SUB_SEL1_SHIFT;
+	else
+		reg = (devpriv->rtsi_trig_b_output_reg &
+		       NISTC_RTSI_TRIGB_SUB_SEL1)
+		    >> NISTC_RTSI_TRIGB_SUB_SEL1_SHIFT;
+	return reg;
+}
+
+static inline int get_rgout0_src(struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int reg = get_rgout0_reg(dev);
+
+	return ni_find_route_source(reg, NI_RGOUT0, &devpriv->routing_tables);
+}
+
+/*
+ * Route signals through RGOUT0 terminal and increment the RGOUT0 use for this
+ * particular route.
+ * @src: device-global signal name
+ * @dev: comedi device handle
+ *
+ * Return: -EINVAL if the source is not valid to route to RGOUT0;
+ *	   -EBUSY if the RGOUT0 is already used;
+ *	   0 if successful.
+ */
+static int incr_rgout0_src_use(int src, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	s8 reg = ni_lookup_route_register(CR_CHAN(src), NI_RGOUT0,
+					  &devpriv->routing_tables);
+
+	if (reg < 0)
+		return -EINVAL;
+
+	if (devpriv->rgout0_usage > 0 && get_rgout0_reg(dev) != reg)
+		return -EBUSY;
+
+	++devpriv->rgout0_usage;
+	set_rgout0_reg(reg, dev);
+	return 0;
+}
+
+/*
+ * Unroute signals through RGOUT0 terminal and deccrement the RGOUT0 use for
+ * this particular source.  This function does not actually unroute anything
+ * with respect to RGOUT0.  It does, on the other hand, decrement the usage
+ * counter for the current src->RGOUT0 mapping.
+ *
+ * Return: -EINVAL if the source is not already routed to RGOUT0 (or usage is
+ *	already at zero); 0 if successful.
+ */
+static int decr_rgout0_src_use(int src, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	s8 reg = ni_lookup_route_register(CR_CHAN(src), NI_RGOUT0,
+					  &devpriv->routing_tables);
+
+	if (devpriv->rgout0_usage > 0 && get_rgout0_reg(dev) == reg) {
+		--devpriv->rgout0_usage;
+		if (!devpriv->rgout0_usage)
+			set_rgout0_reg(0, dev); /* ok default? */
+		return 0;
+	}
+	return -EINVAL;
+}
+
+/*
+ * Route signals through given NI_RTSI_BRD mux.
+ * @i: index of mux to route
+ * @reg: raw register value of RTSI_BRD bits
+ * @dev: comedi device handle
+ */
+static void set_ith_rtsi_brd_reg(int i, int reg, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int reg_i_sz = 3; /* value for e-series */
+	int reg_i_mask;
+	int reg_i_shift;
+
+	if (devpriv->is_m_series)
+		reg_i_sz = 4;
+	reg_i_mask = ~((~0) << reg_i_sz);
+	reg_i_shift = i * reg_i_sz;
+
+	/* clear out the current reg_i for ith brd */
+	devpriv->rtsi_shared_mux_reg &= ~(reg_i_mask       << reg_i_shift);
+	/* (softcopy) write the new reg_i for ith brd */
+	devpriv->rtsi_shared_mux_reg |= (reg & reg_i_mask) << reg_i_shift;
+	/* (hardcopy) write the new reg_i for ith brd */
+	ni_stc_writew(dev, devpriv->rtsi_shared_mux_reg, NISTC_RTSI_BOARD_REG);
+}
+
+static int get_ith_rtsi_brd_reg(int i, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int reg_i_sz = 3; /* value for e-series */
+	int reg_i_mask;
+	int reg_i_shift;
+
+	if (devpriv->is_m_series)
+		reg_i_sz = 4;
+	reg_i_mask = ~((~0) << reg_i_sz);
+	reg_i_shift = i * reg_i_sz;
+
+	return (devpriv->rtsi_shared_mux_reg >> reg_i_shift) & reg_i_mask;
+}
+
+static inline int get_rtsi_brd_src(int brd, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int brd_index = brd;
+	int reg;
+
+	if (brd >= NI_RTSI_BRD(0))
+		brd_index = brd - NI_RTSI_BRD(0);
+	else
+		brd = NI_RTSI_BRD(brd);
+	/*
+	 * And now:
+	 * brd : device-global name
+	 * brd_index : index number of RTSI_BRD mux
+	 */
+
+	reg = get_ith_rtsi_brd_reg(brd_index, dev);
+
+	return ni_find_route_source(reg, brd, &devpriv->routing_tables);
+}
+
+/*
+ * Route signals through NI_RTSI_BRD mux and increment the use counter for this
+ * particular route.
+ *
+ * Return: -EINVAL if the source is not valid to route to NI_RTSI_BRD(i);
+ *	   -EBUSY if all NI_RTSI_BRD muxes are already used;
+ *	   NI_RTSI_BRD(i) of allocated ith mux if successful.
+ */
+static int incr_rtsi_brd_src_use(int src, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int first_available = -1;
+	int err = -EINVAL;
+	s8 reg;
+	int i;
+
+	/* first look for a mux that is already configured to provide src */
+	for (i = 0; i < NUM_RTSI_SHARED_MUXS; ++i) {
+		reg = ni_lookup_route_register(CR_CHAN(src), NI_RTSI_BRD(i),
+					       &devpriv->routing_tables);
+
+		if (reg < 0)
+			continue; /* invalid route */
+
+		if (!devpriv->rtsi_shared_mux_usage[i]) {
+			if (first_available < 0)
+				/* found the first unused, but usable mux */
+				first_available = i;
+		} else {
+			/*
+			 * we've seen at least one possible route, so change the
+			 * final error to -EBUSY in case there are no muxes
+			 * available.
+			 */
+			err = -EBUSY;
+
+			if (get_ith_rtsi_brd_reg(i, dev) == reg) {
+				/*
+				 * we've found a mux that is already being used
+				 * to provide the requested signal.  Reuse it.
+				 */
+				goto success;
+			}
+		}
+	}
+
+	if (first_available < 0)
+		return err;
+
+	/* we did not find a mux to reuse, but there is at least one usable */
+	i = first_available;
+
+success:
+	++devpriv->rtsi_shared_mux_usage[i];
+	set_ith_rtsi_brd_reg(i, reg, dev);
+	return NI_RTSI_BRD(i);
+}
+
+/*
+ * Unroute signals through NI_RTSI_BRD mux and decrement the user counter for
+ * this particular route.
+ *
+ * Return: -EINVAL if the source is not already routed to rtsi_brd(i) (or usage
+ *	is already at zero); 0 if successful.
+ */
+static int decr_rtsi_brd_src_use(int src, int rtsi_brd,
+				 struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	s8 reg = ni_lookup_route_register(CR_CHAN(src), rtsi_brd,
+					  &devpriv->routing_tables);
+	const int i = rtsi_brd - NI_RTSI_BRD(0);
+
+	if (devpriv->rtsi_shared_mux_usage[i] > 0 &&
+	    get_ith_rtsi_brd_reg(i, dev) == reg) {
+		--devpriv->rtsi_shared_mux_usage[i];
+		if (!devpriv->rtsi_shared_mux_usage[i])
+			set_ith_rtsi_brd_reg(i, 0, dev); /* ok default? */
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static void ni_rtsi_init(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
+	int i;
 
 	/*  Initialises the RTSI bus signal switch to a default state */
 
@@ -5117,28 +5506,328 @@ static void ni_rtsi_init(struct comedi_device *dev)
 	/*  Set clock mode to internal */
 	if (ni_set_master_clock(dev, NI_MIO_INTERNAL_CLOCK, 0) < 0)
 		dev_err(dev->class_dev, "ni_set_master_clock failed, bug?\n");
-	/*  default internal lines routing to RTSI bus lines */
-	devpriv->rtsi_trig_a_output_reg =
-	    NISTC_RTSI_TRIG(0, NI_RTSI_OUTPUT_ADR_START1) |
-	    NISTC_RTSI_TRIG(1, NI_RTSI_OUTPUT_ADR_START2) |
-	    NISTC_RTSI_TRIG(2, NI_RTSI_OUTPUT_SCLKG) |
-	    NISTC_RTSI_TRIG(3, NI_RTSI_OUTPUT_DACUPDN);
-	ni_stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
-		      NISTC_RTSI_TRIGA_OUT_REG);
-	devpriv->rtsi_trig_b_output_reg =
-	    NISTC_RTSI_TRIG(4, NI_RTSI_OUTPUT_DA_START1) |
-	    NISTC_RTSI_TRIG(5, NI_RTSI_OUTPUT_G_SRC0) |
-	    NISTC_RTSI_TRIG(6, NI_RTSI_OUTPUT_G_GATE0);
-	if (devpriv->is_m_series)
-		devpriv->rtsi_trig_b_output_reg |=
-		    NISTC_RTSI_TRIG(7, NI_RTSI_OUTPUT_RTSI_OSC);
-	ni_stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
-		      NISTC_RTSI_TRIGB_OUT_REG);
+
+	/* default internal lines routing to RTSI bus lines */
+	for (i = 0; i < 8; ++i) {
+		ni_set_rtsi_direction(dev, i, COMEDI_INPUT);
+		ni_set_rtsi_routing(dev, i, default_rtsi_routing[i]);
+	}
 
 	/*
-	 * Sets the source and direction of the 4 on board lines
-	 * ni_stc_writew(dev, 0, NISTC_RTSI_BOARD_REG);
+	 * Sets the source and direction of the 4 on board lines.
+	 * This configures all board lines to be:
+	 * for e-series:
+	 *   1) inputs (not sure what "output" would mean)
+	 *   2) copying TRIGGER_LINE(0) (or RTSI0) output
+	 * for m-series:
+	 *   copying NI_PFI(0) output
 	 */
+	devpriv->rtsi_shared_mux_reg = 0;
+	for (i = 0; i < 4; ++i)
+		set_ith_rtsi_brd_reg(i, 0, dev);
+	memset(devpriv->rtsi_shared_mux_usage, 0,
+	       sizeof(devpriv->rtsi_shared_mux_usage));
+
+	/* initialize rgout0 pin as unused. */
+	devpriv->rgout0_usage = 0;
+	set_rgout0_reg(0, dev);
+}
+
+/* Get route of GPFO_i/CtrOut pins */
+static inline int ni_get_gout_routing(unsigned int dest,
+				      struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned int reg = devpriv->an_trig_etc_reg;
+
+	switch (dest) {
+	case 0:
+		if (reg & NISTC_ATRIG_ETC_GPFO_0_ENA)
+			return NISTC_ATRIG_ETC_GPFO_0_SEL_TO_SRC(reg);
+		break;
+	case 1:
+		if (reg & NISTC_ATRIG_ETC_GPFO_1_ENA)
+			return NISTC_ATRIG_ETC_GPFO_1_SEL_TO_SRC(reg);
+		break;
+	}
+
+	return -EINVAL;
+}
+
+/* Set route of GPFO_i/CtrOut pins */
+static inline int ni_disable_gout_routing(unsigned int dest,
+					  struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+
+	switch (dest) {
+	case 0:
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_0_ENA;
+		break;
+	case 1:
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_1_ENA;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ni_stc_writew(dev, devpriv->an_trig_etc_reg, NISTC_ATRIG_ETC_REG);
+	return 0;
+}
+
+/* Set route of GPFO_i/CtrOut pins */
+static inline int ni_set_gout_routing(unsigned int src, unsigned int dest,
+				      struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+
+	switch (dest) {
+	case 0:
+		/* clear reg */
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_0_SEL(-1);
+		/* set reg */
+		devpriv->an_trig_etc_reg |= NISTC_ATRIG_ETC_GPFO_0_ENA
+					 |  NISTC_ATRIG_ETC_GPFO_0_SEL(src);
+		break;
+	case 1:
+		/* clear reg */
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_1_SEL;
+		src = src ? NISTC_ATRIG_ETC_GPFO_1_SEL : 0;
+		/* set reg */
+		devpriv->an_trig_etc_reg |= NISTC_ATRIG_ETC_GPFO_1_ENA | src;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ni_stc_writew(dev, devpriv->an_trig_etc_reg, NISTC_ATRIG_ETC_REG);
+	return 0;
+}
+
+/*
+ * Retrieves the current source of the output selector for the given
+ * destination.  If the terminal for the destination is not already configured
+ * as an output, this function returns -EINVAL as error.
+ *
+ * Return: the register value of the destination output selector;
+ *	   -EINVAL if terminal is not configured for output.
+ */
+static int get_output_select_source(int dest, struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int reg = -1;
+
+	if (channel_is_pfi(dest)) {
+		if (ni_get_pfi_direction(dev, dest) == COMEDI_OUTPUT)
+			reg = ni_get_pfi_routing(dev, dest);
+	} else if (channel_is_rtsi(dest)) {
+		if (ni_get_rtsi_direction(dev, dest) == COMEDI_OUTPUT) {
+			reg = ni_get_rtsi_routing(dev, dest);
+
+			if (reg == NI_RTSI_OUTPUT_RGOUT0) {
+				dest = NI_RGOUT0; /* prepare for lookup below */
+				reg = get_rgout0_reg(dev);
+			} else if (reg >= NI_RTSI_OUTPUT_RTSI_BRD(0) &&
+				   reg <= NI_RTSI_OUTPUT_RTSI_BRD(3)) {
+				const int i = reg - NI_RTSI_OUTPUT_RTSI_BRD(0);
+
+				dest = NI_RTSI_BRD(i); /* prepare for lookup */
+				reg = get_ith_rtsi_brd_reg(i, dev);
+			}
+		}
+	} else if (dest >= NI_CtrOut(0) && dest <= NI_CtrOut(-1)) {
+		/*
+		 * not handled by ni_tio.  Only available for GPFO registers in
+		 * e/m series.
+		 */
+		dest -= NI_CtrOut(0);
+		if (dest > 1)
+			/* there are only two g_out outputs. */
+			return -EINVAL;
+		reg = ni_get_gout_routing(dest, dev);
+	} else if (channel_is_ctr(dest)) {
+		reg = ni_tio_get_routing(devpriv->counter_dev, dest);
+	} else {
+		dev_dbg(dev->class_dev, "%s: unhandled destination (%d) queried\n",
+			__func__, dest);
+	}
+
+	if (reg >= 0)
+		return ni_find_route_source(CR_CHAN(reg), dest,
+					    &devpriv->routing_tables);
+	return -EINVAL;
+}
+
+/*
+ * Test a route:
+ *
+ * Return: -1 if not connectible;
+ *	    0 if connectible and not connected;
+ *	    1 if connectible and connected.
+ */
+static int test_route(unsigned int src, unsigned int dest,
+		      struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	s8 reg = ni_route_to_register(CR_CHAN(src), dest,
+				      &devpriv->routing_tables);
+
+	if (reg < 0)
+		return -1;
+	if (get_output_select_source(dest, dev) != CR_CHAN(src))
+		return 0;
+	return 1;
+}
+
+/* Connect the actual route.  */
+static int connect_route(unsigned int src, unsigned int dest,
+			 struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	s8 reg = ni_route_to_register(CR_CHAN(src), dest,
+				      &devpriv->routing_tables);
+	s8 current_src;
+
+	if (reg < 0)
+		/* route is not valid */
+		return -EINVAL;
+
+	current_src = get_output_select_source(dest, dev);
+	if (current_src == CR_CHAN(src))
+		return -EALREADY;
+	if (current_src >= 0)
+		/* destination mux is already busy. complain, don't overwrite */
+		return -EBUSY;
+
+	/* The route is valid and available. Now connect... */
+	if (channel_is_pfi(dest)) {
+		/* set routing source, then open output */
+		ni_set_pfi_routing(dev, dest, reg);
+		ni_set_pfi_direction(dev, dest, COMEDI_OUTPUT);
+	} else if (channel_is_rtsi(dest)) {
+		if (reg == NI_RTSI_OUTPUT_RGOUT0) {
+			int ret = incr_rgout0_src_use(src, dev);
+
+			if (ret < 0)
+				return ret;
+		} else if (ni_rtsi_route_requires_mux(reg)) {
+			/* Attempt to allocate and  route (src->brd) */
+			int brd = incr_rtsi_brd_src_use(src, dev);
+
+			if (brd < 0)
+				return brd;
+
+			/* Now lookup the register value for (brd->dest) */
+			reg = ni_lookup_route_register(
+				brd, dest, &devpriv->routing_tables);
+		}
+
+		ni_set_rtsi_direction(dev, dest, COMEDI_OUTPUT);
+		ni_set_rtsi_routing(dev, dest, reg);
+	} else if (dest >= NI_CtrOut(0) && dest <= NI_CtrOut(-1)) {
+		/*
+		 * not handled by ni_tio.  Only available for GPFO registers in
+		 * e/m series.
+		 */
+		dest -= NI_CtrOut(0);
+		if (dest > 1)
+			/* there are only two g_out outputs. */
+			return -EINVAL;
+		if (ni_set_gout_routing(src, dest, dev))
+			return -EINVAL;
+	} else if (channel_is_ctr(dest)) {
+		/*
+		 * we are adding back the channel modifier info to set
+		 * invert/edge info passed by the user
+		 */
+		ni_tio_set_routing(devpriv->counter_dev, dest,
+				   reg | (src & ~CR_CHAN(-1)));
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int disconnect_route(unsigned int src, unsigned int dest,
+			    struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	s8 reg = ni_route_to_register(CR_CHAN(src), dest,
+				      &devpriv->routing_tables);
+
+	if (reg < 0)
+		/* route is not valid */
+		return -EINVAL;
+	if (get_output_select_source(dest, dev) != src)
+		/* cannot disconnect something not connected */
+		return -EINVAL;
+
+	/* The route is valid and is connected.  Now disconnect... */
+	if (channel_is_pfi(dest)) {
+		/* set the pfi to high impedance, and disconnect */
+		ni_set_pfi_direction(dev, dest, COMEDI_INPUT);
+		ni_set_pfi_routing(dev, dest, NI_PFI_OUTPUT_PFI_DEFAULT);
+	} else if (channel_is_rtsi(dest)) {
+		if (reg == NI_RTSI_OUTPUT_RGOUT0) {
+			int ret = decr_rgout0_src_use(src, dev);
+
+			if (ret < 0)
+				return ret;
+		} else if (ni_rtsi_route_requires_mux(reg)) {
+			/* find which RTSI_BRD line is source for rtsi pin */
+			int brd = ni_find_route_source(
+				ni_get_rtsi_routing(dev, dest), dest,
+				&devpriv->routing_tables);
+
+			if (brd < 0)
+				return brd;
+
+			/* decrement/disconnect RTSI_BRD line from source */
+			decr_rtsi_brd_src_use(src, brd, dev);
+		}
+
+		/* set rtsi output selector to default state */
+		reg = default_rtsi_routing[dest - TRIGGER_LINE(0)];
+		ni_set_rtsi_direction(dev, dest, COMEDI_INPUT);
+		ni_set_rtsi_routing(dev, dest, reg);
+	} else if (dest >= NI_CtrOut(0) && dest <= NI_CtrOut(-1)) {
+		/*
+		 * not handled by ni_tio.  Only available for GPFO registers in
+		 * e/m series.
+		 */
+		dest -= NI_CtrOut(0);
+		if (dest > 1)
+			/* there are only two g_out outputs. */
+			return -EINVAL;
+		reg = ni_disable_gout_routing(dest, dev);
+	} else if (channel_is_ctr(dest)) {
+		ni_tio_unset_routing(devpriv->counter_dev, dest);
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int ni_global_insn_config(struct comedi_device *dev,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	switch (data[0]) {
+	case INSN_DEVICE_CONFIG_TEST_ROUTE:
+		data[0] = test_route(data[1], data[2], dev);
+		return 2;
+	case INSN_DEVICE_CONFIG_CONNECT_ROUTE:
+		return connect_route(data[1], data[2], dev);
+	case INSN_DEVICE_CONFIG_DISCONNECT_ROUTE:
+		return disconnect_route(data[1], data[2], dev);
+	/*
+	 * This case is already handled one level up.
+	 * case INSN_DEVICE_CONFIG_GET_ROUTES:
+	 */
+	default:
+		return -EINVAL;
+	}
+	return 1;
 }
 
 #ifdef PCIDMA
@@ -5244,6 +5933,16 @@ static int ni_alloc_private(struct comedi_device *dev)
 	return 0;
 }
 
+static unsigned int _ni_get_valid_routes(struct comedi_device *dev,
+					 unsigned int n_pairs,
+					 unsigned int *pair_data)
+{
+	struct ni_private *devpriv = dev->private;
+
+	return ni_get_valid_routes(&devpriv->routing_tables, n_pairs,
+				   pair_data);
+}
+
 static int ni_E_init(struct comedi_device *dev,
 		     unsigned int interrupt_pin, unsigned int irq_polarity)
 {
@@ -5252,6 +5951,24 @@ static int ni_E_init(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
+	const char *dev_family = devpriv->is_m_series ? "ni_mseries"
+						      : "ni_eseries";
+
+	/* prepare the device for globally-named routes. */
+	if (ni_assign_device_routes(dev_family, board->name,
+				    &devpriv->routing_tables) < 0) {
+		dev_warn(dev->class_dev, "%s: %s device has no signal routing table.\n",
+			 __func__, board->name);
+		dev_warn(dev->class_dev, "%s: High level NI signal names will not be available for this %s board.\n",
+			 __func__, board->name);
+	} else {
+		/*
+		 * only(?) assign insn_device_config if we have global names for
+		 * this device.
+		 */
+		dev->insn_device_config = ni_global_insn_config;
+		dev->get_valid_routes = _ni_get_valid_routes;
+	}
 
 	if (board->n_aochan > MAX_N_AO_CHAN) {
 		dev_err(dev->class_dev, "bug! n_aochan > MAX_N_AO_CHAN\n");
@@ -5508,7 +6225,9 @@ static int ni_E_init(struct comedi_device *dev,
 					(devpriv->is_m_series)
 						? ni_gpct_variant_m_series
 						: ni_gpct_variant_e_series,
-					NUM_GPCT);
+					NUM_GPCT,
+					NUM_GPCT,
+					&devpriv->routing_tables);
 	if (!devpriv->counter_dev)
 		return -ENOMEM;
 
@@ -5517,8 +6236,6 @@ static int ni_E_init(struct comedi_device *dev,
 		struct ni_gpct *gpct = &devpriv->counter_dev->counters[i];
 
 		/* setup and initialize the counter */
-		gpct->chip_index = 0;
-		gpct->counter_index = i;
 		ni_tio_init_counter(gpct);
 
 		s = &dev->subdevices[NI_GPCT_SUBDEV(i)];
@@ -5543,6 +6260,10 @@ static int ni_E_init(struct comedi_device *dev,
 #endif
 		s->private	= gpct;
 	}
+
+	/* Initialize GPFO_{0,1} to produce output of counters */
+	ni_set_gout_routing(0, 0, dev); /* output of counter 0; DAQ STC, p338 */
+	ni_set_gout_routing(0, 1, dev); /* output of counter 1; DAQ STC, p338 */
 
 	/* Frequency output subdevice */
 	s = &dev->subdevices[NI_FREQ_OUT_SUBDEV];

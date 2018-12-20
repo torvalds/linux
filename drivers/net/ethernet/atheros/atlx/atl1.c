@@ -63,7 +63,6 @@
 #include <linux/jiffies.h>
 #include <linux/mii.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
@@ -3278,7 +3277,6 @@ static int atl1_set_link_ksettings(struct net_device *netdev,
 	u16 phy_data;
 	int ret_val = 0;
 	u16 old_media_type = hw->media_type;
-	u32 advertising;
 
 	if (netif_running(adapter->netdev)) {
 		if (netif_msg_link(adapter))
@@ -3312,25 +3310,7 @@ static int atl1_set_link_ksettings(struct net_device *netdev,
 				hw->media_type = MEDIA_TYPE_10M_HALF;
 		}
 	}
-	switch (hw->media_type) {
-	case MEDIA_TYPE_AUTO_SENSOR:
-		advertising =
-		    ADVERTISED_10baseT_Half |
-		    ADVERTISED_10baseT_Full |
-		    ADVERTISED_100baseT_Half |
-		    ADVERTISED_100baseT_Full |
-		    ADVERTISED_1000baseT_Full |
-		    ADVERTISED_Autoneg | ADVERTISED_TP;
-		break;
-	case MEDIA_TYPE_1000M_FULL:
-		advertising =
-		    ADVERTISED_1000baseT_Full |
-		    ADVERTISED_Autoneg | ADVERTISED_TP;
-		break;
-	default:
-		advertising = 0;
-		break;
-	}
+
 	if (atl1_phy_setup_autoneg_adv(hw)) {
 		ret_val = -EINVAL;
 		if (netif_msg_link(adapter))

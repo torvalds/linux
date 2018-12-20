@@ -648,6 +648,9 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		return 0;
 	}
 
+	if (IS_ERR(error))
+		return PTR_ERR(error);
+
 	if (*error->error_msg)
 		err_printf(m, "%s\n", error->error_msg);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
@@ -1403,15 +1406,20 @@ static void request_record_user_bo(struct i915_request *request,
 {
 	struct i915_capture_list *c;
 	struct drm_i915_error_object **bo;
-	long count;
+	long count, max;
 
-	count = 0;
+	max = 0;
 	for (c = request->capture_list; c; c = c->next)
-		count++;
+		max++;
+	if (!max)
+		return;
 
-	bo = NULL;
-	if (count)
-		bo = kcalloc(count, sizeof(*bo), GFP_ATOMIC);
+	bo = kmalloc_array(max, sizeof(*bo), GFP_ATOMIC);
+	if (!bo) {
+		/* If we can't capture everything, try to capture something. */
+		max = min_t(long, max, PAGE_SIZE / sizeof(*bo));
+		bo = kmalloc_array(max, sizeof(*bo), GFP_ATOMIC);
+	}
 	if (!bo)
 		return;
 
@@ -1420,7 +1428,8 @@ static void request_record_user_bo(struct i915_request *request,
 		bo[count] = i915_error_object_create(request->i915, c->vma);
 		if (!bo[count])
 			break;
-		count++;
+		if (++count == max)
+			break;
 	}
 
 	ee->user_bo = bo;
@@ -1486,7 +1495,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 			if (HAS_BROKEN_CS_TLB(i915))
 				ee->wa_batchbuffer =
 					i915_error_object_create(i915,
-								 engine->scratch);
+								 i915->gt.scratch);
 			request_record_user_bo(request, ee);
 
 			ee->ctx =
@@ -1853,6 +1862,7 @@ void i915_capture_error_state(struct drm_i915_private *i915,
 	error = i915_capture_gpu_state(i915);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
+		i915_disable_error_state(i915, -ENOMEM);
 		return;
 	}
 
@@ -1908,5 +1918,14 @@ void i915_reset_error_state(struct drm_i915_private *i915)
 	i915->gpu_error.first_error = NULL;
 	spin_unlock_irq(&i915->gpu_error.lock);
 
-	i915_gpu_state_put(error);
+	if (!IS_ERR(error))
+		i915_gpu_state_put(error);
+}
+
+void i915_disable_error_state(struct drm_i915_private *i915, int err)
+{
+	spin_lock_irq(&i915->gpu_error.lock);
+	if (!i915->gpu_error.first_error)
+		i915->gpu_error.first_error = ERR_PTR(err);
+	spin_unlock_irq(&i915->gpu_error.lock);
 }

@@ -197,7 +197,8 @@ static inline int ubifs_return_leb(struct ubifs_info *c, int lnum)
  */
 static inline int ubifs_idx_node_sz(const struct ubifs_info *c, int child_cnt)
 {
-	return UBIFS_IDX_NODE_SZ + (UBIFS_BRANCH_SZ + c->key_len) * child_cnt;
+	return UBIFS_IDX_NODE_SZ + (UBIFS_BRANCH_SZ + c->key_len + c->hash_len)
+				   * child_cnt;
 }
 
 /**
@@ -212,7 +213,7 @@ struct ubifs_branch *ubifs_idx_branch(const struct ubifs_info *c,
 				      int bnum)
 {
 	return (struct ubifs_branch *)((void *)idx->branches +
-				       (UBIFS_BRANCH_SZ + c->key_len) * bnum);
+			(UBIFS_BRANCH_SZ + c->key_len + c->hash_len) * bnum);
 }
 
 /**

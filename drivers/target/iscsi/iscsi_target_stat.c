@@ -328,10 +328,10 @@ static ssize_t iscsi_stat_tgt_attr_fail_intr_name_show(struct config_item *item,
 {
 	struct iscsi_tiqn *tiqn = iscsi_tgt_attr_tiqn(item);
 	struct iscsi_login_stats *lstat = &tiqn->login_stats;
-	unsigned char buf[224];
+	unsigned char buf[ISCSI_IQN_LEN];
 
 	spin_lock(&lstat->lock);
-	snprintf(buf, 224, "%s", lstat->last_intr_fail_name[0] ?
+	snprintf(buf, ISCSI_IQN_LEN, "%s", lstat->last_intr_fail_name[0] ?
 				lstat->last_intr_fail_name : NONE);
 	spin_unlock(&lstat->lock);
 

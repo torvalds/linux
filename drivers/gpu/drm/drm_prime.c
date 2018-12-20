@@ -844,7 +844,7 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 	struct drm_prime_handle *args = data;
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->driver->prime_handle_to_fd)
 		return -ENOSYS;
@@ -863,7 +863,7 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 	struct drm_prime_handle *args = data;
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->driver->prime_fd_to_handle)
 		return -ENOSYS;

@@ -681,7 +681,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	exec->fence = &fence->base;
 
 	if (out_sync)
-		drm_syncobj_replace_fence(out_sync, exec->fence);
+		drm_syncobj_replace_fence(out_sync, 0, exec->fence);
 
 	vc4_update_bo_seqnos(exec, seqno);
 
@@ -1173,7 +1173,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	if (args->in_sync) {
 		ret = drm_syncobj_find_fence(file_priv, args->in_sync,
-					     &in_fence);
+					     0, &in_fence);
 		if (ret)
 			goto fail;
 

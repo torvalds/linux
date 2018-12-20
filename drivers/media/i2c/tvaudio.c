@@ -1981,7 +1981,7 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	/* fill required data structures */
 	if (!id)
-		strlcpy(client->name, desc->name, I2C_NAME_SIZE);
+		strscpy(client->name, desc->name, I2C_NAME_SIZE);
 	chip->desc = desc;
 	chip->shadow.count = desc->registers+1;
 	chip->prevmode = -1;

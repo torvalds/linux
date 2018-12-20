@@ -108,6 +108,9 @@ static void setup_inj_struct(struct mce *m)
 	memset(m, 0, sizeof(struct mce));
 
 	m->cpuvendor = boot_cpu_data.x86_vendor;
+	m->time	     = ktime_get_real_seconds();
+	m->cpuid     = cpuid_eax(1);
+	m->microcode = boot_cpu_data.microcode;
 }
 
 /* Update fake mce registers on current CPU. */
@@ -575,6 +578,9 @@ static int inj_bank_set(void *data, u64 val)
 
 	m->bank = val;
 	do_inject();
+
+	/* Reset injection struct */
+	setup_inj_struct(&i_mce);
 
 	return 0;
 }

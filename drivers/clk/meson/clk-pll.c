@@ -11,15 +11,19 @@
  * In the most basic form, a Meson PLL is composed as follows:
  *
  *                     PLL
- *      +------------------------------+
- *      |                              |
- * in -----[ /N ]---[ *M ]---[ >>OD ]----->> out
- *      |         ^        ^           |
- *      +------------------------------+
- *                |        |
- *               FREF     VCO
+ *        +--------------------------------+
+ *        |                                |
+ *        |             +--+               |
+ *  in >>-----[ /N ]--->|  |      +-----+  |
+ *        |             |  |------| DCO |---->> out
+ *        |  +--------->|  |      +--v--+  |
+ *        |  |          +--+         |     |
+ *        |  |                       |     |
+ *        |  +--[ *(M + (F/Fmax) ]<--+     |
+ *        |                                |
+ *        +--------------------------------+
  *
- * out = in * (m + frac / frac_max) / (n << sum(ods))
+ * out = in * (m + frac / frac_max) / n
  */
 
 #include <linux/clk-provider.h>
@@ -41,12 +45,11 @@ meson_clk_pll_data(struct clk_regmap *clk)
 }
 
 static unsigned long __pll_params_to_rate(unsigned long parent_rate,
-					  const struct pll_rate_table *pllt,
+					  const struct pll_params_table *pllt,
 					  u16 frac,
 					  struct meson_clk_pll_data *pll)
 {
 	u64 rate = (u64)parent_rate * pllt->m;
-	unsigned int od = pllt->od + pllt->od2 + pllt->od3;
 
 	if (frac && MESON_PARM_APPLICABLE(&pll->frac)) {
 		u64 frac_rate = (u64)parent_rate * frac;
@@ -55,7 +58,7 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 					 (1 << pll->frac.width));
 	}
 
-	return DIV_ROUND_UP_ULL(rate, pllt->n << od);
+	return DIV_ROUND_UP_ULL(rate, pllt->n);
 }
 
 static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
@@ -63,20 +66,11 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	struct pll_rate_table pllt;
+	struct pll_params_table pllt;
 	u16 frac;
 
 	pllt.n = meson_parm_read(clk->map, &pll->n);
 	pllt.m = meson_parm_read(clk->map, &pll->m);
-	pllt.od = meson_parm_read(clk->map, &pll->od);
-
-	pllt.od2 = MESON_PARM_APPLICABLE(&pll->od2) ?
-		meson_parm_read(clk->map, &pll->od2) :
-		0;
-
-	pllt.od3 = MESON_PARM_APPLICABLE(&pll->od3) ?
-		meson_parm_read(clk->map, &pll->od3) :
-		0;
 
 	frac = MESON_PARM_APPLICABLE(&pll->frac) ?
 		meson_parm_read(clk->map, &pll->frac) :
@@ -87,13 +81,11 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 
 static u16 __pll_params_with_frac(unsigned long rate,
 				  unsigned long parent_rate,
-				  const struct pll_rate_table *pllt,
+				  const struct pll_params_table *pllt,
 				  struct meson_clk_pll_data *pll)
 {
 	u16 frac_max = (1 << pll->frac.width);
 	u64 val = (u64)rate * pllt->n;
-
-	val <<= pllt->od + pllt->od2 + pllt->od3;
 
 	if (pll->flags & CLK_MESON_PLL_ROUND_CLOSEST)
 		val = DIV_ROUND_CLOSEST_ULL(val * frac_max, parent_rate);
@@ -105,29 +97,50 @@ static u16 __pll_params_with_frac(unsigned long rate,
 	return min((u16)val, (u16)(frac_max - 1));
 }
 
-static const struct pll_rate_table *
+static bool meson_clk_pll_is_better(unsigned long rate,
+				    unsigned long best,
+				    unsigned long now,
+				    struct meson_clk_pll_data *pll)
+{
+	if (!(pll->flags & CLK_MESON_PLL_ROUND_CLOSEST) ||
+	    MESON_PARM_APPLICABLE(&pll->frac)) {
+		/* Round down */
+		if (now < rate && best < now)
+			return true;
+	} else {
+		/* Round Closest */
+		if (abs(now - rate) < abs(best - rate))
+			return true;
+	}
+
+	return false;
+}
+
+static const struct pll_params_table *
 meson_clk_get_pll_settings(unsigned long rate,
+			   unsigned long parent_rate,
 			   struct meson_clk_pll_data *pll)
 {
-	const struct pll_rate_table *table = pll->table;
-	unsigned int i = 0;
+	const struct pll_params_table *table = pll->table;
+	unsigned long best = 0, now = 0;
+	unsigned int i, best_i = 0;
 
 	if (!table)
 		return NULL;
 
-	/* Find the first table element exceeding rate */
-	while (table[i].rate && table[i].rate <= rate)
-		i++;
+	for (i = 0; table[i].n; i++) {
+		now = __pll_params_to_rate(parent_rate, &table[i], 0, pll);
 
-	if (i != 0) {
-		if (MESON_PARM_APPLICABLE(&pll->frac) ||
-		    !(pll->flags & CLK_MESON_PLL_ROUND_CLOSEST) ||
-		    (abs(rate - table[i - 1].rate) <
-		     abs(rate - table[i].rate)))
-			i--;
+		/* If we get an exact match, don't bother any further */
+		if (now == rate) {
+			return &table[i];
+		} else if (meson_clk_pll_is_better(rate, best, now, pll)) {
+			best = now;
+			best_i = i;
+		}
 	}
 
-	return (struct pll_rate_table *)&table[i];
+	return (struct pll_params_table *)&table[best_i];
 }
 
 static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -135,16 +148,18 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	const struct pll_rate_table *pllt =
-		meson_clk_get_pll_settings(rate, pll);
+	const struct pll_params_table *pllt =
+		meson_clk_get_pll_settings(rate, *parent_rate, pll);
+	unsigned long round;
 	u16 frac;
 
 	if (!pllt)
 		return meson_clk_pll_recalc_rate(hw, *parent_rate);
 
-	if (!MESON_PARM_APPLICABLE(&pll->frac)
-	    || rate == pllt->rate)
-		return pllt->rate;
+	round = __pll_params_to_rate(*parent_rate, pllt, 0, pll);
+
+	if (!MESON_PARM_APPLICABLE(&pll->frac) || rate == round)
+		return round;
 
 	/*
 	 * The rate provided by the setting is not an exact match, let's
@@ -185,12 +200,45 @@ static void meson_clk_pll_init(struct clk_hw *hw)
 	}
 }
 
+static int meson_clk_pll_enable(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	/* Make sure the pll is in reset */
+	meson_parm_write(clk->map, &pll->rst, 1);
+
+	/* Enable the pll */
+	meson_parm_write(clk->map, &pll->en, 1);
+
+	/* Take the pll out reset */
+	meson_parm_write(clk->map, &pll->rst, 0);
+
+	if (meson_clk_pll_wait_lock(hw))
+		return -EIO;
+
+	return 0;
+}
+
+static void meson_clk_pll_disable(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	/* Put the pll is in reset */
+	meson_parm_write(clk->map, &pll->rst, 1);
+
+	/* Disable the pll */
+	meson_parm_write(clk->map, &pll->en, 0);
+}
+
 static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	const struct pll_rate_table *pllt;
+	const struct pll_params_table *pllt;
+	unsigned int enabled;
 	unsigned long old_rate;
 	u16 frac = 0;
 
@@ -199,32 +247,28 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	old_rate = rate;
 
-	pllt = meson_clk_get_pll_settings(rate, pll);
+	pllt = meson_clk_get_pll_settings(rate, parent_rate, pll);
 	if (!pllt)
 		return -EINVAL;
 
-	/* Put the pll in reset to write the params */
-	meson_parm_write(clk->map, &pll->rst, 1);
+	enabled = meson_parm_read(clk->map, &pll->en);
+	if (enabled)
+		meson_clk_pll_disable(hw);
 
 	meson_parm_write(clk->map, &pll->n, pllt->n);
 	meson_parm_write(clk->map, &pll->m, pllt->m);
-	meson_parm_write(clk->map, &pll->od, pllt->od);
 
-	if (MESON_PARM_APPLICABLE(&pll->od2))
-		meson_parm_write(clk->map, &pll->od2, pllt->od2);
-
-	if (MESON_PARM_APPLICABLE(&pll->od3))
-		meson_parm_write(clk->map, &pll->od3, pllt->od3);
 
 	if (MESON_PARM_APPLICABLE(&pll->frac)) {
 		frac = __pll_params_with_frac(rate, parent_rate, pllt, pll);
 		meson_parm_write(clk->map, &pll->frac, frac);
 	}
 
-	/* make sure the reset is cleared at this point */
-	meson_parm_write(clk->map, &pll->rst, 0);
+	/* If the pll is stopped, bail out now */
+	if (!enabled)
+		return 0;
 
-	if (meson_clk_pll_wait_lock(hw)) {
+	if (meson_clk_pll_enable(hw)) {
 		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
 			__func__, old_rate);
 		/*
@@ -244,6 +288,8 @@ const struct clk_ops meson_clk_pll_ops = {
 	.recalc_rate	= meson_clk_pll_recalc_rate,
 	.round_rate	= meson_clk_pll_round_rate,
 	.set_rate	= meson_clk_pll_set_rate,
+	.enable		= meson_clk_pll_enable,
+	.disable	= meson_clk_pll_disable
 };
 
 const struct clk_ops meson_clk_pll_ro_ops = {

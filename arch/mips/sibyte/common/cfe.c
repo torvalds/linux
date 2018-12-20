@@ -21,7 +21,7 @@
 #include <linux/linkage.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pm.h>
 #include <linux/smp.h>
 

@@ -421,7 +421,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				ret = -EOPNOTSUPP;
 				goto exit;
 			}
-		      memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->KeyMaterial, pwep->KeyLength);
+			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->KeyMaterial, pwep->KeyLength);
 			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->KeyLength;
 			rtw_set_key(padapter, psecuritypriv, wep_key_idx, 0);
 		}
@@ -737,7 +737,7 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, ("\n Mode: %s is not supported\n", iw_operation_mode[wrqu->mode]));
 		goto exit;
 	}
-	if (rtw_set_802_11_infrastructure_mode(padapter, networkType) == false) {
+	if (!rtw_set_802_11_infrastructure_mode(padapter, networkType)) {
 		ret = -EPERM;
 		goto exit;
 	}
@@ -1000,8 +1000,7 @@ static int rtw_wx_set_wap(struct net_device *dev,
 	spin_unlock_bh(&queue->lock);
 
 	rtw_set_802_11_authentication_mode(padapter, authmode);
-	/* set_802_11_encryption_mode(padapter, padapter->securitypriv.ndisencryptstatus); */
-	if (rtw_set_802_11_bssid(padapter, temp->sa_data) == false) {
+	if (!rtw_set_802_11_bssid(padapter, temp->sa_data)) {
 		ret = -1;
 		goto exit;
 	}
@@ -1317,8 +1316,8 @@ static int rtw_wx_set_essid(struct net_device *dev,
 
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_info_, ("rtw_wx_set_essid: ssid =[%s]\n", src_ssid));
 		spin_lock_bh(&queue->lock);
-	       phead = get_list_head(queue);
-	      pmlmepriv->pscanned = phead->next;
+		phead = get_list_head(queue);
+		pmlmepriv->pscanned = phead->next;
 
 		while (phead != pmlmepriv->pscanned) {
 			pnetwork = container_of(pmlmepriv->pscanned, struct wlan_network, list);
@@ -1354,7 +1353,7 @@ static int rtw_wx_set_essid(struct net_device *dev,
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_info_,
 			 ("set ssid: set_802_11_auth. mode =%d\n", authmode));
 		rtw_set_802_11_authentication_mode(padapter, authmode);
-		if (rtw_set_802_11_ssid(padapter, &ndis_ssid) == false) {
+		if (!rtw_set_802_11_ssid(padapter, &ndis_ssid)) {
 			ret = -1;
 			goto exit;
 		}
@@ -1370,7 +1369,7 @@ static int rtw_wx_get_essid(struct net_device *dev,
 			      struct iw_request_info *a,
 			      union iwreq_data *wrqu, char *extra)
 {
-	u32 len, ret = 0;
+	u32 len;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
@@ -1388,7 +1387,7 @@ static int rtw_wx_get_essid(struct net_device *dev,
 	wrqu->essid.length = len;
 	wrqu->essid.flags = 1;
 
-	return ret;
+	return 0;
 }
 
 static int rtw_wx_set_rate(struct net_device *dev,
@@ -1400,7 +1399,7 @@ static int rtw_wx_set_rate(struct net_device *dev,
 	u32	target_rate = wrqu->bitrate.value;
 	u32	fixed = wrqu->bitrate.fixed;
 	u32	ratevalue = 0;
-	 u8 mpdatarate[NumRates] = {11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0xff};
+	u8 mpdatarate[NumRates] = {11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0xff};
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, (" rtw_wx_set_rate\n"));
 	RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_info_, ("target_rate = %d, fixed = %d\n", target_rate, fixed));
@@ -1673,7 +1672,7 @@ static int rtw_wx_set_enc(struct net_device *dev,
 
 	memcpy(wep.KeyMaterial, keybuf, wep.KeyLength);
 
-	if (rtw_set_802_11_add_wep(padapter, &wep) == false) {
+	if (!rtw_set_802_11_add_wep(padapter, &wep)) {
 		if (rf_on == pwrpriv->rf_pwrstate)
 			ret = -EOPNOTSUPP;
 		goto exit;
@@ -2278,7 +2277,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			/* don't update "psecuritypriv->dot11PrivacyAlgrthm" and */
 			/* psecuritypriv->dot11PrivacyKeyIndex = keyid", but can rtw_set_key to cam */
 
-		      memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->KeyMaterial, pwep->KeyLength);
+			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->KeyMaterial, pwep->KeyLength);
 
 			psecuritypriv->dot11DefKeylen[wep_key_idx] = pwep->KeyLength;
 
@@ -2496,7 +2495,7 @@ static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
 			psta->htpriv.ht_option = false;
 		}
 
-		if (pmlmepriv->htpriv.ht_option == false)
+		if (!pmlmepriv->htpriv.ht_option)
 			psta->htpriv.ht_option = false;
 
 		update_sta_info_apmode(padapter, psta);

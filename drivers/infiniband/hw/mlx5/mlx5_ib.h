@@ -39,8 +39,10 @@
 #include <rdma/ib_smi.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cq.h>
+#include <linux/mlx5/fs.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/srq.h>
+#include <linux/mlx5/fs.h>
 #include <linux/types.h>
 #include <linux/mlx5/transobj.h>
 #include <rdma/ib_user_verbs.h>
@@ -48,17 +50,17 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
 
-#define mlx5_ib_dbg(dev, format, arg...)				\
-pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
-	 __LINE__, current->pid, ##arg)
+#define mlx5_ib_dbg(_dev, format, arg...)                                      \
+	dev_dbg(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,      \
+		__LINE__, current->pid, ##arg)
 
-#define mlx5_ib_err(dev, format, arg...)				\
-pr_err("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
-	__LINE__, current->pid, ##arg)
+#define mlx5_ib_err(_dev, format, arg...)                                      \
+	dev_err(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,      \
+		__LINE__, current->pid, ##arg)
 
-#define mlx5_ib_warn(dev, format, arg...)				\
-pr_warn("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
-	__LINE__, current->pid, ##arg)
+#define mlx5_ib_warn(_dev, format, arg...)                                     \
+	dev_warn(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,     \
+		 __LINE__, current->pid, ##arg)
 
 #define field_avail(type, fld, sz) (offsetof(type, fld) +		\
 				    sizeof(((type *)0)->fld) <= (sz))
@@ -114,13 +116,6 @@ enum {
 	MLX5_MEMIC_BASE_SIZE	= 1 << MLX5_MEMIC_BASE_ALIGN,
 };
 
-struct mlx5_ib_vma_private_data {
-	struct list_head list;
-	struct vm_area_struct *vma;
-	/* protect vma_private_list add/del */
-	struct mutex *vma_private_list_mutex;
-};
-
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
@@ -132,13 +127,12 @@ struct mlx5_ib_ucontext {
 	u8			cqe_version;
 	/* Transport Domain number */
 	u32			tdn;
-	struct list_head	vma_private_list;
-	/* protect vma_private_list add/del */
-	struct mutex		vma_private_list_mutex;
 
 	u64			lib_caps;
 	DECLARE_BITMAP(dm_pages, MLX5_MAX_MEMIC_PAGES);
 	u16			devx_uid;
+	/* For RoCE LAG TX affinity */
+	atomic_t		tx_port_affinity;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -149,6 +143,13 @@ static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibuconte
 struct mlx5_ib_pd {
 	struct ib_pd		ibpd;
 	u32			pdn;
+	u16			uid;
+};
+
+enum {
+	MLX5_IB_FLOW_ACTION_MODIFY_HEADER,
+	MLX5_IB_FLOW_ACTION_PACKET_REFORMAT,
+	MLX5_IB_FLOW_ACTION_DECAP,
 };
 
 #define MLX5_IB_FLOW_MCAST_PRIO		(MLX5_BY_PASS_NUM_PRIOS - 1)
@@ -180,6 +181,7 @@ struct mlx5_ib_flow_matcher {
 	struct mlx5_ib_match_params matcher_mask;
 	int			mask_len;
 	enum mlx5_ib_flow_type	flow_type;
+	enum mlx5_flow_namespace_type ns_type;
 	u16			priority;
 	struct mlx5_core_dev	*mdev;
 	atomic_t		usecnt;
@@ -188,6 +190,7 @@ struct mlx5_ib_flow_matcher {
 
 struct mlx5_ib_flow_db {
 	struct mlx5_ib_flow_prio	prios[MLX5_IB_NUM_FLOW_FT];
+	struct mlx5_ib_flow_prio	egress_prios[MLX5_IB_NUM_FLOW_FT];
 	struct mlx5_ib_flow_prio	sniffer[MLX5_IB_NUM_SNIFFER_FTS];
 	struct mlx5_ib_flow_prio	egress[MLX5_IB_NUM_EGRESS_FTS];
 	struct mlx5_flow_table		*lag_demux_ft;
@@ -322,6 +325,7 @@ enum {
 struct mlx5_ib_rwq_ind_table {
 	struct ib_rwq_ind_table ib_rwq_ind_tbl;
 	u32			rqtn;
+	u16			uid;
 };
 
 struct mlx5_ib_ubuffer {
@@ -428,13 +432,14 @@ struct mlx5_ib_qp {
 	struct list_head	cq_send_list;
 	struct mlx5_rate_limit	rl;
 	u32                     underlay_qpn;
-	bool			tunnel_offload_en;
+	u32			flags_en;
 	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
 	enum ib_qp_type		qp_sub_type;
 };
 
 struct mlx5_ib_cq_buf {
 	struct mlx5_frag_buf_ctrl fbc;
+	struct mlx5_frag_buf    frag_buf;
 	struct ib_umem		*umem;
 	int			cqe_size;
 	int			nent;
@@ -535,6 +540,7 @@ struct mlx5_ib_srq {
 struct mlx5_ib_xrcd {
 	struct ib_xrcd		ibxrcd;
 	u32			xrcdn;
+	u16			uid;
 };
 
 enum mlx5_ib_mtt_access_flags {
@@ -699,7 +705,7 @@ struct mlx5_roce {
 	rwlock_t		netdev_lock;
 	struct net_device	*netdev;
 	struct notifier_block	nb;
-	atomic_t		next_port;
+	atomic_t		tx_port_affinity;
 	enum ib_port_state last_port_state;
 	struct mlx5_ib_dev	*dev;
 	u8			native_port_num;
@@ -814,6 +820,11 @@ struct mlx5_ib_flow_action {
 			u64			    ib_flags;
 			struct mlx5_accel_esp_xfrm *ctx;
 		} esp_aes_gcm;
+		struct {
+			struct mlx5_ib_dev *dev;
+			u32 sub_type;
+			u32 action_id;
+		} flow_action_raw;
 	};
 };
 
@@ -858,9 +869,20 @@ to_mcounters(struct ib_counters *ibcntrs)
 	return container_of(ibcntrs, struct mlx5_ib_mcounters, ibcntrs);
 }
 
+int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
+			   bool is_egress,
+			   struct mlx5_flow_act *action);
+struct mlx5_ib_lb_state {
+	/* protect the user_td */
+	struct mutex		mutex;
+	u32			user_td;
+	int			qps;
+	bool			enabled;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
-	const struct uverbs_object_tree_def *driver_trees[6];
+	const struct uverbs_object_tree_def *driver_trees[7];
 	struct mlx5_core_dev		*mdev;
 	struct mlx5_roce		roce[MLX5_MAX_PORTS];
 	int				num_ports;
@@ -899,13 +921,12 @@ struct mlx5_ib_dev {
 	const struct mlx5_ib_profile	*profile;
 	struct mlx5_eswitch_rep		*rep;
 
-	/* protect the user_td */
-	struct mutex		lb_mutex;
-	u32			user_td;
+	struct mlx5_ib_lb_state		lb;
 	u8			umr_fence;
 	struct list_head	ib_dev_list;
 	u64			sys_image_guid;
 	struct mlx5_memic	memic;
+	u16			devx_whitelist_uid;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -1016,6 +1037,8 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr);
 int mlx5_ib_destroy_srq(struct ib_srq *srq);
 int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
+int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
+void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata);
@@ -1105,7 +1128,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			  int page_shift, __be64 *pas, int access_flags);
 void mlx5_ib_copy_pas(u64 *old, u64 *new, int step, int num);
-int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq);
+int mlx5_ib_get_cqe_size(struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 
@@ -1140,7 +1163,7 @@ void mlx5_ib_pfault(struct mlx5_core_dev *mdev, void *context,
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev);
 int __init mlx5_ib_odp_init(void);
 void mlx5_ib_odp_cleanup(void);
-void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
+void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 			      unsigned long end);
 void mlx5_odp_init_mr_cache_entry(struct mlx5_cache_ent *ent);
 void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
@@ -1179,7 +1202,6 @@ void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev);
 void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev);
-int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev);
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 		      const struct mlx5_ib_profile *profile,
 		      int stage);
@@ -1228,22 +1250,20 @@ void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
 				  u8 port_num);
 
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
-int mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
-			struct mlx5_ib_ucontext *context);
-void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
-			  struct mlx5_ib_ucontext *context);
+int mlx5_ib_devx_create(struct mlx5_ib_dev *dev);
+void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid);
 const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void);
 struct mlx5_ib_flow_handler *mlx5_ib_raw_fs_rule_add(
 	struct mlx5_ib_dev *dev, struct mlx5_ib_flow_matcher *fs_matcher,
-	void *cmd_in, int inlen, int dest_id, int dest_type);
+	struct mlx5_flow_act *flow_act, void *cmd_in, int inlen,
+	int dest_id, int dest_type);
 bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type);
 int mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root);
+void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction);
 #else
 static inline int
-mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
-		    struct mlx5_ib_ucontext *context) { return -EOPNOTSUPP; };
-static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
-					struct mlx5_ib_ucontext *context) {}
+mlx5_ib_devx_create(struct mlx5_ib_dev *dev) { return -EOPNOTSUPP; };
+static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid) {}
 static inline const struct uverbs_object_tree_def *
 mlx5_ib_get_devx_tree(void) { return NULL; }
 static inline bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id,
@@ -1256,6 +1276,11 @@ mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root)
 {
 	return 0;
 }
+static inline void
+mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction)
+{
+	return;
+};
 #endif
 static inline void init_query_mad(struct ib_smp *mad)
 {

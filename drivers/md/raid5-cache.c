@@ -3151,8 +3151,6 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	set_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
 	return 0;
 
-	rcu_assign_pointer(conf->log, NULL);
-	md_unregister_thread(&log->reclaim_thread);
 reclaim_thread:
 	mempool_exit(&log->meta_pool);
 out_mempool:

@@ -69,13 +69,11 @@ struct sched_class {
 	u8 idx;
 	struct ch_sched_params info;
 	struct list_head queue_list;
-	spinlock_t lock; /* Per class lock */
 	atomic_t refcnt;
 };
 
 struct sched_table {      /* per port scheduling table */
 	u8 sched_size;
-	rwlock_t rw_lock; /* Table lock */
 	struct sched_class tab[0];
 };
 

@@ -16,6 +16,7 @@
 #define _ASM_RISCV_TLBFLUSH_H
 
 #include <linux/mm_types.h>
+#include <asm/smp.h>
 
 /*
  * Flush entire local TLB.  'sfence.vma' implicitly fences with the instruction
@@ -49,13 +50,22 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 
 #include <asm/sbi.h>
 
+static inline void remote_sfence_vma(struct cpumask *cmask, unsigned long start,
+				     unsigned long size)
+{
+	struct cpumask hmask;
+
+	cpumask_clear(&hmask);
+	riscv_cpuid_to_hartid_mask(cmask, &hmask);
+	sbi_remote_sfence_vma(hmask.bits, start, size);
+}
+
 #define flush_tlb_all() sbi_remote_sfence_vma(NULL, 0, -1)
 #define flush_tlb_page(vma, addr) flush_tlb_range(vma, addr, 0)
 #define flush_tlb_range(vma, start, end) \
-	sbi_remote_sfence_vma(mm_cpumask((vma)->vm_mm)->bits, \
-			      start, (end) - (start))
+	remote_sfence_vma(mm_cpumask((vma)->vm_mm), start, (end) - (start))
 #define flush_tlb_mm(mm) \
-	sbi_remote_sfence_vma(mm_cpumask(mm)->bits, 0, -1)
+	remote_sfence_vma(mm_cpumask(mm), 0, -1)
 
 #endif /* CONFIG_SMP */
 

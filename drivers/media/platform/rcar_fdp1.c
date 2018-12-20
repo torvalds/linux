@@ -1359,8 +1359,8 @@ static void device_frame_end(struct fdp1_dev *fdp1,
 static int fdp1_vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, DRIVER_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, DRIVER_NAME, sizeof(cap->card));
+	strscpy(cap->driver, DRIVER_NAME, sizeof(cap->driver));
+	strscpy(cap->card, DRIVER_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 			"platform:%s", DRIVER_NAME);
 	return 0;
@@ -2339,7 +2339,7 @@ static int fdp1_probe(struct platform_device *pdev)
 	vfd->lock = &fdp1->dev_mutex;
 	vfd->v4l2_dev = &fdp1->v4l2_dev;
 	video_set_drvdata(vfd, fdp1);
-	strlcpy(vfd->name, fdp1_videodev.name, sizeof(vfd->name));
+	strscpy(vfd->name, fdp1_videodev.name, sizeof(vfd->name));
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {

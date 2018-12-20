@@ -88,7 +88,7 @@ u64 cookie_init_timestamp(struct request_sock *req)
 		ts <<= TSBITS;
 		ts |= options;
 	}
-	return (u64)ts * (USEC_PER_SEC / TCP_TS_HZ);
+	return (u64)ts * (NSEC_PER_SEC / TCP_TS_HZ);
 }
 
 

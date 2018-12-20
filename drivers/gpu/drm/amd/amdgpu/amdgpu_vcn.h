@@ -24,9 +24,9 @@
 #ifndef __AMDGPU_VCN_H__
 #define __AMDGPU_VCN_H__
 
-#define AMDGPU_VCN_STACK_SIZE		(200*1024)
-#define AMDGPU_VCN_HEAP_SIZE		(256*1024)
-#define AMDGPU_VCN_SESSION_SIZE		(50*1024)
+#define AMDGPU_VCN_STACK_SIZE		(128*1024)
+#define AMDGPU_VCN_CONTEXT_SIZE	(512*1024)
+
 #define AMDGPU_VCN_FIRMWARE_OFFSET	256
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
 
@@ -56,6 +56,16 @@ enum engine_status_constants {
 	UVD_STATUS__RBC_BUSY = 0x1,
 };
 
+enum internal_dpg_state {
+	VCN_DPG_STATE__UNPAUSE = 0,
+	VCN_DPG_STATE__PAUSE,
+};
+
+struct dpg_pause_state {
+	enum internal_dpg_state fw_based;
+	enum internal_dpg_state jpeg;
+};
+
 struct amdgpu_vcn {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
@@ -69,6 +79,8 @@ struct amdgpu_vcn {
 	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
 	unsigned		num_enc_rings;
+	enum amd_powergating_state cur_state;
+	struct dpg_pause_state pause_state;
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);

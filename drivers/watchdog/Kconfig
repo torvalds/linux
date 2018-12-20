@@ -273,6 +273,17 @@ config ARM_SBSA_WATCHDOG
 	  To compile this driver as module, choose M here: The module
 	  will be called sbsa_gwdt.
 
+config ARMADA_37XX_WATCHDOG
+	tristate "Armada 37xx watchdog"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	select MFD_SYSCON
+	select WATCHDOG_CORE
+	help
+	   Say Y here to include support for the watchdog timer found on
+	   Marvell Armada 37xx SoCs.
+	   To compile this driver as a module, choose M here: the
+	   module will be called armada_37xx_wdt.
+
 config ASM9260_WATCHDOG
 	tristate "Alphascale ASM9260 watchdog"
 	depends on MACH_ASM9260 || COMPILE_TEST
@@ -1621,6 +1632,7 @@ config IMGPDC_WDT
 config LANTIQ_WDT
 	tristate "Lantiq SoC watchdog"
 	depends on LANTIQ
+	select WATCHDOG_CORE
 	help
 	  Hardware driver for the Lantiq SoC Watchdog Timer.
 

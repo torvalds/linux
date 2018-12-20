@@ -44,9 +44,21 @@ ENTRY(_start)
 	amoadd.w a3, a2, (a3)
 	bnez a3, .Lsecondary_start
 
+	/* Clear BSS for flat non-ELF images */
+	la a3, __bss_start
+	la a4, __bss_stop
+	ble a4, a3, clear_bss_done
+clear_bss:
+	REG_S zero, (a3)
+	add a3, a3, RISCV_SZPTR
+	blt a3, a4, clear_bss
+clear_bss_done:
+
 	/* Save hart ID and DTB physical address */
 	mv s0, a0
 	mv s1, a1
+	la a2, boot_cpu_hartid
+	REG_S a0, (a2)
 
 	/* Initialize page tables and relocate to virtual addresses */
 	la sp, init_thread_union + THREAD_SIZE
@@ -55,7 +67,7 @@ ENTRY(_start)
 
 	/* Restore C environment */
 	la tp, init_task
-	sw s0, TASK_TI_CPU(tp)
+	sw zero, TASK_TI_CPU(tp)
 
 	la sp, init_thread_union
 	li a0, ASM_THREAD_SIZE

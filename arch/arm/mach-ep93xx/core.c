@@ -141,6 +141,15 @@ EXPORT_SYMBOL_GPL(ep93xx_chip_revision);
  *************************************************************************/
 static struct resource ep93xx_gpio_resource[] = {
 	DEFINE_RES_MEM(EP93XX_GPIO_PHYS_BASE, 0xcc),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO_AB),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO0MUX),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO1MUX),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO2MUX),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO3MUX),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO4MUX),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO5MUX),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO6MUX),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO7MUX),
 };
 
 static struct platform_device ep93xx_gpio_device = {

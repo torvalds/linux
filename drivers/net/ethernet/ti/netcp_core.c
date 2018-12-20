@@ -225,17 +225,6 @@ static int emac_arch_get_mac_addr(char *x, void __iomem *efuse_mac, u32 swap)
 	return 0;
 }
 
-static const char *netcp_node_name(struct device_node *node)
-{
-	const char *name;
-
-	if (of_property_read_string(node, "label", &name) < 0)
-		name = node->name;
-	if (!name)
-		name = "unknown";
-	return name;
-}
-
 /* Module management routines */
 static int netcp_register_interface(struct netcp_intf *netcp)
 {
@@ -267,8 +256,13 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 	}
 
 	for_each_available_child_of_node(devices, child) {
-		const char *name = netcp_node_name(child);
+		const char *name;
+		char node_name[32];
 
+		if (of_property_read_string(node, "label", &name) < 0) {
+			snprintf(node_name, sizeof(node_name), "%pOFn", child);
+			name = node_name;
+		}
 		if (!strcasecmp(module->name, name))
 			break;
 	}
@@ -2209,8 +2203,8 @@ static int netcp_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(interfaces, child) {
 		ret = netcp_create_interface(netcp_device, child);
 		if (ret) {
-			dev_err(dev, "could not create interface(%s)\n",
-				child->name);
+			dev_err(dev, "could not create interface(%pOFn)\n",
+				child);
 			goto probe_quit_interface;
 		}
 	}

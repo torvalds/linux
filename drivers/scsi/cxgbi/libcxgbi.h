@@ -120,6 +120,9 @@ struct cxgbi_sock {
 	int wr_max_cred;
 	int wr_cred;
 	int wr_una_cred;
+#ifdef CONFIG_CHELSIO_T4_DCB
+	u8 dcb_priority;
+#endif
 	unsigned char hcrc_len;
 	unsigned char dcrc_len;
 

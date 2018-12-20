@@ -309,6 +309,21 @@ static inline u16 get_mm_addr_key(struct mm_struct *mm, unsigned long address)
  */
 #define MMU_PAGE_COUNT	16
 
+/*
+ * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
+ * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
+ * page_to_nid does a page->section->node lookup
+ * Hence only increase for VMEMMAP. Further depending on SPARSEMEM_EXTREME reduce
+ * memory requirements with large number of sections.
+ * 51 bits is the max physical real address on POWER9
+ */
+#if defined(CONFIG_SPARSEMEM_VMEMMAP) && defined(CONFIG_SPARSEMEM_EXTREME) &&	\
+	defined (CONFIG_PPC_64K_PAGES)
+#define MAX_PHYSMEM_BITS        51
+#else
+#define MAX_PHYSMEM_BITS        46
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/mmu.h>
 #else /* CONFIG_PPC_BOOK3S_64 */

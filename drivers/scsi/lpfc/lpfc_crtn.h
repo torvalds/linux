@@ -545,6 +545,13 @@ bool lpfc_find_next_oas_lun(struct lpfc_hba *, struct lpfc_name *,
 int lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox);
 void lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb);
 
+/* RAS Interface */
+void lpfc_sli4_ras_init(struct lpfc_hba *phba);
+void lpfc_sli4_ras_setup(struct lpfc_hba *phba);
+int  lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba, uint32_t fwlog_level,
+			 uint32_t fwlog_enable);
+int lpfc_check_fwlog_support(struct lpfc_hba *phba);
+
 /* NVME interfaces. */
 void lpfc_nvme_unregister_port(struct lpfc_vport *vport,
 			struct lpfc_nodelist *ndlp);

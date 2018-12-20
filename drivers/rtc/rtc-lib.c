@@ -47,7 +47,7 @@ EXPORT_SYMBOL(rtc_year_days);
 
 
 /*
- * rtc_time_to_tm64 - Converts time64_t to rtc_time.
+ * rtc_time64_to_tm - Converts time64_t to rtc_time.
  * Convert seconds since 01-01-1970 00:00:00 to Gregorian date.
  */
 void rtc_time64_to_tm(time64_t time, struct rtc_time *tm)

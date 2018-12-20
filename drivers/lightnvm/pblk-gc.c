@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -16,7 +17,9 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 #include <linux/delay.h>
+
 
 static void pblk_gc_free_gc_rq(struct pblk_gc_rq *gc_rq)
 {
@@ -64,6 +67,8 @@ static void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
 	spin_lock(&line->lock);
 	WARN_ON(line->state != PBLK_LINESTATE_GC);
 	line->state = PBLK_LINESTATE_CLOSED;
+	trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 	move_list = pblk_line_gc_list(pblk, line);
 	spin_unlock(&line->lock);
 
@@ -144,7 +149,7 @@ static __le64 *get_lba_list_from_emeta(struct pblk *pblk,
 	if (!emeta_buf)
 		return NULL;
 
-	ret = pblk_line_read_emeta(pblk, line, emeta_buf);
+	ret = pblk_line_emeta_read(pblk, line, emeta_buf);
 	if (ret) {
 		pblk_err(pblk, "line %d read emeta failed (%d)\n",
 				line->id, ret);
@@ -405,6 +410,8 @@ void pblk_gc_free_full_lines(struct pblk *pblk)
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);
 		line->state = PBLK_LINESTATE_GC;
+		trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 		spin_unlock(&line->lock);
 
 		list_del(&line->list);
@@ -451,6 +458,8 @@ next_gc_group:
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);
 		line->state = PBLK_LINESTATE_GC;
+		trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 		spin_unlock(&line->lock);
 
 		list_del(&line->list);

@@ -3516,7 +3516,7 @@ static int decode_attr_exclcreat_supported(struct xdr_stream *xdr,
 static int decode_attr_filehandle(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_fh *fh)
 {
 	__be32 *p;
-	int len;
+	u32 len;
 
 	if (fh != NULL)
 		memset(fh, 0, sizeof(*fh));

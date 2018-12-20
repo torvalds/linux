@@ -55,6 +55,10 @@ Supported chips:
     Prefix: 'ltm4676'
     Addresses scanned: -
     Datasheet: http://www.linear.com/product/ltm4676
+  * Analog Devices LTM4686
+    Prefix: 'ltm4686'
+    Addresses scanned: -
+    Datasheet: http://www.analog.com/ltm4686
 
 Author: Guenter Roeck <linux@roeck-us.net>
 
@@ -76,6 +80,7 @@ additional components on a single die. The chip is instantiated and reported
 as two separate chips on two different I2C bus addresses.
 LTM4675 is a dual 9A or single 18A μModule regulator
 LTM4676 is a dual 13A or single 26A uModule regulator.
+LTM4686 is a dual 10A or single 20A uModule regulator.
 
 
 Usage Notes

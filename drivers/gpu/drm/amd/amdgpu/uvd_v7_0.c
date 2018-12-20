@@ -280,8 +280,8 @@ err:
  *
  * Close up a stream for HW test or if userspace failed to do so
  */
-int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-				 bool direct, struct dma_fence **fence)
+static int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
+				struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 16;
 	struct amdgpu_job *job;
@@ -317,11 +317,7 @@ int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	if (direct)
-		r = amdgpu_job_submit_direct(job, ring, &f);
-	else
-		r = amdgpu_job_submit(job, &ring->adev->vce.entity,
-				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
@@ -352,7 +348,7 @@ static int uvd_v7_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		goto error;
 	}
 
-	r = uvd_v7_0_enc_get_destroy_msg(ring, 1, true, &fence);
+	r = uvd_v7_0_enc_get_destroy_msg(ring, 1, &fence);
 	if (r) {
 		DRM_ERROR("amdgpu: (%d)failed to get destroy ib (%ld).\n", ring->me, r);
 		goto error;
@@ -441,6 +437,13 @@ static int uvd_v7_0_sw_init(void *handle)
 		adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].fw = adev->uvd.fw;
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
+
+		if (adev->uvd.num_uvd_inst == UVD7_MAX_HW_INSTANCES_VEGA20) {
+			adev->firmware.ucode[AMDGPU_UCODE_ID_UVD1].ucode_id = AMDGPU_UCODE_ID_UVD1;
+			adev->firmware.ucode[AMDGPU_UCODE_ID_UVD1].fw = adev->uvd.fw;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
+		}
 		DRM_INFO("PSP loading UVD firmware\n");
 	}
 
@@ -664,9 +667,14 @@ static void uvd_v7_0_mc_resume(struct amdgpu_device *adev)
 			continue;
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
-				lower_32_bits(adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].mc_addr));
+				i == 0 ?
+				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_lo:
+				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD1].tmr_mc_addr_lo);
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH,
-				upper_32_bits(adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].mc_addr));
+				i == 0 ?
+				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_hi:
+				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD1].tmr_mc_addr_hi);
+			WREG32_SOC15(UVD, i, mmUVD_VCPU_CACHE_OFFSET0, 0);
 			offset = 0;
 		} else {
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
@@ -674,10 +682,10 @@ static void uvd_v7_0_mc_resume(struct amdgpu_device *adev)
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH,
 				upper_32_bits(adev->uvd.inst[i].gpu_addr));
 			offset = size;
+			WREG32_SOC15(UVD, i, mmUVD_VCPU_CACHE_OFFSET0,
+					AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
 		}
 
-		WREG32_SOC15(UVD, i, mmUVD_VCPU_CACHE_OFFSET0,
-					AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
 		WREG32_SOC15(UVD, i, mmUVD_VCPU_CACHE_SIZE0, size);
 
 		WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE1_64BIT_BAR_LOW,
@@ -1264,11 +1272,12 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 					   uint32_t ib_idx)
 {
+	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
 	struct amdgpu_ib *ib = &p->job->ibs[ib_idx];
 	unsigned i;
 
 	/* No patching necessary for the first instance */
-	if (!p->ring->me)
+	if (!ring->me)
 		return 0;
 
 	for (i = 0; i < ib->length_dw; i += 2) {

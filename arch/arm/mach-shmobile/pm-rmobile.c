@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * rmobile power management support
  *
@@ -7,10 +8,6 @@
  *
  * based on pm-sh7372.c
  *  Copyright (C) 2011 Magnus Damm
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/clk/renesas.h>
 #include <linux/console.h>
@@ -189,7 +186,7 @@ static void __init add_special_pd(struct device_node *np, enum pd_types type)
 		return;
 	}
 
-	pr_debug("Special PM domain %s type %d for %pOF\n", pd->name, type, np);
+	pr_debug("Special PM domain %pOFn type %d for %pOF\n", pd, type, np);
 
 	special_pds[num_special_pds].pd = pd;
 	special_pds[num_special_pds].type = type;
@@ -202,7 +199,7 @@ static void __init get_special_pds(void)
 	const struct of_device_id *id;
 
 	/* PM domains containing CPUs */
-	for_each_node_by_type(np, "cpu")
+	for_each_of_cpu_node(np)
 		add_special_pd(np, PD_CPU);
 
 	/* PM domain containing console */

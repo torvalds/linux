@@ -689,8 +689,7 @@ static int dax_open(struct inode *inode, struct file *f)
 alloc_error:
 	kfree(ctx->ccb_buf);
 done:
-	if (ctx != NULL)
-		kfree(ctx);
+	kfree(ctx);
 	return -ENOMEM;
 }
 

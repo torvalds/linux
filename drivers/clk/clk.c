@@ -924,6 +924,101 @@ static int clk_core_enable_lock(struct clk_core *core)
 }
 
 /**
+ * clk_gate_restore_context - restore context for poweroff
+ * @hw: the clk_hw pointer of clock whose state is to be restored
+ *
+ * The clock gate restore context function enables or disables
+ * the gate clocks based on the enable_count. This is done in cases
+ * where the clock context is lost and based on the enable_count
+ * the clock either needs to be enabled/disabled. This
+ * helps restore the state of gate clocks.
+ */
+void clk_gate_restore_context(struct clk_hw *hw)
+{
+	struct clk_core *core = hw->core;
+
+	if (core->enable_count)
+		core->ops->enable(hw);
+	else
+		core->ops->disable(hw);
+}
+EXPORT_SYMBOL_GPL(clk_gate_restore_context);
+
+static int clk_core_save_context(struct clk_core *core)
+{
+	struct clk_core *child;
+	int ret = 0;
+
+	hlist_for_each_entry(child, &core->children, child_node) {
+		ret = clk_core_save_context(child);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (core->ops && core->ops->save_context)
+		ret = core->ops->save_context(core->hw);
+
+	return ret;
+}
+
+static void clk_core_restore_context(struct clk_core *core)
+{
+	struct clk_core *child;
+
+	if (core->ops && core->ops->restore_context)
+		core->ops->restore_context(core->hw);
+
+	hlist_for_each_entry(child, &core->children, child_node)
+		clk_core_restore_context(child);
+}
+
+/**
+ * clk_save_context - save clock context for poweroff
+ *
+ * Saves the context of the clock register for powerstates in which the
+ * contents of the registers will be lost. Occurs deep within the suspend
+ * code.  Returns 0 on success.
+ */
+int clk_save_context(void)
+{
+	struct clk_core *clk;
+	int ret;
+
+	hlist_for_each_entry(clk, &clk_root_list, child_node) {
+		ret = clk_core_save_context(clk);
+		if (ret < 0)
+			return ret;
+	}
+
+	hlist_for_each_entry(clk, &clk_orphan_list, child_node) {
+		ret = clk_core_save_context(clk);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(clk_save_context);
+
+/**
+ * clk_restore_context - restore clock context after poweroff
+ *
+ * Restore the saved clock context upon resume.
+ *
+ */
+void clk_restore_context(void)
+{
+	struct clk_core *core;
+
+	hlist_for_each_entry(core, &clk_root_list, child_node)
+		clk_core_restore_context(core);
+
+	hlist_for_each_entry(core, &clk_orphan_list, child_node)
+		clk_core_restore_context(core);
+}
+EXPORT_SYMBOL_GPL(clk_restore_context);
+
+/**
  * clk_enable - ungate a clock
  * @clk: the clk being ungated
  *

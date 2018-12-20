@@ -32,7 +32,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/errno.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/pat.h>
 #include <asm/e820/api.h>

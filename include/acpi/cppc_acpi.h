@@ -104,6 +104,7 @@ enum cppc_regs {
  * today.
  */
 struct cppc_perf_caps {
+	u32 guaranteed_perf;
 	u32 highest_perf;
 	u32 nominal_perf;
 	u32 lowest_perf;

@@ -405,10 +405,18 @@ struct subprocess_info *call_usermodehelper_setup_file(struct file *file,
 		void (*cleanup)(struct subprocess_info *info), void *data)
 {
 	struct subprocess_info *sub_info;
+	struct umh_info *info = data;
+	const char *cmdline = (info->cmdline) ? info->cmdline : "usermodehelper";
 
 	sub_info = kzalloc(sizeof(struct subprocess_info), GFP_KERNEL);
 	if (!sub_info)
 		return NULL;
+
+	sub_info->argv = argv_split(GFP_KERNEL, cmdline, NULL);
+	if (!sub_info->argv) {
+		kfree(sub_info);
+		return NULL;
+	}
 
 	INIT_WORK(&sub_info->work, call_usermodehelper_exec_work);
 	sub_info->path = "none";
@@ -458,10 +466,11 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 	return 0;
 }
 
-static void umh_save_pid(struct subprocess_info *info)
+static void umh_clean_and_save_pid(struct subprocess_info *info)
 {
 	struct umh_info *umh_info = info->data;
 
+	argv_free(info->argv);
 	umh_info->pid = info->pid;
 }
 
@@ -470,6 +479,9 @@ static void umh_save_pid(struct subprocess_info *info)
  * @data: a blob of bytes that can be do_execv-ed as a file
  * @len: length of the blob
  * @info: information about usermode process (shouldn't be NULL)
+ *
+ * If info->cmdline is set it will be used as command line for the
+ * user process, else "usermodehelper" is used.
  *
  * Returns either negative error or zero which indicates success
  * in executing a blob of bytes as a usermode process. In such
@@ -500,7 +512,7 @@ int fork_usermode_blob(void *data, size_t len, struct umh_info *info)
 
 	err = -ENOMEM;
 	sub_info = call_usermodehelper_setup_file(file, umh_pipe_setup,
-						  umh_save_pid, info);
+						  umh_clean_and_save_pid, info);
 	if (!sub_info)
 		goto out;
 

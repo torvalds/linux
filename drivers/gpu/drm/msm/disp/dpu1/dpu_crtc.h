@@ -83,14 +83,14 @@ struct dpu_crtc_smmu_state_data {
 /**
  * struct dpu_crtc_mixer: stores the map for each virtual pipeline in the CRTC
  * @hw_lm:	LM HW Driver context
- * @hw_ctl:	CTL Path HW driver context
+ * @lm_ctl:	CTL Path HW driver context
  * @encoder:	Encoder attached to this lm & ctl
  * @mixer_op_mode:	mixer blending operation mode
  * @flush_mask:	mixer flush mask for ctl, mixer and pipe
  */
 struct dpu_crtc_mixer {
 	struct dpu_hw_mixer *hw_lm;
-	struct dpu_hw_ctl *hw_ctl;
+	struct dpu_hw_ctl *lm_ctl;
 	struct drm_encoder *encoder;
 	u32 mixer_op_mode;
 	u32 flush_mask;
@@ -121,11 +121,6 @@ struct dpu_crtc_frame_event {
  * struct dpu_crtc - virtualized CRTC data structure
  * @base          : Base drm crtc structure
  * @name          : ASCII description of this crtc
- * @num_ctls      : Number of ctl paths in use
- * @num_mixers    : Number of mixers in use
- * @mixers_swapped: Whether the mixers have been swapped for left/right update
- *                  especially in the case of DSC Merge.
- * @mixers        : List of active mixers
  * @event         : Pointer to last received drm vblank event. If there is a
  *                  pending vblank event, this will be non-null.
  * @vsync_count   : Running count of received vsync events
@@ -156,26 +151,13 @@ struct dpu_crtc_frame_event {
  * @event_thread  : Pointer to event handler thread
  * @event_worker  : Event worker queue
  * @event_lock    : Spinlock around event handling code
- * @misr_enable   : boolean entry indicates misr enable/disable status.
- * @misr_frame_count  : misr frame count provided by client
- * @misr_data     : store misr data before turning off the clocks.
  * @phandle: Pointer to power handler
  * @power_event   : registered power event handle
  * @cur_perf      : current performance committed to clock/bandwidth driver
- * @rp_lock       : serialization lock for resource pool
- * @rp_head       : list of active resource pool
- * @scl3_cfg_lut  : qseed3 lut config
  */
 struct dpu_crtc {
 	struct drm_crtc base;
 	char name[DPU_CRTC_NAME_SIZE];
-
-	/* HW Resources reserved for the crtc */
-	u32 num_ctls;
-	u32 num_mixers;
-	bool mixers_swapped;
-	struct dpu_crtc_mixer mixers[CRTC_DUAL_MIXERS];
-	struct dpu_hw_scaler3_lut_cfg *scl3_lut_cfg;
 
 	struct drm_pending_vblank_event *event;
 	u32 vsync_count;
@@ -206,17 +188,11 @@ struct dpu_crtc {
 
 	/* for handling internal event thread */
 	spinlock_t event_lock;
-	bool misr_enable;
-	u32 misr_frame_count;
-	u32 misr_data[CRTC_DUAL_MIXERS];
 
 	struct dpu_power_handle *phandle;
 	struct dpu_power_event *power_event;
 
 	struct dpu_core_perf_params cur_perf;
-
-	struct mutex rp_lock;
-	struct list_head rp_head;
 
 	struct dpu_crtc_smmu_state_data smmu_state;
 };
@@ -224,59 +200,8 @@ struct dpu_crtc {
 #define to_dpu_crtc(x) container_of(x, struct dpu_crtc, base)
 
 /**
- * struct dpu_crtc_res_ops - common operations for crtc resources
- * @get: get given resource
- * @put: put given resource
- */
-struct dpu_crtc_res_ops {
-	void *(*get)(void *val, u32 type, u64 tag);
-	void (*put)(void *val);
-};
-
-#define DPU_CRTC_RES_FLAG_FREE		BIT(0)
-
-/**
- * struct dpu_crtc_res - definition of crtc resources
- * @list: list of crtc resource
- * @type: crtc resource type
- * @tag: unique identifier per type
- * @refcount: reference/usage count
- * @ops: callback operations
- * @val: resource handle associated with type/tag
- * @flags: customization flags
- */
-struct dpu_crtc_res {
-	struct list_head list;
-	u32 type;
-	u64 tag;
-	atomic_t refcount;
-	struct dpu_crtc_res_ops ops;
-	void *val;
-	u32 flags;
-};
-
-/**
- * dpu_crtc_respool - crtc resource pool
- * @rp_lock: pointer to serialization lock
- * @rp_head: pointer to head of active resource pools of this crtc
- * @rp_list: list of crtc resource pool
- * @sequence_id: sequence identifier, incremented per state duplication
- * @res_list: list of resource managed by this resource pool
- * @ops: resource operations for parent resource pool
- */
-struct dpu_crtc_respool {
-	struct mutex *rp_lock;
-	struct list_head *rp_head;
-	struct list_head rp_list;
-	u32 sequence_id;
-	struct list_head res_list;
-	struct dpu_crtc_res_ops ops;
-};
-
-/**
  * struct dpu_crtc_state - dpu container for atomic crtc state
  * @base: Base drm crtc state structure
- * @is_ppsplit    : Whether current topology requires PPSplit special handling
  * @bw_control    : true if bw/clk controlled by core bw/clk properties
  * @bw_split_vote : true if bw controlled by llcc/dram bw properties
  * @lm_bounds     : LM boundaries based on current mode full resolution, no ROI.
@@ -285,41 +210,41 @@ struct dpu_crtc_respool {
  * @property_values: Current crtc property values
  * @input_fence_timeout_ns : Cached input fence timeout, in ns
  * @new_perf: new performance state being requested
+ * @num_mixers    : Number of mixers in use
+ * @mixers        : List of active mixers
+ * @num_ctls      : Number of ctl paths in use
+ * @hw_ctls       : List of active ctl paths
  */
 struct dpu_crtc_state {
 	struct drm_crtc_state base;
 
 	bool bw_control;
 	bool bw_split_vote;
-
-	bool is_ppsplit;
 	struct drm_rect lm_bounds[CRTC_DUAL_MIXERS];
 
 	uint64_t input_fence_timeout_ns;
 
 	struct dpu_core_perf_params new_perf;
-	struct dpu_crtc_respool rp;
+
+	/* HW Resources reserved for the crtc */
+	u32 num_mixers;
+	struct dpu_crtc_mixer mixers[CRTC_DUAL_MIXERS];
+
+	u32 num_ctls;
+	struct dpu_hw_ctl *hw_ctls[CRTC_DUAL_MIXERS];
 };
 
 #define to_dpu_crtc_state(x) \
 	container_of(x, struct dpu_crtc_state, base)
 
 /**
- * dpu_crtc_get_mixer_width - get the mixer width
- * Mixer width will be same as panel width(/2 for split)
+ * dpu_crtc_state_is_stereo - Is crtc virtualized with two mixers?
+ * @cstate: Pointer to dpu crtc state
+ * @Return: true - has two mixers, false - has one mixer
  */
-static inline int dpu_crtc_get_mixer_width(struct dpu_crtc *dpu_crtc,
-	struct dpu_crtc_state *cstate, struct drm_display_mode *mode)
+static inline bool dpu_crtc_state_is_stereo(struct dpu_crtc_state *cstate)
 {
-	u32 mixer_width;
-
-	if (!dpu_crtc || !cstate || !mode)
-		return 0;
-
-	mixer_width = (dpu_crtc->num_mixers == CRTC_DUAL_MIXERS ?
-			mode->hdisplay / CRTC_DUAL_MIXERS : mode->hdisplay);
-
-	return mixer_width;
+	return cstate->num_mixers == CRTC_DUAL_MIXERS;
 }
 
 /**
@@ -375,9 +300,11 @@ void dpu_crtc_complete_commit(struct drm_crtc *crtc,
  * dpu_crtc_init - create a new crtc object
  * @dev: dpu device
  * @plane: base plane
+ * @cursor: cursor plane
  * @Return: new crtc object or error
  */
-struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane);
+struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
+			       struct drm_plane *cursor);
 
 /**
  * dpu_crtc_register_custom_event - api for enabling/disabling crtc event

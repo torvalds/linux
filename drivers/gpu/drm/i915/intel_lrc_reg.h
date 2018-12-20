@@ -37,7 +37,7 @@
 #define CTX_PDP0_LDW			0x32
 #define CTX_LRI_HEADER_2		0x41
 #define CTX_R_PWR_CLK_STATE		0x42
-#define CTX_GPGPU_CSR_BASE_ADDRESS	0x44
+#define CTX_END				0x44
 
 #define CTX_REG(reg_state, pos, reg, val) do { \
 	u32 *reg_state__ = (reg_state); \

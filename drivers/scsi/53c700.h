@@ -90,7 +90,7 @@ struct NCR_700_Device_Parameters {
 /* The SYNC negotiation sequence looks like:
  * 
  * If DEV_NEGOTIATED_SYNC not set, tack and SDTR message on to the
- * initial identify for the device and set DEV_BEGIN_SYNC_NEGOTATION
+ * initial identify for the device and set DEV_BEGIN_SYNC_NEGOTIATION
  * If we get an SDTR reply, work out the SXFER parameters, squirrel
  * them away here, clear DEV_BEGIN_SYNC_NEGOTIATION and set
  * DEV_NEGOTIATED_SYNC.  If we get a REJECT msg, squirrel

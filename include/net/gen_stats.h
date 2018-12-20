@@ -44,6 +44,10 @@ void __gnet_stats_copy_basic(const seqcount_t *running,
 			     struct gnet_stats_basic_packed *bstats,
 			     struct gnet_stats_basic_cpu __percpu *cpu,
 			     struct gnet_stats_basic_packed *b);
+int gnet_stats_copy_basic_hw(const seqcount_t *running,
+			     struct gnet_dump *d,
+			     struct gnet_stats_basic_cpu __percpu *cpu,
+			     struct gnet_stats_basic_packed *b);
 int gnet_stats_copy_rate_est(struct gnet_dump *d,
 			     struct net_rate_estimator __rcu **ptr);
 int gnet_stats_copy_queue(struct gnet_dump *d,

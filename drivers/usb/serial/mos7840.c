@@ -1931,27 +1931,20 @@ static int mos7840_get_lsr_info(struct tty_struct *tty,
  *      function to get information about serial port
  *****************************************************************************/
 
-static int mos7840_get_serial_info(struct moschip_port *mos7840_port,
-				   struct serial_struct __user *retinfo)
+static int mos7840_get_serial_info(struct tty_struct *tty,
+				   struct serial_struct *ss)
 {
-	struct serial_struct tmp;
+	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7840_port = mos7840_get_port_private(port);
 
-	if (mos7840_port == NULL)
-		return -1;
-
-	memset(&tmp, 0, sizeof(tmp));
-
-	tmp.type = PORT_16550A;
-	tmp.line = mos7840_port->port->minor;
-	tmp.port = mos7840_port->port->port_number;
-	tmp.irq = 0;
-	tmp.xmit_fifo_size = NUM_URBS * URB_TRANSFER_BUFFER_SIZE;
-	tmp.baud_base = 9600;
-	tmp.close_delay = 5 * HZ;
-	tmp.closing_wait = 30 * HZ;
-
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
+	ss->type = PORT_16550A;
+	ss->line = mos7840_port->port->minor;
+	ss->port = mos7840_port->port->port_number;
+	ss->irq = 0;
+	ss->xmit_fifo_size = NUM_URBS * URB_TRANSFER_BUFFER_SIZE;
+	ss->baud_base = 9600;
+	ss->close_delay = 5 * HZ;
+	ss->closing_wait = 30 * HZ;
 	return 0;
 }
 
@@ -1982,13 +1975,6 @@ static int mos7840_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s TIOCSERGETLSR\n", __func__);
 		return mos7840_get_lsr_info(tty, argp);
 
-	case TIOCGSERIAL:
-		dev_dbg(&port->dev, "%s TIOCGSERIAL\n", __func__);
-		return mos7840_get_serial_info(mos7840_port, argp);
-
-	case TIOCSSERIAL:
-		dev_dbg(&port->dev, "%s TIOCSSERIAL\n", __func__);
-		break;
 	default:
 		break;
 	}
@@ -2376,6 +2362,7 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.calc_num_ports = mos7840_calc_num_ports,
 	.probe = mos7840_probe,
 	.ioctl = mos7840_ioctl,
+	.get_serial = mos7840_get_serial_info,
 	.set_termios = mos7840_set_termios,
 	.break_ctl = mos7840_break,
 	.tiocmget = mos7840_tiocmget,

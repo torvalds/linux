@@ -20,7 +20,7 @@ typedef union {
 } pte_t;
 #endif	/* !__ASSEMBLY__ */
 
-#ifdef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT_XXL
 #define SHARED_KERNEL_PMD	((!static_cpu_has(X86_FEATURE_PTI) &&	\
 				 (pv_info.shared_kernel_pmd)))
 #else

@@ -397,7 +397,7 @@ struct t4_srq_pending_wr {
 struct t4_srq {
 	union t4_recv_wr *queue;
 	dma_addr_t dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_swrqe *sw_rq;
 	void __iomem *bar2_va;
 	u64 bar2_pa;

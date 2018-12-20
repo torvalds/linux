@@ -156,7 +156,7 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 
 	v4l2_subdev_init(&priv->subdev, &platform_subdev_ops);
 	v4l2_set_subdevdata(&priv->subdev, p);
-	strlcpy(priv->subdev.name, dev_name(&pdev->dev),
+	strscpy(priv->subdev.name, dev_name(&pdev->dev),
 		sizeof(priv->subdev.name));
 
 	return v4l2_device_register_subdev(&ici->v4l2_dev, &priv->subdev);

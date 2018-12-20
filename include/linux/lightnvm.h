@@ -86,8 +86,8 @@ struct nvm_chk_meta;
 typedef int (nvm_id_fn)(struct nvm_dev *);
 typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, u8 *);
 typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct ppa_addr *, int, int);
-typedef int (nvm_get_chk_meta_fn)(struct nvm_dev *, struct nvm_chk_meta *,
-								sector_t, int);
+typedef int (nvm_get_chk_meta_fn)(struct nvm_dev *, sector_t, int,
+							struct nvm_chk_meta *);
 typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvm_submit_io_sync_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *);
@@ -305,6 +305,8 @@ struct nvm_rq {
 	u64 ppa_status; /* ppa media status */
 	int error;
 
+	int is_seq; /* Sequential hint flag. 1.2 only */
+
 	void *private;
 };
 
@@ -316,6 +318,11 @@ static inline struct nvm_rq *nvm_rq_from_pdu(void *pdu)
 static inline void *nvm_rq_to_pdu(struct nvm_rq *rqdata)
 {
 	return rqdata + 1;
+}
+
+static inline struct ppa_addr *nvm_rq_to_ppa_list(struct nvm_rq *rqd)
+{
+	return (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
 }
 
 enum {
@@ -485,6 +492,144 @@ static inline struct ppa_addr dev_to_generic_addr(struct nvm_dev *dev,
 	return l;
 }
 
+static inline u64 dev_to_chunk_addr(struct nvm_dev *dev, void *addrf,
+				    struct ppa_addr p)
+{
+	struct nvm_geo *geo = &dev->geo;
+	u64 caddr;
+
+	if (geo->version == NVM_OCSSD_SPEC_12) {
+		struct nvm_addrf_12 *ppaf = (struct nvm_addrf_12 *)addrf;
+
+		caddr = (u64)p.g.pg << ppaf->pg_offset;
+		caddr |= (u64)p.g.pl << ppaf->pln_offset;
+		caddr |= (u64)p.g.sec << ppaf->sec_offset;
+	} else {
+		caddr = p.m.sec;
+	}
+
+	return caddr;
+}
+
+static inline struct ppa_addr nvm_ppa32_to_ppa64(struct nvm_dev *dev,
+						 void *addrf, u32 ppa32)
+{
+	struct ppa_addr ppa64;
+
+	ppa64.ppa = 0;
+
+	if (ppa32 == -1) {
+		ppa64.ppa = ADDR_EMPTY;
+	} else if (ppa32 & (1U << 31)) {
+		ppa64.c.line = ppa32 & ((~0U) >> 1);
+		ppa64.c.is_cached = 1;
+	} else {
+		struct nvm_geo *geo = &dev->geo;
+
+		if (geo->version == NVM_OCSSD_SPEC_12) {
+			struct nvm_addrf_12 *ppaf = addrf;
+
+			ppa64.g.ch = (ppa32 & ppaf->ch_mask) >>
+							ppaf->ch_offset;
+			ppa64.g.lun = (ppa32 & ppaf->lun_mask) >>
+							ppaf->lun_offset;
+			ppa64.g.blk = (ppa32 & ppaf->blk_mask) >>
+							ppaf->blk_offset;
+			ppa64.g.pg = (ppa32 & ppaf->pg_mask) >>
+							ppaf->pg_offset;
+			ppa64.g.pl = (ppa32 & ppaf->pln_mask) >>
+							ppaf->pln_offset;
+			ppa64.g.sec = (ppa32 & ppaf->sec_mask) >>
+							ppaf->sec_offset;
+		} else {
+			struct nvm_addrf *lbaf = addrf;
+
+			ppa64.m.grp = (ppa32 & lbaf->ch_mask) >>
+							lbaf->ch_offset;
+			ppa64.m.pu = (ppa32 & lbaf->lun_mask) >>
+							lbaf->lun_offset;
+			ppa64.m.chk = (ppa32 & lbaf->chk_mask) >>
+							lbaf->chk_offset;
+			ppa64.m.sec = (ppa32 & lbaf->sec_mask) >>
+							lbaf->sec_offset;
+		}
+	}
+
+	return ppa64;
+}
+
+static inline u32 nvm_ppa64_to_ppa32(struct nvm_dev *dev,
+				     void *addrf, struct ppa_addr ppa64)
+{
+	u32 ppa32 = 0;
+
+	if (ppa64.ppa == ADDR_EMPTY) {
+		ppa32 = ~0U;
+	} else if (ppa64.c.is_cached) {
+		ppa32 |= ppa64.c.line;
+		ppa32 |= 1U << 31;
+	} else {
+		struct nvm_geo *geo = &dev->geo;
+
+		if (geo->version == NVM_OCSSD_SPEC_12) {
+			struct nvm_addrf_12 *ppaf = addrf;
+
+			ppa32 |= ppa64.g.ch << ppaf->ch_offset;
+			ppa32 |= ppa64.g.lun << ppaf->lun_offset;
+			ppa32 |= ppa64.g.blk << ppaf->blk_offset;
+			ppa32 |= ppa64.g.pg << ppaf->pg_offset;
+			ppa32 |= ppa64.g.pl << ppaf->pln_offset;
+			ppa32 |= ppa64.g.sec << ppaf->sec_offset;
+		} else {
+			struct nvm_addrf *lbaf = addrf;
+
+			ppa32 |= ppa64.m.grp << lbaf->ch_offset;
+			ppa32 |= ppa64.m.pu << lbaf->lun_offset;
+			ppa32 |= ppa64.m.chk << lbaf->chk_offset;
+			ppa32 |= ppa64.m.sec << lbaf->sec_offset;
+		}
+	}
+
+	return ppa32;
+}
+
+static inline int nvm_next_ppa_in_chk(struct nvm_tgt_dev *dev,
+				      struct ppa_addr *ppa)
+{
+	struct nvm_geo *geo = &dev->geo;
+	int last = 0;
+
+	if (geo->version == NVM_OCSSD_SPEC_12) {
+		int sec = ppa->g.sec;
+
+		sec++;
+		if (sec == geo->ws_min) {
+			int pg = ppa->g.pg;
+
+			sec = 0;
+			pg++;
+			if (pg == geo->num_pg) {
+				int pl = ppa->g.pl;
+
+				pg = 0;
+				pl++;
+				if (pl == geo->num_pln)
+					last = 1;
+
+				ppa->g.pl = pl;
+			}
+			ppa->g.pg = pg;
+		}
+		ppa->g.sec = sec;
+	} else {
+		ppa->m.sec++;
+		if (ppa->m.sec == geo->clba)
+			last = 1;
+	}
+
+	return last;
+}
+
 typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
 typedef sector_t (nvm_tgt_capacity_fn)(void *);
 typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *,
@@ -493,9 +638,15 @@ typedef void (nvm_tgt_exit_fn)(void *, bool);
 typedef int (nvm_tgt_sysfs_init_fn)(struct gendisk *);
 typedef void (nvm_tgt_sysfs_exit_fn)(struct gendisk *);
 
+enum {
+	NVM_TGT_F_DEV_L2P = 0,
+	NVM_TGT_F_HOST_L2P = 1 << 0,
+};
+
 struct nvm_tgt_type {
 	const char *name;
 	unsigned int version[3];
+	int flags;
 
 	/* target entry points */
 	nvm_tgt_make_rq_fn *make_rq;
@@ -524,18 +675,13 @@ extern struct nvm_dev *nvm_alloc_dev(int);
 extern int nvm_register(struct nvm_dev *);
 extern void nvm_unregister(struct nvm_dev *);
 
-
-extern int nvm_get_chunk_meta(struct nvm_tgt_dev *tgt_dev,
-			      struct nvm_chk_meta *meta, struct ppa_addr ppa,
-			      int nchks);
-
-extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
+extern int nvm_get_chunk_meta(struct nvm_tgt_dev *, struct ppa_addr,
+			      int, struct nvm_chk_meta *);
+extern int nvm_set_chunk_meta(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_submit_io_sync(struct nvm_tgt_dev *, struct nvm_rq *);
 extern void nvm_end_io(struct nvm_rq *);
-extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
-extern int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr, u8 *);
 
 #else /* CONFIG_NVM */
 struct nvm_dev_ops;

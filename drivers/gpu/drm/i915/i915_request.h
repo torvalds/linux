@@ -101,6 +101,14 @@ struct i915_request {
 	struct intel_signal_node signaling;
 
 	/*
+	 * The rcu epoch of when this request was allocated. Used to judiciously
+	 * apply backpressure on future allocations to ensure that under
+	 * mempressure there is sufficient RCU ticks for us to reclaim our
+	 * RCU protected slabs.
+	 */
+	unsigned long rcustate;
+
+	/*
 	 * Fences for the various phases in the request's lifetime.
 	 *
 	 * The submit fence is used to await upon all of the request's
@@ -272,7 +280,10 @@ long i915_request_wait(struct i915_request *rq,
 #define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
 #define I915_WAIT_FOR_IDLE_BOOST BIT(3)
 
-static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
+static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
+					    u32 seqno);
+static inline bool intel_engine_has_completed(struct intel_engine_cs *engine,
+					      u32 seqno);
 
 /**
  * Returns true if seq1 is later than seq2.
@@ -282,11 +293,31 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 	return (s32)(seq1 - seq2) >= 0;
 }
 
+/**
+ * i915_request_started - check if the request has begun being executed
+ * @rq: the request
+ *
+ * Returns true if the request has been submitted to hardware, and the hardware
+ * has advanced passed the end of the previous request and so should be either
+ * currently processing the request (though it may be preempted and so
+ * not necessarily the next request to complete) or have completed the request.
+ */
+static inline bool i915_request_started(const struct i915_request *rq)
+{
+	u32 seqno;
+
+	seqno = i915_request_global_seqno(rq);
+	if (!seqno) /* not yet submitted to HW */
+		return false;
+
+	return intel_engine_has_started(rq->engine, seqno);
+}
+
 static inline bool
 __i915_request_completed(const struct i915_request *rq, u32 seqno)
 {
 	GEM_BUG_ON(!seqno);
-	return i915_seqno_passed(intel_engine_get_seqno(rq->engine), seqno) &&
+	return intel_engine_has_completed(rq->engine, seqno) &&
 		seqno == i915_request_global_seqno(rq);
 }
 
@@ -299,18 +330,6 @@ static inline bool i915_request_completed(const struct i915_request *rq)
 		return false;
 
 	return __i915_request_completed(rq, seqno);
-}
-
-static inline bool i915_request_started(const struct i915_request *rq)
-{
-	u32 seqno;
-
-	seqno = i915_request_global_seqno(rq);
-	if (!seqno)
-		return false;
-
-	return i915_seqno_passed(intel_engine_get_seqno(rq->engine),
-				 seqno - 1);
 }
 
 static inline bool i915_sched_node_signaled(const struct i915_sched_node *node)

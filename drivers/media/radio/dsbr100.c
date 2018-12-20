@@ -174,8 +174,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct dsbr100_device *radio = video_drvdata(file);
 
-	strlcpy(v->driver, "dsbr100", sizeof(v->driver));
-	strlcpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
+	strscpy(v->driver, "dsbr100", sizeof(v->driver));
+	strscpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
 	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -191,7 +191,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	dsbr100_getstat(radio);
-	strcpy(v->name, "FM");
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
@@ -379,7 +379,8 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 		goto err_reg_ctrl;
 	}
 	mutex_init(&radio->v4l2_lock);
-	strlcpy(radio->videodev.name, v4l2_dev->name, sizeof(radio->videodev.name));
+	strscpy(radio->videodev.name, v4l2_dev->name,
+		sizeof(radio->videodev.name));
 	radio->videodev.v4l2_dev = v4l2_dev;
 	radio->videodev.fops = &usb_dsbr100_fops;
 	radio->videodev.ioctl_ops = &usb_dsbr100_ioctl_ops;

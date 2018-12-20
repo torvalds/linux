@@ -39,7 +39,7 @@ void br_recalculate_neigh_suppress_enabled(struct net_bridge *br)
 		}
 	}
 
-	br->neigh_suppress_enabled = neigh_suppress;
+	br_opt_toggle(br, BROPT_NEIGH_SUPPRESS_ENABLED, neigh_suppress);
 }
 
 #if IS_ENABLED(CONFIG_INET)
@@ -155,7 +155,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 	    ipv4_is_multicast(tip))
 		return;
 
-	if (br->neigh_suppress_enabled) {
+	if (br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED)) {
 		if (p && (p->flags & BR_NEIGH_SUPPRESS))
 			return;
 		if (ipv4_is_zeronet(sip) || sip == tip) {
@@ -175,7 +175,8 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 			return;
 	}
 
-	if (br->neigh_suppress_enabled && br_is_local_ip(vlandev, tip)) {
+	if (br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED) &&
+	    br_is_local_ip(vlandev, tip)) {
 		/* its our local ip, so don't proxy reply
 		 * and don't forward to neigh suppress ports
 		 */
@@ -213,7 +214,8 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 			/* If we have replied or as long as we know the
 			 * mac, indicate to arp replied
 			 */
-			if (replied || br->neigh_suppress_enabled)
+			if (replied ||
+			    br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED))
 				BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
 		}
 
@@ -311,7 +313,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	/* Neighbor Advertisement */
 	memset(na, 0, sizeof(*na) + na_olen);
 	na->icmph.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
-	na->icmph.icmp6_router = 0; /* XXX: should be 1 ? */
+	na->icmph.icmp6_router = (n->flags & NTF_ROUTER) ? 1 : 0;
 	na->icmph.icmp6_override = 1;
 	na->icmph.icmp6_solicited = 1;
 	na->target = ns->target;
@@ -460,7 +462,8 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 			 * mac, indicate to NEIGH_SUPPRESS ports that we
 			 * have replied
 			 */
-			if (replied || br->neigh_suppress_enabled)
+			if (replied ||
+			    br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED))
 				BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
 		}
 		neigh_release(n);

@@ -113,7 +113,6 @@ static void __init ocm_init_node(int count, struct device_node *node)
 	int len;
 
 	struct resource rsrc;
-	int ioflags;
 
 	ocm = ocm_get_node(count);
 
@@ -179,9 +178,8 @@ static void __init ocm_init_node(int count, struct device_node *node)
 
 	/* ioremap the non-cached region */
 	if (ocm->nc.memtotal) {
-		ioflags = _PAGE_NO_CACHE | _PAGE_GUARDED | _PAGE_EXEC;
 		ocm->nc.virt = __ioremap(ocm->nc.phys, ocm->nc.memtotal,
-					  ioflags);
+					 _PAGE_EXEC | PAGE_KERNEL_NCG);
 
 		if (!ocm->nc.virt) {
 			printk(KERN_ERR
@@ -195,9 +193,8 @@ static void __init ocm_init_node(int count, struct device_node *node)
 	/* ioremap the cached region */
 
 	if (ocm->c.memtotal) {
-		ioflags = _PAGE_EXEC;
 		ocm->c.virt = __ioremap(ocm->c.phys, ocm->c.memtotal,
-					 ioflags);
+					_PAGE_EXEC | PAGE_KERNEL);
 
 		if (!ocm->c.virt) {
 			printk(KERN_ERR

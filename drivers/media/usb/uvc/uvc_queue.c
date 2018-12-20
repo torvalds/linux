@@ -300,12 +300,13 @@ int uvc_create_buffers(struct uvc_video_queue *queue,
 	return ret;
 }
 
-int uvc_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
+int uvc_queue_buffer(struct uvc_video_queue *queue,
+		     struct media_device *mdev, struct v4l2_buffer *buf)
 {
 	int ret;
 
 	mutex_lock(&queue->mutex);
-	ret = vb2_qbuf(&queue->queue, buf);
+	ret = vb2_qbuf(&queue->queue, mdev, buf);
 	mutex_unlock(&queue->mutex);
 
 	return ret;

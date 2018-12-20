@@ -846,7 +846,7 @@ void ipic_disable_mcp(enum ipic_mcp_irq mcp_irq)
 
 u32 ipic_get_mcp_status(void)
 {
-	return ipic_read(primary_ipic->regs, IPIC_SERSR);
+	return primary_ipic ? ipic_read(primary_ipic->regs, IPIC_SERSR) : 0;
 }
 
 void ipic_clear_mcp_status(u32 mask)

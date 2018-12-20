@@ -244,7 +244,7 @@ static int fat_write_end(struct file *file, struct address_space *mapping,
 	if (err < len)
 		fat_write_failed(mapping, pos + len);
 	if (!(err < 0) && !(MSDOS_I(inode)->i_attrs & ATTR_ARCH)) {
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+		fat_truncate_time(inode, NULL, S_CTIME|S_MTIME);
 		MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
 		mark_inode_dirty(inode);
 	}
@@ -564,7 +564,7 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 				  de->cdate, de->ctime_cs);
 		fat_time_fat2unix(sbi, &inode->i_atime, 0, de->adate, 0);
 	} else
-		inode->i_ctime = inode->i_atime = inode->i_mtime;
+		fat_truncate_time(inode, &inode->i_mtime, S_ATIME|S_CTIME);
 
 	return 0;
 }
@@ -1626,6 +1626,11 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sb->s_magic = MSDOS_SUPER_MAGIC;
 	sb->s_op = &fat_sops;
 	sb->s_export_op = &fat_export_ops;
+	/*
+	 * fat timestamps are complex and truncated by fat itself, so
+	 * we set 1 here to be fast
+	 */
+	sb->s_time_gran = 1;
 	mutex_init(&sbi->nfs_build_inode_lock);
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);

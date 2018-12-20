@@ -11,6 +11,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/sigp.h>
+#include <asm/ptrace.h>
 
 /* The purgatory is the code running between two kernels. It's main purpose
  * is to verify that the next kernel was not corrupted after load and to
@@ -88,8 +89,7 @@ ENTRY(purgatory_start)
 .base_crash:
 
 	/* Setup stack */
-	larl	%r15,purgatory_end
-	aghi	%r15,-160
+	larl	%r15,purgatory_end-STACK_FRAME_OVERHEAD
 
 	/* If the next kernel is KEXEC_TYPE_CRASH the purgatory is called
 	 * directly with a flag passed in %r2 whether the purgatory shall do

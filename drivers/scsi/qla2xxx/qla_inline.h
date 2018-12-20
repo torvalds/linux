@@ -209,7 +209,8 @@ qla2x00_chip_is_down(scsi_qla_host_t *vha)
 }
 
 static inline srb_t *
-qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
+qla2xxx_get_qpair_sp(scsi_qla_host_t *vha, struct qla_qpair *qpair,
+    fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
 	uint8_t bail;
@@ -225,7 +226,9 @@ qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->iocbs = 1;
-	sp->vha = qpair->vha;
+	sp->vha = vha;
+	sp->qpair = qpair;
+	sp->cmd_type = TYPE_SRB;
 	INIT_LIST_HEAD(&sp->elem);
 
 done:
@@ -246,19 +249,17 @@ qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
 	uint8_t bail;
+	struct qla_qpair *qpair;
 
 	QLA_VHA_MARK_BUSY(vha, bail);
 	if (unlikely(bail))
 		return NULL;
 
-	sp = mempool_alloc(vha->hw->srb_mempool, flag);
+	qpair = vha->hw->base_qpair;
+	sp = qla2xxx_get_qpair_sp(vha, qpair, fcport, flag);
 	if (!sp)
 		goto done;
 
-	memset(sp, 0, sizeof(*sp));
-	sp->fcport = fcport;
-	sp->cmd_type = TYPE_SRB;
-	sp->iocbs = 1;
 	sp->vha = vha;
 done:
 	if (!sp)
@@ -270,7 +271,7 @@ static inline void
 qla2x00_rel_sp(srb_t *sp)
 {
 	QLA_VHA_MARK_NOT_BUSY(sp->vha);
-	mempool_free(sp, sp->vha->hw->srb_mempool);
+	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 }
 
 static inline void
@@ -317,13 +318,13 @@ static inline bool
 qla_is_exch_offld_enabled(struct scsi_qla_host *vha)
 {
 	if (qla_ini_mode_enabled(vha) &&
-	    (ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
+	    (vha->ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else if (qla_tgt_mode_enabled(vha) &&
-	    (ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
+	    (vha->ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else if (qla_dual_mode_enabled(vha) &&
-	    ((ql2xiniexchg + ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
+	    ((vha->ql2xiniexchg + vha->ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else
 		return false;

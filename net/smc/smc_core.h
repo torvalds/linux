@@ -247,7 +247,8 @@ void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
-void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid);
+void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
+			unsigned short vlan);
 int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
@@ -262,7 +263,7 @@ int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id);
 
 void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
-		    struct smc_ib_device *smcibdev, u8 ibport,
+		    struct smc_ib_device *smcibdev, u8 ibport, u32 clcqpn,
 		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
 		    u64 peer_gid);
 void smcd_conn_free(struct smc_connection *conn);

@@ -949,6 +949,30 @@ struct crypto_skcipher *crypto_alloc_skcipher(const char *alg_name,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_skcipher);
 
+struct crypto_sync_skcipher *crypto_alloc_sync_skcipher(
+				const char *alg_name, u32 type, u32 mask)
+{
+	struct crypto_skcipher *tfm;
+
+	/* Only sync algorithms allowed. */
+	mask |= CRYPTO_ALG_ASYNC;
+
+	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type2, type, mask);
+
+	/*
+	 * Make sure we do not allocate something that might get used with
+	 * an on-stack request: check the request size.
+	 */
+	if (!IS_ERR(tfm) && WARN_ON(crypto_skcipher_reqsize(tfm) >
+				    MAX_SYNC_SKCIPHER_REQSIZE)) {
+		crypto_free_skcipher(tfm);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return (struct crypto_sync_skcipher *)tfm;
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_sync_skcipher);
+
 int crypto_has_skcipher2(const char *alg_name, u32 type, u32 mask)
 {
 	return crypto_type_has_alg(alg_name, &crypto_skcipher_type2,

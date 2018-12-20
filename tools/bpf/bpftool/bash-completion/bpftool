@@ -143,7 +143,7 @@ _bpftool_map_update_map_type()
     local type
     type=$(bpftool -jp map show $keyword $ref | \
         command sed -n 's/.*"type": "\(.*\)",$/\1/p')
-    printf $type
+    [[ -n $type ]] && printf $type
 }
 
 _bpftool_map_update_get_id()
@@ -184,7 +184,7 @@ _bpftool()
 
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
-        local c='--version --json --pretty --bpffs'
+        local c='--version --json --pretty --bpffs --mapcompat'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
     fi
@@ -292,6 +292,23 @@ _bpftool()
                     fi
                     return 0
                     ;;
+                attach|detach)
+                    if [[ ${#words[@]} == 7 ]]; then
+                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
+                        return 0
+                    fi
+
+                    if [[ ${#words[@]} == 6 ]]; then
+                        COMPREPLY=( $( compgen -W "msg_verdict skb_verdict skb_parse" -- "$cur" ) )
+                        return 0
+                    fi
+
+                    if [[ $prev == "$command" ]]; then
+                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
+                        return 0
+                    fi
+                    return 0
+                    ;;
                 load)
                     local obj
 
@@ -347,7 +364,7 @@ _bpftool()
                     ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'dump help pin load \
+                        COMPREPLY=( $( compgen -W 'dump help pin attach detach load \
                             show list' -- "$cur" ) )
                     ;;
             esac
@@ -366,6 +383,42 @@ _bpftool()
                             return 0
                             ;;
                         *)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                create)
+                    case $prev in
+                        $command)
+                            _filedir
+                            return 0
+                            ;;
+                        type)
+                            COMPREPLY=( $( compgen -W 'hash array prog_array \
+                                perf_event_array percpu_hash percpu_array \
+                                stack_trace cgroup_array lru_hash \
+                                lru_percpu_hash lpm_trie array_of_maps \
+                                hash_of_maps devmap sockmap cpumap xskmap \
+                                sockhash cgroup_storage reuseport_sockarray \
+                                percpu_cgroup_storage' -- \
+                                                   "$cur" ) )
+                            return 0
+                            ;;
+                        key|value|flags|name|entries)
+                            return 0
+                            ;;
+                        dev)
+                            _sysfs_get_netdevs
+                            return 0
+                            ;;
+                        *)
+                            _bpftool_once_attr 'type'
+                            _bpftool_once_attr 'key'
+                            _bpftool_once_attr 'value'
+                            _bpftool_once_attr 'entries'
+                            _bpftool_once_attr 'name'
+                            _bpftool_once_attr 'flags'
+                            _bpftool_once_attr 'dev'
                             return 0
                             ;;
                     esac
@@ -483,7 +536,7 @@ _bpftool()
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'delete dump getnext help \
-                            lookup pin event_pipe show list update' -- \
+                            lookup pin event_pipe show list update create' -- \
                             "$cur" ) )
                     ;;
             esac
@@ -494,10 +547,10 @@ _bpftool()
                     _filedir
                     return 0
                     ;;
-		tree)
-		    _filedir
-		    return 0
-		    ;;
+                tree)
+                    _filedir
+                    return 0
+                    ;;
                 attach|detach)
                     local ATTACH_TYPES='ingress egress sock_create sock_ops \
                         device bind4 bind6 post_bind4 post_bind6 connect4 \
@@ -544,6 +597,15 @@ _bpftool()
             esac
             ;;
         perf)
+            case $command in
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'help \
+                            show list' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        net)
             case $command in
                 *)
                     [[ $prev == $object ]] && \

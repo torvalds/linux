@@ -9,7 +9,7 @@
 #ifndef __SOUND_HDA_BEEP_H
 #define __SOUND_HDA_BEEP_H
 
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 
 #define HDA_BEEP_MODE_OFF	0
 #define HDA_BEEP_MODE_ON	1

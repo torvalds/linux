@@ -1363,7 +1363,7 @@ static int dn_dev_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%-8s %1s     %04u %04u   %04lu %04lu"
 				"   %04hu    %03d %02x    %-10s %-7s %-7s\n",
-				dev->name ? dev->name : "???",
+				dev->name,
 				dn_type2asc(dn_db->parms.mode),
 				0, 0,
 				dn_db->t3, dn_db->parms.t3,

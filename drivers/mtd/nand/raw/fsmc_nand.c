@@ -340,10 +340,9 @@ static int fsmc_calc_timings(struct fsmc_nand_data *host,
 	return 0;
 }
 
-static int fsmc_setup_data_interface(struct mtd_info *mtd, int csline,
+static int fsmc_setup_data_interface(struct nand_chip *nand, int csline,
 				     const struct nand_data_interface *conf)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct fsmc_nand_data *host = nand_get_controller_data(nand);
 	struct fsmc_nand_timings tims;
 	const struct nand_sdr_timings *sdrt;
@@ -368,9 +367,9 @@ static int fsmc_setup_data_interface(struct mtd_info *mtd, int csline,
 /*
  * fsmc_enable_hwecc - Enables Hardware ECC through FSMC registers
  */
-static void fsmc_enable_hwecc(struct mtd_info *mtd, int mode)
+static void fsmc_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 
 	writel_relaxed(readl(host->regs_va + FSMC_PC) & ~FSMC_ECCPLEN_256,
 		       host->regs_va + FSMC_PC);
@@ -385,10 +384,10 @@ static void fsmc_enable_hwecc(struct mtd_info *mtd, int mode)
  * FSMC. ECC is 13 bytes for 512 bytes of data (supports error correction up to
  * max of 8-bits)
  */
-static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
+static int fsmc_read_hwecc_ecc4(struct nand_chip *chip, const uint8_t *data,
 				uint8_t *ecc)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 	uint32_t ecc_tmp;
 	unsigned long deadline = jiffies + FSMC_BUSY_WAIT_TIMEOUT;
 
@@ -433,10 +432,10 @@ static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
  * FSMC. ECC is 3 bytes for 512 bytes of data (supports error correction up to
  * max of 1-bit)
  */
-static int fsmc_read_hwecc_ecc1(struct mtd_info *mtd, const uint8_t *data,
+static int fsmc_read_hwecc_ecc1(struct nand_chip *chip, const uint8_t *data,
 				uint8_t *ecc)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 	uint32_t ecc_tmp;
 
 	ecc_tmp = readl_relaxed(host->regs_va + ECC1);
@@ -610,9 +609,9 @@ static void fsmc_write_buf_dma(struct mtd_info *mtd, const uint8_t *buf,
 }
 
 /* fsmc_select_chip - assert or deassert nCE */
-static void fsmc_select_chip(struct mtd_info *mtd, int chipnr)
+static void fsmc_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 	u32 pc;
 
 	/* Support only one CS */
@@ -707,7 +706,6 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 
 /*
  * fsmc_read_page_hwecc
- * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
  * @oob_required:	caller expects OOB data read to chip->oob_poi
@@ -719,9 +717,10 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
  * After this read, fsmc hardware generates and reports error data bits(up to a
  * max of 8 bits)
  */
-static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				 uint8_t *buf, int oob_required, int page)
+static int fsmc_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
+				int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, j, s, stat, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -740,7 +739,7 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 	for (i = 0, s = 0; s < eccsteps; s++, i += eccbytes, p += eccsize) {
 		nand_read_page_op(chip, page, s * eccsize, NULL, 0);
-		chip->ecc.hwctl(mtd, NAND_ECC_READ);
+		chip->ecc.hwctl(chip, NAND_ECC_READ);
 		nand_read_data_op(chip, p, eccsize, false);
 
 		for (j = 0; j < eccbytes;) {
@@ -767,9 +766,9 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 
 		memcpy(&ecc_code[i], oob, chip->ecc.bytes);
-		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
+		chip->ecc.calculate(chip, p, &ecc_calc[i]);
 
-		stat = chip->ecc.correct(mtd, p, &ecc_code[i], &ecc_calc[i]);
+		stat = chip->ecc.correct(chip, p, &ecc_code[i], &ecc_calc[i]);
 		if (stat < 0) {
 			mtd->ecc_stats.failed++;
 		} else {
@@ -791,11 +790,10 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
  * calc_ecc is a 104 bit information containing maximum of 8 error
  * offset informations of 13 bits each in 512 bytes of read data.
  */
-static int fsmc_bch8_correct_data(struct mtd_info *mtd, uint8_t *dat,
-			     uint8_t *read_ecc, uint8_t *calc_ecc)
+static int fsmc_bch8_correct_data(struct nand_chip *chip, uint8_t *dat,
+				  uint8_t *read_ecc, uint8_t *calc_ecc)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 	uint32_t err_idx[8];
 	uint32_t num_err, i;
 	uint32_t ecc1, ecc2, ecc3, ecc4;
@@ -951,6 +949,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 		nand->ecc.correct = nand_correct_data;
 		nand->ecc.bytes = 3;
 		nand->ecc.strength = 1;
+		nand->ecc.options |= NAND_ECC_SOFT_HAMMING_SM_ORDER;
 		break;
 
 	case NAND_ECC_SOFT:
@@ -1082,7 +1081,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	mtd->dev.parent = &pdev->dev;
 	nand->exec_op = fsmc_exec_op;
 	nand->select_chip = fsmc_select_chip;
-	nand->chip_delay = 30;
 
 	/*
 	 * Setup default ECC mode. nand_dt_init() called from nand_scan_ident()
@@ -1125,7 +1123,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 * Scan to find existence of the device
 	 */
 	nand->dummy_controller.ops = &fsmc_nand_controller_ops;
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(nand, 1);
 	if (ret)
 		goto release_dma_write_chan;
 
@@ -1161,7 +1159,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 	struct fsmc_nand_data *host = platform_get_drvdata(pdev);
 
 	if (host) {
-		nand_release(nand_to_mtd(&host->nand));
+		nand_release(&host->nand);
 
 		if (host->mode == USE_DMA_ACCESS) {
 			dma_release_channel(host->write_dma_chan);

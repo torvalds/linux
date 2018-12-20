@@ -98,7 +98,7 @@ static bool use_umr_mtt_update(struct mlx5_ib_mr *mr, u64 start, u64 length)
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 static void update_odp_mr(struct mlx5_ib_mr *mr)
 {
-	if (mr->umem->odp_data) {
+	if (mr->umem->is_odp) {
 		/*
 		 * This barrier prevents the compiler from moving the
 		 * setting of umem->odp_data->private to point to our
@@ -107,7 +107,7 @@ static void update_odp_mr(struct mlx5_ib_mr *mr)
 		 * handle invalidations.
 		 */
 		smp_wmb();
-		mr->umem->odp_data->private = mr;
+		to_ib_umem_odp(mr->umem)->private = mr;
 		/*
 		 * Make sure we will see the new
 		 * umem->odp_data->private value in the invalidation
@@ -544,6 +544,9 @@ void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	int shrink = 0;
 	int c;
 
+	if (!mr->allocated_from_cache)
+		return;
+
 	c = order2idx(dev, mr->order);
 	if (c < 0 || c >= MAX_MR_CACHE_ENTRIES) {
 		mlx5_ib_warn(dev, "order %d, cache index %d\n", mr->order, c);
@@ -688,7 +691,6 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		init_completion(&ent->compl);
 		INIT_WORK(&ent->work, cache_work_func);
 		INIT_DELAYED_WORK(&ent->dwork, delayed_cache_work_func);
-		queue_work(cache->wq, &ent->work);
 
 		if (i > MR_CACHE_LAST_STD_ENTRY) {
 			mlx5_odp_init_mr_cache_entry(ent);
@@ -708,6 +710,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 			ent->limit = dev->mdev->profile->mr_cache[i].limit;
 		else
 			ent->limit = 0;
+		queue_work(cache->wq, &ent->work);
 	}
 
 	err = mlx5_mr_cache_debugfs_init(dev);
@@ -1624,14 +1627,16 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	struct ib_umem *umem = mr->umem;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	if (umem && umem->odp_data) {
+	if (umem && umem->is_odp) {
+		struct ib_umem_odp *umem_odp = to_ib_umem_odp(umem);
+
 		/* Prevent new page faults from succeeding */
 		mr->live = 0;
 		/* Wait for all running page-fault handlers to finish. */
 		synchronize_srcu(&dev->mr_srcu);
 		/* Destroy all page mappings */
-		if (umem->odp_data->page_list)
-			mlx5_ib_invalidate_range(umem, ib_umem_start(umem),
+		if (umem_odp->page_list)
+			mlx5_ib_invalidate_range(umem_odp, ib_umem_start(umem),
 						 ib_umem_end(umem));
 		else
 			mlx5_ib_free_implicit_mr(mr);
@@ -1647,18 +1652,19 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		umem = NULL;
 	}
 #endif
-
 	clean_mr(dev, mr);
 
+	/*
+	 * We should unregister the DMA address from the HCA before
+	 * remove the DMA mapping.
+	 */
+	mlx5_mr_cache_free(dev, mr);
 	if (umem) {
 		ib_umem_release(umem);
 		atomic_sub(npages, &dev->mdev->priv.reg_pages);
 	}
-
 	if (!mr->allocated_from_cache)
 		kfree(mr);
-	else
-		mlx5_mr_cache_free(dev, mr);
 }
 
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr)

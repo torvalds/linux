@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the MMC / SD / SDIO IP found in:
  *
@@ -9,10 +10,6 @@
  * Copyright (C) 2011 Guennadi Liakhovetski
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This driver draws mainly on scattered spec sheets, Reverse engineering
  * of the toshiba e800  SD driver and some parts of the 2.4 ASIC3 driver (4 bit
@@ -160,100 +157,18 @@ static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 }
 
-static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
-{
-	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
-		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-
-	/* HW engineers overrode docs: no sleep needed on R-Car2+ */
-	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
-		usleep_range(10000, 11000);
-
-	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
-		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0100);
-		usleep_range(10000, 11000);
-	}
-}
-
-static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
-{
-	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
-		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
-		usleep_range(10000, 11000);
-	}
-
-	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
-		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-
-	/* HW engineers overrode docs: no sleep needed on R-Car2+ */
-	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
-		usleep_range(10000, 11000);
-}
-
-static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
-			       unsigned int new_clock)
-{
-	u32 clk = 0, clock;
-
-	if (new_clock == 0) {
-		tmio_mmc_clk_stop(host);
-		return;
-	}
-	/*
-	 * Both HS400 and HS200/SD104 set 200MHz, but some devices need to
-	 * set 400MHz to distinguish the CPG settings in HS400.
-	 */
-	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 &&
-	    host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400 &&
-	    new_clock == 200000000)
-		new_clock = 400000000;
-
-	if (host->clk_update)
-		clock = host->clk_update(host, new_clock) / 512;
-	else
-		clock = host->mmc->f_min;
-
-	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
-		clock <<= 1;
-
-	/* 1/1 clock is option */
-	if ((host->pdata->flags & TMIO_MMC_CLK_ACTUAL) &&
-	    ((clk >> 22) & 0x1)) {
-		if (!(host->mmc->ios.timing == MMC_TIMING_MMC_HS400))
-			clk |= 0xff;
-		else
-			clk &= ~0xff;
-	}
-
-	if (host->set_clk_div)
-		host->set_clk_div(host->pdev, (clk >> 22) & 1);
-
-	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
-			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, clk & CLK_CTL_DIV_MASK);
-	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
-		usleep_range(10000, 11000);
-
-	tmio_mmc_clk_start(host);
-}
-
 static void tmio_mmc_reset(struct tmio_mmc_host *host)
 {
 	/* FIXME - should we set stop clock reg here */
 	sd_ctrl_write16(host, CTL_RESET_SD, 0x0000);
-	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG)
-		sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0000);
 	usleep_range(10000, 11000);
 	sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
-	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG)
-		sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0001);
 	usleep_range(10000, 11000);
 
 	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
 		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
 	}
-
 }
 
 static void tmio_mmc_reset_work(struct work_struct *work)
@@ -294,7 +209,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	tmio_mmc_reset(host);
+	host->reset(host);
 
 	/* Ready for new calls */
 	host->mrq = NULL;
@@ -446,7 +361,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 	unsigned int count;
 	unsigned long flags;
 
-	if ((host->chan_tx || host->chan_rx) && !host->force_pio) {
+	if (host->dma_on) {
 		pr_err("PIO IRQ in DMA mode!\n");
 		return;
 	} else if (!data) {
@@ -518,7 +433,7 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 	 */
 
 	if (data->flags & MMC_DATA_READ) {
-		if (host->chan_rx && !host->force_pio)
+		if (host->dma_on)
 			tmio_mmc_check_bounce_buffer(host);
 		dev_dbg(&host->pdev->dev, "Complete Rx request %p\n",
 			host->mrq);
@@ -555,7 +470,7 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 	if (stat & TMIO_STAT_CRCFAIL || stat & TMIO_STAT_STOPBIT_ERR ||
 	    stat & TMIO_STAT_TXUNDERRUN)
 		data->error = -EILSEQ;
-	if (host->chan_tx && (data->flags & MMC_DATA_WRITE) && !host->force_pio) {
+	if (host->dma_on && (data->flags & MMC_DATA_WRITE)) {
 		u32 status = sd_ctrl_read16_and_16_as_32(host, CTL_STATUS);
 		bool done = false;
 
@@ -579,7 +494,7 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 			tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_DATAEND);
 			tmio_mmc_dataend_dma(host);
 		}
-	} else if (host->chan_rx && (data->flags & MMC_DATA_READ) && !host->force_pio) {
+	} else if (host->dma_on && (data->flags & MMC_DATA_READ)) {
 		tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_DATAEND);
 		tmio_mmc_dataend_dma(host);
 	} else {
@@ -632,7 +547,7 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host, unsigned int stat)
 	 */
 	if (host->data && (!cmd->error || cmd->error == -EILSEQ)) {
 		if (host->data->flags & MMC_DATA_READ) {
-			if (host->force_pio || !host->chan_rx) {
+			if (!host->dma_on) {
 				tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_READOP);
 			} else {
 				tmio_mmc_disable_mmc_irqs(host,
@@ -640,7 +555,7 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host, unsigned int stat)
 				tasklet_schedule(&host->dma_issue);
 			}
 		} else {
-			if (host->force_pio || !host->chan_tx) {
+			if (!host->dma_on) {
 				tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_WRITEOP);
 			} else {
 				tmio_mmc_disable_mmc_irqs(host,
@@ -770,7 +685,7 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 
 	tmio_mmc_init_sg(host, data);
 	host->data = data;
-	host->force_pio = false;
+	host->dma_on = false;
 
 	/* Set transfer length / blocksize */
 	sd_ctrl_write16(host, CTL_SD_XFER_LEN, data->blksz);
@@ -919,8 +834,8 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	if (mrq->cmd->error || (mrq->data && mrq->data->error))
 		tmio_mmc_abort_dma(host);
 
-	if (host->check_scc_error)
-		host->check_scc_error(host);
+	if (host->check_scc_error && host->check_scc_error(host))
+		mrq->cmd->error = -EILSEQ;
 
 	/* If SET_BLOCK_COUNT, continue with main command */
 	if (host->mrq && !mrq->cmd->error) {
@@ -1043,15 +958,15 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		tmio_mmc_power_off(host);
-		tmio_mmc_clk_stop(host);
+		host->set_clock(host, 0);
 		break;
 	case MMC_POWER_UP:
 		tmio_mmc_power_on(host, ios->vdd);
-		tmio_mmc_set_clock(host, ios->clock);
+		host->set_clock(host, ios->clock);
 		tmio_mmc_set_bus_width(host, ios->bus_width);
 		break;
 	case MMC_POWER_ON:
-		tmio_mmc_set_clock(host, ios->clock);
+		host->set_clock(host, ios->clock);
 		tmio_mmc_set_bus_width(host, ios->bus_width);
 		break;
 	}
@@ -1237,7 +1152,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	int ret;
 
 	/*
-	 * Check the sanity of mmc->f_min to prevent tmio_mmc_set_clock() from
+	 * Check the sanity of mmc->f_min to prevent host->set_clock() from
 	 * looping forever...
 	 */
 	if (mmc->f_min == 0)
@@ -1247,7 +1162,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 		_host->write16_hook = NULL;
 
 	_host->set_pwr = pdata->set_pwr;
-	_host->set_clk_div = pdata->set_clk_div;
 
 	ret = tmio_mmc_init_ocr(_host);
 	if (ret < 0)
@@ -1290,6 +1204,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
 				  !mmc_card_is_removable(mmc));
 
+	if (!_host->reset)
+		_host->reset = tmio_mmc_reset;
+
 	/*
 	 * On Gen2+, eMMC with NONREMOVABLE currently fails because native
 	 * hotplug gets disabled. It seems RuntimePM related yet we need further
@@ -1310,8 +1227,8 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
 		_host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
 
-	tmio_mmc_clk_stop(_host);
-	tmio_mmc_reset(_host);
+	_host->set_clock(_host, 0);
+	_host->reset(_host);
 
 	_host->sdcard_irq_mask = sd_ctrl_read16_and_16_as_32(_host, CTL_IRQ_MASK);
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
@@ -1394,7 +1311,7 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 	tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
 
 	if (host->clk_cache)
-		tmio_mmc_clk_stop(host);
+		host->set_clock(host, 0);
 
 	tmio_mmc_clk_disable(host);
 
@@ -1411,11 +1328,11 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 {
 	struct tmio_mmc_host *host = dev_get_drvdata(dev);
 
-	tmio_mmc_reset(host);
+	host->reset(host);
 	tmio_mmc_clk_enable(host);
 
 	if (host->clk_cache)
-		tmio_mmc_set_clock(host, host->clk_cache);
+		host->set_clock(host, host->clk_cache);
 
 	if (host->native_hotplug)
 		tmio_mmc_enable_mmc_irqs(host,

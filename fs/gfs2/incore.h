@@ -92,7 +92,7 @@ struct gfs2_bitmap {
 	unsigned long bi_flags;
 	u32 bi_offset;
 	u32 bi_start;
-	u32 bi_len;
+	u32 bi_bytes;
 	u32 bi_blocks;
 };
 
@@ -309,10 +309,6 @@ struct gfs2_qadata { /* quota allocation data */
 */
 
 struct gfs2_blkreserv {
-	/* components used during write (step 1): */
-	atomic_t rs_sizehint;         /* hint of the write size */
-
-	struct gfs2_holder rs_rgd_gh; /* Filled in by get_local_rgrp */
 	struct rb_node rs_node;       /* link to other block reservations */
 	struct gfs2_rbm rs_rbm;       /* Start of reservation */
 	u32 rs_free;                  /* how many blocks are still free */
@@ -417,8 +413,10 @@ struct gfs2_inode {
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_qadata *i_qadata; /* quota allocation data */
+	struct gfs2_holder i_rgd_gh;
 	struct gfs2_blkreserv i_res; /* rgrp multi-block reservation */
 	u64 i_goal;	/* goal block for allocations */
+	atomic_t i_sizehint;  /* hint of the write size */
 	struct rw_semaphore i_rw_mutex;
 	struct list_head i_ordered;
 	struct list_head i_trunc_list;
@@ -623,6 +621,7 @@ enum {
 	SDF_RORECOVERY		= 7, /* read only recovery */
 	SDF_SKIP_DLM_UNLOCK	= 8,
 	SDF_FORCE_AIL_FLUSH     = 9,
+	SDF_AIL1_IO_ERROR	= 10,
 };
 
 enum gfs2_freeze_state {

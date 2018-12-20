@@ -26,6 +26,7 @@ Regulator nodes are identified by their compatible:
 		    "qcom,rpm-pm8998-regulators"
 		    "qcom,rpm-pma8084-regulators"
 		    "qcom,rpm-pmi8998-regulators"
+		    "qcom,rpm-pms405-regulators"
 
 - vdd_s1-supply:
 - vdd_s2-supply:
@@ -188,6 +189,24 @@ Regulator nodes are identified by their compatible:
 	Definition: reference to regulator supplying the input pin, as
 		    described in the data sheet
 
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_s5-supply:
+- vdd_l1_l2-supply:
+- vdd_l3_l8-supply:
+- vdd_l4-supply:
+- vdd_l5_l6-supply:
+- vdd_l7-supply:
+- vdd_l3_l8-supply:
+- vdd_l9-supply:
+- vdd_l10_l11_l12_l13-supply:
+	Usage: optional (pms405 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
 The regulator node houses sub-nodes for each regulator within the device. Each
 sub-node is identified using the node's name, with valid values listed for each
 of the pmics below.
@@ -221,6 +240,10 @@ pma8084:
 
 pmi8998:
 	bob
+
+pms405:
+	s1, s2, s3, s4, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12,
+	l13
 
 The content of each sub-node is defined by the standard binding for regulators -
 see regulator.txt.

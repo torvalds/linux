@@ -337,7 +337,7 @@
 			status = "disabled";
 		};
 
-		dspi: dspi@2100000 {
+		dspi: spi@2100000 {
 			compatible = "fsl,ls1012a-dspi", "fsl,ls1021a-v1.0-dspi";
 			#address-cells = <1>;
 			#size-cells = <0>;

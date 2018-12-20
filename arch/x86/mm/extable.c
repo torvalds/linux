@@ -8,7 +8,8 @@
 #include <asm/kdebug.h>
 
 typedef bool (*ex_handler_t)(const struct exception_table_entry *,
-			    struct pt_regs *, int);
+			    struct pt_regs *, int, unsigned long,
+			    unsigned long);
 
 static inline unsigned long
 ex_fixup_addr(const struct exception_table_entry *x)
@@ -22,7 +23,9 @@ ex_fixup_handler(const struct exception_table_entry *x)
 }
 
 __visible bool ex_handler_default(const struct exception_table_entry *fixup,
-				  struct pt_regs *regs, int trapnr)
+				  struct pt_regs *regs, int trapnr,
+				  unsigned long error_code,
+				  unsigned long fault_addr)
 {
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
@@ -30,7 +33,9 @@ __visible bool ex_handler_default(const struct exception_table_entry *fixup,
 EXPORT_SYMBOL(ex_handler_default);
 
 __visible bool ex_handler_fault(const struct exception_table_entry *fixup,
-				struct pt_regs *regs, int trapnr)
+				struct pt_regs *regs, int trapnr,
+				unsigned long error_code,
+				unsigned long fault_addr)
 {
 	regs->ip = ex_fixup_addr(fixup);
 	regs->ax = trapnr;
@@ -43,7 +48,9 @@ EXPORT_SYMBOL_GPL(ex_handler_fault);
  * result of a refcount inc/dec/add/sub.
  */
 __visible bool ex_handler_refcount(const struct exception_table_entry *fixup,
-				   struct pt_regs *regs, int trapnr)
+				   struct pt_regs *regs, int trapnr,
+				   unsigned long error_code,
+				   unsigned long fault_addr)
 {
 	/* First unconditionally saturate the refcount. */
 	*(int *)regs->cx = INT_MIN / 2;
@@ -96,7 +103,9 @@ EXPORT_SYMBOL(ex_handler_refcount);
  * out all the FPU registers) if we can't restore from the task's FPU state.
  */
 __visible bool ex_handler_fprestore(const struct exception_table_entry *fixup,
-				    struct pt_regs *regs, int trapnr)
+				    struct pt_regs *regs, int trapnr,
+				    unsigned long error_code,
+				    unsigned long fault_addr)
 {
 	regs->ip = ex_fixup_addr(fixup);
 
@@ -108,9 +117,79 @@ __visible bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL_GPL(ex_handler_fprestore);
 
-__visible bool ex_handler_ext(const struct exception_table_entry *fixup,
-			      struct pt_regs *regs, int trapnr)
+/* Helper to check whether a uaccess fault indicates a kernel bug. */
+static bool bogus_uaccess(struct pt_regs *regs, int trapnr,
+			  unsigned long fault_addr)
 {
+	/* This is the normal case: #PF with a fault address in userspace. */
+	if (trapnr == X86_TRAP_PF && fault_addr < TASK_SIZE_MAX)
+		return false;
+
+	/*
+	 * This code can be reached for machine checks, but only if the #MC
+	 * handler has already decided that it looks like a candidate for fixup.
+	 * This e.g. happens when attempting to access userspace memory which
+	 * the CPU can't access because of uncorrectable bad memory.
+	 */
+	if (trapnr == X86_TRAP_MC)
+		return false;
+
+	/*
+	 * There are two remaining exception types we might encounter here:
+	 *  - #PF for faulting accesses to kernel addresses
+	 *  - #GP for faulting accesses to noncanonical addresses
+	 * Complain about anything else.
+	 */
+	if (trapnr != X86_TRAP_PF && trapnr != X86_TRAP_GP) {
+		WARN(1, "unexpected trap %d in uaccess\n", trapnr);
+		return false;
+	}
+
+	/*
+	 * This is a faulting memory access in kernel space, on a kernel
+	 * address, in a usercopy function. This can e.g. be caused by improper
+	 * use of helpers like __put_user and by improper attempts to access
+	 * userspace addresses in KERNEL_DS regions.
+	 * The one (semi-)legitimate exception are probe_kernel_{read,write}(),
+	 * which can be invoked from places like kgdb, /dev/mem (for reading)
+	 * and privileged BPF code (for reading).
+	 * The probe_kernel_*() functions set the kernel_uaccess_faults_ok flag
+	 * to tell us that faulting on kernel addresses, and even noncanonical
+	 * addresses, in a userspace accessor does not necessarily imply a
+	 * kernel bug, root might just be doing weird stuff.
+	 */
+	if (current->kernel_uaccess_faults_ok)
+		return false;
+
+	/* This is bad. Refuse the fixup so that we go into die(). */
+	if (trapnr == X86_TRAP_PF) {
+		pr_emerg("BUG: pagefault on kernel address 0x%lx in non-whitelisted uaccess\n",
+			 fault_addr);
+	} else {
+		pr_emerg("BUG: GPF in non-whitelisted uaccess (non-canonical address?)\n");
+	}
+	return true;
+}
+
+__visible bool ex_handler_uaccess(const struct exception_table_entry *fixup,
+				  struct pt_regs *regs, int trapnr,
+				  unsigned long error_code,
+				  unsigned long fault_addr)
+{
+	if (bogus_uaccess(regs, trapnr, fault_addr))
+		return false;
+	regs->ip = ex_fixup_addr(fixup);
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_uaccess);
+
+__visible bool ex_handler_ext(const struct exception_table_entry *fixup,
+			      struct pt_regs *regs, int trapnr,
+			      unsigned long error_code,
+			      unsigned long fault_addr)
+{
+	if (bogus_uaccess(regs, trapnr, fault_addr))
+		return false;
 	/* Special hack for uaccess_err */
 	current->thread.uaccess_err = 1;
 	regs->ip = ex_fixup_addr(fixup);
@@ -119,7 +198,9 @@ __visible bool ex_handler_ext(const struct exception_table_entry *fixup,
 EXPORT_SYMBOL(ex_handler_ext);
 
 __visible bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
-				       struct pt_regs *regs, int trapnr)
+				       struct pt_regs *regs, int trapnr,
+				       unsigned long error_code,
+				       unsigned long fault_addr)
 {
 	if (pr_warn_once("unchecked MSR access error: RDMSR from 0x%x at rIP: 0x%lx (%pF)\n",
 			 (unsigned int)regs->cx, regs->ip, (void *)regs->ip))
@@ -134,7 +215,9 @@ __visible bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup
 EXPORT_SYMBOL(ex_handler_rdmsr_unsafe);
 
 __visible bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
-				       struct pt_regs *regs, int trapnr)
+				       struct pt_regs *regs, int trapnr,
+				       unsigned long error_code,
+				       unsigned long fault_addr)
 {
 	if (pr_warn_once("unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x) at rIP: 0x%lx (%pF)\n",
 			 (unsigned int)regs->cx, (unsigned int)regs->dx,
@@ -148,12 +231,14 @@ __visible bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup
 EXPORT_SYMBOL(ex_handler_wrmsr_unsafe);
 
 __visible bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
-				   struct pt_regs *regs, int trapnr)
+				   struct pt_regs *regs, int trapnr,
+				   unsigned long error_code,
+				   unsigned long fault_addr)
 {
 	if (static_cpu_has(X86_BUG_NULL_SEG))
 		asm volatile ("mov %0, %%fs" : : "rm" (__USER_DS));
 	asm volatile ("mov %0, %%fs" : : "rm" (0));
-	return ex_handler_default(fixup, regs, trapnr);
+	return ex_handler_default(fixup, regs, trapnr, error_code, fault_addr);
 }
 EXPORT_SYMBOL(ex_handler_clear_fs);
 
@@ -170,7 +255,8 @@ __visible bool ex_has_fault_handler(unsigned long ip)
 	return handler == ex_handler_fault;
 }
 
-int fixup_exception(struct pt_regs *regs, int trapnr)
+int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
+		    unsigned long fault_addr)
 {
 	const struct exception_table_entry *e;
 	ex_handler_t handler;
@@ -194,7 +280,7 @@ int fixup_exception(struct pt_regs *regs, int trapnr)
 		return 0;
 
 	handler = ex_fixup_handler(e);
-	return handler(e, regs, trapnr);
+	return handler(e, regs, trapnr, error_code, fault_addr);
 }
 
 extern unsigned int early_recursion_flag;
@@ -230,9 +316,9 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	 * result in a hard-to-debug panic.
 	 *
 	 * Keep in mind that not all vectors actually get here.  Early
-	 * fage faults, for example, are special.
+	 * page faults, for example, are special.
 	 */
-	if (fixup_exception(regs, trapnr))
+	if (fixup_exception(regs, trapnr, regs->orig_ax, 0))
 		return;
 
 	if (fixup_bug(regs, trapnr))

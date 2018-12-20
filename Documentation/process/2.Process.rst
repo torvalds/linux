@@ -82,7 +82,7 @@ As an example, here is how the 4.16 development cycle went (all dates in
 	March 11	4.16-rc5
 	March 18	4.16-rc6
 	March 25	4.16-rc7
-	April 1		4.17 stable release
+	April 1		4.16 stable release
 	==============  ===============================
 
 How do the developers decide when to close the development cycle and create

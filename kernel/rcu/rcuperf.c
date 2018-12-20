@@ -190,36 +190,6 @@ static struct rcu_perf_ops rcu_ops = {
 };
 
 /*
- * Definitions for rcu_bh perf testing.
- */
-
-static int rcu_bh_perf_read_lock(void) __acquires(RCU_BH)
-{
-	rcu_read_lock_bh();
-	return 0;
-}
-
-static void rcu_bh_perf_read_unlock(int idx) __releases(RCU_BH)
-{
-	rcu_read_unlock_bh();
-}
-
-static struct rcu_perf_ops rcu_bh_ops = {
-	.ptype		= RCU_BH_FLAVOR,
-	.init		= rcu_sync_perf_init,
-	.readlock	= rcu_bh_perf_read_lock,
-	.readunlock	= rcu_bh_perf_read_unlock,
-	.get_gp_seq	= rcu_bh_get_gp_seq,
-	.gp_diff	= rcu_seq_diff,
-	.exp_completed	= rcu_exp_batches_completed_sched,
-	.async		= call_rcu_bh,
-	.gp_barrier	= rcu_barrier_bh,
-	.sync		= synchronize_rcu_bh,
-	.exp_sync	= synchronize_rcu_bh_expedited,
-	.name		= "rcu_bh"
-};
-
-/*
  * Definitions for srcu perf testing.
  */
 
@@ -303,36 +273,6 @@ static struct rcu_perf_ops srcud_ops = {
 	.sync		= srcu_perf_synchronize,
 	.exp_sync	= srcu_perf_synchronize_expedited,
 	.name		= "srcud"
-};
-
-/*
- * Definitions for sched perf testing.
- */
-
-static int sched_perf_read_lock(void)
-{
-	preempt_disable();
-	return 0;
-}
-
-static void sched_perf_read_unlock(int idx)
-{
-	preempt_enable();
-}
-
-static struct rcu_perf_ops sched_ops = {
-	.ptype		= RCU_SCHED_FLAVOR,
-	.init		= rcu_sync_perf_init,
-	.readlock	= sched_perf_read_lock,
-	.readunlock	= sched_perf_read_unlock,
-	.get_gp_seq	= rcu_sched_get_gp_seq,
-	.gp_diff	= rcu_seq_diff,
-	.exp_completed	= rcu_exp_batches_completed_sched,
-	.async		= call_rcu_sched,
-	.gp_barrier	= rcu_barrier_sched,
-	.sync		= synchronize_sched,
-	.exp_sync	= synchronize_sched_expedited,
-	.name		= "sched"
 };
 
 /*
@@ -611,7 +551,7 @@ rcu_perf_cleanup(void)
 		kfree(writer_n_durations);
 	}
 
-	/* Do flavor-specific cleanup operations.  */
+	/* Do torture-type-specific cleanup operations.  */
 	if (cur_ops->cleanup != NULL)
 		cur_ops->cleanup();
 
@@ -661,8 +601,7 @@ rcu_perf_init(void)
 	long i;
 	int firsterr = 0;
 	static struct rcu_perf_ops *perf_ops[] = {
-		&rcu_ops, &rcu_bh_ops, &srcu_ops, &srcud_ops, &sched_ops,
-		&tasks_ops,
+		&rcu_ops, &srcu_ops, &srcud_ops, &tasks_ops,
 	};
 
 	if (!torture_init_begin(perf_type, verbose))
@@ -680,6 +619,7 @@ rcu_perf_init(void)
 		for (i = 0; i < ARRAY_SIZE(perf_ops); i++)
 			pr_cont(" %s", perf_ops[i]->name);
 		pr_cont("\n");
+		WARN_ON(!IS_MODULE(CONFIG_RCU_PERF_TEST));
 		firsterr = -EINVAL;
 		goto unwind;
 	}

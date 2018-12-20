@@ -155,7 +155,7 @@ static void linkwatch_do_dev(struct net_device *dev)
 	clear_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state);
 
 	rfc2863_policy(dev);
-	if (dev->flags & IFF_UP) {
+	if (dev->flags & IFF_UP && netif_device_present(dev)) {
 		if (netif_carrier_ok(dev))
 			dev_activate(dev);
 		else

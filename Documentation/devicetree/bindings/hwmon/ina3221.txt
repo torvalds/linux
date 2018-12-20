@@ -1,0 +1,44 @@
+Texas Instruments INA3221 Device Tree Bindings
+
+1) ina3221 node
+  Required properties:
+  - compatible: Must be "ti,ina3221"
+  - reg: I2C address
+
+  Optional properties:
+  = The node contains optional child nodes for three channels =
+  = Each child node describes the information of input source =
+
+  - #address-cells: Required only if a child node is present. Must be 1.
+  - #size-cells: Required only if a child node is present. Must be 0.
+
+2) child nodes
+  Required properties:
+  - reg: Must be 0, 1 or 2, corresponding to IN1, IN2 or IN3 port of INA3221
+
+  Optional properties:
+  - label: Name of the input source
+  - shunt-resistor-micro-ohms: Shunt resistor value in micro-Ohm
+
+Example:
+
+ina3221@40 {
+	compatible = "ti,ina3221";
+	reg = <0x40>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	input@0 {
+		reg = <0x0>;
+		status = "disabled";
+	};
+	input@1 {
+		reg = <0x1>;
+		shunt-resistor-micro-ohms = <5000>;
+	};
+	input@2 {
+		reg = <0x2>;
+		label = "VDD_5V";
+		shunt-resistor-micro-ohms = <5000>;
+	};
+};

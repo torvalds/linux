@@ -292,6 +292,19 @@ fail:
 	return 0;
 }
 
+static bool unpack_u8(struct aa_ext *e, u8 *data, const char *name)
+{
+	if (unpack_nameX(e, AA_U8, name)) {
+		if (!inbounds(e, sizeof(u8)))
+			return 0;
+		if (data)
+			*data = get_unaligned((u8 *)e->pos);
+		e->pos += sizeof(u8);
+		return 1;
+	}
+	return 0;
+}
+
 static bool unpack_u32(struct aa_ext *e, u32 *data, const char *name)
 {
 	if (unpack_nameX(e, AA_U32, name)) {
@@ -529,6 +542,49 @@ fail:
 	return 0;
 }
 
+static bool unpack_secmark(struct aa_ext *e, struct aa_profile *profile)
+{
+	void *pos = e->pos;
+	int i, size;
+
+	if (unpack_nameX(e, AA_STRUCT, "secmark")) {
+		size = unpack_array(e, NULL);
+
+		profile->secmark = kcalloc(size, sizeof(struct aa_secmark),
+					   GFP_KERNEL);
+		if (!profile->secmark)
+			goto fail;
+
+		profile->secmark_count = size;
+
+		for (i = 0; i < size; i++) {
+			if (!unpack_u8(e, &profile->secmark[i].audit, NULL))
+				goto fail;
+			if (!unpack_u8(e, &profile->secmark[i].deny, NULL))
+				goto fail;
+			if (!unpack_strdup(e, &profile->secmark[i].label, NULL))
+				goto fail;
+		}
+		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
+			goto fail;
+		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
+			goto fail;
+	}
+
+	return 1;
+
+fail:
+	if (profile->secmark) {
+		for (i = 0; i < size; i++)
+			kfree(profile->secmark[i].label);
+		kfree(profile->secmark);
+		profile->secmark_count = 0;
+	}
+
+	e->pos = pos;
+	return 0;
+}
+
 static bool unpack_rlimits(struct aa_ext *e, struct aa_profile *profile)
 {
 	void *pos = e->pos;
@@ -724,6 +780,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 
 	if (!unpack_rlimits(e, profile)) {
 		info = "failed to unpack profile rlimits";
+		goto fail;
+	}
+
+	if (!unpack_secmark(e, profile)) {
+		info = "failed to unpack profile secmark rules";
 		goto fail;
 	}
 

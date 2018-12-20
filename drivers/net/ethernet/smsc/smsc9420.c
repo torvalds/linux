@@ -1135,10 +1135,10 @@ static int smsc9420_mii_probe(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
+	phy_set_max_speed(phydev, SPEED_100);
+
 	/* mask with MAC supported features */
-	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
-			      SUPPORTED_Asym_Pause);
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	phy_attached_info(phydev);
 

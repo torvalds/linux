@@ -400,8 +400,6 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 		if (tick_broadcast_forced)
 			break;
 		cpumask_clear_cpu(cpu, tick_broadcast_on);
-		if (!tick_device_is_functional(dev))
-			break;
 		if (cpumask_test_and_clear_cpu(cpu, tick_broadcast_mask)) {
 			if (tick_broadcast_device.mode ==
 			    TICKDEV_MODE_PERIODIC)

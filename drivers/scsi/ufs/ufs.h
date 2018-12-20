@@ -38,9 +38,9 @@
 
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <uapi/scsi/scsi_bsg_ufs.h>
 
-#define MAX_CDB_SIZE	16
-#define GENERAL_UPIU_REQUEST_SIZE 32
+#define GENERAL_UPIU_REQUEST_SIZE (sizeof(struct utp_upiu_req))
 #define QUERY_DESC_MAX_SIZE       255
 #define QUERY_DESC_MIN_SIZE       2
 #define QUERY_DESC_HDR_SIZE       2
@@ -414,6 +414,7 @@ enum {
 	MASK_RSP_UPIU_DATA_SEG_LEN	= 0xFFFF,
 	MASK_RSP_EXCEPTION_EVENT        = 0x10000,
 	MASK_TM_SERVICE_RESP		= 0xFF,
+	MASK_TM_FUNC			= 0xFF,
 };
 
 /* Task management service response */
@@ -430,65 +431,6 @@ enum ufs_dev_pwr_mode {
 	UFS_ACTIVE_PWR_MODE	= 1,
 	UFS_SLEEP_PWR_MODE	= 2,
 	UFS_POWERDOWN_PWR_MODE	= 3,
-};
-
-/**
- * struct utp_upiu_header - UPIU header structure
- * @dword_0: UPIU header DW-0
- * @dword_1: UPIU header DW-1
- * @dword_2: UPIU header DW-2
- */
-struct utp_upiu_header {
-	__be32 dword_0;
-	__be32 dword_1;
-	__be32 dword_2;
-};
-
-/**
- * struct utp_upiu_cmd - Command UPIU structure
- * @data_transfer_len: Data Transfer Length DW-3
- * @cdb: Command Descriptor Block CDB DW-4 to DW-7
- */
-struct utp_upiu_cmd {
-	__be32 exp_data_transfer_len;
-	u8 cdb[MAX_CDB_SIZE];
-};
-
-/**
- * struct utp_upiu_query - upiu request buffer structure for
- * query request.
- * @opcode: command to perform B-0
- * @idn: a value that indicates the particular type of data B-1
- * @index: Index to further identify data B-2
- * @selector: Index to further identify data B-3
- * @reserved_osf: spec reserved field B-4,5
- * @length: number of descriptor bytes to read/write B-6,7
- * @value: Attribute value to be written DW-5
- * @reserved: spec reserved DW-6,7
- */
-struct utp_upiu_query {
-	u8 opcode;
-	u8 idn;
-	u8 index;
-	u8 selector;
-	__be16 reserved_osf;
-	__be16 length;
-	__be32 value;
-	__be32 reserved[2];
-};
-
-/**
- * struct utp_upiu_req - general upiu request structure
- * @header:UPIU header structure DW-0 to DW-2
- * @sc: fields structure for scsi command DW-3 to DW-7
- * @qr: fields structure for query request DW-3 to DW-7
- */
-struct utp_upiu_req {
-	struct utp_upiu_header header;
-	union {
-		struct utp_upiu_cmd sc;
-		struct utp_upiu_query qr;
-	};
 };
 
 /**
@@ -517,36 +459,6 @@ struct utp_upiu_rsp {
 		struct utp_cmd_rsp sr;
 		struct utp_upiu_query qr;
 	};
-};
-
-/**
- * struct utp_upiu_task_req - Task request UPIU structure
- * @header - UPIU header structure DW0 to DW-2
- * @input_param1: Input parameter 1 DW-3
- * @input_param2: Input parameter 2 DW-4
- * @input_param3: Input parameter 3 DW-5
- * @reserved: Reserved double words DW-6 to DW-7
- */
-struct utp_upiu_task_req {
-	struct utp_upiu_header header;
-	__be32 input_param1;
-	__be32 input_param2;
-	__be32 input_param3;
-	__be32 reserved[2];
-};
-
-/**
- * struct utp_upiu_task_rsp - Task Management Response UPIU structure
- * @header: UPIU header structure DW0-DW-2
- * @output_param1: Ouput parameter 1 DW3
- * @output_param2: Output parameter 2 DW4
- * @reserved: Reserved double words DW-5 to DW-7
- */
-struct utp_upiu_task_rsp {
-	struct utp_upiu_header header;
-	__be32 output_param1;
-	__be32 output_param2;
-	__be32 reserved[3];
 };
 
 /**

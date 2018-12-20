@@ -403,8 +403,7 @@ void _c4iw_free_ep(struct kref *kref)
 				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
-		if (ep->mpa_skb)
-			kfree_skb(ep->mpa_skb);
+		kfree_skb(ep->mpa_skb);
 	}
 	if (!skb_queue_empty(&ep->com.ep_skb_list))
 		skb_queue_purge(&ep->com.ep_skb_list);

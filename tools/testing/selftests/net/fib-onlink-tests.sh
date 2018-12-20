@@ -167,8 +167,8 @@ setup()
 	# add vrf table
 	ip li add ${VRF} type vrf table ${VRF_TABLE}
 	ip li set ${VRF} up
-	ip ro add table ${VRF_TABLE} unreachable default
-	ip -6 ro add table ${VRF_TABLE} unreachable default
+	ip ro add table ${VRF_TABLE} unreachable default metric 8192
+	ip -6 ro add table ${VRF_TABLE} unreachable default metric 8192
 
 	# create test interfaces
 	ip li add ${NETIFS[p1]} type veth peer name ${NETIFS[p2]}
@@ -185,20 +185,20 @@ setup()
 	for n in 1 3 5 7; do
 		ip li set ${NETIFS[p${n}]} up
 		ip addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]}
+		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
 	done
 
 	# move peer interfaces to namespace and add addresses
 	for n in 2 4 6 8; do
 		ip li set ${NETIFS[p${n}]} netns ${PEER_NS} up
 		ip -netns ${PEER_NS} addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]}
+		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
 	done
 
-	set +e
+	ip -6 ro add default via ${V6ADDRS[p3]/::[0-9]/::64}
+	ip -6 ro add table ${VRF_TABLE} default via ${V6ADDRS[p7]/::[0-9]/::64}
 
-	# let DAD complete - assume default of 1 probe
-	sleep 1
+	set +e
 }
 
 cleanup()

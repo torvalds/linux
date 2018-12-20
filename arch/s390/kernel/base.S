@@ -18,7 +18,7 @@
 
 ENTRY(s390_base_mcck_handler)
 	basr	%r13,0
-0:	lg	%r15,__LC_PANIC_STACK	# load panic stack
+0:	lg	%r15,__LC_NODAT_STACK	# load panic stack
 	aghi	%r15,-STACK_FRAME_OVERHEAD
 	larl	%r1,s390_base_mcck_handler_fn
 	lg	%r9,0(%r1)

@@ -1232,7 +1232,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	if (pwrpriv->ps_processing) {
 		DBG_871X("%s wait ps_processing...\n", __func__);
 		while (pwrpriv->ps_processing && jiffies_to_msecs(jiffies - start) <= 3000)
-			msleep(10);
+			mdelay(10);
 		if (pwrpriv->ps_processing)
 			DBG_871X("%s wait ps_processing timeout\n", __func__);
 		else
@@ -1244,7 +1244,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 		while (pwrpriv->bInSuspend
 			&& jiffies_to_msecs(jiffies - start) <= 3000
 		) {
-			msleep(10);
+			mdelay(10);
 		}
 		if (pwrpriv->bInSuspend)
 			DBG_871X("%s wait bInSuspend timeout\n", __func__);

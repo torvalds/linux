@@ -16,7 +16,7 @@ The following assumes that only a single peripheral is connected to a DSI
 host. Experience shows that this is true for the large majority of setups.
 
 DSI host
---------
+========
 
 In addition to the standard properties and those defined by the parent bus of
 a DSI host, the following properties apply to a node representing a DSI host.
@@ -29,12 +29,24 @@ Required properties:
 - #size-cells: Should be 0. There are cases where it makes sense to use a
   different value here. See below.
 
-DSI peripheral
---------------
+Optional properties:
+- clock-master: boolean. Should be enabled if the host is being used in
+  conjunction with another DSI host to drive the same peripheral. Hardware
+  supporting such a configuration generally requires the data on both the busses
+  to be driven by the same clock. Only the DSI host instance controlling this
+  clock should contain this property.
 
-Peripherals are represented as child nodes of the DSI host's node. Properties
-described here apply to all DSI peripherals, but individual bindings may want
-to define additional, device-specific properties.
+DSI peripheral
+==============
+
+Peripherals with DSI as control bus, or no control bus
+------------------------------------------------------
+
+Peripherals with the DSI bus as the primary control bus, or peripherals with
+no control bus but use the DSI bus to transmit pixel data are represented
+as child nodes of the DSI host's node. Properties described here apply to all
+DSI peripherals, but individual bindings may want to define additional,
+device-specific properties.
 
 Required properties:
 - reg: The virtual channel number of a DSI peripheral. Must be in the range
@@ -49,9 +61,37 @@ case two alternative representations can be chosen:
   property is the number of the first virtual channel and the second cell is
   the number of consecutive virtual channels.
 
-Example
--------
+Peripherals with a different control bus
+----------------------------------------
 
+There are peripherals that have I2C/SPI (or some other non-DSI bus) as the
+primary control bus, but are also connected to a DSI bus (mostly for the data
+path). Connections between such peripherals and a DSI host can be represented
+using the graph bindings [1], [2].
+
+Peripherals that support dual channel DSI
+-----------------------------------------
+
+Peripherals with higher bandwidth requirements can be connected to 2 DSI
+busses. Each DSI bus/channel drives some portion of the pixel data (generally
+left/right half of each line of the display, or even/odd lines of the display).
+The graph bindings should be used to represent the multiple DSI busses that are
+connected to this peripheral. Each DSI host's output endpoint can be linked to
+an input endpoint of the DSI peripheral.
+
+[1] Documentation/devicetree/bindings/graph.txt
+[2] Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Examples
+========
+- (1), (2) and (3) are examples of a DSI host and peripheral on the DSI bus
+  with different virtual channel configurations.
+- (4) is an example of a peripheral on a I2C control bus connected to a
+  DSI host using of-graph bindings.
+- (5) is an example of 2 DSI hosts driving a dual-channel DSI peripheral,
+  which uses I2C as its primary control bus.
+
+1)
 	dsi-host {
 		...
 
@@ -67,6 +107,7 @@ Example
 		...
 	};
 
+2)
 	dsi-host {
 		...
 
@@ -82,6 +123,7 @@ Example
 		...
 	};
 
+3)
 	dsi-host {
 		...
 
@@ -95,4 +137,99 @@ Example
 		};
 
 		...
+	};
+
+4)
+	i2c-host {
+		...
+
+		dsi-bridge@35 {
+			compatible = "...";
+			reg = <0x35>;
+
+			ports {
+				...
+
+				port {
+					bridge_mipi_in: endpoint {
+						remote-endpoint = <&host_mipi_out>;
+					};
+				};
+			};
+		};
+	};
+
+	dsi-host {
+		...
+
+		ports {
+			...
+
+			port {
+				host_mipi_out: endpoint {
+					remote-endpoint = <&bridge_mipi_in>;
+				};
+			};
+		};
+	};
+
+5)
+	i2c-host {
+		dsi-bridge@35 {
+			compatible = "...";
+			reg = <0x35>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dsi0_in: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dsi1_in: endpoint {
+						remote-endpoint = <&dsi1_out>;
+					};
+				};
+			};
+		};
+	};
+
+	dsi0-host {
+		...
+
+		/*
+		 * this DSI instance drives the clock for both the host
+		 * controllers
+		 */
+		clock-master;
+
+		ports {
+			...
+
+			port {
+				dsi0_out: endpoint {
+					remote-endpoint = <&dsi0_in>;
+				};
+			};
+		};
+	};
+
+	dsi1-host {
+		...
+
+		ports {
+			...
+
+			port {
+				dsi1_out: endpoint {
+					remote-endpoint = <&dsi1_in>;
+				};
+			};
+		};
 	};

@@ -147,7 +147,9 @@ config SND_FIREWIRE_MOTU
 	help
 	 Say Y here to enable support for FireWire devices which MOTU produced:
 	  * 828mk2
+	  * Traveler
 	  * 828mk3
+	  * Audio Express
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-motu.

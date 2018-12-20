@@ -1517,6 +1517,20 @@ struct hci_cp_le_write_def_data_len {
 	__le16	tx_time;
 } __packed;
 
+#define HCI_OP_LE_ADD_TO_RESOLV_LIST	0x2027
+struct hci_cp_le_add_to_resolv_list {
+	__u8	 bdaddr_type;
+	bdaddr_t bdaddr;
+	__u8	 peer_irk[16];
+	__u8	 local_irk[16];
+} __packed;
+
+#define HCI_OP_LE_DEL_FROM_RESOLV_LIST	0x2028
+struct hci_cp_le_del_from_resolv_list {
+	__u8	 bdaddr_type;
+	bdaddr_t bdaddr;
+} __packed;
+
 #define HCI_OP_LE_CLEAR_RESOLV_LIST	0x2029
 
 #define HCI_OP_LE_READ_RESOLV_LIST_SIZE	0x202a

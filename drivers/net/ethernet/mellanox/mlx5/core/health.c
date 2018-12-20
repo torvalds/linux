@@ -59,20 +59,23 @@ enum {
 };
 
 enum {
-	MLX5_NIC_IFC_FULL		= 0,
-	MLX5_NIC_IFC_DISABLED		= 1,
-	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
-	MLX5_NIC_IFC_INVALID		= 3
-};
-
-enum {
 	MLX5_DROP_NEW_HEALTH_WORK,
 	MLX5_DROP_NEW_RECOVERY_WORK,
 };
 
-static u8 get_nic_state(struct mlx5_core_dev *dev)
+u8 mlx5_get_nic_state(struct mlx5_core_dev *dev)
 {
 	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 3;
+}
+
+void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state)
+{
+	u32 cur_cmdq_addr_l_sz;
+
+	cur_cmdq_addr_l_sz = ioread32be(&dev->iseg->cmdq_addr_l_sz);
+	iowrite32be((cur_cmdq_addr_l_sz & 0xFFFFF000) |
+		    state << MLX5_NIC_IFC_OFFSET,
+		    &dev->iseg->cmdq_addr_l_sz);
 }
 
 static void trigger_cmd_completions(struct mlx5_core_dev *dev)
@@ -103,7 +106,7 @@ static int in_fatal(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
 
-	if (get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
+	if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
 		return 1;
 
 	if (ioread32be(&h->fw_ver) == 0xffffffff)
@@ -133,7 +136,7 @@ unlock:
 
 static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 {
-	u8 nic_interface = get_nic_state(dev);
+	u8 nic_interface = mlx5_get_nic_state(dev);
 
 	switch (nic_interface) {
 	case MLX5_NIC_IFC_FULL:
@@ -168,7 +171,7 @@ static void health_recover(struct work_struct *work)
 	priv = container_of(health, struct mlx5_priv, health);
 	dev = container_of(priv, struct mlx5_core_dev, priv);
 
-	nic_state = get_nic_state(dev);
+	nic_state = mlx5_get_nic_state(dev);
 	if (nic_state == MLX5_NIC_IFC_INVALID) {
 		dev_err(&dev->pdev->dev, "health recovery flow aborted since the nic state is invalid\n");
 		return;

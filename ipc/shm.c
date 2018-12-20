@@ -1202,9 +1202,9 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 struct compat_shmid_ds {
 	struct compat_ipc_perm shm_perm;
 	int shm_segsz;
-	compat_time_t shm_atime;
-	compat_time_t shm_dtime;
-	compat_time_t shm_ctime;
+	old_time32_t shm_atime;
+	old_time32_t shm_dtime;
+	old_time32_t shm_ctime;
 	compat_ipc_pid_t shm_cpid;
 	compat_ipc_pid_t shm_lpid;
 	unsigned short shm_nattch;

@@ -2,6 +2,7 @@ config CLK_ACTIONS
 	bool "Clock driver for Actions Semi SoCs"
 	depends on ARCH_ACTIONS || COMPILE_TEST
 	select REGMAP_MMIO
+	select RESET_CONTROLLER
 	default ARCH_ACTIONS
 
 if CLK_ACTIONS

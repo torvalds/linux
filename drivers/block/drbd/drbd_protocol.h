@@ -57,7 +57,7 @@ enum drbd_packet {
 	P_PROTOCOL_UPDATE     = 0x2d, /* data sock: is used in established connections */
         /* 0x2e to 0x30 reserved, used in drbd 9 */
 
-	/* REQ_DISCARD. We used "discard" in different contexts before,
+	/* REQ_OP_DISCARD. We used "discard" in different contexts before,
 	 * which is why I chose TRIM here, to disambiguate. */
 	P_TRIM                = 0x31,
 
@@ -126,7 +126,7 @@ struct p_header100 {
 #define DP_UNPLUG             8 /* not used anymore   */
 #define DP_FUA               16 /* equals REQ_FUA     */
 #define DP_FLUSH             32 /* equals REQ_PREFLUSH   */
-#define DP_DISCARD           64 /* equals REQ_DISCARD */
+#define DP_DISCARD           64 /* equals REQ_OP_DISCARD */
 #define DP_SEND_RECEIVE_ACK 128 /* This is a proto B write request */
 #define DP_SEND_WRITE_ACK   256 /* This is a proto C write request */
 #define DP_WSAME            512 /* equiv. REQ_WRITE_SAME */

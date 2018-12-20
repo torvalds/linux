@@ -234,8 +234,7 @@ static void chtls_send_reset(struct sock *sk, int mode, struct sk_buff *skb)
 
 	return;
 out:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
 static void release_tcp_port(struct sock *sk)
@@ -406,12 +405,10 @@ static int wait_for_states(struct sock *sk, unsigned int states)
 
 int chtls_disconnect(struct sock *sk, int flags)
 {
-	struct chtls_sock *csk;
 	struct tcp_sock *tp;
 	int err;
 
 	tp = tcp_sk(sk);
-	csk = rcu_dereference_sk_user_data(sk);
 	chtls_purge_recv_queue(sk);
 	chtls_purge_receive_queue(sk);
 	chtls_purge_write_queue(sk);
@@ -1014,7 +1011,6 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 				    const struct cpl_pass_accept_req *req,
 				    struct chtls_dev *cdev)
 {
-	const struct tcphdr *tcph;
 	struct inet_sock *newinet;
 	const struct iphdr *iph;
 	struct net_device *ndev;
@@ -1036,7 +1032,6 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	if (!dst)
 		goto free_sk;
 
-	tcph = (struct tcphdr *)(iph + 1);
 	n = dst_neigh_lookup(dst, &iph->saddr);
 	if (!n)
 		goto free_sk;

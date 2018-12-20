@@ -25,13 +25,12 @@ static int apq8096_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 static void apq8096_add_be_ops(struct snd_soc_card *card)
 {
-	struct snd_soc_dai_link *link = card->dai_link;
-	int i, num_links = card->num_links;
+	struct snd_soc_dai_link *link;
+	int i;
 
-	for (i = 0; i < num_links; i++) {
+	for_each_card_prelinks(card, i, link) {
 		if (link->no_pcm == 1)
 			link->be_hw_params_fixup = apq8096_be_hw_params_fixup;
-		link++;
 	}
 }
 

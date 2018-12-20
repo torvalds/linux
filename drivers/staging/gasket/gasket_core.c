@@ -109,8 +109,6 @@ check_and_invoke_callback(struct gasket_dev *gasket_dev,
 {
 	int ret = 0;
 
-	dev_dbg(gasket_dev->dev, "check_and_invoke_callback %p\n",
-		cb_function);
 	if (cb_function) {
 		mutex_lock(&gasket_dev->mutex);
 		ret = cb_function(gasket_dev);
@@ -126,11 +124,8 @@ gasket_check_and_invoke_callback_nolock(struct gasket_dev *gasket_dev,
 {
 	int ret = 0;
 
-	if (cb_function) {
-		dev_dbg(gasket_dev->dev,
-			"Invoking device-specific callback.\n");
+	if (cb_function)
 		ret = cb_function(gasket_dev);
-	}
 	return ret;
 }
 
@@ -189,26 +184,26 @@ static int gasket_find_dev_slot(struct gasket_internal_desc *internal_desc,
  * Returns 0 if successful, a negative error code otherwise.
  */
 static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
-			    struct device *parent, struct gasket_dev **pdev,
-			    const char *kobj_name)
+			    struct device *parent, struct gasket_dev **pdev)
 {
 	int dev_idx;
 	const struct gasket_driver_desc *driver_desc =
 		internal_desc->driver_desc;
 	struct gasket_dev *gasket_dev;
 	struct gasket_cdev_info *dev_info;
+	const char *parent_name = dev_name(parent);
 
-	pr_debug("Allocating a Gasket device %s.\n", kobj_name);
+	pr_debug("Allocating a Gasket device, parent %s.\n", parent_name);
 
 	*pdev = NULL;
 
-	dev_idx = gasket_find_dev_slot(internal_desc, kobj_name);
+	dev_idx = gasket_find_dev_slot(internal_desc, parent_name);
 	if (dev_idx < 0)
 		return dev_idx;
 
 	gasket_dev = *pdev = kzalloc(sizeof(*gasket_dev), GFP_KERNEL);
 	if (!gasket_dev) {
-		pr_err("no memory for device %s\n", kobj_name);
+		pr_err("no memory for device, parent %s\n", parent_name);
 		return -ENOMEM;
 	}
 	internal_desc->devs[dev_idx] = gasket_dev;
@@ -217,7 +212,7 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 
 	gasket_dev->internal_desc = internal_desc;
 	gasket_dev->dev_idx = dev_idx;
-	snprintf(gasket_dev->kobj_name, GASKET_NAME_MAX, "%s", kobj_name);
+	snprintf(gasket_dev->kobj_name, GASKET_NAME_MAX, "%s", parent_name);
 	gasket_dev->dev = get_device(parent);
 	/* gasket_bar_data is uninitialized. */
 	gasket_dev->num_page_tables = driver_desc->num_page_tables;
@@ -231,10 +226,9 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 	dev_info->devt =
 		MKDEV(driver_desc->major, driver_desc->minor +
 		      gasket_dev->dev_idx);
-	dev_info->device = device_create(internal_desc->class, parent,
-		dev_info->devt, gasket_dev, dev_info->name);
-
-	dev_dbg(dev_info->device, "Gasket device allocated.\n");
+	dev_info->device =
+		device_create(internal_desc->class, parent, dev_info->devt,
+			      gasket_dev, dev_info->name);
 
 	/* cdev has not yet been added; cdev_added is 0 */
 	dev_info->gasket_dev_ptr = gasket_dev;
@@ -652,13 +646,13 @@ void gasket_disable_device(struct gasket_dev *gasket_dev)
 EXPORT_SYMBOL(gasket_disable_device);
 
 /*
- * Registered descriptor lookup.
+ * Registered driver descriptor lookup for PCI devices.
  *
  * Precondition: Called with g_mutex held (to avoid a race on return).
  * Returns NULL if no matching device was found.
  */
 static struct gasket_internal_desc *
-lookup_internal_desc(struct pci_dev *pci_dev)
+lookup_pci_internal_desc(struct pci_dev *pci_dev)
 {
 	int i;
 
@@ -1358,13 +1352,7 @@ int gasket_enable_device(struct gasket_dev *gasket_dev)
 	const struct gasket_driver_desc *driver_desc =
 		gasket_dev->internal_desc->driver_desc;
 
-	ret = gasket_interrupt_init(gasket_dev, driver_desc->name,
-				    driver_desc->interrupt_type,
-				    driver_desc->interrupts,
-				    driver_desc->num_interrupts,
-				    driver_desc->interrupt_pack_width,
-				    driver_desc->interrupt_bar_index,
-				    driver_desc->wire_interrupt_offsets);
+	ret = gasket_interrupt_init(gasket_dev);
 	if (ret) {
 		dev_err(gasket_dev->dev,
 			"Critical failure to allocate interrupts: %d\n", ret);
@@ -1420,6 +1408,56 @@ int gasket_enable_device(struct gasket_dev *gasket_dev)
 }
 EXPORT_SYMBOL(gasket_enable_device);
 
+static int __gasket_add_device(struct device *parent_dev,
+			       struct gasket_internal_desc *internal_desc,
+			       struct gasket_dev **gasket_devp)
+{
+	int ret;
+	struct gasket_dev *gasket_dev;
+	const struct gasket_driver_desc *driver_desc =
+	    internal_desc->driver_desc;
+
+	ret = gasket_alloc_dev(internal_desc, parent_dev, &gasket_dev);
+	if (ret)
+		return ret;
+	if (IS_ERR(gasket_dev->dev_info.device)) {
+		dev_err(parent_dev, "Cannot create %s device %s [ret = %ld]\n",
+			driver_desc->name, gasket_dev->dev_info.name,
+			PTR_ERR(gasket_dev->dev_info.device));
+		ret = -ENODEV;
+		goto free_gasket_dev;
+	}
+
+	ret = gasket_sysfs_create_mapping(gasket_dev->dev_info.device,
+					  gasket_dev);
+	if (ret)
+		goto remove_device;
+
+	ret = gasket_sysfs_create_entries(gasket_dev->dev_info.device,
+					  gasket_sysfs_generic_attrs);
+	if (ret)
+		goto remove_sysfs_mapping;
+
+	*gasket_devp = gasket_dev;
+	return 0;
+
+remove_sysfs_mapping:
+	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
+remove_device:
+	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
+free_gasket_dev:
+	gasket_free_dev(gasket_dev);
+	return ret;
+}
+
+static void __gasket_remove_device(struct gasket_internal_desc *internal_desc,
+				   struct gasket_dev *gasket_dev)
+{
+	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
+	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
+	gasket_free_dev(gasket_dev);
+}
+
 /*
  * Add PCI gasket device.
  *
@@ -1432,16 +1470,14 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 			  struct gasket_dev **gasket_devp)
 {
 	int ret;
-	const char *kobj_name = dev_name(&pci_dev->dev);
 	struct gasket_internal_desc *internal_desc;
 	struct gasket_dev *gasket_dev;
-	const struct gasket_driver_desc *driver_desc;
 	struct device *parent;
 
-	pr_debug("add PCI device %s\n", kobj_name);
+	dev_dbg(&pci_dev->dev, "add PCI gasket device\n");
 
 	mutex_lock(&g_mutex);
-	internal_desc = lookup_internal_desc(pci_dev);
+	internal_desc = lookup_pci_internal_desc(pci_dev);
 	mutex_unlock(&g_mutex);
 	if (!internal_desc) {
 		dev_err(&pci_dev->dev,
@@ -1449,29 +1485,15 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 		return -ENODEV;
 	}
 
-	driver_desc = internal_desc->driver_desc;
-
 	parent = &pci_dev->dev;
-	ret = gasket_alloc_dev(internal_desc, parent, &gasket_dev, kobj_name);
+	ret = __gasket_add_device(parent, internal_desc, &gasket_dev);
 	if (ret)
 		return ret;
-	gasket_dev->pci_dev = pci_dev;
-	if (IS_ERR_OR_NULL(gasket_dev->dev_info.device)) {
-		pr_err("Cannot create %s device %s [ret = %ld]\n",
-		       driver_desc->name, gasket_dev->dev_info.name,
-		       PTR_ERR(gasket_dev->dev_info.device));
-		ret = -ENODEV;
-		goto fail1;
-	}
 
+	gasket_dev->pci_dev = pci_dev;
 	ret = gasket_setup_pci(pci_dev, gasket_dev);
 	if (ret)
-		goto fail2;
-
-	ret = gasket_sysfs_create_mapping(gasket_dev->dev_info.device,
-					  gasket_dev);
-	if (ret)
-		goto fail3;
+		goto cleanup_pci;
 
 	/*
 	 * Once we've created the mapping structures successfully, attempt to
@@ -1482,24 +1504,15 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 	if (ret) {
 		dev_err(gasket_dev->dev,
 			"Cannot create sysfs pci link: %d\n", ret);
-		goto fail3;
+		goto cleanup_pci;
 	}
-	ret = gasket_sysfs_create_entries(gasket_dev->dev_info.device,
-					  gasket_sysfs_generic_attrs);
-	if (ret)
-		goto fail4;
 
 	*gasket_devp = gasket_dev;
 	return 0;
 
-fail4:
-fail3:
-	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
-fail2:
+cleanup_pci:
 	gasket_cleanup_pci(gasket_dev);
-	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
-fail1:
-	gasket_free_dev(gasket_dev);
+	__gasket_remove_device(internal_desc, gasket_dev);
 	return ret;
 }
 EXPORT_SYMBOL(gasket_pci_add_device);
@@ -1510,17 +1523,14 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 	int i;
 	struct gasket_internal_desc *internal_desc;
 	struct gasket_dev *gasket_dev = NULL;
-	const struct gasket_driver_desc *driver_desc;
 	/* Find the device desc. */
 	mutex_lock(&g_mutex);
-	internal_desc = lookup_internal_desc(pci_dev);
+	internal_desc = lookup_pci_internal_desc(pci_dev);
 	if (!internal_desc) {
 		mutex_unlock(&g_mutex);
 		return;
 	}
 	mutex_unlock(&g_mutex);
-
-	driver_desc = internal_desc->driver_desc;
 
 	/* Now find the specific device */
 	mutex_lock(&internal_desc->mutex);
@@ -1540,10 +1550,7 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 		internal_desc->driver_desc->name);
 
 	gasket_cleanup_pci(gasket_dev);
-
-	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
-	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
-	gasket_free_dev(gasket_dev);
+	__gasket_remove_device(internal_desc, gasket_dev);
 }
 EXPORT_SYMBOL(gasket_pci_remove_device);
 
@@ -1791,7 +1798,6 @@ static int __init gasket_init(void)
 {
 	int i;
 
-	pr_debug("%s\n", __func__);
 	mutex_lock(&g_mutex);
 	for (i = 0; i < GASKET_FRAMEWORK_DESC_MAX; i++) {
 		g_descs[i].driver_desc = NULL;
@@ -1804,13 +1810,8 @@ static int __init gasket_init(void)
 	return 0;
 }
 
-static void __exit gasket_exit(void)
-{
-	pr_debug("%s\n", __func__);
-}
 MODULE_DESCRIPTION("Google Gasket driver framework");
 MODULE_VERSION(GASKET_FRAMEWORK_VERSION);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Rob Springer <rspringer@google.com>");
 module_init(gasket_init);
-module_exit(gasket_exit);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ST1232 Touchscreen Controller Driver
  *
@@ -7,15 +8,6 @@
  * Using code from:
  *  - android.git.kernel.org: projects/kernel/common.git: synaptics_i2c_rmi.c
  *	Copyright (C) 2007 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -195,6 +187,7 @@ static int st1232_ts_probe(struct i2c_client *client,
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 
+	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 	__set_bit(EV_SYN, input_dev->evbit);
 	__set_bit(EV_KEY, input_dev->evbit);
 	__set_bit(EV_ABS, input_dev->evbit);
@@ -294,4 +287,4 @@ module_i2c_driver(st1232_ts_driver);
 
 MODULE_AUTHOR("Tony SIM <chinyeow.sim.xt@renesas.com>");
 MODULE_DESCRIPTION("SITRONIX ST1232 Touchscreen Controller Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

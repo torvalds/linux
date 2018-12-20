@@ -808,6 +808,40 @@ static int ad5064_set_config(struct ad5064_state *st, unsigned int val)
 	return ad5064_write(st, cmd, 0, val, 0);
 }
 
+static int ad5064_request_vref(struct ad5064_state *st, struct device *dev)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ad5064_num_vref(st); ++i)
+		st->vref_reg[i].supply = ad5064_vref_name(st, i);
+
+	if (!st->chip_info->internal_vref)
+		return devm_regulator_bulk_get(dev, ad5064_num_vref(st),
+					       st->vref_reg);
+
+	/*
+	 * This assumes that when the regulator has an internal VREF
+	 * there is only one external VREF connection, which is
+	 * currently the case for all supported devices.
+	 */
+	st->vref_reg[0].consumer = devm_regulator_get_optional(dev, "vref");
+	if (!IS_ERR(st->vref_reg[0].consumer))
+		return 0;
+
+	ret = PTR_ERR(st->vref_reg[0].consumer);
+	if (ret != -ENODEV)
+		return ret;
+
+	/* If no external regulator was supplied use the internal VREF */
+	st->use_internal_vref = true;
+	ret = ad5064_set_config(st, AD5064_CONFIG_INT_VREF_ENABLE);
+	if (ret)
+		dev_err(dev, "Failed to enable internal vref: %d\n", ret);
+
+	return ret;
+}
+
 static int ad5064_probe(struct device *dev, enum ad5064_type type,
 			const char *name, ad5064_write_func write)
 {
@@ -828,22 +862,11 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 	st->dev = dev;
 	st->write = write;
 
-	for (i = 0; i < ad5064_num_vref(st); ++i)
-		st->vref_reg[i].supply = ad5064_vref_name(st, i);
+	ret = ad5064_request_vref(st, dev);
+	if (ret)
+		return ret;
 
-	ret = devm_regulator_bulk_get(dev, ad5064_num_vref(st),
-		st->vref_reg);
-	if (ret) {
-		if (!st->chip_info->internal_vref)
-			return ret;
-		st->use_internal_vref = true;
-		ret = ad5064_set_config(st, AD5064_CONFIG_INT_VREF_ENABLE);
-		if (ret) {
-			dev_err(dev, "Failed to enable internal vref: %d\n",
-				ret);
-			return ret;
-		}
-	} else {
+	if (!st->use_internal_vref) {
 		ret = regulator_bulk_enable(ad5064_num_vref(st), st->vref_reg);
 		if (ret)
 			return ret;

@@ -1089,8 +1089,6 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev) { return 0; }
 #endif
 
 #ifdef CONFIG_SYSCTL
-extern struct ctl_table ipv6_route_table_template[];
-
 struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
 struct ctl_table *ipv6_route_sysctl_init(struct net *net);
 int ipv6_sysctl_register(void);

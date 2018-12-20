@@ -13,9 +13,13 @@ They provide the following functionalities:
 
 Required Properties:
   - compatible: Must be one of:
+      - "renesas,r7s9210-cpg-mssr" for the r7s9210 SoC (RZ/A2)
       - "renesas,r8a7743-cpg-mssr" for the r8a7743 SoC (RZ/G1M)
+      - "renesas,r8a7744-cpg-mssr" for the r8a7744 SoC (RZ/G1N)
       - "renesas,r8a7745-cpg-mssr" for the r8a7745 SoC (RZ/G1E)
       - "renesas,r8a77470-cpg-mssr" for the r8a77470 SoC (RZ/G1C)
+      - "renesas,r8a774a1-cpg-mssr" for the r8a774a1 SoC (RZ/G2M)
+      - "renesas,r8a774c0-cpg-mssr" for the r8a774c0 SoC (RZ/G2E)
       - "renesas,r8a7790-cpg-mssr" for the r8a7790 SoC (R-Car H2)
       - "renesas,r8a7791-cpg-mssr" for the r8a7791 SoC (R-Car M2-W)
       - "renesas,r8a7792-cpg-mssr" for the r8a7792 SoC (R-Car V2H)
@@ -35,12 +39,13 @@ Required Properties:
   - clocks: References to external parent clocks, one entry for each entry in
     clock-names
   - clock-names: List of external parent clock names. Valid names are:
-      - "extal" (r8a7743, r8a7745, r8a77470, r8a7790, r8a7791, r8a7792,
-		 r8a7793, r8a7794, r8a7795, r8a7796, r8a77965, r8a77970,
-		 r8a77980, r8a77990, r8a77995)
-      - "extalr" (r8a7795, r8a7796, r8a77965, r8a77970, r8a77980)
-      - "usb_extal" (r8a7743, r8a7745, r8a77470, r8a7790, r8a7791, r8a7793,
-		     r8a7794)
+      - "extal" (r7s9210, r8a7743, r8a7744, r8a7745, r8a77470, r8a774a1,
+		 r8a774c0, r8a7790, r8a7791, r8a7792, r8a7793, r8a7794,
+		 r8a7795, r8a7796, r8a77965, r8a77970, r8a77980, r8a77990,
+		 r8a77995)
+      - "extalr" (r8a774a1, r8a7795, r8a7796, r8a77965, r8a77970, r8a77980)
+      - "usb_extal" (r8a7743, r8a7744, r8a7745, r8a77470, r8a7790, r8a7791,
+		     r8a7793, r8a7794)
 
   - #clock-cells: Must be 2
       - For CPG core clocks, the two clock specifier cells must be "CPG_CORE"

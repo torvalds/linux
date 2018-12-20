@@ -935,9 +935,8 @@ qed_iwarp_return_ep(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 	}
 	spin_lock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
 
-	list_del(&ep->list_entry);
-	list_add_tail(&ep->list_entry,
-		      &p_hwfn->p_rdma_info->iwarp.ep_free_list);
+	list_move_tail(&ep->list_entry,
+		       &p_hwfn->p_rdma_info->iwarp.ep_free_list);
 
 	spin_unlock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
 }
@@ -2270,8 +2269,8 @@ static void qed_iwarp_process_pending_pkts(struct qed_hwfn *p_hwfn)
 		if (rc == -EBUSY)
 			break;
 
-		list_del(&mpa_buf->list_entry);
-		list_add_tail(&mpa_buf->list_entry, &iwarp_info->mpa_buf_list);
+		list_move_tail(&mpa_buf->list_entry,
+			       &iwarp_info->mpa_buf_list);
 
 		if (rc) {	/* different error, don't continue */
 			DP_NOTICE(p_hwfn, "process pkts failed rc=%d\n", rc);

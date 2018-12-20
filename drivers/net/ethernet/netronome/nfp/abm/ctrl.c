@@ -1,36 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
-/*
- * Copyright (C) 2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2018 Netronome Systems, Inc. */
 
 #include <linux/kernel.h>
 
@@ -55,30 +24,21 @@
 #define NFP_QMSTAT_DROP		16
 #define NFP_QMSTAT_ECN		24
 
-static unsigned long long
-nfp_abm_q_lvl_thrs(struct nfp_abm_link *alink, unsigned int queue)
-{
-	return alink->abm->q_lvls->addr +
-		(alink->queue_base + queue) * NFP_QLVL_STRIDE + NFP_QLVL_THRS;
-}
-
 static int
 nfp_abm_ctrl_stat(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
 		  unsigned int stride, unsigned int offset, unsigned int i,
 		  bool is_u64, u64 *res)
 {
 	struct nfp_cpp *cpp = alink->abm->app->cpp;
-	u32 val32, mur;
-	u64 val, addr;
+	u64 val, sym_offset;
+	u32 val32;
 	int err;
 
-	mur = NFP_CPP_ATOMIC_RD(sym->target, sym->domain);
-
-	addr = sym->addr + (alink->queue_base + i) * stride + offset;
+	sym_offset = (alink->queue_base + i) * stride + offset;
 	if (is_u64)
-		err = nfp_cpp_readq(cpp, mur, addr, &val);
+		err = __nfp_rtsym_readq(cpp, sym, 3, 0, sym_offset, &val);
 	else
-		err = nfp_cpp_readl(cpp, mur, addr, &val32);
+		err = __nfp_rtsym_readl(cpp, sym, 3, 0, sym_offset, &val32);
 	if (err) {
 		nfp_err(cpp,
 			"RED offload reading stat failed on vNIC %d queue %d\n",
@@ -114,13 +74,12 @@ nfp_abm_ctrl_stat_all(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
 int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int i, u32 val)
 {
 	struct nfp_cpp *cpp = alink->abm->app->cpp;
-	u32 muw;
+	u64 sym_offset;
 	int err;
 
-	muw = NFP_CPP_ATOMIC_WR(alink->abm->q_lvls->target,
-				alink->abm->q_lvls->domain);
-
-	err = nfp_cpp_writel(cpp, muw, nfp_abm_q_lvl_thrs(alink, i), val);
+	sym_offset = (alink->queue_base + i) * NFP_QLVL_STRIDE + NFP_QLVL_THRS;
+	err = __nfp_rtsym_writel(cpp, alink->abm->q_lvls, 4, 0,
+				 sym_offset, val);
 	if (err) {
 		nfp_err(cpp, "RED offload setting level failed on vNIC %d queue %d\n",
 			alink->id, i);
@@ -290,10 +249,10 @@ nfp_abm_ctrl_find_rtsym(struct nfp_pf *pf, const char *name, unsigned int size)
 		nfp_err(pf->cpp, "Symbol '%s' not found\n", name);
 		return ERR_PTR(-ENOENT);
 	}
-	if (sym->size != size) {
+	if (nfp_rtsym_size(sym) != size) {
 		nfp_err(pf->cpp,
 			"Symbol '%s' wrong size: expected %u got %llu\n",
-			name, size, sym->size);
+			name, size, nfp_rtsym_size(sym));
 		return ERR_PTR(-EINVAL);
 	}
 

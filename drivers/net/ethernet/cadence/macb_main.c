@@ -544,14 +544,13 @@ static int macb_mii_probe(struct net_device *dev)
 
 	/* mask with MAC supported features */
 	if (macb_is_gem(bp) && bp->caps & MACB_CAPS_GIGABIT_MODE_AVAILABLE)
-		phydev->supported &= PHY_GBIT_FEATURES;
+		phy_set_max_speed(phydev, SPEED_1000);
 	else
-		phydev->supported &= PHY_BASIC_FEATURES;
+		phy_set_max_speed(phydev, SPEED_100);
 
 	if (bp->caps & MACB_CAPS_NO_GIGABIT_HALF)
-		phydev->supported &= ~SUPPORTED_1000baseT_Half;
-
-	phydev->advertising = phydev->supported;
+		phy_remove_link_mode(phydev,
+				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 
 	bp->link = 0;
 	bp->speed = 0;
@@ -1685,7 +1684,7 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 			padlen = 0;
 		/* No room for FCS, need to reallocate skb. */
 		else
-			padlen = ETH_FCS_LEN - tailroom;
+			padlen = ETH_FCS_LEN;
 	} else {
 		/* Add room for FCS. */
 		padlen += ETH_FCS_LEN;
@@ -4157,8 +4156,7 @@ static int macb_remove(struct platform_device *pdev)
 
 static int __maybe_unused macb_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct macb *bp = netdev_priv(netdev);
 
 	netif_carrier_off(netdev);
@@ -4180,8 +4178,7 @@ static int __maybe_unused macb_suspend(struct device *dev)
 
 static int __maybe_unused macb_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct macb *bp = netdev_priv(netdev);
 
 	if (bp->wol & MACB_WOL_ENABLED) {

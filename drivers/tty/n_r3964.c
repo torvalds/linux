@@ -134,6 +134,10 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 		const unsigned char *buf, size_t nr);
 static int r3964_ioctl(struct tty_struct *tty, struct file *file,
 		unsigned int cmd, unsigned long arg);
+#ifdef CONFIG_COMPAT
+static int r3964_compat_ioctl(struct tty_struct *tty, struct file *file,
+		unsigned int cmd, unsigned long arg);
+#endif
 static void r3964_set_termios(struct tty_struct *tty, struct ktermios *old);
 static __poll_t r3964_poll(struct tty_struct *tty, struct file *file,
 		struct poll_table_struct *wait);
@@ -149,6 +153,9 @@ static struct tty_ldisc_ops tty_ldisc_N_R3964 = {
 	.read = r3964_read,
 	.write = r3964_write,
 	.ioctl = r3964_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = r3964_compat_ioctl,
+#endif
 	.set_termios = r3964_set_termios,
 	.poll = r3964_poll,
 	.receive_buf = r3964_receive_buf,
@@ -1209,6 +1216,21 @@ static int r3964_ioctl(struct tty_struct *tty, struct file *file,
 		return -ENOIOCTLCMD;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+static int r3964_compat_ioctl(struct tty_struct *tty, struct file *file,
+		unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case R3964_ENABLE_SIGNALS:
+	case R3964_SETPRIORITY:
+	case R3964_USE_BCC:
+		return r3964_ioctl(tty, file, cmd, arg);
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+#endif
 
 static void r3964_set_termios(struct tty_struct *tty, struct ktermios *old)
 {

@@ -85,7 +85,7 @@ static bool is_child_unique(struct ipoib_dev_priv *ppriv,
 
 /*
  * NOTE: If this function fails then the priv->dev will remain valid, however
- * priv can have been freed and must not be touched by caller in the error
+ * priv will have been freed and must not be touched by caller in the error
  * case.
  *
  * If (ndev->reg_state == NETREG_UNINITIALIZED) then it is up to the caller to
@@ -99,6 +99,12 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	int result;
 
 	ASSERT_RTNL();
+
+	/*
+	 * We do not need to touch priv if register_netdevice fails, so just
+	 * always use this flow.
+	 */
+	ndev->priv_destructor = ipoib_intf_free;
 
 	/*
 	 * Racing with unregister of the parent must be prevented by the
@@ -119,9 +125,6 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 		result = -ENOTUNIQ;
 		goto out_early;
 	}
-
-	/* We do not need to touch priv if register_netdevice fails */
-	ndev->priv_destructor = ipoib_intf_free;
 
 	result = register_netdevice(ndev);
 	if (result) {
@@ -182,12 +185,12 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	snprintf(intf_name, sizeof(intf_name), "%s.%04x",
 		 ppriv->dev->name, pkey);
 
-	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
-	if (!priv) {
-		result = -ENOMEM;
+	ndev = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
+	if (IS_ERR(ndev)) {
+		result = PTR_ERR(ndev);
 		goto out;
 	}
-	ndev = priv->dev;
+	priv = ipoib_priv(ndev);
 
 	result = __ipoib_vlan_add(ppriv, priv, pkey, IPOIB_LEGACY_CHILD);
 

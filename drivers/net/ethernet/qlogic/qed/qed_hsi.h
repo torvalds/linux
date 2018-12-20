@@ -274,7 +274,8 @@ struct core_rx_start_ramrod_data {
 	u8 mf_si_mcast_accept_all;
 	struct core_rx_action_on_error action_on_error;
 	u8 gsi_offload_flag;
-	u8 reserved[6];
+	u8 wipe_inner_vlan_pri_en;
+	u8 reserved[5];
 };
 
 /* Ramrod data for rx queue stop ramrod */
@@ -351,7 +352,8 @@ struct core_tx_start_ramrod_data {
 	__le16 pbl_size;
 	__le16 qm_pq_id;
 	u8 gsi_offload_flag;
-	u8 resrved[3];
+	u8 vport_id;
+	u8 resrved[2];
 };
 
 /* Ramrod data for tx queue stop ramrod */
@@ -914,6 +916,16 @@ struct eth_rx_rate_limit {
 	__le16 reserved1;
 };
 
+/* Update RSS indirection table entry command */
+struct eth_tstorm_rss_update_data {
+	u8 valid;
+	u8 vport_id;
+	u8 ind_table_index;
+	u8 reserved;
+	__le16 ind_table_value;
+	__le16 reserved1;
+};
+
 struct eth_ustorm_per_pf_stat {
 	struct regpair rcv_lb_ucast_bytes;
 	struct regpair rcv_lb_mcast_bytes;
@@ -1241,6 +1253,10 @@ struct rl_update_ramrod_data {
 	u8 rl_id_first;
 	u8 rl_id_last;
 	u8 rl_dc_qcn_flg;
+	u8 dcqcn_reset_alpha_on_idle;
+	u8 rl_bc_stage_th;
+	u8 rl_timer_stage_th;
+	u8 reserved1;
 	__le32 rl_bc_rate;
 	__le16 rl_max_rate;
 	__le16 rl_r_ai;
@@ -1249,7 +1265,7 @@ struct rl_update_ramrod_data {
 	__le32 dcqcn_k_us;
 	__le32 dcqcn_timeuot_us;
 	__le32 qcn_timeuot_us;
-	__le32 reserved[2];
+	__le32 reserved2;
 };
 
 /* Slowpath Element (SPQE) */
@@ -3322,6 +3338,25 @@ enum dbg_status qed_dbg_read_attn(struct qed_hwfn *p_hwfn,
 enum dbg_status qed_dbg_print_attn(struct qed_hwfn *p_hwfn,
 				   struct dbg_attn_block_result *results);
 
+/******************************* Data Types **********************************/
+
+struct mcp_trace_format {
+	u32 data;
+#define MCP_TRACE_FORMAT_MODULE_MASK	0x0000ffff
+#define MCP_TRACE_FORMAT_MODULE_SHIFT	0
+#define MCP_TRACE_FORMAT_LEVEL_MASK	0x00030000
+#define MCP_TRACE_FORMAT_LEVEL_SHIFT	16
+#define MCP_TRACE_FORMAT_P1_SIZE_MASK	0x000c0000
+#define MCP_TRACE_FORMAT_P1_SIZE_SHIFT	18
+#define MCP_TRACE_FORMAT_P2_SIZE_MASK	0x00300000
+#define MCP_TRACE_FORMAT_P2_SIZE_SHIFT	20
+#define MCP_TRACE_FORMAT_P3_SIZE_MASK	0x00c00000
+#define MCP_TRACE_FORMAT_P3_SIZE_SHIFT	22
+#define MCP_TRACE_FORMAT_LEN_MASK	0xff000000
+#define MCP_TRACE_FORMAT_LEN_SHIFT	24
+	char *format_str;
+};
+
 /******************************** Constants **********************************/
 
 #define MAX_NAME_LEN	16
@@ -3335,6 +3370,13 @@ enum dbg_status qed_dbg_print_attn(struct qed_hwfn *p_hwfn,
  * @param bin_ptr - a pointer to the binary data with debug arrays.
  */
 enum dbg_status qed_dbg_user_set_bin_ptr(const u8 * const bin_ptr);
+
+/**
+ * @brief qed_dbg_alloc_user_data - Allocates user debug data.
+ *
+ * @param p_hwfn -		 HW device data
+ */
+enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_dbg_get_status_str - Returns a string for the specified status.
@@ -3381,8 +3423,7 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
 					   u32 *num_warnings);
 
 /**
- * @brief qed_dbg_mcp_trace_set_meta_data - Sets a pointer to the MCP Trace
- *	meta data.
+ * @brief qed_dbg_mcp_trace_set_meta_data - Sets the MCP Trace meta data.
  *
  * Needed in case the MCP Trace dump doesn't contain the meta data (e.g. due to
  * no NVRAM access).
@@ -3390,7 +3431,8 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
  * @param data - pointer to MCP Trace meta data
  * @param size - size of MCP Trace meta data in dwords
  */
-void qed_dbg_mcp_trace_set_meta_data(u32 *data, u32 size);
+void qed_dbg_mcp_trace_set_meta_data(struct qed_hwfn *p_hwfn,
+				     const u32 *meta_buf);
 
 /**
  * @brief qed_get_mcp_trace_results_buf_size - Returns the required buffer size
@@ -3425,17 +3467,43 @@ enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
 					    char *results_buf);
 
 /**
+ * @brief qed_print_mcp_trace_results_cont - Prints MCP Trace results, and
+ * keeps the MCP trace meta data allocated, to support continuous MCP Trace
+ * parsing. After the continuous parsing ends, mcp_trace_free_meta_data should
+ * be called to free the meta data.
+ *
+ * @param p_hwfn -	      HW device data
+ * @param dump_buf -	      mcp trace dump buffer, starting from the header.
+ * @param results_buf -	      buffer for printing the mcp trace results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_mcp_trace_results_cont(struct qed_hwfn *p_hwfn,
+						 u32 *dump_buf,
+						 char *results_buf);
+
+/**
  * @brief print_mcp_trace_line - Prints MCP Trace results for a single line
  *
+ * @param p_hwfn -	      HW device data
  * @param dump_buf -	      mcp trace dump buffer, starting from the header.
  * @param num_dumped_bytes -  number of bytes that were dumped.
  * @param results_buf -	      buffer for printing the mcp trace results.
  *
  * @return error if the parsing fails, ok otherwise.
  */
-enum dbg_status qed_print_mcp_trace_line(u8 *dump_buf,
+enum dbg_status qed_print_mcp_trace_line(struct qed_hwfn *p_hwfn,
+					 u8 *dump_buf,
 					 u32 num_dumped_bytes,
 					 char *results_buf);
+
+/**
+ * @brief mcp_trace_free_meta_data - Frees the MCP Trace meta data.
+ * Should be called after continuous MCP Trace parsing.
+ *
+ * @param p_hwfn - HW device data
+ */
+void qed_mcp_trace_free_meta_data(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_get_reg_fifo_results_buf_size - Returns the required buffer size
@@ -4303,154 +4371,161 @@ void qed_set_rdma_error_level(struct qed_hwfn *p_hwfn,
 	(IRO[29].base + ((pf_id) * IRO[29].m1))
 #define ETH_RX_RATE_LIMIT_SIZE				(IRO[29].size)
 
+/* RSS indirection table entry update command per PF offset in TSTORM PF BAR0.
+ * Use eth_tstorm_rss_update_data for update.
+ */
+#define TSTORM_ETH_RSS_UPDATE_OFFSET(pf_id) \
+	(IRO[30].base + ((pf_id) * IRO[30].m1))
+#define TSTORM_ETH_RSS_UPDATE_SIZE			(IRO[30].size)
+
 /* Xstorm queue zone */
 #define XSTORM_ETH_QUEUE_ZONE_OFFSET(queue_id) \
-	(IRO[30].base + ((queue_id) * IRO[30].m1))
-#define XSTORM_ETH_QUEUE_ZONE_SIZE			(IRO[30].size)
+	(IRO[31].base + ((queue_id) * IRO[31].m1))
+#define XSTORM_ETH_QUEUE_ZONE_SIZE			(IRO[31].size)
 
 /* Ystorm cqe producer */
 #define YSTORM_TOE_CQ_PROD_OFFSET(rss_id) \
-	(IRO[31].base + ((rss_id) * IRO[31].m1))
-#define YSTORM_TOE_CQ_PROD_SIZE				(IRO[31].size)
+	(IRO[32].base + ((rss_id) * IRO[32].m1))
+#define YSTORM_TOE_CQ_PROD_SIZE				(IRO[32].size)
 
 /* Ustorm cqe producer */
 #define USTORM_TOE_CQ_PROD_OFFSET(rss_id) \
-	(IRO[32].base + ((rss_id) * IRO[32].m1))
-#define USTORM_TOE_CQ_PROD_SIZE				(IRO[32].size)
+	(IRO[33].base + ((rss_id) * IRO[33].m1))
+#define USTORM_TOE_CQ_PROD_SIZE				(IRO[33].size)
 
 /* Ustorm grq producer */
 #define USTORM_TOE_GRQ_PROD_OFFSET(pf_id) \
-	(IRO[33].base + ((pf_id) * IRO[33].m1))
-#define USTORM_TOE_GRQ_PROD_SIZE			(IRO[33].size)
+	(IRO[34].base + ((pf_id) * IRO[34].m1))
+#define USTORM_TOE_GRQ_PROD_SIZE			(IRO[34].size)
 
 /* Tstorm cmdq-cons of given command queue-id */
 #define TSTORM_SCSI_CMDQ_CONS_OFFSET(cmdq_queue_id) \
-	(IRO[34].base + ((cmdq_queue_id) * IRO[34].m1))
-#define TSTORM_SCSI_CMDQ_CONS_SIZE			(IRO[34].size)
+	(IRO[35].base + ((cmdq_queue_id) * IRO[35].m1))
+#define TSTORM_SCSI_CMDQ_CONS_SIZE			(IRO[35].size)
 
 /* Tstorm (reflects M-Storm) bdq-external-producer of given function ID,
  * BDqueue-id.
  */
 #define TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id, bdq_id) \
-	(IRO[35].base + ((func_id) * IRO[35].m1) + ((bdq_id) * IRO[35].m2))
-#define TSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[35].size)
+	(IRO[36].base + ((func_id) * IRO[36].m1) + ((bdq_id) * IRO[36].m2))
+#define TSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[36].size)
 
 /* Mstorm bdq-external-producer of given BDQ resource ID, BDqueue-id */
 #define MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id, bdq_id) \
-	(IRO[36].base + ((func_id) * IRO[36].m1) + ((bdq_id) * IRO[36].m2))
-#define MSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[36].size)
+	(IRO[37].base + ((func_id) * IRO[37].m1) + ((bdq_id) * IRO[37].m2))
+#define MSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[37].size)
 
 /* Tstorm iSCSI RX stats */
 #define TSTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[37].base + ((pf_id) * IRO[37].m1))
-#define TSTORM_ISCSI_RX_STATS_SIZE			(IRO[37].size)
+	(IRO[38].base + ((pf_id) * IRO[38].m1))
+#define TSTORM_ISCSI_RX_STATS_SIZE			(IRO[38].size)
 
 /* Mstorm iSCSI RX stats */
 #define MSTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[38].base + ((pf_id) * IRO[38].m1))
-#define MSTORM_ISCSI_RX_STATS_SIZE			(IRO[38].size)
+	(IRO[39].base + ((pf_id) * IRO[39].m1))
+#define MSTORM_ISCSI_RX_STATS_SIZE			(IRO[39].size)
 
 /* Ustorm iSCSI RX stats */
 #define USTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[39].base + ((pf_id) * IRO[39].m1))
-#define USTORM_ISCSI_RX_STATS_SIZE			(IRO[39].size)
+	(IRO[40].base + ((pf_id) * IRO[40].m1))
+#define USTORM_ISCSI_RX_STATS_SIZE			(IRO[40].size)
 
 /* Xstorm iSCSI TX stats */
 #define XSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[40].base + ((pf_id) * IRO[40].m1))
-#define XSTORM_ISCSI_TX_STATS_SIZE			(IRO[40].size)
+	(IRO[41].base + ((pf_id) * IRO[41].m1))
+#define XSTORM_ISCSI_TX_STATS_SIZE			(IRO[41].size)
 
 /* Ystorm iSCSI TX stats */
 #define YSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[41].base + ((pf_id) * IRO[41].m1))
-#define YSTORM_ISCSI_TX_STATS_SIZE			(IRO[41].size)
+	(IRO[42].base + ((pf_id) * IRO[42].m1))
+#define YSTORM_ISCSI_TX_STATS_SIZE			(IRO[42].size)
 
 /* Pstorm iSCSI TX stats */
 #define PSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[42].base + ((pf_id) * IRO[42].m1))
-#define PSTORM_ISCSI_TX_STATS_SIZE			(IRO[42].size)
+	(IRO[43].base + ((pf_id) * IRO[43].m1))
+#define PSTORM_ISCSI_TX_STATS_SIZE			(IRO[43].size)
 
 /* Tstorm FCoE RX stats */
 #define TSTORM_FCOE_RX_STATS_OFFSET(pf_id) \
-	(IRO[43].base + ((pf_id) * IRO[43].m1))
-#define TSTORM_FCOE_RX_STATS_SIZE			(IRO[43].size)
+	(IRO[44].base + ((pf_id) * IRO[44].m1))
+#define TSTORM_FCOE_RX_STATS_SIZE			(IRO[44].size)
 
 /* Pstorm FCoE TX stats */
 #define PSTORM_FCOE_TX_STATS_OFFSET(pf_id) \
-	(IRO[44].base + ((pf_id) * IRO[44].m1))
-#define PSTORM_FCOE_TX_STATS_SIZE			(IRO[44].size)
+	(IRO[45].base + ((pf_id) * IRO[45].m1))
+#define PSTORM_FCOE_TX_STATS_SIZE			(IRO[45].size)
 
 /* Pstorm RDMA queue statistics */
 #define PSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
-	(IRO[45].base + ((rdma_stat_counter_id) * IRO[45].m1))
-#define PSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[45].size)
+	(IRO[46].base + ((rdma_stat_counter_id) * IRO[46].m1))
+#define PSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[46].size)
 
 /* Tstorm RDMA queue statistics */
 #define TSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
-	(IRO[46].base + ((rdma_stat_counter_id) * IRO[46].m1))
-#define TSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[46].size)
+	(IRO[47].base + ((rdma_stat_counter_id) * IRO[47].m1))
+#define TSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[47].size)
 
 /* Xstorm error level for assert */
 #define XSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
-	(IRO[47].base +	((pf_id) * IRO[47].m1))
-#define XSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[47].size)
+	(IRO[48].base +	((pf_id) * IRO[48].m1))
+#define XSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[48].size)
 
 /* Ystorm error level for assert */
 #define YSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
-	(IRO[48].base + ((pf_id) * IRO[48].m1))
-#define YSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[48].size)
+	(IRO[49].base + ((pf_id) * IRO[49].m1))
+#define YSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[49].size)
 
 /* Pstorm error level for assert */
 #define PSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
-	(IRO[49].base +	((pf_id) * IRO[49].m1))
-#define PSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[49].size)
+	(IRO[50].base +	((pf_id) * IRO[50].m1))
+#define PSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[50].size)
 
 /* Tstorm error level for assert */
 #define TSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
-	(IRO[50].base +	((pf_id) * IRO[50].m1))
-#define TSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[50].size)
+	(IRO[51].base +	((pf_id) * IRO[51].m1))
+#define TSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[51].size)
 
 /* Mstorm error level for assert */
 #define MSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
-	(IRO[51].base + ((pf_id) * IRO[51].m1))
-#define MSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[51].size)
+	(IRO[52].base + ((pf_id) * IRO[52].m1))
+#define MSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[52].size)
 
 /* Ustorm error level for assert */
 #define USTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
-	(IRO[52].base + ((pf_id) * IRO[52].m1))
-#define USTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[52].size)
+	(IRO[53].base + ((pf_id) * IRO[53].m1))
+#define USTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[53].size)
 
 /* Xstorm iWARP rxmit stats */
 #define XSTORM_IWARP_RXMIT_STATS_OFFSET(pf_id) \
-	(IRO[53].base +	((pf_id) * IRO[53].m1))
-#define XSTORM_IWARP_RXMIT_STATS_SIZE			(IRO[53].size)
+	(IRO[54].base +	((pf_id) * IRO[54].m1))
+#define XSTORM_IWARP_RXMIT_STATS_SIZE			(IRO[54].size)
 
 /* Tstorm RoCE Event Statistics */
 #define TSTORM_ROCE_EVENTS_STAT_OFFSET(roce_pf_id) \
-	(IRO[54].base + ((roce_pf_id) * IRO[54].m1))
-#define TSTORM_ROCE_EVENTS_STAT_SIZE			(IRO[54].size)
+	(IRO[55].base + ((roce_pf_id) * IRO[55].m1))
+#define TSTORM_ROCE_EVENTS_STAT_SIZE			(IRO[55].size)
 
 /* DCQCN Received Statistics */
 #define YSTORM_ROCE_DCQCN_RECEIVED_STATS_OFFSET(roce_pf_id) \
-	(IRO[55].base + ((roce_pf_id) * IRO[55].m1))
-#define YSTORM_ROCE_DCQCN_RECEIVED_STATS_SIZE		(IRO[55].size)
+	(IRO[56].base + ((roce_pf_id) * IRO[56].m1))
+#define YSTORM_ROCE_DCQCN_RECEIVED_STATS_SIZE		(IRO[56].size)
 
 /* RoCE Error Statistics */
 #define YSTORM_ROCE_ERROR_STATS_OFFSET(roce_pf_id) \
-	(IRO[56].base + ((roce_pf_id) * IRO[56].m1))
-#define YSTORM_ROCE_ERROR_STATS_SIZE			(IRO[56].size)
+	(IRO[57].base + ((roce_pf_id) * IRO[57].m1))
+#define YSTORM_ROCE_ERROR_STATS_SIZE			(IRO[57].size)
 
 /* DCQCN Sent Statistics */
 #define PSTORM_ROCE_DCQCN_SENT_STATS_OFFSET(roce_pf_id) \
-	(IRO[57].base + ((roce_pf_id) * IRO[57].m1))
-#define PSTORM_ROCE_DCQCN_SENT_STATS_SIZE		(IRO[57].size)
+	(IRO[58].base + ((roce_pf_id) * IRO[58].m1))
+#define PSTORM_ROCE_DCQCN_SENT_STATS_SIZE		(IRO[58].size)
 
 /* RoCE CQEs Statistics */
 #define USTORM_ROCE_CQE_STATS_OFFSET(roce_pf_id) \
-	(IRO[58].base + ((roce_pf_id) * IRO[58].m1))
-#define USTORM_ROCE_CQE_STATS_SIZE			(IRO[58].size)
+	(IRO[59].base + ((roce_pf_id) * IRO[59].m1))
+#define USTORM_ROCE_CQE_STATS_SIZE			(IRO[59].size)
 
-static const struct iro iro_arr[59] = {
+static const struct iro iro_arr[60] = {
 	{0x0, 0x0, 0x0, 0x0, 0x8},
 	{0x4cb8, 0x88, 0x0, 0x0, 0x88},
 	{0x6530, 0x20, 0x0, 0x0, 0x20},
@@ -4461,14 +4536,14 @@ static const struct iro iro_arr[59] = {
 	{0x84, 0x8, 0x0, 0x0, 0x2},
 	{0x4c48, 0x0, 0x0, 0x0, 0x78},
 	{0x3e38, 0x0, 0x0, 0x0, 0x78},
-	{0x2b78, 0x0, 0x0, 0x0, 0x78},
+	{0x3ef8, 0x0, 0x0, 0x0, 0x78},
 	{0x4c40, 0x0, 0x0, 0x0, 0x78},
 	{0x4998, 0x0, 0x0, 0x0, 0x78},
 	{0x7f50, 0x0, 0x0, 0x0, 0x78},
 	{0xa28, 0x8, 0x0, 0x0, 0x8},
 	{0x6210, 0x10, 0x0, 0x0, 0x10},
 	{0xb820, 0x30, 0x0, 0x0, 0x30},
-	{0x96c0, 0x30, 0x0, 0x0, 0x30},
+	{0xa990, 0x30, 0x0, 0x0, 0x30},
 	{0x4b68, 0x80, 0x0, 0x0, 0x40},
 	{0x1f8, 0x4, 0x0, 0x0, 0x4},
 	{0x53a8, 0x80, 0x4, 0x0, 0x4},
@@ -4476,11 +4551,12 @@ static const struct iro iro_arr[59] = {
 	{0x4ba8, 0x80, 0x0, 0x0, 0x20},
 	{0x8158, 0x40, 0x0, 0x0, 0x30},
 	{0xe770, 0x60, 0x0, 0x0, 0x60},
-	{0x2d10, 0x80, 0x0, 0x0, 0x38},
-	{0xf2b8, 0x78, 0x0, 0x0, 0x78},
+	{0x4090, 0x80, 0x0, 0x0, 0x38},
+	{0xfea8, 0x78, 0x0, 0x0, 0x78},
 	{0x1f8, 0x4, 0x0, 0x0, 0x4},
 	{0xaf20, 0x0, 0x0, 0x0, 0xf0},
 	{0xb010, 0x8, 0x0, 0x0, 0x8},
+	{0xc00, 0x8, 0x0, 0x0, 0x8},
 	{0x1f8, 0x8, 0x0, 0x0, 0x8},
 	{0xac0, 0x8, 0x0, 0x0, 0x8},
 	{0x2578, 0x8, 0x0, 0x0, 0x8},
@@ -4492,23 +4568,23 @@ static const struct iro iro_arr[59] = {
 	{0x12908, 0x18, 0x0, 0x0, 0x10},
 	{0x11aa8, 0x40, 0x0, 0x0, 0x18},
 	{0xa588, 0x50, 0x0, 0x0, 0x20},
-	{0x8700, 0x40, 0x0, 0x0, 0x28},
-	{0x10300, 0x18, 0x0, 0x0, 0x10},
+	{0x8f00, 0x40, 0x0, 0x0, 0x28},
+	{0x10e30, 0x18, 0x0, 0x0, 0x10},
 	{0xde48, 0x48, 0x0, 0x0, 0x38},
-	{0x10768, 0x20, 0x0, 0x0, 0x20},
-	{0x2d48, 0x80, 0x0, 0x0, 0x10},
+	{0x11298, 0x20, 0x0, 0x0, 0x20},
+	{0x40c8, 0x80, 0x0, 0x0, 0x10},
 	{0x5048, 0x10, 0x0, 0x0, 0x10},
 	{0xc748, 0x8, 0x0, 0x0, 0x1},
-	{0xa128, 0x8, 0x0, 0x0, 0x1},
-	{0x10f00, 0x8, 0x0, 0x0, 0x1},
+	{0xa928, 0x8, 0x0, 0x0, 0x1},
+	{0x11a30, 0x8, 0x0, 0x0, 0x1},
 	{0xf030, 0x8, 0x0, 0x0, 0x1},
 	{0x13028, 0x8, 0x0, 0x0, 0x1},
 	{0x12c58, 0x8, 0x0, 0x0, 0x1},
 	{0xc9b8, 0x30, 0x0, 0x0, 0x10},
 	{0xed90, 0x28, 0x0, 0x0, 0x28},
-	{0xa520, 0x18, 0x0, 0x0, 0x18},
-	{0xa6a0, 0x8, 0x0, 0x0, 0x8},
-	{0x13108, 0x8, 0x0, 0x0, 0x8},
+	{0xad20, 0x18, 0x0, 0x0, 0x18},
+	{0xaea0, 0x8, 0x0, 0x0, 0x8},
+	{0x13c38, 0x8, 0x0, 0x0, 0x8},
 	{0x13c50, 0x18, 0x0, 0x0, 0x18},
 };
 
@@ -5661,6 +5737,14 @@ enum eth_filter_type {
 	MAX_ETH_FILTER_TYPE
 };
 
+/* inner to inner vlan priority translation configurations */
+struct eth_in_to_in_pri_map_cfg {
+	u8 inner_vlan_pri_remap_en;
+	u8 reserved[7];
+	u8 non_rdma_in_to_in_pri_map[8];
+	u8 rdma_in_to_in_pri_map[8];
+};
+
 /* Eth IPv4 Fragment Type */
 enum eth_ipv4_frag_type {
 	ETH_IPV4_NOT_FRAG,
@@ -6018,6 +6102,14 @@ struct tx_queue_update_ramrod_data {
 	struct regpair reserved1[5];
 };
 
+/* Inner to Inner VLAN priority map update mode */
+enum update_in_to_in_pri_map_mode_enum {
+	ETH_IN_TO_IN_PRI_MAP_UPDATE_DISABLED,
+	ETH_IN_TO_IN_PRI_MAP_UPDATE_NON_RDMA_TBL,
+	ETH_IN_TO_IN_PRI_MAP_UPDATE_RDMA_TBL,
+	MAX_UPDATE_IN_TO_IN_PRI_MAP_MODE_ENUM
+};
+
 /* Ramrod data for vport update ramrod */
 struct vport_filter_update_ramrod_data {
 	struct eth_filter_cmd_header filter_cmd_hdr;
@@ -6048,7 +6140,8 @@ struct vport_start_ramrod_data {
 	u8 zero_placement_offset;
 	u8 ctl_frame_mac_check_en;
 	u8 ctl_frame_ethtype_check_en;
-	u8 reserved[1];
+	u8 wipe_inner_vlan_pri_en;
+	struct eth_in_to_in_pri_map_cfg in_to_in_vlan_pri_map_cfg;
 };
 
 /* Ramrod data for vport stop ramrod */
@@ -6100,7 +6193,9 @@ struct vport_update_ramrod_data_cmn {
 	u8 update_ctl_frame_checks_en_flg;
 	u8 ctl_frame_mac_check_en;
 	u8 ctl_frame_ethtype_check_en;
-	u8 reserved[15];
+	u8 update_in_to_in_pri_map_mode;
+	u8 in_to_in_pri_map[8];
+	u8 reserved[6];
 };
 
 struct vport_update_ramrod_mcast {
@@ -6929,11 +7024,6 @@ struct mstorm_rdma_task_st_ctx {
 	struct regpair temp[4];
 };
 
-/* The roce task context of Ustorm */
-struct ustorm_rdma_task_st_ctx {
-	struct regpair temp[2];
-};
-
 struct e4_ustorm_rdma_task_ag_ctx {
 	u8 reserved;
 	u8 state;
@@ -7007,8 +7097,6 @@ struct e4_rdma_task_context {
 	struct e4_mstorm_rdma_task_ag_ctx mstorm_ag_context;
 	struct mstorm_rdma_task_st_ctx mstorm_st_context;
 	struct rdif_task_context rdif_context;
-	struct ustorm_rdma_task_st_ctx ustorm_st_context;
-	struct regpair ustorm_st_padding[2];
 	struct e4_ustorm_rdma_task_ag_ctx ustorm_ag_context;
 };
 
@@ -7388,7 +7476,7 @@ struct e4_ustorm_rdma_conn_ag_ctx {
 #define E4_USTORM_RDMA_CONN_AG_CTX_RULE8EN_MASK		0x1
 #define E4_USTORM_RDMA_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
-	u8 byte3;
+	u8 nvmf_only;
 	__le16 conn_dpi;
 	__le16 word1;
 	__le32 cq_cons;
@@ -7831,7 +7919,12 @@ struct roce_create_qp_req_ramrod_data {
 	struct regpair qp_handle_for_cqe;
 	struct regpair qp_handle_for_async;
 	u8 stats_counter_id;
-	u8 reserved3[7];
+	u8 reserved3[6];
+	u8 flags2;
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE_MASK			0x1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE_SHIFT			0
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_MASK			0x7F
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_SHIFT			1
 	__le16 regular_latency_phy_queue;
 	__le16 dpi;
 };
@@ -7954,6 +8047,7 @@ enum roce_event_opcode {
 	ROCE_EVENT_DESTROY_QP,
 	ROCE_EVENT_CREATE_UD_QP,
 	ROCE_EVENT_DESTROY_UD_QP,
+	ROCE_EVENT_FUNC_UPDATE,
 	MAX_ROCE_EVENT_OPCODE
 };
 
@@ -7962,7 +8056,13 @@ struct roce_init_func_params {
 	u8 ll2_queue_id;
 	u8 cnp_vlan_priority;
 	u8 cnp_dscp;
-	u8 reserved;
+	u8 flags;
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_NP_EN_MASK		0x1
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_NP_EN_SHIFT		0
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_RP_EN_MASK		0x1
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_RP_EN_SHIFT		1
+#define ROCE_INIT_FUNC_PARAMS_RESERVED0_MASK		0x3F
+#define ROCE_INIT_FUNC_PARAMS_RESERVED0_SHIFT		2
 	__le32 cnp_send_timeout;
 	__le16 rl_offset;
 	u8 rl_count_log;
@@ -8109,7 +8209,22 @@ enum roce_ramrod_cmd_id {
 	ROCE_RAMROD_DESTROY_QP,
 	ROCE_RAMROD_CREATE_UD_QP,
 	ROCE_RAMROD_DESTROY_UD_QP,
+	ROCE_RAMROD_FUNC_UPDATE,
 	MAX_ROCE_RAMROD_CMD_ID
+};
+
+/* RoCE func init ramrod data */
+struct roce_update_func_params {
+	u8 cnp_vlan_priority;
+	u8 cnp_dscp;
+	__le16 flags;
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_NP_EN_MASK	0x1
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_NP_EN_SHIFT	0
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_RP_EN_MASK	0x1
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_RP_EN_SHIFT	1
+#define ROCE_UPDATE_FUNC_PARAMS_RESERVED0_MASK		0x3FFF
+#define ROCE_UPDATE_FUNC_PARAMS_RESERVED0_SHIFT		2
+	__le32 cnp_send_timeout;
 };
 
 struct e4_xstorm_roce_conn_ag_ctx_dq_ext_ld_part {
@@ -12092,11 +12207,56 @@ struct public_port {
 	u32 transceiver_data;
 #define ETH_TRANSCEIVER_STATE_MASK	0x000000FF
 #define ETH_TRANSCEIVER_STATE_SHIFT	0x00000000
+#define ETH_TRANSCEIVER_STATE_OFFSET	0x00000000
 #define ETH_TRANSCEIVER_STATE_UNPLUGGED	0x00000000
 #define ETH_TRANSCEIVER_STATE_PRESENT	0x00000001
 #define ETH_TRANSCEIVER_STATE_VALID	0x00000003
 #define ETH_TRANSCEIVER_STATE_UPDATING	0x00000008
-
+#define ETH_TRANSCEIVER_TYPE_MASK       0x0000FF00
+#define ETH_TRANSCEIVER_TYPE_OFFSET     0x8
+#define ETH_TRANSCEIVER_TYPE_NONE                       0x00
+#define ETH_TRANSCEIVER_TYPE_UNKNOWN                    0xFF
+#define ETH_TRANSCEIVER_TYPE_1G_PCC                     0x01
+#define ETH_TRANSCEIVER_TYPE_1G_ACC                     0x02
+#define ETH_TRANSCEIVER_TYPE_1G_LX                      0x03
+#define ETH_TRANSCEIVER_TYPE_1G_SX                      0x04
+#define ETH_TRANSCEIVER_TYPE_10G_SR                     0x05
+#define ETH_TRANSCEIVER_TYPE_10G_LR                     0x06
+#define ETH_TRANSCEIVER_TYPE_10G_LRM                    0x07
+#define ETH_TRANSCEIVER_TYPE_10G_ER                     0x08
+#define ETH_TRANSCEIVER_TYPE_10G_PCC                    0x09
+#define ETH_TRANSCEIVER_TYPE_10G_ACC                    0x0a
+#define ETH_TRANSCEIVER_TYPE_XLPPI                      0x0b
+#define ETH_TRANSCEIVER_TYPE_40G_LR4                    0x0c
+#define ETH_TRANSCEIVER_TYPE_40G_SR4                    0x0d
+#define ETH_TRANSCEIVER_TYPE_40G_CR4                    0x0e
+#define ETH_TRANSCEIVER_TYPE_100G_AOC                   0x0f
+#define ETH_TRANSCEIVER_TYPE_100G_SR4                   0x10
+#define ETH_TRANSCEIVER_TYPE_100G_LR4                   0x11
+#define ETH_TRANSCEIVER_TYPE_100G_ER4                   0x12
+#define ETH_TRANSCEIVER_TYPE_100G_ACC                   0x13
+#define ETH_TRANSCEIVER_TYPE_100G_CR4                   0x14
+#define ETH_TRANSCEIVER_TYPE_4x10G_SR                   0x15
+#define ETH_TRANSCEIVER_TYPE_25G_CA_N                   0x16
+#define ETH_TRANSCEIVER_TYPE_25G_ACC_S                  0x17
+#define ETH_TRANSCEIVER_TYPE_25G_CA_S                   0x18
+#define ETH_TRANSCEIVER_TYPE_25G_ACC_M                  0x19
+#define ETH_TRANSCEIVER_TYPE_25G_CA_L                   0x1a
+#define ETH_TRANSCEIVER_TYPE_25G_ACC_L                  0x1b
+#define ETH_TRANSCEIVER_TYPE_25G_SR                     0x1c
+#define ETH_TRANSCEIVER_TYPE_25G_LR                     0x1d
+#define ETH_TRANSCEIVER_TYPE_25G_AOC                    0x1e
+#define ETH_TRANSCEIVER_TYPE_4x10G                      0x1f
+#define ETH_TRANSCEIVER_TYPE_4x25G_CR                   0x20
+#define ETH_TRANSCEIVER_TYPE_1000BASET                  0x21
+#define ETH_TRANSCEIVER_TYPE_10G_BASET                  0x22
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR      0x30
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR      0x31
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR      0x32
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_SR     0x33
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_CR     0x34
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_LR     0x35
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_AOC    0x36
 	u32 wol_info;
 	u32 wol_pkt_len;
 	u32 wol_pkt_details;
@@ -12161,7 +12321,7 @@ struct public_func {
 #define FUNC_MF_CFG_MAX_BW_DEFAULT	0x00640000
 
 	u32 status;
-#define FUNC_STATUS_VLINK_DOWN		0x00000001
+#define FUNC_STATUS_VIRTUAL_LINK_UP	0x00000001
 
 	u32 mac_upper;
 #define FUNC_MF_CFG_UPPERMAC_MASK	0x0000ffff
@@ -12583,6 +12743,7 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_MASK		0x0000FFFF
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_OFFSET	0
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE		0x00000002
+#define DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK		0x00010000
 
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK			0xffff0000
@@ -12635,6 +12796,7 @@ struct public_drv_mb {
 
 /* get MFW feature support response */
 #define FW_MB_PARAM_FEATURE_SUPPORT_EEE		0x00000002
+#define FW_MB_PARAM_FEATURE_SUPPORT_VLINK	0x00010000
 
 #define FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR	(1 << 0)
 
@@ -13040,6 +13202,7 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_OFFSET		0
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G		0x1
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G		0x2
+#define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G             0x4
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G		0x8
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G		0x10
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G		0x20
@@ -13050,6 +13213,7 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_AUTONEG			0x0
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_1G				0x1
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_10G			0x2
+#define NVM_CFG1_PORT_DRV_LINK_SPEED_20G                        0x3
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_25G			0x4
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_40G			0x5
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_50G			0x6
@@ -13080,6 +13244,13 @@ struct nvm_cfg1_port {
 	u32 transceiver_00;
 	u32 device_ids;
 	u32 board_cfg;
+#define NVM_CFG1_PORT_PORT_TYPE_MASK                            0x000000FF
+#define NVM_CFG1_PORT_PORT_TYPE_OFFSET                          0
+#define NVM_CFG1_PORT_PORT_TYPE_UNDEFINED                       0x0
+#define NVM_CFG1_PORT_PORT_TYPE_MODULE                          0x1
+#define NVM_CFG1_PORT_PORT_TYPE_BACKPLANE                       0x2
+#define NVM_CFG1_PORT_PORT_TYPE_EXT_PHY                         0x3
+#define NVM_CFG1_PORT_PORT_TYPE_MODULE_SLAVE                    0x4
 	u32 mnm_10g_cap;
 	u32 mnm_10g_ctrl;
 	u32 mnm_10g_misc;

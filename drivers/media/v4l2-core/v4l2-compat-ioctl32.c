@@ -244,6 +244,7 @@ struct v4l2_format32 {
  *		return: number of created buffers
  * @memory:	buffer memory type
  * @format:	frame format, for which buffers are requested
+ * @capabilities: capabilities of this buffer type.
  * @reserved:	future extensions
  */
 struct v4l2_create_buffers32 {
@@ -251,7 +252,8 @@ struct v4l2_create_buffers32 {
 	__u32			count;
 	__u32			memory;	/* enum v4l2_memory */
 	struct v4l2_format32	format;
-	__u32			reserved[8];
+	__u32			capabilities;
+	__u32			reserved[7];
 };
 
 static int __bufsize_v4l2_format(struct v4l2_format32 __user *p32, u32 *size)
@@ -411,6 +413,7 @@ static int put_v4l2_create32(struct v4l2_create_buffers __user *p64,
 	if (!access_ok(VERIFY_WRITE, p32, sizeof(*p32)) ||
 	    copy_in_user(p32, p64,
 			 offsetof(struct v4l2_create_buffers32, format)) ||
+	    assign_in_user(&p32->capabilities, &p64->capabilities) ||
 	    copy_in_user(p32->reserved, p64->reserved, sizeof(p64->reserved)))
 		return -EFAULT;
 	return __put_v4l2_format32(&p64->format, &p32->format);
@@ -482,7 +485,7 @@ struct v4l2_buffer32 {
 	} m;
 	__u32			length;
 	__u32			reserved2;
-	__u32			reserved;
+	__s32			request_fd;
 };
 
 static int get_v4l2_plane32(struct v4l2_plane __user *p64,
@@ -581,6 +584,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *p64,
 {
 	u32 type;
 	u32 length;
+	s32 request_fd;
 	enum v4l2_memory memory;
 	struct v4l2_plane32 __user *uplane32;
 	struct v4l2_plane __user *uplane;
@@ -595,7 +599,9 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *p64,
 	    get_user(memory, &p32->memory) ||
 	    put_user(memory, &p64->memory) ||
 	    get_user(length, &p32->length) ||
-	    put_user(length, &p64->length))
+	    put_user(length, &p64->length) ||
+	    get_user(request_fd, &p32->request_fd) ||
+	    put_user(request_fd, &p64->request_fd))
 		return -EFAULT;
 
 	if (V4L2_TYPE_IS_OUTPUT(type))
@@ -699,7 +705,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer __user *p64,
 	    copy_in_user(&p32->timecode, &p64->timecode, sizeof(p64->timecode)) ||
 	    assign_in_user(&p32->sequence, &p64->sequence) ||
 	    assign_in_user(&p32->reserved2, &p64->reserved2) ||
-	    assign_in_user(&p32->reserved, &p64->reserved) ||
+	    assign_in_user(&p32->request_fd, &p64->request_fd) ||
 	    get_user(length, &p64->length) ||
 	    put_user(length, &p32->length))
 		return -EFAULT;
@@ -834,7 +840,8 @@ struct v4l2_ext_controls32 {
 	__u32 which;
 	__u32 count;
 	__u32 error_idx;
-	__u32 reserved[2];
+	__s32 request_fd;
+	__u32 reserved[1];
 	compat_caddr_t controls; /* actually struct v4l2_ext_control32 * */
 };
 
@@ -909,6 +916,7 @@ static int get_v4l2_ext_controls32(struct file *file,
 	    get_user(count, &p32->count) ||
 	    put_user(count, &p64->count) ||
 	    assign_in_user(&p64->error_idx, &p32->error_idx) ||
+	    assign_in_user(&p64->request_fd, &p32->request_fd) ||
 	    copy_in_user(p64->reserved, p32->reserved, sizeof(p64->reserved)))
 		return -EFAULT;
 
@@ -974,6 +982,7 @@ static int put_v4l2_ext_controls32(struct file *file,
 	    get_user(count, &p64->count) ||
 	    put_user(count, &p32->count) ||
 	    assign_in_user(&p32->error_idx, &p64->error_idx) ||
+	    assign_in_user(&p32->request_fd, &p64->request_fd) ||
 	    copy_in_user(p32->reserved, p64->reserved, sizeof(p32->reserved)) ||
 	    get_user(kcontrols, &p64->controls))
 		return -EFAULT;

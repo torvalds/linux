@@ -31,6 +31,7 @@
 #include "atombios_encoders.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#include "amdgpu_display.h"
 #include "dce_v11_0.h"
 
 #include "dce/dce_11_0_d.h"
@@ -1984,6 +1985,17 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
 		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		fb_format = REG_SET_FIELD(0, GRPH_CONTROL, GRPH_DEPTH, 2);
+		fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_FORMAT, 0);
+		fb_swap = REG_SET_FIELD(fb_swap, GRPH_SWAP_CNTL, GRPH_RED_CROSSBAR, 2);
+		fb_swap = REG_SET_FIELD(fb_swap, GRPH_SWAP_CNTL, GRPH_BLUE_CROSSBAR, 2);
+#ifdef __BIG_ENDIAN
+		fb_swap = REG_SET_FIELD(fb_swap, GRPH_SWAP_CNTL, GRPH_ENDIAN_SWAP,
+					ENDIAN_8IN32);
+#endif
+		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
 		          drm_get_format_name(target_fb->format->format, &format_name));
@@ -2855,19 +2867,19 @@ static int dce_v11_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i + 1, &adev->crtc_irq);
+		r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, i + 1, &adev->crtc_irq);
 		if (r)
 			return r;
 	}
 
 	for (i = VISLANDS30_IV_SRCID_D1_GRPH_PFLIP; i < 20; i += 2) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i, &adev->pageflip_irq);
+		r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, i, &adev->pageflip_irq);
 		if (r)
 			return r;
 	}
 
 	/* HPD hotplug */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_HOTPLUG_DETECT_A, &adev->hpd_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_HOTPLUG_DETECT_A, &adev->hpd_irq);
 	if (r)
 		return r;
 
@@ -3690,8 +3702,7 @@ static const struct amdgpu_display_funcs dce_v11_0_display_funcs = {
 
 static void dce_v11_0_set_display_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.funcs == NULL)
-		adev->mode_info.funcs = &dce_v11_0_display_funcs;
+	adev->mode_info.funcs = &dce_v11_0_display_funcs;
 }
 
 static const struct amdgpu_irq_src_funcs dce_v11_0_crtc_irq_funcs = {

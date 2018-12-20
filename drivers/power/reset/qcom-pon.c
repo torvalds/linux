@@ -74,6 +74,7 @@ static int pm8916_pon_probe(struct platform_device *pdev)
 
 static const struct of_device_id pm8916_pon_id_table[] = {
 	{ .compatible = "qcom,pm8916-pon" },
+	{ .compatible = "qcom,pms405-pon" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pm8916_pon_id_table);

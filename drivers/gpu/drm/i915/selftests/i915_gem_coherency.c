@@ -33,7 +33,8 @@ static int cpu_set(struct drm_i915_gem_object *obj,
 {
 	unsigned int needs_clflush;
 	struct page *page;
-	u32 *map;
+	void *map;
+	u32 *cpu;
 	int err;
 
 	err = i915_gem_obj_prepare_shmem_write(obj, &needs_clflush);
@@ -42,24 +43,19 @@ static int cpu_set(struct drm_i915_gem_object *obj,
 
 	page = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 	map = kmap_atomic(page);
+	cpu = map + offset_in_page(offset);
 
-	if (needs_clflush & CLFLUSH_BEFORE) {
-		mb();
-		clflush(map+offset_in_page(offset) / sizeof(*map));
-		mb();
-	}
+	if (needs_clflush & CLFLUSH_BEFORE)
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
 
-	map[offset_in_page(offset) / sizeof(*map)] = v;
+	*cpu = v;
 
-	if (needs_clflush & CLFLUSH_AFTER) {
-		mb();
-		clflush(map+offset_in_page(offset) / sizeof(*map));
-		mb();
-	}
+	if (needs_clflush & CLFLUSH_AFTER)
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
 
 	kunmap_atomic(map);
-
 	i915_gem_obj_finish_shmem_access(obj);
+
 	return 0;
 }
 
@@ -69,7 +65,8 @@ static int cpu_get(struct drm_i915_gem_object *obj,
 {
 	unsigned int needs_clflush;
 	struct page *page;
-	u32 *map;
+	void *map;
+	u32 *cpu;
 	int err;
 
 	err = i915_gem_obj_prepare_shmem_read(obj, &needs_clflush);
@@ -78,17 +75,16 @@ static int cpu_get(struct drm_i915_gem_object *obj,
 
 	page = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 	map = kmap_atomic(page);
+	cpu = map + offset_in_page(offset);
 
-	if (needs_clflush & CLFLUSH_BEFORE) {
-		mb();
-		clflush(map+offset_in_page(offset) / sizeof(*map));
-		mb();
-	}
+	if (needs_clflush & CLFLUSH_BEFORE)
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
 
-	*v = map[offset_in_page(offset) / sizeof(*map)];
+	*v = *cpu;
+
 	kunmap_atomic(map);
-
 	i915_gem_obj_finish_shmem_access(obj);
+
 	return 0;
 }
 
@@ -302,6 +298,7 @@ static int igt_gem_coherency(void *arg)
 	values = offsets + ncachelines;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
 			continue;
@@ -379,6 +376,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 unlock:
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	kfree(offsets);
 	return err;

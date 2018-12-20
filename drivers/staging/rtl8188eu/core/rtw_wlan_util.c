@@ -107,26 +107,20 @@ unsigned char networktype_to_raid(unsigned char network_type)
 u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen)
 {
 	u8 network_type = 0;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	if (pmlmeext->cur_channel > 14) {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_5N;
+	if (pmlmeinfo->HT_enable)
+		network_type = WIRELESS_11_24N;
 
-		network_type |= WIRELESS_11A;
-	} else {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_24N;
+	if (cckratesonly_included(rate, ratelen))
+		network_type |= WIRELESS_11B;
+	else if (cckrates_included(rate, ratelen))
+		network_type |= WIRELESS_11BG;
+	else
+		network_type |= WIRELESS_11G;
 
-		if ((cckratesonly_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11B;
-		else if ((cckrates_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11BG;
-		else
-			network_type |= WIRELESS_11G;
-	}
-	return	network_type;
+	return network_type;
 }
 
 static unsigned char ratetbl_val_2wifirate(unsigned char rate)
@@ -460,9 +454,9 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
 
 void clear_cam_entry(struct adapter *padapter, u8 entry)
 {
-	unsigned char null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-	unsigned char null_key[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	u8 null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	u8 null_key[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 	write_cam(padapter, entry, 0, null_sta, null_key);
 }
@@ -852,7 +846,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	unsigned char	ht_info_infos_0;
 	int ssid_len;
 
-	if (is_client_associated_to_ap(Adapter) == false)
+	if (!is_client_associated_to_ap(Adapter))
 		return true;
 
 	len = packet_len - sizeof(struct ieee80211_hdr_3addr);
@@ -862,7 +856,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 		return _FAIL;
 	}
 
-	if (!memcmp(cur_network->network.MacAddress, pbssid, 6) == false) {
+	if (memcmp(cur_network->network.MacAddress, pbssid, 6)) {
 		DBG_88E("Oops: rtw_check_network_encrypt linked but recv other bssid bcn\n%pM %pM\n",
 			(pbssid), (cur_network->network.MacAddress));
 		return true;
@@ -1419,32 +1413,25 @@ void update_wireless_mode(struct adapter *padapter)
 {
 	int ratelen, network_type = 0;
 	u32 SIFS_Timer;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex	*cur_network = &(pmlmeinfo->network);
-	unsigned char		*rate = cur_network->SupportedRates;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
+	unsigned char *rate = cur_network->SupportedRates;
 
 	ratelen = rtw_get_rateset_len(cur_network->SupportedRates);
 
-	if ((pmlmeinfo->HT_info_enable) && (pmlmeinfo->HT_caps_enable))
+	if (pmlmeinfo->HT_info_enable && pmlmeinfo->HT_caps_enable)
 		pmlmeinfo->HT_enable = 1;
 
-	if (pmlmeext->cur_channel > 14) {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_5N;
+	if (pmlmeinfo->HT_enable)
+		network_type = WIRELESS_11_24N;
 
-		network_type |= WIRELESS_11A;
-	} else {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_24N;
-
-		if ((cckratesonly_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11B;
-		else if ((cckrates_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11BG;
-		else
-			network_type |= WIRELESS_11G;
-	}
+	if (cckratesonly_included(rate, ratelen))
+		network_type |= WIRELESS_11B;
+	else if (cckrates_included(rate, ratelen))
+		network_type |= WIRELESS_11BG;
+	else
+		network_type |= WIRELESS_11G;
 
 	pmlmeext->cur_wireless_mode = network_type & padapter->registrypriv.wireless_mode;
 

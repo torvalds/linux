@@ -700,7 +700,7 @@ static void iort_set_device_domain(struct device *dev,
  */
 static struct irq_domain *iort_get_platform_device_domain(struct device *dev)
 {
-	struct acpi_iort_node *node, *msi_parent;
+	struct acpi_iort_node *node, *msi_parent = NULL;
 	struct fwnode_handle *iort_fwnode;
 	struct acpi_iort_its_group *its;
 	int i;
@@ -1428,7 +1428,7 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 	return 0;
 
 dma_deconfigure:
-	acpi_dma_deconfigure(&pdev->dev);
+	arch_teardown_dma_ops(&pdev->dev);
 dev_put:
 	platform_device_put(pdev);
 

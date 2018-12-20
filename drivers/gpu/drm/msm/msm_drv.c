@@ -337,7 +337,7 @@ static int msm_drm_uninit(struct device *dev)
 		mdss->funcs->destroy(ddev);
 
 	ddev->dev_private = NULL;
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 
 	kfree(priv);
 
@@ -452,7 +452,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
-		goto err_unref_drm_dev;
+		goto err_put_drm_dev;
 	}
 
 	ddev->dev_private = priv;
@@ -553,16 +553,17 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 			kthread_run(kthread_worker_fn,
 				&priv->disp_thread[i].worker,
 				"crtc_commit:%d", priv->disp_thread[i].crtc_id);
-		ret = sched_setscheduler(priv->disp_thread[i].thread,
-							SCHED_FIFO, &param);
-		if (ret)
-			pr_warn("display thread priority update failed: %d\n",
-									ret);
-
 		if (IS_ERR(priv->disp_thread[i].thread)) {
 			dev_err(dev, "failed to create crtc_commit kthread\n");
 			priv->disp_thread[i].thread = NULL;
+			goto err_msm_uninit;
 		}
+
+		ret = sched_setscheduler(priv->disp_thread[i].thread,
+					 SCHED_FIFO, &param);
+		if (ret)
+			dev_warn(dev, "disp_thread set priority failed: %d\n",
+				 ret);
 
 		/* initialize event thread */
 		priv->event_thread[i].crtc_id = priv->crtcs[i]->base.id;
@@ -572,6 +573,12 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 			kthread_run(kthread_worker_fn,
 				&priv->event_thread[i].worker,
 				"crtc_event:%d", priv->event_thread[i].crtc_id);
+		if (IS_ERR(priv->event_thread[i].thread)) {
+			dev_err(dev, "failed to create crtc_event kthread\n");
+			priv->event_thread[i].thread = NULL;
+			goto err_msm_uninit;
+		}
+
 		/**
 		 * event thread should also run at same priority as disp_thread
 		 * because it is handling frame_done events. A lower priority
@@ -580,34 +587,10 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		 * failure at crtc commit level.
 		 */
 		ret = sched_setscheduler(priv->event_thread[i].thread,
-							SCHED_FIFO, &param);
+					 SCHED_FIFO, &param);
 		if (ret)
-			pr_warn("display event thread priority update failed: %d\n",
-									ret);
-
-		if (IS_ERR(priv->event_thread[i].thread)) {
-			dev_err(dev, "failed to create crtc_event kthread\n");
-			priv->event_thread[i].thread = NULL;
-		}
-
-		if ((!priv->disp_thread[i].thread) ||
-				!priv->event_thread[i].thread) {
-			/* clean up previously created threads if any */
-			for ( ; i >= 0; i--) {
-				if (priv->disp_thread[i].thread) {
-					kthread_stop(
-						priv->disp_thread[i].thread);
-					priv->disp_thread[i].thread = NULL;
-				}
-
-				if (priv->event_thread[i].thread) {
-					kthread_stop(
-						priv->event_thread[i].thread);
-					priv->event_thread[i].thread = NULL;
-				}
-			}
-			goto err_msm_uninit;
-		}
+			dev_warn(dev, "event_thread set priority failed:%d\n",
+				 ret);
 	}
 
 	ret = drm_vblank_init(ddev, priv->num_crtcs);
@@ -653,8 +636,8 @@ err_destroy_mdss:
 		mdss->funcs->destroy(ddev);
 err_free_priv:
 	kfree(priv);
-err_unref_drm_dev:
-	drm_dev_unref(ddev);
+err_put_drm_dev:
+	drm_dev_put(ddev);
 	return ret;
 }
 

@@ -126,9 +126,11 @@ enum opp_table_access {
  * @dev_list:	list of devices that share these OPPs
  * @opp_list:	table of opps
  * @kref:	for reference count of the table.
- * @lock:	mutex protecting the opp_list.
+ * @list_kref:	for reference count of the OPP list.
+ * @lock:	mutex protecting the opp_list and dev_list.
  * @np:		struct device_node pointer for opp's DT node.
  * @clock_latency_ns_max: Max clock latency in nanoseconds.
+ * @parsed_static_opps: True if OPPs are initialized from DT.
  * @shared_opp: OPP is shared between multiple devices.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
  * @supported_hw: Array of version number to support.
@@ -156,6 +158,7 @@ struct opp_table {
 	struct list_head dev_list;
 	struct list_head opp_list;
 	struct kref kref;
+	struct kref list_kref;
 	struct mutex lock;
 
 	struct device_node *np;
@@ -164,6 +167,7 @@ struct opp_table {
 	/* For backward compatibility with v1 bindings */
 	unsigned int voltage_tolerance_v1;
 
+	bool parsed_static_opps;
 	enum opp_table_access shared_opp;
 	struct dev_pm_opp *suspend_opp;
 
@@ -186,23 +190,26 @@ struct opp_table {
 
 /* Routines internal to opp core */
 void dev_pm_opp_get(struct dev_pm_opp *opp);
+void _opp_remove_all_static(struct opp_table *opp_table);
 void _get_opp_table_kref(struct opp_table *opp_table);
 int _get_opp_count(struct opp_table *opp_table);
 struct opp_table *_find_opp_table(struct device *dev);
 struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_table);
-void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev, bool remove_all);
-void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all);
+void _dev_pm_opp_find_and_remove_table(struct device *dev);
 struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table);
 void _opp_free(struct dev_pm_opp *opp);
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table, bool rate_not_available);
 int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
-void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of);
+void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, int last_cpu);
 struct opp_table *_add_opp_table(struct device *dev);
+void _put_opp_list_kref(struct opp_table *opp_table);
 
 #ifdef CONFIG_OF
-void _of_init_opp_table(struct opp_table *opp_table, struct device *dev);
+void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index);
+struct opp_table *_managed_opp(struct device *dev, int index);
 #else
-static inline void _of_init_opp_table(struct opp_table *opp_table, struct device *dev) {}
+static inline void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index) {}
+static inline struct opp_table *_managed_opp(struct device *dev, int index) { return NULL; }
 #endif
 
 #ifdef CONFIG_DEBUG_FS

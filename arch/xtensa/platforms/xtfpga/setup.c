@@ -94,7 +94,7 @@ static void __init xtfpga_clk_setup(struct device_node *np)
 	u32 freq;
 
 	if (!base) {
-		pr_err("%s: invalid address\n", np->name);
+		pr_err("%pOFn: invalid address\n", np);
 		return;
 	}
 
@@ -103,12 +103,12 @@ static void __init xtfpga_clk_setup(struct device_node *np)
 	clk = clk_register_fixed_rate(NULL, np->name, NULL, 0, freq);
 
 	if (IS_ERR(clk)) {
-		pr_err("%s: clk registration failed\n", np->name);
+		pr_err("%pOFn: clk registration failed\n", np);
 		return;
 	}
 
 	if (of_clk_add_provider(np, of_clk_src_simple_get, clk)) {
-		pr_err("%s: clk provider registration failed\n", np->name);
+		pr_err("%pOFn: clk provider registration failed\n", np);
 		return;
 	}
 }

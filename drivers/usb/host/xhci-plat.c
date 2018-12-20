@@ -18,6 +18,7 @@
 #include <linux/usb/phy.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/usb/of.h>
 
 #include "xhci.h"
 #include "xhci-plat.h"
@@ -305,6 +306,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		hcd->skip_phy_initialization = 1;
 	}
 
+	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
+	xhci->shared_hcd->tpl_support = hcd->tpl_support;
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto disable_usb_phy;
@@ -359,14 +362,16 @@ static int xhci_plat_remove(struct platform_device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct clk *clk = xhci->clk;
 	struct clk *reg_clk = xhci->reg_clk;
+	struct usb_hcd *shared_hcd = xhci->shared_hcd;
 
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
-	usb_remove_hcd(xhci->shared_hcd);
+	usb_remove_hcd(shared_hcd);
+	xhci->shared_hcd = NULL;
 	usb_phy_shutdown(hcd->usb_phy);
 
 	usb_remove_hcd(hcd);
-	usb_put_hcd(xhci->shared_hcd);
+	usb_put_hcd(shared_hcd);
 
 	clk_disable_unprepare(clk);
 	clk_disable_unprepare(reg_clk);

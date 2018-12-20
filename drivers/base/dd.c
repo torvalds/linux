@@ -480,9 +480,11 @@ re_probe:
 	if (ret)
 		goto pinctrl_bind_failed;
 
-	ret = dma_configure(dev);
-	if (ret)
-		goto dma_failed;
+	if (dev->bus->dma_configure) {
+		ret = dev->bus->dma_configure(dev);
+		if (ret)
+			goto dma_failed;
+	}
 
 	if (driver_sysfs_add(dev)) {
 		printk(KERN_ERR "%s: driver_sysfs_add(%s) failed\n",
@@ -537,7 +539,7 @@ re_probe:
 	goto done;
 
 probe_failed:
-	dma_deconfigure(dev);
+	arch_teardown_dma_ops(dev);
 dma_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -966,7 +968,7 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			drv->remove(dev);
 
 		device_links_driver_cleanup(dev);
-		dma_deconfigure(dev);
+		arch_teardown_dma_ops(dev);
 
 		devres_release_all(dev);
 		dev->driver = NULL;

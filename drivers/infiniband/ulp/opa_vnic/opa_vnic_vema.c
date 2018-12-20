@@ -888,7 +888,8 @@ static void opa_vnic_event(struct ib_event_handler *handler,
 		return;
 
 	c_dbg("OPA_VNIC received event %d on device %s port %d\n",
-	      record->event, record->device->name, record->element.port_num);
+	      record->event, dev_name(&record->device->dev),
+	      record->element.port_num);
 
 	if (record->event == IB_EVENT_PORT_ERR)
 		idr_for_each(&port->vport_idr, vema_disable_vport, NULL);

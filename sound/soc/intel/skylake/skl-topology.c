@@ -898,11 +898,10 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 			bc = (struct skl_algo_data *)sb->dobj.private;
 
 			if (bc->set_params == SKL_PARAM_BIND) {
-				params = kzalloc(bc->max, GFP_KERNEL);
+				params = kmemdup(bc->params, bc->max, GFP_KERNEL);
 				if (!params)
 					return -ENOMEM;
 
-				memcpy(params, bc->params, bc->max);
 				skl_fill_sink_instance_id(ctx, params, bc->max,
 								mconfig);
 
@@ -2461,6 +2460,7 @@ static int skl_tplg_get_token(struct device *dev,
 
 	case SKL_TKN_U8_CORE_ID:
 		mconfig->core_id = tkn_elem->value;
+		break;
 
 	case SKL_TKN_U8_MOD_TYPE:
 		mconfig->m_type = tkn_elem->value;

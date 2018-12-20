@@ -693,16 +693,12 @@ static int __maybe_unused tiadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	struct ti_tscadc_dev *tscadc_dev;
 	unsigned int idle;
 
-	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
-	if (!device_may_wakeup(tscadc_dev->dev)) {
-		idle = tiadc_readl(adc_dev, REG_CTRL);
-		idle &= ~(CNTRLREG_TSCSSENB);
-		tiadc_writel(adc_dev, REG_CTRL, (idle |
-				CNTRLREG_POWERDOWN));
-	}
+	idle = tiadc_readl(adc_dev, REG_CTRL);
+	idle &= ~(CNTRLREG_TSCSSENB);
+	tiadc_writel(adc_dev, REG_CTRL, (idle |
+			CNTRLREG_POWERDOWN));
 
 	return 0;
 }

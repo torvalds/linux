@@ -119,8 +119,8 @@ static int qoriq_tmu_get_sensor_id(void)
 	if (sensor_specs.args_count >= 1) {
 		id = sensor_specs.args[0];
 		WARN(sensor_specs.args_count > 1,
-				"%s: too many cells in sensor specifier %d\n",
-				sensor_specs.np->name, sensor_specs.args_count);
+				"%pOFn: too many cells in sensor specifier %d\n",
+				sensor_specs.np, sensor_specs.args_count);
 	} else {
 		id = 0;
 	}
@@ -294,6 +294,7 @@ static SIMPLE_DEV_PM_OPS(qoriq_tmu_pm_ops,
 
 static const struct of_device_id qoriq_tmu_match[] = {
 	{ .compatible = "fsl,qoriq-tmu", },
+	{ .compatible = "fsl,imx8mq-tmu", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, qoriq_tmu_match);

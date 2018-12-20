@@ -669,8 +669,8 @@ static int cdce925_probe(struct i2c_client *client,
 
 	/* Register PLL clocks */
 	for (i = 0; i < data->chip_info->num_plls; ++i) {
-		pll_clk_name[i] = kasprintf(GFP_KERNEL, "%s.pll%d",
-			client->dev.of_node->name, i);
+		pll_clk_name[i] = kasprintf(GFP_KERNEL, "%pOFn.pll%d",
+			client->dev.of_node, i);
 		init.name = pll_clk_name[i];
 		data->pll[i].chip = data;
 		data->pll[i].hw.init = &init;
@@ -703,6 +703,7 @@ static int cdce925_probe(struct i2c_client *client,
 				0x12 + (i*CDCE925_OFFSET_PLL),
 				0x07, value & 0x07);
 		}
+		of_node_put(np_output);
 	}
 
 	/* Register output clock Y1 */
@@ -710,7 +711,7 @@ static int cdce925_probe(struct i2c_client *client,
 	init.flags = 0;
 	init.num_parents = 1;
 	init.parent_names = &parent_name; /* Mux Y1 to input */
-	init.name = kasprintf(GFP_KERNEL, "%s.Y1", client->dev.of_node->name);
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.Y1", client->dev.of_node);
 	data->clk[0].chip = data;
 	data->clk[0].hw.init = &init;
 	data->clk[0].index = 0;
@@ -727,8 +728,8 @@ static int cdce925_probe(struct i2c_client *client,
 	init.flags = CLK_SET_RATE_PARENT;
 	init.num_parents = 1;
 	for (i = 1; i < data->chip_info->num_outputs; ++i) {
-		init.name = kasprintf(GFP_KERNEL, "%s.Y%d",
-			client->dev.of_node->name, i+1);
+		init.name = kasprintf(GFP_KERNEL, "%pOFn.Y%d",
+			client->dev.of_node, i+1);
 		data->clk[i].chip = data;
 		data->clk[i].hw.init = &init;
 		data->clk[i].index = i;

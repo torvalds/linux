@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas Timer Support - OSTM
  *
  * Copyright (C) 2017 Renesas Electronics America, Inc.
  * Copyright (C) 2017 Chris Brandt
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/of_address.h>

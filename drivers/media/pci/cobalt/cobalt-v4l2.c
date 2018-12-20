@@ -479,8 +479,8 @@ static int cobalt_querycap(struct file *file, void *priv_fh,
 	struct cobalt_stream *s = video_drvdata(file);
 	struct cobalt *cobalt = s->cobalt;
 
-	strlcpy(vcap->driver, "cobalt", sizeof(vcap->driver));
-	strlcpy(vcap->card, "cobalt", sizeof(vcap->card));
+	strscpy(vcap->driver, "cobalt", sizeof(vcap->driver));
+	strscpy(vcap->card, "cobalt", sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCIe:%s", pci_name(cobalt->pci_dev));
 	vcap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
@@ -693,15 +693,15 @@ static int cobalt_enum_fmt_vid_cap(struct file *file, void *priv_fh,
 {
 	switch (f->index) {
 	case 0:
-		strlcpy(f->description, "YUV 4:2:2", sizeof(f->description));
+		strscpy(f->description, "YUV 4:2:2", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 		break;
 	case 1:
-		strlcpy(f->description, "RGB24", sizeof(f->description));
+		strscpy(f->description, "RGB24", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_RGB24;
 		break;
 	case 2:
-		strlcpy(f->description, "RGB32", sizeof(f->description));
+		strscpy(f->description, "RGB32", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_BGR32;
 		break;
 	default:
@@ -898,11 +898,11 @@ static int cobalt_enum_fmt_vid_out(struct file *file, void *priv_fh,
 {
 	switch (f->index) {
 	case 0:
-		strlcpy(f->description, "YUV 4:2:2", sizeof(f->description));
+		strscpy(f->description, "YUV 4:2:2", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 		break;
 	case 1:
-		strlcpy(f->description, "RGB32", sizeof(f->description));
+		strscpy(f->description, "RGB32", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_BGR32;
 		break;
 	default:
@@ -1064,10 +1064,15 @@ static int cobalt_subscribe_event(struct v4l2_fh *fh,
 
 static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
+	struct cobalt_stream *s = video_drvdata(file);
+	struct v4l2_fract fps;
+
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	a->parm.capture.timeperframe.numerator = 1;
-	a->parm.capture.timeperframe.denominator = 60;
+
+	fps = v4l2_calc_timeperframe(&s->timings);
+	a->parm.capture.timeperframe.numerator = fps.numerator;
+	a->parm.capture.timeperframe.denominator = fps.denominator;
 	a->parm.capture.readbuffers = 3;
 	return 0;
 }

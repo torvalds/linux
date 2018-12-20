@@ -152,7 +152,8 @@ static int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 				      struct mlx5_flow_table *next_ft,
 				      unsigned int *table_id, u32 flags)
 {
-	int en_encap_decap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN);
+	int en_encap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT);
+	int en_decap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)]   = {0};
 	int err;
@@ -169,9 +170,9 @@ static int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 	}
 
 	MLX5_SET(create_flow_table_in, in, flow_table_context.decap_en,
-		 en_encap_decap);
-	MLX5_SET(create_flow_table_in, in, flow_table_context.encap_en,
-		 en_encap_decap);
+		 en_decap);
+	MLX5_SET(create_flow_table_in, in, flow_table_context.reformat_en,
+		 en_encap);
 
 	switch (op_mod) {
 	case FS_FT_OP_MOD_NORMAL:
@@ -343,7 +344,8 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 
 	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->action.flow_tag);
 	MLX5_SET(flow_context, in_flow_context, action, fte->action.action);
-	MLX5_SET(flow_context, in_flow_context, encap_id, fte->action.encap_id);
+	MLX5_SET(flow_context, in_flow_context, packet_reformat_id,
+		 fte->action.reformat_id);
 	MLX5_SET(flow_context, in_flow_context, modify_header_id,
 		 fte->action.modify_id);
 
@@ -417,7 +419,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				continue;
 
 			MLX5_SET(flow_counter_list, in_dests, flow_counter_id,
-				 dst->dest_attr.counter->id);
+				 dst->dest_attr.counter_id);
 			in_dests += MLX5_ST_SZ_BYTES(dest_format_struct);
 			list_size++;
 		}
@@ -594,19 +596,25 @@ void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
 	*bytes = MLX5_GET64(traffic_counter, stats, octets);
 }
 
-int mlx5_encap_alloc(struct mlx5_core_dev *dev,
-		     int header_type,
-		     size_t size,
-		     void *encap_header,
-		     u32 *encap_id)
+int mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
+			       int reformat_type,
+			       size_t size,
+			       void *reformat_data,
+			       enum mlx5_flow_namespace_type namespace,
+			       u32 *packet_reformat_id)
 {
-	int max_encap_size = MLX5_CAP_ESW(dev, max_encap_header_size);
-	u32 out[MLX5_ST_SZ_DW(alloc_encap_header_out)];
-	void *encap_header_in;
-	void *header;
+	u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_context_out)];
+	void *packet_reformat_context_in;
+	int max_encap_size;
+	void *reformat;
 	int inlen;
 	int err;
 	u32 *in;
+
+	if (namespace == MLX5_FLOW_NAMESPACE_FDB)
+		max_encap_size = MLX5_CAP_ESW(dev, max_encap_header_size);
+	else
+		max_encap_size = MLX5_CAP_FLOWTABLE(dev, max_encap_header_size);
 
 	if (size > max_encap_size) {
 		mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",
@@ -614,42 +622,52 @@ int mlx5_encap_alloc(struct mlx5_core_dev *dev,
 		return -EINVAL;
 	}
 
-	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_encap_header_in) + size,
+	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_packet_reformat_context_in) + size,
 		     GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
-	encap_header_in = MLX5_ADDR_OF(alloc_encap_header_in, in, encap_header);
-	header = MLX5_ADDR_OF(encap_header_in, encap_header_in, encap_header);
-	inlen = header - (void *)in  + size;
+	packet_reformat_context_in = MLX5_ADDR_OF(alloc_packet_reformat_context_in,
+						  in, packet_reformat_context);
+	reformat = MLX5_ADDR_OF(packet_reformat_context_in,
+				packet_reformat_context_in,
+				reformat_data);
+	inlen = reformat - (void *)in  + size;
 
 	memset(in, 0, inlen);
-	MLX5_SET(alloc_encap_header_in, in, opcode,
-		 MLX5_CMD_OP_ALLOC_ENCAP_HEADER);
-	MLX5_SET(encap_header_in, encap_header_in, encap_header_size, size);
-	MLX5_SET(encap_header_in, encap_header_in, header_type, header_type);
-	memcpy(header, encap_header, size);
+	MLX5_SET(alloc_packet_reformat_context_in, in, opcode,
+		 MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT);
+	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+		 reformat_data_size, size);
+	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+		 reformat_type, reformat_type);
+	memcpy(reformat, reformat_data, size);
 
 	memset(out, 0, sizeof(out));
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 
-	*encap_id = MLX5_GET(alloc_encap_header_out, out, encap_id);
+	*packet_reformat_id = MLX5_GET(alloc_packet_reformat_context_out,
+				       out, packet_reformat_id);
 	kfree(in);
 	return err;
 }
+EXPORT_SYMBOL(mlx5_packet_reformat_alloc);
 
-void mlx5_encap_dealloc(struct mlx5_core_dev *dev, u32 encap_id)
+void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+				  u32 packet_reformat_id)
 {
-	u32 in[MLX5_ST_SZ_DW(dealloc_encap_header_in)];
-	u32 out[MLX5_ST_SZ_DW(dealloc_encap_header_out)];
+	u32 in[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_in)];
+	u32 out[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_out)];
 
 	memset(in, 0, sizeof(in));
-	MLX5_SET(dealloc_encap_header_in, in, opcode,
-		 MLX5_CMD_OP_DEALLOC_ENCAP_HEADER);
-	MLX5_SET(dealloc_encap_header_in, in, encap_id, encap_id);
+	MLX5_SET(dealloc_packet_reformat_context_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_PACKET_REFORMAT_CONTEXT);
+	MLX5_SET(dealloc_packet_reformat_context_in, in, packet_reformat_id,
+		 packet_reformat_id);
 
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_packet_reformat_dealloc);
 
 int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 			     u8 namespace, u8 num_actions,
@@ -667,8 +685,13 @@ int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 		table_type = FS_FT_FDB;
 		break;
 	case MLX5_FLOW_NAMESPACE_KERNEL:
+	case MLX5_FLOW_NAMESPACE_BYPASS:
 		max_actions = MLX5_CAP_FLOWTABLE_NIC_RX(dev, max_modify_header_actions);
 		table_type = FS_FT_NIC_RX;
+		break;
+	case MLX5_FLOW_NAMESPACE_EGRESS:
+		max_actions = MLX5_CAP_FLOWTABLE_NIC_TX(dev, max_modify_header_actions);
+		table_type = FS_FT_NIC_TX;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -702,6 +725,7 @@ int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 	kfree(in);
 	return err;
 }
+EXPORT_SYMBOL(mlx5_modify_header_alloc);
 
 void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev, u32 modify_header_id)
 {
@@ -716,6 +740,7 @@ void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev, u32 modify_header_id)
 
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_modify_header_dealloc);
 
 static const struct mlx5_flow_cmds mlx5_flow_cmds = {
 	.create_flow_table = mlx5_cmd_create_flow_table,
@@ -760,8 +785,8 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default(enum fs_flow_table_type typ
 	case FS_FT_FDB:
 	case FS_FT_SNIFFER_RX:
 	case FS_FT_SNIFFER_TX:
-		return mlx5_fs_cmd_get_fw_cmds();
 	case FS_FT_NIC_TX:
+		return mlx5_fs_cmd_get_fw_cmds();
 	default:
 		return mlx5_fs_cmd_get_stub_cmds();
 	}

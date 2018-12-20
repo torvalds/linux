@@ -48,6 +48,5 @@ struct mv_usb_platform_data {
 	int	(*phy_init)(void __iomem *regbase);
 	void	(*phy_deinit)(void __iomem *regbase);
 	int	(*set_vbus)(unsigned int vbus);
-	int     (*private_init)(void __iomem *opregs, void __iomem *phyregs);
 };
 #endif

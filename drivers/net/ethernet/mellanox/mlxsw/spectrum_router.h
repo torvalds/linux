@@ -7,17 +7,6 @@
 #include "spectrum.h"
 #include "reg.h"
 
-enum mlxsw_sp_l3proto {
-	MLXSW_SP_L3_PROTO_IPV4,
-	MLXSW_SP_L3_PROTO_IPV6,
-#define MLXSW_SP_L3_PROTO_MAX	(MLXSW_SP_L3_PROTO_IPV6 + 1)
-};
-
-union mlxsw_sp_l3addr {
-	__be32 addr4;
-	struct in6_addr addr6;
-};
-
 struct mlxsw_sp_rif_ipip_lb;
 struct mlxsw_sp_rif_ipip_lb_config {
 	enum mlxsw_reg_ritr_loopback_ipip_type lb_ipipt;
@@ -35,8 +24,6 @@ struct mlxsw_sp_neigh_entry;
 struct mlxsw_sp_nexthop;
 struct mlxsw_sp_ipip_entry;
 
-struct mlxsw_sp_rif *mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
-					      const struct net_device *dev);
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
 u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
@@ -44,9 +31,7 @@ u16 mlxsw_sp_ipip_lb_rif_index(const struct mlxsw_sp_rif_ipip_lb *rif);
 u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *rif);
 u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev);
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif);
-u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp);
 const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif);
-struct mlxsw_sp_fid *mlxsw_sp_rif_fid(const struct mlxsw_sp_rif *rif);
 int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_rif *rif,
 				   enum mlxsw_sp_rif_counter_dir dir,

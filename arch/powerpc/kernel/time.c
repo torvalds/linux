@@ -111,6 +111,7 @@ struct clock_event_device decrementer_clockevent = {
 	.rating			= 200,
 	.irq			= 0,
 	.set_next_event		= decrementer_set_next_event,
+	.set_state_oneshot_stopped = decrementer_shutdown,
 	.set_state_shutdown	= decrementer_shutdown,
 	.tick_resume		= decrementer_shutdown,
 	.features		= CLOCK_EVT_FEAT_ONESHOT |
@@ -175,7 +176,7 @@ static void calc_cputime_factors(void)
  * Read the SPURR on systems that have it, otherwise the PURR,
  * or if that doesn't exist return the timebase value passed in.
  */
-static unsigned long read_spurr(unsigned long tb)
+static inline unsigned long read_spurr(unsigned long tb)
 {
 	if (cpu_has_feature(CPU_FTR_SPURR))
 		return mfspr(SPRN_SPURR);
@@ -281,26 +282,17 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * Account time for a transition between system, hard irq
  * or soft irq state.
  */
-static unsigned long vtime_delta(struct task_struct *tsk,
-				 unsigned long *stime_scaled,
-				 unsigned long *steal_time)
+static unsigned long vtime_delta_scaled(struct cpu_accounting_data *acct,
+					unsigned long now, unsigned long stime)
 {
-	unsigned long now, nowscaled, deltascaled;
-	unsigned long stime;
+	unsigned long stime_scaled = 0;
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
+	unsigned long nowscaled, deltascaled;
 	unsigned long utime, utime_scaled;
-	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	WARN_ON_ONCE(!irqs_disabled());
-
-	now = mftb();
 	nowscaled = read_spurr(now);
-	stime = now - acct->starttime;
-	acct->starttime = now;
 	deltascaled = nowscaled - acct->startspurr;
 	acct->startspurr = nowscaled;
-
-	*steal_time = calculate_stolen_time(now);
-
 	utime = acct->utime - acct->utime_sspurr;
 	acct->utime_sspurr = acct->utime;
 
@@ -314,17 +306,38 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 	 * the user ticks get saved up in paca->user_time_scaled to be
 	 * used by account_process_tick.
 	 */
-	*stime_scaled = stime;
+	stime_scaled = stime;
 	utime_scaled = utime;
 	if (deltascaled != stime + utime) {
 		if (utime) {
-			*stime_scaled = deltascaled * stime / (stime + utime);
-			utime_scaled = deltascaled - *stime_scaled;
+			stime_scaled = deltascaled * stime / (stime + utime);
+			utime_scaled = deltascaled - stime_scaled;
 		} else {
-			*stime_scaled = deltascaled;
+			stime_scaled = deltascaled;
 		}
 	}
 	acct->utime_scaled += utime_scaled;
+#endif
+
+	return stime_scaled;
+}
+
+static unsigned long vtime_delta(struct task_struct *tsk,
+				 unsigned long *stime_scaled,
+				 unsigned long *steal_time)
+{
+	unsigned long now, stime;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
+
+	WARN_ON_ONCE(!irqs_disabled());
+
+	now = mftb();
+	stime = now - acct->starttime;
+	acct->starttime = now;
+
+	*stime_scaled = vtime_delta_scaled(acct, now, stime);
+
+	*steal_time = calculate_stolen_time(now);
 
 	return stime;
 }
@@ -341,7 +354,9 @@ void vtime_account_system(struct task_struct *tsk)
 
 	if ((tsk->flags & PF_VCPU) && !irq_count()) {
 		acct->gtime += stime;
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 		acct->utime_scaled += stime_scaled;
+#endif
 	} else {
 		if (hardirq_count())
 			acct->hardirq_time += stime;
@@ -350,7 +365,9 @@ void vtime_account_system(struct task_struct *tsk)
 		else
 			acct->stime += stime;
 
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 		acct->stime_scaled += stime_scaled;
+#endif
 	}
 }
 EXPORT_SYMBOL_GPL(vtime_account_system);
@@ -362,6 +379,21 @@ void vtime_account_idle(struct task_struct *tsk)
 
 	stime = vtime_delta(tsk, &stime_scaled, &steal_time);
 	acct->idle_time += stime + steal_time;
+}
+
+static void vtime_flush_scaled(struct task_struct *tsk,
+			       struct cpu_accounting_data *acct)
+{
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
+	if (acct->utime_scaled)
+		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
+	if (acct->stime_scaled)
+		tsk->stimescaled += cputime_to_nsecs(acct->stime_scaled);
+
+	acct->utime_scaled = 0;
+	acct->utime_sspurr = 0;
+	acct->stime_scaled = 0;
+#endif
 }
 
 /*
@@ -378,14 +410,13 @@ void vtime_flush(struct task_struct *tsk)
 	if (acct->utime)
 		account_user_time(tsk, cputime_to_nsecs(acct->utime));
 
-	if (acct->utime_scaled)
-		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
-
 	if (acct->gtime)
 		account_guest_time(tsk, cputime_to_nsecs(acct->gtime));
 
-	if (acct->steal_time)
+	if (IS_ENABLED(CONFIG_PPC_SPLPAR) && acct->steal_time) {
 		account_steal_time(cputime_to_nsecs(acct->steal_time));
+		acct->steal_time = 0;
+	}
 
 	if (acct->idle_time)
 		account_idle_time(cputime_to_nsecs(acct->idle_time));
@@ -393,8 +424,6 @@ void vtime_flush(struct task_struct *tsk)
 	if (acct->stime)
 		account_system_index_time(tsk, cputime_to_nsecs(acct->stime),
 					  CPUTIME_SYSTEM);
-	if (acct->stime_scaled)
-		tsk->stimescaled += cputime_to_nsecs(acct->stime_scaled);
 
 	if (acct->hardirq_time)
 		account_system_index_time(tsk, cputime_to_nsecs(acct->hardirq_time),
@@ -403,14 +432,12 @@ void vtime_flush(struct task_struct *tsk)
 		account_system_index_time(tsk, cputime_to_nsecs(acct->softirq_time),
 					  CPUTIME_SOFTIRQ);
 
+	vtime_flush_scaled(tsk, acct);
+
 	acct->utime = 0;
-	acct->utime_scaled = 0;
-	acct->utime_sspurr = 0;
 	acct->gtime = 0;
-	acct->steal_time = 0;
 	acct->idle_time = 0;
 	acct->stime = 0;
-	acct->stime_scaled = 0;
 	acct->hardirq_time = 0;
 	acct->softirq_time = 0;
 }
@@ -984,10 +1011,14 @@ static void register_decrementer_clockevent(int cpu)
 	*dec = decrementer_clockevent;
 	dec->cpumask = cpumask_of(cpu);
 
+	clockevents_config_and_register(dec, ppc_tb_freq, 2, decrementer_max);
+
 	printk_once(KERN_DEBUG "clockevent: %s mult[%x] shift[%d] cpu[%d]\n",
 		    dec->name, dec->mult, dec->shift, cpu);
 
-	clockevents_register_device(dec);
+	/* Set values for KVM, see kvm_emulate_dec() */
+	decrementer_clockevent.mult = dec->mult;
+	decrementer_clockevent.shift = dec->shift;
 }
 
 static void enable_large_decrementer(void)
@@ -1035,18 +1066,7 @@ static void __init set_decrementer_max(void)
 
 static void __init init_decrementer_clockevent(void)
 {
-	int cpu = smp_processor_id();
-
-	clockevents_calc_mult_shift(&decrementer_clockevent, ppc_tb_freq, 4);
-
-	decrementer_clockevent.max_delta_ns =
-		clockevent_delta2ns(decrementer_max, &decrementer_clockevent);
-	decrementer_clockevent.max_delta_ticks = decrementer_max;
-	decrementer_clockevent.min_delta_ns =
-		clockevent_delta2ns(2, &decrementer_clockevent);
-	decrementer_clockevent.min_delta_ticks = 2;
-
-	register_decrementer_clockevent(cpu);
+	register_decrementer_clockevent(smp_processor_id());
 }
 
 void secondary_cpu_time_init(void)

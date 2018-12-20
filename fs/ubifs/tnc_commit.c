@@ -38,6 +38,7 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 			 struct ubifs_znode *znode, int lnum, int offs, int len)
 {
 	struct ubifs_znode *zp;
+	u8 hash[UBIFS_HASH_ARR_SZ];
 	int i, err;
 
 	/* Make index node */
@@ -52,6 +53,7 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 		br->lnum = cpu_to_le32(zbr->lnum);
 		br->offs = cpu_to_le32(zbr->offs);
 		br->len = cpu_to_le32(zbr->len);
+		ubifs_copy_hash(c, zbr->hash, ubifs_branch_hash(c, br));
 		if (!zbr->lnum || !zbr->len) {
 			ubifs_err(c, "bad ref in znode");
 			ubifs_dump_znode(c, znode);
@@ -62,6 +64,7 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 		}
 	}
 	ubifs_prepare_node(c, idx, len, 0);
+	ubifs_node_calc_hash(c, idx, hash);
 
 	znode->lnum = lnum;
 	znode->offs = offs;
@@ -78,10 +81,12 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 		zbr->lnum = lnum;
 		zbr->offs = offs;
 		zbr->len = len;
+		ubifs_copy_hash(c, hash, zbr->hash);
 	} else {
 		c->zroot.lnum = lnum;
 		c->zroot.offs = offs;
 		c->zroot.len = len;
+		ubifs_copy_hash(c, hash, c->zroot.hash);
 	}
 	c->calc_idx_sz += ALIGN(len, 8);
 
@@ -647,6 +652,8 @@ static int get_znodes_to_commit(struct ubifs_info *c)
 			znode->cnext = c->cnext;
 			break;
 		}
+		znode->cparent = znode->parent;
+		znode->ciip = znode->iip;
 		znode->cnext = cnext;
 		znode = cnext;
 		cnt += 1;
@@ -840,6 +847,8 @@ static int write_index(struct ubifs_info *c)
 	}
 
 	while (1) {
+		u8 hash[UBIFS_HASH_ARR_SZ];
+
 		cond_resched();
 
 		znode = cnext;
@@ -857,6 +866,7 @@ static int write_index(struct ubifs_info *c)
 			br->lnum = cpu_to_le32(zbr->lnum);
 			br->offs = cpu_to_le32(zbr->offs);
 			br->len = cpu_to_le32(zbr->len);
+			ubifs_copy_hash(c, zbr->hash, ubifs_branch_hash(c, br));
 			if (!zbr->lnum || !zbr->len) {
 				ubifs_err(c, "bad ref in znode");
 				ubifs_dump_znode(c, znode);
@@ -868,6 +878,23 @@ static int write_index(struct ubifs_info *c)
 		}
 		len = ubifs_idx_node_sz(c, znode->child_cnt);
 		ubifs_prepare_node(c, idx, len, 0);
+		ubifs_node_calc_hash(c, idx, hash);
+
+		mutex_lock(&c->tnc_mutex);
+
+		if (znode->cparent)
+			ubifs_copy_hash(c, hash,
+					znode->cparent->zbranch[znode->ciip].hash);
+
+		if (znode->parent) {
+			if (!ubifs_zn_obsolete(znode))
+				ubifs_copy_hash(c, hash,
+					znode->parent->zbranch[znode->iip].hash);
+		} else {
+			ubifs_copy_hash(c, hash, c->zroot.hash);
+		}
+
+		mutex_unlock(&c->tnc_mutex);
 
 		/* Determine the index node position */
 		if (lnum == -1) {

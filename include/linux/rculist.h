@@ -182,7 +182,7 @@ static inline void list_replace_rcu(struct list_head *old,
  * @list:	the RCU-protected list to splice
  * @prev:	points to the last element of the existing list
  * @next:	points to the first element of the existing list
- * @sync:	function to sync: synchronize_rcu(), synchronize_sched(), ...
+ * @sync:	synchronize_rcu, synchronize_rcu_expedited, ...
  *
  * The list pointed to by @prev and @next can be RCU-read traversed
  * concurrently with this function.
@@ -240,7 +240,7 @@ static inline void __list_splice_init_rcu(struct list_head *list,
  *                        designed for stacks.
  * @list:	the RCU-protected list to splice
  * @head:	the place in the existing list to splice the first list into
- * @sync:	function to sync: synchronize_rcu(), synchronize_sched(), ...
+ * @sync:	synchronize_rcu, synchronize_rcu_expedited, ...
  */
 static inline void list_splice_init_rcu(struct list_head *list,
 					struct list_head *head,
@@ -255,7 +255,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  *                             list, designed for queues.
  * @list:	the RCU-protected list to splice
  * @head:	the place in the existing list to splice the first list into
- * @sync:	function to sync: synchronize_rcu(), synchronize_sched(), ...
+ * @sync:	synchronize_rcu, synchronize_rcu_expedited, ...
  */
 static inline void list_splice_tail_init_rcu(struct list_head *list,
 					     struct list_head *head,
@@ -359,13 +359,12 @@ static inline void list_splice_tail_init_rcu(struct list_head *list,
  * @type:       the type of the struct this is embedded in.
  * @member:     the name of the list_head within the struct.
  *
- * This primitive may safely run concurrently with the _rcu list-mutation
- * primitives such as list_add_rcu(), but requires some implicit RCU
- * read-side guarding.  One example is running within a special
- * exception-time environment where preemption is disabled and where
- * lockdep cannot be invoked (in which case updaters must use RCU-sched,
- * as in synchronize_sched(), call_rcu_sched(), and friends).  Another
- * example is when items are added to the list, but never deleted.
+ * This primitive may safely run concurrently with the _rcu
+ * list-mutation primitives such as list_add_rcu(), but requires some
+ * implicit RCU read-side guarding.  One example is running within a special
+ * exception-time environment where preemption is disabled and where lockdep
+ * cannot be invoked.  Another example is when items are added to the list,
+ * but never deleted.
  */
 #define list_entry_lockless(ptr, type, member) \
 	container_of((typeof(ptr))READ_ONCE(ptr), type, member)
@@ -376,13 +375,12 @@ static inline void list_splice_tail_init_rcu(struct list_head *list,
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
  *
- * This primitive may safely run concurrently with the _rcu list-mutation
- * primitives such as list_add_rcu(), but requires some implicit RCU
- * read-side guarding.  One example is running within a special
- * exception-time environment where preemption is disabled and where
- * lockdep cannot be invoked (in which case updaters must use RCU-sched,
- * as in synchronize_sched(), call_rcu_sched(), and friends).  Another
- * example is when items are added to the list, but never deleted.
+ * This primitive may safely run concurrently with the _rcu
+ * list-mutation primitives such as list_add_rcu(), but requires some
+ * implicit RCU read-side guarding.  One example is running within a special
+ * exception-time environment where preemption is disabled and where lockdep
+ * cannot be invoked.  Another example is when items are added to the list,
+ * but never deleted.
  */
 #define list_for_each_entry_lockless(pos, head, member) \
 	for (pos = list_entry_lockless((head)->next, typeof(*pos), member); \

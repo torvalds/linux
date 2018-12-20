@@ -472,7 +472,7 @@ out:
 static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 			       struct mmc_blk_ioc_data *idata)
 {
-	struct mmc_command cmd = {};
+	struct mmc_command cmd = {}, sbc = {};
 	struct mmc_data data = {};
 	struct mmc_request mrq = {};
 	struct scatterlist sg;
@@ -550,10 +550,15 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 	}
 
 	if (idata->rpmb) {
-		err = mmc_set_blockcount(card, data.blocks,
-			idata->ic.write_flag & (1 << 31));
-		if (err)
-			return err;
+		sbc.opcode = MMC_SET_BLOCK_COUNT;
+		/*
+		 * We don't do any blockcount validation because the max size
+		 * may be increased by a future standard. We just copy the
+		 * 'Reliable Write' bit here.
+		 */
+		sbc.arg = data.blocks | (idata->ic.write_flag & BIT(31));
+		sbc.flags = MMC_RSP_R1 | MMC_CMD_AC;
+		mrq.sbc = &sbc;
 	}
 
 	if ((MMC_EXTRACT_INDEX_FROM_ARG(cmd.arg) == EXT_CSD_SANITIZE_START) &&
@@ -1370,6 +1375,16 @@ static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
 		brq->data.blocks = card->host->max_blk_count;
 
 	if (brq->data.blocks > 1) {
+		/*
+		 * Some SD cards in SPI mode return a CRC error or even lock up
+		 * completely when trying to read the last block using a
+		 * multiblock read command.
+		 */
+		if (mmc_host_is_spi(card->host) && (rq_data_dir(req) == READ) &&
+		    (blk_rq_pos(req) + blk_rq_sectors(req) ==
+		     get_capacity(md->disk)))
+			brq->data.blocks--;
+
 		/*
 		 * After a read error, we redo the request one sector
 		 * at a time in order to accurately determine which
@@ -2698,7 +2713,7 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 	int ret;
 	struct mmc_card *card = md->queue.card;
 
-	device_add_disk(md->parent, md->disk);
+	device_add_disk(md->parent, md->disk, NULL);
 	md->force_ro.show = force_ro_show;
 	md->force_ro.store = force_ro_store;
 	sysfs_attr_init(&md->force_ro.attr);

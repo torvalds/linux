@@ -2629,7 +2629,6 @@ enum {
 static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			      int attr_mask, struct ib_udata *udata)
 {
-	enum rdma_link_layer ll = IB_LINK_LAYER_UNSPECIFIED;
 	struct mlx4_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	enum ib_qp_state cur_state, new_state;
@@ -2639,13 +2638,8 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
-	if (cur_state != new_state || cur_state != IB_QPS_RESET) {
-		int port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
-		ll = rdma_port_get_link_layer(&dev->ib_dev, port);
-	}
-
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
-				attr_mask, ll)) {
+				attr_mask)) {
 		pr_debug("qpn 0x%x: invalid attribute mask specified "
 			 "for transition %d to %d. qp_type %d,"
 			 " attr_mask 0x%x\n",

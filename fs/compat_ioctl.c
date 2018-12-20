@@ -22,37 +22,21 @@
 #include <linux/smp.h>
 #include <linux/ioctl.h>
 #include <linux/if.h>
-#include <linux/if_bridge.h>
 #include <linux/raid/md_u.h>
-#include <linux/kd.h>
-#include <linux/route.h>
-#include <linux/in6.h>
-#include <linux/ipv6_route.h>
-#include <linux/skbuff.h>
-#include <linux/netlink.h>
-#include <linux/vt.h>
 #include <linux/falloc.h>
-#include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/ppp_defs.h>
 #include <linux/ppp-ioctl.h>
 #include <linux/if_pppox.h>
 #include <linux/mtio.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
-#include <linux/fb.h>
-#include <linux/videodev2.h>
-#include <linux/netdevice.h>
 #include <linux/raw.h>
 #include <linux/blkdev.h>
-#include <linux/elevator.h>
 #include <linux/rtc.h>
 #include <linux/pci.h>
 #include <linux/serial.h>
-#include <linux/if_tun.h>
 #include <linux/ctype.h>
 #include <linux/syscalls.h>
-#include <linux/atalk.h>
 #include <linux/gfp.h>
 #include <linux/cec.h>
 
@@ -74,44 +58,17 @@
 #endif
 
 #include <linux/uaccess.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#include <linux/if_bonding.h>
 #include <linux/watchdog.h>
 
 #include <linux/soundcard.h>
-#include <linux/lp.h>
-#include <linux/ppdev.h>
-
-#include <linux/atm.h>
-#include <linux/atmarp.h>
-#include <linux/atmclip.h>
-#include <linux/atmdev.h>
-#include <linux/atmioc.h>
-#include <linux/atmlec.h>
-#include <linux/atmmpc.h>
-#include <linux/atmsvc.h>
-#include <linux/atm_tcp.h>
-#include <linux/sonet.h>
-#include <linux/atm_suni.h>
-
-#include <linux/usb.h>
-#include <linux/usbdevice_fs.h>
-#include <linux/nbd.h>
-#include <linux/random.h>
-#include <linux/filter.h>
 
 #include <linux/hiddev.h>
 
-#define __DVB_CORE__
-#include <linux/dvb/audio.h>
-#include <linux/dvb/dmx.h>
-#include <linux/dvb/frontend.h>
-#include <linux/dvb/video.h>
 
 #include <linux/sort.h>
 
 #ifdef CONFIG_SPARC
+#include <linux/fb.h>
 #include <asm/fbio.h>
 #endif
 
@@ -131,71 +88,6 @@ static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 
 	return vfs_ioctl(file, cmd, arg);
-}
-
-struct compat_video_event {
-	int32_t		type;
-	compat_time_t	timestamp;
-	union {
-	        video_size_t size;
-		unsigned int frame_rate;
-	} u;
-};
-
-static int do_video_get_event(struct file *file,
-		unsigned int cmd, struct compat_video_event __user *up)
-{
-	struct video_event __user *kevent =
-		compat_alloc_user_space(sizeof(*kevent));
-	int err;
-
-	if (kevent == NULL)
-		return -EFAULT;
-
-	err = do_ioctl(file, cmd, (unsigned long)kevent);
-	if (!err) {
-		err  = convert_in_user(&kevent->type, &up->type);
-		err |= convert_in_user(&kevent->timestamp, &up->timestamp);
-		err |= convert_in_user(&kevent->u.size.w, &up->u.size.w);
-		err |= convert_in_user(&kevent->u.size.h, &up->u.size.h);
-		err |= convert_in_user(&kevent->u.size.aspect_ratio,
-				&up->u.size.aspect_ratio);
-		if (err)
-			err = -EFAULT;
-	}
-
-	return err;
-}
-
-struct compat_video_still_picture {
-        compat_uptr_t iFrame;
-        int32_t size;
-};
-
-static int do_video_stillpicture(struct file *file,
-		unsigned int cmd, struct compat_video_still_picture __user *up)
-{
-	struct video_still_picture __user *up_native;
-	compat_uptr_t fp;
-	int32_t size;
-	int err;
-
-	err  = get_user(fp, &up->iFrame);
-	err |= get_user(size, &up->size);
-	if (err)
-		return -EFAULT;
-
-	up_native =
-		compat_alloc_user_space(sizeof(struct video_still_picture));
-
-	err =  put_user(compat_ptr(fp), &up_native->iFrame);
-	err |= put_user(size, &up_native->size);
-	if (err)
-		return -EFAULT;
-
-	err = do_ioctl(file, cmd, (unsigned long) up_native);
-
-	return err;
 }
 
 #ifdef CONFIG_BLOCK
@@ -544,85 +436,6 @@ static int mt_ioctl_trans(struct file *file,
 #define HCIUARTSETFLAGS		_IOW('U', 203, int)
 #define HCIUARTGETFLAGS		_IOR('U', 204, int)
 
-#define BNEPCONNADD	_IOW('B', 200, int)
-#define BNEPCONNDEL	_IOW('B', 201, int)
-#define BNEPGETCONNLIST	_IOR('B', 210, int)
-#define BNEPGETCONNINFO	_IOR('B', 211, int)
-#define BNEPGETSUPPFEAT	_IOR('B', 212, int)
-
-#define CMTPCONNADD	_IOW('C', 200, int)
-#define CMTPCONNDEL	_IOW('C', 201, int)
-#define CMTPGETCONNLIST	_IOR('C', 210, int)
-#define CMTPGETCONNINFO	_IOR('C', 211, int)
-
-#define HIDPCONNADD	_IOW('H', 200, int)
-#define HIDPCONNDEL	_IOW('H', 201, int)
-#define HIDPGETCONNLIST	_IOR('H', 210, int)
-#define HIDPGETCONNINFO	_IOR('H', 211, int)
-
-
-struct serial_struct32 {
-        compat_int_t    type;
-        compat_int_t    line;
-        compat_uint_t   port;
-        compat_int_t    irq;
-        compat_int_t    flags;
-        compat_int_t    xmit_fifo_size;
-        compat_int_t    custom_divisor;
-        compat_int_t    baud_base;
-        unsigned short  close_delay;
-        char    io_type;
-        char    reserved_char[1];
-        compat_int_t    hub6;
-        unsigned short  closing_wait; /* time to wait before closing */
-        unsigned short  closing_wait2; /* no longer used... */
-        compat_uint_t   iomem_base;
-        unsigned short  iomem_reg_shift;
-        unsigned int    port_high;
-     /* compat_ulong_t  iomap_base FIXME */
-        compat_int_t    reserved[1];
-};
-
-static int serial_struct_ioctl(struct file *file,
-		unsigned cmd, struct serial_struct32 __user *ss32)
-{
-        typedef struct serial_struct32 SS32;
-        int err;
-	struct serial_struct __user *ss = compat_alloc_user_space(sizeof(*ss));
-        __u32 udata;
-	unsigned int base;
-	unsigned char *iomem_base;
-
-	if (ss == NULL)
-		return -EFAULT;
-        if (cmd == TIOCSSERIAL) {
-		if (copy_in_user(ss, ss32, offsetof(SS32, iomem_base)) ||
-		    get_user(udata, &ss32->iomem_base))
-			return -EFAULT;
-		iomem_base = compat_ptr(udata);
-		if (put_user(iomem_base, &ss->iomem_base) ||
-		    convert_in_user(&ss32->iomem_reg_shift,
-		      &ss->iomem_reg_shift) ||
-		    convert_in_user(&ss32->port_high, &ss->port_high) ||
-		    put_user(0UL, &ss->iomap_base))
-			return -EFAULT;
-        }
-	err = do_ioctl(file, cmd, (unsigned long)ss);
-        if (cmd == TIOCGSERIAL && err >= 0) {
-		if (copy_in_user(ss32, ss, offsetof(SS32, iomem_base)) ||
-		    get_user(iomem_base, &ss->iomem_base))
-			return -EFAULT;
-		base = (unsigned long)iomem_base  >> 32 ?
-			0xffffffff : (unsigned)(unsigned long)iomem_base;
-		if (put_user(base, &ss32->iomem_base) ||
-		    convert_in_user(&ss->iomem_reg_shift,
-		      &ss32->iomem_reg_shift) ||
-		    convert_in_user(&ss->port_high, &ss32->port_high))
-			return -EFAULT;
-        }
-        return err;
-}
-
 #define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
 #define RTC_IRQP_SET32		_IOW('p', 0x0c, compat_ulong_t)
 #define RTC_EPOCH_READ32	_IOR('p', 0x0d, compat_ulong_t)
@@ -707,60 +520,8 @@ static int compat_ioctl_preallocate(struct file *file,
 
 static unsigned int ioctl_pointer[] = {
 /* compatible ioctls first */
-COMPATIBLE_IOCTL(0x4B50)   /* KDGHWCLK - not in the kernel, but don't complain */
-COMPATIBLE_IOCTL(0x4B51)   /* KDSHWCLK - not in the kernel, but don't complain */
-
-/* Big T */
-COMPATIBLE_IOCTL(TCGETA)
-COMPATIBLE_IOCTL(TCSETA)
-COMPATIBLE_IOCTL(TCSETAW)
-COMPATIBLE_IOCTL(TCSETAF)
-COMPATIBLE_IOCTL(TCSBRK)
-COMPATIBLE_IOCTL(TCXONC)
-COMPATIBLE_IOCTL(TCFLSH)
-COMPATIBLE_IOCTL(TCGETS)
-COMPATIBLE_IOCTL(TCSETS)
-COMPATIBLE_IOCTL(TCSETSW)
-COMPATIBLE_IOCTL(TCSETSF)
-COMPATIBLE_IOCTL(TIOCLINUX)
-COMPATIBLE_IOCTL(TIOCSBRK)
-COMPATIBLE_IOCTL(TIOCGDEV)
-COMPATIBLE_IOCTL(TIOCCBRK)
-COMPATIBLE_IOCTL(TIOCGSID)
-COMPATIBLE_IOCTL(TIOCGICOUNT)
-COMPATIBLE_IOCTL(TIOCGEXCL)
 /* Little t */
-COMPATIBLE_IOCTL(TIOCGETD)
-COMPATIBLE_IOCTL(TIOCSETD)
-COMPATIBLE_IOCTL(TIOCEXCL)
-COMPATIBLE_IOCTL(TIOCNXCL)
-COMPATIBLE_IOCTL(TIOCCONS)
-COMPATIBLE_IOCTL(TIOCGSOFTCAR)
-COMPATIBLE_IOCTL(TIOCSSOFTCAR)
-COMPATIBLE_IOCTL(TIOCSWINSZ)
-COMPATIBLE_IOCTL(TIOCGWINSZ)
-COMPATIBLE_IOCTL(TIOCMGET)
-COMPATIBLE_IOCTL(TIOCMBIC)
-COMPATIBLE_IOCTL(TIOCMBIS)
-COMPATIBLE_IOCTL(TIOCMSET)
-COMPATIBLE_IOCTL(TIOCNOTTY)
-COMPATIBLE_IOCTL(TIOCSTI)
 COMPATIBLE_IOCTL(TIOCOUTQ)
-COMPATIBLE_IOCTL(TIOCSPGRP)
-COMPATIBLE_IOCTL(TIOCGPGRP)
-COMPATIBLE_IOCTL(TIOCSERGETLSR)
-#ifdef TIOCSRS485
-COMPATIBLE_IOCTL(TIOCSRS485)
-#endif
-#ifdef TIOCGRS485
-COMPATIBLE_IOCTL(TIOCGRS485)
-#endif
-#ifdef TCGETS2
-COMPATIBLE_IOCTL(TCGETS2)
-COMPATIBLE_IOCTL(TCSETS2)
-COMPATIBLE_IOCTL(TCSETSW2)
-COMPATIBLE_IOCTL(TCSETSF2)
-#endif
 /* Little f */
 COMPATIBLE_IOCTL(FIOCLEX)
 COMPATIBLE_IOCTL(FIONCLEX)
@@ -775,23 +536,6 @@ COMPATIBLE_IOCTL(FIGETBSZ)
 COMPATIBLE_IOCTL(FIFREEZE)
 COMPATIBLE_IOCTL(FITHAW)
 COMPATIBLE_IOCTL(FITRIM)
-COMPATIBLE_IOCTL(KDGETKEYCODE)
-COMPATIBLE_IOCTL(KDSETKEYCODE)
-COMPATIBLE_IOCTL(KDGKBTYPE)
-COMPATIBLE_IOCTL(KDGETMODE)
-COMPATIBLE_IOCTL(KDGKBMODE)
-COMPATIBLE_IOCTL(KDGKBMETA)
-COMPATIBLE_IOCTL(KDGKBENT)
-COMPATIBLE_IOCTL(KDSKBENT)
-COMPATIBLE_IOCTL(KDGKBSENT)
-COMPATIBLE_IOCTL(KDSKBSENT)
-COMPATIBLE_IOCTL(KDGKBDIACR)
-COMPATIBLE_IOCTL(KDSKBDIACR)
-COMPATIBLE_IOCTL(KDGKBDIACRUC)
-COMPATIBLE_IOCTL(KDSKBDIACRUC)
-COMPATIBLE_IOCTL(KDKBDREP)
-COMPATIBLE_IOCTL(KDGKBLED)
-COMPATIBLE_IOCTL(KDGETLED)
 #ifdef CONFIG_BLOCK
 /* Big S */
 COMPATIBLE_IOCTL(SCSI_IOCTL_GET_IDLUN)
@@ -1106,19 +850,6 @@ COMPATIBLE_IOCTL(RFCOMMRELEASEDEV)
 COMPATIBLE_IOCTL(RFCOMMGETDEVLIST)
 COMPATIBLE_IOCTL(RFCOMMGETDEVINFO)
 COMPATIBLE_IOCTL(RFCOMMSTEALDLC)
-COMPATIBLE_IOCTL(BNEPCONNADD)
-COMPATIBLE_IOCTL(BNEPCONNDEL)
-COMPATIBLE_IOCTL(BNEPGETCONNLIST)
-COMPATIBLE_IOCTL(BNEPGETCONNINFO)
-COMPATIBLE_IOCTL(BNEPGETSUPPFEAT)
-COMPATIBLE_IOCTL(CMTPCONNADD)
-COMPATIBLE_IOCTL(CMTPCONNDEL)
-COMPATIBLE_IOCTL(CMTPGETCONNLIST)
-COMPATIBLE_IOCTL(CMTPGETCONNINFO)
-COMPATIBLE_IOCTL(HIDPCONNADD)
-COMPATIBLE_IOCTL(HIDPCONNDEL)
-COMPATIBLE_IOCTL(HIDPGETCONNLIST)
-COMPATIBLE_IOCTL(HIDPGETCONNINFO)
 /* CAPI */
 COMPATIBLE_IOCTL(CAPI_REGISTER)
 COMPATIBLE_IOCTL(CAPI_GET_MANUFACTURER)
@@ -1133,11 +864,6 @@ COMPATIBLE_IOCTL(CAPI_SET_FLAGS)
 COMPATIBLE_IOCTL(CAPI_CLR_FLAGS)
 COMPATIBLE_IOCTL(CAPI_NCCI_OPENCOUNT)
 COMPATIBLE_IOCTL(CAPI_NCCI_GETUNIT)
-/* Siemens Gigaset */
-COMPATIBLE_IOCTL(GIGASET_REDIR)
-COMPATIBLE_IOCTL(GIGASET_CONFIG)
-COMPATIBLE_IOCTL(GIGASET_BRKCHARS)
-COMPATIBLE_IOCTL(GIGASET_VERSION)
 /* Misc. */
 COMPATIBLE_IOCTL(0x41545900)		/* ATYIO_CLKR */
 COMPATIBLE_IOCTL(0x41545901)		/* ATYIO_CLKW */
@@ -1162,81 +888,11 @@ COMPATIBLE_IOCTL(HIDIOCGFLAG)
 COMPATIBLE_IOCTL(HIDIOCSFLAG)
 COMPATIBLE_IOCTL(HIDIOCGCOLLECTIONINDEX)
 COMPATIBLE_IOCTL(HIDIOCGCOLLECTIONINFO)
-/* dvb */
-COMPATIBLE_IOCTL(AUDIO_STOP)
-COMPATIBLE_IOCTL(AUDIO_PLAY)
-COMPATIBLE_IOCTL(AUDIO_PAUSE)
-COMPATIBLE_IOCTL(AUDIO_CONTINUE)
-COMPATIBLE_IOCTL(AUDIO_SELECT_SOURCE)
-COMPATIBLE_IOCTL(AUDIO_SET_MUTE)
-COMPATIBLE_IOCTL(AUDIO_SET_AV_SYNC)
-COMPATIBLE_IOCTL(AUDIO_SET_BYPASS_MODE)
-COMPATIBLE_IOCTL(AUDIO_CHANNEL_SELECT)
-COMPATIBLE_IOCTL(AUDIO_GET_STATUS)
-COMPATIBLE_IOCTL(AUDIO_GET_CAPABILITIES)
-COMPATIBLE_IOCTL(AUDIO_CLEAR_BUFFER)
-COMPATIBLE_IOCTL(AUDIO_SET_ID)
-COMPATIBLE_IOCTL(AUDIO_SET_MIXER)
-COMPATIBLE_IOCTL(AUDIO_SET_STREAMTYPE)
-COMPATIBLE_IOCTL(DMX_START)
-COMPATIBLE_IOCTL(DMX_STOP)
-COMPATIBLE_IOCTL(DMX_SET_FILTER)
-COMPATIBLE_IOCTL(DMX_SET_PES_FILTER)
-COMPATIBLE_IOCTL(DMX_SET_BUFFER_SIZE)
-COMPATIBLE_IOCTL(DMX_GET_PES_PIDS)
-COMPATIBLE_IOCTL(DMX_GET_STC)
-COMPATIBLE_IOCTL(DMX_REQBUFS)
-COMPATIBLE_IOCTL(DMX_QUERYBUF)
-COMPATIBLE_IOCTL(DMX_EXPBUF)
-COMPATIBLE_IOCTL(DMX_QBUF)
-COMPATIBLE_IOCTL(DMX_DQBUF)
-COMPATIBLE_IOCTL(VIDEO_STOP)
-COMPATIBLE_IOCTL(VIDEO_PLAY)
-COMPATIBLE_IOCTL(VIDEO_FREEZE)
-COMPATIBLE_IOCTL(VIDEO_CONTINUE)
-COMPATIBLE_IOCTL(VIDEO_SELECT_SOURCE)
-COMPATIBLE_IOCTL(VIDEO_SET_BLANK)
-COMPATIBLE_IOCTL(VIDEO_GET_STATUS)
-COMPATIBLE_IOCTL(VIDEO_SET_DISPLAY_FORMAT)
-COMPATIBLE_IOCTL(VIDEO_FAST_FORWARD)
-COMPATIBLE_IOCTL(VIDEO_SLOWMOTION)
-COMPATIBLE_IOCTL(VIDEO_GET_CAPABILITIES)
-COMPATIBLE_IOCTL(VIDEO_CLEAR_BUFFER)
-COMPATIBLE_IOCTL(VIDEO_SET_STREAMTYPE)
-COMPATIBLE_IOCTL(VIDEO_SET_FORMAT)
-COMPATIBLE_IOCTL(VIDEO_GET_SIZE)
-/* cec */
-COMPATIBLE_IOCTL(CEC_ADAP_G_CAPS)
-COMPATIBLE_IOCTL(CEC_ADAP_G_LOG_ADDRS)
-COMPATIBLE_IOCTL(CEC_ADAP_S_LOG_ADDRS)
-COMPATIBLE_IOCTL(CEC_ADAP_G_PHYS_ADDR)
-COMPATIBLE_IOCTL(CEC_ADAP_S_PHYS_ADDR)
-COMPATIBLE_IOCTL(CEC_G_MODE)
-COMPATIBLE_IOCTL(CEC_S_MODE)
-COMPATIBLE_IOCTL(CEC_TRANSMIT)
-COMPATIBLE_IOCTL(CEC_RECEIVE)
-COMPATIBLE_IOCTL(CEC_DQEVENT)
-
 /* joystick */
 COMPATIBLE_IOCTL(JSIOCGVERSION)
 COMPATIBLE_IOCTL(JSIOCGAXES)
 COMPATIBLE_IOCTL(JSIOCGBUTTONS)
 COMPATIBLE_IOCTL(JSIOCGNAME(0))
-
-#ifdef TIOCGLTC
-COMPATIBLE_IOCTL(TIOCGLTC)
-COMPATIBLE_IOCTL(TIOCSLTC)
-#endif
-#ifdef TIOCSTART
-/*
- * For these two we have definitions in ioctls.h and/or termios.h on
- * some architectures but no actual implemention.  Some applications
- * like bash call them if they are defined in the headers, so we provide
- * entries here to avoid syslog message spew.
- */
-COMPATIBLE_IOCTL(TIOCSTART)
-COMPATIBLE_IOCTL(TIOCSTOP)
-#endif
 
 /* fat 'r' ioctls. These are handled by fat with ->compat_ioctl,
    but we don't want warnings on other file systems. So declare
@@ -1293,22 +949,12 @@ static long do_ioctl_trans(unsigned int cmd,
 	case MTIOCPOS32:
 		return mt_ioctl_trans(file, cmd, argp);
 #endif
-	/* Serial */
-	case TIOCGSERIAL:
-	case TIOCSSERIAL:
-		return serial_struct_ioctl(file, cmd, argp);
 	/* Not implemented in the native kernel */
 	case RTC_IRQP_READ32:
 	case RTC_IRQP_SET32:
 	case RTC_EPOCH_READ32:
 	case RTC_EPOCH_SET32:
 		return rtc_ioctl(file, cmd, argp);
-
-	/* dvb */
-	case VIDEO_GET_EVENT:
-		return do_video_get_event(file, cmd, argp);
-	case VIDEO_STILLPICTURE:
-		return do_video_stillpicture(file, cmd, argp);
 	}
 
 	/*
@@ -1316,24 +962,11 @@ static long do_ioctl_trans(unsigned int cmd,
 	 * so we must not do a compat_ptr() translation.
 	 */
 	switch (cmd) {
-	/* Big T */
-	case TCSBRKP:
-	case TIOCMIWAIT:
-	case TIOCSCTTY:
 	/* RAID */
 	case HOT_REMOVE_DISK:
 	case HOT_ADD_DISK:
 	case SET_DISK_FAULTY:
 	case SET_BITMAP_FILE:
-	/* Big K */
-	case KDSIGACCEPT:
-	case KIOCSOUND:
-	case KDMKTONE:
-	case KDSETMODE:
-	case KDSKBMODE:
-	case KDSKBMETA:
-	case KDSKBLED:
-	case KDSETLED:
 		return vfs_ioctl(file, cmd, arg);
 	}
 

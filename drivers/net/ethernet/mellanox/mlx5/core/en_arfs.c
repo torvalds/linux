@@ -543,8 +543,11 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		netdev_err(priv->netdev, "%s: add rule(filter id=%d, rq idx=%d) failed, err=%d\n",
-			   __func__, arfs_rule->filter_id, arfs_rule->rxq, err);
+		priv->channel_stats[arfs_rule->rxq].rq.arfs_err++;
+		mlx5e_dbg(HW, priv,
+			  "%s: add rule(filter id=%d, rq idx=%d, ip proto=0x%x) failed,err=%d\n",
+			  __func__, arfs_rule->filter_id, arfs_rule->rxq,
+			  tuple->ip_proto, err);
 	}
 
 out:

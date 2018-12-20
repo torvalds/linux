@@ -232,22 +232,19 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct tnl_ptk_info tpi;
-	bool csum_err = false;
 
-	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP),
-			     iph->ihl * 4) < 0) {
-		if (!csum_err)		/* ignore csum errors. */
-			return;
-	}
+	if (gre_parse_header(skb, &tpi, NULL, htons(ETH_P_IP),
+			     iph->ihl * 4) < 0)
+		return;
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 skb->dev->ifindex, 0, IPPROTO_GRE, 0);
+				 skb->dev->ifindex, IPPROTO_GRE);
 		return;
 	}
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, dev_net(skb->dev), skb->dev->ifindex, 0,
-			      IPPROTO_GRE, 0);
+		ipv4_redirect(skb, dev_net(skb->dev), skb->dev->ifindex,
+			      IPPROTO_GRE);
 		return;
 	}
 

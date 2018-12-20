@@ -11,13 +11,12 @@
 #include <linux/errno.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
-#include <linux/memblock.h>
 #include <linux/sort.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
@@ -81,58 +80,6 @@ static void __init find_limits(unsigned long *min, unsigned long *max_low,
 			continue;
 		if (*max_low < end)
 			*max_low = end;
-	}
-}
-
-static void __init uc32_bootmem_init(unsigned long start_pfn,
-	unsigned long end_pfn)
-{
-	struct memblock_region *reg;
-	unsigned int boot_pages;
-	phys_addr_t bitmap;
-	pg_data_t *pgdat;
-
-	/*
-	 * Allocate the bootmem bitmap page.  This must be in a region
-	 * of memory which has already been mapped.
-	 */
-	boot_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
-	bitmap = memblock_alloc_base(boot_pages << PAGE_SHIFT, L1_CACHE_BYTES,
-				__pfn_to_phys(end_pfn));
-
-	/*
-	 * Initialise the bootmem allocator, handing the
-	 * memory banks over to bootmem.
-	 */
-	node_set_online(0);
-	pgdat = NODE_DATA(0);
-	init_bootmem_node(pgdat, __phys_to_pfn(bitmap), start_pfn, end_pfn);
-
-	/* Free the lowmem regions from memblock into bootmem. */
-	for_each_memblock(memory, reg) {
-		unsigned long start = memblock_region_memory_base_pfn(reg);
-		unsigned long end = memblock_region_memory_end_pfn(reg);
-
-		if (end >= end_pfn)
-			end = end_pfn;
-		if (start >= end)
-			break;
-
-		free_bootmem(__pfn_to_phys(start), (end - start) << PAGE_SHIFT);
-	}
-
-	/* Reserve the lowmem memblock reserved regions in bootmem. */
-	for_each_memblock(reserved, reg) {
-		unsigned long start = memblock_region_reserved_base_pfn(reg);
-		unsigned long end = memblock_region_reserved_end_pfn(reg);
-
-		if (end >= end_pfn)
-			end = end_pfn;
-		if (start >= end)
-			break;
-
-		reserve_bootmem(__pfn_to_phys(start),
-			(end - start) << PAGE_SHIFT, BOOTMEM_DEFAULT);
 	}
 }
 
@@ -232,11 +179,8 @@ void __init bootmem_init(void)
 
 	find_limits(&min, &max_low, &max_high);
 
-	uc32_bootmem_init(min, max_low);
+	node_set_online(0);
 
-#ifdef CONFIG_SWIOTLB
-	swiotlb_init(1);
-#endif
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(),
 	 * so must be done after the fixed reservations
@@ -293,7 +237,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 	 * free the section of the memmap array.
 	 */
 	if (pg < pgend)
-		free_bootmem(pg, pgend - pg);
+		memblock_free(pg, pgend - pg);
 }
 
 /*
@@ -341,7 +285,7 @@ void __init mem_init(void)
 	free_unused_memmap(&meminfo);
 
 	/* this will put all unused low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
 	printk(KERN_NOTICE "Virtual kernel memory layout:\n"

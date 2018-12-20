@@ -123,7 +123,7 @@ static void validate_or_set_position_hints(struct vbox_private *vbox)
  */
 static void vbox_update_mode_hints(struct vbox_private *vbox)
 {
-	struct drm_device *dev = vbox->dev;
+	struct drm_device *dev = &vbox->ddev;
 	struct drm_connector *connector;
 	struct vbox_connector *vbox_conn;
 	struct vbva_modehint *hints;
@@ -179,7 +179,7 @@ static void vbox_hotplug_worker(struct work_struct *work)
 						 hotplug_work);
 
 	vbox_update_mode_hints(vbox);
-	drm_kms_helper_hotplug_event(vbox->dev);
+	drm_kms_helper_hotplug_event(&vbox->ddev);
 }
 
 int vbox_irq_init(struct vbox_private *vbox)
@@ -187,11 +187,11 @@ int vbox_irq_init(struct vbox_private *vbox)
 	INIT_WORK(&vbox->hotplug_work, vbox_hotplug_worker);
 	vbox_update_mode_hints(vbox);
 
-	return drm_irq_install(vbox->dev, vbox->dev->pdev->irq);
+	return drm_irq_install(&vbox->ddev, vbox->ddev.pdev->irq);
 }
 
 void vbox_irq_fini(struct vbox_private *vbox)
 {
-	drm_irq_uninstall(vbox->dev);
+	drm_irq_uninstall(&vbox->ddev);
 	flush_work(&vbox->hotplug_work);
 }

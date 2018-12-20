@@ -48,8 +48,6 @@ static unsigned long long relative_base;
 static struct addr_range text_ranges[] = {
 	{ "_stext",     "_etext"     },
 	{ "_sinittext", "_einittext" },
-	{ "_stext_l1",  "_etext_l1"  },	/* Blackfin on-chip L1 inst SRAM */
-	{ "_stext_l2",  "_etext_l2"  },	/* Blackfin on-chip L2 SRAM */
 };
 #define text_range_text     (&text_ranges[0])
 #define text_range_inittext (&text_ranges[1])
@@ -405,7 +403,7 @@ static void write_src(void)
 	}
 
 	output_label("kallsyms_num_syms");
-	printf("\tPTR\t%u\n", table_cnt);
+	printf("\t.long\t%u\n", table_cnt);
 	printf("\n");
 
 	/* table of offset markers, that give the offset in the compressed stream
@@ -434,7 +432,7 @@ static void write_src(void)
 
 	output_label("kallsyms_markers");
 	for (i = 0; i < ((table_cnt + 255) >> 8); i++)
-		printf("\tPTR\t%d\n", markers[i]);
+		printf("\t.long\t%u\n", markers[i]);
 	printf("\n");
 
 	free(markers);

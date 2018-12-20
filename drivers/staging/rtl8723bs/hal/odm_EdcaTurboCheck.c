@@ -97,7 +97,7 @@ void odm_EdcaTurboCheckCE(void *pDM_VOID)
 		return;
 	}
 
-	if ((pregpriv->wifi_spec == 1)) {
+	if (pregpriv->wifi_spec == 1) {
 		precvpriv->bIsAnyNonBEPkts = false;
 		return;
 	}

@@ -16,7 +16,6 @@
 #include "dpu_kms.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_ctl.h"
-#include "dpu_hw_cdm.h"
 #include "dpu_hw_pingpong.h"
 #include "dpu_hw_intf.h"
 #include "dpu_encoder.h"
@@ -25,38 +24,13 @@
 #define RESERVED_BY_OTHER(h, r) \
 	((h)->rsvp && ((h)->rsvp->enc_id != (r)->enc_id))
 
-#define RM_RQ_LOCK(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_RESERVE_LOCK))
-#define RM_RQ_CLEAR(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_RESERVE_CLEAR))
-#define RM_RQ_DS(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_DS))
-#define RM_IS_TOPOLOGY_MATCH(t, r) ((t).num_lm == (r).num_lm && \
-				(t).num_comp_enc == (r).num_enc && \
-				(t).num_intf == (r).num_intf)
-
-struct dpu_rm_topology_def {
-	enum dpu_rm_topology_name top_name;
-	int num_lm;
-	int num_comp_enc;
-	int num_intf;
-	int num_ctl;
-	int needs_split_display;
-};
-
-static const struct dpu_rm_topology_def g_top_table[] = {
-	{   DPU_RM_TOPOLOGY_NONE,                 0, 0, 0, 0, false },
-	{   DPU_RM_TOPOLOGY_SINGLEPIPE,           1, 0, 1, 1, false },
-	{   DPU_RM_TOPOLOGY_DUALPIPE,             2, 0, 2, 2, true  },
-	{   DPU_RM_TOPOLOGY_DUALPIPE_3DMERGE,     2, 0, 1, 1, false },
-};
-
 /**
  * struct dpu_rm_requirements - Reservation requirements parameter bundle
- * @top_ctrl:  topology control preference from kernel client
- * @top:       selected topology for the display
+ * @topology:  selected topology for the display
  * @hw_res:	   Hardware resources required as reported by the encoders
  */
 struct dpu_rm_requirements {
-	uint64_t top_ctrl;
-	const struct dpu_rm_topology_def *topology;
+	struct msm_display_topology topology;
 	struct dpu_encoder_hw_resources hw_res;
 };
 
@@ -72,13 +46,11 @@ struct dpu_rm_requirements {
  * @enc_id:	Reservations are tracked by Encoder DRM object ID.
  *		CRTCs may be connected to multiple Encoders.
  *		An encoder or connector id identifies the display path.
- * @topology	DRM<->HW topology use case
  */
 struct dpu_rm_rsvp {
 	struct list_head list;
 	uint32_t seq;
 	uint32_t enc_id;
-	enum dpu_rm_topology_name topology;
 };
 
 /**
@@ -122,8 +94,8 @@ static void _dpu_rm_print_rsvps(
 	DPU_DEBUG("%d\n", stage);
 
 	list_for_each_entry(rsvp, &rm->rsvps, list) {
-		DRM_DEBUG_KMS("%d rsvp[s%ue%u] topology %d\n", stage, rsvp->seq,
-			      rsvp->enc_id, rsvp->topology);
+		DRM_DEBUG_KMS("%d rsvp[s%ue%u]\n", stage, rsvp->seq,
+			      rsvp->enc_id);
 	}
 
 	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
@@ -144,18 +116,6 @@ static void _dpu_rm_print_rsvps(
 struct dpu_hw_mdp *dpu_rm_get_mdp(struct dpu_rm *rm)
 {
 	return rm->hw_mdp;
-}
-
-enum dpu_rm_topology_name
-dpu_rm_get_topology_name(struct msm_display_topology topology)
-{
-	int i;
-
-	for (i = 0; i < DPU_RM_TOPOLOGY_MAX; i++)
-		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], topology))
-			return g_top_table[i].top_name;
-
-	return DPU_RM_TOPOLOGY_NONE;
 }
 
 void dpu_rm_init_hw_iter(
@@ -229,9 +189,6 @@ static void _dpu_rm_hw_destroy(enum dpu_hw_blk_type type, void *hw)
 	case DPU_HW_BLK_CTL:
 		dpu_hw_ctl_destroy(hw);
 		break;
-	case DPU_HW_BLK_CDM:
-		dpu_hw_cdm_destroy(hw);
-		break;
 	case DPU_HW_BLK_PINGPONG:
 		dpu_hw_pingpong_destroy(hw);
 		break;
@@ -304,9 +261,6 @@ static int _dpu_rm_hw_blk_create(
 		break;
 	case DPU_HW_BLK_CTL:
 		hw = dpu_hw_ctl_init(id, mmio, cat);
-		break;
-	case DPU_HW_BLK_CDM:
-		hw = dpu_hw_cdm_init(id, mmio, cat, hw_mdp);
 		break;
 	case DPU_HW_BLK_PINGPONG:
 		hw = dpu_hw_pingpong_init(id, mmio, cat);
@@ -438,21 +392,17 @@ int dpu_rm_init(struct dpu_rm *rm,
 		}
 	}
 
-	for (i = 0; i < cat->cdm_count; i++) {
-		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_CDM,
-				cat->cdm[i].id, &cat->cdm[i]);
-		if (rc) {
-			DPU_ERROR("failed: cdm hw not available\n");
-			goto fail;
-		}
-	}
-
 	return 0;
 
 fail:
 	dpu_rm_destroy(rm);
 
 	return rc;
+}
+
+static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
+{
+	return top->num_intf > 1;
 }
 
 /**
@@ -538,14 +488,14 @@ static int _dpu_rm_reserve_lms(
 	int lm_count = 0;
 	int i, rc = 0;
 
-	if (!reqs->topology->num_lm) {
-		DPU_ERROR("invalid number of lm: %d\n", reqs->topology->num_lm);
+	if (!reqs->topology.num_lm) {
+		DPU_ERROR("invalid number of lm: %d\n", reqs->topology.num_lm);
 		return -EINVAL;
 	}
 
 	/* Find a primary mixer */
 	dpu_rm_init_hw_iter(&iter_i, 0, DPU_HW_BLK_LM);
-	while (lm_count != reqs->topology->num_lm &&
+	while (lm_count != reqs->topology.num_lm &&
 			_dpu_rm_get_hw_locked(rm, &iter_i)) {
 		memset(&lm, 0, sizeof(lm));
 		memset(&pp, 0, sizeof(pp));
@@ -563,7 +513,7 @@ static int _dpu_rm_reserve_lms(
 		/* Valid primary mixer found, find matching peers */
 		dpu_rm_init_hw_iter(&iter_j, 0, DPU_HW_BLK_LM);
 
-		while (lm_count != reqs->topology->num_lm &&
+		while (lm_count != reqs->topology.num_lm &&
 				_dpu_rm_get_hw_locked(rm, &iter_j)) {
 			if (iter_i.blk == iter_j.blk)
 				continue;
@@ -578,7 +528,7 @@ static int _dpu_rm_reserve_lms(
 		}
 	}
 
-	if (lm_count != reqs->topology->num_lm) {
+	if (lm_count != reqs->topology.num_lm) {
 		DPU_DEBUG("unable to find appropriate mixers\n");
 		return -ENAVAIL;
 	}
@@ -600,13 +550,19 @@ static int _dpu_rm_reserve_lms(
 static int _dpu_rm_reserve_ctls(
 		struct dpu_rm *rm,
 		struct dpu_rm_rsvp *rsvp,
-		const struct dpu_rm_topology_def *top)
+		const struct msm_display_topology *top)
 {
 	struct dpu_rm_hw_blk *ctls[MAX_BLOCKS];
 	struct dpu_rm_hw_iter iter;
-	int i = 0;
+	int i = 0, num_ctls = 0;
+	bool needs_split_display = false;
 
 	memset(&ctls, 0, sizeof(ctls));
+
+	/* each hw_intf needs its own hw_ctrl to program its control path */
+	num_ctls = top->num_intf;
+
+	needs_split_display = _dpu_rm_needs_split_display(top);
 
 	dpu_rm_init_hw_iter(&iter, 0, DPU_HW_BLK_CTL);
 	while (_dpu_rm_get_hw_locked(rm, &iter)) {
@@ -621,66 +577,23 @@ static int _dpu_rm_reserve_ctls(
 
 		DPU_DEBUG("ctl %d caps 0x%lX\n", iter.blk->id, features);
 
-		if (top->needs_split_display != has_split_display)
+		if (needs_split_display != has_split_display)
 			continue;
 
 		ctls[i] = iter.blk;
 		DPU_DEBUG("ctl %d match\n", iter.blk->id);
 
-		if (++i == top->num_ctl)
+		if (++i == num_ctls)
 			break;
 	}
 
-	if (i != top->num_ctl)
+	if (i != num_ctls)
 		return -ENAVAIL;
 
-	for (i = 0; i < ARRAY_SIZE(ctls) && i < top->num_ctl; i++) {
+	for (i = 0; i < ARRAY_SIZE(ctls) && i < num_ctls; i++) {
 		ctls[i]->rsvp_nxt = rsvp;
 		trace_dpu_rm_reserve_ctls(ctls[i]->id, ctls[i]->type,
 					  rsvp->enc_id);
-	}
-
-	return 0;
-}
-
-static int _dpu_rm_reserve_cdm(
-		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
-		uint32_t id,
-		enum dpu_hw_blk_type type)
-{
-	struct dpu_rm_hw_iter iter;
-
-	DRM_DEBUG_KMS("type %d id %d\n", type, id);
-
-	dpu_rm_init_hw_iter(&iter, 0, DPU_HW_BLK_CDM);
-	while (_dpu_rm_get_hw_locked(rm, &iter)) {
-		const struct dpu_hw_cdm *cdm = to_dpu_hw_cdm(iter.blk->hw);
-		const struct dpu_cdm_cfg *caps = cdm->caps;
-		bool match = false;
-
-		if (RESERVED_BY_OTHER(iter.blk, rsvp))
-			continue;
-
-		if (type == DPU_HW_BLK_INTF && id != INTF_MAX)
-			match = test_bit(id, &caps->intf_connect);
-
-		DRM_DEBUG_KMS("iter: type:%d id:%d enc:%d cdm:%lu match:%d\n",
-			      iter.blk->type, iter.blk->id, rsvp->enc_id,
-			      caps->intf_connect, match);
-
-		if (!match)
-			continue;
-
-		trace_dpu_rm_reserve_cdm(iter.blk->id, iter.blk->type,
-					 rsvp->enc_id);
-		iter.blk->rsvp_nxt = rsvp;
-		break;
-	}
-
-	if (!iter.hw) {
-		DPU_ERROR("couldn't reserve cdm for type %d id %d\n", type, id);
-		return -ENAVAIL;
 	}
 
 	return 0;
@@ -690,8 +603,7 @@ static int _dpu_rm_reserve_intf(
 		struct dpu_rm *rm,
 		struct dpu_rm_rsvp *rsvp,
 		uint32_t id,
-		enum dpu_hw_blk_type type,
-		bool needs_cdm)
+		enum dpu_hw_blk_type type)
 {
 	struct dpu_rm_hw_iter iter;
 	int ret = 0;
@@ -719,9 +631,6 @@ static int _dpu_rm_reserve_intf(
 		return -EINVAL;
 	}
 
-	if (needs_cdm)
-		ret = _dpu_rm_reserve_cdm(rm, rsvp, id, type);
-
 	return ret;
 }
 
@@ -738,7 +647,7 @@ static int _dpu_rm_reserve_intf_related_hw(
 			continue;
 		id = i + INTF_0;
 		ret = _dpu_rm_reserve_intf(rm, rsvp, id,
-				DPU_HW_BLK_INTF, hw_res->needs_cdm);
+				DPU_HW_BLK_INTF);
 		if (ret)
 			return ret;
 	}
@@ -750,17 +659,14 @@ static int _dpu_rm_make_next_rsvp(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct dpu_rm_rsvp *rsvp,
 		struct dpu_rm_requirements *reqs)
 {
 	int ret;
-	struct dpu_rm_topology_def topology;
 
 	/* Create reservation info, tag reserved blocks with it as we go */
 	rsvp->seq = ++rm->rsvp_next_seq;
 	rsvp->enc_id = enc->base.id;
-	rsvp->topology = reqs->topology->top_name;
 	list_add_tail(&rsvp->list, &rm->rsvps);
 
 	ret = _dpu_rm_reserve_lms(rm, rsvp, reqs);
@@ -769,23 +675,12 @@ static int _dpu_rm_make_next_rsvp(
 		return ret;
 	}
 
-	/*
-	 * Do assignment preferring to give away low-resource CTLs first:
-	 * - Check mixers without Split Display
-	 * - Only then allow to grab from CTLs with split display capability
-	 */
-	_dpu_rm_reserve_ctls(rm, rsvp, reqs->topology);
-	if (ret && !reqs->topology->needs_split_display) {
-		memcpy(&topology, reqs->topology, sizeof(topology));
-		topology.needs_split_display = true;
-		_dpu_rm_reserve_ctls(rm, rsvp, &topology);
-	}
+	ret = _dpu_rm_reserve_ctls(rm, rsvp, &reqs->topology);
 	if (ret) {
 		DPU_ERROR("unable to find appropriate CTL\n");
 		return ret;
 	}
 
-	/* Assign INTFs and blks whose usage is tied to them: CTL & CDM */
 	ret = _dpu_rm_reserve_intf_related_hw(rm, rsvp, &reqs->hw_res);
 	if (ret)
 		return ret;
@@ -797,44 +692,16 @@ static int _dpu_rm_populate_requirements(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct dpu_rm_requirements *reqs,
 		struct msm_display_topology req_topology)
 {
-	int i;
+	dpu_encoder_get_hw_resources(enc, &reqs->hw_res);
 
-	memset(reqs, 0, sizeof(*reqs));
+	reqs->topology = req_topology;
 
-	dpu_encoder_get_hw_resources(enc, &reqs->hw_res, conn_state);
-
-	for (i = 0; i < DPU_RM_TOPOLOGY_MAX; i++) {
-		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i],
-					req_topology)) {
-			reqs->topology = &g_top_table[i];
-			break;
-		}
-	}
-
-	if (!reqs->topology) {
-		DPU_ERROR("invalid topology for the display\n");
-		return -EINVAL;
-	}
-
-	/**
-	 * Set the requirement based on caps if not set from user space
-	 * This will ensure to select LM tied with DS blocks
-	 * Currently, DS blocks are tied with LM 0 and LM 1 (primary display)
-	 */
-	if (!RM_RQ_DS(reqs) && rm->hw_mdp->caps->has_dest_scaler &&
-		conn_state->connector->connector_type == DRM_MODE_CONNECTOR_DSI)
-		reqs->top_ctrl |= BIT(DPU_RM_TOPCTL_DS);
-
-	DRM_DEBUG_KMS("top_ctrl: 0x%llX num_h_tiles: %d\n", reqs->top_ctrl,
-		      reqs->hw_res.display_num_of_h_tiles);
-	DRM_DEBUG_KMS("num_lm: %d num_ctl: %d topology: %d split_display: %d\n",
-		      reqs->topology->num_lm, reqs->topology->num_ctl,
-		      reqs->topology->top_name,
-		      reqs->topology->needs_split_display);
+	DRM_DEBUG_KMS("num_lm: %d num_enc: %d num_intf: %d\n",
+		      reqs->topology.num_lm, reqs->topology.num_enc,
+		      reqs->topology.num_intf);
 
 	return 0;
 }
@@ -860,29 +727,12 @@ static struct dpu_rm_rsvp *_dpu_rm_get_rsvp(
 	return NULL;
 }
 
-static struct drm_connector *_dpu_rm_get_connector(
-		struct drm_encoder *enc)
-{
-	struct drm_connector *conn = NULL;
-	struct list_head *connector_list =
-			&enc->dev->mode_config.connector_list;
-
-	list_for_each_entry(conn, connector_list, head)
-		if (conn->encoder == enc)
-			return conn;
-
-	return NULL;
-}
-
 /**
  * _dpu_rm_release_rsvp - release resources and release a reservation
  * @rm:	KMS handle
  * @rsvp:	RSVP pointer to release and release resources for
  */
-static void _dpu_rm_release_rsvp(
-		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
-		struct drm_connector *conn)
+static void _dpu_rm_release_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
 {
 	struct dpu_rm_rsvp *rsvp_c, *rsvp_n;
 	struct dpu_rm_hw_blk *blk;
@@ -923,7 +773,6 @@ static void _dpu_rm_release_rsvp(
 void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc)
 {
 	struct dpu_rm_rsvp *rsvp;
-	struct drm_connector *conn;
 
 	if (!rm || !enc) {
 		DPU_ERROR("invalid params\n");
@@ -938,25 +787,15 @@ void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc)
 		goto end;
 	}
 
-	conn = _dpu_rm_get_connector(enc);
-	if (!conn) {
-		DPU_ERROR("failed to get connector for enc %d\n", enc->base.id);
-		goto end;
-	}
-
-	_dpu_rm_release_rsvp(rm, rsvp, conn);
+	_dpu_rm_release_rsvp(rm, rsvp);
 end:
 	mutex_unlock(&rm->rm_lock);
 }
 
-static int _dpu_rm_commit_rsvp(
-		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
-		struct drm_connector_state *conn_state)
+static void _dpu_rm_commit_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
 {
 	struct dpu_rm_hw_blk *blk;
 	enum dpu_hw_blk_type type;
-	int ret = 0;
 
 	/* Swap next rsvp to be the active */
 	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
@@ -967,19 +806,12 @@ static int _dpu_rm_commit_rsvp(
 			}
 		}
 	}
-
-	if (!ret)
-		DRM_DEBUG_KMS("rsrv enc %d topology %d\n", rsvp->enc_id,
-			      rsvp->topology);
-
-	return ret;
 }
 
 int dpu_rm_reserve(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct msm_display_topology topology,
 		bool test_only)
 {
@@ -987,25 +819,19 @@ int dpu_rm_reserve(
 	struct dpu_rm_requirements reqs;
 	int ret;
 
-	if (!rm || !enc || !crtc_state || !conn_state) {
-		DPU_ERROR("invalid arguments\n");
-		return -EINVAL;
-	}
-
 	/* Check if this is just a page-flip */
 	if (!drm_atomic_crtc_needs_modeset(crtc_state))
 		return 0;
 
-	DRM_DEBUG_KMS("reserving hw for conn %d enc %d crtc %d test_only %d\n",
-		      conn_state->connector->base.id, enc->base.id,
-		      crtc_state->crtc->base.id, test_only);
+	DRM_DEBUG_KMS("reserving hw for enc %d crtc %d test_only %d\n",
+		      enc->base.id, crtc_state->crtc->base.id, test_only);
 
 	mutex_lock(&rm->rm_lock);
 
 	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_BEGIN);
 
-	ret = _dpu_rm_populate_requirements(rm, enc, crtc_state,
-			conn_state, &reqs, topology);
+	ret = _dpu_rm_populate_requirements(rm, enc, crtc_state, &reqs,
+					    topology);
 	if (ret) {
 		DPU_ERROR("failed to populate hw requirements\n");
 		goto end;
@@ -1030,28 +856,15 @@ int dpu_rm_reserve(
 
 	rsvp_cur = _dpu_rm_get_rsvp(rm, enc);
 
-	/*
-	 * User can request that we clear out any reservation during the
-	 * atomic_check phase by using this CLEAR bit
-	 */
-	if (rsvp_cur && test_only && RM_RQ_CLEAR(&reqs)) {
-		DPU_DEBUG("test_only & CLEAR: clear rsvp[s%de%d]\n",
-				rsvp_cur->seq, rsvp_cur->enc_id);
-		_dpu_rm_release_rsvp(rm, rsvp_cur, conn_state->connector);
-		rsvp_cur = NULL;
-		_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_AFTER_CLEAR);
-	}
-
 	/* Check the proposed reservation, store it in hw's "next" field */
-	ret = _dpu_rm_make_next_rsvp(rm, enc, crtc_state, conn_state,
-			rsvp_nxt, &reqs);
+	ret = _dpu_rm_make_next_rsvp(rm, enc, crtc_state, rsvp_nxt, &reqs);
 
 	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_AFTER_RSVPNEXT);
 
 	if (ret) {
 		DPU_ERROR("failed to reserve hw resources: %d\n", ret);
-		_dpu_rm_release_rsvp(rm, rsvp_nxt, conn_state->connector);
-	} else if (test_only && !RM_RQ_LOCK(&reqs)) {
+		_dpu_rm_release_rsvp(rm, rsvp_nxt);
+	} else if (test_only) {
 		/*
 		 * Normally, if test_only, test the reservation and then undo
 		 * However, if the user requests LOCK, then keep the reservation
@@ -1059,15 +872,11 @@ int dpu_rm_reserve(
 		 */
 		DPU_DEBUG("test_only: discard test rsvp[s%de%d]\n",
 				rsvp_nxt->seq, rsvp_nxt->enc_id);
-		_dpu_rm_release_rsvp(rm, rsvp_nxt, conn_state->connector);
+		_dpu_rm_release_rsvp(rm, rsvp_nxt);
 	} else {
-		if (test_only && RM_RQ_LOCK(&reqs))
-			DPU_DEBUG("test_only & LOCK: lock rsvp[s%de%d]\n",
-					rsvp_nxt->seq, rsvp_nxt->enc_id);
+		_dpu_rm_release_rsvp(rm, rsvp_cur);
 
-		_dpu_rm_release_rsvp(rm, rsvp_cur, conn_state->connector);
-
-		ret = _dpu_rm_commit_rsvp(rm, rsvp_nxt, conn_state);
+		_dpu_rm_commit_rsvp(rm, rsvp_nxt);
 	}
 
 	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_FINAL);

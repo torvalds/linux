@@ -482,11 +482,9 @@ static struct file_system_type pstore_fs_type = {
 	.kill_sb	= pstore_kill_sb,
 };
 
-static int __init init_pstore_fs(void)
+int __init pstore_init_fs(void)
 {
 	int err;
-
-	pstore_choose_compression();
 
 	/* Create a convenient mount point for people to access pstore */
 	err = sysfs_create_mount_point(fs_kobj, "pstore");
@@ -500,14 +498,9 @@ static int __init init_pstore_fs(void)
 out:
 	return err;
 }
-module_init(init_pstore_fs)
 
-static void __exit exit_pstore_fs(void)
+void __exit pstore_exit_fs(void)
 {
 	unregister_filesystem(&pstore_fs_type);
 	sysfs_remove_mount_point(fs_kobj, "pstore");
 }
-module_exit(exit_pstore_fs)
-
-MODULE_AUTHOR("Tony Luck <tony.luck@intel.com>");
-MODULE_LICENSE("GPL");

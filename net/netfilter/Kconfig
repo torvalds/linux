@@ -625,6 +625,13 @@ config NFT_FIB_INET
 	  The lookup will be delegated to the IPv4 or IPv6 FIB depending
 	  on the protocol of the packet.
 
+config NFT_XFRM
+	tristate "Netfilter nf_tables xfrm/IPSec security association matching"
+	depends on XFRM
+	help
+	  This option adds an expression that you can use to extract properties
+	  of a packets security association.
+
 config NFT_SOCKET
 	tristate "Netfilter nf_tables socket match support"
 	depends on IPV6 || IPV6=n

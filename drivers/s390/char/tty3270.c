@@ -19,7 +19,7 @@
 #include <linux/workqueue.h>
 
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/compat.h>
 
 #include <asm/ccwdev.h>

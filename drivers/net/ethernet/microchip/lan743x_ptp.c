@@ -977,8 +977,8 @@ void lan743x_ptp_close(struct lan743x_adapter *adapter)
 	lan743x_ptp_disable(adapter);
 }
 
-void lan743x_ptp_set_sync_ts_insert(struct lan743x_adapter *adapter,
-				    bool ts_insert_enable)
+static void lan743x_ptp_set_sync_ts_insert(struct lan743x_adapter *adapter,
+					   bool ts_insert_enable)
 {
 	u32 ptp_tx_mod = lan743x_csr_read(adapter, PTP_TX_MOD);
 

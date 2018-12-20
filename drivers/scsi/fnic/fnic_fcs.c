@@ -836,8 +836,8 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 	u32 fcp_bytes_written = 0;
 	unsigned long flags;
 
-	pci_unmap_single(fnic->pdev, buf->dma_addr, buf->len,
-			 PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&fnic->pdev->dev, buf->dma_addr, buf->len,
+			 DMA_FROM_DEVICE);
 	skb = buf->os_buf;
 	fp = (struct fc_frame *)skb;
 	buf->os_buf = NULL;
@@ -977,9 +977,8 @@ int fnic_alloc_rq_frame(struct vnic_rq *rq)
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
 	skb_put(skb, len);
-	pa = pci_map_single(fnic->pdev, skb->data, len, PCI_DMA_FROMDEVICE);
-
-	if (pci_dma_mapping_error(fnic->pdev, pa)) {
+	pa = dma_map_single(&fnic->pdev->dev, skb->data, len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&fnic->pdev->dev, pa)) {
 		r = -ENOMEM;
 		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
 		goto free_skb;
@@ -998,8 +997,8 @@ void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf)
 	struct fc_frame *fp = buf->os_buf;
 	struct fnic *fnic = vnic_dev_priv(rq->vdev);
 
-	pci_unmap_single(fnic->pdev, buf->dma_addr, buf->len,
-			 PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&fnic->pdev->dev, buf->dma_addr, buf->len,
+			 DMA_FROM_DEVICE);
 
 	dev_kfree_skb(fp_skb(fp));
 	buf->os_buf = NULL;
@@ -1018,7 +1017,6 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	struct ethhdr *eth_hdr;
 	struct vlan_ethhdr *vlan_hdr;
 	unsigned long flags;
-	int r;
 
 	if (!fnic->vlan_hw_insert) {
 		eth_hdr = (struct ethhdr *)skb_mac_header(skb);
@@ -1038,11 +1036,10 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		}
 	}
 
-	pa = pci_map_single(fnic->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
-
-	r = pci_dma_mapping_error(fnic->pdev, pa);
-	if (r) {
-		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+	pa = dma_map_single(&fnic->pdev->dev, skb->data, skb->len,
+			DMA_TO_DEVICE);
+	if (dma_mapping_error(&fnic->pdev->dev, pa)) {
+		printk(KERN_ERR "DMA mapping failed\n");
 		goto free_skb;
 	}
 
@@ -1058,7 +1055,7 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 
 irq_restore:
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
-	pci_unmap_single(fnic->pdev, pa, skb->len, PCI_DMA_TODEVICE);
+	dma_unmap_single(&fnic->pdev->dev, pa, skb->len, DMA_TO_DEVICE);
 free_skb:
 	kfree_skb(skb);
 }
@@ -1115,9 +1112,8 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 	if (FC_FCOE_VER)
 		FC_FCOE_ENCAPS_VER(fcoe_hdr, FC_FCOE_VER);
 
-	pa = pci_map_single(fnic->pdev, eth_hdr, tot_len, PCI_DMA_TODEVICE);
-
-	if (pci_dma_mapping_error(fnic->pdev, pa)) {
+	pa = dma_map_single(&fnic->pdev->dev, eth_hdr, tot_len, DMA_TO_DEVICE);
+	if (dma_mapping_error(&fnic->pdev->dev, pa)) {
 		ret = -ENOMEM;
 		printk(KERN_ERR "DMA map failed with error %d\n", ret);
 		goto free_skb_on_err;
@@ -1131,8 +1127,7 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 	spin_lock_irqsave(&fnic->wq_lock[0], flags);
 
 	if (!vnic_wq_desc_avail(wq)) {
-		pci_unmap_single(fnic->pdev, pa,
-				 tot_len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&fnic->pdev->dev, pa, tot_len, DMA_TO_DEVICE);
 		ret = -1;
 		goto irq_restore;
 	}
@@ -1247,8 +1242,8 @@ static void fnic_wq_complete_frame_send(struct vnic_wq *wq,
 	struct fc_frame *fp = (struct fc_frame *)skb;
 	struct fnic *fnic = vnic_dev_priv(wq->vdev);
 
-	pci_unmap_single(fnic->pdev, buf->dma_addr,
-			 buf->len, PCI_DMA_TODEVICE);
+	dma_unmap_single(&fnic->pdev->dev, buf->dma_addr, buf->len,
+			 DMA_TO_DEVICE);
 	dev_kfree_skb_irq(fp_skb(fp));
 	buf->os_buf = NULL;
 }
@@ -1290,8 +1285,8 @@ void fnic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
 	struct fc_frame *fp = buf->os_buf;
 	struct fnic *fnic = vnic_dev_priv(wq->vdev);
 
-	pci_unmap_single(fnic->pdev, buf->dma_addr,
-			 buf->len, PCI_DMA_TODEVICE);
+	dma_unmap_single(&fnic->pdev->dev, buf->dma_addr, buf->len,
+			 DMA_TO_DEVICE);
 
 	dev_kfree_skb(fp_skb(fp));
 	buf->os_buf = NULL;

@@ -344,8 +344,8 @@ static int vidioc_querycap(struct file *file,
 {
 	struct stk1160 *dev = video_drvdata(file);
 
-	strcpy(cap->driver, "stk1160");
-	strcpy(cap->card, "stk1160");
+	strscpy(cap->driver, "stk1160", sizeof(cap->driver));
+	strscpy(cap->card, "stk1160", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps =
 		V4L2_CAP_VIDEO_CAPTURE |
@@ -361,7 +361,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strlcpy(f->description, format[f->index].name, sizeof(f->description));
+	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 	return 0;
 }

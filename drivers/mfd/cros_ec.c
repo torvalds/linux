@@ -218,7 +218,8 @@ EXPORT_SYMBOL(cros_ec_suspend);
 
 static void cros_ec_report_events_during_suspend(struct cros_ec_device *ec_dev)
 {
-	while (cros_ec_get_next_event(ec_dev, NULL) > 0)
+	while (ec_dev->mkbp_event_supported &&
+	       cros_ec_get_next_event(ec_dev, NULL) > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     1, ec_dev);
 }

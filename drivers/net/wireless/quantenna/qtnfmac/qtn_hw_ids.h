@@ -25,8 +25,22 @@
 
 #define	PCIE_DEVICE_ID_QTN_PEARL	(0x0008)
 
+#define QTN_REG_SYS_CTRL_CSR		0x14
+#define QTN_CHIP_ID_MASK		0xF0
+#define QTN_CHIP_ID_TOPAZ		0x40
+#define QTN_CHIP_ID_PEARL		0x50
+#define QTN_CHIP_ID_PEARL_B		0x60
+#define QTN_CHIP_ID_PEARL_C		0x70
+
 /* FW names */
 
 #define QTN_PCI_PEARL_FW_NAME		"qtn/fmac_qsr10g.img"
+
+static inline unsigned int qtnf_chip_id_get(const void __iomem *regs_base)
+{
+	u32 board_rev = readl(regs_base + QTN_REG_SYS_CTRL_CSR);
+
+	return board_rev & QTN_CHIP_ID_MASK;
+}
 
 #endif	/* _QTN_HW_IDS_H_ */

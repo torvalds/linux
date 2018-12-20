@@ -315,6 +315,48 @@ struct cudbg_pbt_tables {
 	u32 pbt_data[CUDBG_PBT_DATA_ENTRIES];
 };
 
+enum cudbg_qdesc_qtype {
+	CUDBG_QTYPE_UNKNOWN = 0,
+	CUDBG_QTYPE_NIC_TXQ,
+	CUDBG_QTYPE_NIC_RXQ,
+	CUDBG_QTYPE_NIC_FLQ,
+	CUDBG_QTYPE_CTRLQ,
+	CUDBG_QTYPE_FWEVTQ,
+	CUDBG_QTYPE_INTRQ,
+	CUDBG_QTYPE_PTP_TXQ,
+	CUDBG_QTYPE_OFLD_TXQ,
+	CUDBG_QTYPE_RDMA_RXQ,
+	CUDBG_QTYPE_RDMA_FLQ,
+	CUDBG_QTYPE_RDMA_CIQ,
+	CUDBG_QTYPE_ISCSI_RXQ,
+	CUDBG_QTYPE_ISCSI_FLQ,
+	CUDBG_QTYPE_ISCSIT_RXQ,
+	CUDBG_QTYPE_ISCSIT_FLQ,
+	CUDBG_QTYPE_CRYPTO_TXQ,
+	CUDBG_QTYPE_CRYPTO_RXQ,
+	CUDBG_QTYPE_CRYPTO_FLQ,
+	CUDBG_QTYPE_TLS_RXQ,
+	CUDBG_QTYPE_TLS_FLQ,
+	CUDBG_QTYPE_MAX,
+};
+
+#define CUDBG_QDESC_REV 1
+
+struct cudbg_qdesc_entry {
+	u32 data_size;
+	u32 qtype;
+	u32 qid;
+	u32 desc_size;
+	u32 num_desc;
+	u8 data[0]; /* Must be last */
+};
+
+struct cudbg_qdesc_info {
+	u32 qdesc_entry_size;
+	u32 num_queues;
+	u8 data[0]; /* Must be last */
+};
+
 #define IREG_NUM_ELEM 4
 
 static const u32 t6_tp_pio_array[][IREG_NUM_ELEM] = {

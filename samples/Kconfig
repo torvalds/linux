@@ -1,5 +1,6 @@
 menuconfig SAMPLES
 	bool "Sample kernel code"
+	depends on !UML
 	help
 	  You can build and test sample kernel code here.
 

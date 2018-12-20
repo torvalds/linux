@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
- *  Copyright IBM Corp. 2001, 2012
+ *  Copyright IBM Corp. 2001, 2018
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *	       Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -22,17 +20,8 @@
 #include "ap_bus.h"
 
 /**
- * device type for an actual device is either PCICA, PCICC, PCIXCC_MCL2,
- * PCIXCC_MCL3, CEX2C, or CEX2A
- *
- * NOTE: PCIXCC_MCL3 refers to a PCIXCC with May 2004 version of Licensed
- *	 Internal Code (LIC) (EC J12220 level 29).
- *	 PCIXCC_MCL2 refers to any LIC before this level.
+ * Supported device types
  */
-#define ZCRYPT_PCICA		1
-#define ZCRYPT_PCICC		2
-#define ZCRYPT_PCIXCC_MCL2	3
-#define ZCRYPT_PCIXCC_MCL3	4
 #define ZCRYPT_CEX2C		5
 #define ZCRYPT_CEX2A		6
 #define ZCRYPT_CEX3C		7

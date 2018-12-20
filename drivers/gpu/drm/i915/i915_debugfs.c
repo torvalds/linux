@@ -1953,7 +1953,10 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		seq_printf(m, "HW context %u ", ctx->hw_id);
+		seq_puts(m, "HW context ");
+		if (!list_empty(&ctx->hw_id_link))
+			seq_printf(m, "%x [pin %u]", ctx->hw_id,
+				   atomic_read(&ctx->hw_id_pin_count));
 		if (ctx->pid) {
 			struct task_struct *task;
 
@@ -2708,7 +2711,9 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->psr.lock);
-	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
+	seq_printf(m, "PSR mode: %s\n",
+		   dev_priv->psr.psr2_enabled ? "PSR2" : "PSR1");
+	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->psr.enabled));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
 		   dev_priv->psr.busy_frontbuffer_bits);
 
@@ -2735,7 +2740,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	psr_source_status(dev_priv, m);
 	mutex_unlock(&dev_priv->psr.lock);
 
-	if (READ_ONCE(dev_priv->psr.debug)) {
+	if (READ_ONCE(dev_priv->psr.debug) & I915_PSR_DEBUG_IRQ) {
 		seq_printf(m, "Last attempted entry at: %lld\n",
 			   dev_priv->psr.last_entry_attempt);
 		seq_printf(m, "Last exit at: %lld\n",
@@ -2750,17 +2755,32 @@ static int
 i915_edp_psr_debug_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
 
 	if (!CAN_PSR(dev_priv))
 		return -ENODEV;
 
-	DRM_DEBUG_KMS("PSR debug %s\n", enableddisabled(val));
+	DRM_DEBUG_KMS("Setting PSR debug to %llx\n", val);
 
 	intel_runtime_pm_get(dev_priv);
-	intel_psr_irq_control(dev_priv, !!val);
+
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
+
+retry:
+	ret = intel_psr_set_debugfs_mode(dev_priv, &ctx, val);
+	if (ret == -EDEADLK) {
+		ret = drm_modeset_backoff(&ctx);
+		if (!ret)
+			goto retry;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	intel_runtime_pm_put(dev_priv);
 
-	return 0;
+	return ret;
 }
 
 static int
@@ -2845,10 +2865,10 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 		enum intel_display_power_domain power_domain;
 
 		power_well = &power_domains->power_wells[i];
-		seq_printf(m, "%-25s %d\n", power_well->name,
+		seq_printf(m, "%-25s %d\n", power_well->desc->name,
 			   power_well->count);
 
-		for_each_power_domain(power_domain, power_well->domains)
+		for_each_power_domain(power_domain, power_well->desc->domains)
 			seq_printf(m, "  %-23s %d\n",
 				 intel_display_power_domain_str(power_domain),
 				 power_domains->domain_use_count[power_domain]);
@@ -4097,6 +4117,17 @@ i915_ring_test_irq_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
 
+	/* GuC keeps the user interrupt permanently enabled for submission */
+	if (USES_GUC_SUBMISSION(i915))
+		return -ENODEV;
+
+	/*
+	 * From icl, we can no longer individually mask interrupt generation
+	 * from each engine.
+	 */
+	if (INTEL_GEN(i915) >= 11)
+		return -ENODEV;
+
 	val &= INTEL_INFO(i915)->ring_mask;
 	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
 
@@ -4114,13 +4145,17 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
 #define DROP_FREED	BIT(4)
 #define DROP_SHRINK_ALL	BIT(5)
 #define DROP_IDLE	BIT(6)
+#define DROP_RESET_ACTIVE	BIT(7)
+#define DROP_RESET_SEQNO	BIT(8)
 #define DROP_ALL (DROP_UNBOUND	| \
 		  DROP_BOUND	| \
 		  DROP_RETIRE	| \
 		  DROP_ACTIVE	| \
 		  DROP_FREED	| \
 		  DROP_SHRINK_ALL |\
-		  DROP_IDLE)
+		  DROP_IDLE	| \
+		  DROP_RESET_ACTIVE | \
+		  DROP_RESET_SEQNO)
 static int
 i915_drop_caches_get(void *data, u64 *val)
 {
@@ -4132,53 +4167,69 @@ i915_drop_caches_get(void *data, u64 *val)
 static int
 i915_drop_caches_set(void *data, u64 val)
 {
-	struct drm_i915_private *dev_priv = data;
-	struct drm_device *dev = &dev_priv->drm;
+	struct drm_i915_private *i915 = data;
 	int ret = 0;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
 
+	if (val & DROP_RESET_ACTIVE && !intel_engines_are_idle(i915))
+		i915_gem_set_wedged(i915);
+
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
-	if (val & (DROP_ACTIVE | DROP_RETIRE)) {
-		ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (val & (DROP_ACTIVE | DROP_RETIRE | DROP_RESET_SEQNO)) {
+		ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 		if (ret)
 			return ret;
 
 		if (val & DROP_ACTIVE)
-			ret = i915_gem_wait_for_idle(dev_priv,
+			ret = i915_gem_wait_for_idle(i915,
 						     I915_WAIT_INTERRUPTIBLE |
 						     I915_WAIT_LOCKED,
 						     MAX_SCHEDULE_TIMEOUT);
 
-		if (val & DROP_RETIRE)
-			i915_retire_requests(dev_priv);
+		if (ret == 0 && val & DROP_RESET_SEQNO) {
+			intel_runtime_pm_get(i915);
+			ret = i915_gem_set_global_seqno(&i915->drm, 1);
+			intel_runtime_pm_put(i915);
+		}
 
-		mutex_unlock(&dev->struct_mutex);
+		if (val & DROP_RETIRE)
+			i915_retire_requests(i915);
+
+		mutex_unlock(&i915->drm.struct_mutex);
+	}
+
+	if (val & DROP_RESET_ACTIVE &&
+	    i915_terminally_wedged(&i915->gpu_error)) {
+		i915_handle_error(i915, ALL_ENGINES, 0, NULL);
+		wait_on_bit(&i915->gpu_error.flags,
+			    I915_RESET_HANDOFF,
+			    TASK_UNINTERRUPTIBLE);
 	}
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)
-		i915_gem_shrink(dev_priv, LONG_MAX, NULL, I915_SHRINK_BOUND);
+		i915_gem_shrink(i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
 
 	if (val & DROP_UNBOUND)
-		i915_gem_shrink(dev_priv, LONG_MAX, NULL, I915_SHRINK_UNBOUND);
+		i915_gem_shrink(i915, LONG_MAX, NULL, I915_SHRINK_UNBOUND);
 
 	if (val & DROP_SHRINK_ALL)
-		i915_gem_shrink_all(dev_priv);
+		i915_gem_shrink_all(i915);
 	fs_reclaim_release(GFP_KERNEL);
 
 	if (val & DROP_IDLE) {
 		do {
-			if (READ_ONCE(dev_priv->gt.active_requests))
-				flush_delayed_work(&dev_priv->gt.retire_work);
-			drain_delayed_work(&dev_priv->gt.idle_work);
-		} while (READ_ONCE(dev_priv->gt.awake));
+			if (READ_ONCE(i915->gt.active_requests))
+				flush_delayed_work(&i915->gt.retire_work);
+			drain_delayed_work(&i915->gt.idle_work);
+		} while (READ_ONCE(i915->gt.awake));
 	}
 
 	if (val & DROP_FREED)
-		i915_gem_drain_freed_objects(dev_priv);
+		i915_gem_drain_freed_objects(i915);
 
 	return ret;
 }

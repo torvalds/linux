@@ -1400,8 +1400,8 @@ static int test_comp(struct crypto_comp *tfm,
 		int ilen;
 		unsigned int dlen = COMP_BUF_SIZE;
 
-		memset(output, 0, sizeof(COMP_BUF_SIZE));
-		memset(decomp_output, 0, sizeof(COMP_BUF_SIZE));
+		memset(output, 0, COMP_BUF_SIZE);
+		memset(decomp_output, 0, COMP_BUF_SIZE);
 
 		ilen = ctemplate[i].inlen;
 		ret = crypto_comp_compress(tfm, ctemplate[i].input,
@@ -1445,7 +1445,7 @@ static int test_comp(struct crypto_comp *tfm,
 		int ilen;
 		unsigned int dlen = COMP_BUF_SIZE;
 
-		memset(decomp_output, 0, sizeof(COMP_BUF_SIZE));
+		memset(decomp_output, 0, COMP_BUF_SIZE);
 
 		ilen = dtemplate[i].inlen;
 		ret = crypto_comp_decompress(tfm, dtemplate[i].input,
@@ -2662,6 +2662,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(serpent_cbc_tv_template)
 		},
 	}, {
+		.alg = "cbc(sm4)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_cbc_tv_template)
+		}
+	}, {
 		.alg = "cbc(twofish)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -2783,6 +2789,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(serpent_ctr_tv_template)
+		}
+	}, {
+		.alg = "ctr(sm4)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_ctr_tv_template)
 		}
 	}, {
 		.alg = "ctr(twofish)",
@@ -3036,18 +3048,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(sm4_tv_template)
-		}
-	}, {
-		.alg = "ecb(speck128)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(speck128_tv_template)
-		}
-	}, {
-		.alg = "ecb(speck64)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(speck64_tv_template)
 		}
 	}, {
 		.alg = "ecb(tea)",
@@ -3575,18 +3575,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(serpent_xts_tv_template)
-		}
-	}, {
-		.alg = "xts(speck128)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(speck128_xts_tv_template)
-		}
-	}, {
-		.alg = "xts(speck64)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(speck64_xts_tv_template)
 		}
 	}, {
 		.alg = "xts(twofish)",

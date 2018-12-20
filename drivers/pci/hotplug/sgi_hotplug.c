@@ -56,7 +56,7 @@ struct slot {
 	int device_num;
 	struct pci_bus *pci_bus;
 	/* this struct for glue internal only */
-	struct hotplug_slot *hotplug_slot;
+	struct hotplug_slot hotplug_slot;
 	struct list_head hp_list;
 	char physical_path[SN_SLOT_NAME_SIZE];
 };
@@ -80,7 +80,7 @@ static int enable_slot(struct hotplug_slot *slot);
 static int disable_slot(struct hotplug_slot *slot);
 static inline int get_power_status(struct hotplug_slot *slot, u8 *value);
 
-static struct hotplug_slot_ops sn_hotplug_slot_ops = {
+static const struct hotplug_slot_ops sn_hotplug_slot_ops = {
 	.enable_slot            = enable_slot,
 	.disable_slot           = disable_slot,
 	.get_power_status       = get_power_status,
@@ -88,10 +88,15 @@ static struct hotplug_slot_ops sn_hotplug_slot_ops = {
 
 static DEFINE_MUTEX(sn_hotplug_mutex);
 
+static struct slot *to_slot(struct hotplug_slot *bss_hotplug_slot)
+{
+	return container_of(bss_hotplug_slot, struct slot, hotplug_slot);
+}
+
 static ssize_t path_show(struct pci_slot *pci_slot, char *buf)
 {
 	int retval = -ENOENT;
-	struct slot *slot = pci_slot->hotplug->private;
+	struct slot *slot = to_slot(pci_slot->hotplug);
 
 	if (!slot)
 		return retval;
@@ -156,7 +161,7 @@ static int sn_pci_bus_valid(struct pci_bus *pci_bus)
 	return -EIO;
 }
 
-static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
+static int sn_hp_slot_private_alloc(struct hotplug_slot **bss_hotplug_slot,
 				    struct pci_bus *pci_bus, int device,
 				    char *name)
 {
@@ -168,7 +173,6 @@ static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		return -ENOMEM;
-	bss_hotplug_slot->private = slot;
 
 	slot->device_num = device;
 	slot->pci_bus = pci_bus;
@@ -179,8 +183,8 @@ static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
 
 	sn_generate_path(pci_bus, slot->physical_path);
 
-	slot->hotplug_slot = bss_hotplug_slot;
 	list_add(&slot->hp_list, &sn_hp_list);
+	*bss_hotplug_slot = &slot->hotplug_slot;
 
 	return 0;
 }
@@ -192,10 +196,9 @@ static struct hotplug_slot *sn_hp_destroy(void)
 	struct hotplug_slot *bss_hotplug_slot = NULL;
 
 	list_for_each_entry(slot, &sn_hp_list, hp_list) {
-		bss_hotplug_slot = slot->hotplug_slot;
+		bss_hotplug_slot = &slot->hotplug_slot;
 		pci_slot = bss_hotplug_slot->pci_slot;
-		list_del(&((struct slot *)bss_hotplug_slot->private)->
-			 hp_list);
+		list_del(&slot->hp_list);
 		sysfs_remove_file(&pci_slot->kobj,
 				  &sn_slot_path_attr.attr);
 		break;
@@ -227,7 +230,7 @@ static void sn_bus_free_data(struct pci_dev *dev)
 static int sn_slot_enable(struct hotplug_slot *bss_hotplug_slot,
 			  int device_num, char **ssdt)
 {
-	struct slot *slot = bss_hotplug_slot->private;
+	struct slot *slot = to_slot(bss_hotplug_slot);
 	struct pcibus_info *pcibus_info;
 	struct pcibr_slot_enable_resp resp;
 	int rc;
@@ -267,7 +270,7 @@ static int sn_slot_enable(struct hotplug_slot *bss_hotplug_slot,
 static int sn_slot_disable(struct hotplug_slot *bss_hotplug_slot,
 			   int device_num, int action)
 {
-	struct slot *slot = bss_hotplug_slot->private;
+	struct slot *slot = to_slot(bss_hotplug_slot);
 	struct pcibus_info *pcibus_info;
 	struct pcibr_slot_disable_resp resp;
 	int rc;
@@ -323,7 +326,7 @@ static int sn_slot_disable(struct hotplug_slot *bss_hotplug_slot,
  */
 static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 {
-	struct slot *slot = bss_hotplug_slot->private;
+	struct slot *slot = to_slot(bss_hotplug_slot);
 	struct pci_bus *new_bus = NULL;
 	struct pci_dev *dev;
 	int num_funcs;
@@ -469,7 +472,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 
 static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 {
-	struct slot *slot = bss_hotplug_slot->private;
+	struct slot *slot = to_slot(bss_hotplug_slot);
 	struct pci_dev *dev, *temp;
 	int rc;
 	acpi_handle ssdt_hdl = NULL;
@@ -571,7 +574,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 static inline int get_power_status(struct hotplug_slot *bss_hotplug_slot,
 				   u8 *value)
 {
-	struct slot *slot = bss_hotplug_slot->private;
+	struct slot *slot = to_slot(bss_hotplug_slot);
 	struct pcibus_info *pcibus_info;
 	u32 power;
 
@@ -585,9 +588,7 @@ static inline int get_power_status(struct hotplug_slot *bss_hotplug_slot,
 
 static void sn_release_slot(struct hotplug_slot *bss_hotplug_slot)
 {
-	kfree(bss_hotplug_slot->info);
-	kfree(bss_hotplug_slot->private);
-	kfree(bss_hotplug_slot);
+	kfree(to_slot(bss_hotplug_slot));
 }
 
 static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
@@ -607,22 +608,7 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		if (sn_pci_slot_valid(pci_bus, device) != 1)
 			continue;
 
-		bss_hotplug_slot = kzalloc(sizeof(*bss_hotplug_slot),
-					   GFP_KERNEL);
-		if (!bss_hotplug_slot) {
-			rc = -ENOMEM;
-			goto alloc_err;
-		}
-
-		bss_hotplug_slot->info =
-			kzalloc(sizeof(struct hotplug_slot_info),
-				GFP_KERNEL);
-		if (!bss_hotplug_slot->info) {
-			rc = -ENOMEM;
-			goto alloc_err;
-		}
-
-		if (sn_hp_slot_private_alloc(bss_hotplug_slot,
+		if (sn_hp_slot_private_alloc(&bss_hotplug_slot,
 					     pci_bus, device, name)) {
 			rc = -ENOMEM;
 			goto alloc_err;
@@ -637,7 +623,7 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		rc = sysfs_create_file(&pci_slot->kobj,
 				       &sn_slot_path_attr.attr);
 		if (rc)
-			goto register_err;
+			goto alloc_err;
 	}
 	pci_dbg(pci_bus->self, "Registered bus with hotplug\n");
 	return rc;
@@ -646,14 +632,11 @@ register_err:
 	pci_dbg(pci_bus->self, "bus failed to register with err = %d\n",
 		rc);
 
-alloc_err:
-	if (rc == -ENOMEM)
-		pci_dbg(pci_bus->self, "Memory allocation error\n");
-
 	/* destroy THIS element */
-	if (bss_hotplug_slot)
-		sn_release_slot(bss_hotplug_slot);
+	sn_hp_destroy();
+	sn_release_slot(bss_hotplug_slot);
 
+alloc_err:
 	/* destroy anything else on the list */
 	while ((bss_hotplug_slot = sn_hp_destroy())) {
 		pci_hp_deregister(bss_hotplug_slot);

@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/rawnand.h>
+#include "internals.h"
 
 /*
  * Macronix AC series does not support using SET/GET_FEATURES to change

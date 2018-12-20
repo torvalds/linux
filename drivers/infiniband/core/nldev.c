@@ -179,7 +179,8 @@ static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
 {
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DEV_INDEX, device->index))
 		return -EMSGSIZE;
-	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME, device->name))
+	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME,
+			   dev_name(&device->dev)))
 		return -EMSGSIZE;
 
 	return 0;
@@ -645,6 +646,36 @@ err:
 	return err;
 }
 
+static int nldev_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	struct ib_device *device;
+	u32 index;
+	int err;
+
+	err = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1, nldev_policy,
+			  extack);
+	if (err || !tb[RDMA_NLDEV_ATTR_DEV_INDEX])
+		return -EINVAL;
+
+	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	device = ib_device_get_by_index(index);
+	if (!device)
+		return -EINVAL;
+
+	if (tb[RDMA_NLDEV_ATTR_DEV_NAME]) {
+		char name[IB_DEVICE_NAME_MAX] = {};
+
+		nla_strlcpy(name, tb[RDMA_NLDEV_ATTR_DEV_NAME],
+			    IB_DEVICE_NAME_MAX);
+		err = ib_device_rename(device, name);
+	}
+
+	put_device(&device->dev);
+	return err;
+}
+
 static int _nldev_get_dumpit(struct ib_device *device,
 			     struct sk_buff *skb,
 			     struct netlink_callback *cb,
@@ -1076,6 +1107,10 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
 		.doit = nldev_get_doit,
 		.dump = nldev_get_dumpit,
+	},
+	[RDMA_NLDEV_CMD_SET] = {
+		.doit = nldev_set_doit,
+		.flags = RDMA_NL_ADMIN_PERM,
 	},
 	[RDMA_NLDEV_CMD_PORT_GET] = {
 		.doit = nldev_port_get_doit,

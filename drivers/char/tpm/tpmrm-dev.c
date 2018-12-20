@@ -28,7 +28,7 @@ static int tpmrm_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	tpm_common_open(file, chip, &priv->priv);
+	tpm_common_open(file, chip, &priv->priv, &priv->space);
 
 	return 0;
 }
@@ -45,21 +45,12 @@ static int tpmrm_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t tpmrm_write(struct file *file, const char __user *buf,
-		   size_t size, loff_t *off)
-{
-	struct file_priv *fpriv = file->private_data;
-	struct tpmrm_priv *priv = container_of(fpriv, struct tpmrm_priv, priv);
-
-	return tpm_common_write(file, buf, size, off, &priv->space);
-}
-
 const struct file_operations tpmrm_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = tpmrm_open,
 	.read = tpm_common_read,
-	.write = tpmrm_write,
+	.write = tpm_common_write,
+	.poll = tpm_common_poll,
 	.release = tpmrm_release,
 };
-

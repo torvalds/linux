@@ -79,7 +79,7 @@ struct btrfs_delayed_ref_head {
 	struct mutex mutex;
 
 	spinlock_t lock;
-	struct rb_root ref_tree;
+	struct rb_root_cached ref_tree;
 	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
 	struct list_head ref_add_list;
 
@@ -148,7 +148,7 @@ struct btrfs_delayed_data_ref {
 
 struct btrfs_delayed_ref_root {
 	/* head ref rbtree */
-	struct rb_root href_root;
+	struct rb_root_cached href_root;
 
 	/* dirty extent records */
 	struct rb_root dirty_extent_root;
@@ -255,7 +255,7 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 			    u64 bytenr);
-int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
+int btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
 			   struct btrfs_delayed_ref_head *head);
 static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
 {
@@ -263,8 +263,8 @@ static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
 }
 
 
-struct btrfs_delayed_ref_head *
-btrfs_select_ref_head(struct btrfs_trans_handle *trans);
+struct btrfs_delayed_ref_head *btrfs_select_ref_head(
+		struct btrfs_delayed_ref_root *delayed_refs);
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq);
 

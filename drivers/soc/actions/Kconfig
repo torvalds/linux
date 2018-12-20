@@ -10,7 +10,7 @@ config OWL_PM_DOMAINS
 	select PM_GENERIC_DOMAINS
 	help
 	  Say 'y' here to enable support for Smart Power System (SPS)
-	  power-gating on Actions Semiconductor S500 SoC.
+	  power-gating on Actions Semiconductor S500, S700 and S900 SoCs.
 	  If unsure, say 'n'.
 
 endif

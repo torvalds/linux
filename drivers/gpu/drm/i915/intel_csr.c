@@ -34,6 +34,10 @@
  * low-power state and comes back to normal.
  */
 
+#define I915_CSR_ICL "i915/icl_dmc_ver1_07.bin"
+MODULE_FIRMWARE(I915_CSR_ICL);
+#define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
+
 #define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
 MODULE_FIRMWARE(I915_CSR_GLK);
 #define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
@@ -55,7 +59,9 @@ MODULE_FIRMWARE(I915_CSR_BXT);
 #define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 
 
-#define CSR_MAX_FW_SIZE			0x2FFF
+#define BXT_CSR_MAX_FW_SIZE		0x3000
+#define GLK_CSR_MAX_FW_SIZE		0x4000
+#define ICL_CSR_MAX_FW_SIZE		0x6000
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
 
 struct intel_css_header {
@@ -279,6 +285,7 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	struct intel_csr *csr = &dev_priv->csr;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
+	uint32_t max_fw_size = 0;
 	uint32_t i;
 	uint32_t *dmc_payload;
 	uint32_t required_version;
@@ -301,6 +308,8 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	if (csr->fw_path == i915_modparams.dmc_firmware_path) {
 		/* Bypass version check for firmware override. */
 		required_version = csr->version;
+	} else if (IS_ICELAKE(dev_priv)) {
+		required_version = ICL_CSR_VERSION_REQUIRED;
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		required_version = CNL_CSR_VERSION_REQUIRED;
 	} else if (IS_GEMINILAKE(dev_priv)) {
@@ -359,6 +368,8 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 			  si->stepping);
 		return NULL;
 	}
+	/* Convert dmc_offset into number of bytes. By default it is in dwords*/
+	dmc_offset *= 4;
 	readcount += dmc_offset;
 
 	/* Extract dmc_header information. */
@@ -391,8 +402,16 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* fw_size is in dwords, so multiplied by 4 to convert into bytes. */
 	nbytes = dmc_header->fw_size * 4;
-	if (nbytes > CSR_MAX_FW_SIZE) {
-		DRM_ERROR("DMC firmware too big (%u bytes)\n", nbytes);
+	if (INTEL_GEN(dev_priv) >= 11)
+		max_fw_size = ICL_CSR_MAX_FW_SIZE;
+	else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		max_fw_size = GLK_CSR_MAX_FW_SIZE;
+	else if (IS_GEN9(dev_priv))
+		max_fw_size = BXT_CSR_MAX_FW_SIZE;
+	else
+		MISSING_CASE(INTEL_REVID(dev_priv));
+	if (nbytes > max_fw_size) {
+		DRM_ERROR("DMC FW too big (%u bytes)\n", nbytes);
 		return NULL;
 	}
 	csr->dmc_fw_size = dmc_header->fw_size;
@@ -458,6 +477,8 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 
 	if (i915_modparams.dmc_firmware_path)
 		csr->fw_path = i915_modparams.dmc_firmware_path;
+	else if (IS_ICELAKE(dev_priv))
+		csr->fw_path = I915_CSR_ICL;
 	else if (IS_CANNONLAKE(dev_priv))
 		csr->fw_path = I915_CSR_CNL;
 	else if (IS_GEMINILAKE(dev_priv))
@@ -468,12 +489,6 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->fw_path = I915_CSR_SKL;
 	else if (IS_BROXTON(dev_priv))
 		csr->fw_path = I915_CSR_BXT;
-	else {
-		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
-		return;
-	}
-
-	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
 
 	/*
 	 * Obtain a runtime pm reference, until CSR is loaded,
@@ -481,6 +496,14 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
+	if (csr->fw_path == NULL) {
+		DRM_DEBUG_KMS("No known CSR firmware for platform, disabling runtime PM\n");
+		WARN_ON(!IS_ALPHA_SUPPORT(INTEL_INFO(dev_priv)));
+
+		return;
+	}
+
+	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
 	schedule_work(&dev_priv->csr.work);
 }
 

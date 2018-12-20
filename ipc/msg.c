@@ -622,9 +622,9 @@ struct compat_msqid_ds {
 	struct compat_ipc_perm msg_perm;
 	compat_uptr_t msg_first;
 	compat_uptr_t msg_last;
-	compat_time_t msg_stime;
-	compat_time_t msg_rtime;
-	compat_time_t msg_ctime;
+	old_time32_t msg_stime;
+	old_time32_t msg_rtime;
+	old_time32_t msg_ctime;
 	compat_ulong_t msg_lcbytes;
 	compat_ulong_t msg_lqbytes;
 	unsigned short msg_cbytes;

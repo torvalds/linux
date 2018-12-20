@@ -278,7 +278,7 @@ static int ip_finish_output_gso(struct net *net, struct sock *sk,
 		struct sk_buff *nskb = segs->next;
 		int err;
 
-		segs->next = NULL;
+		skb_mark_not_on_list(segs);
 		err = ip_fragment(net, sk, segs, mtu, ip_finish_output2);
 
 		if (err && ret == 0)
@@ -684,7 +684,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 			skb = frag;
 			frag = skb->next;
-			skb->next = NULL;
+			skb_mark_not_on_list(skb);
 		}
 
 		if (err == 0) {
@@ -939,7 +939,7 @@ static int __ip_append_data(struct sock *sk,
 			unsigned int fraglen;
 			unsigned int fraggap;
 			unsigned int alloclen;
-			unsigned int pagedlen = 0;
+			unsigned int pagedlen;
 			struct sk_buff *skb_prev;
 alloc_new_skb:
 			skb_prev = skb;
@@ -956,6 +956,7 @@ alloc_new_skb:
 			if (datalen > mtu - fragheaderlen)
 				datalen = maxfraglen - fragheaderlen;
 			fraglen = datalen + fragheaderlen;
+			pagedlen = 0;
 
 			if ((flags & MSG_MORE) &&
 			    !(rt->dst.dev->features&NETIF_F_SG))

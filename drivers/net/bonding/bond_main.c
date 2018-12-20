@@ -963,7 +963,8 @@ static inline void slave_disable_netpoll(struct slave *slave)
 		return;
 
 	slave->np = NULL;
-	__netpoll_free_async(np);
+
+	__netpoll_free(np);
 }
 
 static void bond_poll_controller(struct net_device *bond_dev)
@@ -3111,13 +3112,13 @@ static int bond_slave_netdev_event(unsigned long event,
 	case NETDEV_CHANGE:
 		/* For 802.3ad mode only:
 		 * Getting invalid Speed/Duplex values here will put slave
-		 * in weird state. So mark it as link-down for the time
+		 * in weird state. So mark it as link-fail for the time
 		 * being and let link-monitoring (miimon) set it right when
 		 * correct speeds/duplex are available.
 		 */
 		if (bond_update_speed_duplex(slave) &&
 		    BOND_MODE(bond) == BOND_MODE_8023AD)
-			slave->link = BOND_LINK_DOWN;
+			slave->link = BOND_LINK_FAIL;
 
 		if (BOND_MODE(bond) == BOND_MODE_8023AD)
 			bond_3ad_adapter_speed_duplex_changed(slave);

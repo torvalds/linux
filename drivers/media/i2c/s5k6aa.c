@@ -688,7 +688,7 @@ static int s5k6aa_configure_video_bus(struct s5k6aa *s5k6aa,
 	 * but there is nothing indicating how to switch between both
 	 * in the datasheet. For now default BT.601 interface is assumed.
 	 */
-	if (bus_type == V4L2_MBUS_CSI2)
+	if (bus_type == V4L2_MBUS_CSI2_DPHY)
 		cfg = nlanes;
 	else if (bus_type != V4L2_MBUS_PARALLEL)
 		return -EINVAL;
@@ -1576,7 +1576,8 @@ static int s5k6aa_probe(struct i2c_client *client,
 
 	sd = &s5k6aa->sd;
 	v4l2_i2c_subdev_init(sd, client, &s5k6aa_subdev_ops);
-	strlcpy(sd->name, DRIVER_NAME, sizeof(sd->name));
+	/* Static name; NEVER use in new drivers! */
+	strscpy(sd->name, DRIVER_NAME, sizeof(sd->name));
 
 	sd->internal_ops = &s5k6aa_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

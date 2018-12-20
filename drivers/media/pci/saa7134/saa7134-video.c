@@ -1445,7 +1445,8 @@ int saa7134_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 	if (card_in(dev, i->index).type == SAA7134_NO_INPUT)
 		return -EINVAL;
 	i->index = n;
-	strcpy(i->name, saa7134_input_name[card_in(dev, n).type]);
+	strscpy(i->name, saa7134_input_name[card_in(dev, n).type],
+		sizeof(i->name));
 	switch (card_in(dev, n).type) {
 	case SAA7134_INPUT_TV:
 	case SAA7134_INPUT_TV_MONO:
@@ -1502,8 +1503,8 @@ int saa7134_querycap(struct file *file, void *priv,
 
 	unsigned int tuner_type = dev->tuner_type;
 
-	strcpy(cap->driver, "saa7134");
-	strlcpy(cap->card, saa7134_boards[dev->board].name,
+	strscpy(cap->driver, "saa7134", sizeof(cap->driver));
+	strscpy(cap->card, saa7134_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 
@@ -1747,7 +1748,7 @@ int saa7134_g_tuner(struct file *file, void *priv,
 	if (n == SAA7134_INPUT_MAX)
 		return -EINVAL;
 	if (card_in(dev, n).type != SAA7134_NO_INPUT) {
-		strcpy(t->name, "Television");
+		strscpy(t->name, "Television", sizeof(t->name));
 		t->type = V4L2_TUNER_ANALOG_TV;
 		saa_call_all(dev, tuner, g_tuner, t);
 		t->capability = V4L2_TUNER_CAP_NORM |
@@ -1819,7 +1820,7 @@ static int saa7134_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index >= FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name,
+	strscpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;
@@ -1838,7 +1839,7 @@ static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 	if ((f->index >= FORMATS) || formats[f->index].planar)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name,
+	strscpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;
@@ -1939,7 +1940,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	strcpy(t->name, "Radio");
+	strscpy(t->name, "Radio", sizeof(t->name));
 
 	saa_call_all(dev, tuner, g_tuner, t);
 	t->audmode &= V4L2_TUNER_MODE_MONO | V4L2_TUNER_MODE_STEREO;
@@ -2136,7 +2137,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 		hdl = &dev->radio_ctrl_handler;
 		v4l2_ctrl_handler_init(hdl, 2);
 		v4l2_ctrl_add_handler(hdl, &dev->ctrl_handler,
-				v4l2_ctrl_radio_filter);
+				v4l2_ctrl_radio_filter, false);
 		if (hdl->error)
 			return hdl->error;
 	}

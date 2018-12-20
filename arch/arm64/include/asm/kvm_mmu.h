@@ -141,8 +141,16 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
  * We currently only support a 40bit IPA.
  */
 #define KVM_PHYS_SHIFT	(40)
-#define KVM_PHYS_SIZE	(1UL << KVM_PHYS_SHIFT)
-#define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1UL)
+
+#define kvm_phys_shift(kvm)		VTCR_EL2_IPA(kvm->arch.vtcr)
+#define kvm_phys_size(kvm)		(_AC(1, ULL) << kvm_phys_shift(kvm))
+#define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - _AC(1, ULL))
+
+static inline bool kvm_page_empty(void *ptr)
+{
+	struct page *ptr_page = virt_to_page(ptr);
+	return page_count(ptr_page) == 1;
+}
 
 #include <asm/stage2_pgtable.h>
 
@@ -236,12 +244,6 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmdp)
 static inline bool kvm_s2pmd_exec(pmd_t *pmdp)
 {
 	return !(READ_ONCE(pmd_val(*pmdp)) & PMD_S2_XN);
-}
-
-static inline bool kvm_page_empty(void *ptr)
-{
-	struct page *ptr_page = virt_to_page(ptr);
-	return page_count(ptr_page) == 1;
 }
 
 #define hyp_pte_table_empty(ptep) kvm_page_empty(ptep)
@@ -516,6 +518,35 @@ static inline int hyp_map_aux_data(void)
 #endif
 
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
+
+/*
+ * Get the magic number 'x' for VTTBR:BADDR of this KVM instance.
+ * With v8.2 LVA extensions, 'x' should be a minimum of 6 with
+ * 52bit IPS.
+ */
+static inline int arm64_vttbr_x(u32 ipa_shift, u32 levels)
+{
+	int x = ARM64_VTTBR_X(ipa_shift, levels);
+
+	return (IS_ENABLED(CONFIG_ARM64_PA_BITS_52) && x < 6) ? 6 : x;
+}
+
+static inline u64 vttbr_baddr_mask(u32 ipa_shift, u32 levels)
+{
+	unsigned int x = arm64_vttbr_x(ipa_shift, levels);
+
+	return GENMASK_ULL(PHYS_MASK_SHIFT - 1, x);
+}
+
+static inline u64 kvm_vttbr_baddr_mask(struct kvm *kvm)
+{
+	return vttbr_baddr_mask(kvm_phys_shift(kvm), kvm_stage2_levels(kvm));
+}
+
+static inline bool kvm_cpu_has_cnp(void)
+{
+	return system_supports_cnp();
+}
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */

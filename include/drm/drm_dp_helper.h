@@ -123,8 +123,9 @@
 # define DP_FRAMING_CHANGE_CAP		    (1 << 1)
 # define DP_DPCD_DISPLAY_CONTROL_CAPABLE     (1 << 3) /* edp v1.2 or higher */
 
-#define DP_TRAINING_AUX_RD_INTERVAL         0x00e   /* XXX 1.2? */
-# define DP_TRAINING_AUX_RD_MASK            0x7F    /* XXX 1.2? */
+#define DP_TRAINING_AUX_RD_INTERVAL             0x00e   /* XXX 1.2? */
+# define DP_TRAINING_AUX_RD_MASK                0x7F    /* DP 1.3 */
+# define DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT	(1 << 7) /* DP 1.3 */
 
 #define DP_ADAPTER_CAP			    0x00f   /* 1.2 */
 # define DP_FORCE_LOAD_SENSE_CAP	    (1 << 0)
@@ -1260,12 +1261,12 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
  */
 enum drm_dp_quirk {
 	/**
-	 * @DP_DPCD_QUIRK_LIMITED_M_N:
+	 * @DP_DPCD_QUIRK_CONSTANT_N:
 	 *
 	 * The device requires main link attributes Mvid and Nvid to be limited
-	 * to 16 bits.
+	 * to 16 bits. So will give a constant value (0x8000) for compatability.
 	 */
-	DP_DPCD_QUIRK_LIMITED_M_N,
+	DP_DPCD_QUIRK_CONSTANT_N,
 };
 
 /**

@@ -22,7 +22,7 @@ static const struct sdio_device_id sdio_ids[] =
 	{ SDIO_DEVICE(0x024c, 0xb723), },
 	{ /* end: all zeroes */				},
 };
-static const struct acpi_device_id acpi_ids[] = {
+static const struct acpi_device_id acpi_ids[] __used = {
 	{"OBDA8723", 0x0000},
 	{}
 };

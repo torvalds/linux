@@ -247,6 +247,17 @@
 #define MALIDP550_CONFIG_VALID		0x0c014
 #define MALIDP550_CONFIG_ID		0x0ffd4
 
+/* register offsets specific to DP650 */
+#define MALIDP650_DE_LV_MMU_CTRL	0x000D0
+#define MALIDP650_DE_LG_MMU_CTRL	0x00048
+#define MALIDP650_DE_LS_MMU_CTRL	0x00078
+
+/* bit masks to set the MMU control register */
+#define MALIDP_MMU_CTRL_EN		(1 << 0)
+#define MALIDP_MMU_CTRL_MODE		(1 << 4)
+#define MALIDP_MMU_CTRL_PX_PS(x)	(1 << (8 + (x)))
+#define MALIDP_MMU_CTRL_PP_NUM_REQ(x)	(((x) & 0x7f) << 12)
+
 /*
  * Starting with DP550 the register map blocks has been standardised to the
  * following layout:

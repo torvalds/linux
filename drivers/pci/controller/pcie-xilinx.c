@@ -574,14 +574,7 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 	struct device *dev = port->dev;
 	struct device_node *node = dev->of_node;
 	struct resource regs;
-	const char *type;
 	int err;
-
-	type = of_get_property(node, "device_type", NULL);
-	if (!type || strcmp(type, "pci")) {
-		dev_err(dev, "invalid \"device_type\" %s\n", type);
-		return -EINVAL;
-	}
 
 	err = of_address_to_resource(node, 0, &regs);
 	if (err) {

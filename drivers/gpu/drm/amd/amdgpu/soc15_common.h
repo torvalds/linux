@@ -56,10 +56,32 @@
 			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 			loop--;					\
 			if (!loop) {				\
+				DRM_ERROR("Register(%d) [%s] failed to reach value 0x%08x != 0x%08x\n", \
+					  inst, #reg, (unsigned)expected_value, (unsigned)(tmp_ & (mask))); \
 				ret = -ETIMEDOUT;		\
 				break;				\
 			}					\
 		}						\
+	} while (0)
+
+#define RREG32_SOC15_DPG_MODE(ip, inst, reg, mask, sram_sel) 	\
+		({ WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); \
+			WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL,	\
+				UVD_DPG_LMA_CTL__MASK_EN_MASK |				\
+				((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) \
+				<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | \
+				(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT));	\
+			RREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA); })
+
+#define WREG32_SOC15_DPG_MODE(ip, inst, reg, value, mask, sram_sel)	\
+	do {							\
+		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA, value);	\
+		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask);		\
+		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL,	\
+			UVD_DPG_LMA_CTL__READ_WRITE_MASK |	\
+			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) \
+			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) |	\
+			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); \
 	} while (0)
 
 #endif

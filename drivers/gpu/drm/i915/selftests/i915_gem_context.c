@@ -22,6 +22,8 @@
  *
  */
 
+#include <linux/prime_numbers.h>
+
 #include "../i915_selftest.h"
 #include "i915_random.h"
 #include "igt_flush_test.h"
@@ -31,6 +33,200 @@
 #include "huge_gem_object.h"
 
 #define DW_PER_PAGE (PAGE_SIZE / sizeof(u32))
+
+struct live_test {
+	struct drm_i915_private *i915;
+	const char *func;
+	const char *name;
+
+	unsigned int reset_count;
+};
+
+static int begin_live_test(struct live_test *t,
+			   struct drm_i915_private *i915,
+			   const char *func,
+			   const char *name)
+{
+	int err;
+
+	t->i915 = i915;
+	t->func = func;
+	t->name = name;
+
+	err = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
+	if (err) {
+		pr_err("%s(%s): failed to idle before, with err=%d!",
+		       func, name, err);
+		return err;
+	}
+
+	i915->gpu_error.missed_irq_rings = 0;
+	t->reset_count = i915_reset_count(&i915->gpu_error);
+
+	return 0;
+}
+
+static int end_live_test(struct live_test *t)
+{
+	struct drm_i915_private *i915 = t->i915;
+
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		return -EIO;
+
+	if (t->reset_count != i915_reset_count(&i915->gpu_error)) {
+		pr_err("%s(%s): GPU was reset %d times!\n",
+		       t->func, t->name,
+		       i915_reset_count(&i915->gpu_error) - t->reset_count);
+		return -EIO;
+	}
+
+	if (i915->gpu_error.missed_irq_rings) {
+		pr_err("%s(%s): Missed interrupts on engines %lx\n",
+		       t->func, t->name, i915->gpu_error.missed_irq_rings);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int live_nop_switch(void *arg)
+{
+	const unsigned int nctx = 1024;
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct i915_gem_context **ctx;
+	enum intel_engine_id id;
+	struct drm_file *file;
+	struct live_test t;
+	unsigned long n;
+	int err = -ENODEV;
+
+	/*
+	 * Create as many contexts as we can feasibly get away with
+	 * and check we can switch between them rapidly.
+	 *
+	 * Serves as very simple stress test for submission and HW switching
+	 * between contexts.
+	 */
+
+	if (!DRIVER_CAPS(i915)->has_logical_contexts)
+		return 0;
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+
+	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+
+	for (n = 0; n < nctx; n++) {
+		ctx[n] = i915_gem_create_context(i915, file->driver_priv);
+		if (IS_ERR(ctx[n])) {
+			err = PTR_ERR(ctx[n]);
+			goto out_unlock;
+		}
+	}
+
+	for_each_engine(engine, i915, id) {
+		struct i915_request *rq;
+		unsigned long end_time, prime;
+		ktime_t times[2] = {};
+
+		times[0] = ktime_get_raw();
+		for (n = 0; n < nctx; n++) {
+			rq = i915_request_alloc(engine, ctx[n]);
+			if (IS_ERR(rq)) {
+				err = PTR_ERR(rq);
+				goto out_unlock;
+			}
+			i915_request_add(rq);
+		}
+		if (i915_request_wait(rq,
+				      I915_WAIT_LOCKED,
+				      HZ / 5) < 0) {
+			pr_err("Failed to populated %d contexts\n", nctx);
+			i915_gem_set_wedged(i915);
+			err = -EIO;
+			goto out_unlock;
+		}
+
+		times[1] = ktime_get_raw();
+
+		pr_info("Populated %d contexts on %s in %lluns\n",
+			nctx, engine->name, ktime_to_ns(times[1] - times[0]));
+
+		err = begin_live_test(&t, i915, __func__, engine->name);
+		if (err)
+			goto out_unlock;
+
+		end_time = jiffies + i915_selftest.timeout_jiffies;
+		for_each_prime_number_from(prime, 2, 8192) {
+			times[1] = ktime_get_raw();
+
+			for (n = 0; n < prime; n++) {
+				rq = i915_request_alloc(engine, ctx[n % nctx]);
+				if (IS_ERR(rq)) {
+					err = PTR_ERR(rq);
+					goto out_unlock;
+				}
+
+				/*
+				 * This space is left intentionally blank.
+				 *
+				 * We do not actually want to perform any
+				 * action with this request, we just want
+				 * to measure the latency in allocation
+				 * and submission of our breadcrumbs -
+				 * ensuring that the bare request is sufficient
+				 * for the system to work (i.e. proper HEAD
+				 * tracking of the rings, interrupt handling,
+				 * etc). It also gives us the lowest bounds
+				 * for latency.
+				 */
+
+				i915_request_add(rq);
+			}
+			if (i915_request_wait(rq,
+					      I915_WAIT_LOCKED,
+					      HZ / 5) < 0) {
+				pr_err("Switching between %ld contexts timed out\n",
+				       prime);
+				i915_gem_set_wedged(i915);
+				break;
+			}
+
+			times[1] = ktime_sub(ktime_get_raw(), times[1]);
+			if (prime == 2)
+				times[0] = times[1];
+
+			if (__igt_timeout(end_time, NULL))
+				break;
+		}
+
+		err = end_live_test(&t);
+		if (err)
+			goto out_unlock;
+
+		pr_info("Switch latencies on %s: 1 = %lluns, %lu = %lluns\n",
+			engine->name,
+			ktime_to_ns(times[0]),
+			prime - 1, div64_u64(ktime_to_ns(times[1]), prime - 1));
+	}
+
+out_unlock:
+	intel_runtime_pm_put(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	mock_file_free(i915, file);
+	return err;
+}
 
 static struct i915_vma *
 gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
@@ -195,6 +391,7 @@ err_request:
 	i915_request_add(rq);
 err_batch:
 	i915_vma_unpin(batch);
+	i915_vma_put(batch);
 err_vma:
 	i915_vma_unpin(vma);
 	return err;
@@ -636,6 +833,8 @@ static int igt_switch_to_kernel_context(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&i915->drm.struct_mutex);
@@ -658,6 +857,8 @@ out_unlock:
 	GEM_TRACE_DUMP_ON(err);
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
+
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	kernel_context_close(ctx);
@@ -713,6 +914,7 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_switch_to_kernel_context),
+		SUBTEST(live_nop_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),
 	};

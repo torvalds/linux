@@ -232,6 +232,8 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_UVDClientMCTuning,
 	PHM_PlatformCaps_ODNinACSupport,
 	PHM_PlatformCaps_ODNinDCSupport,
+	PHM_PlatformCaps_OD8inACSupport,
+	PHM_PlatformCaps_OD8inDCSupport,
 	PHM_PlatformCaps_UMDPState,
 	PHM_PlatformCaps_AutoWattmanSupport,
 	PHM_PlatformCaps_AutoWattmanEnable_CCCState,

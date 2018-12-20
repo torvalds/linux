@@ -337,9 +337,9 @@ static int mv3310_config_init(struct phy_device *phydev)
 	}
 
 	if (!ethtool_convert_link_mode_to_legacy_u32(&mask, supported))
-		dev_warn(&phydev->mdio.dev,
-			 "PHY supports (%*pb) more modes than phylib supports, some modes not supported.\n",
-			 __ETHTOOL_LINK_MODE_MASK_NBITS, supported);
+		phydev_warn(phydev,
+			    "PHY supports (%*pb) more modes than phylib supports, some modes not supported.\n",
+			    __ETHTOOL_LINK_MODE_MASK_NBITS, supported);
 
 	phydev->supported &= mask;
 	phydev->advertising &= phydev->supported;
@@ -535,16 +535,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.phy_id		= 0x002b09aa,
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x3310",
-		.features	= SUPPORTED_10baseT_Full |
-				  SUPPORTED_10baseT_Half |
-				  SUPPORTED_100baseT_Full |
-				  SUPPORTED_100baseT_Half |
-				  SUPPORTED_1000baseT_Full |
-				  SUPPORTED_Autoneg |
-				  SUPPORTED_TP |
-				  SUPPORTED_FIBRE |
-				  SUPPORTED_10000baseT_Full |
-				  SUPPORTED_Backplane,
+		.features	= PHY_10GBIT_FEATURES,
 		.soft_reset	= gen10g_no_soft_reset,
 		.config_init	= mv3310_config_init,
 		.probe		= mv3310_probe,

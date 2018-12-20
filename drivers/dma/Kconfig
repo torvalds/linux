@@ -143,7 +143,7 @@ config DMA_JZ4740
 
 config DMA_JZ4780
 	tristate "JZ4780 DMA support"
-	depends on MACH_JZ4780 || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -320,6 +320,17 @@ config LPC18XX_DMAMUX
 	help
 	  Enable support for DMA on NXP LPC18xx/43xx platforms
 	  with PL080 and multiplexed DMA request lines.
+
+config MCF_EDMA
+	tristate "Freescale eDMA engine support, ColdFire mcf5441x SoCs"
+	depends on M5441x || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Freescale ColdFire eDMA engine, 64-channel
+	  implementation that performs complex data transfers with
+	  minimal intervention from a host processor.
+	  This module can be found on Freescale ColdFire mcf5441x SoCs.
 
 config MMP_PDMA
 	bool "MMP PDMA support"

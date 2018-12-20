@@ -18,7 +18,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/blkdev.h>
 #include <linux/ctype.h>
 #include <linux/device.h>

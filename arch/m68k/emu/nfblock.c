@@ -73,7 +73,7 @@ static blk_qc_t nfhd_make_request(struct request_queue *queue, struct bio *bio)
 		len = bvec.bv_len;
 		len >>= 9;
 		nfhd_read_write(dev->id, 0, dir, sec >> shift, len >> shift,
-				bvec_to_phys(&bvec));
+				page_to_phys(bvec.bv_page) + bvec.bv_offset);
 		sec += len;
 	}
 	bio_endio(bio);

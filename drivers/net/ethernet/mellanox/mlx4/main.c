@@ -260,47 +260,34 @@ static const struct devlink_param mlx4_devlink_params[] = {
 			     NULL, NULL, NULL),
 };
 
-static void mlx4_devlink_set_init_value(struct devlink *devlink, u32 param_id,
-					union devlink_param_value init_val)
-{
-	struct mlx4_priv *priv = devlink_priv(devlink);
-	struct mlx4_dev *dev = &priv->dev;
-	int err;
-
-	err = devlink_param_driverinit_value_set(devlink, param_id, init_val);
-	if (err)
-		mlx4_warn(dev,
-			  "devlink set parameter %u value failed (err = %d)",
-			  param_id, err);
-}
-
 static void mlx4_devlink_set_params_init_values(struct devlink *devlink)
 {
 	union devlink_param_value value;
 
 	value.vbool = !!mlx4_internal_err_reset;
-	mlx4_devlink_set_init_value(devlink,
-				    DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+					   value);
 
 	value.vu32 = 1UL << log_num_mac;
-	mlx4_devlink_set_init_value(devlink,
-				    DEVLINK_PARAM_GENERIC_ID_MAX_MACS, value);
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					   value);
 
 	value.vbool = enable_64b_cqe_eqe;
-	mlx4_devlink_set_init_value(devlink,
-				    MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+					   value);
 
 	value.vbool = enable_4k_uar;
-	mlx4_devlink_set_init_value(devlink,
-				    MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+					   value);
 
 	value.vbool = false;
-	mlx4_devlink_set_init_value(devlink,
-				    DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+					   value);
 }
 
 static inline void mlx4_set_num_reserved_uars(struct mlx4_dev *dev,

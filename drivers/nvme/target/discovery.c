@@ -174,7 +174,7 @@ static void nvmet_execute_identify_disc_ctrl(struct nvmet_req *req)
 	if (req->port->inline_data_size)
 		id->sgls |= cpu_to_le32(1 << 20);
 
-	strcpy(id->subnqn, ctrl->subsys->subsysnqn);
+	strlcpy(id->subnqn, ctrl->subsys->subsysnqn, sizeof(id->subnqn));
 
 	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
 
@@ -219,12 +219,10 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	default:
-		pr_err("unsupported cmd %d\n", cmd->common.opcode);
+		pr_err("unhandled cmd %d\n", cmd->common.opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 
-	pr_err("unhandled cmd %d\n", cmd->common.opcode);
-	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 }
 
 int __init nvmet_init_discovery(void)

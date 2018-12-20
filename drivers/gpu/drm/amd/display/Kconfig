@@ -5,6 +5,7 @@ config DRM_AMD_DC
 	bool "AMD DC - Enable new display engine"
 	default y
 	select DRM_AMD_DC_DCN1_0 if X86 && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
+	select DRM_AMD_DC_DCN1_01 if X86 && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
 	help
 	  Choose this option if you want to use the new display engine
 	  support for AMDGPU. This adds required support for Vega and
@@ -14,6 +15,11 @@ config DRM_AMD_DC_DCN1_0
 	def_bool n
 	help
 	  RV family support for display engine
+
+config DRM_AMD_DC_DCN1_01
+	def_bool n
+	help
+	  RV2 family for display engine
 
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"

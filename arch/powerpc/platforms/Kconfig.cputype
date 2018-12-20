@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC64
 	bool "64-bit kernel"
-	default n
 	select ZLIB_DEFLATE
 	help
 	  This option selects whether a 32-bit or a 64-bit kernel
@@ -72,6 +71,7 @@ config PPC_BOOK3S_64
 	select PPC_HAVE_PMU_SUPPORT
 	select SYS_SUPPORTS_HUGETLBFS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select IRQ_WORK
 
@@ -368,7 +368,6 @@ config PPC_MM_SLICES
 	bool
 	default y if PPC_BOOK3S_64
 	default y if PPC_8xx && HUGETLB_PAGE
-	default n
 
 config PPC_HAVE_PMU_SUPPORT
        bool
@@ -382,7 +381,6 @@ config PPC_PERF_CTRS
 config FORCE_SMP
 	# Allow platforms to force SMP=y by selecting this
 	bool
-	default n
 	select SMP
 
 config SMP
@@ -423,7 +421,6 @@ config CHECK_CACHE_COHERENCY
 
 config PPC_DOORBELL
 	bool
-	default n
 
 endmenu
 

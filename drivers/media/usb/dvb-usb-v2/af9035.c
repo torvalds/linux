@@ -204,7 +204,7 @@ static int af9035_add_i2c_dev(struct dvb_usb_device *d, const char *type,
 		.platform_data = platform_data,
 	};
 
-	strlcpy(board_info.type, type, I2C_NAME_SIZE);
+	strscpy(board_info.type, type, I2C_NAME_SIZE);
 
 	/* find first free client */
 	for (num = 0; num < AF9035_I2C_CLIENT_MAX; num++) {

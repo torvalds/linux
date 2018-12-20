@@ -670,8 +670,8 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	cache->plane.visible = plane_state->base.visible;
-	cache->plane.adjusted_x = plane_state->main.x;
-	cache->plane.adjusted_y = plane_state->main.y;
+	cache->plane.adjusted_x = plane_state->color_plane[0].x;
+	cache->plane.adjusted_y = plane_state->color_plane[0].y;
 	cache->plane.y = plane_state->base.src.y1 >> 16;
 
 	if (!cache->plane.visible)

@@ -232,7 +232,7 @@ static inline u64 hv_do_fast_hypercall16(u16 code, u64 input1, u64 input2)
 				      : "cc");
 	}
 #endif
-		return hv_status;
+	return hv_status;
 }
 
 /*
@@ -351,6 +351,8 @@ int hyperv_flush_guest_mapping(u64 as);
 
 #ifdef CONFIG_X86_64
 void hv_apic_init(void);
+void __init hv_init_spinlocks(void);
+bool hv_vcpu_is_preempted(int vcpu);
 #else
 static inline void hv_apic_init(void) {}
 #endif

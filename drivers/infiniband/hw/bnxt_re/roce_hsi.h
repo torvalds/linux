@@ -2929,6 +2929,11 @@ struct creq_query_roce_stats_resp_sb {
 	__le64	res_srq_load_err;
 	__le64	res_tx_pci_err;
 	__le64	res_rx_pci_err;
+	__le64  res_oos_drop_count;
+	__le64  active_qp_count_p0;
+	__le64  active_qp_count_p1;
+	__le64  active_qp_count_p2;
+	__le64  active_qp_count_p3;
 };
 
 /* QP error notification event (16 bytes) */

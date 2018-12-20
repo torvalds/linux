@@ -55,13 +55,14 @@
 #include "iwl-context-info.h"
 #include "iwl-context-info-gen3.h"
 #include "internal.h"
+#include "fw/dbg.h"
 
 /*
  * Start up NIC's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via iwl_pcie_apm_stop())
  * NOTE:  This does not load uCode nor start the embedded processor
  */
-static int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
+int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 {
 	int ret = 0;
 
@@ -164,9 +165,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	trans_pcie->is_down = true;
 
 	/* Stop dbgc before stopping device */
-	iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
-	udelay(100);
-	iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+	_iwl_fw_dbg_stop_recording(trans, NULL);
 
 	/* tell the device to stop sending interrupts */
 	iwl_disable_interrupts(trans);
@@ -265,7 +264,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 		return -ENOMEM;
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (iwl_pcie_gen2_tx_init(trans))
+	if (iwl_pcie_gen2_tx_init(trans, trans_pcie->cmd_queue, TFD_CMD_SLOTS))
 		return -ENOMEM;
 
 	/* enable shadow regs in HW */

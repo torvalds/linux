@@ -102,14 +102,14 @@ static struct fixed_voltage_config shannon_cf_vcc_pdata __initdata = {
 	.supply_name = "cf-power",
 	.microvolts = 3300000,
 	.enabled_at_boot = 1,
-	.gpio = -EINVAL,
 };
 
 static void __init shannon_init(void)
 {
 	sa11x0_register_fixed_regulator(0, &shannon_cf_vcc_pdata,
 					shannon_cf_vcc_consumers,
-					ARRAY_SIZE(shannon_cf_vcc_consumers));
+					ARRAY_SIZE(shannon_cf_vcc_consumers),
+					false);
 	sa11x0_register_pcmcia(0, &shannon_pcmcia0_gpio_table);
 	sa11x0_register_pcmcia(1, &shannon_pcmcia1_gpio_table);
 	sa11x0_ppc_configure_mcp();

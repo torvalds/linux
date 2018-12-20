@@ -95,12 +95,20 @@ extern struct devtable *__start___devtable[], *__stop___devtable[];
  */
 #define DEF_FIELD(m, devid, f) \
 	typeof(((struct devid *)0)->f) f = TO_NATIVE(*(typeof(f) *)((m) + OFF_##devid##_##f))
+
+/* Define a variable v that holds the address of field f of struct devid
+ * based at address m.  Due to the way typeof works, for a field of type
+ * T[N] the variable has type T(*)[N], _not_ T*.
+ */
+#define DEF_FIELD_ADDR_VAR(m, devid, f, v) \
+	typeof(((struct devid *)0)->f) *v = ((m) + OFF_##devid##_##f)
+
 /* Define a variable f that holds the address of field f of struct devid
  * based at address m.  Due to the way typeof works, for a field of type
  * T[N] the variable has type T(*)[N], _not_ T*.
  */
 #define DEF_FIELD_ADDR(m, devid, f) \
-	typeof(((struct devid *)0)->f) *f = ((m) + OFF_##devid##_##f)
+	DEF_FIELD_ADDR_VAR(m, devid, f, f)
 
 /* Add a table entry.  We test function type matches while we're here. */
 #define ADD_TO_DEVTABLE(device_id, type, function) \
@@ -644,7 +652,7 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 
 	for (i = 0; i < count; i++) {
 		unsigned int j;
-		DEF_FIELD_ADDR(symval + i*id_size, pnp_card_device_id, devs);
+		DEF_FIELD_ADDR(symval + i * id_size, pnp_card_device_id, devs);
 
 		for (j = 0; j < PNP_MAX_DEVICES; j++) {
 			const char *id = (char *)(*devs)[j].id;
@@ -656,10 +664,13 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 
 			/* find duplicate, already added value */
 			for (i2 = 0; i2 < i && !dup; i2++) {
-				DEF_FIELD_ADDR(symval + i2*id_size, pnp_card_device_id, devs);
+				DEF_FIELD_ADDR_VAR(symval + i2 * id_size,
+						   pnp_card_device_id,
+						   devs, devs_dup);
 
 				for (j2 = 0; j2 < PNP_MAX_DEVICES; j2++) {
-					const char *id2 = (char *)(*devs)[j2].id;
+					const char *id2 =
+						(char *)(*devs_dup)[j2].id;
 
 					if (!id2[0])
 						break;
@@ -1415,11 +1426,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 		return;
 
-	/* All our symbols are of form <prefix>__mod_<name>__<identifier>_device_table. */
-	name = strstr(symname, "__mod_");
-	if (!name)
+	/* All our symbols are of form __mod_<name>__<identifier>_device_table. */
+	if (strncmp(symname, "__mod_", strlen("__mod_")))
 		return;
-	name += strlen("__mod_");
+	name = symname + strlen("__mod_");
 	namelen = strlen(name);
 	if (namelen < strlen("_device_table"))
 		return;

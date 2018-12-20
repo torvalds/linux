@@ -11,7 +11,8 @@
 / {
 	model = "Toradex Apalis TK1 on Apalis Evaluation Board";
 	compatible = "toradex,apalis-tk1-v1.2-eval", "toradex,apalis-tk1-eval",
-		     "toradex,apalis-tk1", "nvidia,tegra124";
+		     "toradex,apalis-tk1-v1.2", "toradex,apalis-tk1",
+		     "nvidia,tegra124";
 
 	aliases {
 		rtc0 = "/i2c@7000c000/rtc@68";
@@ -36,6 +37,7 @@
 	host1x@50000000 {
 		hdmi@54280000 {
 			status = "okay";
+			hdmi-supply = <&reg_5v0>;
 		};
 	};
 
@@ -98,7 +100,7 @@
 	 * I2C4 (DDC): I2C4_SDA/SCL (DDC) on MXM3 pin 205/207
 	 * (e.g. display EDID)
 	 */
-	hdmi_ddc: i2c@7000c700 {
+	i2c@7000c700 {
 		status = "okay";
 	};
 
@@ -106,29 +108,19 @@
 	spi@7000d400 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-
-		spidev0: spidev@0 {
-			compatible = "spidev";
-			reg = <0>;
-			spi-max-frequency = <50000000>;
-		};
 	};
 
 	/* SPI4: Apalis SPI2 */
 	spi@7000da00 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-
-		spidev1: spidev@0 {
-			compatible = "spidev";
-			reg = <0>;
-			spi-max-frequency = <50000000>;
-		};
 	};
 
 	/* Apalis Serial ATA */
 	sata@70020000 {
 		status = "okay";
+		target-5v-supply = <&reg_5v0>;
+		target-12v-supply = <&reg_12v0>;
 	};
 
 	hda@70030000 {
@@ -142,18 +134,18 @@
 	/* Apalis MMC1 */
 	sdhci@700b0000 {
 		status = "okay";
+		bus-width = <4>;
 		/* MMC1_CD# */
 		cd-gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_LOW>;
-		bus-width = <4>;
 		vqmmc-supply = <&vddio_sdmmc1>;
 	};
 
 	/* Apalis SD1 */
 	sdhci@700b0400 {
 		status = "okay";
+		bus-width = <4>;
 		/* SD1_CD# */
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-		bus-width = <4>;
 		vqmmc-supply = <&vddio_sdmmc3>;
 	};
 
@@ -190,11 +182,12 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 3 5000000>; /* BKL1_PWM */
 		brightness-levels = <255 231 223 207 191 159 127 0>;
 		default-brightness-level = <6>;
 		/* BKL1_ON */
 		enable-gpios = <&gpio TEGRA_GPIO(BB, 5) GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_3v3>;
+		pwms = <&pwm 3 5000000>; /* BKL1_PWM */
 	};
 
 	gpio-keys {
@@ -209,11 +202,25 @@
 		};
 	};
 
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V_SW";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	reg_5v0: regulator-5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "5V_SW";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+	};
+
+	reg_12v0: regulator-12v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "12V_SW";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 	};
 
 	/* USBO1_EN */
@@ -241,7 +248,7 @@
 
 &gpio {
 	/* Apalis GPIO7 MXM3 pin 15 PLX PEX 8605 PCIe Switch Reset */
-	pex_perst_n {
+	pex-perst-n {
 		gpio-hog;
 		gpios = <TEGRA_GPIO(DD, 1) GPIO_ACTIVE_HIGH>;
 		output-high;

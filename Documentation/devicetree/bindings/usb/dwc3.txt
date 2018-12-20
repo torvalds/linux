@@ -19,6 +19,7 @@ Exception for clocks:
     "cavium,octeon-7130-usb-uctl"
     "qcom,dwc3"
     "samsung,exynos5250-dwusb3"
+    "samsung,exynos5433-dwusb3"
     "samsung,exynos7-dwusb3"
     "sprd,sc9860-dwc3"
     "st,stih407-dwc3"

@@ -1201,3 +1201,12 @@ int mlx5_nic_vport_unaffiliate_multiport(struct mlx5_core_dev *port_mdev)
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_unaffiliate_multiport);
+
+u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev)
+{
+	if (!mdev->sys_image_guid)
+		mlx5_query_nic_vport_system_image_guid(mdev, &mdev->sys_image_guid);
+
+	return mdev->sys_image_guid;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_nic_system_image_guid);

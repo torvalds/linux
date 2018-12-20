@@ -5,7 +5,7 @@
 #ifndef __ASSEMBLY__
 #include <asm-generic/5level-fixup.h>
 
-#define __PAGETABLE_PUD_FOLDED
+#define __PAGETABLE_PUD_FOLDED 1
 
 /*
  * Having the pud type consist of a pgd gets the size right, and allows

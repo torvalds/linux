@@ -91,6 +91,8 @@ static inline void xdp_scrub_frame(struct xdp_frame *frame)
 	frame->dev_rx = NULL;
 }
 
+struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp);
+
 /* Convert xdp_buff to xdp_frame */
 static inline
 struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
@@ -99,9 +101,8 @@ struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
 	int metasize;
 	int headroom;
 
-	/* TODO: implement clone, copy, use "native" MEM_TYPE */
 	if (xdp->rxq->mem.type == MEM_TYPE_ZERO_COPY)
-		return NULL;
+		return xdp_convert_zc_to_xdp_frame(xdp);
 
 	/* Assure headroom is available for storing info */
 	headroom = xdp->data - xdp->data_hard_start;
@@ -135,6 +136,7 @@ void xdp_rxq_info_unused(struct xdp_rxq_info *xdp_rxq);
 bool xdp_rxq_info_is_reg(struct xdp_rxq_info *xdp_rxq);
 int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 			       enum xdp_mem_type type, void *allocator);
+void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq);
 
 /* Drivers not supporting XDP metadata can use this helper, which
  * rejects any room expansion for metadata as a result.

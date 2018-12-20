@@ -498,9 +498,9 @@ static int vf610_nfc_exec_op(struct nand_chip *chip,
 /*
  * This function supports Vybrid only (MPC5125 would have full RB and four CS)
  */
-static void vf610_nfc_select_chip(struct mtd_info *mtd, int chip)
+static void vf610_nfc_select_chip(struct nand_chip *chip, int cs)
 {
-	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
+	struct vf610_nfc *nfc = mtd_to_nfc(nand_to_mtd(chip));
 	u32 tmp = vf610_nfc_read(nfc, NFC_ROW_ADDR);
 
 	/* Vybrid only (MPC5125 would have full RB and four CS) */
@@ -509,9 +509,9 @@ static void vf610_nfc_select_chip(struct mtd_info *mtd, int chip)
 
 	tmp &= ~(ROW_ADDR_CHIP_SEL_RB_MASK | ROW_ADDR_CHIP_SEL_MASK);
 
-	if (chip >= 0) {
+	if (cs >= 0) {
 		tmp |= 1 << ROW_ADDR_CHIP_SEL_RB_SHIFT;
-		tmp |= BIT(chip) << ROW_ADDR_CHIP_SEL_SHIFT;
+		tmp |= BIT(cs) << ROW_ADDR_CHIP_SEL_SHIFT;
 	}
 
 	vf610_nfc_write(nfc, NFC_ROW_ADDR, tmp);
@@ -557,9 +557,10 @@ static void vf610_nfc_fill_row(struct nand_chip *chip, int page, u32 *code,
 	}
 }
 
-static int vf610_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf, int oob_required, int page)
+static int vf610_nfc_read_page(struct nand_chip *chip, uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int trfr_sz = mtd->writesize + mtd->oobsize;
 	u32 row = 0, cmd1 = 0, cmd2 = 0, code = 0;
@@ -602,9 +603,10 @@ static int vf610_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 }
 
-static int vf610_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required, int page)
+static int vf610_nfc_write_page(struct nand_chip *chip, const uint8_t *buf,
+				int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int trfr_sz = mtd->writesize + mtd->oobsize;
 	u32 row = 0, cmd1 = 0, cmd2 = 0, code = 0;
@@ -643,24 +645,24 @@ static int vf610_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
-static int vf610_nfc_read_page_raw(struct mtd_info *mtd,
-				   struct nand_chip *chip, u8 *buf,
+static int vf610_nfc_read_page_raw(struct nand_chip *chip, u8 *buf,
 				   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int ret;
 
 	nfc->data_access = true;
-	ret = nand_read_page_raw(mtd, chip, buf, oob_required, page);
+	ret = nand_read_page_raw(chip, buf, oob_required, page);
 	nfc->data_access = false;
 
 	return ret;
 }
 
-static int vf610_nfc_write_page_raw(struct mtd_info *mtd,
-				    struct nand_chip *chip, const u8 *buf,
+static int vf610_nfc_write_page_raw(struct nand_chip *chip, const u8 *buf,
 				    int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int ret;
 
@@ -677,22 +679,21 @@ static int vf610_nfc_write_page_raw(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 }
 
-static int vf610_nfc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			      int page)
+static int vf610_nfc_read_oob(struct nand_chip *chip, int page)
 {
-	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
+	struct vf610_nfc *nfc = mtd_to_nfc(nand_to_mtd(chip));
 	int ret;
 
 	nfc->data_access = true;
-	ret = nand_read_oob_std(mtd, chip, page);
+	ret = nand_read_oob_std(chip, page);
 	nfc->data_access = false;
 
 	return ret;
 }
 
-static int vf610_nfc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			       int page)
+static int vf610_nfc_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int ret;
 
@@ -892,7 +893,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 
 	/* Scan the NAND chip */
 	chip->dummy_controller.ops = &vf610_nfc_controller_ops;
-	err = nand_scan(mtd, 1);
+	err = nand_scan(chip, 1);
 	if (err)
 		goto err_disable_clk;
 
@@ -916,7 +917,7 @@ static int vf610_nfc_remove(struct platform_device *pdev)
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 
-	nand_release(mtd);
+	nand_release(mtd_to_nand(mtd));
 	clk_disable_unprepare(nfc->clk);
 	return 0;
 }

@@ -114,9 +114,37 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%s", &dev->attr.fw_ver[0]);
 }
 
+/* OCRDMA sysfs interface */
+static ssize_t hw_rev_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
+}
+static DEVICE_ATTR_RO(hw_rev);
+
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
+}
+static DEVICE_ATTR_RO(hca_type);
+
+static struct attribute *ocrdma_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	NULL
+};
+
+static const struct attribute_group ocrdma_attr_group = {
+	.attrs = ocrdma_attributes,
+};
+
 static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
-	strlcpy(dev->ibdev.name, "ocrdma%d", IB_DEVICE_NAME_MAX);
 	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
@@ -213,8 +241,9 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 		dev->ibdev.destroy_srq = ocrdma_destroy_srq;
 		dev->ibdev.post_srq_recv = ocrdma_post_srq_recv;
 	}
+	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_OCRDMA;
-	return ib_register_device(&dev->ibdev, NULL);
+	return ib_register_device(&dev->ibdev, "ocrdma%d", NULL);
 }
 
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
@@ -260,42 +289,9 @@ static void ocrdma_free_resources(struct ocrdma_dev *dev)
 	kfree(dev->cq_tbl);
 }
 
-/* OCRDMA sysfs interface */
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
-
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
-}
-
-static ssize_t show_hca_type(struct device *device,
-			     struct device_attribute *attr, char *buf)
-{
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
-
-	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
-}
-
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca_type, NULL);
-
-static struct device_attribute *ocrdma_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type
-};
-
-static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ocrdma_attributes); i++)
-		device_remove_file(&dev->ibdev.dev, ocrdma_attributes[i]);
-}
-
 static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 {
-	int status = 0, i;
+	int status = 0;
 	u8 lstate = 0;
 	struct ocrdma_dev *dev;
 
@@ -331,9 +327,6 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	if (!status)
 		ocrdma_update_link_state(dev, lstate);
 
-	for (i = 0; i < ARRAY_SIZE(ocrdma_attributes); i++)
-		if (device_create_file(&dev->ibdev.dev, ocrdma_attributes[i]))
-			goto sysfs_err;
 	/* Init stats */
 	ocrdma_add_port_stats(dev);
 	/* Interrupt Moderation */
@@ -348,8 +341,6 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		dev_name(&dev->nic_info.pdev->dev), dev->id);
 	return dev;
 
-sysfs_err:
-	ocrdma_remove_sysfiles(dev);
 alloc_err:
 	ocrdma_free_resources(dev);
 	ocrdma_cleanup_hw(dev);
@@ -376,7 +367,6 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	 * of the registered clients.
 	 */
 	cancel_delayed_work_sync(&dev->eqd_work);
-	ocrdma_remove_sysfiles(dev);
 	ib_unregister_device(&dev->ibdev);
 
 	ocrdma_rem_port_stats(dev);

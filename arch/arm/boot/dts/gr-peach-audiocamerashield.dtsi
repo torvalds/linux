@@ -69,10 +69,6 @@
 
 	port {
 		ceu_in: endpoint {
-			hsync-active = <1>;
-			vsync-active = <1>;
-			bus-width = <8>;
-			pclk-sample = <1>;
 			remote-endpoint = <&mt9v111_out>;
 		};
 	};

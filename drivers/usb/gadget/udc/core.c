@@ -690,6 +690,9 @@ EXPORT_SYMBOL_GPL(usb_gadget_connect);
  * as a disconnect (when a VBUS session is active).  Not all systems
  * support software pullup controls.
  *
+ * Following a successful disconnect, invoke the ->disconnect() callback
+ * for the current gadget driver so that UDC drivers don't need to.
+ *
  * Returns zero on success, else negative errno.
  */
 int usb_gadget_disconnect(struct usb_gadget *gadget)
@@ -711,8 +714,10 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 	}
 
 	ret = gadget->ops->pullup(gadget, 0);
-	if (!ret)
+	if (!ret) {
 		gadget->connected = 0;
+		gadget->udc->driver->disconnect(gadget);
+	}
 
 out:
 	trace_usb_gadget_disconnect(gadget, ret);
@@ -1281,7 +1286,6 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
 	usb_gadget_disconnect(udc->gadget);
-	udc->driver->disconnect(udc->gadget);
 	udc->driver->unbind(udc->gadget);
 	usb_gadget_udc_stop(udc);
 
@@ -1471,7 +1475,6 @@ static ssize_t soft_connect_store(struct device *dev,
 		usb_gadget_connect(udc->gadget);
 	} else if (sysfs_streq(buf, "disconnect")) {
 		usb_gadget_disconnect(udc->gadget);
-		udc->driver->disconnect(udc->gadget);
 		usb_gadget_udc_stop(udc);
 	} else {
 		dev_err(dev, "unsupported command '%s'\n", buf);

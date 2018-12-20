@@ -65,11 +65,6 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 	return block->q;
 }
 
-static inline struct net_device *tcf_block_dev(struct tcf_block *block)
-{
-	return tcf_block_q(block)->dev_queue->dev;
-}
-
 void *tcf_block_cb_priv(struct tcf_block_cb *block_cb);
 struct tcf_block_cb *tcf_block_cb_lookup(struct tcf_block *block,
 					 tc_setup_cb_t *cb, void *cb_ident);
@@ -118,11 +113,6 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 }
 
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
-{
-	return NULL;
-}
-
-static inline struct net_device *tcf_block_dev(struct tcf_block *block)
 {
 	return NULL;
 }
@@ -318,7 +308,7 @@ tcf_exts_stats_update(const struct tcf_exts *exts,
 	for (i = 0; i < exts->nr_actions; i++) {
 		struct tc_action *a = exts->actions[i];
 
-		tcf_action_stats_update(a, bytes, packets, lastuse);
+		tcf_action_stats_update(a, bytes, packets, lastuse, true);
 	}
 
 	preempt_enable();

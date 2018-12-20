@@ -285,7 +285,7 @@ static int max77620_config_fps(struct max77620_chip *chip,
 	}
 
 	if (fps_id == MAX77620_FPS_COUNT) {
-		dev_err(dev, "FPS node name %s is not valid\n", fps_np->name);
+		dev_err(dev, "FPS node name %pOFn is not valid\n", fps_np);
 		return -EINVAL;
 	}
 

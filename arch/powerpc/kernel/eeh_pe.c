@@ -75,7 +75,6 @@ static struct eeh_pe *eeh_pe_alloc(struct pci_controller *phb, int type)
 	pe->type = type;
 	pe->phb = phb;
 	INIT_LIST_HEAD(&pe->child_list);
-	INIT_LIST_HEAD(&pe->child);
 	INIT_LIST_HEAD(&pe->edevs);
 
 	pe->data = (void *)pe + ALIGN(sizeof(struct eeh_pe),
@@ -107,6 +106,57 @@ int eeh_phb_pe_create(struct pci_controller *phb)
 	pr_debug("EEH: Add PE for PHB#%x\n", phb->global_number);
 
 	return 0;
+}
+
+/**
+ * eeh_wait_state - Wait for PE state
+ * @pe: EEH PE
+ * @max_wait: maximal period in millisecond
+ *
+ * Wait for the state of associated PE. It might take some time
+ * to retrieve the PE's state.
+ */
+int eeh_wait_state(struct eeh_pe *pe, int max_wait)
+{
+	int ret;
+	int mwait;
+
+	/*
+	 * According to PAPR, the state of PE might be temporarily
+	 * unavailable. Under the circumstance, we have to wait
+	 * for indicated time determined by firmware. The maximal
+	 * wait time is 5 minutes, which is acquired from the original
+	 * EEH implementation. Also, the original implementation
+	 * also defined the minimal wait time as 1 second.
+	 */
+#define EEH_STATE_MIN_WAIT_TIME	(1000)
+#define EEH_STATE_MAX_WAIT_TIME	(300 * 1000)
+
+	while (1) {
+		ret = eeh_ops->get_state(pe, &mwait);
+
+		if (ret != EEH_STATE_UNAVAILABLE)
+			return ret;
+
+		if (max_wait <= 0) {
+			pr_warn("%s: Timeout when getting PE's state (%d)\n",
+				__func__, max_wait);
+			return EEH_STATE_NOT_SUPPORT;
+		}
+
+		if (mwait < EEH_STATE_MIN_WAIT_TIME) {
+			pr_warn("%s: Firmware returned bad wait value %d\n",
+				__func__, mwait);
+			mwait = EEH_STATE_MIN_WAIT_TIME;
+		} else if (mwait > EEH_STATE_MAX_WAIT_TIME) {
+			pr_warn("%s: Firmware returned too long wait value %d\n",
+				__func__, mwait);
+			mwait = EEH_STATE_MAX_WAIT_TIME;
+		}
+
+		msleep(min(mwait, max_wait));
+		max_wait -= mwait;
+	}
 }
 
 /**
@@ -360,7 +410,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 		edev->pe = pe;
 
 		/* Put the edev to PE */
-		list_add_tail(&edev->list, &pe->edevs);
+		list_add_tail(&edev->entry, &pe->edevs);
 		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
 			 pdn->phb->global_number,
 			 pdn->busno,
@@ -369,7 +419,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 			 pe->addr);
 		return 0;
 	} else if (pe && (pe->type & EEH_PE_INVALID)) {
-		list_add_tail(&edev->list, &pe->edevs);
+		list_add_tail(&edev->entry, &pe->edevs);
 		edev->pe = pe;
 		/*
 		 * We're running to here because of PCI hotplug caused by
@@ -379,7 +429,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 		while (parent) {
 			if (!(parent->type & EEH_PE_INVALID))
 				break;
-			parent->type &= ~(EEH_PE_INVALID | EEH_PE_KEEP);
+			parent->type &= ~EEH_PE_INVALID;
 			parent = parent->parent;
 		}
 
@@ -429,7 +479,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 * link the EEH device accordingly.
 	 */
 	list_add_tail(&pe->child, &parent->child_list);
-	list_add_tail(&edev->list, &pe->edevs);
+	list_add_tail(&edev->entry, &pe->edevs);
 	edev->pe = pe;
 	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
 		 "Device PE#%x, Parent PE#%x\n",
@@ -457,7 +507,8 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	int cnt;
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
-	if (!edev->pe) {
+	pe = eeh_dev_to_pe(edev);
+	if (!pe) {
 		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
 			 __func__,  pdn->phb->global_number,
 			 pdn->busno,
@@ -467,9 +518,8 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	}
 
 	/* Remove the EEH device */
-	pe = eeh_dev_to_pe(edev);
 	edev->pe = NULL;
-	list_del(&edev->list);
+	list_del(&edev->entry);
 
 	/*
 	 * Check if the parent PE includes any EEH devices.
@@ -541,44 +591,6 @@ void eeh_pe_update_time_stamp(struct eeh_pe *pe)
 }
 
 /**
- * __eeh_pe_state_mark - Mark the state for the PE
- * @data: EEH PE
- * @flag: state
- *
- * The function is used to mark the indicated state for the given
- * PE. Also, the associated PCI devices will be put into IO frozen
- * state as well.
- */
-static void *__eeh_pe_state_mark(struct eeh_pe *pe, void *flag)
-{
-	int state = *((int *)flag);
-	struct eeh_dev *edev, *tmp;
-	struct pci_dev *pdev;
-
-	/* Keep the state of permanently removed PE intact */
-	if (pe->state & EEH_PE_REMOVED)
-		return NULL;
-
-	pe->state |= state;
-
-	/* Offline PCI devices if applicable */
-	if (!(state & EEH_PE_ISOLATED))
-		return NULL;
-
-	eeh_pe_for_each_dev(pe, edev, tmp) {
-		pdev = eeh_dev_to_pci_dev(edev);
-		if (pdev)
-			pdev->error_state = pci_channel_io_frozen;
-	}
-
-	/* Block PCI config access if required */
-	if (pe->state & EEH_PE_CFG_RESTRICTED)
-		pe->state |= EEH_PE_CFG_BLOCKED;
-
-	return NULL;
-}
-
-/**
  * eeh_pe_state_mark - Mark specified state for PE and its associated device
  * @pe: EEH PE
  *
@@ -586,11 +598,43 @@ static void *__eeh_pe_state_mark(struct eeh_pe *pe, void *flag)
  * is used to mark appropriate state for the affected PEs and the
  * associated devices.
  */
-void eeh_pe_state_mark(struct eeh_pe *pe, int state)
+void eeh_pe_state_mark(struct eeh_pe *root, int state)
 {
-	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
+	struct eeh_pe *pe;
+
+	eeh_for_each_pe(root, pe)
+		if (!(pe->state & EEH_PE_REMOVED))
+			pe->state |= state;
 }
 EXPORT_SYMBOL_GPL(eeh_pe_state_mark);
+
+/**
+ * eeh_pe_mark_isolated
+ * @pe: EEH PE
+ *
+ * Record that a PE has been isolated by marking the PE and it's children as
+ * EEH_PE_ISOLATED (and EEH_PE_CFG_BLOCKED, if required) and their PCI devices
+ * as pci_channel_io_frozen.
+ */
+void eeh_pe_mark_isolated(struct eeh_pe *root)
+{
+	struct eeh_pe *pe;
+	struct eeh_dev *edev;
+	struct pci_dev *pdev;
+
+	eeh_pe_state_mark(root, EEH_PE_ISOLATED);
+	eeh_for_each_pe(root, pe) {
+		list_for_each_entry(edev, &pe->edevs, entry) {
+			pdev = eeh_dev_to_pci_dev(edev);
+			if (pdev)
+				pdev->error_state = pci_channel_io_frozen;
+		}
+		/* Block PCI config access if required */
+		if (pe->state & EEH_PE_CFG_RESTRICTED)
+			pe->state |= EEH_PE_CFG_BLOCKED;
+	}
+}
+EXPORT_SYMBOL_GPL(eeh_pe_mark_isolated);
 
 static void *__eeh_pe_dev_mode_mark(struct eeh_dev *edev, void *flag)
 {
@@ -668,28 +712,6 @@ static void *__eeh_pe_state_clear(struct eeh_pe *pe, void *flag)
  */
 void eeh_pe_state_clear(struct eeh_pe *pe, int state)
 {
-	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
-}
-
-/**
- * eeh_pe_state_mark_with_cfg - Mark PE state with unblocked config space
- * @pe: PE
- * @state: PE state to be set
- *
- * Set specified flag to PE and its child PEs. The PCI config space
- * of some PEs is blocked automatically when EEH_PE_ISOLATED is set,
- * which isn't needed in some situations. The function allows to set
- * the specified flag to indicated PEs without blocking their PCI
- * config space.
- */
-void eeh_pe_state_mark_with_cfg(struct eeh_pe *pe, int state)
-{
-	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
-	if (!(state & EEH_PE_ISOLATED))
-		return;
-
-	/* Clear EEH_PE_CFG_BLOCKED, which might be set just now */
-	state = EEH_PE_CFG_BLOCKED;
 	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
 }
 
@@ -945,7 +967,7 @@ struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
 		return pe->bus;
 
 	/* Retrieve the parent PCI bus of first (top) PCI device */
-	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, list);
+	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, entry);
 	pdev = eeh_dev_to_pci_dev(edev);
 	if (pdev)
 		return pdev->bus;

@@ -419,6 +419,7 @@ static void tm6000_irq_callback(struct urb *urb)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
+	unsigned long flags;
 	int i;
 
 	switch (urb->status) {
@@ -436,9 +437,9 @@ static void tm6000_irq_callback(struct urb *urb)
 		break;
 	}
 
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 	tm6000_isoc_copy(urb);
-	spin_unlock(&dev->slock);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
@@ -855,8 +856,9 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct tm6000_core *dev = ((struct tm6000_fh *)priv)->dev;
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(cap->driver, "tm6000", sizeof(cap->driver));
-	strlcpy(cap->card, "Trident TVMaster TM5600/6000/6010", sizeof(cap->card));
+	strscpy(cap->driver, "tm6000", sizeof(cap->driver));
+	strscpy(cap->card, "Trident TVMaster TM5600/6000/6010",
+		sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->device_caps |= V4L2_CAP_TUNER;
@@ -878,7 +880,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index >= ARRAY_SIZE(format))
 		return -EINVAL;
 
-	strlcpy(f->description, format[f->index].name, sizeof(f->description));
+	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 	return 0;
 }
@@ -1090,7 +1092,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	else
 		i->type = V4L2_INPUT_TYPE_CAMERA;
 
-	strcpy(i->name, iname[dev->vinput[n].type]);
+	strscpy(i->name, iname[dev->vinput[n].type], sizeof(i->name));
 
 	i->std = TM6000_STD;
 
@@ -1187,7 +1189,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	strcpy(t->name, "Television");
+	strscpy(t->name, "Television", sizeof(t->name));
 	t->type       = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO;
 	t->rangehigh  = 0xffffffffUL;
@@ -1267,7 +1269,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	memset(t, 0, sizeof(*t));
-	strcpy(t->name, "Radio");
+	strscpy(t->name, "Radio", sizeof(t->name));
 	t->type = V4L2_TUNER_RADIO;
 	t->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 	t->rxsubchans = V4L2_TUNER_SUB_STEREO;
@@ -1625,7 +1627,7 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 	v4l2_ctrl_new_std(&dev->ctrl_handler, &tm6000_ctrl_ops,
 			V4L2_CID_HUE, -128, 127, 1, 0);
 	v4l2_ctrl_add_handler(&dev->ctrl_handler,
-			&dev->radio_ctrl_handler, NULL);
+			&dev->radio_ctrl_handler, NULL, false);
 
 	if (dev->radio_ctrl_handler.error)
 		ret = dev->radio_ctrl_handler.error;

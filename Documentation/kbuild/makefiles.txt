@@ -537,21 +537,6 @@ more details, with real examples.
 	The third parameter may be a text as in this example, but it may also
 	be an expanded variable or a macro.
 
-    cc-fullversion
-	cc-fullversion is useful when the exact version of gcc is needed.
-	One typical use-case is when a specific GCC version is broken.
-	cc-fullversion points out a more specific version than cc-version does.
-
-	Example:
-		#arch/powerpc/Makefile
-		$(Q)if test "$(cc-fullversion)" = "040200" ; then \
-			echo -n '*** GCC-4.2.0 cannot compile the 64-bit powerpc ' ; \
-			false ; \
-		fi
-
-	In this example for a specific GCC version the build will error out
-	explaining to the user why it stops.
-
     cc-cross-prefix
 	cc-cross-prefix is used to check if there exists a $(CC) in path with
 	one of the listed prefixes. The first prefix where there exist a

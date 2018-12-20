@@ -906,7 +906,7 @@ static void cmd_loop(unsigned char *src, int numbytes, struct inbuf_t *inbuf)
 				cs->respdata[0] = 0;
 				break;
 			}
-			/* --v-- fall through --v-- */
+			/* fall through */
 		case '\r':
 			/* end of message line, pass to response handler */
 			if (cbytes >= MAX_RESP_SIZE) {

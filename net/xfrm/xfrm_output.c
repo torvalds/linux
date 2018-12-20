@@ -193,7 +193,7 @@ static int xfrm_output_gso(struct net *net, struct sock *sk, struct sk_buff *skb
 		struct sk_buff *nskb = segs->next;
 		int err;
 
-		segs->next = NULL;
+		skb_mark_not_on_list(segs);
 		err = xfrm_output2(net, sk, segs);
 
 		if (unlikely(err)) {

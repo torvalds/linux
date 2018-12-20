@@ -49,6 +49,7 @@
 #define   WQ_TYPE_BATCH_BUF		(0x1 << WQ_TYPE_SHIFT)
 #define   WQ_TYPE_PSEUDO		(0x2 << WQ_TYPE_SHIFT)
 #define   WQ_TYPE_INORDER		(0x3 << WQ_TYPE_SHIFT)
+#define   WQ_TYPE_NOOP			(0x4 << WQ_TYPE_SHIFT)
 #define WQ_TARGET_SHIFT			10
 #define WQ_LEN_SHIFT			16
 #define WQ_NO_WCFLUSH_WAIT		(1 << 27)

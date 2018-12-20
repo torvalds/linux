@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas R-Car Gen3 for USB2.0 PHY driver
  *
@@ -6,10 +7,6 @@
  * This is based on the phy-rcar-gen2 driver:
  * Copyright (C) 2014 Renesas Solutions Corp.
  * Copyright (C) 2014 Cogent Embedded, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/extcon-provider.h>
@@ -81,17 +78,28 @@
 #define USB2_ADPCTRL_IDPULLUP		BIT(5)	/* 1 = ID sampling is enabled */
 #define USB2_ADPCTRL_DRVVBUS		BIT(4)
 
-#define RCAR_GEN3_PHY_HAS_DEDICATED_PINS	1
-
 struct rcar_gen3_chan {
 	void __iomem *base;
 	struct extcon_dev *extcon;
 	struct phy *phy;
 	struct regulator *vbus;
 	struct work_struct work;
+	enum usb_dr_mode dr_mode;
 	bool extcon_host;
-	bool has_otg_pins;
+	bool is_otg_channel;
+	bool uses_otg_pins;
 };
+
+/*
+ * Combination about is_otg_channel and uses_otg_pins:
+ *
+ * Parameters				|| Behaviors
+ * is_otg_channel	| uses_otg_pins	|| irqs		| role sysfs
+ * ---------------------+---------------++--------------+------------
+ * true			| true		|| enabled	| enabled
+ * true                 | false		|| disabled	| enabled
+ * false                | any		|| disabled	| disabled
+ */
 
 static void rcar_gen3_phy_usb2_work(struct work_struct *work)
 {
@@ -147,6 +155,18 @@ static void rcar_gen3_enable_vbus_ctrl(struct rcar_gen3_chan *ch, int vbus)
 	writel(val, usb2_base + USB2_ADPCTRL);
 }
 
+static void rcar_gen3_control_otg_irq(struct rcar_gen3_chan *ch, int enable)
+{
+	void __iomem *usb2_base = ch->base;
+	u32 val = readl(usb2_base + USB2_OBINTEN);
+
+	if (ch->uses_otg_pins && enable)
+		val |= USB2_OBINT_BITS;
+	else
+		val &= ~USB2_OBINT_BITS;
+	writel(val, usb2_base + USB2_OBINTEN);
+}
+
 static void rcar_gen3_init_for_host(struct rcar_gen3_chan *ch)
 {
 	rcar_gen3_set_linectrl(ch, 1, 1);
@@ -192,20 +212,19 @@ static void rcar_gen3_init_for_a_peri(struct rcar_gen3_chan *ch)
 
 static void rcar_gen3_init_from_a_peri_to_a_host(struct rcar_gen3_chan *ch)
 {
-	void __iomem *usb2_base = ch->base;
-	u32 val;
+	rcar_gen3_control_otg_irq(ch, 0);
 
-	val = readl(usb2_base + USB2_OBINTEN);
-	writel(val & ~USB2_OBINT_BITS, usb2_base + USB2_OBINTEN);
-
-	rcar_gen3_enable_vbus_ctrl(ch, 0);
+	rcar_gen3_enable_vbus_ctrl(ch, 1);
 	rcar_gen3_init_for_host(ch);
 
-	writel(val | USB2_OBINT_BITS, usb2_base + USB2_OBINTEN);
+	rcar_gen3_control_otg_irq(ch, 1);
 }
 
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 {
+	if (!ch->uses_otg_pins)
+		return (ch->dr_mode == USB_DR_MODE_HOST) ? false : true;
+
 	return !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
 }
 
@@ -237,7 +256,7 @@ static ssize_t role_store(struct device *dev, struct device_attribute *attr,
 	bool is_b_device;
 	enum phy_mode cur_mode, new_mode;
 
-	if (!ch->has_otg_pins || !ch->phy->init_count)
+	if (!ch->is_otg_channel || !ch->phy->init_count)
 		return -EIO;
 
 	if (!strncmp(buf, "host", strlen("host")))
@@ -275,7 +294,7 @@ static ssize_t role_show(struct device *dev, struct device_attribute *attr,
 {
 	struct rcar_gen3_chan *ch = dev_get_drvdata(dev);
 
-	if (!ch->has_otg_pins || !ch->phy->init_count)
+	if (!ch->is_otg_channel || !ch->phy->init_count)
 		return -EIO;
 
 	return sprintf(buf, "%s\n", rcar_gen3_is_host(ch) ? "host" :
@@ -291,8 +310,7 @@ static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 	val = readl(usb2_base + USB2_VBCTRL);
 	writel(val | USB2_VBCTRL_DRVVBUSSEL, usb2_base + USB2_VBCTRL);
 	writel(USB2_OBINT_BITS, usb2_base + USB2_OBINTSTA);
-	val = readl(usb2_base + USB2_OBINTEN);
-	writel(val | USB2_OBINT_BITS, usb2_base + USB2_OBINTEN);
+	rcar_gen3_control_otg_irq(ch, 1);
 	val = readl(usb2_base + USB2_ADPCTRL);
 	writel(val | USB2_ADPCTRL_IDPULLUP, usb2_base + USB2_ADPCTRL);
 	val = readl(usb2_base + USB2_LINECTRL1);
@@ -314,7 +332,7 @@ static int rcar_gen3_phy_usb2_init(struct phy *p)
 	writel(USB2_OC_TIMSET_INIT, usb2_base + USB2_OC_TIMSET);
 
 	/* Initialize otg part */
-	if (channel->has_otg_pins)
+	if (channel->is_otg_channel)
 		rcar_gen3_init_otg(channel);
 
 	return 0;
@@ -388,21 +406,10 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 }
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
-	{
-		.compatible = "renesas,usb2-phy-r8a7795",
-		.data = (void *)RCAR_GEN3_PHY_HAS_DEDICATED_PINS,
-	},
-	{
-		.compatible = "renesas,usb2-phy-r8a7796",
-		.data = (void *)RCAR_GEN3_PHY_HAS_DEDICATED_PINS,
-	},
-	{
-		.compatible = "renesas,usb2-phy-r8a77965",
-		.data = (void *)RCAR_GEN3_PHY_HAS_DEDICATED_PINS,
-	},
-	{
-		.compatible = "renesas,rcar-gen3-usb2-phy",
-	},
+	{ .compatible = "renesas,usb2-phy-r8a7795" },
+	{ .compatible = "renesas,usb2-phy-r8a7796" },
+	{ .compatible = "renesas,usb2-phy-r8a77965" },
+	{ .compatible = "renesas,rcar-gen3-usb2-phy" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_phy_usb2_match_table);
@@ -445,10 +452,13 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 			dev_err(dev, "No irq handler (%d)\n", irq);
 	}
 
-	if (of_usb_get_dr_mode_by_phy(dev->of_node, 0) == USB_DR_MODE_OTG) {
+	channel->dr_mode = of_usb_get_dr_mode_by_phy(dev->of_node, 0);
+	if (channel->dr_mode != USB_DR_MODE_UNKNOWN) {
 		int ret;
 
-		channel->has_otg_pins = (uintptr_t)of_device_get_match_data(dev);
+		channel->is_otg_channel = true;
+		channel->uses_otg_pins = !of_property_read_bool(dev->of_node,
+							"renesas,no-otg-pins");
 		channel->extcon = devm_extcon_dev_allocate(dev,
 							rcar_gen3_phy_cable);
 		if (IS_ERR(channel->extcon))
@@ -490,7 +500,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register PHY provider\n");
 		ret = PTR_ERR(provider);
 		goto error;
-	} else if (channel->has_otg_pins) {
+	} else if (channel->is_otg_channel) {
 		int ret;
 
 		ret = device_create_file(dev, &dev_attr_role);
@@ -510,7 +520,7 @@ static int rcar_gen3_phy_usb2_remove(struct platform_device *pdev)
 {
 	struct rcar_gen3_chan *channel = platform_get_drvdata(pdev);
 
-	if (channel->has_otg_pins)
+	if (channel->is_otg_channel)
 		device_remove_file(&pdev->dev, &dev_attr_role);
 
 	pm_runtime_disable(&pdev->dev);

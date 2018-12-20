@@ -770,33 +770,6 @@ static const char *ds1685_rtc_sqw_freq[16] = {
 	"512Hz", "256Hz", "128Hz", "64Hz", "32Hz", "16Hz", "8Hz", "4Hz", "2Hz"
 };
 
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-/**
- * ds1685_rtc_print_regs - helper function to print register values.
- * @hex: hex byte to convert into binary bits.
- * @dest: destination char array.
- *
- * This is basically a hex->binary function, just with extra spacing between
- * the digits.  It only works on 1-byte values (8 bits).
- */
-static char*
-ds1685_rtc_print_regs(u8 hex, char *dest)
-{
-	u32 i, j;
-	char *tmp = dest;
-
-	for (i = 0; i < NUM_BITS; i++) {
-		*tmp++ = ((hex & 0x80) != 0 ? '1' : '0');
-		for (j = 0; j < NUM_SPACES; j++)
-			*tmp++ = ' ';
-		hex <<= 1;
-	}
-	*tmp++ = '\0';
-
-	return dest;
-}
-#endif
-
 /**
  * ds1685_rtc_proc - procfs access function.
  * @dev: pointer to device structure.
@@ -805,13 +778,9 @@ ds1685_rtc_print_regs(u8 hex, char *dest)
 static int
 ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ctrla, ctrlb, ctrlc, ctrld, ctrl4a, ctrl4b, ssn[8];
 	char *model;
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-	char bits[NUM_REGS][(NUM_BITS * NUM_SPACES) + NUM_BITS + 1];
-#endif
 
 	/* Read all the relevant data from the control registers. */
 	ds1685_rtc_switch_to_bank1(rtc);
@@ -859,28 +828,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   "Periodic IRQ\t: %s\n"
 	   "Periodic Rate\t: %s\n"
 	   "SQW Freq\t: %s\n"
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   "Serial #\t: %8phC\n"
-	   "Register Status\t:\n"
-	   "   Ctrl A\t: UIP  DV2  DV1  DV0  RS3  RS2  RS1  RS0\n"
-	   "\t\t:  %s\n"
-	   "   Ctrl B\t: SET  PIE  AIE  UIE  SQWE  DM  2412 DSE\n"
-	   "\t\t:  %s\n"
-	   "   Ctrl C\t: IRQF  PF   AF   UF  ---  ---  ---  ---\n"
-	   "\t\t:  %s\n"
-	   "   Ctrl D\t: VRT  ---  ---  ---  ---  ---  ---  ---\n"
-	   "\t\t:  %s\n"
-#if !defined(CONFIG_RTC_DRV_DS1685) && !defined(CONFIG_RTC_DRV_DS1689)
-	   "   Ctrl 4A\t: VRT2 INCR BME  ---  PAB   RF   WF   KF\n"
-#else
-	   "   Ctrl 4A\t: VRT2 INCR ---  ---  PAB   RF   WF   KF\n"
-#endif
-	   "\t\t:  %s\n"
-	   "   Ctrl 4B\t: ABE  E32k  CS  RCE  PRS  RIE  WIE  KSE\n"
-	   "\t\t:  %s\n",
-#else
 	   "Serial #\t: %8phC\n",
-#endif
 	   model,
 	   ((ctrla & RTC_CTRL_A_DV1) ? "enabled" : "disabled"),
 	   ((ctrlb & RTC_CTRL_B_2412) ? "24-hour" : "12-hour"),
@@ -894,17 +842,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	    ds1685_rtc_pirq_rate[(ctrla & RTC_CTRL_A_RS_MASK)] : "none"),
 	   (!((ctrl4b & RTC_CTRL_4B_E32K)) ?
 	    ds1685_rtc_sqw_freq[(ctrla & RTC_CTRL_A_RS_MASK)] : "32768Hz"),
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   ssn,
-	   ds1685_rtc_print_regs(ctrla, bits[0]),
-	   ds1685_rtc_print_regs(ctrlb, bits[1]),
-	   ds1685_rtc_print_regs(ctrlc, bits[2]),
-	   ds1685_rtc_print_regs(ctrld, bits[3]),
-	   ds1685_rtc_print_regs(ctrl4a, bits[4]),
-	   ds1685_rtc_print_regs(ctrl4b, bits[5]));
-#else
 	   ssn);
-#endif
 	return 0;
 }
 #else
@@ -927,30 +865,13 @@ ds1685_rtc_ops = {
 };
 /* ----------------------------------------------------------------------- */
 
-
-/* ----------------------------------------------------------------------- */
-/* SysFS interface */
-
-#ifdef CONFIG_SYSFS
-/**
- * ds1685_rtc_sysfs_nvram_read - reads rtc nvram via sysfs.
- * @file: pointer to file structure.
- * @kobj: pointer to kobject structure.
- * @bin_attr: pointer to bin_attribute structure.
- * @buf: pointer to char array to hold the output.
- * @pos: current file position pointer.
- * @size: size of the data to read.
- */
-static ssize_t
-ds1685_rtc_sysfs_nvram_read(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
-			    loff_t pos, size_t size)
+static int ds1685_nvram_read(void *priv, unsigned int pos, void *val,
+			     size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = priv;
 	ssize_t count;
 	unsigned long flags = 0;
+	u8 *buf = val;
 
 	spin_lock_irqsave(&rtc->lock, flags);
 	ds1685_rtc_switch_to_bank0(rtc);
@@ -1004,33 +925,16 @@ ds1685_rtc_sysfs_nvram_read(struct file *filp, struct kobject *kobj,
 #endif /* !CONFIG_RTC_DRV_DS1689 */
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
-	/*
-	 * XXX: Bug? this appears to cause the function to get executed
-	 * several times in succession.  But it's the only way to actually get
-	 * data written out to a file.
-	 */
-	return count;
+	return 0;
 }
 
-/**
- * ds1685_rtc_sysfs_nvram_write - writes rtc nvram via sysfs.
- * @file: pointer to file structure.
- * @kobj: pointer to kobject structure.
- * @bin_attr: pointer to bin_attribute structure.
- * @buf: pointer to char array to hold the input.
- * @pos: current file position pointer.
- * @size: size of the data to write.
- */
-static ssize_t
-ds1685_rtc_sysfs_nvram_write(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *buf,
-			     loff_t pos, size_t size)
+static int ds1685_nvram_write(void *priv, unsigned int pos, void *val,
+			      size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = priv;
 	ssize_t count;
 	unsigned long flags = 0;
+	u8 *buf = val;
 
 	spin_lock_irqsave(&rtc->lock, flags);
 	ds1685_rtc_switch_to_bank0(rtc);
@@ -1084,26 +988,11 @@ ds1685_rtc_sysfs_nvram_write(struct file *filp, struct kobject *kobj,
 #endif /* !CONFIG_RTC_DRV_DS1689 */
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
-	return count;
+	return 0;
 }
 
-/**
- * struct ds1685_rtc_sysfs_nvram_attr - sysfs attributes for rtc nvram.
- * @attr: nvram attributes.
- * @read: nvram read function.
- * @write: nvram write function.
- * @size: nvram total size (bank0 + extended).
- */
-static struct bin_attribute
-ds1685_rtc_sysfs_nvram_attr = {
-	.attr = {
-		.name = "nvram",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.read = ds1685_rtc_sysfs_nvram_read,
-	.write = ds1685_rtc_sysfs_nvram_write,
-	.size = NVRAM_TOTAL_SZ
-};
+/* ----------------------------------------------------------------------- */
+/* SysFS interface */
 
 /**
  * ds1685_rtc_sysfs_battery_show - sysfs file for main battery status.
@@ -1188,43 +1077,6 @@ ds1685_rtc_sysfs_misc_grp = {
 	.attrs = ds1685_rtc_sysfs_misc_attrs,
 };
 
-/**
- * ds1685_rtc_sysfs_register - register sysfs files.
- * @dev: pointer to device structure.
- */
-static int
-ds1685_rtc_sysfs_register(struct device *dev)
-{
-	int ret = 0;
-
-	sysfs_bin_attr_init(&ds1685_rtc_sysfs_nvram_attr);
-	ret = sysfs_create_bin_file(&dev->kobj, &ds1685_rtc_sysfs_nvram_attr);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_misc_grp);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-/**
- * ds1685_rtc_sysfs_unregister - unregister sysfs files.
- * @dev: pointer to device structure.
- */
-static int
-ds1685_rtc_sysfs_unregister(struct device *dev)
-{
-	sysfs_remove_bin_file(&dev->kobj, &ds1685_rtc_sysfs_nvram_attr);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_misc_grp);
-
-	return 0;
-}
-#endif /* CONFIG_SYSFS */
-
-
-
 /* ----------------------------------------------------------------------- */
 /* Driver Probe/Removal */
 
@@ -1242,6 +1094,12 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	u8 ctrla, ctrlb, hours;
 	unsigned char am_pm;
 	int ret = 0;
+	struct nvmem_config nvmem_cfg = {
+		.name = "ds1685_nvram",
+		.size = NVRAM_TOTAL_SZ,
+		.reg_read = ds1685_nvram_read,
+		.reg_write = ds1685_nvram_write,
+	};
 
 	/* Get the platform data. */
 	pdata = (struct ds1685_rtc_platform_data *) pdev->dev.platform_data;
@@ -1499,11 +1357,15 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* Setup complete. */
 	ds1685_rtc_switch_to_bank0(rtc);
 
-#ifdef CONFIG_SYSFS
-	ret = ds1685_rtc_sysfs_register(&pdev->dev);
+	ret = rtc_add_group(rtc_dev, &ds1685_rtc_sysfs_misc_grp);
 	if (ret)
 		return ret;
-#endif
+
+	rtc_dev->nvram_old_abi = true;
+	nvmem_cfg.priv = rtc;
+	ret = rtc_nvmem_register(rtc_dev, &nvmem_cfg);
+	if (ret)
+		return ret;
 
 	return rtc_register_device(rtc_dev);
 }
@@ -1516,10 +1378,6 @@ static int
 ds1685_rtc_remove(struct platform_device *pdev)
 {
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
-
-#ifdef CONFIG_SYSFS
-	ds1685_rtc_sysfs_unregister(&pdev->dev);
-#endif
 
 	/* Read Ctrl B and clear PIE/AIE/UIE. */
 	rtc->write(rtc, RTC_CTRL_B,

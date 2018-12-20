@@ -1698,8 +1698,8 @@ SYSCALL_DEFINE4(semctl, int, semid, int, semnum, int, cmd, unsigned long, arg)
 
 struct compat_semid_ds {
 	struct compat_ipc_perm sem_perm;
-	compat_time_t sem_otime;
-	compat_time_t sem_ctime;
+	old_time32_t sem_otime;
+	old_time32_t sem_ctime;
 	compat_uptr_t sem_base;
 	compat_uptr_t sem_pending;
 	compat_uptr_t sem_pending_last;
@@ -2214,11 +2214,11 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 #ifdef CONFIG_COMPAT_32BIT_TIME
 long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 			    unsigned int nsops,
-			    const struct compat_timespec __user *timeout)
+			    const struct old_timespec32 __user *timeout)
 {
 	if (timeout) {
 		struct timespec64 ts;
-		if (compat_get_timespec64(&ts, timeout))
+		if (get_old_timespec32(&ts, timeout))
 			return -EFAULT;
 		return do_semtimedop(semid, tsems, nsops, &ts);
 	}
@@ -2227,7 +2227,7 @@ long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 
 COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
 		       unsigned int, nsops,
-		       const struct compat_timespec __user *, timeout)
+		       const struct old_timespec32 __user *, timeout)
 {
 	return compat_ksys_semtimedop(semid, tsems, nsops, timeout);
 }

@@ -67,11 +67,6 @@ extern void swiotlb_tbl_sync_single(struct device *hwdev,
 
 /* Accessory functions. */
 
-void *swiotlb_alloc(struct device *hwdev, size_t size, dma_addr_t *dma_handle,
-		gfp_t flags, unsigned long attrs);
-void swiotlb_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_addr, unsigned long attrs);
-
 extern dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 				   unsigned long offset, size_t size,
 				   enum dma_data_direction dir,
@@ -107,9 +102,6 @@ swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 			   int nelems, enum dma_data_direction dir);
 
 extern int
-swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr);
-
-extern int
 swiotlb_dma_supported(struct device *hwdev, u64 mask);
 
 #ifdef CONFIG_SWIOTLB
@@ -121,7 +113,6 @@ static inline unsigned int swiotlb_max_segment(void) { return 0; }
 #endif
 
 extern void swiotlb_print_info(void);
-extern int is_swiotlb_buffer(phys_addr_t paddr);
 extern void swiotlb_set_max_segment(unsigned int);
 
 extern const struct dma_map_ops swiotlb_dma_ops;

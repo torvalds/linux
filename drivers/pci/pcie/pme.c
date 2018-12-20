@@ -432,6 +432,31 @@ static void pcie_pme_remove(struct pcie_device *srv)
 	kfree(get_service_data(srv));
 }
 
+static int pcie_pme_runtime_suspend(struct pcie_device *srv)
+{
+	struct pcie_pme_service_data *data = get_service_data(srv);
+
+	spin_lock_irq(&data->lock);
+	pcie_pme_interrupt_enable(srv->port, false);
+	pcie_clear_root_pme_status(srv->port);
+	data->noirq = true;
+	spin_unlock_irq(&data->lock);
+
+	return 0;
+}
+
+static int pcie_pme_runtime_resume(struct pcie_device *srv)
+{
+	struct pcie_pme_service_data *data = get_service_data(srv);
+
+	spin_lock_irq(&data->lock);
+	pcie_pme_interrupt_enable(srv->port, true);
+	data->noirq = false;
+	spin_unlock_irq(&data->lock);
+
+	return 0;
+}
+
 static struct pcie_port_service_driver pcie_pme_driver = {
 	.name		= "pcie_pme",
 	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
@@ -439,6 +464,8 @@ static struct pcie_port_service_driver pcie_pme_driver = {
 
 	.probe		= pcie_pme_probe,
 	.suspend	= pcie_pme_suspend,
+	.runtime_suspend = pcie_pme_runtime_suspend,
+	.runtime_resume	= pcie_pme_runtime_resume,
 	.resume		= pcie_pme_resume,
 	.remove		= pcie_pme_remove,
 };
@@ -446,8 +473,7 @@ static struct pcie_port_service_driver pcie_pme_driver = {
 /**
  * pcie_pme_service_init - Register the PCIe PME service driver.
  */
-static int __init pcie_pme_service_init(void)
+int __init pcie_pme_init(void)
 {
 	return pcie_port_service_register(&pcie_pme_driver);
 }
-device_initcall(pcie_pme_service_init);

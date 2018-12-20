@@ -191,7 +191,7 @@ qed_dcbx_dp_protocol(struct qed_hwfn *p_hwfn, struct qed_dcbx_results *p_data)
 static void
 qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 		    struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-		    bool enable, u8 prio, u8 tc,
+		    bool app_tlv, bool enable, u8 prio, u8 tc,
 		    enum dcbx_protocol_type type,
 		    enum qed_pci_personality personality)
 {
@@ -210,7 +210,7 @@ qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 		p_data->arr[type].dont_add_vlan0 = true;
 
 	/* QM reconf data */
-	if (p_hwfn->hw_info.personality == personality)
+	if (app_tlv && p_hwfn->hw_info.personality == personality)
 		qed_hw_info_set_offload_tc(&p_hwfn->hw_info, tc);
 
 	/* Configure dcbx vlan priority in doorbell block for roce EDPM */
@@ -225,7 +225,7 @@ qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 static void
 qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 			 struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 bool enable, u8 prio, u8 tc,
+			 bool app_tlv, bool enable, u8 prio, u8 tc,
 			 enum dcbx_protocol_type type)
 {
 	enum qed_pci_personality personality;
@@ -240,7 +240,7 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 
 		personality = qed_dcbx_app_update[i].personality;
 
-		qed_dcbx_set_params(p_data, p_hwfn, p_ptt, enable,
+		qed_dcbx_set_params(p_data, p_hwfn, p_ptt, app_tlv, enable,
 				    prio, tc, type, personality);
 	}
 }
@@ -262,8 +262,9 @@ qed_dcbx_get_app_protocol_type(struct qed_hwfn *p_hwfn,
 		*type = DCBX_PROTOCOL_ROCE_V2;
 	} else {
 		*type = DCBX_MAX_PROTOCOL_TYPE;
-		DP_ERR(p_hwfn, "No action required, App TLV entry = 0x%x\n",
-		       app_prio_bitmap);
+		DP_VERBOSE(p_hwfn, QED_MSG_DCB,
+			   "No action required, App TLV entry = 0x%x\n",
+			   app_prio_bitmap);
 		return false;
 	}
 
@@ -318,8 +319,8 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 				enable = true;
 			}
 
-			qed_dcbx_update_app_info(p_data, p_hwfn, p_ptt, enable,
-						 priority, tc, type);
+			qed_dcbx_update_app_info(p_data, p_hwfn, p_ptt, true,
+						 enable, priority, tc, type);
 		}
 	}
 
@@ -340,7 +341,7 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			continue;
 
 		enable = (type == DCBX_PROTOCOL_ETH) ? false : !!dcbx_version;
-		qed_dcbx_update_app_info(p_data, p_hwfn, p_ptt, enable,
+		qed_dcbx_update_app_info(p_data, p_hwfn, p_ptt, false, enable,
 					 priority, tc, type);
 	}
 

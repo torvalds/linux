@@ -323,10 +323,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		cur_start = block->start + block->size;
 	}
 
- err_chunks:
-	if (child)
-		of_node_put(child);
-
+err_chunks:
+	of_node_put(child);
 	kfree(rblocks);
 
 	return ret;

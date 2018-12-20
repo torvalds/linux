@@ -3,14 +3,7 @@
 # description: event trigger - test histogram modifiers
 # flags: instance
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -29,9 +22,6 @@ if [ ! -f events/sched/sched_process_fork/hist ]; then
     echo "hist trigger is not supported"
     exit_unsupported
 fi
-
-reset_tracer
-do_reset
 
 echo "Test histogram with execname modifier"
 
@@ -70,7 +60,5 @@ echo 'hist:keys=bytes_req.log2' > events/kmem/kmalloc/trigger
 for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
 grep 'bytes_req: ~ 2^[0-9]*' events/kmem/kmalloc/hist > /dev/null || \
     fail "log2 modifier on kmem/kmalloc did not work"
-
-do_reset
 
 exit 0

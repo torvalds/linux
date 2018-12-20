@@ -73,8 +73,8 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		err = of_address_to_resource(node, 0, &r);
 		if (err) {
 			dev_err(&pdev->dev,
-				"Couldn't translate address for \"%s\"\n",
-				node->name);
+				"Couldn't translate address for \"%pOFn\"\n",
+				node);
 			break;
 		}
 

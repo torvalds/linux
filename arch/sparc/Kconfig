@@ -45,13 +45,11 @@ config SPARC
 	select LOCKDEP_SMALL if LOCKDEP
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
-	select HAVE_MEMBLOCK
-	select NO_BOOTMEM
 
 config SPARC32
 	def_bool !64BIT
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
-	select DMA_NONCOHERENT_OPS
+	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select HAVE_UID16

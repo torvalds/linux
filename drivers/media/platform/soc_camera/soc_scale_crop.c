@@ -52,7 +52,7 @@ int soc_camera_client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect)
 		return ret;
 	}
 
-	sdsel.target = V4L2_SEL_TGT_CROP_DEFAULT;
+	sdsel.target = V4L2_SEL_TGT_CROP_BOUNDS;
 	ret = v4l2_subdev_call(sd, pad, get_selection, NULL, &sdsel);
 	if (!ret)
 		*rect = sdsel.r;

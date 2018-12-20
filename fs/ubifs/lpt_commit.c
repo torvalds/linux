@@ -619,38 +619,6 @@ static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
 }
 
 /**
- * pnode_lookup - lookup a pnode in the LPT.
- * @c: UBIFS file-system description object
- * @i: pnode number (0 to (main_lebs - 1) / UBIFS_LPT_FANOUT))
- *
- * This function returns a pointer to the pnode on success or a negative
- * error code on failure.
- */
-static struct ubifs_pnode *pnode_lookup(struct ubifs_info *c, int i)
-{
-	int err, h, iip, shft;
-	struct ubifs_nnode *nnode;
-
-	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
-		if (err)
-			return ERR_PTR(err);
-	}
-	i <<= UBIFS_LPT_FANOUT_SHIFT;
-	nnode = c->nroot;
-	shft = c->lpt_hght * UBIFS_LPT_FANOUT_SHIFT;
-	for (h = 1; h < c->lpt_hght; h++) {
-		iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-		shft -= UBIFS_LPT_FANOUT_SHIFT;
-		nnode = ubifs_get_nnode(c, nnode, iip);
-		if (IS_ERR(nnode))
-			return ERR_CAST(nnode);
-	}
-	iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-	return ubifs_get_pnode(c, nnode, iip);
-}
-
-/**
  * add_pnode_dirt - add dirty space to LPT LEB properties.
  * @c: UBIFS file-system description object
  * @pnode: pnode for which to add dirt
@@ -702,7 +670,7 @@ static int make_tree_dirty(struct ubifs_info *c)
 {
 	struct ubifs_pnode *pnode;
 
-	pnode = pnode_lookup(c, 0);
+	pnode = ubifs_pnode_lookup(c, 0);
 	if (IS_ERR(pnode))
 		return PTR_ERR(pnode);
 
@@ -956,7 +924,7 @@ static int make_pnode_dirty(struct ubifs_info *c, int node_num, int lnum,
 	struct ubifs_pnode *pnode;
 	struct ubifs_nbranch *branch;
 
-	pnode = pnode_lookup(c, node_num);
+	pnode = ubifs_pnode_lookup(c, node_num);
 	if (IS_ERR(pnode))
 		return PTR_ERR(pnode);
 	branch = &pnode->parent->nbranch[pnode->iip];
@@ -1279,6 +1247,10 @@ int ubifs_lpt_start_commit(struct ubifs_info *c)
 	if (err)
 		goto out;
 
+	err = ubifs_lpt_calc_hash(c, c->mst_node->hash_lpt);
+	if (err)
+		goto out;
+
 	/* Copy the LPT's own lprops for end commit to write */
 	memcpy(c->ltab_cmt, c->ltab,
 	       sizeof(struct ubifs_lpt_lprops) * c->lpt_lebs);
@@ -1558,7 +1530,7 @@ static int dbg_is_pnode_dirty(struct ubifs_info *c, int lnum, int offs)
 		struct ubifs_nbranch *branch;
 
 		cond_resched();
-		pnode = pnode_lookup(c, i);
+		pnode = ubifs_pnode_lookup(c, i);
 		if (IS_ERR(pnode))
 			return PTR_ERR(pnode);
 		branch = &pnode->parent->nbranch[pnode->iip];
@@ -1710,7 +1682,7 @@ int dbg_check_ltab(struct ubifs_info *c)
 	for (i = 0; i < cnt; i++) {
 		struct ubifs_pnode *pnode;
 
-		pnode = pnode_lookup(c, i);
+		pnode = ubifs_pnode_lookup(c, i);
 		if (IS_ERR(pnode))
 			return PTR_ERR(pnode);
 		cond_resched();

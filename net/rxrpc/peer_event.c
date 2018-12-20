@@ -47,6 +47,8 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 	 */
 	switch (srx->transport.family) {
 	case AF_INET:
+		srx->transport_len = sizeof(srx->transport.sin);
+		srx->transport.family = AF_INET;
 		srx->transport.sin.sin_port = serr->port;
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP:
@@ -70,20 +72,20 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 
 #ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
-		srx->transport.sin6.sin6_port = serr->port;
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP6:
 			_net("Rx ICMP6");
+			srx->transport.sin6.sin6_port = serr->port;
 			memcpy(&srx->transport.sin6.sin6_addr,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in6_addr));
 			break;
 		case SO_EE_ORIGIN_ICMP:
 			_net("Rx ICMP on v6 sock");
-			srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-			memcpy(srx->transport.sin6.sin6_addr.s6_addr + 12,
+			srx->transport_len = sizeof(srx->transport.sin);
+			srx->transport.family = AF_INET;
+			srx->transport.sin.sin_port = serr->port;
+			memcpy(&srx->transport.sin.sin_addr,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in_addr));
 			break;
@@ -195,6 +197,7 @@ void rxrpc_error_report(struct sock *sk)
 	rxrpc_store_error(peer, serr);
 	rcu_read_unlock();
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	rxrpc_put_peer(peer);
 
 	_leave("");
 }
@@ -301,6 +304,8 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 	if (rtt < 0)
 		return;
 
+	spin_lock(&peer->rtt_input_lock);
+
 	/* Replace the oldest datum in the RTT buffer */
 	sum -= peer->rtt_cache[cursor];
 	sum += rtt;
@@ -312,6 +317,8 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		peer->rtt_usage = usage;
 	}
 
+	spin_unlock(&peer->rtt_input_lock);
+
 	/* Now recalculate the average */
 	if (usage == RXRPC_RTT_CACHE_SIZE) {
 		avg = sum / RXRPC_RTT_CACHE_SIZE;
@@ -320,6 +327,7 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		do_div(avg, usage);
 	}
 
+	/* Don't need to update this under lock */
 	peer->rtt = avg;
 	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
 			   usage, avg);

@@ -127,9 +127,6 @@ config SPARSEMEM_VMEMMAP
 	 pfn_to_page and page_to_pfn operations.  This is the most
 	 efficient option when sufficient kernel resources are available.
 
-config HAVE_MEMBLOCK
-	bool
-
 config HAVE_MEMBLOCK_NODE_MAP
 	bool
 
@@ -140,9 +137,6 @@ config HAVE_GENERIC_GUP
 	bool
 
 config ARCH_DISCARD_MEMBLOCK
-	bool
-
-config NO_BOOTMEM
 	bool
 
 config MEMORY_ISOLATION
@@ -379,7 +373,7 @@ config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
 	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select COMPACTION
-	select RADIX_TREE_MULTIORDER
+	select XARRAY_MULTI
 	help
 	  Transparent Hugepages allows the kernel to use huge pages and
 	  huge tlb transparently to the applications whenever possible.
@@ -481,7 +475,7 @@ config FRONTSWAP
 
 config CMA
 	bool "Contiguous Memory Allocator"
-	depends on HAVE_MEMBLOCK && MMU
+	depends on MMU
 	select MIGRATION
 	select MEMORY_ISOLATION
 	help
@@ -634,7 +628,6 @@ config MAX_STACK_SIZE_MB
 config DEFERRED_STRUCT_PAGE_INIT
 	bool "Defer initialisation of struct pages to kthreads"
 	default n
-	depends on NO_BOOTMEM
 	depends on SPARSEMEM
 	depends on !NEED_PER_CPU_KM
 	depends on 64BIT
@@ -671,7 +664,7 @@ config ZONE_DEVICE
 	depends on MEMORY_HOTREMOVE
 	depends on SPARSEMEM_VMEMMAP
 	depends on ARCH_HAS_ZONE_DEVICE
-	select RADIX_TREE_MULTIORDER
+	select XARRAY_MULTI
 
 	help
 	  Device memory hotplug support allows for establishing pmem,

@@ -22,13 +22,14 @@
 #include <string.h>
 
 #include "event-parse.h"
+#include "trace-seq.h"
 
 #define INDENT 65
 
-static void print_string(struct trace_seq *s, struct event_format *event,
+static void print_string(struct trace_seq *s, struct tep_event_format *event,
 			 const char *name, const void *data)
 {
-	struct format_field *f = tep_find_field(event, name);
+	struct tep_format_field *f = tep_find_field(event, name);
 	int offset;
 	int length;
 
@@ -59,7 +60,7 @@ static void print_string(struct trace_seq *s, struct event_format *event,
 
 static int drv_bss_info_changed(struct trace_seq *s,
 				struct tep_record *record,
-				struct event_format *event, void *context)
+				struct tep_event_format *event, void *context)
 {
 	void *data = record->data;
 

@@ -169,7 +169,7 @@ static int vbox_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 		return 0;
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = pci_resource_start(vbox->dev->pdev, 0);
+		mem->bus.base = pci_resource_start(vbox->ddev.pdev, 0);
 		mem->bus.is_iomem = true;
 		break;
 	default:
@@ -224,7 +224,7 @@ static struct ttm_bo_driver vbox_bo_driver = {
 int vbox_mm_init(struct vbox_private *vbox)
 {
 	int ret;
-	struct drm_device *dev = vbox->dev;
+	struct drm_device *dev = &vbox->ddev;
 	struct ttm_bo_device *bdev = &vbox->ttm.bdev;
 
 	ret = vbox_ttm_global_init(vbox);
@@ -269,8 +269,8 @@ void vbox_mm_fini(struct vbox_private *vbox)
 {
 #ifdef DRM_MTRR_WC
 	drm_mtrr_del(vbox->fb_mtrr,
-		     pci_resource_start(vbox->dev->pdev, 0),
-		     pci_resource_len(vbox->dev->pdev, 0), DRM_MTRR_WC);
+		     pci_resource_start(vbox->ddev.pdev, 0),
+		     pci_resource_len(vbox->ddev.pdev, 0), DRM_MTRR_WC);
 #else
 	arch_phys_wc_del(vbox->fb_mtrr);
 #endif
@@ -305,10 +305,9 @@ void vbox_ttm_placement(struct vbox_bo *bo, int domain)
 	}
 }
 
-int vbox_bo_create(struct drm_device *dev, int size, int align,
+int vbox_bo_create(struct vbox_private *vbox, int size, int align,
 		   u32 flags, struct vbox_bo **pvboxbo)
 {
-	struct vbox_private *vbox = dev->dev_private;
 	struct vbox_bo *vboxbo;
 	size_t acc_size;
 	int ret;
@@ -317,7 +316,7 @@ int vbox_bo_create(struct drm_device *dev, int size, int align,
 	if (!vboxbo)
 		return -ENOMEM;
 
-	ret = drm_gem_object_init(dev, &vboxbo->gem, size);
+	ret = drm_gem_object_init(&vbox->ddev, &vboxbo->gem, size);
 	if (ret)
 		goto err_free_vboxbo;
 
@@ -344,23 +343,19 @@ err_free_vboxbo:
 	return ret;
 }
 
-static inline u64 vbox_bo_gpu_offset(struct vbox_bo *bo)
-{
-	return bo->bo.offset;
-}
-
-int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
+int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (bo->pin_count) {
 		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = vbox_bo_gpu_offset(bo);
-
 		return 0;
 	}
+
+	ret = vbox_bo_reserve(bo, false);
+	if (ret)
+		return ret;
 
 	vbox_ttm_placement(bo, pl_flag);
 
@@ -368,15 +363,12 @@ int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret)
-		return ret;
+	if (ret == 0)
+		bo->pin_count = 1;
 
-	bo->pin_count = 1;
+	vbox_bo_unreserve(bo);
 
-	if (gpu_addr)
-		*gpu_addr = vbox_bo_gpu_offset(bo);
-
-	return 0;
+	return ret;
 }
 
 int vbox_bo_unpin(struct vbox_bo *bo)
@@ -392,14 +384,20 @@ int vbox_bo_unpin(struct vbox_bo *bo)
 	if (bo->pin_count)
 		return 0;
 
+	ret = vbox_bo_reserve(bo, false);
+	if (ret) {
+		DRM_ERROR("Error %d reserving bo, leaving it pinned\n", ret);
+		return ret;
+	}
+
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret)
-		return ret;
 
-	return 0;
+	vbox_bo_unreserve(bo);
+
+	return ret;
 }
 
 /*
@@ -420,8 +418,10 @@ int vbox_bo_push_sysram(struct vbox_bo *bo)
 	if (bo->pin_count)
 		return 0;
 
-	if (bo->kmap.virtual)
+	if (bo->kmap.virtual) {
 		ttm_bo_kunmap(&bo->kmap);
+		bo->kmap.virtual = NULL;
+	}
 
 	vbox_ttm_placement(bo, TTM_PL_FLAG_SYSTEM);
 
@@ -449,4 +449,28 @@ int vbox_mmap(struct file *filp, struct vm_area_struct *vma)
 	vbox = file_priv->minor->dev->dev_private;
 
 	return ttm_bo_mmap(filp, vma, &vbox->ttm.bdev);
+}
+
+void *vbox_bo_kmap(struct vbox_bo *bo)
+{
+	int ret;
+
+	if (bo->kmap.virtual)
+		return bo->kmap.virtual;
+
+	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
+	if (ret) {
+		DRM_ERROR("Error kmapping bo: %d\n", ret);
+		return NULL;
+	}
+
+	return bo->kmap.virtual;
+}
+
+void vbox_bo_kunmap(struct vbox_bo *bo)
+{
+	if (bo->kmap.virtual) {
+		ttm_bo_kunmap(&bo->kmap);
+		bo->kmap.virtual = NULL;
+	}
 }

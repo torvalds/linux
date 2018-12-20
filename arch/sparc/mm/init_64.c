@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/initrd.h>
@@ -25,7 +25,6 @@
 #include <linux/sort.h>
 #include <linux/ioport.h>
 #include <linux/percpu.h>
-#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/gfp.h>
 
@@ -1092,7 +1091,8 @@ static void __init allocate_node_data(int nid)
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 	unsigned long paddr;
 
-	paddr = memblock_alloc_try_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
+	paddr = memblock_phys_alloc_try_nid(sizeof(struct pglist_data),
+					    SMP_CACHE_BYTES, nid);
 	if (!paddr) {
 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
 		prom_halt();
@@ -1266,8 +1266,8 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
 	if (!count)
 		return -ENOENT;
 
-	paddr = memblock_alloc(count * sizeof(struct mdesc_mlgroup),
-			  SMP_CACHE_BYTES);
+	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mlgroup),
+				    SMP_CACHE_BYTES);
 	if (!paddr)
 		return -ENOMEM;
 
@@ -1307,8 +1307,8 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 	if (!count)
 		return -ENOENT;
 
-	paddr = memblock_alloc(count * sizeof(struct mdesc_mblock),
-			  SMP_CACHE_BYTES);
+	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mblock),
+				    SMP_CACHE_BYTES);
 	if (!paddr)
 		return -ENOMEM;
 
@@ -1383,6 +1383,7 @@ int __node_distance(int from, int to)
 	}
 	return numa_latency[from][to];
 }
+EXPORT_SYMBOL(__node_distance);
 
 static int __init find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
 {
@@ -1809,7 +1810,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 		if (pgd_none(*pgd)) {
 			pud_t *new;
 
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
+						  PAGE_SIZE);
 			alloc_bytes += PAGE_SIZE;
 			pgd_populate(&init_mm, pgd, new);
 		}
@@ -1821,7 +1823,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 				vstart = kernel_map_hugepud(vstart, vend, pud);
 				continue;
 			}
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
+						  PAGE_SIZE);
 			alloc_bytes += PAGE_SIZE;
 			pud_populate(&init_mm, pud, new);
 		}
@@ -1834,7 +1837,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 				vstart = kernel_map_hugepmd(vstart, vend, pmd);
 				continue;
 			}
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
+						  PAGE_SIZE);
 			alloc_bytes += PAGE_SIZE;
 			pmd_populate_kernel(&init_mm, pmd, new);
 		}
@@ -2540,12 +2544,12 @@ void __init mem_init(void)
 {
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
-	free_all_bootmem();
+	memblock_free_all();
 
 	/*
 	 * Must be done after boot memory is put on freelist, because here we
 	 * might set fields in deferred struct pages that have not yet been
-	 * initialized, and free_all_bootmem() initializes all the reserved
+	 * initialized, and memblock_free_all() initializes all the reserved
 	 * deferred pages for us.
 	 */
 	register_page_bootmem_info();

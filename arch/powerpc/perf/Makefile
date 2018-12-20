@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 obj-$(CONFIG_PERF_EVENTS)	+= callchain.o perf_regs.o
 

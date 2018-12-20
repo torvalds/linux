@@ -208,7 +208,7 @@ extern void radix_init_pseries(void);
 static inline void radix_init_pseries(void) { };
 #endif
 
-static inline int get_ea_context(mm_context_t *ctx, unsigned long ea)
+static inline int get_user_context(mm_context_t *ctx, unsigned long ea)
 {
 	int index = ea >> MAX_EA_BITS_PER_CONTEXT;
 
@@ -223,7 +223,7 @@ static inline int get_ea_context(mm_context_t *ctx, unsigned long ea)
 static inline unsigned long get_user_vsid(mm_context_t *ctx,
 					  unsigned long ea, int ssize)
 {
-	unsigned long context = get_ea_context(ctx, ea);
+	unsigned long context = get_user_context(ctx, ea);
 
 	return get_vsid(context, ea, ssize);
 }

@@ -13,8 +13,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
-#include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
@@ -126,11 +125,10 @@ static struct i2c_board_info db1550_i2c_devs[] __initdata = {
 
 /**********************************************************************/
 
-static void au1550_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void au1550_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 				 unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	unsigned long ioaddr = (unsigned long)this->IO_ADDR_W;
+	unsigned long ioaddr = (unsigned long)this->legacy.IO_ADDR_W;
 
 	ioaddr &= 0xffffff00;
 
@@ -142,14 +140,14 @@ static void au1550_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		/* assume we want to r/w real data  by default */
 		ioaddr += MEM_STNAND_DATA;
 	}
-	this->IO_ADDR_R = this->IO_ADDR_W = (void __iomem *)ioaddr;
+	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = (void __iomem *)ioaddr;
 	if (cmd != NAND_CMD_NONE) {
-		__raw_writeb(cmd, this->IO_ADDR_W);
+		__raw_writeb(cmd, this->legacy.IO_ADDR_W);
 		wmb();
 	}
 }
 
-static int au1550_nand_device_ready(struct mtd_info *mtd)
+static int au1550_nand_device_ready(struct nand_chip *this)
 {
 	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }

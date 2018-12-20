@@ -243,7 +243,7 @@ xfs_attr3_leaf_verify(
 	struct xfs_mount		*mp = bp->b_target->bt_mount;
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*entries;
-	uint16_t			end;
+	uint32_t			end;	/* must be 32bit - see below */
 	int				i;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
@@ -293,6 +293,11 @@ xfs_attr3_leaf_verify(
 	/*
 	 * Quickly check the freemap information.  Attribute data has to be
 	 * aligned to 4-byte boundaries, and likewise for the free space.
+	 *
+	 * Note that for 64k block size filesystems, the freemap entries cannot
+	 * overflow as they are only be16 fields. However, when checking end
+	 * pointer of the freemap, we have to be careful to detect overflows and
+	 * so use uint32_t for those checks.
 	 */
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
 		if (ichdr.freemap[i].base > mp->m_attr_geo->blksize)
@@ -303,7 +308,9 @@ xfs_attr3_leaf_verify(
 			return __this_address;
 		if (ichdr.freemap[i].size & 0x3)
 			return __this_address;
-		end = ichdr.freemap[i].base + ichdr.freemap[i].size;
+
+		/* be care of 16 bit overflows here */
+		end = (uint32_t)ichdr.freemap[i].base + ichdr.freemap[i].size;
 		if (end < ichdr.freemap[i].base)
 			return __this_address;
 		if (end > mp->m_attr_geo->blksize)

@@ -341,9 +341,9 @@ vdec_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
 static int
 vdec_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, "qcom-venus", sizeof(cap->driver));
-	strlcpy(cap->card, "Qualcomm Venus video decoder", sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:qcom-venus", sizeof(cap->bus_info));
+	strscpy(cap->driver, "qcom-venus", sizeof(cap->driver));
+	strscpy(cap->card, "Qualcomm Venus video decoder", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:qcom-venus", sizeof(cap->bus_info));
 
 	return 0;
 }
@@ -888,8 +888,7 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 		unsigned int opb_sz = venus_helper_get_opb_size(inst);
 
 		vb = &vbuf->vb2_buf;
-		vb->planes[0].bytesused =
-			max_t(unsigned int, opb_sz, bytesused);
+		vb2_set_plane_payload(vb, 0, bytesused ? : opb_sz);
 		vb->planes[0].data_offset = data_offset;
 		vb->timestamp = timestamp_us * NSEC_PER_USEC;
 		vbuf->sequence = inst->sequence_cap++;
@@ -1153,7 +1152,7 @@ static int vdec_probe(struct platform_device *pdev)
 	if (!vdev)
 		return -ENOMEM;
 
-	strlcpy(vdev->name, "qcom-venus-decoder", sizeof(vdev->name));
+	strscpy(vdev->name, "qcom-venus-decoder", sizeof(vdev->name));
 	vdev->release = video_device_release;
 	vdev->fops = &vdec_fops;
 	vdev->ioctl_ops = &vdec_ioctl_ops;

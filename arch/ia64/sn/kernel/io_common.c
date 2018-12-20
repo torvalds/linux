@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/sn/types.h>
@@ -385,16 +385,15 @@ void __init hubdev_init_node(nodepda_t * npda, cnodeid_t node)
 {
 	struct hubdev_info *hubdev_info;
 	int size;
-	pg_data_t *pg;
 
 	size = sizeof(struct hubdev_info);
 
 	if (node >= num_online_nodes())	/* Headless/memless IO nodes */
-		pg = NODE_DATA(0);
-	else
-		pg = NODE_DATA(node);
+		node = 0;
 
-	hubdev_info = (struct hubdev_info *)alloc_bootmem_node(pg, size);
+	hubdev_info = (struct hubdev_info *)memblock_alloc_node(size,
+								SMP_CACHE_BYTES,
+								node);
 
 	npda->pdinfo = (void *)hubdev_info;
 }

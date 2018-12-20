@@ -987,7 +987,8 @@ static int m5mols_probe(struct i2c_client *client,
 
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &m5mols_ops);
-	strlcpy(sd->name, MODULE_NAME, sizeof(sd->name));
+	/* Static name; NEVER use in new drivers! */
+	strscpy(sd->name, MODULE_NAME, sizeof(sd->name));
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	sd->internal_ops = &m5mols_subdev_internal_ops;

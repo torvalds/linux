@@ -72,6 +72,7 @@ struct rt5663_priv {
 static const struct reg_sequence rt5663_patch_list[] = {
 	{ 0x002a, 0x8020 },
 	{ 0x0086, 0x0028 },
+	{ 0x0100, 0xa020 },
 	{ 0x0117, 0x0f28 },
 	{ 0x02fb, 0x8089 },
 };
@@ -580,7 +581,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x00fd, 0x0001 },
 	{ 0x00fe, 0x10ec },
 	{ 0x00ff, 0x6406 },
-	{ 0x0100, 0xa0a0 },
+	{ 0x0100, 0xa020 },
 	{ 0x0108, 0x4444 },
 	{ 0x0109, 0x4444 },
 	{ 0x010a, 0xaaaa },
@@ -2337,6 +2338,8 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 				0x8000);
 			snd_soc_component_update_bits(component, RT5663_DEPOP_1, 0x3000,
 				0x3000);
+			snd_soc_component_update_bits(component,
+				RT5663_DIG_VOL_ZCD, 0x00c0, 0x0080);
 		}
 		break;
 
@@ -2351,6 +2354,8 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 				RT5663_OVCD_HP_MASK, RT5663_OVCD_HP_EN);
 			snd_soc_component_update_bits(component,
 				RT5663_DACREF_LDO, 0x3e0e, 0);
+			snd_soc_component_update_bits(component,
+				RT5663_DIG_VOL_ZCD, 0x00c0, 0);
 		}
 		break;
 
@@ -3252,7 +3257,8 @@ static const struct snd_soc_component_driver soc_component_dev_rt5663 = {
 static const struct regmap_config rt5663_v2_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = 0x07fa,
 	.volatile_reg = rt5663_v2_volatile_register,
 	.readable_reg = rt5663_v2_readable_register,
@@ -3264,7 +3270,8 @@ static const struct regmap_config rt5663_v2_regmap = {
 static const struct regmap_config rt5663_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = 0x03f3,
 	.volatile_reg = rt5663_volatile_register,
 	.readable_reg = rt5663_readable_register,
@@ -3277,7 +3284,8 @@ static const struct regmap_config temp_regmap = {
 	.name = "nocache",
 	.reg_bits = 16,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = 0x03f3,
 	.cache_type = REGCACHE_NONE,
 };

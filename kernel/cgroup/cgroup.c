@@ -55,6 +55,7 @@
 #include <linux/nsproxy.h>
 #include <linux/file.h>
 #include <linux/sched/cputime.h>
+#include <linux/psi.h>
 #include <net/sock.h>
 
 #define CREATE_TRACE_POINTS
@@ -832,7 +833,7 @@ static void css_set_move_task(struct task_struct *task,
 		 */
 		WARN_ON_ONCE(task->flags & PF_EXITING);
 
-		rcu_assign_pointer(task->cgroups, to_cset);
+		cgroup_move_task(task, to_cset);
 		list_add_tail(&task->cg_list, use_mg_tasks ? &to_cset->mg_tasks :
 							     &to_cset->tasks);
 	}
@@ -2836,11 +2837,12 @@ restart:
 }
 
 /**
- * cgroup_save_control - save control masks of a subtree
+ * cgroup_save_control - save control masks and dom_cgrp of a subtree
  * @cgrp: root of the target subtree
  *
- * Save ->subtree_control and ->subtree_ss_mask to the respective old_
- * prefixed fields for @cgrp's subtree including @cgrp itself.
+ * Save ->subtree_control, ->subtree_ss_mask and ->dom_cgrp to the
+ * respective old_ prefixed fields for @cgrp's subtree including @cgrp
+ * itself.
  */
 static void cgroup_save_control(struct cgroup *cgrp)
 {
@@ -2850,6 +2852,7 @@ static void cgroup_save_control(struct cgroup *cgrp)
 	cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
 		dsct->old_subtree_control = dsct->subtree_control;
 		dsct->old_subtree_ss_mask = dsct->subtree_ss_mask;
+		dsct->old_dom_cgrp = dsct->dom_cgrp;
 	}
 }
 
@@ -2875,11 +2878,12 @@ static void cgroup_propagate_control(struct cgroup *cgrp)
 }
 
 /**
- * cgroup_restore_control - restore control masks of a subtree
+ * cgroup_restore_control - restore control masks and dom_cgrp of a subtree
  * @cgrp: root of the target subtree
  *
- * Restore ->subtree_control and ->subtree_ss_mask from the respective old_
- * prefixed fields for @cgrp's subtree including @cgrp itself.
+ * Restore ->subtree_control, ->subtree_ss_mask and ->dom_cgrp from the
+ * respective old_ prefixed fields for @cgrp's subtree including @cgrp
+ * itself.
  */
 static void cgroup_restore_control(struct cgroup *cgrp)
 {
@@ -2889,6 +2893,7 @@ static void cgroup_restore_control(struct cgroup *cgrp)
 	cgroup_for_each_live_descendant_post(dsct, d_css, cgrp) {
 		dsct->subtree_control = dsct->old_subtree_control;
 		dsct->subtree_ss_mask = dsct->old_subtree_ss_mask;
+		dsct->dom_cgrp = dsct->old_dom_cgrp;
 	}
 }
 
@@ -3196,6 +3201,8 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
 	struct cgroup *dom_cgrp = parent->dom_cgrp;
+	struct cgroup *dsct;
+	struct cgroup_subsys_state *d_css;
 	int ret;
 
 	lockdep_assert_held(&cgroup_mutex);
@@ -3225,12 +3232,13 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
 	 */
 	cgroup_save_control(cgrp);
 
-	cgrp->dom_cgrp = dom_cgrp;
+	cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp)
+		if (dsct == cgrp || cgroup_is_threaded(dsct))
+			dsct->dom_cgrp = dom_cgrp;
+
 	ret = cgroup_apply_control(cgrp);
 	if (!ret)
 		parent->nr_threaded_children++;
-	else
-		cgrp->dom_cgrp = cgrp;
 
 	cgroup_finalize_control(cgrp, ret);
 	return ret;
@@ -3408,6 +3416,21 @@ static int cpu_stat_show(struct seq_file *seq, void *v)
 #endif
 	return ret;
 }
+
+#ifdef CONFIG_PSI
+static int cgroup_io_pressure_show(struct seq_file *seq, void *v)
+{
+	return psi_show(seq, &seq_css(seq)->cgroup->psi, PSI_IO);
+}
+static int cgroup_memory_pressure_show(struct seq_file *seq, void *v)
+{
+	return psi_show(seq, &seq_css(seq)->cgroup->psi, PSI_MEM);
+}
+static int cgroup_cpu_pressure_show(struct seq_file *seq, void *v)
+{
+	return psi_show(seq, &seq_css(seq)->cgroup->psi, PSI_CPU);
+}
+#endif
 
 static int cgroup_file_open(struct kernfs_open_file *of)
 {
@@ -4539,6 +4562,23 @@ static struct cftype cgroup_base_files[] = {
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.seq_show = cpu_stat_show,
 	},
+#ifdef CONFIG_PSI
+	{
+		.name = "io.pressure",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = cgroup_io_pressure_show,
+	},
+	{
+		.name = "memory.pressure",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = cgroup_memory_pressure_show,
+	},
+	{
+		.name = "cpu.pressure",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = cgroup_cpu_pressure_show,
+	},
+#endif
 	{ }	/* terminate */
 };
 
@@ -4599,6 +4639,7 @@ static void css_free_rwork_fn(struct work_struct *work)
 			 */
 			cgroup_put(cgroup_parent(cgrp));
 			kernfs_put(cgrp->kn);
+			psi_cgroup_free(cgrp);
 			if (cgroup_on_dfl(cgrp))
 				cgroup_rstat_exit(cgrp);
 			kfree(cgrp);
@@ -4855,9 +4896,14 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 	cgrp->self.parent = &parent->self;
 	cgrp->root = root;
 	cgrp->level = level;
-	ret = cgroup_bpf_inherit(cgrp);
+
+	ret = psi_cgroup_alloc(cgrp);
 	if (ret)
 		goto out_idr_free;
+
+	ret = cgroup_bpf_inherit(cgrp);
+	if (ret)
+		goto out_psi_free;
 
 	for (tcgrp = cgrp; tcgrp; tcgrp = cgroup_parent(tcgrp)) {
 		cgrp->ancestor_ids[tcgrp->level] = tcgrp->id;
@@ -4896,6 +4942,8 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 
 	return cgrp;
 
+out_psi_free:
+	psi_cgroup_free(cgrp);
 out_idr_free:
 	cgroup_idr_remove(&root->cgroup_idr, cgrp->id);
 out_stat_exit:

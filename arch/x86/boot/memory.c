@@ -26,7 +26,7 @@ static int detect_memory_e820(void)
 
 	initregs(&ireg);
 	ireg.ax  = 0xe820;
-	ireg.cx  = sizeof buf;
+	ireg.cx  = sizeof(buf);
 	ireg.edx = SMAP;
 	ireg.di  = (size_t)&buf;
 

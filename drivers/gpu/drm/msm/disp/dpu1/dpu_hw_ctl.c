@@ -224,19 +224,6 @@ static inline int dpu_hw_ctl_get_bitmask_intf(struct dpu_hw_ctl *ctx,
 	return 0;
 }
 
-static inline int dpu_hw_ctl_get_bitmask_cdm(struct dpu_hw_ctl *ctx,
-		u32 *flushbits, enum dpu_cdm cdm)
-{
-	switch (cdm) {
-	case CDM_0:
-		*flushbits |= BIT(26);
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static u32 dpu_hw_ctl_poll_reset_status(struct dpu_hw_ctl *ctx, u32 timeout_us)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
@@ -310,7 +297,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 	u32 mixercfg = 0, mixercfg_ext = 0, mix, ext;
 	u32 mixercfg_ext2 = 0, mixercfg_ext3 = 0;
 	int i, j;
-	u8 stages;
+	int stages;
 	int pipes_per_stage;
 
 	stages = _mixer_stages(ctx->mixer_hw_caps, ctx->mixer_count, lm);
@@ -485,7 +472,6 @@ static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 	ops->get_bitmask_sspp = dpu_hw_ctl_get_bitmask_sspp;
 	ops->get_bitmask_mixer = dpu_hw_ctl_get_bitmask_mixer;
 	ops->get_bitmask_intf = dpu_hw_ctl_get_bitmask_intf;
-	ops->get_bitmask_cdm = dpu_hw_ctl_get_bitmask_cdm;
 };
 
 static struct dpu_hw_blk_ops dpu_hw_ops = {

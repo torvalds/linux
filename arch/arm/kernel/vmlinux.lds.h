@@ -49,6 +49,8 @@
 #define ARM_DISCARD							\
 		*(.ARM.exidx.exit.text)					\
 		*(.ARM.extab.exit.text)					\
+		*(.ARM.exidx.text.exit)					\
+		*(.ARM.extab.text.exit)					\
 		ARM_CPU_DISCARD(*(.ARM.exidx.cpuexit.text))		\
 		ARM_CPU_DISCARD(*(.ARM.extab.cpuexit.text))		\
 		ARM_EXIT_DISCARD(EXIT_TEXT)				\

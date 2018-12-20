@@ -33,6 +33,9 @@ struct plat_smp_ops {
 	int (*cpu_disable)(void);
 	void (*cpu_die)(unsigned int cpu);
 #endif
+#ifdef CONFIG_KEXEC
+	void (*kexec_nonboot_cpu)(void);
+#endif
 };
 
 extern void register_smp_ops(const struct plat_smp_ops *ops);

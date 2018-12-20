@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/f2fs/checkpoint.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/fs.h>
 #include <linux/bio.h>
@@ -122,11 +119,8 @@ retry:
 		if (PTR_ERR(page) == -EIO &&
 				++count <= DEFAULT_RETRY_IO_COUNT)
 			goto retry;
-
 		f2fs_stop_checkpoint(sbi, false);
-		f2fs_bug_on(sbi, 1);
 	}
-
 	return page;
 }
 
@@ -282,8 +276,7 @@ static int __f2fs_write_meta_page(struct page *page,
 	dec_page_count(sbi, F2FS_DIRTY_META);
 
 	if (wbc->for_reclaim)
-		f2fs_submit_merged_write_cond(sbi, page->mapping->host,
-						0, page->index, META);
+		f2fs_submit_merged_write_cond(sbi, NULL, page, 0, META);
 
 	unlock_page(page);
 
@@ -696,6 +689,8 @@ int f2fs_recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	/* clear Orphan Flag */
 	clear_ckpt_flags(sbi, CP_ORPHAN_PRESENT_FLAG);
 out:
+	set_sbi_flag(sbi, SBI_IS_RECOVERED);
+
 #ifdef CONFIG_QUOTA
 	/* Turn quotas off */
 	if (quota_enabled)
@@ -1084,6 +1079,21 @@ static void __prepare_cp_block(struct f2fs_sb_info *sbi)
 	ckpt->next_free_nid = cpu_to_le32(last_nid);
 }
 
+static bool __need_flush_quota(struct f2fs_sb_info *sbi)
+{
+	if (!is_journalled_quota(sbi))
+		return false;
+	if (is_sbi_flag_set(sbi, SBI_QUOTA_SKIP_FLUSH))
+		return false;
+	if (is_sbi_flag_set(sbi, SBI_QUOTA_NEED_REPAIR))
+		return false;
+	if (is_sbi_flag_set(sbi, SBI_QUOTA_NEED_FLUSH))
+		return true;
+	if (get_pages(sbi, F2FS_DIRTY_QDATA))
+		return true;
+	return false;
+}
+
 /*
  * Freeze all the FS-operations for checkpoint.
  */
@@ -1095,12 +1105,36 @@ static int block_operations(struct f2fs_sb_info *sbi)
 		.for_reclaim = 0,
 	};
 	struct blk_plug plug;
-	int err = 0;
+	int err = 0, cnt = 0;
 
 	blk_start_plug(&plug);
 
-retry_flush_dents:
+retry_flush_quotas:
+	if (__need_flush_quota(sbi)) {
+		int locked;
+
+		if (++cnt > DEFAULT_RETRY_QUOTA_FLUSH_COUNT) {
+			set_sbi_flag(sbi, SBI_QUOTA_SKIP_FLUSH);
+			f2fs_lock_all(sbi);
+			goto retry_flush_dents;
+		}
+		clear_sbi_flag(sbi, SBI_QUOTA_NEED_FLUSH);
+
+		/* only failed during mount/umount/freeze/quotactl */
+		locked = down_read_trylock(&sbi->sb->s_umount);
+		f2fs_quota_sync(sbi->sb, -1);
+		if (locked)
+			up_read(&sbi->sb->s_umount);
+	}
+
 	f2fs_lock_all(sbi);
+	if (__need_flush_quota(sbi)) {
+		f2fs_unlock_all(sbi);
+		cond_resched();
+		goto retry_flush_quotas;
+	}
+
+retry_flush_dents:
 	/* write all the dirty dentry pages */
 	if (get_pages(sbi, F2FS_DIRTY_DENTS)) {
 		f2fs_unlock_all(sbi);
@@ -1108,7 +1142,7 @@ retry_flush_dents:
 		if (err)
 			goto out;
 		cond_resched();
-		goto retry_flush_dents;
+		goto retry_flush_quotas;
 	}
 
 	/*
@@ -1117,6 +1151,12 @@ retry_flush_dents:
 	 */
 	down_write(&sbi->node_change);
 
+	if (__need_flush_quota(sbi)) {
+		up_write(&sbi->node_change);
+		f2fs_unlock_all(sbi);
+		goto retry_flush_quotas;
+	}
+
 	if (get_pages(sbi, F2FS_DIRTY_IMETA)) {
 		up_write(&sbi->node_change);
 		f2fs_unlock_all(sbi);
@@ -1124,7 +1164,7 @@ retry_flush_dents:
 		if (err)
 			goto out;
 		cond_resched();
-		goto retry_flush_dents;
+		goto retry_flush_quotas;
 	}
 
 retry_flush_nodes:
@@ -1214,6 +1254,19 @@ static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK))
 		__set_ckpt_flags(ckpt, CP_FSCK_FLAG);
+
+	if (is_sbi_flag_set(sbi, SBI_CP_DISABLED))
+		__set_ckpt_flags(ckpt, CP_DISABLED_FLAG);
+	else
+		__clear_ckpt_flags(ckpt, CP_DISABLED_FLAG);
+
+	if (is_sbi_flag_set(sbi, SBI_QUOTA_SKIP_FLUSH))
+		__set_ckpt_flags(ckpt, CP_QUOTA_NEED_FSCK_FLAG);
+	else
+		__clear_ckpt_flags(ckpt, CP_QUOTA_NEED_FSCK_FLAG);
+
+	if (is_sbi_flag_set(sbi, SBI_QUOTA_NEED_REPAIR))
+		__set_ckpt_flags(ckpt, CP_QUOTA_NEED_FSCK_FLAG);
 
 	/* set this flag to activate crc|cp_ver for recovery */
 	__set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG);
@@ -1422,6 +1475,8 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	clear_sbi_flag(sbi, SBI_IS_DIRTY);
 	clear_sbi_flag(sbi, SBI_NEED_CP);
+	clear_sbi_flag(sbi, SBI_QUOTA_SKIP_FLUSH);
+	sbi->unusable_block_count = 0;
 	__set_cp_next_pack(sbi);
 
 	/*
@@ -1446,6 +1501,12 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	unsigned long long ckpt_ver;
 	int err = 0;
 
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
+		if (cpc->reason != CP_PAUSE)
+			return 0;
+		f2fs_msg(sbi->sb, KERN_WARNING,
+				"Start checkpoint disabled!");
+	}
 	mutex_lock(&sbi->cp_mutex);
 
 	if (!is_sbi_flag_set(sbi, SBI_IS_DIRTY) &&
@@ -1497,7 +1558,10 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	ckpt->checkpoint_ver = cpu_to_le64(++ckpt_ver);
 
 	/* write cached NAT/SIT entries to NAT/SIT area */
-	f2fs_flush_nat_entries(sbi, cpc);
+	err = f2fs_flush_nat_entries(sbi, cpc);
+	if (err)
+		goto stop;
+
 	f2fs_flush_sit_entries(sbi, cpc);
 
 	/* unlock all the fs_lock[] in do_checkpoint() */
@@ -1506,7 +1570,7 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		f2fs_release_discard_addrs(sbi);
 	else
 		f2fs_clear_prefree_segments(sbi, cpc);
-
+stop:
 	unblock_operations(sbi);
 	stat_inc_cp_count(sbi->stat_info);
 

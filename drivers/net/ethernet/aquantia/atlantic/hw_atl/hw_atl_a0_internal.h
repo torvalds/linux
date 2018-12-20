@@ -62,12 +62,6 @@
 #define HW_ATL_A0_MPI_SPEED_MSK       0xFFFFU
 #define HW_ATL_A0_MPI_SPEED_SHIFT     16U
 
-#define HW_ATL_A0_RATE_10G            BIT(0)
-#define HW_ATL_A0_RATE_5G             BIT(1)
-#define HW_ATL_A0_RATE_2G5            BIT(3)
-#define HW_ATL_A0_RATE_1G             BIT(4)
-#define HW_ATL_A0_RATE_100M           BIT(5)
-
 #define HW_ATL_A0_TXBUF_MAX 160U
 #define HW_ATL_A0_RXBUF_MAX 320U
 

@@ -152,7 +152,7 @@ Optional property:
   Elem size: one cell	the sensors listed in the thermal-sensors property.
   Elem type: signed	Coefficients defaults to 1, in case this property
 			is not specified. A simple linear polynomial is used:
-			Z = c0 * x0 + c1 + x1 + ... + c(n-1) * x(n-1) + cn.
+			Z = c0 * x0 + c1 * x1 + ... + c(n-1) * x(n-1) + cn.
 
 			The coefficients are ordered and they match with sensors
 			by means of sensor ID. Additional coefficients are

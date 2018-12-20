@@ -1007,7 +1007,7 @@ NO_PARAM:
 	}
 }
 
-static void sm750fb_frambuffer_release(struct sm750_dev *sm750_dev)
+static void sm750fb_framebuffer_release(struct sm750_dev *sm750_dev)
 {
 	struct fb_info *fb_info;
 
@@ -1019,7 +1019,7 @@ static void sm750fb_frambuffer_release(struct sm750_dev *sm750_dev)
 	}
 }
 
-static int sm750fb_frambuffer_alloc(struct sm750_dev *sm750_dev, int fbidx)
+static int sm750fb_framebuffer_alloc(struct sm750_dev *sm750_dev, int fbidx)
 {
 	struct fb_info *fb_info;
 	struct lynxfb_par *par;
@@ -1137,7 +1137,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	/* allocate frame buffer info structures according to g_dualview */
 	max_fb = g_dualview ? 2 : 1;
 	for (fbidx = 0; fbidx < max_fb; fbidx++) {
-		err = sm750fb_frambuffer_alloc(sm750_dev, fbidx);
+		err = sm750fb_framebuffer_alloc(sm750_dev, fbidx);
 		if (err)
 			goto release_fb;
 	}
@@ -1145,7 +1145,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 release_fb:
-	sm750fb_frambuffer_release(sm750_dev);
+	sm750fb_framebuffer_release(sm750_dev);
 	return err;
 }
 
@@ -1155,7 +1155,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 
 	sm750_dev = pci_get_drvdata(pdev);
 
-	sm750fb_frambuffer_release(sm750_dev);
+	sm750fb_framebuffer_release(sm750_dev);
 	arch_phys_wc_del(sm750_dev->mtrr.vram);
 
 	iounmap(sm750_dev->pvReg);

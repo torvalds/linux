@@ -2394,7 +2394,7 @@ static void tpacket_destruct_skb(struct sk_buff *skb)
 		void *ph;
 		__u32 ts;
 
-		ph = skb_shinfo(skb)->destructor_arg;
+		ph = skb_zcopy_get_nouarg(skb);
 		packet_dec_pending(&po->tx_ring);
 
 		ts = __packet_set_timestamp(po, ph, skb);
@@ -2461,7 +2461,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->mark = po->sk.sk_mark;
 	skb->tstamp = sockc->transmit_time;
 	sock_tx_timestamp(&po->sk, sockc->tsflags, &skb_shinfo(skb)->tx_flags);
-	skb_shinfo(skb)->destructor_arg = ph.raw;
+	skb_zcopy_set_nouarg(skb, ph.raw);
 
 	skb_reserve(skb, hlen);
 	skb_reset_network_header(skb);
@@ -3808,6 +3808,20 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 
 		return fanout_set_data(po, optval, optlen);
 	}
+	case PACKET_IGNORE_OUTGOING:
+	{
+		int val;
+
+		if (optlen != sizeof(val))
+			return -EINVAL;
+		if (copy_from_user(&val, optval, sizeof(val)))
+			return -EFAULT;
+		if (val < 0 || val > 1)
+			return -EINVAL;
+
+		po->prot_hook.ignore_outgoing = !!val;
+		return 0;
+	}
 	case PACKET_TX_HAS_OFF:
 	{
 		unsigned int val;
@@ -3930,6 +3944,9 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 			((u32)po->fanout->type << 16) |
 			((u32)po->fanout->flags << 24)) :
 		       0);
+		break;
+	case PACKET_IGNORE_OUTGOING:
+		val = po->prot_hook.ignore_outgoing;
 		break;
 	case PACKET_ROLLOVER_STATS:
 		if (!po->rollover)

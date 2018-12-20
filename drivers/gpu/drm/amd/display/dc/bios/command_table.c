@@ -2201,6 +2201,9 @@ static enum bp_result program_clock_v6(
 	if (bp_params->flags.SET_EXTERNAL_REF_DIV_SRC)
 		params.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_MISC_REF_DIV_SRC;
 
+	if (bp_params->flags.SET_DISPCLK_DFS_BYPASS)
+		params.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_DPREFCLK_BYPASS;
+
 	if (EXEC_BIOS_CMD_TABLE(SetPixelClock, params)) {
 		/* True display clock is returned by VBIOS if DFS bypass
 		 * is enabled. */

@@ -260,6 +260,7 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP5_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP6_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP7_SEND, mask_sh),\
 	SE_SF(DP0_DP_DB_CNTL, DP_DB_DISABLE, mask_sh),\
 	SE_SF(DP0_DP_MSA_COLORIMETRY, DP_MSA_MISC0, mask_sh),\
 	SE_SF(DP0_DP_MSA_TIMING_PARAM1, DP_MSA_HTOTAL, mask_sh),\
@@ -364,6 +365,7 @@ struct dcn10_stream_enc_registers {
 	type DP_SEC_GSP5_ENABLE;\
 	type DP_SEC_GSP6_ENABLE;\
 	type DP_SEC_GSP7_ENABLE;\
+	type DP_SEC_GSP7_SEND;\
 	type DP_SEC_MPG_ENABLE;\
 	type DP_VID_STREAM_DIS_DEFER;\
 	type DP_VID_STREAM_ENABLE;\

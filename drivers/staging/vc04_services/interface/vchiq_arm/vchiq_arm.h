@@ -123,6 +123,11 @@ typedef struct vchiq_arm_state_struct {
 
 } VCHIQ_ARM_STATE_T;
 
+struct vchiq_drvdata {
+	const unsigned int cache_line_size;
+	struct rpi_firmware *fw;
+};
+
 extern int vchiq_arm_log_level;
 extern int vchiq_susp_log_level;
 

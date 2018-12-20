@@ -97,14 +97,14 @@ static void axg_card_clean_references(struct axg_card *priv)
 {
 	struct snd_soc_card *card = &priv->card;
 	struct snd_soc_dai_link *link;
+	struct snd_soc_dai_link_component *codec;
 	int i, j;
 
 	if (card->dai_link) {
-		for (i = 0; i < card->num_links; i++) {
-			link = &card->dai_link[i];
+		for_each_card_prelinks(card, i, link) {
 			of_node_put(link->cpu_of_node);
-			for (j = 0; j < link->num_codecs; j++)
-				of_node_put(link->codecs[j].of_node);
+			for_each_link_codecs(link, j, codec)
+				of_node_put(codec->of_node);
 		}
 	}
 
@@ -167,8 +167,7 @@ static int axg_card_tdm_be_hw_params(struct snd_pcm_substream *substream,
 	if (be->mclk_fs) {
 		mclk = params_rate(params) * be->mclk_fs;
 
-		for (i = 0; i < rtd->num_codecs; i++) {
-			codec_dai = rtd->codec_dais[i];
+		for_each_rtd_codec_dai(rtd, i, codec_dai) {
 			ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 						     SND_SOC_CLOCK_IN);
 			if (ret && ret != -ENOTSUPP)
@@ -196,8 +195,7 @@ static int axg_card_tdm_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *codec_dai;
 	int ret, i;
 
-	for (i = 0; i < rtd->num_codecs; i++) {
-		codec_dai = rtd->codec_dais[i];
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_tdm_slot(codec_dai,
 					       be->codec_masks[i].tx,
 					       be->codec_masks[i].rx,
@@ -478,7 +476,7 @@ static int axg_card_set_be_link(struct snd_soc_card *card,
 
 	ret = axg_card_set_link_name(card, link, "be");
 	if (ret)
-		dev_err(card->dev, "error setting %s link name\n", np->name);
+		dev_err(card->dev, "error setting %pOFn link name\n", np);
 
 	return ret;
 }

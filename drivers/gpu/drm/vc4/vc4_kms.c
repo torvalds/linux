@@ -19,8 +19,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
@@ -216,6 +214,12 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
+	/* We know for sure we don't want an async update here. Set
+	 * state->legacy_cursor_update to false to prevent
+	 * drm_atomic_helper_setup_commit() from auto-completing
+	 * commit->flip_done.
+	 */
+	state->legacy_cursor_update = false;
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
 		return ret;
@@ -394,7 +398,6 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 }
 
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = vc4_atomic_check,
 	.atomic_commit = vc4_atomic_commit,
 	.fb_create = vc4_fb_create,
@@ -433,9 +436,6 @@ int vc4_kms_load(struct drm_device *dev)
 				    &vc4_ctm_state_funcs);
 
 	drm_mode_config_reset(dev);
-
-	if (dev->mode_config.num_connector)
-		drm_fb_cma_fbdev_init(dev, 32, 0);
 
 	drm_kms_helper_poll_init(dev);
 

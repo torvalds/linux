@@ -426,7 +426,7 @@ void unwind_frame_init_task(struct unwind_frame_info *info,
 			r.gr[30] = get_parisc_stackpointer();
 			regs = &r;
 		}
-		unwind_frame_init(info, task, &r);
+		unwind_frame_init(info, task, regs);
 	} else {
 		unwind_frame_init_from_blocked_task(info, task);
 	}

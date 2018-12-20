@@ -135,13 +135,6 @@ extern int do_unbind_con_driver(const struct consw *csw, int first, int last,
 			     int deflt);
 int vty_init(const struct file_operations *console_fops);
 
-static inline bool vt_force_oops_output(struct vc_data *vc)
-{
-	if (oops_in_progress && vc->vc_panic_force_write  && panic_timeout >= 0)
-		return true;
-	return false;
-}
-
 extern char vt_dont_switch;
 extern int default_utf8;
 extern int global_cursor_default;

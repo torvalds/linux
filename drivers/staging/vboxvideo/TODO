@@ -1,5 +1,4 @@
 TODO:
--Move the driver over to the atomic API
 -Get a full review from the drm-maintainers on dri-devel done on this driver
 -Extend this TODO with the results of that review
 

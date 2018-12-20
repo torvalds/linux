@@ -678,6 +678,9 @@ struct sdw_master_ops {
  * @defer_msg: Defer message
  * @clk_stop_timeout: Clock stop timeout computed
  * @bank_switch_timeout: Bank switch timeout computed
+ * @multi_link: Store bus property that indicates if multi links
+ * are supported. This flag is populated by drivers after reading
+ * appropriate firmware (ACPI/DT).
  */
 struct sdw_bus {
 	struct device *dev;
@@ -694,6 +697,7 @@ struct sdw_bus {
 	struct sdw_defer defer_msg;
 	unsigned int clk_stop_timeout;
 	u32 bank_switch_timeout;
+	bool multi_link;
 };
 
 int sdw_add_bus_master(struct sdw_bus *bus);
@@ -768,14 +772,18 @@ struct sdw_stream_params {
  * @params: Stream parameters
  * @state: Current state of the stream
  * @type: Stream type PCM or PDM
- * @m_rt: Master runtime
+ * @master_list: List of Master runtime(s) in this stream.
+ * master_list can contain only one m_rt per Master instance
+ * for a stream
+ * @m_rt_count: Count of Master runtime(s) in this stream
  */
 struct sdw_stream_runtime {
 	char *name;
 	struct sdw_stream_params params;
 	enum sdw_stream_state state;
 	enum sdw_stream_type type;
-	struct sdw_master_runtime *m_rt;
+	struct list_head master_list;
+	int m_rt_count;
 };
 
 struct sdw_stream_runtime *sdw_alloc_stream(char *stream_name);

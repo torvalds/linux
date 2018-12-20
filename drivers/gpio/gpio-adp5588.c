@@ -494,6 +494,6 @@ static struct i2c_driver adp5588_gpio_driver = {
 
 module_i2c_driver(adp5588_gpio_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("GPIO ADP5588 Driver");
 MODULE_LICENSE("GPL");

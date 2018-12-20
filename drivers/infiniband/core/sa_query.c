@@ -761,7 +761,7 @@ static void ib_nl_set_path_rec_attrs(struct sk_buff *skb,
 
 	/* Construct the family header first */
 	header = skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
-	memcpy(header->device_name, query->port->agent->device->name,
+	memcpy(header->device_name, dev_name(&query->port->agent->device->dev),
 	       LS_DEVICE_NAME_MAX);
 	header->port_num = query->port->port_num;
 
@@ -835,7 +835,6 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
 	void *data;
-	int ret = 0;
 	struct ib_sa_mad *mad;
 	int len;
 
@@ -862,13 +861,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
 
-	ret = rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
-	if (!ret)
-		ret = len;
-	else
-		ret = 0;
-
-	return ret;
+	return rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
 }
 
 static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
@@ -891,14 +884,12 @@ static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
 	spin_unlock_irqrestore(&ib_nl_request_lock, flags);
 
 	ret = ib_nl_send_msg(query, gfp_mask);
-	if (ret <= 0) {
+	if (ret) {
 		ret = -EIO;
 		/* Remove the request */
 		spin_lock_irqsave(&ib_nl_request_lock, flags);
 		list_del(&query->list);
 		spin_unlock_irqrestore(&ib_nl_request_lock, flags);
-	} else {
-		ret = 0;
 	}
 
 	return ret;
@@ -1227,46 +1218,6 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 	return src_path_mask;
 }
 
-static int roce_resolve_route_from_path(struct sa_path_rec *rec,
-					const struct ib_gid_attr *attr)
-{
-	struct rdma_dev_addr dev_addr = {};
-	union {
-		struct sockaddr     _sockaddr;
-		struct sockaddr_in  _sockaddr_in;
-		struct sockaddr_in6 _sockaddr_in6;
-	} sgid_addr, dgid_addr;
-	int ret;
-
-	if (rec->roce.route_resolved)
-		return 0;
-	if (!attr || !attr->ndev)
-		return -EINVAL;
-
-	dev_addr.bound_dev_if = attr->ndev->ifindex;
-	/* TODO: Use net from the ib_gid_attr once it is added to it,
-	 * until than, limit itself to init_net.
-	 */
-	dev_addr.net = &init_net;
-
-	rdma_gid2ip(&sgid_addr._sockaddr, &rec->sgid);
-	rdma_gid2ip(&dgid_addr._sockaddr, &rec->dgid);
-
-	/* validate the route */
-	ret = rdma_resolve_ip_route(&sgid_addr._sockaddr,
-				    &dgid_addr._sockaddr, &dev_addr);
-	if (ret)
-		return ret;
-
-	if ((dev_addr.network == RDMA_NETWORK_IPV4 ||
-	     dev_addr.network == RDMA_NETWORK_IPV6) &&
-	    rec->rec_type != SA_PATH_REC_TYPE_ROCE_V2)
-		return -EINVAL;
-
-	rec->roce.route_resolved = true;
-	return 0;
-}
-
 static int init_ah_attr_grh_fields(struct ib_device *device, u8 port_num,
 				   struct sa_path_rec *rec,
 				   struct rdma_ah_attr *ah_attr,
@@ -1409,7 +1360,8 @@ static void init_mad(struct ib_sa_query *query, struct ib_mad_agent *agent)
 	spin_unlock_irqrestore(&tid_lock, flags);
 }
 
-static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
+static int send_mad(struct ib_sa_query *query, unsigned long timeout_ms,
+		    gfp_t gfp_mask)
 {
 	bool preload = gfpflags_allow_blocking(gfp_mask);
 	unsigned long flags;
@@ -1433,7 +1385,7 @@ static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 
 	if ((query->flags & IB_SA_ENABLE_LOCAL_SERVICE) &&
 	    (!(query->flags & IB_SA_QUERY_OPA))) {
-		if (!rdma_nl_chk_listeners(RDMA_NL_GROUP_LS)) {
+		if (rdma_nl_chk_listeners(RDMA_NL_GROUP_LS)) {
 			if (!ib_nl_make_request(query, gfp_mask))
 				return id;
 		}
@@ -1599,7 +1551,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 		       struct ib_device *device, u8 port_num,
 		       struct sa_path_rec *rec,
 		       ib_sa_comp_mask comp_mask,
-		       int timeout_ms, gfp_t gfp_mask,
+		       unsigned long timeout_ms, gfp_t gfp_mask,
 		       void (*callback)(int status,
 					struct sa_path_rec *resp,
 					void *context),
@@ -1753,7 +1705,7 @@ int ib_sa_service_rec_query(struct ib_sa_client *client,
 			    struct ib_device *device, u8 port_num, u8 method,
 			    struct ib_sa_service_rec *rec,
 			    ib_sa_comp_mask comp_mask,
-			    int timeout_ms, gfp_t gfp_mask,
+			    unsigned long timeout_ms, gfp_t gfp_mask,
 			    void (*callback)(int status,
 					     struct ib_sa_service_rec *resp,
 					     void *context),
@@ -1850,7 +1802,7 @@ int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
 			     u8 method,
 			     struct ib_sa_mcmember_rec *rec,
 			     ib_sa_comp_mask comp_mask,
-			     int timeout_ms, gfp_t gfp_mask,
+			     unsigned long timeout_ms, gfp_t gfp_mask,
 			     void (*callback)(int status,
 					      struct ib_sa_mcmember_rec *resp,
 					      void *context),
@@ -1941,7 +1893,7 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 			      struct ib_device *device, u8 port_num,
 			      struct ib_sa_guidinfo_rec *rec,
 			      ib_sa_comp_mask comp_mask, u8 method,
-			      int timeout_ms, gfp_t gfp_mask,
+			      unsigned long timeout_ms, gfp_t gfp_mask,
 			      void (*callback)(int status,
 					       struct ib_sa_guidinfo_rec *resp,
 					       void *context),
@@ -2108,7 +2060,7 @@ static void ib_sa_classport_info_rec_release(struct ib_sa_query *sa_query)
 }
 
 static int ib_sa_classport_info_rec_query(struct ib_sa_port *port,
-					  int timeout_ms,
+					  unsigned long timeout_ms,
 					  void (*callback)(void *context),
 					  void *context,
 					  struct ib_sa_query **sa_query)

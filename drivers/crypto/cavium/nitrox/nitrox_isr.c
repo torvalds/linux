@@ -6,9 +6,16 @@
 #include "nitrox_dev.h"
 #include "nitrox_csr.h"
 #include "nitrox_common.h"
+#include "nitrox_hal.h"
 
+/**
+ * One vector for each type of ring
+ *  - NPS packet ring, AQMQ ring and ZQMQ ring
+ */
 #define NR_RING_VECTORS 3
-#define NPS_CORE_INT_ACTIVE_ENTRY 192
+/* base entry for packet ring/port */
+#define PKT_RING_MSIX_BASE 0
+#define NON_RING_MSIX_BASE 192
 
 /**
  * nps_pkt_slc_isr - IRQ handler for NPS solicit port
@@ -17,13 +24,14 @@
  */
 static irqreturn_t nps_pkt_slc_isr(int irq, void *data)
 {
-	struct bh_data *slc = data;
-	union nps_pkt_slc_cnts pkt_slc_cnts;
+	struct nitrox_q_vector *qvec = data;
+	union nps_pkt_slc_cnts slc_cnts;
+	struct nitrox_cmdq *cmdq = qvec->cmdq;
 
-	pkt_slc_cnts.value = readq(slc->completion_cnt_csr_addr);
+	slc_cnts.value = readq(cmdq->compl_cnt_csr_addr);
 	/* New packet on SLC output port */
-	if (pkt_slc_cnts.s.slc_int)
-		tasklet_hi_schedule(&slc->resp_handler);
+	if (slc_cnts.s.slc_int)
+		tasklet_hi_schedule(&qvec->resp_tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -190,56 +198,92 @@ static void clear_bmi_err_intr(struct nitrox_device *ndev)
 	dev_err_ratelimited(DEV(ndev), "BMI_INT  0x%016llx\n", value);
 }
 
-/**
- * clear_nps_core_int_active - clear NPS_CORE_INT_ACTIVE interrupts
- * @ndev: NITROX device
- */
-static void clear_nps_core_int_active(struct nitrox_device *ndev)
+static void nps_core_int_tasklet(unsigned long data)
 {
-	union nps_core_int_active core_int_active;
+	struct nitrox_q_vector *qvec = (void *)(uintptr_t)(data);
+	struct nitrox_device *ndev = qvec->ndev;
 
-	core_int_active.value = nitrox_read_csr(ndev, NPS_CORE_INT_ACTIVE);
-
-	if (core_int_active.s.nps_core)
-		clear_nps_core_err_intr(ndev);
-
-	if (core_int_active.s.nps_pkt)
-		clear_nps_pkt_err_intr(ndev);
-
-	if (core_int_active.s.pom)
-		clear_pom_err_intr(ndev);
-
-	if (core_int_active.s.pem)
-		clear_pem_err_intr(ndev);
-
-	if (core_int_active.s.lbc)
-		clear_lbc_err_intr(ndev);
-
-	if (core_int_active.s.efl)
-		clear_efl_err_intr(ndev);
-
-	if (core_int_active.s.bmi)
-		clear_bmi_err_intr(ndev);
-
-	/* If more work callback the ISR, set resend */
-	core_int_active.s.resend = 1;
-	nitrox_write_csr(ndev, NPS_CORE_INT_ACTIVE, core_int_active.value);
+	/* if pf mode do queue recovery */
+	if (ndev->mode == __NDEV_MODE_PF) {
+	} else {
+		/**
+		 * if VF(s) enabled communicate the error information
+		 * to VF(s)
+		 */
+	}
 }
 
+/**
+ * nps_core_int_isr - interrupt handler for NITROX errors and
+ *   mailbox communication
+ */
 static irqreturn_t nps_core_int_isr(int irq, void *data)
 {
 	struct nitrox_device *ndev = data;
+	union nps_core_int_active core_int;
 
-	clear_nps_core_int_active(ndev);
+	core_int.value = nitrox_read_csr(ndev, NPS_CORE_INT_ACTIVE);
+
+	if (core_int.s.nps_core)
+		clear_nps_core_err_intr(ndev);
+
+	if (core_int.s.nps_pkt)
+		clear_nps_pkt_err_intr(ndev);
+
+	if (core_int.s.pom)
+		clear_pom_err_intr(ndev);
+
+	if (core_int.s.pem)
+		clear_pem_err_intr(ndev);
+
+	if (core_int.s.lbc)
+		clear_lbc_err_intr(ndev);
+
+	if (core_int.s.efl)
+		clear_efl_err_intr(ndev);
+
+	if (core_int.s.bmi)
+		clear_bmi_err_intr(ndev);
+
+	/* If more work callback the ISR, set resend */
+	core_int.s.resend = 1;
+	nitrox_write_csr(ndev, NPS_CORE_INT_ACTIVE, core_int.value);
 
 	return IRQ_HANDLED;
 }
 
-static int nitrox_enable_msix(struct nitrox_device *ndev)
+void nitrox_unregister_interrupts(struct nitrox_device *ndev)
 {
-	struct msix_entry *entries;
-	char **names;
-	int i, nr_entries, ret;
+	struct pci_dev *pdev = ndev->pdev;
+	int i;
+
+	for (i = 0; i < ndev->num_vecs; i++) {
+		struct nitrox_q_vector *qvec;
+		int vec;
+
+		qvec = ndev->qvec + i;
+		if (!qvec->valid)
+			continue;
+
+		/* get the vector number */
+		vec = pci_irq_vector(pdev, i);
+		irq_set_affinity_hint(vec, NULL);
+		free_irq(vec, qvec);
+
+		tasklet_disable(&qvec->resp_tasklet);
+		tasklet_kill(&qvec->resp_tasklet);
+		qvec->valid = false;
+	}
+	kfree(ndev->qvec);
+	pci_free_irq_vectors(pdev);
+}
+
+int nitrox_register_interrupts(struct nitrox_device *ndev)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	struct nitrox_q_vector *qvec;
+	int nr_vecs, vec, cpu;
+	int ret, i;
 
 	/*
 	 * PF MSI-X vectors
@@ -253,216 +297,71 @@ static int nitrox_enable_msix(struct nitrox_device *ndev)
 	 * ....
 	 * Entry 192: NPS_CORE_INT_ACTIVE
 	 */
-	nr_entries = (ndev->nr_queues * NR_RING_VECTORS) + 1;
-	entries = kcalloc_node(nr_entries, sizeof(struct msix_entry),
-			       GFP_KERNEL, ndev->node);
-	if (!entries)
-		return -ENOMEM;
+	nr_vecs = pci_msix_vec_count(pdev);
 
-	names = kcalloc(nr_entries, sizeof(char *), GFP_KERNEL);
-	if (!names) {
-		kfree(entries);
-		return -ENOMEM;
-	}
-
-	/* fill entires */
-	for (i = 0; i < (nr_entries - 1); i++)
-		entries[i].entry = i;
-
-	entries[i].entry = NPS_CORE_INT_ACTIVE_ENTRY;
-
-	for (i = 0; i < nr_entries; i++) {
-		*(names + i) = kzalloc(MAX_MSIX_VECTOR_NAME, GFP_KERNEL);
-		if (!(*(names + i))) {
-			ret = -ENOMEM;
-			goto msix_fail;
-		}
-	}
-	ndev->msix.entries = entries;
-	ndev->msix.names = names;
-	ndev->msix.nr_entries = nr_entries;
-
-	ret = pci_enable_msix_exact(ndev->pdev, ndev->msix.entries,
-				    ndev->msix.nr_entries);
-	if (ret) {
-		dev_err(&ndev->pdev->dev, "Failed to enable MSI-X IRQ(s) %d\n",
-			ret);
-		goto msix_fail;
-	}
-	return 0;
-
-msix_fail:
-	for (i = 0; i < nr_entries; i++)
-		kfree(*(names + i));
-
-	kfree(entries);
-	kfree(names);
-	return ret;
-}
-
-static void nitrox_cleanup_pkt_slc_bh(struct nitrox_device *ndev)
-{
-	int i;
-
-	if (!ndev->bh.slc)
-		return;
-
-	for (i = 0; i < ndev->nr_queues; i++) {
-		struct bh_data *bh = &ndev->bh.slc[i];
-
-		tasklet_disable(&bh->resp_handler);
-		tasklet_kill(&bh->resp_handler);
-	}
-	kfree(ndev->bh.slc);
-	ndev->bh.slc = NULL;
-}
-
-static int nitrox_setup_pkt_slc_bh(struct nitrox_device *ndev)
-{
-	u32 size;
-	int i;
-
-	size = ndev->nr_queues * sizeof(struct bh_data);
-	ndev->bh.slc = kzalloc(size, GFP_KERNEL);
-	if (!ndev->bh.slc)
-		return -ENOMEM;
-
-	for (i = 0; i < ndev->nr_queues; i++) {
-		struct bh_data *bh = &ndev->bh.slc[i];
-		u64 offset;
-
-		offset = NPS_PKT_SLC_CNTSX(i);
-		/* pre calculate completion count address */
-		bh->completion_cnt_csr_addr = NITROX_CSR_ADDR(ndev, offset);
-		bh->cmdq = &ndev->pkt_cmdqs[i];
-
-		tasklet_init(&bh->resp_handler, pkt_slc_resp_handler,
-			     (unsigned long)bh);
-	}
-
-	return 0;
-}
-
-static int nitrox_request_irqs(struct nitrox_device *ndev)
-{
-	struct pci_dev *pdev = ndev->pdev;
-	struct msix_entry *msix_ent = ndev->msix.entries;
-	int nr_ring_vectors, i = 0, ring, cpu, ret;
-	char *name;
-
-	/*
-	 * PF MSI-X vectors
-	 *
-	 * Entry 0: NPS PKT ring 0
-	 * Entry 1: AQMQ ring 0
-	 * Entry 2: ZQM ring 0
-	 * Entry 3: NPS PKT ring 1
-	 * ....
-	 * Entry 192: NPS_CORE_INT_ACTIVE
-	 */
-	nr_ring_vectors = ndev->nr_queues * NR_RING_VECTORS;
-
-	/* request irq for pkt ring/ports only */
-	while (i < nr_ring_vectors) {
-		name = *(ndev->msix.names + i);
-		ring = (i / NR_RING_VECTORS);
-		snprintf(name, MAX_MSIX_VECTOR_NAME, "n5(%d)-slc-ring%d",
-			 ndev->idx, ring);
-
-		ret = request_irq(msix_ent[i].vector, nps_pkt_slc_isr, 0,
-				  name, &ndev->bh.slc[ring]);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get irq %d for %s\n",
-				msix_ent[i].vector, name);
-			return ret;
-		}
-		cpu = ring % num_online_cpus();
-		irq_set_affinity_hint(msix_ent[i].vector, get_cpu_mask(cpu));
-
-		set_bit(i, ndev->msix.irqs);
-		i += NR_RING_VECTORS;
-	}
-
-	/* Request IRQ for NPS_CORE_INT_ACTIVE */
-	name = *(ndev->msix.names + i);
-	snprintf(name, MAX_MSIX_VECTOR_NAME, "n5(%d)-nps-core-int", ndev->idx);
-	ret = request_irq(msix_ent[i].vector, nps_core_int_isr, 0, name, ndev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to get irq %d for %s\n",
-			msix_ent[i].vector, name);
+	/* Enable MSI-X */
+	ret = pci_alloc_irq_vectors(pdev, nr_vecs, nr_vecs, PCI_IRQ_MSIX);
+	if (ret < 0) {
+		dev_err(DEV(ndev), "msix vectors %d alloc failed\n", nr_vecs);
 		return ret;
 	}
-	set_bit(i, ndev->msix.irqs);
+	ndev->num_vecs = nr_vecs;
 
-	return 0;
-}
-
-static void nitrox_disable_msix(struct nitrox_device *ndev)
-{
-	struct msix_entry *msix_ent = ndev->msix.entries;
-	char **names = ndev->msix.names;
-	int i = 0, ring, nr_ring_vectors;
-
-	nr_ring_vectors = ndev->msix.nr_entries - 1;
-
-	/* clear pkt ring irqs */
-	while (i < nr_ring_vectors) {
-		if (test_and_clear_bit(i, ndev->msix.irqs)) {
-			ring = (i / NR_RING_VECTORS);
-			irq_set_affinity_hint(msix_ent[i].vector, NULL);
-			free_irq(msix_ent[i].vector, &ndev->bh.slc[ring]);
-		}
-		i += NR_RING_VECTORS;
+	ndev->qvec = kcalloc(nr_vecs, sizeof(*qvec), GFP_KERNEL);
+	if (!ndev->qvec) {
+		pci_free_irq_vectors(pdev);
+		return -ENOMEM;
 	}
-	irq_set_affinity_hint(msix_ent[i].vector, NULL);
-	free_irq(msix_ent[i].vector, ndev);
-	clear_bit(i, ndev->msix.irqs);
 
-	kfree(ndev->msix.entries);
-	for (i = 0; i < ndev->msix.nr_entries; i++)
-		kfree(*(names + i));
+	/* request irqs for packet rings/ports */
+	for (i = PKT_RING_MSIX_BASE; i < (nr_vecs - 1); i += NR_RING_VECTORS) {
+		qvec = &ndev->qvec[i];
 
-	kfree(names);
-	pci_disable_msix(ndev->pdev);
-}
+		qvec->ring = i / NR_RING_VECTORS;
+		if (qvec->ring >= ndev->nr_queues)
+			break;
 
-/**
- * nitrox_pf_cleanup_isr: Cleanup PF MSI-X and IRQ
- * @ndev: NITROX device
- */
-void nitrox_pf_cleanup_isr(struct nitrox_device *ndev)
-{
-	nitrox_disable_msix(ndev);
-	nitrox_cleanup_pkt_slc_bh(ndev);
-}
+		snprintf(qvec->name, IRQ_NAMESZ, "nitrox-pkt%d", qvec->ring);
+		/* get the vector number */
+		vec = pci_irq_vector(pdev, i);
+		ret = request_irq(vec, nps_pkt_slc_isr, 0, qvec->name, qvec);
+		if (ret) {
+			dev_err(DEV(ndev), "irq failed for pkt ring/port%d\n",
+				qvec->ring);
+			goto irq_fail;
+		}
+		cpu = qvec->ring % num_online_cpus();
+		irq_set_affinity_hint(vec, get_cpu_mask(cpu));
 
-/**
- * nitrox_init_isr - Initialize PF MSI-X vectors and IRQ
- * @ndev: NITROX device
- *
- * Return: 0 on success, a negative value on failure.
- */
-int nitrox_pf_init_isr(struct nitrox_device *ndev)
-{
-	int err;
+		tasklet_init(&qvec->resp_tasklet, pkt_slc_resp_tasklet,
+			     (unsigned long)qvec);
+		qvec->cmdq = &ndev->pkt_inq[qvec->ring];
+		qvec->valid = true;
+	}
 
-	err = nitrox_setup_pkt_slc_bh(ndev);
-	if (err)
-		return err;
+	/* request irqs for non ring vectors */
+	i = NON_RING_MSIX_BASE;
+	qvec = &ndev->qvec[i];
 
-	err = nitrox_enable_msix(ndev);
-	if (err)
-		goto msix_fail;
-
-	err = nitrox_request_irqs(ndev);
-	if (err)
+	snprintf(qvec->name, IRQ_NAMESZ, "nitrox-core-int%d", i);
+	/* get the vector number */
+	vec = pci_irq_vector(pdev, i);
+	ret = request_irq(vec, nps_core_int_isr, 0, qvec->name, qvec);
+	if (ret) {
+		dev_err(DEV(ndev), "irq failed for nitrox-core-int%d\n", i);
 		goto irq_fail;
+	}
+	cpu = num_online_cpus();
+	irq_set_affinity_hint(vec, get_cpu_mask(cpu));
+
+	tasklet_init(&qvec->resp_tasklet, nps_core_int_tasklet,
+		     (unsigned long)qvec);
+	qvec->ndev = ndev;
+	qvec->valid = true;
 
 	return 0;
 
 irq_fail:
-	nitrox_disable_msix(ndev);
-msix_fail:
-	nitrox_cleanup_pkt_slc_bh(ndev);
-	return err;
+	nitrox_unregister_interrupts(ndev);
+	return ret;
 }

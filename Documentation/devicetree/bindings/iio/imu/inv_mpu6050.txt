@@ -20,6 +20,7 @@ Required properties:
   bindings.
 
 Optional properties:
+ - vddio-supply: regulator phandle for VDDIO supply
  - mount-matrix: an optional 3x3 mounting rotation matrix
  - i2c-gate node.  These devices also support an auxiliary i2c bus.  This is
    simple enough to be described using the i2c-gate binding. See

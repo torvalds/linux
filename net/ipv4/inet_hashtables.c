@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <net/addrconf.h>
 #include <net/inet_connection_sock.h>

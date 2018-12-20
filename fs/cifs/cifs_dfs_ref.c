@@ -304,12 +304,17 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	 */
 	mnt = ERR_PTR(-ENOMEM);
 
+	cifs_sb = CIFS_SB(mntpt->d_sb);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS) {
+		mnt = ERR_PTR(-EREMOTE);
+		goto cdda_exit;
+	}
+
 	/* always use tree name prefix */
 	full_path = build_path_from_dentry_optional_prefix(mntpt, true);
 	if (full_path == NULL)
 		goto cdda_exit;
 
-	cifs_sb = CIFS_SB(mntpt->d_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		mnt = ERR_CAST(tlink);

@@ -3,7 +3,9 @@
 Required Properties:
 - compatible: should be "renesas,pwm-rcar" and one of the following.
  - "renesas,pwm-r8a7743": for RZ/G1M
+ - "renesas,pwm-r8a7744": for RZ/G1N
  - "renesas,pwm-r8a7745": for RZ/G1E
+ - "renesas,pwm-r8a774a1": for RZ/G2M
  - "renesas,pwm-r8a7778": for R-Car M1A
  - "renesas,pwm-r8a7779": for R-Car H1
  - "renesas,pwm-r8a7790": for R-Car H2
@@ -12,6 +14,8 @@ Required Properties:
  - "renesas,pwm-r8a7795": for R-Car H3
  - "renesas,pwm-r8a7796": for R-Car M3-W
  - "renesas,pwm-r8a77965": for R-Car M3-N
+ - "renesas,pwm-r8a77970": for R-Car V3M
+ - "renesas,pwm-r8a77980": for R-Car V3H
  - "renesas,pwm-r8a77990": for R-Car E3
  - "renesas,pwm-r8a77995": for R-Car D3
 - reg: base address and length of the registers block for the PWM.

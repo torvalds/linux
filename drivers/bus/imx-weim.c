@@ -156,9 +156,6 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
-		if (!child->name)
-			continue;
-
 		ret = weim_timing_setup(child, base, devtype);
 		if (ret)
 			dev_warn(&pdev->dev, "%pOF set timing failed.\n",

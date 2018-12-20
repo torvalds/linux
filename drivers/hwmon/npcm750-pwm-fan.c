@@ -52,7 +52,7 @@
 
 /* Define the Counter Register, value = 100 for match 100% */
 #define NPCM7XX_PWM_COUNTER_DEFAULT_NUM		255
-#define NPCM7XX_PWM_CMR_DEFAULT_NUM		127
+#define NPCM7XX_PWM_CMR_DEFAULT_NUM		255
 #define NPCM7XX_PWM_CMR_MAX			255
 
 /* default all PWM channels PRESCALE2 = 1 */
@@ -861,7 +861,7 @@ static int npcm7xx_create_pwm_cooling(struct device *dev,
 		dev_err(dev, "Property 'cooling-levels' cannot be read.\n");
 		return ret;
 	}
-	snprintf(cdev->name, THERMAL_NAME_LENGTH, "%s%d", child->name,
+	snprintf(cdev->name, THERMAL_NAME_LENGTH, "%pOFn%d", child,
 		 pwm_port);
 
 	cdev->tcdev = thermal_of_cooling_device_register(child,
@@ -908,7 +908,7 @@ static int npcm7xx_en_pwm_fan(struct device *dev,
 	if (fan_cnt < 1)
 		return -EINVAL;
 
-	fan_ch = devm_kzalloc(dev, sizeof(*fan_ch) * fan_cnt, GFP_KERNEL);
+	fan_ch = devm_kcalloc(dev, fan_cnt, sizeof(*fan_ch), GFP_KERNEL);
 	if (!fan_ch)
 		return -ENOMEM;
 

@@ -316,9 +316,9 @@ int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info)
 	put_unaligned_le32(ctrl_info->max_io_slots,
 		&base_struct->error_buffer_num_elements);
 
-	bus_address = pci_map_single(ctrl_info->pci_dev, base_struct,
-		sizeof(*base_struct), PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(ctrl_info->pci_dev, bus_address)) {
+	bus_address = dma_map_single(&ctrl_info->pci_dev->dev, base_struct,
+		sizeof(*base_struct), DMA_TO_DEVICE);
+	if (dma_mapping_error(&ctrl_info->pci_dev->dev, bus_address)) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -331,9 +331,8 @@ int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info)
 	rc = sis_send_sync_cmd(ctrl_info, SIS_CMD_INIT_BASE_STRUCT_ADDRESS,
 		&params);
 
-	pci_unmap_single(ctrl_info->pci_dev, bus_address, sizeof(*base_struct),
-		PCI_DMA_TODEVICE);
-
+	dma_unmap_single(&ctrl_info->pci_dev->dev, bus_address,
+			sizeof(*base_struct), DMA_TO_DEVICE);
 out:
 	kfree(base_struct_unaligned);
 

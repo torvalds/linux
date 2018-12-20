@@ -52,7 +52,7 @@ struct lpfc_sli2_slim;
 		downloads using bsg */
 
 #define LPFC_MIN_SG_SLI4_BUF_SZ	0x800	/* based on LPFC_DEFAULT_SG_SEG_CNT */
-#define LPFC_MAX_SG_SLI4_SEG_CNT_DIF 128 /* sg element count per scsi cmnd */
+#define LPFC_MAX_BG_SLI4_SEG_CNT_DIF 128 /* sg element count for BlockGuard */
 #define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
 #define LPFC_MIN_SG_SEG_CNT	32	/* sg element count per scsi cmnd */
@@ -583,6 +583,25 @@ struct lpfc_mbox_ext_buf_ctx {
 	struct list_head ext_dmabuf_list;
 };
 
+struct lpfc_ras_fwlog {
+	uint8_t *fwlog_buff;
+	uint32_t fw_buffcount; /* Buffer size posted to FW */
+#define LPFC_RAS_BUFF_ENTERIES  16      /* Each entry can hold max of 64k */
+#define LPFC_RAS_MAX_ENTRY_SIZE (64 * 1024)
+#define LPFC_RAS_MIN_BUFF_POST_SIZE (256 * 1024)
+#define LPFC_RAS_MAX_BUFF_POST_SIZE (1024 * 1024)
+	uint32_t fw_loglevel; /* Log level set */
+	struct lpfc_dmabuf lwpd;
+	struct list_head fwlog_buff_list;
+
+	/* RAS support status on adapter */
+	bool ras_hwsupport; /* RAS Support available on HW or not */
+	bool ras_enabled;   /* Ras Enabled for the function */
+#define LPFC_RAS_DISABLE_LOGGING 0x00
+#define LPFC_RAS_ENABLE_LOGGING 0x01
+	bool ras_active;    /* RAS logging running state */
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	int (*lpfc_new_scsi_buf)
@@ -790,6 +809,7 @@ struct lpfc_hba {
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_nvme_seg_cnt;
+	uint32_t cfg_scsi_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
@@ -833,6 +853,9 @@ struct lpfc_hba {
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
+	uint32_t cfg_ras_fwlog_level;
+	uint32_t cfg_ras_fwlog_buffsize;
+	uint32_t cfg_ras_fwlog_func;
 	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
 	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
@@ -963,6 +986,7 @@ struct lpfc_hba {
 	uint32_t intr_mode;
 #define LPFC_INTR_ERROR	0xFFFFFFFF
 	struct list_head port_list;
+	spinlock_t port_list_lock;	/* lock for port_list mutations */
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
 	uint16_t max_vpi;		/* Maximum virtual nports */
 #define LPFC_MAX_VPI 0xFFFF		/* Max number of VPI supported */
@@ -1091,6 +1115,9 @@ struct lpfc_hba {
 	struct list_head ct_ev_waiters;
 	struct unsol_rcv_ct_ctx ct_ctx[LPFC_CT_CTX_MAX];
 	uint32_t ctx_idx;
+
+	/* RAS Support */
+	struct lpfc_ras_fwlog ras_fwlog;
 
 	uint8_t menlo_flag;	/* menlo generic flags */
 #define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */

@@ -41,6 +41,7 @@ enum bpf_reg_liveness {
 };
 
 struct bpf_reg_state {
+	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
 	union {
 		/* valid when type == PTR_TO_PACKET */
@@ -50,6 +51,9 @@ struct bpf_reg_state {
 		 *   PTR_TO_MAP_VALUE_OR_NULL
 		 */
 		struct bpf_map *map_ptr;
+
+		/* Max size from any of the above. */
+		unsigned long raw;
 	};
 	/* Fixed part of pointer offset, pointer types only */
 	s32 off;
@@ -57,9 +61,10 @@ struct bpf_reg_state {
 	 * offset, so they can share range knowledge.
 	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
 	 * came from, when one is tested for != NULL.
+	 * For PTR_TO_SOCKET this is used to share which pointers retain the
+	 * same reference to the socket, to determine proper reference freeing.
 	 */
 	u32 id;
-	/* Ordering of fields matters.  See states_equal() */
 	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset
@@ -76,15 +81,15 @@ struct bpf_reg_state {
 	s64 smax_value; /* maximum possible (s64)value */
 	u64 umin_value; /* minimum possible (u64)value */
 	u64 umax_value; /* maximum possible (u64)value */
+	/* parentage chain for liveness checking */
+	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like
 	 * R1=fp-8 and R2=fp-8, but one of them points to this function stack
 	 * while another to the caller's stack. To differentiate them 'frameno'
 	 * is used which is an index in bpf_verifier_state->frame[] array
 	 * pointing to bpf_func_state.
-	 * This field must be second to last, for states_equal() reasons.
 	 */
 	u32 frameno;
-	/* This field must be last, for states_equal() reasons. */
 	enum bpf_reg_liveness live;
 };
 
@@ -102,12 +107,22 @@ struct bpf_stack_state {
 	u8 slot_type[BPF_REG_SIZE];
 };
 
+struct bpf_reference_state {
+	/* Track each reference created with a unique id, even if the same
+	 * instruction creates the reference multiple times (eg, via CALL).
+	 */
+	int id;
+	/* Instruction where the allocation of this reference occurred. This
+	 * is used purely to inform the user of a reference leak.
+	 */
+	int insn_idx;
+};
+
 /* state of the program:
  * type of all registers and stack info
  */
 struct bpf_func_state {
 	struct bpf_reg_state regs[MAX_BPF_REG];
-	struct bpf_verifier_state *parent;
 	/* index of call instruction that called into this func */
 	int callsite;
 	/* stack frame number of this function state from pov of
@@ -120,7 +135,9 @@ struct bpf_func_state {
 	 */
 	u32 subprogno;
 
-	/* should be second to last. See copy_func_state() */
+	/* The following fields should be last. See copy_func_state() */
+	int acquired_refs;
+	struct bpf_reference_state *refs;
 	int allocated_stack;
 	struct bpf_stack_state *stack;
 };
@@ -129,9 +146,19 @@ struct bpf_func_state {
 struct bpf_verifier_state {
 	/* call stack tracking */
 	struct bpf_func_state *frame[MAX_CALL_FRAMES];
-	struct bpf_verifier_state *parent;
 	u32 curframe;
 };
+
+#define bpf_get_spilled_reg(slot, frame)				\
+	(((slot < frame->allocated_stack / BPF_REG_SIZE) &&		\
+	  (frame->stack[slot].slot_type[0] == STACK_SPILL))		\
+	 ? &frame->stack[slot].spilled_ptr : NULL)
+
+/* Iterate over 'frame', setting 'reg' to either NULL or a spilled register. */
+#define bpf_for_each_spilled_reg(iter, frame, reg)			\
+	for (iter = 0, reg = bpf_get_spilled_reg(iter, frame);		\
+	     iter < frame->allocated_stack / BPF_REG_SIZE;		\
+	     iter++, reg = bpf_get_spilled_reg(iter, frame))
 
 /* linked list of verifier states used to prune search */
 struct bpf_verifier_state_list {
@@ -206,15 +233,21 @@ __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
 __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...);
 
-static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
+static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {
 	struct bpf_verifier_state *cur = env->cur_state;
 
-	return cur->frame[cur->curframe]->regs;
+	return cur->frame[cur->curframe];
+}
+
+static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
+{
+	return cur_func(env)->regs;
 }
 
 int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env);
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 				 int insn_idx, int prev_insn_idx);
+int bpf_prog_offload_finalize(struct bpf_verifier_env *env);
 
 #endif /* _LINUX_BPF_VERIFIER_H */

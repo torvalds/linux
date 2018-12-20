@@ -48,21 +48,31 @@ struct smc_cdc_msg {
 	struct smc_cdc_producer_flags	prod_flags;
 	struct smc_cdc_conn_state_flags	conn_state_flags;
 	u8				reserved[18];
-} __packed;					/* format defined in RFC7609 */
+};
+
+/* SMC-D cursor format */
+union smcd_cdc_cursor {
+	struct {
+		u16	wrap;
+		u32	count;
+		struct smc_cdc_producer_flags	prod_flags;
+		struct smc_cdc_conn_state_flags	conn_state_flags;
+	} __packed;
+#ifdef KERNEL_HAS_ATOMIC64
+	atomic64_t		acurs;		/* for atomic processing */
+#else
+	u64			acurs;		/* for atomic processing */
+#endif
+} __aligned(8);
 
 /* CDC message for SMC-D */
 struct smcd_cdc_msg {
 	struct smc_wr_rx_hdr common;	/* Type = 0xFE */
 	u8 res1[7];
-	u16 prod_wrap;
-	u32 prod_count;
-	u8 res2[2];
-	u16 cons_wrap;
-	u32 cons_count;
-	struct smc_cdc_producer_flags	prod_flags;
-	struct smc_cdc_conn_state_flags conn_state_flags;
+	union smcd_cdc_cursor	prod;
+	union smcd_cdc_cursor	cons;
 	u8 res3[8];
-} __packed;
+} __aligned(8);
 
 static inline bool smc_cdc_rxed_any_close(struct smc_connection *conn)
 {
@@ -123,6 +133,21 @@ static inline void smc_curs_copy(union smc_host_cursor *tgt,
 static inline void smc_curs_copy_net(union smc_cdc_cursor *tgt,
 				     union smc_cdc_cursor *src,
 				     struct smc_connection *conn)
+{
+#ifndef KERNEL_HAS_ATOMIC64
+	unsigned long flags;
+
+	spin_lock_irqsave(&conn->acurs_lock, flags);
+	tgt->acurs = src->acurs;
+	spin_unlock_irqrestore(&conn->acurs_lock, flags);
+#else
+	atomic64_set(&tgt->acurs, atomic64_read(&src->acurs));
+#endif
+}
+
+static inline void smcd_curs_copy(union smcd_cdc_cursor *tgt,
+				  union smcd_cdc_cursor *src,
+				  struct smc_connection *conn)
 {
 #ifndef KERNEL_HAS_ATOMIC64
 	unsigned long flags;
@@ -222,12 +247,17 @@ static inline void smcr_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 static inline void smcd_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 					struct smcd_cdc_msg *peer)
 {
-	local->prod.wrap = peer->prod_wrap;
-	local->prod.count = peer->prod_count;
-	local->cons.wrap = peer->cons_wrap;
-	local->cons.count = peer->cons_count;
-	local->prod_flags = peer->prod_flags;
-	local->conn_state_flags = peer->conn_state_flags;
+	union smc_host_cursor temp;
+
+	temp.wrap = peer->prod.wrap;
+	temp.count = peer->prod.count;
+	atomic64_set(&local->prod.acurs, atomic64_read(&temp.acurs));
+
+	temp.wrap = peer->cons.wrap;
+	temp.count = peer->cons.count;
+	atomic64_set(&local->cons.acurs, atomic64_read(&temp.acurs));
+	local->prod_flags = peer->cons.prod_flags;
+	local->conn_state_flags = peer->cons.conn_state_flags;
 }
 
 static inline void smc_cdc_msg_to_host(struct smc_host_cdc_msg *local,

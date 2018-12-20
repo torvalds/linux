@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net_main.c
@@ -470,8 +440,8 @@ static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
 
 static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 {
+	u32 min_size, cpp_id;
 	u8 __iomem *mem;
-	u32 min_size;
 	int err;
 
 	min_size = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
@@ -519,9 +489,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		pf->vfcfg_tbl2 = NULL;
 	}
 
-	mem = nfp_cpp_map_area(pf->cpp, "net.qc", 0, 0,
-			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
-			       &pf->qc_area);
+	cpp_id = NFP_CPP_ISLAND_ID(0, NFP_CPP_ACTION_RW, 0, 0);
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id, NFP_PCIE_QUEUE(0),
+			       NFP_QCP_QUEUE_AREA_SZ, &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);

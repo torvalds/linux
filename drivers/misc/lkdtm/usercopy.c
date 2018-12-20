@@ -18,7 +18,7 @@
  * hardened usercopy checks by added "unconst" to all the const copies,
  * and making sure "cache_size" isn't optimized into a const.
  */
-static volatile size_t unconst = 0;
+static volatile size_t unconst;
 static volatile size_t cache_size = 1024;
 static struct kmem_cache *whitelist_cache;
 
@@ -320,6 +320,19 @@ void lkdtm_USERCOPY_KERNEL(void)
 
 free_user:
 	vm_munmap(user_addr, PAGE_SIZE);
+}
+
+void lkdtm_USERCOPY_KERNEL_DS(void)
+{
+	char __user *user_ptr = (char __user *)ERR_PTR(-EINVAL);
+	mm_segment_t old_fs = get_fs();
+	char buf[10] = {0};
+
+	pr_info("attempting copy_to_user on unmapped kernel address\n");
+	set_fs(KERNEL_DS);
+	if (copy_to_user(user_ptr, buf, sizeof(buf)))
+		pr_info("copy_to_user un unmapped kernel address failed\n");
+	set_fs(old_fs);
 }
 
 void __init lkdtm_usercopy_init(void)

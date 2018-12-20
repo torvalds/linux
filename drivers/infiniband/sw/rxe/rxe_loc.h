@@ -144,8 +144,7 @@ void rxe_loopback(struct sk_buff *skb);
 int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb);
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt);
-int rxe_prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
-		struct sk_buff *skb, u32 *crc);
+int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc);
 enum rdma_link_layer rxe_link_layer(struct rxe_dev *rxe, unsigned int port_num);
 const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
 struct device *rxe_dma_device(struct rxe_dev *rxe);
@@ -196,7 +195,7 @@ static inline int qp_mtu(struct rxe_qp *qp)
 	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC)
 		return qp->attr.path_mtu;
 	else
-		return RXE_PORT_MAX_MTU;
+		return IB_MTU_4096;
 }
 
 static inline int rcv_wqe_size(int max_sge)

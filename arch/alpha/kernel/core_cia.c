@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/ptrace.h>
 #include <asm/mce.h>
@@ -331,7 +331,7 @@ cia_prepare_tbia_workaround(int window)
 	long i;
 
 	/* Use minimal 1K map. */
-	ppte = __alloc_bootmem(CIA_BROKEN_TBIA_SIZE, 32768, 0);
+	ppte = memblock_alloc_from(CIA_BROKEN_TBIA_SIZE, 32768, 0);
 	pte = (virt_to_phys(ppte) >> (PAGE_SHIFT - 1)) | 1;
 
 	for (i = 0; i < CIA_BROKEN_TBIA_SIZE / sizeof(unsigned long); ++i)

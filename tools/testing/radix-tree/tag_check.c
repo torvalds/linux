@@ -24,7 +24,7 @@ __simple_checks(struct radix_tree_root *tree, unsigned long index, int tag)
 	item_tag_set(tree, index, tag);
 	ret = item_tag_get(tree, index, tag);
 	assert(ret != 0);
-	ret = tag_tagged_items(tree, NULL, first, ~0UL, 10, tag, !tag);
+	ret = tag_tagged_items(tree, first, ~0UL, 10, tag, !tag);
 	assert(ret == 1);
 	ret = item_tag_get(tree, index, !tag);
 	assert(ret != 0);
@@ -321,41 +321,13 @@ static void single_check(void)
 	assert(ret == 0);
 	verify_tag_consistency(&tree, 0);
 	verify_tag_consistency(&tree, 1);
-	ret = tag_tagged_items(&tree, NULL, first, 10, 10, 0, 1);
+	ret = tag_tagged_items(&tree, first, 10, 10, XA_MARK_0, XA_MARK_1);
 	assert(ret == 1);
 	ret = radix_tree_gang_lookup_tag(&tree, (void **)items, 0, BATCH, 1);
 	assert(ret == 1);
 	item_tag_clear(&tree, 0, 0);
 	ret = radix_tree_gang_lookup_tag(&tree, (void **)items, 0, BATCH, 0);
 	assert(ret == 0);
-	item_kill_tree(&tree);
-}
-
-void radix_tree_clear_tags_test(void)
-{
-	unsigned long index;
-	struct radix_tree_node *node;
-	struct radix_tree_iter iter;
-	void **slot;
-
-	RADIX_TREE(tree, GFP_KERNEL);
-
-	item_insert(&tree, 0);
-	item_tag_set(&tree, 0, 0);
-	__radix_tree_lookup(&tree, 0, &node, &slot);
-	radix_tree_clear_tags(&tree, node, slot);
-	assert(item_tag_get(&tree, 0, 0) == 0);
-
-	for (index = 0; index < 1000; index++) {
-		item_insert(&tree, index);
-		item_tag_set(&tree, index, 0);
-	}
-
-	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-		radix_tree_clear_tags(&tree, iter.node, slot);
-		assert(item_tag_get(&tree, iter.index, 0) == 0);
-	}
-
 	item_kill_tree(&tree);
 }
 
@@ -376,5 +348,4 @@ void tag_check(void)
 	thrash_tags();
 	rcu_barrier();
 	printv(2, "after thrash_tags: %d allocated\n", nr_allocated);
-	radix_tree_clear_tags_test();
 }

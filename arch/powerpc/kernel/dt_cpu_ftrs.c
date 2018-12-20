@@ -1008,9 +1008,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 	/* Count and allocate space for cpu features */
 	of_scan_flat_dt_subnodes(node, count_cpufeatures_subnodes,
 						&nr_dt_cpu_features);
-	dt_cpu_features = __va(
-		memblock_alloc(sizeof(struct dt_cpu_feature)*
-				nr_dt_cpu_features, PAGE_SIZE));
+	dt_cpu_features = __va(memblock_phys_alloc(sizeof(struct dt_cpu_feature) * nr_dt_cpu_features, PAGE_SIZE));
 
 	cpufeatures_setup_start(isa);
 

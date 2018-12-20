@@ -287,6 +287,7 @@ propdata:
 		}
 	| propdataprefix DT_REF
 		{
+			$1 = data_add_marker($1, TYPE_STRING, $2);
 			$$ = data_add_marker($1, REF_PATH, $2);
 		}
 	| propdataprefix DT_INCBIN '(' DT_STRING ',' integer_prim ',' integer_prim ')'
@@ -340,22 +341,27 @@ arrayprefix:
 	DT_BITS DT_LITERAL '<'
 		{
 			unsigned long long bits;
+			enum markertype type = TYPE_UINT32;
 
 			bits = $2;
 
-			if ((bits !=  8) && (bits != 16) &&
-			    (bits != 32) && (bits != 64)) {
+			switch (bits) {
+			case 8: type = TYPE_UINT8; break;
+			case 16: type = TYPE_UINT16; break;
+			case 32: type = TYPE_UINT32; break;
+			case 64: type = TYPE_UINT64; break;
+			default:
 				ERROR(&@2, "Array elements must be"
 				      " 8, 16, 32 or 64-bits");
 				bits = 32;
 			}
 
-			$$.data = empty_data;
+			$$.data = data_add_marker(empty_data, type, NULL);
 			$$.bits = bits;
 		}
 	| '<'
 		{
-			$$.data = empty_data;
+			$$.data = data_add_marker(empty_data, TYPE_UINT32, NULL);
 			$$.bits = 32;
 		}
 	| arrayprefix integer_prim
@@ -499,7 +505,7 @@ integer_unary:
 bytestring:
 	  /* empty */
 		{
-			$$ = empty_data;
+			$$ = data_add_marker(empty_data, TYPE_UINT8, NULL);
 		}
 	| bytestring DT_BYTE
 		{

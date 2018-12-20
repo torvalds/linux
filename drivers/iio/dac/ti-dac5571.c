@@ -421,6 +421,7 @@ MODULE_DEVICE_TABLE(i2c, dac5571_id);
 static struct i2c_driver dac5571_driver = {
 	.driver = {
 		   .name = "ti-dac5571",
+		   .of_match_table = of_match_ptr(dac5571_of_id),
 	},
 	.probe	  = dac5571_probe,
 	.remove   = dac5571_remove,

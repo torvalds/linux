@@ -445,7 +445,7 @@ static void _put_request(struct request *rq)
 	 *       code paths.
 	 */
 	if (unlikely(rq->bio))
-		blk_end_request(rq, BLK_STS_IOERR, blk_rq_bytes(rq));
+		blk_mq_end_request(rq, BLK_STS_IOERR);
 	else
 		blk_put_request(rq);
 }

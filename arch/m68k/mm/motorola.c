@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 
@@ -55,7 +54,7 @@ static pte_t * __init kernel_page_table(void)
 {
 	pte_t *ptablep;
 
-	ptablep = (pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+	ptablep = (pte_t *)memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 
 	clear_page(ptablep);
 	__flush_page_to_ram(ptablep);
@@ -95,7 +94,8 @@ static pmd_t * __init kernel_ptr_table(void)
 
 	last_pgtable += PTRS_PER_PMD;
 	if (((unsigned long)last_pgtable & ~PAGE_MASK) == 0) {
-		last_pgtable = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+		last_pgtable = (pmd_t *)memblock_alloc_low(PAGE_SIZE,
+							   PAGE_SIZE);
 
 		clear_page(last_pgtable);
 		__flush_page_to_ram(last_pgtable);
@@ -275,7 +275,7 @@ void __init paging_init(void)
 	 * initialize the bad page table and bad page to point
 	 * to a couple of allocated pages
 	 */
-	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
+	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 
 	/*
 	 * Set up SFC/DFC registers

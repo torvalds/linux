@@ -505,7 +505,7 @@ static void cm4040_reader_release(struct pcmcia_device *link)
 
 	DEBUGP(3, dev, "-> cm4040_reader_release\n");
 	while (link->open) {
-		DEBUGP(3, dev, KERN_INFO MODULE_NAME ": delaying release "
+		DEBUGP(3, dev, MODULE_NAME ": delaying release "
 		       "until process has terminated\n");
  		wait_event(dev->devq, (link->open == 0));
 	}

@@ -1,14 +1,7 @@
 #!/bin/sh
 # description: event trigger - test field variable support
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -23,10 +16,6 @@ if [ ! -f synthetic_events ]; then
     exit_unsupported
 fi
 
-clear_synthetic_events
-reset_tracer
-do_reset
-
 echo "Test field variable support"
 
 echo 'wakeup_latency u64 lat; pid_t pid; int prio; char comm[16]' > synthetic_events
@@ -34,7 +23,7 @@ echo 'hist:keys=comm:ts0=common_timestamp.usecs if comm=="ping"' > events/sched/
 echo 'hist:keys=next_comm:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,next_pid,sched.sched_waking.prio,next_comm) if next_comm=="ping"' > events/sched/sched_switch/trigger
 echo 'hist:keys=pid,prio,comm:vals=lat:sort=pid,prio' > events/synthetic/wakeup_latency/trigger
 
-ping localhost -c 3
+ping $LOCALHOST -c 3
 if ! grep -q "ping" events/synthetic/wakeup_latency/hist; then
     fail "Failed to create inter-event histogram"
 fi
@@ -48,7 +37,5 @@ echo '!hist:keys=next_comm:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.
 if grep -q "synthetic_prio=prio" events/sched/sched_waking/hist; then
     fail "Failed to remove histogram with field variable"
 fi
-
-do_reset
 
 exit 0

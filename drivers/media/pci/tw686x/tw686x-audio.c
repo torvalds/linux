@@ -295,7 +295,7 @@ static int tw686x_snd_pcm_init(struct tw686x_dev *dev)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &tw686x_pcm_ops);
 	snd_pcm_chip(pcm) = dev;
 	pcm->info_flags = 0;
-	strlcpy(pcm->name, "tw686x PCM", sizeof(pcm->name));
+	strscpy(pcm->name, "tw686x PCM", sizeof(pcm->name));
 
 	for (i = 0, ss = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 	     ss; ss = ss->next, i++)
@@ -390,9 +390,9 @@ int tw686x_audio_init(struct tw686x_dev *dev)
 		return err;
 
 	dev->snd_card = card;
-	strlcpy(card->driver, "tw686x", sizeof(card->driver));
-	strlcpy(card->shortname, "tw686x", sizeof(card->shortname));
-	strlcpy(card->longname, pci_name(pci_dev), sizeof(card->longname));
+	strscpy(card->driver, "tw686x", sizeof(card->driver));
+	strscpy(card->shortname, "tw686x", sizeof(card->shortname));
+	strscpy(card->longname, pci_name(pci_dev), sizeof(card->longname));
 	snd_card_set_dev(card, &pci_dev->dev);
 
 	for (ch = 0; ch < max_channels(dev); ch++) {

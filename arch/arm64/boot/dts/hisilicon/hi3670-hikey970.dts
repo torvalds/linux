@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * dts file for Hisilicon HiKey970 Development Board
+ *
+ * Copyright (C) 2016, Hisilicon Ltd.
+ * Copyright (C) 2018, Linaro Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "hi3670.dtsi"
+
+/ {
+	model = "HiKey970";
+	compatible = "hisilicon,hi3670-hikey970", "hisilicon,hi3670";
+
+	aliases {
+		serial6 = &uart6;       /* console UART */
+	};
+
+	chosen {
+		stdout-path = "serial6:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		/* expect bootloader to fill in this region */
+		reg = <0x0 0x0 0x0 0x0>;
+	};
+};
+
+&uart6 {
+	status = "okay";
+};

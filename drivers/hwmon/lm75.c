@@ -47,6 +47,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	lm75b,
 	max6625,
 	max6626,
+	max31725,
 	mcp980x,
 	stds75,
 	tcn75,
@@ -64,7 +65,6 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
-
 /* The LM75 registers */
 #define LM75_REG_TEMP		0x00
 #define LM75_REG_CONF		0x01
@@ -76,7 +76,7 @@ struct lm75_data {
 	struct i2c_client	*client;
 	struct regmap		*regmap;
 	u8			orig_conf;
-	u8			resolution;	/* In bits, between 9 and 12 */
+	u8			resolution;	/* In bits, between 9 and 16 */
 	u8			resolution_limits;
 	unsigned int		sample_time;	/* In ms */
 };
@@ -254,7 +254,8 @@ static const struct regmap_config lm75_regmap_config = {
 	.volatile_reg = lm75_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 	.cache_type = REGCACHE_RBTREE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static void lm75_remove(void *data)
@@ -339,6 +340,10 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		data->resolution_limits = 9;
 		data->sample_time = MSEC_PER_SEC / 4;
 		break;
+	case max31725:
+		data->resolution = 16;
+		data->sample_time = MSEC_PER_SEC / 8;
+		break;
 	case tcn75:
 		data->resolution = 9;
 		data->sample_time = MSEC_PER_SEC / 8;
@@ -415,6 +420,8 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "lm75b", lm75b, },
 	{ "max6625", max6625, },
 	{ "max6626", max6626, },
+	{ "max31725", max31725, },
+	{ "max31726", max31725, },
 	{ "mcp980x", mcp980x, },
 	{ "stds75", stds75, },
 	{ "tcn75", tcn75, },
@@ -470,6 +477,14 @@ static const struct of_device_id lm75_of_match[] = {
 	{
 		.compatible = "maxim,max6626",
 		.data = (void *)max6626
+	},
+	{
+		.compatible = "maxim,max31725",
+		.data = (void *)max31725
+	},
+	{
+		.compatible = "maxim,max31726",
+		.data = (void *)max31725
 	},
 	{
 		.compatible = "maxim,mcp980x",

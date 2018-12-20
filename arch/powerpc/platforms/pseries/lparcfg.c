@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/hugetlb.h>
 #include <asm/lppaca.h>
 #include <asm/hvcall.h>
 #include <asm/firmware.h>
@@ -36,6 +37,7 @@
 #include <asm/vio.h>
 #include <asm/mmu.h>
 #include <asm/machdep.h>
+#include <asm/drmem.h>
 
 #include "pseries.h"
 
@@ -433,6 +435,16 @@ static void parse_em_data(struct seq_file *m)
 		seq_printf(m, "power_mode_data=%016lx\n", retbuf[0]);
 }
 
+static void maxmem_data(struct seq_file *m)
+{
+	unsigned long maxmem = 0;
+
+	maxmem += drmem_info->n_lmbs * drmem_info->lmb_size;
+	maxmem += hugetlb_total_pages() * PAGE_SIZE;
+
+	seq_printf(m, "MaxMem=%ld\n", maxmem);
+}
+
 static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
@@ -491,6 +503,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
 #endif
 	parse_em_data(m);
+	maxmem_data(m);
 
 	return 0;
 }
@@ -585,8 +598,7 @@ static ssize_t update_mpp(u64 *entitlement, u8 *weight)
 static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 			     size_t count, loff_t * off)
 {
-	int kbuf_sz = 64;
-	char kbuf[kbuf_sz];
+	char kbuf[64];
 	char *tmp;
 	u64 new_entitled, *new_entitled_ptr = &new_entitled;
 	u8 new_weight, *new_weight_ptr = &new_weight;
@@ -595,7 +607,7 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -EINVAL;
 
-	if (count > kbuf_sz)
+	if (count > sizeof(kbuf))
 		return -EINVAL;
 
 	if (copy_from_user(kbuf, buf, count))

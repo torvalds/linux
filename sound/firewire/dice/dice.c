@@ -122,25 +122,12 @@ static void dice_card_strings(struct snd_dice *dice)
 	strcpy(card->mixername, "DICE");
 }
 
-static void dice_free(struct snd_dice *dice)
-{
-	snd_dice_stream_destroy_duplex(dice);
-	snd_dice_transaction_destroy(dice);
-	fw_unit_put(dice->unit);
-
-	mutex_destroy(&dice->mutex);
-	kfree(dice);
-}
-
-/*
- * This module releases the FireWire unit data after all ALSA character devices
- * are released by applications. This is for releasing stream data or finishing
- * transactions safely. Thus at returning from .remove(), this module still keep
- * references for the unit.
- */
 static void dice_card_free(struct snd_card *card)
 {
-	dice_free(card->private_data);
+	struct snd_dice *dice = card->private_data;
+
+	snd_dice_stream_destroy_duplex(dice);
+	snd_dice_transaction_destroy(dice);
 }
 
 static void do_registration(struct work_struct *work)
@@ -155,6 +142,8 @@ static void do_registration(struct work_struct *work)
 			   &dice->card);
 	if (err < 0)
 		return;
+	dice->card->private_free = dice_card_free;
+	dice->card->private_data = dice;
 
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
@@ -192,19 +181,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	/*
-	 * After registered, dice instance can be released corresponding to
-	 * releasing the sound card instance.
-	 */
-	dice->card->private_free = dice_card_free;
-	dice->card->private_data = dice;
 	dice->registered = true;
 
 	return;
 error:
-	snd_dice_stream_destroy_duplex(dice);
-	snd_dice_transaction_destroy(dice);
-	snd_dice_stream_destroy_duplex(dice);
 	snd_card_free(dice->card);
 	dev_info(&dice->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -223,10 +203,9 @@ static int dice_probe(struct fw_unit *unit,
 	}
 
 	/* Allocate this independent of sound card instance. */
-	dice = kzalloc(sizeof(struct snd_dice), GFP_KERNEL);
-	if (dice == NULL)
+	dice = devm_kzalloc(&unit->device, sizeof(struct snd_dice), GFP_KERNEL);
+	if (!dice)
 		return -ENOMEM;
-
 	dice->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, dice);
 
@@ -261,12 +240,12 @@ static void dice_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&dice->dwork);
 
 	if (dice->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(dice->card);
-	} else {
-		/* Don't forget this case. */
-		dice_free(dice);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(dice->card);
 	}
+
+	mutex_destroy(&dice->mutex);
+	fw_unit_put(dice->unit);
 }
 
 static void dice_bus_reset(struct fw_unit *unit)

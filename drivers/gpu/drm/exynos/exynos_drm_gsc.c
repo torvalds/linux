@@ -448,7 +448,7 @@ static void gsc_handle_irq(struct gsc_context *ctx, bool enable,
 }
 
 
-static void gsc_src_set_fmt(struct gsc_context *ctx, u32 fmt)
+static void gsc_src_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
@@ -513,6 +513,9 @@ static void gsc_src_set_fmt(struct gsc_context *ctx, u32 fmt)
 		cfg |= (GSC_IN_CHROMA_ORDER_CBCR | GSC_IN_YUV422_2P);
 		break;
 	}
+
+	if (tiled)
+		cfg |= (GSC_IN_TILE_C_16x8 | GSC_IN_TILE_MODE);
 
 	gsc_write(cfg, GSC_IN_CON);
 }
@@ -632,7 +635,7 @@ static void gsc_src_set_addr(struct gsc_context *ctx, u32 buf_id,
 	gsc_src_set_buf_seq(ctx, buf_id, true);
 }
 
-static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt)
+static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
@@ -697,6 +700,9 @@ static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt)
 		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR | GSC_OUT_YUV422_2P);
 		break;
 	}
+
+	if (tiled)
+		cfg |= (GSC_IN_TILE_C_16x8 | GSC_OUT_TILE_MODE);
 
 	gsc_write(cfg, GSC_OUT_CON);
 }
@@ -1122,11 +1128,11 @@ static int gsc_commit(struct exynos_drm_ipp *ipp,
 		return ret;
 	}
 
-	gsc_src_set_fmt(ctx, task->src.buf.fourcc);
+	gsc_src_set_fmt(ctx, task->src.buf.fourcc, task->src.buf.modifier);
 	gsc_src_set_transf(ctx, task->transform.rotation);
 	gsc_src_set_size(ctx, &task->src);
 	gsc_src_set_addr(ctx, 0, &task->src);
-	gsc_dst_set_fmt(ctx, task->dst.buf.fourcc);
+	gsc_dst_set_fmt(ctx, task->dst.buf.fourcc, task->dst.buf.modifier);
 	gsc_dst_set_size(ctx, &task->dst);
 	gsc_dst_set_addr(ctx, 0, &task->dst);
 	gsc_set_prescaler(ctx, &ctx->sc, &task->src.rect, &task->dst.rect);
@@ -1200,6 +1206,10 @@ static const unsigned int gsc_formats[] = {
 	DRM_FORMAT_YUV420, DRM_FORMAT_YVU420, DRM_FORMAT_YUV422,
 };
 
+static const unsigned int gsc_tiled_formats[] = {
+	DRM_FORMAT_NV12, DRM_FORMAT_NV21,
+};
+
 static int gsc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1207,16 +1217,10 @@ static int gsc_probe(struct platform_device *pdev)
 	struct exynos_drm_ipp_formats *formats;
 	struct gsc_context *ctx;
 	struct resource *res;
-	int ret, i;
+	int num_formats, ret, i, j;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
-
-	formats = devm_kcalloc(dev,
-			       ARRAY_SIZE(gsc_formats), sizeof(*formats),
-			       GFP_KERNEL);
-	if (!formats)
 		return -ENOMEM;
 
 	driver_data = (struct gsc_driverdata *)of_device_get_match_data(dev);
@@ -1224,6 +1228,13 @@ static int gsc_probe(struct platform_device *pdev)
 	ctx->num_clocks = driver_data->num_clocks;
 	ctx->clk_names = driver_data->clk_names;
 
+	/* construct formats/limits array */
+	num_formats = ARRAY_SIZE(gsc_formats) + ARRAY_SIZE(gsc_tiled_formats);
+	formats = devm_kcalloc(dev, num_formats, sizeof(*formats), GFP_KERNEL);
+	if (!formats)
+		return -ENOMEM;
+
+	/* linear formats */
 	for (i = 0; i < ARRAY_SIZE(gsc_formats); i++) {
 		formats[i].fourcc = gsc_formats[i];
 		formats[i].type = DRM_EXYNOS_IPP_FORMAT_SOURCE |
@@ -1231,8 +1242,19 @@ static int gsc_probe(struct platform_device *pdev)
 		formats[i].limits = driver_data->limits;
 		formats[i].num_limits = driver_data->num_limits;
 	}
+
+	/* tiled formats */
+	for (j = i, i = 0; i < ARRAY_SIZE(gsc_tiled_formats); j++, i++) {
+		formats[j].fourcc = gsc_tiled_formats[i];
+		formats[j].modifier = DRM_FORMAT_MOD_SAMSUNG_16_16_TILE;
+		formats[j].type = DRM_EXYNOS_IPP_FORMAT_SOURCE |
+				  DRM_EXYNOS_IPP_FORMAT_DESTINATION;
+		formats[j].limits = driver_data->limits;
+		formats[j].num_limits = driver_data->num_limits;
+	}
+
 	ctx->formats = formats;
-	ctx->num_formats = ARRAY_SIZE(gsc_formats);
+	ctx->num_formats = num_formats;
 
 	/* clock control */
 	for (i = 0; i < ctx->num_clocks; i++) {

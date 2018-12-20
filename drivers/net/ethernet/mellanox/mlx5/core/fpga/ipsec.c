@@ -83,8 +83,14 @@ struct mlx5_fpga_ipsec_rule {
 };
 
 static const struct rhashtable_params rhash_sa = {
-	.key_len = FIELD_SIZEOF(struct mlx5_fpga_ipsec_sa_ctx, hw_sa),
-	.key_offset = offsetof(struct mlx5_fpga_ipsec_sa_ctx, hw_sa),
+	/* Keep out "cmd" field from the key as it's
+	 * value is not constant during the lifetime
+	 * of the key object.
+	 */
+	.key_len = FIELD_SIZEOF(struct mlx5_fpga_ipsec_sa_ctx, hw_sa) -
+		   FIELD_SIZEOF(struct mlx5_ifc_fpga_ipsec_sa_v1, cmd),
+	.key_offset = offsetof(struct mlx5_fpga_ipsec_sa_ctx, hw_sa) +
+		      FIELD_SIZEOF(struct mlx5_ifc_fpga_ipsec_sa_v1, cmd),
 	.head_offset = offsetof(struct mlx5_fpga_ipsec_sa_ctx, hash),
 	.automatic_shrinking = true,
 	.min_size = 1,
@@ -245,7 +251,7 @@ static void *mlx5_fpga_ipsec_cmd_exec(struct mlx5_core_dev *mdev,
 		return ERR_PTR(res);
 	}
 
-	/* Context will be freed by wait func after completion */
+	/* Context should be freed by the caller after completion. */
 	return context;
 }
 
@@ -418,10 +424,8 @@ static int mlx5_fpga_ipsec_set_caps(struct mlx5_core_dev *mdev, u32 flags)
 	cmd.cmd = htonl(MLX5_FPGA_IPSEC_CMD_OP_SET_CAP);
 	cmd.flags = htonl(flags);
 	context = mlx5_fpga_ipsec_cmd_exec(mdev, &cmd, sizeof(cmd));
-	if (IS_ERR(context)) {
-		err = PTR_ERR(context);
-		goto out;
-	}
+	if (IS_ERR(context))
+		return PTR_ERR(context);
 
 	err = mlx5_fpga_ipsec_cmd_wait(context);
 	if (err)
@@ -435,6 +439,7 @@ static int mlx5_fpga_ipsec_set_caps(struct mlx5_core_dev *mdev, u32 flags)
 	}
 
 out:
+	kfree(context);
 	return err;
 }
 
@@ -650,7 +655,7 @@ static bool mlx5_is_fpga_egress_ipsec_rule(struct mlx5_core_dev *dev,
 	    (match_criteria_enable &
 	     ~(MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS)) ||
 	    (flow_act->action & ~(MLX5_FLOW_CONTEXT_ACTION_ENCRYPT | MLX5_FLOW_CONTEXT_ACTION_ALLOW)) ||
-	     flow_act->has_flow_tag)
+	     (flow_act->flags & FLOW_ACT_HAS_TAG))
 		return false;
 
 	return true;

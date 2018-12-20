@@ -37,9 +37,7 @@ extern void clear_page(void *to);
 
 typedef struct page *pgtable_t;
 
-#ifdef CONFIG_HAVE_ARCH_PFN_VALID
 extern int pfn_valid(unsigned long);
-#endif
 
 #include <asm/memory.h>
 

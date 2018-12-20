@@ -1884,7 +1884,7 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
 struct hpp_dynamic_entry {
 	struct perf_hpp_fmt hpp;
 	struct perf_evsel *evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned dynamic_len;
 	bool raw_trace;
 };
@@ -1899,7 +1899,7 @@ static int hde_width(struct hpp_dynamic_entry *hde)
 		if (namelen > len)
 			len = namelen;
 
-		if (!(hde->field->flags & FIELD_IS_STRING)) {
+		if (!(hde->field->flags & TEP_FIELD_IS_STRING)) {
 			/* length for print hex numbers */
 			fieldlen = hde->field->size * 2 + 2;
 		}
@@ -1915,7 +1915,7 @@ static void update_dynamic_len(struct hpp_dynamic_entry *hde,
 			       struct hist_entry *he)
 {
 	char *str, *pos;
-	struct format_field *field = hde->field;
+	struct tep_format_field *field = hde->field;
 	size_t namelen;
 	bool last = false;
 
@@ -2000,7 +2000,7 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	struct hpp_dynamic_entry *hde;
 	size_t len = fmt->user_len;
 	char *str, *pos;
-	struct format_field *field;
+	struct tep_format_field *field;
 	size_t namelen;
 	bool last = false;
 	int ret;
@@ -2060,7 +2060,7 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 			       struct hist_entry *a, struct hist_entry *b)
 {
 	struct hpp_dynamic_entry *hde;
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned offset, size;
 
 	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
@@ -2071,7 +2071,7 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 	}
 
 	field = hde->field;
-	if (field->flags & FIELD_IS_DYNAMIC) {
+	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long dyn;
 
 		tep_read_number_field(field, a->raw_data, &dyn);
@@ -2117,7 +2117,7 @@ static void hde_free(struct perf_hpp_fmt *fmt)
 }
 
 static struct hpp_dynamic_entry *
-__alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field,
+__alloc_dynamic_entry(struct perf_evsel *evsel, struct tep_format_field *field,
 		      int level)
 {
 	struct hpp_dynamic_entry *hde;
@@ -2252,7 +2252,7 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 }
 
 static int __dynamic_dimension__add(struct perf_evsel *evsel,
-				    struct format_field *field,
+				    struct tep_format_field *field,
 				    bool raw_trace, int level)
 {
 	struct hpp_dynamic_entry *hde;
@@ -2270,7 +2270,7 @@ static int __dynamic_dimension__add(struct perf_evsel *evsel,
 static int add_evsel_fields(struct perf_evsel *evsel, bool raw_trace, int level)
 {
 	int ret;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	field = evsel->tp_format->format.fields;
 	while (field) {
@@ -2305,7 +2305,7 @@ static int add_all_matching_fields(struct perf_evlist *evlist,
 {
 	int ret = -ESRCH;
 	struct perf_evsel *evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
@@ -2327,7 +2327,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
 {
 	char *str, *event_name, *field_name, *opt_name;
 	struct perf_evsel *evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 	bool raw_trace = symbol_conf.raw_trace;
 	int ret = 0;
 

@@ -61,6 +61,9 @@ acpi-$(CONFIG_ACPI_LPIT)	+= acpi_lpit.o
 acpi-$(CONFIG_ACPI_GENERIC_GSI) += irq.o
 acpi-$(CONFIG_ACPI_WATCHDOG)	+= acpi_watchdog.o
 
+# Address translation
+acpi-$(CONFIG_ACPI_ADXL)	+= acpi_adxl.o
+
 # These are (potentially) separate modules
 
 # IPMI may be used by other drivers, so it has to initialise before them

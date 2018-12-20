@@ -1589,7 +1589,7 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 	m88ds3103_pdata.lnb_hv_pol = 1;
 	m88ds3103_pdata.lnb_en_pol = 0;
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "m88ds3103", I2C_NAME_SIZE);
+	strscpy(board_info.type, "m88ds3103", I2C_NAME_SIZE);
 	board_info.addr = 0x68;
 	board_info.platform_data = &m88ds3103_pdata;
 	request_module("m88ds3103");
@@ -1608,7 +1608,7 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 	/* attach tuner */
 	ts2020_config.fe = adap->fe_adap[0].fe;
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "ts2022", I2C_NAME_SIZE);
+	strscpy(board_info.type, "ts2022", I2C_NAME_SIZE);
 	board_info.addr = 0x60;
 	board_info.platform_data = &ts2020_config;
 	request_module("ts2020");

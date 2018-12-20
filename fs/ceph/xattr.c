@@ -951,11 +951,10 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 
 	if (size > 0) {
 		/* copy value into pagelist */
-		pagelist = kmalloc(sizeof(*pagelist), GFP_NOFS);
+		pagelist = ceph_pagelist_alloc(GFP_NOFS);
 		if (!pagelist)
 			return -ENOMEM;
 
-		ceph_pagelist_init(pagelist);
 		err = ceph_pagelist_append(pagelist, value, size);
 		if (err)
 			goto out;

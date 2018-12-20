@@ -35,6 +35,12 @@ struct tracepoint {
 	struct tracepoint_func __rcu *funcs;
 };
 
+#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+typedef const int tracepoint_ptr_t;
+#else
+typedef struct tracepoint * const tracepoint_ptr_t;
+#endif
+
 struct bpf_raw_event_map {
 	struct tracepoint	*tp;
 	void			*bpf_func;

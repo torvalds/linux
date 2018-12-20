@@ -42,11 +42,7 @@
  * $FreeBSD$
  */
 
-#ifdef __linux__
 #include "../queue.h"
-#else
-#include <sys/queue.h>
-#endif
 
 #ifndef TRUE
 #define TRUE 1

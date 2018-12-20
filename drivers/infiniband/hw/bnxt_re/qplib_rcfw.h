@@ -154,6 +154,8 @@ struct bnxt_qplib_qp_node {
 	void *qp_handle;        /* ptr to qplib_qp */
 };
 
+#define BNXT_QPLIB_OOS_COUNT_MASK 0xFFFFFFFF
+
 /* RCFW Communication Channels */
 struct bnxt_qplib_rcfw {
 	struct pci_dev		*pdev;
@@ -190,6 +192,8 @@ struct bnxt_qplib_rcfw {
 	struct bnxt_qplib_crsq	*crsqe_tbl;
 	int qp_tbl_size;
 	struct bnxt_qplib_qp_node *qp_tbl;
+	u64 oos_prev;
+	u32 init_oos_stats;
 };
 
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);

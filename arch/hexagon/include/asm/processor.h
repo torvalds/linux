@@ -27,9 +27,6 @@
 #include <asm/registers.h>
 #include <asm/hexagon_vm.h>
 
-/*  must be a macro  */
-#define current_text_addr() ({ __label__ _l; _l: &&_l; })
-
 /*  task_struct, defined elsewhere, is the "process descriptor" */
 struct task_struct;
 

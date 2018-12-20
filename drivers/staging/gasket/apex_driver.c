@@ -138,9 +138,6 @@ static const struct gasket_mappable_region mappable_regions[NUM_REGIONS] = {
 	{ 0x48000, 0x1000 },
 };
 
-static const struct gasket_mappable_region cm_mappable_regions[1] = { { 0x0,
-	APEX_CH_MEM_BYTES } };
-
 /* Gasket device interrupts enums must be dense (i.e., no empty slots). */
 enum apex_interrupt {
 	APEX_INTERRUPT_INSTR_QUEUE = 0,
@@ -227,7 +224,6 @@ static struct gasket_interrupt_desc apex_interrupts[] = {
 		UNPACKED
 	},
 };
-
 
 /* Allows device to enter power save upon driver close(). */
 static int allow_power_save = 1;
@@ -529,7 +525,7 @@ static ssize_t sysfs_show(struct device *device, struct device_attribute *attr,
 		return -ENODEV;
 	}
 
-	type = (enum sysfs_attribute_type)gasket_sysfs_get_attr(device, attr);
+	type = (enum sysfs_attribute_type)gasket_attr->data.attr_type;
 	switch (type) {
 	case ATTR_KERNEL_HIB_PAGE_TABLE_SIZE:
 		ret = scnprintf(buf, PAGE_SIZE, "%u\n",

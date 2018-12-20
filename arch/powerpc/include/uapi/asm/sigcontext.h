@@ -22,7 +22,11 @@ struct sigcontext {
 #endif
 	unsigned long	handler;
 	unsigned long	oldmask;
-	struct pt_regs	__user *regs;
+#ifdef __KERNEL__
+	struct user_pt_regs __user *regs;
+#else
+	struct pt_regs	*regs;
+#endif
 #ifdef __powerpc64__
 	elf_gregset_t	gp_regs;
 	elf_fpregset_t	fp_regs;

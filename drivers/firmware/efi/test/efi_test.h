@@ -81,6 +81,13 @@ struct efi_querycapsulecapabilities {
 	efi_status_t		*status;
 } __packed;
 
+struct efi_resetsystem {
+	int			reset_type;
+	efi_status_t		status;
+	unsigned long		data_size;
+	efi_char16_t		*data;
+} __packed;
+
 #define EFI_RUNTIME_GET_VARIABLE \
 	_IOWR('p', 0x01, struct efi_getvariable)
 #define EFI_RUNTIME_SET_VARIABLE \
@@ -107,5 +114,8 @@ struct efi_querycapsulecapabilities {
 
 #define EFI_RUNTIME_QUERY_CAPSULECAPABILITIES \
 	_IOR('p', 0x0A, struct efi_querycapsulecapabilities)
+
+#define EFI_RUNTIME_RESET_SYSTEM \
+	_IOW('p', 0x0B, struct efi_resetsystem)
 
 #endif /* _DRIVERS_FIRMWARE_EFI_TEST_H_ */

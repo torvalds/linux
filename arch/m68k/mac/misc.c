@@ -37,35 +37,6 @@
 static void (*rom_reset)(void);
 
 #ifdef CONFIG_ADB_CUDA
-static time64_t cuda_read_time(void)
-{
-	struct adb_request req;
-	time64_t time;
-
-	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_GET_TIME) < 0)
-		return 0;
-	while (!req.complete)
-		cuda_poll();
-
-	time = (u32)((req.reply[3] << 24) | (req.reply[4] << 16) |
-		     (req.reply[5] << 8) | req.reply[6]);
-
-	return time - RTC_OFFSET;
-}
-
-static void cuda_write_time(time64_t time)
-{
-	struct adb_request req;
-	u32 data = lower_32_bits(time + RTC_OFFSET);
-
-	if (cuda_request(&req, NULL, 6, CUDA_PACKET, CUDA_SET_TIME,
-			 (data >> 24) & 0xFF, (data >> 16) & 0xFF,
-			 (data >> 8) & 0xFF, data & 0xFF) < 0)
-		return;
-	while (!req.complete)
-		cuda_poll();
-}
-
 static __u8 cuda_read_pram(int offset)
 {
 	struct adb_request req;
@@ -91,33 +62,6 @@ static void cuda_write_pram(int offset, __u8 data)
 #endif /* CONFIG_ADB_CUDA */
 
 #ifdef CONFIG_ADB_PMU
-static time64_t pmu_read_time(void)
-{
-	struct adb_request req;
-	time64_t time;
-
-	if (pmu_request(&req, NULL, 1, PMU_READ_RTC) < 0)
-		return 0;
-	pmu_wait_complete(&req);
-
-	time = (u32)((req.reply[0] << 24) | (req.reply[1] << 16) |
-		     (req.reply[2] << 8) | req.reply[3]);
-
-	return time - RTC_OFFSET;
-}
-
-static void pmu_write_time(time64_t time)
-{
-	struct adb_request req;
-	u32 data = lower_32_bits(time + RTC_OFFSET);
-
-	if (pmu_request(&req, NULL, 5, PMU_SET_RTC,
-			(data >> 24) & 0xFF, (data >> 16) & 0xFF,
-			(data >> 8) & 0xFF, data & 0xFF) < 0)
-		return;
-	pmu_wait_complete(&req);
-}
-
 static __u8 pmu_read_pram(int offset)
 {
 	struct adb_request req;
@@ -295,13 +239,17 @@ static time64_t via_read_time(void)
  * is basically any machine with Mac II-style ADB.
  */
 
-static void via_write_time(time64_t time)
+static void via_set_rtc_time(struct rtc_time *tm)
 {
 	union {
 		__u8 cdata[4];
 		__u32 idata;
 	} data;
 	__u8 temp;
+	time64_t time;
+
+	time = mktime64(tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+	                tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	/* Clear the write protect bit */
 
@@ -641,12 +589,12 @@ int mac_hwclk(int op, struct rtc_time *t)
 #ifdef CONFIG_ADB_CUDA
 		case MAC_ADB_EGRET:
 		case MAC_ADB_CUDA:
-			now = cuda_read_time();
+			now = cuda_get_time();
 			break;
 #endif
 #ifdef CONFIG_ADB_PMU
 		case MAC_ADB_PB2:
-			now = pmu_read_time();
+			now = pmu_get_time();
 			break;
 #endif
 		default:
@@ -665,24 +613,21 @@ int mac_hwclk(int op, struct rtc_time *t)
 		         __func__, t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
 		         t->tm_hour, t->tm_min, t->tm_sec);
 
-		now = mktime64(t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-			       t->tm_hour, t->tm_min, t->tm_sec);
-
 		switch (macintosh_config->adb_type) {
 		case MAC_ADB_IOP:
 		case MAC_ADB_II:
 		case MAC_ADB_PB1:
-			via_write_time(now);
+			via_set_rtc_time(t);
 			break;
 #ifdef CONFIG_ADB_CUDA
 		case MAC_ADB_EGRET:
 		case MAC_ADB_CUDA:
-			cuda_write_time(now);
+			cuda_set_rtc_time(t);
 			break;
 #endif
 #ifdef CONFIG_ADB_PMU
 		case MAC_ADB_PB2:
-			pmu_write_time(now);
+			pmu_set_rtc_time(t);
 			break;
 #endif
 		default:

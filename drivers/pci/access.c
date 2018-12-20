@@ -33,7 +33,7 @@ DEFINE_RAW_SPINLOCK(pci_lock);
 #endif
 
 #define PCI_OP_READ(size, type, len) \
-int pci_bus_read_config_##size \
+int noinline pci_bus_read_config_##size \
 	(struct pci_bus *bus, unsigned int devfn, int pos, type *value)	\
 {									\
 	int res;							\
@@ -48,7 +48,7 @@ int pci_bus_read_config_##size \
 }
 
 #define PCI_OP_WRITE(size, type, len) \
-int pci_bus_write_config_##size \
+int noinline pci_bus_write_config_##size \
 	(struct pci_bus *bus, unsigned int devfn, int pos, type value)	\
 {									\
 	int res;							\

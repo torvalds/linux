@@ -111,13 +111,10 @@
 #ifdef CONFIG_IP_MULTICAST
 /* Parameter names and values are taken from igmp-v2-06 draft */
 
-#define IGMP_V1_ROUTER_PRESENT_TIMEOUT		(400*HZ)
-#define IGMP_V2_ROUTER_PRESENT_TIMEOUT		(400*HZ)
 #define IGMP_V2_UNSOLICITED_REPORT_INTERVAL	(10*HZ)
 #define IGMP_V3_UNSOLICITED_REPORT_INTERVAL	(1*HZ)
+#define IGMP_QUERY_INTERVAL			(125*HZ)
 #define IGMP_QUERY_RESPONSE_INTERVAL		(10*HZ)
-#define IGMP_QUERY_ROBUSTNESS_VARIABLE		2
-
 
 #define IGMP_INITIAL_REPORT_DELAY		(1)
 
@@ -935,13 +932,15 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 
 			max_delay = IGMP_QUERY_RESPONSE_INTERVAL;
 			in_dev->mr_v1_seen = jiffies +
-				IGMP_V1_ROUTER_PRESENT_TIMEOUT;
+				(in_dev->mr_qrv * in_dev->mr_qi) +
+				in_dev->mr_qri;
 			group = 0;
 		} else {
 			/* v2 router present */
 			max_delay = ih->code*(HZ/IGMP_TIMER_SCALE);
 			in_dev->mr_v2_seen = jiffies +
-				IGMP_V2_ROUTER_PRESENT_TIMEOUT;
+				(in_dev->mr_qrv * in_dev->mr_qi) +
+				in_dev->mr_qri;
 		}
 		/* cancel the interface change timer */
 		in_dev->mr_ifc_count = 0;
@@ -981,8 +980,21 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		if (!max_delay)
 			max_delay = 1;	/* can't mod w/ 0 */
 		in_dev->mr_maxdelay = max_delay;
-		if (ih3->qrv)
-			in_dev->mr_qrv = ih3->qrv;
+
+		/* RFC3376, 4.1.6. QRV and 4.1.7. QQIC, when the most recently
+		 * received value was zero, use the default or statically
+		 * configured value.
+		 */
+		in_dev->mr_qrv = ih3->qrv ?: net->ipv4.sysctl_igmp_qrv;
+		in_dev->mr_qi = IGMPV3_QQIC(ih3->qqic)*HZ ?: IGMP_QUERY_INTERVAL;
+
+		/* RFC3376, 8.3. Query Response Interval:
+		 * The number of seconds represented by the [Query Response
+		 * Interval] must be less than the [Query Interval].
+		 */
+		if (in_dev->mr_qri >= in_dev->mr_qi)
+			in_dev->mr_qri = (in_dev->mr_qi/HZ - 1)*HZ;
+
 		if (!group) { /* general query */
 			if (ih3->nsrcs)
 				return true;	/* no sources allowed */
@@ -1723,18 +1735,30 @@ void ip_mc_down(struct in_device *in_dev)
 	ip_mc_dec_group(in_dev, IGMP_ALL_HOSTS);
 }
 
+#ifdef CONFIG_IP_MULTICAST
+static void ip_mc_reset(struct in_device *in_dev)
+{
+	struct net *net = dev_net(in_dev->dev);
+
+	in_dev->mr_qi = IGMP_QUERY_INTERVAL;
+	in_dev->mr_qri = IGMP_QUERY_RESPONSE_INTERVAL;
+	in_dev->mr_qrv = net->ipv4.sysctl_igmp_qrv;
+}
+#else
+static void ip_mc_reset(struct in_device *in_dev)
+{
+}
+#endif
+
 void ip_mc_init_dev(struct in_device *in_dev)
 {
-#ifdef CONFIG_IP_MULTICAST
-	struct net *net = dev_net(in_dev->dev);
-#endif
 	ASSERT_RTNL();
 
 #ifdef CONFIG_IP_MULTICAST
 	timer_setup(&in_dev->mr_gq_timer, igmp_gq_timer_expire, 0);
 	timer_setup(&in_dev->mr_ifc_timer, igmp_ifc_timer_expire, 0);
-	in_dev->mr_qrv = net->ipv4.sysctl_igmp_qrv;
 #endif
+	ip_mc_reset(in_dev);
 
 	spin_lock_init(&in_dev->mc_tomb_lock);
 }
@@ -1744,15 +1768,10 @@ void ip_mc_init_dev(struct in_device *in_dev)
 void ip_mc_up(struct in_device *in_dev)
 {
 	struct ip_mc_list *pmc;
-#ifdef CONFIG_IP_MULTICAST
-	struct net *net = dev_net(in_dev->dev);
-#endif
 
 	ASSERT_RTNL();
 
-#ifdef CONFIG_IP_MULTICAST
-	in_dev->mr_qrv = net->ipv4.sysctl_igmp_qrv;
-#endif
+	ip_mc_reset(in_dev);
 	ip_mc_inc_group(in_dev, IGMP_ALL_HOSTS);
 
 	for_each_pmc_rtnl(in_dev, pmc) {

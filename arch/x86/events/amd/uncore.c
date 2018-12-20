@@ -515,17 +515,19 @@ static int __init amd_uncore_init(void)
 {
 	int ret = -ENODEV;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON)
 		return -ENODEV;
 
 	if (!boot_cpu_has(X86_FEATURE_TOPOEXT))
 		return -ENODEV;
 
-	if (boot_cpu_data.x86 == 0x17) {
+	if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
 		/*
-		 * For F17h, the Northbridge counters are repurposed as Data
-		 * Fabric counters. Also, L3 counters are supported too. The PMUs
-		 * are exported based on  family as either L2 or L3 and NB or DF.
+		 * For F17h or F18h, the Northbridge counters are
+		 * repurposed as Data Fabric counters. Also, L3
+		 * counters are supported too. The PMUs are exported
+		 * based on family as either L2 or L3 and NB or DF.
 		 */
 		num_counters_nb		  = NUM_COUNTERS_NB;
 		num_counters_llc	  = NUM_COUNTERS_L3;
@@ -557,7 +559,9 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_nb;
 
-		pr_info("AMD NB counters detected\n");
+		pr_info("%s NB counters detected\n",
+			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?
+				"HYGON" : "AMD");
 		ret = 0;
 	}
 
@@ -571,7 +575,9 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_llc;
 
-		pr_info("AMD LLC counters detected\n");
+		pr_info("%s LLC counters detected\n",
+			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?
+				"HYGON" : "AMD");
 		ret = 0;
 	}
 

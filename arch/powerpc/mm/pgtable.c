@@ -44,20 +44,13 @@ static inline int is_exec_fault(void)
 static inline int pte_looks_normal(pte_t pte)
 {
 
-#if defined(CONFIG_PPC_BOOK3S_64)
-	if ((pte_val(pte) & (_PAGE_PRESENT | _PAGE_SPECIAL)) == _PAGE_PRESENT) {
+	if (pte_present(pte) && !pte_special(pte)) {
 		if (pte_ci(pte))
 			return 0;
 		if (pte_user(pte))
 			return 1;
 	}
 	return 0;
-#else
-	return (pte_val(pte) &
-		(_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER |
-		 _PAGE_PRIVILEGED)) ==
-		(_PAGE_PRESENT | _PAGE_USER);
-#endif
 }
 
 static struct page *maybe_pte_to_page(pte_t pte)
@@ -73,7 +66,7 @@ static struct page *maybe_pte_to_page(pte_t pte)
 	return page;
 }
 
-#if defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0
+#ifdef CONFIG_PPC_BOOK3S
 
 /* Server-style MMU handles coherency when hashing if HW exec permission
  * is supposed per page (currently 64-bit only). If not, then, we always
@@ -106,7 +99,7 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 	return pte;
 }
 
-#else /* defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0 */
+#else /* CONFIG_PPC_BOOK3S */
 
 /* Embedded type MMU with HW exec support. This is a bit more complicated
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
@@ -117,7 +110,7 @@ static pte_t set_pte_filter(pte_t pte)
 	struct page *pg;
 
 	/* No exec permission in the first place, move on */
-	if (!(pte_val(pte) & _PAGE_EXEC) || !pte_looks_normal(pte))
+	if (!pte_exec(pte) || !pte_looks_normal(pte))
 		return pte;
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
@@ -137,7 +130,7 @@ static pte_t set_pte_filter(pte_t pte)
 	}
 
 	/* Else, we filter out _PAGE_EXEC */
-	return __pte(pte_val(pte) & ~_PAGE_EXEC);
+	return pte_exprotect(pte);
 }
 
 static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
@@ -150,7 +143,7 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 	 * if necessary. Also if _PAGE_EXEC is already set, same deal,
 	 * we just bail out
 	 */
-	if (dirty || (pte_val(pte) & _PAGE_EXEC) || !is_exec_fault())
+	if (dirty || pte_exec(pte) || !is_exec_fault())
 		return pte;
 
 #ifdef CONFIG_DEBUG_VM
@@ -176,10 +169,10 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 	set_bit(PG_arch_1, &pg->flags);
 
  bail:
-	return __pte(pte_val(pte) | _PAGE_EXEC);
+	return pte_mkexec(pte);
 }
 
-#endif /* !(defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0) */
+#endif /* CONFIG_PPC_BOOK3S */
 
 /*
  * set_pte stores a linux PTE into the linux page table.
@@ -188,14 +181,13 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte)
 {
 	/*
-	 * When handling numa faults, we already have the pte marked
-	 * _PAGE_PRESENT, but we can be sure that it is not in hpte.
-	 * Hence we can use set_pte_at for them.
+	 * Make sure hardware valid bit is not set. We don't do
+	 * tlb flush for this update.
 	 */
-	VM_WARN_ON(pte_present(*ptep) && !pte_protnone(*ptep));
+	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
 
 	/* Add the pte bit when trying to set a pte */
-	pte = __pte(pte_val(pte) | _PAGE_PTE);
+	pte = pte_mkpte(pte);
 
 	/* Note: mm->context.id might not yet have been assigned as
 	 * this context might not have been activated yet when this

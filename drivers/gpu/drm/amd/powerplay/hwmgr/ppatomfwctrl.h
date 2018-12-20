@@ -236,7 +236,7 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_smc_dpm_parameters *param);
 int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr,
-					BIOS_CLKID id, uint32_t *frequency);
+					uint8_t id, uint32_t *frequency);
 
 #endif
 

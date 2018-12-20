@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/bsg-lib.h>
+#include <linux/vmalloc.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -2843,9 +2844,6 @@ diag_cmd_data_alloc(struct lpfc_hba *phba,
 
 		if (nocopydata) {
 			bpl->tus.f.bdeFlags = 0;
-			pci_dma_sync_single_for_device(phba->pcidev,
-				dmp->dma.phys, LPFC_BPL_SIZE, PCI_DMA_TODEVICE);
-
 		} else {
 			memset((uint8_t *)dmp->dma.virt, 0, cnt);
 			bpl->tus.f.bdeFlags = BUFF_TYPE_BDE_64I;
@@ -5309,6 +5307,330 @@ job_error:
 }
 
 /**
+ * lpfc_check_fwlog_support: Check FW log support on the adapter
+ * @phba: Pointer to HBA context object.
+ *
+ * Check if FW Logging support by the adapter
+ **/
+int
+lpfc_check_fwlog_support(struct lpfc_hba *phba)
+{
+	struct lpfc_ras_fwlog *ras_fwlog = NULL;
+
+	ras_fwlog = &phba->ras_fwlog;
+
+	if (ras_fwlog->ras_hwsupport == false)
+		return -EACCES;
+	else if (ras_fwlog->ras_enabled == false)
+		return -EPERM;
+	else
+		return 0;
+}
+
+/**
+ * lpfc_bsg_get_ras_config: Get RAS configuration settings
+ * @job: fc_bsg_job to handle
+ *
+ * Get RAS configuration values set.
+ **/
+static int
+lpfc_bsg_get_ras_config(struct bsg_job *job)
+{
+	struct Scsi_Host *shost = fc_bsg_to_shost(job);
+	struct lpfc_vport *vport = shost_priv(shost);
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_bsg_get_ras_config_reply *ras_reply;
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+	int rc = 0;
+
+	if (job->request_len <
+	    sizeof(struct fc_bsg_request) +
+	    sizeof(struct lpfc_bsg_ras_req)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"6181 Received RAS_LOG request "
+				"below minimum size\n");
+		rc = -EINVAL;
+		goto ras_job_error;
+	}
+
+	/* Check FW log status */
+	rc = lpfc_check_fwlog_support(phba);
+	if (rc == -EACCES || rc == -EPERM)
+		goto ras_job_error;
+
+	ras_reply = (struct lpfc_bsg_get_ras_config_reply *)
+		bsg_reply->reply_data.vendor_reply.vendor_rsp;
+
+	/* Current logging state */
+	if (ras_fwlog->ras_active == true)
+		ras_reply->state = LPFC_RASLOG_STATE_RUNNING;
+	else
+		ras_reply->state = LPFC_RASLOG_STATE_STOPPED;
+
+	ras_reply->log_level = phba->ras_fwlog.fw_loglevel;
+	ras_reply->log_buff_sz = phba->cfg_ras_fwlog_buffsize;
+
+ras_job_error:
+	/* make error code available to userspace */
+	bsg_reply->result = rc;
+
+	/* complete the job back to userspace */
+	bsg_job_done(job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+	return rc;
+}
+
+/**
+ * lpfc_ras_stop_fwlog: Disable FW logging by the adapter
+ * @phba: Pointer to HBA context object.
+ *
+ * Disable FW logging into host memory on the adapter. To
+ * be done before reading logs from the host memory.
+ **/
+static void
+lpfc_ras_stop_fwlog(struct lpfc_hba *phba)
+{
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+
+	ras_fwlog->ras_active = false;
+
+	/* Disable FW logging to host memory */
+	writel(LPFC_CTL_PDEV_CTL_DDL_RAS,
+	       phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
+}
+
+/**
+ * lpfc_bsg_set_ras_config: Set FW logging parameters
+ * @job: fc_bsg_job to handle
+ *
+ * Set log-level parameters for FW-logging in host memory
+ **/
+static int
+lpfc_bsg_set_ras_config(struct bsg_job *job)
+{
+	struct Scsi_Host *shost = fc_bsg_to_shost(job);
+	struct lpfc_vport *vport = shost_priv(shost);
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_bsg_set_ras_config_req *ras_req;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	uint8_t action = 0, log_level = 0;
+	int rc = 0;
+
+	if (job->request_len <
+	    sizeof(struct fc_bsg_request) +
+	    sizeof(struct lpfc_bsg_set_ras_config_req)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"6182 Received RAS_LOG request "
+				"below minimum size\n");
+		rc = -EINVAL;
+		goto ras_job_error;
+	}
+
+	/* Check FW log status */
+	rc = lpfc_check_fwlog_support(phba);
+	if (rc == -EACCES || rc == -EPERM)
+		goto ras_job_error;
+
+	ras_req = (struct lpfc_bsg_set_ras_config_req *)
+		bsg_request->rqst_data.h_vendor.vendor_cmd;
+	action = ras_req->action;
+	log_level = ras_req->log_level;
+
+	if (action == LPFC_RASACTION_STOP_LOGGING) {
+		/* Check if already disabled */
+		if (ras_fwlog->ras_active == false) {
+			rc = -ESRCH;
+			goto ras_job_error;
+		}
+
+		/* Disable logging */
+		lpfc_ras_stop_fwlog(phba);
+	} else {
+		/*action = LPFC_RASACTION_START_LOGGING*/
+		if (ras_fwlog->ras_active == true) {
+			rc = -EINPROGRESS;
+			goto ras_job_error;
+		}
+
+		/* Enable logging */
+		rc = lpfc_sli4_ras_fwlog_init(phba, log_level,
+					      LPFC_RAS_ENABLE_LOGGING);
+		if (rc)
+			rc = -EINVAL;
+	}
+ras_job_error:
+	/* make error code available to userspace */
+	bsg_reply->result = rc;
+
+	/* complete the job back to userspace */
+	bsg_job_done(job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
+
+	return rc;
+}
+
+/**
+ * lpfc_bsg_get_ras_lwpd: Get log write position data
+ * @job: fc_bsg_job to handle
+ *
+ * Get Offset/Wrap count of the log message written
+ * in host memory
+ **/
+static int
+lpfc_bsg_get_ras_lwpd(struct bsg_job *job)
+{
+	struct Scsi_Host *shost = fc_bsg_to_shost(job);
+	struct lpfc_vport *vport = shost_priv(shost);
+	struct lpfc_bsg_get_ras_lwpd *ras_reply;
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	uint32_t lwpd_offset = 0;
+	uint64_t wrap_value = 0;
+	int rc = 0;
+
+	rc = lpfc_check_fwlog_support(phba);
+	if (rc == -EACCES || rc == -EPERM)
+		goto ras_job_error;
+
+	if (job->request_len <
+	    sizeof(struct fc_bsg_request) +
+	    sizeof(struct lpfc_bsg_ras_req)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"6183 Received RAS_LOG request "
+				"below minimum size\n");
+		rc = -EINVAL;
+		goto ras_job_error;
+	}
+
+	ras_reply = (struct lpfc_bsg_get_ras_lwpd *)
+		bsg_reply->reply_data.vendor_reply.vendor_rsp;
+
+	lwpd_offset = *((uint32_t *)ras_fwlog->lwpd.virt) & 0xffffffff;
+	ras_reply->offset = be32_to_cpu(lwpd_offset);
+
+	wrap_value = *((uint64_t *)ras_fwlog->lwpd.virt);
+	ras_reply->wrap_count = be32_to_cpu((wrap_value >> 32) & 0xffffffff);
+
+ras_job_error:
+	/* make error code available to userspace */
+	bsg_reply->result = rc;
+
+	/* complete the job back to userspace */
+	bsg_job_done(job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+
+	return rc;
+}
+
+/**
+ * lpfc_bsg_get_ras_fwlog: Read FW log
+ * @job: fc_bsg_job to handle
+ *
+ * Copy the FW log into the passed buffer.
+ **/
+static int
+lpfc_bsg_get_ras_fwlog(struct bsg_job *job)
+{
+	struct Scsi_Host *shost = fc_bsg_to_shost(job);
+	struct lpfc_vport *vport = shost_priv(shost);
+	struct lpfc_hba *phba = vport->phba;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	struct lpfc_bsg_get_fwlog_req *ras_req;
+	uint32_t rd_offset, rd_index, offset, pending_wlen;
+	uint32_t boundary = 0, align_len = 0, write_len = 0;
+	void *dest, *src, *fwlog_buff;
+	struct lpfc_ras_fwlog *ras_fwlog = NULL;
+	struct lpfc_dmabuf *dmabuf, *next;
+	int rc = 0;
+
+	ras_fwlog = &phba->ras_fwlog;
+
+	rc = lpfc_check_fwlog_support(phba);
+	if (rc == -EACCES || rc == -EPERM)
+		goto ras_job_error;
+
+	/* Logging to be stopped before reading */
+	if (ras_fwlog->ras_active == true) {
+		rc = -EINPROGRESS;
+		goto ras_job_error;
+	}
+
+	if (job->request_len <
+	    sizeof(struct fc_bsg_request) +
+	    sizeof(struct lpfc_bsg_get_fwlog_req)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"6184 Received RAS_LOG request "
+				"below minimum size\n");
+		rc = -EINVAL;
+		goto ras_job_error;
+	}
+
+	ras_req = (struct lpfc_bsg_get_fwlog_req *)
+		bsg_request->rqst_data.h_vendor.vendor_cmd;
+	rd_offset = ras_req->read_offset;
+
+	/* Allocate memory to read fw log*/
+	fwlog_buff = vmalloc(ras_req->read_size);
+	if (!fwlog_buff) {
+		rc = -ENOMEM;
+		goto ras_job_error;
+	}
+
+	rd_index = (rd_offset / LPFC_RAS_MAX_ENTRY_SIZE);
+	offset = (rd_offset % LPFC_RAS_MAX_ENTRY_SIZE);
+	pending_wlen = ras_req->read_size;
+	dest = fwlog_buff;
+
+	list_for_each_entry_safe(dmabuf, next,
+			      &ras_fwlog->fwlog_buff_list, list) {
+
+		if (dmabuf->buffer_tag < rd_index)
+			continue;
+
+		/* Align read to buffer size */
+		if (offset) {
+			boundary = ((dmabuf->buffer_tag + 1) *
+				    LPFC_RAS_MAX_ENTRY_SIZE);
+
+			align_len = (boundary - offset);
+			write_len = min_t(u32, align_len,
+					  LPFC_RAS_MAX_ENTRY_SIZE);
+		} else {
+			write_len = min_t(u32, pending_wlen,
+					  LPFC_RAS_MAX_ENTRY_SIZE);
+			align_len = 0;
+			boundary = 0;
+		}
+		src = dmabuf->virt + offset;
+		memcpy(dest, src, write_len);
+
+		pending_wlen -= write_len;
+		if (!pending_wlen)
+			break;
+
+		dest += write_len;
+		offset = (offset + write_len) % LPFC_RAS_MAX_ENTRY_SIZE;
+	}
+
+	bsg_reply->reply_payload_rcv_len =
+		sg_copy_from_buffer(job->reply_payload.sg_list,
+				    job->reply_payload.sg_cnt,
+				    fwlog_buff, ras_req->read_size);
+
+	vfree(fwlog_buff);
+
+ras_job_error:
+	bsg_reply->result = rc;
+	bsg_job_done(job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+
+	return rc;
+}
+
+
+/**
  * lpfc_bsg_hst_vendor - process a vendor-specific fc_bsg_job
  * @job: fc_bsg_job to handle
  **/
@@ -5355,6 +5677,18 @@ lpfc_bsg_hst_vendor(struct bsg_job *job)
 	case LPFC_BSG_VENDOR_FORCED_LINK_SPEED:
 		rc = lpfc_forced_link_speed(job);
 		break;
+	case LPFC_BSG_VENDOR_RAS_GET_LWPD:
+		rc = lpfc_bsg_get_ras_lwpd(job);
+		break;
+	case LPFC_BSG_VENDOR_RAS_GET_FWLOG:
+		rc = lpfc_bsg_get_ras_fwlog(job);
+		break;
+	case LPFC_BSG_VENDOR_RAS_GET_CONFIG:
+		rc = lpfc_bsg_get_ras_config(job);
+		break;
+	case LPFC_BSG_VENDOR_RAS_SET_CONFIG:
+		rc = lpfc_bsg_set_ras_config(job);
+		break;
 	default:
 		rc = -EINVAL;
 		bsg_reply->reply_payload_rcv_len = 0;
@@ -5368,7 +5702,7 @@ lpfc_bsg_hst_vendor(struct bsg_job *job)
 
 /**
  * lpfc_bsg_request - handle a bsg request from the FC transport
- * @job: fc_bsg_job to handle
+ * @job: bsg_job to handle
  **/
 int
 lpfc_bsg_request(struct bsg_job *job)
@@ -5402,7 +5736,7 @@ lpfc_bsg_request(struct bsg_job *job)
 
 /**
  * lpfc_bsg_timeout - handle timeout of a bsg request from the FC transport
- * @job: fc_bsg_job that has timed out
+ * @job: bsg_job that has timed out
  *
  * This function just aborts the job's IOCB.  The aborted IOCB will return to
  * the waiting function which will handle passing the error back to userspace

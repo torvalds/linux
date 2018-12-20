@@ -141,6 +141,10 @@ echo "Import devices from localhost - should work"
 src/usbip attach -r localhost -b $busid;
 echo "=============================================================="
 
+# Wait for sysfs file to be updated. Without this sleep, usbip port
+# shows no imported devices.
+sleep 3;
+
 echo "List imported devices - expect to see imported devices";
 src/usbip port;
 echo "=============================================================="

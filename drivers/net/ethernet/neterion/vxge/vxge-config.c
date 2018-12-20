@@ -13,6 +13,7 @@
  ******************************************************************************/
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 

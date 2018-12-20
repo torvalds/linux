@@ -268,6 +268,10 @@ to 1, if the hardware does support retry then either set these counters to
 0 if the hardware provides no feedback of which errors occurred and how many
 times, or fill in the correct values as reported by the hardware.
 
+Be aware that calling these functions can immediately start a new transmit
+if there is one pending in the queue. So make sure that the hardware is in
+a state where new transmits can be started *before* calling these functions.
+
 The cec_transmit_attempt_done() function is a helper for cases where the
 hardware never retries, so the transmit is always for just a single
 attempt. It will call cec_transmit_done() in turn, filling in 1 for the

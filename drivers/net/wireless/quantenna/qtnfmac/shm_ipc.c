@@ -42,19 +42,18 @@ static void qtnf_shm_handle_new_data(struct qtnf_shm_ipc *ipc)
 	if (unlikely(size == 0 || size > QTN_IPC_MAX_DATA_SZ)) {
 		pr_err("wrong rx packet size: %zu\n", size);
 		rx_buff_ok = false;
-	} else {
-		memcpy_fromio(ipc->rx_data, ipc->shm_region->data, size);
+	}
+
+	if (likely(rx_buff_ok)) {
+		ipc->rx_packet_count++;
+		ipc->rx_callback.fn(ipc->rx_callback.arg,
+				    ipc->shm_region->data, size);
 	}
 
 	writel(QTNF_SHM_IPC_ACK, &shm_reg_hdr->flags);
 	readl(&shm_reg_hdr->flags); /* flush PCIe write */
 
 	ipc->interrupt.fn(ipc->interrupt.arg);
-
-	if (likely(rx_buff_ok)) {
-		ipc->rx_packet_count++;
-		ipc->rx_callback.fn(ipc->rx_callback.arg, ipc->rx_data, size);
-	}
 }
 
 static void qtnf_shm_ipc_irq_work(struct work_struct *work)

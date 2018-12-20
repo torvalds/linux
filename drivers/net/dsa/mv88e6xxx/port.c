@@ -228,8 +228,11 @@ static int mv88e6xxx_port_set_speed(struct mv88e6xxx_chip *chip, int port,
 		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_1000;
 		break;
 	case 2500:
-		ctrl = MV88E6390_PORT_MAC_CTL_SPEED_10000 |
-			MV88E6390_PORT_MAC_CTL_ALTSPEED;
+		if (alt_bit)
+			ctrl = MV88E6390_PORT_MAC_CTL_SPEED_10000 |
+				MV88E6390_PORT_MAC_CTL_ALTSPEED;
+		else
+			ctrl = MV88E6390_PORT_MAC_CTL_SPEED_10000;
 		break;
 	case 10000:
 		/* all bits set, fall through... */
@@ -289,6 +292,24 @@ int mv88e6185_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 		return -EOPNOTSUPP;
 
 	return mv88e6xxx_port_set_speed(chip, port, speed, false, false);
+}
+
+/* Support 10, 100, 200, 1000, 2500 Mbps (e.g. 88E6341) */
+int mv88e6341_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
+{
+	if (speed == SPEED_MAX)
+		speed = port < 5 ? 1000 : 2500;
+
+	if (speed > 2500)
+		return -EOPNOTSUPP;
+
+	if (speed == 200 && port != 0)
+		return -EOPNOTSUPP;
+
+	if (speed == 2500 && port < 5)
+		return -EOPNOTSUPP;
+
+	return mv88e6xxx_port_set_speed(chip, port, speed, !port, true);
 }
 
 /* Support 10, 100, 200, 1000 Mbps (e.g. 88E6352 family) */

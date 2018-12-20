@@ -1216,6 +1216,10 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		if (insn->n == 6)
 			return 0;
 		break;
+	case INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS:
+		if (insn->n >= 4)
+			return 0;
+		break;
 		/*
 		 * by default we allow the insn since we don't have checks for
 		 * all possible cases yet
@@ -1228,6 +1232,57 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		return 0;
 	}
 	return -EINVAL;
+}
+
+static int check_insn_device_config_length(struct comedi_insn *insn,
+					   unsigned int *data)
+{
+	if (insn->n < 1)
+		return -EINVAL;
+
+	switch (data[0]) {
+	case INSN_DEVICE_CONFIG_TEST_ROUTE:
+	case INSN_DEVICE_CONFIG_CONNECT_ROUTE:
+	case INSN_DEVICE_CONFIG_DISCONNECT_ROUTE:
+		if (insn->n == 3)
+			return 0;
+		break;
+	case INSN_DEVICE_CONFIG_GET_ROUTES:
+		/*
+		 * Big enough for config_id and the length of the userland
+		 * memory buffer.  Additional length should be in factors of 2
+		 * to communicate any returned route pairs (source,destination).
+		 */
+		if (insn->n >= 2)
+			return 0;
+		break;
+	}
+	return -EINVAL;
+}
+
+/**
+ * get_valid_routes() - Calls low-level driver get_valid_routes function to
+ *			either return a count of valid routes to user, or copy
+ *			of list of all valid device routes to buffer in
+ *			userspace.
+ * @dev: comedi device pointer
+ * @data: data from user insn call.  The length of the data must be >= 2.
+ *	  data[0] must contain the INSN_DEVICE_CONFIG config_id.
+ *	  data[1](input) contains the number of _pairs_ for which memory is
+ *		  allotted from the user.  If the user specifies '0', then only
+ *		  the number of pairs available is returned.
+ *	  data[1](output) returns either the number of pairs available (if none
+ *		  where requested) or the number of _pairs_ that are copied back
+ *		  to the user.
+ *	  data[2::2] returns each (source, destination) pair.
+ *
+ * Return: -EINVAL if low-level driver does not allocate and return routes as
+ *	   expected.  Returns 0 otherwise.
+ */
+static int get_valid_routes(struct comedi_device *dev, unsigned int *data)
+{
+	data[1] = dev->get_valid_routes(dev, data[1], data + 2);
+	return 0;
 }
 
 static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
@@ -1292,6 +1347,24 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			ret = s->async->inttrig(dev, s, data[0]);
 			if (ret >= 0)
 				ret = 1;
+			break;
+		case INSN_DEVICE_CONFIG:
+			ret = check_insn_device_config_length(insn, data);
+			if (ret)
+				break;
+
+			if (data[0] == INSN_DEVICE_CONFIG_GET_ROUTES) {
+				/*
+				 * data[1] should be the number of _pairs_ that
+				 * the memory can hold.
+				 */
+				data[1] = (insn->n - 2) / 2;
+				ret = get_valid_routes(dev, data);
+				break;
+			}
+
+			/* other global device config instructions. */
+			ret = dev->insn_device_config(dev, insn, data);
 			break;
 		default:
 			dev_dbg(dev->class_dev, "invalid insn\n");

@@ -27,6 +27,7 @@
 #include <linux/export.h>
 #include <linux/bug.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 
 #include <asm/byteorder.h>
 #include <asm/word-at-a-time.h>

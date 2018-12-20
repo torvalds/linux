@@ -372,15 +372,25 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <2>;
+};
+
+&davinci_mdio {
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &usb2_phy1 {
@@ -477,4 +487,8 @@
 			reg = <0x009e0000 0x01620000>;
 		};
 	};
+};
+
+&cpu0 {
+	vdd-supply = <&smps12_reg>;
 };

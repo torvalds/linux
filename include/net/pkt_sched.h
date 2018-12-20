@@ -102,6 +102,7 @@ int qdisc_set_default(const char *id);
 void qdisc_hash_add(struct Qdisc *q, bool invisible);
 void qdisc_hash_del(struct Qdisc *q);
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
+struct Qdisc *qdisc_lookup_rcu(struct net_device *dev, u32 handle);
 struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 					struct nlattr *tab,
 					struct netlink_ext_ack *extack);

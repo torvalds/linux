@@ -23,9 +23,11 @@ static void shutdown_umh(struct umh_info *info)
 
 	if (!info->pid)
 		return;
-	tsk = pid_task(find_vpid(info->pid), PIDTYPE_PID);
-	if (tsk)
+	tsk = get_pid_task(find_vpid(info->pid), PIDTYPE_PID);
+	if (tsk) {
 		force_sig(SIGKILL, tsk);
+		put_task_struct(tsk);
+	}
 	fput(info->pipe_to_umh);
 	fput(info->pipe_from_umh);
 	info->pid = 0;
@@ -90,6 +92,7 @@ static int __init load_umh(void)
 	int err;
 
 	/* fork usermode process */
+	info.cmdline = "bpfilter_umh";
 	err = fork_usermode_blob(&bpfilter_umh_start,
 				 &bpfilter_umh_end - &bpfilter_umh_start,
 				 &info);

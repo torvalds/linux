@@ -382,11 +382,11 @@ static inline void backlog_list_add(struct nitrox_softreq *sr,
 {
 	INIT_LIST_HEAD(&sr->backlog);
 
-	spin_lock_bh(&cmdq->backlog_lock);
+	spin_lock_bh(&cmdq->backlog_qlock);
 	list_add_tail(&sr->backlog, &cmdq->backlog_head);
 	atomic_inc(&cmdq->backlog_count);
 	atomic_set(&sr->status, REQ_BACKLOG);
-	spin_unlock_bh(&cmdq->backlog_lock);
+	spin_unlock_bh(&cmdq->backlog_qlock);
 }
 
 static inline void response_list_add(struct nitrox_softreq *sr,
@@ -394,17 +394,17 @@ static inline void response_list_add(struct nitrox_softreq *sr,
 {
 	INIT_LIST_HEAD(&sr->response);
 
-	spin_lock_bh(&cmdq->response_lock);
+	spin_lock_bh(&cmdq->resp_qlock);
 	list_add_tail(&sr->response, &cmdq->response_head);
-	spin_unlock_bh(&cmdq->response_lock);
+	spin_unlock_bh(&cmdq->resp_qlock);
 }
 
 static inline void response_list_del(struct nitrox_softreq *sr,
 				     struct nitrox_cmdq *cmdq)
 {
-	spin_lock_bh(&cmdq->response_lock);
+	spin_lock_bh(&cmdq->resp_qlock);
 	list_del(&sr->response);
-	spin_unlock_bh(&cmdq->response_lock);
+	spin_unlock_bh(&cmdq->resp_qlock);
 }
 
 static struct nitrox_softreq *
@@ -439,11 +439,11 @@ static void post_se_instr(struct nitrox_softreq *sr,
 	int idx;
 	u8 *ent;
 
-	spin_lock_bh(&cmdq->cmdq_lock);
+	spin_lock_bh(&cmdq->cmd_qlock);
 
 	idx = cmdq->write_idx;
 	/* copy the instruction */
-	ent = cmdq->head + (idx * cmdq->instr_size);
+	ent = cmdq->base + (idx * cmdq->instr_size);
 	memcpy(ent, &sr->instr, cmdq->instr_size);
 
 	atomic_set(&sr->status, REQ_POSTED);
@@ -459,7 +459,10 @@ static void post_se_instr(struct nitrox_softreq *sr,
 
 	cmdq->write_idx = incr_index(idx, 1, ndev->qlen);
 
-	spin_unlock_bh(&cmdq->cmdq_lock);
+	spin_unlock_bh(&cmdq->cmd_qlock);
+
+	/* increment the posted command count */
+	atomic64_inc(&ndev->stats.posted);
 }
 
 static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
@@ -471,7 +474,7 @@ static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
 	if (!atomic_read(&cmdq->backlog_count))
 		return 0;
 
-	spin_lock_bh(&cmdq->backlog_lock);
+	spin_lock_bh(&cmdq->backlog_qlock);
 
 	list_for_each_entry_safe(sr, tmp, &cmdq->backlog_head, backlog) {
 		struct skcipher_request *skreq;
@@ -494,7 +497,7 @@ static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
 		/* backlog requests are posted, wakeup with -EINPROGRESS */
 		skcipher_request_complete(skreq, -EINPROGRESS);
 	}
-	spin_unlock_bh(&cmdq->backlog_lock);
+	spin_unlock_bh(&cmdq->backlog_qlock);
 
 	return ret;
 }
@@ -508,8 +511,11 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
 	post_backlog_cmds(cmdq);
 
 	if (unlikely(cmdq_full(cmdq, ndev->qlen))) {
-		if (!(sr->flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
+		if (!(sr->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
+			/* increment drop count */
+			atomic64_inc(&ndev->stats.dropped);
 			return -ENOSPC;
+		}
 		/* add to backlog list */
 		backlog_list_add(sr, cmdq);
 		return -EBUSY;
@@ -572,7 +578,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	/* select the queue */
 	qno = smp_processor_id() % ndev->nr_queues;
 
-	sr->cmdq = &ndev->pkt_cmdqs[qno];
+	sr->cmdq = &ndev->pkt_inq[qno];
 
 	/*
 	 * 64-Byte Instruction Format
@@ -694,6 +700,7 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 					    READ_ONCE(sr->resp.orh));
 		}
 		atomic_dec(&cmdq->pending_count);
+		atomic64_inc(&ndev->stats.completed);
 		/* sync with other cpus */
 		smp_mb__after_atomic();
 		/* remove from response list */
@@ -714,18 +721,18 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 }
 
 /**
- * pkt_slc_resp_handler - post processing of SE responses
+ * pkt_slc_resp_tasklet - post processing of SE responses
  */
-void pkt_slc_resp_handler(unsigned long data)
+void pkt_slc_resp_tasklet(unsigned long data)
 {
-	struct bh_data *bh = (void *)(uintptr_t)(data);
-	struct nitrox_cmdq *cmdq = bh->cmdq;
-	union nps_pkt_slc_cnts pkt_slc_cnts;
+	struct nitrox_q_vector *qvec = (void *)(uintptr_t)(data);
+	struct nitrox_cmdq *cmdq = qvec->cmdq;
+	union nps_pkt_slc_cnts slc_cnts;
 
 	/* read completion count */
-	pkt_slc_cnts.value = readq(bh->completion_cnt_csr_addr);
+	slc_cnts.value = readq(cmdq->compl_cnt_csr_addr);
 	/* resend the interrupt if more work to do */
-	pkt_slc_cnts.s.resend = 1;
+	slc_cnts.s.resend = 1;
 
 	process_response_list(cmdq);
 
@@ -733,7 +740,7 @@ void pkt_slc_resp_handler(unsigned long data)
 	 * clear the interrupt with resend bit enabled,
 	 * MSI-X interrupt generates if Completion count > Threshold
 	 */
-	writeq(pkt_slc_cnts.value, bh->completion_cnt_csr_addr);
+	writeq(slc_cnts.value, cmdq->compl_cnt_csr_addr);
 	/* order the writes */
 	mmiowb();
 

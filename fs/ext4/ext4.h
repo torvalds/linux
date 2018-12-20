@@ -45,15 +45,6 @@
 
 #include <linux/compiler.h>
 
-/* Until this gets included into linux/compiler-gcc.h */
-#ifndef __nonstring
-#if defined(GCC_VERSION) && (GCC_VERSION >= 80000)
-#define __nonstring __attribute__((nonstring))
-#else
-#define __nonstring
-#endif
-#endif
-
 /*
  * The fourth extended filesystem constants/structures
  */
@@ -628,6 +619,7 @@ enum {
 #define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE		0x0008
 #define EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER	0x0010
 #define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
+#define EXT4_FREE_BLOCKS_RERESERVE_CLUSTER      0x0040
 
 /*
  * ioctl commands
@@ -1030,6 +1022,9 @@ struct ext4_inode_info {
 	ext4_lblk_t i_da_metadata_calc_last_lblock;
 	int i_da_metadata_calc_len;
 
+	/* pending cluster reservations for bigalloc file systems */
+	struct ext4_pending_tree i_pending_tree;
+
 	/* on-disk additional length */
 	__u16 i_extra_isize;
 
@@ -1401,7 +1396,8 @@ struct ext4_sb_info {
 	u32 s_min_batch_time;
 	struct block_device *journal_bdev;
 #ifdef CONFIG_QUOTA
-	char *s_qf_names[EXT4_MAXQUOTAS];	/* Names of quota files with journalled quota */
+	/* Names of quota files with journalled quota */
+	char __rcu *s_qf_names[EXT4_MAXQUOTAS];
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
 	unsigned int s_want_extra_isize; /* New inodes should reserve # bytes */
@@ -2483,10 +2479,11 @@ extern int ext4_writepage_trans_blocks(struct inode *);
 extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
 			     loff_t lstart, loff_t lend);
-extern int ext4_page_mkwrite(struct vm_fault *vmf);
-extern int ext4_filemap_fault(struct vm_fault *vmf);
+extern vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf);
+extern vm_fault_t ext4_filemap_fault(struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern int ext4_get_projid(struct inode *inode, kprojid_t *projid);
+extern void ext4_da_release_space(struct inode *inode, int to_free);
 extern void ext4_da_update_reserve_space(struct inode *inode,
 					int used, int quota_claim);
 extern int ext4_issue_zeroout(struct inode *inode, ext4_lblk_t lblk,
@@ -3142,10 +3139,6 @@ extern struct ext4_ext_path *ext4_find_extent(struct inode *, ext4_lblk_t,
 					      int flags);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
-extern int ext4_find_delalloc_range(struct inode *inode,
-				    ext4_lblk_t lblk_start,
-				    ext4_lblk_t lblk_end);
-extern int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk);
 extern ext4_lblk_t ext4_ext_next_allocated_block(struct ext4_ext_path *path);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
@@ -3156,6 +3149,7 @@ extern int ext4_swap_extents(handle_t *handle, struct inode *inode1,
 				struct inode *inode2, ext4_lblk_t lblk1,
 			     ext4_lblk_t lblk2,  ext4_lblk_t count,
 			     int mark_unwritten,int *err);
+extern int ext4_clu_mapped(struct inode *inode, ext4_lblk_t lclu);
 
 /* move_extent.c */
 extern void ext4_double_down_write_data_sem(struct inode *first,

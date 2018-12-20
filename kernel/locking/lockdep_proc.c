@@ -68,7 +68,7 @@ static int l_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%p", class->key);
 #ifdef CONFIG_DEBUG_LOCKDEP
-	seq_printf(m, " OPS:%8ld", class->ops);
+	seq_printf(m, " OPS:%8ld", debug_class_ops_read(class));
 #endif
 #ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " FD:%5ld", lockdep_count_forward_deps(class));

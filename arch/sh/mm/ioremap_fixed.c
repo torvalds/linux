@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/io.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <asm/fixmap.h>
 #include <asm/page.h>

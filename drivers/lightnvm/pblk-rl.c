@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -127,7 +128,7 @@ static void __pblk_rl_update_rates(struct pblk_rl *rl,
 	} else if (free_blocks < rl->high) {
 		int shift = rl->high_pw - rl->rb_windows_pw;
 		int user_windows = free_blocks >> shift;
-		int user_max = user_windows << PBLK_MAX_REQ_ADDRS_PW;
+		int user_max = user_windows << ilog2(NVM_MAX_VLBA);
 
 		rl->rb_user_max = user_max;
 		rl->rb_gc_max = max - user_max;
@@ -228,7 +229,7 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	rl->rsv_blocks = min_blocks;
 
 	/* This will always be a power-of-2 */
-	rb_windows = budget / PBLK_MAX_REQ_ADDRS;
+	rb_windows = budget / NVM_MAX_VLBA;
 	rl->rb_windows_pw = get_count_order(rb_windows);
 
 	/* To start with, all buffer is available to user I/O writers */

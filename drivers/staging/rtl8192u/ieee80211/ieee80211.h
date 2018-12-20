@@ -1329,8 +1329,13 @@ typedef enum _erp_t {
 
 struct ieee80211_network {
 	/* These entries are used to identify a unique network */
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN];   /* u16 aligned! */
 	u8 channel;
+
+	// CCXv4 S59, MBSSID.
+	bool	bMBssidValid;
+	u8	MBssid[ETH_ALEN];    /* u16 aligned! */
+	u8	MBssidMask;
 	/* Ensure null-terminated for any debug msgs */
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
@@ -1341,10 +1346,6 @@ struct ieee80211_network {
 	bool	bCkipSupported;
 	bool	bCcxRmEnable;
 	u16	CcxRmState[2];
-	// CCXv4 S59, MBSSID.
-	bool	bMBssidValid;
-	u8	MBssidMask;
-	u8	MBssid[6];
 	// CCX 2 S38, WLAN Device Version Number element. Annie, 2006-08-20.
 	bool	bWithCcxVerNum;
 	u8	BssCcxVerNumber;
@@ -1771,7 +1772,7 @@ struct ieee80211_device {
 
 	/* map of allowed channels. 0 is dummy */
 	// FIXME: remember to default to a basic channel plan depending of the PHY type
-	void *pDot11dInfo;
+	void *dot11d_info;
 	bool bGlobalDomain;
 	int rate;       /* current rate */
 	int basic_rate;
@@ -2378,11 +2379,8 @@ u8 HTGetHighestMCSRate(struct ieee80211_device *ieee,
 extern u8 MCS_FILTER_ALL[];
 extern u16 MCS_DATA_RATE[2][2][77];
 u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame);
-//extern void HTSetConnectBwModeCallback(unsigned long data);
 void HTResetIOTSetting(PRT_HIGH_THROUGHPUT pHTInfo);
 bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee);
-u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate);
-u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate);
 u16 TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate);
 //function in BAPROC.c
 int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb);
@@ -2395,7 +2393,7 @@ void TsInitDelBA(struct ieee80211_device *ieee,
 void BaSetupTimeOut(struct timer_list *t);
 void TxBaInactTimeout(struct timer_list *t);
 void RxBaInactTimeout(struct timer_list *t);
-void ResetBaEntry(PBA_RECORD pBA);
+void ResetBaEntry(struct ba_record *pBA);
 //function in TS.c
 bool GetTs(
 	struct ieee80211_device		*ieee,

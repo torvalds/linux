@@ -492,8 +492,10 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	if (!fbo)
 		return -ENOMEM;
 
-	ttm_bo_get(bo);
 	fbo->base = *bo;
+	fbo->base.mem.placement |= TTM_PL_FLAG_NO_EVICT;
+
+	ttm_bo_get(bo);
 	fbo->bo = bo;
 
 	/**
@@ -629,10 +631,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 		return -EINVAL;
 	if (start_page > bo->num_pages)
 		return -EINVAL;
-#if 0
-	if (num_pages > 1 && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-#endif
+
 	(void) ttm_mem_io_lock(man, false);
 	ret = ttm_mem_io_reserve(bo->bdev, &bo->mem);
 	ttm_mem_io_unlock(man);

@@ -343,6 +343,8 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 	} else if (data->oc_polarity == 1) {
 		/* High active */
 		reg &= ~(MX6_BM_OVER_CUR_DIS | MX6_BM_OVER_CUR_POLARITY);
+	} else {
+		reg &= ~(MX6_BM_OVER_CUR_DIS);
 	}
 	writel(reg, usbmisc->base + data->index * 4);
 
@@ -633,6 +635,6 @@ static struct platform_driver usbmisc_imx_driver = {
 module_platform_driver(usbmisc_imx_driver);
 
 MODULE_ALIAS("platform:usbmisc-imx");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("driver for imx usb non-core registers");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");

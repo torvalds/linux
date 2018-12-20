@@ -1319,6 +1319,13 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return mt_touch_input_mapping(hdev, hi, field, usage, bit, max,
 					      application);
 
+	/*
+	 * some egalax touchscreens have "application == DG_TOUCHSCREEN"
+	 * for the stylus. Overwrite the hid_input application
+	 */
+	if (field->physical == HID_DG_STYLUS)
+		hi->application = HID_DG_STYLUS;
+
 	/* let hid-core decide for the others */
 	return 0;
 }
@@ -1507,14 +1514,12 @@ static int mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	struct mt_device *td = hid_get_drvdata(hdev);
 	char *name;
 	const char *suffix = NULL;
-	unsigned int application = 0;
 	struct mt_report_data *rdata;
 	struct mt_application *mt_application = NULL;
 	struct hid_report *report;
 	int ret;
 
 	list_for_each_entry(report, &hi->reports, hidinput_list) {
-		application = report->application;
 		rdata = mt_find_report_data(td, report);
 		if (!rdata) {
 			hid_err(hdev, "failed to allocate data for report\n");
@@ -1529,46 +1534,33 @@ static int mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 			if (ret)
 				return ret;
 		}
-
-		/*
-		 * some egalax touchscreens have "application == DG_TOUCHSCREEN"
-		 * for the stylus. Check this first, and then rely on
-		 * the application field.
-		 */
-		if (report->field[0]->physical == HID_DG_STYLUS) {
-			suffix = "Pen";
-			/* force BTN_STYLUS to allow tablet matching in udev */
-			__set_bit(BTN_STYLUS, hi->input->keybit);
-		}
 	}
 
-	if (!suffix) {
-		switch (application) {
-		case HID_GD_KEYBOARD:
-		case HID_GD_KEYPAD:
-		case HID_GD_MOUSE:
-		case HID_DG_TOUCHPAD:
-		case HID_GD_SYSTEM_CONTROL:
-		case HID_CP_CONSUMER_CONTROL:
-		case HID_GD_WIRELESS_RADIO_CTLS:
-		case HID_GD_SYSTEM_MULTIAXIS:
-			/* already handled by hid core */
-			break;
-		case HID_DG_TOUCHSCREEN:
-			/* we do not set suffix = "Touchscreen" */
-			hi->input->name = hdev->name;
-			break;
-		case HID_DG_STYLUS:
-			/* force BTN_STYLUS to allow tablet matching in udev */
-			__set_bit(BTN_STYLUS, hi->input->keybit);
-			break;
-		case HID_VD_ASUS_CUSTOM_MEDIA_KEYS:
-			suffix = "Custom Media Keys";
-			break;
-		default:
-			suffix = "UNKNOWN";
-			break;
-		}
+	switch (hi->application) {
+	case HID_GD_KEYBOARD:
+	case HID_GD_KEYPAD:
+	case HID_GD_MOUSE:
+	case HID_DG_TOUCHPAD:
+	case HID_GD_SYSTEM_CONTROL:
+	case HID_CP_CONSUMER_CONTROL:
+	case HID_GD_WIRELESS_RADIO_CTLS:
+	case HID_GD_SYSTEM_MULTIAXIS:
+		/* already handled by hid core */
+		break;
+	case HID_DG_TOUCHSCREEN:
+		/* we do not set suffix = "Touchscreen" */
+		hi->input->name = hdev->name;
+		break;
+	case HID_DG_STYLUS:
+		/* force BTN_STYLUS to allow tablet matching in udev */
+		__set_bit(BTN_STYLUS, hi->input->keybit);
+		break;
+	case HID_VD_ASUS_CUSTOM_MEDIA_KEYS:
+		suffix = "Custom Media Keys";
+		break;
+	default:
+		suffix = "UNKNOWN";
+		break;
 	}
 
 	if (suffix) {
@@ -1821,6 +1813,12 @@ static const struct hid_device_id mt_devices[] = {
 	{  .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_CHUNGHWAT,
 			USB_DEVICE_ID_CHUNGHWAT_MULTITOUCH) },
+
+	/* Cirque devices */
+	{ .driver_data = MT_CLS_WIN_8_DUAL,
+		HID_DEVICE(BUS_I2C, HID_GROUP_MULTITOUCH_WIN_8,
+			I2C_VENDOR_ID_CIRQUE,
+			I2C_PRODUCT_ID_CIRQUE_121F) },
 
 	/* CJTouch panels */
 	{ .driver_data = MT_CLS_NSMU,

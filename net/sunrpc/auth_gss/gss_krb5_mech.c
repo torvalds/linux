@@ -218,7 +218,7 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 
 static inline const void *
 get_key(const void *p, const void *end,
-	struct krb5_ctx *ctx, struct crypto_skcipher **res)
+	struct krb5_ctx *ctx, struct crypto_sync_skcipher **res)
 {
 	struct xdr_netobj	key;
 	int			alg;
@@ -246,15 +246,14 @@ get_key(const void *p, const void *end,
 	if (IS_ERR(p))
 		goto out_err;
 
-	*res = crypto_alloc_skcipher(ctx->gk5e->encrypt_name, 0,
-							CRYPTO_ALG_ASYNC);
+	*res = crypto_alloc_sync_skcipher(ctx->gk5e->encrypt_name, 0, 0);
 	if (IS_ERR(*res)) {
 		printk(KERN_WARNING "gss_kerberos_mech: unable to initialize "
 			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
 		*res = NULL;
 		goto out_err_free_key;
 	}
-	if (crypto_skcipher_setkey(*res, key.data, key.len)) {
+	if (crypto_sync_skcipher_setkey(*res, key.data, key.len)) {
 		printk(KERN_WARNING "gss_kerberos_mech: error setting key for "
 			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
 		goto out_err_free_tfm;
@@ -264,7 +263,7 @@ get_key(const void *p, const void *end,
 	return p;
 
 out_err_free_tfm:
-	crypto_free_skcipher(*res);
+	crypto_free_sync_skcipher(*res);
 out_err_free_key:
 	kfree(key.data);
 	p = ERR_PTR(-EINVAL);
@@ -275,6 +274,7 @@ out_err:
 static int
 gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 {
+	u32 seq_send;
 	int tmp;
 
 	p = simple_get_bytes(p, end, &ctx->initiate, sizeof(ctx->initiate));
@@ -316,9 +316,10 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
 	if (IS_ERR(p))
 		goto out_err;
-	p = simple_get_bytes(p, end, &ctx->seq_send, sizeof(ctx->seq_send));
+	p = simple_get_bytes(p, end, &seq_send, sizeof(seq_send));
 	if (IS_ERR(p))
 		goto out_err;
+	atomic_set(&ctx->seq_send, seq_send);
 	p = simple_get_netobj(p, end, &ctx->mech_used);
 	if (IS_ERR(p))
 		goto out_err;
@@ -336,30 +337,30 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	return 0;
 
 out_err_free_key2:
-	crypto_free_skcipher(ctx->seq);
+	crypto_free_sync_skcipher(ctx->seq);
 out_err_free_key1:
-	crypto_free_skcipher(ctx->enc);
+	crypto_free_sync_skcipher(ctx->enc);
 out_err_free_mech:
 	kfree(ctx->mech_used.data);
 out_err:
 	return PTR_ERR(p);
 }
 
-static struct crypto_skcipher *
+static struct crypto_sync_skcipher *
 context_v2_alloc_cipher(struct krb5_ctx *ctx, const char *cname, u8 *key)
 {
-	struct crypto_skcipher *cp;
+	struct crypto_sync_skcipher *cp;
 
-	cp = crypto_alloc_skcipher(cname, 0, CRYPTO_ALG_ASYNC);
+	cp = crypto_alloc_sync_skcipher(cname, 0, 0);
 	if (IS_ERR(cp)) {
 		dprintk("gss_kerberos_mech: unable to initialize "
 			"crypto algorithm %s\n", cname);
 		return NULL;
 	}
-	if (crypto_skcipher_setkey(cp, key, ctx->gk5e->keylength)) {
+	if (crypto_sync_skcipher_setkey(cp, key, ctx->gk5e->keylength)) {
 		dprintk("gss_kerberos_mech: error setting key for "
 			"crypto algorithm %s\n", cname);
-		crypto_free_skcipher(cp);
+		crypto_free_sync_skcipher(cp);
 		return NULL;
 	}
 	return cp;
@@ -413,9 +414,9 @@ context_derive_keys_des3(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	return 0;
 
 out_free_enc:
-	crypto_free_skcipher(ctx->enc);
+	crypto_free_sync_skcipher(ctx->enc);
 out_free_seq:
-	crypto_free_skcipher(ctx->seq);
+	crypto_free_sync_skcipher(ctx->seq);
 out_err:
 	return -EINVAL;
 }
@@ -469,17 +470,15 @@ context_derive_keys_rc4(struct krb5_ctx *ctx)
 	/*
 	 * allocate hash, and skciphers for data and seqnum encryption
 	 */
-	ctx->enc = crypto_alloc_skcipher(ctx->gk5e->encrypt_name, 0,
-					 CRYPTO_ALG_ASYNC);
+	ctx->enc = crypto_alloc_sync_skcipher(ctx->gk5e->encrypt_name, 0, 0);
 	if (IS_ERR(ctx->enc)) {
 		err = PTR_ERR(ctx->enc);
 		goto out_err_free_hmac;
 	}
 
-	ctx->seq = crypto_alloc_skcipher(ctx->gk5e->encrypt_name, 0,
-					 CRYPTO_ALG_ASYNC);
+	ctx->seq = crypto_alloc_sync_skcipher(ctx->gk5e->encrypt_name, 0, 0);
 	if (IS_ERR(ctx->seq)) {
-		crypto_free_skcipher(ctx->enc);
+		crypto_free_sync_skcipher(ctx->enc);
 		err = PTR_ERR(ctx->seq);
 		goto out_err_free_hmac;
 	}
@@ -591,7 +590,7 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 			context_v2_alloc_cipher(ctx, "cbc(aes)",
 						ctx->acceptor_seal);
 		if (ctx->acceptor_enc_aux == NULL) {
-			crypto_free_skcipher(ctx->initiator_enc_aux);
+			crypto_free_sync_skcipher(ctx->initiator_enc_aux);
 			goto out_free_acceptor_enc;
 		}
 	}
@@ -599,9 +598,9 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	return 0;
 
 out_free_acceptor_enc:
-	crypto_free_skcipher(ctx->acceptor_enc);
+	crypto_free_sync_skcipher(ctx->acceptor_enc);
 out_free_initiator_enc:
-	crypto_free_skcipher(ctx->initiator_enc);
+	crypto_free_sync_skcipher(ctx->initiator_enc);
 out_err:
 	return -EINVAL;
 }
@@ -610,6 +609,7 @@ static int
 gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 		gfp_t gfp_mask)
 {
+	u64 seq_send64;
 	int keylen;
 
 	p = simple_get_bytes(p, end, &ctx->flags, sizeof(ctx->flags));
@@ -620,14 +620,15 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
 	if (IS_ERR(p))
 		goto out_err;
-	p = simple_get_bytes(p, end, &ctx->seq_send64, sizeof(ctx->seq_send64));
+	p = simple_get_bytes(p, end, &seq_send64, sizeof(seq_send64));
 	if (IS_ERR(p))
 		goto out_err;
+	atomic64_set(&ctx->seq_send64, seq_send64);
 	/* set seq_send for use by "older" enctypes */
-	ctx->seq_send = ctx->seq_send64;
-	if (ctx->seq_send64 != ctx->seq_send) {
-		dprintk("%s: seq_send64 %lx, seq_send %x overflow?\n", __func__,
-			(unsigned long)ctx->seq_send64, ctx->seq_send);
+	atomic_set(&ctx->seq_send, seq_send64);
+	if (seq_send64 != atomic_read(&ctx->seq_send)) {
+		dprintk("%s: seq_send64 %llx, seq_send %x overflow?\n", __func__,
+			seq_send64, atomic_read(&ctx->seq_send));
 		p = ERR_PTR(-EINVAL);
 		goto out_err;
 	}
@@ -713,12 +714,12 @@ static void
 gss_delete_sec_context_kerberos(void *internal_ctx) {
 	struct krb5_ctx *kctx = internal_ctx;
 
-	crypto_free_skcipher(kctx->seq);
-	crypto_free_skcipher(kctx->enc);
-	crypto_free_skcipher(kctx->acceptor_enc);
-	crypto_free_skcipher(kctx->initiator_enc);
-	crypto_free_skcipher(kctx->acceptor_enc_aux);
-	crypto_free_skcipher(kctx->initiator_enc_aux);
+	crypto_free_sync_skcipher(kctx->seq);
+	crypto_free_sync_skcipher(kctx->enc);
+	crypto_free_sync_skcipher(kctx->acceptor_enc);
+	crypto_free_sync_skcipher(kctx->initiator_enc);
+	crypto_free_sync_skcipher(kctx->acceptor_enc_aux);
+	crypto_free_sync_skcipher(kctx->initiator_enc_aux);
 	kfree(kctx->mech_used.data);
 	kfree(kctx);
 }

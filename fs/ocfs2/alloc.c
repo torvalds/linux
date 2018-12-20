@@ -5106,8 +5106,6 @@ int ocfs2_split_extent(handle_t *handle,
 	 * rightmost extent list.
 	 */
 	if (path->p_tree_depth) {
-		struct ocfs2_extent_block *eb;
-
 		ret = ocfs2_read_extent_block(et->et_ci,
 					      ocfs2_et_get_last_eb_blk(et),
 					      &last_eb_bh);
@@ -5115,8 +5113,6 @@ int ocfs2_split_extent(handle_t *handle,
 			mlog_errno(ret);
 			goto out;
 		}
-
-		eb = (struct ocfs2_extent_block *) last_eb_bh->b_data;
 	}
 
 	if (rec->e_cpos == split_rec->e_cpos &&

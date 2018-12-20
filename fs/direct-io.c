@@ -325,8 +325,8 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, unsigned int flags)
 		 */
 		dio->iocb->ki_pos += transferred;
 
-		if (dio->op == REQ_OP_WRITE)
-			ret = generic_write_sync(dio->iocb,  transferred);
+		if (ret > 0 && dio->op == REQ_OP_WRITE)
+			ret = generic_write_sync(dio->iocb, ret);
 		dio->iocb->ki_complete(dio->iocb, ret, 0);
 	}
 
@@ -1313,7 +1313,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	spin_lock_init(&dio->bio_lock);
 	dio->refcount = 1;
 
-	dio->should_dirty = (iter->type == ITER_IOVEC);
+	dio->should_dirty = iter_is_iovec(iter) && iov_iter_rw(iter) == READ;
 	sdio.iter = iter;
 	sdio.final_block_in_request = end >> blkbits;
 

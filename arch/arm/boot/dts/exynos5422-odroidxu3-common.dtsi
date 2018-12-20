@@ -367,6 +367,12 @@
 	status = "okay";
 };
 
+&ldo26_reg {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-always-on;
+};
+
 &mixer {
 	status = "okay";
 };

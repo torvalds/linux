@@ -464,11 +464,7 @@ static ssize_t rt2x00debug_read_##__name(struct file *file,	\
 								\
 	size = sprintf(line, __format, value);			\
 								\
-	if (copy_to_user(buf, line, size))			\
-		return -EFAULT;					\
-								\
-	*offset += size;					\
-	return size;						\
+	return simple_read_from_buffer(buf, length, offset, line, size); \
 }
 
 #define RT2X00DEBUGFS_OPS_WRITE(__name, __type)			\
@@ -545,11 +541,7 @@ static ssize_t rt2x00debug_read_dev_flags(struct file *file,
 
 	size = sprintf(line, "0x%.8x\n", (unsigned int)intf->rt2x00dev->flags);
 
-	if (copy_to_user(buf, line, size))
-		return -EFAULT;
-
-	*offset += size;
-	return size;
+	return simple_read_from_buffer(buf, length, offset, line, size);
 }
 
 static const struct file_operations rt2x00debug_fop_dev_flags = {
@@ -574,11 +566,7 @@ static ssize_t rt2x00debug_read_cap_flags(struct file *file,
 
 	size = sprintf(line, "0x%.8x\n", (unsigned int)intf->rt2x00dev->cap_flags);
 
-	if (copy_to_user(buf, line, size))
-		return -EFAULT;
-
-	*offset += size;
-	return size;
+	return simple_read_from_buffer(buf, length, offset, line, size);
 }
 
 static const struct file_operations rt2x00debug_fop_cap_flags = {

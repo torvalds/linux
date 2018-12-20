@@ -33,19 +33,11 @@ static const struct videomode lb035q02_vm = {
 	.vfront_porch	= 4,
 	.vback_porch	= 18,
 
-	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_NEGEDGE |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
-	/*
-	 * Note: According to the panel documentation:
-	 * DE is active LOW
-	 * DATA needs to be driven on the FALLING edge
-	 */
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
-	struct omap_dss_device *in;
 
 	struct spi_device *spi;
 
@@ -116,51 +108,25 @@ static void init_lb035q02_panel(struct spi_device *spi)
 	lb035q02_write_reg(spi, 0x3b, 0x0806);
 }
 
-static int lb035q02_connect(struct omap_dss_device *dssdev)
+static int lb035q02_connect(struct omap_dss_device *src,
+			    struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in;
-	int r;
-
-	if (omapdss_device_is_connected(dssdev))
-		return 0;
-
-	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
-	if (IS_ERR(in)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	r = in->ops.dpi->connect(in, dssdev);
-	if (r) {
-		omap_dss_put_device(in);
-		return r;
-	}
+	struct panel_drv_data *ddata = to_panel_data(dst);
 
 	init_lb035q02_panel(ddata->spi);
 
-	ddata->in = in;
 	return 0;
 }
 
-static void lb035q02_disconnect(struct omap_dss_device *dssdev)
+static void lb035q02_disconnect(struct omap_dss_device *src,
+				struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	if (!omapdss_device_is_connected(dssdev))
-		return;
-
-	in->ops.dpi->disconnect(in, dssdev);
-
-	omap_dss_put_device(in);
-	ddata->in = NULL;
 }
 
 static int lb035q02_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
@@ -169,9 +135,7 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_timings(in, &ddata->vm);
-
-	r = in->ops.dpi->enable(in);
+	r = src->ops->enable(src);
 	if (r)
 		return r;
 
@@ -186,7 +150,7 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 static void lb035q02_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
@@ -194,21 +158,9 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 
-	in->ops.dpi->disable(in);
+	src->ops->disable(src);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
-}
-
-static void lb035q02_set_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
-
-	in->ops.dpi->set_timings(in, vm);
 }
 
 static void lb035q02_get_timings(struct omap_dss_device *dssdev,
@@ -219,25 +171,14 @@ static void lb035q02_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int lb035q02_check_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	return in->ops.dpi->check_timings(in, vm);
-}
-
-static struct omap_dss_driver lb035q02_ops = {
+static const struct omap_dss_device_ops lb035q02_ops = {
 	.connect	= lb035q02_connect,
 	.disconnect	= lb035q02_disconnect,
 
 	.enable		= lb035q02_enable,
 	.disable	= lb035q02_disable,
 
-	.set_timings	= lb035q02_set_timings,
 	.get_timings	= lb035q02_get_timings,
-	.check_timings	= lb035q02_check_timings,
 };
 
 static int lb035q02_probe_of(struct spi_device *spi)
@@ -278,16 +219,21 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &lb035q02_ops;
+	dssdev->ops = &lb035q02_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.vm = ddata->vm;
+	dssdev->of_ports = BIT(0);
 
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		return r;
-	}
+	/*
+	 * Note: According to the panel documentation:
+	 * DE is active LOW
+	 * DATA needs to be driven on the FALLING edge
+	 */
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_NEGEDGE
+			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
+
+	omapdss_display_init(dssdev);
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -297,10 +243,9 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	lb035q02_disable(dssdev);
-	lb035q02_disconnect(dssdev);
 
 	return 0;
 }

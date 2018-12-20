@@ -666,13 +666,9 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 
 	switch (operation_result) {
 	case AUX_CHANNEL_OPERATION_SUCCEEDED:
-		res = returned_bytes;
-
-		if (res <= size && res >= 0)
-			res = aux_engine->funcs->read_channel_reply(aux_engine, size,
-								buffer, reply,
-								&status);
-
+		res = aux_engine->funcs->read_channel_reply(aux_engine, size,
+							buffer, reply,
+							&status);
 		break;
 	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
 		res = 0;

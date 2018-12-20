@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -316,7 +318,9 @@ enum iwl_dev_tx_power_cmd_mode {
 	IWL_TX_POWER_MODE_SET_DEVICE = 1,
 	IWL_TX_POWER_MODE_SET_CHAINS = 2,
 	IWL_TX_POWER_MODE_SET_ACK = 3,
-}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_4 */;
+	IWL_TX_POWER_MODE_SET_SAR_TIMER = 4,
+	IWL_TX_POWER_MODE_SET_SAR_TIMER_DEFAULT_TABLE = 5,
+}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_5 */;
 
 #define IWL_NUM_CHAIN_LIMITS	2
 #define IWL_NUM_SUB_BANDS	5
@@ -350,12 +354,34 @@ struct iwl_dev_tx_power_cmd_v3 {
  *	reduction.
  * @reserved: reserved (padding)
  */
-struct iwl_dev_tx_power_cmd {
+struct iwl_dev_tx_power_cmd_v4 {
 	/* v4 is just an extension of v3 - keep this here */
 	struct iwl_dev_tx_power_cmd_v3 v3;
 	u8 enable_ack_reduction;
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * @v3: version 3 of the command, embedded here for easier software handling
+ * @enable_ack_reduction: enable or disable close range ack TX power
+ *	reduction.
+ * @per_chain_restriction_changed: is per_chain_restriction has changed
+ *	from last command. used if set_mode is
+ *	IWL_TX_POWER_MODE_SET_SAR_TIMER.
+ *	note: if not changed, the command is used for keep alive only.
+ * @reserved: reserved (padding)
+ * @timer_period: timer in milliseconds. if expires FW will change to default
+ *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
+ */
+struct iwl_dev_tx_power_cmd {
+	/* v5 is just an extension of v3 - keep this here */
+	struct iwl_dev_tx_power_cmd_v3 v3;
+	u8 enable_ack_reduction;
+	u8 per_chain_restriction_changed;
+	u8 reserved[2];
+	__le32 timer_period;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_5 */
 
 #define IWL_NUM_GEO_PROFILES   3
 

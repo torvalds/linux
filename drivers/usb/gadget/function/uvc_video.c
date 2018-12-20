@@ -125,6 +125,23 @@ uvc_video_encode_isoc(struct usb_request *req, struct uvc_video *video,
  * Request handling
  */
 
+static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
+{
+	int ret;
+
+	ret = usb_ep_queue(video->ep, req, GFP_ATOMIC);
+	if (ret < 0) {
+		uvcg_err(&video->uvc->func, "Failed to queue request (%d).\n",
+			 ret);
+
+		/* Isochronous endpoints can't be halted. */
+		if (usb_endpoint_xfer_bulk(video->ep->desc))
+			usb_ep_set_halt(video->ep);
+	}
+
+	return ret;
+}
+
 /*
  * I somehow feel that synchronisation won't be easy to achieve here. We have
  * three events that control USB requests submission:
@@ -169,13 +186,14 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	case -ESHUTDOWN:	/* disconnect from host. */
-		printk(KERN_DEBUG "VS request cancelled.\n");
+		uvcg_dbg(&video->uvc->func, "VS request cancelled.\n");
 		uvcg_queue_cancel(queue, 1);
 		goto requeue;
 
 	default:
-		printk(KERN_INFO "VS request completed with status %d.\n",
-			req->status);
+		uvcg_info(&video->uvc->func,
+			  "VS request completed with status %d.\n",
+			  req->status);
 		uvcg_queue_cancel(queue, 0);
 		goto requeue;
 	}
@@ -189,14 +207,13 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 
 	video->encode(req, video, buf);
 
-	if ((ret = usb_ep_queue(ep, req, GFP_ATOMIC)) < 0) {
-		printk(KERN_INFO "Failed to queue request (%d).\n", ret);
-		usb_ep_set_halt(ep);
-		spin_unlock_irqrestore(&video->queue.irqlock, flags);
+	ret = uvcg_video_ep_queue(video, req);
+	spin_unlock_irqrestore(&video->queue.irqlock, flags);
+
+	if (ret < 0) {
 		uvcg_queue_cancel(queue, 0);
 		goto requeue;
 	}
-	spin_unlock_irqrestore(&video->queue.irqlock, flags);
 
 	return;
 
@@ -316,15 +333,13 @@ int uvcg_video_pump(struct uvc_video *video)
 		video->encode(req, video, buf);
 
 		/* Queue the USB request */
-		ret = usb_ep_queue(video->ep, req, GFP_ATOMIC);
+		ret = uvcg_video_ep_queue(video, req);
+		spin_unlock_irqrestore(&queue->irqlock, flags);
+
 		if (ret < 0) {
-			printk(KERN_INFO "Failed to queue request (%d)\n", ret);
-			usb_ep_set_halt(video->ep);
-			spin_unlock_irqrestore(&queue->irqlock, flags);
 			uvcg_queue_cancel(queue, 0);
 			break;
 		}
-		spin_unlock_irqrestore(&queue->irqlock, flags);
 	}
 
 	spin_lock_irqsave(&video->req_lock, flags);
@@ -342,8 +357,8 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 	int ret;
 
 	if (video->ep == NULL) {
-		printk(KERN_INFO "Video enable failed, device is "
-			"uninitialized.\n");
+		uvcg_info(&video->uvc->func,
+			  "Video enable failed, device is uninitialized.\n");
 		return -ENODEV;
 	}
 
@@ -375,11 +390,12 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 /*
  * Initialize the UVC video stream.
  */
-int uvcg_video_init(struct uvc_video *video)
+int uvcg_video_init(struct uvc_video *video, struct uvc_device *uvc)
 {
 	INIT_LIST_HEAD(&video->req_free);
 	spin_lock_init(&video->req_lock);
 
+	video->uvc = uvc;
 	video->fcc = V4L2_PIX_FMT_YUYV;
 	video->bpp = 16;
 	video->width = 320;

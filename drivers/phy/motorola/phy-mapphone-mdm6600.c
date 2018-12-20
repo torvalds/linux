@@ -157,15 +157,13 @@ static const struct phy_ops gpio_usb_ops = {
  */
 static void phy_mdm6600_cmd(struct phy_mdm6600 *ddata, int val)
 {
-	int values[PHY_MDM6600_NR_CMD_LINES];
-	int i;
+	DECLARE_BITMAP(values, PHY_MDM6600_NR_CMD_LINES);
 
-	val &= (1 << PHY_MDM6600_NR_CMD_LINES) - 1;
-	for (i = 0; i < PHY_MDM6600_NR_CMD_LINES; i++)
-		values[i] = (val & BIT(i)) >> i;
+	values[0] = val;
 
 	gpiod_set_array_value_cansleep(PHY_MDM6600_NR_CMD_LINES,
-				       ddata->cmd_gpios->desc, values);
+				       ddata->cmd_gpios->desc,
+				       ddata->cmd_gpios->info, values);
 }
 
 /**
@@ -176,7 +174,7 @@ static void phy_mdm6600_status(struct work_struct *work)
 {
 	struct phy_mdm6600 *ddata;
 	struct device *dev;
-	int values[PHY_MDM6600_NR_STATUS_LINES];
+	DECLARE_BITMAP(values, PHY_MDM6600_NR_STATUS_LINES);
 	int error, i, val = 0;
 
 	ddata = container_of(work, struct phy_mdm6600, status_work.work);
@@ -184,16 +182,17 @@ static void phy_mdm6600_status(struct work_struct *work)
 
 	error = gpiod_get_array_value_cansleep(PHY_MDM6600_NR_STATUS_LINES,
 					       ddata->status_gpios->desc,
+					       ddata->status_gpios->info,
 					       values);
 	if (error)
 		return;
 
 	for (i = 0; i < PHY_MDM6600_NR_STATUS_LINES; i++) {
-		val |= values[i] << i;
+		val |= test_bit(i, values) << i;
 		dev_dbg(ddata->dev, "XXX %s: i: %i values[i]: %i val: %i\n",
-			__func__, i, values[i], val);
+			__func__, i, test_bit(i, values), val);
 	}
-	ddata->status = val;
+	ddata->status = values[0];
 
 	dev_info(dev, "modem status: %i %s\n",
 		 ddata->status,

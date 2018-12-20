@@ -507,7 +507,7 @@ static int friio_frontend_attach(struct dvb_usb_adapter *adap)
 	priv->i2c_client_demod = cl;
 	priv->tuner_adap.algo = &friio_tuner_i2c_algo;
 	priv->tuner_adap.dev.parent = &d->udev->dev;
-	strlcpy(priv->tuner_adap.name, d->name, sizeof(priv->tuner_adap.name));
+	strscpy(priv->tuner_adap.name, d->name, sizeof(priv->tuner_adap.name));
 	strlcat(priv->tuner_adap.name, "-tuner", sizeof(priv->tuner_adap.name));
 	priv->demod_sub_i2c = &priv->tuner_adap;
 	i2c_set_adapdata(&priv->tuner_adap, d);

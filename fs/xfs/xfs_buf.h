@@ -385,4 +385,6 @@ extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int);
 #define xfs_getsize_buftarg(buftarg)	block_size((buftarg)->bt_bdev)
 #define xfs_readonly_buftarg(buftarg)	bdev_read_only((buftarg)->bt_bdev)
 
+int xfs_buf_ensure_ops(struct xfs_buf *bp, const struct xfs_buf_ops *ops);
+
 #endif	/* __XFS_BUF_H__ */

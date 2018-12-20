@@ -459,8 +459,7 @@ void __init smp_setup_cpu_maps(void)
 
 	DBG("smp_setup_cpu_maps()\n");
 
-	cpu_to_phys_id = __va(memblock_alloc(nr_cpu_ids * sizeof(u32),
-							__alignof__(u32)));
+	cpu_to_phys_id = __va(memblock_phys_alloc(nr_cpu_ids * sizeof(u32), __alignof__(u32)));
 	memset(cpu_to_phys_id, 0, nr_cpu_ids * sizeof(u32));
 
 	for_each_node_by_type(dn, "cpu") {
@@ -965,6 +964,8 @@ void __init setup_arch(char **cmdline_p)
 	emergency_stack_init();
 
 	initmem_init();
+
+	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

@@ -89,7 +89,7 @@
 #define BSPI_BPP_MODE_SELECT_MASK		BIT(8)
 #define BSPI_BPP_ADDR_SELECT_MASK		BIT(16)
 
-#define BSPI_READ_LENGTH			512
+#define BSPI_READ_LENGTH			256
 
 /* MSPI register offsets */
 #define MSPI_SPCR0_LSB				0x000
@@ -355,7 +355,7 @@ static int bcm_qspi_bspi_set_flex_mode(struct bcm_qspi *qspi,
 	int bpc = 0, bpp = 0;
 	u8 command = op->cmd.opcode;
 	int width  = op->cmd.buswidth ? op->cmd.buswidth : SPI_NBITS_SINGLE;
-	int addrlen = op->addr.nbytes * 8;
+	int addrlen = op->addr.nbytes;
 	int flex_mode = 1;
 
 	dev_dbg(&qspi->pdev->dev, "set flex mode w %x addrlen %x hp %d\n",

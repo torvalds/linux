@@ -111,10 +111,10 @@ static void mlx5_pps_out(struct work_struct *work)
 	for (i = 0; i < clock->ptp_info.n_pins; i++) {
 		u64 tstart;
 
-		write_lock_irqsave(&clock->lock, flags);
+		write_seqlock_irqsave(&clock->lock, flags);
 		tstart = clock->pps_info.start[i];
 		clock->pps_info.start[i] = 0;
-		write_unlock_irqrestore(&clock->lock, flags);
+		write_sequnlock_irqrestore(&clock->lock, flags);
 		if (!tstart)
 			continue;
 
@@ -132,10 +132,10 @@ static void mlx5_timestamp_overflow(struct work_struct *work)
 						overflow_work);
 	unsigned long flags;
 
-	write_lock_irqsave(&clock->lock, flags);
+	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_read(&clock->tc);
 	mlx5_update_clock_info_page(clock->mdev);
-	write_unlock_irqrestore(&clock->lock, flags);
+	write_sequnlock_irqrestore(&clock->lock, flags);
 	schedule_delayed_work(&clock->overflow_work, clock->overflow_period);
 }
 
@@ -147,10 +147,10 @@ static int mlx5_ptp_settime(struct ptp_clock_info *ptp,
 	u64 ns = timespec64_to_ns(ts);
 	unsigned long flags;
 
-	write_lock_irqsave(&clock->lock, flags);
+	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_init(&clock->tc, &clock->cycles, ns);
 	mlx5_update_clock_info_page(clock->mdev);
-	write_unlock_irqrestore(&clock->lock, flags);
+	write_sequnlock_irqrestore(&clock->lock, flags);
 
 	return 0;
 }
@@ -162,9 +162,9 @@ static int mlx5_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	u64 ns;
 	unsigned long flags;
 
-	write_lock_irqsave(&clock->lock, flags);
+	write_seqlock_irqsave(&clock->lock, flags);
 	ns = timecounter_read(&clock->tc);
-	write_unlock_irqrestore(&clock->lock, flags);
+	write_sequnlock_irqrestore(&clock->lock, flags);
 
 	*ts = ns_to_timespec64(ns);
 
@@ -177,10 +177,10 @@ static int mlx5_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 						ptp_info);
 	unsigned long flags;
 
-	write_lock_irqsave(&clock->lock, flags);
+	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_adjtime(&clock->tc, delta);
 	mlx5_update_clock_info_page(clock->mdev);
-	write_unlock_irqrestore(&clock->lock, flags);
+	write_sequnlock_irqrestore(&clock->lock, flags);
 
 	return 0;
 }
@@ -203,12 +203,12 @@ static int mlx5_ptp_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	adj *= delta;
 	diff = div_u64(adj, 1000000000ULL);
 
-	write_lock_irqsave(&clock->lock, flags);
+	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_read(&clock->tc);
 	clock->cycles.mult = neg_adj ? clock->nominal_c_mult - diff :
 				       clock->nominal_c_mult + diff;
 	mlx5_update_clock_info_page(clock->mdev);
-	write_unlock_irqrestore(&clock->lock, flags);
+	write_sequnlock_irqrestore(&clock->lock, flags);
 
 	return 0;
 }
@@ -307,12 +307,12 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 		ts.tv_nsec = rq->perout.start.nsec;
 		ns = timespec64_to_ns(&ts);
 		cycles_now = mlx5_read_internal_timer(mdev);
-		write_lock_irqsave(&clock->lock, flags);
+		write_seqlock_irqsave(&clock->lock, flags);
 		nsec_now = timecounter_cyc2time(&clock->tc, cycles_now);
 		nsec_delta = ns - nsec_now;
 		cycles_delta = div64_u64(nsec_delta << clock->cycles.shift,
 					 clock->cycles.mult);
-		write_unlock_irqrestore(&clock->lock, flags);
+		write_sequnlock_irqrestore(&clock->lock, flags);
 		time_stamp = cycles_now + cycles_delta;
 		field_select = MLX5_MTPPS_FS_PIN_MODE |
 			       MLX5_MTPPS_FS_PATTERN |
@@ -471,14 +471,14 @@ void mlx5_pps_event(struct mlx5_core_dev *mdev,
 		ts.tv_sec += 1;
 		ts.tv_nsec = 0;
 		ns = timespec64_to_ns(&ts);
-		write_lock_irqsave(&clock->lock, flags);
+		write_seqlock_irqsave(&clock->lock, flags);
 		nsec_now = timecounter_cyc2time(&clock->tc, cycles_now);
 		nsec_delta = ns - nsec_now;
 		cycles_delta = div64_u64(nsec_delta << clock->cycles.shift,
 					 clock->cycles.mult);
 		clock->pps_info.start[pin] = cycles_now + cycles_delta;
 		schedule_work(&clock->pps_info.out_work);
-		write_unlock_irqrestore(&clock->lock, flags);
+		write_sequnlock_irqrestore(&clock->lock, flags);
 		break;
 	default:
 		mlx5_core_err(mdev, " Unhandled event\n");
@@ -498,7 +498,7 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 		mlx5_core_warn(mdev, "invalid device_frequency_khz, aborting HW clock init\n");
 		return;
 	}
-	rwlock_init(&clock->lock);
+	seqlock_init(&clock->lock);
 	clock->cycles.read = read_internal_timer;
 	clock->cycles.shift = MLX5_CYCLES_SHIFT;
 	clock->cycles.mult = clocksource_khz2mult(dev_freq,

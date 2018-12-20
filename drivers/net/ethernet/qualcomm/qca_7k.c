@@ -81,8 +81,8 @@ qcaspi_read_register(struct qcaspi *qca, u16 reg, u16 *result)
 	return ret;
 }
 
-int
-qcaspi_write_register(struct qcaspi *qca, u16 reg, u16 value)
+static int
+__qcaspi_write_register(struct qcaspi *qca, u16 reg, u16 value)
 {
 	__be16 tx_data[2];
 	struct spi_transfer transfer[2];
@@ -114,6 +114,36 @@ qcaspi_write_register(struct qcaspi *qca, u16 reg, u16 value)
 
 	if (ret)
 		qcaspi_spi_error(qca);
+
+	return ret;
+}
+
+int
+qcaspi_write_register(struct qcaspi *qca, u16 reg, u16 value, int retry)
+{
+	int ret, i = 0;
+	u16 confirmed;
+
+	do {
+		ret = __qcaspi_write_register(qca, reg, value);
+		if (ret)
+			return ret;
+
+		if (!retry)
+			return 0;
+
+		ret = qcaspi_read_register(qca, reg, &confirmed);
+		if (ret)
+			return ret;
+
+		ret = confirmed != value;
+		if (!ret)
+			return 0;
+
+		i++;
+		qca->stats.write_verify_failed++;
+
+	} while (i <= retry);
 
 	return ret;
 }

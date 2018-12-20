@@ -45,16 +45,18 @@ Synopsis of kprobe_events
   @SYM[+|-offs]	: Fetch memory at SYM +|- offs (SYM should be a data symbol)
   $stackN	: Fetch Nth entry of stack (N >= 0)
   $stack	: Fetch stack address.
-  $retval	: Fetch return value.(*)
+  $argN		: Fetch the Nth function argument. (N >= 1) (\*1)
+  $retval	: Fetch return value.(\*2)
   $comm		: Fetch current task comm.
-  +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
+  +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(\*3)
   NAME=FETCHARG : Set NAME as the argument name of FETCHARG.
   FETCHARG:TYPE : Set TYPE as the type of FETCHARG. Currently, basic types
 		  (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal types
 		  (x8/x16/x32/x64), "string" and bitfield are supported.
 
-  (*) only for return probe.
-  (**) this is useful for fetching a field of data structures.
+  (\*1) only for the probe on function entry (offs == 0).
+  (\*2) only for return probe.
+  (\*3) this is useful for fetching a field of data structures.
 
 Types
 -----
@@ -64,14 +66,27 @@ respectively. 'x' prefix implies it is unsigned. Traced arguments are shown
 in decimal ('s' and 'u') or hexadecimal ('x'). Without type casting, 'x32'
 or 'x64' is used depends on the architecture (e.g. x86-32 uses x32, and
 x86-64 uses x64).
+These value types can be an array. To record array data, you can add '[N]'
+(where N is a fixed number, less than 64) to the base type.
+E.g. 'x16[4]' means an array of x16 (2bytes hex) with 4 elements.
+Note that the array can be applied to memory type fetchargs, you can not
+apply it to registers/stack-entries etc. (for example, '$stack1:x8[8]' is
+wrong, but '+8($stack):x8[8]' is OK.)
 String type is a special type, which fetches a "null-terminated" string from
 kernel space. This means it will fail and store NULL if the string container
 has been paged out.
+The string array type is a bit different from other types. For other base
+types, <base-type>[1] is equal to <base-type> (e.g. +0(%di):x32[1] is same
+as +0(%di):x32.) But string[1] is not equal to string. The string type itself
+represents "char array", but string array type represents "char * array".
+So, for example, +0(%di):string[1] is equal to +0(+0(%di)):string.
 Bitfield is another special type, which takes 3 parameters, bit-width, bit-
 offset, and container-size (usually 32). The syntax is::
 
  b<bit-width>@<bit-offset>/<container-size>
 
+Symbol type('symbol') is an alias of u32 or u64 type (depends on BITS_PER_LONG)
+which shows given pointer in "symbol+offset" style.
 For $comm, the default type is "string"; any other type is invalid.
 
 

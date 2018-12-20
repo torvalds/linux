@@ -900,6 +900,7 @@ struct qla_tgt_cmd {
 	unsigned int aborted:1;
 	unsigned int data_work:1;
 	unsigned int data_work_free:1;
+	unsigned int released:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -908,6 +909,7 @@ struct qla_tgt_cmd {
 	u64 unpacked_lun;
 	enum dma_data_direction dma_data_direction;
 
+	uint16_t ctio_flags;
 	uint16_t vp_idx;
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
@@ -956,16 +958,20 @@ struct qla_tgt_sess_work_param {
 };
 
 struct qla_tgt_mgmt_cmd {
+	uint8_t cmd_type;
+	uint8_t pad[3];
 	uint16_t tmr_func;
 	uint8_t fc_tm_rsp;
+	uint8_t abort_io_attr;
 	struct fc_port *sess;
 	struct qla_qpair *qpair;
 	struct scsi_qla_host *vha;
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;
+#define QLA24XX_MGMT_SEND_NACK	BIT_0
+#define QLA24XX_MGMT_ABORT_IO_ATTR_VALID BIT_1
 	uint32_t reset_count;
-#define QLA24XX_MGMT_SEND_NACK	1
 	struct work_struct work;
 	uint64_t unpacked_lun;
 	union {

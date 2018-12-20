@@ -293,6 +293,24 @@
 /* default value of bitfield desc{d}_reset */
 #define HW_ATL_RDM_DESCDRESET_DEFAULT 0x0
 
+/* rdm_desc_init_i bitfield definitions
+ * preprocessor definitions for the bitfield rdm_desc_init_i.
+ * port="pif_rdm_desc_init_i"
+ */
+
+/* register address for bitfield rdm_desc_init_i */
+#define HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_ADR 0x00005a00
+/* bitmask for bitfield rdm_desc_init_i */
+#define HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_MSK 0xffffffff
+/* inverted bitmask for bitfield rdm_desc_init_i */
+#define HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_MSKN 0x00000000
+/* lower bit position of bitfield  rdm_desc_init_i */
+#define HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_SHIFT 0
+/* width of bitfield rdm_desc_init_i */
+#define HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_WIDTH 32
+/* default value of bitfield rdm_desc_init_i */
+#define HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_DEFAULT 0x0
+
 /* rx int_desc_wrb_en bitfield definitions
  * preprocessor definitions for the bitfield "int_desc_wrb_en".
  * port="pif_rdm_int_desc_wrb_en_i"
@@ -2386,5 +2404,18 @@
 /* global microprocessor scratch pad definitions */
 #define HW_ATL_GLB_CPU_SCRATCH_SCP_ADR(scratch_scp) \
 	(0x00000300u + (scratch_scp) * 0x4)
+
+/* register address for bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_ADR 0x00000404
+/* bitmask for bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_MSK 0x00000002
+/* inverted bitmask for bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_MSKN 0xFFFFFFFD
+/* lower bit position of bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_SHIFT 1
+/* width of bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_WIDTH 1
+/* default value of bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_DEFAULT 0x0
 
 #endif /* HW_ATL_LLH_INTERNAL_H */

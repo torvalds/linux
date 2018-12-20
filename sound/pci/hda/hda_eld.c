@@ -27,7 +27,7 @@
 #include <sound/core.h>
 #include <asm/unaligned.h>
 #include <sound/hda_chmap.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 
 enum eld_versions {

@@ -326,8 +326,6 @@ static int ene_rx_get_sample_reg(struct ene_device *dev)
 /* Sense current received carrier */
 static void ene_rx_sense_carrier(struct ene_device *dev)
 {
-	DEFINE_IR_RAW_EVENT(ev);
-
 	int carrier, duty_cycle;
 	int period = ene_read_reg(dev, ENE_CIRCAR_PRD);
 	int hperiod = ene_read_reg(dev, ENE_CIRCAR_HPRD);
@@ -348,9 +346,11 @@ static void ene_rx_sense_carrier(struct ene_device *dev)
 	dbg("RX: sensed carrier = %d Hz, duty cycle %d%%",
 						carrier, duty_cycle);
 	if (dev->carrier_detect_enabled) {
-		ev.carrier_report = true;
-		ev.carrier = carrier;
-		ev.duty_cycle = duty_cycle;
+		struct ir_raw_event ev = {
+			.carrier_report = true,
+			.carrier = carrier,
+			.duty_cycle = duty_cycle
+		};
 		ir_raw_event_store(dev->rdev, &ev);
 	}
 }
@@ -733,7 +733,7 @@ static irqreturn_t ene_isr(int irq, void *data)
 	unsigned long flags;
 	irqreturn_t retval = IRQ_NONE;
 	struct ene_device *dev = (struct ene_device *)data;
-	DEFINE_IR_RAW_EVENT(ev);
+	struct ir_raw_event ev = {};
 
 	spin_lock_irqsave(&dev->hw_lock, flags);
 

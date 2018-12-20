@@ -70,7 +70,6 @@
 #include <net/tcp.h>
 #include <asm/byteorder.h>
 #include <asm/processor.h>
-#include <net/busy_poll.h>
 
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"

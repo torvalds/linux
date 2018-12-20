@@ -66,6 +66,6 @@
 
 void qcaspi_spi_error(struct qcaspi *qca);
 int qcaspi_read_register(struct qcaspi *qca, u16 reg, u16 *result);
-int qcaspi_write_register(struct qcaspi *qca, u16 reg, u16 value);
+int qcaspi_write_register(struct qcaspi *qca, u16 reg, u16 value, int retry);
 
 #endif /* _QCA_7K_H */

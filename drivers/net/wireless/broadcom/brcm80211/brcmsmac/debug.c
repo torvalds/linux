@@ -62,8 +62,7 @@ int brcms_debugfs_attach(struct brcms_pub *drvr)
 
 void brcms_debugfs_detach(struct brcms_pub *drvr)
 {
-	if (!IS_ERR_OR_NULL(drvr->dbgfs_dir))
-		debugfs_remove_recursive(drvr->dbgfs_dir);
+	debugfs_remove_recursive(drvr->dbgfs_dir);
 }
 
 struct dentry *brcms_debugfs_get_devdir(struct brcms_pub *drvr)

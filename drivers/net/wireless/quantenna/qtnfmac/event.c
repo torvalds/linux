@@ -171,24 +171,14 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	if (vif->sta_state != QTNF_STA_CONNECTING) {
-		pr_err("VIF%u.%u: BSS_JOIN event when STA is not connecting\n",
-		       vif->mac->macid, vif->vifid);
-		return -EPROTO;
-	}
-
 	pr_debug("VIF%u.%u: BSSID:%pM\n", vif->mac->macid, vif->vifid,
 		 join_info->bssid);
 
 	cfg80211_connect_result(vif->netdev, join_info->bssid, NULL, 0, NULL,
 				0, le16_to_cpu(join_info->status), GFP_KERNEL);
 
-	if (le16_to_cpu(join_info->status) == WLAN_STATUS_SUCCESS) {
-		vif->sta_state = QTNF_STA_CONNECTED;
+	if (le16_to_cpu(join_info->status) == WLAN_STATUS_SUCCESS)
 		netif_carrier_on(vif->netdev);
-	} else {
-		vif->sta_state = QTNF_STA_DISCONNECTED;
-	}
 
 	return 0;
 }
@@ -211,16 +201,10 @@ qtnf_event_handle_bss_leave(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	if (vif->sta_state != QTNF_STA_CONNECTED)
-		pr_warn("VIF%u.%u: BSS_LEAVE event when STA is not connected\n",
-			vif->mac->macid, vif->vifid);
-
 	pr_debug("VIF%u.%u: disconnected\n", vif->mac->macid, vif->vifid);
 
 	cfg80211_disconnected(vif->netdev, le16_to_cpu(leave_info->reason),
 			      NULL, 0, 0, GFP_KERNEL);
-
-	vif->sta_state = QTNF_STA_DISCONNECTED;
 	netif_carrier_off(vif->netdev);
 
 	return 0;

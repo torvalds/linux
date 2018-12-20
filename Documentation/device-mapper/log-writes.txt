@@ -38,7 +38,7 @@ inconsistent file system.
 Any REQ_FUA requests bypass this flushing mechanism and are logged as soon as
 they complete as those requests will obviously bypass the device cache.
 
-Any REQ_DISCARD requests are treated like WRITE requests.  Otherwise we would
+Any REQ_OP_DISCARD requests are treated like WRITE requests.  Otherwise we would
 have all the DISCARD requests, and then the WRITE requests and then the FLUSH
 request.  Consider the following example:
 

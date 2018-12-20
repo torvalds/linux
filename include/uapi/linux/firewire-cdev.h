@@ -47,11 +47,11 @@
 #define FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL	0x09
 
 /**
- * struct fw_cdev_event_common - Common part of all fw_cdev_event_ types
+ * struct fw_cdev_event_common - Common part of all fw_cdev_event_* types
  * @closure:	For arbitrary use by userspace
- * @type:	Discriminates the fw_cdev_event_ types
+ * @type:	Discriminates the fw_cdev_event_* types
  *
- * This struct may be used to access generic members of all fw_cdev_event_
+ * This struct may be used to access generic members of all fw_cdev_event_*
  * types regardless of the specific type.
  *
  * Data passed in the @closure field for a request will be returned in the
@@ -123,7 +123,13 @@ struct fw_cdev_event_response {
 
 /**
  * struct fw_cdev_event_request - Old version of &fw_cdev_event_request2
+ * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_ALLOCATE ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_REQUEST
+ * @tcode:	Transaction code of the incoming request
+ * @offset:	The offset into the 48-bit per-node address space
+ * @handle:	Reference to the kernel-side pending request
+ * @length:	Data length, i.e. the request's payload size in bytes
+ * @data:	Incoming data, if any
  *
  * This event is sent instead of &fw_cdev_event_request2 if the kernel or
  * the client implements ABI version <= 3.  &fw_cdev_event_request lacks
@@ -353,7 +359,7 @@ struct fw_cdev_event_phy_packet {
 };
 
 /**
- * union fw_cdev_event - Convenience union of fw_cdev_event_ types
+ * union fw_cdev_event - Convenience union of fw_cdev_event_* types
  * @common:		Valid for all types
  * @bus_reset:		Valid if @common.type == %FW_CDEV_EVENT_BUS_RESET
  * @response:		Valid if @common.type == %FW_CDEV_EVENT_RESPONSE
@@ -735,7 +741,7 @@ struct fw_cdev_set_iso_channels {
  * @header:	Header and payload in case of a transmit context.
  *
  * &struct fw_cdev_iso_packet is used to describe isochronous packet queues.
- * Use the FW_CDEV_ISO_ macros to fill in @control.
+ * Use the FW_CDEV_ISO_* macros to fill in @control.
  * The @header array is empty in case of receive contexts.
  *
  * Context type %FW_CDEV_ISO_CONTEXT_TRANSMIT:
@@ -842,7 +848,7 @@ struct fw_cdev_queue_iso {
  *		the %FW_CDEV_ISO_SYNC bit set
  * @tags:	Tag filter bit mask.  Only valid for isochronous reception.
  *		Determines the tag values for which packets will be accepted.
- *		Use FW_CDEV_ISO_CONTEXT_MATCH_ macros to set @tags.
+ *		Use FW_CDEV_ISO_CONTEXT_MATCH_* macros to set @tags.
  * @handle:	Isochronous context handle within which to transmit or receive
  */
 struct fw_cdev_start_iso {
@@ -1009,8 +1015,8 @@ struct fw_cdev_send_stream_packet {
  * on the same card as this device.  After transmission, an
  * %FW_CDEV_EVENT_PHY_PACKET_SENT event is generated.
  *
- * The payload @data[] shall be specified in host byte order.  Usually,
- * @data[1] needs to be the bitwise inverse of @data[0].  VersaPHY packets
+ * The payload @data\[\] shall be specified in host byte order.  Usually,
+ * @data\[1\] needs to be the bitwise inverse of @data\[0\].  VersaPHY packets
  * are an exception to this rule.
  *
  * The ioctl is only permitted on device files which represent a local node.

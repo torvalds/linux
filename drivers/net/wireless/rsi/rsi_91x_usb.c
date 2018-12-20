@@ -266,15 +266,17 @@ static void rsi_rx_done_handler(struct urb *urb)
 	if (urb->status)
 		goto out;
 
-	if (urb->actual_length <= 0) {
-		rsi_dbg(INFO_ZONE, "%s: Zero length packet\n", __func__);
+	if (urb->actual_length <= 0 ||
+	    urb->actual_length > rx_cb->rx_skb->len) {
+		rsi_dbg(INFO_ZONE, "%s: Invalid packet length = %d\n",
+			__func__, urb->actual_length);
 		goto out;
 	}
 	if (skb_queue_len(&dev->rx_q) >= RSI_MAX_RX_PKTS) {
 		rsi_dbg(INFO_ZONE, "Max RX packets reached\n");
 		goto out;
 	}
-	skb_put(rx_cb->rx_skb, urb->actual_length);
+	skb_trim(rx_cb->rx_skb, urb->actual_length);
 	skb_queue_tail(&dev->rx_q, rx_cb->rx_skb);
 
 	rsi_set_event(&dev->rx_thread.event);
@@ -308,6 +310,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num)
 	if (!skb)
 		return -ENOMEM;
 	skb_reserve(skb, MAX_DWORD_ALIGN_BYTES);
+	skb_put(skb, RSI_MAX_RX_USB_PKT_SIZE - MAX_DWORD_ALIGN_BYTES);
 	dword_align_bytes = (unsigned long)skb->data & 0x3f;
 	if (dword_align_bytes > 0)
 		skb_push(skb, dword_align_bytes);
@@ -319,7 +322,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num)
 			  usb_rcvbulkpipe(dev->usbdev,
 			  dev->bulkin_endpoint_addr[ep_num - 1]),
 			  urb->transfer_buffer,
-			  RSI_MAX_RX_USB_PKT_SIZE,
+			  skb->len,
 			  rsi_rx_done_handler,
 			  rx_cb);
 

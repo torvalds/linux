@@ -128,4 +128,4 @@ module_spi_driver(adgs1408_driver);
 
 MODULE_AUTHOR("Mircea Caprioru <mircea.caprioru@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADGS1408 MUX driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

@@ -805,7 +805,8 @@ static const struct net_device_ops hinic_netdev_ops = {
 
 static void netdev_features_init(struct net_device *netdev)
 {
-	netdev->hw_features = NETIF_F_SG | NETIF_F_HIGHDMA;
+	netdev->hw_features = NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
+			      NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6;
 
 	netdev->vlan_features = netdev->hw_features;
 
@@ -861,6 +862,20 @@ static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
 	ret_link_status->status = 0;
 
 	*out_size = sizeof(*ret_link_status);
+}
+
+static int set_features(struct hinic_dev *nic_dev,
+			netdev_features_t pre_features,
+			netdev_features_t features, bool force_change)
+{
+	netdev_features_t changed = force_change ? ~0 : pre_features ^ features;
+	int err = 0;
+
+	if (changed & NETIF_F_TSO)
+		err = hinic_port_set_tso(nic_dev, (features & NETIF_F_TSO) ?
+					 HINIC_TSO_ENABLE : HINIC_TSO_DISABLE);
+
+	return err;
 }
 
 /**
@@ -963,7 +978,12 @@ static int nic_dev_init(struct pci_dev *pdev)
 	hinic_hwdev_cb_register(nic_dev->hwdev, HINIC_MGMT_MSG_CMD_LINK_STATUS,
 				nic_dev, link_status_event_handler);
 
+	err = set_features(nic_dev, 0, nic_dev->netdev->features, true);
+	if (err)
+		goto err_set_features;
+
 	SET_NETDEV_DEV(netdev, &pdev->dev);
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev\n");
@@ -973,6 +993,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	return 0;
 
 err_reg_netdev:
+err_set_features:
 	hinic_hwdev_cb_unregister(nic_dev->hwdev,
 				  HINIC_MGMT_MSG_CMD_LINK_STATUS);
 	cancel_work_sync(&rx_mode_work->work);

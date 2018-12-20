@@ -19,6 +19,7 @@
 #define ST_LSM6DSL_DEV_NAME	"lsm6dsl"
 #define ST_LSM6DSM_DEV_NAME	"lsm6dsm"
 #define ST_ISM330DLC_DEV_NAME	"ism330dlc"
+#define ST_LSM6DSO_DEV_NAME	"lsm6dso"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -26,14 +27,20 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM6DSL_ID,
 	ST_LSM6DSM_ID,
 	ST_ISM330DLC_ID,
+	ST_LSM6DSO_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 
-#define ST_LSM6DSX_BUFF_SIZE		400
+#define ST_LSM6DSX_BUFF_SIZE		512
 #define ST_LSM6DSX_CHAN_SIZE		2
 #define ST_LSM6DSX_SAMPLE_SIZE		6
+#define ST_LSM6DSX_TAG_SIZE		1
+#define ST_LSM6DSX_TAGGED_SAMPLE_SIZE	(ST_LSM6DSX_SAMPLE_SIZE + \
+					 ST_LSM6DSX_TAG_SIZE)
 #define ST_LSM6DSX_MAX_WORD_LEN		((32 / ST_LSM6DSX_SAMPLE_SIZE) * \
 					 ST_LSM6DSX_SAMPLE_SIZE)
+#define ST_LSM6DSX_MAX_TAGGED_WORD_LEN	((32 / ST_LSM6DSX_TAGGED_SAMPLE_SIZE) \
+					 * ST_LSM6DSX_TAGGED_SAMPLE_SIZE)
 #define ST_LSM6DSX_SHIFT_VAL(val, mask)	(((val) << __ffs(mask)) & (mask))
 
 struct st_lsm6dsx_reg {
@@ -41,13 +48,17 @@ struct st_lsm6dsx_reg {
 	u8 mask;
 };
 
+struct st_lsm6dsx_hw;
+
 /**
  * struct st_lsm6dsx_fifo_ops - ST IMU FIFO settings
+ * @read_fifo: Read FIFO callback.
  * @fifo_th: FIFO threshold register info (addr + mask).
  * @fifo_diff: FIFO diff status register info (addr + mask).
  * @th_wl: FIFO threshold word length.
  */
 struct st_lsm6dsx_fifo_ops {
+	int (*read_fifo)(struct st_lsm6dsx_hw *hw);
 	struct {
 		u8 addr;
 		u16 mask;
@@ -79,6 +90,7 @@ struct st_lsm6dsx_hw_ts_settings {
  * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id supported by the driver configuration.
  * @decimator: List of decimator register info (addr + mask).
+ * @batch: List of FIFO batching register info (addr + mask).
  * @fifo_ops: Sensor hw FIFO parameters.
  * @ts_settings: Hw timer related settings.
  */
@@ -87,6 +99,7 @@ struct st_lsm6dsx_settings {
 	u16 max_fifo_size;
 	enum st_lsm6dsx_hw_id id[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
+	struct st_lsm6dsx_reg batch[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_fifo_ops fifo_ops;
 	struct st_lsm6dsx_hw_ts_settings ts_settings;
 };
@@ -175,5 +188,8 @@ int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor,
 int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
 			     enum st_lsm6dsx_fifo_mode fifo_mode);
+int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw);
+int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw);
+int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr, u8 *val);
 
 #endif /* ST_LSM6DSX_H */

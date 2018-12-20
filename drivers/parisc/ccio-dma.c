@@ -609,14 +609,13 @@ ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	**        PCX-T'? Don't know. (eg C110 or similar K-class)
 	**
 	** See PDC_MODEL/option 0/SW_CAP word for "Non-coherent IO-PDIR bit".
-	** Hopefully we can patch (NOP) these out at boot time somehow.
 	**
 	** "Since PCX-U employs an offset hash that is incompatible with
 	** the real mode coherence index generation of U2, the PDIR entry
 	** must be flushed to memory to retain coherence."
 	*/
-	asm volatile("fdc %%r0(%0)" : : "r" (pdir_ptr));
-	asm volatile("sync");
+	asm_io_fdc(pdir_ptr);
+	asm_io_sync();
 }
 
 /**
@@ -682,17 +681,14 @@ ccio_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 		** FIXME: PCX_W platforms don't need FDC/SYNC. (eg C360)
 		**   PCX-U/U+ do. (eg C200/C240)
 		** See PDC_MODEL/option 0/SW_CAP for "Non-coherent IO-PDIR bit".
-		**
-		** Hopefully someone figures out how to patch (NOP) the
-		** FDC/SYNC out at boot time.
 		*/
-		asm volatile("fdc %%r0(%0)" : : "r" (pdir_ptr[7]));
+		asm_io_fdc(pdir_ptr);
 
 		iovp     += IOVP_SIZE;
 		byte_cnt -= IOVP_SIZE;
 	}
 
-	asm volatile("sync");
+	asm_io_sync();
 	ccio_clear_io_tlb(ioc, CCIO_IOVP(iova), saved_byte_cnt);
 }
 

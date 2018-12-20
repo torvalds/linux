@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas SDHI
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
  * Copyright (C) 2016-17 Horms Solutions, Simon Horman
  * Copyright (C) 2009 Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on "Compaq ASIC3 support":
  *
@@ -153,6 +150,52 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 	ret = clk_set_rate(priv->clk, best_freq);
 
 	return ret == 0 ? best_freq : clk_get_rate(priv->clk);
+}
+
+static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
+				   unsigned int new_clock)
+{
+	u32 clk = 0, clock;
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
+		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+	if (new_clock == 0)
+		goto out;
+
+	/*
+	 * Both HS400 and HS200/SD104 set 200MHz, but some devices need to
+	 * set 400MHz to distinguish the CPG settings in HS400.
+	 */
+	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 &&
+	    host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400 &&
+	    new_clock == 200000000)
+		new_clock = 400000000;
+
+	clock = renesas_sdhi_clk_update(host, new_clock) / 512;
+
+	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
+		clock <<= 1;
+
+	/* 1/1 clock is option */
+	if ((host->pdata->flags & TMIO_MMC_CLK_ACTUAL) && ((clk >> 22) & 0x1)) {
+		if (!(host->mmc->ios.timing == MMC_TIMING_MMC_HS400))
+			clk |= 0xff;
+		else
+			clk &= ~0xff;
+	}
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, clk & CLK_CTL_DIV_MASK);
+	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
+		usleep_range(10000, 11000);
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
+		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+out:
+	/* HW engineers overrode docs: no sleep needed on R-Car2+ */
+	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
+		usleep_range(10000, 11000);
 }
 
 static void renesas_sdhi_clk_disable(struct tmio_mmc_host *host)
@@ -443,6 +486,19 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
+	bool use_4tap = host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400;
+
+	/*
+	 * Skip checking SCC errors when running on 4 taps in HS400 mode as
+	 * any retuning would still result in the same 4 taps being used.
+	 */
+	if (!(host->mmc->ios.timing == MMC_TIMING_UHS_SDR104) &&
+	    !(host->mmc->ios.timing == MMC_TIMING_MMC_HS200) &&
+	    !(host->mmc->ios.timing == MMC_TIMING_MMC_HS400 && !use_4tap))
+		return false;
+
+	if (mmc_doing_retune(host->mmc))
+		return false;
 
 	/* Check SCC error */
 	if (sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL) &
@@ -620,8 +676,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	host->write16_hook	= renesas_sdhi_write16_hook;
 	host->clk_enable	= renesas_sdhi_clk_enable;
-	host->clk_update	= renesas_sdhi_clk_update;
 	host->clk_disable	= renesas_sdhi_clk_disable;
+	host->set_clock		= renesas_sdhi_set_clock;
 	host->multi_io_quirk	= renesas_sdhi_multi_io_quirk;
 	host->dma_ops		= dma_ops;
 

@@ -479,7 +479,7 @@ void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
 void extent_buffer_bitmap_clear(struct extent_buffer *eb, unsigned long start,
 				unsigned long pos, unsigned long len);
 void clear_extent_buffer_dirty(struct extent_buffer *eb);
-int set_extent_buffer_dirty(struct extent_buffer *eb);
+bool set_extent_buffer_dirty(struct extent_buffer *eb);
 void set_extent_buffer_uptodate(struct extent_buffer *eb);
 void clear_extent_buffer_uptodate(struct extent_buffer *eb);
 int extent_buffer_under_io(struct extent_buffer *eb);
@@ -546,7 +546,7 @@ int free_io_failure(struct extent_io_tree *failure_tree,
 		    struct extent_io_tree *io_tree,
 		    struct io_failure_record *rec);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-noinline u64 find_lock_delalloc_range(struct inode *inode,
+u64 btrfs_find_lock_delalloc_range(struct inode *inode,
 				      struct extent_io_tree *tree,
 				      struct page *locked_page, u64 *start,
 				      u64 *end, u64 max_bytes);

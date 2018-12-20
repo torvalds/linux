@@ -470,20 +470,13 @@ xfs_fs_goingdown(
  */
 void
 xfs_do_force_shutdown(
-	xfs_mount_t	*mp,
+	struct xfs_mount *mp,
 	int		flags,
 	char		*fname,
 	int		lnnum)
 {
-	int		logerror;
+	bool		logerror = flags & SHUTDOWN_LOG_IO_ERROR;
 
-	logerror = flags & SHUTDOWN_LOG_IO_ERROR;
-
-	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
-		xfs_notice(mp,
-	"%s(0x%x) called from line %d of file %s.  Return address = "PTR_FMT,
-			__func__, flags, lnnum, fname, __return_address);
-	}
 	/*
 	 * No need to duplicate efforts.
 	 */
@@ -499,27 +492,34 @@ xfs_do_force_shutdown(
 	if (xfs_log_force_umount(mp, logerror))
 		return;
 
+	if (flags & SHUTDOWN_FORCE_UMOUNT) {
+		xfs_alert(mp,
+"User initiated shutdown received. Shutting down filesystem");
+		return;
+	}
+
+	xfs_notice(mp,
+"%s(0x%x) called from line %d of file %s. Return address = "PTR_FMT,
+		__func__, flags, lnnum, fname, __return_address);
+
 	if (flags & SHUTDOWN_CORRUPT_INCORE) {
 		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_CORRUPT,
-    "Corruption of in-memory data detected.  Shutting down filesystem");
+"Corruption of in-memory data detected.  Shutting down filesystem");
 		if (XFS_ERRLEVEL_HIGH <= xfs_error_level)
 			xfs_stack_trace();
-	} else if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
-		if (logerror) {
-			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_LOGERROR,
-		"Log I/O Error Detected.  Shutting down filesystem");
-		} else if (flags & SHUTDOWN_DEVICE_REQ) {
-			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
-		"All device paths lost.  Shutting down filesystem");
-		} else if (!(flags & SHUTDOWN_REMOTE_REQ)) {
-			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
-		"I/O Error Detected. Shutting down filesystem");
-		}
+	} else if (logerror) {
+		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_LOGERROR,
+			"Log I/O Error Detected. Shutting down filesystem");
+	} else if (flags & SHUTDOWN_DEVICE_REQ) {
+		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
+			"All device paths lost. Shutting down filesystem");
+	} else if (!(flags & SHUTDOWN_REMOTE_REQ)) {
+		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
+			"I/O Error Detected. Shutting down filesystem");
 	}
-	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
-		xfs_alert(mp,
-	"Please umount the filesystem and rectify the problem(s)");
-	}
+
+	xfs_alert(mp,
+		"Please unmount the filesystem and rectify the problem(s)");
 }
 
 /*

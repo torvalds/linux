@@ -322,14 +322,61 @@ int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
  * @brief Get media type value of the port.
  *
  * @param cdev      - qed dev pointer
+ * @param p_ptt
  * @param mfw_ver    - media type value
  *
  * @return int -
  *      0 - Operation was successul.
  *      -EBUSY - Operation failed
  */
-int qed_mcp_get_media_type(struct qed_dev      *cdev,
-			   u32                  *media_type);
+int qed_mcp_get_media_type(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u32 *media_type);
+
+/**
+ * @brief Get transceiver data of the port.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_transceiver_state - transceiver state.
+ * @param p_transceiver_type - media type value
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_transceiver_data(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 u32 *p_transceiver_state,
+				 u32 *p_tranceiver_type);
+
+/**
+ * @brief Get transceiver supported speed mask.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_speed_mask - Bit mask of all supported speeds.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+
+int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_speed_mask);
+
+/**
+ * @brief Get board configuration.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_board_config - Board config.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_board_config(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_board_config);
 
 /**
  * @brief General function for sending commands to the MCP

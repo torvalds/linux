@@ -608,8 +608,13 @@ struct nfs_pgio_args {
 	__u32			count;
 	unsigned int		pgbase;
 	struct page **		pages;
-	const u32 *		bitmask;	/* used by write */
-	enum nfs3_stable_how	stable;		/* used by write */
+	union {
+		unsigned int		replen;			/* used by read */
+		struct {
+			const u32 *		bitmask;	/* used by write */
+			enum nfs3_stable_how	stable;		/* used by write */
+		};
+	};
 };
 
 struct nfs_pgio_res {
@@ -617,10 +622,16 @@ struct nfs_pgio_res {
 	struct nfs_fattr *	fattr;
 	__u32			count;
 	__u32			op_status;
-	int			eof;		/* used by read */
-	struct nfs_writeverf *	verf;		/* used by write */
-	const struct nfs_server *server;	/* used by write */
-
+	union {
+		struct {
+			unsigned int		replen;		/* used by read */
+			int			eof;		/* used by read */
+		};
+		struct {
+			struct nfs_writeverf *	verf;		/* used by write */
+			const struct nfs_server *server;	/* used by write */
+		};
+	};
 };
 
 /*
@@ -1471,11 +1482,10 @@ struct nfs_pgio_header {
 	const struct nfs_rw_ops	*rw_ops;
 	struct nfs_io_completion *io_completion;
 	struct nfs_direct_req	*dreq;
-	spinlock_t		lock;
-	/* fields protected by lock */
+
 	int			pnfs_error;
 	int			error;		/* merge with pnfs_error */
-	unsigned long		good_bytes;	/* boundary of good data */
+	unsigned int		good_bytes;	/* boundary of good data */
 	unsigned long		flags;
 
 	/*

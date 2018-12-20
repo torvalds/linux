@@ -168,7 +168,7 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 			 * Importing dmabuf exported from out own gem increases
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
-			drm_gem_object_reference(obj);
+			drm_gem_object_get(obj);
 			return obj;
 		}
 	}

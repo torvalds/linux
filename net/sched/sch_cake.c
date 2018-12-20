@@ -812,7 +812,7 @@ static struct sk_buff *dequeue_head(struct cake_flow *flow)
 
 	if (skb) {
 		flow->head = skb->next;
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 	}
 
 	return skb;
@@ -1252,7 +1252,7 @@ found:
 	else
 		flow->head = elig_ack->next;
 
-	elig_ack->next = NULL;
+	skb_mark_not_on_list(elig_ack);
 
 	return elig_ack;
 }
@@ -1675,7 +1675,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 		while (segs) {
 			nskb = segs->next;
-			segs->next = NULL;
+			skb_mark_not_on_list(segs);
 			qdisc_skb_cb(segs)->pkt_len = segs->len;
 			cobalt_set_enqueue_time(segs, now);
 			get_cobalt_cb(segs)->adjusted_len = cake_overhead(q,
@@ -2644,7 +2644,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	for (i = 1; i <= CAKE_QUEUES; i++)
 		quantum_div[i] = 65535 / i;
 
-	q->tins = kvzalloc(CAKE_MAX_TINS * sizeof(struct cake_tin_data),
+	q->tins = kvcalloc(CAKE_MAX_TINS, sizeof(struct cake_tin_data),
 			   GFP_KERNEL);
 	if (!q->tins)
 		goto nomem;

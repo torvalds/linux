@@ -109,12 +109,15 @@
 #define MXR_CFG_SCAN_HD			(1 << 0)
 #define MXR_CFG_SCAN_MASK		0x47
 
+/* bits for MXR_VIDEO_CFG */
+#define MXR_VID_CFG_BLEND_EN		(1 << 16)
+
 /* bits for MXR_GRAPHICn_CFG */
 #define MXR_GRP_CFG_COLOR_KEY_DISABLE	(1 << 21)
 #define MXR_GRP_CFG_BLEND_PRE_MUL	(1 << 20)
 #define MXR_GRP_CFG_WIN_BLEND_EN	(1 << 17)
 #define MXR_GRP_CFG_PIXEL_BLEND_EN	(1 << 16)
-#define MXR_GRP_CFG_MISC_MASK		((3 << 16) | (3 << 20))
+#define MXR_GRP_CFG_MISC_MASK		((3 << 16) | (3 << 20) | 0xff)
 #define MXR_GRP_CFG_FORMAT_VAL(x)	MXR_MASK_VAL(x, 11, 8)
 #define MXR_GRP_CFG_FORMAT_MASK		MXR_GRP_CFG_FORMAT_VAL(~0)
 #define MXR_GRP_CFG_ALPHA_VAL(x)	MXR_MASK_VAL(x, 7, 0)

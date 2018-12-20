@@ -30,23 +30,11 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "qxl_drv.h"
 
 #include "qxl_object.h"
-
-#define QXL_DIRTY_DELAY (HZ / 30)
-
-struct qxl_fbdev {
-	struct drm_fb_helper helper;
-	struct qxl_framebuffer	qfb;
-	struct qxl_device	*qdev;
-
-	spinlock_t delayed_ops_lock;
-	struct list_head delayed_ops;
-	void *shadow;
-	int size;
-};
 
 static void qxl_fb_image_init(struct qxl_fb_image *qxl_fb_image,
 			      struct qxl_device *qdev, struct fb_info *info,
@@ -73,13 +61,6 @@ static void qxl_fb_image_init(struct qxl_fb_image *qxl_fb_image,
 	}
 }
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-static struct fb_deferred_io qxl_defio = {
-	.delay		= QXL_DIRTY_DELAY,
-	.deferred_io	= drm_fb_helper_deferred_io,
-};
-#endif
-
 static struct fb_ops qxlfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
@@ -98,26 +79,10 @@ static void qxlfb_destroy_pinned_object(struct drm_gem_object *gobj)
 	drm_gem_object_put_unlocked(gobj);
 }
 
-int qxl_get_handle_for_primary_fb(struct qxl_device *qdev,
-				  struct drm_file *file_priv,
-				  uint32_t *handle)
-{
-	int r;
-	struct drm_gem_object *gobj = qdev->fbdev_qfb->obj;
-
-	BUG_ON(!gobj);
-	/* drm_get_handle_create adds a reference - good */
-	r = drm_gem_handle_create(file_priv, gobj, handle);
-	if (r)
-		return r;
-	return 0;
-}
-
-static int qxlfb_create_pinned_object(struct qxl_fbdev *qfbdev,
+static int qxlfb_create_pinned_object(struct qxl_device *qdev,
 				      const struct drm_mode_fb_cmd2 *mode_cmd,
 				      struct drm_gem_object **gobj_p)
 {
-	struct qxl_device *qdev = qfbdev->qdev;
 	struct drm_gem_object *gobj = NULL;
 	struct qxl_bo *qbo = NULL;
 	int ret;
@@ -174,13 +139,12 @@ static int qxlfb_framebuffer_dirty(struct drm_framebuffer *fb,
 				   unsigned num_clips)
 {
 	struct qxl_device *qdev = fb->dev->dev_private;
-	struct fb_info *info = qdev->fbdev_info;
-	struct qxl_fbdev *qfbdev = info->par;
+	struct fb_info *info = qdev->fb_helper.fbdev;
 	struct qxl_fb_image qxl_fb_image;
 	struct fb_image *image = &qxl_fb_image.fb_image;
 
 	/* TODO: hard coding 32 bpp */
-	int stride = qfbdev->qfb.base.pitches[0];
+	int stride = fb->pitches[0];
 
 	/*
 	 * we are using a shadow draw buffer, at qdev->surface0_shadow
@@ -199,7 +163,7 @@ static int qxlfb_framebuffer_dirty(struct drm_framebuffer *fb,
 	image->cmap.green = NULL;
 	image->cmap.blue = NULL;
 	image->cmap.transp = NULL;
-	image->data = qfbdev->shadow + (clips->x1 * 4) + (stride * clips->y1);
+	image->data = info->screen_base + (clips->x1 * 4) + (stride * clips->y1);
 
 	qxl_fb_image_init(&qxl_fb_image, qdev, info, NULL);
 	qxl_draw_opaque_fb(&qxl_fb_image, stride);
@@ -208,21 +172,22 @@ static int qxlfb_framebuffer_dirty(struct drm_framebuffer *fb,
 }
 
 static const struct drm_framebuffer_funcs qxlfb_fb_funcs = {
-	.destroy = qxl_user_framebuffer_destroy,
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
 	.dirty = qxlfb_framebuffer_dirty,
 };
 
-static int qxlfb_create(struct qxl_fbdev *qfbdev,
+static int qxlfb_create(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes)
 {
-	struct qxl_device *qdev = qfbdev->qdev;
+	struct qxl_device *qdev =
+		container_of(helper, struct qxl_device, fb_helper);
 	struct fb_info *info;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	struct qxl_bo *qbo = NULL;
 	int ret;
-	int size;
 	int bpp = sizes->surface_bpp;
 	int depth = sizes->surface_depth;
 	void *shadow;
@@ -233,7 +198,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * ((bpp + 1) / 8), 64);
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
-	ret = qxlfb_create_pinned_object(qfbdev, &mode_cmd, &gobj);
+	ret = qxlfb_create_pinned_object(qdev, &mode_cmd, &gobj);
 	if (ret < 0)
 		return ret;
 
@@ -247,25 +212,26 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	DRM_DEBUG_DRIVER("surface0 at gpu offset %lld, mmap_offset %lld (virt %p, shadow %p)\n",
 			 qxl_bo_gpu_offset(qbo), qxl_bo_mmap_offset(qbo),
 			 qbo->kptr, shadow);
-	size = mode_cmd.pitches[0] * mode_cmd.height;
 
-	info = drm_fb_helper_alloc_fbi(&qfbdev->helper);
+	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
 		goto out_unref;
 	}
 
-	info->par = qfbdev;
+	info->par = helper;
 
-	qxl_framebuffer_init(&qdev->ddev, &qfbdev->qfb, &mode_cmd, gobj,
-			     &qxlfb_fb_funcs);
-
-	fb = &qfbdev->qfb.base;
+	fb = drm_gem_fbdev_fb_create(&qdev->ddev, sizes, 64, gobj,
+				     &qxlfb_fb_funcs);
+	if (IS_ERR(fb)) {
+		DRM_ERROR("Failed to create framebuffer: %ld\n", PTR_ERR(fb));
+		ret = PTR_ERR(fb);
+		goto out_unref;
+	}
 
 	/* setup helper with fb data */
-	qfbdev->helper.fb = fb;
+	qdev->fb_helper.fb = fb;
 
-	qfbdev->shadow = shadow;
 	strcpy(info->fix.id, "qxldrmfb");
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
@@ -278,10 +244,10 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	 */
 	info->fix.smem_start = qdev->vram_base; /* TODO - correct? */
 	info->fix.smem_len = gobj->size;
-	info->screen_base = qfbdev->shadow;
+	info->screen_base = shadow;
 	info->screen_size = gobj->size;
 
-	drm_fb_helper_fill_var(info, &qfbdev->helper, sizes->fb_width,
+	drm_fb_helper_fill_var(info, &qdev->fb_helper, sizes->fb_width,
 			       sizes->fb_height);
 
 	/* setup aperture base/size for vesafb takeover */
@@ -296,13 +262,9 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 		goto out_unref;
 	}
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	info->fbdefio = &qxl_defio;
-	fb_deferred_io_init(info);
-#endif
+	/* XXX error handling. */
+	drm_fb_helper_defio_init(helper);
 
-	qdev->fbdev_info = info;
-	qdev->fbdev_qfb = &qfbdev->qfb;
 	DRM_INFO("fb mappable at 0x%lX, size %lu\n",  info->fix.smem_start, (unsigned long)info->screen_size);
 	DRM_INFO("fb: depth %d, pitch %d, width %d, height %d\n",
 		 fb->format->depth, fb->pitches[0], fb->width, fb->height);
@@ -313,119 +275,26 @@ out_unref:
 		qxl_bo_kunmap(qbo);
 		qxl_bo_unpin(qbo);
 	}
-	if (fb && ret) {
-		drm_gem_object_put_unlocked(gobj);
-		drm_framebuffer_cleanup(fb);
-		kfree(fb);
-	}
 	drm_gem_object_put_unlocked(gobj);
 	return ret;
 }
 
-static int qxl_fb_find_or_create_single(
-		struct drm_fb_helper *helper,
-		struct drm_fb_helper_surface_size *sizes)
-{
-	struct qxl_fbdev *qfbdev =
-		container_of(helper, struct qxl_fbdev, helper);
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = qxlfb_create(qfbdev, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
-}
-
-static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
-{
-	struct qxl_framebuffer *qfb = &qfbdev->qfb;
-
-	drm_fb_helper_unregister_fbi(&qfbdev->helper);
-
-	if (qfb->obj) {
-		qxlfb_destroy_pinned_object(qfb->obj);
-		qfb->obj = NULL;
-	}
-	drm_fb_helper_fini(&qfbdev->helper);
-	vfree(qfbdev->shadow);
-	drm_framebuffer_cleanup(&qfb->base);
-
-	return 0;
-}
-
 static const struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
-	.fb_probe = qxl_fb_find_or_create_single,
+	.fb_probe = qxlfb_create,
 };
 
 int qxl_fbdev_init(struct qxl_device *qdev)
 {
-	int ret = 0;
-
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct qxl_fbdev *qfbdev;
-	int bpp_sel = 32; /* TODO: parameter from somewhere? */
-
-	qfbdev = kzalloc(sizeof(struct qxl_fbdev), GFP_KERNEL);
-	if (!qfbdev)
-		return -ENOMEM;
-
-	qfbdev->qdev = qdev;
-	qdev->mode_info.qfbdev = qfbdev;
-	spin_lock_init(&qfbdev->delayed_ops_lock);
-	INIT_LIST_HEAD(&qfbdev->delayed_ops);
-
-	drm_fb_helper_prepare(&qdev->ddev, &qfbdev->helper,
-			      &qxl_fb_helper_funcs);
-
-	ret = drm_fb_helper_init(&qdev->ddev, &qfbdev->helper,
-				 QXLFB_CONN_LIMIT);
-	if (ret)
-		goto free;
-
-	ret = drm_fb_helper_single_add_all_connectors(&qfbdev->helper);
-	if (ret)
-		goto fini;
-
-	ret = drm_fb_helper_initial_config(&qfbdev->helper, bpp_sel);
-	if (ret)
-		goto fini;
-
-	return 0;
-
-fini:
-	drm_fb_helper_fini(&qfbdev->helper);
-free:
-	kfree(qfbdev);
-#endif
-
-	return ret;
+	return drm_fb_helper_fbdev_setup(&qdev->ddev, &qdev->fb_helper,
+					 &qxl_fb_helper_funcs, 32,
+					 QXLFB_CONN_LIMIT);
 }
 
 void qxl_fbdev_fini(struct qxl_device *qdev)
 {
-	if (!qdev->mode_info.qfbdev)
-		return;
+	struct fb_info *fbi = qdev->fb_helper.fbdev;
+	void *shadow = fbi ? fbi->screen_buffer : NULL;
 
-	qxl_fbdev_destroy(&qdev->ddev, qdev->mode_info.qfbdev);
-	kfree(qdev->mode_info.qfbdev);
-	qdev->mode_info.qfbdev = NULL;
-}
-
-void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state)
-{
-	if (!qdev->mode_info.qfbdev)
-		return;
-
-	drm_fb_helper_set_suspend(&qdev->mode_info.qfbdev->helper, state);
-}
-
-bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj)
-{
-	if (qobj == gem_to_qxl_bo(qdev->mode_info.qfbdev->qfb.obj))
-		return true;
-	return false;
+	drm_fb_helper_fbdev_teardown(&qdev->ddev);
+	vfree(shadow);
 }

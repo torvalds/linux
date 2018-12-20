@@ -213,8 +213,8 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 		if (io == fmr2_cards[i]->io)
 			return -EBUSY;
 
-	strlcpy(fmr2->v4l2_dev.name, "radio-sf16fmr2",
-			sizeof(fmr2->v4l2_dev.name)),
+	strscpy(fmr2->v4l2_dev.name, "radio-sf16fmr2",
+		sizeof(fmr2->v4l2_dev.name)),
 	fmr2->io = io;
 
 	if (!request_region(fmr2->io, 2, fmr2->v4l2_dev.name)) {
@@ -234,7 +234,7 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 	fmr2->tea.radio_nr = radio_nr[num_fmr2_cards];
 	fmr2->tea.ops = &fmr2_tea_ops;
 	fmr2->tea.ext_init = fmr2_tea_ext_init;
-	strlcpy(fmr2->tea.card, card_name, sizeof(fmr2->tea.card));
+	strscpy(fmr2->tea.card, card_name, sizeof(fmr2->tea.card));
 	snprintf(fmr2->tea.bus_info, sizeof(fmr2->tea.bus_info), "%s:%s",
 			fmr2->is_fmd2 ? "PnP" : "ISA", dev_name(pdev));
 

@@ -322,6 +322,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 		break;
 
 	case CHIP_VEGA10:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		kernel_queue_init_v9(&kq->ops_asic_specific);
 		break;

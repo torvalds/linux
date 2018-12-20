@@ -158,7 +158,8 @@ struct audio_drv_data {
  * and dma driver
  */
 struct acp_platform_info {
-	u16 i2s_instance;
+	u16 play_i2s_instance;
+	u16 cap_i2s_instance;
 	u16 capture_channel;
 };
 

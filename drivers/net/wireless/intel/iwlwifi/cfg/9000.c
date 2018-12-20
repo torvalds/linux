@@ -57,7 +57,7 @@
 #include "fw/file.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	38
+#define IWL9000_UCODE_API_MAX	41
 
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	30
@@ -155,7 +155,9 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x800000,				\
-	.csr = &iwl_csr_v1
+	.csr = &iwl_csr_v1,						\
+	.d3_debug_data_base_addr = 0x401000,				\
+	.d3_debug_data_length = 92 * 1024
 
 const struct iwl_cfg iwl9160_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 9160",

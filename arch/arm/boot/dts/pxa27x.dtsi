@@ -71,7 +71,7 @@
 			clocks = <&clks CLK_PWM1>;
 		};
 
-		pwri2c: i2c@40f000180 {
+		pwri2c: i2c@40f00180 {
 			compatible = "mrvl,pxa-i2c";
 			reg = <0x40f00180 0x24>;
 			interrupts = <6>;
@@ -112,6 +112,10 @@
 			clock-output-names = "qci_mclk";
 
 			status = "disabled";
+		};
+
+		rtc@40900000 {
+			clocks = <&clks CLK_OSC32k768>;
 		};
 	};
 

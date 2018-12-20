@@ -8,7 +8,7 @@
 
 static inline int  __paravirt_pgd_alloc(struct mm_struct *mm) { return 0; }
 
-#ifdef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT_XXL
 #include <asm/paravirt.h>
 #else
 #define paravirt_pgd_alloc(mm)	__paravirt_pgd_alloc(mm)

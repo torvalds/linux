@@ -261,7 +261,7 @@ static void allocate_dart(void)
 	 * that to work around what looks like a problem with the HT bridge
 	 * prefetching into invalid pages and corrupting data
 	 */
-	tmp = memblock_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
+	tmp = memblock_phys_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
 	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) &
 					 DARTMAP_RPNMASK);
 

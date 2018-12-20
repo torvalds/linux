@@ -1988,6 +1988,28 @@ static int tegra_dc_init(struct host1x_client *client)
 	struct drm_plane *cursor = NULL;
 	int err;
 
+	/*
+	 * XXX do not register DCs with no window groups because we cannot
+	 * assign a primary plane to them, which in turn will cause KMS to
+	 * crash.
+	 */
+	if (dc->soc->wgrps) {
+		bool has_wgrps = false;
+		unsigned int i;
+
+		for (i = 0; i < dc->soc->num_wgrps; i++) {
+			const struct tegra_windowgroup_soc *wgrp = &dc->soc->wgrps[i];
+
+			if (wgrp->dc == dc->pipe && wgrp->num_windows > 0) {
+				has_wgrps = true;
+				break;
+			}
+		}
+
+		if (!has_wgrps)
+			return 0;
+	}
+
 	dc->syncpt = host1x_syncpt_request(client, flags);
 	if (!dc->syncpt)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
@@ -2234,8 +2256,59 @@ static const struct tegra_dc_soc_info tegra186_dc_soc_info = {
 	.num_wgrps = ARRAY_SIZE(tegra186_dc_wgrps),
 };
 
+static const struct tegra_windowgroup_soc tegra194_dc_wgrps[] = {
+	{
+		.index = 0,
+		.dc = 0,
+		.windows = (const unsigned int[]) { 0 },
+		.num_windows = 1,
+	}, {
+		.index = 1,
+		.dc = 1,
+		.windows = (const unsigned int[]) { 1 },
+		.num_windows = 1,
+	}, {
+		.index = 2,
+		.dc = 1,
+		.windows = (const unsigned int[]) { 2 },
+		.num_windows = 1,
+	}, {
+		.index = 3,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 3 },
+		.num_windows = 1,
+	}, {
+		.index = 4,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 4 },
+		.num_windows = 1,
+	}, {
+		.index = 5,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 5 },
+		.num_windows = 1,
+	},
+};
+
+static const struct tegra_dc_soc_info tegra194_dc_soc_info = {
+	.supports_background_color = true,
+	.supports_interlacing = true,
+	.supports_cursor = true,
+	.supports_block_linear = true,
+	.has_legacy_blending = false,
+	.pitch_align = 64,
+	.has_powergate = false,
+	.coupled_pm = false,
+	.has_nvdisplay = true,
+	.wgrps = tegra194_dc_wgrps,
+	.num_wgrps = ARRAY_SIZE(tegra194_dc_wgrps),
+};
+
 static const struct of_device_id tegra_dc_of_match[] = {
 	{
+		.compatible = "nvidia,tegra194-dc",
+		.data = &tegra194_dc_soc_info,
+	}, {
 		.compatible = "nvidia,tegra186-dc",
 		.data = &tegra186_dc_soc_info,
 	}, {

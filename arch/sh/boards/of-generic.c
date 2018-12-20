@@ -64,7 +64,7 @@ static void sh_of_smp_probe(void)
 
 	init_cpu_possible(cpumask_of(0));
 
-	for_each_node_by_type(np, "cpu") {
+	for_each_of_cpu_node(np) {
 		const __be32 *cell = of_get_property(np, "reg", NULL);
 		u64 id = -1;
 		if (cell) id = of_read_number(cell, of_n_addr_cells(np));

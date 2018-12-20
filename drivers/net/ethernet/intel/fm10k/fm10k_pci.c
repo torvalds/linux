@@ -23,6 +23,8 @@ static const struct fm10k_info *fm10k_info_tbl[] = {
  */
 static const struct pci_device_id fm10k_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, FM10K_DEV_ID_PF), fm10k_device_pf },
+	{ PCI_VDEVICE(INTEL, FM10K_DEV_ID_SDI_FM10420_QDA2), fm10k_device_pf },
+	{ PCI_VDEVICE(INTEL, FM10K_DEV_ID_SDI_FM10420_DA2), fm10k_device_pf },
 	{ PCI_VDEVICE(INTEL, FM10K_DEV_ID_VF), fm10k_device_vf },
 	/* required last entry */
 	{ 0, }
@@ -2439,8 +2441,6 @@ static pci_ers_result_t fm10k_io_slot_reset(struct pci_dev *pdev)
 
 		result = PCI_ERS_RESULT_RECOVERED;
 	}
-
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	return result;
 }

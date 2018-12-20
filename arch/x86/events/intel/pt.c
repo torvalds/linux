@@ -95,7 +95,7 @@ static ssize_t pt_cap_show(struct device *cdev,
 	return snprintf(buf, PAGE_SIZE, "%x\n", pt_cap_get(cap));
 }
 
-static struct attribute_group pt_cap_group = {
+static struct attribute_group pt_cap_group __ro_after_init = {
 	.name	= "caps",
 };
 

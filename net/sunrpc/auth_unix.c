@@ -34,7 +34,7 @@ unx_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	dprintk("RPC:       creating UNIX authenticator for client %p\n",
 			clnt);
-	atomic_inc(&unix_auth.au_count);
+	refcount_inc(&unix_auth.au_count);
 	return &unix_auth;
 }
 
@@ -239,7 +239,7 @@ struct rpc_auth		unix_auth = {
 	.au_flags	= RPCAUTH_AUTH_NO_CRKEY_TIMEOUT,
 	.au_ops		= &authunix_ops,
 	.au_flavor	= RPC_AUTH_UNIX,
-	.au_count	= ATOMIC_INIT(0),
+	.au_count	= REFCOUNT_INIT(1),
 };
 
 static

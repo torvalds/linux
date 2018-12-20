@@ -73,6 +73,7 @@ static int hclge_ieee_getets(struct hnae3_handle *h, struct ieee_ets *ets)
 static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 			      u8 *tc, bool *changed)
 {
+	bool has_ets_tc = false;
 	u32 total_ets_bw = 0;
 	u8 max_tc = 0;
 	u8 i;
@@ -100,13 +101,14 @@ static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 				*changed = true;
 
 			total_ets_bw += ets->tc_tx_bw[i];
-		break;
+			has_ets_tc = true;
+			break;
 		default:
 			return -EINVAL;
 		}
 	}
 
-	if (total_ets_bw != BW_PERCENT)
+	if (has_ets_tc && total_ets_bw != BW_PERCENT)
 		return -EINVAL;
 
 	*tc = max_tc + 1;
@@ -182,7 +184,9 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (ret)
 		return ret;
 
-	hclge_tm_schd_info_update(hdev, num_tc);
+	ret = hclge_tm_schd_info_update(hdev, num_tc);
+	if (ret)
+		return ret;
 
 	ret = hclge_ieee_ets_to_tm_info(hdev, ets);
 	if (ret)
@@ -308,7 +312,9 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 		return -EINVAL;
 	}
 
-	hclge_tm_schd_info_update(hdev, tc);
+	ret = hclge_tm_schd_info_update(hdev, tc);
+	if (ret)
+		return ret;
 
 	ret = hclge_tm_prio_tc_info_update(hdev, prio_tc);
 	if (ret)

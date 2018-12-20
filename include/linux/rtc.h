@@ -167,17 +167,12 @@ struct rtc_device {
 #define RTC_TIMESTAMP_BEGIN_2000	946684800LL /* 2000-01-01 00:00:00 */
 #define RTC_TIMESTAMP_END_2099		4102444799LL /* 2099-12-31 23:59:59 */
 
-extern struct rtc_device *rtc_device_register(const char *name,
-					struct device *dev,
-					const struct rtc_class_ops *ops,
-					struct module *owner);
 extern struct rtc_device *devm_rtc_device_register(struct device *dev,
 					const char *name,
 					const struct rtc_class_ops *ops,
 					struct module *owner);
 struct rtc_device *devm_rtc_allocate_device(struct device *dev);
 int __rtc_register_device(struct module *owner, struct rtc_device *rtc);
-extern void rtc_device_unregister(struct rtc_device *rtc);
 extern void devm_rtc_device_unregister(struct device *dev,
 					struct rtc_device *rtc);
 
@@ -277,4 +272,20 @@ static inline int rtc_nvmem_register(struct rtc_device *rtc,
 static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif
 
+#ifdef CONFIG_RTC_INTF_SYSFS
+int rtc_add_group(struct rtc_device *rtc, const struct attribute_group *grp);
+int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps);
+#else
+static inline
+int rtc_add_group(struct rtc_device *rtc, const struct attribute_group *grp)
+{
+	return 0;
+}
+
+static inline
+int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
+{
+	return 0;
+}
+#endif
 #endif /* _LINUX_RTC_H_ */

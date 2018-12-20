@@ -12,7 +12,6 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
-#include <linux/module.h>
 #include <net/genetlink.h>
 #include <net/ncsi.h>
 #include <linux/skbuff.h>
@@ -20,6 +19,7 @@
 #include <uapi/linux/ncsi.h>
 
 #include "internal.h"
+#include "ncsi-pkt.h"
 #include "ncsi-netlink.h"
 
 static struct genl_family ncsi_genl_family;
@@ -29,6 +29,7 @@ static const struct nla_policy ncsi_genl_policy[NCSI_ATTR_MAX + 1] = {
 	[NCSI_ATTR_PACKAGE_LIST] =	{ .type = NLA_NESTED },
 	[NCSI_ATTR_PACKAGE_ID] =	{ .type = NLA_U32 },
 	[NCSI_ATTR_CHANNEL_ID] =	{ .type = NLA_U32 },
+	[NCSI_ATTR_DATA] =		{ .type = NLA_BINARY, .len = 2048 },
 };
 
 static struct ncsi_dev_priv *ndp_from_ifindex(struct net *net, u32 ifindex)
@@ -366,6 +367,202 @@ static int ncsi_clear_interface_nl(struct sk_buff *msg, struct genl_info *info)
 	return 0;
 }
 
+static int ncsi_send_cmd_nl(struct sk_buff *msg, struct genl_info *info)
+{
+	struct ncsi_dev_priv *ndp;
+	struct ncsi_pkt_hdr *hdr;
+	struct ncsi_cmd_arg nca;
+	unsigned char *data;
+	u32 package_id;
+	u32 channel_id;
+	int len, ret;
+
+	if (!info || !info->attrs) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!info->attrs[NCSI_ATTR_IFINDEX]) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!info->attrs[NCSI_ATTR_PACKAGE_ID]) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!info->attrs[NCSI_ATTR_CHANNEL_ID]) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!info->attrs[NCSI_ATTR_DATA]) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
+			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
+	if (!ndp) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
+	channel_id = nla_get_u32(info->attrs[NCSI_ATTR_CHANNEL_ID]);
+
+	if (package_id >= NCSI_MAX_PACKAGE || channel_id >= NCSI_MAX_CHANNEL) {
+		ret = -ERANGE;
+		goto out_netlink;
+	}
+
+	len = nla_len(info->attrs[NCSI_ATTR_DATA]);
+	if (len < sizeof(struct ncsi_pkt_hdr)) {
+		netdev_info(ndp->ndev.dev, "NCSI: no command to send %u\n",
+			    package_id);
+		ret = -EINVAL;
+		goto out_netlink;
+	} else {
+		data = (unsigned char *)nla_data(info->attrs[NCSI_ATTR_DATA]);
+	}
+
+	hdr = (struct ncsi_pkt_hdr *)data;
+
+	nca.ndp = ndp;
+	nca.package = (unsigned char)package_id;
+	nca.channel = (unsigned char)channel_id;
+	nca.type = hdr->type;
+	nca.req_flags = NCSI_REQ_FLAG_NETLINK_DRIVEN;
+	nca.info = info;
+	nca.payload = ntohs(hdr->length);
+	nca.data = data + sizeof(*hdr);
+
+	ret = ncsi_xmit_cmd(&nca);
+out_netlink:
+	if (ret != 0) {
+		netdev_err(ndp->ndev.dev,
+			   "NCSI: Error %d sending command\n",
+			   ret);
+		ncsi_send_netlink_err(ndp->ndev.dev,
+				      info->snd_seq,
+				      info->snd_portid,
+				      info->nlhdr,
+				      ret);
+	}
+out:
+	return ret;
+}
+
+int ncsi_send_netlink_rsp(struct ncsi_request *nr,
+			  struct ncsi_package *np,
+			  struct ncsi_channel *nc)
+{
+	struct sk_buff *skb;
+	struct net *net;
+	void *hdr;
+	int rc;
+
+	net = dev_net(nr->rsp->dev);
+
+	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = genlmsg_put(skb, nr->snd_portid, nr->snd_seq,
+			  &ncsi_genl_family, 0, NCSI_CMD_SEND_CMD);
+	if (!hdr) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
+
+	nla_put_u32(skb, NCSI_ATTR_IFINDEX, nr->rsp->dev->ifindex);
+	if (np)
+		nla_put_u32(skb, NCSI_ATTR_PACKAGE_ID, np->id);
+	if (nc)
+		nla_put_u32(skb, NCSI_ATTR_CHANNEL_ID, nc->id);
+	else
+		nla_put_u32(skb, NCSI_ATTR_CHANNEL_ID, NCSI_RESERVED_CHANNEL);
+
+	rc = nla_put(skb, NCSI_ATTR_DATA, nr->rsp->len, (void *)nr->rsp->data);
+	if (rc)
+		goto err;
+
+	genlmsg_end(skb, hdr);
+	return genlmsg_unicast(net, skb, nr->snd_portid);
+
+err:
+	kfree_skb(skb);
+	return rc;
+}
+
+int ncsi_send_netlink_timeout(struct ncsi_request *nr,
+			      struct ncsi_package *np,
+			      struct ncsi_channel *nc)
+{
+	struct sk_buff *skb;
+	struct net *net;
+	void *hdr;
+
+	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = genlmsg_put(skb, nr->snd_portid, nr->snd_seq,
+			  &ncsi_genl_family, 0, NCSI_CMD_SEND_CMD);
+	if (!hdr) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
+
+	net = dev_net(nr->cmd->dev);
+
+	nla_put_u32(skb, NCSI_ATTR_IFINDEX, nr->cmd->dev->ifindex);
+
+	if (np)
+		nla_put_u32(skb, NCSI_ATTR_PACKAGE_ID, np->id);
+	else
+		nla_put_u32(skb, NCSI_ATTR_PACKAGE_ID,
+			    NCSI_PACKAGE_INDEX((((struct ncsi_pkt_hdr *)
+						 nr->cmd->data)->channel)));
+
+	if (nc)
+		nla_put_u32(skb, NCSI_ATTR_CHANNEL_ID, nc->id);
+	else
+		nla_put_u32(skb, NCSI_ATTR_CHANNEL_ID, NCSI_RESERVED_CHANNEL);
+
+	genlmsg_end(skb, hdr);
+	return genlmsg_unicast(net, skb, nr->snd_portid);
+}
+
+int ncsi_send_netlink_err(struct net_device *dev,
+			  u32 snd_seq,
+			  u32 snd_portid,
+			  struct nlmsghdr *nlhdr,
+			  int err)
+{
+	struct nlmsghdr *nlh;
+	struct nlmsgerr *nle;
+	struct sk_buff *skb;
+	struct net *net;
+
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	net = dev_net(dev);
+
+	nlh = nlmsg_put(skb, snd_portid, snd_seq,
+			NLMSG_ERROR, sizeof(*nle), 0);
+	nle = (struct nlmsgerr *)nlmsg_data(nlh);
+	nle->error = err;
+	memcpy(&nle->msg, nlhdr, sizeof(*nlh));
+
+	nlmsg_end(skb, nlh);
+
+	return nlmsg_unicast(net->genl_sock, skb, snd_portid);
+}
+
 static const struct genl_ops ncsi_ops[] = {
 	{
 		.cmd = NCSI_CMD_PKG_INFO,
@@ -384,6 +581,12 @@ static const struct genl_ops ncsi_ops[] = {
 		.cmd = NCSI_CMD_CLEAR_INTERFACE,
 		.policy = ncsi_genl_policy,
 		.doit = ncsi_clear_interface_nl,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NCSI_CMD_SEND_CMD,
+		.policy = ncsi_genl_policy,
+		.doit = ncsi_send_cmd_nl,
 		.flags = GENL_ADMIN_PERM,
 	},
 };

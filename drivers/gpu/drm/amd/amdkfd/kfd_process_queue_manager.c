@@ -408,6 +408,28 @@ struct kernel_queue *pqm_get_kernel_queue(
 	return NULL;
 }
 
+int pqm_get_wave_state(struct process_queue_manager *pqm,
+		       unsigned int qid,
+		       void __user *ctl_stack,
+		       u32 *ctl_stack_used_size,
+		       u32 *save_area_used_size)
+{
+	struct process_queue_node *pqn;
+
+	pqn = get_queue_by_qid(pqm, qid);
+	if (!pqn) {
+		pr_debug("amdkfd: No queue %d exists for operation\n",
+			 qid);
+		return -EFAULT;
+	}
+
+	return pqn->q->device->dqm->ops.get_wave_state(pqn->q->device->dqm,
+						       pqn->q,
+						       ctl_stack,
+						       ctl_stack_used_size,
+						       save_area_used_size);
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 int pqm_debugfs_mqds(struct seq_file *m, void *data)

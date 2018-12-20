@@ -42,18 +42,6 @@ struct vm86;
 #define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-static inline void *current_text_addr(void)
-{
-	void *pc;
-
-	asm volatile("mov $1f, %0; 1:":"=r" (pc));
-
-	return pc;
-}
 
 /*
  * These alignment constraints are for performance in the vSMP case,
@@ -155,7 +143,8 @@ enum cpuid_regs_idx {
 #define X86_VENDOR_CENTAUR	5
 #define X86_VENDOR_TRANSMETA	7
 #define X86_VENDOR_NSC		8
-#define X86_VENDOR_NUM		9
+#define X86_VENDOR_HYGON	9
+#define X86_VENDOR_NUM		10
 
 #define X86_VENDOR_UNKNOWN	0xff
 
@@ -315,7 +304,13 @@ struct x86_hw_tss {
 	 */
 	u64			sp1;
 
+	/*
+	 * Since Linux does not use ring 2, the 'sp2' slot is unused by
+	 * hardware.  entry_SYSCALL_64 uses it as scratch space to stash
+	 * the user RSP value.
+	 */
 	u64			sp2;
+
 	u64			reserved2;
 	u64			ist[7];
 	u32			reserved3;
@@ -578,7 +573,7 @@ static inline bool on_thread_stack(void)
 			       current_stack_pointer) < THREAD_SIZE;
 }
 
-#ifdef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT_XXL
 #include <asm/paravirt.h>
 #else
 #define __cpuid			native_cpuid
@@ -589,7 +584,7 @@ static inline void load_sp0(unsigned long sp0)
 }
 
 #define set_iopl_mask native_set_iopl_mask
-#endif /* CONFIG_PARAVIRT */
+#endif /* CONFIG_PARAVIRT_XXL */
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);

@@ -258,7 +258,7 @@ static int rsnd_ctu_hw_params(struct rsnd_mod *mod,
 		struct snd_pcm_hw_params *be_params;
 		int stream = substream->stream;
 
-		list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be) {
+		for_each_dpcm_be(fe, stream, dpcm) {
 			be_params = &dpcm->hw_params;
 			if (params_channels(fe_params) != params_channels(be_params))
 				ctu->channels = params_channels(be_params);

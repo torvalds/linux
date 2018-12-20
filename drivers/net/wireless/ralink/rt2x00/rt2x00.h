@@ -665,6 +665,7 @@ enum rt2x00_state_flags {
 	DEVICE_STATE_STARTED,
 	DEVICE_STATE_ENABLED_RADIO,
 	DEVICE_STATE_SCANNING,
+	DEVICE_STATE_FLUSHING,
 
 	/*
 	 * Driver configuration
@@ -979,6 +980,8 @@ struct rt2x00_dev {
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
 	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
+
+	unsigned long last_nostatus_check;
 
 	/*
 	 * Timer to ensure tx status reports are read (rt2800usb).

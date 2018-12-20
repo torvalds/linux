@@ -316,6 +316,17 @@ tcp_frto - INTEGER
 
 	By default it's enabled with a non-zero value. 0 disables F-RTO.
 
+tcp_fwmark_accept - BOOLEAN
+	If set, incoming connections to listening sockets that do not have a
+	socket mark will set the mark of the accepting socket to the fwmark of
+	the incoming SYN packet. This will cause all packets on that connection
+	(starting from the first SYNACK) to be sent with that fwmark. The
+	listening socket's mark is unchanged. Listening sockets that already
+	have a fwmark set via setsockopt(SOL_SOCKET, SO_MARK, ...) are
+	unaffected.
+
+	Default: 0
+
 tcp_invalid_ratelimit - INTEGER
 	Limit the maximal rate for sending duplicate acknowledgments
 	in response to incoming TCP packets that are for an existing
@@ -1441,6 +1452,14 @@ max_hbh_length - INTEGER
 	Maximum length allowed for a Hop-by-Hop options extension
 	header.
 	Default: INT_MAX (unlimited)
+
+skip_notify_on_dev_down - BOOLEAN
+	Controls whether an RTM_DELROUTE message is generated for routes
+	removed when a device is taken down or deleted. IPv4 does not
+	generate this message; IPv6 does by default. Setting this sysctl
+	to true skips the message, making IPv4 and IPv6 on par in relying
+	on userspace caches to track link events and evict routes.
+	Default: false (generate message)
 
 IPv6 Fragmentation:
 

@@ -416,7 +416,7 @@
 			clock-names = "fck", "mmchsdb_fck";
 		};
 
-		qspi: qspi@2940000 {
+		qspi: spi@2940000 {
 			compatible = "ti,k2g-qspi", "cdns,qspi-nor";
 			#address-cells = <1>;
 			#size-cells = <0>;

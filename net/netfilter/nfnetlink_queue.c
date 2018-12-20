@@ -765,7 +765,7 @@ __nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
 		return ret;
 	}
 
-	skb->next = NULL;
+	skb_mark_not_on_list(skb);
 
 	entry_seg = nf_queue_entry_dup(entry);
 	if (entry_seg) {

@@ -34,6 +34,10 @@ from datetime import datetime, timedelta
 from subprocess import call, Popen, PIPE
 import sleepgraph as aslib
 
+def pprint(msg):
+	print(msg)
+	sys.stdout.flush()
+
 # ----------------- CLASSES --------------------
 
 # Class: SystemValues
@@ -157,11 +161,11 @@ class SystemValues(aslib.SystemValues):
 		return cmdline
 	def manualRebootRequired(self):
 		cmdline = self.kernelParams()
-		print 'To generate a new timeline manually, follow these steps:\n'
-		print '1. Add the CMDLINE string to your kernel command line.'
-		print '2. Reboot the system.'
-		print '3. After reboot, re-run this tool with the same arguments but no command (w/o -reboot or -manual).\n'
-		print 'CMDLINE="%s"' % cmdline
+		pprint('To generate a new timeline manually, follow these steps:\n\n'\
+		'1. Add the CMDLINE string to your kernel command line.\n'\
+		'2. Reboot the system.\n'\
+		'3. After reboot, re-run this tool with the same arguments but no command (w/o -reboot or -manual).\n\n'\
+		'CMDLINE="%s"' % cmdline)
 		sys.exit()
 	def blGrub(self):
 		blcmd = ''
@@ -431,7 +435,7 @@ def parseTraceLog(data):
 			if len(cg.list) < 1 or cg.invalid or (cg.end - cg.start == 0):
 				continue
 			if(not cg.postProcess()):
-				print('Sanity check failed for %s-%d' % (proc, pid))
+				pprint('Sanity check failed for %s-%d' % (proc, pid))
 				continue
 			# match cg data to devices
 			devname = data.deviceMatch(pid, cg)
@@ -442,8 +446,8 @@ def parseTraceLog(data):
 				sysvals.vprint('%s callgraph found for %s %s-%d [%f - %f]' %\
 					(kind, cg.name, proc, pid, cg.start, cg.end))
 			elif len(cg.list) > 1000000:
-				print 'WARNING: the callgraph found for %s is massive! (%d lines)' %\
-					(devname, len(cg.list))
+				pprint('WARNING: the callgraph found for %s is massive! (%d lines)' %\
+					(devname, len(cg.list)))
 
 # Function: retrieveLogs
 # Description:
@@ -528,7 +532,7 @@ def createBootGraph(data):
 	tMax = data.end
 	tTotal = tMax - t0
 	if(tTotal == 0):
-		print('ERROR: No timeline data')
+		pprint('ERROR: No timeline data')
 		return False
 	user_mode = '%.0f'%(data.tUserMode*1000)
 	last_init = '%.0f'%(tTotal*1000)
@@ -734,7 +738,7 @@ def updateCron(restore=False):
 		op.close()
 		res = call([cmd, cronfile])
 	except Exception, e:
-		print 'Exception: %s' % str(e)
+		pprint('Exception: %s' % str(e))
 		shutil.move(backfile, cronfile)
 		res = -1
 	if res != 0:
@@ -750,7 +754,7 @@ def updateGrub(restore=False):
 			call(sysvals.blexec, stderr=PIPE, stdout=PIPE,
 				env={'PATH': '.:/sbin:/usr/sbin:/usr/bin:/sbin:/bin'})
 		except Exception, e:
-			print 'Exception: %s\n' % str(e)
+			pprint('Exception: %s\n' % str(e))
 		return
 	# extract the option and create a grub config without it
 	sysvals.rootUser(True)
@@ -797,7 +801,7 @@ def updateGrub(restore=False):
 		res = call(sysvals.blexec)
 		os.remove(grubfile)
 	except Exception, e:
-		print 'Exception: %s' % str(e)
+		pprint('Exception: %s' % str(e))
 		res = -1
 	# cleanup
 	shutil.move(tempfile, grubfile)
@@ -821,7 +825,7 @@ def updateKernelParams(restore=False):
 def doError(msg, help=False):
 	if help == True:
 		printHelp()
-	print 'ERROR: %s\n' % msg
+	pprint('ERROR: %s\n' % msg)
 	sysvals.outputResult({'error':msg})
 	sys.exit()
 
@@ -829,52 +833,51 @@ def doError(msg, help=False):
 # Description:
 #	 print out the help text
 def printHelp():
-	print('')
-	print('%s v%s' % (sysvals.title, sysvals.version))
-	print('Usage: bootgraph <options> <command>')
-	print('')
-	print('Description:')
-	print('  This tool reads in a dmesg log of linux kernel boot and')
-	print('  creates an html representation of the boot timeline up to')
-	print('  the start of the init process.')
-	print('')
-	print('  If no specific command is given the tool reads the current dmesg')
-	print('  and/or ftrace log and creates a timeline')
-	print('')
-	print('  Generates output files in subdirectory: boot-yymmdd-HHMMSS')
-	print('   HTML output:                    <hostname>_boot.html')
-	print('   raw dmesg output:               <hostname>_boot_dmesg.txt')
-	print('   raw ftrace output:              <hostname>_boot_ftrace.txt')
-	print('')
-	print('Options:')
-	print('  -h            Print this help text')
-	print('  -v            Print the current tool version')
-	print('  -verbose      Print extra information during execution and analysis')
-	print('  -addlogs      Add the dmesg log to the html output')
-	print('  -result fn    Export a results table to a text file for parsing.')
-	print('  -o name       Overrides the output subdirectory name when running a new test')
-	print('                default: boot-{date}-{time}')
-	print(' [advanced]')
-	print('  -fstat        Use ftrace to add function detail and statistics (default: disabled)')
-	print('  -f/-callgraph Add callgraph detail, can be very large (default: disabled)')
-	print('  -maxdepth N   limit the callgraph data to N call levels (default: 2)')
-	print('  -mincg ms     Discard all callgraphs shorter than ms milliseconds (e.g. 0.001 for us)')
-	print('  -timeprec N   Number of significant digits in timestamps (0:S, 3:ms, [6:us])')
-	print('  -expandcg     pre-expand the callgraph data in the html output (default: disabled)')
-	print('  -func list    Limit ftrace to comma-delimited list of functions (default: do_one_initcall)')
-	print('  -cgfilter S   Filter the callgraph output in the timeline')
-	print('  -cgskip file  Callgraph functions to skip, off to disable (default: cgskip.txt)')
-	print('  -bl name      Use the following boot loader for kernel params (default: grub)')
-	print('  -reboot       Reboot the machine automatically and generate a new timeline')
-	print('  -manual       Show the steps to generate a new timeline manually (used with -reboot)')
-	print('')
-	print('Other commands:')
-	print('  -flistall     Print all functions capable of being captured in ftrace')
-	print('  -sysinfo      Print out system info extracted from BIOS')
-	print(' [redo]')
-	print('  -dmesg file   Create HTML output using dmesg input (used with -ftrace)')
-	print('  -ftrace file  Create HTML output using ftrace input (used with -dmesg)')
-	print('')
+	pprint('\n%s v%s\n'\
+	'Usage: bootgraph <options> <command>\n'\
+	'\n'\
+	'Description:\n'\
+	'  This tool reads in a dmesg log of linux kernel boot and\n'\
+	'  creates an html representation of the boot timeline up to\n'\
+	'  the start of the init process.\n'\
+	'\n'\
+	'  If no specific command is given the tool reads the current dmesg\n'\
+	'  and/or ftrace log and creates a timeline\n'\
+	'\n'\
+	'  Generates output files in subdirectory: boot-yymmdd-HHMMSS\n'\
+	'   HTML output:                    <hostname>_boot.html\n'\
+	'   raw dmesg output:               <hostname>_boot_dmesg.txt\n'\
+	'   raw ftrace output:              <hostname>_boot_ftrace.txt\n'\
+	'\n'\
+	'Options:\n'\
+	'  -h            Print this help text\n'\
+	'  -v            Print the current tool version\n'\
+	'  -verbose      Print extra information during execution and analysis\n'\
+	'  -addlogs      Add the dmesg log to the html output\n'\
+	'  -result fn    Export a results table to a text file for parsing.\n'\
+	'  -o name       Overrides the output subdirectory name when running a new test\n'\
+	'                default: boot-{date}-{time}\n'\
+	' [advanced]\n'\
+	'  -fstat        Use ftrace to add function detail and statistics (default: disabled)\n'\
+	'  -f/-callgraph Add callgraph detail, can be very large (default: disabled)\n'\
+	'  -maxdepth N   limit the callgraph data to N call levels (default: 2)\n'\
+	'  -mincg ms     Discard all callgraphs shorter than ms milliseconds (e.g. 0.001 for us)\n'\
+	'  -timeprec N   Number of significant digits in timestamps (0:S, 3:ms, [6:us])\n'\
+	'  -expandcg     pre-expand the callgraph data in the html output (default: disabled)\n'\
+	'  -func list    Limit ftrace to comma-delimited list of functions (default: do_one_initcall)\n'\
+	'  -cgfilter S   Filter the callgraph output in the timeline\n'\
+	'  -cgskip file  Callgraph functions to skip, off to disable (default: cgskip.txt)\n'\
+	'  -bl name      Use the following boot loader for kernel params (default: grub)\n'\
+	'  -reboot       Reboot the machine automatically and generate a new timeline\n'\
+	'  -manual       Show the steps to generate a new timeline manually (used with -reboot)\n'\
+	'\n'\
+	'Other commands:\n'\
+	'  -flistall     Print all functions capable of being captured in ftrace\n'\
+	'  -sysinfo      Print out system info extracted from BIOS\n'\
+	' [redo]\n'\
+	'  -dmesg file   Create HTML output using dmesg input (used with -ftrace)\n'\
+	'  -ftrace file  Create HTML output using ftrace input (used with -dmesg)\n'\
+	'' % (sysvals.title, sysvals.version))
 	return True
 
 # ----------------- MAIN --------------------
@@ -895,7 +898,7 @@ if __name__ == '__main__':
 			printHelp()
 			sys.exit()
 		elif(arg == '-v'):
-			print("Version %s" % sysvals.version)
+			pprint("Version %s" % sysvals.version)
 			sys.exit()
 		elif(arg == '-verbose'):
 			sysvals.verbose = True
@@ -1016,7 +1019,7 @@ if __name__ == '__main__':
 				print f
 		elif cmd == 'checkbl':
 			sysvals.getBootLoader()
-			print 'Boot Loader: %s\n%s' % (sysvals.bootloader, sysvals.blexec)
+			pprint('Boot Loader: %s\n%s' % (sysvals.bootloader, sysvals.blexec))
 		elif(cmd == 'sysinfo'):
 			sysvals.printSystemInfo(True)
 		sys.exit()

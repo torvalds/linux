@@ -359,8 +359,12 @@ void dm_perf_trace_timestamp(const char *func_name, unsigned int line);
  * Debug and verification hooks
  */
 
-void dm_dtn_log_begin(struct dc_context *ctx);
-void dm_dtn_log_append_v(struct dc_context *ctx, const char *msg, ...);
-void dm_dtn_log_end(struct dc_context *ctx);
+void dm_dtn_log_begin(struct dc_context *ctx,
+	struct dc_log_buffer_ctx *log_ctx);
+void dm_dtn_log_append_v(struct dc_context *ctx,
+	struct dc_log_buffer_ctx *log_ctx,
+	const char *msg, ...);
+void dm_dtn_log_end(struct dc_context *ctx,
+	struct dc_log_buffer_ctx *log_ctx);
 
 #endif /* __DM_SERVICES_H__ */

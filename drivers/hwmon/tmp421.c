@@ -226,8 +226,10 @@ static int tmp421_detect(struct i2c_client *client,
 {
 	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
-	const char * const names[] = { "TMP421", "TMP422", "TMP423",
-				       "TMP441", "TMP442" };
+	static const char * const names[] = {
+		"TMP421", "TMP422", "TMP423",
+		"TMP441", "TMP442"
+	};
 	int addr = client->addr;
 	u8 reg;
 

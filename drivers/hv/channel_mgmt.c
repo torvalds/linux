@@ -198,24 +198,19 @@ static u16 hv_get_dev_type(const struct vmbus_channel *channel)
 }
 
 /**
- * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
+ * vmbus_prep_negotiate_resp() - Create default response for Negotiate message
  * @icmsghdrp: Pointer to msg header structure
- * @icmsg_negotiate: Pointer to negotiate message structure
  * @buf: Raw buffer channel data
+ * @fw_version: The framework versions we can support.
+ * @fw_vercnt: The size of @fw_version.
+ * @srv_version: The service versions we can support.
+ * @srv_vercnt: The size of @srv_version.
+ * @nego_fw_version: The selected framework version.
+ * @nego_srv_version: The selected service version.
  *
- * @icmsghdrp is of type &struct icmsg_hdr.
+ * Note: Versions are given in decreasing order.
+ *
  * Set up and fill in default negotiate response message.
- *
- * The fw_version and fw_vercnt specifies the framework version that
- * we can support.
- *
- * The srv_version and srv_vercnt specifies the service
- * versions we can support.
- *
- * Versions are given in decreasing order.
- *
- * nego_fw_version and nego_srv_version store the selected protocol versions.
- *
  * Mainly used by Hyper-V drivers.
  */
 bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
@@ -385,21 +380,14 @@ static void vmbus_release_relid(u32 relid)
 	trace_vmbus_release_relid(&msg, ret);
 }
 
-void hv_process_channel_removal(u32 relid)
+void hv_process_channel_removal(struct vmbus_channel *channel)
 {
+	struct vmbus_channel *primary_channel;
 	unsigned long flags;
-	struct vmbus_channel *primary_channel, *channel;
 
 	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
-
-	/*
-	 * Make sure channel is valid as we may have raced.
-	 */
-	channel = relid2channel(relid);
-	if (!channel)
-		return;
-
 	BUG_ON(!channel->rescind);
+
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -429,7 +417,7 @@ void hv_process_channel_removal(u32 relid)
 		cpumask_clear_cpu(channel->target_cpu,
 				  &primary_channel->alloced_cpus_in_node);
 
-	vmbus_release_relid(relid);
+	vmbus_release_relid(channel->offermsg.child_relid);
 
 	free_channel(channel);
 }
@@ -447,60 +435,15 @@ void vmbus_free_channels(void)
 	}
 }
 
-/*
- * vmbus_process_offer - Process the offer by creating a channel/device
- * associated with this offer
- */
-static void vmbus_process_offer(struct vmbus_channel *newchannel)
+/* Note: the function can run concurrently for primary/sub channels. */
+static void vmbus_add_channel_work(struct work_struct *work)
 {
-	struct vmbus_channel *channel;
-	bool fnew = true;
+	struct vmbus_channel *newchannel =
+		container_of(work, struct vmbus_channel, add_channel_work);
+	struct vmbus_channel *primary_channel = newchannel->primary_channel;
 	unsigned long flags;
 	u16 dev_type;
 	int ret;
-
-	/* Make sure this is a new offer */
-	mutex_lock(&vmbus_connection.channel_mutex);
-
-	/*
-	 * Now that we have acquired the channel_mutex,
-	 * we can release the potentially racing rescind thread.
-	 */
-	atomic_dec(&vmbus_connection.offer_in_progress);
-
-	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
-		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
-			newchannel->offermsg.offer.if_type) &&
-			!uuid_le_cmp(channel->offermsg.offer.if_instance,
-				newchannel->offermsg.offer.if_instance)) {
-			fnew = false;
-			break;
-		}
-	}
-
-	if (fnew)
-		list_add_tail(&newchannel->listentry,
-			      &vmbus_connection.chn_list);
-
-	mutex_unlock(&vmbus_connection.channel_mutex);
-
-	if (!fnew) {
-		/*
-		 * Check to see if this is a sub-channel.
-		 */
-		if (newchannel->offermsg.offer.sub_channel_index != 0) {
-			/*
-			 * Process the sub-channel.
-			 */
-			newchannel->primary_channel = channel;
-			spin_lock_irqsave(&channel->lock, flags);
-			list_add_tail(&newchannel->sc_list, &channel->sc_list);
-			channel->num_sc++;
-			spin_unlock_irqrestore(&channel->lock, flags);
-		} else {
-			goto err_free_chan;
-		}
-	}
 
 	dev_type = hv_get_dev_type(newchannel);
 
@@ -519,27 +462,26 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	/*
 	 * This state is used to indicate a successful open
 	 * so that when we do close the channel normally, we
-	 * can cleanup properly
+	 * can cleanup properly.
 	 */
 	newchannel->state = CHANNEL_OPEN_STATE;
 
-	if (!fnew) {
-		struct hv_device *dev
-			= newchannel->primary_channel->device_obj;
+	if (primary_channel != NULL) {
+		/* newchannel is a sub-channel. */
+		struct hv_device *dev = primary_channel->device_obj;
 
 		if (vmbus_add_channel_kobj(dev, newchannel))
-			goto err_free_chan;
+			goto err_deq_chan;
 
-		if (channel->sc_creation_callback != NULL)
-			channel->sc_creation_callback(newchannel);
+		if (primary_channel->sc_creation_callback != NULL)
+			primary_channel->sc_creation_callback(newchannel);
+
 		newchannel->probe_done = true;
 		return;
 	}
 
 	/*
-	 * Start the process of binding this offer to the driver
-	 * We need to set the DeviceObject field before calling
-	 * vmbus_child_dev_add()
+	 * Start the process of binding the primary channel to the driver
 	 */
 	newchannel->device_obj = vmbus_device_create(
 		&newchannel->offermsg.offer.if_type,
@@ -568,13 +510,28 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 
 err_deq_chan:
 	mutex_lock(&vmbus_connection.channel_mutex);
-	list_del(&newchannel->listentry);
+
+	/*
+	 * We need to set the flag, otherwise
+	 * vmbus_onoffer_rescind() can be blocked.
+	 */
+	newchannel->probe_done = true;
+
+	if (primary_channel == NULL) {
+		list_del(&newchannel->listentry);
+	} else {
+		spin_lock_irqsave(&primary_channel->lock, flags);
+		list_del(&newchannel->sc_list);
+		spin_unlock_irqrestore(&primary_channel->lock, flags);
+	}
+
 	mutex_unlock(&vmbus_connection.channel_mutex);
 
 	if (newchannel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(newchannel->target_cpu,
-					 percpu_channel_deq, newchannel, true);
+					 percpu_channel_deq,
+					 newchannel, true);
 	} else {
 		percpu_channel_deq(newchannel);
 		put_cpu();
@@ -582,14 +539,104 @@ err_deq_chan:
 
 	vmbus_release_relid(newchannel->offermsg.child_relid);
 
-err_free_chan:
 	free_channel(newchannel);
+}
+
+/*
+ * vmbus_process_offer - Process the offer by creating a channel/device
+ * associated with this offer
+ */
+static void vmbus_process_offer(struct vmbus_channel *newchannel)
+{
+	struct vmbus_channel *channel;
+	struct workqueue_struct *wq;
+	unsigned long flags;
+	bool fnew = true;
+
+	mutex_lock(&vmbus_connection.channel_mutex);
+
+	/*
+	 * Now that we have acquired the channel_mutex,
+	 * we can release the potentially racing rescind thread.
+	 */
+	atomic_dec(&vmbus_connection.offer_in_progress);
+
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
+				 newchannel->offermsg.offer.if_type) &&
+		    !uuid_le_cmp(channel->offermsg.offer.if_instance,
+				 newchannel->offermsg.offer.if_instance)) {
+			fnew = false;
+			break;
+		}
+	}
+
+	if (fnew)
+		list_add_tail(&newchannel->listentry,
+			      &vmbus_connection.chn_list);
+	else {
+		/*
+		 * Check to see if this is a valid sub-channel.
+		 */
+		if (newchannel->offermsg.offer.sub_channel_index == 0) {
+			mutex_unlock(&vmbus_connection.channel_mutex);
+			/*
+			 * Don't call free_channel(), because newchannel->kobj
+			 * is not initialized yet.
+			 */
+			kfree(newchannel);
+			WARN_ON_ONCE(1);
+			return;
+		}
+		/*
+		 * Process the sub-channel.
+		 */
+		newchannel->primary_channel = channel;
+		spin_lock_irqsave(&channel->lock, flags);
+		list_add_tail(&newchannel->sc_list, &channel->sc_list);
+		spin_unlock_irqrestore(&channel->lock, flags);
+	}
+
+	mutex_unlock(&vmbus_connection.channel_mutex);
+
+	/*
+	 * vmbus_process_offer() mustn't call channel->sc_creation_callback()
+	 * directly for sub-channels, because sc_creation_callback() ->
+	 * vmbus_open() may never get the host's response to the
+	 * OPEN_CHANNEL message (the host may rescind a channel at any time,
+	 * e.g. in the case of hot removing a NIC), and vmbus_onoffer_rescind()
+	 * may not wake up the vmbus_open() as it's blocked due to a non-zero
+	 * vmbus_connection.offer_in_progress, and finally we have a deadlock.
+	 *
+	 * The above is also true for primary channels, if the related device
+	 * drivers use sync probing mode by default.
+	 *
+	 * And, usually the handling of primary channels and sub-channels can
+	 * depend on each other, so we should offload them to different
+	 * workqueues to avoid possible deadlock, e.g. in sync-probing mode,
+	 * NIC1's netvsc_subchan_work() can race with NIC2's netvsc_probe() ->
+	 * rtnl_lock(), and causes deadlock: the former gets the rtnl_lock
+	 * and waits for all the sub-channels to appear, but the latter
+	 * can't get the rtnl_lock and this blocks the handling of
+	 * sub-channels.
+	 */
+	INIT_WORK(&newchannel->add_channel_work, vmbus_add_channel_work);
+	wq = fnew ? vmbus_connection.handle_primary_chan_wq :
+		    vmbus_connection.handle_sub_chan_wq;
+	queue_work(wq, &newchannel->add_channel_work);
 }
 
 /*
  * We use this state to statically distribute the channel interrupt load.
  */
 static int next_numa_node_id;
+/*
+ * init_vp_index() accesses global variables like next_numa_node_id, and
+ * it can run concurrently for primary channels and sub-channels: see
+ * vmbus_process_offer(), so we need the lock to protect the global
+ * variables.
+ */
+static DEFINE_SPINLOCK(bind_channel_to_cpu_lock);
 
 /*
  * Starting with Win8, we can statically distribute the incoming
@@ -606,22 +653,26 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	bool perf_chn = vmbus_devs[dev_type].perf_device;
 	struct vmbus_channel *primary = channel->primary_channel;
 	int next_node;
-	struct cpumask available_mask;
+	cpumask_var_t available_mask;
 	struct cpumask *alloced_mask;
 
 	if ((vmbus_proto_version == VERSION_WS2008) ||
-	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn)) {
+	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn) ||
+	    !alloc_cpumask_var(&available_mask, GFP_KERNEL)) {
 		/*
 		 * Prior to win8, all channel interrupts are
 		 * delivered on cpu 0.
 		 * Also if the channel is not a performance critical
 		 * channel, bind it to cpu 0.
+		 * In case alloc_cpumask_var() fails, bind it to cpu 0.
 		 */
 		channel->numa_node = 0;
 		channel->target_cpu = 0;
 		channel->target_vp = hv_cpu_number_to_vp_number(0);
 		return;
 	}
+
+	spin_lock(&bind_channel_to_cpu_lock);
 
 	/*
 	 * Based on the channel affinity policy, we will assign the NUMA
@@ -653,7 +704,7 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 		cpumask_clear(alloced_mask);
 	}
 
-	cpumask_xor(&available_mask, alloced_mask,
+	cpumask_xor(available_mask, alloced_mask,
 		    cpumask_of_node(primary->numa_node));
 
 	cur_cpu = -1;
@@ -671,10 +722,10 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	}
 
 	while (true) {
-		cur_cpu = cpumask_next(cur_cpu, &available_mask);
+		cur_cpu = cpumask_next(cur_cpu, available_mask);
 		if (cur_cpu >= nr_cpu_ids) {
 			cur_cpu = -1;
-			cpumask_copy(&available_mask,
+			cpumask_copy(available_mask,
 				     cpumask_of_node(primary->numa_node));
 			continue;
 		}
@@ -704,6 +755,10 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_cpu_number_to_vp_number(cur_cpu);
+
+	spin_unlock(&bind_channel_to_cpu_lock);
+
+	free_cpumask_var(available_mask);
 }
 
 static void vmbus_wait_for_unload(void)
@@ -943,7 +998,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 			 * The channel is currently not open;
 			 * it is safe for us to cleanup the channel.
 			 */
-			hv_process_channel_removal(rescind->child_relid);
+			hv_process_channel_removal(channel);
 		} else {
 			complete(&channel->rescind_event);
 		}

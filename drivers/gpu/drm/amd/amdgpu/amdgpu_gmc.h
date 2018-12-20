@@ -30,6 +30,19 @@
 
 #include "amdgpu_irq.h"
 
+/* VA hole for 48bit addresses on Vega10 */
+#define AMDGPU_GMC_HOLE_START	0x0000800000000000ULL
+#define AMDGPU_GMC_HOLE_END	0xffff800000000000ULL
+
+/*
+ * Hardware is programmed as if the hole doesn't exists with start and end
+ * address values.
+ *
+ * This mask is used to remove the upper 16bits of the VA and so come up with
+ * the linear addr value.
+ */
+#define AMDGPU_GMC_HOLE_MASK	0x0000ffffffffffffULL
+
 struct firmware;
 
 /*
@@ -74,6 +87,20 @@ struct amdgpu_gmc_funcs {
 			   u64 *dst, u64 *flags);
 };
 
+struct amdgpu_xgmi {
+	/* from psp */
+	u64 device_id;
+	u64 hive_id;
+	/* fixed per family */
+	u64 node_segment_size;
+	/* physical node (0-3) */
+	unsigned physical_node_id;
+	/* number of nodes (0-4) */
+	unsigned num_physical_nodes;
+	/* gpu list in the same hive */
+	struct list_head head;
+};
+
 struct amdgpu_gmc {
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
@@ -81,11 +108,22 @@ struct amdgpu_gmc {
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
+	u64			agp_size;
+	u64			agp_start;
+	u64			agp_end;
 	u64			gart_size;
 	u64			gart_start;
 	u64			gart_end;
 	u64			vram_start;
 	u64			vram_end;
+	/* FB region , it's same as local vram region in single GPU, in XGMI
+	 * configuration, this region covers all GPUs in the same hive ,
+	 * each GPU in the hive has the same view of this FB region .
+	 * GPU0's vram starts at offset (0 * segment size) ,
+	 * GPU1 starts at offset (1 * segment size), etc.
+	 */
+	u64			fb_start;
+	u64			fb_end;
 	unsigned		vram_width;
 	u64			real_vram_size;
 	int			vram_mtrr;
@@ -109,7 +147,16 @@ struct amdgpu_gmc {
 	atomic_t		vm_fault_info_updated;
 
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
+
+	struct amdgpu_xgmi xgmi;
 };
+
+#define amdgpu_gmc_flush_gpu_tlb(adev, vmid) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid))
+#define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
+#define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
+#define amdgpu_gmc_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gmc.gmc_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
+#define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
+#define amdgpu_gmc_get_pte_flags(adev, flags) (adev)->gmc.gmc_funcs->get_vm_pte_flags((adev),(flags))
 
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
@@ -125,5 +172,29 @@ static inline bool amdgpu_gmc_vram_full_visible(struct amdgpu_gmc *gmc)
 
 	return (gmc->real_vram_size == gmc->visible_vram_size);
 }
+
+/**
+ * amdgpu_gmc_sign_extend - sign extend the given gmc address
+ *
+ * @addr: address to extend
+ */
+static inline uint64_t amdgpu_gmc_sign_extend(uint64_t addr)
+{
+	if (addr >= AMDGPU_GMC_HOLE_START)
+		addr |= AMDGPU_GMC_HOLE_END;
+
+	return addr;
+}
+
+void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
+			       uint64_t *addr, uint64_t *flags);
+uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo);
+uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo);
+void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
+			      u64 base);
+void amdgpu_gmc_gart_location(struct amdgpu_device *adev,
+			      struct amdgpu_gmc *mc);
+void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
+			     struct amdgpu_gmc *mc);
 
 #endif

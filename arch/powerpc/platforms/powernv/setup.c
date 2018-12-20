@@ -219,17 +219,41 @@ static void pnv_prepare_going_down(void)
 
 static void  __noreturn pnv_restart(char *cmd)
 {
-	long rc = OPAL_BUSY;
+	long rc;
 
 	pnv_prepare_going_down();
 
-	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		rc = opal_cec_reboot();
-		if (rc == OPAL_BUSY_EVENT)
-			opal_poll_events(NULL);
+	do {
+		if (!cmd)
+			rc = opal_cec_reboot();
+		else if (strcmp(cmd, "full") == 0)
+			rc = opal_cec_reboot2(OPAL_REBOOT_FULL_IPL, NULL);
 		else
+			rc = OPAL_UNSUPPORTED;
+
+		if (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+			/* Opal is busy wait for some time and retry */
+			opal_poll_events(NULL);
 			mdelay(10);
-	}
+
+		} else	if (cmd && rc) {
+			/* Unknown error while issuing reboot */
+			if (rc == OPAL_UNSUPPORTED)
+				pr_err("Unsupported '%s' reboot.\n", cmd);
+			else
+				pr_err("Unable to issue '%s' reboot. Err=%ld\n",
+				       cmd, rc);
+			pr_info("Forcing a cec-reboot\n");
+			cmd = NULL;
+			rc = OPAL_BUSY;
+
+		} else if (rc != OPAL_SUCCESS) {
+			/* Unknown error while issuing cec-reboot */
+			pr_err("Unable to reboot. Err=%ld\n", rc);
+		}
+
+	} while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT);
+
 	for (;;)
 		opal_poll_events(NULL);
 }
@@ -437,6 +461,16 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 	return ret_freq;
 }
 
+static long pnv_machine_check_early(struct pt_regs *regs)
+{
+	long handled = 0;
+
+	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
+		handled = cur_cpu_spec->machine_check_early(regs);
+
+	return handled;
+}
+
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
@@ -448,6 +482,7 @@ define_machine(powernv) {
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = NULL,
 	.calibrate_decr		= generic_calibrate_decr,
+	.machine_check_early	= pnv_machine_check_early,
 #ifdef CONFIG_KEXEC_CORE
 	.kexec_cpu_down		= pnv_kexec_cpu_down,
 #endif

@@ -104,6 +104,7 @@
 #define OP_31_XOP_LHZUX     311
 #define OP_31_XOP_MSGSNDP   142
 #define OP_31_XOP_MSGCLRP   174
+#define OP_31_XOP_TLBIE     306
 #define OP_31_XOP_MFSPR     339
 #define OP_31_XOP_LWAX      341
 #define OP_31_XOP_LHAX      343
@@ -492,6 +493,8 @@
 					__PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE | \
 					__PPC_RT(t) | __PPC_RB(b))
+#define __PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE |	\
+					       ___PPC_RT(t) | ___PPC_RB(b))
 #define PPC_ICBT(c,a,b)		stringify_in_c(.long PPC_INST_ICBT | \
 				       __PPC_CT(c) | __PPC_RA0(a) | __PPC_RB(b))
 /* PASemi instructions */

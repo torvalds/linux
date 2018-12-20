@@ -734,8 +734,8 @@ static int tw68_querycap(struct file *file, void  *priv,
 {
 	struct tw68_dev *dev = video_drvdata(file);
 
-	strcpy(cap->driver, "tw68");
-	strlcpy(cap->card, "Techwell Capture Card",
+	strscpy(cap->driver, "tw68", sizeof(cap->driver));
+	strscpy(cap->card, "Techwell Capture Card",
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	cap->device_caps =
@@ -789,7 +789,7 @@ static int tw68_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index >= FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name,
+	strscpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;

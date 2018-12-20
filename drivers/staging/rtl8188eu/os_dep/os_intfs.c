@@ -643,7 +643,7 @@ int  ips_netdrv_open(struct adapter *padapter)
 	mod_timer(&padapter->mlmepriv.dynamic_chk_timer,
 		  jiffies + msecs_to_jiffies(5000));
 
-	 return _SUCCESS;
+	return _SUCCESS;
 
 netdev_open_error:
 	DBG_88E("-ips_netdrv_open - drv_open failure, bup =%d\n", padapter->bup);

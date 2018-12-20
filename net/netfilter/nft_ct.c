@@ -279,7 +279,7 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 {
 	const struct nft_ct *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
-#ifdef CONFIG_NF_CONNTRACK_MARK
+#if defined(CONFIG_NF_CONNTRACK_MARK) || defined(CONFIG_NF_CONNTRACK_SECMARK)
 	u32 value = regs->data[priv->sreg];
 #endif
 	enum ip_conntrack_info ctinfo;
@@ -295,6 +295,14 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 		if (ct->mark != value) {
 			ct->mark = value;
 			nf_conntrack_event_cache(IPCT_MARK, ct);
+		}
+		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	case NFT_CT_SECMARK:
+		if (ct->secmark != value) {
+			ct->secmark = value;
+			nf_conntrack_event_cache(IPCT_SECMARK, ct);
 		}
 		break;
 #endif
@@ -565,6 +573,13 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		len = sizeof(u32);
 		break;
 #endif
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	case NFT_CT_SECMARK:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
+		len = sizeof(u32);
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -776,9 +791,6 @@ nft_ct_timeout_parse_policy(void *timeouts,
 	struct nlattr **tb;
 	int ret = 0;
 
-	if (!l4proto->ctnl_timeout.nlattr_to_obj)
-		return 0;
-
 	tb = kcalloc(l4proto->ctnl_timeout.nlattr_max + 1, sizeof(*tb),
 		     GFP_KERNEL);
 
@@ -858,7 +870,7 @@ static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 	l4num = nla_get_u8(tb[NFTA_CT_TIMEOUT_L4PROTO]);
 	priv->l4proto = l4num;
 
-	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
+	l4proto = nf_ct_l4proto_find_get(l4num);
 
 	if (l4proto->l4proto != l4num) {
 		ret = -EOPNOTSUPP;

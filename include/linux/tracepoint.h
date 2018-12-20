@@ -99,6 +99,29 @@ extern void syscall_unregfunc(void);
 #define TRACE_DEFINE_ENUM(x)
 #define TRACE_DEFINE_SIZEOF(x)
 
+#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
+{
+	return offset_to_ptr(p);
+}
+
+#define __TRACEPOINT_ENTRY(name)					\
+	asm("	.section \"__tracepoints_ptrs\", \"a\"		\n"	\
+	    "	.balign 4					\n"	\
+	    "	.long 	__tracepoint_" #name " - .		\n"	\
+	    "	.previous					\n")
+#else
+static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
+{
+	return *p;
+}
+
+#define __TRACEPOINT_ENTRY(name)					 \
+	static tracepoint_ptr_t __tracepoint_ptr_##name __used		 \
+	__attribute__((section("__tracepoints_ptrs"))) =		 \
+		&__tracepoint_##name
+#endif
+
 #endif /* _LINUX_TRACEPOINT_H */
 
 /*
@@ -143,7 +166,7 @@ extern void syscall_unregfunc(void);
 		struct tracepoint_func *it_func_ptr;			\
 		void *it_func;						\
 		void *__data;						\
-		int __maybe_unused idx = 0;				\
+		int __maybe_unused __idx = 0;				\
 									\
 		if (!(cond))						\
 			return;						\
@@ -159,7 +182,7 @@ extern void syscall_unregfunc(void);
 		 * doesn't work from the idle path.			\
 		 */							\
 		if (rcuidle) {						\
-			idx = srcu_read_lock_notrace(&tracepoint_srcu);	\
+			__idx = srcu_read_lock_notrace(&tracepoint_srcu);\
 			rcu_irq_enter_irqson();				\
 		}							\
 									\
@@ -175,7 +198,7 @@ extern void syscall_unregfunc(void);
 									\
 		if (rcuidle) {						\
 			rcu_irq_exit_irqson();				\
-			srcu_read_unlock_notrace(&tracepoint_srcu, idx);\
+			srcu_read_unlock_notrace(&tracepoint_srcu, __idx);\
 		}							\
 									\
 		preempt_enable_notrace();				\
@@ -252,19 +275,6 @@ extern void syscall_unregfunc(void);
 	{								\
 		return static_key_false(&__tracepoint_##name.key);	\
 	}
-
-#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
-#define __TRACEPOINT_ENTRY(name)					\
-	asm("	.section \"__tracepoints_ptrs\", \"a\"		\n"	\
-	    "	.balign 4					\n"	\
-	    "	.long 	__tracepoint_" #name " - .		\n"	\
-	    "	.previous					\n")
-#else
-#define __TRACEPOINT_ENTRY(name)					 \
-	static struct tracepoint * const __tracepoint_ptr_##name __used	 \
-	__attribute__((section("__tracepoints_ptrs"))) =		 \
-		&__tracepoint_##name
-#endif
 
 /*
  * We have no guarantee that gcc and the linker won't up-align the tracepoint

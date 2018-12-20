@@ -175,13 +175,12 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	}
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		ipv4_update_pmtu(skb, net, info, t->parms.link, 0,
-				 iph->protocol, 0);
+		ipv4_update_pmtu(skb, net, info, t->parms.link, iph->protocol);
 		goto out;
 	}
 
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, net, t->parms.link, 0, iph->protocol, 0);
+		ipv4_redirect(skb, net, t->parms.link, iph->protocol);
 		goto out;
 	}
 

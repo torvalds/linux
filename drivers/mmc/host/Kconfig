@@ -34,6 +34,16 @@ config MMC_QCOM_DML
 
 	  if unsure, say N.
 
+config MMC_STM32_SDMMC
+	bool "STMicroelectronics STM32 SDMMC Controller"
+	depends on MMC_ARMMMCI
+	default y
+	help
+	  This selects the STMicroelectronics STM32 SDMMC host controller.
+	  If you have a STM32 sdmmc host with internal DMA say Y here.
+
+	  If unsure, say N.
+
 config MMC_PXA
 	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA
@@ -345,6 +355,7 @@ config MMC_SDHCI_IPROC
 	tristate "SDHCI support for the BCM2835 & iProc SD/MMC Controller"
 	depends on ARCH_BCM2835 || ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MMC_SDHCI_PLTFM
+	depends on OF || ACPI
 	default ARCH_BCM_IPROC
 	select MMC_SDHCI_IO_ACCESSORS
 	help
@@ -592,6 +603,19 @@ config MMC_SDRICOH_CS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sdricoh_cs.
 
+config MMC_SDHCI_SPRD
+	tristate "Spreadtrum SDIO host Controller"
+	depends on ARCH_SPRD
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the SDIO Host Controller in Spreadtrum
+	  SoCs, this driver supports R11(IP version: R11P0).
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_TMIO_CORE
 	tristate
 
@@ -622,13 +646,23 @@ config MMC_SDHI_SYS_DMAC
 
 config MMC_SDHI_INTERNAL_DMAC
 	tristate "DMA for SDHI SD/SDIO controllers using on-chip bus mastering"
-	depends on ARM64 || COMPILE_TEST
+	depends on ARM64 || ARCH_R8A77470 || COMPILE_TEST
 	depends on MMC_SDHI
-	default MMC_SDHI if ARM64
+	default MMC_SDHI if (ARM64 || ARCH_R8A77470)
 	help
 	  This provides DMA support for SDHI SD/SDIO controllers
 	  using on-chip bus mastering. This supports the controllers
 	  found in arm64 based SoCs.
+
+config MMC_UNIPHIER
+	tristate "UniPhier SD/eMMC Host Controller support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF
+	select MMC_TMIO_CORE
+	help
+	  This provides support for the SD/eMMC controller found in
+	  UniPhier SoCs. The eMMC variant of this controller is used
+	  only for 32-bit SoCs.
 
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
@@ -772,7 +806,7 @@ config MMC_SH_MMCIF
 
 config MMC_JZ4740
 	tristate "Ingenic JZ47xx SD/Multimedia Card Interface support"
-	depends on MACH_JZ4740 || MACH_JZ4780
+	depends on MIPS
 	help
 	  This selects support for the SD/MMC controller on Ingenic
 	  JZ4740, JZ4750, JZ4770 and JZ4780 SoCs.

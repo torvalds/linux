@@ -954,7 +954,8 @@ static int s5k4ecgx_probe(struct i2c_client *client,
 	sd = &priv->sd;
 	/* Registering subdev */
 	v4l2_i2c_subdev_init(sd, client, &s5k4ecgx_ops);
-	strlcpy(sd->name, S5K4ECGX_DRIVER_NAME, sizeof(sd->name));
+	/* Static name; NEVER use in new drivers! */
+	strscpy(sd->name, S5K4ECGX_DRIVER_NAME, sizeof(sd->name));
 
 	sd->internal_ops = &s5k4ecgx_subdev_internal_ops;
 	/* Support v4l2 sub-device user space API */

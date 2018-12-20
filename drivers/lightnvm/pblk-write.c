@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -16,6 +17,7 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 
 static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 				    struct pblk_c_ctx *c_ctx)
@@ -81,8 +83,7 @@ static void pblk_complete_write(struct pblk *pblk, struct nvm_rq *rqd,
 #ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_sub(c_ctx->nr_valid, &pblk->inflight_writes);
 #endif
-
-	pblk_up_rq(pblk, rqd->ppa_list, rqd->nr_ppas, c_ctx->lun_bitmap);
+	pblk_up_rq(pblk, c_ctx->lun_bitmap);
 
 	pos = pblk_rb_sync_init(&pblk->rwb, &flags);
 	if (pos == c_ctx->sentry) {
@@ -106,14 +107,12 @@ retry:
 /* Map remaining sectors in chunk, starting from ppa */
 static void pblk_map_remaining(struct pblk *pblk, struct ppa_addr *ppa)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line *line;
 	struct ppa_addr map_ppa = *ppa;
 	u64 paddr;
 	int done = 0;
 
-	line = &pblk->lines[pblk_ppa_to_line(*ppa)];
+	line = pblk_ppa_to_line(pblk, *ppa);
 	spin_lock(&line->lock);
 
 	while (!done)  {
@@ -125,15 +124,7 @@ static void pblk_map_remaining(struct pblk *pblk, struct ppa_addr *ppa)
 		if (!test_and_set_bit(paddr, line->invalid_bitmap))
 			le32_add_cpu(line->vsc, -1);
 
-		if (geo->version == NVM_OCSSD_SPEC_12) {
-			map_ppa.ppa++;
-			if (map_ppa.g.pg == geo->num_pg)
-				done = 1;
-		} else {
-			map_ppa.m.sec++;
-			if (map_ppa.m.sec == geo->clba)
-				done = 1;
-		}
+		done = nvm_next_ppa_in_chk(pblk->dev, &map_ppa);
 	}
 
 	line->w_err_gc->has_write_err = 1;
@@ -149,12 +140,11 @@ static void pblk_prepare_resubmit(struct pblk *pblk, unsigned int sentry,
 	struct pblk_w_ctx *w_ctx;
 	struct ppa_addr ppa_l2p;
 	int flags;
-	unsigned int pos, i;
+	unsigned int i;
 
 	spin_lock(&pblk->trans_lock);
-	pos = sentry;
 	for (i = 0; i < nr_entries; i++) {
-		entry = &rb->entries[pos];
+		entry = &rb->entries[pblk_rb_ptr_wrap(rb, sentry, i)];
 		w_ctx = &entry->w_ctx;
 
 		/* Check if the lba has been overwritten */
@@ -168,13 +158,11 @@ static void pblk_prepare_resubmit(struct pblk *pblk, unsigned int sentry,
 		/* Release flags on write context. Protect from writes */
 		smp_store_release(&w_ctx->flags, flags);
 
-		/* Decrese the reference count to the line as we will
+		/* Decrease the reference count to the line as we will
 		 * re-map these entries
 		 */
-		line = &pblk->lines[pblk_ppa_to_line(w_ctx->ppa)];
+		line = pblk_ppa_to_line(pblk, w_ctx->ppa);
 		kref_put(&line->ref, pblk_line_put);
-
-		pos = (pos + 1) & (rb->nr_entries - 1);
 	}
 	spin_unlock(&pblk->trans_lock);
 }
@@ -208,19 +196,14 @@ static void pblk_submit_rec(struct work_struct *work)
 	struct pblk *pblk = recovery->pblk;
 	struct nvm_rq *rqd = recovery->rqd;
 	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
-	struct ppa_addr *ppa_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
 	pblk_log_write_err(pblk, rqd);
-
-	if (rqd->nr_ppas == 1)
-		ppa_list = &rqd->ppa_addr;
-	else
-		ppa_list = rqd->ppa_list;
 
 	pblk_map_remaining(pblk, ppa_list);
 	pblk_queue_resubmit(pblk, c_ctx);
 
-	pblk_up_rq(pblk, rqd->ppa_list, rqd->nr_ppas, c_ctx->lun_bitmap);
+	pblk_up_rq(pblk, c_ctx->lun_bitmap);
 	if (c_ctx->nr_padded)
 		pblk_bio_free_pages(pblk, rqd->bio, c_ctx->nr_valid,
 							c_ctx->nr_padded);
@@ -257,11 +240,13 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 	if (rqd->error) {
 		pblk_end_w_fail(pblk, rqd);
 		return;
-	}
+	} else {
+		if (trace_pblk_chunk_state_enabled())
+			pblk_check_chunk_state_update(pblk, rqd);
 #ifdef CONFIG_NVM_PBLK_DEBUG
-	else
 		WARN_ONCE(rqd->bio->bi_status, "pblk: corrupted write error\n");
 #endif
+	}
 
 	pblk_complete_write(pblk, rqd, c_ctx);
 	atomic_dec(&pblk->inflight_io);
@@ -273,14 +258,18 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 	struct pblk_g_ctx *m_ctx = nvm_rq_to_pdu(rqd);
 	struct pblk_line *line = m_ctx->private;
 	struct pblk_emeta *emeta = line->emeta;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int sync;
 
-	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_up_chunk(pblk, ppa_list[0]);
 
 	if (rqd->error) {
 		pblk_log_write_err(pblk, rqd);
 		pblk_err(pblk, "metadata I/O failed. Line %d\n", line->id);
 		line->w_err_gc->has_write_err = 1;
+	} else {
+		if (trace_pblk_chunk_state_enabled())
+			pblk_check_chunk_state_update(pblk, rqd);
 	}
 
 	sync = atomic_add_return(rqd->nr_ppas, &emeta->sync);
@@ -294,27 +283,16 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 }
 
 static int pblk_alloc_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
-			   unsigned int nr_secs,
-			   nvm_end_io_fn(*end_io))
+			   unsigned int nr_secs, nvm_end_io_fn(*end_io))
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-
 	/* Setup write request */
 	rqd->opcode = NVM_OP_PWRITE;
 	rqd->nr_ppas = nr_secs;
-	rqd->flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
+	rqd->is_seq = 1;
 	rqd->private = pblk;
 	rqd->end_io = end_io;
 
-	rqd->meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
-							&rqd->dma_meta_list);
-	if (!rqd->meta_list)
-		return -ENOMEM;
-
-	rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size;
-	rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size;
-
-	return 0;
+	return pblk_alloc_rqd_meta(pblk, rqd);
 }
 
 static int pblk_setup_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
@@ -375,6 +353,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_emeta *emeta = meta_line->emeta;
+	struct ppa_addr *ppa_list;
 	struct pblk_g_ctx *m_ctx;
 	struct bio *bio;
 	struct nvm_rq *rqd;
@@ -409,22 +388,22 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	if (ret)
 		goto fail_free_bio;
 
+	ppa_list = nvm_rq_to_ppa_list(rqd);
 	for (i = 0; i < rqd->nr_ppas; ) {
 		spin_lock(&meta_line->lock);
 		paddr = __pblk_alloc_page(pblk, meta_line, rq_ppas);
 		spin_unlock(&meta_line->lock);
 		for (j = 0; j < rq_ppas; j++, i++, paddr++)
-			rqd->ppa_list[i] = addr_to_gen_ppa(pblk, paddr, id);
+			ppa_list[i] = addr_to_gen_ppa(pblk, paddr, id);
 	}
 
+	spin_lock(&l_mg->close_lock);
 	emeta->mem += rq_len;
-	if (emeta->mem >= lm->emeta_len[0]) {
-		spin_lock(&l_mg->close_lock);
+	if (emeta->mem >= lm->emeta_len[0])
 		list_del(&meta_line->list);
-		spin_unlock(&l_mg->close_lock);
-	}
+	spin_unlock(&l_mg->close_lock);
 
-	pblk_down_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_down_chunk(pblk, ppa_list[0]);
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
@@ -435,7 +414,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	return NVM_IO_OK;
 
 fail_rollback:
-	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_up_chunk(pblk, ppa_list[0]);
 	spin_lock(&l_mg->close_lock);
 	pblk_dealloc_page(pblk, meta_line, rq_ppas);
 	list_add(&meta_line->list, &meta_line->list);
@@ -491,14 +470,15 @@ static struct pblk_line *pblk_should_submit_meta_io(struct pblk *pblk,
 	struct pblk_line *meta_line;
 
 	spin_lock(&l_mg->close_lock);
-retry:
 	if (list_empty(&l_mg->emeta_list)) {
 		spin_unlock(&l_mg->close_lock);
 		return NULL;
 	}
 	meta_line = list_first_entry(&l_mg->emeta_list, struct pblk_line, list);
-	if (meta_line->emeta->mem >= lm->emeta_len[0])
-		goto retry;
+	if (meta_line->emeta->mem >= lm->emeta_len[0]) {
+		spin_unlock(&l_mg->close_lock);
+		return NULL;
+	}
 	spin_unlock(&l_mg->close_lock);
 
 	if (!pblk_valid_meta_ppa(pblk, meta_line, data_rqd))

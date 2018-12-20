@@ -3930,7 +3930,6 @@ static void qlcnic_82xx_io_resume(struct pci_dev *pdev)
 	u32 state;
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
 	if (state == QLCNIC_DEV_READY && test_and_clear_bit(__QLCNIC_AER,
 							    &adapter->state))

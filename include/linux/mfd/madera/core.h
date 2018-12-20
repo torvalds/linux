@@ -148,6 +148,7 @@ struct snd_soc_dapm_context;
  * @internal_dcvdd:	true if DCVDD is supplied from the internal LDO1
  * @pdata:		our pdata
  * @irq_dev:		the irqchip child driver device
+ * @irq_data:		pointer to irqchip data for the child irqchip driver
  * @irq:		host irq number from SPI or I2C configuration
  * @out_clamp:		indicates output clamp state for each analogue output
  * @out_shorted:	indicates short circuit state for each analogue output
@@ -175,6 +176,7 @@ struct madera {
 	struct madera_pdata pdata;
 
 	struct device *irq_dev;
+	struct regmap_irq_chip_data *irq_data;
 	int irq;
 
 	unsigned int num_micbias;

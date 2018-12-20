@@ -207,7 +207,8 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 #define CDC_WAR_DATA_CE     4
 
 /* Wait up to this many Ms for a Diagnostic Access CE operation to complete */
-#define DIAG_ACCESS_CE_TIMEOUT_MS 10
+#define DIAG_ACCESS_CE_TIMEOUT_US 10000 /* 10 ms */
+#define DIAG_ACCESS_CE_WAIT_US	50
 
 void ath10k_pci_write32(struct ath10k *ar, u32 offset, u32 value);
 void ath10k_pci_soc_write32(struct ath10k *ar, u32 addr, u32 val);

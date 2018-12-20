@@ -22,6 +22,7 @@
 #include <linux/workqueue.h>
 
 struct device;
+struct led_pattern;
 /*
  * LED Core
  */
@@ -87,6 +88,10 @@ struct led_classdev {
 	int		(*blink_set)(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,
 				     unsigned long *delay_off);
+
+	int (*pattern_set)(struct led_classdev *led_cdev,
+			   struct led_pattern *pattern, u32 len, int repeat);
+	int (*pattern_clear)(struct led_classdev *led_cdev);
 
 	struct device		*dev;
 	const struct attribute_group	**groups;
@@ -471,5 +476,15 @@ extern void led_classdev_notify_brightness_hw_changed(
 static inline void led_classdev_notify_brightness_hw_changed(
 	struct led_classdev *led_cdev, enum led_brightness brightness) { }
 #endif
+
+/**
+ * struct led_pattern - pattern interval settings
+ * @delta_t: pattern interval delay, in milliseconds
+ * @brightness: pattern interval brightness
+ */
+struct led_pattern {
+	u32 delta_t;
+	int brightness;
+};
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

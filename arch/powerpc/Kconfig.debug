@@ -2,7 +2,6 @@
 
 config PPC_DISABLE_WERROR
 	bool "Don't build arch/powerpc code with -Werror"
-	default n
 	help
 	  This option tells the compiler NOT to build the code under
 	  arch/powerpc with the -Werror flag (which means warnings
@@ -56,7 +55,6 @@ config PPC_EMULATED_STATS
 config CODE_PATCHING_SELFTEST
 	bool "Run self-tests of the code-patching code"
 	depends on DEBUG_KERNEL
-	default n
 
 config JUMP_LABEL_FEATURE_CHECKS
 	bool "Enable use of jump label for cpu/mmu_has_feature()"
@@ -70,7 +68,6 @@ config JUMP_LABEL_FEATURE_CHECKS
 config JUMP_LABEL_FEATURE_CHECK_DEBUG
 	bool "Do extra check on feature fixup calls"
 	depends on DEBUG_KERNEL && JUMP_LABEL_FEATURE_CHECKS
-	default n
 	help
 	  This tries to catch incorrect usage of cpu_has_feature() and
 	  mmu_has_feature() in the code.
@@ -80,16 +77,13 @@ config JUMP_LABEL_FEATURE_CHECK_DEBUG
 config FTR_FIXUP_SELFTEST
 	bool "Run self-tests of the feature-fixup code"
 	depends on DEBUG_KERNEL
-	default n
 
 config MSI_BITMAP_SELFTEST
 	bool "Run self-tests of the MSI bitmap code"
 	depends on DEBUG_KERNEL
-	default n
 
 config PPC_IRQ_SOFT_MASK_DEBUG
 	bool "Include extra checks for powerpc irq soft masking"
-	default n
 
 config XMON
 	bool "Include xmon kernel debugger"

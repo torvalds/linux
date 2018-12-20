@@ -115,8 +115,8 @@ int tegra_xusb_lane_parse_dt(struct tegra_xusb_lane *lane,
 
 	err = match_string(lane->soc->funcs, lane->soc->num_funcs, function);
 	if (err < 0) {
-		dev_err(dev, "invalid function \"%s\" for lane \"%s\"\n",
-			function, np->name);
+		dev_err(dev, "invalid function \"%s\" for lane \"%pOFn\"\n",
+			function, np);
 		return err;
 	}
 

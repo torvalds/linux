@@ -447,15 +447,15 @@ static void s5m8767_regulator_config_ext_control(struct s5m8767_info *s5m8767,
 	}
 	if (mode != S5M8767_ENCTRL_USE_GPIO) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %s: mismatched op_mode (%x), ignoring\n",
-				rdata->reg_node->name, mode);
+				"ext-control for %pOFn: mismatched op_mode (%x), ignoring\n",
+				rdata->reg_node, mode);
 		return;
 	}
 
 	if (!rdata->ext_control_gpiod) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %s: GPIO not valid, ignoring\n",
-			 rdata->reg_node->name);
+				"ext-control for %pOFn: GPIO not valid, ignoring\n",
+			 rdata->reg_node);
 		return;
 	}
 
@@ -566,17 +566,18 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 		if (i == ARRAY_SIZE(regulators)) {
 			dev_warn(iodev->dev,
-			"don't know how to configure regulator %s\n",
-			reg_np->name);
+			"don't know how to configure regulator %pOFn\n",
+			reg_np);
 			continue;
 		}
 
-		rdata->ext_control_gpiod = devm_gpiod_get_from_of_node(&pdev->dev,
-								       reg_np,
-								       "s5m8767,pmic-ext-control-gpios",
-								       0,
-								       GPIOD_OUT_HIGH,
-								       "s5m8767");
+		rdata->ext_control_gpiod = devm_gpiod_get_from_of_node(
+			&pdev->dev,
+			reg_np,
+			"s5m8767,pmic-ext-control-gpios",
+			0,
+			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+			"s5m8767");
 		if (IS_ERR(rdata->ext_control_gpiod))
 			return PTR_ERR(rdata->ext_control_gpiod);
 

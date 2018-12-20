@@ -405,7 +405,7 @@ static int fc2580_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 
 	dev_dbg(&client->dev, "index=%d\n", v->index);
 
-	strlcpy(v->name, "FCI FC2580", sizeof(v->name));
+	strscpy(v->name, "FCI FC2580", sizeof(v->name));
 	v->type = V4L2_TUNER_RF;
 	v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 	v->rangelow  = bands[0].rangelow;

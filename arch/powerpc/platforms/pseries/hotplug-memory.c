@@ -101,11 +101,12 @@ static struct property *dlpar_clone_property(struct property *prop,
 	return new_prop;
 }
 
-static u32 find_aa_index(struct device_node *dr_node,
-			 struct property *ala_prop, const u32 *lmb_assoc)
+static bool find_aa_index(struct device_node *dr_node,
+			 struct property *ala_prop,
+			 const u32 *lmb_assoc, u32 *aa_index)
 {
-	u32 *assoc_arrays;
-	u32 aa_index;
+	u32 *assoc_arrays, new_prop_size;
+	struct property *new_prop;
 	int aa_arrays, aa_array_entries, aa_array_sz;
 	int i, index;
 
@@ -121,54 +122,48 @@ static u32 find_aa_index(struct device_node *dr_node,
 	aa_array_entries = be32_to_cpu(assoc_arrays[1]);
 	aa_array_sz = aa_array_entries * sizeof(u32);
 
-	aa_index = -1;
 	for (i = 0; i < aa_arrays; i++) {
 		index = (i * aa_array_entries) + 2;
 
 		if (memcmp(&assoc_arrays[index], &lmb_assoc[1], aa_array_sz))
 			continue;
 
-		aa_index = i;
-		break;
+		*aa_index = i;
+		return true;
 	}
 
-	if (aa_index == -1) {
-		struct property *new_prop;
-		u32 new_prop_size;
+	new_prop_size = ala_prop->length + aa_array_sz;
+	new_prop = dlpar_clone_property(ala_prop, new_prop_size);
+	if (!new_prop)
+		return false;
 
-		new_prop_size = ala_prop->length + aa_array_sz;
-		new_prop = dlpar_clone_property(ala_prop, new_prop_size);
-		if (!new_prop)
-			return -1;
+	assoc_arrays = new_prop->value;
 
-		assoc_arrays = new_prop->value;
+	/* increment the number of entries in the lookup array */
+	assoc_arrays[0] = cpu_to_be32(aa_arrays + 1);
 
-		/* increment the number of entries in the lookup array */
-		assoc_arrays[0] = cpu_to_be32(aa_arrays + 1);
+	/* copy the new associativity into the lookup array */
+	index = aa_arrays * aa_array_entries + 2;
+	memcpy(&assoc_arrays[index], &lmb_assoc[1], aa_array_sz);
 
-		/* copy the new associativity into the lookup array */
-		index = aa_arrays * aa_array_entries + 2;
-		memcpy(&assoc_arrays[index], &lmb_assoc[1], aa_array_sz);
+	of_update_property(dr_node, new_prop);
 
-		of_update_property(dr_node, new_prop);
-
-		/*
-		 * The associativity lookup array index for this lmb is
-		 * number of entries - 1 since we added its associativity
-		 * to the end of the lookup array.
-		 */
-		aa_index = be32_to_cpu(assoc_arrays[0]) - 1;
-	}
-
-	return aa_index;
+	/*
+	 * The associativity lookup array index for this lmb is
+	 * number of entries - 1 since we added its associativity
+	 * to the end of the lookup array.
+	 */
+	*aa_index = be32_to_cpu(assoc_arrays[0]) - 1;
+	return true;
 }
 
-static u32 lookup_lmb_associativity_index(struct drmem_lmb *lmb)
+static int update_lmb_associativity_index(struct drmem_lmb *lmb)
 {
 	struct device_node *parent, *lmb_node, *dr_node;
 	struct property *ala_prop;
 	const u32 *lmb_assoc;
 	u32 aa_index;
+	bool found;
 
 	parent = of_find_node_by_path("/");
 	if (!parent)
@@ -200,46 +195,17 @@ static u32 lookup_lmb_associativity_index(struct drmem_lmb *lmb)
 		return -ENODEV;
 	}
 
-	aa_index = find_aa_index(dr_node, ala_prop, lmb_assoc);
+	found = find_aa_index(dr_node, ala_prop, lmb_assoc, &aa_index);
 
 	dlpar_free_cc_nodes(lmb_node);
-	return aa_index;
-}
 
-static int dlpar_add_device_tree_lmb(struct drmem_lmb *lmb)
-{
-	int rc, aa_index;
-
-	lmb->flags |= DRCONF_MEM_ASSIGNED;
-
-	aa_index = lookup_lmb_associativity_index(lmb);
-	if (aa_index < 0) {
-		pr_err("Couldn't find associativity index for drc index %x\n",
-		       lmb->drc_index);
-		return aa_index;
+	if (!found) {
+		pr_err("Could not find LMB associativity\n");
+		return -1;
 	}
 
 	lmb->aa_index = aa_index;
-
-	rtas_hp_event = true;
-	rc = drmem_update_dt();
-	rtas_hp_event = false;
-
-	return rc;
-}
-
-static int dlpar_remove_device_tree_lmb(struct drmem_lmb *lmb)
-{
-	int rc;
-
-	lmb->flags &= ~DRCONF_MEM_ASSIGNED;
-	lmb->aa_index = 0xffffffff;
-
-	rtas_hp_event = true;
-	rc = drmem_update_dt();
-	rtas_hp_event = false;
-
-	return rc;
+	return 0;
 }
 
 static struct memory_block *lmb_to_memblock(struct drmem_lmb *lmb)
@@ -334,7 +300,7 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
 	nid = memory_add_physaddr_to_nid(base);
 
 	for (i = 0; i < sections_per_block; i++) {
-		remove_memory(nid, base, MIN_MEMORY_BLOCK_SIZE);
+		__remove_memory(nid, base, MIN_MEMORY_BLOCK_SIZE);
 		base += MIN_MEMORY_BLOCK_SIZE;
 	}
 
@@ -423,12 +389,14 @@ static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 	block_sz = pseries_memory_block_size();
 	nid = memory_add_physaddr_to_nid(lmb->base_addr);
 
-	remove_memory(nid, lmb->base_addr, block_sz);
+	__remove_memory(nid, lmb->base_addr, block_sz);
 
 	/* Update memory regions for memory remove */
 	memblock_remove(lmb->base_addr, block_sz);
 
-	dlpar_remove_device_tree_lmb(lmb);
+	invalidate_lmb_associativity_index(lmb);
+	lmb->flags &= ~DRCONF_MEM_ASSIGNED;
+
 	return 0;
 }
 
@@ -688,10 +656,8 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
 	if (lmb->flags & DRCONF_MEM_ASSIGNED)
 		return -EINVAL;
 
-	rc = dlpar_add_device_tree_lmb(lmb);
+	rc = update_lmb_associativity_index(lmb);
 	if (rc) {
-		pr_err("Couldn't update device tree for drc index %x\n",
-		       lmb->drc_index);
 		dlpar_release_drc(lmb->drc_index);
 		return rc;
 	}
@@ -702,16 +668,16 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
 	nid = memory_add_physaddr_to_nid(lmb->base_addr);
 
 	/* Add the memory */
-	rc = add_memory(nid, lmb->base_addr, block_sz);
+	rc = __add_memory(nid, lmb->base_addr, block_sz);
 	if (rc) {
-		dlpar_remove_device_tree_lmb(lmb);
+		invalidate_lmb_associativity_index(lmb);
 		return rc;
 	}
 
 	rc = dlpar_online_lmb(lmb);
 	if (rc) {
-		remove_memory(nid, lmb->base_addr, block_sz);
-		dlpar_remove_device_tree_lmb(lmb);
+		__remove_memory(nid, lmb->base_addr, block_sz);
+		invalidate_lmb_associativity_index(lmb);
 	} else {
 		lmb->flags |= DRCONF_MEM_ASSIGNED;
 	}
@@ -956,6 +922,12 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 		pr_err("Invalid action (%d) specified\n", hp_elog->action);
 		rc = -EINVAL;
 		break;
+	}
+
+	if (!rc) {
+		rtas_hp_event = true;
+		rc = drmem_update_dt();
+		rtas_hp_event = false;
 	}
 
 	unlock_device_hotplug();

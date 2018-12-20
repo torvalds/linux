@@ -146,6 +146,7 @@ static const struct net_device_ops mlx5i_pkey_netdev_ops = {
 	.ndo_open                = mlx5i_pkey_open,
 	.ndo_stop                = mlx5i_pkey_close,
 	.ndo_init                = mlx5i_pkey_dev_init,
+	.ndo_get_stats64         = mlx5i_get_stats,
 	.ndo_uninit              = mlx5i_pkey_dev_cleanup,
 	.ndo_change_mtu          = mlx5i_pkey_change_mtu,
 	.ndo_do_ioctl            = mlx5i_pkey_ioctl,
@@ -274,14 +275,17 @@ static int mlx5i_pkey_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
-static void mlx5i_pkey_init(struct mlx5_core_dev *mdev,
-			     struct net_device *netdev,
-			     const struct mlx5e_profile *profile,
-			     void *ppriv)
+static int mlx5i_pkey_init(struct mlx5_core_dev *mdev,
+			   struct net_device *netdev,
+			   const struct mlx5e_profile *profile,
+			   void *ppriv)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
+	int err;
 
-	mlx5i_init(mdev, netdev, profile, ppriv);
+	err = mlx5i_init(mdev, netdev, profile, ppriv);
+	if (err)
+		return err;
 
 	/* Override parent ndo */
 	netdev->netdev_ops = &mlx5i_pkey_netdev_ops;
@@ -291,12 +295,14 @@ static void mlx5i_pkey_init(struct mlx5_core_dev *mdev,
 
 	/* Use dummy rqs */
 	priv->channels.params.log_rq_mtu_frames = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
+
+	return 0;
 }
 
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
 static void mlx5i_pkey_cleanup(struct mlx5e_priv *priv)
 {
-	/* Do nothing .. */
+	mlx5i_cleanup(priv);
 }
 
 static int mlx5i_pkey_init_tx(struct mlx5e_priv *priv)
@@ -345,7 +351,6 @@ static const struct mlx5e_profile mlx5i_pkey_nic_profile = {
 	.enable		   = NULL,
 	.disable	   = NULL,
 	.update_stats	   = NULL,
-	.max_nch	   = mlx5e_get_max_num_channels,
 	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = NULL, /* Not supported */
 	.max_tc		   = MLX5I_MAX_NUM_TC,

@@ -345,7 +345,8 @@ static const struct regmap_config tmp108_regmap_config = {
 	.volatile_reg = tmp108_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 	.cache_type = REGCACHE_RBTREE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int tmp108_probe(struct i2c_client *client,

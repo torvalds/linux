@@ -59,7 +59,7 @@ static struct rc_map_list imon_rsc_map = {
 	.map = {
 		.scan     = imon_rsc,
 		.size     = ARRAY_SIZE(imon_rsc),
-		.rc_proto = RC_PROTO_NEC,
+		.rc_proto = RC_PROTO_NECX,
 		.name     = RC_MAP_IMON_RSC,
 	}
 };

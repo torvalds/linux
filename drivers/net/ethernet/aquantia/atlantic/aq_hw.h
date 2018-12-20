@@ -112,7 +112,7 @@ struct aq_hw_s {
 	const struct aq_fw_ops *aq_fw_ops;
 	void __iomem *mmio;
 	struct aq_hw_link_status_s aq_link_status;
-	struct hw_aq_atl_utils_mbox mbox;
+	struct hw_atl_utils_mbox mbox;
 	struct hw_atl_stats_s last_stats;
 	struct aq_stats_s curr_stats;
 	u64 speed;
@@ -124,7 +124,7 @@ struct aq_hw_s {
 	u32 mbox_addr;
 	u32 rpc_addr;
 	u32 rpc_tid;
-	struct hw_aq_atl_utils_fw_rpc rpc;
+	struct hw_atl_utils_fw_rpc rpc;
 };
 
 struct aq_ring_s;
@@ -204,7 +204,10 @@ struct aq_hw_ops {
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
 
-	int (*hw_set_power)(struct aq_hw_s *self, unsigned int power_state);
+	int (*hw_set_offload)(struct aq_hw_s *self,
+			      struct aq_nic_cfg_s *aq_nic_cfg);
+
+	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
 };
 
 struct aq_fw_ops {
@@ -227,7 +230,17 @@ struct aq_fw_ops {
 
 	int (*update_stats)(struct aq_hw_s *self);
 
+	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
+
 	int (*set_flow_control)(struct aq_hw_s *self);
+
+	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
+			 u8 *mac);
+
+	int (*set_eee_rate)(struct aq_hw_s *self, u32 speed);
+
+	int (*get_eee_rate)(struct aq_hw_s *self, u32 *rate,
+			    u32 *supported_rates);
 };
 
 #endif /* AQ_HW_H */

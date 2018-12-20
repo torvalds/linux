@@ -317,7 +317,7 @@ static int guc_stage_desc_pool_create(struct intel_guc *guc)
 
 	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma);
+		i915_vma_unpin_and_release(&vma, 0);
 		return PTR_ERR(vaddr);
 	}
 
@@ -331,8 +331,7 @@ static int guc_stage_desc_pool_create(struct intel_guc *guc)
 static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
 {
 	ida_destroy(&guc->stage_ids);
-	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
-	i915_vma_unpin_and_release(&guc->stage_desc_pool);
+	i915_vma_unpin_and_release(&guc->stage_desc_pool, I915_VMA_RELEASE_MAP);
 }
 
 /*
@@ -457,6 +456,9 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
 
+	/* We expect the WQ to be active if we're appending items to it */
+	GEM_BUG_ON(desc->wq_status != WQ_STATUS_ACTIVE);
+
 	/* Free space is guaranteed. */
 	wq_off = READ_ONCE(desc->tail);
 	GEM_BUG_ON(CIRC_SPACE(wq_off, READ_ONCE(desc->head),
@@ -466,15 +468,19 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	/* WQ starts from the page after doorbell / process_desc */
 	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
 
-	/* Now fill in the 4-word work queue item */
-	wqi->header = WQ_TYPE_INORDER |
-		      (wqi_len << WQ_LEN_SHIFT) |
-		      (target_engine << WQ_TARGET_SHIFT) |
-		      WQ_NO_WCFLUSH_WAIT;
-	wqi->context_desc = context_desc;
-	wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
-	GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
-	wqi->fence_id = fence_id;
+	if (I915_SELFTEST_ONLY(client->use_nop_wqi)) {
+		wqi->header = WQ_TYPE_NOOP | (wqi_len << WQ_LEN_SHIFT);
+	} else {
+		/* Now fill in the 4-word work queue item */
+		wqi->header = WQ_TYPE_INORDER |
+			      (wqi_len << WQ_LEN_SHIFT) |
+			      (target_engine << WQ_TARGET_SHIFT) |
+			      WQ_NO_WCFLUSH_WAIT;
+		wqi->context_desc = context_desc;
+		wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
+		GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
+		wqi->fence_id = fence_id;
+	}
 
 	/* Make the update visible to GuC */
 	WRITE_ONCE(desc->tail, (wq_off + wqi_size) & (GUC_WQ_SIZE - 1));
@@ -551,16 +557,36 @@ static void inject_preempt_context(struct work_struct *work)
 					     preempt_work[engine->id]);
 	struct intel_guc_client *client = guc->preempt_client;
 	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
-	u32 ctx_desc = lower_32_bits(to_intel_context(client->owner,
-						      engine)->lrc_desc);
+	struct intel_context *ce = to_intel_context(client->owner, engine);
 	u32 data[7];
 
-	/*
-	 * The ring contains commands to write GUC_PREEMPT_FINISHED into HWSP.
-	 * See guc_fill_preempt_context().
-	 */
+	if (!ce->ring->emit) { /* recreate upon load/resume */
+		u32 addr = intel_hws_preempt_done_address(engine);
+		u32 *cs;
+
+		cs = ce->ring->vaddr;
+		if (engine->id == RCS) {
+			cs = gen8_emit_ggtt_write_rcs(cs,
+						      GUC_PREEMPT_FINISHED,
+						      addr);
+		} else {
+			cs = gen8_emit_ggtt_write(cs,
+						  GUC_PREEMPT_FINISHED,
+						  addr);
+			*cs++ = MI_NOOP;
+			*cs++ = MI_NOOP;
+		}
+		*cs++ = MI_USER_INTERRUPT;
+		*cs++ = MI_NOOP;
+
+		ce->ring->emit = GUC_PREEMPT_BREADCRUMB_BYTES;
+		GEM_BUG_ON((void *)cs - ce->ring->vaddr != ce->ring->emit);
+
+		flush_ggtt_writes(ce->ring->vma);
+	}
+
 	spin_lock_irq(&client->wq_lock);
-	guc_wq_item_append(client, engine->guc_id, ctx_desc,
+	guc_wq_item_append(client, engine->guc_id, lower_32_bits(ce->lrc_desc),
 			   GUC_PREEMPT_BREADCRUMB_BYTES / sizeof(u64), 0);
 	spin_unlock_irq(&client->wq_lock);
 
@@ -1008,7 +1034,7 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 err_vaddr:
 	i915_gem_object_unpin_map(client->vma->obj);
 err_vma:
-	i915_vma_unpin_and_release(&client->vma);
+	i915_vma_unpin_and_release(&client->vma, 0);
 err_id:
 	ida_simple_remove(&guc->stage_ids, client->stage_id);
 err_client:
@@ -1020,8 +1046,7 @@ static void guc_client_free(struct intel_guc_client *client)
 {
 	unreserve_doorbell(client);
 	guc_stage_desc_fini(client->guc, client);
-	i915_gem_object_unpin_map(client->vma->obj);
-	i915_vma_unpin_and_release(&client->vma);
+	i915_vma_unpin_and_release(&client->vma, I915_VMA_RELEASE_MAP);
 	ida_simple_remove(&client->guc->stage_ids, client->stage_id);
 	kfree(client);
 }
@@ -1037,50 +1062,6 @@ static inline bool ctx_save_restore_disabled(struct intel_context *ce)
 	return (sr & SR_DISABLED) == SR_DISABLED;
 
 #undef SR_DISABLED
-}
-
-static void guc_fill_preempt_context(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_guc_client *client = guc->preempt_client;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id) {
-		struct intel_context *ce =
-			to_intel_context(client->owner, engine);
-		u32 addr = intel_hws_preempt_done_address(engine);
-		u32 *cs;
-
-		GEM_BUG_ON(!ce->pin_count);
-
-		/*
-		 * We rely on this context image *not* being saved after
-		 * preemption. This ensures that the RING_HEAD / RING_TAIL
-		 * remain pointing at initial values forever.
-		 */
-		GEM_BUG_ON(!ctx_save_restore_disabled(ce));
-
-		cs = ce->ring->vaddr;
-		if (id == RCS) {
-			cs = gen8_emit_ggtt_write_rcs(cs,
-						      GUC_PREEMPT_FINISHED,
-						      addr);
-		} else {
-			cs = gen8_emit_ggtt_write(cs,
-						  GUC_PREEMPT_FINISHED,
-						  addr);
-			*cs++ = MI_NOOP;
-			*cs++ = MI_NOOP;
-		}
-		*cs++ = MI_USER_INTERRUPT;
-		*cs++ = MI_NOOP;
-
-		GEM_BUG_ON((void *)cs - ce->ring->vaddr !=
-			   GUC_PREEMPT_BREADCRUMB_BYTES);
-
-		flush_ggtt_writes(ce->ring->vma);
-	}
 }
 
 static int guc_clients_create(struct intel_guc *guc)
@@ -1113,8 +1094,6 @@ static int guc_clients_create(struct intel_guc *guc)
 			return PTR_ERR(client);
 		}
 		guc->preempt_client = client;
-
-		guc_fill_preempt_context(guc);
 	}
 
 	return 0;

@@ -248,7 +248,7 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 
 	/* Other caps only work with KMS drivers */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	switch (req->capability) {
 	case DRM_CAP_DUMB_BUFFER:
@@ -306,6 +306,12 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_set_client_cap *req = data;
 
+	/* No render-only settable capabilities for now */
+
+	/* Below caps that only works with KMS drivers */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
 	switch (req->capability) {
 	case DRM_CLIENT_CAP_STEREO_3D:
 		if (req->value > 1)
@@ -319,7 +325,7 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		break;
 	case DRM_CLIENT_CAP_ATOMIC:
 		if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		if (req->value > 1)
 			return -EINVAL;
 		file_priv->atomic = req->value;
@@ -645,7 +651,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETPROPBLOB, drm_mode_getblob_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETFB, drm_mode_getfb, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB, drm_mode_addfb_ioctl, DRM_UNLOCKED),
-	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB2, drm_mode_addfb2, DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB2, drm_mode_addfb2_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_RMFB, drm_mode_rmfb_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_PAGE_FLIP, drm_mode_page_flip_ioctl, DRM_MASTER|DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_DIRTYFB, drm_mode_dirtyfb_ioctl, DRM_MASTER|DRM_UNLOCKED),

@@ -430,7 +430,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 	sd->entity.function = function;
 	sd->entity.ops = &vimc_ent_sd_mops;
 	sd->owner = THIS_MODULE;
-	strlcpy(sd->name, name, sizeof(sd->name));
+	strscpy(sd->name, name, sizeof(sd->name));
 	v4l2_set_subdevdata(sd, ved);
 
 	/* Expose this subdev to user space */

@@ -68,10 +68,6 @@ int adau17x1_resume(struct snd_soc_component *component);
 
 extern const struct snd_soc_dai_ops adau17x1_dai_ops;
 
-int adau17x1_setup_firmware(struct snd_soc_component *component,
-	unsigned int rate);
-bool adau17x1_has_dsp(struct adau *adau);
-
 #define ADAU17X1_CLOCK_CONTROL			0x4000
 #define ADAU17X1_PLL_CONTROL			0x4002
 #define ADAU17X1_REC_POWER_MGMT			0x4009

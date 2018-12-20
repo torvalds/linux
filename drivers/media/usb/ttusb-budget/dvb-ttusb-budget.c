@@ -1686,7 +1686,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	/* i2c */
 	memset(&ttusb->i2c_adap, 0, sizeof(struct i2c_adapter));
-	strcpy(ttusb->i2c_adap.name, "TTUSB DEC");
+	strscpy(ttusb->i2c_adap.name, "TTUSB DEC", sizeof(ttusb->i2c_adap.name));
 
 	i2c_set_adapdata(&ttusb->i2c_adap, ttusb);
 

@@ -5,12 +5,12 @@
  * Copyright (C) 2018 Joel Fernandes (Google) <joel@joelfernandes.org>
  */
 
+#include <linux/trace_clock.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/string.h>
@@ -25,13 +25,13 @@ MODULE_PARM_DESC(test_mode, "Mode of the test such as preempt or irq (default ir
 
 static void busy_wait(ulong time)
 {
-	ktime_t start, end;
-	start = ktime_get();
+	u64 start, end;
+	start = trace_clock_local();
 	do {
-		end = ktime_get();
+		end = trace_clock_local();
 		if (kthread_should_stop())
 			break;
-	} while (ktime_to_ns(ktime_sub(end, start)) < (time * 1000));
+	} while ((end - start) < (time * 1000));
 }
 
 static int preemptirq_delay_run(void *data)

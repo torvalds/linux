@@ -30,6 +30,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/nospec.h>
 
 #include "vhost.h"
 
@@ -294,8 +295,11 @@ static void vhost_vq_meta_reset(struct vhost_dev *d)
 {
 	int i;
 
-	for (i = 0; i < d->nvqs; ++i)
+	for (i = 0; i < d->nvqs; ++i) {
+		mutex_lock(&d->vqs[i]->mutex);
 		__vhost_vq_meta_reset(d->vqs[i]);
+		mutex_unlock(&d->vqs[i]->mutex);
+	}
 }
 
 static void vhost_vq_reset(struct vhost_dev *dev,
@@ -891,20 +895,6 @@ static inline void __user *__vhost_get_user(struct vhost_virtqueue *vq,
 #define vhost_get_used(vq, x, ptr) \
 	vhost_get_user(vq, x, ptr, VHOST_ADDR_USED)
 
-static void vhost_dev_lock_vqs(struct vhost_dev *d)
-{
-	int i = 0;
-	for (i = 0; i < d->nvqs; ++i)
-		mutex_lock_nested(&d->vqs[i]->mutex, i);
-}
-
-static void vhost_dev_unlock_vqs(struct vhost_dev *d)
-{
-	int i = 0;
-	for (i = 0; i < d->nvqs; ++i)
-		mutex_unlock(&d->vqs[i]->mutex);
-}
-
 static int vhost_new_umem_range(struct vhost_umem *umem,
 				u64 start, u64 size, u64 end,
 				u64 userspace_addr, int perm)
@@ -986,7 +976,6 @@ static int vhost_process_iotlb_msg(struct vhost_dev *dev,
 	int ret = 0;
 
 	mutex_lock(&dev->mutex);
-	vhost_dev_lock_vqs(dev);
 	switch (msg->type) {
 	case VHOST_IOTLB_UPDATE:
 		if (!dev->iotlb) {
@@ -1020,7 +1009,6 @@ static int vhost_process_iotlb_msg(struct vhost_dev *dev,
 		break;
 	}
 
-	vhost_dev_unlock_vqs(dev);
 	mutex_unlock(&dev->mutex);
 
 	return ret;
@@ -1397,6 +1385,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 	if (idx >= d->nvqs)
 		return -ENOBUFS;
 
+	idx = array_index_nospec(idx, d->nvqs);
 	vq = d->vqs[idx];
 
 	mutex_lock(&vq->mutex);

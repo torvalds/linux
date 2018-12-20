@@ -338,9 +338,6 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
 	return found;
 }
 
-/* total number of attributes checked by the properties code */
-#define PPTT_CHECKED_ATTRIBUTES 4
-
 /**
  * update_cache_properties() - Update cacheinfo for the given processor
  * @this_leaf: Kernel cache info structure being updated
@@ -357,25 +354,15 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
 				    struct acpi_pptt_processor *cpu_node)
 {
-	int valid_flags = 0;
-
 	this_leaf->fw_token = cpu_node;
-	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID) {
+	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
 		this_leaf->size = found_cache->size;
-		valid_flags++;
-	}
-	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID) {
+	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID)
 		this_leaf->coherency_line_size = found_cache->line_size;
-		valid_flags++;
-	}
-	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID) {
+	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID)
 		this_leaf->number_of_sets = found_cache->number_of_sets;
-		valid_flags++;
-	}
-	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID) {
+	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID)
 		this_leaf->ways_of_associativity = found_cache->associativity;
-		valid_flags++;
-	}
 	if (found_cache->flags & ACPI_PPTT_WRITE_POLICY_VALID) {
 		switch (found_cache->attributes & ACPI_PPTT_MASK_WRITE_POLICY) {
 		case ACPI_PPTT_CACHE_POLICY_WT:
@@ -402,11 +389,17 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 		}
 	}
 	/*
-	 * If the above flags are valid, and the cache type is NOCACHE
-	 * update the cache type as well.
+	 * If cache type is NOCACHE, then the cache hasn't been specified
+	 * via other mechanisms.  Update the type if a cache type has been
+	 * provided.
+	 *
+	 * Note, we assume such caches are unified based on conventional system
+	 * design and known examples.  Significant work is required elsewhere to
+	 * fully support data/instruction only type caches which are only
+	 * specified in PPTT.
 	 */
 	if (this_leaf->type == CACHE_TYPE_NOCACHE &&
-	    valid_flags == PPTT_CHECKED_ATTRIBUTES)
+	    found_cache->flags & ACPI_PPTT_CACHE_TYPE_VALID)
 		this_leaf->type = CACHE_TYPE_UNIFIED;
 }
 

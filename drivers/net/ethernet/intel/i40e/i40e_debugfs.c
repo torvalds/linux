@@ -132,8 +132,6 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		dev_info(&pf->pdev->dev, "        vlan_features = 0x%08lx\n",
 			 (unsigned long int)nd->vlan_features);
 	}
-	dev_info(&pf->pdev->dev, "    active_vlans is %s\n",
-		 vsi->active_vlans ? "<valid>" : "<null>");
 	dev_info(&pf->pdev->dev,
 		 "    flags = 0x%08lx, netdev_registered = %i, current_netdev_flags = 0x%04x\n",
 		 vsi->flags, vsi->netdev_registered, vsi->current_netdev_flags);

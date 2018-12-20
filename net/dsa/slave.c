@@ -722,7 +722,7 @@ static void dsa_slave_netpoll_cleanup(struct net_device *dev)
 
 	p->netpoll = NULL;
 
-	__netpoll_free_async(netpoll);
+	__netpoll_free(netpoll);
 }
 
 static void dsa_slave_poll_controller(struct net_device *dev)
@@ -1450,6 +1450,7 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 			netdev_dbg(dev, "fdb add failed err=%d\n", err);
 			break;
 		}
+		fdb_info->offloaded = true;
 		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
 					 &fdb_info->info);
 		break;

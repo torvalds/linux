@@ -2433,17 +2433,14 @@ static ssize_t charge_full_store(struct ab8500_fg *di, const char *buf,
 				 size_t count)
 {
 	unsigned long charge_full;
-	ssize_t ret;
+	int ret;
 
 	ret = kstrtoul(buf, 10, &charge_full);
+	if (ret)
+		return ret;
 
-	dev_dbg(di->dev, "Ret %zd charge_full %lu", ret, charge_full);
-
-	if (!ret) {
-		di->bat_cap.max_mah = (int) charge_full;
-		ret = count;
-	}
-	return ret;
+	di->bat_cap.max_mah = (int) charge_full;
+	return count;
 }
 
 static ssize_t charge_now_show(struct ab8500_fg *di, char *buf)
@@ -2455,20 +2452,16 @@ static ssize_t charge_now_store(struct ab8500_fg *di, const char *buf,
 				 size_t count)
 {
 	unsigned long charge_now;
-	ssize_t ret;
+	int ret;
 
 	ret = kstrtoul(buf, 10, &charge_now);
+	if (ret)
+		return ret;
 
-	dev_dbg(di->dev, "Ret %zd charge_now %lu was %d",
-		ret, charge_now, di->bat_cap.prev_mah);
-
-	if (!ret) {
-		di->bat_cap.user_mah = (int) charge_now;
-		di->flags.user_cap = true;
-		ret = count;
-		queue_delayed_work(di->fg_wq, &di->fg_periodic_work, 0);
-	}
-	return ret;
+	di->bat_cap.user_mah = (int) charge_now;
+	di->flags.user_cap = true;
+	queue_delayed_work(di->fg_wq, &di->fg_periodic_work, 0);
+	return count;
 }
 
 static struct ab8500_fg_sysfs_entry charge_full_attr =
@@ -2582,11 +2575,12 @@ static ssize_t ab8505_powercut_flagtime_write(struct device *dev,
 				  const char *buf, size_t count)
 {
 	int ret;
-	long unsigned reg_value;
+	int reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
 	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
-	reg_value = simple_strtoul(buf, NULL, 10);
+	if (kstrtoint(buf, 10, &reg_value))
+		goto fail;
 
 	if (reg_value > 0x7F) {
 		dev_err(dev, "Incorrect parameter, echo 0 (1.98s) - 127 (15.625ms) for flagtime\n");
@@ -2636,7 +2630,9 @@ static ssize_t ab8505_powercut_maxtime_write(struct device *dev,
 	struct power_supply *psy = dev_get_drvdata(dev);
 	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
-	reg_value = simple_strtoul(buf, NULL, 10);
+	if (kstrtoint(buf, 10, &reg_value))
+		goto fail;
+
 	if (reg_value > 0x7F) {
 		dev_err(dev, "Incorrect parameter, echo 0 (0.0s) - 127 (1.98s) for maxtime\n");
 		goto fail;
@@ -2684,7 +2680,9 @@ static ssize_t ab8505_powercut_restart_write(struct device *dev,
 	struct power_supply *psy = dev_get_drvdata(dev);
 	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
-	reg_value = simple_strtoul(buf, NULL, 10);
+	if (kstrtoint(buf, 10, &reg_value))
+		goto fail;
+
 	if (reg_value > 0xF) {
 		dev_err(dev, "Incorrect parameter, echo 0 - 15 for number of restart\n");
 		goto fail;
@@ -2777,7 +2775,9 @@ static ssize_t ab8505_powercut_write(struct device *dev,
 	struct power_supply *psy = dev_get_drvdata(dev);
 	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
-	reg_value = simple_strtoul(buf, NULL, 10);
+	if (kstrtoint(buf, 10, &reg_value))
+		goto fail;
+
 	if (reg_value > 0x1) {
 		dev_err(dev, "Incorrect parameter, echo 0/1 to disable/enable Pcut feature\n");
 		goto fail;
@@ -2849,7 +2849,9 @@ static ssize_t ab8505_powercut_debounce_write(struct device *dev,
 	struct power_supply *psy = dev_get_drvdata(dev);
 	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
-	reg_value = simple_strtoul(buf, NULL, 10);
+	if (kstrtoint(buf, 10, &reg_value))
+		goto fail;
+
 	if (reg_value > 0x7) {
 		dev_err(dev, "Incorrect parameter, echo 0 to 7 for debounce setting\n");
 		goto fail;

@@ -955,8 +955,7 @@ qca8k_set_pm(struct qca8k_priv *priv, int enable)
 
 static int qca8k_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct qca8k_priv *priv = platform_get_drvdata(pdev);
+	struct qca8k_priv *priv = dev_get_drvdata(dev);
 
 	qca8k_set_pm(priv, 0);
 
@@ -965,8 +964,7 @@ static int qca8k_suspend(struct device *dev)
 
 static int qca8k_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct qca8k_priv *priv = platform_get_drvdata(pdev);
+	struct qca8k_priv *priv = dev_get_drvdata(dev);
 
 	qca8k_set_pm(priv, 1);
 

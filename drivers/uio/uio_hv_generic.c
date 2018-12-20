@@ -17,7 +17,6 @@
  * # echo -n "ed963694-e847-4b2a-85af-bc9cfc11d6f3" \
  *    > /sys/bus/vmbus/drivers/uio_hv_generic/bind
  */
-#define DEBUG 1
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>
@@ -33,13 +32,13 @@
 
 #include "../hv/hyperv_vmbus.h"
 
-#define DRIVER_VERSION	"0.02.0"
+#define DRIVER_VERSION	"0.02.1"
 #define DRIVER_AUTHOR	"Stephen Hemminger <sthemmin at microsoft.com>"
 #define DRIVER_DESC	"Generic UIO driver for VMBus devices"
 
 #define HV_RING_SIZE	 512	/* pages */
-#define SEND_BUFFER_SIZE (15 * 1024 * 1024)
-#define RECV_BUFFER_SIZE (15 * 1024 * 1024)
+#define SEND_BUFFER_SIZE (16 * 1024 * 1024)
+#define RECV_BUFFER_SIZE (31 * 1024 * 1024)
 
 /*
  * List of resources to be mapped to user space
@@ -56,6 +55,7 @@ enum hv_uio_map {
 struct hv_uio_private_data {
 	struct uio_info info;
 	struct hv_device *device;
+	atomic_t refcnt;
 
 	void	*recv_buf;
 	u32	recv_gpadl;
@@ -129,13 +129,12 @@ static int hv_uio_ring_mmap(struct file *filp, struct kobject *kobj,
 {
 	struct vmbus_channel *channel
 		= container_of(kobj, struct vmbus_channel, kobj);
-	struct hv_device *dev = channel->primary_channel->device_obj;
-	u16 q_idx = channel->offermsg.offer.sub_channel_index;
+	void *ring_buffer = page_address(channel->ringbuffer_page);
 
-	dev_dbg(&dev->device, "mmap channel %u pages %#lx at %#lx\n",
-		q_idx, vma_pages(vma), vma->vm_pgoff);
+	if (channel->state != CHANNEL_OPENED_STATE)
+		return -ENODEV;
 
-	return vm_iomap_memory(vma, virt_to_phys(channel->ringbuffer_pages),
+	return vm_iomap_memory(vma, virt_to_phys(ring_buffer),
 			       channel->ringbuffer_pagecount << PAGE_SHIFT);
 }
 
@@ -176,58 +175,104 @@ hv_uio_new_channel(struct vmbus_channel *new_sc)
 	}
 }
 
+/* free the reserved buffers for send and receive */
 static void
 hv_uio_cleanup(struct hv_device *dev, struct hv_uio_private_data *pdata)
 {
-	if (pdata->send_gpadl)
+	if (pdata->send_gpadl) {
 		vmbus_teardown_gpadl(dev->channel, pdata->send_gpadl);
-	vfree(pdata->send_buf);
+		pdata->send_gpadl = 0;
+		vfree(pdata->send_buf);
+	}
 
-	if (pdata->recv_gpadl)
+	if (pdata->recv_gpadl) {
 		vmbus_teardown_gpadl(dev->channel, pdata->recv_gpadl);
-	vfree(pdata->recv_buf);
+		pdata->recv_gpadl = 0;
+		vfree(pdata->recv_buf);
+	}
+}
+
+/* VMBus primary channel is opened on first use */
+static int
+hv_uio_open(struct uio_info *info, struct inode *inode)
+{
+	struct hv_uio_private_data *pdata
+		= container_of(info, struct hv_uio_private_data, info);
+	struct hv_device *dev = pdata->device;
+	int ret;
+
+	if (atomic_inc_return(&pdata->refcnt) != 1)
+		return 0;
+
+	ret = vmbus_connect_ring(dev->channel,
+				 hv_uio_channel_cb, dev->channel);
+
+	if (ret == 0)
+		dev->channel->inbound.ring_buffer->interrupt_mask = 1;
+	else
+		atomic_dec(&pdata->refcnt);
+
+	return ret;
+}
+
+/* VMBus primary channel is closed on last close */
+static int
+hv_uio_release(struct uio_info *info, struct inode *inode)
+{
+	struct hv_uio_private_data *pdata
+		= container_of(info, struct hv_uio_private_data, info);
+	struct hv_device *dev = pdata->device;
+	int ret = 0;
+
+	if (atomic_dec_and_test(&pdata->refcnt))
+		ret = vmbus_disconnect_ring(dev->channel);
+
+	return ret;
 }
 
 static int
 hv_uio_probe(struct hv_device *dev,
 	     const struct hv_vmbus_device_id *dev_id)
 {
+	struct vmbus_channel *channel = dev->channel;
 	struct hv_uio_private_data *pdata;
+	void *ring_buffer;
 	int ret;
+
+	/* Communicating with host has to be via shared memory not hypercall */
+	if (!channel->offermsg.monitor_allocated) {
+		dev_err(&dev->device, "vmbus channel requires hypercall\n");
+		return -ENOTSUPP;
+	}
 
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	ret = vmbus_open(dev->channel, HV_RING_SIZE * PAGE_SIZE,
-			 HV_RING_SIZE * PAGE_SIZE, NULL, 0,
-			 hv_uio_channel_cb, dev->channel);
+	ret = vmbus_alloc_ring(channel, HV_RING_SIZE * PAGE_SIZE,
+			       HV_RING_SIZE * PAGE_SIZE);
 	if (ret)
 		goto fail;
 
-	/* Communicating with host has to be via shared memory not hypercall */
-	if (!dev->channel->offermsg.monitor_allocated) {
-		dev_err(&dev->device, "vmbus channel requires hypercall\n");
-		ret = -ENOTSUPP;
-		goto fail_close;
-	}
-
-	dev->channel->inbound.ring_buffer->interrupt_mask = 1;
-	set_channel_read_mode(dev->channel, HV_CALL_ISR);
+	set_channel_read_mode(channel, HV_CALL_ISR);
 
 	/* Fill general uio info */
 	pdata->info.name = "uio_hv_generic";
 	pdata->info.version = DRIVER_VERSION;
 	pdata->info.irqcontrol = hv_uio_irqcontrol;
+	pdata->info.open = hv_uio_open;
+	pdata->info.release = hv_uio_release;
 	pdata->info.irq = UIO_IRQ_CUSTOM;
+	atomic_set(&pdata->refcnt, 0);
 
 	/* mem resources */
 	pdata->info.mem[TXRX_RING_MAP].name = "txrx_rings";
+	ring_buffer = page_address(channel->ringbuffer_page);
 	pdata->info.mem[TXRX_RING_MAP].addr
-		= (uintptr_t)dev->channel->ringbuffer_pages;
+		= (uintptr_t)virt_to_phys(ring_buffer);
 	pdata->info.mem[TXRX_RING_MAP].size
-		= dev->channel->ringbuffer_pagecount << PAGE_SHIFT;
-	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_LOGICAL;
+		= channel->ringbuffer_pagecount << PAGE_SHIFT;
+	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_IOVA;
 
 	pdata->info.mem[INT_PAGE_MAP].name = "int_page";
 	pdata->info.mem[INT_PAGE_MAP].addr
@@ -247,7 +292,7 @@ hv_uio_probe(struct hv_device *dev,
 		goto fail_close;
 	}
 
-	ret = vmbus_establish_gpadl(dev->channel, pdata->recv_buf,
+	ret = vmbus_establish_gpadl(channel, pdata->recv_buf,
 				    RECV_BUFFER_SIZE, &pdata->recv_gpadl);
 	if (ret)
 		goto fail_close;
@@ -261,14 +306,13 @@ hv_uio_probe(struct hv_device *dev,
 	pdata->info.mem[RECV_BUF_MAP].size = RECV_BUFFER_SIZE;
 	pdata->info.mem[RECV_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
 
-
 	pdata->send_buf = vzalloc(SEND_BUFFER_SIZE);
 	if (pdata->send_buf == NULL) {
 		ret = -ENOMEM;
 		goto fail_close;
 	}
 
-	ret = vmbus_establish_gpadl(dev->channel, pdata->send_buf,
+	ret = vmbus_establish_gpadl(channel, pdata->send_buf,
 				    SEND_BUFFER_SIZE, &pdata->send_gpadl);
 	if (ret)
 		goto fail_close;
@@ -290,10 +334,10 @@ hv_uio_probe(struct hv_device *dev,
 		goto fail_close;
 	}
 
-	vmbus_set_chn_rescind_callback(dev->channel, hv_uio_rescind);
-	vmbus_set_sc_create_callback(dev->channel, hv_uio_new_channel);
+	vmbus_set_chn_rescind_callback(channel, hv_uio_rescind);
+	vmbus_set_sc_create_callback(channel, hv_uio_new_channel);
 
-	ret = sysfs_create_bin_file(&dev->channel->kobj, &ring_buffer_bin_attr);
+	ret = sysfs_create_bin_file(&channel->kobj, &ring_buffer_bin_attr);
 	if (ret)
 		dev_notice(&dev->device,
 			   "sysfs create ring bin file failed; %d\n", ret);
@@ -304,7 +348,6 @@ hv_uio_probe(struct hv_device *dev,
 
 fail_close:
 	hv_uio_cleanup(dev, pdata);
-	vmbus_close(dev->channel);
 fail:
 	kfree(pdata);
 
@@ -322,7 +365,8 @@ hv_uio_remove(struct hv_device *dev)
 	uio_unregister_device(&pdata->info);
 	hv_uio_cleanup(dev, pdata);
 	hv_set_drvdata(dev, NULL);
-	vmbus_close(dev->channel);
+
+	vmbus_free_ring(dev->channel);
 	kfree(pdata);
 	return 0;
 }

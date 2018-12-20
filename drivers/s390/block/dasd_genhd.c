@@ -76,7 +76,7 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	gdp->queue = block->request_queue;
 	block->gdp = gdp;
 	set_capacity(block->gdp, 0);
-	device_add_disk(&base->cdev->dev, block->gdp);
+	device_add_disk(&base->cdev->dev, block->gdp, NULL);
 	return 0;
 }
 

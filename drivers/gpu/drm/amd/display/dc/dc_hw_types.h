@@ -289,7 +289,8 @@ enum swizzle_mode_values {
 	DC_SW_VAR_S_X = 29,
 	DC_SW_VAR_D_X = 30,
 	DC_SW_VAR_R_X = 31,
-	DC_SW_MAX
+	DC_SW_MAX = 32,
+	DC_SW_UNKNOWN = DC_SW_MAX
 };
 
 union dc_tiling_info {
@@ -706,12 +707,6 @@ struct crtc_trigger_info {
 	struct dc_stream_state *event_source;
 	enum crtc_event event;
 	enum trigger_delay delay;
-};
-
-enum vrr_state {
-	VRR_STATE_OFF = 0,
-	VRR_STATE_VARIABLE,
-	VRR_STATE_FIXED,
 };
 
 struct dc_crtc_timing_adjust {

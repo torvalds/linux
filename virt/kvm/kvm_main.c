@@ -219,7 +219,7 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 	me = get_cpu();
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (!test_bit(i, vcpu_bitmap))
+		if (vcpu_bitmap && !test_bit(i, vcpu_bitmap))
 			continue;
 
 		kvm_make_request(req, vcpu);
@@ -243,12 +243,10 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 {
 	cpumask_var_t cpus;
 	bool called;
-	static unsigned long vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)]
-		= {[0 ... BITS_TO_LONGS(KVM_MAX_VCPUS)-1] = ULONG_MAX};
 
 	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
 
-	called = kvm_make_vcpus_request_mask(kvm, req, vcpu_bitmap, cpus);
+	called = kvm_make_vcpus_request_mask(kvm, req, NULL, cpus);
 
 	free_cpumask_var(cpus);
 	return called;
@@ -499,7 +497,6 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
 }
 
 static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-	.flags			= MMU_INVALIDATE_DOES_NOT_BLOCK,
 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
@@ -807,20 +804,25 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
  * sorted array and known changed memslot position.
  */
 static void update_memslots(struct kvm_memslots *slots,
-			    struct kvm_memory_slot *new)
+			    struct kvm_memory_slot *new,
+			    enum kvm_mr_change change)
 {
 	int id = new->id;
 	int i = slots->id_to_index[id];
 	struct kvm_memory_slot *mslots = slots->memslots;
 
 	WARN_ON(mslots[i].id != id);
-	if (!new->npages) {
-		WARN_ON(!mslots[i].npages);
-		if (mslots[i].npages)
-			slots->used_slots--;
-	} else {
-		if (!mslots[i].npages)
-			slots->used_slots++;
+	switch (change) {
+	case KVM_MR_CREATE:
+		slots->used_slots++;
+		WARN_ON(mslots[i].npages || !new->npages);
+		break;
+	case KVM_MR_DELETE:
+		slots->used_slots--;
+		WARN_ON(new->npages || !mslots[i].npages);
+		break;
+	default:
+		break;
 	}
 
 	while (i < KVM_MEM_SLOTS_NUM - 1 &&
@@ -1056,7 +1058,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		memset(&new.arch, 0, sizeof(new.arch));
 	}
 
-	update_memslots(slots, &new);
+	update_memslots(slots, &new, change);
 	old_memslots = install_new_memslots(kvm, as_id, slots);
 
 	kvm_arch_commit_memory_region(kvm, mem, &old, &new, change);
@@ -1311,8 +1313,12 @@ unsigned long kvm_vcpu_gfn_to_hva(struct kvm_vcpu *vcpu, gfn_t gfn)
 EXPORT_SYMBOL_GPL(kvm_vcpu_gfn_to_hva);
 
 /*
- * If writable is set to false, the hva returned by this function is only
- * allowed to be read.
+ * Return the hva of a @gfn and the R/W attribute if possible.
+ *
+ * @slot: the kvm_memory_slot which contains @gfn
+ * @gfn: the gfn to be translated
+ * @writable: used to return the read/write attribute of the @slot if the hva
+ * is valid and @writable is not NULL
  */
 unsigned long gfn_to_hva_memslot_prot(struct kvm_memory_slot *slot,
 				      gfn_t gfn, bool *writable)
@@ -2946,6 +2952,8 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 #ifdef CONFIG_KVM_MMIO
 	case KVM_CAP_COALESCED_MMIO:
 		return KVM_COALESCED_MMIO_PAGE_OFFSET;
+	case KVM_CAP_COALESCED_PIO:
+		return 1;
 #endif
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 	case KVM_CAP_IRQ_ROUTING:

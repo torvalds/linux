@@ -36,6 +36,8 @@
 
 #include "trace.h"
 
+#define KVM_HV_MAX_SPARSE_VCPU_SET_BITS DIV_ROUND_UP(KVM_MAX_VCPUS, 64)
+
 static inline u64 synic_read_sint(struct kvm_vcpu_hv_synic *synic, int sint)
 {
 	return atomic64_read(&synic->sint[sint]);
@@ -132,8 +134,10 @@ static struct kvm_vcpu *get_vcpu_by_vpidx(struct kvm *kvm, u32 vpidx)
 	struct kvm_vcpu *vcpu = NULL;
 	int i;
 
-	if (vpidx < KVM_MAX_VCPUS)
-		vcpu = kvm_get_vcpu(kvm, vpidx);
+	if (vpidx >= KVM_MAX_VCPUS)
+		return NULL;
+
+	vcpu = kvm_get_vcpu(kvm, vpidx);
 	if (vcpu && vcpu_to_hv_vcpu(vcpu)->vp_index == vpidx)
 		return vcpu;
 	kvm_for_each_vcpu(i, vcpu, kvm)
@@ -689,6 +693,24 @@ void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu)
 		stimer_cleanup(&hv_vcpu->stimer[i]);
 }
 
+bool kvm_hv_assist_page_enabled(struct kvm_vcpu *vcpu)
+{
+	if (!(vcpu->arch.hyperv.hv_vapic & HV_X64_MSR_VP_ASSIST_PAGE_ENABLE))
+		return false;
+	return vcpu->arch.pv_eoi.msr_val & KVM_MSR_ENABLED;
+}
+EXPORT_SYMBOL_GPL(kvm_hv_assist_page_enabled);
+
+bool kvm_hv_get_assist_page(struct kvm_vcpu *vcpu,
+			    struct hv_vp_assist_page *assist_page)
+{
+	if (!kvm_hv_assist_page_enabled(vcpu))
+		return false;
+	return !kvm_read_guest_cached(vcpu->kvm, &vcpu->arch.pv_eoi.data,
+				      assist_page, sizeof(*assist_page));
+}
+EXPORT_SYMBOL_GPL(kvm_hv_get_assist_page);
+
 static void stimer_prepare_msg(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct hv_message *msg = &stimer->msg;
@@ -1040,21 +1062,41 @@ static u64 current_task_runtime_100ns(void)
 
 static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 {
-	struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
+	struct kvm_vcpu_hv *hv_vcpu = &vcpu->arch.hyperv;
 
 	switch (msr) {
-	case HV_X64_MSR_VP_INDEX:
-		if (!host)
+	case HV_X64_MSR_VP_INDEX: {
+		struct kvm_hv *hv = &vcpu->kvm->arch.hyperv;
+		int vcpu_idx = kvm_vcpu_get_idx(vcpu);
+		u32 new_vp_index = (u32)data;
+
+		if (!host || new_vp_index >= KVM_MAX_VCPUS)
 			return 1;
-		hv->vp_index = (u32)data;
+
+		if (new_vp_index == hv_vcpu->vp_index)
+			return 0;
+
+		/*
+		 * The VP index is initialized to vcpu_index by
+		 * kvm_hv_vcpu_postcreate so they initially match.  Now the
+		 * VP index is changing, adjust num_mismatched_vp_indexes if
+		 * it now matches or no longer matches vcpu_idx.
+		 */
+		if (hv_vcpu->vp_index == vcpu_idx)
+			atomic_inc(&hv->num_mismatched_vp_indexes);
+		else if (new_vp_index == vcpu_idx)
+			atomic_dec(&hv->num_mismatched_vp_indexes);
+
+		hv_vcpu->vp_index = new_vp_index;
 		break;
+	}
 	case HV_X64_MSR_VP_ASSIST_PAGE: {
 		u64 gfn;
 		unsigned long addr;
 
 		if (!(data & HV_X64_MSR_VP_ASSIST_PAGE_ENABLE)) {
-			hv->hv_vapic = data;
-			if (kvm_lapic_enable_pv_eoi(vcpu, 0))
+			hv_vcpu->hv_vapic = data;
+			if (kvm_lapic_enable_pv_eoi(vcpu, 0, 0))
 				return 1;
 			break;
 		}
@@ -1062,12 +1104,19 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 		addr = kvm_vcpu_gfn_to_hva(vcpu, gfn);
 		if (kvm_is_error_hva(addr))
 			return 1;
-		if (__clear_user((void __user *)addr, PAGE_SIZE))
+
+		/*
+		 * Clear apic_assist portion of f(struct hv_vp_assist_page
+		 * only, there can be valuable data in the rest which needs
+		 * to be preserved e.g. on migration.
+		 */
+		if (__clear_user((void __user *)addr, sizeof(u32)))
 			return 1;
-		hv->hv_vapic = data;
+		hv_vcpu->hv_vapic = data;
 		kvm_vcpu_mark_page_dirty(vcpu, gfn);
 		if (kvm_lapic_enable_pv_eoi(vcpu,
-					    gfn_to_gpa(gfn) | KVM_MSR_ENABLED))
+					    gfn_to_gpa(gfn) | KVM_MSR_ENABLED,
+					    sizeof(struct hv_vp_assist_page)))
 			return 1;
 		break;
 	}
@@ -1080,7 +1129,7 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	case HV_X64_MSR_VP_RUNTIME:
 		if (!host)
 			return 1;
-		hv->runtime_offset = data - current_task_runtime_100ns();
+		hv_vcpu->runtime_offset = data - current_task_runtime_100ns();
 		break;
 	case HV_X64_MSR_SCONTROL:
 	case HV_X64_MSR_SVERSION:
@@ -1172,11 +1221,11 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata,
 			  bool host)
 {
 	u64 data = 0;
-	struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
+	struct kvm_vcpu_hv *hv_vcpu = &vcpu->arch.hyperv;
 
 	switch (msr) {
 	case HV_X64_MSR_VP_INDEX:
-		data = hv->vp_index;
+		data = hv_vcpu->vp_index;
 		break;
 	case HV_X64_MSR_EOI:
 		return kvm_hv_vapic_msr_read(vcpu, APIC_EOI, pdata);
@@ -1185,10 +1234,10 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata,
 	case HV_X64_MSR_TPR:
 		return kvm_hv_vapic_msr_read(vcpu, APIC_TASKPRI, pdata);
 	case HV_X64_MSR_VP_ASSIST_PAGE:
-		data = hv->hv_vapic;
+		data = hv_vcpu->hv_vapic;
 		break;
 	case HV_X64_MSR_VP_RUNTIME:
-		data = current_task_runtime_100ns() + hv->runtime_offset;
+		data = current_task_runtime_100ns() + hv_vcpu->runtime_offset;
 		break;
 	case HV_X64_MSR_SCONTROL:
 	case HV_X64_MSR_SVERSION:
@@ -1255,32 +1304,47 @@ int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 		return kvm_hv_get_msr(vcpu, msr, pdata, host);
 }
 
-static __always_inline int get_sparse_bank_no(u64 valid_bank_mask, int bank_no)
+static __always_inline unsigned long *sparse_set_to_vcpu_mask(
+	struct kvm *kvm, u64 *sparse_banks, u64 valid_bank_mask,
+	u64 *vp_bitmap, unsigned long *vcpu_bitmap)
 {
-	int i = 0, j;
+	struct kvm_hv *hv = &kvm->arch.hyperv;
+	struct kvm_vcpu *vcpu;
+	int i, bank, sbank = 0;
 
-	if (!(valid_bank_mask & BIT_ULL(bank_no)))
-		return -1;
+	memset(vp_bitmap, 0,
+	       KVM_HV_MAX_SPARSE_VCPU_SET_BITS * sizeof(*vp_bitmap));
+	for_each_set_bit(bank, (unsigned long *)&valid_bank_mask,
+			 KVM_HV_MAX_SPARSE_VCPU_SET_BITS)
+		vp_bitmap[bank] = sparse_banks[sbank++];
 
-	for (j = 0; j < bank_no; j++)
-		if (valid_bank_mask & BIT_ULL(j))
-			i++;
+	if (likely(!atomic_read(&hv->num_mismatched_vp_indexes))) {
+		/* for all vcpus vp_index == vcpu_idx */
+		return (unsigned long *)vp_bitmap;
+	}
 
-	return i;
+	bitmap_zero(vcpu_bitmap, KVM_MAX_VCPUS);
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (test_bit(vcpu_to_hv_vcpu(vcpu)->vp_index,
+			     (unsigned long *)vp_bitmap))
+			__set_bit(i, vcpu_bitmap);
+	}
+	return vcpu_bitmap;
 }
 
 static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 			    u16 rep_cnt, bool ex)
 {
 	struct kvm *kvm = current_vcpu->kvm;
-	struct kvm_vcpu_hv *hv_current = &current_vcpu->arch.hyperv;
+	struct kvm_vcpu_hv *hv_vcpu = &current_vcpu->arch.hyperv;
 	struct hv_tlb_flush_ex flush_ex;
 	struct hv_tlb_flush flush;
-	struct kvm_vcpu *vcpu;
-	unsigned long vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)] = {0};
-	unsigned long valid_bank_mask = 0;
+	u64 vp_bitmap[KVM_HV_MAX_SPARSE_VCPU_SET_BITS];
+	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS);
+	unsigned long *vcpu_mask;
+	u64 valid_bank_mask;
 	u64 sparse_banks[64];
-	int sparse_banks_len, i;
+	int sparse_banks_len;
 	bool all_cpus;
 
 	if (!ex) {
@@ -1290,6 +1354,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 		trace_kvm_hv_flush_tlb(flush.processor_mask,
 				       flush.address_space, flush.flags);
 
+		valid_bank_mask = BIT_ULL(0);
 		sparse_banks[0] = flush.processor_mask;
 		all_cpus = flush.flags & HV_FLUSH_ALL_PROCESSORS;
 	} else {
@@ -1306,7 +1371,8 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 		all_cpus = flush_ex.hv_vp_set.format !=
 			HV_GENERIC_SET_SPARSE_4K;
 
-		sparse_banks_len = bitmap_weight(&valid_bank_mask, 64) *
+		sparse_banks_len =
+			bitmap_weight((unsigned long *)&valid_bank_mask, 64) *
 			sizeof(sparse_banks[0]);
 
 		if (!sparse_banks_len && !all_cpus)
@@ -1321,53 +1387,117 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 	}
 
-	cpumask_clear(&hv_current->tlb_lush);
+	cpumask_clear(&hv_vcpu->tlb_flush);
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
-		int bank = hv->vp_index / 64, sbank = 0;
+	vcpu_mask = all_cpus ? NULL :
+		sparse_set_to_vcpu_mask(kvm, sparse_banks, valid_bank_mask,
+					vp_bitmap, vcpu_bitmap);
 
-		if (!all_cpus) {
-			/* Banks >64 can't be represented */
-			if (bank >= 64)
-				continue;
-
-			/* Non-ex hypercalls can only address first 64 vCPUs */
-			if (!ex && bank)
-				continue;
-
-			if (ex) {
-				/*
-				 * Check is the bank of this vCPU is in sparse
-				 * set and get the sparse bank number.
-				 */
-				sbank = get_sparse_bank_no(valid_bank_mask,
-							   bank);
-
-				if (sbank < 0)
-					continue;
-			}
-
-			if (!(sparse_banks[sbank] & BIT_ULL(hv->vp_index % 64)))
-				continue;
-		}
-
-		/*
-		 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we
-		 * can't analyze it here, flush TLB regardless of the specified
-		 * address space.
-		 */
-		__set_bit(i, vcpu_bitmap);
-	}
-
+	/*
+	 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we can't
+	 * analyze it here, flush TLB regardless of the specified address space.
+	 */
 	kvm_make_vcpus_request_mask(kvm,
 				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
-				    vcpu_bitmap, &hv_current->tlb_lush);
+				    vcpu_mask, &hv_vcpu->tlb_flush);
 
 ret_success:
 	/* We always do full TLB flush, set rep_done = rep_cnt. */
 	return (u64)HV_STATUS_SUCCESS |
 		((u64)rep_cnt << HV_HYPERCALL_REP_COMP_OFFSET);
+}
+
+static void kvm_send_ipi_to_many(struct kvm *kvm, u32 vector,
+				 unsigned long *vcpu_bitmap)
+{
+	struct kvm_lapic_irq irq = {
+		.delivery_mode = APIC_DM_FIXED,
+		.vector = vector
+	};
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (vcpu_bitmap && !test_bit(i, vcpu_bitmap))
+			continue;
+
+		/* We fail only when APIC is disabled */
+		kvm_apic_set_irq(vcpu, &irq, NULL);
+	}
+}
+
+static u64 kvm_hv_send_ipi(struct kvm_vcpu *current_vcpu, u64 ingpa, u64 outgpa,
+			   bool ex, bool fast)
+{
+	struct kvm *kvm = current_vcpu->kvm;
+	struct hv_send_ipi_ex send_ipi_ex;
+	struct hv_send_ipi send_ipi;
+	u64 vp_bitmap[KVM_HV_MAX_SPARSE_VCPU_SET_BITS];
+	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS);
+	unsigned long *vcpu_mask;
+	unsigned long valid_bank_mask;
+	u64 sparse_banks[64];
+	int sparse_banks_len;
+	u32 vector;
+	bool all_cpus;
+
+	if (!ex) {
+		if (!fast) {
+			if (unlikely(kvm_read_guest(kvm, ingpa, &send_ipi,
+						    sizeof(send_ipi))))
+				return HV_STATUS_INVALID_HYPERCALL_INPUT;
+			sparse_banks[0] = send_ipi.cpu_mask;
+			vector = send_ipi.vector;
+		} else {
+			/* 'reserved' part of hv_send_ipi should be 0 */
+			if (unlikely(ingpa >> 32 != 0))
+				return HV_STATUS_INVALID_HYPERCALL_INPUT;
+			sparse_banks[0] = outgpa;
+			vector = (u32)ingpa;
+		}
+		all_cpus = false;
+		valid_bank_mask = BIT_ULL(0);
+
+		trace_kvm_hv_send_ipi(vector, sparse_banks[0]);
+	} else {
+		if (unlikely(kvm_read_guest(kvm, ingpa, &send_ipi_ex,
+					    sizeof(send_ipi_ex))))
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
+
+		trace_kvm_hv_send_ipi_ex(send_ipi_ex.vector,
+					 send_ipi_ex.vp_set.format,
+					 send_ipi_ex.vp_set.valid_bank_mask);
+
+		vector = send_ipi_ex.vector;
+		valid_bank_mask = send_ipi_ex.vp_set.valid_bank_mask;
+		sparse_banks_len = bitmap_weight(&valid_bank_mask, 64) *
+			sizeof(sparse_banks[0]);
+
+		all_cpus = send_ipi_ex.vp_set.format == HV_GENERIC_SET_ALL;
+
+		if (!sparse_banks_len)
+			goto ret_success;
+
+		if (!all_cpus &&
+		    kvm_read_guest(kvm,
+				   ingpa + offsetof(struct hv_send_ipi_ex,
+						    vp_set.bank_contents),
+				   sparse_banks,
+				   sparse_banks_len))
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
+	}
+
+	if ((vector < HV_IPI_LOW_VECTOR) || (vector > HV_IPI_HIGH_VECTOR))
+		return HV_STATUS_INVALID_HYPERCALL_INPUT;
+
+	vcpu_mask = all_cpus ? NULL :
+		sparse_set_to_vcpu_mask(kvm, sparse_banks, valid_bank_mask,
+					vp_bitmap, vcpu_bitmap);
+
+	kvm_send_ipi_to_many(kvm, vector, vcpu_mask);
+
+ret_success:
+	return HV_STATUS_SUCCESS;
 }
 
 bool kvm_hv_hypercall_enabled(struct kvm *kvm)
@@ -1538,6 +1668,20 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 			break;
 		}
 		ret = kvm_hv_flush_tlb(vcpu, ingpa, rep_cnt, true);
+		break;
+	case HVCALL_SEND_IPI:
+		if (unlikely(rep)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
+		ret = kvm_hv_send_ipi(vcpu, ingpa, outgpa, false, fast);
+		break;
+	case HVCALL_SEND_IPI_EX:
+		if (unlikely(fast || rep)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
+		ret = kvm_hv_send_ipi(vcpu, ingpa, outgpa, true, false);
 		break;
 	default:
 		ret = HV_STATUS_INVALID_HYPERCALL_CODE;

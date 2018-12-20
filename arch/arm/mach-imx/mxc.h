@@ -40,6 +40,8 @@
 #define MXC_CPU_IMX6Q		0x63
 #define MXC_CPU_IMX6UL		0x64
 #define MXC_CPU_IMX6ULL		0x65
+/* virtual cpu id for i.mx6ulz */
+#define MXC_CPU_IMX6ULZ		0x6b
 #define MXC_CPU_IMX6SLL		0x67
 #define MXC_CPU_IMX7D		0x72
 
@@ -78,6 +80,11 @@ static inline bool cpu_is_imx6ul(void)
 static inline bool cpu_is_imx6ull(void)
 {
 	return __mxc_cpu_type == MXC_CPU_IMX6ULL;
+}
+
+static inline bool cpu_is_imx6ulz(void)
+{
+	return __mxc_cpu_type == MXC_CPU_IMX6ULZ;
 }
 
 static inline bool cpu_is_imx6sll(void)

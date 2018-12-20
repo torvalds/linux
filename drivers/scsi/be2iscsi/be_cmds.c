@@ -520,7 +520,7 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		 **/
 		tag_mem = &ctrl->ptag_state[tag].tag_mem_state;
 		if (tag_mem->size) {
-			pci_free_consistent(ctrl->pdev, tag_mem->size,
+			dma_free_coherent(&ctrl->pdev->dev, tag_mem->size,
 					tag_mem->va, tag_mem->dma);
 			tag_mem->size = 0;
 		}
@@ -1269,12 +1269,12 @@ int beiscsi_check_supported_fw(struct be_ctrl_info *ctrl,
 	struct be_sge *sge = nonembedded_sgl(wrb);
 	int status = 0;
 
-	nonemb_cmd.va = pci_alloc_consistent(ctrl->pdev,
+	nonemb_cmd.va = dma_alloc_coherent(&ctrl->pdev->dev,
 				sizeof(struct be_mgmt_controller_attributes),
-				&nonemb_cmd.dma);
+				&nonemb_cmd.dma, GFP_KERNEL);
 	if (nonemb_cmd.va == NULL) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BG_%d : pci_alloc_consistent failed in %s\n",
+			    "BG_%d : dma_alloc_coherent failed in %s\n",
 			    __func__);
 		return -ENOMEM;
 	}
@@ -1314,7 +1314,7 @@ int beiscsi_check_supported_fw(struct be_ctrl_info *ctrl,
 			    "BG_%d :  Failed in beiscsi_check_supported_fw\n");
 	mutex_unlock(&ctrl->mbox_lock);
 	if (nonemb_cmd.va)
-		pci_free_consistent(ctrl->pdev, nonemb_cmd.size,
+		dma_free_coherent(&ctrl->pdev->dev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
 
 	return status;

@@ -377,29 +377,6 @@ struct octeon_hcd {
 	struct cvmx_usb_tx_fifo nonperiodic;
 };
 
-/* This macro spins on a register waiting for it to reach a condition. */
-#define CVMX_WAIT_FOR_FIELD32(address, _union, cond, timeout_usec)	    \
-	({int result;							    \
-	do {								    \
-		u64 done = cvmx_get_cycle() + (u64)timeout_usec *	    \
-			   octeon_get_clock_rate() / 1000000;		    \
-		union _union c;						    \
-									    \
-		while (1) {						    \
-			c.u32 = cvmx_usb_read_csr32(usb, address);	    \
-									    \
-			if (cond) {					    \
-				result = 0;				    \
-				break;					    \
-			} else if (cvmx_get_cycle() > done) {		    \
-				result = -1;				    \
-				break;					    \
-			} else						    \
-				__delay(100);				    \
-		}							    \
-	} while (0);							    \
-	result; })
-
 /*
  * This macro logically sets a single field in a CSR. It does the sequence
  * read, modify, and write
@@ -593,6 +570,33 @@ static inline int cvmx_usb_get_data_pid(struct cvmx_usb_pipe *pipe)
 	return 0; /* Data0 */
 }
 
+/* Loops through register until txfflsh or rxfflsh become zero.*/
+static int cvmx_wait_tx_rx(struct octeon_hcd *usb, int fflsh_type)
+{
+	int result;
+	u64 address = CVMX_USBCX_GRSTCTL(usb->index);
+	u64 done = cvmx_get_cycle() + 100 *
+		   (u64)octeon_get_clock_rate / 1000000;
+	union cvmx_usbcx_grstctl c;
+
+	while (1) {
+		c.u32 = cvmx_usb_read_csr32(usb, address);
+		if (fflsh_type == 0 && c.s.txfflsh == 0) {
+			result = 0;
+			break;
+		} else if (fflsh_type == 1 && c.s.rxfflsh == 0) {
+			result = 0;
+			break;
+		} else if (cvmx_get_cycle() > done) {
+			result = -1;
+			break;
+		}
+
+		__delay(100);
+	}
+	return result;
+}
+
 static void cvmx_fifo_setup(struct octeon_hcd *usb)
 {
 	union cvmx_usbcx_ghwcfg3 usbcx_ghwcfg3;
@@ -634,12 +638,10 @@ static void cvmx_fifo_setup(struct octeon_hcd *usb)
 			cvmx_usbcx_grstctl, txfnum, 0x10);
 	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
 			cvmx_usbcx_grstctl, txfflsh, 1);
-	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      cvmx_usbcx_grstctl, c.s.txfflsh == 0, 100);
+	cvmx_wait_tx_rx(usb, 0);
 	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
 			cvmx_usbcx_grstctl, rxfflsh, 1);
-	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      cvmx_usbcx_grstctl, c.s.rxfflsh == 0, 100);
+	cvmx_wait_tx_rx(usb, 1);
 }
 
 /**
@@ -2768,7 +2770,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 	    (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT))
 		pipe->flags |= CVMX_USB_PIPE_FLAGS_NEED_PING;
 
-	if (unlikely(WARN_ON_ONCE(bytes_this_transfer < 0))) {
+	if (WARN_ON_ONCE(bytes_this_transfer < 0)) {
 		/*
 		 * In some rare cases the DMA engine seems to get stuck and
 		 * keeps substracting same byte count over and over again. In

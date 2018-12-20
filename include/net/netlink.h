@@ -172,7 +172,7 @@ enum {
 	NLA_FLAG,
 	NLA_MSECS,
 	NLA_NESTED,
-	NLA_NESTED_COMPAT,
+	NLA_NESTED_ARRAY,
 	NLA_NUL_STRING,
 	NLA_BINARY,
 	NLA_S8,
@@ -180,14 +180,28 @@ enum {
 	NLA_S32,
 	NLA_S64,
 	NLA_BITFIELD32,
+	NLA_REJECT,
+	NLA_EXACT_LEN,
+	NLA_EXACT_LEN_WARN,
 	__NLA_TYPE_MAX,
 };
 
 #define NLA_TYPE_MAX (__NLA_TYPE_MAX - 1)
 
+enum nla_policy_validation {
+	NLA_VALIDATE_NONE,
+	NLA_VALIDATE_RANGE,
+	NLA_VALIDATE_MIN,
+	NLA_VALIDATE_MAX,
+	NLA_VALIDATE_FUNCTION,
+};
+
 /**
  * struct nla_policy - attribute validation policy
  * @type: Type of attribute or NLA_UNSPEC
+ * @validation_type: type of attribute validation done in addition to
+ *	type-specific validation (e.g. range, function call), see
+ *	&enum nla_policy_validation
  * @len: Type specific length of payload
  *
  * Policies are defined as arrays of this struct, the array must be
@@ -198,9 +212,11 @@ enum {
  *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
  *    NLA_FLAG             Unused
  *    NLA_BINARY           Maximum length of attribute payload
- *    NLA_NESTED           Don't use `len' field -- length verification is
- *                         done by checking len of nested header (or empty)
- *    NLA_NESTED_COMPAT    Minimum length of structure payload
+ *    NLA_NESTED,
+ *    NLA_NESTED_ARRAY     Length verification is done by checking len of
+ *                         nested header (or empty); len field is used if
+ *                         validation_data is also used, for the max attr
+ *                         number in the nested policy.
  *    NLA_U8, NLA_U16,
  *    NLA_U32, NLA_U64,
  *    NLA_S8, NLA_S16,
@@ -208,8 +224,58 @@ enum {
  *    NLA_MSECS            Leaving the length field zero will verify the
  *                         given type fits, using it verifies minimum length
  *                         just like "All other"
- *    NLA_BITFIELD32      A 32-bit bitmap/bitselector attribute
+ *    NLA_BITFIELD32       Unused
+ *    NLA_REJECT           Unused
+ *    NLA_EXACT_LEN        Attribute must have exactly this length, otherwise
+ *                         it is rejected.
+ *    NLA_EXACT_LEN_WARN   Attribute should have exactly this length, a warning
+ *                         is logged if it is longer, shorter is rejected.
  *    All other            Minimum length of attribute payload
+ *
+ * Meaning of `validation_data' field:
+ *    NLA_BITFIELD32       This is a 32-bit bitmap/bitselector attribute and
+ *                         validation data must point to a u32 value of valid
+ *                         flags
+ *    NLA_REJECT           This attribute is always rejected and validation data
+ *                         may point to a string to report as the error instead
+ *                         of the generic one in extended ACK.
+ *    NLA_NESTED           Points to a nested policy to validate, must also set
+ *                         `len' to the max attribute number.
+ *                         Note that nla_parse() will validate, but of course not
+ *                         parse, the nested sub-policies.
+ *    NLA_NESTED_ARRAY     Points to a nested policy to validate, must also set
+ *                         `len' to the max attribute number. The difference to
+ *                         NLA_NESTED is the structure - NLA_NESTED has the
+ *                         nested attributes directly inside, while an array has
+ *                         the nested attributes at another level down and the
+ *                         attributes directly in the nesting don't matter.
+ *    All other            Unused - but note that it's a union
+ *
+ * Meaning of `min' and `max' fields, use via NLA_POLICY_MIN, NLA_POLICY_MAX
+ * and NLA_POLICY_RANGE:
+ *    NLA_U8,
+ *    NLA_U16,
+ *    NLA_U32,
+ *    NLA_U64,
+ *    NLA_S8,
+ *    NLA_S16,
+ *    NLA_S32,
+ *    NLA_S64              These are used depending on the validation_type
+ *                         field, if that is min/max/range then the minimum,
+ *                         maximum and both are used (respectively) to check
+ *                         the value of the integer attribute.
+ *                         Note that in the interest of code simplicity and
+ *                         struct size both limits are s16, so you cannot
+ *                         enforce a range that doesn't fall within the range
+ *                         of s16 - do that as usual in the code instead.
+ *    All other            Unused - but note that it's a union
+ *
+ * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
+ *    NLA_BINARY           Validation function called for the attribute,
+ *                         not compatible with use of the validation_data
+ *                         as in NLA_BITFIELD32, NLA_REJECT, NLA_NESTED and
+ *                         NLA_NESTED_ARRAY.
+ *    All other            Unused - but note that it's a union
  *
  * Example:
  * static const struct nla_policy my_policy[ATTR_MAX+1] = {
@@ -220,10 +286,68 @@ enum {
  * };
  */
 struct nla_policy {
-	u16		type;
+	u8		type;
+	u8		validation_type;
 	u16		len;
-	void            *validation_data;
+	union {
+		const void *validation_data;
+		struct {
+			s16 min, max;
+		};
+		int (*validate)(const struct nlattr *attr,
+				struct netlink_ext_ack *extack);
+	};
 };
+
+#define NLA_POLICY_EXACT_LEN(_len)	{ .type = NLA_EXACT_LEN, .len = _len }
+#define NLA_POLICY_EXACT_LEN_WARN(_len)	{ .type = NLA_EXACT_LEN_WARN, \
+					  .len = _len }
+
+#define NLA_POLICY_ETH_ADDR		NLA_POLICY_EXACT_LEN(ETH_ALEN)
+#define NLA_POLICY_ETH_ADDR_COMPAT	NLA_POLICY_EXACT_LEN_WARN(ETH_ALEN)
+
+#define NLA_POLICY_NESTED(maxattr, policy) \
+	{ .type = NLA_NESTED, .validation_data = policy, .len = maxattr }
+#define NLA_POLICY_NESTED_ARRAY(maxattr, policy) \
+	{ .type = NLA_NESTED_ARRAY, .validation_data = policy, .len = maxattr }
+
+#define __NLA_ENSURE(condition) BUILD_BUG_ON_ZERO(!(condition))
+#define NLA_ENSURE_INT_TYPE(tp)				\
+	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_U8 ||	\
+		      tp == NLA_S16 || tp == NLA_U16 ||	\
+		      tp == NLA_S32 || tp == NLA_U32 ||	\
+		      tp == NLA_S64 || tp == NLA_U64) + tp)
+#define NLA_ENSURE_NO_VALIDATION_PTR(tp)		\
+	(__NLA_ENSURE(tp != NLA_BITFIELD32 &&		\
+		      tp != NLA_REJECT &&		\
+		      tp != NLA_NESTED &&		\
+		      tp != NLA_NESTED_ARRAY) + tp)
+
+#define NLA_POLICY_RANGE(tp, _min, _max) {		\
+	.type = NLA_ENSURE_INT_TYPE(tp),		\
+	.validation_type = NLA_VALIDATE_RANGE,		\
+	.min = _min,					\
+	.max = _max					\
+}
+
+#define NLA_POLICY_MIN(tp, _min) {			\
+	.type = NLA_ENSURE_INT_TYPE(tp),		\
+	.validation_type = NLA_VALIDATE_MIN,		\
+	.min = _min,					\
+}
+
+#define NLA_POLICY_MAX(tp, _max) {			\
+	.type = NLA_ENSURE_INT_TYPE(tp),		\
+	.validation_type = NLA_VALIDATE_MAX,		\
+	.max = _max,					\
+}
+
+#define NLA_POLICY_VALIDATE_FN(tp, fn, ...) {		\
+	.type = NLA_ENSURE_NO_VALIDATION_PTR(tp),	\
+	.validation_type = NLA_VALIDATE_FUNCTION,	\
+	.validate = fn,					\
+	.len = __VA_ARGS__ + 0,				\
+}
 
 /**
  * struct nl_info - netlink source information
@@ -249,6 +373,9 @@ int nla_validate(const struct nlattr *head, int len, int maxtype,
 int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	      int len, const struct nla_policy *policy,
 	      struct netlink_ext_ack *extack);
+int nla_parse_strict(struct nlattr **tb, int maxtype, const struct nlattr *head,
+		     int len, const struct nla_policy *policy,
+		     struct netlink_ext_ack *extack);
 int nla_policy_len(const struct nla_policy *, int);
 struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype);
 size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize);
@@ -392,11 +519,27 @@ static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
 			      const struct nla_policy *policy,
 			      struct netlink_ext_ack *extack)
 {
-	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
+		NL_SET_ERR_MSG(extack, "Invalid header length");
 		return -EINVAL;
+	}
 
 	return nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
 			 nlmsg_attrlen(nlh, hdrlen), policy, extack);
+}
+
+static inline int nlmsg_parse_strict(const struct nlmsghdr *nlh, int hdrlen,
+				     struct nlattr *tb[], int maxtype,
+				     const struct nla_policy *policy,
+				     struct netlink_ext_ack *extack)
+{
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
+		NL_SET_ERR_MSG(extack, "Invalid header length");
+		return -EINVAL;
+	}
+
+	return nla_parse_strict(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
+				nlmsg_attrlen(nlh, hdrlen), policy, extack);
 }
 
 /**

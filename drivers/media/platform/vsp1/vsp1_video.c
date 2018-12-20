@@ -38,9 +38,7 @@
 #define VSP1_VIDEO_DEF_WIDTH		1024
 #define VSP1_VIDEO_DEF_HEIGHT		768
 
-#define VSP1_VIDEO_MIN_WIDTH		2U
 #define VSP1_VIDEO_MAX_WIDTH		8190U
-#define VSP1_VIDEO_MIN_HEIGHT		2U
 #define VSP1_VIDEO_MAX_HEIGHT		8190U
 
 /* -----------------------------------------------------------------------------
@@ -136,9 +134,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	height = round_down(height, info->vsub);
 
 	/* Clamp the width and height. */
-	pix->width = clamp(width, VSP1_VIDEO_MIN_WIDTH, VSP1_VIDEO_MAX_WIDTH);
-	pix->height = clamp(height, VSP1_VIDEO_MIN_HEIGHT,
-			    VSP1_VIDEO_MAX_HEIGHT);
+	pix->width = clamp(width, info->hsub, VSP1_VIDEO_MAX_WIDTH);
+	pix->height = clamp(height, info->vsub, VSP1_VIDEO_MAX_HEIGHT);
 
 	/*
 	 * Compute and clamp the stride and image size. While not documented in
@@ -867,7 +864,7 @@ static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
 	pipe->stream_config = NULL;
 	pipe->configured = false;
 
-	/* Release our partition table allocation */
+	/* Release our partition table allocation. */
 	kfree(pipe->part_table);
 	pipe->part_table = NULL;
 }
@@ -976,8 +973,8 @@ vsp1_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 		cap->device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE
 				 | V4L2_CAP_STREAMING;
 
-	strlcpy(cap->driver, "vsp1", sizeof(cap->driver));
-	strlcpy(cap->card, video->video.name, sizeof(cap->card));
+	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
+	strscpy(cap->card, video->video.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(video->vsp1->dev));
 

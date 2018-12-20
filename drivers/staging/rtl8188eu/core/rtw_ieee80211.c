@@ -100,19 +100,13 @@ bool rtw_is_cckratesonly_included(u8 *rate)
 
 int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
 {
-	if (channel > 14) {
-		if (rtw_is_cckrates_included(rate))
-			return WIRELESS_INVALID;
-		else
-			return WIRELESS_11A;
-	} else {  /*  could be pure B, pure G, or B/G */
-		if (rtw_is_cckratesonly_included(rate))
-			return WIRELESS_11B;
-		else if (rtw_is_cckrates_included(rate))
-			return	WIRELESS_11BG;
-		else
-			return WIRELESS_11G;
-	}
+	/*  could be pure B, pure G, or B/G */
+	if (rtw_is_cckratesonly_included(rate))
+		return WIRELESS_11B;
+	else if (rtw_is_cckrates_included(rate))
+		return	WIRELESS_11BG;
+	else
+		return WIRELESS_11G;
 }
 
 u8 *rtw_set_fixed_ie(void *pbuf, unsigned int len, void *source,
@@ -252,7 +246,7 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 		wireless_mode = pregistrypriv->wireless_mode;
 	}
 
-		rtw_set_supported_rate(pdev_network->SupportedRates, wireless_mode);
+	rtw_set_supported_rate(pdev_network->SupportedRates, wireless_mode);
 
 	rateLen = rtw_get_rateset_len(pdev_network->SupportedRates);
 
@@ -290,7 +284,7 @@ unsigned char *rtw_get_wpa_ie(unsigned char *pie, uint *wpa_ie_len, int limit)
 
 		if (pbuf) {
 			/* check if oui matches... */
-			if (!memcmp((pbuf + 2), wpa_oui_type, sizeof(wpa_oui_type)) == false)
+			if (memcmp((pbuf + 2), wpa_oui_type, sizeof(wpa_oui_type)))
 				goto check_next_ie;
 
 			/* check version... */

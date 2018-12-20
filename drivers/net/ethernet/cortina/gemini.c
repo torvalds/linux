@@ -372,9 +372,8 @@ static int gmac_setup_phy(struct net_device *netdev)
 		return -ENODEV;
 	netdev->phydev = phy;
 
-	phy->supported &= PHY_GBIT_FEATURES;
-	phy->supported |= SUPPORTED_Asym_Pause | SUPPORTED_Pause;
-	phy->advertising = phy->supported;
+	phy_set_max_speed(phy, SPEED_1000);
+	phy_support_asym_pause(phy);
 
 	/* set PHY interface type */
 	switch (phy->interface) {
@@ -661,7 +660,7 @@ static void gmac_clean_txq(struct net_device *netdev, struct gmac_txq *txq,
 
 			u64_stats_update_begin(&port->tx_stats_syncp);
 			port->tx_frag_stats[nfrags]++;
-			u64_stats_update_end(&port->ir_stats_syncp);
+			u64_stats_update_end(&port->tx_stats_syncp);
 		}
 	}
 

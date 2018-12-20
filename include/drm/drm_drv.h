@@ -56,7 +56,6 @@ struct drm_printer;
 #define DRIVER_ATOMIC			0x10000
 #define DRIVER_KMS_LEGACY_CONTEXT	0x20000
 #define DRIVER_SYNCOBJ                  0x40000
-#define DRIVER_PREFER_XBGR_30BPP        0x80000
 
 /**
  * struct drm_driver - DRM driver structure
@@ -654,14 +653,14 @@ static inline bool drm_dev_is_unplugged(struct drm_device *dev)
  * @dev: DRM device to check
  * @feature: feature flag
  *
- * This checks @dev for driver features, see &drm_driver.driver_features and the
- * various DRIVER_\* flags.
+ * This checks @dev for driver features, see &drm_driver.driver_features,
+ * &drm_device.driver_features, and the various DRIVER_\* flags.
  *
  * Returns true if the @feature is supported, false otherwise.
  */
-static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
+static inline bool drm_core_check_feature(struct drm_device *dev, u32 feature)
 {
-	return dev->driver->driver_features & feature;
+	return dev->driver->driver_features & dev->driver_features & feature;
 }
 
 /**

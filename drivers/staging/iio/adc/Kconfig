@@ -11,7 +11,7 @@ config AD7606
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices:
-	  ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
+	  ad7605-4, ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7606.

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ROHM BH1710/BH1715/BH1721/BH1750/BH1751 ambient light sensor driver
  *
  * Copyright (c) Tomasz Duszynski <tduszyns@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Data sheets:
  *  http://rohmfs.rohm.com/en/products/databook/datasheet/ic/sensor/light/bh1710fvc-e.pdf
@@ -281,8 +278,7 @@ static int bh1750_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int bh1750_suspend(struct device *dev)
+static int __maybe_unused bh1750_suspend(struct device *dev)
 {
 	int ret;
 	struct bh1750_data *data =
@@ -300,10 +296,6 @@ static int bh1750_suspend(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(bh1750_pm_ops, bh1750_suspend, NULL);
-#define BH1750_PM_OPS (&bh1750_pm_ops)
-#else
-#define BH1750_PM_OPS NULL
-#endif
 
 static const struct i2c_device_id bh1750_id[] = {
 	{ "bh1710", BH1710 },
@@ -315,10 +307,21 @@ static const struct i2c_device_id bh1750_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bh1750_id);
 
+static const struct of_device_id bh1750_of_match[] = {
+	{ .compatible = "rohm,bh1710", },
+	{ .compatible = "rohm,bh1715", },
+	{ .compatible = "rohm,bh1721", },
+	{ .compatible = "rohm,bh1750", },
+	{ .compatible = "rohm,bh1751", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, bh1750_of_match);
+
 static struct i2c_driver bh1750_driver = {
 	.driver = {
 		.name = "bh1750",
-		.pm = BH1750_PM_OPS,
+		.of_match_table = bh1750_of_match,
+		.pm = &bh1750_pm_ops,
 	},
 	.probe = bh1750_probe,
 	.remove = bh1750_remove,

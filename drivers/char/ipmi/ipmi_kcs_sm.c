@@ -274,8 +274,8 @@ static int start_kcs_transaction(struct si_sm_data *kcs, unsigned char *data,
 	if (kcs_debug & KCS_DEBUG_MSG) {
 		printk(KERN_DEBUG "start_kcs_transaction -");
 		for (i = 0; i < size; i++)
-			printk(" %02x", (unsigned char) (data [i]));
-		printk("\n");
+			pr_cont(" %02x", data[i]);
+		pr_cont("\n");
 	}
 	kcs->error_retries = 0;
 	memcpy(kcs->write_data, data, size);

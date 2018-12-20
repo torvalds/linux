@@ -45,6 +45,9 @@ enum {
 	MLX5_QP_FLAG_BFREG_INDEX	= 1 << 3,
 	MLX5_QP_FLAG_TYPE_DCT		= 1 << 4,
 	MLX5_QP_FLAG_TYPE_DCI		= 1 << 5,
+	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC = 1 << 6,
+	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC = 1 << 7,
+	MLX5_QP_FLAG_ALLOW_SCATTER_CQE	= 1 << 8,
 };
 
 enum {
@@ -349,9 +352,22 @@ struct mlx5_ib_create_qp_rss {
 	__u32	flags;
 };
 
+enum mlx5_ib_create_qp_resp_mask {
+	MLX5_IB_CREATE_QP_RESP_MASK_TIRN = 1UL << 0,
+	MLX5_IB_CREATE_QP_RESP_MASK_TISN = 1UL << 1,
+	MLX5_IB_CREATE_QP_RESP_MASK_RQN  = 1UL << 2,
+	MLX5_IB_CREATE_QP_RESP_MASK_SQN  = 1UL << 3,
+};
+
 struct mlx5_ib_create_qp_resp {
 	__u32	bfreg_index;
 	__u32   reserved;
+	__u32	comp_mask;
+	__u32	tirn;
+	__u32	tisn;
+	__u32	rqn;
+	__u32	sqn;
+	__u32   reserved1;
 };
 
 struct mlx5_ib_alloc_mw {

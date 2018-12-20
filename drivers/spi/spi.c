@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SPI init/core code
  *
  * Copyright (C) 2005 David Brownell
  * Copyright (C) 2008 Secret Lab Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -60,6 +51,7 @@ static void spidev_release(struct device *dev)
 		spi->controller->cleanup(spi);
 
 	spi_controller_put(spi->controller);
+	kfree(spi->driver_override);
 	kfree(spi);
 }
 
@@ -76,6 +68,51 @@ modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 	return sprintf(buf, "%s%s\n", SPI_MODULE_PREFIX, spi->modalias);
 }
 static DEVICE_ATTR_RO(modalias);
+
+static ssize_t driver_override_store(struct device *dev,
+				     struct device_attribute *a,
+				     const char *buf, size_t count)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	const char *end = memchr(buf, '\n', count);
+	const size_t len = end ? end - buf : count;
+	const char *driver_override, *old;
+
+	/* We need to keep extra room for a newline when displaying value */
+	if (len >= (PAGE_SIZE - 1))
+		return -EINVAL;
+
+	driver_override = kstrndup(buf, len, GFP_KERNEL);
+	if (!driver_override)
+		return -ENOMEM;
+
+	device_lock(dev);
+	old = spi->driver_override;
+	if (len) {
+		spi->driver_override = driver_override;
+	} else {
+		/* Emptry string, disable driver override */
+		spi->driver_override = NULL;
+		kfree(driver_override);
+	}
+	device_unlock(dev);
+	kfree(old);
+
+	return count;
+}
+
+static ssize_t driver_override_show(struct device *dev,
+				    struct device_attribute *a, char *buf)
+{
+	const struct spi_device *spi = to_spi_device(dev);
+	ssize_t len;
+
+	device_lock(dev);
+	len = snprintf(buf, PAGE_SIZE, "%s\n", spi->driver_override ? : "");
+	device_unlock(dev);
+	return len;
+}
+static DEVICE_ATTR_RW(driver_override);
 
 #define SPI_STATISTICS_ATTRS(field, file)				\
 static ssize_t spi_controller_##field##_show(struct device *dev,	\
@@ -158,6 +195,7 @@ SPI_STATISTICS_SHOW(transfers_split_maxsize, "%lu");
 
 static struct attribute *spi_dev_attrs[] = {
 	&dev_attr_modalias.attr,
+	&dev_attr_driver_override.attr,
 	NULL,
 };
 
@@ -304,6 +342,10 @@ static int spi_match_device(struct device *dev, struct device_driver *drv)
 {
 	const struct spi_device	*spi = to_spi_device(dev);
 	const struct spi_driver	*sdrv = to_spi_driver(drv);
+
+	/* Check override first, and if set, only use the named driver */
+	if (spi->driver_override)
+		return strcmp(spi->driver_override, drv->name) == 0;
 
 	/* Attempt an OF style match */
 	if (of_driver_match_device(dev, drv))
@@ -733,7 +775,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 		enable = !enable;
 
 	if (gpio_is_valid(spi->cs_gpio)) {
-		gpio_set_value(spi->cs_gpio, !enable);
+		/* Honour the SPI_NO_CS flag */
+		if (!(spi->mode & SPI_NO_CS))
+			gpio_set_value(spi->cs_gpio, !enable);
 		/* Some SPI masters need both GPIO CS & slave_select */
 		if ((spi->controller->flags & SPI_MASTER_GPIO_SS) &&
 		    spi->controller->set_cs)
@@ -2783,8 +2827,10 @@ int spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	/* help drivers fail *cleanly* when they need options
 	 * that aren't supported with their current controller
+	 * SPI_CS_WORD has a fallback software implementation,
+	 * so it is ignored here.
 	 */
-	bad_bits = spi->mode & ~spi->controller->mode_bits;
+	bad_bits = spi->mode & ~(spi->controller->mode_bits | SPI_CS_WORD);
 	ugly_bits = bad_bits &
 		    (SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD);
 	if (ugly_bits) {
@@ -2837,6 +2883,35 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 
 	if (list_empty(&message->transfers))
 		return -EINVAL;
+
+	/* If an SPI controller does not support toggling the CS line on each
+	 * transfer (indicated by the SPI_CS_WORD flag) or we are using a GPIO
+	 * for the CS line, we can emulate the CS-per-word hardware function by
+	 * splitting transfers into one-word transfers and ensuring that
+	 * cs_change is set for each transfer.
+	 */
+	if ((spi->mode & SPI_CS_WORD) && (!(ctlr->mode_bits & SPI_CS_WORD) ||
+					  gpio_is_valid(spi->cs_gpio))) {
+		size_t maxsize;
+		int ret;
+
+		maxsize = (spi->bits_per_word + 7) / 8;
+
+		/* spi_split_transfers_maxsize() requires message->spi */
+		message->spi = spi;
+
+		ret = spi_split_transfers_maxsize(ctlr, message, maxsize,
+						  GFP_KERNEL);
+		if (ret)
+			return ret;
+
+		list_for_each_entry(xfer, &message->transfers, transfer_list) {
+			/* don't change cs_change on the last entry in the list */
+			if (list_is_last(&xfer->transfer_list, &message->transfers))
+				break;
+			xfer->cs_change = 1;
+		}
+	}
 
 	/* Half-duplex links include original MicroWire, and ones with
 	 * only one data pin like SPI_3WIRE (switches direction) or where
@@ -3323,20 +3398,23 @@ EXPORT_SYMBOL_GPL(spi_write_then_read);
 
 /*-------------------------------------------------------------------------*/
 
-#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+#if IS_ENABLED(CONFIG_OF)
 static int __spi_of_device_match(struct device *dev, void *data)
 {
 	return dev->of_node == data;
 }
 
 /* must call put_device() when done with returned spi_device device */
-static struct spi_device *of_find_spi_device_by_node(struct device_node *node)
+struct spi_device *of_find_spi_device_by_node(struct device_node *node)
 {
 	struct device *dev = bus_find_device(&spi_bus_type, NULL, node,
 						__spi_of_device_match);
 	return dev ? to_spi_device(dev) : NULL;
 }
+EXPORT_SYMBOL_GPL(of_find_spi_device_by_node);
+#endif /* IS_ENABLED(CONFIG_OF) */
 
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
 static int __spi_of_controller_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data;

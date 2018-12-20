@@ -22,18 +22,13 @@
  */
 
 #include "amdgpu.h"
-#define MAX_KIQ_REG_WAIT	5000 /* in usecs, 5ms */
-#define MAX_KIQ_REG_BAILOUT_INTERVAL	5 /* in msecs, 5ms */
-#define MAX_KIQ_REG_TRY 20
 
 uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev)
 {
 	uint64_t addr = adev->vm_manager.max_pfn << AMDGPU_GPU_PAGE_SHIFT;
 
 	addr -= AMDGPU_VA_RESERVED_SIZE;
-
-	if (addr >= AMDGPU_VA_HOLE_START)
-		addr |= AMDGPU_VA_HOLE_END;
+	addr = amdgpu_gmc_sign_extend(addr);
 
 	return addr;
 }
@@ -76,7 +71,7 @@ void amdgpu_free_static_csa(struct amdgpu_device *adev) {
 int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			  struct amdgpu_bo_va **bo_va)
 {
-	uint64_t csa_addr = amdgpu_csa_vaddr(adev) & AMDGPU_VA_HOLE_MASK;
+	uint64_t csa_addr = amdgpu_csa_vaddr(adev) & AMDGPU_GMC_HOLE_MASK;
 	struct ww_acquire_ctx ticket;
 	struct list_head list;
 	struct amdgpu_bo_list_entry pd;

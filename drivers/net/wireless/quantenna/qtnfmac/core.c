@@ -304,6 +304,19 @@ void qtnf_mac_iface_comb_free(struct qtnf_wmac *mac)
 	}
 }
 
+void qtnf_mac_ext_caps_free(struct qtnf_wmac *mac)
+{
+	if (mac->macinfo.extended_capabilities_len) {
+		kfree(mac->macinfo.extended_capabilities);
+		mac->macinfo.extended_capabilities = NULL;
+
+		kfree(mac->macinfo.extended_capabilities_mask);
+		mac->macinfo.extended_capabilities_mask = NULL;
+
+		mac->macinfo.extended_capabilities_len = 0;
+	}
+}
+
 static void qtnf_vif_reset_handler(struct work_struct *work)
 {
 	struct qtnf_vif *vif = container_of(work, struct qtnf_vif, reset_work);
@@ -370,6 +383,7 @@ static void qtnf_mac_scan_timeout(struct work_struct *work)
 static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 					     unsigned int macid)
 {
+	struct qtnf_vif *vif;
 	struct wiphy *wiphy;
 	struct qtnf_wmac *mac;
 	unsigned int i;
@@ -382,18 +396,20 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 
 	mac->macid = macid;
 	mac->bus = bus;
+	mutex_init(&mac->mac_lock);
+	INIT_DELAYED_WORK(&mac->scan_timeout, qtnf_mac_scan_timeout);
 
 	for (i = 0; i < QTNF_MAX_INTF; i++) {
-		memset(&mac->iflist[i], 0, sizeof(struct qtnf_vif));
-		mac->iflist[i].wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-		mac->iflist[i].mac = mac;
-		mac->iflist[i].vifid = i;
-		qtnf_sta_list_init(&mac->iflist[i].sta_list);
-		mutex_init(&mac->mac_lock);
-		INIT_DELAYED_WORK(&mac->scan_timeout, qtnf_mac_scan_timeout);
-		mac->iflist[i].stats64 =
-			netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-		if (!mac->iflist[i].stats64)
+		vif = &mac->iflist[i];
+
+		memset(vif, 0, sizeof(*vif));
+		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+		vif->mac = mac;
+		vif->vifid = i;
+		qtnf_sta_list_init(&vif->sta_list);
+
+		vif->stats64 = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+		if (!vif->stats64)
 			pr_warn("VIF%u.%u: per cpu stats allocation failed\n",
 				macid, i);
 	}
@@ -493,8 +509,7 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 	}
 
 	qtnf_mac_iface_comb_free(mac);
-	kfree(mac->macinfo.extended_capabilities);
-	kfree(mac->macinfo.extended_capabilities_mask);
+	qtnf_mac_ext_caps_free(mac);
 	kfree(mac->macinfo.wowlan);
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;

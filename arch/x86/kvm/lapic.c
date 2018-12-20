@@ -55,7 +55,7 @@
 #define PRIo64 "o"
 
 /* #define apic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
-#define apic_debug(fmt, arg...)
+#define apic_debug(fmt, arg...) do {} while (0)
 
 /* 14 is the version for Xeon and Pentium 8.4.8*/
 #define APIC_VERSION			(0x14UL | ((KVM_APIC_LVT_NUM - 1) << 16))
@@ -69,6 +69,11 @@
 
 #define APIC_BROADCAST			0xFF
 #define X2APIC_BROADCAST		0xFFFFFFFFul
+
+static bool lapic_timer_advance_adjust_done = false;
+#define LAPIC_TIMER_ADVANCE_ADJUST_DONE 100
+/* step-by-step approximation to mitigate fluctuation */
+#define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
 
 static inline int apic_test_vector(int vec, void *bitmap)
 {
@@ -571,6 +576,11 @@ int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
 
+	if (unlikely(!map)) {
+		count = -EOPNOTSUPP;
+		goto out;
+	}
+
 	if (min > map->max_apic_id)
 		goto out;
 	/* Bits above cluster_size are masked in the caller.  */
@@ -955,14 +965,14 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 	map = rcu_dereference(kvm->arch.apic_map);
 
 	ret = kvm_apic_map_get_dest_lapic(kvm, &src, irq, map, &dst, &bitmap);
-	if (ret)
+	if (ret) {
+		*r = 0;
 		for_each_set_bit(i, &bitmap, 16) {
 			if (!dst[i])
 				continue;
-			if (*r < 0)
-				*r = 0;
 			*r += kvm_apic_set_irq(dst[i]->vcpu, irq, dest_map);
 		}
+	}
 
 	rcu_read_unlock();
 	return ret;
@@ -1472,7 +1482,7 @@ static bool lapic_timer_int_injected(struct kvm_vcpu *vcpu)
 void wait_lapic_expire(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	u64 guest_tsc, tsc_deadline;
+	u64 guest_tsc, tsc_deadline, ns;
 
 	if (!lapic_in_kernel(vcpu))
 		return;
@@ -1492,6 +1502,24 @@ void wait_lapic_expire(struct kvm_vcpu *vcpu)
 	if (guest_tsc < tsc_deadline)
 		__delay(min(tsc_deadline - guest_tsc,
 			nsec_to_cycles(vcpu, lapic_timer_advance_ns)));
+
+	if (!lapic_timer_advance_adjust_done) {
+		/* too early */
+		if (guest_tsc < tsc_deadline) {
+			ns = (tsc_deadline - guest_tsc) * 1000000ULL;
+			do_div(ns, vcpu->arch.virtual_tsc_khz);
+			lapic_timer_advance_ns -= min((unsigned int)ns,
+				lapic_timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+		} else {
+		/* too late */
+			ns = (guest_tsc - tsc_deadline) * 1000000ULL;
+			do_div(ns, vcpu->arch.virtual_tsc_khz);
+			lapic_timer_advance_ns += min((unsigned int)ns,
+				lapic_timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+		}
+		if (abs(guest_tsc - tsc_deadline) < LAPIC_TIMER_ADVANCE_ADJUST_DONE)
+			lapic_timer_advance_adjust_done = true;
+	}
 }
 
 static void start_sw_tscdeadline(struct kvm_lapic *apic)
@@ -2386,7 +2414,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 	r = kvm_apic_state_fixup(vcpu, s, true);
 	if (r)
 		return r;
-	memcpy(vcpu->arch.apic->regs, s->regs, sizeof *s);
+	memcpy(vcpu->arch.apic->regs, s->regs, sizeof(*s));
 
 	recalculate_apic_map(vcpu->kvm);
 	kvm_apic_set_version(vcpu);
@@ -2621,17 +2649,25 @@ int kvm_hv_vapic_msr_read(struct kvm_vcpu *vcpu, u32 reg, u64 *data)
 	return 0;
 }
 
-int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data)
+int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data, unsigned long len)
 {
 	u64 addr = data & ~KVM_MSR_ENABLED;
+	struct gfn_to_hva_cache *ghc = &vcpu->arch.pv_eoi.data;
+	unsigned long new_len;
+
 	if (!IS_ALIGNED(addr, 4))
 		return 1;
 
 	vcpu->arch.pv_eoi.msr_val = data;
 	if (!pv_eoi_enabled(vcpu))
 		return 0;
-	return kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.pv_eoi.data,
-					 addr, sizeof(u8));
+
+	if (addr == ghc->gpa && len <= ghc->len)
+		new_len = ghc->len;
+	else
+		new_len = len;
+
+	return kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc, addr, new_len);
 }
 
 void kvm_apic_accept_events(struct kvm_vcpu *vcpu)

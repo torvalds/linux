@@ -482,16 +482,15 @@ static int phy_config_aneg(struct phy_device *phydev)
 }
 
 /**
- * phy_start_aneg_priv - start auto-negotiation for this PHY device
+ * phy_start_aneg - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
- * @sync: indicate whether we should wait for the workqueue cancelation
  *
  * Description: Sanitizes the settings (if we're not autonegotiating
  *   them), and then calls the driver's config_aneg function.
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
  */
-static int phy_start_aneg_priv(struct phy_device *phydev, bool sync)
+int phy_start_aneg(struct phy_device *phydev)
 {
 	bool trigger = 0;
 	int err;
@@ -537,23 +536,9 @@ out_unlock:
 	mutex_unlock(&phydev->lock);
 
 	if (trigger)
-		phy_trigger_machine(phydev, sync);
+		phy_trigger_machine(phydev);
 
 	return err;
-}
-
-/**
- * phy_start_aneg - start auto-negotiation for this PHY device
- * @phydev: the phy_device struct
- *
- * Description: Sanitizes the settings (if we're not autonegotiating
- *   them), and then calls the driver's config_aneg function.
- *   If the PHYCONTROL Layer is operating, we change the state to
- *   reflect the beginning of Auto-negotiation or forcing.
- */
-int phy_start_aneg(struct phy_device *phydev)
-{
-	return phy_start_aneg_priv(phydev, true);
 }
 EXPORT_SYMBOL(phy_start_aneg);
 
@@ -635,6 +620,13 @@ int phy_speed_up(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(phy_speed_up);
 
+static void phy_queue_state_machine(struct phy_device *phydev,
+				    unsigned int secs)
+{
+	mod_delayed_work(system_power_efficient_wq, &phydev->state_queue,
+			 secs * HZ);
+}
+
 /**
  * phy_start_machine - start PHY state machine tracking
  * @phydev: the phy_device struct
@@ -647,7 +639,7 @@ EXPORT_SYMBOL_GPL(phy_speed_up);
  */
 void phy_start_machine(struct phy_device *phydev)
 {
-	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, HZ);
+	phy_trigger_machine(phydev);
 }
 EXPORT_SYMBOL_GPL(phy_start_machine);
 
@@ -655,19 +647,14 @@ EXPORT_SYMBOL_GPL(phy_start_machine);
  * phy_trigger_machine - trigger the state machine to run
  *
  * @phydev: the phy_device struct
- * @sync: indicate whether we should wait for the workqueue cancelation
  *
  * Description: There has been a change in state which requires that the
  *   state machine runs.
  */
 
-void phy_trigger_machine(struct phy_device *phydev, bool sync)
+void phy_trigger_machine(struct phy_device *phydev)
 {
-	if (sync)
-		cancel_delayed_work_sync(&phydev->state_queue);
-	else
-		cancel_delayed_work(&phydev->state_queue);
-	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, 0);
+	phy_queue_state_machine(phydev, 0);
 }
 
 /**
@@ -703,7 +690,7 @@ static void phy_error(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 	mutex_unlock(&phydev->lock);
 
-	phy_trigger_machine(phydev, false);
+	phy_trigger_machine(phydev);
 }
 
 /**
@@ -745,7 +732,7 @@ static irqreturn_t phy_change(struct phy_device *phydev)
 	mutex_unlock(&phydev->lock);
 
 	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev, true);
+	phy_trigger_machine(phydev);
 
 	if (phy_interrupt_is_valid(phydev) && phy_clear_interrupt(phydev))
 		goto phy_err;
@@ -861,6 +848,8 @@ void phy_stop(struct phy_device *phydev)
 out_unlock:
 	mutex_unlock(&phydev->lock);
 
+	phy_state_machine(&phydev->state_queue.work);
+
 	/* Cannot call flush_scheduled_work() here as desired because
 	 * of rtnl_lock(), but PHY_HALTED shall guarantee phy_change()
 	 * will not reenable interrupts.
@@ -909,7 +898,7 @@ void phy_start(struct phy_device *phydev)
 	}
 	mutex_unlock(&phydev->lock);
 
-	phy_trigger_machine(phydev, true);
+	phy_trigger_machine(phydev);
 }
 EXPORT_SYMBOL(phy_start);
 
@@ -937,7 +926,6 @@ void phy_state_machine(struct work_struct *work)
 	bool needs_aneg = false, do_suspend = false;
 	enum phy_state old_state;
 	int err = 0;
-	int old_link;
 
 	mutex_lock(&phydev->lock);
 
@@ -1021,26 +1009,16 @@ void phy_state_machine(struct work_struct *work)
 		}
 		break;
 	case PHY_RUNNING:
-		/* Only register a CHANGE if we are polling and link changed
-		 * since latest checking.
-		 */
-		if (phy_polling_mode(phydev)) {
-			old_link = phydev->link;
-			err = phy_read_status(phydev);
-			if (err)
-				break;
+		if (!phy_polling_mode(phydev))
+			break;
 
-			if (old_link != phydev->link)
-				phydev->state = PHY_CHANGELINK;
-		}
-		/*
-		 * Failsafe: check that nobody set phydev->link=0 between two
-		 * poll cycles, otherwise we won't leave RUNNING state as long
-		 * as link remains down.
-		 */
-		if (!phydev->link && phydev->state == PHY_RUNNING) {
-			phydev->state = PHY_CHANGELINK;
-			phydev_err(phydev, "no link in PHY_RUNNING\n");
+		err = phy_read_status(phydev);
+		if (err)
+			break;
+
+		if (!phydev->link) {
+			phydev->state = PHY_NOLINK;
+			phy_link_down(phydev, true);
 		}
 		break;
 	case PHY_CHANGELINK:
@@ -1066,40 +1044,25 @@ void phy_state_machine(struct work_struct *work)
 	case PHY_RESUMING:
 		if (AUTONEG_ENABLE == phydev->autoneg) {
 			err = phy_aneg_done(phydev);
-			if (err < 0)
+			if (err < 0) {
 				break;
-
-			/* err > 0 if AN is done.
-			 * Otherwise, it's 0, and we're  still waiting for AN
-			 */
-			if (err > 0) {
-				err = phy_read_status(phydev);
-				if (err)
-					break;
-
-				if (phydev->link) {
-					phydev->state = PHY_RUNNING;
-					phy_link_up(phydev);
-				} else	{
-					phydev->state = PHY_NOLINK;
-					phy_link_down(phydev, false);
-				}
-			} else {
+			} else if (!err) {
 				phydev->state = PHY_AN;
 				phydev->link_timeout = PHY_AN_TIMEOUT;
-			}
-		} else {
-			err = phy_read_status(phydev);
-			if (err)
 				break;
-
-			if (phydev->link) {
-				phydev->state = PHY_RUNNING;
-				phy_link_up(phydev);
-			} else	{
-				phydev->state = PHY_NOLINK;
-				phy_link_down(phydev, false);
 			}
+		}
+
+		err = phy_read_status(phydev);
+		if (err)
+			break;
+
+		if (phydev->link) {
+			phydev->state = PHY_RUNNING;
+			phy_link_up(phydev);
+		} else	{
+			phydev->state = PHY_NOLINK;
+			phy_link_down(phydev, false);
 		}
 		break;
 	}
@@ -1107,7 +1070,7 @@ void phy_state_machine(struct work_struct *work)
 	mutex_unlock(&phydev->lock);
 
 	if (needs_aneg)
-		err = phy_start_aneg_priv(phydev, false);
+		err = phy_start_aneg(phydev);
 	else if (do_suspend)
 		phy_suspend(phydev);
 
@@ -1121,11 +1084,14 @@ void phy_state_machine(struct work_struct *work)
 
 	/* Only re-schedule a PHY state machine change if we are polling the
 	 * PHY, if PHY_IGNORE_INTERRUPT is set, then we will be moving
-	 * between states from phy_mac_interrupt()
+	 * between states from phy_mac_interrupt().
+	 *
+	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the
+	 * state machine would be pointless and possibly error prone when
+	 * called from phy_disconnect() synchronously.
 	 */
-	if (phy_polling_mode(phydev))
-		queue_delayed_work(system_power_efficient_wq, &phydev->state_queue,
-				   PHY_STATE_TIME * HZ);
+	if (phy_polling_mode(phydev) && old_state != PHY_HALTED)
+		phy_queue_state_machine(phydev, PHY_STATE_TIME);
 }
 
 /**

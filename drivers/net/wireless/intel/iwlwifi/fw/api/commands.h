@@ -436,7 +436,8 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @REDUCE_TX_POWER_CMD:
-	 * &struct iwl_dev_tx_power_cmd_v3 or &struct iwl_dev_tx_power_cmd
+	 * &struct iwl_dev_tx_power_cmd_v3 or &struct iwl_dev_tx_power_cmd_v4
+	 * or &struct iwl_dev_tx_power_cmd
 	 */
 	REDUCE_TX_POWER_CMD = 0x9f,
 

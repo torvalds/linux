@@ -228,6 +228,9 @@ struct nfs_server {
 	unsigned short		mountd_port;
 	unsigned short		mountd_protocol;
 	struct rpc_wait_queue	uoc_rpcwaitq;
+
+	/* XDR related information */
+	unsigned int		read_hdrsize;
 };
 
 /* Server capabilities */

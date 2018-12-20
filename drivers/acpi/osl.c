@@ -617,15 +617,18 @@ void acpi_os_stall(u32 us)
 }
 
 /*
- * Support ACPI 3.0 AML Timer operand
- * Returns 64-bit free-running, monotonically increasing timer
- * with 100ns granularity
+ * Support ACPI 3.0 AML Timer operand. Returns a 64-bit free-running,
+ * monotonically increasing timer with 100ns granularity. Do not use
+ * ktime_get() to implement this function because this function may get
+ * called after timekeeping has been suspended. Note: calling this function
+ * after timekeeping has been suspended may lead to unexpected results
+ * because when timekeeping is suspended the jiffies counter is not
+ * incremented. See also timekeeping_suspend().
  */
 u64 acpi_os_get_timer(void)
 {
-	u64 time_ns = ktime_to_ns(ktime_get());
-	do_div(time_ns, 100);
-	return time_ns;
+	return (get_jiffies_64() - INITIAL_JIFFIES) *
+		(ACPI_100NSEC_PER_SEC / HZ);
 }
 
 acpi_status acpi_os_read_port(acpi_io_address port, u32 * value, u32 width)
@@ -1129,6 +1132,7 @@ void acpi_os_wait_events_complete(void)
 	flush_workqueue(kacpid_wq);
 	flush_workqueue(kacpi_notify_wq);
 }
+EXPORT_SYMBOL(acpi_os_wait_events_complete);
 
 struct acpi_hp_work {
 	struct work_struct work;

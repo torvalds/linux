@@ -103,7 +103,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 	struct loopback_dev *lodev = dev->priv;
 	u32 rxmask;
 	unsigned i;
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 
 	if (lodev->txcarrier < lodev->rxcarriermin ||
 	    lodev->txcarrier > lodev->rxcarriermax) {

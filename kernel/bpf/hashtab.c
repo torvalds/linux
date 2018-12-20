@@ -1285,6 +1285,35 @@ int bpf_percpu_hash_update(struct bpf_map *map, void *key, void *value,
 	return ret;
 }
 
+static void htab_percpu_map_seq_show_elem(struct bpf_map *map, void *key,
+					  struct seq_file *m)
+{
+	struct htab_elem *l;
+	void __percpu *pptr;
+	int cpu;
+
+	rcu_read_lock();
+
+	l = __htab_map_lookup_elem(map, key);
+	if (!l) {
+		rcu_read_unlock();
+		return;
+	}
+
+	btf_type_seq_show(map->btf, map->btf_key_type_id, key, m);
+	seq_puts(m, ": {\n");
+	pptr = htab_elem_get_ptr(l, map->key_size);
+	for_each_possible_cpu(cpu) {
+		seq_printf(m, "\tcpu%d: ", cpu);
+		btf_type_seq_show(map->btf, map->btf_value_type_id,
+				  per_cpu_ptr(pptr, cpu), m);
+		seq_puts(m, "\n");
+	}
+	seq_puts(m, "}\n");
+
+	rcu_read_unlock();
+}
+
 const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
@@ -1293,6 +1322,7 @@ const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_lookup_elem = htab_percpu_map_lookup_elem,
 	.map_update_elem = htab_percpu_map_update_elem,
 	.map_delete_elem = htab_map_delete_elem,
+	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
 };
 
 const struct bpf_map_ops htab_lru_percpu_map_ops = {
@@ -1303,6 +1333,7 @@ const struct bpf_map_ops htab_lru_percpu_map_ops = {
 	.map_lookup_elem = htab_lru_percpu_map_lookup_elem,
 	.map_update_elem = htab_lru_percpu_map_update_elem,
 	.map_delete_elem = htab_lru_map_delete_elem,
+	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
 };
 
 static int fd_htab_map_alloc_check(union bpf_attr *attr)

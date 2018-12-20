@@ -58,7 +58,7 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 /**
  * elfcorehdr_read - read from ELF core header
  * @buf: buffer where the data is placed
- * @csize: number of bytes to read
+ * @count: number of bytes to read
  * @ppos: address in the memory
  *
  * This function reads @count bytes from elf core header which exists

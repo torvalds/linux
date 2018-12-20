@@ -194,9 +194,7 @@ extern struct kvmppc_spapr_tce_table *kvmppc_find_table(
 		(iommu_tce_check_ioba((stt)->page_shift, (stt)->offset, \
 				(stt)->size, (ioba), (npages)) ?        \
 				H_PARAMETER : H_SUCCESS)
-extern long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *tt,
-		unsigned long tce);
-extern long kvmppc_gpa_to_ua(struct kvm *kvm, unsigned long gpa,
+extern long kvmppc_tce_to_ua(struct kvm *kvm, unsigned long tce,
 		unsigned long *ua, unsigned long **prmap);
 extern void kvmppc_tce_put(struct kvmppc_spapr_tce_table *tt,
 		unsigned long idx, unsigned long tce);
@@ -327,6 +325,7 @@ struct kvmppc_ops {
 	int (*set_smt_mode)(struct kvm *kvm, unsigned long mode,
 			    unsigned long flags);
 	void (*giveup_ext)(struct kvm_vcpu *vcpu, ulong msr);
+	int (*enable_nested)(struct kvm *kvm);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
@@ -585,6 +584,7 @@ extern int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
 
 extern int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 irq,
 			       int level, bool line_status);
+extern void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu);
 #else
 static inline int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
 				       u32 priority) { return -1; }
@@ -607,6 +607,7 @@ static inline int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval) { retur
 
 static inline int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 irq,
 				      int level, bool line_status) { return -ENODEV; }
+static inline void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu) { }
 #endif /* CONFIG_KVM_XIVE */
 
 /*
@@ -652,6 +653,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
                     unsigned long mfrr);
 int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr);
 int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr);
+void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu);
 
 /*
  * Host-side operations we want to set up while running in real

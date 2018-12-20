@@ -113,15 +113,14 @@ static int max517_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int max517_suspend(struct device *dev)
+static int __maybe_unused max517_suspend(struct device *dev)
 {
 	u8 outbuf = COMMAND_PD;
 
 	return i2c_master_send(to_i2c_client(dev), &outbuf, 1);
 }
 
-static int max517_resume(struct device *dev)
+static int __maybe_unused max517_resume(struct device *dev)
 {
 	u8 outbuf = 0;
 
@@ -129,10 +128,6 @@ static int max517_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(max517_pm_ops, max517_suspend, max517_resume);
-#define MAX517_PM_OPS (&max517_pm_ops)
-#else
-#define MAX517_PM_OPS NULL
-#endif
 
 static const struct iio_info max517_info = {
 	.read_raw = max517_read_raw,
@@ -229,7 +224,7 @@ MODULE_DEVICE_TABLE(i2c, max517_id);
 static struct i2c_driver max517_driver = {
 	.driver = {
 		.name	= MAX517_DRV_NAME,
-		.pm		= MAX517_PM_OPS,
+		.pm	= &max517_pm_ops,
 	},
 	.probe		= max517_probe,
 	.remove		= max517_remove,

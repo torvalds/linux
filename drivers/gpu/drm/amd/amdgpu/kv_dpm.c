@@ -2995,12 +2995,12 @@ static int kv_dpm_sw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 230,
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 230,
 				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
-	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 231,
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 231,
 				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;

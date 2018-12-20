@@ -20,7 +20,7 @@
 
 #define pr_fmt(fmt) "apple-properties: " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/efi.h>
 #include <linux/io.h>
 #include <linux/platform_data/x86/apple.h>
@@ -235,7 +235,7 @@ static int __init map_properties(void)
 		 */
 		data->len = 0;
 		memunmap(data);
-		free_bootmem_late(pa_data + sizeof(*data), data_len);
+		memblock_free_late(pa_data + sizeof(*data), data_len);
 
 		return ret;
 	}

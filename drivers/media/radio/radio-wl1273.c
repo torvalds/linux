@@ -1286,11 +1286,11 @@ static int wl1273_fm_vidioc_querycap(struct file *file, void *priv,
 
 	dev_dbg(radio->dev, "%s\n", __func__);
 
-	strlcpy(capability->driver, WL1273_FM_DRIVER_NAME,
+	strscpy(capability->driver, WL1273_FM_DRIVER_NAME,
 		sizeof(capability->driver));
-	strlcpy(capability->card, "Texas Instruments Wl1273 FM Radio",
+	strscpy(capability->card, "Texas Instruments Wl1273 FM Radio",
 		sizeof(capability->card));
-	strlcpy(capability->bus_info, radio->bus_type,
+	strscpy(capability->bus_info, radio->bus_type,
 		sizeof(capability->bus_info));
 
 	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK |
@@ -1488,7 +1488,7 @@ static int wl1273_fm_vidioc_g_audio(struct file *file, void *priv,
 	if (audio->index > 1)
 		return -EINVAL;
 
-	strlcpy(audio->name, "Radio", sizeof(audio->name));
+	strscpy(audio->name, "Radio", sizeof(audio->name));
 	audio->capability = V4L2_AUDCAP_STEREO;
 
 	return 0;
@@ -1523,7 +1523,7 @@ static int wl1273_fm_vidioc_g_tuner(struct file *file, void *priv,
 	if (tuner->index > 0)
 		return -EINVAL;
 
-	strlcpy(tuner->name, WL1273_FM_DRIVER_NAME, sizeof(tuner->name));
+	strscpy(tuner->name, WL1273_FM_DRIVER_NAME, sizeof(tuner->name));
 	tuner->type = V4L2_TUNER_RADIO;
 
 	tuner->rangelow	= WL1273_FREQ(WL1273_BAND_JAPAN_LOW);
@@ -1781,7 +1781,7 @@ static int wl1273_fm_vidioc_g_modulator(struct file *file, void *priv,
 
 	dev_dbg(radio->dev, "%s\n", __func__);
 
-	strlcpy(modulator->name, WL1273_FM_DRIVER_NAME,
+	strscpy(modulator->name, WL1273_FM_DRIVER_NAME,
 		sizeof(modulator->name));
 
 	modulator->rangelow = WL1273_FREQ(WL1273_BAND_JAPAN_LOW);

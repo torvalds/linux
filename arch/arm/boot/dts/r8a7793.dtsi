@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the r8a7793 SoC
+ * Device Tree Source for the R-Car M2-N (R8A77930) SoC
  *
  * Copyright (C) 2014-2015 Renesas Electronics Corporation
  */

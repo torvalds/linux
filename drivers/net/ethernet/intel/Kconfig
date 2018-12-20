@@ -68,6 +68,9 @@ config E1000E
 
 	  <http://support.intel.com>
 
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/e1000e.rst>.
+
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
 
@@ -94,7 +97,7 @@ config IGB
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000.rst>.
+	  <file:Documentation/networking/igb.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called igb.
@@ -130,7 +133,7 @@ config IGBVF
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000.rst>.
+	  <file:Documentation/networking/igbvf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called igbvf.
@@ -147,7 +150,7 @@ config IXGB
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgb.txt>.
+	  <file:Documentation/networking/ixgb.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgb.
@@ -163,6 +166,9 @@ config IXGBE
 	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/ixgbe.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
@@ -194,6 +200,15 @@ config IXGBE_DCB
 
 	  If unsure, say N.
 
+config IXGBE_IPSEC
+	bool "IPSec XFRM cryptography-offload acceleration"
+	depends on IXGBE
+	depends on XFRM_OFFLOAD
+	default y
+	select XFRM_ALGO
+	---help---
+	  Enable support for IPSec offload in ixgbe.ko
+
 config IXGBEVF
 	tristate "Intel(R) 10GbE PCI Express Virtual Function Ethernet support"
 	depends on PCI_MSI
@@ -205,11 +220,20 @@ config IXGBEVF
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgbevf.txt>.
+	  <file:Documentation/networking/ixgbevf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbevf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
+
+config IXGBEVF_IPSEC
+	bool "IPSec XFRM cryptography-offload acceleration"
+	depends on IXGBEVF
+	depends on XFRM_OFFLOAD
+	default y
+	select XFRM_ALGO
+	---help---
+	  Enable support for IPSec offload in ixgbevf.ko
 
 config I40E
 	tristate "Intel(R) Ethernet Controller XL710 Family support"
@@ -221,6 +245,9 @@ config I40E
 	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/i40e.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called i40e.
@@ -235,20 +262,30 @@ config I40E_DCB
 
 	  If unsure, say N.
 
+# this is here to allow seamless migration from I40EVF --> IAVF name
+# so that CONFIG_IAVF symbol will always mirror the state of CONFIG_I40EVF
+config IAVF
+	tristate
 config I40EVF
 	tristate "Intel(R) Ethernet Adaptive Virtual Function support"
+	select IAVF
 	depends on PCI_MSI
 	---help---
 	  This driver supports virtual functions for Intel XL710,
-	  X710, X722, and all devices advertising support for Intel
-	  Ethernet Adaptive Virtual Function devices. For more
+	  X710, X722, XXV710, and all devices advertising support for
+	  Intel Ethernet Adaptive Virtual Function devices. For more
 	  information on how to identify your adapter, go to the Adapter
 	  & Driver ID Guide that can be located at:
 
-	  <http://support.intel.com>
+	  <https://support.intel.com>
+
+	  This driver was formerly named i40evf.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/iavf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
-	  will be called i40evf.  MSI-X interrupt support is required
+	  will be called iavf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
 
 config ICE
@@ -261,6 +298,9 @@ config ICE
 	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/ice.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ice.
@@ -277,7 +317,26 @@ config FM10K
 
 	  <http://support.intel.com>
 
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/fm10k.rst>.
+
 	  To compile this driver as a module, choose M here. The module
 	  will be called fm10k.  MSI-X interrupt support is required
+
+config IGC
+	tristate "Intel(R) Ethernet Controller I225-LM/I225-V support"
+	default n
+	depends on PCI
+	---help---
+	  This driver supports Intel(R) Ethernet Controller I225-LM/I225-V
+	  family of adapters.
+
+	  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called igc.
 
 endif # NET_VENDOR_INTEL

@@ -23,8 +23,7 @@
 #include <linux/i2c.h>
 #include <linux/fb.h>
 
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -43,12 +42,11 @@
 #define SNAPPERCL15_NAND_CEN	(1 << 11) /* Chip enable (active low) */
 #define SNAPPERCL15_NAND_RDY	(1 << 14) /* Device ready */
 
-#define NAND_CTRL_ADDR(chip) 	(chip->IO_ADDR_W + 0x40)
+#define NAND_CTRL_ADDR(chip) 	(chip->legacy.IO_ADDR_W + 0x40)
 
-static void snappercl15_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void snappercl15_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				      unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	static u16 nand_state = SNAPPERCL15_NAND_WPN;
 	u16 set;
 
@@ -70,13 +68,12 @@ static void snappercl15_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		__raw_writew((cmd & 0xff) | nand_state, chip->IO_ADDR_W);
+		__raw_writew((cmd & 0xff) | nand_state,
+			     chip->legacy.IO_ADDR_W);
 }
 
-static int snappercl15_nand_dev_ready(struct mtd_info *mtd)
+static int snappercl15_nand_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	return !!(__raw_readw(NAND_CTRL_ADDR(chip)) & SNAPPERCL15_NAND_RDY);
 }
 

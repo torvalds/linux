@@ -70,6 +70,7 @@
 #define BUG_ON(cond) assert(!(cond))
 #endif
 #endif
+#define BUG()	BUG_ON(1)
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define cpu_to_le16 bswap_16

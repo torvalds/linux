@@ -286,12 +286,11 @@ alternative_endif
 	ldr	\rd, [\rn, #MM_CONTEXT_ID]
 	.endm
 /*
- * read_ctr - read CTR_EL0. If the system has mismatched
- * cache line sizes, provide the system wide safe value
- * from arm64_ftr_reg_ctrel0.sys_val
+ * read_ctr - read CTR_EL0. If the system has mismatched register fields,
+ * provide the system wide safe value from arm64_ftr_reg_ctrel0.sys_val
  */
 	.macro	read_ctr, reg
-alternative_if_not ARM64_MISMATCHED_CACHE_LINE_SIZE
+alternative_if_not ARM64_MISMATCHED_CACHE_TYPE
 	mrs	\reg, ctr_el0			// read CTR
 	nop
 alternative_else
