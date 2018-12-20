@@ -3756,6 +3756,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	u16 max_req_len = BNXT_HWRM_MAX_REQ_LEN;
 	struct hwrm_short_input short_input = {0};
 	u32 doorbell_offset = BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER;
+	u8 *resp_addr = (u8 *)bp->hwrm_cmd_resp_addr;
 	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
 
 	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
@@ -3827,7 +3828,8 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	tmo_count = HWRM_SHORT_TIMEOUT_COUNTER;
 	timeout = timeout - HWRM_SHORT_MIN_TIMEOUT * HWRM_SHORT_TIMEOUT_COUNTER;
 	tmo_count += DIV_ROUND_UP(timeout, HWRM_MIN_TIMEOUT);
-	resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
+	resp_len = (__le32 *)(resp_addr + HWRM_RESP_LEN_OFFSET);
+
 	if (intr_process) {
 		u16 seq_id = bp->hwrm_intr_seq_id;
 
@@ -3850,7 +3852,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		}
 		len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 		      HWRM_RESP_LEN_SFT;
-		valid = bp->hwrm_cmd_resp_addr + len - 1;
+		valid = resp_addr + len - 1;
 	} else {
 		int j;
 
@@ -3878,7 +3880,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		}
 
 		/* Last byte of resp contains valid bit */
-		valid = bp->hwrm_cmd_resp_addr + len - 1;
+		valid = resp_addr + len - 1;
 		for (j = 0; j < HWRM_VALID_BIT_DELAY_USEC; j++) {
 			/* make sure we read from updated DMA memory */
 			dma_rmb();
