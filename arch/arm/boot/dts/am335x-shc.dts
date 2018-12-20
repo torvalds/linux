@@ -138,7 +138,7 @@
 &epwmss1 {
 	status = "okay";
 
-	ehrpwm1: pwm@48302200 {
+	ehrpwm1: pwm@200 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ehrpwm1_pins>;
 		status = "okay";
@@ -205,7 +205,7 @@
 	pinctrl-1 = <&cpsw_sleep>;
 	status = "okay";
 	slaves = <1>;
-	cpsw_emac0: slave@4a100200  {
+	cpsw_emac0: slave@200 {
 		phy-mode = "mii";
 		phy-handle = <&ethernetphy0>;
 	};
