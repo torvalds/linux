@@ -2582,7 +2582,7 @@ static void ath10k_wmi_event_chan_info_unpaired(struct ath10k *ar,
 
 	survey = &ar->survey[idx];
 
-	if (!params->mac_clk_mhz || !survey)
+	if (!params->mac_clk_mhz)
 		return;
 
 	memset(survey, 0, sizeof(*survey));
