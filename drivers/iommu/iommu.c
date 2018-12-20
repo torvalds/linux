@@ -114,10 +114,14 @@ void iommu_device_unregister(struct iommu_device *iommu)
 int iommu_probe_device(struct device *dev)
 {
 	const struct iommu_ops *ops = dev->bus->iommu_ops;
+	int ret = -EINVAL;
 
 	WARN_ON(dev->iommu_group);
 
-	return ops->add_device(dev);
+	if (ops)
+		ret = ops->add_device(dev);
+
+	return ret;
 }
 
 void iommu_release_device(struct device *dev)
