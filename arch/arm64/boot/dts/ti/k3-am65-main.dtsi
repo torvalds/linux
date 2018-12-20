@@ -48,6 +48,7 @@
 		interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
+		power-domains = <&k3_pds 146>;
 	};
 
 	main_uart1: serial@2810000 {
@@ -57,7 +58,7 @@
 		reg-io-width = <4>;
 		interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
+		power-domains = <&k3_pds 147>;
 	};
 
 	main_uart2: serial@2820000 {
@@ -67,6 +68,127 @@
 		reg-io-width = <4>;
 		interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
+		power-domains = <&k3_pds 148>;
+	};
+
+	main_pmx0: pinmux@11c000 {
+		compatible = "pinctrl-single";
+		reg = <0x0 0x11c000 0x0 0x2e4>;
+		#pinctrl-cells = <1>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0xffffffff>;
+	};
+
+	main_pmx1: pinmux@11c2e8 {
+		compatible = "pinctrl-single";
+		reg = <0x0 0x11c2e8 0x0 0x24>;
+		#pinctrl-cells = <1>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0xffffffff>;
+	};
+
+	main_i2c0: i2c@2000000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2000000 0x0 0x100>;
+		interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 110 1>;
+		power-domains = <&k3_pds 110>;
+	};
+
+	main_i2c1: i2c@2010000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2010000 0x0 0x100>;
+		interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 111 1>;
+		power-domains = <&k3_pds 111>;
+	};
+
+	main_i2c2: i2c@2020000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2020000 0x0 0x100>;
+		interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 112 1>;
+		power-domains = <&k3_pds 112>;
+	};
+
+	main_i2c3: i2c@2030000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2030000 0x0 0x100>;
+		interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 113 1>;
+		power-domains = <&k3_pds 113>;
+	};
+
+	ecap0: pwm@3100000 {
+		compatible = "ti,am654-ecap", "ti,am3352-ecap";
+		#pwm-cells = <3>;
+		reg = <0x0 0x03100000 0x0 0x60>;
+		power-domains = <&k3_pds 39>;
+		clocks = <&k3_clks 39 0>;
+		clock-names = "fck";
+	};
+
+	main_spi0: spi@2100000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x2100000 0x0 0x400>;
+		interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 137 1>;
+		power-domains = <&k3_pds 137>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	main_spi1: spi@2110000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x2110000 0x0 0x400>;
+		interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 138 1>;
+		power-domains = <&k3_pds 138>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		assigned-clocks = <&k3_clks 137 1>;
+		assigned-clock-rates = <48000000>;
+	};
+
+	main_spi2: spi@2120000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x2120000 0x0 0x400>;
+		interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 139 1>;
+		power-domains = <&k3_pds 139>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	main_spi3: spi@2130000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x2130000 0x0 0x400>;
+		interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 140 1>;
+		power-domains = <&k3_pds 140>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	main_spi4: spi@2140000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x2140000 0x0 0x400>;
+		interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 141 1>;
+		power-domains = <&k3_pds 141>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 };
