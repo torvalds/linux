@@ -497,6 +497,7 @@ bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
 void sysfs_remove_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int i;
+
 	for (i = 0; ptr[i]; i++)
 		sysfs_remove_file(kobj, ptr[i]);
 }
