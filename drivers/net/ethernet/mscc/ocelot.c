@@ -15,12 +15,16 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/skbuff.h>
+#include <linux/iopoll.h>
 #include <net/arp.h>
 #include <net/netevent.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
 
 #include "ocelot.h"
+
+#define TABLE_UPDATE_SLEEP_US 10
+#define TABLE_UPDATE_TIMEOUT_US 100000
 
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
@@ -41,23 +45,20 @@ struct ocelot_mact_entry {
 	enum macaccess_entry_type type;
 };
 
+static inline u32 ocelot_mact_read_macaccess(struct ocelot *ocelot)
+{
+	return ocelot_read(ocelot, ANA_TABLES_MACACCESS);
+}
+
 static inline int ocelot_mact_wait_for_completion(struct ocelot *ocelot)
 {
-	unsigned int val, timeout = 10;
+	u32 val;
 
-	/* Wait for the issued mac table command to be completed, or timeout.
-	 * When the command read from  ANA_TABLES_MACACCESS is
-	 * MACACCESS_CMD_IDLE, the issued command completed successfully.
-	 */
-	do {
-		val = ocelot_read(ocelot, ANA_TABLES_MACACCESS);
-		val &= ANA_TABLES_MACACCESS_MAC_TABLE_CMD_M;
-	} while (val != MACACCESS_CMD_IDLE && timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return readx_poll_timeout(ocelot_mact_read_macaccess,
+		ocelot, val,
+		(val & ANA_TABLES_MACACCESS_MAC_TABLE_CMD_M) ==
+		MACACCESS_CMD_IDLE,
+		TABLE_UPDATE_SLEEP_US, TABLE_UPDATE_TIMEOUT_US);
 }
 
 static void ocelot_mact_select(struct ocelot *ocelot,
@@ -129,23 +130,21 @@ static void ocelot_mact_init(struct ocelot *ocelot)
 	ocelot_write(ocelot, MACACCESS_CMD_INIT, ANA_TABLES_MACACCESS);
 }
 
+static inline u32 ocelot_vlant_read_vlanaccess(struct ocelot *ocelot)
+{
+	return ocelot_read(ocelot, ANA_TABLES_VLANACCESS);
+}
+
 static inline int ocelot_vlant_wait_for_completion(struct ocelot *ocelot)
 {
-	unsigned int val, timeout = 10;
+	u32 val;
 
-	/* Wait for the issued vlan table command to be completed, or timeout.
-	 * When the command read from ANA_TABLES_VLANACCESS is
-	 * VLANACCESS_CMD_IDLE, the issued command completed successfully.
-	 */
-	do {
-		val = ocelot_read(ocelot, ANA_TABLES_VLANACCESS);
-		val &= ANA_TABLES_VLANACCESS_VLAN_TBL_CMD_M;
-	} while (val != ANA_TABLES_VLANACCESS_CMD_IDLE && timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return readx_poll_timeout(ocelot_vlant_read_vlanaccess,
+		ocelot,
+		val,
+		(val & ANA_TABLES_VLANACCESS_VLAN_TBL_CMD_M) ==
+		ANA_TABLES_VLANACCESS_CMD_IDLE,
+		TABLE_UPDATE_SLEEP_US, TABLE_UPDATE_TIMEOUT_US);
 }
 
 static int ocelot_vlant_set_mask(struct ocelot *ocelot, u16 vid, u32 mask)
