@@ -1870,8 +1870,12 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 static void hclgevf_ae_stop(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	int i;
 
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
+
+	for (i = 0; i < handle->kinfo.num_tqps; i++)
+		hclgevf_reset_tqp(handle, i);
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
