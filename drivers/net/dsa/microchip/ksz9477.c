@@ -500,13 +500,9 @@ static int ksz9477_port_vlan_filtering(struct dsa_switch *ds, int port,
 	if (flag) {
 		ksz_port_cfg(dev, port, REG_PORT_LUE_CTRL,
 			     PORT_VLAN_LOOKUP_VID_0, true);
-		ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
-			      true);
 		ksz_cfg(dev, REG_SW_LUE_CTRL_0, SW_VLAN_ENABLE, true);
 	} else {
 		ksz_cfg(dev, REG_SW_LUE_CTRL_0, SW_VLAN_ENABLE, false);
-		ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
-			      false);
 		ksz_port_cfg(dev, port, REG_PORT_LUE_CTRL,
 			     PORT_VLAN_LOOKUP_VID_0, false);
 	}
@@ -1129,6 +1125,10 @@ static int ksz9477_setup(struct dsa_switch *ds)
 		dev_err(ds->dev, "failed to reset switch\n");
 		return ret;
 	}
+
+	/* Required for port partitioning. */
+	ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
+		      true);
 
 	/* accept packet up to 2000bytes */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_LEGAL_PACKET_DISABLE, true);
