@@ -25,6 +25,8 @@
 #include "core_acl_flex_actions.h"
 #include "reg.h"
 
+#define MLXSW_SP_DEFAULT_VID 1
+
 #define MLXSW_SP_FID_8021D_MAX 1024
 
 #define MLXSW_SP_MID_MAX 7000
