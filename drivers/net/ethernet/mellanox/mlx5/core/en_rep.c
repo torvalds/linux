@@ -45,8 +45,8 @@
 #include "en/tc_tun.h"
 #include "fs_core.h"
 
-#define MLX5E_REP_PARAMS_LOG_SQ_SIZE \
-	max(0x6, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
+#define MLX5E_REP_PARAMS_DEF_LOG_SQ_SIZE \
+        max(0x7, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
 #define MLX5E_REP_PARAMS_DEF_NUM_CHANNELS 1
 
 static const char mlx5e_rep_driver_name[] = "mlx5e_rep";
@@ -1317,6 +1317,15 @@ static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
 };
 
+bool mlx5e_eswitch_rep(struct net_device *netdev)
+{
+	if (netdev->netdev_ops == &mlx5e_netdev_ops_vf_rep ||
+	    netdev->netdev_ops == &mlx5e_netdev_ops_uplink_rep)
+		return true;
+
+	return false;
+}
+
 static void mlx5e_build_rep_params(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -1337,7 +1346,7 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	if (rep->vport == FDB_UPLINK_VPORT)
 		params->log_sq_size = MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 	else
-		params->log_sq_size = MLX5E_REP_PARAMS_LOG_SQ_SIZE;
+		params->log_sq_size = MLX5E_REP_PARAMS_DEF_LOG_SQ_SIZE;;
 
 	/* RQ */
 	mlx5e_build_rq_params(mdev, params);
@@ -1382,7 +1391,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 
 	netdev->switchdev_ops = &mlx5e_rep_switchdev_ops;
 
-	netdev->features	 |= NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
+	netdev->features	 |= NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
 	netdev->hw_features      |= NETIF_F_HW_TC;
 
 	netdev->hw_features    |= NETIF_F_SG;
@@ -1392,6 +1401,9 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->hw_features    |= NETIF_F_TSO;
 	netdev->hw_features    |= NETIF_F_TSO6;
 	netdev->hw_features    |= NETIF_F_RXCSUM;
+
+	if (rep->vport != FDB_UPLINK_VPORT)
+		netdev->features |= NETIF_F_VLAN_CHALLENGED;
 
 	netdev->features |= netdev->hw_features;
 }

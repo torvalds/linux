@@ -6,16 +6,50 @@
 #include "lib/vxlan.h"
 #include "en/tc_tun.h"
 
-static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
-				   struct net_device *mirred_dev,
-				   struct net_device **out_dev,
-				   struct flowi4 *fl4,
-				   struct neighbour **out_n,
-				   u8 *out_ttl)
+static int get_route_and_out_devs(struct mlx5e_priv *priv,
+				  struct net_device *dev,
+				  struct net_device **route_dev,
+				  struct net_device **out_dev)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct net_device *uplink_dev, *uplink_upper;
 	bool dst_is_lag_dev;
+
+	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
+	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
+	dst_is_lag_dev = (uplink_upper &&
+			  netif_is_lag_master(uplink_upper) &&
+			  dev == uplink_upper &&
+			  mlx5_lag_is_sriov(priv->mdev));
+
+	/* if the egress device isn't on the same HW e-switch or
+	 * it's a LAG device, use the uplink
+	 */
+	if (!switchdev_port_same_parent_id(priv->netdev, dev) ||
+	    dst_is_lag_dev) {
+		*route_dev = uplink_dev;
+		*out_dev = *route_dev;
+	} else {
+		*route_dev = dev;
+		if (is_vlan_dev(*route_dev))
+			*out_dev = uplink_dev;
+		else if (mlx5e_eswitch_rep(dev))
+			*out_dev = *route_dev;
+		else
+			return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
+				   struct net_device *mirred_dev,
+				   struct net_device **out_dev,
+				   struct net_device **route_dev,
+				   struct flowi4 *fl4,
+				   struct neighbour **out_n,
+				   u8 *out_ttl)
+{
 	struct rtable *rt;
 	struct neighbour *n = NULL;
 
@@ -30,21 +64,9 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	return -EOPNOTSUPP;
 #endif
 
-	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
-	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
-	dst_is_lag_dev = (uplink_upper &&
-			  netif_is_lag_master(uplink_upper) &&
-			  rt->dst.dev == uplink_upper &&
-			  mlx5_lag_is_sriov(priv->mdev));
-
-	/* if the egress device isn't on the same HW e-switch or
-	 * it's a LAG device, use the uplink
-	 */
-	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev) ||
-	    dst_is_lag_dev)
-		*out_dev = uplink_dev;
-	else
-		*out_dev = rt->dst.dev;
+	ret = get_route_and_out_devs(priv, rt->dst.dev, route_dev, out_dev);
+	if (ret < 0)
+		return ret;
 
 	if (!(*out_ttl))
 		*out_ttl = ip4_dst_hoplimit(&rt->dst);
@@ -68,6 +90,7 @@ static const char *mlx5e_netdev_kind(struct net_device *dev)
 static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 				   struct net_device *mirred_dev,
 				   struct net_device **out_dev,
+				   struct net_device **route_dev,
 				   struct flowi6 *fl6,
 				   struct neighbour **out_n,
 				   u8 *out_ttl)
@@ -76,9 +99,6 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	struct dst_entry *dst;
 
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct net_device *uplink_dev, *uplink_upper;
-	bool dst_is_lag_dev;
 	int ret;
 
 	ret = ipv6_stub->ipv6_dst_lookup(dev_net(mirred_dev), NULL, &dst,
@@ -89,21 +109,9 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	if (!(*out_ttl))
 		*out_ttl = ip6_dst_hoplimit(dst);
 
-	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
-	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
-	dst_is_lag_dev = (uplink_upper &&
-			  netif_is_lag_master(uplink_upper) &&
-			  dst->dev == uplink_upper &&
-			  mlx5_lag_is_sriov(priv->mdev));
-
-	/* if the egress device isn't on the same HW e-switch or
-	 * it's a LAG device, use the uplink
-	 */
-	if (!switchdev_port_same_parent_id(priv->netdev, dst->dev) ||
-	    dst_is_lag_dev)
-		*out_dev = uplink_dev;
-	else
-		*out_dev = dst->dev;
+	ret = get_route_and_out_devs(priv, dst->dev, route_dev, out_dev);
+	if (ret < 0)
+		return ret;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -176,23 +184,60 @@ static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
 	return err;
 }
 
+static char *gen_eth_tnl_hdr(char *buf, struct net_device *dev,
+			     struct mlx5e_encap_entry *e,
+			     u16 proto)
+{
+	struct ethhdr *eth = (struct ethhdr *)buf;
+	char *ip;
+
+	ether_addr_copy(eth->h_dest, e->h_dest);
+	ether_addr_copy(eth->h_source, dev->dev_addr);
+	if (is_vlan_dev(dev)) {
+		struct vlan_hdr *vlan = (struct vlan_hdr *)
+					((char *)eth + ETH_HLEN);
+		ip = (char *)vlan + VLAN_HLEN;
+		eth->h_proto = vlan_dev_vlan_proto(dev);
+		vlan->h_vlan_TCI = htons(vlan_dev_vlan_id(dev));
+		vlan->h_vlan_encapsulated_proto = htons(proto);
+	} else {
+		eth->h_proto = htons(proto);
+		ip = (char *)eth + ETH_HLEN;
+	}
+
+	return ip;
+}
+
 int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 				    struct net_device *mirred_dev,
 				    struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	int ipv4_encap_size = ETH_HLEN +
-			      sizeof(struct iphdr) +
-			      e->tunnel_hlen;
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
-	struct net_device *out_dev;
+	struct net_device *out_dev, *route_dev;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
+	int ipv4_encap_size;
 	char *encap_header;
-	struct ethhdr *eth;
 	u8 nud_state, ttl;
 	struct iphdr *ip;
 	int err;
+
+	/* add the IP fields */
+	fl4.flowi4_tos = tun_key->tos;
+	fl4.daddr = tun_key->u.ipv4.dst;
+	fl4.saddr = tun_key->u.ipv4.src;
+	ttl = tun_key->ttl;
+
+	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev, &route_dev,
+				      &fl4, &n, &ttl);
+	if (err)
+		return err;
+
+	ipv4_encap_size =
+		(is_vlan_dev(route_dev) ? VLAN_ETH_HLEN : ETH_HLEN) +
+		sizeof(struct iphdr) +
+		e->tunnel_hlen;
 
 	if (max_encap_size < ipv4_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
@@ -203,17 +248,6 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	encap_header = kzalloc(ipv4_encap_size, GFP_KERNEL);
 	if (!encap_header)
 		return -ENOMEM;
-
-	/* add the IP fields */
-	fl4.flowi4_tos = tun_key->tos;
-	fl4.daddr = tun_key->u.ipv4.dst;
-	fl4.saddr = tun_key->u.ipv4.src;
-	ttl = tun_key->ttl;
-
-	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev,
-				      &fl4, &n, &ttl);
-	if (err)
-		goto free_encap;
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
 	 * entry in the neigh hash table when a user deletes a rule
@@ -238,13 +272,10 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	read_unlock_bh(&n->lock);
 
 	/* add ethernet header */
-	eth = (struct ethhdr *)encap_header;
-	ether_addr_copy(eth->h_dest, e->h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IP);
+	ip = (struct iphdr *)gen_eth_tnl_hdr(encap_header, route_dev, e,
+					     ETH_P_IP);
 
 	/* add ip header */
-	ip = (struct iphdr *)((char *)eth + sizeof(struct ethhdr));
 	ip->tos = tun_key->tos;
 	ip->version = 0x4;
 	ip->ihl = 0x5;
@@ -295,18 +326,31 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 				    struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	int ipv6_encap_size = ETH_HLEN +
-			      sizeof(struct ipv6hdr) +
-			      e->tunnel_hlen;
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
-	struct net_device *out_dev;
+	struct net_device *out_dev, *route_dev;
 	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
 	struct ipv6hdr *ip6h;
+	int ipv6_encap_size;
 	char *encap_header;
-	struct ethhdr *eth;
 	u8 nud_state, ttl;
 	int err;
+
+	ttl = tun_key->ttl;
+
+	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
+	fl6.daddr = tun_key->u.ipv6.dst;
+	fl6.saddr = tun_key->u.ipv6.src;
+
+	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev, &route_dev,
+				      &fl6, &n, &ttl);
+	if (err)
+		return err;
+
+	ipv6_encap_size =
+		(is_vlan_dev(route_dev) ? VLAN_ETH_HLEN : ETH_HLEN) +
+		sizeof(struct ipv6hdr) +
+		e->tunnel_hlen;
 
 	if (max_encap_size < ipv6_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
@@ -317,17 +361,6 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	encap_header = kzalloc(ipv6_encap_size, GFP_KERNEL);
 	if (!encap_header)
 		return -ENOMEM;
-
-	ttl = tun_key->ttl;
-
-	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
-	fl6.daddr = tun_key->u.ipv6.dst;
-	fl6.saddr = tun_key->u.ipv6.src;
-
-	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev,
-				      &fl6, &n, &ttl);
-	if (err)
-		goto free_encap;
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
 	 * entry in the neigh hash table when a user deletes a rule
@@ -352,13 +385,10 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	read_unlock_bh(&n->lock);
 
 	/* add ethernet header */
-	eth = (struct ethhdr *)encap_header;
-	ether_addr_copy(eth->h_dest, e->h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IPV6);
+	ip6h = (struct ipv6hdr *)gen_eth_tnl_hdr(encap_header, route_dev, e,
+						 ETH_P_IPV6);
 
 	/* add ip header */
-	ip6h = (struct ipv6hdr *)((char *)eth + sizeof(struct ethhdr));
 	ip6_flow_hdr(ip6h, tun_key->tos, 0);
 	/* the HW fills up ipv6 payload len */
 	ip6h->hop_limit   = ttl;
