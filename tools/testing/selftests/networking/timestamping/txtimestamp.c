@@ -73,6 +73,7 @@ static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
 static bool cfg_loop_nodata;
 static bool cfg_no_delay;
+static bool cfg_use_cmsg;
 static uint16_t dest_port = 9000;
 
 static struct sockaddr_in daddr;
@@ -269,8 +270,13 @@ static int recv_errmsg(int fd)
 	return ret == -1;
 }
 
-static void do_test(int family, unsigned int opt)
+static void do_test(int family, unsigned int report_opt)
 {
+	char control[CMSG_SPACE(sizeof(uint32_t))];
+	unsigned int sock_opt;
+	struct cmsghdr *cmsg;
+	struct msghdr msg;
+	struct iovec iov;
 	char *buf;
 	int fd, i, val = 1, total_len;
 
@@ -321,17 +327,22 @@ static void do_test(int family, unsigned int opt)
 		}
 	}
 
-	opt |= SOF_TIMESTAMPING_SOFTWARE |
-	       SOF_TIMESTAMPING_OPT_CMSG |
-	       SOF_TIMESTAMPING_OPT_ID;
+	sock_opt = SOF_TIMESTAMPING_SOFTWARE |
+		   SOF_TIMESTAMPING_OPT_CMSG |
+		   SOF_TIMESTAMPING_OPT_ID;
+
+	if (!cfg_use_cmsg)
+		sock_opt |= report_opt;
+
 	if (cfg_loop_nodata)
-		opt |= SOF_TIMESTAMPING_OPT_TSONLY;
+		sock_opt |= SOF_TIMESTAMPING_OPT_TSONLY;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
-		       (char *) &opt, sizeof(opt)))
+		       (char *) &sock_opt, sizeof(sock_opt)))
 		error(1, 0, "setsockopt timestamping");
 
 	for (i = 0; i < cfg_num_pkts; i++) {
+		memset(&msg, 0, sizeof(msg));
 		memset(&ts_prev, 0, sizeof(ts_prev));
 		memset(buf, 'a' + i, total_len);
 
@@ -361,14 +372,38 @@ static void do_test(int family, unsigned int opt)
 		}
 
 		print_timestamp_usr();
+
+		iov.iov_base = buf;
+		iov.iov_len = total_len;
+
 		if (cfg_proto != SOCK_STREAM) {
-			if (family == PF_INET)
-				val = sendto(fd, buf, total_len, 0, (void *) &daddr, sizeof(daddr));
-			else
-				val = sendto(fd, buf, total_len, 0, (void *) &daddr6, sizeof(daddr6));
-		} else {
-			val = send(fd, buf, cfg_payload_len, 0);
+			if (family == PF_INET) {
+				msg.msg_name = (void *)&daddr;
+				msg.msg_namelen = sizeof(daddr);
+			} else {
+				msg.msg_name = (void *)&daddr6;
+				msg.msg_namelen = sizeof(daddr6);
+			}
 		}
+
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+
+		if (cfg_use_cmsg) {
+			memset(control, 0, sizeof(control));
+
+			msg.msg_control = control;
+			msg.msg_controllen = sizeof(control);
+
+			cmsg = CMSG_FIRSTHDR(&msg);
+			cmsg->cmsg_level = SOL_SOCKET;
+			cmsg->cmsg_type = SO_TIMESTAMPING;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(uint32_t));
+
+			*((uint32_t *) CMSG_DATA(cmsg)) = report_opt;
+		}
+
+		val = sendmsg(fd, &msg, 0);
 		if (val != total_len)
 			error(1, errno, "send");
 
@@ -396,6 +431,7 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -6:   only IPv6\n"
 			"  -h:   show this message\n"
 			"  -c N: number of packets for each test\n"
+			"  -C:   use cmsg to set tstamp recording options\n"
 			"  -D:   no delay between packets\n"
 			"  -F:   poll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
@@ -413,9 +449,9 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 static void parse_opt(int argc, char **argv)
 {
 	int proto_count = 0;
-	char c;
+	int c;
 
-	while ((c = getopt(argc, argv, "46c:DFhIl:np:rRux")) != -1) {
+	while ((c = getopt(argc, argv, "46c:CDFhIl:np:rRux")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -425,6 +461,9 @@ static void parse_opt(int argc, char **argv)
 			break;
 		case 'c':
 			cfg_num_pkts = strtoul(optarg, NULL, 10);
+			break;
+		case 'C':
+			cfg_use_cmsg = true;
 			break;
 		case 'D':
 			cfg_no_delay = true;
