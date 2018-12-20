@@ -138,30 +138,6 @@ static const struct dev_pm_ops sof_pci_pm = {
 
 };
 
-static const struct sof_ops_table pci_mach_ops[] = {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_EDISON)
-	{&tng_desc, &sof_tng_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
-	{&bxt_desc, &sof_apl_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
-	{&glk_desc, &sof_apl_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
-	{&cnl_desc, &sof_cnl_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_SKYLAKE)
-	{&skl_desc, &sof_skl_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_KABYLAKE)
-	{&kbl_desc, &sof_skl_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
-	{&icl_desc, &sof_cnl_ops},
-#endif
-};
-
 static int sof_pci_probe(struct pci_dev *pci,
 			 const struct pci_device_id *pci_id)
 {
@@ -177,7 +153,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
 	/* get ops for platform */
-	ops = sof_get_ops(desc, pci_mach_ops, ARRAY_SIZE(pci_mach_ops));
+	ops = ((const struct sof_intel_dsp_desc *)desc->chip_info)->ops;
 	if (!ops) {
 		dev_err(dev, "error: no matching PCI descriptor ops\n");
 		return -ENODEV;
