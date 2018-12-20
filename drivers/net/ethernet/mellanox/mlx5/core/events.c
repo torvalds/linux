@@ -117,6 +117,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_FPGA_QP_ERROR";
 	case MLX5_EVENT_TYPE_GENERAL_EVENT:
 		return "MLX5_EVENT_TYPE_GENERAL_EVENT";
+	case MLX5_EVENT_TYPE_MONITOR_COUNTER:
+		return "MLX5_EVENT_TYPE_MONITOR_COUNTER";
 	case MLX5_EVENT_TYPE_DEVICE_TRACER:
 		return "MLX5_EVENT_TYPE_DEVICE_TRACER";
 	default:
@@ -157,23 +159,47 @@ static int temp_warn(struct notifier_block *nb, unsigned long type, void *data)
 }
 
 /* MLX5_EVENT_TYPE_PORT_MODULE_EVENT */
-static const char *mlx5_pme_status[MLX5_MODULE_STATUS_NUM] = {
-	"Cable plugged",   /* MLX5_MODULE_STATUS_PLUGGED    = 0x1 */
-	"Cable unplugged", /* MLX5_MODULE_STATUS_UNPLUGGED  = 0x2 */
-	"Cable error",     /* MLX5_MODULE_STATUS_ERROR      = 0x3 */
-};
+static const char *mlx5_pme_status_to_string(enum port_module_event_status_type status)
+{
+	switch (status) {
+	case MLX5_MODULE_STATUS_PLUGGED:
+		return "Cable plugged";
+	case MLX5_MODULE_STATUS_UNPLUGGED:
+		return "Cable unplugged";
+	case MLX5_MODULE_STATUS_ERROR:
+		return "Cable error";
+	case MLX5_MODULE_STATUS_DISABLED:
+		return "Cable disabled";
+	default:
+		return "Unknown status";
+	}
+}
 
-static const char *mlx5_pme_error[MLX5_MODULE_EVENT_ERROR_NUM] = {
-	"Power budget exceeded",
-	"Long Range for non MLNX cable",
-	"Bus stuck(I2C or data shorted)",
-	"No EEPROM/retry timeout",
-	"Enforce part number list",
-	"Unknown identifier",
-	"High Temperature",
-	"Bad or shorted cable/module",
-	"Unknown status",
-};
+static const char *mlx5_pme_error_to_string(enum port_module_event_error_type error)
+{
+	switch (error) {
+	case MLX5_MODULE_EVENT_ERROR_POWER_BUDGET_EXCEEDED:
+		return "Power budget exceeded";
+	case MLX5_MODULE_EVENT_ERROR_LONG_RANGE_FOR_NON_MLNX:
+		return "Long Range for non MLNX cable";
+	case MLX5_MODULE_EVENT_ERROR_BUS_STUCK:
+		return "Bus stuck (I2C or data shorted)";
+	case MLX5_MODULE_EVENT_ERROR_NO_EEPROM_RETRY_TIMEOUT:
+		return "No EEPROM/retry timeout";
+	case MLX5_MODULE_EVENT_ERROR_ENFORCE_PART_NUMBER_LIST:
+		return "Enforce part number list";
+	case MLX5_MODULE_EVENT_ERROR_UNKNOWN_IDENTIFIER:
+		return "Unknown identifier";
+	case MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE:
+		return "High Temperature";
+	case MLX5_MODULE_EVENT_ERROR_BAD_CABLE:
+		return "Bad or shorted cable/module";
+	case MLX5_MODULE_EVENT_ERROR_PCIE_POWER_SLOT_EXCEEDED:
+		return "One or more network ports have been powered down due to insufficient/unadvertised power on the PCIe slot";
+	default:
+		return "Unknown error";
+	}
+}
 
 /* type == MLX5_EVENT_TYPE_PORT_MODULE_EVENT */
 static int port_module(struct notifier_block *nb, unsigned long type, void *data)
@@ -185,6 +211,7 @@ static int port_module(struct notifier_block *nb, unsigned long type, void *data
 	enum port_module_event_status_type module_status;
 	enum port_module_event_error_type error_type;
 	struct mlx5_eqe_port_module *module_event_eqe;
+	const char *status_str, *error_str;
 	u8 module_num;
 
 	module_event_eqe = &eqe->data.port_module;
@@ -193,28 +220,28 @@ static int port_module(struct notifier_block *nb, unsigned long type, void *data
 			PORT_MODULE_EVENT_MODULE_STATUS_MASK;
 	error_type = module_event_eqe->error_type &
 		     PORT_MODULE_EVENT_ERROR_TYPE_MASK;
-	if (module_status < MLX5_MODULE_STATUS_ERROR) {
-		events->pme_stats.status_counters[module_status - 1]++;
-	} else if (module_status == MLX5_MODULE_STATUS_ERROR) {
-		if (error_type >= MLX5_MODULE_EVENT_ERROR_UNKNOWN)
-			/* Unknown error type */
-			error_type = MLX5_MODULE_EVENT_ERROR_UNKNOWN;
-		events->pme_stats.error_counters[error_type]++;
+
+	if (module_status < MLX5_MODULE_STATUS_NUM)
+		events->pme_stats.status_counters[module_status]++;
+	status_str = mlx5_pme_status_to_string(module_status);
+
+	if (module_status == MLX5_MODULE_STATUS_ERROR) {
+		if (error_type < MLX5_MODULE_EVENT_ERROR_NUM)
+			events->pme_stats.error_counters[error_type]++;
+		error_str = mlx5_pme_error_to_string(error_type);
 	}
 
 	if (!printk_ratelimit())
 		return NOTIFY_OK;
 
-	if (module_status < MLX5_MODULE_STATUS_ERROR)
+	if (module_status == MLX5_MODULE_STATUS_ERROR)
+		mlx5_core_err(events->dev,
+			      "Port module event[error]: module %u, %s, %s\n",
+			      module_num, status_str, error_str);
+	else
 		mlx5_core_info(events->dev,
 			       "Port module event: module %u, %s\n",
-			       module_num, mlx5_pme_status[module_status - 1]);
-
-	else if (module_status == MLX5_MODULE_STATUS_ERROR)
-		mlx5_core_info(events->dev,
-			       "Port module event[error]: module %u, %s, %s\n",
-			       module_num, mlx5_pme_status[module_status - 1],
-			       mlx5_pme_error[error_type]);
+			       module_num, status_str);
 
 	return NOTIFY_OK;
 }

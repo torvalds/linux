@@ -256,28 +256,6 @@ void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol)
 	mutex_unlock(&mlx5_intf_mutex);
 }
 
-void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol)
-{
-	struct mlx5_priv *priv = &mdev->priv;
-	struct mlx5_device_context *dev_ctx;
-	unsigned long flags;
-	void *result = NULL;
-
-	spin_lock_irqsave(&priv->ctx_lock, flags);
-
-	list_for_each_entry(dev_ctx, &mdev->priv.ctx_list, list)
-		if ((dev_ctx->intf->protocol == protocol) &&
-		    dev_ctx->intf->get_dev) {
-			result = dev_ctx->intf->get_dev(dev_ctx->context);
-			break;
-		}
-
-	spin_unlock_irqrestore(&priv->ctx_lock, flags);
-
-	return result;
-}
-EXPORT_SYMBOL(mlx5_get_protocol_dev);
-
 /* Must be called with intf_mutex held */
 void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol)
 {

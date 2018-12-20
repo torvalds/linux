@@ -39,7 +39,6 @@
 #include "lib/eq.h"
 #include "eswitch.h"
 #include "fs_core.h"
-#include "lib/eq.h"
 
 #define UPLINK_VPORT 0xFFFF
 
