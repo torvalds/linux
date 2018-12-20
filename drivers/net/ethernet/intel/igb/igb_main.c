@@ -1934,7 +1934,7 @@ static void igb_setup_tx_mode(struct igb_adapter *adapter)
 
 		val = rd32(E1000_RXPBS);
 		val &= ~I210_RXPBSIZE_MASK;
-		val |= I210_RXPBSIZE_PB_32KB;
+		val |= I210_RXPBSIZE_PB_30KB;
 		wr32(E1000_RXPBS, val);
 
 		/* Section 8.12.9 states that MAX_TPKT_SIZE from DTXMXPKTSZ
@@ -2203,9 +2203,9 @@ void igb_down(struct igb_adapter *adapter)
 	del_timer_sync(&adapter->phy_info_timer);
 
 	/* record the stats before reset*/
-	spin_lock(&adapter->stats64_lock);
+	mutex_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter);
-	spin_unlock(&adapter->stats64_lock);
+	mutex_unlock(&adapter->stats64_lock);
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -3840,7 +3840,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	spin_lock_init(&adapter->nfc_lock);
-	spin_lock_init(&adapter->stats64_lock);
+	mutex_init(&adapter->stats64_lock);
 #ifdef CONFIG_PCI_IOV
 	switch (hw->mac.type) {
 	case e1000_82576:
@@ -5406,9 +5406,9 @@ no_wait:
 		}
 	}
 
-	spin_lock(&adapter->stats64_lock);
+	mutex_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter);
-	spin_unlock(&adapter->stats64_lock);
+	mutex_unlock(&adapter->stats64_lock);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *tx_ring = adapter->tx_ring[i];
@@ -6235,10 +6235,10 @@ static void igb_get_stats64(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	spin_lock(&adapter->stats64_lock);
+	mutex_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter);
 	memcpy(stats, &adapter->stats64, sizeof(*stats));
-	spin_unlock(&adapter->stats64_lock);
+	mutex_unlock(&adapter->stats64_lock);
 }
 
 /**
@@ -8771,9 +8771,11 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	rtnl_unlock();
 
 #ifdef CONFIG_PM
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
+	if (!runtime) {
+		retval = pci_save_state(pdev);
+		if (retval)
+			return retval;
+	}
 #endif
 
 	status = rd32(E1000_STATUS);
