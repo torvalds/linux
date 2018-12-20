@@ -1193,12 +1193,15 @@ struct bnxt_vf_rep {
 #define PTU_PTE_NEXT_TO_LAST      0x4UL
 
 #define MAX_CTX_PAGES	(BNXT_PAGE_SIZE / 8)
+#define MAX_CTX_TOTAL_PAGES	(MAX_CTX_PAGES * MAX_CTX_PAGES)
 
 struct bnxt_ctx_pg_info {
 	u32		entries;
+	u32		nr_pages;
 	void		*ctx_pg_arr[MAX_CTX_PAGES];
 	dma_addr_t	ctx_dma_arr[MAX_CTX_PAGES];
 	struct bnxt_ring_mem_info ring_mem;
+	struct bnxt_ctx_pg_info **ctx_pg_tbl;
 };
 
 struct bnxt_ctx_mem_info {
