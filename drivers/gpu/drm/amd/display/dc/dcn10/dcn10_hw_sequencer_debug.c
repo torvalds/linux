@@ -71,7 +71,7 @@ static unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, 
 static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	struct dcn_hubbub_wm wm = {0};
+	struct dcn_hubbub_wm wm;
 	int i;
 
 	unsigned int chars_printed = 0;
@@ -80,6 +80,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
 
+	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
 	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
 	chars_printed = snprintf_count(pBuf, remaining_buffer, "wm_set_index,data_urgent,pte_meta_urgent,sr_enter,sr_exit,dram_clk_chanage\n");

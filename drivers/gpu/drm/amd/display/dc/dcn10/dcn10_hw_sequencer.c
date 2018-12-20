@@ -91,9 +91,10 @@ static void log_mpc_crc(struct dc *dc,
 void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	struct dcn_hubbub_wm wm = {0};
+	struct dcn_hubbub_wm wm;
 	int i;
 
+	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
 	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
 	DTN_INFO("HUBBUB WM:      data_urgent  pte_meta_urgent"
