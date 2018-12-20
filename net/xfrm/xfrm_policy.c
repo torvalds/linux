@@ -2076,7 +2076,6 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	struct xfrm_policy *pol, *ret;
 	struct hlist_head *chain;
 	unsigned int sequence;
-	u32 priority;
 	int err;
 
 	daddr = xfrm_flowi_daddr(fl, family);
@@ -2091,7 +2090,6 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 		chain = policy_hash_direct(net, daddr, saddr, family, dir);
 	} while (read_seqcount_retry(&xfrm_policy_hash_generation, sequence));
 
-	priority = ~0U;
 	ret = NULL;
 	hlist_for_each_entry_rcu(pol, chain, bydst) {
 		err = xfrm_policy_match(pol, fl, type, family, dir, if_id);
@@ -2104,7 +2102,6 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 			}
 		} else {
 			ret = pol;
-			priority = ret->priority;
 			break;
 		}
 	}
