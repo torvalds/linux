@@ -539,6 +539,7 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 		WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
 	.radar_found_cmdid = WMI_CMD_UNSUPPORTED,
+	.set_bb_timing_cmdid = WMI_10_2_PDEV_SET_BB_TIMING_CONFIG_CMDID,
 };
 
 /* 10.4 WMI cmd track */
@@ -8843,6 +8844,27 @@ ath10k_wmi_barrier(struct ath10k *ar)
 	return 0;
 }
 
+static struct sk_buff *
+ath10k_wmi_10_2_4_op_gen_bb_timing(struct ath10k *ar,
+				   const struct wmi_bb_timing_cfg_arg *arg)
+{
+	struct wmi_pdev_bb_timing_cfg_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_pdev_bb_timing_cfg_cmd *)skb->data;
+	cmd->bb_tx_timing = __cpu_to_le32(arg->bb_tx_timing);
+	cmd->bb_xpa_timing = __cpu_to_le32(arg->bb_xpa_timing);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi pdev bb_tx_timing 0x%x bb_xpa_timing 0x%x\n",
+		   arg->bb_tx_timing, arg->bb_xpa_timing);
+	return skb;
+}
+
 static const struct wmi_ops wmi_ops = {
 	.rx = ath10k_wmi_op_rx,
 	.map_svc = wmi_main_svc_map,
@@ -9116,6 +9138,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.gen_pdev_enable_adaptive_cca =
 		ath10k_wmi_op_gen_pdev_enable_adaptive_cca,
 	.get_vdev_subtype = ath10k_wmi_10_2_4_op_get_vdev_subtype,
+	.gen_bb_timing = ath10k_wmi_10_2_4_op_gen_bb_timing,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
