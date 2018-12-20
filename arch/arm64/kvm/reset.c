@@ -31,6 +31,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_coproc.h>
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
 
 /*
@@ -139,6 +140,29 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	/* Reset system registers */
 	kvm_reset_sys_regs(vcpu);
+
+	/*
+	 * Additional reset state handling that PSCI may have imposed on us.
+	 * Must be done after all the sys_reg reset.
+	 */
+	if (vcpu->arch.reset_state.reset) {
+		unsigned long target_pc = vcpu->arch.reset_state.pc;
+
+		/* Gracefully handle Thumb2 entry point */
+		if (vcpu_mode_is_32bit(vcpu) && (target_pc & 1)) {
+			target_pc &= ~1UL;
+			vcpu_set_thumb(vcpu);
+		}
+
+		/* Propagate caller endianness */
+		if (vcpu->arch.reset_state.be)
+			kvm_vcpu_set_be(vcpu);
+
+		*vcpu_pc(vcpu) = target_pc;
+		vcpu_set_reg(vcpu, 0, vcpu->arch.reset_state.r0);
+
+		vcpu->arch.reset_state.reset = false;
+	}
 
 	/* Reset PMU */
 	kvm_pmu_vcpu_reset(vcpu);
