@@ -3054,11 +3054,6 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u64 imm = insn->imm; /* sign extend */
 	swreg tmp_reg;
 
-	if (!imm) {
-		meta->skip = true;
-		return 0;
-	}
-
 	if (imm & ~0U) {
 		tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
 		emit_alu(nfp_prog, reg_none(),
