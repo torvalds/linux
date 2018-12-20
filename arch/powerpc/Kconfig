@@ -1143,7 +1143,7 @@ config PIN_TLB_DATA
 
 config PIN_TLB_IMMR
 	bool "Pinned TLB for IMMR"
-	depends on PIN_TLB
+	depends on PIN_TLB || PPC_EARLY_DEBUG_CPM
 	default y
 
 config PIN_TLB_TEXT
