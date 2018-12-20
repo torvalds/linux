@@ -379,6 +379,7 @@ out_start_err:
 
 static int hns3_nic_net_open(struct net_device *netdev)
 {
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo;
 	int i, ret;
@@ -404,6 +405,9 @@ static int hns3_nic_net_open(struct net_device *netdev)
 		netdev_set_prio_tc_map(netdev, i,
 				       kinfo->prio_tc[i]);
 	}
+
+	if (h->ae_algo->ops->set_timer_task)
+		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
 
 	return 0;
 }
@@ -437,9 +441,13 @@ static void hns3_nic_net_down(struct net_device *netdev)
 static int hns3_nic_net_stop(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
 		return 0;
+
+	if (h->ae_algo->ops->set_timer_task)
+		h->ae_algo->ops->set_timer_task(priv->ae_handle, false);
 
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);

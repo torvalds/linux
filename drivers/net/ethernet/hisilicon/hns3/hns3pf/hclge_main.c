@@ -5295,6 +5295,20 @@ static void hclge_reset_tqp_stats(struct hnae3_handle *handle)
 	}
 }
 
+static void hclge_set_timer_task(struct hnae3_handle *handle, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	if (enable) {
+		mod_timer(&hdev->service_timer, jiffies + HZ);
+	} else {
+		del_timer_sync(&hdev->service_timer);
+		cancel_work_sync(&hdev->service_task);
+		clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
+	}
+}
+
 static int hclge_ae_start(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -5303,7 +5317,6 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 	/* mac enable */
 	hclge_cfg_mac_mode(hdev, true);
 	clear_bit(HCLGE_STATE_DOWN, &hdev->state);
-	mod_timer(&hdev->service_timer, jiffies + HZ);
 	hdev->hw.mac.link = 0;
 
 	/* reset tqp stats */
@@ -5321,10 +5334,6 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 
-	del_timer_sync(&hdev->service_timer);
-	cancel_work_sync(&hdev->service_task);
-	clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
-
 	/* If it is not PF reset, the firmware will disable the MAC,
 	 * so it only need to stop phy here.
 	 */
@@ -5341,8 +5350,6 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 
 	/* reset tqp stats */
 	hclge_reset_tqp_stats(handle);
-	del_timer_sync(&hdev->service_timer);
-	cancel_work_sync(&hdev->service_task);
 	hclge_update_link_status(hdev);
 }
 
@@ -7996,6 +8003,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.ae_dev_reset_cnt = hclge_ae_dev_reset_cnt,
 	.set_gro_en = hclge_gro_en,
 	.get_global_queue_id = hclge_covert_handle_qid_global,
+	.set_timer_task = hclge_set_timer_task,
 };
 
 static struct hnae3_ae_algo ae_algo = {
