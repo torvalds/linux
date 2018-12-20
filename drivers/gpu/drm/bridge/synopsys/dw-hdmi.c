@@ -1959,14 +1959,11 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	dev_dbg(hdmi->dev, "final tmdsclk = %d\n", vmode->mtmdsclock);
 
 	/* Set up HDMI_FC_INVIDCONF
-	 * fc_invidconf.HDCP_keepout must be set (1'b1)
-	 * when activate the scrambler feature.
+	 * Some display equipments require that the interval
+	 * between Video Data and Data island must be at least 58 pixels,
+	 * and fc_invidconf.HDCP_keepout set (1'b1) can meet the requirement.
 	 */
-	inv_val = (vmode->mtmdsclock > 340000000 ||
-		   (hdmi_info->scdc.scrambling.low_rates &&
-		    hdmi->scramble_low_rates) ?
-		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE :
-		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_INACTIVE);
+	inv_val = HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE;
 
 	inv_val |= mode->flags & DRM_MODE_FLAG_PVSYNC ?
 		HDMI_FC_INVIDCONF_VSYNC_IN_POLARITY_ACTIVE_HIGH :
