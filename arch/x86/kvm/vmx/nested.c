@@ -19,8 +19,6 @@ module_param_named(enable_shadow_vmcs, enable_shadow_vmcs, bool, S_IRUGO);
 static bool __read_mostly nested_early_check = 0;
 module_param(nested_early_check, bool, S_IRUGO);
 
-extern const ulong vmx_early_consistency_check_return;
-
 /*
  * Hyper-V requires all of these, so mark them as supported even though
  * they are just treated the same as all-context.
@@ -2715,7 +2713,7 @@ static int nested_vmx_check_vmentry_postreqs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static int __noclone nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
+static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long cr3, cr4;
@@ -2740,8 +2738,6 @@ static int __noclone nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	 */
 	vmcs_writel(GUEST_RFLAGS, 0);
 
-	vmcs_writel(HOST_RIP, vmx_early_consistency_check_return);
-
 	cr3 = __get_current_cr3_fast();
 	if (unlikely(cr3 != vmx->loaded_vmcs->host_state.cr3)) {
 		vmcs_writel(HOST_CR3, cr3);
@@ -2758,32 +2754,26 @@ static int __noclone nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 
 	asm(
 		/* Set HOST_RSP */
+		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
 		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
-		"mov %%" _ASM_SP ", %c[host_rsp](%% " _ASM_CX")\n\t"
+		"mov %%" _ASM_SP ", %c[host_rsp](%1)\n\t"
+		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
 
 		/* Check if vmlaunch or vmresume is needed */
 		"cmpl $0, %c[launched](%% " _ASM_CX")\n\t"
-		"jne 1f\n\t"
-		__ex("vmlaunch") "\n\t"
-		"jmp 2f\n\t"
-		"1: " __ex("vmresume") "\n\t"
-		"2: "
+
+		"call vmx_vmenter\n\t"
+
 		/* Set vmx->fail accordingly */
 		"setbe %c[fail](%% " _ASM_CX")\n\t"
-
-		".pushsection .rodata\n\t"
-		".global vmx_early_consistency_check_return\n\t"
-		"vmx_early_consistency_check_return: " _ASM_PTR " 2b\n\t"
-		".popsection"
-	      :
+	      : ASM_CALL_CONSTRAINT
 	      : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
-		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp))
+		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
+		[wordsize]"i"(sizeof(ulong))
 	      : "rax", "cc", "memory"
 	);
-
-	vmcs_writel(HOST_RIP, vmx_return);
 
 	preempt_enable();
 

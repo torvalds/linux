@@ -12,7 +12,6 @@
 #include "vmcs.h"
 
 extern const u32 vmx_msr_index[];
-extern const ulong vmx_return;
 extern u64 host_efer;
 
 #define MSR_TYPE_R	1
