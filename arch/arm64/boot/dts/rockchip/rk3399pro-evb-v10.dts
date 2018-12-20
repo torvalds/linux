@@ -343,6 +343,11 @@
 	status = "disabled";
 };
 
+&i2s2 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <180>;
