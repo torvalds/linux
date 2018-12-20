@@ -406,7 +406,7 @@ int dma_supported(struct device *dev, u64 mask)
 
 	if (dma_is_direct(ops))
 		return dma_direct_supported(dev, mask);
-	if (ops->dma_supported)
+	if (!ops->dma_supported)
 		return 1;
 	return ops->dma_supported(dev, mask);
 }
