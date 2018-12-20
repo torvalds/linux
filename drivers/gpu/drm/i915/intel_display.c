@@ -10851,8 +10851,11 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	 * Despite the w/a only being listed for IVB we assume that
 	 * the ILK/SNB note has similar ramifications, hence we apply
 	 * the w/a on all three platforms.
+	 *
+	 * With experimental results seems this is needed also for primary
+	 * plane, not only sprite plane.
 	 */
-	if (plane->id == PLANE_SPRITE0 &&
+	if (plane->id != PLANE_CURSOR &&
 	    (IS_GEN_RANGE(dev_priv, 5, 6) ||
 	     IS_IVYBRIDGE(dev_priv)) &&
 	    (turn_on || (!needs_scaling(old_plane_state) &&
