@@ -236,10 +236,6 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 	    skb->data[1] == PPP_UI)
 		skb_pull(skb, 2);
 
-	/* Decompress protocol field if PFC is enabled */
-	if ((*skb->data) & 0x1)
-		*(u8 *)skb_push(skb, 1) = 0;
-
 	if (sk->sk_state & PPPOX_BOUND) {
 		struct pppox_sock *po;
 
