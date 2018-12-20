@@ -34,6 +34,7 @@
 #include "nbio/nbio_7_4_offset.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
+MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
 
 /* address block */
@@ -100,6 +101,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	char fw_name[30];
 	int err = 0;
 	const struct psp_firmware_header_v1_0 *sos_hdr;
+	const struct psp_firmware_header_v1_0 *asd_hdr;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
 	DRM_DEBUG("\n");
@@ -132,14 +134,30 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
 				le32_to_cpu(sos_hdr->sos_offset_bytes);
 
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_asd.bin", chip_name);
+	err = request_firmware(&adev->psp.asd_fw, fw_name, adev->dev);
+	if (err)
+		goto out1;
+
+	err = amdgpu_ucode_validate(adev->psp.asd_fw);
+	if (err)
+		goto out1;
+
+	asd_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.asd_fw->data;
+	adev->psp.asd_fw_version = le32_to_cpu(asd_hdr->header.ucode_version);
+	adev->psp.asd_feature_version = le32_to_cpu(asd_hdr->ucode_feature_version);
+	adev->psp.asd_ucode_size = le32_to_cpu(asd_hdr->header.ucode_size_bytes);
+	adev->psp.asd_start_addr = (uint8_t *)asd_hdr +
+				le32_to_cpu(asd_hdr->header.ucode_array_offset_bytes);
+
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
 	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
 	if (err)
-		goto out;
+		goto out2;
 
 	err = amdgpu_ucode_validate(adev->psp.ta_fw);
 	if (err)
-		goto out;
+		goto out2;
 
 	ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
 	adev->psp.ta_xgmi_ucode_version = le32_to_cpu(ta_hdr->ta_xgmi_ucode_version);
@@ -148,14 +166,18 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
 
 	return 0;
+
+out2:
+	release_firmware(adev->psp.ta_fw);
+	adev->psp.ta_fw = NULL;
+out1:
+	release_firmware(adev->psp.asd_fw);
+	adev->psp.asd_fw = NULL;
 out:
-	if (err) {
-		dev_err(adev->dev,
-			"psp v11.0: Failed to load firmware \"%s\"\n",
-			fw_name);
-		release_firmware(adev->psp.sos_fw);
-		adev->psp.sos_fw = NULL;
-	}
+	dev_err(adev->dev,
+		"psp v11.0: Failed to load firmware \"%s\"\n", fw_name);
+	release_firmware(adev->psp.sos_fw);
+	adev->psp.sos_fw = NULL;
 
 	return err;
 }
