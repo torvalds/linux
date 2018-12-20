@@ -6906,8 +6906,10 @@ Hyper-V CORE AND DRIVERS
 M:	"K. Y. Srinivasan" <kys@microsoft.com>
 M:	Haiyang Zhang <haiyangz@microsoft.com>
 M:	Stephen Hemminger <sthemmin@microsoft.com>
+M:	Sasha Levin <sashal@kernel.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
 L:	devel@linuxdriverproject.org
-S:	Maintained
+S:	Supported
 F:	Documentation/networking/netvsc.txt
 F:	arch/x86/include/asm/mshyperv.h
 F:	arch/x86/include/asm/trace/hyperv.h
