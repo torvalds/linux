@@ -935,10 +935,12 @@ fallback_to_reg_send:
 				    tls_ctx->tx.overhead_size);
 		}
 
-		ret = sk_msg_memcopy_from_iter(sk, &msg->msg_iter, msg_pl,
-					       try_to_copy);
-		if (ret < 0)
-			goto trim_sgl;
+		if (try_to_copy) {
+			ret = sk_msg_memcopy_from_iter(sk, &msg->msg_iter,
+						       msg_pl, try_to_copy);
+			if (ret < 0)
+				goto trim_sgl;
+		}
 
 		/* Open records defined only if successfully copied, otherwise
 		 * we would trim the sg but not reset the open record frags.
