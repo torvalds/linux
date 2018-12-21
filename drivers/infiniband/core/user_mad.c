@@ -1147,17 +1147,28 @@ static ssize_t show_port(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
-static CLASS_ATTR_STRING(abi_version, S_IRUGO,
-			 __stringify(IB_USER_MAD_ABI_VERSION));
-
 static char *umad_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
 }
 
+static ssize_t abi_version_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
+}
+static CLASS_ATTR_RO(abi_version);
+
+static struct attribute *umad_class_attrs[] = {
+	&class_attr_abi_version.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(umad_class);
+
 static struct class umad_class = {
 	.name		= "infiniband_mad",
 	.devnode	= umad_devnode,
+	.class_groups	= umad_class_groups,
 };
 
 static void ib_umad_release_port(struct device *device)
@@ -1365,12 +1376,6 @@ static int __init ib_umad_init(void)
 	if (ret) {
 		pr_err("couldn't create class infiniband_mad\n");
 		goto out_chrdev;
-	}
-
-	ret = class_create_file(&umad_class, &class_attr_abi_version.attr);
-	if (ret) {
-		pr_err("couldn't create abi_version attribute\n");
-		goto out_class;
 	}
 
 	ret = ib_register_client(&umad_client);
