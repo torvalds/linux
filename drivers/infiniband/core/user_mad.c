@@ -1244,17 +1244,11 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	struct ib_umad_file *file;
 	int id;
 
-	dev_set_drvdata(port->dev,    NULL);
-	dev_set_drvdata(port->sm_dev, NULL);
-
-	device_destroy(&umad_class, port->cdev.dev);
-	device_destroy(&umad_class, port->sm_cdev.dev);
-
-	cdev_del(&port->cdev);
-	cdev_del(&port->sm_cdev);
-
 	mutex_lock(&port->file_mutex);
 
+	/* Mark ib_dev NULL and block ioctl or other file ops to progress
+	 * further.
+	 */
 	port->ib_dev = NULL;
 
 	list_for_each_entry(file, &port->file_list, port_list) {
@@ -1268,6 +1262,16 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	}
 
 	mutex_unlock(&port->file_mutex);
+
+	dev_set_drvdata(port->dev,    NULL);
+	dev_set_drvdata(port->sm_dev, NULL);
+
+	device_destroy(&umad_class, port->cdev.dev);
+	device_destroy(&umad_class, port->sm_cdev.dev);
+
+	cdev_del(&port->cdev);
+	cdev_del(&port->sm_cdev);
+
 	ida_free(&umad_ida, port->dev_num);
 }
 
