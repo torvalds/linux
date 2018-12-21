@@ -22,6 +22,9 @@ config HAVE_GENERIC_DMA_COHERENT
 config ARCH_HAS_SETUP_DMA_OPS
 	bool
 
+config ARCH_HAS_TEARDOWN_DMA_OPS
+	bool
+
 config ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	bool
 
