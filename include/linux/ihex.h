@@ -21,14 +21,18 @@ struct ihex_binrec {
 	uint8_t data[0];
 } __attribute__((packed));
 
+static inline uint16_t ihex_binrec_size(const struct ihex_binrec *p)
+{
+	return be16_to_cpu(p->len) + sizeof(*p);
+}
+
 /* Find the next record, taking into account the 4-byte alignment */
 static inline const struct ihex_binrec *
 __ihex_next_binrec(const struct ihex_binrec *rec)
 {
-	int next = ((be16_to_cpu(rec->len) + 5) & ~3) - 2;
-	rec = (void *)&rec->data[next];
+	const void *p = rec;
 
-	return rec;
+	return p + ALIGN(ihex_binrec_size(rec), 4);
 }
 
 static inline const struct ihex_binrec *
