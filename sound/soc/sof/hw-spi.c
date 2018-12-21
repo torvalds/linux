@@ -240,7 +240,7 @@ static int spi_sof_probe(struct snd_sof_dev *sdev)
 		container_of(sdev->parent, struct platform_device, dev);
 	struct snd_sof_pdata *sof_pdata = dev_get_platdata(&pdev->dev);
 	struct sof_spi_dev *sof_spi =
-                (struct sof_spi_dev *)sof_pdata->hw_pdata;
+		(struct sof_spi_dev *)sof_pdata->hw_pdata;
 	/* get IRQ from Device tree or ACPI - register our IRQ */
 	struct irq_data *irqd;
 	struct spi_device *spi = to_spi_device(pdev->dev.parent);
