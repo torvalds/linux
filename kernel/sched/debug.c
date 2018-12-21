@@ -824,7 +824,7 @@ static const struct seq_operations sched_debug_sops = {
 
 static int __init init_sched_debug_procfs(void)
 {
-	if (!proc_create_seq("sched_debug", 0444, NULL, &sched_debug_sops))
+	if (!proc_create_seq("sched_debug", 0400, NULL, &sched_debug_sops))
 		return -ENOMEM;
 	return 0;
 }
