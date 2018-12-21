@@ -1204,7 +1204,7 @@ config MFD_STMPE
 
 	  Currently supported devices are:
 
-		STMPE811: GPIO, Touchscreen
+		STMPE811: GPIO, Touchscreen, ADC
 		STMPE1601: GPIO, Keypad
 		STMPE1801: GPIO, Keypad
 		STMPE2401: GPIO, Keypad
@@ -1217,6 +1217,7 @@ config MFD_STMPE
 		GPIO: stmpe-gpio
 		Keypad: stmpe-keypad
 		Touchscreen: stmpe-ts
+		ADC: stmpe-adc
 
 menu "STMicroelectronics STMPE Interface Drivers"
 depends on MFD_STMPE
