@@ -127,12 +127,16 @@ group pcie1_clkreq
  - pins 40
  - functions pcie, gpio
 
+group pcie1_wakeup
+ - pins 41
+ - functions pcie, gpio
+
 group smi
  - pins 54-55
  - functions smi, gpio
 
 group ptp
- - pins 56-58
+ - pins 56
  - functions ptp, gpio
 
 group ptp_clk
