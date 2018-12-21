@@ -476,6 +476,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		break;
 	case BMIC_SENSE_DIAG_OPTIONS:
 		cdb_length = 0;
+		/* fall through */
 	case BMIC_IDENTIFY_CONTROLLER:
 	case BMIC_IDENTIFY_PHYSICAL_DEVICE:
 		request->data_direction = SOP_READ_FLAG;
@@ -485,6 +486,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		break;
 	case BMIC_SET_DIAG_OPTIONS:
 		cdb_length = 0;
+		/* fall through */
 	case BMIC_WRITE_HOST_WELLNESS:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
@@ -7468,7 +7470,7 @@ static int pqi_ofa_alloc_mem(struct pqi_ctrl_info *ctrl_info,
 	dev = &ctrl_info->pci_dev->dev;
 
 	sg_count = (total_size + chunk_size - 1);
-	do_div(sg_count, chunk_size);
+	sg_count /= chunk_size;
 
 	ofap = ctrl_info->pqi_ofa_mem_virt_addr;
 
