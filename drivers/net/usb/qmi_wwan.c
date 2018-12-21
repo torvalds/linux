@@ -151,17 +151,18 @@ static bool qmimux_has_slaves(struct usbnet *dev)
 
 static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
-	unsigned int len, offset = sizeof(struct qmimux_hdr);
+	unsigned int len, offset = 0;
 	struct qmimux_hdr *hdr;
 	struct net_device *net;
 	struct sk_buff *skbn;
+	u8 qmimux_hdr_sz = sizeof(*hdr);
 
-	while (offset < skb->len) {
-		hdr = (struct qmimux_hdr *)skb->data;
+	while (offset + qmimux_hdr_sz < skb->len) {
+		hdr = (struct qmimux_hdr *)(skb->data + offset);
 		len = be16_to_cpu(hdr->pkt_len);
 
 		/* drop the packet, bogus length */
-		if (offset + len > skb->len)
+		if (offset + len + qmimux_hdr_sz > skb->len)
 			return 0;
 
 		/* control packet, we do not know what to do */
@@ -176,7 +177,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			return 0;
 		skbn->dev = net;
 
-		switch (skb->data[offset] & 0xf0) {
+		switch (skb->data[offset + qmimux_hdr_sz] & 0xf0) {
 		case 0x40:
 			skbn->protocol = htons(ETH_P_IP);
 			break;
@@ -188,12 +189,12 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			goto skip;
 		}
 
-		skb_put_data(skbn, skb->data + offset, len);
+		skb_put_data(skbn, skb->data + offset + qmimux_hdr_sz, len);
 		if (netif_rx(skbn) != NET_RX_SUCCESS)
 			return 0;
 
 skip:
-		offset += len + sizeof(struct qmimux_hdr);
+		offset += len + qmimux_hdr_sz;
 	}
 	return 1;
 }
