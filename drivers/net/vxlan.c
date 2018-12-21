@@ -3768,7 +3768,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 					       dst->remote_vni,
 					       dst->remote_vni,
 					       dst->remote_ifindex,
-					       NTF_SELF, false);
+					       NTF_SELF, true);
 			if (err) {
 				spin_unlock_bh(&vxlan->hash_lock);
 				return err;
