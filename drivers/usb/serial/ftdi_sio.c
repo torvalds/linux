@@ -1130,7 +1130,7 @@ static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base)
 {
 	unsigned short int divisor;
 	/* divisor shifted 3 bits to the left */
-	int divisor3 = base / 2 / baud;
+	int divisor3 = DIV_ROUND_CLOSEST(base, 2 * baud);
 	if ((divisor3 & 0x7) == 7)
 		divisor3++; /* round x.7/8 up to x+1 */
 	divisor = divisor3 >> 3;
@@ -1156,7 +1156,7 @@ static u32 ftdi_232bm_baud_base_to_divisor(int baud, int base)
 	static const unsigned char divfrac[8] = { 0, 3, 2, 4, 1, 5, 6, 7 };
 	u32 divisor;
 	/* divisor shifted 3 bits to the left */
-	int divisor3 = base / 2 / baud;
+	int divisor3 = DIV_ROUND_CLOSEST(base, 2 * baud);
 	divisor = divisor3 >> 3;
 	divisor |= (u32)divfrac[divisor3 & 0x7] << 14;
 	/* Deal with special cases for highest baud rates. */
@@ -1179,7 +1179,7 @@ static u32 ftdi_2232h_baud_base_to_divisor(int baud, int base)
 	int divisor3;
 
 	/* hi-speed baud rate is 10-bit sampling instead of 16-bit */
-	divisor3 = base * 8 / (baud * 10);
+	divisor3 = DIV_ROUND_CLOSEST(8 * base, 10 * baud);
 
 	divisor = divisor3 >> 3;
 	divisor |= (u32)divfrac[divisor3 & 0x7] << 14;
