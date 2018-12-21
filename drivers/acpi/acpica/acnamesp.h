@@ -34,6 +34,7 @@
 #define ACPI_NS_TEMPORARY           0x0040
 #define ACPI_NS_OVERRIDE_IF_FOUND   0x0080
 #define ACPI_NS_EARLY_INIT          0x0100
+#define ACPI_NS_PREFIX_MUST_EXIST   0x0200
 
 /* Flags for acpi_ns_walk_namespace */
 

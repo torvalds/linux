@@ -267,6 +267,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	acpi_object_type this_search_type;
 	u32 search_parent_flag = ACPI_NS_SEARCH_PARENT;
 	u32 local_flags;
+	acpi_interpreter_mode local_interpreter_mode;
 
 	ACPI_FUNCTION_TRACE(ns_lookup);
 
@@ -506,6 +507,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	 */
 	this_search_type = ACPI_TYPE_ANY;
 	current_node = this_node;
+
 	while (num_segments && current_node) {
 		num_segments--;
 		if (!num_segments) {
@@ -536,6 +538,16 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			}
 		}
 
+		/* Handle opcodes that create a new name_seg via a full name_path */
+
+		local_interpreter_mode = interpreter_mode;
+		if ((flags & ACPI_NS_PREFIX_MUST_EXIST) && (num_segments > 0)) {
+
+			/* Every element of the path must exist (except for the final name_seg) */
+
+			local_interpreter_mode = ACPI_IMODE_EXECUTE;
+		}
+
 		/* Extract one ACPI name from the front of the pathname */
 
 		ACPI_MOVE_32_TO_32(&simple_name, path);
@@ -544,12 +556,19 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 		status =
 		    acpi_ns_search_and_enter(simple_name, walk_state,
-					     current_node, interpreter_mode,
+					     current_node,
+					     local_interpreter_mode,
 					     this_search_type, local_flags,
 					     &this_node);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_NOT_FOUND) {
-
+#if !defined ACPI_ASL_COMPILER	/* Note: iASL reports this error by itself, not needed here */
+				if (flags & ACPI_NS_PREFIX_MUST_EXIST) {
+					acpi_os_printf(ACPI_MSG_BIOS_ERROR
+						       "Object does not exist: %4.4s\n",
+						       &simple_name);
+				}
+#endif
 				/* Name not found in ACPI namespace */
 
 				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,

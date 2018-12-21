@@ -365,6 +365,29 @@ struct acpi_table_tcpa_server {
  *
  ******************************************************************************/
 
+/* Revision 3 */
+
+struct acpi_table_tpm23 {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 reserved;
+	u64 control_address;
+	u32 start_method;
+};
+
+/* Value for start_method above */
+
+#define ACPI_TPM23_ACPI_START_METHOD                 2
+
+/*
+ * Optional trailer for revision 3. If start method is 2, there is a 4 byte
+ * reserved area of all zeros.
+ */
+struct acpi_tmp23_trailer {
+	u32 reserved;
+};
+
+/* Revision 4 */
+
 struct acpi_table_tpm2 {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u16 platform_class;
