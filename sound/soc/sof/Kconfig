@@ -12,6 +12,7 @@ config SND_SOC_SOF_PCI
 	tristate "SOF PCI enumeration support"
 	depends on PCI
 	select SND_SOC_SOF
+	select SND_SOC_ACPI if ACPI
 	select SND_SOC_SOF_OPTIONS
 	select SND_SOC_SOF_INTEL_PCI if SND_SOC_SOF_INTEL_TOPLEVEL
 	help
@@ -24,6 +25,7 @@ config SND_SOC_SOF_ACPI
 	tristate "SOF ACPI enumeration support"
 	depends on ACPI || COMPILE_TEST
 	select SND_SOC_SOF
+	select SND_SOC_ACPI if ACPI
 	select SND_SOC_SOF_OPTIONS
 	select SND_SOC_SOF_INTEL_ACPI if SND_SOC_SOF_INTEL_TOPLEVEL
 	select IOSF_MBI if X86
