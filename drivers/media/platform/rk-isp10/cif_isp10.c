@@ -4420,6 +4420,7 @@ static int cif_isp10_mi_frame_end(
 			bool wake_now;
 
 			vb2_buf = &stream->curr_buf->vb.vb2_buf;
+			v4l2_get_timestamp(&stream->curr_buf->vb.timestamp);
 			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
 			wake_now = false;
 
