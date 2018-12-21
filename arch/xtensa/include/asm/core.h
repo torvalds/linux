@@ -6,6 +6,10 @@
 
 #include <variant/core.h>
 
+#ifndef XCHAL_HAVE_EXCLUSIVE
+#define XCHAL_HAVE_EXCLUSIVE 0
+#endif
+
 #ifndef XCHAL_SPANNING_WAY
 #define XCHAL_SPANNING_WAY 0
 #endif

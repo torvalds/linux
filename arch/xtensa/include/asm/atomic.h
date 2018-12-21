@@ -56,7 +56,67 @@
  */
 #define atomic_set(v,i)		WRITE_ONCE((v)->counter, (i))
 
-#if XCHAL_HAVE_S32C1I
+#if XCHAL_HAVE_EXCLUSIVE
+#define ATOMIC_OP(op)							\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	unsigned long tmp;						\
+	int result;							\
+									\
+	__asm__ __volatile__(						\
+			"1:     l32ex   %1, %3\n"			\
+			"       " #op " %0, %1, %2\n"			\
+			"       s32ex   %0, %3\n"			\
+			"       getex   %0\n"				\
+			"       beqz    %0, 1b\n"			\
+			: "=&a" (result), "=&a" (tmp)			\
+			: "a" (i), "a" (v)				\
+			: "memory"					\
+			);						\
+}									\
+
+#define ATOMIC_OP_RETURN(op)						\
+static inline int atomic_##op##_return(int i, atomic_t *v)		\
+{									\
+	unsigned long tmp;						\
+	int result;							\
+									\
+	__asm__ __volatile__(						\
+			"1:     l32ex   %1, %3\n"			\
+			"       " #op " %0, %1, %2\n"			\
+			"       s32ex   %0, %3\n"			\
+			"       getex   %0\n"				\
+			"       beqz    %0, 1b\n"			\
+			"       " #op " %0, %1, %2\n"			\
+			: "=&a" (result), "=&a" (tmp)			\
+			: "a" (i), "a" (v)				\
+			: "memory"					\
+			);						\
+									\
+	return result;							\
+}
+
+#define ATOMIC_FETCH_OP(op)						\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	unsigned long tmp;						\
+	int result;							\
+									\
+	__asm__ __volatile__(						\
+			"1:     l32ex   %1, %3\n"			\
+			"       " #op " %0, %1, %2\n"			\
+			"       s32ex   %0, %3\n"			\
+			"       getex   %0\n"				\
+			"       beqz    %0, 1b\n"			\
+			: "=&a" (result), "=&a" (tmp)			\
+			: "a" (i), "a" (v)				\
+			: "memory"					\
+			);						\
+									\
+	return tmp;							\
+}
+
+#elif XCHAL_HAVE_S32C1I
 #define ATOMIC_OP(op)							\
 static inline void atomic_##op(int i, atomic_t * v)			\
 {									\
