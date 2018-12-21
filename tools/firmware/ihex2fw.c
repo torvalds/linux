@@ -24,6 +24,10 @@
 #include <getopt.h>
 
 
+#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
+#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
+#define ALIGN(x, a)			__ALIGN_KERNEL((x), (a))
+
 struct ihex_binrec {
 	struct ihex_binrec *next; /* not part of the real data structure */
         uint32_t addr;
@@ -259,13 +263,18 @@ static void file_record(struct ihex_binrec *record)
 	*p = record;
 }
 
+static uint16_t ihex_binrec_size(struct ihex_binrec *p)
+{
+	return p->len + sizeof(p->addr) + sizeof(p->len);
+}
+
 static int output_records(int outfd)
 {
 	unsigned char zeroes[6] = {0, 0, 0, 0, 0, 0};
 	struct ihex_binrec *p = records;
 
 	while (p) {
-		uint16_t writelen = (p->len + 9) & ~3;
+		uint16_t writelen = ALIGN(ihex_binrec_size(p), 4);
 
 		p->addr = htonl(p->addr);
 		p->len = htons(p->len);
