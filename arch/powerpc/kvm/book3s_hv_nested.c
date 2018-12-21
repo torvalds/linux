@@ -788,6 +788,57 @@ void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
 	*n_rmap = NULL;
 }
 
+static void kvmhv_update_nest_rmap_rc(struct kvm *kvm, u64 n_rmap,
+				      unsigned long clr, unsigned long set,
+				      unsigned long hpa, unsigned long mask)
+{
+	struct kvm_nested_guest *gp;
+	unsigned long gpa;
+	unsigned int shift, lpid;
+	pte_t *ptep;
+
+	gpa = n_rmap & RMAP_NESTED_GPA_MASK;
+	lpid = (n_rmap & RMAP_NESTED_LPID_MASK) >> RMAP_NESTED_LPID_SHIFT;
+	gp = kvmhv_find_nested(kvm, lpid);
+	if (!gp)
+		return;
+
+	/* Find the pte */
+	ptep = __find_linux_pte(gp->shadow_pgtable, gpa, NULL, &shift);
+	/*
+	 * If the pte is present and the pfn is still the same, update the pte.
+	 * If the pfn has changed then this is a stale rmap entry, the nested
+	 * gpa actually points somewhere else now, and there is nothing to do.
+	 * XXX A future optimisation would be to remove the rmap entry here.
+	 */
+	if (ptep && pte_present(*ptep) && ((pte_val(*ptep) & mask) == hpa)) {
+		__radix_pte_update(ptep, clr, set);
+		kvmppc_radix_tlbie_page(kvm, gpa, shift, lpid);
+	}
+}
+
+/*
+ * For a given list of rmap entries, update the rc bits in all ptes in shadow
+ * page tables for nested guests which are referenced by the rmap list.
+ */
+void kvmhv_update_nest_rmap_rc_list(struct kvm *kvm, unsigned long *rmapp,
+				    unsigned long clr, unsigned long set,
+				    unsigned long hpa, unsigned long nbytes)
+{
+	struct llist_node *entry = ((struct llist_head *) rmapp)->first;
+	struct rmap_nested *cursor;
+	unsigned long rmap, mask;
+
+	if ((clr | set) & ~(_PAGE_DIRTY | _PAGE_ACCESSED))
+		return;
+
+	mask = PTE_RPN_MASK & ~(nbytes - 1);
+	hpa &= mask;
+
+	for_each_nest_rmap_safe(cursor, entry, &rmap)
+		kvmhv_update_nest_rmap_rc(kvm, rmap, clr, set, hpa, mask);
+}
+
 static void kvmhv_remove_nest_rmap(struct kvm *kvm, u64 n_rmap,
 				   unsigned long hpa, unsigned long mask)
 {

@@ -294,8 +294,8 @@ int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	return 0;
 }
 
-static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
-				    unsigned int pshift, unsigned int lpid)
+void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
+			     unsigned int pshift, unsigned int lpid)
 {
 	unsigned long psize = PAGE_SIZE;
 	int psi;
