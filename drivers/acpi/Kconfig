@@ -336,7 +336,7 @@ config ACPI_CUSTOM_DSDT_FILE
 	  See Documentation/acpi/dsdt-override.txt
 
 	  Enter the full path name to the file which includes the AmlCode
-	  declaration.
+	  or dsdt_aml_code declaration.
 
 	  If unsure, don't enter a file name.
 
