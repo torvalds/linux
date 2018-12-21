@@ -803,11 +803,11 @@ scmi_mbox_txrx_setup(struct scmi_info *info, struct device *dev, int prot_id)
 
 static inline void
 scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
-			    int prot_id)
+			    int prot_id, const char *name)
 {
 	struct scmi_device *sdev;
 
-	sdev = scmi_device_create(np, info->dev, prot_id);
+	sdev = scmi_device_create(np, info->dev, prot_id, name);
 	if (!sdev) {
 		dev_err(info->dev, "failed to create %d protocol device\n",
 			prot_id);
@@ -892,7 +892,7 @@ static int scmi_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		scmi_create_protocol_device(child, info, prot_id);
+		scmi_create_protocol_device(child, info, prot_id, NULL);
 	}
 
 	return 0;
