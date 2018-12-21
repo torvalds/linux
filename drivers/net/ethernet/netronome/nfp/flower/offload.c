@@ -345,13 +345,29 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		    !(tcp_flags & (TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST)))
 			return -EOPNOTSUPP;
 
-		/* We need to store TCP flags in the IPv4 key space, thus
-		 * we need to ensure we include a IPv4 key layer if we have
-		 * not done so already.
+		/* We need to store TCP flags in the either the IPv4 or IPv6 key
+		 * space, thus we need to ensure we include a IPv4/IPv6 key
+		 * layer if we have not done so already.
 		 */
-		if (!(key_layer & NFP_FLOWER_LAYER_IPV4)) {
-			key_layer |= NFP_FLOWER_LAYER_IPV4;
-			key_size += sizeof(struct nfp_flower_ipv4);
+		if (!key_basic)
+			return -EOPNOTSUPP;
+
+		if (!(key_layer & NFP_FLOWER_LAYER_IPV4) &&
+		    !(key_layer & NFP_FLOWER_LAYER_IPV6)) {
+			switch (key_basic->n_proto) {
+			case cpu_to_be16(ETH_P_IP):
+				key_layer |= NFP_FLOWER_LAYER_IPV4;
+				key_size += sizeof(struct nfp_flower_ipv4);
+				break;
+
+			case cpu_to_be16(ETH_P_IPV6):
+				key_layer |= NFP_FLOWER_LAYER_IPV6;
+				key_size += sizeof(struct nfp_flower_ipv6);
+				break;
+
+			default:
+				return -EOPNOTSUPP;
+			}
 		}
 	}
 

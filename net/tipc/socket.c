@@ -880,7 +880,6 @@ static int tipc_send_group_unicast(struct socket *sock, struct msghdr *m,
 	DECLARE_SOCKADDR(struct sockaddr_tipc *, dest, m->msg_name);
 	int blks = tsk_blocks(GROUP_H_SIZE + dlen);
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_group *grp = tsk->group;
 	struct net *net = sock_net(sk);
 	struct tipc_member *mb = NULL;
 	u32 node, port;
@@ -894,7 +893,9 @@ static int tipc_send_group_unicast(struct socket *sock, struct msghdr *m,
 	/* Block or return if destination link or member is congested */
 	rc = tipc_wait_for_cond(sock, &timeout,
 				!tipc_dest_find(&tsk->cong_links, node, 0) &&
-				!tipc_group_cong(grp, node, port, blks, &mb));
+				tsk->group &&
+				!tipc_group_cong(tsk->group, node, port, blks,
+						 &mb));
 	if (unlikely(rc))
 		return rc;
 
@@ -924,7 +925,6 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct list_head *cong_links = &tsk->cong_links;
 	int blks = tsk_blocks(GROUP_H_SIZE + dlen);
-	struct tipc_group *grp = tsk->group;
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct tipc_member *first = NULL;
 	struct tipc_member *mbr = NULL;
@@ -941,9 +941,10 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 	type = msg_nametype(hdr);
 	inst = dest->addr.name.name.instance;
 	scope = msg_lookup_scope(hdr);
-	exclude = tipc_group_exclude(grp);
 
 	while (++lookups < 4) {
+		exclude = tipc_group_exclude(tsk->group);
+
 		first = NULL;
 
 		/* Look for a non-congested destination member, if any */
@@ -952,7 +953,8 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 						 &dstcnt, exclude, false))
 				return -EHOSTUNREACH;
 			tipc_dest_pop(&dsts, &node, &port);
-			cong = tipc_group_cong(grp, node, port, blks, &mbr);
+			cong = tipc_group_cong(tsk->group, node, port, blks,
+					       &mbr);
 			if (!cong)
 				break;
 			if (mbr == first)
@@ -971,7 +973,8 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 		/* Block or return if destination link or member is congested */
 		rc = tipc_wait_for_cond(sock, &timeout,
 					!tipc_dest_find(cong_links, node, 0) &&
-					!tipc_group_cong(grp, node, port,
+					tsk->group &&
+					!tipc_group_cong(tsk->group, node, port,
 							 blks, &mbr));
 		if (unlikely(rc))
 			return rc;
@@ -1006,8 +1009,7 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	struct sock *sk = sock->sk;
 	struct net *net = sock_net(sk);
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_group *grp = tsk->group;
-	struct tipc_nlist *dsts = tipc_group_dests(grp);
+	struct tipc_nlist *dsts;
 	struct tipc_mc_method *method = &tsk->mc_method;
 	bool ack = method->mandatory && method->rcast;
 	int blks = tsk_blocks(MCAST_H_SIZE + dlen);
@@ -1016,14 +1018,16 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	struct sk_buff_head pkts;
 	int rc = -EHOSTUNREACH;
 
-	if (!dsts->local && !dsts->remote)
-		return -EHOSTUNREACH;
-
 	/* Block or return if any destination link or member is congested */
-	rc = tipc_wait_for_cond(sock, &timeout,	!tsk->cong_link_cnt &&
-				!tipc_group_bc_cong(grp, blks));
+	rc = tipc_wait_for_cond(sock, &timeout,
+				!tsk->cong_link_cnt && tsk->group &&
+				!tipc_group_bc_cong(tsk->group, blks));
 	if (unlikely(rc))
 		return rc;
+
+	dsts = tipc_group_dests(tsk->group);
+	if (!dsts->local && !dsts->remote)
+		return -EHOSTUNREACH;
 
 	/* Complete message header */
 	if (dest) {
@@ -1036,7 +1040,7 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	msg_set_hdr_sz(hdr, GROUP_H_SIZE);
 	msg_set_destport(hdr, 0);
 	msg_set_destnode(hdr, 0);
-	msg_set_grp_bc_seqno(hdr, tipc_group_bc_snd_nxt(grp));
+	msg_set_grp_bc_seqno(hdr, tipc_group_bc_snd_nxt(tsk->group));
 
 	/* Avoid getting stuck with repeated forced replicasts */
 	msg_set_grp_bc_ack_req(hdr, ack);
@@ -2724,11 +2728,15 @@ void tipc_sk_reinit(struct net *net)
 		rhashtable_walk_start(&iter);
 
 		while ((tsk = rhashtable_walk_next(&iter)) && !IS_ERR(tsk)) {
-			spin_lock_bh(&tsk->sk.sk_lock.slock);
+			sock_hold(&tsk->sk);
+			rhashtable_walk_stop(&iter);
+			lock_sock(&tsk->sk);
 			msg = &tsk->phdr;
 			msg_set_prevnode(msg, tipc_own_addr(net));
 			msg_set_orignode(msg, tipc_own_addr(net));
-			spin_unlock_bh(&tsk->sk.sk_lock.slock);
+			release_sock(&tsk->sk);
+			rhashtable_walk_start(&iter);
+			sock_put(&tsk->sk);
 		}
 
 		rhashtable_walk_stop(&iter);

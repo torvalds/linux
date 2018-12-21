@@ -513,7 +513,13 @@ static void vhost_net_busy_poll(struct vhost_net *net,
 	struct socket *sock;
 	struct vhost_virtqueue *vq = poll_rx ? tvq : rvq;
 
-	mutex_lock_nested(&vq->mutex, poll_rx ? VHOST_NET_VQ_TX: VHOST_NET_VQ_RX);
+	/* Try to hold the vq mutex of the paired virtqueue. We can't
+	 * use mutex_lock() here since we could not guarantee a
+	 * consistenet lock ordering.
+	 */
+	if (!mutex_trylock(&vq->mutex))
+		return;
+
 	vhost_disable_notify(&net->dev, vq);
 	sock = rvq->private_data;
 

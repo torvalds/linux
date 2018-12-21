@@ -130,7 +130,7 @@ static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.disable_auto_wattman = 1;
 	data->registry_data.auto_wattman_debug = 0;
 	data->registry_data.auto_wattman_sample_period = 100;
-	data->registry_data.fclk_gfxclk_ratio = 0x3F6CCCCD;
+	data->registry_data.fclk_gfxclk_ratio = 0;
 	data->registry_data.auto_wattman_threshold = 50;
 	data->registry_data.gfxoff_controlled_by_driver = 1;
 	data->gfxoff_allowed = false;

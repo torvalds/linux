@@ -337,12 +337,19 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x6864, &vega10_device_info },	/* Vega10 */
 	{ 0x6867, &vega10_device_info },	/* Vega10 */
 	{ 0x6868, &vega10_device_info },	/* Vega10 */
+	{ 0x6869, &vega10_device_info },	/* Vega10 */
+	{ 0x686A, &vega10_device_info },	/* Vega10 */
+	{ 0x686B, &vega10_device_info },	/* Vega10 */
 	{ 0x686C, &vega10_vf_device_info },	/* Vega10  vf*/
+	{ 0x686D, &vega10_device_info },	/* Vega10 */
+	{ 0x686E, &vega10_device_info },	/* Vega10 */
+	{ 0x686F, &vega10_device_info },	/* Vega10 */
 	{ 0x687F, &vega10_device_info },	/* Vega10 */
 	{ 0x66a0, &vega20_device_info },	/* Vega20 */
 	{ 0x66a1, &vega20_device_info },	/* Vega20 */
 	{ 0x66a2, &vega20_device_info },	/* Vega20 */
 	{ 0x66a3, &vega20_device_info },	/* Vega20 */
+	{ 0x66a4, &vega20_device_info },	/* Vega20 */
 	{ 0x66a7, &vega20_device_info },	/* Vega20 */
 	{ 0x66af, &vega20_device_info }		/* Vega20 */
 };

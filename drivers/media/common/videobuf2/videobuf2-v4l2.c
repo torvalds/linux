@@ -333,10 +333,10 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 }
 
 static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
-				    struct v4l2_buffer *b,
-				    const char *opname,
+				    struct v4l2_buffer *b, bool is_prepare,
 				    struct media_request **p_req)
 {
+	const char *opname = is_prepare ? "prepare_buf" : "qbuf";
 	struct media_request *req;
 	struct vb2_v4l2_buffer *vbuf;
 	struct vb2_buffer *vb;
@@ -377,6 +377,9 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		if (ret)
 			return ret;
 	}
+
+	if (is_prepare)
+		return 0;
 
 	if (!(b->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
 		if (q->uses_requests) {
@@ -631,8 +634,10 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_USERPTR;
 	if (q->io_modes & VB2_DMABUF)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
+#ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
 	if (q->supports_requests)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
+#endif
 }
 
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
@@ -657,7 +662,7 @@ int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 	if (b->flags & V4L2_BUF_FLAG_REQUEST_FD)
 		return -EINVAL;
 
-	ret = vb2_queue_or_prepare_buf(q, mdev, b, "prepare_buf", NULL);
+	ret = vb2_queue_or_prepare_buf(q, mdev, b, true, NULL);
 
 	return ret ? ret : vb2_core_prepare_buf(q, b->index, b);
 }
@@ -729,7 +734,7 @@ int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
 		return -EBUSY;
 	}
 
-	ret = vb2_queue_or_prepare_buf(q, mdev, b, "qbuf", &req);
+	ret = vb2_queue_or_prepare_buf(q, mdev, b, false, &req);
 	if (ret)
 		return ret;
 	ret = vb2_core_qbuf(q, b->index, b, req);

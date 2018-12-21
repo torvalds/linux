@@ -67,6 +67,7 @@
 #include "intel_ringbuffer.h"
 #include "intel_uncore.h"
 #include "intel_wopcm.h"
+#include "intel_workarounds.h"
 #include "intel_uc.h"
 
 #include "i915_gem.h"
@@ -1805,6 +1806,7 @@ struct drm_i915_private {
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
 	struct i915_workarounds workarounds;
+	struct i915_wa_list gt_wa_list;
 
 	struct i915_frontbuffer_tracking fb_tracking;
 
@@ -2148,6 +2150,8 @@ struct drm_i915_private {
 		struct delayed_work idle_work;
 
 		ktime_t last_init_time;
+
+		struct i915_vma *scratch;
 	} gt;
 
 	/* perform PHY state sanity checks? */
@@ -3868,6 +3872,11 @@ static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
 		return CNL_HWS_CSB_WRITE_INDEX;
 	else
 		return I915_HWS_CSB_WRITE_INDEX;
+}
+
+static inline u32 i915_scratch_offset(const struct drm_i915_private *i915)
+{
+	return i915_ggtt_offset(i915->gt.scratch);
 }
 
 #endif

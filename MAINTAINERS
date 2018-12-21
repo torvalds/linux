@@ -1739,13 +1739,17 @@ ARM/Mediatek SoC support
 M:	Matthias Brugger <matthias.bgg@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
+W:	https://mtk.bcnfs.org/
+C:	irc://chat.freenode.net/linux-mediatek
 S:	Maintained
 F:	arch/arm/boot/dts/mt6*
 F:	arch/arm/boot/dts/mt7*
 F:	arch/arm/boot/dts/mt8*
 F:	arch/arm/mach-mediatek/
 F:	arch/arm64/boot/dts/mediatek/
+F:	drivers/soc/mediatek/
 N:	mtk
+N:	mt[678]
 K:	mediatek
 
 ARM/Mediatek USB3 PHY DRIVER
@@ -4843,6 +4847,7 @@ F:	include/uapi/drm/vmwgfx_drm.h
 
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
+M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://anongit.freedesktop.org/drm/drm
 B:	https://bugs.freedesktop.org/
@@ -8939,7 +8944,7 @@ F:	arch/mips/boot/dts/img/pistachio_marduk.dts
 
 MARVELL 88E6XXX ETHERNET SWITCH FABRIC DRIVER
 M:	Andrew Lunn <andrew@lunn.ch>
-M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+M:	Vivien Didelot <vivien.didelot@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/dsa/mv88e6xxx/
@@ -9443,6 +9448,13 @@ F:	drivers/media/platform/mtk-vcodec/
 F:	drivers/media/platform/mtk-vpu/
 F:	Documentation/devicetree/bindings/media/mediatek-vcodec.txt
 F:	Documentation/devicetree/bindings/media/mediatek-vpu.txt
+
+MEDIATEK MT76 WIRELESS LAN DRIVER
+M:	Felix Fietkau <nbd@nbd.name>
+M:	Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wireless/mediatek/mt76/
 
 MEDIATEK MT7601U WIRELESS LAN DRIVER
 M:	Jakub Kicinski <kubakici@wp.pl>
@@ -10006,12 +10018,9 @@ S:	Odd Fixes
 F:	drivers/media/radio/radio-miropcm20*
 
 MMP SUPPORT
-M:	Eric Miao <eric.y.miao@gmail.com>
-M:	Haojian Zhuang <haojian.zhuang@gmail.com>
+R:	Lubomir Rintel <lkundrak@v3.sk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://github.com/hzhuang1/linux.git
-T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
-S:	Maintained
+S:	Odd Fixes
 F:	arch/arm/boot/dts/mmp*
 F:	arch/arm/mach-mmp/
 
@@ -10417,7 +10426,7 @@ F:	drivers/net/wireless/
 
 NETWORKING [DSA]
 M:	Andrew Lunn <andrew@lunn.ch>
-M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+M:	Vivien Didelot <vivien.didelot@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/

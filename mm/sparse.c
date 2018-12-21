@@ -240,6 +240,22 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
 }
 
 /*
+ * Mark all memblocks as present using memory_present(). This is a
+ * convienence function that is useful for a number of arches
+ * to mark all of the systems memory as present during initialization.
+ */
+void __init memblocks_present(void)
+{
+	struct memblock_region *reg;
+
+	for_each_memblock(memory, reg) {
+		memory_present(memblock_get_region_node(reg),
+			       memblock_region_memory_base_pfn(reg),
+			       memblock_region_memory_end_pfn(reg));
+	}
+}
+
+/*
  * Subtle, we encode the real pfn into the mem_map such that
  * the identity pfn - section_mem_map will return the actual
  * physical page frame number.

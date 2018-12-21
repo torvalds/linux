@@ -515,8 +515,8 @@ config PSI_DEFAULT_DISABLED
 	depends on PSI
 	help
 	  If set, pressure stall information tracking will be disabled
-	  per default but can be enabled through passing psi_enable=1
-	  on the kernel commandline during boot.
+	  per default but can be enabled through passing psi=1 on the
+	  kernel commandline during boot.
 
 endmenu # "CPU/Task time and stats accounting"
 

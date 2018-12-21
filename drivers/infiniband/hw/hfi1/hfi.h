@@ -155,6 +155,8 @@ struct hfi1_ib_stats {
 extern struct hfi1_ib_stats hfi1_stats;
 extern const struct pci_error_handlers hfi1_pci_err_handler;
 
+extern int num_driver_cntrs;
+
 /*
  * First-cut criterion for "device is active" is
  * two thousand dwords combined Tx, Rx traffic per

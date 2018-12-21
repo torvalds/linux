@@ -129,6 +129,7 @@
 #define USB_UPS_CTRL		0xd800
 #define USB_POWER_CUT		0xd80a
 #define USB_MISC_0		0xd81a
+#define USB_MISC_1		0xd81f
 #define USB_AFE_CTRL2		0xd824
 #define USB_UPS_CFG		0xd842
 #define USB_UPS_FLAGS		0xd848
@@ -555,6 +556,7 @@ enum spd_duplex {
 
 /* MAC PASSTHRU */
 #define AD_MASK			0xfee0
+#define BND_MASK		0x0004
 #define EFUSE			0xcfdb
 #define PASS_THRU_MASK		0x1
 
@@ -1150,7 +1152,7 @@ out1:
 	return ret;
 }
 
-/* Devices containing RTL8153-AD can support a persistent
+/* Devices containing proper chips can support a persistent
  * host system provided MAC address.
  * Examples of this are Dell TB15 and Dell WD15 docks
  */
@@ -1165,13 +1167,23 @@ static int vendor_mac_passthru_addr_read(struct r8152 *tp, struct sockaddr *sa)
 
 	/* test for -AD variant of RTL8153 */
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_MISC_0);
-	if ((ocp_data & AD_MASK) != 0x1000)
-		return -ENODEV;
-
-	/* test for MAC address pass-through bit */
-	ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, EFUSE);
-	if ((ocp_data & PASS_THRU_MASK) != 1)
-		return -ENODEV;
+	if ((ocp_data & AD_MASK) == 0x1000) {
+		/* test for MAC address pass-through bit */
+		ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, EFUSE);
+		if ((ocp_data & PASS_THRU_MASK) != 1) {
+			netif_dbg(tp, probe, tp->netdev,
+				  "No efuse for RTL8153-AD MAC pass through\n");
+			return -ENODEV;
+		}
+	} else {
+		/* test for RTL8153-BND */
+		ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_MISC_1);
+		if ((ocp_data & BND_MASK) == 0) {
+			netif_dbg(tp, probe, tp->netdev,
+				  "Invalid variant for MAC pass through\n");
+			return -ENODEV;
+		}
+	}
 
 	/* returns _AUXMAC_#AABBCCDDEEFF# */
 	status = acpi_evaluate_object(NULL, "\\_SB.AMAC", NULL, &buffer);
@@ -1217,9 +1229,8 @@ static int set_ethernet_addr(struct r8152 *tp)
 	if (tp->version == RTL_VER_01) {
 		ret = pla_ocp_read(tp, PLA_IDR, 8, sa.sa_data);
 	} else {
-		/* if this is not an RTL8153-AD, no eFuse mac pass thru set,
-		 * or system doesn't provide valid _SB.AMAC this will be
-		 * be expected to non-zero
+		/* if device doesn't support MAC pass through this will
+		 * be expected to be non-zero
 		 */
 		ret = vendor_mac_passthru_addr_read(tp, &sa);
 		if (ret < 0)

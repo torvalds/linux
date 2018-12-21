@@ -8930,8 +8930,10 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_CONTROL_PORT_OVER_NL80211]) {
 		int r = validate_pae_over_nl80211(rdev, info);
 
-		if (r < 0)
+		if (r < 0) {
+			kzfree(connkeys);
 			return r;
+		}
 
 		ibss.control_port_over_nl80211 = true;
 	}

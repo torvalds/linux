@@ -397,7 +397,7 @@ static void tls_tx_data_wr(struct sock *sk, struct sk_buff *skb,
 
 	req_wr->lsodisable_to_flags =
 			htonl(TX_ULP_MODE_V(ULP_MODE_TLS) |
-			      FW_OFLD_TX_DATA_WR_URGENT_V(skb_urgent(skb)) |
+			      TX_URG_V(skb_urgent(skb)) |
 			      T6_TX_FORCE_F | wr_ulp_mode_force |
 			      TX_SHOVE_V((!csk_flag(sk, CSK_TX_MORE_DATA)) &&
 					 skb_queue_empty(&csk->txq)));
@@ -534,10 +534,9 @@ static void make_tx_data_wr(struct sock *sk, struct sk_buff *skb,
 				FW_OFLD_TX_DATA_WR_SHOVE_F);
 
 	req->tunnel_to_proxy = htonl(wr_ulp_mode_force |
-			FW_OFLD_TX_DATA_WR_URGENT_V(skb_urgent(skb)) |
-			FW_OFLD_TX_DATA_WR_SHOVE_V((!csk_flag
-					(sk, CSK_TX_MORE_DATA)) &&
-					 skb_queue_empty(&csk->txq)));
+			TX_URG_V(skb_urgent(skb)) |
+			TX_SHOVE_V((!csk_flag(sk, CSK_TX_MORE_DATA)) &&
+				   skb_queue_empty(&csk->txq)));
 	req->plen = htonl(len);
 }
 
@@ -995,7 +994,6 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	int mss, flags, err;
 	int recordsz = 0;
 	int copied = 0;
-	int hdrlen = 0;
 	long timeo;
 
 	lock_sock(sk);
@@ -1032,7 +1030,7 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 			recordsz = tls_header_read(&hdr, &msg->msg_iter);
 			size -= TLS_HEADER_LENGTH;
-			hdrlen += TLS_HEADER_LENGTH;
+			copied += TLS_HEADER_LENGTH;
 			csk->tlshws.txleft = recordsz;
 			csk->tlshws.type = hdr.type;
 			if (skb)
@@ -1083,10 +1081,8 @@ new_buf:
 			int off = TCP_OFF(sk);
 			bool merge;
 
-			if (!page)
-				goto wait_for_memory;
-
-			pg_size <<= compound_order(page);
+			if (page)
+				pg_size <<= compound_order(page);
 			if (off < pg_size &&
 			    skb_can_coalesce(skb, i, page, off)) {
 				merge = 1;
@@ -1187,7 +1183,7 @@ out:
 		chtls_tcp_push(sk, flags);
 done:
 	release_sock(sk);
-	return copied + hdrlen;
+	return copied;
 do_fault:
 	if (!skb->len) {
 		__skb_unlink(skb, &csk->txq);
