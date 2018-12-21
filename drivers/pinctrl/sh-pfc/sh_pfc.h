@@ -41,7 +41,8 @@ struct sh_pfc_pin {
 		.name = #alias,				\
 		.pins = n##_pins,			\
 		.mux = n##_mux,				\
-		.nr_pins = ARRAY_SIZE(n##_pins),	\
+		.nr_pins = ARRAY_SIZE(n##_pins) +	\
+		BUILD_BUG_ON_ZERO(sizeof(n##_pins) != sizeof(n##_mux)), \
 	}
 #define SH_PFC_PIN_GROUP(n)	SH_PFC_PIN_GROUP_ALIAS(n, n)
 
@@ -141,8 +142,7 @@ struct pinmux_cfg_reg {
  */
 #define PINMUX_CFG_REG_VAR(name, r, r_width, var_fw0, var_fwn...) \
 	.reg = r, .reg_width = r_width,	\
-	.var_field_width = (const u8 [r_width]) \
-		{ var_fw0, var_fwn, 0 }, \
+	.var_field_width = (const u8 []) { var_fw0, var_fwn, 0 }, \
 	.enum_ids = (const u16 [])
 
 struct pinmux_drive_reg_field {
