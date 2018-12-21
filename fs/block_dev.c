@@ -248,7 +248,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		task_io_account_write(ret);
 	}
 	if (iocb->ki_flags & IOCB_HIPRI)
-		bio.bi_opf |= REQ_HIPRI;
+		bio_set_polled(&bio, iocb);
 
 	qc = submit_bio(&bio);
 	for (;;) {
@@ -419,7 +419,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 			bool polled = false;
 
 			if (iocb->ki_flags & IOCB_HIPRI) {
-				bio->bi_opf |= REQ_HIPRI;
+				bio_set_polled(bio, iocb);
 				polled = true;
 			}
 
