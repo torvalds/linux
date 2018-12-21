@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #define _GNU_SOURCE
 #include <errno.h>
@@ -62,7 +32,7 @@ static const char * const attach_type_strings[] = {
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
-enum bpf_attach_type parse_attach_type(const char *str)
+static enum bpf_attach_type parse_attach_type(const char *str)
 {
 	enum bpf_attach_type type;
 
@@ -626,13 +596,6 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
-	if (func_info && !info.func_info) {
-		/* kernel.kptr_restrict is set.  No func_info available. */
-		free(func_info);
-		func_info = NULL;
-		nr_finfo = 0;
-	}
-
 	if (linfo && info.nr_line_info != nr_linfo) {
 		p_err("incorrect nr_line_info %u vs. expected %u",
 		      info.nr_line_info, nr_linfo);
@@ -835,7 +798,7 @@ struct map_replace {
 	char *name;
 };
 
-int map_replace_compar(const void *p1, const void *p2)
+static int map_replace_compar(const void *p1, const void *p2)
 {
 	const struct map_replace *a = p1, *b = p2;
 

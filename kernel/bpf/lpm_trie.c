@@ -728,6 +728,7 @@ free_stack:
 }
 
 static int trie_check_btf(const struct bpf_map *map,
+			  const struct btf *btf,
 			  const struct btf_type *key_type,
 			  const struct btf_type *value_type)
 {

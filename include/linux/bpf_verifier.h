@@ -38,6 +38,7 @@ enum bpf_reg_liveness {
 	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
 	REG_LIVE_READ, /* reg was read, so we're sensitive to initial value */
 	REG_LIVE_WRITTEN, /* reg was written first, screening off later reads */
+	REG_LIVE_DONE = 4, /* liveness won't be updating this register anymore */
 };
 
 struct bpf_reg_state {
@@ -224,6 +225,7 @@ struct bpf_verifier_env {
 	bool allow_ptr_leaks;
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
+	const struct bpf_line_info *prev_linfo;
 	struct bpf_verifier_log log;
 	struct bpf_subprog_info subprog_info[BPF_MAX_SUBPROGS + 1];
 	u32 subprog_cnt;

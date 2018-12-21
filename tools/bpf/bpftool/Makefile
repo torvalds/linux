@@ -35,8 +35,6 @@ $(LIBBPF)-clean:
 prefix ?= /usr/local
 bash_compdir ?= /usr/share/bash-completion/completions
 
-CC = gcc
-
 CFLAGS += -O2
 CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wshadow -Wno-missing-field-initializers
 CFLAGS += -DPACKAGE='"bpftool"' -D__EXPORTED_HEADERS__ \

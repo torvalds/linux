@@ -456,6 +456,7 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
 }
 
 int map_check_no_btf(const struct bpf_map *map,
+		     const struct btf *btf,
 		     const struct btf_type *key_type,
 		     const struct btf_type *value_type)
 {
@@ -478,7 +479,7 @@ static int map_check_btf(const struct bpf_map *map, const struct btf *btf,
 		return -EINVAL;
 
 	if (map->ops->map_check_btf)
-		ret = map->ops->map_check_btf(map, key_type, value_type);
+		ret = map->ops->map_check_btf(map, btf, key_type, value_type);
 
 	return ret;
 }
@@ -1472,11 +1473,6 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 
 	if (attr->insn_cnt == 0 || attr->insn_cnt > BPF_MAXINSNS)
 		return -E2BIG;
-
-	if (type == BPF_PROG_TYPE_KPROBE &&
-	    attr->kern_version != LINUX_VERSION_CODE)
-		return -EINVAL;
-
 	if (type != BPF_PROG_TYPE_SOCKET_FILTER &&
 	    type != BPF_PROG_TYPE_CGROUP_SKB &&
 	    !capable(CAP_SYS_ADMIN))
@@ -1608,6 +1604,7 @@ static int bpf_raw_tracepoint_release(struct inode *inode, struct file *filp)
 		bpf_probe_unregister(raw_tp->btp, raw_tp->prog);
 		bpf_prog_put(raw_tp->prog);
 	}
+	bpf_put_raw_tracepoint(raw_tp->btp);
 	kfree(raw_tp);
 	return 0;
 }
@@ -1633,13 +1630,15 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 		return -EFAULT;
 	tp_name[sizeof(tp_name) - 1] = 0;
 
-	btp = bpf_find_raw_tracepoint(tp_name);
+	btp = bpf_get_raw_tracepoint(tp_name);
 	if (!btp)
 		return -ENOENT;
 
 	raw_tp = kzalloc(sizeof(*raw_tp), GFP_USER);
-	if (!raw_tp)
-		return -ENOMEM;
+	if (!raw_tp) {
+		err = -ENOMEM;
+		goto out_put_btp;
+	}
 	raw_tp->btp = btp;
 
 	prog = bpf_prog_get_type(attr->raw_tracepoint.prog_fd,
@@ -1667,6 +1666,8 @@ out_put_prog:
 	bpf_prog_put(prog);
 out_free_tp:
 	kfree(raw_tp);
+out_put_btp:
+	bpf_put_raw_tracepoint(btp);
 	return err;
 }
 
@@ -2031,13 +2032,6 @@ static struct bpf_insn *bpf_insn_prepare_dump(const struct bpf_prog *prog)
 			insns[i + 1].imm = 0;
 			continue;
 		}
-
-		if (!bpf_dump_raw_ok() &&
-		    imm == (unsigned long)prog->aux) {
-			insns[i].imm = 0;
-			insns[i + 1].imm = 0;
-			continue;
-		}
 	}
 
 	return insns;
@@ -2271,33 +2265,25 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	ulen = info.nr_func_info;
 	info.nr_func_info = prog->aux->func_info_cnt;
 	if (info.nr_func_info && ulen) {
-		if (bpf_dump_raw_ok()) {
-			char __user *user_finfo;
+		char __user *user_finfo;
 
-			user_finfo = u64_to_user_ptr(info.func_info);
-			ulen = min_t(u32, info.nr_func_info, ulen);
-			if (copy_to_user(user_finfo, prog->aux->func_info,
-					 info.func_info_rec_size * ulen))
-				return -EFAULT;
-		} else {
-			info.func_info = 0;
-		}
+		user_finfo = u64_to_user_ptr(info.func_info);
+		ulen = min_t(u32, info.nr_func_info, ulen);
+		if (copy_to_user(user_finfo, prog->aux->func_info,
+				 info.func_info_rec_size * ulen))
+			return -EFAULT;
 	}
 
 	ulen = info.nr_line_info;
 	info.nr_line_info = prog->aux->nr_linfo;
 	if (info.nr_line_info && ulen) {
-		if (bpf_dump_raw_ok()) {
-			__u8 __user *user_linfo;
+		__u8 __user *user_linfo;
 
-			user_linfo = u64_to_user_ptr(info.line_info);
-			ulen = min_t(u32, info.nr_line_info, ulen);
-			if (copy_to_user(user_linfo, prog->aux->linfo,
-					 info.line_info_rec_size * ulen))
-				return -EFAULT;
-		} else {
-			info.line_info = 0;
-		}
+		user_linfo = u64_to_user_ptr(info.line_info);
+		ulen = min_t(u32, info.nr_line_info, ulen);
+		if (copy_to_user(user_linfo, prog->aux->linfo,
+				 info.line_info_rec_size * ulen))
+			return -EFAULT;
 	}
 
 	ulen = info.nr_jited_line_info;
@@ -2319,6 +2305,28 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 			}
 		} else {
 			info.jited_line_info = 0;
+		}
+	}
+
+	ulen = info.nr_prog_tags;
+	info.nr_prog_tags = prog->aux->func_cnt ? : 1;
+	if (ulen) {
+		__u8 __user (*user_prog_tags)[BPF_TAG_SIZE];
+		u32 i;
+
+		user_prog_tags = u64_to_user_ptr(info.prog_tags);
+		ulen = min_t(u32, info.nr_prog_tags, ulen);
+		if (prog->aux->func_cnt) {
+			for (i = 0; i < ulen; i++) {
+				if (copy_to_user(user_prog_tags[i],
+						 prog->aux->func[i]->tag,
+						 BPF_TAG_SIZE))
+					return -EFAULT;
+			}
+		} else {
+			if (copy_to_user(user_prog_tags[0],
+					 prog->tag, BPF_TAG_SIZE))
+				return -EFAULT;
 		}
 	}
 

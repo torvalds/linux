@@ -47,9 +47,11 @@ int connect_v6_prog(struct bpf_sock_addr *ctx)
 	if (ctx->type != SOCK_STREAM && ctx->type != SOCK_DGRAM)
 		return 0;
 	else if (ctx->type == SOCK_STREAM)
-		sk = bpf_sk_lookup_tcp(ctx, &tuple, sizeof(tuple.ipv6), 0, 0);
+		sk = bpf_sk_lookup_tcp(ctx, &tuple, sizeof(tuple.ipv6),
+				       BPF_F_CURRENT_NETNS, 0);
 	else
-		sk = bpf_sk_lookup_udp(ctx, &tuple, sizeof(tuple.ipv6), 0, 0);
+		sk = bpf_sk_lookup_udp(ctx, &tuple, sizeof(tuple.ipv6),
+				       BPF_F_CURRENT_NETNS, 0);
 
 	if (!sk)
 		return 0;
