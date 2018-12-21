@@ -4700,6 +4700,9 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 		to_intel_atomic_state(cstate->base.state);
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
+	if (latency == 0)
+		return;
+
 	/* Display WA #1141: kbl,cfl */
 	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) ||
 	    IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_B0)) &&
