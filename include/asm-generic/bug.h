@@ -17,8 +17,10 @@
 #ifndef __ASSEMBLY__
 #include <linux/kernel.h>
 
-struct bug_entry {
+#ifdef CONFIG_BUG
+
 #ifdef CONFIG_GENERIC_BUG
+struct bug_entry {
 #ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 	unsigned long	bug_addr;
 #else
@@ -33,10 +35,8 @@ struct bug_entry {
 	unsigned short	line;
 #endif
 	unsigned short	flags;
-#endif	/* CONFIG_GENERIC_BUG */
 };
-
-#ifdef CONFIG_BUG
+#endif	/* CONFIG_GENERIC_BUG */
 
 /*
  * Don't use BUG() or BUG_ON() unless there's really no way out; one
