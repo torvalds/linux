@@ -801,6 +801,20 @@ static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
 			SDHCI_HOST_CONTROL);
 }
 
+static int usdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+
+	/*
+	 * i.MX uSDHC internally already uses a fixed optimized timing for
+	 * DDR50, normally does not require tuning for DDR50 mode.
+	 */
+	if (host->timing == MMC_TIMING_UHS_DDR50)
+		return 0;
+
+	return sdhci_execute_tuning(mmc, opcode);
+}
+
 static void esdhc_prepare_tuning(struct sdhci_host *host, u32 val)
 {
 	u32 reg;
@@ -1330,6 +1344,12 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		writel(0x0, host->ioaddr + ESDHC_MIX_CTRL);
 		writel(0x0, host->ioaddr + SDHCI_AUTO_CMD_STATUS);
 		writel(0x0, host->ioaddr + ESDHC_TUNE_CTRL_STATUS);
+
+		/*
+		 * Link usdhc specific mmc_host_ops execute_tuning function,
+		 * to replace the standard one in sdhci_ops.
+		 */
+		host->mmc_host_ops.execute_tuning = usdhc_execute_tuning;
 	}
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING)
