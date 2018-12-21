@@ -129,10 +129,9 @@ DECLARE_EVENT_CLASS(spi_transfer,
 		__entry->len = xfer->len;
 	),
 
-        TP_printk("spi%d.%d %p len=%d", (int)__entry->bus_num,
-		  (int)__entry->chip_select,
-		  (struct spi_message *)__entry->xfer,
-		  (int)__entry->len)
+        TP_printk("spi%d.%d %p len=%d",
+		  __entry->bus_num, __entry->chip_select,
+		  __entry->xfer, __entry->len)
 );
 
 DEFINE_EVENT(spi_transfer, spi_transfer_start,
