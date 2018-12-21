@@ -1150,7 +1150,7 @@ static long kvmhv_handle_nested_set_rc(struct kvm_vcpu *vcpu,
 	struct kvm *kvm = vcpu->kvm;
 	bool writing = !!(dsisr & DSISR_ISSTORE);
 	u64 pgflags;
-	bool ret;
+	long ret;
 
 	/* Are the rc bits set in the L1 partition scoped pte? */
 	pgflags = _PAGE_ACCESSED;
@@ -1163,16 +1163,22 @@ static long kvmhv_handle_nested_set_rc(struct kvm_vcpu *vcpu,
 	/* Set the rc bit in the pte of our (L0) pgtable for the L1 guest */
 	ret = kvmppc_hv_handle_set_rc(kvm, kvm->arch.pgtable, writing,
 				     gpte.raddr, kvm->arch.lpid);
-	spin_unlock(&kvm->mmu_lock);
-	if (!ret)
-		return -EINVAL;
+	if (!ret) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	/* Set the rc bit in the pte of the shadow_pgtable for the nest guest */
 	ret = kvmppc_hv_handle_set_rc(kvm, gp->shadow_pgtable, writing, n_gpa,
 				      gp->shadow_lpid);
 	if (!ret)
-		return -EINVAL;
-	return 0;
+		ret = -EINVAL;
+	else
+		ret = 0;
+
+out_unlock:
+	spin_unlock(&kvm->mmu_lock);
+	return ret;
 }
 
 static inline int kvmppc_radix_level_to_shift(int level)
