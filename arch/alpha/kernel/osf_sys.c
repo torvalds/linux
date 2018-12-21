@@ -529,7 +529,6 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 
 SYSCALL_DEFINE1(osf_utsname, char __user *, name)
 {
-	int error;
 	char tmp[5 * 32];
 
 	down_read(&uts_sem);
@@ -560,7 +559,7 @@ SYSCALL_DEFINE0(getdtablesize)
  */
 SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 {
-	int len, err = 0;
+	int len;
 	char *kname;
 	char tmp[32];
 
