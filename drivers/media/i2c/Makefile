@@ -101,3 +101,4 @@ obj-$(CONFIG_VIDEO_GC2035)	+= gc2035.o
 obj-$(CONFIG_VIDEO_GC2145)	+= gc2355.o
 
 obj-$(CONFIG_VIDEO_VM149C)	+= vm149c.o
+obj-$(CONFIG_VIDEO_VIRT_CAMERA) += virtual-camera.o
