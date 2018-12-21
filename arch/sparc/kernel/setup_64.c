@@ -642,9 +642,9 @@ void __init setup_arch(char **cmdline_p)
 		register_console(&prom_early_console);
 
 	if (tlb_type == hypervisor)
-		printk("ARCH: SUN4V\n");
+		pr_info("ARCH: SUN4V\n");
 	else
-		printk("ARCH: SUN4U\n");
+		pr_info("ARCH: SUN4U\n");
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

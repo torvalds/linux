@@ -94,6 +94,9 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 	}
 
 	while (len) {
+		if (sk_msg_full(dst))
+			return -ENOSPC;
+
 		sge_len = sge->length - off;
 		sge_off = sge->offset + off;
 		if (sge_len > len)
