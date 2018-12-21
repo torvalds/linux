@@ -34,6 +34,8 @@
 #include <net/phonet/phonet.h>
 #include <net/phonet/pn_dev.h>
 
+#include <linux/nospec.h>
+
 /* Transport protocol registration */
 static const struct phonet_protocol *proto_tab[PHONET_NPROTO] __read_mostly;
 
@@ -43,6 +45,7 @@ static const struct phonet_protocol *phonet_proto_get(unsigned int protocol)
 
 	if (protocol >= PHONET_NPROTO)
 		return NULL;
+	protocol = array_index_nospec(protocol, PHONET_NPROTO);
 
 	rcu_read_lock();
 	pp = rcu_dereference(proto_tab[protocol]);
