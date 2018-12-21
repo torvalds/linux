@@ -156,15 +156,10 @@ config NF_NAT_SNMP_BASIC
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NF_NAT_PROTO_GRE
-	tristate
-	depends on NF_CT_PROTO_GRE
-
 config NF_NAT_PPTP
 	tristate
 	depends on NF_CONNTRACK
 	default NF_CONNTRACK_PPTP
-	select NF_NAT_PROTO_GRE
 
 config NF_NAT_H323
 	tristate

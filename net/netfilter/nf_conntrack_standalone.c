@@ -267,6 +267,24 @@ static const char* l4proto_name(u16 proto)
 	return "unknown";
 }
 
+static unsigned int
+seq_print_acct(struct seq_file *s, const struct nf_conn *ct, int dir)
+{
+	struct nf_conn_acct *acct;
+	struct nf_conn_counter *counter;
+
+	acct = nf_conn_acct_find(ct);
+	if (!acct)
+		return 0;
+
+	counter = acct->counter;
+	seq_printf(s, "packets=%llu bytes=%llu ",
+		   (unsigned long long)atomic64_read(&counter[dir].packets),
+		   (unsigned long long)atomic64_read(&counter[dir].bytes));
+
+	return 0;
+}
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -514,36 +532,53 @@ nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
 
 static struct ctl_table_header *nf_ct_netfilter_header;
 
+enum nf_ct_sysctl_index {
+	NF_SYSCTL_CT_MAX,
+	NF_SYSCTL_CT_COUNT,
+	NF_SYSCTL_CT_BUCKETS,
+	NF_SYSCTL_CT_CHECKSUM,
+	NF_SYSCTL_CT_LOG_INVALID,
+	NF_SYSCTL_CT_EXPECT_MAX,
+	NF_SYSCTL_CT_ACCT,
+	NF_SYSCTL_CT_HELPER,
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	NF_SYSCTL_CT_EVENTS,
+#endif
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	NF_SYSCTL_CT_TIMESTAMP,
+#endif
+};
+
 static struct ctl_table nf_ct_sysctl_table[] = {
-	{
+	[NF_SYSCTL_CT_MAX] = {
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{
+	[NF_SYSCTL_CT_COUNT] = {
 		.procname	= "nf_conntrack_count",
 		.data		= &init_net.ct.count,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,
 	},
-	{
+	[NF_SYSCTL_CT_BUCKETS] = {
 		.procname       = "nf_conntrack_buckets",
 		.data           = &nf_conntrack_htable_size_user,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
 		.proc_handler   = nf_conntrack_hash_sysctl,
 	},
-	{
+	[NF_SYSCTL_CT_CHECKSUM] = {
 		.procname	= "nf_conntrack_checksum",
 		.data		= &init_net.ct.sysctl_checksum,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{
+	[NF_SYSCTL_CT_LOG_INVALID] = {
 		.procname	= "nf_conntrack_log_invalid",
 		.data		= &init_net.ct.sysctl_log_invalid,
 		.maxlen		= sizeof(unsigned int),
@@ -552,13 +587,45 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.extra1		= &log_invalid_proto_min,
 		.extra2		= &log_invalid_proto_max,
 	},
-	{
+	[NF_SYSCTL_CT_EXPECT_MAX] = {
 		.procname	= "nf_conntrack_expect_max",
 		.data		= &nf_ct_expect_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+	[NF_SYSCTL_CT_ACCT] = {
+		.procname	= "nf_conntrack_acct",
+		.data		= &init_net.ct.sysctl_acct,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	[NF_SYSCTL_CT_HELPER] = {
+		.procname	= "nf_conntrack_helper",
+		.data		= &init_net.ct.sysctl_auto_assign_helper,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	[NF_SYSCTL_CT_EVENTS] = {
+		.procname	= "nf_conntrack_events",
+		.data		= &init_net.ct.sysctl_events,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	[NF_SYSCTL_CT_TIMESTAMP] = {
+		.procname	= "nf_conntrack_timestamp",
+		.data		= &init_net.ct.sysctl_tstamp,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 	{ }
 };
 
@@ -582,16 +649,28 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	if (!table)
 		goto out_kmemdup;
 
-	table[1].data = &net->ct.count;
-	table[3].data = &net->ct.sysctl_checksum;
-	table[4].data = &net->ct.sysctl_log_invalid;
+	table[NF_SYSCTL_CT_COUNT].data = &net->ct.count;
+	table[NF_SYSCTL_CT_CHECKSUM].data = &net->ct.sysctl_checksum;
+	table[NF_SYSCTL_CT_LOG_INVALID].data = &net->ct.sysctl_log_invalid;
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	table[NF_SYSCTL_CT_EVENTS].data = &net->ct.sysctl_events;
+#endif
 
 	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		table[0].procname = NULL;
+	if (net->user_ns != &init_user_ns) {
+		table[NF_SYSCTL_CT_MAX].procname = NULL;
+		table[NF_SYSCTL_CT_ACCT].procname = NULL;
+		table[NF_SYSCTL_CT_HELPER].procname = NULL;
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+		table[NF_SYSCTL_CT_TIMESTAMP].procname = NULL;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+		table[NF_SYSCTL_CT_EVENTS].procname = NULL;
+#endif
+	}
 
 	if (!net_eq(&init_net, net))
-		table[2].mode = 0444;
+		table[NF_SYSCTL_CT_BUCKETS].mode = 0444;
 
 	net->ct.sysctl_header = register_net_sysctl(net, "net/netfilter", table);
 	if (!net->ct.sysctl_header)

@@ -62,22 +62,8 @@ static void nf_nat_ipv4_decode_session(struct sk_buff *skb,
 }
 #endif /* CONFIG_XFRM */
 
-static bool nf_nat_ipv4_in_range(const struct nf_conntrack_tuple *t,
-				 const struct nf_nat_range2 *range)
-{
-	return ntohl(t->src.u3.ip) >= ntohl(range->min_addr.ip) &&
-	       ntohl(t->src.u3.ip) <= ntohl(range->max_addr.ip);
-}
-
-static u32 nf_nat_ipv4_secure_port(const struct nf_conntrack_tuple *t,
-				   __be16 dport)
-{
-	return secure_ipv4_port_ephemeral(t->src.u3.ip, t->dst.u3.ip, dport);
-}
-
 static bool nf_nat_ipv4_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
-				  const struct nf_nat_l4proto *l4proto,
 				  const struct nf_conntrack_tuple *target,
 				  enum nf_nat_manip_type maniptype)
 {
@@ -90,8 +76,8 @@ static bool nf_nat_ipv4_manip_pkt(struct sk_buff *skb,
 	iph = (void *)skb->data + iphdroff;
 	hdroff = iphdroff + iph->ihl * 4;
 
-	if (!l4proto->manip_pkt(skb, &nf_nat_l3proto_ipv4, iphdroff, hdroff,
-				target, maniptype))
+	if (!nf_nat_l4proto_manip_pkt(skb, &nf_nat_l3proto_ipv4, iphdroff,
+				      hdroff, target, maniptype))
 		return false;
 	iph = (void *)skb->data + iphdroff;
 
@@ -161,8 +147,6 @@ static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
 	.l3proto		= NFPROTO_IPV4,
-	.in_range		= nf_nat_ipv4_in_range,
-	.secure_port		= nf_nat_ipv4_secure_port,
 	.manip_pkt		= nf_nat_ipv4_manip_pkt,
 	.csum_update		= nf_nat_ipv4_csum_update,
 	.csum_recalc		= nf_nat_ipv4_csum_recalc,
@@ -186,7 +170,6 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	enum nf_nat_manip_type manip = HOOK2MANIP(hooknum);
 	unsigned int hdrlen = ip_hdrlen(skb);
-	const struct nf_nat_l4proto *l4proto;
 	struct nf_conntrack_tuple target;
 	unsigned long statusbit;
 
@@ -217,9 +200,8 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 	if (!(ct->status & statusbit))
 		return 1;
 
-	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV4, inside->ip.protocol);
 	if (!nf_nat_ipv4_manip_pkt(skb, hdrlen + sizeof(inside->icmp),
-				   l4proto, &ct->tuplehash[!dir].tuple, !manip))
+				   &ct->tuplehash[!dir].tuple, !manip))
 		return 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
@@ -233,8 +215,7 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 
 	/* Change outer to look like the reply to an incoming packet */
 	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
-	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV4, 0);
-	if (!nf_nat_ipv4_manip_pkt(skb, 0, l4proto, &target, manip))
+	if (!nf_nat_ipv4_manip_pkt(skb, 0, &target, manip))
 		return 0;
 
 	return 1;
@@ -391,26 +372,12 @@ EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv4_unregister_fn);
 
 static int __init nf_nat_l3proto_ipv4_init(void)
 {
-	int err;
-
-	err = nf_nat_l4proto_register(NFPROTO_IPV4, &nf_nat_l4proto_icmp);
-	if (err < 0)
-		goto err1;
-	err = nf_nat_l3proto_register(&nf_nat_l3proto_ipv4);
-	if (err < 0)
-		goto err2;
-	return err;
-
-err2:
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_icmp);
-err1:
-	return err;
+	return nf_nat_l3proto_register(&nf_nat_l3proto_ipv4);
 }
 
 static void __exit nf_nat_l3proto_ipv4_exit(void)
 {
 	nf_nat_l3proto_unregister(&nf_nat_l3proto_ipv4);
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_icmp);
 }
 
 MODULE_LICENSE("GPL");

@@ -320,9 +320,49 @@ gre_timeout_nla_policy[CTA_TIMEOUT_GRE_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
+#ifdef CONFIG_SYSCTL
+static struct ctl_table gre_sysctl_table[] = {
+	{
+		.procname       = "nf_conntrack_gre_timeout",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_jiffies,
+	},
+	{
+		.procname       = "nf_conntrack_gre_timeout_stream",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_jiffies,
+	},
+	{}
+};
+#endif
+
+static int gre_kmemdup_sysctl_table(struct net *net, struct nf_proto_net *nf,
+				    struct netns_proto_gre *net_gre)
+{
+#ifdef CONFIG_SYSCTL
+	int i;
+
+	if (nf->ctl_table)
+		return 0;
+
+	nf->ctl_table = kmemdup(gre_sysctl_table,
+				sizeof(gre_sysctl_table),
+				GFP_KERNEL);
+	if (!nf->ctl_table)
+		return -ENOMEM;
+
+	for (i = 0; i < GRE_CT_MAX; i++)
+		nf->ctl_table[i].data = &net_gre->gre_timeouts[i];
+#endif
+	return 0;
+}
+
 static int gre_init_net(struct net *net)
 {
 	struct netns_proto_gre *net_gre = gre_pernet(net);
+	struct nf_proto_net *nf = &net_gre->nf;
 	int i;
 
 	rwlock_init(&net_gre->keymap_lock);
@@ -330,7 +370,7 @@ static int gre_init_net(struct net *net)
 	for (i = 0; i < GRE_CT_MAX; i++)
 		net_gre->gre_timeouts[i] = gre_timeouts[i];
 
-	return 0;
+	return gre_kmemdup_sysctl_table(net, nf, net_gre);
 }
 
 /* protocol helper struct */
