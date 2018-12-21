@@ -3631,14 +3631,9 @@ static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
  * FIXME: We still don't have the proper code detect if we need to apply the WA,
  * so assume we'll always need it in order to avoid underruns.
  */
-static bool skl_needs_memory_bw_wa(struct intel_atomic_state *state)
+static bool skl_needs_memory_bw_wa(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-
-	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv))
-		return true;
-
-	return false;
+	return IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv);
 }
 
 static bool
@@ -3790,7 +3785,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 
 		latency = dev_priv->wm.skl_latency[level];
 
-		if (skl_needs_memory_bw_wa(intel_state) &&
+		if (skl_needs_memory_bw_wa(dev_priv) &&
 		    plane->base.state->fb->modifier ==
 		    I915_FORMAT_MOD_X_TILED)
 			latency += 15;
@@ -4579,9 +4574,6 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 	const struct drm_plane_state *pstate = &intel_pstate->base;
 	const struct drm_framebuffer *fb = pstate->fb;
 	u32 interm_pbpl;
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(cstate->base.state);
-	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
 	/* only NV12 format has two planes */
 	if (color_plane == 1 && fb->format->format != DRM_FORMAT_NV12) {
@@ -4642,7 +4634,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 		wp->y_min_scanlines = 4;
 	}
 
-	if (apply_memory_bw_wa)
+	if (skl_needs_memory_bw_wa(dev_priv))
 		wp->y_min_scanlines *= 2;
 
 	wp->plane_bytes_per_line = wp->width * wp->cpp;
@@ -4696,9 +4688,6 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	uint_fixed_16_16_t method1, method2;
 	uint_fixed_16_16_t selected_result;
 	u32 res_blocks, res_lines, min_ddb_alloc = 0;
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(cstate->base.state);
-	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
 	if (latency == 0)
 		return;
@@ -4709,7 +4698,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	    dev_priv->ipc_enabled)
 		latency += 4;
 
-	if (apply_memory_bw_wa && wp->x_tiled)
+	if (skl_needs_memory_bw_wa(dev_priv) && wp->x_tiled)
 		latency += 15;
 
 	method1 = skl_wm_method1(dev_priv, wp->plane_pixel_rate,
