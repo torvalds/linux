@@ -1873,7 +1873,8 @@ static int __init caam_algapi_hash_init(void)
 		t_alg = caam_hash_alloc(alg, true);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
-			pr_warn("%s alg allocation failed\n", alg->driver_name);
+			pr_warn("%s alg allocation failed\n",
+				alg->hmac_driver_name);
 			continue;
 		}
 
