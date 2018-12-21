@@ -2777,6 +2777,25 @@ bad:
 	pr_err("mdsc_handle_forward decode error err=%d\n", err);
 }
 
+static int __decode_and_drop_session_metadata(void **p, void *end)
+{
+	/* map<string,string> */
+	u32 n;
+	ceph_decode_32_safe(p, end, n, bad);
+	while (n-- > 0) {
+		u32 len;
+		ceph_decode_32_safe(p, end, len, bad);
+		ceph_decode_need(p, end, len, bad);
+		*p += len;
+		ceph_decode_32_safe(p, end, len, bad);
+		ceph_decode_need(p, end, len, bad);
+		*p += len;
+	}
+	return 0;
+bad:
+	return -1;
+}
+
 /*
  * handle a mds session control message
  */
@@ -2784,17 +2803,35 @@ static void handle_session(struct ceph_mds_session *session,
 			   struct ceph_msg *msg)
 {
 	struct ceph_mds_client *mdsc = session->s_mdsc;
+	int mds = session->s_mds;
+	int msg_version = le16_to_cpu(msg->hdr.version);
+	void *p = msg->front.iov_base;
+	void *end = p + msg->front.iov_len;
+	struct ceph_mds_session_head *h;
 	u32 op;
 	u64 seq;
-	int mds = session->s_mds;
-	struct ceph_mds_session_head *h = msg->front.iov_base;
+	unsigned long features = 0;
 	int wake = 0;
 
 	/* decode */
-	if (msg->front.iov_len < sizeof(*h))
-		goto bad;
+	ceph_decode_need(&p, end, sizeof(*h), bad);
+	h = p;
+	p += sizeof(*h);
+
 	op = le32_to_cpu(h->op);
 	seq = le64_to_cpu(h->seq);
+
+	if (msg_version >= 3) {
+		u32 len;
+		/* version >= 2, metadata */
+		if (__decode_and_drop_session_metadata(&p, end) < 0)
+			goto bad;
+		/* version >= 3, feature bits */
+		ceph_decode_32_safe(&p, end, len, bad);
+		ceph_decode_need(&p, end, len, bad);
+		memcpy(&features, p, min_t(size_t, len, sizeof(features)));
+		p += len;
+	}
 
 	mutex_lock(&mdsc->mutex);
 	if (op == CEPH_SESSION_CLOSE) {
@@ -2821,6 +2858,7 @@ static void handle_session(struct ceph_mds_session *session,
 		if (session->s_state == CEPH_MDS_SESSION_RECONNECTING)
 			pr_info("mds%d reconnect success\n", session->s_mds);
 		session->s_state = CEPH_MDS_SESSION_OPEN;
+		session->s_features = features;
 		renewed_caps(mdsc, session, 0);
 		wake = 1;
 		if (mdsc->stopping)

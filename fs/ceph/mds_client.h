@@ -152,6 +152,7 @@ struct ceph_mds_session {
 	int               s_mds;
 	int               s_state;
 	unsigned long     s_ttl;      /* time until mds kills us */
+	unsigned long	  s_features;
 	u64               s_seq;      /* incoming msg seq # */
 	struct mutex      s_mutex;    /* serialize session messages */
 
@@ -179,7 +180,7 @@ struct ceph_mds_session {
 	unsigned long     s_renew_requested; /* last time we sent a renew req */
 	u64               s_renew_seq;
 
-	refcount_t          s_ref;
+	refcount_t        s_ref;
 	struct list_head  s_waiting;  /* waiting requests */
 	struct list_head  s_unsafe;   /* unsafe requests */
 };
