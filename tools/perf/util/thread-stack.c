@@ -93,6 +93,24 @@ static int thread_stack__grow(struct thread_stack *ts)
 	return 0;
 }
 
+static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
+			      struct call_return_processor *crp)
+{
+	int err;
+
+	err = thread_stack__grow(ts);
+	if (err)
+		return err;
+
+	if (thread->mg && thread->mg->machine)
+		ts->kernel_start = machine__kernel_start(thread->mg->machine);
+	else
+		ts->kernel_start = 1ULL << 63;
+	ts->crp = crp;
+
+	return 0;
+}
+
 static struct thread_stack *thread_stack__new(struct thread *thread,
 					      struct call_return_processor *crp)
 {
@@ -104,16 +122,10 @@ static struct thread_stack *thread_stack__new(struct thread *thread,
 
 	ts->arr_sz = 1;
 
-	if (thread_stack__grow(ts)) {
+	if (thread_stack__init(ts, thread, crp)) {
 		free(ts);
 		return NULL;
 	}
-
-	if (thread->mg && thread->mg->machine)
-		ts->kernel_start = machine__kernel_start(thread->mg->machine);
-	else
-		ts->kernel_start = 1ULL << 63;
-	ts->crp = crp;
 
 	thread->ts = ts;
 
