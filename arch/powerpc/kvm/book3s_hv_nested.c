@@ -1328,6 +1328,8 @@ static long int __kvmhv_nested_page_fault(struct kvm_run *run,
 			return ret;
 		shift = kvmppc_radix_level_to_shift(level);
 	}
+	/* Align gfn to the start of the page */
+	gfn = (gpa & ~((1UL << shift) - 1)) >> PAGE_SHIFT;
 
 	/* 3. Compute the pte we need to insert for nest_gpa -> host r_addr */
 
