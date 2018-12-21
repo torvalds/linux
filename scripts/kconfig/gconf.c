@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 #include "lkc.h"
-#include "images.c"
+#include "images.h"
 
 #include <glade/glade.h>
 #include <gtk/gtk.h>
