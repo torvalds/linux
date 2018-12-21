@@ -60,6 +60,11 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds, int count,
 		break;
 	default:
 		error(1, 0, "Unsupported family %d", family);
+		/* clang does not recognize error() above as terminating
+		 * the program, so it complains that saddr, sz are
+		 * not initialized when this code path is taken. Silence it.
+		 */
+		return;
 	}
 
 	for (i = 0; i < count; ++i) {
@@ -128,6 +133,11 @@ static int connect_and_send(int family, int proto)
 	break;
 	default:
 		error(1, 0, "Unsupported family %d", family);
+		/* clang does not recognize error() above as terminating
+		 * the program, so it complains that saddr, daddr, sz are
+		 * not initialized when this code path is taken. Silence it.
+		 */
+		return -1;
 	}
 
 	fd = socket(family, proto, 0);
