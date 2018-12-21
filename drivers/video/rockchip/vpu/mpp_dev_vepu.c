@@ -40,6 +40,13 @@
 #define		VEPU_ENC_FMT_VP8E		1
 #define		VEPU_ENC_ENABLE			BIT(0)
 
+#define MHZ					(1000 * 1000)
+
+#define DEFAULT_ACLK_RATE_ON			(200 * MHZ)
+#define DEFAULT_CCLK_RATE_ON			(300 * MHZ)
+#define DEFAULT_ACLK_RATE_OFF                   (50 * MHZ)
+#define DEFAULT_CCLK_RATE_OFF                   (50 * MHZ)
+
 /*
  * file handle translate information
  */
@@ -283,24 +290,32 @@ static void rockchip_mpp_vepu_power_on(struct rockchip_mpp_dev *mpp)
 {
 	struct rockchip_vepu_dev *enc = to_vepu_dev(mpp);
 
-	if (enc->aclk)
+	if (enc->aclk) {
+		clk_set_rate(enc->aclk, DEFAULT_ACLK_RATE_ON);
 		clk_prepare_enable(enc->aclk);
+	}
 	if (enc->hclk)
 		clk_prepare_enable(enc->hclk);
-	if (enc->cclk)
+	if (enc->cclk) {
+		clk_set_rate(enc->cclk, DEFAULT_CCLK_RATE_ON);
 		clk_prepare_enable(enc->cclk);
+	}
 }
 
 static void rockchip_mpp_vepu_power_off(struct rockchip_mpp_dev *mpp)
 {
 	struct rockchip_vepu_dev *enc = to_vepu_dev(mpp);
 
+	if (enc->aclk) {
+		clk_set_rate(enc->aclk, DEFAULT_ACLK_RATE_OFF);
+		clk_disable_unprepare(enc->aclk);
+	}
 	if (enc->hclk)
 		clk_disable_unprepare(enc->hclk);
-	if (enc->aclk)
-		clk_disable_unprepare(enc->aclk);
-	if (enc->cclk)
+	if (enc->cclk) {
+		clk_set_rate(enc->cclk, DEFAULT_CCLK_RATE_OFF);
 		clk_disable_unprepare(enc->cclk);
+	}
 }
 
 static int rockchip_mpp_vepu_probe(struct rockchip_mpp_dev *mpp)
