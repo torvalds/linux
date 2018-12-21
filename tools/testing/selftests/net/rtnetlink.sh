@@ -205,6 +205,8 @@ kci_test_polrouting()
 
 kci_test_route_get()
 {
+	local hash_policy=$(sysctl -n net.ipv4.fib_multipath_hash_policy)
+
 	ret=0
 
 	ip route get 127.0.0.1 > /dev/null
@@ -222,6 +224,19 @@ kci_test_route_get()
 	ip addr add dev "$devdummy" 10.23.7.11/24
 	check_err $?
 	ip route get 10.23.7.11 from 10.23.7.12 iif "$devdummy" > /dev/null
+	check_err $?
+	ip route add 10.23.8.0/24 \
+		nexthop via 10.23.7.13 dev "$devdummy" \
+		nexthop via 10.23.7.14 dev "$devdummy"
+	check_err $?
+	sysctl -wq net.ipv4.fib_multipath_hash_policy=0
+	ip route get 10.23.8.11 > /dev/null
+	check_err $?
+	sysctl -wq net.ipv4.fib_multipath_hash_policy=1
+	ip route get 10.23.8.11 > /dev/null
+	check_err $?
+	sysctl -wq net.ipv4.fib_multipath_hash_policy="$hash_policy"
+	ip route del 10.23.8.0/24
 	check_err $?
 	ip addr del dev "$devdummy" 10.23.7.11/24
 	check_err $?
