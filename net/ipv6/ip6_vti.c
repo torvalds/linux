@@ -318,6 +318,7 @@ static int vti6_rcv(struct sk_buff *skb)
 			return 0;
 		}
 
+		ipv6h = ipv6_hdr(skb);
 		if (!ip6_tnl_rcv_ctl(t, &ipv6h->daddr, &ipv6h->saddr)) {
 			t->dev->stats.rx_dropped++;
 			rcu_read_unlock();
