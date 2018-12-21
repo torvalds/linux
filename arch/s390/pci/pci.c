@@ -651,6 +651,9 @@ int pcibios_add_device(struct pci_dev *pdev)
 	struct resource *res;
 	int i;
 
+	if (pdev->is_physfn)
+		pdev->no_vf_scan = 1;
+
 	pdev->dev.groups = zpci_attr_groups;
 	pdev->dev.dma_ops = &s390_pci_dma_ops;
 	zpci_map_resources(pdev);
