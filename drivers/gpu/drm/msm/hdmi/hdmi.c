@@ -332,6 +332,12 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 		goto fail;
 	}
 
+	ret = msm_hdmi_hpd_enable(hdmi->connector);
+	if (ret < 0) {
+		DRM_DEV_ERROR(&hdmi->pdev->dev, "failed to enable HPD: %d\n", ret);
+		goto fail;
+	}
+
 	encoder->bridge = hdmi->bridge;
 
 	priv->bridges[priv->num_bridges++]       = hdmi->bridge;

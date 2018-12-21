@@ -286,7 +286,13 @@ static bool
 mlxsw_sp_bridge_port_should_destroy(const struct mlxsw_sp_bridge_port *
 				    bridge_port)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_port->dev);
+	struct net_device *dev = bridge_port->dev;
+	struct mlxsw_sp *mlxsw_sp;
+
+	if (is_vlan_dev(dev))
+		mlxsw_sp = mlxsw_sp_lower_get(vlan_dev_real_dev(dev));
+	else
+		mlxsw_sp = mlxsw_sp_lower_get(dev);
 
 	/* In case ports were pulled from out of a bridged LAG, then
 	 * it's possible the reference count isn't zero, yet the bridge
@@ -2020,7 +2026,7 @@ mlxsw_sp_bridge_8021d_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 
 	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : 1;
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
-	if (WARN_ON(!mlxsw_sp_port_vlan))
+	if (!mlxsw_sp_port_vlan)
 		return;
 
 	mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
