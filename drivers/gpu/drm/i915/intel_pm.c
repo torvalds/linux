@@ -4371,8 +4371,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 				continue;
 
 			wm = &cstate->wm.skl.optimal.planes[plane_id];
-			blocks += wm->wm[level].plane_res_b + 1;
-			blocks += wm->uv_wm[level].plane_res_b + 1;
+			blocks += wm->wm[level].min_ddb_alloc;
+			blocks += wm->uv_wm[level].min_ddb_alloc;
 		}
 
 		if (blocks < alloc_size) {
@@ -4413,7 +4413,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		extra = min_t(u16, alloc_size,
 			      DIV64_U64_ROUND_UP(alloc_size * rate,
 						 total_data_rate));
-		total[plane_id] = wm->wm[level].plane_res_b + 1 + extra;
+		total[plane_id] = wm->wm[level].min_ddb_alloc + extra;
 		alloc_size -= extra;
 		total_data_rate -= rate;
 
@@ -4424,7 +4424,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		extra = min_t(u16, alloc_size,
 			      DIV64_U64_ROUND_UP(alloc_size * rate,
 						 total_data_rate));
-		uv_total[plane_id] = wm->uv_wm[level].plane_res_b + 1 + extra;
+		uv_total[plane_id] = wm->uv_wm[level].min_ddb_alloc + extra;
 		alloc_size -= extra;
 		total_data_rate -= rate;
 	}
@@ -4695,7 +4695,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	u32 latency = dev_priv->wm.skl_latency[level];
 	uint_fixed_16_16_t method1, method2;
 	uint_fixed_16_16_t selected_result;
-	u32 res_blocks, res_lines;
+	u32 res_blocks, res_lines, min_ddb_alloc = 0;
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(cstate->base.state);
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
@@ -4768,6 +4768,24 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 		}
 	}
 
+	if (INTEL_GEN(dev_priv) >= 11) {
+		if (wp->y_tiled) {
+			int extra_lines;
+
+			if (res_lines % wp->y_min_scanlines == 0)
+				extra_lines = wp->y_min_scanlines;
+			else
+				extra_lines = wp->y_min_scanlines * 2 -
+					res_lines % wp->y_min_scanlines;
+
+			min_ddb_alloc = mul_round_up_u32_fixed16(res_lines + extra_lines,
+								 wp->plane_blocks_per_line);
+		} else {
+			min_ddb_alloc = res_blocks +
+				DIV_ROUND_UP(res_blocks, 10);
+		}
+	}
+
 	if (!skl_wm_has_lines(dev_priv, level))
 		res_lines = 0;
 
@@ -4782,6 +4800,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	 */
 	result->plane_res_b = res_blocks;
 	result->plane_res_l = res_lines;
+	/* Bspec says: value >= plane ddb allocation -> invalid, hence the +1 here */
+	result->min_ddb_alloc = max(min_ddb_alloc, res_blocks) + 1;
 	result->plane_en = true;
 }
 
@@ -5132,6 +5152,23 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm);
 }
 
+static bool skl_pipe_wm_equals(struct intel_crtc *crtc,
+			       const struct skl_pipe_wm *wm1,
+			       const struct skl_pipe_wm *wm2)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum plane_id plane_id;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		if (!skl_plane_wm_equals(dev_priv,
+					 &wm1->planes[plane_id],
+					 &wm2->planes[plane_id]))
+			return false;
+	}
+
+	return wm1->linetime == wm2->linetime;
+}
+
 static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 					   const struct skl_ddb_entry *b)
 {
@@ -5158,16 +5195,14 @@ static int skl_update_pipe_wm(struct intel_crtc_state *cstate,
 			      struct skl_pipe_wm *pipe_wm, /* out */
 			      bool *changed /* out */)
 {
+	struct intel_crtc *crtc = to_intel_crtc(cstate->base.crtc);
 	int ret;
 
 	ret = skl_build_pipe_wm(cstate, pipe_wm);
 	if (ret)
 		return ret;
 
-	if (!memcmp(old_pipe_wm, pipe_wm, sizeof(*pipe_wm)))
-		*changed = false;
-	else
-		*changed = true;
+	*changed = !skl_pipe_wm_equals(crtc, old_pipe_wm, pipe_wm);
 
 	return 0;
 }
