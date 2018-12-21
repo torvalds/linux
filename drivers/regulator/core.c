@@ -211,6 +211,7 @@ void regulator_lock(struct regulator_dev *rdev)
 {
 	regulator_lock_nested(rdev, NULL);
 }
+EXPORT_SYMBOL_GPL(regulator_lock);
 
 /**
  * regulator_unlock - unlock a single regulator
@@ -232,6 +233,7 @@ void regulator_unlock(struct regulator_dev *rdev)
 
 	mutex_unlock(&regulator_nesting_mutex);
 }
+EXPORT_SYMBOL_GPL(regulator_unlock);
 
 static bool regulator_supply_is_couple(struct regulator_dev *rdev)
 {
@@ -2802,16 +2804,6 @@ static void regulator_disable_work(struct work_struct *work)
 		regulator_balance_voltage(rdev, PM_SUSPEND_ON);
 
 	regulator_unlock_dependent(rdev, &ww_ctx);
-
-	if (rdev->supply) {
-		for (i = 0; i < count; i++) {
-			ret = regulator_disable(rdev->supply);
-			if (ret != 0) {
-				rdev_err(rdev,
-					 "Supply disable failed: %d\n", ret);
-			}
-		}
-	}
 }
 
 /**
