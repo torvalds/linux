@@ -257,6 +257,9 @@ static int sriov_add_vfs(struct pci_dev *dev, u16 num_vfs)
 	unsigned int i;
 	int rc;
 
+	if (dev->no_vf_scan)
+		return 0;
+
 	for (i = 0; i < num_vfs; i++) {
 		rc = pci_iov_add_virtfn(dev, i);
 		if (rc)
@@ -384,6 +387,9 @@ static void sriov_del_vfs(struct pci_dev *dev)
 {
 	struct pci_sriov *iov = dev->sriov;
 	int i;
+
+	if (dev->no_vf_scan)
+		return;
 
 	for (i = 0; i < iov->num_VFs; i++)
 		pci_iov_remove_virtfn(dev, i);
