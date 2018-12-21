@@ -49,7 +49,7 @@ static inline int ihex_validate_fw(const struct firmware *fw)
 
 	for (; rec <= end; rec = __ihex_next_binrec(rec)) {
 		/* Zero length marks end of records */
-		if (!be16_to_cpu(rec->len))
+		if (rec == end && !be16_to_cpu(rec->len))
 			return 0;
 	}
 	return -EINVAL;
