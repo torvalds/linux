@@ -28,8 +28,12 @@ scmi_dev_match_id(struct scmi_device *scmi_dev, struct scmi_driver *scmi_drv)
 		return NULL;
 
 	for (; id->protocol_id; id++)
-		if (id->protocol_id == scmi_dev->protocol_id)
-			return id;
+		if (id->protocol_id == scmi_dev->protocol_id) {
+			if (!id->name)
+				return id;
+			else if (!strcmp(id->name, scmi_dev->name))
+				return id;
+		}
 
 	return NULL;
 }
@@ -125,7 +129,8 @@ static void scmi_device_release(struct device *dev)
 }
 
 struct scmi_device *
-scmi_device_create(struct device_node *np, struct device *parent, int protocol)
+scmi_device_create(struct device_node *np, struct device *parent, int protocol,
+		   const char *name)
 {
 	int id, retval;
 	struct scmi_device *scmi_dev;
@@ -134,8 +139,15 @@ scmi_device_create(struct device_node *np, struct device *parent, int protocol)
 	if (!scmi_dev)
 		return NULL;
 
+	scmi_dev->name = kstrdup_const(name ?: "unknown", GFP_KERNEL);
+	if (!scmi_dev->name) {
+		kfree(scmi_dev);
+		return NULL;
+	}
+
 	id = ida_simple_get(&scmi_bus_id, 1, 0, GFP_KERNEL);
 	if (id < 0) {
+		kfree_const(scmi_dev->name);
 		kfree(scmi_dev);
 		return NULL;
 	}
@@ -154,6 +166,7 @@ scmi_device_create(struct device_node *np, struct device *parent, int protocol)
 
 	return scmi_dev;
 put_dev:
+	kfree_const(scmi_dev->name);
 	put_device(&scmi_dev->dev);
 	ida_simple_remove(&scmi_bus_id, id);
 	return NULL;
@@ -161,6 +174,7 @@ put_dev:
 
 void scmi_device_destroy(struct scmi_device *scmi_dev)
 {
+	kfree_const(scmi_dev->name);
 	scmi_handle_put(scmi_dev->handle);
 	ida_simple_remove(&scmi_bus_id, scmi_dev->id);
 	device_unregister(&scmi_dev->dev);
