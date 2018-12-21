@@ -1182,7 +1182,7 @@ static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 					   struct addr_location *al, FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->attr;
-	size_t depth = thread_stack__depth(thread);
+	size_t depth = thread_stack__depth(thread, sample->cpu);
 	const char *name = NULL;
 	static int spacing;
 	int len = 0;
@@ -1716,7 +1716,7 @@ static bool show_event(struct perf_sample *sample,
 		       struct thread *thread,
 		       struct addr_location *al)
 {
-	int depth = thread_stack__depth(thread);
+	int depth = thread_stack__depth(thread, sample->cpu);
 
 	if (!symbol_conf.graph_function)
 		return true;

@@ -15,6 +15,7 @@
 
 #include <linux/rbtree.h>
 #include <linux/list.h>
+#include <linux/log2.h>
 #include <errno.h>
 #include "thread.h"
 #include "event.h"
@@ -75,6 +76,16 @@ struct thread_stack {
 	unsigned int arr_sz;
 };
 
+/*
+ * Assume pid == tid == 0 identifies the idle task as defined by
+ * perf_session__register_idle_thread(). The idle task is really 1 task per cpu,
+ * and therefore requires a stack for each cpu.
+ */
+static inline bool thread_stack__per_cpu(struct thread *thread)
+{
+	return !(thread->tid || thread->pid_);
+}
+
 static int thread_stack__grow(struct thread_stack *ts)
 {
 	struct thread_stack_entry *new_stack;
@@ -111,12 +122,15 @@ static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
 	return 0;
 }
 
-static struct thread_stack *thread_stack__new(struct thread *thread,
+static struct thread_stack *thread_stack__new(struct thread *thread, int cpu,
 					      struct call_return_processor *crp)
 {
 	struct thread_stack *ts = thread->ts, *new_ts;
 	unsigned int old_sz = ts ? ts->arr_sz : 0;
 	unsigned int new_sz = 1;
+
+	if (thread_stack__per_cpu(thread) && cpu > 0)
+		new_sz = roundup_pow_of_two(cpu + 1);
 
 	if (!ts || new_sz > old_sz) {
 		new_ts = calloc(new_sz, sizeof(*ts));
@@ -130,6 +144,10 @@ static struct thread_stack *thread_stack__new(struct thread *thread,
 		ts = new_ts;
 	}
 
+	if (thread_stack__per_cpu(thread) && cpu > 0 &&
+	    (unsigned int)cpu < ts->arr_sz)
+		ts += cpu;
+
 	if (!ts->stack &&
 	    thread_stack__init(ts, thread, crp))
 		return NULL;
@@ -137,9 +155,34 @@ static struct thread_stack *thread_stack__new(struct thread *thread,
 	return ts;
 }
 
-static inline struct thread_stack *thread__stack(struct thread *thread)
+static struct thread_stack *thread__cpu_stack(struct thread *thread, int cpu)
 {
-	return thread ? thread->ts : NULL;
+	struct thread_stack *ts = thread->ts;
+
+	if (cpu < 0)
+		cpu = 0;
+
+	if (!ts || (unsigned int)cpu >= ts->arr_sz)
+		return NULL;
+
+	ts += cpu;
+
+	if (!ts->stack)
+		return NULL;
+
+	return ts;
+}
+
+static inline struct thread_stack *thread__stack(struct thread *thread,
+						    int cpu)
+{
+	if (!thread)
+		return NULL;
+
+	if (thread_stack__per_cpu(thread))
+		return thread__cpu_stack(thread, cpu);
+
+	return thread->ts;
 }
 
 static int thread_stack__push(struct thread_stack *ts, u64 ret_addr,
@@ -270,16 +313,16 @@ int thread_stack__flush(struct thread *thread)
 	return err;
 }
 
-int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
+int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 			u64 to_ip, u16 insn_len, u64 trace_nr)
 {
-	struct thread_stack *ts = thread__stack(thread);
+	struct thread_stack *ts = thread__stack(thread, cpu);
 
 	if (!thread)
 		return -EINVAL;
 
 	if (!ts) {
-		ts = thread_stack__new(thread, NULL);
+		ts = thread_stack__new(thread, cpu, NULL);
 		if (!ts) {
 			pr_warning("Out of memory: no thread stack\n");
 			return -ENOMEM;
@@ -329,9 +372,9 @@ int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
 	return 0;
 }
 
-void thread_stack__set_trace_nr(struct thread *thread, u64 trace_nr)
+void thread_stack__set_trace_nr(struct thread *thread, int cpu, u64 trace_nr)
 {
-	struct thread_stack *ts = thread__stack(thread);
+	struct thread_stack *ts = thread__stack(thread, cpu);
 
 	if (!ts)
 		return;
@@ -375,10 +418,11 @@ static inline u64 callchain_context(u64 ip, u64 kernel_start)
 	return ip < kernel_start ? PERF_CONTEXT_USER : PERF_CONTEXT_KERNEL;
 }
 
-void thread_stack__sample(struct thread *thread, struct ip_callchain *chain,
+void thread_stack__sample(struct thread *thread, int cpu,
+			  struct ip_callchain *chain,
 			  size_t sz, u64 ip, u64 kernel_start)
 {
-	struct thread_stack *ts = thread__stack(thread);
+	struct thread_stack *ts = thread__stack(thread, cpu);
 	u64 context = callchain_context(ip, kernel_start);
 	u64 last_context;
 	size_t i, j;
@@ -651,7 +695,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 			  struct addr_location *to_al, u64 ref,
 			  struct call_return_processor *crp)
 {
-	struct thread_stack *ts = thread__stack(thread);
+	struct thread_stack *ts = thread__stack(thread, sample->cpu);
 	int err = 0;
 
 	if (ts && !ts->crp) {
@@ -661,7 +705,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 	}
 
 	if (!ts) {
-		ts = thread_stack__new(thread, crp);
+		ts = thread_stack__new(thread, sample->cpu, crp);
 		if (!ts)
 			return -ENOMEM;
 		ts->comm = comm;
@@ -726,9 +770,9 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 	return err;
 }
 
-size_t thread_stack__depth(struct thread *thread)
+size_t thread_stack__depth(struct thread *thread, int cpu)
 {
-	struct thread_stack *ts = thread__stack(thread);
+	struct thread_stack *ts = thread__stack(thread, cpu);
 
 	if (!ts)
 		return 0;
