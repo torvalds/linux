@@ -674,6 +674,8 @@ struct cif_isp10_device {
 	struct pltfrm_soc_cfg soc_cfg;
 	void *nodes;
 
+	struct mutex api_mutex; /* user api mutex */
+
 };
 
 struct cif_isp10_fmt *get_cif_isp10_output_format(int index);
