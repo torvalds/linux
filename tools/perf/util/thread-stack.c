@@ -593,17 +593,13 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 	struct thread_stack *ts = thread->ts;
 	int err = 0;
 
-	if (ts) {
-		if (!ts->crp) {
-			/* Supersede thread_stack__event() */
-			thread_stack__free(thread);
-			thread->ts = thread_stack__new(thread, crp);
-			if (!thread->ts)
-				return -ENOMEM;
-			ts = thread->ts;
-			ts->comm = comm;
-		}
-	} else {
+	if (ts && !ts->crp) {
+		/* Supersede thread_stack__event() */
+		thread_stack__free(thread);
+		ts = NULL;
+	}
+
+	if (!ts) {
 		thread->ts = thread_stack__new(thread, crp);
 		if (!thread->ts)
 			return -ENOMEM;
