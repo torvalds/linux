@@ -61,6 +61,7 @@ struct mlx5e_rq_param {
 struct mlx5e_sq_param {
 	u32                        sqc[MLX5_ST_SZ_DW(sqc)];
 	struct mlx5_wq_param       wq;
+	bool                       is_mpw;
 };
 
 struct mlx5e_cq_param {
@@ -992,18 +993,42 @@ static void mlx5e_close_rq(struct mlx5e_rq *rq)
 
 static void mlx5e_free_xdpsq_db(struct mlx5e_xdpsq *sq)
 {
-	kvfree(sq->db.xdpi);
+	kvfree(sq->db.xdpi_fifo.xi);
+	kvfree(sq->db.wqe_info);
+}
+
+static int mlx5e_alloc_xdpsq_fifo(struct mlx5e_xdpsq *sq, int numa)
+{
+	struct mlx5e_xdp_info_fifo *xdpi_fifo = &sq->db.xdpi_fifo;
+	int wq_sz        = mlx5_wq_cyc_get_size(&sq->wq);
+	int dsegs_per_wq = wq_sz * MLX5_SEND_WQEBB_NUM_DS;
+
+	xdpi_fifo->xi = kvzalloc_node(sizeof(*xdpi_fifo->xi) * dsegs_per_wq,
+				      GFP_KERNEL, numa);
+	if (!xdpi_fifo->xi)
+		return -ENOMEM;
+
+	xdpi_fifo->pc   = &sq->xdpi_fifo_pc;
+	xdpi_fifo->cc   = &sq->xdpi_fifo_cc;
+	xdpi_fifo->mask = dsegs_per_wq - 1;
+
+	return 0;
 }
 
 static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 {
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
+	int err;
 
-	sq->db.xdpi = kvzalloc_node(array_size(wq_sz, sizeof(*sq->db.xdpi)),
-				    GFP_KERNEL, numa);
-	if (!sq->db.xdpi) {
-		mlx5e_free_xdpsq_db(sq);
+	sq->db.wqe_info = kvzalloc_node(sizeof(*sq->db.wqe_info) * wq_sz,
+					GFP_KERNEL, numa);
+	if (!sq->db.wqe_info)
 		return -ENOMEM;
+
+	err = mlx5e_alloc_xdpsq_fifo(sq, numa);
+	if (err) {
+		mlx5e_free_xdpsq_db(sq);
+		return err;
 	}
 
 	return 0;
@@ -1562,11 +1587,8 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 			    struct mlx5e_xdpsq *sq,
 			    bool is_redirect)
 {
-	unsigned int ds_cnt = MLX5E_XDP_TX_DS_COUNT;
 	struct mlx5e_create_sq_param csp = {};
-	unsigned int inline_hdr_sz = 0;
 	int err;
-	int i;
 
 	err = mlx5e_alloc_xdpsq(c, params, param, sq, is_redirect);
 	if (err)
@@ -1577,30 +1599,40 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 	csp.cqn             = sq->cq.mcq.cqn;
 	csp.wq_ctrl         = &sq->wq_ctrl;
 	csp.min_inline_mode = sq->min_inline_mode;
-	if (is_redirect)
-		set_bit(MLX5E_SQ_STATE_REDIRECT, &sq->state);
 	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	err = mlx5e_create_sq_rdy(c->mdev, param, &csp, &sq->sqn);
 	if (err)
 		goto err_free_xdpsq;
 
-	if (sq->min_inline_mode != MLX5_INLINE_MODE_NONE) {
-		inline_hdr_sz = MLX5E_XDP_MIN_INLINE;
-		ds_cnt++;
-	}
+	mlx5e_set_xmit_fp(sq, param->is_mpw);
 
-	/* Pre initialize fixed WQE fields */
-	for (i = 0; i < mlx5_wq_cyc_get_size(&sq->wq); i++) {
-		struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(&sq->wq, i);
-		struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
-		struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
-		struct mlx5_wqe_data_seg *dseg;
+	if (!param->is_mpw) {
+		unsigned int ds_cnt = MLX5E_XDP_TX_DS_COUNT;
+		unsigned int inline_hdr_sz = 0;
+		int i;
 
-		cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
-		eseg->inline_hdr.sz = cpu_to_be16(inline_hdr_sz);
+		if (sq->min_inline_mode != MLX5_INLINE_MODE_NONE) {
+			inline_hdr_sz = MLX5E_XDP_MIN_INLINE;
+			ds_cnt++;
+		}
 
-		dseg = (struct mlx5_wqe_data_seg *)cseg + (ds_cnt - 1);
-		dseg->lkey = sq->mkey_be;
+		/* Pre initialize fixed WQE fields */
+		for (i = 0; i < mlx5_wq_cyc_get_size(&sq->wq); i++) {
+			struct mlx5e_xdp_wqe_info *wi  = &sq->db.wqe_info[i];
+			struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(&sq->wq, i);
+			struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
+			struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
+			struct mlx5_wqe_data_seg *dseg;
+
+			cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
+			eseg->inline_hdr.sz = cpu_to_be16(inline_hdr_sz);
+
+			dseg = (struct mlx5_wqe_data_seg *)cseg + (ds_cnt - 1);
+			dseg->lkey = sq->mkey_be;
+
+			wi->num_wqebbs = 1;
+			wi->num_ds     = 1;
+		}
 	}
 
 	return 0;
@@ -1612,7 +1644,7 @@ err_free_xdpsq:
 	return err;
 }
 
-static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq)
+static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 {
 	struct mlx5e_channel *c = sq->channel;
 
@@ -1620,7 +1652,7 @@ static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq)
 	napi_synchronize(&c->napi);
 
 	mlx5e_destroy_sq(c->mdev, sq->sqn);
-	mlx5e_free_xdpsq_descs(sq);
+	mlx5e_free_xdpsq_descs(sq, rq);
 	mlx5e_free_xdpsq(sq);
 }
 
@@ -2008,7 +2040,7 @@ err_close_rq:
 
 err_close_xdp_sq:
 	if (c->xdp)
-		mlx5e_close_xdpsq(&c->rq.xdpsq);
+		mlx5e_close_xdpsq(&c->rq.xdpsq, &c->rq);
 
 err_close_sqs:
 	mlx5e_close_sqs(c);
@@ -2061,10 +2093,10 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 
 static void mlx5e_close_channel(struct mlx5e_channel *c)
 {
-	mlx5e_close_xdpsq(&c->xdpsq);
+	mlx5e_close_xdpsq(&c->xdpsq, NULL);
 	mlx5e_close_rq(&c->rq);
 	if (c->xdp)
-		mlx5e_close_xdpsq(&c->rq.xdpsq);
+		mlx5e_close_xdpsq(&c->rq.xdpsq, &c->rq);
 	mlx5e_close_sqs(c);
 	mlx5e_close_icosq(&c->icosq);
 	napi_disable(&c->napi);
@@ -2309,6 +2341,7 @@ static void mlx5e_build_xdpsq_param(struct mlx5e_priv *priv,
 
 	mlx5e_build_sq_param_common(priv, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
+	param->is_mpw = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_XDP_TX_MPWQE);
 }
 
 static void mlx5e_build_channel_param(struct mlx5e_priv *priv,
@@ -4561,6 +4594,10 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	params->log_sq_size = is_kdump_kernel() ?
 		MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE :
 		MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
+
+	/* XDP SQ */
+	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_XDP_TX_MPWQE,
+			MLX5_CAP_ETH(mdev, enhanced_multi_pkt_send_wqe));
 
 	/* set CQE compression */
 	params->rx_cqe_compress_def = false;
