@@ -408,6 +408,21 @@
 &i2c2 {
 	clock-frequency = <400000>;
 	status = "okay";
+
+	ft5606: touchscreen@3e {
+		compatible = "edt,edt-ft5506";
+		reg = <0x3e>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PB7 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_int &tp_rst>;
+		reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
+		touchscreen-inverted-y;
+		/* hw ts resolution does not match display */
+		touchscreen-size-y = <1024>;
+		touchscreen-size-x = <768>;
+		touchscreen-swapped-x-y;
+	};
 };
 
 &i2c3 {
