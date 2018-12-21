@@ -2,7 +2,7 @@
 /*
  * Shared descriptors for ahash algorithms
  *
- * Copyright 2017 NXP
+ * Copyright 2017-2018 NXP
  */
 
 #include "compat.h"
@@ -74,6 +74,62 @@ void cnstr_shdsc_ahash(u32 * const desc, struct alginfo *adata, u32 state,
 			 LDST_SRCDST_BYTE_CONTEXT);
 }
 EXPORT_SYMBOL(cnstr_shdsc_ahash);
+
+/**
+ * cnstr_shdsc_axcbc - axcbc shared descriptor
+ * @desc: pointer to buffer used for descriptor construction
+ * @adata: pointer to authentication transform definitions.
+ * @state: algorithm state OP_ALG_AS_{INIT, FINALIZE, INITFINALIZE, UPDATE}
+ * @digestsize: algorithm's digest size
+ * @ctx_len: size of Context Register
+ * @key_dma: I/O Virtual Address of the key
+ */
+void cnstr_shdsc_axcbc(u32 * const desc, struct alginfo *adata, u32 state,
+		       int digestsize, int ctx_len, dma_addr_t key_dma)
+{
+	u32 *skip_key_load;
+
+	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
+
+	/* Skip loading of key, context if already shared */
+	skip_key_load = append_jump(desc, JUMP_TEST_ALL | JUMP_COND_SHRD);
+
+	if (state == OP_ALG_AS_INIT || state == OP_ALG_AS_INITFINAL) {
+		append_key_as_imm(desc, adata->key_virt, adata->keylen,
+				  adata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	} else { /* UPDATE, FINALIZE */
+		/* Load K1 */
+		append_key(desc, adata->key_dma, adata->keylen,
+			   CLASS_1 | KEY_DEST_CLASS_REG | KEY_ENC);
+		/* Restore context */
+		append_seq_load(desc, ctx_len, LDST_CLASS_1_CCB |
+				LDST_SRCDST_BYTE_CONTEXT);
+	}
+
+	set_jump_tgt_here(desc, skip_key_load);
+
+	/* Class 1 operation */
+	append_operation(desc, adata->algtype | state | OP_ALG_ENCRYPT);
+
+	/*
+	 * Load from buf and/or src and write to req->result or state->context
+	 * Calculate remaining bytes to read
+	 */
+	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+
+	/* Read remaining bytes */
+	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLD_TYPE_LAST1 |
+			     FIFOLD_TYPE_MSG | FIFOLDST_VLF);
+
+	/* Save context (partial hash, K2, K3) */
+	append_seq_store(desc, digestsize, LDST_CLASS_1_CCB |
+			 LDST_SRCDST_BYTE_CONTEXT);
+	if (state == OP_ALG_AS_INIT)
+		/* Save K1 */
+		append_fifo_store(desc, key_dma, adata->keylen,
+				  LDST_CLASS_1_CCB | FIFOST_TYPE_KEY_KEK);
+}
+EXPORT_SYMBOL(cnstr_shdsc_axcbc);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("FSL CAAM ahash descriptors support");
