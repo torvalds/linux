@@ -75,7 +75,7 @@ static gchar **fill_row(struct menu *menu);
 static void conf_changed(void);
 
 /* Helping/Debugging Functions */
-
+#ifdef DEBUG
 static const char *dbg_sym_flags(int val)
 {
 	static char buf[256];
@@ -105,6 +105,7 @@ static const char *dbg_sym_flags(int val)
 
 	return buf;
 }
+#endif
 
 static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 				GtkStyle *style, gchar *btn_name, gchar **xpm)
