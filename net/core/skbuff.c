@@ -5666,13 +5666,13 @@ void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id)
 		if (!new)
 			return NULL;
 
-		if (__skb_ext_exist(old, id)) {
+		if (__skb_ext_exist(new, id)) {
 			if (old != new)
 				skb->extensions = new;
 			goto set_active;
 		}
 
-		newoff = old->chunks;
+		newoff = new->chunks;
 	} else {
 		newoff = SKB_EXT_CHUNKSIZEOF(*new);
 
