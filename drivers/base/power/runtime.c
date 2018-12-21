@@ -88,6 +88,21 @@ static void __update_runtime_status(struct device *dev, enum rpm_status status)
 	dev->power.runtime_status = status;
 }
 
+u64 pm_runtime_suspended_time(struct device *dev)
+{
+	unsigned long flags, time;
+
+	spin_lock_irqsave(&dev->power.lock, flags);
+
+	update_pm_runtime_accounting(dev);
+	time = dev->power.suspended_jiffies;
+
+	spin_unlock_irqrestore(&dev->power.lock, flags);
+
+	return jiffies_to_nsecs(time);
+}
+EXPORT_SYMBOL_GPL(pm_runtime_suspended_time);
+
 /**
  * pm_runtime_deactivate_timer - Deactivate given device's suspend timer.
  * @dev: Device to handle.
