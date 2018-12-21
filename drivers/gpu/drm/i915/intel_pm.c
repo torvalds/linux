@@ -3665,25 +3665,25 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	if (dev_priv->sagv_status == I915_SAGV_ENABLED)
 		return 0;
 
-	DRM_DEBUG_KMS("Enabling the SAGV\n");
+	DRM_DEBUG_KMS("Enabling SAGV\n");
 	mutex_lock(&dev_priv->pcu_lock);
 
 	ret = sandybridge_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
 				      GEN9_SAGV_ENABLE);
 
-	/* We don't need to wait for the SAGV when enabling */
+	/* We don't need to wait for SAGV when enabling */
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	/*
 	 * Some skl systems, pre-release machines in particular,
-	 * don't actually have an SAGV.
+	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
-		DRM_ERROR("Failed to enable the SAGV\n");
+		DRM_ERROR("Failed to enable SAGV\n");
 		return ret;
 	}
 
@@ -3702,7 +3702,7 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	if (dev_priv->sagv_status == I915_SAGV_DISABLED)
 		return 0;
 
-	DRM_DEBUG_KMS("Disabling the SAGV\n");
+	DRM_DEBUG_KMS("Disabling SAGV\n");
 	mutex_lock(&dev_priv->pcu_lock);
 
 	/* bspec says to keep retrying for at least 1 ms */
@@ -3714,14 +3714,14 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 
 	/*
 	 * Some skl systems, pre-release machines in particular,
-	 * don't actually have an SAGV.
+	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
-		DRM_ERROR("Failed to disable the SAGV (%d)\n", ret);
+		DRM_ERROR("Failed to disable SAGV (%d)\n", ret);
 		return ret;
 	}
 
@@ -3752,7 +3752,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 		sagv_block_time_us = 10;
 
 	/*
-	 * SKL+ workaround: bspec recommends we disable the SAGV when we have
+	 * SKL+ workaround: bspec recommends we disable SAGV when we have
 	 * more then one pipe enabled
 	 *
 	 * If there are no active CRTCs, no additional checks need be performed
@@ -3793,7 +3793,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 		/*
 		 * If any of the planes on this pipe don't enable wm levels that
 		 * incur memory latencies higher than sagv_block_time_us we
-		 * can't enable the SAGV.
+		 * can't enable SAGV.
 		 */
 		if (latency < sagv_block_time_us)
 			return false;
