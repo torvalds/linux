@@ -4674,6 +4674,15 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 	return 0;
 }
 
+static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
+{
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		return true;
+
+	/* The number of lines are ignored for the level 0 watermark. */
+	return level > 0;
+}
+
 static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 				 const struct intel_plane_state *intel_pstate,
 				 int level,
@@ -4756,8 +4765,10 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 		}
 	}
 
-	/* The number of lines are ignored for the level 0 watermark. */
-	if (level > 0 && res_lines > 31)
+	if (!skl_wm_has_lines(dev_priv, level))
+		res_lines = 0;
+
+	if (res_lines > 31)
 		return;
 
 	/*
