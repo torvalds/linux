@@ -114,6 +114,17 @@ config ARM_QCOM_CPUFREQ_KRYO
 
 	  If in doubt, say N.
 
+config ARM_QCOM_CPUFREQ_HW
+	tristate "QCOM CPUFreq HW driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Support for the CPUFreq HW driver.
+	  Some QCOM chipsets have a HW engine to offload the steps
+	  necessary for changing the frequency of the CPUs. Firmware loaded
+	  in this engine exposes a programming interface to the OS.
+	  The driver implements the cpufreq interface for this HW engine.
+	  Say Y if you want to support CPUFreq HW.
+
 config ARM_S3C_CPUFREQ
 	bool
 	help
