@@ -874,7 +874,7 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 
 	for_each_child_of_node(dev->of_node, node) {
 		ret = of_property_read_u32(node, "reg", &id);
-		if (ret || id > MAX_SESSIONS || id < 0) {
+		if (ret || id >= MAX_SESSIONS || id < 0) {
 			dev_err(dev, "valid dai id not found:%d\n", ret);
 			continue;
 		}
