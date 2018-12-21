@@ -60,6 +60,7 @@ struct thread_stack_entry {
  * @last_time: last timestamp
  * @crp: call/return processor
  * @comm: current comm
+ * @arr_sz: size of array if this is the first element of an array
  */
 struct thread_stack {
 	struct thread_stack_entry *stack;
@@ -71,6 +72,7 @@ struct thread_stack {
 	u64 last_time;
 	struct call_return_processor *crp;
 	struct comm *comm;
+	unsigned int arr_sz;
 };
 
 static int thread_stack__grow(struct thread_stack *ts)
@@ -99,6 +101,8 @@ static struct thread_stack *thread_stack__new(struct thread *thread,
 	ts = zalloc(sizeof(struct thread_stack));
 	if (!ts)
 		return NULL;
+
+	ts->arr_sz = 1;
 
 	if (thread_stack__grow(ts)) {
 		free(ts);
@@ -234,11 +238,19 @@ static int __thread_stack__flush(struct thread *thread, struct thread_stack *ts)
 int thread_stack__flush(struct thread *thread)
 {
 	struct thread_stack *ts = thread->ts;
+	unsigned int pos;
+	int err = 0;
 
-	if (ts)
-		return __thread_stack__flush(thread, ts);
+	if (ts) {
+		for (pos = 0; pos < ts->arr_sz; pos++) {
+			int ret = __thread_stack__flush(thread, ts + pos);
 
-	return 0;
+			if (ret)
+				err = ret;
+		}
+	}
+
+	return err;
 }
 
 int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
@@ -314,13 +326,29 @@ void thread_stack__set_trace_nr(struct thread *thread, u64 trace_nr)
 	}
 }
 
+static void __thread_stack__free(struct thread *thread, struct thread_stack *ts)
+{
+	__thread_stack__flush(thread, ts);
+	zfree(&ts->stack);
+}
+
+static void thread_stack__reset(struct thread *thread, struct thread_stack *ts)
+{
+	unsigned int arr_sz = ts->arr_sz;
+
+	__thread_stack__free(thread, ts);
+	memset(ts, 0, sizeof(*ts));
+	ts->arr_sz = arr_sz;
+}
+
 void thread_stack__free(struct thread *thread)
 {
 	struct thread_stack *ts = thread->ts;
+	unsigned int pos;
 
 	if (ts) {
-		__thread_stack__flush(thread, ts);
-		zfree(&ts->stack);
+		for (pos = 0; pos < ts->arr_sz; pos++)
+			__thread_stack__free(thread, ts + pos);
 		zfree(&thread->ts);
 	}
 }
@@ -611,7 +639,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 
 	if (ts && !ts->crp) {
 		/* Supersede thread_stack__event() */
-		thread_stack__free(thread);
+		thread_stack__reset(thread, ts);
 		ts = NULL;
 	}
 
