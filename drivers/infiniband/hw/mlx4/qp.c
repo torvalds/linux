@@ -1609,9 +1609,6 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	if (qp->rwq_ind_tbl) {
 		destroy_qp_rss(dev, mqp);
 	} else {
-		struct mlx4_ib_pd *pd;
-
-		pd = get_pd(mqp);
 		destroy_qp_common(dev, mqp, MLX4_IB_QP_SRC, qp->uobject);
 	}
 
