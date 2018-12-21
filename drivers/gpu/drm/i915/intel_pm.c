@@ -4617,7 +4617,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 							     intel_pstate);
 
 	if (INTEL_GEN(dev_priv) >= 11 &&
-	    fb->modifier == I915_FORMAT_MOD_Yf_TILED && wp->cpp == 8)
+	    fb->modifier == I915_FORMAT_MOD_Yf_TILED && wp->cpp == 1)
 		wp->dbuf_block_size = 256;
 	else
 		wp->dbuf_block_size = 512;
