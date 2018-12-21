@@ -294,8 +294,8 @@ int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	return 0;
 }
 
-static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
-				    unsigned int pshift, unsigned int lpid)
+void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
+			     unsigned int pshift, unsigned int lpid)
 {
 	unsigned long psize = PAGE_SIZE;
 	int psi;
@@ -982,12 +982,18 @@ int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned long gpa = gfn << PAGE_SHIFT;
 	unsigned int shift;
 	int ref = 0;
+	unsigned long old, *rmapp;
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep)) {
-		kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
-					gpa, shift);
+		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
+					      gpa, shift);
 		/* XXX need to flush tlb here? */
+		/* Also clear bit in ptes in shadow pgtable for nested guests */
+		rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
+		kvmhv_update_nest_rmap_rc_list(kvm, rmapp, _PAGE_ACCESSED, 0,
+					       old & PTE_RPN_MASK,
+					       1UL << shift);
 		ref = 1;
 	}
 	return ref;
@@ -1017,15 +1023,23 @@ static int kvm_radix_test_clear_dirty(struct kvm *kvm,
 	pte_t *ptep;
 	unsigned int shift;
 	int ret = 0;
+	unsigned long old, *rmapp;
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_dirty(*ptep)) {
 		ret = 1;
 		if (shift)
 			ret = 1 << (shift - PAGE_SHIFT);
-		kvmppc_radix_update_pte(kvm, ptep, _PAGE_DIRTY, 0,
-					gpa, shift);
+		spin_lock(&kvm->mmu_lock);
+		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_DIRTY, 0,
+					      gpa, shift);
 		kvmppc_radix_tlbie_page(kvm, gpa, shift, kvm->arch.lpid);
+		/* Also clear bit in ptes in shadow pgtable for nested guests */
+		rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
+		kvmhv_update_nest_rmap_rc_list(kvm, rmapp, _PAGE_DIRTY, 0,
+					       old & PTE_RPN_MASK,
+					       1UL << shift);
+		spin_unlock(&kvm->mmu_lock);
 	}
 	return ret;
 }

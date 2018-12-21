@@ -788,6 +788,57 @@ void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
 	*n_rmap = NULL;
 }
 
+static void kvmhv_update_nest_rmap_rc(struct kvm *kvm, u64 n_rmap,
+				      unsigned long clr, unsigned long set,
+				      unsigned long hpa, unsigned long mask)
+{
+	struct kvm_nested_guest *gp;
+	unsigned long gpa;
+	unsigned int shift, lpid;
+	pte_t *ptep;
+
+	gpa = n_rmap & RMAP_NESTED_GPA_MASK;
+	lpid = (n_rmap & RMAP_NESTED_LPID_MASK) >> RMAP_NESTED_LPID_SHIFT;
+	gp = kvmhv_find_nested(kvm, lpid);
+	if (!gp)
+		return;
+
+	/* Find the pte */
+	ptep = __find_linux_pte(gp->shadow_pgtable, gpa, NULL, &shift);
+	/*
+	 * If the pte is present and the pfn is still the same, update the pte.
+	 * If the pfn has changed then this is a stale rmap entry, the nested
+	 * gpa actually points somewhere else now, and there is nothing to do.
+	 * XXX A future optimisation would be to remove the rmap entry here.
+	 */
+	if (ptep && pte_present(*ptep) && ((pte_val(*ptep) & mask) == hpa)) {
+		__radix_pte_update(ptep, clr, set);
+		kvmppc_radix_tlbie_page(kvm, gpa, shift, lpid);
+	}
+}
+
+/*
+ * For a given list of rmap entries, update the rc bits in all ptes in shadow
+ * page tables for nested guests which are referenced by the rmap list.
+ */
+void kvmhv_update_nest_rmap_rc_list(struct kvm *kvm, unsigned long *rmapp,
+				    unsigned long clr, unsigned long set,
+				    unsigned long hpa, unsigned long nbytes)
+{
+	struct llist_node *entry = ((struct llist_head *) rmapp)->first;
+	struct rmap_nested *cursor;
+	unsigned long rmap, mask;
+
+	if ((clr | set) & ~(_PAGE_DIRTY | _PAGE_ACCESSED))
+		return;
+
+	mask = PTE_RPN_MASK & ~(nbytes - 1);
+	hpa &= mask;
+
+	for_each_nest_rmap_safe(cursor, entry, &rmap)
+		kvmhv_update_nest_rmap_rc(kvm, rmap, clr, set, hpa, mask);
+}
+
 static void kvmhv_remove_nest_rmap(struct kvm *kvm, u64 n_rmap,
 				   unsigned long hpa, unsigned long mask)
 {
@@ -1150,7 +1201,7 @@ static long kvmhv_handle_nested_set_rc(struct kvm_vcpu *vcpu,
 	struct kvm *kvm = vcpu->kvm;
 	bool writing = !!(dsisr & DSISR_ISSTORE);
 	u64 pgflags;
-	bool ret;
+	long ret;
 
 	/* Are the rc bits set in the L1 partition scoped pte? */
 	pgflags = _PAGE_ACCESSED;
@@ -1163,16 +1214,22 @@ static long kvmhv_handle_nested_set_rc(struct kvm_vcpu *vcpu,
 	/* Set the rc bit in the pte of our (L0) pgtable for the L1 guest */
 	ret = kvmppc_hv_handle_set_rc(kvm, kvm->arch.pgtable, writing,
 				     gpte.raddr, kvm->arch.lpid);
-	spin_unlock(&kvm->mmu_lock);
-	if (!ret)
-		return -EINVAL;
+	if (!ret) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	/* Set the rc bit in the pte of the shadow_pgtable for the nest guest */
 	ret = kvmppc_hv_handle_set_rc(kvm, gp->shadow_pgtable, writing, n_gpa,
 				      gp->shadow_lpid);
 	if (!ret)
-		return -EINVAL;
-	return 0;
+		ret = -EINVAL;
+	else
+		ret = 0;
+
+out_unlock:
+	spin_unlock(&kvm->mmu_lock);
+	return ret;
 }
 
 static inline int kvmppc_radix_level_to_shift(int level)
@@ -1322,6 +1379,8 @@ static long int __kvmhv_nested_page_fault(struct kvm_run *run,
 			return ret;
 		shift = kvmppc_radix_level_to_shift(level);
 	}
+	/* Align gfn to the start of the page */
+	gfn = (gpa & ~((1UL << shift) - 1)) >> PAGE_SHIFT;
 
 	/* 3. Compute the pte we need to insert for nest_gpa -> host r_addr */
 
@@ -1329,6 +1388,9 @@ static long int __kvmhv_nested_page_fault(struct kvm_run *run,
 	perm |= gpte.may_read ? 0UL : _PAGE_READ;
 	perm |= gpte.may_write ? 0UL : _PAGE_WRITE;
 	perm |= gpte.may_execute ? 0UL : _PAGE_EXEC;
+	/* Only set accessed/dirty (rc) bits if set in host and l1 guest ptes */
+	perm |= (gpte.rc & _PAGE_ACCESSED) ? 0UL : _PAGE_ACCESSED;
+	perm |= ((gpte.rc & _PAGE_DIRTY) && writing) ? 0UL : _PAGE_DIRTY;
 	pte = __pte(pte_val(pte) & ~perm);
 
 	/* What size pte can we insert? */
