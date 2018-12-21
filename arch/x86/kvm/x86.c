@@ -6867,7 +6867,7 @@ int kvm_arch_init(void *opaque)
 	}
 
 	r = -ENOMEM;
-	x86_fpu_cache = kmem_cache_create("x86_fpu", fpu_kernel_xstate_size,
+	x86_fpu_cache = kmem_cache_create("x86_fpu", sizeof(struct fpu),
 					  __alignof__(struct fpu), SLAB_ACCOUNT,
 					  NULL);
 	if (!x86_fpu_cache) {
