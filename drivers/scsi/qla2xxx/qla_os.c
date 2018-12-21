@@ -299,6 +299,13 @@ MODULE_PARM_DESC(ql2xprotguard, "Override choice of DIX checksum\n"
 		 "  1 -- Force T10 CRC\n"
 		 "  2 -- Force IP checksum\n");
 
+int ql2xdifbundlinginternalbuffers;
+module_param(ql2xdifbundlinginternalbuffers, int, 0644);
+MODULE_PARM_DESC(ql2xdifbundlinginternalbuffers,
+    "Force using internal buffers for DIF information\n"
+    "0 (Default). Based on check.\n"
+    "1 Force using internal buffers\n");
+
 /*
  * SCSI host template entry points
  */
@@ -818,7 +825,44 @@ qla2xxx_qpair_sp_free_dma(void *ptr)
 		ha->gbl_dsd_inuse -= ctx1->dsd_use_cnt;
 		ha->gbl_dsd_avail += ctx1->dsd_use_cnt;
 		mempool_free(ctx1, ha->ctx_mempool);
+		sp->flags &= ~SRB_FCP_CMND_DMA_VALID;
 	}
+	if (sp->flags & SRB_DIF_BUNDL_DMA_VALID) {
+		struct crc_context *difctx = sp->u.scmd.ctx;
+		struct dsd_dma *dif_dsd, *nxt_dsd;
+
+		list_for_each_entry_safe(dif_dsd, nxt_dsd,
+		    &difctx->ldif_dma_hndl_list, list) {
+			list_del(&dif_dsd->list);
+			dma_pool_free(ha->dif_bundl_pool, dif_dsd->dsd_addr,
+			    dif_dsd->dsd_list_dma);
+			kfree(dif_dsd);
+			difctx->no_dif_bundl--;
+		}
+
+		list_for_each_entry_safe(dif_dsd, nxt_dsd,
+		    &difctx->ldif_dsd_list, list) {
+			list_del(&dif_dsd->list);
+			dma_pool_free(ha->dl_dma_pool, dif_dsd->dsd_addr,
+			    dif_dsd->dsd_list_dma);
+			kfree(dif_dsd);
+			difctx->no_ldif_dsd--;
+		}
+
+		if (difctx->no_ldif_dsd) {
+			ql_dbg(ql_dbg_tgt+ql_dbg_verbose, sp->vha, 0xe022,
+			    "%s: difctx->no_ldif_dsd=%x\n",
+			    __func__, difctx->no_ldif_dsd);
+		}
+
+		if (difctx->no_dif_bundl) {
+			ql_dbg(ql_dbg_tgt+ql_dbg_verbose, sp->vha, 0xe022,
+			    "%s: difctx->no_dif_bundl=%x\n",
+			    __func__, difctx->no_dif_bundl);
+		}
+		sp->flags &= ~SRB_DIF_BUNDL_DMA_VALID;
+	}
+
 end:
 	CMD_SP(cmd) = NULL;
 	qla2xxx_rel_qpair_sp(sp->qpair, sp);
@@ -4017,9 +4061,86 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 			    "Failed to allocate memory for fcp_cmnd_dma_pool.\n");
 			goto fail_dl_dma_pool;
 		}
+
+		if (ql2xenabledif) {
+			u64 bufsize = DIF_BUNDLING_DMA_POOL_SIZE;
+			struct dsd_dma *dsd, *nxt;
+			uint i;
+			/* Creata a DMA pool of buffers for DIF bundling */
+			ha->dif_bundl_pool = dma_pool_create(name,
+			    &ha->pdev->dev, DIF_BUNDLING_DMA_POOL_SIZE, 8, 0);
+			if (!ha->dif_bundl_pool) {
+				ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0024,
+				    "%s: failed create dif_bundl_pool\n",
+				    __func__);
+				goto fail_dif_bundl_dma_pool;
+			}
+
+			INIT_LIST_HEAD(&ha->pool.good.head);
+			INIT_LIST_HEAD(&ha->pool.unusable.head);
+			ha->pool.good.count = 0;
+			ha->pool.unusable.count = 0;
+			for (i = 0; i < 128; i++) {
+				dsd = kzalloc(sizeof(*dsd), GFP_ATOMIC);
+				if (!dsd) {
+					ql_dbg_pci(ql_dbg_init, ha->pdev,
+					    0xe0ee, "%s: failed alloc dsd\n",
+					    __func__);
+					return 1;
+				}
+				ha->dif_bundle_kallocs++;
+
+				dsd->dsd_addr = dma_pool_alloc(
+				    ha->dif_bundl_pool, GFP_ATOMIC,
+				    &dsd->dsd_list_dma);
+				if (!dsd->dsd_addr) {
+					ql_dbg_pci(ql_dbg_init, ha->pdev,
+					    0xe0ee,
+					    "%s: failed alloc ->dsd_addr\n",
+					    __func__);
+					kfree(dsd);
+					ha->dif_bundle_kallocs--;
+					continue;
+				}
+				ha->dif_bundle_dma_allocs++;
+
+				/*
+				 * if DMA buffer crosses 4G boundary,
+				 * put it on bad list
+				 */
+				if (MSD(dsd->dsd_list_dma) ^
+				    MSD(dsd->dsd_list_dma + bufsize)) {
+					list_add_tail(&dsd->list,
+					    &ha->pool.unusable.head);
+					ha->pool.unusable.count++;
+				} else {
+					list_add_tail(&dsd->list,
+					    &ha->pool.good.head);
+					ha->pool.good.count++;
+				}
+			}
+
+			/* return the good ones back to the pool */
+			list_for_each_entry_safe(dsd, nxt,
+			    &ha->pool.good.head, list) {
+				list_del(&dsd->list);
+				dma_pool_free(ha->dif_bundl_pool,
+				    dsd->dsd_addr, dsd->dsd_list_dma);
+				ha->dif_bundle_dma_allocs--;
+				kfree(dsd);
+				ha->dif_bundle_kallocs--;
+			}
+
+			ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0024,
+			    "%s: dif dma pool (good=%u unusable=%u)\n",
+			    __func__, ha->pool.good.count,
+			    ha->pool.unusable.count);
+		}
+
 		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0025,
-		    "dl_dma_pool=%p fcp_cmnd_dma_pool=%p.\n",
-		    ha->dl_dma_pool, ha->fcp_cmnd_dma_pool);
+		    "dl_dma_pool=%p fcp_cmnd_dma_pool=%p dif_bundl_pool=%p.\n",
+		    ha->dl_dma_pool, ha->fcp_cmnd_dma_pool,
+		    ha->dif_bundl_pool);
 	}
 
 	/* Allocate memory for SNS commands */
@@ -4184,6 +4305,24 @@ fail_free_ms_iocb:
 		dma_free_coherent(&ha->pdev->dev, sizeof(struct sns_cmd_pkt),
 		    ha->sns_cmd, ha->sns_cmd_dma);
 fail_dma_pool:
+	if (ql2xenabledif) {
+		struct dsd_dma *dsd, *nxt;
+
+		list_for_each_entry_safe(dsd, nxt, &ha->pool.unusable.head,
+		    list) {
+			list_del(&dsd->list);
+			dma_pool_free(ha->dif_bundl_pool, dsd->dsd_addr,
+			    dsd->dsd_list_dma);
+			ha->dif_bundle_dma_allocs--;
+			kfree(dsd);
+			ha->dif_bundle_kallocs--;
+			ha->pool.unusable.count--;
+		}
+		dma_pool_destroy(ha->dif_bundl_pool);
+		ha->dif_bundl_pool = NULL;
+	}
+
+fail_dif_bundl_dma_pool:
 	if (IS_QLA82XX(ha) || ql2xenabledif) {
 		dma_pool_destroy(ha->fcp_cmnd_dma_pool);
 		ha->fcp_cmnd_dma_pool = NULL;
@@ -4563,6 +4702,32 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	dma_pool_destroy(ha->fcp_cmnd_dma_pool);
 
 	mempool_destroy(ha->ctx_mempool);
+
+	if (ql2xenabledif) {
+		struct dsd_dma *dsd, *nxt;
+
+		list_for_each_entry_safe(dsd, nxt, &ha->pool.unusable.head,
+					 list) {
+			list_del(&dsd->list);
+			dma_pool_free(ha->dif_bundl_pool, dsd->dsd_addr,
+				      dsd->dsd_list_dma);
+			ha->dif_bundle_dma_allocs--;
+			kfree(dsd);
+			ha->dif_bundle_kallocs--;
+			ha->pool.unusable.count--;
+		}
+		list_for_each_entry_safe(dsd, nxt, &ha->pool.good.head, list) {
+			list_del(&dsd->list);
+			dma_pool_free(ha->dif_bundl_pool, dsd->dsd_addr,
+				      dsd->dsd_list_dma);
+			ha->dif_bundle_dma_allocs--;
+			kfree(dsd);
+			ha->dif_bundle_kallocs--;
+		}
+	}
+
+	if (ha->dif_bundl_pool)
+		dma_pool_destroy(ha->dif_bundl_pool);
 
 	qlt_mem_free(ha);
 

@@ -160,6 +160,7 @@ extern int ql2xautodetectsfp;
 extern int ql2xenablemsix;
 extern int qla2xuseresexchforels;
 extern int ql2xexlogins;
+extern int ql2xdifbundlinginternalbuffers;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -285,7 +286,7 @@ extern int qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *, srb_t *,
 extern int qla24xx_walk_and_build_sglist(struct qla_hw_data *, srb_t *,
 	uint32_t *, uint16_t, struct qla_tc_param *);
 extern int qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *, srb_t *,
-	uint32_t *, uint16_t, struct qla_tc_param *);
+	uint32_t *, uint16_t, struct qla_tgt_cmd *);
 extern int qla24xx_get_one_block_sg(uint32_t, struct qla2_sgx *, uint32_t *);
 extern int qla24xx_configure_prot_mode(srb_t *, uint16_t *);
 extern int qla24xx_build_scsi_crc_2_iocbs(srb_t *,

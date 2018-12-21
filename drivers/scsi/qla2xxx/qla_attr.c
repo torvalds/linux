@@ -1002,7 +1002,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha, bool stop_beacon)
 /* Scsi_Host attributes. */
 
 static ssize_t
-qla2x00_drvr_version_show(struct device *dev,
+qla2x00_driver_version_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%s\n", qla2x00_version_str);
@@ -2059,7 +2059,21 @@ ql2xiniexchg_store(struct device *dev, struct device_attribute *attr,
 	return strlen(buf);
 }
 
-static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
+static ssize_t
+qla2x00_dif_bundle_statistics_show(struct device *dev,
+    struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	return scnprintf(buf, PAGE_SIZE,
+	    "cross=%llu read=%llu write=%llu kalloc=%llu dma_alloc=%llu unusable=%u\n",
+	    ha->dif_bundle_crossed_pages, ha->dif_bundle_reads,
+	    ha->dif_bundle_writes, ha->dif_bundle_kallocs,
+	    ha->dif_bundle_dma_allocs, ha->pool.unusable.count);
+}
+
+static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_driver_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
 static DEVICE_ATTR(isp_name, S_IRUGO, qla2x00_isp_name_show, NULL);
@@ -2112,6 +2126,8 @@ static DEVICE_ATTR(zio_threshold, 0644,
 static DEVICE_ATTR_RW(qlini_mode);
 static DEVICE_ATTR_RW(ql2xexchoffld);
 static DEVICE_ATTR_RW(ql2xiniexchg);
+static DEVICE_ATTR(dif_bundle_statistics, 0444,
+    qla2x00_dif_bundle_statistics_show, NULL);
 
 
 struct device_attribute *qla2x00_host_attrs[] = {
@@ -2150,6 +2166,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_min_link_speed,
 	&dev_attr_max_speed_sup,
 	&dev_attr_zio_threshold,
+	&dev_attr_dif_bundle_statistics,
 	NULL, /* reserve for qlini_mode */
 	NULL, /* reserve for ql2xiniexchg */
 	NULL, /* reserve for ql2xexchoffld */

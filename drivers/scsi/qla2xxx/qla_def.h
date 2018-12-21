@@ -314,6 +314,7 @@ struct srb_cmd {
 #define SRB_CRC_PROT_DMA_VALID		BIT_4	/* DIF: prot DMA valid */
 #define SRB_CRC_CTX_DSD_VALID		BIT_5	/* DIF: dsd_list valid */
 #define SRB_WAKEUP_ON_COMP		BIT_6
+#define SRB_DIF_BUNDL_DMA_VALID		BIT_7   /* DIF: DMA list valid */
 
 /* To identify if a srb is of T10-CRC type. @sp => srb_t pointer */
 #define IS_PROT_IO(sp)	(sp->flags & SRB_CRC_CTX_DSD_VALID)
@@ -1892,6 +1893,13 @@ struct crc_context {
 	/* List of DMA context transfers */
 	struct list_head dsd_list;
 
+	/* List of DIF Bundling context DMA address */
+	struct list_head ldif_dsd_list;
+	u8 no_ldif_dsd;
+
+	struct list_head ldif_dma_hndl_list;
+	u32 dif_bundl_len;
+	u8 no_dif_bundl;
 	/* This structure should not exceed 512 bytes */
 };
 
@@ -4183,6 +4191,26 @@ struct qla_hw_data {
 	uint32_t fw_ability_mask;
 	uint16_t min_link_speed;
 	uint16_t max_speed_sup;
+
+	/* DMA pool for the DIF bundling buffers */
+	struct dma_pool *dif_bundl_pool;
+	#define DIF_BUNDLING_DMA_POOL_SIZE  1024
+	struct {
+		struct {
+			struct list_head head;
+			uint count;
+		} good;
+		struct {
+			struct list_head head;
+			uint count;
+		} unusable;
+	} pool;
+
+	unsigned long long dif_bundle_crossed_pages;
+	unsigned long long dif_bundle_reads;
+	unsigned long long dif_bundle_writes;
+	unsigned long long dif_bundle_kallocs;
+	unsigned long long dif_bundle_dma_allocs;
 
 	atomic_t        nvme_active_aen_cnt;
 	uint16_t        nvme_last_rptd_aen;             /* Last recorded aen count */

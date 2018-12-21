@@ -3230,7 +3230,7 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 
 		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.bundling.dif_address;
 		if (qla24xx_walk_and_build_prot_sglist(ha, NULL, cur_dsd,
-			prm->prot_seg_cnt, &tc))
+			prm->prot_seg_cnt, cmd))
 			goto crc_queuing_error;
 	}
 	return QLA_SUCCESS;
