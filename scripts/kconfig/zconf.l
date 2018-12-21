@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "lkc.h"
+#include "zconf.tab.h"
 
 #define YY_DECL		static int yylex1(void)
 

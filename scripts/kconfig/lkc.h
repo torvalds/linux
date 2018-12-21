@@ -90,6 +90,9 @@ void *xrealloc(void *p, size_t size);
 char *xstrdup(const char *s);
 char *xstrndup(const char *s, size_t n);
 
+/* zconf.l */
+int yylex(void);
+
 struct gstr {
 	size_t len;
 	char  *s;
