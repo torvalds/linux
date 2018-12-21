@@ -1123,7 +1123,7 @@ static struct ib_client umad_client = {
 	.remove = ib_umad_remove_one
 };
 
-static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
+static ssize_t ibdev_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct ib_umad_port *port = dev_get_drvdata(dev);
@@ -1133,9 +1133,9 @@ static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%s\n", dev_name(&port->ib_dev->dev));
 }
-static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
+static DEVICE_ATTR_RO(ibdev);
 
-static ssize_t show_port(struct device *dev, struct device_attribute *attr,
+static ssize_t port_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct ib_umad_port *port = dev_get_drvdata(dev);
@@ -1145,7 +1145,14 @@ static ssize_t show_port(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%d\n", port->port_num);
 }
-static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
+static DEVICE_ATTR_RO(port);
+
+static struct attribute *umad_class_dev_attrs[] = {
+	&dev_attr_ibdev.attr,
+	&dev_attr_port.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(umad_class_dev);
 
 static char *umad_devnode(struct device *dev, umode_t *mode)
 {
@@ -1169,6 +1176,7 @@ static struct class umad_class = {
 	.name		= "infiniband_mad",
 	.devnode	= umad_devnode,
 	.class_groups	= umad_class_groups,
+	.dev_groups	= umad_class_dev_groups,
 };
 
 static void ib_umad_release_port(struct device *device)
@@ -1229,11 +1237,6 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (ret)
 		goto err_cdev;
 
-	if (device_create_file(&port->dev, &dev_attr_ibdev))
-		goto err_dev;
-	if (device_create_file(&port->dev, &dev_attr_port))
-		goto err_dev;
-
 	ib_umad_init_port_dev(&port->sm_dev, port, device);
 	port->sm_dev.devt = base_issm;
 	dev_set_name(&port->sm_dev, "issm%d", port->dev_num);
@@ -1244,15 +1247,8 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (ret)
 		goto err_dev;
 
-	if (device_create_file(&port->sm_dev, &dev_attr_ibdev))
-		goto err_sm_dev;
-	if (device_create_file(&port->sm_dev, &dev_attr_port))
-		goto err_sm_dev;
-
 	return 0;
 
-err_sm_dev:
-	cdev_device_del(&port->sm_cdev, &port->sm_dev);
 err_dev:
 	put_device(&port->sm_dev);
 	cdev_device_del(&port->cdev, &port->dev);
