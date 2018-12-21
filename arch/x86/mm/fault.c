@@ -644,9 +644,12 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code, unsigned long ad
 				from_kuid(&init_user_ns, current_uid()));
 	}
 
-	pr_alert("BUG: unable to handle kernel %s at %px\n",
-		 address < PAGE_SIZE ? "NULL pointer dereference" : "paging request",
-		 (void *)address);
+	if (address < PAGE_SIZE && !user_mode(regs))
+		pr_alert("BUG: kernel NULL pointer dereference, address = %px\n",
+			(void *)address);
+	else
+		pr_alert("BUG: unable to handle page fault for address = %px\n",
+			(void *)address);
 
 	err_txt[0] = 0;
 
