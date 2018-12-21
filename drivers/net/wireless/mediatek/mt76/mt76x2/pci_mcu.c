@@ -168,7 +168,6 @@ error:
 int mt76x2_mcu_init(struct mt76x02_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x2_mcu_ops = {
-		.mcu_msg_alloc = mt76x02_mcu_msg_alloc,
 		.mcu_send_msg = mt76x02_mcu_msg_send,
 	};
 	int ret;
@@ -183,6 +182,6 @@ int mt76x2_mcu_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76x02_mcu_function_select(dev, Q_SELECT, 1, true);
+	mt76x02_mcu_function_select(dev, Q_SELECT, 1);
 	return 0;
 }

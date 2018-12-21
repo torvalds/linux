@@ -135,9 +135,6 @@ static s8 mt76x0_get_delta(struct mt76x02_dev *dev)
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 	u8 val;
 
-	if (mt76x0_tssi_enabled(dev))
-		return 0;
-
 	if (chandef->width == NL80211_CHAN_WIDTH_80) {
 		val = mt76x02_eeprom_get(dev, MT_EE_5G_TARGET_POWER) >> 8;
 	} else if (chandef->width == NL80211_CHAN_WIDTH_40) {
@@ -160,8 +157,8 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	bool is_2ghz = chan->band == NL80211_BAND_2GHZ;
 	struct mt76_rate_power *t = &dev->mt76.rate_power;
-	s8 delta = mt76x0_get_delta(dev);
 	u16 val, addr;
+	s8 delta;
 
 	memset(t, 0, sizeof(*t));
 
@@ -211,6 +208,7 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
 	t->vht[7] = s6_to_s8(val);
 	t->vht[8] = s6_to_s8(val >> 8);
 
+	delta = mt76x0_tssi_enabled(dev) ? 0 : mt76x0_get_delta(dev);
 	mt76x02_add_rate_power_offset(t, delta);
 }
 
@@ -232,6 +230,20 @@ void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info)
 	u8 offset, addr;
 	u16 data;
 	int i;
+
+	if (mt76x0_tssi_enabled(dev)) {
+		s8 target_power;
+
+		if (chan->band == NL80211_BAND_5GHZ)
+			data = mt76x02_eeprom_get(dev, MT_EE_5G_TARGET_POWER);
+		else
+			data = mt76x02_eeprom_get(dev, MT_EE_2G_TARGET_POWER);
+		target_power = (data & 0xff) - dev->mt76.rate_power.ofdm[7];
+		info[0] = target_power + mt76x0_get_delta(dev);
+		info[1] = 0;
+
+		return;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(chan_map); i++) {
 		if (chan_map[i].chan <= chan->hw_value) {
@@ -339,8 +351,6 @@ int mt76x0_eeprom_init(struct mt76x02_dev *dev)
 	mt76x0_set_chip_cap(dev);
 	mt76x0_set_freq_offset(dev);
 	mt76x0_set_temp_offset(dev);
-
-	dev->mt76.chainmask = 0x0101;
 
 	return 0;
 }

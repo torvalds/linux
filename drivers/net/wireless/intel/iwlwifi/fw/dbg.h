@@ -102,16 +102,19 @@ static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
 	if (fwrt->dump.desc != &iwl_dump_desc_assert)
 		kfree(fwrt->dump.desc);
 	fwrt->dump.desc = NULL;
+	fwrt->dump.rt_status = 0;
 }
 
 void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt);
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
 			    bool monitor_only, unsigned int delay);
+int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+			enum iwl_fw_dbg_trigger trig,
+			const char *str, size_t len,
+			struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-		       enum iwl_fw_dbg_trigger trig,
-		       const char *str, size_t len,
-		       struct iwl_fw_dbg_trigger_tlv *trigger);
+		       u32 id, const char *str, size_t len);
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...) __printf(3, 4);
@@ -211,6 +214,37 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 	BUILD_BUG_ON(!__builtin_constant_p(id));		\
 	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
 	_iwl_fw_dbg_trigger_on((fwrt), (wdev), (id));		\
+})
+
+static inline bool
+_iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
+		       const enum iwl_fw_dbg_trigger id)
+{
+	struct iwl_fw_ini_active_triggers *trig = &fwrt->dump.active_trigs[id];
+	u32 ms;
+
+	if (!fwrt->trans->ini_valid)
+		return false;
+
+	if (!trig || !trig->active)
+		return false;
+
+	ms = le32_to_cpu(trig->conf->ignore_consec);
+	if (ms)
+		ms /= USEC_PER_MSEC;
+
+	if (iwl_fw_dbg_no_trig_window(fwrt, id, ms)) {
+		IWL_WARN(fwrt, "Trigger %d fired in no-collect window\n", id);
+		return false;
+	}
+
+	return true;
+}
+
+#define iwl_fw_ini_trigger_on(fwrt, wdev, id) ({		\
+	BUILD_BUG_ON(!__builtin_constant_p(id));		\
+	BUILD_BUG_ON((id) >= IWL_FW_TRIGGER_ID_NUM);		\
+	_iwl_fw_ini_trigger_on((fwrt), (wdev), (id));		\
 })
 
 static inline void
@@ -329,7 +363,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work);
 
 static inline bool iwl_fw_dbg_type_on(struct iwl_fw_runtime *fwrt, u32 type)
 {
-	return (fwrt->fw->dbg.dump_mask & BIT(type));
+	return (fwrt->fw->dbg.dump_mask & BIT(type) || fwrt->trans->ini_valid);
 }
 
 static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)

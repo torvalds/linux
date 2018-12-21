@@ -5895,7 +5895,6 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 	struct ieee80211_channel *channel = dev->wl->hw->conf.chandef.chan;
 	struct b43_ppr *ppr = &nphy->tx_pwr_max_ppr;
 	u8 max; /* qdBm */
-	bool tx_pwr_state;
 
 	if (nphy->tx_pwr_last_recalc_freq == channel->center_freq &&
 	    nphy->tx_pwr_last_recalc_limit == phy->desired_txpower)
@@ -5931,7 +5930,6 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 	b43_ppr_apply_min(dev, ppr, INT_TO_Q52(8));
 
 	/* Apply */
-	tx_pwr_state = nphy->txpwrctrl;
 	b43_mac_suspend(dev);
 	b43_nphy_tx_power_ctl_setup(dev);
 	if (dev->dev->core_rev == 11 || dev->dev->core_rev == 12) {
@@ -6044,7 +6042,6 @@ static int b43_phy_initn(struct b43_wldev *dev)
 	u8 tx_pwr_state;
 	struct nphy_txgains target;
 	u16 tmp;
-	enum nl80211_band tmp2;
 	bool do_rssi_cal;
 
 	u16 clip[2];
@@ -6138,7 +6135,6 @@ static int b43_phy_initn(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_DUP40_BL, 0x9A4);
 	}
 
-	tmp2 = b43_current_band(dev->wl);
 	if (b43_nphy_ipa(dev)) {
 		b43_phy_set(dev, B43_NPHY_PAPD_EN0, 0x1);
 		b43_phy_maskset(dev, B43_NPHY_EPS_TABLE_ADJ0, 0x007F,

@@ -708,22 +708,12 @@ out:
 int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_info info;
 	struct iwl_device_cmd *dev_cmd;
 	u8 sta_id;
 	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	__le16 fc = hdr->frame_control;
-	int queue;
-
-	/* IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets that can be used
-	 * in 2 different types of vifs, P2P & STATION. P2P uses the offchannel
-	 * queue. STATION (HS2.0) uses the auxiliary context of the FW,
-	 * and hence needs to be sent on the aux queue
-	 */
-	if (skb_info->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
-	    skb_info->control.vif->type == NL80211_IFTYPE_STATION)
-		skb_info->hw_queue = mvm->aux_queue;
+	int queue = -1;
 
 	memcpy(&info, skb->cb, sizeof(info));
 
@@ -735,18 +725,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			  info.hw_queue != info.control.vif->cab_queue)))
 		return -1;
 
-	queue = info.hw_queue;
-
-	/*
-	 * If the interface on which the frame is sent is the P2P_DEVICE
-	 * or an AP/GO interface use the broadcast station associated
-	 * with it; otherwise if the interface is a managed interface
-	 * use the AP station associated with it for multicast traffic
-	 * (this is not possible for unicast packets as a TLDS discovery
-	 * response are sent without a station entry); otherwise use the
-	 * AUX station.
-	 */
-	sta_id = mvm->aux_sta.sta_id;
 	if (info.control.vif) {
 		struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(info.control.vif);
@@ -761,19 +739,27 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 
 			queue = iwl_mvm_get_ctrl_vif_queue(mvm, &info,
 							   hdr->frame_control);
-			if (queue < 0)
-				return -1;
-		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
-			   is_multicast_ether_addr(hdr->addr1)) {
-			u8 ap_sta_id = READ_ONCE(mvmvif->ap_sta_id);
 
-			if (ap_sta_id != IWL_MVM_INVALID_STA)
-				sta_id = ap_sta_id;
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
+		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
+			   info.hw_queue == IWL_MVM_OFFCHANNEL_QUEUE) {
+			/*
+			 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets
+			 * that can be used in 2 different types of vifs, P2P &
+			 * STATION.
+			 * P2P uses the offchannel queue.
+			 * STATION (HS2.0) uses the auxiliary context of the FW,
+			 * and hence needs to be sent on the aux queue.
+			 */
+			sta_id = mvm->aux_sta.sta_id;
+			queue = mvm->aux_queue;
 		}
 	}
+
+	if (queue < 0)
+		return -1;
 
 	if (unlikely(ieee80211_is_probe_resp(fc)))
 		iwl_mvm_probe_resp_set_noa(mvm, skb);
@@ -1478,7 +1464,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		iwl_mvm_get_agg_status(mvm, tx_resp);
 	u32 status = le16_to_cpu(agg_status->status);
 	u16 ssn = iwl_mvm_get_scd_ssn(mvm, tx_resp);
-	struct iwl_mvm_sta *mvmsta;
 	struct sk_buff_head skbs;
 	u8 skb_freed = 0;
 	u8 lq_color;
@@ -1626,7 +1611,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		goto out;
 
 	if (!IS_ERR(sta)) {
-		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		iwl_mvm_tx_airtime(mvm, mvmsta,
 				   le16_to_cpu(tx_resp->wireless_media_time));
@@ -1689,10 +1674,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			mvmsta->next_status_eosp = false;
 			ieee80211_sta_eosp(sta);
 		}
-	} else {
-		mvmsta = NULL;
 	}
-
 out:
 	rcu_read_unlock();
 }
@@ -1835,8 +1817,6 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		return;
 	}
 
-	spin_lock_bh(&mvmsta->lock);
-
 	__skb_queue_head_init(&reclaimed_skbs);
 
 	/*
@@ -1845,6 +1825,8 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	 * transmitted ... if not, it's too late anyway).
 	 */
 	iwl_trans_reclaim(mvm->trans, txq, index, &reclaimed_skbs);
+
+	spin_lock_bh(&mvmsta->lock);
 
 	tid_data->next_reclaimed = index;
 

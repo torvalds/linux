@@ -512,7 +512,7 @@ fail:
 	return NULL;
 }
 #else
-static u8 *brcmf_fw_nvram_from_efi(size_t *data_len) { return NULL; }
+static inline u8 *brcmf_fw_nvram_from_efi(size_t *data_len) { return NULL; }
 #endif
 
 static void brcmf_fw_free_request(struct brcmf_fw_request *req)

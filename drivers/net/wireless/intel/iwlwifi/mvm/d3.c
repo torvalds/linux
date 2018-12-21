@@ -1811,8 +1811,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		n_matches = 0;
 	}
 
-	net_detect = kzalloc(sizeof(*net_detect) +
-			     (n_matches * sizeof(net_detect->matches[0])),
+	net_detect = kzalloc(struct_size(net_detect, matches, n_matches),
 			     GFP_KERNEL);
 	if (!net_detect || !n_matches)
 		goto out_report_nd;
@@ -1827,8 +1826,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; j++)
 			n_channels += hweight8(fw_match->matching_channels[j]);
 
-		match = kzalloc(sizeof(*match) +
-				(n_channels * sizeof(*match->channels)),
+		match = kzalloc(struct_size(match, channels, n_channels),
 				GFP_KERNEL);
 		if (!match)
 			goto out_report_nd;
