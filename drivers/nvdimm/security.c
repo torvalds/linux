@@ -56,9 +56,9 @@ static struct key *nvdimm_request_key(struct nvdimm *nvdimm)
 	key = request_key(&key_type_encrypted, desc, "");
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) == -ENOKEY)
-			dev_warn(dev, "request_key() found no key\n");
+			dev_dbg(dev, "request_key() found no key\n");
 		else
-			dev_warn(dev, "request_key() upcall failed\n");
+			dev_dbg(dev, "request_key() upcall failed\n");
 		key = NULL;
 	} else {
 		struct encrypted_key_payload *epayload;
@@ -145,7 +145,7 @@ static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 		return -EIO;
 
 	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
-		dev_warn(dev, "Security operation in progress.\n");
+		dev_dbg(dev, "Security operation in progress.\n");
 		return -EBUSY;
 	}
 
@@ -204,13 +204,13 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
 		return -EOPNOTSUPP;
 
 	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
-		dev_warn(dev, "Incorrect security state: %d\n",
+		dev_dbg(dev, "Incorrect security state: %d\n",
 				nvdimm->sec.state);
 		return -EIO;
 	}
 
 	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
-		dev_warn(dev, "Security operation in progress.\n");
+		dev_dbg(dev, "Security operation in progress.\n");
 		return -EBUSY;
 	}
 
@@ -244,7 +244,7 @@ int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
 		return -EOPNOTSUPP;
 
 	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
-		dev_warn(dev, "Incorrect security state: %d\n",
+		dev_dbg(dev, "Incorrect security state: %d\n",
 				nvdimm->sec.state);
 		return -EIO;
 	}
@@ -297,24 +297,24 @@ int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid,
 		return -EOPNOTSUPP;
 
 	if (atomic_read(&nvdimm->busy)) {
-		dev_warn(dev, "Unable to secure erase while DIMM active.\n");
+		dev_dbg(dev, "Unable to secure erase while DIMM active.\n");
 		return -EBUSY;
 	}
 
 	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
-		dev_warn(dev, "Incorrect security state: %d\n",
+		dev_dbg(dev, "Incorrect security state: %d\n",
 				nvdimm->sec.state);
 		return -EIO;
 	}
 
 	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
-		dev_warn(dev, "Security operation in progress.\n");
+		dev_dbg(dev, "Security operation in progress.\n");
 		return -EBUSY;
 	}
 
 	if (nvdimm->sec.ext_state != NVDIMM_SECURITY_UNLOCKED
 			&& pass_type == NVDIMM_MASTER) {
-		dev_warn(dev,
+		dev_dbg(dev,
 			"Attempt to secure erase in wrong master state.\n");
 		return -EOPNOTSUPP;
 	}
@@ -348,23 +348,23 @@ int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid)
 		return -EOPNOTSUPP;
 
 	if (atomic_read(&nvdimm->busy)) {
-		dev_warn(dev, "Unable to overwrite while DIMM active.\n");
+		dev_dbg(dev, "Unable to overwrite while DIMM active.\n");
 		return -EBUSY;
 	}
 
 	if (dev->driver == NULL) {
-		dev_warn(dev, "Unable to overwrite while DIMM active.\n");
+		dev_dbg(dev, "Unable to overwrite while DIMM active.\n");
 		return -EINVAL;
 	}
 
 	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
-		dev_warn(dev, "Incorrect security state: %d\n",
+		dev_dbg(dev, "Incorrect security state: %d\n",
 				nvdimm->sec.state);
 		return -EIO;
 	}
 
 	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
-		dev_warn(dev, "Security operation in progress.\n");
+		dev_dbg(dev, "Security operation in progress.\n");
 		return -EBUSY;
 	}
 
@@ -429,7 +429,7 @@ void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
 	}
 
 	if (rc < 0)
-		dev_warn(&nvdimm->dev, "overwrite failed\n");
+		dev_dbg(&nvdimm->dev, "overwrite failed\n");
 	else
 		dev_dbg(&nvdimm->dev, "overwrite completed\n");
 

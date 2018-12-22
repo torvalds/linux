@@ -62,7 +62,7 @@ static int nvdimm_probe(struct device *dev)
 	 */
 	rc = nvdimm_security_unlock(dev);
 	if (rc < 0)
-		dev_err(dev, "failed to unlock dimm: %d\n", rc);
+		dev_dbg(dev, "failed to unlock dimm: %d\n", rc);
 
 
 	/*
