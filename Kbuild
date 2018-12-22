@@ -16,7 +16,7 @@ bounds-file := include/generated/bounds.h
 always  := $(bounds-file)
 targets := kernel/bounds.s
 
-$(obj)/$(bounds-file): kernel/bounds.s FORCE
+$(bounds-file): kernel/bounds.s FORCE
 	$(call filechk,offsets,__LINUX_BOUNDS_H__)
 
 #####
@@ -34,7 +34,7 @@ define filechk_gentimeconst
 	(echo $(CONFIG_HZ) | bc -q $< )
 endef
 
-$(obj)/$(timeconst-file): kernel/time/timeconst.bc FORCE
+$(timeconst-file): kernel/time/timeconst.bc FORCE
 	$(call filechk,gentimeconst)
 
 #####
@@ -46,9 +46,9 @@ offsets-file := include/generated/asm-offsets.h
 always  += $(offsets-file)
 targets += arch/$(SRCARCH)/kernel/asm-offsets.s
 
-arch/$(SRCARCH)/kernel/asm-offsets.s: $(obj)/$(timeconst-file) $(obj)/$(bounds-file)
+arch/$(SRCARCH)/kernel/asm-offsets.s: $(timeconst-file) $(bounds-file)
 
-$(obj)/$(offsets-file): arch/$(SRCARCH)/kernel/asm-offsets.s FORCE
+$(offsets-file): arch/$(SRCARCH)/kernel/asm-offsets.s FORCE
 	$(call filechk,offsets,__ASM_OFFSETS_H__)
 
 #####
@@ -70,7 +70,7 @@ missing-syscalls: scripts/checksyscalls.sh $(offsets-file) FORCE
 
 extra-$(CONFIG_GDB_SCRIPTS) += build_constants_py
 
-build_constants_py: $(obj)/$(timeconst-file) $(obj)/$(bounds-file)
+build_constants_py: $(timeconst-file) $(bounds-file)
 	@$(MAKE) $(build)=scripts/gdb/linux $@
 
 # Keep these three files during make clean
