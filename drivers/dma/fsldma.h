@@ -202,7 +202,12 @@ struct fsldma_chan {
 #define fsl_iowrite32(v, p)	out_le32(p, v)
 #define fsl_iowrite32be(v, p)	out_be32(p, v)
 
-#ifndef __powerpc64__
+#ifdef __powerpc64__
+#define fsl_ioread64(p)		in_le64(p)
+#define fsl_ioread64be(p)	in_be64(p)
+#define fsl_iowrite64(v, p)	out_le64(p, v)
+#define fsl_iowrite64be(v, p)	out_be64(p, v)
+#else
 static u64 fsl_ioread64(const u64 __iomem *addr)
 {
 	u32 fsl_addr = lower_32_bits(addr);
