@@ -796,7 +796,7 @@ static inline void dmam_release_declared_memory(struct device *dev)
 static inline void *dma_alloc_wc(struct device *dev, size_t size,
 				 dma_addr_t *dma_addr, gfp_t gfp)
 {
-	unsigned long attrs = DMA_ATTR_NO_WARN;
+	unsigned long attrs = DMA_ATTR_WRITE_COMBINE;
 
 	if (gfp & __GFP_NOWARN)
 		attrs |= DMA_ATTR_NO_WARN;
