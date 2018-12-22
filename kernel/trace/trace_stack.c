@@ -448,8 +448,10 @@ static char stack_trace_filter_buf[COMMAND_LINE_SIZE+1] __initdata;
 
 static __init int enable_stacktrace(char *str)
 {
-	if (str_has_prefix(str, "_filter="))
-		strncpy(stack_trace_filter_buf, str+8, COMMAND_LINE_SIZE);
+	int len;
+
+	if ((len = str_has_prefix(str, "_filter=")))
+		strncpy(stack_trace_filter_buf, str + len, COMMAND_LINE_SIZE);
 
 	stack_tracer_enabled = 1;
 	last_stack_tracer_enabled = 1;

@@ -186,19 +186,20 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 static int parse_probe_vars(char *arg, const struct fetch_type *t,
 			    struct fetch_insn *code, unsigned int flags)
 {
-	int ret = 0;
 	unsigned long param;
+	int ret = 0;
+	int len;
 
 	if (strcmp(arg, "retval") == 0) {
 		if (flags & TPARG_FL_RETURN)
 			code->op = FETCH_OP_RETVAL;
 		else
 			ret = -EINVAL;
-	} else if (str_has_prefix(arg, "stack")) {
-		if (arg[5] == '\0') {
+	} else if ((len = str_has_prefix(arg, "stack"))) {
+		if (arg[len] == '\0') {
 			code->op = FETCH_OP_STACKP;
-		} else if (isdigit(arg[5])) {
-			ret = kstrtoul(arg + 5, 10, &param);
+		} else if (isdigit(arg[len])) {
+			ret = kstrtoul(arg + len, 10, &param);
 			if (ret || ((flags & TPARG_FL_KERNEL) &&
 				    param > PARAM_MAX_STACK))
 				ret = -EINVAL;
@@ -213,10 +214,10 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	} else if (((flags & TPARG_FL_MASK) ==
 		    (TPARG_FL_KERNEL | TPARG_FL_FENTRY)) &&
-		   str_has_prefix(arg, "arg")) {
-		if (!isdigit(arg[3]))
+		   (len = str_has_prefix(arg, "arg"))) {
+		if (!isdigit(arg[len]))
 			return -EINVAL;
-		ret = kstrtoul(arg + 3, 10, &param);
+		ret = kstrtoul(arg + len, 10, &param);
 		if (ret || !param || param > PARAM_MAX_STACK)
 			return -EINVAL;
 		code->op = FETCH_OP_ARG;
