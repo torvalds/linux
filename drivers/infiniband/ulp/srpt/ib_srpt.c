@@ -674,7 +674,7 @@ static struct srpt_ioctx *srpt_alloc_ioctx(struct srpt_device *sdev,
 	return ioctx;
 
 err_free_buf:
-	kfree(ioctx->buf);
+	kmem_cache_free(buf_cache, ioctx->buf);
 err_free_ioctx:
 	kfree(ioctx);
 err:
