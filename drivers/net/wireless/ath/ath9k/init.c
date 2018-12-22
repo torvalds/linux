@@ -636,14 +636,14 @@ static int ath9k_of_init(struct ath_softc *sc)
 		ret = ath9k_eeprom_request(sc, eeprom_name);
 		if (ret)
 			return ret;
+
+		ah->ah_flags &= ~AH_USE_EEPROM;
+		ah->ah_flags |= AH_NO_EEP_SWAP;
 	}
 
 	mac = of_get_mac_address(np);
 	if (mac)
 		ether_addr_copy(common->macaddr, mac);
-
-	ah->ah_flags &= ~AH_USE_EEPROM;
-	ah->ah_flags |= AH_NO_EEP_SWAP;
 
 	return 0;
 }
