@@ -329,7 +329,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
 	enum mlx5_ib_uapi_flow_table_type ft_type;
 	struct ib_flow_action *action;
-	size_t num_actions;
+	int num_actions;
 	void *in;
 	int ret;
 
