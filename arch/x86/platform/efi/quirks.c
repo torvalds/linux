@@ -380,6 +380,22 @@ static void __init efi_unmap_pages(efi_memory_desc_t *md)
 	u64 pa = md->phys_addr;
 	u64 va = md->virt_addr;
 
+	/*
+	 * To Do: Remove this check after adding functionality to unmap EFI boot
+	 * services code/data regions from direct mapping area because
+	 * "efi=old_map" maps EFI regions in swapper_pg_dir.
+	 */
+	if (efi_enabled(EFI_OLD_MEMMAP))
+		return;
+
+	/*
+	 * EFI mixed mode has all RAM mapped to access arguments while making
+	 * EFI runtime calls, hence don't unmap EFI boot services code/data
+	 * regions.
+	 */
+	if (!efi_is_native())
+		return;
+
 	if (kernel_unmap_pages_in_pgd(pgd, pa, md->num_pages))
 		pr_err("Failed to unmap 1:1 mapping for 0x%llx\n", pa);
 
