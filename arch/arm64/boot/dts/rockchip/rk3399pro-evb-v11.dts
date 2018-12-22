@@ -345,13 +345,13 @@
 	status = "okay";
 };
 
+&hdmi_in_vopb {
+	status = "disabled";
+};
+
 &i2s2 {
 	#sound-dai-cells = <0>;
 	status = "okay";
-};
-
-&hdmi_in_vopb {
-	status = "disabled";
 };
 
 &i2c0 {
@@ -575,8 +575,7 @@
 
 				regulator-name = "vccio_sd";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -588,8 +587,7 @@
 
 				regulator-name = "vcc_sd";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 
