@@ -179,7 +179,7 @@ static void __init ocm_init_node(int count, struct device_node *node)
 	/* ioremap the non-cached region */
 	if (ocm->nc.memtotal) {
 		ocm->nc.virt = __ioremap(ocm->nc.phys, ocm->nc.memtotal,
-					 _PAGE_EXEC | PAGE_KERNEL_NCG);
+			_PAGE_EXEC | pgprot_val(PAGE_KERNEL_NCG));
 
 		if (!ocm->nc.virt) {
 			printk(KERN_ERR
@@ -194,7 +194,7 @@ static void __init ocm_init_node(int count, struct device_node *node)
 
 	if (ocm->c.memtotal) {
 		ocm->c.virt = __ioremap(ocm->c.phys, ocm->c.memtotal,
-					_PAGE_EXEC | PAGE_KERNEL);
+					_PAGE_EXEC | pgprot_val(PAGE_KERNEL));
 
 		if (!ocm->c.virt) {
 			printk(KERN_ERR
