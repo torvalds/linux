@@ -352,6 +352,7 @@ config PINCTRL_RK805
 config PINCTRL_OCELOT
 	bool "Pinctrl driver for the Microsemi Ocelot and Jaguar2 SoCs"
 	depends on OF
+	depends on HAS_IOMEM
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select GENERIC_PINCONF
