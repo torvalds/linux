@@ -52,3 +52,5 @@ include $(src)/Makefile.gate
 
 include/generated/nr-irqs.h: arch/$(SRCARCH)/kernel/nr-irqs.s FORCE
 	$(call filechk,offsets,__ASM_NR_IRQS_H__)
+
+targets += nr-irqs.s

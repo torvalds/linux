@@ -23,3 +23,5 @@ include/generated/at91_pm_data-offsets.h: arch/arm/mach-at91/pm_data-offsets.s F
 	$(call filechk,offsets,__PM_DATA_OFFSETS_H__)
 
 arch/arm/mach-at91/pm_suspend.o: include/generated/at91_pm_data-offsets.h
+
+targets += pm_data-offsets.s
