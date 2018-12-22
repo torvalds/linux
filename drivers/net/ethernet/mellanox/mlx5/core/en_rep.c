@@ -1346,7 +1346,7 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	if (rep->vport == FDB_UPLINK_VPORT)
 		params->log_sq_size = MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 	else
-		params->log_sq_size = MLX5E_REP_PARAMS_DEF_LOG_SQ_SIZE;;
+		params->log_sq_size = MLX5E_REP_PARAMS_DEF_LOG_SQ_SIZE;
 
 	/* RQ */
 	mlx5e_build_rq_params(mdev, params);
