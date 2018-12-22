@@ -47,7 +47,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_ADVISE_MR)(
 	enum ib_uverbs_advise_mr_advice advice;
 	struct ib_device *ib_dev = pd->device;
 	struct ib_sge *sg_list;
-	u32 num_sge;
+	int num_sge;
 	u32 flags;
 	int ret;
 
