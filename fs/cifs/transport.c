@@ -786,7 +786,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	int i, j, rc = 0;
 	int timeout, optype;
 	struct mid_q_entry *midQ[MAX_COMPOUND];
-	unsigned int credits = 0;
+	bool cancelled_mid[MAX_COMPOUND] = {false};
+	unsigned int credits[MAX_COMPOUND] = {0};
 	char *buf;
 
 	timeout = flags & CIFS_TIMEOUT_MASK;
@@ -804,13 +805,31 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		return -ENOENT;
 
 	/*
-	 * Ensure that we do not send more than 50 overlapping requests
-	 * to the same server. We may make this configurable later or
-	 * use ses->maxReq.
+	 * Ensure we obtain 1 credit per request in the compound chain.
+	 * It can be optimized further by waiting for all the credits
+	 * at once but this can wait long enough if we don't have enough
+	 * credits due to some heavy operations in progress or the server
+	 * not granting us much, so a fallback to the current approach is
+	 * needed anyway.
 	 */
-	rc = wait_for_free_request(ses->server, timeout, optype);
-	if (rc)
-		return rc;
+	for (i = 0; i < num_rqst; i++) {
+		rc = wait_for_free_request(ses->server, timeout, optype);
+		if (rc) {
+			/*
+			 * We haven't sent an SMB packet to the server yet but
+			 * we already obtained credits for i requests in the
+			 * compound chain - need to return those credits back
+			 * for future use. Note that we need to call add_credits
+			 * multiple times to match the way we obtained credits
+			 * in the first place and to account for in flight
+			 * requests correctly.
+			 */
+			for (j = 0; j < i; j++)
+				add_credits(ses->server, 1, optype);
+			return rc;
+		}
+		credits[i] = 1;
+	}
 
 	/*
 	 * Make sure that we sign in the same order that we send on this socket
@@ -826,8 +845,10 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			for (j = 0; j < i; j++)
 				cifs_delete_mid(midQ[j]);
 			mutex_unlock(&ses->server->srv_mutex);
+
 			/* Update # of requests on wire to server */
-			add_credits(ses->server, 1, optype);
+			for (j = 0; j < num_rqst; j++)
+				add_credits(ses->server, credits[j], optype);
 			return PTR_ERR(midQ[i]);
 		}
 
@@ -874,17 +895,16 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			if (midQ[i]->mid_state == MID_REQUEST_SUBMITTED) {
 				midQ[i]->mid_flags |= MID_WAIT_CANCELLED;
 				midQ[i]->callback = DeleteMidQEntry;
-				spin_unlock(&GlobalMid_Lock);
-				add_credits(ses->server, 1, optype);
-				return rc;
+				cancelled_mid[i] = true;
 			}
 			spin_unlock(&GlobalMid_Lock);
 		}
 	}
 
 	for (i = 0; i < num_rqst; i++)
-		if (midQ[i]->resp_buf)
-			credits += ses->server->ops->get_credits(midQ[i]);
+		if (!cancelled_mid[i] && midQ[i]->resp_buf
+		    && (midQ[i]->mid_state == MID_RESPONSE_RECEIVED))
+			credits[i] = ses->server->ops->get_credits(midQ[i]);
 
 	for (i = 0; i < num_rqst; i++) {
 		if (rc < 0)
@@ -892,8 +912,9 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 		rc = cifs_sync_mid_result(midQ[i], ses->server);
 		if (rc != 0) {
-			add_credits(ses->server, credits, optype);
-			return rc;
+			/* mark this mid as cancelled to not free it below */
+			cancelled_mid[i] = true;
+			goto out;
 		}
 
 		if (!midQ[i]->resp_buf ||
@@ -940,9 +961,11 @@ out:
 	 * This is prevented above by using a noop callback that will not
 	 * wake this thread except for the very last PDU.
 	 */
-	for (i = 0; i < num_rqst; i++)
-		cifs_delete_mid(midQ[i]);
-	add_credits(ses->server, credits, optype);
+	for (i = 0; i < num_rqst; i++) {
+		if (!cancelled_mid[i])
+			cifs_delete_mid(midQ[i]);
+		add_credits(ses->server, credits[i], optype);
+	}
 
 	return rc;
 }
