@@ -189,7 +189,6 @@ void __init via_init(void)
 
 	/*
 	 * SE/30: disable video IRQ
-	 * XXX: testing for SE/30 VBL
 	 */
 
 	if (macintosh_config->ident == MAC_MODEL_SE30) {
