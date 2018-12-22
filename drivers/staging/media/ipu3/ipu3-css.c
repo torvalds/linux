@@ -1751,7 +1751,7 @@ int ipu3_css_fmt_try(struct ipu3_css *css,
 					&q[IPU3_CSS_QUEUE_OUT].fmt.mpix;
 	struct v4l2_pix_format_mplane *const vf =
 					&q[IPU3_CSS_QUEUE_VF].fmt.mpix;
-	int i, s;
+	int i, s, ret;
 
 	/* Adjust all formats, get statistics buffer sizes and formats */
 	for (i = 0; i < IPU3_CSS_QUEUES; i++) {
@@ -1826,12 +1826,12 @@ int ipu3_css_fmt_try(struct ipu3_css *css,
 	s = (bds->height - gdc->height) / 2 - FILTER_SIZE;
 	env->height = s < MIN_ENVELOPE ? MIN_ENVELOPE : s;
 
-	css->pipes[pipe].bindex =
-		ipu3_css_find_binary(css, pipe, q, r);
-	if (css->pipes[pipe].bindex < 0) {
+	ret = ipu3_css_find_binary(css, pipe, q, r);
+	if (ret < 0) {
 		dev_err(css->dev, "failed to find suitable binary\n");
 		return -EINVAL;
 	}
+	css->pipes[pipe].bindex = ret;
 
 	dev_dbg(css->dev, "Binary index %d for pipe %d found.",
 		css->pipes[pipe].bindex, pipe);
