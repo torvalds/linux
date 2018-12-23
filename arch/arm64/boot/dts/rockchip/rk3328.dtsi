@@ -672,6 +672,16 @@
 		};
 	};
 
+	codec: codec@ff410000 {
+		compatible = "rockchip,rk3328-codec";
+		reg = <0x0 0xff410000 0x0 0x1000>;
+		clocks = <&cru PCLK_ACODECPHY>, <&cru SCLK_I2S1>;
+		clock-names = "pclk", "mclk";
+		rockchip,grf = <&grf>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
 	hdmiphy: phy@ff430000 {
 		compatible = "rockchip,rk3328-hdmi-phy";
 		reg = <0x0 0xff430000 0x0 0x10000>;
