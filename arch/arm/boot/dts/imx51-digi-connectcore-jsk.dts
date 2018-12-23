@@ -27,6 +27,18 @@
 	status = "okay";
 };
 
+&pmic {
+	fsl,mc13xxx-uses-rtc;
+
+	regulators {
+		vcoincell_reg: vcoincell {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-always-on;
+		};
+	};
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;

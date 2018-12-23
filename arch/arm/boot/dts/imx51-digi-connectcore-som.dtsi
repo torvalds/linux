@@ -37,7 +37,6 @@
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
-		fsl,mc13xxx-uses-rtc;
 
 		regulators {
 			sw1_reg: sw1 {
@@ -140,12 +139,6 @@
 			gpo4_reg: gpo4 { };
 
 			pwgt2spi_reg: pwgt2spi {
-				regulator-always-on;
-			};
-
-			vcoincell_reg: vcoincell {
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
 				regulator-always-on;
 			};
 		};
