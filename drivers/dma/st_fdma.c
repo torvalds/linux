@@ -294,8 +294,6 @@ static void st_fdma_free_chan_res(struct dma_chan *chan)
 	struct rproc *rproc = fchan->fdev->slim_rproc->rproc;
 	unsigned long flags;
 
-	LIST_HEAD(head);
-
 	dev_dbg(fchan->fdev->dev, "%s: freeing chan:%d\n",
 		__func__, fchan->vchan.chan.chan_id);
 
@@ -626,7 +624,6 @@ static void st_fdma_issue_pending(struct dma_chan *chan)
 static int st_fdma_pause(struct dma_chan *chan)
 {
 	unsigned long flags;
-	LIST_HEAD(head);
 	struct st_fdma_chan *fchan = to_st_fdma_chan(chan);
 	int ch_id = fchan->vchan.chan.chan_id;
 	unsigned long cmd = FDMA_CMD_PAUSE(ch_id);
