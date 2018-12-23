@@ -124,7 +124,7 @@ config PINCTRL_IMX7ULP
 
 config PINCTRL_IMX8MQ
 	bool "IMX8MQ pinctrl driver"
-	depends on SOC_IMX8MQ
+	depends on ARCH_MXC && ARM64
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mq pinctrl driver
