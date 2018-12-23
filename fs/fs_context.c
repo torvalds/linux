@@ -69,6 +69,9 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 	case FS_CONTEXT_FOR_MOUNT:
 		fc->user_ns = get_user_ns(fc->cred->user_ns);
 		break;
+	case FS_CONTEXT_FOR_SUBMOUNT:
+		fc->user_ns = get_user_ns(reference->d_sb->s_user_ns);
+		break;
 	case FS_CONTEXT_FOR_RECONFIGURE:
 		/* We don't pin any namespaces as the superblock's
 		 * subscriptions cannot be changed at this point.
@@ -105,6 +108,13 @@ struct fs_context *fs_context_for_reconfigure(struct dentry *dentry,
 				sb_flags_mask, FS_CONTEXT_FOR_RECONFIGURE);
 }
 EXPORT_SYMBOL(fs_context_for_reconfigure);
+
+struct fs_context *fs_context_for_submount(struct file_system_type *type,
+					   struct dentry *reference)
+{
+	return alloc_fs_context(type, reference, 0, 0, FS_CONTEXT_FOR_SUBMOUNT);
+}
+EXPORT_SYMBOL(fs_context_for_submount);
 
 void fc_drop_locked(struct fs_context *fc)
 {
