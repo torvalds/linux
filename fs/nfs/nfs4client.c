@@ -151,7 +151,6 @@ static void
 nfs4_shutdown_ds_clients(struct nfs_client *clp)
 {
 	struct nfs4_ds_server *dss;
-	LIST_HEAD(shutdown_list);
 
 	while (!list_empty(&clp->cl_ds_clients)) {
 		dss = list_entry(clp->cl_ds_clients.next,
