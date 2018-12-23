@@ -51,6 +51,7 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 				      unsigned int sb_flags_mask,
 				      enum fs_context_purpose purpose)
 {
+	int (*init_fs_context)(struct fs_context *);
 	struct fs_context *fc;
 	int ret = -ENOMEM;
 
@@ -81,7 +82,12 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 		break;
 	}
 
-	ret = legacy_init_fs_context(fc);
+	/* TODO: Make all filesystems support this unconditionally */
+	init_fs_context = fc->fs_type->init_fs_context;
+	if (!init_fs_context)
+		init_fs_context = legacy_init_fs_context;
+
+	ret = init_fs_context(fc);
 	if (ret < 0)
 		goto err_fc;
 	fc->need_free = true;
@@ -141,8 +147,8 @@ void put_fs_context(struct fs_context *fc)
 		deactivate_super(sb);
 	}
 
-	if (fc->need_free)
-		legacy_fs_context_free(fc);
+	if (fc->need_free && fc->ops && fc->ops->free)
+		fc->ops->free(fc);
 
 	security_free_mnt_opts(&fc->security);
 	put_net(fc->net_ns);
@@ -180,7 +186,7 @@ static int legacy_parse_monolithic(struct fs_context *fc, void *data)
 /*
  * Get a mountable root with the legacy mount command.
  */
-int legacy_get_tree(struct fs_context *fc)
+static int legacy_get_tree(struct fs_context *fc)
 {
 	struct legacy_fs_context *ctx = fc->fs_private;
 	struct super_block *sb;
@@ -201,7 +207,7 @@ int legacy_get_tree(struct fs_context *fc)
 /*
  * Handle remount.
  */
-int legacy_reconfigure(struct fs_context *fc)
+static int legacy_reconfigure(struct fs_context *fc)
 {
 	struct legacy_fs_context *ctx = fc->fs_private;
 	struct super_block *sb = fc->root->d_sb;
@@ -213,6 +219,13 @@ int legacy_reconfigure(struct fs_context *fc)
 				    ctx ? ctx->legacy_data : NULL);
 }
 
+const struct fs_context_operations legacy_fs_context_ops = {
+	.free			= legacy_fs_context_free,
+	.parse_monolithic	= legacy_parse_monolithic,
+	.get_tree		= legacy_get_tree,
+	.reconfigure		= legacy_reconfigure,
+};
+
 /*
  * Initialise a legacy context for a filesystem that doesn't support
  * fs_context.
@@ -222,10 +235,13 @@ static int legacy_init_fs_context(struct fs_context *fc)
 	fc->fs_private = kzalloc(sizeof(struct legacy_fs_context), GFP_KERNEL);
 	if (!fc->fs_private)
 		return -ENOMEM;
+	fc->ops = &legacy_fs_context_ops;
 	return 0;
 }
 
 int parse_monolithic_mount_data(struct fs_context *fc, void *data)
 {
-	return legacy_parse_monolithic(fc, data);
+	int (*monolithic_mount_data)(struct fs_context *, void *);
+	monolithic_mount_data = fc->ops->parse_monolithic;
+	return monolithic_mount_data(fc, data);
 }
