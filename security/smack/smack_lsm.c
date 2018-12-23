@@ -647,6 +647,54 @@ out_opt_err:
 	return -EINVAL;
 }
 
+/**
+ * smack_fs_context_dup - Duplicate the security data on fs_context duplication
+ * @fc: The new filesystem context.
+ * @src_fc: The source filesystem context being duplicated.
+ *
+ * Returns 0 on success or -ENOMEM on error.
+ */
+static int smack_fs_context_dup(struct fs_context *fc,
+				struct fs_context *src_fc)
+{
+	struct smack_mnt_opts *dst, *src = src_fc->security;
+
+	if (!src)
+		return 0;
+
+	fc->security = kzalloc(sizeof(struct smack_mnt_opts), GFP_KERNEL);
+	if (!fc->security)
+		return -ENOMEM;
+	dst = fc->security;
+
+	if (src->fsdefault) {
+		dst->fsdefault = kstrdup(src->fsdefault, GFP_KERNEL);
+		if (!dst->fsdefault)
+			return -ENOMEM;
+	}
+	if (src->fsfloor) {
+		dst->fsfloor = kstrdup(src->fsfloor, GFP_KERNEL);
+		if (!dst->fsfloor)
+			return -ENOMEM;
+	}
+	if (src->fshat) {
+		dst->fshat = kstrdup(src->fshat, GFP_KERNEL);
+		if (!dst->fshat)
+			return -ENOMEM;
+	}
+	if (src->fsroot) {
+		dst->fsroot = kstrdup(src->fsroot, GFP_KERNEL);
+		if (!dst->fsroot)
+			return -ENOMEM;
+	}
+	if (src->fstransmute) {
+		dst->fstransmute = kstrdup(src->fstransmute, GFP_KERNEL);
+		if (!dst->fstransmute)
+			return -ENOMEM;
+	}
+	return 0;
+}
+
 static const struct fs_parameter_spec smack_param_specs[] = {
 	fsparam_string("fsdefault",	Opt_fsdefault),
 	fsparam_string("fsfloor",	Opt_fsfloor),
@@ -4626,6 +4674,7 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_traceme, smack_ptrace_traceme),
 	LSM_HOOK_INIT(syslog, smack_syslog),
 
+	LSM_HOOK_INIT(fs_context_dup, smack_fs_context_dup),
 	LSM_HOOK_INIT(fs_context_parse_param, smack_fs_context_parse_param),
 
 	LSM_HOOK_INIT(sb_alloc_security, smack_sb_alloc_security),

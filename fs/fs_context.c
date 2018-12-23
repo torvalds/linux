@@ -338,6 +338,47 @@ void fc_drop_locked(struct fs_context *fc)
 static void legacy_fs_context_free(struct fs_context *fc);
 
 /**
+ * vfs_dup_fc_config: Duplicate a filesystem context.
+ * @src_fc: The context to copy.
+ */
+struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc)
+{
+	struct fs_context *fc;
+	int ret;
+
+	if (!src_fc->ops->dup)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	fc = kmemdup(src_fc, sizeof(struct fs_context), GFP_KERNEL);
+	if (!fc)
+		return ERR_PTR(-ENOMEM);
+
+	fc->fs_private	= NULL;
+	fc->s_fs_info	= NULL;
+	fc->source	= NULL;
+	fc->security	= NULL;
+	get_filesystem(fc->fs_type);
+	get_net(fc->net_ns);
+	get_user_ns(fc->user_ns);
+	get_cred(fc->cred);
+
+	/* Can't call put until we've called ->dup */
+	ret = fc->ops->dup(fc, src_fc);
+	if (ret < 0)
+		goto err_fc;
+
+	ret = security_fs_context_dup(fc, src_fc);
+	if (ret < 0)
+		goto err_fc;
+	return fc;
+
+err_fc:
+	put_fs_context(fc);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(vfs_dup_fs_context);
+
+/**
  * put_fs_context - Dispose of a superblock configuration context.
  * @fc: The context to dispose of.
  */
@@ -378,6 +419,31 @@ static void legacy_fs_context_free(struct fs_context *fc)
 			kfree(ctx->legacy_data);
 		kfree(ctx);
 	}
+}
+
+/*
+ * Duplicate a legacy config.
+ */
+static int legacy_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
+{
+	struct legacy_fs_context *ctx;
+	struct legacy_fs_context *src_ctx = src_fc->fs_private;
+
+	ctx = kmemdup(src_ctx, sizeof(*src_ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	if (ctx->param_type == LEGACY_FS_INDIVIDUAL_PARAMS) {
+		ctx->legacy_data = kmemdup(src_ctx->legacy_data,
+					   src_ctx->data_size, GFP_KERNEL);
+		if (!ctx->legacy_data) {
+			kfree(ctx);
+			return -ENOMEM;
+		}
+	}
+
+	fc->fs_private = ctx;
+	return 0;
 }
 
 /*
@@ -514,6 +580,7 @@ static int legacy_reconfigure(struct fs_context *fc)
 
 const struct fs_context_operations legacy_fs_context_ops = {
 	.free			= legacy_fs_context_free,
+	.dup			= legacy_fs_context_dup,
 	.parse_param		= legacy_parse_param,
 	.parse_monolithic	= legacy_parse_monolithic,
 	.get_tree		= legacy_get_tree,
