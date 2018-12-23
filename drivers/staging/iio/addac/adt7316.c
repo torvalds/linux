@@ -633,9 +633,7 @@ static ssize_t adt7316_show_da_high_resolution(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
 	if (chip->config3 & ADT7316_DA_HIGH_RESOLUTION) {
-		if (chip->id == ID_ADT7316 || chip->id == ID_ADT7516)
-			return sprintf(buf, "1 (12 bits)\n");
-		if (chip->id == ID_ADT7317 || chip->id == ID_ADT7517)
+		if (chip->id != ID_ADT7318 && chip->id != ID_ADT7519)
 			return sprintf(buf, "1 (10 bits)\n");
 	}
 
@@ -652,10 +650,12 @@ static ssize_t adt7316_store_da_high_resolution(struct device *dev,
 	u8 config3;
 	int ret;
 
+	if (chip->id == ID_ADT7318 || chip->id == ID_ADT7519)
+		return -EPERM;
+
+	config3 = chip->config3 & (~ADT7316_DA_HIGH_RESOLUTION);
 	if (buf[0] == '1')
-		config3 = chip->config3 | ADT7316_DA_HIGH_RESOLUTION;
-	else
-		config3 = chip->config3 & (~ADT7316_DA_HIGH_RESOLUTION);
+		config3 |= ADT7316_DA_HIGH_RESOLUTION;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, config3);
 	if (ret)
