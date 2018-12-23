@@ -1347,7 +1347,6 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
 	__be16 protocol = f->common.protocol;
 	const struct tc_action *a;
-	LIST_HEAD(actions);
 	int err;
 
 	if (!tcf_exts_has_one_action(f->exts)) {
