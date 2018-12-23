@@ -83,11 +83,13 @@ struct fs_context {
 	const char		*source;	/* The source name (eg. dev path) */
 	const char		*subtype;	/* The subtype to set on the superblock */
 	void			*security;	/* Linux S&M options */
+	void			*s_fs_info;	/* Proposed s_fs_info */
 	unsigned int		sb_flags;	/* Proposed superblock flags (SB_*) */
 	unsigned int		sb_flags_mask;	/* Superblock flags that were changed */
 	unsigned int		lsm_flags;	/* Information flags from the fs to the LSM */
 	enum fs_context_purpose	purpose:8;
 	bool			need_free:1;	/* Need to call ops->free() */
+	bool			global:1;	/* Goes into &init_user_ns */
 };
 
 struct fs_context_operations {
@@ -115,6 +117,19 @@ extern int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 extern int generic_parse_monolithic(struct fs_context *fc, void *data);
 extern int vfs_get_tree(struct fs_context *fc);
 extern void put_fs_context(struct fs_context *fc);
+
+/*
+ * sget() wrapper to be called from the ->get_tree() op.
+ */
+enum vfs_get_super_keying {
+	vfs_get_single_super,	/* Only one such superblock may exist */
+	vfs_get_keyed_super,	/* Superblocks with different s_fs_info keys may exist */
+	vfs_get_independent_super, /* Multiple independent superblocks may exist */
+};
+extern int vfs_get_super(struct fs_context *fc,
+			 enum vfs_get_super_keying keying,
+			 int (*fill_super)(struct super_block *sb,
+					   struct fs_context *fc));
 
 #define logfc(FC, FMT, ...) pr_notice(FMT, ## __VA_ARGS__)
 
