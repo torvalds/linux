@@ -53,6 +53,10 @@
 	status = "disabled";
 };
 
+&rk_rga {
+	status = "okay";
+};
+
 &route_dsi {
 	status = "disabled";
 };
