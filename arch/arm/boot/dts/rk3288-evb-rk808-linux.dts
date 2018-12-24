@@ -235,6 +235,10 @@
 	mali-supply = <&vdd_gpu>;
 };
 
+&hdmi {
+	pinctrl-0 = <&hdmi_ddc>, <&hdmi_cec>;
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 
