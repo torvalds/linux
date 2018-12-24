@@ -59,7 +59,6 @@
 #include <linux/can/core.h>
 #include <linux/can/skb.h>
 #include <linux/ratelimit.h>
-#include <linux/nospec.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
@@ -137,7 +136,6 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 
 	if (protocol < 0 || protocol >= CAN_NPROTO)
 		return -EINVAL;
-	protocol = array_index_nospec(protocol, CAN_NPROTO);
 
 	cp = can_get_proto(protocol);
 

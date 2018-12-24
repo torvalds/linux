@@ -21,7 +21,6 @@
 
 #include <linux/nfc.h>
 #include <linux/module.h>
-#include <linux/nospec.h>
 
 #include "nfc.h"
 
@@ -38,7 +37,6 @@ static int nfc_sock_create(struct net *net, struct socket *sock, int proto,
 
 	if (proto < 0 || proto >= NFC_SOCKPROTO_MAX)
 		return -EINVAL;
-	proto = array_index_nospec(proto, NFC_SOCKPROTO_MAX);
 
 	read_lock(&proto_tab_lock);
 	if (proto_tab[proto] &&	try_module_get(proto_tab[proto]->owner)) {
