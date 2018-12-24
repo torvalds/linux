@@ -232,6 +232,7 @@ static int smu_fini_fb_allocations(struct smu_context *smu)
 
 	return 0;
 }
+
 static int smu_smc_table_hw_init(struct smu_context *smu)
 {
 	int ret;
@@ -303,6 +304,11 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	 * SetDriverDramAddr and TransferTableDram2Smu.
 	 */
 	ret = smu_write_pptable(smu);
+	if (ret)
+		return ret;
+
+	/* issue RunAfllBtc msg */
+	ret = smu_run_afll_btc(smu);
 	if (ret)
 		return ret;
 

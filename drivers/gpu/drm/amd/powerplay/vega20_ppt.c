@@ -273,12 +273,18 @@ static int vega20_check_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_run_btc_afll(struct smu_context *smu)
+{
+	return smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc);
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
 	.check_powerplay_table = vega20_check_powerplay_table,
 	.append_powerplay_table = vega20_append_powerplay_table,
 	.get_smu_msg_index = vega20_get_smu_msg_index,
+	.run_afll_btc = vega20_run_btc_afll,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
