@@ -100,63 +100,6 @@ struct svc_xprt_class svc_rdma_class = {
 	.xcl_ident = XPRT_TRANSPORT_RDMA,
 };
 
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-static struct svc_xprt *svc_rdma_bc_create(struct svc_serv *, struct net *,
-					   struct sockaddr *, int, int);
-static void svc_rdma_bc_detach(struct svc_xprt *);
-static void svc_rdma_bc_free(struct svc_xprt *);
-
-static const struct svc_xprt_ops svc_rdma_bc_ops = {
-	.xpo_create = svc_rdma_bc_create,
-	.xpo_detach = svc_rdma_bc_detach,
-	.xpo_free = svc_rdma_bc_free,
-	.xpo_prep_reply_hdr = svc_rdma_prep_reply_hdr,
-	.xpo_secure_port = svc_rdma_secure_port,
-};
-
-struct svc_xprt_class svc_rdma_bc_class = {
-	.xcl_name = "rdma-bc",
-	.xcl_owner = THIS_MODULE,
-	.xcl_ops = &svc_rdma_bc_ops,
-	.xcl_max_payload = (1024 - RPCRDMA_HDRLEN_MIN)
-};
-
-static struct svc_xprt *svc_rdma_bc_create(struct svc_serv *serv,
-					   struct net *net,
-					   struct sockaddr *sa, int salen,
-					   int flags)
-{
-	struct svcxprt_rdma *cma_xprt;
-	struct svc_xprt *xprt;
-
-	cma_xprt = svc_rdma_create_xprt(serv, net);
-	if (!cma_xprt)
-		return ERR_PTR(-ENOMEM);
-	xprt = &cma_xprt->sc_xprt;
-
-	svc_xprt_init(net, &svc_rdma_bc_class, xprt, serv);
-	set_bit(XPT_CONG_CTRL, &xprt->xpt_flags);
-
-	dprintk("svcrdma: %s(%p)\n", __func__, xprt);
-	return xprt;
-}
-
-static void svc_rdma_bc_detach(struct svc_xprt *xprt)
-{
-	dprintk("svcrdma: %s(%p)\n", __func__, xprt);
-}
-
-static void svc_rdma_bc_free(struct svc_xprt *xprt)
-{
-	struct svcxprt_rdma *rdma =
-		container_of(xprt, struct svcxprt_rdma, sc_xprt);
-
-	dprintk("svcrdma: %s(%p)\n", __func__, xprt);
-	if (xprt)
-		kfree(rdma);
-}
-#endif	/* CONFIG_SUNRPC_BACKCHANNEL */
-
 /* QP event handler */
 static void qp_event_handler(struct ib_event *event, void *context)
 {
