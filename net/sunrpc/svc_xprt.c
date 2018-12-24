@@ -296,9 +296,9 @@ int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
 		request_module("svc%s", xprt_name);
 		err = _svc_create_xprt(serv, xprt_name, net, family, port, flags);
 	}
-	if (err)
+	if (err < 0)
 		dprintk("svc: transport %s not found, err %d\n",
-			xprt_name, err);
+			xprt_name, -err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(svc_create_xprt);
