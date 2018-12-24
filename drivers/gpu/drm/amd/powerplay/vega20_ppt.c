@@ -526,6 +526,32 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_populate_umd_state_clk(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct vega20_dpm_table *dpm_table = NULL;
+	struct vega20_single_dpm_table *gfx_table = NULL;
+	struct vega20_single_dpm_table *mem_table = NULL;
+
+	dpm_table = smu_dpm->dpm_context;
+	gfx_table = &(dpm_table->gfx_table);
+	mem_table = &(dpm_table->mem_table);
+
+	smu->pstate_sclk = gfx_table->dpm_levels[0].value;
+	smu->pstate_mclk = mem_table->dpm_levels[0].value;
+
+	if (gfx_table->count > VEGA20_UMD_PSTATE_GFXCLK_LEVEL &&
+	    mem_table->count > VEGA20_UMD_PSTATE_MCLK_LEVEL) {
+		smu->pstate_sclk = gfx_table->dpm_levels[VEGA20_UMD_PSTATE_GFXCLK_LEVEL].value;
+		smu->pstate_mclk = mem_table->dpm_levels[VEGA20_UMD_PSTATE_MCLK_LEVEL].value;
+	}
+
+	smu->pstate_sclk = smu->pstate_sclk * 100;
+	smu->pstate_mclk = smu->pstate_mclk * 100;
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -535,6 +561,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_unallowed_feature_mask = vega20_get_unallowed_feature_mask,
 	.set_default_dpm_table = vega20_set_default_dpm_table,
+	.populate_umd_state_clk = vega20_populate_umd_state_clk,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

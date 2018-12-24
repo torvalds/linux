@@ -23,6 +23,9 @@
 #ifndef __VEGA20_PPT_H__
 #define __VEGA20_PPT_H__
 
+#define VEGA20_UMD_PSTATE_GFXCLK_LEVEL         0x3
+#define VEGA20_UMD_PSTATE_MCLK_LEVEL           0x2
+
 #define MAX_REGULAR_DPM_NUMBER 16
 #define MAX_PCIE_CONF 2
 
