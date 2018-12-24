@@ -842,6 +842,12 @@ static struct rockchip_mux_recalced_data rk3308b_mux_recalced_data[] = {
 		.mask = 0xf
 	}, {
 		.num = 3,
+		.pin = 12,
+		.reg = 0x68,
+		.bit = 8,
+		.mask = 0xf
+	}, {
+		.num = 3,
 		.pin = 13,
 		.reg = 0x68,
 		.bit = 12,
