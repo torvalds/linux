@@ -658,6 +658,13 @@ static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_init_display(struct smu_context *smu)
+{
+	int ret = 0;
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -680,6 +687,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
+	.init_display = smu_v11_0_init_display,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

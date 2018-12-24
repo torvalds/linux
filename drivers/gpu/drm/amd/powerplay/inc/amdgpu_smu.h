@@ -223,6 +223,7 @@ struct smu_funcs
 	int (*send_smc_msg)(struct smu_context *smu, uint16_t msg);
 	int (*send_smc_msg_with_param)(struct smu_context *smu, uint16_t msg, uint32_t param);
 	int (*read_smc_arg)(struct smu_context *smu, uint32_t *arg);
+	int (*init_display)(struct smu_context *smu);
 
 };
 
@@ -276,6 +277,9 @@ struct smu_funcs
 	((smu)->funcs->read_smc_arg? (smu)->funcs->read_smc_arg((smu), (arg)) : 0)
 #define smu_alloc_dpm_context(smu) \
 	((smu)->ppt_funcs->alloc_dpm_context ? (smu)->ppt_funcs->alloc_dpm_context((smu)) : 0)
+#define smu_init_display(smu) \
+	((smu)->funcs->init_display ? (smu)->funcs->init_display((smu)) : 0)
+
 #define smu_store_powerplay_table(smu) \
 	((smu)->ppt_funcs->store_powerplay_table ? (smu)->ppt_funcs->store_powerplay_table((smu)) : 0)
 #define smu_check_powerplay_table(smu) \
