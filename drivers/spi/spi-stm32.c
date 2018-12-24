@@ -101,11 +101,18 @@
 #define STM32H7_SPI_MBR_DIV_MIN		(2 << STM32H7_SPI_CFG1_MBR_MIN)
 #define STM32H7_SPI_MBR_DIV_MAX		(2 << STM32H7_SPI_CFG1_MBR_MAX)
 
-/* SPI Communication mode */
+/* STM32H7 SPI Communication mode */
+#define STM32H7_SPI_FULL_DUPLEX		0
+#define STM32H7_SPI_SIMPLEX_TX		1
+#define STM32H7_SPI_SIMPLEX_RX		2
+#define STM32H7_SPI_HALF_DUPLEX		3
+
+/* SPI Communication type */
 #define SPI_FULL_DUPLEX		0
 #define SPI_SIMPLEX_TX		1
 #define SPI_SIMPLEX_RX		2
-#define SPI_HALF_DUPLEX		3
+#define SPI_3WIRE_TX		3
+#define SPI_3WIRE_RX		4
 
 #define SPI_1HZ_NS		1000000000
 
@@ -232,13 +239,16 @@ static int stm32_spi_get_bpw_mask(struct stm32_spi *spi)
 }
 
 /**
- * stm32_spi_prepare_mbr - Determine SPI_CFG1.MBR value
+ * stm32_spi_prepare_mbr - Determine baud rate divisor value
  * @spi: pointer to the spi controller data structure
  * @speed_hz: requested speed
+ * @min_div: minimum baud rate divisor
+ * @max_div: maximum baud rate divisor
  *
- * Return SPI_CFG1.MBR value in case of success or -EINVAL
+ * Return baud rate divisor value in case of success or -EINVAL
  */
-static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz)
+static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz,
+				 u32 min_div, u32 max_div)
 {
 	u32 div, mbrdiv;
 
@@ -251,8 +261,7 @@ static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz)
 	 * no need to check it there.
 	 * However, we need to ensure the following calculations.
 	 */
-	if (div < STM32H7_SPI_MBR_DIV_MIN ||
-	    div > STM32H7_SPI_MBR_DIV_MAX)
+	if ((div < min_div) || (div > max_div))
 		return -EINVAL;
 
 	/* Determine the first power of 2 greater than or equal to div */
@@ -802,7 +811,8 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 	}
 
 	if (tx_dma_desc) {
-		if (spi->cur_comm == SPI_SIMPLEX_TX) {
+		if (spi->cur_comm == SPI_SIMPLEX_TX ||
+		    spi->cur_comm == SPI_3WIRE_TX) {
 			tx_dma_desc->callback = stm32_spi_dma_cb;
 			tx_dma_desc->callback_param = spi;
 		}
@@ -848,6 +858,170 @@ dma_desc_error:
 }
 
 /**
+ * stm32_spi_set_bpw - configure bits per word
+ * @spi: pointer to the spi controller data structure
+ */
+static void stm32_spi_set_bpw(struct stm32_spi *spi)
+{
+	u32 bpw, fthlv;
+	u32 cfg1_clrb = 0, cfg1_setb = 0;
+
+	bpw = spi->cur_bpw - 1;
+
+	cfg1_clrb |= STM32H7_SPI_CFG1_DSIZE;
+	cfg1_setb |= (bpw << STM32H7_SPI_CFG1_DSIZE_SHIFT) &
+		     STM32H7_SPI_CFG1_DSIZE;
+
+	spi->cur_fthlv = stm32_spi_prepare_fthlv(spi);
+	fthlv = spi->cur_fthlv - 1;
+
+	cfg1_clrb |= STM32H7_SPI_CFG1_FTHLV;
+	cfg1_setb |= (fthlv << STM32H7_SPI_CFG1_FTHLV_SHIFT) &
+		     STM32H7_SPI_CFG1_FTHLV;
+
+	writel_relaxed(
+		(readl_relaxed(spi->base + STM32H7_SPI_CFG1) &
+		 ~cfg1_clrb) | cfg1_setb,
+		spi->base + STM32H7_SPI_CFG1);
+}
+
+/**
+ * stm32_spi_set_mbr - Configure baud rate divisor in master mode
+ * @spi: pointer to the spi controller data structure
+ * @mbrdiv: baud rate divisor value
+ */
+static void stm32_spi_set_mbr(struct stm32_spi *spi, u32 mbrdiv)
+{
+	u32 cfg1_clrb = 0, cfg1_setb = 0;
+
+	cfg1_clrb |= STM32H7_SPI_CFG1_MBR;
+	cfg1_setb |= ((u32)mbrdiv << STM32H7_SPI_CFG1_MBR_SHIFT) &
+		STM32H7_SPI_CFG1_MBR;
+
+	writel_relaxed((readl_relaxed(spi->base + STM32H7_SPI_CFG1) &
+			~cfg1_clrb) | cfg1_setb,
+		       spi->base + STM32H7_SPI_CFG1);
+}
+
+/**
+ * stm32_spi_communication_type - return transfer communication type
+ * @spi_dev: pointer to the spi device
+ * transfer: pointer to spi transfer
+ */
+static unsigned int stm32_spi_communication_type(struct spi_device *spi_dev,
+						 struct spi_transfer *transfer)
+{
+	unsigned int type = SPI_FULL_DUPLEX;
+
+	if (spi_dev->mode & SPI_3WIRE) { /* MISO/MOSI signals shared */
+		/*
+		 * SPI_3WIRE and xfer->tx_buf != NULL and xfer->rx_buf != NULL
+		 * is forbidden and unvalidated by SPI subsystem so depending
+		 * on the valid buffer, we can determine the direction of the
+		 * transfer.
+		 */
+		if (!transfer->tx_buf)
+			type = SPI_3WIRE_RX;
+		else
+			type = SPI_3WIRE_TX;
+	} else {
+		if (!transfer->tx_buf)
+			type = SPI_SIMPLEX_RX;
+		else if (!transfer->rx_buf)
+			type = SPI_SIMPLEX_TX;
+	}
+
+	return type;
+}
+
+/**
+ * stm32_spi_set_mode - configure communication mode
+ * @spi: pointer to the spi controller data structure
+ * @comm_type: type of communication to configure
+ */
+static int stm32_spi_set_mode(struct stm32_spi *spi, unsigned int comm_type)
+{
+	u32 mode;
+	u32 cfg2_clrb = 0, cfg2_setb = 0;
+
+	if (comm_type == SPI_3WIRE_RX) {
+		mode = STM32H7_SPI_HALF_DUPLEX;
+		stm32_spi_clr_bits(spi, STM32H7_SPI_CR1, STM32H7_SPI_CR1_HDDIR);
+	} else if (comm_type == SPI_3WIRE_TX) {
+		mode = STM32H7_SPI_HALF_DUPLEX;
+		stm32_spi_set_bits(spi, STM32H7_SPI_CR1, STM32H7_SPI_CR1_HDDIR);
+	} else if (comm_type == SPI_SIMPLEX_RX) {
+		mode = STM32H7_SPI_SIMPLEX_RX;
+	} else if (comm_type == SPI_SIMPLEX_TX) {
+		mode = STM32H7_SPI_SIMPLEX_TX;
+	} else {
+		mode = STM32H7_SPI_FULL_DUPLEX;
+	}
+
+	cfg2_clrb |= STM32H7_SPI_CFG2_COMM;
+	cfg2_setb |= (mode << STM32H7_SPI_CFG2_COMM_SHIFT) &
+		     STM32H7_SPI_CFG2_COMM;
+
+	writel_relaxed(
+		(readl_relaxed(spi->base + STM32H7_SPI_CFG2) &
+		 ~cfg2_clrb) | cfg2_setb,
+		spi->base + STM32H7_SPI_CFG2);
+
+	return 0;
+}
+
+/**
+ * stm32_spi_data_idleness - configure minimum time delay inserted between two
+ *			     consecutive data frames in master mode
+ * @spi: pointer to the spi controller data structure
+ * @len: transfer len
+ */
+static void stm32_spi_data_idleness(struct stm32_spi *spi, u32 len)
+{
+	u32 cfg2_clrb = 0, cfg2_setb = 0;
+
+	cfg2_clrb |= STM32H7_SPI_CFG2_MIDI;
+	if ((len > 1) && (spi->cur_midi > 0)) {
+		u32 sck_period_ns = DIV_ROUND_UP(SPI_1HZ_NS, spi->cur_speed);
+		u32 midi = min((u32)DIV_ROUND_UP(spi->cur_midi, sck_period_ns),
+			       (u32)STM32H7_SPI_CFG2_MIDI >>
+			       STM32H7_SPI_CFG2_MIDI_SHIFT);
+
+		dev_dbg(spi->dev, "period=%dns, midi=%d(=%dns)\n",
+			sck_period_ns, midi, midi * sck_period_ns);
+		cfg2_setb |= (midi << STM32H7_SPI_CFG2_MIDI_SHIFT) &
+			     STM32H7_SPI_CFG2_MIDI;
+	}
+
+	writel_relaxed((readl_relaxed(spi->base + STM32H7_SPI_CFG2) &
+			~cfg2_clrb) | cfg2_setb,
+		       spi->base + STM32H7_SPI_CFG2);
+}
+
+/**
+ * stm32_spi_number_of_data - configure number of data at current transfer
+ * @spi: pointer to the spi controller data structure
+ * @len: transfer length
+ */
+static int stm32_spi_number_of_data(struct stm32_spi *spi, u32 nb_words)
+{
+	u32 cr2_clrb = 0, cr2_setb = 0;
+
+	if (nb_words <= (STM32H7_SPI_CR2_TSIZE >>
+			 STM32H7_SPI_CR2_TSIZE_SHIFT)) {
+		cr2_clrb |= STM32H7_SPI_CR2_TSIZE;
+		cr2_setb = nb_words << STM32H7_SPI_CR2_TSIZE_SHIFT;
+		writel_relaxed((readl_relaxed(spi->base + STM32H7_SPI_CR2) &
+				~cr2_clrb) | cr2_setb,
+			       spi->base + STM32H7_SPI_CR2);
+	} else {
+		return -EMSGSIZE;
+	}
+
+	return 0;
+}
+
+/**
  * stm32_spi_transfer_one_setup - common setup to transfer a single
  *				  spi_transfer either using DMA or
  *				  interrupts.
@@ -857,99 +1031,43 @@ static int stm32_spi_transfer_one_setup(struct stm32_spi *spi,
 					struct spi_transfer *transfer)
 {
 	unsigned long flags;
-	u32 cfg1_clrb = 0, cfg1_setb = 0, cfg2_clrb = 0, cfg2_setb = 0;
-	u32 mode, nb_words;
-	int ret = 0;
+	unsigned int comm_type;
+	int nb_words, ret = 0;
 
 	spin_lock_irqsave(&spi->lock, flags);
 
 	if (spi->cur_bpw != transfer->bits_per_word) {
-		u32 bpw, fthlv;
-
 		spi->cur_bpw = transfer->bits_per_word;
-		bpw = spi->cur_bpw - 1;
-
-		cfg1_clrb |= STM32H7_SPI_CFG1_DSIZE;
-		cfg1_setb |= (bpw << STM32H7_SPI_CFG1_DSIZE_SHIFT) &
-			     STM32H7_SPI_CFG1_DSIZE;
-
-		spi->cur_fthlv = stm32_spi_prepare_fthlv(spi);
-		fthlv = spi->cur_fthlv - 1;
-
-		cfg1_clrb |= STM32H7_SPI_CFG1_FTHLV;
-		cfg1_setb |= (fthlv << STM32H7_SPI_CFG1_FTHLV_SHIFT) &
-			     STM32H7_SPI_CFG1_FTHLV;
+		stm32_spi_set_bpw(spi);
 	}
 
 	if (spi->cur_speed != transfer->speed_hz) {
 		int mbr;
 
 		/* Update spi->cur_speed with real clock speed */
-		mbr = stm32_spi_prepare_mbr(spi, transfer->speed_hz);
+		mbr = stm32_spi_prepare_mbr(spi, transfer->speed_hz,
+					    STM32H7_SPI_MBR_DIV_MIN,
+					    STM32H7_SPI_MBR_DIV_MAX);
 		if (mbr < 0) {
 			ret = mbr;
 			goto out;
 		}
 
 		transfer->speed_hz = spi->cur_speed;
-
-		cfg1_clrb |= STM32H7_SPI_CFG1_MBR;
-		cfg1_setb |= ((u32)mbr << STM32H7_SPI_CFG1_MBR_SHIFT) &
-			     STM32H7_SPI_CFG1_MBR;
+		stm32_spi_set_mbr(spi, mbr);
 	}
 
-	if (cfg1_clrb || cfg1_setb)
-		writel_relaxed((readl_relaxed(spi->base + STM32H7_SPI_CFG1) &
-				~cfg1_clrb) | cfg1_setb,
-			       spi->base + STM32H7_SPI_CFG1);
+	comm_type = stm32_spi_communication_type(spi_dev, transfer);
+	if (spi->cur_comm != comm_type) {
+		stm32_spi_set_mode(spi, comm_type);
 
-	mode = SPI_FULL_DUPLEX;
-	if (spi_dev->mode & SPI_3WIRE) { /* MISO/MOSI signals shared */
-		/*
-		 * SPI_3WIRE and xfer->tx_buf != NULL and xfer->rx_buf != NULL
-		 * is forbidden und unvalidated by SPI subsystem so depending
-		 * on the valid buffer, we can determine the direction of the
-		 * transfer.
-		 */
-		mode = SPI_HALF_DUPLEX;
-		if (!transfer->tx_buf)
-			stm32_spi_clr_bits(spi, STM32H7_SPI_CR1,
-					   STM32H7_SPI_CR1_HDDIR);
-		else if (!transfer->rx_buf)
-			stm32_spi_set_bits(spi, STM32H7_SPI_CR1,
-					   STM32H7_SPI_CR1_HDDIR);
-	} else {
-		if (!transfer->tx_buf)
-			mode = SPI_SIMPLEX_RX;
-		else if (!transfer->rx_buf)
-			mode = SPI_SIMPLEX_TX;
-	}
-	if (spi->cur_comm != mode) {
-		spi->cur_comm = mode;
+		if (ret < 0)
+			goto out;
 
-		cfg2_clrb |= STM32H7_SPI_CFG2_COMM;
-		cfg2_setb |= (mode << STM32H7_SPI_CFG2_COMM_SHIFT) &
-			     STM32H7_SPI_CFG2_COMM;
+		spi->cur_comm = comm_type;
 	}
 
-	cfg2_clrb |= STM32H7_SPI_CFG2_MIDI;
-	if ((transfer->len > 1) && (spi->cur_midi > 0)) {
-		u32 sck_period_ns = DIV_ROUND_UP(SPI_1HZ_NS, spi->cur_speed);
-		u32 midi = min((u32)DIV_ROUND_UP(spi->cur_midi, sck_period_ns),
-			       (u32)STM32H7_SPI_CFG2_MIDI >>
-			       STM32H7_SPI_CFG2_MIDI_SHIFT);
-
-		dev_dbg(spi->dev, "period=%dns, midi=%d(=%dns)\n",
-			sck_period_ns, midi, midi * sck_period_ns);
-
-		cfg2_setb |= (midi << STM32H7_SPI_CFG2_MIDI_SHIFT) &
-			     STM32H7_SPI_CFG2_MIDI;
-	}
-
-	if (cfg2_clrb || cfg2_setb)
-		writel_relaxed((readl_relaxed(spi->base + STM32H7_SPI_CFG2) &
-				~cfg2_clrb) | cfg2_setb,
-			       spi->base + STM32H7_SPI_CFG2);
+	stm32_spi_data_idleness(spi, transfer->len);
 
 	if (spi->cur_bpw <= 8)
 		nb_words = transfer->len;
@@ -957,14 +1075,10 @@ static int stm32_spi_transfer_one_setup(struct stm32_spi *spi,
 		nb_words = DIV_ROUND_UP(transfer->len * 8, 16);
 	else
 		nb_words = DIV_ROUND_UP(transfer->len * 8, 32);
-	nb_words <<= STM32H7_SPI_CR2_TSIZE_SHIFT;
 
-	if (nb_words <= STM32H7_SPI_CR2_TSIZE) {
-		writel_relaxed(nb_words, spi->base + STM32H7_SPI_CR2);
-	} else {
-		ret = -EMSGSIZE;
+	ret = stm32_spi_number_of_data(spi, nb_words);
+	if (ret < 0)
 		goto out;
-	}
 
 	spi->cur_xferlen = transfer->len;
 
