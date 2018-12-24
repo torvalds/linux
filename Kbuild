@@ -26,10 +26,6 @@ timeconst-file := include/generated/timeconst.h
 
 targets += $(timeconst-file)
 
-quiet_cmd_gentimeconst = GEN     $@
-define cmd_gentimeconst
-	(echo $(CONFIG_HZ) | bc -q $< ) > $@
-endef
 define filechk_gentimeconst
 	(echo $(CONFIG_HZ) | bc -q $< )
 endef
