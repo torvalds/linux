@@ -47,11 +47,9 @@ void xprt_free_bc_rqst(struct rpc_rqst *req);
 /*
  * Determine if a shared backchannel is in use
  */
-static inline int svc_is_backchannel(const struct svc_rqst *rqstp)
+static inline bool svc_is_backchannel(const struct svc_rqst *rqstp)
 {
-	if (rqstp->rq_server->sv_bc_xprt)
-		return 1;
-	return 0;
+	return rqstp->rq_server->sv_bc_enabled;
 }
 #else /* CONFIG_SUNRPC_BACKCHANNEL */
 static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
@@ -60,9 +58,9 @@ static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
 	return 0;
 }
 
-static inline int svc_is_backchannel(const struct svc_rqst *rqstp)
+static inline bool svc_is_backchannel(const struct svc_rqst *rqstp)
 {
-	return 0;
+	return false;
 }
 
 static inline void xprt_free_bc_request(struct rpc_rqst *req)
