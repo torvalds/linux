@@ -290,7 +290,6 @@
 &spdif {
 	pinctrl-0 = <&spdifm0_tx>;
 	status = "okay";
-	#sound-dai-cells = <0>;
 
 	spdif_p0: port {
 		spdif_p0_0: endpoint {
