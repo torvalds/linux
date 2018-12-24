@@ -1173,7 +1173,7 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 /*
  * Setup response header. TCP has a 4B record length field.
  */
-static void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
+void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
 {
 	struct kvec *resv = &rqstp->rq_res.head[0];
 
