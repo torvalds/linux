@@ -568,6 +568,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	as_out_interface_alt_0_desc.bInterfaceNumber = status;
 	as_out_interface_alt_1_desc.bInterfaceNumber = status;
+	ac_header_desc.baInterfaceNr[0] = status;
 	uac1->as_out_intf = status;
 	uac1->as_out_alt = 0;
 
@@ -576,6 +577,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	as_in_interface_alt_0_desc.bInterfaceNumber = status;
 	as_in_interface_alt_1_desc.bInterfaceNumber = status;
+	ac_header_desc.baInterfaceNr[1] = status;
 	uac1->as_in_intf = status;
 	uac1->as_in_alt = 0;
 
