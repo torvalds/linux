@@ -762,13 +762,22 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 }
 EXPORT_SYMBOL_GPL(inet_hashinfo_init);
 
+static void init_hashinfo_lhash2(struct inet_hashinfo *h)
+{
+	int i;
+
+	for (i = 0; i <= h->lhash2_mask; i++) {
+		spin_lock_init(&h->lhash2[i].lock);
+		INIT_HLIST_HEAD(&h->lhash2[i].head);
+		h->lhash2[i].count = 0;
+	}
+}
+
 void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 				unsigned long numentries, int scale,
 				unsigned long low_limit,
 				unsigned long high_limit)
 {
-	unsigned int i;
-
 	h->lhash2 = alloc_large_system_hash(name,
 					    sizeof(*h->lhash2),
 					    numentries,
@@ -778,14 +787,23 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 					    &h->lhash2_mask,
 					    low_limit,
 					    high_limit);
-
-	for (i = 0; i <= h->lhash2_mask; i++) {
-		spin_lock_init(&h->lhash2[i].lock);
-		INIT_HLIST_HEAD(&h->lhash2[i].head);
-		h->lhash2[i].count = 0;
-	}
+	init_hashinfo_lhash2(h);
 }
-EXPORT_SYMBOL_GPL(inet_hashinfo2_init);
+
+int inet_hashinfo2_init_mod(struct inet_hashinfo *h)
+{
+	h->lhash2 = kmalloc_array(INET_LHTABLE_SIZE, sizeof(*h->lhash2), GFP_KERNEL);
+	if (!h->lhash2)
+		return -ENOMEM;
+
+	h->lhash2_mask = INET_LHTABLE_SIZE - 1;
+	/* INET_LHTABLE_SIZE must be a power of 2 */
+	BUG_ON(INET_LHTABLE_SIZE & h->lhash2_mask);
+
+	init_hashinfo_lhash2(h);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(inet_hashinfo2_init_mod);
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 {

@@ -1139,11 +1139,11 @@ static int __init dccp_init(void)
 	rc = percpu_counter_init(&dccp_orphan_count, 0, GFP_KERNEL);
 	if (rc)
 		goto out_fail;
-	rc = -ENOBUFS;
 	inet_hashinfo_init(&dccp_hashinfo);
-	inet_hashinfo2_init(&dccp_hashinfo, "dccp_listen_portaddr_hash",
-			    INET_LHTABLE_SIZE, 21,  /* one slot per 2 MB*/
-			    0, 64 * 1024);
+	rc = inet_hashinfo2_init_mod(&dccp_hashinfo);
+	if (rc)
+		goto out_fail;
+	rc = -ENOBUFS;
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
