@@ -714,10 +714,6 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	return 0;
 }
 
-void svc_rdma_prep_reply_hdr(struct svc_rqst *rqstp)
-{
-}
-
 /**
  * svc_rdma_sendto - Transmit an RPC reply
  * @rqstp: processed RPC request, reply XDR already in ::rq_res

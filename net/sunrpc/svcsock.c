@@ -610,10 +610,6 @@ svc_udp_sendto(struct svc_rqst *rqstp)
 	return error;
 }
 
-static void svc_udp_prep_reply_hdr(struct svc_rqst *rqstp)
-{
-}
-
 static int svc_udp_has_wspace(struct svc_xprt *xprt)
 {
 	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
@@ -657,7 +653,6 @@ static const struct svc_xprt_ops svc_udp_ops = {
 	.xpo_release_rqst = svc_release_udp_skb,
 	.xpo_detach = svc_sock_detach,
 	.xpo_free = svc_sock_free,
-	.xpo_prep_reply_hdr = svc_udp_prep_reply_hdr,
 	.xpo_has_wspace = svc_udp_has_wspace,
 	.xpo_accept = svc_udp_accept,
 	.xpo_secure_port = svc_sock_secure_port,
@@ -1163,17 +1158,6 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	return sent;
 }
 
-/*
- * Setup response header. TCP has a 4B record length field.
- */
-void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
-{
-	struct kvec *resv = &rqstp->rq_res.head[0];
-
-	/* tcp needs a space for the record length... */
-	svc_putnl(resv, 0);
-}
-
 static struct svc_xprt *svc_tcp_create(struct svc_serv *serv,
 				       struct net *net,
 				       struct sockaddr *sa, int salen,
@@ -1189,7 +1173,6 @@ static const struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_release_rqst = svc_release_skb,
 	.xpo_detach = svc_tcp_sock_detach,
 	.xpo_free = svc_sock_free,
-	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
 	.xpo_has_wspace = svc_tcp_has_wspace,
 	.xpo_accept = svc_tcp_accept,
 	.xpo_secure_port = svc_sock_secure_port,

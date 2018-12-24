@@ -193,7 +193,6 @@ extern int svc_rdma_sendto(struct svc_rqst *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern void svc_sq_reap(struct svcxprt_rdma *);
 extern void svc_rq_reap(struct svcxprt_rdma *);
-extern void svc_rdma_prep_reply_hdr(struct svc_rqst *);
 
 extern struct svc_xprt_class svc_rdma_class;
 #ifdef CONFIG_SUNRPC_BACKCHANNEL
