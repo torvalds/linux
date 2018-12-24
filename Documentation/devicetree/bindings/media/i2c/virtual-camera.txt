@@ -1,0 +1,41 @@
+* Rockchip Virtual Camera
+
+The virtual sensor supports multiple resolutions output,
+such as 1280x720,1920x1080,3840x720,3840x2160,5120x2880.
+It also can support RGB24 or raw output formats.
+
+Required Properties:
+- compatible: Must be "rockchip,virtual-camera"
+- reg: I2C slave address, this value is useless.
+- link-frequencies: target mipi clock frequency, half of mipi data rate.
+
+Optional Properties:
+- width: output pixel width.
+- height: output pixel height.
+- bus-format: output bus format, it is a media bus format code.
+
+The device node must contain one 'port' child node for its digital output
+video port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+	&i2c0 {
+		...
+		...
+		 vcamera@30 {
+			compatible = "rockchip,virtual-camera";
+			reg = <0x30>;
+			width = <1920>;
+			height = <1080>;
+			bus-format = <MEDIA_BUS_FMT_BGGR8_1X8>;
+
+			port {
+				vcamera_out: endpoint {
+					remote-endpoint = <&dphy_rx_in>;
+					link-frequencies = /bits/ 64 <500000000>;
+				};
+			};
+		};
+		...
+	};
