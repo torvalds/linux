@@ -1,0 +1,24 @@
+GPIO-controlled Multiplexers (MUX) A/D Converter bindings
+
+Required properties:
+- compatible: should be "gpio-muxadc" or others like below
+   - "sgm3699": for a quad, bidirectional, single-pole/double-throw (SPDT) CMOS analog switch.
+   - "sgm48752": for a dual, bidirectional, double-pole/double-throw (DPDT) CMOS analog switch.
+- io-channels: Channel node of the parent channel that has multiplexed input.
+- switch-gpios: Digital control pins to connect the parent adc channel(saradc) to the input adc channel(muxadc).
+- labels: The string list for each muxadc channel that should be placed in order.
+
+Example:
+        muxadc {
+                compatible = "sgm48752";
+                io-channels = <&saradc 4>, <&saradc 5>;
+                switch-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>,
+                               <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
+                labels = "wheel_vpropi_r_adc", "wheel_vpropi_l_adc",
+                         "fan_opa_adc", "mid_opa_adc",
+                         "pump_opa_adc", "side_opa_adc",
+                         "dc24vdet_adc", "collision_det_adc_lidar";
+                pinctrl-names = "default";
+                pinctrl-0 = <&switch_gpios>;
+                status = "okay";
+        };
