@@ -748,6 +748,23 @@ static int stm32_spi_transfer_one_irq(struct stm32_spi *spi)
 }
 
 /**
+ * stm32_spi_transfer_one_dma_start - Set SPI driver registers to start transfer
+ *				      using DMA
+ */
+static void stm32_spi_transfer_one_dma_start(struct stm32_spi *spi)
+{
+	/* Enable the interrupts relative to the end of transfer */
+	stm32_spi_set_bits(spi, STM32H7_SPI_IER, STM32H7_SPI_IER_EOTIE |
+						 STM32H7_SPI_IER_TXTFIE |
+						 STM32H7_SPI_IER_OVRIE |
+						 STM32H7_SPI_IER_MODFIE);
+
+	stm32_spi_enable(spi);
+
+	stm32_spi_set_bits(spi, STM32H7_SPI_CR1, STM32H7_SPI_CR1_CSTART);
+}
+
+/**
  * stm32_spi_transfer_one_dma - transfer a single spi_transfer using DMA
  *
  * It must returns 0 if the transfer is finished or 1 if the transfer is still
@@ -759,7 +776,6 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 	struct dma_slave_config tx_dma_conf, rx_dma_conf;
 	struct dma_async_tx_descriptor *tx_dma_desc, *rx_dma_desc;
 	unsigned long flags;
-	u32 ier = 0;
 
 	spin_lock_irqsave(&spi->lock, flags);
 
@@ -829,14 +845,7 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 				   STM32H7_SPI_CFG1_TXDMAEN);
 	}
 
-	/* Enable the interrupts relative to the end of transfer */
-	ier |= STM32H7_SPI_IER_EOTIE | STM32H7_SPI_IER_TXTFIE |
-	       STM32H7_SPI_IER_OVRIE | STM32H7_SPI_IER_MODFIE;
-	writel_relaxed(ier, spi->base + STM32H7_SPI_IER);
-
-	stm32_spi_enable(spi);
-
-	stm32_spi_set_bits(spi, STM32H7_SPI_CR1, STM32H7_SPI_CR1_CSTART);
+	stm32_spi_transfer_one_dma_start(spi);
 
 	spin_unlock_irqrestore(&spi->lock, flags);
 
