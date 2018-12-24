@@ -197,7 +197,7 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 	size_t remaining;
 
 	header = (struct snd_sof_fw_header *)fw->data;
-	load_module = sdev->ops->load_module;
+	load_module = sof_ops(sdev)->load_module;
 	if (!load_module)
 		return -EINVAL;
 
@@ -277,8 +277,8 @@ int snd_sof_load_firmware(struct snd_sof_dev *sdev)
 {
 	dev_dbg(sdev->dev, "loading firmware\n");
 
-	if (sdev->ops->load_firmware)
-		return sdev->ops->load_firmware(sdev);
+	if (sof_ops(sdev)->load_firmware)
+		return sof_ops(sdev)->load_firmware(sdev);
 	return 0;
 }
 EXPORT_SYMBOL(snd_sof_load_firmware);

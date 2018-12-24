@@ -537,9 +537,6 @@ static int hsw_probe(struct snd_sof_dev *sdev)
 	u32 base, size;
 	int ret = 0;
 
-	/* set DSP arch ops */
-	sdev->arch_ops = &sof_xtensa_arch_ops;
-
 	/* LPE base */
 	mmio = platform_get_resource(pdev, IORESOURCE_MEM,
 				     desc->resindex_lpe_base);
@@ -701,7 +698,6 @@ EXPORT_SYMBOL(sof_hsw_ops);
 const struct sof_intel_dsp_desc hsw_chip_info = {
 	.cores_num = 1,
 	.cores_mask = 1,
-	.ops = &sof_hsw_ops,
 };
 EXPORT_SYMBOL(hsw_chip_info);
 

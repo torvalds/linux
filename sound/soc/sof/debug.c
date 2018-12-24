@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include "sof-priv.h"
+#include "ops.h"
 
 static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 				 size_t count, loff_t *ppos)
@@ -139,7 +140,7 @@ EXPORT_SYMBOL(snd_sof_debugfs_buf_create_item);
 
 int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
-	const struct snd_sof_dsp_ops *ops = sdev->ops;
+	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
 	const struct snd_sof_debugfs_map *map;
 	int err = 0, i;
 

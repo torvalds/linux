@@ -639,7 +639,6 @@ EXPORT_SYMBOL(sof_tng_ops);
 const struct sof_intel_dsp_desc tng_chip_info = {
 	.cores_num = 1,
 	.cores_mask = 1,
-	.ops = &sof_tng_ops,
 };
 EXPORT_SYMBOL(tng_chip_info);
 
@@ -656,9 +655,6 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	struct resource *mmio;
 	u32 base, size;
 	int ret = 0;
-
-	/* set DSP arch ops */
-	sdev->arch_ops = &sof_xtensa_arch_ops;
 
 	/* DSP DMA can only access low 31 bits of host memory */
 	ret = dma_coerce_mask_and_coherent(sdev->dev, DMA_BIT_MASK(31));
@@ -808,7 +804,6 @@ EXPORT_SYMBOL(sof_byt_ops);
 const struct sof_intel_dsp_desc byt_chip_info = {
 	.cores_num = 1,
 	.cores_mask = 1,
-	.ops = &sof_byt_ops,
 };
 EXPORT_SYMBOL(byt_chip_info);
 
@@ -867,7 +862,6 @@ EXPORT_SYMBOL(sof_cht_ops);
 const struct sof_intel_dsp_desc cht_chip_info = {
 	.cores_num = 1,
 	.cores_mask = 1,
-	.ops = &sof_cht_ops,
 };
 EXPORT_SYMBOL(cht_chip_info);
 

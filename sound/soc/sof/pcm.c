@@ -339,8 +339,8 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_pcm_substream *substream)
 		return 0;
 
 	/* if have dsp ops pointer callback, use that directly */
-	if (sdev->ops->pcm_pointer)
-		return sdev->ops->pcm_pointer(sdev, substream);
+	if (sof_ops(sdev)->pcm_pointer)
+		return sof_ops(sdev)->pcm_pointer(sdev, substream);
 
 	/* read position from DSP */
 	host = bytes_to_frames(substream->runtime,

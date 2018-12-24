@@ -33,7 +33,9 @@ static struct sof_dev_desc sof_acpi_haswell_desc = {
 	.irqindex_host_ipc = 0,
 	.chip_info = &hsw_chip_info,
 	.nocodec_fw_filename = "intel/sof-hsw.ri",
-	.nocodec_tplg_filename = "intel/sof-hsw-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-hsw-nocodec.tplg",
+	.ops = &sof_hsw_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -46,7 +48,9 @@ static struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.irqindex_host_ipc = 0,
 	.chip_info = &bdw_chip_info,
 	.nocodec_fw_filename = "intel/sof-bdw.ri",
-	.nocodec_tplg_filename = "intel/sof-bdw-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-bdw-nocodec.tplg",
+	.ops = &sof_bdw_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -61,7 +65,9 @@ static struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.irqindex_host_ipc = 0,
 	.chip_info = &byt_chip_info,
 	.nocodec_fw_filename = "intel/sof-byt.ri",
-	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg",
+	.ops = &sof_byt_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 
 static struct sof_dev_desc sof_acpi_baytrail_desc = {
@@ -72,7 +78,9 @@ static struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.irqindex_host_ipc = 5,
 	.chip_info = &byt_chip_info,
 	.nocodec_fw_filename = "intel/sof-byt.ri",
-	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg",
+	.ops = &sof_byt_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 
 #ifdef CONFIG_X86 /* TODO: move this to common helper */
@@ -122,7 +130,9 @@ static struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.irqindex_host_ipc = 5,
 	.chip_info = &cht_chip_info,
 	.nocodec_fw_filename = "intel/sof-cht.ri",
-	.nocodec_tplg_filename = "intel/sof-cht-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-cht-nocodec.tplg",
+	.ops = &sof_cht_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 
 #endif
@@ -163,7 +173,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 #endif
 
 	/* get ops for platform */
-	ops = ((const struct sof_intel_dsp_desc *)desc->chip_info)->ops;
+	ops = desc->ops;
 	if (!ops) {
 		dev_err(dev, "error: no matching ACPI descriptor ops\n");
 		return -ENODEV;
@@ -196,13 +206,6 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	}
 #endif
 
-	/*
-	 * save ops in pdata.
-	 * TODO: the explicit cast removes the const attribute, we'll need
-	 * to add a dedicated ops field in the generic soc-acpi structure
-	 * to avoid such issues
-	 */
-	mach->pdata = (void *)ops;
 	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
 	priv->sof_pdata = sof_pdata;

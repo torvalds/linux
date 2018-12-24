@@ -332,9 +332,6 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	}
 	dev_info(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n", pci->class);
 
-	/* set DSP arch ops */
-	sdev->arch_ops = &sof_xtensa_arch_ops;
-
 	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
 		dev_err(sdev->dev, "error: no such device supported, chip id:%x\n",
@@ -364,7 +361,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION)
 	hdev->no_ipc_position = 0;
 #else
-	hdev->no_ipc_position = sdev->ops->pcm_pointer ? 1 : 0;
+	hdev->no_ipc_position = sof_ops(sdev)->pcm_pointer ? 1 : 0;
 #endif
 
 	/* set up HDA base */
@@ -442,7 +439,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 
 	dev_dbg(sdev->dev, "using IPC IRQ %d\n", sdev->ipc_irq);
 	ret = request_threaded_irq(sdev->ipc_irq, hda_dsp_ipc_irq_handler,
-				   chip->ops->irq_thread, IRQF_SHARED,
+				   sof_ops(sdev)->irq_thread, IRQF_SHARED,
 				   "AudioDSP", sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to register IPC IRQ %d\n",

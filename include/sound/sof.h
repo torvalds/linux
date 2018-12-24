@@ -70,6 +70,9 @@ struct sof_dev_desc {
 	/* defaults for no codec mode */
 	const char *nocodec_fw_filename;
 	const char *nocodec_tplg_filename;
+
+	const struct snd_sof_dsp_ops *ops;
+	const struct sof_arch_ops *arch_ops;
 };
 
 int sof_nocodec_setup(struct device *dev,

@@ -320,7 +320,6 @@ EXPORT_SYMBOL(snd_sof_spi_ops);
 const struct sof_intel_dsp_desc spi_chip_info = {
 	.cores_num = 2,
 	.cores_mask = 0x3,
-	.ops = &snd_sof_spi_ops,
 };
 EXPORT_SYMBOL(spi_chip_info);
 

@@ -245,7 +245,6 @@ static int sof_probe(struct platform_device *pdev)
 	sdev->parent = plat_data->dev;
 	if dev_is_pci(plat_data->dev)
 		sdev->pci = to_pci_dev(plat_data->dev);
-	sdev->ops = plat_data->machine->pdata;
 
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;
@@ -326,9 +325,9 @@ static int sof_probe(struct platform_device *pdev)
 	sdev->first_boot = false;
 
 	/* now register audio DSP platform driver and dai */
-	ret = snd_soc_register_component(&pdev->dev,  &sdev->plat_drv,
-					 sdev->ops->drv,
-					 sdev->ops->num_drv);
+	ret = snd_soc_register_component(&pdev->dev, &sdev->plat_drv,
+					 sof_ops(sdev)->drv,
+					 sof_ops(sdev)->num_drv);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to register DSP DAI driver %d\n", ret);

@@ -107,6 +107,5 @@ const struct sof_intel_dsp_desc apl_chip_info = {
 	.ipc_ack = HDA_DSP_REG_HIPCIE,
 	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
 	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
-	.ops = &sof_apl_ops,
 };
 EXPORT_SYMBOL(apl_chip_info);

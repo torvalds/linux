@@ -31,7 +31,9 @@ static struct sof_dev_desc bxt_desc = {
 	.resindex_dma_base	= -1,
 	.chip_info = &apl_chip_info,
 	.nocodec_fw_filename = "intel/sof-apl.ri",
-	.nocodec_tplg_filename = "intel/sof-apl-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-apl-nocodec.tplg",
+	.ops = &sof_apl_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -45,7 +47,9 @@ static struct sof_dev_desc glk_desc = {
 	.resindex_dma_base	= -1,
 	.chip_info = &apl_chip_info,
 	.nocodec_fw_filename = "intel/sof-glk.ri",
-	.nocodec_tplg_filename = "intel/sof-glk-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-glk-nocodec.tplg",
+	.ops = &sof_apl_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -70,7 +74,9 @@ static const struct sof_dev_desc tng_desc = {
 	.resindex_dma_base	= -1,
 	.chip_info = &tng_chip_info,
 	.nocodec_fw_filename = "intel/sof-byt.ri",
-	.nocodec_tplg_filename = "intel/sof-byt.tplg"
+	.nocodec_tplg_filename = "intel/sof-byt.tplg",
+	.ops = &sof_tng_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -84,7 +90,9 @@ static const struct sof_dev_desc cnl_desc = {
 	.resindex_dma_base	= -1,
 	.chip_info = &cnl_chip_info,
 	.nocodec_fw_filename = "intel/sof-cnl.ri",
-	.nocodec_tplg_filename = "intel/sof-cnl.tplg"
+	.nocodec_tplg_filename = "intel/sof-cnl.tplg",
+	.ops = &sof_cnl_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -98,7 +106,9 @@ static const struct sof_dev_desc icl_desc = {
 	.resindex_dma_base      = -1,
 	.chip_info = &cnl_chip_info,
 	.nocodec_fw_filename = "intel/sof-icl.ri",
-	.nocodec_tplg_filename = "intel/sof-icl-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-icl-nocodec.tplg",
+	.ops = &sof_cnl_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -112,7 +122,9 @@ static struct sof_dev_desc skl_desc = {
 	.resindex_dma_base	= -1,
 	.chip_info = &skl_chip_info,
 	.nocodec_fw_filename = "intel/sof-skl.ri",
-	.nocodec_tplg_filename = "intel/sof-skl-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-skl-nocodec.tplg",
+	.ops = &sof_skl_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -126,7 +138,9 @@ static struct sof_dev_desc kbl_desc = {
 	.resindex_dma_base	= -1,
 	.chip_info = &skl_chip_info,
 	.nocodec_fw_filename = "intel/sof-kbl.ri",
-	.nocodec_tplg_filename = "intel/sof-kbl-nocodec.tplg"
+	.nocodec_tplg_filename = "intel/sof-kbl-nocodec.tplg",
+	.ops = &sof_skl_ops,
+	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -153,7 +167,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
 	/* get ops for platform */
-	ops = ((const struct sof_intel_dsp_desc *)desc->chip_info)->ops;
+	ops = desc->ops;
 	if (!ops) {
 		dev_err(dev, "error: no matching PCI descriptor ops\n");
 		return -ENODEV;
@@ -226,14 +240,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 		ret = -ENODEV;
 		goto release_regions;
 	}
-
-	/*
-	 * save ops in pdata.
-	 * TODO: the explicit cast removes the const attribute, we'll need
-	 * to add a dedicated ops field in the generic soc-acpi structure
-	 * to avoid such issues
-	 */
-	mach->pdata = (void *)ops;
 
 	sof_pdata->id = pci_id->device;
 	sof_pdata->name = pci_name(pci);

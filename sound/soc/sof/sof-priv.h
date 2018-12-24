@@ -174,6 +174,9 @@ struct sof_arch_ops {
 			  u32 *stack, u32 stack_words);
 };
 
+#define sof_arch_ops(sdev) \
+	((sdev)->pdata->desc->arch_ops)
+
 /* DSP device HW descriptor mapping between bus ID and ops */
 struct sof_ops_table {
 	const struct sof_dev_desc *desc;
@@ -314,8 +317,6 @@ struct snd_sof_dev {
 
 	/* DSP HW differentiation */
 	struct snd_sof_pdata *pdata;
-	const struct snd_sof_dsp_ops *ops;
-	const struct sof_arch_ops *arch_ops;
 
 	/* IPC */
 	struct snd_sof_ipc *ipc;
@@ -533,14 +534,14 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 static inline void sof_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
 			     u32 stack_words)
 {
-	if (sdev->arch_ops->dsp_stack)
-		sdev->arch_ops->dsp_stack(sdev, oops, stack, stack_words);
+	if (sof_arch_ops(sdev)->dsp_stack)
+		sof_arch_ops(sdev)->dsp_stack(sdev, oops, stack, stack_words);
 }
 
 static inline void sof_oops(struct snd_sof_dev *sdev, void *oops)
 {
-	if (sdev->arch_ops->dsp_oops)
-		sdev->arch_ops->dsp_oops(sdev, oops);
+	if (sof_arch_ops(sdev)->dsp_oops)
+		sof_arch_ops(sdev)->dsp_oops(sdev, oops);
 }
 
 extern const struct sof_arch_ops sof_xtensa_arch_ops;

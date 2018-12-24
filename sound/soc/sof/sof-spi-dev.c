@@ -44,6 +44,7 @@ static const struct sof_dev_desc spi_desc = {
 	.irqindex_host_ipc = -1,
 	.resindex_dma_base = -1,
 	.chip_info = &spi_chip_info,
+	.ops = &snd_sof_spi_ops
 };
 
 static int sof_spi_probe(struct spi_device *spi)
@@ -51,7 +52,6 @@ static int sof_spi_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	const struct sof_dev_desc *desc = of_device_get_match_data(dev);
 	struct snd_soc_acpi_mach *machines, *mach;
-	const struct sof_intel_dsp_desc *chip_info;
 	struct snd_sof_pdata *sof_pdata;
 	struct sof_platform_priv *priv;
 	struct sof_spi_dev *sof_spi;
@@ -121,19 +121,6 @@ static int sof_spi_probe(struct spi_device *spi)
 	mach->sof_fw_filename = desc->nocodec_fw_filename;
 	mach->sof_tplg_filename = desc->nocodec_tplg_filename;
 	mach->asoc_plat_name = "sof-platform";
-
-	/*
-	 * save ops in pdata.
-	 * TODO: the explicit cast removes the const attribute, we'll need
-	 * to add a dedicated ops field in the generic soc-acpi structure
-	 * to avoid such issues
-	 */
-	chip_info = (const struct sof_intel_dsp_desc *)desc->chip_info;
-	mach->pdata = (void *)chip_info->ops;
-	if (!mach->pdata) {
-		dev_err(dev, "error: no matching SPI descriptor ops\n");
-		return -ENODEV;
-	}
 
 	sof_pdata->id = -1;
 	sof_pdata->name = dev_name(&spi->dev);
