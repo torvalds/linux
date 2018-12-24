@@ -317,7 +317,6 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	res = tipc_disc_create(net, b, &b->bcast_addr, &skb);
 	if (res) {
 		bearer_disable(net, b);
-		kfree(b);
 		errstr = "failed to create discoverer";
 		goto rejected;
 	}
