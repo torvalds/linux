@@ -731,7 +731,7 @@ enum amd_hw_ip_block_type {
 	MAX_HWIP
 };
 
-#define HWIP_MAX_INSTANCE	6
+#define HWIP_MAX_INSTANCE	7
 
 struct amd_powerplay {
 	void *pp_handle;
