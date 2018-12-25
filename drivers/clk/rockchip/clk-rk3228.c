@@ -82,22 +82,22 @@ static struct rockchip_pll_rate_table rk3228_pll_rates[] = {
 #define RK3228_DIV_PCLK_MASK		0x7
 #define RK3228_DIV_PCLK_SHIFT		12
 
-#define RK3228_CLKSEL1(_core_aclk_div, _core_peri_div)				\
-	{									\
-		.reg = RK2928_CLKSEL_CON(1),					\
-		.val = HIWORD_UPDATE(_core_peri_div, RK3228_DIV_PERI_MASK,	\
-				     RK3228_DIV_PERI_SHIFT) |			\
-		       HIWORD_UPDATE(_core_aclk_div, RK3228_DIV_ACLK_MASK,	\
-				     RK3228_DIV_ACLK_SHIFT),			\
+#define RK3228_CLKSEL1(_core_aclk_div, _core_peri_div)			\
+{									\
+	.reg = RK2928_CLKSEL_CON(1),					\
+	.val = HIWORD_UPDATE(_core_peri_div, RK3228_DIV_PERI_MASK,	\
+			     RK3228_DIV_PERI_SHIFT) |			\
+	       HIWORD_UPDATE(_core_aclk_div, RK3228_DIV_ACLK_MASK,	\
+			     RK3228_DIV_ACLK_SHIFT),			\
 }
 
-#define RK3228_CPUCLK_RATE(_prate, _core_aclk_div, _core_peri_div)		\
-	{									\
-		.prate = _prate,						\
-		.divs = {							\
-			RK3228_CLKSEL1(_core_aclk_div, _core_peri_div),		\
-		},								\
-	}
+#define RK3228_CPUCLK_RATE(_prate, _core_aclk_div, _core_peri_div)	\
+{									\
+	.prate = _prate,						\
+	.divs = {							\
+		RK3228_CLKSEL1(_core_aclk_div, _core_peri_div),		\
+	},								\
+}
 
 static struct rockchip_cpuclk_rate_table rk3228_cpuclk_rates[] __initdata = {
 	RK3228_CPUCLK_RATE(1800000000, 1, 7),
@@ -236,11 +236,11 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKGATE_CON(7), 0, GFLAGS),
 
 	/* PD_CORE */
-	GATE(0, "dpll_core", "dpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 6, GFLAGS),
 	GATE(0, "apll_core", "apll", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(0), 6, GFLAGS),
 	GATE(0, "gpll_core", "gpll", CLK_IGNORE_UNUSED,
+			RK2928_CLKGATE_CON(0), 6, GFLAGS),
+	GATE(0, "dpll_core", "dpll", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(0), 6, GFLAGS),
 	COMPOSITE_NOMUX(0, "pclk_dbg", "armclk", CLK_IGNORE_UNUSED,
 			RK2928_CLKSEL_CON(1), 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
@@ -640,13 +640,13 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 
 	/* PD_MMC */
 	MMC(SCLK_SDMMC_DRV,    "sdmmc_drv",    "sclk_sdmmc", RK3228_SDMMC_CON0, 1),
-	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "sclk_sdmmc", RK3228_SDMMC_CON1, 0),
+	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "sclk_sdmmc", RK3228_SDMMC_CON1, 1),
 
 	MMC(SCLK_SDIO_DRV,     "sdio_drv",     "sclk_sdio",  RK3228_SDIO_CON0,  1),
-	MMC(SCLK_SDIO_SAMPLE,  "sdio_sample",  "sclk_sdio",  RK3228_SDIO_CON1,  0),
+	MMC(SCLK_SDIO_SAMPLE,  "sdio_sample",  "sclk_sdio",  RK3228_SDIO_CON1,  1),
 
 	MMC(SCLK_EMMC_DRV,     "emmc_drv",     "sclk_emmc",  RK3228_EMMC_CON0,  1),
-	MMC(SCLK_EMMC_SAMPLE,  "emmc_sample",  "sclk_emmc",  RK3228_EMMC_CON1,  0),
+	MMC(SCLK_EMMC_SAMPLE,  "emmc_sample",  "sclk_emmc",  RK3228_EMMC_CON1,  1),
 };
 
 static const char *const rk3228_critical_clocks[] __initconst = {
