@@ -225,7 +225,7 @@ static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 	}
 
 	ret = dma_declare_coherent_memory(&dev->dev, sram->start, sram->start,
-				resource_size(sram), DMA_MEMORY_EXCLUSIVE);
+				resource_size(sram));
 	if (ret)
 		goto err_dma_declare;
 
