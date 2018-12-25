@@ -1182,6 +1182,15 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		skb_queue_splice_init(&txq->overflow_q, &overflow_skbs);
 
 		/*
+		 * We are going to transmit from the overflow queue.
+		 * Remember this state so that wait_for_txq_empty will know we
+		 * are adding more packets to the TFD queue. It cannot rely on
+		 * the state of &txq->overflow_q, as we just emptied it, but
+		 * haven't TXed the content yet.
+		 */
+		txq->overflow_tx = true;
+
+		/*
 		 * This is tricky: we are in reclaim path which is non
 		 * re-entrant, so noone will try to take the access the
 		 * txq data from that path. We stopped tx, so we can't
@@ -1209,6 +1218,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			iwl_wake_queue(trans, txq);
 
 		spin_lock_bh(&txq->lock);
+		txq->overflow_tx = false;
 	}
 
 	if (txq->read_ptr == txq->write_ptr) {
