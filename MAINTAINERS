@@ -7645,6 +7645,14 @@ S:	Maintained
 F:	drivers/media/pci/intel/ipu3/
 F:	Documentation/media/uapi/v4l/pixfmt-srggb10-ipu3.rst
 
+INTEL IPU3 CSI-2 IMGU DRIVER
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/media/ipu3/
+F:	Documentation/media/uapi/v4l/pixfmt-meta-intel-ipu3.rst
+F:	Documentation/media/v4l-drivers/ipu3.rst
+
 INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
 M:	Krzysztof Halasa <khalasa@piap.pl>
 S:	Maintained

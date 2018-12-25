@@ -19,6 +19,7 @@ These formats are used for the :ref:`metadata` interface only.
 .. toctree::
     :maxdepth: 1
 
+    pixfmt-meta-intel-ipu3
     pixfmt-meta-d4xx
     pixfmt-meta-uvc
     pixfmt-meta-vsp1-hgo
