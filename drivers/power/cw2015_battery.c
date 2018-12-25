@@ -650,6 +650,10 @@ static int cw_battery_get_property(struct power_supply *psy,
 		val->intval = cw_bat->charge_count;
 		break;
 
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		val->intval = cw_bat->plat_data.design_capacity * 1000;
+		break;
+
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = VIRTUAL_TEMPERATURE;
 		break;
@@ -669,6 +673,7 @@ static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_TEMP,
 };
 
@@ -777,6 +782,14 @@ static int cw2015_parse_dt(struct cw_battery *cw_bat)
 		dev_err(dev, "monitor_sec missing!\n");
 	else
 		cw_bat->monitor_sec = value * TIMER_MS_COUNTS;
+
+	ret = of_property_read_u32(node, "design_capacity", &value);
+	if (ret < 0) {
+		dev_err(dev, "design_capacity missing!\n");
+		data->design_capacity = 2000;
+	} else {
+		data->design_capacity = value;
+	}
 
 	return 0;
 }
