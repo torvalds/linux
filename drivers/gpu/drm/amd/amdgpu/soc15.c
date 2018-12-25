@@ -507,6 +507,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	if (adev->asic_type == CHIP_VEGA20)
+		adev->gmc.xgmi.supported = true;
+
 	if (adev->flags & AMD_IS_APU)
 		adev->nbio_funcs = &nbio_v7_0_funcs;
 	else if (adev->asic_type == CHIP_VEGA20)
@@ -613,6 +616,24 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.flush_hdp = &soc15_flush_hdp,
 	.invalidate_hdp = &soc15_invalidate_hdp,
 	.need_full_reset = &soc15_need_full_reset,
+	.init_doorbell_index = &vega10_doorbell_index_init,
+};
+
+static const struct amdgpu_asic_funcs vega20_asic_funcs =
+{
+	.read_disabled_bios = &soc15_read_disabled_bios,
+	.read_bios_from_rom = &soc15_read_bios_from_rom,
+	.read_register = &soc15_read_register,
+	.reset = &soc15_asic_reset,
+	.set_vga_state = &soc15_vga_set_state,
+	.get_xclk = &soc15_get_xclk,
+	.set_uvd_clocks = &soc15_set_uvd_clocks,
+	.set_vce_clocks = &soc15_set_vce_clocks,
+	.get_config_memsize = &soc15_get_config_memsize,
+	.flush_hdp = &soc15_flush_hdp,
+	.invalidate_hdp = &soc15_invalidate_hdp,
+	.need_full_reset = &soc15_need_full_reset,
+	.init_doorbell_index = &vega20_doorbell_index_init,
 };
 
 static int soc15_common_early_init(void *handle)
@@ -632,11 +653,11 @@ static int soc15_common_early_init(void *handle)
 	adev->se_cac_rreg = &soc15_se_cac_rreg;
 	adev->se_cac_wreg = &soc15_se_cac_wreg;
 
-	adev->asic_funcs = &soc15_asic_funcs;
 
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+		adev->asic_funcs = &soc15_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_RLC_LS |
@@ -660,6 +681,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = 0x1;
 		break;
 	case CHIP_VEGA12:
+		adev->asic_funcs = &soc15_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_CGCG |
@@ -682,6 +704,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
 	case CHIP_VEGA20:
+		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_CGCG |
@@ -704,6 +727,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x28;
 		break;
 	case CHIP_RAVEN:
+		adev->asic_funcs = &soc15_asic_funcs;
 		if (adev->rev_id >= 0x8)
 			adev->external_rev_id = adev->rev_id + 0x81;
 		else if (adev->pdev->device == 0x15d8)

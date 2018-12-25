@@ -23,8 +23,11 @@ vkms_plane_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	crc_data = kzalloc(sizeof(*crc_data), GFP_KERNEL);
-	if (WARN_ON(!crc_data))
-		DRM_INFO("Couldn't allocate crc_data");
+	if (!crc_data) {
+		DRM_DEBUG_KMS("Couldn't allocate crc_data\n");
+		kfree(vkms_state);
+		return NULL;
+	}
 
 	vkms_state->crc_data = crc_data;
 
@@ -138,14 +141,12 @@ static int vkms_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
 	struct drm_gem_object *gem_obj;
-	struct vkms_gem_object *vkms_obj;
 	int ret;
 
 	if (!state->fb)
 		return 0;
 
 	gem_obj = drm_gem_fb_get_obj(state->fb, 0);
-	vkms_obj = drm_gem_to_vkms_gem(gem_obj);
 	ret = vkms_gem_vmap(gem_obj);
 	if (ret)
 		DRM_ERROR("vmap failed: %d\n", ret);

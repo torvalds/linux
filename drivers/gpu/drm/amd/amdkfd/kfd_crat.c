@@ -26,6 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_topology.h"
 #include "kfd_iommu.h"
+#include "amdgpu_amdkfd.h"
 
 /* GPU Processor ID base for dGPUs for which VCRAT needs to be created.
  * GPU processor ID are expressed with Bit[31]=1.
@@ -132,6 +133,7 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 #define fiji_cache_info  carrizo_cache_info
 #define polaris10_cache_info carrizo_cache_info
 #define polaris11_cache_info carrizo_cache_info
+#define polaris12_cache_info carrizo_cache_info
 /* TODO - check & update Vega10 cache details */
 #define vega10_cache_info carrizo_cache_info
 #define raven_cache_info carrizo_cache_info
@@ -646,7 +648,12 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		pcache_info = polaris11_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris11_cache_info);
 		break;
+	case CHIP_POLARIS12:
+		pcache_info = polaris12_cache_info;
+		num_of_cache_types = ARRAY_SIZE(polaris12_cache_info);
+		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 		pcache_info = vega10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
@@ -753,11 +760,9 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -ENODATA;
 	}
 
-	pcrat_image = kmalloc(crat_table->length, GFP_KERNEL);
+	pcrat_image = kmemdup(crat_table, crat_table->length, GFP_KERNEL);
 	if (!pcrat_image)
 		return -ENOMEM;
-
-	memcpy(pcrat_image, crat_table, crat_table->length);
 
 	*crat_image = pcrat_image;
 	*size = crat_table->length;
@@ -1161,7 +1166,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	cu->flags |= CRAT_CU_FLAGS_GPU_PRESENT;
 	cu->proximity_domain = proximity_domain;
 
-	kdev->kfd2kgd->get_cu_info(kdev->kgd, &cu_info);
+	amdgpu_amdkfd_get_cu_info(kdev->kgd, &cu_info);
 	cu->num_simd_per_cu = cu_info.simd_per_cu;
 	cu->num_simd_cores = cu_info.simd_per_cu * cu_info.cu_active_number;
 	cu->max_waves_simd = cu_info.max_waves_per_simd;
@@ -1192,7 +1197,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * report the total FB size (public+private) as a single
 	 * private heap.
 	 */
-	kdev->kfd2kgd->get_local_mem_info(kdev->kgd, &local_mem_info);
+	amdgpu_amdkfd_get_local_mem_info(kdev->kgd, &local_mem_info);
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 

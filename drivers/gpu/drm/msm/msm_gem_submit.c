@@ -20,6 +20,7 @@
 #include "msm_drv.h"
 #include "msm_gpu.h"
 #include "msm_gem.h"
+#include "msm_gpu_trace.h"
 
 /*
  * Cmdstream submission:
@@ -48,7 +49,6 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	submit->dev = dev;
 	submit->gpu = gpu;
 	submit->fence = NULL;
-	submit->pid = get_pid(task_pid(current));
 	submit->cmd = (void *)&submit->bos[nr_bos];
 	submit->queue = queue;
 	submit->ring = gpu->rb[queue->prio];
@@ -114,8 +114,11 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 			pagefault_disable();
 		}
 
+/* at least one of READ and/or WRITE flags should be set: */
+#define MANDATORY_FLAGS (MSM_SUBMIT_BO_READ | MSM_SUBMIT_BO_WRITE)
+
 		if ((submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) ||
-			!(submit_bo.flags & MSM_SUBMIT_BO_FLAGS)) {
+			!(submit_bo.flags & MANDATORY_FLAGS)) {
 			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
 			goto out_unlock;
@@ -167,7 +170,7 @@ static void submit_unlock_unpin_bo(struct msm_gem_submit *submit,
 	struct msm_gem_object *msm_obj = submit->bos[i].obj;
 
 	if (submit->bos[i].flags & BO_PINNED)
-		msm_gem_put_iova(&msm_obj->base, submit->gpu->aspace);
+		msm_gem_unpin_iova(&msm_obj->base, submit->gpu->aspace);
 
 	if (submit->bos[i].flags & BO_LOCKED)
 		ww_mutex_unlock(&msm_obj->resv->lock);
@@ -241,7 +244,8 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 			 * strange place to call it.  OTOH this is a
 			 * convenient can-fail point to hook it in.
 			 */
-			ret = reservation_object_reserve_shared(msm_obj->resv);
+			ret = reservation_object_reserve_shared(msm_obj->resv,
+								1);
 			if (ret)
 				return ret;
 		}
@@ -269,7 +273,7 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 		uint64_t iova;
 
 		/* if locking succeeded, pin bo: */
-		ret = msm_gem_get_iova(&msm_obj->base,
+		ret = msm_gem_get_and_pin_iova(&msm_obj->base,
 				submit->gpu->aspace, &iova);
 
 		if (ret)
@@ -408,6 +412,7 @@ static void submit_cleanup(struct msm_gem_submit *submit)
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
+	static atomic_t ident = ATOMIC_INIT(0);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_msm_gem_submit *args = data;
 	struct msm_file_private *ctx = file->driver_priv;
@@ -417,9 +422,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct msm_gpu_submitqueue *queue;
 	struct msm_ringbuffer *ring;
 	int out_fence_fd = -1;
+	struct pid *pid = get_pid(task_pid(current));
 	unsigned i;
-	int ret;
-
+	int ret, submitid;
 	if (!gpu)
 		return -ENXIO;
 
@@ -442,7 +447,12 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (!queue)
 		return -ENOENT;
 
+	/* Get a unique identifier for the submission for logging purposes */
+	submitid = atomic_inc_return(&ident) - 1;
+
 	ring = gpu->rb[queue->prio];
+	trace_msm_gpu_submit(pid_nr(pid), ring->id, submitid,
+		args->nr_bos, args->nr_cmds);
 
 	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
 		struct dma_fence *in_fence;
@@ -482,6 +492,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
+
+	submit->pid = pid;
+	submit->ident = submitid;
 
 	if (args->flags & MSM_SUBMIT_SUDO)
 		submit->in_rb = true;

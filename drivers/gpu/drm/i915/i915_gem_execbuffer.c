@@ -2186,7 +2186,7 @@ signal_fence_array(struct i915_execbuffer *eb,
 		if (!(flags & I915_EXEC_FENCE_SIGNAL))
 			continue;
 
-		drm_syncobj_replace_fence(syncobj, 0, fence);
+		drm_syncobj_replace_fence(syncobj, fence);
 	}
 }
 

@@ -126,10 +126,11 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 		}
 
 		if (!ret) {
-			if (!entry->shared)
+			if (!entry->num_shared)
 				continue;
 
-			ret = reservation_object_reserve_shared(bo->resv);
+			ret = reservation_object_reserve_shared(bo->resv,
+								entry->num_shared);
 			if (!ret)
 				continue;
 		}
@@ -150,8 +151,9 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			}
 		}
 
-		if (!ret && entry->shared)
-			ret = reservation_object_reserve_shared(bo->resv);
+		if (!ret && entry->num_shared)
+			ret = reservation_object_reserve_shared(bo->resv,
+								entry->num_shared);
 
 		if (unlikely(ret != 0)) {
 			if (ret == -EINTR)
@@ -187,21 +189,19 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 	struct ttm_buffer_object *bo;
 	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
-	struct ttm_bo_driver *driver;
 
 	if (list_empty(list))
 		return;
 
 	bo = list_first_entry(list, struct ttm_validate_buffer, head)->bo;
 	bdev = bo->bdev;
-	driver = bdev->driver;
 	glob = bo->bdev->glob;
 
 	spin_lock(&glob->lru_lock);
 
 	list_for_each_entry(entry, list, head) {
 		bo = entry->bo;
-		if (entry->shared)
+		if (entry->num_shared)
 			reservation_object_add_shared_fence(bo->resv, fence);
 		else
 			reservation_object_add_excl_fence(bo->resv, fence);

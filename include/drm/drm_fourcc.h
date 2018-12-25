@@ -52,25 +52,86 @@ struct drm_mode_fb_cmd2;
 
 /**
  * struct drm_format_info - information about a DRM format
- * @format: 4CC format identifier (DRM_FORMAT_*)
- * @depth: Color depth (number of bits per pixel excluding padding bits),
- *	valid for a subset of RGB formats only. This is a legacy field, do not
- *	use in new code and set to 0 for new formats.
- * @num_planes: Number of color planes (1 to 3)
- * @cpp: Number of bytes per pixel (per plane)
- * @hsub: Horizontal chroma subsampling factor
- * @vsub: Vertical chroma subsampling factor
- * @has_alpha: Does the format embeds an alpha component?
- * @is_yuv: Is it a YUV format?
  */
 struct drm_format_info {
+	/** @format: 4CC format identifier (DRM_FORMAT_*) */
 	u32 format;
+
+	/**
+	 * @depth:
+	 *
+	 * Color depth (number of bits per pixel excluding padding bits),
+	 * valid for a subset of RGB formats only. This is a legacy field, do
+	 * not use in new code and set to 0 for new formats.
+	 */
 	u8 depth;
+
+	/** @num_planes: Number of color planes (1 to 3) */
 	u8 num_planes;
-	u8 cpp[3];
+
+	union {
+		/**
+		 * @cpp:
+		 *
+		 * Number of bytes per pixel (per plane), this is aliased with
+		 * @char_per_block. It is deprecated in favour of using the
+		 * triplet @char_per_block, @block_w, @block_h for better
+		 * describing the pixel format.
+		 */
+		u8 cpp[3];
+
+		/**
+		 * @char_per_block:
+		 *
+		 * Number of bytes per block (per plane), where blocks are
+		 * defined as a rectangle of pixels which are stored next to
+		 * each other in a byte aligned memory region. Together with
+		 * @block_w and @block_h this is used to properly describe tiles
+		 * in tiled formats or to describe groups of pixels in packed
+		 * formats for which the memory needed for a single pixel is not
+		 * byte aligned.
+		 *
+		 * @cpp has been kept for historical reasons because there are
+		 * a lot of places in drivers where it's used. In drm core for
+		 * generic code paths the preferred way is to use
+		 * @char_per_block, drm_format_info_block_width() and
+		 * drm_format_info_block_height() which allows handling both
+		 * block and non-block formats in the same way.
+		 *
+		 * For formats that are intended to be used only with non-linear
+		 * modifiers both @cpp and @char_per_block must be 0 in the
+		 * generic format table. Drivers could supply accurate
+		 * information from their drm_mode_config.get_format_info hook
+		 * if they want the core to be validating the pitch.
+		 */
+		u8 char_per_block[3];
+	};
+
+	/**
+	 * @block_w:
+	 *
+	 * Block width in pixels, this is intended to be accessed through
+	 * drm_format_info_block_width()
+	 */
+	u8 block_w[3];
+
+	/**
+	 * @block_h:
+	 *
+	 * Block height in pixels, this is intended to be accessed through
+	 * drm_format_info_block_height()
+	 */
+	u8 block_h[3];
+
+	/** @hsub: Horizontal chroma subsampling factor */
 	u8 hsub;
+	/** @vsub: Vertical chroma subsampling factor */
 	u8 vsub;
+
+	/** @has_alpha: Does the format embeds an alpha component? */
 	bool has_alpha;
+
+	/** @is_yuv: Is it a YUV format? */
 	bool is_yuv;
 };
 
@@ -96,6 +157,12 @@ int drm_format_horz_chroma_subsampling(uint32_t format);
 int drm_format_vert_chroma_subsampling(uint32_t format);
 int drm_format_plane_width(int width, uint32_t format, int plane);
 int drm_format_plane_height(int height, uint32_t format, int plane);
+unsigned int drm_format_info_block_width(const struct drm_format_info *info,
+					 int plane);
+unsigned int drm_format_info_block_height(const struct drm_format_info *info,
+					  int plane);
+uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
+				   int plane, unsigned int buffer_width);
 const char *drm_get_format_name(uint32_t format, struct drm_format_name_buf *buf);
 
 #endif /* __DRM_FOURCC_H__ */

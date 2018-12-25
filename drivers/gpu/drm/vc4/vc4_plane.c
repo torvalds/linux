@@ -129,12 +129,12 @@ static const struct hvs_format *vc4_get_hvs_format(u32 drm_format)
 
 static enum vc4_scaling_mode vc4_get_scaling_mode(u32 src, u32 dst)
 {
-	if (dst > src)
-		return VC4_SCALING_PPF;
-	else if (dst < src)
-		return VC4_SCALING_TPZ;
-	else
+	if (dst == src)
 		return VC4_SCALING_NONE;
+	if (3 * dst >= 2 * src)
+		return VC4_SCALING_PPF;
+	else
+		return VC4_SCALING_TPZ;
 }
 
 static bool plane_enabled(struct drm_plane_state *state)
@@ -154,6 +154,7 @@ static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane
 		return NULL;
 
 	memset(&vc4_state->lbm, 0, sizeof(vc4_state->lbm));
+	vc4_state->dlist_initialized = 0;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &vc4_state->base);
 
@@ -259,37 +260,51 @@ static u32 vc4_get_scl_field(struct drm_plane_state *state, int plane)
 
 static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
-	struct drm_plane *plane = state->plane;
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	u32 subpixel_src_mask = (1 << 16) - 1;
 	u32 format = fb->format->format;
 	int num_planes = fb->format->num_planes;
-	u32 h_subsample = 1;
-	u32 v_subsample = 1;
-	int i;
+	struct drm_crtc_state *crtc_state;
+	u32 h_subsample, v_subsample;
+	int i, ret;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+							state->crtc);
+	if (!crtc_state) {
+		DRM_DEBUG_KMS("Invalid crtc state\n");
+		return -EINVAL;
+	}
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, 1,
+						  INT_MAX, true, true);
+	if (ret)
+		return ret;
+
+	h_subsample = drm_format_horz_chroma_subsampling(format);
+	v_subsample = drm_format_vert_chroma_subsampling(format);
 
 	for (i = 0; i < num_planes; i++)
 		vc4_state->offsets[i] = bo->paddr + fb->offsets[i];
 
 	/* We don't support subpixel source positioning for scaling. */
-	if ((state->src_x & subpixel_src_mask) ||
-	    (state->src_y & subpixel_src_mask) ||
-	    (state->src_w & subpixel_src_mask) ||
-	    (state->src_h & subpixel_src_mask)) {
+	if ((state->src.x1 & subpixel_src_mask) ||
+	    (state->src.x2 & subpixel_src_mask) ||
+	    (state->src.y1 & subpixel_src_mask) ||
+	    (state->src.y2 & subpixel_src_mask)) {
 		return -EINVAL;
 	}
 
-	vc4_state->src_x = state->src_x >> 16;
-	vc4_state->src_y = state->src_y >> 16;
-	vc4_state->src_w[0] = state->src_w >> 16;
-	vc4_state->src_h[0] = state->src_h >> 16;
+	vc4_state->src_x = state->src.x1 >> 16;
+	vc4_state->src_y = state->src.y1 >> 16;
+	vc4_state->src_w[0] = (state->src.x2 - state->src.x1) >> 16;
+	vc4_state->src_h[0] = (state->src.y2 - state->src.y1) >> 16;
 
-	vc4_state->crtc_x = state->crtc_x;
-	vc4_state->crtc_y = state->crtc_y;
-	vc4_state->crtc_w = state->crtc_w;
-	vc4_state->crtc_h = state->crtc_h;
+	vc4_state->crtc_x = state->dst.x1;
+	vc4_state->crtc_y = state->dst.y1;
+	vc4_state->crtc_w = state->dst.x2 - state->dst.x1;
+	vc4_state->crtc_h = state->dst.y2 - state->dst.y1;
 
 	vc4_state->x_scaling[0] = vc4_get_scaling_mode(vc4_state->src_w[0],
 						       vc4_state->crtc_w);
@@ -302,8 +317,6 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	if (num_planes > 1) {
 		vc4_state->is_yuv = true;
 
-		h_subsample = drm_format_horz_chroma_subsampling(format);
-		v_subsample = drm_format_vert_chroma_subsampling(format);
 		vc4_state->src_w[1] = vc4_state->src_w[0] / h_subsample;
 		vc4_state->src_h[1] = vc4_state->src_h[0] / v_subsample;
 
@@ -314,50 +327,18 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 			vc4_get_scaling_mode(vc4_state->src_h[1],
 					     vc4_state->crtc_h);
 
-		/* YUV conversion requires that horizontal scaling be enabled,
-		 * even on a plane that's otherwise 1:1. Looks like only PPF
-		 * works in that case, so let's pick that one.
+		/* YUV conversion requires that horizontal scaling be enabled
+		 * on the UV plane even if vc4_get_scaling_mode() returned
+		 * VC4_SCALING_NONE (which can happen when the down-scaling
+		 * ratio is 0.5). Let's force it to VC4_SCALING_PPF in this
+		 * case.
 		 */
-		if (vc4_state->is_unity)
-			vc4_state->x_scaling[0] = VC4_SCALING_PPF;
+		if (vc4_state->x_scaling[1] == VC4_SCALING_NONE)
+			vc4_state->x_scaling[1] = VC4_SCALING_PPF;
 	} else {
+		vc4_state->is_yuv = false;
 		vc4_state->x_scaling[1] = VC4_SCALING_NONE;
 		vc4_state->y_scaling[1] = VC4_SCALING_NONE;
-	}
-
-	/* No configuring scaling on the cursor plane, since it gets
-	   non-vblank-synced updates, and scaling requires requires
-	   LBM changes which have to be vblank-synced.
-	 */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR && !vc4_state->is_unity)
-		return -EINVAL;
-
-	/* Clamp the on-screen start x/y to 0.  The hardware doesn't
-	 * support negative y, and negative x wastes bandwidth.
-	 */
-	if (vc4_state->crtc_x < 0) {
-		for (i = 0; i < num_planes; i++) {
-			u32 cpp = fb->format->cpp[i];
-			u32 subs = ((i == 0) ? 1 : h_subsample);
-
-			vc4_state->offsets[i] += (cpp *
-						  (-vc4_state->crtc_x) / subs);
-		}
-		vc4_state->src_w[0] += vc4_state->crtc_x;
-		vc4_state->src_w[1] += vc4_state->crtc_x / h_subsample;
-		vc4_state->crtc_x = 0;
-	}
-
-	if (vc4_state->crtc_y < 0) {
-		for (i = 0; i < num_planes; i++) {
-			u32 subs = ((i == 0) ? 1 : v_subsample);
-
-			vc4_state->offsets[i] += (fb->pitches[i] *
-						  (-vc4_state->crtc_y) / subs);
-		}
-		vc4_state->src_h[0] += vc4_state->crtc_y;
-		vc4_state->src_h[1] += vc4_state->crtc_y / v_subsample;
-		vc4_state->crtc_y = 0;
 	}
 
 	return 0;
@@ -400,10 +381,13 @@ static u32 vc4_lbm_size(struct drm_plane_state *state)
 	u32 pix_per_line = max(vc4_state->src_w[0], (u32)vc4_state->crtc_w);
 	u32 lbm;
 
+	/* LBM is not needed when there's no vertical scaling. */
+	if (vc4_state->y_scaling[0] == VC4_SCALING_NONE &&
+	    vc4_state->y_scaling[1] == VC4_SCALING_NONE)
+		return 0;
+
 	if (!vc4_state->is_yuv) {
-		if (vc4_state->is_unity)
-			return 0;
-		else if (vc4_state->y_scaling[0] == VC4_SCALING_TPZ)
+		if (vc4_state->y_scaling[0] == VC4_SCALING_TPZ)
 			lbm = pix_per_line * 8;
 		else {
 			/* In special cases, this multiplier might be 12. */
@@ -454,6 +438,43 @@ static void vc4_write_scaling_parameters(struct drm_plane_state *state,
 	}
 }
 
+static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	unsigned long irqflags;
+	u32 lbm_size;
+
+	lbm_size = vc4_lbm_size(state);
+	if (!lbm_size)
+		return 0;
+
+	if (WARN_ON(!vc4_state->lbm_offset))
+		return -EINVAL;
+
+	/* Allocate the LBM memory that the HVS will use for temporary
+	 * storage due to our scaling/format conversion.
+	 */
+	if (!vc4_state->lbm.allocated) {
+		int ret;
+
+		spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
+		ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
+						 &vc4_state->lbm,
+						 lbm_size, 32, 0, 0);
+		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
+
+		if (ret)
+			return ret;
+	} else {
+		WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
+	}
+
+	vc4_state->dlist[vc4_state->lbm_offset] = vc4_state->lbm.start;
+
+	return 0;
+}
+
 /* Writes out a full display list for an active plane to the plane's
  * private dlist state.
  */
@@ -467,34 +488,18 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	u64 base_format_mod = fourcc_mod_broadcom_mod(fb->modifier);
 	int num_planes = drm_format_num_planes(format->drm);
+	u32 h_subsample, v_subsample;
 	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
-	u32 lbm_size, tiling;
-	unsigned long irqflags;
+	u32 tiling;
 	u32 hvs_format = format->hvs;
 	int ret, i;
 
+	if (vc4_state->dlist_initialized)
+		return 0;
+
 	ret = vc4_plane_setup_clipping_and_scaling(state);
-	if (ret)
-		return ret;
-
-	/* Allocate the LBM memory that the HVS will use for temporary
-	 * storage due to our scaling/format conversion.
-	 */
-	lbm_size = vc4_lbm_size(state);
-	if (lbm_size) {
-		if (!vc4_state->lbm.allocated) {
-			spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
-			ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
-							 &vc4_state->lbm,
-							 lbm_size, 32, 0, 0);
-			spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
-		} else {
-			WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
-		}
-	}
-
 	if (ret)
 		return ret;
 
@@ -512,26 +517,77 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		scl1 = vc4_get_scl_field(state, 0);
 	}
 
+	h_subsample = drm_format_horz_chroma_subsampling(format->drm);
+	v_subsample = drm_format_vert_chroma_subsampling(format->drm);
+
 	switch (base_format_mod) {
 	case DRM_FORMAT_MOD_LINEAR:
 		tiling = SCALER_CTL0_TILING_LINEAR;
 		pitch0 = VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH);
+
+		/* Adjust the base pointer to the first pixel to be scanned
+		 * out.
+		 */
+		for (i = 0; i < num_planes; i++) {
+			vc4_state->offsets[i] += vc4_state->src_y /
+						 (i ? v_subsample : 1) *
+						 fb->pitches[i];
+			vc4_state->offsets[i] += vc4_state->src_x /
+						 (i ? h_subsample : 1) *
+						 fb->format->cpp[i];
+		}
+
 		break;
 
 	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED: {
-		/* For T-tiled, the FB pitch is "how many bytes from
-		 * one row to the next, such that pitch * tile_h ==
-		 * tile_size * tiles_per_row."
-		 */
 		u32 tile_size_shift = 12; /* T tiles are 4kb */
+		/* Whole-tile offsets, mostly for setting the pitch. */
+		u32 tile_w_shift = fb->format->cpp[0] == 2 ? 6 : 5;
 		u32 tile_h_shift = 5; /* 16 and 32bpp are 32 pixels high */
+		u32 tile_w_mask = (1 << tile_w_shift) - 1;
+		/* The height mask on 32-bit-per-pixel tiles is 63, i.e. twice
+		 * the height (in pixels) of a 4k tile.
+		 */
+		u32 tile_h_mask = (2 << tile_h_shift) - 1;
+		/* For T-tiled, the FB pitch is "how many bytes from one row to
+		 * the next, such that
+		 *
+		 *	pitch * tile_h == tile_size * tiles_per_row
+		 */
 		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
+		u32 tiles_l = vc4_state->src_x >> tile_w_shift;
+		u32 tiles_r = tiles_w - tiles_l;
+		u32 tiles_t = vc4_state->src_y >> tile_h_shift;
+		/* Intra-tile offsets, which modify the base address (the
+		 * SCALER_PITCH0_TILE_Y_OFFSET tells HVS how to walk from that
+		 * base address).
+		 */
+		u32 tile_y = (vc4_state->src_y >> 4) & 1;
+		u32 subtile_y = (vc4_state->src_y >> 2) & 3;
+		u32 utile_y = vc4_state->src_y & 3;
+		u32 x_off = vc4_state->src_x & tile_w_mask;
+		u32 y_off = vc4_state->src_y & tile_h_mask;
 
 		tiling = SCALER_CTL0_TILING_256B_OR_T;
+		pitch0 = (VC4_SET_FIELD(x_off, SCALER_PITCH0_SINK_PIX) |
+			  VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
+			  VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
+			  VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
+		vc4_state->offsets[0] += tiles_t * (tiles_w << tile_size_shift);
+		vc4_state->offsets[0] += subtile_y << 8;
+		vc4_state->offsets[0] += utile_y << 4;
 
-		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET) |
-			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L) |
-			  VC4_SET_FIELD(tiles_w, SCALER_PITCH0_TILE_WIDTH_R));
+		/* Rows of tiles alternate left-to-right and right-to-left. */
+		if (tiles_t & 1) {
+			pitch0 |= SCALER_PITCH0_TILE_INITIAL_LINE_DIR;
+			vc4_state->offsets[0] += (tiles_w - tiles_l) <<
+						 tile_size_shift;
+			vc4_state->offsets[0] -= (1 + !tile_y) << 10;
+		} else {
+			vc4_state->offsets[0] += tiles_l << tile_size_shift;
+			vc4_state->offsets[0] += tile_y << 10;
+		}
+
 		break;
 	}
 
@@ -667,15 +723,18 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		vc4_dlist_write(vc4_state, SCALER_CSC2_ITR_R_601_5);
 	}
 
+	vc4_state->lbm_offset = 0;
+
 	if (vc4_state->x_scaling[0] != VC4_SCALING_NONE ||
 	    vc4_state->x_scaling[1] != VC4_SCALING_NONE ||
 	    vc4_state->y_scaling[0] != VC4_SCALING_NONE ||
 	    vc4_state->y_scaling[1] != VC4_SCALING_NONE) {
-		/* LBM Base Address. */
+		/* Reserve a slot for the LBM Base Address. The real value will
+		 * be set when calling vc4_plane_allocate_lbm().
+		 */
 		if (vc4_state->y_scaling[0] != VC4_SCALING_NONE ||
-		    vc4_state->y_scaling[1] != VC4_SCALING_NONE) {
-			vc4_dlist_write(vc4_state, vc4_state->lbm.start);
-		}
+		    vc4_state->y_scaling[1] != VC4_SCALING_NONE)
+			vc4_state->lbm_offset = vc4_state->dlist_count++;
 
 		if (num_planes > 1) {
 			/* Emit Cb/Cr as channel 0 and Y as channel
@@ -721,6 +780,13 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen ||
 				   state->alpha != DRM_BLEND_ALPHA_OPAQUE;
 
+	/* Flag the dlist as initialized to avoid checking it twice in case
+	 * the async update check already called vc4_plane_mode_set() and
+	 * decided to fallback to sync update because async update was not
+	 * possible.
+	 */
+	vc4_state->dlist_initialized = 1;
+
 	return 0;
 }
 
@@ -735,13 +801,18 @@ static int vc4_plane_atomic_check(struct drm_plane *plane,
 				  struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	int ret;
 
 	vc4_state->dlist_count = 0;
 
-	if (plane_enabled(state))
-		return vc4_plane_mode_set(plane, state);
-	else
+	if (!plane_enabled(state))
 		return 0;
+
+	ret = vc4_plane_mode_set(plane, state);
+	if (ret)
+		return ret;
+
+	return vc4_plane_allocate_lbm(state);
 }
 
 static void vc4_plane_atomic_update(struct drm_plane *plane,
@@ -809,29 +880,49 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 {
 	struct vc4_plane_state *vc4_state, *new_vc4_state;
 
-	if (plane->state->fb != state->fb) {
-		vc4_plane_async_set_fb(plane, state->fb);
-		drm_atomic_set_fb_for_plane(plane->state, state->fb);
-	}
-
-	/* Set the cursor's position on the screen.  This is the
-	 * expected change from the drm_mode_cursor_universal()
-	 * helper.
-	 */
+	drm_atomic_set_fb_for_plane(plane->state, state->fb);
 	plane->state->crtc_x = state->crtc_x;
 	plane->state->crtc_y = state->crtc_y;
-
-	/* Allow changing the start position within the cursor BO, if
-	 * that matters.
-	 */
+	plane->state->crtc_w = state->crtc_w;
+	plane->state->crtc_h = state->crtc_h;
 	plane->state->src_x = state->src_x;
 	plane->state->src_y = state->src_y;
-
-	/* Update the display list based on the new crtc_x/y. */
-	vc4_plane_atomic_check(plane, state);
+	plane->state->src_w = state->src_w;
+	plane->state->src_h = state->src_h;
+	plane->state->src_h = state->src_h;
+	plane->state->alpha = state->alpha;
+	plane->state->pixel_blend_mode = state->pixel_blend_mode;
+	plane->state->rotation = state->rotation;
+	plane->state->zpos = state->zpos;
+	plane->state->normalized_zpos = state->normalized_zpos;
+	plane->state->color_encoding = state->color_encoding;
+	plane->state->color_range = state->color_range;
+	plane->state->src = state->src;
+	plane->state->dst = state->dst;
+	plane->state->visible = state->visible;
 
 	new_vc4_state = to_vc4_plane_state(state);
 	vc4_state = to_vc4_plane_state(plane->state);
+
+	vc4_state->crtc_x = new_vc4_state->crtc_x;
+	vc4_state->crtc_y = new_vc4_state->crtc_y;
+	vc4_state->crtc_h = new_vc4_state->crtc_h;
+	vc4_state->crtc_w = new_vc4_state->crtc_w;
+	vc4_state->src_x = new_vc4_state->src_x;
+	vc4_state->src_y = new_vc4_state->src_y;
+	memcpy(vc4_state->src_w, new_vc4_state->src_w,
+	       sizeof(vc4_state->src_w));
+	memcpy(vc4_state->src_h, new_vc4_state->src_h,
+	       sizeof(vc4_state->src_h));
+	memcpy(vc4_state->x_scaling, new_vc4_state->x_scaling,
+	       sizeof(vc4_state->x_scaling));
+	memcpy(vc4_state->y_scaling, new_vc4_state->y_scaling,
+	       sizeof(vc4_state->y_scaling));
+	vc4_state->is_unity = new_vc4_state->is_unity;
+	vc4_state->is_yuv = new_vc4_state->is_yuv;
+	memcpy(vc4_state->offsets, new_vc4_state->offsets,
+	       sizeof(vc4_state->offsets));
+	vc4_state->needs_bg_fill = new_vc4_state->needs_bg_fill;
 
 	/* Update the current vc4_state pos0, pos2 and ptr0 dlist entries. */
 	vc4_state->dlist[vc4_state->pos0_offset] =
@@ -856,12 +947,37 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 static int vc4_plane_atomic_async_check(struct drm_plane *plane,
 					struct drm_plane_state *state)
 {
-	/* No configuring new scaling in the fast path. */
-	if (plane->state->crtc_w != state->crtc_w ||
-	    plane->state->crtc_h != state->crtc_h ||
-	    plane->state->src_w != state->src_w ||
-	    plane->state->src_h != state->src_h)
+	struct vc4_plane_state *old_vc4_state, *new_vc4_state;
+	int ret;
+	u32 i;
+
+	ret = vc4_plane_mode_set(plane, state);
+	if (ret)
+		return ret;
+
+	old_vc4_state = to_vc4_plane_state(plane->state);
+	new_vc4_state = to_vc4_plane_state(state);
+	if (old_vc4_state->dlist_count != new_vc4_state->dlist_count ||
+	    old_vc4_state->pos0_offset != new_vc4_state->pos0_offset ||
+	    old_vc4_state->pos2_offset != new_vc4_state->pos2_offset ||
+	    old_vc4_state->ptr0_offset != new_vc4_state->ptr0_offset ||
+	    vc4_lbm_size(plane->state) != vc4_lbm_size(state))
 		return -EINVAL;
+
+	/* Only pos0, pos2 and ptr0 DWORDS can be updated in an async update
+	 * if anything else has changed, fallback to a sync update.
+	 */
+	for (i = 0; i < new_vc4_state->dlist_count; i++) {
+		if (i == new_vc4_state->pos0_offset ||
+		    i == new_vc4_state->pos2_offset ||
+		    i == new_vc4_state->ptr0_offset ||
+		    (new_vc4_state->lbm_offset &&
+		     i == new_vc4_state->lbm_offset))
+			continue;
+
+		if (new_vc4_state->dlist[i] != old_vc4_state->dlist[i])
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -914,7 +1030,6 @@ static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 
 static void vc4_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 }
 
@@ -980,7 +1095,6 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct vc4_plane *vc4_plane;
 	u32 formats[ARRAY_SIZE(hvs_formats)];
-	u32 num_formats = 0;
 	int ret = 0;
 	unsigned i;
 	static const uint64_t modifiers[] = {
@@ -997,20 +1111,13 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	if (!vc4_plane)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++) {
-		/* Don't allow YUV in cursor planes, since that means
-		 * tuning on the scaler, which we don't allow for the
-		 * cursor.
-		 */
-		if (type != DRM_PLANE_TYPE_CURSOR ||
-		    hvs_formats[i].hvs < HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE) {
-			formats[num_formats++] = hvs_formats[i].drm;
-		}
-	}
+	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++)
+		formats[i] = hvs_formats[i].drm;
+
 	plane = &vc4_plane->base;
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
-				       formats, num_formats,
+				       formats, ARRAY_SIZE(formats),
 				       modifiers, type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);

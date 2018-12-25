@@ -667,7 +667,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
-	mutex_init(&dev_priv->requested_layout_mutex);
 	mutex_init(&dev_priv->global_kms_state_mutex);
 	ttm_lock_init(&dev_priv->reservation_sem);
 	spin_lock_init(&dev_priv->resource_lock);
@@ -803,11 +802,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	DRM_INFO("MMIO at 0x%08x size is %u kiB\n",
 		 dev_priv->mmio_start, dev_priv->mmio_size / 1024);
 
-	ret = vmw_ttm_global_init(dev_priv);
-	if (unlikely(ret != 0))
-		goto out_err0;
-
-
 	vmw_master_init(&dev_priv->fbdev_master);
 	ttm_lock_set_kill(&dev_priv->fbdev_master.lock, false, SIGTERM);
 	dev_priv->active_master = &dev_priv->fbdev_master;
@@ -818,7 +812,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (unlikely(dev_priv->mmio_virt == NULL)) {
 		ret = -ENOMEM;
 		DRM_ERROR("Failed mapping MMIO.\n");
-		goto out_err3;
+		goto out_err0;
 	}
 
 	/* Need mmio memory to check for fifo pitchlock cap. */
@@ -830,8 +824,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_err4;
 	}
 
-	dev_priv->tdev = ttm_object_device_init
-		(dev_priv->mem_global_ref.object, 12, &vmw_prime_dmabuf_ops);
+	dev_priv->tdev = ttm_object_device_init(&ttm_mem_glob, 12,
+						&vmw_prime_dmabuf_ops);
 
 	if (unlikely(dev_priv->tdev == NULL)) {
 		DRM_ERROR("Unable to initialize TTM object management.\n");
@@ -872,7 +866,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	ret = ttm_bo_device_init(&dev_priv->bdev,
-				 dev_priv->bo_global_ref.ref.object,
 				 &vmw_bo_driver,
 				 dev->anon_inode->i_mapping,
 				 VMWGFX_FILE_PAGE_OFFSET,
@@ -994,8 +987,6 @@ out_no_device:
 	ttm_object_device_release(&dev_priv->tdev);
 out_err4:
 	memunmap(dev_priv->mmio_virt);
-out_err3:
-	vmw_ttm_global_release(dev_priv);
 out_err0:
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
 		idr_destroy(&dev_priv->res_idr[i]);
@@ -1047,7 +1038,6 @@ static void vmw_driver_unload(struct drm_device *dev)
 	memunmap(dev_priv->mmio_virt);
 	if (dev_priv->ctx.staged_bindings)
 		vmw_binding_state_free(dev_priv->ctx.staged_bindings);
-	vmw_ttm_global_release(dev_priv);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
 		idr_destroy(&dev_priv->res_idr[i]);

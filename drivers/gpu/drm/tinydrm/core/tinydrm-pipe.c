@@ -184,6 +184,10 @@ tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 	struct drm_display_mode mode_copy;
 	struct drm_connector *connector;
 	int ret;
+	static const uint64_t modifiers[] = {
+		DRM_FORMAT_MOD_LINEAR,
+		DRM_FORMAT_MOD_INVALID
+	};
 
 	drm_mode_copy(&mode_copy, mode);
 	ret = tinydrm_rotate_mode(&mode_copy, rotation);
@@ -202,6 +206,6 @@ tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 		return PTR_ERR(connector);
 
 	return drm_simple_display_pipe_init(drm, &tdev->pipe, funcs, formats,
-					    format_count, NULL, connector);
+					    format_count, modifiers, connector);
 }
 EXPORT_SYMBOL(tinydrm_display_pipe_init);

@@ -594,17 +594,7 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 	dev_dbg(connector->dev->dev, "%s: vclk:%d venc=%d hdmi=%d\n", __func__,
 		vclk_freq, venc_freq, hdmi_freq);
 
-	/* Finally filter by configurable vclk frequencies for VIC modes */
-	switch (vclk_freq) {
-	case 54000:
-	case 74250:
-	case 148500:
-	case 297000:
-	case 594000:
-		return MODE_OK;
-	}
-
-	return MODE_CLOCK_RANGE;
+	return meson_vclk_vic_supported_freq(vclk_freq);
 }
 
 /* Encoder */

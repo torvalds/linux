@@ -194,7 +194,7 @@ static int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	/* Copy PSP System Driver binary to memory */
 	memcpy(psp->fw_pri_buf, psp->sys_start_addr, psp->sys_bin_size);
 
-	/* Provide the sys driver to bootrom */
+	/* Provide the sys driver to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 1 << 16;
@@ -254,7 +254,7 @@ static int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 	/* Copy Secure OS binary to PSP memory */
 	memcpy(psp->fw_pri_buf, psp->sos_start_addr, psp->sos_bin_size);
 
-	/* Provide the PSP secure OS to bootrom */
+	/* Provide the PSP secure OS to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 2 << 16;
@@ -356,11 +356,8 @@ static int psp_v3_1_ring_stop(struct psp_context *psp,
 			      enum psp_ring_type ring_type)
 {
 	int ret = 0;
-	struct psp_ring *ring;
 	unsigned int psp_ring_reg = 0;
 	struct amdgpu_device *adev = psp->adev;
-
-	ring = &psp->km_ring;
 
 	/* Write the ring destroy command to C2PMSG_64 */
 	psp_ring_reg = 3 << 16;
@@ -593,9 +590,9 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 	}
 
 	/*send the mode 1 reset command*/
-	WREG32(offset, 0x70000);
+	WREG32(offset, GFX_CTRL_CMD_ID_MODE1_RST);
 
-	mdelay(1000);
+	msleep(500);
 
 	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
 

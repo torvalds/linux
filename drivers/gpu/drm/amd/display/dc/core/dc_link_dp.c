@@ -2196,7 +2196,7 @@ static void get_active_converter_info(
 	}
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_11) {
-		uint8_t det_caps[4];
+		uint8_t det_caps[16]; /* CTS 4.2.2.7 expects source to read Detailed Capabilities Info : 00080h-0008F.*/
 		union dwnstream_port_caps_byte0 *port_caps =
 			(union dwnstream_port_caps_byte0 *)det_caps;
 		core_link_read_dpcd(link, DP_DOWNSTREAM_PORT_0,
@@ -2371,11 +2371,22 @@ static bool retrieve_link_cap(struct dc_link *link)
 			dpcd_data[DP_TRAINING_AUX_RD_INTERVAL];
 
 		if (aux_rd_interval.bits.EXT_RECIEVER_CAP_FIELD_PRESENT == 1) {
-			core_link_read_dpcd(
+			uint8_t ext_cap_data[16];
+
+			memset(ext_cap_data, '\0', sizeof(ext_cap_data));
+			for (i = 0; i < read_dpcd_retry_cnt; i++) {
+				status = core_link_read_dpcd(
 				link,
 				DP_DP13_DPCD_REV,
-				dpcd_data,
-				sizeof(dpcd_data));
+				ext_cap_data,
+				sizeof(ext_cap_data));
+				if (status == DC_OK) {
+					memcpy(dpcd_data, ext_cap_data, sizeof(dpcd_data));
+					break;
+				}
+			}
+			if (status != DC_OK)
+				dm_error("%s: Read extend caps data failed, use cap from dpcd 0.\n", __func__);
 		}
 	}
 

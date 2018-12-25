@@ -454,9 +454,10 @@ module_param_named(cntl_sb_buf_per_se, amdgpu_cntl_sb_buf_per_se, int, 0444);
 
 /**
  * DOC: param_buf_per_se (int)
- * Override the size of Off-Chip Pramater Cache per Shader Engine in Byte. The default is 0 (depending on gfx).
+ * Override the size of Off-Chip Parameter Cache per Shader Engine in Byte.
+ * The default is 0 (depending on gfx).
  */
-MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Pramater Cache per Shader Engine (default depending on gfx)");
+MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Parameter Cache per Shader Engine (default depending on gfx)");
 module_param_named(param_buf_per_se, amdgpu_param_buf_per_se, int, 0444);
 
 /**
@@ -1227,9 +1228,6 @@ static struct drm_driver kms_driver = {
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
 
-static struct drm_driver *driver;
-static struct pci_driver *pdriver;
-
 static struct pci_driver amdgpu_kms_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
@@ -1259,16 +1257,14 @@ static int __init amdgpu_init(void)
 		goto error_fence;
 
 	DRM_INFO("amdgpu kernel modesetting enabled.\n");
-	driver = &kms_driver;
-	pdriver = &amdgpu_kms_pci_driver;
-	driver->num_ioctls = amdgpu_max_kms_ioctl;
+	kms_driver.num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
 
 	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
 	amdgpu_amdkfd_init();
 
 	/* let modprobe override vga console setting */
-	return pci_register_driver(pdriver);
+	return pci_register_driver(&amdgpu_kms_pci_driver);
 
 error_fence:
 	amdgpu_sync_fini();
@@ -1280,7 +1276,7 @@ error_sync:
 static void __exit amdgpu_exit(void)
 {
 	amdgpu_amdkfd_fini();
-	pci_unregister_driver(pdriver);
+	pci_unregister_driver(&amdgpu_kms_pci_driver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
 	amdgpu_fence_slab_fini();

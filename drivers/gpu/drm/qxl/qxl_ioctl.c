@@ -85,6 +85,7 @@ static void
 apply_reloc(struct qxl_device *qdev, struct qxl_reloc_info *info)
 {
 	void *reloc_page;
+
 	reloc_page = qxl_bo_kmap_atomic_page(qdev, info->dst_bo, info->dst_offset & PAGE_MASK);
 	*(uint64_t *)(reloc_page + (info->dst_offset & ~PAGE_MASK)) = qxl_bo_physical_address(qdev,
 											      info->src_bo,
@@ -189,6 +190,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 
 	{
 		struct qxl_drawable *draw = fb_cmd;
+
 		draw->mm_time = qdev->rom->mm_clock;
 	}
 

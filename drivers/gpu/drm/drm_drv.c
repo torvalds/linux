@@ -476,8 +476,6 @@ static void drm_fs_inode_free(struct inode *inode)
  * The initial ref-count of the object is 1. Use drm_dev_get() and
  * drm_dev_put() to take and drop further ref-counts.
  *
- * Note that for purely virtual devices @parent can be NULL.
- *
  * Drivers that do not want to allocate their own device struct
  * embedding &struct drm_device can call drm_dev_alloc() instead. For drivers
  * that do embed &struct drm_device it must be placed first in the overall
@@ -501,6 +499,8 @@ int drm_dev_init(struct drm_device *dev,
 		DRM_ERROR("DRM core is not initialized\n");
 		return -ENODEV;
 	}
+
+	BUG_ON(!parent);
 
 	kref_init(&dev->ref);
 	dev->dev = parent;
@@ -556,9 +556,7 @@ int drm_dev_init(struct drm_device *dev,
 		}
 	}
 
-	/* Use the parent device name as DRM device unique identifier, but fall
-	 * back to the driver name for virtual devices like vgem. */
-	ret = drm_dev_set_unique(dev, parent ? dev_name(parent) : driver->name);
+	ret = drm_dev_set_unique(dev, dev_name(parent));
 	if (ret)
 		goto err_setunique;
 
@@ -705,19 +703,6 @@ void drm_dev_put(struct drm_device *dev)
 		kref_put(&dev->ref, drm_dev_release);
 }
 EXPORT_SYMBOL(drm_dev_put);
-
-/**
- * drm_dev_unref - Drop reference of a DRM device
- * @dev: device to drop reference of or NULL
- *
- * This is a compatibility alias for drm_dev_put() and should not be used by new
- * code.
- */
-void drm_dev_unref(struct drm_device *dev)
-{
-	drm_dev_put(dev);
-}
-EXPORT_SYMBOL(drm_dev_unref);
 
 static int create_compat_control_link(struct drm_device *dev)
 {
@@ -975,14 +960,12 @@ static void drm_core_exit(void)
 	drm_sysfs_destroy();
 	idr_destroy(&drm_minors_idr);
 	drm_connector_ida_destroy();
-	drm_global_release();
 }
 
 static int __init drm_core_init(void)
 {
 	int ret;
 
-	drm_global_init();
 	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
 

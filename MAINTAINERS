@@ -4737,6 +4737,13 @@ S:	Maintained
 F:	drivers/gpu/drm/tinydrm/ili9225.c
 F:	Documentation/devicetree/bindings/display/ilitek,ili9225.txt
 
+DRM DRIVER FOR HX8357D PANELS
+M:	Eric Anholt <eric@anholt.net>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/tinydrm/hx8357d.c
+F:	Documentation/devicetree/bindings/display/himax,hx8357d.txt
+
 DRM DRIVER FOR INTEL I810 VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/i810/
@@ -4777,6 +4784,12 @@ T:	git git://github.com/skeggsb/linux
 S:	Supported
 F:	drivers/gpu/drm/nouveau/
 F:	include/uapi/drm/nouveau_drm.h
+
+DRM DRIVER FOR OLIMEX LCD-OLINUXINO PANELS
+M:	Stefan Mavrodiev <stefan@olimex.com>
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-olimex-lcd-olinuxino.c
+F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.txt
 
 DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS
 M:	Noralf Trønnes <noralf@tronnes.org>
@@ -4843,10 +4856,8 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVER FOR VMWARE VIRTUAL GPU
 M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
-M:	Sinclair Yeh <syeh@vmware.com>
 M:	Thomas Hellstrom <thellstrom@vmware.com>
 L:	dri-devel@lists.freedesktop.org
-T:	git git://people.freedesktop.org/~syeh/repos_linux
 T:	git git://people.freedesktop.org/~thomash/linux
 S:	Supported
 F:	drivers/gpu/drm/vmwgfx/

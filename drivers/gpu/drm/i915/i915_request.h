@@ -277,8 +277,9 @@ long i915_request_wait(struct i915_request *rq,
 	__attribute__((nonnull(1)));
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
 #define I915_WAIT_LOCKED	BIT(1) /* struct_mutex held, handle GPU reset */
-#define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
-#define I915_WAIT_FOR_IDLE_BOOST BIT(3)
+#define I915_WAIT_PRIORITY	BIT(2) /* small priority bump for the request */
+#define I915_WAIT_ALL		BIT(3) /* used by i915_gem_object_wait() */
+#define I915_WAIT_FOR_IDLE_BOOST BIT(4)
 
 static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
 					    u32 seqno);
@@ -330,14 +331,6 @@ static inline bool i915_request_completed(const struct i915_request *rq)
 		return false;
 
 	return __i915_request_completed(rq, seqno);
-}
-
-static inline bool i915_sched_node_signaled(const struct i915_sched_node *node)
-{
-	const struct i915_request *rq =
-		container_of(node, const struct i915_request, sched);
-
-	return i915_request_completed(rq);
 }
 
 void i915_retire_requests(struct drm_i915_private *i915);

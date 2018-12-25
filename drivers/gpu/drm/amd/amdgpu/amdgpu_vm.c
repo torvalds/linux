@@ -617,7 +617,8 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 {
 	entry->priority = 0;
 	entry->tv.bo = &vm->root.base.bo->tbo;
-	entry->tv.shared = true;
+	/* One for the VM updates, one for TTM and one for the CS job */
+	entry->tv.num_shared = 3;
 	entry->user_pages = NULL;
 	list_add(&entry->tv.head, validated);
 }
@@ -772,10 +773,6 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	}
 
 	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
-
-	r = reservation_object_reserve_shared(bo->tbo.resv);
-	if (r)
-		return r;
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (r)
@@ -1841,10 +1838,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	r = amdgpu_sync_resv(adev, &job->sync, vm->root.base.bo->tbo.resv,
 			     owner, false);
-	if (r)
-		goto error_free;
-
-	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
 	if (r)
 		goto error_free;
 
@@ -3028,6 +3021,10 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		goto error_free_root;
 
+	r = reservation_object_reserve_shared(root->tbo.resv, 1);
+	if (r)
+		goto error_unreserve;
+
 	r = amdgpu_vm_clear_bo(adev, vm, root,
 			       adev->vm_manager.root_level,
 			       vm->pte_support_ats);
@@ -3057,7 +3054,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 
 	INIT_KFIFO(vm->faults);
-	vm->fault_credit = 16;
 
 	return 0;
 
@@ -3267,42 +3263,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	dma_fence_put(vm->last_update);
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		amdgpu_vmid_free_reserved(adev, vm, i);
-}
-
-/**
- * amdgpu_vm_pasid_fault_credit - Check fault credit for given PASID
- *
- * @adev: amdgpu_device pointer
- * @pasid: PASID do identify the VM
- *
- * This function is expected to be called in interrupt context.
- *
- * Returns:
- * True if there was fault credit, false otherwise
- */
-bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
-				  unsigned int pasid)
-{
-	struct amdgpu_vm *vm;
-
-	spin_lock(&adev->vm_manager.pasid_lock);
-	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
-	if (!vm) {
-		/* VM not found, can't track fault credit */
-		spin_unlock(&adev->vm_manager.pasid_lock);
-		return true;
-	}
-
-	/* No lock needed. only accessed by IRQ handler */
-	if (!vm->fault_credit) {
-		/* Too many faults in this VM */
-		spin_unlock(&adev->vm_manager.pasid_lock);
-		return false;
-	}
-
-	vm->fault_credit--;
-	spin_unlock(&adev->vm_manager.pasid_lock);
-	return true;
 }
 
 /**

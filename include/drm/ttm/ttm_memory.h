@@ -63,7 +63,7 @@
 
 #define TTM_MEM_MAX_ZONES 2
 struct ttm_mem_zone;
-struct ttm_mem_global {
+extern struct ttm_mem_global {
 	struct kobject kobj;
 	struct ttm_bo_global *bo_glob;
 	struct workqueue_struct *swap_queue;
@@ -78,7 +78,7 @@ struct ttm_mem_global {
 #else
 	struct ttm_mem_zone *zone_dma32;
 #endif
-};
+} ttm_mem_glob;
 
 extern int ttm_mem_global_init(struct ttm_mem_global *glob);
 extern void ttm_mem_global_release(struct ttm_mem_global *glob);

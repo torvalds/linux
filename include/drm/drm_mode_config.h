@@ -52,6 +52,12 @@ struct drm_mode_config_funcs {
 	 * requested metadata, but most of that is left to the driver. See
 	 * &struct drm_mode_fb_cmd2 for details.
 	 *
+	 * To validate the pixel format and modifier drivers can use
+	 * drm_any_plane_has_format() to make sure at least one plane supports
+	 * the requested values. Note that the driver must first determine the
+	 * actual modifier used if the request doesn't have it specified,
+	 * ie. when (@mode_cmd->flags & DRM_MODE_FB_MODIFIERS) == 0.
+	 *
 	 * If the parameters are deemed valid and the backing storage objects in
 	 * the underlying memory manager all exist, then the driver allocates
 	 * a new &drm_framebuffer structure, subclassed to contain
@@ -628,6 +634,15 @@ struct drm_mode_config {
 	 */
 	struct drm_property *prop_crtc_id;
 	/**
+	 * @prop_fb_damage_clips: Optional plane property to mark damaged
+	 * regions on the plane in framebuffer coordinates of the framebuffer
+	 * attached to the plane.
+	 *
+	 * The layout of blob data is simply an array of &drm_mode_rect. Unlike
+	 * plane src coordinates, damage clips are not in 16.16 fixed point.
+	 */
+	struct drm_property *prop_fb_damage_clips;
+	/**
 	 * @prop_active: Default atomic CRTC property to control the active
 	 * state, which is the simplified implementation for DPMS in atomic
 	 * drivers.
@@ -639,6 +654,11 @@ struct drm_mode_config {
 	 * connectors must be of and active must be set to disabled, too.
 	 */
 	struct drm_property *prop_mode_id;
+	/**
+	 * @prop_vrr_enabled: Default atomic CRTC property to indicate
+	 * whether variable refresh rate should be enabled on the CRTC.
+	 */
+	struct drm_property *prop_vrr_enabled;
 
 	/**
 	 * @dvi_i_subconnector_property: Optional DVI-I property to
@@ -809,6 +829,13 @@ struct drm_mode_config {
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+
+	/**
+	 * @quirk_addfb_prefer_xbgr_30bpp:
+	 *
+	 * Special hack for legacy ADDFB to keep nouveau userspace happy. Should
+	 * only ever be set by the nouveau kernel driver.
+	 */
 	bool quirk_addfb_prefer_xbgr_30bpp;
 
 	/**

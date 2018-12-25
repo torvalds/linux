@@ -36,6 +36,7 @@
 #include "kfd_topology.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_iommu.h"
+#include "amdgpu_amdkfd.h"
 
 /* topology_device_list - Master list of all topology devices */
 static struct list_head topology_device_list;
@@ -100,7 +101,25 @@ struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev)
 	down_read(&topology_lock);
 
 	list_for_each_entry(top_dev, &topology_device_list, list)
-		if (top_dev->gpu->pdev == pdev) {
+		if (top_dev->gpu && top_dev->gpu->pdev == pdev) {
+			device = top_dev->gpu;
+			break;
+		}
+
+	up_read(&topology_lock);
+
+	return device;
+}
+
+struct kfd_dev *kfd_device_by_kgd(const struct kgd_dev *kgd)
+{
+	struct kfd_topology_device *top_dev;
+	struct kfd_dev *device = NULL;
+
+	down_read(&topology_lock);
+
+	list_for_each_entry(top_dev, &topology_device_list, list)
+		if (top_dev->gpu && top_dev->gpu->kgd == kgd) {
 			device = top_dev->gpu;
 			break;
 		}
@@ -1052,7 +1071,7 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 	if (!gpu)
 		return 0;
 
-	gpu->kfd2kgd->get_local_mem_info(gpu->kgd, &local_mem_info);
+	amdgpu_amdkfd_get_local_mem_info(gpu->kgd, &local_mem_info);
 
 	local_mem_size = local_mem_info.local_mem_size_private +
 			local_mem_info.local_mem_size_public;
@@ -1118,8 +1137,7 @@ static void kfd_fill_mem_clk_max_info(struct kfd_topology_device *dev)
 	 * for APUs - If CRAT from ACPI reports more than one bank, then
 	 *	all the banks will report the same mem_clk_max information
 	 */
-	dev->gpu->kfd2kgd->get_local_mem_info(dev->gpu->kgd,
-		&local_mem_info);
+	amdgpu_amdkfd_get_local_mem_info(dev->gpu->kgd, &local_mem_info);
 
 	list_for_each_entry(mem, &dev->mem_props, list)
 		mem->mem_clk_max = local_mem_info.mem_clk_max;
@@ -1240,7 +1258,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 * needed for the topology
 	 */
 
-	dev->gpu->kfd2kgd->get_cu_info(dev->gpu->kgd, &cu_info);
+	amdgpu_amdkfd_get_cu_info(dev->gpu->kgd, &cu_info);
 	dev->node_props.simd_arrays_per_engine =
 		cu_info.num_shader_arrays_per_engine;
 
@@ -1249,7 +1267,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.location_id = PCI_DEVID(gpu->pdev->bus->number,
 		gpu->pdev->devfn);
 	dev->node_props.max_engine_clk_fcompute =
-		dev->gpu->kfd2kgd->get_max_engine_clock_in_mhz(dev->gpu->kgd);
+		amdgpu_amdkfd_get_max_engine_clock_in_mhz(dev->gpu->kgd);
 	dev->node_props.max_engine_clk_ccompute =
 		cpufreq_quick_get_max(0) / 1000;
 	dev->node_props.drm_render_minor =
@@ -1272,12 +1290,14 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_FIJI:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		pr_debug("Adding doorbell packet type capability\n");
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<

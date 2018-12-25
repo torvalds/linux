@@ -51,6 +51,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return false;
 
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_pch_encoder = false;
 	bpp = 24;
 	if (intel_dp->compliance.test_data.bpc) {
@@ -208,10 +209,23 @@ static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
-	if (intel_dp->active_mst_links == 0 &&
-	    intel_dig_port->base.pre_pll_enable)
+	if (intel_dp->active_mst_links == 0)
 		intel_dig_port->base.pre_pll_enable(&intel_dig_port->base,
 						    pipe_config, NULL);
+}
+
+static void intel_mst_post_pll_disable_dp(struct intel_encoder *encoder,
+					  const struct intel_crtc_state *old_crtc_state,
+					  const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
+	struct intel_digital_port *intel_dig_port = intel_mst->primary;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+
+	if (intel_dp->active_mst_links == 0)
+		intel_dig_port->base.post_pll_disable(&intel_dig_port->base,
+						      old_crtc_state,
+						      old_conn_state);
 }
 
 static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
@@ -335,24 +349,12 @@ intel_dp_mst_detect(struct drm_connector *connector, bool force)
 				      intel_connector->port);
 }
 
-static void
-intel_dp_mst_connector_destroy(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-
-	if (!IS_ERR_OR_NULL(intel_connector->edid))
-		kfree(intel_connector->edid);
-
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.detect = intel_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_dp_mst_connector_destroy,
+	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
@@ -560,6 +562,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_encoder->disable = intel_mst_disable_dp;
 	intel_encoder->post_disable = intel_mst_post_disable_dp;
 	intel_encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
+	intel_encoder->post_pll_disable = intel_mst_post_pll_disable_dp;
 	intel_encoder->pre_enable = intel_mst_pre_enable_dp;
 	intel_encoder->enable = intel_mst_enable_dp;
 	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;

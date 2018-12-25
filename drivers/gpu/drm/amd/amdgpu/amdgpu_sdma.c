@@ -28,17 +28,31 @@
  * GPU SDMA IP block helpers function.
  */
 
-struct amdgpu_sdma_instance * amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
+struct amdgpu_sdma_instance *amdgpu_sdma_get_instance_from_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
-		if (&adev->sdma.instance[i].ring == ring)
-			break;
+		if (ring == &adev->sdma.instance[i].ring ||
+		    ring == &adev->sdma.instance[i].page)
+			return &adev->sdma.instance[i];
 
-	if (i < AMDGPU_MAX_SDMA_INSTANCES)
-		return &adev->sdma.instance[i];
-	else
-		return NULL;
+	return NULL;
+}
+
+int amdgpu_sdma_get_index_from_ring(struct amdgpu_ring *ring, uint32_t *index)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int i;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (ring == &adev->sdma.instance[i].ring ||
+			ring == &adev->sdma.instance[i].page) {
+			*index = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
 }
