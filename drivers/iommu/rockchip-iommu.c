@@ -79,6 +79,7 @@
 #define IOMMU_INV_TLB_ENTIRE	BIT(4) /* invalidate tlb entire */
 
 static LIST_HEAD(iommu_dev_list);
+static const struct iommu_ops rk_iommu_ops;
 
 struct rk_iommu_domain {
 	struct list_head iommus;
@@ -1106,6 +1107,7 @@ static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
 	rk_domain->domain.geometry.aperture_start = 0;
 	rk_domain->domain.geometry.aperture_end   = DMA_BIT_MASK(32);
 	rk_domain->domain.geometry.force_aperture = true;
+	rk_domain->domain.ops = &rk_iommu_ops;
 
 	return &rk_domain->domain;
 
