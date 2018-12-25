@@ -605,23 +605,6 @@ unconditionally having removed all the required structures.  It is the
 driver's job to ensure that no parts of this memory region are
 currently in use.
 
-::
-
-	void *
-	dma_mark_declared_memory_occupied(struct device *dev,
-					  dma_addr_t device_addr, size_t size)
-
-This is used to occupy specific regions of the declared space
-(dma_alloc_coherent() will hand out the first free region it finds).
-
-device_addr is the *device* address of the region requested.
-
-size is the size (and should be a page-sized multiple).
-
-The return value will be either a pointer to the processor virtual
-address of the memory, or an error (via PTR_ERR()) if any part of the
-region is occupied.
-
 Part III - Debug drivers use of the DMA-API
 -------------------------------------------
 
