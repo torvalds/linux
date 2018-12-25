@@ -239,11 +239,11 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 
 	/* PD_CORE */
 	GATE(0, "apll_core", "apll", CLK_IGNORE_UNUSED,
-			PX30_CLKGATE_CON(0), 6, GFLAGS),
+			RK2928_CLKGATE_CON(0), 6, GFLAGS),
 	GATE(0, "gpll_core", "gpll", CLK_IGNORE_UNUSED,
-			PX30_CLKGATE_CON(0), 6, GFLAGS),
+			RK2928_CLKGATE_CON(0), 6, GFLAGS),
 	GATE(0, "dpll_core", "dpll", CLK_IGNORE_UNUSED,
-			PX30_CLKGATE_CON(0), 6, GFLAGS),
+			RK2928_CLKGATE_CON(0), 6, GFLAGS),
 	COMPOSITE_NOMUX(0, "pclk_dbg", "armclk", CLK_IGNORE_UNUSED,
 			RK2928_CLKSEL_CON(1), 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK2928_CLKGATE_CON(4), 1, GFLAGS),
