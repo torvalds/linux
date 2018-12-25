@@ -90,6 +90,9 @@
 #define PIO_DATAOUT_1B		0x0020
 #define PIO_DATAOUT_4B		0x0024
 
+#define RD_FIFO_CFG		0x0028
+#define CONTINUOUS_MODE		BIT(0)
+
 #define RD_FIFO_STATUS	0x002c
 #define FIFO_EMPTY	BIT(11)
 #define WR_CNTS_MSK	0x7f0
@@ -98,9 +101,6 @@
 #define RDY_32BYTE	BIT(2)
 #define RDY_16BYTE	BIT(1)
 #define FIFO_RDY	BIT(0)
-
-#define RD_FIFO_CFG		0x0028
-#define CONTINUOUS_MODE		BIT(0)
 
 #define RD_FIFO_RESET		0x0030
 #define RESET_FIFO		BIT(0)
@@ -139,7 +139,7 @@ struct qcom_qspi {
 	struct device *dev;
 	struct clk_bulk_data clks[QSPI_NUM_CLKS];
 	struct qspi_xfer xfer;
-	/* Lock to protect data accessed by IRQs */
+	/* Lock to protect xfer and IRQ accessed registers */
 	spinlock_t lock;
 };
 
