@@ -30,7 +30,6 @@
 #include "i915_gem.h"
 #include "i915_scheduler.h"
 #include "i915_sw_fence.h"
-#include "i915_scheduler.h"
 
 #include <uapi/drm/i915_drm.h>
 
