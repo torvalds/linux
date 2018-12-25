@@ -5445,7 +5445,6 @@ S:	Maintained
 F:	drivers/edac/i82443bxgx_edac.c
 
 EDAC-I82975X
-M:	Ranganathan Desikan <ravi@jetztechnologies.com>
 M:	"Arvind R." <arvino55@gmail.com>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
