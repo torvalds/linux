@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _extended-controls:
 
@@ -1110,10 +1117,16 @@ enum v4l2_mpeg_video_h264_loop_filter_mode -
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA (integer)``
     Loop filter alpha coefficient, defined in the H264 standard.
+    This value corresponds to the slice_alpha_c0_offset_div2 slice header
+    field, and should be in the range of -6 to +6, inclusive. The actual alpha
+    offset FilterOffsetA is twice this value.
     Applicable to the H264 encoder.
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_BETA (integer)``
     Loop filter beta coefficient, defined in the H264 standard.
+    This corresponds to the slice_beta_offset_div2 slice header field, and
+    should be in the range of -6 to +6, inclusive. The actual beta offset
+    FilterOffsetB is twice this value.
     Applicable to the H264 encoder.
 
 .. _v4l2-mpeg-video-h264-entropy-mode:

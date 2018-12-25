@@ -105,8 +105,6 @@ struct cedrus_dev {
 
 	/* Device file mutex */
 	struct mutex		dev_mutex;
-	/* Interrupt spinlock */
-	spinlock_t		irq_lock;
 
 	void __iomem		*base;
 

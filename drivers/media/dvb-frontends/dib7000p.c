@@ -1871,9 +1871,12 @@ static u32 dib7000p_get_time_us(struct dvb_frontend *demod)
 		break;
 	}
 
-	interleaving = interleaving;
-
 	denom = bits_per_symbol * rate_num * fft_div * 384;
+
+	/*
+	 * FIXME: check if the math makes sense. If so, fill the
+	 * interleaving var.
+	 */
 
 	/* If calculus gets wrong, wait for 1s for the next stats */
 	if (!denom)

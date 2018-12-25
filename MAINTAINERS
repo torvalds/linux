@@ -2067,7 +2067,6 @@ M:	Andrzej Hajda <a.hajda@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	arch/arm/plat-samsung/s5p-dev-mfc.c
 F:	drivers/media/platform/s5p-mfc/
 
 ARM/SHMOBILE ARM ARCHITECTURE
@@ -2418,6 +2417,14 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/asc7621
 F:	drivers/hwmon/asc7621.c
+
+ASPEED VIDEO ENGINE DRIVER
+M:	Eddie James <eajames@linux.ibm.com>
+L:	linux-media@vger.kernel.org
+L:	openbmc@lists.ozlabs.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/media/platform/aspeed-video.c
+F:	Documentation/devicetree/bindings/media/aspeed-video.txt
 
 ASUS NOTEBOOKS AND EEEPC ACPI/WMI EXTRAS DRIVERS
 M:	Corentin Chary <corentin.chary@gmail.com>
@@ -3995,12 +4002,19 @@ T:	git git://linuxtv.org/media_tree.git
 W:	http://linuxtv.org
 S:	Odd Fixes
 F:	drivers/media/i2c/cs3308.c
-F:	drivers/media/i2c/cs3308.h
 
 CS5535 Audio ALSA driver
 M:	Jaya Kumar <jayakumar.alsa@gmail.com>
 S:	Maintained
 F:	sound/pci/cs5535audio/
+
+CSI DRIVERS FOR ALLWINNER V3s
+M:	Yong Deng <yong.deng@magewell.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/platform/sunxi/sun6i-csi/
+F:	Documentation/devicetree/bindings/media/sun6i-csi.txt
 
 CW1200 WLAN driver
 M:	Solomon Peachy <pizza@shaftnet.org>
@@ -4026,7 +4040,7 @@ T:	git git://linuxtv.org/media_tree.git
 W:	https://linuxtv.org
 S:	Maintained
 F:	drivers/media/common/cx2341x*
-F:	include/media/cx2341x*
+F:	include/media/drv-intf/cx2341x.h
 
 CX24120 MEDIA DRIVER
 M:	Jemma Denson <jdenson@gmail.com>
@@ -9810,14 +9824,14 @@ L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/platform/atmel/atmel-isc.c
 F:	drivers/media/platform/atmel/atmel-isc-regs.h
-F:	devicetree/bindings/media/atmel-isc.txt
+F:	Documentation/devicetree/bindings/media/atmel-isc.txt
 
 MICROCHIP ISI DRIVER
 M:	Eugen Hristev <eugen.hristev@microchip.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/platform/atmel/atmel-isi.c
-F:	include/media/atmel-isi.h
+F:	drivers/media/platform/atmel/atmel-isi.h
 
 MICROCHIP AT91 USART MFD DRIVER
 M:	Radu Pirea <radu_nicolae.pirea@upb.ro>
@@ -12456,7 +12470,7 @@ S:	Supported
 F:	drivers/net/wireless/ath/ath9k/
 
 QUALCOMM CAMERA SUBSYSTEM DRIVER
-M:	Todor Tomov <todor.tomov@linaro.org>
+M:	Todor Tomov <todor.too@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/qcom,camss.txt
@@ -12889,6 +12903,13 @@ S:	Maintained
 F:	drivers/media/platform/rockchip/rga/
 F:	Documentation/devicetree/bindings/media/rockchip-rga.txt
 
+ROCKCHIP VPU CODEC DRIVER
+M:	Ezequiel Garcia <ezequiel@collabora.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/media/platform/rockchip/vpu/
+F:	Documentation/devicetree/bindings/media/rockchip-vpu.txt
+
 ROCKER DRIVER
 M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
@@ -13138,7 +13159,7 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/common/saa7146/
 F:	drivers/media/pci/saa7146/
-F:	include/media/saa7146*
+F:	include/media/drv-intf/saa7146*
 
 SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Krzysztof Kozlowski <krzk@kernel.org>
@@ -13403,6 +13424,12 @@ M:	Sascha Sommer <saschasommer@freenet.de>
 L:	sdricohcs-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
+
+SECO BOARDS CEC DRIVER
+M:	Ettore Chimenti <ek5.chimenti@gmail.com>
+S:	Maintained
+F:	drivers/media/platform/seco-cec/seco-cec.c
+F:	drivers/media/platform/seco-cec/seco-cec.h
 
 SECURE COMPUTING
 M:	Kees Cook <keescook@chromium.org>
@@ -13976,6 +14003,14 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/ssb/
 F:	include/linux/ssb/
+
+SONY IMX214 SENSOR DRIVER
+M:	Ricardo Ribalda <ricardo.ribalda@gmail.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/imx214.c
+F:	Documentation/devicetree/bindings/media/i2c/sony,imx214.txt
 
 SONY IMX258 SENSOR DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
@@ -16470,6 +16505,12 @@ F:	lib/xarray.c
 F:	include/linux/idr.h
 F:	include/linux/xarray.h
 F:	tools/testing/radix-tree
+
+XBOX DVD IR REMOTE
+M:	Benjamin Valentin <benpicco@googlemail.com>
+S:	Maintained
+F:	drivers/media/rc/xbox_remote.c
+F:	drivers/media/rc/keymaps/rc-xbox-dvd.c
 
 XC2028/3028 TUNER DRIVER
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>

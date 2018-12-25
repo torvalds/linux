@@ -1189,6 +1189,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_Y12I:		descr = "Interleaved 12-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Z16:		descr = "16-bit Depth"; break;
 	case V4L2_PIX_FMT_INZI:		descr = "Planar 10:16 Greyscale Depth"; break;
+	case V4L2_PIX_FMT_CNF4:		descr = "4-bit Depth Confidence (Packed)"; break;
 	case V4L2_PIX_FMT_PAL8:		descr = "8-bit Palette"; break;
 	case V4L2_PIX_FMT_UV8:		descr = "8-bit Chrominance UV 4-4"; break;
 	case V4L2_PIX_FMT_YVU410:	descr = "Planar YVU 4:1:0"; break;
@@ -1339,9 +1340,9 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_MT21C:	descr = "Mediatek Compressed Format"; break;
 		case V4L2_PIX_FMT_SUNXI_TILED_NV12: descr = "Sunxi Tiled NV12 Format"; break;
 		default:
-			WARN(1, "Unknown pixelformat 0x%08x\n", fmt->pixelformat);
 			if (fmt->description[0])
 				return;
+			WARN(1, "Unknown pixelformat 0x%08x\n", fmt->pixelformat);
 			flags = 0;
 			snprintf(fmt->description, sz, "%c%c%c%c%s",
 					(char)(fmt->pixelformat & 0x7f),
@@ -1512,6 +1513,7 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_format *p = arg;
 	struct video_device *vfd = video_devdata(file);
 	int ret = check_fmt(file, p->type);
+	unsigned int i;
 
 	if (ret)
 		return ret;
@@ -1536,6 +1538,8 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_s_fmt_vid_cap_mplane))
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.pix_mp.xfer_func);
+		for (i = 0; i < p->fmt.pix_mp.num_planes; i++)
+			CLEAR_AFTER_FIELD(p, fmt.pix_mp.plane_fmt[i].bytesperline);
 		return ops->vidioc_s_fmt_vid_cap_mplane(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 		if (unlikely(!ops->vidioc_s_fmt_vid_overlay))
@@ -1564,6 +1568,8 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_s_fmt_vid_out_mplane))
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.pix_mp.xfer_func);
+		for (i = 0; i < p->fmt.pix_mp.num_planes; i++)
+			CLEAR_AFTER_FIELD(p, fmt.pix_mp.plane_fmt[i].bytesperline);
 		return ops->vidioc_s_fmt_vid_out_mplane(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		if (unlikely(!ops->vidioc_s_fmt_vid_out_overlay))
@@ -1604,6 +1610,7 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 {
 	struct v4l2_format *p = arg;
 	int ret = check_fmt(file, p->type);
+	unsigned int i;
 
 	if (ret)
 		return ret;
@@ -1623,6 +1630,8 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_try_fmt_vid_cap_mplane))
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.pix_mp.xfer_func);
+		for (i = 0; i < p->fmt.pix_mp.num_planes; i++)
+			CLEAR_AFTER_FIELD(p, fmt.pix_mp.plane_fmt[i].bytesperline);
 		return ops->vidioc_try_fmt_vid_cap_mplane(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 		if (unlikely(!ops->vidioc_try_fmt_vid_overlay))
@@ -1651,6 +1660,8 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_try_fmt_vid_out_mplane))
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.pix_mp.xfer_func);
+		for (i = 0; i < p->fmt.pix_mp.num_planes; i++)
+			CLEAR_AFTER_FIELD(p, fmt.pix_mp.plane_fmt[i].bytesperline);
 		return ops->vidioc_try_fmt_vid_out_mplane(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		if (unlikely(!ops->vidioc_try_fmt_vid_out_overlay))
@@ -2202,21 +2213,24 @@ static int v4l_s_selection(const struct v4l2_ioctl_ops *ops,
 static int v4l_g_crop(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+	struct video_device *vfd = video_devdata(file);
 	struct v4l2_crop *p = arg;
 	struct v4l2_selection s = {
 		.type = p->type,
 	};
 	int ret;
 
-	if (ops->vidioc_g_crop)
-		return ops->vidioc_g_crop(file, fh, p);
 	/* simulate capture crop using selection api */
 
 	/* crop means compose for output devices */
 	if (V4L2_TYPE_IS_OUTPUT(p->type))
-		s.target = V4L2_SEL_TGT_COMPOSE_ACTIVE;
+		s.target = V4L2_SEL_TGT_COMPOSE;
 	else
-		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
+		s.target = V4L2_SEL_TGT_CROP;
+
+	if (test_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags))
+		s.target = s.target == V4L2_SEL_TGT_COMPOSE ?
+			V4L2_SEL_TGT_CROP : V4L2_SEL_TGT_COMPOSE;
 
 	ret = v4l_g_selection(ops, file, fh, &s);
 
@@ -2229,21 +2243,24 @@ static int v4l_g_crop(const struct v4l2_ioctl_ops *ops,
 static int v4l_s_crop(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+	struct video_device *vfd = video_devdata(file);
 	struct v4l2_crop *p = arg;
 	struct v4l2_selection s = {
 		.type = p->type,
 		.r = p->c,
 	};
 
-	if (ops->vidioc_s_crop)
-		return ops->vidioc_s_crop(file, fh, p);
 	/* simulate capture crop using selection api */
 
 	/* crop means compose for output devices */
 	if (V4L2_TYPE_IS_OUTPUT(p->type))
-		s.target = V4L2_SEL_TGT_COMPOSE_ACTIVE;
+		s.target = V4L2_SEL_TGT_COMPOSE;
 	else
-		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
+		s.target = V4L2_SEL_TGT_CROP;
+
+	if (test_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags))
+		s.target = s.target == V4L2_SEL_TGT_COMPOSE ?
+			V4L2_SEL_TGT_CROP : V4L2_SEL_TGT_COMPOSE;
 
 	return v4l_s_selection(ops, file, fh, &s);
 }
@@ -2251,6 +2268,7 @@ static int v4l_s_crop(const struct v4l2_ioctl_ops *ops,
 static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+	struct video_device *vfd = video_devdata(file);
 	struct v4l2_cropcap *p = arg;
 	struct v4l2_selection s = { .type = p->type };
 	int ret = 0;
@@ -2259,18 +2277,21 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	p->pixelaspect.numerator = 1;
 	p->pixelaspect.denominator = 1;
 
+	if (s.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		s.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	else if (s.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		s.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+
 	/*
 	 * The determine_valid_ioctls() call already should ensure
 	 * that this can never happen, but just in case...
 	 */
-	if (WARN_ON(!ops->vidioc_cropcap && !ops->vidioc_g_selection))
+	if (WARN_ON(!ops->vidioc_g_selection))
 		return -ENOTTY;
 
-	if (ops->vidioc_cropcap)
-		ret = ops->vidioc_cropcap(file, fh, p);
-
-	if (!ops->vidioc_g_selection)
-		return ret;
+	if (ops->vidioc_g_pixelaspect)
+		ret = ops->vidioc_g_pixelaspect(file, fh, s.type,
+						&p->pixelaspect);
 
 	/*
 	 * Ignore ENOTTY or ENOIOCTLCMD error returns, just use the
@@ -2287,13 +2308,17 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_BOUNDS;
 
+	if (test_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags))
+		s.target = s.target == V4L2_SEL_TGT_COMPOSE_BOUNDS ?
+			V4L2_SEL_TGT_CROP_BOUNDS : V4L2_SEL_TGT_COMPOSE_BOUNDS;
+
 	ret = v4l_g_selection(ops, file, fh, &s);
 	if (ret)
 		return ret;
 	p->bounds = s.r;
 
 	/* obtaining defrect */
-	if (V4L2_TYPE_IS_OUTPUT(p->type))
+	if (s.target == V4L2_SEL_TGT_COMPOSE_BOUNDS)
 		s.target = V4L2_SEL_TGT_COMPOSE_DEFAULT;
 	else
 		s.target = V4L2_SEL_TGT_CROP_DEFAULT;
@@ -2586,7 +2611,7 @@ DEFINE_V4L_STUB_FUNC(enum_dv_timings)
 DEFINE_V4L_STUB_FUNC(query_dv_timings)
 DEFINE_V4L_STUB_FUNC(dv_timings_cap)
 
-static struct v4l2_ioctl_info v4l2_ioctls[] = {
+static const struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_QUERYCAP, v4l_querycap, v4l_print_querycap, 0),
 	IOCTL_INFO(VIDIOC_ENUM_FMT, v4l_enum_fmt, v4l_print_fmtdesc, INFO_FL_CLEAR(v4l2_fmtdesc, type)),
 	IOCTL_INFO(VIDIOC_G_FMT, v4l_g_fmt, v4l_print_format, 0),
@@ -2679,45 +2704,6 @@ static bool v4l2_is_known_ioctl(unsigned int cmd)
 	return v4l2_ioctls[_IOC_NR(cmd)].ioctl == cmd;
 }
 
-#if IS_ENABLED(CONFIG_V4L2_MEM2MEM_DEV)
-static bool v4l2_ioctl_m2m_queue_is_output(unsigned int cmd, void *arg)
-{
-	switch (cmd) {
-	case VIDIOC_CREATE_BUFS: {
-		struct v4l2_create_buffers *cbufs = arg;
-
-		return V4L2_TYPE_IS_OUTPUT(cbufs->format.type);
-	}
-	case VIDIOC_REQBUFS: {
-		struct v4l2_requestbuffers *rbufs = arg;
-
-		return V4L2_TYPE_IS_OUTPUT(rbufs->type);
-	}
-	case VIDIOC_QBUF:
-	case VIDIOC_DQBUF:
-	case VIDIOC_QUERYBUF:
-	case VIDIOC_PREPARE_BUF: {
-		struct v4l2_buffer *buf = arg;
-
-		return V4L2_TYPE_IS_OUTPUT(buf->type);
-	}
-	case VIDIOC_EXPBUF: {
-		struct v4l2_exportbuffer *expbuf = arg;
-
-		return V4L2_TYPE_IS_OUTPUT(expbuf->type);
-	}
-	case VIDIOC_STREAMON:
-	case VIDIOC_STREAMOFF: {
-		int *type = arg;
-
-		return V4L2_TYPE_IS_OUTPUT(*type);
-	}
-	default:
-		return false;
-	}
-}
-#endif
-
 static struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev,
 					 struct v4l2_fh *vfh, unsigned int cmd,
 					 void *arg)
@@ -2727,12 +2713,8 @@ static struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev,
 #if IS_ENABLED(CONFIG_V4L2_MEM2MEM_DEV)
 	if (vfh && vfh->m2m_ctx &&
 	    (v4l2_ioctls[_IOC_NR(cmd)].flags & INFO_FL_QUEUE)) {
-		bool is_output = v4l2_ioctl_m2m_queue_is_output(cmd, arg);
-		struct v4l2_m2m_queue_ctx *ctx = is_output ?
-			&vfh->m2m_ctx->out_q_ctx : &vfh->m2m_ctx->cap_q_ctx;
-
-		if (ctx->q.lock)
-			return ctx->q.lock;
+		if (vfh->m2m_ctx->q_lock)
+			return vfh->m2m_ctx->q_lock;
 	}
 #endif
 	if (vdev->queue && vdev->queue->lock &&

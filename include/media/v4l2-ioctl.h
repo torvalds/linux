@@ -220,12 +220,8 @@ struct v4l2_fh;
  *	:ref:`VIDIOC_G_MODULATOR <vidioc_g_modulator>` ioctl
  * @vidioc_s_modulator: pointer to the function that implements
  *	:ref:`VIDIOC_S_MODULATOR <vidioc_g_modulator>` ioctl
- * @vidioc_cropcap: pointer to the function that implements
- *	:ref:`VIDIOC_CROPCAP <vidioc_cropcap>` ioctl
- * @vidioc_g_crop: pointer to the function that implements
- *	:ref:`VIDIOC_G_CROP <vidioc_g_crop>` ioctl
- * @vidioc_s_crop: pointer to the function that implements
- *	:ref:`VIDIOC_S_CROP <vidioc_g_crop>` ioctl
+ * @vidioc_g_pixelaspect: pointer to the function that implements
+ *	the pixelaspect part of the :ref:`VIDIOC_CROPCAP <vidioc_cropcap>` ioctl
  * @vidioc_g_selection: pointer to the function that implements
  *	:ref:`VIDIOC_G_SELECTION <vidioc_g_selection>` ioctl
  * @vidioc_s_selection: pointer to the function that implements
@@ -491,12 +487,8 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_s_modulator)(struct file *file, void *fh,
 				  const struct v4l2_modulator *a);
 	/* Crop ioctls */
-	int (*vidioc_cropcap)(struct file *file, void *fh,
-			      struct v4l2_cropcap *a);
-	int (*vidioc_g_crop)(struct file *file, void *fh,
-			     struct v4l2_crop *a);
-	int (*vidioc_s_crop)(struct file *file, void *fh,
-			     const struct v4l2_crop *a);
+	int (*vidioc_g_pixelaspect)(struct file *file, void *fh,
+				    int buf_type, struct v4l2_fract *aspect);
 	int (*vidioc_g_selection)(struct file *file, void *fh,
 				  struct v4l2_selection *s);
 	int (*vidioc_s_selection)(struct file *file, void *fh,

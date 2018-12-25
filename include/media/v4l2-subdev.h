@@ -776,7 +776,11 @@ struct v4l2_subdev_internal_ops {
 #define V4L2_SUBDEV_FL_IS_SPI			(1U << 1)
 /* Set this flag if this subdev needs a device node. */
 #define V4L2_SUBDEV_FL_HAS_DEVNODE		(1U << 2)
-/* Set this flag if this subdev generates events. */
+/*
+ * Set this flag if this subdev generates events.
+ * Note controls can send events, thus drivers exposing controls
+ * should set this flag.
+ */
 #define V4L2_SUBDEV_FL_HAS_EVENTS		(1U << 3)
 
 struct regulator_bulk_data;
