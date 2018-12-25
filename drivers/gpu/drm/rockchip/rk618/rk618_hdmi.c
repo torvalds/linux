@@ -16,6 +16,9 @@
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
+#ifdef CONFIG_SWITCH
+#include <linux/switch.h>
+#endif
 
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
@@ -430,6 +433,9 @@ struct rk618_hdmi {
 
 	struct hdmi_data_info	hdmi_data;
 	struct drm_display_mode previous_mode;
+#ifdef CONFIG_SWITCH
+	struct switch_dev switchdev;
+#endif
 };
 
 enum {
@@ -929,7 +935,15 @@ static enum drm_connector_status
 rk618_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct rk618_hdmi *hdmi = connector_to_hdmi(connector);
+	int status;
 
+	status = hdmi_readb(hdmi, HDMI_STATUS) & m_HOTPLUG;
+#ifdef CONFIG_SWITCH
+	if (status)
+		switch_set_state(&hdmi->switchdev, 1);
+	else
+		switch_set_state(&hdmi->switchdev, 0);
+#endif
 	if (hdmi->bridge)
 		return connector_status_connected;
 
@@ -1542,6 +1556,11 @@ static int rk618_hdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+#ifdef CONFIG_SWITCH
+	hdmi->switchdev.name = "hdmi";
+	switch_dev_register(&hdmi->switchdev);
+#endif
+
 	return 0;
 }
 
@@ -1551,6 +1570,9 @@ static int rk618_hdmi_remove(struct platform_device *pdev)
 
 	drm_bridge_remove(&hdmi->base);
 	i2c_put_adapter(hdmi->ddc);
+#ifdef CONFIG_SWITCH
+	switch_dev_unregister(&hdmi->switchdev);
+#endif
 
 	return 0;
 }
