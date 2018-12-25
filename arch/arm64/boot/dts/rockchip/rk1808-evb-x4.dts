@@ -29,12 +29,46 @@
 /delete-node/ &vdd1v5_dvp;
 /delete-node/ &vcc2v8_dvp;
 
+&cif {
+	status = "okay";
+
+	port {
+		cif_in: endpoint@0 {
+			remote-endpoint = <&dphy_rx_out>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
+&cif_mmu {
+	status = "okay";
+};
+
 &emmc {
 	status = "disabled";
 };
 
 &gmac {
 	status = "disabled";
+};
+
+&i2c0 {
+	status = "okay";
+
+	vcamera@30 {
+		compatible = "rockchip,virtual-camera";
+		reg = <0x30>;
+		width = <3840>;
+		height = <720>;
+		bus-format = <MEDIA_BUS_FMT_SBGGR8_1X8>;
+
+		port {
+			vcamera_out: endpoint {
+				remote-endpoint = <&dphy_rx_in>;
+				link-frequencies = /bits/ 64 <500000000>;
+			};
+		};
+	};
 };
 
 &i2c1 {
@@ -47,6 +81,38 @@
 
 &mipi_dphy {
 	status = "okay";
+};
+
+&mipi_dphy_rx {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&vcamera_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_in>;
+			};
+		};
+	};
 };
 
 &rk809_codec {
