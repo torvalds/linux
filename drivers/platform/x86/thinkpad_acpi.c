@@ -478,6 +478,12 @@ do {									\
 	  .ec = TPACPI_MATCH_ANY,		\
 	  .quirks = (__quirk) }
 
+#define TPACPI_QEC_IBM(__id1, __id2, __quirk)	\
+	{ .vendor = PCI_VENDOR_ID_IBM,		\
+	  .bios = TPACPI_MATCH_ANY,		\
+	  .ec = TPID(__id1, __id2),		\
+	  .quirks = (__quirk) }
+
 #define TPACPI_QEC_LNV(__id1, __id2, __quirk)	\
 	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
 	  .bios = TPACPI_MATCH_ANY,		\
@@ -3457,7 +3463,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 		KEY_UNKNOWN,
 
-		KEY_FAVORITES,       /* Favorite app, 0x311 */
+		KEY_BOOKMARKS,       /* Favorite app, 0x311 */
 		KEY_RESERVED,        /* Clipping tool */
 		KEY_CALC,            /* Calculator (above numpad, P52) */
 		KEY_BLUETOOTH,       /* Bluetooth */
@@ -5972,9 +5978,6 @@ static const struct tpacpi_quirk led_useful_qtable[] __initconst = {
 	  .quirks = 0x00bfU,
 	},
 };
-
-#undef TPACPI_LEDQ_IBM
-#undef TPACPI_LEDQ_LNV
 
 static enum led_access_mode __init led_init_detect_mode(void)
 {
@@ -8710,39 +8713,17 @@ static const struct attribute_group fan_attr_group = {
 	.attrs = fan_attributes,
 };
 
-#define	TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
+#define TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
 #define TPACPI_FAN_2FAN	0x0002		/* EC 0x31 bit 0 selects fan2 */
 
-#define TPACPI_FAN_QI(__id1, __id2, __quirks)	\
-	{ .vendor = PCI_VENDOR_ID_IBM,		\
-	  .bios = TPACPI_MATCH_ANY,		\
-	  .ec = TPID(__id1, __id2),		\
-	  .quirks = __quirks }
-
-#define TPACPI_FAN_QL(__id1, __id2, __quirks)	\
-	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
-	  .bios = TPACPI_MATCH_ANY,		\
-	  .ec = TPID(__id1, __id2),		\
-	  .quirks = __quirks }
-
-#define TPACPI_FAN_QB(__id1, __id2, __quirks)	\
-	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
-	  .bios = TPID(__id1, __id2),		\
-	  .ec = TPACPI_MATCH_ANY,		\
-	  .quirks = __quirks }
-
 static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
-	TPACPI_FAN_QI('1', 'Y', TPACPI_FAN_Q1),
-	TPACPI_FAN_QI('7', '8', TPACPI_FAN_Q1),
-	TPACPI_FAN_QI('7', '6', TPACPI_FAN_Q1),
-	TPACPI_FAN_QI('7', '0', TPACPI_FAN_Q1),
-	TPACPI_FAN_QL('7', 'M', TPACPI_FAN_2FAN),
-	TPACPI_FAN_QB('N', '1', TPACPI_FAN_2FAN),
+	TPACPI_QEC_IBM('1', 'Y', TPACPI_FAN_Q1),
+	TPACPI_QEC_IBM('7', '8', TPACPI_FAN_Q1),
+	TPACPI_QEC_IBM('7', '6', TPACPI_FAN_Q1),
+	TPACPI_QEC_IBM('7', '0', TPACPI_FAN_Q1),
+	TPACPI_QEC_LNV('7', 'M', TPACPI_FAN_2FAN),
+	TPACPI_Q_LNV('N', '1', TPACPI_FAN_2FAN),
 };
-
-#undef TPACPI_FAN_QL
-#undef TPACPI_FAN_QI
-#undef TPACPI_FAN_QB
 
 static int __init fan_init(struct ibm_init_struct *iibm)
 {
