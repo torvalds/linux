@@ -1106,7 +1106,7 @@ skip_partial:
 				ri->i_nid[offset[0] - NODE_DIR1_BLOCK]) {
 			lock_page(page);
 			BUG_ON(page->mapping != NODE_MAPPING(sbi));
-			f2fs_wait_on_page_writeback(page, NODE, true);
+			f2fs_wait_on_page_writeback(page, NODE, true, true);
 			ri->i_nid[offset[0] - NODE_DIR1_BLOCK] = 0;
 			set_page_dirty(page);
 			unlock_page(page);
@@ -1234,7 +1234,7 @@ struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 	new_ni.version = 0;
 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
 
-	f2fs_wait_on_page_writeback(page, NODE, true);
+	f2fs_wait_on_page_writeback(page, NODE, true, true);
 	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
 	set_cold_node(page, S_ISDIR(dn->inode->i_mode));
 	if (!PageUptodate(page))
@@ -1600,8 +1600,7 @@ int f2fs_move_node_page(struct page *node_page, int gc_type)
 			.for_reclaim = 0,
 		};
 
-		f2fs_wait_on_page_writeback(node_page, NODE, true);
-		f2fs_bug_on(F2FS_P_SB(node_page), PageWriteback(node_page));
+		f2fs_wait_on_page_writeback(node_page, NODE, true, true);
 
 		set_page_dirty(node_page);
 
@@ -1692,8 +1691,7 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
-			f2fs_wait_on_page_writeback(page, NODE, true);
-			BUG_ON(PageWriteback(page));
+			f2fs_wait_on_page_writeback(page, NODE, true, true);
 
 			set_fsync_mark(page, 0);
 			set_dentry_mark(page, 0);
@@ -1744,7 +1742,7 @@ continue_unlock:
 			"Retry to write fsync mark: ino=%u, idx=%lx",
 					ino, last_page->index);
 		lock_page(last_page);
-		f2fs_wait_on_page_writeback(last_page, NODE, true);
+		f2fs_wait_on_page_writeback(last_page, NODE, true, true);
 		set_page_dirty(last_page);
 		unlock_page(last_page);
 		goto retry;
@@ -1825,9 +1823,8 @@ continue_unlock:
 				goto lock_node;
 			}
 
-			f2fs_wait_on_page_writeback(page, NODE, true);
+			f2fs_wait_on_page_writeback(page, NODE, true, true);
 
-			BUG_ON(PageWriteback(page));
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
@@ -1894,7 +1891,7 @@ int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
 		get_page(page);
 		spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
 
-		f2fs_wait_on_page_writeback(page, NODE, true);
+		f2fs_wait_on_page_writeback(page, NODE, true, false);
 		if (TestClearPageError(page))
 			ret = -EIO;
 
@@ -2472,7 +2469,7 @@ void f2fs_recover_inline_xattr(struct inode *inode, struct page *page)
 	src_addr = inline_xattr_addr(inode, page);
 	inline_size = inline_xattr_size(inode);
 
-	f2fs_wait_on_page_writeback(ipage, NODE, true);
+	f2fs_wait_on_page_writeback(ipage, NODE, true, true);
 	memcpy(dst_addr, src_addr, inline_size);
 update_inode:
 	f2fs_update_inode(inode, ipage);

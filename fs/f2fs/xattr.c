@@ -415,7 +415,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 		}
 
 		f2fs_wait_on_page_writeback(ipage ? ipage : in_page,
-							NODE, true);
+							NODE, true, true);
 		/* no need to use xattr node block */
 		if (hsize <= inline_size) {
 			err = f2fs_truncate_xattr_node(inode);
@@ -439,7 +439,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 			goto in_page_out;
 		}
 		f2fs_bug_on(sbi, new_nid);
-		f2fs_wait_on_page_writeback(xpage, NODE, true);
+		f2fs_wait_on_page_writeback(xpage, NODE, true, true);
 	} else {
 		struct dnode_of_data dn;
 		set_new_dnode(&dn, inode, NULL, NULL, new_nid);

@@ -626,7 +626,7 @@ static void __set_data_blkaddr(struct dnode_of_data *dn)
  */
 void f2fs_set_data_blkaddr(struct dnode_of_data *dn)
 {
-	f2fs_wait_on_page_writeback(dn->node_page, NODE, true);
+	f2fs_wait_on_page_writeback(dn->node_page, NODE, true, true);
 	__set_data_blkaddr(dn);
 	if (set_page_dirty(dn->node_page))
 		dn->node_changed = true;
@@ -656,7 +656,7 @@ int f2fs_reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
 	trace_f2fs_reserve_new_blocks(dn->inode, dn->nid,
 						dn->ofs_in_node, count);
 
-	f2fs_wait_on_page_writeback(dn->node_page, NODE, true);
+	f2fs_wait_on_page_writeback(dn->node_page, NODE, true, true);
 
 	for (; count > 0; dn->ofs_in_node++) {
 		block_t blkaddr = datablock_addr(dn->inode,
@@ -2149,12 +2149,11 @@ continue_unlock:
 			if (PageWriteback(page)) {
 				if (wbc->sync_mode != WB_SYNC_NONE)
 					f2fs_wait_on_page_writeback(page,
-								DATA, true);
+							DATA, true, true);
 				else
 					goto continue_unlock;
 			}
 
-			BUG_ON(PageWriteback(page));
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
@@ -2472,7 +2471,7 @@ repeat:
 		}
 	}
 
-	f2fs_wait_on_page_writeback(page, DATA, false);
+	f2fs_wait_on_page_writeback(page, DATA, false, true);
 
 	if (len == PAGE_SIZE || PageUptodate(page))
 		return 0;

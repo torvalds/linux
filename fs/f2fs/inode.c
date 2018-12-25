@@ -103,7 +103,7 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
 
 	while (start < end) {
 		if (*start++) {
-			f2fs_wait_on_page_writeback(ipage, NODE, true);
+			f2fs_wait_on_page_writeback(ipage, NODE, true, true);
 
 			set_inode_flag(inode, FI_DATA_EXIST);
 			set_raw_inline(inode, F2FS_INODE(ipage));
@@ -497,7 +497,7 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 	struct f2fs_inode *ri;
 	struct extent_tree *et = F2FS_I(inode)->extent_tree;
 
-	f2fs_wait_on_page_writeback(node_page, NODE, true);
+	f2fs_wait_on_page_writeback(node_page, NODE, true, true);
 	set_page_dirty(node_page);
 
 	f2fs_inode_synced(inode);
