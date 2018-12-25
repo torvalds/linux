@@ -17,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
-#include <linux/math64.h>
 
 #include "ntp_internal.h"
 #include "timekeeping_internal.h"

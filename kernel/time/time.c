@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/kernel/time.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  This file contains the interface functions for the various
- *  time related system calls: time, stime, gettimeofday, settimeofday,
- *			       adjtime
- */
-/*
- * Modification history kernel/time.c
+ *  This file contains the interface functions for the various time related
+ *  system calls: time, stime, gettimeofday, settimeofday, adjtime
+ *
+ * Modification history:
  *
  * 1993-09-02    Philip Gladstone
  *      Created file with time related functions from sched/core.c and adjtimex()
