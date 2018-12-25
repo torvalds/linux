@@ -34,9 +34,20 @@ static struct irq_chip irq_sim_irqchip = {
 static void irq_sim_handle_irq(struct irq_work *work)
 {
 	struct irq_sim_work_ctx *work_ctx;
+	unsigned int offset = 0;
+	struct irq_sim *sim;
+	int irqnum;
 
 	work_ctx = container_of(work, struct irq_sim_work_ctx, work);
-	handle_simple_irq(irq_to_desc(work_ctx->irq));
+	sim = container_of(work_ctx, struct irq_sim, work_ctx);
+
+	while (!bitmap_empty(work_ctx->pending, sim->irq_count)) {
+		offset = find_next_bit(work_ctx->pending,
+				       sim->irq_count, offset);
+		clear_bit(offset, work_ctx->pending);
+		irqnum = irq_sim_irqnum(sim, offset);
+		handle_simple_irq(irq_to_desc(irqnum));
+	}
 }
 
 /**
@@ -61,6 +72,13 @@ int irq_sim_init(struct irq_sim *sim, unsigned int num_irqs)
 	if (sim->irq_base < 0) {
 		kfree(sim->irqs);
 		return sim->irq_base;
+	}
+
+	sim->work_ctx.pending = bitmap_zalloc(num_irqs, GFP_KERNEL);
+	if (!sim->work_ctx.pending) {
+		kfree(sim->irqs);
+		irq_free_descs(sim->irq_base, num_irqs);
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < num_irqs; i++) {
@@ -89,6 +107,7 @@ EXPORT_SYMBOL_GPL(irq_sim_init);
 void irq_sim_fini(struct irq_sim *sim)
 {
 	irq_work_sync(&sim->work_ctx.work);
+	bitmap_free(sim->work_ctx.pending);
 	irq_free_descs(sim->irq_base, sim->irq_count);
 	kfree(sim->irqs);
 }
@@ -143,7 +162,7 @@ EXPORT_SYMBOL_GPL(devm_irq_sim_init);
 void irq_sim_fire(struct irq_sim *sim, unsigned int offset)
 {
 	if (sim->irqs[offset].enabled) {
-		sim->work_ctx.irq = irq_sim_irqnum(sim, offset);
+		set_bit(offset, sim->work_ctx.pending);
 		irq_work_queue(&sim->work_ctx.work);
 	}
 }
