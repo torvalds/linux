@@ -229,7 +229,7 @@ static int __revoke_inmem_pages(struct inode *inode,
 
 		lock_page(page);
 
-		f2fs_wait_on_page_writeback(page, DATA, true);
+		f2fs_wait_on_page_writeback(page, DATA, true, true);
 
 		if (recover) {
 			struct dnode_of_data dn;
@@ -387,7 +387,7 @@ static int __f2fs_commit_inmem_pages(struct inode *inode)
 		if (page->mapping == inode->i_mapping) {
 			trace_f2fs_commit_inmem_page(page, INMEM);
 
-			f2fs_wait_on_page_writeback(page, DATA, true);
+			f2fs_wait_on_page_writeback(page, DATA, true, true);
 
 			set_page_dirty(page);
 			if (clear_page_dirty_for_io(page)) {
@@ -3279,16 +3279,18 @@ void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
 }
 
 void f2fs_wait_on_page_writeback(struct page *page,
-				enum page_type type, bool ordered)
+				enum page_type type, bool ordered, bool locked)
 {
 	if (PageWriteback(page)) {
 		struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 
 		f2fs_submit_merged_write_cond(sbi, NULL, page, 0, type);
-		if (ordered)
+		if (ordered) {
 			wait_on_page_writeback(page);
-		else
+			f2fs_bug_on(sbi, locked && PageWriteback(page));
+		} else {
 			wait_for_stable_page(page);
+		}
 	}
 }
 
@@ -3305,7 +3307,7 @@ void f2fs_wait_on_block_writeback(struct inode *inode, block_t blkaddr)
 
 	cpage = find_lock_page(META_MAPPING(sbi), blkaddr);
 	if (cpage) {
-		f2fs_wait_on_page_writeback(cpage, DATA, true);
+		f2fs_wait_on_page_writeback(cpage, DATA, true, true);
 		f2fs_put_page(cpage, 1);
 	}
 }
