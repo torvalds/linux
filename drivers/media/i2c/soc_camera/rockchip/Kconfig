@@ -89,3 +89,10 @@ config VIDEO_ov5640
 	default n
 	help
 	This is ov5640 camera driver adapt to rockchip cif isp platform.
+
+config VIDEO_SC031GS
+	tristate "sc031gs driver adapt to rockchip cif isp platform"
+	depends on VIDEO_V4L2 && VIDEO_RK_CIF_ISP10 && I2C
+	default n
+	help
+	This is sc031gs camera driver adapt to rockchip cif isp platform.
