@@ -26,11 +26,9 @@
 struct clk;
 struct reset_control;
 
-#ifdef CONFIG_SMP
 bool tegra_pmc_cpu_is_powered(unsigned int cpuid);
 int tegra_pmc_cpu_power_on(unsigned int cpuid);
 int tegra_pmc_cpu_remove_clamping(unsigned int cpuid);
-#endif /* CONFIG_SMP */
 
 /*
  * powergate and I/O rail APIs
