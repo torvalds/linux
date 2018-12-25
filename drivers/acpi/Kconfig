@@ -9,7 +9,6 @@ config ARCH_SUPPORTS_ACPI
 menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on ARCH_SUPPORTS_ACPI
-	depends on PCI
 	select PNP
 	default y if X86
 	help
@@ -336,7 +335,7 @@ config ACPI_CUSTOM_DSDT_FILE
 	  See Documentation/acpi/dsdt-override.txt
 
 	  Enter the full path name to the file which includes the AmlCode
-	  declaration.
+	  or dsdt_aml_code declaration.
 
 	  If unsure, don't enter a file name.
 
@@ -370,7 +369,7 @@ config ACPI_DEBUG
 
 config ACPI_PCI_SLOT
 	bool "PCI slot detection driver"
-	depends on SYSFS
+	depends on SYSFS && PCI
 	help
 	  This driver creates entries in /sys/bus/pci/slots/ for all PCI
 	  slots in the system.  This can help correlate PCI bus addresses,
