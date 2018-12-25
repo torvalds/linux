@@ -280,6 +280,7 @@
 
 &edp {
 	status = "okay";
+	force-hpd;
 
 	ports {
 		edp_out: port@1 {

@@ -458,6 +458,8 @@
 
 &edp {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&edp_hpd>;
 
 	ports {
 		edp_out: port@1 {

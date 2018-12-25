@@ -2110,8 +2110,6 @@
 		reset-names = "dp";
 		rockchip,grf = <&grf>;
 		status = "disabled";
-		pinctrl-names = "default";
-		pinctrl-0 = <&edp_hpd>;
 
 		ports {
 			#address-cells = <1>;
