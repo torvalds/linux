@@ -35,20 +35,11 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <linux/platform_data/asoc-ti-mcbsp.h>
-#include "mcbsp.h"
+#include "omap-mcbsp-priv.h"
 #include "omap-mcbsp.h"
 #include "sdma-pcm.h"
 
 #define OMAP_MCBSP_RATES	(SNDRV_PCM_RATE_8000_96000)
-
-#define OMAP_MCBSP_SOC_SINGLE_S16_EXT(xname, xmin, xmax, \
-	xhandler_get, xhandler_put) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = omap_mcbsp_st_info_volsw, \
-	.get = xhandler_get, .put = xhandler_put, \
-	.private_value = (unsigned long) &(struct soc_mixer_control) \
-	{.min = xmin, .max = xmax} }
 
 enum {
 	OMAP_MCBSP_WORD_8 = 0,
@@ -58,6 +49,699 @@ enum {
 	OMAP_MCBSP_WORD_24,
 	OMAP_MCBSP_WORD_32,
 };
+
+static void omap_mcbsp_dump_reg(struct omap_mcbsp *mcbsp)
+{
+	dev_dbg(mcbsp->dev, "**** McBSP%d regs ****\n", mcbsp->id);
+	dev_dbg(mcbsp->dev, "DRR2:  0x%04x\n", MCBSP_READ(mcbsp, DRR2));
+	dev_dbg(mcbsp->dev, "DRR1:  0x%04x\n", MCBSP_READ(mcbsp, DRR1));
+	dev_dbg(mcbsp->dev, "DXR2:  0x%04x\n", MCBSP_READ(mcbsp, DXR2));
+	dev_dbg(mcbsp->dev, "DXR1:  0x%04x\n", MCBSP_READ(mcbsp, DXR1));
+	dev_dbg(mcbsp->dev, "SPCR2: 0x%04x\n", MCBSP_READ(mcbsp, SPCR2));
+	dev_dbg(mcbsp->dev, "SPCR1: 0x%04x\n", MCBSP_READ(mcbsp, SPCR1));
+	dev_dbg(mcbsp->dev, "RCR2:  0x%04x\n", MCBSP_READ(mcbsp, RCR2));
+	dev_dbg(mcbsp->dev, "RCR1:  0x%04x\n", MCBSP_READ(mcbsp, RCR1));
+	dev_dbg(mcbsp->dev, "XCR2:  0x%04x\n", MCBSP_READ(mcbsp, XCR2));
+	dev_dbg(mcbsp->dev, "XCR1:  0x%04x\n", MCBSP_READ(mcbsp, XCR1));
+	dev_dbg(mcbsp->dev, "SRGR2: 0x%04x\n", MCBSP_READ(mcbsp, SRGR2));
+	dev_dbg(mcbsp->dev, "SRGR1: 0x%04x\n", MCBSP_READ(mcbsp, SRGR1));
+	dev_dbg(mcbsp->dev, "PCR0:  0x%04x\n", MCBSP_READ(mcbsp, PCR0));
+	dev_dbg(mcbsp->dev, "***********************\n");
+}
+
+static int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
+{
+	struct clk *fck_src;
+	const char *src;
+	int r;
+
+	if (fck_src_id == MCBSP_CLKS_PAD_SRC)
+		src = "pad_fck";
+	else if (fck_src_id == MCBSP_CLKS_PRCM_SRC)
+		src = "prcm_fck";
+	else
+		return -EINVAL;
+
+	fck_src = clk_get(mcbsp->dev, src);
+	if (IS_ERR(fck_src)) {
+		dev_err(mcbsp->dev, "CLKS: could not clk_get() %s\n", src);
+		return -EINVAL;
+	}
+
+	pm_runtime_put_sync(mcbsp->dev);
+
+	r = clk_set_parent(mcbsp->fclk, fck_src);
+	if (r) {
+		dev_err(mcbsp->dev, "CLKS: could not clk_set_parent() to %s\n",
+			src);
+		clk_put(fck_src);
+		return r;
+	}
+
+	pm_runtime_get_sync(mcbsp->dev);
+
+	clk_put(fck_src);
+
+	return 0;
+}
+
+static irqreturn_t omap_mcbsp_irq_handler(int irq, void *data)
+{
+	struct omap_mcbsp *mcbsp = data;
+	u16 irqst;
+
+	irqst = MCBSP_READ(mcbsp, IRQST);
+	dev_dbg(mcbsp->dev, "IRQ callback : 0x%x\n", irqst);
+
+	if (irqst & RSYNCERREN)
+		dev_err(mcbsp->dev, "RX Frame Sync Error!\n");
+	if (irqst & RFSREN)
+		dev_dbg(mcbsp->dev, "RX Frame Sync\n");
+	if (irqst & REOFEN)
+		dev_dbg(mcbsp->dev, "RX End Of Frame\n");
+	if (irqst & RRDYEN)
+		dev_dbg(mcbsp->dev, "RX Buffer Threshold Reached\n");
+	if (irqst & RUNDFLEN)
+		dev_err(mcbsp->dev, "RX Buffer Underflow!\n");
+	if (irqst & ROVFLEN)
+		dev_err(mcbsp->dev, "RX Buffer Overflow!\n");
+
+	if (irqst & XSYNCERREN)
+		dev_err(mcbsp->dev, "TX Frame Sync Error!\n");
+	if (irqst & XFSXEN)
+		dev_dbg(mcbsp->dev, "TX Frame Sync\n");
+	if (irqst & XEOFEN)
+		dev_dbg(mcbsp->dev, "TX End Of Frame\n");
+	if (irqst & XRDYEN)
+		dev_dbg(mcbsp->dev, "TX Buffer threshold Reached\n");
+	if (irqst & XUNDFLEN)
+		dev_err(mcbsp->dev, "TX Buffer Underflow!\n");
+	if (irqst & XOVFLEN)
+		dev_err(mcbsp->dev, "TX Buffer Overflow!\n");
+	if (irqst & XEMPTYEOFEN)
+		dev_dbg(mcbsp->dev, "TX Buffer empty at end of frame\n");
+
+	MCBSP_WRITE(mcbsp, IRQST, irqst);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *data)
+{
+	struct omap_mcbsp *mcbsp = data;
+	u16 irqst_spcr2;
+
+	irqst_spcr2 = MCBSP_READ(mcbsp, SPCR2);
+	dev_dbg(mcbsp->dev, "TX IRQ callback : 0x%x\n", irqst_spcr2);
+
+	if (irqst_spcr2 & XSYNC_ERR) {
+		dev_err(mcbsp->dev, "TX Frame Sync Error! : 0x%x\n",
+			irqst_spcr2);
+		/* Writing zero to XSYNC_ERR clears the IRQ */
+		MCBSP_WRITE(mcbsp, SPCR2, MCBSP_READ_CACHE(mcbsp, SPCR2));
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *data)
+{
+	struct omap_mcbsp *mcbsp = data;
+	u16 irqst_spcr1;
+
+	irqst_spcr1 = MCBSP_READ(mcbsp, SPCR1);
+	dev_dbg(mcbsp->dev, "RX IRQ callback : 0x%x\n", irqst_spcr1);
+
+	if (irqst_spcr1 & RSYNC_ERR) {
+		dev_err(mcbsp->dev, "RX Frame Sync Error! : 0x%x\n",
+			irqst_spcr1);
+		/* Writing zero to RSYNC_ERR clears the IRQ */
+		MCBSP_WRITE(mcbsp, SPCR1, MCBSP_READ_CACHE(mcbsp, SPCR1));
+	}
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * omap_mcbsp_config simply write a config to the
+ * appropriate McBSP.
+ * You either call this function or set the McBSP registers
+ * by yourself before calling omap_mcbsp_start().
+ */
+static void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
+			      const struct omap_mcbsp_reg_cfg *config)
+{
+	dev_dbg(mcbsp->dev, "Configuring McBSP%d  phys_base: 0x%08lx\n",
+		mcbsp->id, mcbsp->phys_base);
+
+	/* We write the given config */
+	MCBSP_WRITE(mcbsp, SPCR2, config->spcr2);
+	MCBSP_WRITE(mcbsp, SPCR1, config->spcr1);
+	MCBSP_WRITE(mcbsp, RCR2, config->rcr2);
+	MCBSP_WRITE(mcbsp, RCR1, config->rcr1);
+	MCBSP_WRITE(mcbsp, XCR2, config->xcr2);
+	MCBSP_WRITE(mcbsp, XCR1, config->xcr1);
+	MCBSP_WRITE(mcbsp, SRGR2, config->srgr2);
+	MCBSP_WRITE(mcbsp, SRGR1, config->srgr1);
+	MCBSP_WRITE(mcbsp, MCR2, config->mcr2);
+	MCBSP_WRITE(mcbsp, MCR1, config->mcr1);
+	MCBSP_WRITE(mcbsp, PCR0, config->pcr0);
+	if (mcbsp->pdata->has_ccr) {
+		MCBSP_WRITE(mcbsp, XCCR, config->xccr);
+		MCBSP_WRITE(mcbsp, RCCR, config->rccr);
+	}
+	/* Enable wakeup behavior */
+	if (mcbsp->pdata->has_wakeup)
+		MCBSP_WRITE(mcbsp, WAKEUPEN, XRDYEN | RRDYEN);
+
+	/* Enable TX/RX sync error interrupts by default */
+	if (mcbsp->irq)
+		MCBSP_WRITE(mcbsp, IRQEN, RSYNCERREN | XSYNCERREN |
+			    RUNDFLEN | ROVFLEN | XUNDFLEN | XOVFLEN);
+}
+
+/**
+ * omap_mcbsp_dma_reg_params - returns the address of mcbsp data register
+ * @mcbsp: omap_mcbsp struct for the McBSP instance
+ * @stream: Stream direction (playback/capture)
+ *
+ * Returns the address of mcbsp data transmit register or data receive register
+ * to be used by DMA for transferring/receiving data
+ */
+static int omap_mcbsp_dma_reg_params(struct omap_mcbsp *mcbsp,
+				     unsigned int stream)
+{
+	int data_reg;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (mcbsp->pdata->reg_size == 2)
+			data_reg = OMAP_MCBSP_REG_DXR1;
+		else
+			data_reg = OMAP_MCBSP_REG_DXR;
+	} else {
+		if (mcbsp->pdata->reg_size == 2)
+			data_reg = OMAP_MCBSP_REG_DRR1;
+		else
+			data_reg = OMAP_MCBSP_REG_DRR;
+	}
+
+	return mcbsp->phys_dma_base + data_reg * mcbsp->pdata->reg_step;
+}
+
+/*
+ * omap_mcbsp_set_rx_threshold configures the transmit threshold in words.
+ * The threshold parameter is 1 based, and it is converted (threshold - 1)
+ * for the THRSH2 register.
+ */
+static void omap_mcbsp_set_tx_threshold(struct omap_mcbsp *mcbsp, u16 threshold)
+{
+	if (threshold && threshold <= mcbsp->max_tx_thres)
+		MCBSP_WRITE(mcbsp, THRSH2, threshold - 1);
+}
+
+/*
+ * omap_mcbsp_set_rx_threshold configures the receive threshold in words.
+ * The threshold parameter is 1 based, and it is converted (threshold - 1)
+ * for the THRSH1 register.
+ */
+static void omap_mcbsp_set_rx_threshold(struct omap_mcbsp *mcbsp, u16 threshold)
+{
+	if (threshold && threshold <= mcbsp->max_rx_thres)
+		MCBSP_WRITE(mcbsp, THRSH1, threshold - 1);
+}
+
+/*
+ * omap_mcbsp_get_tx_delay returns the number of used slots in the McBSP FIFO
+ */
+static u16 omap_mcbsp_get_tx_delay(struct omap_mcbsp *mcbsp)
+{
+	u16 buffstat;
+
+	/* Returns the number of free locations in the buffer */
+	buffstat = MCBSP_READ(mcbsp, XBUFFSTAT);
+
+	/* Number of slots are different in McBSP ports */
+	return mcbsp->pdata->buffer_size - buffstat;
+}
+
+/*
+ * omap_mcbsp_get_rx_delay returns the number of free slots in the McBSP FIFO
+ * to reach the threshold value (when the DMA will be triggered to read it)
+ */
+static u16 omap_mcbsp_get_rx_delay(struct omap_mcbsp *mcbsp)
+{
+	u16 buffstat, threshold;
+
+	/* Returns the number of used locations in the buffer */
+	buffstat = MCBSP_READ(mcbsp, RBUFFSTAT);
+	/* RX threshold */
+	threshold = MCBSP_READ(mcbsp, THRSH1);
+
+	/* Return the number of location till we reach the threshold limit */
+	if (threshold <= buffstat)
+		return 0;
+	else
+		return threshold - buffstat;
+}
+
+static int omap_mcbsp_request(struct omap_mcbsp *mcbsp)
+{
+	void *reg_cache;
+	int err;
+
+	reg_cache = kzalloc(mcbsp->reg_cache_size, GFP_KERNEL);
+	if (!reg_cache)
+		return -ENOMEM;
+
+	spin_lock(&mcbsp->lock);
+	if (!mcbsp->free) {
+		dev_err(mcbsp->dev, "McBSP%d is currently in use\n", mcbsp->id);
+		err = -EBUSY;
+		goto err_kfree;
+	}
+
+	mcbsp->free = false;
+	mcbsp->reg_cache = reg_cache;
+	spin_unlock(&mcbsp->lock);
+
+	if(mcbsp->pdata->ops && mcbsp->pdata->ops->request)
+		mcbsp->pdata->ops->request(mcbsp->id - 1);
+
+	/*
+	 * Make sure that transmitter, receiver and sample-rate generator are
+	 * not running before activating IRQs.
+	 */
+	MCBSP_WRITE(mcbsp, SPCR1, 0);
+	MCBSP_WRITE(mcbsp, SPCR2, 0);
+
+	if (mcbsp->irq) {
+		err = request_irq(mcbsp->irq, omap_mcbsp_irq_handler, 0,
+				  "McBSP", (void *)mcbsp);
+		if (err != 0) {
+			dev_err(mcbsp->dev, "Unable to request IRQ\n");
+			goto err_clk_disable;
+		}
+	} else {
+		err = request_irq(mcbsp->tx_irq, omap_mcbsp_tx_irq_handler, 0,
+				  "McBSP TX", (void *)mcbsp);
+		if (err != 0) {
+			dev_err(mcbsp->dev, "Unable to request TX IRQ\n");
+			goto err_clk_disable;
+		}
+
+		err = request_irq(mcbsp->rx_irq, omap_mcbsp_rx_irq_handler, 0,
+				  "McBSP RX", (void *)mcbsp);
+		if (err != 0) {
+			dev_err(mcbsp->dev, "Unable to request RX IRQ\n");
+			goto err_free_irq;
+		}
+	}
+
+	return 0;
+err_free_irq:
+	free_irq(mcbsp->tx_irq, (void *)mcbsp);
+err_clk_disable:
+	if(mcbsp->pdata->ops && mcbsp->pdata->ops->free)
+		mcbsp->pdata->ops->free(mcbsp->id - 1);
+
+	/* Disable wakeup behavior */
+	if (mcbsp->pdata->has_wakeup)
+		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
+
+	spin_lock(&mcbsp->lock);
+	mcbsp->free = true;
+	mcbsp->reg_cache = NULL;
+err_kfree:
+	spin_unlock(&mcbsp->lock);
+	kfree(reg_cache);
+
+	return err;
+}
+
+static void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
+{
+	void *reg_cache;
+
+	if(mcbsp->pdata->ops && mcbsp->pdata->ops->free)
+		mcbsp->pdata->ops->free(mcbsp->id - 1);
+
+	/* Disable wakeup behavior */
+	if (mcbsp->pdata->has_wakeup)
+		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
+
+	/* Disable interrupt requests */
+	if (mcbsp->irq)
+		MCBSP_WRITE(mcbsp, IRQEN, 0);
+
+	if (mcbsp->irq) {
+		free_irq(mcbsp->irq, (void *)mcbsp);
+	} else {
+		free_irq(mcbsp->rx_irq, (void *)mcbsp);
+		free_irq(mcbsp->tx_irq, (void *)mcbsp);
+	}
+
+	reg_cache = mcbsp->reg_cache;
+
+	/*
+	 * Select CLKS source from internal source unconditionally before
+	 * marking the McBSP port as free.
+	 * If the external clock source via MCBSP_CLKS pin has been selected the
+	 * system will refuse to enter idle if the CLKS pin source is not reset
+	 * back to internal source.
+	 */
+	if (!mcbsp_omap1())
+		omap2_mcbsp_set_clks_src(mcbsp, MCBSP_CLKS_PRCM_SRC);
+
+	spin_lock(&mcbsp->lock);
+	if (mcbsp->free)
+		dev_err(mcbsp->dev, "McBSP%d was not reserved\n", mcbsp->id);
+	else
+		mcbsp->free = true;
+	mcbsp->reg_cache = NULL;
+	spin_unlock(&mcbsp->lock);
+
+	kfree(reg_cache);
+}
+
+/*
+ * Here we start the McBSP, by enabling transmitter, receiver or both.
+ * If no transmitter or receiver is active prior calling, then sample-rate
+ * generator and frame sync are started.
+ */
+static void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int stream)
+{
+	int tx = (stream == SNDRV_PCM_STREAM_PLAYBACK);
+	int rx = !tx;
+	int enable_srg = 0;
+	u16 w;
+
+	if (mcbsp->st_data)
+		omap_mcbsp_st_start(mcbsp);
+
+	/* Only enable SRG, if McBSP is master */
+	w = MCBSP_READ_CACHE(mcbsp, PCR0);
+	if (w & (FSXM | FSRM | CLKXM | CLKRM))
+		enable_srg = !((MCBSP_READ_CACHE(mcbsp, SPCR2) |
+				MCBSP_READ_CACHE(mcbsp, SPCR1)) & 1);
+
+	if (enable_srg) {
+		/* Start the sample generator */
+		w = MCBSP_READ_CACHE(mcbsp, SPCR2);
+		MCBSP_WRITE(mcbsp, SPCR2, w | (1 << 6));
+	}
+
+	/* Enable transmitter and receiver */
+	tx &= 1;
+	w = MCBSP_READ_CACHE(mcbsp, SPCR2);
+	MCBSP_WRITE(mcbsp, SPCR2, w | tx);
+
+	rx &= 1;
+	w = MCBSP_READ_CACHE(mcbsp, SPCR1);
+	MCBSP_WRITE(mcbsp, SPCR1, w | rx);
+
+	/*
+	 * Worst case: CLKSRG*2 = 8000khz: (1/8000) * 2 * 2 usec
+	 * REVISIT: 100us may give enough time for two CLKSRG, however
+	 * due to some unknown PM related, clock gating etc. reason it
+	 * is now at 500us.
+	 */
+	udelay(500);
+
+	if (enable_srg) {
+		/* Start frame sync */
+		w = MCBSP_READ_CACHE(mcbsp, SPCR2);
+		MCBSP_WRITE(mcbsp, SPCR2, w | (1 << 7));
+	}
+
+	if (mcbsp->pdata->has_ccr) {
+		/* Release the transmitter and receiver */
+		w = MCBSP_READ_CACHE(mcbsp, XCCR);
+		w &= ~(tx ? XDISABLE : 0);
+		MCBSP_WRITE(mcbsp, XCCR, w);
+		w = MCBSP_READ_CACHE(mcbsp, RCCR);
+		w &= ~(rx ? RDISABLE : 0);
+		MCBSP_WRITE(mcbsp, RCCR, w);
+	}
+
+	/* Dump McBSP Regs */
+	omap_mcbsp_dump_reg(mcbsp);
+}
+
+static void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int stream)
+{
+	int tx = (stream == SNDRV_PCM_STREAM_PLAYBACK);
+	int rx = !tx;
+	int idle;
+	u16 w;
+
+	/* Reset transmitter */
+	tx &= 1;
+	if (mcbsp->pdata->has_ccr) {
+		w = MCBSP_READ_CACHE(mcbsp, XCCR);
+		w |= (tx ? XDISABLE : 0);
+		MCBSP_WRITE(mcbsp, XCCR, w);
+	}
+	w = MCBSP_READ_CACHE(mcbsp, SPCR2);
+	MCBSP_WRITE(mcbsp, SPCR2, w & ~tx);
+
+	/* Reset receiver */
+	rx &= 1;
+	if (mcbsp->pdata->has_ccr) {
+		w = MCBSP_READ_CACHE(mcbsp, RCCR);
+		w |= (rx ? RDISABLE : 0);
+		MCBSP_WRITE(mcbsp, RCCR, w);
+	}
+	w = MCBSP_READ_CACHE(mcbsp, SPCR1);
+	MCBSP_WRITE(mcbsp, SPCR1, w & ~rx);
+
+	idle = !((MCBSP_READ_CACHE(mcbsp, SPCR2) |
+			MCBSP_READ_CACHE(mcbsp, SPCR1)) & 1);
+
+	if (idle) {
+		/* Reset the sample rate generator */
+		w = MCBSP_READ_CACHE(mcbsp, SPCR2);
+		MCBSP_WRITE(mcbsp, SPCR2, w & ~(1 << 6));
+	}
+
+	if (mcbsp->st_data)
+		omap_mcbsp_st_stop(mcbsp);
+}
+
+#define max_thres(m)			(mcbsp->pdata->buffer_size)
+#define valid_threshold(m, val)		((val) <= max_thres(m))
+#define THRESHOLD_PROP_BUILDER(prop)					\
+static ssize_t prop##_show(struct device *dev,				\
+			struct device_attribute *attr, char *buf)	\
+{									\
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);		\
+									\
+	return sprintf(buf, "%u\n", mcbsp->prop);			\
+}									\
+									\
+static ssize_t prop##_store(struct device *dev,				\
+				struct device_attribute *attr,		\
+				const char *buf, size_t size)		\
+{									\
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);		\
+	unsigned long val;						\
+	int status;							\
+									\
+	status = kstrtoul(buf, 0, &val);				\
+	if (status)							\
+		return status;						\
+									\
+	if (!valid_threshold(mcbsp, val))				\
+		return -EDOM;						\
+									\
+	mcbsp->prop = val;						\
+	return size;							\
+}									\
+									\
+static DEVICE_ATTR(prop, 0644, prop##_show, prop##_store)
+
+THRESHOLD_PROP_BUILDER(max_tx_thres);
+THRESHOLD_PROP_BUILDER(max_rx_thres);
+
+static const char * const dma_op_modes[] = {
+	"element", "threshold",
+};
+
+static ssize_t dma_op_mode_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);
+	int dma_op_mode, i = 0;
+	ssize_t len = 0;
+	const char * const *s;
+
+	dma_op_mode = mcbsp->dma_op_mode;
+
+	for (s = &dma_op_modes[i]; i < ARRAY_SIZE(dma_op_modes); s++, i++) {
+		if (dma_op_mode == i)
+			len += sprintf(buf + len, "[%s] ", *s);
+		else
+			len += sprintf(buf + len, "%s ", *s);
+	}
+	len += sprintf(buf + len, "\n");
+
+	return len;
+}
+
+static ssize_t dma_op_mode_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t size)
+{
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);
+	int i;
+
+	i = sysfs_match_string(dma_op_modes, buf);
+	if (i < 0)
+		return i;
+
+	spin_lock_irq(&mcbsp->lock);
+	if (!mcbsp->free) {
+		size = -EBUSY;
+		goto unlock;
+	}
+	mcbsp->dma_op_mode = i;
+
+unlock:
+	spin_unlock_irq(&mcbsp->lock);
+
+	return size;
+}
+
+static DEVICE_ATTR_RW(dma_op_mode);
+
+static const struct attribute *additional_attrs[] = {
+	&dev_attr_max_tx_thres.attr,
+	&dev_attr_max_rx_thres.attr,
+	&dev_attr_dma_op_mode.attr,
+	NULL,
+};
+
+static const struct attribute_group additional_attr_group = {
+	.attrs = (struct attribute **)additional_attrs,
+};
+
+/*
+ * McBSP1 and McBSP3 are directly mapped on 1610 and 1510.
+ * 730 has only 2 McBSP, and both of them are MPU peripherals.
+ */
+static int omap_mcbsp_init(struct platform_device *pdev)
+{
+	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
+	struct resource *res;
+	int ret = 0;
+
+	spin_lock_init(&mcbsp->lock);
+	mcbsp->free = true;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
+	if (!res)
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	mcbsp->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mcbsp->io_base))
+		return PTR_ERR(mcbsp->io_base);
+
+	mcbsp->phys_base = res->start;
+	mcbsp->reg_cache_size = resource_size(res);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
+	if (!res)
+		mcbsp->phys_dma_base = mcbsp->phys_base;
+	else
+		mcbsp->phys_dma_base = res->start;
+
+	/*
+	 * OMAP1, 2 uses two interrupt lines: TX, RX
+	 * OMAP2430, OMAP3 SoC have combined IRQ line as well.
+	 * OMAP4 and newer SoC only have the combined IRQ line.
+	 * Use the combined IRQ if available since it gives better debugging
+	 * possibilities.
+	 */
+	mcbsp->irq = platform_get_irq_byname(pdev, "common");
+	if (mcbsp->irq == -ENXIO) {
+		mcbsp->tx_irq = platform_get_irq_byname(pdev, "tx");
+
+		if (mcbsp->tx_irq == -ENXIO) {
+			mcbsp->irq = platform_get_irq(pdev, 0);
+			mcbsp->tx_irq = 0;
+		} else {
+			mcbsp->rx_irq = platform_get_irq_byname(pdev, "rx");
+			mcbsp->irq = 0;
+		}
+	}
+
+	if (!pdev->dev.of_node) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
+		if (!res) {
+			dev_err(&pdev->dev, "invalid tx DMA channel\n");
+			return -ENODEV;
+		}
+		mcbsp->dma_req[0] = res->start;
+		mcbsp->dma_data[0].filter_data = &mcbsp->dma_req[0];
+
+		res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
+		if (!res) {
+			dev_err(&pdev->dev, "invalid rx DMA channel\n");
+			return -ENODEV;
+		}
+		mcbsp->dma_req[1] = res->start;
+		mcbsp->dma_data[1].filter_data = &mcbsp->dma_req[1];
+	} else {
+		mcbsp->dma_data[0].filter_data = "tx";
+		mcbsp->dma_data[1].filter_data = "rx";
+	}
+
+	mcbsp->dma_data[0].addr = omap_mcbsp_dma_reg_params(mcbsp,
+						SNDRV_PCM_STREAM_PLAYBACK);
+	mcbsp->dma_data[1].addr = omap_mcbsp_dma_reg_params(mcbsp,
+						SNDRV_PCM_STREAM_CAPTURE);
+
+	mcbsp->fclk = clk_get(&pdev->dev, "fck");
+	if (IS_ERR(mcbsp->fclk)) {
+		ret = PTR_ERR(mcbsp->fclk);
+		dev_err(mcbsp->dev, "unable to get fck: %d\n", ret);
+		return ret;
+	}
+
+	mcbsp->dma_op_mode = MCBSP_DMA_MODE_ELEMENT;
+	if (mcbsp->pdata->buffer_size) {
+		/*
+		 * Initially configure the maximum thresholds to a safe value.
+		 * The McBSP FIFO usage with these values should not go under
+		 * 16 locations.
+		 * If the whole FIFO without safety buffer is used, than there
+		 * is a possibility that the DMA will be not able to push the
+		 * new data on time, causing channel shifts in runtime.
+		 */
+		mcbsp->max_tx_thres = max_thres(mcbsp) - 0x10;
+		mcbsp->max_rx_thres = max_thres(mcbsp) - 0x10;
+
+		ret = sysfs_create_group(&mcbsp->dev->kobj,
+					 &additional_attr_group);
+		if (ret) {
+			dev_err(mcbsp->dev,
+				"Unable to create additional controls\n");
+			goto err_thres;
+		}
+	}
+
+	ret = omap_mcbsp_st_init(pdev);
+	if (ret)
+		goto err_st;
+
+	return 0;
+
+err_st:
+	if (mcbsp->pdata->buffer_size)
+		sysfs_remove_group(&mcbsp->dev->kobj, &additional_attr_group);
+err_thres:
+	clk_put(mcbsp->fclk);
+	return ret;
+}
 
 /*
  * Stream DMA parameters. DMA request line and port address are set runtime
@@ -70,6 +754,10 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	int words;
+
+	/* No need to proceed further if McBSP does not have FIFO */
+	if (mcbsp->pdata->buffer_size == 0)
+		return;
 
 	/*
 	 * Configure McBSP threshold based on either:
@@ -201,27 +889,26 @@ static int omap_mcbsp_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				  struct snd_soc_dai *cpu_dai)
 {
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
-	int err = 0, play = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		mcbsp->active++;
-		omap_mcbsp_start(mcbsp, play, !play);
+		omap_mcbsp_start(mcbsp, substream->stream);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		omap_mcbsp_stop(mcbsp, play, !play);
+		omap_mcbsp_stop(mcbsp, substream->stream);
 		mcbsp->active--;
 		break;
 	default:
-		err = -EINVAL;
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static snd_pcm_sframes_t omap_mcbsp_dai_delay(
@@ -233,6 +920,10 @@ static snd_pcm_sframes_t omap_mcbsp_dai_delay(
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	u16 fifo_use;
 	snd_pcm_sframes_t delay;
+
+	/* No need to proceed further if McBSP does not have FIFO */
+	if (mcbsp->pdata->buffer_size == 0)
+		return 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		fifo_use = omap_mcbsp_get_tx_delay(mcbsp);
@@ -649,132 +1340,6 @@ static const struct snd_soc_component_driver omap_mcbsp_component = {
 	.name		= "omap-mcbsp",
 };
 
-static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
-			struct snd_ctl_elem_info *uinfo)
-{
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int max = mc->max;
-	int min = mc->min;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = min;
-	uinfo->value.integer.max = max;
-	return 0;
-}
-
-#define OMAP_MCBSP_ST_CHANNEL_VOLUME(channel)				\
-static int								\
-omap_mcbsp_set_st_ch##channel##_volume(struct snd_kcontrol *kc,		\
-					struct snd_ctl_elem_value *uc)	\
-{									\
-	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kc);		\
-	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);	\
-	struct soc_mixer_control *mc =					\
-		(struct soc_mixer_control *)kc->private_value;		\
-	int max = mc->max;						\
-	int min = mc->min;						\
-	int val = uc->value.integer.value[0];				\
-									\
-	if (val < min || val > max)					\
-		return -EINVAL;						\
-									\
-	/* OMAP McBSP implementation uses index values 0..4 */		\
-	return omap_st_set_chgain(mcbsp, channel, val);			\
-}									\
-									\
-static int								\
-omap_mcbsp_get_st_ch##channel##_volume(struct snd_kcontrol *kc,		\
-					struct snd_ctl_elem_value *uc)	\
-{									\
-	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kc);		\
-	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);	\
-	s16 chgain;							\
-									\
-	if (omap_st_get_chgain(mcbsp, channel, &chgain))		\
-		return -EAGAIN;						\
-									\
-	uc->value.integer.value[0] = chgain;				\
-	return 0;							\
-}
-
-OMAP_MCBSP_ST_CHANNEL_VOLUME(0)
-OMAP_MCBSP_ST_CHANNEL_VOLUME(1)
-
-static int omap_mcbsp_st_put_mode(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
-	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
-	u8 value = ucontrol->value.integer.value[0];
-
-	if (value == omap_st_is_enabled(mcbsp))
-		return 0;
-
-	if (value)
-		omap_st_enable(mcbsp);
-	else
-		omap_st_disable(mcbsp);
-
-	return 1;
-}
-
-static int omap_mcbsp_st_get_mode(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
-	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
-
-	ucontrol->value.integer.value[0] = omap_st_is_enabled(mcbsp);
-	return 0;
-}
-
-#define OMAP_MCBSP_ST_CONTROLS(port)					  \
-static const struct snd_kcontrol_new omap_mcbsp##port##_st_controls[] = { \
-SOC_SINGLE_EXT("McBSP" #port " Sidetone Switch", 1, 0, 1, 0,		  \
-	       omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),		  \
-OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP" #port " Sidetone Channel 0 Volume", \
-			      -32768, 32767,				  \
-			      omap_mcbsp_get_st_ch0_volume,		  \
-			      omap_mcbsp_set_st_ch0_volume),		  \
-OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP" #port " Sidetone Channel 1 Volume", \
-			      -32768, 32767,				  \
-			      omap_mcbsp_get_st_ch1_volume,		  \
-			      omap_mcbsp_set_st_ch1_volume),		  \
-}
-
-OMAP_MCBSP_ST_CONTROLS(2);
-OMAP_MCBSP_ST_CONTROLS(3);
-
-int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id)
-{
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
-
-	if (!mcbsp->st_data) {
-		dev_warn(mcbsp->dev, "No sidetone data for port\n");
-		return 0;
-	}
-
-	switch (port_id) {
-	case 2: /* McBSP 2 */
-		return snd_soc_add_dai_controls(cpu_dai,
-					omap_mcbsp2_st_controls,
-					ARRAY_SIZE(omap_mcbsp2_st_controls));
-	case 3: /* McBSP 3 */
-		return snd_soc_add_dai_controls(cpu_dai,
-					omap_mcbsp3_st_controls,
-					ARRAY_SIZE(omap_mcbsp3_st_controls));
-	default:
-		dev_err(mcbsp->dev, "Port %d not supported\n", port_id);
-		break;
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(omap_mcbsp_st_add_controls);
-
 static struct omap_mcbsp_platform_data omap2420_pdata = {
 	.reg_step = 4,
 	.reg_size = 2,
@@ -862,6 +1427,11 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (mcbsp->pdata->reg_size == 2) {
+		omap_mcbsp_dai.playback.formats = SNDRV_PCM_FMTBIT_S16_LE;
+		omap_mcbsp_dai.capture.formats = SNDRV_PCM_FMTBIT_S16_LE;
+	}
+
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &omap_mcbsp_component,
 					      &omap_mcbsp_dai, 1);
@@ -881,7 +1451,10 @@ static int asoc_mcbsp_remove(struct platform_device *pdev)
 	if (pm_qos_request_active(&mcbsp->pm_qos_req))
 		pm_qos_remove_request(&mcbsp->pm_qos_req);
 
-	omap_mcbsp_cleanup(mcbsp);
+	if (mcbsp->pdata->buffer_size)
+		sysfs_remove_group(&mcbsp->dev->kobj, &additional_attr_group);
+
+	omap_mcbsp_st_cleanup(pdev);
 
 	clk_put(mcbsp->fclk);
 

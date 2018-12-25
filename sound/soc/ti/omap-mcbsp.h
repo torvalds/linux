@@ -22,8 +22,10 @@
  *
  */
 
-#ifndef __OMAP_I2S_H__
-#define __OMAP_I2S_H__
+#ifndef __OMAP_MCBSP_H__
+#define __OMAP_MCBSP_H__
+
+#include <sound/dmaengine_pcm.h>
 
 /* Source clocks for McBSP sample rate generator */
 enum omap_mcbsp_clksrg_clk {
@@ -41,4 +43,4 @@ enum omap_mcbsp_div {
 
 int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id);
 
-#endif
+#endif /* __OMAP_MCBSP_H__ */

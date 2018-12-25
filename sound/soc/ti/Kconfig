@@ -1,0 +1,209 @@
+menu "Audio support for Texas Instruments SoCs"
+depends on DMA_OMAP || TI_EDMA || COMPILE_TEST
+
+config SND_SOC_TI_EDMA_PCM
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+config SND_SOC_TI_SDMA_PCM
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+comment "Texas Instruments DAI support for:"
+config SND_SOC_DAVINCI_ASP
+	tristate "daVinci Audio Serial Port (ASP) or McBSP suport"
+	depends on ARCH_DAVINCI || COMPILE_TEST
+	select SND_SOC_TI_EDMA_PCM
+	help
+	  Say Y or M here if you want audio support via daVinci ASP or McBSP.
+	  The driver only implements the ASP support which is a subset of
+	  daVinci McBSP (w/o the multichannel support).
+
+config SND_SOC_DAVINCI_MCASP
+	tristate "Multichannel Audio Serial Port (McASP) support"
+	select SND_SOC_TI_EDMA_PCM if TI_EDMA
+	select SND_SOC_TI_SDMA_PCM if DMA_OMAP
+	help
+	  Say Y or M here if you want to have support for McASP IP found in
+	  various Texas Instruments SoCs like:
+	  - daVinci devices
+	  - Sitara line of SoCs (AM335x, AM438x, etc)
+	  - DRA7x devices
+	  - Keystone devices
+
+config SND_SOC_DAVINCI_VCIF
+	tristate "daVinci Voice Interface (VCIF) suport"
+	depends on ARCH_DAVINCI || COMPILE_TEST
+	select SND_SOC_TI_EDMA_PCM
+	help
+	  Say Y or M here if you want audio support via daVinci VCIF.
+
+config SND_SOC_OMAP_DMIC
+	tristate "Digital Microphone Module (DMIC) support"
+	depends on ARCH_OMAP4 || SOC_OMAP5 || COMPILE_TEST
+	select SND_SOC_TI_SDMA_PCM
+	help
+	  Say Y or M here if you want to have support for DMIC IP found in
+	  OMAP4 and OMAP5.
+
+config SND_SOC_OMAP_MCBSP
+	tristate "Multichannel Buffered Serial Port (McBSP) support"
+	depends on ARCH_OMAP || ARCH_OMAP1 || COMPILE_TEST
+	select SND_SOC_TI_SDMA_PCM
+	help
+	  Say Y or M here if you want to have support for McBSP IP found in
+	  Texas Instruments OMAP1/2/3/4/5 SoCs.
+
+config SND_SOC_OMAP_MCPDM
+	tristate "Multichannel PDM Controller (McPDM) support"
+	depends on ARCH_OMAP4 || SOC_OMAP5 || COMPILE_TEST
+	select SND_SOC_TI_SDMA_PCM
+	help
+	  Say Y or M here if you want to have support for McPDM IP found in
+	  OMAP4 and OMAP5.
+
+comment "Audio support for boards with Texas Instruments SoCs"
+config SND_SOC_NOKIA_N810
+	tristate "SoC Audio support for Nokia N810"
+	depends on MACH_NOKIA_N810 && I2C
+	select SND_SOC_OMAP_MCBSP
+	select SND_SOC_TLV320AIC3X
+	help
+	  Say Y or M if you want to add support for SoC audio on Nokia N810.
+
+config SND_SOC_NOKIA_RX51
+	tristate "SoC Audio support for Nokia RX-51"
+	depends on ARCH_OMAP3 && I2C && GPIOLIB
+	select SND_SOC_OMAP_MCBSP
+	select SND_SOC_TLV320AIC3X
+	select SND_SOC_TPA6130A2
+	help
+	  Say Y or M if you want to add support for SoC audio on Nokia RX-51
+	  hardware. This is also known as Nokia N900 product.
+
+config SND_SOC_OMAP3_PANDORA
+	tristate "SoC Audio support for OMAP3 Pandora"
+	depends on ARCH_OMAP3
+	depends on TWL4030_CORE
+	select SND_SOC_OMAP_MCBSP
+	select SND_SOC_TWL4030
+	help
+	  Say Y or M if you want to add support for SoC audio on the OMAP3 Pandora.
+
+config SND_SOC_OMAP3_TWL4030
+	tristate "SoC Audio support for OMAP3 based boards with twl4030 codec"
+	depends on ARCH_OMAP3 || COMPILE_TEST
+	depends on TWL4030_CORE
+	select SND_SOC_OMAP_MCBSP
+	select SND_SOC_TWL4030
+	help
+	  Say Y or M if you want to add support for SoC audio on OMAP3 based
+	  boards using twl4030 as codec. This driver currently supports:
+	  - Beagleboard or Devkit8000
+	  - Gumstix Overo or CompuLab CM-T35/CM-T3730
+	  - IGEP v2
+	  - OMAP3EVM
+	  - SDP3430
+	  - Zoom2
+
+config SND_SOC_OMAP_ABE_TWL6040
+	tristate "SoC Audio support for OMAP boards using ABE and twl6040 codec"
+	depends on TWL6040_CORE && COMMON_CLK
+	depends on ARCH_OMAP4 || (SOC_OMAP5 && MFD_PALMAS) || COMPILE_TEST
+	select SND_SOC_OMAP_DMIC
+	select SND_SOC_OMAP_MCPDM
+	select SND_SOC_TWL6040
+	help
+	  Say Y or M if you want to add support for SoC audio on OMAP boards
+	  using ABE and twl6040 codec. This driver currently supports:
+	  - SDP4430/Blaze boards
+	  - PandaBoard (4430)
+	  - PandaBoardES (4460)
+	  - OMAP5 uEVM
+
+config SND_SOC_OMAP_AMS_DELTA
+	tristate "SoC Audio support for Amstrad E3 (Delta) videophone"
+	depends on MACH_AMS_DELTA && TTY
+	select SND_SOC_OMAP_MCBSP
+	select SND_SOC_CX20442
+	help
+	  Say Y  or M if you want to add support  for SoC audio device
+	  connected to a handset and a speakerphone found on Amstrad E3 (Delta)
+	  videophone.
+
+	  Note that in order to get those devices fully supported,  you have to
+	  build  the kernel  with  standard  serial port  driver  included  and
+	  configured for at least 4 ports.  Then, from userspace, you must load
+	  a line discipline #19 on the modem (ttyS3) serial line.  The simplest
+	  way to achieve this is to install util-linux-ng  and use the included
+	  ldattach  utility.  This  can be  started  automatically  from  udev,
+	  a simple rule like this one should do the trick (it does for me):
+		ACTION=="add", KERNEL=="controlC0", \
+				RUN+="/usr/sbin/ldattach 19 /dev/ttyS3"
+
+config SND_SOC_OMAP_HDMI
+	tristate "OMAP4/5 HDMI audio support"
+	depends on OMAP4_DSS_HDMI || OMAP5_DSS_HDMI || COMPILE_TEST
+	select SND_SOC_TI_SDMA_PCM
+	help
+	  For HDMI audio to work OMAPDSS HDMI support should be
+	  enabled.
+	  The hdmi audio driver implements cpu-dai component using the
+	  callbacks provided by OMAPDSS and registers the component
+	  under DSS HDMI device. Omap-pcm is registered for platform
+	  component also under DSS HDMI device. Dummy codec is used as
+	  as codec component. The hdmi audio driver implements also
+	  the card and registers it under its own platform device.
+	  The device for the driver is registered by OMAPDSS hdmi
+	  driver.
+
+config SND_SOC_OMAP_OSK5912
+	tristate "SoC Audio support for omap osk5912"
+	depends on MACH_OMAP_OSK && I2C
+	select SND_SOC_OMAP_MCBSP
+	select SND_SOC_TLV320AIC23_I2C
+	help
+	  Say Y or M if you want to add support for SoC audio on osk5912.
+
+config SND_SOC_DAVINCI_EVM
+	tristate "SoC Audio support for DaVinci EVMs"
+	depends on ARCH_DAVINCI && I2C
+	select SND_SOC_DAVINCI_ASP if MACH_DAVINCI_DM355_EVM
+	select SND_SOC_DAVINCI_ASP if SND_SOC_DM365_AIC3X_CODEC
+	select SND_SOC_DAVINCI_VCIF if SND_SOC_DM365_VOICE_CODEC
+	select SND_SOC_DAVINCI_ASP if MACH_DAVINCI_EVM # DM6446
+	select SND_SOC_DAVINCI_MCASP if MACH_DAVINCI_DM6467_EVM
+	select SND_SOC_SPDIF if MACH_DAVINCI_DM6467_EVM
+	select SND_SOC_DAVINCI_MCASP if MACH_DAVINCI_DA830_EVM
+	select SND_SOC_DAVINCI_MCASP if MACH_DAVINCI_DA850_EVM
+	select SND_SOC_TLV320AIC3X
+	help
+	  Say Y if you want to add support for SoC audio on the following TI
+	  DaVinci EVM platforms:
+	  - DM355
+	  - DM365
+	  - DM6446
+	  - DM6447
+	  - DM830
+	  - DM850
+
+choice
+	prompt "DM365 codec select"
+	depends on SND_SOC_DAVINCI_EVM
+	depends on MACH_DAVINCI_DM365_EVM
+
+config SND_SOC_DM365_AIC3X_CODEC
+	bool "Audio Codec - AIC3101"
+	help
+	  Say Y if you want to add support for AIC3101 audio codec
+
+config SND_SOC_DM365_VOICE_CODEC
+	bool "Voice Codec - CQ93VC"
+	select MFD_DAVINCI_VOICECODEC
+	select SND_SOC_CQ0093VC
+	help
+	  Say Y if you want to add support for SoC On-chip voice codec
+endchoice
+
+endmenu
+
