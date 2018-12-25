@@ -738,6 +738,119 @@ static int smu_v11_0_notify_display_change(struct smu_context *smu)
 	return ret;
 }
 
+static int
+smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
+				    PPCLK_e clock_select)
+{
+	int ret = 0;
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
+					  clock_select << 16);
+	if (ret) {
+		pr_err("[GetMaxSustainableClock] Failed to get max DC clock from SMC!");
+		return ret;
+	}
+
+	ret = smu_read_smc_arg(smu, clock);
+	if (ret)
+		return ret;
+
+	if (*clock != 0)
+		return 0;
+
+	/* if DC limit is zero, return AC limit */
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
+					  clock_select << 16);
+	if (ret) {
+		pr_err("[GetMaxSustainableClock] failed to get max AC clock from SMC!");
+		return ret;
+	}
+
+	ret = smu_read_smc_arg(smu, clock);
+
+	return ret;
+}
+
+static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
+{
+	struct smu_11_0_max_sustainable_clocks *max_sustainable_clocks;
+	int ret = 0;
+
+	max_sustainable_clocks = kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks),
+					 GFP_KERNEL);
+	smu->smu_table.max_sustainable_clocks = (void *)max_sustainable_clocks;
+
+	max_sustainable_clocks->uclock = smu->smu_table.boot_values.uclk / 100;
+	max_sustainable_clocks->soc_clock = smu->smu_table.boot_values.socclk / 100;
+	max_sustainable_clocks->dcef_clock = smu->smu_table.boot_values.dcefclk / 100;
+	max_sustainable_clocks->display_clock = 0xFFFFFFFF;
+	max_sustainable_clocks->phy_clock = 0xFFFFFFFF;
+	max_sustainable_clocks->pixel_clock = 0xFFFFFFFF;
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+		ret = smu_v11_0_get_max_sustainable_clock(smu,
+							  &(max_sustainable_clocks->uclock),
+							  PPCLK_UCLK);
+		if (ret) {
+			pr_err("[%s] failed to get max UCLK from SMC!",
+			       __func__);
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
+		ret = smu_v11_0_get_max_sustainable_clock(smu,
+							  &(max_sustainable_clocks->soc_clock),
+							  PPCLK_SOCCLK);
+		if (ret) {
+			pr_err("[%s] failed to get max SOCCLK from SMC!",
+			       __func__);
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+		ret = smu_v11_0_get_max_sustainable_clock(smu,
+							  &(max_sustainable_clocks->dcef_clock),
+							  PPCLK_DCEFCLK);
+		if (ret) {
+			pr_err("[%s] failed to get max DCEFCLK from SMC!",
+			       __func__);
+			return ret;
+		}
+
+		ret = smu_v11_0_get_max_sustainable_clock(smu,
+							  &(max_sustainable_clocks->display_clock),
+							  PPCLK_DISPCLK);
+		if (ret) {
+			pr_err("[%s] failed to get max DISPCLK from SMC!",
+			       __func__);
+			return ret;
+		}
+		ret = smu_v11_0_get_max_sustainable_clock(smu,
+							  &(max_sustainable_clocks->phy_clock),
+							  PPCLK_PHYCLK);
+		if (ret) {
+			pr_err("[%s] failed to get max PHYCLK from SMC!",
+			       __func__);
+			return ret;
+		}
+		ret = smu_v11_0_get_max_sustainable_clock(smu,
+							  &(max_sustainable_clocks->pixel_clock),
+							  PPCLK_PIXCLK);
+		if (ret) {
+			pr_err("[%s] failed to get max PIXCLK from SMC!",
+			       __func__);
+			return ret;
+		}
+	}
+
+	if (max_sustainable_clocks->soc_clock < max_sustainable_clocks->uclock)
+		max_sustainable_clocks->uclock = max_sustainable_clocks->soc_clock;
+
+	return 0;
+}
+
 static int smu_v11_0_get_power_limit(struct smu_context *smu)
 {
 	int ret;
@@ -810,6 +923,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.notify_display_change = smu_v11_0_notify_display_change,
 	.get_power_limit = smu_v11_0_get_power_limit,
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
+	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

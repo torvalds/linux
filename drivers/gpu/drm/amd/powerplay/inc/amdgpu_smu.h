@@ -158,6 +158,7 @@ struct smu_table_context
 	void				*power_play_table;
 	uint32_t			power_play_table_size;
 
+	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;
 	void                            *driver_pptable;
 	struct smu_table		*tables;
@@ -253,6 +254,7 @@ struct smu_funcs
 	int (*notify_display_change)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu);
 	int (*get_current_clk_freq)(struct smu_context *smu, uint32_t clk_id, uint32_t *value);
+	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -297,6 +299,8 @@ struct smu_funcs
 	((smu)->funcs->set_last_dcef_min_deep_sleep_clk ? (smu)->funcs->set_last_dcef_min_deep_sleep_clk((smu)) : 0)
 #define smu_system_features_control(smu, en) \
 	((smu)->funcs->system_features_control ? (smu)->funcs->system_features_control((smu), (en)) : 0)
+#define smu_init_max_sustainable_clocks(smu) \
+	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
 #define smu_send_smc_msg(smu, msg) \
 	((smu)->funcs->send_smc_msg? (smu)->funcs->send_smc_msg((smu), (msg)) : 0)
 #define smu_send_smc_msg_with_param(smu, msg, param) \

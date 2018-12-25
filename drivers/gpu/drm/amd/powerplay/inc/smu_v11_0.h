@@ -36,6 +36,14 @@
 #define smnMP0_FW_INTF			0x30101c0
 #define smnMP1_PUB_CTRL			0x3010b14
 
+struct smu_11_0_max_sustainable_clocks {
+	uint32_t display_clock;
+	uint32_t phy_clock;
+	uint32_t pixel_clock;
+	uint32_t uclock;
+	uint32_t dcef_clock;
+	uint32_t soc_clock;
+};
 
 struct smu_11_0_dpm_table {
 	uint32_t    min;        /* MHz */

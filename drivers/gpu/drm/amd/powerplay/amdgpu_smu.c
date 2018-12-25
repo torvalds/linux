@@ -393,6 +393,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_init_max_sustainable_clocks(smu);
+	if (ret)
+		return ret;
+
 	ret = smu_populate_umd_state_clk(smu);
 	if (ret)
 		return ret;
@@ -538,6 +542,11 @@ static int smu_hw_fini(void *handle)
 	if (!table_context->driver_pptable)
 		return -EINVAL;
 	kfree(table_context->driver_pptable);
+
+	if (table_context->max_sustainable_clocks) {
+		kfree(table_context->max_sustainable_clocks);
+		table_context->max_sustainable_clocks = NULL;
+	}
 
 	ret = smu_fini_fb_allocations(smu);
 	if (ret)
