@@ -10,10 +10,12 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/mtd/map.h>
+#include <linux/mtd/xip.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/bitops.h>
-#include "physmap_of_gemini.h"
+#include <linux/pinctrl/consumer.h>
+#include "physmap-gemini.h"
 
 /*
  * The Flash-relevant parts of the global status register
@@ -44,6 +46,82 @@
 
 #define FLASH_PARALLEL_HIGH_PIN_CNT	(1 << 20)	/* else low pin cnt */
 
+static const struct of_device_id syscon_match[] = {
+	{ .compatible = "cortina,gemini-syscon" },
+	{ },
+};
+
+struct gemini_flash {
+	struct device *dev;
+	struct pinctrl *p;
+	struct pinctrl_state *enabled_state;
+	struct pinctrl_state *disabled_state;
+};
+
+/* Static local state */
+static struct gemini_flash *gf;
+
+static void gemini_flash_enable_pins(void)
+{
+	int ret;
+
+	if (IS_ERR(gf->enabled_state))
+		return;
+	ret = pinctrl_select_state(gf->p, gf->enabled_state);
+	if (ret)
+		dev_err(gf->dev, "failed to enable pins\n");
+}
+
+static void gemini_flash_disable_pins(void)
+{
+	int ret;
+
+	if (IS_ERR(gf->disabled_state))
+		return;
+	ret = pinctrl_select_state(gf->p, gf->disabled_state);
+	if (ret)
+		dev_err(gf->dev, "failed to disable pins\n");
+}
+
+static map_word __xipram gemini_flash_map_read(struct map_info *map,
+					       unsigned long ofs)
+{
+	map_word __xipram ret;
+
+	gemini_flash_enable_pins();
+	ret = inline_map_read(map, ofs);
+	gemini_flash_disable_pins();
+
+	return ret;
+}
+
+static void __xipram gemini_flash_map_write(struct map_info *map,
+					    const map_word datum,
+					    unsigned long ofs)
+{
+	gemini_flash_enable_pins();
+	inline_map_write(map, datum, ofs);
+	gemini_flash_disable_pins();
+}
+
+static void __xipram gemini_flash_map_copy_from(struct map_info *map,
+						void *to, unsigned long from,
+						ssize_t len)
+{
+	gemini_flash_enable_pins();
+	inline_map_copy_from(map, to, from, len);
+	gemini_flash_disable_pins();
+}
+
+static void __xipram gemini_flash_map_copy_to(struct map_info *map,
+					      unsigned long to,
+					      const void *from, ssize_t len)
+{
+	gemini_flash_enable_pins();
+	inline_map_copy_to(map, to, from, len);
+	gemini_flash_disable_pins();
+}
+
 int of_flash_probe_gemini(struct platform_device *pdev,
 			  struct device_node *np,
 			  struct map_info *map)
@@ -56,6 +134,11 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 	/* Multiplatform guard */
 	if (!of_device_is_compatible(np, "cortina,gemini-flash"))
 		return 0;
+
+	gf = devm_kzalloc(dev, sizeof(*gf), GFP_KERNEL);
+	if (!gf)
+		return -ENOMEM;
+	gf->dev = dev;
 
 	rmap = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(rmap)) {
@@ -91,7 +174,32 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 				 map->bankwidth * 8);
 	}
 
-	dev_info(&pdev->dev, "initialized Gemini-specific physmap control\n");
+	gf->p = devm_pinctrl_get(dev);
+	if (IS_ERR(gf->p)) {
+		dev_err(dev, "no pinctrl handle\n");
+		ret = PTR_ERR(gf->p);
+		return ret;
+	}
+
+	gf->enabled_state = pinctrl_lookup_state(gf->p, "enabled");
+	if (IS_ERR(gf->enabled_state))
+		dev_err(dev, "no enabled pin control state\n");
+
+	gf->disabled_state = pinctrl_lookup_state(gf->p, "disabled");
+	if (IS_ERR(gf->enabled_state)) {
+		dev_err(dev, "no disabled pin control state\n");
+	} else {
+		ret = pinctrl_select_state(gf->p, gf->disabled_state);
+		if (ret)
+			dev_err(gf->dev, "failed to disable pins\n");
+	}
+
+	map->read = gemini_flash_map_read;
+	map->write = gemini_flash_map_write;
+	map->copy_from = gemini_flash_map_copy_from;
+	map->copy_to = gemini_flash_map_copy_to;
+
+	dev_info(dev, "initialized Gemini-specific physmap control\n");
 
 	return 0;
 }

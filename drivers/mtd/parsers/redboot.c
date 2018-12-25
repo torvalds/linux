@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
-
+#include <linux/of.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/module.h>
@@ -56,6 +56,27 @@ static inline int redboot_checksum(struct fis_image_desc *img)
 	return 1;
 }
 
+static void parse_redboot_of(struct mtd_info *master)
+{
+	struct device_node *np;
+	u32 dirblock;
+	int ret;
+
+	np = mtd_get_of_node(master);
+	if (!np)
+		return;
+
+	ret = of_property_read_u32(np, "fis-index-block", &dirblock);
+	if (ret)
+		return;
+
+	/*
+	 * Assign the block found in the device tree to the local
+	 * directory block pointer.
+	 */
+	directory = dirblock;
+}
+
 static int parse_redboot_partitions(struct mtd_info *master,
 				    const struct mtd_partition **pparts,
 				    struct mtd_part_parser_data *data)
@@ -75,6 +96,8 @@ static int parse_redboot_partitions(struct mtd_info *master,
 #ifdef CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED
 	static char nullstring[] = "unallocated";
 #endif
+
+	parse_redboot_of(master);
 
 	if ( directory < 0 ) {
 		offset = master->size + directory * master->erasesize;
@@ -289,9 +312,16 @@ static int parse_redboot_partitions(struct mtd_info *master,
 	return ret;
 }
 
+static const struct of_device_id mtd_parser_redboot_of_match_table[] = {
+	{ .compatible = "redboot-fis" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, mtd_parser_redboot_of_match_table);
+
 static struct mtd_part_parser redboot_parser = {
 	.parse_fn = parse_redboot_partitions,
 	.name = "RedBoot",
+	.of_match_table = mtd_parser_redboot_of_match_table,
 };
 module_mtd_part_parser(redboot_parser);
 
