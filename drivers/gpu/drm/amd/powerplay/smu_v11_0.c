@@ -738,6 +738,25 @@ static int smu_v11_0_notify_display_change(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_get_power_limit(struct smu_context *smu)
+{
+	int ret;
+	uint32_t power_limit_value;
+
+	ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_GetPptLimit,
+			POWER_SOURCE_AC << 16);
+	if (ret) {
+		pr_err("[GetPptLimit] get default PPT limit failed!");
+		return ret;
+	}
+
+	smu_read_smc_arg(smu, &power_limit_value);
+	smu->power_limit = smu->default_power_limit = power_limit_value;
+
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -766,6 +785,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.enable_all_mask = smu_v11_0_enable_all_mask,
 	.disable_all_mask = smu_v11_0_disable_all_mask,
 	.notify_display_change = smu_v11_0_notify_display_change,
+	.get_power_limit = smu_v11_0_get_power_limit,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

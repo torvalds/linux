@@ -397,6 +397,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_get_power_limit(smu);
+	if (ret)
+		return ret;
+
 	/*
 	 * Set PMSTATUSLOG table bo address with SetToolsDramAddr MSG for tools.
 	 */
