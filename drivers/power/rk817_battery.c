@@ -550,7 +550,7 @@ struct rk817_battery_device {
 	int				zero_batocv_to_cap;
 	int				zero_xsoc;
 	unsigned long			finish_base;
-	struct timeval			rtc_base;
+	time_t				rtc_base;
 	int				sm_remain_cap;
 	int				sm_linek;
 	int				sm_chrg_dsoc;
@@ -2768,6 +2768,32 @@ static void rk817_battery_shutdown(struct platform_device *dev)
 {
 }
 
+static time_t rk817_get_rtc_sec(void)
+{
+	int err;
+	struct rtc_time tm;
+	struct timespec tv = { .tv_nsec = NSEC_PER_SEC >> 1, };
+	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+	time_t sec;
+
+	err = rtc_read_time(rtc, &tm);
+	if (err) {
+		dev_err(rtc->dev.parent, "read hardware clk failed\n");
+		return 0;
+	}
+
+	err = rtc_valid_tm(&tm);
+	if (err) {
+		dev_err(rtc->dev.parent, "invalid date time\n");
+		return 0;
+	}
+
+	rtc_tm_to_time(&tm, &tv.tv_sec);
+	sec = tv.tv_sec;
+
+	return sec;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int  rk817_bat_pm_suspend(struct device *dev)
 {
@@ -2789,7 +2815,7 @@ static int  rk817_bat_pm_suspend(struct device *dev)
 	battery->remain_cap = rk817_bat_get_capacity_uah(battery);
 	battery->rsoc = rk817_bat_get_rsoc(battery);
 
-	do_gettimeofday(&battery->rtc_base);
+	battery->rtc_base = rk817_get_rtc_sec();
 	rk817_bat_save_data(battery);
 
 	if (battery->sleep_chrg_status != CHARGE_FINISH)
@@ -2824,26 +2850,9 @@ static int  rk817_bat_pm_suspend(struct device *dev)
 
 static int rk817_bat_rtc_sleep_sec(struct rk817_battery_device *battery)
 {
-	int err;
-	int interval_sec = 0;
-	struct rtc_time tm;
-	struct timespec tv = { .tv_nsec = NSEC_PER_SEC >> 1, };
-	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+	int interval_sec;
 
-	err = rtc_read_time(rtc, &tm);
-	if (err) {
-		dev_err(rtc->dev.parent, "hctosys: read hardware clk failed\n");
-		return 0;
-	}
-
-	err = rtc_valid_tm(&tm);
-	if (err) {
-		dev_err(rtc->dev.parent, "hctosys: invalid date time\n");
-		return 0;
-	}
-
-	rtc_tm_to_time(&tm, &tv.tv_sec);
-	interval_sec = tv.tv_sec - battery->rtc_base.tv_sec;
+	interval_sec = rk817_get_rtc_sec() - battery->rtc_base;
 
 	return (interval_sec > 0) ? interval_sec : 0;
 }

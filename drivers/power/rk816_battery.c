@@ -172,7 +172,7 @@ struct rk816_battery {
 	struct wake_lock		wake_lock;
 	struct notifier_block           fb_nb;
 	struct timer_list		caltimer;
-	struct timeval			rtc_base;
+	time_t				rtc_base;
 	struct iio_channel		*iio_chan;
 	struct notifier_block		cable_cg_nb;
 	struct notifier_block		cable_host_nb;
@@ -4200,28 +4200,37 @@ static int rk816_bat_init_charger(struct rk816_battery *di)
 	return 0;
 }
 
-static int rk816_bat_rtc_sleep_sec(struct rk816_battery *di)
+static time_t rk816_get_rtc_sec(void)
 {
 	int err;
-	int interval_sec = 0;
 	struct rtc_time tm;
 	struct timespec tv = { .tv_nsec = NSEC_PER_SEC >> 1, };
 	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+	time_t sec;
 
 	err = rtc_read_time(rtc, &tm);
 	if (err) {
-		dev_err(rtc->dev.parent, "hctosys: read hardware clk failed\n");
+		dev_err(rtc->dev.parent, "read hardware clk failed\n");
 		return 0;
 	}
 
 	err = rtc_valid_tm(&tm);
 	if (err) {
-		dev_err(rtc->dev.parent, "hctosys: invalid date time\n");
+		dev_err(rtc->dev.parent, "invalid date time\n");
 		return 0;
 	}
 
 	rtc_tm_to_time(&tm, &tv.tv_sec);
-	interval_sec = tv.tv_sec - di->rtc_base.tv_sec;
+	sec = tv.tv_sec;
+
+	return sec;
+}
+
+static int rk816_bat_rtc_sleep_sec(struct rk816_battery *di)
+{
+	int interval_sec;
+
+	interval_sec = rk816_get_rtc_sec() - di->rtc_base;
 
 	return (interval_sec > 0) ? interval_sec : 0;
 }
@@ -4800,7 +4809,7 @@ static int rk816_battery_suspend(struct platform_device *dev,
 	di->current_avg = rk816_bat_get_avg_current(di);
 	di->remain_cap = rk816_bat_get_coulomb_cap(di);
 	di->rsoc = rk816_bat_get_rsoc(di);
-	do_gettimeofday(&di->rtc_base);
+	di->rtc_base = rk816_get_rtc_sec();
 	rk816_bat_save_data(di);
 	st = (rk816_bat_read(di, RK816_SUP_STS_REG) & CHRG_STATUS_MSK) >> 4;
 	di->slp_dcdc_en_reg = rk816_bat_read(di, RK816_SLP_DCDC_EN_REG);
