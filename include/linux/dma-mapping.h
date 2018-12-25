@@ -284,32 +284,25 @@ static inline void dma_direct_sync_sg_for_cpu(struct device *dev,
 }
 #endif
 
-static inline dma_addr_t dma_map_single_attrs(struct device *dev, void *ptr,
-					      size_t size,
-					      enum dma_data_direction dir,
-					      unsigned long attrs)
+static inline dma_addr_t dma_map_page_attrs(struct device *dev,
+		struct page *page, size_t offset, size_t size,
+		enum dma_data_direction dir, unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	dma_addr_t addr;
 
 	BUG_ON(!valid_dma_direction(dir));
-	debug_dma_map_single(dev, ptr, size);
 	if (dma_is_direct(ops))
-		addr = dma_direct_map_page(dev, virt_to_page(ptr),
-				offset_in_page(ptr), size, dir, attrs);
+		addr = dma_direct_map_page(dev, page, offset, size, dir, attrs);
 	else
-		addr = ops->map_page(dev, virt_to_page(ptr),
-				offset_in_page(ptr), size, dir, attrs);
-	debug_dma_map_page(dev, virt_to_page(ptr),
-			   offset_in_page(ptr), size,
-			   dir, addr, true);
+		addr = ops->map_page(dev, page, offset, size, dir, attrs);
+	debug_dma_map_page(dev, page, offset, size, dir, addr);
+
 	return addr;
 }
 
-static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t addr,
-					  size_t size,
-					  enum dma_data_direction dir,
-					  unsigned long attrs)
+static inline void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr,
+		size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
@@ -318,13 +311,7 @@ static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t addr,
 		dma_direct_unmap_page(dev, addr, size, dir, attrs);
 	else if (ops->unmap_page)
 		ops->unmap_page(dev, addr, size, dir, attrs);
-	debug_dma_unmap_page(dev, addr, size, dir, true);
-}
-
-static inline void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr,
-		size_t size, enum dma_data_direction dir, unsigned long attrs)
-{
-	return dma_unmap_single_attrs(dev, addr, size, dir, attrs);
+	debug_dma_unmap_page(dev, addr, size, dir);
 }
 
 /*
@@ -361,25 +348,6 @@ static inline void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg
 		dma_direct_unmap_sg(dev, sg, nents, dir, attrs);
 	else if (ops->unmap_sg)
 		ops->unmap_sg(dev, sg, nents, dir, attrs);
-}
-
-static inline dma_addr_t dma_map_page_attrs(struct device *dev,
-					    struct page *page,
-					    size_t offset, size_t size,
-					    enum dma_data_direction dir,
-					    unsigned long attrs)
-{
-	const struct dma_map_ops *ops = get_dma_ops(dev);
-	dma_addr_t addr;
-
-	BUG_ON(!valid_dma_direction(dir));
-	if (dma_is_direct(ops))
-		addr = dma_direct_map_page(dev, page, offset, size, dir, attrs);
-	else
-		addr = ops->map_page(dev, page, offset, size, dir, attrs);
-	debug_dma_map_page(dev, page, offset, size, dir, addr, false);
-
-	return addr;
 }
 
 static inline dma_addr_t dma_map_resource(struct device *dev,
@@ -486,6 +454,20 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		ops->sync_sg_for_device(dev, sg, nelems, dir);
 	debug_dma_sync_sg_for_device(dev, sg, nelems, dir);
 
+}
+
+static inline dma_addr_t dma_map_single_attrs(struct device *dev, void *ptr,
+		size_t size, enum dma_data_direction dir, unsigned long attrs)
+{
+	debug_dma_map_single(dev, ptr, size);
+	return dma_map_page_attrs(dev, virt_to_page(ptr), offset_in_page(ptr),
+			size, dir, attrs);
+}
+
+static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t addr,
+		size_t size, enum dma_data_direction dir, unsigned long attrs)
+{
+	return dma_unmap_page_attrs(dev, addr, size, dir, attrs);
 }
 
 #define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, 0)
