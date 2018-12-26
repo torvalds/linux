@@ -381,6 +381,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_notify_display_change(smu);
+	if (ret)
+		return ret;
+
 	/*
 	 * Set min deep sleep dce fclk with bootup value from vbios via
 	 * SetMinDeepSleepDcefclk MSG.

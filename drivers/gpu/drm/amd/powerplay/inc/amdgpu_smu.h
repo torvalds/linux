@@ -241,6 +241,7 @@ struct smu_funcs
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	int (*enable_all_mask)(struct smu_context *smu);
 	int (*disable_all_mask)(struct smu_context *smu);
+	int (*notify_display_change)(struct smu_context *smu);
 
 };
 
@@ -304,6 +305,8 @@ struct smu_funcs
 	((smu)->funcs->enable_all_mask? (smu)->funcs->enable_all_mask((smu)) : 0)
 #define smu_feature_disable_all(smu) \
 	((smu)->funcs->disable_all_mask? (smu)->funcs->disable_all_mask((smu)) : 0)
+#define smu_notify_display_change(smu) \
+	((smu)->funcs->notify_display_change? (smu)->funcs->notify_display_change((smu)) : 0)
 #define smu_store_powerplay_table(smu) \
 	((smu)->ppt_funcs->store_powerplay_table ? (smu)->ppt_funcs->store_powerplay_table((smu)) : 0)
 #define smu_check_powerplay_table(smu) \

@@ -760,6 +760,16 @@ static int smu_v11_0_disable_all_mask(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_notify_display_change(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT))
+	    ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1);
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -787,6 +797,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
 	.enable_all_mask = smu_v11_0_enable_all_mask,
 	.disable_all_mask = smu_v11_0_disable_all_mask,
+	.notify_display_change = smu_v11_0_notify_display_change,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
