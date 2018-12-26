@@ -1,20 +1,22 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __KVM_X86_VMX_EVMCS_H
-#define __KVM_X86_VMX_EVMCS_H
+// SPDX-License-Identifier: GPL-2.0
 
-#include <asm/hyperv-tlfs.h>
+#include <linux/errno.h>
+#include <linux/smp.h>
+
+#include "evmcs.h"
+#include "vmcs.h"
+#include "vmx.h"
+
+DEFINE_STATIC_KEY_FALSE(enable_evmcs);
+
+#if IS_ENABLED(CONFIG_HYPERV)
 
 #define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
 #define EVMCS1_FIELD(number, name, clean_field)[ROL16(number, 6)] = \
 		{EVMCS1_OFFSET(name), clean_field}
 
-struct evmcs_field {
-	u16 offset;
-	u16 clean_field;
-};
-
-static const struct evmcs_field vmcs_field_to_evmcs_1[] = {
+const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 	/* 64 bit rw */
 	EVMCS1_FIELD(GUEST_RIP, guest_rip,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
@@ -298,27 +300,53 @@ static const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 	EVMCS1_FIELD(VIRTUAL_PROCESSOR_ID, virtual_processor_id,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_CONTROL_XLAT),
 };
+const unsigned int nr_evmcs_1_fields = ARRAY_SIZE(vmcs_field_to_evmcs_1);
 
-static __always_inline int get_evmcs_offset(unsigned long field,
-					    u16 *clean_field)
+void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
 {
-	unsigned int index = ROL16(field, 6);
-	const struct evmcs_field *evmcs_field;
+	vmcs_conf->pin_based_exec_ctrl &= ~EVMCS1_UNSUPPORTED_PINCTRL;
+	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
 
-	if (unlikely(index >= ARRAY_SIZE(vmcs_field_to_evmcs_1))) {
-		WARN_ONCE(1, "KVM: accessing unsupported EVMCS field %lx\n",
-			  field);
-		return -ENOENT;
-	}
+	vmcs_conf->vmexit_ctrl &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
+	vmcs_conf->vmentry_ctrl &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
 
-	evmcs_field = &vmcs_field_to_evmcs_1[index];
+}
+#endif
 
-	if (clean_field)
-		*clean_field = evmcs_field->clean_field;
+uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
+{
+       struct vcpu_vmx *vmx = to_vmx(vcpu);
+       /*
+        * vmcs_version represents the range of supported Enlightened VMCS
+        * versions: lower 8 bits is the minimal version, higher 8 bits is the
+        * maximum supported version. KVM supports versions from 1 to
+        * KVM_EVMCS_VERSION.
+        */
+       if (vmx->nested.enlightened_vmcs_enabled)
+               return (KVM_EVMCS_VERSION << 8) | 1;
 
-	return evmcs_field->offset;
+       return 0;
 }
 
-#undef ROL16
+int nested_enable_evmcs(struct kvm_vcpu *vcpu,
+			uint16_t *vmcs_version)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-#endif /* __KVM_X86_VMX_EVMCS_H */
+	if (vmcs_version)
+		*vmcs_version = nested_get_evmcs_version(vcpu);
+
+	/* We don't support disabling the feature for simplicity. */
+	if (vmx->nested.enlightened_vmcs_enabled)
+		return 0;
+
+	vmx->nested.enlightened_vmcs_enabled = true;
+
+	vmx->nested.msrs.pinbased_ctls_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
+	vmx->nested.msrs.entry_ctls_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
+	vmx->nested.msrs.exit_ctls_high &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
+	vmx->nested.msrs.secondary_ctls_high &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
+	vmx->nested.msrs.vmfunc_controls &= ~EVMCS1_UNSUPPORTED_VMFUNC;
+
+	return 0;
+}

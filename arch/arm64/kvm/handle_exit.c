@@ -247,13 +247,6 @@ static int handle_trap_exceptions(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		handled = exit_handler(vcpu, run);
 	}
 
-	/*
-	 * kvm_arm_handle_step_debug() sets the exit_reason on the kvm_run
-	 * structure if we need to return to userspace.
-	 */
-	if (handled > 0 && kvm_arm_handle_step_debug(vcpu, run))
-		handled = 0;
-
 	return handled;
 }
 
@@ -287,12 +280,7 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case ARM_EXCEPTION_IRQ:
 		return 1;
 	case ARM_EXCEPTION_EL1_SERROR:
-		/* We may still need to return for single-step */
-		if (!(*vcpu_cpsr(vcpu) & DBG_SPSR_SS)
-			&& kvm_arm_handle_step_debug(vcpu, run))
-			return 0;
-		else
-			return 1;
+		return 1;
 	case ARM_EXCEPTION_TRAP:
 		return handle_trap_exceptions(vcpu, run);
 	case ARM_EXCEPTION_HYP_GONE:

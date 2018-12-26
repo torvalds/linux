@@ -107,7 +107,7 @@
 			 TCR_EL2_ORGN0_MASK | TCR_EL2_IRGN0_MASK | TCR_EL2_T0SZ_MASK)
 
 /* VTCR_EL2 Registers bits */
-#define VTCR_EL2_RES1		(1 << 31)
+#define VTCR_EL2_RES1		(1U << 31)
 #define VTCR_EL2_HD		(1 << 22)
 #define VTCR_EL2_HA		(1 << 21)
 #define VTCR_EL2_PS_SHIFT	TCR_EL2_PS_SHIFT
@@ -322,10 +322,6 @@
  */
 #define PAR_TO_HPFAR(par)		\
 	(((par) & GENMASK_ULL(PHYS_MASK_SHIFT - 1, 12)) >> 8)
-
-#define kvm_arm_exception_type	\
-	{0, "IRQ" }, 		\
-	{1, "TRAP" }
 
 #define ECN(x) { ESR_ELx_EC_##x, #x }
 

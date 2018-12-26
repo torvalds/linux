@@ -8309,6 +8309,7 @@ W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
 S:	Supported
 F:	arch/x86/kvm/
+F:	arch/x86/kvm/*/
 F:	arch/x86/include/uapi/asm/kvm*
 F:	arch/x86/include/asm/kvm*
 F:	arch/x86/include/asm/pvclock-abi.h

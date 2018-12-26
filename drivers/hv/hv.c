@@ -143,7 +143,7 @@ static int hv_ce_shutdown(struct clock_event_device *evt)
 
 static int hv_ce_set_oneshot(struct clock_event_device *evt)
 {
-	union hv_timer_config timer_cfg;
+	union hv_stimer_config timer_cfg;
 
 	timer_cfg.as_uint64 = 0;
 	timer_cfg.enable = 1;
