@@ -665,6 +665,101 @@ static int smu_v11_0_init_display(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_set_allowed_mask(struct smu_context *smu)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+	uint32_t feature_mask[2];
+
+	if (bitmap_empty(feature->allowed, SMU_FEATURE_MAX) || feature->feature_num < 64)
+		return -EINVAL;
+
+	bitmap_copy((unsigned long *)feature_mask, feature->allowed, 64);
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskHigh,
+					  feature_mask[1]);
+	if (ret)
+		return ret;
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskLow,
+					  feature_mask[0]);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int smu_v11_0_get_enabled_mask(struct smu_context *smu,
+				      uint32_t *feature_mask, uint32_t num)
+{
+	uint32_t feature_mask_high = 0, feature_mask_low = 0;
+	int ret = 0;
+
+	if (!feature_mask || num < 2)
+		return -EINVAL;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh);
+	if (ret)
+		return ret;
+	ret = smu_read_smc_arg(smu, &feature_mask_high);
+	if (ret)
+		return ret;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow);
+	if (ret)
+		return ret;
+	ret = smu_read_smc_arg(smu, &feature_mask_low);
+	if (ret)
+		return ret;
+
+	feature_mask[0] = feature_mask_low;
+	feature_mask[1] = feature_mask_high;
+
+	return ret;
+}
+
+static int smu_v11_0_enable_all_mask(struct smu_context *smu)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	uint32_t feature_mask[2];
+	int ret = 0;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_EnableAllSmuFeatures);
+	if (ret)
+		return ret;
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	if (ret)
+		return ret;
+
+	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+
+	return ret;
+}
+
+static int smu_v11_0_disable_all_mask(struct smu_context *smu)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	uint32_t feature_mask[2];
+	int ret = 0;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_DisableAllSmuFeatures);
+	if (ret)
+		return ret;
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	if (ret)
+		return ret;
+
+	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -688,6 +783,10 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.init_display = smu_v11_0_init_display,
+	.set_allowed_mask = smu_v11_0_set_allowed_mask,
+	.get_enabled_mask = smu_v11_0_get_enabled_mask,
+	.enable_all_mask = smu_v11_0_enable_all_mask,
+	.disable_all_mask = smu_v11_0_disable_all_mask,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

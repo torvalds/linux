@@ -175,6 +175,16 @@ struct smu_power_context {
 	uint32_t power_context_size;
 };
 
+
+#define SMU_FEATURE_MAX	(64)
+struct smu_feature
+{
+	uint32_t feature_num;
+	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
+	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
+	DECLARE_BITMAP(enabled, SMU_FEATURE_MAX);
+};
+
 struct smu_context
 {
 	struct amdgpu_device            *adev;
@@ -187,6 +197,7 @@ struct smu_context
 	struct smu_table_context	smu_table;
 	struct smu_dpm_context		smu_dpm;
 	struct smu_power_context	smu_power;
+	struct smu_feature		smu_feature;
 };
 
 struct pptable_funcs {
@@ -196,6 +207,7 @@ struct pptable_funcs {
 	int (*append_powerplay_table)(struct smu_context *smu);
 	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
 	int (*run_afll_btc)(struct smu_context *smu);
+	int (*get_unallowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 };
 
 struct smu_funcs
@@ -225,6 +237,10 @@ struct smu_funcs
 	int (*send_smc_msg_with_param)(struct smu_context *smu, uint16_t msg, uint32_t param);
 	int (*read_smc_arg)(struct smu_context *smu, uint32_t *arg);
 	int (*init_display)(struct smu_context *smu);
+	int (*set_allowed_mask)(struct smu_context *smu);
+	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+	int (*enable_all_mask)(struct smu_context *smu);
+	int (*disable_all_mask)(struct smu_context *smu);
 
 };
 
@@ -280,7 +296,14 @@ struct smu_funcs
 	((smu)->ppt_funcs->alloc_dpm_context ? (smu)->ppt_funcs->alloc_dpm_context((smu)) : 0)
 #define smu_init_display(smu) \
 	((smu)->funcs->init_display ? (smu)->funcs->init_display((smu)) : 0)
-
+#define smu_feature_set_allowed_mask(smu) \
+	((smu)->funcs->set_allowed_mask? (smu)->funcs->set_allowed_mask((smu)) : 0)
+#define smu_feature_get_enabled_mask(smu, mask, num) \
+	((smu)->funcs->get_enabled_mask? (smu)->funcs->get_enabled_mask((smu), (mask), (num)) : 0)
+#define smu_feature_enable_all(smu) \
+	((smu)->funcs->enable_all_mask? (smu)->funcs->enable_all_mask((smu)) : 0)
+#define smu_feature_disable_all(smu) \
+	((smu)->funcs->disable_all_mask? (smu)->funcs->disable_all_mask((smu)) : 0)
 #define smu_store_powerplay_table(smu) \
 	((smu)->ppt_funcs->store_powerplay_table ? (smu)->ppt_funcs->store_powerplay_table((smu)) : 0)
 #define smu_check_powerplay_table(smu) \
@@ -292,6 +315,8 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
 #define smu_run_afll_btc(smu) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
+#define smu_get_unallowed_feature_mask(smu, feature_mask, num) \
+	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_unallowed_feature_mask? (smu)->ppt_funcs->get_unallowed_feature_mask((smu), (feature_mask), (num)) : 0) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
@@ -300,5 +325,6 @@ extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 extern const struct amd_ip_funcs smu_ip_funcs;
 
 extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
+extern int smu_feature_init_dpm(struct smu_context *smu);
 
 #endif

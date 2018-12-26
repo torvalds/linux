@@ -29,6 +29,26 @@
 #include "smu_v11_0.h"
 #include "atom.h"
 
+int smu_feature_init_dpm(struct smu_context *smu)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+	uint32_t unallowed_feature_mask[SMU_FEATURE_MAX/32];
+
+	bitmap_fill(feature->allowed, SMU_FEATURE_MAX);
+
+	ret = smu_get_unallowed_feature_mask(smu, unallowed_feature_mask,
+					     SMU_FEATURE_MAX/32);
+	if (ret)
+		return ret;
+
+	bitmap_andnot(feature->allowed, feature->allowed,
+		      (unsigned long *)unallowed_feature_mask,
+		      feature->feature_num);
+
+	return ret;
+}
+
 static int smu_set_funcs(struct amdgpu_device *adev)
 {
 	struct smu_context *smu = &adev->smu;
@@ -133,6 +153,10 @@ static int smu_sw_init(void *handle)
 		return -EINVAL;
 
 	smu->pool_size = adev->pm.smu_prv_buffer_size;
+	smu->smu_feature.feature_num = SMU_FEATURE_MAX;
+	bitmap_zero(smu->smu_feature.supported, SMU_FEATURE_MAX);
+	bitmap_zero(smu->smu_feature.enabled, SMU_FEATURE_MAX);
+	bitmap_zero(smu->smu_feature.allowed, SMU_FEATURE_MAX);
 
 	ret = smu_init_microcode(smu);
 	if (ret) {
@@ -241,6 +265,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_feature_set_allowed_mask(smu);
+	if (ret)
+		return ret;
+
 	ret = smu_read_pptable_from_vbios(smu);
 	if (ret)
 		return ret;
@@ -309,6 +337,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 
 	/* issue RunAfllBtc msg */
 	ret = smu_run_afll_btc(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_feature_enable_all(smu);
 	if (ret)
 		return ret;
 
@@ -412,6 +444,10 @@ static int smu_hw_init(void *handle)
 	}
 
 	mutex_lock(&smu->mutex);
+
+	ret = smu_feature_init_dpm(smu);
+	if (ret)
+		goto failed;
 
 	ret = smu_smc_table_hw_init(smu);
 	if (ret)
