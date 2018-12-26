@@ -844,7 +844,7 @@
 		reset-names = "tsadc-apb";
 		pinctrl-names = "init", "default", "sleep";
 		pinctrl-0 = <&tsadc_otp_gpio>;
-		pinctrl-1 = <&tsadc_otp_out>;
+		pinctrl-1 = <&tsadc_otp_gpio>;
 		pinctrl-2 = <&tsadc_otp_gpio>;
 		#thermal-sensor-cells = <1>;
 		rockchip,hw-tshut-temp = <120000>;
