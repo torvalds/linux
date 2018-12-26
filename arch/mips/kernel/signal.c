@@ -62,6 +62,8 @@ struct rt_sigframe {
 	struct ucontext rs_uc;
 };
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 /*
  * Thread saved context copy to/from a signal context presumed to be on the
  * user stack, and therefore accessed with appropriate macros from uaccess.h.
@@ -104,6 +106,20 @@ static int copy_fp_from_sigcontext(void __user *sc)
 	return err;
 }
 
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+static int copy_fp_to_sigcontext(void __user *sc)
+{
+	return 0;
+}
+
+static int copy_fp_from_sigcontext(void __user *sc)
+{
+	return 0;
+}
+
+#endif /* !CONFIG_MIPS_FP_SUPPORT */
+
 /*
  * Wrappers for the assembly _{save,restore}_fp_context functions.
  */
@@ -141,6 +157,8 @@ static inline void __user *sc_to_extcontext(void __user *sc)
 	uc = container_of(sc, struct ucontext, uc_mcontext);
 	return &uc->uc_extcontext;
 }
+
+#ifdef CONFIG_CPU_HAS_MSA
 
 static int save_msa_extcontext(void __user *buf)
 {
@@ -195,9 +213,6 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 	unsigned int csr;
 	int i, err;
 
-	if (!IS_ENABLED(CONFIG_CPU_HAS_MSA))
-		return SIGSYS;
-
 	if (size != sizeof(*msa))
 		return -EINVAL;
 
@@ -233,6 +248,20 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 
 	return err;
 }
+
+#else /* !CONFIG_CPU_HAS_MSA */
+
+static int save_msa_extcontext(void __user *buf)
+{
+	return 0;
+}
+
+static int restore_msa_extcontext(void __user *buf, unsigned int size)
+{
+	return SIGSYS;
+}
+
+#endif /* !CONFIG_CPU_HAS_MSA */
 
 static int save_extcontext(void __user *buf)
 {
@@ -880,7 +909,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 	user_enter();
 }
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_MIPS_FP_SUPPORT)
 static int smp_save_fp_context(void __user *sc)
 {
 	return raw_cpu_has_fpu
@@ -908,7 +937,7 @@ static int signal_setup(void)
 		     (offsetof(struct rt_sigframe, rs_uc.uc_extcontext) -
 		      offsetof(struct rt_sigframe, rs_uc.uc_mcontext)));
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_MIPS_FP_SUPPORT)
 	/* For now just do the cpu_has_fpu check when the functions are invoked */
 	save_fp_context = smp_save_fp_context;
 	restore_fp_context = smp_restore_fp_context;

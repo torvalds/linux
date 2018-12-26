@@ -882,18 +882,12 @@ do {                                                        \
 static void emulate_load_store_insn(struct pt_regs *regs,
 	void __user *addr, unsigned int __user *pc)
 {
+	unsigned long origpc, orig31, value;
 	union mips_instruction insn;
-	unsigned long value;
-	unsigned int res, preempted;
-	unsigned long origpc;
-	unsigned long orig31;
-	void __user *fault_addr = NULL;
+	unsigned int res;
 #ifdef	CONFIG_EVA
 	mm_segment_t seg;
 #endif
-	union fpureg *fpr;
-	enum msa_2b_fmt df;
-	unsigned int wd;
 	origpc = (unsigned long)pc;
 	orig31 = regs->regs[31];
 
@@ -1212,15 +1206,18 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		/* Cannot handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 	case lwc1_op:
 	case ldc1_op:
 	case swc1_op:
 	case sdc1_op:
-	case cop1x_op:
+	case cop1x_op: {
+		void __user *fault_addr = NULL;
+
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
 
-		lose_fpu(1);	/* Save FPU state for the emulator. */
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
 		own_fpu(1);	/* Restore FPU state. */
@@ -1231,8 +1228,16 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (res == 0)
 			break;
 		return;
+	}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 
-	case msa_op:
+#ifdef CONFIG_CPU_HAS_MSA
+
+	case msa_op: {
+		unsigned int wd, preempted;
+		enum msa_2b_fmt df;
+		union fpureg *fpr;
+
 		if (!cpu_has_msa)
 			goto sigill;
 
@@ -1309,6 +1314,8 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 
 		compute_return_epc(regs);
 		break;
+	}
+#endif /* CONFIG_CPU_HAS_MSA */
 
 #ifndef CONFIG_CPU_MIPSR6
 	/*
@@ -1393,7 +1400,6 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 	unsigned long origpc, contpc;
 	union mips_instruction insn;
 	struct mm_decoded_insn mminsn;
-	void __user *fault_addr = NULL;
 
 	origpc = regs->cp0_epc;
 	orig31 = regs->regs[31];
@@ -1709,6 +1715,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 		/*  LL,SC,LLD,SCD are not serviced */
 		goto sigbus;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	case mm_pool32f_op:
 		switch (insn.mm_x_format.func) {
 		case mm_lwxc1_func:
@@ -1723,7 +1730,9 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 	case mm_ldc132_op:
 	case mm_sdc132_op:
 	case mm_lwc132_op:
-	case mm_swc132_op:
+	case mm_swc132_op: {
+		void __user *fault_addr = NULL;
+
 fpu_emul:
 		/* roll back jump/branch */
 		regs->cp0_epc = origpc;
@@ -1733,7 +1742,6 @@ fpu_emul:
 		BUG_ON(!used_math());
 		BUG_ON(!is_fpu_owner());
 
-		lose_fpu(1);	/* save the FPU state for the emulator */
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
 		own_fpu(1);	/* restore FPU state */
@@ -1744,6 +1752,8 @@ fpu_emul:
 		if (res == 0)
 			goto success;
 		return;
+	}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 
 	case mm_lh32_op:
 		reg = insn.mm_i_format.rt;
@@ -2338,7 +2348,7 @@ asmlinkage void do_ade(struct pt_regs *regs)
 			set_fs(seg);
 
 			return;
-	}
+		}
 
 		goto sigbus;
 	}

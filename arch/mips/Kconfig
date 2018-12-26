@@ -2,11 +2,12 @@
 config MIPS
 	bool
 	default y
-	select ARCH_BINFMT_ELF_STATE
+	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
@@ -15,6 +16,7 @@ config MIPS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
+	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
 	select CPU_PM if CPU_IDLE
 	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64 if !64BIT
@@ -56,10 +58,12 @@ config MIPS
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
+	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
@@ -494,22 +498,23 @@ config MIPS_MALTA
 	select BOOT_RAW
 	select BUILTIN_DTB
 	select CEVT_R4K
-	select CSRC_R4K
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
+	select CSRC_R4K
 	select DMA_MAYBE_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
-	select IRQ_MIPS_CPU
-	select MIPS_GIC
 	select HW_HAS_PCI
 	select I8253
 	select I8259
+	select IRQ_MIPS_CPU
+	select LIBFDT
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
+	select MIPS_GIC
 	select MIPS_L1_CACHE_SHIFT_6
-	select PCI_GT64XXX_PCI0
 	select MIPS_MSC
+	select PCI_GT64XXX_PCI0
 	select SMP_UP if SMP
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
@@ -528,19 +533,16 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MICROMIPS
+	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MIPS_CMP
 	select SYS_SUPPORTS_MIPS_CPS
-	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_RELOCATABLE
 	select SYS_SUPPORTS_SMARTMIPS
 	select SYS_SUPPORTS_VPE_LOADER
 	select SYS_SUPPORTS_ZBOOT
-	select SYS_SUPPORTS_RELOCATABLE
 	select USE_OF
-	select LIBFDT
 	select ZONE_DMA32 if 64BIT
-	select BUILTIN_DTB
-	select LIBFDT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
@@ -794,6 +796,7 @@ config SIBYTE_SWARM
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select ZONE_DMA32 if 64BIT
+	select SWIOTLB if ARCH_DMA_ADDR_T_64BIT && PCI
 
 config SIBYTE_LITTLESUR
 	bool "Sibyte BCM91250C2-LittleSur"
@@ -805,6 +808,7 @@ config SIBYTE_LITTLESUR
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select ZONE_DMA32 if 64BIT
 
 config SIBYTE_SENTOSA
 	bool "Sibyte BCM91250E-Sentosa"
@@ -814,6 +818,7 @@ config SIBYTE_SENTOSA
 	select SYS_HAS_CPU_SB1
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SWIOTLB if ARCH_DMA_ADDR_T_64BIT && PCI
 
 config SIBYTE_BIGSUR
 	bool "Sibyte BCM91480B-BigSur"
@@ -826,6 +831,7 @@ config SIBYTE_BIGSUR
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select ZONE_DMA32 if 64BIT
+	select SWIOTLB if ARCH_DMA_ADDR_T_64BIT && PCI
 
 config SNI_RM
 	bool "SNI RM200/300/400"
@@ -2032,7 +2038,7 @@ config CPU_MIPS64
 	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R6
 
 #
-# These two indicate the revision of the architecture, either Release 1 or Release 2
+# These indicate the revision of the architecture
 #
 config CPU_MIPSR1
 	bool
@@ -2052,6 +2058,16 @@ config CPU_MIPSR6
 	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_CRC_SUPPORT
 	select MIPS_SPRAM
+
+config TARGET_ISA_REV
+	int
+	default 1 if CPU_MIPSR1
+	default 2 if CPU_MIPSR2
+	default 6 if CPU_MIPSR6
+	default 0
+	help
+	  Reflects the ISA revision being targeted by the kernel build. This
+	  is effectively the Kconfig equivalent of MIPS_ISA_REV.
 
 config EVA
 	bool
@@ -2254,9 +2270,30 @@ config CPU_GENERIC_DUMP_TLB
 	bool
 	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
 
+config MIPS_FP_SUPPORT
+	bool "Floating Point support" if EXPERT
+	default y
+	help
+	  Select y to include support for floating point in the kernel
+	  including initialization of FPU hardware, FP context save & restore
+	  and emulation of an FPU where necessary. Without this support any
+	  userland program attempting to use floating point instructions will
+	  receive a SIGILL.
+
+	  If you know that your userland will not attempt to use floating point
+	  instructions then you can say n here to shrink the kernel a little.
+
+	  If unsure, say y.
+
+config CPU_R2300_FPU
+	bool
+	depends on MIPS_FP_SUPPORT
+	default y if CPU_R3000 || CPU_TX39XX
+
 config CPU_R4K_FPU
 	bool
-	default y if !(CPU_R3000 || CPU_TX39XX)
+	depends on MIPS_FP_SUPPORT
+	default y if !CPU_R2300_FPU
 
 config CPU_R4K_CACHE_TLB
 	bool
@@ -2308,6 +2345,7 @@ config MIPS_MT_FPAFF
 config MIPSR2_TO_R6_EMULATOR
 	bool "MIPS R2-to-R6 emulator"
 	depends on CPU_MIPSR6
+	depends on MIPS_FP_SUPPORT
 	default y
 	help
 	  Choose this option if you want to run non-R6 MIPS userland code.
@@ -2455,6 +2493,7 @@ endchoice
 config CPU_HAS_MSA
 	bool "Support for the MIPS SIMD Architecture"
 	depends on CPU_SUPPORTS_MSA
+	depends on MIPS_FP_SUPPORT
 	depends on 64BIT || MIPS_O32_FP64_SUPPORT
 	help
 	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
@@ -2902,7 +2941,7 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 config MIPS_O32_FP64_SUPPORT
-	bool "Support for O32 binaries using 64-bit FP"
+	bool "Support for O32 binaries using 64-bit FP" if !CPU_MIPSR6
 	depends on 32BIT || MIPS32_O32
 	help
 	  When this is enabled, the kernel will support use of 64-bit floating

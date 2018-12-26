@@ -411,11 +411,12 @@ static inline void _kvm_atomic_set_c0_guest_reg(unsigned long *reg,
 	unsigned long temp;
 	do {
 		__asm__ __volatile__(
+		"	.set	push				\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
 		"	" __LL "%0, %1				\n"
 		"	or	%0, %2				\n"
 		"	" __SC	"%0, %1				\n"
-		"	.set	mips0				\n"
+		"	.set	pop				\n"
 		: "=&r" (temp), "+m" (*reg)
 		: "r" (val));
 	} while (unlikely(!temp));
@@ -427,11 +428,12 @@ static inline void _kvm_atomic_clear_c0_guest_reg(unsigned long *reg,
 	unsigned long temp;
 	do {
 		__asm__ __volatile__(
+		"	.set	push				\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
 		"	" __LL "%0, %1				\n"
 		"	and	%0, %2				\n"
 		"	" __SC	"%0, %1				\n"
-		"	.set	mips0				\n"
+		"	.set	pop				\n"
 		: "=&r" (temp), "+m" (*reg)
 		: "r" (~val));
 	} while (unlikely(!temp));
@@ -444,12 +446,13 @@ static inline void _kvm_atomic_change_c0_guest_reg(unsigned long *reg,
 	unsigned long temp;
 	do {
 		__asm__ __volatile__(
+		"	.set	push				\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
 		"	" __LL "%0, %1				\n"
 		"	and	%0, %2				\n"
 		"	or	%0, %3				\n"
 		"	" __SC	"%0, %1				\n"
-		"	.set	mips0				\n"
+		"	.set	pop				\n"
 		: "=&r" (temp), "+m" (*reg)
 		: "r" (~change), "r" (val & change));
 	} while (unlikely(!temp));

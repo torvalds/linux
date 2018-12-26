@@ -106,6 +106,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__ (
+		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
 		"	li	%[err], 0				\n"
 		"1:	ll	%[old], (%[addr])			\n"
@@ -122,7 +123,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 		"	"STR(PTR)"	1b, 4b				\n"
 		"	"STR(PTR)"	2b, 4b				\n"
 		"	.previous					\n"
-		"	.set	mips0					\n"
+		"	.set	pop					\n"
 		: [old] "=&r" (old),
 		  [err] "=&r" (err),
 		  [tmp] "=&r" (tmp)
@@ -132,6 +133,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 		: "memory");
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__ (
+		"	.set	push					\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
 		"	li	%[err], 0				\n"
 		"1:							\n"
@@ -150,7 +152,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 		"	"STR(PTR)"	1b, 5b				\n"
 		"	"STR(PTR)"	2b, 5b				\n"
 		"	.previous					\n"
-		"	.set	mips0					\n"
+		"	.set	pop					\n"
 		: [old] "=&r" (old),
 		  [err] "=&r" (err),
 		  [tmp] "=&r" (tmp)
