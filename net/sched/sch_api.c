@@ -540,7 +540,7 @@ void qdisc_put_stab(struct qdisc_size_table *tab)
 
 	if (--tab->refcnt == 0) {
 		list_del(&tab->list);
-		call_rcu_bh(&tab->rcu, stab_kfree_rcu);
+		call_rcu(&tab->rcu, stab_kfree_rcu);
 	}
 }
 EXPORT_SYMBOL(qdisc_put_stab);

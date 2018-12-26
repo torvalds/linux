@@ -4195,7 +4195,7 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	 *
 	 * sync_sched() is sufficient because the read-side is IRQ disable.
 	 */
-	synchronize_sched();
+	synchronize_rcu();
 
 	/*
 	 * XXX at this point we could return the resources to the pool;
