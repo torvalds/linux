@@ -2798,7 +2798,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			struct drm_framebuffer *fb = crtc->primary->fb;
 			struct amdgpu_bo *robj;
 
-			if (amdgpu_crtc->cursor_bo) {
+			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
 				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 				r = amdgpu_bo_reserve(aobj, true);
 				if (r == 0) {
@@ -2906,7 +2906,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 
-			if (amdgpu_crtc->cursor_bo) {
+			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
 				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 				r = amdgpu_bo_reserve(aobj, true);
 				if (r == 0) {
