@@ -2585,7 +2585,7 @@ dw_hdmi_connector_atomic_begin(struct drm_connector *connector,
 	unsigned int enc_in_encoding;
 	unsigned int enc_out_encoding;
 
-	if (!hdmi->hpd_state || !conn_state->crtc)
+	if (!conn_state->crtc)
 		return;
 
 	if (!hdmi->hdmi_data.video_mode.mpixelclock)
@@ -2636,7 +2636,7 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
 
 
-	if (!hdmi->hpd_state || !conn_state->crtc)
+	if (!conn_state->crtc)
 		return;
 
 	DRM_DEBUG("%s\n", __func__);
