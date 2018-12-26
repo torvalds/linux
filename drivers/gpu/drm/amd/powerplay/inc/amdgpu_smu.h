@@ -327,4 +327,9 @@ extern const struct amd_ip_funcs smu_ip_funcs;
 extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
 extern int smu_feature_init_dpm(struct smu_context *smu);
 
+extern int smu_feature_is_enabled(struct smu_context *smu, int feature_id);
+extern int smu_feature_set_enabled(struct smu_context *smu, int feature_id, bool enable);
+extern int smu_feature_is_supported(struct smu_context *smu, int feature_id);
+extern int smu_feature_set_supported(struct smu_context *smu, int feature_id, bool enable);
+
 #endif

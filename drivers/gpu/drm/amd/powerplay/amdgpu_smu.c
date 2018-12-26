@@ -49,6 +49,43 @@ int smu_feature_init_dpm(struct smu_context *smu)
 	return ret;
 }
 
+int smu_feature_is_enabled(struct smu_context *smu, int feature_id)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	WARN_ON(feature_id > feature->feature_num);
+	return test_bit(feature_id, feature->enabled);
+}
+
+int smu_feature_set_enabled(struct smu_context *smu, int feature_id, bool enable)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	WARN_ON(feature_id > feature->feature_num);
+	if (enable)
+		test_and_set_bit(feature_id, feature->enabled);
+	else
+		test_and_clear_bit(feature_id, feature->enabled);
+	return 0;
+}
+
+int smu_feature_is_supported(struct smu_context *smu, int feature_id)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	WARN_ON(feature_id > feature->feature_num);
+	return test_bit(feature_id, feature->supported);
+}
+
+int smu_feature_set_supported(struct smu_context *smu, int feature_id,
+			      bool enable)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	WARN_ON(feature_id > feature->feature_num);
+	if (enable)
+		test_and_set_bit(feature_id, feature->supported);
+	else
+		test_and_clear_bit(feature_id, feature->supported);
+	return 0;
+}
+
 static int smu_set_funcs(struct amdgpu_device *adev)
 {
 	struct smu_context *smu = &adev->smu;
