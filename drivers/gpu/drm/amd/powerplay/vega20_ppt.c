@@ -132,6 +132,20 @@ static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 
 }
 
+static int vega20_allocate_dpm_context(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+
+	smu_dpm->dpm_context = kzalloc(sizeof(struct vega20_dpm_table),
+				       GFP_KERNEL);
+	if (!smu_dpm->dpm_context)
+		return -ENOMEM;
+
+	smu_dpm->dpm_context_size = sizeof(struct vega20_dpm_table);
+
+	return 0;
+}
+
 static int vega20_store_powerplay_table(struct smu_context *smu)
 {
 	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
@@ -260,6 +274,7 @@ static int vega20_check_powerplay_table(struct smu_context *smu)
 }
 
 static const struct pptable_funcs vega20_ppt_funcs = {
+	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
 	.check_powerplay_table = vega20_check_powerplay_table,
 	.append_powerplay_table = vega20_append_powerplay_table,

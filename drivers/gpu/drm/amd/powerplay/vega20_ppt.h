@@ -23,6 +23,50 @@
 #ifndef __VEGA20_PPT_H__
 #define __VEGA20_PPT_H__
 
+#define MAX_REGULAR_DPM_NUMBER 16
+#define MAX_PCIE_CONF 2
+
+struct vega20_dpm_level {
+        bool            enabled;
+        uint32_t        value;
+        uint32_t        param1;
+};
+
+struct vega20_dpm_state {
+        uint32_t  soft_min_level;
+        uint32_t  soft_max_level;
+        uint32_t  hard_min_level;
+        uint32_t  hard_max_level;
+};
+
+struct vega20_single_dpm_table {
+        uint32_t                count;
+        struct vega20_dpm_state dpm_state;
+        struct vega20_dpm_level dpm_levels[MAX_REGULAR_DPM_NUMBER];
+};
+
+struct vega20_pcie_table {
+        uint16_t count;
+        uint8_t  pcie_gen[MAX_PCIE_CONF];
+        uint8_t  pcie_lane[MAX_PCIE_CONF];
+        uint32_t lclk[MAX_PCIE_CONF];
+};
+
+struct vega20_dpm_table {
+	struct vega20_single_dpm_table  soc_table;
+        struct vega20_single_dpm_table  gfx_table;
+        struct vega20_single_dpm_table  mem_table;
+        struct vega20_single_dpm_table  eclk_table;
+        struct vega20_single_dpm_table  vclk_table;
+        struct vega20_single_dpm_table  dclk_table;
+        struct vega20_single_dpm_table  dcef_table;
+        struct vega20_single_dpm_table  pixel_table;
+        struct vega20_single_dpm_table  display_table;
+        struct vega20_single_dpm_table  phy_table;
+        struct vega20_single_dpm_table  fclk_table;
+        struct vega20_pcie_table        pcie_table;
+};
+
 extern void vega20_set_ppt_funcs(struct smu_context *smu);
 
 #endif

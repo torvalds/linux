@@ -251,12 +251,7 @@ static int smu_v11_0_init_dpm_context(struct smu_context *smu)
 	if (smu_dpm->dpm_context || smu_dpm->dpm_context_size != 0)
 		return -EINVAL;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context), GFP_KERNEL);
-	if (!smu_dpm->dpm_context)
-		return -ENOMEM;
-	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
-
-	return 0;
+	return smu_alloc_dpm_context(smu);
 }
 
 static int smu_v11_0_fini_dpm_context(struct smu_context *smu)
