@@ -691,25 +691,6 @@ static inline void dmam_free_coherent(struct device *dev, size_t size,
 				      void *vaddr, dma_addr_t dma_handle) { }
 #endif /* !CONFIG_HAS_DMA */
 
-#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
-extern int dmam_declare_coherent_memory(struct device *dev,
-					phys_addr_t phys_addr,
-					dma_addr_t device_addr, size_t size,
-					int flags);
-extern void dmam_release_declared_memory(struct device *dev);
-#else /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
-static inline int dmam_declare_coherent_memory(struct device *dev,
-				phys_addr_t phys_addr, dma_addr_t device_addr,
-				size_t size, gfp_t gfp)
-{
-	return 0;
-}
-
-static inline void dmam_release_declared_memory(struct device *dev)
-{
-}
-#endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
-
 static inline void *dmam_alloc_coherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp)
 {
