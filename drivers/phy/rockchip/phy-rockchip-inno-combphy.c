@@ -63,6 +63,8 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg	pipe_l0rxterm_set;
 	struct combphy_reg	pipe_l1rxterm_set;
 	struct combphy_reg	pipe_l0rxelec_set;
+	struct combphy_reg	u3_port_disable;
+	struct combphy_reg      u3_port_num;
 };
 
 struct rockchip_combphy_cfg {
@@ -130,6 +132,104 @@ static inline int param_write(struct regmap *base,
 
 	return regmap_write(base, reg->offset, val);
 }
+
+static inline bool param_exped(void __iomem *base,
+			       const struct combphy_reg *reg,
+			       unsigned int value)
+{
+	int ret;
+	unsigned int tmp, orig;
+	unsigned int mask = GENMASK(reg->bitend, reg->bitstart);
+
+	ret = regmap_read(base, reg->offset, &orig);
+	if (ret)
+		return false;
+
+	tmp = (orig & mask) >> reg->bitstart;
+
+	return tmp == value;
+}
+
+static ssize_t u3phy_mode_show(struct device *device,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct rockchip_combphy_priv *priv = dev_get_drvdata(device);
+
+	if (param_exped(priv->usb_pcie_grf,
+			&priv->cfg->grfcfg.u3_port_num, 0))
+		return sprintf(buf, "u2\n");
+	else
+		return sprintf(buf, "u3\n");
+}
+
+static ssize_t u3phy_mode_store(struct device *device,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rockchip_combphy_priv *priv = dev_get_drvdata(device);
+
+	if (!strncmp(buf, "u3", 2) &&
+	    param_exped(priv->usb_pcie_grf,
+			&priv->cfg->grfcfg.u3_port_num, 0)) {
+		/*
+		 * Enable USB 3.0 rx termination, need to select
+		 * pipe_l0_rxtermination from USB 3.0 controller.
+		 */
+		param_write(priv->combphy_grf,
+			    &priv->cfg->grfcfg.pipe_l0rxterm_sel, false);
+		/* Set xHCI USB 3.0 port number to 1 */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_num, true);
+		/* Enable xHCI USB 3.0 port */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_disable, false);
+		dev_info(priv->dev, "Set usb3.0 and usb2.0 mode successfully\n");
+	} else if (!strncmp(buf, "u2", 2) &&
+		   param_exped(priv->usb_pcie_grf,
+			       &priv->cfg->grfcfg.u3_port_num, 1)) {
+		/*
+		 * Disable USB 3.0 rx termination, need to select
+		 * pipe_l0_rxtermination from grf and remove rx
+		 * termimation by grf.
+		 */
+		param_write(priv->combphy_grf,
+			    &priv->cfg->grfcfg.pipe_l0rxterm_set, false);
+		param_write(priv->combphy_grf,
+			    &priv->cfg->grfcfg.pipe_l0rxterm_sel, true);
+		/* Set xHCI USB 3.0 port number to 0 */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_num, false);
+		/* Disable xHCI USB 3.0 port */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_disable, true);
+		/*
+		 * Note:
+		 * Don't disable the USB 3.0 PIPE pclk here(set reg
+		 * pipe_usb3_sel to false), because USB 3.0 PHY depend
+		 * on this clk, if we disable it, we need to reinit
+		 * the USB 3.0 PHY when use USB 3.0 mode, in order to
+		 * simplify the process, don't disable this PIPE pclk.
+		 */
+		dev_info(priv->dev, "Set usb2.0 only mode successfully\n");
+	} else {
+		dev_info(priv->dev, "Same or illegal mode\n");
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(u3phy_mode);
+
+static struct attribute *rockchip_combphy_u3phy_mode_attrs[] = {
+	&dev_attr_u3phy_mode.attr,
+	NULL,
+};
+
+static struct attribute_group rockchip_combphy_u3phy_mode_attr_group = {
+	.name = NULL,	/* we want them in the same directory */
+	.attrs = rockchip_combphy_u3phy_mode_attrs,
+};
 
 static u32 rockchip_combphy_pll_lock(struct rockchip_combphy_priv *priv)
 {
@@ -306,6 +406,12 @@ static int rockchip_combphy_set_phy_type(struct rockchip_combphy_priv *priv)
 		break;
 	case PHY_TYPE_USB3:
 		ret = phy_u3_init(priv);
+		if (ret)
+			return ret;
+
+		/* Attributes */
+		ret = sysfs_create_group(&priv->dev->kobj,
+					 &rockchip_combphy_u3phy_mode_attr_group);
 		break;
 	default:
 		dev_err(priv->dev, "incompatible PHY type\n");
@@ -611,6 +717,17 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
+static int rockchip_combphy_remove(struct platform_device *pdev)
+{
+	struct rockchip_combphy_priv *priv = platform_get_drvdata(pdev);
+
+	if (priv->phy_type == PHY_TYPE_USB3 && priv->phy_initialized)
+		sysfs_remove_group(&priv->dev->kobj,
+				   &rockchip_combphy_u3phy_mode_attr_group);
+
+	return 0;
+}
+
 static int rk1808_combphy_u3_cp_test(struct rockchip_combphy_priv *priv)
 {
 	if (priv->phy_type != PHY_TYPE_USB3) {
@@ -878,6 +995,8 @@ static const struct rockchip_combphy_cfg rk1808_combphy_cfgs = {
 		.pipe_usb3_sel	= { 0x000c, 0, 0, 0x0, 0x1 },
 		.pipe_pll_lock	= { 0x0034, 14, 14, 0x0, 0x1 },
 		.pipe_status_l0	= { 0x0034, 7, 7, 0x1, 0x0 },
+		.u3_port_disable = { 0x0434, 0, 0, 0, 1},
+		.u3_port_num	= { 0x0434, 15, 12, 0, 1},
 	},
 	.combphy_u3_cp_test	= rk1808_combphy_u3_cp_test,
 	.combphy_cfg		= rk1808_combphy_cfg,
@@ -896,6 +1015,7 @@ MODULE_DEVICE_TABLE(of, rockchip_combphy_of_match);
 
 static struct platform_driver rockchip_combphy_driver = {
 	.probe	= rockchip_combphy_probe,
+	.remove = rockchip_combphy_remove,
 	.driver = {
 		.name = "rockchip-combphy",
 		.of_match_table = rockchip_combphy_of_match,
