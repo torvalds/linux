@@ -2421,7 +2421,7 @@ static void cifisp_cproc_config(const struct cif_isp10_isp_dev *isp_dev,
 
 	if ((quantization != CIF_ISP10_QUANTIZATION_FULL_RANGE) ||
 	    (ie_pconfig->effect != V4L2_COLORFX_NONE)) {
-		cifisp_iowrite32(
+		cifisp_iowrite32AND(
 			~(CIF_C_PROC_YOUT_FULL |
 			CIF_C_PROC_YIN_FULL |
 			CIF_C_PROC_COUT_FULL),
