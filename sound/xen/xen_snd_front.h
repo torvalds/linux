@@ -16,7 +16,7 @@
 struct xen_snd_front_card_info;
 struct xen_snd_front_evtchnl;
 struct xen_snd_front_evtchnl_pair;
-struct xen_snd_front_shbuf;
+struct xen_front_pgdir_shbuf;
 struct xensnd_query_hw_param;
 
 struct xen_snd_front_info {
@@ -35,7 +35,7 @@ int xen_snd_front_stream_query_hw_param(struct xen_snd_front_evtchnl *evtchnl,
 					struct xensnd_query_hw_param *hw_param_resp);
 
 int xen_snd_front_stream_prepare(struct xen_snd_front_evtchnl *evtchnl,
-				 struct xen_snd_front_shbuf *sh_buf,
+				 struct xen_front_pgdir_shbuf *shbuf,
 				 u8 format, unsigned int channels,
 				 unsigned int rate, u32 buffer_sz,
 				 u32 period_sz);
