@@ -140,6 +140,32 @@ static struct rkisp1_sensor_info *sd_to_sensor(struct rkisp1_device *dev,
 	return NULL;
 }
 
+int rkisp1_update_sensor_info(struct rkisp1_device *dev)
+{
+	struct v4l2_subdev *sd = &dev->isp_sdev.sd;
+	struct rkisp1_sensor_info *sensor;
+	struct v4l2_subdev *sensor_sd;
+	int ret = 0;
+
+	sensor_sd = get_remote_sensor(sd);
+	if (!sensor_sd)
+		return -ENODEV;
+
+	sensor = sd_to_sensor(dev, sensor_sd);
+	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
+			       &sensor->mbus);
+	if (ret && ret != -ENOIOCTLCMD)
+		return ret;
+	sensor->fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	ret = v4l2_subdev_call(sensor->sd, pad, get_fmt,
+			       &sensor->cfg, &sensor->fmt);
+	if (ret && ret != -ENOIOCTLCMD)
+		return ret;
+	dev->active_sensor = sensor;
+
+	return ret;
+}
+
 /****************  register operations ****************/
 
 /*
@@ -548,6 +574,8 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 
 	if (dev->hdr_sensor)
 		dev->hdr_sensor = NULL;
+
+	dev->active_sensor = NULL;
 
 	return 0;
 }
@@ -1157,27 +1185,10 @@ static void rkisp1_isp_read_add_fifo_data(struct rkisp1_device *dev)
 static int rkisp1_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp1_device *isp_dev = sd_to_isp_dev(sd);
-	struct rkisp1_sensor_info *sensor;
-	struct v4l2_subdev *sensor_sd;
 	int ret = 0;
 
 	if (!on)
 		return rkisp1_isp_stop(isp_dev);
-
-	sensor_sd = get_remote_sensor(sd);
-	if (!sensor_sd)
-		return -ENODEV;
-
-	sensor = sd_to_sensor(isp_dev, sensor_sd);
-	/*
-	 * Update sensor bus configuration. This is only effective
-	 * for sensors chained off an external CSI2 PHY.
-	 */
-	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
-			       &sensor->mbus);
-	if (ret && ret != -ENOIOCTLCMD)
-		return ret;
-	isp_dev->active_sensor = sensor;
 
 	atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
 	ret = rkisp1_config_cif(isp_dev);

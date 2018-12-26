@@ -1283,6 +1283,16 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
 
+	if (!dev->active_sensor) {
+		ret = rkisp1_update_sensor_info(dev);
+		if (ret < 0) {
+			v4l2_err(v4l2_dev,
+				 "update sensor info failed %d\n",
+				 ret);
+			return ret;
+		}
+	}
+
 	ret = rkisp1_create_dummy_buf(stream);
 	if (ret < 0)
 		return ret;

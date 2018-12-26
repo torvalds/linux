@@ -124,6 +124,8 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev);
 
 irqreturn_t rkisp1_vs_isr_handler(int irq, void *ctx);
 
+int rkisp1_update_sensor_info(struct rkisp1_device *dev);
+
 static inline
 struct ispsd_out_fmt *rkisp1_get_ispsd_out_fmt(struct rkisp1_isp_subdev *isp_sdev)
 {
