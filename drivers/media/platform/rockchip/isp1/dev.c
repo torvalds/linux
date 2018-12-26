@@ -381,6 +381,29 @@ static int _set_pipeline_default_fmt(struct rkisp1_device *dev)
 			return -ENXIO;
 		}
 
+		if (dev->isp_ver == ISP_V12) {
+			fmt.format.width  = clamp_t(u32, fmt.format.width,
+						CIF_ISP_INPUT_W_MIN,
+						CIF_ISP_INPUT_W_MAX_V12);
+			fmt.format.height = clamp_t(u32, fmt.format.height,
+						CIF_ISP_INPUT_H_MIN,
+						CIF_ISP_INPUT_H_MAX_V12);
+		} else if (dev->isp_ver == ISP_V13) {
+			fmt.format.width  = clamp_t(u32, fmt.format.width,
+						CIF_ISP_INPUT_W_MIN,
+						CIF_ISP_INPUT_W_MAX_V13);
+			fmt.format.height = clamp_t(u32, fmt.format.height,
+						CIF_ISP_INPUT_H_MIN,
+						CIF_ISP_INPUT_H_MAX_V13);
+		} else {
+			fmt.format.width  = clamp_t(u32, fmt.format.width,
+						CIF_ISP_INPUT_W_MIN,
+						CIF_ISP_INPUT_W_MAX);
+			fmt.format.height = clamp_t(u32, fmt.format.height,
+						CIF_ISP_INPUT_H_MIN,
+						CIF_ISP_INPUT_H_MAX);
+		}
+
 		sel.r.left = 0;
 		sel.r.top = 0;
 		width = fmt.format.width;
