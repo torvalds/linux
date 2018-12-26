@@ -1743,3 +1743,15 @@ static void quirk_diva_aux_disable(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_DIVA_AUX,
 	quirk_diva_aux_disable);
+
+static void quirk_tosca_aux_disable(struct pci_dev *dev)
+{
+	if (dev->subsystem_vendor != PCI_VENDOR_ID_HP ||
+	    dev->subsystem_device != 0x104a)
+		return;
+
+	dev_info(&dev->dev, "Hiding Tosca secondary built-in AUX serial device");
+	dev->device = 0;
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_DIVA,
+	quirk_tosca_aux_disable);
