@@ -7,6 +7,7 @@ config PINCTRL_IMX
 
 config PINCTRL_IMX_SCU
 	bool
+	depends on IMX_SCU
 	select PINCTRL_IMX
 
 config PINCTRL_IMX1_CORE
