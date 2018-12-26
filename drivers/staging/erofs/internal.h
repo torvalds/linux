@@ -252,7 +252,7 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 }
 #endif
 
-static inline bool erofs_workgroup_get(struct erofs_workgroup *grp, int *ocnt)
+static inline int erofs_workgroup_get(struct erofs_workgroup *grp, int *ocnt)
 {
 	int o;
 
