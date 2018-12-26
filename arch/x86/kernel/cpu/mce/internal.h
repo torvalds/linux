@@ -2,6 +2,9 @@
 #ifndef __X86_MCE_INTERNAL_H__
 #define __X86_MCE_INTERNAL_H__
 
+#undef pr_fmt
+#define pr_fmt(fmt) "mce: " fmt
+
 #include <linux/device.h>
 #include <asm/mce.h>
 

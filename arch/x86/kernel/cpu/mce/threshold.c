@@ -10,6 +10,8 @@
 #include <asm/mce.h>
 #include <asm/trace/irq_vectors.h>
 
+#include "internal.h"
+
 static void default_threshold_interrupt(void)
 {
 	pr_err("Unexpected threshold interrupt at vector %x\n",

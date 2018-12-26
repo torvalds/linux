@@ -8,8 +8,6 @@
  * Author: Andi Kleen
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/thread_info.h>
 #include <linux/capability.h>
 #include <linux/miscdevice.h>
@@ -52,7 +50,7 @@
 #include <asm/msr.h>
 #include <asm/reboot.h>
 
-#include "mce-internal.h"
+#include "internal.h"
 
 static DEFINE_MUTEX(mce_log_mutex);
 

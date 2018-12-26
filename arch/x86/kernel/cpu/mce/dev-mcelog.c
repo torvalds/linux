@@ -8,14 +8,12 @@
  * Author: Andi Kleen
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/poll.h>
 
-#include "mce-internal.h"
+#include "internal.h"
 
 static BLOCKING_NOTIFIER_HEAD(mce_injector_chain);
 

@@ -38,7 +38,7 @@
 #include <asm/nmi.h>
 #include <asm/smp.h>
 
-#include "mce-internal.h"
+#include "internal.h"
 
 /*
  * Collect all the MCi_XXX settings

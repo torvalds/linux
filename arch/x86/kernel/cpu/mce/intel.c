@@ -18,7 +18,7 @@
 #include <asm/msr.h>
 #include <asm/mce.h>
 
-#include "mce-internal.h"
+#include "internal.h"
 
 /*
  * Support for Intel Correct Machine Check Interrupts. This allows

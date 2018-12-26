@@ -16,7 +16,7 @@
 #include <asm/mce.h>
 #include <linux/uaccess.h>
 
-#include "mce-internal.h"
+#include "internal.h"
 
 /*
  * Grade an mce by severity. In general the most severe ones are processed
