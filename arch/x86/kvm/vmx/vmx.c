@@ -7044,7 +7044,7 @@ static void update_intel_pt_cfg(struct kvm_vcpu *vcpu)
 
 	/* unmask address range configure area */
 	for (i = 0; i < vmx->pt_desc.addr_range; i++)
-		vmx->pt_desc.ctl_bitmask &= ~(0xf << (32 + i * 4));
+		vmx->pt_desc.ctl_bitmask &= ~(0xfULL << (32 + i * 4));
 }
 
 static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
