@@ -140,6 +140,12 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 			"block %d type 0x%x size 0x%x ==>  offset 0x%x\n",
 			count, block->type, block->size, offset);
 
+		/* checking block->size to avoid unaligned access */
+		if (block->size % sizeof(u32)) {
+			dev_err(sdev->dev, "error: invalid block size 0x%x\n",
+				block->size);
+			return -EINVAL;
+		}
 		snd_sof_dsp_block_write(sdev, offset,
 					(void *)block + sizeof(*block),
 					block->size);
