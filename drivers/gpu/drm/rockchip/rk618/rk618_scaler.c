@@ -119,7 +119,7 @@ static void calc_dsp_frm_hst_vst(const struct videomode *src,
 		t_frm_st = tin - (t_bp_out - (t_bp_in + t_delta));
 
 	do_div(t_frm_st, src_pixclock);
-	*dsp_frame_hst = do_div(t_frm_st, src_htotal) - 1;
+	*dsp_frame_hst = do_div(t_frm_st, src_htotal);
 	*dsp_frame_vst = t_frm_st;
 }
 
