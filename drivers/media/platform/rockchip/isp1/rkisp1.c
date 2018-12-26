@@ -408,7 +408,8 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 		}
 	}
 
-	if (dev->isp_ver == ISP_V13) {
+	if (dev->isp_ver == ISP_V13 ||
+		dev->isp_ver == ISP_V12) {
 		/* csi2host enable */
 		writel(1, base + CIF_ISP_CSI0_CTRL0);
 
@@ -434,8 +435,6 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 			    CIF_MIPI_CTRL_CLOCKLANE_ENA;
 
 		writel(mipi_ctrl, base + CIF_MIPI_CTRL);
-		if (dev->isp_ver == ISP_V12)
-			writel(0, base + CIF_ISP_CSI0_CTRL0);
 
 		/* Configure Data Type and Virtual Channel */
 		writel(CIF_MIPI_DATA_SEL_DT(in_fmt->mipi_dt) | CIF_MIPI_DATA_SEL_VC(0),

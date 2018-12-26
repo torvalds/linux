@@ -618,7 +618,8 @@ static irqreturn_t rkisp1_mipi_irq_hdl(int irq, void *ctx)
 	unsigned int mis_val;
 	unsigned int err1, err2, err3;
 
-	if (rkisp1_dev->isp_ver == ISP_V13) {
+	if (rkisp1_dev->isp_ver == ISP_V13 ||
+		rkisp1_dev->isp_ver == ISP_V12) {
 		err1 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR1);
 		err2 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR2);
 		err3 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR3);
