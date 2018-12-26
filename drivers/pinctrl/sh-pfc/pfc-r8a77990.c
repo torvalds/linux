@@ -30,7 +30,16 @@
 	PORT_GP_CFG_1(3, 15, fn, sfx, CFG_FLAGS), \
 	PORT_GP_CFG_11(4, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE), \
 	PORT_GP_CFG_20(5, fn, sfx, CFG_FLAGS), \
-	PORT_GP_CFG_18(6, fn, sfx, CFG_FLAGS)
+	PORT_GP_CFG_9(6, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 9, fn, sfx, SH_PFC_PIN_CFG_PULL_UP), \
+	PORT_GP_CFG_1(6, 10, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 11, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 12, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 13, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 14, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 15, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 16, fn, sfx, CFG_FLAGS), \
+	PORT_GP_CFG_1(6, 17, fn, sfx, CFG_FLAGS)
 /*
  * F_() : just information
  * FM() : macro for FN_xxx / xxx_MARK
