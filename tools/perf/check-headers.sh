@@ -4,6 +4,7 @@
 HEADERS='
 include/uapi/drm/drm.h
 include/uapi/drm/i915_drm.h
+include/uapi/linux/fadvise.h
 include/uapi/linux/fcntl.h
 include/uapi/linux/fs.h
 include/uapi/linux/kcmp.h
@@ -21,6 +22,7 @@ include/uapi/linux/hw_breakpoint.h
 arch/x86/include/asm/disabled-features.h
 arch/x86/include/asm/required-features.h
 arch/x86/include/asm/cpufeatures.h
+arch/x86/include/uapi/asm/prctl.h
 arch/arm/include/uapi/asm/perf_regs.h
 arch/arm64/include/uapi/asm/perf_regs.h
 arch/powerpc/include/uapi/asm/perf_regs.h

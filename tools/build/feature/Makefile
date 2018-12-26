@@ -5,6 +5,7 @@ FILES=                                          \
          test-bionic.bin                        \
          test-dwarf.bin                         \
          test-dwarf_getlocations.bin            \
+         test-eventfd.bin                       \
          test-fortify-source.bin                \
          test-sync-compare-and-swap.bin         \
          test-get_current_dir_name.bin          \
@@ -54,12 +55,14 @@ FILES=                                          \
          test-sdt.bin                           \
          test-cxx.bin                           \
          test-jvmti.bin				\
+         test-jvmti-cmlr.bin			\
          test-sched_getcpu.bin			\
          test-setns.bin				\
          test-libopencsd.bin			\
          test-clang.bin				\
          test-llvm.bin				\
-         test-llvm-version.bin
+         test-llvm-version.bin			\
+         test-libaio.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -101,6 +104,9 @@ $(OUTPUT)test-bionic.bin:
 
 $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
+
+$(OUTPUT)test-eventfd.bin:
+	$(BUILD)
 
 $(OUTPUT)test-get_current_dir_name.bin:
 	$(BUILD)
@@ -263,6 +269,9 @@ $(OUTPUT)test-cxx.bin:
 $(OUTPUT)test-jvmti.bin:
 	$(BUILD)
 
+$(OUTPUT)test-jvmti-cmlr.bin:
+	$(BUILD)
+
 $(OUTPUT)test-llvm.bin:
 	$(BUILDXX) -std=gnu++11 				\
 		-I$(shell $(LLVM_CONFIG) --includedir) 		\
@@ -288,6 +297,9 @@ $(OUTPUT)test-clang.bin:
 		> $(@:.bin=.make.output) 2>&1
 
 -include $(OUTPUT)*.d
+
+$(OUTPUT)test-libaio.bin:
+	$(BUILD) -lrt
 
 ###############################
 
