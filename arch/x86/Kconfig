@@ -444,15 +444,23 @@ config RETPOLINE
 	  branches. Requires a compiler with -mindirect-branch=thunk-extern
 	  support for full protection. The kernel may run slower.
 
-config INTEL_RDT
-	bool "Intel Resource Director Technology support"
-	depends on X86 && CPU_SUP_INTEL
+config RESCTRL
+	bool "Resource Control support"
+	depends on X86 && (CPU_SUP_INTEL || CPU_SUP_AMD)
 	select KERNFS
 	help
-	  Select to enable resource allocation and monitoring which are
-	  sub-features of Intel Resource Director Technology(RDT). More
-	  information about RDT can be found in the Intel x86
-	  Architecture Software Developer Manual.
+	  Enable Resource Control support.
+
+	  Provide support for the allocation and monitoring of system resources
+	  usage by the CPU.
+
+	  Intel calls this Intel Resource Director Technology
+	  (Intel(R) RDT). More information about RDT can be found in the
+	  Intel x86 Architecture Software Developer Manual.
+
+	  AMD calls this AMD Platform Quality of Service (AMD QoS).
+	  More information about AMD QoS can be found in the AMD64 Technology
+	  Platform Quality of Service Extensions manual.
 
 	  Say N if unsure.
 

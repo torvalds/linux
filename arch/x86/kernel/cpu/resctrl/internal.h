@@ -1,20 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_X86_INTEL_RDT_H
-#define _ASM_X86_INTEL_RDT_H
+#ifndef _ASM_X86_RESCTRL_INTERNAL_H
+#define _ASM_X86_RESCTRL_INTERNAL_H
 
 #include <linux/sched.h>
 #include <linux/kernfs.h>
 #include <linux/jump_label.h>
 
-#define IA32_L3_QOS_CFG		0xc81
-#define IA32_L2_QOS_CFG		0xc82
-#define IA32_L3_CBM_BASE	0xc90
-#define IA32_L2_CBM_BASE	0xd10
-#define IA32_MBA_THRTL_BASE	0xd50
+#define MSR_IA32_L3_QOS_CFG		0xc81
+#define MSR_IA32_L2_QOS_CFG		0xc82
+#define MSR_IA32_L3_CBM_BASE		0xc90
+#define MSR_IA32_L2_CBM_BASE		0xd10
+#define MSR_IA32_MBA_THRTL_BASE		0xd50
+#define MSR_IA32_MBA_BW_BASE		0xc0000200
 
-#define L3_QOS_CDP_ENABLE	0x01ULL
+#define MSR_IA32_QM_CTR			0x0c8e
+#define MSR_IA32_QM_EVTSEL		0x0c8d
 
-#define L2_QOS_CDP_ENABLE	0x01ULL
+#define L3_QOS_CDP_ENABLE		0x01ULL
+
+#define L2_QOS_CDP_ENABLE		0x01ULL
 
 /*
  * Event IDs are used to program IA32_QM_EVTSEL before reading event
@@ -29,6 +33,9 @@
 #define MBM_CNTR_WIDTH			24
 #define MBM_OVERFLOW_INTERVAL		1000
 #define MAX_MBA_BW			100u
+#define MBA_IS_LINEAR			0x4
+#define MBA_MAX_MBPS			U32_MAX
+#define MAX_MBA_BW_AMD			0x800
 
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
@@ -69,7 +76,7 @@ struct rmid_read {
 	u64			val;
 };
 
-extern unsigned int intel_cqm_threshold;
+extern unsigned int resctrl_cqm_threshold;
 extern bool rdt_alloc_capable;
 extern bool rdt_mon_capable;
 extern unsigned int rdt_mon_features;
@@ -391,9 +398,9 @@ struct rdt_parse_data {
  * struct rdt_resource - attributes of an RDT resource
  * @rid:		The index of the resource
  * @alloc_enabled:	Is allocation enabled on this machine
- * @mon_enabled:		Is monitoring enabled for this feature
+ * @mon_enabled:	Is monitoring enabled for this feature
  * @alloc_capable:	Is allocation available on this machine
- * @mon_capable:		Is monitor feature available on this machine
+ * @mon_capable:	Is monitor feature available on this machine
  * @name:		Name to use in "schemata" file
  * @num_closid:		Number of CLOSIDs available
  * @cache_level:	Which cache level defines scope of this resource
@@ -405,10 +412,11 @@ struct rdt_parse_data {
  * @cache:		Cache allocation related data
  * @format_str:		Per resource format string to show domain value
  * @parse_ctrlval:	Per resource function pointer to parse control values
- * @evt_list:			List of monitoring events
- * @num_rmid:			Number of RMIDs available
- * @mon_scale:			cqm counter * mon_scale = occupancy in bytes
- * @fflags:			flags to choose base and info files
+ * @cbm_validate	Cache bitmask validate function
+ * @evt_list:		List of monitoring events
+ * @num_rmid:		Number of RMIDs available
+ * @mon_scale:		cqm counter * mon_scale = occupancy in bytes
+ * @fflags:		flags to choose base and info files
  */
 struct rdt_resource {
 	int			rid;
@@ -431,6 +439,7 @@ struct rdt_resource {
 	int (*parse_ctrlval)(struct rdt_parse_data *data,
 			     struct rdt_resource *r,
 			     struct rdt_domain *d);
+	bool (*cbm_validate)(char *buf, u32 *data, struct rdt_resource *r);
 	struct list_head	evt_list;
 	int			num_rmid;
 	unsigned int		mon_scale;
@@ -439,8 +448,10 @@ struct rdt_resource {
 
 int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	      struct rdt_domain *d);
-int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
-	     struct rdt_domain *d);
+int parse_bw_intel(struct rdt_parse_data *data, struct rdt_resource *r,
+		   struct rdt_domain *d);
+int parse_bw_amd(struct rdt_parse_data *data, struct rdt_resource *r,
+		 struct rdt_domain *d);
 
 extern struct mutex rdtgroup_mutex;
 
@@ -462,6 +473,10 @@ enum {
 	/* Must be the last */
 	RDT_NUM_RESOURCES,
 };
+
+#define for_each_rdt_resource(r)					      \
+	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
+	     r++)
 
 #define for_each_capable_rdt_resource(r)				      \
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
@@ -567,5 +582,7 @@ void cqm_setup_limbo_handler(struct rdt_domain *dom, unsigned long delay_ms);
 void cqm_handle_limbo(struct work_struct *work);
 bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d);
 void __check_limbo(struct rdt_domain *d, bool force_free);
+bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r);
+bool cbm_validate_amd(char *buf, u32 *data, struct rdt_resource *r);
 
-#endif /* _ASM_X86_INTEL_RDT_H */
+#endif /* _ASM_X86_RESCTRL_INTERNAL_H */

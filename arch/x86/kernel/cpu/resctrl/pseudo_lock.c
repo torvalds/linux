@@ -24,14 +24,14 @@
 
 #include <asm/cacheflush.h>
 #include <asm/intel-family.h>
-#include <asm/intel_rdt_sched.h>
+#include <asm/resctrl_sched.h>
 #include <asm/perf_event.h>
 
 #include "../../events/perf_event.h" /* For X86_CONFIG() */
-#include "intel_rdt.h"
+#include "internal.h"
 
 #define CREATE_TRACE_POINTS
-#include "intel_rdt_pseudo_lock_event.h"
+#include "pseudo_lock_event.h"
 
 /*
  * MSR_MISC_FEATURE_CONTROL register enables the modification of hardware
@@ -213,7 +213,7 @@ static int pseudo_lock_cstates_constrain(struct pseudo_lock_region *plr)
 	for_each_cpu(cpu, &plr->d->cpu_mask) {
 		pm_req = kzalloc(sizeof(*pm_req), GFP_KERNEL);
 		if (!pm_req) {
-			rdt_last_cmd_puts("fail allocating mem for PM QoS\n");
+			rdt_last_cmd_puts("Failure to allocate memory for PM QoS\n");
 			ret = -ENOMEM;
 			goto out_err;
 		}
@@ -222,7 +222,7 @@ static int pseudo_lock_cstates_constrain(struct pseudo_lock_region *plr)
 					     DEV_PM_QOS_RESUME_LATENCY,
 					     30);
 		if (ret < 0) {
-			rdt_last_cmd_printf("fail to add latency req cpu%d\n",
+			rdt_last_cmd_printf("Failed to add latency req CPU%d\n",
 					    cpu);
 			kfree(pm_req);
 			ret = -1;
@@ -289,7 +289,7 @@ static int pseudo_lock_region_init(struct pseudo_lock_region *plr)
 	plr->cpu = cpumask_first(&plr->d->cpu_mask);
 
 	if (!cpu_online(plr->cpu)) {
-		rdt_last_cmd_printf("cpu %u associated with cache not online\n",
+		rdt_last_cmd_printf("CPU %u associated with cache not online\n",
 				    plr->cpu);
 		ret = -ENODEV;
 		goto out_region;
@@ -307,7 +307,7 @@ static int pseudo_lock_region_init(struct pseudo_lock_region *plr)
 	}
 
 	ret = -1;
-	rdt_last_cmd_puts("unable to determine cache line size\n");
+	rdt_last_cmd_puts("Unable to determine cache line size\n");
 out_region:
 	pseudo_lock_region_clear(plr);
 	return ret;
@@ -361,14 +361,14 @@ static int pseudo_lock_region_alloc(struct pseudo_lock_region *plr)
 	 * KMALLOC_MAX_SIZE.
 	 */
 	if (plr->size > KMALLOC_MAX_SIZE) {
-		rdt_last_cmd_puts("requested region exceeds maximum size\n");
+		rdt_last_cmd_puts("Requested region exceeds maximum size\n");
 		ret = -E2BIG;
 		goto out_region;
 	}
 
 	plr->kmem = kzalloc(plr->size, GFP_KERNEL);
 	if (!plr->kmem) {
-		rdt_last_cmd_puts("unable to allocate memory\n");
+		rdt_last_cmd_puts("Unable to allocate memory\n");
 		ret = -ENOMEM;
 		goto out_region;
 	}
@@ -665,7 +665,7 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 * default closid associated with it.
 	 */
 	if (rdtgrp == &rdtgroup_default) {
-		rdt_last_cmd_puts("cannot pseudo-lock default group\n");
+		rdt_last_cmd_puts("Cannot pseudo-lock default group\n");
 		return -EINVAL;
 	}
 
@@ -707,17 +707,17 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 */
 	prefetch_disable_bits = get_prefetch_disable_bits();
 	if (prefetch_disable_bits == 0) {
-		rdt_last_cmd_puts("pseudo-locking not supported\n");
+		rdt_last_cmd_puts("Pseudo-locking not supported\n");
 		return -EINVAL;
 	}
 
 	if (rdtgroup_monitor_in_progress(rdtgrp)) {
-		rdt_last_cmd_puts("monitoring in progress\n");
+		rdt_last_cmd_puts("Monitoring in progress\n");
 		return -EINVAL;
 	}
 
 	if (rdtgroup_tasks_assigned(rdtgrp)) {
-		rdt_last_cmd_puts("tasks assigned to resource group\n");
+		rdt_last_cmd_puts("Tasks assigned to resource group\n");
 		return -EINVAL;
 	}
 
@@ -727,13 +727,13 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	}
 
 	if (rdtgroup_locksetup_user_restrict(rdtgrp)) {
-		rdt_last_cmd_puts("unable to modify resctrl permissions\n");
+		rdt_last_cmd_puts("Unable to modify resctrl permissions\n");
 		return -EIO;
 	}
 
 	ret = pseudo_lock_init(rdtgrp);
 	if (ret) {
-		rdt_last_cmd_puts("unable to init pseudo-lock region\n");
+		rdt_last_cmd_puts("Unable to init pseudo-lock region\n");
 		goto out_release;
 	}
 
@@ -770,7 +770,7 @@ int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 	if (rdt_mon_capable) {
 		ret = alloc_rmid();
 		if (ret < 0) {
-			rdt_last_cmd_puts("out of RMIDs\n");
+			rdt_last_cmd_puts("Out of RMIDs\n");
 			return ret;
 		}
 		rdtgrp->mon.rmid = ret;
@@ -1304,7 +1304,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 					"pseudo_lock/%u", plr->cpu);
 	if (IS_ERR(thread)) {
 		ret = PTR_ERR(thread);
-		rdt_last_cmd_printf("locking thread returned error %d\n", ret);
+		rdt_last_cmd_printf("Locking thread returned error %d\n", ret);
 		goto out_cstates;
 	}
 
@@ -1322,13 +1322,13 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		 * the cleared, but not freed, plr struct resulting in an
 		 * empty pseudo-locking loop.
 		 */
-		rdt_last_cmd_puts("locking thread interrupted\n");
+		rdt_last_cmd_puts("Locking thread interrupted\n");
 		goto out_cstates;
 	}
 
 	ret = pseudo_lock_minor_get(&new_minor);
 	if (ret < 0) {
-		rdt_last_cmd_puts("unable to obtain a new minor number\n");
+		rdt_last_cmd_puts("Unable to obtain a new minor number\n");
 		goto out_cstates;
 	}
 
@@ -1360,7 +1360,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
-		rdt_last_cmd_printf("failed to create character device: %d\n",
+		rdt_last_cmd_printf("Failed to create character device: %d\n",
 				    ret);
 		goto out_debugfs;
 	}

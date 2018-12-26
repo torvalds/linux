@@ -22,7 +22,7 @@
  * Software Developer Manual June 2016, volume 3, section 17.17.
  */
 
-#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt)	"resctrl: " fmt
 
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -30,22 +30,19 @@
 #include <linux/cpuhotplug.h>
 
 #include <asm/intel-family.h>
-#include <asm/intel_rdt_sched.h>
-#include "intel_rdt.h"
-
-#define MBA_IS_LINEAR	0x4
-#define MBA_MAX_MBPS	U32_MAX
+#include <asm/resctrl_sched.h>
+#include "internal.h"
 
 /* Mutex to protect rdtgroup access. */
 DEFINE_MUTEX(rdtgroup_mutex);
 
 /*
- * The cached intel_pqr_state is strictly per CPU and can never be
+ * The cached resctrl_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Functions which modify the state
  * are called with interrupts disabled and no preemption, which
  * is sufficient for the protection.
  */
-DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
+DEFINE_PER_CPU(struct resctrl_pqr_state, pqr_state);
 
 /*
  * Used to store the max resource name width and max resource data width
@@ -60,9 +57,13 @@ int max_name_width, max_data_width;
 bool rdt_alloc_capable;
 
 static void
-mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
+mba_wrmsr_intel(struct rdt_domain *d, struct msr_param *m,
+		struct rdt_resource *r);
 static void
 cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
+static void
+mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m,
+	      struct rdt_resource *r);
 
 #define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
 
@@ -72,7 +73,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L3,
 		.name			= "L3",
 		.domains		= domain_init(RDT_RESOURCE_L3),
-		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
@@ -89,7 +90,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L3DATA,
 		.name			= "L3DATA",
 		.domains		= domain_init(RDT_RESOURCE_L3DATA),
-		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
@@ -106,7 +107,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L3CODE,
 		.name			= "L3CODE",
 		.domains		= domain_init(RDT_RESOURCE_L3CODE),
-		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
@@ -123,7 +124,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L2,
 		.name			= "L2",
 		.domains		= domain_init(RDT_RESOURCE_L2),
-		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 2,
 		.cache = {
@@ -140,7 +141,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L2DATA,
 		.name			= "L2DATA",
 		.domains		= domain_init(RDT_RESOURCE_L2DATA),
-		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 2,
 		.cache = {
@@ -157,7 +158,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L2CODE,
 		.name			= "L2CODE",
 		.domains		= domain_init(RDT_RESOURCE_L2CODE),
-		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 2,
 		.cache = {
@@ -174,10 +175,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_MBA,
 		.name			= "MB",
 		.domains		= domain_init(RDT_RESOURCE_MBA),
-		.msr_base		= IA32_MBA_THRTL_BASE,
-		.msr_update		= mba_wrmsr,
 		.cache_level		= 3,
-		.parse_ctrlval		= parse_bw,
 		.format_str		= "%d=%*u",
 		.fflags			= RFTYPE_RES_MB,
 	},
@@ -211,9 +209,10 @@ static inline void cache_alloc_hsw_probe(void)
 	struct rdt_resource *r  = &rdt_resources_all[RDT_RESOURCE_L3];
 	u32 l, h, max_cbm = BIT_MASK(20) - 1;
 
-	if (wrmsr_safe(IA32_L3_CBM_BASE, max_cbm, 0))
+	if (wrmsr_safe(MSR_IA32_L3_CBM_BASE, max_cbm, 0))
 		return;
-	rdmsr(IA32_L3_CBM_BASE, l, h);
+
+	rdmsr(MSR_IA32_L3_CBM_BASE, l, h);
 
 	/* If all the bits were set in MSR, return success */
 	if (l != max_cbm)
@@ -259,7 +258,7 @@ static inline bool rdt_get_mb_table(struct rdt_resource *r)
 	return false;
 }
 
-static bool rdt_get_mem_config(struct rdt_resource *r)
+static bool __get_mem_config_intel(struct rdt_resource *r)
 {
 	union cpuid_0x10_3_eax eax;
 	union cpuid_0x10_x_edx edx;
@@ -278,6 +277,30 @@ static bool rdt_get_mem_config(struct rdt_resource *r)
 			return false;
 	}
 	r->data_width = 3;
+
+	r->alloc_capable = true;
+	r->alloc_enabled = true;
+
+	return true;
+}
+
+static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
+{
+	union cpuid_0x10_3_eax eax;
+	union cpuid_0x10_x_edx edx;
+	u32 ebx, ecx;
+
+	cpuid_count(0x80000020, 1, &eax.full, &ebx, &ecx, &edx.full);
+	r->num_closid = edx.split.cos_max + 1;
+	r->default_ctrl = MAX_MBA_BW_AMD;
+
+	/* AMD does not use delay */
+	r->membw.delay_linear = false;
+
+	r->membw.min_bw = 0;
+	r->membw.bw_gran = 1;
+	/* Max value is 2048, Data width should be 4 in decimal */
+	r->data_width = 4;
 
 	r->alloc_capable = true;
 	r->alloc_enabled = true;
@@ -344,6 +367,15 @@ static int get_cache_id(int cpu, int level)
 	return -1;
 }
 
+static void
+mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+{
+	unsigned int i;
+
+	for (i = m->low; i < m->high; i++)
+		wrmsrl(r->msr_base + i, d->ctrl_val[i]);
+}
+
 /*
  * Map the memory b/w percentage value to delay values
  * that can be written to QOS_MSRs.
@@ -359,7 +391,8 @@ u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
 }
 
 static void
-mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+mba_wrmsr_intel(struct rdt_domain *d, struct msr_param *m,
+		struct rdt_resource *r)
 {
 	unsigned int i;
 
@@ -421,7 +454,7 @@ struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
 	struct list_head *l;
 
 	if (id < 0)
-		return ERR_PTR(id);
+		return ERR_PTR(-ENODEV);
 
 	list_for_each(l, &r->domains) {
 		d = list_entry(l, struct rdt_domain, list);
@@ -639,7 +672,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 
 static void clear_closid_rmid(int cpu)
 {
-	struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
+	struct resctrl_pqr_state *state = this_cpu_ptr(&pqr_state);
 
 	state->default_closid = 0;
 	state->default_rmid = 0;
@@ -648,7 +681,7 @@ static void clear_closid_rmid(int cpu)
 	wrmsr(IA32_PQR_ASSOC, 0, 0);
 }
 
-static int intel_rdt_online_cpu(unsigned int cpu)
+static int resctrl_online_cpu(unsigned int cpu)
 {
 	struct rdt_resource *r;
 
@@ -674,7 +707,7 @@ static void clear_childcpus(struct rdtgroup *r, unsigned int cpu)
 	}
 }
 
-static int intel_rdt_offline_cpu(unsigned int cpu)
+static int resctrl_offline_cpu(unsigned int cpu)
 {
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
@@ -794,6 +827,19 @@ static bool __init rdt_cpu_has(int flag)
 	return ret;
 }
 
+static __init bool get_mem_config(void)
+{
+	if (!rdt_cpu_has(X86_FEATURE_MBA))
+		return false;
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		return __get_mem_config_intel(&rdt_resources_all[RDT_RESOURCE_MBA]);
+	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		return __rdt_get_mem_config_amd(&rdt_resources_all[RDT_RESOURCE_MBA]);
+
+	return false;
+}
+
 static __init bool get_rdt_alloc_resources(void)
 {
 	bool ret = false;
@@ -818,10 +864,9 @@ static __init bool get_rdt_alloc_resources(void)
 		ret = true;
 	}
 
-	if (rdt_cpu_has(X86_FEATURE_MBA)) {
-		if (rdt_get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]))
-			ret = true;
-	}
+	if (get_mem_config())
+		ret = true;
+
 	return ret;
 }
 
@@ -840,7 +885,7 @@ static __init bool get_rdt_mon_resources(void)
 	return !rdt_get_mon_l3_config(&rdt_resources_all[RDT_RESOURCE_L3]);
 }
 
-static __init void rdt_quirks(void)
+static __init void __check_quirks_intel(void)
 {
 	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_HASWELL_X:
@@ -855,21 +900,82 @@ static __init void rdt_quirks(void)
 	}
 }
 
+static __init void check_quirks(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		__check_quirks_intel();
+}
+
 static __init bool get_rdt_resources(void)
 {
-	rdt_quirks();
 	rdt_alloc_capable = get_rdt_alloc_resources();
 	rdt_mon_capable = get_rdt_mon_resources();
 
 	return (rdt_mon_capable || rdt_alloc_capable);
 }
 
+static __init void rdt_init_res_defs_intel(void)
+{
+	struct rdt_resource *r;
+
+	for_each_rdt_resource(r) {
+		if (r->rid == RDT_RESOURCE_L3 ||
+		    r->rid == RDT_RESOURCE_L3DATA ||
+		    r->rid == RDT_RESOURCE_L3CODE ||
+		    r->rid == RDT_RESOURCE_L2 ||
+		    r->rid == RDT_RESOURCE_L2DATA ||
+		    r->rid == RDT_RESOURCE_L2CODE)
+			r->cbm_validate = cbm_validate_intel;
+		else if (r->rid == RDT_RESOURCE_MBA) {
+			r->msr_base = MSR_IA32_MBA_THRTL_BASE;
+			r->msr_update = mba_wrmsr_intel;
+			r->parse_ctrlval = parse_bw_intel;
+		}
+	}
+}
+
+static __init void rdt_init_res_defs_amd(void)
+{
+	struct rdt_resource *r;
+
+	for_each_rdt_resource(r) {
+		if (r->rid == RDT_RESOURCE_L3 ||
+		    r->rid == RDT_RESOURCE_L3DATA ||
+		    r->rid == RDT_RESOURCE_L3CODE ||
+		    r->rid == RDT_RESOURCE_L2 ||
+		    r->rid == RDT_RESOURCE_L2DATA ||
+		    r->rid == RDT_RESOURCE_L2CODE)
+			r->cbm_validate = cbm_validate_amd;
+		else if (r->rid == RDT_RESOURCE_MBA) {
+			r->msr_base = MSR_IA32_MBA_BW_BASE;
+			r->msr_update = mba_wrmsr_amd;
+			r->parse_ctrlval = parse_bw_amd;
+		}
+	}
+}
+
+static __init void rdt_init_res_defs(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		rdt_init_res_defs_intel();
+	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		rdt_init_res_defs_amd();
+}
+
 static enum cpuhp_state rdt_online;
 
-static int __init intel_rdt_late_init(void)
+static int __init resctrl_late_init(void)
 {
 	struct rdt_resource *r;
 	int state, ret;
+
+	/*
+	 * Initialize functions(or definitions) that are different
+	 * between vendors here.
+	 */
+	rdt_init_res_defs();
+
+	check_quirks();
 
 	if (!get_rdt_resources())
 		return -ENODEV;
@@ -877,8 +983,8 @@ static int __init intel_rdt_late_init(void)
 	rdt_init_padding();
 
 	state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
-				  "x86/rdt/cat:online:",
-				  intel_rdt_online_cpu, intel_rdt_offline_cpu);
+				  "x86/resctrl/cat:online:",
+				  resctrl_online_cpu, resctrl_offline_cpu);
 	if (state < 0)
 		return state;
 
@@ -890,20 +996,20 @@ static int __init intel_rdt_late_init(void)
 	rdt_online = state;
 
 	for_each_alloc_capable_rdt_resource(r)
-		pr_info("Intel RDT %s allocation detected\n", r->name);
+		pr_info("%s allocation detected\n", r->name);
 
 	for_each_mon_capable_rdt_resource(r)
-		pr_info("Intel RDT %s monitoring detected\n", r->name);
+		pr_info("%s monitoring detected\n", r->name);
 
 	return 0;
 }
 
-late_initcall(intel_rdt_late_init);
+late_initcall(resctrl_late_init);
 
-static void __exit intel_rdt_exit(void)
+static void __exit resctrl_exit(void)
 {
 	cpuhp_remove_state(rdt_online);
 	rdtgroup_exit();
 }
 
-__exitcall(intel_rdt_exit);
+__exitcall(resctrl_exit);
