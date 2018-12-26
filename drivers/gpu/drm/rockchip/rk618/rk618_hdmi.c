@@ -999,9 +999,8 @@ static enum drm_mode_status
 rk618_hdmi_connector_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
-	if (mode->clock == 148500 || mode->clock == 146250 ||
-	    mode->clock == 108000 || mode->clock == 106500 ||
-	    mode->clock == 85500 || mode->clock == 74250)
+	if ((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
+	    (mode->hdisplay == 1280 && mode->vdisplay == 720))
 		return MODE_OK;
 	else
 		return MODE_BAD;
