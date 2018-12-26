@@ -508,7 +508,7 @@ static struct phy *rockchip_combphy_xlate(struct device *dev,
 	if (priv->phy_type != PHY_NONE && priv->phy_type != args->args[0]) {
 		dev_err(dev, "type select %d overwriting phy type %d\n",
 			args->args[0], priv->phy_type);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENODEV);
 	}
 
 	priv->phy_type = args->args[0];
