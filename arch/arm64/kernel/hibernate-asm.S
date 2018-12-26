@@ -40,6 +40,7 @@
 	tlbi	vmalle1
 	dsb	nsh
 	phys_to_ttbr \tmp, \page_table
+	offset_ttbr1 \tmp
 	msr	ttbr1_el1, \tmp
 	isb
 .endm

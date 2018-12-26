@@ -182,6 +182,7 @@ ENDPROC(cpu_do_switch_mm)
 .macro	__idmap_cpu_set_reserved_ttbr1, tmp1, tmp2
 	adrp	\tmp1, empty_zero_page
 	phys_to_ttbr \tmp2, \tmp1
+	offset_ttbr1 \tmp2
 	msr	ttbr1_el1, \tmp2
 	isb
 	tlbi	vmalle1
@@ -200,6 +201,7 @@ ENTRY(idmap_cpu_replace_ttbr1)
 
 	__idmap_cpu_set_reserved_ttbr1 x1, x3
 
+	offset_ttbr1 x0
 	msr	ttbr1_el1, x0
 	isb
 
@@ -254,6 +256,7 @@ ENTRY(idmap_kpti_install_ng_mappings)
 	pte		.req	x16
 
 	mrs	swapper_ttb, ttbr1_el1
+	restore_ttbr1	swapper_ttb
 	adr	flag_ptr, __idmap_kpti_flag
 
 	cbnz	cpu, __idmap_kpti_secondary
@@ -373,6 +376,7 @@ __idmap_kpti_secondary:
 	cbnz	w18, 1b
 
 	/* All done, act like nothing happened */
+	offset_ttbr1 swapper_ttb
 	msr	ttbr1_el1, swapper_ttb
 	isb
 	ret
@@ -446,7 +450,15 @@ ENTRY(__cpu_setup)
 	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
 			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
 			TCR_TBI0 | TCR_A1
-	tcr_set_idmap_t0sz	x10, x9
+
+#ifdef CONFIG_ARM64_USER_VA_BITS_52
+	ldr_l		x9, vabits_user
+	sub		x9, xzr, x9
+	add		x9, x9, #64
+#else
+	ldr_l		x9, idmap_t0sz
+#endif
+	tcr_set_t0sz	x10, x9
 
 	/*
 	 * Set the IPS bits in TCR_EL1.
