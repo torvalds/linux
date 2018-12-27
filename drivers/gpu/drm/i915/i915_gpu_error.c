@@ -963,17 +963,10 @@ static void i915_error_object_free(struct drm_i915_error_object *obj)
 	kfree(obj);
 }
 
-static __always_inline void free_param(const char *type, void *x)
-{
-	if (!__builtin_strcmp(type, "char *"))
-		kfree(*(void **)x);
-}
 
 static void cleanup_params(struct i915_gpu_state *error)
 {
-#define FREE(T, x, ...) free_param(#T, &error->params.x);
-	I915_PARAMS_FOR_EACH(FREE);
-#undef FREE
+	i915_params_free(&error->params);
 }
 
 static void cleanup_uc_state(struct i915_gpu_state *error)
