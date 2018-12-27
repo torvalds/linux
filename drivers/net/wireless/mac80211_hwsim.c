@@ -459,6 +459,7 @@ static const struct ieee80211_iface_limit hwsim_if_limits[] = {
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
 				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_WDS) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 	/* must be last, see hwsim_if_comb */
 	{ .max = 1, .types = BIT(NL80211_IFTYPE_P2P_DEVICE) }
@@ -2746,6 +2747,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	hw->offchannel_tx_hw_queue = 4;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |
+				     BIT(NL80211_IFTYPE_WDS) |
 				     BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				     BIT(NL80211_IFTYPE_P2P_GO) |
 				     BIT(NL80211_IFTYPE_ADHOC) |
