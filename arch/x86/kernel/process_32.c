@@ -44,9 +44,6 @@
 #include <asm/processor.h>
 #include <asm/fpu/internal.h>
 #include <asm/desc.h>
-#ifdef CONFIG_MATH_EMULATION
-#include <asm/math_emu.h>
-#endif
 
 #include <linux/err.h>
 
