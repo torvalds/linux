@@ -100,6 +100,9 @@ int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	mgmt_desc->frame_type = TX_DOT11_MGMT;
 	mgmt_desc->header_len = MIN_802_11_HDR_LEN;
 	mgmt_desc->xtend_desc_size = header_size - FRAME_DESC_SZ;
+
+	if (ieee80211_is_probe_req(wh->frame_control))
+		mgmt_desc->frame_info = cpu_to_le16(RSI_INSERT_SEQ_IN_FW);
 	mgmt_desc->frame_info |= cpu_to_le16(RATE_INFO_ENABLE);
 	if (is_broadcast_ether_addr(wh->addr1))
 		mgmt_desc->frame_info |= cpu_to_le16(RSI_BROADCAST_PKT);
