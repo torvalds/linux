@@ -958,11 +958,6 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
 	return printed + fprintf(fp, "): ");
 }
 
-struct file {
-	char *pathname;
-	int  dev_maj;
-};
-
 /**
  * filename.ptr: The filename char pointer that will be vfs_getname'd
  * filename.entry_str_pos: Where to insert the string translated from
@@ -1062,6 +1057,11 @@ static struct file *thread_trace__files_entry(struct thread_trace *ttrace, int f
 	}
 
 	return ttrace->files.table + fd;
+}
+
+struct file *thread__files_entry(struct thread *thread, int fd)
+{
+	return thread_trace__files_entry(thread__priv(thread), fd);
 }
 
 static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
