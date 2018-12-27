@@ -25,6 +25,7 @@
 #include <linux/if_packet.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/uio.h>
 #include <linux/virtio_net.h>
 #include <netdb.h>
 #include <stdlib.h>
