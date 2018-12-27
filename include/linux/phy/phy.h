@@ -69,6 +69,7 @@ struct phy_ops {
 /**
  * struct phy_attrs - represents phy attributes
  * @bus_width: Data path width implemented by PHY
+ * @mode: PHY mode
  */
 struct phy_attrs {
 	u32			bus_width;
@@ -80,7 +81,6 @@ struct phy_attrs {
  * @dev: phy device
  * @id: id of the phy device
  * @ops: function pointers for performing phy operations
- * @init_data: list of PHY consumers (non-dt only)
  * @mutex: mutex to protect phy_ops
  * @init_count: used to protect when the PHY is used by multiple consumers
  * @power_count: used to protect when the PHY is used by multiple consumers
