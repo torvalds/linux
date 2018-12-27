@@ -1273,8 +1273,10 @@ static int xadc_probe(struct platform_device *pdev)
 			xadc->threshold[i] = 0xffff;
 		else
 			xadc->threshold[i] = 0;
-		xadc_write_adc_reg(xadc, XADC_REG_THRESHOLD(i),
+		ret = xadc_write_adc_reg(xadc, XADC_REG_THRESHOLD(i),
 			xadc->threshold[i]);
+		if (ret)
+			goto err_free_irq;
 	}
 
 	/* Go to non-buffered mode */
