@@ -1040,15 +1040,13 @@ void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 
 static const size_t trace__entry_str_size = 2048;
 
-static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
+static struct file *thread_trace__files_entry(struct thread_trace *ttrace, int fd)
 {
-	struct thread_trace *ttrace = thread__priv(thread);
-
 	if (fd > ttrace->files.max) {
 		struct file *nfiles = realloc(ttrace->files.table, (fd + 1) * sizeof(struct file));
 
 		if (nfiles == NULL)
-			return -1;
+			return NULL;
 
 		if (ttrace->files.max != -1) {
 			memset(nfiles + ttrace->files.max + 1, 0,
@@ -1061,9 +1059,21 @@ static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pat
 		ttrace->files.max   = fd;
 	}
 
-	ttrace->files.table[fd].pathname = strdup(pathname);
+	return ttrace->files.table + fd;
+}
 
-	return ttrace->files.table[fd].pathname != NULL ? 0 : -1;
+static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
+{
+	struct thread_trace *ttrace = thread__priv(thread);
+	struct file *file = thread_trace__files_entry(ttrace, fd);
+
+	if (file != NULL) {
+		file->pathname = strdup(pathname);
+		if (file->pathname)
+			return 0;
+	}
+
+	return -1;
 }
 
 static int thread__read_fd_path(struct thread *thread, int fd)
