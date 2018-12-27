@@ -1,5 +1,5 @@
 /*
- * PCAL9555a platform data initilization file
+ * PCAL9555a platform data initialization file
  *
  * Copyright (C) 2016, Intel Corporation
  *

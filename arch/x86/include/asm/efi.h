@@ -19,7 +19,7 @@
  * This is the main reason why we're doing stable VA mappings for RT
  * services.
  *
- * This flag is used in conjuction with a chicken bit called
+ * This flag is used in conjunction with a chicken bit called
  * "efi=old_map" which can be used as a fallback to the old runtime
  * services mapping method in case there's some b0rkage with a
  * particular EFI implementation (haha, it is hard to hold up the

@@ -684,7 +684,7 @@ DEFINE_PER_CPU(unsigned, mce_poll_count);
  * errors here. However this would be quite problematic --
  * we would need to reimplement the Monarch handling and
  * it would mess up the exclusion between exception handler
- * and poll hander -- * so we skip this for now.
+ * and poll handler -- * so we skip this for now.
  * These cases should not happen anyways, or only when the CPU
  * is already totally * confused. In this case it's likely it will
  * not fully execute the machine check handler either.

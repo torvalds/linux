@@ -32,6 +32,8 @@
 #include <asm/e820/api.h>
 #include <asm/hypervisor.h>
 
+#include "cpu.h"
+
 static void __init spectre_v2_select_mitigation(void);
 static void __init ssb_select_mitigation(void);
 static void __init l1tf_select_mitigation(void);

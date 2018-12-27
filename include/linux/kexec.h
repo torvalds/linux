@@ -183,6 +183,7 @@ int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 				   bool get_value);
 void *kexec_purgatory_get_symbol_addr(struct kimage *image, const char *name);
 
+void * __weak arch_kexec_kernel_image_load(struct kimage *image);
 int __weak arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 					    Elf_Shdr *section,
 					    const Elf_Shdr *relsec,

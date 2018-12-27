@@ -1712,7 +1712,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	} else if (!(in_flag & CPA_PAGES_ARRAY)) {
 		/*
 		 * in_flag of CPA_PAGES_ARRAY implies it is aligned.
-		 * No need to cehck in that case
+		 * No need to check in that case
 		 */
 		if (*addr & ~PAGE_MASK) {
 			*addr &= PAGE_MASK;

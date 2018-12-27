@@ -382,6 +382,9 @@ int enable_kprobe(struct kprobe *kp);
 
 void dump_kprobe(struct kprobe *kp);
 
+void *alloc_insn_page(void);
+void free_insn_page(void *page);
+
 #else /* !CONFIG_KPROBES: */
 
 static inline int kprobes_built_in(void)
