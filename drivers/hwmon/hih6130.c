@@ -254,8 +254,17 @@ static const struct i2c_device_id hih6130_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hih6130_id);
 
+static const struct of_device_id hih6130_of_match[] = {
+	{ .compatible = "honeywell,hih6130", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, hih6130_of_match);
+
 static struct i2c_driver hih6130_driver = {
-	.driver.name = "hih6130",
+	.driver = {
+		.name = "hih6130",
+		.of_match_table = of_match_ptr(hih6130_of_match),
+	},
 	.probe       = hih6130_probe,
 	.id_table    = hih6130_id,
 };
