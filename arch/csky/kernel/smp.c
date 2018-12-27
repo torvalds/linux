@@ -138,7 +138,7 @@ void __init setup_smp(void)
 	struct device_node *node = NULL;
 	int cpu;
 
-	while ((node = of_find_node_by_type(node, "cpu"))) {
+	for_each_of_cpu_node(node) {
 		if (!of_device_is_available(node))
 			continue;
 
