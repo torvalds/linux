@@ -2030,6 +2030,16 @@ struct security_hook_list {
 } __randomize_layout;
 
 /*
+ * The set of hooks that may be selected for a specific module.
+ */
+struct lsm_one_hooks {
+	char *lsm;
+	union security_list_options secid_to_secctx;
+	union security_list_options secctx_to_secid;
+	union security_list_options socket_getpeersec_stream;
+};
+
+/*
  * Security blob size or offset data.
  */
 struct lsm_blob_sizes {

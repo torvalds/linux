@@ -412,6 +412,9 @@ static int lsm_append(char *new, char **result)
 	return 0;
 }
 
+/* Base list of once-only hooks */
+static struct lsm_one_hooks lsm_base_one;
+
 /**
  * security_add_hooks - Add a modules hooks to the hook lists.
  * @hooks: the hooks to add
@@ -428,6 +431,25 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
 	for (i = 0; i < count; i++) {
 		hooks[i].lsm = lsm;
 		hlist_add_tail_rcu(&hooks[i].list, hooks[i].head);
+
+		/*
+		 * Check for the special hooks that are restricted to
+		 * a single module to create the base set. Use the hooks
+		 * from that module for the set, which may not be complete.
+		 */
+		if (lsm_base_one.lsm && strcmp(lsm_base_one.lsm, hooks[i].lsm))
+			continue;
+		if (hooks[i].head == &security_hook_heads.secid_to_secctx)
+			lsm_base_one.secid_to_secctx = hooks[i].hook;
+		else if (hooks[i].head == &security_hook_heads.secctx_to_secid)
+			lsm_base_one.secctx_to_secid = hooks[i].hook;
+		else if (hooks[i].head ==
+				&security_hook_heads.socket_getpeersec_stream)
+			lsm_base_one.socket_getpeersec_stream = hooks[i].hook;
+		else
+			continue;
+		if (lsm_base_one.lsm == NULL)
+			lsm_base_one.lsm = kstrdup(hooks[i].lsm, GFP_KERNEL);
 	}
 	if (lsm_append(lsm, &lsm_names) < 0)
 		panic("%s - Cannot get early memory.\n", __func__);
@@ -672,14 +694,8 @@ static void __init lsm_early_task(struct task_struct *task)
 
 #define call_one_int_hook(FUNC, IRC, ...) ({			\
 	int RC = IRC;						\
-	do {							\
-		struct security_hook_list *P;			\
-								\
-		hlist_for_each_entry(P, &security_hook_heads.FUNC, list) { \
-			RC = P->hook.FUNC(__VA_ARGS__);		\
-			break;					\
-		}						\
-	} while (0);						\
+	if (lsm_base_one.FUNC.FUNC)				\
+		RC = lsm_base_one.FUNC.FUNC(__VA_ARGS__);	\
 	RC;							\
 })
 
