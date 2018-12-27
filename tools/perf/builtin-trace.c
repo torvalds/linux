@@ -60,6 +60,7 @@
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <fcntl.h>
+#include <sys/sysmacros.h>
 
 #include "sane_ctype.h"
 
@@ -959,6 +960,7 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
 
 struct file {
 	char *pathname;
+	int  dev_maj;
 };
 
 /**
@@ -1068,6 +1070,9 @@ static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pat
 	struct file *file = thread_trace__files_entry(ttrace, fd);
 
 	if (file != NULL) {
+		struct stat st;
+		if (stat(pathname, &st) == 0)
+			file->dev_maj = major(st.st_rdev);
 		file->pathname = strdup(pathname);
 		if (file->pathname)
 			return 0;
