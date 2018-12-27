@@ -2076,124 +2076,6 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int per_file_ctx(int id, void *ptr, void *data)
-{
-	struct i915_gem_context *ctx = ptr;
-	struct seq_file *m = data;
-	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
-
-	if (!ppgtt) {
-		seq_printf(m, "  no ppgtt for context %d\n",
-			   ctx->user_handle);
-		return 0;
-	}
-
-	if (i915_gem_context_is_default(ctx))
-		seq_puts(m, "  default context:\n");
-	else
-		seq_printf(m, "  context %d:\n", ctx->user_handle);
-	ppgtt->debug_dump(ppgtt, m);
-
-	return 0;
-}
-
-static void gen8_ppgtt_info(struct seq_file *m,
-			    struct drm_i915_private *dev_priv)
-{
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int i;
-
-	if (!ppgtt)
-		return;
-
-	for_each_engine(engine, dev_priv, id) {
-		seq_printf(m, "%s\n", engine->name);
-		for (i = 0; i < 4; i++) {
-			u64 pdp = I915_READ(GEN8_RING_PDP_UDW(engine, i));
-			pdp <<= 32;
-			pdp |= I915_READ(GEN8_RING_PDP_LDW(engine, i));
-			seq_printf(m, "\tPDP%d 0x%016llx\n", i, pdp);
-		}
-	}
-}
-
-static void gen6_ppgtt_info(struct seq_file *m,
-			    struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	if (IS_GEN(dev_priv, 6))
-		seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
-
-	for_each_engine(engine, dev_priv, id) {
-		seq_printf(m, "%s\n", engine->name);
-		if (IS_GEN(dev_priv, 7))
-			seq_printf(m, "GFX_MODE: 0x%08x\n",
-				   I915_READ(RING_MODE_GEN7(engine)));
-		seq_printf(m, "PP_DIR_BASE: 0x%08x\n",
-			   I915_READ(RING_PP_DIR_BASE(engine)));
-		seq_printf(m, "PP_DIR_BASE_READ: 0x%08x\n",
-			   I915_READ(RING_PP_DIR_BASE_READ(engine)));
-		seq_printf(m, "PP_DIR_DCLV: 0x%08x\n",
-			   I915_READ(RING_PP_DIR_DCLV(engine)));
-	}
-	if (dev_priv->mm.aliasing_ppgtt) {
-		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-
-		seq_puts(m, "aliasing PPGTT:\n");
-		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd.base.ggtt_offset);
-
-		ppgtt->debug_dump(ppgtt, m);
-	}
-
-	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
-}
-
-static int i915_ppgtt_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct drm_file *file;
-	int ret;
-
-	mutex_lock(&dev->filelist_mutex);
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		goto out_unlock;
-
-	intel_runtime_pm_get(dev_priv);
-
-	if (INTEL_GEN(dev_priv) >= 8)
-		gen8_ppgtt_info(m, dev_priv);
-	else if (INTEL_GEN(dev_priv) >= 6)
-		gen6_ppgtt_info(m, dev_priv);
-
-	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
-		struct drm_i915_file_private *file_priv = file->driver_priv;
-		struct task_struct *task;
-
-		task = get_pid_task(file->pid, PIDTYPE_PID);
-		if (!task) {
-			ret = -ESRCH;
-			goto out_rpm;
-		}
-		seq_printf(m, "\nproc: %s\n", task->comm);
-		put_task_struct(task);
-		idr_for_each(&file_priv->context_idr, per_file_ctx,
-			     (void *)(unsigned long)m);
-	}
-
-out_rpm:
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-out_unlock:
-	mutex_unlock(&dev->filelist_mutex);
-	return ret;
-}
-
 static int count_irq_waiters(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
@@ -4912,7 +4794,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_context_status", i915_context_status, 0},
 	{"i915_forcewake_domains", i915_forcewake_domains, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
-	{"i915_ppgtt_info", i915_ppgtt_info, 0},
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},

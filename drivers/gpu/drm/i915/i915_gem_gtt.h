@@ -413,8 +413,6 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory_pointer pdp;	/* GEN8+ */
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
-
-	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
 struct gen6_hw_ppgtt {

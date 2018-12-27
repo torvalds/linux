@@ -1488,84 +1488,6 @@ unwind:
 	return -ENOMEM;
 }
 
-static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
-			  struct i915_page_directory_pointer *pdp,
-			  u64 start, u64 length,
-			  gen8_pte_t scratch_pte,
-			  struct seq_file *m)
-{
-	struct i915_address_space *vm = &ppgtt->vm;
-	struct i915_page_directory *pd;
-	u32 pdpe;
-
-	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
-		struct i915_page_table *pt;
-		u64 pd_len = length;
-		u64 pd_start = start;
-		u32 pde;
-
-		if (pdp->page_directory[pdpe] == ppgtt->vm.scratch_pd)
-			continue;
-
-		seq_printf(m, "\tPDPE #%d\n", pdpe);
-		gen8_for_each_pde(pt, pd, pd_start, pd_len, pde) {
-			u32 pte;
-			gen8_pte_t *pt_vaddr;
-
-			if (pd->page_table[pde] == ppgtt->vm.scratch_pt)
-				continue;
-
-			pt_vaddr = kmap_atomic_px(pt);
-			for (pte = 0; pte < GEN8_PTES; pte += 4) {
-				u64 va = (pdpe << GEN8_PDPE_SHIFT |
-					  pde << GEN8_PDE_SHIFT |
-					  pte << GEN8_PTE_SHIFT);
-				int i;
-				bool found = false;
-
-				for (i = 0; i < 4; i++)
-					if (pt_vaddr[pte + i] != scratch_pte)
-						found = true;
-				if (!found)
-					continue;
-
-				seq_printf(m, "\t\t0x%llx [%03d,%03d,%04d]: =", va, pdpe, pde, pte);
-				for (i = 0; i < 4; i++) {
-					if (pt_vaddr[pte + i] != scratch_pte)
-						seq_printf(m, " %llx", pt_vaddr[pte + i]);
-					else
-						seq_puts(m, "  SCRATCH ");
-				}
-				seq_puts(m, "\n");
-			}
-			kunmap_atomic(pt_vaddr);
-		}
-	}
-}
-
-static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
-{
-	struct i915_address_space *vm = &ppgtt->vm;
-	const gen8_pte_t scratch_pte = vm->scratch_pte;
-	u64 start = 0, length = ppgtt->vm.total;
-
-	if (use_4lvl(vm)) {
-		u64 pml4e;
-		struct i915_pml4 *pml4 = &ppgtt->pml4;
-		struct i915_page_directory_pointer *pdp;
-
-		gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
-			if (pml4->pdps[pml4e] == ppgtt->vm.scratch_pdp)
-				continue;
-
-			seq_printf(m, "    PML4E #%llu\n", pml4e);
-			gen8_dump_pdp(ppgtt, pdp, start, length, scratch_pte, m);
-		}
-	} else {
-		gen8_dump_pdp(ppgtt, &ppgtt->pdp, start, length, scratch_pte, m);
-	}
-}
-
 static int gen8_preallocate_top_level_pdp(struct i915_hw_ppgtt *ppgtt)
 {
 	struct i915_address_space *vm = &ppgtt->vm;
@@ -1670,7 +1592,6 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 		gen8_ppgtt_notify_vgt(ppgtt, true);
 
 	ppgtt->vm.cleanup = gen8_ppgtt_cleanup;
-	ppgtt->debug_dump = gen8_dump_ppgtt;
 
 	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;
 	ppgtt->vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
@@ -1684,60 +1605,6 @@ err_scratch:
 err_free:
 	kfree(ppgtt);
 	return ERR_PTR(err);
-}
-
-static void gen6_dump_ppgtt(struct i915_hw_ppgtt *base, struct seq_file *m)
-{
-	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
-	const gen6_pte_t scratch_pte = base->vm.scratch_pte;
-	struct i915_page_table *pt;
-	u32 pte, pde;
-
-	gen6_for_all_pdes(pt, &base->pd, pde) {
-		gen6_pte_t *vaddr;
-
-		if (pt == base->vm.scratch_pt)
-			continue;
-
-		if (i915_vma_is_bound(ppgtt->vma, I915_VMA_GLOBAL_BIND)) {
-			u32 expected =
-				GEN6_PDE_ADDR_ENCODE(px_dma(pt)) |
-				GEN6_PDE_VALID;
-			u32 pd_entry = readl(ppgtt->pd_addr + pde);
-
-			if (pd_entry != expected)
-				seq_printf(m,
-					   "\tPDE #%d mismatch: Actual PDE: %x Expected PDE: %x\n",
-					   pde,
-					   pd_entry,
-					   expected);
-
-			seq_printf(m, "\tPDE: %x\n", pd_entry);
-		}
-
-		vaddr = kmap_atomic_px(base->pd.page_table[pde]);
-		for (pte = 0; pte < GEN6_PTES; pte += 4) {
-			int i;
-
-			for (i = 0; i < 4; i++)
-				if (vaddr[pte + i] != scratch_pte)
-					break;
-			if (i == 4)
-				continue;
-
-			seq_printf(m, "\t\t(%03d, %04d) %08llx: ",
-				   pde, pte,
-				   (pde * GEN6_PTES + pte) * I915_GTT_PAGE_SIZE);
-			for (i = 0; i < 4; i++) {
-				if (vaddr[pte + i] != scratch_pte)
-					seq_printf(m, " %08x", vaddr[pte + i]);
-				else
-					seq_puts(m, "  SCRATCH");
-			}
-			seq_puts(m, "\n");
-		}
-		kunmap_atomic(vaddr);
-	}
 }
 
 /* Write pde (index) from the page directory @pd to the page table @pt */
@@ -2136,7 +2003,6 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.vm.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.vm.cleanup = gen6_ppgtt_cleanup;
-	ppgtt->base.debug_dump = gen6_dump_ppgtt;
 
 	ppgtt->base.vm.vma_ops.bind_vma    = ppgtt_bind_vma;
 	ppgtt->base.vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
