@@ -957,6 +957,10 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
 	return printed + fprintf(fp, "): ");
 }
 
+struct file {
+	char *pathname;
+};
+
 /**
  * filename.ptr: The filename char pointer that will be vfs_getname'd
  * filename.entry_str_pos: Where to insert the string translated from
@@ -980,9 +984,9 @@ struct thread_trace {
 		char	      *name;
 	} filename;
 	struct {
-		int	  max;
-		char	  **table;
-	} paths;
+		int	      max;
+		struct file   *table;
+	} files;
 
 	struct intlist *syscall_stats;
 };
@@ -992,7 +996,7 @@ static struct thread_trace *thread_trace__new(void)
 	struct thread_trace *ttrace =  zalloc(sizeof(struct thread_trace));
 
 	if (ttrace)
-		ttrace->paths.max = -1;
+		ttrace->files.max = -1;
 
 	ttrace->syscall_stats = intlist__new(NULL);
 
@@ -1040,26 +1044,26 @@ static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pat
 {
 	struct thread_trace *ttrace = thread__priv(thread);
 
-	if (fd > ttrace->paths.max) {
-		char **npath = realloc(ttrace->paths.table, (fd + 1) * sizeof(char *));
+	if (fd > ttrace->files.max) {
+		struct file *nfiles = realloc(ttrace->files.table, (fd + 1) * sizeof(struct file));
 
-		if (npath == NULL)
+		if (nfiles == NULL)
 			return -1;
 
-		if (ttrace->paths.max != -1) {
-			memset(npath + ttrace->paths.max + 1, 0,
-			       (fd - ttrace->paths.max) * sizeof(char *));
+		if (ttrace->files.max != -1) {
+			memset(nfiles + ttrace->files.max + 1, 0,
+			       (fd - ttrace->files.max) * sizeof(struct file));
 		} else {
-			memset(npath, 0, (fd + 1) * sizeof(char *));
+			memset(nfiles, 0, (fd + 1) * sizeof(struct file));
 		}
 
-		ttrace->paths.table = npath;
-		ttrace->paths.max   = fd;
+		ttrace->files.table = nfiles;
+		ttrace->files.max   = fd;
 	}
 
-	ttrace->paths.table[fd] = strdup(pathname);
+	ttrace->files.table[fd].pathname = strdup(pathname);
 
-	return ttrace->paths.table[fd] != NULL ? 0 : -1;
+	return ttrace->files.table[fd].pathname != NULL ? 0 : -1;
 }
 
 static int thread__read_fd_path(struct thread *thread, int fd)
@@ -1099,7 +1103,7 @@ static const char *thread__fd_path(struct thread *thread, int fd,
 	if (fd < 0)
 		return NULL;
 
-	if ((fd > ttrace->paths.max || ttrace->paths.table[fd] == NULL)) {
+	if ((fd > ttrace->files.max || ttrace->files.table[fd].pathname == NULL)) {
 		if (!trace->live)
 			return NULL;
 		++trace->stats.proc_getname;
@@ -1107,7 +1111,7 @@ static const char *thread__fd_path(struct thread *thread, int fd,
 			return NULL;
 	}
 
-	return ttrace->paths.table[fd];
+	return ttrace->files.table[fd].pathname;
 }
 
 size_t syscall_arg__scnprintf_fd(char *bf, size_t size, struct syscall_arg *arg)
@@ -1146,8 +1150,8 @@ static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 	size_t printed = syscall_arg__scnprintf_fd(bf, size, arg);
 	struct thread_trace *ttrace = thread__priv(arg->thread);
 
-	if (ttrace && fd >= 0 && fd <= ttrace->paths.max)
-		zfree(&ttrace->paths.table[fd]);
+	if (ttrace && fd >= 0 && fd <= ttrace->files.max)
+		zfree(&ttrace->files.table[fd].pathname);
 
 	return printed;
 }
