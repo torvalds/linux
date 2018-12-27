@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 (*
+ * Requires herd version 7.51+6 or higher.
+ *
  * Copyright (C) 2015 Jade Alglave <j.alglave@ucl.ac.uk>,
  * Copyright (C) 2016 Luc Maranget <luc.maranget@inria.fr> for Inria
  * Copyright (C) 2017 Alan Stern <stern@rowland.harvard.edu>,
