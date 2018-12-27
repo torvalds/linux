@@ -4,6 +4,7 @@
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
+#include <linux/icmpv6.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <net/fou.h>
@@ -69,14 +70,87 @@ static int gue6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	return 0;
 }
 
+static int gue6_err_proto_handler(int proto, struct sk_buff *skb,
+				  struct inet6_skb_parm *opt,
+				  u8 type, u8 code, int offset, u32 info)
+{
+	const struct inet6_protocol *ipprot;
+
+	ipprot = rcu_dereference(inet6_protos[proto]);
+	if (ipprot && ipprot->err_handler) {
+		if (!ipprot->err_handler(skb, opt, type, code, offset, info))
+			return 0;
+	}
+
+	return -ENOENT;
+}
+
+static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+		    u8 type, u8 code, int offset, __be32 info)
+{
+	int transport_offset = skb_transport_offset(skb);
+	struct guehdr *guehdr;
+	size_t optlen;
+	int ret;
+
+	if (skb->len < sizeof(struct udphdr) + sizeof(struct guehdr))
+		return -EINVAL;
+
+	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
+
+	switch (guehdr->version) {
+	case 0: /* Full GUE header present */
+		break;
+	case 1: {
+		/* Direct encasulation of IPv4 or IPv6 */
+		skb_set_transport_header(skb, -(int)sizeof(struct icmp6hdr));
+
+		switch (((struct iphdr *)guehdr)->version) {
+		case 4:
+			ret = gue6_err_proto_handler(IPPROTO_IPIP, skb, opt,
+						     type, code, offset, info);
+			goto out;
+		case 6:
+			ret = gue6_err_proto_handler(IPPROTO_IPV6, skb, opt,
+						     type, code, offset, info);
+			goto out;
+		default:
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+	}
+	default: /* Undefined version */
+		return -EOPNOTSUPP;
+	}
+
+	if (guehdr->control)
+		return -ENOENT;
+
+	optlen = guehdr->hlen << 2;
+
+	if (validate_gue_flags(guehdr, optlen))
+		return -EINVAL;
+
+	skb_set_transport_header(skb, -(int)sizeof(struct icmp6hdr));
+	ret = gue6_err_proto_handler(guehdr->proto_ctype, skb,
+				     opt, type, code, offset, info);
+
+out:
+	skb_set_transport_header(skb, transport_offset);
+	return ret;
+}
+
+
 static const struct ip6_tnl_encap_ops fou_ip6tun_ops = {
 	.encap_hlen = fou_encap_hlen,
 	.build_header = fou6_build_header,
+	.err_handler = gue6_err,
 };
 
 static const struct ip6_tnl_encap_ops gue_ip6tun_ops = {
 	.encap_hlen = gue_encap_hlen,
 	.build_header = gue6_build_header,
+	.err_handler = gue6_err,
 };
 
 static int ip6_tnl_encap_add_fou_ops(void)

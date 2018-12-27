@@ -2820,7 +2820,7 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg)
 			dev = __dev_get_by_name(net, p.name);
 			if (!dev)
 				goto err_exit;
-			err = dev_open(dev);
+			err = dev_open(dev, NULL);
 		}
 	}
 #endif

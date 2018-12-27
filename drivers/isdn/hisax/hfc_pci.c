@@ -274,7 +274,7 @@ hfcpci_empty_fifo(struct BCState *bcs, bzfifo_type *bz, u_char *bdata, int count
 	u_char *ptr, *ptr1, new_f2;
 	struct sk_buff *skb;
 	struct IsdnCardState *cs = bcs->cs;
-	int total, maxlen, new_z2;
+	int maxlen, new_z2;
 	z_type *zp;
 
 	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
@@ -297,7 +297,6 @@ hfcpci_empty_fifo(struct BCState *bcs, bzfifo_type *bz, u_char *bdata, int count
 	} else if (!(skb = dev_alloc_skb(count - 3)))
 		printk(KERN_WARNING "HFCPCI: receive out of memory\n");
 	else {
-		total = count;
 		count -= 3;
 		ptr = skb_put(skb, count);
 

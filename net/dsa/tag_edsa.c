@@ -168,4 +168,5 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 const struct dsa_device_ops edsa_netdev_ops = {
 	.xmit	= edsa_xmit,
 	.rcv	= edsa_rcv,
+	.overhead = EDSA_HLEN,
 };

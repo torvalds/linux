@@ -25,9 +25,9 @@ static int udplite_rcv(struct sk_buff *skb)
 	return __udp4_lib_rcv(skb, &udplite_table, IPPROTO_UDPLITE);
 }
 
-static void udplite_err(struct sk_buff *skb, u32 info)
+static int udplite_err(struct sk_buff *skb, u32 info)
 {
-	__udp4_lib_err(skb, info, &udplite_table);
+	return __udp4_lib_err(skb, info, &udplite_table);
 }
 
 static const struct net_protocol udplite_protocol = {

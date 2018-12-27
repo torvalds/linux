@@ -29,11 +29,11 @@
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/printk.h>
-#include <linux/rculist.h>
-#include <linux/rcupdate.h>
+#include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -445,22 +445,26 @@ out:
  * batadv_netlink_dump_hardif_entry() - Dump one hard interface into a message
  * @msg: Netlink message to dump into
  * @portid: Port making netlink request
- * @seq: Sequence number of netlink message
+ * @cb: Control block containing additional options
  * @hard_iface: Hard interface to dump
  *
  * Return: error code, or 0 on success
  */
 static int
-batadv_netlink_dump_hardif_entry(struct sk_buff *msg, u32 portid, u32 seq,
+batadv_netlink_dump_hardif_entry(struct sk_buff *msg, u32 portid,
+				 struct netlink_callback *cb,
 				 struct batadv_hard_iface *hard_iface)
 {
 	struct net_device *net_dev = hard_iface->net_dev;
 	void *hdr;
 
-	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family, NLM_F_MULTI,
+	hdr = genlmsg_put(msg, portid, cb->nlh->nlmsg_seq,
+			  &batadv_netlink_family, NLM_F_MULTI,
 			  BATADV_CMD_GET_HARDIFS);
 	if (!hdr)
 		return -EMSGSIZE;
+
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nla_put_u32(msg, BATADV_ATTR_HARD_IFINDEX,
 			net_dev->ifindex) ||
@@ -498,7 +502,6 @@ batadv_netlink_dump_hardifs(struct sk_buff *msg, struct netlink_callback *cb)
 	struct batadv_hard_iface *hard_iface;
 	int ifindex;
 	int portid = NETLINK_CB(cb->skb).portid;
-	int seq = cb->nlh->nlmsg_seq;
 	int skip = cb->args[0];
 	int i = 0;
 
@@ -516,23 +519,24 @@ batadv_netlink_dump_hardifs(struct sk_buff *msg, struct netlink_callback *cb)
 		return -ENODEV;
 	}
 
-	rcu_read_lock();
+	rtnl_lock();
+	cb->seq = batadv_hardif_generation << 1 | 1;
 
-	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
+	list_for_each_entry(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
 		if (i++ < skip)
 			continue;
 
-		if (batadv_netlink_dump_hardif_entry(msg, portid, seq,
+		if (batadv_netlink_dump_hardif_entry(msg, portid, cb,
 						     hard_iface)) {
 			i--;
 			break;
 		}
 	}
 
-	rcu_read_unlock();
+	rtnl_unlock();
 
 	dev_put(soft_iface);
 

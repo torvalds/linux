@@ -58,6 +58,11 @@ extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_ini
 #define PHY_10GBIT_FEATURES ((unsigned long *)&phy_10gbit_features)
 #define PHY_10GBIT_FULL_FEATURES ((unsigned long *)&phy_10gbit_full_features)
 
+extern const int phy_10_100_features_array[4];
+extern const int phy_basic_t1_features_array[2];
+extern const int phy_gbit_features_array[2];
+extern const int phy_10gbit_features_array[1];
+
 /*
  * Set phydev->irq to PHY_POLL if interrupts are not supported,
  * or not desired for this PHY.  Set to PHY_IGNORE_INTERRUPT if
@@ -66,9 +71,8 @@ extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_ini
 #define PHY_POLL		-1
 #define PHY_IGNORE_INTERRUPT	-2
 
-#define PHY_HAS_INTERRUPT	0x00000001
-#define PHY_IS_INTERNAL		0x00000002
-#define PHY_RST_AFTER_CLK_EN	0x00000004
+#define PHY_IS_INTERNAL		0x00000001
+#define PHY_RST_AFTER_CLK_EN	0x00000002
 #define MDIO_DEVICE_IS_PHY	0x80000000
 
 /* Interface Mode definitions */
@@ -178,7 +182,6 @@ static inline const char *phy_modes(phy_interface_t interface)
 #define PHY_INIT_TIMEOUT	100000
 #define PHY_STATE_TIME		1
 #define PHY_FORCE_TIMEOUT	10
-#define PHY_AN_TIMEOUT		10
 
 #define PHY_MAX_ADDR	32
 
@@ -264,57 +267,27 @@ static inline struct mii_bus *devm_mdiobus_alloc(struct device *dev)
 void devm_mdiobus_free(struct device *dev, struct mii_bus *bus);
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
 
-#define PHY_INTERRUPT_DISABLED	0x0
-#define PHY_INTERRUPT_ENABLED	0x80000000
+#define PHY_INTERRUPT_DISABLED	false
+#define PHY_INTERRUPT_ENABLED	true
 
 /* PHY state machine states:
  *
  * DOWN: PHY device and driver are not ready for anything.  probe
  * should be called if and only if the PHY is in this state,
  * given that the PHY device exists.
- * - PHY driver probe function will, depending on the PHY, set
- * the state to STARTING or READY
- *
- * STARTING:  PHY device is coming up, and the ethernet driver is
- * not ready.  PHY drivers may set this in the probe function.
- * If they do, they are responsible for making sure the state is
- * eventually set to indicate whether the PHY is UP or READY,
- * depending on the state when the PHY is done starting up.
- * - PHY driver will set the state to READY
- * - start will set the state to PENDING
+ * - PHY driver probe function will set the state to READY
  *
  * READY: PHY is ready to send and receive packets, but the
  * controller is not.  By default, PHYs which do not implement
- * probe will be set to this state by phy_probe().  If the PHY
- * driver knows the PHY is ready, and the PHY state is STARTING,
- * then it sets this STATE.
+ * probe will be set to this state by phy_probe().
  * - start will set the state to UP
- *
- * PENDING: PHY device is coming up, but the ethernet driver is
- * ready.  phy_start will set this state if the PHY state is
- * STARTING.
- * - PHY driver will set the state to UP when the PHY is ready
  *
  * UP: The PHY and attached device are ready to do work.
  * Interrupts should be started here.
- * - timer moves to AN
- *
- * AN: The PHY is currently negotiating the link state.  Link is
- * therefore down for now.  phy_timer will set this state when it
- * detects the state is UP.  config_aneg will set this state
- * whenever called with phydev->autoneg set to AUTONEG_ENABLE.
- * - If autonegotiation finishes, but there's no link, it sets
- *   the state to NOLINK.
- * - If aneg finishes with link, it sets the state to RUNNING,
- *   and calls adjust_link
- * - If autonegotiation did not finish after an arbitrary amount
- *   of time, autonegotiation should be tried again if the PHY
- *   supports "magic" autonegotiation (back to AN)
- * - If it didn't finish, and no magic_aneg, move to FORCING.
+ * - timer moves to NOLINK or RUNNING
  *
  * NOLINK: PHY is up, but not currently plugged in.
- * - If the timer notes that the link comes back, we move to RUNNING
- * - config_aneg moves to AN
+ * - irq or timer will set RUNNING if link comes back
  * - phy_stop moves to HALTED
  *
  * FORCING: PHY is being configured with forced settings
@@ -325,11 +298,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  *
  * RUNNING: PHY is currently up, running, and possibly sending
  * and/or receiving packets
- * - timer will set CHANGELINK if we're polling (this ensures the
- *   link state is polled every other cycle of this state machine,
- *   which makes it every other second)
- * - irq will set CHANGELINK
- * - config_aneg will set AN
+ * - irq or timer will set NOLINK if link goes down
  * - phy_stop moves to HALTED
  *
  * CHANGELINK: PHY experienced a change in link state
@@ -349,16 +318,13 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  */
 enum phy_state {
 	PHY_DOWN = 0,
-	PHY_STARTING,
 	PHY_READY,
-	PHY_PENDING,
+	PHY_HALTED,
 	PHY_UP,
-	PHY_AN,
 	PHY_RUNNING,
 	PHY_NOLINK,
 	PHY_FORCING,
 	PHY_CHANGELINK,
-	PHY_HALTED,
 	PHY_RESUMING
 };
 
@@ -390,7 +356,6 @@ struct phy_c45_device_ids {
  * giving up on the current attempt at acquiring a link
  * irq: IRQ number of the PHY's interrupt (-1 if none)
  * phy_timer: The timer for handling the state machine
- * phy_queue: A work_queue for the phy_mac_interrupt
  * attached_dev: The attached enet driver's device instance ptr
  * adjust_link: Callback for the enet controller to respond to
  * changes in the link state.
@@ -427,6 +392,9 @@ struct phy_device {
 	/* The most recently read link state */
 	unsigned link:1;
 
+	/* Interrupts are enabled */
+	unsigned interrupts:1;
+
 	enum phy_state state;
 
 	u32 dev_flags;
@@ -442,14 +410,11 @@ struct phy_device {
 	int pause;
 	int asym_pause;
 
-	/* Enabled Interrupts */
-	u32 interrupts;
-
-	/* Union of PHY and Attached devices' supported modes */
-	/* See mii.h for more info */
-	u32 supported;
-	u32 advertising;
-	u32 lp_advertising;
+	/* Union of PHY and Attached devices' supported link modes */
+	/* See ethtool.h for more info */
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
 
 	/* Energy efficient ethernet modes which should be prohibited */
 	u32 eee_broken_modes;
@@ -475,7 +440,6 @@ struct phy_device {
 	void *priv;
 
 	/* Interrupt and Polling infrastructure */
-	struct work_struct phy_queue;
 	struct delayed_work state_queue;
 
 	struct mutex lock;
@@ -674,6 +638,10 @@ struct phy_driver {
 #define PHY_ANY_ID "MATCH ANY PHY"
 #define PHY_ANY_UID 0xffffffff
 
+#define PHY_ID_MATCH_EXACT(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 0)
+#define PHY_ID_MATCH_MODEL(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 4)
+#define PHY_ID_MATCH_VENDOR(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 10)
+
 /* A Structure for boards to register fixups with the PHY Lib */
 struct phy_fixup {
 	struct list_head list;
@@ -697,9 +665,31 @@ struct phy_setting {
 
 const struct phy_setting *
 phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
-		   size_t maxbit, bool exact);
+		   bool exact);
 size_t phy_speeds(unsigned int *speeds, size_t size,
-		  unsigned long *mask, size_t maxbit);
+		  unsigned long *mask);
+
+static inline bool __phy_is_started(struct phy_device *phydev)
+{
+	WARN_ON(!mutex_is_locked(&phydev->lock));
+
+	return phydev->state >= PHY_UP;
+}
+
+/**
+ * phy_is_started - Convenience function to check whether PHY is started
+ * @phydev: The phy_device struct
+ */
+static inline bool phy_is_started(struct phy_device *phydev)
+{
+	bool started;
+
+	mutex_lock(&phydev->lock);
+	started = __phy_is_started(phydev);
+	mutex_unlock(&phydev->lock);
+
+	return started;
+}
 
 void phy_resolve_aneg_linkmode(struct phy_device *phydev);
 
@@ -1050,11 +1040,9 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner);
 int phy_drivers_register(struct phy_driver *new_driver, int n,
 			 struct module *owner);
 void phy_state_machine(struct work_struct *work);
-void phy_change_work(struct work_struct *work);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
-void phy_trigger_machine(struct phy_device *phydev);
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 void phy_ethtool_ksettings_get(struct phy_device *phydev,
 			       struct ethtool_link_ksettings *cmd);

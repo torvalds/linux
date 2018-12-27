@@ -471,7 +471,10 @@ static int bnxt_ets_validate(struct bnxt *bp, struct ieee_ets *ets, u8 *tc)
 	if (total_ets_bw > 100)
 		return -EINVAL;
 
-	*tc = max_tc + 1;
+	if (max_tc >= bp->max_tc)
+		*tc = bp->max_tc;
+	else
+		*tc = max_tc + 1;
 	return 0;
 }
 

@@ -529,9 +529,15 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			if (imm != 0)
 				PPC_SRDI(dst_reg, dst_reg, imm);
 			break;
+		case BPF_ALU | BPF_ARSH | BPF_X: /* (s32) dst >>= src */
+			PPC_SRAW(dst_reg, dst_reg, src_reg);
+			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_ARSH | BPF_X: /* (s64) dst >>= src */
 			PPC_SRAD(dst_reg, dst_reg, src_reg);
 			break;
+		case BPF_ALU | BPF_ARSH | BPF_K: /* (s32) dst >>= imm */
+			PPC_SRAWI(dst_reg, dst_reg, imm);
+			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_ARSH | BPF_K: /* (s64) dst >>= imm */
 			if (imm != 0)
 				PPC_SRADI(dst_reg, dst_reg, imm);

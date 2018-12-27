@@ -28,6 +28,62 @@
 #define HCLGE_VECTOR_REG_OFFSET		0x4
 #define HCLGE_VECTOR_VF_OFFSET		0x100000
 
+#define HCLGE_CMDQ_TX_ADDR_L_REG	0x27000
+#define HCLGE_CMDQ_TX_ADDR_H_REG	0x27004
+#define HCLGE_CMDQ_TX_DEPTH_REG		0x27008
+#define HCLGE_CMDQ_TX_TAIL_REG		0x27010
+#define HCLGE_CMDQ_TX_HEAD_REG		0x27014
+#define HCLGE_CMDQ_RX_ADDR_L_REG	0x27018
+#define HCLGE_CMDQ_RX_ADDR_H_REG	0x2701C
+#define HCLGE_CMDQ_RX_DEPTH_REG		0x27020
+#define HCLGE_CMDQ_RX_TAIL_REG		0x27024
+#define HCLGE_CMDQ_RX_HEAD_REG		0x27028
+#define HCLGE_CMDQ_INTR_SRC_REG		0x27100
+#define HCLGE_CMDQ_INTR_STS_REG		0x27104
+#define HCLGE_CMDQ_INTR_EN_REG		0x27108
+#define HCLGE_CMDQ_INTR_GEN_REG		0x2710C
+
+/* bar registers for common func */
+#define HCLGE_VECTOR0_OTER_EN_REG	0x20600
+#define HCLGE_RAS_OTHER_STS_REG		0x20B00
+#define HCLGE_FUNC_RESET_STS_REG	0x20C00
+#define HCLGE_GRO_EN_REG		0x28000
+
+/* bar registers for rcb */
+#define HCLGE_RING_RX_ADDR_L_REG	0x80000
+#define HCLGE_RING_RX_ADDR_H_REG	0x80004
+#define HCLGE_RING_RX_BD_NUM_REG	0x80008
+#define HCLGE_RING_RX_BD_LENGTH_REG	0x8000C
+#define HCLGE_RING_RX_MERGE_EN_REG	0x80014
+#define HCLGE_RING_RX_TAIL_REG		0x80018
+#define HCLGE_RING_RX_HEAD_REG		0x8001C
+#define HCLGE_RING_RX_FBD_NUM_REG	0x80020
+#define HCLGE_RING_RX_OFFSET_REG	0x80024
+#define HCLGE_RING_RX_FBD_OFFSET_REG	0x80028
+#define HCLGE_RING_RX_STASH_REG		0x80030
+#define HCLGE_RING_RX_BD_ERR_REG	0x80034
+#define HCLGE_RING_TX_ADDR_L_REG	0x80040
+#define HCLGE_RING_TX_ADDR_H_REG	0x80044
+#define HCLGE_RING_TX_BD_NUM_REG	0x80048
+#define HCLGE_RING_TX_PRIORITY_REG	0x8004C
+#define HCLGE_RING_TX_TC_REG		0x80050
+#define HCLGE_RING_TX_MERGE_EN_REG	0x80054
+#define HCLGE_RING_TX_TAIL_REG		0x80058
+#define HCLGE_RING_TX_HEAD_REG		0x8005C
+#define HCLGE_RING_TX_FBD_NUM_REG	0x80060
+#define HCLGE_RING_TX_OFFSET_REG	0x80064
+#define HCLGE_RING_TX_EBD_NUM_REG	0x80068
+#define HCLGE_RING_TX_EBD_OFFSET_REG	0x80070
+#define HCLGE_RING_TX_BD_ERR_REG	0x80074
+#define HCLGE_RING_EN_REG		0x80090
+
+/* bar registers for tqp interrupt */
+#define HCLGE_TQP_INTR_CTRL_REG		0x20000
+#define HCLGE_TQP_INTR_GL0_REG		0x20100
+#define HCLGE_TQP_INTR_GL1_REG		0x20200
+#define HCLGE_TQP_INTR_GL2_REG		0x20300
+#define HCLGE_TQP_INTR_RL_REG		0x20900
+
 #define HCLGE_RSS_IND_TBL_SIZE		512
 #define HCLGE_RSS_SET_BITMAP_MSK	GENMASK(15, 0)
 #define HCLGE_RSS_KEY_SIZE		40
@@ -97,11 +153,13 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_NETWORK_PORT_ID_M		GENMASK(3, 0)
 
 /* Reset related Registers */
+#define HCLGE_PF_OTHER_INT_REG		0x20600
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_MISC_VECTOR_INT_STS	0x20800
 #define HCLGE_GLOBAL_RESET_REG		0x20A00
 #define HCLGE_GLOBAL_RESET_BIT		0
 #define HCLGE_CORE_RESET_BIT		1
+#define HCLGE_IMP_RESET_BIT		2
 #define HCLGE_FUN_RST_ING		0x20C00
 #define HCLGE_FUN_RST_ING_B		0
 
@@ -115,8 +173,10 @@ enum HLCGE_PORT_TYPE {
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGE_VECTOR0_RX_CMDQ_INT_B	1
 
+#define HCLGE_VECTOR0_IMP_RESET_INT_B	1
+
 #define HCLGE_MAC_DEFAULT_FRAME \
-	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
+	(ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN + ETH_DATA_LEN)
 #define HCLGE_MAC_MIN_FRAME		64
 #define HCLGE_MAC_MAX_FRAME		9728
 
@@ -145,12 +205,14 @@ enum HCLGE_DEV_STATE {
 enum hclge_evt_cause {
 	HCLGE_VECTOR0_EVENT_RST,
 	HCLGE_VECTOR0_EVENT_MBX,
+	HCLGE_VECTOR0_EVENT_ERR,
 	HCLGE_VECTOR0_EVENT_OTHER,
 };
 
 #define HCLGE_MPF_ENBALE 1
 
 enum HCLGE_MAC_SPEED {
+	HCLGE_MAC_SPEED_UNKNOWN = 0,		/* unknown */
 	HCLGE_MAC_SPEED_10M	= 10,		/* 10 Mbps */
 	HCLGE_MAC_SPEED_100M	= 100,		/* 100 Mbps */
 	HCLGE_MAC_SPEED_1G	= 1000,		/* 1000 Mbps   = 1 Gbps */
@@ -593,10 +655,16 @@ struct hclge_dev {
 	struct hclge_misc_vector misc_vector;
 	struct hclge_hw_stats hw_stats;
 	unsigned long state;
+	unsigned long flr_state;
+	unsigned long last_reset_time;
 
 	enum hnae3_reset_type reset_type;
+	enum hnae3_reset_type reset_level;
+	unsigned long default_reset_request;
 	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */
+	unsigned long reset_count;	/* the number of reset has been done */
+	u32 reset_fail_cnt;
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */
@@ -614,6 +682,7 @@ struct hclge_dev {
 	u8 hw_tc_map;
 	u8 tc_num_last_time;
 	enum hclge_fc_mode fc_mode_last_time;
+	u8 support_sfp_query;
 
 #define HCLGE_FLAG_TC_BASE_SCH_MODE		1
 #define HCLGE_FLAG_VNET_BASE_SCH_MODE		2
@@ -644,6 +713,7 @@ struct hclge_dev {
 	unsigned long service_timer_period;
 	unsigned long service_timer_previous;
 	struct timer_list service_timer;
+	struct timer_list reset_timer;
 	struct work_struct service_task;
 	struct work_struct rst_service_task;
 	struct work_struct mbx_service_task;
@@ -666,7 +736,12 @@ struct hclge_dev {
 	u32 flag;
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
+	u32 tx_buf_size; /* Tx buffer size for each TC */
+	u32 dv_buf_size; /* Dv buffer size for each TC */
+
 	u32 mps; /* Max packet size */
+	/* vport_lock protect resource shared by vports */
+	struct mutex vport_lock;
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
@@ -717,6 +792,11 @@ struct hclge_rss_tuple_cfg {
 	u8 ipv6_fragment_en;
 };
 
+enum HCLGE_VPORT_STATE {
+	HCLGE_VPORT_STATE_ALIVE,
+	HCLGE_VPORT_STATE_MAX
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -742,6 +822,10 @@ struct hclge_vport {
 	struct hclge_dev *back;  /* Back reference to associated dev */
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;
+
+	unsigned long state;
+	unsigned long last_active_jiffies;
+	u32 mps; /* Max packet size */
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -768,6 +852,12 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 	return tqp->index;
 }
 
+static inline bool hclge_is_reset_pending(struct hclge_dev *hdev)
+{
+	return !!hdev->reset_pending;
+}
+
+int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
 int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			  u16 vlan_id, bool is_kill);
@@ -777,9 +867,15 @@ int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
 void hclge_rss_indir_init_cfg(struct hclge_dev *hdev);
 
+int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
 void hclge_mbx_handler(struct hclge_dev *hdev);
 int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
 void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id);
 int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id);
+int hclge_vport_start(struct hclge_vport *vport);
+void hclge_vport_stop(struct hclge_vport *vport);
+int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu);
+int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf);
+u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle, u16 queue_id);
 #endif

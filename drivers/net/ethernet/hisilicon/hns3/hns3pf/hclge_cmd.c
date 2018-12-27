@@ -350,10 +350,19 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	hdev->hw.cmq.crq.next_to_use = 0;
 
 	hclge_cmd_init_regs(&hdev->hw);
-	clear_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 
 	spin_unlock_bh(&hdev->hw.cmq.crq.lock);
 	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
+
+	clear_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+
+	/* Check if there is new reset pending, because the higher level
+	 * reset may happen when lower level reset is being processed.
+	 */
+	if ((hclge_is_reset_pending(hdev))) {
+		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		return -EBUSY;
+	}
 
 	ret = hclge_cmd_query_firmware_version(&hdev->hw, &version);
 	if (ret) {

@@ -37,6 +37,46 @@
 #include "mlx5_ib.h"
 #include "cmd.h"
 
+#include <linux/mlx5/eq.h>
+
+/* Contains the details of a pagefault. */
+struct mlx5_pagefault {
+	u32			bytes_committed;
+	u32			token;
+	u8			event_subtype;
+	u8			type;
+	union {
+		/* Initiator or send message responder pagefault details. */
+		struct {
+			/* Received packet size, only valid for responders. */
+			u32	packet_size;
+			/*
+			 * Number of resource holding WQE, depends on type.
+			 */
+			u32	wq_num;
+			/*
+			 * WQE index. Refers to either the send queue or
+			 * receive queue, according to event_subtype.
+			 */
+			u16	wqe_index;
+		} wqe;
+		/* RDMA responder pagefault details */
+		struct {
+			u32	r_key;
+			/*
+			 * Received packet size, minimal size page fault
+			 * resolution required for forward progress.
+			 */
+			u32	packet_size;
+			u32	rdma_op_len;
+			u64	rdma_va;
+		} rdma;
+	};
+
+	struct mlx5_ib_pf_eq	*eq;
+	struct work_struct	work;
+};
+
 #define MAX_PREFETCH_LEN (4*1024*1024U)
 
 /* Timeout in ms to wait for an active mmu notifier to complete when handling
@@ -304,14 +344,20 @@ static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 {
 	int wq_num = pfault->event_subtype == MLX5_PFAULT_SUBTYPE_WQE ?
 		     pfault->wqe.wq_num : pfault->token;
-	int ret = mlx5_core_page_fault_resume(dev->mdev,
-					      pfault->token,
-					      wq_num,
-					      pfault->type,
-					      error);
-	if (ret)
-		mlx5_ib_err(dev, "Failed to resolve the page fault on WQ 0x%x\n",
-			    wq_num);
+	u32 out[MLX5_ST_SZ_DW(page_fault_resume_out)] = { };
+	u32 in[MLX5_ST_SZ_DW(page_fault_resume_in)]   = { };
+	int err;
+
+	MLX5_SET(page_fault_resume_in, in, opcode, MLX5_CMD_OP_PAGE_FAULT_RESUME);
+	MLX5_SET(page_fault_resume_in, in, page_fault_type, pfault->type);
+	MLX5_SET(page_fault_resume_in, in, token, pfault->token);
+	MLX5_SET(page_fault_resume_in, in, wq_number, wq_num);
+	MLX5_SET(page_fault_resume_in, in, error, !!error);
+
+	err = mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		mlx5_ib_err(dev, "Failed to resolve the page fault on WQ 0x%x err %d\n",
+			    wq_num, err);
 }
 
 static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
@@ -606,8 +652,8 @@ out:
 			if (!wait_for_completion_timeout(
 					&odp->notifier_completion,
 					timeout)) {
-				mlx5_ib_warn(dev, "timeout waiting for mmu notifier. seq %d against %d\n",
-					     current_seq, odp->notifiers_seq);
+				mlx5_ib_warn(dev, "timeout waiting for mmu notifier. seq %d against %d. notifiers_count=%d\n",
+					     current_seq, odp->notifiers_seq, odp->notifiers_count);
 			}
 		} else {
 			/* The MR is being killed, kill the QP as well. */
@@ -1025,15 +1071,30 @@ invalid_transport_or_opcode:
 	return 0;
 }
 
-static struct mlx5_ib_qp *mlx5_ib_odp_find_qp(struct mlx5_ib_dev *dev,
-					      u32 wq_num)
+static inline struct mlx5_core_rsc_common *odp_get_rsc(struct mlx5_ib_dev *dev,
+						       u32 wq_num, int pf_type)
 {
-	struct mlx5_core_qp *mqp = __mlx5_qp_lookup(dev->mdev, wq_num);
+	enum mlx5_res_type res_type;
 
-	if (!mqp) {
-		mlx5_ib_err(dev, "QPN 0x%6x not found\n", wq_num);
+	switch (pf_type) {
+	case MLX5_WQE_PF_TYPE_RMP:
+		res_type = MLX5_RES_SRQ;
+		break;
+	case MLX5_WQE_PF_TYPE_REQ_SEND_OR_WRITE:
+	case MLX5_WQE_PF_TYPE_RESP:
+	case MLX5_WQE_PF_TYPE_REQ_READ_OR_ATOMIC:
+		res_type = MLX5_RES_QP;
+		break;
+	default:
 		return NULL;
 	}
+
+	return mlx5_core_res_hold(dev->mdev, wq_num, res_type);
+}
+
+static inline struct mlx5_ib_qp *res_to_qp(struct mlx5_core_rsc_common *res)
+{
+	struct mlx5_core_qp *mqp = (struct mlx5_core_qp *)res;
 
 	return to_mibqp(mqp);
 }
@@ -1048,17 +1109,29 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 	int resume_with_error = 1;
 	u16 wqe_index = pfault->wqe.wqe_index;
 	int requestor = pfault->type & MLX5_PFAULT_REQUESTOR;
+	struct mlx5_core_rsc_common *res;
 	struct mlx5_ib_qp *qp;
+
+	res = odp_get_rsc(dev, pfault->wqe.wq_num, pfault->type);
+	if (!res) {
+		mlx5_ib_dbg(dev, "wqe page fault for missing resource %d\n", pfault->wqe.wq_num);
+		return;
+	}
+
+	switch (res->res) {
+	case MLX5_RES_QP:
+		qp = res_to_qp(res);
+		break;
+	default:
+		mlx5_ib_err(dev, "wqe page fault for unsupported type %d\n", pfault->type);
+		goto resolve_page_fault;
+	}
 
 	buffer = (char *)__get_free_page(GFP_KERNEL);
 	if (!buffer) {
 		mlx5_ib_err(dev, "Error allocating memory for IO page fault handling.\n");
 		goto resolve_page_fault;
 	}
-
-	qp = mlx5_ib_odp_find_qp(dev, pfault->wqe.wq_num);
-	if (!qp)
-		goto resolve_page_fault;
 
 	ret = mlx5_ib_read_user_wqe(qp, requestor, wqe_index, buffer,
 				    PAGE_SIZE, &qp->trans_qp.base);
@@ -1099,6 +1172,7 @@ resolve_page_fault:
 	mlx5_ib_dbg(dev, "PAGE FAULT completed. QP 0x%x resume_with_error=%d, type: 0x%x\n",
 		    pfault->wqe.wq_num, resume_with_error,
 		    pfault->type);
+	mlx5_core_res_put(res);
 	free_page((unsigned long)buffer);
 }
 
@@ -1177,10 +1251,8 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	}
 }
 
-void mlx5_ib_pfault(struct mlx5_core_dev *mdev, void *context,
-		    struct mlx5_pagefault *pfault)
+static void mlx5_ib_pfault(struct mlx5_ib_dev *dev, struct mlx5_pagefault *pfault)
 {
-	struct mlx5_ib_dev *dev = context;
 	u8 event_subtype = pfault->event_subtype;
 
 	switch (event_subtype) {
@@ -1195,6 +1267,203 @@ void mlx5_ib_pfault(struct mlx5_core_dev *mdev, void *context,
 			    event_subtype);
 		mlx5_ib_page_fault_resume(dev, pfault, 1);
 	}
+}
+
+static void mlx5_ib_eqe_pf_action(struct work_struct *work)
+{
+	struct mlx5_pagefault *pfault = container_of(work,
+						     struct mlx5_pagefault,
+						     work);
+	struct mlx5_ib_pf_eq *eq = pfault->eq;
+
+	mlx5_ib_pfault(eq->dev, pfault);
+	mempool_free(pfault, eq->pool);
+}
+
+static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
+{
+	struct mlx5_eqe_page_fault *pf_eqe;
+	struct mlx5_pagefault *pfault;
+	struct mlx5_eqe *eqe;
+	int cc = 0;
+
+	while ((eqe = mlx5_eq_get_eqe(eq->core, cc))) {
+		pfault = mempool_alloc(eq->pool, GFP_ATOMIC);
+		if (!pfault) {
+			schedule_work(&eq->work);
+			break;
+		}
+
+		pf_eqe = &eqe->data.page_fault;
+		pfault->event_subtype = eqe->sub_type;
+		pfault->bytes_committed = be32_to_cpu(pf_eqe->bytes_committed);
+
+		mlx5_ib_dbg(eq->dev,
+			    "PAGE_FAULT: subtype: 0x%02x, bytes_committed: 0x%06x\n",
+			    eqe->sub_type, pfault->bytes_committed);
+
+		switch (eqe->sub_type) {
+		case MLX5_PFAULT_SUBTYPE_RDMA:
+			/* RDMA based event */
+			pfault->type =
+				be32_to_cpu(pf_eqe->rdma.pftype_token) >> 24;
+			pfault->token =
+				be32_to_cpu(pf_eqe->rdma.pftype_token) &
+				MLX5_24BIT_MASK;
+			pfault->rdma.r_key =
+				be32_to_cpu(pf_eqe->rdma.r_key);
+			pfault->rdma.packet_size =
+				be16_to_cpu(pf_eqe->rdma.packet_length);
+			pfault->rdma.rdma_op_len =
+				be32_to_cpu(pf_eqe->rdma.rdma_op_len);
+			pfault->rdma.rdma_va =
+				be64_to_cpu(pf_eqe->rdma.rdma_va);
+			mlx5_ib_dbg(eq->dev,
+				    "PAGE_FAULT: type:0x%x, token: 0x%06x, r_key: 0x%08x\n",
+				    pfault->type, pfault->token,
+				    pfault->rdma.r_key);
+			mlx5_ib_dbg(eq->dev,
+				    "PAGE_FAULT: rdma_op_len: 0x%08x, rdma_va: 0x%016llx\n",
+				    pfault->rdma.rdma_op_len,
+				    pfault->rdma.rdma_va);
+			break;
+
+		case MLX5_PFAULT_SUBTYPE_WQE:
+			/* WQE based event */
+			pfault->type =
+				(be32_to_cpu(pf_eqe->wqe.pftype_wq) >> 24) & 0x7;
+			pfault->token =
+				be32_to_cpu(pf_eqe->wqe.token);
+			pfault->wqe.wq_num =
+				be32_to_cpu(pf_eqe->wqe.pftype_wq) &
+				MLX5_24BIT_MASK;
+			pfault->wqe.wqe_index =
+				be16_to_cpu(pf_eqe->wqe.wqe_index);
+			pfault->wqe.packet_size =
+				be16_to_cpu(pf_eqe->wqe.packet_length);
+			mlx5_ib_dbg(eq->dev,
+				    "PAGE_FAULT: type:0x%x, token: 0x%06x, wq_num: 0x%06x, wqe_index: 0x%04x\n",
+				    pfault->type, pfault->token,
+				    pfault->wqe.wq_num,
+				    pfault->wqe.wqe_index);
+			break;
+
+		default:
+			mlx5_ib_warn(eq->dev,
+				     "Unsupported page fault event sub-type: 0x%02hhx\n",
+				     eqe->sub_type);
+			/* Unsupported page faults should still be
+			 * resolved by the page fault handler
+			 */
+		}
+
+		pfault->eq = eq;
+		INIT_WORK(&pfault->work, mlx5_ib_eqe_pf_action);
+		queue_work(eq->wq, &pfault->work);
+
+		cc = mlx5_eq_update_cc(eq->core, ++cc);
+	}
+
+	mlx5_eq_update_ci(eq->core, cc, 1);
+}
+
+static irqreturn_t mlx5_ib_eq_pf_int(int irq, void *eq_ptr)
+{
+	struct mlx5_ib_pf_eq *eq = eq_ptr;
+	unsigned long flags;
+
+	if (spin_trylock_irqsave(&eq->lock, flags)) {
+		mlx5_ib_eq_pf_process(eq);
+		spin_unlock_irqrestore(&eq->lock, flags);
+	} else {
+		schedule_work(&eq->work);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/* mempool_refill() was proposed but unfortunately wasn't accepted
+ * http://lkml.iu.edu/hypermail/linux/kernel/1512.1/05073.html
+ * Cheap workaround.
+ */
+static void mempool_refill(mempool_t *pool)
+{
+	while (pool->curr_nr < pool->min_nr)
+		mempool_free(mempool_alloc(pool, GFP_KERNEL), pool);
+}
+
+static void mlx5_ib_eq_pf_action(struct work_struct *work)
+{
+	struct mlx5_ib_pf_eq *eq =
+		container_of(work, struct mlx5_ib_pf_eq, work);
+
+	mempool_refill(eq->pool);
+
+	spin_lock_irq(&eq->lock);
+	mlx5_ib_eq_pf_process(eq);
+	spin_unlock_irq(&eq->lock);
+}
+
+enum {
+	MLX5_IB_NUM_PF_EQE	= 0x1000,
+	MLX5_IB_NUM_PF_DRAIN	= 64,
+};
+
+static int
+mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
+{
+	struct mlx5_eq_param param = {};
+	int err;
+
+	INIT_WORK(&eq->work, mlx5_ib_eq_pf_action);
+	spin_lock_init(&eq->lock);
+	eq->dev = dev;
+
+	eq->pool = mempool_create_kmalloc_pool(MLX5_IB_NUM_PF_DRAIN,
+					       sizeof(struct mlx5_pagefault));
+	if (!eq->pool)
+		return -ENOMEM;
+
+	eq->wq = alloc_workqueue("mlx5_ib_page_fault",
+				 WQ_HIGHPRI | WQ_UNBOUND | WQ_MEM_RECLAIM,
+				 MLX5_NUM_CMD_EQE);
+	if (!eq->wq) {
+		err = -ENOMEM;
+		goto err_mempool;
+	}
+
+	param = (struct mlx5_eq_param) {
+		.index = MLX5_EQ_PFAULT_IDX,
+		.mask = 1 << MLX5_EVENT_TYPE_PAGE_FAULT,
+		.nent = MLX5_IB_NUM_PF_EQE,
+		.context = eq,
+		.handler = mlx5_ib_eq_pf_int
+	};
+	eq->core = mlx5_eq_create_generic(dev->mdev, "mlx5_ib_page_fault_eq", &param);
+	if (IS_ERR(eq->core)) {
+		err = PTR_ERR(eq->core);
+		goto err_wq;
+	}
+
+	return 0;
+err_wq:
+	destroy_workqueue(eq->wq);
+err_mempool:
+	mempool_destroy(eq->pool);
+	return err;
+}
+
+static int
+mlx5_ib_destroy_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
+{
+	int err;
+
+	err = mlx5_eq_destroy_generic(dev->mdev, eq->core);
+	cancel_work_sync(&eq->work);
+	destroy_workqueue(eq->wq);
+	mempool_destroy(eq->pool);
+
+	return err;
 }
 
 void mlx5_odp_init_mr_cache_entry(struct mlx5_cache_ent *ent)
@@ -1225,7 +1494,7 @@ void mlx5_odp_init_mr_cache_entry(struct mlx5_cache_ent *ent)
 
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *dev)
 {
-	int ret;
+	int ret = 0;
 
 	if (dev->odp_caps.general_caps & IB_ODP_SUPPORT_IMPLICIT) {
 		ret = mlx5_cmd_null_mkey(dev->mdev, &dev->null_mkey);
@@ -1235,7 +1504,20 @@ int mlx5_ib_odp_init_one(struct mlx5_ib_dev *dev)
 		}
 	}
 
-	return 0;
+	if (!MLX5_CAP_GEN(dev->mdev, pg))
+		return ret;
+
+	ret = mlx5_ib_create_pf_eq(dev, &dev->odp_pf_eq);
+
+	return ret;
+}
+
+void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *dev)
+{
+	if (!MLX5_CAP_GEN(dev->mdev, pg))
+		return;
+
+	mlx5_ib_destroy_pf_eq(dev, &dev->odp_pf_eq);
 }
 
 int mlx5_ib_odp_init(void)
@@ -1245,4 +1527,3 @@ int mlx5_ib_odp_init(void)
 
 	return 0;
 }
-

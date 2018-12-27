@@ -686,16 +686,24 @@ static int bpf_exec_tx_verdict(struct sk_msg *msg, struct sock *sk,
 	struct sk_psock *psock;
 	struct sock *sk_redir;
 	struct tls_rec *rec;
+	bool enospc, policy;
 	int err = 0, send;
-	bool enospc;
+	u32 delta = 0;
 
+	policy = !(flags & MSG_SENDPAGE_NOPOLICY);
 	psock = sk_psock_get(sk);
-	if (!psock)
+	if (!psock || !policy)
 		return tls_push_record(sk, flags, record_type);
 more_data:
 	enospc = sk_msg_full(msg);
-	if (psock->eval == __SK_NONE)
+	if (psock->eval == __SK_NONE) {
+		delta = msg->sg.size;
 		psock->eval = sk_psock_msg_verdict(sk, psock, msg);
+		if (delta < msg->sg.size)
+			delta -= msg->sg.size;
+		else
+			delta = 0;
+	}
 	if (msg->cork_bytes && msg->cork_bytes > msg->sg.size &&
 	    !enospc && !full_record) {
 		err = -ENOSPC;
@@ -743,7 +751,7 @@ more_data:
 			msg->apply_bytes -= send;
 		if (msg->sg.size == 0)
 			tls_free_open_rec(sk);
-		*copied -= send;
+		*copied -= (send + delta);
 		err = -EACCES;
 	}
 
@@ -1012,8 +1020,8 @@ send_end:
 	return copied ? copied : ret;
 }
 
-int tls_sw_sendpage(struct sock *sk, struct page *page,
-		    int offset, size_t size, int flags)
+int tls_sw_do_sendpage(struct sock *sk, struct page *page,
+		       int offset, size_t size, int flags)
 {
 	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
@@ -1028,15 +1036,7 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 	int ret = 0;
 	bool eor;
 
-	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
-		      MSG_SENDPAGE_NOTLAST))
-		return -ENOTSUPP;
-
-	/* No MSG_EOR from splice, only look at MSG_MORE */
 	eor = !(flags & (MSG_MORE | MSG_SENDPAGE_NOTLAST));
-
-	lock_sock(sk);
-
 	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	/* Wait till there is any pending write on socket */
@@ -1140,8 +1140,32 @@ wait_for_memory:
 	}
 sendpage_end:
 	ret = sk_stream_error(sk, flags, ret);
-	release_sock(sk);
 	return copied ? copied : ret;
+}
+
+int tls_sw_sendpage_locked(struct sock *sk, struct page *page,
+			   int offset, size_t size, int flags)
+{
+	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
+		      MSG_SENDPAGE_NOTLAST | MSG_SENDPAGE_NOPOLICY))
+		return -ENOTSUPP;
+
+	return tls_sw_do_sendpage(sk, page, offset, size, flags);
+}
+
+int tls_sw_sendpage(struct sock *sk, struct page *page,
+		    int offset, size_t size, int flags)
+{
+	int ret;
+
+	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
+		      MSG_SENDPAGE_NOTLAST | MSG_SENDPAGE_NOPOLICY))
+		return -ENOTSUPP;
+
+	lock_sock(sk);
+	ret = tls_sw_do_sendpage(sk, page, offset, size, flags);
+	release_sock(sk);
+	return ret;
 }
 
 static struct sk_buff *tls_wait_data(struct sock *sk, struct sk_psock *psock,

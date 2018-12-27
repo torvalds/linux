@@ -167,7 +167,7 @@ int ipoib_open(struct net_device *dev)
 			if (flags & IFF_UP)
 				continue;
 
-			dev_change_flags(cpriv->dev, flags | IFF_UP);
+			dev_change_flags(cpriv->dev, flags | IFF_UP, NULL);
 		}
 		up_read(&priv->vlan_rwsem);
 	}
@@ -207,7 +207,7 @@ static int ipoib_stop(struct net_device *dev)
 			if (!(flags & IFF_UP))
 				continue;
 
-			dev_change_flags(cpriv->dev, flags & ~IFF_UP);
+			dev_change_flags(cpriv->dev, flags & ~IFF_UP, NULL);
 		}
 		up_read(&priv->vlan_rwsem);
 	}
@@ -1823,7 +1823,7 @@ static void ipoib_parent_unregister_pre(struct net_device *ndev)
 	 * running ensures the it will not add more work.
 	 */
 	rtnl_lock();
-	dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
+	dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP, NULL);
 	rtnl_unlock();
 
 	/* ipoib_event() cannot be running once this returns */
