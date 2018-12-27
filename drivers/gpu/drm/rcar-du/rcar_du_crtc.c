@@ -11,7 +11,6 @@
 #include <linux/mutex.h>
 #include <linux/sys_soc.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>

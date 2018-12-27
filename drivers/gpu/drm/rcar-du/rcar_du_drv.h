@@ -20,6 +20,7 @@
 struct clk;
 struct device;
 struct drm_device;
+struct drm_property;
 struct rcar_du_device;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	BIT(0)	/* Per-CRTC IRQ and clock */

@@ -14,7 +14,6 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
 #include <media/vsp1.h>
