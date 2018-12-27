@@ -1567,12 +1567,12 @@ static const struct vop_win_phy px30_win23_data = {
 
 static const struct vop_win_data px30_vop_big_win_data[] = {
 	{ .base = 0x00, .phy = &rk3366_lit_win0_data,
-	  .type = DRM_PLANE_TYPE_PRIMARY },
+	  .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x00, .phy = &rk3366_lit_win1_data,
-	  .type = DRM_PLANE_TYPE_CURSOR,
+	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .feature = WIN_FEATURE_AFBDC },
 	{ .base = 0xe0, .phy = &px30_win23_data,
-	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .type = DRM_PLANE_TYPE_CURSOR,
 	  .area = rk3368_area_data,
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
 };
