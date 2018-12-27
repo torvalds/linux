@@ -6424,7 +6424,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC294_FIXUP_ASUS_HEADSET_MIC] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
-			{ 0x19, 0x01a1113c }, /* use as headset mic, without its own jack detect */
+			{ 0x19, 0x01a1103c }, /* use as headset mic */
 			{ }
 		},
 		.chained = true,
