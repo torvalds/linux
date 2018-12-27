@@ -2489,9 +2489,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 
 /* Having a GuC is not the same as using a GuC */
-#define USES_GUC(dev_priv)		intel_uc_is_using_guc()
-#define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission()
-#define USES_HUC(dev_priv)		intel_uc_is_using_huc()
+#define USES_GUC(dev_priv)		intel_uc_is_using_guc(dev_priv)
+#define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission(dev_priv)
+#define USES_HUC(dev_priv)		intel_uc_is_using_huc(dev_priv)
 
 #define HAS_POOLED_EU(dev_priv)	((dev_priv)->info.has_pooled_eu)
 

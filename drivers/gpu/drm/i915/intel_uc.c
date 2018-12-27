@@ -71,7 +71,7 @@ static int __get_default_guc_log_level(struct drm_i915_private *i915)
 {
 	int guc_log_level;
 
-	if (!HAS_GUC(i915) || !intel_uc_is_using_guc())
+	if (!HAS_GUC(i915) || !intel_uc_is_using_guc(i915))
 		guc_log_level = GUC_LOG_LEVEL_DISABLED;
 	else if (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
 		 IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -112,11 +112,11 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 
 	DRM_DEBUG_DRIVER("enable_guc=%d (submission:%s huc:%s)\n",
 			 i915_modparams.enable_guc,
-			 yesno(intel_uc_is_using_guc_submission()),
-			 yesno(intel_uc_is_using_huc()));
+			 yesno(intel_uc_is_using_guc_submission(i915)),
+			 yesno(intel_uc_is_using_huc(i915)));
 
 	/* Verify GuC firmware availability */
-	if (intel_uc_is_using_guc() && !intel_uc_fw_is_selected(guc_fw)) {
+	if (intel_uc_is_using_guc(i915) && !intel_uc_fw_is_selected(guc_fw)) {
 		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
 			 "enable_guc", i915_modparams.enable_guc,
 			 !HAS_GUC(i915) ? "no GuC hardware" :
@@ -124,7 +124,7 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 	}
 
 	/* Verify HuC firmware availability */
-	if (intel_uc_is_using_huc() && !intel_uc_fw_is_selected(huc_fw)) {
+	if (intel_uc_is_using_huc(i915) && !intel_uc_fw_is_selected(huc_fw)) {
 		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
 			 "enable_guc", i915_modparams.enable_guc,
 			 !HAS_HUC(i915) ? "no HuC hardware" :
@@ -136,7 +136,7 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 		i915_modparams.guc_log_level =
 			__get_default_guc_log_level(i915);
 
-	if (i915_modparams.guc_log_level > 0 && !intel_uc_is_using_guc()) {
+	if (i915_modparams.guc_log_level > 0 && !intel_uc_is_using_guc(i915)) {
 		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
 			 "guc_log_level", i915_modparams.guc_log_level,
 			 !HAS_GUC(i915) ? "no GuC hardware" :
