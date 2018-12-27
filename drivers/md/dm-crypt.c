@@ -377,7 +377,7 @@ static struct crypto_cipher *alloc_essiv_cipher(struct crypt_config *cc,
 	int err;
 
 	/* Setup the essiv_tfm with the given salt */
-	essiv_tfm = crypto_alloc_cipher(cc->cipher, 0, CRYPTO_ALG_ASYNC);
+	essiv_tfm = crypto_alloc_cipher(cc->cipher, 0, 0);
 	if (IS_ERR(essiv_tfm)) {
 		ti->error = "Error allocating crypto tfm for ESSIV";
 		return essiv_tfm;

@@ -3484,6 +3484,7 @@ F:	include/linux/spi/cc2520.h
 F:	Documentation/devicetree/bindings/net/ieee802154/cc2520.txt
 
 CCREE ARM TRUSTZONE CRYPTOCELL REE DRIVER
+M:	Yael Chemla <yael.chemla@foss.arm.com>
 M:	Gilad Ben-Yossef <gilad@benyossef.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
@@ -7147,7 +7148,9 @@ F:	crypto/842.c
 F:	lib/842/
 
 IBM Power in-Nest Crypto Acceleration
-M:	Paulo Flabiano Smorigo <pfsmorigo@linux.ibm.com>
+M:	Breno Leitão <leitao@debian.org>
+M:	Nayna Jain <nayna@linux.ibm.com>
+M:	Paulo Flabiano Smorigo <pfsmorigo@gmail.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	drivers/crypto/nx/Makefile
@@ -7211,7 +7214,9 @@ S:	Supported
 F:	drivers/scsi/ibmvscsi_tgt/
 
 IBM Power VMX Cryptographic instructions
-M:	Paulo Flabiano Smorigo <pfsmorigo@linux.ibm.com>
+M:	Breno Leitão <leitao@debian.org>
+M:	Nayna Jain <nayna@linux.ibm.com>
+M:	Paulo Flabiano Smorigo <pfsmorigo@gmail.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	drivers/crypto/vmx/Makefile

@@ -342,7 +342,7 @@ static int calc_hmac(u8 *digest, const u8 *key, unsigned int keylen,
 	struct crypto_shash *tfm;
 	int err;
 
-	tfm = crypto_alloc_shash(hmac_alg, 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_shash(hmac_alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		pr_err("encrypted_key: can't alloc %s transform: %ld\n",
 		       hmac_alg, PTR_ERR(tfm));
@@ -984,7 +984,7 @@ static int __init init_encrypted(void)
 {
 	int ret;
 
-	hash_tfm = crypto_alloc_shash(hash_alg, 0, CRYPTO_ALG_ASYNC);
+	hash_tfm = crypto_alloc_shash(hash_alg, 0, 0);
 	if (IS_ERR(hash_tfm)) {
 		pr_err("encrypted_key: can't allocate %s transform: %ld\n",
 		       hash_alg, PTR_ERR(hash_tfm));
