@@ -1232,12 +1232,12 @@ static void rkisp1_stream_stop(struct rkisp1_stream *stream)
 	int ret = 0;
 
 	stream->stopping = true;
+	stream->ops->stop_mi(stream);
 	ret = wait_event_timeout(stream->done,
 				 !stream->streaming,
 				 msecs_to_jiffies(1000));
 	if (!ret) {
 		v4l2_warn(v4l2_dev, "waiting on event return error %d\n", ret);
-		stream->ops->stop_mi(stream);
 		stream->stopping = false;
 		stream->streaming = false;
 	}
@@ -2176,8 +2176,6 @@ void rkisp1_mi_isr(u32 mis_val, struct rkisp1_device *dev)
 				stream->stopping = false;
 				stream->streaming = false;
 				wake_up(&stream->done);
-			} else {
-				stream->ops->stop_mi(stream);
 			}
 		} else {
 			mi_frame_end(stream);
