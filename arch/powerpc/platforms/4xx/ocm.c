@@ -223,8 +223,6 @@ static void __init ocm_init_node(int count, struct device_node *node)
 	INIT_LIST_HEAD(&ocm->c.list);
 
 	ocm->ready = 1;
-
-	return;
 }
 
 static int ocm_debugfs_show(struct seq_file *m, void *v)
@@ -242,9 +240,7 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 		seq_printf(m, "PhysAddr     : 0x%llx\n", ocm->phys);
 		seq_printf(m, "MemTotal     : %d Bytes\n", ocm->memtotal);
 		seq_printf(m, "MemTotal(NC) : %d Bytes\n", ocm->nc.memtotal);
-		seq_printf(m, "MemTotal(C)  : %d Bytes\n", ocm->c.memtotal);
-
-		seq_printf(m, "\n");
+		seq_printf(m, "MemTotal(C)  : %d Bytes\n\n", ocm->c.memtotal);
 
 		seq_printf(m, "NC.PhysAddr  : 0x%llx\n", ocm->nc.phys);
 		seq_printf(m, "NC.VirtAddr  : 0x%p\n", ocm->nc.virt);
@@ -256,9 +252,7 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 							blk->size, blk->owner);
 		}
 
-		seq_printf(m, "\n");
-
-		seq_printf(m, "C.PhysAddr   : 0x%llx\n", ocm->c.phys);
+		seq_printf(m, "\nC.PhysAddr   : 0x%llx\n", ocm->c.phys);
 		seq_printf(m, "C.VirtAddr   : 0x%p\n", ocm->c.virt);
 		seq_printf(m, "C.MemTotal   : %d Bytes\n", ocm->c.memtotal);
 		seq_printf(m, "C.MemFree    : %d Bytes\n", ocm->c.memfree);
@@ -268,7 +262,7 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 						blk->size, blk->owner);
 		}
 
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	return 0;
@@ -338,7 +332,6 @@ void *ppc4xx_ocm_alloc(phys_addr_t *phys, int size, int align,
 
 		ocm_blk = kzalloc(sizeof(*ocm_blk), GFP_KERNEL);
 		if (!ocm_blk) {
-			printk(KERN_ERR "PPC4XX OCM: could not allocate ocm block");
 			rh_free(ocm_reg->rh, offset);
 			break;
 		}
@@ -392,10 +385,8 @@ static int __init ppc4xx_ocm_init(void)
 		return 0;
 
 	ocm_nodes = kzalloc((count * sizeof(struct ocm_info)), GFP_KERNEL);
-	if (!ocm_nodes) {
-		printk(KERN_ERR "PPC4XX OCM: failed to allocate OCM nodes!\n");
+	if (!ocm_nodes)
 		return -ENOMEM;
-	}
 
 	ocm_count = count;
 	count = 0;

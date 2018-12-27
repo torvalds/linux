@@ -48,7 +48,7 @@
 #define MMU_FTR_USE_HIGH_BATS		ASM_CONST(0x00010000)
 
 /* Enable >32-bit physical addresses on 32-bit processor, only used
- * by CONFIG_6xx currently as BookE supports that from day 1
+ * by CONFIG_PPC_BOOK3S_32 currently as BookE supports that from day 1
  */
 #define MMU_FTR_BIG_PHYS		ASM_CONST(0x00020000)
 
@@ -131,16 +131,37 @@ DECLARE_PER_CPU(int, next_tlbcam_idx);
 #endif
 
 enum {
-	MMU_FTRS_POSSIBLE = MMU_FTR_HPTE_TABLE | MMU_FTR_TYPE_8xx |
-		MMU_FTR_TYPE_40x | MMU_FTR_TYPE_44x | MMU_FTR_TYPE_FSL_E |
-		MMU_FTR_TYPE_47x | MMU_FTR_USE_HIGH_BATS | MMU_FTR_BIG_PHYS |
-		MMU_FTR_USE_TLBIVAX_BCAST | MMU_FTR_USE_TLBILX |
-		MMU_FTR_LOCK_BCAST_INVAL | MMU_FTR_NEED_DTLB_SW_LRU |
+	MMU_FTRS_POSSIBLE =
+#ifdef CONFIG_PPC_BOOK3S
+		MMU_FTR_HPTE_TABLE |
+#endif
+#ifdef CONFIG_PPC_8xx
+		MMU_FTR_TYPE_8xx |
+#endif
+#ifdef CONFIG_40x
+		MMU_FTR_TYPE_40x |
+#endif
+#ifdef CONFIG_44x
+		MMU_FTR_TYPE_44x |
+#endif
+#if defined(CONFIG_E200) || defined(CONFIG_E500)
+		MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS | MMU_FTR_USE_TLBILX |
+#endif
+#ifdef CONFIG_PPC_47x
+		MMU_FTR_TYPE_47x | MMU_FTR_USE_TLBIVAX_BCAST | MMU_FTR_LOCK_BCAST_INVAL |
+#endif
+#ifdef CONFIG_PPC_BOOK3S_32
+		MMU_FTR_USE_HIGH_BATS | MMU_FTR_NEED_DTLB_SW_LRU |
+#endif
+#ifdef CONFIG_PPC_BOOK3E_64
 		MMU_FTR_USE_TLBRSRV | MMU_FTR_USE_PAIRED_MAS |
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
 		MMU_FTR_NO_SLBIE_B | MMU_FTR_16M_PAGE | MMU_FTR_TLBIEL |
 		MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_CI_LARGE_PAGE |
 		MMU_FTR_1T_SEGMENT | MMU_FTR_TLBIE_CROP_VA |
 		MMU_FTR_KERNEL_RO | MMU_FTR_68_BIT_VA |
+#endif
 #ifdef CONFIG_PPC_RADIX_MMU
 		MMU_FTR_TYPE_RADIX |
 #endif
@@ -338,21 +359,11 @@ static inline void mmu_early_init_devtree(void) { }
 #endif /* __ASSEMBLY__ */
 #endif
 
-#if defined(CONFIG_PPC_STD_MMU_32)
+#if defined(CONFIG_PPC_BOOK3S_32)
 /* 32-bit classic hash table MMU */
 #include <asm/book3s/32/mmu-hash.h>
-#elif defined(CONFIG_40x)
-/* 40x-style software loaded TLB */
-#  include <asm/mmu-40x.h>
-#elif defined(CONFIG_44x)
-/* 44x-style software loaded TLB */
-#  include <asm/mmu-44x.h>
-#elif defined(CONFIG_PPC_BOOK3E_MMU)
-/* Freescale Book-E software loaded TLB or Book-3e (ISA 2.06+) MMU */
-#  include <asm/mmu-book3e.h>
-#elif defined (CONFIG_PPC_8xx)
-/* Motorola/Freescale 8xx software loaded TLB */
-#  include <asm/mmu-8xx.h>
+#elif defined(CONFIG_PPC_MMU_NOHASH)
+#include <asm/nohash/mmu.h>
 #endif
 
 #endif /* __KERNEL__ */

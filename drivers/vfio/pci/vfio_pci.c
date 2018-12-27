@@ -289,14 +289,37 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		if (ret) {
 			dev_warn(&vdev->pdev->dev,
 				 "Failed to setup Intel IGD regions\n");
-			vfio_pci_disable(vdev);
-			return ret;
+			goto disable_exit;
+		}
+	}
+
+	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA &&
+	    IS_ENABLED(CONFIG_VFIO_PCI_NVLINK2)) {
+		ret = vfio_pci_nvdia_v100_nvlink2_init(vdev);
+		if (ret && ret != -ENODEV) {
+			dev_warn(&vdev->pdev->dev,
+				 "Failed to setup NVIDIA NV2 RAM region\n");
+			goto disable_exit;
+		}
+	}
+
+	if (pdev->vendor == PCI_VENDOR_ID_IBM &&
+	    IS_ENABLED(CONFIG_VFIO_PCI_NVLINK2)) {
+		ret = vfio_pci_ibm_npu2_init(vdev);
+		if (ret && ret != -ENODEV) {
+			dev_warn(&vdev->pdev->dev,
+					"Failed to setup NVIDIA NV2 ATSD region\n");
+			goto disable_exit;
 		}
 	}
 
 	vfio_pci_probe_mmaps(vdev);
 
 	return 0;
+
+disable_exit:
+	vfio_pci_disable(vdev);
+	return ret;
 }
 
 static void vfio_pci_disable(struct vfio_pci_device *vdev)
@@ -750,6 +773,12 @@ static long vfio_pci_ioctl(void *device_data,
 			if (ret)
 				return ret;
 
+			if (vdev->region[i].ops->add_capability) {
+				ret = vdev->region[i].ops->add_capability(vdev,
+						&vdev->region[i], &caps);
+				if (ret)
+					return ret;
+			}
 		}
 		}
 
@@ -1117,6 +1146,15 @@ static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)
 		return -EINVAL;
 	if ((vma->vm_flags & VM_SHARED) == 0)
 		return -EINVAL;
+	if (index >= VFIO_PCI_NUM_REGIONS) {
+		int regnum = index - VFIO_PCI_NUM_REGIONS;
+		struct vfio_pci_region *region = vdev->region + regnum;
+
+		if (region && region->ops && region->ops->mmap &&
+		    (region->flags & VFIO_REGION_INFO_FLAG_MMAP))
+			return region->ops->mmap(vdev, region, vma);
+		return -EINVAL;
+	}
 	if (index >= VFIO_PCI_ROM_REGION_INDEX)
 		return -EINVAL;
 	if (!vdev->bar_mmap_supported[index])

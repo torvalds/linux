@@ -318,8 +318,8 @@ int __init find_via_pmu(void)
 			PMU_INT_ADB |
 			PMU_INT_TICK;
 	
-	if (vias->parent->name && ((strcmp(vias->parent->name, "ohare") == 0)
-	    || of_device_is_compatible(vias->parent, "ohare")))
+	if (of_node_name_eq(vias->parent, "ohare") ||
+	    of_device_is_compatible(vias->parent, "ohare"))
 		pmu_kind = PMU_OHARE_BASED;
 	else if (of_device_is_compatible(vias->parent, "paddington"))
 		pmu_kind = PMU_PADDINGTON_BASED;

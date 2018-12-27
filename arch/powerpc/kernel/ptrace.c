@@ -3263,32 +3263,40 @@ static inline int do_seccomp(struct pt_regs *regs) { return 0; }
  */
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
+	u32 flags;
+
 	user_exit();
 
-	if (test_thread_flag(TIF_SYSCALL_EMU)) {
-		/*
-		 * A nonzero return code from tracehook_report_syscall_entry()
-		 * tells us to prevent the syscall execution, but we are not
-		 * going to execute it anyway.
-		 *
-		 * Returning -1 will skip the syscall execution. We want to
-		 * avoid clobbering any register also, thus, not 'gotoing'
-		 * skip label.
-		 */
-		if (tracehook_report_syscall_entry(regs))
-			;
-		return -1;
-	}
+	flags = READ_ONCE(current_thread_info()->flags) &
+		(_TIF_SYSCALL_EMU | _TIF_SYSCALL_TRACE);
 
-	/*
-	 * The tracer may decide to abort the syscall, if so tracehook
-	 * will return !0. Note that the tracer may also just change
-	 * regs->gpr[0] to an invalid syscall number, that is handled
-	 * below on the exit path.
-	 */
-	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
-		goto skip;
+	if (flags) {
+		int rc = tracehook_report_syscall_entry(regs);
+
+		if (unlikely(flags & _TIF_SYSCALL_EMU)) {
+			/*
+			 * A nonzero return code from
+			 * tracehook_report_syscall_entry() tells us to prevent
+			 * the syscall execution, but we are not going to
+			 * execute it anyway.
+			 *
+			 * Returning -1 will skip the syscall execution. We want
+			 * to avoid clobbering any registers, so we don't goto
+			 * the skip label below.
+			 */
+			return -1;
+		}
+
+		if (rc) {
+			/*
+			 * The tracer decided to abort the syscall. Note that
+			 * the tracer may also just change regs->gpr[0] to an
+			 * invalid syscall number, that is handled below on the
+			 * exit path.
+			 */
+			goto skip;
+		}
+	}
 
 	/* Run seccomp after ptrace; allow it to set gpr[3]. */
 	if (do_seccomp(regs))

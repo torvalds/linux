@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_MPC512x
 	bool "512x-based boards"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	select COMMON_CLK
 	select FSL_SOC
 	select IPIC
