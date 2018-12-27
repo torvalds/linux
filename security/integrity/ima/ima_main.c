@@ -1,4 +1,6 @@
 /*
+ * Integrity Measurement Architecture
+ *
  * Copyright (C) 2005,2006,2007,2008 IBM Corporation
  *
  * Authors:
@@ -560,6 +562,3 @@ static int __init init_ima(void)
 }
 
 late_initcall(init_ima);	/* Start IMA after the TPM is available */
-
-MODULE_DESCRIPTION("Integrity Measurement Architecture");
-MODULE_LICENSE("GPL");
