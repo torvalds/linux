@@ -70,9 +70,18 @@ enum rkisp1_sp_inp {
 	RKISP1_SP_INP_MAX
 };
 
+enum rkisp1_field {
+	RKISP_FIELD_ODD,
+	RKISP_FIELD_EVEN,
+	RKISP_FIELD_INVAL,
+};
+
 struct rkisp1_stream_sp {
 	int y_stride;
+	int vir_offs;
 	enum rkisp1_sp_inp input_sel;
+	enum rkisp1_field field;
+	enum rkisp1_field field_rec;
 };
 
 struct rkisp1_stream_mp {
@@ -167,6 +176,7 @@ struct streams_ops {
  */
 struct rkisp1_stream {
 	unsigned id:2;
+	unsigned interlaced:1;
 	struct rkisp1_device *ispdev;
 	struct rkisp1_vdev_node vnode;
 	struct capture_fmt out_isp_fmt;

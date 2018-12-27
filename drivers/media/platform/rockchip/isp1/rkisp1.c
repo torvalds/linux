@@ -172,7 +172,10 @@ static void rkisp1_config_ism(struct rkisp1_device *dev)
 	writel(out_crop->left, base + CIF_ISP_IS_H_OFFS);
 	writel(out_crop->top, base + CIF_ISP_IS_V_OFFS);
 	writel(out_crop->width, base + CIF_ISP_IS_H_SIZE);
-	writel(out_crop->height, base + CIF_ISP_IS_V_SIZE);
+	if (dev->stream[RKISP1_STREAM_SP].interlaced)
+		writel(out_crop->height / 2, base + CIF_ISP_IS_V_SIZE);
+	else
+		writel(out_crop->height, base + CIF_ISP_IS_V_SIZE);
 
 	/* IS(Image Stabilization) is always on, working as output crop */
 	writel(1, base + CIF_ISP_IS_CTRL);
@@ -271,13 +274,19 @@ static int rkisp1_config_isp(struct rkisp1_device *dev)
 	writel(0, base + CIF_ISP_ACQ_H_OFFS);
 	writel(0, base + CIF_ISP_ACQ_V_OFFS);
 	writel(acq_mult * in_frm->width, base + CIF_ISP_ACQ_H_SIZE);
-	writel(in_frm->height, base + CIF_ISP_ACQ_V_SIZE);
 
 	/* ISP Out Area */
 	writel(in_crop->left, base + CIF_ISP_OUT_H_OFFS);
 	writel(in_crop->top, base + CIF_ISP_OUT_V_OFFS);
 	writel(in_crop->width, base + CIF_ISP_OUT_H_SIZE);
-	writel(in_crop->height, base + CIF_ISP_OUT_V_SIZE);
+
+	if (dev->stream[RKISP1_STREAM_SP].interlaced) {
+		writel(in_frm->height / 2, base + CIF_ISP_ACQ_V_SIZE);
+		writel(in_crop->height / 2, base + CIF_ISP_OUT_V_SIZE);
+	} else {
+		writel(in_frm->height, base + CIF_ISP_ACQ_V_SIZE);
+		writel(in_crop->height, base + CIF_ISP_OUT_V_SIZE);
+	}
 
 	/* interrupt mask */
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
@@ -1420,6 +1429,16 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev)
 
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
+		if (dev->stream[RKISP1_STREAM_SP].interlaced) {
+			/* 0 = ODD 1 = EVEN */
+			if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2)
+				dev->stream[RKISP1_STREAM_SP].u.sp.field =
+					(readl(base + CIF_MIPI_FRAME) >> 16) % 2;
+			else
+				dev->stream[RKISP1_STREAM_SP].u.sp.field =
+					(readl(base + CIF_ISP_FLAGS_SHD) >> 2) & BIT(0);
+		}
+
 		if (dev->vs_irq < 0)
 			riksp1_isp_queue_event_sof(&dev->isp_sdev);
 

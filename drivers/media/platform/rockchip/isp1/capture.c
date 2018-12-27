@@ -864,6 +864,25 @@ static u32 calc_burst_len(struct rkisp1_stream *stream)
 	for (i = 0; i < RKISP1_MAX_STREAM; i++)
 		if (burst > dev->stream[i].burst)
 			burst = dev->stream[i].burst;
+
+	if (stream->interlaced) {
+		if (!stream->out_fmt.width % (bus * 16))
+			stream->burst = CIF_MI_CTRL_BURST_LEN_LUM_16 |
+				CIF_MI_CTRL_BURST_LEN_CHROM_16;
+		else if (!stream->out_fmt.width % (bus * 8))
+			stream->burst = CIF_MI_CTRL_BURST_LEN_LUM_8 |
+				CIF_MI_CTRL_BURST_LEN_CHROM_8;
+		else
+			stream->burst = CIF_MI_CTRL_BURST_LEN_LUM_4 |
+				CIF_MI_CTRL_BURST_LEN_CHROM_4;
+		if (stream->out_fmt.width % (bus * 4))
+			v4l2_warn(&dev->v4l2_dev,
+				"interlaced: width should be %d aligned\n",
+				bus * 4);
+		burst = min(stream->burst, burst);
+		stream->burst = burst;
+	}
+
 	return burst;
 }
 
@@ -923,8 +942,15 @@ static int sp_config_mi(struct rkisp1_stream *stream)
 	mi_set_cr_size(stream, stream->out_fmt.plane_fmt[2].sizeimage);
 
 	sp_set_y_width(base, stream->out_fmt.width);
-	sp_set_y_height(base, stream->out_fmt.height);
-	sp_set_y_line_length(base, stream->u.sp.y_stride);
+	if (stream->interlaced) {
+		stream->u.sp.vir_offs =
+			stream->out_fmt.plane_fmt[0].bytesperline;
+		sp_set_y_height(base, stream->out_fmt.height / 2);
+		sp_set_y_line_length(base, stream->u.sp.y_stride * 2);
+	} else {
+		sp_set_y_height(base, stream->out_fmt.height);
+		sp_set_y_line_length(base, stream->u.sp.y_stride);
+	}
 
 	mi_frame_end_int_enable(stream);
 	if (output_isp_fmt->uv_swap)
@@ -1126,10 +1152,14 @@ static int mi_frame_end(struct rkisp1_stream *stream)
 	struct rkisp1_device *isp_dev = stream->ispdev;
 	struct rkisp1_isp_subdev *isp_sd = &isp_dev->isp_sdev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
+	bool interlaced = stream->interlaced;
 	unsigned long lock_flags = 0;
 	int i = 0;
 
-	if (stream->curr_buf) {
+	if (stream->curr_buf &&
+		(!interlaced ||
+		(stream->u.sp.field_rec == RKISP_FIELD_ODD &&
+		stream->u.sp.field == RKISP_FIELD_EVEN))) {
 		u64 ns = ktime_get_ns();
 
 		/* Dequeue a filled buffer */
@@ -1145,23 +1175,46 @@ static int mi_frame_end(struct rkisp1_stream *stream)
 		stream->curr_buf->vb.timestamp = ns_to_timeval(ns);
 		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
+		stream->curr_buf = NULL;
 	}
 
-	/* Next frame is writing to it */
-	stream->curr_buf = stream->next_buf;
-	stream->next_buf = NULL;
+	if (!interlaced ||
+		(stream->curr_buf == stream->next_buf &&
+		stream->u.sp.field == RKISP_FIELD_ODD)) {
+		/* Next frame is writing to it
+		 * Interlaced: odd field next buffer address
+		 */
+		stream->curr_buf = stream->next_buf;
+		stream->next_buf = NULL;
 
-	/* Set up an empty buffer for the next-next frame */
-	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	if (!list_empty(&stream->buf_queue)) {
-		stream->next_buf = list_first_entry(&stream->buf_queue,
-					struct rkisp1_buffer, queue);
-		list_del(&stream->next_buf->queue);
+		/* Set up an empty buffer for the next-next frame */
+		spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+		if (!list_empty(&stream->buf_queue)) {
+			stream->next_buf =
+				list_first_entry(&stream->buf_queue,
+						 struct rkisp1_buffer,
+						 queue);
+			list_del(&stream->next_buf->queue);
+		}
+		spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+	} else if (stream->u.sp.field_rec == RKISP_FIELD_ODD &&
+		stream->u.sp.field == RKISP_FIELD_EVEN) {
+		/* Interlaced: event field next buffer address */
+		if (stream->next_buf) {
+			stream->next_buf->buff_addr[RKISP1_PLANE_Y] +=
+				stream->u.sp.vir_offs;
+			stream->next_buf->buff_addr[RKISP1_PLANE_CB] +=
+				stream->u.sp.vir_offs;
+			stream->next_buf->buff_addr[RKISP1_PLANE_CR] +=
+				stream->u.sp.vir_offs;
+		}
+		stream->curr_buf = stream->next_buf;
 	}
-
-	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	stream->ops->update_mi(stream);
+
+	if (interlaced)
+		stream->u.sp.field_rec = stream->u.sp.field;
 
 	return 0;
 }
@@ -1195,6 +1248,7 @@ static void rkisp1_stream_stop(struct rkisp1_stream *stream)
 	stream->burst =
 		CIF_MI_CTRL_BURST_LEN_LUM_16 |
 		CIF_MI_CTRL_BURST_LEN_CHROM_16;
+	stream->interlaced = false;
 }
 
 /*
@@ -1344,7 +1398,8 @@ static void rkisp1_buf_queue(struct vb2_buffer *vb)
 
 	/* XXX: replace dummy to speed up  */
 	if (stream->streaming &&
-	    stream->next_buf == NULL &&
+	    !stream->next_buf &&
+	    !stream->interlaced &&
 	    stream->id != RKISP1_STREAM_RAW &&
 	    atomic_read(&stream->ispdev->isp_sdev.frm_sync_seq) == 0) {
 		stream->next_buf = ispbuf;
@@ -1418,6 +1473,8 @@ static void rkisp1_stop_streaming(struct vb2_queue *queue)
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+		if (stream->curr_buf == stream->next_buf)
+			stream->next_buf = NULL;
 		stream->curr_buf = NULL;
 	}
 	if (stream->next_buf) {
@@ -1493,6 +1550,19 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 				 ret);
 			return ret;
 		}
+	}
+
+	if (dev->active_sensor &&
+		dev->active_sensor->fmt.format.field ==
+		V4L2_FIELD_INTERLACED) {
+		if (stream->id != RKISP1_STREAM_SP) {
+			v4l2_err(v4l2_dev,
+				"only selfpath support interlaced\n");
+			return -EINVAL;
+		}
+		stream->interlaced = true;
+		stream->u.sp.field = RKISP_FIELD_INVAL;
+		stream->u.sp.field_rec = RKISP_FIELD_INVAL;
 	}
 
 	ret = rkisp1_create_dummy_buf(stream);
@@ -1764,6 +1834,7 @@ void rkisp1_stream_init(struct rkisp1_device *dev, u32 id)
 	}
 
 	stream->streaming = false;
+	stream->interlaced = false;
 	rkisp1_set_stream_def_fmt(dev, id,
 				  RKISP1_DEFAULT_WIDTH,
 				  RKISP1_DEFAULT_HEIGHT,
