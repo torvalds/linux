@@ -76,9 +76,30 @@ on the Qualcomm Hexagon core.
 		    must be "mss_restart", "pdc_reset" for the modem
 		    sub-system on SDM845 SoCs
 
+For the compatible strings below the following supplies are required:
+  "qcom,q6v5-pil"
+  "qcom,msm8916-mss-pil",
+- cx-supply:
+- mx-supply:
+- pll-supply:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the regulators to be held on behalf of the
+		    booting of the Hexagon core
+
+For the compatible string below the following supplies are required:
+  "qcom,msm8974-mss-pil"
 - cx-supply:
 - mss-supply:
 - mx-supply:
+- pll-supply:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the regulators to be held on behalf of the
+		    booting of the Hexagon core
+
+For the compatible string below the following supplies are required:
+  "qcom,msm8996-mss-pil"
 - pll-supply:
 	Usage: required
 	Value type: <phandle>
