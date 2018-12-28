@@ -1388,10 +1388,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 						    page_is_file_cache(page));
 
 		} else {
-#ifdef CONFIG_DEBUG_VM
-			pr_alert("failed to isolate pfn %lx\n", pfn);
+			pr_warn("failed to isolate pfn %lx\n", pfn);
 			dump_page(page, "isolation failed");
-#endif
 			put_page(page);
 			/* Because we don't have big zone->lock. we should
 			   check this again here. */
@@ -1411,8 +1409,14 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		/* Allocate a new page from the nearest neighbor node */
 		ret = migrate_pages(&source, new_node_page, NULL, 0,
 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
-		if (ret)
+		if (ret) {
+			list_for_each_entry(page, &source, lru) {
+				pr_warn("migrating pfn %lx failed ret:%d ",
+				       page_to_pfn(page), ret);
+				dump_page(page, "migration failure");
+			}
 			putback_movable_pages(&source);
+		}
 	}
 out:
 	return ret;
