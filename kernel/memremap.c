@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/wait_bit.h>
 #include <linux/xarray.h>
+#include <linux/hmm.h>
 
 static DEFINE_XARRAY(pgmap_array);
 #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
@@ -24,6 +25,9 @@ vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 		       pmd_t *pmdp)
 {
 	struct page *page = device_private_entry_to_page(entry);
+	struct hmm_devmem *devmem;
+
+	devmem = container_of(page->pgmap, typeof(*devmem), pagemap);
 
 	/*
 	 * The page_fault() callback must migrate page back to system memory
@@ -39,7 +43,7 @@ vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 	 * There is a more in-depth description of what that callback can and
 	 * cannot do, in include/linux/memremap.h
 	 */
-	return page->pgmap->page_fault(vma, addr, page, flags, pmdp);
+	return devmem->page_fault(vma, addr, page, flags, pmdp);
 }
 EXPORT_SYMBOL(device_private_entry_fault);
 #endif /* CONFIG_DEVICE_PRIVATE */
