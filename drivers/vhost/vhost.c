@@ -944,10 +944,7 @@ static void vhost_iotlb_notify_vq(struct vhost_dev *d,
 		if (msg->iova <= vq_msg->iova &&
 		    msg->iova + msg->size - 1 >= vq_msg->iova &&
 		    vq_msg->type == VHOST_IOTLB_MISS) {
-			mutex_lock(&node->vq->mutex);
 			vhost_poll_queue(&node->vq->poll);
-			mutex_unlock(&node->vq->mutex);
-
 			list_del(&node->node);
 			kfree(node);
 		}

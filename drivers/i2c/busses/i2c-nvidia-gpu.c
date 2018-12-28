@@ -89,7 +89,7 @@ static int gpu_i2c_check_status(struct gpu_i2c_dev *i2cd)
 
 	if (time_is_before_jiffies(target)) {
 		dev_err(i2cd->dev, "i2c timeout error %x\n", val);
-		return -ETIME;
+		return -ETIMEDOUT;
 	}
 
 	val = readl(i2cd->regs + I2C_MST_CNTL);
@@ -97,9 +97,9 @@ static int gpu_i2c_check_status(struct gpu_i2c_dev *i2cd)
 	case I2C_MST_CNTL_STATUS_OKAY:
 		return 0;
 	case I2C_MST_CNTL_STATUS_NO_ACK:
-		return -EIO;
+		return -ENXIO;
 	case I2C_MST_CNTL_STATUS_TIMEOUT:
-		return -ETIME;
+		return -ETIMEDOUT;
 	default:
 		return 0;
 	}
@@ -218,6 +218,7 @@ stop:
 
 static const struct i2c_adapter_quirks gpu_i2c_quirks = {
 	.max_read_len = 4,
+	.max_comb_2nd_msg_len = 4,
 	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
 };
 

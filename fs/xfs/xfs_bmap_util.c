@@ -1126,9 +1126,9 @@ xfs_free_file_space(
 	 * page could be mmap'd and iomap_zero_range doesn't do that for us.
 	 * Writeback of the eof page will do this, albeit clumsily.
 	 */
-	if (offset + len >= XFS_ISIZE(ip) && ((offset + len) & PAGE_MASK)) {
+	if (offset + len >= XFS_ISIZE(ip) && offset_in_page(offset + len) > 0) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-				(offset + len) & ~PAGE_MASK, LLONG_MAX);
+				round_down(offset + len, PAGE_SIZE), LLONG_MAX);
 	}
 
 	return error;

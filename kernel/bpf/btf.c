@@ -5,6 +5,7 @@
 #include <uapi/linux/types.h>
 #include <linux/seq_file.h>
 #include <linux/compiler.h>
+#include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/anon_inodes.h>
@@ -424,6 +425,30 @@ static bool btf_name_offset_valid(const struct btf *btf, u32 offset)
 {
 	return BTF_STR_OFFSET_VALID(offset) &&
 		offset < btf->hdr.str_len;
+}
+
+/* Only C-style identifier is permitted. This can be relaxed if
+ * necessary.
+ */
+static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
+{
+	/* offset must be valid */
+	const char *src = &btf->strings[offset];
+	const char *src_limit;
+
+	if (!isalpha(*src) && *src != '_')
+		return false;
+
+	/* set a limit on identifier length */
+	src_limit = src + KSYM_NAME_LEN;
+	src++;
+	while (*src && src < src_limit) {
+		if (!isalnum(*src) && *src != '_')
+			return false;
+		src++;
+	}
+
+	return !*src;
 }
 
 static const char *btf_name_by_offset(const struct btf *btf, u32 offset)
@@ -1143,6 +1168,22 @@ static int btf_ref_type_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	/* typedef type must have a valid name, and other ref types,
+	 * volatile, const, restrict, should have a null name.
+	 */
+	if (BTF_INFO_KIND(t->info) == BTF_KIND_TYPEDEF) {
+		if (!t->name_off ||
+		    !btf_name_valid_identifier(env->btf, t->name_off)) {
+			btf_verifier_log_type(env, t, "Invalid name");
+			return -EINVAL;
+		}
+	} else {
+		if (t->name_off) {
+			btf_verifier_log_type(env, t, "Invalid name");
+			return -EINVAL;
+		}
+	}
+
 	btf_verifier_log_type(env, t, NULL);
 
 	return 0;
@@ -1300,6 +1341,13 @@ static s32 btf_fwd_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	/* fwd type must have a valid name */
+	if (!t->name_off ||
+	    !btf_name_valid_identifier(env->btf, t->name_off)) {
+		btf_verifier_log_type(env, t, "Invalid name");
+		return -EINVAL;
+	}
+
 	btf_verifier_log_type(env, t, NULL);
 
 	return 0;
@@ -1353,6 +1401,12 @@ static s32 btf_array_check_meta(struct btf_verifier_env *env,
 		btf_verifier_log_basic(env, t,
 				       "meta_left:%u meta_needed:%u",
 				       meta_left, meta_needed);
+		return -EINVAL;
+	}
+
+	/* array type should not have a name */
+	if (t->name_off) {
+		btf_verifier_log_type(env, t, "Invalid name");
 		return -EINVAL;
 	}
 
@@ -1532,6 +1586,13 @@ static s32 btf_struct_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	/* struct type either no name or a valid one */
+	if (t->name_off &&
+	    !btf_name_valid_identifier(env->btf, t->name_off)) {
+		btf_verifier_log_type(env, t, "Invalid name");
+		return -EINVAL;
+	}
+
 	btf_verifier_log_type(env, t, NULL);
 
 	last_offset = 0;
@@ -1543,6 +1604,12 @@ static s32 btf_struct_check_meta(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
+		/* struct member either no name or a valid one */
+		if (member->name_off &&
+		    !btf_name_valid_identifier(btf, member->name_off)) {
+			btf_verifier_log_member(env, t, member, "Invalid name");
+			return -EINVAL;
+		}
 		/* A member cannot be in type void */
 		if (!member->type || !BTF_TYPE_ID_VALID(member->type)) {
 			btf_verifier_log_member(env, t, member,
@@ -1730,6 +1797,13 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	/* enum type either no name or a valid one */
+	if (t->name_off &&
+	    !btf_name_valid_identifier(env->btf, t->name_off)) {
+		btf_verifier_log_type(env, t, "Invalid name");
+		return -EINVAL;
+	}
+
 	btf_verifier_log_type(env, t, NULL);
 
 	for (i = 0; i < nr_enums; i++) {
@@ -1738,6 +1812,14 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 					 enums[i].name_off);
 			return -EINVAL;
 		}
+
+		/* enum member must have a valid name */
+		if (!enums[i].name_off ||
+		    !btf_name_valid_identifier(btf, enums[i].name_off)) {
+			btf_verifier_log_type(env, t, "Invalid name");
+			return -EINVAL;
+		}
+
 
 		btf_verifier_log(env, "\t%s val=%d\n",
 				 btf_name_by_offset(btf, enums[i].name_off),

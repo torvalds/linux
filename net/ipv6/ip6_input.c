@@ -95,7 +95,7 @@ static void ip6_list_rcv_finish(struct net *net, struct sock *sk,
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct dst_entry *dst;
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		/* if ingress device is enslaved to an L3 master device pass the
 		 * skb to its handler for processing
 		 */
@@ -296,7 +296,7 @@ void ipv6_list_rcv(struct list_head *head, struct packet_type *pt,
 		struct net_device *dev = skb->dev;
 		struct net *net = dev_net(dev);
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		skb = ip6_rcv_core(skb, dev, net);
 		if (skb == NULL)
 			continue;
