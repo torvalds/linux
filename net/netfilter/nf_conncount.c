@@ -346,9 +346,10 @@ insert_tree(struct net *net,
 	struct nf_conncount_tuple *conn;
 	unsigned int count = 0, gc_count = 0;
 	bool node_found = false;
+	bool do_gc = true;
 
 	spin_lock_bh(&nf_conncount_locks[hash]);
-
+restart:
 	parent = NULL;
 	rbnode = &(root->rb_node);
 	while (*rbnode) {
@@ -381,21 +382,16 @@ insert_tree(struct net *net,
 		if (gc_count >= ARRAY_SIZE(gc_nodes))
 			continue;
 
-		if (nf_conncount_gc_list(net, &rbconn->list))
+		if (do_gc && nf_conncount_gc_list(net, &rbconn->list))
 			gc_nodes[gc_count++] = rbconn;
 	}
 
 	if (gc_count) {
 		tree_nodes_free(root, gc_nodes, gc_count);
-		/* tree_node_free before new allocation permits
-		 * allocator to re-use newly free'd object.
-		 *
-		 * This is a rare event; in most cases we will find
-		 * existing node to re-use. (or gc_count is 0).
-		 */
-
-		if (gc_count >= ARRAY_SIZE(gc_nodes))
-			schedule_gc_worker(data, hash);
+		schedule_gc_worker(data, hash);
+		gc_count = 0;
+		do_gc = false;
+		goto restart;
 	}
 
 	if (node_found)
