@@ -9,7 +9,6 @@ struct nf_conncount_list {
 	spinlock_t list_lock;
 	struct list_head head;	/* connections with the same filtering key */
 	unsigned int count;	/* length of list */
-	bool dead;
 };
 
 struct nf_conncount_data *nf_conncount_init(struct net *net, unsigned int family,
