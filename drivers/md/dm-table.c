@@ -1927,6 +1927,9 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 */
 	if (blk_queue_is_zoned(q))
 		blk_revalidate_disk_zones(t->md->disk);
+
+	/* Allow reads to exceed readahead limits */
+	q->backing_dev_info->io_pages = limits->max_sectors >> (PAGE_SHIFT - 9);
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)
