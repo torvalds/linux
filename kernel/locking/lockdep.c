@@ -2709,35 +2709,28 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	return 1;
 }
 
-enum mark_type {
-#define LOCKDEP_STATE(__STATE)	__STATE,
-#include "lockdep_states.h"
-#undef LOCKDEP_STATE
-};
-
 /*
  * Mark all held locks with a usage bit:
  */
 static int
-mark_held_locks(struct task_struct *curr, enum mark_type mark)
+mark_held_locks(struct task_struct *curr, enum lock_usage_bit base_bit)
 {
-	enum lock_usage_bit usage_bit;
 	struct held_lock *hlock;
 	int i;
 
 	for (i = 0; i < curr->lockdep_depth; i++) {
+		enum lock_usage_bit hlock_bit = base_bit;
 		hlock = curr->held_locks + i;
 
-		usage_bit = 2 + (mark << 2); /* ENABLED */
 		if (hlock->read)
-			usage_bit += 1; /* READ */
+			hlock_bit += 1; /* READ */
 
-		BUG_ON(usage_bit >= LOCK_USAGE_STATES);
+		BUG_ON(hlock_bit >= LOCK_USAGE_STATES);
 
 		if (!hlock->check)
 			continue;
 
-		if (!mark_lock(curr, hlock, usage_bit))
+		if (!mark_lock(curr, hlock, hlock_bit))
 			return 0;
 	}
 
@@ -2758,7 +2751,7 @@ static void __trace_hardirqs_on_caller(unsigned long ip)
 	 * We are going to turn hardirqs on, so set the
 	 * usage bit for all held locks:
 	 */
-	if (!mark_held_locks(curr, HARDIRQ))
+	if (!mark_held_locks(curr, LOCK_ENABLED_HARDIRQ))
 		return;
 	/*
 	 * If we have softirqs enabled, then set the usage
@@ -2766,7 +2759,7 @@ static void __trace_hardirqs_on_caller(unsigned long ip)
 	 * this bit from being set before)
 	 */
 	if (curr->softirqs_enabled)
-		if (!mark_held_locks(curr, SOFTIRQ))
+		if (!mark_held_locks(curr, LOCK_ENABLED_SOFTIRQ))
 			return;
 
 	curr->hardirq_enable_ip = ip;
@@ -2880,7 +2873,7 @@ void trace_softirqs_on(unsigned long ip)
 	 * enabled too:
 	 */
 	if (curr->hardirqs_enabled)
-		mark_held_locks(curr, SOFTIRQ);
+		mark_held_locks(curr, LOCK_ENABLED_SOFTIRQ);
 	current->lockdep_recursion = 0;
 }
 
