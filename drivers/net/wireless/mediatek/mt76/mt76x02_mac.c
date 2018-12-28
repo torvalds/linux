@@ -130,10 +130,8 @@ static __le16
 mt76x02_mac_tx_rate_val(struct mt76x02_dev *dev,
 			const struct ieee80211_tx_rate *rate, u8 *nss_val)
 {
+	u8 phy, rate_idx, nss, bw = 0;
 	u16 rateval;
-	u8 phy, rate_idx;
-	u8 nss = 1;
-	u8 bw = 0;
 
 	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
 		rate_idx = rate->idx;
@@ -164,7 +162,7 @@ mt76x02_mac_tx_rate_val(struct mt76x02_dev *dev,
 
 		phy = val >> 8;
 		rate_idx = val & 0xff;
-		bw = 0;
+		nss = 1;
 	}
 
 	rateval = FIELD_PREP(MT_RXWI_RATE_INDEX, rate_idx);
