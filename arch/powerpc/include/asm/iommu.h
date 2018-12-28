@@ -143,8 +143,6 @@ struct scatterlist;
 
 #ifdef CONFIG_PPC64
 
-#define IOMMU_MAPPING_ERROR		(~(dma_addr_t)0x0)
-
 static inline void set_iommu_table_base(struct device *dev,
 					struct iommu_table *base)
 {
@@ -238,8 +236,6 @@ static inline void iommu_del_device(struct device *dev)
 {
 }
 #endif /* !CONFIG_IOMMU_API */
-
-int dma_iommu_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 #else
 

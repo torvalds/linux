@@ -577,7 +577,7 @@ config SG_POOL
 # sg chaining option
 #
 
-config ARCH_HAS_SG_CHAIN
+config ARCH_NO_SG_CHAIN
 	def_bool n
 
 config ARCH_HAS_PMEM_API
