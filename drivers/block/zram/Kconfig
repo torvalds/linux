@@ -16,7 +16,7 @@ config ZRAM
 	  See Documentation/blockdev/zram.txt for more information.
 
 config ZRAM_WRITEBACK
-       bool "Write back incompressible page to backing device"
+       bool "Write back incompressible or idle page to backing device"
        depends on ZRAM
        default n
        help
@@ -24,6 +24,9 @@ config ZRAM_WRITEBACK
 	 in memory. Instead, write it out to backing device.
 	 For this feature, admin should set up backing device via
 	 /sys/block/zramX/backing_dev.
+
+	 With /sys/block/zramX/{idle,writeback}, application could ask
+	 idle page's writeback to the backing device to save in memory.
 
 	 See Documentation/blockdev/zram.txt for more information.
 
