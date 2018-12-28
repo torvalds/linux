@@ -1604,10 +1604,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	struct intel_engine_cs *engine = rq->engine;
 	enum intel_engine_id id;
 	const int num_rings =
-		/* Use an extended w/a on gen7 if signalling from other rings */
-		(HAS_LEGACY_SEMAPHORES(i915) && IS_GEN(i915, 7)) ?
-		INTEL_INFO(i915)->num_rings - 1 :
-		0;
+		IS_HSW_GT1(i915) ? INTEL_INFO(i915)->num_rings - 1 : 0;
 	bool force_restore = false;
 	int len;
 	u32 *cs;

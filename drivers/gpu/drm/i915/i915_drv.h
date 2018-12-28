@@ -2278,6 +2278,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 				 (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0A00)
 #define IS_HSW_GT3(dev_priv)	(IS_HASWELL(dev_priv) && \
 				 (dev_priv)->info.gt == 3)
+#define IS_HSW_GT1(dev_priv)	(IS_HASWELL(dev_priv) && \
+				 (dev_priv)->info.gt == 1)
 /* ULX machines are also considered ULT. */
 #define IS_HSW_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x0A0E || \
 				 INTEL_DEVID(dev_priv) == 0x0A1E)
