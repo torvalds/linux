@@ -595,6 +595,12 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 	}
 
 	cookie = dmaengine_submit(desc);
+	if (dma_submit_error(cookie)) {
+		dev_dbg(ctx->device->dev, "[%s]: DMA submission failed\n",
+			__func__);
+		return cookie;
+	}
+
 	dma_async_issue_pending(channel);
 
 	return 0;
