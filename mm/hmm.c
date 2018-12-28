@@ -992,9 +992,6 @@ static void hmm_devmem_ref_exit(void *data)
 
 static void hmm_devmem_ref_kill(struct percpu_ref *ref)
 {
-	struct hmm_devmem *devmem;
-
-	devmem = container_of(ref, struct hmm_devmem, ref);
 	percpu_ref_kill(ref);
 }
 
