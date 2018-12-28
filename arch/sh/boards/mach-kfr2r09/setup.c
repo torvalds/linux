@@ -477,7 +477,7 @@ extern char kfr2r09_sdram_leave_end;
 
 static int __init kfr2r09_devices_setup(void)
 {
-	static struct clk *camera_clk;
+	struct clk *camera_clk;
 
 	/* register board specific self-refresh code */
 	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF |
