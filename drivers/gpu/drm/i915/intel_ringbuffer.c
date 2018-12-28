@@ -2218,13 +2218,11 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 		engine->emit_flush = gen7_render_ring_flush;
 		engine->emit_breadcrumb = gen7_rcs_emit_breadcrumb;
 		engine->emit_breadcrumb_sz = gen7_rcs_emit_breadcrumb_sz;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (IS_GEN(dev_priv, 6)) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen6_render_ring_flush;
 		engine->emit_breadcrumb = gen6_rcs_emit_breadcrumb;
 		engine->emit_breadcrumb_sz = gen6_rcs_emit_breadcrumb_sz;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (IS_GEN(dev_priv, 5)) {
 		engine->emit_flush = gen4_render_ring_flush;
 	} else {
