@@ -35,13 +35,6 @@ void mmu_notifier_call_srcu(struct rcu_head *rcu,
 }
 EXPORT_SYMBOL_GPL(mmu_notifier_call_srcu);
 
-void mmu_notifier_synchronize(void)
-{
-	/* Wait for any running method to finish. */
-	srcu_barrier(&srcu);
-}
-EXPORT_SYMBOL_GPL(mmu_notifier_synchronize);
-
 /*
  * This function can't run concurrently against mmu_notifier_register
  * because mm->mm_users > 0 during mmu_notifier_register and exit_mmap

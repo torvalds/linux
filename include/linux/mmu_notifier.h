@@ -420,7 +420,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 
 extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
 				   void (*func)(struct rcu_head *rcu));
-extern void mmu_notifier_synchronize(void);
 
 #else /* CONFIG_MMU_NOTIFIER */
 
