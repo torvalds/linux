@@ -44,6 +44,7 @@ const struct trace_print_flags vmaflag_names[] = {
 
 void __dump_page(struct page *page, const char *reason)
 {
+	struct address_space *mapping = page_mapping(page);
 	bool page_poisoned = PagePoisoned(page);
 	int mapcount;
 
@@ -70,6 +71,18 @@ void __dump_page(struct page *page, const char *reason)
 	if (PageCompound(page))
 		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
 	pr_cont("\n");
+	if (PageAnon(page))
+		pr_emerg("anon ");
+	else if (PageKsm(page))
+		pr_emerg("ksm ");
+	else if (mapping) {
+		pr_emerg("%ps ", mapping->a_ops);
+		if (mapping->host->i_dentry.first) {
+			struct dentry *dentry;
+			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
+			pr_emerg("name:\"%pd\" ", dentry);
+		}
+	}
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
 
 	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
