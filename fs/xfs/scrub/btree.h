@@ -31,21 +31,21 @@ typedef int (*xchk_btree_rec_fn)(
 
 struct xchk_btree {
 	/* caller-provided scrub state */
-	struct xfs_scrub	*sc;
-	struct xfs_btree_cur	*cur;
-	xchk_btree_rec_fn	scrub_rec;
-	struct xfs_owner_info	*oinfo;
-	void			*private;
+	struct xfs_scrub		*sc;
+	struct xfs_btree_cur		*cur;
+	xchk_btree_rec_fn		scrub_rec;
+	const struct xfs_owner_info	*oinfo;
+	void				*private;
 
 	/* internal scrub state */
-	union xfs_btree_rec	lastrec;
-	bool			firstrec;
-	union xfs_btree_key	lastkey[XFS_BTREE_MAXLEVELS];
-	bool			firstkey[XFS_BTREE_MAXLEVELS];
-	struct list_head	to_check;
+	union xfs_btree_rec		lastrec;
+	bool				firstrec;
+	union xfs_btree_key		lastkey[XFS_BTREE_MAXLEVELS];
+	bool				firstkey[XFS_BTREE_MAXLEVELS];
+	struct list_head		to_check;
 };
 int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
-		xchk_btree_rec_fn scrub_fn, struct xfs_owner_info *oinfo,
+		xchk_btree_rec_fn scrub_fn, const struct xfs_owner_info *oinfo,
 		void *private);
 
 #endif /* __XFS_SCRUB_BTREE_H__ */

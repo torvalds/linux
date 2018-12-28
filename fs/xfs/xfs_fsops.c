@@ -252,7 +252,7 @@ xfs_growfs_data(
 	if (mp->m_sb.sb_imax_pct) {
 		uint64_t icount = mp->m_sb.sb_dblocks * mp->m_sb.sb_imax_pct;
 		do_div(icount, 100);
-		mp->m_maxicount = icount << mp->m_sb.sb_inopblog;
+		mp->m_maxicount = XFS_FSB_TO_INO(mp, icount);
 	} else
 		mp->m_maxicount = 0;
 
