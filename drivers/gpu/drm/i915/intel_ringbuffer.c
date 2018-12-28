@@ -217,7 +217,7 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
  * really our business.  That leaves only stall at scoreboard.
  */
 static int
-intel_emit_post_sync_nonzero_flush(struct i915_request *rq)
+gen6_emit_post_sync_nonzero_flush(struct i915_request *rq)
 {
 	u32 scratch_addr = i915_scratch_offset(rq->i915) + 2 * CACHELINE_BYTES;
 	u32 *cs;
@@ -257,7 +257,7 @@ gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 	int ret;
 
 	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	ret = intel_emit_post_sync_nonzero_flush(rq);
+	ret = gen6_emit_post_sync_nonzero_flush(rq);
 	if (ret)
 		return ret;
 
@@ -299,6 +299,37 @@ gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 
 	return 0;
 }
+
+static void gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+{
+	/* First we do the gen6_emit_post_sync_nonzero_flush w/a */
+	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = PIPE_CONTROL_CS_STALL | PIPE_CONTROL_STALL_AT_SCOREBOARD;
+	*cs++ = 0;
+	*cs++ = 0;
+
+	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = PIPE_CONTROL_QW_WRITE;
+	*cs++ = i915_scratch_offset(rq->i915) | PIPE_CONTROL_GLOBAL_GTT;
+	*cs++ = 0;
+
+	/* Finally we can flush and with it emit the breadcrumb */
+	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = (PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
+		 PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+		 PIPE_CONTROL_DC_FLUSH_ENABLE |
+		 PIPE_CONTROL_QW_WRITE |
+		 PIPE_CONTROL_CS_STALL);
+	*cs++ = intel_hws_seqno_address(rq->engine) | PIPE_CONTROL_GLOBAL_GTT;
+	*cs++ = rq->global_seqno;
+
+	*cs++ = MI_USER_INTERRUPT;
+	*cs++ = MI_NOOP;
+
+	rq->tail = intel_ring_offset(rq, cs);
+	assert_ring_tail_valid(rq->ring, rq->tail);
+}
+static const int gen6_rcs_emit_breadcrumb_sz = 14;
 
 static int
 gen7_render_ring_cs_stall_wa(struct i915_request *rq)
@@ -378,6 +409,39 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 
 	return 0;
 }
+
+static void gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+{
+	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = (PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
+		 PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+		 PIPE_CONTROL_DC_FLUSH_ENABLE |
+		 PIPE_CONTROL_FLUSH_ENABLE |
+		 PIPE_CONTROL_QW_WRITE |
+		 PIPE_CONTROL_GLOBAL_GTT_IVB |
+		 PIPE_CONTROL_CS_STALL);
+	*cs++ = intel_hws_seqno_address(rq->engine);
+	*cs++ = rq->global_seqno;
+
+	*cs++ = MI_USER_INTERRUPT;
+	*cs++ = MI_NOOP;
+
+	rq->tail = intel_ring_offset(rq, cs);
+	assert_ring_tail_valid(rq->ring, rq->tail);
+}
+static const int gen7_rcs_emit_breadcrumb_sz = 6;
+
+static void gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+{
+	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW;
+	*cs++ = intel_hws_seqno_address(rq->engine) | MI_FLUSH_DW_USE_GTT;
+	*cs++ = rq->global_seqno;
+	*cs++ = MI_USER_INTERRUPT;
+
+	rq->tail = intel_ring_offset(rq, cs);
+	assert_ring_tail_valid(rq->ring, rq->tail);
+}
+static const int gen6_xcs_emit_breadcrumb_sz = 4;
 
 static void set_hwstam(struct intel_engine_cs *engine, u32 mask)
 {
@@ -777,16 +841,20 @@ static void i9xx_submit_request(struct i915_request *request)
 
 static void i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
+	*cs++ = MI_FLUSH;
+
 	*cs++ = MI_STORE_DWORD_INDEX;
-	*cs++ = I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT;
+	*cs++ = I915_GEM_HWS_INDEX_ADDR;
 	*cs++ = rq->global_seqno;
+
 	*cs++ = MI_USER_INTERRUPT;
+	*cs++ = MI_NOOP;
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
 }
 
-static const int i9xx_emit_breadcrumb_sz = 4;
+static const int i9xx_emit_breadcrumb_sz = 6;
 
 static void
 gen5_seqno_barrier(struct intel_engine_cs *engine)
@@ -2090,7 +2158,6 @@ static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 6) {
 		engine->irq_enable = gen6_irq_enable;
 		engine->irq_disable = gen6_irq_disable;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 5) {
 		engine->irq_enable = gen5_irq_enable;
 		engine->irq_disable = gen5_irq_disable;
@@ -2162,11 +2229,18 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 
-	if (INTEL_GEN(dev_priv) >= 6) {
+	if (INTEL_GEN(dev_priv) >= 7) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen7_render_ring_flush;
-		if (IS_GEN(dev_priv, 6))
-			engine->emit_flush = gen6_render_ring_flush;
+		engine->emit_breadcrumb = gen7_rcs_emit_breadcrumb;
+		engine->emit_breadcrumb_sz = gen7_rcs_emit_breadcrumb_sz;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
+	} else if (IS_GEN(dev_priv, 6)) {
+		engine->init_context = intel_rcs_ctx_init;
+		engine->emit_flush = gen6_render_ring_flush;
+		engine->emit_breadcrumb = gen6_rcs_emit_breadcrumb;
+		engine->emit_breadcrumb_sz = gen6_rcs_emit_breadcrumb_sz;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else if (IS_GEN(dev_priv, 5)) {
 		engine->emit_flush = gen4_render_ring_flush;
 	} else {
@@ -2201,6 +2275,10 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 			engine->set_default_submission = gen6_bsd_set_default_submission;
 		engine->emit_flush = gen6_bsd_ring_flush;
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
+
+		engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
+		engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else {
 		engine->emit_flush = bsd_ring_flush;
 		if (IS_GEN(dev_priv, 5))
@@ -2216,10 +2294,16 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	GEM_BUG_ON(INTEL_GEN(dev_priv) < 6);
+
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	engine->emit_flush = gen6_ring_flush;
 	engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
+
+	engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
+	engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
+	engine->irq_seqno_barrier = gen6_seqno_barrier;
 
 	return intel_init_ring_buffer(engine);
 }
@@ -2228,12 +2312,18 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	GEM_BUG_ON(INTEL_GEN(dev_priv) < 7);
+
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	engine->emit_flush = gen6_ring_flush;
 	engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
 	engine->irq_enable = hsw_vebox_irq_enable;
 	engine->irq_disable = hsw_vebox_irq_disable;
+
+	engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
+	engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
+	engine->irq_seqno_barrier = gen6_seqno_barrier;
 
 	return intel_init_ring_buffer(engine);
 }
