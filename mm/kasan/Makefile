@@ -2,6 +2,7 @@
 KASAN_SANITIZE := n
 UBSAN_SANITIZE_common.o := n
 UBSAN_SANITIZE_generic.o := n
+UBSAN_SANITIZE_tags.o := n
 KCOV_INSTRUMENT := n
 
 CFLAGS_REMOVE_generic.o = -pg
@@ -10,5 +11,8 @@ CFLAGS_REMOVE_generic.o = -pg
 
 CFLAGS_common.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
 CFLAGS_generic.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+CFLAGS_tags.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
 
-obj-y := common.o generic.o report.o init.o quarantine.o
+obj-$(CONFIG_KASAN) := common.o init.o report.o
+obj-$(CONFIG_KASAN_GENERIC) += generic.o quarantine.o
+obj-$(CONFIG_KASAN_SW_TAGS) += tags.o
