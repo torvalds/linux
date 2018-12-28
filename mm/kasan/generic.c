@@ -1,5 +1,5 @@
 /*
- * This file contains core KASAN code.
+ * This file contains core generic KASAN code.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
