@@ -2260,7 +2260,8 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 
 		engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
 		engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
+		if (!IS_GEN(dev_priv, 6))
+			engine->irq_seqno_barrier = gen6_seqno_barrier;
 	} else {
 		engine->emit_flush = bsd_ring_flush;
 		if (IS_GEN(dev_priv, 5))
@@ -2285,7 +2286,8 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 
 	engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
-	engine->irq_seqno_barrier = gen6_seqno_barrier;
+	if (!IS_GEN(dev_priv, 6))
+		engine->irq_seqno_barrier = gen6_seqno_barrier;
 
 	return intel_init_ring_buffer(engine);
 }
