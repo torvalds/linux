@@ -109,10 +109,17 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 		<< KASAN_SHADOW_SCALE_SHIFT);
 }
 
+static inline bool addr_has_shadow(const void *addr)
+{
+	return (addr >= kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
+}
+
 void kasan_poison_shadow(const void *address, size_t size, u8 value);
 
 void check_memory_region(unsigned long addr, size_t size, bool write,
 				unsigned long ret_ip);
+
+const char *get_bug_type(struct kasan_access_info *info);
 
 void kasan_report(unsigned long addr, size_t size,
 		bool is_write, unsigned long ip);

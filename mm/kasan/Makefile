@@ -14,5 +14,5 @@ CFLAGS_generic.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
 CFLAGS_tags.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
 
 obj-$(CONFIG_KASAN) := common.o init.o report.o
-obj-$(CONFIG_KASAN_GENERIC) += generic.o quarantine.o
-obj-$(CONFIG_KASAN_SW_TAGS) += tags.o
+obj-$(CONFIG_KASAN_GENERIC) += generic.o generic_report.o quarantine.o
+obj-$(CONFIG_KASAN_SW_TAGS) += tags.o tags_report.o
