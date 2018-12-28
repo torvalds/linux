@@ -238,11 +238,31 @@ line of text and contains the following stats separated by whitespace:
 
 = writeback
 
-With incompressible pages, there is no memory saving with zram.
-Instead, with CONFIG_ZRAM_WRITEBACK, zram can write incompressible page
+With CONFIG_ZRAM_WRITEBACK, zram can write idle/incompressible page
 to backing storage rather than keeping it in memory.
-User should set up backing device via /sys/block/zramX/backing_dev
-before disksize setting.
+To use the feature, admin should set up backing device via
+
+	"echo /dev/sda5 > /sys/block/zramX/backing_dev"
+
+before disksize setting. It supports only partition at this moment.
+If admin want to use incompressible page writeback, they could do via
+
+	"echo huge > /sys/block/zramX/write"
+
+To use idle page writeback, first, user need to declare zram pages
+as idle.
+
+	"echo all > /sys/block/zramX/idle"
+
+From now on, any pages on zram are idle pages. The idle mark
+will be removed until someone request access of the block.
+IOW, unless there is access request, those pages are still idle pages.
+
+Admin can request writeback of those idle pages at right timing via
+
+	"echo idle > /sys/block/zramX/writeback"
+
+With the command, zram writeback idle pages from memory to the storage.
 
 = memory tracking
 
