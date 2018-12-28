@@ -63,14 +63,6 @@ struct i915_timeline {
 	 * redundant and we can discard it without loss of generality.
 	 */
 	struct i915_syncmap *sync;
-	/**
-	 * Separately to the inter-context seqno map above, we track the last
-	 * barrier (e.g. semaphore wait) to the global engine timelines. Note
-	 * that this tracks global_seqno rather than the context.seqno, and
-	 * so it is subject to the limitations of hw wraparound and that we
-	 * may need to revoke global_seqno (on pre-emption).
-	 */
-	u32 global_sync[I915_NUM_ENGINES];
 
 	struct list_head link;
 	const char *name;

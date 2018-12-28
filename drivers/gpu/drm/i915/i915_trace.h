@@ -585,35 +585,6 @@ TRACE_EVENT(i915_gem_evict_vm,
 	    TP_printk("dev=%d, vm=%p", __entry->dev, __entry->vm)
 );
 
-TRACE_EVENT(i915_gem_ring_sync_to,
-	    TP_PROTO(struct i915_request *to, struct i915_request *from),
-	    TP_ARGS(to, from),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, from_class)
-			     __field(u32, from_instance)
-			     __field(u32, to_class)
-			     __field(u32, to_instance)
-			     __field(u32, seqno)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = from->i915->drm.primary->index;
-			   __entry->from_class = from->engine->uabi_class;
-			   __entry->from_instance = from->engine->instance;
-			   __entry->to_class = to->engine->uabi_class;
-			   __entry->to_instance = to->engine->instance;
-			   __entry->seqno = from->global_seqno;
-			   ),
-
-	    TP_printk("dev=%u, sync-from=%u:%u, sync-to=%u:%u, seqno=%u",
-		      __entry->dev,
-		      __entry->from_class, __entry->from_instance,
-		      __entry->to_class, __entry->to_instance,
-		      __entry->seqno)
-);
-
 TRACE_EVENT(i915_request_queue,
 	    TP_PROTO(struct i915_request *rq, u32 flags),
 	    TP_ARGS(rq, flags),

@@ -454,25 +454,8 @@ cleanup:
 	return err;
 }
 
-void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
+void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	/* Our semaphore implementation is strictly monotonic (i.e. we proceed
-	 * so long as the semaphore value in the register/page is greater
-	 * than the sync value), so whenever we reset the seqno,
-	 * so long as we reset the tracking semaphore value to 0, it will
-	 * always be before the next request's seqno. If we don't reset
-	 * the semaphore value, then when the seqno moves backwards all
-	 * future waits will complete instantly (causing rendering corruption).
-	 */
-	if (IS_GEN_RANGE(dev_priv, 6, 7)) {
-		I915_WRITE(RING_SYNC_0(engine->mmio_base), 0);
-		I915_WRITE(RING_SYNC_1(engine->mmio_base), 0);
-		if (HAS_VEBOX(dev_priv))
-			I915_WRITE(RING_SYNC_2(engine->mmio_base), 0);
-	}
-
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
 	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
@@ -1298,16 +1281,6 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 
 	if (INTEL_GEN(dev_priv) >= 6) {
 		drm_printf(m, "\tRING_IMR: %08x\n", I915_READ_IMR(engine));
-	}
-
-	if (HAS_LEGACY_SEMAPHORES(dev_priv)) {
-		drm_printf(m, "\tSYNC_0: 0x%08x\n",
-			   I915_READ(RING_SYNC_0(engine->mmio_base)));
-		drm_printf(m, "\tSYNC_1: 0x%08x\n",
-			   I915_READ(RING_SYNC_1(engine->mmio_base)));
-		if (HAS_VEBOX(dev_priv))
-			drm_printf(m, "\tSYNC_2: 0x%08x\n",
-				   I915_READ(RING_SYNC_2(engine->mmio_base)));
 	}
 
 	addr = intel_engine_get_active_head(engine);

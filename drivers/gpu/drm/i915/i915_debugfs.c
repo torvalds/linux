@@ -1041,21 +1041,7 @@ static const struct file_operations i915_error_state_fops = {
 static int
 i915_next_seqno_set(void *data, u64 val)
 {
-	struct drm_i915_private *dev_priv = data;
-	struct drm_device *dev = &dev_priv->drm;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	intel_runtime_pm_get(dev_priv);
-	ret = i915_gem_set_global_seqno(dev, val);
-	intel_runtime_pm_put(dev_priv);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
+	return val ? 0 : -EINVAL;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_next_seqno_fops,
@@ -4100,9 +4086,6 @@ i915_drop_caches_set(void *data, u64 val)
 						     I915_WAIT_INTERRUPTIBLE |
 						     I915_WAIT_LOCKED,
 						     MAX_SCHEDULE_TIMEOUT);
-
-		if (ret == 0 && val & DROP_RESET_SEQNO)
-			ret = i915_gem_set_global_seqno(&i915->drm, 1);
 
 		if (val & DROP_RETIRE)
 			i915_retire_requests(i915);

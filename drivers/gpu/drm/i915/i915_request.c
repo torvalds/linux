@@ -111,99 +111,10 @@ i915_request_remove_from_client(struct i915_request *request)
 	spin_unlock(&file_priv->mm.lock);
 }
 
-static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
+static void reserve_gt(struct drm_i915_private *i915)
 {
-	struct intel_engine_cs *engine;
-	struct i915_timeline *timeline;
-	enum intel_engine_id id;
-	int ret;
-
-	/* Carefully retire all requests without writing to the rings */
-	ret = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (ret)
-		return ret;
-
-	GEM_BUG_ON(i915->gt.active_requests);
-
-	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
-	for_each_engine(engine, i915, id) {
-		GEM_TRACE("%s seqno %d (current %d) -> %d\n",
-			  engine->name,
-			  engine->timeline.seqno,
-			  intel_engine_get_seqno(engine),
-			  seqno);
-
-		if (seqno == engine->timeline.seqno)
-			continue;
-
-		kthread_park(engine->breadcrumbs.signaler);
-
-		if (!i915_seqno_passed(seqno, engine->timeline.seqno)) {
-			/* Flush any waiters before we reuse the seqno */
-			intel_engine_disarm_breadcrumbs(engine);
-			intel_engine_init_hangcheck(engine);
-			GEM_BUG_ON(!list_empty(&engine->breadcrumbs.signals));
-		}
-
-		/* Check we are idle before we fiddle with hw state! */
-		GEM_BUG_ON(!intel_engine_is_idle(engine));
-		GEM_BUG_ON(i915_gem_active_isset(&engine->timeline.last_request));
-
-		/* Finally reset hw state */
-		intel_engine_init_global_seqno(engine, seqno);
-		engine->timeline.seqno = seqno;
-
-		kthread_unpark(engine->breadcrumbs.signaler);
-	}
-
-	list_for_each_entry(timeline, &i915->gt.timelines, link)
-		memset(timeline->global_sync, 0, sizeof(timeline->global_sync));
-
-	i915->gt.request_serial = seqno;
-
-	return 0;
-}
-
-int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
-{
-	struct drm_i915_private *i915 = to_i915(dev);
-
-	lockdep_assert_held(&i915->drm.struct_mutex);
-
-	if (seqno == 0)
-		return -EINVAL;
-
-	/* HWS page needs to be set less than what we will inject to ring */
-	return reset_all_global_seqno(i915, seqno - 1);
-}
-
-static int reserve_gt(struct drm_i915_private *i915)
-{
-	int ret;
-
-	/*
-	 * Reservation is fine until we may need to wrap around
-	 *
-	 * By incrementing the serial for every request, we know that no
-	 * individual engine may exceed that serial (as each is reset to 0
-	 * on any wrap). This protects even the most pessimistic of migrations
-	 * of every request from all engines onto just one.
-	 */
-	while (unlikely(++i915->gt.request_serial == 0)) {
-		ret = reset_all_global_seqno(i915, 0);
-		if (ret) {
-			i915->gt.request_serial--;
-			return ret;
-		}
-	}
-
 	if (!i915->gt.active_requests++)
 		i915_gem_unpark(i915);
-
-	return 0;
 }
 
 static void unreserve_gt(struct drm_i915_private *i915)
@@ -608,9 +519,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	if (IS_ERR(ce))
 		return ERR_CAST(ce);
 
-	ret = reserve_gt(i915);
-	if (ret)
-		goto err_unpin;
+	reserve_gt(i915);
 
 	ret = intel_ring_wait_for_space(ce->ring, MIN_SPACE_FOR_ADD_REQUEST);
 	if (ret)
@@ -743,7 +652,6 @@ err_unwind:
 	kmem_cache_free(i915->requests, rq);
 err_unreserve:
 	unreserve_gt(i915);
-err_unpin:
 	intel_context_unpin(ce);
 	return ERR_PTR(ret);
 }
@@ -771,34 +679,12 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
 						       &from->submit,
 						       I915_FENCE_GFP);
-		return ret < 0 ? ret : 0;
+	} else {
+		ret = i915_sw_fence_await_dma_fence(&to->submit,
+						    &from->fence, 0,
+						    I915_FENCE_GFP);
 	}
 
-	if (to->engine->semaphore.sync_to) {
-		u32 seqno;
-
-		GEM_BUG_ON(!from->engine->semaphore.signal);
-
-		seqno = i915_request_global_seqno(from);
-		if (!seqno)
-			goto await_dma_fence;
-
-		if (seqno <= to->timeline->global_sync[from->engine->id])
-			return 0;
-
-		trace_i915_gem_ring_sync_to(to, from);
-		ret = to->engine->semaphore.sync_to(to, from);
-		if (ret)
-			return ret;
-
-		to->timeline->global_sync[from->engine->id] = seqno;
-		return 0;
-	}
-
-await_dma_fence:
-	ret = i915_sw_fence_await_dma_fence(&to->submit,
-					    &from->fence, 0,
-					    I915_FENCE_GFP);
 	return ret < 0 ? ret : 0;
 }
 

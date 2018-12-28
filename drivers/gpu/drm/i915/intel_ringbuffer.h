@@ -510,60 +510,6 @@ struct intel_engine_cs {
 	void		(*irq_seqno_barrier)(struct intel_engine_cs *engine);
 	void		(*cleanup)(struct intel_engine_cs *engine);
 
-	/* GEN8 signal/wait table - never trust comments!
-	 *	  signal to	signal to    signal to   signal to      signal to
-	 *	    RCS		   VCS          BCS        VECS		 VCS2
-	 *      --------------------------------------------------------------------
-	 *  RCS | NOP (0x00) | VCS (0x08) | BCS (0x10) | VECS (0x18) | VCS2 (0x20) |
-	 *	|-------------------------------------------------------------------
-	 *  VCS | RCS (0x28) | NOP (0x30) | BCS (0x38) | VECS (0x40) | VCS2 (0x48) |
-	 *	|-------------------------------------------------------------------
-	 *  BCS | RCS (0x50) | VCS (0x58) | NOP (0x60) | VECS (0x68) | VCS2 (0x70) |
-	 *	|-------------------------------------------------------------------
-	 * VECS | RCS (0x78) | VCS (0x80) | BCS (0x88) |  NOP (0x90) | VCS2 (0x98) |
-	 *	|-------------------------------------------------------------------
-	 * VCS2 | RCS (0xa0) | VCS (0xa8) | BCS (0xb0) | VECS (0xb8) | NOP  (0xc0) |
-	 *	|-------------------------------------------------------------------
-	 *
-	 * Generalization:
-	 *  f(x, y) := (x->id * NUM_RINGS * seqno_size) + (seqno_size * y->id)
-	 *  ie. transpose of g(x, y)
-	 *
-	 *	 sync from	sync from    sync from    sync from	sync from
-	 *	    RCS		   VCS          BCS        VECS		 VCS2
-	 *      --------------------------------------------------------------------
-	 *  RCS | NOP (0x00) | VCS (0x28) | BCS (0x50) | VECS (0x78) | VCS2 (0xa0) |
-	 *	|-------------------------------------------------------------------
-	 *  VCS | RCS (0x08) | NOP (0x30) | BCS (0x58) | VECS (0x80) | VCS2 (0xa8) |
-	 *	|-------------------------------------------------------------------
-	 *  BCS | RCS (0x10) | VCS (0x38) | NOP (0x60) | VECS (0x88) | VCS2 (0xb0) |
-	 *	|-------------------------------------------------------------------
-	 * VECS | RCS (0x18) | VCS (0x40) | BCS (0x68) |  NOP (0x90) | VCS2 (0xb8) |
-	 *	|-------------------------------------------------------------------
-	 * VCS2 | RCS (0x20) | VCS (0x48) | BCS (0x70) | VECS (0x98) |  NOP (0xc0) |
-	 *	|-------------------------------------------------------------------
-	 *
-	 * Generalization:
-	 *  g(x, y) := (y->id * NUM_RINGS * seqno_size) + (seqno_size * x->id)
-	 *  ie. transpose of f(x, y)
-	 */
-	struct {
-#define GEN6_SEMAPHORE_LAST	VECS_HW
-#define GEN6_NUM_SEMAPHORES	(GEN6_SEMAPHORE_LAST + 1)
-#define GEN6_SEMAPHORES_MASK	GENMASK(GEN6_SEMAPHORE_LAST, 0)
-		struct {
-			/* our mbox written by others */
-			u32		wait[GEN6_NUM_SEMAPHORES];
-			/* mboxes this ring signals to */
-			i915_reg_t	signal[GEN6_NUM_SEMAPHORES];
-		} mbox;
-
-		/* AKA wait() */
-		int	(*sync_to)(struct i915_request *rq,
-				   struct i915_request *signal);
-		u32	*(*signal)(struct i915_request *rq, u32 *cs);
-	} semaphore;
-
 	struct intel_engine_execlists execlists;
 
 	/* Contexts are pinned whilst they are active on the GPU. The last
@@ -889,7 +835,7 @@ intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
 	return tail;
 }
 
-void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
+void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
