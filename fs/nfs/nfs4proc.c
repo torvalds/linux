@@ -6311,7 +6311,8 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	/* Ensure we don't close file until we're done freeing locks! */
 	p->ctx = get_nfs_open_context(ctx);
 	p->l_ctx = nfs_get_lock_context(ctx);
-	memcpy(&p->fl, fl, sizeof(p->fl));
+	locks_init_lock(&p->fl);
+	locks_copy_lock(&p->fl, fl);
 	p->server = NFS_SERVER(inode);
 	return p;
 }
@@ -6533,7 +6534,8 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	p->server = server;
 	refcount_inc(&lsp->ls_count);
 	p->ctx = get_nfs_open_context(ctx);
-	memcpy(&p->fl, fl, sizeof(p->fl));
+	locks_init_lock(&p->fl);
+	locks_copy_lock(&p->fl, fl);
 	return p;
 out_free_seqid:
 	nfs_free_seqid(p->arg.open_seqid);
