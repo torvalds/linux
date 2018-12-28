@@ -1547,11 +1547,14 @@ static void kmemleak_scan(void)
 		unsigned long pfn;
 
 		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-			struct page *page;
+			struct page *page = pfn_to_online_page(pfn);
 
-			if (!pfn_valid(pfn))
+			if (!page)
 				continue;
-			page = pfn_to_page(pfn);
+
+			/* only scan pages belonging to this node */
+			if (page_to_nid(page) != i)
+				continue;
 			/* only scan if page is in use */
 			if (page_count(page) == 0)
 				continue;
