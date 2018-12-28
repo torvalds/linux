@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/kernel/cpu/sh5/fpu.c
  *
@@ -7,10 +8,6 @@
  *
  * Started from SH4 version:
  *   Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/sched.h>
 #include <linux/signal.h>
