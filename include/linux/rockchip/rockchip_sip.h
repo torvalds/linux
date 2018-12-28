@@ -180,7 +180,7 @@ sip_smc_vpu_reset(u32 arg0, u32 arg1, u32 arg2)
 	return tmp;
 }
 
-struct arm_smccc_res sip_smc_lastlog_request(void)
+static inline struct arm_smccc_res sip_smc_lastlog_request(void)
 {
 	struct arm_smccc_res tmp = {0};
 	return tmp;
