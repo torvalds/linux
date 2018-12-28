@@ -496,7 +496,9 @@ manner. The codes are the following:
 
 Note that there is no guarantee that every flag and associated mnemonic will
 be present in all further kernel releases. Things get changed, the flags may
-be vanished or the reverse -- new added.
+be vanished or the reverse -- new added. Interpretation of their meaning
+might change in future as well. So each consumer of these flags has to
+follow each specific kernel version for the exact semantic.
 
 This file is only present if the CONFIG_MMU kernel configuration option is
 enabled.
