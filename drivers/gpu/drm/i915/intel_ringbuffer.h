@@ -1003,7 +1003,7 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 }
 
 static inline u32 *
-gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset)
+gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 {
 	/* We're using qword write, offset should be aligned to 8 bytes. */
 	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
@@ -1013,8 +1013,7 @@ gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset)
 	 * following the batch.
 	 */
 	*cs++ = GFX_OP_PIPE_CONTROL(6);
-	*cs++ = PIPE_CONTROL_GLOBAL_GTT_IVB | PIPE_CONTROL_CS_STALL |
-		PIPE_CONTROL_QW_WRITE;
+	*cs++ = flags | PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_GLOBAL_GTT_IVB;
 	*cs++ = gtt_offset;
 	*cs++ = 0;
 	*cs++ = value;

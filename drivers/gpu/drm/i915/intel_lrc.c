@@ -2061,10 +2061,18 @@ static void gen8_emit_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 	/* We're using qword write, seqno should be aligned to 8 bytes. */
 	BUILD_BUG_ON(I915_GEM_HWS_INDEX & 1);
 
-	cs = gen8_emit_ggtt_write_rcs(cs, request->global_seqno,
-				      intel_hws_seqno_address(request->engine));
+	cs = gen8_emit_ggtt_write_rcs(cs,
+				      request->global_seqno,
+				      intel_hws_seqno_address(request->engine),
+				      PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
+				      PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+				      PIPE_CONTROL_DC_FLUSH_ENABLE |
+				      PIPE_CONTROL_FLUSH_ENABLE |
+				      PIPE_CONTROL_CS_STALL);
+
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
 
