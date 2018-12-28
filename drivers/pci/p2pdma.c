@@ -82,10 +82,8 @@ static void pci_p2pdma_percpu_release(struct percpu_ref *ref)
 	complete_all(&p2p->devmap_ref_done);
 }
 
-static void pci_p2pdma_percpu_kill(void *data)
+static void pci_p2pdma_percpu_kill(struct percpu_ref *ref)
 {
-	struct percpu_ref *ref = data;
-
 	/*
 	 * pci_p2pdma_add_resource() may be called multiple times
 	 * by a driver and may register the percpu_kill devm action multiple
@@ -198,6 +196,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
 	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
 		pci_resource_start(pdev, bar);
+	pgmap->kill = pci_p2pdma_percpu_kill;
 
 	addr = devm_memremap_pages(&pdev->dev, pgmap);
 	if (IS_ERR(addr)) {
@@ -208,11 +207,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	error = gen_pool_add_virt(pdev->p2pdma->pool, (unsigned long)addr,
 			pci_bus_address(pdev, bar) + offset,
 			resource_size(&pgmap->res), dev_to_node(&pdev->dev));
-	if (error)
-		goto pgmap_free;
-
-	error = devm_add_action_or_reset(&pdev->dev, pci_p2pdma_percpu_kill,
-					  &pdev->p2pdma->devmap_ref);
 	if (error)
 		goto pgmap_free;
 
