@@ -288,8 +288,20 @@ static struct platform_device palmld_ide_device = {
 	.id	= -1,
 };
 
+static struct gpiod_lookup_table palmld_ide_gpio_table = {
+	.dev_id = "pata_palmld",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMLD_IDE_PWEN,
+			    "power", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMLD_IDE_RESET,
+			    "reset", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init palmld_ide_init(void)
 {
+	gpiod_add_lookup_table(&palmld_ide_gpio_table);
 	platform_device_register(&palmld_ide_device);
 }
 #else
