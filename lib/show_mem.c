@@ -28,7 +28,7 @@ void show_mem(unsigned int filter, nodemask_t *nodemask)
 				continue;
 
 			total += zone->present_pages;
-			reserved += zone->present_pages - zone->managed_pages;
+			reserved += zone->present_pages - zone_managed_pages(zone);
 
 			if (is_highmem_idx(zoneid))
 				highmem += zone->present_pages;
