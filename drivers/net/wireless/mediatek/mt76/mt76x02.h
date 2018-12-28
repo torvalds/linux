@@ -28,6 +28,9 @@
 
 #define MT_CALIBRATE_INTERVAL	HZ
 
+#define MT_WATCHDOG_TIME	(HZ / 10)
+#define MT_TX_HANG_TH		10
+
 #define MT_MAX_CHAINS		2
 struct mt76x02_rx_freq_cal {
 	s8 high_gain[MT_MAX_CHAINS];
@@ -79,6 +82,7 @@ struct mt76x02_dev {
 	struct tasklet_struct pre_tbtt_tasklet;
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
+	struct delayed_work wdt_work;
 
 	u32 aggr_stats[32];
 
@@ -88,6 +92,9 @@ struct mt76x02_dev {
 
 	u8 tbtt_count;
 	u16 beacon_int;
+
+	u32 tx_hang_reset;
+	u8 tx_hang_check;
 
 	struct mt76x02_calibration cal;
 
@@ -142,6 +149,7 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 				const struct ieee80211_tx_rate *rate);
 s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr,
 			    s8 max_txpwr_adj);
+void mt76x02_wdt_work(struct work_struct *work);
 void mt76x02_tx_set_txpwr_auto(struct mt76x02_dev *dev, s8 txpwr);
 void mt76x02_set_tx_ackto(struct mt76x02_dev *dev);
 void mt76x02_set_coverage_class(struct ieee80211_hw *hw,

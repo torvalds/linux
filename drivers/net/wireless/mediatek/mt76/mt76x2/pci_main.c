@@ -34,6 +34,8 @@ mt76x2_start(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->wdt_work,
+				     MT_WATCHDOG_TIME);
 
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 

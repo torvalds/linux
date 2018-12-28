@@ -93,6 +93,8 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 					 MT_DMA_HDR_LEN;
 		wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	} else {
+		INIT_DELAYED_WORK(&dev->wdt_work, mt76x02_wdt_work);
+
 		mt76x02_dfs_init_detector(dev);
 
 		wiphy->reg_notifier = mt76x02_regd_notifier;

@@ -943,7 +943,6 @@ void mt76x02_mac_work(struct work_struct *work)
 		dev->aggr_stats[idx++] += val >> 16;
 	}
 
-	/* XXX: check beacon stuck for ap mode */
 	if (!dev->beacon_mask)
 		mt76x02_check_mac_err(dev);
 

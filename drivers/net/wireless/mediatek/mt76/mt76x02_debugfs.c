@@ -133,5 +133,7 @@ void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 				    read_txpower);
 
 	debugfs_create_devm_seqfile(dev->mt76.dev, "agc", dir, read_agc);
+
+	debugfs_create_u32("tx_hang_reset", 0400, dir, &dev->tx_hang_reset);
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_debugfs);

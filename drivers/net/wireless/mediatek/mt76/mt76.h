@@ -421,6 +421,7 @@ struct mt76_dev {
 	struct mt76_queue q_tx[__MT_TXQ_MAX];
 	struct mt76_queue q_rx[__MT_RXQ_MAX];
 	const struct mt76_queue_ops *queue_ops;
+	int tx_dma_idx[4];
 
 	wait_queue_head_t tx_wait;
 	struct sk_buff_head status_list;
