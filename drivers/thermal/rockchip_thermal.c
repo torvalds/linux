@@ -150,6 +150,9 @@ struct rockchip_thermal_sensor {
  * @tshut_temp: the hardware-controlled shutdown temperature value
  * @tshut_mode: the hardware-controlled shutdown mode (0:CRU 1:GPIO)
  * @tshut_polarity: the hardware-controlled active polarity (0:LOW 1:HIGH)
+ * @pinctrl: the pinctrl of tsadc
+ * @gpio_state: pinctrl select gpio function
+ * @otp_state: pinctrl select otp out function
  */
 struct rockchip_thermal_data {
 	const struct rockchip_tsadc_chip *chip;

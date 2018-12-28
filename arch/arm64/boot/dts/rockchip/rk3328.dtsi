@@ -552,10 +552,9 @@
 		assigned-clock-rates = <50000>;
 		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
 		clock-names = "tsadc", "apb_pclk";
-		pinctrl-names = "init", "default", "sleep";
+		pinctrl-names = "gpio", "otpout";
 		pinctrl-0 = <&otp_pin>;
 		pinctrl-1 = <&otp_out>;
-		pinctrl-2 = <&otp_pin>;
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
 		rockchip,grf = <&grf>;
