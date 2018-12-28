@@ -314,22 +314,22 @@ kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1];
 
 static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
 {
-	int is_dma = 0;
-	int type_dma = 0;
-	int is_reclaimable;
-
 #ifdef CONFIG_ZONE_DMA
-	is_dma = !!(flags & __GFP_DMA);
-	type_dma = is_dma * KMALLOC_DMA;
-#endif
-
-	is_reclaimable = !!(flags & __GFP_RECLAIMABLE);
+	/*
+	 * The most common case is KMALLOC_NORMAL, so test for it
+	 * with a single branch for both flags.
+	 */
+	if (likely((flags & (__GFP_DMA | __GFP_RECLAIMABLE)) == 0))
+		return KMALLOC_NORMAL;
 
 	/*
-	 * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
-	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
+	 * At least one of the flags has to be set. If both are, __GFP_DMA
+	 * is more important.
 	 */
-	return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
+	return flags & __GFP_DMA ? KMALLOC_DMA : KMALLOC_RECLAIM;
+#else
+	return flags & __GFP_RECLAIMABLE ? KMALLOC_RECLAIM : KMALLOC_NORMAL;
+#endif
 }
 
 /*
