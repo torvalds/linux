@@ -83,38 +83,6 @@ static int key_diff(const u32 *a, const u32 *b, unsigned int klen)
 	return memcmp(a, b, klen * sizeof(u32));
 }
 
-enum nf_conncount_list_add
-nf_conncount_add(struct nf_conncount_list *list,
-		 const struct nf_conntrack_tuple *tuple,
-		 const struct nf_conntrack_zone *zone)
-{
-	struct nf_conncount_tuple *conn;
-
-	if (WARN_ON_ONCE(list->count > INT_MAX))
-		return NF_CONNCOUNT_ERR;
-
-	conn = kmem_cache_alloc(conncount_conn_cachep, GFP_ATOMIC);
-	if (conn == NULL)
-		return NF_CONNCOUNT_ERR;
-
-	conn->tuple = *tuple;
-	conn->zone = *zone;
-	conn->cpu = raw_smp_processor_id();
-	conn->jiffies32 = (u32)jiffies;
-	conn->dead = false;
-	spin_lock_bh(&list->list_lock);
-	if (list->dead == true) {
-		kmem_cache_free(conncount_conn_cachep, conn);
-		spin_unlock_bh(&list->list_lock);
-		return NF_CONNCOUNT_SKIP;
-	}
-	list_add_tail(&conn->node, &list->head);
-	list->count++;
-	spin_unlock_bh(&list->list_lock);
-	return NF_CONNCOUNT_ADDED;
-}
-EXPORT_SYMBOL_GPL(nf_conncount_add);
-
 static void __conn_free(struct rcu_head *h)
 {
 	struct nf_conncount_tuple *conn;
@@ -177,20 +145,16 @@ find_or_evict(struct net *net, struct nf_conncount_list *list,
 	return ERR_PTR(-EAGAIN);
 }
 
-void nf_conncount_lookup(struct net *net,
-			 struct nf_conncount_list *list,
-			 const struct nf_conntrack_tuple *tuple,
-			 const struct nf_conntrack_zone *zone,
-			 bool *addit)
+static int __nf_conncount_add(struct net *net,
+			      struct nf_conncount_list *list,
+			      const struct nf_conntrack_tuple *tuple,
+			      const struct nf_conntrack_zone *zone)
 {
 	const struct nf_conntrack_tuple_hash *found;
 	struct nf_conncount_tuple *conn, *conn_n;
 	struct nf_conn *found_ct;
 	unsigned int collect = 0;
 	bool free_entry = false;
-
-	/* best effort only */
-	*addit = tuple ? true : false;
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, conn_n, &list->head, node) {
@@ -201,21 +165,19 @@ void nf_conncount_lookup(struct net *net,
 		if (IS_ERR(found)) {
 			/* Not found, but might be about to be confirmed */
 			if (PTR_ERR(found) == -EAGAIN) {
-				if (!tuple)
-					continue;
-
 				if (nf_ct_tuple_equal(&conn->tuple, tuple) &&
 				    nf_ct_zone_id(&conn->zone, conn->zone.dir) ==
 				    nf_ct_zone_id(zone, zone->dir))
-					*addit = false;
-			} else if (PTR_ERR(found) == -ENOENT)
+					return 0; /* already exists */
+			} else {
 				collect++;
+			}
 			continue;
 		}
 
 		found_ct = nf_ct_tuplehash_to_ctrack(found);
 
-		if (tuple && nf_ct_tuple_equal(&conn->tuple, tuple) &&
+		if (nf_ct_tuple_equal(&conn->tuple, tuple) &&
 		    nf_ct_zone_equal(found_ct, zone, zone->dir)) {
 			/*
 			 * We should not see tuples twice unless someone hooks
@@ -223,7 +185,8 @@ void nf_conncount_lookup(struct net *net,
 			 *
 			 * Attempt to avoid a re-add in this case.
 			 */
-			*addit = false;
+			nf_ct_put(found_ct);
+			return 0;
 		} else if (already_closed(found_ct)) {
 			/*
 			 * we do not care about connections which are
@@ -237,8 +200,38 @@ void nf_conncount_lookup(struct net *net,
 
 		nf_ct_put(found_ct);
 	}
+
+	if (WARN_ON_ONCE(list->count > INT_MAX))
+		return -EOVERFLOW;
+
+	conn = kmem_cache_alloc(conncount_conn_cachep, GFP_ATOMIC);
+	if (conn == NULL)
+		return -ENOMEM;
+
+	conn->tuple = *tuple;
+	conn->zone = *zone;
+	conn->cpu = raw_smp_processor_id();
+	conn->jiffies32 = (u32)jiffies;
+	list_add_tail(&conn->node, &list->head);
+	list->count++;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(nf_conncount_lookup);
+
+int nf_conncount_add(struct net *net,
+		     struct nf_conncount_list *list,
+		     const struct nf_conntrack_tuple *tuple,
+		     const struct nf_conntrack_zone *zone)
+{
+	int ret;
+
+	/* check the saved connections */
+	spin_lock_bh(&list->list_lock);
+	ret = __nf_conncount_add(net, list, tuple, zone);
+	spin_unlock_bh(&list->list_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_conncount_add);
 
 void nf_conncount_list_init(struct nf_conncount_list *list)
 {
@@ -339,13 +332,11 @@ insert_tree(struct net *net,
 	    const struct nf_conntrack_tuple *tuple,
 	    const struct nf_conntrack_zone *zone)
 {
-	enum nf_conncount_list_add ret;
 	struct nf_conncount_rb *gc_nodes[CONNCOUNT_GC_MAX_NODES];
 	struct rb_node **rbnode, *parent;
 	struct nf_conncount_rb *rbconn;
 	struct nf_conncount_tuple *conn;
 	unsigned int count = 0, gc_count = 0;
-	bool node_found = false;
 	bool do_gc = true;
 
 	spin_lock_bh(&nf_conncount_locks[hash]);
@@ -363,20 +354,15 @@ restart:
 		} else if (diff > 0) {
 			rbnode = &((*rbnode)->rb_right);
 		} else {
-			/* unlikely: other cpu added node already */
-			node_found = true;
-			ret = nf_conncount_add(&rbconn->list, tuple, zone);
-			if (ret == NF_CONNCOUNT_ERR) {
+			int ret;
+
+			ret = nf_conncount_add(net, &rbconn->list, tuple, zone);
+			if (ret)
 				count = 0; /* hotdrop */
-			} else if (ret == NF_CONNCOUNT_ADDED) {
+			else
 				count = rbconn->list.count;
-			} else {
-				/* NF_CONNCOUNT_SKIP, rbconn is already
-				 * reclaimed by gc, insert a new tree node
-				 */
-				node_found = false;
-			}
-			break;
+			tree_nodes_free(root, gc_nodes, gc_count);
+			goto out_unlock;
 		}
 
 		if (gc_count >= ARRAY_SIZE(gc_nodes))
@@ -393,9 +379,6 @@ restart:
 		do_gc = false;
 		goto restart;
 	}
-
-	if (node_found)
-		goto out_unlock;
 
 	/* expected case: match, insert new node */
 	rbconn = kmem_cache_alloc(conncount_rb_cachep, GFP_ATOMIC);
@@ -431,7 +414,6 @@ count_tree(struct net *net,
 	   const struct nf_conntrack_tuple *tuple,
 	   const struct nf_conntrack_zone *zone)
 {
-	enum nf_conncount_list_add ret;
 	struct rb_root *root;
 	struct rb_node *parent;
 	struct nf_conncount_rb *rbconn;
@@ -444,7 +426,6 @@ count_tree(struct net *net,
 	parent = rcu_dereference_raw(root->rb_node);
 	while (parent) {
 		int diff;
-		bool addit;
 
 		rbconn = rb_entry(parent, struct nf_conncount_rb, node);
 
@@ -454,24 +435,29 @@ count_tree(struct net *net,
 		} else if (diff > 0) {
 			parent = rcu_dereference_raw(parent->rb_right);
 		} else {
-			/* same source network -> be counted! */
-			nf_conncount_lookup(net, &rbconn->list, tuple, zone,
-					    &addit);
+			int ret;
 
-			if (!addit)
+			if (!tuple) {
+				nf_conncount_gc_list(net, &rbconn->list);
 				return rbconn->list.count;
+			}
 
-			ret = nf_conncount_add(&rbconn->list, tuple, zone);
-			if (ret == NF_CONNCOUNT_ERR) {
-				return 0; /* hotdrop */
-			} else if (ret == NF_CONNCOUNT_ADDED) {
-				return rbconn->list.count;
-			} else {
-				/* NF_CONNCOUNT_SKIP, rbconn is already
-				 * reclaimed by gc, insert a new tree node
-				 */
+			spin_lock_bh(&rbconn->list.list_lock);
+			/* Node might be about to be free'd.
+			 * We need to defer to insert_tree() in this case.
+			 */
+			if (rbconn->list.count == 0) {
+				spin_unlock_bh(&rbconn->list.list_lock);
 				break;
 			}
+
+			/* same source network -> be counted! */
+			ret = __nf_conncount_add(net, &rbconn->list, tuple, zone);
+			spin_unlock_bh(&rbconn->list.list_lock);
+			if (ret)
+				return 0; /* hotdrop */
+			else
+				return rbconn->list.count;
 		}
 	}
 
