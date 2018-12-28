@@ -105,6 +105,11 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 		<< KASAN_SHADOW_SCALE_SHIFT);
 }
 
+void kasan_poison_shadow(const void *address, size_t size, u8 value);
+
+void check_memory_region(unsigned long addr, size_t size, bool write,
+				unsigned long ret_ip);
+
 void kasan_report(unsigned long addr, size_t size,
 		bool is_write, unsigned long ip);
 void kasan_report_invalid_free(void *object, unsigned long ip);
