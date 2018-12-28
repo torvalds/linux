@@ -36,6 +36,13 @@ on the Qualcomm Hexagon core.
 	Value type: <stringlist>
 	Definition: must be "wdog", "fatal", "ready", "handover", "stop-ack"
 
+- firmware-name:
+	Usage: optional
+	Value type: <stringlist>
+	Definition: must list the relative firmware image paths for mba and
+		    modem. They are used for booting and authenticating the
+		    Hexagon core.
+
 - clocks:
 	Usage: required
 	Value type: <phandle>

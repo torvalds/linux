@@ -27,6 +27,12 @@ on the Qualcomm ADSP Hexagon core.
 	Value type: <stringlist>
 	Definition: must be "wdog", "fatal", "ready", "handover", "stop-ack"
 
+- firmware-name:
+	Usage: optional
+	Value type: <string>
+	Definition: must list the relative firmware image path for the
+		    Hexagon Core.
+
 - clocks:
 	Usage: required
 	Value type: <prop-encoded-array>
