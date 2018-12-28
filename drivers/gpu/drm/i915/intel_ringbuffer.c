@@ -443,6 +443,34 @@ static void gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 }
 static const int gen6_xcs_emit_breadcrumb_sz = 4;
 
+#define GEN7_XCS_WA 32
+static void gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+{
+	int i;
+
+	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW;
+	*cs++ = intel_hws_seqno_address(rq->engine) | MI_FLUSH_DW_USE_GTT;
+	*cs++ = rq->global_seqno;
+
+	for (i = 0; i < GEN7_XCS_WA; i++) {
+		*cs++ = MI_STORE_DWORD_INDEX;
+		*cs++ = I915_GEM_HWS_INDEX_ADDR;
+		*cs++ = rq->global_seqno;
+	}
+
+	*cs++ = MI_FLUSH_DW;
+	*cs++ = 0;
+	*cs++ = 0;
+
+	*cs++ = MI_USER_INTERRUPT;
+	*cs++ = MI_NOOP;
+
+	rq->tail = intel_ring_offset(rq, cs);
+	assert_ring_tail_valid(rq->ring, rq->tail);
+}
+static const int gen7_xcs_emit_breadcrumb_sz = 8 + GEN7_XCS_WA * 3;
+#undef GEN7_XCS_WA
+
 static void set_hwstam(struct intel_engine_cs *engine, u32 mask)
 {
 	/*
@@ -872,31 +900,6 @@ gen5_seqno_barrier(struct intel_engine_cs *engine)
 	 * be sure that the seqno write is visible by the CPU.
 	 */
 	usleep_range(125, 250);
-}
-
-static void
-gen6_seqno_barrier(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	/* Workaround to force correct ordering between irq and seqno writes on
-	 * ivb (and maybe also on snb) by reading from a CS register (like
-	 * ACTHD) before reading the status page.
-	 *
-	 * Note that this effectively stalls the read by the time it takes to
-	 * do a memory transaction, which more or less ensures that the write
-	 * from the GPU has sufficient time to invalidate the CPU cacheline.
-	 * Alternatively we could delay the interrupt from the CS ring to give
-	 * the write time to land, but that would incur a delay after every
-	 * batch i.e. much more frequent than a delay when waiting for the
-	 * interrupt (with the same net latency).
-	 *
-	 * Also note that to prevent whole machine hangs on gen7, we have to
-	 * take the spinlock to guard against concurrent cacheline access.
-	 */
-	spin_lock_irq(&dev_priv->uncore.lock);
-	POSTING_READ_FW(RING_ACTHD(engine->mmio_base));
-	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
 static void
@@ -2258,10 +2261,13 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 		engine->emit_flush = gen6_bsd_ring_flush;
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 
-		engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
-		engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
-		if (!IS_GEN(dev_priv, 6))
-			engine->irq_seqno_barrier = gen6_seqno_barrier;
+		if (IS_GEN(dev_priv, 6)) {
+			engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
+			engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
+		} else {
+			engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
+			engine->emit_breadcrumb_sz = gen7_xcs_emit_breadcrumb_sz;
+		}
 	} else {
 		engine->emit_flush = bsd_ring_flush;
 		if (IS_GEN(dev_priv, 5))
@@ -2284,10 +2290,13 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 	engine->emit_flush = gen6_ring_flush;
 	engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
-	engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
-	engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
-	if (!IS_GEN(dev_priv, 6))
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
+	if (IS_GEN(dev_priv, 6)) {
+		engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
+		engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
+	} else {
+		engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
+		engine->emit_breadcrumb_sz = gen7_xcs_emit_breadcrumb_sz;
+	}
 
 	return intel_init_ring_buffer(engine);
 }
@@ -2305,9 +2314,8 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 	engine->irq_enable = hsw_vebox_irq_enable;
 	engine->irq_disable = hsw_vebox_irq_disable;
 
-	engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
-	engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
-	engine->irq_seqno_barrier = gen6_seqno_barrier;
+	engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
+	engine->emit_breadcrumb_sz = gen7_xcs_emit_breadcrumb_sz;
 
 	return intel_init_ring_buffer(engine);
 }
