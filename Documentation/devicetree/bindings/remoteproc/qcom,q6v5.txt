@@ -39,13 +39,21 @@ on the Qualcomm Hexagon core.
 - clocks:
 	Usage: required
 	Value type: <phandle>
-	Definition: reference to the iface, bus and mem clocks to be held on
-		    behalf of the booting of the Hexagon core
+	Definition: reference to the clocks that match clock-names
 
 - clock-names:
 	Usage: required
 	Value type: <stringlist>
-	Definition: must be "iface", "bus", "mem"
+	Definition: The clocks needed depend on the compatible string:
+	qcom,ipq8074-wcss-pil:
+		    no clock names required
+	qcom,q6v5-pil:
+	qcom,msm8916-mss-pil:
+	qcom,msm8974-mss-pil:
+		    must be "iface", "bus", "mem", "xo"
+	qcom,sdm845-mss-pil:
+		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
+		    "snoc_axi", "mnoc_axi", "prng"
 
 - resets:
 	Usage: required
