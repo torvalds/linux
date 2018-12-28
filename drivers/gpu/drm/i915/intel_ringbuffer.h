@@ -365,9 +365,6 @@ struct intel_engine_cs {
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;
 
-	unsigned long irq_posted;
-#define ENGINE_IRQ_BREADCRUMB 0
-
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
 	 * heavyweight seqno dance, we delegate the task (of being the
@@ -501,13 +498,6 @@ struct intel_engine_cs {
 	 */
 	void		(*cancel_requests)(struct intel_engine_cs *engine);
 
-	/* Some chipsets are not quite as coherent as advertised and need
-	 * an expensive kick to force a true read of the up-to-date seqno.
-	 * However, the up-to-date seqno is not always required and the last
-	 * seen value is good enough. Note that the seqno will always be
-	 * monotonic, even if not coherent.
-	 */
-	void		(*irq_seqno_barrier)(struct intel_engine_cs *engine);
 	void		(*cleanup)(struct intel_engine_cs *engine);
 
 	struct intel_engine_execlists execlists;

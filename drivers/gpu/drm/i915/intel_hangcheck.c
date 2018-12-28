@@ -120,16 +120,6 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 static void hangcheck_load_sample(struct intel_engine_cs *engine,
 				  struct intel_engine_hangcheck *hc)
 {
-	/* We don't strictly need an irq-barrier here, as we are not
-	 * serving an interrupt request, be paranoid in case the
-	 * barrier has side-effects (such as preventing a broken
-	 * cacheline snoop) and so be sure that we can see the seqno
-	 * advance. If the seqno should stick, due to a stale
-	 * cacheline, we would erroneously declare the GPU hung.
-	 */
-	if (engine->irq_seqno_barrier)
-		engine->irq_seqno_barrier(engine);
-
 	hc->acthd = intel_engine_get_active_head(engine);
 	hc->seqno = intel_engine_get_seqno(engine);
 }

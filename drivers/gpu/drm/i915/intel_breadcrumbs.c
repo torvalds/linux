@@ -166,12 +166,6 @@ static void irq_enable(struct intel_engine_cs *engine)
 	 */
 	GEM_BUG_ON(!intel_irqs_enabled(engine->i915));
 
-	/* Enabling the IRQ may miss the generation of the interrupt, but
-	 * we still need to force the barrier before reading the seqno,
-	 * just in case.
-	 */
-	set_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
-
 	/* Caller disables interrupts */
 	if (engine->irq_enable) {
 		spin_lock(&engine->i915->irq_lock);
@@ -683,16 +677,6 @@ static int intel_breadcrumbs_signaler(void *arg)
 		}
 
 		if (unlikely(do_schedule)) {
-			/* Before we sleep, check for a missed seqno */
-			if (current->state & TASK_NORMAL &&
-			    !list_empty(&b->signals) &&
-			    engine->irq_seqno_barrier &&
-			    test_and_clear_bit(ENGINE_IRQ_BREADCRUMB,
-					       &engine->irq_posted)) {
-				engine->irq_seqno_barrier(engine);
-				intel_engine_wakeup(engine);
-			}
-
 sleep:
 			if (kthread_should_park())
 				kthread_parkme();
@@ -858,16 +842,6 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 		irq_enable(engine);
 	else
 		irq_disable(engine);
-
-	/*
-	 * We set the IRQ_BREADCRUMB bit when we enable the irq presuming the
-	 * GPU is active and may have already executed the MI_USER_INTERRUPT
-	 * before the CPU is ready to receive. However, the engine is currently
-	 * idle (we haven't started it yet), there is no possibility for a
-	 * missed interrupt as we enabled the irq and so we can clear the
-	 * immediate wakeup (until a real interrupt arrives for the waiter).
-	 */
-	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
 	spin_unlock_irqrestore(&b->irq_lock, flags);
 }

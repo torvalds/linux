@@ -1179,13 +1179,7 @@ restart:
 		set_current_state(state);
 
 wakeup:
-		/*
-		 * Carefully check if the request is complete, giving time
-		 * for the seqno to be visible following the interrupt.
-		 * We also have to check in case we are kicked by the GPU
-		 * reset in order to drop the struct_mutex.
-		 */
-		if (__i915_request_irq_complete(rq))
+		if (i915_request_completed(rq))
 			break;
 
 		/*

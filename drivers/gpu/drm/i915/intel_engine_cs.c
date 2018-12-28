@@ -457,7 +457,6 @@ cleanup:
 void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
 	/* After manually advancing the seqno, fake the interrupt in case
 	 * there are any waiters for that seqno.
@@ -1535,11 +1534,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	}
 	spin_unlock(&b->rb_lock);
 	local_irq_restore(flags);
-
-	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s)\n",
-		   engine->irq_posted,
-		   yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
-				  &engine->irq_posted)));
 
 	drm_printf(m, "HWSP:\n");
 	hexdump(m, engine->status_page.page_addr, PAGE_SIZE);

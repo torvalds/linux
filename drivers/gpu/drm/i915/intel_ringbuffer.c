@@ -711,10 +711,6 @@ out:
 static struct i915_request *reset_prepare(struct intel_engine_cs *engine)
 {
 	intel_engine_stop_cs(engine);
-
-	if (engine->irq_seqno_barrier)
-		engine->irq_seqno_barrier(engine);
-
 	return i915_gem_find_active_request(engine);
 }
 

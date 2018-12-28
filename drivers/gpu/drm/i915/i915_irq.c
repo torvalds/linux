@@ -1189,13 +1189,6 @@ static void notify_ring(struct intel_engine_cs *engine)
 				rq = i915_request_get(waiter);
 
 			tsk = wait->tsk;
-		} else {
-			if (engine->irq_seqno_barrier &&
-			    i915_seqno_passed(seqno, wait->seqno - 1)) {
-				set_bit(ENGINE_IRQ_BREADCRUMB,
-					&engine->irq_posted);
-				tsk = wait->tsk;
-			}
 		}
 
 		engine->breadcrumbs.irq_count++;
