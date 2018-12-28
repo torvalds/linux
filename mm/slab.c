@@ -2357,7 +2357,7 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
 	void *freelist;
 	void *addr = page_address(page);
 
-	page->s_mem = addr + colour_off;
+	page->s_mem = kasan_reset_tag(addr) + colour_off;
 	page->active = 0;
 
 	if (OBJFREELIST_SLAB(cachep))
