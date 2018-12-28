@@ -169,6 +169,7 @@ comp_algorithm    RW    show and change the compression algorithm
 compact           WO    trigger memory compaction
 debug_stat        RO    this file is used for zram debugging purposes
 backing_dev	  RW	set up backend storage for zram to write out
+idle		  WO	mark allocated slot as idle
 
 
 User space is advised to use the following files to read the device statistics.
@@ -251,16 +252,17 @@ pages of the process with*pagemap.
 If you enable the feature, you could see block state via
 /sys/kernel/debug/zram/zram0/block_state". The output is as follows,
 
-	  300    75.033841 .wh
-	  301    63.806904 s..
-	  302    63.806919 ..h
+	  300    75.033841 .wh.
+	  301    63.806904 s...
+	  302    63.806919 ..hi
 
 First column is zram's block index.
 Second column is access time since the system was booted
 Third column is state of the block.
 (s: same page
 w: written page to backing store
-h: huge page)
+h: huge page
+i: idle page)
 
 First line of above example says 300th block is accessed at 75.033841sec
 and the block's state is huge so it is written back to the backing
