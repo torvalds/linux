@@ -500,16 +500,32 @@ static void tree_gc_worker(struct work_struct *work)
 	for (node = rb_first(root); node != NULL; node = rb_next(node)) {
 		rbconn = rb_entry(node, struct nf_conncount_rb, node);
 		if (nf_conncount_gc_list(data->net, &rbconn->list))
-			gc_nodes[gc_count++] = rbconn;
+			gc_count++;
 	}
 	rcu_read_unlock();
 
 	spin_lock_bh(&nf_conncount_locks[tree]);
+	if (gc_count < ARRAY_SIZE(gc_nodes))
+		goto next; /* do not bother */
 
-	if (gc_count) {
-		tree_nodes_free(root, gc_nodes, gc_count);
+	gc_count = 0;
+	node = rb_first(root);
+	while (node != NULL) {
+		rbconn = rb_entry(node, struct nf_conncount_rb, node);
+		node = rb_next(node);
+
+		if (rbconn->list.count > 0)
+			continue;
+
+		gc_nodes[gc_count++] = rbconn;
+		if (gc_count >= ARRAY_SIZE(gc_nodes)) {
+			tree_nodes_free(root, gc_nodes, gc_count);
+			gc_count = 0;
+		}
 	}
 
+	tree_nodes_free(root, gc_nodes, gc_count);
+next:
 	clear_bit(tree, data->pending_trees);
 
 	next_tree = (tree + 1) % CONNCOUNT_SLOTS;
