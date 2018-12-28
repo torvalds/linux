@@ -334,8 +334,9 @@
 		clock-names = "tsadc", "apb_pclk";
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
-		pinctrl-names = "default";
+		pinctrl-names = "gpio", "otpout";
 		pinctrl-0 = <&tsadc_gpio>;
+		pinctrl-1 = <&tsadc_int>;
 		#thermal-sensor-cells = <1>;
 		rockchip,hw-tshut-temp = <120000>;
 		status = "disabled";

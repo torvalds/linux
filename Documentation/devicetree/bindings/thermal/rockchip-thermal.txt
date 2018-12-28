@@ -23,10 +23,10 @@ Required properties:
 	   See ../reset/reset.txt for details.
 - reset-names : Must include the name "tsadc-apb".
 - pinctrl-names : The pin control state names;
-- pinctrl-0 : The "init" pinctrl state, it will be set before device probe.
-- pinctrl-1 : The "default" pinctrl state, it will be set after reset the
-	      TSADC controller.
-- pinctrl-2 : The "sleep" pinctrl state, it will be in for suspend.
+- pinctrl-0 : The "gpio" pinctrl state, it will be set if tsadc via reset
+	      CRU when tshut.
+- pinctrl-1 : The "otpout" pinctrl state, it will be set if tsadc via set
+	      otpout_gpio when tshut.
 - #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description.
 
 Optional properties:
@@ -45,10 +45,9 @@ tsadc: tsadc@ff280000 {
 	clock-names = "tsadc", "apb_pclk";
 	resets = <&cru SRST_TSADC>;
 	reset-names = "tsadc-apb";
-	pinctrl-names = "init", "default", "sleep";
+	pinctrl-names = "gpio", "otpout";
 	pinctrl-0 = <&otp_gpio>;
 	pinctrl-1 = <&otp_out>;
-	pinctrl-2 = <&otp_gpio>;
 	#thermal-sensor-cells = <1>;
 	rockchip,hw-tshut-temp = <95000>;
 	rockchip,hw-tshut-mode = <0>;
