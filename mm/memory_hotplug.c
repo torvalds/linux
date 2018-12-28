@@ -1607,38 +1607,42 @@ static int __ref __offline_pages(unsigned long start_pfn,
 		goto failed_removal_isolated;
 	}
 
-	pfn = start_pfn;
-repeat:
-	/* start memory hot removal */
-	ret = -EINTR;
-	if (signal_pending(current)) {
-		reason = "signal backoff";
-		goto failed_removal_isolated;
-	}
+	do {
+		for (pfn = start_pfn; pfn;) {
+			if (signal_pending(current)) {
+				ret = -EINTR;
+				reason = "signal backoff";
+				goto failed_removal_isolated;
+			}
 
-	cond_resched();
-	lru_add_drain_all();
-	drain_all_pages(zone);
+			cond_resched();
+			lru_add_drain_all();
+			drain_all_pages(zone);
 
-	pfn = scan_movable_pages(start_pfn, end_pfn);
-	if (pfn) { /* We have movable pages */
-		ret = do_migrate_range(pfn, end_pfn);
-		goto repeat;
-	}
+			pfn = scan_movable_pages(pfn, end_pfn);
+			if (pfn) {
+				/*
+				 * TODO: fatal migration failures should bail
+				 * out
+				 */
+				do_migrate_range(pfn, end_pfn);
+			}
+		}
 
-	/*
-	 * dissolve free hugepages in the memory block before doing offlining
-	 * actually in order to make hugetlbfs's object counting consistent.
-	 */
-	ret = dissolve_free_huge_pages(start_pfn, end_pfn);
-	if (ret) {
-		reason = "failure to dissolve huge pages";
-		goto failed_removal_isolated;
-	}
-	/* check again */
-	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
-	if (offlined_pages < 0)
-		goto repeat;
+		/*
+		 * Dissolve free hugepages in the memory block before doing
+		 * offlining actually in order to make hugetlbfs's object
+		 * counting consistent.
+		 */
+		ret = dissolve_free_huge_pages(start_pfn, end_pfn);
+		if (ret) {
+			reason = "failure to dissolve huge pages";
+			goto failed_removal_isolated;
+		}
+		/* check again */
+		offlined_pages = check_pages_isolated(start_pfn, end_pfn);
+	} while (offlined_pages < 0);
+
 	pr_info("Offlined Pages %ld\n", offlined_pages);
 	/* Ok, all of our target is isolated.
 	   We cannot do rollback at this point. */
