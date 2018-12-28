@@ -17,7 +17,7 @@
 
 #include "internal.h"
 
-char *migrate_reason_names[MR_TYPES] = {
+const char *migrate_reason_names[MR_TYPES] = {
 	"compaction",
 	"memory_failure",
 	"memory_hotplug",

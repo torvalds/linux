@@ -29,7 +29,7 @@ enum migrate_reason {
 };
 
 /* In mm/debug.c; also keep sync with include/trace/events/migrate.h */
-extern char *migrate_reason_names[MR_TYPES];
+extern const char *migrate_reason_names[MR_TYPES];
 
 static inline struct page *new_page_nodemask(struct page *page,
 				int preferred_nid, nodemask_t *nodemask)
