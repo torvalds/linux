@@ -350,10 +350,13 @@ static void omap_crtc_arm_event(struct drm_crtc *crtc)
 static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
+	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	int ret;
 
 	DBG("%s", omap_crtc->name);
+
+	priv->dispc_ops->runtime_get(priv->dispc);
 
 	spin_lock_irq(&crtc->dev->event_lock);
 	drm_crtc_vblank_on(crtc);
@@ -367,6 +370,7 @@ static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
 static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
+	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
 	DBG("%s", omap_crtc->name);
@@ -379,6 +383,8 @@ static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
 	spin_unlock_irq(&crtc->dev->event_lock);
 
 	drm_crtc_vblank_off(crtc);
+
+	priv->dispc_ops->runtime_put(priv->dispc);
 }
 
 static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,

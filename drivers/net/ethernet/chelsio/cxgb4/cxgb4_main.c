@@ -5863,7 +5863,7 @@ fw_attach_fail:
 	if (!is_t4(adapter->params.chip))
 		cxgb4_ptp_init(adapter);
 
-	if (IS_ENABLED(CONFIG_THERMAL) &&
+	if (IS_REACHABLE(CONFIG_THERMAL) &&
 	    !is_t4(adapter->params.chip) && (adapter->flags & FW_OK))
 		cxgb4_thermal_init(adapter);
 
@@ -5932,7 +5932,7 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (!is_t4(adapter->params.chip))
 			cxgb4_ptp_stop(adapter);
-		if (IS_ENABLED(CONFIG_THERMAL))
+		if (IS_REACHABLE(CONFIG_THERMAL))
 			cxgb4_thermal_remove(adapter);
 
 		/* If we allocated filters, free up state associated with any

@@ -996,7 +996,7 @@ static int cqspi_direct_read_execute(struct spi_nor *nor, u_char *buf,
 err_unmap:
 	dma_unmap_single(nor->dev, dma_dst, len, DMA_FROM_DEVICE);
 
-	return 0;
+	return ret;
 }
 
 static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,

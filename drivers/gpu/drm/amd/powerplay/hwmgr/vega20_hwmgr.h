@@ -328,6 +328,7 @@ struct vega20_registry_data {
 	uint8_t   disable_auto_wattman;
 	uint32_t  auto_wattman_debug;
 	uint32_t  auto_wattman_sample_period;
+	uint32_t  fclk_gfxclk_ratio;
 	uint8_t   auto_wattman_threshold;
 	uint8_t   log_avfs_param;
 	uint8_t   enable_enginess;

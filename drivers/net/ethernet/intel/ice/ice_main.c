@@ -1465,7 +1465,7 @@ skip_req_irq:
  * ice_napi_del - Remove NAPI handler for the VSI
  * @vsi: VSI for which NAPI handler is to be removed
  */
-static void ice_napi_del(struct ice_vsi *vsi)
+void ice_napi_del(struct ice_vsi *vsi)
 {
 	int v_idx;
 
@@ -1622,7 +1622,6 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
-	int ret;
 
 	if (vid >= VLAN_N_VID) {
 		netdev_err(netdev, "VLAN id requested %d is out of range %d\n",
@@ -1635,7 +1634,8 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 
 	/* Enable VLAN pruning when VLAN 0 is added */
 	if (unlikely(!vid)) {
-		ret = ice_cfg_vlan_pruning(vsi, true);
+		int ret = ice_cfg_vlan_pruning(vsi, true);
+
 		if (ret)
 			return ret;
 	}
@@ -1644,12 +1644,7 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 	 * needed to continue allowing all untagged packets since VLAN prune
 	 * list is applied to all packets by the switch
 	 */
-	ret = ice_vsi_add_vlan(vsi, vid);
-
-	if (!ret)
-		set_bit(vid, vsi->active_vlans);
-
-	return ret;
+	return ice_vsi_add_vlan(vsi, vid);
 }
 
 /**
@@ -1676,8 +1671,6 @@ static int ice_vlan_rx_kill_vid(struct net_device *netdev,
 	status = ice_vsi_kill_vlan(vsi, vid);
 	if (status)
 		return status;
-
-	clear_bit(vid, vsi->active_vlans);
 
 	/* Disable VLAN pruning when VLAN 0 is removed */
 	if (unlikely(!vid))
@@ -2002,6 +1995,22 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 }
 
 /**
+ * ice_verify_cacheline_size - verify driver's assumption of 64 Byte cache lines
+ * @pf: pointer to the PF structure
+ *
+ * There is no error returned here because the driver should be able to handle
+ * 128 Byte cache lines, so we only print a warning in case issues are seen,
+ * specifically with Tx.
+ */
+static void ice_verify_cacheline_size(struct ice_pf *pf)
+{
+	if (rd32(&pf->hw, GLPCI_CNF2) & GLPCI_CNF2_CACHELINE_SIZE_M)
+		dev_warn(&pf->pdev->dev,
+			 "%d Byte cache line assumption is invalid, driver may have Tx timeouts!\n",
+			 ICE_CACHE_LINE_BYTES);
+}
+
+/**
  * ice_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in ice_pci_tbl
@@ -2151,6 +2160,8 @@ static int ice_probe(struct pci_dev *pdev,
 	/* since everything is good, start the service timer */
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
 
+	ice_verify_cacheline_size(pf);
+
 	return 0;
 
 err_alloc_sw_unroll:
@@ -2181,6 +2192,12 @@ static void ice_remove(struct pci_dev *pdev)
 
 	if (!pf)
 		return;
+
+	for (i = 0; i < ICE_MAX_RESET_WAIT; i++) {
+		if (!ice_is_reset_in_progress(pf->state))
+			break;
+		msleep(100);
+	}
 
 	set_bit(__ICE_DOWN, pf->state);
 	ice_service_task_stop(pf);
@@ -2510,31 +2527,6 @@ static int ice_vsi_vlan_setup(struct ice_vsi *vsi)
 }
 
 /**
- * ice_restore_vlan - Reinstate VLANs when vsi/netdev comes back up
- * @vsi: the VSI being brought back up
- */
-static int ice_restore_vlan(struct ice_vsi *vsi)
-{
-	int err;
-	u16 vid;
-
-	if (!vsi->netdev)
-		return -EINVAL;
-
-	err = ice_vsi_vlan_setup(vsi);
-	if (err)
-		return err;
-
-	for_each_set_bit(vid, vsi->active_vlans, VLAN_N_VID) {
-		err = ice_vlan_rx_add_vid(vsi->netdev, htons(ETH_P_8021Q), vid);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-
-/**
  * ice_vsi_cfg - Setup the VSI
  * @vsi: the VSI being configured
  *
@@ -2546,7 +2538,9 @@ static int ice_vsi_cfg(struct ice_vsi *vsi)
 
 	if (vsi->netdev) {
 		ice_set_rx_mode(vsi->netdev);
-		err = ice_restore_vlan(vsi);
+
+		err = ice_vsi_vlan_setup(vsi);
+
 		if (err)
 			return err;
 	}
@@ -3296,7 +3290,7 @@ static void ice_rebuild(struct ice_pf *pf)
 	struct device *dev = &pf->pdev->dev;
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status ret;
-	int err;
+	int err, i;
 
 	if (test_bit(__ICE_DOWN, pf->state))
 		goto clear_recovery;
@@ -3370,6 +3364,22 @@ static void ice_rebuild(struct ice_pf *pf)
 	}
 
 	ice_reset_all_vfs(pf, true);
+
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		bool link_up;
+
+		if (!pf->vsi[i] || pf->vsi[i]->type != ICE_VSI_PF)
+			continue;
+		ice_get_link_status(pf->vsi[i]->port_info, &link_up);
+		if (link_up) {
+			netif_carrier_on(pf->vsi[i]->netdev);
+			netif_tx_wake_all_queues(pf->vsi[i]->netdev);
+		} else {
+			netif_carrier_off(pf->vsi[i]->netdev);
+			netif_tx_stop_all_queues(pf->vsi[i]->netdev);
+		}
+	}
+
 	/* if we get here, reset flow is successful */
 	clear_bit(__ICE_RESET_FAILED, pf->state);
 	return;

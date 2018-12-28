@@ -1520,7 +1520,7 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 
 	/* update gso_segs and bytecount */
 	first->gso_segs = skb_shinfo(skb)->gso_segs;
-	first->bytecount = (first->gso_segs - 1) * off->header_len;
+	first->bytecount += (first->gso_segs - 1) * off->header_len;
 
 	cd_tso_len = skb->len - off->header_len;
 	cd_mss = skb_shinfo(skb)->gso_size;
@@ -1556,15 +1556,15 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
  * magnitude greater than our largest possible GSO size.
  *
  * This would then be implemented as:
- *     return (((size >> 12) * 85) >> 8) + 1;
+ *     return (((size >> 12) * 85) >> 8) + ICE_DESCS_FOR_SKB_DATA_PTR;
  *
  * Since multiplication and division are commutative, we can reorder
  * operations into:
- *     return ((size * 85) >> 20) + 1;
+ *     return ((size * 85) >> 20) + ICE_DESCS_FOR_SKB_DATA_PTR;
  */
 static unsigned int ice_txd_use_count(unsigned int size)
 {
-	return ((size * 85) >> 20) + 1;
+	return ((size * 85) >> 20) + ICE_DESCS_FOR_SKB_DATA_PTR;
 }
 
 /**
@@ -1706,7 +1706,8 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 	 *       + 1 desc for context descriptor,
 	 * otherwise try next time
 	 */
-	if (ice_maybe_stop_tx(tx_ring, count + 4 + 1)) {
+	if (ice_maybe_stop_tx(tx_ring, count + ICE_DESCS_PER_CACHE_LINE +
+			      ICE_DESCS_FOR_CTX_DESC)) {
 		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
 	}

@@ -204,6 +204,10 @@ struct aq_hw_ops {
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
 
+	int (*hw_set_offload)(struct aq_hw_s *self,
+			      struct aq_nic_cfg_s *aq_nic_cfg);
+
+	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
 };
 
 struct aq_fw_ops {
@@ -225,6 +229,8 @@ struct aq_fw_ops {
 	int (*update_link_status)(struct aq_hw_s *self);
 
 	int (*update_stats)(struct aq_hw_s *self);
+
+	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
 
 	int (*set_flow_control)(struct aq_hw_s *self);
 

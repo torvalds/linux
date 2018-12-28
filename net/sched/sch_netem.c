@@ -648,15 +648,6 @@ deliver:
 			 */
 			skb->dev = qdisc_dev(sch);
 
-#ifdef CONFIG_NET_CLS_ACT
-			/*
-			 * If it's at ingress let's pretend the delay is
-			 * from the network (tstamp will be updated).
-			 */
-			if (skb->tc_redirected && skb->tc_from_ingress)
-				skb->tstamp = 0;
-#endif
-
 			if (q->slot.slot_next) {
 				q->slot.packets_left--;
 				q->slot.bytes_left -= qdisc_pkt_len(skb);
