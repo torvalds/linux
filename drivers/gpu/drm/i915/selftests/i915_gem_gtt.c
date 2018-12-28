@@ -170,7 +170,7 @@ static int igt_ppgtt_alloc(void *arg)
 	 * This should ensure that we do not run into the oomkiller during
 	 * the test and take down the machine wilfully.
 	 */
-	limit = totalram_pages << PAGE_SHIFT;
+	limit = totalram_pages() << PAGE_SHIFT;
 	limit = min(ppgtt->vm.total, limit);
 
 	/* Check we can allocate the entire range */
@@ -1244,7 +1244,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 				     u64 hole_start, u64 hole_end,
 				     unsigned long end_time))
 {
-	const u64 limit = totalram_pages << PAGE_SHIFT;
+	const u64 limit = totalram_pages() << PAGE_SHIFT;
 	struct i915_gem_context *ctx;
 	struct i915_hw_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
