@@ -22,6 +22,10 @@ enum lock_usage_bit {
 	LOCK_USAGE_STATES
 };
 
+#define LOCK_USAGE_READ_MASK 1
+#define LOCK_USAGE_DIR_MASK  2
+#define LOCK_USAGE_STATE_MASK (~(LOCK_USAGE_READ_MASK | LOCK_USAGE_DIR_MASK))
+
 /*
  * Usage-state bitmasks:
  */
