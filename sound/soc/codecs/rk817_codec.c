@@ -758,6 +758,7 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_write(codec, RK817_CODEC_DI2S_TXCR2, VDW_TX_16BITS);
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S32_LE:
 		snd_soc_write(codec, RK817_CODEC_DI2S_RXCR2, VDW_RX_24BITS);
 		snd_soc_write(codec, RK817_CODEC_DI2S_TXCR2, VDW_TX_24BITS);
 		break;
