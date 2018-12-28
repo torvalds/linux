@@ -490,10 +490,14 @@
 			cut the overhead, others just disable the usage. So
 			only cgroup_disable=memory is actually worthy}
 
-	cgroup_no_v1=	[KNL] Disable one, multiple, all cgroup controllers in v1
-			Format: { controller[,controller...] | "all" }
+	cgroup_no_v1=	[KNL] Disable cgroup controllers and named hierarchies in v1
+			Format: { { controller | "all" | "named" }
+			          [,{ controller | "all" | "named" }...] }
 			Like cgroup_disable, but only applies to cgroup v1;
 			the blacklisted controllers remain available in cgroup2.
+			"all" blacklists all controllers and "named" disables
+			named mounts. Specifying both "all" and "named" disables
+			all v1 hierarchies.
 
 	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
 			Format: <string>
