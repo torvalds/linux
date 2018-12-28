@@ -221,6 +221,17 @@ line of text and contains the following stats separated by whitespace:
  pages_compacted  the number of pages freed during compaction
  huge_pages	  the number of incompressible pages
 
+File /sys/block/zram<id>/bd_stat
+
+The stat file represents device's backing device statistics. It consists of
+a single line of text and contains the following stats separated by whitespace:
+ bd_count	size of data written in backing device.
+		Unit: 4K bytes
+ bd_reads	the number of reads from backing device
+		Unit: 4K bytes
+ bd_writes	the number of writes to backing device
+		Unit: 4K bytes
+
 9) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1
