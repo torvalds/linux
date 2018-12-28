@@ -521,10 +521,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 
 	reserve_gt(i915);
 
-	ret = intel_ring_wait_for_space(ce->ring, MIN_SPACE_FOR_ADD_REQUEST);
-	if (ret)
-		goto err_unreserve;
-
 	/* Move our oldest request to the slab-cache (if not in use!) */
 	rq = list_first_entry(&ce->ring->request_list, typeof(*rq), ring_link);
 	if (!list_is_last(&rq->ring_link, &ce->ring->request_list) &&
@@ -616,9 +612,13 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * i915_request_add() call can't fail. Note that the reserve may need
 	 * to be redone if the request is not actually submitted straight
 	 * away, e.g. because a GPU scheduler has deferred it.
+	 *
+	 * Note that due to how we add reserved_space to intel_ring_begin()
+	 * we need to double our request to ensure that if we need to wrap
+	 * around inside i915_request_add() there is sufficient space at
+	 * the beginning of the ring as well.
 	 */
-	rq->reserved_space = MIN_SPACE_FOR_ADD_REQUEST;
-	GEM_BUG_ON(rq->reserved_space < engine->emit_breadcrumb_sz);
+	rq->reserved_space = 2 * engine->emit_breadcrumb_sz * sizeof(u32);
 
 	/*
 	 * Record the position of the start of the request so that
@@ -860,8 +860,8 @@ void i915_request_add(struct i915_request *request)
 	 * should already have been reserved in the ring buffer. Let the ring
 	 * know that it is time to use that space up.
 	 */
+	GEM_BUG_ON(request->reserved_space > request->ring->space);
 	request->reserved_space = 0;
-	engine->emit_flush(request, EMIT_FLUSH);
 
 	/*
 	 * Record the position of the start of the breadcrumb so that

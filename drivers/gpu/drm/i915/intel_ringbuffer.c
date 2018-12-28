@@ -1904,22 +1904,6 @@ static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
 	return 0;
 }
 
-int intel_ring_wait_for_space(struct intel_ring *ring, unsigned int bytes)
-{
-	GEM_BUG_ON(bytes > ring->effective_size);
-	if (unlikely(bytes > ring->effective_size - ring->emit))
-		bytes += ring->size - ring->emit;
-
-	if (unlikely(bytes > ring->space)) {
-		int ret = wait_for_space(ring, bytes);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	GEM_BUG_ON(ring->space < bytes);
-	return 0;
-}
-
 u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 {
 	struct intel_ring *ring = rq->ring;

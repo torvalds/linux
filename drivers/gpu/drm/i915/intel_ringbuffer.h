@@ -754,7 +754,6 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
 
 int __must_check intel_ring_cacheline_align(struct i915_request *rq);
 
-int intel_ring_wait_for_space(struct intel_ring *ring, unsigned int bytes);
 u32 __must_check *intel_ring_begin(struct i915_request *rq, unsigned int n);
 
 static inline void intel_ring_advance(struct i915_request *rq, u32 *cs)
@@ -894,15 +893,6 @@ static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
-
-/*
- * Arbitrary size for largest possible 'add request' sequence. The code paths
- * are complex and variable. Empirical measurement shows that the worst case
- * is BDW at 192 bytes (6 + 6 + 36 dwords), then ILK at 136 bytes. However,
- * we need to allocate double the largest single packet within that emission
- * to account for tail wraparound (so 6 + 6 + 72 dwords for BDW).
- */
-#define MIN_SPACE_FOR_ADD_REQUEST 336
 
 static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 {
