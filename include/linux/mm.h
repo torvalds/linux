@@ -2108,7 +2108,7 @@ extern void free_initmem(void);
  * Return pages freed into the buddy system.
  */
 extern unsigned long free_reserved_area(void *start, void *end,
-					int poison, char *s);
+					int poison, const char *s);
 
 #ifdef	CONFIG_HIGHMEM
 /*
