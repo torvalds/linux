@@ -72,7 +72,7 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 }
 
 struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata)
+				u32 flags, struct ib_udata *udata)
 
 {
 	struct mlx5_ib_ah *ah;
@@ -131,7 +131,7 @@ int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-int mlx5_ib_destroy_ah(struct ib_ah *ah)
+int mlx5_ib_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	kfree(to_mah(ah));
 	return 0;

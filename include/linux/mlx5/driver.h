@@ -751,8 +751,8 @@ struct mlx5_hca_vport_context {
 	u64			node_guid;
 	u32			cap_mask1;
 	u32			cap_mask1_perm;
-	u32			cap_mask2;
-	u32			cap_mask2_perm;
+	u16			cap_mask2;
+	u16			cap_mask2_perm;
 	u16			lid;
 	u8			init_type_reply; /* bitmask: see ib spec 14.2.5.6 InitTypeReply */
 	u8			lmc;
