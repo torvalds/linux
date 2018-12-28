@@ -1601,7 +1601,7 @@ repeat:
 		VM_BUG_ON_PAGE(page->index != offset, page);
 	}
 
-	if (page && (fgp_flags & FGP_ACCESSED))
+	if (fgp_flags & FGP_ACCESSED)
 		mark_page_accessed(page);
 
 no_page:
