@@ -33,12 +33,6 @@
 
 #define CONNCOUNT_SLOTS		256U
 
-#ifdef CONFIG_LOCKDEP
-#define CONNCOUNT_LOCK_SLOTS	8U
-#else
-#define CONNCOUNT_LOCK_SLOTS	256U
-#endif
-
 #define CONNCOUNT_GC_MAX_NODES	8
 #define MAX_KEYLEN		5
 
@@ -60,7 +54,7 @@ struct nf_conncount_rb {
 	struct rcu_head rcu_head;
 };
 
-static spinlock_t nf_conncount_locks[CONNCOUNT_LOCK_SLOTS] __cacheline_aligned_in_smp;
+static spinlock_t nf_conncount_locks[CONNCOUNT_SLOTS] __cacheline_aligned_in_smp;
 
 struct nf_conncount_data {
 	unsigned int keylen;
@@ -353,7 +347,7 @@ insert_tree(struct net *net,
 	unsigned int count = 0, gc_count = 0;
 	bool node_found = false;
 
-	spin_lock_bh(&nf_conncount_locks[hash % CONNCOUNT_LOCK_SLOTS]);
+	spin_lock_bh(&nf_conncount_locks[hash]);
 
 	parent = NULL;
 	rbnode = &(root->rb_node);
@@ -430,7 +424,7 @@ insert_tree(struct net *net,
 	rb_link_node_rcu(&rbconn->node, parent, rbnode);
 	rb_insert_color(&rbconn->node, root);
 out_unlock:
-	spin_unlock_bh(&nf_conncount_locks[hash % CONNCOUNT_LOCK_SLOTS]);
+	spin_unlock_bh(&nf_conncount_locks[hash]);
 	return count;
 }
 
@@ -499,7 +493,7 @@ static void tree_gc_worker(struct work_struct *work)
 	struct rb_node *node;
 	unsigned int tree, next_tree, gc_count = 0;
 
-	tree = data->gc_tree % CONNCOUNT_LOCK_SLOTS;
+	tree = data->gc_tree % CONNCOUNT_SLOTS;
 	root = &data->root[tree];
 
 	rcu_read_lock();
@@ -621,10 +615,7 @@ static int __init nf_conncount_modinit(void)
 {
 	int i;
 
-	BUILD_BUG_ON(CONNCOUNT_LOCK_SLOTS > CONNCOUNT_SLOTS);
-	BUILD_BUG_ON((CONNCOUNT_SLOTS % CONNCOUNT_LOCK_SLOTS) != 0);
-
-	for (i = 0; i < CONNCOUNT_LOCK_SLOTS; ++i)
+	for (i = 0; i < CONNCOUNT_SLOTS; ++i)
 		spin_lock_init(&nf_conncount_locks[i]);
 
 	conncount_conn_cachep = kmem_cache_create("nf_conncount_tuple",
