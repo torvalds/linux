@@ -2429,8 +2429,8 @@ static int fake_panic_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fake_panic_fops, fake_panic_get,
-			fake_panic_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fake_panic_fops, fake_panic_get, fake_panic_set,
+			 "%llu\n");
 
 static int __init mcheck_debugfs_init(void)
 {
@@ -2439,8 +2439,8 @@ static int __init mcheck_debugfs_init(void)
 	dmce = mce_get_debugfs_dir();
 	if (!dmce)
 		return -ENOMEM;
-	ffake_panic = debugfs_create_file("fake_panic", 0444, dmce, NULL,
-					  &fake_panic_fops);
+	ffake_panic = debugfs_create_file_unsafe("fake_panic", 0444, dmce,
+						 NULL, &fake_panic_fops);
 	if (!ffake_panic)
 		return -ENOMEM;
 
