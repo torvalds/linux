@@ -881,26 +881,29 @@ static void i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
 }
-
 static const int i9xx_emit_breadcrumb_sz = 6;
 
-static void
-gen5_seqno_barrier(struct intel_engine_cs *engine)
+#define GEN5_WA_STORES 8 /* must be at least 1! */
+static void gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
-	/* MI_STORE are internally buffered by the GPU and not flushed
-	 * either by MI_FLUSH or SyncFlush or any other combination of
-	 * MI commands.
-	 *
-	 * "Only the submission of the store operation is guaranteed.
-	 * The write result will be complete (coherent) some time later
-	 * (this is practically a finite period but there is no guaranteed
-	 * latency)."
-	 *
-	 * Empirically, we observe that we need a delay of at least 75us to
-	 * be sure that the seqno write is visible by the CPU.
-	 */
-	usleep_range(125, 250);
+	int i;
+
+	*cs++ = MI_FLUSH;
+
+	BUILD_BUG_ON(GEN5_WA_STORES < 1);
+	for (i = 0; i < GEN5_WA_STORES; i++) {
+		*cs++ = MI_STORE_DWORD_INDEX;
+		*cs++ = I915_GEM_HWS_INDEX_ADDR;
+		*cs++ = rq->global_seqno;
+	}
+
+	*cs++ = MI_USER_INTERRUPT;
+
+	rq->tail = intel_ring_offset(rq, cs);
+	assert_ring_tail_valid(rq->ring, rq->tail);
 }
+static const int gen5_emit_breadcrumb_sz = GEN5_WA_STORES * 3 + 2;
+#undef GEN5_WA_STORES
 
 static void
 gen5_irq_enable(struct intel_engine_cs *engine)
@@ -2148,7 +2151,6 @@ static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 	} else if (INTEL_GEN(dev_priv) >= 5) {
 		engine->irq_enable = gen5_irq_enable;
 		engine->irq_disable = gen5_irq_disable;
-		engine->irq_seqno_barrier = gen5_seqno_barrier;
 	} else if (INTEL_GEN(dev_priv) >= 3) {
 		engine->irq_enable = i9xx_irq_enable;
 		engine->irq_disable = i9xx_irq_disable;
@@ -2191,6 +2193,10 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;
+	if (IS_GEN(dev_priv, 5)) {
+		engine->emit_breadcrumb = gen5_emit_breadcrumb;
+		engine->emit_breadcrumb_sz = gen5_emit_breadcrumb_sz;
+	}
 
 	engine->set_default_submission = i9xx_set_default_submission;
 
