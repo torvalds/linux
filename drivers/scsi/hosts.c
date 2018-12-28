@@ -416,7 +416,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->sg_prot_tablesize = sht->sg_prot_tablesize;
 	shost->cmd_per_lun = sht->cmd_per_lun;
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
-	shost->use_clustering = sht->use_clustering;
 	shost->no_write_same = sht->no_write_same;
 
 	if (shost_eh_deadline == -1 || !sht->eh_host_reset_handler)
@@ -448,6 +447,11 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		shost->max_sectors = sht->max_sectors;
 	else
 		shost->max_sectors = SCSI_DEFAULT_MAX_SECTORS;
+
+	if (sht->max_segment_size)
+		shost->max_segment_size = sht->max_segment_size;
+	else
+		shost->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 
 	/*
 	 * assume a 4GB boundary, if not set

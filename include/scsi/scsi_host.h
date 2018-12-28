@@ -42,9 +42,6 @@ struct scsi_transport_template;
 #define MODE_INITIATOR 0x01
 #define MODE_TARGET 0x02
 
-#define DISABLE_CLUSTERING 0
-#define ENABLE_CLUSTERING 1
-
 struct scsi_host_template {
 	struct module *module;
 	const char *name;
@@ -364,6 +361,11 @@ struct scsi_host_template {
 	unsigned int max_sectors;
 
 	/*
+	 * Maximum size in bytes of a single segment.
+	 */
+	unsigned int max_segment_size;
+
+	/*
 	 * DMA scatter gather segment boundary limit. A segment crossing this
 	 * boundary will be split in two.
 	 */
@@ -411,16 +413,6 @@ struct scsi_host_template {
 	 * True if this host adapter uses unchecked DMA onto an ISA bus.
 	 */
 	unsigned unchecked_isa_dma:1;
-
-	/*
-	 * True if this host adapter can make good use of clustering.
-	 * I originally thought that if the tablesize was large that it
-	 * was a waste of CPU cycles to prepare a cluster list, but
-	 * it works out that the Buslogic is faster if you use a smaller
-	 * number of segments (i.e. use clustering).  I guess it is
-	 * inefficient.
-	 */
-	unsigned use_clustering:1;
 
 	/*
 	 * True for emulated SCSI host adapters (e.g. ATAPI).
@@ -596,6 +588,7 @@ struct Scsi_Host {
 	short unsigned int sg_tablesize;
 	short unsigned int sg_prot_tablesize;
 	unsigned int max_sectors;
+	unsigned int max_segment_size;
 	unsigned long dma_boundary;
 	/*
 	 * In scsi-mq mode, the number of hardware queues supported by the LLD.
@@ -613,7 +606,6 @@ struct Scsi_Host {
 	
 	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;
-	unsigned use_clustering:1;
 
 	/*
 	 * Host has requested that no further requests come through for the

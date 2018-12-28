@@ -645,7 +645,6 @@ static struct scsi_host_template visorhba_driver_template = {
 	.this_id = -1,
 	.slave_alloc = visorhba_slave_alloc,
 	.slave_destroy = visorhba_slave_destroy,
-	.use_clustering = ENABLE_CLUSTERING,
 };
 
 /*

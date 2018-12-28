@@ -1842,10 +1842,8 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	dma_set_seg_boundary(dev, shost->dma_boundary);
 
-	blk_queue_max_segment_size(q, dma_get_max_seg_size(dev));
-
-	if (!shost->use_clustering)
-		q->limits.cluster = 0;
+	blk_queue_max_segment_size(q,
+		min(shost->max_segment_size, dma_get_max_seg_size(dev)));
 
 	/*
 	 * Set a reasonable default alignment:  The larger of 32-byte (dword),

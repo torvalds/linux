@@ -132,10 +132,7 @@ static ssize_t queue_max_integrity_segments_show(struct request_queue *q, char *
 
 static ssize_t queue_max_segment_size_show(struct request_queue *q, char *page)
 {
-	if (blk_queue_cluster(q))
-		return queue_var_show(queue_max_segment_size(q), (page));
-
-	return queue_var_show(PAGE_SIZE, (page));
+	return queue_var_show(queue_max_segment_size(q), (page));
 }
 
 static ssize_t queue_logical_block_size_show(struct request_queue *q, char *page)

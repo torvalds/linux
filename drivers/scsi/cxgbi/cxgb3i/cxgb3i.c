@@ -95,7 +95,7 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.target_alloc	= iscsi_target_alloc,
-	.use_clustering	= DISABLE_CLUSTERING,
+	.dma_boundary	= PAGE_SIZE - 1,
 	.this_id	= -1,
 	.track_queue_depth = 1,
 };

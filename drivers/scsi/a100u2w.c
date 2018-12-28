@@ -1078,7 +1078,6 @@ static struct scsi_host_template inia100_template = {
 	.can_queue		= 1,
 	.this_id		= 1,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static int inia100_probe_one(struct pci_dev *pdev,

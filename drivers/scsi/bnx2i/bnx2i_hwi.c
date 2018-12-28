@@ -2427,7 +2427,6 @@ static void bnx2i_process_ofld_cmpl(struct bnx2i_hba *hba,
 {
 	u32 cid_addr;
 	struct bnx2i_endpoint *ep;
-	u32 cid_num;
 
 	ep = bnx2i_find_ep_in_ofld_list(hba, ofld_kcqe->iscsi_conn_id);
 	if (!ep) {
@@ -2462,7 +2461,6 @@ static void bnx2i_process_ofld_cmpl(struct bnx2i_hba *hba,
 	} else {
 		ep->state = EP_STATE_OFLD_COMPL;
 		cid_addr = ofld_kcqe->iscsi_conn_context_id;
-		cid_num = bnx2i_get_cid_num(ep);
 		ep->ep_cid = cid_addr;
 		ep->qp.ctx_base = NULL;
 	}
