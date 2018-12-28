@@ -272,17 +272,6 @@ static void qla_nvme_fcp_abort(struct nvme_fc_local_port *lport,
 	schedule_work(&priv->abort_work);
 }
 
-static void qla_nvme_poll(struct nvme_fc_local_port *lport, void *hw_queue_handle)
-{
-	struct qla_qpair *qpair = hw_queue_handle;
-	unsigned long flags;
-	struct scsi_qla_host *vha = lport->private;
-
-	spin_lock_irqsave(&qpair->qp_lock, flags);
-	qla24xx_process_response_queue(vha, qpair->rsp);
-	spin_unlock_irqrestore(&qpair->qp_lock, flags);
-}
-
 static inline int qla2x00_start_nvme_mq(srb_t *sp)
 {
 	unsigned long   flags;
@@ -578,7 +567,6 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.ls_abort	= qla_nvme_ls_abort,
 	.fcp_io		= qla_nvme_post_cmd,
 	.fcp_abort	= qla_nvme_fcp_abort,
-	.poll_queue	= qla_nvme_poll,
 	.max_hw_queues  = 8,
 	.max_sgl_segments = 128,
 	.max_dif_sgl_segments = 64,
