@@ -189,35 +189,30 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 }
 
 static int hmm_invalidate_range_start(struct mmu_notifier *mn,
-				      struct mm_struct *mm,
-				      unsigned long start,
-				      unsigned long end,
-				      bool blockable)
+			const struct mmu_notifier_range *range)
 {
 	struct hmm_update update;
-	struct hmm *hmm = mm->hmm;
+	struct hmm *hmm = range->mm->hmm;
 
 	VM_BUG_ON(!hmm);
 
-	update.start = start;
-	update.end = end;
+	update.start = range->start;
+	update.end = range->end;
 	update.event = HMM_UPDATE_INVALIDATE;
-	update.blockable = blockable;
+	update.blockable = range->blockable;
 	return hmm_invalidate_range(hmm, true, &update);
 }
 
 static void hmm_invalidate_range_end(struct mmu_notifier *mn,
-				     struct mm_struct *mm,
-				     unsigned long start,
-				     unsigned long end)
+			const struct mmu_notifier_range *range)
 {
 	struct hmm_update update;
-	struct hmm *hmm = mm->hmm;
+	struct hmm *hmm = range->mm->hmm;
 
 	VM_BUG_ON(!hmm);
 
-	update.start = start;
-	update.end = end;
+	update.start = range->start;
+	update.end = range->end;
 	update.event = HMM_UPDATE_INVALIDATE;
 	update.blockable = true;
 	hmm_invalidate_range(hmm, false, &update);

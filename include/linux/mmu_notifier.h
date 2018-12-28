@@ -25,6 +25,13 @@ struct mmu_notifier_mm {
 	spinlock_t lock;
 };
 
+struct mmu_notifier_range {
+	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
+	bool blockable;
+};
+
 struct mmu_notifier_ops {
 	/*
 	 * Called either by mmu_notifier_unregister or when the mm is
@@ -146,12 +153,9 @@ struct mmu_notifier_ops {
 	 *
 	 */
 	int (*invalidate_range_start)(struct mmu_notifier *mn,
-				       struct mm_struct *mm,
-				       unsigned long start, unsigned long end,
-				       bool blockable);
+				      const struct mmu_notifier_range *range);
 	void (*invalidate_range_end)(struct mmu_notifier *mn,
-				     struct mm_struct *mm,
-				     unsigned long start, unsigned long end);
+				     const struct mmu_notifier_range *range);
 
 	/*
 	 * invalidate_range() is either called between
