@@ -167,28 +167,20 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 	srcu_read_unlock(&srcu, id);
 }
 
-int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-				  unsigned long start, unsigned long end,
-				  bool blockable)
+int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 {
-	struct mmu_notifier_range _range, *range = &_range;
 	struct mmu_notifier *mn;
 	int ret = 0;
 	int id;
 
-	range->blockable = blockable;
-	range->start = start;
-	range->end = end;
-	range->mm = mm;
-
 	id = srcu_read_lock(&srcu);
-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
+	hlist_for_each_entry_rcu(mn, &range->mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->invalidate_range_start) {
 			int _ret = mn->ops->invalidate_range_start(mn, range);
 			if (_ret) {
 				pr_info("%pS callback failed with %d in %sblockable context.\n",
-						mn->ops->invalidate_range_start, _ret,
-						!blockable ? "non-" : "");
+					mn->ops->invalidate_range_start, _ret,
+					!range->blockable ? "non-" : "");
 				ret = _ret;
 			}
 		}
@@ -199,27 +191,14 @@ int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
 }
 EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
 
-void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-					 unsigned long start,
-					 unsigned long end,
+void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range,
 					 bool only_end)
 {
-	struct mmu_notifier_range _range, *range = &_range;
 	struct mmu_notifier *mn;
 	int id;
 
-	/*
-	 * The end call back will never be call if the start refused to go
-	 * through because of blockable was false so here assume that we
-	 * can block.
-	 */
-	range->blockable = true;
-	range->start = start;
-	range->end = end;
-	range->mm = mm;
-
 	id = srcu_read_lock(&srcu);
-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
+	hlist_for_each_entry_rcu(mn, &range->mm->mmu_notifier_mm->list, hlist) {
 		/*
 		 * Call invalidate_range here too to avoid the need for the
 		 * subsystem of having to register an invalidate_range_end
@@ -234,7 +213,9 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
 		 * already happen under page table lock.
 		 */
 		if (!only_end && mn->ops->invalidate_range)
-			mn->ops->invalidate_range(mn, mm, start, end);
+			mn->ops->invalidate_range(mn, range->mm,
+						  range->start,
+						  range->end);
 		if (mn->ops->invalidate_range_end)
 			mn->ops->invalidate_range_end(mn, range);
 	}
