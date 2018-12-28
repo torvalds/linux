@@ -106,6 +106,25 @@ For the compatible string below the following supplies are required:
 	Definition: reference to the regulators to be held on behalf of the
 		    booting of the Hexagon core
 
+- power-domains:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to power-domains that match power-domain-names
+
+- power-domain-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: The power-domains needed depend on the compatible string:
+	qcom,q6v5-pil:
+	qcom,ipq8074-wcss-pil:
+	qcom,msm8916-mss-pil:
+	qcom,msm8974-mss-pil:
+		    no power-domain names required
+	qcom,msm8996-mss-pil:
+		    must be "cx", "mx"
+	qcom,sdm845-mss-pil:
+		    must be "cx", "mx", "mss", "load_state"
+
 - qcom,smem-states:
 	Usage: required
 	Value type: <phandle>
