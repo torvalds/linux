@@ -81,9 +81,9 @@ typedef   signed long        time_t;
 
 /* for poll() */
 struct pollfd {
-    int fd;
-    short int events;
-    short int revents;
+	int fd;
+	short int events;
+	short int revents;
 };
 
 /* for select() */
@@ -239,7 +239,7 @@ struct stat {
 		"syscall\n"                                                   \
 		: "=a" (_ret)                                                 \
 		: "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -255,7 +255,7 @@ struct stat {
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1),                                                 \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -272,7 +272,7 @@ struct stat {
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2),                                     \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -290,7 +290,7 @@ struct stat {
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3),                         \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
