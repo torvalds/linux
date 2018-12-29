@@ -91,6 +91,7 @@ enum {
 struct byt_rt5651_private {
 	struct clk *mclk;
 	struct gpio_desc *ext_amp_gpio;
+	struct gpio_desc *hp_detect;
 	struct snd_soc_jack jack;
 };
 
@@ -499,6 +500,7 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
 	const struct snd_soc_dapm_route *custom_map;
 	int num_routes;
+	int report;
 	int ret;
 
 	card->dapm.idle_bias_off = true;
@@ -582,20 +584,27 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 			dev_err(card->dev, "unable to set MCLK rate\n");
 	}
 
-	if (BYT_RT5651_JDSRC(byt_rt5651_quirk)) {
+	report = 0;
+	if (BYT_RT5651_JDSRC(byt_rt5651_quirk))
+		report = SND_JACK_HEADSET | SND_JACK_BTN_0;
+	else if (priv->hp_detect)
+		report = SND_JACK_HEADSET;
+
+	if (report) {
 		ret = snd_soc_card_jack_new(runtime->card, "Headset",
-				    SND_JACK_HEADSET | SND_JACK_BTN_0,
-				    &priv->jack, bytcr_jack_pins,
+				    report, &priv->jack, bytcr_jack_pins,
 				    ARRAY_SIZE(bytcr_jack_pins));
 		if (ret) {
 			dev_err(runtime->dev, "jack creation failed %d\n", ret);
 			return ret;
 		}
 
-		snd_jack_set_key(priv->jack.jack, SND_JACK_BTN_0,
-				 KEY_PLAYPAUSE);
+		if (report & SND_JACK_BTN_0)
+			snd_jack_set_key(priv->jack.jack, SND_JACK_BTN_0,
+					 KEY_PLAYPAUSE);
 
-		ret = snd_soc_component_set_jack(codec, &priv->jack, NULL);
+		ret = snd_soc_component_set_jack(codec, &priv->jack,
+						 priv->hp_detect);
 		if (ret)
 			return ret;
 	}
@@ -767,7 +776,8 @@ static int byt_rt5651_resume(struct snd_soc_card *card)
 	for_each_card_components(card, component) {
 		if (!strcmp(component->name, byt_rt5651_codec_name)) {
 			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
-			snd_soc_component_set_jack(component, &priv->jack, NULL);
+			snd_soc_component_set_jack(component, &priv->jack,
+						   priv->hp_detect);
 			break;
 		}
 	}
@@ -1005,6 +1015,25 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 				break;
 			default:
 				dev_err(&pdev->dev, "Failed to get ext-amp-enable GPIO: %d\n",
+					ret_val);
+				/* fall through */
+			case -EPROBE_DEFER:
+				put_device(codec_dev);
+				return ret_val;
+			}
+		}
+		priv->hp_detect = devm_fwnode_get_index_gpiod_from_child(
+						&pdev->dev, "hp-detect", 0,
+						codec_dev->fwnode,
+						GPIOD_IN, "hp-detect");
+		if (IS_ERR(priv->hp_detect)) {
+			ret_val = PTR_ERR(priv->hp_detect);
+			switch (ret_val) {
+			case -ENOENT:
+				priv->hp_detect = NULL;
+				break;
+			default:
+				dev_err(&pdev->dev, "Failed to get hp-detect GPIO: %d\n",
 					ret_val);
 				/* fall through */
 			case -EPROBE_DEFER:
