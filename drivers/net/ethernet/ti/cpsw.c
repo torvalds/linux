@@ -26,6 +26,7 @@
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
+#include <linux/phy/phy.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
@@ -387,6 +388,7 @@ struct cpsw_slave_data {
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
+	struct phy	*ifphy;
 };
 
 struct cpsw_platform_data {
@@ -1624,7 +1626,12 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	phy_start(slave->phy);
 
 	/* Configure GMII_SEL register */
-	cpsw_phy_sel(cpsw->dev, slave->phy->interface, slave->slave_num);
+	if (!IS_ERR(slave->data->ifphy))
+		phy_set_mode_ext(slave->data->ifphy, PHY_MODE_ETHERNET,
+				 slave->data->phy_if);
+	else
+		cpsw_phy_sel(cpsw->dev, slave->phy->interface,
+			     slave->slave_num);
 }
 
 static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
@@ -3273,6 +3280,16 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		/* This is no slave child node, continue */
 		if (!of_node_name_eq(slave_node, "slave"))
 			continue;
+
+		slave_data->ifphy = devm_of_phy_get(&pdev->dev, slave_node,
+						    NULL);
+		if (!IS_ENABLED(CONFIG_TI_CPSW_PHY_SEL) &&
+		    IS_ERR(slave_data->ifphy)) {
+			ret = PTR_ERR(slave_data->ifphy);
+			dev_err(&pdev->dev,
+				"%d: Error retrieving port phy: %d\n", i, ret);
+			return ret;
+		}
 
 		slave_data->phy_node = of_parse_phandle(slave_node,
 							"phy-handle", 0);
