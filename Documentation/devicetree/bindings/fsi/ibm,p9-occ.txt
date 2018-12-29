@@ -1,0 +1,16 @@
+Device-tree bindings for FSI-attached POWER9 On-Chip Controller (OCC)
+---------------------------------------------------------------------
+
+This is the binding for the P9 On-Chip Controller accessed over FSI from a
+service processor. See fsi.txt for details on bindings for FSI slave and CFAM
+nodes. The OCC is not an FSI slave device itself, rather it is accessed
+through the SBE fifo.
+
+Required properties:
+ - compatible = "ibm,p9-occ"
+
+Examples:
+
+    occ {
+        compatible = "ibm,p9-occ";
+    };

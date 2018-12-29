@@ -23,6 +23,7 @@ Required node properties:
 		"onnn,nct1008"
 		"winbond,w83l771"
 		"nxp,sa56004"
+		"ti,tmp451"
 
 - reg: I2C bus address of the device
 
