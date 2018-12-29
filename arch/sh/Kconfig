@@ -596,7 +596,7 @@ endmenu
 
 menu "Kernel features"
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"

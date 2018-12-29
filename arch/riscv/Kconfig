@@ -296,6 +296,6 @@ endmenu
 
 menu "Power management options"
 
-source kernel/power/Kconfig
+source "kernel/power/Kconfig"
 
 endmenu

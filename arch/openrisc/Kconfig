@@ -138,7 +138,7 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config OPENRISC_NO_SPR_SR_DSX
 	bool "use SPR_SR_DSX software emulation" if OR1K_1200

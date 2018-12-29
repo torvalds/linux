@@ -439,7 +439,7 @@ config DEBUG_KERNEL
 
 menu "Memory Debugging"
 
-source mm/Kconfig.debug
+source "mm/Kconfig.debug"
 
 config DEBUG_OBJECTS
 	bool "Debug object operations"
@@ -1624,7 +1624,7 @@ config LATENCYTOP
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
 
-source kernel/trace/Kconfig
+source "kernel/trace/Kconfig"
 
 config PROVIDE_OHCI1394_DMA_INIT
 	bool "Remote debugging over FireWire early on boot"

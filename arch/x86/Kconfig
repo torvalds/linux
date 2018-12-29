@@ -1977,7 +1977,7 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call"

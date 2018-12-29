@@ -66,7 +66,7 @@ config INTEGRITY_AUDIT
 	  be enabled by specifying 'integrity_audit=1' on the kernel
 	  command line.
 
-source security/integrity/ima/Kconfig
-source security/integrity/evm/Kconfig
+source "security/integrity/ima/Kconfig"
+source "security/integrity/evm/Kconfig"
 
 endif   # if INTEGRITY
