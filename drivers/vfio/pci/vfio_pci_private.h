@@ -82,6 +82,11 @@ struct vfio_pci_dummy_resource {
 	struct list_head	res_next;
 };
 
+struct vfio_pci_reflck {
+	struct kref		kref;
+	struct mutex		lock;
+};
+
 struct vfio_pci_device {
 	struct pci_dev		*pdev;
 	void __iomem		*barmap[PCI_STD_RESOURCE_END + 1];
@@ -110,6 +115,7 @@ struct vfio_pci_device {
 	bool			needs_reset;
 	bool			nointx;
 	struct pci_saved_state	*pci_saved_state;
+	struct vfio_pci_reflck	*reflck;
 	int			refcnt;
 	int			ioeventfds_nr;
 	struct eventfd_ctx	*err_trigger;
