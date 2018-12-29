@@ -67,4 +67,4 @@ $(src)/sha512-core.S_shipped: $(src)/sha512-armv4.pl
 	$(call cmd,perl)
 endif
 
-targets += sha256-core.S sha512-core.S
+clean-files += sha256-core.S sha512-core.S

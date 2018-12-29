@@ -44,7 +44,6 @@ kbuild-file := $(srctree)/$(obj)/Kbuild
 installdir    := $(INSTALL_HDR_PATH)/$(dst)
 gendir        := $(objtree)/$(subst include/,include/generated/,$(obj))
 header-files  := $(notdir $(wildcard $(srcdir)/*.h))
-header-files  += $(notdir $(wildcard $(srcdir)/*.agh))
 header-files  := $(filter-out $(no-export-headers), $(header-files))
 genhdr-files  := $(notdir $(wildcard $(gendir)/*.h))
 genhdr-files  := $(filter-out $(header-files), $(genhdr-files))
