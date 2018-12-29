@@ -28,6 +28,8 @@
 
 /* Save Tsunami configuration data as the console had it set up.  */
 
+//Orhan :)
+
 struct 
 {
 	unsigned long wsba[4];
