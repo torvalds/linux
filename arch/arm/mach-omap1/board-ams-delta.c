@@ -601,7 +601,7 @@ static void __init modem_assign_irq(struct gpio_chip *chip)
 	struct gpio_desc *gpiod;
 
 	gpiod = gpiochip_request_own_desc(chip, AMS_DELTA_GPIO_PIN_MODEM_IRQ,
-					  "modem_irq");
+					  "modem_irq", 0);
 	if (IS_ERR(gpiod)) {
 		pr_err("%s: modem IRQ GPIO request failed (%ld)\n", __func__,
 		       PTR_ERR(gpiod));
@@ -809,7 +809,7 @@ static void __init ams_delta_led_init(struct gpio_chip *chip)
 	int i;
 
 	for (i = LATCH1_PIN_LED_CAMERA; i < LATCH1_PIN_DOCKIT1; i++) {
-		gpiod = gpiochip_request_own_desc(chip, i, NULL);
+		gpiod = gpiochip_request_own_desc(chip, i, "camera-led", 0);
 		if (IS_ERR(gpiod)) {
 			pr_warn("%s: %s GPIO %d request failed (%ld)\n",
 				__func__, LATCH1_LABEL, i, PTR_ERR(gpiod));
