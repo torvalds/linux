@@ -185,13 +185,13 @@ restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
 	COPY(sar);
 #undef COPY
 
-	/* All registers were flushed to stack. Start with a prestine frame. */
+	/* All registers were flushed to stack. Start with a pristine frame. */
 
 	regs->wmask = 1;
 	regs->windowbase = 0;
 	regs->windowstart = 1;
 
-	regs->syscall = -1;		/* disable syscall checks */
+	regs->syscall = NO_SYSCALL;	/* disable syscall checks */
 
 	/* For PS, restore only PS.CALLINC.
 	 * Assume that all other bits are either the same as for the signal
@@ -423,7 +423,7 @@ static void do_signal(struct pt_regs *regs)
 
 		/* Are we from a system call? */
 
-		if ((signed)regs->syscall >= 0) {
+		if (regs->syscall != NO_SYSCALL) {
 
 			/* If so, check system call restarting.. */
 
@@ -462,7 +462,7 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/* Did we come from a system call? */
-	if ((signed) regs->syscall >= 0) {
+	if (regs->syscall != NO_SYSCALL) {
 		/* Restart the system call - no handlers present */
 		switch (regs->areg[2]) {
 		case -ERESTARTNOHAND:

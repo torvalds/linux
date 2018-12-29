@@ -159,10 +159,9 @@ __asm__ __volatile__(					\
 	"2:				\n"		\
 	"   .section  .fixup,\"ax\"	\n"		\
 	"   .align 4			\n"		\
-	"4:				\n"		\
-	"   .long  2b			\n"		\
+	"   .literal_position		\n"		\
 	"5:				\n"		\
-	"   l32r   %1, 4b		\n"		\
+	"   movi   %1, 2b		\n"		\
 	"   movi   %0, %4		\n"		\
 	"   jx     %1			\n"		\
 	"   .previous			\n"		\
@@ -217,10 +216,9 @@ __asm__ __volatile__(			\
 	"2:				\n"	\
 	"   .section  .fixup,\"ax\"	\n"	\
 	"   .align 4			\n"	\
-	"4:				\n"	\
-	"   .long  2b			\n"	\
+	"   .literal_position		\n"	\
 	"5:				\n"	\
-	"   l32r   %1, 4b		\n"	\
+	"   movi   %1, 2b		\n"	\
 	"   movi   %2, 0		\n"	\
 	"   movi   %0, %4		\n"	\
 	"   jx     %1			\n"	\
