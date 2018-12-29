@@ -234,7 +234,7 @@ struct platform_object {
  */
 void platform_device_put(struct platform_device *pdev)
 {
-	if (pdev)
+	if (!IS_ERR_OR_NULL(pdev))
 		put_device(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(platform_device_put);
@@ -447,7 +447,7 @@ void platform_device_del(struct platform_device *pdev)
 {
 	int i;
 
-	if (pdev) {
+	if (!IS_ERR_OR_NULL(pdev)) {
 		device_del(&pdev->dev);
 
 		if (pdev->id_auto) {

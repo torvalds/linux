@@ -815,10 +815,12 @@ ssize_t device_store_ulong(struct device *dev,
 			   const char *buf, size_t size)
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
-	char *end;
-	unsigned long new = simple_strtoul(buf, &end, 0);
-	if (end == buf)
-		return -EINVAL;
+	int ret;
+	unsigned long new;
+
+	ret = kstrtoul(buf, 0, &new);
+	if (ret)
+		return ret;
 	*(unsigned long *)(ea->var) = new;
 	/* Always return full write size even if we didn't consume all */
 	return size;
@@ -839,9 +841,14 @@ ssize_t device_store_int(struct device *dev,
 			 const char *buf, size_t size)
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
-	char *end;
-	long new = simple_strtol(buf, &end, 0);
-	if (end == buf || new > INT_MAX || new < INT_MIN)
+	int ret;
+	long new;
+
+	ret = kstrtol(buf, 0, &new);
+	if (ret)
+		return ret;
+
+	if (new > INT_MAX || new < INT_MIN)
 		return -EINVAL;
 	*(int *)(ea->var) = new;
 	/* Always return full write size even if we didn't consume all */
@@ -911,8 +918,7 @@ static void device_release(struct kobject *kobj)
 	else if (dev->class && dev->class->dev_release)
 		dev->class->dev_release(dev);
 	else
-		WARN(1, KERN_ERR "Device '%s' does not have a release() "
-			"function, it is broken and must be fixed.\n",
+		WARN(1, KERN_ERR "Device '%s' does not have a release() function, it is broken and must be fixed. See Documentation/kobject.txt.\n",
 			dev_name(dev));
 	kfree(p);
 }
@@ -1088,8 +1094,14 @@ out:
 static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	if (kobject_synth_uevent(&dev->kobj, buf, count))
+	int rc;
+
+	rc = kobject_synth_uevent(&dev->kobj, buf, count);
+
+	if (rc) {
 		dev_err(dev, "uevent: failed to send synthetic uevent\n");
+		return rc;
+	}
 
 	return count;
 }
