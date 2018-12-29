@@ -1,12 +1,7 @@
-/*
- * Host AP crypt: host-based CCMP encryption implementation for Host AP driver
+// SPDX-License-Identifier: GPL-2.0
+/* Host AP crypt: host-based CCMP encryption implementation for Host AP driver
  *
  * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 #include <linux/module.h>
@@ -377,10 +372,11 @@ static int rtllib_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 			data->rx_pn[5] = seq[0];
 		}
 		crypto_cipher_setkey((void *)data->tfm, data->key, CCMP_TK_LEN);
-	} else if (len == 0)
+	} else if (len == 0) {
 		data->key_set = 0;
-	else
+	} else {
 		return -1;
+	}
 
 	return 0;
 }

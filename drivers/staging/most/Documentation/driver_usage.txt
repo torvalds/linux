@@ -142,8 +142,9 @@ Cdev component example:
 
 Sound component example:
 
-The sound component needs an additional parameter to determine the audio
-resolution that is going to be used. The following formats are available:
+The sound component needs additional parameters to determine the audio
+resolution that is going to be used and to trigger the registration of a
+sound card with ALSA. The following audio formats are available:
 
 	- "1x8" (Mono)
 	- "2x16" (16-bit stereo)
@@ -151,9 +152,18 @@ resolution that is going to be used. The following formats are available:
 	- "2x32" (32-bit stereo)
 	- "6x16" (16-bit surround 5.1)
 
-        $ echo "mdev0:ep_81:sound:most51_playback.6x16" >$(DRV_DIR)/add_link
+To make the sound module create a sound card and register it with ALSA the
+string "create" needs to be attached to the module parameter section of the
+configuration string. To create a sound card with with two playback devices
+(linked to channel ep01 and ep02) and one capture device (linked to channel
+ep83) the following is written to the add_link file:
 
+        $ echo "mdev0:ep01:sound:most51_playback.6x16" >$(DRV_DIR)/add_link
+        $ echo "mdev0:ep02:sound:most_playback.2x16" >$(DRV_DIR)/add_link
+        $ echo "mdev0:ep83:sound:most_capture.2x16.create" >$(DRV_DIR)/add_link
 
+The link names (most51_playback, most_playback and most_capture) will
+become the names of the PCM devices of the sound card.
 
 		Section 2.3 USB Padding
 
