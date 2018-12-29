@@ -52,6 +52,8 @@
 #include "common.h"
 #include "version.h"
 
+#define RKISP_VERNO_LEN		10
+
 struct isp_irqs_data {
 	const char *name;
 	irqreturn_t (*irq_hdl)(int irq, void *ctx);
@@ -70,6 +72,10 @@ struct isp_match_data {
 int rkisp1_debug;
 module_param_named(debug, rkisp1_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
+
+static char rkisp1_version[RKISP_VERNO_LEN];
+module_param_string(version, rkisp1_version, RKISP_VERNO_LEN, 0444);
+MODULE_PARM_DESC(version, "version number");
 
 /**************************** pipeline operations *****************************/
 
@@ -907,10 +913,12 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret, irq;
 
-	dev_info(dev, "rkisp1 driver version: v%x.%x.%x\n",
-		 RKISP1_DRIVER_VERSION >> 16,
-		 (RKISP1_DRIVER_VERSION & 0xff00) >> 8,
-		 RKISP1_DRIVER_VERSION & 0x00ff);
+	sprintf(rkisp1_version, "v%02x.%02x.%02x",
+		RKISP1_DRIVER_VERSION >> 16,
+		(RKISP1_DRIVER_VERSION & 0xff00) >> 8,
+		RKISP1_DRIVER_VERSION & 0x00ff);
+
+	dev_info(dev, "rkisp1 driver version: %s\n", rkisp1_version);
 
 	match = of_match_node(rkisp1_plat_of_match, node);
 	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
