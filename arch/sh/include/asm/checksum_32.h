@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_CHECKSUM_H
 #define __ASM_SH_CHECKSUM_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 1999 by Kaz Kojima & Niibe Yutaka
  */
 

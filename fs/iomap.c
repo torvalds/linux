@@ -563,7 +563,7 @@ iomap_migrate_page(struct address_space *mapping, struct page *newpage,
 {
 	int ret;
 
-	ret = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
+	ret = migrate_page_move_mapping(mapping, newpage, page, mode, 0);
 	if (ret != MIGRATEPAGE_SUCCESS)
 		return ret;
 

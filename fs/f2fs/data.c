@@ -2738,7 +2738,7 @@ int f2fs_migrate_page(struct address_space *mapping,
 	 */
 	extra_count = (atomic_written ? 1 : 0) - page_has_private(page);
 	rc = migrate_page_move_mapping(mapping, newpage,
-				page, NULL, mode, extra_count);
+				page, mode, extra_count);
 	if (rc != MIGRATEPAGE_SUCCESS) {
 		if (atomic_written)
 			mutex_unlock(&fi->inmem_lock);

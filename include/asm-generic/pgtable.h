@@ -1057,6 +1057,7 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
 int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
 int pud_clear_huge(pud_t *pud);
 int pmd_clear_huge(pmd_t *pmd);
+int p4d_free_pud_page(p4d_t *p4d, unsigned long addr);
 int pud_free_pmd_page(pud_t *pud, unsigned long addr);
 int pmd_free_pte_page(pmd_t *pmd, unsigned long addr);
 #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
@@ -1081,6 +1082,10 @@ static inline int pud_clear_huge(pud_t *pud)
 	return 0;
 }
 static inline int pmd_clear_huge(pmd_t *pmd)
+{
+	return 0;
+}
+static inline int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
 {
 	return 0;
 }

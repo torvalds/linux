@@ -146,15 +146,12 @@ static int invalidate_range_start_trampoline(struct ib_umem_odp *item,
 }
 
 static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
-						    struct mm_struct *mm,
-						    unsigned long start,
-						    unsigned long end,
-						    bool blockable)
+				const struct mmu_notifier_range *range)
 {
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
 
-	if (blockable)
+	if (range->blockable)
 		down_read(&per_mm->umem_rwsem);
 	else if (!down_read_trylock(&per_mm->umem_rwsem))
 		return -EAGAIN;
@@ -169,9 +166,10 @@ static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
 		return 0;
 	}
 
-	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start, end,
+	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, range->start,
+					     range->end,
 					     invalidate_range_start_trampoline,
-					     blockable, NULL);
+					     range->blockable, NULL);
 }
 
 static int invalidate_range_end_trampoline(struct ib_umem_odp *item, u64 start,
@@ -182,9 +180,7 @@ static int invalidate_range_end_trampoline(struct ib_umem_odp *item, u64 start,
 }
 
 static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
-						  struct mm_struct *mm,
-						  unsigned long start,
-						  unsigned long end)
+				const struct mmu_notifier_range *range)
 {
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
@@ -192,8 +188,8 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	if (unlikely(!per_mm->active))
 		return;
 
-	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start,
-				      end,
+	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, range->start,
+				      range->end,
 				      invalidate_range_end_trampoline, true, NULL);
 	up_read(&per_mm->umem_rwsem);
 }

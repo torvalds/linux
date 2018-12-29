@@ -1887,7 +1887,7 @@ static int __init dm_bufio_init(void)
 	dm_bufio_allocated_vmalloc = 0;
 	dm_bufio_current_allocated = 0;
 
-	mem = (__u64)mult_frac(totalram_pages - totalhigh_pages,
+	mem = (__u64)mult_frac(totalram_pages() - totalhigh_pages(),
 			       DM_BUFIO_MEMORY_PERCENT, 100) << PAGE_SHIFT;
 
 	if (mem > ULONG_MAX)

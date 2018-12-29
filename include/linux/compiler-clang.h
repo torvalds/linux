@@ -16,9 +16,13 @@
 /* all clang versions usable with the kernel support KASAN ABI version 5 */
 #define KASAN_ABI_VERSION 5
 
+#if __has_feature(address_sanitizer) || __has_feature(hwaddress_sanitizer)
 /* emulate gcc's __SANITIZE_ADDRESS__ flag */
-#if __has_feature(address_sanitizer)
 #define __SANITIZE_ADDRESS__
+#define __no_sanitize_address \
+		__attribute__((no_sanitize("address", "hwaddress")))
+#else
+#define __no_sanitize_address
 #endif
 
 /*

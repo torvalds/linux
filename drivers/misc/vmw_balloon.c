@@ -570,7 +570,7 @@ static int vmballoon_send_get_target(struct vmballoon *b)
 	unsigned long status;
 	unsigned long limit;
 
-	limit = totalram_pages;
+	limit = totalram_pages();
 
 	/* Ensure limit fits in 32-bits */
 	if (limit != (u32)limit)

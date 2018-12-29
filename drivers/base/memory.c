@@ -207,15 +207,15 @@ static bool pages_correctly_probed(unsigned long start_pfn)
 			return false;
 
 		if (!present_section_nr(section_nr)) {
-			pr_warn("section %ld pfn[%lx, %lx) not present",
+			pr_warn("section %ld pfn[%lx, %lx) not present\n",
 				section_nr, pfn, pfn + PAGES_PER_SECTION);
 			return false;
 		} else if (!valid_section_nr(section_nr)) {
-			pr_warn("section %ld pfn[%lx, %lx) no valid memmap",
+			pr_warn("section %ld pfn[%lx, %lx) no valid memmap\n",
 				section_nr, pfn, pfn + PAGES_PER_SECTION);
 			return false;
 		} else if (online_section_nr(section_nr)) {
-			pr_warn("section %ld pfn[%lx, %lx) is already online",
+			pr_warn("section %ld pfn[%lx, %lx) is already online\n",
 				section_nr, pfn, pfn + PAGES_PER_SECTION);
 			return false;
 		}
@@ -688,7 +688,7 @@ static int add_memory_block(int base_section_nr)
 	int i, ret, section_count = 0, section_nr;
 
 	for (i = base_section_nr;
-	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
+	     i < base_section_nr + sections_per_block;
 	     i++) {
 		if (!present_section_nr(i))
 			continue;

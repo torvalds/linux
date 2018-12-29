@@ -521,6 +521,7 @@ static void __init mm_init(void)
 	mem_init();
 	kmem_cache_init();
 	pgtable_init();
+	debug_objects_mem_init();
 	vmalloc_init();
 	ioremap_huge_init();
 	/* Should be run before the first non-init thread is created */
@@ -697,7 +698,6 @@ asmlinkage __visible void __init start_kernel(void)
 #endif
 	page_ext_init();
 	kmemleak_init();
-	debug_objects_mem_init();
 	setup_per_cpu_pageset();
 	numa_policy_init();
 	acpi_early_init();

@@ -200,19 +200,6 @@
 #define __noreturn                      __attribute__((__noreturn__))
 
 /*
- * Optional: only supported since gcc >= 4.8
- * Optional: not supported by icc
- *
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-no_005fsanitize_005faddress-function-attribute
- * clang: https://clang.llvm.org/docs/AttributeReference.html#no-sanitize-address-no-address-safety-analysis
- */
-#if __has_attribute(__no_sanitize_address__)
-# define __no_sanitize_address          __attribute__((__no_sanitize_address__))
-#else
-# define __no_sanitize_address
-#endif
-
-/*
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Type-Attributes.html#index-packed-type-attribute
  * clang: https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-packed-variable-attribute
  */

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009 Matt Fleming <matt@console-pimps.org>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * This is an implementation of a DWARF unwinder. Its main purpose is
  * for generating stacktrace information. Based on the DWARF 3

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file contains some kasan initialization code.
  *
@@ -30,13 +31,13 @@
  *   - Latter it reused it as zero shadow to cover large ranges of memory
  *     that allowed to access, but not handled by kasan (vmalloc/vmemmap ...).
  */
-unsigned char kasan_zero_page[PAGE_SIZE] __page_aligned_bss;
+unsigned char kasan_early_shadow_page[PAGE_SIZE] __page_aligned_bss;
 
 #if CONFIG_PGTABLE_LEVELS > 4
-p4d_t kasan_zero_p4d[MAX_PTRS_PER_P4D] __page_aligned_bss;
+p4d_t kasan_early_shadow_p4d[MAX_PTRS_PER_P4D] __page_aligned_bss;
 static inline bool kasan_p4d_table(pgd_t pgd)
 {
-	return pgd_page(pgd) == virt_to_page(lm_alias(kasan_zero_p4d));
+	return pgd_page(pgd) == virt_to_page(lm_alias(kasan_early_shadow_p4d));
 }
 #else
 static inline bool kasan_p4d_table(pgd_t pgd)
@@ -45,10 +46,10 @@ static inline bool kasan_p4d_table(pgd_t pgd)
 }
 #endif
 #if CONFIG_PGTABLE_LEVELS > 3
-pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
+pud_t kasan_early_shadow_pud[PTRS_PER_PUD] __page_aligned_bss;
 static inline bool kasan_pud_table(p4d_t p4d)
 {
-	return p4d_page(p4d) == virt_to_page(lm_alias(kasan_zero_pud));
+	return p4d_page(p4d) == virt_to_page(lm_alias(kasan_early_shadow_pud));
 }
 #else
 static inline bool kasan_pud_table(p4d_t p4d)
@@ -57,10 +58,10 @@ static inline bool kasan_pud_table(p4d_t p4d)
 }
 #endif
 #if CONFIG_PGTABLE_LEVELS > 2
-pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
+pmd_t kasan_early_shadow_pmd[PTRS_PER_PMD] __page_aligned_bss;
 static inline bool kasan_pmd_table(pud_t pud)
 {
-	return pud_page(pud) == virt_to_page(lm_alias(kasan_zero_pmd));
+	return pud_page(pud) == virt_to_page(lm_alias(kasan_early_shadow_pmd));
 }
 #else
 static inline bool kasan_pmd_table(pud_t pud)
@@ -68,16 +69,16 @@ static inline bool kasan_pmd_table(pud_t pud)
 	return 0;
 }
 #endif
-pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+pte_t kasan_early_shadow_pte[PTRS_PER_PTE] __page_aligned_bss;
 
 static inline bool kasan_pte_table(pmd_t pmd)
 {
-	return pmd_page(pmd) == virt_to_page(lm_alias(kasan_zero_pte));
+	return pmd_page(pmd) == virt_to_page(lm_alias(kasan_early_shadow_pte));
 }
 
-static inline bool kasan_zero_page_entry(pte_t pte)
+static inline bool kasan_early_shadow_page_entry(pte_t pte)
 {
-	return pte_page(pte) == virt_to_page(lm_alias(kasan_zero_page));
+	return pte_page(pte) == virt_to_page(lm_alias(kasan_early_shadow_page));
 }
 
 static __init void *early_alloc(size_t size, int node)
@@ -92,7 +93,8 @@ static void __ref zero_pte_populate(pmd_t *pmd, unsigned long addr,
 	pte_t *pte = pte_offset_kernel(pmd, addr);
 	pte_t zero_pte;
 
-	zero_pte = pfn_pte(PFN_DOWN(__pa_symbol(kasan_zero_page)), PAGE_KERNEL);
+	zero_pte = pfn_pte(PFN_DOWN(__pa_symbol(kasan_early_shadow_page)),
+				PAGE_KERNEL);
 	zero_pte = pte_wrprotect(zero_pte);
 
 	while (addr + PAGE_SIZE <= end) {
@@ -112,7 +114,8 @@ static int __ref zero_pmd_populate(pud_t *pud, unsigned long addr,
 		next = pmd_addr_end(addr, end);
 
 		if (IS_ALIGNED(addr, PMD_SIZE) && end - addr >= PMD_SIZE) {
-			pmd_populate_kernel(&init_mm, pmd, lm_alias(kasan_zero_pte));
+			pmd_populate_kernel(&init_mm, pmd,
+					lm_alias(kasan_early_shadow_pte));
 			continue;
 		}
 
@@ -145,9 +148,11 @@ static int __ref zero_pud_populate(p4d_t *p4d, unsigned long addr,
 		if (IS_ALIGNED(addr, PUD_SIZE) && end - addr >= PUD_SIZE) {
 			pmd_t *pmd;
 
-			pud_populate(&init_mm, pud, lm_alias(kasan_zero_pmd));
+			pud_populate(&init_mm, pud,
+					lm_alias(kasan_early_shadow_pmd));
 			pmd = pmd_offset(pud, addr);
-			pmd_populate_kernel(&init_mm, pmd, lm_alias(kasan_zero_pte));
+			pmd_populate_kernel(&init_mm, pmd,
+					lm_alias(kasan_early_shadow_pte));
 			continue;
 		}
 
@@ -181,12 +186,14 @@ static int __ref zero_p4d_populate(pgd_t *pgd, unsigned long addr,
 			pud_t *pud;
 			pmd_t *pmd;
 
-			p4d_populate(&init_mm, p4d, lm_alias(kasan_zero_pud));
+			p4d_populate(&init_mm, p4d,
+					lm_alias(kasan_early_shadow_pud));
 			pud = pud_offset(p4d, addr);
-			pud_populate(&init_mm, pud, lm_alias(kasan_zero_pmd));
+			pud_populate(&init_mm, pud,
+					lm_alias(kasan_early_shadow_pmd));
 			pmd = pmd_offset(pud, addr);
 			pmd_populate_kernel(&init_mm, pmd,
-						lm_alias(kasan_zero_pte));
+					lm_alias(kasan_early_shadow_pte));
 			continue;
 		}
 
@@ -209,13 +216,13 @@ static int __ref zero_p4d_populate(pgd_t *pgd, unsigned long addr,
 }
 
 /**
- * kasan_populate_zero_shadow - populate shadow memory region with
- *                               kasan_zero_page
+ * kasan_populate_early_shadow - populate shadow memory region with
+ *                               kasan_early_shadow_page
  * @shadow_start - start of the memory range to populate
  * @shadow_end   - end of the memory range to populate
  */
-int __ref kasan_populate_zero_shadow(const void *shadow_start,
-				const void *shadow_end)
+int __ref kasan_populate_early_shadow(const void *shadow_start,
+					const void *shadow_end)
 {
 	unsigned long addr = (unsigned long)shadow_start;
 	unsigned long end = (unsigned long)shadow_end;
@@ -231,7 +238,7 @@ int __ref kasan_populate_zero_shadow(const void *shadow_start,
 			pmd_t *pmd;
 
 			/*
-			 * kasan_zero_pud should be populated with pmds
+			 * kasan_early_shadow_pud should be populated with pmds
 			 * at this moment.
 			 * [pud,pmd]_populate*() below needed only for
 			 * 3,2 - level page tables where we don't have
@@ -241,21 +248,25 @@ int __ref kasan_populate_zero_shadow(const void *shadow_start,
 			 * The ifndef is required to avoid build breakage.
 			 *
 			 * With 5level-fixup.h, pgd_populate() is not nop and
-			 * we reference kasan_zero_p4d. It's not defined
+			 * we reference kasan_early_shadow_p4d. It's not defined
 			 * unless 5-level paging enabled.
 			 *
 			 * The ifndef can be dropped once all KASAN-enabled
 			 * architectures will switch to pgtable-nop4d.h.
 			 */
 #ifndef __ARCH_HAS_5LEVEL_HACK
-			pgd_populate(&init_mm, pgd, lm_alias(kasan_zero_p4d));
+			pgd_populate(&init_mm, pgd,
+					lm_alias(kasan_early_shadow_p4d));
 #endif
 			p4d = p4d_offset(pgd, addr);
-			p4d_populate(&init_mm, p4d, lm_alias(kasan_zero_pud));
+			p4d_populate(&init_mm, p4d,
+					lm_alias(kasan_early_shadow_pud));
 			pud = pud_offset(p4d, addr);
-			pud_populate(&init_mm, pud, lm_alias(kasan_zero_pmd));
+			pud_populate(&init_mm, pud,
+					lm_alias(kasan_early_shadow_pmd));
 			pmd = pmd_offset(pud, addr);
-			pmd_populate_kernel(&init_mm, pmd, lm_alias(kasan_zero_pte));
+			pmd_populate_kernel(&init_mm, pmd,
+					lm_alias(kasan_early_shadow_pte));
 			continue;
 		}
 
@@ -350,7 +361,7 @@ static void kasan_remove_pte_table(pte_t *pte, unsigned long addr,
 		if (!pte_present(*pte))
 			continue;
 
-		if (WARN_ON(!kasan_zero_page_entry(*pte)))
+		if (WARN_ON(!kasan_early_shadow_page_entry(*pte)))
 			continue;
 		pte_clear(&init_mm, addr, pte);
 	}
@@ -480,7 +491,7 @@ int kasan_add_zero_shadow(void *start, unsigned long size)
 	    WARN_ON(size % (KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE)))
 		return -EINVAL;
 
-	ret = kasan_populate_zero_shadow(shadow_start, shadow_end);
+	ret = kasan_populate_early_shadow(shadow_start, shadow_end);
 	if (ret)
 		kasan_remove_zero_shadow(shadow_start,
 					size >> KASAN_SHADOW_SCALE_SHIFT);
