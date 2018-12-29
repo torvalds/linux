@@ -332,6 +332,19 @@ static void __init palmld_map_io(void)
 	iotable_init(palmld_io_desc, ARRAY_SIZE(palmld_io_desc));
 }
 
+static struct gpiod_lookup_table palmld_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMLD_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMLD_SD_READONLY,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMLD_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static void __init palmld_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmld_pin_config));
@@ -339,8 +352,7 @@ static void __init palmld_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	palm27x_mmc_init(GPIO_NR_PALMLD_SD_DETECT_N, GPIO_NR_PALMLD_SD_READONLY,
-			GPIO_NR_PALMLD_SD_POWER, 0);
+	palm27x_mmc_init(&palmld_mci_gpio_table);
 	palm27x_pm_init(PALMLD_STR_BASE);
 	palm27x_lcd_init(-1, &palm_320x480_lcd_mode);
 	palm27x_irda_init(GPIO_NR_PALMLD_IR_DISABLE);

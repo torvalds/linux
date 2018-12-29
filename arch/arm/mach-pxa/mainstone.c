@@ -361,9 +361,6 @@ static struct pxamci_platform_data mainstone_mci_platform_data = {
 	.init 			= mainstone_mci_init,
 	.setpower 		= mainstone_mci_setpower,
 	.exit			= mainstone_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 static void mainstone_irda_transceiver_mode(struct device *dev, int mode)
