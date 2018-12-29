@@ -1,0 +1,34 @@
+ROCKCHIP MIPI/LVDS/TTL VIDEO COMBO PHY WITH INNO IP BLOCK
+
+Required properties:
+ - compatible : must be one of:
+	"rockchip,px30-video-phy",
+	"rockchip,rk3128-video-phy",
+	"rockchip,rk3368-video-phy";
+ - reg : the address offset of register for phy and host configuration.
+ - #phy-cells : must be 0. See ./phy-bindings.txt for details.
+ - clocks: must include clock specifiers corresponding to entries in the
+	   clock-names property. See ../clocks/clock-bindings.txt for details.
+ - clock-names: list of clock names sorted in the same order as the clocks
+		property. Must contain "ref", "pclk_phy", "pclk_host".
+ - #clock-cells : from common clock binding; shall be set to 0.
+ - resets : phandle to the reset of phy apb clock.
+ - reset-names : should be "rst".
+ - power-domains: Must contain a reference to the PM domain, if available.
+
+Example:
+
+	video_phy: video-phy@ff2e0000 {
+		compatible = "rockchip,px30-video-phy";
+		reg = <0x0 0xff2e0000 0x0 0x10000>,
+		      <0x0 0xff450000 0x0 0x10000>;
+		clocks = <&pmucru SCLK_MIPIDSIPHY_REF>,
+			 <&cru PCLK_MIPIDSIPHY>, <&cru PCLK_MIPI_DSI>;
+		clock-names = "ref", "pclk_phy", "pclk_host";
+		#clock-cells = <0>;
+		resets = <&cru SRST_MIPIDSIPHY_P>;
+		reset-names = "rst";
+		power-domains = <&power PX30_PD_VO>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
