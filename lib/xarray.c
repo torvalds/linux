@@ -232,6 +232,8 @@ void *xas_load(struct xa_state *xas)
 		if (xas->xa_shift > node->shift)
 			break;
 		entry = xas_descend(xas, node);
+		if (node->shift == 0)
+			break;
 	}
 	return entry;
 }
@@ -506,7 +508,7 @@ static void xas_free_nodes(struct xa_state *xas, struct xa_node *top)
 	for (;;) {
 		void *entry = xa_entry_locked(xas->xa, node, offset);
 
-		if (xa_is_node(entry)) {
+		if (node->shift && xa_is_node(entry)) {
 			node = xa_to_node(entry);
 			offset = 0;
 			continue;
@@ -604,6 +606,7 @@ static int xas_expand(struct xa_state *xas, void *head)
 /*
  * xas_create() - Create a slot to store an entry in.
  * @xas: XArray operation state.
+ * @allow_root: %true if we can store the entry in the root directly
  *
  * Most users will not need to call this function directly, as it is called
  * by xas_store().  It is useful for doing conditional store operations
@@ -613,7 +616,7 @@ static int xas_expand(struct xa_state *xas, void *head)
  * If the slot was newly created, returns %NULL.  If it failed to create the
  * slot, returns %NULL and indicates the error in @xas.
  */
-static void *xas_create(struct xa_state *xas)
+static void *xas_create(struct xa_state *xas, bool allow_root)
 {
 	struct xarray *xa = xas->xa;
 	void *entry;
@@ -628,6 +631,8 @@ static void *xas_create(struct xa_state *xas)
 		shift = xas_expand(xas, entry);
 		if (shift < 0)
 			return NULL;
+		if (!shift && !allow_root)
+			shift = XA_CHUNK_SHIFT;
 		entry = xa_head_locked(xa);
 		slot = &xa->xa_head;
 	} else if (xas_error(xas)) {
@@ -687,7 +692,7 @@ void xas_create_range(struct xa_state *xas)
 	xas->xa_sibs = 0;
 
 	for (;;) {
-		xas_create(xas);
+		xas_create(xas, true);
 		if (xas_error(xas))
 			goto restore;
 		if (xas->xa_index <= (index | XA_CHUNK_MASK))
@@ -754,7 +759,7 @@ void *xas_store(struct xa_state *xas, void *entry)
 	bool value = xa_is_value(entry);
 
 	if (entry)
-		first = xas_create(xas);
+		first = xas_create(xas, !xa_is_node(entry));
 	else
 		first = xas_load(xas);
 
@@ -1279,7 +1284,6 @@ static void *xas_result(struct xa_state *xas, void *curr)
 {
 	if (xa_is_zero(curr))
 		return NULL;
-	XA_NODE_BUG_ON(xas->xa_node, xa_is_internal(curr));
 	if (xas_error(xas))
 		curr = xas->xa_node;
 	return curr;
@@ -1349,7 +1353,7 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 	XA_STATE(xas, xa, index);
 	void *curr;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
 		return XA_ERROR(-EINVAL);
 	if (xa_track_free(xa) && !entry)
 		entry = XA_ZERO_ENTRY;
@@ -1415,7 +1419,7 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 	XA_STATE(xas, xa, index);
 	void *curr;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
 		return XA_ERROR(-EINVAL);
 	if (xa_track_free(xa) && !entry)
 		entry = XA_ZERO_ENTRY;
@@ -1538,7 +1542,7 @@ void *xa_store_range(struct xarray *xa, unsigned long first,
 			if (last + 1)
 				order = __ffs(last + 1);
 			xas_set_order(&xas, last, order);
-			xas_create(&xas);
+			xas_create(&xas, true);
 			if (xas_error(&xas))
 				goto unlock;
 		}
@@ -1580,7 +1584,7 @@ int __xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry, gfp_t gfp)
 	XA_STATE(xas, xa, 0);
 	int err;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
 		return -EINVAL;
 	if (WARN_ON_ONCE(!xa_track_free(xa)))
 		return -EINVAL;

@@ -1184,6 +1184,35 @@ static noinline void check_store_range(struct xarray *xa)
 	}
 }
 
+static void check_align_1(struct xarray *xa, char *name)
+{
+	int i;
+	unsigned int id;
+	unsigned long index;
+	void *entry;
+
+	for (i = 0; i < 8; i++) {
+		id = 0;
+		XA_BUG_ON(xa, xa_alloc(xa, &id, UINT_MAX, name + i, GFP_KERNEL)
+				!= 0);
+		XA_BUG_ON(xa, id != i);
+	}
+	xa_for_each(xa, index, entry)
+		XA_BUG_ON(xa, xa_is_err(entry));
+	xa_destroy(xa);
+}
+
+static noinline void check_align(struct xarray *xa)
+{
+	char name[] = "Motorola 68000";
+
+	check_align_1(xa, name);
+	check_align_1(xa, name + 1);
+	check_align_1(xa, name + 2);
+	check_align_1(xa, name + 3);
+//	check_align_2(xa, name);
+}
+
 static LIST_HEAD(shadow_nodes);
 
 static void test_update_node(struct xa_node *node)
@@ -1333,6 +1362,7 @@ static int xarray_checks(void)
 	check_create_range(&array);
 	check_store_range(&array);
 	check_store_iter(&array);
+	check_align(&xa0);
 
 	check_workingset(&array, 0);
 	check_workingset(&array, 64);

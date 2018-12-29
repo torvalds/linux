@@ -176,7 +176,8 @@ static inline bool xa_is_internal(const void *entry)
  */
 static inline bool xa_is_err(const void *entry)
 {
-	return unlikely(xa_is_internal(entry));
+	return unlikely(xa_is_internal(entry) &&
+			(unsigned long)entry >= -((MAX_ERRNO << 2) + 2));
 }
 
 /**
@@ -1039,8 +1040,8 @@ static inline bool xa_is_sibling(const void *entry)
 		(entry < xa_mk_sibling(XA_CHUNK_SIZE - 1));
 }
 
-#define XA_ZERO_ENTRY		xa_mk_internal(256)
-#define XA_RETRY_ENTRY		xa_mk_internal(257)
+#define XA_RETRY_ENTRY		xa_mk_internal(256)
+#define XA_ZERO_ENTRY		xa_mk_internal(257)
 
 /**
  * xa_is_zero() - Is the entry a zero entry?
@@ -1062,6 +1063,17 @@ static inline bool xa_is_zero(const void *entry)
 static inline bool xa_is_retry(const void *entry)
 {
 	return unlikely(entry == XA_RETRY_ENTRY);
+}
+
+/**
+ * xa_is_advanced() - Is the entry only permitted for the advanced API?
+ * @entry: Entry to be stored in the XArray.
+ *
+ * Return: %true if the entry cannot be stored by the normal API.
+ */
+static inline bool xa_is_advanced(const void *entry)
+{
+	return xa_is_internal(entry) && (entry <= XA_RETRY_ENTRY);
 }
 
 /**
