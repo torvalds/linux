@@ -45,6 +45,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#include "irqs.h"
+
 #define IXP4XX_TIMER_FREQ 66666000
 
 /*

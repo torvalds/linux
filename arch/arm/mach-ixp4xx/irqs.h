@@ -63,8 +63,6 @@
 #define _IXP4XX_GPIO_IRQ(n)	(IRQ_IXP4XX_GPIO ## n)
 #define IXP4XX_GPIO_IRQ(n)	_IXP4XX_GPIO_IRQ(n)
 
-#define NR_IRQS 512
-
 #define	XSCALE_PMU_IRQ		(IRQ_IXP4XX_XSCALE_PMU)
 
 #endif

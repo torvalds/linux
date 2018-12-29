@@ -32,6 +32,8 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
 
+#include "irqs.h"
+
 #define NSLU2_SDA_PIN		7
 #define NSLU2_SCL_PIN		6
 

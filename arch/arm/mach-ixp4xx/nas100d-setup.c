@@ -34,6 +34,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 #define NAS100D_SDA_PIN		5
 #define NAS100D_SCL_PIN		6
 

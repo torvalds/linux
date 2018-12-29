@@ -35,6 +35,8 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
 
+#include "irqs.h"
+
 #define DSMG600_SDA_PIN		5
 #define DSMG600_SCL_PIN		4
 

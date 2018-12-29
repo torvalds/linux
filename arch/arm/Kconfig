@@ -437,6 +437,7 @@ config ARCH_IXP4XX
 	select GPIOLIB
 	select HAVE_PCI
 	select NEED_MACH_IO_H
+	select SPARSE_IRQ
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	help

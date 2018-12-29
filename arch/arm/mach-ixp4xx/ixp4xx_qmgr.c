@@ -14,6 +14,8 @@
 #include <linux/module.h>
 #include <mach/qmgr.h>
 
+#include "irqs.h"
+
 static struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
 static struct resource *mem_res;
 static spinlock_t qmgr_lock;
