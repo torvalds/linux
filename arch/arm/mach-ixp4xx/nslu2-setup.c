@@ -125,10 +125,18 @@ static struct platform_device nslu2_i2c_gpio = {
 	},
 };
 
+static struct resource nslu2_beeper_resources[] = {
+	{
+		.start	= IRQ_IXP4XX_TIMER2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct platform_device nslu2_beeper = {
 	.name			= "ixp4xx-beeper",
 	.id			= NSLU2_GPIO_BUZZ,
-	.num_resources		= 0,
+	.resource		= nslu2_beeper_resources,
+	.num_resources		= ARRAY_SIZE(nslu2_beeper_resources),
 };
 
 static struct resource nslu2_uart_resources[] = {
