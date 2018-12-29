@@ -136,9 +136,14 @@ position p1;
 @r4 depends on !patch@
 bool b;
 position p2;
+identifier i;
 constant c != {0,1};
 @@
+(
+ b = i
+|
 *b@p2 = c
+)
 
 @script:python depends on org@
 p << r1.p;
