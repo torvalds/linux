@@ -2353,7 +2353,7 @@ F:	drivers/pinctrl/zte/
 F:	drivers/soc/zte/
 F:	drivers/thermal/zx2967_thermal.c
 F:	drivers/watchdog/zx2967_wdt.c
-F:	Documentation/devicetree/bindings/arm/zte.txt
+F:	Documentation/devicetree/bindings/arm/zte.yaml
 F:	Documentation/devicetree/bindings/clock/zx2967*.txt
 F:	Documentation/devicetree/bindings/dma/zxdma.txt
 F:	Documentation/devicetree/bindings/gpio/zx296702-gpio.txt

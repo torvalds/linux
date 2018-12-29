@@ -11,4 +11,4 @@ Required root node properties:
 
 MMP2 Brownstone Board
 Required root node properties:
-	- compatible = "mrvl,mmp2-brownstone";
+	- compatible = "mrvl,mmp2-brownstone", "mrvl,mmp2";
