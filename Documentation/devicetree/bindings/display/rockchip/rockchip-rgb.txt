@@ -10,6 +10,8 @@ Required properties:
 	- "rockchip,rv1108-rgb";
 
 Optional properties:
+- phys : phandle for the PHY device
+- phy-names : should be "phy"
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-1: the "sleep" pinctrl state
