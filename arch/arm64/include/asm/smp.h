@@ -16,9 +16,11 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
+#include <linux/const.h>
+
 /* Values for secondary_data.status */
 #define CPU_STUCK_REASON_SHIFT		(8)
-#define CPU_BOOT_STATUS_MASK		((1U << CPU_STUCK_REASON_SHIFT) - 1)
+#define CPU_BOOT_STATUS_MASK		((UL(1) << CPU_STUCK_REASON_SHIFT) - 1)
 
 #define CPU_MMU_OFF			(-1)
 #define CPU_BOOT_SUCCESS		(0)
@@ -29,8 +31,8 @@
 /* Fatal system error detected by secondary CPU, crash the system */
 #define CPU_PANIC_KERNEL		(3)
 
-#define CPU_STUCK_REASON_52_BIT_VA	(1U << CPU_STUCK_REASON_SHIFT)
-#define CPU_STUCK_REASON_NO_GRAN	(2U << CPU_STUCK_REASON_SHIFT)
+#define CPU_STUCK_REASON_52_BIT_VA	(UL(1) << CPU_STUCK_REASON_SHIFT)
+#define CPU_STUCK_REASON_NO_GRAN	(UL(2) << CPU_STUCK_REASON_SHIFT)
 
 #ifndef __ASSEMBLY__
 
