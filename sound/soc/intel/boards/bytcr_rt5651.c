@@ -98,6 +98,10 @@ struct byt_rt5651_private {
 static unsigned long byt_rt5651_quirk = BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN2_MAP;
 
+static unsigned int quirk_override;
+module_param_named(quirk, quirk_override, uint, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
+
 static void log_quirks(struct device *dev)
 {
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_DMIC_MAP)
@@ -972,6 +976,12 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5651_quirk_table);
+
+	if (quirk_override) {
+		dev_info(&pdev->dev, "Overriding quirk 0x%x => 0x%x\n",
+			 (unsigned int)byt_rt5651_quirk, quirk_override);
+		byt_rt5651_quirk = quirk_override;
+	}
 
 	/* Must be called before register_card, also see declaration comment. */
 	ret_val = byt_rt5651_add_codec_device_props(codec_dev);
