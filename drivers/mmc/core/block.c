@@ -2774,8 +2774,8 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
 
 	return ret;
 }
-DEFINE_SIMPLE_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
-		NULL, "%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
+			 NULL, "%08llx\n");
 
 /* That is two digits * 512 + 1 for newline */
 #define EXT_CSD_STR_LEN 1025
@@ -2863,8 +2863,9 @@ static int mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
 
 	if (mmc_card_mmc(card) || mmc_card_sd(card)) {
 		md->status_dentry =
-			debugfs_create_file("status", S_IRUSR, root, card,
-					    &mmc_dbg_card_status_fops);
+			debugfs_create_file_unsafe("status", 0400, root,
+						   card,
+						   &mmc_dbg_card_status_fops);
 		if (!md->status_dentry)
 			return -EIO;
 	}
