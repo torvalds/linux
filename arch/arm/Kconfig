@@ -433,6 +433,7 @@ config ARCH_IXP4XX
 	select CPU_XSCALE
 	select DMABOUNCE if PCI
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_PCI
 	select NEED_MACH_IO_H

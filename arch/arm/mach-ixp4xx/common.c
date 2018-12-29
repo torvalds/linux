@@ -31,12 +31,14 @@
 #include <linux/cpu.h>
 #include <linux/pci.h>
 #include <linux/sched_clock.h>
+#include <linux/bitops.h>
 #include <mach/udc.h>
 #include <mach/hardware.h>
 #include <mach/io.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/exception.h>
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 #include <asm/mach/map.h>
@@ -54,6 +56,7 @@
 				       (IXP4XX_OST_RELOAD_MASK + 1) * HZ) * \
 			(IXP4XX_OST_RELOAD_MASK + 1)
 
+static struct irq_domain *ixp4xx_irqdomain;
 static void __init ixp4xx_clocksource_init(void);
 static void __init ixp4xx_clockevent_init(void);
 static struct clock_event_device clockevent_ixp4xx;
@@ -166,16 +169,17 @@ static int ixp4xx_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 
 static int ixp4xx_set_irq_type(struct irq_data *d, unsigned int type)
 {
-	int line = irq2gpio[d->irq];
+	int line = irq2gpio[d->hwirq];
 	u32 int_style;
 	enum ixp4xx_irq_type irq_type;
 	volatile u32 *int_reg;
 
 	/*
 	 * Only for GPIO IRQs
+	 * all other IRQs are simply active low
 	 */
 	if (line < 0)
-		return -EINVAL;
+		return 0;
 
 	switch (type){
 	case IRQ_TYPE_EDGE_BOTH:
@@ -203,9 +207,9 @@ static int ixp4xx_set_irq_type(struct irq_data *d, unsigned int type)
 	}
 
 	if (irq_type == IXP4XX_IRQ_EDGE)
-		ixp4xx_irq_edge |= (1 << d->irq);
+		ixp4xx_irq_edge |= (1 << d->hwirq);
 	else
-		ixp4xx_irq_edge &= ~(1 << d->irq);
+		ixp4xx_irq_edge &= ~(1 << d->hwirq);
 
 	if (line >= 8) {	/* pins 8-15 */
 		line -= 8;
@@ -224,22 +228,22 @@ static int ixp4xx_set_irq_type(struct irq_data *d, unsigned int type)
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
 
 	/* Configure the line as an input */
-	gpio_line_config(irq2gpio[d->irq], IXP4XX_GPIO_IN);
+	gpio_line_config(irq2gpio[d->hwirq], IXP4XX_GPIO_IN);
 
 	return 0;
 }
 
 static void ixp4xx_irq_mask(struct irq_data *d)
 {
-	if ((cpu_is_ixp46x() || cpu_is_ixp43x()) && d->irq >= 32)
-		*IXP4XX_ICMR2 &= ~(1 << (d->irq - 32));
+	if ((cpu_is_ixp46x() || cpu_is_ixp43x()) && d->hwirq >= 32)
+		*IXP4XX_ICMR2 &= ~(1 << (d->hwirq - 32));
 	else
-		*IXP4XX_ICMR &= ~(1 << d->irq);
+		*IXP4XX_ICMR &= ~(1 << d->hwirq);
 }
 
 static void ixp4xx_irq_ack(struct irq_data *d)
 {
-	int line = (d->irq < 32) ? irq2gpio[d->irq] : -1;
+	int line = (d->hwirq < 32) ? irq2gpio[d->hwirq] : -1;
 
 	if (line >= 0)
 		*IXP4XX_GPIO_GPISR = (1 << line);
@@ -251,13 +255,13 @@ static void ixp4xx_irq_ack(struct irq_data *d)
  */
 static void ixp4xx_irq_unmask(struct irq_data *d)
 {
-	if (!(ixp4xx_irq_edge & (1 << d->irq)))
+	if (!(ixp4xx_irq_edge & (1 << d->hwirq)))
 		ixp4xx_irq_ack(d);
 
-	if ((cpu_is_ixp46x() || cpu_is_ixp43x()) && d->irq >= 32)
-		*IXP4XX_ICMR2 |= (1 << (d->irq - 32));
+	if ((cpu_is_ixp46x() || cpu_is_ixp43x()) && d->hwirq >= 32)
+		*IXP4XX_ICMR2 |= (1 << (d->hwirq - 32));
 	else
-		*IXP4XX_ICMR |= (1 << d->irq);
+		*IXP4XX_ICMR |= (1 << d->hwirq);
 }
 
 static struct irq_chip ixp4xx_irq_chip = {
@@ -268,9 +272,50 @@ static struct irq_chip ixp4xx_irq_chip = {
 	.irq_set_type	= ixp4xx_set_irq_type,
 };
 
+asmlinkage void __exception_irq_entry ixp4xx_handle_irq(struct pt_regs *regs)
+{
+	unsigned long status;
+	int i;
+
+	status = *IXP4XX_ICIP;
+
+	for_each_set_bit(i, &status, 32)
+		handle_domain_irq(ixp4xx_irqdomain, i, regs);
+
+	/*
+	 * IXP465/IXP435 has an upper IRQ status register
+	 */
+	if ((cpu_is_ixp46x() || cpu_is_ixp43x())) {
+		status = *IXP4XX_ICIP2;
+		for_each_set_bit(i, &status, 32)
+			handle_domain_irq(ixp4xx_irqdomain, i + 32, regs);
+	}
+}
+
+static int ixp4xx_irqdomain_map(struct irq_domain *d, unsigned int irq,
+				irq_hw_number_t hwirq)
+{
+	irq_set_chip_data(irq, &ixp4xx_irq_chip);
+	irq_set_chip_and_handler(irq, &ixp4xx_irq_chip, handle_level_irq);
+	irq_set_probe(irq);
+
+	return 0;
+}
+
+static void ixp4xx_irqdomain_unmap(struct irq_domain *d, unsigned int irq)
+{
+	irq_set_chip_and_handler(irq, NULL, NULL);
+	irq_set_chip_data(irq, NULL);
+}
+
+static const struct irq_domain_ops ixp4xx_irqdomain_ops = {
+	.map = ixp4xx_irqdomain_map,
+	.unmap = ixp4xx_irqdomain_unmap,
+};
+
 void __init ixp4xx_init_irq(void)
 {
-	int i = 0;
+	int nr_irqs;
 
 	/*
 	 * ixp4xx does not implement the XScale PWRMODE register
@@ -290,14 +335,21 @@ void __init ixp4xx_init_irq(void)
 
 		/* Disable upper 32 interrupts */
 		*IXP4XX_ICMR2 = 0x00;
+
+		nr_irqs = 64;
+	} else {
+		nr_irqs = 32;
 	}
 
-        /* Default to all level triggered */
-	for(i = 0; i < NR_IRQS; i++) {
-		irq_set_chip_and_handler(i, &ixp4xx_irq_chip,
-					 handle_level_irq);
-		irq_clear_status_flags(i, IRQ_NOREQUEST);
+	ixp4xx_irqdomain = irq_domain_add_simple(NULL, nr_irqs, IRQ_IXP4XX_BASE,
+						 &ixp4xx_irqdomain_ops,
+						 NULL);
+	if (!ixp4xx_irqdomain) {
+		pr_crit("can not add primary irqdomain\n");
+		return;
 	}
+
+	set_handle_irq(ixp4xx_handle_irq);
 }
 
 
@@ -319,13 +371,6 @@ static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction ixp4xx_timer_irq = {
-	.name		= "timer1",
-	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= ixp4xx_timer_interrupt,
-	.dev_id		= &clockevent_ixp4xx,
-};
-
 void __init ixp4xx_timer_init(void)
 {
 	/* Reset/disable counter */
@@ -336,9 +381,6 @@ void __init ixp4xx_timer_init(void)
 
 	/* Reset time-stamp counter */
 	*IXP4XX_OSTS = 0;
-
-	/* Connect the interrupt handler and enable the interrupt */
-	setup_irq(IRQ_IXP4XX_TIMER1, &ixp4xx_timer_irq);
 
 	ixp4xx_clocksource_init();
 	ixp4xx_clockevent_init();
@@ -574,7 +616,16 @@ static struct clock_event_device clockevent_ixp4xx = {
 
 static void __init ixp4xx_clockevent_init(void)
 {
+	int ret;
+
 	clockevent_ixp4xx.cpumask = cpumask_of(0);
+	clockevent_ixp4xx.irq = IRQ_IXP4XX_TIMER1;
+	ret = request_irq(IRQ_IXP4XX_TIMER1, ixp4xx_timer_interrupt,
+			  IRQF_TIMER, "IXP4XX-TIMER1", &clockevent_ixp4xx);
+	if (ret) {
+		pr_crit("no timer IRQ\n");
+		return;
+	}
 	clockevents_config_and_register(&clockevent_ixp4xx, IXP4XX_TIMER_FREQ,
 					0xf, 0xfffffffe);
 }
