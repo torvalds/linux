@@ -2,7 +2,6 @@ ROCKCHIP MIPI DPHY WITH INNO IP BLOCK
 
 Required properties:
  - compatible : must be one of:
-	"rockchip,px30-mipi-dphy";
 	"rockchip,rk1808-mipi-dphy";
 	"rockchip,rk3128-mipi-dphy";
 	"rockchip,rk3366-mipi-dphy";
