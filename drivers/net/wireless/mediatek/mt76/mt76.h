@@ -497,7 +497,7 @@ struct mt76_rx_status {
 	u8 rate_idx;
 	u8 nss;
 	u8 band;
-	u8 signal;
+	s8 signal;
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 };
