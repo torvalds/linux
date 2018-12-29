@@ -131,8 +131,8 @@ if echo -e "#if __x86_64__||__i386__||__i486__||__i586__||__i686__" \
    | grep -q '^yes'; then
 	# architecture supported by nolibc
         ${CROSS_COMPILE}gcc -fno-asynchronous-unwind-tables -fno-ident \
-		-nostdlib -include ../bin/nolibc.h -lgcc -s -static -Os \
-		-o init init.c
+		-nostdlib -include ../../../../include/nolibc/nolibc.h \
+		-lgcc -s -static -Os -o init init.c
 else
 	${CROSS_COMPILE}gcc -s -static -Os -o init init.c
 fi
