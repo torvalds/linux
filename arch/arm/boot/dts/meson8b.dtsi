@@ -270,9 +270,7 @@
 				groups = "eth_tx_clk",
 					 "eth_tx_en",
 					 "eth_txd1_0",
-					 "eth_txd1_1",
 					 "eth_txd0_0",
-					 "eth_txd0_1",
 					 "eth_rx_clk",
 					 "eth_rx_dv",
 					 "eth_rxd1",
@@ -281,7 +279,9 @@
 					 "eth_mdc",
 					 "eth_ref_clk",
 					 "eth_txd2",
-					 "eth_txd3";
+					 "eth_txd3",
+					 "eth_rxd3",
+					 "eth_rxd2";
 				function = "ethernet";
 				bias-disable;
 			};
