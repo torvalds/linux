@@ -25,6 +25,10 @@ Required properties:
 
 - rockchip,grf: phandle to the general register files syscon
 
+Optional properties:
+- phys : phandle for the PHY device
+- phy-names : should be "phy"
+
 Required nodes:
 
 The lvds has two video ports as described by
