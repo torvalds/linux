@@ -22,6 +22,7 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/soc/rockchip/pvtm.h>
 #include <linux/thermal.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 
 #include "mali_kbase_rk.h"
 
@@ -451,3 +452,8 @@ static void kbase_platform_rk_remove_sysfs_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_utilisation);
 }
 
+int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev)
+{
+	return rockchip_init_opp_table(kbdev->dev, NULL,
+				       "gpu_leakage", "mali");
+}
