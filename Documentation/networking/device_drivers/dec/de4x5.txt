@@ -84,7 +84,7 @@
 
     Automedia detection is included so that in  principle you can disconnect
     from, e.g.  TP, reconnect  to BNC  and  things will still work  (after a
-    pause whilst the   driver figures out   where its media went).  My tests
+    pause while the   driver figures out   where its media went).  My tests
     using ping showed that it appears to work....
 
     By  default,  the driver will  now   autodetect any  DECchip based card.

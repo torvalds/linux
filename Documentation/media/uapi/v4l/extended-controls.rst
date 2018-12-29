@@ -4003,7 +4003,7 @@ demodulator. It receives radio frequency (RF) from the antenna and
 converts that received signal to lower intermediate frequency (IF) or
 baseband frequency (BB). Tuners that could do baseband output are often
 called Zero-IF tuners. Older tuners were typically simple PLL tuners
-inside a metal box, whilst newer ones are highly integrated chips
+inside a metal box, while newer ones are highly integrated chips
 without a metal box "silicon tuners". These controls are mostly
 applicable for new feature rich silicon tuners, just because older
 tuners does not have much adjustable features.

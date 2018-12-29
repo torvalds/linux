@@ -11,6 +11,10 @@ This small document introduces how to test DMA drivers using dmatest module.
   capability of the following: DMA_MEMCPY (memory-to-memory), DMA_MEMSET
   (const-to-memory or memory-to-memory, when emulated), DMA_XOR, DMA_PQ.
 
+.. note::
+  In case of any related questions use the official mailing list
+  dmaengine@vger.kernel.org.
+
 Part 1 - How to build the test module
 =====================================
 

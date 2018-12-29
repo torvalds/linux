@@ -331,7 +331,7 @@
 			APC and your system crashes randomly.
 
 	apic=		[APIC,X86] Advanced Programmable Interrupt Controller
-			Change the output verbosity whilst booting
+			Change the output verbosity while booting
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
