@@ -210,7 +210,7 @@ static int nfs_callback_up_net(int minorversion, struct svc_serv *serv,
 	if (!IS_ENABLED(CONFIG_NFS_V4_1) || minorversion == 0)
 		ret = nfs4_callback_up_net(serv, net);
 	else if (xprt->ops->bc_setup)
-		serv->sv_bc_enabled = true;
+		set_bc_enabled(serv);
 	else
 		ret = -EPROTONOSUPPORT;
 

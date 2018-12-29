@@ -51,6 +51,11 @@ static inline bool svc_is_backchannel(const struct svc_rqst *rqstp)
 {
 	return rqstp->rq_server->sv_bc_enabled;
 }
+
+static inline void set_bc_enabled(struct svc_serv *serv)
+{
+	serv->sv_bc_enabled = true;
+}
 #else /* CONFIG_SUNRPC_BACKCHANNEL */
 static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
 					 unsigned int min_reqs)
@@ -61,6 +66,10 @@ static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
 static inline bool svc_is_backchannel(const struct svc_rqst *rqstp)
 {
 	return false;
+}
+
+static inline void set_bc_enabled(struct svc_serv *serv)
+{
 }
 
 static inline void xprt_free_bc_request(struct rpc_rqst *req)
