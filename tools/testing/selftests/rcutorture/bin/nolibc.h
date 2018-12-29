@@ -1006,7 +1006,7 @@ struct sys_stat_struct {
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "r"(_num)                                                   \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1025,7 +1025,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1)                                                  \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1045,7 +1045,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2)                                      \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1066,7 +1066,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3)                          \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1087,7 +1087,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4)              \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1110,7 +1110,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5)  \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
