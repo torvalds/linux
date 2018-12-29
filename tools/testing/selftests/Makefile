@@ -30,6 +30,7 @@ TARGETS += net
 TARGETS += netfilter
 TARGETS += networking/timestamping
 TARGETS += nsfs
+TARGETS += pidfd
 TARGETS += powerpc
 TARGETS += proc
 TARGETS += pstore
