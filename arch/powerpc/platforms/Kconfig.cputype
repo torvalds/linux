@@ -40,14 +40,14 @@ config 40x
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 
 config 44x
 	bool "AMCC 44x, 46x or 47x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select PHYS_64BIT
 
 config E200

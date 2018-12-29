@@ -46,9 +46,6 @@ config FRAME_POINTER
 config LOCKDEP_SUPPORT
 	def_bool y
 
-config PCI
-	def_bool n
-
 config EARLY_PRINTK
 	def_bool y
 

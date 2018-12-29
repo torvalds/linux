@@ -3,7 +3,7 @@ menuconfig PPC_83xx
 	bool "83xx-based boards"
 	depends on PPC_BOOK3S_32
 	select PPC_UDBG_16550
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select FSL_PCI if PCI
 	select FSL_SOC
 	select IPIC

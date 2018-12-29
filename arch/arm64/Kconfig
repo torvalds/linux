@@ -102,6 +102,7 @@ config ARM64
 	select GENERIC_TIME_VSYSCALL
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
+	select HAVE_PCI
 	select HAVE_ACPI_APEI if (ACPI && EFI)
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
@@ -163,7 +164,9 @@ config ARM64
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
+	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_ECAM if (ACPI && PCI)
+	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
 	select REFCOUNT_FULL
@@ -289,28 +292,6 @@ config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
 source "arch/arm64/Kconfig.platforms"
-
-menu "Bus support"
-
-config PCI
-	bool "PCI support"
-	help
-	  This feature enables support for PCI bus system. If you say Y
-	  here, the kernel will include drivers and infrastructure code
-	  to support PCI bus devices.
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI
-
-config PCI_SYSCALL
-	def_bool PCI
-
-source "drivers/pci/Kconfig"
-
-endmenu
 
 menu "Kernel Features"
 
