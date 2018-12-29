@@ -286,14 +286,14 @@
 		pinctrl-0 = <&pmic_int>;
 		pinctrl-1 = <&soc_slppin_slp>, <&rk817_slppin_slp>;
 		pinctrl-2 = <&soc_slppin_gpio>, <&rk817_slppin_pwrdn>;
-		pinctrl-3 = <&soc_slppin_rst>, <&rk817_slppin_rst>;
+		pinctrl-3 = <&soc_slppin_gpio>, <&rk817_slppin_null>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
 		clock-output-names = "rk808-clkout1", "rk808-clkout2";
 		//fb-inner-reg-idxs = <2>;
 		/* 1: rst regs (default in codes), 0: rst the pmic */
-		pmic-reset-func = <1>;
+		pmic-reset-func = <0>;
 
 		vcc1-supply = <&vcc5v0_sys>;
 		vcc2-supply = <&vcc5v0_sys>;
@@ -682,11 +682,6 @@
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
 				<0 RK_PA4 1 &pcfg_pull_none>;
-		};
-
-		soc_slppin_rst: soc_slppin_rst {
-			rockchip,pins =
-				<0 RK_PA4 2 &pcfg_pull_none>;
 		};
 
 		vsel_gpio: vsel-gpio {
