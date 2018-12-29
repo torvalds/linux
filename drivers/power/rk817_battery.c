@@ -484,6 +484,7 @@ struct rk817_battery_device {
 	struct i2c_client			*client;
 	struct rk808			*rk817;
 	struct power_supply			*bat;
+	struct power_supply		*chg_psy;
 	struct power_supply		*usb_psy;
 	struct power_supply		*ac_psy;
 	struct regmap			*regmap;
@@ -618,6 +619,7 @@ struct rk817_battery_device {
 	int				plugin_irq;
 	int				plugout_irq;
 	int				chip_id;
+	int				is_register_chg_psy;
 };
 
 static u64 get_boot_sec(void)
@@ -1896,6 +1898,11 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 					   &pdata->design_max_voltage);
 		if (ret < 0)
 			dev_err(dev, "battery design_max_voltage missing!\n");
+
+		ret = of_property_read_u32(np, "register_chg_psy",
+					   &battery->is_register_chg_psy);
+		if (ret < 0 || !battery->is_register_chg_psy)
+			dev_err(dev, "not have to register chg psy!\n");
 	}
 
 	DBG("the battery dts info dump:\n"
@@ -2046,8 +2053,8 @@ static int rk817_battery_get_property(struct power_supply *psy,
 			if ((battery->chip_id != RK809_ID) &&
 			    rk817_bat_get_charge_state(battery))
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
-			else if ((battery->chip_id == RK809_ID) &&
-				 rk817_bat_get_charge_status(battery))
+			else if (battery->chip_id == RK809_ID &&
+				 battery->plugin_trigger)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -2090,6 +2097,64 @@ static int rk817_bat_init_power_supply(struct rk817_battery_device *battery)
 	if (IS_ERR(battery->bat)) {
 		dev_err(battery->dev, "register bat power supply fail\n");
 		return PTR_ERR(battery->bat);
+	}
+
+	return 0;
+}
+
+static enum power_supply_property rk809_chg_props[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_STATUS,
+};
+
+static int rk809_chg_get_property(struct power_supply *psy,
+				  enum power_supply_property psp,
+				  union power_supply_propval *val)
+{
+	struct rk817_battery_device *battery = power_supply_get_drvdata(psy);
+	int online = 0;
+	int ret = 0;
+
+	if (battery->plugin_trigger)
+		online = 1;
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = online;
+		dev_dbg(battery->dev, "report online: %d\n", val->intval);
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		if (online)
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		dev_dbg(battery->dev, "report prop: %d\n", val->intval);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static const struct power_supply_desc rk809_chg_desc = {
+	.name		= "charger",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.properties	= rk809_chg_props,
+	.num_properties	= ARRAY_SIZE(rk809_chg_props),
+	.get_property	= rk809_chg_get_property,
+};
+
+static int rk809_chg_init_power_supply(struct rk817_battery_device *battery)
+{
+	struct power_supply_config psy_cfg = { .drv_data = battery, };
+
+	battery->chg_psy =
+		devm_power_supply_register(battery->dev, &rk809_chg_desc,
+					   &psy_cfg);
+	if (IS_ERR(battery->chg_psy)) {
+		dev_err(battery->dev, "register chg psy power supply fail\n");
+		return PTR_ERR(battery->chg_psy);
 	}
 
 	return 0;
@@ -2772,6 +2837,8 @@ static irqreturn_t rk809_plug_in_isr(int irq, void *cg)
 	battery->plugin_trigger = 1;
 	battery->plugout_trigger = 0;
 	power_supply_changed(battery->bat);
+	if (battery->is_register_chg_psy)
+		power_supply_changed(battery->chg_psy);
 
 	return IRQ_HANDLED;
 }
@@ -2784,6 +2851,8 @@ static irqreturn_t rk809_plug_out_isr(int irq, void *cg)
 	battery->plugin_trigger = 0;
 	battery->plugout_trigger = 1;
 	power_supply_changed(battery->bat);
+	if (battery->is_register_chg_psy)
+		power_supply_changed(battery->chg_psy);
 
 	return IRQ_HANDLED;
 }
@@ -2913,6 +2982,13 @@ static int rk817_battery_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(battery->dev, "rk817 power supply register failed!\n");
 		return ret;
+	}
+	if (battery->is_register_chg_psy) {
+		ret = rk809_chg_init_power_supply(battery);
+		if (ret) {
+			dev_err(battery->dev, "rk809 chg psy init failed!\n");
+			return ret;
+		}
 	}
 
 	if (battery->chip_id == RK809_ID)
