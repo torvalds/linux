@@ -461,10 +461,10 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 				master->num =
 					msm_iommu_alloc_ctx(iommu->context_map,
 							    0, iommu->ncb);
-					if (IS_ERR_VALUE(master->num)) {
-						ret = -ENODEV;
-						goto fail;
-					}
+				if (IS_ERR_VALUE(master->num)) {
+					ret = -ENODEV;
+					goto fail;
+				}
 				config_mids(iommu, master);
 				__program_context(iommu->base, master->num,
 						  priv);
