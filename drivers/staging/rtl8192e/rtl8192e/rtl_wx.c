@@ -1049,9 +1049,9 @@ static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
 					(bPromiscuousOn) ? (true) : (false);
 		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame =
 			(bFilterSourceStationFrame) ? (true) : (false);
-			(bPromiscuousOn) ?
-			(rtllib_EnableIntelPromiscuousMode(dev, false)) :
-			(rtllib_DisableIntelPromiscuousMode(dev, false));
+		(bPromiscuousOn) ?
+		(rtllib_EnableIntelPromiscuousMode(dev, false)) :
+		(rtllib_DisableIntelPromiscuousMode(dev, false));
 
 		netdev_info(dev,
 			    "=======>%s(), on = %d, filter src sta = %d\n",
