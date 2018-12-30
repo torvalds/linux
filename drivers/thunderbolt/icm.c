@@ -468,7 +468,7 @@ static void add_switch(struct tb_switch *parent_sw, u64 route,
 	pm_runtime_get_sync(&parent_sw->dev);
 
 	sw = tb_switch_alloc(parent_sw->tb, &parent_sw->dev, route);
-	if (!sw)
+	if (IS_ERR(sw))
 		goto out;
 
 	sw->uuid = kmemdup(uuid, sizeof(*uuid), GFP_KERNEL);
@@ -1848,8 +1848,8 @@ static int icm_start(struct tb *tb)
 		tb->root_switch = tb_switch_alloc_safe_mode(tb, &tb->dev, 0);
 	else
 		tb->root_switch = tb_switch_alloc(tb, &tb->dev, 0);
-	if (!tb->root_switch)
-		return -ENODEV;
+	if (IS_ERR(tb->root_switch))
+		return PTR_ERR(tb->root_switch);
 
 	/*
 	 * NVM upgrade has not been tested on Apple systems and they

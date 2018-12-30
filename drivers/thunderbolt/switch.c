@@ -1450,30 +1450,32 @@ static int tb_switch_get_generation(struct tb_switch *sw)
  * separately. The returned switch should be released by calling
  * tb_switch_put().
  *
- * Return: Pointer to the allocated switch or %NULL in case of failure
+ * Return: Pointer to the allocated switch or ERR_PTR() in case of
+ * failure.
  */
 struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 				  u64 route)
 {
 	struct tb_switch *sw;
 	int upstream_port;
-	int i, cap, depth;
+	int i, ret, depth;
 
 	/* Make sure we do not exceed maximum topology limit */
 	depth = tb_route_length(route);
 	if (depth > TB_SWITCH_MAX_DEPTH)
-		return NULL;
+		return ERR_PTR(-EADDRNOTAVAIL);
 
 	upstream_port = tb_cfg_get_upstream_port(tb->ctl, route);
 	if (upstream_port < 0)
-		return NULL;
+		return ERR_PTR(upstream_port);
 
 	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	sw->tb = tb;
-	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5))
+	ret = tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5);
+	if (ret)
 		goto err_free_sw_ports;
 
 	tb_dbg(tb, "current switch config:\n");
@@ -1489,8 +1491,10 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	/* initialize ports */
 	sw->ports = kcalloc(sw->config.max_port_number + 1, sizeof(*sw->ports),
 				GFP_KERNEL);
-	if (!sw->ports)
+	if (!sw->ports) {
+		ret = -ENOMEM;
 		goto err_free_sw_ports;
+	}
 
 	for (i = 0; i <= sw->config.max_port_number; i++) {
 		/* minimum setup for tb_find_cap and tb_drom_read to work */
@@ -1500,16 +1504,16 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 
 	sw->generation = tb_switch_get_generation(sw);
 
-	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_PLUG_EVENTS);
-	if (cap < 0) {
+	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_PLUG_EVENTS);
+	if (ret < 0) {
 		tb_sw_warn(sw, "cannot find TB_VSE_CAP_PLUG_EVENTS aborting\n");
 		goto err_free_sw_ports;
 	}
-	sw->cap_plug_events = cap;
+	sw->cap_plug_events = ret;
 
-	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_LINK_CONTROLLER);
-	if (cap > 0)
-		sw->cap_lc = cap;
+	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_LINK_CONTROLLER);
+	if (ret > 0)
+		sw->cap_lc = ret;
 
 	/* Root switch is always authorized */
 	if (!route)
@@ -1528,7 +1532,7 @@ err_free_sw_ports:
 	kfree(sw->ports);
 	kfree(sw);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 /**
@@ -1543,7 +1547,7 @@ err_free_sw_ports:
  *
  * The returned switch must be released by calling tb_switch_put().
  *
- * Return: Pointer to the allocated switch or %NULL in case of failure
+ * Return: Pointer to the allocated switch or ERR_PTR() in case of failure
  */
 struct tb_switch *
 tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
@@ -1552,7 +1556,7 @@ tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
 
 	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	sw->tb = tb;
 	sw->config.depth = tb_route_length(route);

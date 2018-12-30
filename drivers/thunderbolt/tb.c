@@ -148,7 +148,7 @@ static void tb_scan_port(struct tb_port *port)
 	}
 	sw = tb_switch_alloc(port->sw->tb, &port->sw->dev,
 			     tb_downstream_route(port));
-	if (!sw)
+	if (IS_ERR(sw))
 		return;
 
 	if (tb_switch_configure(sw)) {
@@ -533,8 +533,8 @@ static int tb_start(struct tb *tb)
 	int ret;
 
 	tb->root_switch = tb_switch_alloc(tb, &tb->dev, 0);
-	if (!tb->root_switch)
-		return -ENOMEM;
+	if (IS_ERR(tb->root_switch))
+		return PTR_ERR(tb->root_switch);
 
 	/*
 	 * ICM firmware upgrade needs running firmware and in native
