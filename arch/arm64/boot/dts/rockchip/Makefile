@@ -11,6 +11,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-evb-ext-rk618.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-z7-a0-rk618-dsi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk1808-evb-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk1808-evb-x4.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk1808-evb-x4-second.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk1808-fpga.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-ai-va-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-amic-v10.dtb

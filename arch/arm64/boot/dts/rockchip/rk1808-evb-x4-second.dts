@@ -1,0 +1,287 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include "rk1808-evb.dtsi"
+
+/ {
+	model = "Rockchip RK1808 EVB X4 Board";
+	compatible = "rockchip,rk1808-evb-x4", "rockchip,rk1808";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff550000 console=ttyFIQ0 dump_initrd init=/init swiotlb=1 kpti=0";
+	};
+};
+
+&adc_key {
+	power-key {
+		linux,code = <KEY_POWER>;
+		label = "power key";
+		press-threshold-microvolt = <18000>;
+	};
+};
+
+/delete-node/ &backlight;
+/delete-node/ &vcc1v8_dvp;
+/delete-node/ &vdd1v5_dvp;
+/delete-node/ &vcc2v8_dvp;
+
+&cif {
+	status = "okay";
+
+	port {
+		cif_in: endpoint@0 {
+			remote-endpoint = <&dphy_rx_out>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
+&cif_mmu {
+	status = "okay";
+};
+
+&cru {
+	assigned-clocks =
+		<&cru PLL_GPLL>, <&cru PLL_CPLL>,
+		<&cru PLL_PPLL>, <&cru ARMCLK>,
+		<&cru MSCLK_PERI>, <&cru LSCLK_PERI>,
+		<&cru HSCLK_BUS_PRE>, <&cru MSCLK_BUS_PRE>,
+		<&cru LSCLK_BUS_PRE>, <&cru DCLK_VOPRAW>;
+	assigned-clock-rates =
+		<1188000000>, <1000000000>,
+		<100000000>, <816000000>,
+		<200000000>, <100000000>,
+		<300000000>, <200000000>,
+		<100000000>, <80000000>;
+};
+
+&csi_tx {
+	status = "okay";
+	csi-tx-bypass-mode = <1>;
+
+	panel@0 {
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET |
+			      MIPI_DSI_CLOCK_NON_CONTINUOUS)>;
+		dsi,format = <MIPI_CSI_FMT_RAW8>;
+		dsi,lanes = <4>;
+
+		display-timings {
+			native-mode = <&timing_720p_rgb3>;
+
+			timing_720p: timing-720p {
+				clock-frequency = <32000000>;
+				hactive = <720>;
+				vactive = <1280>;
+				hfront-porch = <40>;
+				hsync-len = <10>;
+				hback-porch = <40>;
+				vfront-porch = <40>;
+				vsync-len = <4>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+			timing_1080p: timing-1080p {
+				clock-frequency = <44000000>;
+				hactive = <1920>;
+				vactive = <1080>;
+				hfront-porch = <100>;
+				hsync-len = <10>;
+				hback-porch = <30>;
+				vfront-porch = <10>;
+				vsync-len = <10>;
+				vback-porch = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+			timing_720p_rgb3: timing-720p-rgb3 {
+				clock-frequency = <80000000>;
+				hactive = <3840>;
+				vactive = <720>;
+				hfront-porch = <1200>;
+				hsync-len = <500>;
+				hback-porch = <30>;
+				vfront-porch = <40>;
+				vsync-len = <20>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+			timing_4k: timing-4k {
+				clock-frequency = <250000000>;
+				hactive = <3840>;
+				vactive = <2160>;
+				hfront-porch = <1200>;
+				hsync-len = <500>;
+				hback-porch = <30>;
+				vfront-porch = <4>;
+				vsync-len = <2>;
+				vback-porch = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+			timing_5k: timing-5k {
+				clock-frequency = <237500000>;
+				hactive = <5120>;
+				vactive = <2880>;
+				hfront-porch = <1200>;
+				hsync-len = <70>;
+				hback-porch = <30>;
+				vfront-porch = <40>;
+				vsync-len = <20>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&emmc {
+	status = "disabled";
+};
+
+&gmac {
+	status = "disabled";
+};
+
+&i2c0 {
+	status = "okay";
+
+	vcamera@30 {
+		compatible = "rockchip,virtual-camera";
+		reg = <0x30>;
+		width = <3840>;
+		height = <720>;
+		bus-format = <MEDIA_BUS_FMT_SBGGR8_1X8>;
+
+		port {
+			vcamera_out: endpoint {
+				remote-endpoint = <&dphy_rx_in>;
+				link-frequencies = /bits/ 64 <400000000>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
+&i2c4 {
+	status = "disabled";
+};
+
+&mipi_dphy {
+	status = "okay";
+};
+
+&mipi_dphy_rx {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&vcamera_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_in>;
+			};
+		};
+	};
+};
+
+&rk809_codec {
+	status = "disabled";
+};
+
+&rk_rga {
+	status = "okay";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&sdmmc {
+	status = "disabled";
+};
+
+&sdio {
+	status = "disabled";
+};
+
+&sfc {
+	status = "okay";
+};
+
+&uart4 {
+	status = "disabled";
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+&tsadc {
+	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+	pinctrl-names = "init", "default";
+	pinctrl-0 = <&tsadc_otp_gpio>;
+	pinctrl-1 = <&tsadc_otp_out>;
+	status = "okay";
+};
+
+&vop_raw {
+	status = "okay";
+};
+
+&vopr_mmu {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
