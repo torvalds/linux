@@ -1446,7 +1446,7 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
 		 * before releasing our reference, since the vblank work does
 		 * not hold a reference of its own. */
 		ret = wait_for_completion_timeout(&commit->flip_done,
-						  10*HZ);
+						  msecs_to_jiffies(100));
 		if (ret == 0)
 			DRM_ERROR("[CRTC:%d] flip_done timed out\n",
 				  crtc->base.id);
