@@ -340,10 +340,24 @@ static void rockchip_mipi_csi_tx_en(struct rockchip_mipi_csi *csi)
 	csi_mask_write(csi, CSITX_ENABLE, mask, val, true);
 }
 
+static void rockchip_mipi_csi_tx_reset(struct rockchip_mipi_csi *csi)
+{
+	u32 mask, val;
+
+	mask = m_SOFT_RESET;
+	val = v_SOFT_RESET(1);
+	csi_mask_write(csi, CSITX_SYS_CTRL0, mask, val, true);
+	usleep_range(50, 100);
+	mask = m_SOFT_RESET;
+	val = v_SOFT_RESET(0);
+	csi_mask_write(csi, CSITX_SYS_CTRL0, mask, val, true);
+}
+
 static void rockchip_mipi_csi_host_power_on(struct rockchip_mipi_csi *csi)
 {
 	u32 mask, val;
 
+	rockchip_mipi_csi_tx_reset(csi);
 	rockchip_mipi_csi_tx_en(csi);
 	rockchip_mipi_csi_irq_init(csi);
 
@@ -1019,7 +1033,10 @@ rockchip_mipi_csi_connector_set_property(struct drm_connector *connector,
 	struct rockchip_mipi_csi *csi = con_to_csi(connector);
 
 	if (property == csi->csi_tx_path_property) {
-		csi->path_mode = val;
+		/*
+		 * csi->path_mode = val;
+		 * we get path mode from dts now
+		 */
 		return 0;
 	}
 
@@ -1251,7 +1268,7 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 	struct rockchip_mipi_csi *csi;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
-	int ret;
+	int ret, val;
 
 	csi = devm_kzalloc(dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
@@ -1328,6 +1345,9 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 	ret = component_add(dev, &rockchip_mipi_csi_ops);
 	if (ret)
 		mipi_dsi_host_unregister(&csi->dsi_host);
+
+	if (!of_property_read_u32(np, "csi-tx-bypass-mode", &val))
+		csi->path_mode = val;
 
 	return ret;
 }
