@@ -3561,8 +3561,8 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-		WARN_ON(vop->event);
-
+		if (s->pdaf_work_mode != VOP_HOLD_MODE)
+			WARN_ON(vop->event);
 		vop->event = crtc->state->event;
 		crtc->state->event = NULL;
 	}
@@ -3621,7 +3621,7 @@ static void vop_crtc_reset(struct drm_crtc *crtc)
 	s->right_margin = 100;
 	s->top_margin = 100;
 	s->bottom_margin = 100;
-	s->pdaf_work_mode = VOP_NORMAL_MODE;
+	s->pdaf_work_mode = VOP_HOLD_MODE;
 	s->pdaf_type = VOP_PDAF_TYPE_VBLANK;
 }
 
