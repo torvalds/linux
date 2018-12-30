@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 
 /*
@@ -45,9 +46,7 @@ static int rtc_nvram_register(struct rtc_device *rtc,
 {
 	int err;
 
-	rtc->nvram = devm_kzalloc(rtc->dev.parent,
-				sizeof(struct bin_attribute),
-				GFP_KERNEL);
+	rtc->nvram = kzalloc(sizeof(struct bin_attribute), GFP_KERNEL);
 	if (!rtc->nvram)
 		return -ENOMEM;
 
@@ -64,7 +63,7 @@ static int rtc_nvram_register(struct rtc_device *rtc,
 	err = sysfs_create_bin_file(&rtc->dev.parent->kobj,
 				    rtc->nvram);
 	if (err) {
-		devm_kfree(rtc->dev.parent, rtc->nvram);
+		kfree(rtc->nvram);
 		rtc->nvram = NULL;
 	}
 
@@ -74,6 +73,8 @@ static int rtc_nvram_register(struct rtc_device *rtc,
 static void rtc_nvram_unregister(struct rtc_device *rtc)
 {
 	sysfs_remove_bin_file(&rtc->dev.parent->kobj, rtc->nvram);
+	kfree(rtc->nvram);
+	rtc->nvram = NULL;
 }
 
 /*
