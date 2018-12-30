@@ -4104,6 +4104,11 @@ static int rtnl_fdb_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		return err;
 
+	if (!addr) {
+		NL_SET_ERR_MSG(extack, "Missing lookup address for fdb get request");
+		return -EINVAL;
+	}
+
 	if (brport_idx) {
 		dev = __dev_get_by_index(net, brport_idx);
 		if (!dev) {
