@@ -39,7 +39,7 @@
 				  "WL_ON",
 				  "STATUS_LED",
 				  "LAN_RUN",
-				  "HPD_N",
+				  "HDMI_HPD_N",
 				  "CAM_GPIO0",
 				  "CAM_GPIO1",
 				  "PWR_LOW_N";
