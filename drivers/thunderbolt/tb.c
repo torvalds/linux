@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Thunderbolt Cactus Ridge driver - bus logic (NHI independent)
+ * Thunderbolt driver - bus logic (NHI independent)
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2019, Intel Corporation
  */
 
 #include <linux/slab.h>
@@ -84,6 +85,7 @@ static void tb_scan_switch(struct tb_switch *sw)
  */
 static void tb_scan_port(struct tb_port *port)
 {
+	struct tb_cm *tcm = tb_priv(port->sw->tb);
 	struct tb_port *upstream_port;
 	struct tb_switch *sw;
 
@@ -112,7 +114,13 @@ static void tb_scan_port(struct tb_port *port)
 		return;
 	}
 
-	sw->authorized = true;
+	/*
+	 * Do not send uevents until we have discovered all existing
+	 * tunnels and know which switches were authorized already by
+	 * the boot firmware.
+	 */
+	if (!tcm->hotplug_active)
+		dev_set_uevent_suppress(&sw->dev, true);
 
 	if (tb_switch_add(sw)) {
 		tb_switch_put(sw);
@@ -212,72 +220,78 @@ static struct tb_port *tb_find_unused_down_port(struct tb_switch *sw)
 	return NULL;
 }
 
-/**
- * tb_activate_pcie_devices() - scan for and activate PCIe devices
- *
- * This method is somewhat ad hoc. For now it only supports one device
- * per port and only devices at depth 1.
- */
-static void tb_activate_pcie_devices(struct tb *tb)
+static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
+					 const struct tb_port *port)
 {
-	int i;
-	int cap;
-	u32 data;
-	struct tb_switch *sw;
-	struct tb_port *up_port;
-	struct tb_port *down_port;
-	struct tb_tunnel *tunnel;
-	struct tb_cm *tcm = tb_priv(tb);
+	/*
+	 * To keep plugging devices consistently in the same PCIe
+	 * hierarchy, do mapping here for root switch downstream PCIe
+	 * ports.
+	 */
+	if (!tb_route(sw)) {
+		int phy_port = tb_phy_port_from_link(port->port);
+		int index;
 
-	/* scan for pcie devices at depth 1*/
-	for (i = 1; i <= tb->root_switch->config.max_port_number; i++) {
-		if (tb_is_upstream_port(&tb->root_switch->ports[i]))
-			continue;
-		if (tb->root_switch->ports[i].config.type != TB_TYPE_PORT)
-			continue;
-		if (!tb->root_switch->ports[i].remote)
-			continue;
-		sw = tb->root_switch->ports[i].remote->sw;
-		up_port = tb_find_pci_up_port(sw);
-		if (!up_port) {
-			tb_sw_info(sw, "no PCIe devices found, aborting\n");
-			continue;
-		}
+		/*
+		 * Hard-coded Thunderbolt port to PCIe down port mapping
+		 * per controller.
+		 */
+		if (tb_switch_is_cr(sw))
+			index = !phy_port ? 6 : 7;
+		else if (tb_switch_is_fr(sw))
+			index = !phy_port ? 6 : 8;
+		else
+			goto out;
 
-		/* check whether port is already activated */
-		cap = up_port->cap_adap;
-		if (!cap)
-			continue;
-		if (tb_port_read(up_port, &data, TB_CFG_PORT, cap, 1))
-			continue;
-		if (data & 0x80000000) {
-			tb_port_info(up_port,
-				     "PCIe port already activated, aborting\n");
-			continue;
-		}
+		/* Validate the hard-coding */
+		if (WARN_ON(index > sw->config.max_port_number))
+			goto out;
+		if (WARN_ON(!tb_port_is_pcie_down(&sw->ports[index])))
+			goto out;
+		if (WARN_ON(tb_pci_port_is_enabled(&sw->ports[index])))
+			goto out;
 
-		down_port = tb_find_unused_down_port(tb->root_switch);
-		if (!down_port) {
-			tb_port_info(up_port,
-				     "All PCIe down ports are occupied, aborting\n");
-			continue;
-		}
-		tunnel = tb_tunnel_alloc_pci(tb, up_port, down_port);
-		if (!tunnel) {
-			tb_port_info(up_port,
-				     "PCIe tunnel allocation failed, aborting\n");
-			continue;
-		}
-
-		if (tb_tunnel_activate(tunnel)) {
-			tb_port_info(up_port,
-				     "PCIe tunnel activation failed, aborting\n");
-			tb_tunnel_free(tunnel);
-			continue;
-		}
-
-		list_add(&tunnel->list, &tcm->tunnel_list);
+		return &sw->ports[index];
 	}
+
+out:
+	return tb_find_unused_down_port(sw);
+}
+
+static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
+{
+	struct tb_port *up, *down, *port;
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_switch *parent_sw;
+	struct tb_tunnel *tunnel;
+
+	up = tb_find_pci_up_port(sw);
+	if (!up)
+		return 0;
+
+	/*
+	 * Look up available down port. Since we are chaining it should
+	 * be found right above this switch.
+	 */
+	parent_sw = tb_to_switch(sw->dev.parent);
+	port = tb_port_at(tb_route(sw), parent_sw);
+	down = tb_find_pcie_down(parent_sw, port);
+	if (!down)
+		return 0;
+
+	tunnel = tb_tunnel_alloc_pci(tb, up, down);
+	if (!tunnel)
+		return -ENOMEM;
+
+	if (tb_tunnel_activate(tunnel)) {
+		tb_port_info(up,
+			     "PCIe tunnel activation failed, aborting\n");
+		tb_tunnel_free(tunnel);
+		return -EIO;
+	}
+
+	list_add_tail(&tunnel->list, &tcm->tunnel_list);
+	return 0;
 }
 
 /* hotplug handling */
@@ -344,16 +358,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 	} else {
 		tb_port_info(port, "hotplug: scanning\n");
 		tb_scan_port(port);
-		if (!port->remote) {
+		if (!port->remote)
 			tb_port_info(port, "hotplug: no switch found\n");
-		} else if (port->remote->sw->config.depth > 1) {
-			tb_sw_warn(port->remote->sw,
-				   "hotplug: chaining not supported\n");
-		} else {
-			tb_sw_info(port->remote->sw,
-				   "hotplug: activating pcie devices\n");
-			tb_activate_pcie_devices(tb);
-		}
 	}
 
 put_sw:
@@ -414,6 +420,27 @@ static void tb_stop(struct tb *tb)
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 }
 
+static int tb_scan_finalize_switch(struct device *dev, void *data)
+{
+	if (tb_is_switch(dev)) {
+		struct tb_switch *sw = tb_to_switch(dev);
+
+		/*
+		 * If we found that the switch was already setup by the
+		 * boot firmware, mark it as authorized now before we
+		 * send uevent to userspace.
+		 */
+		if (sw->boot)
+			sw->authorized = 1;
+
+		dev_set_uevent_suppress(dev, false);
+		kobject_uevent(&dev->kobj, KOBJ_ADD);
+		device_for_each_child(dev, NULL, tb_scan_finalize_switch);
+	}
+
+	return 0;
+}
+
 static int tb_start(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
@@ -447,7 +474,9 @@ static int tb_start(struct tb *tb)
 	tb_scan_switch(tb->root_switch);
 	/* Find out tunnels created by the boot firmware */
 	tb_discover_tunnels(tb->root_switch);
-	tb_activate_pcie_devices(tb);
+	/* Make the discovered switches available to the userspace */
+	device_for_each_child(&tb->root_switch->dev, NULL,
+			      tb_scan_finalize_switch);
 
 	/* Allow tb_handle_hotplug to progress events */
 	tcm->hotplug_active = true;
@@ -502,6 +531,7 @@ static const struct tb_cm_ops tb_cm_ops = {
 	.suspend_noirq = tb_suspend_noirq,
 	.resume_noirq = tb_resume_noirq,
 	.handle_event = tb_handle_event,
+	.approve_switch = tb_tunnel_pci,
 };
 
 struct tb *tb_probe(struct tb_nhi *nhi)
@@ -516,7 +546,7 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	if (!tb)
 		return NULL;
 
-	tb->security_level = TB_SECURITY_NONE;
+	tb->security_level = TB_SECURITY_USER;
 	tb->cm_ops = &tb_cm_ops;
 
 	tcm = tb_priv(tb);

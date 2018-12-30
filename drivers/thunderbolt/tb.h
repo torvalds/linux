@@ -350,6 +350,11 @@ static inline bool tb_port_has_remote(const struct tb_port *port)
 	return true;
 }
 
+static inline bool tb_port_is_pcie_down(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_PCIE_DOWN;
+}
+
 static inline bool tb_port_is_pcie_up(const struct tb_port *port)
 {
 	return port && port->config.type == TB_TYPE_PCIE_UP;
@@ -530,6 +535,28 @@ static inline bool tb_switch_is_lr(const struct tb_switch *sw)
 static inline bool tb_switch_is_er(const struct tb_switch *sw)
 {
 	return sw->config.device_id == PCI_DEVICE_ID_INTEL_EAGLE_RIDGE;
+}
+
+static inline bool tb_switch_is_cr(const struct tb_switch *sw)
+{
+	switch (sw->config.device_id) {
+	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
+	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static inline bool tb_switch_is_fr(const struct tb_switch *sw)
+{
+	switch (sw->config.device_id) {
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
+		return true;
+	default:
+		return false;
+	}
 }
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
