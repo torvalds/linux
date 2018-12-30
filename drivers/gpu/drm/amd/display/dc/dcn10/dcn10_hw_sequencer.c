@@ -2159,6 +2159,15 @@ static void dcn10_blank_pixel_data(
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 
+	/*
+	 * The way 420 is packed, 2 channels carry Y component, 1 channel
+	 * alternate between Cb and Cr, so both channels need the pixel
+	 * value for Y
+	 */
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		black_color.color_r_cr = black_color.color_g_y;
+
+
 	if (stream_res->tg->funcs->set_blank_color)
 		stream_res->tg->funcs->set_blank_color(
 				stream_res->tg,
@@ -2348,7 +2357,8 @@ static void dcn10_apply_ctx_for_surface(
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 			/* Skip inactive pipes and ones already updated */
-			if (!pipe_ctx->stream || pipe_ctx->stream == stream)
+			if (!pipe_ctx->stream || pipe_ctx->stream == stream
+					|| !pipe_ctx->plane_state)
 				continue;
 
 			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
@@ -2362,7 +2372,8 @@ static void dcn10_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe_ctx->stream || pipe_ctx->stream == stream)
+		if (!pipe_ctx->stream || pipe_ctx->stream == stream
+				|| !pipe_ctx->plane_state)
 			continue;
 
 		dcn10_pipe_control_lock(dc, pipe_ctx, false);

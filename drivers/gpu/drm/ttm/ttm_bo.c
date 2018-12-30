@@ -77,38 +77,39 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 	return 0;
 }
 
-static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
+static void ttm_mem_type_debug(struct ttm_bo_device *bdev, struct drm_printer *p,
+			       int mem_type)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
-	struct drm_printer p = drm_debug_printer(TTM_PFX);
 
-	pr_err("    has_type: %d\n", man->has_type);
-	pr_err("    use_type: %d\n", man->use_type);
-	pr_err("    flags: 0x%08X\n", man->flags);
-	pr_err("    gpu_offset: 0x%08llX\n", man->gpu_offset);
-	pr_err("    size: %llu\n", man->size);
-	pr_err("    available_caching: 0x%08X\n", man->available_caching);
-	pr_err("    default_caching: 0x%08X\n", man->default_caching);
+	drm_printf(p, "    has_type: %d\n", man->has_type);
+	drm_printf(p, "    use_type: %d\n", man->use_type);
+	drm_printf(p, "    flags: 0x%08X\n", man->flags);
+	drm_printf(p, "    gpu_offset: 0x%08llX\n", man->gpu_offset);
+	drm_printf(p, "    size: %llu\n", man->size);
+	drm_printf(p, "    available_caching: 0x%08X\n", man->available_caching);
+	drm_printf(p, "    default_caching: 0x%08X\n", man->default_caching);
 	if (mem_type != TTM_PL_SYSTEM)
-		(*man->func->debug)(man, &p);
+		(*man->func->debug)(man, p);
 }
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
+	struct drm_printer p = drm_debug_printer(TTM_PFX);
 	int i, ret, mem_type;
 
-	pr_err("No space for %p (%lu pages, %luK, %luM)\n",
-	       bo, bo->mem.num_pages, bo->mem.size >> 10,
-	       bo->mem.size >> 20);
+	drm_printf(&p, "No space for %p (%lu pages, %luK, %luM)\n",
+		   bo, bo->mem.num_pages, bo->mem.size >> 10,
+		   bo->mem.size >> 20);
 	for (i = 0; i < placement->num_placement; i++) {
 		ret = ttm_mem_type_from_place(&placement->placement[i],
 						&mem_type);
 		if (ret)
 			return;
-		pr_err("  placement[%d]=0x%08X (%d)\n",
-		       i, placement->placement[i].flags, mem_type);
-		ttm_mem_type_debug(bo->bdev, mem_type);
+		drm_printf(&p, "  placement[%d]=0x%08X (%d)\n",
+			   i, placement->placement[i].flags, mem_type);
+		ttm_mem_type_debug(bo->bdev, &p, mem_type);
 	}
 }
 

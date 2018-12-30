@@ -155,14 +155,6 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	return ret;
 }
 
-bool psp_support_vmr_ring(struct psp_context *psp)
-{
-	if (amdgpu_sriov_vf(psp->adev) && psp->sos_fw_version > 0x80045)
-		return true;
-	else
-		return false;
-}
-
 static void psp_prep_tmr_cmd_buf(struct psp_context *psp,
 				 struct psp_gfx_cmd_resp *cmd,
 				 uint64_t tmr_mc, uint32_t size)
