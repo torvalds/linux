@@ -610,6 +610,11 @@ static int tw9910_power_on(struct tw9910_priv *priv)
 					     GPIOD_OUT_LOW);
 	if (IS_ERR(priv->rstb_gpio)) {
 		dev_info(&client->dev, "Unable to get GPIO \"rstb\"");
+		clk_disable_unprepare(priv->clk);
+		if (priv->pdn_gpio) {
+			gpiod_set_value(priv->pdn_gpio, 1);
+			usleep_range(500, 1000);
+		}
 		return PTR_ERR(priv->rstb_gpio);
 	}
 
