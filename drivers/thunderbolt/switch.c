@@ -1130,10 +1130,16 @@ static int tb_switch_get_generation(struct tb_switch *sw)
 struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 				  u64 route)
 {
-	int i;
-	int cap;
 	struct tb_switch *sw;
-	int upstream_port = tb_cfg_get_upstream_port(tb->ctl, route);
+	int upstream_port;
+	int i, cap, depth;
+
+	/* Make sure we do not exceed maximum topology limit */
+	depth = tb_route_length(route);
+	if (depth > TB_SWITCH_MAX_DEPTH)
+		return NULL;
+
+	upstream_port = tb_cfg_get_upstream_port(tb->ctl, route);
 	if (upstream_port < 0)
 		return NULL;
 
@@ -1150,9 +1156,9 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 
 	/* configure switch */
 	sw->config.upstream_port_number = upstream_port;
-	sw->config.depth = tb_route_length(route);
-	sw->config.route_lo = route;
-	sw->config.route_hi = route >> 32;
+	sw->config.depth = depth;
+	sw->config.route_hi = upper_32_bits(route);
+	sw->config.route_lo = lower_32_bits(route);
 	sw->config.enabled = 0;
 
 	/* initialize ports */

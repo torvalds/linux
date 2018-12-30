@@ -42,7 +42,6 @@
 #define ICM_TIMEOUT			5000	/* ms */
 #define ICM_APPROVE_TIMEOUT		10000	/* ms */
 #define ICM_MAX_LINK			4
-#define ICM_MAX_DEPTH			6
 
 /**
  * struct icm - Internal connection manager private data
@@ -714,7 +713,7 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
 		ICM_LINK_INFO_DEPTH_SHIFT;
 
-	if (link > ICM_MAX_LINK || depth > ICM_MAX_DEPTH) {
+	if (link > ICM_MAX_LINK || depth > TB_SWITCH_MAX_DEPTH) {
 		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
 		return;
 	}
@@ -744,7 +743,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
 		ICM_LINK_INFO_DEPTH_SHIFT;
 
-	if (link > ICM_MAX_LINK || depth > ICM_MAX_DEPTH) {
+	if (link > ICM_MAX_LINK || depth > TB_SWITCH_MAX_DEPTH) {
 		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
 		return;
 	}

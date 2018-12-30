@@ -43,6 +43,7 @@ struct tb_switch_nvm {
 };
 
 #define TB_SWITCH_KEY_SIZE		32
+#define TB_SWITCH_MAX_DEPTH		6
 
 /**
  * struct tb_switch - a thunderbolt switch
