@@ -140,7 +140,7 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
-#if defined(__clang__) && !defined(CC_HAVE_ASM_GOTO)
+#if defined(__clang__) && !defined(CONFIG_CC_HAS_ASM_GOTO)
 
 /*
  * Workaround for the sake of BPF compilation which utilizes kernel
