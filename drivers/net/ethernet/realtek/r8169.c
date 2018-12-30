@@ -1477,6 +1477,8 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 	}
 
 	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
+
+	device_set_wakeup_enable(tp_to_dev(tp), wolopts);
 }
 
 static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -1497,8 +1499,6 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		__rtl8169_set_wol(tp, tp->saved_wolopts);
 
 	rtl_unlock_work(tp);
-
-	device_set_wakeup_enable(d, tp->saved_wolopts);
 
 	pm_runtime_put_noidle(d);
 
