@@ -2361,7 +2361,7 @@ bool intel_has_gpu_reset(struct drm_i915_private *dev_priv)
 
 bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
 {
-	return (dev_priv->info.has_reset_engine &&
+	return (INTEL_INFO(dev_priv)->has_reset_engine &&
 		i915_modparams.reset >= 2);
 }
 

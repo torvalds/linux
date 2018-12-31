@@ -1636,7 +1636,7 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 	if (drm_debug & DRM_UT_DRIVER) {
 		struct drm_printer p = drm_debug_printer("i915 device info:");
 
-		intel_device_info_dump(&dev_priv->info, &p);
+		intel_device_info_dump(INTEL_INFO(dev_priv), &p);
 		intel_device_info_dump_runtime(RUNTIME_INFO(dev_priv), &p);
 	}
 
