@@ -1091,8 +1091,6 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 
-	/* Do this first for message macros */
-	memset(fs, 0, sizeof(*fs));
 	fs->mdev = mdev;
 	fs->index = index;
 
@@ -1191,13 +1189,14 @@ static int swim3_attach(struct macio_dev *mdev,
 			return rc;
 	}
 
-	fs = &floppy_states[floppy_count];
-
 	disk = alloc_disk(1);
 	if (disk == NULL) {
 		rc = -ENOMEM;
 		goto out_unregister;
 	}
+
+	fs = &floppy_states[floppy_count];
+	memset(fs, 0, sizeof(*fs));
 
 	disk->queue = blk_mq_init_sq_queue(&fs->tag_set, &swim3_mq_ops, 2,
 						BLK_MQ_F_SHOULD_MERGE);
