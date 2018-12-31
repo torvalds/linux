@@ -10673,8 +10673,8 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 
 /**
  * intel_wm_need_update - Check whether watermarks need updating
- * @plane: drm plane
- * @state: new plane state
+ * @cur: current plane state
+ * @new: new plane state
  *
  * Check current plane state versus the new one to determine whether
  * watermarks need to be recalculated.
