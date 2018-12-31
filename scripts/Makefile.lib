@@ -305,8 +305,8 @@ quiet_cmd_dtb_check =	CHECK   $@
       cmd_dtb_check =	$(DT_CHECKER) -p $(DT_TMP_SCHEMA) $@ ;
 
 define rule_dtc_dt_yaml
-	$(call cmd_and_fixdep,dtc,yaml)		\
-	$(call echo-cmd,dtb_check) $(cmd_dtb_check)
+	$(call cmd_and_fixdep,dtc,yaml)
+	$(call cmd,dtb_check)
 endef
 
 $(obj)/%.dt.yaml: $(src)/%.dts $(DTC) $(DT_TMP_SCHEMA) FORCE
