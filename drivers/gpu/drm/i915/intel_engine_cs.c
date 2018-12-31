@@ -393,7 +393,7 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 		goto cleanup;
 	}
 
-	device_info->num_rings = hweight32(mask);
+	RUNTIME_INFO(dev_priv)->num_rings = hweight32(mask);
 
 	i915_check_and_clear_faults(dev_priv);
 
@@ -782,7 +782,7 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 {
-	const struct sseu_dev_info *sseu = &(INTEL_INFO(dev_priv)->sseu);
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 mcr_s_ss_select;
 	u32 slice = fls(sseu->slice_mask);
 	u32 subslice = fls(sseu->subslice_mask[slice]);

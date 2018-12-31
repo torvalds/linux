@@ -104,7 +104,7 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 	drm_printf(p, "has EU power gating: %s\n", yesno(sseu->has_eu_pg));
 }
 
-void intel_device_info_dump_runtime(const struct intel_device_info *info,
+void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
 				    struct drm_printer *p)
 {
 	sseu_dump(&info->sseu, p);
@@ -164,7 +164,7 @@ static u16 compute_eu_total(const struct sseu_dev_info *sseu)
 
 static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 {
-	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
+	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u8 s_en;
 	u32 ss_en, ss_en_mask;
 	u8 eu_en;
@@ -203,7 +203,7 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 
 static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
 {
-	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
+	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	const u32 fuse2 = I915_READ(GEN8_FUSE2);
 	int s, ss;
 	const int eu_mask = 0xff;
@@ -280,7 +280,7 @@ static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
 
 static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 {
-	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
+	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 fuse;
 
 	fuse = I915_READ(CHV_FUSE_GT);
@@ -334,7 +334,7 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
-	struct sseu_dev_info *sseu = &info->sseu;
+	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	int s, ss;
 	u32 fuse2, eu_disable, subslice_mask;
 	const u8 eu_mask = 0xff;
@@ -437,7 +437,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 
 static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 {
-	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
+	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	int s, ss;
 	u32 fuse2, subslice_mask, eu_disable[3]; /* s_max */
 
@@ -519,8 +519,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 
 static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_device_info *info = mkwrite_device_info(dev_priv);
-	struct sseu_dev_info *sseu = &info->sseu;
+	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 fuse1;
 	int s, ss;
 
@@ -528,9 +527,9 @@ static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * There isn't a register to tell us how many slices/subslices. We
 	 * work off the PCI-ids here.
 	 */
-	switch (info->gt) {
+	switch (INTEL_INFO(dev_priv)->gt) {
 	default:
-		MISSING_CASE(info->gt);
+		MISSING_CASE(INTEL_INFO(dev_priv)->gt);
 		/* fall through */
 	case 1:
 		sseu->slice_mask = BIT(0);
@@ -743,25 +742,26 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(info, struct drm_i915_private, info);
+	struct intel_runtime_info *runtime = RUNTIME_INFO(dev_priv);
 	enum pipe pipe;
 
 	if (INTEL_GEN(dev_priv) >= 10) {
 		for_each_pipe(dev_priv, pipe)
-			info->num_scalers[pipe] = 2;
+			runtime->num_scalers[pipe] = 2;
 	} else if (IS_GEN(dev_priv, 9)) {
-		info->num_scalers[PIPE_A] = 2;
-		info->num_scalers[PIPE_B] = 2;
-		info->num_scalers[PIPE_C] = 1;
+		runtime->num_scalers[PIPE_A] = 2;
+		runtime->num_scalers[PIPE_B] = 2;
+		runtime->num_scalers[PIPE_C] = 1;
 	}
 
 	BUILD_BUG_ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
 
 	if (IS_GEN(dev_priv, 11))
 		for_each_pipe(dev_priv, pipe)
-			info->num_sprites[pipe] = 6;
+			runtime->num_sprites[pipe] = 6;
 	else if (IS_GEN(dev_priv, 10) || IS_GEMINILAKE(dev_priv))
 		for_each_pipe(dev_priv, pipe)
-			info->num_sprites[pipe] = 3;
+			runtime->num_sprites[pipe] = 3;
 	else if (IS_BROXTON(dev_priv)) {
 		/*
 		 * Skylake and Broxton currently don't expose the topmost plane as its
@@ -772,15 +772,15 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		 * down the line.
 		 */
 
-		info->num_sprites[PIPE_A] = 2;
-		info->num_sprites[PIPE_B] = 2;
-		info->num_sprites[PIPE_C] = 1;
+		runtime->num_sprites[PIPE_A] = 2;
+		runtime->num_sprites[PIPE_B] = 2;
+		runtime->num_sprites[PIPE_C] = 1;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
-			info->num_sprites[pipe] = 2;
+			runtime->num_sprites[pipe] = 2;
 	} else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
-			info->num_sprites[pipe] = 1;
+			runtime->num_sprites[pipe] = 1;
 	}
 
 	if (i915_modparams.disable_display) {
@@ -864,7 +864,7 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 	}
 
 	/* Initialize command stream timestamp frequency */
-	info->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
+	runtime->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
 }
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
@@ -893,16 +893,16 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 
 	media_fuse = ~I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
 
-	info->vdbox_enable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	info->vebox_enable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-			     GEN11_GT_VEBOX_DISABLE_SHIFT;
+	RUNTIME_INFO(dev_priv)->vdbox_enable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	RUNTIME_INFO(dev_priv)->vebox_enable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+		GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", info->vdbox_enable);
+	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", RUNTIME_INFO(dev_priv)->vdbox_enable);
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VCS(i)))
 			continue;
 
-		if (!(BIT(i) & info->vdbox_enable)) {
+		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vdbox_enable)) {
 			info->ring_mask &= ~ENGINE_MASK(_VCS(i));
 			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
 			continue;
@@ -913,15 +913,15 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		 * hooked up to an SFC (Scaler & Format Converter) unit.
 		 */
 		if (logical_vdbox++ % 2 == 0)
-			info->vdbox_sfc_access |= BIT(i);
+			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 
-	DRM_DEBUG_DRIVER("vebox enable: %04x\n", info->vebox_enable);
+	DRM_DEBUG_DRIVER("vebox enable: %04x\n", RUNTIME_INFO(dev_priv)->vebox_enable);
 	for (i = 0; i < I915_MAX_VECS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VECS(i)))
 			continue;
 
-		if (!(BIT(i) & info->vebox_enable)) {
+		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vebox_enable)) {
 			info->ring_mask &= ~ENGINE_MASK(_VECS(i));
 			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
 		}

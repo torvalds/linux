@@ -48,7 +48,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev_priv));
 
 	intel_device_info_dump_flags(info, &p);
-	intel_device_info_dump_runtime(info, &p);
+	intel_device_info_dump_runtime(RUNTIME_INFO(dev_priv), &p);
 	intel_driver_caps_print(&dev_priv->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
@@ -3157,7 +3157,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	seq_printf(m, "Global active requests: %d\n",
 		   dev_priv->gt.active_requests);
 	seq_printf(m, "CS timestamp frequency: %u kHz\n",
-		   dev_priv->info.cs_timestamp_frequency_khz);
+		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
 
 	p = drm_seq_file_printer(m);
 	for_each_engine(engine, dev_priv, id)
@@ -3173,7 +3173,7 @@ static int i915_rcs_topology(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	intel_device_info_dump_topology(&INTEL_INFO(dev_priv)->sseu, &p);
+	intel_device_info_dump_topology(&RUNTIME_INFO(dev_priv)->sseu, &p);
 
 	return 0;
 }
@@ -4209,7 +4209,7 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 				     struct sseu_dev_info *sseu)
 {
 #define SS_MAX 6
-	const struct intel_device_info *info = INTEL_INFO(dev_priv);
+	const struct intel_runtime_info *info = RUNTIME_INFO(dev_priv);
 	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
 	int s, ss;
 
@@ -4265,7 +4265,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 				    struct sseu_dev_info *sseu)
 {
 #define SS_MAX 3
-	const struct intel_device_info *info = INTEL_INFO(dev_priv);
+	const struct intel_runtime_info *info = RUNTIME_INFO(dev_priv);
 	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
 	int s, ss;
 
@@ -4293,7 +4293,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 
 		if (IS_GEN9_BC(dev_priv))
 			sseu->subslice_mask[s] =
-				INTEL_INFO(dev_priv)->sseu.subslice_mask[s];
+				RUNTIME_INFO(dev_priv)->sseu.subslice_mask[s];
 
 		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
@@ -4327,10 +4327,10 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 
 	if (sseu->slice_mask) {
 		sseu->eu_per_subslice =
-				INTEL_INFO(dev_priv)->sseu.eu_per_subslice;
+			RUNTIME_INFO(dev_priv)->sseu.eu_per_subslice;
 		for (s = 0; s < fls(sseu->slice_mask); s++) {
 			sseu->subslice_mask[s] =
-				INTEL_INFO(dev_priv)->sseu.subslice_mask[s];
+				RUNTIME_INFO(dev_priv)->sseu.subslice_mask[s];
 		}
 		sseu->eu_total = sseu->eu_per_subslice *
 				 sseu_subslice_total(sseu);
@@ -4338,7 +4338,7 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 		/* subtract fused off EU(s) from enabled slice(s) */
 		for (s = 0; s < fls(sseu->slice_mask); s++) {
 			u8 subslice_7eu =
-				INTEL_INFO(dev_priv)->sseu.subslice_7eu[s];
+				RUNTIME_INFO(dev_priv)->sseu.subslice_7eu[s];
 
 			sseu->eu_total -= hweight8(subslice_7eu);
 		}
@@ -4391,14 +4391,14 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		return -ENODEV;
 
 	seq_puts(m, "SSEU Device Info\n");
-	i915_print_sseu_info(m, true, &INTEL_INFO(dev_priv)->sseu);
+	i915_print_sseu_info(m, true, &RUNTIME_INFO(dev_priv)->sseu);
 
 	seq_puts(m, "SSEU Device Status\n");
 	memset(&sseu, 0, sizeof(sseu));
-	sseu.max_slices = INTEL_INFO(dev_priv)->sseu.max_slices;
-	sseu.max_subslices = INTEL_INFO(dev_priv)->sseu.max_subslices;
+	sseu.max_slices = RUNTIME_INFO(dev_priv)->sseu.max_slices;
+	sseu.max_subslices = RUNTIME_INFO(dev_priv)->sseu.max_subslices;
 	sseu.max_eus_per_subslice =
-		INTEL_INFO(dev_priv)->sseu.max_eus_per_subslice;
+		RUNTIME_INFO(dev_priv)->sseu.max_eus_per_subslice;
 
 	intel_runtime_pm_get(dev_priv);
 

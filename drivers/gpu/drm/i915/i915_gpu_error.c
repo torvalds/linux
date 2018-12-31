@@ -594,13 +594,14 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 
 static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 				   const struct intel_device_info *info,
+				   const struct intel_runtime_info *runtime,
 				   const struct intel_driver_caps *caps)
 {
 	struct drm_printer p = i915_error_printer(m);
 
 	intel_device_info_dump_flags(info, &p);
 	intel_driver_caps_print(caps, &p);
-	intel_device_info_dump_topology(&info->sseu, &p);
+	intel_device_info_dump_topology(&runtime->sseu, &p);
 }
 
 static void err_print_params(struct drm_i915_error_state_buf *m,
@@ -844,7 +845,8 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	if (error->display)
 		intel_display_print_error_state(m, error->display);
 
-	err_print_capabilities(m, &error->device_info, &error->driver_caps);
+	err_print_capabilities(m, &error->device_info, &error->runtime_info,
+			       &error->driver_caps);
 	err_print_params(m, &error->params);
 	err_print_uc(m, &error->uc);
 }
@@ -1824,6 +1826,9 @@ static void capture_gen_state(struct i915_gpu_state *error)
 	memcpy(&error->device_info,
 	       INTEL_INFO(i915),
 	       sizeof(error->device_info));
+	memcpy(&error->runtime_info,
+	       RUNTIME_INFO(i915),
+	       sizeof(error->runtime_info));
 	error->driver_caps = i915->caps;
 }
 

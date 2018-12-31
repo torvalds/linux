@@ -152,12 +152,10 @@ struct sseu_dev_info {
 typedef u8 intel_ring_mask_t;
 
 struct intel_device_info {
-	u16 device_id;
 	u16 gen_mask;
 
 	u8 gen;
 	u8 gt; /* GT number, 0 if undefined */
-	u8 num_rings;
 	intel_ring_mask_t ring_mask; /* Rings supported by the HW */
 
 	enum intel_platform platform;
@@ -169,8 +167,6 @@ struct intel_device_info {
 	u32 display_mmio_offset;
 
 	u8 num_pipes;
-	u8 num_sprites[I915_MAX_PIPES];
-	u8 num_scalers[I915_MAX_PIPES];
 
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
@@ -189,6 +185,20 @@ struct intel_device_info {
 	int trans_offsets[I915_MAX_TRANSCODERS];
 	int cursor_offsets[I915_MAX_PIPES];
 
+	struct color_luts {
+		u16 degamma_lut_size;
+		u16 gamma_lut_size;
+	} color;
+};
+
+struct intel_runtime_info {
+	u16 device_id;
+
+	u8 num_sprites[I915_MAX_PIPES];
+	u8 num_scalers[I915_MAX_PIPES];
+
+	u8 num_rings;
+
 	/* Slice/subslice/EU info */
 	struct sseu_dev_info sseu;
 
@@ -200,11 +210,6 @@ struct intel_device_info {
 
 	/* Media engine access to SFC per instance */
 	u8 vdbox_sfc_access;
-
-	struct color_luts {
-		u16 degamma_lut_size;
-		u16 gamma_lut_size;
-	} color;
 };
 
 struct intel_driver_caps {
@@ -266,7 +271,7 @@ void intel_device_info_dump(const struct intel_device_info *info,
 			    struct drm_printer *p);
 void intel_device_info_dump_flags(const struct intel_device_info *info,
 				  struct drm_printer *p);
-void intel_device_info_dump_runtime(const struct intel_device_info *info,
+void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
 				    struct drm_printer *p);
 void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
 				     struct drm_printer *p);

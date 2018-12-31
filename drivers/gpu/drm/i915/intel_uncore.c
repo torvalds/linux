@@ -1934,7 +1934,7 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 			  struct intel_engine_cs *engine)
 {
-	u8 vdbox_sfc_access = INTEL_INFO(dev_priv)->vdbox_sfc_access;
+	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
 	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
 	i915_reg_t sfc_usage;
@@ -2002,7 +2002,7 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
 			     struct intel_engine_cs *engine)
 {
-	u8 vdbox_sfc_access = INTEL_INFO(dev_priv)->vdbox_sfc_access;
+	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock;
 	u32 sfc_forced_lock_bit;
 

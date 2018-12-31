@@ -7274,7 +7274,7 @@ static int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
 
 	val = vlv_punit_read(dev_priv, FB_GFX_FMAX_AT_VMAX_FUSE);
 
-	switch (INTEL_INFO(dev_priv)->sseu.eu_total) {
+	switch (RUNTIME_INFO(dev_priv)->sseu.eu_total) {
 	case 8:
 		/* (2 * 4) config */
 		rp0 = (val >> FB_GFX_FMAX_AT_VMAX_2SS4EU_FUSE_SHIFT);

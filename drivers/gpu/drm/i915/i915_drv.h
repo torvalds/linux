@@ -1432,6 +1432,7 @@ struct drm_i915_private {
 	struct kmem_cache *priorities;
 
 	const struct intel_device_info info;
+	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
 	struct intel_driver_caps caps;
 
 	/**
@@ -2198,10 +2199,11 @@ intel_info(const struct drm_i915_private *dev_priv)
 }
 
 #define INTEL_INFO(dev_priv)	intel_info((dev_priv))
+#define RUNTIME_INFO(dev_priv)	(&(dev_priv)->__runtime)
 #define DRIVER_CAPS(dev_priv)	(&(dev_priv)->caps)
 
 #define INTEL_GEN(dev_priv)	((dev_priv)->info.gen)
-#define INTEL_DEVID(dev_priv)	((dev_priv)->info.device_id)
+#define INTEL_DEVID(dev_priv)	(RUNTIME_INFO(dev_priv)->device_id)
 
 #define REVID_FOREVER		0xff
 #define INTEL_REVID(dev_priv)	((dev_priv)->drm.pdev->revision)

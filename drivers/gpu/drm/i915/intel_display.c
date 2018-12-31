@@ -14060,7 +14060,7 @@ static void intel_crtc_init_scalers(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int i;
 
-	crtc->num_scalers = dev_priv->info.num_scalers[crtc->pipe];
+	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[crtc->pipe];
 	if (!crtc->num_scalers)
 		return;
 

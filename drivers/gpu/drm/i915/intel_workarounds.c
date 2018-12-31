@@ -366,7 +366,7 @@ static void skl_tune_iz_hashing(struct intel_engine_cs *engine)
 		 * Only consider slices where one, and only one, subslice has 7
 		 * EUs
 		 */
-		if (!is_power_of_2(INTEL_INFO(i915)->sseu.subslice_7eu[i]))
+		if (!is_power_of_2(RUNTIME_INFO(i915)->sseu.subslice_7eu[i]))
 			continue;
 
 		/*
@@ -375,7 +375,7 @@ static void skl_tune_iz_hashing(struct intel_engine_cs *engine)
 		 *
 		 * ->    0 <= ss <= 3;
 		 */
-		ss = ffs(INTEL_INFO(i915)->sseu.subslice_7eu[i]) - 1;
+		ss = ffs(RUNTIME_INFO(i915)->sseu.subslice_7eu[i]) - 1;
 		vals[i] = 3 - ss;
 	}
 
@@ -743,7 +743,7 @@ static void cfl_gt_workarounds_init(struct drm_i915_private *i915)
 
 static void wa_init_mcr(struct drm_i915_private *dev_priv)
 {
-	const struct sseu_dev_info *sseu = &(INTEL_INFO(dev_priv)->sseu);
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	struct i915_wa_list *wal = &dev_priv->gt_wa_list;
 	u32 mcr_slice_subslice_mask;
 
