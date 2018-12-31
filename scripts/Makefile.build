@@ -236,9 +236,7 @@ ifdef CONFIG_GCOV_KERNEL
 objtool_args += --no-unreachable
 endif
 ifdef CONFIG_RETPOLINE
-ifneq ($(RETPOLINE_CFLAGS),)
   objtool_args += --retpoline
-endif
 endif
 
 

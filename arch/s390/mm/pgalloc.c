@@ -131,6 +131,7 @@ void crst_table_downgrade(struct mm_struct *mm)
 	}
 
 	pgd = mm->pgd;
+	mm_dec_nr_pmds(mm);
 	mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
 	mm->context.asce_limit = _REGION3_SIZE;
 	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |

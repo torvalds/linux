@@ -231,6 +231,8 @@ static __init void prom_meminit(void)
 			cpumask_clear(&__node_data[(node)]->cpumask);
 		}
 	}
+	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
+
 	for (cpu = 0; cpu < loongson_sysconf.nr_cpus; cpu++) {
 		node = cpu / loongson_sysconf.cores_per_node;
 		if (node >= num_online_nodes())
@@ -248,19 +250,9 @@ static __init void prom_meminit(void)
 
 void __init paging_init(void)
 {
-	unsigned node;
 	unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
 	pagetable_init();
-
-	for_each_online_node(node) {
-		unsigned long  start_pfn, end_pfn;
-
-		get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
-
-		if (end_pfn > max_low_pfn)
-			max_low_pfn = end_pfn;
-	}
 #ifdef CONFIG_ZONE_DMA32
 	zones_size[ZONE_DMA32] = MAX_DMA32_PFN;
 #endif

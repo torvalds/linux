@@ -1484,15 +1484,22 @@ static int dss_probe(struct platform_device *pdev)
 						   dss);
 
 	/* Add all the child devices as components. */
+	r = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	if (r)
+		goto err_uninit_debugfs;
+
 	omapdss_gather_components(&pdev->dev);
 
 	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
 
 	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
 	if (r)
-		goto err_uninit_debugfs;
+		goto err_of_depopulate;
 
 	return 0;
+
+err_of_depopulate:
+	of_platform_depopulate(&pdev->dev);
 
 err_uninit_debugfs:
 	dss_debugfs_remove_file(dss->debugfs.clk);
@@ -1521,6 +1528,8 @@ err_free_dss:
 static int dss_remove(struct platform_device *pdev)
 {
 	struct dss_device *dss = platform_get_drvdata(pdev);
+
+	of_platform_depopulate(&pdev->dev);
 
 	component_master_del(&pdev->dev, &dss_component_ops);
 

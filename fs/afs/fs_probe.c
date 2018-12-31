@@ -61,8 +61,11 @@ void afs_fileserver_probe_result(struct afs_call *call)
 		afs_io_error(call, afs_io_error_fs_probe_fail);
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
+	case -ERFKILL:
+	case -EADDRNOTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
+	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
@@ -132,12 +135,14 @@ out:
 static int afs_do_probe_fileserver(struct afs_net *net,
 				   struct afs_server *server,
 				   struct key *key,
-				   unsigned int server_index)
+				   unsigned int server_index,
+				   struct afs_error *_e)
 {
 	struct afs_addr_cursor ac = {
 		.index = 0,
 	};
-	int ret;
+	bool in_progress = false;
+	int err;
 
 	_enter("%pU", &server->uuid);
 
@@ -151,15 +156,17 @@ static int afs_do_probe_fileserver(struct afs_net *net,
 	server->probe.rtt = UINT_MAX;
 
 	for (ac.index = 0; ac.index < ac.alist->nr_addrs; ac.index++) {
-		ret = afs_fs_get_capabilities(net, server, &ac, key, server_index,
+		err = afs_fs_get_capabilities(net, server, &ac, key, server_index,
 					      true);
-		if (ret != -EINPROGRESS) {
-			afs_fs_probe_done(server);
-			return ret;
-		}
+		if (err == -EINPROGRESS)
+			in_progress = true;
+		else
+			afs_prioritise_error(_e, err, ac.abort_code);
 	}
 
-	return 0;
+	if (!in_progress)
+		afs_fs_probe_done(server);
+	return in_progress;
 }
 
 /*
@@ -169,21 +176,23 @@ int afs_probe_fileservers(struct afs_net *net, struct key *key,
 			  struct afs_server_list *list)
 {
 	struct afs_server *server;
-	int i, ret;
+	struct afs_error e;
+	bool in_progress = false;
+	int i;
 
+	e.error = 0;
+	e.responded = false;
 	for (i = 0; i < list->nr_servers; i++) {
 		server = list->servers[i].server;
 		if (test_bit(AFS_SERVER_FL_PROBED, &server->flags))
 			continue;
 
-		if (!test_and_set_bit_lock(AFS_SERVER_FL_PROBING, &server->flags)) {
-			ret = afs_do_probe_fileserver(net, server, key, i);
-			if (ret)
-				return ret;
-		}
+		if (!test_and_set_bit_lock(AFS_SERVER_FL_PROBING, &server->flags) &&
+		    afs_do_probe_fileserver(net, server, key, i, &e))
+			in_progress = true;
 	}
 
-	return 0;
+	return in_progress ? 0 : e.error;
 }
 
 /*

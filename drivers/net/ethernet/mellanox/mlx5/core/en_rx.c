@@ -1104,6 +1104,12 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	u32 frag_size;
 	bool consumed;
 
+	/* Check packet size. Note LRO doesn't use linear SKB */
+	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
+		rq->stats->oversize_pkts_sw_drop++;
+		return NULL;
+	}
+
 	va             = page_address(di->page) + head_offset;
 	data           = va + rx_headroom;
 	frag_size      = MLX5_SKB_FRAG_SZ(rx_headroom + cqe_bcnt32);

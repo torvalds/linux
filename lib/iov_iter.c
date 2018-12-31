@@ -560,6 +560,38 @@ static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
 	return bytes;
 }
 
+static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
+				__wsum *csum, struct iov_iter *i)
+{
+	struct pipe_inode_info *pipe = i->pipe;
+	size_t n, r;
+	size_t off = 0;
+	__wsum sum = *csum, next;
+	int idx;
+
+	if (!sanity(i))
+		return 0;
+
+	bytes = n = push_pipe(i, bytes, &idx, &r);
+	if (unlikely(!n))
+		return 0;
+	for ( ; n; idx = next_idx(idx, pipe), r = 0) {
+		size_t chunk = min_t(size_t, n, PAGE_SIZE - r);
+		char *p = kmap_atomic(pipe->bufs[idx].page);
+		next = csum_partial_copy_nocheck(addr, p + r, chunk, 0);
+		sum = csum_block_add(sum, next, off);
+		kunmap_atomic(p);
+		i->idx = idx;
+		i->iov_offset = r + chunk;
+		n -= chunk;
+		off += chunk;
+		addr += chunk;
+	}
+	i->count -= bytes;
+	*csum = sum;
+	return bytes;
+}
+
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
 	const char *from = addr;
@@ -1438,8 +1470,12 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum,
 	const char *from = addr;
 	__wsum sum, next;
 	size_t off = 0;
+
+	if (unlikely(iov_iter_is_pipe(i)))
+		return csum_and_copy_to_pipe_iter(addr, bytes, csum, i);
+
 	sum = *csum;
-	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
+	if (unlikely(iov_iter_is_discard(i))) {
 		WARN_ON(1);	/* for now */
 		return 0;
 	}

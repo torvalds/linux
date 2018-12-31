@@ -19,6 +19,7 @@
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/paca.h>
+#include <asm/ppc-opcode.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
@@ -58,27 +59,19 @@ static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
 	return __mk_vsid_data(get_kernel_vsid(ea, ssize), ssize, flags);
 }
 
-static void assert_slb_exists(unsigned long ea)
+static void assert_slb_presence(bool present, unsigned long ea)
 {
 #ifdef CONFIG_DEBUG_VM
 	unsigned long tmp;
 
 	WARN_ON_ONCE(mfmsr() & MSR_EE);
 
-	asm volatile("slbfee. %0, %1" : "=r"(tmp) : "r"(ea) : "cr0");
-	WARN_ON(tmp == 0);
-#endif
-}
+	if (!cpu_has_feature(CPU_FTR_ARCH_206))
+		return;
 
-static void assert_slb_notexists(unsigned long ea)
-{
-#ifdef CONFIG_DEBUG_VM
-	unsigned long tmp;
+	asm volatile(__PPC_SLBFEE_DOT(%0, %1) : "=r"(tmp) : "r"(ea) : "cr0");
 
-	WARN_ON_ONCE(mfmsr() & MSR_EE);
-
-	asm volatile("slbfee. %0, %1" : "=r"(tmp) : "r"(ea) : "cr0");
-	WARN_ON(tmp != 0);
+	WARN_ON(present == (tmp == 0));
 #endif
 }
 
@@ -114,7 +107,7 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 	 */
 	slb_shadow_update(ea, ssize, flags, index);
 
-	assert_slb_notexists(ea);
+	assert_slb_presence(false, ea);
 	asm volatile("slbmte  %0,%1" :
 		     : "r" (mk_vsid_data(ea, ssize, flags)),
 		       "r" (mk_esid_data(ea, ssize, index))
@@ -137,7 +130,7 @@ void __slb_restore_bolted_realmode(void)
 		       "r" (be64_to_cpu(p->save_area[index].esid)));
 	}
 
-	assert_slb_exists(local_paca->kstack);
+	assert_slb_presence(true, local_paca->kstack);
 }
 
 /*
@@ -185,7 +178,7 @@ void slb_flush_and_restore_bolted(void)
 		     :: "r" (be64_to_cpu(p->save_area[KSTACK_INDEX].vsid)),
 			"r" (be64_to_cpu(p->save_area[KSTACK_INDEX].esid))
 		     : "memory");
-	assert_slb_exists(get_paca()->kstack);
+	assert_slb_presence(true, get_paca()->kstack);
 
 	get_paca()->slb_cache_ptr = 0;
 
@@ -443,9 +436,9 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 				ea = (unsigned long)
 					get_paca()->slb_cache[i] << SID_SHIFT;
 				/*
-				 * Could assert_slb_exists here, but hypervisor
-				 * or machine check could have come in and
-				 * removed the entry at this point.
+				 * Could assert_slb_presence(true) here, but
+				 * hypervisor or machine check could have come
+				 * in and removed the entry at this point.
 				 */
 
 				slbie_data = ea;
@@ -676,7 +669,7 @@ static long slb_insert_entry(unsigned long ea, unsigned long context,
 	 * User preloads should add isync afterwards in case the kernel
 	 * accesses user memory before it returns to userspace with rfid.
 	 */
-	assert_slb_notexists(ea);
+	assert_slb_presence(false, ea);
 	asm volatile("slbmte %0, %1" : : "r" (vsid_data), "r" (esid_data));
 
 	barrier();
@@ -715,7 +708,7 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 			return -EFAULT;
 
 		if (ea < H_VMALLOC_END)
-			flags = get_paca()->vmalloc_sllp;
+			flags = local_paca->vmalloc_sllp;
 		else
 			flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_io_psize].sllp;
 	} else {

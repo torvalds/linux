@@ -244,7 +244,6 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 {
 	acpi_status status;
 	u32 buffer_length;
-	u32 data_length;
 	void *buffer;
 	union acpi_operand_object *buffer_desc;
 	u32 function;
@@ -282,14 +281,12 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 	case ACPI_ADR_SPACE_SMBUS:
 
 		buffer_length = ACPI_SMBUS_BUFFER_SIZE;
-		data_length = ACPI_SMBUS_DATA_SIZE;
 		function = ACPI_WRITE | (obj_desc->field.attribute << 16);
 		break;
 
 	case ACPI_ADR_SPACE_IPMI:
 
 		buffer_length = ACPI_IPMI_BUFFER_SIZE;
-		data_length = ACPI_IPMI_DATA_SIZE;
 		function = ACPI_WRITE;
 		break;
 
@@ -310,27 +307,12 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 		/* Add header length to get the full size of the buffer */
 
 		buffer_length += ACPI_SERIAL_HEADER_SIZE;
-		data_length = source_desc->buffer.pointer[1];
 		function = ACPI_WRITE | (accessor_type << 16);
 		break;
 
 	default:
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
-
-#if 0
-	OBSOLETE ?
-	    /* Check for possible buffer overflow */
-	    if (data_length > source_desc->buffer.length) {
-		ACPI_ERROR((AE_INFO,
-			    "Length in buffer header (%u)(%u) is greater than "
-			    "the physical buffer length (%u) and will overflow",
-			    data_length, buffer_length,
-			    source_desc->buffer.length));
-
-		return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
-	}
-#endif
 
 	/* Create the transfer/bidirectional/return buffer */
 
@@ -342,7 +324,8 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 	/* Copy the input buffer data to the transfer buffer */
 
 	buffer = buffer_desc->buffer.pointer;
-	memcpy(buffer, source_desc->buffer.pointer, data_length);
+	memcpy(buffer, source_desc->buffer.pointer,
+	       min(buffer_length, source_desc->buffer.length));
 
 	/* Lock entire transaction if requested */
 

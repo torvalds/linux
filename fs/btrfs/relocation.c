@@ -3959,6 +3959,7 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 restart:
 		if (update_backref_cache(trans, &rc->backref_cache)) {
 			btrfs_end_transaction(trans);
+			trans = NULL;
 			continue;
 		}
 
