@@ -95,7 +95,9 @@ static int gpr_set(struct task_struct *target,
 		return ret;
 
 	regs.sr = task_pt_regs(target)->sr;
-
+#ifdef CONFIG_CPU_HAS_HILO
+	regs.dcsr = task_pt_regs(target)->dcsr;
+#endif
 	task_thread_info(target)->tp_value = regs.tls;
 
 	*task_pt_regs(target) = regs;

@@ -11,6 +11,7 @@
 #include <asm/cache.h>
 #include <abi/reg_ops.h>
 #include <abi/regdef.h>
+#include <abi/switch_context.h>
 #ifdef CONFIG_CPU_HAS_FPU
 #include <abi/fpu.h>
 #endif
@@ -50,8 +51,6 @@ struct thread_struct {
 	unsigned long  ksp;       /* kernel stack pointer */
 	unsigned long  sr;        /* saved status register */
 	unsigned long  esp0;      /* points to SR of stack frame */
-	unsigned long  hi;
-	unsigned long  lo;
 
 	/* Other stuff associated with the thread. */
 	unsigned long address;      /* Last user fault */

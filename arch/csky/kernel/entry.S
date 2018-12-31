@@ -346,33 +346,11 @@ ENTRY(__switch_to)
 
 	stw	sp, (a3, THREAD_KSP)
 
-#ifdef CONFIG_CPU_HAS_HILO
-	lrw	r10, THREAD_DSPHI
-	add	r10, a3
-	mfhi	r6
-	mflo	r7
-	stw	r6, (r10, 0)		/* THREAD_DSPHI */
-	stw	r7, (r10, 4)		/* THREAD_DSPLO */
-	mfcr	r6, cr14
-	stw	r6, (r10, 8)		/* THREAD_DSPCSR */
-#endif
-
 	/* Set up next process to run */
 	lrw	a3, TASK_THREAD
 	addu	a3, a1
 
 	ldw	sp, (a3, THREAD_KSP)	/* Set next kernel sp */
-
-#ifdef CONFIG_CPU_HAS_HILO
-	lrw	r10, THREAD_DSPHI
-	add	r10, a3
-	ldw	r6, (r10, 8)		/* THREAD_DSPCSR */
-	mtcr	r6, cr14
-	ldw	r6, (r10, 0)		/* THREAD_DSPHI */
-	ldw	r7, (r10, 4)		/* THREAD_DSPLO */
-	mthi	r6
-	mtlo	r7
-#endif
 
 	ldw	a2, (a3, THREAD_SR)	/* Set next PSR */
 	mtcr	a2, psr
