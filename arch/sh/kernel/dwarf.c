@@ -605,17 +605,18 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	 * expected to find the real return address.
 	 */
 	if (pc == (unsigned long)&return_to_handler) {
-		int index = current->curr_ret_stack;
+		struct ftrace_ret_stack *ret_stack;
 
+		ret_stack = ftrace_graph_get_ret_stack(current, 0);
+		if (ret_stack)
+			pc = ret_stack->ret;
 		/*
 		 * We currently have no way of tracking how many
 		 * return_to_handler()'s we've seen. If there is more
 		 * than one patched return address on our stack,
 		 * complain loudly.
 		 */
-		WARN_ON(index > 0);
-
-		pc = current->ret_stack[index].ret;
+		WARN_ON(ftrace_graph_get_ret_stack(current, 1);
 	}
 #endif
 
