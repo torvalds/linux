@@ -1615,23 +1615,23 @@ EXPORT_SYMBOL(xa_store_range);
  * __xa_alloc() - Find somewhere to store this entry in the XArray.
  * @xa: XArray.
  * @id: Pointer to ID.
- * @max: Maximum ID to allocate (inclusive).
+ * @limit: Range for allocated ID.
  * @entry: New entry.
  * @gfp: Memory allocation flags.
  *
- * Allocates an unused ID in the range specified by @id and @max.
- * Updates the @id pointer with the index, then stores the entry at that
- * index.  A concurrent lookup will not see an uninitialised @id.
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.  May
  * release and reacquire xa_lock if @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory allocation fails or -ENOSPC if
- * there is no more space in the XArray.
+ * Return: 0 on success, -ENOMEM if memory could not be allocated or
+ * -EBUSY if there are no free entries in @limit.
  */
-int __xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry, gfp_t gfp)
+int __xa_alloc(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, gfp_t gfp)
 {
 	XA_STATE(xas, xa, 0);
-	int err;
 
 	if (WARN_ON_ONCE(xa_is_advanced(entry)))
 		return -EINVAL;
@@ -1642,18 +1642,17 @@ int __xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry, gfp_t gfp)
 		entry = XA_ZERO_ENTRY;
 
 	do {
-		xas.xa_index = *id;
-		xas_find_marked(&xas, max, XA_FREE_MARK);
+		xas.xa_index = limit.min;
+		xas_find_marked(&xas, limit.max, XA_FREE_MARK);
 		if (xas.xa_node == XAS_RESTART)
-			xas_set_err(&xas, -ENOSPC);
+			xas_set_err(&xas, -EBUSY);
+		else
+			*id = xas.xa_index;
 		xas_store(&xas, entry);
 		xas_clear_mark(&xas, XA_FREE_MARK);
 	} while (__xas_nomem(&xas, gfp));
 
-	err = xas_error(&xas);
-	if (!err)
-		*id = xas.xa_index;
-	return err;
+	return xas_error(&xas);
 }
 EXPORT_SYMBOL(__xa_alloc);
 
