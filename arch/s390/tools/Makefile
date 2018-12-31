@@ -25,7 +25,7 @@ define filechk_facility-defs.h
 endef
 
 define filechk_dis-defs.h
-	( $(obj)/gen_opcode_table < $(srctree)/arch/$(ARCH)/tools/opcodes.txt )
+	$(obj)/gen_opcode_table < $(srctree)/arch/$(ARCH)/tools/opcodes.txt
 endef
 
 $(kapi)/facility-defs.h: $(obj)/gen_facilities FORCE
