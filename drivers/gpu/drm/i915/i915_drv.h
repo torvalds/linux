@@ -1431,7 +1431,7 @@ struct drm_i915_private {
 	struct kmem_cache *dependencies;
 	struct kmem_cache *priorities;
 
-	const struct intel_device_info info;
+	const struct intel_device_info __info; /* Use INTEL_INFO() to access. */
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
 	struct intel_driver_caps caps;
 
@@ -2192,13 +2192,7 @@ static inline unsigned int i915_sg_segment_size(void)
 	return size;
 }
 
-static inline const struct intel_device_info *
-intel_info(const struct drm_i915_private *dev_priv)
-{
-	return &dev_priv->info;
-}
-
-#define INTEL_INFO(dev_priv)	intel_info((dev_priv))
+#define INTEL_INFO(dev_priv)	(&(dev_priv)->__info)
 #define RUNTIME_INFO(dev_priv)	(&(dev_priv)->__runtime)
 #define DRIVER_CAPS(dev_priv)	(&(dev_priv)->caps)
 
