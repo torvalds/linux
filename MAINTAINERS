@@ -14363,9 +14363,11 @@ SYNOPSYS DESIGNWARE DMAC DRIVER
 M:	Viresh Kumar <vireshk@kernel.org>
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 S:	Maintained
+F:	Documentation/devicetree/bindings/dma/snps-dma.txt
+F:	drivers/dma/dw/
+F:	include/dt-bindings/dma/dw-dmac.h
 F:	include/linux/dma/dw.h
 F:	include/linux/platform_data/dma-dw.h
-F:	drivers/dma/dw/
 
 SYNOPSYS DESIGNWARE ENTERPRISE ETHERNET DRIVER
 M:	Jose Abreu <Jose.Abreu@synopsys.com>
