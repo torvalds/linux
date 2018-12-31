@@ -63,7 +63,7 @@ void scaler_settings_calculation(struct dcn_bw_internal_vars *v)
 		if (v->interlace_output[k] == 1.0) {
 			v->v_ratio[k] = 2.0 * v->v_ratio[k];
 		}
-		if ((v->underscan_output[k] == 1.0)) {
+		if (v->underscan_output[k] == 1.0) {
 			v->h_ratio[k] = v->h_ratio[k] * v->under_scan_factor;
 			v->v_ratio[k] = v->v_ratio[k] * v->under_scan_factor;
 		}
