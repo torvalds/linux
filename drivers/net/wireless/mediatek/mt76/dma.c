@@ -300,7 +300,7 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	if (q->queued + (n + 1) / 2 >= q->ndesc - 1)
 		goto unmap;
 
-	return dev->queue_ops->add_buf(dev, q, buf, n, tx_info, skb, t);
+	return mt76_dma_add_buf(dev, q, buf, n, tx_info, skb, t);
 
 unmap:
 	ret = -ENOMEM;
