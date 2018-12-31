@@ -532,7 +532,6 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.display.has_fbc = 1, \
 	.display.has_psr = 1, \
 	.has_runtime_pm = 1, \
-	.has_pooled_eu = 0, \
 	.display.has_csr = 1, \
 	.has_rc6 = 1, \
 	.display.has_dp_mst = 1, \
