@@ -267,8 +267,6 @@ static inline void sseu_set_eus(struct sseu_dev_info *sseu,
 const char *intel_platform_name(enum intel_platform platform);
 
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
-void intel_device_info_dump(const struct intel_device_info *info,
-			    struct drm_printer *p);
 void intel_device_info_dump_flags(const struct intel_device_info *info,
 				  struct drm_printer *p);
 void intel_device_info_dump_runtime(const struct intel_runtime_info *info,

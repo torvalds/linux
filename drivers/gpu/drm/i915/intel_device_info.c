@@ -113,21 +113,6 @@ void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
 		   info->cs_timestamp_frequency_khz);
 }
 
-void intel_device_info_dump(const struct intel_device_info *info,
-			    struct drm_printer *p)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(info, struct drm_i915_private, info);
-
-	drm_printf(p, "pciid=0x%04x rev=0x%02x platform=%s gen=%i\n",
-		   INTEL_DEVID(dev_priv),
-		   INTEL_REVID(dev_priv),
-		   intel_platform_name(info->platform),
-		   info->gen);
-
-	intel_device_info_dump_flags(info, p);
-}
-
 void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
 				     struct drm_printer *p)
 {
