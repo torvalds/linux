@@ -8,6 +8,7 @@
 #include <abi/regdef.h>
 
 #define ELF_ARCH EM_CSKY
+#define EM_CSKY_OLD 39
 
 /* CSKY Relocations */
 #define R_CSKY_NONE               0
@@ -43,7 +44,8 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) ((x)->e_machine == ELF_ARCH)
+#define elf_check_arch(x) (((x)->e_machine == ELF_ARCH) || \
+			   ((x)->e_machine == EM_CSKY_OLD))
 
 /*
  * These are used to set parameters in the core dumps.
