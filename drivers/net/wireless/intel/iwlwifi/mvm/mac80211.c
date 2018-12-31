@@ -4469,6 +4469,7 @@ static int iwl_mvm_schedule_client_csa(struct iwl_mvm *mvm,
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
 		.tsf = cpu_to_le32(chsw->timestamp),
 		.cs_count = chsw->count,
+		.cs_mode = chsw->block_tx,
 	};
 
 	lockdep_assert_held(&mvm->mutex);
@@ -4643,6 +4644,7 @@ static void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 		.action = cpu_to_le32(FW_CTXT_ACTION_MODIFY),
 		.tsf = cpu_to_le32(chsw->timestamp),
 		.cs_count = chsw->count,
+		.cs_mode = chsw->block_tx,
 	};
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_CS_MODIFY))
