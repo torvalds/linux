@@ -391,6 +391,9 @@
 381  common	kexec_file_load		sys_kexec_file_load		sys_kexec_file_load
 382  common	io_pgetevents		sys_io_pgetevents		compat_sys_io_pgetevents
 383  common	rseq			sys_rseq			sys_rseq
+384  common	pkey_mprotect		sys_pkey_mprotect		sys_pkey_mprotect
+385  common	pkey_alloc		sys_pkey_alloc			sys_pkey_alloc
+386  common	pkey_free		sys_pkey_free			sys_pkey_free
 # room for arch specific syscalls
 392	64	semtimedop		sys_semtimedop			-
 393  common	semget			sys_semget			sys_semget

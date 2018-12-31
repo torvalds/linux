@@ -452,3 +452,7 @@
 521	common	pwritev2			sys_pwritev2
 522	common	statx				sys_statx
 523	common	io_pgetevents			sys_io_pgetevents
+524	common	pkey_mprotect			sys_pkey_mprotect
+525	common	pkey_alloc			sys_pkey_alloc
+526	common	pkey_free			sys_pkey_free
+527	common	rseq				sys_rseq

@@ -388,6 +388,10 @@
 378	common	pwritev2			sys_pwritev2
 379	common	statx				sys_statx
 380	common	seccomp				sys_seccomp
+381	common	pkey_mprotect			sys_pkey_mprotect
+382	common	pkey_alloc			sys_pkey_alloc
+383	common	pkey_free			sys_pkey_free
+384	common	rseq				sys_rseq
 # room for arch specific calls
 393	common	semget				sys_semget
 394	common	semctl				sys_semctl

@@ -339,3 +339,7 @@
 327	common	io_pgetevents			sys_io_pgetevents
 328	common	perf_event_open			sys_perf_event_open
 329	common	seccomp				sys_seccomp
+330	common	pkey_mprotect			sys_pkey_mprotect
+331	common	pkey_alloc			sys_pkey_alloc
+332	common	pkey_free			sys_pkey_free
+333	common	rseq				sys_rseq
