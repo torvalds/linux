@@ -197,6 +197,7 @@ COND_SYSCALL_COMPAT(mq_getsetattr);
 
 /* ipc/msg.c */
 COND_SYSCALL(msgget);
+COND_SYSCALL(old_msgctl);
 COND_SYSCALL(msgctl);
 COND_SYSCALL_COMPAT(msgctl);
 COND_SYSCALL(msgrcv);
@@ -206,6 +207,7 @@ COND_SYSCALL_COMPAT(msgsnd);
 
 /* ipc/sem.c */
 COND_SYSCALL(semget);
+COND_SYSCALL(old_semctl);
 COND_SYSCALL(semctl);
 COND_SYSCALL_COMPAT(semctl);
 COND_SYSCALL(semtimedop);
@@ -214,6 +216,7 @@ COND_SYSCALL(semop);
 
 /* ipc/shm.c */
 COND_SYSCALL(shmget);
+COND_SYSCALL(old_shmctl);
 COND_SYSCALL(shmctl);
 COND_SYSCALL_COMPAT(shmctl);
 COND_SYSCALL(shmat);

@@ -103,7 +103,7 @@
 91	common	madvise				sys_madvise
 92	common	shmget				sys_shmget
 93	common	shmat				xtensa_shmat
-94	common	shmctl				sys_shmctl
+94	common	shmctl				sys_old_shmctl
 95	common	shmdt				sys_shmdt
 # Socket Operations
 96	common	socket				sys_socket
@@ -177,12 +177,12 @@
 161	common	semtimedop			sys_semtimedop
 162	common	semget				sys_semget
 163	common	semop				sys_semop
-164	common	semctl				sys_semctl
+164	common	semctl				sys_old_semctl
 165	common	available165			sys_ni_syscall
 166	common	msgget				sys_msgget
 167	common	msgsnd				sys_msgsnd
 168	common	msgrcv				sys_msgrcv
-169	common	msgctl				sys_msgctl
+169	common	msgctl				sys_old_msgctl
 170	common	available170			sys_ni_syscall
 # File System
 171	common	umount2				sys_umount

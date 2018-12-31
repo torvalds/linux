@@ -622,7 +622,7 @@ __SYSCALL(__NR_semop, sys_semop)
 #define __NR_semget 299
 __SYSCALL(__NR_semget, sys_semget)
 #define __NR_semctl 300
-__SYSCALL(__NR_semctl, compat_sys_semctl)
+__SYSCALL(__NR_semctl, compat_sys_old_semctl)
 #define __NR_msgsnd 301
 __SYSCALL(__NR_msgsnd, compat_sys_msgsnd)
 #define __NR_msgrcv 302
@@ -630,7 +630,7 @@ __SYSCALL(__NR_msgrcv, compat_sys_msgrcv)
 #define __NR_msgget 303
 __SYSCALL(__NR_msgget, sys_msgget)
 #define __NR_msgctl 304
-__SYSCALL(__NR_msgctl, compat_sys_msgctl)
+__SYSCALL(__NR_msgctl, compat_sys_old_msgctl)
 #define __NR_shmat 305
 __SYSCALL(__NR_shmat, compat_sys_shmat)
 #define __NR_shmdt 306
@@ -638,7 +638,7 @@ __SYSCALL(__NR_shmdt, sys_shmdt)
 #define __NR_shmget 307
 __SYSCALL(__NR_shmget, sys_shmget)
 #define __NR_shmctl 308
-__SYSCALL(__NR_shmctl, compat_sys_shmctl)
+__SYSCALL(__NR_shmctl, compat_sys_old_shmctl)
 #define __NR_add_key 309
 __SYSCALL(__NR_add_key, sys_add_key)
 #define __NR_request_key 310

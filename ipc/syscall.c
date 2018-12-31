@@ -47,7 +47,7 @@ int ksys_ipc(unsigned int call, int first, unsigned long second,
 			return -EINVAL;
 		if (get_user(arg, (unsigned long __user *) ptr))
 			return -EFAULT;
-		return ksys_semctl(first, second, third, arg);
+		return ksys_old_semctl(first, second, third, arg);
 	}
 
 	case MSGSND:
@@ -75,7 +75,7 @@ int ksys_ipc(unsigned int call, int first, unsigned long second,
 	case MSGGET:
 		return ksys_msgget((key_t) first, second);
 	case MSGCTL:
-		return ksys_msgctl(first, second,
+		return ksys_old_msgctl(first, second,
 				   (struct msqid_ds __user *)ptr);
 
 	case SHMAT:
@@ -100,7 +100,7 @@ int ksys_ipc(unsigned int call, int first, unsigned long second,
 	case SHMGET:
 		return ksys_shmget(first, second, third);
 	case SHMCTL:
-		return ksys_shmctl(first, second,
+		return ksys_old_shmctl(first, second,
 				   (struct shmid_ds __user *) ptr);
 	default:
 		return -ENOSYS;
@@ -152,7 +152,7 @@ int compat_ksys_ipc(u32 call, int first, int second,
 			return -EINVAL;
 		if (get_user(pad, (u32 __user *) compat_ptr(ptr)))
 			return -EFAULT;
-		return compat_ksys_semctl(first, second, third, pad);
+		return compat_ksys_old_semctl(first, second, third, pad);
 
 	case MSGSND:
 		return compat_ksys_msgsnd(first, ptr, second, third);
@@ -177,7 +177,7 @@ int compat_ksys_ipc(u32 call, int first, int second,
 	case MSGGET:
 		return ksys_msgget(first, second);
 	case MSGCTL:
-		return compat_ksys_msgctl(first, second, compat_ptr(ptr));
+		return compat_ksys_old_msgctl(first, second, compat_ptr(ptr));
 
 	case SHMAT: {
 		int err;
@@ -196,7 +196,7 @@ int compat_ksys_ipc(u32 call, int first, int second,
 	case SHMGET:
 		return ksys_shmget(first, (unsigned int)second, third);
 	case SHMCTL:
-		return compat_ksys_shmctl(first, second, compat_ptr(ptr));
+		return compat_ksys_old_shmctl(first, second, compat_ptr(ptr));
 	}
 
 	return -ENOSYS;
