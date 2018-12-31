@@ -884,7 +884,6 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	    struct cifs_sb_info *cifs_sb)
 {
 	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server = ses->server;
 	__le16 *utf16_path = NULL;
 	int ea_name_len = strlen(ea_name);
 	int flags = 0;
@@ -936,7 +935,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_open_init(tcon, &rqst[0], &oplock, &oparms, utf16_path);
 	if (rc)
 		goto sea_exit;
-	smb2_set_next_command(ses->server, &rqst[0], 0);
+	smb2_set_next_command(tcon, &rqst[0]);
 
 
 	/* Set Info */
@@ -963,7 +962,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 				COMPOUND_FID, current->tgid,
 				FILE_FULL_EA_INFORMATION,
 				SMB2_O_INFO_FILE, 0, data, size);
-	smb2_set_next_command(server, &rqst[1], 0);
+	smb2_set_next_command(tcon, &rqst[1]);
 	smb2_set_related(&rqst[1]);
 
 
@@ -1222,7 +1221,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 	rc = SMB2_open_init(tcon, &rqst[0], &oplock, &oparms, path);
 	if (rc)
 		goto iqinf_exit;
-	smb2_set_next_command(ses->server, &rqst[0], 0);
+	smb2_set_next_command(tcon, &rqst[0]);
 
 	/* Query */
 	memset(&qi_iov, 0, sizeof(qi_iov));
@@ -1236,7 +1235,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 				  qi.output_buffer_length, buffer);
 	if (rc)
 		goto iqinf_exit;
-	smb2_set_next_command(ses->server, &rqst[1], 0);
+	smb2_set_next_command(tcon, &rqst[1]);
 	smb2_set_related(&rqst[1]);
 
 	/* Close */
@@ -1789,26 +1788,53 @@ smb2_set_related(struct smb_rqst *rqst)
 char smb2_padding[7] = {0, 0, 0, 0, 0, 0, 0};
 
 void
-smb2_set_next_command(struct TCP_Server_Info *server, struct smb_rqst *rqst,
-		      bool has_space_for_padding)
+smb2_set_next_command(struct cifs_tcon *tcon, struct smb_rqst *rqst)
 {
 	struct smb2_sync_hdr *shdr;
+	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
 	unsigned long len = smb_rqst_len(server, rqst);
+	int i, num_padding;
 
 	/* SMB headers in a compound are 8 byte aligned. */
-	if (len & 7) {
-		if (has_space_for_padding) {
-			len = rqst->rq_iov[rqst->rq_nvec - 1].iov_len;
-			rqst->rq_iov[rqst->rq_nvec - 1].iov_len =
-				(len + 7) & ~7;
-		} else {
-			rqst->rq_iov[rqst->rq_nvec].iov_base = smb2_padding;
-			rqst->rq_iov[rqst->rq_nvec].iov_len = 8 - (len & 7);
-			rqst->rq_nvec++;
+
+	/* No padding needed */
+	if (!(len & 7))
+		goto finished;
+
+	num_padding = 8 - (len & 7);
+	if (!smb3_encryption_required(tcon)) {
+		/*
+		 * If we do not have encryption then we can just add an extra
+		 * iov for the padding.
+		 */
+		rqst->rq_iov[rqst->rq_nvec].iov_base = smb2_padding;
+		rqst->rq_iov[rqst->rq_nvec].iov_len = num_padding;
+		rqst->rq_nvec++;
+		len += num_padding;
+	} else {
+		/*
+		 * We can not add a small padding iov for the encryption case
+		 * because the encryption framework can not handle the padding
+		 * iovs.
+		 * We have to flatten this into a single buffer and add
+		 * the padding to it.
+		 */
+		for (i = 1; i < rqst->rq_nvec; i++) {
+			memcpy(rqst->rq_iov[0].iov_base +
+			       rqst->rq_iov[0].iov_len,
+			       rqst->rq_iov[i].iov_base,
+			       rqst->rq_iov[i].iov_len);
+			rqst->rq_iov[0].iov_len += rqst->rq_iov[i].iov_len;
 		}
-		len = smb_rqst_len(server, rqst);
+		memset(rqst->rq_iov[0].iov_base + rqst->rq_iov[0].iov_len,
+		       0, num_padding);
+		rqst->rq_iov[0].iov_len += num_padding;
+		len += num_padding;
+		rqst->rq_nvec = 1;
 	}
 
+ finished:
 	shdr = (struct smb2_sync_hdr *)(rqst->rq_iov[0].iov_base);
 	shdr->NextCommand = cpu_to_le32(len);
 }
@@ -1825,7 +1851,6 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 			 struct cifs_sb_info *cifs_sb)
 {
 	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server = ses->server;
 	int flags = 0;
 	struct smb_rqst rqst[3];
 	int resp_buftype[3];
@@ -1862,7 +1887,7 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_open_init(tcon, &rqst[0], &oplock, &oparms, utf16_path);
 	if (rc)
 		goto qic_exit;
-	smb2_set_next_command(server, &rqst[0], 0);
+	smb2_set_next_command(tcon, &rqst[0]);
 
 	memset(&qi_iov, 0, sizeof(qi_iov));
 	rqst[1].rq_iov = qi_iov;
@@ -1874,7 +1899,7 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 				  NULL);
 	if (rc)
 		goto qic_exit;
-	smb2_set_next_command(server, &rqst[1], 0);
+	smb2_set_next_command(tcon, &rqst[1]);
 	smb2_set_related(&rqst[1]);
 
 	memset(&close_iov, 0, sizeof(close_iov));
@@ -2806,7 +2831,7 @@ init_sg(int num_rqst, struct smb_rqst *rqst, u8 *sign)
 			smb2_sg_set_buf(&sg[idx++],
 					rqst[i].rq_iov[j].iov_base + skip,
 					rqst[i].rq_iov[j].iov_len - skip);
-		}
+			}
 
 		for (j = 0; j < rqst[i].rq_npages; j++) {
 			unsigned int len, offset;
