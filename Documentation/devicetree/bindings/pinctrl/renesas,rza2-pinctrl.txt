@@ -1,0 +1,87 @@
+Renesas RZ/A2 combined Pin and GPIO controller
+
+The Renesas SoCs of the RZ/A2 series feature a combined Pin and GPIO controller.
+Pin multiplexing and GPIO configuration is performed on a per-pin basis.
+Each port features up to 8 pins, each of them configurable for GPIO
+function (port mode) or in alternate function mode.
+Up to 8 different alternate function modes exist for each single pin.
+
+Pin controller node
+-------------------
+
+Required properties:
+  - compatible: shall be:
+    - "renesas,r7s9210-pinctrl": for RZ/A2M
+  - reg
+    Address base and length of the memory area where the pin controller
+    hardware is mapped to.
+  - gpio-controller
+    This pin controller also controls pins as GPIO
+  - #gpio-cells
+    Must be 2
+  - gpio-ranges
+    Expresses the total number of GPIO ports/pins in this SoC
+
+Example: Pin controller node for RZ/A2M SoC (r7s9210)
+
+	pinctrl: pin-controller@fcffe000 {
+		compatible = "renesas,r7s9210-pinctrl";
+		reg = <0xfcffe000 0x1000>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&pinctrl 0 0 176>;
+	};
+
+Sub-nodes
+---------
+
+The child nodes of the pin controller designate pins to be used for
+specific peripheral functions or as GPIO.
+
+- Pin multiplexing sub-nodes:
+  A pin multiplexing sub-node describes how to configure a set of
+  (or a single) pin in some desired alternate function mode.
+  The values for the pinmux properties are a combination of port name, pin
+  number and the desired function index. Use the RZA2_PINMUX macro located
+  in include/dt-bindings/pinctrl/r7s9210-pinctrl.h to easily define these.
+  For assigning GPIO pins, use the macro RZA2_PIN also in r7s9210-pinctrl.h
+  to express the desired port pin.
+
+  Required properties:
+    - pinmux:
+      integer array representing pin number and pin multiplexing configuration.
+      When a pin has to be configured in alternate function mode, use this
+      property to identify the pin by its global index, and provide its
+      alternate function configuration number along with it.
+      When multiple pins are required to be configured as part of the same
+      alternate function they shall be specified as members of the same
+      argument list of a single "pinmux" property.
+      Helper macros to ease assembling the pin index from its position
+      (port where it sits on and pin number) and alternate function identifier
+      are provided by the pin controller header file at:
+      <dt-bindings/pinctrl/r7s9210-pinctrl.h>
+      Integers values in "pinmux" argument list are assembled as:
+      ((PORT * 8 + PIN) | MUX_FUNC << 16)
+
+  Example: Board specific pins configuration
+
+	&pinctrl {
+		/* Serial Console */
+		scif4_pins: serial4 {
+			pinmux = <RZA2_PINMUX(PORT9, 0, 4)>,	/* TxD4 */
+				 <RZA2_PINMUX(PORT9, 1, 4)>;	/* RxD4 */
+		};
+	};
+
+  Example: Assigning a GPIO:
+
+	leds {
+		status = "okay";
+		compatible = "gpio-leds";
+
+		led0 {
+			/* P6_0 */
+			gpios = <&pinctrl RZA2_PIN(PORT6, 0) GPIO_ACTIVE_HIGH>;
+		};
+	};
