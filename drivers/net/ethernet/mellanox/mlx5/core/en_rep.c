@@ -1293,6 +1293,18 @@ static int mlx5e_uplink_rep_set_mac(struct net_device *netdev, void *addr)
 	return 0;
 }
 
+static int mlx5e_uplink_rep_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos,
+					__be16 vlan_proto)
+{
+	netdev_warn_once(dev, "legacy vf vlan setting isn't supported in switchdev mode\n");
+
+	if (vlan != 0)
+		return -EOPNOTSUPP;
+
+	/* allow setting 0-vid for compatibility with libvirt */
+	return 0;
+}
+
 static const struct switchdev_ops mlx5e_rep_switchdev_ops = {
 	.switchdev_port_attr_get	= mlx5e_attr_get,
 };
@@ -1327,6 +1339,7 @@ static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
 	.ndo_set_vf_rate         = mlx5e_set_vf_rate,
 	.ndo_get_vf_config       = mlx5e_get_vf_config,
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
+	.ndo_set_vf_vlan         = mlx5e_uplink_rep_set_vf_vlan,
 };
 
 bool mlx5e_eswitch_rep(struct net_device *netdev)
