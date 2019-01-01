@@ -601,11 +601,17 @@ static int iwl_mvm_fwrt_send_hcmd(void *ctx, struct iwl_host_cmd *host_cmd)
 	return ret;
 }
 
+static bool iwl_mvm_d3_debug_enable(void *ctx)
+{
+	return IWL_MVM_D3_DEBUG;
+}
+
 static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
 	.dump_start = iwl_mvm_fwrt_dump_start,
 	.dump_end = iwl_mvm_fwrt_dump_end,
 	.fw_running = iwl_mvm_fwrt_fw_running,
 	.send_hcmd = iwl_mvm_fwrt_send_hcmd,
+	.d3_debug_enable = iwl_mvm_d3_debug_enable,
 };
 
 static struct iwl_op_mode *
