@@ -226,7 +226,7 @@ static void vop_reset_inform_host(struct virtio_device *dev)
 		if (ioread8(&dc->host_ack))
 			break;
 		msleep(100);
-	};
+	}
 
 	dev_dbg(_vop_dev(vdev), "%s: retry: %d\n", __func__, retry);
 
@@ -421,7 +421,7 @@ static int vop_find_vqs(struct virtio_device *dev, unsigned nvqs,
 		if (!ioread8(&dc->used_address_updated))
 			break;
 		msleep(100);
-	};
+	}
 
 	dev_dbg(_vop_dev(vdev), "%s: retry: %d\n", __func__, retry);
 	if (!retry) {
