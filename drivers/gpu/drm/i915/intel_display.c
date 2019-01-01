@@ -46,7 +46,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic_uapi.h>
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/reservation.h>
 
 /* Primary plane formats for gen <= 3 */
