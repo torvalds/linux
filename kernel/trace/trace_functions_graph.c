@@ -501,6 +501,17 @@ static void print_graph_abs_time(u64 t, struct trace_seq *s)
 }
 
 static void
+print_graph_rel_time(struct trace_iterator *iter, struct trace_seq *s)
+{
+	unsigned long long usecs;
+
+	usecs = iter->ts - iter->trace_buffer->time_start;
+	do_div(usecs, NSEC_PER_USEC);
+
+	trace_seq_printf(s, "%9llu us |  ", usecs);
+}
+
+static void
 print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 		enum trace_type type, int cpu, pid_t pid, u32 flags)
 {
@@ -516,6 +527,10 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 		/* Absolute time */
 		if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 			print_graph_abs_time(iter->ts, s);
+
+		/* Relative time */
+		if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+			print_graph_rel_time(iter, s);
 
 		/* Cpu */
 		if (flags & TRACE_GRAPH_PRINT_CPU)
@@ -724,6 +739,10 @@ print_graph_prologue(struct trace_iterator *iter, struct trace_seq *s,
 	/* Absolute time */
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 		print_graph_abs_time(iter->ts, s);
+
+	/* Relative time */
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+		print_graph_rel_time(iter, s);
 
 	/* Cpu */
 	if (flags & TRACE_GRAPH_PRINT_CPU)
@@ -1101,6 +1120,8 @@ static void print_lat_header(struct seq_file *s, u32 flags)
 
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 		size += 16;
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+		size += 16;
 	if (flags & TRACE_GRAPH_PRINT_CPU)
 		size += 4;
 	if (flags & TRACE_GRAPH_PRINT_PROC)
@@ -1125,6 +1146,8 @@ static void __print_graph_headers_flags(struct trace_array *tr,
 	seq_putc(s, '#');
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 		seq_puts(s, "     TIME       ");
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+		seq_puts(s, "   REL TIME     ");
 	if (flags & TRACE_GRAPH_PRINT_CPU)
 		seq_puts(s, " CPU");
 	if (flags & TRACE_GRAPH_PRINT_PROC)
@@ -1138,6 +1161,8 @@ static void __print_graph_headers_flags(struct trace_array *tr,
 	/* 2nd line */
 	seq_putc(s, '#');
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
+		seq_puts(s, "      |         ");
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
 		seq_puts(s, "      |         ");
 	if (flags & TRACE_GRAPH_PRINT_CPU)
 		seq_puts(s, " |  ");
