@@ -45,6 +45,7 @@
 				 "eth_rxd1", "eth_rxd0",
 				 "eth_mdio", "eth_mdc";
 			function = "ethernet";
+			bias-disable;
 		};
 	};
 };

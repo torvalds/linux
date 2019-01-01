@@ -114,6 +114,7 @@ edt	Emerging Display Technologies
 eeti	eGalax_eMPIA Technology Inc
 elan	Elan Microelectronic Corp.
 embest	Shenzhen Embest Technology Co., Ltd.
+emlid	Emlid, Ltd.
 emmicro	EM Microelectronic
 emtrion	emtrion GmbH
 endless	Endless Mobile, Inc.
@@ -298,6 +299,7 @@ panasonic	Panasonic Corporation
 parade	Parade Technologies Inc.
 pericom	Pericom Technology Inc.
 pervasive	Pervasive Displays, Inc.
+phicomm PHICOMM Co., Ltd.
 phytec	PHYTEC Messtechnik GmbH
 picochip	Picochip Ltd
 pine64	Pine64

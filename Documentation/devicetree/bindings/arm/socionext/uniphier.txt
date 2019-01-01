@@ -1,0 +1,47 @@
+Socionext UniPhier SoC family
+-----------------------------
+
+Required properties in the root node:
+  - compatible: should contain board and SoC compatible strings
+
+SoC and board compatible strings:
+  (sorted chronologically)
+
+  - LD4 SoC:  "socionext,uniphier-ld4"
+      - Reference Board: "socionext,uniphier-ld4-ref"
+
+  - Pro4 SoC: "socionext,uniphier-pro4"
+      - Reference Board: "socionext,uniphier-pro4-ref"
+      - Ace Board:       "socionext,uniphier-pro4-ace"
+      - Sanji Board:     "socionext,uniphier-pro4-sanji"
+
+  - sLD8 SoC: "socionext,uniphier-sld8"
+      - Reference Board: "socionext,uniphier-sld8-ref"
+
+  - PXs2 SoC: "socionext,uniphier-pxs2"
+      - Gentil Board:    "socionext,uniphier-pxs2-gentil"
+      - Vodka Board:     "socionext,uniphier-pxs2-vodka"
+
+  - LD6b SoC: "socionext,uniphier-ld6b"
+      - Reference Board: "socionext,uniphier-ld6b-ref"
+
+  - LD11 SoC: "socionext,uniphier-ld11"
+      - Reference Board: "socionext,uniphier-ld11-ref"
+      - Global Board:    "socionext,uniphier-ld11-global"
+
+  - LD20 SoC: "socionext,uniphier-ld20"
+      - Reference Board: "socionext,uniphier-ld20-ref"
+      - Global Board:    "socionext,uniphier-ld20-global"
+
+  - PXs3 SoC: "socionext,uniphier-pxs3"
+      - Reference Board: "socionext,uniphier-pxs3-ref"
+
+Example:
+
+/dts-v1/;
+
+/ {
+	compatible = "socionext,uniphier-ld20-ref", "socionext,uniphier-ld20";
+
+	...
+};
