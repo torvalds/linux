@@ -927,26 +927,6 @@ static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
 	return ret;
 }
 
-/* Get the list of RPMh voltage levels from cmd-db */
-static int a6xx_gmu_rpmh_arc_cmds(const char *id, void *vals, int size)
-{
-	u32 len = cmd_db_read_aux_data_len(id);
-
-	if (!len)
-		return 0;
-
-	if (WARN_ON(len > size))
-		return -EINVAL;
-
-	cmd_db_read_aux_data(id, vals, len);
-
-	/*
-	 * The data comes back as an array of unsigned shorts so adjust the
-	 * count accordingly
-	 */
-	return len >> 1;
-}
-
 /* Return the 'arc-level' for the given frequency */
 static u32 a6xx_gmu_get_arc_level(struct device *dev, unsigned long freq)
 {
@@ -974,11 +954,30 @@ static u32 a6xx_gmu_get_arc_level(struct device *dev, unsigned long freq)
 }
 
 static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
-		unsigned long *freqs, int freqs_count,
-		u16 *pri, int pri_count,
-		u16 *sec, int sec_count)
+		unsigned long *freqs, int freqs_count, const char *id)
 {
 	int i, j;
+	const u16 *pri, *sec;
+	size_t pri_count, sec_count;
+
+	pri = cmd_db_read_aux_data(id, &pri_count);
+	if (IS_ERR(pri))
+		return PTR_ERR(pri);
+	/*
+	 * The data comes back as an array of unsigned shorts so adjust the
+	 * count accordingly
+	 */
+	pri_count >>= 1;
+	if (!pri_count)
+		return -EINVAL;
+
+	sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
+	if (IS_ERR(sec))
+		return PTR_ERR(sec);
+
+	sec_count >>= 1;
+	if (!sec_count)
+		return -EINVAL;
 
 	/* Construct a vote for each frequency */
 	for (i = 0; i < freqs_count; i++) {
@@ -1037,25 +1036,15 @@ static int a6xx_gmu_rpmh_votes_init(struct a6xx_gmu *gmu)
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
 	struct msm_gpu *gpu = &adreno_gpu->base;
-
-	u16 gx[16], cx[16], mx[16];
-	u32 gxcount, cxcount, mxcount;
 	int ret;
-
-	/* Get the list of available voltage levels for each component */
-	gxcount = a6xx_gmu_rpmh_arc_cmds("gfx.lvl", gx, sizeof(gx));
-	cxcount = a6xx_gmu_rpmh_arc_cmds("cx.lvl", cx, sizeof(cx));
-	mxcount = a6xx_gmu_rpmh_arc_cmds("mx.lvl", mx, sizeof(mx));
 
 	/* Build the GX votes */
 	ret = a6xx_gmu_rpmh_arc_votes_init(&gpu->pdev->dev, gmu->gx_arc_votes,
-		gmu->gpu_freqs, gmu->nr_gpu_freqs,
-		gx, gxcount, mx, mxcount);
+		gmu->gpu_freqs, gmu->nr_gpu_freqs, "gfx.lvl");
 
 	/* Build the CX votes */
 	ret |= a6xx_gmu_rpmh_arc_votes_init(gmu->dev, gmu->cx_arc_votes,
-		gmu->gmu_freqs, gmu->nr_gmu_freqs,
-		cx, cxcount, mx, mxcount);
+		gmu->gmu_freqs, gmu->nr_gmu_freqs, "cx.lvl");
 
 	return ret;
 }

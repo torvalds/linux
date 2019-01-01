@@ -2061,7 +2061,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 * timings.
 	 */
 	name = gpmc_cs_get_name(cs);
-	if (name && of_node_cmp(child->name, name) == 0)
+	if (name && of_node_name_eq(child, name))
 		goto no_timings;
 
 	ret = gpmc_cs_request(cs, resource_size(&res), &base);
@@ -2069,7 +2069,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		dev_err(&pdev->dev, "cannot request GPMC CS %d\n", cs);
 		return ret;
 	}
-	gpmc_cs_set_name(cs, child->name);
+	gpmc_cs_set_name(cs, child->full_name);
 
 	gpmc_read_settings_dt(child, &gpmc_s);
 	gpmc_read_timings_dt(child, &gpmc_t);
@@ -2114,7 +2114,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		goto err;
 	}
 
-	if (of_node_cmp(child->name, "nand") == 0) {
+	if (of_node_name_eq(child, "nand")) {
 		/* Warn about older DT blobs with no compatible property */
 		if (!of_property_read_bool(child, "compatible")) {
 			dev_warn(&pdev->dev,
@@ -2124,7 +2124,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		}
 	}
 
-	if (of_node_cmp(child->name, "onenand") == 0) {
+	if (of_node_name_eq(child, "onenand")) {
 		/* Warn about older DT blobs with no compatible property */
 		if (!of_property_read_bool(child, "compatible")) {
 			dev_warn(&pdev->dev,
