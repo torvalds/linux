@@ -1075,7 +1075,10 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_bug_on(sbi, sbi->fsync_node_num);
 
 	iput(sbi->node_inode);
+	sbi->node_inode = NULL;
+
 	iput(sbi->meta_inode);
+	sbi->meta_inode = NULL;
 
 	/*
 	 * iput() can update stat information, if f2fs_write_checkpoint()
@@ -3410,6 +3413,7 @@ free_node_inode:
 	f2fs_release_ino_entry(sbi, true);
 	truncate_inode_pages_final(NODE_MAPPING(sbi));
 	iput(sbi->node_inode);
+	sbi->node_inode = NULL;
 free_stats:
 	f2fs_destroy_stats(sbi);
 free_nm:
@@ -3422,6 +3426,7 @@ free_devices:
 free_meta_inode:
 	make_bad_inode(sbi->meta_inode);
 	iput(sbi->meta_inode);
+	sbi->meta_inode = NULL;
 free_io_dummy:
 	mempool_destroy(sbi->write_io_dummy);
 free_percpu:
