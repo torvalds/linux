@@ -21,11 +21,13 @@
 #define CEPHFS_FEATURE_REPLY_ENCODING	9
 #define CEPHFS_FEATURE_RECLAIM_CLIENT	10
 #define CEPHFS_FEATURE_LAZY_CAP_WANTED	11
+#define CEPHFS_FEATURE_MULTI_RECONNECT  12
 
 #define CEPHFS_FEATURES_CLIENT_SUPPORTED { 	\
 	0, 1, 2, 3, 4, 5, 6, 7,			\
 	CEPHFS_FEATURE_MIMIC,			\
 	CEPHFS_FEATURE_LAZY_CAP_WANTED,		\
+	CEPHFS_FEATURE_MULTI_RECONNECT,		\
 }
 #define CEPHFS_FEATURES_CLIENT_REQUIRED {}
 
@@ -342,6 +344,7 @@ struct ceph_mds_client {
 	struct rw_semaphore     snap_rwsem;
 	struct rb_root          snap_realms;
 	struct list_head        snap_empty;
+	int			num_snap_realms;
 	spinlock_t              snap_empty_lock;  /* protect snap_empty */
 
 	u64                    last_tid;      /* most recent mds request */
