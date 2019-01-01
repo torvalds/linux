@@ -39,7 +39,7 @@ __SC_COMP(__NR_io_submit, sys_io_submit, compat_sys_io_submit)
 #define __NR_io_cancel 3
 __SYSCALL(__NR_io_cancel, sys_io_cancel)
 #define __NR_io_getevents 4
-__SC_COMP(__NR_io_getevents, sys_io_getevents, sys_io_getevents_time32)
+__SC_3264(__NR_io_getevents, sys_io_getevents_time32, sys_io_getevents)
 
 /* fs/xattr.c */
 #define __NR_setxattr 5
@@ -223,9 +223,9 @@ __SYSCALL(__NR3264_sendfile, sys_sendfile64)
 
 /* fs/select.c */
 #define __NR_pselect6 72
-__SC_COMP(__NR_pselect6, sys_pselect6, compat_sys_pselect6_time32)
+__SC_COMP_3264(__NR_pselect6, sys_pselect6_time32, sys_pselect6, compat_sys_pselect6_time32)
 #define __NR_ppoll 73
-__SC_COMP(__NR_ppoll, sys_ppoll, compat_sys_ppoll_time32)
+__SC_COMP_3264(__NR_ppoll, sys_ppoll_time32, sys_ppoll, compat_sys_ppoll_time32)
 
 /* fs/signalfd.c */
 #define __NR_signalfd4 74
@@ -270,15 +270,15 @@ __SC_COMP(__NR_sync_file_range, sys_sync_file_range, \
 #define __NR_timerfd_create 85
 __SYSCALL(__NR_timerfd_create, sys_timerfd_create)
 #define __NR_timerfd_settime 86
-__SC_COMP(__NR_timerfd_settime, sys_timerfd_settime, \
-	  sys_timerfd_settime32)
+__SC_3264(__NR_timerfd_settime, sys_timerfd_settime32, \
+	  sys_timerfd_settime)
 #define __NR_timerfd_gettime 87
-__SC_COMP(__NR_timerfd_gettime, sys_timerfd_gettime, \
-	  sys_timerfd_gettime32)
+__SC_3264(__NR_timerfd_gettime, sys_timerfd_gettime32, \
+	  sys_timerfd_gettime)
 
 /* fs/utimes.c */
 #define __NR_utimensat 88
-__SC_COMP(__NR_utimensat, sys_utimensat, sys_utimensat_time32)
+__SC_3264(__NR_utimensat, sys_utimensat_time32, sys_utimensat)
 
 /* kernel/acct.c */
 #define __NR_acct 89
@@ -310,7 +310,7 @@ __SYSCALL(__NR_unshare, sys_unshare)
 
 /* kernel/futex.c */
 #define __NR_futex 98
-__SC_COMP(__NR_futex, sys_futex, sys_futex_time32)
+__SC_3264(__NR_futex, sys_futex_time32, sys_futex)
 #define __NR_set_robust_list 99
 __SC_COMP(__NR_set_robust_list, sys_set_robust_list, \
 	  compat_sys_set_robust_list)
@@ -320,7 +320,7 @@ __SC_COMP(__NR_get_robust_list, sys_get_robust_list, \
 
 /* kernel/hrtimer.c */
 #define __NR_nanosleep 101
-__SC_COMP(__NR_nanosleep, sys_nanosleep, sys_nanosleep_time32)
+__SC_3264(__NR_nanosleep, sys_nanosleep_time32, sys_nanosleep)
 
 /* kernel/itimer.c */
 #define __NR_getitimer 102
@@ -342,22 +342,22 @@ __SYSCALL(__NR_delete_module, sys_delete_module)
 #define __NR_timer_create 107
 __SC_COMP(__NR_timer_create, sys_timer_create, compat_sys_timer_create)
 #define __NR_timer_gettime 108
-__SC_COMP(__NR_timer_gettime, sys_timer_gettime, sys_timer_gettime32)
+__SC_3264(__NR_timer_gettime, sys_timer_gettime32, sys_timer_gettime)
 #define __NR_timer_getoverrun 109
 __SYSCALL(__NR_timer_getoverrun, sys_timer_getoverrun)
 #define __NR_timer_settime 110
-__SC_COMP(__NR_timer_settime, sys_timer_settime, sys_timer_settime32)
+__SC_3264(__NR_timer_settime, sys_timer_settime32, sys_timer_settime)
 #define __NR_timer_delete 111
 __SYSCALL(__NR_timer_delete, sys_timer_delete)
 #define __NR_clock_settime 112
-__SC_COMP(__NR_clock_settime, sys_clock_settime, sys_clock_settime32)
+__SC_3264(__NR_clock_settime, sys_clock_settime32, sys_clock_settime)
 #define __NR_clock_gettime 113
-__SC_COMP(__NR_clock_gettime, sys_clock_gettime, sys_clock_gettime32)
+__SC_3264(__NR_clock_gettime, sys_clock_gettime32, sys_clock_gettime)
 #define __NR_clock_getres 114
-__SC_COMP(__NR_clock_getres, sys_clock_getres, sys_clock_getres_time32)
+__SC_3264(__NR_clock_getres, sys_clock_getres_time32, sys_clock_getres)
 #define __NR_clock_nanosleep 115
-__SC_COMP(__NR_clock_nanosleep, sys_clock_nanosleep, \
-	  sys_clock_nanosleep_time32)
+__SC_3264(__NR_clock_nanosleep, sys_clock_nanosleep_time32, \
+	  sys_clock_nanosleep)
 
 /* kernel/printk.c */
 #define __NR_syslog 116
@@ -389,8 +389,8 @@ __SYSCALL(__NR_sched_get_priority_max, sys_sched_get_priority_max)
 #define __NR_sched_get_priority_min 126
 __SYSCALL(__NR_sched_get_priority_min, sys_sched_get_priority_min)
 #define __NR_sched_rr_get_interval 127
-__SC_COMP(__NR_sched_rr_get_interval, sys_sched_rr_get_interval, \
-	  sys_sched_rr_get_interval_time32)
+__SC_3264(__NR_sched_rr_get_interval, sys_sched_rr_get_interval_time32, \
+	  sys_sched_rr_get_interval)
 
 /* kernel/signal.c */
 #define __NR_restart_syscall 128
@@ -412,8 +412,8 @@ __SC_COMP(__NR_rt_sigprocmask, sys_rt_sigprocmask, compat_sys_rt_sigprocmask)
 #define __NR_rt_sigpending 136
 __SC_COMP(__NR_rt_sigpending, sys_rt_sigpending, compat_sys_rt_sigpending)
 #define __NR_rt_sigtimedwait 137
-__SC_COMP(__NR_rt_sigtimedwait, sys_rt_sigtimedwait, \
-	  compat_sys_rt_sigtimedwait_time32)
+__SC_COMP_3264(__NR_rt_sigtimedwait, sys_rt_sigtimedwait_time32, \
+	  sys_rt_sigtimedwait, compat_sys_rt_sigtimedwait_time32)
 #define __NR_rt_sigqueueinfo 138
 __SC_COMP(__NR_rt_sigqueueinfo, sys_rt_sigqueueinfo, \
 	  compat_sys_rt_sigqueueinfo)
@@ -486,7 +486,7 @@ __SC_COMP(__NR_gettimeofday, sys_gettimeofday, compat_sys_gettimeofday)
 #define __NR_settimeofday 170
 __SC_COMP(__NR_settimeofday, sys_settimeofday, compat_sys_settimeofday)
 #define __NR_adjtimex 171
-__SC_COMP(__NR_adjtimex, sys_adjtimex, sys_adjtimex_time32)
+__SC_3264(__NR_adjtimex, sys_adjtimex_time32, sys_adjtimex)
 
 /* kernel/timer.c */
 #define __NR_getpid 172
@@ -512,10 +512,10 @@ __SC_COMP(__NR_mq_open, sys_mq_open, compat_sys_mq_open)
 #define __NR_mq_unlink 181
 __SYSCALL(__NR_mq_unlink, sys_mq_unlink)
 #define __NR_mq_timedsend 182
-__SC_COMP(__NR_mq_timedsend, sys_mq_timedsend, sys_mq_timedsend_time32)
+__SC_3264(__NR_mq_timedsend, sys_mq_timedsend_time32, sys_mq_timedsend)
 #define __NR_mq_timedreceive 183
-__SC_COMP(__NR_mq_timedreceive, sys_mq_timedreceive, \
-	  sys_mq_timedreceive_time32)
+__SC_3264(__NR_mq_timedreceive, sys_mq_timedreceive_time32, \
+	  sys_mq_timedreceive)
 #define __NR_mq_notify 184
 __SC_COMP(__NR_mq_notify, sys_mq_notify, compat_sys_mq_notify)
 #define __NR_mq_getsetattr 185
@@ -659,7 +659,7 @@ __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
 #define __NR_accept4 242
 __SYSCALL(__NR_accept4, sys_accept4)
 #define __NR_recvmmsg 243
-__SC_COMP(__NR_recvmmsg, sys_recvmmsg, compat_sys_recvmmsg_time32)
+__SC_COMP_3264(__NR_recvmmsg, sys_recvmmsg_time32, sys_recvmmsg, compat_sys_recvmmsg_time32)
 
 /*
  * Architectures may provide up to 16 syscalls of their own
@@ -681,7 +681,7 @@ __SYSCALL(__NR_name_to_handle_at, sys_name_to_handle_at)
 __SC_COMP(__NR_open_by_handle_at, sys_open_by_handle_at, \
 	  compat_sys_open_by_handle_at)
 #define __NR_clock_adjtime 266
-__SC_COMP(__NR_clock_adjtime, sys_clock_adjtime, sys_clock_adjtime32)
+__SC_3264(__NR_clock_adjtime, sys_clock_adjtime32, sys_clock_adjtime)
 #define __NR_syncfs 267
 __SYSCALL(__NR_syncfs, sys_syncfs)
 #define __NR_setns 268
@@ -735,7 +735,7 @@ __SYSCALL(__NR_pkey_free,     sys_pkey_free)
 #define __NR_statx 291
 __SYSCALL(__NR_statx,     sys_statx)
 #define __NR_io_pgetevents 292
-__SC_COMP(__NR_io_pgetevents, sys_io_pgetevents, compat_sys_io_pgetevents)
+__SC_COMP_3264(__NR_io_pgetevents, sys_io_pgetevents_time32, sys_io_pgetevents, compat_sys_io_pgetevents)
 #define __NR_rseq 293
 __SYSCALL(__NR_rseq, sys_rseq)
 #define __NR_kexec_file_load 294
