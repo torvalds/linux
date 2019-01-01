@@ -75,6 +75,13 @@
 #define DISPLAY_OUTPUT_LVDS		1
 #define DISPLAY_OUTPUT_DUAL_LVDS	2
 
+enum lvds_format {
+	LVDS_8BIT_MODE_FORMAT_1,
+	LVDS_8BIT_MODE_FORMAT_2,
+	LVDS_8BIT_MODE_FORMAT_3,
+	LVDS_6BIT_MODE,
+};
+
 struct rockchip_lvds;
 
 struct rockchip_lvds_funcs {
@@ -88,8 +95,8 @@ struct rockchip_lvds {
 	struct regmap *grf;
 	const struct rockchip_lvds_funcs *funcs;
 
+	enum lvds_format format;
 	int output;
-	int format;
 
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
@@ -97,19 +104,6 @@ struct rockchip_lvds {
 	struct drm_encoder encoder;
 	struct drm_display_mode mode;
 };
-
-static inline int lvds_name_to_format(const char *s)
-{
-	if (!s)
-		return -EINVAL;
-
-	if (strncmp(s, "jeida", 6) == 0)
-		return LVDS_FORMAT_JEIDA;
-	else if (strncmp(s, "vesa", 5) == 0)
-		return LVDS_FORMAT_VESA;
-
-	return -EINVAL;
-}
 
 static inline int lvds_name_to_output(const char *s)
 {
@@ -186,6 +180,25 @@ static void rockchip_lvds_encoder_mode_set(struct drm_encoder *encoder,
 					  struct drm_display_mode *adjusted)
 {
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+	struct drm_connector *connector = &lvds->connector;
+	struct drm_display_info *info = &connector->display_info;
+	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
+
+	if (info->num_bus_formats)
+		bus_format = info->bus_formats[0];
+
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:	/* jeida-18 */
+		lvds->format = LVDS_6BIT_MODE;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:	/* jeida-24 */
+		lvds->format = LVDS_8BIT_MODE_FORMAT_2;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:	/* vesa-24 */
+	default:
+		lvds->format = LVDS_8BIT_MODE_FORMAT_1;
+		break;
+	}
 
 	drm_mode_copy(&lvds->mode, adjusted);
 }
@@ -202,7 +215,7 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	if (info->num_bus_formats)
 		s->bus_format = info->bus_formats[0];
 	else
-		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		s->bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
 
 	s->output_mode = ROCKCHIP_OUT_MODE_P888;
 	s->output_type = DRM_MODE_CONNECTOR_LVDS;
@@ -273,7 +286,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct drm_connector *connector = &lvds->connector;
 	struct device_node *remote = NULL;
 	struct device_node  *port, *endpoint;
-	int ret, i;
+	int ret;
 	const char *name;
 
 	port = of_graph_get_port_by_id(dev->of_node, 1);
@@ -321,34 +334,6 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		dev_err(dev, "invalid output type [%s]\n", name);
 		ret = lvds->output;
 		goto err_put_remote;
-	}
-
-	if (of_property_read_string(remote, "rockchip,data-mapping",
-				    &name))
-		/* default set it as format jeida */
-		lvds->format = LVDS_FORMAT_JEIDA;
-	else
-		lvds->format = lvds_name_to_format(name);
-
-	if (lvds->format < 0) {
-		dev_err(dev, "invalid data-mapping format [%s]\n", name);
-		ret = lvds->format;
-		goto err_put_remote;
-	}
-
-	if (of_property_read_u32(remote, "rockchip,data-width", &i)) {
-		lvds->format |= LVDS_24BIT;
-	} else {
-		if (i == 24) {
-			lvds->format |= LVDS_24BIT;
-		} else if (i == 18) {
-			lvds->format |= LVDS_18BIT;
-		} else {
-			dev_err(dev,
-				"rockchip-lvds unsupport data-width[%d]\n", i);
-			ret = -EINVAL;
-			goto err_put_remote;
-		}
 	}
 
 	encoder->port = dev->of_node;
