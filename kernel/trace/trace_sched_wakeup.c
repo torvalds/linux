@@ -180,8 +180,11 @@ static void wakeup_trace_close(struct trace_iterator *iter)
 }
 
 #define GRAPH_TRACER_FLAGS (TRACE_GRAPH_PRINT_PROC | \
+			    TRACE_GRAPH_PRINT_CPU |  \
 			    TRACE_GRAPH_PRINT_REL_TIME | \
-			    TRACE_GRAPH_PRINT_DURATION)
+			    TRACE_GRAPH_PRINT_DURATION | \
+			    TRACE_GRAPH_PRINT_OVERHEAD | \
+			    TRACE_GRAPH_PRINT_IRQS)
 
 static enum print_line_t wakeup_print_line(struct trace_iterator *iter)
 {
