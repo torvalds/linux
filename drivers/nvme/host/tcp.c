@@ -1565,8 +1565,7 @@ static void nvme_tcp_destroy_io_queues(struct nvme_ctrl *ctrl, bool remove)
 {
 	nvme_tcp_stop_io_queues(ctrl);
 	if (remove) {
-		if (ctrl->ops->flags & NVME_F_FABRICS)
-			blk_cleanup_queue(ctrl->connect_q);
+		blk_cleanup_queue(ctrl->connect_q);
 		blk_mq_free_tag_set(ctrl->tagset);
 	}
 	nvme_tcp_free_io_queues(ctrl);
@@ -1587,12 +1586,10 @@ static int nvme_tcp_configure_io_queues(struct nvme_ctrl *ctrl, bool new)
 			goto out_free_io_queues;
 		}
 
-		if (ctrl->ops->flags & NVME_F_FABRICS) {
-			ctrl->connect_q = blk_mq_init_queue(ctrl->tagset);
-			if (IS_ERR(ctrl->connect_q)) {
-				ret = PTR_ERR(ctrl->connect_q);
-				goto out_free_tag_set;
-			}
+		ctrl->connect_q = blk_mq_init_queue(ctrl->tagset);
+		if (IS_ERR(ctrl->connect_q)) {
+			ret = PTR_ERR(ctrl->connect_q);
+			goto out_free_tag_set;
 		}
 	} else {
 		blk_mq_update_nr_hw_queues(ctrl->tagset,
@@ -1606,7 +1603,7 @@ static int nvme_tcp_configure_io_queues(struct nvme_ctrl *ctrl, bool new)
 	return 0;
 
 out_cleanup_connect_q:
-	if (new && (ctrl->ops->flags & NVME_F_FABRICS))
+	if (new)
 		blk_cleanup_queue(ctrl->connect_q);
 out_free_tag_set:
 	if (new)
