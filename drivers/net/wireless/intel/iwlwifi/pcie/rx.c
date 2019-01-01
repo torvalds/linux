@@ -8,7 +8,7 @@
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -202,9 +202,9 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 {
 	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
 		/* TODO: remove this for 22560 once fw does it */
-		iwl_write_prph(trans, RFH_RXF_DMA_CFG_GEN3, 0);
-		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS_GEN3,
-					 RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
+		iwl_write_umac_prph(trans, RFH_RXF_DMA_CFG_GEN3, 0);
+		return iwl_poll_umac_prph_bit(trans, RFH_GEN_STATUS_GEN3,
+					      RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
 	} else if (trans->cfg->mq_rx_supported) {
 		iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
 		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS,

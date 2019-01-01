@@ -351,8 +351,9 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-				iwl_read_prph(trans, UMAG_SB_CPU_1_STATUS),
-				iwl_read_prph(trans, UMAG_SB_CPU_2_STATUS));
+				iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
+				iwl_read_umac_prph(trans,
+						   UMAG_SB_CPU_2_STATUS));
 		else if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",

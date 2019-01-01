@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,6 +179,10 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.d3_debug_data_base_addr = 0x401000,				\
 	.d3_debug_data_length = 60 * 1024
 
+#define IWL_DEVICE_AX200_COMMON						\
+	IWL_DEVICE_22000_COMMON,					\
+	.umac_prph_offset = 0x300000
+
 #define IWL_DEVICE_22500						\
 	IWL_DEVICE_22000_COMMON,					\
 	.device_family = IWL_DEVICE_FAMILY_22000,			\
@@ -192,7 +196,7 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.csr = &iwl_csr_v2
 
 #define IWL_DEVICE_AX210						\
-	IWL_DEVICE_22000_COMMON,					\
+	IWL_DEVICE_AX200_COMMON,					\
 	.device_family = IWL_DEVICE_FAMILY_AX210,			\
 	.base_params = &iwl_22000_base_params,				\
 	.csr = &iwl_csr_v1,						\

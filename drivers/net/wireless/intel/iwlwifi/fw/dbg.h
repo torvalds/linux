@@ -8,7 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -299,13 +299,13 @@ _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 	}
 
 	if (params) {
-		params->in_sample = iwl_read_prph(trans, DBGC_IN_SAMPLE);
-		params->out_ctrl = iwl_read_prph(trans, DBGC_OUT_CTRL);
+		params->in_sample = iwl_read_umac_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_read_umac_prph(trans, DBGC_OUT_CTRL);
 	}
 
-	iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
+	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
 	udelay(100);
-	iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	trans->dbg_rec_on = false;
 #endif
@@ -333,9 +333,9 @@ _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
 	} else {
-		iwl_write_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
+		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
 		udelay(100);
-		iwl_write_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
+		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
 	}
 }
 
