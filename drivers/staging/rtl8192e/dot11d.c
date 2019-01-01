@@ -15,7 +15,7 @@
 #include "dot11d.h"
 
 struct channel_list {
-	u8      Channel[32];
+	u8      channel[32];
 	u8      Len;
 };
 
@@ -66,11 +66,11 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
 		memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
 		       sizeof(GET_DOT11D_INFO(ieee)->channel_map));
 		for (i = 0; i < ChannelPlan[channel_plan].Len; i++) {
-			if (ChannelPlan[channel_plan].Channel[i] < min_chan ||
-			    ChannelPlan[channel_plan].Channel[i] > max_chan)
+			if (ChannelPlan[channel_plan].channel[i] < min_chan ||
+			    ChannelPlan[channel_plan].channel[i] > max_chan)
 				break;
 			GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan
-					[channel_plan].Channel[i]] = 1;
+					[channel_plan].channel[i]] = 1;
 		}
 	}
 
