@@ -66,7 +66,6 @@ enum chip_type {
 	PX30,
 	RK3126,
 	RK3288,
-	RK3366,
 	RK3368,
 };
 
@@ -933,57 +932,6 @@ static const struct rockchip_lvds_soc_data rk3288_lvds_soc_data = {
 	.power_off = rk3288_lvds_power_off,
 };
 
-static int rk3366_lvds_power_on(struct rockchip_lvds *lvds)
-{
-	u32 val;
-	int pipe;
-
-	pipe = drm_of_encoder_active_endpoint_id(lvds->dev->of_node,
-						 &lvds->encoder);
-	if (pipe)
-		val = RK3366_LVDS_VOP_SEL_LIT;
-	else
-		val = RK3366_LVDS_VOP_SEL_BIG;
-	regmap_write(lvds->grf, RK3366_GRF_SOC_CON0, val);
-
-	if (lvds->output == DISPLAY_OUTPUT_RGB) {
-		/* enable lvds mode */
-		val = v_RK336X_LVDSMODE_EN(0) | v_RK336X_MIPIPHY_TTL_EN(1) |
-		      v_RK336X_MIPIPHY_LANE0_EN(1) |
-		      v_RK336X_MIPIDPI_FORCEX_EN(1);
-		regmap_write(lvds->grf, RK3366_GRF_SOC_CON5, val);
-		val = v_RK336X_FORCE_JETAG(0);
-		regmap_write(lvds->grf, RK3366_GRF_SOC_CON6, val);
-	} else if (lvds->output == DISPLAY_OUTPUT_LVDS) {
-		/* enable lvds mode */
-		val = v_RK336X_LVDSMODE_EN(1) | v_RK336X_MIPIPHY_TTL_EN(0);
-		/* config lvds_format */
-		val |= v_RK336X_LVDS_OUTPUT_FORMAT(lvds->format);
-		/* LSB receive mode */
-		val |= v_RK336X_LVDS_MSBSEL(LVDS_MSB_D7);
-		val |= v_RK336X_MIPIPHY_LANE0_EN(1) |
-		       v_RK336X_MIPIDPI_FORCEX_EN(1);
-		regmap_write(lvds->grf, RK3366_GRF_SOC_CON5, val);
-	}
-
-	return innov1_lvds_power_on(lvds);
-}
-
-static void rk3366_lvds_power_off(struct rockchip_lvds *lvds)
-{
-	regmap_write(lvds->grf, RK3366_GRF_SOC_CON5,
-		     v_RK336X_LVDSMODE_EN(0) | v_RK336X_MIPIPHY_TTL_EN(0));
-
-	innov1_lvds_power_off(lvds);
-}
-
-static const struct rockchip_lvds_soc_data rk3366_lvds_soc_data = {
-	.chip_type = RK3366,
-	.probe = innov1_lvds_probe,
-	.power_on = rk3366_lvds_power_on,
-	.power_off = rk3366_lvds_power_off,
-};
-
 static int rk3368_lvds_power_on(struct rockchip_lvds *lvds)
 {
 	regmap_write(lvds->grf, RK3368_GRF_SOC_CON7,
@@ -1010,7 +958,6 @@ static const struct of_device_id rockchip_lvds_dt_ids[] = {
 	{ .compatible = "rockchip,px30-lvds", .data = &px30_lvds_soc_data },
 	{ .compatible = "rockchip,rk3126-lvds", .data = &rk3126_lvds_soc_data },
 	{ .compatible = "rockchip,rk3288-lvds", .data = &rk3288_lvds_soc_data },
-	{ .compatible = "rockchip,rk3366-lvds", .data = &rk3366_lvds_soc_data },
 	{ .compatible = "rockchip,rk3368-lvds", .data = &rk3368_lvds_soc_data },
 	{}
 };
