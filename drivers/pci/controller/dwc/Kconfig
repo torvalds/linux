@@ -203,4 +203,14 @@ config PCI_MESON
 	  and therefore the driver re-uses the DesignWare core functions to
 	  implement the driver.
 
+config PCIE_UNIPHIER
+	bool "Socionext UniPhier PCIe controllers"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support on UniPhier SoCs.
+	  This driver supports LD20 and PXs3 SoCs.
+
 endmenu
