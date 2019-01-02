@@ -6,7 +6,6 @@ Required properties:
 	- "rockchip,px30-lvds";
 	- "rockchip,rk3126-lvds";
 	- "rockchip,rk3288-lvds";
-	- "rockchip,rk3366-lvds";
 	- "rockchip,rk3368-lvds";
 
 - reg: physical base address of the controller and length
