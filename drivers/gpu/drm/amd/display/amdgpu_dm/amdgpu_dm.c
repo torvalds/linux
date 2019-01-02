@@ -2284,6 +2284,68 @@ static int get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
 	return r;
 }
 
+static inline uint64_t get_dcc_address(uint64_t address, uint64_t tiling_flags)
+{
+	uint32_t offset = AMDGPU_TILING_GET(tiling_flags, DCC_OFFSET_256B);
+
+	return offset ? (address + offset * 256) : 0;
+}
+
+static bool fill_plane_dcc_attributes(struct amdgpu_device *adev,
+				      const struct amdgpu_framebuffer *afb,
+				      struct dc_plane_state *plane_state,
+				      uint64_t info)
+{
+	struct dc *dc = adev->dm.dc;
+	struct dc_dcc_surface_param input = {0};
+	struct dc_surface_dcc_cap output = {0};
+	uint32_t offset = AMDGPU_TILING_GET(info, DCC_OFFSET_256B);
+	uint32_t i64b = AMDGPU_TILING_GET(info, DCC_INDEPENDENT_64B) != 0;
+	uint64_t dcc_address;
+
+	if (!offset)
+		return false;
+
+	if (!dc->cap_funcs.get_dcc_compression_cap)
+		return false;
+
+	input.format = plane_state->format;
+	input.surface_size.width =
+		plane_state->plane_size.grph.surface_size.width;
+	input.surface_size.height =
+		plane_state->plane_size.grph.surface_size.height;
+	input.swizzle_mode = plane_state->tiling_info.gfx9.swizzle;
+
+	if (plane_state->rotation == ROTATION_ANGLE_0 ||
+	    plane_state->rotation == ROTATION_ANGLE_180)
+		input.scan = SCAN_DIRECTION_HORIZONTAL;
+	else if (plane_state->rotation == ROTATION_ANGLE_90 ||
+		 plane_state->rotation == ROTATION_ANGLE_270)
+		input.scan = SCAN_DIRECTION_VERTICAL;
+
+	if (!dc->cap_funcs.get_dcc_compression_cap(dc, &input, &output))
+		return false;
+
+	if (!output.capable)
+		return false;
+
+	if (i64b == 0 && output.grph.rgb.independent_64b_blks != 0)
+		return false;
+
+	plane_state->dcc.enable = 1;
+	plane_state->dcc.grph.meta_pitch =
+		AMDGPU_TILING_GET(info, DCC_PITCH_MAX) + 1;
+	plane_state->dcc.grph.independent_64b_blks = i64b;
+
+	dcc_address = get_dcc_address(afb->address, info);
+	plane_state->address.grph.meta_addr.low_part =
+		lower_32_bits(dcc_address);
+	plane_state->address.grph.meta_addr.high_part =
+		upper_32_bits(dcc_address);
+
+	return true;
+}
+
 static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 					 struct dc_plane_state *plane_state,
 					 const struct amdgpu_framebuffer *amdgpu_fb)
@@ -2336,6 +2398,10 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
+	memset(&plane_state->address, 0, sizeof(plane_state->address));
+	memset(&plane_state->tiling_info, 0, sizeof(plane_state->tiling_info));
+	memset(&plane_state->dcc, 0, sizeof(plane_state->dcc));
+
 	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
 		plane_state->address.type = PLN_ADDR_TYPE_GRAPHICS;
 		plane_state->plane_size.grph.surface_size.x = 0;
@@ -2366,8 +2432,6 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 		/* TODO: unhardcode */
 		plane_state->color_space = COLOR_SPACE_YCBCR709;
 	}
-
-	memset(&plane_state->tiling_info, 0, sizeof(plane_state->tiling_info));
 
 	/* Fill GFX8 params */
 	if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == DC_ARRAY_2D_TILED_THIN1) {
@@ -2417,6 +2481,9 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 		plane_state->tiling_info.gfx9.swizzle =
 			AMDGPU_TILING_GET(tiling_flags, SWIZZLE_MODE);
 		plane_state->tiling_info.gfx9.shaderEnable = 1;
+
+		fill_plane_dcc_attributes(adev, amdgpu_fb, plane_state,
+					  tiling_flags);
 	}
 
 	plane_state->visible = true;
@@ -3534,6 +3601,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	struct amdgpu_bo *rbo;
 	uint64_t chroma_addr = 0;
 	struct dm_plane_state *dm_plane_state_new, *dm_plane_state_old;
+	uint64_t tiling_flags, dcc_address;
 	unsigned int awidth;
 	uint32_t domain;
 	int r;
@@ -3574,6 +3642,9 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		DRM_ERROR("%p bind failed\n", rbo);
 		return r;
 	}
+
+	amdgpu_bo_get_tiling_flags(rbo, &tiling_flags);
+
 	amdgpu_bo_unreserve(rbo);
 
 	afb->address = amdgpu_bo_gpu_offset(rbo);
@@ -3587,6 +3658,13 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
 			plane_state->address.grph.addr.low_part = lower_32_bits(afb->address);
 			plane_state->address.grph.addr.high_part = upper_32_bits(afb->address);
+
+			dcc_address =
+				get_dcc_address(afb->address, tiling_flags);
+			plane_state->address.grph.meta_addr.low_part =
+				lower_32_bits(dcc_address);
+			plane_state->address.grph.meta_addr.high_part =
+				upper_32_bits(dcc_address);
 		} else {
 			awidth = ALIGN(new_state->fb->width, 64);
 			plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
@@ -4566,6 +4644,7 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
 	struct dc_stream_status *stream_status;
 	struct dc_plane_state *surface;
+	uint64_t tiling_flags, dcc_address;
 
 
 	/* Prepare wait for target vblank early - before the fence-waits */
@@ -4587,6 +4666,8 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	/* Wait for all fences on this FB */
 	WARN_ON(reservation_object_wait_timeout_rcu(abo->tbo.resv, true, false,
 								    MAX_SCHEDULE_TIMEOUT) < 0);
+
+	amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 
 	amdgpu_bo_unreserve(abo);
 
@@ -4613,6 +4694,11 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 
 	addr.address.grph.addr.low_part = lower_32_bits(afb->address);
 	addr.address.grph.addr.high_part = upper_32_bits(afb->address);
+
+	dcc_address = get_dcc_address(afb->address, tiling_flags);
+	addr.address.grph.meta_addr.low_part = lower_32_bits(dcc_address);
+	addr.address.grph.meta_addr.high_part = upper_32_bits(dcc_address);
+
 	addr.flip_immediate = async_flip;
 
 	timestamp_ns = ktime_get_ns();
