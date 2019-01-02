@@ -255,18 +255,15 @@ static int is_byt(void)
 	return status;
 }
 
-static int is_byt_cr(struct device *dev, bool *bytcr)
+static bool is_byt_cr(struct device *dev)
 {
 	int status = 0;
 
-	if (IS_ENABLED(CONFIG_IOSF_MBI)) {
+	if (!is_byt())
+		return false;
+
+	if (iosf_mbi_available()) {
 		u32 bios_status;
-
-		if (!is_byt() || !iosf_mbi_available()) {
-			/* bail silently */
-			return status;
-		}
-
 		status = iosf_mbi_read(BT_MBI_UNIT_PMC, /* 0x04 PUNIT */
 				       MBI_REG_READ, /* 0x10 */
 				       0x006, /* BIOS_CONFIG */
@@ -278,15 +275,17 @@ static int is_byt_cr(struct device *dev, bool *bytcr)
 			/* bits 26:27 mirror PMIC options */
 			bios_status = (bios_status >> 26) & 3;
 
-			if ((bios_status == 1) || (bios_status == 3))
-				*bytcr = true;
-			else
-				dev_info(dev, "BYT-CR not detected\n");
+			if (bios_status == 1 || bios_status == 3) {
+				dev_info(dev, "Detected Baytrail-CR platform\n");
+				return true;
+			}
+
+			dev_info(dev, "BYT-CR not detected\n");
 		}
 	} else {
-		dev_info(dev, "IOSF_MBI not enabled, no BYT-CR detection\n");
+		dev_info(dev, "IOSF_MBI not available, no BYT-CR detection\n");
 	}
-	return status;
+	return false;
 }
 
 
@@ -301,7 +300,6 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	struct platform_device *plat_dev;
 	struct sst_platform_info *pdata;
 	unsigned int dev_id;
-	bool bytcr = false;
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
@@ -333,10 +331,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = is_byt_cr(dev, &bytcr);
-	if (!(ret < 0 || !bytcr)) {
-		dev_info(dev, "Detected Baytrail-CR platform\n");
-
+	if (is_byt_cr(dev)) {
 		/* override resource info */
 		byt_rvp_platform_data.res_info = &bytcr_res_info;
 	}
