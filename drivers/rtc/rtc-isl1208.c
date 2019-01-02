@@ -161,6 +161,7 @@ isl1208_i2c_get_atr(struct i2c_client *client)
 	return atr;
 }
 
+/* returns adjustment value + 100 */
 static int
 isl1208_i2c_get_dtr(struct i2c_client *client)
 {
@@ -171,7 +172,7 @@ isl1208_i2c_get_dtr(struct i2c_client *client)
 	/* dtr encodes adjustments of {-60,-40,-20,0,20,40,60} ppm */
 	dtr = ((dtr & 0x3) * 20) * (dtr & (1 << 2) ? -1 : 1);
 
-	return dtr;
+	return dtr + 100;
 }
 
 static int
@@ -248,8 +249,8 @@ isl1208_rtc_proc(struct device *dev, struct seq_file *seq)
 		   (sr & ISL1208_REG_SR_RTCF) ? "bad" : "okay");
 
 	dtr = isl1208_i2c_get_dtr(client);
-	if (dtr >= 0 - 1)
-		seq_printf(seq, "digital_trim\t: %d ppm\n", dtr);
+	if (dtr >= 0)
+		seq_printf(seq, "digital_trim\t: %d ppm\n", dtr - 100);
 
 	atr = isl1208_i2c_get_atr(client);
 	if (atr >= 0)
@@ -637,7 +638,7 @@ isl1208_sysfs_show_dtrim(struct device *dev,
 	if (dtr < 0)
 		return dtr;
 
-	return sprintf(buf, "%d ppm\n", dtr);
+	return sprintf(buf, "%d ppm\n", dtr - 100);
 }
 
 static DEVICE_ATTR(dtrim, S_IRUGO, isl1208_sysfs_show_dtrim, NULL);
