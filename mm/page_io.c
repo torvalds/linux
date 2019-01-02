@@ -405,8 +405,7 @@ int swap_readpage(struct page *page, bool synchronous)
 	bio_get(bio);
 	qc = submit_bio(bio);
 	while (synchronous) {
-		__set_current_state(TASK_UNINTERRUPTIBLE);
-
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (!READ_ONCE(bio->bi_private))
 			break;
 

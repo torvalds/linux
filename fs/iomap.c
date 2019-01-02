@@ -1921,8 +1921,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			return -EIOCBQUEUED;
 
 		for (;;) {
-			__set_current_state(TASK_UNINTERRUPTIBLE);
-
+			set_current_state(TASK_UNINTERRUPTIBLE);
 			if (!READ_ONCE(dio->submit.waiter))
 				break;
 
