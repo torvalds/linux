@@ -33,10 +33,6 @@
 #define CA_WRITEBACK	(0x4)
 #endif
 
-#ifndef XCHAL_SPANNING_WAY
-#define XCHAL_SPANNING_WAY 0
-#endif
-
 #ifdef __ASSEMBLY__
 
 #define XTENSA_HWVERSION_RC_2009_0 230000
