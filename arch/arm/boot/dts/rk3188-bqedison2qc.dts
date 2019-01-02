@@ -526,7 +526,7 @@
 		};
 
 		cif1_pdn: cif1-pdn {
-			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		cif_avdd_en: cif-avdd-en {
