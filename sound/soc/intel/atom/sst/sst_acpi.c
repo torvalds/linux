@@ -255,8 +255,9 @@ static int is_byt(void)
 	return status;
 }
 
-static bool is_byt_cr(struct device *dev)
+static bool is_byt_cr(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int status = 0;
 
 	if (!is_byt())
@@ -285,6 +286,17 @@ static bool is_byt_cr(struct device *dev)
 	} else {
 		dev_info(dev, "IOSF_MBI not available, no BYT-CR detection\n");
 	}
+
+	if (platform_get_resource(pdev, IORESOURCE_IRQ, 5) == NULL) {
+		/*
+		 * Some devices detected as BYT-T have only a single IRQ listed,
+		 * causing platform_get_irq with index 5 to return -ENXIO.
+		 * The correct IRQ in this case is at index 0, as on BYT-CR.
+		 */
+		dev_info(dev, "Falling back to Baytrail-CR platform\n");
+		return true;
+	}
+
 	return false;
 }
 
@@ -331,7 +343,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (is_byt_cr(dev)) {
+	if (is_byt_cr(pdev)) {
 		/* override resource info */
 		byt_rvp_platform_data.res_info = &bytcr_res_info;
 	}
