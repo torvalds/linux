@@ -244,6 +244,46 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 	return ret;
 }
 
+void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	/* enable IPC DONE interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
+				HDA_DSP_REG_HIPCCTL_DONE,
+				HDA_DSP_REG_HIPCCTL_DONE);
+
+	/* enable IPC BUSY interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
+				HDA_DSP_REG_HIPCCTL_BUSY,
+				HDA_DSP_REG_HIPCCTL_BUSY);
+
+	/* enable IPC interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
+				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
+}
+
+void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	/* disable IPC interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
+				HDA_DSP_ADSPIC_IPC, 0);
+
+	/* disable IPC BUSY interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
+				HDA_DSP_REG_HIPCCTL_BUSY, 0);
+
+	/* disable IPC DONE interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
+				HDA_DSP_REG_HIPCCTL_DONE, 0);
+}
+
 static int hda_suspend(struct snd_sof_dev *sdev, int state)
 {
 	struct sof_intel_hda_dev *hda =
