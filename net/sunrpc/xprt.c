@@ -1602,7 +1602,6 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_buffer  = NULL;
 	req->rq_xid	= xprt_alloc_xid(xprt);
 	xprt_init_connect_cookie(req, xprt);
-	req->rq_bytes_sent = 0;
 	req->rq_snd_buf.len = 0;
 	req->rq_snd_buf.buflen = 0;
 	req->rq_rcv_buf.len = 0;
@@ -1752,7 +1751,6 @@ xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task)
 	 */
 	xbufp->len = xbufp->head[0].iov_len + xbufp->page_len +
 		xbufp->tail[0].iov_len;
-	req->rq_bytes_sent = 0;
 }
 #endif
 

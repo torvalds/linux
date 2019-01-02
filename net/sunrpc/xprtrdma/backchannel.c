@@ -267,7 +267,6 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 
 	/* Prepare rqst */
 	rqst->rq_reply_bytes_recvd = 0;
-	rqst->rq_bytes_sent = 0;
 	rqst->rq_xid = *p;
 
 	rqst->rq_private_buf.len = size;
