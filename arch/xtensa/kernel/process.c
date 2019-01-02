@@ -320,8 +320,8 @@ unsigned long get_wchan(struct task_struct *p)
 
 		/* Stack layout: sp-4: ra, sp-3: sp' */
 
-		pc = MAKE_PC_FROM_RA(*(unsigned long*)sp - 4, sp);
-		sp = *(unsigned long *)sp - 3;
+		pc = MAKE_PC_FROM_RA(SPILL_SLOT(sp, 0), sp);
+		sp = SPILL_SLOT(sp, 1);
 	} while (count++ < 16);
 	return 0;
 }
