@@ -463,38 +463,11 @@ void *__xa_erase(struct xarray *, unsigned long index);
 void *__xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *__xa_cmpxchg(struct xarray *, unsigned long index, void *old,
 		void *entry, gfp_t);
+int __xa_insert(struct xarray *, unsigned long index, void *entry, gfp_t);
 int __xa_alloc(struct xarray *, u32 *id, u32 max, void *entry, gfp_t);
 int __xa_reserve(struct xarray *, unsigned long index, gfp_t);
 void __xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
-
-/**
- * __xa_insert() - Store this entry in the XArray unless another entry is
- *			already present.
- * @xa: XArray.
- * @index: Index into array.
- * @entry: New entry.
- * @gfp: Memory allocation flags.
- *
- * If you would rather see the existing entry in the array, use __xa_cmpxchg().
- * This function is for users who don't care what the entry is, only that
- * one is present.
- *
- * Context: Any context.  Expects xa_lock to be held on entry.  May
- *	    release and reacquire xa_lock if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
- * -ENOMEM if memory could not be allocated.
- */
-static inline int __xa_insert(struct xarray *xa, unsigned long index,
-		void *entry, gfp_t gfp)
-{
-	void *curr = __xa_cmpxchg(xa, index, NULL, entry, gfp);
-	if (!curr)
-		return 0;
-	if (xa_is_err(curr))
-		return xa_err(curr);
-	return -EEXIST;
-}
 
 /**
  * xa_store_bh() - Store this entry in the XArray.
@@ -685,24 +658,83 @@ static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
  * @entry: New entry.
  * @gfp: Memory allocation flags.
  *
- * If you would rather see the existing entry in the array, use xa_cmpxchg().
- * This function is for users who don't care what the entry is, only that
- * one is present.
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
  *
- * Context: Process context.  Takes and releases the xa_lock.
- *	    May sleep if the @gfp flags permit.
+ * Context: Any context.  Takes and releases the xa_lock.  May sleep if
+ * the @gfp flags permit.
  * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
  * -ENOMEM if memory could not be allocated.
  */
 static inline int xa_insert(struct xarray *xa, unsigned long index,
 		void *entry, gfp_t gfp)
 {
-	void *curr = xa_cmpxchg(xa, index, NULL, entry, gfp);
-	if (!curr)
-		return 0;
-	if (xa_is_err(curr))
-		return xa_err(curr);
-	return -EEXIST;
+	int err;
+
+	xa_lock(xa);
+	err = __xa_insert(xa, index, entry, gfp);
+	xa_unlock(xa);
+
+	return err;
+}
+
+/**
+ * xa_insert_bh() - Store this entry in the XArray unless another entry is
+ *			already present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.  May sleep if the @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+static inline int xa_insert_bh(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	int err;
+
+	xa_lock_bh(xa);
+	err = __xa_insert(xa, index, entry, gfp);
+	xa_unlock_bh(xa);
+
+	return err;
+}
+
+/**
+ * xa_insert_irq() - Store this entry in the XArray unless another entry is
+ *			already present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.  May sleep if the @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+static inline int xa_insert_irq(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	int err;
+
+	xa_lock_irq(xa);
+	err = __xa_insert(xa, index, entry, gfp);
+	xa_unlock_irq(xa);
+
+	return err;
 }
 
 /**

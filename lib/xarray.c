@@ -1440,6 +1440,47 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 EXPORT_SYMBOL(__xa_cmpxchg);
 
 /**
+ * __xa_insert() - Store this entry in the XArray if no entry is present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
+ *
+ * Context: Any context.  Expects xa_lock to be held on entry.  May
+ * release and reacquire xa_lock if @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
+{
+	XA_STATE(xas, xa, index);
+	void *curr;
+
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
+		return -EINVAL;
+	if (!entry)
+		entry = XA_ZERO_ENTRY;
+
+	do {
+		curr = xas_load(&xas);
+		if (!curr) {
+			xas_store(&xas, entry);
+			if (xa_track_free(xa))
+				xas_clear_mark(&xas, XA_FREE_MARK);
+		} else {
+			xas_set_err(&xas, -EEXIST);
+		}
+	} while (__xas_nomem(&xas, gfp));
+
+	return xas_error(&xas);
+}
+EXPORT_SYMBOL(__xa_insert);
+
+/**
  * __xa_reserve() - Reserve this index in the XArray.
  * @xa: XArray.
  * @index: Index into array.
