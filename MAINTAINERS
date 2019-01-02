@@ -5561,7 +5561,7 @@ W:	http://ext4.wiki.kernel.org
 Q:	http://patchwork.ozlabs.org/project/linux-ext4/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git
 S:	Maintained
-F:	Documentation/filesystems/ext4/ext4.rst
+F:	Documentation/filesystems/ext4/
 F:	fs/ext4/
 
 Extended Verification Module (EVM)
