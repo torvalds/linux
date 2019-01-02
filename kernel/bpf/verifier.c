@@ -3249,6 +3249,17 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	__update_reg_bounds(dst_reg);
 	__reg_deduce_bounds(dst_reg);
 	__reg_bound_offset(dst_reg);
+
+	/* For unprivileged we require that resulting offset must be in bounds
+	 * in order to be able to sanitize access later on.
+	 */
+	if (!env->allow_ptr_leaks && dst_reg->type == PTR_TO_MAP_VALUE &&
+	    check_map_access(env, dst, dst_reg->off, 1, false)) {
+		verbose(env, "R%d pointer arithmetic of map value goes out of range, prohibited for !root\n",
+			dst);
+		return -EACCES;
+	}
+
 	return 0;
 }
 
