@@ -172,9 +172,6 @@ module_param_array(beep_mode, bool, NULL, 0444);
 MODULE_PARM_DESC(beep_mode, "Select HDA Beep registration mode "
 			    "(0=off, 1=on) (default=1).");
 #endif
-static int skl_pci_binding;
-module_param_named(pci_binding, skl_pci_binding, int, 0444);
-MODULE_PARM_DESC(pci_binding, "PCI binding (0=auto, 1=only legacy, 2=only asoc");
 
 #ifdef CONFIG_PM
 static int param_set_xint(const char *val, const struct kernel_param *kp);
@@ -360,7 +357,6 @@ enum {
 	 AZX_DCAPS_NO_64BIT |\
 	 AZX_DCAPS_4K_BDLE_BOUNDARY | AZX_DCAPS_SNOOP_OFF)
 
-#define AZX_DCAPS_INTEL_DSP_DETECTION(conf) (IS_ENABLED(CONFIG_SND_HDA_INTEL_DSP_DETECTION_##conf) ? AZX_DCAPS_INTEL_SHARED : 0)
 /*
  * vga_switcheroo support
  */
@@ -2052,28 +2048,6 @@ static int azx_probe(struct pci_dev *pci,
 	bool schedule_probe;
 	int err;
 
-	/* check if this driver can be used on SKL+ Intel platforms */
-	if (pci_id->driver_data & AZX_DCAPS_INTEL_SHARED) {
-		switch (skl_pci_binding) {
-		case SND_SKL_PCI_BIND_AUTO:
-			if (pci->class != 0x040300) {
-				dev_info(&pci->dev, "The DSP is enabled on this platform, aborting probe\n");
-				return -ENODEV;
-			}
-			dev_info(&pci->dev, "No DSP detected, continuing HDaudio legacy probe\n");
-			break;
-		case SND_SKL_PCI_BIND_LEGACY:
-			dev_info(&pci->dev, "Module parameter forced binding with HDaudio legacy, bypassed detection logic\n");
-			break;
-		case SND_SKL_PCI_BIND_ASOC:
-			dev_info(&pci->dev, "Module parameter forced binding with SKL+ ASoC driver, aborting probe\n");
-			return -ENODEV;
-		default:
-			dev_err(&pci->dev, "invalid value for skl_pci_binding module parameter, ignored\n");
-			break;
-		}
-	}
-
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 	if (!enable[dev]) {
@@ -2380,48 +2354,34 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Sunrise Point-LP */
 	{ PCI_DEVICE(0x8086, 0x9d70),
-	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE |
-	  AZX_DCAPS_INTEL_DSP_DETECTION(SKL)
-	},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake */
 	{ PCI_DEVICE(0x8086, 0xa171),
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake-LP */
 	{ PCI_DEVICE(0x8086, 0x9d71),
-	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE |
-	  AZX_DCAPS_INTEL_DSP_DETECTION(KBL)
-	},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake-H */
 	{ PCI_DEVICE(0x8086, 0xa2f0),
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Coffelake */
 	{ PCI_DEVICE(0x8086, 0xa348),
-	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE |
-	  AZX_DCAPS_INTEL_DSP_DETECTION(CFL)
-	},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Cannonlake */
 	{ PCI_DEVICE(0x8086, 0x9dc8),
-	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE |
-	  AZX_DCAPS_INTEL_DSP_DETECTION(CNL)
-	},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Icelake */
 	{ PCI_DEVICE(0x8086, 0x34c8),
-	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE |
-	  AZX_DCAPS_INTEL_DSP_DETECTION(ICL)
-	},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Broxton-P(Apollolake) */
 	{ PCI_DEVICE(0x8086, 0x5a98),
-	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON |
-	  AZX_DCAPS_INTEL_DSP_DETECTION(APL)
-	},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Broxton-T */
 	{ PCI_DEVICE(0x8086, 0x1a98),
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Gemini-Lake */
 	{ PCI_DEVICE(0x8086, 0x3198),
-	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON |
-	  AZX_DCAPS_INTEL_DSP_DETECTION(GLK)
-	},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Haswell */
 	{ PCI_DEVICE(0x8086, 0x0a0c),
 	  .driver_data = AZX_DRIVER_HDMI | AZX_DCAPS_INTEL_HASWELL },
