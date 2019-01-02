@@ -14432,6 +14432,11 @@ M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
 S:	Odd Fixes
 F:	drivers/staging/rtl8712/
 
+STAGING - REALTEK RTL8188EU DRIVERS
+M:	Larry Finger <Larry.Finger@lwfinger.net>
+S:	Odd Fixes
+F:	drivers/staging/rtl8188eu/
+
 STAGING - SILICON MOTION SM750 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 M:	Teddy Wang <teddy.wang@siliconmotion.com>
