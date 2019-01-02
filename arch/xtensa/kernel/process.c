@@ -52,8 +52,6 @@
 extern void ret_from_fork(void);
 extern void ret_from_kernel_thread(void);
 
-struct task_struct *current_set[NR_CPUS] = {&init_task, };
-
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
