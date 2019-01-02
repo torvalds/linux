@@ -146,19 +146,8 @@ step5:
 		goto err;
 	}
 
-	/* step 6: enable interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
-				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
-
-	/* enable IPC DONE interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
-				HDA_DSP_REG_HIPCCTL_DONE,
-				HDA_DSP_REG_HIPCCTL_DONE);
-
-	/* enable IPC BUSY interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
-				HDA_DSP_REG_HIPCCTL_BUSY,
-				HDA_DSP_REG_HIPCCTL_BUSY);
+	/* step 6: enable IPC interrupts */
+	hda_dsp_ipc_int_enable(sdev);
 
 	/* step 7: wait for ROM init */
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
