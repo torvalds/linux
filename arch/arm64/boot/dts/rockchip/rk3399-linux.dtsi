@@ -152,6 +152,10 @@
 	};
 };
 
+&pvtm {
+	status = "okay";
+};
+
 &pinctrl {
 	isp {
 		cif_clkout: cif-clkout {
