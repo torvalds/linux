@@ -420,16 +420,15 @@ void __init trap_init(void)
 	/* Setup specific handlers. */
 
 	for(i = 0; dispatch_init_table[i].cause >= 0; i++) {
-
 		int fast = dispatch_init_table[i].fast;
 		int cause = dispatch_init_table[i].cause;
 		void *handler = dispatch_init_table[i].handler;
 
 		if (fast == 0)
 			set_handler(default_handler, cause, handler);
-		if (fast && fast & USER)
+		if ((fast & USER) != 0)
 			set_handler(fast_user_handler, cause, handler);
-		if (fast && fast & KRNL)
+		if ((fast & KRNL) != 0)
 			set_handler(fast_kernel_handler, cause, handler);
 	}
 
