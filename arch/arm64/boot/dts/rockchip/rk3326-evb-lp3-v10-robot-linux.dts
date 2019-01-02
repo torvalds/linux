@@ -278,9 +278,9 @@
 		];
 
 		display-timings {
-			native-mode = <&st7703_timing>;
+			native-mode = <&timing0>;
 
-			st7703_timing: timing0 {
+			timing0: timing0 {
 				clock-frequency = <66000000>;
 				hactive = <720>;
 				vactive = <1280>;
@@ -301,6 +301,15 @@
 
 &dsi_in_vopl {
 	status = "disabled";
+};
+
+&dsi_in_vopb {
+	status = "okay";
+};
+
+&route_dsi {
+	connect = <&vopb_out_dsi>;
+	status = "okay";
 };
 
 &dfi {
@@ -753,10 +762,6 @@
 };
 
 &isp_mmu {
-	status = "okay";
-};
-
-&mipi_dphy {
 	status = "okay";
 };
 
