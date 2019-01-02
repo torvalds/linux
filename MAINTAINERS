@@ -11510,6 +11510,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lpieralisi/pci.git/
 S:	Supported
 F:	drivers/pci/controller/
 
+PCIE DRIVER FOR AMLOGIC MESON
+M:	Yue Wang <yue.wang@Amlogic.com>
+L:	linux-pci@vger.kernel.org
+L:	linux-amlogic@lists.infradead.org
+S:	Maintained
+F:	drivers/pci/controller/dwc/pci-meson.c
+
 PCIE DRIVER FOR AXIS ARTPEC
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
 L:	linux-arm-kernel@axis.com
