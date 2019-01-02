@@ -1072,8 +1072,6 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
  *		the GPU device is not already present in the topology device
  *		list then return NULL. This means a new topology device has to
  *		be created for this GPU.
- * TODO: Rather than assiging @gpu to first topology device withtout
- *		gpu attached, it will better to have more stringent check.
  */
 static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 {
@@ -1081,12 +1079,20 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 	struct kfd_topology_device *out_dev = NULL;
 
 	down_write(&topology_lock);
-	list_for_each_entry(dev, &topology_device_list, list)
+	list_for_each_entry(dev, &topology_device_list, list) {
+		/* Discrete GPUs need their own topology device list
+		 * entries. Don't assign them to CPU/APU nodes.
+		 */
+		if (!gpu->device_info->needs_iommu_device &&
+		    dev->node_props.cpu_cores_count)
+			continue;
+
 		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
 			break;
 		}
+	}
 	up_write(&topology_lock);
 	return out_dev;
 }
