@@ -2133,7 +2133,7 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
+			DRM_INFO("RE-INIT-early: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
@@ -2167,7 +2167,7 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
+			DRM_INFO("RE-INIT-late: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
