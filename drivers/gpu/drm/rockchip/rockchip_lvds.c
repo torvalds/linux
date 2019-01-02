@@ -75,12 +75,6 @@
 #define DISPLAY_OUTPUT_LVDS		1
 #define DISPLAY_OUTPUT_DUAL_LVDS	2
 
-#define connector_to_lvds(c) \
-		container_of(c, struct rockchip_lvds, connector)
-
-#define encoder_to_lvds(c) \
-		container_of(c, struct rockchip_lvds, encoder)
-
 struct rockchip_lvds;
 
 struct rockchip_lvds_funcs {
@@ -130,22 +124,27 @@ static inline int lvds_name_to_output(const char *s)
 	return -EINVAL;
 }
 
+static inline struct rockchip_lvds *connector_to_lvds(struct drm_connector *c)
+{
+	return container_of(c, struct rockchip_lvds, connector);
+}
+
+static inline struct rockchip_lvds *encoder_to_lvds(struct drm_encoder *e)
+{
+	return container_of(e, struct rockchip_lvds, encoder);
+}
+
 static enum drm_connector_status
 rockchip_lvds_connector_detect(struct drm_connector *connector, bool force)
 {
 	return connector_status_connected;
 }
 
-static void rockchip_lvds_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_cleanup(connector);
-}
-
 static const struct drm_connector_funcs rockchip_lvds_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = rockchip_lvds_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = rockchip_lvds_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
@@ -172,10 +171,7 @@ int rockchip_lvds_connector_loader_protect(struct drm_connector *connector,
 {
 	struct rockchip_lvds *lvds = connector_to_lvds(connector);
 
-	if (lvds->panel)
-		drm_panel_loader_protect(lvds->panel, on);
-
-	return 0;
+	return drm_panel_loader_protect(lvds->panel, on);
 }
 
 static const
@@ -264,22 +260,17 @@ struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
 	.atomic_check = rockchip_lvds_encoder_atomic_check,
 };
 
-static void rockchip_lvds_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
 static const struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
-	.destroy = rockchip_lvds_encoder_destroy,
+	.destroy = drm_encoder_cleanup,
 };
 
 static int rockchip_lvds_bind(struct device *dev, struct device *master,
-			     void *data)
+			      void *data)
 {
 	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder = &lvds->encoder;
+	struct drm_connector *connector = &lvds->connector;
 	struct device_node *remote = NULL;
 	struct device_node  *port, *endpoint;
 	int ret, i;
@@ -360,7 +351,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		}
 	}
 
-	encoder = &lvds->encoder;
+	encoder->port = dev->of_node;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
 
@@ -372,10 +363,10 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_lvds_encoder_helper_funcs);
-	encoder->port = dev->of_node;
 
 	if (lvds->panel) {
-		connector = &lvds->connector;
+		connector->port = dev->of_node;
+
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_lvds_connector_funcs,
 					 DRM_MODE_CONNECTOR_LVDS);
@@ -386,19 +377,13 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 		drm_connector_helper_add(connector,
 					 &rockchip_lvds_connector_helper_funcs);
-
-		ret = drm_mode_connector_attach_encoder(connector, encoder);
-		if (ret < 0) {
-			DRM_ERROR("failed to attach connector and encoder\n");
-			goto err_free_connector;
-		}
+		drm_mode_connector_attach_encoder(connector, encoder);
 
 		ret = drm_panel_attach(lvds->panel, connector);
 		if (ret < 0) {
 			DRM_ERROR("failed to attach connector and encoder\n");
 			goto err_free_connector;
 		}
-		lvds->connector.port = dev->of_node;
 	} else {
 		lvds->bridge->encoder = encoder;
 		ret = drm_bridge_attach(drm_dev, lvds->bridge);
@@ -431,9 +416,11 @@ static void rockchip_lvds_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
 
-	drm_panel_detach(lvds->panel);
+	if (lvds->panel) {
+		drm_panel_detach(lvds->panel);
+		drm_connector_cleanup(&lvds->connector);
+	}
 
-	drm_connector_cleanup(&lvds->connector);
 	drm_encoder_cleanup(&lvds->encoder);
 }
 
