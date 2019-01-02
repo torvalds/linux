@@ -20,6 +20,7 @@
 #include <linux/parser.h>
 #include <linux/radix-tree.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock_types.h>
 #include <linux/stddef.h>
@@ -45,6 +46,24 @@ static DEFINE_MUTEX(binderfs_minors_mutex);
 static DEFINE_IDA(binderfs_minors);
 
 /**
+ * binderfs_mount_opts - mount options for binderfs
+ * @max: maximum number of allocatable binderfs binder devices
+ */
+struct binderfs_mount_opts {
+	int max;
+};
+
+enum {
+	Opt_max,
+	Opt_err
+};
+
+static const match_table_t tokens = {
+	{ Opt_max, "max=%d" },
+	{ Opt_err, NULL     }
+};
+
+/**
  * binderfs_info - information about a binderfs mount
  * @ipc_ns:         The ipc namespace the binderfs mount belongs to.
  * @control_dentry: This records the dentry of this binderfs mount
@@ -53,13 +72,16 @@ static DEFINE_IDA(binderfs_minors);
  *                  created.
  * @root_gid:       gid that needs to be used when a new binder device is
  *                  created.
+ * @mount_opts:     The mount options in use.
+ * @device_count:   The current number of allocated binder devices.
  */
 struct binderfs_info {
 	struct ipc_namespace *ipc_ns;
 	struct dentry *control_dentry;
 	kuid_t root_uid;
 	kgid_t root_gid;
-
+	struct binderfs_mount_opts mount_opts;
+	int device_count;
 };
 
 static inline struct binderfs_info *BINDERFS_I(const struct inode *inode)
@@ -108,10 +130,17 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 
 	/* Reserve new minor number for the new device. */
 	mutex_lock(&binderfs_minors_mutex);
-	minor = ida_alloc_max(&binderfs_minors, BINDERFS_MAX_MINOR, GFP_KERNEL);
-	mutex_unlock(&binderfs_minors_mutex);
-	if (minor < 0)
+	if (++info->device_count <= info->mount_opts.max)
+		minor = ida_alloc_max(&binderfs_minors, BINDERFS_MAX_MINOR,
+				      GFP_KERNEL);
+	else
+		minor = -ENOSPC;
+	if (minor < 0) {
+		--info->device_count;
+		mutex_unlock(&binderfs_minors_mutex);
 		return minor;
+	}
+	mutex_unlock(&binderfs_minors_mutex);
 
 	ret = -ENOMEM;
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
@@ -185,6 +214,7 @@ err:
 	kfree(name);
 	kfree(device);
 	mutex_lock(&binderfs_minors_mutex);
+	--info->device_count;
 	ida_free(&binderfs_minors, minor);
 	mutex_unlock(&binderfs_minors_mutex);
 	iput(inode);
@@ -230,6 +260,7 @@ static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 static void binderfs_evict_inode(struct inode *inode)
 {
 	struct binder_device *device = inode->i_private;
+	struct binderfs_info *info = BINDERFS_I(inode);
 
 	clear_inode(inode);
 
@@ -237,6 +268,7 @@ static void binderfs_evict_inode(struct inode *inode)
 		return;
 
 	mutex_lock(&binderfs_minors_mutex);
+	--info->device_count;
 	ida_free(&binderfs_minors, device->miscdev.minor);
 	mutex_unlock(&binderfs_minors_mutex);
 
@@ -244,9 +276,65 @@ static void binderfs_evict_inode(struct inode *inode)
 	kfree(device);
 }
 
+/**
+ * binderfs_parse_mount_opts - parse binderfs mount options
+ * @data: options to set (can be NULL in which case defaults are used)
+ */
+static int binderfs_parse_mount_opts(char *data,
+				     struct binderfs_mount_opts *opts)
+{
+	char *p;
+	opts->max = BINDERFS_MAX_MINOR;
+
+	while ((p = strsep(&data, ",")) != NULL) {
+		substring_t args[MAX_OPT_ARGS];
+		int token;
+		int max_devices;
+
+		if (!*p)
+			continue;
+
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case Opt_max:
+			if (match_int(&args[0], &max_devices) ||
+			    (max_devices < 0 ||
+			     (max_devices > BINDERFS_MAX_MINOR)))
+				return -EINVAL;
+
+			opts->max = max_devices;
+			break;
+		default:
+			pr_err("Invalid mount options\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int binderfs_remount(struct super_block *sb, int *flags, char *data)
+{
+	struct binderfs_info *info = sb->s_fs_info;
+	return binderfs_parse_mount_opts(data, &info->mount_opts);
+}
+
+static int binderfs_show_mount_opts(struct seq_file *seq, struct dentry *root)
+{
+	struct binderfs_info *info;
+
+	info = root->d_sb->s_fs_info;
+	if (info->mount_opts.max <= BINDERFS_MAX_MINOR)
+		seq_printf(seq, ",max=%d", info->mount_opts.max);
+
+	return 0;
+}
+
 static const struct super_operations binderfs_super_ops = {
-	.statfs = simple_statfs,
-	.evict_inode = binderfs_evict_inode,
+	.evict_inode    = binderfs_evict_inode,
+	.remount_fs	= binderfs_remount,
+	.show_options	= binderfs_show_mount_opts,
+	.statfs         = simple_statfs,
 };
 
 static int binderfs_rename(struct inode *old_dir, struct dentry *old_dentry,
@@ -405,6 +493,10 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
 	if (!info)
+		goto err_without_dentry;
+
+	ret = binderfs_parse_mount_opts(data, &info->mount_opts);
+	if (ret)
 		goto err_without_dentry;
 
 	info->ipc_ns = ipc_ns;
