@@ -5,7 +5,6 @@ Required properties:
 	"rockchip,rk1808-mipi-dphy";
 	"rockchip,rk3128-mipi-dphy";
 	"rockchip,rk3366-mipi-dphy";
-	"rockchip,rk3368-mipi-dphy";
  - reg : the address offset of register for mipi-dphy configuration.
  - #phy-cells : must be 0. See ./phy-bindings.txt for details.
  - clocks and clock-names:
@@ -24,28 +23,16 @@ Optional properties
  - clock-names: should be "h2p".
 
 Example:
-
-For Rockchip RK3368
-
-	mipi_dphy: mipi-dphy@ff968000 {
-		compatible = "rockchip,rk3368-mipi-dphy";
-		reg = <0x0 0xff968000 0x0 0x4000>;
-		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>;
+	mipi_dphy: mipi-dphy@ff370000 {
+		compatible = "rockchip,rk1808-mipi-dphy";
+		reg = <0x0 0xff370000 0x0 0x500>;
+		clocks = <&cru SCLK_MIPIDSIPHY_REF>, <&cru PCLK_MIPIDSIPHY>;
 		clock-names = "ref", "pclk";
 		clock-output-names = "mipi_dphy_pll";
 		#clock-cells = <0>;
-		resets = <&cru SRST_MIPIDPHYTX>;
+		resets = <&cru SRST_MIPIDSIPHY_P>;
 		reset-names = "apb";
 		#phy-cells = <0>;
-	};
-
-Then the PHY can be used in other nodes such as:
-
-	dsi@ff960000 {
-		...
-		clocks = <&cru PCLK_MIPI_DSI0>, <&mipi_dphy>;
-		clock-names = "pclk", "hs_clk";
-		phys = <&mipi_dphy>;
-		phy-names = "mipi_dphy";
-		...
+		rockchip,grf = <&grf>;
+		status = "disabled";
 	};
