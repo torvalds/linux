@@ -1398,7 +1398,6 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	char   FileName[0];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
 
-#define SMB2_MIN_EA_BUF  2048
 #define SMB2_MAX_EA_BUF 65536
 
 struct smb2_file_full_ea_info { /* encoding of response for level 15 */
