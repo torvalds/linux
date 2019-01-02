@@ -974,6 +974,10 @@ gen6_irq_enable(struct intel_engine_cs *engine)
 	I915_WRITE_IMR(engine,
 		       ~(engine->irq_enable_mask |
 			 engine->irq_keep_mask));
+
+	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
+	POSTING_READ_FW(RING_IMR(engine->mmio_base));
+
 	gen5_enable_gt_irq(dev_priv, engine->irq_enable_mask);
 }
 
