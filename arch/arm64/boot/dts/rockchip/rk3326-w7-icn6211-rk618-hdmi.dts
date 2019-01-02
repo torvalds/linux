@@ -1,0 +1,164 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include <dt-bindings/clock/rk618-cru.h>
+#include "rk3326-w7.dtsi"
+
+/ {
+	osc26m: osc26m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+};
+
+&dmc {
+	auto-freq-en = <0>;
+};
+
+&i2c0 {
+	status = "okay";
+
+	icn6211@2c {
+		compatible = "chipone,icn6211";
+		reg = <0x2c>;
+		clocks = <&osc26m>;
+		clock-names = "refclk";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				icn6211_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_icn6211>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				icn6211_out_vif: endpoint {
+					remote-endpoint = <&vif_in_icn6211>;
+				};
+			};
+		};
+	};
+
+	rk618@50 {
+		compatible = "rockchip,rk618";
+		reg = <0x50>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1_2ch_mclk>;
+		clocks = <&cru SCLK_I2S1_OUT>;
+		clock-names = "clkin";
+		assigned-clocks = <&cru SCLK_I2S1_OUT>;
+		assigned-clock-rates = <12000000>;
+		reset-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_LOW>;
+		status = "okay";
+
+		clock: cru {
+			compatible = "rockchip,rk618-cru";
+			clocks = <&cru SCLK_I2S1_OUT>, <&cru DCLK_VOPB>;
+			clock-names = "clkin", "lcdc0_dclkp";
+			assigned-clocks = <&clock SCALER_PLLIN_CLK>,
+					  <&clock VIF_PLLIN_CLK>,
+					  <&clock SCALER_CLK>,
+					  <&clock VIF0_PRE_CLK>,
+					  <&clock CODEC_CLK>,
+					  <&clock DITHER_CLK>;
+			assigned-clock-parents = <&cru SCLK_I2S1_OUT>,
+						 <&cru SCLK_I2S1_OUT>,
+						 <&clock SCALER_PLL_CLK>,
+						 <&clock VIF_PLL_CLK>,
+						 <&cru SCLK_I2S1_OUT>,
+						 <&clock VIF0_CLK>;
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		hdmi {
+			compatible = "rockchip,rk618-hdmi";
+			clocks = <&clock HDMI_CLK>;
+			clock-names = "hdmi";
+			assigned-clocks = <&clock HDMI_CLK>;
+			assigned-clock-parents = <&clock VIF0_CLK>;
+			interrupt-parent = <&gpio2>;
+			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					hdmi_in_vif: endpoint {
+						remote-endpoint = <&vif_out_hdmi>;
+					};
+				};
+			};
+		};
+
+		vif {
+			compatible = "rockchip,rk618-vif";
+			clocks = <&clock VIF0_CLK>, <&clock VIF0_PRE_CLK>;
+			clock-names = "vif", "vif_pre";
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					vif_in_icn6211: endpoint {
+						remote-endpoint = <&icn6211_out_vif>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					vif_out_hdmi: endpoint {
+						remote-endpoint = <&hdmi_in_vif>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&dsi {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dsi_out_icn6211: endpoint {
+				remote-endpoint = <&icn6211_in_dsi>;
+			};
+		};
+	};
+};
+
+&dsi_in_vopb {
+	status = "okay";
+};
+
+&dsi_in_vopl {
+	status = "disabled";
+};
+
+&route_dsi {
+	connect = <&vopb_out_dsi>;
+	status = "okay";
+};
