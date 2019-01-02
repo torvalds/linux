@@ -6,6 +6,7 @@ Required properties:
 	- "rockchip,px30-rgb";
 	- "rockchip,rk1808-rgb";
 	- "rockchip,rk3066-rgb";
+	- "rockchip,rk3128-rgb";
 	- "rockchip,rk3308-rgb";
 	- "rockchip,rk3368-rgb";
 	- "rockchip,rv1108-rgb";
