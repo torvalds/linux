@@ -4,7 +4,6 @@ Required properties:
  - compatible : must be one of:
 	"rockchip,rk1808-mipi-dphy";
 	"rockchip,rk3128-mipi-dphy";
-	"rockchip,rk3366-mipi-dphy";
  - reg : the address offset of register for mipi-dphy configuration.
  - #phy-cells : must be 0. See ./phy-bindings.txt for details.
  - clocks and clock-names:
