@@ -73,9 +73,9 @@ config PCI_PF_STUB
 	depends on PCI_IOV
 	help
 	  Say Y or M here if you want to enable support for devices that
-	  require SR-IOV support, while at the same time the PF itself is
-	  not providing any actual services on the host itself such as
-	  storage or networking.
+	  require SR-IOV support, while at the same time the PF (Physical
+	  Function) itself is not providing any actual services on the
+	  host itself such as storage or networking.
 
 	  When in doubt, say N.
 
