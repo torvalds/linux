@@ -314,8 +314,10 @@ static int rockchip_get_pvtm_specific_value(struct device *dev,
 			cur_value = rockchip_get_pvtm_value(pvtm->ch[0],
 							    pvtm->ch[1],
 							    pvtm->sample_time);
-			if (!cur_value)
+			if (cur_value <= 0) {
+				ret = -EINVAL;
 				goto resetore_volt;
+			}
 			if (cur_value < min_value)
 				min_value = cur_value;
 			if (cur_value > max_value)
