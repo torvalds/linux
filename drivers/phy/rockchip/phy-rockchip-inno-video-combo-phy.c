@@ -445,6 +445,11 @@ static void inno_video_phy_lvds_mode_enable(struct inno_video_phy *inno)
 	u32 val;
 	int ret;
 
+	/* Sample clock reverse direction */
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
+			SAMPLE_CLOCK_DIRECTION_MASK,
+			SAMPLE_CLOCK_DIRECTION_REVERSE);
+
 	/* Select LVDS mode */
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
 			MODE_ENABLE_MASK, LVDS_MODE_ENABLE);
@@ -525,10 +530,6 @@ static int inno_video_phy_power_on(struct phy *phy)
 	/* Enable power work */
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_ENABLE);
-	/* Sample clock reverse direction */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
-			SAMPLE_CLOCK_DIRECTION_MASK,
-			SAMPLE_CLOCK_DIRECTION_REVERSE);
 
 	switch (inno->mode) {
 	case PHY_MODE_VIDEO_MIPI:
