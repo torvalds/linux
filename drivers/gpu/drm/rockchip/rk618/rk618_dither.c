@@ -25,8 +25,19 @@ void rk618_frc_dither_disable(struct rk618 *rk618)
 }
 EXPORT_SYMBOL_GPL(rk618_frc_dither_disable);
 
-void rk618_frc_dither_enable(struct rk618 *rk618)
+void rk618_frc_dither_enable(struct rk618 *rk618, u32 bus_format)
 {
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB666_1X18:
+		regmap_write(rk618->regmap, RK618_FRC_REG, FRC_OUT_MODE_RGB666);
+		break;
+	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
+		regmap_write(rk618->regmap, RK618_FRC_REG, FRC_OUT_MODE_RGB888);
+		break;
+	default:
+		return;
+	}
+
 	regmap_write(rk618->regmap, RK618_FRC_REG, FRC_DITHER_ENABLE);
 }
 EXPORT_SYMBOL_GPL(rk618_frc_dither_enable);

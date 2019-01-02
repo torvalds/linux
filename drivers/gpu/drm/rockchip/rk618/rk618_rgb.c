@@ -94,11 +94,28 @@ static const struct drm_connector_funcs rk618_rgb_connector_funcs = {
 static void rk618_rgb_bridge_enable(struct drm_bridge *bridge)
 {
 	struct rk618_rgb *rgb = bridge_to_rgb(bridge);
+	struct drm_connector *connector = &rgb->connector;
+	struct drm_display_info *info = &connector->display_info;
+	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	u32 value;
 
 	clk_prepare_enable(rgb->clock);
 
 	rk618_frc_dclk_invert(rgb->parent);
+
+	if (info->num_bus_formats)
+		bus_format = info->bus_formats[0];
+
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB666_1X18:
+	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
+		rk618_frc_dither_enable(rgb->parent, bus_format);
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	default:
+		rk618_frc_dither_disable(rgb->parent);
+		break;
+	}
 
 	dev_dbg(rgb->dev, "id=%d\n", rgb->id);
 
