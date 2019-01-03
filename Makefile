@@ -1041,9 +1041,8 @@ PHONY += $(vmlinux-dirs)
 $(vmlinux-dirs): prepare
 	$(Q)$(MAKE) $(build)=$@ need-builtin=1
 
-define filechk_kernel.release
+filechk_kernel.release = \
 	echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
-endef
 
 # Store (new) KERNELRELEASE string in include/config/kernel.release
 include/config/kernel.release: $(srctree)/Makefile FORCE
