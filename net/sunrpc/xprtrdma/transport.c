@@ -827,7 +827,6 @@ static const struct rpc_xprt_ops xprt_rdma_procs = {
 	.inject_disconnect	= xprt_rdma_inject_disconnect,
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	.bc_setup		= xprt_rdma_bc_setup,
-	.bc_up			= xprt_rdma_bc_up,
 	.bc_maxpayload		= xprt_rdma_bc_maxpayload,
 	.bc_free_rqst		= xprt_rdma_bc_free_rqst,
 	.bc_destroy		= xprt_rdma_bc_destroy,

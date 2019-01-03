@@ -114,26 +114,6 @@ out_err:
 }
 
 /**
- * xprt_rdma_bc_up - Create transport endpoint for backchannel service
- * @serv: server endpoint
- * @net: network namespace
- *
- * The "xprt" is an implied argument: it supplies the name of the
- * backchannel transport class.
- *
- * Returns zero on success, negative errno on failure
- */
-int xprt_rdma_bc_up(struct svc_serv *serv, struct net *net)
-{
-	int ret;
-
-	ret = svc_create_xprt(serv, "rdma-bc", net, PF_INET, 0, 0);
-	if (ret < 0)
-		return ret;
-	return 0;
-}
-
-/**
  * xprt_rdma_bc_maxpayload - Return maximum backchannel message size
  * @xprt: transport
  *
