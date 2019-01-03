@@ -1165,6 +1165,12 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 	    5 * SZ_1M)
 		cond_wake_up_nomb(&fs_info->async_submit_wait);
 
+	/*
+	 * ->inode could be NULL if async_cow_start has failed to compress,
+	 * in which case we don't have anything to submit, yet we need to
+	 * always adjust ->async_delalloc_pages as its paired with the init
+	 * happening in cow_file_range_async
+	 */
 	if (async_cow->inode)
 		submit_compressed_extents(async_cow);
 }
