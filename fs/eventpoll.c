@@ -1774,7 +1774,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		eavail = ep_events_available(ep);
 		spin_unlock_irq(&ep->wq.lock);
 
-		goto check_events;
+		goto send_events;
 	}
 
 fetch_events:
@@ -1784,7 +1784,7 @@ fetch_events:
 
 	eavail = ep_events_available(ep);
 	if (eavail)
-		goto check_events;
+		goto send_events;
 
 	/*
 	 * Busy poll timed out.  Drop NAPI ID for now, we can add
@@ -1841,7 +1841,7 @@ fetch_events:
 	__remove_wait_queue(&ep->wq, &wait);
 	spin_unlock_irq(&ep->wq.lock);
 
-check_events:
+send_events:
 	/*
 	 * Try to transfer events to user space. In case we get 0 events and
 	 * there's still timeout left over, we go trying again in search of
