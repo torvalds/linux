@@ -57,8 +57,8 @@ static void mlx4_free_icm_pages(struct mlx4_dev *dev, struct mlx4_icm_chunk *chu
 	int i;
 
 	if (chunk->nsg > 0)
-		pci_unmap_sg(dev->persist->pdev, chunk->sg, chunk->npages,
-			     PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_sg(&dev->persist->pdev->dev, chunk->sg, chunk->npages,
+			     DMA_BIDIRECTIONAL);
 
 	for (i = 0; i < chunk->npages; ++i)
 		__free_pages(sg_page(&chunk->sg[i]),
@@ -204,9 +204,9 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 		if (coherent)
 			++chunk->nsg;
 		else if (chunk->npages == MLX4_ICM_CHUNK_LEN) {
-			chunk->nsg = pci_map_sg(dev->persist->pdev, chunk->sg,
-						chunk->npages,
-						PCI_DMA_BIDIRECTIONAL);
+			chunk->nsg = dma_map_sg(&dev->persist->pdev->dev,
+						chunk->sg, chunk->npages,
+						DMA_BIDIRECTIONAL);
 
 			if (chunk->nsg <= 0)
 				goto fail;
@@ -219,9 +219,8 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 	}
 
 	if (!coherent && chunk) {
-		chunk->nsg = pci_map_sg(dev->persist->pdev, chunk->sg,
-					chunk->npages,
-					PCI_DMA_BIDIRECTIONAL);
+		chunk->nsg = dma_map_sg(&dev->persist->pdev->dev, chunk->sg,
+					chunk->npages, DMA_BIDIRECTIONAL);
 
 		if (chunk->nsg <= 0)
 			goto fail;
