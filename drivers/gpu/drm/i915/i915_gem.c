@@ -3380,6 +3380,9 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	if (!test_bit(I915_WEDGED, &i915->gpu_error.flags))
 		return true;
 
+	if (!i915->gt.scratch) /* Never full initialised, recovery impossible */
+		return false;
+
 	GEM_TRACE("start\n");
 
 	/*
