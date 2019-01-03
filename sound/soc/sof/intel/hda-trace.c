@@ -42,11 +42,12 @@ int hda_dsp_trace_init(struct snd_sof_dev *sdev, u32 *tag)
 {
 	struct sof_intel_hda_dev *hda =
 		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	int ret;
 
 	hda->dtrace_stream = hda_dsp_stream_get(sdev,
 						SNDRV_PCM_STREAM_CAPTURE);
 
-	if (hda && !hda->dtrace_stream) {
+	if (!hda->dtrace_stream) {
 		dev_err(sdev->dev,
 			"error: no available capture stream for DMA trace\n");
 		return -ENODEV;
@@ -58,7 +59,15 @@ int hda_dsp_trace_init(struct snd_sof_dev *sdev, u32 *tag)
 	 * initialize capture stream, set BDL address and return corresponding
 	 * stream tag which will be sent to the firmware by IPC message.
 	 */
-	return hda_dsp_trace_prepare(sdev);
+	ret = hda_dsp_trace_prepare(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: hdac trace init failed: %x\n", ret);
+		hda_dsp_stream_put(sdev, SNDRV_PCM_STREAM_CAPTURE, *tag);
+		hda->dtrace_stream = NULL;
+		*tag = 0;
+	}
+
+	return ret;
 }
 
 int hda_dsp_trace_release(struct snd_sof_dev *sdev)
