@@ -6,5 +6,3 @@ generated-y += unistd_o32.h
 generated-y += unistd_nr_n32.h
 generated-y += unistd_nr_n64.h
 generated-y += unistd_nr_o32.h
-generic-y += bpf_perf_event.h
-generic-y += ipcbuf.h
