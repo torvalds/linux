@@ -311,6 +311,7 @@
 };
 
 &dmc {
+	auto-freq-en = <0>;
 	center-supply = <&vdd_logic>;
 	status = "okay";
 };
@@ -651,26 +652,32 @@
 		reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
 		status = "okay";
 
-		CRU: cru {
+		clock: cru {
 			compatible = "rockchip,rk618-cru";
 			clocks = <&cru SCLK_I2S1_OUT>, <&cru DCLK_VOPL>;
 			clock-names = "clkin", "lcdc0_dclkp";
-			assigned-clocks = <&CRU SCALER_PLLIN_CLK>, <&CRU VIF_PLLIN_CLK>,
-					  <&CRU SCALER_CLK>, <&CRU VIF0_PRE_CLK>,
-					  <&CRU CODEC_CLK>, <&CRU DITHER_CLK>;
-			assigned-clock-parents = <&cru SCLK_I2S1_OUT>, <&CRU LCDC0_CLK>,
-						 <&CRU SCALER_PLL_CLK>, <&CRU VIF_PLL_CLK>,
-						 <&cru SCLK_I2S1_OUT>, <&CRU VIF0_CLK>;
+			assigned-clocks = <&clock SCALER_PLLIN_CLK>,
+					  <&clock VIF_PLLIN_CLK>,
+					  <&clock SCALER_CLK>,
+					  <&clock VIF0_PRE_CLK>,
+					  <&clock CODEC_CLK>,
+					  <&clock DITHER_CLK>;
+			assigned-clock-parents = <&cru SCLK_I2S1_OUT>,
+						 <&clock LCDC0_CLK>,
+						 <&clock SCALER_PLL_CLK>,
+						 <&clock VIF_PLL_CLK>,
+						 <&cru SCLK_I2S1_OUT>,
+						 <&clock VIF0_CLK>;
 			#clock-cells = <1>;
 			status = "okay";
 		};
 
 		hdmi {
 			compatible = "rockchip,rk618-hdmi";
-			clocks = <&CRU HDMI_CLK>;
+			clocks = <&clock HDMI_CLK>;
 			clock-names = "hdmi";
-			assigned-clocks = <&CRU HDMI_CLK>;
-			assigned-clock-parents = <&CRU VIF0_CLK>;
+			assigned-clocks = <&clock HDMI_CLK>;
+			assigned-clock-parents = <&clock VIF0_CLK>;
 			interrupt-parent = <&gpio2>;
 			interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
 			status = "okay";
@@ -682,8 +689,8 @@
 				port@0 {
 					reg = <0>;
 
-					bridge_input_rgb: endpoint {
-						remote-endpoint = <&rgb_out_bridge>;
+					hdmi_in_rgb: endpoint {
+						remote-endpoint = <&rgb_out_hdmi>;
 					};
 				};
 			};
@@ -780,8 +787,8 @@
 		port@1 {
 			reg = <1>;
 
-			rgb_out_bridge: endpoint {
-				remote-endpoint = <&bridge_input_rgb>;
+			rgb_out_hdmi: endpoint {
+				remote-endpoint = <&hdmi_in_rgb>;
 			};
 		};
 	};
@@ -797,7 +804,7 @@
 
 &route_rgb {
 	connect = <&vopl_out_rgb>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl {
