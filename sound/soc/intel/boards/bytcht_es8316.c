@@ -47,6 +47,12 @@ struct byt_cht_es8316_private {
 	bool speaker_en;
 };
 
+enum {
+	BYT_CHT_ES8316_INTMIC_IN1_MAP,
+	BYT_CHT_ES8316_INTMIC_IN2_MAP,
+};
+
+#define BYT_CHT_ES8316_MAP(quirk)		((quirk) & GENMASK(3, 0))
 #define BYT_CHT_ES8316_SSP0			BIT(16)
 
 static int quirk;
@@ -57,6 +63,10 @@ MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 static void log_quirks(struct device *dev)
 {
+	if (BYT_CHT_ES8316_MAP(quirk) == BYT_CHT_ES8316_INTMIC_IN1_MAP)
+		dev_info(dev, "quirk IN1_MAP enabled");
+	if (BYT_CHT_ES8316_MAP(quirk) == BYT_CHT_ES8316_INTMIC_IN2_MAP)
+		dev_info(dev, "quirk IN2_MAP enabled");
 	if (quirk & BYT_CHT_ES8316_SSP0)
 		dev_info(dev, "quirk SSP0 enabled");
 }
@@ -81,14 +91,7 @@ static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-
-	/*
-	 * The codec supports two analog microphone inputs. I have only
-	 * tested MIC1. A DMIC route could also potentially be added
-	 * if such functionality is found on another platform.
-	 */
-	SND_SOC_DAPM_MIC("Microphone 1", NULL),
-	SND_SOC_DAPM_MIC("Microphone 2", NULL),
+	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 
 	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
 			    byt_cht_es8316_speaker_power_event,
@@ -96,10 +99,6 @@ static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route byt_cht_es8316_audio_map[] = {
-	{"MIC1", NULL, "Microphone 1"},
-	{"MIC2", NULL, "Microphone 2"},
-	{"MIC1", NULL, "Headset Mic"},
-
 	{"Headphone", NULL, "HPOL"},
 	{"Headphone", NULL, "HPOR"},
 
@@ -110,6 +109,16 @@ static const struct snd_soc_dapm_route byt_cht_es8316_audio_map[] = {
 	{"Speaker", NULL, "HPOL"},
 	{"Speaker", NULL, "HPOR"},
 	{"Speaker", NULL, "Speaker Power"},
+};
+
+static const struct snd_soc_dapm_route byt_cht_es8316_intmic_in1_map[] = {
+	{"MIC1", NULL, "Internal Mic"},
+	{"MIC2", NULL, "Headset Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_cht_es8316_intmic_in2_map[] = {
+	{"MIC2", NULL, "Internal Mic"},
+	{"MIC1", NULL, "Headset Mic"},
 };
 
 static const struct snd_soc_dapm_route byt_cht_es8316_ssp0_map[] = {
@@ -132,8 +141,7 @@ static const struct snd_kcontrol_new byt_cht_es8316_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Microphone 1"),
-	SOC_DAPM_PIN_SWITCH("Microphone 2"),
+	SOC_DAPM_PIN_SWITCH("Internal Mic"),
 };
 
 static struct snd_soc_jack_pin byt_cht_es8316_jack_pins[] = {
@@ -157,6 +165,21 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 	int ret;
 
 	card->dapm.idle_bias_off = true;
+
+	switch (BYT_CHT_ES8316_MAP(quirk)) {
+	case BYT_CHT_ES8316_INTMIC_IN1_MAP:
+	default:
+		custom_map = byt_cht_es8316_intmic_in1_map;
+		num_routes = ARRAY_SIZE(byt_cht_es8316_intmic_in1_map);
+		break;
+	case BYT_CHT_ES8316_INTMIC_IN2_MAP:
+		custom_map = byt_cht_es8316_intmic_in2_map;
+		num_routes = ARRAY_SIZE(byt_cht_es8316_intmic_in2_map);
+		break;
+	}
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	if (ret)
+		return ret;
 
 	if (quirk & BYT_CHT_ES8316_SSP0) {
 		custom_map = byt_cht_es8316_ssp0_map;
@@ -444,10 +467,11 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	/* Check for BYTCR or other platform and setup quirks */
 	if (x86_match_cpu(baytrail_cpu_ids) &&
 	    mach->mach_params.acpi_ipc_irq_index == 0) {
-		/* On BYTCR default to SSP0 */
-		quirk = BYT_CHT_ES8316_SSP0;
+		/* On BYTCR default to SSP0, internal-mic-in2-map */
+		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP;
 	} else {
-		quirk = 0;
+		/* Others default to internal-mic-in1-map */
+		quirk = BYT_CHT_ES8316_INTMIC_IN1_MAP;
 	}
 	if (quirk_override != -1) {
 		dev_info(dev, "Overriding quirk 0x%x => 0x%x\n", quirk,
