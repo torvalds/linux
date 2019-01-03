@@ -3900,6 +3900,11 @@ void dw_hdmi_suspend(struct device *dev)
 {
 	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
 
+	if (!hdmi) {
+		dev_warn(dev, "Hdmi has not been initialized\n");
+		return;
+	}
+
 	mutex_lock(&hdmi->mutex);
 
 	/*
@@ -3926,6 +3931,11 @@ EXPORT_SYMBOL_GPL(dw_hdmi_suspend);
 void dw_hdmi_resume(struct device *dev)
 {
 	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
+
+	if (!hdmi) {
+		dev_warn(dev, "Hdmi has not been initialized\n");
+		return;
+	}
 
 	pinctrl_pm_select_default_state(dev);
 	mutex_lock(&hdmi->mutex);
