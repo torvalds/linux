@@ -990,6 +990,31 @@ static ssize_t amdgpu_get_busy_percent(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
 }
 
+/**
+ * DOC: pcie_bw
+ *
+ * The amdgpu driver provides a sysfs API for estimating how much data
+ * has been received and sent by the GPU in the last second through PCIe.
+ * The file pcie_bw is used for this.
+ * The Perf counters count the number of received and sent messages and return
+ * those values, as well as the maximum payload size of a PCIe packet (mps).
+ * Note that it is not possible to easily and quickly obtain the size of each
+ * packet transmitted, so we output the max payload size (mps) to allow for
+ * quick estimation of the PCIe bandwidth usage
+ */
+static ssize_t amdgpu_get_pcie_bw(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint64_t count0, count1;
+
+	amdgpu_asic_get_pcie_usage(adev, &count0, &count1);
+	return snprintf(buf, PAGE_SIZE,	"%llu %llu %i\n",
+			count0, count1, pcie_get_mps(adev->pdev));
+}
+
 static DEVICE_ATTR(power_dpm_state, S_IRUGO | S_IWUSR, amdgpu_get_dpm_state, amdgpu_set_dpm_state);
 static DEVICE_ATTR(power_dpm_force_performance_level, S_IRUGO | S_IWUSR,
 		   amdgpu_get_dpm_forced_performance_level,
@@ -1025,6 +1050,7 @@ static DEVICE_ATTR(pp_od_clk_voltage, S_IRUGO | S_IWUSR,
 		amdgpu_set_pp_od_clk_voltage);
 static DEVICE_ATTR(gpu_busy_percent, S_IRUGO,
 		amdgpu_get_busy_percent, NULL);
+static DEVICE_ATTR(pcie_bw, S_IRUGO, amdgpu_get_pcie_bw, NULL);
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
@@ -2108,6 +2134,14 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"gpu_busy_level\n");
 		return ret;
 	}
+	/* PCIe Perf counters won't work on APU nodes */
+	if (adev->flags & !AMD_IS_APU) {
+		ret = device_create_file(adev->dev, &dev_attr_pcie_bw);
+		if (ret) {
+			DRM_ERROR("failed to create device file pcie_bw\n");
+			return ret;
+		}
+	}
 	ret = amdgpu_debugfs_pm_init(adev);
 	if (ret) {
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
@@ -2147,6 +2181,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev,
 				&dev_attr_pp_od_clk_voltage);
 	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
+	if (adev->flags & !AMD_IS_APU)
+		device_remove_file(adev->dev, &dev_attr_pcie_bw);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
