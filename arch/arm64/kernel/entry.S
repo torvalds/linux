@@ -392,17 +392,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 	mov	sp, x19
 	.endm
 
-/*
- * These are the registers used in the syscall handler, and allow us to
- * have in theory up to 7 arguments to a function - x0 to x6.
- *
- * x7 is reserved for the system call number in 32-bit mode.
- */
-wsc_nr	.req	w25		// number of system calls
-xsc_nr	.req	x25		// number of system calls (zero-extended)
-wscno	.req	w26		// syscall number
-xscno	.req	x26		// syscall number (zero-extended)
-stbl	.req	x27		// syscall table pointer
+/* GPRs used by entry code */
 tsk	.req	x28		// current thread_info
 
 /*
