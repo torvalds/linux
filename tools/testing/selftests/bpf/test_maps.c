@@ -510,7 +510,7 @@ static void test_devmap(int task, void *data)
 	fd = bpf_create_map(BPF_MAP_TYPE_DEVMAP, sizeof(key), sizeof(value),
 			    2, 0);
 	if (fd < 0) {
-		printf("Failed to create arraymap '%s'!\n", strerror(errno));
+		printf("Failed to create devmap '%s'!\n", strerror(errno));
 		exit(1);
 	}
 

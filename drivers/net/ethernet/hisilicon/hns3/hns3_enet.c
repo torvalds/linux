@@ -3995,16 +3995,17 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(kinfo->netdev);
 	int ret = 0;
 
+	clear_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
+
 	if (netif_running(kinfo->netdev)) {
-		ret = hns3_nic_net_up(kinfo->netdev);
+		ret = hns3_nic_net_open(kinfo->netdev);
 		if (ret) {
+			set_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 			netdev_err(kinfo->netdev,
 				   "hns net up fail, ret=%d!\n", ret);
 			return ret;
 		}
 	}
-
-	clear_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 
 	return ret;
 }

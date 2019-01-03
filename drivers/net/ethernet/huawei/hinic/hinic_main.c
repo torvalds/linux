@@ -1106,6 +1106,11 @@ static void hinic_remove(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "HiNIC driver - removed\n");
 }
 
+static void hinic_shutdown(struct pci_dev *pdev)
+{
+	pci_disable_device(pdev);
+}
+
 static const struct pci_device_id hinic_pci_table[] = {
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_QUAD_PORT_25GE), 0},
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_DUAL_PORT_25GE), 0},
@@ -1119,6 +1124,7 @@ static struct pci_driver hinic_driver = {
 	.id_table       = hinic_pci_table,
 	.probe          = hinic_probe,
 	.remove         = hinic_remove,
+	.shutdown       = hinic_shutdown,
 };
 
 module_pci_driver(hinic_driver);

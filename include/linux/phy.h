@@ -1,6 +1,6 @@
 /*
  * Framework and drivers for configuring and reading different PHYs
- * Based on code in sungem_phy.c and gianfar_phy.c
+ * Based on code in sungem_phy.c and (long-removed) gianfar_phy.c
  *
  * Author: Andy Fleming
  *
@@ -110,9 +110,9 @@ typedef enum {
  * @speeds: buffer to store supported speeds in.
  * @size: size of speeds buffer.
  *
- * Description: Returns the number of supported speeds, and
- * fills the speeds * buffer with the supported speeds. If speeds buffer is
- * too small to contain * all currently supported speeds, will return as
+ * Description: Returns the number of supported speeds, and fills
+ * the speeds buffer with the supported speeds. If speeds buffer is
+ * too small to contain all currently supported speeds, will return as
  * many speeds as can fit.
  */
 unsigned int phy_supported_speeds(struct phy_device *phy,
@@ -120,7 +120,10 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
 				      unsigned int size);
 
 /**
- * It maps 'enum phy_interface_t' found in include/linux/phy.h
+ * phy_modes - map phy_interface_t enum to device tree binding of phy-mode
+ * @interface: enum phy_interface_t value
+ *
+ * Description: maps 'enum phy_interface_t' defined in this file
  * into the device tree binding of 'phy-mode', so that Ethernet
  * device driver can get phy interface from device tree.
  */
