@@ -135,6 +135,8 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		 MALIDP_CORE_ID_MAJOR(mdev->chip.core_id),
 		 MALIDP_CORE_ID_MINOR(mdev->chip.core_id));
 
+	mdev->funcs->init_format_table(mdev);
+
 	err = mdev->funcs->enum_resources(mdev);
 	if (err) {
 		DRM_ERROR("enumerate display resource failed.\n");

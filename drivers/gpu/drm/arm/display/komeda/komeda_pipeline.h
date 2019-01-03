@@ -211,6 +211,7 @@ static inline u16 component_changed_inputs(struct komeda_component_state *st)
 struct komeda_layer {
 	struct komeda_component base;
 	/* layer specific features and caps */
+	int layer_type; /* RICH, SIMPLE or WB */
 };
 
 struct komeda_layer_state {

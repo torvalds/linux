@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include "komeda_pipeline.h"
 #include "malidp_product.h"
+#include "komeda_format_caps.h"
 
 /* malidp device id */
 enum {
@@ -45,6 +46,13 @@ struct komeda_dev;
  */
 struct komeda_dev_funcs {
 	/**
+	 * @init_format_table:
+	 *
+	 * initialize &komeda_dev->format_table, this function should be called
+	 * before the &enum_resource
+	 */
+	void (*init_format_table)(struct komeda_dev *mdev);
+	/**
 	 * @enum_resources:
 	 *
 	 * for CHIP to report or add pipeline and component resources to CORE
@@ -66,7 +74,8 @@ struct komeda_dev {
 	u32 __iomem   *reg_base;
 
 	struct komeda_chip_info chip;
-
+	/** @fmt_tbl: initialized by &komeda_dev_funcs->init_format_table */
+	struct komeda_format_caps_table fmt_tbl;
 	/** @pclk: APB clock for register access */
 	struct clk *pclk;
 	/** @mck: HW main engine clk */

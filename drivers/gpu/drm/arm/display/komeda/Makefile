@@ -7,6 +7,7 @@ ccflags-y := \
 komeda-y := \
 	komeda_drv.o \
 	komeda_dev.o \
+	komeda_format_caps.o \
 	komeda_pipeline.o
 
 komeda-y += \
