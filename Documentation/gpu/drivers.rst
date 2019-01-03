@@ -18,6 +18,7 @@ GPU Driver Documentation
    bridge/dw-hdmi
    xen-front
    afbc
+   komeda-kms
 
 .. only::  subproject and html
 
