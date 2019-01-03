@@ -453,7 +453,7 @@ static void locks_move_blocks(struct file_lock *new, struct file_lock *fl)
 		return;
 	spin_lock(&blocked_lock_lock);
 	list_splice_init(&fl->fl_blocked_requests, &new->fl_blocked_requests);
-	list_for_each_entry(f, &fl->fl_blocked_requests, fl_blocked_member)
+	list_for_each_entry(f, &new->fl_blocked_requests, fl_blocked_member)
 		f->fl_blocker = new;
 	spin_unlock(&blocked_lock_lock);
 }
