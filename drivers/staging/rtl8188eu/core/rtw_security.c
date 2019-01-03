@@ -1292,7 +1292,7 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 			struct sk_buff *skb = ((struct recv_frame *)precvframe)->pkt;
 			void *crypto_private = NULL;
 			u8 *key, *pframe = skb->data;
-			struct lib80211_crypto_ops *crypto_ops = try_then_request_module(lib80211_get_crypto_ops("CCMP"), "lib80211_crypt_ccmp");
+			struct lib80211_crypto_ops *crypto_ops = lib80211_get_crypto_ops("CCMP");
 			struct security_priv *psecuritypriv = &padapter->securitypriv;
 			char iv[8], icv[8];
 
