@@ -665,7 +665,9 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 
 	if (*error->error_msg)
 		err_printf(m, "%s\n", error->error_msg);
-	err_printf(m, "Kernel: %s\n", init_utsname()->release);
+	err_printf(m, "Kernel: %s %s\n",
+		   init_utsname()->release,
+		   init_utsname()->machine);
 	ts = ktime_to_timespec64(error->time);
 	err_printf(m, "Time: %lld s %ld us\n",
 		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
