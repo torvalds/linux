@@ -1,3 +1,5 @@
+0000	illegal	E
+0002	brkpt	E
 0101	pr	E
 0102	upt	E
 0104	ptff	E
@@ -257,6 +259,7 @@ b258	bsg	RRE_RR
 b25a	bsa	RRE_RR
 b25d	clst	RRE_RR
 b25e	srst	RRE_RR
+b25f	chsc	RRE_R0
 b263	cmpsc	RRE_RR
 b274	siga	S_RD
 b276	xsch	S_00
@@ -277,6 +280,9 @@ b29d	lfpc	S_RD
 b2a5	tre	RRE_RR
 b2a6	cu21	RRF_U0RR
 b2a7	cu12	RRF_U0RR
+b2ad	nqap	RRE_RR
+b2ae	dqap	RRE_RR
+b2af	pqap	RRE_RR
 b2b0	stfle	S_RD
 b2b1	stfl	S_RD
 b2b2	lpswe	S_RD
@@ -290,6 +296,7 @@ b2e5	epctr	RRE_RR
 b2e8	ppa	RRF_U0RR
 b2ec	etnd	RRE_R0
 b2ed	ecpga	RRE_RR
+b2f0	iucv	RRE_RR
 b2f8	tend	S_00
 b2fa	niai	IE_UU
 b2fc	tabort	S_RD
@@ -559,12 +566,15 @@ b998	alcr	RRE_RR
 b999	slbr	RRE_RR
 b99a	epair	RRE_R0
 b99b	esair	RRE_R0
+b99c	eqbs	RRF_U0RR
 b99d	esea	RRE_R0
 b99e	pti	RRE_RR
 b99f	ssair	RRE_R0
+b9a0	clp	RRF_U0RR
 b9a1	tpei	RRE_RR
 b9a2	ptf	RRE_R0
 b9aa	lptea	RRF_RURR2
+b9ab	essa	RRF_U0RR
 b9ac	irbm	RRE_RR
 b9ae	rrbm	RRE_RR
 b9af	pfmf	RRE_RR
@@ -1039,6 +1049,7 @@ eb7a	agsi	SIY_IRD
 eb7e	algsi	SIY_IRD
 eb80	icmh	RSY_RURD
 eb81	icmy	RSY_RURD
+eb8a	sqbs	RSY_RDRU
 eb8e	mvclu	RSY_RRRD
 eb8f	clclu	RSY_RRRD
 eb90	stmy	RSY_RRRD
