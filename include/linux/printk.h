@@ -264,7 +264,7 @@ static inline void show_regs_print_info(const char *log_lvl)
 {
 }
 
-static inline asmlinkage void dump_stack(void)
+static inline void dump_stack(void)
 {
 }
 
