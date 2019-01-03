@@ -381,7 +381,8 @@ static void ep_nested_calls_init(struct nested_calls *ncalls)
  */
 static inline int ep_events_available(struct eventpoll *ep)
 {
-	return !list_empty(&ep->rdllist) || ep->ovflist != EP_UNACTIVE_PTR;
+	return !list_empty_careful(&ep->rdllist) ||
+		READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR;
 }
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
@@ -698,7 +699,7 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 	 */
 	spin_lock_irq(&ep->wq.lock);
 	list_splice_init(&ep->rdllist, &txlist);
-	ep->ovflist = NULL;
+	WRITE_ONCE(ep->ovflist, NULL);
 	spin_unlock_irq(&ep->wq.lock);
 
 	/*
@@ -712,7 +713,7 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 	 * other events might have been queued by the poll callback.
 	 * We re-insert them inside the main ready-list here.
 	 */
-	for (nepi = ep->ovflist; (epi = nepi) != NULL;
+	for (nepi = READ_ONCE(ep->ovflist); (epi = nepi) != NULL;
 	     nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
 		/*
 		 * We need to check if the item is already in the list.
@@ -730,7 +731,7 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 	 * releasing the lock, events will be queued in the normal way inside
 	 * ep->rdllist.
 	 */
-	ep->ovflist = EP_UNACTIVE_PTR;
+	WRITE_ONCE(ep->ovflist, EP_UNACTIVE_PTR);
 
 	/*
 	 * Quickly re-inject items left on "txlist".
@@ -1153,10 +1154,10 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	 * semantics). All the events that happen during that period of time are
 	 * chained in ep->ovflist and requeued later on.
 	 */
-	if (ep->ovflist != EP_UNACTIVE_PTR) {
+	if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
 		if (epi->next == EP_UNACTIVE_PTR) {
-			epi->next = ep->ovflist;
-			ep->ovflist = epi;
+			epi->next = READ_ONCE(ep->ovflist);
+			WRITE_ONCE(ep->ovflist, epi);
 			if (epi->ws) {
 				/*
 				 * Activate ep->ws since epi->ws may get
@@ -1762,10 +1763,17 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	} else if (timeout == 0) {
 		/*
 		 * Avoid the unnecessary trip to the wait queue loop, if the
-		 * caller specified a non blocking operation.
+		 * caller specified a non blocking operation. We still need
+		 * lock because we could race and not see an epi being added
+		 * to the ready list while in irq callback. Thus incorrectly
+		 * returning 0 back to userspace.
 		 */
 		timed_out = 1;
+
 		spin_lock_irq(&ep->wq.lock);
+		eavail = ep_events_available(ep);
+		spin_unlock_irq(&ep->wq.lock);
+
 		goto check_events;
 	}
 
@@ -1774,64 +1782,62 @@ fetch_events:
 	if (!ep_events_available(ep))
 		ep_busy_loop(ep, timed_out);
 
-	spin_lock_irq(&ep->wq.lock);
-
-	if (!ep_events_available(ep)) {
-		/*
-		 * Busy poll timed out.  Drop NAPI ID for now, we can add
-		 * it back in when we have moved a socket with a valid NAPI
-		 * ID onto the ready list.
-		 */
-		ep_reset_busy_poll_napi_id(ep);
-
-		/*
-		 * We don't have any available event to return to the caller.
-		 * We need to sleep here, and we will be wake up by
-		 * ep_poll_callback() when events will become available.
-		 */
-		init_waitqueue_entry(&wait, current);
-		__add_wait_queue_exclusive(&ep->wq, &wait);
-
-		for (;;) {
-			/*
-			 * We don't want to sleep if the ep_poll_callback() sends us
-			 * a wakeup in between. That's why we set the task state
-			 * to TASK_INTERRUPTIBLE before doing the checks.
-			 */
-			set_current_state(TASK_INTERRUPTIBLE);
-			/*
-			 * Always short-circuit for fatal signals to allow
-			 * threads to make a timely exit without the chance of
-			 * finding more events available and fetching
-			 * repeatedly.
-			 */
-			if (fatal_signal_pending(current)) {
-				res = -EINTR;
-				break;
-			}
-			if (ep_events_available(ep) || timed_out)
-				break;
-			if (signal_pending(current)) {
-				res = -EINTR;
-				break;
-			}
-
-			spin_unlock_irq(&ep->wq.lock);
-			if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))
-				timed_out = 1;
-
-			spin_lock_irq(&ep->wq.lock);
-		}
-
-		__remove_wait_queue(&ep->wq, &wait);
-		__set_current_state(TASK_RUNNING);
-	}
-check_events:
-	/* Is it worth to try to dig for events ? */
 	eavail = ep_events_available(ep);
+	if (eavail)
+		goto check_events;
 
+	/*
+	 * Busy poll timed out.  Drop NAPI ID for now, we can add
+	 * it back in when we have moved a socket with a valid NAPI
+	 * ID onto the ready list.
+	 */
+	ep_reset_busy_poll_napi_id(ep);
+
+	/*
+	 * We don't have any available event to return to the caller.
+	 * We need to sleep here, and we will be wake up by
+	 * ep_poll_callback() when events will become available.
+	 */
+	init_waitqueue_entry(&wait, current);
+	spin_lock_irq(&ep->wq.lock);
+	__add_wait_queue_exclusive(&ep->wq, &wait);
 	spin_unlock_irq(&ep->wq.lock);
 
+	for (;;) {
+		/*
+		 * We don't want to sleep if the ep_poll_callback() sends us
+		 * a wakeup in between. That's why we set the task state
+		 * to TASK_INTERRUPTIBLE before doing the checks.
+		 */
+		set_current_state(TASK_INTERRUPTIBLE);
+		/*
+		 * Always short-circuit for fatal signals to allow
+		 * threads to make a timely exit without the chance of
+		 * finding more events available and fetching
+		 * repeatedly.
+		 */
+		if (fatal_signal_pending(current)) {
+			res = -EINTR;
+			break;
+		}
+		if (ep_events_available(ep) || timed_out)
+			break;
+		if (signal_pending(current)) {
+			res = -EINTR;
+			break;
+		}
+
+		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))
+			timed_out = 1;
+	}
+
+	__set_current_state(TASK_RUNNING);
+
+	spin_lock_irq(&ep->wq.lock);
+	__remove_wait_queue(&ep->wq, &wait);
+	spin_unlock_irq(&ep->wq.lock);
+
+check_events:
 	/*
 	 * Try to transfer events to user space. In case we get 0 events and
 	 * there's still timeout left over, we go trying again in search of
