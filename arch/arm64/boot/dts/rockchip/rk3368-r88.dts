@@ -492,15 +492,15 @@
 		status = "okay";
 		compatible = "rockchip,rk1000-tve";
 		reg = <0x42>;
-		rockchip,data-width = <24>;
-		rockchip,output = "rgb";
 		rockchip,ctl = <&rk1000_ctl>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		tve_in: port@0 {
+
+		port@0 {
 			reg = <0>;
-			tve_in_lvds: endpoint {
-				remote-endpoint = <&lvds_out_tve>;
+
+			tve_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_tve>;
 			};
 		};
 	};
@@ -516,21 +516,22 @@
 	};
 };
 
-&lvds {
+&rgb {
 	status = "okay";
 
 	ports {
-		lvds_out: port@1 {
+		port@1 {
 			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			lvds_out_tve: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&tve_in_lvds>;
+			rgb_out_tve: endpoint {
+				remote-endpoint = <&tve_in_rgb>;
 			};
 		};
 	};
+};
+
+&route_rgb {
+	status = "okay";
 };
 
 &io_domains {
@@ -687,10 +688,6 @@
 };
 
 &route_hdmi {
-	status = "okay";
-};
-
-&route_lvds {
 	status = "okay";
 };
 
