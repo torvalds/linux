@@ -137,7 +137,6 @@ static void port_work_proc(struct work_struct *unused)
 		if (!port->has_connection)
 			continue;
 
-		reactivate_fd(port->fd, ACCEPT_IRQ);
 		while (port_accept(port))
 			;
 		port->has_connection = 0;
