@@ -134,7 +134,7 @@
 		rockchip,pvtm-number = <10>;
 		rockchip,pvtm-error = <1000>;
 		rockchip,pvtm-ref-temp = <35>;
-		rockchip,pvtm-temp-prop = <15 37>;
+		rockchip,pvtm-temp-prop = <(-15) (-37)>;
 		rockchip,thermal-zone = "soc-thermal";
 
 		opp-408000000 {
