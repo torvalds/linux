@@ -288,6 +288,13 @@ struct komeda_pipeline {
 	struct komeda_improc *improc;
 	struct komeda_timing_ctrlr *ctrlr;
 	struct komeda_pipeline_funcs *funcs; /* private pipeline functions */
+
+	/** @of_node: pipeline dt node */
+	struct device_node *of_node;
+	/** @of_output_port: pipeline output port */
+	struct device_node *of_output_port;
+	/** @of_output_dev: output connector device node */
+	struct device_node *of_output_dev;
 };
 
 /**
