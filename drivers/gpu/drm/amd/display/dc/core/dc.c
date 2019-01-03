@@ -1240,7 +1240,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 			|| update_flags->bits.output_tf_change)
 		return UPDATE_TYPE_FULL;
 
-	return UPDATE_TYPE_MED;
+	return update_flags->raw ? UPDATE_TYPE_MED : UPDATE_TYPE_FAST;
 }
 
 static enum surface_update_type get_scaling_info_update_type(
