@@ -37,4 +37,6 @@ config DRM_MALI_DISPLAY
 
 	  If compiled as a module it will be called mali-dp.
 
+source "drivers/gpu/drm/arm/display/Kconfig"
+
 endmenu
