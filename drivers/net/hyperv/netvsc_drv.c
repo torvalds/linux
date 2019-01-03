@@ -370,7 +370,7 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 {
 	int j = 0;
 
-	/* Deal with compund pages by ignoring unused part
+	/* Deal with compound pages by ignoring unused part
 	 * of the page.
 	 */
 	page += (offset >> PAGE_SHIFT);
@@ -2123,7 +2123,7 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	if (!netvsc_dev || rtnl_dereference(net_device_ctx->vf_netdev))
 		return NOTIFY_DONE;
 
-	/* if syntihetic interface is a different namespace,
+	/* if synthetic interface is a different namespace,
 	 * then move the VF to that namespace; join will be
 	 * done again in that context.
 	 */
@@ -2271,7 +2271,7 @@ static int netvsc_probe(struct hv_device *dev,
 	 * netvsc_probe() can't get rtnl lock and as a result vmbus_onoffer()
 	 * -> ... -> device_add() -> ... -> __device_attach() can't get
 	 * the device lock, so all the subchannels can't be processed --
-	 * finally netvsc_subchan_work() hangs for ever.
+	 * finally netvsc_subchan_work() hangs forever.
 	 */
 	rtnl_lock();
 

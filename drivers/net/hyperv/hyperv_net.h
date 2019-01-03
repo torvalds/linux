@@ -1181,7 +1181,7 @@ enum ndis_per_pkt_info_type {
 
 enum rndis_per_pkt_info_interal_type {
 	RNDIS_PKTINFO_ID = 1,
-	/* Add more memebers here */
+	/* Add more members here */
 
 	RNDIS_PKTINFO_MAX
 };
