@@ -142,6 +142,8 @@
 #define DP0_LTLOOPCTRL		0x06d8
 #define DP0_SNKLTCTRL		0x06e4
 
+#define DP1_SRCCTRL		0x07a0
+
 /* PHY */
 #define DP_PHY_CTRL		0x0800
 #define DP_PHY_RST			BIT(28)  /* DP PHY Global Soft Reset */
@@ -150,6 +152,7 @@
 #define PHY_M1_RST			BIT(12)  /* Reset PHY1 Main Channel */
 #define PHY_RDY				BIT(16)  /* PHY Main Channels Ready */
 #define PHY_M0_RST			BIT(8)   /* Reset PHY0 Main Channel */
+#define PHY_2LANE			BIT(2)   /* PHY Enable 2 lanes */
 #define PHY_A0_EN			BIT(1)   /* PHY Aux Channel0 Enable */
 #define PHY_M0_EN			BIT(0)   /* PHY Main Channel0 Enable */
 
@@ -564,7 +567,7 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	value |= SYSCLK_SEL_LSCLK | LSCLK_DIV_2;
 	tc_write(SYS_PLLPARAM, value);
 
-	tc_write(DP_PHY_CTRL, BGREN | PWR_SW_EN | BIT(2) | PHY_A0_EN);
+	tc_write(DP_PHY_CTRL, BGREN | PWR_SW_EN | PHY_2LANE | PHY_A0_EN);
 
 	/*
 	 * Initially PLLs are in bypass. Force PLL parameter update,
@@ -834,7 +837,7 @@ static int tc_main_link_setup(struct tc_data *tc)
 		 DP0_SRCCTRL_LANESKEW | DP0_SRCCTRL_LANES_2 |
 		 DP0_SRCCTRL_BW27 | DP0_SRCCTRL_AUTOCORRECT);
 	/* from excel file - DP1_SrcCtrl */
-	tc_write(0x07a0, 0x00003083);
+	tc_write(DP1_SRCCTRL, 0x00003083);
 
 	rate = clk_get_rate(tc->refclk);
 	switch (rate) {
@@ -855,8 +858,9 @@ static int tc_main_link_setup(struct tc_data *tc)
 	}
 	value |= SYSCLK_SEL_LSCLK | LSCLK_DIV_2;
 	tc_write(SYS_PLLPARAM, value);
+
 	/* Setup Main Link */
-	dp_phy_ctrl = BGREN | PWR_SW_EN | BIT(2) | PHY_A0_EN |  PHY_M0_EN;
+	dp_phy_ctrl = BGREN | PWR_SW_EN | PHY_2LANE | PHY_A0_EN |  PHY_M0_EN;
 	tc_write(DP_PHY_CTRL, dp_phy_ctrl);
 	msleep(100);
 
