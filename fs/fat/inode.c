@@ -1803,11 +1803,15 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	fat_ent_access_init(sb);
 
 	/*
-	 * The low byte of FAT's first entry must have same value with
-	 * media-field.  But in real world, too many devices is
-	 * writing wrong value.  So, removed that validity check.
+	 * The low byte of the first FAT entry must have the same value as
+	 * the media field of the boot sector. But in real world, too many
+	 * devices are writing wrong values. So, removed that validity check.
 	 *
-	 * if (FAT_FIRST_ENT(sb, media) != first)
+	 * The removed check compared the first FAT entry to a value dependent
+	 * on the media field like this:
+	 * == (0x0F00 | media), for FAT12
+	 * == (0XFF00 | media), for FAT16
+	 * == (0x0FFFFF | media), for FAT32
 	 */
 
 	error = -EINVAL;
