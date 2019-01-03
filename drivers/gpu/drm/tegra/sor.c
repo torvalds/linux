@@ -19,8 +19,6 @@
 
 #include <soc/tegra/pmc.h>
 
-#include <sound/hda_verbs.h>
-
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_panel.h>
@@ -28,6 +26,7 @@
 
 #include "dc.h"
 #include "drm.h"
+#include "hda.h"
 #include "sor.h"
 #include "trace.h"
 
@@ -393,13 +392,6 @@ struct tegra_sor_ops {
 	int (*remove)(struct tegra_sor *sor);
 };
 
-struct tegra_sor_audio {
-	unsigned int sample_rate;
-	unsigned int channels;
-	unsigned int bits;
-	bool pcm;
-};
-
 struct tegra_sor {
 	struct host1x_client client;
 	struct tegra_output output;
@@ -436,7 +428,7 @@ struct tegra_sor {
 	struct delayed_work scdc;
 	bool scdc_enabled;
 
-	struct tegra_sor_audio audio;
+	struct tegra_hda_format format;
 };
 
 struct tegra_sor_state {
@@ -2189,7 +2181,7 @@ static int tegra_sor_hdmi_enable_audio_infoframe(struct tegra_sor *sor)
 		return err;
 	}
 
-	frame.channels = sor->audio.channels;
+	frame.channels = sor->format.channels;
 
 	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (err < 0) {
@@ -2218,7 +2210,7 @@ static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
 	value |= SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_HDA);
 
 	/* inject null samples */
-	if (sor->audio.channels != 2)
+	if (sor->format.channels != 2)
 		value &= ~SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
 	else
 		value |= SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
@@ -2249,7 +2241,7 @@ static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
 	value = SOR_HDMI_AUDIO_N_RESET | SOR_HDMI_AUDIO_N_LOOKUP;
 	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_N);
 
-	value = (24000 * 4096) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 4096) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0320);
 	tegra_sor_writel(sor, 4096, SOR_AUDIO_NVAL_0320);
 
@@ -2262,15 +2254,15 @@ static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
 	tegra_sor_writel(sor, 20000, SOR_AUDIO_AVAL_1764);
 	tegra_sor_writel(sor, 18816, SOR_AUDIO_NVAL_1764);
 
-	value = (24000 * 6144) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 6144) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0480);
 	tegra_sor_writel(sor, 6144, SOR_AUDIO_NVAL_0480);
 
-	value = (24000 * 12288) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 12288) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0960);
 	tegra_sor_writel(sor, 12288, SOR_AUDIO_NVAL_0960);
 
-	value = (24000 * 24576) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 24576) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_1920);
 	tegra_sor_writel(sor, 24576, SOR_AUDIO_NVAL_1920);
 
@@ -3199,60 +3191,6 @@ static int tegra_sor_parse_dt(struct tegra_sor *sor)
 	return 0;
 }
 
-static void tegra_hda_parse_format(unsigned int format,
-				   struct tegra_sor_audio *audio)
-{
-	unsigned int mul, div, bits, channels;
-
-	if (format & AC_FMT_TYPE_NON_PCM)
-		audio->pcm = false;
-	else
-		audio->pcm = true;
-
-	if (format & AC_FMT_BASE_44K)
-		audio->sample_rate = 44100;
-	else
-		audio->sample_rate = 48000;
-
-	mul = (format & AC_FMT_MULT_MASK) >> AC_FMT_MULT_SHIFT;
-	div = (format & AC_FMT_DIV_MASK) >> AC_FMT_DIV_SHIFT;
-
-	audio->sample_rate = audio->sample_rate * (mul + 1) / (div + 1);
-
-	switch (format & AC_FMT_BITS_MASK) {
-	case AC_FMT_BITS_8:
-		audio->bits = 8;
-		break;
-
-	case AC_FMT_BITS_16:
-		audio->bits = 16;
-		break;
-
-	case AC_FMT_BITS_20:
-		audio->bits = 20;
-		break;
-
-	case AC_FMT_BITS_24:
-		audio->bits = 24;
-		break;
-
-	case AC_FMT_BITS_32:
-		audio->bits = 32;
-		break;
-
-	default:
-		bits = (format & AC_FMT_BITS_MASK) >> AC_FMT_BITS_SHIFT;
-		WARN(1, "invalid number of bits: %#x\n", bits);
-		audio->bits = 8;
-		break;
-	}
-
-	channels = (format & AC_FMT_CHAN_MASK) >> AC_FMT_CHAN_SHIFT;
-
-	/* channels are encoded as n - 1 */
-	audio->channels = channels + 1;
-}
-
 static irqreturn_t tegra_sor_irq(int irq, void *data)
 {
 	struct tegra_sor *sor = data;
@@ -3269,7 +3207,7 @@ static irqreturn_t tegra_sor_irq(int irq, void *data)
 
 			format = value & SOR_AUDIO_HDA_CODEC_SCRATCH0_FMT_MASK;
 
-			tegra_hda_parse_format(format, &sor->audio);
+			tegra_hda_parse_format(format, &sor->format);
 
 			tegra_sor_hdmi_audio_enable(sor);
 		} else {
