@@ -102,12 +102,12 @@ long compat_arm_syscall(struct pt_regs *regs)
 
 	default:
 		/*
-		 * Calls 9f00xx..9f07ff are defined to return -ENOSYS
+		 * Calls 0xf0xxx..0xf07ff are defined to return -ENOSYS
 		 * if not implemented, rather than raising SIGILL. This
 		 * way the calling program can gracefully determine whether
 		 * a feature is supported.
 		 */
-		if ((no & 0xffff) <= 0x7ff)
+		if (no < __ARM_NR_COMPAT_END)
 			return -ENOSYS;
 		break;
 	}
