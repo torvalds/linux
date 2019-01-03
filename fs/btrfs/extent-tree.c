@@ -4741,7 +4741,7 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info, u64 to_reclaim,
 	struct btrfs_space_info *space_info;
 	struct btrfs_trans_handle *trans;
 	u64 delalloc_bytes;
-	u64 max_reclaim;
+	u64 async_pages;
 	u64 items;
 	long time_left;
 	unsigned long nr_pages;
@@ -4766,25 +4766,36 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info, u64 to_reclaim,
 
 	loops = 0;
 	while (delalloc_bytes && loops < 3) {
-		max_reclaim = min(delalloc_bytes, to_reclaim);
-		nr_pages = max_reclaim >> PAGE_SHIFT;
-		btrfs_writeback_inodes_sb_nr(fs_info, nr_pages, items);
+		nr_pages = min(delalloc_bytes, to_reclaim) >> PAGE_SHIFT;
+
 		/*
-		 * We need to wait for the async pages to actually start before
-		 * we do anything.
+		 * Triggers inode writeback for up to nr_pages. This will invoke
+		 * ->writepages callback and trigger delalloc filling
+		 *  (btrfs_run_delalloc_range()).
 		 */
-		max_reclaim = atomic_read(&fs_info->async_delalloc_pages);
-		if (!max_reclaim)
+		btrfs_writeback_inodes_sb_nr(fs_info, nr_pages, items);
+
+		/*
+		 * We need to wait for the compressed pages to start before
+		 * we continue.
+		 */
+		async_pages = atomic_read(&fs_info->async_delalloc_pages);
+		if (!async_pages)
 			goto skip_async;
 
-		if (max_reclaim <= nr_pages)
-			max_reclaim = 0;
+		/*
+		 * Calculate how many compressed pages we want to be written
+		 * before we continue. I.e if there are more async pages than we
+		 * require wait_event will wait until nr_pages are written.
+		 */
+		if (async_pages <= nr_pages)
+			async_pages = 0;
 		else
-			max_reclaim -= nr_pages;
+			async_pages -= nr_pages;
 
 		wait_event(fs_info->async_submit_wait,
 			   atomic_read(&fs_info->async_delalloc_pages) <=
-			   (int)max_reclaim);
+			   (int)async_pages);
 skip_async:
 		spin_lock(&space_info->lock);
 		if (list_empty(&space_info->tickets) &&
