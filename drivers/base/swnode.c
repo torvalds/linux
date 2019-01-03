@@ -477,7 +477,8 @@ software_node_get_parent(const struct fwnode_handle *fwnode)
 {
 	struct software_node *swnode = to_software_node(fwnode);
 
-	return swnode->parent ? &swnode->parent->fwnode : NULL;
+	return swnode ? (swnode->parent ? &swnode->parent->fwnode : NULL) :
+			NULL;
 }
 
 struct fwnode_handle *
@@ -487,7 +488,7 @@ software_node_get_next_child(const struct fwnode_handle *fwnode,
 	struct software_node *p = to_software_node(fwnode);
 	struct software_node *c = to_software_node(child);
 
-	if (list_empty(&p->children) ||
+	if (!p || list_empty(&p->children) ||
 	    (c && list_is_last(&c->entry, &p->children)))
 		return NULL;
 
