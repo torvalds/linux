@@ -418,7 +418,6 @@ retry_rq:
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		bio_put(bio);
-		bio_put(bio);
 		return ret;
 	}
 

@@ -995,7 +995,11 @@ static void floppy_release(struct gendisk *disk, fmode_t mode)
 	struct swim3 __iomem *sw = fs->swim3;
 
 	mutex_lock(&swim3_mutex);
-	if (fs->ref_count > 0 && --fs->ref_count == 0) {
+	if (fs->ref_count > 0)
+		--fs->ref_count;
+	else if (fs->ref_count == -1)
+		fs->ref_count = 0;
+	if (fs->ref_count == 0) {
 		swim3_action(fs, MOTOR_OFF);
 		out_8(&sw->control_bic, 0xff);
 		swim3_select(fs, RELAX);
@@ -1087,8 +1091,6 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 
-	/* Do this first for message macros */
-	memset(fs, 0, sizeof(*fs));
 	fs->mdev = mdev;
 	fs->index = index;
 
@@ -1151,7 +1153,6 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 		swim3_err("%s", "Couldn't request interrupt\n");
 		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 0);
 		goto out_unmap;
-		return -EBUSY;
 	}
 
 	timer_setup(&fs->timeout, NULL, 0);
@@ -1188,13 +1189,14 @@ static int swim3_attach(struct macio_dev *mdev,
 			return rc;
 	}
 
-	fs = &floppy_states[floppy_count];
-
 	disk = alloc_disk(1);
 	if (disk == NULL) {
 		rc = -ENOMEM;
 		goto out_unregister;
 	}
+
+	fs = &floppy_states[floppy_count];
+	memset(fs, 0, sizeof(*fs));
 
 	disk->queue = blk_mq_init_sq_queue(&fs->tag_set, &swim3_mq_ops, 2,
 						BLK_MQ_F_SHOULD_MERGE);

@@ -2097,8 +2097,12 @@ EXPORT_SYMBOL_GPL(bio_associate_blkg);
  */
 void bio_clone_blkg_association(struct bio *dst, struct bio *src)
 {
+	rcu_read_lock();
+
 	if (src->bi_blkg)
 		__bio_associate_blkg(dst, src->bi_blkg);
+
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(bio_clone_blkg_association);
 #endif /* CONFIG_BLK_CGROUP */
