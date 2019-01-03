@@ -154,6 +154,15 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.sof_tplg_filename = "intel/sof-byt-da7213.tplg",
 		.asoc_plat_name = "sst-mfld-platform",
 	},
+	{
+		.id = "ESSX8316",
+		.drv_name = "bytcht_es8316",
+		.fw_filename = "intel/fw_sst_0f28.bin",
+		.board = "bytcht_es8316",
+		.sof_fw_filename = "intel/sof-byt.ri",
+		.sof_tplg_filename = "intel/sof-byt-es8316.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
+	},
 	/* some Baytrail platforms rely on RT5645, use CHT machine driver */
 	{
 		.id = "10EC5645",
