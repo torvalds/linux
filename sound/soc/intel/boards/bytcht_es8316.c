@@ -22,12 +22,14 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/platform_sst_audio.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -37,6 +39,7 @@
 
 struct byt_cht_es8316_private {
 	struct clk *mclk;
+	struct snd_soc_jack jack;
 };
 
 #define BYT_CHT_ES8316_SSP0			BIT(16)
@@ -55,6 +58,7 @@ static void log_quirks(struct device *dev)
 
 static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 
 	/*
 	 * The codec supports two analog microphone inputs. I have only
@@ -68,6 +72,7 @@ static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
 static const struct snd_soc_dapm_route byt_cht_es8316_audio_map[] = {
 	{"MIC1", NULL, "Microphone 1"},
 	{"MIC2", NULL, "Microphone 2"},
+	{"MIC1", NULL, "Headset Mic"},
 
 	{"Headphone", NULL, "HPOL"},
 	{"Headphone", NULL, "HPOR"},
@@ -91,12 +96,25 @@ static const struct snd_soc_dapm_route byt_cht_es8316_ssp2_map[] = {
 
 static const struct snd_kcontrol_new byt_cht_es8316_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Microphone 1"),
 	SOC_DAPM_PIN_SWITCH("Microphone 2"),
 };
 
+static struct snd_soc_jack_pin byt_cht_es8316_jack_pins[] = {
+	{
+		.pin	= "Headphone",
+		.mask	= SND_JACK_HEADPHONE,
+	},
+	{
+		.pin	= "Headset Mic",
+		.mask	= SND_JACK_MICROPHONE,
+	},
+};
+
 static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 {
+	struct snd_soc_component *codec = runtime->codec_dai->component;
 	struct snd_soc_card *card = runtime->card;
 	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
 	const struct snd_soc_dapm_route *custom_map;
@@ -142,6 +160,18 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 		dev_err(card->dev, "can't set codec clock %d\n", ret);
 		return ret;
 	}
+
+	ret = snd_soc_card_jack_new(card, "Headset",
+				    SND_JACK_HEADSET | SND_JACK_BTN_0,
+				    &priv->jack, byt_cht_es8316_jack_pins,
+				    ARRAY_SIZE(byt_cht_es8316_jack_pins));
+	if (ret) {
+		dev_err(card->dev, "jack creation failed %d\n", ret);
+		return ret;
+	}
+
+	snd_jack_set_key(priv->jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
+	snd_soc_component_set_jack(codec, &priv->jack, NULL);
 
 	return 0;
 }
@@ -263,6 +293,39 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 
 
 /* SoC card */
+static char codec_name[SND_ACPI_I2C_ID_LEN];
+
+static int byt_cht_es8316_suspend(struct snd_soc_card *card)
+{
+	struct snd_soc_component *component;
+
+	for_each_card_components(card, component) {
+		if (!strcmp(component->name, codec_name)) {
+			dev_dbg(component->dev, "disabling jack detect before suspend\n");
+			snd_soc_component_set_jack(component, NULL, NULL);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int byt_cht_es8316_resume(struct snd_soc_card *card)
+{
+	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
+	struct snd_soc_component *component;
+
+	for_each_card_components(card, component) {
+		if (!strcmp(component->name, codec_name)) {
+			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
+			snd_soc_component_set_jack(component, &priv->jack, NULL);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static struct snd_soc_card byt_cht_es8316_card = {
 	.name = "bytcht-es8316",
 	.owner = THIS_MODULE,
@@ -275,14 +338,14 @@ static struct snd_soc_card byt_cht_es8316_card = {
 	.controls = byt_cht_es8316_controls,
 	.num_controls = ARRAY_SIZE(byt_cht_es8316_controls),
 	.fully_routed = true,
+	.suspend_pre = byt_cht_es8316_suspend,
+	.resume_post = byt_cht_es8316_resume,
 };
 
 static const struct x86_cpu_id baytrail_cpu_ids[] = {
 	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT }, /* Valleyview */
 	{}
 };
-
-static char codec_name[SND_ACPI_I2C_ID_LEN];
 
 static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 {
