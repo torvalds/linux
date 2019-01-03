@@ -103,16 +103,18 @@ struct autofs_wait_queue {
 
 #define AUTOFS_SBI_MAGIC 0x6d4a556d
 
+#define AUTOFS_SBI_CATATONIC	0x0001
+
 struct autofs_sb_info {
 	u32 magic;
 	int pipefd;
 	struct file *pipe;
 	struct pid *oz_pgrp;
-	int catatonic;
 	int version;
 	int sub_version;
 	int min_proto;
 	int max_proto;
+	unsigned int flags;
 	unsigned long exp_timeout;
 	unsigned int type;
 	struct super_block *sb;
@@ -142,7 +144,8 @@ static inline struct autofs_info *autofs_dentry_ino(struct dentry *dentry)
  */
 static inline int autofs_oz_mode(struct autofs_sb_info *sbi)
 {
-	return sbi->catatonic || task_pgrp(current) == sbi->oz_pgrp;
+	return ((sbi->flags & AUTOFS_SBI_CATATONIC) ||
+		 task_pgrp(current) == sbi->oz_pgrp);
 }
 
 struct inode *autofs_get_inode(struct super_block *, umode_t);
