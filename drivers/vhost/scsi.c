@@ -884,7 +884,7 @@ vhost_scsi_get_req(struct vhost_virtqueue *vq, struct vhost_scsi_ctx *vc,
 
 	if (unlikely(!copy_from_iter_full(vc->req, vc->req_size,
 					  &vc->out_iter))) {
-		vq_err(vq, "Faulted on copy_from_iter\n");
+		vq_err(vq, "Faulted on copy_from_iter_full\n");
 	} else if (unlikely(*vc->lunp != 1)) {
 		/* virtio-scsi spec requires byte 0 of the lun to be 1 */
 		vq_err(vq, "Illegal virtio-scsi lun: %u\n", *vc->lunp);
@@ -1436,7 +1436,7 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 			se_tpg = &tpg->se_tpg;
 			ret = target_depend_item(&se_tpg->tpg_group.cg_item);
 			if (ret) {
-				pr_warn("configfs_depend_item() failed: %d\n", ret);
+				pr_warn("target_depend_item() failed: %d\n", ret);
 				kfree(vs_tpg);
 				mutex_unlock(&tpg->tv_tpg_mutex);
 				goto out;
