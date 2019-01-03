@@ -1156,11 +1156,7 @@ export INSTALL_HDR_PATH = $(objtree)/usr
 # If we do an all arch process set dst to include/arch-$(SRCARCH)
 hdr-dst = $(if $(KBUILD_HEADERS), dst=include/arch-$(SRCARCH), dst=include)
 
-PHONY += archheaders
-archheaders:
-
-PHONY += archscripts
-archscripts:
+PHONY += archheaders archscripts
 
 PHONY += __headers
 __headers: $(version_h) scripts_basic uapi-asm-generic archheaders archscripts
