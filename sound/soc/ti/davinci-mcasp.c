@@ -2149,26 +2149,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	ret = davinci_mcasp_get_dma_type(mcasp);
 	switch (ret) {
 	case PCM_EDMA:
-#if IS_BUILTIN(CONFIG_SND_SOC_TI_EDMA_PCM) || \
-	(IS_MODULE(CONFIG_SND_SOC_DAVINCI_MCASP) && \
-	 IS_MODULE(CONFIG_SND_SOC_TI_EDMA_PCM))
 		ret = edma_pcm_platform_register(&pdev->dev);
-#else
-		dev_err(&pdev->dev, "Missing SND_EDMA_SOC\n");
-		ret = -EINVAL;
-		goto err;
-#endif
 		break;
 	case PCM_SDMA:
-#if IS_BUILTIN(CONFIG_SND_SOC_TI_SDMA_PCM) || \
-	(IS_MODULE(CONFIG_SND_SOC_DAVINCI_MCASP) && \
-	 IS_MODULE(CONFIG_SND_SOC_TI_SDMA_PCM))
 		ret = sdma_pcm_platform_register(&pdev->dev, NULL, NULL);
-#else
-		dev_err(&pdev->dev, "Missing SND_SDMA_SOC\n");
-		ret = -EINVAL;
-		goto err;
-#endif
 		break;
 	default:
 		dev_err(&pdev->dev, "No DMA controller found (%d)\n", ret);
