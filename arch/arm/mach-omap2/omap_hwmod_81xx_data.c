@@ -432,6 +432,13 @@ static struct omap_hwmod dm81xx_i2c2_hwmod = {
 	.class		= &i2c_class,
 };
 
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__i2c2 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_i2c2_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
 static struct omap_hwmod_class_sysconfig dm81xx_elm_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0010,
@@ -441,13 +448,6 @@ static struct omap_hwmod_class_sysconfig dm81xx_elm_sysc = {
 				SYSS_HAS_RESET_STATUS,
 	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_ocp_if dm81xx_l4_ls__i2c2 = {
-	.master		= &dm81xx_l4_ls_hwmod,
-	.slave		= &dm81xx_i2c2_hwmod,
-	.clk		= "sysclk6_ck",
-	.user		= OCP_USER_MPU,
 };
 
 static struct omap_hwmod_class dm81xx_elm_hwmod_class = {
