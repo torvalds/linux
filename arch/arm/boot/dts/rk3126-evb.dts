@@ -110,11 +110,36 @@
 		enable-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 	};
 
-	lvds_panel: lvds-panel {
-		status = "disabled";
-		ports {
-			panel_in_lvds: endpoint {
-				remote-endpoint = <&lvds_out_panel>;
+	panel {
+		compatible ="simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&ldo6>;
+		power-invert;
+		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <60000000>;
+				hactive = <1024>;
+				vactive = <600>;
+				hback-porch = <100>;
+				hfront-porch = <120>;
+				vback-porch = <10>;
+				vfront-porch = <15>;
+				hsync-len = <100>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
 			};
 		};
 	};
@@ -146,15 +171,6 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
-};
-
-&display_subsystem {
-	status = "okay";
-	route {
-		route_lvds: route-lvds {
-			status = "okay";
-		};
-	};
 };
 
 &dmc {
@@ -356,67 +372,28 @@
 	};
 };
 
-&lvds {
+&rgb {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&lcdc_rgb_pins>;
+	pinctrl-1 = <&lcdc_sleep_pins>;
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcdc_lcdc>;
+
 	ports {
-		lvds_out: port@1 {
+		port@1 {
 			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			lvds_out_panel: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&panel_in_lvds>;
+			rgb_out_panel: endpoint {
+				remote-endpoint = <&panel_in_rgb>;
 			};
-		};
-	};
-};
-
-&lvds_panel {
-	status = "okay";
-	compatible ="simple-panel";
-	backlight = <&backlight>;
-	bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
-	/* enable-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
-	 * delay,disable = <10>;
-	 * power-supply = <&vcc_lcd>;
-	 */
-	power-supply = <&ldo6>;
-	power-invert = <1>;
-	rockchip,data-mapping = "jeida";
-	rockchip,data-width = <18>;
-	rockchip,output = "rgb";
-
-	display-timings {
-		native-mode = <&timing0>;
-		timing0: timing0 {
-			clock-frequency = <60000000>;
-			hactive = <1024>;
-			vactive = <600>;
-			hback-porch = <100>;
-			hfront-porch = <120>;
-			vback-porch = <10>;
-			vfront-porch = <15>;
-			hsync-len = <100>;
-			vsync-len = <10>;
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <0>;
-			pixelclk-active = <0>;
 		};
 	};
 };
 
 &pinctrl {
 	lcdc {
-		lcdc_lcdc: lcdc-lcdc {
+		lcdc_rgb_pins: lcdc-rgb-pins {
 			rockchip,pins =
-				/* depend on the hardware */
 				<2 RK_PB0 1 &pcfg_pull_none>, /* DCLK */
-				/* <2 RK_PB1 1 &pcfg_pull_none>, /* HSYNC */
-				/* <2 RK_PB2 1 &pcfg_pull_none>, /* VSYNC */
 				<2 RK_PB3 1 &pcfg_pull_none>, /* DEN */
 				<2 RK_PB4 1 &pcfg_pull_none>, /* DATA10 */
 				<2 RK_PB5 1 &pcfg_pull_none>, /* DATA11 */
@@ -426,12 +403,20 @@
 				<2 RK_PC1 1 &pcfg_pull_none>, /* DATA15 */
 				<2 RK_PC2 1 &pcfg_pull_none>, /* DATA16 */
 				<2 RK_PC3 1 &pcfg_pull_none>; /* DATA17 */
-				/* <2 RK_PC4 1 &pcfg_pull_none>, /* DATA18 */
-				/* <2 RK_PC5 1 &pcfg_pull_none>, /* DATA19 */
-				/* <2 RK_PC6 1 &pcfg_pull_none>, /* DATA20 */
-				/* <2 RK_PC7 1 &pcfg_pull_none>, /* DATA21 */
-				/* <2 RK_PD0 1 &pcfg_pull_none>, /* DATA22 */
-				/* <2 RK_PD1 1 &pcfg_pull_none>; /* DATA23 */
+		};
+
+		lcdc_sleep_pins: lcdc-sleep-pins {
+			rockchip,pins =
+				<2 RK_PB0 0 &pcfg_pull_none>, /* DCLK */
+				<2 RK_PB3 0 &pcfg_pull_none>, /* DEN */
+				<2 RK_PB4 0 &pcfg_pull_none>, /* DATA10 */
+				<2 RK_PB5 0 &pcfg_pull_none>, /* DATA11 */
+				<2 RK_PB6 0 &pcfg_pull_none>, /* DATA12 */
+				<2 RK_PB7 0 &pcfg_pull_none>, /* DATA13 */
+				<2 RK_PC0 0 &pcfg_pull_none>, /* DATA14 */
+				<2 RK_PC1 0 &pcfg_pull_none>, /* DATA15 */
+				<2 RK_PC2 0 &pcfg_pull_none>, /* DATA16 */
+				<2 RK_PC3 0 &pcfg_pull_none>; /* DATA17 */
 		};
 	};
 
