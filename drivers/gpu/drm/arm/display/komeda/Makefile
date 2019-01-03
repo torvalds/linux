@@ -5,7 +5,11 @@ ccflags-y := \
 	-I$(src)
 
 komeda-y := \
+	komeda_drv.o \
 	komeda_dev.o \
-	komeda_pipeline.o \
+	komeda_pipeline.o
+
+komeda-y += \
+	d71/d71_dev.o
 
 obj-$(CONFIG_DRM_KOMEDA) += komeda.o
