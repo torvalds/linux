@@ -8,7 +8,8 @@ komeda-y := \
 	komeda_drv.o \
 	komeda_dev.o \
 	komeda_format_caps.o \
-	komeda_pipeline.o
+	komeda_pipeline.o \
+	komeda_framebuffer.o
 
 komeda-y += \
 	d71/d71_dev.o
