@@ -208,15 +208,19 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 			XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_2));
 
 			/* We should see two elements in the array */
+			rcu_read_lock();
 			xas_for_each(&xas, entry, ULONG_MAX)
 				seen++;
+			rcu_read_unlock();
 			XA_BUG_ON(xa, seen != 2);
 
 			/* One of which is marked */
 			xas_set(&xas, 0);
 			seen = 0;
+			rcu_read_lock();
 			xas_for_each_marked(&xas, entry, ULONG_MAX, XA_MARK_0)
 				seen++;
+			rcu_read_unlock();
 			XA_BUG_ON(xa, seen != 1);
 		}
 		XA_BUG_ON(xa, xa_get_mark(xa, next, XA_MARK_0));
@@ -373,6 +377,12 @@ static noinline void check_reserve(struct xarray *xa)
 	xa_erase_index(xa, 12345678);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
+	/* And so does xa_insert */
+	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa_mk_value(12345678), 0) != 0);
+	xa_erase_index(xa, 12345678);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
 	/* Can iterate through a reserved entry */
 	xa_store_index(xa, 5, GFP_KERNEL);
 	xa_reserve(xa, 6, GFP_KERNEL);
@@ -436,7 +446,9 @@ static noinline void check_multi_store_1(struct xarray *xa, unsigned long index,
 	XA_BUG_ON(xa, xa_load(xa, max) != NULL);
 	XA_BUG_ON(xa, xa_load(xa, min - 1) != NULL);
 
+	xas_lock(&xas);
 	XA_BUG_ON(xa, xas_store(&xas, xa_mk_value(min)) != xa_mk_value(index));
+	xas_unlock(&xas);
 	XA_BUG_ON(xa, xa_load(xa, min) != xa_mk_value(min));
 	XA_BUG_ON(xa, xa_load(xa, max - 1) != xa_mk_value(min));
 	XA_BUG_ON(xa, xa_load(xa, max) != NULL);
@@ -452,9 +464,11 @@ static noinline void check_multi_store_2(struct xarray *xa, unsigned long index,
 	XA_STATE(xas, xa, index);
 	xa_store_order(xa, index, order, xa_mk_value(0), GFP_KERNEL);
 
+	xas_lock(&xas);
 	XA_BUG_ON(xa, xas_store(&xas, xa_mk_value(1)) != xa_mk_value(0));
 	XA_BUG_ON(xa, xas.xa_index != index);
 	XA_BUG_ON(xa, xas_store(&xas, NULL) != xa_mk_value(1));
+	xas_unlock(&xas);
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 #endif
@@ -498,7 +512,7 @@ static noinline void check_multi_store(struct xarray *xa)
 	rcu_read_unlock();
 
 	/* We can erase multiple values with a single store */
-	xa_store_order(xa, 0, 63, NULL, GFP_KERNEL);
+	xa_store_order(xa, 0, BITS_PER_LONG - 1, NULL, GFP_KERNEL);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
 	/* Even when the first slot is empty but the others aren't */
@@ -702,7 +716,7 @@ static noinline void check_multi_find_2(struct xarray *xa)
 	}
 }
 
-static noinline void check_find(struct xarray *xa)
+static noinline void check_find_1(struct xarray *xa)
 {
 	unsigned long i, j, k;
 
@@ -748,6 +762,34 @@ static noinline void check_find(struct xarray *xa)
 		XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_0));
 	}
 	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_find_2(struct xarray *xa)
+{
+	void *entry;
+	unsigned long i, j, index = 0;
+
+	xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+		XA_BUG_ON(xa, true);
+	}
+
+	for (i = 0; i < 1024; i++) {
+		xa_store_index(xa, index, GFP_KERNEL);
+		j = 0;
+		index = 0;
+		xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+			XA_BUG_ON(xa, xa_mk_value(index) != entry);
+			XA_BUG_ON(xa, index != j++);
+		}
+	}
+
+	xa_destroy(xa);
+}
+
+static noinline void check_find(struct xarray *xa)
+{
+	check_find_1(xa);
+	check_find_2(xa);
 	check_multi_find(xa);
 	check_multi_find_2(xa);
 }
@@ -1067,7 +1109,7 @@ static noinline void check_store_range(struct xarray *xa)
 			__check_store_range(xa, 4095 + i, 4095 + j);
 			__check_store_range(xa, 4096 + i, 4096 + j);
 			__check_store_range(xa, 123456 + i, 123456 + j);
-			__check_store_range(xa, UINT_MAX + i, UINT_MAX + j);
+			__check_store_range(xa, (1 << 24) + i, (1 << 24) + j);
 		}
 	}
 }
@@ -1146,10 +1188,12 @@ static noinline void check_account(struct xarray *xa)
 		XA_STATE(xas, xa, 1 << order);
 
 		xa_store_order(xa, 0, order, xa, GFP_KERNEL);
+		rcu_read_lock();
 		xas_load(&xas);
 		XA_BUG_ON(xa, xas.xa_node->count == 0);
 		XA_BUG_ON(xa, xas.xa_node->count > (1 << order));
 		XA_BUG_ON(xa, xas.xa_node->nr_values != 0);
+		rcu_read_unlock();
 
 		xa_store_order(xa, 1 << order, order, xa_mk_value(1 << order),
 				GFP_KERNEL);

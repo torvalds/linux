@@ -2078,6 +2078,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 		info.jited_prog_len = 0;
 		info.xlated_prog_len = 0;
 		info.nr_jited_ksyms = 0;
+		info.nr_jited_func_lens = 0;
 		goto done;
 	}
 
@@ -2158,11 +2159,11 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	}
 
 	ulen = info.nr_jited_ksyms;
-	info.nr_jited_ksyms = prog->aux->func_cnt;
+	info.nr_jited_ksyms = prog->aux->func_cnt ? : 1;
 	if (info.nr_jited_ksyms && ulen) {
 		if (bpf_dump_raw_ok()) {
+			unsigned long ksym_addr;
 			u64 __user *user_ksyms;
-			ulong ksym_addr;
 			u32 i;
 
 			/* copy the address of the kernel symbol
@@ -2170,10 +2171,17 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 			 */
 			ulen = min_t(u32, info.nr_jited_ksyms, ulen);
 			user_ksyms = u64_to_user_ptr(info.jited_ksyms);
-			for (i = 0; i < ulen; i++) {
-				ksym_addr = (ulong) prog->aux->func[i]->bpf_func;
-				ksym_addr &= PAGE_MASK;
-				if (put_user((u64) ksym_addr, &user_ksyms[i]))
+			if (prog->aux->func_cnt) {
+				for (i = 0; i < ulen; i++) {
+					ksym_addr = (unsigned long)
+						prog->aux->func[i]->bpf_func;
+					if (put_user((u64) ksym_addr,
+						     &user_ksyms[i]))
+						return -EFAULT;
+				}
+			} else {
+				ksym_addr = (unsigned long) prog->bpf_func;
+				if (put_user((u64) ksym_addr, &user_ksyms[0]))
 					return -EFAULT;
 			}
 		} else {
@@ -2182,7 +2190,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	}
 
 	ulen = info.nr_jited_func_lens;
-	info.nr_jited_func_lens = prog->aux->func_cnt;
+	info.nr_jited_func_lens = prog->aux->func_cnt ? : 1;
 	if (info.nr_jited_func_lens && ulen) {
 		if (bpf_dump_raw_ok()) {
 			u32 __user *user_lens;
@@ -2191,9 +2199,16 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 			/* copy the JITed image lengths for each function */
 			ulen = min_t(u32, info.nr_jited_func_lens, ulen);
 			user_lens = u64_to_user_ptr(info.jited_func_lens);
-			for (i = 0; i < ulen; i++) {
-				func_len = prog->aux->func[i]->jited_len;
-				if (put_user(func_len, &user_lens[i]))
+			if (prog->aux->func_cnt) {
+				for (i = 0; i < ulen; i++) {
+					func_len =
+						prog->aux->func[i]->jited_len;
+					if (put_user(func_len, &user_lens[i]))
+						return -EFAULT;
+				}
+			} else {
+				func_len = prog->jited_len;
+				if (put_user(func_len, &user_lens[0]))
 					return -EFAULT;
 			}
 		} else {

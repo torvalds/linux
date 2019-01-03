@@ -75,8 +75,6 @@ static void pattern_trig_timer_function(struct timer_list *t)
 {
 	struct pattern_trig_data *data = from_timer(data, t, timer);
 
-	mutex_lock(&data->lock);
-
 	for (;;) {
 		if (!data->is_indefinite && !data->repeat)
 			break;
@@ -87,9 +85,10 @@ static void pattern_trig_timer_function(struct timer_list *t)
 					   data->curr->brightness);
 			mod_timer(&data->timer,
 				  jiffies + msecs_to_jiffies(data->curr->delta_t));
-
-			/* Skip the tuple with zero duration */
-			pattern_trig_update_patterns(data);
+			if (!data->next->delta_t) {
+				/* Skip the tuple with zero duration */
+				pattern_trig_update_patterns(data);
+			}
 			/* Select next tuple */
 			pattern_trig_update_patterns(data);
 		} else {
@@ -116,8 +115,6 @@ static void pattern_trig_timer_function(struct timer_list *t)
 
 		break;
 	}
-
-	mutex_unlock(&data->lock);
 }
 
 static int pattern_trig_start_pattern(struct led_classdev *led_cdev)
@@ -176,13 +173,9 @@ static ssize_t repeat_store(struct device *dev, struct device_attribute *attr,
 	if (res < -1 || res == 0)
 		return -EINVAL;
 
-	/*
-	 * Clear previous patterns' performence firstly, and remove the timer
-	 * without mutex lock to avoid dead lock.
-	 */
-	del_timer_sync(&data->timer);
-
 	mutex_lock(&data->lock);
+
+	del_timer_sync(&data->timer);
 
 	if (data->is_hw_pattern)
 		led_cdev->pattern_clear(led_cdev);
@@ -234,13 +227,9 @@ static ssize_t pattern_trig_store_patterns(struct led_classdev *led_cdev,
 	struct pattern_trig_data *data = led_cdev->trigger_data;
 	int ccount, cr, offset = 0, err = 0;
 
-	/*
-	 * Clear previous patterns' performence firstly, and remove the timer
-	 * without mutex lock to avoid dead lock.
-	 */
-	del_timer_sync(&data->timer);
-
 	mutex_lock(&data->lock);
+
+	del_timer_sync(&data->timer);
 
 	if (data->is_hw_pattern)
 		led_cdev->pattern_clear(led_cdev);

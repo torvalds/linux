@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-config ZONE_DMA
-	def_bool y
-
 config XTENSA
 	def_bool y
 	select ARCH_HAS_SG_CHAIN

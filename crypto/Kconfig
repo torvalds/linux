@@ -1812,7 +1812,7 @@ config CRYPTO_USER_API_AEAD
 	  cipher algorithms.
 
 config CRYPTO_STATS
-	bool "Crypto usage statistics for User-space"
+	bool
 	help
 	  This option enables the gathering of crypto stats.
 	  This will collect:

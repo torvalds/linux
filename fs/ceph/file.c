@@ -615,7 +615,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 
 		more = len < iov_iter_count(to);
 
-		if (unlikely(to->type & ITER_PIPE)) {
+		if (unlikely(iov_iter_is_pipe(to))) {
 			ret = iov_iter_get_pages_alloc(to, &pages, len,
 						       &page_off);
 			if (ret <= 0) {
@@ -662,7 +662,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 			ret += zlen;
 		}
 
-		if (unlikely(to->type & ITER_PIPE)) {
+		if (unlikely(iov_iter_is_pipe(to))) {
 			if (ret > 0) {
 				iov_iter_advance(to, ret);
 				off += ret;
@@ -815,7 +815,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 				aio_req->total_len = rc + zlen;
 			}
 
-			iov_iter_bvec(&i, ITER_BVEC, osd_data->bvec_pos.bvecs,
+			iov_iter_bvec(&i, READ, osd_data->bvec_pos.bvecs,
 				      osd_data->num_bvecs,
 				      osd_data->bvec_pos.iter.bi_size);
 			iov_iter_advance(&i, rc);
@@ -1038,8 +1038,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 				int zlen = min_t(size_t, len - ret,
 						 size - pos - ret);
 
-				iov_iter_bvec(&i, ITER_BVEC, bvecs, num_pages,
-					      len);
+				iov_iter_bvec(&i, READ, bvecs, num_pages, len);
 				iov_iter_advance(&i, ret);
 				iov_iter_zero(zlen, &i);
 				ret += zlen;
@@ -1932,10 +1931,17 @@ static ssize_t ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	if (!prealloc_cf)
 		return -ENOMEM;
 
-	/* Start by sync'ing the source file */
+	/* Start by sync'ing the source and destination files */
 	ret = file_write_and_wait_range(src_file, src_off, (src_off + len));
-	if (ret < 0)
+	if (ret < 0) {
+		dout("failed to write src file (%zd)\n", ret);
 		goto out;
+	}
+	ret = file_write_and_wait_range(dst_file, dst_off, (dst_off + len));
+	if (ret < 0) {
+		dout("failed to write dst file (%zd)\n", ret);
+		goto out;
+	}
 
 	/*
 	 * We need FILE_WR caps for dst_ci and FILE_RD for src_ci as other

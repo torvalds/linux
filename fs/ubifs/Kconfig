@@ -7,6 +7,7 @@ config UBIFS_FS
 	select CRYPTO if UBIFS_FS_ZLIB
 	select CRYPTO_LZO if UBIFS_FS_LZO
 	select CRYPTO_DEFLATE if UBIFS_FS_ZLIB
+	select CRYPTO_HASH_INFO
 	depends on MTD_UBI
 	help
 	  UBIFS is a file system for flash devices which works on top of UBI.
@@ -85,3 +86,13 @@ config UBIFS_FS_SECURITY
 	  the extended attribute support in advance.
 
 	  If you are not using a security module, say N.
+
+config UBIFS_FS_AUTHENTICATION
+	bool "UBIFS authentication support"
+	select CRYPTO_HMAC
+	help
+	  Enable authentication support for UBIFS. This feature offers protection
+	  against offline changes for both data and metadata of the filesystem.
+	  If you say yes here you should also select a hashing algorithm such as
+	  sha256, these are not selected automatically since there are many
+	  different options.

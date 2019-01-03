@@ -71,7 +71,6 @@ struct mt76x02_dev {
 	struct mac_address macaddr_list[8];
 
 	struct mutex phy_mutex;
-	struct mutex mutex;
 
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);

@@ -483,8 +483,6 @@ void __init arm64_memblock_init(void)
 	high_memory = __va(memblock_end_of_DRAM() - 1) + 1;
 
 	dma_contiguous_reserve(arm64_dma_phys_limit);
-
-	memblock_allow_resize();
 }
 
 void __init bootmem_init(void)

@@ -65,26 +65,15 @@ libs-y += arch/csky/lib/ \
 	$(shell $(CC) $(KBUILD_CFLAGS) $(KCFLAGS) -print-libgcc-file-name)
 
 boot := arch/csky/boot
-ifneq '$(CONFIG_CSKY_BUILTIN_DTB)' '""'
 core-y += $(boot)/dts/
-endif
 
 all: zImage
 
-
-dtbs: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts
-
-%.dtb %.dtb.S %.dtb.o: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
-
-zImage Image uImage: vmlinux dtbs
+zImage Image uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-	$(Q)$(MAKE) $(clean)=$(boot)/dts
-	rm -rf arch/csky/include/generated
 
 define archhelp
   echo  '* zImage       - Compressed kernel image (arch/$(ARCH)/boot/zImage)'

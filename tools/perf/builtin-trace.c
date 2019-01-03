@@ -89,6 +89,8 @@ struct trace {
 	u64			base_time;
 	FILE			*output;
 	unsigned long		nr_events;
+	unsigned long		nr_events_printed;
+	unsigned long		max_events;
 	struct strlist		*ev_qualifier;
 	struct {
 		size_t		nr;
@@ -106,6 +108,7 @@ struct trace {
 	} stats;
 	unsigned int		max_stack;
 	unsigned int		min_stack;
+	bool			raw_augmented_syscalls;
 	bool			not_ev_qualifier;
 	bool			live;
 	bool			full_time;
@@ -612,6 +615,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 
 struct syscall_arg_fmt {
 	size_t	   (*scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
+	unsigned long (*mask_val)(struct syscall_arg *arg, unsigned long val);
 	void	   *parm;
 	const char *name;
 	bool	   show_zero;
@@ -723,6 +727,10 @@ static struct syscall_fmt {
 	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* addr */ },
 		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
 		   [3] = { .scnprintf = SCA_MMAP_FLAGS,	/* flags */ }, }, },
+	{ .name	    = "mount",
+	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* dev_name */ },
+		   [3] = { .scnprintf = SCA_MOUNT_FLAGS, /* flags */
+			   .mask_val  = SCAMV_MOUNT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "mprotect",
 	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* start */ },
 		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ }, }, },
@@ -832,7 +840,8 @@ static struct syscall_fmt {
 	  .arg = { [2] = { .scnprintf = SCA_SIGNUM, /* sig */ }, }, },
 	{ .name	    = "tkill",
 	  .arg = { [1] = { .scnprintf = SCA_SIGNUM, /* sig */ }, }, },
-	{ .name     = "umount2", .alias = "umount", },
+	{ .name     = "umount2", .alias = "umount",
+	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* name */ }, }, },
 	{ .name	    = "uname", .alias = "newuname", },
 	{ .name	    = "unlinkat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
@@ -854,6 +863,18 @@ static struct syscall_fmt *syscall_fmt__find(const char *name)
 {
 	const int nmemb = ARRAY_SIZE(syscall_fmts);
 	return bsearch(name, syscall_fmts, nmemb, sizeof(struct syscall_fmt), syscall_fmt__cmp);
+}
+
+static struct syscall_fmt *syscall_fmt__find_by_alias(const char *alias)
+{
+	int i, nmemb = ARRAY_SIZE(syscall_fmts);
+
+	for (i = 0; i < nmemb; ++i) {
+		if (syscall_fmts[i].alias && strcmp(syscall_fmts[i].alias, alias) == 0)
+			return &syscall_fmts[i];
+	}
+
+	return NULL;
 }
 
 /*
@@ -1485,6 +1506,19 @@ static size_t syscall__scnprintf_name(struct syscall *sc, char *bf, size_t size,
 	return scnprintf(bf, size, "arg%d: ", arg->idx);
 }
 
+/*
+ * Check if the value is in fact zero, i.e. mask whatever needs masking, such
+ * as mount 'flags' argument that needs ignoring some magic flag, see comment
+ * in tools/perf/trace/beauty/mount_flags.c
+ */
+static unsigned long syscall__mask_val(struct syscall *sc, struct syscall_arg *arg, unsigned long val)
+{
+	if (sc->arg_fmt && sc->arg_fmt[arg->idx].mask_val)
+		return sc->arg_fmt[arg->idx].mask_val(arg, val);
+
+	return val;
+}
+
 static size_t syscall__scnprintf_val(struct syscall *sc, char *bf, size_t size,
 				     struct syscall_arg *arg, unsigned long val)
 {
@@ -1533,6 +1567,11 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 				continue;
 
 			val = syscall_arg__val(&arg, arg.idx);
+			/*
+			 * Some syscall args need some mask, most don't and
+			 * return val untouched.
+			 */
+			val = syscall__mask_val(sc, &arg, val);
 
 			/*
  			 * Suppress this argument if its value is zero and
@@ -1664,6 +1703,8 @@ static int trace__printf_interrupted_entry(struct trace *trace)
 	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
 	ttrace->entry_pending = false;
 
+	++trace->nr_events_printed;
+
 	return printed;
 }
 
@@ -1684,13 +1725,28 @@ static int trace__fprintf_sample(struct trace *trace, struct perf_evsel *evsel,
 	return printed;
 }
 
-static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sample, int *augmented_args_size)
+static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sample, int *augmented_args_size, bool raw_augmented)
 {
 	void *augmented_args = NULL;
+	/*
+	 * For now with BPF raw_augmented we hook into raw_syscalls:sys_enter
+	 * and there we get all 6 syscall args plus the tracepoint common
+	 * fields (sizeof(long)) and the syscall_nr (another long). So we check
+	 * if that is the case and if so don't look after the sc->args_size,
+	 * but always after the full raw_syscalls:sys_enter payload, which is
+	 * fixed.
+	 *
+	 * We'll revisit this later to pass s->args_size to the BPF augmenter
+	 * (now tools/perf/examples/bpf/augmented_raw_syscalls.c, so that it
+	 * copies only what we need for each syscall, like what happens when we
+	 * use syscalls:sys_enter_NAME, so that we reduce the kernel/userspace
+	 * traffic to just what is needed for each syscall.
+	 */
+	int args_size = raw_augmented ? (8 * (int)sizeof(long)) : sc->args_size;
 
-	*augmented_args_size = sample->raw_size - sc->args_size;
+	*augmented_args_size = sample->raw_size - args_size;
 	if (*augmented_args_size > 0)
-		augmented_args = sample->raw_data + sc->args_size;
+		augmented_args = sample->raw_data + args_size;
 
 	return augmented_args;
 }
@@ -1740,7 +1796,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	 * here and avoid using augmented syscalls when the evsel is the raw_syscalls one.
 	 */
 	if (evsel != trace->syscalls.events.sys_enter)
-		augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size);
+		augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size, trace->raw_augmented_syscalls);
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
 	printed += scnprintf(msg + printed, trace__entry_str_size - printed, "%s(", sc->name);
@@ -1793,7 +1849,7 @@ static int trace__fprintf_sys_enter(struct trace *trace, struct perf_evsel *evse
 		goto out_put;
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
-	augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size);
+	augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size, trace->raw_augmented_syscalls);
 	syscall__scnprintf_args(sc, msg, sizeof(msg), args, augmented_args, augmented_args_size, trace, thread);
 	fprintf(trace->output, "%s", msg);
 	err = 0;
@@ -1810,12 +1866,14 @@ static int trace__resolve_callchain(struct trace *trace, struct perf_evsel *evse
 	int max_stack = evsel->attr.sample_max_stack ?
 			evsel->attr.sample_max_stack :
 			trace->max_stack;
+	int err;
 
-	if (machine__resolve(trace->host, &al, sample) < 0 ||
-	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, max_stack))
+	if (machine__resolve(trace->host, &al, sample) < 0)
 		return -1;
 
-	return 0;
+	err = thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, max_stack);
+	addr_location__put(&al);
+	return err;
 }
 
 static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sample)
@@ -1939,6 +1997,13 @@ errno_print: {
 		goto signed_print;
 
 	fputc('\n', trace->output);
+
+	/*
+	 * We only consider an 'event' for the sake of --max-events a non-filtered
+	 * sys_enter + sys_exit and other tracepoint events.
+	 */
+	if (++trace->nr_events_printed == trace->max_events && trace->max_events != ULONG_MAX)
+		interrupted = true;
 
 	if (callchain_ret > 0)
 		trace__fprintf_callchain(trace, sample);
@@ -2072,14 +2137,25 @@ static void bpf_output__fprintf(struct trace *trace,
 {
 	binary__fprintf(sample->raw_data, sample->raw_size, 8,
 			bpf_output__printer, NULL, trace->output);
+	++trace->nr_events_printed;
 }
 
 static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample)
 {
-	struct thread *thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
+	struct thread *thread;
 	int callchain_ret = 0;
+	/*
+	 * Check if we called perf_evsel__disable(evsel) due to, for instance,
+	 * this event's max_events having been hit and this is an entry coming
+	 * from the ring buffer that we should discard, since the max events
+	 * have already been considered/printed.
+	 */
+	if (evsel->disabled)
+		return 0;
+
+	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 
 	if (sample->callchain) {
 		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
@@ -2127,6 +2203,12 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 			event_format__fprintf(evsel->tp_format, sample->cpu,
 					      sample->raw_data, sample->raw_size,
 					      trace->output);
+			++trace->nr_events_printed;
+
+			if (evsel->max_events != ULONG_MAX && ++evsel->nr_events_printed == evsel->max_events) {
+				perf_evsel__disable(evsel);
+				perf_evsel__close(evsel);
+			}
 		}
 	}
 
@@ -2137,8 +2219,8 @@ newline:
 		trace__fprintf_callchain(trace, sample);
 	else if (callchain_ret < 0)
 		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
-	thread__put(thread);
 out:
+	thread__put(thread);
 	return 0;
 }
 
@@ -2225,6 +2307,8 @@ static int trace__pgfault(struct trace *trace,
 		trace__fprintf_callchain(trace, sample);
 	else if (callchain_ret < 0)
 		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
+
+	++trace->nr_events_printed;
 out:
 	err = 0;
 out_put:
@@ -2402,6 +2486,9 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 		tracepoint_handler handler = evsel->handler;
 		handler(trace, evsel, event, sample);
 	}
+
+	if (trace->nr_events_printed >= trace->max_events && trace->max_events != ULONG_MAX)
+		interrupted = true;
 }
 
 static int trace__add_syscall_newtp(struct trace *trace)
@@ -2706,7 +2793,7 @@ next_event:
 		int timeout = done ? 100 : -1;
 
 		if (!draining && perf_evlist__poll(evlist, timeout) > 0) {
-			if (perf_evlist__filter_pollfd(evlist, POLLERR | POLLHUP) == 0)
+			if (perf_evlist__filter_pollfd(evlist, POLLERR | POLLHUP | POLLNVAL) == 0)
 				draining = true;
 
 			goto again;
@@ -3138,6 +3225,7 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 	int len = strlen(str) + 1, err = -1, list, idx;
 	char *strace_groups_dir = system_path(STRACE_GROUPS_DIR);
 	char group_name[PATH_MAX];
+	struct syscall_fmt *fmt;
 
 	if (strace_groups_dir == NULL)
 		return -1;
@@ -3155,12 +3243,19 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 		if (syscalltbl__id(trace->sctbl, s) >= 0 ||
 		    syscalltbl__strglobmatch_first(trace->sctbl, s, &idx) >= 0) {
 			list = 1;
+			goto do_concat;
+		}
+
+		fmt = syscall_fmt__find_by_alias(s);
+		if (fmt != NULL) {
+			list = 1;
+			s = fmt->name;
 		} else {
 			path__join(group_name, sizeof(group_name), strace_groups_dir, s);
 			if (access(group_name, R_OK) == 0)
 				list = 1;
 		}
-
+do_concat:
 		if (lists[list]) {
 			sprintf(lists[list] + strlen(lists[list]), ",%s", s);
 		} else {
@@ -3249,6 +3344,7 @@ int cmd_trace(int argc, const char **argv)
 		.trace_syscalls = false,
 		.kernel_syscallchains = false,
 		.max_stack = UINT_MAX,
+		.max_events = ULONG_MAX,
 	};
 	const char *output_name = NULL;
 	const struct option trace_options[] = {
@@ -3301,6 +3397,8 @@ int cmd_trace(int argc, const char **argv)
 		     &record_parse_callchain_opt),
 	OPT_BOOLEAN(0, "kernel-syscall-graph", &trace.kernel_syscallchains,
 		    "Show the kernel callchains on the syscall exit path"),
+	OPT_ULONG(0, "max-events", &trace.max_events,
+		"Set the maximum number of events to print, exit after that is reached. "),
 	OPT_UINTEGER(0, "min-stack", &trace.min_stack,
 		     "Set the minimum stack depth when parsing the callchain, "
 		     "anything below the specified depth will be ignored."),
@@ -3419,7 +3517,15 @@ int cmd_trace(int argc, const char **argv)
 		evsel->handler = trace__sys_enter;
 
 		evlist__for_each_entry(trace.evlist, evsel) {
+			bool raw_syscalls_sys_exit = strcmp(perf_evsel__name(evsel), "raw_syscalls:sys_exit") == 0;
+
+			if (raw_syscalls_sys_exit) {
+				trace.raw_augmented_syscalls = true;
+				goto init_augmented_syscall_tp;
+			}
+
 			if (strstarts(perf_evsel__name(evsel), "syscalls:sys_exit_")) {
+init_augmented_syscall_tp:
 				perf_evsel__init_augmented_syscall_tp(evsel);
 				perf_evsel__init_augmented_syscall_tp_ret(evsel);
 				evsel->handler = trace__sys_exit;

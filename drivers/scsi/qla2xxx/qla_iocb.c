@@ -1195,8 +1195,8 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
  * @sp: SRB command to process
  * @cmd_pkt: Command type 3 IOCB
  * @tot_dsds: Total number of segments to transfer
- * @tot_prot_dsds:
- * @fw_prot_opts:
+ * @tot_prot_dsds: Total number of segments with protection information
+ * @fw_prot_opts: Protection options to be passed to firmware
  */
 inline int
 qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,

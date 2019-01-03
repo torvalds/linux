@@ -123,7 +123,8 @@ struct symbol_conf {
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
-			*field_sep;
+			*field_sep,
+			*graph_function;
 	const char	*default_guest_vmlinux_name,
 			*default_guest_kallsyms,
 			*default_guest_modules;

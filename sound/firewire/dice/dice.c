@@ -240,8 +240,8 @@ static void dice_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&dice->dwork);
 
 	if (dice->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(dice->card);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(dice->card);
 	}
 
 	mutex_destroy(&dice->mutex);

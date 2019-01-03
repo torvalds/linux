@@ -22,6 +22,7 @@
 
 struct intel_pt_pkt;
 
+void *intel_pt_log_fp(void);
 void intel_pt_log_enable(void);
 void intel_pt_log_disable(void);
 void intel_pt_log_set_name(const char *name);

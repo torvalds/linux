@@ -2084,19 +2084,19 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	prog->expected_attach_type = type;
 }
 
-#define BPF_PROG_SEC_IMPL(string, ptype, eatype, atype) \
-	{ string, sizeof(string) - 1, ptype, eatype, atype }
+#define BPF_PROG_SEC_IMPL(string, ptype, eatype, is_attachable, atype) \
+	{ string, sizeof(string) - 1, ptype, eatype, is_attachable, atype }
 
 /* Programs that can NOT be attached. */
-#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, -EINVAL)
+#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, 0, 0)
 
 /* Programs that can be attached. */
 #define BPF_APROG_SEC(string, ptype, atype) \
-	BPF_PROG_SEC_IMPL(string, ptype, 0, atype)
+	BPF_PROG_SEC_IMPL(string, ptype, 0, 1, atype)
 
 /* Programs that must specify expected attach type at load time. */
 #define BPF_EAPROG_SEC(string, ptype, eatype) \
-	BPF_PROG_SEC_IMPL(string, ptype, eatype, eatype)
+	BPF_PROG_SEC_IMPL(string, ptype, eatype, 1, eatype)
 
 /* Programs that can be attached but attach type can't be identified by section
  * name. Kept for backward compatibility.
@@ -2108,6 +2108,7 @@ static const struct {
 	size_t len;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
+	int is_attachable;
 	enum bpf_attach_type attach_type;
 } section_names[] = {
 	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
@@ -2198,7 +2199,7 @@ int libbpf_attach_type_by_name(const char *name,
 	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
 		if (strncmp(name, section_names[i].sec, section_names[i].len))
 			continue;
-		if (section_names[i].attach_type == -EINVAL)
+		if (!section_names[i].is_attachable)
 			return -EINVAL;
 		*attach_type = section_names[i].attach_type;
 		return 0;

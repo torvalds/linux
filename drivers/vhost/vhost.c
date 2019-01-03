@@ -30,6 +30,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/nospec.h>
 
 #include "vhost.h"
 
@@ -943,10 +944,7 @@ static void vhost_iotlb_notify_vq(struct vhost_dev *d,
 		if (msg->iova <= vq_msg->iova &&
 		    msg->iova + msg->size - 1 >= vq_msg->iova &&
 		    vq_msg->type == VHOST_IOTLB_MISS) {
-			mutex_lock(&node->vq->mutex);
 			vhost_poll_queue(&node->vq->poll);
-			mutex_unlock(&node->vq->mutex);
-
 			list_del(&node->node);
 			kfree(node);
 		}
@@ -1387,6 +1385,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 	if (idx >= d->nvqs)
 		return -ENOBUFS;
 
+	idx = array_index_nospec(idx, d->nvqs);
 	vq = d->vqs[idx];
 
 	mutex_lock(&vq->mutex);

@@ -3674,7 +3674,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		dev_err(&pf->pdev->dev, "Invalid message from VF %d, opcode %d, len %d\n",
 			local_vf_id, v_opcode, msglen);
 		switch (ret) {
-		case VIRTCHNL_ERR_PARAM:
+		case VIRTCHNL_STATUS_ERR_PARAM:
 			return -EPERM;
 		default:
 			return -EINVAL;

@@ -200,6 +200,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 		       "Cannot satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
 		       p_params->num_queues,
 		       p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]);
+		qed_sp_destroy_request(p_hwfn, p_ent);
 		return -EINVAL;
 	}
 

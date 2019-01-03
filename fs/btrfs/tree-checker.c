@@ -389,13 +389,11 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * Here we don't really care about alignment since extent allocator can
-	 * handle it.  We care more about the size, as if one block group is
-	 * larger than maximum size, it's must be some obvious corruption.
+	 * handle it.  We care more about the size.
 	 */
-	if (key->offset > BTRFS_MAX_DATA_CHUNK_SIZE || key->offset == 0) {
+	if (key->offset == 0) {
 		block_group_err(fs_info, leaf, slot,
-			"invalid block group size, have %llu expect (0, %llu]",
-				key->offset, BTRFS_MAX_DATA_CHUNK_SIZE);
+				"invalid block group size 0");
 		return -EUCLEAN;
 	}
 
@@ -440,7 +438,7 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 	    type != (BTRFS_BLOCK_GROUP_METADATA |
 			   BTRFS_BLOCK_GROUP_DATA)) {
 		block_group_err(fs_info, leaf, slot,
-"invalid type, have 0x%llx (%lu bits set) expect either 0x%llx, 0x%llx, 0x%llu or 0x%llx",
+"invalid type, have 0x%llx (%lu bits set) expect either 0x%llx, 0x%llx, 0x%llx or 0x%llx",
 			type, hweight64(type),
 			BTRFS_BLOCK_GROUP_DATA, BTRFS_BLOCK_GROUP_METADATA,
 			BTRFS_BLOCK_GROUP_SYSTEM,

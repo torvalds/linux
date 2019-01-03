@@ -154,7 +154,11 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 			const struct iwl_fw_runtime_ops *ops, void *ops_ctx,
 			struct dentry *dbgfs_dir);
 
-void iwl_fw_runtime_exit(struct iwl_fw_runtime *fwrt);
+static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
+{
+	kfree(fwrt->dump.d3_debug_data);
+	fwrt->dump.d3_debug_data = NULL;
+}
 
 void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt);
 

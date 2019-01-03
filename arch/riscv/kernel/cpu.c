@@ -64,7 +64,7 @@ int riscv_of_processor_hartid(struct device_node *node)
 
 static void print_isa(struct seq_file *f, const char *orig_isa)
 {
-	static const char *ext = "mafdc";
+	static const char *ext = "mafdcsu";
 	const char *isa = orig_isa;
 	const char *e;
 
@@ -88,11 +88,14 @@ static void print_isa(struct seq_file *f, const char *orig_isa)
 	/*
 	 * Check the rest of the ISA string for valid extensions, printing those
 	 * we find.  RISC-V ISA strings define an order, so we only print the
-	 * extension bits when they're in order.
+	 * extension bits when they're in order. Hide the supervisor (S)
+	 * extension from userspace as it's not accessible from there.
 	 */
 	for (e = ext; *e != '\0'; ++e) {
 		if (isa[0] == e[0]) {
-			seq_write(f, isa, 1);
+			if (isa[0] != 's')
+				seq_write(f, isa, 1);
+
 			isa++;
 		}
 	}

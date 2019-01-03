@@ -184,6 +184,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 	exp_info.ops  = &udmabuf_ops;
 	exp_info.size = ubuf->pagecount << PAGE_SHIFT;
 	exp_info.priv = ubuf;
+	exp_info.flags = O_RDWR;
 
 	buf = dma_buf_export(&exp_info);
 	if (IS_ERR(buf)) {

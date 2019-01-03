@@ -217,11 +217,18 @@ static inline bool in_x32_syscall(void)
 	return false;
 }
 
-static inline bool in_compat_syscall(void)
+static inline bool in_32bit_syscall(void)
 {
 	return in_ia32_syscall() || in_x32_syscall();
 }
+
+#ifdef CONFIG_COMPAT
+static inline bool in_compat_syscall(void)
+{
+	return in_32bit_syscall();
+}
 #define in_compat_syscall in_compat_syscall	/* override the generic impl */
+#endif
 
 struct compat_siginfo;
 int __copy_siginfo_to_user32(struct compat_siginfo __user *to,

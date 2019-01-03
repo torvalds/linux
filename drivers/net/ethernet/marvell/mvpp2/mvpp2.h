@@ -796,6 +796,7 @@ struct mvpp2_queue_vector {
 	int nrxqs;
 	u32 pending_cause_rx;
 	struct mvpp2_port *port;
+	struct cpumask *mask;
 };
 
 struct mvpp2_port {

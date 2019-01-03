@@ -642,8 +642,14 @@ static int check_powerplay_tables(
 		"Unsupported PPTable format!", return -1);
 	PP_ASSERT_WITH_CODE(powerplay_table->sHeader.structuresize > 0,
 		"Invalid PowerPlay Table!", return -1);
-	PP_ASSERT_WITH_CODE(powerplay_table->smcPPTable.Version == PPTABLE_V20_SMU_VERSION,
-		"Unmatch PPTable version, vbios update may be needed!", return -1);
+
+	if (powerplay_table->smcPPTable.Version != PPTABLE_V20_SMU_VERSION) {
+		pr_info("Unmatch PPTable version: "
+			"pptable from VBIOS is V%d while driver supported is V%d!",
+			powerplay_table->smcPPTable.Version,
+			PPTABLE_V20_SMU_VERSION);
+		return -EINVAL;
+	}
 
 	//dump_pptable(&powerplay_table->smcPPTable);
 
@@ -716,10 +722,6 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 		"[appendVbiosPPTable] Failed to retrieve Smc Dpm Table from VBIOS!",
 		return -1);
 
-	memset(ppsmc_pptable->Padding32,
-			0,
-			sizeof(struct atom_smc_dpm_info_v4_4) -
-			sizeof(struct atom_common_table_header));
 	ppsmc_pptable->MaxVoltageStepGfx = smc_dpm_table->maxvoltagestepgfx;
 	ppsmc_pptable->MaxVoltageStepSoc = smc_dpm_table->maxvoltagestepsoc;
 
@@ -778,22 +780,19 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	ppsmc_pptable->FllGfxclkSpreadPercent = smc_dpm_table->fllgfxclkspreadpercent;
 	ppsmc_pptable->FllGfxclkSpreadFreq = smc_dpm_table->fllgfxclkspreadfreq;
 
-	if ((smc_dpm_table->table_header.format_revision == 4) &&
-	    (smc_dpm_table->table_header.content_revision == 4)) {
-		for (i = 0; i < I2C_CONTROLLER_NAME_COUNT; i++) {
-			ppsmc_pptable->I2cControllers[i].Enabled =
-				smc_dpm_table->i2ccontrollers[i].enabled;
-			ppsmc_pptable->I2cControllers[i].SlaveAddress =
-				smc_dpm_table->i2ccontrollers[i].slaveaddress;
-			ppsmc_pptable->I2cControllers[i].ControllerPort =
-				smc_dpm_table->i2ccontrollers[i].controllerport;
-			ppsmc_pptable->I2cControllers[i].ThermalThrottler =
-				smc_dpm_table->i2ccontrollers[i].thermalthrottler;
-			ppsmc_pptable->I2cControllers[i].I2cProtocol =
-				smc_dpm_table->i2ccontrollers[i].i2cprotocol;
-			ppsmc_pptable->I2cControllers[i].I2cSpeed =
-				smc_dpm_table->i2ccontrollers[i].i2cspeed;
-		}
+	for (i = 0; i < I2C_CONTROLLER_NAME_COUNT; i++) {
+		ppsmc_pptable->I2cControllers[i].Enabled =
+			smc_dpm_table->i2ccontrollers[i].enabled;
+		ppsmc_pptable->I2cControllers[i].SlaveAddress =
+			smc_dpm_table->i2ccontrollers[i].slaveaddress;
+		ppsmc_pptable->I2cControllers[i].ControllerPort =
+			smc_dpm_table->i2ccontrollers[i].controllerport;
+		ppsmc_pptable->I2cControllers[i].ThermalThrottler =
+			smc_dpm_table->i2ccontrollers[i].thermalthrottler;
+		ppsmc_pptable->I2cControllers[i].I2cProtocol =
+			smc_dpm_table->i2ccontrollers[i].i2cprotocol;
+		ppsmc_pptable->I2cControllers[i].I2cSpeed =
+			smc_dpm_table->i2ccontrollers[i].i2cspeed;
 	}
 
 	return 0;
@@ -882,15 +881,10 @@ static int init_powerplay_table_information(
 	if (pptable_information->smc_pptable == NULL)
 		return -ENOMEM;
 
-	if (powerplay_table->smcPPTable.Version <= 2)
-		memcpy(pptable_information->smc_pptable,
-				&(powerplay_table->smcPPTable),
-				sizeof(PPTable_t) -
-				sizeof(I2cControllerConfig_t) * I2C_CONTROLLER_NAME_COUNT);
-	else
-		memcpy(pptable_information->smc_pptable,
-				&(powerplay_table->smcPPTable),
-				sizeof(PPTable_t));
+	memcpy(pptable_information->smc_pptable,
+			&(powerplay_table->smcPPTable),
+			sizeof(PPTable_t));
+
 
 	result = append_vbios_pptable(hwmgr, (pptable_information->smc_pptable));
 

@@ -3,7 +3,7 @@
 #define __TRUSTED_KEY_H
 
 /* implementation specific TPM constants */
-#define MAX_BUF_SIZE			512
+#define MAX_BUF_SIZE			1024
 #define TPM_GETRANDOM_SIZE		14
 #define TPM_OSAP_SIZE			36
 #define TPM_OIAP_SIZE			10
@@ -35,6 +35,18 @@ enum {
 	SEAL_keytype = 1,
 	SRK_keytype = 4
 };
+
+int TSS_authhmac(unsigned char *digest, const unsigned char *key,
+			unsigned int keylen, unsigned char *h1,
+			unsigned char *h2, unsigned char h3, ...);
+int TSS_checkhmac1(unsigned char *buffer,
+			  const uint32_t command,
+			  const unsigned char *ononce,
+			  const unsigned char *key,
+			  unsigned int keylen, ...);
+
+int trusted_tpm_send(unsigned char *cmd, size_t buflen);
+int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce);
 
 #define TPM_DEBUG 0
 

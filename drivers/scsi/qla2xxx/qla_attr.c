@@ -218,7 +218,7 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&ha->optrom_mutex);
 	if (qla2x00_chip_is_down(vha)) {
-		mutex_unlock(&vha->hw->optrom_mutex);
+		mutex_unlock(&ha->optrom_mutex);
 		return -EAGAIN;
 	}
 

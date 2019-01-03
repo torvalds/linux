@@ -50,7 +50,7 @@ void *arch_dma_alloc(struct device *dev, size_t size,
 	void *ret;
 
 	ret = dma_direct_alloc_pages(dev, size, dma_handle, gfp, attrs);
-	if (!ret && !(attrs & DMA_ATTR_NON_CONSISTENT)) {
+	if (ret && !(attrs & DMA_ATTR_NON_CONSISTENT)) {
 		dma_cache_wback_inv((unsigned long) ret, size);
 		ret = (void *)UNCAC_ADDR(ret);
 	}

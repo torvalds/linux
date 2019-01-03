@@ -67,7 +67,7 @@ module_param(ql2xplogiabsentdevice, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xplogiabsentdevice,
 		"Option to enable PLOGI to devices that are not present after "
 		"a Fabric scan.  This is needed for several broken switches. "
-		"Default is 0 - no PLOGI. 1 - perfom PLOGI.");
+		"Default is 0 - no PLOGI. 1 - perform PLOGI.");
 
 int ql2xloginretrycount = 0;
 module_param(ql2xloginretrycount, int, S_IRUGO);
@@ -1800,9 +1800,15 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 						spin_unlock_irqrestore
 							(qp->qp_lock_ptr, flags);
 						status = qla2xxx_eh_abort(
-						    GET_CMD_SP(sp));
+							GET_CMD_SP(sp));
 						spin_lock_irqsave
 							(qp->qp_lock_ptr, flags);
+						/*
+						 * Get rid of extra reference caused
+						 * by early exit from qla2xxx_eh_abort
+						 */
+						if (status == FAST_IO_FAIL)
+							atomic_dec(&sp->ref_count);
 					}
 				}
 				sp->done(sp, res);
