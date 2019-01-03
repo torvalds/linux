@@ -33,7 +33,6 @@
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
-#include "rockchip_lvds.h"
 
 #define HIWORD_UPDATE(v, h, l)  (((v) << (l)) | (GENMASK(h, l) << 16))
 
@@ -72,9 +71,6 @@
 #define RK3368_LVDS_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
 #define RK3368_LVDS_P2S_EN(x)		HIWORD_UPDATE(x,  6,  6)
 
-#define DISPLAY_OUTPUT_LVDS		1
-#define DISPLAY_OUTPUT_DUAL_LVDS	2
-
 enum lvds_format {
 	LVDS_8BIT_MODE_FORMAT_1,
 	LVDS_8BIT_MODE_FORMAT_2,
@@ -94,10 +90,9 @@ struct rockchip_lvds {
 	struct phy *phy;
 	struct regmap *grf;
 	const struct rockchip_lvds_funcs *funcs;
-
 	enum lvds_format format;
 	bool data_swap;
-	int output;
+	bool dual_channel;
 
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
@@ -105,19 +100,6 @@ struct rockchip_lvds {
 	struct drm_encoder encoder;
 	struct drm_display_mode mode;
 };
-
-static inline int lvds_name_to_output(const char *s)
-{
-	if (!s)
-		return -EINVAL;
-
-	if (strncmp(s, "lvds", 4) == 0)
-		return DISPLAY_OUTPUT_LVDS;
-	else if (strncmp(s, "duallvds", 8) == 0)
-		return DISPLAY_OUTPUT_DUAL_LVDS;
-
-	return -EINVAL;
-}
 
 static inline struct rockchip_lvds *connector_to_lvds(struct drm_connector *c)
 {
@@ -285,67 +267,21 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &lvds->encoder;
 	struct drm_connector *connector = &lvds->connector;
-	struct device_node *remote = NULL;
-	struct device_node  *port, *endpoint;
 	int ret;
-	const char *name;
 
-	port = of_graph_get_port_by_id(dev->of_node, 1);
-	if (!port) {
-		dev_err(dev, "can't found port point, please init lvds panel port!\n");
-		return -EINVAL;
-	}
-
-	for_each_child_of_node(port, endpoint) {
-		remote = of_graph_get_remote_port_parent(endpoint);
-		if (!remote) {
-			dev_err(dev, "can't found panel node, please init!\n");
-			ret = -EINVAL;
-			goto err_put_port;
-		}
-		if (!of_device_is_available(remote)) {
-			of_node_put(remote);
-			remote = NULL;
-			continue;
-		}
-		break;
-	}
-	if (!remote) {
-		dev_err(dev, "can't found remote node, please init!\n");
-		ret = -EINVAL;
-		goto err_put_port;
-	}
-
-	lvds->panel = of_drm_find_panel(remote);
-	if (!lvds->panel)
-		lvds->bridge = of_drm_find_bridge(remote);
-
-	if (!lvds->panel && !lvds->bridge) {
-		DRM_ERROR("failed to find panel and bridge node\n");
-		ret  = -EPROBE_DEFER;
-		goto err_put_remote;
-	}
-
-	if (of_property_read_string(remote, "rockchip,output", &name))
-		lvds->output = DISPLAY_OUTPUT_LVDS;
-	else
-		lvds->output = lvds_name_to_output(name);
-
-	if (lvds->output < 0) {
-		dev_err(dev, "invalid output type [%s]\n", name);
-		ret = lvds->output;
-		goto err_put_remote;
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
+					  &lvds->panel, &lvds->bridge);
+	if (ret)
+		return ret;
 
 	encoder->port = dev->of_node;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
-
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_lvds_encoder_funcs,
 			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize encoder with drm\n");
-		goto err_put_remote;
+		return ret;
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_lvds_encoder_helper_funcs);
@@ -367,21 +303,18 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 		ret = drm_panel_attach(lvds->panel, connector);
 		if (ret < 0) {
-			DRM_ERROR("failed to attach connector and encoder\n");
+			DRM_ERROR("failed to attach panel: %d\n", ret);
 			goto err_free_connector;
 		}
 	} else {
 		lvds->bridge->encoder = encoder;
 		ret = drm_bridge_attach(drm_dev, lvds->bridge);
 		if (ret) {
-			DRM_ERROR("Failed to attach bridge to drm\n");
+			DRM_ERROR("Failed to attach bridge: %d\n", ret);
 			goto err_free_encoder;
 		}
 		encoder->bridge = lvds->bridge;
 	}
-
-	of_node_put(remote);
-	of_node_put(port);
 
 	return 0;
 
@@ -389,11 +322,6 @@ err_free_connector:
 	drm_connector_cleanup(connector);
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
-err_put_remote:
-	of_node_put(remote);
-err_put_port:
-	of_node_put(port);
-
 	return ret;
 }
 
@@ -429,6 +357,8 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	lvds->funcs = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, lvds);
 
+	lvds->dual_channel = of_property_read_bool(dev->of_node,
+						   "dual-channel");
 	lvds->data_swap = of_property_read_bool(dev->of_node,
 						"rockchip,data-swap");
 
@@ -500,13 +430,7 @@ static void rk3288_lvds_enable(struct rockchip_lvds *lvds)
 {
 	struct drm_display_mode *mode = &lvds->mode;
 	int pipe;
-	bool dual_channel;
 	u32 val;
-
-	if (lvds->output == DISPLAY_OUTPUT_DUAL_LVDS)
-		dual_channel = true;
-	else
-		dual_channel = false;
 
 	pipe = drm_of_encoder_active_endpoint_id(lvds->dev->of_node,
 						 &lvds->encoder);
@@ -514,10 +438,10 @@ static void rk3288_lvds_enable(struct rockchip_lvds *lvds)
 		     RK3288_LVDS_LCDC_SEL(pipe));
 
 	val = RK3288_LVDS_PWRDWN(0) | RK3288_LVDS_CON_CLKINV(0) |
-	      RK3288_LVDS_CON_CHASEL(dual_channel) |
+	      RK3288_LVDS_CON_CHASEL(lvds->dual_channel) |
 	      RK3288_LVDS_CON_SELECT(lvds->format);
 
-	if (dual_channel) {
+	if (lvds->dual_channel) {
 		u32 h_bp = mode->htotal - mode->hsync_start;
 
 		val |= RK3288_LVDS_CON_ENABLE_2(1) |
@@ -536,7 +460,7 @@ static void rk3288_lvds_enable(struct rockchip_lvds *lvds)
 
 	regmap_write(lvds->grf, RK3288_GRF_SOC_CON7, val);
 
-	phy_set_bus_width(lvds->phy, dual_channel ? 2 : 1);
+	phy_set_bus_width(lvds->phy, lvds->dual_channel ? 2 : 1);
 }
 
 static void rk3288_lvds_disable(struct rockchip_lvds *lvds)
