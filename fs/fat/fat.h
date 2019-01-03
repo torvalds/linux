@@ -142,6 +142,15 @@ static inline struct msdos_sb_info *MSDOS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
+/* Maximum number of clusters */
+static inline u32 max_fat(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+
+	return sbi->fat_bits == 32 ? MAX_FAT32 :
+		sbi->fat_bits == 16 ? MAX_FAT16 : MAX_FAT12;
+}
+
 static inline struct msdos_inode_info *MSDOS_I(struct inode *inode)
 {
 	return container_of(inode, struct msdos_inode_info, vfs_inode);
