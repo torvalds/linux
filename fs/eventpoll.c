@@ -1637,6 +1637,8 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 	 * Items cannot vanish during the loop because ep_scan_ready_list() is
 	 * holding "mtx" during this call.
 	 */
+	lockdep_assert_held(&ep->mtx);
+
 	list_for_each_entry_safe(epi, tmp, head, rdllink) {
 		if (esed->res >= esed->maxevents)
 			break;
