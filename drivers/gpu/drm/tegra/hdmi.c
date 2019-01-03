@@ -20,8 +20,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <sound/hda_verbs.h>
-
+#include "hda.h"
 #include "hdmi.h"
 #include "drm.h"
 #include "dc.h"
@@ -69,8 +68,7 @@ struct tegra_hdmi {
 	const struct tegra_hdmi_config *config;
 
 	unsigned int audio_source;
-	unsigned int audio_sample_rate;
-	unsigned int audio_channels;
+	struct tegra_hda_format format;
 
 	unsigned int pixel_clock;
 	bool stereo;
@@ -508,7 +506,7 @@ static void tegra_hdmi_write_aval(struct tegra_hdmi *hdmi, u32 value)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		if (regs[i].sample_rate == hdmi->audio_sample_rate) {
+		if (regs[i].sample_rate == hdmi->format.sample_rate) {
 			tegra_hdmi_writel(hdmi, value, regs[i].offset);
 			break;
 		}
@@ -562,7 +560,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 		 * play back system startup sounds early. It is possibly not
 		 * needed on Linux at all.
 		 */
-		if (hdmi->audio_channels == 2)
+		if (hdmi->format.channels == 2)
 			value = SOR_AUDIO_CNTRL0_INJECT_NULLSMPL;
 		else
 			value = 0;
@@ -593,12 +591,12 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 		tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_AUDIO_SPARE0);
 	}
 
-	config = tegra_hdmi_get_audio_config(hdmi->audio_sample_rate,
+	config = tegra_hdmi_get_audio_config(hdmi->format.sample_rate,
 					     hdmi->pixel_clock);
 	if (!config) {
 		dev_err(hdmi->dev,
 			"cannot set audio to %u Hz at %u Hz pixel clock\n",
-			hdmi->audio_sample_rate, hdmi->pixel_clock);
+			hdmi->format.sample_rate, hdmi->pixel_clock);
 		return -EINVAL;
 	}
 
@@ -785,7 +783,7 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 		return;
 	}
 
-	frame.channels = hdmi->audio_channels;
+	frame.channels = hdmi->format.channels;
 
 	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (err < 0) {
@@ -1587,24 +1585,6 @@ static const struct of_device_id tegra_hdmi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_hdmi_of_match);
 
-static void hda_format_parse(unsigned int format, unsigned int *rate,
-			     unsigned int *channels)
-{
-	unsigned int mul, div;
-
-	if (format & AC_FMT_BASE_44K)
-		*rate = 44100;
-	else
-		*rate = 48000;
-
-	mul = (format & AC_FMT_MULT_MASK) >> AC_FMT_MULT_SHIFT;
-	div = (format & AC_FMT_DIV_MASK) >> AC_FMT_DIV_SHIFT;
-
-	*rate = *rate * (mul + 1) / (div + 1);
-
-	*channels = (format & AC_FMT_CHAN_MASK) >> AC_FMT_CHAN_SHIFT;
-}
-
 static irqreturn_t tegra_hdmi_irq(int irq, void *data)
 {
 	struct tegra_hdmi *hdmi = data;
@@ -1621,14 +1601,9 @@ static irqreturn_t tegra_hdmi_irq(int irq, void *data)
 		value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_AUDIO_HDA_CODEC_SCRATCH0);
 
 		if (value & SOR_AUDIO_HDA_CODEC_SCRATCH0_VALID) {
-			unsigned int sample_rate, channels;
-
 			format = value & SOR_AUDIO_HDA_CODEC_SCRATCH0_FMT_MASK;
 
-			hda_format_parse(format, &sample_rate, &channels);
-
-			hdmi->audio_sample_rate = sample_rate;
-			hdmi->audio_channels = channels;
+			tegra_hda_parse_format(format, &hdmi->format);
 
 			err = tegra_hdmi_setup_audio(hdmi);
 			if (err < 0) {
@@ -1662,8 +1637,6 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 	hdmi->dev = &pdev->dev;
 
 	hdmi->audio_source = AUTO;
-	hdmi->audio_sample_rate = 48000;
-	hdmi->audio_channels = 2;
 	hdmi->stereo = false;
 	hdmi->dvi = false;
 
