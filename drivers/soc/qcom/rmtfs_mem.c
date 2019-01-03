@@ -45,9 +45,9 @@ static ssize_t qcom_rmtfs_mem_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf);
 
-static DEVICE_ATTR(phys_addr, 0400, qcom_rmtfs_mem_show, NULL);
-static DEVICE_ATTR(size, 0400, qcom_rmtfs_mem_show, NULL);
-static DEVICE_ATTR(client_id, 0400, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(phys_addr, 0444, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(size, 0444, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(client_id, 0444, qcom_rmtfs_mem_show, NULL);
 
 static ssize_t qcom_rmtfs_mem_show(struct device *dev,
 			      struct device_attribute *attr,
