@@ -79,10 +79,10 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
 #define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
 #endif
 
-extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
-extern pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr);
+extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm);
+extern pgtable_t pte_alloc_one(struct mm_struct *mm);
 void pte_frag_destroy(void *pte_frag);
-pte_t *pte_fragment_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel);
+pte_t *pte_fragment_alloc(struct mm_struct *mm, int kernel);
 void pte_fragment_free(unsigned long *table, int kernel);
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)

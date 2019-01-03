@@ -236,7 +236,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 			if (pmd_trans_unstable(old_pmd))
 				continue;
 		}
-		if (pte_alloc(new_vma->vm_mm, new_pmd, new_addr))
+		if (pte_alloc(new_vma->vm_mm, new_pmd))
 			break;
 		next = (new_addr + PMD_SIZE) & PMD_MASK;
 		if (extent > next - new_addr)

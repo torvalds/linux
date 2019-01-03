@@ -91,13 +91,13 @@ extern pgd_t *pgd_alloc(struct mm_struct *mm);
 extern void pgd_free(struct mm_struct *mm, pgd_t *pgdp);
 
 static inline pte_t *
-pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
+pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	return (pte_t *)__get_free_page(PGALLOC_GFP);
 }
 
 static inline pgtable_t
-pte_alloc_one(struct mm_struct *mm, unsigned long addr)
+pte_alloc_one(struct mm_struct *mm)
 {
 	struct page *pte;
 
