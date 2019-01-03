@@ -9,7 +9,11 @@ komeda-y := \
 	komeda_dev.o \
 	komeda_format_caps.o \
 	komeda_pipeline.o \
-	komeda_framebuffer.o
+	komeda_framebuffer.o \
+	komeda_kms.o \
+	komeda_crtc.o \
+	komeda_plane.o \
+	komeda_private_obj.o
 
 komeda-y += \
 	d71/d71_dev.o

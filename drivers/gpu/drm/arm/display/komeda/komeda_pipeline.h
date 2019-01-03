@@ -331,6 +331,9 @@ struct komeda_pipeline_state {
 #define to_improc_st(c)	container_of(c, struct komeda_improc_state, base)
 #define to_ctrlr_st(c)	container_of(c, struct komeda_timing_ctrlr_state, base)
 
+#define priv_to_comp_st(o) container_of(o, struct komeda_component_state, obj)
+#define priv_to_pipe_st(o)  container_of(o, struct komeda_pipeline_state, obj)
+
 /* pipeline APIs */
 struct komeda_pipeline *
 komeda_pipeline_add(struct komeda_dev *mdev, size_t size,

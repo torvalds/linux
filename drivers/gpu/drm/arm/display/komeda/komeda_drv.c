@@ -10,9 +10,11 @@
 #include <linux/component.h>
 #include <drm/drm_of.h>
 #include "komeda_dev.h"
+#include "komeda_kms.h"
 
 struct komeda_drv {
 	struct komeda_dev *mdev;
+	struct komeda_kms_dev *kms;
 };
 
 static void komeda_unbind(struct device *dev)
@@ -22,6 +24,7 @@ static void komeda_unbind(struct device *dev)
 	if (!mdrv)
 		return;
 
+	komeda_kms_detach(mdrv->kms);
 	komeda_dev_destroy(mdrv->mdev);
 
 	dev_set_drvdata(dev, NULL);
@@ -43,9 +46,18 @@ static int komeda_bind(struct device *dev)
 		goto free_mdrv;
 	}
 
+	mdrv->kms = komeda_kms_attach(mdrv->mdev);
+	if (IS_ERR(mdrv->kms)) {
+		err = PTR_ERR(mdrv->kms);
+		goto destroy_mdev;
+	}
+
 	dev_set_drvdata(dev, mdrv);
 
 	return 0;
+
+destroy_mdev:
+	komeda_dev_destroy(mdrv->mdev);
 
 free_mdrv:
 	devm_kfree(dev, mdrv);
