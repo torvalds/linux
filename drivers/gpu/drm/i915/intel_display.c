@@ -3746,8 +3746,8 @@ __intel_display_resume(struct drm_device *dev,
 
 static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
 {
-	return intel_has_gpu_reset(dev_priv) &&
-		INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv);
+	return (INTEL_INFO(dev_priv)->gpu_reset_clobbers_display &&
+		intel_has_gpu_reset(dev_priv));
 }
 
 void intel_prepare_reset(struct drm_i915_private *dev_priv)

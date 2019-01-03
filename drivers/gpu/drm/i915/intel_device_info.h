@@ -89,6 +89,7 @@ enum intel_ppgtt {
 	func(is_alpha_support); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
+	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_fpga_dbg); \
 	func(has_guc); \

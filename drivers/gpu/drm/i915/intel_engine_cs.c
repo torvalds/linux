@@ -1043,21 +1043,33 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 		engine->set_default_submission(engine);
 }
 
+static bool reset_engines(struct drm_i915_private *i915)
+{
+	if (INTEL_INFO(i915)->gpu_reset_clobbers_display)
+		return false;
+
+	return intel_gpu_reset(i915, ALL_ENGINES) == 0;
+}
+
 /**
  * intel_engines_sanitize: called after the GPU has lost power
  * @i915: the i915 device
+ * @force: ignore a failed reset and sanitize engine state anyway
  *
  * Anytime we reset the GPU, either with an explicit GPU reset or through a
  * PCI power cycle, the GPU loses state and we must reset our state tracking
  * to match. Note that calling intel_engines_sanitize() if the GPU has not
  * been reset results in much confusion!
  */
-void intel_engines_sanitize(struct drm_i915_private *i915)
+void intel_engines_sanitize(struct drm_i915_private *i915, bool force)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	GEM_TRACE("\n");
+
+	if (!reset_engines(i915) && !force)
+		return;
 
 	for_each_engine(engine, i915, id) {
 		if (engine->reset.reset)

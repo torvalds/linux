@@ -1019,7 +1019,7 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
 	return cs;
 }
 
-void intel_engines_sanitize(struct drm_i915_private *i915);
+void intel_engines_sanitize(struct drm_i915_private *i915, bool force);
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);

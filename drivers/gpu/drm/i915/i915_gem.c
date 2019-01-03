@@ -3418,8 +3418,7 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	i915_retire_requests(i915);
 	GEM_BUG_ON(i915->gt.active_requests);
 
-	if (!intel_gpu_reset(i915, ALL_ENGINES))
-		intel_engines_sanitize(i915);
+	intel_engines_sanitize(i915, false);
 
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
@@ -5023,8 +5022,6 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 
 void i915_gem_sanitize(struct drm_i915_private *i915)
 {
-	int err;
-
 	GEM_TRACE("\n");
 
 	mutex_lock(&i915->drm.struct_mutex);
@@ -5049,11 +5046,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * it may impact the display and we are uncertain about the stability
 	 * of the reset, so this could be applied to even earlier gen.
 	 */
-	err = -ENODEV;
-	if (INTEL_GEN(i915) >= 5 && intel_has_gpu_reset(i915))
-		err = WARN_ON(intel_gpu_reset(i915, ALL_ENGINES));
-	if (!err)
-		intel_engines_sanitize(i915);
+	intel_engines_sanitize(i915, false);
 
 	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
 	intel_runtime_pm_put(i915);
