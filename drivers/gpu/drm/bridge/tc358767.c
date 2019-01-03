@@ -1209,7 +1209,8 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 	/* Create eDP connector */
 	drm_connector_helper_add(&tc->connector, &tc_connector_helper_funcs);
 	ret = drm_connector_init(drm, &tc->connector, &tc_connector_funcs,
-				 DRM_MODE_CONNECTOR_eDP);
+				 tc->panel ? DRM_MODE_CONNECTOR_eDP :
+				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret)
 		return ret;
 
