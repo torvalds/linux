@@ -171,6 +171,8 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
 /* test whether an address (unsigned long or pointer) is aligned to PAGE_SIZE */
 #define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
 
+#define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
+
 /*
  * Linux kernel virtual memory manager primitives.
  * The idea being to have a "virtual" mm in the same way
