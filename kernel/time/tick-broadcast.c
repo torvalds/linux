@@ -809,13 +809,13 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			 * either the CPU handling the broadcast
 			 * interrupt or we got woken by something else.
 			 *
-			 * We are not longer in the broadcast mask, so
+			 * We are no longer in the broadcast mask, so
 			 * if the cpu local expiry time is already
 			 * reached, we would reprogram the cpu local
 			 * timer with an already expired event.
 			 *
 			 * This can lead to a ping-pong when we return
-			 * to idle and therefor rearm the broadcast
+			 * to idle and therefore rearm the broadcast
 			 * timer before the cpu local timer was able
 			 * to fire. This happens because the forced
 			 * reprogramming makes sure that the event
