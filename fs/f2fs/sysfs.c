@@ -222,6 +222,8 @@ out:
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (a->struct_type == FAULT_INFO_TYPE && t >= (1 << FAULT_MAX))
 		return -EINVAL;
+	if (a->struct_type == FAULT_INFO_RATE && t >= UINT_MAX)
+		return -EINVAL;
 #endif
 	if (a->struct_type == RESERVED_BLOCKS) {
 		spin_lock(&sbi->stat_lock);
