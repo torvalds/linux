@@ -951,6 +951,18 @@ static int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_set_thermal_fan_table(struct smu_context *smu)
+{
+	int ret;
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetFanTemperatureTarget,
+			(uint32_t)pptable->FanTargetTemperature);
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
