@@ -1235,6 +1235,7 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 	} while (read_seqretry(&net->xfrm.policy_hthresh.lock, seq));
 
 	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
+	write_seqcount_begin(&xfrm_policy_hash_generation);
 
 	/* make sure that we can insert the indirect policies again before
 	 * we start with destructive action.
@@ -1334,6 +1335,7 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 
 out_unlock:
 	__xfrm_policy_inexact_flush(net);
+	write_seqcount_end(&xfrm_policy_hash_generation);
 	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
 
 	mutex_unlock(&hash_resize_mutex);
