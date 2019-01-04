@@ -46,7 +46,7 @@ out:
 
 int dwc3_host_init(struct dwc3 *dwc)
 {
-	struct property_entry	props[3];
+	struct property_entry	props[4];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	struct resource		*res;
@@ -95,6 +95,9 @@ int dwc3_host_init(struct dwc3 *dwc)
 
 	if (dwc->xhci_slow_suspend_quirk)
 		props[prop_idx++].name = "xhci-slow-suspend";
+
+	if (dwc->xhci_trb_ent_quirk)
+		props[prop_idx++].name = "xhci-trb-ent-quirk";
 
 	/**
 	 * WORKAROUND: dwc3 revisions <=3.00a have a limitation
