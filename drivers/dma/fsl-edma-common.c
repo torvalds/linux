@@ -339,9 +339,7 @@ static struct fsl_edma_desc *fsl_edma_alloc_desc(struct fsl_edma_chan *fsl_chan,
 	struct fsl_edma_desc *fsl_desc;
 	int i;
 
-	fsl_desc = kzalloc(sizeof(*fsl_desc) +
-			   sizeof(struct fsl_edma_sw_tcd) *
-			   sg_len, GFP_NOWAIT);
+	fsl_desc = kzalloc(struct_size(fsl_desc, tcd, sg_len), GFP_NOWAIT);
 	if (!fsl_desc)
 		return NULL;
 
