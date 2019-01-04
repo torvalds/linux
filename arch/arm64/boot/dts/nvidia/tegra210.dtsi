@@ -469,7 +469,7 @@
 	apbmisc@70000800 {
 		compatible = "nvidia,tegra210-apbmisc", "nvidia,tegra20-apbmisc";
 		reg = <0x0 0x70000800 0x0 0x64>,   /* Chip revision */
-		      <0x0 0x7000e864 0x0 0x04>;   /* Strapping options */
+		      <0x0 0x70000008 0x0 0x04>;   /* Strapping options */
 	};
 
 	pinmux: pinmux@700008d4 {
