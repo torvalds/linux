@@ -560,6 +560,44 @@ static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
 	return bytes;
 }
 
+static __wsum csum_and_memcpy(void *to, const void *from, size_t len,
+			      __wsum sum, size_t off)
+{
+	__wsum next = csum_partial_copy_nocheck(from, to, len, 0);
+	return csum_block_add(sum, next, off);
+}
+
+static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
+				__wsum *csum, struct iov_iter *i)
+{
+	struct pipe_inode_info *pipe = i->pipe;
+	size_t n, r;
+	size_t off = 0;
+	__wsum sum = *csum;
+	int idx;
+
+	if (!sanity(i))
+		return 0;
+
+	bytes = n = push_pipe(i, bytes, &idx, &r);
+	if (unlikely(!n))
+		return 0;
+	for ( ; n; idx = next_idx(idx, pipe), r = 0) {
+		size_t chunk = min_t(size_t, n, PAGE_SIZE - r);
+		char *p = kmap_atomic(pipe->bufs[idx].page);
+		sum = csum_and_memcpy(p + r, addr, chunk, sum, off);
+		kunmap_atomic(p);
+		i->idx = idx;
+		i->iov_offset = r + chunk;
+		n -= chunk;
+		off += chunk;
+		addr += chunk;
+	}
+	i->count -= bytes;
+	*csum = sum;
+	return bytes;
+}
+
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
 	const char *from = addr;
@@ -1368,17 +1406,15 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 		err ? v.iov_len : 0;
 	}), ({
 		char *p = kmap_atomic(v.bv_page);
-		next = csum_partial_copy_nocheck(p + v.bv_offset,
-						 (to += v.bv_len) - v.bv_len,
-						 v.bv_len, 0);
+		sum = csum_and_memcpy((to += v.bv_len) - v.bv_len,
+				      p + v.bv_offset, v.bv_len,
+				      sum, off);
 		kunmap_atomic(p);
-		sum = csum_block_add(sum, next, off);
 		off += v.bv_len;
 	}),({
-		next = csum_partial_copy_nocheck(v.iov_base,
-						 (to += v.iov_len) - v.iov_len,
-						 v.iov_len, 0);
-		sum = csum_block_add(sum, next, off);
+		sum = csum_and_memcpy((to += v.iov_len) - v.iov_len,
+				      v.iov_base, v.iov_len,
+				      sum, off);
 		off += v.iov_len;
 	})
 	)
@@ -1412,17 +1448,15 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum,
 		0;
 	}), ({
 		char *p = kmap_atomic(v.bv_page);
-		next = csum_partial_copy_nocheck(p + v.bv_offset,
-						 (to += v.bv_len) - v.bv_len,
-						 v.bv_len, 0);
+		sum = csum_and_memcpy((to += v.bv_len) - v.bv_len,
+				      p + v.bv_offset, v.bv_len,
+				      sum, off);
 		kunmap_atomic(p);
-		sum = csum_block_add(sum, next, off);
 		off += v.bv_len;
 	}),({
-		next = csum_partial_copy_nocheck(v.iov_base,
-						 (to += v.iov_len) - v.iov_len,
-						 v.iov_len, 0);
-		sum = csum_block_add(sum, next, off);
+		sum = csum_and_memcpy((to += v.iov_len) - v.iov_len,
+				      v.iov_base, v.iov_len,
+				      sum, off);
 		off += v.iov_len;
 	})
 	)
@@ -1438,8 +1472,12 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum,
 	const char *from = addr;
 	__wsum sum, next;
 	size_t off = 0;
+
+	if (unlikely(iov_iter_is_pipe(i)))
+		return csum_and_copy_to_pipe_iter(addr, bytes, csum, i);
+
 	sum = *csum;
-	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
+	if (unlikely(iov_iter_is_discard(i))) {
 		WARN_ON(1);	/* for now */
 		return 0;
 	}
@@ -1455,17 +1493,15 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum,
 		err ? v.iov_len : 0;
 	}), ({
 		char *p = kmap_atomic(v.bv_page);
-		next = csum_partial_copy_nocheck((from += v.bv_len) - v.bv_len,
-						 p + v.bv_offset,
-						 v.bv_len, 0);
+		sum = csum_and_memcpy(p + v.bv_offset,
+				      (from += v.bv_len) - v.bv_len,
+				      v.bv_len, sum, off);
 		kunmap_atomic(p);
-		sum = csum_block_add(sum, next, off);
 		off += v.bv_len;
 	}),({
-		next = csum_partial_copy_nocheck((from += v.iov_len) - v.iov_len,
-						 v.iov_base,
-						 v.iov_len, 0);
-		sum = csum_block_add(sum, next, off);
+		sum = csum_and_memcpy(v.iov_base,
+				     (from += v.iov_len) - v.iov_len,
+				     v.iov_len, sum, off);
 		off += v.iov_len;
 	})
 	)
