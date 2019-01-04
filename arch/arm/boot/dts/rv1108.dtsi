@@ -207,6 +207,7 @@
 		clocks = <&cru SCLK_SPI>, <&cru PCLK_SPI>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&pdma 8>, <&pdma 9>;
+		dma-names = "tx", "rx";
 		#dma-cells = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
