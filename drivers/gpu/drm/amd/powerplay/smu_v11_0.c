@@ -963,6 +963,33 @@ static int smu_v11_0_set_thermal_fan_table(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_start_thermal_control(struct smu_context *smu)
+{
+	int ret = 0;
+	struct PP_TemperatureRange range;
+	struct amdgpu_device *adev = smu->adev;
+
+	smu_v11_0_get_thermal_range(smu, &range);
+
+	if (smu->smu_table.thermal_controller_type) {
+		ret = smu_v11_0_set_thermal_range(smu, &range);
+		if (ret)
+			return ret;
+
+		ret = smu_v11_0_enable_thermal_alert(smu);
+		if (ret)
+			return ret;
+		ret = smu_v11_0_set_thermal_fan_table(smu);
+		if (ret)
+			return ret;
+	}
+
+	adev->pm.dpm.thermal.min_temp = range.min;
+	adev->pm.dpm.thermal.max_temp = range.max;
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -994,6 +1021,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_power_limit = smu_v11_0_get_power_limit,
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
+	.start_thermal_control = smu_v11_0_start_thermal_control,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

@@ -160,6 +160,7 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 	       sizeof(PPTable_t));
 
 	table_context->software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
+	table_context->thermal_controller_type = powerplay_table->ucThermalControllerType;
 
 	return 0;
 }

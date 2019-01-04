@@ -518,6 +518,10 @@ static int smu_hw_init(void *handle)
 	if (ret)
 		goto failed;
 
+	ret = smu_start_thermal_control(smu);
+	if (ret)
+		goto failed;
+
 	mutex_unlock(&smu->mutex);
 
 	pr_info("SMU is initialized successfully!\n");
