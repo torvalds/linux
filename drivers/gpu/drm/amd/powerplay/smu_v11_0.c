@@ -31,6 +31,7 @@
 #include "soc15_common.h"
 #include "atom.h"
 #include "vega20_ppt.h"
+#include "pp_thermal.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -891,6 +892,17 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu, uint32_t clk_
 	*value = freq;
 
 	return ret;
+}
+
+static int smu_v11_0_get_thermal_range(struct smu_context *smu,
+				struct PP_TemperatureRange *range)
+{
+	memcpy(range, &SMU7ThermalWithDelayPolicy[0], sizeof(struct PP_TemperatureRange));
+
+	range->max = smu->smu_table.software_shutdown_temp *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
 }
 
 static const struct smu_funcs smu_v11_0_funcs = {

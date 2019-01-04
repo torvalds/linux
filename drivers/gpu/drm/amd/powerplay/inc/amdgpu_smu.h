@@ -164,6 +164,7 @@ struct smu_table_context
 	struct smu_table		*tables;
 	uint32_t			table_count;
 	struct smu_table		memory_pool;
+	uint16_t                        software_shutdown_temp;
 };
 
 struct smu_dpm_context {

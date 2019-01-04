@@ -159,6 +159,8 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 	memcpy(table_context->driver_pptable, &powerplay_table->smcPPTable,
 	       sizeof(PPTable_t));
 
+	table_context->software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
+
 	return 0;
 }
 
