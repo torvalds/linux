@@ -104,6 +104,8 @@ source "drivers/staging/pi433/Kconfig"
 
 source "drivers/staging/mt7621-pci/Kconfig"
 
+source "drivers/staging/mt7621-pci-phy/Kconfig"
+
 source "drivers/staging/mt7621-pinctrl/Kconfig"
 
 source "drivers/staging/mt7621-spi/Kconfig"
