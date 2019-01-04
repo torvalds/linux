@@ -856,9 +856,9 @@ static void xfrm_policy_inexact_list_reinsert(struct net *net,
 		}
 
 		if (newpos)
-			hlist_add_behind(&policy->bydst, newpos);
+			hlist_add_behind_rcu(&policy->bydst, newpos);
 		else
-			hlist_add_head(&policy->bydst, &n->hhead);
+			hlist_add_head_rcu(&policy->bydst, &n->hhead);
 
 		/* paranoia checks follow.
 		 * Check that the reinserted policy matches at least
