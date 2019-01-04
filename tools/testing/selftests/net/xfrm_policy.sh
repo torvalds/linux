@@ -78,8 +78,8 @@ do_overlap()
     # adds a new node in the 10.0.0.0/24 tree (dst node exists).
     ip -net $ns xfrm policy add src 10.2.0.0/24 dst 10.0.0.0/24 dir fwd priority 200 action block
 
-    # adds a 10.2.0.0/24 node, but for different dst.
-    ip -net $ns xfrm policy add src 10.2.0.0/24 dst 10.0.1.0/24 dir fwd priority 200 action block
+    # adds a 10.2.0.0/23 node, but for different dst.
+    ip -net $ns xfrm policy add src 10.2.0.0/23 dst 10.0.1.0/24 dir fwd priority 200 action block
 
     # dst now overlaps with the 10.0.1.0/24 ESP policy in fwd.
     # kernel must 'promote' existing one (10.0.0.0/24) to 10.0.0.0/23.

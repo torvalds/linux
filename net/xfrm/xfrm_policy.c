@@ -886,12 +886,13 @@ static void xfrm_policy_inexact_node_reinsert(struct net *net,
 					      struct rb_root *new,
 					      u16 family)
 {
-	struct rb_node **p, *parent = NULL;
 	struct xfrm_pol_inexact_node *node;
+	struct rb_node **p, *parent;
 
 	/* we should not have another subtree here */
 	WARN_ON_ONCE(!RB_EMPTY_ROOT(&n->root));
-
+restart:
+	parent = NULL;
 	p = &new->rb_node;
 	while (*p) {
 		u8 prefixlen;
@@ -911,12 +912,11 @@ static void xfrm_policy_inexact_node_reinsert(struct net *net,
 		} else {
 			struct xfrm_policy *tmp;
 
-			hlist_for_each_entry(tmp, &node->hhead, bydst)
+			hlist_for_each_entry(tmp, &n->hhead, bydst) {
 				tmp->bydst_reinsert = true;
-			hlist_for_each_entry(tmp, &n->hhead, bydst)
-				tmp->bydst_reinsert = true;
+				hlist_del_rcu(&tmp->bydst);
+			}
 
-			INIT_HLIST_HEAD(&node->hhead);
 			xfrm_policy_inexact_list_reinsert(net, node, family);
 
 			if (node->prefixlen == n->prefixlen) {
@@ -928,8 +928,7 @@ static void xfrm_policy_inexact_node_reinsert(struct net *net,
 			kfree_rcu(n, rcu);
 			n = node;
 			n->prefixlen = prefixlen;
-			*p = new->rb_node;
-			parent = NULL;
+			goto restart;
 		}
 	}
 
