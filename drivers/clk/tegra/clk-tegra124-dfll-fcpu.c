@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <soc/tegra/fuse.h>
 
 #include "clk.h"
@@ -50,9 +51,6 @@ static const struct cvb_table tegra124_cpu_cvb_tables[] = {
 		.process_id = -1,
 		.min_millivolts = 900,
 		.max_millivolts = 1260,
-		.alignment = {
-			.step_uv = 10000, /* 10mV */
-		},
 		.speedo_scale = 100,
 		.voltage_scale = 1000,
 		.entries = {
@@ -105,11 +103,42 @@ static const struct of_device_id tegra124_dfll_fcpu_of_match[] = {
 	{ },
 };
 
+static void get_alignment_from_dt(struct device *dev,
+				  struct rail_alignment *align)
+{
+	if (of_property_read_u32(dev->of_node,
+				 "nvidia,pwm-voltage-step-microvolts",
+				 &align->step_uv))
+		align->step_uv = 0;
+
+	if (of_property_read_u32(dev->of_node,
+				 "nvidia,pwm-min-microvolts",
+				 &align->offset_uv))
+		align->offset_uv = 0;
+}
+
+static int get_alignment_from_regulator(struct device *dev,
+					 struct rail_alignment *align)
+{
+	struct regulator *reg = devm_regulator_get(dev, "vdd-cpu");
+
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+
+	align->offset_uv = regulator_list_voltage(reg, 0);
+	align->step_uv = regulator_get_linear_step(reg);
+
+	devm_regulator_put(reg);
+
+	return 0;
+}
+
 static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 {
 	int process_id, speedo_id, speedo_value, err;
 	struct tegra_dfll_soc_data *soc;
 	const struct dfll_fcpu_data *fcpu_data;
+	struct rail_alignment align;
 
 	fcpu_data = of_device_get_match_data(&pdev->dev);
 	if (!fcpu_data)
@@ -135,12 +164,22 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (of_property_read_bool(pdev->dev.of_node, "nvidia,pwm-to-pmic")) {
+		get_alignment_from_dt(&pdev->dev, &align);
+	} else {
+		err = get_alignment_from_regulator(&pdev->dev, &align);
+		if (err)
+			return err;
+	}
+
 	soc->max_freq = fcpu_data->cpu_max_freq_table[speedo_id];
 
 	soc->cvb = tegra_cvb_add_opp_table(soc->dev, fcpu_data->cpu_cvb_tables,
 					   fcpu_data->cpu_cvb_tables_size,
-					   process_id, speedo_id, speedo_value,
-					   soc->max_freq);
+					   &align, process_id, speedo_id,
+					   speedo_value, soc->max_freq);
+	soc->alignment = align;
+
 	if (IS_ERR(soc->cvb)) {
 		dev_err(&pdev->dev, "couldn't add OPP table: %ld\n",
 			PTR_ERR(soc->cvb));
