@@ -66,18 +66,33 @@ struct kvm_vmid {
 	u32    vmid;
 };
 
-struct kvm_arch {
+struct kvm_s2_mmu {
 	struct kvm_vmid vmid;
 
-	/* stage2 entry level table */
-	pgd_t *pgd;
-	phys_addr_t pgd_phys;
-
-	/* VTCR_EL2 value for this VM */
-	u64    vtcr;
+	/*
+	 * stage2 entry level table
+	 *
+	 * Two kvm_s2_mmu structures in the same VM can point to the same
+	 * pgd here.  This happens when running a guest using a
+	 * translation regime that isn't affected by its own stage-2
+	 * translation, such as a non-VHE hypervisor running at vEL2, or
+	 * for vEL1/EL0 with vHCR_EL2.VM == 0.  In that case, we use the
+	 * canonical stage-2 page tables.
+	 */
+	pgd_t		*pgd;
+	phys_addr_t	pgd_phys;
 
 	/* The last vcpu id that ran on each physical CPU */
 	int __percpu *last_vcpu_ran;
+
+	struct kvm *kvm;
+};
+
+struct kvm_arch {
+	struct kvm_s2_mmu mmu;
+
+	/* VTCR_EL2 value for this VM */
+	u64    vtcr;
 
 	/* The maximum number of vCPUs depends on the used GIC model */
 	int max_vcpus;
@@ -253,6 +268,9 @@ struct kvm_vcpu_arch {
 	struct kvm_cpu_context ctxt;
 	void *sve_state;
 	unsigned int sve_max_vl;
+
+	/* Stage 2 paging state used by the hardware on next switch */
+	struct kvm_s2_mmu *hw_mmu;
 
 	/* HYP configuration */
 	u64 hcr_el2;

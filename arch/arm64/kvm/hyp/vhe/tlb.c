@@ -16,7 +16,8 @@ struct tlb_inv_context {
 	u64		sctlr;
 };
 
-static void __tlb_switch_to_guest(struct kvm *kvm, struct tlb_inv_context *cxt)
+static void __tlb_switch_to_guest(struct kvm_s2_mmu *mmu,
+				  struct tlb_inv_context *cxt)
 {
 	u64 val;
 
@@ -52,14 +53,14 @@ static void __tlb_switch_to_guest(struct kvm *kvm, struct tlb_inv_context *cxt)
 	 * place before clearing TGE. __load_guest_stage2() already
 	 * has an ISB in order to deal with this.
 	 */
-	__load_guest_stage2(kvm);
+	__load_guest_stage2(mmu);
 	val = read_sysreg(hcr_el2);
 	val &= ~HCR_TGE;
 	write_sysreg(val, hcr_el2);
 	isb();
 }
 
-static void __tlb_switch_to_host(struct kvm *kvm, struct tlb_inv_context *cxt)
+static void __tlb_switch_to_host(struct tlb_inv_context *cxt)
 {
 	/*
 	 * We're done with the TLB operation, let's restore the host's
@@ -78,14 +79,14 @@ static void __tlb_switch_to_host(struct kvm *kvm, struct tlb_inv_context *cxt)
 	local_irq_restore(cxt->flags);
 }
 
-void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
+void __kvm_tlb_flush_vmid_ipa(struct kvm_s2_mmu *mmu, phys_addr_t ipa)
 {
 	struct tlb_inv_context cxt;
 
 	dsb(ishst);
 
 	/* Switch to requested VMID */
-	__tlb_switch_to_guest(kvm, &cxt);
+	__tlb_switch_to_guest(mmu, &cxt);
 
 	/*
 	 * We could do so much better if we had the VA as well.
@@ -106,38 +107,37 @@ void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 	dsb(ish);
 	isb();
 
-	__tlb_switch_to_host(kvm, &cxt);
+	__tlb_switch_to_host(&cxt);
 }
 
-void __kvm_tlb_flush_vmid(struct kvm *kvm)
+void __kvm_tlb_flush_vmid(struct kvm_s2_mmu *mmu)
 {
 	struct tlb_inv_context cxt;
 
 	dsb(ishst);
 
 	/* Switch to requested VMID */
-	__tlb_switch_to_guest(kvm, &cxt);
+	__tlb_switch_to_guest(mmu, &cxt);
 
 	__tlbi(vmalls12e1is);
 	dsb(ish);
 	isb();
 
-	__tlb_switch_to_host(kvm, &cxt);
+	__tlb_switch_to_host(&cxt);
 }
 
-void __kvm_tlb_flush_local_vmid(struct kvm_vcpu *vcpu)
+void __kvm_tlb_flush_local_vmid(struct kvm_s2_mmu *mmu)
 {
-	struct kvm *kvm = vcpu->kvm;
 	struct tlb_inv_context cxt;
 
 	/* Switch to requested VMID */
-	__tlb_switch_to_guest(kvm, &cxt);
+	__tlb_switch_to_guest(mmu, &cxt);
 
 	__tlbi(vmalle1);
 	dsb(nsh);
 	isb();
 
-	__tlb_switch_to_host(kvm, &cxt);
+	__tlb_switch_to_host(&cxt);
 }
 
 void __kvm_flush_vm_context(void)

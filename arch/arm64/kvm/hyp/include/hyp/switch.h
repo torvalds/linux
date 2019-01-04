@@ -122,9 +122,9 @@ static inline void ___deactivate_traps(struct kvm_vcpu *vcpu)
 	}
 }
 
-static inline void __activate_vm(struct kvm *kvm)
+static inline void __activate_vm(struct kvm_s2_mmu *mmu)
 {
-	__load_guest_stage2(kvm);
+	__load_guest_stage2(mmu);
 }
 
 static inline bool __translate_far_to_hpfar(u64 far, u64 *hpfar)
