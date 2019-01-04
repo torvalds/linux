@@ -42,6 +42,8 @@
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 
 #define SMU11_TOOL_SIZE		0x19000
+#define SMU11_THERMAL_MINIMUM_ALERT_TEMP      0
+#define SMU11_THERMAL_MAXIMUM_ALERT_TEMP      255
 
 static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
@@ -901,6 +903,36 @@ static int smu_v11_0_get_thermal_range(struct smu_context *smu,
 
 	range->max = smu->smu_table.software_shutdown_temp *
 		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
+}
+
+static int smu_v11_0_set_thermal_range(struct smu_context *smu,
+			struct PP_TemperatureRange *range)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int low = SMU11_THERMAL_MINIMUM_ALERT_TEMP *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	int high = SMU11_THERMAL_MAXIMUM_ALERT_TEMP *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	uint32_t val;
+
+	if (low < range->min)
+		low = range->min;
+	if (high > range->max)
+		high = range->max;
+
+	if (low > high)
+		return -EINVAL;
+
+	val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
+	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+
+	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
 
 	return 0;
 }
