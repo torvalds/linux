@@ -78,25 +78,12 @@ error:
  * reset/stall and then turn it off
  */
 static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
-		       u32 fwsize)
+		       u32 fwsize, int stream_tag)
 {
-	int tag, ret, i;
-	u32 hipcie;
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
-
-	/* prepare DMA for code loader stream */
-	tag = cl_stream_prepare(sdev, 0x40, fwsize, &sdev->dmab,
-				SNDRV_PCM_STREAM_PLAYBACK);
-
-	if (tag <= 0) {
-		dev_err(sdev->dev, "error: dma prepare for fw loading err: %x\n",
-			tag);
-		return tag;
-	}
-
-	memcpy(sdev->dmab.area, fwdata, fwsize);
+	int ret, i;
+	u32 hipcie;
 
 	/* step 1: power up corex */
 	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
@@ -108,7 +95,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	/* step 2: purge FW request */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR, chip->ipc_req,
 			  chip->ipc_req_mask | (HDA_DSP_IPC_PURGE_FW |
-			  ((tag - 1) << 9)));
+			  ((stream_tag - 1) << 9)));
 
 	/* step 3: unset core 0 reset state & unstall/run core 0 */
 	ret = hda_dsp_core_run(sdev, HDA_DSP_CORE_MASK(0));
@@ -153,20 +140,15 @@ step5:
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
 					HDA_DSP_SRAM_REG_ROM_STATUS,
 					HDA_DSP_ROM_STS_MASK, HDA_DSP_ROM_INIT,
-					HDA_DSP_INIT_TIMEOUT);
-	if (ret >= 0)
-		goto out;
-
-	ret = -EIO;
+					HDA_ROM_INIT_TIMEOUT);
+	if (!ret)
+		return 0;
 
 err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
-	hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0) |
-				      HDA_DSP_CORE_MASK(1));
-	return ret;
+	hda_dsp_core_reset_power_down(sdev, chip->cores_mask);
 
-out:
-	return tag;
+	return ret;
 }
 
 static int cl_trigger(struct snd_sof_dev *sdev,
@@ -208,8 +190,8 @@ static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 
 	ret = hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	/* TODO: spin lock ?*/
-	hstream->opened = 0;
+	hda_dsp_stream_put(sdev, SNDRV_PCM_STREAM_PLAYBACK,
+			   hstream->stream_tag);
 	hstream->running = 0;
 	hstream->substream = NULL;
 
@@ -269,12 +251,6 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, int tag)
 		return ret;
 	}
 
-	ret = cl_cleanup(sdev, &sdev->dmab, stream);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
-		return ret;
-	}
-
 	return status;
 }
 
@@ -294,7 +270,10 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
 	struct firmware stripped_firmware;
-	int ret, tag, i;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_ext_stream *stream = NULL;
+	struct hdac_stream *s;
+	int ret, ret1, tag, i;
 
 	stripped_firmware.data = plat_data->fw->data;
 	stripped_firmware.size = plat_data->fw->size;
@@ -303,44 +282,83 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	init_waitqueue_head(&sdev->boot_wait);
 	sdev->boot_complete = false;
 
-	/* try attempting fw boot a few times before giving up */
-	for (i = 0; i < HDA_FW_BOOT_ATTEMPTS; i++) {
-		tag = cl_dsp_init(sdev, stripped_firmware.data,
-				  stripped_firmware.size);
+	/* prepare DMA for code loader stream */
+	tag = cl_stream_prepare(sdev, 0x40, stripped_firmware.size,
+				&sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
 
-		if (tag <= 0) {
-			dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_SRAM_REG_ROM_ERROR),
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_SRAM_REG_ROM_STATUS));
-			dev_err(sdev->dev, "error: iteration %d of Core En/ROM load fail:%d\n",
-				i, tag);
-			ret = tag;
-			continue;
-		}
-
-		/* at this point DSP ROM has been initialized and
-		 * should be ready for code loading and firmware boot
-		 */
-		ret = cl_copy_fw(sdev, tag);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: iteration %d of load fw failed err: %d\n",
-				i, ret);
-			continue;
-		}
-
-		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-		return ret;
+	if (tag < 0) {
+		dev_err(sdev->dev, "error: dma prepare for fw loading err: %x\n",
+			tag);
+		return tag;
 	}
 
-	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
+	memcpy(sdev->dmab.area, stripped_firmware.data,
+	       stripped_firmware.size);
 
-	/* disable DSP */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				SOF_HDA_PPCTL_GPROCEN, 0);
-	dev_err(sdev->dev, "error: load fw failed after %d attempts with err: %d\n",
-		HDA_FW_BOOT_ATTEMPTS, ret);
+	/* try ROM init a few times before giving up */
+	for (i = 0; i < HDA_FW_BOOT_ATTEMPTS; i++) {
+		ret = cl_dsp_init(sdev, stripped_firmware.data,
+				  stripped_firmware.size, tag);
+
+		/* don't retry anymore if successful */
+		if (!ret)
+			break;
+
+		dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_ERROR),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_STATUS));
+		dev_err(sdev->dev, "error: iteration %d of Core En/ROM load failed: %d\n",
+			i, ret);
+	}
+
+	if (i == HDA_FW_BOOT_ATTEMPTS) {
+		dev_err(sdev->dev, "error: dsp init failed after %d attempts with err: %d\n",
+			i, ret);
+
+		hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
+
+		/* disable DSP */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
+					SOF_HDA_REG_PP_PPCTL,
+					SOF_HDA_PPCTL_GPROCEN, 0);
+		goto done;
+	}
+
+	/* at this point DSP ROM has been initialized and
+	 * should be ready for code loading and firmware boot
+	 */
+	ret = cl_copy_fw(sdev, tag);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: load fw failed ret: %d\n", ret);
+	else
+		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
+
+done:
+	/* get stream with tag for code loader stream cleanup */
+	list_for_each_entry(s, &bus->stream_list, list) {
+		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		    s->stream_tag == tag) {
+			stream = stream_to_hdac_ext_stream(s);
+			break;
+		}
+	}
+
+	if (!stream) {
+		dev_err(sdev->dev,
+			"error: could not get stream with stream tag%d\n",
+			tag);
+		return -ENODEV;
+	}
+
+	/* cleanup code loader stream */
+	ret1 = cl_cleanup(sdev, &sdev->dmab, stream);
+	if (ret1 < 0) {
+		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
+		return ret1;
+	}
+
 	return ret;
 }
 
