@@ -1139,8 +1139,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 		return -ENODEV;
 
 	data = devm_kzalloc(&spi->dev,
-			    sizeof(*data) + chips * sizeof(struct mcp23s08),
-			    GFP_KERNEL);
+			    struct_size(data, chip, chips), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
