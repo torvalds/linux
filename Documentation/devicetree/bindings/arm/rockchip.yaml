@@ -60,6 +60,11 @@ properties:
           - const: chipspark,rayeager-px2
           - const: rockchip,rk3066a
 
+      - description: Elgin RV1108 R1
+        items:
+          - const: elgin,rv1108-r1
+          - const: rockchip,rv1108
+
       - description: Firefly Firefly-RK3288
         items:
           - enum:
