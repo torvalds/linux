@@ -845,8 +845,8 @@ int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 }
 EXPORT_SYMBOL_GPL(crypto_inst_setname);
 
-void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
-			     unsigned int head)
+void *crypto_alloc_instance(const char *name, struct crypto_alg *alg,
+			    unsigned int head)
 {
 	struct crypto_instance *inst;
 	char *p;
@@ -868,35 +868,6 @@ void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
 err_free_inst:
 	kfree(p);
 	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(crypto_alloc_instance2);
-
-struct crypto_instance *crypto_alloc_instance(const char *name,
-					      struct crypto_alg *alg)
-{
-	struct crypto_instance *inst;
-	struct crypto_spawn *spawn;
-	int err;
-
-	inst = crypto_alloc_instance2(name, alg, 0);
-	if (IS_ERR(inst))
-		goto out;
-
-	spawn = crypto_instance_ctx(inst);
-	err = crypto_init_spawn(spawn, alg, inst,
-				CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
-
-	if (err)
-		goto err_free_inst;
-
-	return inst;
-
-err_free_inst:
-	kfree(inst);
-	inst = ERR_PTR(err);
-
-out:
-	return inst;
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_instance);
 
