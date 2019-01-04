@@ -7,6 +7,7 @@ Required properties:
 	- "rockchip,rk1808-rgb";
 	- "rockchip,rk3066-rgb";
 	- "rockchip,rk3128-rgb";
+	- "rockchip,rk3288-rgb";
 	- "rockchip,rk3308-rgb";
 	- "rockchip,rk3368-rgb";
 	- "rockchip,rv1108-rgb";
@@ -24,96 +25,40 @@ The rgb has two video ports described by:
 Their connections are modeled using the OF graph bindings specified in
 	Documentation/devicetree/bindings/graph.txt.
 
-- video port 0 for the VOP input, the remote endpoint maybe vopb/vopl/vop
-- video port 1 for either a panel or subsequent encoder
-
-the panel described by:
-	Documentation/devicetree/bindings/display/panel/simple-panel.txt
-Panel other required properties:
-- ports for remote rgb output.
+- video port 0 for the VOP input
+- video port 1 for either a panel or bridge
 
 Example:
 
-panel: panel {
-	compatible = "auo,b101ean01";
-	enable-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
-	bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
-
-	ports {
-		panel_in_rgb: endpoint {
-			remote-endpoint = <&rgb_out_panel>;
-		};
-	};
-};
-
-For Rockchip RV1108:
-
+&grf {
 	rgb: rgb {
-		compatible = "rockchip,rv1108-rgb";
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcdc_ctl>;
+		compatible = "rockchip,rk3288-rgb";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&lcdc_rgb_pins>;
+		pinctrl-1 = <&lcdc_sleep_pins>;
+		phys = <&video_phy>;
+		phy-names = "phy";
+		status = "disabled";
 
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			rgb_in: port@0 {
+			port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				rgb_in_vop: endpoint {
-					remote-endpoint = <&vop_out_rgb>;
-				};
-			};
-
-			rgb_out: port@1 {
-				reg = <1>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				rgb_out_panel: endpoint {
-					remote-endpoint = <&panel_in_rgb>;
-				};
-			};
-		};
-	};
-
-For Rockchip PX30:
-
-	grf: syscon@ff140000 {
-		compatible = "rockchip,px30-grf", "syscon", "simple-mfd";
-		...
-
-		rgb: rgb {
-			compatible = "rockchip,px30-rgb";
-			pinctrl-names = "default";
-			pinctrl-0 = <&lcdc_rgb_dclk_pin
-				     &lcdc_rgb_m0_den_pin
-				     &lcdc_rgb_m0_hsync_pin
-				     &lcdc_rgb_m0_vsync_pin
-				     &lcdc_rgb888_m0_data_pins>;
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
+				rgb_in_vopb: endpoint@0 {
 					reg = <0>;
-					#address-cells = <1>;
-					#size-cells = <0>;
+					remote-endpoint = <&vopb_out_rgb>;
+				};
 
-					rgb_in_vopb: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&vopb_out_rgb>;
-					};
-
-					rgb_in_vopl: endpoint@1 {
-						reg = <1>;
-						remote-endpoint = <&vopl_out_rgb>;
-					};
+				rgb_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_rgb>;
 				};
 			};
 		};
 	};
+};
