@@ -28,6 +28,19 @@ KEY_AES=0x0123456789abcdef0123456789012345
 SPI1=0x1
 SPI2=0x2
 
+do_esp_policy() {
+    local ns=$1
+    local me=$2
+    local remote=$3
+    local lnet=$4
+    local rnet=$5
+
+    # to encrypt packets as they go out (includes forwarded packets that need encapsulation)
+    ip -net $ns xfrm policy add src $lnet dst $rnet dir out tmpl src $me dst $remote proto esp mode tunnel priority 100 action allow
+    # to fwd decrypted packets after esp processing:
+    ip -net $ns xfrm policy add src $rnet dst $lnet dir fwd tmpl src $remote dst $me proto esp mode tunnel priority 100 action allow
+}
+
 do_esp() {
     local ns=$1
     local me=$2
@@ -40,10 +53,7 @@ do_esp() {
     ip -net $ns xfrm state add src $remote dst $me proto esp spi $spi_in  enc aes $KEY_AES  auth sha1 $KEY_SHA  mode tunnel sel src $rnet dst $lnet
     ip -net $ns xfrm state add src $me  dst $remote proto esp spi $spi_out enc aes $KEY_AES auth sha1 $KEY_SHA mode tunnel sel src $lnet dst $rnet
 
-    # to encrypt packets as they go out (includes forwarded packets that need encapsulation)
-    ip -net $ns xfrm policy add src $lnet dst $rnet dir out tmpl src $me dst $remote proto esp mode tunnel priority 100 action allow
-    # to fwd decrypted packets after esp processing:
-    ip -net $ns xfrm policy add src $rnet dst $lnet dir fwd tmpl src $remote dst $me proto esp mode tunnel priority 100 action allow
+    do_esp_policy $ns $me $remote $lnet $rnet
 }
 
 # add policies with different netmasks, to make sure kernel carries
@@ -369,6 +379,32 @@ check_exceptions "exceptions and block policies"
 if [ $? -ne 0 ]; then
 	ret=1
 fi
+
+for n in ns3 ns4;do
+	ip -net $n xfrm policy set hthresh4 28 24 hthresh6 126 125
+	sleep $((RANDOM%5))
+done
+
+check_exceptions "exceptions and block policies after hresh changes"
+
+# full flush of policy db, check everything gets freed incl. internal meta data
+ip -net ns3 xfrm policy flush
+
+do_esp_policy ns3 10.0.3.1 10.0.3.10 10.0.1.0/24 10.0.2.0/24
+do_exception ns3 10.0.3.1 10.0.3.10 10.0.2.253 10.0.2.240/28
+
+# move inexact policies to hash table
+ip -net ns3 xfrm policy set hthresh4 16 16
+
+sleep $((RANDOM%5))
+check_exceptions "exceptions and block policies after hthresh change in ns3"
+
+# restore original hthresh settings -- move policies back to tables
+for n in ns3 ns4;do
+	ip -net $n xfrm policy set hthresh4 32 32 hthresh6 128 128
+	sleep $((RANDOM%5))
+done
+check_exceptions "exceptions and block policies after hresh change to normal"
 
 for i in 1 2 3 4;do ip netns del ns$i;done
 
