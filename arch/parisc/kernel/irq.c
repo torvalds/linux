@@ -117,7 +117,10 @@ int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest)
 		return -EINVAL;
 
 	/* whatever mask they set, we just allow one CPU */
-	cpu_dest = cpumask_first_and(dest, cpu_online_mask);
+	cpu_dest = cpumask_next_and(d->irq & (num_online_cpus()-1),
+					dest, cpu_online_mask);
+	if (cpu_dest >= nr_cpu_ids)
+		cpu_dest = cpumask_first_and(dest, cpu_online_mask);
 
 	return cpu_dest;
 }
