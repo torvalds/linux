@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+#include "px30.dtsi"
+
+/ {
+	compatible = "rockchip,linux", "rockchip,px30-robot";
+
+	chosen {
+		bootargs = "swiotlb=1 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootwait";
+	};
+
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <0>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
+		status = "okay";
+	};
+
+	ramoops {
+		compatible = "ramoops";
+		record-size = <0x0 0x20000>;
+		console-size = <0x0 0x80000>;
+		ftrace-size = <0x0 0x00000>;
+		pmsg-size = <0x0 0x00000>;
+		memory-region = <&ramoops_mem>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ramoops_mem: ramoops@00000000 {
+			reg = <0x0 0x8000000 0x0 0xa0000>;
+		};
+	};
+};
+
+&cpu0_opp_table {
+	/delete-node/ opp-1248000000;
+	/delete-node/ opp-1296000000;
+	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1512000000;
+};
+
+&dmc_opp_table {
+	/delete-node/ opp-666000000;
+	/delete-node/ opp-768000000;
+};
+
+&soc_thermal {
+	trips {
+		threshold: trip-point-0 {
+			temperature = <75000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		target: trip-point-1 {
+			temperature = <90000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		soc_crit: soc-crit {
+			temperature = <115000>;
+			hysteresis = <2000>;
+			type = "critical";
+		};
+	};
+};
+
+&tsadc {
+	pinctrl-names = "gpio", "otpout";
+	pinctrl-0 = <&tsadc_otp_gpio>;
+	pinctrl-1 = <&tsadc_otp_out>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "disabled";
+};
