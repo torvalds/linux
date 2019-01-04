@@ -1065,7 +1065,8 @@ static int gue_err(struct sk_buff *skb, u32 info)
 	 * recursion. Besides, this kind of encapsulation can't even be
 	 * configured currently. Discard this.
 	 */
-	if (guehdr->proto_ctype == IPPROTO_UDP)
+	if (guehdr->proto_ctype == IPPROTO_UDP ||
+	    guehdr->proto_ctype == IPPROTO_UDPLITE)
 		return -EOPNOTSUPP;
 
 	skb_set_transport_header(skb, -(int)sizeof(struct icmphdr));
