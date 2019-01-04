@@ -680,16 +680,6 @@ static void xfrm_hash_resize(struct work_struct *work)
 	mutex_unlock(&hash_resize_mutex);
 }
 
-static void xfrm_hash_reset_inexact_table(struct net *net)
-{
-	struct xfrm_pol_inexact_bin *b;
-
-	lockdep_assert_held(&net->xfrm.xfrm_policy_lock);
-
-	list_for_each_entry(b, &net->xfrm.inexact_bins, inexact_bins)
-		INIT_HLIST_HEAD(&b->hhead);
-}
-
 /* Make sure *pol can be inserted into fastbin.
  * Useful to check that later insert requests will be sucessful
  * (provided xfrm_policy_lock is held throughout).
@@ -1279,10 +1269,14 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 	}
 
 	/* reset the bydst and inexact table in all directions */
-	xfrm_hash_reset_inexact_table(net);
-
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
-		INIT_HLIST_HEAD(&net->xfrm.policy_inexact[dir]);
+		struct hlist_node *n;
+
+		hlist_for_each_entry_safe(policy, n,
+					  &net->xfrm.policy_inexact[dir],
+					  bydst_inexact_list)
+			hlist_del_init(&policy->bydst_inexact_list);
+
 		hmask = net->xfrm.policy_bydst[dir].hmask;
 		odst = net->xfrm.policy_bydst[dir].table;
 		for (i = hmask; i >= 0; i--)
@@ -1314,6 +1308,9 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 		newpos = NULL;
 		chain = policy_hash_bysel(net, &policy->selector,
 					  policy->family, dir);
+
+		hlist_del_rcu(&policy->bydst);
+
 		if (!chain) {
 			void *p = xfrm_policy_inexact_insert(policy, dir, 0);
 
