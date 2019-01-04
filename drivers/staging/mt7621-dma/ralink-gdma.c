@@ -821,9 +821,9 @@ static int gdma_dma_probe(struct platform_device *pdev)
 		return -EINVAL;
 	data = (struct gdma_data *) match->data;
 
-	dma_dev = devm_kzalloc(&pdev->dev, sizeof(*dma_dev) +
-			(sizeof(struct gdma_dmaengine_chan) * data->chancnt),
-			GFP_KERNEL);
+	dma_dev = devm_kzalloc(&pdev->dev,
+			       struct_size(dma_dev, chan, data->chancnt),
+			       GFP_KERNEL);
 	if (!dma_dev) {
 		dev_err(&pdev->dev, "alloc dma device failed\n");
 		return -EINVAL;
