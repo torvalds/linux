@@ -894,8 +894,6 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	for (i = 0; i < num_rqst; i++)
 		if (midQ[i]->resp_buf)
 			credits += ses->server->ops->get_credits(midQ[i]);
-	if (!credits)
-		credits = 1;
 
 	for (i = 0; i < num_rqst; i++) {
 		if (rc < 0)
