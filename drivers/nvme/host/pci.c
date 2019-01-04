@@ -1485,8 +1485,8 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 	if (dev->ctrl.queue_count > qid)
 		return 0;
 
-	nvmeq->cqes = dma_zalloc_coherent(dev->dev, CQ_SIZE(depth),
-					  &nvmeq->cq_dma_addr, GFP_KERNEL);
+	nvmeq->cqes = dma_alloc_coherent(dev->dev, CQ_SIZE(depth),
+					 &nvmeq->cq_dma_addr, GFP_KERNEL);
 	if (!nvmeq->cqes)
 		goto free_nvmeq;
 
@@ -1915,8 +1915,8 @@ static int __nvme_alloc_host_mem(struct nvme_dev *dev, u64 preferred,
 	if (dev->ctrl.hmmaxd && dev->ctrl.hmmaxd < max_entries)
 		max_entries = dev->ctrl.hmmaxd;
 
-	descs = dma_zalloc_coherent(dev->dev, max_entries * sizeof(*descs),
-			&descs_dma, GFP_KERNEL);
+	descs = dma_alloc_coherent(dev->dev, max_entries * sizeof(*descs),
+				   &descs_dma, GFP_KERNEL);
 	if (!descs)
 		goto out;
 

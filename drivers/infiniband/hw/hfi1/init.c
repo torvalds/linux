@@ -899,10 +899,10 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 		goto done;
 
 	/* allocate dummy tail memory for all receive contexts */
-	dd->rcvhdrtail_dummy_kvaddr = dma_zalloc_coherent(
-		&dd->pcidev->dev, sizeof(u64),
-		&dd->rcvhdrtail_dummy_dma,
-		GFP_KERNEL);
+	dd->rcvhdrtail_dummy_kvaddr = dma_alloc_coherent(&dd->pcidev->dev,
+							 sizeof(u64),
+							 &dd->rcvhdrtail_dummy_dma,
+							 GFP_KERNEL);
 
 	if (!dd->rcvhdrtail_dummy_kvaddr) {
 		dd_dev_err(dd, "cannot allocate dummy tail memory\n");
@@ -1863,9 +1863,9 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 			gfp_flags = GFP_KERNEL;
 		else
 			gfp_flags = GFP_USER;
-		rcd->rcvhdrq = dma_zalloc_coherent(
-			&dd->pcidev->dev, amt, &rcd->rcvhdrq_dma,
-			gfp_flags | __GFP_COMP);
+		rcd->rcvhdrq = dma_alloc_coherent(&dd->pcidev->dev, amt,
+						  &rcd->rcvhdrq_dma,
+						  gfp_flags | __GFP_COMP);
 
 		if (!rcd->rcvhdrq) {
 			dd_dev_err(dd,
@@ -1876,9 +1876,10 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 		if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ||
 		    HFI1_CAP_UGET_MASK(rcd->flags, DMA_RTAIL)) {
-			rcd->rcvhdrtail_kvaddr = dma_zalloc_coherent(
-				&dd->pcidev->dev, PAGE_SIZE,
-				&rcd->rcvhdrqtailaddr_dma, gfp_flags);
+			rcd->rcvhdrtail_kvaddr = dma_alloc_coherent(&dd->pcidev->dev,
+								    PAGE_SIZE,
+								    &rcd->rcvhdrqtailaddr_dma,
+								    gfp_flags);
 			if (!rcd->rcvhdrtail_kvaddr)
 				goto bail_free;
 		}
@@ -1974,10 +1975,10 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	while (alloced_bytes < rcd->egrbufs.size &&
 	       rcd->egrbufs.alloced < rcd->egrbufs.count) {
 		rcd->egrbufs.buffers[idx].addr =
-			dma_zalloc_coherent(&dd->pcidev->dev,
-					    rcd->egrbufs.rcvtid_size,
-					    &rcd->egrbufs.buffers[idx].dma,
-					    gfp_flags);
+			dma_alloc_coherent(&dd->pcidev->dev,
+					   rcd->egrbufs.rcvtid_size,
+					   &rcd->egrbufs.buffers[idx].dma,
+					   gfp_flags);
 		if (rcd->egrbufs.buffers[idx].addr) {
 			rcd->egrbufs.buffers[idx].len =
 				rcd->egrbufs.rcvtid_size;
