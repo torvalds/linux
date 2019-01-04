@@ -77,11 +77,13 @@ static int crypto_cfb_encrypt_segment(struct skcipher_walk *walk,
 	do {
 		crypto_cfb_encrypt_one(tfm, iv, dst);
 		crypto_xor(dst, src, bsize);
-		memcpy(iv, dst, bsize);
+		iv = dst;
 
 		src += bsize;
 		dst += bsize;
 	} while ((nbytes -= bsize) >= bsize);
+
+	memcpy(walk->iv, iv, bsize);
 
 	return nbytes;
 }
@@ -162,7 +164,7 @@ static int crypto_cfb_decrypt_inplace(struct skcipher_walk *walk,
 	const unsigned int bsize = crypto_cfb_bsize(tfm);
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
-	u8 *iv = walk->iv;
+	u8 * const iv = walk->iv;
 	u8 tmp[MAX_CIPHER_BLOCKSIZE];
 
 	do {
@@ -171,8 +173,6 @@ static int crypto_cfb_decrypt_inplace(struct skcipher_walk *walk,
 		crypto_xor(src, tmp, bsize);
 		src += bsize;
 	} while ((nbytes -= bsize) >= bsize);
-
-	memcpy(walk->iv, iv, bsize);
 
 	return nbytes;
 }
