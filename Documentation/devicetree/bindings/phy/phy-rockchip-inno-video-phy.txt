@@ -1,0 +1,28 @@
+ROCKCHIP RK3288 LVDS/TTL VIDEO PHY WITH INNO IP BLOCK
+
+Required properties:
+ - compatible : "rockchip,rk3288-video-phy";
+ - reg : the address offset of register for phy configuration.
+ - #phy-cells : must be 0. See ./phy-bindings.txt for details.
+ - clocks: must include clock specifiers corresponding to entries in the
+	   clock-names property. See ../clocks/clock-bindings.txt for details.
+ - clock-names: list of clock names sorted in the same order as the clocks
+		property. Must contain "pclk".
+ - resets : Must contain an entry for each entry in reset-names.
+	    See ../reset/reset.txt for details.
+ - reset-names : should be "rst".
+ - power-domains: Must contain a reference to the PM domain, if available.
+
+Example:
+
+	video_phy: video-phy@ff96c000 {
+		compatible = "rockchip,rk3288-video-phy";
+		reg = <0x0 0xff96c000 0x0 0x4000>;
+		clocks = <&cru PCLK_LVDS_PHY>;
+		clock-names = "pclk";
+		resets = <&cru SRST_LVDS_PHY>;
+		reset-names = "rst";
+		power-domains = <&power RK3288_PD_VIO>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
