@@ -29,6 +29,9 @@
 #include "core_types.h"
 #include "dchubbub.h"
 
+#define TO_DCN10_HUBBUB(hubbub)\
+	container_of(hubbub, struct dcn10_hubbub, base)
+
 #define HUBHUB_REG_LIST_DCN()\
 	SR(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A),\
 	SR(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A),\
@@ -165,10 +168,8 @@ struct dcn_hubbub_mask {
 
 struct dc;
 
-
-struct hubbub {
-	const struct hubbub_funcs *funcs;
-	struct dc_context *ctx;
+struct dcn10_hubbub {
+	struct hubbub base;
 	const struct dcn_hubbub_registers *regs;
 	const struct dcn_hubbub_shift *shifts;
 	const struct dcn_hubbub_mask *masks;

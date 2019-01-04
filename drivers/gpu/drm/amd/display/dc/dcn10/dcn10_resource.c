@@ -678,18 +678,18 @@ static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 
 static struct hubbub *dcn10_hubbub_create(struct dc_context *ctx)
 {
-	struct hubbub *hubbub = kzalloc(sizeof(struct hubbub),
+	struct dcn10_hubbub *dcn10_hubbub = kzalloc(sizeof(struct dcn10_hubbub),
 					  GFP_KERNEL);
 
-	if (!hubbub)
+	if (!dcn10_hubbub)
 		return NULL;
 
-	hubbub1_construct(hubbub, ctx,
+	hubbub1_construct(&dcn10_hubbub->base, ctx,
 			&hubbub_reg,
 			&hubbub_shift,
 			&hubbub_mask);
 
-	return hubbub;
+	return &dcn10_hubbub->base;
 }
 
 static struct timing_generator *dcn10_timing_generator_create(

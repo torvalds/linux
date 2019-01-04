@@ -75,5 +75,9 @@ struct hubbub_funcs {
 			struct dcn_hubbub_wm *wm);
 };
 
+struct hubbub {
+	const struct hubbub_funcs *funcs;
+	struct dc_context *ctx;
+};
 
 #endif
