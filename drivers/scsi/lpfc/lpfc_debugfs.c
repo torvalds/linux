@@ -4506,7 +4506,7 @@ error_out:
  * lpfc_idiag_drbacc_read_reg - idiag debugfs read a doorbell register
  * @phba: The pointer to hba structure.
  * @pbuffer: The pointer to the buffer to copy the data to.
- * @len: The lenght of bytes to copied.
+ * @len: The length of bytes to copied.
  * @drbregid: The id to doorbell registers.
  *
  * Description:
@@ -4716,7 +4716,7 @@ error_out:
  * lpfc_idiag_ctlacc_read_reg - idiag debugfs read a control registers
  * @phba: The pointer to hba structure.
  * @pbuffer: The pointer to the buffer to copy the data to.
- * @len: The lenght of bytes to copied.
+ * @len: The length of bytes to copied.
  * @drbregid: The id to doorbell registers.
  *
  * Description:
