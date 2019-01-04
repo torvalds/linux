@@ -787,6 +787,24 @@ cifs_noop_callback(struct mid_q_entry *mid)
 {
 }
 
+static void
+cifs_cancelled_callback(struct mid_q_entry *mid)
+{
+	struct TCP_Server_Info *server = mid->server;
+	unsigned int optype = mid->optype;
+	unsigned int credits_received = 0;
+
+	if (mid->mid_state == MID_RESPONSE_RECEIVED) {
+		if (mid->resp_buf)
+			credits_received = server->ops->get_credits(mid);
+		else
+			cifs_dbg(FYI, "Bad state for cancelled MID\n");
+	}
+
+	DeleteMidQEntry(mid);
+	add_credits(server, credits_received, optype);
+}
+
 int
 compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		   const int flags, const int num_rqst, struct smb_rqst *rqst,
@@ -862,6 +880,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		}
 
 		midQ[i]->mid_state = MID_REQUEST_SUBMITTED;
+		midQ[i]->optype = optype;
 		/*
 		 * We don't invoke the callback compounds unless it is the last
 		 * request.
@@ -896,15 +915,20 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	for (i = 0; i < num_rqst; i++) {
 		rc = wait_for_response(ses->server, midQ[i]);
-		if (rc != 0) {
+		if (rc != 0)
+			break;
+	}
+	if (rc != 0) {
+		for (; i < num_rqst; i++) {
 			cifs_dbg(VFS, "Cancelling wait for mid %llu cmd: %d\n",
 				 midQ[i]->mid, le16_to_cpu(midQ[i]->command));
 			send_cancel(ses->server, &rqst[i], midQ[i]);
 			spin_lock(&GlobalMid_Lock);
 			if (midQ[i]->mid_state == MID_REQUEST_SUBMITTED) {
 				midQ[i]->mid_flags |= MID_WAIT_CANCELLED;
-				midQ[i]->callback = DeleteMidQEntry;
+				midQ[i]->callback = cifs_cancelled_callback;
 				cancelled_mid[i] = true;
+				credits[i] = 0;
 			}
 			spin_unlock(&GlobalMid_Lock);
 		}
