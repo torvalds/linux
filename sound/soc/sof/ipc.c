@@ -292,16 +292,16 @@ static void ipc_tx_next_msg(struct work_struct *work)
 	spin_lock_irq(&sdev->ipc_lock);
 
 	/* send message if HW read and message in TX list */
-	if (list_empty(&ipc->tx_list) || !snd_sof_dsp_is_ready(sdev))
-		goto out;
+	if (!list_empty(&ipc->tx_list) && snd_sof_dsp_is_ready(sdev)) {
+		/* send first message in TX list */
+		msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg,
+				       list);
+		list_move(&msg->list, &ipc->reply_list);
+		snd_sof_dsp_send_msg(sdev, msg);
 
-	/* send first message in TX list */
-	msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg, list);
-	list_move(&msg->list, &ipc->reply_list);
-	snd_sof_dsp_send_msg(sdev, msg);
+		ipc_log_header(sdev->dev, "ipc tx", msg->header);
+	}
 
-	ipc_log_header(sdev->dev, "ipc tx", msg->header);
-out:
 	spin_unlock_irq(&sdev->ipc_lock);
 }
 

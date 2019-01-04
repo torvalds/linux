@@ -73,7 +73,7 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to parse ext data type %d\n",
 				ext_hdr->type);
-			goto out;
+			break;
 		}
 
 		/* move to next header */
@@ -82,7 +82,7 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
 				       sizeof(*ext_hdr));
 		ext_hdr = (struct sof_ipc_ext_data_hdr *)ext_data;
 	}
-out:
+
 	kfree(ext_data);
 	return ret;
 }
