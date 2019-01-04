@@ -144,7 +144,9 @@ static ssize_t amdgpu_get_dpm_state(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_pm_state_type pm;
 
-	if (adev->powerplay.pp_funcs->get_current_power_state)
+	if (adev->smu.ppt_funcs->get_current_power_state)
+		pm = amdgpu_smu_get_current_power_state(adev);
+	else if (adev->powerplay.pp_funcs->get_current_power_state)
 		pm = amdgpu_dpm_get_current_power_state(adev);
 	else
 		pm = adev->pm.dpm.user_state;

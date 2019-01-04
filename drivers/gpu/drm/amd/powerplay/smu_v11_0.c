@@ -273,9 +273,13 @@ static int smu_v11_0_fini_dpm_context(struct smu_context *smu)
 
 	kfree(smu_dpm->dpm_context);
 	kfree(smu_dpm->golden_dpm_context);
+	kfree(smu_dpm->dpm_current_power_state);
+	kfree(smu_dpm->dpm_request_power_state);
 	smu_dpm->dpm_context = NULL;
 	smu_dpm->golden_dpm_context = NULL;
 	smu_dpm->dpm_context_size = 0;
+	smu_dpm->dpm_current_power_state = NULL;
+	smu_dpm->dpm_request_power_state = NULL;
 
 	return 0;
 }

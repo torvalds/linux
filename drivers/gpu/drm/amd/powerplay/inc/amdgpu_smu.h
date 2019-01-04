@@ -26,6 +26,118 @@
 #include "kgd_pp_interface.h"
 #include "dm_pp_interface.h"
 
+struct smu_hw_power_state {
+	unsigned int magic;
+};
+
+struct smu_power_state;
+
+enum smu_state_ui_label {
+	SMU_STATE_UI_LABEL_NONE,
+	SMU_STATE_UI_LABEL_BATTERY,
+	SMU_STATE_UI_TABEL_MIDDLE_LOW,
+	SMU_STATE_UI_LABEL_BALLANCED,
+	SMU_STATE_UI_LABEL_MIDDLE_HIGHT,
+	SMU_STATE_UI_LABEL_PERFORMANCE,
+	SMU_STATE_UI_LABEL_BACO,
+};
+
+enum smu_state_classification_flag {
+	SMU_STATE_CLASSIFICATION_FLAG_BOOT                     = 0x0001,
+	SMU_STATE_CLASSIFICATION_FLAG_THERMAL                  = 0x0002,
+	SMU_STATE_CLASSIFICATIN_FLAG_LIMITED_POWER_SOURCE      = 0x0004,
+	SMU_STATE_CLASSIFICATION_FLAG_RESET                    = 0x0008,
+	SMU_STATE_CLASSIFICATION_FLAG_FORCED                   = 0x0010,
+	SMU_STATE_CLASSIFICATION_FLAG_USER_3D_PERFORMANCE      = 0x0020,
+	SMU_STATE_CLASSIFICATION_FLAG_USER_2D_PERFORMANCE      = 0x0040,
+	SMU_STATE_CLASSIFICATION_FLAG_3D_PERFORMANCE           = 0x0080,
+	SMU_STATE_CLASSIFICATION_FLAG_AC_OVERDIRVER_TEMPLATE   = 0x0100,
+	SMU_STATE_CLASSIFICATION_FLAG_UVD                      = 0x0200,
+	SMU_STATE_CLASSIFICATION_FLAG_3D_PERFORMANCE_LOW       = 0x0400,
+	SMU_STATE_CLASSIFICATION_FLAG_ACPI                     = 0x0800,
+	SMU_STATE_CLASSIFICATION_FLAG_HD2                      = 0x1000,
+	SMU_STATE_CLASSIFICATION_FLAG_UVD_HD                   = 0x2000,
+	SMU_STATE_CLASSIFICATION_FLAG_UVD_SD                   = 0x4000,
+	SMU_STATE_CLASSIFICATION_FLAG_USER_DC_PERFORMANCE      = 0x8000,
+	SMU_STATE_CLASSIFICATION_FLAG_DC_OVERDIRVER_TEMPLATE   = 0x10000,
+	SMU_STATE_CLASSIFICATION_FLAG_BACO                     = 0x20000,
+	SMU_STATE_CLASSIFICATIN_FLAG_LIMITED_POWER_SOURCE2      = 0x40000,
+	SMU_STATE_CLASSIFICATION_FLAG_ULV                      = 0x80000,
+	SMU_STATE_CLASSIFICATION_FLAG_UVD_MVC                  = 0x100000,
+};
+
+struct smu_state_classification_block {
+	enum smu_state_ui_label         ui_label;
+	enum smu_state_classification_flag  flags;
+	int                          bios_index;
+	bool                      temporary_state;
+	bool                      to_be_deleted;
+};
+
+struct smu_state_pcie_block {
+	unsigned int lanes;
+};
+
+enum smu_refreshrate_source {
+	SMU_REFRESHRATE_SOURCE_EDID,
+	SMU_REFRESHRATE_SOURCE_EXPLICIT
+};
+
+struct smu_state_display_block {
+	bool              disable_frame_modulation;
+	bool              limit_refreshrate;
+	enum smu_refreshrate_source refreshrate_source;
+	int                  explicit_refreshrate;
+	int                  edid_refreshrate_index;
+	bool              enable_vari_bright;
+};
+
+struct smu_state_memroy_block {
+	bool              dll_off;
+	uint8_t                 m3arb;
+	uint8_t                 unused[3];
+};
+
+struct smu_state_software_algorithm_block {
+	bool disable_load_balancing;
+	bool enable_sleep_for_timestamps;
+};
+
+struct smu_temperature_range {
+	int min;
+	int max;
+};
+
+struct smu_state_validation_block {
+	bool single_display_only;
+	bool disallow_on_dc;
+	uint8_t supported_power_levels;
+};
+
+struct smu_uvd_clocks {
+	uint32_t vclk;
+	uint32_t dclk;
+};
+
+/**
+* Structure to hold a SMU Power State.
+*/
+struct smu_power_state {
+	uint32_t                                      id;
+	struct list_head                              ordered_list;
+	struct list_head                              all_states_list;
+
+	struct smu_state_classification_block         classification;
+	struct smu_state_validation_block             validation;
+	struct smu_state_pcie_block                   pcie;
+	struct smu_state_display_block                display;
+	struct smu_state_memroy_block                 memory;
+	struct smu_temperature_range                  temperatures;
+	struct smu_state_software_algorithm_block     software;
+	struct smu_uvd_clocks                         uvd_clocks;
+	struct smu_hw_power_state                     hardware;
+};
+
 enum smu_message_type
 {
 	SMU_MSG_TestMessage = 0,
@@ -204,6 +316,8 @@ struct smu_dpm_context {
 	uint32_t dpm_context_size;
 	void *dpm_context;
 	void *golden_dpm_context;
+	struct smu_power_state *dpm_request_power_state;
+	struct smu_power_state *dpm_current_power_state;
 };
 
 struct smu_power_context {
@@ -257,7 +371,9 @@ struct pptable_funcs {
 	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
 	int (*run_afll_btc)(struct smu_context *smu);
 	int (*get_unallowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
 	int (*set_default_dpm_table)(struct smu_context *smu);
+	int (*set_power_state)(struct smu_context *smu);
 	int (*populate_umd_state_clk)(struct smu_context *smu);
 	int (*print_clk_levels)(struct smu_context *smu, enum pp_clock_type type, char *buf);
 	int (*force_clk_levels)(struct smu_context *smu, enum pp_clock_type type, uint32_t mask);

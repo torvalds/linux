@@ -31,6 +31,7 @@
 #include "smu11_driver_if.h"
 #include "soc15_common.h"
 #include "atom.h"
+#include "power_state.h"
 #include "vega20_ppt.h"
 #include "vega20_pptable.h"
 #include "vega20_ppsmc.h"
@@ -153,6 +154,16 @@ static int vega20_allocate_dpm_context(struct smu_context *smu)
 		return -ENOMEM;
 
 	smu_dpm->dpm_context_size = sizeof(struct vega20_dpm_table);
+
+	smu_dpm->dpm_current_power_state = kzalloc(sizeof(struct smu_power_state),
+				       GFP_KERNEL);
+	if (!smu_dpm->dpm_current_power_state)
+		return -ENOMEM;
+
+	smu_dpm->dpm_request_power_state = kzalloc(sizeof(struct smu_power_state),
+				       GFP_KERNEL);
+	if (!smu_dpm->dpm_request_power_state)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -387,6 +398,39 @@ vega20_get_unallowed_feature_mask(struct smu_context *smu,
 	feature_mask[1] = 0xFFFFFFFE; /* bit32~bit63 is Unsupported */
 
 	return 0;
+}
+
+static enum
+amd_pm_state_type vega20_get_current_power_state(struct smu_context *smu)
+{
+	enum amd_pm_state_type pm_type;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+
+	if (!smu_dpm_ctx->dpm_context ||
+	    !smu_dpm_ctx->dpm_current_power_state)
+		return -EINVAL;
+
+	mutex_lock(&(smu->mutex));
+	switch (smu_dpm_ctx->dpm_current_power_state->classification.ui_label) {
+	case SMU_STATE_UI_LABEL_BATTERY:
+		pm_type = POWER_STATE_TYPE_BATTERY;
+		break;
+	case SMU_STATE_UI_LABEL_BALLANCED:
+		pm_type = POWER_STATE_TYPE_BALANCED;
+		break;
+	case SMU_STATE_UI_LABEL_PERFORMANCE:
+		pm_type = POWER_STATE_TYPE_PERFORMANCE;
+		break;
+	default:
+		if (smu_dpm_ctx->dpm_current_power_state->classification.flags & SMU_STATE_CLASSIFICATION_FLAG_BOOT)
+			pm_type = POWER_STATE_TYPE_INTERNAL_BOOT;
+		else
+			pm_type = POWER_STATE_TYPE_DEFAULT;
+		break;
+	}
+	mutex_unlock(&(smu->mutex));
+
+	return pm_type;
 }
 
 static int
@@ -1263,7 +1307,9 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_smu_msg_index = vega20_get_smu_msg_index,
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_unallowed_feature_mask = vega20_get_unallowed_feature_mask,
+	.get_current_power_state = vega20_get_current_power_state,
 	.set_default_dpm_table = vega20_set_default_dpm_table,
+	.set_power_state = NULL,
 	.populate_umd_state_clk = vega20_populate_umd_state_clk,
 	.print_clk_levels = vega20_print_clk_levels,
 	.force_clk_levels = vega20_force_clk_levels,
