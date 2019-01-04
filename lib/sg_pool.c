@@ -148,10 +148,9 @@ static __init int sg_pool_init(void)
 cleanup_sdb:
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {
 		struct sg_pool *sgp = sg_pools + i;
-		if (sgp->pool)
-			mempool_destroy(sgp->pool);
-		if (sgp->slab)
-			kmem_cache_destroy(sgp->slab);
+
+		mempool_destroy(sgp->pool);
+		kmem_cache_destroy(sgp->slab);
 	}
 
 	return -ENOMEM;

@@ -17,9 +17,9 @@
 
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/phy/phy-qcom-ufs.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/delay.h>

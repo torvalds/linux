@@ -147,13 +147,13 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 
 	if (network->mode >= IEEE_N_24G)//add N rate here;
 	{
-		PHT_CAPABILITY_ELE ht_cap = NULL;
+		struct ht_capability_ele *ht_cap = NULL;
 		bool is40M = false, isShortGI = false;
 		u8 max_mcs = 0;
 		if (!memcmp(network->bssht.bdHTCapBuf, EWC11NHTCap, 4))
-			ht_cap = (PHT_CAPABILITY_ELE)&network->bssht.bdHTCapBuf[4];
+			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[4];
 		else
-			ht_cap = (PHT_CAPABILITY_ELE)&network->bssht.bdHTCapBuf[0];
+			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[0];
 		is40M = (ht_cap->ChlWidth)?1:0;
 		isShortGI = (ht_cap->ChlWidth)?
 						((ht_cap->ShortGI40Mhz)?1:0):

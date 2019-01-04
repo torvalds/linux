@@ -50,6 +50,9 @@ Required properties:
 
 Optional properties:
 
+ - reset-gpios : GPIO spec for the RESET pin. If specified, it will be
+		 asserted during driver probe.
+
  - adi,dc-dc-ilim-microamp: The dc-to-dc converter current limit
 		   The following values are currently supported [uA]:
 			* 150000
@@ -70,6 +73,8 @@ AD5758 Example:
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 		spi-cpha;
+
+		reset-gpios = <&gpio 22 0>;
 
 		adi,dc-dc-mode = <2>;
 		adi,range-microvolt = <0 10000000>;

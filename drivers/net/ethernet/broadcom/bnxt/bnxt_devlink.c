@@ -21,8 +21,21 @@ static const struct devlink_ops bnxt_dl_ops = {
 #endif /* CONFIG_BNXT_SRIOV */
 };
 
+enum bnxt_dl_param_id {
+	BNXT_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK,
+};
+
 static const struct bnxt_dl_nvm_param nvm_params[] = {
 	{DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV, NVM_OFF_ENABLE_SRIOV,
+	 BNXT_NVM_SHARED_CFG, 1},
+	{DEVLINK_PARAM_GENERIC_ID_IGNORE_ARI, NVM_OFF_IGNORE_ARI,
+	 BNXT_NVM_SHARED_CFG, 1},
+	{DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
+	 NVM_OFF_MSIX_VEC_PER_PF_MAX, BNXT_NVM_SHARED_CFG, 10},
+	{DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
+	 NVM_OFF_MSIX_VEC_PER_PF_MIN, BNXT_NVM_SHARED_CFG, 7},
+	{BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK, NVM_OFF_DIS_GRE_VER_CHECK,
 	 BNXT_NVM_SHARED_CFG, 1},
 };
 
@@ -55,8 +68,22 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 		idx = bp->pf.fw_fid - BNXT_FIRST_PF_FID;
 
 	bytesize = roundup(nvm_param.num_bits, BITS_PER_BYTE) / BITS_PER_BYTE;
-	if (nvm_param.num_bits == 1)
-		buf = &val->vbool;
+	switch (bytesize) {
+	case 1:
+		if (nvm_param.num_bits == 1)
+			buf = &val->vbool;
+		else
+			buf = &val->vu8;
+		break;
+	case 2:
+		buf = &val->vu16;
+		break;
+	case 4:
+		buf = &val->vu32;
+		break;
+	default:
+		return -EFAULT;
+	}
 
 	data_addr = dma_zalloc_coherent(&bp->pdev->dev, bytesize,
 					&data_dma_addr, GFP_KERNEL);
@@ -78,8 +105,12 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 		memcpy(buf, data_addr, bytesize);
 
 	dma_free_coherent(&bp->pdev->dev, bytesize, data_addr, data_dma_addr);
-	if (rc)
+	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
+		netdev_err(bp->dev, "PF does not have admin privileges to modify NVM config\n");
+		return -EACCES;
+	} else if (rc) {
 		return -EIO;
+	}
 	return 0;
 }
 
@@ -88,9 +119,15 @@ static int bnxt_dl_nvm_param_get(struct devlink *dl, u32 id,
 {
 	struct hwrm_nvm_get_variable_input req = {0};
 	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_GET_VARIABLE, -1, -1);
-	return bnxt_hwrm_nvm_req(bp, id, &req, sizeof(req), &ctx->val);
+	rc = bnxt_hwrm_nvm_req(bp, id, &req, sizeof(req), &ctx->val);
+	if (!rc)
+		if (id == BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK)
+			ctx->val.vbool = !ctx->val.vbool;
+
+	return rc;
 }
 
 static int bnxt_dl_nvm_param_set(struct devlink *dl, u32 id,
@@ -100,7 +137,31 @@ static int bnxt_dl_nvm_param_set(struct devlink *dl, u32 id,
 	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_SET_VARIABLE, -1, -1);
+
+	if (id == BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK)
+		ctx->val.vbool = !ctx->val.vbool;
+
 	return bnxt_hwrm_nvm_req(bp, id, &req, sizeof(req), &ctx->val);
+}
+
+static int bnxt_dl_msix_validate(struct devlink *dl, u32 id,
+				 union devlink_param_value val,
+				 struct netlink_ext_ack *extack)
+{
+	int max_val = -1;
+
+	if (id == DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX)
+		max_val = BNXT_MSIX_VEC_MAX;
+
+	if (id == DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN)
+		max_val = BNXT_MSIX_VEC_MIN_MAX;
+
+	if (val.vu32 > max_val) {
+		NL_SET_ERR_MSG_MOD(extack, "MSIX value is exceeding the range");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static const struct devlink_param bnxt_dl_params[] = {
@@ -108,6 +169,23 @@ static const struct devlink_param bnxt_dl_params[] = {
 			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
 			      bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
 			      NULL),
+	DEVLINK_PARAM_GENERIC(IGNORE_ARI,
+			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			      bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
+			      NULL),
+	DEVLINK_PARAM_GENERIC(MSIX_VEC_PER_PF_MAX,
+			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			      bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
+			      bnxt_dl_msix_validate),
+	DEVLINK_PARAM_GENERIC(MSIX_VEC_PER_PF_MIN,
+			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			      bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
+			      bnxt_dl_msix_validate),
+	DEVLINK_PARAM_DRIVER(BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK,
+			     "gre_ver_check", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			     bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
+			     NULL),
 };
 
 int bnxt_dl_register(struct bnxt *bp)

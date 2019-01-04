@@ -49,7 +49,7 @@ struct extent_map {
 };
 
 struct extent_map_tree {
-	struct rb_root map;
+	struct rb_root_cached map;
 	struct list_head modified_extents;
 	rwlock_t lock;
 };
@@ -78,7 +78,7 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 len);
 int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em, int modified);
-int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em);
+void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em);
 void replace_extent_mapping(struct extent_map_tree *tree,
 			    struct extent_map *cur,
 			    struct extent_map *new,

@@ -16,7 +16,9 @@ NAMES = {
           'DEV2': '',
           'BATCH_FILE': './batch.txt',
           # Name of the namespace to use
-          'NS': 'tcut'
+          'NS': 'tcut',
+          # Directory containing eBPF test programs
+          'EBPFDIR': './bpf'
         }
 
 

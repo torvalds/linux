@@ -10,6 +10,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/dwarf.h>
+#include <asm/ptrace.h>
 
 	.text
 	.align 4
@@ -19,7 +20,7 @@ __kernel_gettimeofday:
 	CFI_STARTPROC
 	ahi	%r15,-16
 	CFI_ADJUST_CFA_OFFSET 16
-	CFI_VAL_OFFSET 15, -160
+	CFI_VAL_OFFSET 15, -STACK_FRAME_OVERHEAD
 	basr	%r5,0
 0:	al	%r5,13f-0b(%r5)			/* get &_vdso_data */
 1:	ltr	%r3,%r3				/* check if tz is NULL */

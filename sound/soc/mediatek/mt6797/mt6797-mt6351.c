@@ -206,7 +206,6 @@ static const struct of_device_id mt6797_mt6351_dt_match[] = {
 static struct platform_driver mt6797_mt6351_driver = {
 	.driver = {
 		.name = "mt6797-mt6351",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_OF
 		.of_match_table = mt6797_mt6351_dt_match,
 #endif

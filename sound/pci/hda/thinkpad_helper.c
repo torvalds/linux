@@ -58,8 +58,8 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 			removefunc = false;
 		}
 		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0 &&
-		    snd_hda_gen_add_micmute_led(codec,
-						update_tpacpi_micmute) > 0)
+		    !snd_hda_gen_add_micmute_led(codec,
+						 update_tpacpi_micmute))
 			removefunc = false;
 	}
 

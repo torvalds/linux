@@ -82,7 +82,7 @@ static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
 {
 	int context_id;
 
-	context_id = get_ea_context(&mm->context, ea);
+	context_id = get_user_context(&mm->context, ea);
 	if (!context_id)
 		return true;
 	return false;

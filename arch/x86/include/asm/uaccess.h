@@ -198,8 +198,8 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 		     "4:	movl %3,%0\n"				\
 		     "	jmp 3b\n"					\
 		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 4b)				\
-		     _ASM_EXTABLE(2b, 4b)				\
+		     _ASM_EXTABLE_UA(1b, 4b)				\
+		     _ASM_EXTABLE_UA(2b, 4b)				\
 		     : "=r" (err)					\
 		     : "A" (x), "r" (addr), "i" (errret), "0" (err))
 
@@ -340,8 +340,8 @@ do {									\
 		     "	xorl %%edx,%%edx\n"				\
 		     "	jmp 3b\n"					\
 		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 4b)				\
-		     _ASM_EXTABLE(2b, 4b)				\
+		     _ASM_EXTABLE_UA(1b, 4b)				\
+		     _ASM_EXTABLE_UA(2b, 4b)				\
 		     : "=r" (retval), "=&A"(x)				\
 		     : "m" (__m(__ptr)), "m" __m(((u32 __user *)(__ptr)) + 1),	\
 		       "i" (errret), "0" (retval));			\
@@ -386,7 +386,7 @@ do {									\
 		     "	xor"itype" %"rtype"1,%"rtype"1\n"		\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 3b)				\
+		     _ASM_EXTABLE_UA(1b, 3b)				\
 		     : "=r" (err), ltype(x)				\
 		     : "m" (__m(addr)), "i" (errret), "0" (err))
 
@@ -398,7 +398,7 @@ do {									\
 		     "3:	mov %3,%0\n"				\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 3b)				\
+		     _ASM_EXTABLE_UA(1b, 3b)				\
 		     : "=r" (err), ltype(x)				\
 		     : "m" (__m(addr)), "i" (errret), "0" (err))
 
@@ -474,7 +474,7 @@ struct __large_struct { unsigned long buf[100]; };
 		     "3:	mov %3,%0\n"				\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 3b)				\
+		     _ASM_EXTABLE_UA(1b, 3b)				\
 		     : "=r"(err)					\
 		     : ltype(x), "m" (__m(addr)), "i" (errret), "0" (err))
 
@@ -602,7 +602,7 @@ extern void __cmpxchg_wrong_size(void)
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
 			"\t.previous\n"					\
-			_ASM_EXTABLE(1b, 3b)				\
+			_ASM_EXTABLE_UA(1b, 3b)				\
 			: "+r" (__ret), "=a" (__old), "+m" (*(ptr))	\
 			: "i" (-EFAULT), "q" (__new), "1" (__old)	\
 			: "memory"					\
@@ -618,7 +618,7 @@ extern void __cmpxchg_wrong_size(void)
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
 			"\t.previous\n"					\
-			_ASM_EXTABLE(1b, 3b)				\
+			_ASM_EXTABLE_UA(1b, 3b)				\
 			: "+r" (__ret), "=a" (__old), "+m" (*(ptr))	\
 			: "i" (-EFAULT), "r" (__new), "1" (__old)	\
 			: "memory"					\
@@ -634,7 +634,7 @@ extern void __cmpxchg_wrong_size(void)
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
 			"\t.previous\n"					\
-			_ASM_EXTABLE(1b, 3b)				\
+			_ASM_EXTABLE_UA(1b, 3b)				\
 			: "+r" (__ret), "=a" (__old), "+m" (*(ptr))	\
 			: "i" (-EFAULT), "r" (__new), "1" (__old)	\
 			: "memory"					\
@@ -653,7 +653,7 @@ extern void __cmpxchg_wrong_size(void)
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
 			"\t.previous\n"					\
-			_ASM_EXTABLE(1b, 3b)				\
+			_ASM_EXTABLE_UA(1b, 3b)				\
 			: "+r" (__ret), "=a" (__old), "+m" (*(ptr))	\
 			: "i" (-EFAULT), "r" (__new), "1" (__old)	\
 			: "memory"					\

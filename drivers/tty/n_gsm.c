@@ -2614,14 +2614,6 @@ static int gsmld_ioctl(struct tty_struct *tty, struct file *file,
 	}
 }
 
-#ifdef CONFIG_COMPAT
-static long gsmld_compat_ioctl(struct tty_struct *tty, struct file *file,
-		       unsigned int cmd, unsigned long arg)
-{
-	return gsmld_ioctl(tty, file, cmd, arg);
-}
-#endif
-
 /*
  *	Network interface
  *
@@ -2833,9 +2825,6 @@ static struct tty_ldisc_ops tty_ldisc_packet = {
 	.flush_buffer    = gsmld_flush_buffer,
 	.read            = gsmld_read,
 	.write           = gsmld_write,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl    = gsmld_compat_ioctl,
-#endif
 	.ioctl           = gsmld_ioctl,
 	.poll            = gsmld_poll,
 	.receive_buf     = gsmld_receive_buf,

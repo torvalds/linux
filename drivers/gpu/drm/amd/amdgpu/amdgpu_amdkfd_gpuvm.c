@@ -364,7 +364,6 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 	struct amdgpu_bo *pd = vm->root.base.bo;
 	struct amdgpu_device *adev = amdgpu_ttm_adev(pd->tbo.bdev);
 	struct amdgpu_vm_parser param;
-	uint64_t addr, flags = AMDGPU_PTE_VALID;
 	int ret;
 
 	param.domain = AMDGPU_GEM_DOMAIN_VRAM;
@@ -383,9 +382,7 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 		return ret;
 	}
 
-	addr = amdgpu_bo_gpu_offset(vm->root.base.bo);
-	amdgpu_gmc_get_vm_pde(adev, -1, &addr, &flags);
-	vm->pd_phys_addr = addr;
+	vm->pd_phys_addr = amdgpu_gmc_pd_addr(vm->root.base.bo);
 
 	if (vm->use_cpu_for_update) {
 		ret = amdgpu_bo_kmap(pd, NULL);
@@ -678,7 +675,6 @@ static int reserve_bo_and_vm(struct kgd_mem *mem,
 	if (!ctx->vm_pd)
 		return -ENOMEM;
 
-	ctx->kfd_bo.robj = bo;
 	ctx->kfd_bo.priority = 0;
 	ctx->kfd_bo.tv.bo = &bo->tbo;
 	ctx->kfd_bo.tv.shared = true;
@@ -743,7 +739,6 @@ static int reserve_bo_and_cond_vms(struct kgd_mem *mem,
 			return -ENOMEM;
 	}
 
-	ctx->kfd_bo.robj = bo;
 	ctx->kfd_bo.priority = 0;
 	ctx->kfd_bo.tv.bo = &bo->tbo;
 	ctx->kfd_bo.tv.shared = true;
@@ -1003,8 +998,8 @@ create_evict_fence_fail:
 	return ret;
 }
 
-int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
-					  void **process_info,
+int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, unsigned int pasid,
+					  void **vm, void **process_info,
 					  struct dma_fence **ef)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -1016,7 +1011,7 @@ int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
 		return -ENOMEM;
 
 	/* Initialize AMDGPU part of the VM */
-	ret = amdgpu_vm_init(adev, new_vm, AMDGPU_VM_CONTEXT_COMPUTE, 0);
+	ret = amdgpu_vm_init(adev, new_vm, AMDGPU_VM_CONTEXT_COMPUTE, pasid);
 	if (ret) {
 		pr_err("Failed init vm ret %d\n", ret);
 		goto amdgpu_vm_init_fail;
@@ -1039,7 +1034,7 @@ amdgpu_vm_init_fail:
 }
 
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
-					   struct file *filp,
+					   struct file *filp, unsigned int pasid,
 					   void **vm, void **process_info,
 					   struct dma_fence **ef)
 {
@@ -1054,7 +1049,7 @@ int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
 		return -EINVAL;
 
 	/* Convert VM into a compute VM */
-	ret = amdgpu_vm_make_compute(adev, avm);
+	ret = amdgpu_vm_make_compute(adev, avm, pasid);
 	if (ret)
 		return ret;
 
@@ -1117,11 +1112,34 @@ void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm)
 	kfree(vm);
 }
 
-uint32_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm)
+void amdgpu_amdkfd_gpuvm_release_process_vm(struct kgd_dev *kgd, void *vm)
+{
+	struct amdgpu_device *adev = get_amdgpu_device(kgd);
+        struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
+
+	if (WARN_ON(!kgd || !vm))
+                return;
+
+        pr_debug("Releasing process vm %p\n", vm);
+
+        /* The original pasid of amdgpu vm has already been
+         * released during making a amdgpu vm to a compute vm
+         * The current pasid is managed by kfd and will be
+         * released on kfd process destroy. Set amdgpu pasid
+         * to 0 to avoid duplicate release.
+         */
+	amdgpu_vm_release_compute(adev, avm);
+}
+
+uint64_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm)
 {
 	struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
+	struct amdgpu_bo *pd = avm->root.base.bo;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(pd->tbo.bdev);
 
-	return avm->pd_phys_addr >> AMDGPU_GPU_PAGE_SHIFT;
+	if (adev->asic_type < CHIP_VEGA10)
+		return avm->pd_phys_addr >> AMDGPU_GPU_PAGE_SHIFT;
+	return avm->pd_phys_addr;
 }
 
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(

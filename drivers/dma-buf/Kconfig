@@ -30,4 +30,13 @@ config SW_SYNC
 	  WARNING: improper use of this can result in deadlocking kernel
 	  drivers from userspace. Intended for test and debug only.
 
+config UDMABUF
+	bool "userspace dmabuf misc driver"
+	default n
+	depends on DMA_SHARED_BUFFER
+	depends on MEMFD_CREATE || COMPILE_TEST
+	help
+	  A driver to let userspace turn memfd regions into dma-bufs.
+	  Qemu can use this to create host dmabufs for guest framebuffers.
+
 endmenu

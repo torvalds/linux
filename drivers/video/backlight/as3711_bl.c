@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AS3711 PMIC backlight driver, using DCDC Step Up Converters
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  * Author: Guennadi Liakhovetski, <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License as
- * published by the Free Software Foundation
  */
 
 #include <linux/backlight.h>
@@ -488,5 +485,5 @@ module_platform_driver(as3711_backlight_driver);
 
 MODULE_DESCRIPTION("Backlight Driver for AS3711 PMICs");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:as3711-backlight");

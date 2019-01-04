@@ -262,7 +262,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 	while (list) {
 		skb = list;
 		list = skb->next;
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 	}
 

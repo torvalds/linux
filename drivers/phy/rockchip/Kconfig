@@ -15,6 +15,14 @@ config PHY_ROCKCHIP_EMMC
 	help
 	  Enable this to support the Rockchip EMMC PHY.
 
+config PHY_ROCKCHIP_INNO_HDMI
+	tristate "Rockchip INNO HDMI PHY Driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	depends on COMMON_CLK
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip Innosilicon HDMI PHY.
+
 config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF

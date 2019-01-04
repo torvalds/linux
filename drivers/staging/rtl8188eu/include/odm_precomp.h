@@ -22,14 +22,14 @@
 /* 2 OutSrc Header Files */
 
 #include "odm.h"
-#include "odm_HWConfig.h"
+#include "odm_hwconfig.h"
 #include "odm_debug.h"
 #include "../../rtlwifi/phydm/phydm_regdefine11n.h"
 
 #include "hal8188e_rate_adaptive.h" /* for RA,Power training */
 #include "rtl8188e_hal.h"
 
-#include "odm_reg.h"
+#include "../../rtlwifi/phydm/phydm_reg.h"
 
 #include "odm_rtl8188e.h"
 

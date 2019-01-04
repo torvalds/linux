@@ -70,24 +70,13 @@ static void ir_imon_decode_scancode(struct rc_dev *dev)
 		}
 
 		if (!imon->stick_keyboard) {
-			struct lirc_scancode lsc = {
-				.scancode = imon->bits,
-				.rc_proto = RC_PROTO_IMON,
-			};
+			input_report_rel(dev->input_dev, REL_X, rel_x);
+			input_report_rel(dev->input_dev, REL_Y, rel_y);
 
-			ir_lirc_scancode_event(dev, &lsc);
-
-			input_event(imon->idev, EV_MSC, MSC_SCAN, imon->bits);
-
-			input_report_rel(imon->idev, REL_X, rel_x);
-			input_report_rel(imon->idev, REL_Y, rel_y);
-
-			input_report_key(imon->idev, BTN_LEFT,
+			input_report_key(dev->input_dev, BTN_LEFT,
 					 (imon->bits & 0x00010000) != 0);
-			input_report_key(imon->idev, BTN_RIGHT,
+			input_report_key(dev->input_dev, BTN_RIGHT,
 					 (imon->bits & 0x00040000) != 0);
-			input_sync(imon->idev);
-			return;
 		}
 	}
 
@@ -243,51 +232,9 @@ static int ir_imon_encode(enum rc_proto protocol, u32 scancode,
 
 static int ir_imon_register(struct rc_dev *dev)
 {
-	struct input_dev *idev;
 	struct imon_dec *imon = &dev->raw->imon;
-	int ret;
 
-	idev = input_allocate_device();
-	if (!idev)
-		return -ENOMEM;
-
-	snprintf(imon->name, sizeof(imon->name),
-		 "iMON PAD Stick (%s)", dev->device_name);
-	idev->name = imon->name;
-	idev->phys = dev->input_phys;
-
-	/* Mouse bits */
-	set_bit(EV_REL, idev->evbit);
-	set_bit(EV_KEY, idev->evbit);
-	set_bit(REL_X, idev->relbit);
-	set_bit(REL_Y, idev->relbit);
-	set_bit(BTN_LEFT, idev->keybit);
-	set_bit(BTN_RIGHT, idev->keybit);
-
-	/* Report scancodes too */
-	set_bit(EV_MSC, idev->evbit);
-	set_bit(MSC_SCAN, idev->mscbit);
-
-	input_set_drvdata(idev, imon);
-
-	ret = input_register_device(idev);
-	if (ret < 0) {
-		input_free_device(idev);
-		return -EIO;
-	}
-
-	imon->idev = idev;
 	imon->stick_keyboard = false;
-
-	return 0;
-}
-
-static int ir_imon_unregister(struct rc_dev *dev)
-{
-	struct imon_dec *imon = &dev->raw->imon;
-
-	input_unregister_device(imon->idev);
-	imon->idev = NULL;
 
 	return 0;
 }
@@ -298,7 +245,6 @@ static struct ir_raw_handler imon_handler = {
 	.encode		= ir_imon_encode,
 	.carrier	= 38000,
 	.raw_register	= ir_imon_register,
-	.raw_unregister	= ir_imon_unregister,
 	.min_timeout	= IMON_UNIT * IMON_BITS * 2,
 };
 

@@ -593,8 +593,7 @@ static void cpc925_mc_check(struct mem_ctl_info *mci)
 /******************** CPU err device********************************/
 static u32 cpc925_cpu_mask_disabled(void)
 {
-	struct device_node *cpus;
-	struct device_node *cpunode = NULL;
+	struct device_node *cpunode;
 	static u32 mask = 0;
 
 	/* use cached value if available */
@@ -603,20 +602,8 @@ static u32 cpc925_cpu_mask_disabled(void)
 
 	mask = APIMASK_ADI0 | APIMASK_ADI1;
 
-	cpus = of_find_node_by_path("/cpus");
-	if (cpus == NULL) {
-		cpc925_printk(KERN_DEBUG, "No /cpus node !\n");
-		return 0;
-	}
-
-	while ((cpunode = of_get_next_child(cpus, cpunode)) != NULL) {
+	for_each_of_cpu_node(cpunode) {
 		const u32 *reg = of_get_property(cpunode, "reg", NULL);
-
-		if (strcmp(cpunode->type, "cpu")) {
-			cpc925_printk(KERN_ERR, "Not a cpu node in /cpus: %s\n", cpunode->name);
-			continue;
-		}
-
 		if (reg == NULL || *reg > 2) {
 			cpc925_printk(KERN_ERR, "Bad reg value at %pOF\n", cpunode);
 			continue;
@@ -632,9 +619,6 @@ static u32 cpc925_cpu_mask_disabled(void)
 		cpc925_printk(KERN_WARNING,
 				"Assuming PI id is equal to CPU MPIC id!\n");
 	}
-
-	of_node_put(cpunode);
-	of_node_put(cpus);
 
 	return mask;
 }

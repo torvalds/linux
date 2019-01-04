@@ -66,13 +66,6 @@ struct dpu_hw_lm_ops {
 	 */
 	void (*setup_gc)(struct dpu_hw_mixer *mixer,
 			void *cfg);
-
-	/* setup_misr: enables/disables MISR in HW register */
-	void (*setup_misr)(struct dpu_hw_mixer *ctx,
-			bool enable, u32 frame_count);
-
-	/* collect_misr: reads and stores MISR data from HW register */
-	u32 (*collect_misr)(struct dpu_hw_mixer *ctx);
 };
 
 struct dpu_hw_mixer {

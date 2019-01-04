@@ -131,6 +131,13 @@ static inline void *memset_p(void **p, void *v, __kernel_size_t n)
 		return memset64((uint64_t *)p, (uintptr_t)v, n);
 }
 
+extern void **__memcat_p(void **a, void **b);
+#define memcat_p(a, b) ({					\
+	BUILD_BUG_ON_MSG(!__same_type(*(a), *(b)),		\
+			 "type mismatch in memcat_p()");	\
+	(typeof(*a) *)__memcat_p((void **)(a), (void **)(b));	\
+})
+
 #ifndef __HAVE_ARCH_MEMCPY
 extern void * memcpy(void *,const void *,__kernel_size_t);
 #endif

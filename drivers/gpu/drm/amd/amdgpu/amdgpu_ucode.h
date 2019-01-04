@@ -157,6 +157,13 @@ struct gpu_info_firmware_header_v1_0 {
 	uint16_t version_minor; /* version */
 };
 
+/* version_major=1, version_minor=0 */
+struct dmcu_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t intv_offset_bytes; /* interrupt vectors offset from end of header, in bytes */
+	uint32_t intv_size_bytes;  /* size of interrupt vectors, in bytes */
+};
+
 /* header is fixed size */
 union amdgpu_firmware_header {
 	struct common_firmware_header common;
@@ -170,6 +177,7 @@ union amdgpu_firmware_header {
 	struct sdma_firmware_header_v1_0 sdma;
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
+	struct dmcu_firmware_header_v1_0 dmcu;
 	uint8_t raw[0x100];
 };
 
@@ -193,8 +201,11 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_STORAGE,
 	AMDGPU_UCODE_ID_SMC,
 	AMDGPU_UCODE_ID_UVD,
+	AMDGPU_UCODE_ID_UVD1,
 	AMDGPU_UCODE_ID_VCE,
 	AMDGPU_UCODE_ID_VCN,
+	AMDGPU_UCODE_ID_DMCU_ERAM,
+	AMDGPU_UCODE_ID_DMCU_INTV,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 
@@ -203,6 +214,12 @@ enum AMDGPU_UCODE_STATUS {
 	AMDGPU_UCODE_STATUS_INVALID,
 	AMDGPU_UCODE_STATUS_NOT_LOADED,
 	AMDGPU_UCODE_STATUS_LOADED,
+};
+
+enum amdgpu_firmware_load_type {
+	AMDGPU_FW_LOAD_DIRECT = 0,
+	AMDGPU_FW_LOAD_SMU,
+	AMDGPU_FW_LOAD_PSP,
 };
 
 /* conform to smu_ucode_xfer_cz.h */
@@ -232,6 +249,24 @@ struct amdgpu_firmware_info {
 	uint32_t tmr_mc_addr_hi;
 };
 
+struct amdgpu_firmware {
+	struct amdgpu_firmware_info ucode[AMDGPU_UCODE_ID_MAXIMUM];
+	enum amdgpu_firmware_load_type load_type;
+	struct amdgpu_bo *fw_buf;
+	unsigned int fw_size;
+	unsigned int max_ucodes;
+	/* firmwares are loaded by psp instead of smu from vega10 */
+	const struct amdgpu_psp_funcs *funcs;
+	struct amdgpu_bo *rbuf;
+	struct mutex mutex;
+
+	/* gpu info firmware data pointer */
+	const struct firmware *gpu_info_fw;
+
+	void *fw_buf_ptr;
+	uint64_t fw_buf_mc;
+};
+
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_gfx_hdr(const struct common_firmware_header *hdr);
@@ -241,8 +276,10 @@ void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr);
 int amdgpu_ucode_validate(const struct firmware *fw);
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 				uint16_t hdr_major, uint16_t hdr_minor);
+
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev);
-int amdgpu_ucode_fini_bo(struct amdgpu_device *adev);
+int amdgpu_ucode_create_bo(struct amdgpu_device *adev);
+void amdgpu_ucode_free_bo(struct amdgpu_device *adev);
 
 enum amdgpu_firmware_load_type
 amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type);

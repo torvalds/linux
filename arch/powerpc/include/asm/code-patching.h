@@ -36,6 +36,11 @@ int raw_patch_instruction(unsigned int *addr, unsigned int instr);
 int patch_instruction_site(s32 *addr, unsigned int instr);
 int patch_branch_site(s32 *site, unsigned long target, int flags);
 
+static inline unsigned long patch_site_addr(s32 *site)
+{
+	return (unsigned long)site + *site;
+}
+
 int instr_is_relative_branch(unsigned int instr);
 int instr_is_relative_link_branch(unsigned int instr);
 int instr_is_branch_to_addr(const unsigned int *instr, unsigned long addr);

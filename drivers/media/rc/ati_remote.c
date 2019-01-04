@@ -862,7 +862,7 @@ static int ati_remote_probe(struct usb_interface *interface,
 	ati_remote->interface = interface;
 
 	usb_make_path(udev, ati_remote->rc_phys, sizeof(ati_remote->rc_phys));
-	strlcpy(ati_remote->mouse_phys, ati_remote->rc_phys,
+	strscpy(ati_remote->mouse_phys, ati_remote->rc_phys,
 		sizeof(ati_remote->mouse_phys));
 
 	strlcat(ati_remote->rc_phys, "/input0", sizeof(ati_remote->rc_phys));

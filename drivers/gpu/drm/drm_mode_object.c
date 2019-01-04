@@ -381,7 +381,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	drm_modeset_lock_all(dev);
 
@@ -504,7 +504,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	arg_obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!arg_obj)

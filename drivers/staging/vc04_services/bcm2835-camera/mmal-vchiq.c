@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/vmalloc.h>
-#include <asm/cacheflush.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include "mmal-common.h"
@@ -1803,19 +1802,12 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 {
 	int status;
 	struct vchiq_mmal_instance *instance;
-	static VCHI_CONNECTION_T *vchi_connection;
 	static VCHI_INSTANCE_T vchi_instance;
 	SERVICE_CREATION_T params = {
 		.version		= VCHI_VERSION_EX(VC_MMAL_VER, VC_MMAL_MIN_VER),
 		.service_id		= VC_MMAL_SERVER_NAME,
-		.connection		= vchi_connection,
-		.rx_fifo_size		= 0,
-		.tx_fifo_size		= 0,
 		.callback		= service_callback,
 		.callback_param		= NULL,
-		.want_unaligned_bulk_rx = 1,
-		.want_unaligned_bulk_tx = 1,
-		.want_crc		= 0
 	};
 
 	/* compile time checks to ensure structure size as they are
@@ -1839,7 +1831,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		return -EIO;
 	}
 
-	status = vchi_connect(NULL, 0, vchi_instance);
+	status = vchi_connect(vchi_instance);
 	if (status) {
 		pr_err("Failed to connect VCHI instance (status=%d)\n", status);
 		return -EIO;

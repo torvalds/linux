@@ -151,9 +151,13 @@ struct shash_desc {
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
+#define HASH_MAX_DIGESTSIZE	 64
+#define HASH_MAX_DESCSIZE	360
+#define HASH_MAX_STATESIZE	512
+
 #define SHASH_DESC_ON_STACK(shash, ctx)				  \
 	char __##shash##_desc[sizeof(struct shash_desc) +	  \
-		crypto_shash_descsize(ctx)] CRYPTO_MINALIGN_ATTR; \
+		HASH_MAX_DESCSIZE] CRYPTO_MINALIGN_ATTR; \
 	struct shash_desc *shash = (struct shash_desc *)__##shash##_desc
 
 /**
@@ -408,6 +412,32 @@ static inline void *ahash_request_ctx(struct ahash_request *req)
 int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 			unsigned int keylen);
 
+static inline void crypto_stat_ahash_update(struct ahash_request *req, int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
+		atomic_inc(&tfm->base.__crt_alg->hash_err_cnt);
+	else
+		atomic64_add(req->nbytes, &tfm->base.__crt_alg->hash_tlen);
+#endif
+}
+
+static inline void crypto_stat_ahash_final(struct ahash_request *req, int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
+		atomic_inc(&tfm->base.__crt_alg->hash_err_cnt);
+	} else {
+		atomic_inc(&tfm->base.__crt_alg->hash_cnt);
+		atomic64_add(req->nbytes, &tfm->base.__crt_alg->hash_tlen);
+	}
+#endif
+}
+
 /**
  * crypto_ahash_finup() - update and finalize message digest
  * @req: reference to the ahash_request handle that holds all information
@@ -522,7 +552,11 @@ static inline int crypto_ahash_init(struct ahash_request *req)
  */
 static inline int crypto_ahash_update(struct ahash_request *req)
 {
-	return crypto_ahash_reqtfm(req)->update(req);
+	int ret;
+
+	ret = crypto_ahash_reqtfm(req)->update(req);
+	crypto_stat_ahash_update(req, ret);
+	return ret;
 }
 
 /**

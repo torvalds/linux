@@ -39,9 +39,6 @@ static const struct mlx5_ib_profile rep_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_POST_IB_REG_UMR,
 		     mlx5_ib_stage_post_ib_reg_umr_init,
 		     NULL),
-	STAGE_CREATE(MLX5_IB_STAGE_CLASS_ATTR,
-		     mlx5_ib_stage_class_attr_init,
-		     NULL),
 };
 
 static int

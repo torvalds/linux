@@ -393,7 +393,7 @@ static void handle_atomics(struct mlx5_ib_qp *qp, struct mlx5_cqe64 *cqe64,
 
 static void free_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf)
 {
-	mlx5_frag_buf_free(dev->mdev, &buf->fbc.frag_buf);
+	mlx5_frag_buf_free(dev->mdev, &buf->frag_buf);
 }
 
 static void get_sig_err_item(struct mlx5_sig_err_cqe *cqe,
@@ -728,15 +728,10 @@ static int alloc_cq_frag_buf(struct mlx5_ib_dev *dev,
 			     int nent,
 			     int cqe_size)
 {
-	struct mlx5_frag_buf_ctrl *c = &buf->fbc;
-	struct mlx5_frag_buf *frag_buf = &c->frag_buf;
-	u32 cqc_buff[MLX5_ST_SZ_DW(cqc)] = {0};
+	struct mlx5_frag_buf *frag_buf = &buf->frag_buf;
+	u8 log_wq_stride = 6 + (cqe_size == 128 ? 1 : 0);
+	u8 log_wq_sz     = ilog2(cqe_size);
 	int err;
-
-	MLX5_SET(cqc, cqc_buff, log_cq_size, ilog2(cqe_size));
-	MLX5_SET(cqc, cqc_buff, cqe_sz, (cqe_size == 128) ? 1 : 0);
-
-	mlx5_core_init_cq_frag_buf(&buf->fbc, cqc_buff);
 
 	err = mlx5_frag_buf_alloc_node(dev->mdev,
 				       nent * cqe_size,
@@ -744,6 +739,8 @@ static int alloc_cq_frag_buf(struct mlx5_ib_dev *dev,
 				       dev->mdev->priv.numa_node);
 	if (err)
 		return err;
+
+	mlx5_init_fbc(frag_buf->frags, log_wq_stride, log_wq_sz, &buf->fbc);
 
 	buf->cqe_size = cqe_size;
 	buf->nent = nent;
@@ -877,6 +874,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		cq->private_flags |= MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD;
 	}
 
+	MLX5_SET(create_cq_in, *cqb, uid, to_mucontext(context)->devx_uid);
 	return 0;
 
 err_cqb:
@@ -934,7 +932,7 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 
 	*inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
 		 MLX5_FLD_SZ_BYTES(create_cq_in, pas[0]) *
-		 cq->buf.fbc.frag_buf.npages;
+		 cq->buf.frag_buf.npages;
 	*cqb = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*cqb) {
 		err = -ENOMEM;
@@ -942,11 +940,11 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	}
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, *cqb, pas);
-	mlx5_fill_page_frag_array(&cq->buf.fbc.frag_buf, pas);
+	mlx5_fill_page_frag_array(&cq->buf.frag_buf, pas);
 
 	cqc = MLX5_ADDR_OF(create_cq_in, *cqb, cq_context);
 	MLX5_SET(cqc, cqc, log_page_size,
-		 cq->buf.fbc.frag_buf.page_shift -
+		 cq->buf.frag_buf.page_shift -
 		 MLX5_ADAPTER_PAGE_SHIFT);
 
 	*index = dev->mdev->priv.uar->index;
@@ -1365,11 +1363,10 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		cqe_size = 64;
 		err = resize_kernel(dev, cq, entries, cqe_size);
 		if (!err) {
-			struct mlx5_frag_buf_ctrl *c;
+			struct mlx5_frag_buf *frag_buf = &cq->resize_buf->frag_buf;
 
-			c = &cq->resize_buf->fbc;
-			npas = c->frag_buf.npages;
-			page_shift = c->frag_buf.page_shift;
+			npas = frag_buf->npages;
+			page_shift = frag_buf->page_shift;
 		}
 	}
 
@@ -1390,8 +1387,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		mlx5_ib_populate_pas(dev, cq->resize_umem, page_shift,
 				     pas, 0);
 	else
-		mlx5_fill_page_frag_array(&cq->resize_buf->fbc.frag_buf,
-					  pas);
+		mlx5_fill_page_frag_array(&cq->resize_buf->frag_buf, pas);
 
 	MLX5_SET(modify_cq_in, in,
 		 modify_field_select_resize_field_select.resize_field_select.resize_field_select,
@@ -1459,7 +1455,7 @@ ex:
 	return err;
 }
 
-int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq)
+int mlx5_ib_get_cqe_size(struct ib_cq *ibcq)
 {
 	struct mlx5_ib_cq *cq;
 

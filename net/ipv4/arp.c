@@ -1255,6 +1255,8 @@ static int arp_netdev_event(struct notifier_block *this, unsigned long event,
 		change_info = ptr;
 		if (change_info->flags_changed & IFF_NOARP)
 			neigh_changeaddr(&arp_tbl, dev);
+		if (!netif_carrier_ok(dev))
+			neigh_carrier_down(&arp_tbl, dev);
 		break;
 	default:
 		break;

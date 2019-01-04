@@ -556,6 +556,11 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 	}
 
 	ieee80211_led_tx(local);
+
+	if (skb_has_frag_list(skb)) {
+		kfree_skb_list(skb_shinfo(skb)->frag_list);
+		skb_shinfo(skb)->frag_list = NULL;
+	}
 }
 
 /*
@@ -964,6 +969,8 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			/* Track when last TDLS packet was ACKed */
 			if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
 				sta->status_stats.last_tdls_pkt_time = jiffies;
+		} else if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
+			return;
 		} else {
 			ieee80211_lost_packet(sta, info);
 		}
@@ -986,6 +993,25 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	}
 }
 EXPORT_SYMBOL(ieee80211_tx_status_ext);
+
+void ieee80211_tx_rate_update(struct ieee80211_hw *hw,
+			      struct ieee80211_sta *pubsta,
+			      struct ieee80211_tx_info *info)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_supported_band *sband = hw->wiphy->bands[info->band];
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	struct ieee80211_tx_status status = {
+		.info = info,
+		.sta = pubsta,
+	};
+
+	rate_control_tx_status(local, sband, &status);
+
+	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))
+		sta->tx_stats.last_rate = info->status.rates[0];
+}
+EXPORT_SYMBOL(ieee80211_tx_rate_update);
 
 void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
 {

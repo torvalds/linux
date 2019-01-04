@@ -438,11 +438,11 @@ static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 }
 
 static void *persistent_ram_iomap(phys_addr_t start, size_t size,
-		unsigned int memtype)
+		unsigned int memtype, char *label)
 {
 	void *va;
 
-	if (!request_mem_region(start, size, "persistent_ram")) {
+	if (!request_mem_region(start, size, label ?: "ramoops")) {
 		pr_err("request mem region (0x%llx@0x%llx) failed\n",
 			(unsigned long long)size, (unsigned long long)start);
 		return NULL;
@@ -470,7 +470,8 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 	if (pfn_valid(start >> PAGE_SHIFT))
 		prz->vaddr = persistent_ram_vmap(start, size, memtype);
 	else
-		prz->vaddr = persistent_ram_iomap(start, size, memtype);
+		prz->vaddr = persistent_ram_iomap(start, size, memtype,
+						  prz->label);
 
 	if (!prz->vaddr) {
 		pr_err("%s: Failed to map 0x%llx pages at 0x%llx\n", __func__,
@@ -541,12 +542,13 @@ void persistent_ram_free(struct persistent_ram_zone *prz)
 	prz->ecc_info.par = NULL;
 
 	persistent_ram_free_old(prz);
+	kfree(prz->label);
 	kfree(prz);
 }
 
 struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 			u32 sig, struct persistent_ram_ecc_info *ecc_info,
-			unsigned int memtype, u32 flags)
+			unsigned int memtype, u32 flags, char *label)
 {
 	struct persistent_ram_zone *prz;
 	int ret = -ENOMEM;
@@ -560,6 +562,7 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	/* Initialize general buffer state. */
 	raw_spin_lock_init(&prz->buffer_lock);
 	prz->flags = flags;
+	prz->label = label;
 
 	ret = persistent_ram_buffer_map(start, size, prz, memtype);
 	if (ret)

@@ -209,7 +209,7 @@
 				status = "disabled";
 			};
 
-			cspi1: cspi@1000e000 {
+			cspi1: spi@1000e000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx27-cspi";
@@ -221,7 +221,7 @@
 				status = "disabled";
 			};
 
-			cspi2: cspi@1000f000 {
+			cspi2: spi@1000f000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx27-cspi";
@@ -373,7 +373,7 @@
 				status = "disabled";
 			};
 
-			cspi3: cspi@10017000 {
+			cspi3: spi@10017000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx27-cspi";

@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>

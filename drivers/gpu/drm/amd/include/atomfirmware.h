@@ -179,7 +179,7 @@ enum atom_voltage_type
 
 enum atom_dgpu_vram_type{
   ATOM_DGPU_VRAM_TYPE_GDDR5 = 0x50,
-  ATOM_DGPU_VRAM_TYPE_HBM   = 0x60,
+  ATOM_DGPU_VRAM_TYPE_HBM2  = 0x60,
 };
 
 enum atom_dp_vs_preemph_def{
@@ -1325,7 +1325,7 @@ struct atom_smu_info_v3_3 {
   struct   atom_common_table_header  table_header;
   uint8_t  smuip_min_ver;
   uint8_t  smuip_max_ver;
-  uint8_t  smu_rsd1;
+  uint8_t  waflclk_ss_mode;
   uint8_t  gpuclk_ss_mode;
   uint16_t sclk_ss_percentage;
   uint16_t sclk_ss_rate_10hz;
@@ -1355,7 +1355,10 @@ struct atom_smu_info_v3_3 {
   uint32_t syspll3_1_vco_freq_10khz;
   uint32_t bootup_fclk_10khz;
   uint32_t bootup_waflclk_10khz;
-  uint32_t reserved[3];
+  uint32_t smu_info_caps;
+  uint16_t waflclk_ss_percentage;    // in unit of 0.001%
+  uint16_t smuinitoffset;
+  uint32_t reserved;
 };
 
 /*
@@ -1444,6 +1447,180 @@ struct atom_smc_dpm_info_v4_1
 	uint8_t padding_vr2[3];
 
 	uint32_t boardreserved[9];
+};
+
+/*
+ ***************************************************************************
+   Data Table smc_dpm_info  structure
+ ***************************************************************************
+ */
+struct atom_smc_dpm_info_v4_3
+{
+  struct   atom_common_table_header  table_header;
+  uint8_t  liquid1_i2c_address;
+  uint8_t  liquid2_i2c_address;
+  uint8_t  vr_i2c_address;
+  uint8_t  plx_i2c_address;
+
+  uint8_t  liquid_i2c_linescl;
+  uint8_t  liquid_i2c_linesda;
+  uint8_t  vr_i2c_linescl;
+  uint8_t  vr_i2c_linesda;
+
+  uint8_t  plx_i2c_linescl;
+  uint8_t  plx_i2c_linesda;
+  uint8_t  vrsensorpresent;
+  uint8_t  liquidsensorpresent;
+
+  uint16_t maxvoltagestepgfx;
+  uint16_t maxvoltagestepsoc;
+
+  uint8_t  vddgfxvrmapping;
+  uint8_t  vddsocvrmapping;
+  uint8_t  vddmem0vrmapping;
+  uint8_t  vddmem1vrmapping;
+
+  uint8_t  gfxulvphasesheddingmask;
+  uint8_t  soculvphasesheddingmask;
+  uint8_t  externalsensorpresent;
+  uint8_t  padding8_v;
+
+  uint16_t gfxmaxcurrent;
+  uint8_t  gfxoffset;
+  uint8_t  padding_telemetrygfx;
+
+  uint16_t socmaxcurrent;
+  uint8_t  socoffset;
+  uint8_t  padding_telemetrysoc;
+
+  uint16_t mem0maxcurrent;
+  uint8_t  mem0offset;
+  uint8_t  padding_telemetrymem0;
+
+  uint16_t mem1maxcurrent;
+  uint8_t  mem1offset;
+  uint8_t  padding_telemetrymem1;
+
+  uint8_t  acdcgpio;
+  uint8_t  acdcpolarity;
+  uint8_t  vr0hotgpio;
+  uint8_t  vr0hotpolarity;
+
+  uint8_t  vr1hotgpio;
+  uint8_t  vr1hotpolarity;
+  uint8_t  padding1;
+  uint8_t  padding2;
+
+  uint8_t  ledpin0;
+  uint8_t  ledpin1;
+  uint8_t  ledpin2;
+  uint8_t  padding8_4;
+
+  uint8_t  pllgfxclkspreadenabled;
+  uint8_t  pllgfxclkspreadpercent;
+  uint16_t pllgfxclkspreadfreq;
+
+  uint8_t uclkspreadenabled;
+  uint8_t uclkspreadpercent;
+  uint16_t uclkspreadfreq;
+
+  uint8_t fclkspreadenabled;
+  uint8_t fclkspreadpercent;
+  uint16_t fclkspreadfreq;
+
+  uint8_t fllgfxclkspreadenabled;
+  uint8_t fllgfxclkspreadpercent;
+  uint16_t fllgfxclkspreadfreq;
+
+  uint32_t boardreserved[10];
+};
+
+struct smudpm_i2ccontrollerconfig_t {
+  uint32_t  enabled;
+  uint32_t  slaveaddress;
+  uint32_t  controllerport;
+  uint32_t  controllername;
+  uint32_t  thermalthrottler;
+  uint32_t  i2cprotocol;
+  uint32_t  i2cspeed;
+};
+
+struct atom_smc_dpm_info_v4_4
+{
+  struct   atom_common_table_header  table_header;
+  uint32_t  i2c_padding[3];
+
+  uint16_t maxvoltagestepgfx;
+  uint16_t maxvoltagestepsoc;
+
+  uint8_t  vddgfxvrmapping;
+  uint8_t  vddsocvrmapping;
+  uint8_t  vddmem0vrmapping;
+  uint8_t  vddmem1vrmapping;
+
+  uint8_t  gfxulvphasesheddingmask;
+  uint8_t  soculvphasesheddingmask;
+  uint8_t  externalsensorpresent;
+  uint8_t  padding8_v;
+
+  uint16_t gfxmaxcurrent;
+  uint8_t  gfxoffset;
+  uint8_t  padding_telemetrygfx;
+
+  uint16_t socmaxcurrent;
+  uint8_t  socoffset;
+  uint8_t  padding_telemetrysoc;
+
+  uint16_t mem0maxcurrent;
+  uint8_t  mem0offset;
+  uint8_t  padding_telemetrymem0;
+
+  uint16_t mem1maxcurrent;
+  uint8_t  mem1offset;
+  uint8_t  padding_telemetrymem1;
+
+
+  uint8_t  acdcgpio;
+  uint8_t  acdcpolarity;
+  uint8_t  vr0hotgpio;
+  uint8_t  vr0hotpolarity;
+
+  uint8_t  vr1hotgpio;
+  uint8_t  vr1hotpolarity;
+  uint8_t  padding1;
+  uint8_t  padding2;
+
+
+  uint8_t  ledpin0;
+  uint8_t  ledpin1;
+  uint8_t  ledpin2;
+  uint8_t  padding8_4;
+
+
+  uint8_t  pllgfxclkspreadenabled;
+  uint8_t  pllgfxclkspreadpercent;
+  uint16_t pllgfxclkspreadfreq;
+
+
+  uint8_t  uclkspreadenabled;
+  uint8_t  uclkspreadpercent;
+  uint16_t uclkspreadfreq;
+
+
+  uint8_t  fclkspreadenabled;
+  uint8_t  fclkspreadpercent;
+  uint16_t fclkspreadfreq;
+
+
+  uint8_t  fllgfxclkspreadenabled;
+  uint8_t  fllgfxclkspreadpercent;
+  uint16_t fllgfxclkspreadfreq;
+
+
+  struct smudpm_i2ccontrollerconfig_t  i2ccontrollers[7];
+
+
+  uint32_t boardreserved[10];
 };
 
 /* 
@@ -1613,10 +1790,10 @@ struct atom_vram_module_v9
 {
   // Design Specific Values
   uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
-  uint32_t  channel_enable;                // for 32 channel ASIC usage
-  uint32_t  umcch_addrcfg;
-  uint32_t  umcch_addrsel;
-  uint32_t  umcch_colsel;
+  uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
+  uint32_t  max_mem_clk;                   // max memory clock of this memory in unit of 10kHz, =0 means it is not defined
+  uint16_t  reserved[3];
+  uint16_t  mem_voltage;                   // mem_voltage
   uint16_t  vram_module_size;              // Size of atom_vram_module_v9
   uint8_t   ext_memory_id;                 // Current memory module ID
   uint8_t   memory_type;                   // enum of atom_dgpu_vram_type
@@ -1626,20 +1803,22 @@ struct atom_vram_module_v9
   uint8_t   tunningset_id;                 // MC phy registers set per. 
   uint8_t   vender_rev_id;                 // [7:4] Revision, [3:0] Vendor code
   uint8_t   refreshrate;                   // [1:0]=RefreshFactor (00=8ms, 01=16ms, 10=32ms,11=64ms)
-  uint16_t  vram_rsd2;                     // reserved
+  uint8_t   hbm_ven_rev_id;				   // hbm_ven_rev_id
+  uint8_t   vram_rsd2;					   // reserved
   char    dram_pnstring[20];               // part number end with '0'. 
 };
 
-
 struct atom_vram_info_header_v2_3
 {
-  struct   atom_common_table_header  table_header;
+  struct   atom_common_table_header table_header;
   uint16_t mem_adjust_tbloffset;                         // offset of atom_umc_init_reg_block structure for memory vendor specific UMC adjust setting
   uint16_t mem_clk_patch_tbloffset;                      // offset of atom_umc_init_reg_block structure for memory clock specific UMC setting
   uint16_t mc_adjust_pertile_tbloffset;                  // offset of atom_umc_init_reg_block structure for Per Byte Offset Preset Settings
   uint16_t mc_phyinit_tbloffset;                         // offset of atom_umc_init_reg_block structure for MC phy init set
   uint16_t dram_data_remap_tbloffset;                    // reserved for now
-  uint16_t vram_rsd2[3];
+  uint16_t tmrs_seq_offset;                              // offset of HBM tmrs
+  uint16_t post_ucode_init_offset;                       // offset of atom_umc_init_reg_block structure for MC phy init after MC uCode complete umc init
+  uint16_t vram_rsd2;
   uint8_t  vram_module_num;                              // indicate number of VRAM module
   uint8_t  vram_rsd1[2];
   uint8_t  mc_phy_tile_num;                              // indicate the MCD tile number which use in DramDataRemapTbl and usMcAdjustPerTileTblOffset

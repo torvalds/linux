@@ -13,3 +13,7 @@
 	model = "iWave Systems RainboW-G20D-Qseven board based on RZ/G1M";
 	compatible = "iwave,g20d", "iwave,g20m", "renesas,r8a7743";
 };
+
+&pciec {
+	status = "okay";
+};

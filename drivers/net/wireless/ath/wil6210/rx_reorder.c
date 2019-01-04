@@ -382,11 +382,13 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	}
 
 	/* apply */
-	r = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
-	spin_lock_bh(&sta->tid_rx_lock);
-	wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
-	sta->tid_rx[tid] = r;
-	spin_unlock_bh(&sta->tid_rx_lock);
+	if (!wil->use_rx_hw_reordering) {
+		r = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
+		spin_lock_bh(&sta->tid_rx_lock);
+		wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
+		sta->tid_rx[tid] = r;
+		spin_unlock_bh(&sta->tid_rx_lock);
+	}
 
 out:
 	return rc;

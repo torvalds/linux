@@ -2645,7 +2645,7 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 		 */
 		if (pd->refcnt == 1)
 			pkt_lock_door(pd, 0);
-		/* fallthru */
+		/* fall through */
 	/*
 	 * forward selected CDROM ioctls to CD-ROM, for UDF
 	 */

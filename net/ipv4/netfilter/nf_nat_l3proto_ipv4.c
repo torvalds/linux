@@ -264,7 +264,6 @@ nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
 
 	return nf_nat_inet_fn(priv, skb, state);
 }
-EXPORT_SYMBOL_GPL(nf_nat_ipv4_fn);
 
 static unsigned int
 nf_nat_ipv4_in(void *priv, struct sk_buff *skb,

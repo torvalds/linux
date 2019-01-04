@@ -33,12 +33,6 @@
 struct task_struct;
 struct pt_regs;
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr()	({ __label__ _l; _l: &&_l; })
-
 /* CPU-specific state of a task */
 struct thread_struct {
 	/* Callee-saved registers */
@@ -88,7 +82,7 @@ static inline void wait_for_interrupt(void)
 }
 
 struct device_node;
-extern int riscv_of_processor_hart(struct device_node *node);
+int riscv_of_processor_hartid(struct device_node *node);
 
 extern void riscv_fill_hwcap(void);
 

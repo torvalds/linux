@@ -74,13 +74,13 @@ fail:
 	return error;
 }
 
-static void gfs2_print_trans(const struct gfs2_trans *tr)
+static void gfs2_print_trans(struct gfs2_sbd *sdp, const struct gfs2_trans *tr)
 {
-	pr_warn("Transaction created at: %pSR\n", (void *)tr->tr_ip);
-	pr_warn("blocks=%u revokes=%u reserved=%u touched=%u\n",
+	fs_warn(sdp, "Transaction created at: %pSR\n", (void *)tr->tr_ip);
+	fs_warn(sdp, "blocks=%u revokes=%u reserved=%u touched=%u\n",
 		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved,
 		test_bit(TR_TOUCHED, &tr->tr_flags));
-	pr_warn("Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
+	fs_warn(sdp, "Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
 		tr->tr_num_buf_new, tr->tr_num_buf_rm,
 		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
 		tr->tr_num_revoke, tr->tr_num_revoke_rm);
@@ -109,7 +109,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 
 	if (gfs2_assert_withdraw(sdp, (nbuf <= tr->tr_blocks) &&
 				       (tr->tr_num_revoke <= tr->tr_revokes)))
-		gfs2_print_trans(tr);
+		gfs2_print_trans(sdp, tr);
 
 	gfs2_log_commit(sdp, tr);
 	if (alloced && !test_bit(TR_ATTACHED, &tr->tr_flags))
@@ -225,12 +225,13 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
 	if (unlikely(mh->mh_magic != cpu_to_be32(GFS2_MAGIC))) {
-		pr_err("Attempting to add uninitialised block to journal (inplace block=%lld)\n",
+		fs_err(sdp, "Attempting to add uninitialised block to "
+		       "journal (inplace block=%lld)\n",
 		       (unsigned long long)bd->bd_bh->b_blocknr);
 		BUG();
 	}
 	if (unlikely(state == SFS_FROZEN)) {
-		printk(KERN_INFO "GFS2:adding buf while frozen\n");
+		fs_info(sdp, "GFS2:adding buf while frozen\n");
 		gfs2_assert_withdraw(sdp, 0);
 	}
 	gfs2_pin(sdp, bd->bd_bh);

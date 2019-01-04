@@ -1550,9 +1550,6 @@ static int net2280_pullup(struct usb_gadget *_gadget, int is_on)
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	if (!is_on && dev->driver)
-		dev->driver->disconnect(&dev->gadget);
-
 	return 0;
 }
 

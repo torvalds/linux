@@ -35,15 +35,6 @@
 #define PCI_IO_SIZE		SZ_16M
 
 /*
- * Log2 of the upper bound of the size of a struct page. Used for sizing
- * the vmemmap region only, does not affect actual memory footprint.
- * We don't use sizeof(struct page) directly since taking its size here
- * requires its definition to be available at this point in the inclusion
- * chain, and it may not be a power of 2 in the first place.
- */
-#define STRUCT_PAGE_MAX_SHIFT	6
-
-/*
  * VMEMMAP_SIZE - allows the whole linear region to be covered by
  *                a struct page array
  */

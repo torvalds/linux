@@ -65,6 +65,9 @@ __do_hyp_init:
 	b.lo	__kvm_handle_stub_hvc
 
 	phys_to_ttbr x4, x0
+alternative_if ARM64_HAS_CNP
+	orr	x4, x4, #TTBR_CNP_BIT
+alternative_else_nop_endif
 	msr	ttbr0_el2, x4
 
 	mrs	x4, tcr_el1

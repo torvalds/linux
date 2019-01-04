@@ -98,6 +98,33 @@ enum kgd_engine_type {
 	KGD_ENGINE_MAX
 };
 
+/**
+ * enum kfd_sched_policy
+ *
+ * @KFD_SCHED_POLICY_HWS: H/W scheduling policy known as command processor (cp)
+ * scheduling. In this scheduling mode we're using the firmware code to
+ * schedule the user mode queues and kernel queues such as HIQ and DIQ.
+ * the HIQ queue is used as a special queue that dispatches the configuration
+ * to the cp and the user mode queues list that are currently running.
+ * the DIQ queue is a debugging queue that dispatches debugging commands to the
+ * firmware.
+ * in this scheduling mode user mode queues over subscription feature is
+ * enabled.
+ *
+ * @KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION: The same as above but the over
+ * subscription feature disabled.
+ *
+ * @KFD_SCHED_POLICY_NO_HWS: no H/W scheduling policy is a mode which directly
+ * set the command processor registers and sets the queues "manually". This
+ * mode is used *ONLY* for debugging proposes.
+ *
+ */
+enum kfd_sched_policy {
+	KFD_SCHED_POLICY_HWS = 0,
+	KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION,
+	KFD_SCHED_POLICY_NO_HWS
+};
+
 struct kgd2kfd_shared_resources {
 	/* Bit n == 1 means VMID n is available for KFD. */
 	unsigned int compute_vmid_bitmap;
@@ -119,10 +146,10 @@ struct kgd2kfd_shared_resources {
 	 * is reserved: (D & reserved_doorbell_mask) == reserved_doorbell_val
 	 *
 	 * KFD currently uses 1024 (= 0x3ff) doorbells per process. If
-	 * doorbells 0x0f0-0x0f7 and 0x2f-0x2f7 are reserved, that means
-	 * mask would be set to 0x1f8 and val set to 0x0f0.
+	 * doorbells 0x0e0-0x0ff and 0x2e0-0x2ff are reserved, that means
+	 * mask would be set to 0x1e0 and val set to 0x0e0.
 	 */
-	unsigned int sdma_doorbell[2][2];
+	unsigned int sdma_doorbell[2][8];
 	unsigned int reserved_doorbell_mask;
 	unsigned int reserved_doorbell_val;
 
@@ -153,6 +180,7 @@ struct tile_config {
 	uint32_t num_ranks;
 };
 
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT 4096
 
 /*
  * Allocation flag domains
@@ -285,6 +313,8 @@ struct tile_config {
  * @set_compute_idle: Indicates that compute is idle on a device. This
  * can be used to change power profiles depending on compute activity.
  *
+ * @get_hive_id: Returns hive id of current  device,  0 if xgmi is not enabled
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -372,14 +402,16 @@ struct kfd2kgd_calls {
 			struct kfd_cu_info *cu_info);
 	uint64_t (*get_vram_usage)(struct kgd_dev *kgd);
 
-	int (*create_process_vm)(struct kgd_dev *kgd, void **vm,
+	int (*create_process_vm)(struct kgd_dev *kgd, unsigned int pasid, void **vm,
 			void **process_info, struct dma_fence **ef);
 	int (*acquire_process_vm)(struct kgd_dev *kgd, struct file *filp,
-			void **vm, void **process_info, struct dma_fence **ef);
+			unsigned int pasid, void **vm, void **process_info,
+			struct dma_fence **ef);
 	void (*destroy_process_vm)(struct kgd_dev *kgd, void *vm);
-	uint32_t (*get_process_page_dir)(void *vm);
+	void (*release_process_vm)(struct kgd_dev *kgd, void *vm);
+	uint64_t (*get_process_page_dir)(void *vm);
 	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,
-			uint32_t vmid, uint32_t page_table_base);
+			uint32_t vmid, uint64_t page_table_base);
 	int (*alloc_memory_of_gpu)(struct kgd_dev *kgd, uint64_t va,
 			uint64_t size, void *vm,
 			struct kgd_mem **mem, uint64_t *offset,
@@ -408,6 +440,9 @@ struct kfd2kgd_calls {
 	void (*gpu_recover)(struct kgd_dev *kgd);
 
 	void (*set_compute_idle)(struct kgd_dev *kgd, bool idle);
+
+	uint64_t (*get_hive_id)(struct kgd_dev *kgd);
+
 };
 
 /**

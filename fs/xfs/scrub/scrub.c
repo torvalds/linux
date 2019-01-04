@@ -412,19 +412,6 @@ xchk_validate_inputs(
 		goto out;
 	}
 
-	error = -EOPNOTSUPP;
-	/*
-	 * We won't scrub any filesystem that doesn't have the ability
-	 * to record unwritten extents.  The option was made default in
-	 * 2003, removed from mkfs in 2007, and cannot be disabled in
-	 * v5, so if we find a filesystem without this flag it's either
-	 * really old or totally unsupported.  Avoid it either way.
-	 * We also don't support v1-v3 filesystems, which aren't
-	 * mountable.
-	 */
-	if (!xfs_sb_version_hasextflgbit(&mp->m_sb))
-		goto out;
-
 	/*
 	 * We only want to repair read-write v5+ filesystems.  Defer the check
 	 * for ops->repair until after our scrub confirms that we need to

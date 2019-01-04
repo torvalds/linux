@@ -5,6 +5,7 @@
  * Copyright (C) 2007 Stefan Kopp, Gechingen, Germany
  * Copyright (C) 2008 Novell, Inc.
  * Copyright (C) 2008 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (C) 2018 IVI Foundation, Inc.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,20 +22,23 @@
 #include <linux/compat.h>
 #include <linux/usb/tmc.h>
 
+/* Increment API VERSION when changing tmc.h with new flags or ioctls
+ * or when changing a significant behavior of the driver.
+ */
+#define USBTMC_API_VERSION (2)
 
 #define USBTMC_HEADER_SIZE	12
 #define USBTMC_MINOR_BASE	176
-
-/*
- * Size of driver internal IO buffer. Must be multiple of 4 and at least as
- * large as wMaxPacketSize (which is usually 512 bytes).
- */
-#define USBTMC_SIZE_IOBUFFER	2048
 
 /* Minimum USB timeout (in milliseconds) */
 #define USBTMC_MIN_TIMEOUT	100
 /* Default USB timeout (in milliseconds) */
 #define USBTMC_TIMEOUT		5000
+
+/* Max number of urbs used in write transfers */
+#define MAX_URBS_IN_FLIGHT	16
+/* I/O buffer size used in generic read/write functions */
+#define USBTMC_BUFSIZE		(4096)
 
 /*
  * Maximum number of read cycles to empty bulk in endpoint during CLEAR and
@@ -79,6 +83,9 @@ struct usbtmc_device_data {
 	u8 bTag_last_write;	/* needed for abort */
 	u8 bTag_last_read;	/* needed for abort */
 
+	/* packet size of IN bulk */
+	u16            wMaxPacketSize;
+
 	/* data for interrupt in endpoint handling */
 	u8             bNotify1;
 	u8             bNotify2;
@@ -94,11 +101,6 @@ struct usbtmc_device_data {
 
 	/* coalesced usb488_caps from usbtmc_dev_capabilities */
 	__u8 usb488_caps;
-
-	/* attributes from the USB TMC spec for this device */
-	u8 TermChar;
-	bool TermCharEnabled;
-	bool auto_abort;
 
 	bool zombie; /* fd of disconnected device */
 
@@ -121,13 +123,34 @@ struct usbtmc_file_data {
 	u32            timeout;
 	u8             srq_byte;
 	atomic_t       srq_asserted;
+	atomic_t       closing;
+	u8             bmTransferAttributes; /* member of DEV_DEP_MSG_IN */
+
 	u8             eom_val;
 	u8             term_char;
 	bool           term_char_enabled;
+	bool           auto_abort;
+
+	spinlock_t     err_lock; /* lock for errors */
+
+	struct usb_anchor submitted;
+
+	/* data for generic_write */
+	struct semaphore limit_write_sem;
+	u32 out_transfer_size;
+	int out_status;
+
+	/* data for generic_read */
+	u32 in_transfer_size;
+	int in_status;
+	int in_urbs_used;
+	struct usb_anchor in_anchor;
+	wait_queue_head_t wait_bulk_in;
 };
 
 /* Forward declarations */
 static struct usb_driver usbtmc_driver;
+static void usbtmc_draw_down(struct usbtmc_file_data *file_data);
 
 static void usbtmc_delete(struct kref *kref)
 {
@@ -153,6 +176,12 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 	if (!file_data)
 		return -ENOMEM;
 
+	spin_lock_init(&file_data->err_lock);
+	sema_init(&file_data->limit_write_sem, MAX_URBS_IN_FLIGHT);
+	init_usb_anchor(&file_data->submitted);
+	init_usb_anchor(&file_data->in_anchor);
+	init_waitqueue_head(&file_data->wait_bulk_in);
+
 	data = usb_get_intfdata(intf);
 	/* Protect reference to data from file structure until release */
 	kref_get(&data->kref);
@@ -160,10 +189,12 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 	mutex_lock(&data->io_mutex);
 	file_data->data = data;
 
-	/* copy default values from device settings */
+	atomic_set(&file_data->closing, 0);
+
 	file_data->timeout = USBTMC_TIMEOUT;
-	file_data->term_char = data->TermChar;
-	file_data->term_char_enabled = data->TermCharEnabled;
+	file_data->term_char = '\n';
+	file_data->term_char_enabled = 0;
+	file_data->auto_abort = 0;
 	file_data->eom_val = 1;
 
 	INIT_LIST_HEAD(&file_data->file_elem);
@@ -174,6 +205,40 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 
 	/* Store pointer in file structure's private data field */
 	filp->private_data = file_data;
+
+	return 0;
+}
+
+/*
+ * usbtmc_flush - called before file handle is closed
+ */
+static int usbtmc_flush(struct file *file, fl_owner_t id)
+{
+	struct usbtmc_file_data *file_data;
+	struct usbtmc_device_data *data;
+
+	file_data = file->private_data;
+	if (file_data == NULL)
+		return -ENODEV;
+
+	atomic_set(&file_data->closing, 1);
+	data = file_data->data;
+
+	/* wait for io to stop */
+	mutex_lock(&data->io_mutex);
+
+	usbtmc_draw_down(file_data);
+
+	spin_lock_irq(&file_data->err_lock);
+	file_data->in_status = 0;
+	file_data->in_transfer_size = 0;
+	file_data->in_urbs_used = 0;
+	file_data->out_status = 0;
+	file_data->out_transfer_size = 0;
+	spin_unlock_irq(&file_data->err_lock);
+
+	wake_up_interruptible_all(&data->waitq);
+	mutex_unlock(&data->io_mutex);
 
 	return 0;
 }
@@ -197,18 +262,17 @@ static int usbtmc_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int usbtmc_ioctl_abort_bulk_in(struct usbtmc_device_data *data)
+static int usbtmc_ioctl_abort_bulk_in_tag(struct usbtmc_device_data *data,
+					  u8 tag)
 {
 	u8 *buffer;
 	struct device *dev;
 	int rv;
 	int n;
 	int actual;
-	struct usb_host_interface *current_setting;
-	int max_size;
 
 	dev = &data->intf->dev;
-	buffer = kmalloc(USBTMC_SIZE_IOBUFFER, GFP_KERNEL);
+	buffer = kmalloc(USBTMC_BUFSIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -216,18 +280,31 @@ static int usbtmc_ioctl_abort_bulk_in(struct usbtmc_device_data *data)
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_INITIATE_ABORT_BULK_IN,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
-			     data->bTag_last_read, data->bulk_in,
-			     buffer, 2, USBTMC_TIMEOUT);
+			     tag, data->bulk_in,
+			     buffer, 2, USB_CTRL_GET_TIMEOUT);
 
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto exit;
 	}
 
-	dev_dbg(dev, "INITIATE_ABORT_BULK_IN returned %x\n", buffer[0]);
+	dev_dbg(dev, "INITIATE_ABORT_BULK_IN returned %x with tag %02x\n",
+		buffer[0], buffer[1]);
 
 	if (buffer[0] == USBTMC_STATUS_FAILED) {
+		/* No transfer in progress and the Bulk-OUT FIFO is empty. */
 		rv = 0;
+		goto exit;
+	}
+
+	if (buffer[0] == USBTMC_STATUS_TRANSFER_NOT_IN_PROGRESS) {
+		/* The device returns this status if either:
+		 * - There is a transfer in progress, but the specified bTag
+		 *   does not match.
+		 * - There is no transfer in progress, but the Bulk-OUT FIFO
+		 *   is not empty.
+		 */
+		rv = -ENOMSG;
 		goto exit;
 	}
 
@@ -238,64 +315,53 @@ static int usbtmc_ioctl_abort_bulk_in(struct usbtmc_device_data *data)
 		goto exit;
 	}
 
-	max_size = 0;
-	current_setting = data->intf->cur_altsetting;
-	for (n = 0; n < current_setting->desc.bNumEndpoints; n++)
-		if (current_setting->endpoint[n].desc.bEndpointAddress ==
-			data->bulk_in)
-			max_size = usb_endpoint_maxp(&current_setting->endpoint[n].desc);
-
-	if (max_size == 0) {
-		dev_err(dev, "Couldn't get wMaxPacketSize\n");
-		rv = -EPERM;
-		goto exit;
-	}
-
-	dev_dbg(&data->intf->dev, "wMaxPacketSize is %d\n", max_size);
-
 	n = 0;
 
-	do {
-		dev_dbg(dev, "Reading from bulk in EP\n");
+usbtmc_abort_bulk_in_status:
+	dev_dbg(dev, "Reading from bulk in EP\n");
 
-		rv = usb_bulk_msg(data->usb_dev,
-				  usb_rcvbulkpipe(data->usb_dev,
-						  data->bulk_in),
-				  buffer, USBTMC_SIZE_IOBUFFER,
-				  &actual, USBTMC_TIMEOUT);
+	/* Data must be present. So use low timeout 300 ms */
+	actual = 0;
+	rv = usb_bulk_msg(data->usb_dev,
+			  usb_rcvbulkpipe(data->usb_dev,
+					  data->bulk_in),
+			  buffer, USBTMC_BUFSIZE,
+			  &actual, 300);
 
-		n++;
+	print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE, 16, 1,
+			     buffer, actual, true);
 
-		if (rv < 0) {
-			dev_err(dev, "usb_bulk_msg returned %d\n", rv);
+	n++;
+
+	if (rv < 0) {
+		dev_err(dev, "usb_bulk_msg returned %d\n", rv);
+		if (rv != -ETIMEDOUT)
 			goto exit;
-		}
-	} while ((actual == max_size) &&
-		 (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
+	}
 
-	if (actual == max_size) {
+	if (actual == USBTMC_BUFSIZE)
+		goto usbtmc_abort_bulk_in_status;
+
+	if (n >= USBTMC_MAX_READS_TO_CLEAR_BULK_IN) {
 		dev_err(dev, "Couldn't clear device buffer within %d cycles\n",
 			USBTMC_MAX_READS_TO_CLEAR_BULK_IN);
 		rv = -EPERM;
 		goto exit;
 	}
 
-	n = 0;
-
-usbtmc_abort_bulk_in_status:
 	rv = usb_control_msg(data->usb_dev,
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_CHECK_ABORT_BULK_IN_STATUS,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
 			     0, data->bulk_in, buffer, 0x08,
-			     USBTMC_TIMEOUT);
+			     USB_CTRL_GET_TIMEOUT);
 
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto exit;
 	}
 
-	dev_dbg(dev, "INITIATE_ABORT_BULK_IN returned %x\n", buffer[0]);
+	dev_dbg(dev, "CHECK_ABORT_BULK_IN returned %x\n", buffer[0]);
 
 	if (buffer[0] == USBTMC_STATUS_SUCCESS) {
 		rv = 0;
@@ -303,46 +369,30 @@ usbtmc_abort_bulk_in_status:
 	}
 
 	if (buffer[0] != USBTMC_STATUS_PENDING) {
-		dev_err(dev, "INITIATE_ABORT_BULK_IN returned %x\n", buffer[0]);
+		dev_err(dev, "CHECK_ABORT_BULK_IN returned %x\n", buffer[0]);
 		rv = -EPERM;
 		goto exit;
 	}
 
-	if (buffer[1] == 1)
-		do {
-			dev_dbg(dev, "Reading from bulk in EP\n");
-
-			rv = usb_bulk_msg(data->usb_dev,
-					  usb_rcvbulkpipe(data->usb_dev,
-							  data->bulk_in),
-					  buffer, USBTMC_SIZE_IOBUFFER,
-					  &actual, USBTMC_TIMEOUT);
-
-			n++;
-
-			if (rv < 0) {
-				dev_err(dev, "usb_bulk_msg returned %d\n", rv);
-				goto exit;
-			}
-		} while ((actual == max_size) &&
-			 (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
-
-	if (actual == max_size) {
-		dev_err(dev, "Couldn't clear device buffer within %d cycles\n",
-			USBTMC_MAX_READS_TO_CLEAR_BULK_IN);
-		rv = -EPERM;
-		goto exit;
+	if ((buffer[1] & 1) > 0) {
+		/* The device has 1 or more queued packets the Host can read */
+		goto usbtmc_abort_bulk_in_status;
 	}
 
-	goto usbtmc_abort_bulk_in_status;
-
+	/* The Host must send CHECK_ABORT_BULK_IN_STATUS at a later time. */
+	rv = -EAGAIN;
 exit:
 	kfree(buffer);
 	return rv;
-
 }
 
-static int usbtmc_ioctl_abort_bulk_out(struct usbtmc_device_data *data)
+static int usbtmc_ioctl_abort_bulk_in(struct usbtmc_device_data *data)
+{
+	return usbtmc_ioctl_abort_bulk_in_tag(data, data->bTag_last_read);
+}
+
+static int usbtmc_ioctl_abort_bulk_out_tag(struct usbtmc_device_data *data,
+					   u8 tag)
 {
 	struct device *dev;
 	u8 *buffer;
@@ -359,8 +409,8 @@ static int usbtmc_ioctl_abort_bulk_out(struct usbtmc_device_data *data)
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_INITIATE_ABORT_BULK_OUT,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
-			     data->bTag_last_write, data->bulk_out,
-			     buffer, 2, USBTMC_TIMEOUT);
+			     tag, data->bulk_out,
+			     buffer, 2, USB_CTRL_GET_TIMEOUT);
 
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
@@ -379,12 +429,14 @@ static int usbtmc_ioctl_abort_bulk_out(struct usbtmc_device_data *data)
 	n = 0;
 
 usbtmc_abort_bulk_out_check_status:
+	/* do not stress device with subsequent requests */
+	msleep(50);
 	rv = usb_control_msg(data->usb_dev,
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_CHECK_ABORT_BULK_OUT_STATUS,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
 			     0, data->bulk_out, buffer, 0x08,
-			     USBTMC_TIMEOUT);
+			     USB_CTRL_GET_TIMEOUT);
 	n++;
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
@@ -416,6 +468,11 @@ usbtmc_abort_bulk_out_clear_halt:
 exit:
 	kfree(buffer);
 	return rv;
+}
+
+static int usbtmc_ioctl_abort_bulk_out(struct usbtmc_device_data *data)
+{
+	return usbtmc_ioctl_abort_bulk_out_tag(data, data->bTag_last_write);
 }
 
 static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
@@ -457,7 +514,7 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			data->iin_bTag,
 			data->ifnum,
-			buffer, 0x03, USBTMC_TIMEOUT);
+			buffer, 0x03, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "stb usb_control_msg returned %d\n", rv);
 		goto exit;
@@ -510,6 +567,54 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
 	return rv;
 }
 
+static int usbtmc488_ioctl_wait_srq(struct usbtmc_file_data *file_data,
+				    __u32 __user *arg)
+{
+	struct usbtmc_device_data *data = file_data->data;
+	struct device *dev = &data->intf->dev;
+	int rv;
+	u32 timeout;
+	unsigned long expire;
+
+	if (!data->iin_ep_present) {
+		dev_dbg(dev, "no interrupt endpoint present\n");
+		return -EFAULT;
+	}
+
+	if (get_user(timeout, arg))
+		return -EFAULT;
+
+	expire = msecs_to_jiffies(timeout);
+
+	mutex_unlock(&data->io_mutex);
+
+	rv = wait_event_interruptible_timeout(
+			data->waitq,
+			atomic_read(&file_data->srq_asserted) != 0 ||
+			atomic_read(&file_data->closing),
+			expire);
+
+	mutex_lock(&data->io_mutex);
+
+	/* Note! disconnect or close could be called in the meantime */
+	if (atomic_read(&file_data->closing) || data->zombie)
+		rv = -ENODEV;
+
+	if (rv < 0) {
+		/* dev can be invalid now! */
+		pr_debug("%s - wait interrupted %d\n", __func__, rv);
+		return rv;
+	}
+
+	if (rv == 0) {
+		dev_dbg(dev, "%s - wait timed out\n", __func__);
+		return -ETIMEDOUT;
+	}
+
+	dev_dbg(dev, "%s - srq asserted\n", __func__);
+	return 0;
+}
+
 static int usbtmc488_ioctl_simple(struct usbtmc_device_data *data,
 				void __user *arg, unsigned int cmd)
 {
@@ -543,7 +648,7 @@ static int usbtmc488_ioctl_simple(struct usbtmc_device_data *data,
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			wValue,
 			data->ifnum,
-			buffer, 0x01, USBTMC_TIMEOUT);
+			buffer, 0x01, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "simple usb_control_msg failed %d\n", rv);
 		goto exit;
@@ -610,6 +715,559 @@ static int usbtmc488_ioctl_trigger(struct usbtmc_file_data *file_data)
 	return 0;
 }
 
+static struct urb *usbtmc_create_urb(void)
+{
+	const size_t bufsize = USBTMC_BUFSIZE;
+	u8 *dmabuf = NULL;
+	struct urb *urb = usb_alloc_urb(0, GFP_KERNEL);
+
+	if (!urb)
+		return NULL;
+
+	dmabuf = kmalloc(bufsize, GFP_KERNEL);
+	if (!dmabuf) {
+		usb_free_urb(urb);
+		return NULL;
+	}
+
+	urb->transfer_buffer = dmabuf;
+	urb->transfer_buffer_length = bufsize;
+	urb->transfer_flags |= URB_FREE_BUFFER;
+	return urb;
+}
+
+static void usbtmc_read_bulk_cb(struct urb *urb)
+{
+	struct usbtmc_file_data *file_data = urb->context;
+	int status = urb->status;
+	unsigned long flags;
+
+	/* sync/async unlink faults aren't errors */
+	if (status) {
+		if (!(/* status == -ENOENT || */
+			status == -ECONNRESET ||
+			status == -EREMOTEIO || /* Short packet */
+			status == -ESHUTDOWN))
+			dev_err(&file_data->data->intf->dev,
+			"%s - nonzero read bulk status received: %d\n",
+			__func__, status);
+
+		spin_lock_irqsave(&file_data->err_lock, flags);
+		if (!file_data->in_status)
+			file_data->in_status = status;
+		spin_unlock_irqrestore(&file_data->err_lock, flags);
+	}
+
+	spin_lock_irqsave(&file_data->err_lock, flags);
+	file_data->in_transfer_size += urb->actual_length;
+	dev_dbg(&file_data->data->intf->dev,
+		"%s - total size: %u current: %d status: %d\n",
+		__func__, file_data->in_transfer_size,
+		urb->actual_length, status);
+	spin_unlock_irqrestore(&file_data->err_lock, flags);
+	usb_anchor_urb(urb, &file_data->in_anchor);
+
+	wake_up_interruptible(&file_data->wait_bulk_in);
+	wake_up_interruptible(&file_data->data->waitq);
+}
+
+static inline bool usbtmc_do_transfer(struct usbtmc_file_data *file_data)
+{
+	bool data_or_error;
+
+	spin_lock_irq(&file_data->err_lock);
+	data_or_error = !usb_anchor_empty(&file_data->in_anchor)
+			|| file_data->in_status;
+	spin_unlock_irq(&file_data->err_lock);
+	dev_dbg(&file_data->data->intf->dev, "%s: returns %d\n", __func__,
+		data_or_error);
+	return data_or_error;
+}
+
+static ssize_t usbtmc_generic_read(struct usbtmc_file_data *file_data,
+				   void __user *user_buffer,
+				   u32 transfer_size,
+				   u32 *transferred,
+				   u32 flags)
+{
+	struct usbtmc_device_data *data = file_data->data;
+	struct device *dev = &data->intf->dev;
+	u32 done = 0;
+	u32 remaining;
+	const u32 bufsize = USBTMC_BUFSIZE;
+	int retval = 0;
+	u32 max_transfer_size;
+	unsigned long expire;
+	int bufcount = 1;
+	int again = 0;
+
+	/* mutex already locked */
+
+	*transferred = done;
+
+	max_transfer_size = transfer_size;
+
+	if (flags & USBTMC_FLAG_IGNORE_TRAILER) {
+		/* The device may send extra alignment bytes (up to
+		 * wMaxPacketSize – 1) to avoid sending a zero-length
+		 * packet
+		 */
+		remaining = transfer_size;
+		if ((max_transfer_size % data->wMaxPacketSize) == 0)
+			max_transfer_size += (data->wMaxPacketSize - 1);
+	} else {
+		/* round down to bufsize to avoid truncated data left */
+		if (max_transfer_size > bufsize) {
+			max_transfer_size =
+				roundup(max_transfer_size + 1 - bufsize,
+					bufsize);
+		}
+		remaining = max_transfer_size;
+	}
+
+	spin_lock_irq(&file_data->err_lock);
+
+	if (file_data->in_status) {
+		/* return the very first error */
+		retval = file_data->in_status;
+		spin_unlock_irq(&file_data->err_lock);
+		goto error;
+	}
+
+	if (flags & USBTMC_FLAG_ASYNC) {
+		if (usb_anchor_empty(&file_data->in_anchor))
+			again = 1;
+
+		if (file_data->in_urbs_used == 0) {
+			file_data->in_transfer_size = 0;
+			file_data->in_status = 0;
+		}
+	} else {
+		file_data->in_transfer_size = 0;
+		file_data->in_status = 0;
+	}
+
+	if (max_transfer_size == 0) {
+		bufcount = 0;
+	} else {
+		bufcount = roundup(max_transfer_size, bufsize) / bufsize;
+		if (bufcount > file_data->in_urbs_used)
+			bufcount -= file_data->in_urbs_used;
+		else
+			bufcount = 0;
+
+		if (bufcount + file_data->in_urbs_used > MAX_URBS_IN_FLIGHT) {
+			bufcount = MAX_URBS_IN_FLIGHT -
+					file_data->in_urbs_used;
+		}
+	}
+	spin_unlock_irq(&file_data->err_lock);
+
+	dev_dbg(dev, "%s: requested=%u flags=0x%X size=%u bufs=%d used=%d\n",
+		__func__, transfer_size, flags,
+		max_transfer_size, bufcount, file_data->in_urbs_used);
+
+	while (bufcount > 0) {
+		u8 *dmabuf = NULL;
+		struct urb *urb = usbtmc_create_urb();
+
+		if (!urb) {
+			retval = -ENOMEM;
+			goto error;
+		}
+
+		dmabuf = urb->transfer_buffer;
+
+		usb_fill_bulk_urb(urb, data->usb_dev,
+			usb_rcvbulkpipe(data->usb_dev, data->bulk_in),
+			dmabuf, bufsize,
+			usbtmc_read_bulk_cb, file_data);
+
+		usb_anchor_urb(urb, &file_data->submitted);
+		retval = usb_submit_urb(urb, GFP_KERNEL);
+		/* urb is anchored. We can release our reference. */
+		usb_free_urb(urb);
+		if (unlikely(retval)) {
+			usb_unanchor_urb(urb);
+			goto error;
+		}
+		file_data->in_urbs_used++;
+		bufcount--;
+	}
+
+	if (again) {
+		dev_dbg(dev, "%s: ret=again\n", __func__);
+		return -EAGAIN;
+	}
+
+	if (user_buffer == NULL)
+		return -EINVAL;
+
+	expire = msecs_to_jiffies(file_data->timeout);
+
+	while (max_transfer_size > 0) {
+		u32 this_part;
+		struct urb *urb = NULL;
+
+		if (!(flags & USBTMC_FLAG_ASYNC)) {
+			dev_dbg(dev, "%s: before wait time %lu\n",
+				__func__, expire);
+			retval = wait_event_interruptible_timeout(
+				file_data->wait_bulk_in,
+				usbtmc_do_transfer(file_data),
+				expire);
+
+			dev_dbg(dev, "%s: wait returned %d\n",
+				__func__, retval);
+
+			if (retval <= 0) {
+				if (retval == 0)
+					retval = -ETIMEDOUT;
+				goto error;
+			}
+		}
+
+		urb = usb_get_from_anchor(&file_data->in_anchor);
+		if (!urb) {
+			if (!(flags & USBTMC_FLAG_ASYNC)) {
+				/* synchronous case: must not happen */
+				retval = -EFAULT;
+				goto error;
+			}
+
+			/* asynchronous case: ready, do not block or wait */
+			*transferred = done;
+			dev_dbg(dev, "%s: (async) done=%u ret=0\n",
+				__func__, done);
+			return 0;
+		}
+
+		file_data->in_urbs_used--;
+
+		if (max_transfer_size > urb->actual_length)
+			max_transfer_size -= urb->actual_length;
+		else
+			max_transfer_size = 0;
+
+		if (remaining > urb->actual_length)
+			this_part = urb->actual_length;
+		else
+			this_part = remaining;
+
+		print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE, 16, 1,
+			urb->transfer_buffer, urb->actual_length, true);
+
+		if (copy_to_user(user_buffer + done,
+				 urb->transfer_buffer, this_part)) {
+			usb_free_urb(urb);
+			retval = -EFAULT;
+			goto error;
+		}
+
+		remaining -= this_part;
+		done += this_part;
+
+		spin_lock_irq(&file_data->err_lock);
+		if (urb->status) {
+			/* return the very first error */
+			retval = file_data->in_status;
+			spin_unlock_irq(&file_data->err_lock);
+			usb_free_urb(urb);
+			goto error;
+		}
+		spin_unlock_irq(&file_data->err_lock);
+
+		if (urb->actual_length < bufsize) {
+			/* short packet or ZLP received => ready */
+			usb_free_urb(urb);
+			retval = 1;
+			break;
+		}
+
+		if (!(flags & USBTMC_FLAG_ASYNC) &&
+		    max_transfer_size > (bufsize * file_data->in_urbs_used)) {
+			/* resubmit, since other buffers still not enough */
+			usb_anchor_urb(urb, &file_data->submitted);
+			retval = usb_submit_urb(urb, GFP_KERNEL);
+			if (unlikely(retval)) {
+				usb_unanchor_urb(urb);
+				usb_free_urb(urb);
+				goto error;
+			}
+			file_data->in_urbs_used++;
+		}
+		usb_free_urb(urb);
+		retval = 0;
+	}
+
+error:
+	*transferred = done;
+
+	dev_dbg(dev, "%s: before kill\n", __func__);
+	/* Attention: killing urbs can take long time (2 ms) */
+	usb_kill_anchored_urbs(&file_data->submitted);
+	dev_dbg(dev, "%s: after kill\n", __func__);
+	usb_scuttle_anchored_urbs(&file_data->in_anchor);
+	file_data->in_urbs_used = 0;
+	file_data->in_status = 0; /* no spinlock needed here */
+	dev_dbg(dev, "%s: done=%u ret=%d\n", __func__, done, retval);
+
+	return retval;
+}
+
+static ssize_t usbtmc_ioctl_generic_read(struct usbtmc_file_data *file_data,
+					 void __user *arg)
+{
+	struct usbtmc_message msg;
+	ssize_t retval = 0;
+
+	/* mutex already locked */
+
+	if (copy_from_user(&msg, arg, sizeof(struct usbtmc_message)))
+		return -EFAULT;
+
+	retval = usbtmc_generic_read(file_data, msg.message,
+				     msg.transfer_size, &msg.transferred,
+				     msg.flags);
+
+	if (put_user(msg.transferred,
+		     &((struct usbtmc_message __user *)arg)->transferred))
+		return -EFAULT;
+
+	return retval;
+}
+
+static void usbtmc_write_bulk_cb(struct urb *urb)
+{
+	struct usbtmc_file_data *file_data = urb->context;
+	int wakeup = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&file_data->err_lock, flags);
+	file_data->out_transfer_size += urb->actual_length;
+
+	/* sync/async unlink faults aren't errors */
+	if (urb->status) {
+		if (!(urb->status == -ENOENT ||
+			urb->status == -ECONNRESET ||
+			urb->status == -ESHUTDOWN))
+			dev_err(&file_data->data->intf->dev,
+				"%s - nonzero write bulk status received: %d\n",
+				__func__, urb->status);
+
+		if (!file_data->out_status) {
+			file_data->out_status = urb->status;
+			wakeup = 1;
+		}
+	}
+	spin_unlock_irqrestore(&file_data->err_lock, flags);
+
+	dev_dbg(&file_data->data->intf->dev,
+		"%s - write bulk total size: %u\n",
+		__func__, file_data->out_transfer_size);
+
+	up(&file_data->limit_write_sem);
+	if (usb_anchor_empty(&file_data->submitted) || wakeup)
+		wake_up_interruptible(&file_data->data->waitq);
+}
+
+static ssize_t usbtmc_generic_write(struct usbtmc_file_data *file_data,
+				    const void __user *user_buffer,
+				    u32 transfer_size,
+				    u32 *transferred,
+				    u32 flags)
+{
+	struct usbtmc_device_data *data = file_data->data;
+	struct device *dev;
+	u32 done = 0;
+	u32 remaining;
+	unsigned long expire;
+	const u32 bufsize = USBTMC_BUFSIZE;
+	struct urb *urb = NULL;
+	int retval = 0;
+	u32 timeout;
+
+	*transferred = 0;
+
+	/* Get pointer to private data structure */
+	dev = &data->intf->dev;
+
+	dev_dbg(dev, "%s: size=%u flags=0x%X sema=%u\n",
+		__func__, transfer_size, flags,
+		file_data->limit_write_sem.count);
+
+	if (flags & USBTMC_FLAG_APPEND) {
+		spin_lock_irq(&file_data->err_lock);
+		retval = file_data->out_status;
+		spin_unlock_irq(&file_data->err_lock);
+		if (retval < 0)
+			return retval;
+	} else {
+		spin_lock_irq(&file_data->err_lock);
+		file_data->out_transfer_size = 0;
+		file_data->out_status = 0;
+		spin_unlock_irq(&file_data->err_lock);
+	}
+
+	remaining = transfer_size;
+	if (remaining > INT_MAX)
+		remaining = INT_MAX;
+
+	timeout = file_data->timeout;
+	expire = msecs_to_jiffies(timeout);
+
+	while (remaining > 0) {
+		u32 this_part, aligned;
+		u8 *buffer = NULL;
+
+		if (flags & USBTMC_FLAG_ASYNC) {
+			if (down_trylock(&file_data->limit_write_sem)) {
+				retval = (done)?(0):(-EAGAIN);
+				goto exit;
+			}
+		} else {
+			retval = down_timeout(&file_data->limit_write_sem,
+					      expire);
+			if (retval < 0) {
+				retval = -ETIMEDOUT;
+				goto error;
+			}
+		}
+
+		spin_lock_irq(&file_data->err_lock);
+		retval = file_data->out_status;
+		spin_unlock_irq(&file_data->err_lock);
+		if (retval < 0) {
+			up(&file_data->limit_write_sem);
+			goto error;
+		}
+
+		/* prepare next urb to send */
+		urb = usbtmc_create_urb();
+		if (!urb) {
+			retval = -ENOMEM;
+			up(&file_data->limit_write_sem);
+			goto error;
+		}
+		buffer = urb->transfer_buffer;
+
+		if (remaining > bufsize)
+			this_part = bufsize;
+		else
+			this_part = remaining;
+
+		if (copy_from_user(buffer, user_buffer + done, this_part)) {
+			retval = -EFAULT;
+			up(&file_data->limit_write_sem);
+			goto error;
+		}
+
+		print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+			16, 1, buffer, this_part, true);
+
+		/* fill bulk with 32 bit alignment to meet USBTMC specification
+		 * (size + 3 & ~3) rounds up and simplifies user code
+		 */
+		aligned = (this_part + 3) & ~3;
+		dev_dbg(dev, "write(size:%u align:%u done:%u)\n",
+			(unsigned int)this_part,
+			(unsigned int)aligned,
+			(unsigned int)done);
+
+		usb_fill_bulk_urb(urb, data->usb_dev,
+			usb_sndbulkpipe(data->usb_dev, data->bulk_out),
+			urb->transfer_buffer, aligned,
+			usbtmc_write_bulk_cb, file_data);
+
+		usb_anchor_urb(urb, &file_data->submitted);
+		retval = usb_submit_urb(urb, GFP_KERNEL);
+		if (unlikely(retval)) {
+			usb_unanchor_urb(urb);
+			up(&file_data->limit_write_sem);
+			goto error;
+		}
+
+		usb_free_urb(urb);
+		urb = NULL; /* urb will be finally released by usb driver */
+
+		remaining -= this_part;
+		done += this_part;
+	}
+
+	/* All urbs are on the fly */
+	if (!(flags & USBTMC_FLAG_ASYNC)) {
+		if (!usb_wait_anchor_empty_timeout(&file_data->submitted,
+						   timeout)) {
+			retval = -ETIMEDOUT;
+			goto error;
+		}
+	}
+
+	retval = 0;
+	goto exit;
+
+error:
+	usb_kill_anchored_urbs(&file_data->submitted);
+exit:
+	usb_free_urb(urb);
+
+	spin_lock_irq(&file_data->err_lock);
+	if (!(flags & USBTMC_FLAG_ASYNC))
+		done = file_data->out_transfer_size;
+	if (!retval && file_data->out_status)
+		retval = file_data->out_status;
+	spin_unlock_irq(&file_data->err_lock);
+
+	*transferred = done;
+
+	dev_dbg(dev, "%s: done=%u, retval=%d, urbstat=%d\n",
+		__func__, done, retval, file_data->out_status);
+
+	return retval;
+}
+
+static ssize_t usbtmc_ioctl_generic_write(struct usbtmc_file_data *file_data,
+					  void __user *arg)
+{
+	struct usbtmc_message msg;
+	ssize_t retval = 0;
+
+	/* mutex already locked */
+
+	if (copy_from_user(&msg, arg, sizeof(struct usbtmc_message)))
+		return -EFAULT;
+
+	retval = usbtmc_generic_write(file_data, msg.message,
+				      msg.transfer_size, &msg.transferred,
+				      msg.flags);
+
+	if (put_user(msg.transferred,
+		     &((struct usbtmc_message __user *)arg)->transferred))
+		return -EFAULT;
+
+	return retval;
+}
+
+/*
+ * Get the generic write result
+ */
+static ssize_t usbtmc_ioctl_write_result(struct usbtmc_file_data *file_data,
+				void __user *arg)
+{
+	u32 transferred;
+	int retval;
+
+	spin_lock_irq(&file_data->err_lock);
+	transferred = file_data->out_transfer_size;
+	retval = file_data->out_status;
+	spin_unlock_irq(&file_data->err_lock);
+
+	if (put_user(transferred, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return retval;
+}
+
 /*
  * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-OUT endpoint.
  * @transfer_size: number of bytes to request from the device.
@@ -619,7 +1277,7 @@ static int usbtmc488_ioctl_trigger(struct usbtmc_file_data *file_data)
  * Also updates bTag_last_write.
  */
 static int send_request_dev_dep_msg_in(struct usbtmc_file_data *file_data,
-				       size_t transfer_size)
+				       u32 transfer_size)
 {
 	struct usbtmc_device_data *data = file_data->data;
 	int retval;
@@ -662,12 +1320,11 @@ static int send_request_dev_dep_msg_in(struct usbtmc_file_data *file_data,
 		data->bTag++;
 
 	kfree(buffer);
-	if (retval < 0) {
-		dev_err(&data->intf->dev, "usb_bulk_msg in send_request_dev_dep_msg_in() returned %d\n", retval);
-		return retval;
-	}
+	if (retval < 0)
+		dev_err(&data->intf->dev, "%s returned %d\n",
+			__func__, retval);
 
-	return 0;
+	return retval;
 }
 
 static ssize_t usbtmc_read(struct file *filp, char __user *buf,
@@ -676,20 +1333,20 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 	struct usbtmc_file_data *file_data;
 	struct usbtmc_device_data *data;
 	struct device *dev;
+	const u32 bufsize = USBTMC_BUFSIZE;
 	u32 n_characters;
 	u8 *buffer;
 	int actual;
-	size_t done;
-	size_t remaining;
+	u32 done = 0;
+	u32 remaining;
 	int retval;
-	size_t this_part;
 
 	/* Get pointer to private data structure */
 	file_data = filp->private_data;
 	data = file_data->data;
 	dev = &data->intf->dev;
 
-	buffer = kmalloc(USBTMC_SIZE_IOBUFFER, GFP_KERNEL);
+	buffer = kmalloc(bufsize, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -699,124 +1356,116 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		goto exit;
 	}
 
-	dev_dbg(dev, "usb_bulk_msg_in: count(%zu)\n", count);
+	if (count > INT_MAX)
+		count = INT_MAX;
+
+	dev_dbg(dev, "%s(count:%zu)\n", __func__, count);
 
 	retval = send_request_dev_dep_msg_in(file_data, count);
 
 	if (retval < 0) {
-		if (data->auto_abort)
+		if (file_data->auto_abort)
 			usbtmc_ioctl_abort_bulk_out(data);
 		goto exit;
 	}
 
 	/* Loop until we have fetched everything we requested */
 	remaining = count;
-	this_part = remaining;
-	done = 0;
+	actual = 0;
 
-	while (remaining > 0) {
-		/* Send bulk URB */
-		retval = usb_bulk_msg(data->usb_dev,
-				      usb_rcvbulkpipe(data->usb_dev,
-						      data->bulk_in),
-				      buffer, USBTMC_SIZE_IOBUFFER, &actual,
-				      file_data->timeout);
+	/* Send bulk URB */
+	retval = usb_bulk_msg(data->usb_dev,
+			      usb_rcvbulkpipe(data->usb_dev,
+					      data->bulk_in),
+			      buffer, bufsize, &actual,
+			      file_data->timeout);
 
-		dev_dbg(dev, "usb_bulk_msg: retval(%u), done(%zu), remaining(%zu), actual(%d)\n", retval, done, remaining, actual);
+	dev_dbg(dev, "%s: bulk_msg retval(%u), actual(%d)\n",
+		__func__, retval, actual);
 
-		/* Store bTag (in case we need to abort) */
-		data->bTag_last_read = data->bTag;
+	/* Store bTag (in case we need to abort) */
+	data->bTag_last_read = data->bTag;
 
-		if (retval < 0) {
-			dev_dbg(dev, "Unable to read data, error %d\n", retval);
-			if (data->auto_abort)
-				usbtmc_ioctl_abort_bulk_in(data);
-			goto exit;
-		}
-
-		/* Parse header in first packet */
-		if (done == 0) {
-			/* Sanity checks for the header */
-			if (actual < USBTMC_HEADER_SIZE) {
-				dev_err(dev, "Device sent too small first packet: %u < %u\n", actual, USBTMC_HEADER_SIZE);
-				if (data->auto_abort)
-					usbtmc_ioctl_abort_bulk_in(data);
-				goto exit;
-			}
-
-			if (buffer[0] != 2) {
-				dev_err(dev, "Device sent reply with wrong MsgID: %u != 2\n", buffer[0]);
-				if (data->auto_abort)
-					usbtmc_ioctl_abort_bulk_in(data);
-				goto exit;
-			}
-
-			if (buffer[1] != data->bTag_last_write) {
-				dev_err(dev, "Device sent reply with wrong bTag: %u != %u\n", buffer[1], data->bTag_last_write);
-				if (data->auto_abort)
-					usbtmc_ioctl_abort_bulk_in(data);
-				goto exit;
-			}
-
-			/* How many characters did the instrument send? */
-			n_characters = buffer[4] +
-				       (buffer[5] << 8) +
-				       (buffer[6] << 16) +
-				       (buffer[7] << 24);
-
-			if (n_characters > this_part) {
-				dev_err(dev, "Device wants to return more data than requested: %u > %zu\n", n_characters, count);
-				if (data->auto_abort)
-					usbtmc_ioctl_abort_bulk_in(data);
-				goto exit;
-			}
-
-			/* Remove the USBTMC header */
-			actual -= USBTMC_HEADER_SIZE;
-
-			/* Check if the message is smaller than requested */
-			if (remaining > n_characters)
-				remaining = n_characters;
-			/* Remove padding if it exists */
-			if (actual > remaining)
-				actual = remaining;
-
-			dev_dbg(dev, "Bulk-IN header: N_characters(%u), bTransAttr(%u)\n", n_characters, buffer[8]);
-
-			remaining -= actual;
-
-			/* Terminate if end-of-message bit received from device */
-			if ((buffer[8] & 0x01) && (actual >= n_characters))
-				remaining = 0;
-
-			dev_dbg(dev, "Bulk-IN header: remaining(%zu), buf(%p), buffer(%p) done(%zu)\n", remaining,buf,buffer,done);
-
-
-			/* Copy buffer to user space */
-			if (copy_to_user(buf + done, &buffer[USBTMC_HEADER_SIZE], actual)) {
-				/* There must have been an addressing problem */
-				retval = -EFAULT;
-				goto exit;
-			}
-			done += actual;
-		}
-		else  {
-			if (actual > remaining)
-				actual = remaining;
-
-			remaining -= actual;
-
-			dev_dbg(dev, "Bulk-IN header cont: actual(%u), done(%zu), remaining(%zu), buf(%p), buffer(%p)\n", actual, done, remaining,buf,buffer);
-
-			/* Copy buffer to user space */
-			if (copy_to_user(buf + done, buffer, actual)) {
-				/* There must have been an addressing problem */
-				retval = -EFAULT;
-				goto exit;
-			}
-			done += actual;
-		}
+	if (retval < 0) {
+		if (file_data->auto_abort)
+			usbtmc_ioctl_abort_bulk_in(data);
+		goto exit;
 	}
+
+	/* Sanity checks for the header */
+	if (actual < USBTMC_HEADER_SIZE) {
+		dev_err(dev, "Device sent too small first packet: %u < %u\n",
+			actual, USBTMC_HEADER_SIZE);
+		if (file_data->auto_abort)
+			usbtmc_ioctl_abort_bulk_in(data);
+		goto exit;
+	}
+
+	if (buffer[0] != 2) {
+		dev_err(dev, "Device sent reply with wrong MsgID: %u != 2\n",
+			buffer[0]);
+		if (file_data->auto_abort)
+			usbtmc_ioctl_abort_bulk_in(data);
+		goto exit;
+	}
+
+	if (buffer[1] != data->bTag_last_write) {
+		dev_err(dev, "Device sent reply with wrong bTag: %u != %u\n",
+		buffer[1], data->bTag_last_write);
+		if (file_data->auto_abort)
+			usbtmc_ioctl_abort_bulk_in(data);
+		goto exit;
+	}
+
+	/* How many characters did the instrument send? */
+	n_characters = buffer[4] +
+		       (buffer[5] << 8) +
+		       (buffer[6] << 16) +
+		       (buffer[7] << 24);
+
+	file_data->bmTransferAttributes = buffer[8];
+
+	dev_dbg(dev, "Bulk-IN header: N_characters(%u), bTransAttr(%u)\n",
+		n_characters, buffer[8]);
+
+	if (n_characters > remaining) {
+		dev_err(dev, "Device wants to return more data than requested: %u > %zu\n",
+			n_characters, count);
+		if (file_data->auto_abort)
+			usbtmc_ioctl_abort_bulk_in(data);
+		goto exit;
+	}
+
+	print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+			     16, 1, buffer, actual, true);
+
+	remaining = n_characters;
+
+	/* Remove the USBTMC header */
+	actual -= USBTMC_HEADER_SIZE;
+
+	/* Remove padding if it exists */
+	if (actual > remaining)
+		actual = remaining;
+
+	remaining -= actual;
+
+	/* Copy buffer to user space */
+	if (copy_to_user(buf, &buffer[USBTMC_HEADER_SIZE], actual)) {
+		/* There must have been an addressing problem */
+		retval = -EFAULT;
+		goto exit;
+	}
+
+	if ((actual + USBTMC_HEADER_SIZE) == bufsize) {
+		retval = usbtmc_generic_read(file_data, buf + actual,
+					     remaining,
+					     &done,
+					     USBTMC_FLAG_IGNORE_TRAILER);
+		if (retval < 0)
+			goto exit;
+	}
+	done += actual;
 
 	/* Update file position value */
 	*f_pos = *f_pos + done;
@@ -833,113 +1482,152 @@ static ssize_t usbtmc_write(struct file *filp, const char __user *buf,
 {
 	struct usbtmc_file_data *file_data;
 	struct usbtmc_device_data *data;
+	struct urb *urb = NULL;
+	ssize_t retval = 0;
 	u8 *buffer;
-	int retval;
-	int actual;
-	unsigned long int n_bytes;
-	int remaining;
-	int done;
-	int this_part;
+	u32 remaining, done;
+	u32 transfersize, aligned, buflen;
 
 	file_data = filp->private_data;
 	data = file_data->data;
 
-	buffer = kmalloc(USBTMC_SIZE_IOBUFFER, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
 	mutex_lock(&data->io_mutex);
+
 	if (data->zombie) {
 		retval = -ENODEV;
 		goto exit;
 	}
 
-	remaining = count;
 	done = 0;
 
-	while (remaining > 0) {
-		if (remaining > USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE) {
-			this_part = USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE;
-			buffer[8] = 0;
-		} else {
-			this_part = remaining;
-			buffer[8] = file_data->eom_val;
-		}
+	spin_lock_irq(&file_data->err_lock);
+	file_data->out_transfer_size = 0;
+	file_data->out_status = 0;
+	spin_unlock_irq(&file_data->err_lock);
 
-		/* Setup IO buffer for DEV_DEP_MSG_OUT message */
-		buffer[0] = 1;
-		buffer[1] = data->bTag;
-		buffer[2] = ~data->bTag;
-		buffer[3] = 0; /* Reserved */
-		buffer[4] = this_part >> 0;
-		buffer[5] = this_part >> 8;
-		buffer[6] = this_part >> 16;
-		buffer[7] = this_part >> 24;
-		/* buffer[8] is set above... */
-		buffer[9] = 0; /* Reserved */
-		buffer[10] = 0; /* Reserved */
-		buffer[11] = 0; /* Reserved */
+	if (!count)
+		goto exit;
 
-		if (copy_from_user(&buffer[USBTMC_HEADER_SIZE], buf + done, this_part)) {
-			retval = -EFAULT;
-			goto exit;
-		}
-
-		n_bytes = roundup(USBTMC_HEADER_SIZE + this_part, 4);
-		memset(buffer + USBTMC_HEADER_SIZE + this_part, 0, n_bytes - (USBTMC_HEADER_SIZE + this_part));
-
-		do {
-			retval = usb_bulk_msg(data->usb_dev,
-					      usb_sndbulkpipe(data->usb_dev,
-							      data->bulk_out),
-					      buffer, n_bytes,
-					      &actual, file_data->timeout);
-			if (retval != 0)
-				break;
-			n_bytes -= actual;
-		} while (n_bytes);
-
-		data->bTag_last_write = data->bTag;
-		data->bTag++;
-
-		if (!data->bTag)
-			data->bTag++;
-
-		if (retval < 0) {
-			dev_err(&data->intf->dev,
-				"Unable to send data, error %d\n", retval);
-			if (data->auto_abort)
-				usbtmc_ioctl_abort_bulk_out(data);
-			goto exit;
-		}
-
-		remaining -= this_part;
-		done += this_part;
+	if (down_trylock(&file_data->limit_write_sem)) {
+		/* previous calls were async */
+		retval = -EBUSY;
+		goto exit;
 	}
 
-	retval = count;
+	urb = usbtmc_create_urb();
+	if (!urb) {
+		retval = -ENOMEM;
+		up(&file_data->limit_write_sem);
+		goto exit;
+	}
+
+	buffer = urb->transfer_buffer;
+	buflen = urb->transfer_buffer_length;
+
+	if (count > INT_MAX) {
+		transfersize = INT_MAX;
+		buffer[8] = 0;
+	} else {
+		transfersize = count;
+		buffer[8] = file_data->eom_val;
+	}
+
+	/* Setup IO buffer for DEV_DEP_MSG_OUT message */
+	buffer[0] = 1;
+	buffer[1] = data->bTag;
+	buffer[2] = ~data->bTag;
+	buffer[3] = 0; /* Reserved */
+	buffer[4] = transfersize >> 0;
+	buffer[5] = transfersize >> 8;
+	buffer[6] = transfersize >> 16;
+	buffer[7] = transfersize >> 24;
+	/* buffer[8] is set above... */
+	buffer[9] = 0; /* Reserved */
+	buffer[10] = 0; /* Reserved */
+	buffer[11] = 0; /* Reserved */
+
+	remaining = transfersize;
+
+	if (transfersize + USBTMC_HEADER_SIZE > buflen) {
+		transfersize = buflen - USBTMC_HEADER_SIZE;
+		aligned = buflen;
+	} else {
+		aligned = (transfersize + (USBTMC_HEADER_SIZE + 3)) & ~3;
+	}
+
+	if (copy_from_user(&buffer[USBTMC_HEADER_SIZE], buf, transfersize)) {
+		retval = -EFAULT;
+		up(&file_data->limit_write_sem);
+		goto exit;
+	}
+
+	dev_dbg(&data->intf->dev, "%s(size:%u align:%u)\n", __func__,
+		(unsigned int)transfersize, (unsigned int)aligned);
+
+	print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+			     16, 1, buffer, aligned, true);
+
+	usb_fill_bulk_urb(urb, data->usb_dev,
+		usb_sndbulkpipe(data->usb_dev, data->bulk_out),
+		urb->transfer_buffer, aligned,
+		usbtmc_write_bulk_cb, file_data);
+
+	usb_anchor_urb(urb, &file_data->submitted);
+	retval = usb_submit_urb(urb, GFP_KERNEL);
+	if (unlikely(retval)) {
+		usb_unanchor_urb(urb);
+		up(&file_data->limit_write_sem);
+		goto exit;
+	}
+
+	remaining -= transfersize;
+
+	data->bTag_last_write = data->bTag;
+	data->bTag++;
+
+	if (!data->bTag)
+		data->bTag++;
+
+	/* call generic_write even when remaining = 0 */
+	retval = usbtmc_generic_write(file_data, buf + transfersize, remaining,
+				      &done, USBTMC_FLAG_APPEND);
+	/* truncate alignment bytes */
+	if (done > remaining)
+		done = remaining;
+
+	/*add size of first urb*/
+	done += transfersize;
+
+	if (retval < 0) {
+		usb_kill_anchored_urbs(&file_data->submitted);
+
+		dev_err(&data->intf->dev,
+			"Unable to send data, error %d\n", (int)retval);
+		if (file_data->auto_abort)
+			usbtmc_ioctl_abort_bulk_out(data);
+		goto exit;
+	}
+
+	retval = done;
 exit:
+	usb_free_urb(urb);
 	mutex_unlock(&data->io_mutex);
-	kfree(buffer);
 	return retval;
 }
 
 static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 {
-	struct usb_host_interface *current_setting;
-	struct usb_endpoint_descriptor *desc;
 	struct device *dev;
 	u8 *buffer;
 	int rv;
 	int n;
 	int actual = 0;
-	int max_size;
 
 	dev = &data->intf->dev;
 
 	dev_dbg(dev, "Sending INITIATE_CLEAR request\n");
 
-	buffer = kmalloc(USBTMC_SIZE_IOBUFFER, GFP_KERNEL);
+	buffer = kmalloc(USBTMC_BUFSIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -947,7 +1635,7 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_INITIATE_CLEAR,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 1, USBTMC_TIMEOUT);
+			     0, 0, buffer, 1, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto exit;
@@ -961,22 +1649,6 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 		goto exit;
 	}
 
-	max_size = 0;
-	current_setting = data->intf->cur_altsetting;
-	for (n = 0; n < current_setting->desc.bNumEndpoints; n++) {
-		desc = &current_setting->endpoint[n].desc;
-		if (desc->bEndpointAddress == data->bulk_in)
-			max_size = usb_endpoint_maxp(desc);
-	}
-
-	if (max_size == 0) {
-		dev_err(dev, "Couldn't get wMaxPacketSize\n");
-		rv = -EPERM;
-		goto exit;
-	}
-
-	dev_dbg(dev, "wMaxPacketSize is %d\n", max_size);
-
 	n = 0;
 
 usbtmc_clear_check_status:
@@ -987,7 +1659,7 @@ usbtmc_clear_check_status:
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_CHECK_CLEAR_STATUS,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 2, USBTMC_TIMEOUT);
+			     0, 0, buffer, 2, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto exit;
@@ -1004,15 +1676,20 @@ usbtmc_clear_check_status:
 		goto exit;
 	}
 
-	if (buffer[1] == 1)
+	if ((buffer[1] & 1) != 0) {
 		do {
 			dev_dbg(dev, "Reading from bulk in EP\n");
 
+			actual = 0;
 			rv = usb_bulk_msg(data->usb_dev,
 					  usb_rcvbulkpipe(data->usb_dev,
 							  data->bulk_in),
-					  buffer, USBTMC_SIZE_IOBUFFER,
-					  &actual, USBTMC_TIMEOUT);
+					  buffer, USBTMC_BUFSIZE,
+					  &actual, USB_CTRL_GET_TIMEOUT);
+
+			print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+					     16, 1, buffer, actual, true);
+
 			n++;
 
 			if (rv < 0) {
@@ -1020,10 +1697,15 @@ usbtmc_clear_check_status:
 					rv);
 				goto exit;
 			}
-		} while ((actual == max_size) &&
+		} while ((actual == USBTMC_BUFSIZE) &&
 			  (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
+	} else {
+		/* do not stress device with subsequent requests */
+		msleep(50);
+		n++;
+	}
 
-	if (actual == max_size) {
+	if (n >= USBTMC_MAX_READS_TO_CLEAR_BULK_IN) {
 		dev_err(dev, "Couldn't clear device buffer within %d cycles\n",
 			USBTMC_MAX_READS_TO_CLEAR_BULK_IN);
 		rv = -EPERM;
@@ -1037,7 +1719,7 @@ usbtmc_clear_bulk_out_halt:
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
 	if (rv < 0) {
-		dev_err(dev, "usb_control_msg returned %d\n", rv);
+		dev_err(dev, "usb_clear_halt returned %d\n", rv);
 		goto exit;
 	}
 	rv = 0;
@@ -1054,12 +1736,9 @@ static int usbtmc_ioctl_clear_out_halt(struct usbtmc_device_data *data)
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
 
-	if (rv < 0) {
-		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
-			rv);
-		return rv;
-	}
-	return 0;
+	if (rv < 0)
+		dev_err(&data->usb_dev->dev, "%s returned %d\n", __func__, rv);
+	return rv;
 }
 
 static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
@@ -1069,11 +1748,33 @@ static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_rcvbulkpipe(data->usb_dev, data->bulk_in));
 
-	if (rv < 0) {
-		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
-			rv);
-		return rv;
-	}
+	if (rv < 0)
+		dev_err(&data->usb_dev->dev, "%s returned %d\n", __func__, rv);
+	return rv;
+}
+
+static int usbtmc_ioctl_cancel_io(struct usbtmc_file_data *file_data)
+{
+	spin_lock_irq(&file_data->err_lock);
+	file_data->in_status = -ECANCELED;
+	file_data->out_status = -ECANCELED;
+	spin_unlock_irq(&file_data->err_lock);
+	usb_kill_anchored_urbs(&file_data->submitted);
+	return 0;
+}
+
+static int usbtmc_ioctl_cleanup_io(struct usbtmc_file_data *file_data)
+{
+	usb_kill_anchored_urbs(&file_data->submitted);
+	usb_scuttle_anchored_urbs(&file_data->in_anchor);
+	spin_lock_irq(&file_data->err_lock);
+	file_data->in_status = 0;
+	file_data->in_transfer_size = 0;
+	file_data->out_status = 0;
+	file_data->out_transfer_size = 0;
+	spin_unlock_irq(&file_data->err_lock);
+
+	file_data->in_urbs_used = 0;
 	return 0;
 }
 
@@ -1090,7 +1791,7 @@ static int get_capabilities(struct usbtmc_device_data *data)
 	rv = usb_control_msg(data->usb_dev, usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_GET_CAPABILITIES,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 0x18, USBTMC_TIMEOUT);
+			     0, 0, buffer, 0x18, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto err_out;
@@ -1147,72 +1848,6 @@ static const struct attribute_group capability_attr_grp = {
 	.attrs = capability_attrs,
 };
 
-static ssize_t TermChar_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);
-
-	return sprintf(buf, "%c\n", data->TermChar);
-}
-
-static ssize_t TermChar_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);
-
-	if (count < 1)
-		return -EINVAL;
-	data->TermChar = buf[0];
-	return count;
-}
-static DEVICE_ATTR_RW(TermChar);
-
-#define data_attribute(name)						\
-static ssize_t name##_show(struct device *dev,				\
-			   struct device_attribute *attr, char *buf)	\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);	\
-									\
-	return sprintf(buf, "%d\n", data->name);			\
-}									\
-static ssize_t name##_store(struct device *dev,				\
-			    struct device_attribute *attr,		\
-			    const char *buf, size_t count)		\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);	\
-	ssize_t result;							\
-	unsigned val;							\
-									\
-	result = sscanf(buf, "%u\n", &val);				\
-	if (result != 1)						\
-		result = -EINVAL;					\
-	data->name = val;						\
-	if (result < 0)							\
-		return result;						\
-	else								\
-		return count;						\
-}									\
-static DEVICE_ATTR_RW(name)
-
-data_attribute(TermCharEnabled);
-data_attribute(auto_abort);
-
-static struct attribute *data_attrs[] = {
-	&dev_attr_TermChar.attr,
-	&dev_attr_TermCharEnabled.attr,
-	&dev_attr_auto_abort.attr,
-	NULL,
-};
-
-static const struct attribute_group data_attr_grp = {
-	.attrs = data_attrs,
-};
-
 static int usbtmc_ioctl_indicator_pulse(struct usbtmc_device_data *data)
 {
 	struct device *dev;
@@ -1229,7 +1864,7 @@ static int usbtmc_ioctl_indicator_pulse(struct usbtmc_device_data *data)
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_INDICATOR_PULSE,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 0x01, USBTMC_TIMEOUT);
+			     0, 0, buffer, 0x01, USB_CTRL_GET_TIMEOUT);
 
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
@@ -1246,6 +1881,63 @@ static int usbtmc_ioctl_indicator_pulse(struct usbtmc_device_data *data)
 	rv = 0;
 
 exit:
+	kfree(buffer);
+	return rv;
+}
+
+static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
+				void __user *arg)
+{
+	struct device *dev = &data->intf->dev;
+	struct usbtmc_ctrlrequest request;
+	u8 *buffer = NULL;
+	int rv;
+	unsigned long res;
+
+	res = copy_from_user(&request, arg, sizeof(struct usbtmc_ctrlrequest));
+	if (res)
+		return -EFAULT;
+
+	if (request.req.wLength > USBTMC_BUFSIZE)
+		return -EMSGSIZE;
+
+	if (request.req.wLength) {
+		buffer = kmalloc(request.req.wLength, GFP_KERNEL);
+		if (!buffer)
+			return -ENOMEM;
+
+		if ((request.req.bRequestType & USB_DIR_IN) == 0) {
+			/* Send control data to device */
+			res = copy_from_user(buffer, request.data,
+					     request.req.wLength);
+			if (res) {
+				rv = -EFAULT;
+				goto exit;
+			}
+		}
+	}
+
+	rv = usb_control_msg(data->usb_dev,
+			usb_rcvctrlpipe(data->usb_dev, 0),
+			request.req.bRequest,
+			request.req.bRequestType,
+			request.req.wValue,
+			request.req.wIndex,
+			buffer, request.req.wLength, USB_CTRL_GET_TIMEOUT);
+
+	if (rv < 0) {
+		dev_err(dev, "%s failed %d\n", __func__, rv);
+		goto exit;
+	}
+
+	if (rv && (request.req.bRequestType & USB_DIR_IN)) {
+		/* Read control data from device */
+		res = copy_to_user(request.data, buffer, rv);
+		if (res)
+			rv = -EFAULT;
+	}
+
+ exit:
 	kfree(buffer);
 	return rv;
 }
@@ -1331,6 +2023,7 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct usbtmc_file_data *file_data;
 	struct usbtmc_device_data *data;
 	int retval = -EBADRQC;
+	__u8 tmp_byte;
 
 	file_data = file->private_data;
 	data = file_data->data;
@@ -1366,6 +2059,10 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		retval = usbtmc_ioctl_abort_bulk_in(data);
 		break;
 
+	case USBTMC_IOCTL_CTRL_REQUEST:
+		retval = usbtmc_ioctl_request(data, (void __user *)arg);
+		break;
+
 	case USBTMC_IOCTL_GET_TIMEOUT:
 		retval = usbtmc_ioctl_get_timeout(file_data,
 						  (void __user *)arg);
@@ -1386,12 +2083,29 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						   (void __user *)arg);
 		break;
 
+	case USBTMC_IOCTL_WRITE:
+		retval = usbtmc_ioctl_generic_write(file_data,
+						    (void __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_READ:
+		retval = usbtmc_ioctl_generic_read(file_data,
+						   (void __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_WRITE_RESULT:
+		retval = usbtmc_ioctl_write_result(file_data,
+						   (void __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_API_VERSION:
+		retval = put_user(USBTMC_API_VERSION,
+				  (__u32 __user *)arg);
+		break;
+
 	case USBTMC488_IOCTL_GET_CAPS:
-		retval = copy_to_user((void __user *)arg,
-				&data->usb488_caps,
-				sizeof(data->usb488_caps));
-		if (retval)
-			retval = -EFAULT;
+		retval = put_user(data->usb488_caps,
+				  (unsigned char __user *)arg);
 		break;
 
 	case USBTMC488_IOCTL_READ_STB:
@@ -1416,6 +2130,30 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case USBTMC488_IOCTL_TRIGGER:
 		retval = usbtmc488_ioctl_trigger(file_data);
+		break;
+
+	case USBTMC488_IOCTL_WAIT_SRQ:
+		retval = usbtmc488_ioctl_wait_srq(file_data,
+						  (__u32 __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_MSG_IN_ATTR:
+		retval = put_user(file_data->bmTransferAttributes,
+				  (__u8 __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_AUTO_ABORT:
+		retval = get_user(tmp_byte, (unsigned char __user *)arg);
+		if (retval == 0)
+			file_data->auto_abort = !!tmp_byte;
+		break;
+
+	case USBTMC_IOCTL_CANCEL_IO:
+		retval = usbtmc_ioctl_cancel_io(file_data);
+		break;
+
+	case USBTMC_IOCTL_CLEANUP_IO:
+		retval = usbtmc_ioctl_cleanup_io(file_data);
 		break;
 	}
 
@@ -1446,7 +2184,28 @@ static __poll_t usbtmc_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &data->waitq, wait);
 
-	mask = (atomic_read(&file_data->srq_asserted)) ? EPOLLPRI : 0;
+	/* Note that EPOLLPRI is now assigned to SRQ, and
+	 * EPOLLIN|EPOLLRDNORM to normal read data.
+	 */
+	mask = 0;
+	if (atomic_read(&file_data->srq_asserted))
+		mask |= EPOLLPRI;
+
+	/* Note that the anchor submitted includes all urbs for BULK IN
+	 * and OUT. So EPOLLOUT is signaled when BULK OUT is empty and
+	 * all BULK IN urbs are completed and moved to in_anchor.
+	 */
+	if (usb_anchor_empty(&file_data->submitted))
+		mask |= (EPOLLOUT | EPOLLWRNORM);
+	if (!usb_anchor_empty(&file_data->in_anchor))
+		mask |= (EPOLLIN | EPOLLRDNORM);
+
+	spin_lock_irq(&file_data->err_lock);
+	if (file_data->in_status || file_data->out_status)
+		mask |= EPOLLERR;
+	spin_unlock_irq(&file_data->err_lock);
+
+	dev_dbg(&data->intf->dev, "poll mask = %x\n", mask);
 
 no_poll:
 	mutex_unlock(&data->io_mutex);
@@ -1459,6 +2218,7 @@ static const struct file_operations fops = {
 	.write		= usbtmc_write,
 	.open		= usbtmc_open,
 	.release	= usbtmc_release,
+	.flush		= usbtmc_flush,
 	.unlocked_ioctl	= usbtmc_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= usbtmc_ioctl,
@@ -1552,7 +2312,9 @@ static void usbtmc_free_int(struct usbtmc_device_data *data)
 		return;
 	usb_kill_urb(data->iin_urb);
 	kfree(data->iin_buffer);
+	data->iin_buffer = NULL;
 	usb_free_urb(data->iin_urb);
+	data->iin_urb = NULL;
 	kref_put(&data->kref, usbtmc_delete);
 }
 
@@ -1585,8 +2347,6 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 	/* Initialize USBTMC bTag and other fields */
 	data->bTag	= 1;
-	data->TermCharEnabled = 0;
-	data->TermChar = '\n';
 	/*  2 <= bTag <= 127   USBTMC-USB488 subclass specification 4.3.1 */
 	data->iin_bTag = 2;
 
@@ -1603,6 +2363,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 	}
 
 	data->bulk_in = bulk_in->bEndpointAddress;
+	data->wMaxPacketSize = usb_endpoint_maxp(bulk_in);
 	dev_dbg(&intf->dev, "Found bulk in endpoint at %u\n", data->bulk_in);
 
 	data->bulk_out = bulk_out->bEndpointAddress;
@@ -1659,12 +2420,10 @@ static int usbtmc_probe(struct usb_interface *intf,
 		}
 	}
 
-	retcode = sysfs_create_group(&intf->dev.kobj, &data_attr_grp);
-
 	retcode = usb_register_dev(intf, &usbtmc_class);
 	if (retcode) {
-		dev_err(&intf->dev, "Not able to get a minor"
-			" (base %u, slice default): %d\n", USBTMC_MINOR_BASE,
+		dev_err(&intf->dev, "Not able to get a minor (base %u, slice default): %d\n",
+			USBTMC_MINOR_BASE,
 			retcode);
 		goto error_register;
 	}
@@ -1674,7 +2433,6 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 error_register:
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
-	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
 	usbtmc_free_int(data);
 err_put:
 	kref_put(&data->kref, usbtmc_delete);
@@ -1684,26 +2442,103 @@ err_put:
 static void usbtmc_disconnect(struct usb_interface *intf)
 {
 	struct usbtmc_device_data *data  = usb_get_intfdata(intf);
+	struct list_head *elem;
 
 	usb_deregister_dev(intf, &usbtmc_class);
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
-	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
 	mutex_lock(&data->io_mutex);
 	data->zombie = 1;
 	wake_up_interruptible_all(&data->waitq);
+	list_for_each(elem, &data->file_list) {
+		struct usbtmc_file_data *file_data;
+
+		file_data = list_entry(elem,
+				       struct usbtmc_file_data,
+				       file_elem);
+		usb_kill_anchored_urbs(&file_data->submitted);
+		usb_scuttle_anchored_urbs(&file_data->in_anchor);
+	}
 	mutex_unlock(&data->io_mutex);
 	usbtmc_free_int(data);
 	kref_put(&data->kref, usbtmc_delete);
 }
 
+static void usbtmc_draw_down(struct usbtmc_file_data *file_data)
+{
+	int time;
+
+	time = usb_wait_anchor_empty_timeout(&file_data->submitted, 1000);
+	if (!time)
+		usb_kill_anchored_urbs(&file_data->submitted);
+	usb_scuttle_anchored_urbs(&file_data->in_anchor);
+}
+
 static int usbtmc_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	/* this driver does not have pending URBs */
+	struct usbtmc_device_data *data = usb_get_intfdata(intf);
+	struct list_head *elem;
+
+	if (!data)
+		return 0;
+
+	mutex_lock(&data->io_mutex);
+	list_for_each(elem, &data->file_list) {
+		struct usbtmc_file_data *file_data;
+
+		file_data = list_entry(elem,
+				       struct usbtmc_file_data,
+				       file_elem);
+		usbtmc_draw_down(file_data);
+	}
+
+	if (data->iin_ep_present && data->iin_urb)
+		usb_kill_urb(data->iin_urb);
+
+	mutex_unlock(&data->io_mutex);
 	return 0;
 }
 
 static int usbtmc_resume(struct usb_interface *intf)
 {
+	struct usbtmc_device_data *data = usb_get_intfdata(intf);
+	int retcode = 0;
+
+	if (data->iin_ep_present && data->iin_urb)
+		retcode = usb_submit_urb(data->iin_urb, GFP_KERNEL);
+	if (retcode)
+		dev_err(&intf->dev, "Failed to submit iin_urb\n");
+
+	return retcode;
+}
+
+static int usbtmc_pre_reset(struct usb_interface *intf)
+{
+	struct usbtmc_device_data *data  = usb_get_intfdata(intf);
+	struct list_head *elem;
+
+	if (!data)
+		return 0;
+
+	mutex_lock(&data->io_mutex);
+
+	list_for_each(elem, &data->file_list) {
+		struct usbtmc_file_data *file_data;
+
+		file_data = list_entry(elem,
+				       struct usbtmc_file_data,
+				       file_elem);
+		usbtmc_ioctl_cancel_io(file_data);
+	}
+
+	return 0;
+}
+
+static int usbtmc_post_reset(struct usb_interface *intf)
+{
+	struct usbtmc_device_data *data  = usb_get_intfdata(intf);
+
+	mutex_unlock(&data->io_mutex);
+
 	return 0;
 }
 
@@ -1714,6 +2549,8 @@ static struct usb_driver usbtmc_driver = {
 	.disconnect	= usbtmc_disconnect,
 	.suspend	= usbtmc_suspend,
 	.resume		= usbtmc_resume,
+	.pre_reset	= usbtmc_pre_reset,
+	.post_reset	= usbtmc_post_reset,
 };
 
 module_usb_driver(usbtmc_driver);

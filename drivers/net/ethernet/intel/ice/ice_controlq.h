@@ -8,6 +8,7 @@
 
 /* Maximum buffer lengths for all control queue types */
 #define ICE_AQ_MAX_BUF_LEN 4096
+#define ICE_MBXQ_MAX_BUF_LEN 4096
 
 #define ICE_CTL_Q_DESC(R, i) \
 	(&(((struct ice_aq_desc *)((R).desc_buf.va))[i]))
@@ -18,16 +19,16 @@
 
 /* Defines that help manage the driver vs FW API checks.
  * Take a look at ice_aq_ver_check in ice_controlq.c for actual usage.
- *
  */
 #define EXP_FW_API_VER_BRANCH		0x00
-#define EXP_FW_API_VER_MAJOR		0x00
-#define EXP_FW_API_VER_MINOR		0x01
+#define EXP_FW_API_VER_MAJOR		0x01
+#define EXP_FW_API_VER_MINOR		0x03
 
 /* Different control queue types: These are mainly for SW consumption. */
 enum ice_ctl_q {
 	ICE_CTL_Q_UNKNOWN = 0,
 	ICE_CTL_Q_ADMIN,
+	ICE_CTL_Q_MAILBOX,
 };
 
 /* Control Queue default settings */

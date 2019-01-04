@@ -400,9 +400,8 @@ static void sunxi_nfc_dma_op_cleanup(struct mtd_info *mtd,
 	       nfc->regs + NFC_REG_CTL);
 }
 
-static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
+static int sunxi_nfc_dev_ready(struct nand_chip *nand)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	u32 mask;
@@ -420,9 +419,9 @@ static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
 	return !!(readl(nfc->regs + NFC_REG_ST) & mask);
 }
 
-static void sunxi_nfc_select_chip(struct mtd_info *mtd, int chip)
+static void sunxi_nfc_select_chip(struct nand_chip *nand, int chip)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	struct sunxi_nand_chip_sel *sel;
@@ -443,9 +442,9 @@ static void sunxi_nfc_select_chip(struct mtd_info *mtd, int chip)
 		ctl |= NFC_CE_SEL(sel->cs) | NFC_EN |
 		       NFC_PAGE_SHIFT(nand->page_shift);
 		if (sel->rb < 0) {
-			nand->dev_ready = NULL;
+			nand->legacy.dev_ready = NULL;
 		} else {
-			nand->dev_ready = sunxi_nfc_dev_ready;
+			nand->legacy.dev_ready = sunxi_nfc_dev_ready;
 			ctl |= NFC_RB_SEL(sel->rb);
 		}
 
@@ -464,9 +463,8 @@ static void sunxi_nfc_select_chip(struct mtd_info *mtd, int chip)
 	sunxi_nand->selected = chip;
 }
 
-static void sunxi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void sunxi_nfc_read_buf(struct nand_chip *nand, uint8_t *buf, int len)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	int ret;
@@ -502,10 +500,9 @@ static void sunxi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	}
 }
 
-static void sunxi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
+static void sunxi_nfc_write_buf(struct nand_chip *nand, const uint8_t *buf,
 				int len)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	int ret;
@@ -540,19 +537,18 @@ static void sunxi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 	}
 }
 
-static uint8_t sunxi_nfc_read_byte(struct mtd_info *mtd)
+static uint8_t sunxi_nfc_read_byte(struct nand_chip *nand)
 {
 	uint8_t ret = 0;
 
-	sunxi_nfc_read_buf(mtd, &ret, 1);
+	sunxi_nfc_read_buf(nand, &ret, 1);
 
 	return ret;
 }
 
-static void sunxi_nfc_cmd_ctrl(struct mtd_info *mtd, int dat,
+static void sunxi_nfc_cmd_ctrl(struct nand_chip *nand, int dat,
 			       unsigned int ctrl)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	int ret;
@@ -761,7 +757,7 @@ static void sunxi_nfc_randomizer_write_buf(struct mtd_info *mtd,
 {
 	sunxi_nfc_randomizer_config(mtd, page, ecc);
 	sunxi_nfc_randomizer_enable(mtd);
-	sunxi_nfc_write_buf(mtd, buf, len);
+	sunxi_nfc_write_buf(mtd_to_nand(mtd), buf, len);
 	sunxi_nfc_randomizer_disable(mtd);
 }
 
@@ -770,7 +766,7 @@ static void sunxi_nfc_randomizer_read_buf(struct mtd_info *mtd, uint8_t *buf,
 {
 	sunxi_nfc_randomizer_config(mtd, page, ecc);
 	sunxi_nfc_randomizer_enable(mtd);
-	sunxi_nfc_read_buf(mtd, buf, len);
+	sunxi_nfc_read_buf(mtd_to_nand(mtd), buf, len);
 	sunxi_nfc_randomizer_disable(mtd);
 }
 
@@ -995,7 +991,7 @@ static void sunxi_nfc_hw_ecc_read_extra_oob(struct mtd_info *mtd,
 					   false);
 
 	if (!randomize)
-		sunxi_nfc_read_buf(mtd, oob + offset, len);
+		sunxi_nfc_read_buf(nand, oob + offset, len);
 	else
 		sunxi_nfc_randomizer_read_buf(mtd, oob + offset, len,
 					      false, page);
@@ -1189,10 +1185,10 @@ static void sunxi_nfc_hw_ecc_write_extra_oob(struct mtd_info *mtd,
 		*cur_off = mtd->oobsize + mtd->writesize;
 }
 
-static int sunxi_nfc_hw_ecc_read_page(struct mtd_info *mtd,
-				      struct nand_chip *chip, uint8_t *buf,
+static int sunxi_nfc_hw_ecc_read_page(struct nand_chip *chip, uint8_t *buf,
 				      int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	unsigned int max_bitflips = 0;
 	int ret, i, cur_off = 0;
@@ -1227,10 +1223,10 @@ static int sunxi_nfc_hw_ecc_read_page(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-static int sunxi_nfc_hw_ecc_read_page_dma(struct mtd_info *mtd,
-					  struct nand_chip *chip, u8 *buf,
+static int sunxi_nfc_hw_ecc_read_page_dma(struct nand_chip *chip, u8 *buf,
 					  int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	nand_read_page_op(chip, page, 0, NULL, 0);
@@ -1241,14 +1237,14 @@ static int sunxi_nfc_hw_ecc_read_page_dma(struct mtd_info *mtd,
 		return ret;
 
 	/* Fallback to PIO mode */
-	return sunxi_nfc_hw_ecc_read_page(mtd, chip, buf, oob_required, page);
+	return sunxi_nfc_hw_ecc_read_page(chip, buf, oob_required, page);
 }
 
-static int sunxi_nfc_hw_ecc_read_subpage(struct mtd_info *mtd,
-					 struct nand_chip *chip,
+static int sunxi_nfc_hw_ecc_read_subpage(struct nand_chip *chip,
 					 u32 data_offs, u32 readlen,
 					 u8 *bufpoi, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int ret, i, cur_off = 0;
 	unsigned int max_bitflips = 0;
@@ -1278,11 +1274,11 @@ static int sunxi_nfc_hw_ecc_read_subpage(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-static int sunxi_nfc_hw_ecc_read_subpage_dma(struct mtd_info *mtd,
-					     struct nand_chip *chip,
+static int sunxi_nfc_hw_ecc_read_subpage_dma(struct nand_chip *chip,
 					     u32 data_offs, u32 readlen,
 					     u8 *buf, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int nchunks = DIV_ROUND_UP(data_offs + readlen, chip->ecc.size);
 	int ret;
 
@@ -1293,15 +1289,15 @@ static int sunxi_nfc_hw_ecc_read_subpage_dma(struct mtd_info *mtd,
 		return ret;
 
 	/* Fallback to PIO mode */
-	return sunxi_nfc_hw_ecc_read_subpage(mtd, chip, data_offs, readlen,
+	return sunxi_nfc_hw_ecc_read_subpage(chip, data_offs, readlen,
 					     buf, page);
 }
 
-static int sunxi_nfc_hw_ecc_write_page(struct mtd_info *mtd,
-				       struct nand_chip *chip,
+static int sunxi_nfc_hw_ecc_write_page(struct nand_chip *chip,
 				       const uint8_t *buf, int oob_required,
 				       int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int ret, i, cur_off = 0;
 
@@ -1331,12 +1327,12 @@ static int sunxi_nfc_hw_ecc_write_page(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 }
 
-static int sunxi_nfc_hw_ecc_write_subpage(struct mtd_info *mtd,
-					  struct nand_chip *chip,
+static int sunxi_nfc_hw_ecc_write_subpage(struct nand_chip *chip,
 					  u32 data_offs, u32 data_len,
 					  const u8 *buf, int oob_required,
 					  int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int ret, i, cur_off = 0;
 
@@ -1363,12 +1359,12 @@ static int sunxi_nfc_hw_ecc_write_subpage(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 }
 
-static int sunxi_nfc_hw_ecc_write_page_dma(struct mtd_info *mtd,
-					   struct nand_chip *chip,
+static int sunxi_nfc_hw_ecc_write_page_dma(struct nand_chip *chip,
 					   const u8 *buf,
 					   int oob_required,
 					   int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(nand->controller);
 	struct nand_ecc_ctrl *ecc = &nand->ecc;
@@ -1425,28 +1421,25 @@ static int sunxi_nfc_hw_ecc_write_page_dma(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 
 pio_fallback:
-	return sunxi_nfc_hw_ecc_write_page(mtd, chip, buf, oob_required, page);
+	return sunxi_nfc_hw_ecc_write_page(chip, buf, oob_required, page);
 }
 
-static int sunxi_nfc_hw_ecc_read_oob(struct mtd_info *mtd,
-				     struct nand_chip *chip,
-				     int page)
+static int sunxi_nfc_hw_ecc_read_oob(struct nand_chip *chip, int page)
 {
 	chip->pagebuf = -1;
 
-	return chip->ecc.read_page(mtd, chip, chip->data_buf, 1, page);
+	return chip->ecc.read_page(chip, chip->data_buf, 1, page);
 }
 
-static int sunxi_nfc_hw_ecc_write_oob(struct mtd_info *mtd,
-				      struct nand_chip *chip,
-				      int page)
+static int sunxi_nfc_hw_ecc_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	chip->pagebuf = -1;
 
 	memset(chip->data_buf, 0xff, mtd->writesize);
-	ret = chip->ecc.write_page(mtd, chip, chip->data_buf, 1, page);
+	ret = chip->ecc.write_page(chip, chip->data_buf, 1, page);
 	if (ret)
 		return ret;
 
@@ -1475,10 +1468,9 @@ static int _sunxi_nand_lookup_timing(const s32 *lut, int lut_size, u32 duration,
 #define sunxi_nand_lookup_timing(l, p, c) \
 			_sunxi_nand_lookup_timing(l, ARRAY_SIZE(l), p, c)
 
-static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd, int csline,
+static int sunxi_nfc_setup_data_interface(struct nand_chip *nand, int csline,
 					const struct nand_data_interface *conf)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *chip = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(chip->nand.controller);
 	const struct nand_sdr_timings *timings;
@@ -1920,7 +1912,7 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 
 	nand = &chip->nand;
 	/* Default tR value specified in the ONFI spec (chapter 4.15.1) */
-	nand->chip_delay = 200;
+	nand->legacy.chip_delay = 200;
 	nand->controller = &nfc->controller;
 	nand->controller->ops = &sunxi_nand_controller_ops;
 
@@ -1931,23 +1923,23 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	nand->ecc.mode = NAND_ECC_HW;
 	nand_set_flash_node(nand, np);
 	nand->select_chip = sunxi_nfc_select_chip;
-	nand->cmd_ctrl = sunxi_nfc_cmd_ctrl;
-	nand->read_buf = sunxi_nfc_read_buf;
-	nand->write_buf = sunxi_nfc_write_buf;
-	nand->read_byte = sunxi_nfc_read_byte;
+	nand->legacy.cmd_ctrl = sunxi_nfc_cmd_ctrl;
+	nand->legacy.read_buf = sunxi_nfc_read_buf;
+	nand->legacy.write_buf = sunxi_nfc_write_buf;
+	nand->legacy.read_byte = sunxi_nfc_read_byte;
 	nand->setup_data_interface = sunxi_nfc_setup_data_interface;
 
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;
 
-	ret = nand_scan(mtd, nsels);
+	ret = nand_scan(nand, nsels);
 	if (ret)
 		return ret;
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "failed to register mtd device: %d\n", ret);
-		nand_release(mtd);
+		nand_release(nand);
 		return ret;
 	}
 
@@ -1986,7 +1978,7 @@ static void sunxi_nand_chips_cleanup(struct sunxi_nfc *nfc)
 	while (!list_empty(&nfc->chips)) {
 		chip = list_first_entry(&nfc->chips, struct sunxi_nand_chip,
 					node);
-		nand_release(nand_to_mtd(&chip->nand));
+		nand_release(&chip->nand);
 		sunxi_nand_ecc_cleanup(&chip->nand.ecc);
 		list_del(&chip->node);
 	}

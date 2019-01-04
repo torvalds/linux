@@ -1747,7 +1747,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		shost->max_sectors = (shost->sg_tablesize * 8) + 112;
 	}
 
-	error = pci_set_dma_max_seg_size(pdev,
+	error = dma_set_max_seg_size(&pdev->dev,
 		(aac->adapter_info.options & AAC_OPT_NEW_COMM) ?
 			(shost->max_sectors << 9) : 65536);
 	if (error)
@@ -2054,8 +2054,6 @@ static void aac_pci_resume(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct scsi_device *sdev = NULL;
 	struct aac_dev *aac = (struct aac_dev *)shost_priv(shost);
-
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	if (aac_adapter_ioremap(aac, aac->base_size)) {
 

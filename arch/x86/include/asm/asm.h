@@ -130,6 +130,9 @@
 # define _ASM_EXTABLE(from, to)					\
 	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
 
+# define _ASM_EXTABLE_UA(from, to)				\
+	_ASM_EXTABLE_HANDLE(from, to, ex_handler_uaccess)
+
 # define _ASM_EXTABLE_FAULT(from, to)				\
 	_ASM_EXTABLE_HANDLE(from, to, ex_handler_fault)
 
@@ -165,8 +168,8 @@
 	jmp copy_user_handle_tail
 	.previous
 
-	_ASM_EXTABLE(100b,103b)
-	_ASM_EXTABLE(101b,103b)
+	_ASM_EXTABLE_UA(100b, 103b)
+	_ASM_EXTABLE_UA(101b, 103b)
 	.endm
 
 #else
@@ -181,6 +184,9 @@
 
 # define _ASM_EXTABLE(from, to)					\
 	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
+
+# define _ASM_EXTABLE_UA(from, to)				\
+	_ASM_EXTABLE_HANDLE(from, to, ex_handler_uaccess)
 
 # define _ASM_EXTABLE_FAULT(from, to)				\
 	_ASM_EXTABLE_HANDLE(from, to, ex_handler_fault)

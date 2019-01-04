@@ -38,35 +38,32 @@ struct oxnas_nand_ctrl {
 	struct nand_chip *chips[OXNAS_NAND_MAX_CHIPS];
 };
 
-static uint8_t oxnas_nand_read_byte(struct mtd_info *mtd)
+static uint8_t oxnas_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	return readb(oxnas->io_base);
 }
 
-static void oxnas_nand_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void oxnas_nand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	ioread8_rep(oxnas->io_base, buf, len);
 }
 
-static void oxnas_nand_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void oxnas_nand_write_buf(struct nand_chip *chip, const u8 *buf,
+				 int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	iowrite8_rep(oxnas->io_base, buf, len);
 }
 
 /* Single CS command control */
-static void oxnas_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void oxnas_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	if (ctrl & NAND_CLE)
@@ -135,20 +132,20 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 		mtd->dev.parent = &pdev->dev;
 		mtd->priv = chip;
 
-		chip->cmd_ctrl = oxnas_nand_cmd_ctrl;
-		chip->read_buf = oxnas_nand_read_buf;
-		chip->read_byte = oxnas_nand_read_byte;
-		chip->write_buf = oxnas_nand_write_buf;
-		chip->chip_delay = 30;
+		chip->legacy.cmd_ctrl = oxnas_nand_cmd_ctrl;
+		chip->legacy.read_buf = oxnas_nand_read_buf;
+		chip->legacy.read_byte = oxnas_nand_read_byte;
+		chip->legacy.write_buf = oxnas_nand_write_buf;
+		chip->legacy.chip_delay = 30;
 
 		/* Scan to find existence of the device */
-		err = nand_scan(mtd, 1);
+		err = nand_scan(chip, 1);
 		if (err)
 			goto err_clk_unprepare;
 
 		err = mtd_device_register(mtd, NULL, 0);
 		if (err) {
-			nand_release(mtd);
+			nand_release(chip);
 			goto err_clk_unprepare;
 		}
 
@@ -176,7 +173,7 @@ static int oxnas_nand_remove(struct platform_device *pdev)
 	struct oxnas_nand_ctrl *oxnas = platform_get_drvdata(pdev);
 
 	if (oxnas->chips[0])
-		nand_release(nand_to_mtd(oxnas->chips[0]));
+		nand_release(oxnas->chips[0]);
 
 	clk_disable_unprepare(oxnas->clk);
 

@@ -79,83 +79,72 @@ static int a6xx_hfi_queue_write(struct a6xx_gmu *gmu,
 	return 0;
 }
 
-struct a6xx_hfi_response {
-	u32 id;
-	u32 seqnum;
-	struct list_head node;
-	struct completion complete;
-
-	u32 error;
-	u32 payload[16];
-};
-
-/*
- * Incoming HFI ack messages can come in out of order so we need to store all
- * the pending messages on a list until they are handled.
- */
-static spinlock_t hfi_ack_lock = __SPIN_LOCK_UNLOCKED(message_lock);
-static LIST_HEAD(hfi_ack_list);
-
-static void a6xx_hfi_handle_ack(struct a6xx_gmu *gmu,
-		struct a6xx_hfi_msg_response *msg)
+static int a6xx_hfi_wait_for_ack(struct a6xx_gmu *gmu, u32 id, u32 seqnum,
+		u32 *payload, u32 payload_size)
 {
-	struct a6xx_hfi_response *resp;
-	u32 id, seqnum;
-
-	/* msg->ret_header contains the header of the message being acked */
-	id = HFI_HEADER_ID(msg->ret_header);
-	seqnum = HFI_HEADER_SEQNUM(msg->ret_header);
-
-	spin_lock(&hfi_ack_lock);
-	list_for_each_entry(resp, &hfi_ack_list, node) {
-		if (resp->id == id && resp->seqnum == seqnum) {
-			resp->error = msg->error;
-			memcpy(resp->payload, msg->payload,
-				sizeof(resp->payload));
-
-			complete(&resp->complete);
-			spin_unlock(&hfi_ack_lock);
-			return;
-		}
-	}
-	spin_unlock(&hfi_ack_lock);
-
-	dev_err(gmu->dev, "Nobody was waiting for HFI message %d\n", seqnum);
-}
-
-static void a6xx_hfi_handle_error(struct a6xx_gmu *gmu,
-		struct a6xx_hfi_msg_response *msg)
-{
-	struct a6xx_hfi_msg_error *error = (struct a6xx_hfi_msg_error *) msg;
-
-	dev_err(gmu->dev, "GMU firmware error %d\n", error->code);
-}
-
-void a6xx_hfi_task(unsigned long data)
-{
-	struct a6xx_gmu *gmu = (struct a6xx_gmu *) data;
 	struct a6xx_hfi_queue *queue = &gmu->queues[HFI_RESPONSE_QUEUE];
-	struct a6xx_hfi_msg_response resp;
+	u32 val;
+	int ret;
+
+	/* Wait for a response */
+	ret = gmu_poll_timeout(gmu, REG_A6XX_GMU_GMU2HOST_INTR_INFO, val,
+		val & A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ, 100, 5000);
+
+	if (ret) {
+		dev_err(gmu->dev,
+			"Message %s id %d timed out waiting for response\n",
+			a6xx_hfi_msg_id[id], seqnum);
+		return -ETIMEDOUT;
+	}
+
+	/* Clear the interrupt */
+	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_CLR,
+		A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ);
 
 	for (;;) {
-		u32 id;
-		int ret = a6xx_hfi_queue_read(queue, (u32 *) &resp,
+		struct a6xx_hfi_msg_response resp;
+
+		/* Get the next packet */
+		ret = a6xx_hfi_queue_read(queue, (u32 *) &resp,
 			sizeof(resp) >> 2);
 
-		/* Returns the number of bytes copied or negative on error */
-		if (ret <= 0) {
-			if (ret < 0)
-				dev_err(gmu->dev,
-					"Unable to read the HFI message queue\n");
-			break;
+		/* If the queue is empty our response never made it */
+		if (!ret) {
+			dev_err(gmu->dev,
+				"The HFI response queue is unexpectedly empty\n");
+
+			return -ENOENT;
 		}
 
-		id = HFI_HEADER_ID(resp.header);
+		if (HFI_HEADER_ID(resp.header) == HFI_F2H_MSG_ERROR) {
+			struct a6xx_hfi_msg_error *error =
+				(struct a6xx_hfi_msg_error *) &resp;
 
-		if (id == HFI_F2H_MSG_ACK)
-			a6xx_hfi_handle_ack(gmu, &resp);
-		else if (id == HFI_F2H_MSG_ERROR)
-			a6xx_hfi_handle_error(gmu, &resp);
+			dev_err(gmu->dev, "GMU firmware error %d\n",
+				error->code);
+			continue;
+		}
+
+		if (seqnum != HFI_HEADER_SEQNUM(resp.ret_header)) {
+			dev_err(gmu->dev,
+				"Unexpected message id %d on the response queue\n",
+				HFI_HEADER_SEQNUM(resp.ret_header));
+			continue;
+		}
+
+		if (resp.error) {
+			dev_err(gmu->dev,
+				"Message %s id %d returned error %d\n",
+				a6xx_hfi_msg_id[id], seqnum, resp.error);
+			return -EINVAL;
+		}
+
+		/* All is well, copy over the buffer */
+		if (payload && payload_size)
+			memcpy(payload, resp.payload,
+				min_t(u32, payload_size, sizeof(resp.payload)));
+
+		return 0;
 	}
 }
 
@@ -163,7 +152,6 @@ static int a6xx_hfi_send_msg(struct a6xx_gmu *gmu, int id,
 		void *data, u32 size, u32 *payload, u32 payload_size)
 {
 	struct a6xx_hfi_queue *queue = &gmu->queues[HFI_COMMAND_QUEUE];
-	struct a6xx_hfi_response resp = { 0 };
 	int ret, dwords = size >> 2;
 	u32 seqnum;
 
@@ -173,53 +161,14 @@ static int a6xx_hfi_send_msg(struct a6xx_gmu *gmu, int id,
 	*((u32 *) data) = (seqnum << 20) | (HFI_MSG_CMD << 16) |
 		(dwords << 8) | id;
 
-	init_completion(&resp.complete);
-	resp.id = id;
-	resp.seqnum = seqnum;
-
-	spin_lock_bh(&hfi_ack_lock);
-	list_add_tail(&resp.node, &hfi_ack_list);
-	spin_unlock_bh(&hfi_ack_lock);
-
 	ret = a6xx_hfi_queue_write(gmu, queue, data, dwords);
 	if (ret) {
 		dev_err(gmu->dev, "Unable to send message %s id %d\n",
 			a6xx_hfi_msg_id[id], seqnum);
-		goto out;
-	}
-
-	/* Wait up to 5 seconds for the response */
-	ret = wait_for_completion_timeout(&resp.complete,
-		msecs_to_jiffies(5000));
-	if (!ret) {
-		dev_err(gmu->dev,
-			"Message %s id %d timed out waiting for response\n",
-			a6xx_hfi_msg_id[id], seqnum);
-		ret = -ETIMEDOUT;
-	} else
-		ret = 0;
-
-out:
-	spin_lock_bh(&hfi_ack_lock);
-	list_del(&resp.node);
-	spin_unlock_bh(&hfi_ack_lock);
-
-	if (ret)
 		return ret;
-
-	if (resp.error) {
-		dev_err(gmu->dev, "Message %s id %d returned error %d\n",
-			a6xx_hfi_msg_id[id], seqnum, resp.error);
-		return -EINVAL;
 	}
 
-	if (payload && payload_size) {
-		int copy = min_t(u32, payload_size, sizeof(resp.payload));
-
-		memcpy(payload, resp.payload, copy);
-	}
-
-	return 0;
+	return a6xx_hfi_wait_for_ack(gmu, id, seqnum, payload, payload_size);
 }
 
 static int a6xx_hfi_send_gmu_init(struct a6xx_gmu *gmu, int boot_state)

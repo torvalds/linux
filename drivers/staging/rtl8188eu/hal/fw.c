@@ -98,9 +98,9 @@ static void rtl88e_firmware_selfreset(struct adapter *adapt)
 {
 	u8 u1b_tmp;
 
-	u1b_tmp = usb_read8(adapt, REG_SYS_FUNC_EN+1);
-	usb_write8(adapt, REG_SYS_FUNC_EN+1, (u1b_tmp & (~BIT(2))));
-	usb_write8(adapt, REG_SYS_FUNC_EN+1, (u1b_tmp | BIT(2)));
+	u1b_tmp = usb_read8(adapt, REG_SYS_FUNC_EN + 1);
+	usb_write8(adapt, REG_SYS_FUNC_EN + 1, (u1b_tmp & (~BIT(2))));
+	usb_write8(adapt, REG_SYS_FUNC_EN + 1, (u1b_tmp | BIT(2)));
 }
 
 static int _rtl88e_fw_free_to_go(struct adapter *adapt)

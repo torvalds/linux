@@ -373,8 +373,8 @@ static int c4iw_query_port(struct ib_device *ibdev, u8 port,
 	return 0;
 }
 
-static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
 						 ibdev.dev);
@@ -382,9 +382,10 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n",
 		       CHELSIO_CHIP_RELEASE(c4iw_dev->rdev.lldi.adapter_type));
 }
+static DEVICE_ATTR_RO(hw_rev);
 
-static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t hca_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
 						 ibdev.dev);
@@ -395,9 +396,10 @@ static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
 	return sprintf(buf, "%s\n", info.driver);
 }
+static DEVICE_ATTR_RO(hca_type);
 
-static ssize_t show_board(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
 						 ibdev.dev);
@@ -405,6 +407,7 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%x.%x\n", c4iw_dev->rdev.lldi.pdev->vendor,
 		       c4iw_dev->rdev.lldi.pdev->device);
 }
+static DEVICE_ATTR_RO(board_id);
 
 enum counters {
 	IP4INSEGS,
@@ -461,14 +464,15 @@ static int c4iw_get_mib(struct ib_device *ibdev,
 	return stats->num_counters;
 }
 
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
+static struct attribute *c4iw_class_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
+};
 
-static struct device_attribute *c4iw_class_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id,
+static const struct attribute_group c4iw_attr_group = {
+	.attrs = c4iw_class_attributes,
 };
 
 static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -530,12 +534,10 @@ static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
 void c4iw_register_device(struct work_struct *work)
 {
 	int ret;
-	int i;
 	struct uld_ctx *ctx = container_of(work, struct uld_ctx, reg_work);
 	struct c4iw_dev *dev = ctx->dev;
 
 	pr_debug("c4iw_dev %p\n", dev);
-	strlcpy(dev->ibdev.name, "cxgb4_%d", IB_DEVICE_NAME_MAX);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
@@ -626,20 +628,13 @@ void c4iw_register_device(struct work_struct *work)
 	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.lldi.ports[0]->name,
 	       sizeof(dev->ibdev.iwcm->ifname));
 
+	rdma_set_device_sysfs_group(&dev->ibdev, &c4iw_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_CXGB4;
-	ret = ib_register_device(&dev->ibdev, NULL);
+	ret = ib_register_device(&dev->ibdev, "cxgb4_%d", NULL);
 	if (ret)
 		goto err_kfree_iwcm;
-
-	for (i = 0; i < ARRAY_SIZE(c4iw_class_attributes); ++i) {
-		ret = device_create_file(&dev->ibdev.dev,
-					 c4iw_class_attributes[i]);
-		if (ret)
-			goto err_unregister_device;
-	}
 	return;
-err_unregister_device:
-	ib_unregister_device(&dev->ibdev);
+
 err_kfree_iwcm:
 	kfree(dev->ibdev.iwcm);
 err_dealloc_ctx:
@@ -651,12 +646,7 @@ err_dealloc_ctx:
 
 void c4iw_unregister_device(struct c4iw_dev *dev)
 {
-	int i;
-
 	pr_debug("c4iw_dev %p\n", dev);
-	for (i = 0; i < ARRAY_SIZE(c4iw_class_attributes); ++i)
-		device_remove_file(&dev->ibdev.dev,
-				   c4iw_class_attributes[i]);
 	ib_unregister_device(&dev->ibdev);
 	kfree(dev->ibdev.iwcm);
 	return;

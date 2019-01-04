@@ -428,7 +428,7 @@ MODULE_LICENSE("GPL");
 
 late_initcall(cppc_cpufreq_init);
 
-static const struct acpi_device_id cppc_acpi_ids[] = {
+static const struct acpi_device_id cppc_acpi_ids[] __used = {
 	{ACPI_PROCESSOR_DEVICE_HID, },
 	{}
 };

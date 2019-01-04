@@ -317,7 +317,7 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_SRCRPF, srcrpf);
 
-	/* Enable interrupts */
+	/* Enable interrupts. */
 	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
 	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_ENB(wpf->entity.index),
 			   VI6_WFP_IRQ_ENB_DFEE);

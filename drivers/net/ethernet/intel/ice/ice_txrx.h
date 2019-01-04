@@ -22,8 +22,21 @@
 #define ICE_RX_BUF_WRITE	16	/* Must be power of 2 */
 #define ICE_MAX_TXQ_PER_TXQG	128
 
-/* Tx Descriptors needed, worst case */
-#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+/* We are assuming that the cache line is always 64 Bytes here for ice.
+ * In order to make sure that is a correct assumption there is a check in probe
+ * to print a warning if the read from GLPCI_CNF2 tells us that the cache line
+ * size is 128 bytes. We do it this way because we do not want to read the
+ * GLPCI_CNF2 register or a variable containing the value on every pass through
+ * the Tx path.
+ */
+#define ICE_CACHE_LINE_BYTES		64
+#define ICE_DESCS_PER_CACHE_LINE	(ICE_CACHE_LINE_BYTES / \
+					 sizeof(struct ice_tx_desc))
+#define ICE_DESCS_FOR_CTX_DESC		1
+#define ICE_DESCS_FOR_SKB_DATA_PTR	1
+/* Tx descriptors needed, worst case */
+#define DESC_NEEDED (MAX_SKB_FRAGS + ICE_DESCS_FOR_CTX_DESC + \
+		     ICE_DESCS_PER_CACHE_LINE + ICE_DESCS_FOR_SKB_DATA_PTR)
 #define ICE_DESC_UNUSED(R)	\
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)
@@ -71,6 +84,7 @@ struct ice_txq_stats {
 	u64 restart_q;
 	u64 tx_busy;
 	u64 tx_linearize;
+	int prev_pkt; /* negative if no pending Tx descriptors */
 };
 
 struct ice_rxq_stats {
@@ -103,10 +117,17 @@ enum ice_rx_dtype {
 #define ICE_RX_ITR	ICE_IDX_ITR0
 #define ICE_TX_ITR	ICE_IDX_ITR1
 #define ICE_ITR_DYNAMIC	0x8000  /* use top bit as a flag */
-#define ICE_ITR_8K	0x003E
+#define ICE_ITR_8K	125
+#define ICE_ITR_20K	50
+#define ICE_DFLT_TX_ITR	ICE_ITR_20K
+#define ICE_DFLT_RX_ITR	ICE_ITR_20K
+/* apply ITR granularity translation to program the register. itr_gran is either
+ * 2 or 4 usecs so we need to divide by 2 first then shift by that value
+ */
+#define ITR_TO_REG(val, itr_gran) (((val) & ~ICE_ITR_DYNAMIC) >> \
+				   ((itr_gran) / 2))
 
-/* apply ITR HW granularity translation to program the HW registers */
-#define ITR_TO_REG(val, itr_gran) (((val) & ~ICE_ITR_DYNAMIC) >> (itr_gran))
+#define ICE_DFLT_INTRL	0
 
 /* Legacy or Advanced Mode Queue */
 #define ICE_TX_ADVANCED	0
@@ -127,14 +148,6 @@ struct ice_ring {
 	};
 	u16 q_index;			/* Queue number of ring */
 	u32 txq_teid;			/* Added Tx queue TEID */
-
-	/* high bit set means dynamic, use accessor routines to read/write.
-	 * hardware supports 2us/1us resolution for the ITR registers.
-	 * these values always store the USER setting, and must be converted
-	 * before programming to a register.
-	 */
-	u16 rx_itr_setting;
-	u16 tx_itr_setting;
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
@@ -172,6 +185,7 @@ struct ice_ring_container {
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_pkts;	/* total packets processed this int */
 	enum ice_latency_range latency_range;
+	int itr_idx;	/* index in the interrupt vector */
 	u16 itr;
 };
 

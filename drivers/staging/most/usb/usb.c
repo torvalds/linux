@@ -568,19 +568,19 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	mutex_lock(&mdev->io_mutex);
 	if (!mdev->usb_device) {
 		retval = -ENODEV;
-		goto _exit;
+		goto unlock_io_mutex;
 	}
 
 	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
 	if (!urb) {
 		retval = -ENOMEM;
-		goto _exit;
+		goto unlock_io_mutex;
 	}
 
 	if ((conf->direction & MOST_CH_TX) && mdev->padding_active[channel] &&
 	    hdm_add_padding(mdev, channel, mbo)) {
 		retval = -EIO;
-		goto _error;
+		goto err_free_urb;
 	}
 
 	urb->transfer_dma = mbo->bus_address;
@@ -615,15 +615,15 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	if (retval) {
 		dev_err(&mdev->usb_device->dev,
 			"URB submit failed with error %d.\n", retval);
-		goto _error_1;
+		goto err_unanchor_urb;
 	}
-	goto _exit;
+	goto unlock_io_mutex;
 
-_error_1:
+err_unanchor_urb:
 	usb_unanchor_urb(urb);
-_error:
+err_free_urb:
 	usb_free_urb(urb);
-_exit:
+unlock_io_mutex:
 	mutex_unlock(&mdev->io_mutex);
 	return retval;
 }
@@ -1015,6 +1015,13 @@ static const struct attribute_group *dci_attr_groups[] = {
 	NULL,
 };
 
+static void release_dci(struct device *dev)
+{
+	struct most_dci_obj *dci = to_dci_obj(dev);
+
+	kfree(dci);
+}
+
 /**
  * hdm_probe - probe function of USB device driver
  * @interface: Interface of the attached USB device
@@ -1041,7 +1048,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	int ret = 0;
 
 	if (!mdev)
-		goto exit_ENOMEM;
+		goto err_out_of_memory;
 
 	usb_set_intfdata(interface, mdev);
 	num_endpoints = usb_iface_desc->desc.bNumEndpoints;
@@ -1073,22 +1080,22 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 	mdev->conf = kcalloc(num_endpoints, sizeof(*mdev->conf), GFP_KERNEL);
 	if (!mdev->conf)
-		goto exit_free;
+		goto err_free_mdev;
 
 	mdev->cap = kcalloc(num_endpoints, sizeof(*mdev->cap), GFP_KERNEL);
 	if (!mdev->cap)
-		goto exit_free1;
+		goto err_free_conf;
 
 	mdev->iface.channel_vector = mdev->cap;
 	mdev->ep_address =
 		kcalloc(num_endpoints, sizeof(*mdev->ep_address), GFP_KERNEL);
 	if (!mdev->ep_address)
-		goto exit_free2;
+		goto err_free_cap;
 
 	mdev->busy_urbs =
 		kcalloc(num_endpoints, sizeof(*mdev->busy_urbs), GFP_KERNEL);
 	if (!mdev->busy_urbs)
-		goto exit_free3;
+		goto err_free_ep_address;
 
 	tmp_cap = mdev->cap;
 	for (i = 0; i < num_endpoints; i++) {
@@ -1129,7 +1136,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 	ret = most_register_interface(&mdev->iface);
 	if (ret)
-		goto exit_free4;
+		goto err_free_busy_urbs;
 
 	mutex_lock(&mdev->io_mutex);
 	if (le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81118 ||
@@ -1140,35 +1147,36 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 			mutex_unlock(&mdev->io_mutex);
 			most_deregister_interface(&mdev->iface);
 			ret = -ENOMEM;
-			goto exit_free4;
+			goto err_free_busy_urbs;
 		}
 
 		mdev->dci->dev.init_name = "dci";
 		mdev->dci->dev.parent = &mdev->iface.dev;
 		mdev->dci->dev.groups = dci_attr_groups;
+		mdev->dci->dev.release = release_dci;
 		if (device_register(&mdev->dci->dev)) {
 			mutex_unlock(&mdev->io_mutex);
 			most_deregister_interface(&mdev->iface);
 			ret = -ENOMEM;
-			goto exit_free5;
+			goto err_free_dci;
 		}
 		mdev->dci->usb_device = mdev->usb_device;
 	}
 	mutex_unlock(&mdev->io_mutex);
 	return 0;
-exit_free5:
+err_free_dci:
 	kfree(mdev->dci);
-exit_free4:
+err_free_busy_urbs:
 	kfree(mdev->busy_urbs);
-exit_free3:
+err_free_ep_address:
 	kfree(mdev->ep_address);
-exit_free2:
+err_free_cap:
 	kfree(mdev->cap);
-exit_free1:
+err_free_conf:
 	kfree(mdev->conf);
-exit_free:
+err_free_mdev:
 	kfree(mdev);
-exit_ENOMEM:
+err_out_of_memory:
 	if (ret == 0 || ret == -ENOMEM) {
 		ret = -ENOMEM;
 		dev_err(dev, "out of memory\n");
@@ -1198,7 +1206,6 @@ static void hdm_disconnect(struct usb_interface *interface)
 	cancel_work_sync(&mdev->poll_work_obj);
 
 	device_unregister(&mdev->dci->dev);
-	kfree(mdev->dci);
 	most_deregister_interface(&mdev->iface);
 
 	kfree(mdev->busy_urbs);
