@@ -5,9 +5,6 @@
  *
  * Copyright (C) 2018 ARM Limited or its affiliates.
  * All rights reserved.
- *
- * Based loosely on public domain code gleaned from libtomcrypt
- * (https://github.com/libtom/libtomcrypt).
  */
 
 #include <crypto/algapi.h>
@@ -21,7 +18,6 @@
 
 struct crypto_ofb_ctx {
 	struct crypto_cipher *child;
-	int cnt;
 };
 
 
@@ -41,58 +37,40 @@ static int crypto_ofb_setkey(struct crypto_skcipher *parent, const u8 *key,
 	return err;
 }
 
-static int crypto_ofb_encrypt_segment(struct crypto_ofb_ctx *ctx,
-				      struct skcipher_walk *walk,
-				      struct crypto_cipher *tfm)
+static int crypto_ofb_crypt(struct skcipher_request *req)
 {
-	int bsize = crypto_cipher_blocksize(tfm);
-	int nbytes = walk->nbytes;
-
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	u8 *iv = walk->iv;
-
-	do {
-		if (ctx->cnt == bsize) {
-			if (nbytes < bsize)
-				break;
-			crypto_cipher_encrypt_one(tfm, iv, iv);
-			ctx->cnt = 0;
-		}
-		*dst = *src ^ iv[ctx->cnt];
-		src++;
-		dst++;
-		ctx->cnt++;
-	} while (--nbytes);
-	return nbytes;
-}
-
-static int crypto_ofb_encrypt(struct skcipher_request *req)
-{
-	struct skcipher_walk walk;
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	unsigned int bsize;
 	struct crypto_ofb_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct crypto_cipher *child = ctx->child;
-	int ret = 0;
+	struct crypto_cipher *cipher = ctx->child;
+	const unsigned int bsize = crypto_cipher_blocksize(cipher);
+	struct skcipher_walk walk;
+	int err;
 
-	bsize =  crypto_cipher_blocksize(child);
-	ctx->cnt = bsize;
+	err = skcipher_walk_virt(&walk, req, false);
 
-	ret = skcipher_walk_virt(&walk, req, false);
+	while (walk.nbytes >= bsize) {
+		const u8 *src = walk.src.virt.addr;
+		u8 *dst = walk.dst.virt.addr;
+		u8 * const iv = walk.iv;
+		unsigned int nbytes = walk.nbytes;
 
-	while (walk.nbytes) {
-		ret = crypto_ofb_encrypt_segment(ctx, &walk, child);
-		ret = skcipher_walk_done(&walk, ret);
+		do {
+			crypto_cipher_encrypt_one(cipher, iv, iv);
+			crypto_xor_cpy(dst, src, iv, bsize);
+			dst += bsize;
+			src += bsize;
+		} while ((nbytes -= bsize) >= bsize);
+
+		err = skcipher_walk_done(&walk, nbytes);
 	}
 
-	return ret;
-}
-
-/* OFB encrypt and decrypt are identical */
-static int crypto_ofb_decrypt(struct skcipher_request *req)
-{
-	return crypto_ofb_encrypt(req);
+	if (walk.nbytes) {
+		crypto_cipher_encrypt_one(cipher, walk.iv, walk.iv);
+		crypto_xor_cpy(walk.dst.virt.addr, walk.src.virt.addr, walk.iv,
+			       walk.nbytes);
+		err = skcipher_walk_done(&walk, 0);
+	}
+	return err;
 }
 
 static int crypto_ofb_init_tfm(struct crypto_skcipher *tfm)
@@ -165,12 +143,17 @@ static int crypto_ofb_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		goto err_drop_spawn;
 
-	inst->alg.base.cra_priority = alg->cra_priority;
-	inst->alg.base.cra_blocksize = alg->cra_blocksize;
-	inst->alg.base.cra_alignmask = alg->cra_alignmask;
+	/* OFB mode is a stream cipher. */
+	inst->alg.base.cra_blocksize = 1;
 
-	/* We access the data as u32s when xoring. */
-	inst->alg.base.cra_alignmask |= __alignof__(u32) - 1;
+	/*
+	 * To simplify the implementation, configure the skcipher walk to only
+	 * give a partial block at the very end, never earlier.
+	 */
+	inst->alg.chunksize = alg->cra_blocksize;
+
+	inst->alg.base.cra_priority = alg->cra_priority;
+	inst->alg.base.cra_alignmask = alg->cra_alignmask;
 
 	inst->alg.ivsize = alg->cra_blocksize;
 	inst->alg.min_keysize = alg->cra_cipher.cia_min_keysize;
@@ -182,8 +165,8 @@ static int crypto_ofb_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.exit = crypto_ofb_exit_tfm;
 
 	inst->alg.setkey = crypto_ofb_setkey;
-	inst->alg.encrypt = crypto_ofb_encrypt;
-	inst->alg.decrypt = crypto_ofb_decrypt;
+	inst->alg.encrypt = crypto_ofb_crypt;
+	inst->alg.decrypt = crypto_ofb_crypt;
 
 	inst->free = crypto_ofb_free;
 
