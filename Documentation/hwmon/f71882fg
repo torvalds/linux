@@ -94,7 +94,7 @@ Note that the lowest numbered temperature zone trip point corresponds to
 to the border between the highest and one but highest temperature zones, and
 vica versa. So the temperature zone trip points 1-4 (or 1-2) go from high temp
 to low temp! This is how things are implemented in the IC, and the driver
-mimicks this.
+mimics this.
 
 There are 2 modes to specify the speed of the fan, PWM duty cycle (or DC
 voltage) mode, where 0-100% duty cycle (0-100% of 12V) is specified. And RPM
