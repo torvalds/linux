@@ -453,7 +453,7 @@ static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 		struct kvm_tlb_range *range)
 {
 	struct kvm_vcpu *vcpu;
-	int ret = -ENOTSUPP, i;
+	int ret = 0, i;
 
 	spin_lock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 
