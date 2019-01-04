@@ -1645,7 +1645,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		if (r) {
 			DRM_ERROR("sw_init of IP block <%s> failed %d\n",
 				  adev->ip_blocks[i].version->funcs->name, r);
-			return r;
+			goto init_failed;
 		}
 		adev->ip_blocks[i].status.sw = true;
 
@@ -1654,17 +1654,17 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 			r = amdgpu_device_vram_scratch_init(adev);
 			if (r) {
 				DRM_ERROR("amdgpu_vram_scratch_init failed %d\n", r);
-				return r;
+				goto init_failed;
 			}
 			r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
 			if (r) {
 				DRM_ERROR("hw_init %d failed %d\n", i, r);
-				return r;
+				goto init_failed;
 			}
 			r = amdgpu_device_wb_init(adev);
 			if (r) {
 				DRM_ERROR("amdgpu_device_wb_init failed %d\n", r);
-				return r;
+				goto init_failed;
 			}
 			adev->ip_blocks[i].status.hw = true;
 
@@ -1675,7 +1675,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 								AMDGPU_CSA_SIZE);
 				if (r) {
 					DRM_ERROR("allocate CSA failed %d\n", r);
-					return r;
+					goto init_failed;
 				}
 			}
 		}
@@ -1683,30 +1683,32 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 
 	r = amdgpu_ucode_create_bo(adev); /* create ucode bo when sw_init complete*/
 	if (r)
-		return r;
+		goto init_failed;
 
 	r = amdgpu_device_ip_hw_init_phase1(adev);
 	if (r)
-		return r;
+		goto init_failed;
 
 	r = amdgpu_device_fw_loading(adev);
 	if (r)
-		return r;
+		goto init_failed;
 
 	r = amdgpu_device_ip_hw_init_phase2(adev);
 	if (r)
-		return r;
+		goto init_failed;
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1)
 		amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
 
+init_failed:
 	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_virt_init_data_exchange(adev);
+		if (!r)
+			amdgpu_virt_init_data_exchange(adev);
 		amdgpu_virt_release_full_gpu(adev, true);
 	}
 
-	return 0;
+	return r;
 }
 
 /**
@@ -2612,6 +2614,8 @@ fence_driver_init:
 		}
 		dev_err(adev->dev, "amdgpu_device_ip_init failed\n");
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_AMDGPU_INIT_FAIL, 0, 0);
+		if (amdgpu_virt_request_full_gpu(adev, false))
+			amdgpu_virt_release_full_gpu(adev, false);
 		goto failed;
 	}
 
