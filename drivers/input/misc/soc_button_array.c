@@ -185,6 +185,10 @@ static int soc_button_parse_btn_desc(struct device *dev,
 		info->name = "power";
 		info->event_code = KEY_POWER;
 		info->wakeup = true;
+	} else if (upage == 0x01 && usage == 0xca) {
+		info->name = "rotation lock switch";
+		info->event_type = EV_SW;
+		info->event_code = SW_ROTATE_LOCK;
 	} else if (upage == 0x07 && usage == 0xe3) {
 		info->name = "home";
 		info->event_code = KEY_LEFTMETA;
