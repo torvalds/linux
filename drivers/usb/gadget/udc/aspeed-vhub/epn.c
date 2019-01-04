@@ -120,7 +120,7 @@ static void ast_vhub_epn_handle_ack(struct ast_vhub_ep *ep)
 	/* No current DMA ongoing */
 	req->active = false;
 
-	/* Grab lenght out of HW */
+	/* Grab length out of HW */
 	len = VHUB_EP_DMA_TX_SIZE(stat);
 
 	/* If not using DMA, copy data out if needed */
