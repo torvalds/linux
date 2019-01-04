@@ -402,6 +402,13 @@ static int tc35874x_get_detected_timings(struct v4l2_subdev *sd,
 		bt->height *= 2;
 		bt->il_vsync = bt->vsync + 1;
 		bt->pixelclock /= 2;
+
+		/* frame count number: FS = FE 1,2,1,2... */
+		i2c_wr16(sd, FCCTL, 0x0002);
+		/* packet id for interlace mode only */
+		i2c_wr16(sd, PACKETID1, 0x1e1e);
+	} else {
+		i2c_wr16(sd, FCCTL, 0);
 	}
 
 	return 0;
@@ -1524,6 +1531,9 @@ static int tc35874x_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	enable_stream(sd, enable);
 
+	/* stop stream to reset csi*/
+	if (!enable)
+		tc35874x_set_csi(sd);
 	return 0;
 }
 
@@ -1687,10 +1697,6 @@ static int tc35874x_s_edid(struct v4l2_subdev *sd,
 
 	state->edid_blocks_written = edid->blocks;
 
-	/* frame count number: FS = FE 1,2,1,2... */
-	i2c_wr16(sd, FCCTL, 0x0002);
-	/* packet id for interlace mode only */
-	i2c_wr16(sd, PACKETID1, 0x1e1e);
 	if (tx_5v_power_present(sd))
 		tc35874x_enable_edid(sd);
 
