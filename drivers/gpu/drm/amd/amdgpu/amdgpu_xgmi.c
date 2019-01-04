@@ -113,8 +113,13 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 
 	mutex_lock(&xgmi_mutex);
 	hive = amdgpu_get_xgmi_hive(adev);
-	if (!hive)
+	if (!hive) {
+		ret = -EINVAL;
+		dev_err(adev->dev,
+			"XGMI: node 0x%llx, can not matech hive 0x%llx in the hive list.\n",
+			adev->gmc.xgmi.node_id, adev->gmc.xgmi.hive_id);
 		goto exit;
+	}
 
 	hive_topology = &hive->topology_info;
 
