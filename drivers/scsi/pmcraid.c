@@ -3600,7 +3600,7 @@ static long pmcraid_ioctl_passthrough(
 	u32 ioasc;
 	int request_size;
 	int buffer_size;
-	u8 access, direction;
+	u8 direction;
 	int rc = 0;
 
 	/* If IOA reset is in progress, wait 10 secs for reset to complete */
@@ -3649,10 +3649,8 @@ static long pmcraid_ioctl_passthrough(
 	request_size = le32_to_cpu(buffer->ioarcb.data_transfer_length);
 
 	if (buffer->ioarcb.request_flags0 & TRANSFER_DIR_WRITE) {
-		access = VERIFY_READ;
 		direction = DMA_TO_DEVICE;
 	} else {
-		access = VERIFY_WRITE;
 		direction = DMA_FROM_DEVICE;
 	}
 

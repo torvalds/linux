@@ -136,7 +136,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 	if (count == 0)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	error = wait_event_interruptible(debug_log->queue_wait,

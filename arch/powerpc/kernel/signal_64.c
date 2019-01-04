@@ -383,7 +383,7 @@ static long restore_sigcontext(struct task_struct *tsk, sigset_t *set, int sig,
 	err |= __get_user(v_regs, &sc->v_regs);
 	if (err)
 		return err;
-	if (v_regs && !access_ok(VERIFY_READ, v_regs, 34 * sizeof(vector128)))
+	if (v_regs && !access_ok(v_regs, 34 * sizeof(vector128)))
 		return -EFAULT;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
 	if (v_regs != NULL && (msr & MSR_VEC) != 0) {
@@ -502,10 +502,9 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	err |= __get_user(tm_v_regs, &tm_sc->v_regs);
 	if (err)
 		return err;
-	if (v_regs && !access_ok(VERIFY_READ, v_regs, 34 * sizeof(vector128)))
+	if (v_regs && !access_ok(v_regs, 34 * sizeof(vector128)))
 		return -EFAULT;
-	if (tm_v_regs && !access_ok(VERIFY_READ,
-				    tm_v_regs, 34 * sizeof(vector128)))
+	if (tm_v_regs && !access_ok(tm_v_regs, 34 * sizeof(vector128)))
 		return -EFAULT;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
 	if (v_regs != NULL && tm_v_regs != NULL && (msr & MSR_VEC) != 0) {
@@ -671,7 +670,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		ctx_has_vsx_region = 1;
 
 	if (old_ctx != NULL) {
-		if (!access_ok(VERIFY_WRITE, old_ctx, ctx_size)
+		if (!access_ok(old_ctx, ctx_size)
 		    || setup_sigcontext(&old_ctx->uc_mcontext, current, 0, NULL, 0,
 					ctx_has_vsx_region)
 		    || __copy_to_user(&old_ctx->uc_sigmask,
@@ -680,7 +679,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (!access_ok(VERIFY_READ, new_ctx, ctx_size)
+	if (!access_ok(new_ctx, ctx_size)
 	    || __get_user(tmp, (u8 __user *) new_ctx)
 	    || __get_user(tmp, (u8 __user *) new_ctx + ctx_size - 1))
 		return -EFAULT;
@@ -725,7 +724,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
 
-	if (!access_ok(VERIFY_READ, uc, sizeof(*uc)))
+	if (!access_ok(uc, sizeof(*uc)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &uc->uc_sigmask, sizeof(set)))

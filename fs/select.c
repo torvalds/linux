@@ -381,9 +381,6 @@ typedef struct {
 #define FDS_BYTES(nr)	(FDS_LONGS(nr)*sizeof(long))
 
 /*
- * We do a VERIFY_WRITE here even though we are only reading this time:
- * we'll write to it eventually..
- *
  * Use "unsigned long" accesses to let user-mode fd_set's be long-aligned.
  */
 static inline
@@ -782,7 +779,7 @@ SYSCALL_DEFINE6(pselect6, int, n, fd_set __user *, inp, fd_set __user *, outp,
 	sigset_t __user *up = NULL;
 
 	if (sig) {
-		if (!access_ok(VERIFY_READ, sig, sizeof(void *)+sizeof(size_t))
+		if (!access_ok(sig, sizeof(void *)+sizeof(size_t))
 		    || __get_user(up, (sigset_t __user * __user *)sig)
 		    || __get_user(sigsetsize,
 				(size_t __user *)(sig+sizeof(void *))))
@@ -802,7 +799,7 @@ SYSCALL_DEFINE6(pselect6_time32, int, n, fd_set __user *, inp, fd_set __user *, 
 	sigset_t __user *up = NULL;
 
 	if (sig) {
-		if (!access_ok(VERIFY_READ, sig, sizeof(void *)+sizeof(size_t))
+		if (!access_ok(sig, sizeof(void *)+sizeof(size_t))
 		    || __get_user(up, (sigset_t __user * __user *)sig)
 		    || __get_user(sigsetsize,
 				(size_t __user *)(sig+sizeof(void *))))
@@ -1368,7 +1365,7 @@ COMPAT_SYSCALL_DEFINE6(pselect6_time64, int, n, compat_ulong_t __user *, inp,
 	compat_uptr_t up = 0;
 
 	if (sig) {
-		if (!access_ok(VERIFY_READ, sig,
+		if (!access_ok(sig,
 				sizeof(compat_uptr_t)+sizeof(compat_size_t)) ||
 				__get_user(up, (compat_uptr_t __user *)sig) ||
 				__get_user(sigsetsize,
@@ -1390,7 +1387,7 @@ COMPAT_SYSCALL_DEFINE6(pselect6, int, n, compat_ulong_t __user *, inp,
 	compat_uptr_t up = 0;
 
 	if (sig) {
-		if (!access_ok(VERIFY_READ, sig,
+		if (!access_ok(sig,
 				sizeof(compat_uptr_t)+sizeof(compat_size_t)) ||
 		    	__get_user(up, (compat_uptr_t __user *)sig) ||
 		    	__get_user(sigsetsize,

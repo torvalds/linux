@@ -339,7 +339,6 @@ static int etnaviv_ioctl_gem_userptr(struct drm_device *dev, void *data,
 	struct drm_file *file)
 {
 	struct drm_etnaviv_gem_userptr *args = data;
-	int access;
 
 	if (args->flags & ~(ETNA_USERPTR_READ|ETNA_USERPTR_WRITE) ||
 	    args->flags == 0)
@@ -351,12 +350,7 @@ static int etnaviv_ioctl_gem_userptr(struct drm_device *dev, void *data,
 	    args->user_ptr & ~PAGE_MASK)
 		return -EINVAL;
 
-	if (args->flags & ETNA_USERPTR_WRITE)
-		access = VERIFY_WRITE;
-	else
-		access = VERIFY_READ;
-
-	if (!access_ok(access, (void __user *)(unsigned long)args->user_ptr,
+	if (!access_ok((void __user *)(unsigned long)args->user_ptr,
 		       args->user_size))
 		return -EFAULT;
 

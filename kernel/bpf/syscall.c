@@ -79,7 +79,7 @@ int bpf_check_uarg_tail_zero(void __user *uaddr,
 	if (unlikely(actual_size > PAGE_SIZE))	/* silly large */
 		return -E2BIG;
 
-	if (unlikely(!access_ok(VERIFY_READ, uaddr, actual_size)))
+	if (unlikely(!access_ok(uaddr, actual_size)))
 		return -EFAULT;
 
 	if (actual_size <= expected_size)

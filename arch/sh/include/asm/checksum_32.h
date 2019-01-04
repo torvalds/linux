@@ -197,7 +197,7 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 					   int len, __wsum sum,
 					   int *err_ptr)
 {
-	if (access_ok(VERIFY_WRITE, dst, len))
+	if (access_ok(dst, len))
 		return csum_partial_copy_generic((__force const void *)src,
 						dst, len, sum, NULL, err_ptr);
 

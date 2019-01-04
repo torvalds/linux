@@ -364,7 +364,7 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp)
 		goto cmd;
 
 	/* allocate a physically contiguous buffer to store the CSR blob */
-	if (!access_ok(VERIFY_WRITE, input.address, input.length) ||
+	if (!access_ok(input.address, input.length) ||
 	    input.length > SEV_FW_BLOB_MAX_SIZE) {
 		ret = -EFAULT;
 		goto e_free;
@@ -644,14 +644,14 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 
 	/* Allocate a physically contiguous buffer to store the PDH blob. */
 	if ((input.pdh_cert_len > SEV_FW_BLOB_MAX_SIZE) ||
-	    !access_ok(VERIFY_WRITE, input.pdh_cert_address, input.pdh_cert_len)) {
+	    !access_ok(input.pdh_cert_address, input.pdh_cert_len)) {
 		ret = -EFAULT;
 		goto e_free;
 	}
 
 	/* Allocate a physically contiguous buffer to store the cert chain blob. */
 	if ((input.cert_chain_len > SEV_FW_BLOB_MAX_SIZE) ||
-	    !access_ok(VERIFY_WRITE, input.cert_chain_address, input.cert_chain_len)) {
+	    !access_ok(input.cert_chain_address, input.cert_chain_len)) {
 		ret = -EFAULT;
 		goto e_free;
 	}

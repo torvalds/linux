@@ -2172,7 +2172,7 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,
 		return -EINVAL;
 
 	/* Verify that the area passed by the user is writeable */
-	if (!access_ok(VERIFY_WRITE, events, maxevents * sizeof(struct epoll_event)))
+	if (!access_ok(events, maxevents * sizeof(struct epoll_event)))
 		return -EFAULT;
 
 	/* Get the "struct file *" for the eventpoll file */

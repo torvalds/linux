@@ -1306,7 +1306,7 @@ user_backtrace(struct perf_callchain_entry_ctx *entry, unsigned long fp)
 		(unsigned long *)(fp - (unsigned long)sizeof(buftail));
 
 	/* Check accessibility of one struct frame_tail beyond */
-	if (!access_ok(VERIFY_READ, user_frame_tail, sizeof(buftail)))
+	if (!access_ok(user_frame_tail, sizeof(buftail)))
 		return 0;
 	if (__copy_from_user_inatomic
 		(&buftail, user_frame_tail, sizeof(buftail)))
@@ -1332,7 +1332,7 @@ user_backtrace_opt_size(struct perf_callchain_entry_ctx *entry,
 		(unsigned long *)(fp - (unsigned long)sizeof(buftail));
 
 	/* Check accessibility of one struct frame_tail beyond */
-	if (!access_ok(VERIFY_READ, user_frame_tail, sizeof(buftail)))
+	if (!access_ok(user_frame_tail, sizeof(buftail)))
 		return 0;
 	if (__copy_from_user_inatomic
 		(&buftail, user_frame_tail, sizeof(buftail)))
@@ -1386,7 +1386,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		user_frame_tail =
 			(unsigned long *)(fp - (unsigned long)sizeof(fp));
 
-		if (!access_ok(VERIFY_READ, user_frame_tail, sizeof(fp)))
+		if (!access_ok(user_frame_tail, sizeof(fp)))
 			return;
 
 		if (__copy_from_user_inatomic
@@ -1406,8 +1406,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 				(unsigned long *)(fp -
 					(unsigned long)sizeof(buftail));
 
-			if (!access_ok
-				(VERIFY_READ, user_frame_tail, sizeof(buftail)))
+			if (!access_ok(user_frame_tail, sizeof(buftail)))
 				return;
 
 			if (__copy_from_user_inatomic
@@ -1424,7 +1423,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 					(unsigned long *)(fp - (unsigned long)
 						sizeof(buftail_opt_size));
 
-				if (!access_ok(VERIFY_READ, user_frame_tail,
+				if (!access_ok(user_frame_tail,
 					       sizeof(buftail_opt_size)))
 					return;
 

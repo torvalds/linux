@@ -77,7 +77,7 @@ void msm_gem_submit_free(struct msm_gem_submit *submit)
 static inline unsigned long __must_check
 copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 {
-	if (access_ok(VERIFY_READ, from, n))
+	if (access_ok(from, n))
 		return __copy_from_user_inatomic(to, from, n);
 	return -EFAULT;
 }

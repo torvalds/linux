@@ -77,9 +77,6 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
 
 /**
  * access_ok: - Checks if a user space pointer is valid
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
- *        %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
- *        to write to a block, it is always safe to read from it.
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *
@@ -95,7 +92,7 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  */
-#define access_ok(type, addr, size)					\
+#define access_ok(addr, size)					\
 ({									\
 	WARN_ON_IN_IRQ();						\
 	likely(!__range_not_ok(addr, size, user_addr_max()));		\
@@ -670,7 +667,7 @@ extern void __cmpxchg_wrong_size(void)
 
 #define user_atomic_cmpxchg_inatomic(uval, ptr, old, new)		\
 ({									\
-	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr))) ?		\
+	access_ok((ptr), sizeof(*(ptr))) ?		\
 		__user_atomic_cmpxchg_inatomic((uval), (ptr),		\
 				(old), (new), sizeof(*(ptr))) :		\
 		-EFAULT;						\

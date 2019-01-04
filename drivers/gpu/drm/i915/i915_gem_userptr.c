@@ -789,8 +789,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	if (offset_in_page(args->user_ptr | args->user_size))
 		return -EINVAL;
 
-	if (!access_ok(args->flags & I915_USERPTR_READ_ONLY ? VERIFY_READ : VERIFY_WRITE,
-		       (char __user *)(unsigned long)args->user_ptr, args->user_size))
+	if (!access_ok((char __user *)(unsigned long)args->user_ptr, args->user_size))
 		return -EFAULT;
 
 	if (args->flags & I915_USERPTR_READ_ONLY) {

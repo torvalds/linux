@@ -279,7 +279,7 @@ static inline void set_fs(mm_segment_t fs)
 
 #endif /* CONFIG_MMU */
 
-#define access_ok(type, addr, size)	(__range_ok(addr, size) == 0)
+#define access_ok(addr, size)	(__range_ok(addr, size) == 0)
 
 #define user_addr_max() \
 	(uaccess_kernel() ? ~0UL : get_fs())
@@ -560,7 +560,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 
 static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
+	if (access_ok(to, n))
 		n = __clear_user(to, n);
 	return n;
 }

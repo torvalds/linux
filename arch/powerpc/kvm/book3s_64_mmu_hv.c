@@ -1744,7 +1744,7 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 	int first_pass;
 	unsigned long hpte[2];
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 	if (kvm_is_radix(kvm))
 		return 0;
@@ -1844,7 +1844,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 	int mmu_ready;
 	int pshift;
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 	if (kvm_is_radix(kvm))
 		return -EINVAL;

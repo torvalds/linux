@@ -251,7 +251,7 @@ asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
 
 	frame = (struct rt_sigframe __user *) regs->areg[1];
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
@@ -348,7 +348,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->depc > 64)
 		panic ("Double exception sys_sigreturn\n");
 
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame))) {
+	if (!access_ok(frame, sizeof(*frame))) {
 		return -EFAULT;
 	}
 

@@ -40,7 +40,7 @@ static int read_opcode(reg_size_t pc, insn_size_t *result_opcode, int from_user_
 		/* SHmedia */
 		aligned_pc = pc & ~3;
 		if (from_user_mode) {
-			if (!access_ok(VERIFY_READ, aligned_pc, sizeof(insn_size_t))) {
+			if (!access_ok(aligned_pc, sizeof(insn_size_t))) {
 				get_user_error = -EFAULT;
 			} else {
 				get_user_error = __get_user(opcode, (insn_size_t *)aligned_pc);
@@ -180,7 +180,7 @@ static int misaligned_load(struct pt_regs *regs,
 	if (user_mode(regs)) {
 		__u64 buffer;
 
-		if (!access_ok(VERIFY_READ, (unsigned long) address, 1UL<<width_shift)) {
+		if (!access_ok((unsigned long) address, 1UL<<width_shift)) {
 			return -1;
 		}
 
@@ -254,7 +254,7 @@ static int misaligned_store(struct pt_regs *regs,
 	if (user_mode(regs)) {
 		__u64 buffer;
 
-		if (!access_ok(VERIFY_WRITE, (unsigned long) address, 1UL<<width_shift)) {
+		if (!access_ok((unsigned long) address, 1UL<<width_shift)) {
 			return -1;
 		}
 
@@ -327,7 +327,7 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 		__u64 buffer;
 		__u32 buflo, bufhi;
 
-		if (!access_ok(VERIFY_READ, (unsigned long) address, 1UL<<width_shift)) {
+		if (!access_ok((unsigned long) address, 1UL<<width_shift)) {
 			return -1;
 		}
 
@@ -400,7 +400,7 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 		/* Initialise these to NaNs. */
 		__u32 buflo=0xffffffffUL, bufhi=0xffffffffUL;
 
-		if (!access_ok(VERIFY_WRITE, (unsigned long) address, 1UL<<width_shift)) {
+		if (!access_ok((unsigned long) address, 1UL<<width_shift)) {
 			return -1;
 		}
 
@@ -663,7 +663,7 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 	/* SHmedia : check for defect.  This requires executable vmas
 	   to be readable too. */
 	aligned_pc = pc & ~3;
-	if (!access_ok(VERIFY_READ, aligned_pc, sizeof(insn_size_t)))
+	if (!access_ok(aligned_pc, sizeof(insn_size_t)))
 		get_user_error = -EFAULT;
 	else
 		get_user_error = __get_user(opcode, (insn_size_t *)aligned_pc);

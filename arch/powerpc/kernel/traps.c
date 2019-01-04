@@ -837,7 +837,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 	addr = (__force const void __user *)ea;
 
 	/* Check it */
-	if (!access_ok(VERIFY_READ, addr, 16)) {
+	if (!access_ok(addr, 16)) {
 		pr_devel("HMI vec emu: bad access %i:%s[%d] nip=%016lx"
 			 " instr=%08x addr=%016lx\n",
 			 smp_processor_id(), current->comm, current->pid,

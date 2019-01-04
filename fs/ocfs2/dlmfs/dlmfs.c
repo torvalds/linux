@@ -254,7 +254,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* don't read past the lvb */
@@ -302,7 +302,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* don't write past the lvb */

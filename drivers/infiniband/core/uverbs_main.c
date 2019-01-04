@@ -611,8 +611,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 			if (hdr->out_words * 8 < method_elm->resp_size)
 				return -ENOSPC;
 
-			if (!access_ok(VERIFY_WRITE,
-				       u64_to_user_ptr(ex_hdr->response),
+			if (!access_ok(u64_to_user_ptr(ex_hdr->response),
 				       (hdr->out_words + ex_hdr->provider_out_words) * 8))
 				return -EFAULT;
 		} else {

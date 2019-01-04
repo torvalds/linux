@@ -76,7 +76,7 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
 {
 	if (bytes == 0)
 		return 0;
-	if (!access_ok(VERIFY_WRITE, (void __user *) addr, bytes))
+	if (!access_ok((void __user *) addr, bytes))
 		return -EFAULT;
 
 	__flush_icache_user_range(addr, addr + bytes);
