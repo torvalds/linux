@@ -1698,6 +1698,18 @@
 		status = "okay";
 	};
 
+	clock@70110000 {
+		status = "okay";
+		nvidia,cf = <6>;
+		nvidia,ci = <0>;
+		nvidia,cg = <2>;
+		nvidia,droop-ctrl = <0x00000f00>;
+		nvidia,force-mode = <1>;
+		nvidia,i2c-fs-rate = <400000>;
+		nvidia,sample-rate = <12500>;
+		vdd-cpu-supply = <&max77621_cpu>;
+	};
+
 	aconnect@702c0000 {
 		status = "okay";
 
