@@ -823,13 +823,13 @@ static void xfrm_policy_inexact_list_reinsert(struct net *net,
 					      u16 family)
 {
 	unsigned int matched_s, matched_d;
-	struct hlist_node *newpos = NULL;
 	struct xfrm_policy *policy, *p;
 
 	matched_s = 0;
 	matched_d = 0;
 
 	list_for_each_entry_reverse(policy, &net->xfrm.policy_all, walk.all) {
+		struct hlist_node *newpos = NULL;
 		bool matches_s, matches_d;
 
 		if (!policy->bydst_reinsert)
@@ -839,7 +839,10 @@ static void xfrm_policy_inexact_list_reinsert(struct net *net,
 
 		policy->bydst_reinsert = false;
 		hlist_for_each_entry(p, &n->hhead, bydst) {
-			if (policy->priority >= p->priority)
+			if (policy->priority > p->priority)
+				newpos = &p->bydst;
+			else if (policy->priority == p->priority &&
+				 policy->pos > p->pos)
 				newpos = &p->bydst;
 			else
 				break;
@@ -955,12 +958,11 @@ static void xfrm_policy_inexact_node_merge(struct net *net,
 						  family);
 	}
 
-	hlist_for_each_entry(tmp, &v->hhead, bydst)
+	hlist_for_each_entry(tmp, &v->hhead, bydst) {
 		tmp->bydst_reinsert = true;
-	hlist_for_each_entry(tmp, &n->hhead, bydst)
-		tmp->bydst_reinsert = true;
+		hlist_del_rcu(&tmp->bydst);
+	}
 
-	INIT_HLIST_HEAD(&n->hhead);
 	xfrm_policy_inexact_list_reinsert(net, n, family);
 }
 
