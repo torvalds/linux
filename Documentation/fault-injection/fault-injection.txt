@@ -195,7 +195,7 @@ o #include <linux/fault-inject.h>
 
 o define the fault attributes
 
-  DECLARE_FAULT_INJECTION(name);
+  DECLARE_FAULT_ATTR(name);
 
   Please see the definition of struct fault_attr in fault-inject.h
   for details.
