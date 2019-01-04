@@ -1205,8 +1205,10 @@ void qman_dqrr_get_ithresh(struct qman_portal *portal, u8 *ithresh);
  * qman_dqrr_set_ithresh - Set coalesce interrupt threshold
  * @portal: portal to set the new value on
  * @ithresh: new threshold value
+ *
+ * Returns 0 on success, or a negative error code.
  */
-void qman_dqrr_set_ithresh(struct qman_portal *portal, u8 ithresh);
+int qman_dqrr_set_ithresh(struct qman_portal *portal, u8 ithresh);
 
 /**
  * qman_dqrr_get_iperiod - Get coalesce interrupt period
@@ -1219,7 +1221,9 @@ void qman_portal_get_iperiod(struct qman_portal *portal, u32 *iperiod);
  * qman_dqrr_set_iperiod - Set coalesce interrupt period
  * @portal: portal to set the new value on
  * @ithresh: new period value
+ *
+ * Returns 0 on success, or a negative error code.
  */
-void qman_portal_set_iperiod(struct qman_portal *portal, u32 iperiod);
+int qman_portal_set_iperiod(struct qman_portal *portal, u32 iperiod);
 
 #endif	/* __FSL_QMAN_H */

@@ -137,7 +137,7 @@ static int netvsc_open(struct net_device *net)
 		 * slave as up. If open fails, then slave will be
 		 * still be offline (and not used).
 		 */
-		ret = dev_open(vf_netdev);
+		ret = dev_open(vf_netdev, NULL);
 		if (ret)
 			netdev_warn(net,
 				    "unable to open slave: %s: %d\n",
@@ -605,9 +605,9 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 				     IEEE_8021Q_INFO);
 
 		vlan->value = 0;
-		vlan->vlanid = skb->vlan_tci & VLAN_VID_MASK;
-		vlan->pri = (skb->vlan_tci & VLAN_PRIO_MASK) >>
-				VLAN_PRIO_SHIFT;
+		vlan->vlanid = skb_vlan_tag_get_id(skb);
+		vlan->cfi = skb_vlan_tag_get_cfi(skb);
+		vlan->pri = skb_vlan_tag_get_prio(skb);
 	}
 
 	if (skb_is_gso(skb)) {
@@ -781,7 +781,8 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	}
 
 	if (vlan) {
-		u16 vlan_tci = vlan->vlanid | (vlan->pri << VLAN_PRIO_SHIFT);
+		u16 vlan_tci = vlan->vlanid | (vlan->pri << VLAN_PRIO_SHIFT) |
+			(vlan->cfi ? VLAN_CFI_MASK : 0);
 
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       vlan_tci);
@@ -1246,7 +1247,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 		return -ENODEV;
 
 	if (vf_netdev) {
-		err = dev_set_mac_address(vf_netdev, addr);
+		err = dev_set_mac_address(vf_netdev, addr, NULL);
 		if (err)
 			return err;
 	}
@@ -1257,7 +1258,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	} else if (vf_netdev) {
 		/* rollback change on VF */
 		memcpy(addr->sa_data, ndev->dev_addr, ETH_ALEN);
-		dev_set_mac_address(vf_netdev, addr);
+		dev_set_mac_address(vf_netdev, addr, NULL);
 	}
 
 	return err;
@@ -1992,7 +1993,7 @@ static void __netvsc_vf_setup(struct net_device *ndev,
 			    "unable to change mtu to %u\n", ndev->mtu);
 
 	/* set multicast etc flags on VF */
-	dev_change_flags(vf_netdev, ndev->flags | IFF_SLAVE);
+	dev_change_flags(vf_netdev, ndev->flags | IFF_SLAVE, NULL);
 
 	/* sync address list from ndev to VF */
 	netif_addr_lock_bh(ndev);
@@ -2001,7 +2002,7 @@ static void __netvsc_vf_setup(struct net_device *ndev,
 	netif_addr_unlock_bh(ndev);
 
 	if (netif_running(ndev)) {
-		ret = dev_open(vf_netdev);
+		ret = dev_open(vf_netdev, NULL);
 		if (ret)
 			netdev_warn(vf_netdev,
 				    "unable to open: %d\n", ret);

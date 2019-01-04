@@ -590,7 +590,7 @@ SYSCALL_DEFINE3(sigaction, int, sig, const struct sigaction __user *, act,
 	if (act) {
 		old_sigset_t mask;
 
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)))
+		if (!access_ok(act, sizeof(*act)))
 			return -EFAULT;
 		err |= __get_user(new_ka.sa.sa_handler, &act->sa_handler);
 		err |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
@@ -604,7 +604,7 @@ SYSCALL_DEFINE3(sigaction, int, sig, const struct sigaction __user *, act,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
+		if (!access_ok(oact, sizeof(*oact)))
 			return -EFAULT;
 		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 		err |= __put_user(old_ka.sa.sa_handler, &oact->sa_handler);
@@ -630,7 +630,7 @@ asmlinkage void sys_sigreturn(void)
 
 	regs = current_pt_regs();
 	frame = (struct sigframe __user *)regs->regs[29];
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&blocked, &frame->sf_mask, sizeof(blocked)))
 		goto badframe;
@@ -667,7 +667,7 @@ asmlinkage void sys_rt_sigreturn(void)
 
 	regs = current_pt_regs();
 	frame = (struct rt_sigframe __user *)regs->regs[29];
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
 		goto badframe;
@@ -705,7 +705,7 @@ static int setup_frame(void *sig_return, struct ksignal *ksig,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	err |= setup_sigcontext(regs, &frame->sf_sc);
@@ -744,7 +744,7 @@ static int setup_rt_frame(void *sig_return, struct ksignal *ksig,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	/* Create siginfo.  */

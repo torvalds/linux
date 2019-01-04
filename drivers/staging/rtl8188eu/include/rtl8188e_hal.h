@@ -329,6 +329,8 @@ struct hal_data_8188e {
 	u8	UsbRxAggPageTimeout;
 };
 
+void Hal_GetChnlGroup88E(u8 chnl, u8 *group);
+
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter);

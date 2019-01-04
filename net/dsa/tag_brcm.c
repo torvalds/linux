@@ -174,6 +174,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 const struct dsa_device_ops brcm_netdev_ops = {
 	.xmit	= brcm_tag_xmit,
 	.rcv	= brcm_tag_rcv,
+	.overhead = BRCM_TAG_LEN,
 };
 #endif
 
@@ -196,5 +197,6 @@ static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
 const struct dsa_device_ops brcm_prepend_netdev_ops = {
 	.xmit	= brcm_tag_xmit_prepend,
 	.rcv	= brcm_tag_rcv_prepend,
+	.overhead = BRCM_TAG_LEN,
 };
 #endif

@@ -2651,7 +2651,7 @@ static long exact_copy_from_user(void *to, const void __user * from,
 	const char __user *f = from;
 	char c;
 
-	if (!access_ok(VERIFY_READ, from, n))
+	if (!access_ok(from, n))
 		return n;
 
 	current->kernel_uaccess_faults_ok++;

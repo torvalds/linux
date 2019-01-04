@@ -162,8 +162,6 @@ struct hv_context {
 
 	void *tsc_page;
 
-	bool synic_initialized;
-
 	struct hv_per_cpu_context __percpu *cpu_context;
 
 	/*

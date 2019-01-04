@@ -224,8 +224,8 @@ unsigned int br_nf_pre_routing_ipv6(void *priv,
 	if (br_validate_ipv6(state->net, skb))
 		return NF_DROP;
 
-	nf_bridge_put(skb->nf_bridge);
-	if (!nf_bridge_alloc(skb))
+	nf_bridge = nf_bridge_alloc(skb);
+	if (!nf_bridge)
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;

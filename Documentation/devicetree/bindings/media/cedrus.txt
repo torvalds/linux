@@ -33,7 +33,7 @@ reserved-memory {
 	ranges;
 
 	/* Address must be kept in the lower 256 MiBs of DRAM for VE. */
-	cma_pool: cma@4a000000 {
+	cma_pool: default-pool {
 		compatible = "shared-dma-pool";
 		size = <0x6000000>;
 		alloc-ranges = <0x4a000000 0x6000000>;

@@ -20,7 +20,6 @@ struct nfp_fl_pre_lag;
 struct net_device;
 struct nfp_app;
 
-#define NFP_FL_STATS_CTX_DONT_CARE	cpu_to_be32(0xffffffff)
 #define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
 						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
@@ -72,7 +71,6 @@ struct nfp_mtu_conf {
 
 /**
  * struct nfp_fl_lag - Flower APP priv data for link aggregation
- * @lag_nb:		Notifier to track master/slave events
  * @work:		Work queue for writing configs to the HW
  * @lock:		Lock to protect lag_group_list
  * @group_list:		List of all master/slave groups offloaded
@@ -85,7 +83,6 @@ struct nfp_mtu_conf {
  *			retransmission
  */
 struct nfp_fl_lag {
-	struct notifier_block lag_nb;
 	struct delayed_work work;
 	struct mutex lock;
 	struct list_head group_list;
@@ -126,13 +123,13 @@ struct nfp_fl_lag {
  * @nfp_neigh_off_lock:	Lock for the neighbour address list
  * @nfp_mac_off_ids:	IDA to manage id assignment for offloaded macs
  * @nfp_mac_off_count:	Number of MACs in address list
- * @nfp_tun_mac_nb:	Notifier to monitor link state
  * @nfp_tun_neigh_nb:	Notifier to monitor neighbour state
  * @reify_replies:	atomically stores the number of replies received
  *			from firmware for repr reify
  * @reify_wait_queue:	wait queue for repr reify response counting
  * @mtu_conf:		Configuration of repr MTU value
  * @nfp_lag:		Link aggregation data block
+ * @indr_block_cb_priv:	List of priv data passed to indirect block cbs
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -160,12 +157,12 @@ struct nfp_flower_priv {
 	spinlock_t nfp_neigh_off_lock;
 	struct ida nfp_mac_off_ids;
 	int nfp_mac_off_count;
-	struct notifier_block nfp_tun_mac_nb;
 	struct notifier_block nfp_tun_neigh_nb;
 	atomic_t reify_replies;
 	wait_queue_head_t reify_wait_queue;
 	struct nfp_mtu_conf mtu_conf;
 	struct nfp_fl_lag nfp_lag;
+	struct list_head indr_block_cb_priv;
 };
 
 /**
@@ -209,7 +206,6 @@ struct nfp_fl_payload {
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
-	bool ingress_offload;
 };
 
 extern const struct rhashtable_params nfp_flower_table_params;
@@ -226,7 +222,8 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
-int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
+int nfp_flower_compile_flow_match(struct nfp_app *app,
+				  struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
@@ -244,7 +241,7 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 
 struct nfp_fl_payload *
 nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
-			   struct net_device *netdev, __be32 host_ctx);
+			   struct net_device *netdev);
 struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
@@ -252,21 +249,28 @@ void nfp_flower_rx_flow_stats(struct nfp_app *app, struct sk_buff *skb);
 
 int nfp_tunnel_config_start(struct nfp_app *app);
 void nfp_tunnel_config_stop(struct nfp_app *app);
+int nfp_tunnel_mac_event_handler(struct nfp_app *app,
+				 struct net_device *netdev,
+				 unsigned long event, void *ptr);
 void nfp_tunnel_write_macs(struct nfp_app *app);
 void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
 void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
-int nfp_flower_setup_tc_egress_cb(enum tc_setup_type type, void *type_data,
-				  void *cb_priv);
 void nfp_flower_lag_init(struct nfp_fl_lag *lag);
 void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag);
 int nfp_flower_lag_reset(struct nfp_fl_lag *lag);
+int nfp_flower_lag_netdev_event(struct nfp_flower_priv *priv,
+				struct net_device *netdev,
+				unsigned long event, void *ptr);
 bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb);
 int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct net_device *master,
 				       struct nfp_fl_pre_lag *pre_act);
 int nfp_flower_lag_get_output_id(struct nfp_app *app,
 				 struct net_device *master);
+int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
+				       struct net_device *netdev,
+				       unsigned long event);
 
 #endif

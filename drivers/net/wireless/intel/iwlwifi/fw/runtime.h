@@ -64,6 +64,7 @@
 #include "iwl-trans.h"
 #include "img.h"
 #include "fw/api/debug.h"
+#include "fw/api/dbg-tlv.h"
 #include "fw/api/paging.h"
 #include "iwl-eeprom-parse.h"
 
@@ -131,14 +132,17 @@ struct iwl_fw_runtime {
 	/* debug */
 	struct {
 		const struct iwl_fw_dump_desc *desc;
-		const struct iwl_fw_dbg_trigger_tlv *trig;
+		bool monitor_only;
 		struct delayed_work wk;
 
 		u8 conf;
 
 		/* ts of the beginning of a non-collect fw dbg data period */
-		unsigned long non_collect_ts_start[FW_DBG_TRIGGER_MAX - 1];
+		unsigned long non_collect_ts_start[IWL_FW_TRIGGER_ID_NUM - 1];
 		u32 *d3_debug_data;
+		struct iwl_fw_ini_active_regs active_regs[IWL_FW_INI_MAX_REGION_ID];
+		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
+		u32 rt_status;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

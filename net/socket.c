@@ -2341,8 +2341,9 @@ SYSCALL_DEFINE3(recvmsg, int, fd, struct user_msghdr __user *, msg,
  *     Linux recvmmsg interface
  */
 
-int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
-		   unsigned int flags, struct timespec64 *timeout)
+static int do_recvmmsg(int fd, struct mmsghdr __user *mmsg,
+			  unsigned int vlen, unsigned int flags,
+			  struct timespec64 *timeout)
 {
 	int fput_needed, err, datagrams;
 	struct socket *sock;
@@ -2451,25 +2452,32 @@ out_put:
 	return datagrams;
 }
 
-static int do_sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
-			   unsigned int vlen, unsigned int flags,
-			   struct __kernel_timespec __user *timeout)
+int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
+		   unsigned int vlen, unsigned int flags,
+		   struct __kernel_timespec __user *timeout,
+		   struct old_timespec32 __user *timeout32)
 {
 	int datagrams;
 	struct timespec64 timeout_sys;
 
-	if (flags & MSG_CMSG_COMPAT)
-		return -EINVAL;
-
-	if (!timeout)
-		return __sys_recvmmsg(fd, mmsg, vlen, flags, NULL);
-
-	if (get_timespec64(&timeout_sys, timeout))
+	if (timeout && get_timespec64(&timeout_sys, timeout))
 		return -EFAULT;
 
-	datagrams = __sys_recvmmsg(fd, mmsg, vlen, flags, &timeout_sys);
+	if (timeout32 && get_old_timespec32(&timeout_sys, timeout32))
+		return -EFAULT;
 
-	if (datagrams > 0 && put_timespec64(&timeout_sys, timeout))
+	if (!timeout && !timeout32)
+		return do_recvmmsg(fd, mmsg, vlen, flags, NULL);
+
+	datagrams = do_recvmmsg(fd, mmsg, vlen, flags, &timeout_sys);
+
+	if (datagrams <= 0)
+		return datagrams;
+
+	if (timeout && put_timespec64(&timeout_sys, timeout))
+		datagrams = -EFAULT;
+
+	if (timeout32 && put_old_timespec32(&timeout_sys, timeout32))
 		datagrams = -EFAULT;
 
 	return datagrams;
@@ -2479,8 +2487,23 @@ SYSCALL_DEFINE5(recvmmsg, int, fd, struct mmsghdr __user *, mmsg,
 		unsigned int, vlen, unsigned int, flags,
 		struct __kernel_timespec __user *, timeout)
 {
-	return do_sys_recvmmsg(fd, mmsg, vlen, flags, timeout);
+	if (flags & MSG_CMSG_COMPAT)
+		return -EINVAL;
+
+	return __sys_recvmmsg(fd, mmsg, vlen, flags, timeout, NULL);
 }
+
+#ifdef CONFIG_COMPAT_32BIT_TIME
+SYSCALL_DEFINE5(recvmmsg_time32, int, fd, struct mmsghdr __user *, mmsg,
+		unsigned int, vlen, unsigned int, flags,
+		struct old_timespec32 __user *, timeout)
+{
+	if (flags & MSG_CMSG_COMPAT)
+		return -EINVAL;
+
+	return __sys_recvmmsg(fd, mmsg, vlen, flags, NULL, timeout);
+}
+#endif
 
 #ifdef __ARCH_WANT_SYS_SOCKETCALL
 /* Argument list sizes for sys_socketcall */
@@ -2600,8 +2623,15 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 				    a[2], true);
 		break;
 	case SYS_RECVMMSG:
-		err = do_sys_recvmmsg(a0, (struct mmsghdr __user *)a1, a[2],
-				      a[3], (struct __kernel_timespec __user *)a[4]);
+		if (IS_ENABLED(CONFIG_64BIT) || !IS_ENABLED(CONFIG_64BIT_TIME))
+			err = __sys_recvmmsg(a0, (struct mmsghdr __user *)a1,
+					     a[2], a[3],
+					     (struct __kernel_timespec __user *)a[4],
+					     NULL);
+		else
+			err = __sys_recvmmsg(a0, (struct mmsghdr __user *)a1,
+					     a[2], a[3], NULL,
+					     (struct old_timespec32 __user *)a[4]);
 		break;
 	case SYS_ACCEPT4:
 		err = __sys_accept4(a0, (struct sockaddr __user *)a1,

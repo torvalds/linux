@@ -23,7 +23,6 @@ config ARM64
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SET_MEMORY
-	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
@@ -81,7 +80,7 @@ config ARM64
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select CRC32
 	select DCACHE_WORD_ACCESS
-	select DMA_DIRECT_OPS
+	select DMA_DIRECT_REMAP
 	select EDAC_SUPPORT
 	select FRAME_POINTER
 	select GENERIC_ALLOCATOR
@@ -103,6 +102,7 @@ config ARM64
 	select GENERIC_TIME_VSYSCALL
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
+	select HAVE_PCI
 	select HAVE_ACPI_APEI if (ACPI && EFI)
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
@@ -111,6 +111,7 @@ config ARM64
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_KASAN if !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+	select HAVE_ARCH_KASAN_SW_TAGS if HAVE_ARCH_KASAN
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
@@ -163,7 +164,9 @@ config ARM64
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
+	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_ECAM if (ACPI && PCI)
+	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
 	select REFCOUNT_FULL
@@ -289,28 +292,6 @@ config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
 source "arch/arm64/Kconfig.platforms"
-
-menu "Bus support"
-
-config PCI
-	bool "PCI support"
-	help
-	  This feature enables support for PCI bus system. If you say Y
-	  here, the kernel will include drivers and infrastructure code
-	  to support PCI bus devices.
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI
-
-config PCI_SYSCALL
-	def_bool PCI
-
-source "drivers/pci/Kconfig"
-
-endmenu
 
 menu "Kernel Features"
 
@@ -857,7 +838,7 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 config HOLES_IN_ZONE
 	def_bool y
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y

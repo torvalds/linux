@@ -48,7 +48,6 @@
 
 #include "vchiq_arm.h"
 #include "vchiq_connected.h"
-#include "vchiq_killable.h"
 #include "vchiq_pagelist.h"
 
 #define MAX_FRAGMENTS (VCHIQ_NUM_CURRENT_BULKS * 2)
@@ -61,11 +60,11 @@
 
 struct vchiq_2835_state {
 	int inited;
-	VCHIQ_ARM_STATE_T arm_state;
+	struct vchiq_arm_state arm_state;
 };
 
 struct vchiq_pagelist_info {
-	PAGELIST_T *pagelist;
+	struct pagelist *pagelist;
 	size_t pagelist_buffer_size;
 	dma_addr_t dma_addr;
 	enum dma_data_direction dma_dir;
@@ -106,12 +105,12 @@ static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual);
 
-int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
+int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 {
 	struct device *dev = &pdev->dev;
 	struct vchiq_drvdata *drvdata = platform_get_drvdata(pdev);
 	struct rpi_firmware *fw = drvdata->fw;
-	VCHIQ_SLOT_ZERO_T *vchiq_slot_zero;
+	struct vchiq_slot_zero *vchiq_slot_zero;
 	struct resource *res;
 	void *slot_mem;
 	dma_addr_t slot_phys;
@@ -163,7 +162,7 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 	*(char **)&g_fragments_base[i * g_fragments_size] = NULL;
 	sema_init(&g_free_fragments_sema, MAX_FRAGMENTS);
 
-	if (vchiq_init_state(state, vchiq_slot_zero, 0) != VCHIQ_SUCCESS)
+	if (vchiq_init_state(state, vchiq_slot_zero) != VCHIQ_SUCCESS)
 		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -204,7 +203,7 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 }
 
 VCHIQ_STATUS_T
-vchiq_platform_init_state(VCHIQ_STATE_T *state)
+vchiq_platform_init_state(struct vchiq_state *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
 	struct vchiq_2835_state *platform_state;
@@ -221,8 +220,8 @@ vchiq_platform_init_state(VCHIQ_STATE_T *state)
 	return status;
 }
 
-VCHIQ_ARM_STATE_T*
-vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
+struct vchiq_arm_state*
+vchiq_platform_get_arm_state(struct vchiq_state *state)
 {
 	struct vchiq_2835_state *platform_state;
 
@@ -234,7 +233,7 @@ vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 }
 
 void
-remote_event_signal(REMOTE_EVENT_T *event)
+remote_event_signal(struct remote_event *event)
 {
 	wmb();
 
@@ -247,12 +246,10 @@ remote_event_signal(REMOTE_EVENT_T *event)
 }
 
 VCHIQ_STATUS_T
-vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
-	void *offset, int size, int dir)
+vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, int size,
+			int dir)
 {
 	struct vchiq_pagelist_info *pagelistinfo;
-
-	WARN_ON(memhandle != VCHI_MEM_HANDLE_INVALID);
 
 	pagelistinfo = create_pagelist((char __user *)offset, size,
 				       (dir == VCHIQ_BULK_RECEIVE)
@@ -262,7 +259,6 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	if (!pagelistinfo)
 		return VCHIQ_ERROR;
 
-	bulk->handle = memhandle;
 	bulk->data = (void *)(unsigned long)pagelistinfo->dma_addr;
 
 	/*
@@ -275,21 +271,11 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 }
 
 void
-vchiq_complete_bulk(VCHIQ_BULK_T *bulk)
+vchiq_complete_bulk(struct vchiq_bulk *bulk)
 {
 	if (bulk && bulk->remote_data && bulk->actual)
 		free_pagelist((struct vchiq_pagelist_info *)bulk->remote_data,
 			      bulk->actual);
-}
-
-void
-vchiq_transfer_bulk(VCHIQ_BULK_T *bulk)
-{
-	/*
-	 * This should only be called on the master (VideoCore) side, but
-	 * provide an implementation to avoid the need for ifdefery.
-	 */
-	BUG();
 }
 
 void
@@ -304,29 +290,29 @@ vchiq_dump_platform_state(void *dump_context)
 }
 
 VCHIQ_STATUS_T
-vchiq_platform_suspend(VCHIQ_STATE_T *state)
+vchiq_platform_suspend(struct vchiq_state *state)
 {
 	return VCHIQ_ERROR;
 }
 
 VCHIQ_STATUS_T
-vchiq_platform_resume(VCHIQ_STATE_T *state)
+vchiq_platform_resume(struct vchiq_state *state)
 {
 	return VCHIQ_SUCCESS;
 }
 
 void
-vchiq_platform_paused(VCHIQ_STATE_T *state)
+vchiq_platform_paused(struct vchiq_state *state)
 {
 }
 
 void
-vchiq_platform_resumed(VCHIQ_STATE_T *state)
+vchiq_platform_resumed(struct vchiq_state *state)
 {
 }
 
 int
-vchiq_platform_videocore_wanted(VCHIQ_STATE_T *state)
+vchiq_platform_videocore_wanted(struct vchiq_state *state)
 {
 	return 1; // autosuspend not supported - videocore always wanted
 }
@@ -337,12 +323,12 @@ vchiq_platform_use_suspend_timer(void)
 	return 0;
 }
 void
-vchiq_dump_platform_use_state(VCHIQ_STATE_T *state)
+vchiq_dump_platform_use_state(struct vchiq_state *state)
 {
 	vchiq_log_info(vchiq_arm_log_level, "Suspend timer not in use");
 }
 void
-vchiq_platform_handle_timeout(VCHIQ_STATE_T *state)
+vchiq_platform_handle_timeout(struct vchiq_state *state)
 {
 	(void)state;
 }
@@ -353,7 +339,7 @@ vchiq_platform_handle_timeout(VCHIQ_STATE_T *state)
 static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id)
 {
-	VCHIQ_STATE_T *state = dev_id;
+	struct vchiq_state *state = dev_id;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int status;
 
@@ -398,7 +384,7 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 static struct vchiq_pagelist_info *
 create_pagelist(char __user *buf, size_t count, unsigned short type)
 {
-	PAGELIST_T *pagelist;
+	struct pagelist *pagelist;
 	struct vchiq_pagelist_info *pagelistinfo;
 	struct page **pages;
 	u32 *addrs;
@@ -412,7 +398,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	offset = ((unsigned int)(unsigned long)buf & (PAGE_SIZE - 1));
 	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
 
-	pagelist_size = sizeof(PAGELIST_T) +
+	pagelist_size = sizeof(struct pagelist) +
 			(num_pages * sizeof(u32)) +
 			(num_pages * sizeof(pages[0]) +
 			(num_pages * sizeof(struct scatterlist))) +
@@ -557,7 +543,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 		(g_cache_line_size - 1)))) {
 		char *fragments;
 
-		if (down_interruptible(&g_free_fragments_sema) != 0) {
+		if (down_killable(&g_free_fragments_sema)) {
 			cleanup_pagelistinfo(pagelistinfo);
 			return NULL;
 		}
@@ -580,8 +566,8 @@ static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual)
 {
-	PAGELIST_T *pagelist   = pagelistinfo->pagelist;
-	struct page **pages    = pagelistinfo->pages;
+	struct pagelist *pagelist = pagelistinfo->pagelist;
+	struct page **pages = pagelistinfo->pages;
 	unsigned int num_pages = pagelistinfo->num_pages;
 
 	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK, %d",

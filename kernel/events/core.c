@@ -10135,7 +10135,7 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 	u32 size;
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, uattr, PERF_ATTR_SIZE_VER0))
+	if (!access_ok(uattr, PERF_ATTR_SIZE_VER0))
 		return -EFAULT;
 
 	/*

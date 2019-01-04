@@ -26,7 +26,7 @@
  *
  */
 
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/reservation.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
@@ -1447,7 +1447,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 	 * to read. However, if the array is not writable the user loses
 	 * the updated relocation values.
 	 */
-	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(*urelocs))))
+	if (unlikely(!access_ok(urelocs, remain*sizeof(*urelocs))))
 		return -EFAULT;
 
 	do {
@@ -1554,7 +1554,7 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 
 	addr = u64_to_user_ptr(entry->relocs_ptr);
 	size *= sizeof(struct drm_i915_gem_relocation_entry);
-	if (!access_ok(VERIFY_READ, addr, size))
+	if (!access_ok(addr, size))
 		return -EFAULT;
 
 	end = addr + size;
@@ -2090,7 +2090,7 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 		return ERR_PTR(-EINVAL);
 
 	user = u64_to_user_ptr(args->cliprects_ptr);
-	if (!access_ok(VERIFY_READ, user, nfences * sizeof(*user)))
+	if (!access_ok(user, nfences * sizeof(*user)))
 		return ERR_PTR(-EFAULT);
 
 	fences = kvmalloc_array(nfences, sizeof(*fences),

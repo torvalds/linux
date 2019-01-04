@@ -64,7 +64,7 @@ anslcd_write( struct file * file, const char __user * buf,
 	printk(KERN_DEBUG "LCD: write\n");
 #endif
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	mutex_lock(&anslcd_mutex);

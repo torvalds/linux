@@ -1293,16 +1293,20 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
-	/* all work done, exit the polling mode */
-	napi_complete_done(napi, work_done);
-	if (adapter->rx_itr_setting == 1)
-		ixgbevf_set_itr(q_vector);
-	if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&
-	    !test_bit(__IXGBEVF_REMOVING, &adapter->state))
-		ixgbevf_irq_enable_queues(adapter,
-					  BIT(q_vector->v_idx));
 
-	return 0;
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done))) {
+		if (adapter->rx_itr_setting == 1)
+			ixgbevf_set_itr(q_vector);
+		if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&
+		    !test_bit(__IXGBEVF_REMOVING, &adapter->state))
+			ixgbevf_irq_enable_queues(adapter,
+						  BIT(q_vector->v_idx));
+	}
+
+	return min(work_done, budget - 1);
 }
 
 /**
@@ -4016,6 +4020,8 @@ static void ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 	/* set the timestamp */
 	first->time_stamp = jiffies;
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
@@ -4151,7 +4157,7 @@ static int ixgbevf_xmit_frame_ring(struct sk_buff *skb,
 	first->protocol = vlan_get_protocol(skb);
 
 #ifdef CONFIG_IXGBEVF_IPSEC
-	if (skb->sp && !ixgbevf_ipsec_tx(tx_ring, first, &ipsec_tx))
+	if (secpath_exists(skb) && !ixgbevf_ipsec_tx(tx_ring, first, &ipsec_tx))
 		goto out_drop;
 #endif
 	tso = ixgbevf_tso(tx_ring, first, &hdr_len, &ipsec_tx);

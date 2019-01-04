@@ -39,7 +39,7 @@ user_backtrace(struct frame_tail __user *tail,
 	unsigned long lr;
 
 	/* Also check accessibility of one struct frame_tail beyond */
-	if (!access_ok(VERIFY_READ, tail, sizeof(buftail)))
+	if (!access_ok(tail, sizeof(buftail)))
 		return NULL;
 
 	pagefault_disable();
@@ -86,7 +86,7 @@ compat_user_backtrace(struct compat_frame_tail __user *tail,
 	unsigned long err;
 
 	/* Also check accessibility of one struct frame_tail beyond */
-	if (!access_ok(VERIFY_READ, tail, sizeof(buftail)))
+	if (!access_ok(tail, sizeof(buftail)))
 		return NULL;
 
 	pagefault_disable();
@@ -168,7 +168,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 	frame.fp = regs->regs[29];
 	frame.pc = regs->pc;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = current->curr_ret_stack;
+	frame.graph = 0;
 #endif
 
 	walk_stackframe(current, &frame, callchain_trace, entry);

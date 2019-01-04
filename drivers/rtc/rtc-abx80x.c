@@ -38,6 +38,7 @@
 
 #define ABX8XX_REG_STATUS	0x0f
 #define ABX8XX_STATUS_AF	BIT(2)
+#define ABX8XX_STATUS_BLF	BIT(4)
 #define ABX8XX_STATUS_WDT	BIT(6)
 
 #define ABX8XX_REG_CTRL1	0x10
@@ -507,12 +508,49 @@ static int abx80x_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return err;
 }
 
+static int abx80x_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	int status, tmp;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		status = i2c_smbus_read_byte_data(client, ABX8XX_REG_STATUS);
+		if (status < 0)
+			return status;
+
+		tmp = !!(status & ABX8XX_STATUS_BLF);
+
+		if (copy_to_user((void __user *)arg, &tmp, sizeof(int)))
+			return -EFAULT;
+
+		return 0;
+
+	case RTC_VL_CLR:
+		status = i2c_smbus_read_byte_data(client, ABX8XX_REG_STATUS);
+		if (status < 0)
+			return status;
+
+		status &= ~ABX8XX_STATUS_BLF;
+
+		tmp = i2c_smbus_write_byte_data(client, ABX8XX_REG_STATUS, 0);
+		if (tmp < 0)
+			return tmp;
+
+		return 0;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 static const struct rtc_class_ops abx80x_rtc_ops = {
 	.read_time	= abx80x_rtc_read_time,
 	.set_time	= abx80x_rtc_set_time,
 	.read_alarm	= abx80x_read_alarm,
 	.set_alarm	= abx80x_set_alarm,
 	.alarm_irq_enable = abx80x_alarm_irq_enable,
+	.ioctl		= abx80x_ioctl,
 };
 
 static int abx80x_dt_trickle_cfg(struct device_node *np)

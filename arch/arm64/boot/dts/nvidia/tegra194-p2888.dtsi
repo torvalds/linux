@@ -66,6 +66,10 @@
 			vmmc-supply = <&vdd_emmc_3v3>;
 		};
 
+		rtc@c2a0000 {
+			status = "okay";
+		};
+
 		pmc@c360000 {
 			nvidia,invert-interrupt;
 		};
@@ -163,7 +167,7 @@
 					in-ldo4-6-supply = <&vdd_5v0_sys>;
 					in-ldo7-8-supply = <&vdd_1v8ls>;
 
-					sd0 {
+					vdd_1v0: sd0 {
 						regulator-name = "VDD_1V0";
 						regulator-min-microvolt = <1000000>;
 						regulator-max-microvolt = <1000000>;
@@ -171,7 +175,7 @@
 						regulator-boot-on;
 					};
 
-					sd1 {
+					vdd_1v8hs: sd1 {
 						regulator-name = "VDD_1V8HS";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
@@ -244,6 +248,17 @@
 					};
 				};
 			};
+
+			temperature-sensor@4c {
+				compatible = "ti,tmp451";
+				reg = <0x4c>;
+
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA194_MAIN_GPIO(H, 2)
+					      IRQ_TYPE_LEVEL_LOW>;
+
+				#thermal-sensor-cells = <1>;
+			};
 		};
 	};
 
@@ -261,6 +276,17 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
 			regulator-boot-on;
+		};
+
+		vdd_hdmi: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+
+			regulator-name = "VDD_5V0_HDMI_CON";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA194_MAIN_GPIO(A, 3) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 		};
 	};
 };

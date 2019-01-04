@@ -36,6 +36,10 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_BIND_FUNC_QUEUE,	/* (VF -> PF) bind function and queue */
 	HCLGE_MBX_GET_LINK_STATUS,	/* (VF -> PF) get link status */
 	HCLGE_MBX_QUEUE_RESET,		/* (VF -> PF) reset queue */
+	HCLGE_MBX_KEEP_ALIVE,		/* (VF -> PF) send keep alive cmd */
+	HCLGE_MBX_SET_ALIVE,		/* (VF -> PF) set alive state */
+	HCLGE_MBX_SET_MTU,		/* (VF -> PF) set mtu */
+	HCLGE_MBX_GET_QID_IN_PF,	/* (VF -> PF) get queue id in pf */
 };
 
 /* below are per-VF mac-vlan subcodes */
@@ -83,6 +87,12 @@ struct hclge_mbx_pf_to_vf_cmd {
 	u8 msg_len;
 	u8 rsv1[3];
 	u16 msg[8];
+};
+
+struct hclge_vf_rst_cmd {
+	u8 dest_vfid;
+	u8 vf_rst;
+	u8 rsv[22];
 };
 
 /* used by VF to store the received Async responses from PF */

@@ -821,9 +821,21 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	/*
 	 * BPF_ARSH
 	 */
+	case BPF_ALU | BPF_ARSH | BPF_X: /* ((s32) dst) >>= src */
+		/* sra %dst,%dst,0(%src) */
+		EMIT4_DISP(0x8a000000, dst_reg, src_reg, 0);
+		EMIT_ZERO(dst_reg);
+		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_X: /* ((s64) dst) >>= src */
 		/* srag %dst,%dst,0(%src) */
 		EMIT6_DISP_LH(0xeb000000, 0x000a, dst_reg, dst_reg, src_reg, 0);
+		break;
+	case BPF_ALU | BPF_ARSH | BPF_K: /* ((s32) dst >> imm */
+		if (imm == 0)
+			break;
+		/* sra %dst,imm(%r0) */
+		EMIT4_DISP(0x8a000000, dst_reg, REG_0, imm);
+		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_K: /* ((s64) dst) >>= imm */
 		if (imm == 0)

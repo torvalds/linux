@@ -65,4 +65,14 @@ config FSI_SBEFIFO
 	a pipe-like FSI device for communicating with the self boot engine
 	(SBE) on POWER processors.
 
+config FSI_OCC
+	tristate "OCC SBEFIFO client device driver"
+	depends on FSI_SBEFIFO
+	---help---
+	This option enables an SBEFIFO based On-Chip Controller (OCC) device
+	driver. The OCC is a device embedded on a POWER processor that collects
+	and aggregates sensor data from the processor and system. The OCC can
+	provide the raw sensor data as well as perform thermal and power
+	management on the system.
+
 endif

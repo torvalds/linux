@@ -265,7 +265,7 @@ config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
 	depends on (FSL_SOC_BOOKE && PPC32) || 8260
 	select CPM
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select GPIOLIB
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on

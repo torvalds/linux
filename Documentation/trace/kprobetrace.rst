@@ -20,6 +20,9 @@ current_tracer. Instead of that, add probe points via
 /sys/kernel/debug/tracing/kprobe_events, and enable it via
 /sys/kernel/debug/tracing/events/kprobes/<EVENT>/enable.
 
+You can also use /sys/kernel/debug/tracing/dynamic_events instead of
+kprobe_events. That interface will provide unified access to other
+dynamic events too.
 
 Synopsis of kprobe_events
 -------------------------

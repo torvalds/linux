@@ -284,7 +284,9 @@ COND_SYSCALL_COMPAT(move_pages);
 COND_SYSCALL(perf_event_open);
 COND_SYSCALL(accept4);
 COND_SYSCALL(recvmmsg);
+COND_SYSCALL(recvmmsg_time32);
 COND_SYSCALL_COMPAT(recvmmsg);
+COND_SYSCALL_COMPAT(recvmmsg_time64);
 
 /*
  * Architecture specific syscalls: see further below

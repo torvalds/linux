@@ -631,28 +631,28 @@ static int ehci_reset_port(int port)
 		if (!(portsc & PORT_RESET))
 			break;
 	}
-		if (portsc & PORT_RESET) {
-			/* force reset to complete */
-			loop = 100 * 1000;
-			writel(portsc & ~(PORT_RWC_BITS | PORT_RESET),
-				&ehci_regs->port_status[port - 1]);
-			do {
-				udelay(1);
-				portsc = readl(&ehci_regs->port_status[port-1]);
-			} while ((portsc & PORT_RESET) && (--loop > 0));
-		}
+	if (portsc & PORT_RESET) {
+		/* force reset to complete */
+		loop = 100 * 1000;
+		writel(portsc & ~(PORT_RWC_BITS | PORT_RESET),
+			&ehci_regs->port_status[port - 1]);
+		do {
+			udelay(1);
+			portsc = readl(&ehci_regs->port_status[port-1]);
+		} while ((portsc & PORT_RESET) && (--loop > 0));
+	}
 
-		/* Device went away? */
-		if (!(portsc & PORT_CONNECT))
-			return -ENOTCONN;
+	/* Device went away? */
+	if (!(portsc & PORT_CONNECT))
+		return -ENOTCONN;
 
-		/* bomb out completely if something weird happened */
-		if ((portsc & PORT_CSC))
-			return -EINVAL;
+	/* bomb out completely if something weird happened */
+	if ((portsc & PORT_CSC))
+		return -EINVAL;
 
-		/* If we've finished resetting, then break out of the loop */
-		if (!(portsc & PORT_RESET) && (portsc & PORT_PE))
-			return 0;
+	/* If we've finished resetting, then break out of the loop */
+	if (!(portsc & PORT_RESET) && (portsc & PORT_PE))
+		return 0;
 	return -EBUSY;
 }
 

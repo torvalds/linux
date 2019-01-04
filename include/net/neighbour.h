@@ -140,8 +140,8 @@ struct neighbour {
 	unsigned long		updated;
 	rwlock_t		lock;
 	refcount_t		refcnt;
-	struct sk_buff_head	arp_queue;
 	unsigned int		arp_queue_len_bytes;
+	struct sk_buff_head	arp_queue;
 	struct timer_list	timer;
 	unsigned long		used;
 	atomic_t		probes;
@@ -149,11 +149,13 @@ struct neighbour {
 	__u8			nud_state;
 	__u8			type;
 	__u8			dead;
+	u8			protocol;
 	seqlock_t		ha_lock;
-	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))] __aligned(8);
 	struct hh_cache		hh;
 	int			(*output)(struct neighbour *, struct sk_buff *);
 	const struct neigh_ops	*ops;
+	struct list_head	gc_list;
 	struct rcu_head		rcu;
 	struct net_device	*dev;
 	u8			primary_key[0];
@@ -172,6 +174,7 @@ struct pneigh_entry {
 	possible_net_t		net;
 	struct net_device	*dev;
 	u8			flags;
+	u8			protocol;
 	u8			key[0];
 };
 
@@ -214,6 +217,8 @@ struct neigh_table {
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;
 	atomic_t		entries;
+	atomic_t		gc_entries;
+	struct list_head	gc_list;
 	rwlock_t		lock;
 	unsigned long		last_rand;
 	struct neigh_statistics	__percpu *stats;
@@ -250,6 +255,7 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_ISROUTER			0x40000000
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
 
+extern const struct nla_policy nda_policy[];
 
 static inline bool neigh_key_eq16(const struct neighbour *n, const void *pkey)
 {
@@ -544,24 +550,6 @@ static inline void neigh_ha_snapshot(char *dst, const struct neighbour *n,
 		seq = read_seqbegin(&n->ha_lock);
 		memcpy(dst, n->ha, dev->addr_len);
 	} while (read_seqretry(&n->ha_lock, seq));
-}
-
-static inline void neigh_update_ext_learned(struct neighbour *neigh, u32 flags,
-					    int *notify)
-{
-	u8 ndm_flags = 0;
-
-	if (!(flags & NEIGH_UPDATE_F_ADMIN))
-		return;
-
-	ndm_flags |= (flags & NEIGH_UPDATE_F_EXT_LEARNED) ? NTF_EXT_LEARNED : 0;
-	if ((neigh->flags ^ ndm_flags) & NTF_EXT_LEARNED) {
-		if (ndm_flags & NTF_EXT_LEARNED)
-			neigh->flags |= NTF_EXT_LEARNED;
-		else
-			neigh->flags &= ~NTF_EXT_LEARNED;
-		*notify = 1;
-	}
 }
 
 static inline void neigh_update_is_router(struct neighbour *neigh, u32 flags,

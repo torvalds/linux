@@ -510,6 +510,7 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
+	u64 sas_addr;
 
 	memset(itct, 0, sizeof(*itct));
 
@@ -534,8 +535,8 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 	itct->qw0 = cpu_to_le64(qw0);
 
 	/* qw1 */
-	memcpy(&itct->sas_addr, device->sas_addr, SAS_ADDR_SIZE);
-	itct->sas_addr = __swab64(itct->sas_addr);
+	memcpy(&sas_addr, device->sas_addr, SAS_ADDR_SIZE);
+	itct->sas_addr = cpu_to_le64(__swab64(sas_addr));
 
 	/* qw2 */
 	itct->qw2 = cpu_to_le64((500ULL << ITCT_HDR_IT_NEXUS_LOSS_TL_OFF) |
@@ -561,7 +562,7 @@ static void clear_itct_v1_hw(struct hisi_hba *hisi_hba,
 	reg_val &= ~CFG_AGING_TIME_ITCT_REL_MSK;
 	hisi_sas_write32(hisi_hba, CFG_AGING_TIME, reg_val);
 
-	qw0 = cpu_to_le64(itct->qw0);
+	qw0 = le64_to_cpu(itct->qw0);
 	qw0 &= ~ITCT_HDR_VALID_MSK;
 	itct->qw0 = cpu_to_le64(qw0);
 }
@@ -1100,7 +1101,7 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_SSP:
 	{
 		int error = -1;
-		u32 dma_err_type = cpu_to_le32(err_record->dma_err_type);
+		u32 dma_err_type = le32_to_cpu(err_record->dma_err_type);
 		u32 dma_tx_err_type = ((dma_err_type &
 					ERR_HDR_DMA_TX_ERR_TYPE_MSK)) >>
 					ERR_HDR_DMA_TX_ERR_TYPE_OFF;
@@ -1108,9 +1109,9 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 					ERR_HDR_DMA_RX_ERR_TYPE_MSK)) >>
 					ERR_HDR_DMA_RX_ERR_TYPE_OFF;
 		u32 trans_tx_fail_type =
-				cpu_to_le32(err_record->trans_tx_fail_type);
+				le32_to_cpu(err_record->trans_tx_fail_type);
 		u32 trans_rx_fail_type =
-				cpu_to_le32(err_record->trans_rx_fail_type);
+				le32_to_cpu(err_record->trans_rx_fail_type);
 
 		if (dma_tx_err_type) {
 			/* dma tx err */
@@ -1558,7 +1559,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 		u32 cmplt_hdr_data;
 
 		complete_hdr = &complete_queue[rd_point];
-		cmplt_hdr_data = cpu_to_le32(complete_hdr->data);
+		cmplt_hdr_data = le32_to_cpu(complete_hdr->data);
 		idx = (cmplt_hdr_data & CMPLT_HDR_IPTT_MSK) >>
 		      CMPLT_HDR_IPTT_OFF;
 		slot = &hisi_hba->slot_info[idx];
@@ -1797,6 +1798,11 @@ static int hisi_sas_v1_init(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+static struct device_attribute *host_attrs_v1_hw[] = {
+	&dev_attr_phy_event_threshold,
+	NULL
+};
+
 static struct scsi_host_template sht_v1_hw = {
 	.name			= DRV_NAME,
 	.module			= THIS_MODULE,
@@ -1808,14 +1814,13 @@ static struct scsi_host_template sht_v1_hw = {
 	.change_queue_depth	= sas_change_queue_depth,
 	.bios_param		= sas_bios_param,
 	.this_id		= -1,
-	.sg_tablesize		= SG_ALL,
+	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
-	.shost_attrs		= host_attrs,
+	.shost_attrs		= host_attrs_v1_hw,
 };
 
 static const struct hisi_sas_hw hisi_sas_v1_hw = {

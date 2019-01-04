@@ -34,7 +34,7 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0
@@ -583,7 +583,7 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 
 	dev_priv->map_mode = vmw_dma_map_populate;
 
-	if (dma_ops->sync_single_for_cpu)
+	if (dma_ops && dma_ops->sync_single_for_cpu)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl() == 0)

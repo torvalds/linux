@@ -66,6 +66,318 @@
 
 static DEFINE_SPINLOCK(qm_lock);
 
+/******************** Doorbell Recovery *******************/
+/* The doorbell recovery mechanism consists of a list of entries which represent
+ * doorbelling entities (l2 queues, roce sq/rq/cqs, the slowpath spq, etc). Each
+ * entity needs to register with the mechanism and provide the parameters
+ * describing it's doorbell, including a location where last used doorbell data
+ * can be found. The doorbell execute function will traverse the list and
+ * doorbell all of the registered entries.
+ */
+struct qed_db_recovery_entry {
+	struct list_head list_entry;
+	void __iomem *db_addr;
+	void *db_data;
+	enum qed_db_rec_width db_width;
+	enum qed_db_rec_space db_space;
+	u8 hwfn_idx;
+};
+
+/* Display a single doorbell recovery entry */
+static void qed_db_recovery_dp_entry(struct qed_hwfn *p_hwfn,
+				     struct qed_db_recovery_entry *db_entry,
+				     char *action)
+{
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SPQ,
+		   "(%s: db_entry %p, addr %p, data %p, width %s, %s space, hwfn %d)\n",
+		   action,
+		   db_entry,
+		   db_entry->db_addr,
+		   db_entry->db_data,
+		   db_entry->db_width == DB_REC_WIDTH_32B ? "32b" : "64b",
+		   db_entry->db_space == DB_REC_USER ? "user" : "kernel",
+		   db_entry->hwfn_idx);
+}
+
+/* Doorbell address sanity (address within doorbell bar range) */
+static bool qed_db_rec_sanity(struct qed_dev *cdev,
+			      void __iomem *db_addr, void *db_data)
+{
+	/* Make sure doorbell address is within the doorbell bar */
+	if (db_addr < cdev->doorbells ||
+	    (u8 __iomem *)db_addr >
+	    (u8 __iomem *)cdev->doorbells + cdev->db_size) {
+		WARN(true,
+		     "Illegal doorbell address: %p. Legal range for doorbell addresses is [%p..%p]\n",
+		     db_addr,
+		     cdev->doorbells,
+		     (u8 __iomem *)cdev->doorbells + cdev->db_size);
+		return false;
+	}
+
+	/* ake sure doorbell data pointer is not null */
+	if (!db_data) {
+		WARN(true, "Illegal doorbell data pointer: %p", db_data);
+		return false;
+	}
+
+	return true;
+}
+
+/* Find hwfn according to the doorbell address */
+static struct qed_hwfn *qed_db_rec_find_hwfn(struct qed_dev *cdev,
+					     void __iomem *db_addr)
+{
+	struct qed_hwfn *p_hwfn;
+
+	/* In CMT doorbell bar is split down the middle between engine 0 and enigne 1 */
+	if (cdev->num_hwfns > 1)
+		p_hwfn = db_addr < cdev->hwfns[1].doorbells ?
+		    &cdev->hwfns[0] : &cdev->hwfns[1];
+	else
+		p_hwfn = QED_LEADING_HWFN(cdev);
+
+	return p_hwfn;
+}
+
+/* Add a new entry to the doorbell recovery mechanism */
+int qed_db_recovery_add(struct qed_dev *cdev,
+			void __iomem *db_addr,
+			void *db_data,
+			enum qed_db_rec_width db_width,
+			enum qed_db_rec_space db_space)
+{
+	struct qed_db_recovery_entry *db_entry;
+	struct qed_hwfn *p_hwfn;
+
+	/* Shortcircuit VFs, for now */
+	if (IS_VF(cdev)) {
+		DP_VERBOSE(cdev,
+			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
+		return 0;
+	}
+
+	/* Sanitize doorbell address */
+	if (!qed_db_rec_sanity(cdev, db_addr, db_data))
+		return -EINVAL;
+
+	/* Obtain hwfn from doorbell address */
+	p_hwfn = qed_db_rec_find_hwfn(cdev, db_addr);
+
+	/* Create entry */
+	db_entry = kzalloc(sizeof(*db_entry), GFP_KERNEL);
+	if (!db_entry) {
+		DP_NOTICE(cdev, "Failed to allocate a db recovery entry\n");
+		return -ENOMEM;
+	}
+
+	/* Populate entry */
+	db_entry->db_addr = db_addr;
+	db_entry->db_data = db_data;
+	db_entry->db_width = db_width;
+	db_entry->db_space = db_space;
+	db_entry->hwfn_idx = p_hwfn->my_id;
+
+	/* Display */
+	qed_db_recovery_dp_entry(p_hwfn, db_entry, "Adding");
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_add_tail(&db_entry->list_entry, &p_hwfn->db_recovery_info.list);
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+
+	return 0;
+}
+
+/* Remove an entry from the doorbell recovery mechanism */
+int qed_db_recovery_del(struct qed_dev *cdev,
+			void __iomem *db_addr, void *db_data)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+	struct qed_hwfn *p_hwfn;
+	int rc = -EINVAL;
+
+	/* Shortcircuit VFs, for now */
+	if (IS_VF(cdev)) {
+		DP_VERBOSE(cdev,
+			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
+		return 0;
+	}
+
+	/* Sanitize doorbell address */
+	if (!qed_db_rec_sanity(cdev, db_addr, db_data))
+		return -EINVAL;
+
+	/* Obtain hwfn from doorbell address */
+	p_hwfn = qed_db_rec_find_hwfn(cdev, db_addr);
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_for_each_entry(db_entry,
+			    &p_hwfn->db_recovery_info.list, list_entry) {
+		/* search according to db_data addr since db_addr is not unique (roce) */
+		if (db_entry->db_data == db_data) {
+			qed_db_recovery_dp_entry(p_hwfn, db_entry, "Deleting");
+			list_del(&db_entry->list_entry);
+			rc = 0;
+			break;
+		}
+	}
+
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+
+	if (rc == -EINVAL)
+
+		DP_NOTICE(p_hwfn,
+			  "Failed to find element in list. Key (db_data addr) was %p. db_addr was %p\n",
+			  db_data, db_addr);
+	else
+		kfree(db_entry);
+
+	return rc;
+}
+
+/* Initialize the doorbell recovery mechanism */
+static int qed_db_recovery_setup(struct qed_hwfn *p_hwfn)
+{
+	DP_VERBOSE(p_hwfn, QED_MSG_SPQ, "Setting up db recovery\n");
+
+	/* Make sure db_size was set in cdev */
+	if (!p_hwfn->cdev->db_size) {
+		DP_ERR(p_hwfn->cdev, "db_size not set\n");
+		return -EINVAL;
+	}
+
+	INIT_LIST_HEAD(&p_hwfn->db_recovery_info.list);
+	spin_lock_init(&p_hwfn->db_recovery_info.lock);
+	p_hwfn->db_recovery_info.db_recovery_counter = 0;
+
+	return 0;
+}
+
+/* Destroy the doorbell recovery mechanism */
+static void qed_db_recovery_teardown(struct qed_hwfn *p_hwfn)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SPQ, "Tearing down db recovery\n");
+	if (!list_empty(&p_hwfn->db_recovery_info.list)) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SPQ,
+			   "Doorbell Recovery teardown found the doorbell recovery list was not empty (Expected in disorderly driver unload (e.g. recovery) otherwise this probably means some flow forgot to db_recovery_del). Prepare to purge doorbell recovery list...\n");
+		while (!list_empty(&p_hwfn->db_recovery_info.list)) {
+			db_entry =
+			    list_first_entry(&p_hwfn->db_recovery_info.list,
+					     struct qed_db_recovery_entry,
+					     list_entry);
+			qed_db_recovery_dp_entry(p_hwfn, db_entry, "Purging");
+			list_del(&db_entry->list_entry);
+			kfree(db_entry);
+		}
+	}
+	p_hwfn->db_recovery_info.db_recovery_counter = 0;
+}
+
+/* Print the content of the doorbell recovery mechanism */
+void qed_db_recovery_dp(struct qed_hwfn *p_hwfn)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+
+	DP_NOTICE(p_hwfn,
+		  "Displaying doorbell recovery database. Counter was %d\n",
+		  p_hwfn->db_recovery_info.db_recovery_counter);
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_for_each_entry(db_entry,
+			    &p_hwfn->db_recovery_info.list, list_entry) {
+		qed_db_recovery_dp_entry(p_hwfn, db_entry, "Printing");
+	}
+
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+}
+
+/* Ring the doorbell of a single doorbell recovery entry */
+static void qed_db_recovery_ring(struct qed_hwfn *p_hwfn,
+				 struct qed_db_recovery_entry *db_entry,
+				 enum qed_db_rec_exec db_exec)
+{
+	if (db_exec != DB_REC_ONCE) {
+		/* Print according to width */
+		if (db_entry->db_width == DB_REC_WIDTH_32B) {
+			DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
+				   "%s doorbell address %p data %x\n",
+				   db_exec == DB_REC_DRY_RUN ?
+				   "would have rung" : "ringing",
+				   db_entry->db_addr,
+				   *(u32 *)db_entry->db_data);
+		} else {
+			DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
+				   "%s doorbell address %p data %llx\n",
+				   db_exec == DB_REC_DRY_RUN ?
+				   "would have rung" : "ringing",
+				   db_entry->db_addr,
+				   *(u64 *)(db_entry->db_data));
+		}
+	}
+
+	/* Sanity */
+	if (!qed_db_rec_sanity(p_hwfn->cdev, db_entry->db_addr,
+			       db_entry->db_data))
+		return;
+
+	/* Flush the write combined buffer. Since there are multiple doorbelling
+	 * entities using the same address, if we don't flush, a transaction
+	 * could be lost.
+	 */
+	wmb();
+
+	/* Ring the doorbell */
+	if (db_exec == DB_REC_REAL_DEAL || db_exec == DB_REC_ONCE) {
+		if (db_entry->db_width == DB_REC_WIDTH_32B)
+			DIRECT_REG_WR(db_entry->db_addr,
+				      *(u32 *)(db_entry->db_data));
+		else
+			DIRECT_REG_WR64(db_entry->db_addr,
+					*(u64 *)(db_entry->db_data));
+	}
+
+	/* Flush the write combined buffer. Next doorbell may come from a
+	 * different entity to the same address...
+	 */
+	wmb();
+}
+
+/* Traverse the doorbell recovery entry list and ring all the doorbells */
+void qed_db_recovery_execute(struct qed_hwfn *p_hwfn,
+			     enum qed_db_rec_exec db_exec)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+
+	if (db_exec != DB_REC_ONCE) {
+		DP_NOTICE(p_hwfn,
+			  "Executing doorbell recovery. Counter was %d\n",
+			  p_hwfn->db_recovery_info.db_recovery_counter);
+
+		/* Track amount of times recovery was executed */
+		p_hwfn->db_recovery_info.db_recovery_counter++;
+	}
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_for_each_entry(db_entry,
+			    &p_hwfn->db_recovery_info.list, list_entry) {
+		qed_db_recovery_ring(p_hwfn, db_entry, db_exec);
+		if (db_exec == DB_REC_ONCE)
+			break;
+	}
+
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+}
+
+/******************** Doorbell Recovery end ****************/
+
 #define QED_MIN_DPIS            (4)
 #define QED_MIN_PWM_REGION      (QED_WID_SIZE * QED_MIN_DPIS)
 
@@ -194,6 +506,9 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
 		qed_dbg_user_data_free(p_hwfn);
+
+		/* Destroy doorbell recovery mechanism */
+		qed_db_recovery_teardown(p_hwfn);
 	}
 }
 
@@ -969,6 +1284,11 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 		u32 n_eqes, num_cons;
 
+		/* Initialize the doorbell recovery mechanism */
+		rc = qed_db_recovery_setup(p_hwfn);
+		if (rc)
+			goto alloc_err;
+
 		/* First allocate the context manager structure */
 		rc = qed_cxt_mngr_alloc(p_hwfn);
 		if (rc)
@@ -1468,6 +1788,14 @@ enum QED_ROCE_EDPM_MODE {
 	QED_ROCE_EDPM_MODE_DISABLE = 2,
 };
 
+bool qed_edpm_enabled(struct qed_hwfn *p_hwfn)
+{
+	if (p_hwfn->dcbx_no_edpm || p_hwfn->db_bar_no_edpm)
+		return false;
+
+	return true;
+}
+
 static int
 qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
@@ -1537,13 +1865,13 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_hwfn->wid_count = (u16) n_cpus;
 
 	DP_INFO(p_hwfn,
-		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s\n",
+		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
 		norm_regsize,
 		pwm_regsize,
 		p_hwfn->dpi_size,
 		p_hwfn->dpi_count,
-		((p_hwfn->dcbx_no_edpm) || (p_hwfn->db_bar_no_edpm)) ?
-		"disabled" : "enabled");
+		(!qed_edpm_enabled(p_hwfn)) ?
+		"disabled" : "enabled", PAGE_SIZE);
 
 	if (rc) {
 		DP_ERR(p_hwfn,

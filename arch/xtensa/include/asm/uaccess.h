@@ -42,7 +42,7 @@
 #define __user_ok(addr, size) \
 		(((size) <= TASK_SIZE)&&((addr) <= TASK_SIZE-(size)))
 #define __access_ok(addr, size) (__kernel_ok || __user_ok((addr), (size)))
-#define access_ok(type, addr, size) __access_ok((unsigned long)(addr), (size))
+#define access_ok(addr, size) __access_ok((unsigned long)(addr), (size))
 
 #define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
 
@@ -86,7 +86,7 @@ extern long __put_user_bad(void);
 ({									\
 	long __pu_err = -EFAULT;					\
 	__typeof__(*(ptr)) *__pu_addr = (ptr);				\
-	if (access_ok(VERIFY_WRITE, __pu_addr, size))			\
+	if (access_ok(__pu_addr, size))			\
 		__put_user_size((x), __pu_addr, (size), __pu_err);	\
 	__pu_err;							\
 })
@@ -159,10 +159,9 @@ __asm__ __volatile__(					\
 	"2:				\n"		\
 	"   .section  .fixup,\"ax\"	\n"		\
 	"   .align 4			\n"		\
-	"4:				\n"		\
-	"   .long  2b			\n"		\
+	"   .literal_position		\n"		\
 	"5:				\n"		\
-	"   l32r   %1, 4b		\n"		\
+	"   movi   %1, 2b		\n"		\
 	"   movi   %0, %4		\n"		\
 	"   jx     %1			\n"		\
 	"   .previous			\n"		\
@@ -184,7 +183,7 @@ __asm__ __volatile__(					\
 ({									\
 	long __gu_err = -EFAULT, __gu_val = 0;				\
 	const __typeof__(*(ptr)) *__gu_addr = (ptr);			\
-	if (access_ok(VERIFY_READ, __gu_addr, size))			\
+	if (access_ok(__gu_addr, size))			\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 	__gu_err;							\
@@ -217,10 +216,9 @@ __asm__ __volatile__(			\
 	"2:				\n"	\
 	"   .section  .fixup,\"ax\"	\n"	\
 	"   .align 4			\n"	\
-	"4:				\n"	\
-	"   .long  2b			\n"	\
+	"   .literal_position		\n"	\
 	"5:				\n"	\
-	"   l32r   %1, 4b		\n"	\
+	"   movi   %1, 2b		\n"	\
 	"   movi   %2, 0		\n"	\
 	"   movi   %0, %4		\n"	\
 	"   jx     %1			\n"	\
@@ -271,7 +269,7 @@ __xtensa_clear_user(void *addr, unsigned long size)
 static inline unsigned long
 clear_user(void *addr, unsigned long size)
 {
-	if (access_ok(VERIFY_WRITE, addr, size))
+	if (access_ok(addr, size))
 		return __xtensa_clear_user(addr, size);
 	return size ? -EFAULT : 0;
 }
@@ -286,7 +284,7 @@ extern long __strncpy_user(char *, const char *, long);
 static inline long
 strncpy_from_user(char *dst, const char *src, long count)
 {
-	if (access_ok(VERIFY_READ, src, 1))
+	if (access_ok(src, 1))
 		return __strncpy_user(dst, src, count);
 	return -EFAULT;
 }

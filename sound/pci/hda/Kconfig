@@ -226,68 +226,6 @@ config SND_HDA_POWER_SAVE_DEFAULT
 	  The default time-out value in seconds for HD-audio automatic
 	  power-save mode.  0 means to disable the power-save mode.
 
-if SND_HDA_INTEL
-
-# The options below should not be enabled by distributions or
-# users. They are selected by Intel/Skylake or SOF drivers when they
-# register for a PCI ID which is also handled by the HDAudio legacy
-# driver. When this option is selected and the DSP is detected based on
-# the PCI class/subclass/prog-if, the probe of the HDAudio legacy
-# aborts. This mechanism removes the need for distributions to use
-# blacklists. It can be bypassed with module parameters should the
-# Intel/Skylake or SOF drivers fail to handle a specific platform.
-
-config SND_HDA_INTEL_DSP_DETECTION_SKL
-	bool
-	help
-	  This option is selected by SOF or SST drivers, not users or distros.
-	  It enables DSP detection based on PCI class information for
-	  Skylake machines.
-
-config SND_HDA_INTEL_DSP_DETECTION_APL
-	bool
-	help
-	  This option is selected by SOF or SST drivers, not users or distros.
-	  It enables DSP detection based on PCI class information for
-	  Broxton/ApolloLake machines
-
-config SND_HDA_INTEL_DSP_DETECTION_KBL
-	bool
-	help
-	  This option is selected by SOF or SST drivers, not users or distros.
-	  It enables DSP detection based on PCI class information for
-	  KabyLake machines
-
-config SND_HDA_INTEL_DSP_DETECTION_GLK
-	bool
-	help
-	  This option is selected by SOF or SST drivers, not users or distros.
-	  It enables DSP detection based on PCI class information for
-	  GeminiLake machines
-
-config SND_HDA_INTEL_DSP_DETECTION_CNL
-	bool
-	help
-	  This option is selected by SOF or SST drivers, not users or distros.
-	  It enables DSP detection based on PCI class information for
-	  CannonLake machines
-
-config SND_HDA_INTEL_DSP_DETECTION_CFL
-	bool
-	help
-	  This option is selected by SOF or SST drivers, not users or distros.
-	  It enables DSP detection based on PCI class information for
-	  CoffeeLake machines
-
-config SND_HDA_INTEL_DSP_DETECTION_ICL
-	bool
-	help
-	  This option is selected by SOF or SST drivers, not users or distros.
-	  It enables DSP detection based on PCI class information for
-	  IceLake machines
-
-endif ## SND_HDA_INTEL
-
 endif
 
 endmenu

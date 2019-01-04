@@ -760,12 +760,13 @@ static const struct file_operations ocrdma_dbg_ops = {
 
 void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 {
+	const struct pci_dev *pdev = dev->nic_info.pdev;
+
 	if (!ocrdma_dbgfs_dir)
 		return;
 
 	/* Create post stats base dir */
-	dev->dir =
-		debugfs_create_dir(dev_name(&dev->ibdev.dev), ocrdma_dbgfs_dir);
+	dev->dir = debugfs_create_dir(pci_name(pdev), ocrdma_dbgfs_dir);
 	if (!dev->dir)
 		goto err;
 

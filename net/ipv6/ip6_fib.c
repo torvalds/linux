@@ -627,7 +627,11 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			return -ENOENT;
 		}
 
-		res = fib6_dump_table(tb, skb, cb);
+		if (!cb->args[0]) {
+			res = fib6_dump_table(tb, skb, cb);
+			if (!res)
+				cb->args[0] = 1;
+		}
 		goto out;
 	}
 

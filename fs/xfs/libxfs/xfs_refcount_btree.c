@@ -70,7 +70,7 @@ xfs_refcountbt_alloc_block(
 	args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	args.fsbno = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agno,
 			xfs_refc_block(args.mp));
-	xfs_rmap_ag_owner(&args.oinfo, XFS_RMAP_OWN_REFC);
+	args.oinfo = XFS_RMAP_OINFO_REFC;
 	args.minlen = args.maxlen = args.prod = 1;
 	args.resv = XFS_AG_RESV_METADATA;
 
@@ -106,15 +106,13 @@ xfs_refcountbt_free_block(
 	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
 	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
 	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, XFS_BUF_ADDR(bp));
-	struct xfs_owner_info	oinfo;
 	int			error;
 
 	trace_xfs_refcountbt_free_block(cur->bc_mp, cur->bc_private.a.agno,
 			XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno), 1);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_REFC);
 	be32_add_cpu(&agf->agf_refcount_blocks, -1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_REFCOUNT_BLOCKS);
-	error = xfs_free_extent(cur->bc_tp, fsbno, 1, &oinfo,
+	error = xfs_free_extent(cur->bc_tp, fsbno, 1, &XFS_RMAP_OINFO_REFC,
 			XFS_AG_RESV_METADATA);
 	if (error)
 		return error;

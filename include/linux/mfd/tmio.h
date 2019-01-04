@@ -54,12 +54,8 @@
  * idle before writing to some registers.
  */
 #define TMIO_MMC_HAS_IDLE_WAIT		BIT(4)
-/*
- * A GPIO is used for card hotplug detection. We need an extra flag for this,
- * because 0 is a valid GPIO number too, and requiring users to specify
- * cd_gpio < 0 to disable GPIO hotplug would break backwards compatibility.
- */
-#define TMIO_MMC_USE_GPIO_CD		BIT(5)
+
+/* BIT(5) is unused */
 
 /*
  * Some controllers have CMD12 automatically
@@ -104,7 +100,6 @@ struct tmio_mmc_data {
 	unsigned long			capabilities2;
 	unsigned long			flags;
 	u32				ocr_mask;	/* available voltages */
-	unsigned int			cd_gpio;
 	int				alignment_shift;
 	dma_addr_t			dma_rx_offset;
 	unsigned int			max_blk_count;

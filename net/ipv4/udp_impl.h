@@ -7,7 +7,7 @@
 #include <net/inet_common.h>
 
 int __udp4_lib_rcv(struct sk_buff *, struct udp_table *, int);
-void __udp4_lib_err(struct sk_buff *, u32, struct udp_table *);
+int __udp4_lib_err(struct sk_buff *, u32, struct udp_table *);
 
 int udp_v4_get_port(struct sock *sk, unsigned short snum);
 

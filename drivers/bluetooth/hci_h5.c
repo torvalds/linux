@@ -115,6 +115,8 @@ struct h5_vnd {
 	int (*setup)(struct h5 *h5);
 	void (*open)(struct h5 *h5);
 	void (*close)(struct h5 *h5);
+	int (*suspend)(struct h5 *h5);
+	int (*resume)(struct h5 *h5);
 	const struct acpi_gpio_mapping *acpi_gpio_map;
 };
 
@@ -841,6 +843,28 @@ static void h5_serdev_remove(struct serdev_device *serdev)
 	hci_uart_unregister_device(&h5->serdev_hu);
 }
 
+static int __maybe_unused h5_serdev_suspend(struct device *dev)
+{
+	struct h5 *h5 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (h5->vnd && h5->vnd->suspend)
+		ret = h5->vnd->suspend(h5);
+
+	return ret;
+}
+
+static int __maybe_unused h5_serdev_resume(struct device *dev)
+{
+	struct h5 *h5 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (h5->vnd && h5->vnd->resume)
+		ret = h5->vnd->resume(h5);
+
+	return ret;
+}
+
 #ifdef CONFIG_BT_HCIUART_RTL
 static int h5_btrtl_setup(struct h5 *h5)
 {
@@ -907,6 +931,56 @@ static void h5_btrtl_close(struct h5 *h5)
 	gpiod_set_value_cansleep(h5->enable_gpio, 0);
 }
 
+/* Suspend/resume support. On many devices the RTL BT device loses power during
+ * suspend/resume, causing it to lose its firmware and all state. So we simply
+ * turn it off on suspend and reprobe on resume.  This mirrors how RTL devices
+ * are handled in the USB driver, where the USB_QUIRK_RESET_RESUME is used which
+ * also causes a reprobe on resume.
+ */
+static int h5_btrtl_suspend(struct h5 *h5)
+{
+	serdev_device_set_flow_control(h5->hu->serdev, false);
+	gpiod_set_value_cansleep(h5->device_wake_gpio, 0);
+	gpiod_set_value_cansleep(h5->enable_gpio, 0);
+	return 0;
+}
+
+struct h5_btrtl_reprobe {
+	struct device *dev;
+	struct work_struct work;
+};
+
+static void h5_btrtl_reprobe_worker(struct work_struct *work)
+{
+	struct h5_btrtl_reprobe *reprobe =
+		container_of(work, struct h5_btrtl_reprobe, work);
+	int ret;
+
+	ret = device_reprobe(reprobe->dev);
+	if (ret && ret != -EPROBE_DEFER)
+		dev_err(reprobe->dev, "Reprobe error %d\n", ret);
+
+	put_device(reprobe->dev);
+	kfree(reprobe);
+	module_put(THIS_MODULE);
+}
+
+static int h5_btrtl_resume(struct h5 *h5)
+{
+	struct h5_btrtl_reprobe *reprobe;
+
+	reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
+	if (!reprobe)
+		return -ENOMEM;
+
+	__module_get(THIS_MODULE);
+
+	INIT_WORK(&reprobe->work, h5_btrtl_reprobe_worker);
+	reprobe->dev = get_device(&h5->hu->serdev->dev);
+	queue_work(system_long_wq, &reprobe->work);
+	return 0;
+}
+
 static const struct acpi_gpio_params btrtl_device_wake_gpios = { 0, 0, false };
 static const struct acpi_gpio_params btrtl_enable_gpios = { 1, 0, false };
 static const struct acpi_gpio_params btrtl_host_wake_gpios = { 2, 0, false };
@@ -921,6 +995,8 @@ static struct h5_vnd rtl_vnd = {
 	.setup		= h5_btrtl_setup,
 	.open		= h5_btrtl_open,
 	.close		= h5_btrtl_close,
+	.suspend	= h5_btrtl_suspend,
+	.resume		= h5_btrtl_resume,
 	.acpi_gpio_map	= acpi_btrtl_gpios,
 };
 #endif
@@ -935,12 +1011,17 @@ static const struct acpi_device_id h5_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, h5_acpi_match);
 #endif
 
+static const struct dev_pm_ops h5_serdev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(h5_serdev_suspend, h5_serdev_resume)
+};
+
 static struct serdev_device_driver h5_serdev_driver = {
 	.probe = h5_serdev_probe,
 	.remove = h5_serdev_remove,
 	.driver = {
 		.name = "hci_uart_h5",
 		.acpi_match_table = ACPI_PTR(h5_acpi_match),
+		.pm = &h5_serdev_pm_ops,
 	},
 };
 

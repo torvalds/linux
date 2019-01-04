@@ -545,7 +545,7 @@ static int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
  */
 int nfs40_walk_client_list(struct nfs_client *new,
 			   struct nfs_client **result,
-			   struct rpc_cred *cred)
+			   const struct cred *cred)
 {
 	struct nfs_net *nn = net_generic(new->cl_net, nfs_net_id);
 	struct nfs_client *pos, *prev = NULL;
@@ -711,7 +711,7 @@ out_err:
  */
 int nfs41_walk_client_list(struct nfs_client *new,
 			   struct nfs_client **result,
-			   struct rpc_cred *cred)
+			   const struct cred *cred)
 {
 	struct nfs_net *nn = net_generic(new->cl_net, nfs_net_id);
 	struct nfs_client *pos, *prev = NULL;

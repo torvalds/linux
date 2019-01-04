@@ -68,8 +68,6 @@ static unsigned int xprt_max_tcp_slot_table_entries = RPC_MAX_SLOT_TABLE;
 static unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
 static unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-
 #define XS_TCP_LINGER_TO	(15U * HZ)
 static unsigned int xs_tcp_fin_timeout __read_mostly = XS_TCP_LINGER_TO;
 
@@ -158,8 +156,6 @@ static struct ctl_table sunrpc_table[] = {
 	},
 	{ },
 };
-
-#endif
 
 /*
  * Wait duration for a reply from the RPC portmapper.
@@ -1400,17 +1396,6 @@ static void xs_tcp_force_close(struct rpc_xprt *xprt)
 }
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
-static int xs_tcp_bc_up(struct svc_serv *serv, struct net *net)
-{
-	int ret;
-
-	ret = svc_create_xprt(serv, "tcp-bc", net, PF_INET, 0,
-			      SVC_SOCK_ANONYMOUS);
-	if (ret < 0)
-		return ret;
-	return 0;
-}
-
 static size_t xs_tcp_bc_maxpayload(struct rpc_xprt *xprt)
 {
 	return PAGE_SIZE;
@@ -1600,6 +1585,7 @@ static void xs_udp_set_buffer_size(struct rpc_xprt *xprt, size_t sndsize, size_t
 
 /**
  * xs_udp_timer - called when a retransmit timeout occurs on a UDP transport
+ * @xprt: controlling transport
  * @task: task that timed out
  *
  * Adjust the congestion window after a retransmit timeout has occurred.
@@ -2257,6 +2243,7 @@ out:
 
 /**
  * xs_tcp_setup_socket - create a TCP socket and connect to a remote endpoint
+ * @work: queued work item
  *
  * Invoked by a work queue tasklet.
  */
@@ -2665,7 +2652,6 @@ static const struct rpc_xprt_ops xs_tcp_ops = {
 	.inject_disconnect	= xs_inject_disconnect,
 #ifdef CONFIG_SUNRPC_BACKCHANNEL
 	.bc_setup		= xprt_setup_bc,
-	.bc_up			= xs_tcp_bc_up,
 	.bc_maxpayload		= xs_tcp_bc_maxpayload,
 	.bc_free_rqst		= xprt_free_bc_rqst,
 	.bc_destroy		= xprt_destroy_bc,
@@ -3107,10 +3093,8 @@ static struct xprt_class	xs_bc_tcp_transport = {
  */
 int init_socket_xprt(void)
 {
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	if (!sunrpc_table_header)
 		sunrpc_table_header = register_sysctl_table(sunrpc_table);
-#endif
 
 	xprt_register_transport(&xs_local_transport);
 	xprt_register_transport(&xs_udp_transport);
@@ -3126,12 +3110,10 @@ int init_socket_xprt(void)
  */
 void cleanup_socket_xprt(void)
 {
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	if (sunrpc_table_header) {
 		unregister_sysctl_table(sunrpc_table_header);
 		sunrpc_table_header = NULL;
 	}
-#endif
 
 	xprt_unregister_transport(&xs_local_transport);
 	xprt_unregister_transport(&xs_udp_transport);

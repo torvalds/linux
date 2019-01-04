@@ -458,8 +458,10 @@ stmmac_get_pauseparam(struct net_device *netdev,
 		if (!adv_lp.pause)
 			return;
 	} else {
-		if (!(netdev->phydev->supported & SUPPORTED_Pause) ||
-		    !(netdev->phydev->supported & SUPPORTED_Asym_Pause))
+		if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				       netdev->phydev->supported) ||
+		    linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				      netdev->phydev->supported))
 			return;
 	}
 
@@ -487,8 +489,10 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		if (!adv_lp.pause)
 			return -EOPNOTSUPP;
 	} else {
-		if (!(phy->supported & SUPPORTED_Pause) ||
-		    !(phy->supported & SUPPORTED_Asym_Pause))
+		if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				       phy->supported) ||
+		    linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				      phy->supported))
 			return -EOPNOTSUPP;
 	}
 

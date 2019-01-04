@@ -62,6 +62,124 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
  * must be grouped by speed and sorted in descending match priority
  * - iow, descending speed. */
 static const struct phy_setting settings[] = {
+	/* 100G */
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+	},
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	},
+	/* 56G */
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseCR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseKR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT,
+	},
+	/* 50G */
+	{
+		.speed = SPEED_50000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	},
+	{
+		.speed = SPEED_50000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	},
+	{
+		.speed = SPEED_50000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+	},
+	/* 40G */
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+	},
+	/* 25G */
+	{
+		.speed = SPEED_25000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	},
+	{
+		.speed = SPEED_25000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	},
+	{
+		.speed = SPEED_25000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+	},
+
+	/* 20G */
+	{
+		.speed = SPEED_20000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
+	},
+	{
+		.speed = SPEED_20000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_20000baseMLD2_Full_BIT,
+	},
+	/* 10G */
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
+	},
 	{
 		.speed = SPEED_10000,
 		.duplex = DUPLEX_FULL,
@@ -75,22 +193,51 @@ static const struct phy_setting settings[] = {
 	{
 		.speed = SPEED_10000,
 		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	},
+	/* 5G */
+	{
+		.speed = SPEED_5000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+	},
+
+	/* 2.5G */
+	{
+		.speed = SPEED_2500,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 	},
 	{
 		.speed = SPEED_2500,
 		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
 	},
+	/* 1G */
 	{
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
 	},
 	{
 		.speed = SPEED_1000,
@@ -103,6 +250,12 @@ static const struct phy_setting settings[] = {
 		.bit = ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 	},
 	{
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+	},
+	/* 100M */
+	{
 		.speed = SPEED_100,
 		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_100baseT_Full_BIT,
@@ -112,6 +265,7 @@ static const struct phy_setting settings[] = {
 		.duplex = DUPLEX_HALF,
 		.bit = ETHTOOL_LINK_MODE_100baseT_Half_BIT,
 	},
+	/* 10M */
 	{
 		.speed = SPEED_10,
 		.duplex = DUPLEX_FULL,
@@ -129,7 +283,6 @@ static const struct phy_setting settings[] = {
  * @speed: speed to match
  * @duplex: duplex to match
  * @mask: allowed link modes
- * @maxbit: bit size of link modes
  * @exact: an exact match is required
  *
  * Search the settings array for a setting that matches the speed and
@@ -143,14 +296,14 @@ static const struct phy_setting settings[] = {
  * they all fail, %NULL will be returned.
  */
 const struct phy_setting *
-phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
-		   size_t maxbit, bool exact)
+phy_lookup_setting(int speed, int duplex, const unsigned long *mask, bool exact)
 {
 	const struct phy_setting *p, *match = NULL, *last = NULL;
 	int i;
 
 	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
-		if (p->bit < maxbit && test_bit(p->bit, mask)) {
+		if (p->bit < __ETHTOOL_LINK_MODE_MASK_NBITS &&
+		    test_bit(p->bit, mask)) {
 			last = p;
 			if (p->speed == speed && p->duplex == duplex) {
 				/* Exact match for speed and duplex */
@@ -175,13 +328,13 @@ phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
 EXPORT_SYMBOL_GPL(phy_lookup_setting);
 
 size_t phy_speeds(unsigned int *speeds, size_t size,
-		  unsigned long *mask, size_t maxbit)
+		  unsigned long *mask)
 {
 	size_t count;
 	int i;
 
 	for (i = 0, count = 0; i < ARRAY_SIZE(settings) && count < size; i++)
-		if (settings[i].bit < maxbit &&
+		if (settings[i].bit < __ETHTOOL_LINK_MODE_MASK_NBITS &&
 		    test_bit(settings[i].bit, mask) &&
 		    (count == 0 || speeds[count - 1] != settings[i].speed))
 			speeds[count++] = settings[i].speed;
@@ -199,35 +352,53 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
  */
 void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 {
-	u32 common = phydev->lp_advertising & phydev->advertising;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
 
-	if (common & ADVERTISED_10000baseT_Full) {
+	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, common)) {
 		phydev->speed = SPEED_10000;
 		phydev->duplex = DUPLEX_FULL;
-	} else if (common & ADVERTISED_1000baseT_Full) {
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				     common)) {
+		phydev->speed = SPEED_5000;
+		phydev->duplex = DUPLEX_FULL;
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				     common)) {
+		phydev->speed = SPEED_2500;
+		phydev->duplex = DUPLEX_FULL;
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				     common)) {
 		phydev->speed = SPEED_1000;
 		phydev->duplex = DUPLEX_FULL;
-	} else if (common & ADVERTISED_1000baseT_Half) {
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				     common)) {
 		phydev->speed = SPEED_1000;
 		phydev->duplex = DUPLEX_HALF;
-	} else if (common & ADVERTISED_100baseT_Full) {
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				     common)) {
 		phydev->speed = SPEED_100;
 		phydev->duplex = DUPLEX_FULL;
-	} else if (common & ADVERTISED_100baseT_Half) {
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				     common)) {
 		phydev->speed = SPEED_100;
 		phydev->duplex = DUPLEX_HALF;
-	} else if (common & ADVERTISED_10baseT_Full) {
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+				     common)) {
 		phydev->speed = SPEED_10;
 		phydev->duplex = DUPLEX_FULL;
-	} else if (common & ADVERTISED_10baseT_Half) {
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				     common)) {
 		phydev->speed = SPEED_10;
 		phydev->duplex = DUPLEX_HALF;
 	}
 
 	if (phydev->duplex == DUPLEX_FULL) {
-		phydev->pause = !!(phydev->lp_advertising & ADVERTISED_Pause);
-		phydev->asym_pause = !!(phydev->lp_advertising &
-					ADVERTISED_Asym_Pause);
+		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+						  phydev->lp_advertising);
+		phydev->asym_pause = linkmode_test_bit(
+			ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			phydev->lp_advertising);
 	}
 }
 EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);

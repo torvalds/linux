@@ -554,9 +554,9 @@ static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
 
 	mlx5_cqwq_pop(&cq->wq);
 
-	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
+	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ)) {
 		netdev_WARN_ONCE(cq->channel->netdev,
-				 "Bad OP in ICOSQ CQE: 0x%x\n", cqe->op_own);
+				 "Bad OP in ICOSQ CQE: 0x%x\n", get_cqe_opcode(cqe));
 		return;
 	}
 
@@ -898,7 +898,7 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	prefetchw(va); /* xdp_frame data area */
 	prefetch(data);
 
-	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_RESP_SEND)) {
+	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)) {
 		rq->stats->wqe_err++;
 		return NULL;
 	}
@@ -930,7 +930,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	u16 byte_cnt     = cqe_bcnt - headlen;
 	struct sk_buff *skb;
 
-	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_RESP_SEND)) {
+	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)) {
 		rq->stats->wqe_err++;
 		return NULL;
 	}
@@ -1154,7 +1154,7 @@ void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 
 	wi->consumed_strides += cstrides;
 
-	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_RESP_SEND)) {
+	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)) {
 		rq->stats->wqe_err++;
 		goto mpwrq_cqe_out;
 	}
@@ -1190,7 +1190,6 @@ mpwrq_cqe_out:
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
-	struct mlx5e_xdpsq *xdpsq = &rq->xdpsq;
 	struct mlx5_cqe64 *cqe;
 	int work_done = 0;
 
@@ -1221,15 +1220,8 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
 out:
-	if (xdpsq->doorbell) {
-		mlx5e_xmit_xdp_doorbell(xdpsq);
-		xdpsq->doorbell = false;
-	}
-
-	if (xdpsq->redirect_flush) {
-		xdp_do_flush_map();
-		xdpsq->redirect_flush = false;
-	}
+	if (rq->xdp_prog)
+		mlx5e_xdp_rx_poll_complete(rq);
 
 	mlx5_cqwq_update_db_record(&cq->wq);
 

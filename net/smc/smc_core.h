@@ -109,6 +109,9 @@ struct smc_link {
 	int			llc_testlink_time; /* testlink interval */
 	struct completion	llc_confirm_rkey; /* wait 4 rx of cnf rkey */
 	int			llc_confirm_rkey_rc; /* rc from cnf rkey msg */
+	struct completion	llc_delete_rkey; /* wait 4 rx of del rkey */
+	int			llc_delete_rkey_rc; /* rc from del rkey msg */
+	struct mutex		llc_delete_rkey_mutex; /* serialize usage */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol
@@ -127,7 +130,7 @@ struct smc_buf_desc {
 	struct page		*pages;
 	int			len;		/* length of buffer */
 	u32			used;		/* currently used / unused */
-	u8			reused	: 1;	/* new created / reused */
+	u8			wr_reg	: 1;	/* mem region registered */
 	u8			regerr	: 1;	/* err during registration */
 	union {
 		struct { /* SMC-R */
@@ -243,7 +246,6 @@ struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 struct smc_clc_msg_local;
 
-void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);

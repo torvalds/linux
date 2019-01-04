@@ -158,8 +158,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	}
 
 	if ((args->ring_base_address) &&
-		(!access_ok(VERIFY_WRITE,
-			(const void __user *) args->ring_base_address,
+		(!access_ok((const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
 		pr_err("Can't access ring base address\n");
 		return -EFAULT;
@@ -170,31 +169,27 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		return -EINVAL;
 	}
 
-	if (!access_ok(VERIFY_WRITE,
-			(const void __user *) args->read_pointer_address,
+	if (!access_ok((const void __user *) args->read_pointer_address,
 			sizeof(uint32_t))) {
 		pr_err("Can't access read pointer\n");
 		return -EFAULT;
 	}
 
-	if (!access_ok(VERIFY_WRITE,
-			(const void __user *) args->write_pointer_address,
+	if (!access_ok((const void __user *) args->write_pointer_address,
 			sizeof(uint32_t))) {
 		pr_err("Can't access write pointer\n");
 		return -EFAULT;
 	}
 
 	if (args->eop_buffer_address &&
-		!access_ok(VERIFY_WRITE,
-			(const void __user *) args->eop_buffer_address,
+		!access_ok((const void __user *) args->eop_buffer_address,
 			sizeof(uint32_t))) {
 		pr_debug("Can't access eop buffer");
 		return -EFAULT;
 	}
 
 	if (args->ctx_save_restore_address &&
-		!access_ok(VERIFY_WRITE,
-			(const void __user *) args->ctx_save_restore_address,
+		!access_ok((const void __user *) args->ctx_save_restore_address,
 			sizeof(uint32_t))) {
 		pr_debug("Can't access ctx save restore buffer");
 		return -EFAULT;
@@ -365,8 +360,7 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	}
 
 	if ((args->ring_base_address) &&
-		(!access_ok(VERIFY_WRITE,
-			(const void __user *) args->ring_base_address,
+		(!access_ok((const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
 		pr_err("Can't access ring base address\n");
 		return -EFAULT;

@@ -1086,7 +1086,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	}
 
 	if (is_vf)
-		edev->flags |= QEDE_FLAG_IS_VF;
+		set_bit(QEDE_FLAGS_IS_VF, &edev->flags);
 
 	qede_init_ndev(edev);
 
@@ -1774,6 +1774,10 @@ static int qede_drain_txq(struct qede_dev *edev,
 static int qede_stop_txq(struct qede_dev *edev,
 			 struct qede_tx_queue *txq, int rss_id)
 {
+	/* delete doorbell from doorbell recovery mechanism */
+	edev->ops->common->db_recovery_del(edev->cdev, txq->doorbell_addr,
+					   &txq->tx_db);
+
 	return edev->ops->q_tx_stop(edev->cdev, rss_id, txq->handle);
 }
 
@@ -1909,6 +1913,11 @@ static int qede_start_txq(struct qede_dev *edev,
 	SET_FIELD(txq->tx_db.data.params, ETH_DB_DATA_AGG_VAL_SEL,
 		  DQ_XCM_ETH_TX_BD_PROD_CMD);
 	txq->tx_db.data.agg_flags = DQ_XCM_ETH_DQ_CF_CMD;
+
+	/* register doorbell with doorbell recovery mechanism */
+	rc = edev->ops->common->db_recovery_add(edev->cdev, txq->doorbell_addr,
+						&txq->tx_db, DB_REC_WIDTH_32B,
+						DB_REC_KERNEL);
 
 	return rc;
 }
@@ -2057,6 +2066,8 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 	if (!is_locked)
 		__qede_lock(edev);
 
+	clear_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags);
+
 	edev->state = QEDE_STATE_CLOSED;
 
 	qede_rdma_dev_event_close(edev);
@@ -2163,6 +2174,8 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	/* Program un-configured VLANs */
 	qede_configure_vlan_filters(edev);
 
+	set_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags);
+
 	/* Ask for link-up using current configuration */
 	memset(&link_params, 0, sizeof(link_params));
 	link_params.link_up = true;
@@ -2258,8 +2271,8 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 {
 	struct qede_dev *edev = dev;
 
-	if (!netif_running(edev->ndev)) {
-		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is not running\n");
+	if (!test_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags)) {
+		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is not ready\n");
 		return;
 	}
 

@@ -3695,11 +3695,6 @@ static int ibmvscsis_get_system_info(void)
 	return 0;
 }
 
-static char *ibmvscsis_get_fabric_name(void)
-{
-	return "ibmvscsis";
-}
-
 static char *ibmvscsis_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct ibmvscsis_tport *tport =
@@ -4044,9 +4039,8 @@ static struct configfs_attribute *ibmvscsis_tpg_attrs[] = {
 
 static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.module				= THIS_MODULE,
-	.name				= "ibmvscsis",
+	.fabric_name			= "ibmvscsis",
 	.max_data_sg_nents		= MAX_TXU / PAGE_SIZE,
-	.get_fabric_name		= ibmvscsis_get_fabric_name,
 	.tpg_get_wwn			= ibmvscsis_get_fabric_wwn,
 	.tpg_get_tag			= ibmvscsis_get_tag,
 	.tpg_get_default_depth		= ibmvscsis_get_default_depth,

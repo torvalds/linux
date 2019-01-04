@@ -291,6 +291,11 @@ static void hns3_self_test(struct net_device *ndev,
 	int test_index = 0;
 	u32 i;
 
+	if (hns3_nic_resetting(ndev)) {
+		netdev_err(ndev, "dev resetting!");
+		return;
+	}
+
 	/* Only do offline selftest, or pass by default */
 	if (eth_test->flags != ETH_TEST_FL_OFFLINE)
 		return;
@@ -530,6 +535,11 @@ static void hns3_get_ringparam(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int queue_num = h->kinfo.num_tqps;
 
+	if (hns3_nic_resetting(netdev)) {
+		netdev_err(netdev, "dev resetting!");
+		return;
+	}
+
 	param->tx_max_pending = HNS3_RING_MAX_PENDING;
 	param->rx_max_pending = HNS3_RING_MAX_PENDING;
 
@@ -760,6 +770,9 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	u32 old_desc_num, new_desc_num;
 	int ret;
 
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
+
 	if (param->rx_mini_pending || param->rx_jumbo_pending)
 		return -EINVAL;
 
@@ -808,7 +821,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	}
 
 	if (if_running)
-		ret = dev_open(ndev);
+		ret = dev_open(ndev, NULL);
 
 	return ret;
 }
@@ -871,6 +884,9 @@ static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 	u16 queue_num = h->kinfo.num_tqps;
+
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
 
 	if (queue >= queue_num) {
 		netdev_err(netdev,
@@ -1032,6 +1048,9 @@ static int hns3_set_coalesce(struct net_device *netdev,
 	u16 queue_num = h->kinfo.num_tqps;
 	int ret;
 	int i;
+
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
 
 	ret = hns3_check_coalesce_para(netdev, cmd);
 	if (ret)

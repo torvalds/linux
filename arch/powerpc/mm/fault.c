@@ -274,7 +274,7 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
 			return false;
 
 		if ((flags & FAULT_FLAG_WRITE) && (flags & FAULT_FLAG_USER) &&
-		    access_ok(VERIFY_READ, nip, sizeof(*nip))) {
+		    access_ok(nip, sizeof(*nip))) {
 			unsigned int inst;
 			int res;
 

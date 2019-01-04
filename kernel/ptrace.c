@@ -1073,7 +1073,7 @@ int ptrace_request(struct task_struct *child, long request,
 		struct iovec kiov;
 		struct iovec __user *uiov = datavp;
 
-		if (!access_ok(VERIFY_WRITE, uiov, sizeof(*uiov)))
+		if (!access_ok(uiov, sizeof(*uiov)))
 			return -EFAULT;
 
 		if (__get_user(kiov.iov_base, &uiov->iov_base) ||
@@ -1229,7 +1229,7 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 		compat_uptr_t ptr;
 		compat_size_t len;
 
-		if (!access_ok(VERIFY_WRITE, uiov, sizeof(*uiov)))
+		if (!access_ok(uiov, sizeof(*uiov)))
 			return -EFAULT;
 
 		if (__get_user(ptr, &uiov->iov_base) ||

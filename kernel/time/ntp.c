@@ -554,17 +554,9 @@ static void sync_rtc_clock(void)
 }
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-int __weak update_persistent_clock(struct timespec now)
-{
-	return -ENODEV;
-}
-
 int __weak update_persistent_clock64(struct timespec64 now64)
 {
-	struct timespec now;
-
-	now = timespec64_to_timespec(now64);
-	return update_persistent_clock(now);
+	return -ENODEV;
 }
 #endif
 
