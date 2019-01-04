@@ -937,6 +937,20 @@ static int smu_v11_0_set_thermal_range(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t val = 0;
+
+	val |= (1 << THM_THERMAL_INT_ENA__THERM_INTH_CLR__SHIFT);
+	val |= (1 << THM_THERMAL_INT_ENA__THERM_INTL_CLR__SHIFT);
+	val |= (1 << THM_THERMAL_INT_ENA__THERM_TRIGGER_CLR__SHIFT);
+
+	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_ENA, val);
+
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
