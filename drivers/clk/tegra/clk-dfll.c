@@ -804,18 +804,17 @@ static void dfll_init_out_if(struct tegra_dfll *td)
 static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 {
 	struct dev_pm_opp *opp;
-	unsigned long uv;
-	int i;
+	int i, align_step;
 
 	opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	uv = dev_pm_opp_get_voltage(opp);
+	align_step = dev_pm_opp_get_voltage(opp) / td->soc->alignment.step_uv;
 	dev_pm_opp_put(opp);
 
 	for (i = td->lut_bottom; i < td->lut_size; i++) {
-		if (td->lut_uv[i] >= uv)
+		if ((td->lut_uv[i] / td->soc->alignment.step_uv) >= align_step)
 			return i;
 	}
 
@@ -1533,18 +1532,21 @@ di_err1:
  */
 static int find_vdd_map_entry_exact(struct tegra_dfll *td, int uV)
 {
-	int i, n_voltages, reg_uV;
+	int i, n_voltages, reg_uV,reg_volt_id, align_step;
 
 	if (WARN_ON(td->pmu_if == TEGRA_DFLL_PMU_PWM))
 		return -EINVAL;
 
+	align_step = uV / td->soc->alignment.step_uv;
 	n_voltages = regulator_count_voltages(td->vdd_reg);
 	for (i = 0; i < n_voltages; i++) {
 		reg_uV = regulator_list_voltage(td->vdd_reg, i);
 		if (reg_uV < 0)
 			break;
 
-		if (uV == reg_uV)
+		reg_volt_id = reg_uV / td->soc->alignment.step_uv;
+
+		if (align_step == reg_volt_id)
 			return i;
 	}
 
@@ -1558,18 +1560,21 @@ static int find_vdd_map_entry_exact(struct tegra_dfll *td, int uV)
  * */
 static int find_vdd_map_entry_min(struct tegra_dfll *td, int uV)
 {
-	int i, n_voltages, reg_uV;
+	int i, n_voltages, reg_uV, reg_volt_id, align_step;
 
 	if (WARN_ON(td->pmu_if == TEGRA_DFLL_PMU_PWM))
 		return -EINVAL;
 
+	align_step = uV / td->soc->alignment.step_uv;
 	n_voltages = regulator_count_voltages(td->vdd_reg);
 	for (i = 0; i < n_voltages; i++) {
 		reg_uV = regulator_list_voltage(td->vdd_reg, i);
 		if (reg_uV < 0)
 			break;
 
-		if (uV <= reg_uV)
+		reg_volt_id = reg_uV / td->soc->alignment.step_uv;
+
+		if (align_step <= reg_volt_id)
 			return i;
 	}
 
