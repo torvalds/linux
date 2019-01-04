@@ -3550,9 +3550,7 @@ static int __init init_f2fs_fs(void)
 	err = register_filesystem(&f2fs_fs_type);
 	if (err)
 		goto free_shrinker;
-	err = f2fs_create_root_stats();
-	if (err)
-		goto free_filesystem;
+	f2fs_create_root_stats();
 	err = f2fs_init_post_read_processing();
 	if (err)
 		goto free_root_stats;
@@ -3560,7 +3558,6 @@ static int __init init_f2fs_fs(void)
 
 free_root_stats:
 	f2fs_destroy_root_stats();
-free_filesystem:
 	unregister_filesystem(&f2fs_fs_type);
 free_shrinker:
 	unregister_shrinker(&f2fs_shrinker_info);
