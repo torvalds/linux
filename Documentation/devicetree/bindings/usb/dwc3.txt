@@ -52,6 +52,8 @@ Optional properties:
  - snps,xhci-slow-suspend-quirk: when set, need an extraordinary delay to wait
 			for xHC enter the Halted state (i.e. HCH in the USBSTS
 			register is '1').
+ - snps,xhci-trb-ent-quirk: when set, the xHC use the Evaluate Next TRB(ENT)
+			flag to force the xHC to pre-fetch the next TRB of a TD.
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold

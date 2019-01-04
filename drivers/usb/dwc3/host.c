@@ -94,6 +94,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 	pdata.usb3_disable_autosuspend = dwc->dis_u3_autosuspend_quirk;
 	pdata.usb3_lpm_capable = dwc->usb3_lpm_capable;
 	pdata.xhci_slow_suspend = dwc->xhci_slow_suspend_quirk;
+	pdata.xhci_trb_ent = dwc->xhci_trb_ent_quirk;
 	pdata.usb3_warm_reset_on_resume = dwc->usb3_warm_reset_on_resume_quirk;
 
 	ret = platform_device_add_data(xhci, &pdata, sizeof(pdata));
