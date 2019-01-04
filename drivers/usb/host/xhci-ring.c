@@ -3301,6 +3301,8 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		 */
 		if (num_trbs > last_trb_num) {
 			field |= TRB_CHAIN;
+			if (xhci->quirks & XHCI_TRB_ENT_QUIRK)
+				field |= TRB_ENT;
 		} else if (num_trbs == last_trb_num) {
 			td->last_trb = ep_ring->enqueue;
 			field |= TRB_IOC;
@@ -3477,6 +3479,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		 */
 		if (num_trbs > last_trb_num) {
 			field |= TRB_CHAIN;
+			if (xhci->quirks & XHCI_TRB_ENT_QUIRK)
+				field |= TRB_ENT;
 		} else if (num_trbs == last_trb_num) {
 			td->last_trb = ep_ring->enqueue;
 			field |= TRB_IOC;

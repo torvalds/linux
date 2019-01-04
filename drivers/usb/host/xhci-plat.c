@@ -57,6 +57,14 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 
 	if (pdata && pdata->usb3_warm_reset_on_resume)
 		xhci->quirks |= XHCI_WARM_RESET_ON_RESUME;
+
+	/*
+	 * On some xHCI controllers (e.g. Rockchip RK3399/RK3328/RK1808),
+	 * they need to enable the ENT flag in the TRB data structure to
+	 * force xHC to pre-fetch the next TRB of a TD.
+	 */
+	if (pdata && pdata->xhci_trb_ent)
+		xhci->quirks |= XHCI_TRB_ENT_QUIRK;
 }
 
 /* called during probe() after chip reset completes */
