@@ -25,6 +25,7 @@
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <mt7621.h>
@@ -95,76 +96,12 @@
 #define RALINK_PCI_IO_MAP_BASE		0x1e160000
 #define MEMORY_BASE			0x0
 
-/* pcie phy related macros */
-#define RALINK_PCIEPHY_P0P1_CTL_OFFSET	0x9000
-#define RALINK_PCIEPHY_P2_CTL_OFFSET	0xA000
-
-#define RG_P0_TO_P1_WIDTH		0x100
-
-#define RG_PE1_PIPE_REG			0x02c
-#define RG_PE1_PIPE_RST			BIT(12)
-#define RG_PE1_PIPE_CMD_FRC		BIT(4)
-
-#define RG_PE1_H_LCDDS_REG		0x49c
-#define RG_PE1_H_LCDDS_PCW		GENMASK(30, 0)
-#define RG_PE1_H_LCDDS_PCW_VAL(x)	((0x7fffffff & (x)) << 0)
-
-#define RG_PE1_FRC_H_XTAL_REG		0x400
-#define RG_PE1_FRC_H_XTAL_TYPE          BIT(8)
-#define RG_PE1_H_XTAL_TYPE              GENMASK(10, 9)
-#define RG_PE1_H_XTAL_TYPE_VAL(x)       ((0x3 & (x)) << 9)
-
-#define RG_PE1_FRC_PHY_REG		0x000
-#define RG_PE1_FRC_PHY_EN               BIT(4)
-#define RG_PE1_PHY_EN                   BIT(5)
-
-#define RG_PE1_H_PLL_REG		0x490
-#define RG_PE1_H_PLL_BC			GENMASK(23, 22)
-#define RG_PE1_H_PLL_BC_VAL(x)		((0x3 & (x)) << 22)
-#define RG_PE1_H_PLL_BP			GENMASK(21, 18)
-#define RG_PE1_H_PLL_BP_VAL(x)		((0xf & (x)) << 18)
-#define RG_PE1_H_PLL_IR			GENMASK(15, 12)
-#define RG_PE1_H_PLL_IR_VAL(x)		((0xf & (x)) << 12)
-#define RG_PE1_H_PLL_IC			GENMASK(11, 8)
-#define RG_PE1_H_PLL_IC_VAL(x)		((0xf & (x)) << 8)
-#define RG_PE1_H_PLL_PREDIV             GENMASK(7, 6)
-#define RG_PE1_H_PLL_PREDIV_VAL(x)      ((0x3 & (x)) << 6)
-#define RG_PE1_PLL_DIVEN		GENMASK(3, 1)
-#define RG_PE1_PLL_DIVEN_VAL(x)		((0x7 & (x)) << 1)
-
-#define RG_PE1_H_PLL_FBKSEL_REG		0x4bc
-#define RG_PE1_H_PLL_FBKSEL             GENMASK(5, 4)
-#define RG_PE1_H_PLL_FBKSEL_VAL(x)      ((0x3 & (x)) << 4)
-
-#define	RG_PE1_H_LCDDS_SSC_PRD_REG	0x4a4
-#define RG_PE1_H_LCDDS_SSC_PRD          GENMASK(15, 0)
-#define RG_PE1_H_LCDDS_SSC_PRD_VAL(x)   ((0xffff & (x)) << 0)
-
-#define RG_PE1_H_LCDDS_SSC_DELTA_REG	0x4a8
-#define RG_PE1_H_LCDDS_SSC_DELTA        GENMASK(11, 0)
-#define RG_PE1_H_LCDDS_SSC_DELTA_VAL(x) ((0xfff & (x)) << 0)
-#define RG_PE1_H_LCDDS_SSC_DELTA1       GENMASK(27, 16)
-#define RG_PE1_H_LCDDS_SSC_DELTA1_VAL(x) ((0xff & (x)) << 16)
-
-#define RG_PE1_LCDDS_CLK_PH_INV_REG	0x4a0
-#define RG_PE1_LCDDS_CLK_PH_INV		BIT(5)
-
-#define RG_PE1_H_PLL_BR_REG		0x4ac
-#define RG_PE1_H_PLL_BR			GENMASK(18, 16)
-#define RG_PE1_H_PLL_BR_VAL(x)		((0x7 & (x)) << 16)
-
-#define	RG_PE1_MSTCKDIV_REG		0x414
-#define RG_PE1_MSTCKDIV			GENMASK(7, 6)
-#define RG_PE1_MSTCKDIV_VAL(x)		((0x3 & (x)) << 6)
-
-#define RG_PE1_FRC_MSTCKDIV		BIT(5)
-
 /**
  * struct mt7621_pcie_port - PCIe port information
  * @base: I/O mapped register base
  * @list: port list
  * @pcie: pointer to PCIe host info
- * @phy_reg_offset: offset to related phy registers
+ * @phy: pointer to PHY control block
  * @pcie_rst: pointer to port reset control
  * @slot: port slot
  * @enabled: indicates if port is enabled
@@ -173,7 +110,7 @@ struct mt7621_pcie_port {
 	void __iomem *base;
 	struct list_head list;
 	struct mt7621_pcie *pcie;
-	u32 phy_reg_offset;
+	struct phy *phy;
 	struct reset_control *pcie_rst;
 	u32 slot;
 	bool enabled;
@@ -263,150 +200,6 @@ static void write_config(struct mt7621_pcie *pcie, unsigned int dev,
 
 	pcie_write(pcie, address, RALINK_PCI_CONFIG_ADDR);
 	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA);
-}
-
-static void bypass_pipe_rst(struct mt7621_pcie_port *port)
-{
-	struct mt7621_pcie *pcie = port->pcie;
-	u32 phy_offset = port->phy_reg_offset;
-	u32 offset = (port->slot != 1) ?
-		phy_offset + RG_PE1_PIPE_REG :
-		phy_offset + RG_PE1_PIPE_REG + RG_P0_TO_P1_WIDTH;
-	u32 reg = pcie_read(pcie, offset);
-
-	reg &= ~(RG_PE1_PIPE_RST | RG_PE1_PIPE_CMD_FRC);
-	reg |= (RG_PE1_PIPE_RST | RG_PE1_PIPE_CMD_FRC);
-	pcie_write(pcie, reg, offset);
-}
-
-static void set_phy_for_ssc(struct mt7621_pcie_port *port)
-{
-	struct mt7621_pcie *pcie = port->pcie;
-	struct device *dev = pcie->dev;
-	u32 phy_offset = port->phy_reg_offset;
-	u32 reg = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0);
-	u32 offset;
-	u32 val;
-
-	reg = (reg >> 6) & 0x7;
-	/* Set PCIe Port PHY to disable SSC */
-	/* Debug Xtal Type */
-	offset = phy_offset + RG_PE1_FRC_H_XTAL_REG;
-	val = pcie_read(pcie, offset);
-	val &= ~(RG_PE1_FRC_H_XTAL_TYPE | RG_PE1_H_XTAL_TYPE);
-	val |= RG_PE1_FRC_H_XTAL_TYPE;
-	val |= RG_PE1_H_XTAL_TYPE_VAL(0x00);
-	pcie_write(pcie, val, offset);
-
-	/* disable port */
-	offset = (port->slot != 1) ?
-		phy_offset + RG_PE1_FRC_PHY_REG :
-		phy_offset + RG_PE1_FRC_PHY_REG + RG_P0_TO_P1_WIDTH;
-	val = pcie_read(pcie, offset);
-	val &= ~(RG_PE1_FRC_PHY_EN | RG_PE1_PHY_EN);
-	val |= RG_PE1_FRC_PHY_EN;
-	pcie_write(pcie, val, offset);
-
-	/* Set Pre-divider ratio (for host mode) */
-	offset =  phy_offset + RG_PE1_H_PLL_REG;
-	val = pcie_read(pcie, offset);
-	val &= ~(RG_PE1_H_PLL_PREDIV);
-
-	if (reg <= 5 && reg >= 3) { /* 40MHz Xtal */
-		val |= RG_PE1_H_PLL_PREDIV_VAL(0x01);
-		pcie_write(pcie, val, offset);
-		dev_info(dev, "Xtal is 40MHz\n");
-	} else { /* 25MHz | 20MHz Xtal */
-		val |= RG_PE1_H_PLL_PREDIV_VAL(0x00);
-		pcie_write(pcie, val, offset);
-		if (reg >= 6) {
-			dev_info(dev, "Xtal is 25MHz\n");
-
-			/* Select feedback clock */
-			offset = phy_offset + RG_PE1_H_PLL_FBKSEL_REG;
-			val = pcie_read(pcie, offset);
-			val &= ~(RG_PE1_H_PLL_FBKSEL);
-			val |= RG_PE1_H_PLL_FBKSEL_VAL(0x01);
-			pcie_write(pcie, val, offset);
-
-			/* DDS NCPO PCW (for host mode) */
-			offset = phy_offset + RG_PE1_H_LCDDS_SSC_PRD_REG;
-			val = pcie_read(pcie, offset);
-			val &= ~(RG_PE1_H_LCDDS_SSC_PRD);
-			val |= RG_PE1_H_LCDDS_SSC_PRD_VAL(0x18000000);
-			pcie_write(pcie, val, offset);
-
-			/* DDS SSC dither period control */
-			offset = phy_offset + RG_PE1_H_LCDDS_SSC_PRD_REG;
-			val = pcie_read(pcie, offset);
-			val &= ~(RG_PE1_H_LCDDS_SSC_PRD);
-			val |= RG_PE1_H_LCDDS_SSC_PRD_VAL(0x18d);
-			pcie_write(pcie, val, offset);
-
-			/* DDS SSC dither amplitude control */
-			offset = phy_offset + RG_PE1_H_LCDDS_SSC_DELTA_REG;
-			val = pcie_read(pcie, offset);
-			val &= ~(RG_PE1_H_LCDDS_SSC_DELTA |
-				 RG_PE1_H_LCDDS_SSC_DELTA1);
-			val |= RG_PE1_H_LCDDS_SSC_DELTA_VAL(0x4a);
-			val |= RG_PE1_H_LCDDS_SSC_DELTA1_VAL(0x4a);
-			pcie_write(pcie, val, offset);
-		} else {
-			dev_info(dev, "Xtal is 20MHz\n");
-		}
-	}
-
-	/* DDS clock inversion */
-	offset = phy_offset + RG_PE1_LCDDS_CLK_PH_INV_REG;
-	val = pcie_read(pcie, offset);
-	val &= ~(RG_PE1_LCDDS_CLK_PH_INV);
-	val |= RG_PE1_LCDDS_CLK_PH_INV;
-	pcie_write(pcie, val, offset);
-
-	/* Set PLL bits */
-	offset = phy_offset + RG_PE1_H_PLL_REG;
-	val = pcie_read(pcie, offset);
-	val &= ~(RG_PE1_H_PLL_BC | RG_PE1_H_PLL_BP | RG_PE1_H_PLL_IR |
-		 RG_PE1_H_PLL_IC | RG_PE1_PLL_DIVEN);
-	val |= RG_PE1_H_PLL_BC_VAL(0x02);
-	val |= RG_PE1_H_PLL_BP_VAL(0x06);
-	val |= RG_PE1_H_PLL_IR_VAL(0x02);
-	val |= RG_PE1_H_PLL_IC_VAL(0x01);
-	val |= RG_PE1_PLL_DIVEN_VAL(0x02);
-	pcie_write(pcie, val, offset);
-
-	offset = phy_offset + RG_PE1_H_PLL_BR_REG;
-	val = pcie_read(pcie, offset);
-	val &= ~(RG_PE1_H_PLL_BR);
-	val |= RG_PE1_H_PLL_BR_VAL(0x00);
-	pcie_write(pcie, val, offset);
-
-	if (reg <= 5 && reg >= 3) { /* 40MHz Xtal */
-		/* set force mode enable of da_pe1_mstckdiv */
-		offset = phy_offset + RG_PE1_MSTCKDIV_REG;
-		val = pcie_read(pcie, offset);
-		val &= ~(RG_PE1_MSTCKDIV | RG_PE1_FRC_MSTCKDIV);
-		val |= (RG_PE1_MSTCKDIV_VAL(0x01) | RG_PE1_FRC_MSTCKDIV);
-		pcie_write(pcie, val, offset);
-	}
-
-	/* Enable PHY and disable force mode */
-	offset = (port->slot != 1) ?
-		phy_offset + RG_PE1_FRC_PHY_REG :
-		phy_offset + RG_PE1_FRC_PHY_REG + RG_P0_TO_P1_WIDTH;
-	val = pcie_read(pcie, offset);
-	val &= ~(RG_PE1_FRC_PHY_EN | RG_PE1_PHY_EN);
-	val |= (RG_PE1_FRC_PHY_EN | RG_PE1_PHY_EN);
-	pcie_write(pcie, val, offset);
-}
-
-static void mt7621_enable_phy(struct mt7621_pcie_port *port)
-{
-	u32 chip_rev_id = rt_sysc_r32(MT7621_CHIP_REV_ID);
-
-	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
-		bypass_pipe_rst(port);
-	set_phy_for_ssc(port);
 }
 
 static inline void mt7621_control_assert(struct mt7621_pcie_port *port)
@@ -510,7 +303,7 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 	struct device *dev = pcie->dev;
 	struct device_node *pnode = dev->of_node;
 	struct resource regs;
-	char name[6];
+	char name[10];
 	int err;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
@@ -534,11 +327,13 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 		return PTR_ERR(port->pcie_rst);
 	}
 
+	snprintf(name, sizeof(name), "pcie-phy%d", slot);
+	port->phy = devm_phy_get(dev, name);
+	if (IS_ERR(port->phy))
+		return PTR_ERR(port->phy);
+
 	port->slot = slot;
 	port->pcie = pcie;
-	port->phy_reg_offset = (slot != 2) ?
-				RALINK_PCIEPHY_P0P1_CTL_OFFSET :
-				RALINK_PCIEPHY_P2_CTL_OFFSET;
 
 	INIT_LIST_HEAD(&port->list);
 	list_add_tail(&port->list, &pcie->ports);
@@ -588,6 +383,7 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	struct device *dev = pcie->dev;
 	u32 slot = port->slot;
 	u32 val = 0;
+	int err;
 
 	/*
 	 * Any MT7621 Ralink pcie controller that doesn't have 0x0101 at
@@ -598,18 +394,36 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	val = read_config(pcie, slot, PCIE_FTS_NUM);
 	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
 
+	err = phy_init(port->phy);
+	if (err) {
+		dev_err(dev, "failed to initialize port%d phy\n", slot);
+		goto err_phy_init;
+	}
+
+	err = phy_power_on(port->phy);
+	if (err) {
+		dev_err(dev, "failed to power on port%d phy\n", slot);
+		goto err_phy_on;
+	}
+
 	if ((pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) == 0) {
 		dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n", slot);
 		mt7621_control_assert(port);
-		rt_sysc_m32(PCIE_PORT_CLK_EN(slot), 0, RALINK_CLKCFG1);
 		port->enabled = false;
-	} else {
-		port->enabled = true;
+		err = -ENODEV;
+		goto err_no_link_up;
 	}
 
-	mt7621_enable_phy(port);
+	port->enabled = true;
 
 	return 0;
+
+err_no_link_up:
+	phy_power_off(port->phy);
+err_phy_on:
+	phy_exit(port->phy);
+err_phy_init:
+	return err;
 }
 
 static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
