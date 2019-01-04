@@ -1871,14 +1871,6 @@ static int processcompl(struct async *as, void __user * __user *arg)
 		if (copy_urb_data_to_user(as->userbuffer, urb))
 			goto err_out;
 	}
-
-#ifdef CONFIG_ARCH_ROCKCHIP
-	if (usb_endpoint_xfer_bulk(&urb->ep->desc) &&
-	    urb->actual_length < USB_SG_SIZE &&
-	    as->ps->dev->speed >= USB_SPEED_SUPER)
-		usleep_range(150, 200);
-#endif
-
 	if (put_user(as->status, &userurb->status))
 		goto err_out;
 	if (put_user(urb->actual_length, &userurb->actual_length))
