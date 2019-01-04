@@ -219,8 +219,8 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv)
-			   + num_chan * sizeof(struct i2c_demux_pinctrl_chan), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, struct_size(priv, chan, num_chan),
+			    GFP_KERNEL);
 
 	props = devm_kcalloc(&pdev->dev, num_chan, sizeof(*props), GFP_KERNEL);
 
