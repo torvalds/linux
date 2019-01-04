@@ -219,18 +219,15 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if (((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask) &
-	    ~CRYPTO_ALG_INTERNAL)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
 		return -EINVAL;
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
-	alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_CIPHER |
-				      (algt->type & CRYPTO_ALG_INTERNAL),
-				  CRYPTO_ALG_TYPE_MASK |
-				  (algt->mask & CRYPTO_ALG_INTERNAL));
+	alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_CIPHER,
+				  CRYPTO_ALG_TYPE_MASK);
 	err = PTR_ERR(alg);
 	if (IS_ERR(alg))
 		goto err_free_inst;
@@ -245,7 +242,6 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		goto err_drop_spawn;
 
-	inst->alg.base.cra_flags = alg->cra_flags & CRYPTO_ALG_INTERNAL;
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
 	inst->alg.base.cra_alignmask = alg->cra_alignmask;
