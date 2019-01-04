@@ -619,7 +619,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 		 * than one patched return address on our stack,
 		 * complain loudly.
 		 */
-		WARN_ON(ftrace_graph_get_ret_stack(current, 1);
+		WARN_ON(ftrace_graph_get_ret_stack(current, 1));
 	}
 #endif
 
