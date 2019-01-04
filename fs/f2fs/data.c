@@ -2582,14 +2582,11 @@ static void f2fs_dio_submit_bio(struct bio *bio, struct inode *inode,
 {
 	struct f2fs_private_dio *dio;
 	bool write = (bio_op(bio) == REQ_OP_WRITE);
-	int err;
 
 	dio = f2fs_kzalloc(F2FS_I_SB(inode),
 			sizeof(struct f2fs_private_dio), GFP_NOFS);
-	if (!dio) {
-		err = -ENOMEM;
+	if (!dio)
 		goto out;
-	}
 
 	dio->inode = inode;
 	dio->orig_end_io = bio->bi_end_io;
