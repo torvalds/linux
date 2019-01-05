@@ -175,10 +175,12 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 # endif
 #endif
 #ifdef CONFIG_SMP
-	seq_printf(p, "%*s: ", prec, "RES");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_resched_count);
-	seq_puts(p, "  Rescheduling interrupts\n");
+	if (num_online_cpus() > 1) {
+		seq_printf(p, "%*s: ", prec, "RES");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", irq_stats(j)->irq_resched_count);
+		seq_puts(p, "  Rescheduling interrupts\n");
+	}
 #endif
 	seq_printf(p, "%*s: ", prec, "UAH");
 	for_each_online_cpu(j)
