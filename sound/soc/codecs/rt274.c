@@ -381,10 +381,10 @@ static void rt274_jack_detect_work(struct work_struct *work)
 	if (rt274_jack_detect(rt274, &hp, &mic) < 0)
 		return;
 
-	if (hp == true)
+	if (hp)
 		status |= SND_JACK_HEADPHONE;
 
-	if (mic == true)
+	if (mic)
 		status |= SND_JACK_MICROPHONE;
 
 	snd_soc_jack_report(rt274->jack, status,
@@ -955,10 +955,10 @@ static irqreturn_t rt274_irq(int irq, void *data)
 	ret = rt274_jack_detect(rt274, &hp, &mic);
 
 	if (ret == 0) {
-		if (hp == true)
+		if (hp)
 			status |= SND_JACK_HEADPHONE;
 
-		if (mic == true)
+		if (mic)
 			status |= SND_JACK_MICROPHONE;
 
 		snd_soc_jack_report(rt274->jack, status,
