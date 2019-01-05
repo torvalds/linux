@@ -565,7 +565,6 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
 		[vmw_dma_map_populate] = "Keeping DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
-#ifdef CONFIG_X86
 	const struct dma_map_ops *dma_ops = get_dma_ops(dev_priv->dev->dev);
 
 #ifdef CONFIG_INTEL_IOMMU
@@ -607,11 +606,6 @@ out_fixup:
 	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
 		return -EINVAL;
 #endif
-
-#else /* CONFIG_X86 */
-	dev_priv->map_mode = vmw_dma_map_populate;
-#endif /* CONFIG_X86 */
-
 	DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
 
 	return 0;
