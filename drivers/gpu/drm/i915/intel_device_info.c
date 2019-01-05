@@ -709,7 +709,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 
 /**
  * intel_device_info_runtime_init - initialize runtime info
- * @info: intel device info struct
+ * @dev_priv: the i915 device
  *
  * Determine various intel_device_info fields at runtime.
  *
