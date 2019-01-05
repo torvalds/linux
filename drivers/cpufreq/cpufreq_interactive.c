@@ -1165,7 +1165,7 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 	struct cpufreq_interactive_cpuinfo *pcpu;
 	struct cpufreq_interactive_tunables *tunables;
 
-	if ((type != EV_ABS) && (type != EV_KEY))
+	if ((type != EV_ABS) && (type != EV_KEY) && (type != EV_REL))
 		return;
 
 	trace_cpufreq_interactive_boost("touch");
@@ -1268,6 +1268,20 @@ static const struct input_device_id cpufreq_interactive_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
 		.evbit = { BIT_MASK(EV_KEY) },
+	},
+	{/* A mouse like device, at least one button,two relative axes */
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_KEYBIT |
+				INPUT_DEVICE_ID_MATCH_RELBIT,
+		.evbit = { BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) },
+		.keybit = { [BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) },
+		.relbit = { BIT_MASK(REL_X) | BIT_MASK(REL_Y) },
+	},
+	{/* A separate scrollwheel */
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_RELBIT,
+		.evbit = { BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) },
+		.relbit = { BIT_MASK(REL_WHEEL) },
 	},
 	{ },
 };
