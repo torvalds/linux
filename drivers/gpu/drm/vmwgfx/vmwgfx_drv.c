@@ -565,7 +565,6 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
 		[vmw_dma_map_populate] = "Keeping DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
-	const struct dma_map_ops *dma_ops = get_dma_ops(dev_priv->dev->dev);
 
 	if (intel_iommu_enabled) {
 		dev_priv->map_mode = vmw_dma_map_populate;
@@ -578,14 +577,12 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 		return 0;
 	}
 
-	dev_priv->map_mode = vmw_dma_map_populate;
-
-	if (dma_ops && dma_ops->sync_single_for_cpu)
-		dev_priv->map_mode = vmw_dma_alloc_coherent;
 #ifdef CONFIG_SWIOTLB
-	if (swiotlb_nr_tbl() == 0)
-		dev_priv->map_mode = vmw_dma_map_populate;
+	if (swiotlb_nr_tbl())
+		dev_priv->map_mode = vmw_dma_alloc_coherent;
+	else
 #endif
+		dev_priv->map_mode = vmw_dma_map_populate;
 
 out_fixup:
 	if (dev_priv->map_mode == vmw_dma_map_populate &&
