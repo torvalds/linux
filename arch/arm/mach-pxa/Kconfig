@@ -46,6 +46,7 @@ config ARCH_LUBBOCK
 
 config MACH_MAINSTONE
 	bool "Intel HCDDBBVA0 Development Platform (aka Mainstone)"
+	select GPIO_REG
 	select PXA27x
 
 config MACH_ZYLONITE
@@ -551,7 +552,6 @@ config TOSA_BT
 config TOSA_USE_EXT_KEYCODES
 	bool "Tosa keyboard: use extended keycodes"
 	depends on MACH_TOSA
-	default n
 	help
 	  Say Y here to enable the tosa keyboard driver to generate extended
 	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted

@@ -13,6 +13,7 @@
  *  published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio/gpio-reg.h>
 #include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -504,11 +505,63 @@ static void __init mainstone_init_keypad(void)
 static inline void mainstone_init_keypad(void) {}
 #endif
 
+static int mst_pcmcia0_irqs[11] = {
+	[0 ... 10] = -1,
+	[5] = MAINSTONE_S0_CD_IRQ,
+	[8] = MAINSTONE_S0_STSCHG_IRQ,
+	[10] = MAINSTONE_S0_IRQ,
+};
+
+static int mst_pcmcia1_irqs[11] = {
+	[0 ... 10] = -1,
+	[5] = MAINSTONE_S1_CD_IRQ,
+	[8] = MAINSTONE_S1_STSCHG_IRQ,
+	[10] = MAINSTONE_S1_IRQ,
+};
+
+static struct gpiod_lookup_table mainstone_pcmcia_gpio_table = {
+	.dev_id = "pxa2xx-pcmcia",
+	.table = {
+		GPIO_LOOKUP("mst-pcmcia0",  0, "a0vpp",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia0",  1, "a1vpp",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia0",  2, "a0vcc",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia0",  3, "a1vcc",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia0",  4, "areset",  GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia0",  5, "adetect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("mst-pcmcia0",  6, "avs1",    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("mst-pcmcia0",  7, "avs2",    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("mst-pcmcia0",  8, "abvd1",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia0",  9, "abvd2",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia0", 10, "aready",  GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1",  0, "b0vpp",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1",  1, "b1vpp",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1",  2, "b0vcc",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1",  3, "b1vcc",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1",  4, "breset",  GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1",  5, "bdetect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("mst-pcmcia1",  6, "bvs1",    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("mst-pcmcia1",  7, "bvs2",    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("mst-pcmcia1",  8, "bbvd1",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1",  9, "bbvd2",   GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("mst-pcmcia1", 10, "bready",  GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static void __init mainstone_init(void)
 {
 	int SW7 = 0;  /* FIXME: get from SCR (Mst doc section 3.2.1.1) */
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(mainstone_pin_config));
+
+	/* Register board control register(s) as GPIOs */
+	gpio_reg_init(NULL, (void __iomem *)&MST_PCMCIA0, -1, 11,
+		      "mst-pcmcia0", MST_PCMCIA_INPUTS, 0, NULL,
+		      NULL, mst_pcmcia0_irqs);
+	gpio_reg_init(NULL, (void __iomem *)&MST_PCMCIA1, -1, 11,
+		      "mst-pcmcia1", MST_PCMCIA_INPUTS, 0, NULL,
+		      NULL, mst_pcmcia1_irqs);
+	gpiod_add_lookup_table(&mainstone_pcmcia_gpio_table);
 
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
