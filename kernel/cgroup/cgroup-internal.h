@@ -7,6 +7,7 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 #include <linux/refcount.h>
+#include <linux/fs_context.h>
 
 #define TRACE_CGROUP_PATH_LEN 1024
 extern spinlock_t trace_cgroup_path_lock;
@@ -35,6 +36,18 @@ extern void __init enable_debug_cgroup(void);
 			spin_unlock(&trace_cgroup_path_lock);		\
 		}							\
 	} while (0)
+
+/*
+ * The cgroup filesystem superblock creation/mount context.
+ */
+struct cgroup_fs_context {
+	char *data;
+};
+
+static inline struct cgroup_fs_context *cgroup_fc2context(struct fs_context *fc)
+{
+	return fc->fs_private;
+}
 
 /*
  * A cgroup can be associated with multiple css_sets as different tasks may
@@ -255,5 +268,6 @@ void cgroup1_check_for_release(struct cgroup *cgrp);
 struct dentry *cgroup1_mount(struct file_system_type *fs_type, int flags,
 			     void *data, unsigned long magic,
 			     struct cgroup_namespace *ns);
+int cgroup1_reconfigure(struct fs_context *ctx);
 
 #endif /* __CGROUP_INTERNAL_H */

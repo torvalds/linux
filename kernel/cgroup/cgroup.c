@@ -1811,12 +1811,13 @@ static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root
 	return 0;
 }
 
-static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
+static int cgroup_reconfigure(struct fs_context *fc)
 {
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	unsigned int root_flags;
 	int ret;
 
-	ret = parse_cgroup_root_flags(data, &root_flags);
+	ret = parse_cgroup_root_flags(ctx->data, &root_flags);
 	if (ret)
 		return ret;
 
@@ -2067,21 +2068,98 @@ struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
 	return dentry;
 }
 
-static struct dentry *cgroup_mount(struct file_system_type *fs_type,
-			 int flags, const char *unused_dev_name,
-			 void *data)
+/*
+ * Destroy a cgroup filesystem context.
+ */
+static void cgroup_fs_context_free(struct fs_context *fc)
+{
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+
+	kfree(ctx);
+}
+
+static int cgroup_parse_monolithic(struct fs_context *fc, void *data)
+{
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+
+	ctx->data = data;
+	if (ctx->data)
+		security_sb_eat_lsm_opts(ctx->data, &fc->security);
+	return 0;
+}
+
+static int cgroup_get_tree(struct fs_context *fc)
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
-	struct dentry *dentry;
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+	unsigned int root_flags;
+	struct dentry *root;
 	int ret;
 
-	get_cgroup_ns(ns);
+	/* Check if the caller has permission to mount. */
+	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = parse_cgroup_root_flags(ctx->data, &root_flags);
+	if (ret)
+		return ret;
+
+	cgrp_dfl_visible = true;
+	cgroup_get_live(&cgrp_dfl_root.cgrp);
+
+	root = cgroup_do_mount(&cgroup2_fs_type, fc->sb_flags, &cgrp_dfl_root,
+					 CGROUP2_SUPER_MAGIC, ns);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	apply_cgroup_root_flags(root_flags);
+	fc->root = root;
+	return 0;
+}
+
+static int cgroup1_get_tree(struct fs_context *fc)
+{
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+	struct dentry *root;
 
 	/* Check if the caller has permission to mount. */
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN)) {
-		put_cgroup_ns(ns);
-		return ERR_PTR(-EPERM);
-	}
+	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	root = cgroup1_mount(&cgroup_fs_type, fc->sb_flags, ctx->data,
+				       CGROUP_SUPER_MAGIC, ns);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	fc->root = root;
+	return 0;
+}
+
+static const struct fs_context_operations cgroup_fs_context_ops = {
+	.free		= cgroup_fs_context_free,
+	.parse_monolithic = cgroup_parse_monolithic,
+	.get_tree	= cgroup_get_tree,
+	.reconfigure	= cgroup_reconfigure,
+};
+
+static const struct fs_context_operations cgroup1_fs_context_ops = {
+	.free		= cgroup_fs_context_free,
+	.parse_monolithic = cgroup_parse_monolithic,
+	.get_tree	= cgroup1_get_tree,
+	.reconfigure	= cgroup1_reconfigure,
+};
+
+/*
+ * Initialise the cgroup filesystem creation/reconfiguration context.
+ */
+static int cgroup_init_fs_context(struct fs_context *fc)
+{
+	struct cgroup_fs_context *ctx;
+
+	ctx = kzalloc(sizeof(struct cgroup_fs_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
 
 	/*
 	 * The first time anyone tries to mount a cgroup, enable the list
@@ -2090,29 +2168,12 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	if (!use_task_css_set_links)
 		cgroup_enable_task_cg_lists();
 
-	if (fs_type == &cgroup2_fs_type) {
-		unsigned int root_flags;
-
-		ret = parse_cgroup_root_flags(data, &root_flags);
-		if (ret) {
-			put_cgroup_ns(ns);
-			return ERR_PTR(ret);
-		}
-
-		cgrp_dfl_visible = true;
-		cgroup_get_live(&cgrp_dfl_root.cgrp);
-
-		dentry = cgroup_do_mount(&cgroup2_fs_type, flags, &cgrp_dfl_root,
-					 CGROUP2_SUPER_MAGIC, ns);
-		if (!IS_ERR(dentry))
-			apply_cgroup_root_flags(root_flags);
-	} else {
-		dentry = cgroup1_mount(&cgroup_fs_type, flags, data,
-				       CGROUP_SUPER_MAGIC, ns);
-	}
-
-	put_cgroup_ns(ns);
-	return dentry;
+	fc->fs_private = ctx;
+	if (fc->fs_type == &cgroup2_fs_type)
+		fc->ops = &cgroup_fs_context_ops;
+	else
+		fc->ops = &cgroup1_fs_context_ops;
+	return 0;
 }
 
 static void cgroup_kill_sb(struct super_block *sb)
@@ -2136,14 +2197,14 @@ static void cgroup_kill_sb(struct super_block *sb)
 
 struct file_system_type cgroup_fs_type = {
 	.name = "cgroup",
-	.mount = cgroup_mount,
+	.init_fs_context = cgroup_init_fs_context,
 	.kill_sb = cgroup_kill_sb,
 	.fs_flags = FS_USERNS_MOUNT,
 };
 
 static struct file_system_type cgroup2_fs_type = {
 	.name = "cgroup2",
-	.mount = cgroup_mount,
+	.init_fs_context = cgroup_init_fs_context,
 	.kill_sb = cgroup_kill_sb,
 	.fs_flags = FS_USERNS_MOUNT,
 };
@@ -5268,7 +5329,6 @@ int cgroup_rmdir(struct kernfs_node *kn)
 
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops = {
 	.show_options		= cgroup_show_options,
-	.remount_fs		= cgroup_remount,
 	.mkdir			= cgroup_mkdir,
 	.rmdir			= cgroup_rmdir,
 	.show_path		= cgroup_show_path,

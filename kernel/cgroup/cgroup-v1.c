@@ -1046,17 +1046,19 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	return 0;
 }
 
-static int cgroup1_remount(struct kernfs_root *kf_root, int *flags, char *data)
+int cgroup1_reconfigure(struct fs_context *fc)
 {
-	int ret = 0;
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+	struct kernfs_root *kf_root = kernfs_root_from_sb(fc->root->d_sb);
 	struct cgroup_root *root = cgroup_root_from_kf(kf_root);
+	int ret = 0;
 	struct cgroup_sb_opts opts;
 	u16 added_mask, removed_mask;
 
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
 	/* See what subsystems are wanted */
-	ret = parse_cgroupfs_options(data, &opts);
+	ret = parse_cgroupfs_options(ctx->data, &opts);
 	if (ret)
 		goto out_unlock;
 
@@ -1106,7 +1108,6 @@ static int cgroup1_remount(struct kernfs_root *kf_root, int *flags, char *data)
 struct kernfs_syscall_ops cgroup1_kf_syscall_ops = {
 	.rename			= cgroup1_rename,
 	.show_options		= cgroup1_show_options,
-	.remount_fs		= cgroup1_remount,
 	.mkdir			= cgroup_mkdir,
 	.rmdir			= cgroup_rmdir,
 	.show_path		= cgroup_show_path,
