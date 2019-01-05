@@ -66,7 +66,7 @@ static int ufs_hisi_check_hibern8(struct ufs_hba *hba)
 	return err;
 }
 
-static void ufs_hi3660_clk_init(struct ufs_hba *hba)
+static void ufs_hisi_clk_init(struct ufs_hba *hba)
 {
 	struct ufs_hisi_host *host = ufshcd_get_variant(hba);
 
@@ -80,7 +80,7 @@ static void ufs_hi3660_clk_init(struct ufs_hba *hba)
 	ufs_sys_ctrl_set_bits(host, BIT_SYSCTRL_REF_CLOCK_EN, PHY_CLK_CTRL);
 }
 
-static void ufs_hi3660_soc_init(struct ufs_hba *hba)
+static void ufs_hisi_soc_init(struct ufs_hba *hba)
 {
 	struct ufs_hisi_host *host = ufshcd_get_variant(hba);
 	u32 reg;
@@ -139,6 +139,7 @@ static void ufs_hi3660_soc_init(struct ufs_hba *hba)
 
 static int ufs_hisi_link_startup_pre_change(struct ufs_hba *hba)
 {
+	struct ufs_hisi_host *host = ufshcd_get_variant(hba);
 	int err;
 	uint32_t value;
 	uint32_t reg;
@@ -153,6 +154,14 @@ static int ufs_hisi_link_startup_pre_change(struct ufs_hba *hba)
 	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x8121, 0x0), 0x2D);
 	/* MPHY CBOVRCTRL3 */
 	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x8122, 0x0), 0x1);
+
+	if (host->caps & UFS_HISI_CAP_PHY10nm) {
+		/* MPHY CBOVRCTRL4 */
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x8127, 0x0), 0x98);
+		/* MPHY CBOVRCTRL5 */
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x8128, 0x0), 0x1);
+	}
+
 	/* Unipro VS_MphyCfgUpdt */
 	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0xD085, 0x0), 0x1);
 	/* MPHY RXOVRCTRL4 rx0 */
@@ -173,10 +182,21 @@ static int ufs_hisi_link_startup_pre_change(struct ufs_hba *hba)
 	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x8113, 0x0), 0x1);
 	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0xD085, 0x0), 0x1);
 
-	/* Tactive RX */
-	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x008F, 0x4), 0x7);
-	/* Tactive RX */
-	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x008F, 0x5), 0x7);
+	if (host->caps & UFS_HISI_CAP_PHY10nm) {
+		/* RX_Hibern8Time_Capability*/
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x0092, 0x4), 0xA);
+		/* RX_Hibern8Time_Capability*/
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x0092, 0x5), 0xA);
+		/* RX_Min_ActivateTime */
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x008f, 0x4), 0xA);
+		/* RX_Min_ActivateTime*/
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x008f, 0x5), 0xA);
+	} else {
+		/* Tactive RX */
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x008F, 0x4), 0x7);
+		/* Tactive RX */
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x008F, 0x5), 0x7);
+	}
 
 	/* Gear3 Synclength */
 	ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x0095, 0x4), 0x4F);
@@ -208,7 +228,8 @@ static int ufs_hisi_link_startup_pre_change(struct ufs_hba *hba)
 	if (err)
 		dev_err(hba->dev, "ufs_hisi_check_hibern8 error\n");
 
-	ufshcd_writel(hba, UFS_HCLKDIV_NORMAL_VALUE, UFS_REG_HCLKDIV);
+	if (!(host->caps & UFS_HISI_CAP_PHY10nm))
+		ufshcd_writel(hba, UFS_HCLKDIV_NORMAL_VALUE, UFS_REG_HCLKDIV);
 
 	/* disable auto H8 */
 	reg = ufshcd_readl(hba, REG_AUTO_HIBERNATE_IDLE_TIMER);
@@ -253,7 +274,7 @@ static int ufs_hisi_link_startup_post_change(struct ufs_hba *hba)
 	return 0;
 }
 
-static int ufs_hi3660_link_startup_notify(struct ufs_hba *hba,
+static int ufs_hisi_link_startup_notify(struct ufs_hba *hba,
 					  enum ufs_notify_change_status status)
 {
 	int err = 0;
@@ -391,6 +412,28 @@ static void ufs_hisi_set_dev_cap(struct ufs_hisi_dev_params *hisi_param)
 
 static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 {
+	struct ufs_hisi_host *host = ufshcd_get_variant(hba);
+
+	if (host->caps & UFS_HISI_CAP_PHY10nm) {
+		/*
+		 * Boston platform need to set SaveConfigTime to 0x13,
+		 * and change sync length to maximum value
+		 */
+		/* VS_DebugSaveConfigTime */
+		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0xD0A0), 0x13);
+		/* g1 sync length */
+		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0x1552), 0x4f);
+		/* g2 sync length */
+		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0x1554), 0x4f);
+		/* g3 sync length */
+		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0x1556), 0x4f);
+		/* PA_Hibern8Time */
+		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0x15a7), 0xA);
+		/* PA_Tactivate */
+		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0x15a8), 0xA);
+		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0xd085, 0x0), 0x01);
+	}
+
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_VS_DEBUGSAVECONFIGTIME) {
 		pr_info("ufs flash device must set VS_DebugSaveConfigTime 0x10\n");
 		/* VS_DebugSaveConfigTime */
@@ -429,7 +472,7 @@ static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd046), 32767);
 }
 
-static int ufs_hi3660_pwr_change_notify(struct ufs_hba *hba,
+static int ufs_hisi_pwr_change_notify(struct ufs_hba *hba,
 				       enum ufs_notify_change_status status,
 				       struct ufs_pa_layer_attr *dev_max_params,
 				       struct ufs_pa_layer_attr *dev_req_params)
@@ -567,25 +610,72 @@ static int ufs_hi3660_init(struct ufs_hba *hba)
 		return ret;
 	}
 
-	ufs_hi3660_clk_init(hba);
+	ufs_hisi_clk_init(hba);
 
-	ufs_hi3660_soc_init(hba);
+	ufs_hisi_soc_init(hba);
 
 	return 0;
 }
 
-static struct ufs_hba_variant_ops ufs_hba_hisi_vops = {
+static int ufs_hi3670_init(struct ufs_hba *hba)
+{
+	int ret = 0;
+	struct device *dev = hba->dev;
+	struct ufs_hisi_host *host;
+
+	ret = ufs_hisi_init_common(hba);
+	if (ret) {
+		dev_err(dev, "%s: ufs common init fail\n", __func__);
+		return ret;
+	}
+
+	ufs_hisi_clk_init(hba);
+
+	ufs_hisi_soc_init(hba);
+
+	/* Add cap for 10nm PHY variant on HI3670 SoC */
+	host = ufshcd_get_variant(hba);
+	host->caps |= UFS_HISI_CAP_PHY10nm;
+
+	return 0;
+}
+
+static struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
 	.name = "hi3660",
 	.init = ufs_hi3660_init,
-	.link_startup_notify = ufs_hi3660_link_startup_notify,
-	.pwr_change_notify = ufs_hi3660_pwr_change_notify,
+	.link_startup_notify = ufs_hisi_link_startup_notify,
+	.pwr_change_notify = ufs_hisi_pwr_change_notify,
 	.suspend = ufs_hisi_suspend,
 	.resume = ufs_hisi_resume,
 };
 
+static struct ufs_hba_variant_ops ufs_hba_hi3670_vops = {
+	.name = "hi3670",
+	.init = ufs_hi3670_init,
+	.link_startup_notify = ufs_hisi_link_startup_notify,
+	.pwr_change_notify = ufs_hisi_pwr_change_notify,
+	.suspend = ufs_hisi_suspend,
+	.resume = ufs_hisi_resume,
+};
+
+static const struct of_device_id ufs_hisi_of_match[] = {
+	{ .compatible = "hisilicon,hi3660-ufs", .data = &ufs_hba_hi3660_vops },
+	{ .compatible = "hisilicon,hi3670-ufs", .data = &ufs_hba_hi3670_vops },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, ufs_hisi_of_match);
+
 static int ufs_hisi_probe(struct platform_device *pdev)
 {
-	return ufshcd_pltfrm_init(pdev, &ufs_hba_hisi_vops);
+	const struct of_device_id *of_id;
+	struct ufs_hba_variant_ops *vops;
+	struct device *dev = &pdev->dev;
+
+	of_id = of_match_node(ufs_hisi_of_match, dev->of_node);
+	vops = (struct ufs_hba_variant_ops *)of_id->data;
+
+	return ufshcd_pltfrm_init(pdev, vops);
 }
 
 static int ufs_hisi_remove(struct platform_device *pdev)
@@ -595,13 +685,6 @@ static int ufs_hisi_remove(struct platform_device *pdev)
 	ufshcd_remove(hba);
 	return 0;
 }
-
-static const struct of_device_id ufs_hisi_of_match[] = {
-	{ .compatible = "hisilicon,hi3660-ufs" },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, ufs_hisi_of_match);
 
 static const struct dev_pm_ops ufs_hisi_pm_ops = {
 	.suspend	= ufshcd_pltfrm_suspend,
