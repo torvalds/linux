@@ -566,31 +566,19 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 		[vmw_dma_map_populate] = "Keeping DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
 
-	if (intel_iommu_enabled) {
-		dev_priv->map_mode = vmw_dma_map_populate;
-		goto out_fixup;
-	}
-
-	if (!(vmw_force_iommu || vmw_force_coherent)) {
-		dev_priv->map_mode = vmw_dma_phys;
-		DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
-		return 0;
-	}
-
-#ifdef CONFIG_SWIOTLB
-	if (swiotlb_nr_tbl())
-		dev_priv->map_mode = vmw_dma_alloc_coherent;
-	else
-#endif
-		dev_priv->map_mode = vmw_dma_map_populate;
-
-out_fixup:
-	if (dev_priv->map_mode == vmw_dma_map_populate &&
-	    vmw_restrict_iommu)
-		dev_priv->map_mode = vmw_dma_map_bind;
-
 	if (vmw_force_coherent)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
+	else if (intel_iommu_enabled)
+		dev_priv->map_mode = vmw_dma_map_populate;
+	else if (!vmw_force_iommu)
+		dev_priv->map_mode = vmw_dma_phys;
+	else if (IS_ENABLED(CONFIG_SWIOTLB) && swiotlb_nr_tbl())
+		dev_priv->map_mode = vmw_dma_alloc_coherent;
+	else
+		dev_priv->map_mode = vmw_dma_map_populate;
+
+	if (dev_priv->map_mode == vmw_dma_map_populate && vmw_restrict_iommu)
+		dev_priv->map_mode = vmw_dma_map_bind;
 
 	/* No TTM coherent page pool? FIXME: Ask TTM instead! */
         if (!(IS_ENABLED(CONFIG_SWIOTLB) || IS_ENABLED(CONFIG_INTEL_IOMMU)) &&
@@ -598,7 +586,6 @@ out_fixup:
 		return -EINVAL;
 
 	DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
-
 	return 0;
 }
 
