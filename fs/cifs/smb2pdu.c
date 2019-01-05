@@ -451,10 +451,6 @@ smb2_plain_req_init(__le16 smb2_command, struct cifs_tcon *tcon,
 }
 
 
-/* offset is sizeof smb2_negotiate_req but rounded up to 8 bytes */
-#define OFFSET_OF_NEG_CONTEXT 0x68  /* sizeof(struct smb2_negotiate_req) */
-
-
 #define SMB2_PREAUTH_INTEGRITY_CAPABILITIES	cpu_to_le16(1)
 #define SMB2_ENCRYPTION_CAPABILITIES		cpu_to_le16(2)
 #define SMB2_POSIX_EXTENSIONS_AVAILABLE		cpu_to_le16(0x100)
@@ -491,10 +487,24 @@ static void
 assemble_neg_contexts(struct smb2_negotiate_req *req,
 		      unsigned int *total_len)
 {
-	char *pneg_ctxt = (char *)req + OFFSET_OF_NEG_CONTEXT;
+	char *pneg_ctxt = (char *)req;
 	unsigned int ctxt_len;
 
-	*total_len += 2; /* Add 2 due to round to 8 byte boundary for 1st ctxt */
+	if (*total_len > 200) {
+		/* In case length corrupted don't want to overrun smb buffer */
+		cifs_dbg(VFS, "Bad frame length assembling neg contexts\n");
+		return;
+	}
+
+	/*
+	 * round up total_len of fixed part of SMB3 negotiate request to 8
+	 * byte boundary before adding negotiate contexts
+	 */
+	*total_len = roundup(*total_len, 8);
+
+	pneg_ctxt = (*total_len) + (char *)req;
+	req->NegotiateContextOffset = cpu_to_le32(*total_len);
+
 	build_preauth_ctxt((struct smb2_preauth_neg_context *)pneg_ctxt);
 	ctxt_len = DIV_ROUND_UP(sizeof(struct smb2_preauth_neg_context), 8) * 8;
 	*total_len += ctxt_len;
@@ -508,7 +518,6 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 	*total_len += sizeof(struct smb2_posix_neg_context);
 
-	req->NegotiateContextOffset = cpu_to_le32(OFFSET_OF_NEG_CONTEXT);
 	req->NegotiateContextCount = cpu_to_le16(3);
 }
 
@@ -724,8 +733,9 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		req->Dialects[0] = cpu_to_le16(SMB21_PROT_ID);
 		req->Dialects[1] = cpu_to_le16(SMB30_PROT_ID);
 		req->Dialects[2] = cpu_to_le16(SMB302_PROT_ID);
-		req->DialectCount = cpu_to_le16(3);
-		total_len += 6;
+		req->Dialects[3] = cpu_to_le16(SMB311_PROT_ID);
+		req->DialectCount = cpu_to_le16(4);
+		total_len += 8;
 	} else {
 		/* otherwise send specific dialect */
 		req->Dialects[0] = cpu_to_le16(ses->server->vals->protocol_id);
@@ -749,7 +759,9 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	else {
 		memcpy(req->ClientGUID, server->client_guid,
 			SMB2_CLIENT_GUID_SIZE);
-		if (ses->server->vals->protocol_id == SMB311_PROT_ID)
+		if ((ses->server->vals->protocol_id == SMB311_PROT_ID) ||
+		    (strcmp(ses->server->vals->version_string,
+		     SMBDEFAULT_VERSION_STRING) == 0))
 			assemble_neg_contexts(req, &total_len);
 	}
 	iov[0].iov_base = (char *)req;
@@ -794,7 +806,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		} else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID)) {
 			/* ops set to 3.0 by default for default so update */
 			ses->server->ops = &smb21_operations;
-		}
+		} else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID))
+			ses->server->ops = &smb311_operations;
 	} else if (le16_to_cpu(rsp->DialectRevision) !=
 				ses->server->vals->protocol_id) {
 		/* if requested single dialect ensure returned dialect matched */
@@ -941,13 +954,14 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 		pneg_inbuf->DialectCount = cpu_to_le16(2);
 		/* structure is big enough for 3 dialects, sending only 2 */
 		inbuflen = sizeof(*pneg_inbuf) -
-				sizeof(pneg_inbuf->Dialects[0]);
+				(2 * sizeof(pneg_inbuf->Dialects[0]));
 	} else if (strcmp(tcon->ses->server->vals->version_string,
 		SMBDEFAULT_VERSION_STRING) == 0) {
 		pneg_inbuf->Dialects[0] = cpu_to_le16(SMB21_PROT_ID);
 		pneg_inbuf->Dialects[1] = cpu_to_le16(SMB30_PROT_ID);
 		pneg_inbuf->Dialects[2] = cpu_to_le16(SMB302_PROT_ID);
-		pneg_inbuf->DialectCount = cpu_to_le16(3);
+		pneg_inbuf->Dialects[3] = cpu_to_le16(SMB311_PROT_ID);
+		pneg_inbuf->DialectCount = cpu_to_le16(4);
 		/* structure is big enough for 3 dialects */
 		inbuflen = sizeof(*pneg_inbuf);
 	} else {

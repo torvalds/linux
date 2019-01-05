@@ -483,7 +483,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		cifs_sb = NULL;
 	} else {
 		rc = reconn_setup_dfs_targets(cifs_sb, &tgt_list, &tgt_it);
-		if (rc) {
+		if (rc && (rc != -EOPNOTSUPP)) {
 			cifs_dbg(VFS, "%s: no target servers for DFS failover\n",
 				 __func__);
 		} else {
