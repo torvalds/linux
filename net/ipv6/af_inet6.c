@@ -321,17 +321,20 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			goto out;
 		}
 
+		rcu_read_lock();
 		if (sk->sk_bound_dev_if) {
 			dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
 			if (!dev) {
 				err = -ENODEV;
-				goto out;
+				goto out_unlock;
 			}
 		}
 
 		/* Reproduce AF_INET checks to make the bindings consistent */
 		v4addr = addr->sin6_addr.s6_addr32[3];
 		chk_addr_ret = inet_addr_type_dev_table(net, dev, v4addr);
+		rcu_read_unlock();
+
 		if (!inet_can_nonlocal_bind(net, inet) &&
 		    v4addr != htonl(INADDR_ANY) &&
 		    chk_addr_ret != RTN_LOCAL &&
