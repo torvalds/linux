@@ -1402,7 +1402,7 @@ EXPORT_SYMBOL(finalize_exec);
  * Or, if exec fails before, free_bprm() should release ->cred and
  * and unlock.
  */
-int prepare_bprm_creds(struct linux_binprm *bprm)
+static int prepare_bprm_creds(struct linux_binprm *bprm)
 {
 	if (mutex_lock_interruptible(&current->signal->cred_guard_mutex))
 		return -ERESTARTNOINTR;
