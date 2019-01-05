@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-===============================================
-Checksum Offloads in the Linux Networking Stack
-===============================================
+=================
+Checksum Offloads
+=================
 
 
 Introduction

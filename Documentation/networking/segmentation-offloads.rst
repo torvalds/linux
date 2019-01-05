@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-===================================================
-Segmentation Offloads in the Linux Networking Stack
-===================================================
+=====================
+Segmentation Offloads
+=====================
 
 
 Introduction
