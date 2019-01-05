@@ -179,7 +179,7 @@ static void __init ocm_init_node(int count, struct device_node *node)
 	/* ioremap the non-cached region */
 	if (ocm->nc.memtotal) {
 		ocm->nc.virt = __ioremap(ocm->nc.phys, ocm->nc.memtotal,
-					 _PAGE_EXEC | PAGE_KERNEL_NCG);
+			_PAGE_EXEC | pgprot_val(PAGE_KERNEL_NCG));
 
 		if (!ocm->nc.virt) {
 			printk(KERN_ERR
@@ -194,7 +194,7 @@ static void __init ocm_init_node(int count, struct device_node *node)
 
 	if (ocm->c.memtotal) {
 		ocm->c.virt = __ioremap(ocm->c.phys, ocm->c.memtotal,
-					_PAGE_EXEC | PAGE_KERNEL);
+					_PAGE_EXEC | pgprot_val(PAGE_KERNEL));
 
 		if (!ocm->c.virt) {
 			printk(KERN_ERR
@@ -237,12 +237,12 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 			continue;
 
 		seq_printf(m, "PPC4XX OCM   : %d\n", ocm->index);
-		seq_printf(m, "PhysAddr     : 0x%llx\n", ocm->phys);
+		seq_printf(m, "PhysAddr     : %pa[p]\n", &(ocm->phys));
 		seq_printf(m, "MemTotal     : %d Bytes\n", ocm->memtotal);
 		seq_printf(m, "MemTotal(NC) : %d Bytes\n", ocm->nc.memtotal);
 		seq_printf(m, "MemTotal(C)  : %d Bytes\n\n", ocm->c.memtotal);
 
-		seq_printf(m, "NC.PhysAddr  : 0x%llx\n", ocm->nc.phys);
+		seq_printf(m, "NC.PhysAddr  : %pa[p]\n", &(ocm->nc.phys));
 		seq_printf(m, "NC.VirtAddr  : 0x%p\n", ocm->nc.virt);
 		seq_printf(m, "NC.MemTotal  : %d Bytes\n", ocm->nc.memtotal);
 		seq_printf(m, "NC.MemFree   : %d Bytes\n", ocm->nc.memfree);
@@ -252,7 +252,7 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 							blk->size, blk->owner);
 		}
 
-		seq_printf(m, "\nC.PhysAddr   : 0x%llx\n", ocm->c.phys);
+		seq_printf(m, "\nC.PhysAddr   : %pa[p]\n", &(ocm->c.phys));
 		seq_printf(m, "C.VirtAddr   : 0x%p\n", ocm->c.virt);
 		seq_printf(m, "C.MemTotal   : %d Bytes\n", ocm->c.memtotal);
 		seq_printf(m, "C.MemFree    : %d Bytes\n", ocm->c.memfree);

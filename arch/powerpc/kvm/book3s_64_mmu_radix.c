@@ -33,8 +33,8 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 					      gva_t eaddr, void *to, void *from,
 					      unsigned long n)
 {
+	int uninitialized_var(old_pid), old_lpid;
 	unsigned long quadrant, ret = n;
-	int old_pid, old_lpid;
 	bool is_load = !!to;
 
 	/* Can't access quadrants 1 or 2 in non-HV mode, call the HV to do it */
