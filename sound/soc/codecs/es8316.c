@@ -167,8 +167,6 @@ static const char * const es8316_hpmux_texts[] = {
 	"lin-rin with Boost and PGA"
 };
 
-static const unsigned int es8316_hpmux_values[] = { 0, 1, 2, 3 };
-
 static SOC_ENUM_SINGLE_DECL(es8316_left_hpmux_enum, ES8316_HPMIX_SEL,
 	4, es8316_hpmux_texts);
 
@@ -198,8 +196,6 @@ static const char * const es8316_dacsrc_texts[] = {
 	"RDATA TO LDAC, RDATA TO RDAC",
 	"RDATA TO LDAC, LDATA TO RDAC",
 };
-
-static const unsigned int es8316_dacsrc_values[] = { 0, 1, 2, 3 };
 
 static SOC_ENUM_SINGLE_DECL(es8316_dacsrc_mux_enum, ES8316_DAC_SET1,
 	6, es8316_dacsrc_texts);
