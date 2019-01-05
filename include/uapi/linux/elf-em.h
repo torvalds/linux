@@ -44,6 +44,7 @@
 #define EM_TILEGX	191	/* Tilera TILE-Gx */
 #define EM_RISCV	243	/* RISC-V */
 #define EM_BPF		247	/* Linux BPF - in-kernel virtual machine */
+#define EM_CSKY		252	/* C-SKY */
 #define EM_FRV		0x5441	/* Fujitsu FR-V */
 
 /*
