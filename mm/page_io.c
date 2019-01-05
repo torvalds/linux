@@ -401,6 +401,8 @@ int swap_readpage(struct page *page, bool synchronous)
 	get_task_struct(current);
 	bio->bi_private = current;
 	bio_set_op_attrs(bio, REQ_OP_READ, 0);
+	if (synchronous)
+		bio->bi_opf |= REQ_HIPRI;
 	count_vm_event(PSWPIN);
 	bio_get(bio);
 	qc = submit_bio(bio);
@@ -410,7 +412,7 @@ int swap_readpage(struct page *page, bool synchronous)
 			break;
 
 		if (!blk_poll(disk->queue, qc, true))
-			break;
+			io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
 	bio_put(bio);

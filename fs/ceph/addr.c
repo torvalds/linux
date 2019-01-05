@@ -306,7 +306,7 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 	struct ceph_osd_client *osdc =
 		&ceph_inode_to_client(inode)->client->osdc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct page *page = list_entry(page_list->prev, struct page, lru);
+	struct page *page = lru_to_page(page_list);
 	struct ceph_vino vino;
 	struct ceph_osd_request *req;
 	u64 off;
@@ -333,8 +333,7 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 			if (got)
 				ceph_put_cap_refs(ci, got);
 			while (!list_empty(page_list)) {
-				page = list_entry(page_list->prev,
-						  struct page, lru);
+				page = lru_to_page(page_list);
 				list_del(&page->lru);
 				put_page(page);
 			}
