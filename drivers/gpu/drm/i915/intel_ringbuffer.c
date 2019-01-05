@@ -996,6 +996,10 @@ hsw_vebox_irq_enable(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	I915_WRITE_IMR(engine, ~engine->irq_enable_mask);
+
+	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
+	POSTING_READ_FW(RING_IMR(engine->mmio_base));
+
 	gen6_unmask_pm_irq(dev_priv, engine->irq_enable_mask);
 }
 
