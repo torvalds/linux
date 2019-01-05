@@ -2961,18 +2961,16 @@ static int drm_fbdev_fb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-/*
- * fb_ops.fb_destroy is called by the last put_fb_info() call at the end of
- * unregister_framebuffer() or fb_release().
- */
-static void drm_fbdev_fb_destroy(struct fb_info *info)
+static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 {
-	struct drm_fb_helper *fb_helper = info->par;
 	struct fb_info *fbi = fb_helper->fbdev;
 	struct fb_ops *fbops = NULL;
 	void *shadow = NULL;
 
-	if (fbi->fbdefio) {
+	if (!fb_helper->dev)
+		return;
+
+	if (fbi && fbi->fbdefio) {
 		fb_deferred_io_cleanup(fbi);
 		shadow = fbi->screen_buffer;
 		fbops = fbi->fbops;
@@ -2986,6 +2984,12 @@ static void drm_fbdev_fb_destroy(struct fb_info *info)
 	}
 
 	drm_client_framebuffer_delete(fb_helper->buffer);
+}
+
+static void drm_fbdev_release(struct drm_fb_helper *fb_helper)
+{
+	drm_fbdev_cleanup(fb_helper);
+
 	/*
 	 * FIXME:
 	 * Remove conditional when all CMA drivers have been moved over to using
@@ -2995,6 +2999,15 @@ static void drm_fbdev_fb_destroy(struct fb_info *info)
 		drm_client_release(&fb_helper->client);
 		kfree(fb_helper);
 	}
+}
+
+/*
+ * fb_ops.fb_destroy is called by the last put_fb_info() call at the end of
+ * unregister_framebuffer() or fb_release().
+ */
+static void drm_fbdev_fb_destroy(struct fb_info *info)
+{
+	drm_fbdev_release(info->par);
 }
 
 static int drm_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -3047,7 +3060,6 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	struct drm_framebuffer *fb;
 	struct fb_info *fbi;
 	u32 format;
-	int ret;
 
 	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d)\n",
 		      sizes->surface_width, sizes->surface_height,
@@ -3064,10 +3076,8 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	fb = buffer->fb;
 
 	fbi = drm_fb_helper_alloc_fbi(fb_helper);
-	if (IS_ERR(fbi)) {
-		ret = PTR_ERR(fbi);
-		goto err_free_buffer;
-	}
+	if (IS_ERR(fbi))
+		return PTR_ERR(fbi);
 
 	fbi->par = fb_helper;
 	fbi->fbops = &drm_fbdev_fb_ops;
@@ -3098,8 +3108,7 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 		if (!fbops || !shadow) {
 			kfree(fbops);
 			vfree(shadow);
-			ret = -ENOMEM;
-			goto err_fb_info_destroy;
+			return -ENOMEM;
 		}
 
 		*fbops = *fbi->fbops;
@@ -3111,13 +3120,6 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	}
 
 	return 0;
-
-err_fb_info_destroy:
-	drm_fb_helper_fini(fb_helper);
-err_free_buffer:
-	drm_client_framebuffer_delete(buffer);
-
-	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_generic_probe);
 
@@ -3129,18 +3131,11 @@ static void drm_fbdev_client_unregister(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
 
-	if (fb_helper->fbdev) {
-		drm_fb_helper_unregister_fbi(fb_helper);
+	if (fb_helper->fbdev)
 		/* drm_fbdev_fb_destroy() takes care of cleanup */
-		return;
-	}
-
-	/* Did drm_fb_helper_fbdev_setup() run? */
-	if (fb_helper->dev)
-		drm_fb_helper_fini(fb_helper);
-
-	drm_client_release(client);
-	kfree(fb_helper);
+		drm_fb_helper_unregister_fbi(fb_helper);
+	else
+		drm_fbdev_release(fb_helper);
 }
 
 static int drm_fbdev_client_restore(struct drm_client_dev *client)
@@ -3158,7 +3153,7 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 	struct drm_device *dev = client->dev;
 	int ret;
 
-	/* If drm_fb_helper_fbdev_setup() failed, we only try once */
+	/* Setup is not retried if it has failed */
 	if (!fb_helper->dev && fb_helper->funcs)
 		return 0;
 
@@ -3170,15 +3165,34 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 		return 0;
 	}
 
-	ret = drm_fb_helper_fbdev_setup(dev, fb_helper, &drm_fb_helper_generic_funcs,
-					fb_helper->preferred_bpp, 0);
-	if (ret) {
-		fb_helper->dev = NULL;
-		fb_helper->fbdev = NULL;
-		return ret;
-	}
+	drm_fb_helper_prepare(dev, fb_helper, &drm_fb_helper_generic_funcs);
+
+	ret = drm_fb_helper_init(dev, fb_helper, dev->mode_config.num_connector);
+	if (ret)
+		goto err;
+
+	ret = drm_fb_helper_single_add_all_connectors(fb_helper);
+	if (ret)
+		goto err_cleanup;
+
+	if (!drm_drv_uses_atomic_modeset(dev))
+		drm_helper_disable_unused_functions(dev);
+
+	ret = drm_fb_helper_initial_config(fb_helper, fb_helper->preferred_bpp);
+	if (ret)
+		goto err_cleanup;
 
 	return 0;
+
+err_cleanup:
+	drm_fbdev_cleanup(fb_helper);
+err:
+	fb_helper->dev = NULL;
+	fb_helper->fbdev = NULL;
+
+	DRM_DEV_ERROR(dev->dev, "fbdev: Failed to setup generic emulation (ret=%d)\n", ret);
+
+	return ret;
 }
 
 static const struct drm_client_funcs drm_fbdev_client_funcs = {
@@ -3237,6 +3251,10 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 
 	drm_client_add(&fb_helper->client);
 
+	if (!preferred_bpp)
+		preferred_bpp = dev->mode_config.preferred_depth;
+	if (!preferred_bpp)
+		preferred_bpp = 32;
 	fb_helper->preferred_bpp = preferred_bpp;
 
 	ret = drm_fbdev_client_hotplug(&fb_helper->client);
