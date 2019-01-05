@@ -275,18 +275,16 @@ static void wait_entry_unlocked(struct address_space *mapping, pgoff_t index,
 	ewait.wait.func = wake_exceptional_entry_func;
 
 	wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
-	prepare_to_wait_exclusive(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
+	/*
+	 * Unlike get_unlocked_entry() there is no guarantee that this
+	 * path ever successfully retrieves an unlocked entry before an
+	 * inode dies. Perform a non-exclusive wait in case this path
+	 * never successfully performs its own wake up.
+	 */
+	prepare_to_wait(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
 	xa_unlock_irq(&mapping->i_pages);
 	schedule();
 	finish_wait(wq, &ewait.wait);
-
-	/*
-	 * Entry lock waits are exclusive. Wake up the next waiter since
-	 * we aren't sure we will acquire the entry lock and thus wake
-	 * the next waiter up on unlock.
-	 */
-	if (waitqueue_active(wq))
-		__wake_up(wq, TASK_NORMAL, 1, &ewait.key);
 }
 
 static void unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
