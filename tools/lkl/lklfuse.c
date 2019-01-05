@@ -211,7 +211,8 @@ static int lklfuse_chmod(const char *path, mode_t mode)
 
 static int lklfuse_chown(const char *path, uid_t uid, gid_t gid)
 {
-	return lkl_sys_chown(path, uid, gid);
+	return lkl_sys_fchownat(LKL_AT_FDCWD, path, uid, gid,
+				LKL_AT_SYMLINK_NOFOLLOW);
 }
 
 static int lklfuse_truncate(const char *path, off_t off)
