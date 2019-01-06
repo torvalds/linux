@@ -1232,6 +1232,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	} while (0)
 
 	SET_DEVICE_OP(dev_ops, add_gid);
+	SET_DEVICE_OP(dev_ops, advise_mr);
 	SET_DEVICE_OP(dev_ops, alloc_dm);
 	SET_DEVICE_OP(dev_ops, alloc_fmr);
 	SET_DEVICE_OP(dev_ops, alloc_hw_stats);
