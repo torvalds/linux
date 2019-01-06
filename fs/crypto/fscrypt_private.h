@@ -17,7 +17,6 @@
 #include <crypto/hash.h>
 
 /* Encryption parameters */
-#define FS_IV_SIZE			16
 #define FS_KEY_DERIVATION_NONCE_SIZE	16
 
 /**
@@ -52,16 +51,42 @@ struct fscrypt_symlink_data {
 } __packed;
 
 /*
- * A pointer to this structure is stored in the file system's in-core
- * representation of an inode.
+ * fscrypt_info - the "encryption key" for an inode
+ *
+ * When an encrypted file's key is made available, an instance of this struct is
+ * allocated and stored in ->i_crypt_info.  Once created, it remains until the
+ * inode is evicted.
  */
 struct fscrypt_info {
+
+	/* The actual crypto transform used for encryption and decryption */
+	struct crypto_skcipher *ci_ctfm;
+
+	/*
+	 * Cipher for ESSIV IV generation.  Only set for CBC contents
+	 * encryption, otherwise is NULL.
+	 */
+	struct crypto_cipher *ci_essiv_tfm;
+
+	/*
+	 * Encryption mode used for this inode.  It corresponds to either
+	 * ci_data_mode or ci_filename_mode, depending on the inode type.
+	 */
+	struct fscrypt_mode *ci_mode;
+
+	/*
+	 * If non-NULL, then this inode uses a master key directly rather than a
+	 * derived key, and ci_ctfm will equal ci_master_key->mk_ctfm.
+	 * Otherwise, this inode uses a derived key.
+	 */
+	struct fscrypt_master_key *ci_master_key;
+
+	/* fields from the fscrypt_context */
 	u8 ci_data_mode;
 	u8 ci_filename_mode;
 	u8 ci_flags;
-	struct crypto_skcipher *ci_ctfm;
-	struct crypto_cipher *ci_essiv_tfm;
-	u8 ci_master_key[FS_KEY_DESCRIPTOR_SIZE];
+	u8 ci_master_key_descriptor[FS_KEY_DESCRIPTOR_SIZE];
+	u8 ci_nonce[FS_KEY_DERIVATION_NONCE_SIZE];
 };
 
 typedef enum {
@@ -81,6 +106,10 @@ static inline bool fscrypt_valid_enc_modes(u32 contents_mode,
 
 	if (contents_mode == FS_ENCRYPTION_MODE_AES_256_XTS &&
 	    filenames_mode == FS_ENCRYPTION_MODE_AES_256_CTS)
+		return true;
+
+	if (contents_mode == FS_ENCRYPTION_MODE_ADIANTUM &&
+	    filenames_mode == FS_ENCRYPTION_MODE_ADIANTUM)
 		return true;
 
 	return false;
@@ -107,6 +136,22 @@ fscrypt_msg(struct super_block *sb, const char *level, const char *fmt, ...);
 #define fscrypt_err(sb, fmt, ...)		\
 	fscrypt_msg(sb, KERN_ERR, fmt, ##__VA_ARGS__)
 
+#define FSCRYPT_MAX_IV_SIZE	32
+
+union fscrypt_iv {
+	struct {
+		/* logical block number within the file */
+		__le64 lblk_num;
+
+		/* per-file nonce; only set in DIRECT_KEY mode */
+		u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+	};
+	u8 raw[FSCRYPT_MAX_IV_SIZE];
+};
+
+void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
+			 const struct fscrypt_info *ci);
+
 /* fname.c */
 extern int fname_encrypt(struct inode *inode, const struct qstr *iname,
 			 u8 *out, unsigned int olen);
@@ -115,6 +160,16 @@ extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
 					 u32 *encrypted_len_ret);
 
 /* keyinfo.c */
+
+struct fscrypt_mode {
+	const char *friendly_name;
+	const char *cipher_str;
+	int keysize;
+	int ivsize;
+	bool logged_impl_name;
+	bool needs_essiv;
+};
+
 extern void __exit fscrypt_essiv_cleanup(void);
 
 #endif /* _FSCRYPT_PRIVATE_H */
