@@ -40,8 +40,6 @@
 #define INTSTRLEN 21
 #define BINDERFS_MAX_MINOR (1U << MINORBITS)
 
-static struct vfsmount *binderfs_mnt;
-
 static dev_t binderfs_dev;
 static DEFINE_MUTEX(binderfs_minors_mutex);
 static DEFINE_IDA(binderfs_minors);
@@ -528,14 +526,6 @@ static int __init init_binderfs(void)
 	if (ret) {
 		unregister_chrdev_region(binderfs_dev, BINDERFS_MAX_MINOR);
 		return ret;
-	}
-
-	binderfs_mnt = kern_mount(&binder_fs_type);
-	if (IS_ERR(binderfs_mnt)) {
-		ret = PTR_ERR(binderfs_mnt);
-		binderfs_mnt = NULL;
-		unregister_filesystem(&binder_fs_type);
-		unregister_chrdev_region(binderfs_dev, BINDERFS_MAX_MINOR);
 	}
 
 	return ret;
