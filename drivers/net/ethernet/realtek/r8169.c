@@ -1681,11 +1681,13 @@ static bool rtl8169_reset_counters(struct rtl8169_private *tp)
 
 static bool rtl8169_update_counters(struct rtl8169_private *tp)
 {
+	u8 val = RTL_R8(tp, ChipCmd);
+
 	/*
 	 * Some chips are unable to dump tally counters when the receiver
-	 * is disabled.
+	 * is disabled. If 0xff chip may be in a PCI power-save state.
 	 */
-	if ((RTL_R8(tp, ChipCmd) & CmdRxEnb) == 0)
+	if (!(val & CmdRxEnb) || val == 0xff)
 		return true;
 
 	return rtl8169_do_counters(tp, CounterDump);
