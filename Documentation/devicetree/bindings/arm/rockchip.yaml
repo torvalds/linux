@@ -322,6 +322,11 @@ properties:
           - const: radxa,rock
           - const: rockchip,rk3188
 
+      - description: Radxa ROCK Pi 4
+        items:
+          - const: radxa,rockpi4
+          - const: rockchip,rk3399
+
       - description: Radxa Rock2 Square
         items:
           - const: radxa,rock2-square
