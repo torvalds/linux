@@ -559,6 +559,24 @@ static void remove_link(struct snd_soc_component *comp,
 	kfree(link);
 }
 
+/* unload dai link */
+static void remove_backend_link(struct snd_soc_component *comp,
+	struct snd_soc_dobj *dobj, int pass)
+{
+	if (pass != SOC_TPLG_PASS_LINK)
+		return;
+
+	if (dobj->ops && dobj->ops->link_unload)
+		dobj->ops->link_unload(comp, dobj);
+
+	/*
+	 * We don't free the link here as what remove_link() do since BE
+	 * links are not allocated by topology.
+	 */
+
+	list_del(&dobj->list);
+}
+
 /* bind a kcontrol to it's IO handlers */
 static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	struct snd_kcontrol_new *k,
@@ -2164,6 +2182,12 @@ static int soc_tplg_link_config(struct soc_tplg *tplg,
 		return ret;
 	}
 
+	/* for unloading it in snd_soc_tplg_component_remove */
+	link->dobj.index = tplg->index;
+	link->dobj.ops = tplg->ops;
+	link->dobj.type = SND_SOC_DOBJ_BACKEND_LINK;
+	list_add(&link->dobj.list, &tplg->comp->dobj_list);
+
 	return 0;
 }
 
@@ -2649,6 +2673,13 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index)
 				break;
 			case SND_SOC_DOBJ_DAI_LINK:
 				remove_link(comp, dobj, pass);
+				break;
+			case SND_SOC_DOBJ_BACKEND_LINK:
+				/*
+				 * call link_unload ops if extra
+				 * deinitialization is needed.
+				 */
+				remove_backend_link(comp, dobj, pass);
 				break;
 			default:
 				dev_err(comp->dev, "ASoC: invalid component type %d for removal\n",

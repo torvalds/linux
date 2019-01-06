@@ -45,6 +45,7 @@ enum snd_soc_dobj_type {
 	SND_SOC_DOBJ_DAI_LINK,
 	SND_SOC_DOBJ_PCM,
 	SND_SOC_DOBJ_CODEC_LINK,
+	SND_SOC_DOBJ_BACKEND_LINK,
 };
 
 /* dynamic control object */
