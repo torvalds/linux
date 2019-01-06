@@ -99,7 +99,7 @@ SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 #endif /* __ARCH_WANT_SYS_TIME */
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
-#ifdef __ARCH_WANT_COMPAT_SYS_TIME
+#ifdef __ARCH_WANT_SYS_TIME32
 
 /* old_time32_t is a 32 bit "long" and needs to get converted. */
 SYSCALL_DEFINE1(time32, old_time32_t __user *, tloc)
@@ -134,7 +134,7 @@ SYSCALL_DEFINE1(stime32, old_time32_t __user *, tptr)
 	return 0;
 }
 
-#endif /* __ARCH_WANT_COMPAT_SYS_TIME */
+#endif /* __ARCH_WANT_SYS_TIME32 */
 #endif
 
 SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,

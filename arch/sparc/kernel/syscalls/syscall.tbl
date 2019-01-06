@@ -44,7 +44,8 @@
 28	common	sigaltstack		sys_sigaltstack			compat_sys_sigaltstack
 29	32    	pause			sys_pause
 29	64    	pause			sys_nis_syscall
-30	common	utime			sys_utime			sys_utime32
+30	32	utime			sys_utime32
+30	64	utime			sys_utime
 31	32    	lchown32		sys_lchown
 32	32    	fchown32		sys_fchown
 33	common	access			sys_access
@@ -169,7 +170,8 @@
 135	common	socketpair		sys_socketpair
 136	common	mkdir			sys_mkdir
 137	common	rmdir			sys_rmdir
-138	common	utimes			sys_utimes			sys_utimes_time32
+138	32	utimes			sys_utimes_time32
+138	64	utimes			sys_utimes
 139	common	stat64			sys_stat64			compat_sys_stat64
 140	common	sendfile64		sys_sendfile64
 141	common	getpeername		sys_getpeername
@@ -274,9 +276,10 @@
 228	common	setfsuid		sys_setfsuid16
 229	common	setfsgid		sys_setfsgid16
 230	common	_newselect		sys_select			compat_sys_select
-231	32	time			sys_time			sys_time32
+231	32	time			sys_time32
 232	common	splice			sys_splice
-233	common	stime			sys_stime			sys_stime32
+233	32	stime			sys_stime32
+233	64	stime			sys_stime
 234	common	statfs64		sys_statfs64			compat_sys_statfs64
 235	common	fstatfs64		sys_fstatfs64			compat_sys_fstatfs64
 236	common	_llseek			sys_llseek
@@ -345,7 +348,8 @@
 285	common	mkdirat			sys_mkdirat
 286	common	mknodat			sys_mknodat
 287	common	fchownat		sys_fchownat
-288	common	futimesat		sys_futimesat			sys_futimesat_time32
+288	32	futimesat		sys_futimesat_time32
+288	64	futimesat		sys_futimesat
 289	common	fstatat64		sys_fstatat64			compat_sys_fstatat64
 290	common	unlinkat		sys_unlinkat
 291	common	renameat		sys_renameat

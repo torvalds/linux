@@ -45,10 +45,10 @@
 #define __ARCH_WANT_SYS_SIGPROCMASK
 # ifdef CONFIG_32BIT
 #  define __ARCH_WANT_STAT64
-#  define __ARCH_WANT_SYS_TIME
+#  define __ARCH_WANT_SYS_TIME32
 # endif
 # ifdef CONFIG_MIPS32_O32
-#  define __ARCH_WANT_COMPAT_SYS_TIME
+#  define __ARCH_WANT_SYS_TIME32
 # endif
 #define __ARCH_WANT_SYS_FORK
 #define __ARCH_WANT_SYS_CLONE

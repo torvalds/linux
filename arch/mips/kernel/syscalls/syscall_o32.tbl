@@ -20,7 +20,7 @@
 10	o32	unlink				sys_unlink
 11	o32	execve				sys_execve			compat_sys_execve
 12	o32	chdir				sys_chdir
-13	o32	time				sys_time			sys_time32
+13	o32	time				sys_time32
 14	o32	mknod				sys_mknod
 15	o32	chmod				sys_chmod
 16	o32	lchown				sys_lchown
@@ -33,13 +33,13 @@
 22	o32	umount				sys_oldumount
 23	o32	setuid				sys_setuid
 24	o32	getuid				sys_getuid
-25	o32	stime				sys_stime			sys_stime32
+25	o32	stime				sys_stime32
 26	o32	ptrace				sys_ptrace			compat_sys_ptrace
 27	o32	alarm				sys_alarm
 # 28 was sys_fstat
 28	o32	unused28			sys_ni_syscall
 29	o32	pause				sys_pause
-30	o32	utime				sys_utime			sys_utime32
+30	o32	utime				sys_utime32
 31	o32	stty				sys_ni_syscall
 32	o32	gtty				sys_ni_syscall
 33	o32	access				sys_access
@@ -278,7 +278,7 @@
 264	o32	clock_getres			sys_clock_getres_time32
 265	o32	clock_nanosleep			sys_clock_nanosleep_time32
 266	o32	tgkill				sys_tgkill
-267	o32	utimes				sys_utimes			sys_utimes_time32
+267	o32	utimes				sys_utimes_time32
 268	o32	mbind				sys_mbind			compat_sys_mbind
 269	o32	get_mempolicy			sys_get_mempolicy		compat_sys_get_mempolicy
 270	o32	set_mempolicy			sys_set_mempolicy		compat_sys_set_mempolicy
@@ -303,7 +303,7 @@
 289	o32	mkdirat				sys_mkdirat
 290	o32	mknodat				sys_mknodat
 291	o32	fchownat			sys_fchownat
-292	o32	futimesat			sys_futimesat			sys_futimesat_time32
+292	o32	futimesat			sys_futimesat_time32
 293	o32	fstatat64			sys_fstatat64			sys_newfstatat
 294	o32	unlinkat			sys_unlinkat
 295	o32	renameat			sys_renameat

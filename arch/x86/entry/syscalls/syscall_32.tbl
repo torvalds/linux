@@ -24,7 +24,7 @@
 10	i386	unlink			sys_unlink			__ia32_sys_unlink
 11	i386	execve			sys_execve			__ia32_compat_sys_execve
 12	i386	chdir			sys_chdir			__ia32_sys_chdir
-13	i386	time			sys_time			__ia32_sys_time32
+13	i386	time			sys_time32			__ia32_sys_time32
 14	i386	mknod			sys_mknod			__ia32_sys_mknod
 15	i386	chmod			sys_chmod			__ia32_sys_chmod
 16	i386	lchown			sys_lchown16			__ia32_sys_lchown16
@@ -36,12 +36,12 @@
 22	i386	umount			sys_oldumount			__ia32_sys_oldumount
 23	i386	setuid			sys_setuid16			__ia32_sys_setuid16
 24	i386	getuid			sys_getuid16			__ia32_sys_getuid16
-25	i386	stime			sys_stime			__ia32_sys_stime32
+25	i386	stime			sys_stime32			__ia32_sys_stime32
 26	i386	ptrace			sys_ptrace			__ia32_compat_sys_ptrace
 27	i386	alarm			sys_alarm			__ia32_sys_alarm
 28	i386	oldfstat		sys_fstat			__ia32_sys_fstat
 29	i386	pause			sys_pause			__ia32_sys_pause
-30	i386	utime			sys_utime			__ia32_sys_utime32
+30	i386	utime			sys_utime32			__ia32_sys_utime32
 31	i386	stty
 32	i386	gtty
 33	i386	access			sys_access			__ia32_sys_access
@@ -282,7 +282,7 @@
 268	i386	statfs64		sys_statfs64			__ia32_compat_sys_statfs64
 269	i386	fstatfs64		sys_fstatfs64			__ia32_compat_sys_fstatfs64
 270	i386	tgkill			sys_tgkill			__ia32_sys_tgkill
-271	i386	utimes			sys_utimes			__ia32_sys_utimes_time32
+271	i386	utimes			sys_utimes_time32		__ia32_sys_utimes_time32
 272	i386	fadvise64_64		sys_fadvise64_64		__ia32_compat_sys_x86_fadvise64_64
 273	i386	vserver
 274	i386	mbind			sys_mbind			__ia32_sys_mbind
@@ -310,7 +310,7 @@
 296	i386	mkdirat			sys_mkdirat			__ia32_sys_mkdirat
 297	i386	mknodat			sys_mknodat			__ia32_sys_mknodat
 298	i386	fchownat		sys_fchownat			__ia32_sys_fchownat
-299	i386	futimesat		sys_futimesat			__ia32_sys_futimesat_time32
+299	i386	futimesat		sys_futimesat_time32		__ia32_sys_futimesat_time32
 300	i386	fstatat64		sys_fstatat64			__ia32_compat_sys_x86_fstatat
 301	i386	unlinkat		sys_unlinkat			__ia32_sys_unlinkat
 302	i386	renameat		sys_renameat			__ia32_sys_renameat
