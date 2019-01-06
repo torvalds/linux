@@ -316,7 +316,7 @@ static struct rk817_reg_val_typ capture_power_up_list[] = {
 	{RK817_CODEC_APLL_CFG4, 0xa5},
 	{RK817_CODEC_APLL_CFG5, 0x00},
 
-	{RK817_CODEC_DI2S_RXCMD_TSD, 0x00},
+	/*{RK817_CODEC_DI2S_RXCMD_TSD, 0x00},*/
 	{RK817_CODEC_DI2S_RSD, 0x00},
 	/* {RK817_CODEC_DI2S_CKM, 0x00}, */
 	{RK817_CODEC_DI2S_RXCR1, 0x00},
