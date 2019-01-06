@@ -708,19 +708,7 @@ static int powerclamp_debug_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int powerclamp_debug_open(struct inode *inode,
-			struct file *file)
-{
-	return single_open(file, powerclamp_debug_show, inode->i_private);
-}
-
-static const struct file_operations powerclamp_debug_fops = {
-	.open		= powerclamp_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.owner		= THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(powerclamp_debug);
 
 static inline void powerclamp_create_debug_files(void)
 {
