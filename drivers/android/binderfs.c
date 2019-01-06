@@ -379,7 +379,7 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct binderfs_info *info;
 	int ret = -ENOMEM;
 	struct inode *inode = NULL;
-	struct ipc_namespace *ipc_ns = sb->s_fs_info;
+	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
 
 	get_ipc_ns(ipc_ns);
 
@@ -450,48 +450,11 @@ err_without_dentry:
 	return ret;
 }
 
-static int binderfs_test_super(struct super_block *sb, void *data)
-{
-	struct binderfs_info *info = sb->s_fs_info;
-
-	if (info)
-		return info->ipc_ns == data;
-
-	return 0;
-}
-
-static int binderfs_set_super(struct super_block *sb, void *data)
-{
-	sb->s_fs_info = data;
-	return set_anon_super(sb, NULL);
-}
-
 static struct dentry *binderfs_mount(struct file_system_type *fs_type,
 				     int flags, const char *dev_name,
 				     void *data)
 {
-	struct super_block *sb;
-	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
-
-	if (!ns_capable(ipc_ns->user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
-
-	sb = sget_userns(fs_type, binderfs_test_super, binderfs_set_super,
-			 flags, ipc_ns->user_ns, ipc_ns);
-	if (IS_ERR(sb))
-		return ERR_CAST(sb);
-
-	if (!sb->s_root) {
-		int ret = binderfs_fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
-		if (ret) {
-			deactivate_locked_super(sb);
-			return ERR_PTR(ret);
-		}
-
-		sb->s_flags |= SB_ACTIVE;
-	}
-
-	return dget(sb->s_root);
+	return mount_nodev(fs_type, flags, data, binderfs_fill_super);
 }
 
 static void binderfs_kill_super(struct super_block *sb)
