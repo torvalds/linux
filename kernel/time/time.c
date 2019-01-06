@@ -98,11 +98,11 @@ SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 
 #endif /* __ARCH_WANT_SYS_TIME */
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_COMPAT_32BIT_TIME
 #ifdef __ARCH_WANT_COMPAT_SYS_TIME
 
 /* old_time32_t is a 32 bit "long" and needs to get converted. */
-COMPAT_SYSCALL_DEFINE1(time, old_time32_t __user *, tloc)
+SYSCALL_DEFINE1(time32, old_time32_t __user *, tloc)
 {
 	old_time32_t i;
 
@@ -116,7 +116,7 @@ COMPAT_SYSCALL_DEFINE1(time, old_time32_t __user *, tloc)
 	return i;
 }
 
-COMPAT_SYSCALL_DEFINE1(stime, old_time32_t __user *, tptr)
+SYSCALL_DEFINE1(stime32, old_time32_t __user *, tptr)
 {
 	struct timespec64 tv;
 	int err;
@@ -344,7 +344,7 @@ int put_old_timex32(struct old_timex32 __user *utp, const struct __kernel_timex 
 	return 0;
 }
 
-COMPAT_SYSCALL_DEFINE1(adjtimex, struct old_timex32 __user *, utp)
+SYSCALL_DEFINE1(adjtimex_time32, struct old_timex32 __user *, utp)
 {
 	struct __kernel_timex txc;
 	int err, ret;
