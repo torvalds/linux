@@ -11750,6 +11750,7 @@ F:	include/uapi/linux/pci*
 F:	lib/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
+F:	arch/x86/kernel/early-quirks.c
 
 PCI NATIVE HOST BRIDGE AND ENDPOINT DRIVERS
 M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
@@ -11758,6 +11759,13 @@ Q:	http://patchwork.ozlabs.org/project/linux-pci/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lpieralisi/pci.git/
 S:	Supported
 F:	drivers/pci/controller/
+
+PCIE DRIVER FOR AMLOGIC MESON
+M:	Yue Wang <yue.wang@Amlogic.com>
+L:	linux-pci@vger.kernel.org
+L:	linux-amlogic@lists.infradead.org
+S:	Maintained
+F:	drivers/pci/controller/dwc/pci-meson.c
 
 PCIE DRIVER FOR AXIS ARTPEC
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
@@ -11791,7 +11799,6 @@ F:	Documentation/devicetree/bindings/pci/kirin-pcie.txt
 F:	drivers/pci/controller/dwc/pcie-kirin.c
 
 PCIE DRIVER FOR HISILICON STB
-M:	Jianguo Sun <sunjianguo1@huawei.com>
 M:	Shawn Guo <shawn.guo@linaro.org>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
@@ -11827,6 +11834,13 @@ L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/v3-v360epc-pci.txt
 F:	drivers/pci/controller/pci-v3-semi.c
+
+PCIE DRIVER FOR SOCIONEXT UNIPHIER
+M:	Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/uniphier-pcie.txt
+F:	drivers/pci/controller/dwc/pcie-uniphier.c
 
 PCIE DRIVER FOR ST SPEAR13XX
 M:	Pratyush Anand <pratyush.anand@gmail.com>
