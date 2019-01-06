@@ -676,6 +676,11 @@ static void dce112_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_power_level_change_request level_change_req;
+	int unpatched_disp_clk = context->bw.dce.dispclk_khz;
+
+	/*TODO: W/A for dal3 linux, investigate why this works */
+	if (!clk_mgr_dce->dfs_bypass_active)
+		context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
 
 	level_change_req.power_level = dce_get_required_clocks_state(clk_mgr, context);
 	/* get max clock state from PPLIB */
@@ -690,6 +695,8 @@ static void dce112_update_clocks(struct clk_mgr *clk_mgr,
 		clk_mgr->clks.dispclk_khz = context->bw.dce.dispclk_khz;
 	}
 	dce11_pplib_apply_display_requirements(clk_mgr->ctx->dc, context);
+
+	context->bw.dce.dispclk_khz = unpatched_disp_clk;
 }
 
 static void dce12_update_clocks(struct clk_mgr *clk_mgr,

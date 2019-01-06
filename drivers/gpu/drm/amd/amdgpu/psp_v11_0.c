@@ -34,6 +34,7 @@
 #include "nbio/nbio_7_4_offset.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
+MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
 
 /* address block */
@@ -100,6 +101,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	char fw_name[30];
 	int err = 0;
 	const struct psp_firmware_header_v1_0 *sos_hdr;
+	const struct psp_firmware_header_v1_0 *asd_hdr;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
 	DRM_DEBUG("\n");
@@ -132,14 +134,30 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
 				le32_to_cpu(sos_hdr->sos_offset_bytes);
 
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_asd.bin", chip_name);
+	err = request_firmware(&adev->psp.asd_fw, fw_name, adev->dev);
+	if (err)
+		goto out1;
+
+	err = amdgpu_ucode_validate(adev->psp.asd_fw);
+	if (err)
+		goto out1;
+
+	asd_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.asd_fw->data;
+	adev->psp.asd_fw_version = le32_to_cpu(asd_hdr->header.ucode_version);
+	adev->psp.asd_feature_version = le32_to_cpu(asd_hdr->ucode_feature_version);
+	adev->psp.asd_ucode_size = le32_to_cpu(asd_hdr->header.ucode_size_bytes);
+	adev->psp.asd_start_addr = (uint8_t *)asd_hdr +
+				le32_to_cpu(asd_hdr->header.ucode_array_offset_bytes);
+
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
 	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
 	if (err)
-		goto out;
+		goto out2;
 
 	err = amdgpu_ucode_validate(adev->psp.ta_fw);
 	if (err)
-		goto out;
+		goto out2;
 
 	ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
 	adev->psp.ta_xgmi_ucode_version = le32_to_cpu(ta_hdr->ta_xgmi_ucode_version);
@@ -148,14 +166,18 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
 
 	return 0;
+
+out2:
+	release_firmware(adev->psp.ta_fw);
+	adev->psp.ta_fw = NULL;
+out1:
+	release_firmware(adev->psp.asd_fw);
+	adev->psp.asd_fw = NULL;
 out:
-	if (err) {
-		dev_err(adev->dev,
-			"psp v11.0: Failed to load firmware \"%s\"\n",
-			fw_name);
-		release_firmware(adev->psp.sos_fw);
-		adev->psp.sos_fw = NULL;
-	}
+	dev_err(adev->dev,
+		"psp v11.0: Failed to load firmware \"%s\"\n", fw_name);
+	release_firmware(adev->psp.sos_fw);
+	adev->psp.sos_fw = NULL;
 
 	return err;
 }
@@ -291,6 +313,13 @@ static int psp_v11_0_ring_init(struct psp_context *psp,
 	return 0;
 }
 
+static bool psp_v11_0_support_vmr_ring(struct psp_context *psp)
+{
+	if (amdgpu_sriov_vf(psp->adev) && psp->sos_fw_version > 0x80045)
+		return true;
+	return false;
+}
+
 static int psp_v11_0_ring_create(struct psp_context *psp,
 				enum psp_ring_type ring_type)
 {
@@ -299,7 +328,7 @@ static int psp_v11_0_ring_create(struct psp_context *psp,
 	struct psp_ring *ring = &psp->km_ring;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp_support_vmr_ring(psp)) {
+	if (psp_v11_0_support_vmr_ring(psp)) {
 		/* Write low address of the ring to C2PMSG_102 */
 		psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, psp_ring_reg);
@@ -351,7 +380,7 @@ static int psp_v11_0_ring_stop(struct psp_context *psp,
 	struct amdgpu_device *adev = psp->adev;
 
 	/* Write the ring destroy command*/
-	if (psp_support_vmr_ring(psp))
+	if (psp_v11_0_support_vmr_ring(psp))
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101,
 				     GFX_CTRL_CMD_ID_DESTROY_GPCOM_RING);
 	else
@@ -362,7 +391,7 @@ static int psp_v11_0_ring_stop(struct psp_context *psp,
 	mdelay(20);
 
 	/* Wait for response flag (bit 31) */
-	if (psp_support_vmr_ring(psp))
+	if (psp_v11_0_support_vmr_ring(psp))
 		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
 				   0x80000000, 0x80000000, false);
 	else
@@ -406,7 +435,7 @@ static int psp_v11_0_cmd_submit(struct psp_context *psp,
 	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
 
 	/* KM (GPCOM) prepare write pointer */
-	if (psp_support_vmr_ring(psp))
+	if (psp_v11_0_support_vmr_ring(psp))
 		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
 	else
 		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
@@ -438,7 +467,7 @@ static int psp_v11_0_cmd_submit(struct psp_context *psp,
 
 	/* Update the write Pointer in DWORDs */
 	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;
-	if (psp_support_vmr_ring(psp)) {
+	if (psp_v11_0_support_vmr_ring(psp)) {
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, psp_write_ptr_reg);
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101, GFX_CTRL_CMD_ID_CONSUME_CMD);
 	} else
@@ -680,7 +709,7 @@ static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 	return psp_xgmi_invoke(psp, TA_COMMAND_XGMI__SET_TOPOLOGY_INFO);
 }
 
-static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
+static int psp_v11_0_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -693,12 +722,14 @@ static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
 	/* Invoke xgmi ta to get hive id */
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
 	if (ret)
-		return 0;
-	else
-		return xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
+		return ret;
+
+	*hive_id = xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
+
+	return 0;
 }
 
-static u64 psp_v11_0_xgmi_get_node_id(struct psp_context *psp)
+static int psp_v11_0_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -711,9 +742,11 @@ static u64 psp_v11_0_xgmi_get_node_id(struct psp_context *psp)
 	/* Invoke xgmi ta to get the node id */
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
 	if (ret)
-		return 0;
-	else
-		return xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+		return ret;
+
+	*node_id = xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+
+	return 0;
 }
 
 static const struct psp_funcs psp_v11_0_funcs = {
@@ -732,6 +765,7 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.xgmi_set_topology_info = psp_v11_0_xgmi_set_topology_info,
 	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
 	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
+	.support_vmr_ring = psp_v11_0_support_vmr_ring,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)
