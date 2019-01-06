@@ -49,7 +49,6 @@
 
 enum {
 	dma_debug_single,
-	dma_debug_page,
 	dma_debug_sg,
 	dma_debug_coherent,
 	dma_debug_resource,
@@ -1300,8 +1299,7 @@ void debug_dma_map_single(struct device *dev, const void *addr,
 EXPORT_SYMBOL(debug_dma_map_single);
 
 void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
-			size_t size, int direction, dma_addr_t dma_addr,
-			bool map_single)
+			size_t size, int direction, dma_addr_t dma_addr)
 {
 	struct dma_debug_entry *entry;
 
@@ -1316,16 +1314,13 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 		return;
 
 	entry->dev       = dev;
-	entry->type      = dma_debug_page;
+	entry->type      = dma_debug_single;
 	entry->pfn	 = page_to_pfn(page);
 	entry->offset	 = offset,
 	entry->dev_addr  = dma_addr;
 	entry->size      = size;
 	entry->direction = direction;
 	entry->map_err_type = MAP_ERR_NOT_CHECKED;
-
-	if (map_single)
-		entry->type = dma_debug_single;
 
 	check_for_stack(dev, page, offset);
 
@@ -1378,10 +1373,10 @@ void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 EXPORT_SYMBOL(debug_dma_mapping_error);
 
 void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
-			  size_t size, int direction, bool map_single)
+			  size_t size, int direction)
 {
 	struct dma_debug_entry ref = {
-		.type           = dma_debug_page,
+		.type           = dma_debug_single,
 		.dev            = dev,
 		.dev_addr       = addr,
 		.size           = size,
@@ -1390,10 +1385,6 @@ void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
 
 	if (unlikely(dma_debug_disabled()))
 		return;
-
-	if (map_single)
-		ref.type = dma_debug_single;
-
 	check_unmap(&ref);
 }
 EXPORT_SYMBOL(debug_dma_unmap_page);
@@ -1521,7 +1512,6 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
 
 	add_dma_entry(entry);
 }
-EXPORT_SYMBOL(debug_dma_alloc_coherent);
 
 void debug_dma_free_coherent(struct device *dev, size_t size,
 			 void *virt, dma_addr_t addr)
@@ -1549,7 +1539,6 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
 
 	check_unmap(&ref);
 }
-EXPORT_SYMBOL(debug_dma_free_coherent);
 
 void debug_dma_map_resource(struct device *dev, phys_addr_t addr, size_t size,
 			    int direction, dma_addr_t dma_addr)
