@@ -78,7 +78,7 @@ static void free_msix_idx_in_bmap(struct adapter *adap, unsigned int msix_idx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bmap->lock, flags);
-	 __clear_bit(msix_idx, bmap->msix_bmap);
+	__clear_bit(msix_idx, bmap->msix_bmap);
 	spin_unlock_irqrestore(&bmap->lock, flags);
 }
 
