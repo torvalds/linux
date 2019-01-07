@@ -268,10 +268,6 @@ static int fsl_lpspi_config(struct fsl_lpspi_data *fsl_lpspi)
 	u32 temp;
 	int ret;
 
-	temp = CR_RST;
-	writel(temp, fsl_lpspi->base + IMX7ULP_CR);
-	writel(0, fsl_lpspi->base + IMX7ULP_CR);
-
 	if (!fsl_lpspi->is_slave) {
 		ret = fsl_lpspi_set_bitrate(fsl_lpspi);
 		if (ret)
@@ -362,6 +358,24 @@ static int fsl_lpspi_wait_for_completion(struct spi_controller *controller)
 	return 0;
 }
 
+static int fsl_lpspi_reset(struct fsl_lpspi_data *fsl_lpspi)
+{
+	u32 temp;
+
+	/* Disable all interrupt */
+	fsl_lpspi_intctrl(fsl_lpspi, 0);
+
+	/* W1C for all flags in SR */
+	temp = 0x3F << 8;
+	writel(temp, fsl_lpspi->base + IMX7ULP_SR);
+
+	/* Clear FIFO and disable module */
+	temp = CR_RRF | CR_RTF;
+	writel(temp, fsl_lpspi->base + IMX7ULP_CR);
+
+	return 0;
+}
+
 static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 				  struct spi_device *spi,
 				  struct spi_transfer *t)
@@ -382,6 +396,8 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 	ret = fsl_lpspi_wait_for_completion(controller);
 	if (ret)
 		return ret;
+
+	fsl_lpspi_reset(fsl_lpspi);
 
 	return 0;
 }
