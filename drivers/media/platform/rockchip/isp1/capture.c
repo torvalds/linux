@@ -503,9 +503,9 @@ static const struct capture_fmt sp_fmts[] = {
 	},
 	/* rgb */
 	{
-		.fourcc = V4L2_PIX_FMT_RGB24,
+		.fourcc = V4L2_PIX_FMT_XBGR32,
 		.fmt_type = FMT_RGB,
-		.bpp = { 24 },
+		.bpp = { 32 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_SP_WRITE_PLA,
 		.output_format = MI_CTRL_SP_OUTPUT_RGB888,
@@ -516,14 +516,7 @@ static const struct capture_fmt sp_fmts[] = {
 		.mplanes = 1,
 		.write_format = MI_CTRL_SP_WRITE_PLA,
 		.output_format = MI_CTRL_SP_OUTPUT_RGB565,
-	}, {
-		.fourcc = V4L2_PIX_FMT_BGR666,
-		.fmt_type = FMT_RGB,
-		.bpp = { 18 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_RGB666,
-	},
+	}
 };
 
 static const struct capture_fmt raw_fmts[] = {
