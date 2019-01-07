@@ -2961,14 +2961,13 @@ static const char *plane_type(enum drm_plane_type type)
 	return "unknown";
 }
 
-static const char *plane_rotation(unsigned int rotation)
+static void plane_rotation(char *buf, size_t bufsize, unsigned int rotation)
 {
-	static char buf[48];
 	/*
 	 * According to doc only one DRM_MODE_ROTATE_ is allowed but this
 	 * will print them all to visualize if the values are misused
 	 */
-	snprintf(buf, sizeof(buf),
+	snprintf(buf, bufsize,
 		 "%s%s%s%s%s%s(0x%08x)",
 		 (rotation & DRM_MODE_ROTATE_0) ? "0 " : "",
 		 (rotation & DRM_MODE_ROTATE_90) ? "90 " : "",
@@ -2977,8 +2976,6 @@ static const char *plane_rotation(unsigned int rotation)
 		 (rotation & DRM_MODE_REFLECT_X) ? "FLIPX " : "",
 		 (rotation & DRM_MODE_REFLECT_Y) ? "FLIPY " : "",
 		 rotation);
-
-	return buf;
 }
 
 static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
@@ -2991,6 +2988,7 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 		struct drm_plane_state *state;
 		struct drm_plane *plane = &intel_plane->base;
 		struct drm_format_name_buf format_name;
+		char rot_str[48];
 
 		if (!plane->state) {
 			seq_puts(m, "plane->state is NULL!\n");
@@ -3006,6 +3004,8 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 			sprintf(format_name.str, "N/A");
 		}
 
+		plane_rotation(rot_str, sizeof(rot_str), state->rotation);
+
 		seq_printf(m, "\t--Plane id %d: type=%s, crtc_pos=%4dx%4d, crtc_size=%4dx%4d, src_pos=%d.%04ux%d.%04u, src_size=%d.%04ux%d.%04u, format=%s, rotation=%s\n",
 			   plane->base.id,
 			   plane_type(intel_plane->base.type),
@@ -3020,7 +3020,7 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 			   (state->src_h >> 16),
 			   ((state->src_h & 0xffff) * 15625) >> 10,
 			   format_name.str,
-			   plane_rotation(state->rotation));
+			   rot_str);
 	}
 }
 
