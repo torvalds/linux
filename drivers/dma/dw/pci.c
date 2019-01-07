@@ -25,6 +25,7 @@ static struct dw_dma_platform_data mrfld_pdata = {
 	.block_size = 131071,
 	.nr_masters = 1,
 	.data_width = {4},
+	.multi_block = {1, 1, 1, 1, 1, 1, 1, 1},
 };
 
 static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
