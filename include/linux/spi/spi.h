@@ -12,6 +12,7 @@
 #include <linux/kthread.h>
 #include <linux/completion.h>
 #include <linux/scatterlist.h>
+#include <linux/gpio/consumer.h>
 
 struct dma_chan;
 struct property_entry;
@@ -116,7 +117,10 @@ void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
  * @modalias: Name of the driver to use with this device, or an alias
  *	for that name.  This appears in the sysfs "modalias" attribute
  *	for driver coldplugging, and in uevents used for hotplugging
- * @cs_gpio: gpio number of the chipselect line (optional, -ENOENT when
+ * @cs_gpio: LEGACY: gpio number of the chipselect line (optional, -ENOENT when
+ *	not using a GPIO line) use cs_gpiod in new drivers by opting in on
+ *	the spi_master.
+ * @cs_gpiod: gpio descriptor of the chipselect line (optional, NULL when
  *	not using a GPIO line)
  *
  * @statistics: statistics for the spi_device
@@ -163,7 +167,8 @@ struct spi_device {
 	void			*controller_data;
 	char			modalias[SPI_NAME_SIZE];
 	const char		*driver_override;
-	int			cs_gpio;	/* chip select gpio */
+	int			cs_gpio;	/* LEGACY: chip select gpio */
+	struct gpio_desc	*cs_gpiod;	/* chip select gpio desc */
 
 	/* the statistics */
 	struct spi_statistics	statistics;
@@ -376,9 +381,17 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	     controller has native support for memory like operations.
  * @unprepare_message: undo any work done by prepare_message().
  * @slave_abort: abort the ongoing transfer request on an SPI slave controller
- * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
- *	number. Any individual value may be -ENOENT for CS lines that
+ * @cs_gpios: LEGACY: array of GPIO descs to use as chip select lines; one per
+ *	CS number. Any individual value may be -ENOENT for CS lines that
+ *	are not GPIOs (driven by the SPI controller itself). Use the cs_gpiods
+ *	in new drivers.
+ * @cs_gpiods: Array of GPIO descs to use as chip select lines; one per CS
+ *	number. Any individual value may be NULL for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
+ * @use_gpio_descriptors: Turns on the code in the SPI core to parse and grab
+ *	GPIO descriptors rather than using global GPIO numbers grabbed by the
+ *	driver. This will fill in @cs_gpiods and @cs_gpios should not be used,
+ *	and SPI devices will have the cs_gpiod assigned rather than cs_gpio.
  * @statistics: statistics for the spi_controller
  * @dma_tx: DMA transmit channel
  * @dma_rx: DMA receive channel
@@ -557,6 +570,8 @@ struct spi_controller {
 
 	/* gpio chip select */
 	int			*cs_gpios;
+	struct gpio_desc	**cs_gpiods;
+	bool			use_gpio_descriptors;
 
 	/* statistics */
 	struct spi_statistics	statistics;
