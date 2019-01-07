@@ -1384,7 +1384,7 @@ int kbase_jd_submit(struct kbase_context *kctx,
 #define compiletime_assert(x, msg) do { switch (0) { case 0: case (x):; } } \
 while (false)
 #endif
-		compiletime_assert((1 << (8*sizeof(user_atom.atom_number))) ==
+		compiletime_assert((1 << (8*sizeof(user_atom.atom_number))) >=
 					BASE_JD_ATOM_COUNT,
 			"BASE_JD_ATOM_COUNT and base_atom_id type out of sync");
 		compiletime_assert(sizeof(user_atom.pre_dep[0].atom_id) ==

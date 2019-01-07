@@ -64,7 +64,7 @@ typedef struct base_mem_handle {
  * we decide to make the number of semaphores a configurable
  * option.
  */
-#define BASE_JD_ATOM_COUNT              256
+#define BASE_JD_ATOM_COUNT              512
 
 #define BASEP_JD_SEM_PER_WORD_LOG2      5
 #define BASEP_JD_SEM_PER_WORD           (1 << BASEP_JD_SEM_PER_WORD_LOG2)
@@ -831,7 +831,7 @@ enum kbase_jd_atom_state {
 	KBASE_JD_ATOM_STATE_COMPLETED
 };
 
-typedef u8 base_atom_id; /**< Type big enough to store an atom number in */
+typedef u16 base_atom_id; /**< Type big enough to store an atom number in */
 
 struct base_dependency {
 	base_atom_id  atom_id;               /**< An atom number */
