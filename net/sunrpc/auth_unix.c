@@ -87,7 +87,7 @@ unx_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 	if (!uid_eq(cred->cr_cred->fsuid, acred->cred->fsuid) || !gid_eq(cred->cr_cred->fsgid, acred->cred->fsgid))
 		return 0;
 
-	if (acred->cred && acred->cred->group_info != NULL)
+	if (acred->cred->group_info != NULL)
 		groups = acred->cred->group_info->ngroups;
 	if (groups > UNX_NGROUPS)
 		groups = UNX_NGROUPS;
