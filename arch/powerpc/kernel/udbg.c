@@ -74,7 +74,7 @@ void __init udbg_early_init(void)
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG
-	console_loglevel = 10;
+	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
 
 	register_early_udbg_console();
 #endif
