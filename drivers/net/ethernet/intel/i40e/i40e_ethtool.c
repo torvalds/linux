@@ -2635,10 +2635,10 @@ static int i40e_set_phys_id(struct net_device *netdev,
 	default:
 		break;
 	}
-		if (ret)
-			return -ENOENT;
-		else
-			return 0;
+	if (ret)
+		return -ENOENT;
+	else
+		return 0;
 }
 
 /* NOTE: i40e hardware uses a conversion factor of 2 for Interrupt
