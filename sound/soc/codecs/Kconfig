@@ -65,6 +65,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS43130 if I2C
+	select SND_SOC_CS4341 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS53L30 if I2C
@@ -129,6 +130,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM5102A
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
+	select SND_SOC_RK3328
 	select SND_SOC_RT274 if I2C
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
@@ -542,6 +544,12 @@ config SND_SOC_CS43130
         tristate "Cirrus Logic CS43130 CODEC"
         depends on I2C
 
+config SND_SOC_CS4341
+	tristate "Cirrus Logic CS4341 CODEC"
+	depends on I2C || SPI_MASTER
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+
 # Cirrus Logic CS4349 HiFi DAC
 config SND_SOC_CS4349
 	tristate "Cirrus Logic CS4349 CODEC"
@@ -798,6 +806,10 @@ config SND_SOC_PCM512x_SPI
 	depends on SPI_MASTER
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
+
+config SND_SOC_RK3328
+	tristate "Rockchip RK3328 audio CODEC"
+	select REGMAP_MMIO
 
 config SND_SOC_RL6231
 	tristate
@@ -1211,7 +1223,8 @@ config SND_SOC_WM8903
 	depends on I2C
 
 config SND_SOC_WM8904
-	tristate
+	tristate "Wolfson Microelectronics WM8904 CODEC"
+	depends on I2C
 
 config SND_SOC_WM8940
         tristate
