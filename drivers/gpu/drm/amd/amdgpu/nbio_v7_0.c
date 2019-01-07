@@ -27,12 +27,10 @@
 #include "nbio/nbio_7_0_default.h"
 #include "nbio/nbio_7_0_offset.h"
 #include "nbio/nbio_7_0_sh_mask.h"
+#include "nbio/nbio_7_0_smn.h"
 #include "vega10_enum.h"
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a05c
-
-#define smnCPM_CONTROL                                                                                  0x11180460
-#define smnPCIE_CNTL2                                                                                   0x11180070
 
 static u32 nbio_v7_0_get_rev_id(struct amdgpu_device *adev)
 {

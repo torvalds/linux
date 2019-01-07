@@ -27,12 +27,8 @@
 #include "nbio/nbio_6_1_default.h"
 #include "nbio/nbio_6_1_offset.h"
 #include "nbio/nbio_6_1_sh_mask.h"
+#include "nbio/nbio_6_1_smn.h"
 #include "vega10_enum.h"
-
-#define smnCPM_CONTROL                                                                                  0x11180460
-#define smnPCIE_CNTL2                                                                                   0x11180070
-#define smnPCIE_CONFIG_CNTL                                                                             0x11180044
-#define smnPCIE_CI_CNTL                                                                                 0x11180080
 
 static u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev)
 {
