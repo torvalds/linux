@@ -705,6 +705,83 @@ static int vega20_upload_dpm_max_level(struct smu_context *smu)
 	return ret;
 }
 
+static int vega20_force_clk_levels(struct smu_context *smu,
+			enum pp_clock_type type, uint32_t mask)
+{
+	struct vega20_dpm_table *dpm_table;
+	struct vega20_single_dpm_table *single_dpm_table;
+	uint32_t soft_min_level, soft_max_level;
+	int ret;
+
+	soft_min_level = mask ? (ffs(mask) - 1) : 0;
+	soft_max_level = mask ? (fls(mask) - 1) : 0;
+
+	dpm_table = smu->smu_dpm.dpm_context;
+
+	switch (type) {
+	case PP_SCLK:
+		single_dpm_table = &(dpm_table->gfx_table);
+
+		if (soft_max_level >= single_dpm_table->count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level, single_dpm_table->count - 1);
+			return -EINVAL;
+		}
+
+		single_dpm_table->dpm_state.soft_min_level =
+			single_dpm_table->dpm_levels[soft_min_level].value;
+		single_dpm_table->dpm_state.soft_max_level =
+			single_dpm_table->dpm_levels[soft_max_level].value;
+
+		ret = vega20_upload_dpm_min_level(smu);
+		if (ret) {
+			pr_err("Failed to upload boot level to lowest!\n");
+			return ret;
+		}
+
+		ret = vega20_upload_dpm_max_level(smu);
+		if (ret) {
+			pr_err("Failed to upload dpm max level to highest!\n");
+			return ret;
+		}
+
+		break;
+
+	case PP_MCLK:
+		single_dpm_table = &(dpm_table->mem_table);
+
+		if (soft_max_level >= single_dpm_table->count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level, single_dpm_table->count - 1);
+			return -EINVAL;
+		}
+
+		single_dpm_table->dpm_state.soft_min_level =
+			single_dpm_table->dpm_levels[soft_min_level].value;
+		single_dpm_table->dpm_state.soft_max_level =
+			single_dpm_table->dpm_levels[soft_max_level].value;
+
+		ret = vega20_upload_dpm_min_level(smu);
+		if (ret) {
+			pr_err("Failed to upload boot level to lowest!\n");
+			return ret;
+		}
+
+		ret = vega20_upload_dpm_max_level(smu);
+		if (ret) {
+			pr_err("Failed to upload dpm max level to highest!\n");
+			return ret;
+		}
+
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -716,6 +793,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.set_default_dpm_table = vega20_set_default_dpm_table,
 	.populate_umd_state_clk = vega20_populate_umd_state_clk,
 	.print_clk_levels = vega20_print_clk_levels,
+	.force_clk_levels = vega20_force_clk_levels,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

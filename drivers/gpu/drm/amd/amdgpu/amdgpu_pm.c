@@ -801,7 +801,9 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (adev->powerplay.pp_funcs->force_clock_level)
+	if (is_support_sw_smu(adev))
+		ret = smu_force_clk_levels(&adev->smu, PP_SCLK, mask);
+	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
 
 	if (ret)
@@ -839,7 +841,9 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (adev->powerplay.pp_funcs->force_clock_level)
+	if (is_support_sw_smu(adev))
+		ret = smu_force_clk_levels(&adev->smu, PP_MCLK, mask);
+	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
 
 	if (ret)

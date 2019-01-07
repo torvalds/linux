@@ -222,6 +222,7 @@ struct pptable_funcs {
 	int (*set_default_dpm_table)(struct smu_context *smu);
 	int (*populate_umd_state_clk)(struct smu_context *smu);
 	int (*print_clk_levels)(struct smu_context *smu, enum pp_clock_type type, char *buf);
+	int (*force_clk_levels)(struct smu_context *smu, enum pp_clock_type type, uint32_t mask);
 };
 
 struct smu_funcs
@@ -344,6 +345,8 @@ struct smu_funcs
 	((smu)->funcs->get_current_clk_freq? (smu)->funcs->get_current_clk_freq((smu), (clk_id), (value)) : 0)
 #define smu_print_clk_levels(smu, type, buf) \
 	((smu)->ppt_funcs->print_clk_levels ? (smu)->ppt_funcs->print_clk_levels((smu), (type), (buf)) : 0)
+#define smu_force_clk_levels(smu, type, level) \
+	((smu)->ppt_funcs->force_clk_levels ? (smu)->ppt_funcs->force_clk_levels((smu), (type), (level)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \
