@@ -1804,7 +1804,7 @@ static const struct clk_ops da7219_dai_clks_ops = {
 	.is_prepared = da7219_dai_clks_is_prepared,
 };
 
-static void da7219_register_dai_clks(struct snd_soc_component *component)
+static int da7219_register_dai_clks(struct snd_soc_component *component)
 {
 	struct device *dev = component->dev;
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
@@ -1812,9 +1812,17 @@ static void da7219_register_dai_clks(struct snd_soc_component *component)
 	struct clk_init_data init = {};
 	struct clk *dai_clks;
 	struct clk_lookup *dai_clks_lookup;
+	const char *parent_name;
 
-	init.parent_names = NULL;
-	init.num_parents = 0;
+	if (da7219->mclk) {
+		parent_name = __clk_get_name(da7219->mclk);
+		init.parent_names = &parent_name;
+		init.num_parents = 1;
+	} else {
+		init.parent_names = NULL;
+		init.num_parents = 0;
+	}
+
 	init.name = pdata->dai_clks_name;
 	init.ops = &da7219_dai_clks_ops;
 	da7219->dai_clks_hw.init = &init;
@@ -1823,7 +1831,7 @@ static void da7219_register_dai_clks(struct snd_soc_component *component)
 	if (IS_ERR(dai_clks)) {
 		dev_warn(dev, "Failed to register DAI clocks: %ld\n",
 			 PTR_ERR(dai_clks));
-		return;
+		return PTR_ERR(dai_clks);
 	}
 	da7219->dai_clks = dai_clks;
 
@@ -1835,13 +1843,18 @@ static void da7219_register_dai_clks(struct snd_soc_component *component)
 		dai_clks_lookup = clkdev_create(dai_clks, pdata->dai_clks_name,
 						"%s", dev_name(dev));
 		if (!dai_clks_lookup)
-			dev_warn(dev, "Failed to create DAI clkdev");
+			return -ENOMEM;
 		else
 			da7219->dai_clks_lookup = dai_clks_lookup;
 	}
+
+	return 0;
 }
 #else
-static inline void da7219_register_dai_clks(struct snd_soc_component *component) {}
+static inline int da7219_register_dai_clks(struct snd_soc_component *component)
+{
+	return 0;
+}
 #endif /* CONFIG_COMMON_CLK */
 
 static void da7219_handle_pdata(struct snd_soc_component *component)
@@ -1853,8 +1866,6 @@ static void da7219_handle_pdata(struct snd_soc_component *component)
 		u8 micbias_lvl = 0;
 
 		da7219->wakeup_source = pdata->wakeup_source;
-
-		da7219_register_dai_clks(component);
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
@@ -1946,6 +1957,11 @@ static int da7219_probe(struct snd_soc_component *component)
 			da7219->mclk = NULL;
 		}
 	}
+
+	/* Register CCF DAI clock control */
+	ret = da7219_register_dai_clks(component);
+	if (ret)
+		return ret;
 
 	/* Default PC counter to free-running */
 	snd_soc_component_update_bits(component, DA7219_PC_COUNT, DA7219_PC_FREERUN_MASK,
