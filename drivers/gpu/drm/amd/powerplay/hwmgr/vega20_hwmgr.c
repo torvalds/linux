@@ -980,6 +980,9 @@ static int vega20_od8_set_feature_capabilities(
 	    pp_table->FanZeroRpmEnable)
 		od_settings->overdrive8_capabilities |= OD8_FAN_ZERO_RPM_CONTROL;
 
+	if (!od_settings->overdrive8_capabilities)
+		hwmgr->od_enabled = false;
+
 	return 0;
 }
 
