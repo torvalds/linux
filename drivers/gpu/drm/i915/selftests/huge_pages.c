@@ -1702,7 +1702,6 @@ int i915_gem_huge_page_mock_selftests(void)
 	};
 	struct drm_i915_private *dev_priv;
 	struct i915_hw_ppgtt *ppgtt;
-	struct pci_dev *pdev;
 	int err;
 
 	dev_priv = mock_gem_device();
@@ -1711,9 +1710,6 @@ int i915_gem_huge_page_mock_selftests(void)
 
 	/* Pretend to be a device which supports the 48b PPGTT */
 	mkwrite_device_info(dev_priv)->ppgtt = INTEL_PPGTT_FULL_4LVL;
-
-	pdev = dev_priv->drm.pdev;
-	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(39));
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	ppgtt = i915_ppgtt_create(dev_priv, ERR_PTR(-ENODEV));
