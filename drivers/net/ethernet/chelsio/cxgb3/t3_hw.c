@@ -1082,7 +1082,7 @@ int t3_check_fw_version(struct adapter *adapter)
 		CH_WARN(adapter, "found newer FW version(%u.%u), "
 		        "driver compiled for version %u.%u\n", major, minor,
 			FW_VERSION_MAJOR, FW_VERSION_MINOR);
-			return 0;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -3619,7 +3619,7 @@ int t3_reset_adapter(struct adapter *adapter)
 
 static int init_parity(struct adapter *adap)
 {
-		int i, err, addr;
+	int i, err, addr;
 
 	if (t3_read_reg(adap, A_SG_CONTEXT_CMD) & F_CONTEXT_CMD_BUSY)
 		return -EBUSY;
@@ -3806,6 +3806,6 @@ int t3_replay_prep_adapter(struct adapter *adapter)
 		p->phy.ops->power_down(&p->phy, 1);
 	}
 
-return 0;
+	return 0;
 }
 
