@@ -390,7 +390,6 @@ static int imx_pwm_probe(struct platform_device *pdev)
 	const struct imx_pwm_data *data;
 	struct imx_chip *imx;
 	struct resource *r;
-	int ret = 0;
 
 	if (!of_id)
 		return -ENODEV;
@@ -400,6 +399,8 @@ static int imx_pwm_probe(struct platform_device *pdev)
 	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
 	if (imx == NULL)
 		return -ENOMEM;
+
+	platform_set_drvdata(pdev, imx);
 
 	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imx->clk_ipg)) {
@@ -431,12 +432,7 @@ static int imx_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(imx->mmio_base))
 		return PTR_ERR(imx->mmio_base);
 
-	ret = pwmchip_add(&imx->chip);
-	if (ret < 0)
-		return ret;
-
-	platform_set_drvdata(pdev, imx);
-	return 0;
+	return pwmchip_add(&imx->chip);
 }
 
 static int imx_pwm_remove(struct platform_device *pdev)
