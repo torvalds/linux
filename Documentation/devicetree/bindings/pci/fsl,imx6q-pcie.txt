@@ -50,6 +50,7 @@ Additional required properties for imx7d-pcie:
 - reset-names: Must contain the following entires:
 	       - "pciephy"
 	       - "apps"
+	       - "turnoff"
 
 Example:
 

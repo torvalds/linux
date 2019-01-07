@@ -106,10 +106,10 @@
 	(NIXGE_JUMBO_MTU + NIXGE_HDR_SIZE + NIXGE_TRL_SIZE)
 
 struct nixge_hw_dma_bd {
-	u32 next;
-	u32 reserved1;
-	u32 phys;
-	u32 reserved2;
+	u32 next_lo;
+	u32 next_hi;
+	u32 phys_lo;
+	u32 phys_hi;
 	u32 reserved3;
 	u32 reserved4;
 	u32 cntrl;
@@ -119,10 +119,38 @@ struct nixge_hw_dma_bd {
 	u32 app2;
 	u32 app3;
 	u32 app4;
-	u32 sw_id_offset;
-	u32 reserved5;
+	u32 sw_id_offset_lo;
+	u32 sw_id_offset_hi;
 	u32 reserved6;
 };
+
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+#define nixge_hw_dma_bd_set_addr(bd, field, addr) \
+	do { \
+		(bd)->field##_lo = lower_32_bits((addr)); \
+		(bd)->field##_hi = upper_32_bits((addr)); \
+	} while (0)
+#else
+#define nixge_hw_dma_bd_set_addr(bd, field, addr) \
+	((bd)->field##_lo = lower_32_bits((addr)))
+#endif
+
+#define nixge_hw_dma_bd_set_phys(bd, addr) \
+	nixge_hw_dma_bd_set_addr((bd), phys, (addr))
+
+#define nixge_hw_dma_bd_set_next(bd, addr) \
+	nixge_hw_dma_bd_set_addr((bd), next, (addr))
+
+#define nixge_hw_dma_bd_set_offset(bd, addr) \
+	nixge_hw_dma_bd_set_addr((bd), sw_id_offset, (addr))
+
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+#define nixge_hw_dma_bd_get_addr(bd, field) \
+	(dma_addr_t)((((u64)(bd)->field##_hi) << 32) | ((bd)->field##_lo))
+#else
+#define nixge_hw_dma_bd_get_addr(bd, field) \
+	(dma_addr_t)((bd)->field##_lo)
+#endif
 
 struct nixge_tx_skb {
 	struct sk_buff *skb;
@@ -176,6 +204,15 @@ static void nixge_dma_write_reg(struct nixge_priv *priv, off_t offset, u32 val)
 	writel(val, priv->dma_regs + offset);
 }
 
+static void nixge_dma_write_desc_reg(struct nixge_priv *priv, off_t offset,
+				     dma_addr_t addr)
+{
+	writel(lower_32_bits(addr), priv->dma_regs + offset);
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	writel(upper_32_bits(addr), priv->dma_regs + offset + 4);
+#endif
+}
+
 static u32 nixge_dma_read_reg(const struct nixge_priv *priv, off_t offset)
 {
 	return readl(priv->dma_regs + offset);
@@ -202,13 +239,22 @@ static u32 nixge_ctrl_read_reg(struct nixge_priv *priv, off_t offset)
 static void nixge_hw_dma_bd_release(struct net_device *ndev)
 {
 	struct nixge_priv *priv = netdev_priv(ndev);
+	dma_addr_t phys_addr;
+	struct sk_buff *skb;
 	int i;
 
 	for (i = 0; i < RX_BD_NUM; i++) {
-		dma_unmap_single(ndev->dev.parent, priv->rx_bd_v[i].phys,
-				 NIXGE_MAX_JUMBO_FRAME_SIZE, DMA_FROM_DEVICE);
-		dev_kfree_skb((struct sk_buff *)
-			      (priv->rx_bd_v[i].sw_id_offset));
+		phys_addr = nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[i],
+						     phys);
+
+		dma_unmap_single(ndev->dev.parent, phys_addr,
+				 NIXGE_MAX_JUMBO_FRAME_SIZE,
+				 DMA_FROM_DEVICE);
+
+		skb = (struct sk_buff *)(uintptr_t)
+			nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[i],
+						 sw_id_offset);
+		dev_kfree_skb(skb);
 	}
 
 	if (priv->rx_bd_v)
@@ -231,6 +277,7 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 {
 	struct nixge_priv *priv = netdev_priv(ndev);
 	struct sk_buff *skb;
+	dma_addr_t phys;
 	u32 cr;
 	int i;
 
@@ -259,27 +306,30 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 		goto out;
 
 	for (i = 0; i < TX_BD_NUM; i++) {
-		priv->tx_bd_v[i].next = priv->tx_bd_p +
-				      sizeof(*priv->tx_bd_v) *
-				      ((i + 1) % TX_BD_NUM);
+		nixge_hw_dma_bd_set_next(&priv->tx_bd_v[i],
+					 priv->tx_bd_p +
+					 sizeof(*priv->tx_bd_v) *
+					 ((i + 1) % TX_BD_NUM));
 	}
 
 	for (i = 0; i < RX_BD_NUM; i++) {
-		priv->rx_bd_v[i].next = priv->rx_bd_p +
-				      sizeof(*priv->rx_bd_v) *
-				      ((i + 1) % RX_BD_NUM);
+		nixge_hw_dma_bd_set_next(&priv->rx_bd_v[i],
+					 priv->rx_bd_p
+					 + sizeof(*priv->rx_bd_v) *
+					 ((i + 1) % RX_BD_NUM));
 
 		skb = netdev_alloc_skb_ip_align(ndev,
 						NIXGE_MAX_JUMBO_FRAME_SIZE);
 		if (!skb)
 			goto out;
 
-		priv->rx_bd_v[i].sw_id_offset = (u32)skb;
-		priv->rx_bd_v[i].phys =
-			dma_map_single(ndev->dev.parent,
-				       skb->data,
-				       NIXGE_MAX_JUMBO_FRAME_SIZE,
-				       DMA_FROM_DEVICE);
+		nixge_hw_dma_bd_set_offset(&priv->rx_bd_v[i], (uintptr_t)skb);
+		phys = dma_map_single(ndev->dev.parent, skb->data,
+				      NIXGE_MAX_JUMBO_FRAME_SIZE,
+				      DMA_FROM_DEVICE);
+
+		nixge_hw_dma_bd_set_phys(&priv->rx_bd_v[i], phys);
+
 		priv->rx_bd_v[i].cntrl = NIXGE_MAX_JUMBO_FRAME_SIZE;
 	}
 
@@ -312,18 +362,18 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 	/* Populate the tail pointer and bring the Rx Axi DMA engine out of
 	 * halted state. This will make the Rx side ready for reception.
 	 */
-	nixge_dma_write_reg(priv, XAXIDMA_RX_CDESC_OFFSET, priv->rx_bd_p);
+	nixge_dma_write_desc_reg(priv, XAXIDMA_RX_CDESC_OFFSET, priv->rx_bd_p);
 	cr = nixge_dma_read_reg(priv, XAXIDMA_RX_CR_OFFSET);
 	nixge_dma_write_reg(priv, XAXIDMA_RX_CR_OFFSET,
 			    cr | XAXIDMA_CR_RUNSTOP_MASK);
-	nixge_dma_write_reg(priv, XAXIDMA_RX_TDESC_OFFSET, priv->rx_bd_p +
+	nixge_dma_write_desc_reg(priv, XAXIDMA_RX_TDESC_OFFSET, priv->rx_bd_p +
 			    (sizeof(*priv->rx_bd_v) * (RX_BD_NUM - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
 	 * Tx channel is now ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting.
 	 */
-	nixge_dma_write_reg(priv, XAXIDMA_TX_CDESC_OFFSET, priv->tx_bd_p);
+	nixge_dma_write_desc_reg(priv, XAXIDMA_TX_CDESC_OFFSET, priv->tx_bd_p);
 	cr = nixge_dma_read_reg(priv, XAXIDMA_TX_CR_OFFSET);
 	nixge_dma_write_reg(priv, XAXIDMA_TX_CR_OFFSET,
 			    cr | XAXIDMA_CR_RUNSTOP_MASK);
@@ -451,7 +501,7 @@ static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct nixge_priv *priv = netdev_priv(ndev);
 	struct nixge_hw_dma_bd *cur_p;
 	struct nixge_tx_skb *tx_skb;
-	dma_addr_t tail_p;
+	dma_addr_t tail_p, cur_phys;
 	skb_frag_t *frag;
 	u32 num_frag;
 	u32 ii;
@@ -466,15 +516,16 @@ static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		return NETDEV_TX_OK;
 	}
 
-	cur_p->phys = dma_map_single(ndev->dev.parent, skb->data,
-				     skb_headlen(skb), DMA_TO_DEVICE);
-	if (dma_mapping_error(ndev->dev.parent, cur_p->phys))
+	cur_phys = dma_map_single(ndev->dev.parent, skb->data,
+				  skb_headlen(skb), DMA_TO_DEVICE);
+	if (dma_mapping_error(ndev->dev.parent, cur_phys))
 		goto drop;
+	nixge_hw_dma_bd_set_phys(cur_p, cur_phys);
 
 	cur_p->cntrl = skb_headlen(skb) | XAXIDMA_BD_CTRL_TXSOF_MASK;
 
 	tx_skb->skb = NULL;
-	tx_skb->mapping = cur_p->phys;
+	tx_skb->mapping = cur_phys;
 	tx_skb->size = skb_headlen(skb);
 	tx_skb->mapped_as_page = false;
 
@@ -485,16 +536,17 @@ static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		tx_skb = &priv->tx_skb[priv->tx_bd_tail];
 		frag = &skb_shinfo(skb)->frags[ii];
 
-		cur_p->phys = skb_frag_dma_map(ndev->dev.parent, frag, 0,
-					       skb_frag_size(frag),
-					       DMA_TO_DEVICE);
-		if (dma_mapping_error(ndev->dev.parent, cur_p->phys))
+		cur_phys = skb_frag_dma_map(ndev->dev.parent, frag, 0,
+					    skb_frag_size(frag),
+					    DMA_TO_DEVICE);
+		if (dma_mapping_error(ndev->dev.parent, cur_phys))
 			goto frag_err;
+		nixge_hw_dma_bd_set_phys(cur_p, cur_phys);
 
 		cur_p->cntrl = skb_frag_size(frag);
 
 		tx_skb->skb = NULL;
-		tx_skb->mapping = cur_p->phys;
+		tx_skb->mapping = cur_phys;
 		tx_skb->size = skb_frag_size(frag);
 		tx_skb->mapped_as_page = true;
 	}
@@ -506,7 +558,7 @@ static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	tail_p = priv->tx_bd_p + sizeof(*priv->tx_bd_v) * priv->tx_bd_tail;
 	/* Start the transfer */
-	nixge_dma_write_reg(priv, XAXIDMA_TX_TDESC_OFFSET, tail_p);
+	nixge_dma_write_desc_reg(priv, XAXIDMA_TX_TDESC_OFFSET, tail_p);
 	++priv->tx_bd_tail;
 	priv->tx_bd_tail %= TX_BD_NUM;
 
@@ -537,7 +589,7 @@ static int nixge_recv(struct net_device *ndev, int budget)
 	struct nixge_priv *priv = netdev_priv(ndev);
 	struct sk_buff *skb, *new_skb;
 	struct nixge_hw_dma_bd *cur_p;
-	dma_addr_t tail_p = 0;
+	dma_addr_t tail_p = 0, cur_phys = 0;
 	u32 packets = 0;
 	u32 length = 0;
 	u32 size = 0;
@@ -549,13 +601,15 @@ static int nixge_recv(struct net_device *ndev, int budget)
 		tail_p = priv->rx_bd_p + sizeof(*priv->rx_bd_v) *
 			 priv->rx_bd_ci;
 
-		skb = (struct sk_buff *)(cur_p->sw_id_offset);
+		skb = (struct sk_buff *)(uintptr_t)
+			nixge_hw_dma_bd_get_addr(cur_p, sw_id_offset);
 
 		length = cur_p->status & XAXIDMA_BD_STS_ACTUAL_LEN_MASK;
 		if (length > NIXGE_MAX_JUMBO_FRAME_SIZE)
 			length = NIXGE_MAX_JUMBO_FRAME_SIZE;
 
-		dma_unmap_single(ndev->dev.parent, cur_p->phys,
+		dma_unmap_single(ndev->dev.parent,
+				 nixge_hw_dma_bd_get_addr(cur_p, phys),
 				 NIXGE_MAX_JUMBO_FRAME_SIZE,
 				 DMA_FROM_DEVICE);
 
@@ -579,16 +633,17 @@ static int nixge_recv(struct net_device *ndev, int budget)
 		if (!new_skb)
 			return packets;
 
-		cur_p->phys = dma_map_single(ndev->dev.parent, new_skb->data,
-					     NIXGE_MAX_JUMBO_FRAME_SIZE,
-					     DMA_FROM_DEVICE);
-		if (dma_mapping_error(ndev->dev.parent, cur_p->phys)) {
+		cur_phys = dma_map_single(ndev->dev.parent, new_skb->data,
+					  NIXGE_MAX_JUMBO_FRAME_SIZE,
+					  DMA_FROM_DEVICE);
+		if (dma_mapping_error(ndev->dev.parent, cur_phys)) {
 			/* FIXME: bail out and clean up */
 			netdev_err(ndev, "Failed to map ...\n");
 		}
+		nixge_hw_dma_bd_set_phys(cur_p, cur_phys);
 		cur_p->cntrl = NIXGE_MAX_JUMBO_FRAME_SIZE;
 		cur_p->status = 0;
-		cur_p->sw_id_offset = (u32)new_skb;
+		nixge_hw_dma_bd_set_offset(cur_p, (uintptr_t)new_skb);
 
 		++priv->rx_bd_ci;
 		priv->rx_bd_ci %= RX_BD_NUM;
@@ -599,7 +654,7 @@ static int nixge_recv(struct net_device *ndev, int budget)
 	ndev->stats.rx_bytes += size;
 
 	if (tail_p)
-		nixge_dma_write_reg(priv, XAXIDMA_RX_TDESC_OFFSET, tail_p);
+		nixge_dma_write_desc_reg(priv, XAXIDMA_RX_TDESC_OFFSET, tail_p);
 
 	return packets;
 }
@@ -637,6 +692,7 @@ static irqreturn_t nixge_tx_irq(int irq, void *_ndev)
 	struct nixge_priv *priv = netdev_priv(_ndev);
 	struct net_device *ndev = _ndev;
 	unsigned int status;
+	dma_addr_t phys;
 	u32 cr;
 
 	status = nixge_dma_read_reg(priv, XAXIDMA_TX_SR_OFFSET);
@@ -650,9 +706,11 @@ static irqreturn_t nixge_tx_irq(int irq, void *_ndev)
 		return IRQ_NONE;
 	}
 	if (status & XAXIDMA_IRQ_ERROR_MASK) {
+		phys = nixge_hw_dma_bd_get_addr(&priv->tx_bd_v[priv->tx_bd_ci],
+						phys);
+
 		netdev_err(ndev, "DMA Tx error 0x%x\n", status);
-		netdev_err(ndev, "Current BD is at: 0x%x\n",
-			   (priv->tx_bd_v[priv->tx_bd_ci]).phys);
+		netdev_err(ndev, "Current BD is at: 0x%llx\n", (u64)phys);
 
 		cr = nixge_dma_read_reg(priv, XAXIDMA_TX_CR_OFFSET);
 		/* Disable coalesce, delay timer and error interrupts */
@@ -678,6 +736,7 @@ static irqreturn_t nixge_rx_irq(int irq, void *_ndev)
 	struct nixge_priv *priv = netdev_priv(_ndev);
 	struct net_device *ndev = _ndev;
 	unsigned int status;
+	dma_addr_t phys;
 	u32 cr;
 
 	status = nixge_dma_read_reg(priv, XAXIDMA_RX_SR_OFFSET);
@@ -697,9 +756,10 @@ static irqreturn_t nixge_rx_irq(int irq, void *_ndev)
 		return IRQ_NONE;
 	}
 	if (status & XAXIDMA_IRQ_ERROR_MASK) {
+		phys = nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[priv->rx_bd_ci],
+						phys);
 		netdev_err(ndev, "DMA Rx error 0x%x\n", status);
-		netdev_err(ndev, "Current BD is at: 0x%x\n",
-			   (priv->rx_bd_v[priv->rx_bd_ci]).phys);
+		netdev_err(ndev, "Current BD is at: 0x%llx\n", (u64)phys);
 
 		cr = nixge_dma_read_reg(priv, XAXIDMA_TX_CR_OFFSET);
 		/* Disable coalesce, delay timer and error interrupts */
@@ -735,10 +795,10 @@ static void nixge_dma_err_handler(unsigned long data)
 		tx_skb = &lp->tx_skb[i];
 		nixge_tx_skb_unmap(lp, tx_skb);
 
-		cur_p->phys = 0;
+		nixge_hw_dma_bd_set_phys(cur_p, 0);
 		cur_p->cntrl = 0;
 		cur_p->status = 0;
-		cur_p->sw_id_offset = 0;
+		nixge_hw_dma_bd_set_offset(cur_p, 0);
 	}
 
 	for (i = 0; i < RX_BD_NUM; i++) {
@@ -779,18 +839,18 @@ static void nixge_dma_err_handler(unsigned long data)
 	/* Populate the tail pointer and bring the Rx Axi DMA engine out of
 	 * halted state. This will make the Rx side ready for reception.
 	 */
-	nixge_dma_write_reg(lp, XAXIDMA_RX_CDESC_OFFSET, lp->rx_bd_p);
+	nixge_dma_write_desc_reg(lp, XAXIDMA_RX_CDESC_OFFSET, lp->rx_bd_p);
 	cr = nixge_dma_read_reg(lp, XAXIDMA_RX_CR_OFFSET);
 	nixge_dma_write_reg(lp, XAXIDMA_RX_CR_OFFSET,
 			    cr | XAXIDMA_CR_RUNSTOP_MASK);
-	nixge_dma_write_reg(lp, XAXIDMA_RX_TDESC_OFFSET, lp->rx_bd_p +
+	nixge_dma_write_desc_reg(lp, XAXIDMA_RX_TDESC_OFFSET, lp->rx_bd_p +
 			    (sizeof(*lp->rx_bd_v) * (RX_BD_NUM - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
 	 * Tx channel is now ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting
 	 */
-	nixge_dma_write_reg(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
+	nixge_dma_write_desc_reg(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
 	cr = nixge_dma_read_reg(lp, XAXIDMA_TX_CR_OFFSET);
 	nixge_dma_write_reg(lp, XAXIDMA_TX_CR_OFFSET,
 			    cr | XAXIDMA_CR_RUNSTOP_MASK);

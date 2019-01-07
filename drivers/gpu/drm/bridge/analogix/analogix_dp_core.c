@@ -554,7 +554,7 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 		if (retval < 0)
 			return retval;
 
-		dev_info(dp->dev, "Link Training Clock Recovery success\n");
+		dev_dbg(dp->dev, "Link Training Clock Recovery success\n");
 		dp->link_train.lt_state = EQUALIZER_TRAINING;
 	} else {
 		for (lane = 0; lane < lane_count; lane++) {
@@ -634,7 +634,7 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		if (retval < 0)
 			return retval;
 
-		dev_info(dp->dev, "Link Training success!\n");
+		dev_dbg(dp->dev, "Link Training success!\n");
 		analogix_dp_get_link_bandwidth(dp, &reg);
 		dp->link_train.link_rate = reg;
 		dev_dbg(dp->dev, "final bandwidth = %.2x\n",

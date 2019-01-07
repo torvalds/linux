@@ -391,7 +391,6 @@ out:
 struct xcopy_pt_cmd {
 	bool remote_port;
 	struct se_cmd se_cmd;
-	struct xcopy_op *xcopy_op;
 	struct completion xpt_passthrough_sem;
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 };
@@ -596,8 +595,6 @@ static int target_xcopy_setup_pt_cmd(
 	 * X-COPY PUSH or X-COPY PULL based upon where the CDB was received.
 	 */
 	target_xcopy_init_pt_lun(se_dev, cmd, remote_port);
-
-	xpt_cmd->xcopy_op = xop;
 	target_xcopy_setup_pt_port(xpt_cmd, xop, remote_port);
 
 	cmd->tag = 0;

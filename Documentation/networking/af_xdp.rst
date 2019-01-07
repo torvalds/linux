@@ -159,8 +159,8 @@ log2(2048) LSB of the addr will be masked off, meaning that 2048, 2050
 and 3000 refers to the same chunk.
 
 
-UMEM Completetion Ring
-~~~~~~~~~~~~~~~~~~~~~~
+UMEM Completion Ring
+~~~~~~~~~~~~~~~~~~~~
 
 The Completion Ring is used transfer ownership of UMEM frames from
 kernel-space to user-space. Just like the Fill ring, UMEM indicies are

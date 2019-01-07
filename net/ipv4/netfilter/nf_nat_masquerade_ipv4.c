@@ -104,12 +104,26 @@ static int masq_device_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+static int inet_cmp(struct nf_conn *ct, void *ptr)
+{
+	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
+	struct net_device *dev = ifa->ifa_dev->dev;
+	struct nf_conntrack_tuple *tuple;
+
+	if (!device_cmp(ct, (void *)(long)dev->ifindex))
+		return 0;
+
+	tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+
+	return ifa->ifa_address == tuple->dst.u3.ip;
+}
+
 static int masq_inet_event(struct notifier_block *this,
 			   unsigned long event,
 			   void *ptr)
 {
 	struct in_device *idev = ((struct in_ifaddr *)ptr)->ifa_dev;
-	struct netdev_notifier_info info;
+	struct net *net = dev_net(idev->dev);
 
 	/* The masq_dev_notifier will catch the case of the device going
 	 * down.  So if the inetdev is dead and being destroyed we have
@@ -119,8 +133,10 @@ static int masq_inet_event(struct notifier_block *this,
 	if (idev->dead)
 		return NOTIFY_DONE;
 
-	netdev_notifier_info_init(&info, idev->dev);
-	return masq_device_event(this, event, &info);
+	if (event == NETDEV_DOWN)
+		nf_ct_iterate_cleanup_net(net, inet_cmp, ptr, 0, 0);
+
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block masq_dev_notifier = {
@@ -131,28 +147,50 @@ static struct notifier_block masq_inet_notifier = {
 	.notifier_call	= masq_inet_event,
 };
 
-static atomic_t masquerade_notifier_refcount = ATOMIC_INIT(0);
+static int masq_refcnt;
+static DEFINE_MUTEX(masq_mutex);
 
-void nf_nat_masquerade_ipv4_register_notifier(void)
+int nf_nat_masquerade_ipv4_register_notifier(void)
 {
+	int ret = 0;
+
+	mutex_lock(&masq_mutex);
 	/* check if the notifier was already set */
-	if (atomic_inc_return(&masquerade_notifier_refcount) > 1)
-		return;
+	if (++masq_refcnt > 1)
+		goto out_unlock;
 
 	/* Register for device down reports */
-	register_netdevice_notifier(&masq_dev_notifier);
+	ret = register_netdevice_notifier(&masq_dev_notifier);
+	if (ret)
+		goto err_dec;
 	/* Register IP address change reports */
-	register_inetaddr_notifier(&masq_inet_notifier);
+	ret = register_inetaddr_notifier(&masq_inet_notifier);
+	if (ret)
+		goto err_unregister;
+
+	mutex_unlock(&masq_mutex);
+	return ret;
+
+err_unregister:
+	unregister_netdevice_notifier(&masq_dev_notifier);
+err_dec:
+	masq_refcnt--;
+out_unlock:
+	mutex_unlock(&masq_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv4_register_notifier);
 
 void nf_nat_masquerade_ipv4_unregister_notifier(void)
 {
+	mutex_lock(&masq_mutex);
 	/* check if the notifier still has clients */
-	if (atomic_dec_return(&masquerade_notifier_refcount) > 0)
-		return;
+	if (--masq_refcnt > 0)
+		goto out_unlock;
 
 	unregister_netdevice_notifier(&masq_dev_notifier);
 	unregister_inetaddr_notifier(&masq_inet_notifier);
+out_unlock:
+	mutex_unlock(&masq_mutex);
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv4_unregister_notifier);

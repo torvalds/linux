@@ -241,7 +241,7 @@ static void parse_gb_huge_pages(char *param, char *val)
 }
 
 
-static int handle_mem_options(void)
+static void handle_mem_options(void)
 {
 	char *args = (char *)get_cmd_line_ptr();
 	size_t len = strlen((char *)args);
@@ -251,7 +251,7 @@ static int handle_mem_options(void)
 
 	if (!strstr(args, "memmap=") && !strstr(args, "mem=") &&
 		!strstr(args, "hugepages"))
-		return 0;
+		return;
 
 	tmp_cmdline = malloc(len + 1);
 	if (!tmp_cmdline)
@@ -269,8 +269,7 @@ static int handle_mem_options(void)
 		/* Stop at -- */
 		if (!val && strcmp(param, "--") == 0) {
 			warn("Only '--' specified in cmdline");
-			free(tmp_cmdline);
-			return -1;
+			goto out;
 		}
 
 		if (!strcmp(param, "memmap")) {
@@ -283,16 +282,16 @@ static int handle_mem_options(void)
 			if (!strcmp(p, "nopentium"))
 				continue;
 			mem_size = memparse(p, &p);
-			if (mem_size == 0) {
-				free(tmp_cmdline);
-				return -EINVAL;
-			}
+			if (mem_size == 0)
+				goto out;
+
 			mem_limit = mem_size;
 		}
 	}
 
+out:
 	free(tmp_cmdline);
-	return 0;
+	return;
 }
 
 /*
@@ -578,7 +577,6 @@ static void process_mem_region(struct mem_vector *entry,
 			       unsigned long image_size)
 {
 	struct mem_vector region, overlap;
-	struct slot_area slot_area;
 	unsigned long start_orig, end;
 	struct mem_vector cur_entry;
 

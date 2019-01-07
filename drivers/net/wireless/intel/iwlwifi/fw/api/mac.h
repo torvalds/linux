@@ -578,4 +578,18 @@ struct iwl_he_sta_context_cmd {
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
 } __packed; /* STA_CONTEXT_DOT11AX_API_S */
 
+/**
+ * struct iwl_he_monitor_cmd - configure air sniffer for HE
+ * @bssid: the BSSID to sniff for
+ * @reserved1: reserved for dword alignment
+ * @aid: the AID to track on for HE MU
+ * @reserved2: reserved for future use
+ */
+struct iwl_he_monitor_cmd {
+	u8 bssid[6];
+	__le16 reserved1;
+	__le16 aid;
+	u8 reserved2[6];
+} __packed; /* HE_AIR_SNIFFER_CONFIG_CMD_API_S_VER_1 */
+
 #endif /* __iwl_fw_api_mac_h__ */

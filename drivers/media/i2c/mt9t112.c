@@ -888,12 +888,6 @@ static int mt9t112_get_selection(struct v4l2_subdev *sd,
 		sel->r.width = MAX_WIDTH;
 		sel->r.height = MAX_HEIGHT;
 		return 0;
-	case V4L2_SEL_TGT_CROP_DEFAULT:
-		sel->r.left = 0;
-		sel->r.top = 0;
-		sel->r.width = VGA_WIDTH;
-		sel->r.height = VGA_HEIGHT;
-		return 0;
 	case V4L2_SEL_TGT_CROP:
 		sel->r = priv->frame;
 		return 0;

@@ -115,7 +115,7 @@ static unsigned int get_entry(void)
 		} else if ((key >= '0' && key <= '9') ||
 			   (key >= 'A' && key <= 'Z') ||
 			   (key >= 'a' && key <= 'z')) {
-			if (len < sizeof entry_buf) {
+			if (len < sizeof(entry_buf)) {
 				entry_buf[len++] = key;
 				putchar(key);
 			}

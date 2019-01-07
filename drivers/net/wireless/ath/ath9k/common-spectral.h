@@ -145,6 +145,23 @@ static inline u8 spectral_max_index(u8 *bins, int num_bins)
 	return m;
 }
 
+static inline u8 spectral_max_index_ht40(u8 *bins)
+{
+	u8 idx;
+
+	idx = spectral_max_index(bins, SPECTRAL_HT20_40_NUM_BINS);
+
+	/* positive values and zero are starting at the beginning
+	 * of the data field.
+	 */
+	return idx % (SPECTRAL_HT20_40_NUM_BINS / 2);
+}
+
+static inline u8 spectral_max_index_ht20(u8 *bins)
+{
+	return spectral_max_index(bins, SPECTRAL_HT20_NUM_BINS);
+}
+
 /* return the bitmap weight from the all/upper/lower bins */
 static inline u8 spectral_bitmap_weight(u8 *bins)
 {

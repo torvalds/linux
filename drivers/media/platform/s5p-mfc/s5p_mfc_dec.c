@@ -271,8 +271,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
 
-	strlcpy(cap->driver, S5P_MFC_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, dev->vfd_dec->name, sizeof(cap->card));
+	strscpy(cap->driver, S5P_MFC_NAME, sizeof(cap->driver));
+	strscpy(cap->card, dev->vfd_dec->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(&dev->plat_dev->dev));
 	/*
@@ -308,7 +308,7 @@ static int vidioc_enum_fmt(struct file *file, struct v4l2_fmtdesc *f,
 	if (i == ARRAY_SIZE(formats))
 		return -EINVAL;
 	fmt = &formats[i];
-	strlcpy(f->description, fmt->name, sizeof(f->description));
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	return 0;
 }
@@ -632,9 +632,9 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return -EIO;
 	}
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-		return vb2_qbuf(&ctx->vq_src, buf);
+		return vb2_qbuf(&ctx->vq_src, NULL, buf);
 	else if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return vb2_qbuf(&ctx->vq_dst, buf);
+		return vb2_qbuf(&ctx->vq_dst, NULL, buf);
 	return -EINVAL;
 }
 

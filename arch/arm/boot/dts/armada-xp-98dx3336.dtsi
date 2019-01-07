@@ -35,5 +35,5 @@
 };
 
 &pp0 {
-	compatible = "marvell,prestera-98dx3336";
+	compatible = "marvell,prestera-98dx3336", "marvell,prestera";
 };

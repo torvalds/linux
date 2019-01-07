@@ -191,6 +191,12 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	 * the packet
 	 */
 	max_data = asoc->frag_point;
+	if (unlikely(!max_data)) {
+		max_data = sctp_min_frag_point(sctp_sk(asoc->base.sk),
+					       sctp_datachk_len(&asoc->stream));
+		pr_warn_ratelimited("%s: asoc:%p frag_point is zero, forcing max_data to default minimum (%Zu)",
+				    __func__, asoc, max_data);
+	}
 
 	/* If the the peer requested that we authenticate DATA chunks
 	 * we need to account for bundling of the AUTH chunks along with

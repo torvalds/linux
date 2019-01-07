@@ -62,6 +62,10 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 			new_pte |= _PAGE_DIRTY;
 	} while(!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 
+	/* Make sure this is a hugetlb entry */
+	if (old_pte & (H_PAGE_THP_HUGE | _PAGE_DEVMAP))
+		return 0;
+
 	rflags = htab_convert_pte_flags(new_pte);
 	if (unlikely(mmu_psize == MMU_PAGE_16G))
 		offset = PTRS_PER_PUD;

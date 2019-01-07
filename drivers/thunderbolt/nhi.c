@@ -1,10 +1,11 @@
 /*
- * Thunderbolt Cactus Ridge driver - NHI driver
+ * Thunderbolt driver - NHI driver
  *
  * The NHI (native host interface) is the pci device that allows us to send and
  * receive frames from the thunderbolt bus.
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/pm_runtime.h>
@@ -95,9 +96,9 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 	else
 		new = old & ~mask;
 
-	dev_info(&ring->nhi->pdev->dev,
-		 "%s interrupt at register %#x bit %d (%#x -> %#x)\n",
-		 active ? "enabling" : "disabling", reg, bit, old, new);
+	dev_dbg(&ring->nhi->pdev->dev,
+		"%s interrupt at register %#x bit %d (%#x -> %#x)\n",
+		active ? "enabling" : "disabling", reg, bit, old, new);
 
 	if (new == old)
 		dev_WARN(&ring->nhi->pdev->dev,
@@ -476,8 +477,9 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 				     void *poll_data)
 {
 	struct tb_ring *ring = NULL;
-	dev_info(&nhi->pdev->dev, "allocating %s ring %d of size %d\n",
-		 transmit ? "TX" : "RX", hop, size);
+
+	dev_dbg(&nhi->pdev->dev, "allocating %s ring %d of size %d\n",
+		transmit ? "TX" : "RX", hop, size);
 
 	/* Tx Ring 2 is reserved for E2E workaround */
 	if (transmit && hop == RING_E2E_UNUSED_HOPID)
@@ -585,8 +587,8 @@ void tb_ring_start(struct tb_ring *ring)
 		dev_WARN(&ring->nhi->pdev->dev, "ring already started\n");
 		goto err;
 	}
-	dev_info(&ring->nhi->pdev->dev, "starting %s %d\n",
-		 RING_TYPE(ring), ring->hop);
+	dev_dbg(&ring->nhi->pdev->dev, "starting %s %d\n",
+		RING_TYPE(ring), ring->hop);
 
 	if (ring->flags & RING_FLAG_FRAME) {
 		/* Means 4096 */
@@ -647,8 +649,8 @@ void tb_ring_stop(struct tb_ring *ring)
 {
 	spin_lock_irq(&ring->nhi->lock);
 	spin_lock(&ring->lock);
-	dev_info(&ring->nhi->pdev->dev, "stopping %s %d\n",
-		 RING_TYPE(ring), ring->hop);
+	dev_dbg(&ring->nhi->pdev->dev, "stopping %s %d\n",
+		RING_TYPE(ring), ring->hop);
 	if (ring->nhi->going_away)
 		goto err;
 	if (!ring->running) {
@@ -716,10 +718,8 @@ void tb_ring_free(struct tb_ring *ring)
 	ring->descriptors_dma = 0;
 
 
-	dev_info(&ring->nhi->pdev->dev,
-		 "freeing %s %d\n",
-		 RING_TYPE(ring),
-		 ring->hop);
+	dev_dbg(&ring->nhi->pdev->dev, "freeing %s %d\n", RING_TYPE(ring),
+		ring->hop);
 
 	/**
 	 * ring->work can no longer be scheduled (it is scheduled only
@@ -931,7 +931,8 @@ static int nhi_runtime_resume(struct device *dev)
 static void nhi_shutdown(struct tb_nhi *nhi)
 {
 	int i;
-	dev_info(&nhi->pdev->dev, "shutdown\n");
+
+	dev_dbg(&nhi->pdev->dev, "shutdown\n");
 
 	for (i = 0; i < nhi->hop_count; i++) {
 		if (nhi->tx_rings[i])
@@ -1059,7 +1060,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	dev_info(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
+	dev_dbg(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
 
 	res = tb_domain_add(tb);
 	if (res) {

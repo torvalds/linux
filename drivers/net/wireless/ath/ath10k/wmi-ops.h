@@ -210,6 +210,9 @@ struct wmi_ops {
 					       u32 fw_feature_bitmap);
 	int (*get_vdev_subtype)(struct ath10k *ar,
 				enum wmi_vdev_subtype subtype);
+	struct sk_buff *(*gen_wow_config_pno)(struct ath10k *ar,
+					      u32 vdev_id,
+					      struct wmi_pno_scan_req *pno_scan);
 	struct sk_buff *(*gen_pdev_bss_chan_info_req)
 					(struct ath10k *ar,
 					 enum wmi_bss_survey_req_type type);
@@ -1357,6 +1360,24 @@ ath10k_wmi_wow_del_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id)
 		return PTR_ERR(skb);
 
 	cmd_id = ar->wmi.cmd->wow_del_wake_pattern_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_wow_config_pno(struct ath10k *ar, u32 vdev_id,
+			  struct wmi_pno_scan_req  *pno_scan)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_config_pno)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_config_pno(ar, vdev_id, pno_scan);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->network_list_offload_config_cmdid;
 	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
 }
 

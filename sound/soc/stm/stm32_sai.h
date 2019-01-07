@@ -91,6 +91,9 @@
 #define SAI_XCR1_OSR_SHIFT	26
 #define SAI_XCR1_OSR		BIT(SAI_XCR1_OSR_SHIFT)
 
+#define SAI_XCR1_MCKEN_SHIFT	27
+#define SAI_XCR1_MCKEN		BIT(SAI_XCR1_MCKEN_SHIFT)
+
 /******************* Bit definition for SAI_XCR2 register *******************/
 #define SAI_XCR2_FTH_SHIFT	0
 #define SAI_XCR2_FTH_MASK	GENMASK(2, SAI_XCR2_FTH_SHIFT)

@@ -133,7 +133,7 @@
 				status = "disabled";
 			};
 
-			spi1: cspi@43fa4000 {
+			spi1: spi@43fa4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx35-cspi";
@@ -174,7 +174,7 @@
 				status = "disabled";
 			};
 
-			spi2: cspi@50010000 {
+			spi2: spi@50010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx35-cspi";

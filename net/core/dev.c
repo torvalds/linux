@@ -1976,6 +1976,17 @@ static inline bool skb_loop_sk(struct packet_type *ptype, struct sk_buff *skb)
 	return false;
 }
 
+/**
+ * dev_nit_active - return true if any network interface taps are in use
+ *
+ * @dev: network device to check for the presence of taps
+ */
+bool dev_nit_active(struct net_device *dev)
+{
+	return !list_empty(&ptype_all) || !list_empty(&dev->ptype_all);
+}
+EXPORT_SYMBOL_GPL(dev_nit_active);
+
 /*
  *	Support routine. Sends outgoing frames to any network
  *	taps currently in use.
@@ -1991,6 +2002,9 @@ void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_lock();
 again:
 	list_for_each_entry_rcu(ptype, ptype_list, list) {
+		if (ptype->ignore_outgoing)
+			continue;
+
 		/* Never send packets back to the socket
 		 * they originated from - MvS (miquels@drinkel.ow.org)
 		 */
@@ -2161,6 +2175,20 @@ static bool remove_xps_queue_cpu(struct net_device *dev,
 	return active;
 }
 
+static void reset_xps_maps(struct net_device *dev,
+			   struct xps_dev_maps *dev_maps,
+			   bool is_rxqs_map)
+{
+	if (is_rxqs_map) {
+		static_key_slow_dec_cpuslocked(&xps_rxqs_needed);
+		RCU_INIT_POINTER(dev->xps_rxqs_map, NULL);
+	} else {
+		RCU_INIT_POINTER(dev->xps_cpus_map, NULL);
+	}
+	static_key_slow_dec_cpuslocked(&xps_needed);
+	kfree_rcu(dev_maps, rcu);
+}
+
 static void clean_xps_maps(struct net_device *dev, const unsigned long *mask,
 			   struct xps_dev_maps *dev_maps, unsigned int nr_ids,
 			   u16 offset, u16 count, bool is_rxqs_map)
@@ -2172,18 +2200,15 @@ static void clean_xps_maps(struct net_device *dev, const unsigned long *mask,
 	     j < nr_ids;)
 		active |= remove_xps_queue_cpu(dev, dev_maps, j, offset,
 					       count);
-	if (!active) {
-		if (is_rxqs_map) {
-			RCU_INIT_POINTER(dev->xps_rxqs_map, NULL);
-		} else {
-			RCU_INIT_POINTER(dev->xps_cpus_map, NULL);
+	if (!active)
+		reset_xps_maps(dev, dev_maps, is_rxqs_map);
 
-			for (i = offset + (count - 1); count--; i--)
-				netdev_queue_numa_node_write(
-					netdev_get_tx_queue(dev, i),
-							NUMA_NO_NODE);
+	if (!is_rxqs_map) {
+		for (i = offset + (count - 1); count--; i--) {
+			netdev_queue_numa_node_write(
+				netdev_get_tx_queue(dev, i),
+				NUMA_NO_NODE);
 		}
-		kfree_rcu(dev_maps, rcu);
 	}
 }
 
@@ -2220,10 +2245,6 @@ static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 		       false);
 
 out_no_maps:
-	if (static_key_enabled(&xps_rxqs_needed))
-		static_key_slow_dec_cpuslocked(&xps_rxqs_needed);
-
-	static_key_slow_dec_cpuslocked(&xps_needed);
 	mutex_unlock(&xps_map_mutex);
 	cpus_read_unlock();
 }
@@ -2341,9 +2362,12 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 	if (!new_dev_maps)
 		goto out_no_new_maps;
 
-	static_key_slow_inc_cpuslocked(&xps_needed);
-	if (is_rxqs_map)
-		static_key_slow_inc_cpuslocked(&xps_rxqs_needed);
+	if (!dev_maps) {
+		/* Increment static keys at most once per type */
+		static_key_slow_inc_cpuslocked(&xps_needed);
+		if (is_rxqs_map)
+			static_key_slow_inc_cpuslocked(&xps_rxqs_needed);
+	}
 
 	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
 	     j < nr_ids;) {
@@ -2441,13 +2465,8 @@ out_no_new_maps:
 	}
 
 	/* free map if not active */
-	if (!active) {
-		if (is_rxqs_map)
-			RCU_INIT_POINTER(dev->xps_rxqs_map, NULL);
-		else
-			RCU_INIT_POINTER(dev->xps_cpus_map, NULL);
-		kfree_rcu(dev_maps, rcu);
-	}
+	if (!active)
+		reset_xps_maps(dev, dev_maps, is_rxqs_map);
 
 out_no_maps:
 	mutex_unlock(&xps_map_mutex);
@@ -3230,7 +3249,7 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	unsigned int len;
 	int rc;
 
-	if (!list_empty(&ptype_all) || !list_empty(&dev->ptype_all))
+	if (dev_nit_active(dev))
 		dev_queue_xmit_nit(skb, dev);
 
 	len = skb->len;
@@ -3250,7 +3269,7 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *de
 	while (skb) {
 		struct sk_buff *next = skb->next;
 
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 		rc = xmit_one(skb, dev, txq, next != NULL);
 		if (unlikely(!dev_xmit_complete(rc))) {
 			skb->next = next;
@@ -3258,7 +3277,7 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *de
 		}
 
 		skb = next;
-		if (netif_xmit_stopped(txq) && skb) {
+		if (netif_tx_queue_stopped(txq) && skb) {
 			rc = NETDEV_TX_BUSY;
 			break;
 		}
@@ -3350,7 +3369,7 @@ struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *d
 
 	for (; skb != NULL; skb = next) {
 		next = skb->next;
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 
 		/* in case skb wont be segmented, point to itself */
 		skb->prev = skb;
@@ -4277,6 +4296,9 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	struct netdev_rx_queue *rxqueue;
 	void *orig_data, *orig_data_end;
 	u32 metalen, act = XDP_DROP;
+	__be16 orig_eth_type;
+	struct ethhdr *eth;
+	bool orig_bcast;
 	int hlen, off;
 	u32 mac_len;
 
@@ -4317,6 +4339,9 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	xdp->data_hard_start = skb->data - skb_headroom(skb);
 	orig_data_end = xdp->data_end;
 	orig_data = xdp->data;
+	eth = (struct ethhdr *)xdp->data;
+	orig_bcast = is_multicast_ether_addr_64bits(eth->h_dest);
+	orig_eth_type = eth->h_proto;
 
 	rxqueue = netif_get_rxqueue(skb);
 	xdp->rxq = &rxqueue->xdp_rxq;
@@ -4338,6 +4363,14 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 		skb_set_tail_pointer(skb, xdp->data_end - xdp->data);
 		skb->len -= off;
 
+	}
+
+	/* check if XDP changed eth hdr such SKB needs update */
+	eth = (struct ethhdr *)xdp->data;
+	if ((orig_eth_type != eth->h_proto) ||
+	    (orig_bcast != is_multicast_ether_addr_64bits(eth->h_dest))) {
+		__skb_push(skb, ETH_HLEN);
+		skb->protocol = eth_type_trans(skb, skb->dev);
 	}
 
 	switch (act) {
@@ -4981,7 +5014,7 @@ static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemallo
 		struct net_device *orig_dev = skb->dev;
 		struct packet_type *pt_prev = NULL;
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		__netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
 		if (!pt_prev)
 			continue;
@@ -5137,7 +5170,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		net_timestamp_check(netdev_tstamp_prequeue, skb);
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		if (!skb_defer_rx_timestamp(skb))
 			list_add_tail(&skb->list, &sublist);
 	}
@@ -5148,7 +5181,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 		rcu_read_lock();
 		list_for_each_entry_safe(skb, next, head, list) {
 			xdp_prog = rcu_dereference(skb->dev->xdp_prog);
-			list_del(&skb->list);
+			skb_list_del_init(skb);
 			if (do_xdp_generic(xdp_prog, skb) == XDP_PASS)
 				list_add_tail(&skb->list, &sublist);
 		}
@@ -5167,7 +5200,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 
 			if (cpu >= 0) {
 				/* Will be handled, remove from list */
-				list_del(&skb->list);
+				skb_list_del_init(skb);
 				enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
 			}
 		}
@@ -5314,8 +5347,7 @@ static void __napi_gro_flush_chain(struct napi_struct *napi, u32 index,
 	list_for_each_entry_safe_reverse(skb, p, head, list) {
 		if (flush_old && NAPI_GRO_CB(skb)->age == jiffies)
 			return;
-		list_del(&skb->list);
-		skb->next = NULL;
+		skb_list_del_init(skb);
 		napi_gro_complete(skb);
 		napi->gro_hash[index].count--;
 	}
@@ -5430,7 +5462,7 @@ static void gro_flush_oldest(struct list_head *head)
 	/* Do not adjust napi->gro_hash[].count, caller is adding a new
 	 * SKB to the chain.
 	 */
-	list_del(&oldest->list);
+	skb_list_del_init(oldest);
 	napi_gro_complete(oldest);
 }
 
@@ -5500,8 +5532,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	ret = NAPI_GRO_CB(skb)->free ? GRO_MERGED_FREE : GRO_MERGED;
 
 	if (pp) {
-		list_del(&pp->list);
-		pp->next = NULL;
+		skb_list_del_init(pp);
 		napi_gro_complete(pp);
 		napi->gro_hash[hash].count--;
 	}
@@ -5629,6 +5660,10 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	skb->vlan_tci = 0;
 	skb->dev = napi->dev;
 	skb->skb_iif = 0;
+
+	/* eth_type_trans() assumes pkt_type is PACKET_HOST */
+	skb->pkt_type = PACKET_HOST;
+
 	skb->encapsulation = 0;
 	skb_shinfo(skb)->gso_type = 0;
 	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
@@ -5940,11 +5975,14 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		if (work_done)
 			timeout = n->dev->gro_flush_timeout;
 
+		/* When the NAPI instance uses a timeout and keeps postponing
+		 * it, we need to bound somehow the time packets are kept in
+		 * the GRO layer
+		 */
+		napi_gro_flush(n, !!timeout);
 		if (timeout)
 			hrtimer_start(&n->timer, ns_to_ktime(timeout),
 				      HRTIMER_MODE_REL_PINNED);
-		else
-			napi_gro_flush(n, false);
 	}
 	if (unlikely(!list_empty(&n->poll_list))) {
 		/* If n->poll_list is not empty, we need to mask irqs */
@@ -6171,8 +6209,8 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 	napi->skb = NULL;
 	napi->poll = poll;
 	if (weight > NAPI_POLL_WEIGHT)
-		pr_err_once("netif_napi_add() called with weight %d on device %s\n",
-			    weight, dev->name);
+		netdev_err_once(dev, "%s() called with weight %d\n", __func__,
+				weight);
 	napi->weight = weight;
 	list_add(&napi->dev_list, &dev->napi_list);
 	napi->dev = dev;

@@ -17,7 +17,6 @@
 
 #include <linux/tracepoint.h>
 #include "mt76x0.h"
-#include "mac.h"
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mt76x0
@@ -178,11 +177,11 @@ DECLARE_EVENT_CLASS(dev_simple_evt,
 );
 
 TRACE_EVENT(mt76x0_rx,
-	TP_PROTO(struct mt76_dev *dev, struct mt76x0_rxwi *rxwi, u32 f),
+	TP_PROTO(struct mt76_dev *dev, struct mt76x02_rxwi *rxwi, u32 f),
 	TP_ARGS(dev, rxwi, f),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-		__field_struct(struct mt76x0_rxwi, rxwi)
+		__field_struct(struct mt76x02_rxwi, rxwi)
 		__field(u32, fce_info)
 	),
 	TP_fast_assign(
@@ -197,13 +196,13 @@ TRACE_EVENT(mt76x0_rx,
 
 TRACE_EVENT(mt76x0_tx,
 	TP_PROTO(struct mt76_dev *dev, struct sk_buff *skb,
-		 struct mt76_sta *sta, struct mt76_txwi *h),
+		 struct mt76x02_sta *sta, struct mt76x02_txwi *h),
 	TP_ARGS(dev, skb, sta, h),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-		__field_struct(struct mt76_txwi, h)
+		__field_struct(struct mt76x02_txwi, h)
 		__field(struct sk_buff *, skb)
-		__field(struct mt76_sta *, sta)
+		__field(struct mt76x02_sta *, sta)
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
@@ -211,11 +210,11 @@ TRACE_EVENT(mt76x0_tx,
 		__entry->skb = skb;
 		__entry->sta = sta;
 	),
-	TP_printk(DEV_PR_FMT "skb:%p sta:%p  flg:%04hx rate_ctl:%04hx "
+	TP_printk(DEV_PR_FMT "skb:%p sta:%p  flg:%04hx rate:%04hx "
 		  "ack:%02hhx wcid:%02hhx len_ctl:%05hx", DEV_PR_ARG,
 		  __entry->skb, __entry->sta,
 		  le16_to_cpu(__entry->h.flags),
-		  le16_to_cpu(__entry->h.rate_ctl),
+		  le16_to_cpu(__entry->h.rate),
 		  __entry->h.ack_ctl, __entry->h.wcid,
 		  le16_to_cpu(__entry->h.len_ctl))
 );

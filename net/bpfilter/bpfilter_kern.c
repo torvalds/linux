@@ -92,6 +92,7 @@ static int __init load_umh(void)
 	int err;
 
 	/* fork usermode process */
+	info.cmdline = "bpfilter_umh";
 	err = fork_usermode_blob(&bpfilter_umh_start,
 				 &bpfilter_umh_end - &bpfilter_umh_start,
 				 &info);

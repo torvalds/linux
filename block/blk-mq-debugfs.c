@@ -102,6 +102,14 @@ static int blk_flags_show(struct seq_file *m, const unsigned long flags,
 	return 0;
 }
 
+static int queue_pm_only_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+
+	seq_printf(m, "%d\n", atomic_read(&q->pm_only));
+	return 0;
+}
+
 #define QUEUE_FLAG_NAME(name) [QUEUE_FLAG_##name] = #name
 static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(QUEUED),
@@ -132,7 +140,6 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(REGISTERED),
 	QUEUE_FLAG_NAME(SCSI_PASSTHROUGH),
 	QUEUE_FLAG_NAME(QUIESCED),
-	QUEUE_FLAG_NAME(PREEMPT_ONLY),
 };
 #undef QUEUE_FLAG_NAME
 
@@ -209,6 +216,7 @@ static ssize_t queue_write_hint_store(void *data, const char __user *buf,
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_queue_attrs[] = {
 	{ "poll_stat", 0400, queue_poll_stat_show },
 	{ "requeue_list", 0400, .seq_ops = &queue_requeue_list_seq_ops },
+	{ "pm_only", 0600, queue_pm_only_show, NULL },
 	{ "state", 0600, queue_state_show, queue_state_write },
 	{ "write_hints", 0600, queue_write_hint_show, queue_write_hint_store },
 	{ "zone_wlock", 0400, queue_zone_wlock_show, NULL },
@@ -275,7 +283,6 @@ static const char *const op_name[] = {
 	REQ_OP_NAME(WRITE),
 	REQ_OP_NAME(FLUSH),
 	REQ_OP_NAME(DISCARD),
-	REQ_OP_NAME(ZONE_REPORT),
 	REQ_OP_NAME(SECURE_ERASE),
 	REQ_OP_NAME(ZONE_RESET),
 	REQ_OP_NAME(WRITE_SAME),
@@ -423,8 +430,7 @@ static void hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
 {
 	const struct show_busy_params *params = data;
 
-	if (blk_mq_map_queue(rq->q, rq->mq_ctx->cpu) == params->hctx &&
-	    blk_mq_rq_state(rq) != MQ_RQ_IDLE)
+	if (blk_mq_map_queue(rq->q, rq->mq_ctx->cpu) == params->hctx)
 		__blk_mq_debugfs_rq_show(params->m,
 					 list_entry_rq(&rq->queuelist));
 }

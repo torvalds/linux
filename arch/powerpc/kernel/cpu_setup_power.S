@@ -147,8 +147,8 @@ __init_hvmode_206:
 	rldicl.	r0,r3,4,63
 	bnelr
 	ld	r5,CPU_SPEC_FEATURES(r4)
-	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE)
-	xor	r5,r5,r6
+	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE | CPU_FTR_P9_TM_HV_ASSIST)
+	andc	r5,r5,r6
 	std	r5,CPU_SPEC_FEATURES(r4)
 	blr
 

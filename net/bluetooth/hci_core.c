@@ -2839,6 +2839,20 @@ struct bdaddr_list *hci_bdaddr_list_lookup(struct list_head *bdaddr_list,
 	return NULL;
 }
 
+struct bdaddr_list_with_irk *hci_bdaddr_list_lookup_with_irk(
+				struct list_head *bdaddr_list, bdaddr_t *bdaddr,
+				u8 type)
+{
+	struct bdaddr_list_with_irk *b;
+
+	list_for_each_entry(b, bdaddr_list, list) {
+		if (!bacmp(&b->bdaddr, bdaddr) && b->bdaddr_type == type)
+			return b;
+	}
+
+	return NULL;
+}
+
 void hci_bdaddr_list_clear(struct list_head *bdaddr_list)
 {
 	struct bdaddr_list *b, *n;
@@ -2871,6 +2885,35 @@ int hci_bdaddr_list_add(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 	return 0;
 }
 
+int hci_bdaddr_list_add_with_irk(struct list_head *list, bdaddr_t *bdaddr,
+					u8 type, u8 *peer_irk, u8 *local_irk)
+{
+	struct bdaddr_list_with_irk *entry;
+
+	if (!bacmp(bdaddr, BDADDR_ANY))
+		return -EBADF;
+
+	if (hci_bdaddr_list_lookup(list, bdaddr, type))
+		return -EEXIST;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	bacpy(&entry->bdaddr, bdaddr);
+	entry->bdaddr_type = type;
+
+	if (peer_irk)
+		memcpy(entry->peer_irk, peer_irk, 16);
+
+	if (local_irk)
+		memcpy(entry->local_irk, local_irk, 16);
+
+	list_add(&entry->list, list);
+
+	return 0;
+}
+
 int hci_bdaddr_list_del(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
@@ -2881,6 +2924,26 @@ int hci_bdaddr_list_del(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 	}
 
 	entry = hci_bdaddr_list_lookup(list, bdaddr, type);
+	if (!entry)
+		return -ENOENT;
+
+	list_del(&entry->list);
+	kfree(entry);
+
+	return 0;
+}
+
+int hci_bdaddr_list_del_with_irk(struct list_head *list, bdaddr_t *bdaddr,
+							u8 type)
+{
+	struct bdaddr_list_with_irk *entry;
+
+	if (!bacmp(bdaddr, BDADDR_ANY)) {
+		hci_bdaddr_list_clear(list);
+		return 0;
+	}
+
+	entry = hci_bdaddr_list_lookup_with_irk(list, bdaddr, type);
 	if (!entry)
 		return -ENOENT;
 
@@ -3084,6 +3147,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_max_tx_time = 0x0148;
 	hdev->le_max_rx_len = 0x001b;
 	hdev->le_max_rx_time = 0x0148;
+	hdev->le_max_key_size = SMP_MAX_ENC_KEY_SIZE;
+	hdev->le_min_key_size = SMP_MIN_ENC_KEY_SIZE;
 	hdev->le_tx_def_phys = HCI_LE_SET_PHY_1M;
 	hdev->le_rx_def_phys = HCI_LE_SET_PHY_1M;
 

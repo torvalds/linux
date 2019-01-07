@@ -146,8 +146,6 @@ static int nes_netdev_open(struct net_device *netdev)
 	struct list_head *list_pos, *list_temp;
 	unsigned long flags;
 
-	assert(nesdev != NULL);
-
 	if (nesvnic->netdev_open == 1)
 		return 0;
 

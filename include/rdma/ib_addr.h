@@ -46,7 +46,6 @@
 #include <net/ip.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
-#include <net/ipv6.h>
 #include <net/net_namespace.h>
 
 /**
@@ -95,19 +94,17 @@ int rdma_translate_ip(const struct sockaddr *addr,
  * @timeout_ms: Amount of time to wait for the address resolution to complete.
  * @callback: Call invoked once address resolution has completed, timed out,
  *   or been canceled.  A status of 0 indicates success.
+ * @resolve_by_gid_attr:	Resolve the ip based on the GID attribute from
+ *				rdma_dev_addr.
  * @context: User-specified context associated with the call.
  */
 int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
-		    struct rdma_dev_addr *addr, int timeout_ms,
+		    struct rdma_dev_addr *addr, unsigned long timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
-		    void *context);
+		    bool resolve_by_gid_attr, void *context);
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
-
-void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
-		    const struct net_device *dev,
-		    const unsigned char *dst_dev_addr);
 
 int rdma_addr_size(const struct sockaddr *addr);
 int rdma_addr_size_in6(struct sockaddr_in6 *addr);

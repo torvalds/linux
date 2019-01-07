@@ -1078,6 +1078,6 @@ static struct spi_driver ad9523_driver = {
 };
 module_spi_driver(ad9523_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD9523 CLOCKDIST/PLL");
 MODULE_LICENSE("GPL v2");

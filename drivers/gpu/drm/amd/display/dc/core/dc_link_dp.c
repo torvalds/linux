@@ -2389,6 +2389,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	dp_wa_power_up_0010FA(link, dpcd_data, sizeof(dpcd_data));
 
+	down_strm_port_count.raw = dpcd_data[DP_DOWN_STREAM_PORT_COUNT -
+				 DP_DPCD_REV];
+
 	link->dpcd_caps.allow_invalid_MSA_timing_param =
 		down_strm_port_count.bits.IGNORE_MSA_TIMING_PARAM;
 

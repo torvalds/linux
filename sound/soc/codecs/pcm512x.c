@@ -1400,24 +1400,20 @@ static int pcm512x_digital_mute(struct snd_soc_dai *dai, int mute)
 		if (ret != 0) {
 			dev_err(component->dev,
 				"Failed to set digital mute: %d\n", ret);
-			mutex_unlock(&pcm512x->mutex);
-			return ret;
+			goto unlock;
 		}
 
 		regmap_read_poll_timeout(pcm512x->regmap,
 					 PCM512x_ANALOG_MUTE_DET,
 					 mute_det, (mute_det & 0x3) == 0,
 					 200, 10000);
-
-		mutex_unlock(&pcm512x->mutex);
 	} else {
 		pcm512x->mute &= ~0x1;
 		ret = pcm512x_update_mute(pcm512x);
 		if (ret != 0) {
 			dev_err(component->dev,
 				"Failed to update digital mute: %d\n", ret);
-			mutex_unlock(&pcm512x->mutex);
-			return ret;
+			goto unlock;
 		}
 
 		regmap_read_poll_timeout(pcm512x->regmap,
@@ -1428,9 +1424,10 @@ static int pcm512x_digital_mute(struct snd_soc_dai *dai, int mute)
 					 200, 10000);
 	}
 
+unlock:
 	mutex_unlock(&pcm512x->mutex);
 
-	return 0;
+	return ret;
 }
 
 static const struct snd_soc_dai_ops pcm512x_dai_ops = {

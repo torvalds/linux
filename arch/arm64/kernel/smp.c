@@ -602,7 +602,7 @@ static void __init of_parse_and_init_cpus(void)
 {
 	struct device_node *dn;
 
-	for_each_node_by_type(dn, "cpu") {
+	for_each_of_cpu_node(dn) {
 		u64 hwid = of_get_cpu_mpidr(dn);
 
 		if (hwid == INVALID_HWID)

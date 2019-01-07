@@ -831,8 +831,6 @@ static inline int acpi_dma_configure(struct device *dev,
 	return 0;
 }
 
-static inline void acpi_dma_deconfigure(struct device *dev) { }
-
 #define ACPI_PTR(_ptr)	(NULL)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)
@@ -1073,6 +1071,15 @@ static inline int acpi_node_get_property_reference(
 	return __acpi_node_get_property_reference(fwnode, name, index,
 		NR_FWNODE_REFERENCE_ARGS, args);
 }
+
+static inline bool acpi_dev_has_props(const struct acpi_device *adev)
+{
+	return !list_empty(&adev->data.properties);
+}
+
+struct acpi_device_properties *
+acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
+		    const union acpi_object *properties);
 
 int acpi_node_prop_get(const struct fwnode_handle *fwnode, const char *propname,
 		       void **valptr);

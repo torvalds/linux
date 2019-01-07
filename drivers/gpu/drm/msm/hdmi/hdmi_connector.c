@@ -167,8 +167,9 @@ static void enable_hpd_clocks(struct hdmi *hdmi, bool enable)
 	}
 }
 
-static int hpd_enable(struct hdmi_connector *hdmi_connector)
+int msm_hdmi_hpd_enable(struct drm_connector *connector)
 {
+	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
 	struct device *dev = &hdmi->pdev->dev;
@@ -450,7 +451,6 @@ struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi)
 {
 	struct drm_connector *connector = NULL;
 	struct hdmi_connector *hdmi_connector;
-	int ret;
 
 	hdmi_connector = kzalloc(sizeof(*hdmi_connector), GFP_KERNEL);
 	if (!hdmi_connector)
@@ -470,12 +470,6 @@ struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi)
 
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
-
-	ret = hpd_enable(hdmi_connector);
-	if (ret) {
-		dev_err(&hdmi->pdev->dev, "failed to enable HPD: %d\n", ret);
-		return ERR_PTR(ret);
-	}
 
 	drm_connector_attach_encoder(connector, hdmi->encoder);
 

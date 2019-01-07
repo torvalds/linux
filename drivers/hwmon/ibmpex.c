@@ -84,7 +84,7 @@ struct ibmpex_bmc_data {
 
 	struct ipmi_addr	address;
 	struct completion	read_complete;
-	ipmi_user_t		user;
+	struct ipmi_user	*user;
 	int			interface;
 
 	struct kernel_ipmi_msg	tx_message;

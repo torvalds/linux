@@ -185,17 +185,15 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	if (!desc)
 		return;
 
-	pr_info(MPT3SAS_FMT "%s: %s, smid(%d)\n",
-	    ioc->name, calling_function_name, desc, smid);
+	ioc_info(ioc, "%s: %s, smid(%d)\n", calling_function_name, desc, smid);
 
 	if (!mpi_reply)
 		return;
 
 	if (mpi_reply->IOCStatus || mpi_reply->IOCLogInfo)
-		pr_info(MPT3SAS_FMT
-		    "\tiocstatus(0x%04x), loginfo(0x%08x)\n",
-		    ioc->name, le16_to_cpu(mpi_reply->IOCStatus),
-		    le32_to_cpu(mpi_reply->IOCLogInfo));
+		ioc_info(ioc, "\tiocstatus(0x%04x), loginfo(0x%08x)\n",
+			 le16_to_cpu(mpi_reply->IOCStatus),
+			 le32_to_cpu(mpi_reply->IOCLogInfo));
 
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
 	    mpi_request->Function ==
@@ -208,38 +206,32 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		sas_device = mpt3sas_get_sdev_by_handle(ioc,
 		    le16_to_cpu(scsi_reply->DevHandle));
 		if (sas_device) {
-			pr_warn(MPT3SAS_FMT "\tsas_address(0x%016llx), phy(%d)\n",
-				ioc->name, (unsigned long long)
-			    sas_device->sas_address, sas_device->phy);
-			pr_warn(MPT3SAS_FMT
-			    "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
-			    ioc->name, (unsigned long long)
-			    sas_device->enclosure_logical_id, sas_device->slot);
+			ioc_warn(ioc, "\tsas_address(0x%016llx), phy(%d)\n",
+				 (u64)sas_device->sas_address,
+				 sas_device->phy);
+			ioc_warn(ioc, "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
+				 (u64)sas_device->enclosure_logical_id,
+				 sas_device->slot);
 			sas_device_put(sas_device);
 		}
 		if (!sas_device) {
 			pcie_device = mpt3sas_get_pdev_by_handle(ioc,
 				le16_to_cpu(scsi_reply->DevHandle));
 			if (pcie_device) {
-				pr_warn(MPT3SAS_FMT
-				    "\tWWID(0x%016llx), port(%d)\n", ioc->name,
-				    (unsigned long long)pcie_device->wwid,
-				    pcie_device->port_num);
+				ioc_warn(ioc, "\tWWID(0x%016llx), port(%d)\n",
+					 (unsigned long long)pcie_device->wwid,
+					 pcie_device->port_num);
 				if (pcie_device->enclosure_handle != 0)
-					pr_warn(MPT3SAS_FMT
-					    "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
-					    ioc->name, (unsigned long long)
-					    pcie_device->enclosure_logical_id,
-					    pcie_device->slot);
+					ioc_warn(ioc, "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
+						 (u64)pcie_device->enclosure_logical_id,
+						 pcie_device->slot);
 				pcie_device_put(pcie_device);
 			}
 		}
 		if (scsi_reply->SCSIState || scsi_reply->SCSIStatus)
-			pr_info(MPT3SAS_FMT
-			    "\tscsi_state(0x%02x), scsi_status"
-			    "(0x%02x)\n", ioc->name,
-			    scsi_reply->SCSIState,
-			    scsi_reply->SCSIStatus);
+			ioc_info(ioc, "\tscsi_state(0x%02x), scsi_status(0x%02x)\n",
+				 scsi_reply->SCSIState,
+				 scsi_reply->SCSIStatus);
 	}
 }
 
@@ -466,8 +458,7 @@ void mpt3sas_ctl_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 	int i;
 	u8 issue_reset;
 
-	dtmprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: MPT3_IOC_PRE_RESET\n", ioc->name, __func__));
+	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_PRE_RESET\n", __func__));
 	for (i = 0; i < MPI2_DIAG_BUF_TYPE_COUNT; i++) {
 		if (!(ioc->diag_buffer_status[i] &
 		      MPT3_DIAG_BUFFER_IS_REGISTERED))
@@ -487,8 +478,7 @@ void mpt3sas_ctl_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
  */
 void mpt3sas_ctl_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 {
-	dtmprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: MPT3_IOC_AFTER_RESET\n", ioc->name, __func__));
+	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_AFTER_RESET\n", __func__));
 	if (ioc->ctl_cmds.status & MPT3_CMD_PENDING) {
 		ioc->ctl_cmds.status |= MPT3_CMD_RESET;
 		mpt3sas_base_free_smid(ioc, ioc->ctl_cmds.smid);
@@ -506,8 +496,7 @@ void mpt3sas_ctl_reset_done_handler(struct MPT3SAS_ADAPTER *ioc)
 {
 	int i;
 
-	dtmprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: MPT3_IOC_DONE_RESET\n", ioc->name, __func__));
+	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_DONE_RESET\n", __func__));
 
 	for (i = 0; i < MPI2_DIAG_BUF_TYPE_COUNT; i++) {
 		if (!(ioc->diag_buffer_status[i] &
@@ -612,10 +601,10 @@ _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 	}
 
 	if (!found) {
-		dctlprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: handle(0x%04x), lun(%d), no active mid!!\n",
-			ioc->name,
-		    desc, le16_to_cpu(tm_request->DevHandle), lun));
+		dctlprintk(ioc,
+			   ioc_info(ioc, "%s: handle(0x%04x), lun(%d), no active mid!!\n",
+				    desc, le16_to_cpu(tm_request->DevHandle),
+				    lun));
 		tm_reply = ioc->ctl_cmds.reply;
 		tm_reply->DevHandle = tm_request->DevHandle;
 		tm_reply->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
@@ -631,10 +620,10 @@ _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 		return 1;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: handle(0x%04x), lun(%d), task_mid(%d)\n", ioc->name,
-	    desc, le16_to_cpu(tm_request->DevHandle), lun,
-	     le16_to_cpu(tm_request->TaskMID)));
+	dctlprintk(ioc,
+		   ioc_info(ioc, "%s: handle(0x%04x), lun(%d), task_mid(%d)\n",
+			    desc, le16_to_cpu(tm_request->DevHandle), lun,
+			    le16_to_cpu(tm_request->TaskMID)));
 	return 0;
 }
 
@@ -672,8 +661,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	issue_reset = 0;
 
 	if (ioc->ctl_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: ctl_cmd in use\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: ctl_cmd in use\n", __func__);
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -682,28 +670,23 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
 		if (wait_state_count++ == 10) {
-			pr_err(MPT3SAS_FMT
-			    "%s: failed due to ioc not operational\n",
-			    ioc->name, __func__);
+			ioc_err(ioc, "%s: failed due to ioc not operational\n",
+				__func__);
 			ret = -EFAULT;
 			goto out;
 		}
 		ssleep(1);
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-		pr_info(MPT3SAS_FMT
-			"%s: waiting for operational state(count=%d)\n",
-			ioc->name,
-		    __func__, wait_state_count);
+		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
+			 __func__, wait_state_count);
 	}
 	if (wait_state_count)
-		pr_info(MPT3SAS_FMT "%s: ioc is operational\n",
-		    ioc->name, __func__);
+		ioc_info(ioc, "%s: ioc is operational\n", __func__);
 
 	mpi_request = kzalloc(ioc->request_sz, GFP_KERNEL);
 	if (!mpi_request) {
-		pr_err(MPT3SAS_FMT
-			"%s: failed obtaining a memory for mpi_request\n",
-			ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a memory for mpi_request\n",
+			__func__);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -726,8 +709,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_TASK_MGMT) {
 		smid = mpt3sas_base_get_smid_hpr(ioc, ioc->ctl_cb_idx);
 		if (!smid) {
-			pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-			    ioc->name, __func__);
+			ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 			ret = -EAGAIN;
 			goto out;
 		}
@@ -762,8 +744,8 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 
 	/* obtain dma-able memory for data transfer */
 	if (data_out_sz) /* WRITE */ {
-		data_out = pci_alloc_consistent(ioc->pdev, data_out_sz,
-		    &data_out_dma);
+		data_out = dma_alloc_coherent(&ioc->pdev->dev, data_out_sz,
+				&data_out_dma, GFP_KERNEL);
 		if (!data_out) {
 			pr_err("failure at %s:%d/%s()!\n", __FILE__,
 			    __LINE__, __func__);
@@ -782,8 +764,8 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	}
 
 	if (data_in_sz) /* READ */ {
-		data_in = pci_alloc_consistent(ioc->pdev, data_in_sz,
-		    &data_in_dma);
+		data_in = dma_alloc_coherent(&ioc->pdev->dev, data_in_sz,
+				&data_in_dma, GFP_KERNEL);
 		if (!data_in) {
 			pr_err("failure at %s:%d/%s()!\n", __FILE__,
 			    __LINE__, __func__);
@@ -823,9 +805,9 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		ioc->build_nvme_prp(ioc, smid, nvme_encap_request,
 		    data_out_dma, data_out_sz, data_in_dma, data_in_sz);
 		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
-			dtmprintk(ioc, pr_info(MPT3SAS_FMT "handle(0x%04x) :"
-			    "ioctl failed due to device removal in progress\n",
-			    ioc->name, device_handle));
+			dtmprintk(ioc,
+				  ioc_info(ioc, "handle(0x%04x): ioctl failed due to device removal in progress\n",
+					   device_handle));
 			mpt3sas_base_free_smid(ioc, smid);
 			ret = -EINVAL;
 			goto out;
@@ -843,9 +825,9 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		    mpt3sas_base_get_sense_buffer_dma(ioc, smid);
 		memset(ioc->ctl_cmds.sense, 0, SCSI_SENSE_BUFFERSIZE);
 		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
-			dtmprintk(ioc, pr_info(MPT3SAS_FMT
-				"handle(0x%04x) :ioctl failed due to device removal in progress\n",
-				ioc->name, device_handle));
+			dtmprintk(ioc,
+				  ioc_info(ioc, "handle(0x%04x) :ioctl failed due to device removal in progress\n",
+					   device_handle));
 			mpt3sas_base_free_smid(ioc, smid);
 			ret = -EINVAL;
 			goto out;
@@ -863,10 +845,10 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		Mpi2SCSITaskManagementRequest_t *tm_request =
 		    (Mpi2SCSITaskManagementRequest_t *)request;
 
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT
-			"TASK_MGMT: handle(0x%04x), task_type(0x%02x)\n",
-			ioc->name,
-		    le16_to_cpu(tm_request->DevHandle), tm_request->TaskType));
+		dtmprintk(ioc,
+			  ioc_info(ioc, "TASK_MGMT: handle(0x%04x), task_type(0x%02x)\n",
+				   le16_to_cpu(tm_request->DevHandle),
+				   tm_request->TaskType));
 		ioc->got_task_abort_from_ioctl = 1;
 		if (tm_request->TaskType ==
 		    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK ||
@@ -881,9 +863,9 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		ioc->got_task_abort_from_ioctl = 0;
 
 		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
-			dtmprintk(ioc, pr_info(MPT3SAS_FMT
-				"handle(0x%04x) :ioctl failed due to device removal in progress\n",
-				ioc->name, device_handle));
+			dtmprintk(ioc,
+				  ioc_info(ioc, "handle(0x%04x) :ioctl failed due to device removal in progress\n",
+					   device_handle));
 			mpt3sas_base_free_smid(ioc, smid);
 			ret = -EINVAL;
 			goto out;
@@ -929,9 +911,9 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	case MPI2_FUNCTION_SATA_PASSTHROUGH:
 	{
 		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
-			dtmprintk(ioc, pr_info(MPT3SAS_FMT
-				"handle(0x%04x) :ioctl failed due to device removal in progress\n",
-				ioc->name, device_handle));
+			dtmprintk(ioc,
+				  ioc_info(ioc, "handle(0x%04x) :ioctl failed due to device removal in progress\n",
+					   device_handle));
 			mpt3sas_base_free_smid(ioc, smid);
 			ret = -EINVAL;
 			goto out;
@@ -1017,12 +999,10 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		Mpi2SCSITaskManagementReply_t *tm_reply =
 		    (Mpi2SCSITaskManagementReply_t *)mpi_reply;
 
-		pr_info(MPT3SAS_FMT "TASK_MGMT: " \
-		    "IOCStatus(0x%04x), IOCLogInfo(0x%08x), "
-		    "TerminationCount(0x%08x)\n", ioc->name,
-		    le16_to_cpu(tm_reply->IOCStatus),
-		    le32_to_cpu(tm_reply->IOCLogInfo),
-		    le32_to_cpu(tm_reply->TerminationCount));
+		ioc_info(ioc, "TASK_MGMT: IOCStatus(0x%04x), IOCLogInfo(0x%08x), TerminationCount(0x%08x)\n",
+			 le16_to_cpu(tm_reply->IOCStatus),
+			 le32_to_cpu(tm_reply->IOCLogInfo),
+			 le32_to_cpu(tm_reply->TerminationCount));
 	}
 
 	/* copy out xdata to user */
@@ -1054,9 +1034,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH || mpi_request->Function ==
 	    MPI2_FUNCTION_NVME_ENCAPSULATED)) {
 		if (karg.sense_data_ptr == NULL) {
-			pr_info(MPT3SAS_FMT "Response buffer provided"
-			    " by application is NULL; Response data will"
-			    " not be returned.\n", ioc->name);
+			ioc_info(ioc, "Response buffer provided by application is NULL; Response data will not be returned\n");
 			goto out;
 		}
 		sz_arg = (mpi_request->Function ==
@@ -1079,9 +1057,8 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		    mpi_request->Function ==
 		    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH ||
 		    mpi_request->Function == MPI2_FUNCTION_SATA_PASSTHROUGH)) {
-			pr_info(MPT3SAS_FMT "issue target reset: handle = (0x%04x)\n",
-				ioc->name,
-				le16_to_cpu(mpi_request->FunctionDependent1));
+			ioc_info(ioc, "issue target reset: handle = (0x%04x)\n",
+				 le16_to_cpu(mpi_request->FunctionDependent1));
 			mpt3sas_halt_firmware(ioc);
 			pcie_device = mpt3sas_get_pdev_by_handle(ioc,
 				le16_to_cpu(mpi_request->FunctionDependent1));
@@ -1106,11 +1083,11 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 
 	/* free memory associated with sg buffers */
 	if (data_in)
-		pci_free_consistent(ioc->pdev, data_in_sz, data_in,
+		dma_free_coherent(&ioc->pdev->dev, data_in_sz, data_in,
 		    data_in_dma);
 
 	if (data_out)
-		pci_free_consistent(ioc->pdev, data_out_sz, data_out,
+		dma_free_coherent(&ioc->pdev->dev, data_out_sz, data_out,
 		    data_out_dma);
 
 	kfree(mpi_request);
@@ -1128,8 +1105,8 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt3_ioctl_iocinfo karg;
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: enter\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s: enter\n",
+				 __func__));
 
 	memset(&karg, 0 , sizeof(karg));
 	if (ioc->pfacts)
@@ -1188,8 +1165,8 @@ _ctl_eventquery(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: enter\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s: enter\n",
+				 __func__));
 
 	karg.event_entries = MPT3SAS_CTL_EVENT_LOG_SIZE;
 	memcpy(karg.event_types, ioc->event_type,
@@ -1219,8 +1196,8 @@ _ctl_eventenable(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: enter\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s: enter\n",
+				 __func__));
 
 	memcpy(ioc->event_type, karg.event_types,
 	    MPI2_EVENT_NOTIFY_EVENTMASK_WORDS * sizeof(u32));
@@ -1259,8 +1236,8 @@ _ctl_eventreport(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: enter\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s: enter\n",
+				 __func__));
 
 	number_bytes = karg.hdr.max_data_size -
 	    sizeof(struct mpt3_ioctl_header);
@@ -1306,12 +1283,11 @@ _ctl_do_reset(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    ioc->is_driver_loading)
 		return -EAGAIN;
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: enter\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s: enter\n",
+				 __func__));
 
 	retval = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
-	pr_info(MPT3SAS_FMT "host reset: %s\n",
-	    ioc->name, ((!retval) ? "SUCCESS" : "FAILED"));
+	ioc_info(ioc, "host reset: %s\n", ((!retval) ? "SUCCESS" : "FAILED"));
 	return 0;
 }
 
@@ -1440,8 +1416,8 @@ _ctl_btdh_mapping(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s\n",
+				 __func__));
 
 	rc = _ctl_btdh_search_sas_device(ioc, &karg);
 	if (!rc)
@@ -1512,53 +1488,46 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	u32 ioc_state;
 	u8 issue_reset = 0;
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s\n",
+				 __func__));
 
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	if (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
-		pr_err(MPT3SAS_FMT
-		    "%s: failed due to ioc not operational\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed due to ioc not operational\n",
+			__func__);
 		rc = -EAGAIN;
 		goto out;
 	}
 
 	if (ioc->ctl_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: ctl_cmd in use\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: ctl_cmd in use\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
 
 	buffer_type = diag_register->buffer_type;
 	if (!_ctl_diag_capability(ioc, buffer_type)) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have capability for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have capability for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -EPERM;
 	}
 
 	if (ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) {
-		pr_err(MPT3SAS_FMT
-			"%s: already has a registered buffer for buffer_type(0x%02x)\n",
-			ioc->name, __func__,
-		    buffer_type);
+		ioc_err(ioc, "%s: already has a registered buffer for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -EINVAL;
 	}
 
 	if (diag_register->requested_buffer_size % 4)  {
-		pr_err(MPT3SAS_FMT
-			"%s: the requested_buffer_size is not 4 byte aligned\n",
-			ioc->name, __func__);
+		ioc_err(ioc, "%s: the requested_buffer_size is not 4 byte aligned\n",
+			__func__);
 		return -EINVAL;
 	}
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->ctl_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -1580,9 +1549,9 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	if (request_data) {
 		request_data_dma = ioc->diag_buffer_dma[buffer_type];
 		if (request_data_sz != ioc->diag_buffer_sz[buffer_type]) {
-			pci_free_consistent(ioc->pdev,
-			    ioc->diag_buffer_sz[buffer_type],
-			    request_data, request_data_dma);
+			dma_free_coherent(&ioc->pdev->dev,
+					ioc->diag_buffer_sz[buffer_type],
+					request_data, request_data_dma);
 			request_data = NULL;
 		}
 	}
@@ -1590,12 +1559,11 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	if (request_data == NULL) {
 		ioc->diag_buffer_sz[buffer_type] = 0;
 		ioc->diag_buffer_dma[buffer_type] = 0;
-		request_data = pci_alloc_consistent(
-			ioc->pdev, request_data_sz, &request_data_dma);
+		request_data = dma_alloc_coherent(&ioc->pdev->dev,
+				request_data_sz, &request_data_dma, GFP_KERNEL);
 		if (request_data == NULL) {
-			pr_err(MPT3SAS_FMT "%s: failed allocating memory" \
-			    " for diag buffers, requested size(%d)\n",
-			    ioc->name, __func__, request_data_sz);
+			ioc_err(ioc, "%s: failed allocating memory for diag buffers, requested size(%d)\n",
+				__func__, request_data_sz);
 			mpt3sas_base_free_smid(ioc, smid);
 			return -ENOMEM;
 		}
@@ -1612,11 +1580,11 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	mpi_request->VF_ID = 0; /* TODO */
 	mpi_request->VP_ID = 0;
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: diag_buffer(0x%p), dma(0x%llx), sz(%d)\n",
-		ioc->name, __func__, request_data,
-	    (unsigned long long)request_data_dma,
-	    le32_to_cpu(mpi_request->BufferLength)));
+	dctlprintk(ioc,
+		   ioc_info(ioc, "%s: diag_buffer(0x%p), dma(0x%llx), sz(%d)\n",
+			    __func__, request_data,
+			    (unsigned long long)request_data_dma,
+			    le32_to_cpu(mpi_request->BufferLength)));
 
 	for (i = 0; i < MPT3_PRODUCT_SPECIFIC_DWORDS; i++)
 		mpi_request->ProductSpecific[i] =
@@ -1637,8 +1605,7 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 
 	/* process the completed Reply Message Frame */
 	if ((ioc->ctl_cmds.status & MPT3_CMD_REPLY_VALID) == 0) {
-		pr_err(MPT3SAS_FMT "%s: no reply message\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: no reply message\n", __func__);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -1649,13 +1616,11 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
 		ioc->diag_buffer_status[buffer_type] |=
 			MPT3_DIAG_BUFFER_IS_REGISTERED;
-		dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: success\n",
-		    ioc->name, __func__));
+		dctlprintk(ioc, ioc_info(ioc, "%s: success\n", __func__));
 	} else {
-		pr_info(MPT3SAS_FMT
-			"%s: ioc_status(0x%04x) log_info(0x%08x)\n",
-			ioc->name, __func__,
-		    ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
+		ioc_info(ioc, "%s: ioc_status(0x%04x) log_info(0x%08x)\n",
+			 __func__,
+			 ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
 		rc = -EFAULT;
 	}
 
@@ -1666,7 +1631,7 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
  out:
 
 	if (rc && request_data)
-		pci_free_consistent(ioc->pdev, request_data_sz,
+		dma_free_coherent(&ioc->pdev->dev, request_data_sz,
 		    request_data, request_data_dma);
 
 	ioc->ctl_cmds.status = MPT3_CMD_NOT_USED;
@@ -1689,8 +1654,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 	memset(&diag_register, 0, sizeof(struct mpt3_diag_register));
 
 	if (bits_to_register & 1) {
-		pr_info(MPT3SAS_FMT "registering trace buffer support\n",
-		    ioc->name);
+		ioc_info(ioc, "registering trace buffer support\n");
 		ioc->diag_trigger_master.MasterData =
 		    (MASTER_TRIGGER_FW_FAULT + MASTER_TRIGGER_ADAPTER_RESET);
 		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_TRACE;
@@ -1701,8 +1665,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 	}
 
 	if (bits_to_register & 2) {
-		pr_info(MPT3SAS_FMT "registering snapshot buffer support\n",
-		    ioc->name);
+		ioc_info(ioc, "registering snapshot buffer support\n");
 		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_SNAPSHOT;
 		/* register for 2MB buffers  */
 		diag_register.requested_buffer_size = 2 * (1024 * 1024);
@@ -1711,8 +1674,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 	}
 
 	if (bits_to_register & 4) {
-		pr_info(MPT3SAS_FMT "registering extended buffer support\n",
-		    ioc->name);
+		ioc_info(ioc, "registering extended buffer support\n");
 		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_EXTENDED;
 		/* register for 2MB buffers  */
 		diag_register.requested_buffer_size = 2 * (1024 * 1024);
@@ -1768,51 +1730,46 @@ _ctl_diag_unregister(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s\n",
+				 __func__));
 
 	buffer_type = karg.unique_id & 0x000000ff;
 	if (!_ctl_diag_capability(ioc, buffer_type)) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have capability for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have capability for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -EPERM;
 	}
 
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		pr_err(MPT3SAS_FMT
-			"%s: buffer_type(0x%02x) is not registered\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
+			__func__, buffer_type);
 		return -EINVAL;
 	}
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_RELEASED) == 0) {
-		pr_err(MPT3SAS_FMT
-			"%s: buffer_type(0x%02x) has not been released\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: buffer_type(0x%02x) has not been released\n",
+			__func__, buffer_type);
 		return -EINVAL;
 	}
 
 	if (karg.unique_id != ioc->unique_id[buffer_type]) {
-		pr_err(MPT3SAS_FMT
-			"%s: unique_id(0x%08x) is not registered\n",
-			ioc->name, __func__, karg.unique_id);
+		ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+			__func__, karg.unique_id);
 		return -EINVAL;
 	}
 
 	request_data = ioc->diag_buffer[buffer_type];
 	if (!request_data) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have memory allocated for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have memory allocated for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -ENOMEM;
 	}
 
 	request_data_sz = ioc->diag_buffer_sz[buffer_type];
 	request_data_dma = ioc->diag_buffer_dma[buffer_type];
-	pci_free_consistent(ioc->pdev, request_data_sz,
-	    request_data, request_data_dma);
+	dma_free_coherent(&ioc->pdev->dev, request_data_sz,
+			request_data, request_data_dma);
 	ioc->diag_buffer[buffer_type] = NULL;
 	ioc->diag_buffer_status[buffer_type] = 0;
 	return 0;
@@ -1841,41 +1798,37 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s\n",
+				 __func__));
 
 	karg.application_flags = 0;
 	buffer_type = karg.buffer_type;
 
 	if (!_ctl_diag_capability(ioc, buffer_type)) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have capability for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have capability for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -EPERM;
 	}
 
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		pr_err(MPT3SAS_FMT
-			"%s: buffer_type(0x%02x) is not registered\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
+			__func__, buffer_type);
 		return -EINVAL;
 	}
 
 	if (karg.unique_id & 0xffffff00) {
 		if (karg.unique_id != ioc->unique_id[buffer_type]) {
-			pr_err(MPT3SAS_FMT
-				"%s: unique_id(0x%08x) is not registered\n",
-				ioc->name, __func__, karg.unique_id);
+			ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+				__func__, karg.unique_id);
 			return -EINVAL;
 		}
 	}
 
 	request_data = ioc->diag_buffer[buffer_type];
 	if (!request_data) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have buffer for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have buffer for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -ENOMEM;
 	}
 
@@ -1897,9 +1850,8 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	karg.diagnostic_flags = ioc->diagnostic_flags[buffer_type];
 
 	if (copy_to_user(arg, &karg, sizeof(struct mpt3_diag_query))) {
-		pr_err(MPT3SAS_FMT
-			"%s: unable to write mpt3_diag_query data @ %p\n",
-			ioc->name, __func__, arg);
+		ioc_err(ioc, "%s: unable to write mpt3_diag_query data @ %p\n",
+			__func__, arg);
 		return -EFAULT;
 	}
 	return 0;
@@ -1923,8 +1875,8 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 	u32 ioc_state;
 	int rc;
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s\n",
+				 __func__));
 
 	rc = 0;
 	*issue_reset = 0;
@@ -1935,24 +1887,22 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 		    MPT3_DIAG_BUFFER_IS_REGISTERED)
 			ioc->diag_buffer_status[buffer_type] |=
 			    MPT3_DIAG_BUFFER_IS_RELEASED;
-		dctlprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: skipping due to FAULT state\n", ioc->name,
-		    __func__));
+		dctlprintk(ioc,
+			   ioc_info(ioc, "%s: skipping due to FAULT state\n",
+				    __func__));
 		rc = -EAGAIN;
 		goto out;
 	}
 
 	if (ioc->ctl_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: ctl_cmd in use\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: ctl_cmd in use\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->ctl_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -1982,8 +1932,7 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 
 	/* process the completed Reply Message Frame */
 	if ((ioc->ctl_cmds.status & MPT3_CMD_REPLY_VALID) == 0) {
-		pr_err(MPT3SAS_FMT "%s: no reply message\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: no reply message\n", __func__);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -1994,13 +1943,11 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 	if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
 		ioc->diag_buffer_status[buffer_type] |=
 		    MPT3_DIAG_BUFFER_IS_RELEASED;
-		dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: success\n",
-		    ioc->name, __func__));
+		dctlprintk(ioc, ioc_info(ioc, "%s: success\n", __func__));
 	} else {
-		pr_info(MPT3SAS_FMT
-			"%s: ioc_status(0x%04x) log_info(0x%08x)\n",
-			ioc->name, __func__,
-		    ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
+		ioc_info(ioc, "%s: ioc_status(0x%04x) log_info(0x%08x)\n",
+			 __func__,
+			 ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
 		rc = -EFAULT;
 	}
 
@@ -2033,47 +1980,41 @@ _ctl_diag_release(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s\n",
+				 __func__));
 
 	buffer_type = karg.unique_id & 0x000000ff;
 	if (!_ctl_diag_capability(ioc, buffer_type)) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have capability for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have capability for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -EPERM;
 	}
 
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		pr_err(MPT3SAS_FMT
-			"%s: buffer_type(0x%02x) is not registered\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
+			__func__, buffer_type);
 		return -EINVAL;
 	}
 
 	if (karg.unique_id != ioc->unique_id[buffer_type]) {
-		pr_err(MPT3SAS_FMT
-			"%s: unique_id(0x%08x) is not registered\n",
-			ioc->name, __func__, karg.unique_id);
+		ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+			__func__, karg.unique_id);
 		return -EINVAL;
 	}
 
 	if (ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_RELEASED) {
-		pr_err(MPT3SAS_FMT
-			"%s: buffer_type(0x%02x) is already released\n",
-			ioc->name, __func__,
-		    buffer_type);
+		ioc_err(ioc, "%s: buffer_type(0x%02x) is already released\n",
+			__func__, buffer_type);
 		return 0;
 	}
 
 	request_data = ioc->diag_buffer[buffer_type];
 
 	if (!request_data) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have memory allocated for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have memory allocated for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -ENOMEM;
 	}
 
@@ -2084,9 +2025,8 @@ _ctl_diag_release(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		    MPT3_DIAG_BUFFER_IS_RELEASED;
 		ioc->diag_buffer_status[buffer_type] &=
 		    ~MPT3_DIAG_BUFFER_IS_DIAG_RESET;
-		pr_err(MPT3SAS_FMT
-			"%s: buffer_type(0x%02x) was released due to host reset\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: buffer_type(0x%02x) was released due to host reset\n",
+			__func__, buffer_type);
 		return 0;
 	}
 
@@ -2124,38 +2064,34 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dctlprintk(ioc, ioc_info(ioc, "%s\n",
+				 __func__));
 
 	buffer_type = karg.unique_id & 0x000000ff;
 	if (!_ctl_diag_capability(ioc, buffer_type)) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have capability for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have capability for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -EPERM;
 	}
 
 	if (karg.unique_id != ioc->unique_id[buffer_type]) {
-		pr_err(MPT3SAS_FMT
-			"%s: unique_id(0x%08x) is not registered\n",
-			ioc->name, __func__, karg.unique_id);
+		ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+			__func__, karg.unique_id);
 		return -EINVAL;
 	}
 
 	request_data = ioc->diag_buffer[buffer_type];
 	if (!request_data) {
-		pr_err(MPT3SAS_FMT
-			"%s: doesn't have buffer for buffer_type(0x%02x)\n",
-			ioc->name, __func__, buffer_type);
+		ioc_err(ioc, "%s: doesn't have buffer for buffer_type(0x%02x)\n",
+			__func__, buffer_type);
 		return -ENOMEM;
 	}
 
 	request_size = ioc->diag_buffer_sz[buffer_type];
 
 	if ((karg.starting_offset % 4) || (karg.bytes_to_read % 4)) {
-		pr_err(MPT3SAS_FMT "%s: either the starting_offset " \
-		    "or bytes_to_read are not 4 byte aligned\n", ioc->name,
-		    __func__);
+		ioc_err(ioc, "%s: either the starting_offset or bytes_to_read are not 4 byte aligned\n",
+			__func__);
 		return -EINVAL;
 	}
 
@@ -2163,10 +2099,10 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		return -EINVAL;
 
 	diag_data = (void *)(request_data + karg.starting_offset);
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: diag_buffer(%p), offset(%d), sz(%d)\n",
-		ioc->name, __func__,
-	    diag_data, karg.starting_offset, karg.bytes_to_read));
+	dctlprintk(ioc,
+		   ioc_info(ioc, "%s: diag_buffer(%p), offset(%d), sz(%d)\n",
+			    __func__, diag_data, karg.starting_offset,
+			    karg.bytes_to_read));
 
 	/* Truncate data on requests that are too large */
 	if ((diag_data + karg.bytes_to_read < diag_data) ||
@@ -2177,39 +2113,36 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	if (copy_to_user((void __user *)uarg->diagnostic_data,
 	    diag_data, copy_size)) {
-		pr_err(MPT3SAS_FMT
-			"%s: Unable to write mpt_diag_read_buffer_t data @ %p\n",
-			ioc->name, __func__, diag_data);
+		ioc_err(ioc, "%s: Unable to write mpt_diag_read_buffer_t data @ %p\n",
+			__func__, diag_data);
 		return -EFAULT;
 	}
 
 	if ((karg.flags & MPT3_FLAGS_REREGISTER) == 0)
 		return 0;
 
-	dctlprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: Reregister buffer_type(0x%02x)\n",
-		ioc->name, __func__, buffer_type));
+	dctlprintk(ioc,
+		   ioc_info(ioc, "%s: Reregister buffer_type(0x%02x)\n",
+			    __func__, buffer_type));
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_RELEASED) == 0) {
-		dctlprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: buffer_type(0x%02x) is still registered\n",
-			ioc->name, __func__, buffer_type));
+		dctlprintk(ioc,
+			   ioc_info(ioc, "%s: buffer_type(0x%02x) is still registered\n",
+				    __func__, buffer_type));
 		return 0;
 	}
 	/* Get a free request frame and save the message context.
 	*/
 
 	if (ioc->ctl_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: ctl_cmd in use\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: ctl_cmd in use\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->ctl_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -2247,8 +2180,7 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	/* process the completed Reply Message Frame */
 	if ((ioc->ctl_cmds.status & MPT3_CMD_REPLY_VALID) == 0) {
-		pr_err(MPT3SAS_FMT "%s: no reply message\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: no reply message\n", __func__);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -2259,13 +2191,11 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
 		ioc->diag_buffer_status[buffer_type] |=
 		    MPT3_DIAG_BUFFER_IS_REGISTERED;
-		dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: success\n",
-		    ioc->name, __func__));
+		dctlprintk(ioc, ioc_info(ioc, "%s: success\n", __func__));
 	} else {
-		pr_info(MPT3SAS_FMT
-			"%s: ioc_status(0x%04x) log_info(0x%08x)\n",
-			ioc->name, __func__,
-		    ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
+		ioc_info(ioc, "%s: ioc_status(0x%04x) log_info(0x%08x)\n",
+			 __func__, ioc_status,
+			 le32_to_cpu(mpi_reply->IOCLogInfo));
 		rc = -EFAULT;
 	}
 
@@ -2450,8 +2380,9 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 			ret = _ctl_diag_read_buffer(ioc, arg);
 		break;
 	default:
-		dctlprintk(ioc, pr_info(MPT3SAS_FMT
-		    "unsupported ioctl opcode(0x%08x)\n", ioc->name, cmd));
+		dctlprintk(ioc,
+			   ioc_info(ioc, "unsupported ioctl opcode(0x%08x)\n",
+				    cmd));
 		break;
 	}
 
@@ -2840,8 +2771,8 @@ _ctl_logging_level_store(struct device *cdev, struct device_attribute *attr,
 		return -EINVAL;
 
 	ioc->logging_level = val;
-	pr_info(MPT3SAS_FMT "logging_level=%08xh\n", ioc->name,
-	    ioc->logging_level);
+	ioc_info(ioc, "logging_level=%08xh\n",
+		 ioc->logging_level);
 	return strlen(buf);
 }
 static DEVICE_ATTR(logging_level, S_IRUGO | S_IWUSR, _ctl_logging_level_show,
@@ -2877,8 +2808,8 @@ _ctl_fwfault_debug_store(struct device *cdev, struct device_attribute *attr,
 		return -EINVAL;
 
 	ioc->fwfault_debug = val;
-	pr_info(MPT3SAS_FMT "fwfault_debug=%d\n", ioc->name,
-	    ioc->fwfault_debug);
+	ioc_info(ioc, "fwfault_debug=%d\n",
+		 ioc->fwfault_debug);
 	return strlen(buf);
 }
 static DEVICE_ATTR(fwfault_debug, S_IRUGO | S_IWUSR,
@@ -2958,8 +2889,8 @@ _ctl_BRM_status_show(struct device *cdev, struct device_attribute *attr,
 	ssize_t rc = 0;
 
 	if (!ioc->is_warpdrive) {
-		pr_err(MPT3SAS_FMT "%s: BRM attribute is only for"
-		    " warpdrive\n", ioc->name, __func__);
+		ioc_err(ioc, "%s: BRM attribute is only for warpdrive\n",
+			__func__);
 		goto out;
 	}
 	/* pci_access_mutex lock acquired by sysfs show path */
@@ -2973,30 +2904,28 @@ _ctl_BRM_status_show(struct device *cdev, struct device_attribute *attr,
 	sz = offsetof(Mpi2IOUnitPage3_t, GPIOVal) + (sizeof(u16) * 36);
 	io_unit_pg3 = kzalloc(sz, GFP_KERNEL);
 	if (!io_unit_pg3) {
-		pr_err(MPT3SAS_FMT "%s: failed allocating memory "
-		    "for iounit_pg3: (%d) bytes\n", ioc->name, __func__, sz);
+		ioc_err(ioc, "%s: failed allocating memory for iounit_pg3: (%d) bytes\n",
+			__func__, sz);
 		goto out;
 	}
 
 	if (mpt3sas_config_get_iounit_pg3(ioc, &mpi_reply, io_unit_pg3, sz) !=
 	    0) {
-		pr_err(MPT3SAS_FMT
-		    "%s: failed reading iounit_pg3\n", ioc->name,
-		    __func__);
+		ioc_err(ioc, "%s: failed reading iounit_pg3\n",
+			__func__);
 		goto out;
 	}
 
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
-		pr_err(MPT3SAS_FMT "%s: iounit_pg3 failed with "
-		    "ioc_status(0x%04x)\n", ioc->name, __func__, ioc_status);
+		ioc_err(ioc, "%s: iounit_pg3 failed with ioc_status(0x%04x)\n",
+			__func__, ioc_status);
 		goto out;
 	}
 
 	if (io_unit_pg3->GPIOCount < 25) {
-		pr_err(MPT3SAS_FMT "%s: iounit_pg3->GPIOCount less than "
-		     "25 entries, detected (%d) entries\n", ioc->name, __func__,
-		    io_unit_pg3->GPIOCount);
+		ioc_err(ioc, "%s: iounit_pg3->GPIOCount less than 25 entries, detected (%d) entries\n",
+			__func__, io_unit_pg3->GPIOCount);
 		goto out;
 	}
 
@@ -3039,17 +2968,15 @@ _ctl_host_trace_buffer_size_show(struct device *cdev,
 	struct DIAG_BUFFER_START *request_data;
 
 	if (!ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE]) {
-		pr_err(MPT3SAS_FMT
-			"%s: host_trace_buffer is not registered\n",
-			ioc->name, __func__);
+		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+			__func__);
 		return 0;
 	}
 
 	if ((ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		pr_err(MPT3SAS_FMT
-			"%s: host_trace_buffer is not registered\n",
-			ioc->name, __func__);
+		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+			__func__);
 		return 0;
 	}
 
@@ -3089,17 +3016,15 @@ _ctl_host_trace_buffer_show(struct device *cdev, struct device_attribute *attr,
 	u32 size;
 
 	if (!ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE]) {
-		pr_err(MPT3SAS_FMT
-			"%s: host_trace_buffer is not registered\n",
-			ioc->name, __func__);
+		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+			__func__);
 		return 0;
 	}
 
 	if ((ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		pr_err(MPT3SAS_FMT
-			"%s: host_trace_buffer is not registered\n",
-			ioc->name, __func__);
+		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+			__func__);
 		return 0;
 	}
 
@@ -3188,8 +3113,7 @@ _ctl_host_trace_buffer_enable_store(struct device *cdev,
 		    MPT3_DIAG_BUFFER_IS_RELEASED) == 0))
 			goto out;
 		memset(&diag_register, 0, sizeof(struct mpt3_diag_register));
-		pr_info(MPT3SAS_FMT "posting host trace buffers\n",
-		    ioc->name);
+		ioc_info(ioc, "posting host trace buffers\n");
 		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_TRACE;
 		diag_register.requested_buffer_size = (1024 * 1024);
 		diag_register.unique_id = 0x7075900;
@@ -3205,8 +3129,7 @@ _ctl_host_trace_buffer_enable_store(struct device *cdev,
 		if ((ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 		    MPT3_DIAG_BUFFER_IS_RELEASED))
 			goto out;
-		pr_info(MPT3SAS_FMT "releasing host trace buffer\n",
-		    ioc->name);
+		ioc_info(ioc, "releasing host trace buffer\n");
 		mpt3sas_send_diag_release(ioc, MPI2_DIAG_BUF_TYPE_TRACE,
 		    &issue_reset);
 	}
@@ -3658,8 +3581,10 @@ mpt3sas_ctl_exit(ushort hbas_to_enumerate)
 			if ((ioc->diag_buffer_status[i] &
 			    MPT3_DIAG_BUFFER_IS_RELEASED))
 				continue;
-			pci_free_consistent(ioc->pdev, ioc->diag_buffer_sz[i],
-			ioc->diag_buffer[i], ioc->diag_buffer_dma[i]);
+			dma_free_coherent(&ioc->pdev->dev,
+					  ioc->diag_buffer_sz[i],
+					  ioc->diag_buffer[i],
+					  ioc->diag_buffer_dma[i]);
 			ioc->diag_buffer[i] = NULL;
 			ioc->diag_buffer_status[i] = 0;
 		}

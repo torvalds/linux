@@ -314,41 +314,15 @@ static int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 	return nhwentries;
 }
 
-static void sn_dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
-				       size_t size, enum dma_data_direction dir)
-{
-	BUG_ON(!dev_is_pci(dev));
-}
-
-static void sn_dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
-					  size_t size,
-					  enum dma_data_direction dir)
-{
-	BUG_ON(!dev_is_pci(dev));
-}
-
-static void sn_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
-				   int nelems, enum dma_data_direction dir)
-{
-	BUG_ON(!dev_is_pci(dev));
-}
-
-static void sn_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
-				      int nelems, enum dma_data_direction dir)
-{
-	BUG_ON(!dev_is_pci(dev));
-}
-
 static int sn_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return 0;
 }
 
-u64 sn_dma_get_required_mask(struct device *dev)
+static u64 sn_dma_get_required_mask(struct device *dev)
 {
 	return DMA_BIT_MASK(64);
 }
-EXPORT_SYMBOL_GPL(sn_dma_get_required_mask);
 
 char *sn_pci_get_legacy_mem(struct pci_bus *bus)
 {
@@ -467,12 +441,9 @@ static struct dma_map_ops sn_dma_ops = {
 	.unmap_page		= sn_dma_unmap_page,
 	.map_sg			= sn_dma_map_sg,
 	.unmap_sg		= sn_dma_unmap_sg,
-	.sync_single_for_cpu 	= sn_dma_sync_single_for_cpu,
-	.sync_sg_for_cpu	= sn_dma_sync_sg_for_cpu,
-	.sync_single_for_device = sn_dma_sync_single_for_device,
-	.sync_sg_for_device	= sn_dma_sync_sg_for_device,
 	.mapping_error		= sn_dma_mapping_error,
 	.dma_supported		= sn_dma_supported,
+	.get_required_mask	= sn_dma_get_required_mask,
 };
 
 void sn_dma_init(void)

@@ -21,39 +21,6 @@
 #include "dpu_hw_top.h"
 
 /**
- * enum dpu_rm_topology_name - HW resource use case in use by connector
- * @DPU_RM_TOPOLOGY_NONE:                 No topology in use currently
- * @DPU_RM_TOPOLOGY_SINGLEPIPE:           1 LM, 1 PP, 1 INTF/WB
- * @DPU_RM_TOPOLOGY_DUALPIPE:             2 LM, 2 PP, 2 INTF/WB
- * @DPU_RM_TOPOLOGY_DUALPIPE_3DMERGE:     2 LM, 2 PP, 3DMux, 1 INTF/WB
- */
-enum dpu_rm_topology_name {
-	DPU_RM_TOPOLOGY_NONE = 0,
-	DPU_RM_TOPOLOGY_SINGLEPIPE,
-	DPU_RM_TOPOLOGY_DUALPIPE,
-	DPU_RM_TOPOLOGY_DUALPIPE_3DMERGE,
-	DPU_RM_TOPOLOGY_MAX,
-};
-
-/**
- * enum dpu_rm_topology_control - HW resource use case in use by connector
- * @DPU_RM_TOPCTL_RESERVE_LOCK: If set, in AtomicTest phase, after a successful
- *                              test, reserve the resources for this display.
- *                              Normal behavior would not impact the reservation
- *                              list during the AtomicTest phase.
- * @DPU_RM_TOPCTL_RESERVE_CLEAR: If set, in AtomicTest phase, before testing,
- *                               release any reservation held by this display.
- *                               Normal behavior would not impact the
- *                               reservation list during the AtomicTest phase.
- * @DPU_RM_TOPCTL_DS  : Require layer mixers with DS capabilities
- */
-enum dpu_rm_topology_control {
-	DPU_RM_TOPCTL_RESERVE_LOCK,
-	DPU_RM_TOPCTL_RESERVE_CLEAR,
-	DPU_RM_TOPCTL_DS,
-};
-
-/**
  * struct dpu_rm - DPU dynamic hardware resource manager
  * @dev: device handle for event logging purposes
  * @rsvps: list of hardware reservations by each crtc->encoder->connector
@@ -125,7 +92,6 @@ int dpu_rm_destroy(struct dpu_rm *rm);
  * @rm: DPU Resource Manager handle
  * @drm_enc: DRM Encoder handle
  * @crtc_state: Proposed Atomic DRM CRTC State handle
- * @conn_state: Proposed Atomic DRM Connector State handle
  * @topology: Pointer to topology info for the display
  * @test_only: Atomic-Test phase, discard results (unless property overrides)
  * @Return: 0 on Success otherwise -ERROR
@@ -133,7 +99,6 @@ int dpu_rm_destroy(struct dpu_rm *rm);
 int dpu_rm_reserve(struct dpu_rm *rm,
 		struct drm_encoder *drm_enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct msm_display_topology topology,
 		bool test_only);
 
@@ -186,14 +151,5 @@ bool dpu_rm_get_hw(struct dpu_rm *rm, struct dpu_rm_hw_iter *iter);
  * @Return: 0 on success or error
  */
 int dpu_rm_check_property_topctl(uint64_t val);
-
-/**
- * dpu_rm_get_topology_name - returns the name of the the given topology
- *                            definition
- * @topology: topology definition
- * @Return: name of the topology
- */
-enum dpu_rm_topology_name
-dpu_rm_get_topology_name(struct msm_display_topology topology);
 
 #endif /* __DPU_RM_H__ */

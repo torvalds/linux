@@ -179,7 +179,7 @@ static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
 	int i;
 
 	memset(hg, 0, sizeof(struct saa7164_histogram));
-	strcpy(hg->name, name);
+	strscpy(hg->name, name, sizeof(hg->name));
 
 	/* First 30ms x 1ms */
 	for (i = 0; i < 30; i++)

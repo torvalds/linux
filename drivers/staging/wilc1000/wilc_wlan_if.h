@@ -204,10 +204,6 @@ enum wid_type {
 	WID_STR			= 3,
 	WID_BIN_DATA		= 4,
 	WID_BIN			= 5,
-	WID_IP			= 6,
-	WID_ADR			= 7,
-	WID_UNDEF		= 8,
-	WID_TYPE_FORCE_32BIT	= 0xFFFFFFFF
 };
 
 struct wid {

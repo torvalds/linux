@@ -284,6 +284,11 @@ static void nft_meta_set_eval(const struct nft_expr *expr,
 
 		skb->nf_trace = !!value8;
 		break;
+#ifdef CONFIG_NETWORK_SECMARK
+	case NFT_META_SECMARK:
+		skb->secmark = value;
+		break;
+#endif
 	default:
 		WARN_ON(1);
 	}
@@ -436,6 +441,9 @@ static int nft_meta_set_init(const struct nft_ctx *ctx,
 	switch (priv->key) {
 	case NFT_META_MARK:
 	case NFT_META_PRIORITY:
+#ifdef CONFIG_NETWORK_SECMARK
+	case NFT_META_SECMARK:
+#endif
 		len = sizeof(u32);
 		break;
 	case NFT_META_NFTRACE:
@@ -543,3 +551,111 @@ struct nft_expr_type nft_meta_type __read_mostly = {
 	.maxattr	= NFTA_META_MAX,
 	.owner		= THIS_MODULE,
 };
+
+#ifdef CONFIG_NETWORK_SECMARK
+struct nft_secmark {
+	u32 secid;
+	char *ctx;
+};
+
+static const struct nla_policy nft_secmark_policy[NFTA_SECMARK_MAX + 1] = {
+	[NFTA_SECMARK_CTX]     = { .type = NLA_STRING, .len = NFT_SECMARK_CTX_MAXLEN },
+};
+
+static int nft_secmark_compute_secid(struct nft_secmark *priv)
+{
+	u32 tmp_secid = 0;
+	int err;
+
+	err = security_secctx_to_secid(priv->ctx, strlen(priv->ctx), &tmp_secid);
+	if (err)
+		return err;
+
+	if (!tmp_secid)
+		return -ENOENT;
+
+	err = security_secmark_relabel_packet(tmp_secid);
+	if (err)
+		return err;
+
+	priv->secid = tmp_secid;
+	return 0;
+}
+
+static void nft_secmark_obj_eval(struct nft_object *obj, struct nft_regs *regs,
+				 const struct nft_pktinfo *pkt)
+{
+	const struct nft_secmark *priv = nft_obj_data(obj);
+	struct sk_buff *skb = pkt->skb;
+
+	skb->secmark = priv->secid;
+}
+
+static int nft_secmark_obj_init(const struct nft_ctx *ctx,
+				const struct nlattr * const tb[],
+				struct nft_object *obj)
+{
+	struct nft_secmark *priv = nft_obj_data(obj);
+	int err;
+
+	if (tb[NFTA_SECMARK_CTX] == NULL)
+		return -EINVAL;
+
+	priv->ctx = nla_strdup(tb[NFTA_SECMARK_CTX], GFP_KERNEL);
+	if (!priv->ctx)
+		return -ENOMEM;
+
+	err = nft_secmark_compute_secid(priv);
+	if (err) {
+		kfree(priv->ctx);
+		return err;
+	}
+
+	security_secmark_refcount_inc();
+
+	return 0;
+}
+
+static int nft_secmark_obj_dump(struct sk_buff *skb, struct nft_object *obj,
+				bool reset)
+{
+	struct nft_secmark *priv = nft_obj_data(obj);
+	int err;
+
+	if (nla_put_string(skb, NFTA_SECMARK_CTX, priv->ctx))
+		return -1;
+
+	if (reset) {
+		err = nft_secmark_compute_secid(priv);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void nft_secmark_obj_destroy(const struct nft_ctx *ctx, struct nft_object *obj)
+{
+	struct nft_secmark *priv = nft_obj_data(obj);
+
+	security_secmark_refcount_dec();
+
+	kfree(priv->ctx);
+}
+
+static const struct nft_object_ops nft_secmark_obj_ops = {
+	.type		= &nft_secmark_obj_type,
+	.size		= sizeof(struct nft_secmark),
+	.init		= nft_secmark_obj_init,
+	.eval		= nft_secmark_obj_eval,
+	.dump		= nft_secmark_obj_dump,
+	.destroy	= nft_secmark_obj_destroy,
+};
+struct nft_object_type nft_secmark_obj_type __read_mostly = {
+	.type		= NFT_OBJECT_SECMARK,
+	.ops		= &nft_secmark_obj_ops,
+	.maxattr	= NFTA_SECMARK_MAX,
+	.policy		= nft_secmark_policy,
+	.owner		= THIS_MODULE,
+};
+#endif /* CONFIG_NETWORK_SECMARK */

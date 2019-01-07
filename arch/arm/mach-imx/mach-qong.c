@@ -18,7 +18,7 @@
 #include <linux/memory.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 #include <linux/gpio.h>
 
 #include <asm/mach-types.h>
@@ -129,30 +129,29 @@ static void qong_init_nor_mtd(void)
 /*
  * Hardware specific access to control-lines
  */
-static void qong_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void qong_nand_cmd_ctrl(struct nand_chip *nand_chip, int cmd,
+			       unsigned int ctrl)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-
 	if (cmd == NAND_CMD_NONE)
 		return;
 
 	if (ctrl & NAND_CLE)
-		writeb(cmd, nand_chip->IO_ADDR_W + (1 << 24));
+		writeb(cmd, nand_chip->legacy.IO_ADDR_W + (1 << 24));
 	else
-		writeb(cmd, nand_chip->IO_ADDR_W + (1 << 23));
+		writeb(cmd, nand_chip->legacy.IO_ADDR_W + (1 << 23));
 }
 
 /*
  * Read the Device Ready pin.
  */
-static int qong_nand_device_ready(struct mtd_info *mtd)
+static int qong_nand_device_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(IOMUX_TO_GPIO(MX31_PIN_NFRB));
 }
 
-static void qong_nand_select_chip(struct mtd_info *mtd, int chip)
+static void qong_nand_select_chip(struct nand_chip *chip, int cs)
 {
-	if (chip >= 0)
+	if (cs >= 0)
 		gpio_set_value(IOMUX_TO_GPIO(MX31_PIN_NFCE_B), 0);
 	else
 		gpio_set_value(IOMUX_TO_GPIO(MX31_PIN_NFCE_B), 1);

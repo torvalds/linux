@@ -111,8 +111,10 @@ wildfire_init_hose(int qbbno, int hoseno)
          * ??? We ought to scale window 3 memory.
          *
          */
-        hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000, 0);
-        hose->sg_pci = iommu_arena_new(hose, 0xc0000000, 0x08000000, 0);
+	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000,
+				       SMP_CACHE_BYTES);
+	hose->sg_pci = iommu_arena_new(hose, 0xc0000000, 0x08000000,
+				       SMP_CACHE_BYTES);
 
 	pci = WILDFIRE_pci(qbbno, hoseno);
 

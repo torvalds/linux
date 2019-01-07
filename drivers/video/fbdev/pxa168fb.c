@@ -405,9 +405,6 @@ static int pxa168fb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	struct fb_videomode mode;
 	u32 x;
-	struct pxa168fb_mach_info *mi;
-
-	mi = dev_get_platdata(fbi->dev);
 
 	/*
 	 * Set additional mode info.

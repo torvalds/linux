@@ -71,7 +71,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	DRM_DEBUG_DRIVER("surface width(%d), height(%d) and bpp(%d)\n",
 			 sizes->surface_width, sizes->surface_height,
 			 sizes->surface_bpp);
-	sizes->surface_depth = 32;
 
 	bytes_per_pixel = DIV_ROUND_UP(sizes->surface_bpp, 8);
 
@@ -122,6 +121,7 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	hi_fbdev->fb = hibmc_framebuffer_init(priv->dev, &mode_cmd, gobj);
 	if (IS_ERR(hi_fbdev->fb)) {
 		ret = PTR_ERR(hi_fbdev->fb);
+		hi_fbdev->fb = NULL;
 		DRM_ERROR("failed to initialize framebuffer: %d\n", ret);
 		goto out_release_fbi;
 	}

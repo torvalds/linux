@@ -516,6 +516,15 @@ struct comedi_driver {
  *	called when @use_count changes from 0 to 1.
  * @close: Optional pointer to a function set by the low-level driver to be
  *	called when @use_count changed from 1 to 0.
+ * @insn_device_config: Optional pointer to a handler for all sub-instructions
+ *	except %INSN_DEVICE_CONFIG_GET_ROUTES of the %INSN_DEVICE_CONFIG
+ *	instruction.  If this is not initialized by the low-level driver, a
+ *	default handler will be set during post-configuration.
+ * @get_valid_routes: Optional pointer to a handler for the
+ *	%INSN_DEVICE_CONFIG_GET_ROUTES sub-instruction of the
+ *	%INSN_DEVICE_CONFIG instruction set.  If this is not initialized by the
+ *	low-level driver, a default handler that copies zero routes back to the
+ *	user will be used.
  *
  * This is the main control data structure for a COMEDI device (as far as the
  * COMEDI core is concerned).  There are two groups of COMEDI devices -
@@ -565,6 +574,11 @@ struct comedi_device {
 
 	int (*open)(struct comedi_device *dev);
 	void (*close)(struct comedi_device *dev);
+	int (*insn_device_config)(struct comedi_device *dev,
+				  struct comedi_insn *insn, unsigned int *data);
+	unsigned int (*get_valid_routes)(struct comedi_device *dev,
+					 unsigned int n_pairs,
+					 unsigned int *pair_data);
 };
 
 /*

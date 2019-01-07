@@ -49,15 +49,13 @@ static DEFINE_MUTEX(pci_hp_mutex);
 #define GET_STATUS(name, type)	\
 static int get_##name(struct hotplug_slot *slot, type *value)		\
 {									\
-	struct hotplug_slot_ops *ops = slot->ops;			\
+	const struct hotplug_slot_ops *ops = slot->ops;			\
 	int retval = 0;							\
-	if (!try_module_get(ops->owner))				\
+	if (!try_module_get(slot->owner))				\
 		return -ENODEV;						\
 	if (ops->get_##name)						\
 		retval = ops->get_##name(slot, value);			\
-	else								\
-		*value = slot->info->name;				\
-	module_put(ops->owner);						\
+	module_put(slot->owner);					\
 	return retval;							\
 }
 
@@ -90,7 +88,7 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 	power = (u8)(lpower & 0xff);
 	dbg("power = %d\n", power);
 
-	if (!try_module_get(slot->ops->owner)) {
+	if (!try_module_get(slot->owner)) {
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -109,7 +107,7 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 		err("Illegal value specified for power\n");
 		retval = -EINVAL;
 	}
-	module_put(slot->ops->owner);
+	module_put(slot->owner);
 
 exit:
 	if (retval)
@@ -138,7 +136,8 @@ static ssize_t attention_read_file(struct pci_slot *pci_slot, char *buf)
 static ssize_t attention_write_file(struct pci_slot *pci_slot, const char *buf,
 				    size_t count)
 {
-	struct hotplug_slot_ops *ops = pci_slot->hotplug->ops;
+	struct hotplug_slot *slot = pci_slot->hotplug;
+	const struct hotplug_slot_ops *ops = slot->ops;
 	unsigned long lattention;
 	u8 attention;
 	int retval = 0;
@@ -147,13 +146,13 @@ static ssize_t attention_write_file(struct pci_slot *pci_slot, const char *buf,
 	attention = (u8)(lattention & 0xff);
 	dbg(" - attention = %d\n", attention);
 
-	if (!try_module_get(ops->owner)) {
+	if (!try_module_get(slot->owner)) {
 		retval = -ENODEV;
 		goto exit;
 	}
 	if (ops->set_attention_status)
-		retval = ops->set_attention_status(pci_slot->hotplug, attention);
-	module_put(ops->owner);
+		retval = ops->set_attention_status(slot, attention);
+	module_put(slot->owner);
 
 exit:
 	if (retval)
@@ -213,13 +212,13 @@ static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 	test = (u32)(ltest & 0xffffffff);
 	dbg("test = %d\n", test);
 
-	if (!try_module_get(slot->ops->owner)) {
+	if (!try_module_get(slot->owner)) {
 		retval = -ENODEV;
 		goto exit;
 	}
 	if (slot->ops->hardware_test)
 		retval = slot->ops->hardware_test(slot, test);
-	module_put(slot->ops->owner);
+	module_put(slot->owner);
 
 exit:
 	if (retval)
@@ -444,11 +443,11 @@ int __pci_hp_initialize(struct hotplug_slot *slot, struct pci_bus *bus,
 
 	if (slot == NULL)
 		return -ENODEV;
-	if ((slot->info == NULL) || (slot->ops == NULL))
+	if (slot->ops == NULL)
 		return -EINVAL;
 
-	slot->ops->owner = owner;
-	slot->ops->mod_name = mod_name;
+	slot->owner = owner;
+	slot->mod_name = mod_name;
 
 	/*
 	 * No problems if we call this interface from both ACPI_PCI_SLOT
@@ -558,28 +557,6 @@ void pci_hp_destroy(struct hotplug_slot *slot)
 	pci_destroy_slot(pci_slot);
 }
 EXPORT_SYMBOL_GPL(pci_hp_destroy);
-
-/**
- * pci_hp_change_slot_info - changes the slot's information structure in the core
- * @slot: pointer to the slot whose info has changed
- * @info: pointer to the info copy into the slot's info structure
- *
- * @slot must have been registered with the pci
- * hotplug subsystem previously with a call to pci_hp_register().
- *
- * Returns 0 if successful, anything else for an error.
- */
-int pci_hp_change_slot_info(struct hotplug_slot *slot,
-			    struct hotplug_slot_info *info)
-{
-	if (!slot || !info)
-		return -ENODEV;
-
-	memcpy(slot->info, info, sizeof(struct hotplug_slot_info));
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pci_hp_change_slot_info);
 
 static int __init pci_hotplug_init(void)
 {

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "event-parse.h"
+#include "trace-seq.h"
 
 typedef unsigned long sector_t;
 typedef uint64_t u64;

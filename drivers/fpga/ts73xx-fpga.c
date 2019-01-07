@@ -118,7 +118,6 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 	struct ts73xx_fpga_priv *priv;
 	struct fpga_manager *mgr;
 	struct resource *res;
-	int ret;
 
 	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -133,18 +132,14 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->io_base);
 	}
 
-	mgr = fpga_mgr_create(kdev, "TS-73xx FPGA Manager",
-			      &ts73xx_fpga_ops, priv);
+	mgr = devm_fpga_mgr_create(kdev, "TS-73xx FPGA Manager",
+				   &ts73xx_fpga_ops, priv);
 	if (!mgr)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mgr);
 
-	ret = fpga_mgr_register(mgr);
-	if (ret)
-		fpga_mgr_free(mgr);
-
-	return ret;
+	return fpga_mgr_register(mgr);
 }
 
 static int ts73xx_fpga_remove(struct platform_device *pdev)

@@ -98,7 +98,7 @@ struct cls_fl_filter {
 	struct list_head list;
 	u32 handle;
 	u32 flags;
-	unsigned int in_hw_count;
+	u32 in_hw_count;
 	struct rcu_work rwork;
 	struct net_device *hw_dev;
 };
@@ -709,11 +709,23 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  struct netlink_ext_ack *extack)
 {
 	const struct nlattr *nla_enc_key, *nla_opt_key, *nla_opt_msk = NULL;
-	int option_len, key_depth, msk_depth = 0;
+	int err, option_len, key_depth, msk_depth = 0;
+
+	err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS],
+				  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+				  enc_opts_policy, extack);
+	if (err)
+		return err;
 
 	nla_enc_key = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS]);
 
 	if (tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]) {
+		err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
+					  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+					  enc_opts_policy, extack);
+		if (err)
+			return err;
+
 		nla_opt_msk = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 		msk_depth = nla_len(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 	}
@@ -993,7 +1005,7 @@ static int fl_init_mask_hashtable(struct fl_flow_mask *mask)
 }
 
 #define FL_KEY_MEMBER_OFFSET(member) offsetof(struct fl_flow_key, member)
-#define FL_KEY_MEMBER_SIZE(member) (sizeof(((struct fl_flow_key *) 0)->member))
+#define FL_KEY_MEMBER_SIZE(member) FIELD_SIZEOF(struct fl_flow_key, member)
 
 #define FL_KEY_IS_MASKED(mask, member)						\
 	memchr_inv(((char *)mask) + FL_KEY_MEMBER_OFFSET(member),		\
@@ -1226,17 +1238,15 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	if (err)
 		goto errout_idr;
 
-	if (!tc_skip_sw(fnew->flags)) {
-		if (!fold && fl_lookup(fnew->mask, &fnew->mkey)) {
-			err = -EEXIST;
-			goto errout_mask;
-		}
-
-		err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
-					     fnew->mask->filter_ht_params);
-		if (err)
-			goto errout_mask;
+	if (!fold && fl_lookup(fnew->mask, &fnew->mkey)) {
+		err = -EEXIST;
+		goto errout_mask;
 	}
+
+	err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
+				     fnew->mask->filter_ht_params);
+	if (err)
+		goto errout_mask;
 
 	if (!tc_skip_hw(fnew->flags)) {
 		err = fl_hw_replace_filter(tp, fnew, extack);
@@ -1248,10 +1258,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		fnew->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
 
 	if (fold) {
-		if (!tc_skip_sw(fold->flags))
-			rhashtable_remove_fast(&fold->mask->ht,
-					       &fold->ht_node,
-					       fold->mask->filter_ht_params);
+		rhashtable_remove_fast(&fold->mask->ht,
+				       &fold->ht_node,
+				       fold->mask->filter_ht_params);
 		if (!tc_skip_hw(fold->flags))
 			fl_hw_destroy_filter(tp, fold, NULL);
 	}
@@ -1291,9 +1300,8 @@ static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = arg;
 
-	if (!tc_skip_sw(f->flags))
-		rhashtable_remove_fast(&f->mask->ht, &f->ht_node,
-				       f->mask->filter_ht_params);
+	rhashtable_remove_fast(&f->mask->ht, &f->ht_node,
+			       f->mask->filter_ht_params);
 	__fl_delete(tp, f, extack);
 	*last = list_empty(&head->masks);
 	return 0;
@@ -1878,6 +1886,9 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		fl_hw_update_stats(tp, f);
 
 	if (f->flags && nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_FLOWER_IN_HW_COUNT, f->in_hw_count))
 		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &f->exts))

@@ -616,7 +616,7 @@ static void cn23xx_disable_vf_interrupt(struct octeon_device *oct, u8 intr_flag)
 int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
 {
 	struct octeon_cn23xx_vf *cn23xx = (struct octeon_cn23xx_vf *)oct->chip;
-	u32 rings_per_vf, ring_flag;
+	u32 rings_per_vf;
 	u64 reg_val;
 
 	if (octeon_map_pci_barx(oct, 0, 0))
@@ -633,8 +633,6 @@ int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
 	reg_val = reg_val >> CN23XX_PKT_INPUT_CTL_RPVF_POS;
 
 	rings_per_vf = reg_val & CN23XX_PKT_INPUT_CTL_RPVF_MASK;
-
-	ring_flag = 0;
 
 	cn23xx->conf  = oct_get_config_info(oct, LIO_23XX);
 	if (!cn23xx->conf) {

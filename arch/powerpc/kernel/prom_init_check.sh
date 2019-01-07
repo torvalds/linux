@@ -28,6 +28,18 @@ OBJ="$2"
 
 ERROR=0
 
+function check_section()
+{
+    file=$1
+    section=$2
+    size=$(objdump -h -j $section $file 2>/dev/null | awk "\$2 == \"$section\" {print \$3}")
+    size=${size:-0}
+    if [ $size -ne 0 ]; then
+	ERROR=1
+	echo "Error: Section $section not empty in prom_init.c" >&2
+    fi
+}
+
 for UNDEF in $($NM -u $OBJ | awk '{print $2}')
 do
 	# On 64-bit nm gives us the function descriptors, which have
@@ -65,5 +77,9 @@ do
 		     "from prom_init.c" >&2
 	fi
 done
+
+check_section $OBJ .data
+check_section $OBJ .bss
+check_section $OBJ .init.data
 
 exit $ERROR

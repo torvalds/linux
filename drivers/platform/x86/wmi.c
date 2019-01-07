@@ -987,19 +987,19 @@ static struct bus_type wmi_bus_type = {
 	.remove = wmi_dev_remove,
 };
 
-static struct device_type wmi_type_event = {
+static const struct device_type wmi_type_event = {
 	.name = "event",
 	.groups = wmi_event_groups,
 	.release = wmi_dev_release,
 };
 
-static struct device_type wmi_type_method = {
+static const struct device_type wmi_type_method = {
 	.name = "method",
 	.groups = wmi_method_groups,
 	.release = wmi_dev_release,
 };
 
-static struct device_type wmi_type_data = {
+static const struct device_type wmi_type_data = {
 	.name = "data",
 	.groups = wmi_data_groups,
 	.release = wmi_dev_release,

@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net_common.c
@@ -2094,10 +2064,10 @@ static void nfp_ctrl_poll(unsigned long arg)
 {
 	struct nfp_net_r_vector *r_vec = (void *)arg;
 
-	spin_lock_bh(&r_vec->lock);
+	spin_lock(&r_vec->lock);
 	nfp_net_tx_complete(r_vec->tx_ring, 0);
 	__nfp_ctrl_tx_queued(r_vec);
-	spin_unlock_bh(&r_vec->lock);
+	spin_unlock(&r_vec->lock);
 
 	if (nfp_ctrl_rx(r_vec)) {
 		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
@@ -2187,9 +2157,13 @@ nfp_net_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 
 	tx_ring->size = array_size(tx_ring->cnt, sizeof(*tx_ring->txds));
 	tx_ring->txds = dma_zalloc_coherent(dp->dev, tx_ring->size,
-					    &tx_ring->dma, GFP_KERNEL);
-	if (!tx_ring->txds)
+					    &tx_ring->dma,
+					    GFP_KERNEL | __GFP_NOWARN);
+	if (!tx_ring->txds) {
+		netdev_warn(dp->netdev, "failed to allocate TX descriptor ring memory, requested descriptor count: %d, consider lowering descriptor count\n",
+			    tx_ring->cnt);
 		goto err_alloc;
+	}
 
 	tx_ring->txbufs = kvcalloc(tx_ring->cnt, sizeof(*tx_ring->txbufs),
 				   GFP_KERNEL);
@@ -2341,9 +2315,13 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 	rx_ring->cnt = dp->rxd_cnt;
 	rx_ring->size = array_size(rx_ring->cnt, sizeof(*rx_ring->rxds));
 	rx_ring->rxds = dma_zalloc_coherent(dp->dev, rx_ring->size,
-					    &rx_ring->dma, GFP_KERNEL);
-	if (!rx_ring->rxds)
+					    &rx_ring->dma,
+					    GFP_KERNEL | __GFP_NOWARN);
+	if (!rx_ring->rxds) {
+		netdev_warn(dp->netdev, "failed to allocate RX descriptor ring memory, requested descriptor count: %d, consider lowering descriptor count\n",
+			    rx_ring->cnt);
 		goto err_alloc;
+	}
 
 	rx_ring->rxbufs = kvcalloc(rx_ring->cnt, sizeof(*rx_ring->rxbufs),
 				   GFP_KERNEL);
@@ -3159,6 +3137,7 @@ static void nfp_net_stat64(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	int r;
 
+	/* Collect software stats */
 	for (r = 0; r < nn->max_r_vecs; r++) {
 		struct nfp_net_r_vector *r_vec = &nn->r_vecs[r];
 		u64 data[3];
@@ -3184,6 +3163,14 @@ static void nfp_net_stat64(struct net_device *netdev,
 		stats->tx_bytes += data[1];
 		stats->tx_errors += data[2];
 	}
+
+	/* Add in device stats */
+	stats->multicast += nn_readq(nn, NFP_NET_CFG_STATS_RX_MC_FRAMES);
+	stats->rx_dropped += nn_readq(nn, NFP_NET_CFG_STATS_RX_DISCARDS);
+	stats->rx_errors += nn_readq(nn, NFP_NET_CFG_STATS_RX_ERRORS);
+
+	stats->tx_dropped += nn_readq(nn, NFP_NET_CFG_STATS_TX_DISCARDS);
+	stats->tx_errors += nn_readq(nn, NFP_NET_CFG_STATS_TX_ERRORS);
 }
 
 static int nfp_net_set_features(struct net_device *netdev,
@@ -3751,15 +3738,18 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	}
 	if (nn->cap & NFP_NET_CFG_CTRL_RSS_ANY)
 		netdev->hw_features |= NETIF_F_RXHASH;
-	if (nn->cap & NFP_NET_CFG_CTRL_VXLAN &&
-	    nn->cap & NFP_NET_CFG_CTRL_NVGRE) {
+	if (nn->cap & NFP_NET_CFG_CTRL_VXLAN) {
 		if (nn->cap & NFP_NET_CFG_CTRL_LSO)
-			netdev->hw_features |= NETIF_F_GSO_GRE |
-					       NETIF_F_GSO_UDP_TUNNEL;
-		nn->dp.ctrl |= NFP_NET_CFG_CTRL_VXLAN | NFP_NET_CFG_CTRL_NVGRE;
-
-		netdev->hw_enc_features = netdev->hw_features;
+			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+		nn->dp.ctrl |= NFP_NET_CFG_CTRL_VXLAN;
 	}
+	if (nn->cap & NFP_NET_CFG_CTRL_NVGRE) {
+		if (nn->cap & NFP_NET_CFG_CTRL_LSO)
+			netdev->hw_features |= NETIF_F_GSO_GRE;
+		nn->dp.ctrl |= NFP_NET_CFG_CTRL_NVGRE;
+	}
+	if (nn->cap & (NFP_NET_CFG_CTRL_VXLAN | NFP_NET_CFG_CTRL_NVGRE))
+		netdev->hw_enc_features = netdev->hw_features;
 
 	netdev->vlan_features = netdev->hw_features;
 
@@ -3864,10 +3854,20 @@ int nfp_net_init(struct nfp_net *nn)
 		return err;
 
 	/* Set default MTU and Freelist buffer size */
-	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
+	if (!nfp_net_is_data_vnic(nn) && nn->app->ctrl_mtu) {
+		if (nn->app->ctrl_mtu <= nn->max_mtu) {
+			nn->dp.mtu = nn->app->ctrl_mtu;
+		} else {
+			if (nn->app->ctrl_mtu != NFP_APP_CTRL_MTU_MAX)
+				nn_warn(nn, "app requested MTU above max supported %u > %u\n",
+					nn->app->ctrl_mtu, nn->max_mtu);
+			nn->dp.mtu = nn->max_mtu;
+		}
+	} else if (nn->max_mtu < NFP_NET_DEFAULT_MTU) {
 		nn->dp.mtu = nn->max_mtu;
-	else
+	} else {
 		nn->dp.mtu = NFP_NET_DEFAULT_MTU;
+	}
 	nn->dp.fl_bufsz = nfp_net_calc_fl_bufsz(&nn->dp);
 
 	if (nfp_app_ctrl_uses_data_vnics(nn->app))

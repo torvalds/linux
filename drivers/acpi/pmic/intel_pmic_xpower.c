@@ -1,23 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_pmic_xpower.c - XPower AXP288 PMIC operation region driver
+ * XPower AXP288 PMIC operation region driver
  *
  * Copyright (C) 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/init.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
+#include <asm/iosf_mbi.h>
 #include "intel_pmic.h"
 
 #define XPOWER_GPADC_LOW	0x5b
@@ -180,15 +173,21 @@ static int intel_xpower_pmic_get_power(struct regmap *regmap, int reg,
 static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
 					  int bit, bool on)
 {
-	int data;
+	int data, ret;
 
 	/* GPIO1 LDO regulator needs special handling */
 	if (reg == XPOWER_GPI1_CTRL)
 		return regmap_update_bits(regmap, reg, GPI1_LDO_MASK,
 					  on ? GPI1_LDO_ON : GPI1_LDO_OFF);
 
-	if (regmap_read(regmap, reg, &data))
-		return -EIO;
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret)
+		return ret;
+
+	if (regmap_read(regmap, reg, &data)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	if (on)
 		data |= BIT(bit);
@@ -196,9 +195,11 @@ static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
 		data &= ~BIT(bit);
 
 	if (regmap_write(regmap, reg, data))
-		return -EIO;
+		ret = -EIO;
+out:
+	iosf_mbi_unblock_punit_i2c_access();
 
-	return 0;
+	return ret;
 }
 
 /**

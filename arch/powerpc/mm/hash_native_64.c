@@ -115,6 +115,8 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	tlbiel_hash_set_isa300(0, is, 0, 2, 1);
 
 	asm volatile("ptesync": : :"memory");
+
+	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
 void hash__tlbiel_all(unsigned int action)
@@ -140,8 +142,6 @@ void hash__tlbiel_all(unsigned int action)
 		tlbiel_all_isa206(POWER7_TLB_SETS, is);
 	else
 		WARN(1, "%s called on pre-POWER7 CPU\n", __func__);
-
-	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
 static inline unsigned long  ___tlbie(unsigned long vpn, int psize,

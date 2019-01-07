@@ -142,10 +142,6 @@ struct dpu_hw_ctl_ops {
 		u32 *flushbits,
 		enum dpu_intf blk);
 
-	int (*get_bitmask_cdm)(struct dpu_hw_ctl *ctx,
-		u32 *flushbits,
-		enum dpu_cdm blk);
-
 	/**
 	 * Set all blend stages to disabled
 	 * @ctx       : ctl path ctx pointer

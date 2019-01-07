@@ -580,9 +580,9 @@ void ima_update_policy(void)
 	ima_update_policy_flag();
 }
 
+/* Keep the enumeration in sync with the policy_tokens! */
 enum {
-	Opt_err = -1,
-	Opt_measure = 1, Opt_dont_measure,
+	Opt_measure, Opt_dont_measure,
 	Opt_appraise, Opt_dont_appraise,
 	Opt_audit, Opt_hash, Opt_dont_hash,
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
@@ -592,10 +592,10 @@ enum {
 	Opt_uid_gt, Opt_euid_gt, Opt_fowner_gt,
 	Opt_uid_lt, Opt_euid_lt, Opt_fowner_lt,
 	Opt_appraise_type, Opt_permit_directio,
-	Opt_pcr
+	Opt_pcr, Opt_err
 };
 
-static match_table_t policy_tokens = {
+static const match_table_t policy_tokens = {
 	{Opt_measure, "measure"},
 	{Opt_dont_measure, "dont_measure"},
 	{Opt_appraise, "appraise"},
@@ -1103,7 +1103,7 @@ void ima_policy_stop(struct seq_file *m, void *v)
 {
 }
 
-#define pt(token)	policy_tokens[token + Opt_err].pattern
+#define pt(token)	policy_tokens[token].pattern
 #define mt(token)	mask_tokens[token]
 
 /*

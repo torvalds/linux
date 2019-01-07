@@ -1322,7 +1322,7 @@ void typec_set_pwr_role(struct typec_port *port, enum typec_role role)
 EXPORT_SYMBOL_GPL(typec_set_pwr_role);
 
 /**
- * typec_set_pwr_role - Report VCONN source change
+ * typec_set_vconn_role - Report VCONN source change
  * @port: The USB Type-C Port which VCONN role changed
  * @role: Source when @port is sourcing VCONN, or Sink when it's not
  *
@@ -1500,7 +1500,7 @@ typec_port_register_altmode(struct typec_port *port,
 
 	sprintf(id, "id%04xm%02x", desc->svid, desc->mode);
 
-	mux = typec_mux_get(port->dev.parent, id);
+	mux = typec_mux_get(&port->dev, id);
 	if (IS_ERR(mux))
 		return ERR_CAST(mux);
 
@@ -1538,18 +1538,6 @@ struct typec_port *typec_register_port(struct device *parent,
 	if (id < 0) {
 		kfree(port);
 		return ERR_PTR(id);
-	}
-
-	port->sw = typec_switch_get(cap->fwnode ? &port->dev : parent);
-	if (IS_ERR(port->sw)) {
-		ret = PTR_ERR(port->sw);
-		goto err_switch;
-	}
-
-	port->mux = typec_mux_get(parent, "typec-mux");
-	if (IS_ERR(port->mux)) {
-		ret = PTR_ERR(port->mux);
-		goto err_mux;
 	}
 
 	switch (cap->type) {
@@ -1592,13 +1580,26 @@ struct typec_port *typec_register_port(struct device *parent,
 	port->port_type = cap->type;
 	port->prefer_role = cap->prefer_role;
 
+	device_initialize(&port->dev);
 	port->dev.class = typec_class;
 	port->dev.parent = parent;
 	port->dev.fwnode = cap->fwnode;
 	port->dev.type = &typec_port_dev_type;
 	dev_set_name(&port->dev, "port%d", id);
 
-	ret = device_register(&port->dev);
+	port->sw = typec_switch_get(&port->dev);
+	if (IS_ERR(port->sw)) {
+		put_device(&port->dev);
+		return ERR_CAST(port->sw);
+	}
+
+	port->mux = typec_mux_get(&port->dev, "typec-mux");
+	if (IS_ERR(port->mux)) {
+		put_device(&port->dev);
+		return ERR_CAST(port->mux);
+	}
+
+	ret = device_add(&port->dev);
 	if (ret) {
 		dev_err(parent, "failed to register port (%d)\n", ret);
 		put_device(&port->dev);
@@ -1606,15 +1607,6 @@ struct typec_port *typec_register_port(struct device *parent,
 	}
 
 	return port;
-
-err_mux:
-	typec_switch_put(port->sw);
-
-err_switch:
-	ida_simple_remove(&typec_index_ida, port->id);
-	kfree(port);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(typec_register_port);
 

@@ -149,6 +149,7 @@ config HID_APPLEIR
 config HID_ASUS
 	tristate "Asus"
 	depends on LEDS_CLASS
+	depends on ASUS_WMI || ASUS_WMI=n
 	---help---
 	Support for Asus notebook built-in keyboard and touchpad via i2c, and
 	the Asus Republic of Gamers laptop keyboard special keys.
@@ -181,6 +182,18 @@ config HID_BETOP_FF
 	BETOP Production Ltd.
 	Currently the following devices are known to be supported:
 	 - BETOP 2185 PC & BFM MODE
+
+config HID_BIGBEN_FF
+	tristate "BigBen Interactive Kids' gamepad support"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the "Kid-friendly Wired Controller" PS3OFMINIPAD
+	  gamepad made by BigBen Interactive, originally sold as a PS3
+	  accessory. This driver fixes input mapping and adds support for
+	  force feedback effects and LEDs on the device.
 
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard"
@@ -351,7 +364,7 @@ config HOLTEK_FF
 
 config HID_GOOGLE_HAMMER
 	tristate "Google Hammer Keyboard"
-	depends on USB_HID && LEDS_CLASS
+	depends on USB_HID && LEDS_CLASS && MFD_CROS_EC
 	---help---
 	Say Y here if you have a Google Hammer device.
 
@@ -596,6 +609,7 @@ config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
+	select INPUT_FF_MEMLESS
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 

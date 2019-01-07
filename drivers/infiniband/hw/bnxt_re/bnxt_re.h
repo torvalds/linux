@@ -40,7 +40,6 @@
 #ifndef __BNXT_RE_H__
 #define __BNXT_RE_H__
 #define ROCE_DRV_MODULE_NAME		"bnxt_re"
-#define ROCE_DRV_MODULE_VERSION		"1.0.0"
 
 #define BNXT_RE_DESC	"Broadcom NetXtreme-C/E RoCE Driver"
 #define BNXT_RE_PAGE_SHIFT_4K		(12)
@@ -120,6 +119,8 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_HAVE_L2_REF		3
 #define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
 #define BNXT_RE_FLAG_QOS_WORK_REG		5
+#define BNXT_RE_FLAG_RESOURCES_ALLOCATED	7
+#define BNXT_RE_FLAG_RESOURCES_INITIALIZED	8
 #define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
 	unsigned int			version, major, minor;

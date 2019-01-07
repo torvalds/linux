@@ -109,6 +109,7 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
 #define AMD_PG_SUPPORT_MMHUB			(1 << 13)
 #define AMD_PG_SUPPORT_VCN			(1 << 14)
+#define AMD_PG_SUPPORT_VCN_DPG	(1 << 15)
 
 enum PP_FEATURE_MASK {
 	PP_SCLK_DPM_MASK = 0x1,
@@ -129,6 +130,11 @@ enum PP_FEATURE_MASK {
 	PP_GFXOFF_MASK = 0x8000,
 	PP_ACG_MASK = 0x10000,
 	PP_STUTTER_MODE = 0x20000,
+	PP_AVFS_MASK = 0x40000,
+};
+
+enum DC_FEATURE_MASK {
+	DC_FBC_MASK = 0x1,
 };
 
 /**

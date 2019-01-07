@@ -29,10 +29,11 @@
 
 	.section .text
 ENTRY(swsusp_arch_suspend)
-	stmg	%r6,%r15,__SF_GPRS(%r15)
+	lg	%r1,__LC_NODAT_STACK
+	aghi	%r1,-STACK_FRAME_OVERHEAD
+	stmg	%r6,%r15,__SF_GPRS(%r1)
+	stg	%r15,__SF_BACKCHAIN(%r1)
 	lgr	%r1,%r15
-	aghi	%r15,-STACK_FRAME_OVERHEAD
-	stg	%r1,__SF_BACKCHAIN(%r15)
 
 	/* Store FPU registers */
 	brasl	%r14,save_fpu_regs
@@ -197,9 +198,7 @@ pgm_check_entry:
 	brc	2,3b				/* busy, try again */
 
 	/* Suspend CPU not available -> panic */
-	larl	%r15,init_thread_union
-	aghi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER)
-	aghi	%r15,-STACK_FRAME_OVERHEAD
+	larl	%r15,init_thread_union+THREAD_SIZE-STACK_FRAME_OVERHEAD
 	larl	%r2,.Lpanic_string
 	brasl	%r14,sclp_early_printk_force
 	larl	%r3,.Ldisabled_wait_31

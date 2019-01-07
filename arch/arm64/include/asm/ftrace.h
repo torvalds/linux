@@ -56,6 +56,19 @@ static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 {
 	return is_compat_task();
 }
+
+#define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
+
+static inline bool arch_syscall_match_sym_name(const char *sym,
+					       const char *name)
+{
+	/*
+	 * Since all syscall functions have __arm64_ prefix, we must skip it.
+	 * However, as we described above, we decided to ignore compat
+	 * syscalls, so we don't care about __arm64_compat_ prefix here.
+	 */
+	return !strcmp(sym + 8, name);
+}
 #endif /* ifndef __ASSEMBLY__ */
 
 #endif /* __ASM_FTRACE_H */

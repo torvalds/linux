@@ -1872,7 +1872,6 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 	struct fc_lport *lport = shost_priv(shost);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
 	struct fc_fcp_pkt *fsp;
-	struct fc_rport_libfc_priv *rpriv;
 	int rval;
 	int rc = 0;
 	struct fc_stats *stats;
@@ -1893,8 +1892,6 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 		sc_cmd->scsi_done(sc_cmd);
 		goto out;
 	}
-
-	rpriv = rport->dd_data;
 
 	if (!fc_fcp_lport_queue_ready(lport)) {
 		if (lport->qfull) {
@@ -2295,8 +2292,7 @@ int fc_setup_fcp(void)
 
 void fc_destroy_fcp(void)
 {
-	if (scsi_pkt_cachep)
-		kmem_cache_destroy(scsi_pkt_cachep);
+	kmem_cache_destroy(scsi_pkt_cachep);
 }
 
 /**

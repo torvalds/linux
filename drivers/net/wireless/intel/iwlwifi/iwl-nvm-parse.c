@@ -19,11 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -476,30 +471,40 @@ static struct ieee80211_sband_iftype_data iwl_he_capa = {
 		.has_he = true,
 		.he_cap_elem = {
 			.mac_cap_info[0] =
-				IEEE80211_HE_MAC_CAP0_HTC_HE,
+				IEEE80211_HE_MAC_CAP0_HTC_HE |
+				IEEE80211_HE_MAC_CAP0_TWT_REQ,
 			.mac_cap_info[1] =
 				IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US |
-				IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_8,
+				IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_RX_QOS_8,
 			.mac_cap_info[2] =
 				IEEE80211_HE_MAC_CAP2_32BIT_BA_BITMAP |
+				IEEE80211_HE_MAC_CAP2_MU_CASCADING |
 				IEEE80211_HE_MAC_CAP2_ACK_EN,
 			.mac_cap_info[3] =
-				IEEE80211_HE_MAC_CAP3_GRP_ADDR_MULTI_STA_BA_DL_MU |
-				IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_VHT_2,
-			.mac_cap_info[4] = IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU,
+				IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
+				IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2,
+			.mac_cap_info[4] =
+				IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU |
+				IEEE80211_HE_MAC_CAP4_MULTI_TID_AGG_TX_QOS_B39,
+			.mac_cap_info[5] =
+				IEEE80211_HE_MAC_CAP5_MULTI_TID_AGG_TX_QOS_B40 |
+				IEEE80211_HE_MAC_CAP5_MULTI_TID_AGG_TX_QOS_B41 |
+				IEEE80211_HE_MAC_CAP5_UL_2x996_TONE_RU,
 			.phy_cap_info[0] =
-				IEEE80211_HE_PHY_CAP0_DUAL_BAND |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G,
 			.phy_cap_info[1] =
+				IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_MASK |
 				IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A |
 				IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD |
-				IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_MAX_NSTS,
+				IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS,
 			.phy_cap_info[2] =
 				IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US |
 				IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ |
-				IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ,
+				IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ |
+				IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO |
+				IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO,
 			.phy_cap_info[3] =
 				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_BPSK |
 				IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_1 |
@@ -511,18 +516,31 @@ static struct ieee80211_sband_iftype_data iwl_he_capa = {
 				IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_8,
 			.phy_cap_info[5] =
 				IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_2 |
-				IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_2,
+				IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_2 |
+				IEEE80211_HE_PHY_CAP5_NG16_SU_FEEDBACK |
+				IEEE80211_HE_PHY_CAP5_NG16_MU_FEEDBACK,
 			.phy_cap_info[6] =
+				IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_42_SU |
+				IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_75_MU |
+				IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMER_FB |
+				IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB |
+				IEEE80211_HE_PHY_CAP6_TRIG_CQI_FB |
+				IEEE80211_HE_PHY_CAP6_PARTIAL_BANDWIDTH_DL_MUMIMO |
 				IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT,
 			.phy_cap_info[7] =
 				IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR |
 				IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI |
-				IEEE80211_HE_PHY_CAP7_MAX_NC_7,
+				IEEE80211_HE_PHY_CAP7_MAX_NC_1,
 			.phy_cap_info[8] =
 				IEEE80211_HE_PHY_CAP8_HE_ER_SU_PPDU_4XLTF_AND_08_US_GI |
 				IEEE80211_HE_PHY_CAP8_20MHZ_IN_40MHZ_HE_PPDU_IN_2G |
 				IEEE80211_HE_PHY_CAP8_20MHZ_IN_160MHZ_HE_PPDU |
-				IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU,
+				IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU |
+				IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_160_OR_80P80_MHZ,
+			.phy_cap_info[9] =
+				IEEE80211_HE_PHY_CAP9_NON_TRIGGERED_CQI_FEEDBACK |
+				IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
+				IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB,
 		},
 		/*
 		 * Set default Tx/Rx HE MCS NSS Support field. Indicate support
@@ -559,9 +577,11 @@ static void iwl_init_he_hw_capab(struct ieee80211_supported_band *sband,
 	/* If not 2x2, we need to indicate 1x1 in the Midamble RX Max NSTS */
 	if ((tx_chains & rx_chains) != ANT_AB) {
 		iwl_he_capa.he_cap.he_cap_elem.phy_cap_info[1] &=
-			~IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_MAX_NSTS;
+			~IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS;
 		iwl_he_capa.he_cap.he_cap_elem.phy_cap_info[2] &=
-			~IEEE80211_HE_PHY_CAP2_MIDAMBLE_RX_MAX_NSTS;
+			~IEEE80211_HE_PHY_CAP2_MIDAMBLE_RX_TX_MAX_NSTS;
+		iwl_he_capa.he_cap.he_cap_elem.phy_cap_info[7] &=
+			~IEEE80211_HE_PHY_CAP7_MAX_NC_MASK;
 	}
 }
 
@@ -1315,6 +1335,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	bool lar_fw_supported = !iwlwifi_mod_params.lar_disable &&
 				fw_has_capa(&fw->ucode_capa,
 					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+	bool empty_otp;
 	u32 mac_flags;
 	u32 sbands_flags = 0;
 
@@ -1330,7 +1351,9 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	}
 
 	rsp = (void *)hcmd.resp_pkt->data;
-	if (le32_to_cpu(rsp->general.flags) & NVM_GENERAL_FLAGS_EMPTY_OTP)
+	empty_otp = !!(le32_to_cpu(rsp->general.flags) &
+		       NVM_GENERAL_FLAGS_EMPTY_OTP);
+	if (empty_otp)
 		IWL_INFO(trans, "OTP is empty\n");
 
 	nvm = kzalloc(sizeof(*nvm) +
@@ -1354,6 +1377,11 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 
 	/* Initialize general data */
 	nvm->nvm_version = le16_to_cpu(rsp->general.nvm_version);
+	nvm->n_hw_addrs = rsp->general.n_hw_addrs;
+	if (nvm->n_hw_addrs == 0)
+		IWL_WARN(trans,
+			 "Firmware declares no reserved mac addresses. OTP is empty: %d\n",
+			 empty_otp);
 
 	/* Initialize MAC sku data */
 	mac_flags = le32_to_cpu(rsp->mac_sku.mac_sku_flags);

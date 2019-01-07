@@ -177,6 +177,23 @@ static void dwxgmac2_map_mtl_to_dma(struct mac_device_info *hw, u32 queue,
 	writel(value, ioaddr + reg);
 }
 
+static void dwxgmac2_config_cbs(struct mac_device_info *hw,
+				u32 send_slope, u32 idle_slope,
+				u32 high_credit, u32 low_credit, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	writel(send_slope, ioaddr + XGMAC_MTL_TCx_SENDSLOPE(queue));
+	writel(idle_slope, ioaddr + XGMAC_MTL_TCx_QUANTUM_WEIGHT(queue));
+	writel(high_credit, ioaddr + XGMAC_MTL_TCx_HICREDIT(queue));
+	writel(low_credit, ioaddr + XGMAC_MTL_TCx_LOCREDIT(queue));
+
+	value = readl(ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(queue));
+	value |= XGMAC_CC | XGMAC_CBS;
+	writel(value, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(queue));
+}
+
 static int dwxgmac2_host_irq_status(struct mac_device_info *hw,
 				    struct stmmac_extra_stats *x)
 {
@@ -316,7 +333,7 @@ const struct stmmac_ops dwxgmac210_ops = {
 	.prog_mtl_tx_algorithms = dwxgmac2_prog_mtl_tx_algorithms,
 	.set_mtl_tx_queue_weight = NULL,
 	.map_mtl_to_dma = dwxgmac2_map_mtl_to_dma,
-	.config_cbs = NULL,
+	.config_cbs = dwxgmac2_config_cbs,
 	.dump_regs = NULL,
 	.host_irq_status = dwxgmac2_host_irq_status,
 	.host_mtl_irq_status = dwxgmac2_host_mtl_irq_status,

@@ -28,7 +28,7 @@
  *	  acquired, then the read-write lock must be acquired first.
  */
 #include <linux/module.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/elf.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

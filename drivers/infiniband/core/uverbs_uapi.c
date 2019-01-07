@@ -73,6 +73,18 @@ static int uapi_merge_method(struct uverbs_api *uapi,
 		if (attr->attr.type == UVERBS_ATTR_TYPE_ENUM_IN)
 			method_elm->driver_method |= is_driver;
 
+		/*
+		 * Like other uobject based things we only support a single
+		 * uobject being NEW'd or DESTROY'd
+		 */
+		if (attr->attr.type == UVERBS_ATTR_TYPE_IDRS_ARRAY) {
+			u8 access = attr->attr.u2.objs_arr.access;
+
+			if (WARN_ON(access == UVERBS_ACCESS_NEW ||
+				    access == UVERBS_ACCESS_DESTROY))
+				return -EINVAL;
+		}
+
 		attr_slot =
 			uapi_add_elm(uapi, method_key | uapi_key_attr(attr->id),
 				     sizeof(*attr_slot));

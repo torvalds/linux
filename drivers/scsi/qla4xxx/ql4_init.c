@@ -766,12 +766,10 @@ int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
 	while (drvr_wait) {
 		if (ql4xxx_lock_drvr(a) == 0) {
 			ssleep(QL4_LOCK_DRVR_SLEEP);
-			if (drvr_wait) {
-				DEBUG2(printk("scsi%ld: %s: Waiting for "
-					      "Global Init Semaphore(%d)...\n",
-					      a->host_no,
-					      __func__, drvr_wait));
-			}
+			DEBUG2(printk("scsi%ld: %s: Waiting for "
+				      "Global Init Semaphore(%d)...\n",
+				      a->host_no,
+				      __func__, drvr_wait));
 			drvr_wait -= QL4_LOCK_DRVR_SLEEP;
 		} else {
 			DEBUG2(printk("scsi%ld: %s: Global Init Semaphore "

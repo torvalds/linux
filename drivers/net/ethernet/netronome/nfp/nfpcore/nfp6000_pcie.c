@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp6000_pcie.c
@@ -138,6 +108,7 @@
 
 /* The number of explicit BARs to reserve.
  * Minimum is 0, maximum is 4 on the NFP6000.
+ * The NFP3800 can have only one per PF.
  */
 #define NFP_PCIE_EXPLICIT_BARS		2
 
@@ -589,8 +560,8 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 			NFP_PCIE_BAR_PCIE2CPP_MapType_EXPLICIT3),
 	};
 	char status_msg[196] = {};
+	int i, err, bars_free;
 	struct nfp_bar *bar;
-	int i, bars_free;
 	int expl_groups;
 	char *msg, *end;
 
@@ -643,6 +614,8 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
 					     nfp_bar_resource_len(bar));
 	if (bar->iomem) {
+		int pf;
+
 		msg += snprintf(msg, end - msg,	"0.0: General/MSI-X SRAM, ");
 		atomic_inc(&bar->refcnt);
 		bars_free--;
@@ -651,22 +624,40 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 		nfp->expl.data = bar->iomem + NFP_PCIE_SRAM + 0x1000;
 
-		if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
-		    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000) {
-			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
-		} else {
-			int pf = nfp->pdev->devfn & 7;
-
+		switch (nfp->pdev->device) {
+		case PCI_DEVICE_ID_NETRONOME_NFP3800:
+			pf = nfp->pdev->devfn & 7;
 			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(pf);
+			break;
+		case PCI_DEVICE_ID_NETRONOME_NFP4000:
+		case PCI_DEVICE_ID_NETRONOME_NFP5000:
+		case PCI_DEVICE_ID_NETRONOME_NFP6000:
+			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
+			break;
+		default:
+			dev_err(nfp->dev, "Unsupported device ID: %04hx!\n",
+				nfp->pdev->device);
+			err = -EINVAL;
+			goto err_unmap_bar0;
 		}
 		nfp->iomem.em = bar->iomem + NFP_PCIE_EM;
 	}
 
-	if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
-	    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000)
-		expl_groups = 4;
-	else
+	switch (nfp->pdev->device) {
+	case PCI_DEVICE_ID_NETRONOME_NFP3800:
 		expl_groups = 1;
+		break;
+	case PCI_DEVICE_ID_NETRONOME_NFP4000:
+	case PCI_DEVICE_ID_NETRONOME_NFP5000:
+	case PCI_DEVICE_ID_NETRONOME_NFP6000:
+		expl_groups = 4;
+		break;
+	default:
+		dev_err(nfp->dev, "Unsupported device ID: %04hx!\n",
+			nfp->pdev->device);
+		err = -EINVAL;
+		goto err_unmap_bar0;
+	}
 
 	/* Configure, and lock, BAR0.1 for PCIe XPB (MSI-X PBA) */
 	bar = &nfp->bar[1];
@@ -711,6 +702,11 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 	dev_info(nfp->dev, "%sfree: %d/%d\n", status_msg, bars_free, nfp->bars);
 
 	return 0;
+
+err_unmap_bar0:
+	if (nfp->bar[0].iomem)
+		iounmap(nfp->bar[0].iomem);
+	return err;
 }
 
 static void disable_bars(struct nfp6000_pcie *nfp)
@@ -1327,7 +1323,7 @@ struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
 
 	/*  Finished with card initialization. */
 	dev_info(&pdev->dev,
-		 "Netronome Flow Processor NFP4000/NFP6000 PCIe Card Probe\n");
+		 "Netronome Flow Processor NFP4000/NFP5000/NFP6000 PCIe Card Probe\n");
 	pcie_print_link_status(pdev);
 
 	nfp = kzalloc(sizeof(*nfp), GFP_KERNEL);

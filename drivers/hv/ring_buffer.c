@@ -241,6 +241,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 {
 	vunmap(ring_info->ring_buffer);
+	ring_info->ring_buffer = NULL;
 }
 
 /* Write to the ring buffer. */

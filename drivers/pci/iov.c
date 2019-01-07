@@ -13,7 +13,6 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/pci-ats.h>
 #include "pci.h"
 
 #define VIRTFN_ID_LEN	16
@@ -133,6 +132,8 @@ static void pci_read_vf_config_common(struct pci_dev *virtfn)
 			     &physfn->sriov->subsystem_vendor);
 	pci_read_config_word(virtfn, PCI_SUBSYSTEM_ID,
 			     &physfn->sriov->subsystem_device);
+
+	physfn->sriov->cfg_size = pci_cfg_space_size(virtfn);
 }
 
 int pci_iov_add_virtfn(struct pci_dev *dev, int id)

@@ -4,6 +4,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/tegra186-hsp.h>
 #include <dt-bindings/memory/tegra186-mc.h>
+#include <dt-bindings/pinctrl/pinctrl-tegra-io-pad.h>
 #include <dt-bindings/power/tegra186-powergate.h>
 #include <dt-bindings/reset/tegra186-reset.h>
 #include <dt-bindings/thermal/tegra186-bpmp-thermal.h>
@@ -236,6 +237,20 @@
 		clock-names = "sdhci";
 		resets = <&bpmp TEGRA186_RESET_SDMMC1>;
 		reset-names = "sdhci";
+		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
+		pinctrl-0 = <&sdmmc1_3v3>;
+		pinctrl-1 = <&sdmmc1_1v8>;
+		nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x07>;
+		nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x06>;
+		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x07>;
+		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
+		nvidia,pad-autocal-pull-up-offset-sdr104 = <0x03>;
+		nvidia,pad-autocal-pull-down-offset-sdr104 = <0x05>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0xb>;
+		assigned-clocks = <&bpmp TEGRA186_CLK_SDMMC1>,
+				  <&bpmp TEGRA186_CLK_PLLP_OUT0>;
+		assigned-clock-parents = <&bpmp TEGRA186_CLK_PLLP_OUT0>;
 		status = "disabled";
 	};
 
@@ -247,6 +262,15 @@
 		clock-names = "sdhci";
 		resets = <&bpmp TEGRA186_RESET_SDMMC2>;
 		reset-names = "sdhci";
+		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
+		pinctrl-0 = <&sdmmc2_3v3>;
+		pinctrl-1 = <&sdmmc2_1v8>;
+		nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x07>;
+		nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x06>;
+		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x07>;
+		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0xb>;
 		status = "disabled";
 	};
 
@@ -258,6 +282,17 @@
 		clock-names = "sdhci";
 		resets = <&bpmp TEGRA186_RESET_SDMMC3>;
 		reset-names = "sdhci";
+		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
+		pinctrl-0 = <&sdmmc3_3v3>;
+		pinctrl-1 = <&sdmmc3_1v8>;
+		nvidia,pad-autocal-pull-up-offset-1v8 = <0x00>;
+		nvidia,pad-autocal-pull-down-offset-1v8 = <0x7a>;
+		nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x07>;
+		nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x06>;
+		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x07>;
+		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0xb>;
 		status = "disabled";
 	};
 
@@ -267,8 +302,19 @@
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&bpmp TEGRA186_CLK_SDMMC4>;
 		clock-names = "sdhci";
+		assigned-clocks = <&bpmp TEGRA186_CLK_SDMMC4>,
+				  <&bpmp TEGRA186_CLK_PLLC4_VCO>;
+		assigned-clock-parents = <&bpmp TEGRA186_CLK_PLLC4_VCO>;
 		resets = <&bpmp TEGRA186_RESET_SDMMC4>;
 		reset-names = "sdhci";
+		nvidia,pad-autocal-pull-up-offset-hs400 = <0x05>;
+		nvidia,pad-autocal-pull-down-offset-hs400 = <0x05>;
+		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x0a>;
+		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x0a>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0x9>;
+		nvidia,dqs-trim = <63>;
+		mmc-hs400-1_8v;
 		status = "disabled";
 	};
 
@@ -368,6 +414,36 @@
 		      <0 0x0c380000 0 0x10000>,
 		      <0 0x0c390000 0 0x10000>;
 		reg-names = "pmc", "wake", "aotag", "scratch";
+
+		sdmmc1_3v3: sdmmc1-3v3 {
+			pins = "sdmmc1-hv";
+			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+		};
+
+		sdmmc1_1v8: sdmmc1-1v8 {
+			pins = "sdmmc1-hv";
+			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+		};
+
+		sdmmc2_3v3: sdmmc2-3v3 {
+			pins = "sdmmc2-hv";
+			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+		};
+
+		sdmmc2_1v8: sdmmc2-1v8 {
+			pins = "sdmmc2-hv";
+			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+		};
+
+		sdmmc3_3v3: sdmmc3-3v3 {
+			pins = "sdmmc3-hv";
+			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+		};
+
+		sdmmc3_1v8: sdmmc3-1v8 {
+			pins = "sdmmc3-hv";
+			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+		};
 	};
 
 	ccplex@e000000 {

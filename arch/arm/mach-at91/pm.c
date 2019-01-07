@@ -143,15 +143,15 @@ static int at91_pm_config_ws(unsigned int pm_mode, bool set)
 
 			/* Check if enabled on SHDWC. */
 			if (wsi->shdwc_mr_bit && !(val & wsi->shdwc_mr_bit))
-				goto put_node;
+				goto put_device;
 
 			mode |= wsi->pmc_fsmr_bit;
 			if (wsi->set_polarity)
 				polarity |= wsi->pmc_fsmr_bit;
 		}
 
-put_node:
-		of_node_put(np);
+put_device:
+		put_device(&pdev->dev);
 	}
 
 	if (mode) {
@@ -580,8 +580,6 @@ static int __init at91_pm_backup_init(void)
 	if (!at91_is_pm_mode_active(AT91_PM_BACKUP))
 		return 0;
 
-	pm_bu = NULL;
-
 	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-sfrbu");
 	if (!np) {
 		pr_warn("%s: failed to find sfrbu!\n", __func__);
@@ -590,7 +588,6 @@ static int __init at91_pm_backup_init(void)
 
 	pm_data.sfrbu = of_iomap(np, 0);
 	of_node_put(np);
-	pm_bu = NULL;
 
 	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-securam");
 	if (!np)

@@ -62,10 +62,6 @@ extern void setup_per_cpu_areas(void);
 #define PER_CPU_ATTRIBUTES
 #endif
 
-#ifndef PER_CPU_DEF_ATTRIBUTES
-#define PER_CPU_DEF_ATTRIBUTES
-#endif
-
 #define raw_cpu_generic_read(pcp)					\
 ({									\
 	*raw_cpu_ptr(&(pcp));						\

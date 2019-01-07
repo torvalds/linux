@@ -458,12 +458,44 @@ static int ip6addrlbl_fill(struct sk_buff *skb,
 	return 0;
 }
 
+static int ip6addrlbl_valid_dump_req(const struct nlmsghdr *nlh,
+				     struct netlink_ext_ack *extack)
+{
+	struct ifaddrlblmsg *ifal;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifal))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for address label dump request");
+		return -EINVAL;
+	}
+
+	ifal = nlmsg_data(nlh);
+	if (ifal->__ifal_reserved || ifal->ifal_prefixlen ||
+	    ifal->ifal_flags || ifal->ifal_index || ifal->ifal_seq) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for address label dump request");
+		return -EINVAL;
+	}
+
+	if (nlmsg_attrlen(nlh, sizeof(*ifal))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header for address label dump requewst");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	struct ip6addrlbl_entry *p;
 	int idx = 0, s_idx = cb->args[0];
 	int err;
+
+	if (cb->strict_check) {
+		err = ip6addrlbl_valid_dump_req(nlh, cb->extack);
+		if (err < 0)
+			return err;
+	}
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(p, &net->ipv6.ip6addrlbl_table.head, list) {
@@ -471,7 +503,7 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			err = ip6addrlbl_fill(skb, p,
 					      net->ipv6.ip6addrlbl_table.seq,
 					      NETLINK_CB(cb->skb).portid,
-					      cb->nlh->nlmsg_seq,
+					      nlh->nlmsg_seq,
 					      RTM_NEWADDRLABEL,
 					      NLM_F_MULTI);
 			if (err < 0)

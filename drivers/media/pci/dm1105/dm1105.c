@@ -1046,7 +1046,7 @@ static int dm1105_probe(struct pci_dev *pdev,
 
 	/* i2c */
 	i2c_set_adapdata(&dev->i2c_adap, dev);
-	strcpy(dev->i2c_adap.name, DRIVER_NAME);
+	strscpy(dev->i2c_adap.name, DRIVER_NAME, sizeof(dev->i2c_adap.name));
 	dev->i2c_adap.owner = THIS_MODULE;
 	dev->i2c_adap.dev.parent = &pdev->dev;
 	dev->i2c_adap.algo = &dm1105_algo;
@@ -1057,7 +1057,8 @@ static int dm1105_probe(struct pci_dev *pdev,
 		goto err_dm1105_hw_exit;
 
 	i2c_set_adapdata(&dev->i2c_bb_adap, dev);
-	strcpy(dev->i2c_bb_adap.name, DM1105_I2C_GPIO_NAME);
+	strscpy(dev->i2c_bb_adap.name, DM1105_I2C_GPIO_NAME,
+		sizeof(dev->i2c_bb_adap.name));
 	dev->i2c_bb_adap.owner = THIS_MODULE;
 	dev->i2c_bb_adap.dev.parent = &pdev->dev;
 	dev->i2c_bb_adap.algo_data = &dev->i2c_bit;

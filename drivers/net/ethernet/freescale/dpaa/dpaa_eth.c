@@ -1280,7 +1280,7 @@ static int dpaa_bman_release(const struct dpaa_bp *dpaa_bp,
 
 	err = bman_release(dpaa_bp->pool, bmb, cnt);
 	/* Should never occur, address anyway to avoid leaking the buffers */
-	if (unlikely(WARN_ON(err)) && dpaa_bp->free_buf_cb)
+	if (WARN_ON(err) && dpaa_bp->free_buf_cb)
 		while (cnt-- > 0)
 			dpaa_bp->free_buf_cb(dpaa_bp, &bmb[cnt]);
 
@@ -1704,10 +1704,8 @@ static struct sk_buff *contig_fd_to_skb(const struct dpaa_priv *priv,
 
 	skb = build_skb(vaddr, dpaa_bp->size +
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
-	if (unlikely(!skb)) {
-		WARN_ONCE(1, "Build skb failure on Rx\n");
+	if (WARN_ONCE(!skb, "Build skb failure on Rx\n"))
 		goto free_buffer;
-	}
 	WARN_ON(fd_off != priv->rx_headroom);
 	skb_reserve(skb, fd_off);
 	skb_put(skb, qm_fd_get_length(fd));
@@ -1770,7 +1768,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			sz = dpaa_bp->size +
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 			skb = build_skb(sg_vaddr, sz);
-			if (WARN_ON(unlikely(!skb)))
+			if (WARN_ON(!skb))
 				goto free_buffers;
 
 			skb->ip_summed = rx_csum_offload(priv, fd);
@@ -2046,7 +2044,8 @@ static inline int dpaa_xmit(struct dpaa_priv *priv,
 	return 0;
 }
 
-static int dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
+static netdev_tx_t
+dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
 	const int queue_mapping = skb_get_queue_mapping(skb);
 	bool nonlinear = skb_is_nonlinear(skb);
@@ -2493,8 +2492,7 @@ static int dpaa_phy_init(struct net_device *net_dev)
 
 	/* Remove any features not supported by the controller */
 	phy_dev->supported &= mac_dev->if_support;
-	phy_dev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
-	phy_dev->advertising = phy_dev->supported;
+	phy_support_asym_pause(phy_dev);
 
 	mac_dev->phy_dev = phy_dev;
 	net_dev->phydev = phy_dev;
@@ -2732,8 +2730,6 @@ static int dpaa_ingress_cgr_init(struct dpaa_priv *priv)
 out_error:
 	return err;
 }
-
-static const struct of_device_id dpaa_match[];
 
 static inline u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl)
 {

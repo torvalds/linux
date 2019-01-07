@@ -35,9 +35,7 @@ static void sun4i_backend_layer_reset(struct drm_plane *plane)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state) {
-		plane->state = &state->state;
-		plane->state->plane = plane;
-		plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
+		__drm_atomic_helper_plane_reset(plane, &state->state);
 		plane->state->zpos = layer->id;
 	}
 }
