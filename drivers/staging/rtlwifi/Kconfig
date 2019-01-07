@@ -7,6 +7,6 @@ config R8822BE
 	wireless network adapters.
 
 config RTLWIFI_DEBUG_ST
-	bool
+	bool "Debugging output for Realtek RTL8822BE driver"
 	depends on R8822BE
-	default y
+	default n
