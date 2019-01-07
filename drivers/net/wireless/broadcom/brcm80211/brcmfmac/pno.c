@@ -496,6 +496,11 @@ int brcmf_pno_stop_sched_scan(struct brcmf_if *ifp, u64 reqid)
 	brcmf_dbg(TRACE, "reqid=%llu\n", reqid);
 
 	pi = ifp_to_pno(ifp);
+
+	/* No PNO request */
+	if (!pi->n_reqs)
+		return 0;
+
 	err = brcmf_pno_remove_request(pi, reqid);
 	if (err)
 		return err;
