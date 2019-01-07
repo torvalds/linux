@@ -3517,4 +3517,13 @@ extern void inode_nohighmem(struct inode *inode);
 extern int vfs_fadvise(struct file *file, loff_t offset, loff_t len,
 		       int advice);
 
+#if defined(CONFIG_IO_URING)
+extern struct sock *io_uring_get_socket(struct file *file);
+#else
+static inline struct sock *io_uring_get_socket(struct file *file)
+{
+	return NULL;
+}
+#endif
+
 #endif /* _LINUX_FS_H */

@@ -398,3 +398,5 @@
 384	i386	arch_prctl		sys_arch_prctl			__ia32_compat_sys_arch_prctl
 385	i386	io_pgetevents		sys_io_pgetevents		__ia32_compat_sys_io_pgetevents
 386	i386	rseq			sys_rseq			__ia32_sys_rseq
+425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
+426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
