@@ -34,10 +34,18 @@ static void idma32_suspend_chan(struct dw_dma_chan *dwc, bool drain)
 
 	if (drain)
 		cfglo |= IDMA32C_CFGL_CH_DRAIN;
-	else
-		cfglo &= ~IDMA32C_CFGL_CH_DRAIN;
 
 	channel_writel(dwc, CFG_LO, cfglo | DWC_CFGL_CH_SUSP);
+}
+
+static void idma32_resume_chan(struct dw_dma_chan *dwc, bool drain)
+{
+	u32 cfglo = channel_readl(dwc, CFG_LO);
+
+	if (drain)
+		cfglo &= ~IDMA32C_CFGL_CH_DRAIN;
+
+	channel_writel(dwc, CFG_LO, cfglo & ~DWC_CFGL_CH_SUSP);
 }
 
 static u32 idma32_bytes2block(struct dw_dma_chan *dwc,
@@ -117,6 +125,7 @@ int idma32_dma_probe(struct dw_dma_chip *chip)
 	/* Channel operations */
 	dw->initialize_chan = idma32_initialize_chan;
 	dw->suspend_chan = idma32_suspend_chan;
+	dw->resume_chan = idma32_resume_chan;
 	dw->encode_maxburst = idma32_encode_maxburst;
 	dw->bytes2block = idma32_bytes2block;
 	dw->block2bytes = idma32_block2bytes;

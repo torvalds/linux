@@ -315,6 +315,7 @@ struct dw_dma {
 	/* Channel operations */
 	void	(*initialize_chan)(struct dw_dma_chan *dwc);
 	void	(*suspend_chan)(struct dw_dma_chan *dwc, bool drain);
+	void	(*resume_chan)(struct dw_dma_chan *dwc, bool drain);
 	void	(*encode_maxburst)(struct dw_dma_chan *dwc, u32 *maxburst);
 	u32	(*bytes2block)(struct dw_dma_chan *dwc, size_t bytes,
 			       unsigned int width, size_t *len);

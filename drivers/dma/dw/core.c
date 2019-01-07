@@ -846,11 +846,11 @@ static int dwc_pause(struct dma_chan *chan)
 	return 0;
 }
 
-static inline void dwc_chan_resume(struct dw_dma_chan *dwc)
+static inline void dwc_chan_resume(struct dw_dma_chan *dwc, bool drain)
 {
-	u32 cfglo = channel_readl(dwc, CFG_LO);
+	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
 
-	channel_writel(dwc, CFG_LO, cfglo & ~DWC_CFGL_CH_SUSP);
+	dw->resume_chan(dwc, drain);
 
 	clear_bit(DW_DMA_IS_PAUSED, &dwc->flags);
 }
@@ -863,7 +863,7 @@ static int dwc_resume(struct dma_chan *chan)
 	spin_lock_irqsave(&dwc->lock, flags);
 
 	if (test_bit(DW_DMA_IS_PAUSED, &dwc->flags))
-		dwc_chan_resume(dwc);
+		dwc_chan_resume(dwc, false);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -886,7 +886,7 @@ static int dwc_terminate_all(struct dma_chan *chan)
 
 	dwc_chan_disable(dw, dwc);
 
-	dwc_chan_resume(dwc);
+	dwc_chan_resume(dwc, true);
 
 	/* active_list entries will end up before queued entries */
 	list_splice_init(&dwc->queue, &list);
