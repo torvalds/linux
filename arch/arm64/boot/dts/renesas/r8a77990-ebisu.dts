@@ -169,16 +169,13 @@
 	};
 
 	rsnd_ak4613: sound {
-		compatible = "simple-scu-audio-card";
+		compatible = "simple-audio-card";
 
 		simple-audio-card,name = "rsnd-ak4613";
 		simple-audio-card,format = "left_j";
 		simple-audio-card,bitclock-master = <&sndcpu>;
 		simple-audio-card,frame-master = <&sndcpu>;
 
-		simple-audio-card,prefix = "ak4613";
-		simple-audio-card,routing = "ak4613 Playback", "DAI0 Playback",
-		"DAI0 Capture", "ak4613 Capture";
 		sndcpu: simple-audio-card,cpu {
 			sound-dai = <&rcar_sound>;
 		};
