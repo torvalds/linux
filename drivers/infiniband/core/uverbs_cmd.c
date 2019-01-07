@@ -2012,8 +2012,10 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 		return -ENOMEM;
 
 	qp = uobj_get_obj_read(qp, UVERBS_OBJECT_QP, cmd.qp_handle, attrs);
-	if (!qp)
+	if (!qp) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	is_ud = qp->qp_type == IB_QPT_UD;
 	sg_ind = 0;
