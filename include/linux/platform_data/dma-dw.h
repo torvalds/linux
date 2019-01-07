@@ -38,8 +38,6 @@ struct dw_dma_slave {
 /**
  * struct dw_dma_platform_data - Controller configuration parameters
  * @nr_channels: Number of channels supported by hardware (max 8)
- * @is_private: The device channels should be marked as private and not for
- *	by the general purpose DMA channel allocator.
  * @is_memcpy: The device channels do support memory-to-memory transfers.
  * @is_idma32: The type of the DMA controller is iDMA32
  * @chan_allocation_order: Allocate channels starting from 0 or 7
@@ -53,7 +51,6 @@ struct dw_dma_slave {
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
-	bool		is_private;
 	bool		is_memcpy;
 	bool		is_idma32;
 #define CHAN_ALLOCATION_ASCENDING	0	/* zero to seven */

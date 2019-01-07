@@ -128,9 +128,6 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	pdata->nr_masters = nr_masters;
 	pdata->nr_channels = nr_channels;
 
-	if (of_property_read_bool(np, "is_private"))
-		pdata->is_private = true;
-
 	/*
 	 * All known devices, which use DT for configuration, support
 	 * memory-to-memory transfers. So enable it by default.
