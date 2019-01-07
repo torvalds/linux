@@ -472,6 +472,9 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	    alg->statesize > HASH_MAX_STATESIZE)
 		return -EINVAL;
 
+	if ((alg->export && !alg->import) || (alg->import && !alg->export))
+		return -EINVAL;
+
 	base->cra_type = &crypto_shash_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SHASH;
