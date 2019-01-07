@@ -515,8 +515,9 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 	}
 
 	for (slot = 0; slot < num_slots_enabled; slot++) {
-		val = read_config(pcie, slot, 0x4);
-		write_config(pcie, slot, 0x4, val | 0x4);
+		val = read_config(pcie, slot, PCI_COMMAND);
+		val |= PCI_COMMAND_MASTER;
+		write_config(pcie, slot, PCI_COMMAND, val);
 		/* configure RC FTS number to 250 when it leaves L0s */
 		val = read_config(pcie, slot, PCIE_FTS_NUM);
 		val &= ~PCIE_FTS_NUM_MASK;
