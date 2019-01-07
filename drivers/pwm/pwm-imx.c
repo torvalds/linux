@@ -411,9 +411,14 @@ static int imx_pwm_probe(struct platform_device *pdev)
 
 	imx->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(imx->clk_per)) {
-		dev_err(&pdev->dev, "getting per clock failed with %ld\n",
-				PTR_ERR(imx->clk_per));
-		return PTR_ERR(imx->clk_per);
+		int ret = PTR_ERR(imx->clk_per);
+
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"failed to get peripheral clock: %d\n",
+				ret);
+
+		return ret;
 	}
 
 	imx->chip.ops = data->ops;
