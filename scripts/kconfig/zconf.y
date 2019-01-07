@@ -35,7 +35,6 @@ static struct menu *current_menu, *current_entry;
 %union
 {
 	char *string;
-	struct file *file;
 	struct symbol *symbol;
 	struct expr *expr;
 	struct menu *menu;

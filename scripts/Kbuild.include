@@ -41,11 +41,11 @@ kecho := $($(quiet)kecho)
 ###
 # filechk is used to check if the content of a generated file is updated.
 # Sample usage:
-# define filechk_sample
-#	echo $KERNELRELEASE
-# endef
-# version.h : Makefile
+#
+# filechk_sample = echo $(KERNELRELEASE)
+# version.h: FORCE
 #	$(call filechk,sample)
+#
 # The rule defined shall write to stdout the content of the new file.
 # The existing file will be compared with the new one.
 # - If no file exist it is created
@@ -56,7 +56,7 @@ kecho := $($(quiet)kecho)
 define filechk
 	$(Q)set -e;				\
 	mkdir -p $(dir $@);			\
-	$(filechk_$(1)) > $@.tmp;		\
+	{ $(filechk_$(1)); } > $@.tmp;		\
 	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
 		rm -f $@.tmp;			\
 	else					\

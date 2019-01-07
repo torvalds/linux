@@ -26,9 +26,7 @@ timeconst-file := include/generated/timeconst.h
 
 targets += $(timeconst-file)
 
-define filechk_gentimeconst
-	(echo $(CONFIG_HZ) | bc -q $< )
-endef
+filechk_gentimeconst = echo $(CONFIG_HZ) | bc -q $<
 
 $(timeconst-file): kernel/time/timeconst.bc FORCE
 	$(call filechk,gentimeconst)
