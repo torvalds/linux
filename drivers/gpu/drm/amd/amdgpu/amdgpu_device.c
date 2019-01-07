@@ -3525,9 +3525,9 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	 * by different nodes. No point also since the one node already executing
 	 * reset will also reset all the other nodes in the hive.
 	 */
-	hive = amdgpu_get_xgmi_hive(adev);
+	hive = amdgpu_get_xgmi_hive(adev, 0);
 	if (hive && adev->gmc.xgmi.num_physical_nodes > 1 &&
-	    !mutex_trylock(&hive->hive_lock))
+	    !mutex_trylock(&hive->reset_lock))
 		return 0;
 
 	/* Start with adev pre asic reset first for soft reset check.*/
@@ -3606,7 +3606,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	}
 
 	if (hive && adev->gmc.xgmi.num_physical_nodes > 1)
-		mutex_unlock(&hive->hive_lock);
+		mutex_unlock(&hive->reset_lock);
 
 	if (r)
 		dev_info(adev->dev, "GPU reset end with ret = %d\n", r);
