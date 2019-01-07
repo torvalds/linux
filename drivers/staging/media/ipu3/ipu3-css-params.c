@@ -6,6 +6,7 @@
 #include "ipu3-css.h"
 #include "ipu3-css-fw.h"
 #include "ipu3-tables.h"
+#include "ipu3-css-params.h"
 
 #define DIV_ROUND_CLOSEST_DOWN(a, b)	(((a) + ((b) / 2) - 1) / (b))
 #define roundclosest_down(a, b)		(DIV_ROUND_CLOSEST_DOWN(a, b) * (b))

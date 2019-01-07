@@ -12,6 +12,7 @@
 #include "ipu3.h"
 #include "ipu3-css-pool.h"
 #include "ipu3-mmu.h"
+#include "ipu3-dmamap.h"
 
 /*
  * Free a buffer allocated by ipu3_dmamap_alloc_buffer()
