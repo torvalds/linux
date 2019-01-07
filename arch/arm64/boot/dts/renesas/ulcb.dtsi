@@ -6,6 +6,14 @@
  * Copyright (C) 2016 Cogent Embedded, Inc.
  */
 
+/*
+ * SSI-AK4613
+ *	aplay   -D plughw:0,0 xxx.wav
+ *	arecord -D plughw:0,0 xxx.wav
+ * SSI-HDMI
+ *	aplay   -D plughw:0,1 xxx.wav
+ */
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
@@ -87,7 +95,9 @@
 		compatible = "audio-graph-card";
 		label = "rcar-sound";
 
-		dais = <&rsnd_port0>;
+		dais = <&rsnd_port0	/* ak4613 */
+			&rsnd_port1	/* HDMI0  */
+			>;
 	};
 
 	vcc_sdhi0: regulator-vcc-sdhi0 {
@@ -171,6 +181,12 @@
 			reg = <1>;
 			rcar_dw_hdmi0_out: endpoint {
 				remote-endpoint = <&hdmi0_con>;
+			};
+		};
+		port@2 {
+			reg = <2>;
+			dw_hdmi0_snd_in: endpoint {
+				remote-endpoint = <&rsnd_for_hdmi>;
 			};
 		};
 	};
@@ -382,7 +398,10 @@
 		 <&cpg CPG_CORE CPG_AUDIO_CLK_I>;
 
 	ports {
-		rsnd_port0: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		rsnd_port0: port@0 {
+			reg = <0>;
 			rsnd_for_ak4613: endpoint {
 				remote-endpoint = <&ak4613_endpoint>;
 
@@ -392,6 +411,18 @@
 
 				playback = <&ssi0 &src0 &dvc0>;
 				capture  = <&ssi1 &src1 &dvc1>;
+			};
+		};
+		rsnd_port1: port@1 {
+			reg = <1>;
+			rsnd_for_hdmi: endpoint {
+				remote-endpoint = <&dw_hdmi0_snd_in>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_for_hdmi>;
+				frame-master = <&rsnd_for_hdmi>;
+
+				playback = <&ssi2>;
 			};
 		};
 	};
