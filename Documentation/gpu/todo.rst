@@ -209,6 +209,36 @@ Would be great to refactor this all into a set of small common helpers.
 
 Contact: Daniel Vetter
 
+Generic fbdev defio support
+---------------------------
+
+The defio support code in the fbdev core has some very specific requirements,
+which means drivers need to have a special framebuffer for fbdev. Which prevents
+us from using the generic fbdev emulation code everywhere. The main issue is
+that it uses some fields in struct page itself, which breaks shmem gem objects
+(and other things).
+
+Possible solution would be to write our own defio mmap code in the drm fbdev
+emulation. It would need to fully wrap the existing mmap ops, forwarding
+everything after it has done the write-protect/mkwrite trickery:
+
+- In the drm_fbdev_fb_mmap helper, if we need defio, change the
+  default page prots to write-protected with something like this::
+
+      vma->vm_page_prot = pgprot_wrprotect(vma->vm_page_prot);
+
+- Set the mkwrite and fsync callbacks with similar implementions to the core
+  fbdev defio stuff. These should all work on plain ptes, they don't actually
+  require a struct page.  uff. These should all work on plain ptes, they don't
+  actually require a struct page.
+
+- Track the dirty pages in a separate structure (bitfield with one bit per page
+  should work) to avoid clobbering struct page.
+
+Might be good to also have some igt testcases for this.
+
+Contact: Daniel Vetter, Noralf Tronnes
+
 Put a reservation_object into drm_gem_object
 --------------------------------------------
 
