@@ -2032,9 +2032,10 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (ttrace->entry_pending) {
 		printed = fprintf(trace->output, "%s", ttrace->entry_str);
 	} else {
-		fprintf(trace->output, " ... [");
+		printed += fprintf(trace->output, " ... [");
 		color_fprintf(trace->output, PERF_COLOR_YELLOW, "continued");
-		fprintf(trace->output, "]: %s()", sc->name);
+		printed += 9;
+		printed += fprintf(trace->output, "]: %s()", sc->name);
 	}
 
 	printed++; /* the closing ')' */
