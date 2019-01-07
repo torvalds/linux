@@ -370,7 +370,7 @@
 		pinctrl-0 = <&pmic_int_l>;
 		pinctrl-1 = <&soc_slppin_slp>, <&rk809_slppin_slp>;
 		pinctrl-2 = <&soc_slppin_gpio>, <&rk809_slppin_pwrdn>;
-		pinctrl-3 = <&soc_slppin_gpio>,<&rk809_slppin_rst>;
+		pinctrl-3 = <&soc_slppin_gpio>,<&rk809_slppin_null>;
 		rockchip,system-power-controller;
 		pmic-reset-func = <0>;
 		wakeup-source;
@@ -1012,7 +1012,7 @@
 
 		soc_slppin_slp: soc-slppin-slp {
 			rockchip,pins =
-				<1 RK_PA5 1 &pcfg_pull_none>;
+				<1 RK_PA5 1 &pcfg_pull_down>;
 		};
 	};
 
