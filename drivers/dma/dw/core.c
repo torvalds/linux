@@ -37,27 +37,6 @@
  * support descriptor writeback.
  */
 
-#define DWC_DEFAULT_CTLLO(_chan) ({				\
-		struct dw_dma_chan *_dwc = to_dw_dma_chan(_chan);	\
-		struct dma_slave_config	*_sconfig = &_dwc->dma_sconfig;	\
-		bool _is_slave = is_slave_direction(_dwc->direction);	\
-		u8 _smsize = _is_slave ? _sconfig->src_maxburst :	\
-			DW_DMA_MSIZE_16;			\
-		u8 _dmsize = _is_slave ? _sconfig->dst_maxburst :	\
-			DW_DMA_MSIZE_16;			\
-		u8 _dms = (_dwc->direction == DMA_MEM_TO_DEV) ?		\
-			_dwc->dws.p_master : _dwc->dws.m_master;	\
-		u8 _sms = (_dwc->direction == DMA_DEV_TO_MEM) ?		\
-			_dwc->dws.p_master : _dwc->dws.m_master;	\
-								\
-		(DWC_CTLL_DST_MSIZE(_dmsize)			\
-		 | DWC_CTLL_SRC_MSIZE(_smsize)			\
-		 | DWC_CTLL_LLP_D_EN				\
-		 | DWC_CTLL_LLP_S_EN				\
-		 | DWC_CTLL_DMS(_dms)				\
-		 | DWC_CTLL_SMS(_sms));				\
-	})
-
 /* The set of bus widths supported by the DMA controller */
 #define DW_DMA_BUSWIDTHS			  \
 	BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED)	| \
@@ -596,7 +575,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 	src_width = dst_width = __ffs(data_width | src | dest | len);
 
-	ctllo = DWC_DEFAULT_CTLLO(chan)
+	ctllo = dw->prepare_ctllo(dwc)
 			| DWC_CTLL_DST_WIDTH(dst_width)
 			| DWC_CTLL_SRC_WIDTH(src_width)
 			| DWC_CTLL_DST_INC
@@ -676,10 +655,10 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	case DMA_MEM_TO_DEV:
 		reg_width = __ffs(sconfig->dst_addr_width);
 		reg = sconfig->dst_addr;
-		ctllo = (DWC_DEFAULT_CTLLO(chan)
+		ctllo = dw->prepare_ctllo(dwc)
 				| DWC_CTLL_DST_WIDTH(reg_width)
 				| DWC_CTLL_DST_FIX
-				| DWC_CTLL_SRC_INC);
+				| DWC_CTLL_SRC_INC;
 
 		ctllo |= sconfig->device_fc ? DWC_CTLL_FC(DW_DMA_FC_P_M2P) :
 			DWC_CTLL_FC(DW_DMA_FC_D_M2P);
@@ -726,10 +705,10 @@ slave_sg_todev_fill_desc:
 	case DMA_DEV_TO_MEM:
 		reg_width = __ffs(sconfig->src_addr_width);
 		reg = sconfig->src_addr;
-		ctllo = (DWC_DEFAULT_CTLLO(chan)
+		ctllo = dw->prepare_ctllo(dwc)
 				| DWC_CTLL_SRC_WIDTH(reg_width)
 				| DWC_CTLL_DST_INC
-				| DWC_CTLL_SRC_FIX);
+				| DWC_CTLL_SRC_FIX;
 
 		ctllo |= sconfig->device_fc ? DWC_CTLL_FC(DW_DMA_FC_P_P2M) :
 			DWC_CTLL_FC(DW_DMA_FC_D_P2M);

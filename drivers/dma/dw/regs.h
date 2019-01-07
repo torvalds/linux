@@ -222,6 +222,16 @@ enum dw_dma_msize {
 
 /* iDMA 32-bit support */
 
+/* bursts size */
+enum idma32_msize {
+	IDMA32_MSIZE_1,
+	IDMA32_MSIZE_2,
+	IDMA32_MSIZE_4,
+	IDMA32_MSIZE_8,
+	IDMA32_MSIZE_16,
+	IDMA32_MSIZE_32,
+};
+
 /* Bitfields in CTL_HI */
 #define IDMA32C_CTLH_BLOCK_TS_MASK	GENMASK(16, 0)
 #define IDMA32C_CTLH_BLOCK_TS(x)	((x) & IDMA32C_CTLH_BLOCK_TS_MASK)
@@ -316,6 +326,7 @@ struct dw_dma {
 	void	(*initialize_chan)(struct dw_dma_chan *dwc);
 	void	(*suspend_chan)(struct dw_dma_chan *dwc, bool drain);
 	void	(*resume_chan)(struct dw_dma_chan *dwc, bool drain);
+	u32	(*prepare_ctllo)(struct dw_dma_chan *dwc);
 	void	(*encode_maxburst)(struct dw_dma_chan *dwc, u32 *maxburst);
 	u32	(*bytes2block)(struct dw_dma_chan *dwc, size_t bytes,
 			       unsigned int width, size_t *len);
