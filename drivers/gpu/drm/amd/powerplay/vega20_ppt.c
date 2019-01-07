@@ -633,6 +633,78 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 	return size;
 }
 
+static int vega20_upload_dpm_min_level(struct smu_context *smu)
+{
+	struct vega20_dpm_table *dpm_table;
+	struct vega20_single_dpm_table *single_dpm_table;
+	uint32_t min_freq;
+	int ret = 0;
+
+	dpm_table = smu->smu_dpm.dpm_context;
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+		single_dpm_table = &(dpm_table->gfx_table);
+		min_freq = single_dpm_table->dpm_state.soft_min_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_SetSoftMinByFreq,
+			(PPCLK_GFXCLK << 16) | (min_freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft min gfxclk !\n");
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+		single_dpm_table = &(dpm_table->mem_table);
+		min_freq = single_dpm_table->dpm_state.soft_min_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_SetSoftMinByFreq,
+			(PPCLK_UCLK << 16) | (min_freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft min memclk !\n");
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+static int vega20_upload_dpm_max_level(struct smu_context *smu)
+{
+	struct vega20_dpm_table *dpm_table;
+	struct vega20_single_dpm_table *single_dpm_table;
+	uint32_t max_freq;
+	int ret = 0;
+
+	dpm_table = smu->smu_dpm.dpm_context;
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+		single_dpm_table = &(dpm_table->gfx_table);
+		max_freq = single_dpm_table->dpm_state.soft_max_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_SetSoftMaxByFreq,
+			(PPCLK_GFXCLK << 16) | (max_freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft max gfxclk !\n");
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+		single_dpm_table = &(dpm_table->mem_table);
+		max_freq = single_dpm_table->dpm_state.soft_max_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_SetSoftMaxByFreq,
+			(PPCLK_UCLK << 16) | (max_freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft max memclk !\n");
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
