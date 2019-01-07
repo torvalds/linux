@@ -4,6 +4,8 @@
  */
 
 &cluster0_opp {
+	rockchip,high-temp = <70000>;
+	rockchip,high-temp-max-volt = <1125000>;
 	opp-1512000000 {
 		opp-hz = /bits/ 64 <1512000000>;
 		opp-microvolt = <1150000 1150000 1250000>;
@@ -12,6 +14,8 @@
 };
 
 &cluster1_opp {
+	rockchip,high-temp = <70000>;
+	rockchip,high-temp-max-volt = <1200000>;
 	opp-2016000000 {
 		opp-hz = /bits/ 64 <2016000000>;
 		opp-microvolt = <1250000 1250000 1250000>;
