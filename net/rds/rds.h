@@ -48,10 +48,6 @@ void rdsdebug(char *fmt, ...)
 }
 #endif
 
-/* XXX is there one of these somewhere? */
-#define ceil(x, y) \
-	({ unsigned long __x = (x), __y = (y); (__x + __y - 1) / __y; })
-
 #define RDS_FRAG_SHIFT	12
 #define RDS_FRAG_SIZE	((unsigned int)(1 << RDS_FRAG_SHIFT))
 
