@@ -21,6 +21,8 @@ struct intel_pmic_opregion_data {
 	int power_table_count;
 	struct pmic_table *thermal_table;
 	int thermal_table_count;
+	/* For generic exec_mipi_pmic_seq_element handling */
+	int pmic_i2c_address;
 };
 
 int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle, struct regmap *regmap, struct intel_pmic_opregion_data *d);
