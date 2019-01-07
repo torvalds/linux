@@ -6,7 +6,7 @@
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include "px30-robot.dtsi"
+#include "px30-robot-no-gpu.dtsi"
 
 / {
 	model = "Rockchip rk3326 evb lpddr3 v10 board for robot linux";
@@ -96,11 +96,6 @@
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
-	status = "okay";
-};
-
-&gpu {
-	mali-supply = <&vdd_logic>;
 	status = "okay";
 };
 

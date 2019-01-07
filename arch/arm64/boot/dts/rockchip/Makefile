@@ -32,6 +32,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10-avb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10-robot-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10-robot-no-gpu-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-w7-icn6211-rk618-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-w7-icn6211-rk618-hdmi-rgb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-w7-icn6211-rk618-rgb.dtb
