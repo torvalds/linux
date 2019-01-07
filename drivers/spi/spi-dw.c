@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/gpio.h>
 
 #include "spi-dw.h"
 
@@ -426,13 +425,6 @@ static int dw_spi_setup(struct spi_device *spi)
 
 	chip->tmode = SPI_TMOD_TR;
 
-	if (gpio_is_valid(spi->cs_gpio)) {
-		ret = gpio_direction_output(spi->cs_gpio,
-				!(spi->mode & SPI_CS_HIGH));
-		if (ret)
-			return ret;
-	}
-
 	return 0;
 }
 
@@ -497,6 +489,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		goto err_free_master;
 	}
 
+	master->use_gpio_descriptors = true;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
 	master->bits_per_word_mask =  SPI_BPW_RANGE_MASK(4, 16);
 	master->bus_num = dws->bus_num;
