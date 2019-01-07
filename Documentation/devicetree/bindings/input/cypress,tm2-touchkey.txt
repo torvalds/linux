@@ -4,6 +4,7 @@ Required properties:
 - compatible:
     * "cypress,tm2-touchkey" - for the touchkey found on the tm2 board
     * "cypress,midas-touchkey" - for the touchkey found on midas boards
+    * "cypress,aries-touchkey" - for the touchkey found on aries boards
 - reg: I2C address of the chip.
 - interrupt-parent: a phandle for the interrupt controller (see interrupt
 	binding[0]).
