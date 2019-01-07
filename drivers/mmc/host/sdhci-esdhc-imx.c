@@ -78,6 +78,9 @@
 #define ESDHC_STROBE_DLL_STS_REF_LOCK	(1 << 1)
 #define ESDHC_STROBE_DLL_STS_SLV_LOCK	0x1
 
+#define ESDHC_VEND_SPEC2		0xc8
+#define ESDHC_VEND_SPEC2_EN_BUSY_IRQ	(1 << 8)
+
 #define ESDHC_TUNING_CTRL		0xcc
 #define ESDHC_STD_TUNING_EN		(1 << 24)
 /* NOTE: the minimum valid tuning start tap for mx6sl is 1 */
@@ -1178,6 +1181,23 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 		/* disable DLL_CTRL delay line settings */
 		writel(0x0, host->ioaddr + ESDHC_DLL_CTRL);
 
+		/*
+		 * For the case of command with busy, if set the bit
+		 * ESDHC_VEND_SPEC2_EN_BUSY_IRQ, USDHC will generate a
+		 * transfer complete interrupt when busy is deasserted.
+		 * When CQHCI use DCMD to send a CMD need R1b respons,
+		 * CQHCI require to set ESDHC_VEND_SPEC2_EN_BUSY_IRQ,
+		 * otherwise DCMD will always meet timeout waiting for
+		 * hardware interrupt issue.
+		 */
+		if (imx_data->socdata->flags & ESDHC_FLAG_CQHCI) {
+			tmp = readl(host->ioaddr + ESDHC_VEND_SPEC2);
+			tmp |= ESDHC_VEND_SPEC2_EN_BUSY_IRQ;
+			writel(tmp, host->ioaddr + ESDHC_VEND_SPEC2);
+
+			host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
+		}
+
 		if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING) {
 			tmp = readl(host->ioaddr + ESDHC_TUNING_CTRL);
 			tmp |= ESDHC_STD_TUNING_EN |
@@ -1478,7 +1498,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	}
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_CQHCI) {
-		host->mmc->caps2 |= MMC_CAP2_CQE;
+		host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
 		cq_host = devm_kzalloc(&pdev->dev, sizeof(*cq_host), GFP_KERNEL);
 		if (IS_ERR(cq_host)) {
 			err = PTR_ERR(cq_host);
