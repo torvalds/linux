@@ -281,7 +281,7 @@ struct snd_sof_widget {
 struct snd_sof_route {
 	struct snd_sof_dev *sdev;
 
-	struct snd_soc_dapm_route route;
+	struct snd_soc_dapm_route *route;
 	struct list_head list;	/* list in sdev route list */
 
 	void *private;

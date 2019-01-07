@@ -1777,6 +1777,23 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	return ret;
 }
 
+static int sof_route_unload(struct snd_soc_component *scomp,
+			    struct snd_soc_dobj *dobj)
+{
+	struct snd_sof_route *sroute;
+
+	sroute = dobj->private;
+	if (!sroute)
+		return 0;
+
+	/* free sroute and its private data */
+	kfree(sroute->private);
+	list_del(&sroute->list);
+	kfree(sroute);
+
+	return 0;
+}
+
 static int sof_widget_unload(struct snd_soc_component *scomp,
 			     struct snd_soc_dobj *dobj)
 {
@@ -2492,17 +2509,6 @@ static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
 	return 0;
 }
 
-/* Used for free route in topology free stage */
-static void sof_route_remove(struct snd_soc_dapm_route *route)
-{
-	if (!route)
-		return;
-
-	kfree(route->source);
-	kfree(route->sink);
-	kfree(route->control);
-}
-
 /* DAI link - used for any driver specific init */
 static int sof_route_load(struct snd_soc_component *scomp, int index,
 			  struct snd_soc_dapm_route *route)
@@ -2510,6 +2516,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc_pipe_comp_connect *connect;
 	struct snd_sof_widget *source_swidget, *sink_swidget;
+	struct snd_soc_dobj *dobj = &route->dobj;
 	struct snd_sof_pcm *spcm;
 	struct snd_sof_route *sroute;
 	struct sof_ipc_reply reply;
@@ -2608,26 +2615,8 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 			goto err;
 		}
 
-		sroute->route.source = kstrdup(route->source, GFP_KERNEL);
-		if (!sroute->route.source)
-			goto err;
-
-		sroute->route.sink = kstrdup(route->sink, GFP_KERNEL);
-		if (!sroute->route.sink) {
-			kfree(sroute->route.source);
-			goto err;
-		}
-
-		if (route->control) {
-			sroute->route.control = kstrdup(route->control,
-							GFP_KERNEL);
-			if (!sroute->route.control) {
-				kfree(sroute->route.source);
-				kfree(sroute->route.sink);
-				goto err;
-			}
-		}
-
+		sroute->route = route;
+		dobj->private = sroute;
 		sroute->private = connect;
 
 		/* add route to route list */
@@ -2713,10 +2702,7 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 
 	/* external kcontrol init - used for any driver specific init */
 	.dapm_route_load	= sof_route_load,
-	/*
-	 * .dapm_route_unload is not currently used, will be needed when
-	 * topology is changed
-	 */
+	.dapm_route_unload	= sof_route_unload,
 
 	/* external widget init - used for any driver specific init */
 	/* .widget_load is not currently used */
@@ -2792,22 +2778,12 @@ EXPORT_SYMBOL(snd_sof_load_topology);
 
 void snd_sof_free_topology(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_route *sroute, *temp;
 	int ret;
 
 	dev_dbg(sdev->dev, "free topology...\n");
 	if (!sdev->tplg_loaded) {
 		dev_dbg(sdev->dev, "No topology loaded, nothing to free ...\n");
 		return;
-	}
-
-	/* remove routes */
-	list_for_each_entry_safe(sroute, temp, &sdev->route_list, list) {
-		sof_route_remove(&sroute->route);
-
-		/* free sroute and its private data */
-		kfree(sroute->private);
-		kfree(sroute);
 	}
 
 	ret = snd_soc_tplg_component_remove(sdev->component,

@@ -129,10 +129,10 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: failed to load route sink %s control %s source %s\n",
-				sroute->route.sink,
-				sroute->route.control ? sroute->route.control
+				sroute->route->sink,
+				sroute->route->control ? sroute->route->control
 					: "none",
-				sroute->route.source);
+				sroute->route->source);
 
 			return ret;
 		}
