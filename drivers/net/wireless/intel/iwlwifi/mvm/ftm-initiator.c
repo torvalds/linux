@@ -132,91 +132,224 @@ iwl_ftm_range_request_status_to_err(enum iwl_tof_range_request_status s)
 	}
 }
 
+static void iwl_mvm_ftm_cmd_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct iwl_tof_range_req_cmd_v5 *cmd,
+			       struct cfg80211_pmsr_request *req)
+{
+	int i;
+
+	cmd->request_id = req->cookie;
+	cmd->num_of_ap = req->n_peers;
+
+	/* use maximum for "no timeout" or bigger than what we can do */
+	if (!req->timeout || req->timeout > 255 * 100)
+		cmd->req_timeout = 255;
+	else
+		cmd->req_timeout = DIV_ROUND_UP(req->timeout, 100);
+
+	/*
+	 * We treat it always as random, since if not we'll
+	 * have filled our local address there instead.
+	 */
+	cmd->macaddr_random = 1;
+	memcpy(cmd->macaddr_template, req->mac_addr, ETH_ALEN);
+	for (i = 0; i < ETH_ALEN; i++)
+		cmd->macaddr_mask[i] = ~req->mac_addr_mask[i];
+
+	if (vif->bss_conf.assoc)
+		memcpy(cmd->range_req_bssid, vif->bss_conf.bssid, ETH_ALEN);
+	else
+		eth_broadcast_addr(cmd->range_req_bssid);
+}
+
+static void iwl_mvm_ftm_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			    struct iwl_tof_range_req_cmd *cmd,
+			    struct cfg80211_pmsr_request *req)
+{
+	int i;
+
+	cmd->initiator_flags =
+		cpu_to_le32(IWL_TOF_INITIATOR_FLAGS_MACADDR_RANDOM |
+			    IWL_TOF_INITIATOR_FLAGS_NON_ASAP_SUPPORT);
+	cmd->request_id = req->cookie;
+	cmd->num_of_ap = req->n_peers;
+
+	/*
+	 * Use a large value for "no timeout". Don't use the maximum value
+	 * because of fw limitations.
+	 */
+	if (req->timeout)
+		cmd->req_timeout_ms = cpu_to_le32(req->timeout);
+	else
+		cmd->req_timeout_ms = cpu_to_le32(0xfffff);
+
+	memcpy(cmd->macaddr_template, req->mac_addr, ETH_ALEN);
+	for (i = 0; i < ETH_ALEN; i++)
+		cmd->macaddr_mask[i] = ~req->mac_addr_mask[i];
+
+	if (vif->bss_conf.assoc)
+		memcpy(cmd->range_req_bssid, vif->bss_conf.bssid, ETH_ALEN);
+	else
+		eth_broadcast_addr(cmd->range_req_bssid);
+
+	/* TODO: fill in tsf_mac_id if needed */
+	cmd->tsf_mac_id = cpu_to_le32(0xff);
+}
+
+static int iwl_mvm_ftm_target_chandef(struct iwl_mvm *mvm,
+				      struct cfg80211_pmsr_request_peer *peer,
+				      u8 *channel, u8 *bandwidth,
+				      u8 *ctrl_ch_position)
+{
+	u32 freq = peer->chandef.chan->center_freq;
+
+	*channel = ieee80211_frequency_to_channel(freq);
+
+	switch (peer->chandef.width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		*bandwidth = IWL_TOF_BW_20_LEGACY;
+		break;
+	case NL80211_CHAN_WIDTH_20:
+		*bandwidth = IWL_TOF_BW_20_HT;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		*bandwidth = IWL_TOF_BW_40;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		*bandwidth = IWL_TOF_BW_80;
+		break;
+	default:
+		IWL_ERR(mvm, "Unsupported BW in FTM request (%d)\n",
+			peer->chandef.width);
+		return -EINVAL;
+	}
+
+	*ctrl_ch_position = (peer->chandef.width > NL80211_CHAN_WIDTH_20) ?
+		iwl_mvm_get_ctrl_pos(&peer->chandef) : 0;
+
+	return 0;
+}
+
+static int
+iwl_mvm_ftm_put_target_v2(struct iwl_mvm *mvm,
+			  struct cfg80211_pmsr_request_peer *peer,
+			  struct iwl_tof_range_req_ap_entry_v2 *target)
+{
+	int ret;
+
+	ret = iwl_mvm_ftm_target_chandef(mvm, peer, &target->channel_num,
+					 &target->bandwidth,
+					 &target->ctrl_ch_position);
+	if (ret)
+		return ret;
+
+	memcpy(target->bssid, peer->addr, ETH_ALEN);
+	target->burst_period =
+		cpu_to_le16(peer->ftm.burst_period);
+	target->samples_per_burst = peer->ftm.ftms_per_burst;
+	target->num_of_bursts = peer->ftm.num_bursts_exp;
+	target->measure_type = 0; /* regular two-sided FTM */
+	target->retries_per_sample = peer->ftm.ftmr_retries;
+	target->asap_mode = peer->ftm.asap;
+	target->enable_dyn_ack = IWL_MVM_FTM_INITIATOR_DYNACK;
+
+	if (peer->ftm.request_lci)
+		target->location_req |= IWL_TOF_LOC_LCI;
+	if (peer->ftm.request_civicloc)
+		target->location_req |= IWL_TOF_LOC_CIVIC;
+
+	target->algo_type = IWL_MVM_FTM_INITIATOR_ALGO;
+
+	return 0;
+}
+
+#define FTM_PUT_FLAG(flag)	(target->initiator_ap_flags |= \
+				 cpu_to_le32(IWL_INITIATOR_AP_FLAGS_##flag))
+
+static int iwl_mvm_ftm_put_target(struct iwl_mvm *mvm,
+				  struct cfg80211_pmsr_request_peer *peer,
+				  struct iwl_tof_range_req_ap_entry *target)
+{
+	int ret;
+
+	ret = iwl_mvm_ftm_target_chandef(mvm, peer, &target->channel_num,
+					 &target->bandwidth,
+					 &target->ctrl_ch_position);
+	if (ret)
+		return ret;
+
+	memcpy(target->bssid, peer->addr, ETH_ALEN);
+	target->burst_period =
+		cpu_to_le16(peer->ftm.burst_period);
+	target->samples_per_burst = peer->ftm.ftms_per_burst;
+	target->num_of_bursts = peer->ftm.num_bursts_exp;
+	target->ftmr_max_retries = peer->ftm.ftmr_retries;
+	target->initiator_ap_flags = cpu_to_le32(0);
+
+	if (peer->ftm.asap)
+		FTM_PUT_FLAG(ASAP);
+
+	if (peer->ftm.request_lci)
+		FTM_PUT_FLAG(LCI_REQUEST);
+
+	if (peer->ftm.request_civicloc)
+		FTM_PUT_FLAG(CIVIC_REQUEST);
+
+	if (IWL_MVM_FTM_INITIATOR_DYNACK)
+		FTM_PUT_FLAG(DYN_ACK);
+
+	if (IWL_MVM_FTM_INITIATOR_ALGO == IWL_TOF_ALGO_TYPE_LINEAR_REG)
+		FTM_PUT_FLAG(ALGO_LR);
+	else if (IWL_MVM_FTM_INITIATOR_ALGO == IWL_TOF_ALGO_TYPE_FFT)
+		FTM_PUT_FLAG(ALGO_FFT);
+
+	return 0;
+}
+
 int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		      struct cfg80211_pmsr_request *req)
 {
-	struct iwl_tof_range_req_cmd cmd = {
-		.request_id = req->cookie,
-		.req_timeout = DIV_ROUND_UP(req->timeout, 100),
-		.num_of_ap = req->n_peers,
-		/*
-		 * We treat it always as random, since if not we'll
-		 * have filled our local address there instead.
-		 */
-		.macaddr_random = 1,
-	};
+	struct iwl_tof_range_req_cmd_v5 cmd_v5;
+	struct iwl_tof_range_req_cmd cmd;
+	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ);
+	u8 num_of_ap;
 	struct iwl_host_cmd hcmd = {
 		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
-		.data[0] = &cmd,
-		.len[0] = sizeof(cmd),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 	};
 	u32 status = 0;
 	int err, i;
-
-	/* use maximum for "no timeout" or bigger than what we can do */
-	if (!req->timeout || req->timeout > 255 * 100)
-		cmd.req_timeout = 255;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (mvm->ftm_initiator.req)
 		return -EBUSY;
 
-	memcpy(cmd.macaddr_template, req->mac_addr, ETH_ALEN);
-	for (i = 0; i < ETH_ALEN; i++)
-		cmd.macaddr_mask[i] = ~req->mac_addr_mask[i];
-
-	for (i = 0; i < cmd.num_of_ap; i++) {
-		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
-		struct iwl_tof_range_req_ap_entry *cmd_target = &cmd.ap[i];
-		u32 freq = peer->chandef.chan->center_freq;
-
-		cmd_target->channel_num = ieee80211_frequency_to_channel(freq);
-		switch (peer->chandef.width) {
-		case NL80211_CHAN_WIDTH_20_NOHT:
-			cmd_target->bandwidth = IWL_TOF_BW_20_LEGACY;
-			break;
-		case NL80211_CHAN_WIDTH_20:
-			cmd_target->bandwidth = IWL_TOF_BW_20_HT;
-			break;
-		case NL80211_CHAN_WIDTH_40:
-			cmd_target->bandwidth = IWL_TOF_BW_40;
-			break;
-		case NL80211_CHAN_WIDTH_80:
-			cmd_target->bandwidth = IWL_TOF_BW_80;
-			break;
-		default:
-			IWL_ERR(mvm, "Unsupported BW in FTM request (%d)\n",
-				peer->chandef.width);
-			return -EINVAL;
-		}
-		cmd_target->ctrl_ch_position =
-			(peer->chandef.width > NL80211_CHAN_WIDTH_20) ?
-			iwl_mvm_get_ctrl_pos(&peer->chandef) : 0;
-
-		memcpy(cmd_target->bssid, peer->addr, ETH_ALEN);
-		cmd_target->measure_type = 0; /* regular two-sided FTM */
-		cmd_target->num_of_bursts = peer->ftm.num_bursts_exp;
-		cmd_target->burst_period =
-			cpu_to_le16(peer->ftm.burst_period);
-		cmd_target->samples_per_burst = peer->ftm.ftms_per_burst;
-		cmd_target->retries_per_sample = peer->ftm.ftmr_retries;
-		cmd_target->asap_mode = peer->ftm.asap;
-		cmd_target->enable_dyn_ack = IWL_MVM_FTM_INITIATOR_DYNACK;
-
-		if (peer->ftm.request_lci)
-			cmd_target->location_req |= IWL_TOF_LOC_LCI;
-		if (peer->ftm.request_civicloc)
-			cmd_target->location_req |= IWL_TOF_LOC_CIVIC;
-
-		cmd_target->algo_type = IWL_MVM_FTM_INITIATOR_ALGO;
+	if (new_api) {
+		iwl_mvm_ftm_cmd(mvm, vif, &cmd, req);
+		hcmd.data[0] = &cmd;
+		hcmd.len[0] = sizeof(cmd);
+		num_of_ap = cmd.num_of_ap;
+	} else {
+		iwl_mvm_ftm_cmd_v5(mvm, vif, &cmd_v5, req);
+		hcmd.data[0] = &cmd_v5;
+		hcmd.len[0] = sizeof(cmd_v5);
+		num_of_ap = cmd_v5.num_of_ap;
 	}
 
-	if (vif->bss_conf.assoc)
-		memcpy(cmd.range_req_bssid, vif->bss_conf.bssid, ETH_ALEN);
-	else
-		eth_broadcast_addr(cmd.range_req_bssid);
+	for (i = 0; i < num_of_ap; i++) {
+		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
+
+		if (new_api)
+			err = iwl_mvm_ftm_put_target(mvm, peer, &cmd.ap[i]);
+		else
+			err = iwl_mvm_ftm_put_target_v2(mvm, peer,
+							&cmd_v5.ap[i]);
+
+		if (err)
+			return err;
+	}
 
 	err = iwl_mvm_send_cmd_status(mvm, &hcmd, &status);
 	if (!err && status) {
@@ -305,11 +438,34 @@ static void iwl_mvm_ftm_get_lci_civic(struct iwl_mvm *mvm,
 	}
 }
 
+static int iwl_mvm_ftm_range_resp_valid(struct iwl_mvm *mvm, u8 request_id,
+					u8 num_of_aps)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	if (request_id != (u8)mvm->ftm_initiator.req->cookie) {
+		IWL_ERR(mvm, "Request ID mismatch, got %u, active %u\n",
+			request_id, (u8)mvm->ftm_initiator.req->cookie);
+		return -EINVAL;
+	}
+
+	if (num_of_aps > mvm->ftm_initiator.req->n_peers) {
+		IWL_ERR(mvm, "FTM range response invalid\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_tof_range_rsp_ntfy_v5 *fw_resp_v5 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy *fw_resp = (void *)pkt->data;
 	int i;
+	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ);
+	u8 num_of_aps, last_in_batch;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -318,28 +474,46 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		return;
 	}
 
-	if (fw_resp->request_id != (u8)mvm->ftm_initiator.req->cookie) {
-		IWL_ERR(mvm, "Request ID mismatch, got %u, active %u\n",
-			fw_resp->request_id,
-			(u8)mvm->ftm_initiator.req->cookie);
-		return;
+	if (new_api) {
+		if (iwl_mvm_ftm_range_resp_valid(mvm, fw_resp->request_id,
+						 fw_resp->num_of_aps))
+			return;
+
+		num_of_aps = fw_resp->num_of_aps;
+		last_in_batch = fw_resp->last_report;
+	} else {
+		if (iwl_mvm_ftm_range_resp_valid(mvm, fw_resp_v5->request_id,
+						 fw_resp_v5->num_of_aps))
+			return;
+
+		num_of_aps = fw_resp_v5->num_of_aps;
+		last_in_batch = fw_resp_v5->last_in_batch;
 	}
 
-	if (fw_resp->num_of_aps > mvm->ftm_initiator.req->n_peers) {
-		IWL_ERR(mvm, "FTM range response invalid\n");
-		return;
-	}
-
-	for (i = 0; i < fw_resp->num_of_aps && i < IWL_MVM_TOF_MAX_APS; i++) {
-		struct iwl_tof_range_rsp_ap_entry_ntfy *fw_ap = &fw_resp->ap[i];
+	for (i = 0; i < num_of_aps && i < IWL_MVM_TOF_MAX_APS; i++) {
 		struct cfg80211_pmsr_result result = {};
+		struct iwl_tof_range_rsp_ap_entry_ntfy *fw_ap;
 		int peer_idx;
+
+		if (new_api) {
+			fw_ap = &fw_resp->ap[i];
+			result.final = fw_resp->ap[i].last_burst;
+		} else {
+			/* the first part is the same for old and new APIs */
+			fw_ap = (void *)&fw_resp_v5->ap[i];
+			/*
+			 * FIXME: the firmware needs to report this, we don't
+			 * even know the number of bursts the responder picked
+			 * (if we asked it to)
+			 */
+			result.final = 0;
+		}
 
 		peer_idx = iwl_mvm_ftm_find_peer(mvm->ftm_initiator.req,
 						 fw_ap->bssid);
 		if (peer_idx < 0) {
 			IWL_WARN(mvm,
-				 "Unknown address (%pM, target #%d) in FTM response.\n",
+				 "Unknown address (%pM, target #%d) in FTM response\n",
 				 fw_ap->bssid, i);
 			continue;
 		}
@@ -374,12 +548,6 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		result.type = NL80211_PMSR_TYPE_FTM;
 		result.ftm.burst_index = mvm->ftm_initiator.responses[peer_idx];
 		mvm->ftm_initiator.responses[peer_idx]++;
-		/*
-		 * FIXME: the firmware needs to report this, we don't even know
-		 *        the number of bursts the responder picked (if we asked
-		 *        it to)
-		 */
-		result.final = 0;
 		result.ftm.rssi_avg = fw_ap->rssi;
 		result.ftm.rssi_avg_valid = 1;
 		result.ftm.rssi_spread = fw_ap->rssi_spread;
@@ -398,7 +566,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 				     &result, GFP_KERNEL);
 	}
 
-	if (fw_resp->last_in_batch) {
+	if (last_in_batch) {
 		cfg80211_pmsr_complete(mvm->ftm_initiator.req_wdev,
 				       mvm->ftm_initiator.req,
 				       GFP_KERNEL);

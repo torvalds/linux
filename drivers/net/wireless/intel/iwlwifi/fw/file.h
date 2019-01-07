@@ -9,6 +9,7 @@
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,6 +33,7 @@
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -270,6 +272,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	version of the beacon notification.
  * @IWL_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
  *	BEACON_FILTER_CONFIG_API_S_VER_4.
+ * @IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ: This ucode supports v7 of
+ *	LOCATION_RANGE_REQ_CMD_API_S and v6 of LOCATION_RANGE_RESP_NTFY_API_S.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -296,6 +300,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_REDUCE_TX_POWER	= (__force iwl_ucode_tlv_api_t)45,
 	IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF	= (__force iwl_ucode_tlv_api_t)46,
 	IWL_UCODE_TLV_API_BEACON_FILTER_V4      = (__force iwl_ucode_tlv_api_t)47,
+	IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ     = (__force iwl_ucode_tlv_api_t)49,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
