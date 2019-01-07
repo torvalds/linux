@@ -1046,8 +1046,6 @@
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,syss-mask = <1>;
-			ti,no-reset-on-init;
-			ti,no-idle-on-init;
 			/* Domains (V, P, C): core, core_pwrdm, l4per_clkdm */
 			clocks = <&l4per_clkctrl OMAP5_UART3_CLKCTRL 0>;
 			clock-names = "fck";
