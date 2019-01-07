@@ -432,6 +432,23 @@ static void remove_bytes(struct snd_soc_component *comp,
 	kfree(sb);
 }
 
+/* remove a route */
+static void remove_route(struct snd_soc_component *comp,
+			 struct snd_soc_dobj *dobj, int pass)
+{
+	struct snd_soc_dapm_route *route =
+		container_of(dobj, struct snd_soc_dapm_route, dobj);
+
+	if (pass != SOC_TPLG_PASS_GRAPH)
+		return;
+
+	if (dobj->ops && dobj->ops->dapm_route_unload)
+		dobj->ops->dapm_route_unload(comp, dobj);
+
+	list_del(&dobj->list);
+	kfree(route);
+}
+
 /* remove a widget and it's kcontrols - routes must be removed first */
 static void remove_widget(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
@@ -1121,9 +1138,10 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
 	struct snd_soc_dapm_context *dapm = &tplg->comp->dapm;
-	struct snd_soc_dapm_route route;
 	struct snd_soc_tplg_dapm_graph_elem *elem;
-	int count = hdr->count, i;
+	struct snd_soc_dapm_route **routes;
+	int count = hdr->count, i, j;
+	int ret = 0;
 
 	if (tplg->pass != SOC_TPLG_PASS_GRAPH) {
 		tplg->pos += hdr->size + hdr->payload_size;
@@ -1142,36 +1160,85 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes for index %d\n", count,
 		hdr->index);
 
+	/* allocate memory for pointer to array of dapm routes */
+	routes = kcalloc(count, sizeof(struct snd_soc_dapm_route *),
+			 GFP_KERNEL);
+	if (!routes)
+		return -ENOMEM;
+
+	/*
+	 * allocate memory for each dapm route in the array.
+	 * This needs to be done individually so that
+	 * each route can be freed when it is removed in remove_route().
+	 */
+	for (i = 0; i < count; i++) {
+		routes[i] = kzalloc(sizeof(*routes[i]), GFP_KERNEL);
+		if (!routes[i]) {
+			/* free previously allocated memory */
+			for (j = 0; j < i; j++)
+				kfree(routes[j]);
+
+			kfree(routes);
+			return -ENOMEM;
+		}
+	}
+
 	for (i = 0; i < count; i++) {
 		elem = (struct snd_soc_tplg_dapm_graph_elem *)tplg->pos;
 		tplg->pos += sizeof(struct snd_soc_tplg_dapm_graph_elem);
 
 		/* validate routes */
 		if (strnlen(elem->source, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			return -EINVAL;
+			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN) {
+			ret = -EINVAL;
+			break;
+		}
 		if (strnlen(elem->sink, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			return -EINVAL;
+			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN) {
+			ret = -EINVAL;
+			break;
+		}
 		if (strnlen(elem->control, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			return -EINVAL;
+			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN) {
+			ret = -EINVAL;
+			break;
+		}
 
-		route.source = elem->source;
-		route.sink = elem->sink;
-		route.connected = NULL; /* set to NULL atm for tplg users */
+		routes[i]->source = elem->source;
+		routes[i]->sink = elem->sink;
+
+		/* set to NULL atm for tplg users */
+		routes[i]->connected = NULL;
 		if (strnlen(elem->control, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == 0)
-			route.control = NULL;
+			routes[i]->control = NULL;
 		else
-			route.control = elem->control;
+			routes[i]->control = elem->control;
 
-		soc_tplg_add_route(tplg, &route);
+		/* add route dobj to dobj_list */
+		routes[i]->dobj.type = SND_SOC_DOBJ_GRAPH;
+		routes[i]->dobj.ops = tplg->ops;
+		routes[i]->dobj.index = tplg->index;
+		list_add(&routes[i]->dobj.list, &tplg->comp->dobj_list);
+
+		soc_tplg_add_route(tplg, routes[i]);
 
 		/* add route, but keep going if some fail */
-		snd_soc_dapm_add_routes(dapm, &route, 1);
+		snd_soc_dapm_add_routes(dapm, routes[i], 1);
 	}
 
-	return 0;
+	/* free memory allocated for all dapm routes in case of error */
+	if (ret < 0)
+		for (i = 0; i < count ; i++)
+			kfree(routes[i]);
+
+	/*
+	 * free pointer to array of dapm routes as this is no longer needed.
+	 * The memory allocated for each dapm route will be freed
+	 * when it is removed in remove_route().
+	 */
+	kfree(routes);
+
+	return ret;
 }
 
 static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
@@ -2567,6 +2634,9 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index)
 				break;
 			case SND_SOC_DOBJ_BYTES:
 				remove_bytes(comp, dobj, pass);
+				break;
+			case SND_SOC_DOBJ_GRAPH:
+				remove_route(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_WIDGET:
 				remove_widget(comp, dobj, pass);
