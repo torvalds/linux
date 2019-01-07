@@ -36,7 +36,7 @@ struct wilc_op_mode {
 struct wilc_reg_frame {
 	bool reg;
 	u8 reg_id;
-	__le32 frame_type;
+	__le16 frame_type;
 } __packed;
 
 struct wilc_drv_handler {
