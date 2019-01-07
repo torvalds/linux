@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver for the Synopsys DesignWare DMA Controller
  *
  * Copyright (C) 2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _PLATFORM_DATA_DMA_DW_H
 #define _PLATFORM_DATA_DMA_DW_H
