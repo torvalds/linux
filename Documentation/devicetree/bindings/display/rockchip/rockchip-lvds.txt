@@ -11,6 +11,7 @@ Required properties:
 - phy-names : should be "phy"
 
 Optional properties:
+- dual-channel: boolean. if it exists, enable dual channel mode
 - rockchip,data-swap: boolean to enable odd/even data swap in dual channel mode
 
 Required nodes:
@@ -22,9 +23,6 @@ Their connections are modeled using the OF graph bindings specified in
 
 - video port 0 for the VOP inputs
 - video port 1 for either a panel or bridge
-
-- rockchip,output: should be "lvds" or "duallvds",
-	This describes the output face.
 
 Example:
 
