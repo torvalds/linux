@@ -883,7 +883,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd,
 			     bool *too_big)
 {
 	u8 count;
-	struct mmc_data *data = cmd->data;
+	struct mmc_data *data;
 	unsigned target_timeout, current_timeout;
 
 	*too_big = true;
@@ -897,6 +897,11 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd,
 	if (host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
 		return 0xE;
 
+	/* Unspecified command, asume max */
+	if (cmd == NULL)
+		return 0xE;
+
+	data = cmd->data;
 	/* Unspecified timeout, assume max */
 	if (!data && !cmd->busy_timeout)
 		return 0xE;
@@ -3364,7 +3369,7 @@ void sdhci_cqe_enable(struct mmc_host *mmc)
 		     SDHCI_BLOCK_SIZE);
 
 	/* Set maximum timeout */
-	sdhci_writeb(host, 0xE, SDHCI_TIMEOUT_CONTROL);
+	sdhci_set_timeout(host, NULL);
 
 	host->ier = host->cqe_ier;
 
