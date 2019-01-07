@@ -297,11 +297,12 @@ out:
 }
 
 struct file_stats {
-	struct drm_i915_file_private *file_priv;
+	struct i915_address_space *vm;
 	unsigned long count;
 	u64 total, unbound;
 	u64 global, shared;
 	u64 active, inactive;
+	u64 closed;
 };
 
 static int per_file_stats(int id, void *ptr, void *data)
@@ -326,9 +327,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 		if (i915_vma_is_ggtt(vma)) {
 			stats->global += vma->node.size;
 		} else {
-			struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vma->vm);
-
-			if (ppgtt->vm.file != stats->file_priv)
+			if (vma->vm != stats->vm)
 				continue;
 		}
 
@@ -336,6 +335,9 @@ static int per_file_stats(int id, void *ptr, void *data)
 			stats->active += vma->node.size;
 		else
 			stats->inactive += vma->node.size;
+
+		if (i915_vma_is_closed(vma))
+			stats->closed += vma->node.size;
 	}
 
 	return 0;
@@ -343,7 +345,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 #define print_file_stats(m, name, stats) do { \
 	if (stats.count) \
-		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu global, %llu shared, %llu unbound)\n", \
+		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu global, %llu shared, %llu unbound, %llu closed)\n", \
 			   name, \
 			   stats.count, \
 			   stats.total, \
@@ -351,19 +353,18 @@ static int per_file_stats(int id, void *ptr, void *data)
 			   stats.inactive, \
 			   stats.global, \
 			   stats.shared, \
-			   stats.unbound); \
+			   stats.unbound, \
+			   stats.closed); \
 } while (0)
 
 static void print_batch_pool_stats(struct seq_file *m,
 				   struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *obj;
-	struct file_stats stats;
 	struct intel_engine_cs *engine;
+	struct file_stats stats = {};
 	enum intel_engine_id id;
 	int j;
-
-	memset(&stats, 0, sizeof(stats));
 
 	for_each_engine(engine, dev_priv, id) {
 		for (j = 0; j < ARRAY_SIZE(engine->batch_pool.cache_list); j++) {
@@ -377,44 +378,47 @@ static void print_batch_pool_stats(struct seq_file *m,
 	print_file_stats(m, "[k]batch pool", stats);
 }
 
-static int per_file_ctx_stats(int idx, void *ptr, void *data)
-{
-	struct i915_gem_context *ctx = ptr;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, ctx->i915, id) {
-		struct intel_context *ce = to_intel_context(ctx, engine);
-
-		if (ce->state)
-			per_file_stats(0, ce->state->obj, data);
-		if (ce->ring)
-			per_file_stats(0, ce->ring->vma->obj, data);
-	}
-
-	return 0;
-}
-
 static void print_context_stats(struct seq_file *m,
-				struct drm_i915_private *dev_priv)
+				struct drm_i915_private *i915)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct file_stats stats;
-	struct drm_file *file;
+	struct file_stats kstats = {};
+	struct i915_gem_context *ctx;
 
-	memset(&stats, 0, sizeof(stats));
+	list_for_each_entry(ctx, &i915->contexts.list, link) {
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
 
-	mutex_lock(&dev->struct_mutex);
-	if (dev_priv->kernel_context)
-		per_file_ctx_stats(0, dev_priv->kernel_context, &stats);
+		for_each_engine(engine, i915, id) {
+			struct intel_context *ce = to_intel_context(ctx, engine);
 
-	list_for_each_entry(file, &dev->filelist, lhead) {
-		struct drm_i915_file_private *fpriv = file->driver_priv;
-		idr_for_each(&fpriv->context_idr, per_file_ctx_stats, &stats);
+			if (ce->state)
+				per_file_stats(0, ce->state->obj, &kstats);
+			if (ce->ring)
+				per_file_stats(0, ce->ring->vma->obj, &kstats);
+		}
+
+		if (!IS_ERR_OR_NULL(ctx->file_priv)) {
+			struct file_stats stats = { .vm = &ctx->ppgtt->vm, };
+			struct drm_file *file = ctx->file_priv->file;
+			struct task_struct *task;
+			char name[80];
+
+			spin_lock(&file->table_lock);
+			idr_for_each(&file->object_idr, per_file_stats, &stats);
+			spin_unlock(&file->table_lock);
+
+			rcu_read_lock();
+			task = pid_task(ctx->pid ?: file->pid, PIDTYPE_PID);
+			snprintf(name, sizeof(name), "%s/%d",
+				 task ? task->comm : "<unknown>",
+				 ctx->user_handle);
+			rcu_read_unlock();
+
+			print_file_stats(m, name, stats);
+		}
 	}
-	mutex_unlock(&dev->struct_mutex);
 
-	print_file_stats(m, "[k]contexts", stats);
+	print_file_stats(m, "[k]contexts", kstats);
 }
 
 static int i915_gem_object_info(struct seq_file *m, void *data)
@@ -426,13 +430,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	u64 size, mapped_size, purgeable_size, dpy_size, huge_size;
 	struct drm_i915_gem_object *obj;
 	unsigned int page_sizes = 0;
-	struct drm_file *file;
 	char buf[80];
 	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(m, "%u objects, %llu bytes\n",
 		   dev_priv->mm.object_count,
@@ -514,43 +513,14 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 					buf, sizeof(buf)));
 
 	seq_putc(m, '\n');
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	print_batch_pool_stats(m, dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-
-	mutex_lock(&dev->filelist_mutex);
 	print_context_stats(m, dev_priv);
-	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
-		struct file_stats stats;
-		struct drm_i915_file_private *file_priv = file->driver_priv;
-		struct i915_request *request;
-		struct task_struct *task;
-
-		mutex_lock(&dev->struct_mutex);
-
-		memset(&stats, 0, sizeof(stats));
-		stats.file_priv = file->driver_priv;
-		spin_lock(&file->table_lock);
-		idr_for_each(&file->object_idr, per_file_stats, &stats);
-		spin_unlock(&file->table_lock);
-		/*
-		 * Although we have a valid reference on file->pid, that does
-		 * not guarantee that the task_struct who called get_pid() is
-		 * still alive (e.g. get_pid(current) => fork() => exit()).
-		 * Therefore, we need to protect this ->comm access using RCU.
-		 */
-		request = list_first_entry_or_null(&file_priv->mm.request_list,
-						   struct i915_request,
-						   client_link);
-		rcu_read_lock();
-		task = pid_task(request && request->gem_context->pid ?
-				request->gem_context->pid : file->pid,
-				PIDTYPE_PID);
-		print_file_stats(m, task ? task->comm : "<unknown>", stats);
-		rcu_read_unlock();
-
-		mutex_unlock(&dev->struct_mutex);
-	}
-	mutex_unlock(&dev->filelist_mutex);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
