@@ -251,10 +251,9 @@ static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
 
 	if (enabled != apic->sw_enabled) {
 		apic->sw_enabled = enabled;
-		if (enabled) {
+		if (enabled)
 			static_key_slow_dec_deferred(&apic_sw_disabled);
-			recalculate_apic_map(apic->vcpu->kvm);
-		} else
+		else
 			static_key_slow_inc(&apic_sw_disabled.key);
 	}
 }

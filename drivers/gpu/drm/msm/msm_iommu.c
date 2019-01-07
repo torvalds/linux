@@ -71,8 +71,7 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 	return (ret == len) ? 0 : -EINVAL;
 }
 
-static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova,
-		struct sg_table *sgt, unsigned len)
+static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova, unsigned len)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 

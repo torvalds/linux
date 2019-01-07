@@ -125,16 +125,13 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 				 struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
-	const char *type;
 
 	dev = pci_alloc_dev(bus);
 	if (!dev)
 		return NULL;
-	type = of_get_property(node, "device_type", NULL);
-	if (type == NULL)
-		type = "";
 
-	pr_debug("    create device, devfn: %x, type: %s\n", devfn, type);
+	pr_debug("    create device, devfn: %x, type: %s\n", devfn,
+		 of_node_get_device_type(node));
 
 	dev->dev.of_node = of_node_get(node);
 	dev->dev.parent = bus->bridge;
@@ -167,12 +164,12 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	/* Early fixups, before probing the BARs */
 	pci_fixup_device(pci_fixup_early, dev);
 
-	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
+	if (of_node_is_type(node, "pci") || of_node_is_type(node, "pciex")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
 		set_pcie_hotplug_bridge(dev);
-	} else if (!strcmp(type, "cardbus")) {
+	} else if (of_node_is_type(node, "cardbus")) {
 		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
 	} else {
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;

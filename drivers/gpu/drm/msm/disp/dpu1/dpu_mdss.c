@@ -9,6 +9,11 @@
 
 #define HW_INTR_STATUS			0x0010
 
+struct dpu_irq_controller {
+	unsigned long enabled_mask;
+	struct irq_domain *domain;
+};
+
 struct dpu_mdss {
 	struct msm_mdss base;
 	void __iomem *mmio;
@@ -115,13 +120,12 @@ static int _dpu_mdss_irq_domain_add(struct dpu_mdss *dpu_mdss)
 	return 0;
 }
 
-static int _dpu_mdss_irq_domain_fini(struct dpu_mdss *dpu_mdss)
+static void _dpu_mdss_irq_domain_fini(struct dpu_mdss *dpu_mdss)
 {
 	if (dpu_mdss->irq_controller.domain) {
 		irq_domain_remove(dpu_mdss->irq_controller.domain);
 		dpu_mdss->irq_controller.domain = NULL;
 	}
-	return 0;
 }
 static int dpu_mdss_enable(struct msm_mdss *mdss)
 {
@@ -156,18 +160,16 @@ static void dpu_mdss_destroy(struct drm_device *dev)
 	struct dpu_mdss *dpu_mdss = to_dpu_mdss(priv->mdss);
 	struct dss_module_power *mp = &dpu_mdss->mp;
 
+	pm_runtime_suspend(dev->dev);
+	pm_runtime_disable(dev->dev);
 	_dpu_mdss_irq_domain_fini(dpu_mdss);
-
 	free_irq(platform_get_irq(pdev, 0), dpu_mdss);
-
 	msm_dss_put_clk(mp->clk_config, mp->num_clk);
 	devm_kfree(&pdev->dev, mp->clk_config);
 
 	if (dpu_mdss->mmio)
 		devm_iounmap(&pdev->dev, dpu_mdss->mmio);
 	dpu_mdss->mmio = NULL;
-
-	pm_runtime_disable(dev->dev);
 	priv->mdss = NULL;
 }
 

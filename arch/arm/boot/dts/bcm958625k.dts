@@ -38,11 +38,6 @@
 	model = "NorthStar Plus SVK (BCM958625K)";
 	compatible = "brcm,bcm58625", "brcm,nsp";
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};

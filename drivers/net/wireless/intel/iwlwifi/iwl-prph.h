@@ -8,6 +8,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -360,6 +362,12 @@
 #define MON_BUFF_END_ADDR		(0xa03c40)
 #define MON_BUFF_WRPTR			(0xa03c44)
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
+/* FW monitor family 8000 and on */
+#define MON_BUFF_BASE_ADDR_VER2		(0xa03c3c)
+#define MON_BUFF_END_ADDR_VER2		(0xa03c20)
+#define MON_BUFF_WRPTR_VER2		(0xa03c24)
+#define MON_BUFF_CYCLE_CNT_VER2		(0xa03c28)
+#define MON_BUFF_SHIFT_VER2		(0x8)
 
 #define MON_DMARB_RD_CTL_ADDR		(0xa03c60)
 #define MON_DMARB_RD_DATA_ADDR		(0xa03c5c)
@@ -394,6 +402,7 @@ enum aux_misc_master1_en {
 #define AUX_MISC_MASTER1_SMPHR_STATUS	0xA20800
 #define RSA_ENABLE			0xA24B08
 #define PREG_AUX_BUS_WPROT_0		0xA04CC0
+#define PREG_PRPH_WPROT_0		0xA04CE0
 #define SB_CPU_1_STATUS			0xA01E30
 #define SB_CPU_2_STATUS			0xA01E34
 #define UMAG_SB_CPU_1_STATUS		0xA038C0
@@ -420,4 +429,8 @@ enum {
 #define UREG_CHICK		(0xA05C00)
 #define UREG_CHICK_MSI_ENABLE	BIT(24)
 #define UREG_CHICK_MSIX_ENABLE	BIT(25)
+
+#define HPM_DEBUG			0xA03440
+#define PERSISTENCE_BIT			BIT(12)
+#define PREG_WFPM_ACCESS		BIT(12)
 #endif				/* __iwl_prph_h__ */

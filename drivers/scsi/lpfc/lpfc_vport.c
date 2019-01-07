@@ -138,8 +138,8 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	 * Grab buffer pointer and clear context1 so we can use
 	 * lpfc_sli_issue_box_wait
 	 */
-	mp = (struct lpfc_dmabuf *) pmb->context1;
-	pmb->context1 = NULL;
+	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+	pmb->ctx_buf = NULL;
 
 	pmb->vport = vport;
 	rc = lpfc_sli_issue_mbox_wait(phba, pmb, phba->fc_ratov * 2);

@@ -216,6 +216,7 @@ struct vxlan_config {
 	unsigned long		age_interval;
 	unsigned int		addrmax;
 	bool			no_share;
+	enum ifla_vxlan_df	df;
 };
 
 struct vxlan_dev_node {
@@ -420,17 +421,33 @@ struct switchdev_notifier_vxlan_fdb_info {
 	u8 eth_addr[ETH_ALEN];
 	__be32 vni;
 	bool offloaded;
+	bool added_by_user;
 };
 
 #if IS_ENABLED(CONFIG_VXLAN)
 int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 		      struct switchdev_notifier_vxlan_fdb_info *fdb_info);
+int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+		     struct notifier_block *nb);
+void vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni);
+
 #else
 static inline int
 vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 		  struct switchdev_notifier_vxlan_fdb_info *fdb_info)
 {
 	return -ENOENT;
+}
+
+static inline int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+				   struct notifier_block *nb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void
+vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni)
+{
 }
 #endif
 

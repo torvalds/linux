@@ -3155,7 +3155,6 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		alg->cra_ablkcipher.setkey = ablkcipher_setkey;
 		alg->cra_ablkcipher.encrypt = ablkcipher_encrypt;
 		alg->cra_ablkcipher.decrypt = ablkcipher_decrypt;
-		alg->cra_ablkcipher.geniv = "eseqiv";
 		break;
 	case CRYPTO_ALG_TYPE_AEAD:
 		alg = &t_alg->algt.alg.aead.base;

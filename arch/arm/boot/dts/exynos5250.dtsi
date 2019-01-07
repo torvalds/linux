@@ -59,7 +59,7 @@
 			operating-points-v2 = <&cpu0_opp_table>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
-		cpu@1 {
+		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <1>;
@@ -1087,11 +1087,12 @@
 			cooling-maps {
 				map0 {
 				     /* Corresponds to 800MHz at freq_table */
-				     cooling-device = <&cpu0 9 9>;
+				     cooling-device = <&cpu0 9 9>, <&cpu1 9 9>;
 				};
 				map1 {
 				     /* Corresponds to 200MHz at freq_table */
-				     cooling-device = <&cpu0 15 15>;
+				     cooling-device = <&cpu0 15 15>,
+						      <&cpu1 15 15>;
 			       };
 		       };
 		};

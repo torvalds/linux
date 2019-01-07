@@ -765,7 +765,6 @@ static int pio_wait(struct rvt_qp *qp,
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_devdata *dd = sc->dd;
-	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	unsigned long flags;
 	int ret = 0;
 
@@ -777,7 +776,7 @@ static int pio_wait(struct rvt_qp *qp,
 	 */
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
-		write_seqlock(&dev->iowait_lock);
+		write_seqlock(&sc->waitlock);
 		list_add_tail(&ps->s_txreq->txreq.list,
 			      &ps->wait->tx_head);
 		if (list_empty(&priv->s_iowait.list)) {
@@ -790,14 +789,14 @@ static int pio_wait(struct rvt_qp *qp,
 			was_empty = list_empty(&sc->piowait);
 			iowait_queue(ps->pkts_sent, &priv->s_iowait,
 				     &sc->piowait);
-			priv->s_iowait.lock = &dev->iowait_lock;
+			priv->s_iowait.lock = &sc->waitlock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
 			rvt_get_qp(qp);
 			/* counting: only call wantpiobuf_intr if first user */
 			if (was_empty)
 				hfi1_sc_wantpiobuf_intr(sc, 1);
 		}
-		write_sequnlock(&dev->iowait_lock);
+		write_sequnlock(&sc->waitlock);
 		hfi1_qp_unbusy(qp, ps->wait);
 		ret = -EBUSY;
 	}
@@ -919,6 +918,8 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 				if (slen > len)
 					slen = len;
+				if (slen > ss->sge.sge_length)
+					slen = ss->sge.sge_length;
 				rvt_update_sge(ss, slen, false);
 				seg_pio_copy_mid(pbuf, addr, slen);
 				len -= slen;
@@ -1616,6 +1617,16 @@ static int get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	return count;
 }
 
+static const struct ib_device_ops hfi1_dev_ops = {
+	.alloc_hw_stats = alloc_hw_stats,
+	.alloc_rdma_netdev = hfi1_vnic_alloc_rn,
+	.get_dev_fw_str = hfi1_get_dev_fw_str,
+	.get_hw_stats = get_hw_stats,
+	.modify_device = modify_device,
+	/* keep process mad in the driver */
+	.process_mad = hfi1_process_mad,
+};
+
 /**
  * hfi1_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -1659,14 +1670,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->owner = THIS_MODULE;
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->dev.parent = &dd->pcidev->dev;
-	ibdev->modify_device = modify_device;
-	ibdev->alloc_hw_stats = alloc_hw_stats;
-	ibdev->get_hw_stats = get_hw_stats;
-	ibdev->alloc_rdma_netdev = hfi1_vnic_alloc_rn;
 
-	/* keep process mad in the driver */
-	ibdev->process_mad = hfi1_process_mad;
-	ibdev->get_dev_fw_str = hfi1_get_dev_fw_str;
+	ib_set_device_ops(ibdev, &hfi1_dev_ops);
 
 	strlcpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
@@ -1704,6 +1709,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.max_mad_size = OPA_MGMT_MAD_SIZE;
 
 	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qp_priv_alloc;
+	dd->verbs_dev.rdi.driver_f.qp_priv_init = hfi1_qp_priv_init;
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;

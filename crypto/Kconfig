@@ -430,10 +430,13 @@ config CRYPTO_CTS
 	help
 	  CTS: Cipher Text Stealing
 	  This is the Cipher Text Stealing mode as described by
-	  Section 8 of rfc2040 and referenced by rfc3962.
-	  (rfc3962 includes errata information in its Appendix A)
+	  Section 8 of rfc2040 and referenced by rfc3962
+	  (rfc3962 includes errata information in its Appendix A) or
+	  CBC-CS3 as defined by NIST in Sp800-38A addendum from Oct 2010.
 	  This mode is required for Kerberos gss mechanism support
 	  for AES encryption.
+
+	  See: https://csrc.nist.gov/publications/detail/sp/800-38a/addendum/final
 
 config CRYPTO_ECB
 	tristate "ECB support"
@@ -492,6 +495,50 @@ config CRYPTO_KEYWRAP
 	help
 	  Support for key wrapping (NIST SP800-38F / RFC3394) without
 	  padding.
+
+config CRYPTO_NHPOLY1305
+	tristate
+	select CRYPTO_HASH
+	select CRYPTO_POLY1305
+
+config CRYPTO_NHPOLY1305_SSE2
+	tristate "NHPoly1305 hash function (x86_64 SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_NHPOLY1305
+	help
+	  SSE2 optimized implementation of the hash function used by the
+	  Adiantum encryption mode.
+
+config CRYPTO_NHPOLY1305_AVX2
+	tristate "NHPoly1305 hash function (x86_64 AVX2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_NHPOLY1305
+	help
+	  AVX2 optimized implementation of the hash function used by the
+	  Adiantum encryption mode.
+
+config CRYPTO_ADIANTUM
+	tristate "Adiantum support"
+	select CRYPTO_CHACHA20
+	select CRYPTO_POLY1305
+	select CRYPTO_NHPOLY1305
+	help
+	  Adiantum is a tweakable, length-preserving encryption mode
+	  designed for fast and secure disk encryption, especially on
+	  CPUs without dedicated crypto instructions.  It encrypts
+	  each sector using the XChaCha12 stream cipher, two passes of
+	  an ε-almost-∆-universal hash function, and an invocation of
+	  the AES-256 block cipher on a single 16-byte block.  On CPUs
+	  without AES instructions, Adiantum is much faster than
+	  AES-XTS.
+
+	  Adiantum's security is provably reducible to that of its
+	  underlying stream and block ciphers, subject to a security
+	  bound.  Unlike XTS, Adiantum is a true wide-block encryption
+	  mode, so it actually provides an even stronger notion of
+	  security than XTS, subject to the security bound.
+
+	  If unsure, say N.
 
 comment "Hash modes"
 
@@ -936,6 +983,18 @@ config CRYPTO_SM3
 	  http://www.oscca.gov.cn/UpFile/20101222141857786.pdf
 	  https://datatracker.ietf.org/doc/html/draft-shen-sm3-hash
 
+config CRYPTO_STREEBOG
+	tristate "Streebog Hash Function"
+	select CRYPTO_HASH
+	help
+	  Streebog Hash Function (GOST R 34.11-2012, RFC 6986) is one of the Russian
+	  cryptographic standard algorithms (called GOST algorithms).
+	  This setting enables two hash algorithms with 256 and 512 bits output.
+
+	  References:
+	  https://tc26.ru/upload/iblock/fed/feddbb4d26b685903faa2ba11aea43f6.pdf
+	  https://tools.ietf.org/html/rfc6986
+
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
 	select CRYPTO_HASH
@@ -1006,7 +1065,8 @@ config CRYPTO_AES_TI
 	  8 for decryption), this implementation only uses just two S-boxes of
 	  256 bytes each, and attempts to eliminate data dependent latencies by
 	  prefetching the entire table into the cache at the start of each
-	  block.
+	  block. Interrupts are also disabled to avoid races where cachelines
+	  are evicted when the CPU is interrupted to do something else.
 
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
@@ -1387,32 +1447,34 @@ config CRYPTO_SALSA20
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_CHACHA20
-	tristate "ChaCha20 cipher algorithm"
+	tristate "ChaCha stream cipher algorithms"
 	select CRYPTO_BLKCIPHER
 	help
-	  ChaCha20 cipher algorithm, RFC7539.
+	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms.
 
 	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
 	  Bernstein and further specified in RFC7539 for use in IETF protocols.
-	  This is the portable C implementation of ChaCha20.
-
-	  See also:
+	  This is the portable C implementation of ChaCha20.  See also:
 	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
 
+	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
+	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
+	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
+	  while provably retaining ChaCha20's security.  See also:
+	  <https://cr.yp.to/snuffle/xsalsa-20081128.pdf>
+
+	  XChaCha12 is XChaCha20 reduced to 12 rounds, with correspondingly
+	  reduced security margin but increased performance.  It can be needed
+	  in some performance-sensitive scenarios.
+
 config CRYPTO_CHACHA20_X86_64
-	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3/AVX2)"
+	tristate "ChaCha stream cipher algorithms (x86_64/SSSE3/AVX2/AVX-512VL)"
 	depends on X86 && 64BIT
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_CHACHA20
 	help
-	  ChaCha20 cipher algorithm, RFC7539.
-
-	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
-	  Bernstein and further specified in RFC7539 for use in IETF protocols.
-	  This is the x86_64 assembler implementation using SIMD instructions.
-
-	  See also:
-	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
+	  SSSE3, AVX2, and AVX-512VL optimized implementations of the ChaCha20,
+	  XChaCha20, and XChaCha12 stream ciphers.
 
 config CRYPTO_SEED
 	tristate "SEED cipher algorithm"
@@ -1812,7 +1874,8 @@ config CRYPTO_USER_API_AEAD
 	  cipher algorithms.
 
 config CRYPTO_STATS
-	bool
+	bool "Crypto usage statistics for User-space"
+	depends on CRYPTO_USER
 	help
 	  This option enables the gathering of crypto stats.
 	  This will collect:
@@ -1826,7 +1889,7 @@ config CRYPTO_HASH_INFO
 	bool
 
 source "drivers/crypto/Kconfig"
-source crypto/asymmetric_keys/Kconfig
-source certs/Kconfig
+source "crypto/asymmetric_keys/Kconfig"
+source "certs/Kconfig"
 
 endif	# if CRYPTO

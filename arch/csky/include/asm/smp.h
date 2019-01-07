@@ -21,6 +21,10 @@ void __init set_send_ipi(void (*func)(const struct cpumask *mask), int irq);
 
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
+int __cpu_disable(void);
+
+void __cpu_die(unsigned int cpu);
+
 #endif /* CONFIG_SMP */
 
 #endif /* __ASM_CSKY_SMP_H */

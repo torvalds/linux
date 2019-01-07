@@ -443,7 +443,7 @@ static unsigned long total_wear = 0;
 /* MTD structure for NAND controller */
 static struct mtd_info *nsmtd;
 
-static int nandsim_debugfs_show(struct seq_file *m, void *private)
+static int nandsim_show(struct seq_file *m, void *private)
 {
 	unsigned long wmin = -1, wmax = 0, avg;
 	unsigned long deciles[10], decile_max[10], tot = 0;
@@ -494,18 +494,7 @@ static int nandsim_debugfs_show(struct seq_file *m, void *private)
 
 	return 0;
 }
-
-static int nandsim_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nandsim_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations dfs_fops = {
-	.open		= nandsim_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(nandsim);
 
 /**
  * nandsim_debugfs_create - initialize debugfs
@@ -531,7 +520,7 @@ static int nandsim_debugfs_create(struct nandsim *dev)
 	}
 
 	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR,
-				   root, dev, &dfs_fops);
+				   root, dev, &nandsim_fops);
 	if (IS_ERR_OR_NULL(dent)) {
 		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
 		return -1;
@@ -2304,7 +2293,7 @@ static int __init ns_init_module(void)
 	if ((retval = parse_gravepages()) != 0)
 		goto error;
 
-	chip->dummy_controller.ops = &ns_controller_ops;
+	chip->legacy.dummy_controller.ops = &ns_controller_ops;
 	retval = nand_scan(chip, 1);
 	if (retval) {
 		NS_ERR("Could not scan NAND Simulator device\n");

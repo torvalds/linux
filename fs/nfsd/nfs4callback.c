@@ -844,24 +844,23 @@ static int max_cb_time(struct net *net)
 	return max(nn->nfsd4_lease/10, (time_t)1) * HZ;
 }
 
-static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
+static const struct cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
 {
 	if (clp->cl_minorversion == 0) {
-		char *principal = clp->cl_cred.cr_targ_princ ?
-					clp->cl_cred.cr_targ_princ : "nfs";
-		struct rpc_cred *cred;
+		client->cl_principal = clp->cl_cred.cr_targ_princ ?
+			clp->cl_cred.cr_targ_princ : "nfs";
 
-		cred = rpc_lookup_machine_cred(principal);
-		if (!IS_ERR(cred))
-			get_rpccred(cred);
-		return cred;
+		return get_cred(rpc_machine_cred());
 	} else {
-		struct rpc_auth *auth = client->cl_auth;
-		struct auth_cred acred = {};
+		struct cred *kcred;
 
-		acred.uid = ses->se_cb_sec.uid;
-		acred.gid = ses->se_cb_sec.gid;
-		return auth->au_ops->lookup_cred(client->cl_auth, &acred, 0);
+		kcred = prepare_kernel_cred(NULL);
+		if (!kcred)
+			return NULL;
+
+		kcred->uid = ses->se_cb_sec.uid;
+		kcred->gid = ses->se_cb_sec.gid;
+		return kcred;
 	}
 }
 
@@ -884,7 +883,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 	};
 	struct rpc_clnt *client;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
 	if (clp->cl_minorversion == 0) {
 		if (!clp->cl_cred.cr_principal &&
@@ -1214,7 +1213,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	if (clp->cl_cb_client) {
 		rpc_shutdown_client(clp->cl_cb_client);
 		clp->cl_cb_client = NULL;
-		put_rpccred(clp->cl_cb_cred);
+		put_cred(clp->cl_cb_cred);
 		clp->cl_cb_cred = NULL;
 	}
 	if (clp->cl_cb_conn.cb_xprt) {

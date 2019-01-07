@@ -216,10 +216,3 @@ static void __exit cleanup_scx200_docflash(void)
 
 module_init(init_scx200_docflash);
 module_exit(cleanup_scx200_docflash);
-
-/*
-    Local variables:
-        compile-command: "make -k -C ../../.. SUBDIRS=drivers/mtd/maps modules"
-        c-basic-offset: 8
-    End:
-*/

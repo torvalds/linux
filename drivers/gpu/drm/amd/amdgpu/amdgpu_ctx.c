@@ -248,7 +248,7 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 		return -ENOMEM;
 
 	mutex_lock(&mgr->lock);
-	r = idr_alloc(&mgr->ctx_handles, ctx, 1, 0, GFP_KERNEL);
+	r = idr_alloc(&mgr->ctx_handles, ctx, 1, AMDGPU_VM_MAX_NUM_CTX, GFP_KERNEL);
 	if (r < 0) {
 		mutex_unlock(&mgr->lock);
 		kfree(ctx);

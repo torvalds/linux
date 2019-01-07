@@ -16,7 +16,7 @@ enum hk_flags {
 };
 
 #ifdef CONFIG_CPU_ISOLATION
-DECLARE_STATIC_KEY_FALSE(housekeeping_overriden);
+DECLARE_STATIC_KEY_FALSE(housekeeping_overridden);
 extern int housekeeping_any_cpu(enum hk_flags flags);
 extern const struct cpumask *housekeeping_cpumask(enum hk_flags flags);
 extern void housekeeping_affine(struct task_struct *t, enum hk_flags flags);
@@ -43,7 +43,7 @@ static inline void housekeeping_init(void) { }
 static inline bool housekeeping_cpu(int cpu, enum hk_flags flags)
 {
 #ifdef CONFIG_CPU_ISOLATION
-	if (static_branch_unlikely(&housekeeping_overriden))
+	if (static_branch_unlikely(&housekeeping_overridden))
 		return housekeeping_test_cpu(cpu, flags);
 #endif
 	return true;

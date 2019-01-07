@@ -2,6 +2,7 @@
 #ifndef __ASM_PARISC_ALTERNATIVE_H
 #define __ASM_PARISC_ALTERNATIVE_H
 
+#define ALT_COND_ALWAYS		0x80	/* always replace instruction */
 #define ALT_COND_NO_SMP		0x01	/* when running UP instead of SMP */
 #define ALT_COND_NO_DCACHE	0x02	/* if system has no d-cache  */
 #define ALT_COND_NO_ICACHE	0x04	/* if system has no i-cache  */
@@ -26,6 +27,9 @@ struct alt_instr {
 };
 
 void set_kernel_text_rw(int enable_read_write);
+void apply_alternatives_all(void);
+void apply_alternatives(struct alt_instr *start, struct alt_instr *end,
+	const char *module_name);
 
 /* Alternative SMP implementation. */
 #define ALTERNATIVE(cond, replacement)		"!0:"	\

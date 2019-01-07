@@ -45,17 +45,34 @@ struct ntc_compensation {
 	unsigned int	ohm;
 };
 
-/* Order matters, ntc_match references the entries by index */
+/*
+ * Used as index in a zero-terminated array, holes not allowed so
+ * that NTC_LAST is the first empty array entry.
+ */
+enum {
+	NTC_B57330V2103,
+	NTC_B57891S0103,
+	NTC_NCP03WB473,
+	NTC_NCP03WF104,
+	NTC_NCP15WB473,
+	NTC_NCP15WL333,
+	NTC_NCP15XH103,
+	NTC_NCP18WB473,
+	NTC_NCP21WB473,
+	NTC_LAST,
+};
+
 static const struct platform_device_id ntc_thermistor_id[] = {
-	{ "ncp15wb473", TYPE_NCPXXWB473 },
-	{ "ncp18wb473", TYPE_NCPXXWB473 },
-	{ "ncp21wb473", TYPE_NCPXXWB473 },
-	{ "ncp03wb473", TYPE_NCPXXWB473 },
-	{ "ncp15wl333", TYPE_NCPXXWL333 },
-	{ "b57330v2103", TYPE_B57330V2103},
-	{ "ncp03wf104", TYPE_NCPXXWF104 },
-	{ "ncp15xh103", TYPE_NCPXXXH103 },
-	{ },
+	[NTC_B57330V2103]     = { "b57330v2103",     TYPE_B57330V2103 },
+	[NTC_B57891S0103]     = { "b57891s0103",     TYPE_B57891S0103 },
+	[NTC_NCP03WB473]      = { "ncp03wb473",      TYPE_NCPXXWB473 },
+	[NTC_NCP03WF104]      = { "ncp03wf104",      TYPE_NCPXXWF104 },
+	[NTC_NCP15WB473]      = { "ncp15wb473",      TYPE_NCPXXWB473 },
+	[NTC_NCP15WL333]      = { "ncp15wl333",      TYPE_NCPXXWL333 },
+	[NTC_NCP15XH103]      = { "ncp15xh103",      TYPE_NCPXXXH103 },
+	[NTC_NCP18WB473]      = { "ncp18wb473",      TYPE_NCPXXWB473 },
+	[NTC_NCP21WB473]      = { "ncp21wb473",      TYPE_NCPXXWB473 },
+	[NTC_LAST]            = { },
 };
 
 /*
@@ -212,8 +229,8 @@ static const struct ntc_compensation ncpXXxh103[] = {
 };
 
 /*
- * The following compensation table is from the specification of EPCOS NTC
- * Thermistors Datasheet
+ * The following compensation tables are from the specifications in EPCOS NTC
+ * Thermistors Datasheets
  */
 static const struct ntc_compensation b57330v2103[] = {
 	{ .temp_c	= -40, .ohm	= 190030 },
@@ -252,6 +269,69 @@ static const struct ntc_compensation b57330v2103[] = {
 	{ .temp_c	= 125, .ohm	= 531 },
 };
 
+static const struct ntc_compensation b57891s0103[] = {
+	{ .temp_c	= -55.0, .ohm	= 878900 },
+	{ .temp_c	= -50.0, .ohm	= 617590 },
+	{ .temp_c	= -45.0, .ohm	= 439340 },
+	{ .temp_c	= -40.0, .ohm	= 316180 },
+	{ .temp_c	= -35.0, .ohm	= 230060 },
+	{ .temp_c	= -30.0, .ohm	= 169150 },
+	{ .temp_c	= -25.0, .ohm	= 125550 },
+	{ .temp_c	= -20.0, .ohm	= 94143 },
+	{ .temp_c	= -15.0, .ohm	= 71172 },
+	{ .temp_c	= -10.0, .ohm	= 54308 },
+	{ .temp_c	= -5.0, .ohm	= 41505 },
+	{ .temp_c	= 0.0, .ohm	= 32014 },
+	{ .temp_c	= 5.0, .ohm	= 25011 },
+	{ .temp_c	= 10.0, .ohm	= 19691 },
+	{ .temp_c	= 15.0, .ohm	= 15618 },
+	{ .temp_c	= 20.0, .ohm	= 12474 },
+	{ .temp_c	= 25.0, .ohm	= 10000 },
+	{ .temp_c	= 30.0, .ohm	= 8080 },
+	{ .temp_c	= 35.0, .ohm	= 6569 },
+	{ .temp_c	= 40.0, .ohm	= 5372 },
+	{ .temp_c	= 45.0, .ohm	= 4424 },
+	{ .temp_c	= 50.0, .ohm	= 3661 },
+	{ .temp_c	= 55.0, .ohm	= 3039 },
+	{ .temp_c	= 60.0, .ohm	= 2536 },
+	{ .temp_c	= 65.0, .ohm	= 2128 },
+	{ .temp_c	= 70.0, .ohm	= 1794 },
+	{ .temp_c	= 75.0, .ohm	= 1518 },
+	{ .temp_c	= 80.0, .ohm	= 1290 },
+	{ .temp_c	= 85.0, .ohm	= 1100 },
+	{ .temp_c	= 90.0, .ohm	= 942 },
+	{ .temp_c	= 95.0, .ohm	= 809 },
+	{ .temp_c	= 100.0, .ohm	= 697 },
+	{ .temp_c	= 105.0, .ohm	= 604 },
+	{ .temp_c	= 110.0, .ohm	= 525 },
+	{ .temp_c	= 115.0, .ohm	= 457 },
+	{ .temp_c	= 120.0, .ohm	= 400 },
+	{ .temp_c	= 125.0, .ohm	= 351 },
+	{ .temp_c	= 130.0, .ohm	= 308 },
+	{ .temp_c	= 135.0, .ohm	= 272 },
+	{ .temp_c	= 140.0, .ohm	= 240 },
+	{ .temp_c	= 145.0, .ohm	= 213 },
+	{ .temp_c	= 150.0, .ohm	= 189 },
+	{ .temp_c	= 155.0, .ohm	= 168 },
+};
+
+struct ntc_type {
+	const struct ntc_compensation *comp;
+	int n_comp;
+};
+
+#define NTC_TYPE(ntc, compensation) \
+[(ntc)] = { .comp = (compensation), .n_comp = ARRAY_SIZE(compensation) }
+
+static const struct ntc_type ntc_type[] = {
+	NTC_TYPE(TYPE_B57330V2103, b57330v2103),
+	NTC_TYPE(TYPE_B57891S0103, b57891s0103),
+	NTC_TYPE(TYPE_NCPXXWB473,  ncpXXwb473),
+	NTC_TYPE(TYPE_NCPXXWF104,  ncpXXwf104),
+	NTC_TYPE(TYPE_NCPXXWL333,  ncpXXwl333),
+	NTC_TYPE(TYPE_NCPXXXH103,  ncpXXxh103),
+};
+
 struct ntc_data {
 	struct ntc_thermistor_platform_data *pdata;
 	const struct ntc_compensation *comp;
@@ -280,34 +360,36 @@ static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 }
 
 static const struct of_device_id ntc_match[] = {
-	{ .compatible = "murata,ncp15wb473",
-		.data = &ntc_thermistor_id[0] },
-	{ .compatible = "murata,ncp18wb473",
-		.data = &ntc_thermistor_id[1] },
-	{ .compatible = "murata,ncp21wb473",
-		.data = &ntc_thermistor_id[2] },
-	{ .compatible = "murata,ncp03wb473",
-		.data = &ntc_thermistor_id[3] },
-	{ .compatible = "murata,ncp15wl333",
-		.data = &ntc_thermistor_id[4] },
 	{ .compatible = "epcos,b57330v2103",
-		.data = &ntc_thermistor_id[5]},
+		.data = &ntc_thermistor_id[NTC_B57330V2103]},
+	{ .compatible = "epcos,b57891s0103",
+		.data = &ntc_thermistor_id[NTC_B57891S0103] },
+	{ .compatible = "murata,ncp03wb473",
+		.data = &ntc_thermistor_id[NTC_NCP03WB473] },
 	{ .compatible = "murata,ncp03wf104",
-		.data = &ntc_thermistor_id[6] },
+		.data = &ntc_thermistor_id[NTC_NCP03WF104] },
+	{ .compatible = "murata,ncp15wb473",
+		.data = &ntc_thermistor_id[NTC_NCP15WB473] },
+	{ .compatible = "murata,ncp15wl333",
+		.data = &ntc_thermistor_id[NTC_NCP15WL333] },
 	{ .compatible = "murata,ncp15xh103",
-		.data = &ntc_thermistor_id[7] },
+		.data = &ntc_thermistor_id[NTC_NCP15XH103] },
+	{ .compatible = "murata,ncp18wb473",
+		.data = &ntc_thermistor_id[NTC_NCP18WB473] },
+	{ .compatible = "murata,ncp21wb473",
+		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
 
 	/* Usage of vendor name "ntc" is deprecated */
-	{ .compatible = "ntc,ncp15wb473",
-		.data = &ntc_thermistor_id[0] },
-	{ .compatible = "ntc,ncp18wb473",
-		.data = &ntc_thermistor_id[1] },
-	{ .compatible = "ntc,ncp21wb473",
-		.data = &ntc_thermistor_id[2] },
 	{ .compatible = "ntc,ncp03wb473",
-		.data = &ntc_thermistor_id[3] },
+		.data = &ntc_thermistor_id[NTC_NCP03WB473] },
+	{ .compatible = "ntc,ncp15wb473",
+		.data = &ntc_thermistor_id[NTC_NCP15WB473] },
 	{ .compatible = "ntc,ncp15wl333",
-		.data = &ntc_thermistor_id[4] },
+		.data = &ntc_thermistor_id[NTC_NCP15WL333] },
+	{ .compatible = "ntc,ncp18wb473",
+		.data = &ntc_thermistor_id[NTC_NCP18WB473] },
+	{ .compatible = "ntc,ncp21wb473",
+		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ntc_match);
@@ -519,14 +601,14 @@ static int ntc_read_temp(void *data, int *temp)
 	return 0;
 }
 
-static ssize_t ntc_show_type(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t ntc_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "4\n");
 }
 
-static ssize_t ntc_show_temp(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t ntc_temp_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct ntc_data *data = dev_get_drvdata(dev);
 	int ohm;
@@ -538,8 +620,8 @@ static ssize_t ntc_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", get_temp_mc(data, ohm));
 }
 
-static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO, ntc_show_type, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ntc_show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_type, ntc_type, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, ntc_temp, 0);
 
 static struct attribute *ntc_attrs[] = {
 	&sensor_dev_attr_temp1_type.dev_attr.attr,
@@ -606,32 +688,14 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 
 	data->pdata = pdata;
 
-	switch (pdev_id->driver_data) {
-	case TYPE_NCPXXWB473:
-		data->comp = ncpXXwb473;
-		data->n_comp = ARRAY_SIZE(ncpXXwb473);
-		break;
-	case TYPE_NCPXXWL333:
-		data->comp = ncpXXwl333;
-		data->n_comp = ARRAY_SIZE(ncpXXwl333);
-		break;
-	case TYPE_B57330V2103:
-		data->comp = b57330v2103;
-		data->n_comp = ARRAY_SIZE(b57330v2103);
-		break;
-	case TYPE_NCPXXWF104:
-		data->comp = ncpXXwf104;
-		data->n_comp = ARRAY_SIZE(ncpXXwf104);
-		break;
-	case TYPE_NCPXXXH103:
-		data->comp = ncpXXxh103;
-		data->n_comp = ARRAY_SIZE(ncpXXxh103);
-		break;
-	default:
+	if (pdev_id->driver_data >= ARRAY_SIZE(ntc_type)) {
 		dev_err(dev, "Unknown device type: %lu(%s)\n",
 				pdev_id->driver_data, pdev_id->name);
 		return -EINVAL;
 	}
+
+	data->comp   = ntc_type[pdev_id->driver_data].comp;
+	data->n_comp = ntc_type[pdev_id->driver_data].n_comp;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, pdev_id->name,
 							   data, ntc_groups);

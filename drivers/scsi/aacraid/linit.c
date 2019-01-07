@@ -759,6 +759,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			    !(aac->raw_io_64) ||
 			    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
 				break;
+			/* fall through */
 		case INQUIRY:
 		case READ_CAPACITY:
 			/*
@@ -1539,7 +1540,6 @@ static struct scsi_host_template aac_driver_template = {
 #else
 	.cmd_per_lun			= AAC_NUM_IO_FIB,
 #endif
-	.use_clustering			= ENABLE_CLUSTERING,
 	.emulated			= 1,
 	.no_write_same			= 1,
 };
@@ -1559,7 +1559,7 @@ static void __aac_shutdown(struct aac_dev * aac)
 			struct fib *fib = &aac->fibs[i];
 			if (!(fib->hw_fib_va->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
 			    (fib->hw_fib_va->header.XferState & cpu_to_le32(ResponseExpected)))
-				up(&fib->event_wait);
+				complete(&fib->event_wait);
 		}
 		kthread_stop(aac->thread);
 		aac->thread = NULL;

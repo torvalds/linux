@@ -30,6 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/workqueue.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -1742,12 +1743,7 @@ static int init_phy(struct net_device *dev)
 	if (priv->phy_interface == PHY_INTERFACE_MODE_SGMII)
 		uec_configure_serdes(dev);
 
-	phy_set_max_speed(phydev, SPEED_100);
-
-	if (priv->max_speed == SPEED_1000)
-		phydev->supported |= ADVERTISED_1000baseT_Full;
-
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, priv->max_speed);
 
 	priv->phydev = phydev;
 
@@ -3681,6 +3677,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 	.ndo_stop		= ucc_geth_close,
 	.ndo_start_xmit		= ucc_geth_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_carrier     = fixed_phy_change_carrier,
 	.ndo_set_mac_address	= ucc_geth_set_mac_addr,
 	.ndo_set_rx_mode	= ucc_geth_set_multi,
 	.ndo_tx_timeout		= ucc_geth_timeout,

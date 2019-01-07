@@ -15,7 +15,7 @@ static const char *socket_families[] = {
 	"BLUETOOTH", "IUCV", "RXRPC", "ISDN", "PHONET", "IEEE802154", "CAIF",
 	"ALG", "NFC", "VSOCK",
 };
-DEFINE_STRARRAY(socket_families);
+DEFINE_STRARRAY(socket_families, "PF_");
 
 static size_t af_inet__scnprintf(struct sockaddr *sa, char *bf, size_t size)
 {
@@ -58,7 +58,7 @@ static size_t syscall_arg__scnprintf_augmented_sockaddr(struct syscall_arg *arg,
 	char family[32];
 	size_t printed;
 
-	strarray__scnprintf(&strarray__socket_families, family, sizeof(family), "%d", sa->sa_family);
+	strarray__scnprintf(&strarray__socket_families, family, sizeof(family), "%d", arg->show_string_prefix, sa->sa_family);
 	printed = scnprintf(bf, size, "{ .family: %s", family);
 
 	if (sa->sa_family < ARRAY_SIZE(af_scnprintfs) && af_scnprintfs[sa->sa_family])

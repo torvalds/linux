@@ -710,11 +710,15 @@ static int intel_execute_tuning(struct mmc_host *mmc, u32 opcode)
 static void byt_probe_slot(struct sdhci_pci_slot *slot)
 {
 	struct mmc_host_ops *ops = &slot->host->mmc_host_ops;
+	struct device *dev = &slot->chip->pdev->dev;
+	struct mmc_host *mmc = slot->host->mmc;
 
 	byt_read_dsm(slot);
 
 	ops->execute_tuning = intel_execute_tuning;
 	ops->start_signal_voltage_switch = intel_start_signal_voltage_switch;
+
+	device_property_read_u32(dev, "max-frequency", &mmc->f_max);
 }
 
 static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
@@ -937,7 +941,8 @@ static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
 	.allow_runtime_pm = true,
 	.probe_slot	= byt_emmc_probe_slot,
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+			  SDHCI_QUIRK_NO_LED,
 	.quirks2	= SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 			  SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400 |
 			  SDHCI_QUIRK2_STOP_WITH_TC,
@@ -957,7 +962,8 @@ static const struct sdhci_pci_fixes sdhci_intel_glk_emmc = {
 	.runtime_suspend	= glk_runtime_suspend,
 	.runtime_resume		= glk_runtime_resume,
 #endif
-	.quirks			= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks			= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+				  SDHCI_QUIRK_NO_LED,
 	.quirks2		= SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 				  SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400 |
 				  SDHCI_QUIRK2_STOP_WITH_TC,
@@ -966,7 +972,8 @@ static const struct sdhci_pci_fixes sdhci_intel_glk_emmc = {
 };
 
 static const struct sdhci_pci_fixes sdhci_ni_byt_sdio = {
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+			  SDHCI_QUIRK_NO_LED,
 	.quirks2	= SDHCI_QUIRK2_HOST_OFF_CARD_ON |
 			  SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.allow_runtime_pm = true,
@@ -976,7 +983,8 @@ static const struct sdhci_pci_fixes sdhci_ni_byt_sdio = {
 };
 
 static const struct sdhci_pci_fixes sdhci_intel_byt_sdio = {
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+			  SDHCI_QUIRK_NO_LED,
 	.quirks2	= SDHCI_QUIRK2_HOST_OFF_CARD_ON |
 			SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.allow_runtime_pm = true,
@@ -986,7 +994,8 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sdio = {
 };
 
 static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+			  SDHCI_QUIRK_NO_LED,
 	.quirks2	= SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON |
 			  SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 			  SDHCI_QUIRK2_STOP_WITH_TC,

@@ -28,6 +28,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/export.h>
 #include <asm/feature-fixups.h>
+#include <asm/code-patching-asm.h>
 
 #ifdef CONFIG_SMP
 	.section .bss
@@ -337,11 +338,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	rlwimi	r5,r4,10,26,31		/* put in API (abbrev page index) */
 	SET_V(r5)			/* set V (valid) bit */
 
+	patch_site	0f, patch__hash_page_A0
+	patch_site	1f, patch__hash_page_A1
+	patch_site	2f, patch__hash_page_A2
 	/* Get the address of the primary PTE group in the hash table (r3) */
-_GLOBAL(hash_page_patch_A)
-	addis	r0,r7,Hash_base@h	/* base address of hash table */
-	rlwimi	r0,r3,LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT    /* VSID -> hash */
-	rlwinm	r3,r4,20+LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT /* PI -> hash */
+0:	addis	r0,r7,Hash_base@h	/* base address of hash table */
+1:	rlwimi	r0,r3,LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT    /* VSID -> hash */
+2:	rlwinm	r3,r4,20+LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT /* PI -> hash */
 	xor	r3,r3,r0		/* make primary hash */
 	li	r0,8			/* PTEs/group */
 
@@ -366,10 +369,10 @@ _GLOBAL(hash_page_patch_A)
 	bdnzf	2,1b			/* loop while ctr != 0 && !cr0.eq */
 	beq+	found_slot
 
+	patch_site	0f, patch__hash_page_B
 	/* Search the secondary PTEG for a matching PTE */
 	ori	r5,r5,PTE_H		/* set H (secondary hash) bit */
-_GLOBAL(hash_page_patch_B)
-	xoris	r4,r3,Hash_msk>>16	/* compute secondary hash */
+0:	xoris	r4,r3,Hash_msk>>16	/* compute secondary hash */
 	xori	r4,r4,(-PTEG_SIZE & 0xffff)
 	addi	r4,r4,-HPTE_SIZE
 	mtctr	r0
@@ -393,10 +396,10 @@ _GLOBAL(hash_page_patch_B)
 	addi	r6,r6,1
 	stw	r6,primary_pteg_full@l(r4)
 
+	patch_site	0f, patch__hash_page_C
 	/* Search the secondary PTEG for an empty slot */
 	ori	r5,r5,PTE_H		/* set H (secondary hash) bit */
-_GLOBAL(hash_page_patch_C)
-	xoris	r4,r3,Hash_msk>>16	/* compute secondary hash */
+0:	xoris	r4,r3,Hash_msk>>16	/* compute secondary hash */
 	xori	r4,r4,(-PTEG_SIZE & 0xffff)
 	addi	r4,r4,-HPTE_SIZE
 	mtctr	r0
@@ -577,11 +580,13 @@ _GLOBAL(flush_hash_pages)
 	stwcx.	r8,0,r5			/* update the pte */
 	bne-	33b
 
+	patch_site	0f, patch__flush_hash_A0
+	patch_site	1f, patch__flush_hash_A1
+	patch_site	2f, patch__flush_hash_A2
 	/* Get the address of the primary PTE group in the hash table (r3) */
-_GLOBAL(flush_hash_patch_A)
-	addis	r8,r7,Hash_base@h	/* base address of hash table */
-	rlwimi	r8,r3,LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT    /* VSID -> hash */
-	rlwinm	r0,r4,20+LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT /* PI -> hash */
+0:	addis	r8,r7,Hash_base@h	/* base address of hash table */
+1:	rlwimi	r8,r3,LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT    /* VSID -> hash */
+2:	rlwinm	r0,r4,20+LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT /* PI -> hash */
 	xor	r8,r0,r8		/* make primary hash */
 
 	/* Search the primary PTEG for a PTE whose 1st (d)word matches r5 */
@@ -593,11 +598,11 @@ _GLOBAL(flush_hash_patch_A)
 	bdnzf	2,1b			/* loop while ctr != 0 && !cr0.eq */
 	beq+	3f
 
+	patch_site	0f, patch__flush_hash_B
 	/* Search the secondary PTEG for a matching PTE */
 	ori	r11,r11,PTE_H		/* set H (secondary hash) bit */
 	li	r0,8			/* PTEs/group */
-_GLOBAL(flush_hash_patch_B)
-	xoris	r12,r8,Hash_msk>>16	/* compute secondary hash */
+0:	xoris	r12,r8,Hash_msk>>16	/* compute secondary hash */
 	xori	r12,r12,(-PTEG_SIZE & 0xffff)
 	addi	r12,r12,-HPTE_SIZE
 	mtctr	r0

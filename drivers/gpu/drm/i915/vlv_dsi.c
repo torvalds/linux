@@ -206,39 +206,6 @@ static const struct mipi_dsi_host_ops intel_dsi_host_ops = {
 	.transfer = intel_dsi_host_transfer,
 };
 
-static struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
-						  enum port port)
-{
-	struct intel_dsi_host *host;
-	struct mipi_dsi_device *device;
-
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
-	if (!host)
-		return NULL;
-
-	host->base.ops = &intel_dsi_host_ops;
-	host->intel_dsi = intel_dsi;
-	host->port = port;
-
-	/*
-	 * We should call mipi_dsi_host_register(&host->base) here, but we don't
-	 * have a host->dev, and we don't have OF stuff either. So just use the
-	 * dsi framework as a library and hope for the best. Create the dsi
-	 * devices by ourselves here too. Need to be careful though, because we
-	 * don't initialize any of the driver model devices here.
-	 */
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
-	if (!device) {
-		kfree(host);
-		return NULL;
-	}
-
-	device->host = &host->base;
-	host->device = device;
-
-	return host;
-}
-
 /*
  * send a video mode command
  *
@@ -290,16 +257,6 @@ static void band_gap_reset(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
-static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
-{
-	return intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE;
-}
-
-static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
-{
-	return intel_dsi->operation_mode == INTEL_DSI_COMMAND_MODE;
-}
-
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
@@ -314,6 +271,7 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	int ret;
 
 	DRM_DEBUG_KMS("\n");
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	if (fixed_mode) {
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
@@ -745,17 +703,6 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			      const struct intel_crtc_state *pipe_config);
 static void intel_dsi_unprepare(struct intel_encoder *encoder);
 
-static void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
-{
-	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
-
-	/* For v3 VBTs in vid-mode the delays are part of the VBT sequences */
-	if (is_vid_mode(intel_dsi) && dev_priv->vbt.dsi.seq_version >= 3)
-		return;
-
-	msleep(msec);
-}
-
 /*
  * Panel enable/disable sequences from the VBT spec.
  *
@@ -793,6 +740,10 @@ static void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
  * - wait t4                                           - wait t4
  */
 
+/*
+ * DSI port enable has to be done before pipe and plane enable, so we do it in
+ * the pre_enable hook instead of the enable hook.
+ */
 static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
@@ -892,17 +843,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 
 	intel_panel_enable_backlight(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
-}
-
-/*
- * DSI port enable has to be done before pipe and plane enable, so we do it in
- * the pre_enable hook.
- */
-static void intel_dsi_enable_nop(struct intel_encoder *encoder,
-				 const struct intel_crtc_state *pipe_config,
-				 const struct drm_connector_state *conn_state)
-{
-	DRM_DEBUG_KMS("\n");
 }
 
 /*
@@ -1272,31 +1212,6 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	}
 }
 
-static enum drm_mode_status
-intel_dsi_mode_valid(struct drm_connector *connector,
-		     struct drm_display_mode *mode)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
-
-	DRM_DEBUG_KMS("\n");
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
-	if (fixed_mode) {
-		if (mode->hdisplay > fixed_mode->hdisplay)
-			return MODE_PANEL;
-		if (mode->vdisplay > fixed_mode->vdisplay)
-			return MODE_PANEL;
-		if (fixed_mode->clock > max_dotclk)
-			return MODE_CLOCK_HIGH;
-	}
-
-	return MODE_OK;
-}
-
 /* return txclkesc cycles in terms of divider and duration in us */
 static u16 txclkesc(u32 divider, unsigned int us)
 {
@@ -1619,39 +1534,6 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
 	}
 }
 
-static int intel_dsi_get_modes(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_display_mode *mode;
-
-	DRM_DEBUG_KMS("\n");
-
-	if (!intel_connector->panel.fixed_mode) {
-		DRM_DEBUG_KMS("no fixed mode\n");
-		return 0;
-	}
-
-	mode = drm_mode_duplicate(connector->dev,
-				  intel_connector->panel.fixed_mode);
-	if (!mode) {
-		DRM_DEBUG_KMS("drm_mode_duplicate failed\n");
-		return 0;
-	}
-
-	drm_mode_probed_add(connector, mode);
-	return 1;
-}
-
-static void intel_dsi_connector_destroy(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-
-	DRM_DEBUG_KMS("\n");
-	intel_panel_fini(&intel_connector->panel);
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
@@ -1676,7 +1558,7 @@ static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_dsi_connector_destroy,
+	.destroy = intel_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
@@ -1684,25 +1566,55 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
-static int intel_dsi_get_panel_orientation(struct intel_connector *connector)
+static enum drm_panel_orientation
+vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	int orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
-	enum i9xx_plane_id i9xx_plane;
+	struct intel_encoder *encoder = connector->encoder;
+	enum intel_display_power_domain power_domain;
+	enum drm_panel_orientation orientation;
+	struct intel_plane *plane;
+	struct intel_crtc *crtc;
+	enum pipe pipe;
 	u32 val;
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		if (connector->encoder->crtc_mask == BIT(PIPE_B))
-			i9xx_plane = PLANE_B;
-		else
-			i9xx_plane = PLANE_A;
+	if (!encoder->get_hw_state(encoder, &pipe))
+		return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
-		val = I915_READ(DSPCNTR(i9xx_plane));
-		if (val & DISPPLANE_ROTATE_180)
-			orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
-	}
+	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	plane = to_intel_plane(crtc->base.primary);
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+
+	val = I915_READ(DSPCNTR(plane->i9xx_plane));
+
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+	else if (val & DISPPLANE_ROTATE_180)
+		orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
+	else
+		orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+
+	intel_display_power_put(dev_priv, power_domain);
 
 	return orientation;
+}
+
+static enum drm_panel_orientation
+vlv_dsi_get_panel_orientation(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	enum drm_panel_orientation orientation;
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		orientation = vlv_dsi_get_hw_panel_orientation(connector);
+		if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+			return orientation;
+	}
+
+	return intel_dsi_get_panel_orientation(connector);
 }
 
 static void intel_dsi_add_properties(struct intel_connector *connector)
@@ -1722,7 +1634,7 @@ static void intel_dsi_add_properties(struct intel_connector *connector)
 		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
 		connector->base.display_info.panel_orientation =
-			intel_dsi_get_panel_orientation(connector);
+			vlv_dsi_get_panel_orientation(connector);
 		drm_connector_init_panel_orientation_property(
 				&connector->base,
 				connector->panel.fixed_mode->hdisplay,
@@ -1773,7 +1685,6 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
-	intel_encoder->enable = intel_dsi_enable_nop;
 	intel_encoder->disable = intel_dsi_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
@@ -1806,7 +1717,8 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		struct intel_dsi_host *host;
 
-		host = intel_dsi_host_init(intel_dsi, port);
+		host = intel_dsi_host_init(intel_dsi, &intel_dsi_host_ops,
+					   port);
 		if (!host)
 			goto err;
 

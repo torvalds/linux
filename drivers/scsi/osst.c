@@ -341,7 +341,7 @@ static void osst_end_async(struct request *req, blk_status_t status)
 		blk_rq_unmap_user(SRpnt->bio);
 	}
 
-	__blk_put_request(req->q, req);
+	blk_put_request(req);
 }
 
 /* osst_request memory management */

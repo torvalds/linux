@@ -78,6 +78,7 @@ static void __free_dma_pages(u32 addr, int order)
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		gfp_t gfp, unsigned long attrs)
 {
+	void *ret;
 	u32 paddr;
 	int order;
 
@@ -94,7 +95,9 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	if (!paddr)
 		return NULL;
 
-	return phys_to_virt(paddr);
+	ret = phys_to_virt(paddr);
+	memset(ret, 0, 1 << order);
+	return ret;
 }
 
 /*

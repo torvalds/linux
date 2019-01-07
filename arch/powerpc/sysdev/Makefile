@@ -48,7 +48,7 @@ obj-$(CONFIG_PPC_MPC512x)	+= mpc5xxx_clocks.o
 obj-$(CONFIG_PPC_MPC52xx)	+= mpc5xxx_clocks.o
 
 ifdef CONFIG_SUSPEND
-obj-$(CONFIG_6xx)		+= 6xx-suspend.o
+obj-$(CONFIG_PPC_BOOK3S_32)	+= 6xx-suspend.o
 endif
 
 obj-$(CONFIG_PPC_SCOM)		+= scom.o

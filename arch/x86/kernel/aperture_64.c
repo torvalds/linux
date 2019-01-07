@@ -264,18 +264,23 @@ static int __init parse_gart_mem(char *p)
 }
 early_param("gart_fix_e820", parse_gart_mem);
 
+/*
+ * With kexec/kdump, if the first kernel doesn't shut down the GART and the
+ * second kernel allocates a different GART region, there might be two
+ * overlapping GART regions present:
+ *
+ * - the first still used by the GART initialized in the first kernel.
+ * - (sub-)set of it used as normal RAM by the second kernel.
+ *
+ * which leads to memory corruptions and a kernel panic eventually.
+ *
+ * This can also happen if the BIOS has forgotten to mark the GART region
+ * as reserved.
+ *
+ * Try to update the e820 map to mark that new region as reserved.
+ */
 void __init early_gart_iommu_check(void)
 {
-	/*
-	 * in case it is enabled before, esp for kexec/kdump,
-	 * previous kernel already enable that. memset called
-	 * by allocate_aperture/__alloc_bootmem_nopanic cause restart.
-	 * or second kernel have different position for GART hole. and new
-	 * kernel could use hole as RAM that is still used by GART set by
-	 * first kernel
-	 * or BIOS forget to put that in reserved.
-	 * try to update e820 to make that region as reserved.
-	 */
 	u32 agp_aper_order = 0;
 	int i, fix, slot, valid_agp = 0;
 	u32 ctl;

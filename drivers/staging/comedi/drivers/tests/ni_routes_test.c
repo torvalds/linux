@@ -372,7 +372,7 @@ void test_ni_lookup_route_register(void)
 	unittest(ni_lookup_route_register(O(8), O(9), T) == 8,
 		 "validate last destination\n");
 	unittest(ni_lookup_route_register(O(10), O(9), T) == -EINVAL,
-		 "lookup invalid desination\n");
+		 "lookup invalid destination\n");
 
 	unittest(ni_lookup_route_register(rgout0_src0, TRIGGER_LINE(0), T) ==
 		 -EINVAL,

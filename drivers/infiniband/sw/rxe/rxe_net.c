@@ -607,7 +607,6 @@ void rxe_port_up(struct rxe_dev *rxe)
 
 	port = &rxe->port;
 	port->attr.state = IB_PORT_ACTIVE;
-	port->attr.phys_state = IB_PHYS_STATE_LINK_UP;
 
 	rxe_port_event(rxe, IB_EVENT_PORT_ACTIVE);
 	dev_info(&rxe->ib_dev.dev, "set active\n");
@@ -620,10 +619,18 @@ void rxe_port_down(struct rxe_dev *rxe)
 
 	port = &rxe->port;
 	port->attr.state = IB_PORT_DOWN;
-	port->attr.phys_state = IB_PHYS_STATE_LINK_DOWN;
 
 	rxe_port_event(rxe, IB_EVENT_PORT_ERR);
+	rxe_counter_inc(rxe, RXE_CNT_LINK_DOWNED);
 	dev_info(&rxe->ib_dev.dev, "set down\n");
+}
+
+void rxe_set_port_state(struct rxe_dev *rxe)
+{
+	if (netif_running(rxe->ndev) && netif_carrier_ok(rxe->ndev))
+		rxe_port_up(rxe);
+	else
+		rxe_port_down(rxe);
 }
 
 static int rxe_notify(struct notifier_block *not_blk,
@@ -652,10 +659,7 @@ static int rxe_notify(struct notifier_block *not_blk,
 		rxe_set_mtu(rxe, ndev->mtu);
 		break;
 	case NETDEV_CHANGE:
-		if (netif_running(ndev) && netif_carrier_ok(ndev))
-			rxe_port_up(rxe);
-		else
-			rxe_port_down(rxe);
+		rxe_set_port_state(rxe);
 		break;
 	case NETDEV_REBOOT:
 	case NETDEV_GOING_DOWN:

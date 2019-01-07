@@ -61,8 +61,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_wobo_i5>;
 
 		blue {
 			label = "a10s-wobo-i5:blue:usr";
@@ -73,8 +71,6 @@
 
 	reg_emac_3v3: emac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&emac_power_pin_wobo>;
 		regulator-name = "emac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -94,7 +90,7 @@
 
 &emac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
+	pinctrl-0 = <&emac_pd_pins>;
 	phy = <&phy1>;
 	status = "okay";
 };
@@ -104,8 +100,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -126,8 +120,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_wobo_i5>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 1 3 GPIO_ACTIVE_LOW>; /* PB3 */
@@ -140,24 +132,6 @@
 
 &otg_sram {
 	status = "okay";
-};
-
-&pio {
-	led_pins_wobo_i5: led_pins@0 {
-		pins = "PB2";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_wobo_i5: mmc0_cd_pin@0 {
-		pins = "PB3";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	emac_power_pin_wobo: emac_power_pin@0 {
-		pins = "PA02";
-		function = "gpio_out";
-	};
 };
 
 &reg_dcdc2 {
@@ -206,7 +180,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

@@ -143,6 +143,9 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 	/* allocate extra bitmaps */
 	if (status->chains)
 		len += 4 * hweight8(status->chains);
+	/* vendor presence bitmap */
+	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA)
+		len += 4;
 
 	if (ieee80211_have_rx_timestamp(status)) {
 		len = ALIGN(len, 8);
@@ -207,8 +210,6 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA) {
 		struct ieee80211_vendor_radiotap *rtap = (void *)skb->data;
 
-		/* vendor presence bitmap */
-		len += 4;
 		/* alignment for fixed 6-byte vendor data header */
 		len = ALIGN(len, 2);
 		/* vendor data header */
@@ -753,6 +754,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	struct ieee80211_sub_if_data *monitor_sdata =
 		rcu_dereference(local->monitor_sdata);
 	bool only_monitor = false;
+	unsigned int min_head_len;
 
 	if (status->flag & RX_FLAG_RADIOTAP_HE)
 		rtap_space += sizeof(struct ieee80211_radiotap_he);
@@ -760,11 +762,17 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	if (status->flag & RX_FLAG_RADIOTAP_HE_MU)
 		rtap_space += sizeof(struct ieee80211_radiotap_he_mu);
 
+	if (status->flag & RX_FLAG_RADIOTAP_LSIG)
+		rtap_space += sizeof(struct ieee80211_radiotap_lsig);
+
 	if (unlikely(status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA)) {
-		struct ieee80211_vendor_radiotap *rtap = (void *)origskb->data;
+		struct ieee80211_vendor_radiotap *rtap =
+			(void *)(origskb->data + rtap_space);
 
 		rtap_space += sizeof(*rtap) + rtap->len + rtap->pad;
 	}
+
+	min_head_len = rtap_space;
 
 	/*
 	 * First, we may need to make a copy of the skb because
@@ -775,18 +783,23 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	 * the SKB because it has a bad FCS/PLCP checksum.
 	 */
 
-	if (ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS)) {
-		if (unlikely(origskb->len <= FCS_LEN)) {
-			/* driver bug */
-			WARN_ON(1);
-			dev_kfree_skb(origskb);
-			return NULL;
+	if (!(status->flag & RX_FLAG_NO_PSDU)) {
+		if (ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS)) {
+			if (unlikely(origskb->len <= FCS_LEN + rtap_space)) {
+				/* driver bug */
+				WARN_ON(1);
+				dev_kfree_skb(origskb);
+				return NULL;
+			}
+			present_fcs_len = FCS_LEN;
 		}
-		present_fcs_len = FCS_LEN;
+
+		/* also consider the hdr->frame_control */
+		min_head_len += 2;
 	}
 
-	/* ensure hdr->frame_control and vendor radiotap data are in skb head */
-	if (!pskb_may_pull(origskb, 2 + rtap_space)) {
+	/* ensure that the expected data elements are in skb head */
+	if (!pskb_may_pull(origskb, min_head_len)) {
 		dev_kfree_skb(origskb);
 		return NULL;
 	}

@@ -110,7 +110,7 @@ the permitted thermal "ramp" of the system.  For instance, a lower
 `k_pu` value will provide a slower ramp, at the cost of capping
 available capacity at a low temperature.  On the other hand, a high
 value of `k_pu` will result in the governor granting very high power
-whilst temperature is low, and may lead to temperature overshooting.
+while temperature is low, and may lead to temperature overshooting.
 
 The default value for `k_pu` is:
 

@@ -30,9 +30,9 @@
 			#power-domain-cells = <1>;
 		};
 
-		mailbox@7e00b840 {
+		vchiq: mailbox@7e00b840 {
 			compatible = "brcm,bcm2835-vchiq";
-			reg = <0x7e00b840 0xf>;
+			reg = <0x7e00b840 0x3c>;
 			interrupts = <0 2>;
 		};
 	};

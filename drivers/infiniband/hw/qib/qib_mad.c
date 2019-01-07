@@ -2494,5 +2494,6 @@ void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 		del_timer_sync(&dd->pport[port_idx].cong_stats.timer);
 
 	if (dd->pport[port_idx].ibport_data.smi_ah)
-		rdma_destroy_ah(&dd->pport[port_idx].ibport_data.smi_ah->ibah);
+		rdma_destroy_ah(&dd->pport[port_idx].ibport_data.smi_ah->ibah,
+				RDMA_DESTROY_AH_SLEEPABLE);
 }

@@ -596,12 +596,14 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 {
 	struct fimc_frame *frame;
 
-	if (V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE == type) {
+	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE ||
+	    type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		if (fimc_ctx_state_is_set(FIMC_CTX_M2M, ctx))
 			frame = &ctx->s_frame;
 		else
 			return ERR_PTR(-EINVAL);
-	} else if (V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE == type) {
+	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ||
+		   type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		frame = &ctx->d_frame;
 	} else {
 		v4l2_err(ctx->fimc_dev->v4l2_dev,

@@ -349,42 +349,6 @@ static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 }
 
 /**
- * pwm_set_polarity() - configure the polarity of a PWM signal
- * @pwm: PWM device
- * @polarity: new polarity of the PWM signal
- *
- * Note that the polarity cannot be configured while the PWM device is
- * enabled.
- *
- * Returns: 0 on success or a negative error code on failure.
- */
-static inline int pwm_set_polarity(struct pwm_device *pwm,
-				   enum pwm_polarity polarity)
-{
-	struct pwm_state state;
-
-	if (!pwm)
-		return -EINVAL;
-
-	pwm_get_state(pwm, &state);
-	if (state.polarity == polarity)
-		return 0;
-
-	/*
-	 * Changing the polarity of a running PWM without adjusting the
-	 * dutycycle/period value is a bit risky (can introduce glitches).
-	 * Return -EBUSY in this case.
-	 * Note that this is allowed when using pwm_apply_state() because
-	 * the user specifies all the parameters.
-	 */
-	if (state.enabled)
-		return -EBUSY;
-
-	state.polarity = polarity;
-	return pwm_apply_state(pwm, &state);
-}
-
-/**
  * pwm_enable() - start a PWM output toggling
  * @pwm: PWM device
  *
@@ -481,12 +445,6 @@ static inline int pwm_capture(struct pwm_device *pwm,
 			      unsigned long timeout)
 {
 	return -EINVAL;
-}
-
-static inline int pwm_set_polarity(struct pwm_device *pwm,
-				   enum pwm_polarity polarity)
-{
-	return -ENOTSUPP;
 }
 
 static inline int pwm_enable(struct pwm_device *pwm)

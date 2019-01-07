@@ -119,7 +119,7 @@ struct charger_regulator {
 	struct charger_cable *cables;
 	int num_cables;
 
-	struct attribute_group attr_g;
+	struct attribute_group attr_grp;
 	struct device_attribute attr_name;
 	struct device_attribute attr_state;
 	struct device_attribute attr_externally_control;
@@ -186,6 +186,7 @@ struct charger_desc {
 
 	int num_charger_regulators;
 	struct charger_regulator *charger_regulators;
+	const struct attribute_group **sysfs_groups;
 
 	const char *psy_fuel_gauge;
 

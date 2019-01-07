@@ -176,7 +176,7 @@ struct task_group;
  * TASK_RUNNING store which can collide with __set_current_state(TASK_RUNNING).
  *
  * However, with slightly different timing the wakeup TASK_RUNNING store can
- * also collide with the TASK_UNINTERRUPTIBLE store. Loosing that store is not
+ * also collide with the TASK_UNINTERRUPTIBLE store. Losing that store is not
  * a problem either because that will result in one extra go around the loop
  * and our @cond test will save the day.
  *
@@ -515,7 +515,7 @@ struct sched_dl_entity {
 
 	/*
 	 * Actual scheduling parameters. Initialized with the values above,
-	 * they are continously updated during task execution. Note that
+	 * they are continuously updated during task execution. Note that
 	 * the remaining runtime could be < 0 in case we are in overrun.
 	 */
 	s64				runtime;	/* Remaining runtime for this instance	*/
@@ -572,8 +572,10 @@ union rcu_special {
 	struct {
 		u8			blocked;
 		u8			need_qs;
+		u8			exp_hint; /* Hint for performance. */
+		u8			pad; /* No garbage from compiler! */
 	} b; /* Bits. */
-	u16 s; /* Set of bits. */
+	u32 s; /* Set of bits. */
 };
 
 enum perf_event_task_context {
@@ -993,7 +995,7 @@ struct task_struct {
 	/* cg_list protected by css_set_lock and tsk->alloc_lock: */
 	struct list_head		cg_list;
 #endif
-#ifdef CONFIG_INTEL_RDT
+#ifdef CONFIG_RESCTRL
 	u32				closid;
 	u32				rmid;
 #endif

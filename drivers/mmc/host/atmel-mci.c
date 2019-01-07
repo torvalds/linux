@@ -446,18 +446,7 @@ static int atmci_req_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int atmci_req_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, atmci_req_show, inode->i_private);
-}
-
-static const struct file_operations atmci_req_fops = {
-	.owner		= THIS_MODULE,
-	.open		= atmci_req_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(atmci_req);
 
 static void atmci_show_status_reg(struct seq_file *s,
 		const char *regname, u32 value)
@@ -583,18 +572,7 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	return ret;
 }
 
-static int atmci_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, atmci_regs_show, inode->i_private);
-}
-
-static const struct file_operations atmci_regs_fops = {
-	.owner		= THIS_MODULE,
-	.open		= atmci_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(atmci_regs);
 
 static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 {
@@ -608,13 +586,14 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 		return;
 
 	node = debugfs_create_file("regs", S_IRUSR, root, host,
-			&atmci_regs_fops);
+				   &atmci_regs_fops);
 	if (IS_ERR(node))
 		return;
 	if (!node)
 		goto err;
 
-	node = debugfs_create_file("req", S_IRUSR, root, slot, &atmci_req_fops);
+	node = debugfs_create_file("req", S_IRUSR, root, slot,
+				   &atmci_req_fops);
 	if (!node)
 		goto err;
 
@@ -1954,13 +1933,14 @@ static void atmci_tasklet_func(unsigned long priv)
 			}
 
 			atmci_request_end(host, host->mrq);
-			state = STATE_IDLE;
+			goto unlock; /* atmci_request_end() sets host->state */
 			break;
 		}
 	} while (state != prev_state);
 
 	host->state = state;
 
+unlock:
 	spin_unlock(&host->lock);
 }
 

@@ -2061,7 +2061,7 @@ invalid_optional:
 		if (IS_ERR(wc->flush_thread)) {
 			r = PTR_ERR(wc->flush_thread);
 			wc->flush_thread = NULL;
-			ti->error = "Couldn't spawn endio thread";
+			ti->error = "Couldn't spawn flush thread";
 			goto bad;
 		}
 		wake_up_process(wc->flush_thread);

@@ -1648,9 +1648,9 @@ static int __init pmz_probe(void)
 		 */
 		node_a = node_b = NULL;
 		for (np = NULL; (np = of_get_next_child(node_p, np)) != NULL;) {
-			if (strncmp(np->name, "ch-a", 4) == 0)
+			if (of_node_name_prefix(np, "ch-a"))
 				node_a = of_node_get(np);
-			else if (strncmp(np->name, "ch-b", 4) == 0)
+			else if (of_node_name_prefix(np, "ch-b"))
 				node_b = of_node_get(np);
 		}
 		if (!node_a && !node_b) {

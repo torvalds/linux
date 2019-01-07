@@ -99,8 +99,6 @@
 };
 
 &qspi {
-	num-cs = <2>;
-	bus-num = <0>;
 	status = "okay";
 
 	qflash0: s25fs512s@0 {
@@ -108,6 +106,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 		reg = <0>;
 	};
 
@@ -116,6 +116,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 		reg = <1>;
 	};
 };

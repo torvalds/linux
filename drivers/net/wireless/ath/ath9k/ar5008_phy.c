@@ -586,7 +586,7 @@ static void ar5008_hw_init_chain_masks(struct ath_hw *ah)
 			REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, 0x7);
 			break;
 		}
-		/* else: fall through */
+		/* fall through */
 	case 0x1:
 	case 0x2:
 	case 0x7:

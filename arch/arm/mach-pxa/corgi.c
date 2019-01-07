@@ -24,6 +24,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/backlight.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
@@ -493,11 +494,23 @@ static struct platform_device corgi_audio_device = {
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= CORGI_GPIO_nSD_DETECT,
-	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
-	.gpio_power		= CORGI_GPIO_SD_PWR,
 };
 
+static struct gpiod_lookup_table corgi_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 9 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 7 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_nSD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		/* Power on GPIO 33 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_SD_PWR,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /*
  * Irda
@@ -731,6 +744,7 @@ static void __init corgi_init(void)
 	corgi_init_spi();
 
  	pxa_set_udc_info(&udc_info);
+	gpiod_add_lookup_table(&corgi_mci_gpio_table);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

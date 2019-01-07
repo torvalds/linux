@@ -92,16 +92,6 @@ struct dpu_hw_intf {
 };
 
 /**
- * to_dpu_hw_intf - convert base object dpu_hw_base to container
- * @hw: Pointer to base hardware block
- * return: Pointer to hardware block container
- */
-static inline struct dpu_hw_intf *to_dpu_hw_intf(struct dpu_hw_blk *hw)
-{
-	return container_of(hw, struct dpu_hw_intf, base);
-}
-
-/**
  * dpu_hw_intf_init(): Initializes the intf driver for the passed
  * interface idx.
  * @idx:  interface index for which driver object is required

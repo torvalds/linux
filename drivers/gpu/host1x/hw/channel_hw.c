@@ -26,7 +26,6 @@
 #include "../intr.h"
 #include "../job.h"
 
-#define HOST1X_CHANNEL_SIZE 16384
 #define TRACE_MAX_LENGTH 128U
 
 static void trace_write_gather(struct host1x_cdma *cdma, struct host1x_bo *bo,
@@ -203,7 +202,11 @@ static void enable_gather_filter(struct host1x *host,
 static int host1x_channel_init(struct host1x_channel *ch, struct host1x *dev,
 			       unsigned int index)
 {
-	ch->regs = dev->regs + index * HOST1X_CHANNEL_SIZE;
+#if HOST1X_HW < 6
+	ch->regs = dev->regs + index * 0x4000;
+#else
+	ch->regs = dev->regs + index * 0x100;
+#endif
 	enable_gather_filter(dev, ch);
 	return 0;
 }

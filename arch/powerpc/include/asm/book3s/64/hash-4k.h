@@ -1,11 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_HASH_4K_H
 #define _ASM_POWERPC_BOOK3S_64_HASH_4K_H
-/*
- * Entries per page directory level.  The PTE level must use a 64b record
- * for each page table entry.  The PMD and PGD level use a 32b record for
- * each entry by assuming that each entry is page aligned.
- */
+
 #define H_PTE_INDEX_SIZE  9
 #define H_PMD_INDEX_SIZE  7
 #define H_PUD_INDEX_SIZE  9

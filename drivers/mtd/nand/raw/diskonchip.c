@@ -1390,7 +1390,7 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	this->legacy.read_buf = doc2001plus_readbuf;
 	doc->late_init = inftl_scan_bbt;
 	this->legacy.cmd_ctrl = NULL;
-	this->select_chip = doc2001plus_select_chip;
+	this->legacy.select_chip = doc2001plus_select_chip;
 	this->legacy.cmdfunc = doc2001plus_command;
 	this->ecc.hwctl = doc2001plus_enable_hwecc;
 
@@ -1568,7 +1568,7 @@ static int __init doc_probe(unsigned long physadr)
 	mtd_set_ooblayout(mtd, &doc200x_ooblayout_ops);
 
 	nand_set_controller_data(nand, doc);
-	nand->select_chip	= doc200x_select_chip;
+	nand->legacy.select_chip	= doc200x_select_chip;
 	nand->legacy.cmd_ctrl		= doc200x_hwcontrol;
 	nand->legacy.dev_ready	= doc200x_dev_ready;
 	nand->legacy.waitfunc	= doc200x_wait;

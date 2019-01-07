@@ -79,6 +79,11 @@ int nd_region_activate(struct nd_region *nd_region)
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
+		if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
+			nvdimm_bus_unlock(&nd_region->dev);
+			return -EBUSY;
+		}
+
 		/* at least one null hint slot per-dimm for the "no-hint" case */
 		flush_data_size += sizeof(void *);
 		num_flush = min_not_zero(num_flush, nvdimm->num_flush);

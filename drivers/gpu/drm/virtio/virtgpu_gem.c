@@ -87,7 +87,6 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 	struct virtio_gpu_object *obj;
 	int ret;
 	uint32_t pitch;
-	uint32_t resid;
 	uint32_t format;
 
 	if (args->bpp != 32)
@@ -103,13 +102,12 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 		goto fail;
 
 	format = virtio_gpu_translate_format(DRM_FORMAT_HOST_XRGB8888);
-	virtio_gpu_resource_id_get(vgdev, &resid);
-	virtio_gpu_cmd_create_resource(vgdev, resid, format,
+	obj = gem_to_virtio_gpu_obj(gobj);
+	virtio_gpu_cmd_create_resource(vgdev, obj, format,
 				       args->width, args->height);
 
 	/* attach the object to the resource */
-	obj = gem_to_virtio_gpu_obj(gobj);
-	ret = virtio_gpu_object_attach(vgdev, obj, resid, NULL);
+	ret = virtio_gpu_object_attach(vgdev, obj, NULL);
 	if (ret)
 		goto fail;
 

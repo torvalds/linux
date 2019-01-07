@@ -1992,7 +1992,6 @@ xfs_buf_delwri_submit_buffers(
 	struct list_head	*wait_list)
 {
 	struct xfs_buf		*bp, *n;
-	LIST_HEAD		(submit_list);
 	int			pinned = 0;
 	struct blk_plug		plug;
 

@@ -33,13 +33,16 @@ Optional properties:
   decreases of any level. This is useful for regulators with exponential
   voltage changes.
 - regulator-soft-start: Enable soft start so that voltage ramps slowly
+- regulator-state-standby sub-root node for Standby mode
+  : equivalent with standby Linux sleep state, which provides energy savings
+  with a relatively quick transition back time.
 - regulator-state-mem sub-root node for Suspend-to-RAM mode
   : suspend to memory, the device goes to sleep, but all data stored in memory,
   only some external interrupt can wake the device.
 - regulator-state-disk sub-root node for Suspend-to-DISK mode
   : suspend to disk, this state operates similarly to Suspend-to-RAM,
   but includes a final step of writing memory contents to disk.
-- regulator-state-[mem/disk] node has following common properties:
+- regulator-state-[mem/disk/standby] node has following common properties:
 	- regulator-on-in-suspend: regulator should be on in suspend state.
 	- regulator-off-in-suspend: regulator should be off in suspend state.
 	- regulator-suspend-min-microvolt: minimum voltage may be set in
@@ -76,8 +79,11 @@ Optional properties:
 - regulator-coupled-with: Regulators with which the regulator
   is coupled. The linkage is 2-way - all coupled regulators should be linked
   with each other. A regulator should not be coupled with its supplier.
-- regulator-coupled-max-spread: Max spread between voltages of coupled regulators
-  in microvolts.
+- regulator-coupled-max-spread: Array of maximum spread between voltages of
+  coupled regulators in microvolts, each value in the array relates to the
+  corresponding couple specified by the regulator-coupled-with property.
+- regulator-max-step-microvolt: Maximum difference between current and target
+  voltages that can be changed safely in a single step.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple

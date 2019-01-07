@@ -4,7 +4,7 @@
  * sensor.
  *
  * The data sheet for this device can be found at:
- *    http://www.marvell.com/products/pc_connectivity/88alp01/
+ *    http://wiki.laptop.org/images/5/5c/88ALP01_Datasheet_July_2007.pdf
  *
  * Copyright 2006-11 One Laptop Per Child Association, Inc.
  * Copyright 2006-11 Jonathan Corbet <corbet@lwn.net>

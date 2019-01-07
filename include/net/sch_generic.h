@@ -24,6 +24,9 @@ struct bpf_flow_keys;
 typedef int tc_setup_cb_t(enum tc_setup_type type,
 			  void *type_data, void *cb_priv);
 
+typedef int tc_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
+				    enum tc_setup_type type, void *type_data);
+
 struct qdisc_rate_table {
 	struct tc_ratespec rate;
 	u32		data[256];
@@ -579,6 +582,30 @@ void qdisc_put(struct Qdisc *qdisc);
 void qdisc_put_unlocked(struct Qdisc *qdisc);
 void qdisc_tree_reduce_backlog(struct Qdisc *qdisc, unsigned int n,
 			       unsigned int len);
+#ifdef CONFIG_NET_SCHED
+int qdisc_offload_dump_helper(struct Qdisc *q, enum tc_setup_type type,
+			      void *type_data);
+void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+				struct Qdisc *new, struct Qdisc *old,
+				enum tc_setup_type type, void *type_data,
+				struct netlink_ext_ack *extack);
+#else
+static inline int
+qdisc_offload_dump_helper(struct Qdisc *q, enum tc_setup_type type,
+			  void *type_data)
+{
+	q->flags &= ~TCQ_F_OFFLOADED;
+	return 0;
+}
+
+static inline void
+qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+			   struct Qdisc *new, struct Qdisc *old,
+			   enum tc_setup_type type, void *type_data,
+			   struct netlink_ext_ack *extack)
+{
+}
+#endif
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops,
 			  struct netlink_ext_ack *extack);

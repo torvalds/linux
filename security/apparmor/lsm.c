@@ -26,6 +26,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <net/sock.h>
+#include <uapi/linux/mount.h>
 
 #include "include/apparmor.h"
 #include "include/apparmorfs.h"

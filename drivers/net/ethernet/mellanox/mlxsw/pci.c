@@ -1720,7 +1720,6 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	const char *driver_name = pdev->driver->name;
 	struct mlxsw_pci *mlxsw_pci;
-	bool called_again = false;
 	int err;
 
 	mlxsw_pci = kzalloc(sizeof(*mlxsw_pci), GFP_KERNEL);
@@ -1777,18 +1776,10 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mlxsw_pci->bus_info.dev = &pdev->dev;
 	mlxsw_pci->id = id;
 
-again:
 	err = mlxsw_core_bus_device_register(&mlxsw_pci->bus_info,
 					     &mlxsw_pci_bus, mlxsw_pci, false,
 					     NULL);
-	/* -EAGAIN is returned in case the FW was updated. FW needs
-	 * a reset, so lets try to call mlxsw_core_bus_device_register()
-	 * again.
-	 */
-	if (err == -EAGAIN && !called_again) {
-		called_again = true;
-		goto again;
-	} else if (err) {
+	if (err) {
 		dev_err(&pdev->dev, "cannot register bus device\n");
 		goto err_bus_device_register;
 	}

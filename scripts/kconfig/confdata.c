@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
- * Released under the terms of the GNU GPL v2.0.
  */
 
 #include <sys/stat.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +71,47 @@ static int make_parent_dir(const char *path)
 		while (*p == '/')
 			p++;
 	}
+
+	return 0;
+}
+
+static char depfile_path[PATH_MAX];
+static size_t depfile_prefix_len;
+
+/* touch depfile for symbol 'name' */
+static int conf_touch_dep(const char *name)
+{
+	int fd, ret;
+	const char *s;
+	char *d, c;
+
+	/* check overflow: prefix + name + ".h" + '\0' must fit in buffer. */
+	if (depfile_prefix_len + strlen(name) + 3 > sizeof(depfile_path))
+		return -1;
+
+	d = depfile_path + depfile_prefix_len;
+	s = name;
+
+	while ((c = *s++))
+		*d++ = (c == '_') ? '/' : tolower(c);
+	strcpy(d, ".h");
+
+	/* Assume directory path already exists. */
+	fd = open(depfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd == -1) {
+		if (errno != ENOENT)
+			return -1;
+
+		ret = make_parent_dir(depfile_path);
+		if (ret)
+			return ret;
+
+		/* Try it again. */
+		fd = open(depfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (fd == -1)
+			return -1;
+	}
+	close(fd);
 
 	return 0;
 }
@@ -186,14 +228,6 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 			conf_warning("symbol value '%s' invalid for %s",
 				     p, sym->name);
 		return 1;
-	case S_OTHER:
-		if (*p != '"') {
-			for (p2 = p; *p2 && !isspace(*p2); p2++)
-				;
-			sym->type = S_STRING;
-			goto done;
-		}
-		/* fall through */
 	case S_STRING:
 		if (*p++ != '"')
 			break;
@@ -212,7 +246,6 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 		/* fall through */
 	case S_INT:
 	case S_HEX:
-	done:
 		if (sym_string_valid(sym, p)) {
 			sym->def[def].val = xstrdup(p);
 			sym->flags |= def_flags;
@@ -363,7 +396,7 @@ load:
 				sym = sym_find(line + 2 + strlen(CONFIG_));
 				if (!sym) {
 					sym_add_change_count(1);
-					goto setsym;
+					continue;
 				}
 			} else {
 				sym = sym_lookup(line + 2 + strlen(CONFIG_), 0);
@@ -393,17 +426,22 @@ load:
 				if (*p2 == '\r')
 					*p2 = 0;
 			}
-			if (def == S_DEF_USER) {
-				sym = sym_find(line + strlen(CONFIG_));
-				if (!sym) {
+
+			sym = sym_find(line + strlen(CONFIG_));
+			if (!sym) {
+				if (def == S_DEF_AUTO)
+					/*
+					 * Reading from include/config/auto.conf
+					 * If CONFIG_FOO previously existed in
+					 * auto.conf but it is missing now,
+					 * include/config/foo.h must be touched.
+					 */
+					conf_touch_dep(line + strlen(CONFIG_));
+				else
 					sym_add_change_count(1);
-					goto setsym;
-				}
-			} else {
-				sym = sym_lookup(line + strlen(CONFIG_), 0);
-				if (sym->type == S_UNKNOWN)
-					sym->type = S_OTHER;
+				continue;
 			}
+
 			if (sym->flags & def_flags) {
 				conf_warning("override: reassigning to symbol %s", sym->name);
 			}
@@ -416,7 +454,7 @@ load:
 
 			continue;
 		}
-setsym:
+
 		if (sym && sym_is_choice_value(sym)) {
 			struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
 			switch (sym->def[def].tri) {
@@ -669,7 +707,6 @@ static void conf_write_symbol(FILE *fp, struct symbol *sym,
 	const char *str;
 
 	switch (sym->type) {
-	case S_OTHER:
 	case S_UNKNOWN:
 		break;
 	case S_STRING:
@@ -906,24 +943,19 @@ static int conf_write_dep(const char *name)
 	return 0;
 }
 
-static int conf_split_config(void)
+static int conf_touch_deps(void)
 {
 	const char *name;
-	char path[PATH_MAX+1];
-	char *s, *d, c;
 	struct symbol *sym;
-	int res, i, fd;
+	int res, i;
+
+	strcpy(depfile_path, "include/config/");
+	depfile_prefix_len = strlen(depfile_path);
 
 	name = conf_get_autoconfig_name();
 	conf_read_simple(name, S_DEF_AUTO);
 	sym_calc_value(modules_sym);
 
-	if (make_parent_dir("include/config/foo.h"))
-		return 1;
-	if (chdir("include/config"))
-		return 1;
-
-	res = 0;
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
 		if ((sym->flags & SYMBOL_NO_WRITE) || !sym->name)
@@ -975,42 +1007,12 @@ static int conf_split_config(void)
 		 *	different from 'no').
 		 */
 
-		/* Replace all '_' and append ".h" */
-		s = sym->name;
-		d = path;
-		while ((c = *s++)) {
-			c = tolower(c);
-			*d++ = (c == '_') ? '/' : c;
-		}
-		strcpy(d, ".h");
-
-		/* Assume directory path already exists. */
-		fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (fd == -1) {
-			if (errno != ENOENT) {
-				res = 1;
-				break;
-			}
-
-			if (make_parent_dir(path)) {
-				res = 1;
-				goto out;
-			}
-
-			/* Try it again. */
-			fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-			if (fd == -1) {
-				res = 1;
-				break;
-			}
-		}
-		close(fd);
+		res = conf_touch_dep(sym->name);
+		if (res)
+			return res;
 	}
-out:
-	if (chdir("../.."))
-		return 1;
 
-	return res;
+	return 0;
 }
 
 int conf_write_autoconf(int overwrite)
@@ -1028,7 +1030,7 @@ int conf_write_autoconf(int overwrite)
 
 	conf_write_dep("include/config/auto.conf.cmd");
 
-	if (conf_split_config())
+	if (conf_touch_deps())
 		return 1;
 
 	out = fopen(".tmpconfig", "w");

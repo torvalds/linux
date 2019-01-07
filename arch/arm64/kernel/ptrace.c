@@ -46,6 +46,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/fpsimd.h>
 #include <asm/pgtable.h>
+#include <asm/pointer_auth.h>
 #include <asm/stacktrace.h>
 #include <asm/syscall.h>
 #include <asm/traps.h>
@@ -956,6 +957,30 @@ out:
 
 #endif /* CONFIG_ARM64_SVE */
 
+#ifdef CONFIG_ARM64_PTR_AUTH
+static int pac_mask_get(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			void *kbuf, void __user *ubuf)
+{
+	/*
+	 * The PAC bits can differ across data and instruction pointers
+	 * depending on TCR_EL1.TBID*, which we may make use of in future, so
+	 * we expose separate masks.
+	 */
+	unsigned long mask = ptrauth_user_pac_mask();
+	struct user_pac_mask uregs = {
+		.data_mask = mask,
+		.insn_mask = mask,
+	};
+
+	if (!system_supports_address_auth())
+		return -EINVAL;
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &uregs, 0, -1);
+}
+#endif /* CONFIG_ARM64_PTR_AUTH */
+
 enum aarch64_regset {
 	REGSET_GPR,
 	REGSET_FPR,
@@ -967,6 +992,9 @@ enum aarch64_regset {
 	REGSET_SYSTEM_CALL,
 #ifdef CONFIG_ARM64_SVE
 	REGSET_SVE,
+#endif
+#ifdef CONFIG_ARM64_PTR_AUTH
+	REGSET_PAC_MASK,
 #endif
 };
 
@@ -1035,6 +1063,16 @@ static const struct user_regset aarch64_regsets[] = {
 		.get = sve_get,
 		.set = sve_set,
 		.get_size = sve_get_size,
+	},
+#endif
+#ifdef CONFIG_ARM64_PTR_AUTH
+	[REGSET_PAC_MASK] = {
+		.core_note_type = NT_ARM_PAC_MASK,
+		.n = sizeof(struct user_pac_mask) / sizeof(u64),
+		.size = sizeof(u64),
+		.align = sizeof(u64),
+		.get = pac_mask_get,
+		/* this cannot be set dynamically */
 	},
 #endif
 };

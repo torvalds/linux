@@ -155,8 +155,8 @@ enum txtime_flags {
 };
 
 struct sock_txtime {
-	clockid_t	clockid;	/* reference clockid */
-	__u32		flags;		/* as defined by enum txtime_flags */
+	__kernel_clockid_t	clockid;/* reference clockid */
+	__u32			flags;	/* as defined by enum txtime_flags */
 };
 
 #endif /* _NET_TIMESTAMPING_H */

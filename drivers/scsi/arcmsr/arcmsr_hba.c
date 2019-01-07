@@ -156,7 +156,6 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.sg_tablesize	        = ARCMSR_DEFAULT_SG_ENTRIES,
 	.max_sectors		= ARCMSR_MAX_XFER_SECTORS_C,
 	.cmd_per_lun		= ARCMSR_DEFAULT_CMD_PERLUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= arcmsr_host_attrs,
 	.no_write_same		= 1,
 };
@@ -903,9 +902,9 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if(!host){
     		goto pci_disable_dev;
 	}
-	error = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if(error){
-		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if(error){
 			printk(KERN_WARNING
 			       "scsi%d: No suitable DMA mask available\n",
@@ -1049,9 +1048,9 @@ static int arcmsr_resume(struct pci_dev *pdev)
 		pr_warn("%s: pci_enable_device error\n", __func__);
 		return -ENODEV;
 	}
-	error = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (error) {
-		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (error) {
 			pr_warn("scsi%d: No suitable DMA mask available\n",
 			       host->host_no);

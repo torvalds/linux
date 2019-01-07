@@ -26,7 +26,6 @@
 #include <linux/iova.h>
 #include <linux/io.h>
 #include <linux/idr.h>
-#include <linux/dma_remapping.h>
 #include <linux/mmu_notifier.h>
 #include <linux/list.h>
 #include <linux/iommu.h>
@@ -37,9 +36,29 @@
 #include <asm/iommu.h>
 
 /*
+ * VT-d hardware uses 4KiB page size regardless of host page size.
+ */
+#define VTD_PAGE_SHIFT		(12)
+#define VTD_PAGE_SIZE		(1UL << VTD_PAGE_SHIFT)
+#define VTD_PAGE_MASK		(((u64)-1) << VTD_PAGE_SHIFT)
+#define VTD_PAGE_ALIGN(addr)	(((addr) + VTD_PAGE_SIZE - 1) & VTD_PAGE_MASK)
+
+#define VTD_STRIDE_SHIFT        (9)
+#define VTD_STRIDE_MASK         (((u64)-1) << VTD_STRIDE_SHIFT)
+
+#define DMA_PTE_READ (1)
+#define DMA_PTE_WRITE (2)
+#define DMA_PTE_LARGE_PAGE (1 << 7)
+#define DMA_PTE_SNP (1 << 11)
+
+#define CONTEXT_TT_MULTI_LEVEL	0
+#define CONTEXT_TT_DEV_IOTLB	1
+#define CONTEXT_TT_PASS_THROUGH 2
+#define CONTEXT_PASIDE		BIT_ULL(3)
+
+/*
  * Intel IOMMU register specification per version 1.0 public spec.
  */
-
 #define	DMAR_VER_REG	0x0	/* Arch version supported by this IOMMU */
 #define	DMAR_CAP_REG	0x8	/* Hardware supported capabilities */
 #define	DMAR_ECAP_REG	0x10	/* Extended capabilities supported */
@@ -151,6 +170,10 @@
  * Extended Capability Register
  */
 
+#define ecap_smpwc(e)		(((e) >> 48) & 0x1)
+#define ecap_flts(e)		(((e) >> 47) & 0x1)
+#define ecap_slts(e)		(((e) >> 46) & 0x1)
+#define ecap_smts(e)		(((e) >> 43) & 0x1)
 #define ecap_dit(e)		((e >> 41) & 0x1)
 #define ecap_pasid(e)		((e >> 40) & 0x1)
 #define ecap_pss(e)		((e >> 35) & 0x1f)
@@ -229,6 +252,7 @@
 
 /* DMA_RTADDR_REG */
 #define DMA_RTADDR_RTT (((u64)1) << 11)
+#define DMA_RTADDR_SMT (((u64)1) << 10)
 
 /* CCMD_REG */
 #define DMA_CCMD_ICC (((u64)1) << 63)
@@ -374,13 +398,18 @@ enum {
 #define QI_GRAN_NONG_PASID		2
 #define QI_GRAN_PSI_PASID		3
 
+#define qi_shift(iommu)		(DMAR_IQ_SHIFT + !!ecap_smts((iommu)->ecap))
+
 struct qi_desc {
-	u64 low, high;
+	u64 qw0;
+	u64 qw1;
+	u64 qw2;
+	u64 qw3;
 };
 
 struct q_inval {
 	raw_spinlock_t  q_lock;
-	struct qi_desc  *desc;          /* invalidation queue */
+	void		*desc;          /* invalidation queue */
 	int             *desc_status;   /* desc status */
 	int             free_head;      /* first free entry */
 	int             free_tail;      /* last free entry */
@@ -512,15 +541,8 @@ struct intel_iommu {
 	struct iommu_flush flush;
 #endif
 #ifdef CONFIG_INTEL_IOMMU_SVM
-	/* These are large and need to be contiguous, so we allocate just
-	 * one for now. We'll maybe want to rethink that if we truly give
-	 * devices away to userspace processes (e.g. for DPDK) and don't
-	 * want to trust that userspace will use *only* the PASID it was
-	 * told to. But while it's all driver-arbitrated, we're fine. */
-	struct pasid_state_entry *pasid_state_table;
 	struct page_req_dsc *prq;
 	unsigned char prq_name[16];    /* Name for PRQ interrupt */
-	u32 pasid_max;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 *iommu_state; /* Store iommu states between suspend and resume.*/
@@ -563,6 +585,49 @@ static inline void __iommu_flush_cache(
 		clflush_cache_range(addr, size);
 }
 
+/*
+ * 0: readable
+ * 1: writable
+ * 2-6: reserved
+ * 7: super page
+ * 8-10: available
+ * 11: snoop behavior
+ * 12-63: Host physcial address
+ */
+struct dma_pte {
+	u64 val;
+};
+
+static inline void dma_clear_pte(struct dma_pte *pte)
+{
+	pte->val = 0;
+}
+
+static inline u64 dma_pte_addr(struct dma_pte *pte)
+{
+#ifdef CONFIG_64BIT
+	return pte->val & VTD_PAGE_MASK;
+#else
+	/* Must have a full atomic 64-bit read */
+	return  __cmpxchg64(&pte->val, 0ULL, 0ULL) & VTD_PAGE_MASK;
+#endif
+}
+
+static inline bool dma_pte_present(struct dma_pte *pte)
+{
+	return (pte->val & 3) != 0;
+}
+
+static inline bool dma_pte_superpage(struct dma_pte *pte)
+{
+	return (pte->val & DMA_PTE_LARGE_PAGE);
+}
+
+static inline int first_pte_in_page(struct dma_pte *pte)
+{
+	return !((unsigned long)pte & ~VTD_PAGE_MASK);
+}
+
 extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
 extern int dmar_find_matched_atsr_unit(struct pci_dev *dev);
 
@@ -587,10 +652,10 @@ void free_pgtable_page(void *vaddr);
 struct intel_iommu *domain_get_iommu(struct dmar_domain *domain);
 int for_each_device_domain(int (*fn)(struct device_domain_info *info,
 				     void *data), void *data);
+void iommu_flush_write_buffer(struct intel_iommu *iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 int intel_svm_init(struct intel_iommu *iommu);
-int intel_svm_exit(struct intel_iommu *iommu);
 extern int intel_svm_enable_prq(struct intel_iommu *iommu);
 extern int intel_svm_finish_prq(struct intel_iommu *iommu);
 
@@ -631,5 +696,24 @@ extern const struct attribute_group *intel_iommu_groups[];
 bool context_present(struct context_entry *context);
 struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 					 u8 devfn, int alloc);
+
+#ifdef CONFIG_INTEL_IOMMU
+extern int iommu_calculate_agaw(struct intel_iommu *iommu);
+extern int iommu_calculate_max_sagaw(struct intel_iommu *iommu);
+extern int dmar_disabled;
+extern int intel_iommu_enabled;
+extern int intel_iommu_tboot_noforce;
+#else
+static inline int iommu_calculate_agaw(struct intel_iommu *iommu)
+{
+	return 0;
+}
+static inline int iommu_calculate_max_sagaw(struct intel_iommu *iommu)
+{
+	return 0;
+}
+#define dmar_disabled	(1)
+#define intel_iommu_enabled (0)
+#endif
 
 #endif

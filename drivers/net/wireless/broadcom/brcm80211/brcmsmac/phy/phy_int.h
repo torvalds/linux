@@ -220,13 +220,6 @@ enum phy_cal_mode {
 #define BB_MULT_MASK		0x0000ffff
 #define BB_MULT_VALID_MASK	0x80000000
 
-#define CORDIC_AG	39797
-#define	CORDIC_NI	18
-#define	FIXED(X)	((s32)((X) << 16))
-
-#define	FLOAT(X) \
-	(((X) >= 0) ? ((((X) >> 15) + 1) >> 1) : -((((-(X)) >> 15) + 1) >> 1))
-
 #define PHY_CHAIN_TX_DISABLE_TEMP	115
 #define PHY_HYSTERESIS_DELTATEMP	5
 

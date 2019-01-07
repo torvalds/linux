@@ -16,7 +16,7 @@
 
 struct irq_sim_work_ctx {
 	struct irq_work		work;
-	int			irq;
+	unsigned long		*pending;
 };
 
 struct irq_sim_irq_ctx {

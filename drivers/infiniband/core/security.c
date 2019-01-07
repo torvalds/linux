@@ -626,10 +626,10 @@ int ib_security_modify_qp(struct ib_qp *qp,
 	}
 
 	if (!ret)
-		ret = real_qp->device->modify_qp(real_qp,
-						 qp_attr,
-						 qp_attr_mask,
-						 udata);
+		ret = real_qp->device->ops.modify_qp(real_qp,
+						     qp_attr,
+						     qp_attr_mask,
+						     udata);
 
 	if (new_pps) {
 		/* Clean up the lists and free the appropriate

@@ -53,67 +53,107 @@ static void wa_init_start(struct i915_wa_list *wal, const char *name)
 	wal->name = name;
 }
 
+#define WA_LIST_CHUNK (1 << 4)
+
 static void wa_init_finish(struct i915_wa_list *wal)
 {
+	/* Trim unused entries. */
+	if (!IS_ALIGNED(wal->count, WA_LIST_CHUNK)) {
+		struct i915_wa *list = kmemdup(wal->list,
+					       wal->count * sizeof(*list),
+					       GFP_KERNEL);
+
+		if (list) {
+			kfree(wal->list);
+			wal->list = list;
+		}
+	}
+
 	if (!wal->count)
 		return;
 
 	DRM_DEBUG_DRIVER("Initialized %u %s workarounds\n",
-			 wal->count, wal->name);
+			 wal->wa_count, wal->name);
 }
 
-static void wa_add(struct drm_i915_private *i915,
-		   i915_reg_t reg, const u32 mask, const u32 val)
+static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 {
-	struct i915_workarounds *wa = &i915->workarounds;
-	unsigned int start = 0, end = wa->count;
-	unsigned int addr = i915_mmio_reg_offset(reg);
-	struct i915_wa_reg *r;
+	unsigned int addr = i915_mmio_reg_offset(wa->reg);
+	unsigned int start = 0, end = wal->count;
+	const unsigned int grow = WA_LIST_CHUNK;
+	struct i915_wa *wa_;
+
+	GEM_BUG_ON(!is_power_of_2(grow));
+
+	if (IS_ALIGNED(wal->count, grow)) { /* Either uninitialized or full. */
+		struct i915_wa *list;
+
+		list = kmalloc_array(ALIGN(wal->count + 1, grow), sizeof(*wa),
+				     GFP_KERNEL);
+		if (!list) {
+			DRM_ERROR("No space for workaround init!\n");
+			return;
+		}
+
+		if (wal->list)
+			memcpy(list, wal->list, sizeof(*wa) * wal->count);
+
+		wal->list = list;
+	}
 
 	while (start < end) {
 		unsigned int mid = start + (end - start) / 2;
 
-		if (wa->reg[mid].addr < addr) {
+		if (i915_mmio_reg_offset(wal->list[mid].reg) < addr) {
 			start = mid + 1;
-		} else if (wa->reg[mid].addr > addr) {
+		} else if (i915_mmio_reg_offset(wal->list[mid].reg) > addr) {
 			end = mid;
 		} else {
-			r = &wa->reg[mid];
+			wa_ = &wal->list[mid];
 
-			if ((mask & ~r->mask) == 0) {
+			if ((wa->mask & ~wa_->mask) == 0) {
 				DRM_ERROR("Discarding overwritten w/a for reg %04x (mask: %08x, value: %08x)\n",
-					  addr, r->mask, r->value);
+					  i915_mmio_reg_offset(wa_->reg),
+					  wa_->mask, wa_->val);
 
-				r->value &= ~mask;
+				wa_->val &= ~wa->mask;
 			}
 
-			r->value |= val;
-			r->mask  |= mask;
+			wal->wa_count++;
+			wa_->val |= wa->val;
+			wa_->mask |= wa->mask;
 			return;
 		}
 	}
 
-	if (WARN_ON_ONCE(wa->count >= I915_MAX_WA_REGS)) {
-		DRM_ERROR("Dropping w/a for reg %04x (mask: %08x, value: %08x)\n",
-			  addr, mask, val);
-		return;
-	}
+	wal->wa_count++;
+	wa_ = &wal->list[wal->count++];
+	*wa_ = *wa;
 
-	r = &wa->reg[wa->count++];
-	r->addr  = addr;
-	r->value = val;
-	r->mask  = mask;
-
-	while (r-- > wa->reg) {
-		GEM_BUG_ON(r[0].addr == r[1].addr);
-		if (r[1].addr > r[0].addr)
+	while (wa_-- > wal->list) {
+		GEM_BUG_ON(i915_mmio_reg_offset(wa_[0].reg) ==
+			   i915_mmio_reg_offset(wa_[1].reg));
+		if (i915_mmio_reg_offset(wa_[1].reg) >
+		    i915_mmio_reg_offset(wa_[0].reg))
 			break;
 
-		swap(r[1], r[0]);
+		swap(wa_[1], wa_[0]);
 	}
 }
 
-#define WA_REG(addr, mask, val) wa_add(dev_priv, (addr), (mask), (val))
+static void
+__wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask, u32 val)
+{
+	struct i915_wa wa = {
+		.reg = reg,
+		.mask = mask,
+		.val = val
+	};
+
+	_wa_add(wal, &wa);
+}
+
+#define WA_REG(addr, mask, val) __wa_add(wal, (addr), (mask), (val))
 
 #define WA_SET_BIT_MASKED(addr, mask) \
 	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
@@ -124,8 +164,10 @@ static void wa_add(struct drm_i915_private *i915,
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	WA_REG(addr, (mask), _MASKED_FIELD(mask, value))
 
-static int gen8_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
+
 	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
 	/* WaDisableAsyncFlipPerfMode:bdw,chv */
@@ -169,17 +211,14 @@ static int gen8_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
-
-	return 0;
 }
 
-static int bdw_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void bdw_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	ret = gen8_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
+	gen8_ctx_workarounds_init(engine);
 
 	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
@@ -199,31 +238,28 @@ static int bdw_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 			  /* WaForceContextSaveRestoreNonCoherent:bdw */
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
 			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
-			  (IS_BDW_GT3(dev_priv) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
-
-	return 0;
+			  (IS_BDW_GT3(i915) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 }
 
-static int chv_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void chv_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	ret = gen8_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
+	gen8_ctx_workarounds_init(engine);
 
 	/* WaDisableThreadStallDopClockGating:chv */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
 	/* Improve HiZ throughput on CHV. */
 	WA_SET_BIT_MASKED(HIZ_CHICKEN, CHV_HZ_8X8_MODE_IN_1X);
-
-	return 0;
 }
 
-static int gen9_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	if (HAS_LLC(dev_priv)) {
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
+
+	if (HAS_LLC(i915)) {
 		/* WaCompressedResourceSamplerPbeMediaNewHashMode:skl,kbl
 		 *
 		 * Must match Display Engine. See
@@ -242,7 +278,7 @@ static int gen9_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
 	/* Syncing dependencies between camera and graphics:skl,bxt,kbl */
-	if (!IS_COFFEELAKE(dev_priv))
+	if (!IS_COFFEELAKE(i915))
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
@@ -285,9 +321,7 @@ static int gen9_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 			  HDC_FORCE_NON_COHERENT);
 
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl,cfl */
-	if (IS_SKYLAKE(dev_priv) ||
-	    IS_KABYLAKE(dev_priv) ||
-	    IS_COFFEELAKE(dev_priv))
+	if (IS_SKYLAKE(i915) || IS_KABYLAKE(i915) || IS_COFFEELAKE(i915))
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN8_SAMPLER_POWER_BYPASS_DIS);
 
@@ -314,14 +348,14 @@ static int gen9_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
 
 	/* WaClearHIZ_WM_CHICKEN3:bxt,glk */
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEN9_LP(i915))
 		WA_SET_BIT_MASKED(GEN9_WM_CHICKEN3, GEN9_FACTOR_IN_CLR_VAL_HIZ);
-
-	return 0;
 }
 
-static int skl_tune_iz_hashing(struct drm_i915_private *dev_priv)
+static void skl_tune_iz_hashing(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 	u8 vals[3] = { 0, 0, 0 };
 	unsigned int i;
 
@@ -332,7 +366,7 @@ static int skl_tune_iz_hashing(struct drm_i915_private *dev_priv)
 		 * Only consider slices where one, and only one, subslice has 7
 		 * EUs
 		 */
-		if (!is_power_of_2(INTEL_INFO(dev_priv)->sseu.subslice_7eu[i]))
+		if (!is_power_of_2(INTEL_INFO(i915)->sseu.subslice_7eu[i]))
 			continue;
 
 		/*
@@ -341,12 +375,12 @@ static int skl_tune_iz_hashing(struct drm_i915_private *dev_priv)
 		 *
 		 * ->    0 <= ss <= 3;
 		 */
-		ss = ffs(INTEL_INFO(dev_priv)->sseu.subslice_7eu[i]) - 1;
+		ss = ffs(INTEL_INFO(i915)->sseu.subslice_7eu[i]) - 1;
 		vals[i] = 3 - ss;
 	}
 
 	if (vals[0] == 0 && vals[1] == 0 && vals[2] == 0)
-		return 0;
+		return;
 
 	/* Tune IZ hashing. See intel_device_info_runtime_init() */
 	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
@@ -356,28 +390,19 @@ static int skl_tune_iz_hashing(struct drm_i915_private *dev_priv)
 			    GEN9_IZ_HASHING(2, vals[2]) |
 			    GEN9_IZ_HASHING(1, vals[1]) |
 			    GEN9_IZ_HASHING(0, vals[0]));
-
-	return 0;
 }
 
-static int skl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void skl_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	int ret;
-
-	ret = gen9_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
-
-	return skl_tune_iz_hashing(dev_priv);
+	gen9_ctx_workarounds_init(engine);
+	skl_tune_iz_hashing(engine);
 }
 
-static int bxt_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void bxt_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	ret = gen9_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
+	gen9_ctx_workarounds_init(engine);
 
 	/* WaDisableThreadStallDopClockGating:bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -386,57 +411,41 @@ static int bxt_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	/* WaToEnableHwFixForPushConstHWBug:bxt */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
-
-	return 0;
 }
 
-static int kbl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void kbl_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	ret = gen9_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
-
-	/* WaDisableFenceDestinationToSLM:kbl (pre-prod) */
-	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_A0))
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FENCE_DEST_SLM_DISABLE);
+	gen9_ctx_workarounds_init(engine);
 
 	/* WaToEnableHwFixForPushConstHWBug:kbl */
-	if (IS_KBL_REVID(dev_priv, KBL_REVID_C0, REVID_FOREVER))
+	if (IS_KBL_REVID(i915, KBL_REVID_C0, REVID_FOREVER))
 		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaDisableSbeCacheDispatchPortSharing:kbl */
 	WA_SET_BIT_MASKED(GEN7_HALF_SLICE_CHICKEN1,
 			  GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
-
-	return 0;
 }
 
-static int glk_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void glk_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	ret = gen9_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
+	gen9_ctx_workarounds_init(engine);
 
 	/* WaToEnableHwFixForPushConstHWBug:glk */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
-
-	return 0;
 }
 
-static int cfl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void cfl_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	ret = gen9_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
+	gen9_ctx_workarounds_init(engine);
 
 	/* WaToEnableHwFixForPushConstHWBug:cfl */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
@@ -445,18 +454,19 @@ static int cfl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	/* WaDisableSbeCacheDispatchPortSharing:cfl */
 	WA_SET_BIT_MASKED(GEN7_HALF_SLICE_CHICKEN1,
 			  GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
-
-	return 0;
 }
 
-static int cnl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void cnl_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
+
 	/* WaForceContextSaveRestoreNonCoherent:cnl */
 	WA_SET_BIT_MASKED(CNL_HDC_CHICKEN0,
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
 
 	/* WaThrottleEUPerfToAvoidTDBackPressure:cnl(pre-prod) */
-	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
+	if (IS_CNL_REVID(i915, CNL_REVID_B0, CNL_REVID_B0))
 		WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, THROTTLE_12_5);
 
 	/* WaDisableReplayBufferBankArbitrationOptimization:cnl */
@@ -464,7 +474,7 @@ static int cnl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaDisableEnhancedSBEVertexCaching:cnl (pre-prod) */
-	if (IS_CNL_REVID(dev_priv, 0, CNL_REVID_B0))
+	if (IS_CNL_REVID(i915, 0, CNL_REVID_B0))
 		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 				  GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE);
 
@@ -484,16 +494,17 @@ static int cnl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 
 	/* WaDisableEarlyEOT:cnl */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, DISABLE_EARLY_EOT);
-
-	return 0;
 }
 
-static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
+
 	/* Wa_1604370585:icl (pre-prod)
 	 * Formerly known as WaPushConstantDereferenceHoldDisable
 	 */
-	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_B0))
+	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_B0))
 		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
 				  PUSH_CONSTANT_DEREF_DISABLE);
 
@@ -509,7 +520,7 @@ static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	/* Wa_2006611047:icl (pre-prod)
 	 * Formerly known as WaDisableImprovedTdlClkGating
 	 */
-	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_A0))
+	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_A0))
 		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
 				  GEN11_TDL_CLOCK_GATING_FIX_DISABLE);
 
@@ -518,70 +529,67 @@ static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 			  GEN11_STATE_CACHE_REDIRECT_TO_CS);
 
 	/* Wa_2006665173:icl (pre-prod) */
-	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_A0))
+	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_A0))
 		WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 				  GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC);
-
-	return 0;
 }
 
-int intel_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 {
-	int err = 0;
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	dev_priv->workarounds.count = 0;
+	wa_init_start(wal, "context");
 
-	if (INTEL_GEN(dev_priv) < 8)
-		err = 0;
-	else if (IS_BROADWELL(dev_priv))
-		err = bdw_ctx_workarounds_init(dev_priv);
-	else if (IS_CHERRYVIEW(dev_priv))
-		err = chv_ctx_workarounds_init(dev_priv);
-	else if (IS_SKYLAKE(dev_priv))
-		err = skl_ctx_workarounds_init(dev_priv);
-	else if (IS_BROXTON(dev_priv))
-		err = bxt_ctx_workarounds_init(dev_priv);
-	else if (IS_KABYLAKE(dev_priv))
-		err = kbl_ctx_workarounds_init(dev_priv);
-	else if (IS_GEMINILAKE(dev_priv))
-		err = glk_ctx_workarounds_init(dev_priv);
-	else if (IS_COFFEELAKE(dev_priv))
-		err = cfl_ctx_workarounds_init(dev_priv);
-	else if (IS_CANNONLAKE(dev_priv))
-		err = cnl_ctx_workarounds_init(dev_priv);
-	else if (IS_ICELAKE(dev_priv))
-		err = icl_ctx_workarounds_init(dev_priv);
+	if (INTEL_GEN(i915) < 8)
+		return;
+	else if (IS_BROADWELL(i915))
+		bdw_ctx_workarounds_init(engine);
+	else if (IS_CHERRYVIEW(i915))
+		chv_ctx_workarounds_init(engine);
+	else if (IS_SKYLAKE(i915))
+		skl_ctx_workarounds_init(engine);
+	else if (IS_BROXTON(i915))
+		bxt_ctx_workarounds_init(engine);
+	else if (IS_KABYLAKE(i915))
+		kbl_ctx_workarounds_init(engine);
+	else if (IS_GEMINILAKE(i915))
+		glk_ctx_workarounds_init(engine);
+	else if (IS_COFFEELAKE(i915))
+		cfl_ctx_workarounds_init(engine);
+	else if (IS_CANNONLAKE(i915))
+		cnl_ctx_workarounds_init(engine);
+	else if (IS_ICELAKE(i915))
+		icl_ctx_workarounds_init(engine);
 	else
-		MISSING_CASE(INTEL_GEN(dev_priv));
-	if (err)
-		return err;
+		MISSING_CASE(INTEL_GEN(i915));
 
-	DRM_DEBUG_DRIVER("Number of context specific w/a: %d\n",
-			 dev_priv->workarounds.count);
-	return 0;
+	wa_init_finish(wal);
 }
 
-int intel_ctx_workarounds_emit(struct i915_request *rq)
+int intel_engine_emit_ctx_wa(struct i915_request *rq)
 {
-	struct i915_workarounds *w = &rq->i915->workarounds;
+	struct i915_wa_list *wal = &rq->engine->ctx_wa_list;
+	struct i915_wa *wa;
+	unsigned int i;
 	u32 *cs;
-	int ret, i;
+	int ret;
 
-	if (w->count == 0)
+	if (wal->count == 0)
 		return 0;
 
 	ret = rq->engine->emit_flush(rq, EMIT_BARRIER);
 	if (ret)
 		return ret;
 
-	cs = intel_ring_begin(rq, (w->count * 2 + 2));
+	cs = intel_ring_begin(rq, (wal->count * 2 + 2));
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	*cs++ = MI_LOAD_REGISTER_IMM(w->count);
-	for (i = 0; i < w->count; i++) {
-		*cs++ = w->reg[i].addr;
-		*cs++ = w->reg[i].value;
+	*cs++ = MI_LOAD_REGISTER_IMM(wal->count);
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		*cs++ = i915_mmio_reg_offset(wa->reg);
+		*cs++ = wa->val;
 	}
 	*cs++ = MI_NOOP;
 
@@ -595,32 +603,6 @@ int intel_ctx_workarounds_emit(struct i915_request *rq)
 }
 
 static void
-wal_add(struct i915_wa_list *wal, const struct i915_wa *wa)
-{
-	const unsigned int grow = 1 << 4;
-
-	GEM_BUG_ON(!is_power_of_2(grow));
-
-	if (IS_ALIGNED(wal->count, grow)) { /* Either uninitialized or full. */
-		struct i915_wa *list;
-
-		list = kmalloc_array(ALIGN(wal->count + 1, grow), sizeof(*wa),
-				     GFP_KERNEL);
-		if (!list) {
-			DRM_ERROR("No space for workaround init!\n");
-			return;
-		}
-
-		if (wal->list)
-			memcpy(list, wal->list, sizeof(*wa) * wal->count);
-
-		wal->list = list;
-	}
-
-	wal->list[wal->count++] = *wa;
-}
-
-static void
 wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
 	struct i915_wa wa = {
@@ -629,7 +611,7 @@ wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 		.val = _MASKED_BIT_ENABLE(val)
 	};
 
-	wal_add(wal, &wa);
+	_wa_add(wal, &wa);
 }
 
 static void
@@ -642,7 +624,7 @@ wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
 		.val = val
 	};
 
-	wal_add(wal, &wa);
+	_wa_add(wal, &wa);
 }
 
 static void
@@ -982,29 +964,54 @@ void intel_gt_apply_workarounds(struct drm_i915_private *dev_priv)
 	wa_list_apply(dev_priv, &dev_priv->gt_wa_list);
 }
 
-struct whitelist {
-	i915_reg_t reg[RING_MAX_NONPRIV_SLOTS];
-	unsigned int count;
-	u32 nopid;
-};
-
-static void whitelist_reg(struct whitelist *w, i915_reg_t reg)
+static bool
+wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 {
-	if (GEM_WARN_ON(w->count >= RING_MAX_NONPRIV_SLOTS))
+	if ((cur ^ wa->val) & wa->mask) {
+		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x, mask=%x)\n",
+			  name, from, i915_mmio_reg_offset(wa->reg), cur,
+			  cur & wa->mask, wa->val, wa->mask);
+
+		return false;
+	}
+
+	return true;
+}
+
+static bool wa_list_verify(struct drm_i915_private *dev_priv,
+			   const struct i915_wa_list *wal,
+			   const char *from)
+{
+	struct i915_wa *wa;
+	unsigned int i;
+	bool ok = true;
+
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
+		ok &= wa_verify(wa, I915_READ(wa->reg), wal->name, from);
+
+	return ok;
+}
+
+bool intel_gt_verify_workarounds(struct drm_i915_private *dev_priv,
+				 const char *from)
+{
+	return wa_list_verify(dev_priv, &dev_priv->gt_wa_list, from);
+}
+
+static void
+whitelist_reg(struct i915_wa_list *wal, i915_reg_t reg)
+{
+	struct i915_wa wa = {
+		.reg = reg
+	};
+
+	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_NONPRIV_SLOTS))
 		return;
 
-	w->reg[w->count++] = reg;
+	_wa_add(wal, &wa);
 }
 
-static void bdw_whitelist_build(struct whitelist *w)
-{
-}
-
-static void chv_whitelist_build(struct whitelist *w)
-{
-}
-
-static void gen9_whitelist_build(struct whitelist *w)
+static void gen9_whitelist_build(struct i915_wa_list *w)
 {
 	/* WaVFEStateAfterPipeControlwithMediaStateClear:skl,bxt,glk,cfl */
 	whitelist_reg(w, GEN9_CTX_PREEMPT_REG);
@@ -1016,7 +1023,7 @@ static void gen9_whitelist_build(struct whitelist *w)
 	whitelist_reg(w, GEN8_HDC_CHICKEN1);
 }
 
-static void skl_whitelist_build(struct whitelist *w)
+static void skl_whitelist_build(struct i915_wa_list *w)
 {
 	gen9_whitelist_build(w);
 
@@ -1024,12 +1031,12 @@ static void skl_whitelist_build(struct whitelist *w)
 	whitelist_reg(w, GEN8_L3SQCREG4);
 }
 
-static void bxt_whitelist_build(struct whitelist *w)
+static void bxt_whitelist_build(struct i915_wa_list *w)
 {
 	gen9_whitelist_build(w);
 }
 
-static void kbl_whitelist_build(struct whitelist *w)
+static void kbl_whitelist_build(struct i915_wa_list *w)
 {
 	gen9_whitelist_build(w);
 
@@ -1037,7 +1044,7 @@ static void kbl_whitelist_build(struct whitelist *w)
 	whitelist_reg(w, GEN8_L3SQCREG4);
 }
 
-static void glk_whitelist_build(struct whitelist *w)
+static void glk_whitelist_build(struct i915_wa_list *w)
 {
 	gen9_whitelist_build(w);
 
@@ -1045,37 +1052,41 @@ static void glk_whitelist_build(struct whitelist *w)
 	whitelist_reg(w, GEN9_SLICE_COMMON_ECO_CHICKEN1);
 }
 
-static void cfl_whitelist_build(struct whitelist *w)
+static void cfl_whitelist_build(struct i915_wa_list *w)
 {
 	gen9_whitelist_build(w);
 }
 
-static void cnl_whitelist_build(struct whitelist *w)
+static void cnl_whitelist_build(struct i915_wa_list *w)
 {
 	/* WaEnablePreemptionGranularityControlByUMD:cnl */
 	whitelist_reg(w, GEN8_CS_CHICKEN1);
 }
 
-static void icl_whitelist_build(struct whitelist *w)
+static void icl_whitelist_build(struct i915_wa_list *w)
 {
+	/* WaAllowUMDToModifyHalfSliceChicken7:icl */
+	whitelist_reg(w, GEN9_HALF_SLICE_CHICKEN7);
+
+	/* WaAllowUMDToModifySamplerMode:icl */
+	whitelist_reg(w, GEN10_SAMPLER_MODE);
 }
 
-static struct whitelist *whitelist_build(struct intel_engine_cs *engine,
-					 struct whitelist *w)
+void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *w = &engine->whitelist;
 
 	GEM_BUG_ON(engine->id != RCS);
 
-	w->count = 0;
-	w->nopid = i915_mmio_reg_offset(RING_NOPID(engine->mmio_base));
+	wa_init_start(w, "whitelist");
 
 	if (INTEL_GEN(i915) < 8)
-		return NULL;
+		return;
 	else if (IS_BROADWELL(i915))
-		bdw_whitelist_build(w);
+		return;
 	else if (IS_CHERRYVIEW(i915))
-		chv_whitelist_build(w);
+		return;
 	else if (IS_SKYLAKE(i915))
 		skl_whitelist_build(w);
 	else if (IS_BROXTON(i915))
@@ -1093,37 +1104,30 @@ static struct whitelist *whitelist_build(struct intel_engine_cs *engine,
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
-	return w;
+	wa_init_finish(w);
 }
 
-static void whitelist_apply(struct intel_engine_cs *engine,
-			    const struct whitelist *w)
+void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	const struct i915_wa_list *wal = &engine->whitelist;
 	const u32 base = engine->mmio_base;
+	struct i915_wa *wa;
 	unsigned int i;
 
-	if (!w)
+	if (!wal->count)
 		return;
 
-	intel_uncore_forcewake_get(engine->i915, FORCEWAKE_ALL);
-
-	for (i = 0; i < w->count; i++)
-		I915_WRITE_FW(RING_FORCE_TO_NONPRIV(base, i),
-			      i915_mmio_reg_offset(w->reg[i]));
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
+		I915_WRITE(RING_FORCE_TO_NONPRIV(base, i),
+			   i915_mmio_reg_offset(wa->reg));
 
 	/* And clear the rest just in case of garbage */
 	for (; i < RING_MAX_NONPRIV_SLOTS; i++)
-		I915_WRITE_FW(RING_FORCE_TO_NONPRIV(base, i), w->nopid);
+		I915_WRITE(RING_FORCE_TO_NONPRIV(base, i),
+			   i915_mmio_reg_offset(RING_NOPID(base)));
 
-	intel_uncore_forcewake_put(engine->i915, FORCEWAKE_ALL);
-}
-
-void intel_whitelist_workarounds_apply(struct intel_engine_cs *engine)
-{
-	struct whitelist w;
-
-	whitelist_apply(engine, whitelist_build(engine, &w));
+	DRM_DEBUG_DRIVER("Applied %u %s workarounds\n", wal->count, wal->name);
 }
 
 static void rcs_engine_wa_init(struct intel_engine_cs *engine)
@@ -1171,17 +1175,19 @@ static void rcs_engine_wa_init(struct intel_engine_cs *engine)
 			    GEN8_L3SQCREG4,
 			    GEN11_LQSC_CLEAN_EVICT_DISABLE);
 
-		/* Wa_1604302699:icl */
-		wa_write_or(wal,
-			    GEN10_L3_CHICKEN_MODE_REGISTER,
-			    GEN11_I2M_WRITE_DISABLE);
-
 		/* WaForwardProgressSoftReset:icl */
 		wa_write_or(wal,
 			    GEN10_SCRATCH_LNCF2,
 			    PMFLUSHDONE_LNICRSDROP |
 			    PMFLUSH_GAPL3UNBLOCK |
 			    PMFLUSHDONE_LNEBLK);
+
+		/* Wa_1406609255:icl (pre-prod) */
+		if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_B0))
+			wa_write_or(wal,
+				    GEN7_SARCHKMD,
+				    GEN7_DISABLE_DEMAND_PREFETCH |
+				    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
 	if (IS_GEN9(i915) || IS_CANNONLAKE(i915)) {
@@ -1267,5 +1273,11 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+static bool intel_engine_verify_workarounds(struct intel_engine_cs *engine,
+					    const char *from)
+{
+	return wa_list_verify(engine->i915, &engine->wa_list, from);
+}
+
 #include "selftests/intel_workarounds.c"
 #endif

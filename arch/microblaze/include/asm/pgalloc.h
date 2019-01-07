@@ -108,10 +108,9 @@ static inline void free_pgd_slow(pgd_t *pgd)
 #define pmd_alloc_one_fast(mm, address)	({ BUG(); ((pmd_t *)1); })
 #define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
 
-extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
+extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm);
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm,
-		unsigned long address)
+static inline struct page *pte_alloc_one(struct mm_struct *mm)
 {
 	struct page *ptepage;
 
@@ -130,20 +129,6 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 		return NULL;
 	}
 	return ptepage;
-}
-
-static inline pte_t *pte_alloc_one_fast(struct mm_struct *mm,
-		unsigned long address)
-{
-	unsigned long *ret;
-
-	ret = pte_quicklist;
-	if (ret != NULL) {
-		pte_quicklist = (unsigned long *)(*ret);
-		ret[0] = 0;
-		pgtable_cache_size--;
-	}
-	return (pte_t *)ret;
 }
 
 static inline void pte_free_fast(pte_t *pte)

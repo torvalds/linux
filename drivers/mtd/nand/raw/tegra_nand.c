@@ -454,27 +454,22 @@ static const struct nand_op_parser tegra_nand_op_parser = NAND_OP_PARSER(
 		NAND_OP_PARSER_PAT_DATA_IN_ELEM(true, 4)),
 	);
 
-static int tegra_nand_exec_op(struct nand_chip *chip,
-			      const struct nand_operation *op,
-			      bool check_only)
-{
-	return nand_op_parser_exec_op(chip, &tegra_nand_op_parser, op,
-				      check_only);
-}
-
-static void tegra_nand_select_chip(struct nand_chip *chip, int die_nr)
+static void tegra_nand_select_target(struct nand_chip *chip,
+				     unsigned int die_nr)
 {
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 
-	WARN_ON(die_nr >= (int)ARRAY_SIZE(nand->cs));
-
-	if (die_nr < 0 || die_nr > 0) {
-		ctrl->cur_cs = -1;
-		return;
-	}
-
 	ctrl->cur_cs = nand->cs[die_nr];
+}
+
+static int tegra_nand_exec_op(struct nand_chip *chip,
+			      const struct nand_operation *op,
+			      bool check_only)
+{
+	tegra_nand_select_target(chip, op->cs);
+	return nand_op_parser_exec_op(chip, &tegra_nand_op_parser, op,
+				      check_only);
 }
 
 static void tegra_nand_hw_ecc(struct tegra_nand_controller *ctrl,
@@ -502,6 +497,8 @@ static int tegra_nand_page_xfer(struct mtd_info *mtd, struct nand_chip *chip,
 	dma_addr_t dma_addr = 0, dma_addr_oob = 0;
 	u32 addr1, cmd, dma_ctrl;
 	int ret;
+
+	tegra_nand_select_target(chip, chip->cur_cs);
 
 	if (read) {
 		writel_relaxed(NAND_CMD_READ0, ctrl->regs + CMD_REG1);
@@ -1053,6 +1050,8 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops tegra_nand_controller_ops = {
 	.attach_chip = &tegra_nand_attach_chip,
+	.exec_op = tegra_nand_exec_op,
+	.setup_data_interface = tegra_nand_setup_data_interface,
 };
 
 static int tegra_nand_chips_init(struct device *dev,
@@ -1115,9 +1114,6 @@ static int tegra_nand_chips_init(struct device *dev,
 		mtd->name = "tegra_nand";
 
 	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USE_BOUNCE_BUFFER;
-	chip->exec_op = tegra_nand_exec_op;
-	chip->select_chip = tegra_nand_select_chip;
-	chip->setup_data_interface = tegra_nand_setup_data_interface;
 
 	ret = nand_scan(chip, 1);
 	if (ret)

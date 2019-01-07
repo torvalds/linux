@@ -191,8 +191,7 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 	phylink_validate(pl, pl->supported, &pl->link_config);
 
 	s = phy_lookup_setting(pl->link_config.speed, pl->link_config.duplex,
-			       pl->supported,
-			       __ETHTOOL_LINK_MODE_MASK_NBITS, true);
+			       pl->supported, true);
 	linkmode_zero(pl->supported);
 	phylink_set(pl->supported, MII);
 	if (s) {
@@ -634,13 +633,11 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 {
 	struct phylink_link_state config;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
-	u32 advertising;
 	int ret;
 
 	memset(&config, 0, sizeof(config));
-	ethtool_convert_legacy_u32_to_link_mode(supported, phy->supported);
-	ethtool_convert_legacy_u32_to_link_mode(config.advertising,
-						phy->advertising);
+	linkmode_copy(supported, phy->supported);
+	linkmode_copy(config.advertising, phy->advertising);
 	config.interface = pl->link_config.interface;
 
 	/*
@@ -673,15 +670,14 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	linkmode_copy(pl->link_config.advertising, config.advertising);
 
 	/* Restrict the phy advertisement according to the MAC support. */
-	ethtool_convert_link_mode_to_legacy_u32(&advertising, config.advertising);
-	phy->advertising = advertising;
+	linkmode_copy(phy->advertising, config.advertising);
 	mutex_unlock(&pl->state_mutex);
 	mutex_unlock(&phy->lock);
 
 	netdev_dbg(pl->netdev,
-		   "phy: setting supported %*pb advertising 0x%08x\n",
+		   "phy: setting supported %*pb advertising %*pb\n",
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, pl->supported,
-		   phy->advertising);
+		   __ETHTOOL_LINK_MODE_MASK_NBITS, phy->advertising);
 
 	phy_start_machine(phy);
 	if (phy->irq > 0)
@@ -1088,8 +1084,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		 * duplex.
 		 */
 		s = phy_lookup_setting(kset->base.speed, kset->base.duplex,
-				       pl->supported,
-				       __ETHTOOL_LINK_MODE_MASK_NBITS, false);
+				       pl->supported, false);
 		if (!s)
 			return -EINVAL;
 

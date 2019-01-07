@@ -63,7 +63,7 @@
 };
 
 &lradc {
-	button@600 {
+	button-600 {
 		label = "Back";
 		linux,code = <KEY_BACK>;
 		channel = <0>;

@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 
 #include <asm/smp_plat.h>
-#include <asm/smp_twd.h>
 
 #include "common.h"
 #include "sh73a0.h"

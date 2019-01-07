@@ -197,7 +197,7 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	case NVKM_SUBDEV_PMU:
 		debug_reg = 0xc08;
 		break;
-	case NVKM_ENGINE_NVDEC:
+	case NVKM_ENGINE_NVDEC0:
 		debug_reg = 0xd00;
 		break;
 	case NVKM_ENGINE_SEC2:

@@ -711,7 +711,6 @@ int vmbus_disconnect_ring(struct vmbus_channel *channel)
 	/* Snapshot the list of subchannels */
 	spin_lock_irqsave(&channel->lock, flags);
 	list_splice_init(&channel->sc_list, &list);
-	channel->num_sc = 0;
 	spin_unlock_irqrestore(&channel->lock, flags);
 
 	list_for_each_entry_safe(cur_channel, tmp, &list, sc_list) {
