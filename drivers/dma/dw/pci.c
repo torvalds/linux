@@ -17,7 +17,6 @@
 
 static struct dw_dma_platform_data mrfld_pdata = {
 	.nr_channels = 8,
-	.is_memcpy = true,
 	.is_idma32 = true,
 	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
 	.chan_priority = CHAN_PRIORITY_ASCENDING,

@@ -128,12 +128,6 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	pdata->nr_masters = nr_masters;
 	pdata->nr_channels = nr_channels;
 
-	/*
-	 * All known devices, which use DT for configuration, support
-	 * memory-to-memory transfers. So enable it by default.
-	 */
-	pdata->is_memcpy = true;
-
 	if (!of_property_read_u32(np, "chan_allocation_order", &tmp))
 		pdata->chan_allocation_order = (unsigned char)tmp;
 
