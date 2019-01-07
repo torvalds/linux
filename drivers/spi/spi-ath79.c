@@ -21,7 +21,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/bitops.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
@@ -78,9 +78,16 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
-	if (gpio_is_valid(spi->cs_gpio)) {
-		/* SPI is normally active-low */
-		gpio_set_value_cansleep(spi->cs_gpio, cs_high);
+	if (spi->cs_gpiod) {
+		/*
+		 * SPI chipselect is normally active-low, but
+		 * inversion semantics are handled by gpiolib.
+		 *
+		 * FIXME: is this ever used? The driver doesn't
+		 * set SPI_MASTER_GPIO_SS so this callback should not
+		 * get called if a CS GPIO is found by the SPI core.
+		 */
+		gpiod_set_value_cansleep(spi->cs_gpiod, is_active);
 	} else {
 		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
 
@@ -118,21 +125,8 @@ static void ath79_spi_disable(struct ath79_spi *sp)
 static int ath79_spi_setup_cs(struct spi_device *spi)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
-	int status;
 
-	status = 0;
-	if (gpio_is_valid(spi->cs_gpio)) {
-		unsigned long flags;
-
-		flags = GPIOF_DIR_OUT;
-		if (spi->mode & SPI_CS_HIGH)
-			flags |= GPIOF_INIT_LOW;
-		else
-			flags |= GPIOF_INIT_HIGH;
-
-		status = gpio_request_one(spi->cs_gpio, flags,
-					  dev_name(&spi->dev));
-	} else {
+	if (!spi->cs_gpiod) {
 		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
 
 		if (spi->mode & SPI_CS_HIGH)
@@ -143,13 +137,7 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
-	return status;
-}
-
-static void ath79_spi_cleanup_cs(struct spi_device *spi)
-{
-	if (gpio_is_valid(spi->cs_gpio))
-		gpio_free(spi->cs_gpio);
+	return 0;
 }
 
 static int ath79_spi_setup(struct spi_device *spi)
@@ -163,15 +151,12 @@ static int ath79_spi_setup(struct spi_device *spi)
 	}
 
 	status = spi_bitbang_setup(spi);
-	if (status && !spi->controller_state)
-		ath79_spi_cleanup_cs(spi);
 
 	return status;
 }
 
 static void ath79_spi_cleanup(struct spi_device *spi)
 {
-	ath79_spi_cleanup_cs(spi);
 	spi_bitbang_cleanup(spi);
 }
 
@@ -225,6 +210,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 
+	master->use_gpio_descriptors = true;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->setup = ath79_spi_setup;
 	master->cleanup = ath79_spi_cleanup;
