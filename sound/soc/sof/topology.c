@@ -2446,6 +2446,10 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 	struct snd_sof_dai *sof_dai = NULL;
 	int ret = 0;
 
+	/* only BE link is loaded by sof */
+	if (!link->no_pcm)
+		return 0;
+
 	list_for_each_entry(sof_dai, &sdev->dai_list, list) {
 		if (!sof_dai->name)
 			continue;
