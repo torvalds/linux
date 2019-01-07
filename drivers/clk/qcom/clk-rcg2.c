@@ -69,16 +69,6 @@ static struct freq_tbl cxo_f = {
 	.n = 0,
 };
 
-static void update_src_map(struct clk_hw *hw)
-{
-	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
-	int i, num_parents = clk_hw_get_num_parents(hw);
-
-	for (i = 0; i < num_parents; i++)
-		if (!rcg->parent_map[i].cfg)
-			cxo_f.src = rcg->parent_map[i].src;
-}
-
 static int clk_rcg2_is_enabled(struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
@@ -460,12 +450,6 @@ static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	/*
-	 * Set the correct source value for CXO as per
-	 * as per defined parent map.
-	 */
-	update_src_map(hw);
-
-	/*
 	 * Return if the RCG is currently disabled. This configuration update
 	 * will happen as part of the RCG enable sequence.
 	 */
@@ -625,12 +609,6 @@ static int clk_rcg2_enable(struct clk_hw *hw)
 	unsigned long rate;
 	const struct freq_tbl *f;
 
-	/*
-	 * Set the correct source value for CXO as per
-	 * as per defined parent map.
-	 */
-	update_src_map(hw);
-
 	if (rcg->flags & FORCE_ENABLE_RCG) {
 		clk_rcg2_set_force_enable(hw);
 		return 0;
@@ -671,12 +649,6 @@ static int clk_rcg2_enable(struct clk_hw *hw)
 static void clk_rcg2_disable(struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
-
-	/*
-	 * Set the correct source value for CXO as per
-	 * as per defined parent map.
-	 */
-	update_src_map(hw);
 
 	if (rcg->flags & FORCE_ENABLE_RCG) {
 		clk_rcg2_clear_force_enable(hw);
