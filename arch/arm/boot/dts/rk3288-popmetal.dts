@@ -152,7 +152,6 @@
 		compatible = "adi,adv7125";
 		psave-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
 		vdd-supply = <&vcc_lcd>;
-		rockchip,output = "rgb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -162,15 +161,17 @@
 
 			port@0 {
 				reg = <0>;
-				adv7125_in: endpoint {
-					remote-endpoint = <&rgb_out>;
+
+				adv7125_in_rgb: endpoint {
+					remote-endpoint = <&rgb_out_adv7125>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
-				adv7125_out: endpoint {
-					remote-endpoint = <&vga_in>;
+
+				adv7125_out_vga: endpoint {
+					remote-endpoint = <&vga_in_adv7125>;
 				};
 			};
 		};
@@ -180,9 +181,9 @@
 		compatible = "vga-connector";
 		ddc-i2c-bus = <&i2c2>;
 
-		 port {
-			vga_in: endpoint {
-				remote-endpoint = <&adv7125_out>;
+		port {
+			vga_in_adv7125: endpoint {
+				remote-endpoint = <&adv7125_out_vga>;
 			};
 		};
 	};
@@ -246,25 +247,31 @@
 	status = "okay";
 };
 
-&route_lvds {
-	status = "disabled";
-};
-
-&lvds {
+&rgb {
 	status = "okay";
 
 	ports {
 		port@1 {
 			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			rgb_out: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&adv7125_in>;
+			rgb_out_adv7125: endpoint {
+				remote-endpoint = <&adv7125_in_rgb>;
 			};
 		};
 	};
+};
+
+&rgb_in_vopl {
+	status = "okay";
+};
+
+&rgb_in_vopb {
+	status = "disabled";
+};
+
+&route_rgb {
+	connect = <&vopl_out_rgb>;
+	status = "disabled";
 };
 
 &hevc_service {
