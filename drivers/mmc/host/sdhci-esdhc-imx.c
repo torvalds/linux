@@ -144,8 +144,6 @@
  * exceed 150MHz, for DDR mode, SD card clock can't exceed 45MHz.
  */
 #define ESDHC_FLAG_ERR010450		BIT(10)
-/* A clock frequency higher than this rate requires strobe dll control */
-#define ESDHC_STROBE_DLL_CLK_FREQ	100000000
 
 struct esdhc_soc_data {
 	u32 flags;
@@ -939,39 +937,35 @@ static int esdhc_change_pinstate(struct sdhci_host *host,
  * edge of data_strobe line. Due to the time delay between CLK line and
  * data_strobe line, if the delay time is larger than one clock cycle,
  * then CLK and data_strobe line will be misaligned, read error shows up.
- * So when the CLK is higher than 100MHz, each clock cycle is short enough,
- * host should configure the delay target.
  */
 static void esdhc_set_strobe_dll(struct sdhci_host *host)
 {
 	u32 v;
 
-	if (host->mmc->actual_clock > ESDHC_STROBE_DLL_CLK_FREQ) {
-		/* disable clock before enabling strobe dll */
-		writel(readl(host->ioaddr + ESDHC_VENDOR_SPEC) &
-		       ~ESDHC_VENDOR_SPEC_FRC_SDCLK_ON,
-		       host->ioaddr + ESDHC_VENDOR_SPEC);
+	/* disable clock before enabling strobe dll */
+	writel(readl(host->ioaddr + ESDHC_VENDOR_SPEC) &
+		~ESDHC_VENDOR_SPEC_FRC_SDCLK_ON,
+		host->ioaddr + ESDHC_VENDOR_SPEC);
 
-		/* force a reset on strobe dll */
-		writel(ESDHC_STROBE_DLL_CTRL_RESET,
-			host->ioaddr + ESDHC_STROBE_DLL_CTRL);
-		/*
-		 * enable strobe dll ctrl and adjust the delay target
-		 * for the uSDHC loopback read clock
-		 */
-		v = ESDHC_STROBE_DLL_CTRL_ENABLE |
-			(7 << ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_SHIFT);
-		writel(v, host->ioaddr + ESDHC_STROBE_DLL_CTRL);
-		/* wait 1us to make sure strobe dll status register stable */
-		udelay(1);
-		v = readl(host->ioaddr + ESDHC_STROBE_DLL_STATUS);
-		if (!(v & ESDHC_STROBE_DLL_STS_REF_LOCK))
-			dev_warn(mmc_dev(host->mmc),
-				"warning! HS400 strobe DLL status REF not lock!\n");
-		if (!(v & ESDHC_STROBE_DLL_STS_SLV_LOCK))
-			dev_warn(mmc_dev(host->mmc),
-				"warning! HS400 strobe DLL status SLV not lock!\n");
-	}
+	/* force a reset on strobe dll */
+	writel(ESDHC_STROBE_DLL_CTRL_RESET,
+		host->ioaddr + ESDHC_STROBE_DLL_CTRL);
+	/*
+	 * enable strobe dll ctrl and adjust the delay target
+	 * for the uSDHC loopback read clock
+	 */
+	v = ESDHC_STROBE_DLL_CTRL_ENABLE |
+		(7 << ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_SHIFT);
+	writel(v, host->ioaddr + ESDHC_STROBE_DLL_CTRL);
+	/* wait 1us to make sure strobe dll status register stable */
+	udelay(1);
+	v = readl(host->ioaddr + ESDHC_STROBE_DLL_STATUS);
+	if (!(v & ESDHC_STROBE_DLL_STS_REF_LOCK))
+		dev_warn(mmc_dev(host->mmc),
+		"warning! HS400 strobe DLL status REF not lock!\n");
+	if (!(v & ESDHC_STROBE_DLL_STS_SLV_LOCK))
+		dev_warn(mmc_dev(host->mmc),
+		"warning! HS400 strobe DLL status SLV not lock!\n");
 }
 
 static void esdhc_reset_tuning(struct sdhci_host *host)
