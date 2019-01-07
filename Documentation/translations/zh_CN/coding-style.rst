@@ -535,26 +535,43 @@ Documentation/doc-guide/ 和 scripts/kernel-doc 以获得详细信息。
       (* (max steps 1)
          c-basic-offset)))
 
-  (add-hook 'c-mode-common-hook
-            (lambda ()
-              ;; Add kernel style
-              (c-add-style
-               "linux-tabs-only"
-               '("linux" (c-offsets-alist
-                          (arglist-cont-nonempty
-                           c-lineup-gcc-asm-reg
-                           c-lineup-arglist-tabs-only))))))
+  (dir-locals-set-class-variables
+   'linux-kernel
+   '((c-mode . (
+          (c-basic-offset . 8)
+          (c-label-minimum-indentation . 0)
+          (c-offsets-alist . (
+                  (arglist-close         . c-lineup-arglist-tabs-only)
+                  (arglist-cont-nonempty .
+		      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+                  (arglist-intro         . +)
+                  (brace-list-intro      . +)
+                  (c                     . c-lineup-C-comments)
+                  (case-label            . 0)
+                  (comment-intro         . c-lineup-comment)
+                  (cpp-define-intro      . +)
+                  (cpp-macro             . -1000)
+                  (cpp-macro-cont        . +)
+                  (defun-block-intro     . +)
+                  (else-clause           . 0)
+                  (func-decl-cont        . +)
+                  (inclass               . +)
+                  (inher-cont            . c-lineup-multi-inher)
+                  (knr-argdecl-intro     . 0)
+                  (label                 . -1000)
+                  (statement             . 0)
+                  (statement-block-intro . +)
+                  (statement-case-intro  . +)
+                  (statement-cont        . +)
+                  (substatement          . +)
+                  ))
+          (indent-tabs-mode . t)
+          (show-trailing-whitespace . t)
+          ))))
 
-  (add-hook 'c-mode-hook
-            (lambda ()
-              (let ((filename (buffer-file-name)))
-                ;; Enable kernel mode for the appropriate files
-                (when (and filename
-                           (string-match (expand-file-name "~/src/linux-trees")
-                                         filename))
-                  (setq indent-tabs-mode t)
-                  (setq show-trailing-whitespace t)
-                  (c-set-style "linux-tabs-only")))))
+  (dir-locals-set-directory-class
+   (expand-file-name "~/src/linux-trees")
+   'linux-kernel)
 
 这会让 emacs 在 ``~/src/linux-trees`` 下的 C 源文件获得更好的内核代码风格。
 
