@@ -444,8 +444,6 @@ static int imx_pwm_remove(struct platform_device *pdev)
 	struct imx_chip *imx;
 
 	imx = platform_get_drvdata(pdev);
-	if (imx == NULL)
-		return -ENODEV;
 
 	imx_pwm_clk_disable_unprepare(&imx->chip);
 
