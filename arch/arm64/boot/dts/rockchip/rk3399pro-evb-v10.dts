@@ -593,7 +593,8 @@
 
 				regulator-name = "vcc5v0_usb";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <5000000>;
 				};
 			};
 
