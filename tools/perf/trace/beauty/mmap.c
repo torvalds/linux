@@ -18,8 +18,8 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 	}
 
 	P_MMAP_PROT(READ);
-	P_MMAP_PROT(EXEC);
 	P_MMAP_PROT(WRITE);
+	P_MMAP_PROT(EXEC);
 	P_MMAP_PROT(SEM);
 	P_MMAP_PROT(GROWSDOWN);
 	P_MMAP_PROT(GROWSUP);
