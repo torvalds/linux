@@ -29,6 +29,42 @@
 #include "smu_v11_0.h"
 #include "atom.h"
 
+int smu_update_table(struct smu_context *smu, uint32_t table_id,
+		     void *table_data, bool drv2smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = NULL;
+	int ret = 0;
+
+	if (!table_data || table_id >= smu_table->table_count)
+		return -EINVAL;
+
+	table = &smu_table->tables[table_id];
+
+	if (drv2smu)
+		memcpy(table->cpu_addr, table_data, table->size);
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrHigh,
+					  upper_32_bits(table->mc_address));
+	if (ret)
+		return ret;
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrLow,
+					  lower_32_bits(table->mc_address));
+	if (ret)
+		return ret;
+	ret = smu_send_smc_msg_with_param(smu, drv2smu ?
+					  SMU_MSG_TransferTableDram2Smu :
+					  SMU_MSG_TransferTableSmu2Dram,
+					  table_id);
+	if (ret)
+		return ret;
+
+	if (!drv2smu)
+		memcpy(table_data, table->cpu_addr, table->size);
+
+	return ret;
+}
+
 int smu_feature_init_dpm(struct smu_context *smu)
 {
 	struct smu_feature *feature = &smu->smu_feature;

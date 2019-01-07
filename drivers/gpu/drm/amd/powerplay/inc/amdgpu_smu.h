@@ -364,4 +364,7 @@ extern int smu_feature_set_enabled(struct smu_context *smu, int feature_id, bool
 extern int smu_feature_is_supported(struct smu_context *smu, int feature_id);
 extern int smu_feature_set_supported(struct smu_context *smu, int feature_id, bool enable);
 
+int smu_update_table(struct smu_context *smu, uint32_t table_id,
+		     void *table_data, bool drv2smu);
+
 #endif
