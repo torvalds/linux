@@ -254,7 +254,6 @@ pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
  * @get_state: get the current PWM state. This function is only
  *	       called once per PWM device when the PWM chip is
  *	       registered.
- * @dbg_show: optional routine to show contents in debugfs
  * @owner: helps prevent removal of modules exporting active PWMs
  */
 struct pwm_ops {
@@ -272,9 +271,6 @@ struct pwm_ops {
 		     struct pwm_state *state);
 	void (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
 			  struct pwm_state *state);
-#ifdef CONFIG_DEBUG_FS
-	void (*dbg_show)(struct pwm_chip *chip, struct seq_file *s);
-#endif
 	struct module *owner;
 };
 

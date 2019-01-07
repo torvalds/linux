@@ -1036,10 +1036,7 @@ static int pwm_seq_show(struct seq_file *s, void *v)
 		   dev_name(chip->dev), chip->npwm,
 		   (chip->npwm != 1) ? "s" : "");
 
-	if (chip->ops->dbg_show)
-		chip->ops->dbg_show(chip, s);
-	else
-		pwm_dbg_show(chip, s);
+	pwm_dbg_show(chip, s);
 
 	return 0;
 }
