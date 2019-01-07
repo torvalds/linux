@@ -45,9 +45,13 @@ struct dw_dma_chip {
 #if IS_ENABLED(CONFIG_DW_DMAC_CORE)
 int dw_dma_probe(struct dw_dma_chip *chip);
 int dw_dma_remove(struct dw_dma_chip *chip);
+int idma32_dma_probe(struct dw_dma_chip *chip);
+int idma32_dma_remove(struct dw_dma_chip *chip);
 #else
 static inline int dw_dma_probe(struct dw_dma_chip *chip) { return -ENODEV; }
 static inline int dw_dma_remove(struct dw_dma_chip *chip) { return 0; }
+static inline int idma32_dma_probe(struct dw_dma_chip *chip) { return -ENODEV; }
+static inline int idma32_dma_remove(struct dw_dma_chip *chip) { return 0; }
 #endif /* CONFIG_DW_DMAC_CORE */
 
 #endif /* _DMA_DW_H */

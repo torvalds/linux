@@ -255,7 +255,7 @@ static void dw_shutdown(struct platform_device *pdev)
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
 
 	/*
-	 * We have to call dw_dma_disable() to stop any ongoing transfer. On
+	 * We have to call do_dw_dma_disable() to stop any ongoing transfer. On
 	 * some platforms we can't do that since DMA device is powered off.
 	 * Moreover we have no possibility to check if the platform is affected
 	 * or not. That's why we call pm_runtime_get_sync() / pm_runtime_put()
@@ -264,7 +264,7 @@ static void dw_shutdown(struct platform_device *pdev)
 	 * used by the driver.
 	 */
 	pm_runtime_get_sync(chip->dev);
-	dw_dma_disable(chip);
+	do_dw_dma_disable(chip);
 	pm_runtime_put_sync_suspend(chip->dev);
 
 	clk_disable_unprepare(chip->clk);
@@ -294,7 +294,7 @@ static int dw_suspend_late(struct device *dev)
 {
 	struct dw_dma_chip *chip = dev_get_drvdata(dev);
 
-	dw_dma_disable(chip);
+	do_dw_dma_disable(chip);
 	clk_disable_unprepare(chip->clk);
 
 	return 0;
@@ -309,7 +309,7 @@ static int dw_resume_early(struct device *dev)
 	if (ret)
 		return ret;
 
-	return dw_dma_enable(chip);
+	return do_dw_dma_enable(chip);
 }
 
 #endif /* CONFIG_PM_SLEEP */

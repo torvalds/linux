@@ -38,7 +38,6 @@ struct dw_dma_slave {
 /**
  * struct dw_dma_platform_data - Controller configuration parameters
  * @nr_channels: Number of channels supported by hardware (max 8)
- * @is_idma32: The type of the DMA controller is iDMA32
  * @chan_allocation_order: Allocate channels starting from 0 or 7
  * @chan_priority: Set channel priority increasing from 0 to 7 or 7 to 0.
  * @block_size: Maximum block size supported by the controller
@@ -50,7 +49,6 @@ struct dw_dma_slave {
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
-	bool		is_idma32;
 #define CHAN_ALLOCATION_ASCENDING	0	/* zero to seven */
 #define CHAN_ALLOCATION_DESCENDING	1	/* seven to zero */
 	unsigned char	chan_allocation_order;

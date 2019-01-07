@@ -312,6 +312,19 @@ struct dw_dma {
 	u8			all_chan_mask;
 	u8			in_use;
 
+	/* Channel operations */
+	void	(*initialize_chan)(struct dw_dma_chan *dwc);
+	void	(*suspend_chan)(struct dw_dma_chan *dwc, bool drain);
+	void	(*encode_maxburst)(struct dw_dma_chan *dwc, u32 *maxburst);
+	u32	(*bytes2block)(struct dw_dma_chan *dwc, size_t bytes,
+			       unsigned int width, size_t *len);
+	size_t	(*block2bytes)(struct dw_dma_chan *dwc, u32 block, u32 width);
+
+	/* Device operations */
+	void (*set_device_name)(struct dw_dma *dw, int id);
+	void (*disable)(struct dw_dma *dw);
+	void (*enable)(struct dw_dma *dw);
+
 	/* platform data */
 	struct dw_dma_platform_data	*pdata;
 };
