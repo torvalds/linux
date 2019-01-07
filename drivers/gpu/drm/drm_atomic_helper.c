@@ -1573,6 +1573,15 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	if (old_plane_state->fb != new_plane_state->fb)
 		return -EINVAL;
 
+	/*
+	 * FIXME: Since prepare_fb and cleanup_fb are always called on
+	 * the new_plane_state for async updates we need to block framebuffer
+	 * changes. This prevents use of a fb that's been cleaned up and
+	 * double cleanups from occuring.
+	 */
+	if (old_plane_state->fb != new_plane_state->fb)
+		return -EINVAL;
+
 	funcs = plane->helper_private;
 	if (!funcs->atomic_async_update)
 		return -EINVAL;
