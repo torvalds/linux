@@ -31,5 +31,5 @@
 };
 
 &chosen {
-	bootargs = "earlyprintk=uart8250,mmio32,0xff690000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init root=PARTUUID=af01642c-9b84-11e8-9b2a-234eb5e198a0 kpti=0";
+	bootargs = "earlyprintk=uart8250,mmio32,0xff690000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 androidboot.selinux=permissive init=/init kpti=0";
 };
