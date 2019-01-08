@@ -138,28 +138,6 @@ static int create_fd(struct fsnotify_group *group,
 	return client_fd;
 }
 
-static struct fanotify_perm_event *dequeue_event(
-				struct fsnotify_group *group, int fd)
-{
-	struct fanotify_perm_event *event, *return_e = NULL;
-
-	spin_lock(&group->notification_lock);
-	list_for_each_entry(event, &group->fanotify_data.access_list,
-			    fae.fse.list) {
-		if (event->fd != fd)
-			continue;
-
-		list_del_init(&event->fae.fse.list);
-		return_e = event;
-		break;
-	}
-	spin_unlock(&group->notification_lock);
-
-	pr_debug("%s: found return_re=%p\n", __func__, return_e);
-
-	return return_e;
-}
-
 static int process_access_response(struct fsnotify_group *group,
 				   struct fanotify_response *response_struct)
 {
@@ -188,14 +166,21 @@ static int process_access_response(struct fsnotify_group *group,
 	if ((response & FAN_AUDIT) && !FAN_GROUP_FLAG(group, FAN_ENABLE_AUDIT))
 		return -EINVAL;
 
-	event = dequeue_event(group, fd);
-	if (!event)
-		return -ENOENT;
+	spin_lock(&group->notification_lock);
+	list_for_each_entry(event, &group->fanotify_data.access_list,
+			    fae.fse.list) {
+		if (event->fd != fd)
+			continue;
 
-	event->response = response;
-	wake_up(&group->fanotify_data.access_waitq);
+		list_del_init(&event->fae.fse.list);
+		event->response = response;
+		spin_unlock(&group->notification_lock);
+		wake_up(&group->fanotify_data.access_waitq);
+		return 0;
+	}
+	spin_unlock(&group->notification_lock);
 
-	return 0;
+	return -ENOENT;
 }
 
 static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
