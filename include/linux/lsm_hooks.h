@@ -1270,7 +1270,7 @@
  *	@cred contains the credentials to use.
  *	@ns contains the user namespace we want the capability in
  *	@cap contains the capability <include/linux/capability.h>.
- *	@audit contains whether to write an audit message or not
+ *	@opts contains options for the capable check <include/linux/security.h>
  *	Return 0 if the capability is granted for @tsk.
  * @syslog:
  *	Check permission before accessing the kernel message ring or changing
@@ -1446,8 +1446,10 @@ union security_list_options {
 			const kernel_cap_t *effective,
 			const kernel_cap_t *inheritable,
 			const kernel_cap_t *permitted);
-	int (*capable)(const struct cred *cred, struct user_namespace *ns,
-			int cap, int audit);
+	int (*capable)(const struct cred *cred,
+			struct user_namespace *ns,
+			int cap,
+			unsigned int opts);
 	int (*quotactl)(int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on)(struct dentry *dentry);
 	int (*syslog)(int type);
