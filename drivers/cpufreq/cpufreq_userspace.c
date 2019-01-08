@@ -82,20 +82,18 @@ static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 
 	mutex_lock(&userspace_mutex);
 	per_cpu(cpu_is_managed, policy->cpu) = 1;
-	*setspeed = policy->cur;
+	if (!*setspeed)
+		*setspeed = policy->cur;
 	mutex_unlock(&userspace_mutex);
 	return 0;
 }
 
 static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed = policy->governor_data;
-
 	pr_debug("managing cpu %u stopped\n", policy->cpu);
 
 	mutex_lock(&userspace_mutex);
 	per_cpu(cpu_is_managed, policy->cpu) = 0;
-	*setspeed = 0;
 	mutex_unlock(&userspace_mutex);
 }
 
