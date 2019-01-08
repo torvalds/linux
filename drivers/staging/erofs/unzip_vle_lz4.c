@@ -13,7 +13,7 @@
 #include "unzip_vle.h"
 #include <linux/lz4.h>
 
-int z_erofs_unzip_lz4(void *in, void *out, size_t inlen, size_t outlen)
+static int z_erofs_unzip_lz4(void *in, void *out, size_t inlen, size_t outlen)
 {
 	int ret = LZ4_decompress_safe_partial(in, out, inlen, outlen, outlen);
 

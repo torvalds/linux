@@ -589,7 +589,7 @@ static void __z_erofs_vle_work_release(struct z_erofs_vle_workgroup *grp,
 	erofs_workgroup_put(&grp->obj);
 }
 
-void z_erofs_vle_work_release(struct z_erofs_vle_work *work)
+static void z_erofs_vle_work_release(struct z_erofs_vle_work *work)
 {
 	struct z_erofs_vle_workgroup *grp =
 		z_erofs_vle_work_workgroup(work, true);
