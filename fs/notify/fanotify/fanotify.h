@@ -8,6 +8,13 @@ extern struct kmem_cache *fanotify_mark_cache;
 extern struct kmem_cache *fanotify_event_cachep;
 extern struct kmem_cache *fanotify_perm_event_cachep;
 
+/* Possible states of the permission event */
+enum {
+	FAN_EVENT_INIT,
+	FAN_EVENT_REPORTED,
+	FAN_EVENT_ANSWERED
+};
+
 /*
  * 3 dwords are sufficient for most local fs (64bit ino, 32bit generation).
  * For 32bit arch, fid increases the size of fanotify_event by 12 bytes and
@@ -109,7 +116,8 @@ static inline void *fanotify_event_fh(struct fanotify_event *event)
  */
 struct fanotify_perm_event {
 	struct fanotify_event fae;
-	int response;	/* userspace answer to question */
+	unsigned short response;	/* userspace answer to the event */
+	unsigned short state;		/* state of the event */
 	int fd;		/* fd we passed to userspace for this event */
 };
 
