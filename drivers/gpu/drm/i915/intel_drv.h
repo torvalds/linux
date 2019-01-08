@@ -1057,7 +1057,6 @@ struct intel_hdmi {
 	} dp_dual_mode;
 	bool has_hdmi_sink;
 	bool has_audio;
-	bool rgb_quant_range_selectable;
 	struct intel_connector *attached_connector;
 	struct cec_notifier *cec_notifier;
 };

@@ -462,7 +462,6 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state,
 					 const struct drm_connector_state *conn_state)
 {
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
 	union hdmi_infoframe frame;
@@ -488,8 +487,7 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 					   adjusted_mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
-					   HDMI_QUANTIZATION_RANGE_FULL,
-					   intel_hdmi->rgb_quant_range_selectable);
+					   HDMI_QUANTIZATION_RANGE_FULL);
 
 	drm_hdmi_avi_infoframe_content_type(&frame.avi,
 					    conn_state);
@@ -1816,7 +1814,6 @@ intel_hdmi_unset_edid(struct drm_connector *connector)
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
-	intel_hdmi->rgb_quant_range_selectable = false;
 
 	intel_hdmi->dp_dual_mode.type = DRM_DP_DUAL_MODE_NONE;
 	intel_hdmi->dp_dual_mode.max_tmds_clock = 0;
@@ -1900,9 +1897,6 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 
 	to_intel_connector(connector)->detect_edid = edid;
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
-		intel_hdmi->rgb_quant_range_selectable =
-			drm_rgb_quant_range_selectable(edid);
-
 		intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
 		intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
 

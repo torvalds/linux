@@ -366,6 +366,12 @@ struct drm_display_info {
 	bool has_hdmi_infoframe;
 
 	/**
+	 * @rgb_quant_range_selectable: Does the sink support selecting
+	 * the RGB quantization range?
+	 */
+	bool rgb_quant_range_selectable;
+
+	/**
 	 * @edid_hdmi_dc_modes: Mask of supported hdmi deep color modes. Even
 	 * more stuff redundant with @bus_formats.
 	 */

@@ -526,8 +526,7 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 		drm_hdmi_avi_infoframe_quant_range(&frame, connector, mode,
 						   radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB ?
 						   HDMI_QUANTIZATION_RANGE_LIMITED :
-						   HDMI_QUANTIZATION_RANGE_FULL,
-						   drm_rgb_quant_range_selectable(radeon_connector_edid(connector)));
+						   HDMI_QUANTIZATION_RANGE_FULL);
 	}
 
 	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));

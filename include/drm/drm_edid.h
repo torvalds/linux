@@ -362,8 +362,7 @@ void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
-				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable);
+				   enum hdmi_quantization_range rgb_quant_range);
 
 /**
  * drm_eld_mnl - Get ELD monitor name length in bytes.
@@ -471,7 +470,6 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
 bool drm_detect_hdmi_monitor(struct edid *edid);
 bool drm_detect_monitor_audio(struct edid *edid);
-bool drm_rgb_quant_range_selectable(struct edid *edid);
 enum hdmi_quantization_range
 drm_default_rgb_quant_range(const struct drm_display_mode *mode);
 int drm_add_modes_noedid(struct drm_connector *connector,

@@ -3641,6 +3641,20 @@ static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
 	return oui == HDMI_FORUM_IEEE_OUI;
 }
 
+static bool cea_db_is_vcdb(const u8 *db)
+{
+	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+		return false;
+
+	if (cea_db_payload_len(db) != 2)
+		return false;
+
+	if (cea_db_extended_tag(db) != EXT_VIDEO_CAPABILITY_BLOCK)
+		return false;
+
+	return true;
+}
+
 static bool cea_db_is_y420cmdb(const u8 *db)
 {
 	if (cea_db_tag(db) != USE_EXTENDED_TAG)
@@ -4223,41 +4237,6 @@ end:
 }
 EXPORT_SYMBOL(drm_detect_monitor_audio);
 
-/**
- * drm_rgb_quant_range_selectable - is RGB quantization range selectable?
- * @edid: EDID block to scan
- *
- * Check whether the monitor reports the RGB quantization range selection
- * as supported. The AVI infoframe can then be used to inform the monitor
- * which quantization range (full or limited) is used.
- *
- * Return: True if the RGB quantization range is selectable, false otherwise.
- */
-bool drm_rgb_quant_range_selectable(struct edid *edid)
-{
-	u8 *edid_ext;
-	int i, start, end;
-
-	edid_ext = drm_find_cea_extension(edid);
-	if (!edid_ext)
-		return false;
-
-	if (cea_db_offsets(edid_ext, &start, &end))
-		return false;
-
-	for_each_cea_db(edid_ext, i, start, end) {
-		if (cea_db_tag(&edid_ext[i]) == USE_EXTENDED_TAG &&
-		    cea_db_payload_len(&edid_ext[i]) == 2 &&
-		    cea_db_extended_tag(&edid_ext[i]) ==
-			EXT_VIDEO_CAPABILITY_BLOCK) {
-			DRM_DEBUG_KMS("CEA VCDB 0x%02x\n", edid_ext[i + 2]);
-			return edid_ext[i + 2] & EDID_CEA_VCDB_QS;
-		}
-	}
-
-	return false;
-}
-EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 
 /**
  * drm_default_rgb_quant_range - default RGB quantization range
@@ -4277,6 +4256,16 @@ drm_default_rgb_quant_range(const struct drm_display_mode *mode)
 		HDMI_QUANTIZATION_RANGE_FULL;
 }
 EXPORT_SYMBOL(drm_default_rgb_quant_range);
+
+static void drm_parse_vcdb(struct drm_connector *connector, const u8 *db)
+{
+	struct drm_display_info *info = &connector->display_info;
+
+	DRM_DEBUG_KMS("CEA VCDB 0x%02x\n", db[2]);
+
+	if (db[2] & EDID_CEA_VCDB_QS)
+		info->rgb_quant_range_selectable = true;
+}
 
 static void drm_parse_ycbcr420_deep_color_info(struct drm_connector *connector,
 					       const u8 *db)
@@ -4452,6 +4441,8 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 			drm_parse_hdmi_forum_vsdb(connector, db);
 		if (cea_db_is_y420cmdb(db))
 			drm_parse_y420cmdb_bitmap(connector, db);
+		if (cea_db_is_vcdb(db))
+			drm_parse_vcdb(connector, db);
 	}
 }
 
@@ -4472,6 +4463,7 @@ drm_reset_display_info(struct drm_connector *connector)
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
 	info->has_hdmi_infoframe = false;
+	info->rgb_quant_range_selectable = false;
 	memset(&info->hdmi, 0, sizeof(info->hdmi));
 
 	info->non_desktop = 0;
@@ -4939,15 +4931,15 @@ EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
  * @connector: the connector
  * @mode: DRM display mode
  * @rgb_quant_range: RGB quantization range (Q)
- * @rgb_quant_range_selectable: Sink support selectable RGB quantization range (QS)
  */
 void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
-				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable)
+				   enum hdmi_quantization_range rgb_quant_range)
 {
+	const struct drm_display_info *info = &connector->display_info;
+
 	/*
 	 * CEA-861:
 	 * "A Source shall not send a non-zero Q value that does not correspond
@@ -4958,7 +4950,7 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 * HDMI 2.0 recommends sending non-zero Q when it does match the
 	 * default RGB quantization range for the mode, even when QS=0.
 	 */
-	if (rgb_quant_range_selectable ||
+	if (info->rgb_quant_range_selectable ||
 	    rgb_quant_range == drm_default_rgb_quant_range(mode))
 		frame->quantization_range = rgb_quant_range;
 	else
