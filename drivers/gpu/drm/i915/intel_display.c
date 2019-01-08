@@ -11700,6 +11700,11 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 		(current_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
 		!(pipe_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED);
 
+	if (fixup_inherited && !i915_modparams.fastboot) {
+		DRM_DEBUG_KMS("initial modeset and fastboot not set\n");
+		ret = false;
+	}
+
 #define PIPE_CONF_CHECK_X(name) do { \
 	if (current_config->name != pipe_config->name) { \
 		pipe_config_err(adjust, __stringify(name), \
@@ -12723,8 +12728,7 @@ static int intel_atomic_check(struct drm_device *dev,
 			return ret;
 		}
 
-		if (i915_modparams.fastboot &&
-		    intel_pipe_config_compare(dev_priv,
+		if (intel_pipe_config_compare(dev_priv,
 					to_intel_crtc_state(old_crtc_state),
 					pipe_config, true)) {
 			crtc_state->mode_changed = false;
