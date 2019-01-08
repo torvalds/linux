@@ -103,6 +103,7 @@ struct mt9m001 {
 	int num_fmts;
 	unsigned int total_h;
 	unsigned short y_skip_top;	/* Lines to skip at the top */
+	struct media_pad pad;
 };
 
 static struct mt9m001 *to_mt9m001(const struct i2c_client *client)
@@ -761,6 +762,12 @@ static int mt9m001_probe(struct i2c_client *client,
 	if (ret)
 		goto error_power_off;
 
+	mt9m001->pad.flags = MEDIA_PAD_FL_SOURCE;
+	mt9m001->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&mt9m001->subdev.entity, 1, &mt9m001->pad);
+	if (ret)
+		goto error_power_off;
+
 	pm_runtime_idle(&client->dev);
 
 	return 0;
@@ -783,6 +790,8 @@ static int mt9m001_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&mt9m001->subdev);
 	pm_runtime_get_sync(&client->dev);
+
+	media_entity_cleanup(&mt9m001->subdev.entity);
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
