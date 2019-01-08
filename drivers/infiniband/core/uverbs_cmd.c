@@ -234,13 +234,10 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	ucontext->closing = false;
 	ucontext->cleanup_retryable = false;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	mutex_init(&ucontext->per_mm_list_lock);
 	INIT_LIST_HEAD(&ucontext->per_mm_list);
 	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
 		ucontext->invalidate_range = NULL;
-
-#endif
 
 	resp.num_comp_vectors = file->device->num_comp_vectors;
 

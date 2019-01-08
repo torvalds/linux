@@ -1763,9 +1763,9 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (err)
 		goto out_sys_pages;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	context->ibucontext.invalidate_range = &mlx5_ib_invalidate_range;
-#endif
+	if (ibdev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING)
+		context->ibucontext.invalidate_range =
+			&mlx5_ib_invalidate_range;
 
 	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX) {
 		err = mlx5_ib_devx_create(dev, true);
@@ -1897,12 +1897,10 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	struct mlx5_ib_dev *dev = to_mdev(ibcontext->device);
 	struct mlx5_bfreg_info *bfregi;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	/* All umem's must be destroyed before destroying the ucontext. */
 	mutex_lock(&ibcontext->per_mm_list_lock);
 	WARN_ON(!list_empty(&ibcontext->per_mm_list));
 	mutex_unlock(&ibcontext->per_mm_list_lock);
-#endif
 
 	bfregi = &context->bfregi;
 	mlx5_ib_dealloc_transport_domain(dev, context->tdn, context->devx_uid);
@@ -5722,11 +5720,11 @@ static struct ib_counters *mlx5_ib_create_counters(struct ib_device *device,
 void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	cleanup_srcu_struct(&dev->mr_srcu);
-	drain_workqueue(dev->advise_mr_wq);
-	destroy_workqueue(dev->advise_mr_wq);
-#endif
+	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
+		cleanup_srcu_struct(&dev->mr_srcu);
+		drain_workqueue(dev->advise_mr_wq);
+		destroy_workqueue(dev->advise_mr_wq);
+	}
 	kfree(dev->port);
 }
 
@@ -5779,19 +5777,20 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	spin_lock_init(&dev->memic.memic_lock);
 	dev->memic.dev = mdev;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	dev->advise_mr_wq = alloc_ordered_workqueue("mlx5_ib_advise_mr_wq", 0);
-	if (!dev->advise_mr_wq) {
-		err = -ENOMEM;
-		goto err_mp;
-	}
+	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
+		dev->advise_mr_wq =
+			alloc_ordered_workqueue("mlx5_ib_advise_mr_wq", 0);
+		if (!dev->advise_mr_wq) {
+			err = -ENOMEM;
+			goto err_mp;
+		}
 
-	err = init_srcu_struct(&dev->mr_srcu);
-	if (err) {
-		destroy_workqueue(dev->advise_mr_wq);
-		goto err_mp;
+		err = init_srcu_struct(&dev->mr_srcu);
+		if (err) {
+			destroy_workqueue(dev->advise_mr_wq);
+			goto err_mp;
+		}
 	}
-#endif
 
 	return 0;
 err_mp:
