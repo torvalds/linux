@@ -29,7 +29,6 @@
  * registers; newer ones are much simpler and we can use the new DRM plane
  * support.
  */
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>

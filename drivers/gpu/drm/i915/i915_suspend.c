@@ -24,7 +24,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "intel_drv.h"
 #include "i915_reg.h"

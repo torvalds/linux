@@ -24,7 +24,6 @@
 #ifndef _INTEL_DSI_H
 #define _INTEL_DSI_H
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include "intel_drv.h"

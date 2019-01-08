@@ -25,7 +25,6 @@
  *
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"

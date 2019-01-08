@@ -6,7 +6,6 @@
  * Sean Paul <seanpaul@chromium.org>
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_hdcp.h>
 #include <linux/i2c.h>
 #include <linux/random.h>

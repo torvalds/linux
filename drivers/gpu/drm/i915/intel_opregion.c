@@ -30,7 +30,6 @@
 #include <linux/firmware.h>
 #include <acpi/video.h>
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 
 #include "intel_opregion.h"

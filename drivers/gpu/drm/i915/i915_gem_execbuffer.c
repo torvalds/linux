@@ -31,7 +31,6 @@
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_syncobj.h>
 #include <drm/i915_drm.h>
 

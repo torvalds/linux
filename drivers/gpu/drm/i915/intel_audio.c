@@ -27,7 +27,6 @@
 #include <drm/intel_lpe_audio.h>
 #include "intel_drv.h"
 
-#include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include "i915_drv.h"
 

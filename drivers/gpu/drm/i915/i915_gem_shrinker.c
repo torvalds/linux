@@ -30,7 +30,6 @@
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
 #include <linux/vmalloc.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"

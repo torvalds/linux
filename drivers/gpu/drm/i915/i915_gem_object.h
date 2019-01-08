@@ -29,7 +29,8 @@
 
 #include <drm/drm_vma_manager.h>
 #include <drm/drm_gem.h>
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_device.h>
 
 #include <drm/i915_drm.h>
 

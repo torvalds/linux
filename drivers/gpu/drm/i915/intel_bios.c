@@ -26,7 +26,6 @@
  */
 
 #include <drm/drm_dp_helper.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 

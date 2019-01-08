@@ -25,7 +25,6 @@
  *
  * Derived from Xorg ddx, xf86-video-intel, src/i830_video.c
  */
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_reg.h"

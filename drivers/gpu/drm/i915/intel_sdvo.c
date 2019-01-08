@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/export.h>
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>

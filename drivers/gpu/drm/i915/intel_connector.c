@@ -27,7 +27,6 @@
 #include <linux/i2c.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
-#include <drm/drmP.h>
 #include "intel_drv.h"
 #include "i915_drv.h"
 
