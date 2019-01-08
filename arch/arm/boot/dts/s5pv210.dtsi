@@ -25,6 +25,8 @@
 
 	aliases {
 		csis0 = &csis0;
+		dmc0 = &dmc0;
+		dmc1 = &dmc1;
 		fimc0 = &fimc0;
 		fimc1 = &fimc1;
 		fimc2 = &fimc2;
@@ -519,6 +521,16 @@
 			clocks = <&clocks SCLK_FIMD>, <&clocks CLK_FIMD>;
 			clock-names = "sclk_fimd", "fimd";
 			status = "disabled";
+		};
+
+		dmc0: dmc@f0000000 {
+			compatible = "samsung,s5pv210-dmc";
+			reg = <0xf0000000 0x1000>;
+		};
+
+		dmc1: dmc@f1400000 {
+			compatible = "samsung,s5pv210-dmc";
+			reg = <0xf1400000 0x1000>;
 		};
 
 		g2d: g2d@fa000000 {
