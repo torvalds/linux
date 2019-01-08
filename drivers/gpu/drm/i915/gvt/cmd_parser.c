@@ -55,10 +55,10 @@ struct sub_op_bits {
 	int low;
 };
 struct decode_info {
-	char *name;
+	const char *name;
 	int op_len;
 	int nr_sub_op;
-	struct sub_op_bits *sub_op;
+	const struct sub_op_bits *sub_op;
 };
 
 #define   MAX_CMD_BUDGET			0x7fffffff
@@ -485,12 +485,12 @@ struct parser_exec_state {
 static unsigned long bypass_scan_mask = 0;
 
 /* ring ALL, type = 0 */
-static struct sub_op_bits sub_op_mi[] = {
+static const struct sub_op_bits sub_op_mi[] = {
 	{31, 29},
 	{28, 23},
 };
 
-static struct decode_info decode_info_mi = {
+static const struct decode_info decode_info_mi = {
 	"MI",
 	OP_LEN_MI,
 	ARRAY_SIZE(sub_op_mi),
@@ -498,12 +498,12 @@ static struct decode_info decode_info_mi = {
 };
 
 /* ring RCS, command type 2 */
-static struct sub_op_bits sub_op_2d[] = {
+static const struct sub_op_bits sub_op_2d[] = {
 	{31, 29},
 	{28, 22},
 };
 
-static struct decode_info decode_info_2d = {
+static const struct decode_info decode_info_2d = {
 	"2D",
 	OP_LEN_2D,
 	ARRAY_SIZE(sub_op_2d),
@@ -511,14 +511,14 @@ static struct decode_info decode_info_2d = {
 };
 
 /* ring RCS, command type 3 */
-static struct sub_op_bits sub_op_3d_media[] = {
+static const struct sub_op_bits sub_op_3d_media[] = {
 	{31, 29},
 	{28, 27},
 	{26, 24},
 	{23, 16},
 };
 
-static struct decode_info decode_info_3d_media = {
+static const struct decode_info decode_info_3d_media = {
 	"3D_Media",
 	OP_LEN_3D_MEDIA,
 	ARRAY_SIZE(sub_op_3d_media),
@@ -526,7 +526,7 @@ static struct decode_info decode_info_3d_media = {
 };
 
 /* ring VCS, command type 3 */
-static struct sub_op_bits sub_op_mfx_vc[] = {
+static const struct sub_op_bits sub_op_mfx_vc[] = {
 	{31, 29},
 	{28, 27},
 	{26, 24},
@@ -534,7 +534,7 @@ static struct sub_op_bits sub_op_mfx_vc[] = {
 	{20, 16},
 };
 
-static struct decode_info decode_info_mfx_vc = {
+static const struct decode_info decode_info_mfx_vc = {
 	"MFX_VC",
 	OP_LEN_MFX_VC,
 	ARRAY_SIZE(sub_op_mfx_vc),
@@ -542,7 +542,7 @@ static struct decode_info decode_info_mfx_vc = {
 };
 
 /* ring VECS, command type 3 */
-static struct sub_op_bits sub_op_vebox[] = {
+static const struct sub_op_bits sub_op_vebox[] = {
 	{31, 29},
 	{28, 27},
 	{26, 24},
@@ -550,14 +550,14 @@ static struct sub_op_bits sub_op_vebox[] = {
 	{20, 16},
 };
 
-static struct decode_info decode_info_vebox = {
+static const struct decode_info decode_info_vebox = {
 	"VEBOX",
 	OP_LEN_VEBOX,
 	ARRAY_SIZE(sub_op_vebox),
 	sub_op_vebox,
 };
 
-static struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
+static const struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
 	[RCS] = {
 		&decode_info_mi,
 		NULL,
@@ -616,7 +616,7 @@ static struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
 
 static inline u32 get_opcode(u32 cmd, int ring_id)
 {
-	struct decode_info *d_info;
+	const struct decode_info *d_info;
 
 	d_info = ring_decode_info[ring_id][CMD_TYPE(cmd)];
 	if (d_info == NULL)
@@ -657,7 +657,7 @@ static inline u32 sub_op_val(u32 cmd, u32 hi, u32 low)
 
 static inline void print_opcode(u32 cmd, int ring_id)
 {
-	struct decode_info *d_info;
+	const struct decode_info *d_info;
 	int i;
 
 	d_info = ring_decode_info[ring_id][CMD_TYPE(cmd)];
