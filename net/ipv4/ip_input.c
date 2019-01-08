@@ -188,51 +188,50 @@ bool ip_call_ra_chain(struct sk_buff *skb)
 	return false;
 }
 
+void ip_protocol_deliver_rcu(struct net *net, struct sk_buff *skb, int protocol)
+{
+	const struct net_protocol *ipprot;
+	int raw, ret;
+
+resubmit:
+	raw = raw_local_deliver(skb, protocol);
+
+	ipprot = rcu_dereference(inet_protos[protocol]);
+	if (ipprot) {
+		if (!ipprot->no_policy) {
+			if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+				kfree_skb(skb);
+				return;
+			}
+			nf_reset(skb);
+		}
+		ret = ipprot->handler(skb);
+		if (ret < 0) {
+			protocol = -ret;
+			goto resubmit;
+		}
+		__IP_INC_STATS(net, IPSTATS_MIB_INDELIVERS);
+	} else {
+		if (!raw) {
+			if (xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+				__IP_INC_STATS(net, IPSTATS_MIB_INUNKNOWNPROTOS);
+				icmp_send(skb, ICMP_DEST_UNREACH,
+					  ICMP_PROT_UNREACH, 0);
+			}
+			kfree_skb(skb);
+		} else {
+			__IP_INC_STATS(net, IPSTATS_MIB_INDELIVERS);
+			consume_skb(skb);
+		}
+	}
+}
+
 static int ip_local_deliver_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	__skb_pull(skb, skb_network_header_len(skb));
 
 	rcu_read_lock();
-	{
-		int protocol = ip_hdr(skb)->protocol;
-		const struct net_protocol *ipprot;
-		int raw;
-
-	resubmit:
-		raw = raw_local_deliver(skb, protocol);
-
-		ipprot = rcu_dereference(inet_protos[protocol]);
-		if (ipprot) {
-			int ret;
-
-			if (!ipprot->no_policy) {
-				if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-					kfree_skb(skb);
-					goto out;
-				}
-				nf_reset(skb);
-			}
-			ret = ipprot->handler(skb);
-			if (ret < 0) {
-				protocol = -ret;
-				goto resubmit;
-			}
-			__IP_INC_STATS(net, IPSTATS_MIB_INDELIVERS);
-		} else {
-			if (!raw) {
-				if (xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-					__IP_INC_STATS(net, IPSTATS_MIB_INUNKNOWNPROTOS);
-					icmp_send(skb, ICMP_DEST_UNREACH,
-						  ICMP_PROT_UNREACH, 0);
-				}
-				kfree_skb(skb);
-			} else {
-				__IP_INC_STATS(net, IPSTATS_MIB_INDELIVERS);
-				consume_skb(skb);
-			}
-		}
-	}
- out:
+	ip_protocol_deliver_rcu(net, skb, ip_hdr(skb)->protocol);
 	rcu_read_unlock();
 
 	return 0;
@@ -547,7 +546,7 @@ static void ip_list_rcv_finish(struct net *net, struct sock *sk,
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct dst_entry *dst;
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		/* if ingress device is enslaved to an L3 master device pass the
 		 * skb to its handler for processing
 		 */
@@ -594,7 +593,7 @@ void ip_list_rcv(struct list_head *head, struct packet_type *pt,
 		struct net_device *dev = skb->dev;
 		struct net *net = dev_net(dev);
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		skb = ip_rcv_core(skb, net);
 		if (skb == NULL)
 			continue;

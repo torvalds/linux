@@ -1,6 +1,6 @@
 * Renesas R-Car (RZ/G) DMA Controller Device Tree bindings
 
-Renesas R-Car Generation 2 SoCs have multiple multi-channel DMA
+Renesas R-Car (Gen 2/3) and RZ/G SoCs have multiple multi-channel DMA
 controller instances named DMAC capable of serving multiple clients. Channels
 can be dedicated to specific clients or shared between a large number of
 clients.
@@ -20,6 +20,8 @@ Required Properties:
 		- "renesas,dmac-r8a7744" (RZ/G1N)
 		- "renesas,dmac-r8a7745" (RZ/G1E)
 		- "renesas,dmac-r8a77470" (RZ/G1C)
+		- "renesas,dmac-r8a774a1" (RZ/G2M)
+		- "renesas,dmac-r8a774c0" (RZ/G2E)
 		- "renesas,dmac-r8a7790" (R-Car H2)
 		- "renesas,dmac-r8a7791" (R-Car M2-W)
 		- "renesas,dmac-r8a7792" (R-Car V2H)

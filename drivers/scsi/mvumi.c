@@ -2197,6 +2197,7 @@ static struct scsi_host_template mvumi_template = {
 	.eh_timed_out = mvumi_timed_out,
 	.eh_host_reset_handler = mvumi_host_reset,
 	.bios_param = mvumi_bios_param,
+	.dma_boundary = PAGE_SIZE - 1,
 	.this_id = -1,
 };
 
@@ -2620,7 +2621,7 @@ static int __maybe_unused mvumi_resume(struct pci_dev *pdev)
 	}
 
 	ret = mvumi_pci_set_master(pdev);
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
 		goto fail;
 	ret = pci_request_regions(mhba->pdev, MV_DRIVER_NAME);

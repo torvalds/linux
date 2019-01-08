@@ -15,7 +15,7 @@ extern const char hns3_driver_version[];
 enum hns3_nic_state {
 	HNS3_NIC_STATE_TESTING,
 	HNS3_NIC_STATE_RESETTING,
-	HNS3_NIC_STATE_REINITING,
+	HNS3_NIC_STATE_INITED,
 	HNS3_NIC_STATE_DOWN,
 	HNS3_NIC_STATE_DISABLED,
 	HNS3_NIC_STATE_REMOVING,
@@ -47,7 +47,7 @@ enum hns3_nic_state {
 #define HNS3_RING_PREFETCH_EN_REG		0x0007C
 #define HNS3_RING_CFG_VF_NUM_REG		0x00080
 #define HNS3_RING_ASID_REG			0x0008C
-#define HNS3_RING_RX_VM_REG			0x00090
+#define HNS3_RING_EN_REG			0x00090
 #define HNS3_RING_T0_BE_RST			0x00094
 #define HNS3_RING_COULD_BE_RST			0x00098
 #define HNS3_RING_WRR_WEIGHT_REG		0x0009c
@@ -76,7 +76,10 @@ enum hns3_nic_state {
 #define HNS3_RING_MAX_PENDING			32768
 #define HNS3_RING_MIN_PENDING			8
 #define HNS3_RING_BD_MULTIPLE			8
-#define HNS3_MAX_MTU				9728
+/* max frame size of mac */
+#define HNS3_MAC_MAX_FRAME			9728
+#define HNS3_MAX_MTU \
+	(HNS3_MAC_MAX_FRAME - (ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN))
 
 #define HNS3_BD_SIZE_512_TYPE			0
 #define HNS3_BD_SIZE_1024_TYPE			1
@@ -109,6 +112,10 @@ enum hns3_nic_state {
 #define HNS3_RXD_DOI_B				21
 #define HNS3_RXD_OL3E_B				22
 #define HNS3_RXD_OL4E_B				23
+#define HNS3_RXD_GRO_COUNT_S			24
+#define HNS3_RXD_GRO_COUNT_M			(0x3f << HNS3_RXD_GRO_COUNT_S)
+#define HNS3_RXD_GRO_FIXID_B			30
+#define HNS3_RXD_GRO_ECN_B			31
 
 #define HNS3_RXD_ODMAC_S			0
 #define HNS3_RXD_ODMAC_M			(0x3 << HNS3_RXD_ODMAC_S)
@@ -135,9 +142,8 @@ enum hns3_nic_state {
 #define HNS3_RXD_TSIND_S			12
 #define HNS3_RXD_TSIND_M			(0x7 << HNS3_RXD_TSIND_S)
 #define HNS3_RXD_LKBK_B				15
-#define HNS3_RXD_HDL_S				16
-#define HNS3_RXD_HDL_M				(0x7ff << HNS3_RXD_HDL_S)
-#define HNS3_RXD_HSIND_B			31
+#define HNS3_RXD_GRO_SIZE_S			16
+#define HNS3_RXD_GRO_SIZE_M			(0x3ff << HNS3_RXD_GRO_SIZE_S)
 
 #define HNS3_TXD_L3T_S				0
 #define HNS3_TXD_L3T_M				(0x3 << HNS3_TXD_L3T_S)
@@ -193,6 +199,8 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_GL2_OFFSET			0x300
 #define HNS3_VECTOR_RL_OFFSET			0x900
 #define HNS3_VECTOR_RL_EN_B			6
+
+#define HNS3_RING_EN_B				0
 
 enum hns3_pkt_l3t_type {
 	HNS3_L3T_NONE,
@@ -399,11 +407,19 @@ struct hns3_enet_ring {
 	 */
 	int next_to_clean;
 
+	int pull_len; /* head length for current packet */
+	u32 frag_num;
+	unsigned char *va; /* first buffer address for current packet */
+
 	u32 flag;          /* ring attribute */
 	int irq_init_flag;
 
 	int numa_node;
 	cpumask_t affinity_mask;
+
+	int pending_buf;
+	struct sk_buff *skb;
+	struct sk_buff *tail_skb;
 };
 
 struct hns_queue;
@@ -460,8 +476,6 @@ enum hns3_link_mode_bits {
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
 
-#define HNS3_INT_ADAPT_DOWN_START	100
-
 struct hns3_enet_coalesce {
 	u16 int_gl;
 	u8 gl_adapt_enable;
@@ -496,8 +510,6 @@ struct hns3_enet_tqp_vector {
 
 	char name[HNAE3_INT_NAME_LEN];
 
-	/* when 0 should adjust interrupt coalesce parameter */
-	u8 int_adapt_down;
 	unsigned long last_jiffies;
 } ____cacheline_internodealigned_in_smp;
 
@@ -577,6 +589,11 @@ static inline int is_ring_empty(struct hns3_enet_ring *ring)
 	return ring->next_to_use == ring->next_to_clean;
 }
 
+static inline u32 hns3_read_reg(void __iomem *base, u32 reg)
+{
+	return readl(base + reg);
+}
+
 static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 {
 	u8 __iomem *reg_addr = READ_ONCE(base);
@@ -586,7 +603,21 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 
 static inline bool hns3_dev_ongoing_func_reset(struct hnae3_ae_dev *ae_dev)
 {
-	return (ae_dev && (ae_dev->reset_type == HNAE3_FUNC_RESET));
+	return (ae_dev && (ae_dev->reset_type == HNAE3_FUNC_RESET ||
+			   ae_dev->reset_type == HNAE3_FLR_RESET ||
+			   ae_dev->reset_type == HNAE3_VF_FUNC_RESET ||
+			   ae_dev->reset_type == HNAE3_VF_FULL_RESET ||
+			   ae_dev->reset_type == HNAE3_VF_PF_FUNC_RESET));
+}
+
+#define hns3_read_dev(a, reg) \
+	hns3_read_reg((a)->io_base, (reg))
+
+static inline bool hns3_nic_resetting(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	return test_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 }
 
 #define hns3_write_dev(a, reg, value) \
@@ -648,4 +679,8 @@ void hns3_dcbnl_setup(struct hnae3_handle *handle);
 static inline void hns3_dcbnl_setup(struct hnae3_handle *handle) {}
 #endif
 
+void hns3_dbg_init(struct hnae3_handle *handle);
+void hns3_dbg_uninit(struct hnae3_handle *handle);
+void hns3_dbg_register_debugfs(const char *debugfs_dir_name);
+void hns3_dbg_unregister_debugfs(void);
 #endif

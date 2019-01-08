@@ -618,6 +618,30 @@ static const struct panel_desc auo_g070vvn01 = {
 	},
 };
 
+static const struct drm_display_mode auo_g101evn010_mode = {
+	.clock = 68930,
+	.hdisplay = 1280,
+	.hsync_start = 1280 + 82,
+	.hsync_end = 1280 + 82 + 2,
+	.htotal = 1280 + 82 + 2 + 84,
+	.vdisplay = 800,
+	.vsync_start = 800 + 8,
+	.vsync_end = 800 + 8 + 2,
+	.vtotal = 800 + 8 + 2 + 6,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_g101evn010 = {
+	.modes = &auo_g101evn010_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 216,
+		.height = 135,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct drm_display_mode auo_g104sn02_mode = {
 	.clock = 40000,
 	.hdisplay = 800,
@@ -2493,6 +2517,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "auo,g070vvn01",
 		.data = &auo_g070vvn01,
+	}, {
+		.compatible = "auo,g101evn010",
+		.data = &auo_g101evn010,
 	}, {
 		.compatible = "auo,g104sn02",
 		.data = &auo_g104sn02,

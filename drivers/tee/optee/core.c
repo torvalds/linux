@@ -631,6 +631,9 @@ static struct optee *optee_probe(struct device_node *np)
 
 	optee_enable_shm_cache(optee);
 
+	if (optee->sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
+		pr_info("dynamic shared memory is enabled\n");
+
 	pr_info("initialized driver\n");
 	return optee;
 err:

@@ -186,13 +186,9 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 			       struct qxl_bo *bo, void *pmap)
 {
 	struct ttm_mem_type_manager *man = &bo->tbo.bdev->man[bo->tbo.mem.mem_type];
-	struct io_mapping *map;
 
-	if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
-		map = qdev->vram_mapping;
-	else if (bo->tbo.mem.mem_type == TTM_PL_PRIV)
-		map = qdev->surface_mapping;
-	else
+	if ((bo->tbo.mem.mem_type != TTM_PL_VRAM) &&
+	    (bo->tbo.mem.mem_type != TTM_PL_PRIV))
 		goto fallback;
 
 	io_mapping_unmap_atomic(pmap);
@@ -200,7 +196,7 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 	(void) ttm_mem_io_lock(man, false);
 	ttm_mem_io_free(bo->tbo.bdev, &bo->tbo.mem);
 	ttm_mem_io_unlock(man);
-	return ;
+	return;
  fallback:
 	qxl_bo_kunmap(bo);
 }
@@ -220,7 +216,7 @@ struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 	return bo;
 }
 
-static int __qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+static int __qxl_bo_pin(struct qxl_bo *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct drm_device *ddev = bo->gem_base.dev;
@@ -228,16 +224,12 @@ static int __qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 
 	if (bo->pin_count) {
 		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = qxl_bo_gpu_offset(bo);
 		return 0;
 	}
-	qxl_ttm_placement_from_domain(bo, domain, true);
+	qxl_ttm_placement_from_domain(bo, bo->type, true);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (likely(r == 0)) {
 		bo->pin_count = 1;
-		if (gpu_addr != NULL)
-			*gpu_addr = qxl_bo_gpu_offset(bo);
 	}
 	if (unlikely(r != 0))
 		dev_err(ddev->dev, "%p pin failed\n", bo);
@@ -270,7 +262,7 @@ static int __qxl_bo_unpin(struct qxl_bo *bo)
  * beforehand, use the internal version directly __qxl_bo_pin.
  *
  */
-int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+int qxl_bo_pin(struct qxl_bo *bo)
 {
 	int r;
 
@@ -278,7 +270,7 @@ int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 	if (r)
 		return r;
 
-	r = __qxl_bo_pin(bo, bo->type, NULL);
+	r = __qxl_bo_pin(bo);
 	qxl_bo_unreserve(bo);
 	return r;
 }

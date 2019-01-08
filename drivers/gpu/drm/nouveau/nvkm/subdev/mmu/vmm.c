@@ -767,6 +767,20 @@ nvkm_vma_tail(struct nvkm_vma *vma, u64 tail)
 	return new;
 }
 
+static inline void
+nvkm_vmm_free_remove(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+{
+	rb_erase(&vma->tree, &vmm->free);
+}
+
+static inline void
+nvkm_vmm_free_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+{
+	nvkm_vmm_free_remove(vmm, vma);
+	list_del(&vma->head);
+	kfree(vma);
+}
+
 static void
 nvkm_vmm_free_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
@@ -795,7 +809,21 @@ nvkm_vmm_free_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	rb_insert_color(&vma->tree, &vmm->free);
 }
 
-void
+static inline void
+nvkm_vmm_node_remove(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+{
+	rb_erase(&vma->tree, &vmm->root);
+}
+
+static inline void
+nvkm_vmm_node_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+{
+	nvkm_vmm_node_remove(vmm, vma);
+	list_del(&vma->head);
+	kfree(vma);
+}
+
+static void
 nvkm_vmm_node_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
 	struct rb_node **ptr = &vmm->root.rb_node;
@@ -832,6 +860,78 @@ nvkm_vmm_node_search(struct nvkm_vmm *vmm, u64 addr)
 			return vma;
 	}
 	return NULL;
+}
+
+#define node(root, dir) (((root)->head.dir == &vmm->list) ? NULL :             \
+	list_entry((root)->head.dir, struct nvkm_vma, head))
+
+static struct nvkm_vma *
+nvkm_vmm_node_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
+		    struct nvkm_vma *vma, struct nvkm_vma *next, u64 size)
+{
+	if (next) {
+		if (vma->size == size) {
+			vma->size += next->size;
+			nvkm_vmm_node_delete(vmm, next);
+			if (prev) {
+				prev->size += vma->size;
+				nvkm_vmm_node_delete(vmm, vma);
+				return prev;
+			}
+			return vma;
+		}
+		BUG_ON(prev);
+
+		nvkm_vmm_node_remove(vmm, next);
+		vma->size -= size;
+		next->addr -= size;
+		next->size += size;
+		nvkm_vmm_node_insert(vmm, next);
+		return next;
+	}
+
+	if (prev) {
+		if (vma->size != size) {
+			nvkm_vmm_node_remove(vmm, vma);
+			prev->size += size;
+			vma->addr += size;
+			vma->size -= size;
+			nvkm_vmm_node_insert(vmm, vma);
+		} else {
+			prev->size += vma->size;
+			nvkm_vmm_node_delete(vmm, vma);
+		}
+		return prev;
+	}
+
+	return vma;
+}
+
+struct nvkm_vma *
+nvkm_vmm_node_split(struct nvkm_vmm *vmm,
+		    struct nvkm_vma *vma, u64 addr, u64 size)
+{
+	struct nvkm_vma *prev = NULL;
+
+	if (vma->addr != addr) {
+		prev = vma;
+		if (!(vma = nvkm_vma_tail(vma, vma->size + vma->addr - addr)))
+			return NULL;
+		vma->part = true;
+		nvkm_vmm_node_insert(vmm, vma);
+	}
+
+	if (vma->size != size) {
+		struct nvkm_vma *tmp;
+		if (!(tmp = nvkm_vma_tail(vma, vma->size - size))) {
+			nvkm_vmm_node_merge(vmm, prev, vma, NULL, vma->size);
+			return NULL;
+		}
+		tmp->part = true;
+		nvkm_vmm_node_insert(vmm, tmp);
+	}
+
+	return vma;
 }
 
 static void
@@ -954,37 +1054,20 @@ nvkm_vmm_new_(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	return nvkm_vmm_ctor(func, mmu, hdr, addr, size, key, name, *pvmm);
 }
 
-#define node(root, dir) ((root)->head.dir == &vmm->list) ? NULL :              \
-	list_entry((root)->head.dir, struct nvkm_vma, head)
-
 void
 nvkm_vmm_unmap_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
-	struct nvkm_vma *next;
+	struct nvkm_vma *next = node(vma, next);
+	struct nvkm_vma *prev = NULL;
 
 	nvkm_memory_tags_put(vma->memory, vmm->mmu->subdev.device, &vma->tags);
 	nvkm_memory_unref(&vma->memory);
 
-	if (vma->part) {
-		struct nvkm_vma *prev = node(vma, prev);
-		if (!prev->memory) {
-			prev->size += vma->size;
-			rb_erase(&vma->tree, &vmm->root);
-			list_del(&vma->head);
-			kfree(vma);
-			vma = prev;
-		}
-	}
-
-	next = node(vma, next);
-	if (next && next->part) {
-		if (!next->memory) {
-			vma->size += next->size;
-			rb_erase(&next->tree, &vmm->root);
-			list_del(&next->head);
-			kfree(next);
-		}
-	}
+	if (!vma->part || ((prev = node(vma, prev)), prev->memory))
+		prev = NULL;
+	if (!next->part || next->memory)
+		next = NULL;
+	nvkm_vmm_node_merge(vmm, prev, vma, next, vma->size);
 }
 
 void
@@ -1163,18 +1246,14 @@ nvkm_vmm_put_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	struct nvkm_vma *prev, *next;
 
 	if ((prev = node(vma, prev)) && !prev->used) {
-		rb_erase(&prev->tree, &vmm->free);
-		list_del(&prev->head);
 		vma->addr  = prev->addr;
 		vma->size += prev->size;
-		kfree(prev);
+		nvkm_vmm_free_delete(vmm, prev);
 	}
 
 	if ((next = node(vma, next)) && !next->used) {
-		rb_erase(&next->tree, &vmm->free);
-		list_del(&next->head);
 		vma->size += next->size;
-		kfree(next);
+		nvkm_vmm_free_delete(vmm, next);
 	}
 
 	nvkm_vmm_free_insert(vmm, vma);
@@ -1250,7 +1329,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	}
 
 	/* Remove VMA from the list of allocated nodes. */
-	rb_erase(&vma->tree, &vmm->root);
+	nvkm_vmm_node_remove(vmm, vma);
 
 	/* Merge VMA back into the free list. */
 	vma->page = NVKM_VMA_PAGE_NONE;
@@ -1357,7 +1436,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 			tail = ALIGN_DOWN(tail, vmm->func->page_block);
 
 		if (addr <= tail && tail - addr >= size) {
-			rb_erase(&this->tree, &vmm->free);
+			nvkm_vmm_free_remove(vmm, this);
 			vma = this;
 			break;
 		}

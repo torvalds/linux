@@ -11,4 +11,4 @@ menuconfig ARC_SOC_HSDK
 	select ARC_HAS_ACCL_REGS
 	select CLK_HSDK
 	select RESET_HSDK
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI

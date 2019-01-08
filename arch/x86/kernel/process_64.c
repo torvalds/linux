@@ -52,7 +52,7 @@
 #include <asm/switch_to.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/vdso.h>
-#include <asm/intel_rdt_sched.h>
+#include <asm/resctrl_sched.h>
 #include <asm/unistd.h>
 #include <asm/fsgsbase.h>
 #ifdef CONFIG_IA32_EMULATION
@@ -60,13 +60,15 @@
 #include <asm/unistd_32_ia32.h>
 #endif
 
+#include "process.h"
+
 /* Prints also some state that isn't saved in the pt_regs */
 void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L, fs, gs, shadowgs;
 	unsigned long d0, d1, d2, d3, d6, d7;
 	unsigned int fsindex, gsindex;
-	unsigned int ds, cs, es;
+	unsigned int ds, es;
 
 	show_iret_regs(regs);
 
@@ -98,7 +100,6 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 	}
 
 	asm("movl %%ds,%0" : "=r" (ds));
-	asm("movl %%cs,%0" : "=r" (cs));
 	asm("movl %%es,%0" : "=r" (es));
 	asm("movl %%fs,%0" : "=r" (fsindex));
 	asm("movl %%gs,%0" : "=r" (gsindex));
@@ -114,7 +115,7 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 
 	printk(KERN_DEFAULT "FS:  %016lx(%04x) GS:%016lx(%04x) knlGS:%016lx\n",
 	       fs, fsindex, gs, gsindex, shadowgs);
-	printk(KERN_DEFAULT "CS:  %04x DS: %04x ES: %04x CR0: %016lx\n", cs, ds,
+	printk(KERN_DEFAULT "CS:  %04lx DS: %04x ES: %04x CR0: %016lx\n", regs->cs, ds,
 			es, cr0);
 	printk(KERN_DEFAULT "CR2: %016lx CR3: %016lx CR4: %016lx\n", cr2, cr3,
 			cr4);
@@ -337,24 +338,6 @@ static unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 	return base;
 }
 
-void x86_fsbase_write_cpu(unsigned long fsbase)
-{
-	/*
-	 * Set the selector to 0 as a notion, that the segment base is
-	 * overwritten, which will be checked for skipping the segment load
-	 * during context switch.
-	 */
-	loadseg(FS, 0);
-	wrmsrl(MSR_FS_BASE, fsbase);
-}
-
-void x86_gsbase_write_cpu_inactive(unsigned long gsbase)
-{
-	/* Set the selector to 0 for the same reason as %fs above. */
-	loadseg(GS, 0);
-	wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
-}
-
 unsigned long x86_fsbase_read_task(struct task_struct *task)
 {
 	unsigned long fsbase;
@@ -383,38 +366,18 @@ unsigned long x86_gsbase_read_task(struct task_struct *task)
 	return gsbase;
 }
 
-int x86_fsbase_write_task(struct task_struct *task, unsigned long fsbase)
+void x86_fsbase_write_task(struct task_struct *task, unsigned long fsbase)
 {
-	/*
-	 * Not strictly needed for %fs, but do it for symmetry
-	 * with %gs
-	 */
-	if (unlikely(fsbase >= TASK_SIZE_MAX))
-		return -EPERM;
+	WARN_ON_ONCE(task == current);
 
-	preempt_disable();
 	task->thread.fsbase = fsbase;
-	if (task == current)
-		x86_fsbase_write_cpu(fsbase);
-	task->thread.fsindex = 0;
-	preempt_enable();
-
-	return 0;
 }
 
-int x86_gsbase_write_task(struct task_struct *task, unsigned long gsbase)
+void x86_gsbase_write_task(struct task_struct *task, unsigned long gsbase)
 {
-	if (unlikely(gsbase >= TASK_SIZE_MAX))
-		return -EPERM;
+	WARN_ON_ONCE(task == current);
 
-	preempt_disable();
 	task->thread.gsbase = gsbase;
-	if (task == current)
-		x86_gsbase_write_cpu_inactive(gsbase);
-	task->thread.gsindex = 0;
-	preempt_enable();
-
-	return 0;
 }
 
 int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
@@ -553,7 +516,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct fpu *prev_fpu = &prev->fpu;
 	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
-	struct tss_struct *tss = &per_cpu(cpu_tss_rw, cpu);
 
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
 		     this_cpu_read(irq_count) != -1);
@@ -617,12 +579,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/* Reload sp0. */
 	update_task_stack(next_p);
 
-	/*
-	 * Now maybe reload the debug registers and handle I/O bitmaps
-	 */
-	if (unlikely(task_thread_info(next_p)->flags & _TIF_WORK_CTXSW_NEXT ||
-		     task_thread_info(prev_p)->flags & _TIF_WORK_CTXSW_PREV))
-		__switch_to_xtra(prev_p, next_p, tss);
+	switch_to_extra(prev_p, next_p);
 
 #ifdef CONFIG_XEN_PV
 	/*
@@ -664,7 +621,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	}
 
 	/* Load the Intel cache allocation PQR MSR. */
-	intel_rdt_sched_in();
+	resctrl_sched_in();
 
 	return prev_p;
 }
@@ -688,7 +645,7 @@ void set_personality_64bit(void)
 	/* TBD: overwrites user setup. Should have two bits.
 	   But 64bit processes have always behaved this way,
 	   so it's not too bad. The main problem is just that
-	   32bit childs are affected again. */
+	   32bit children are affected again. */
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
 
@@ -758,11 +715,60 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 
 	switch (option) {
 	case ARCH_SET_GS: {
-		ret = x86_gsbase_write_task(task, arg2);
+		if (unlikely(arg2 >= TASK_SIZE_MAX))
+			return -EPERM;
+
+		preempt_disable();
+		/*
+		 * ARCH_SET_GS has always overwritten the index
+		 * and the base. Zero is the most sensible value
+		 * to put in the index, and is the only value that
+		 * makes any sense if FSGSBASE is unavailable.
+		 */
+		if (task == current) {
+			loadseg(GS, 0);
+			x86_gsbase_write_cpu_inactive(arg2);
+
+			/*
+			 * On non-FSGSBASE systems, save_base_legacy() expects
+			 * that we also fill in thread.gsbase.
+			 */
+			task->thread.gsbase = arg2;
+
+		} else {
+			task->thread.gsindex = 0;
+			x86_gsbase_write_task(task, arg2);
+		}
+		preempt_enable();
 		break;
 	}
 	case ARCH_SET_FS: {
-		ret = x86_fsbase_write_task(task, arg2);
+		/*
+		 * Not strictly needed for %fs, but do it for symmetry
+		 * with %gs
+		 */
+		if (unlikely(arg2 >= TASK_SIZE_MAX))
+			return -EPERM;
+
+		preempt_disable();
+		/*
+		 * Set the selector to 0 for the same reason
+		 * as %gs above.
+		 */
+		if (task == current) {
+			loadseg(FS, 0);
+			x86_fsbase_write_cpu(arg2);
+
+			/*
+			 * On non-FSGSBASE systems, save_base_legacy() expects
+			 * that we also fill in thread.fsbase.
+			 */
+			task->thread.fsbase = arg2;
+		} else {
+			task->thread.fsindex = 0;
+			x86_fsbase_write_task(task, arg2);
+		}
+		preempt_enable();
 		break;
 	}
 	case ARCH_GET_FS: {

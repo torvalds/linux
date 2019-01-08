@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-
+generated-y += syscall_table.h
 generic-y += compat.h
 generic-y += exec.h
 generic-y += export.h

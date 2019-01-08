@@ -33,7 +33,7 @@ static int i40e_alloc_xsk_umems(struct i40e_vsi *vsi)
 }
 
 /**
- * i40e_add_xsk_umem - Store an UMEM for a certain ring/qid
+ * i40e_add_xsk_umem - Store a UMEM for a certain ring/qid
  * @vsi: Current VSI
  * @umem: UMEM to store
  * @qid: Ring/qid to associate with the UMEM
@@ -56,7 +56,7 @@ static int i40e_add_xsk_umem(struct i40e_vsi *vsi, struct xdp_umem *umem,
 }
 
 /**
- * i40e_remove_xsk_umem - Remove an UMEM for a certain ring/qid
+ * i40e_remove_xsk_umem - Remove a UMEM for a certain ring/qid
  * @vsi: Current VSI
  * @qid: Ring/qid associated with the UMEM
  **/
@@ -130,7 +130,7 @@ static void i40e_xsk_umem_dma_unmap(struct i40e_vsi *vsi, struct xdp_umem *umem)
 }
 
 /**
- * i40e_xsk_umem_enable - Enable/associate an UMEM to a certain ring/qid
+ * i40e_xsk_umem_enable - Enable/associate a UMEM to a certain ring/qid
  * @vsi: Current VSI
  * @umem: UMEM
  * @qid: Rx ring to associate UMEM to
@@ -189,7 +189,7 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 }
 
 /**
- * i40e_xsk_umem_disable - Diassociate an UMEM from a certain ring/qid
+ * i40e_xsk_umem_disable - Disassociate a UMEM from a certain ring/qid
  * @vsi: Current VSI
  * @qid: Rx ring to associate UMEM to
  *
@@ -255,12 +255,12 @@ int i40e_xsk_umem_query(struct i40e_vsi *vsi, struct xdp_umem **umem,
 }
 
 /**
- * i40e_xsk_umem_query - Queries a certain ring/qid for its UMEM
+ * i40e_xsk_umem_setup - Enable/disassociate a UMEM to/from a ring/qid
  * @vsi: Current VSI
  * @umem: UMEM to enable/associate to a ring, or NULL to disable
  * @qid: Rx ring to (dis)associate UMEM (from)to
  *
- * This function enables or disables an UMEM to a certain ring.
+ * This function enables or disables a UMEM to a certain ring.
  *
  * Returns 0 on success, <0 on failure
  **/
@@ -276,7 +276,7 @@ int i40e_xsk_umem_setup(struct i40e_vsi *vsi, struct xdp_umem *umem,
  * @rx_ring: Rx ring
  * @xdp: xdp_buff used as input to the XDP program
  *
- * This function enables or disables an UMEM to a certain ring.
+ * This function enables or disables a UMEM to a certain ring.
  *
  * Returns any of I40E_XDP_{PASS, CONSUMED, TX, REDIR}
  **/
@@ -634,8 +634,6 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		struct i40e_rx_buffer *bi;
 		union i40e_rx_desc *rx_desc;
 		unsigned int size;
-		u16 vlan_tag;
-		u8 rx_ptype;
 		u64 qword;
 
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
@@ -713,14 +711,8 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
 
-		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-			   I40E_RXD_QW1_PTYPE_SHIFT;
-		i40e_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
-
-		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
-			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
-		i40e_receive_skb(rx_ring, skb, vlan_tag);
+		i40e_process_skb_fields(rx_ring, rx_desc, skb);
+		napi_gro_receive(&rx_ring->q_vector->napi, skb);
 	}
 
 	i40e_finalize_xdp_rx(rx_ring, xdp_xmit);

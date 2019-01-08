@@ -117,7 +117,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>, <&gmac_txerr>;
+	pinctrl-0 = <&gmac_mii_pins>, <&gmac_txerr>;
 	phy = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
@@ -138,8 +138,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -150,8 +148,6 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
 	eeprom: eeprom@50 {
@@ -162,8 +158,6 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
@@ -171,49 +165,49 @@
 	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
 
-	button@191 {
+	button-191 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <191274>;
 	};
 
-	button@392 {
+	button-392 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <392644>;
 	};
 
-	button@601 {
+	button-601 {
 		label = "Menu";
 		linux,code = <KEY_MENU>;
 		channel = <0>;
 		voltage = <601151>;
 	};
 
-	button@795 {
+	button-795 {
 		label = "Search";
 		linux,code = <KEY_SEARCH>;
 		channel = <0>;
 		voltage = <795090>;
 	};
 
-	button@987 {
+	button-987 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;
 		voltage = <987387>;
 	};
 
-	button@1184 {
+	button-1184 {
 		label = "Esc";
 		linux,code = <KEY_ESC>;
 		channel = <0>;
 		voltage = <1184678>;
 	};
 
-	button@1398 {
+	button-1398 {
 		label = "Enter";
 		linux,code = <KEY_ENTER>;
 		channel = <0>;
@@ -222,8 +216,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
@@ -231,8 +223,6 @@
 };
 
 &mmc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olinuxinom>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 11 GPIO_ACTIVE_LOW>; /* PH11 */
@@ -252,30 +242,24 @@
 };
 
 &pio {
-	gmac_txerr: gmac_txerr@0 {
+	gmac_txerr: gmac-txerr-pin {
 		pins = "PA17";
 		function = "gmac";
 	};
 
-	mmc3_cd_pin_olinuxinom: mmc3_cd_pin@0 {
-		pins = "PH11";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	led_pins_olinuxino: led_pins@0 {
+	led_pins_olinuxino: led-pins {
 		pins = "PH2";
 		function = "gpio_out";
 		drive-strength = <20>;
 	};
 
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
 		pins = "PH5";
 		function = "gpio_in";
 		bias-pull-down;
@@ -331,33 +315,33 @@
 
 &spi1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi1_pins_a>,
-		    <&spi1_cs0_pins_a>;
+	pinctrl-0 = <&spi1_pi_pins>,
+		    <&spi1_cs0_pi_pin>;
 	status = "okay";
 };
 
 &spi2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_a>,
-		    <&spi2_cs0_pins_a>;
+	pinctrl-0 = <&spi2_pc_pins>,
+		    <&spi2_cs0_pc_pin>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 
 &uart6 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart6_pins_a>;
+	pinctrl-0 = <&uart6_pi_pins>;
 	status = "okay";
 };
 
 &uart7 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart7_pins_a>;
+	pinctrl-0 = <&uart7_pi_pins>;
 	status = "okay";
 };
 

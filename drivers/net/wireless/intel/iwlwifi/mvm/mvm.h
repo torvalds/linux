@@ -303,11 +303,13 @@ enum iwl_bt_force_ant_mode {
 * @LOW_LATENCY_TRAFFIC: indicates low latency traffic was detected
 * @LOW_LATENCY_DEBUGFS: low latency mode set from debugfs
 * @LOW_LATENCY_VCMD: low latency mode set from vendor command
+* @LOW_LATENCY_VIF_TYPE: low latency mode set because of vif type (ap)
 */
 enum iwl_mvm_low_latency_cause {
 	LOW_LATENCY_TRAFFIC = BIT(0),
 	LOW_LATENCY_DEBUGFS = BIT(1),
 	LOW_LATENCY_VCMD = BIT(2),
+	LOW_LATENCY_VIF_TYPE = BIT(3),
 };
 
 /**
@@ -844,7 +846,6 @@ struct iwl_mvm {
 	u16 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
 
 	struct iwl_mvm_dqa_txq_info queue_info[IWL_MAX_HW_QUEUES];
-	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
 	struct work_struct add_stream_wk; /* To add streams to queues */
 
 	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
@@ -1521,6 +1522,11 @@ static inline u8 iwl_mvm_get_valid_rx_ant(struct iwl_mvm *mvm)
 	       mvm->fw->valid_rx_ant;
 }
 
+static inline void iwl_mvm_toggle_tx_ant(struct iwl_mvm *mvm, u8 *ant)
+{
+	*ant = iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm), *ant);
+}
+
 static inline u32 iwl_mvm_get_phy_config(struct iwl_mvm *mvm)
 {
 	u32 phy_config = ~(FW_PHY_CFG_TX_CHAIN |
@@ -1550,6 +1556,8 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue);
+void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
+			    struct iwl_rx_cmd_buffer *rxb, int queue);
 void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 			      struct iwl_rx_cmd_buffer *rxb, int queue);
 int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
@@ -1846,6 +1854,8 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 /* get SystemLowLatencyMode - only needed for beacon threshold? */
 bool iwl_mvm_low_latency(struct iwl_mvm *mvm);
 bool iwl_mvm_low_latency_band(struct iwl_mvm *mvm, enum nl80211_band band);
+void iwl_mvm_send_low_latency_cmd(struct iwl_mvm *mvm, bool low_latency,
+				  u16 mac_id);
 
 /* get VMACLowLatencyMode */
 static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)

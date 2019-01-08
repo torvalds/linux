@@ -353,6 +353,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		case MAXWELL_CHANNEL_GPFIFO_A:
 		case PASCAL_CHANNEL_GPFIFO_A:
 		case VOLTA_CHANNEL_GPFIFO_A:
+		case TURING_CHANNEL_GPFIFO_A:
 			ret = nvc0_fence_create(drm);
 			break;
 		default:
@@ -370,7 +371,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		ret = nouveau_channel_new(drm, &drm->client.device,
 					  nvif_fifo_runlist_ce(device), 0,
-					  &drm->cechan);
+					  true, &drm->cechan);
 		if (ret)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 
@@ -381,7 +382,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	    device->info.chipset != 0xaa &&
 	    device->info.chipset != 0xac) {
 		ret = nouveau_channel_new(drm, &drm->client.device,
-					  NvDmaFB, NvDmaTT, &drm->cechan);
+					  NvDmaFB, NvDmaTT, false,
+					  &drm->cechan);
 		if (ret)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 
@@ -393,7 +395,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	ret = nouveau_channel_new(drm, &drm->client.device,
-				  arg0, arg1, &drm->channel);
+				  arg0, arg1, false, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_fini(drm);
@@ -1171,10 +1173,16 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 	}
 
+	err = nouveau_drm_device_init(drm);
+	if (err)
+		goto err_put;
+
 	platform_set_drvdata(pdev, drm);
 
 	return drm;
 
+err_put:
+	drm_dev_put(drm);
 err_free:
 	nvkm_device_del(pdevice);
 

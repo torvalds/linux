@@ -1228,17 +1228,14 @@ static int smu8_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 static int smu8_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
-	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
-		smu8_nbdpm_pstate_enable_disable(hwmgr, true, true);
+	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating))
 		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF);
-	}
 	return 0;
 }
 
 static int smu8_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
-		smu8_nbdpm_pstate_enable_disable(hwmgr, false, true);
 		return smum_send_msg_to_smc_with_parameter(
 			hwmgr,
 			PPSMC_MSG_UVDPowerON,
@@ -1995,6 +1992,7 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.power_state_set = smu8_set_power_state_tasks,
 	.dynamic_state_management_disable = smu8_disable_dpm_tasks,
 	.notify_cac_buffer_info = smu8_notify_cac_buffer_info,
+	.update_nbdpm_pstate = smu8_nbdpm_pstate_enable_disable,
 	.get_thermal_temperature_range = smu8_get_thermal_temperature_range,
 };
 

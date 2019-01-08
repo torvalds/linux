@@ -100,8 +100,6 @@ static void construct(struct dc_stream_state *stream,
 	/* EDID CAP translation for HDMI 2.0 */
 	stream->timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;
 
-	stream->status.link = stream->sink->link;
-
 	update_stream_signal(stream);
 
 	stream->out_transfer_func = dc_create_transfer_func();
@@ -172,7 +170,7 @@ struct dc_stream_status *dc_stream_get_status(
 }
 
 /**
- * Update the cursor attributes and set cursor surface address
+ * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
  */
 bool dc_stream_set_cursor_attributes(
 	struct dc_stream_state *stream,

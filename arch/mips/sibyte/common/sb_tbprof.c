@@ -458,7 +458,7 @@ static ssize_t sbprof_tb_read(struct file *filp, char *buf,
 	char *dest    =	 buf;
 	long  cur_off = *offp;
 
-	if (!access_ok(VERIFY_WRITE, buf, size))
+	if (!access_ok(buf, size))
 		return -EFAULT;
 
 	mutex_lock(&sbp.lock);

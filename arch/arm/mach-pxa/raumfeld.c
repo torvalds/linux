@@ -749,9 +749,6 @@ static struct pxamci_platform_data raumfeld_mci_platform_data = {
 	.init			= raumfeld_mci_init,
 	.exit			= raumfeld_mci_exit,
 	.detect_delay_ms	= 200,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 /*

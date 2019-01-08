@@ -10,61 +10,25 @@
 
 #define CALLBACK_TIMEOUT_MS	200
 
-static int get_rate_mode(unsigned int rate, unsigned int *mode)
+int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
+				      enum snd_ff_stream_mode *mode)
 {
-	int i;
+	static const enum snd_ff_stream_mode modes[] = {
+		[CIP_SFC_32000] = SND_FF_STREAM_MODE_LOW,
+		[CIP_SFC_44100] = SND_FF_STREAM_MODE_LOW,
+		[CIP_SFC_48000] = SND_FF_STREAM_MODE_LOW,
+		[CIP_SFC_88200] = SND_FF_STREAM_MODE_MID,
+		[CIP_SFC_96000] = SND_FF_STREAM_MODE_MID,
+		[CIP_SFC_176400] = SND_FF_STREAM_MODE_HIGH,
+		[CIP_SFC_192000] = SND_FF_STREAM_MODE_HIGH,
+	};
 
-	for (i = 0; i < CIP_SFC_COUNT; i++) {
-		if (amdtp_rate_table[i] == rate)
-			break;
-	}
-
-	if (i == CIP_SFC_COUNT)
+	if (sfc >= CIP_SFC_COUNT)
 		return -EINVAL;
 
-	*mode = ((int)i - 1) / 2;
+	*mode = modes[sfc];
 
 	return 0;
-}
-
-/*
- * Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
- * we can allocate between 0 and 7 channel.
- */
-static int keep_resources(struct snd_ff *ff, unsigned int rate)
-{
-	int mode;
-	int err;
-
-	err = get_rate_mode(rate, &mode);
-	if (err < 0)
-		return err;
-
-	/* Keep resources for in-stream. */
-	err = amdtp_ff_set_parameters(&ff->tx_stream, rate,
-				      ff->spec->pcm_capture_channels[mode]);
-	if (err < 0)
-		return err;
-	ff->tx_resources.channels_mask = 0x00000000000000ffuLL;
-	err = fw_iso_resources_allocate(&ff->tx_resources,
-			amdtp_stream_get_max_payload(&ff->tx_stream),
-			fw_parent_device(ff->unit)->max_speed);
-	if (err < 0)
-		return err;
-
-	/* Keep resources for out-stream. */
-	err = amdtp_ff_set_parameters(&ff->rx_stream, rate,
-				      ff->spec->pcm_playback_channels[mode]);
-	if (err < 0)
-		return err;
-	ff->rx_resources.channels_mask = 0x00000000000000ffuLL;
-	err = fw_iso_resources_allocate(&ff->rx_resources,
-			amdtp_stream_get_max_payload(&ff->rx_stream),
-			fw_parent_device(ff->unit)->max_speed);
-	if (err < 0)
-		fw_iso_resources_free(&ff->tx_resources);
-
-	return err;
 }
 
 static void release_resources(struct snd_ff *ff)
@@ -73,10 +37,44 @@ static void release_resources(struct snd_ff *ff)
 	fw_iso_resources_free(&ff->rx_resources);
 }
 
+static int switch_fetching_mode(struct snd_ff *ff, bool enable)
+{
+	unsigned int count;
+	__le32 *reg;
+	int i;
+	int err;
+
+	count = 0;
+	for (i = 0; i < SND_FF_STREAM_MODE_COUNT; ++i)
+		count = max(count, ff->spec->pcm_playback_channels[i]);
+
+	reg = kcalloc(count, sizeof(__le32), GFP_KERNEL);
+	if (!reg)
+		return -ENOMEM;
+
+	if (!enable) {
+		/*
+		 * Each quadlet is corresponding to data channels in a data
+		 * blocks in reverse order. Precisely, quadlets for available
+		 * data channels should be enabled. Here, I take second best
+		 * to fetch PCM frames from all of data channels regardless of
+		 * stf.
+		 */
+		for (i = 0; i < count; ++i)
+			reg[i] = cpu_to_le32(0x00000001);
+	}
+
+	err = snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
+				 SND_FF_REG_FETCH_PCM_FRAMES, reg,
+				 sizeof(__le32) * count, 0);
+	kfree(reg);
+	return err;
+}
+
 static inline void finish_session(struct snd_ff *ff)
 {
 	ff->spec->protocol->finish_session(ff);
-	ff->spec->protocol->switch_fetching_mode(ff, false);
+	switch_fetching_mode(ff, false);
 }
 
 static int init_stream(struct snd_ff *ff, enum amdtp_stream_direction dir)
@@ -149,7 +147,7 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 	if (ff->substreams_counter == 0)
 		return 0;
 
-	err = ff->spec->protocol->get_clock(ff, &curr_rate, &src);
+	err = snd_ff_transaction_get_clock(ff, &curr_rate, &src);
 	if (err < 0)
 		return err;
 	if (curr_rate != rate ||
@@ -168,9 +166,29 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 	 * packets. Then, the device transfers packets.
 	 */
 	if (!amdtp_stream_running(&ff->rx_stream)) {
-		err = keep_resources(ff, rate);
+		enum snd_ff_stream_mode mode;
+		int i;
+
+		for (i = 0; i < CIP_SFC_COUNT; ++i) {
+			if (amdtp_rate_table[i] == rate)
+				break;
+		}
+		if (i >= CIP_SFC_COUNT)
+			return -EINVAL;
+
+		err = snd_ff_stream_get_multiplier_mode(i, &mode);
 		if (err < 0)
-			goto error;
+			return err;
+
+		err = amdtp_ff_set_parameters(&ff->tx_stream, rate,
+					ff->spec->pcm_capture_channels[mode]);
+		if (err < 0)
+			return err;
+
+		err = amdtp_ff_set_parameters(&ff->rx_stream, rate,
+					ff->spec->pcm_playback_channels[mode]);
+		if (err < 0)
+			return err;
 
 		err = ff->spec->protocol->begin_session(ff, rate);
 		if (err < 0)
@@ -188,7 +206,7 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 			goto error;
 		}
 
-		err = ff->spec->protocol->switch_fetching_mode(ff, true);
+		err = switch_fetching_mode(ff, true);
 		if (err < 0)
 			goto error;
 	}

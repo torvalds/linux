@@ -83,10 +83,7 @@ const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
 	{"_REV", ACPI_TYPE_INTEGER, ACPI_CAST_PTR(char, 2)},
 	{"_OS_", ACPI_TYPE_STRING, ACPI_OS_NAME},
 	{"_GL_", ACPI_TYPE_MUTEX, ACPI_CAST_PTR(char, 1)},
-
-#if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
 	{"_OSI", ACPI_TYPE_METHOD, ACPI_CAST_PTR(char, 1)},
-#endif
 
 	/* Table terminator */
 

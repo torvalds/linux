@@ -443,7 +443,7 @@ int bitmap_parse_user(const char __user *ubuf,
 			unsigned int ulen, unsigned long *maskp,
 			int nmaskbits)
 {
-	if (!access_ok(VERIFY_READ, ubuf, ulen))
+	if (!access_ok(ubuf, ulen))
 		return -EFAULT;
 	return __bitmap_parse((const char __force *)ubuf,
 				ulen, 1, maskp, nmaskbits);
@@ -641,7 +641,7 @@ int bitmap_parselist_user(const char __user *ubuf,
 			unsigned int ulen, unsigned long *maskp,
 			int nmaskbits)
 {
-	if (!access_ok(VERIFY_READ, ubuf, ulen))
+	if (!access_ok(ubuf, ulen))
 		return -EFAULT;
 	return __bitmap_parselist((const char __force *)ubuf,
 					ulen, 1, maskp, nmaskbits);

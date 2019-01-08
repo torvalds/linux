@@ -32,7 +32,7 @@ static int ldb_asm(uint32_t addr, uint32_t *valp)
 	uint32_t val;
 	int err;
 
-	if (!access_ok(VERIFY_READ, (void *)addr, 1))
+	if (!access_ok((void *)addr, 1))
 		return 1;
 
 	asm volatile (
@@ -67,7 +67,7 @@ static int stb_asm(uint32_t addr, uint32_t val)
 {
 	int err;
 
-	if (!access_ok(VERIFY_WRITE, (void *)addr, 1))
+	if (!access_ok((void *)addr, 1))
 		return 1;
 
 	asm volatile (

@@ -573,7 +573,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 		return -EIO;
 
 	/* verify user access to buffer */
-	if (!access_ok(VERIFY_WRITE, buf, nr)) {
+	if (!access_ok(buf, nr)) {
 		printk(KERN_WARNING "%s(%d) n_hdlc_tty_read() can't verify user "
 		"buffer\n", __FILE__, __LINE__);
 		return -EFAULT;
@@ -612,7 +612,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 		}
 			
 		/* no data */
-		if (file->f_flags & O_NONBLOCK) {
+		if (tty_io_nonblock(tty, file)) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -679,7 +679,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		if (tbuf)
 			break;
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (tty_io_nonblock(tty, file)) {
 			error = -EAGAIN;
 			break;
 		}

@@ -289,9 +289,7 @@ struct xarray {
 void xa_init_flags(struct xarray *, gfp_t flags);
 void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
-void *xa_cmpxchg(struct xarray *, unsigned long index,
-			void *old, void *entry, gfp_t);
-int xa_reserve(struct xarray *, unsigned long index, gfp_t);
+void *xa_erase(struct xarray *, unsigned long index);
 void *xa_store_range(struct xarray *, unsigned long first, unsigned long last,
 			void *entry, gfp_t);
 bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
@@ -341,65 +339,6 @@ static inline bool xa_empty(const struct xarray *xa)
 static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 {
 	return xa->xa_flags & XA_FLAGS_MARK(mark);
-}
-
-/**
- * xa_erase() - Erase this entry from the XArray.
- * @xa: XArray.
- * @index: Index of entry.
- *
- * This function is the equivalent of calling xa_store() with %NULL as
- * the third argument.  The XArray does not need to allocate memory, so
- * the user does not need to provide GFP flags.
- *
- * Context: Process context.  Takes and releases the xa_lock.
- * Return: The entry which used to be at this index.
- */
-static inline void *xa_erase(struct xarray *xa, unsigned long index)
-{
-	return xa_store(xa, index, NULL, 0);
-}
-
-/**
- * xa_insert() - Store this entry in the XArray unless another entry is
- *			already present.
- * @xa: XArray.
- * @index: Index into array.
- * @entry: New entry.
- * @gfp: Memory allocation flags.
- *
- * If you would rather see the existing entry in the array, use xa_cmpxchg().
- * This function is for users who don't care what the entry is, only that
- * one is present.
- *
- * Context: Process context.  Takes and releases the xa_lock.
- *	    May sleep if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
- * -ENOMEM if memory could not be allocated.
- */
-static inline int xa_insert(struct xarray *xa, unsigned long index,
-		void *entry, gfp_t gfp)
-{
-	void *curr = xa_cmpxchg(xa, index, NULL, entry, gfp);
-	if (!curr)
-		return 0;
-	if (xa_is_err(curr))
-		return xa_err(curr);
-	return -EEXIST;
-}
-
-/**
- * xa_release() - Release a reserved entry.
- * @xa: XArray.
- * @index: Index of entry.
- *
- * After calling xa_reserve(), you can call this function to release the
- * reservation.  If the entry at @index has been stored to, this function
- * will do nothing.
- */
-static inline void xa_release(struct xarray *xa, unsigned long index)
-{
-	xa_cmpxchg(xa, index, NULL, NULL, 0);
 }
 
 /**
@@ -455,6 +394,7 @@ void *__xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *__xa_cmpxchg(struct xarray *, unsigned long index, void *old,
 		void *entry, gfp_t);
 int __xa_alloc(struct xarray *, u32 *id, u32 max, void *entry, gfp_t);
+int __xa_reserve(struct xarray *, unsigned long index, gfp_t);
 void __xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
 
@@ -487,6 +427,58 @@ static inline int __xa_insert(struct xarray *xa, unsigned long index,
 }
 
 /**
+ * xa_store_bh() - Store this entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_store() except it disables softirqs
+ * while holding the array lock.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.
+ * Return: The entry which used to be at this index.
+ */
+static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_bh(xa);
+	curr = __xa_store(xa, index, entry, gfp);
+	xa_unlock_bh(xa);
+
+	return curr;
+}
+
+/**
+ * xa_store_irq() - Erase this entry from the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_store() except it disables interrupts
+ * while holding the array lock.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.
+ * Return: The entry which used to be at this index.
+ */
+static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_irq(xa);
+	curr = __xa_store(xa, index, entry, gfp);
+	xa_unlock_irq(xa);
+
+	return curr;
+}
+
+/**
  * xa_erase_bh() - Erase this entry from the XArray.
  * @xa: XArray.
  * @index: Index of entry.
@@ -495,7 +487,7 @@ static inline int __xa_insert(struct xarray *xa, unsigned long index,
  * the third argument.  The XArray does not need to allocate memory, so
  * the user does not need to provide GFP flags.
  *
- * Context: Process context.  Takes and releases the xa_lock while
+ * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
  * Return: The entry which used to be at this index.
  */
@@ -532,6 +524,115 @@ static inline void *xa_erase_irq(struct xarray *xa, unsigned long index)
 	xa_unlock_irq(xa);
 
 	return entry;
+}
+
+/**
+ * xa_cmpxchg() - Conditionally replace an entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @old: Old value to test against.
+ * @entry: New value to place in array.
+ * @gfp: Memory allocation flags.
+ *
+ * If the entry at @index is the same as @old, replace it with @entry.
+ * If the return value is equal to @old, then the exchange was successful.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.  May sleep
+ * if the @gfp flags permit.
+ * Return: The old value at this index or xa_err() if an error happened.
+ */
+static inline void *xa_cmpxchg(struct xarray *xa, unsigned long index,
+			void *old, void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock(xa);
+	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
+	xa_unlock(xa);
+
+	return curr;
+}
+
+/**
+ * xa_cmpxchg_bh() - Conditionally replace an entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @old: Old value to test against.
+ * @entry: New value to place in array.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_cmpxchg() except it disables softirqs
+ * while holding the array lock.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.  May sleep if the @gfp flags permit.
+ * Return: The old value at this index or xa_err() if an error happened.
+ */
+static inline void *xa_cmpxchg_bh(struct xarray *xa, unsigned long index,
+			void *old, void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_bh(xa);
+	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
+	xa_unlock_bh(xa);
+
+	return curr;
+}
+
+/**
+ * xa_cmpxchg_irq() - Conditionally replace an entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @old: Old value to test against.
+ * @entry: New value to place in array.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_cmpxchg() except it disables interrupts
+ * while holding the array lock.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.  May sleep if the @gfp flags permit.
+ * Return: The old value at this index or xa_err() if an error happened.
+ */
+static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
+			void *old, void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_irq(xa);
+	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
+	xa_unlock_irq(xa);
+
+	return curr;
+}
+
+/**
+ * xa_insert() - Store this entry in the XArray unless another entry is
+ *			already present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * If you would rather see the existing entry in the array, use xa_cmpxchg().
+ * This function is for users who don't care what the entry is, only that
+ * one is present.
+ *
+ * Context: Process context.  Takes and releases the xa_lock.
+ *	    May sleep if the @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+static inline int xa_insert(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	void *curr = xa_cmpxchg(xa, index, NULL, entry, gfp);
+	if (!curr)
+		return 0;
+	if (xa_is_err(curr))
+		return xa_err(curr);
+	return -EEXIST;
 }
 
 /**
@@ -575,7 +676,7 @@ static inline int xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry,
  * Updates the @id pointer with the index, then stores the entry at that
  * index.  A concurrent lookup will not see an uninitialised @id.
  *
- * Context: Process context.  Takes and releases the xa_lock while
+ * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.  May sleep if the @gfp flags permit.
  * Return: 0 on success, -ENOMEM if memory allocation fails or -ENOSPC if
  * there is no more space in the XArray.
@@ -619,6 +720,98 @@ static inline int xa_alloc_irq(struct xarray *xa, u32 *id, u32 max, void *entry,
 	xa_unlock_irq(xa);
 
 	return err;
+}
+
+/**
+ * xa_reserve() - Reserve this index in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @gfp: Memory allocation flags.
+ *
+ * Ensures there is somewhere to store an entry at @index in the array.
+ * If there is already something stored at @index, this function does
+ * nothing.  If there was nothing there, the entry is marked as reserved.
+ * Loading from a reserved entry returns a %NULL pointer.
+ *
+ * If you do not use the entry that you have reserved, call xa_release()
+ * or xa_erase() to free any unnecessary memory.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.
+ * May sleep if the @gfp flags permit.
+ * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ */
+static inline
+int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
+{
+	int ret;
+
+	xa_lock(xa);
+	ret = __xa_reserve(xa, index, gfp);
+	xa_unlock(xa);
+
+	return ret;
+}
+
+/**
+ * xa_reserve_bh() - Reserve this index in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @gfp: Memory allocation flags.
+ *
+ * A softirq-disabling version of xa_reserve().
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.
+ * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ */
+static inline
+int xa_reserve_bh(struct xarray *xa, unsigned long index, gfp_t gfp)
+{
+	int ret;
+
+	xa_lock_bh(xa);
+	ret = __xa_reserve(xa, index, gfp);
+	xa_unlock_bh(xa);
+
+	return ret;
+}
+
+/**
+ * xa_reserve_irq() - Reserve this index in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @gfp: Memory allocation flags.
+ *
+ * An interrupt-disabling version of xa_reserve().
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.
+ * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ */
+static inline
+int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
+{
+	int ret;
+
+	xa_lock_irq(xa);
+	ret = __xa_reserve(xa, index, gfp);
+	xa_unlock_irq(xa);
+
+	return ret;
+}
+
+/**
+ * xa_release() - Release a reserved entry.
+ * @xa: XArray.
+ * @index: Index of entry.
+ *
+ * After calling xa_reserve(), you can call this function to release the
+ * reservation.  If the entry at @index has been stored to, this function
+ * will do nothing.
+ */
+static inline void xa_release(struct xarray *xa, unsigned long index)
+{
+	xa_cmpxchg(xa, index, NULL, NULL, 0);
 }
 
 /* Everything below here is the Advanced API.  Proceed with caution. */

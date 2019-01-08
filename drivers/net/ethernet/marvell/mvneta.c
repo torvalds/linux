@@ -408,7 +408,6 @@ struct mvneta_port {
 	struct mvneta_pcpu_stats __percpu	*stats;
 
 	int pkt_size;
-	unsigned int frag_size;
 	void __iomem *base;
 	struct mvneta_rx_queue *rxqs;
 	struct mvneta_tx_queue *txqs;
@@ -2905,7 +2904,9 @@ static void mvneta_rxq_hw_init(struct mvneta_port *pp,
 	if (!pp->bm_priv) {
 		/* Set Offset */
 		mvneta_rxq_offset_set(pp, rxq, 0);
-		mvneta_rxq_buf_size_set(pp, rxq, pp->frag_size);
+		mvneta_rxq_buf_size_set(pp, rxq, PAGE_SIZE < SZ_64K ?
+					PAGE_SIZE :
+					MVNETA_RX_BUF_SIZE(pp->pkt_size));
 		mvneta_rxq_bm_disable(pp, rxq);
 		mvneta_rxq_fill(pp, rxq, rxq->size);
 	} else {
@@ -3343,7 +3344,6 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	if (state->interface != PHY_INTERFACE_MODE_NA &&
 	    state->interface != PHY_INTERFACE_MODE_QSGMII &&
 	    state->interface != PHY_INTERFACE_MODE_SGMII &&
-	    state->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    !phy_interface_mode_is_8023z(state->interface) &&
 	    !phy_interface_mode_is_rgmii(state->interface)) {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -3357,14 +3357,9 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	/* Asymmetric pause is unsupported */
 	phylink_set(mask, Pause);
 
-	/* We cannot use 1Gbps when using the 2.5G interface. */
-	if (state->interface == PHY_INTERFACE_MODE_2500BASEX) {
-		phylink_set(mask, 2500baseT_Full);
-		phylink_set(mask, 2500baseX_Full);
-	} else {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-	}
+	/* Half-duplex at speeds higher than 100Mbit is unsupported */
+	phylink_set(mask, 1000baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
 
 	if (!phy_interface_mode_is_8023z(state->interface)) {
 		/* 10M and 100M are only supported in non-802.3z mode */
@@ -3766,7 +3761,6 @@ static int mvneta_open(struct net_device *dev)
 	int ret;
 
 	pp->pkt_size = MVNETA_RX_PKT_SIZE(pp->dev->mtu);
-	pp->frag_size = PAGE_SIZE;
 
 	ret = mvneta_setup_rxqs(pp);
 	if (ret)
@@ -4254,8 +4248,7 @@ static int mvneta_ethtool_set_eee(struct net_device *dev,
 
 	/* The Armada 37x documents do not give limits for this other than
 	 * it being an 8-bit register. */
-	if (eee->tx_lpi_enabled &&
-	    (eee->tx_lpi_timer < 0 || eee->tx_lpi_timer > 255))
+	if (eee->tx_lpi_enabled && eee->tx_lpi_timer > 255)
 		return -EINVAL;
 
 	lpi_ctl0 = mvreg_read(pp, MVNETA_LPI_CTRL_0);

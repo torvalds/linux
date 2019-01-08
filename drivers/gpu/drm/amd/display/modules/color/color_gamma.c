@@ -813,19 +813,25 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	const struct hw_x_point *coord_x = coordinate_x;
 	struct fixed31_32 scaledX = dc_fixpt_zero;
 	struct fixed31_32 scaledX1 = dc_fixpt_zero;
-	struct fixed31_32 max_display = dc_fixpt_from_int(fs_params->max_display);
-	struct fixed31_32 min_display = dc_fixpt_from_fraction(fs_params->min_display, 10000);
-	struct fixed31_32 max_content = dc_fixpt_from_int(fs_params->max_content);
-	struct fixed31_32 min_content = dc_fixpt_from_fraction(fs_params->min_content, 10000);
+	struct fixed31_32 max_display;
+	struct fixed31_32 min_display;
+	struct fixed31_32 max_content;
+	struct fixed31_32 min_content;
 	struct fixed31_32 clip = dc_fixpt_one;
 	struct fixed31_32 output;
 	bool use_eetf = false;
 	bool is_clipped = false;
-	struct fixed31_32 sdr_white_level = dc_fixpt_from_int(fs_params->sdr_white_level);
+	struct fixed31_32 sdr_white_level;
 
 	if (fs_params == NULL || fs_params->max_content == 0 ||
 			fs_params->max_display == 0)
 		return false;
+
+	max_display = dc_fixpt_from_int(fs_params->max_display);
+	min_display = dc_fixpt_from_fraction(fs_params->min_display, 10000);
+	max_content = dc_fixpt_from_int(fs_params->max_content);
+	min_content = dc_fixpt_from_fraction(fs_params->min_content, 10000);
+	sdr_white_level = dc_fixpt_from_int(fs_params->sdr_white_level);
 
 	if (fs_params->min_display > 1000) // cap at 0.1 at the bottom
 		min_display = dc_fixpt_from_fraction(1, 10);
@@ -1755,7 +1761,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 
 	struct pwl_float_data *rgb_user = NULL;
 	struct pwl_float_data_ex *curve = NULL;
-	struct gamma_pixel *axix_x = NULL;
+	struct gamma_pixel *axis_x = NULL;
 	struct pixel_gamma_point *coeff = NULL;
 	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
 	bool ret = false;
@@ -1781,10 +1787,10 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 			 GFP_KERNEL);
 	if (!curve)
 		goto curve_alloc_fail;
-	axix_x = kvcalloc(ramp->num_entries + _EXTRA_POINTS, sizeof(*axix_x),
+	axis_x = kvcalloc(ramp->num_entries + _EXTRA_POINTS, sizeof(*axis_x),
 			  GFP_KERNEL);
-	if (!axix_x)
-		goto axix_x_alloc_fail;
+	if (!axis_x)
+		goto axis_x_alloc_fail;
 	coeff = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*coeff),
 			 GFP_KERNEL);
 	if (!coeff)
@@ -1797,7 +1803,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	tf = input_tf->tf;
 
 	build_evenly_distributed_points(
-			axix_x,
+			axis_x,
 			ramp->num_entries,
 			dividers);
 
@@ -1822,7 +1828,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	tf_pts->x_point_at_y1_blue = 1;
 
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
-			coordinates_x, axix_x, curve,
+			coordinates_x, axis_x, curve,
 			MAX_HW_POINTS, tf_pts,
 			mapUserRamp && ramp->type != GAMMA_CUSTOM);
 	if (ramp->type == GAMMA_CUSTOM)
@@ -1832,8 +1838,8 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 
 	kvfree(coeff);
 coeff_alloc_fail:
-	kvfree(axix_x);
-axix_x_alloc_fail:
+	kvfree(axis_x);
+axis_x_alloc_fail:
 	kvfree(curve);
 curve_alloc_fail:
 	kvfree(rgb_user);

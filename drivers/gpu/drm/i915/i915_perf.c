@@ -3052,7 +3052,7 @@ static struct i915_oa_reg *alloc_oa_regs(struct drm_i915_private *dev_priv,
 	if (!n_regs)
 		return NULL;
 
-	if (!access_ok(VERIFY_READ, regs, n_regs * sizeof(u32) * 2))
+	if (!access_ok(regs, n_regs * sizeof(u32) * 2))
 		return ERR_PTR(-EFAULT);
 
 	/* No is_valid function means we're not allowing any register to be programmed. */

@@ -99,6 +99,7 @@ struct amdgpu_xgmi {
 	unsigned num_physical_nodes;
 	/* gpu list in the same hive */
 	struct list_head head;
+	bool supported;
 };
 
 struct amdgpu_gmc {

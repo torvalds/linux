@@ -539,9 +539,8 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 	}
 
 	IWL_DEBUG_LAR(mvm,
-		      "MCC response status: 0x%x. new MCC: 0x%x ('%c%c') change: %d n_chans: %d\n",
-		      status, mcc, mcc >> 8, mcc & 0xff,
-		      !!(status == MCC_RESP_NEW_CHAN_PROFILE), n_channels);
+		      "MCC response status: 0x%x. new MCC: 0x%x ('%c%c') n_chans: %d\n",
+		      status, mcc, mcc >> 8, mcc & 0xff, n_channels);
 
 exit:
 	iwl_free_resp(&cmd);

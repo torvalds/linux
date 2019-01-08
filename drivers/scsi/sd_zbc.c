@@ -185,7 +185,7 @@ static inline sector_t sd_zbc_zone_sectors(struct scsi_disk *sdkp)
  *
  * Called from sd_init_command() for a REQ_OP_ZONE_RESET request.
  */
-int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
+blk_status_t sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 {
 	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
@@ -194,14 +194,14 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 
 	if (!sd_is_zoned(sdkp))
 		/* Not a zoned device */
-		return BLKPREP_KILL;
+		return BLK_STS_IOERR;
 
 	if (sdkp->device->changed)
-		return BLKPREP_KILL;
+		return BLK_STS_IOERR;
 
 	if (sector & (sd_zbc_zone_sectors(sdkp) - 1))
 		/* Unaligned request */
-		return BLKPREP_KILL;
+		return BLK_STS_IOERR;
 
 	cmd->cmd_len = 16;
 	memset(cmd->cmnd, 0, cmd->cmd_len);
@@ -214,7 +214,7 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	cmd->transfersize = 0;
 	cmd->allowed = 0;
 
-	return BLKPREP_OK;
+	return BLK_STS_OK;
 }
 
 /**

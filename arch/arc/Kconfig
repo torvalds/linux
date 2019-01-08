@@ -13,12 +13,10 @@ config ARC
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select ARCH_HAS_SG_CHAIN
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64 if !ISA_ARCV2 || !(ARC_HAS_LL64 && ARC_HAS_LLSC)
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_FIND_FIRST_BIT
@@ -26,6 +24,7 @@ config ARC
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_PENDING_IRQ if SMP
+	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
@@ -46,13 +45,11 @@ config ARC
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
+	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
 
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
-
-config MIGHT_HAVE_PCI
-	bool
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
@@ -109,7 +106,7 @@ endmenu
 
 choice
 	prompt "ARC Instruction Set"
-	default ISA_ARCOMPACT
+	default ISA_ARCV2
 
 config ISA_ARCOMPACT
 	bool "ARCompact ISA"
@@ -176,13 +173,11 @@ endchoice
 
 config CPU_BIG_ENDIAN
 	bool "Enable Big Endian Mode"
-	default n
 	help
 	  Build kernel for Big Endian Mode of ARC CPU
 
 config SMP
 	bool "Symmetric Multi-Processing"
-	default n
 	select ARC_MCIP if ISA_ARCV2
 	help
 	  This enables support for systems with more than one CPU.
@@ -254,7 +249,6 @@ config ARC_CACHE_PAGES
 config ARC_CACHE_VIPT_ALIASING
 	bool "Support VIPT Aliasing D$"
 	depends on ARC_HAS_DCACHE && ISA_ARCOMPACT
-	default n
 
 endif	#ARC_CACHE
 
@@ -262,7 +256,6 @@ config ARC_HAS_ICCM
 	bool "Use ICCM"
 	help
 	  Single Cycle RAMS to store Fast Path Code
-	default n
 
 config ARC_ICCM_SZ
 	int "ICCM Size in KB"
@@ -273,7 +266,6 @@ config ARC_HAS_DCCM
 	bool "Use DCCM"
 	help
 	  Single Cycle RAMS to store Fast Path Data
-	default n
 
 config ARC_DCCM_SZ
 	int "DCCM Size in KB"
@@ -366,13 +358,11 @@ if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
 	bool "Setup Timer IRQ as high Priority"
-	default n
 	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
 	depends on !SMP
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
-	default n
 	help
 	  Double Precision Floating Point unit had dedicated regs which
 	  need to be saved/restored across context-switch.
@@ -453,7 +443,6 @@ config HIGHMEM
 
 config ARC_HAS_PAE40
 	bool "Support for the 40-bit Physical Address Extension"
-	default n
 	depends on ISA_ARCV2
 	select HIGHMEM
 	select PHYS_ADDR_T_64BIT
@@ -496,7 +485,6 @@ config HZ
 
 config ARC_METAWARE_HLINK
 	bool "Support for Metaware debugger assisted Host access"
-	default n
 	help
 	  This options allows a Linux userland apps to directly access
 	  host file system (open/creat/read/write etc) with help from
@@ -524,13 +512,11 @@ config ARC_DW2_UNWIND
 
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
-	default n
 
 endif
 
 config ARC_UBOOT_SUPPORT
 	bool "Support uboot arg Handling"
-	default n
 	help
 	  ARC Linux by default checks for uboot provided args as pointers to
 	  external cmdline or DTB. This however breaks in absence of uboot,
@@ -552,25 +538,5 @@ config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "12" if ARC_HUGEPAGE_16M
 	default "11"
-
-menu "Bus Support"
-
-config PCI
-	bool "PCI support" if MIGHT_HAVE_PCI
-	help
-	  PCI is the name of a bus system, i.e., the way the CPU talks to
-	  the other stuff inside your box.  Find out if your board/platform
-	  has PCI.
-
-	  Note: PCIe support for Synopsys Device will be available only
-	  when HAPS DX is configured with PCIe RC bitmap. If you have PCI,
-	  say Y, otherwise N.
-
-config PCI_SYSCALL
-	def_bool PCI
-
-source "drivers/pci/Kconfig"
-
-endmenu
 
 source "kernel/power/Kconfig"

@@ -50,6 +50,8 @@
 #ifndef __LINUX_V4L2_CONTROLS_H
 #define __LINUX_V4L2_CONTROLS_H
 
+#include <linux/types.h>
+
 /* Control classes */
 #define V4L2_CTRL_CLASS_USER		0x00980000	/* Old-style 'user' controls */
 #define V4L2_CTRL_CLASS_MPEG		0x00990000	/* MPEG-compression controls */
@@ -401,9 +403,6 @@ enum v4l2_mpeg_video_multi_slice_mode {
 #define V4L2_CID_MPEG_VIDEO_MV_H_SEARCH_RANGE		(V4L2_CID_MPEG_BASE+227)
 #define V4L2_CID_MPEG_VIDEO_MV_V_SEARCH_RANGE		(V4L2_CID_MPEG_BASE+228)
 #define V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME		(V4L2_CID_MPEG_BASE+229)
-
-#define V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS		(V4L2_CID_MPEG_BASE+250)
-#define V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION		(V4L2_CID_MPEG_BASE+251)
 
 #define V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP		(V4L2_CID_MPEG_BASE+300)
 #define V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP		(V4L2_CID_MPEG_BASE+301)
@@ -1094,67 +1093,5 @@ enum v4l2_detect_md_mode {
 #define V4L2_CID_DETECT_MD_GLOBAL_THRESHOLD	(V4L2_CID_DETECT_CLASS_BASE + 2)
 #define V4L2_CID_DETECT_MD_THRESHOLD_GRID	(V4L2_CID_DETECT_CLASS_BASE + 3)
 #define V4L2_CID_DETECT_MD_REGION_GRID		(V4L2_CID_DETECT_CLASS_BASE + 4)
-
-#define V4L2_MPEG2_PICTURE_CODING_TYPE_I	1
-#define V4L2_MPEG2_PICTURE_CODING_TYPE_P	2
-#define V4L2_MPEG2_PICTURE_CODING_TYPE_B	3
-#define V4L2_MPEG2_PICTURE_CODING_TYPE_D	4
-
-struct v4l2_mpeg2_sequence {
-	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Sequence header */
-	__u16	horizontal_size;
-	__u16	vertical_size;
-	__u32	vbv_buffer_size;
-
-	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Sequence extension */
-	__u8	profile_and_level_indication;
-	__u8	progressive_sequence;
-	__u8	chroma_format;
-};
-
-struct v4l2_mpeg2_picture {
-	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Picture header */
-	__u8	picture_coding_type;
-
-	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Picture coding extension */
-	__u8	f_code[2][2];
-	__u8	intra_dc_precision;
-	__u8	picture_structure;
-	__u8	top_field_first;
-	__u8	frame_pred_frame_dct;
-	__u8	concealment_motion_vectors;
-	__u8	q_scale_type;
-	__u8	intra_vlc_format;
-	__u8	alternate_scan;
-	__u8	repeat_first_field;
-	__u8	progressive_frame;
-};
-
-struct v4l2_ctrl_mpeg2_slice_params {
-	__u32	bit_size;
-	__u32	data_bit_offset;
-
-	struct v4l2_mpeg2_sequence sequence;
-	struct v4l2_mpeg2_picture picture;
-
-	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Slice */
-	__u8	quantiser_scale_code;
-
-	__u8	backward_ref_index;
-	__u8	forward_ref_index;
-};
-
-struct v4l2_ctrl_mpeg2_quantization {
-	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Quant matrix extension */
-	__u8	load_intra_quantiser_matrix;
-	__u8	load_non_intra_quantiser_matrix;
-	__u8	load_chroma_intra_quantiser_matrix;
-	__u8	load_chroma_non_intra_quantiser_matrix;
-
-	__u8	intra_quantiser_matrix[64];
-	__u8	non_intra_quantiser_matrix[64];
-	__u8	chroma_intra_quantiser_matrix[64];
-	__u8	chroma_non_intra_quantiser_matrix[64];
-};
 
 #endif

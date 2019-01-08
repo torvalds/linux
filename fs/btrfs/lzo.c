@@ -27,7 +27,7 @@
  *     Records the total size (including the header) of compressed data.
  *
  * 2.  Segment(s)
- *     Variable size. Each segment includes one segment header, followd by data
+ *     Variable size. Each segment includes one segment header, followed by data
  *     payload.
  *     One regular LZO compressed extent can have one or more segments.
  *     For inlined LZO compressed extent, only one segment is allowed.

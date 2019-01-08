@@ -247,8 +247,7 @@ void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
 	qxl_release_fence_buffer_objects(release);
 
 out_free_palette:
-	if (palette_bo)
-		qxl_bo_unref(&palette_bo);
+	qxl_bo_unref(&palette_bo);
 out_free_image:
 	qxl_image_free_objects(qdev, dimage);
 out_free_drawable:

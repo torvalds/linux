@@ -424,10 +424,8 @@ static u32 nau8825_xtalk_sidetone(u32 sig_org, u32 sig_cros)
 {
 	u32 gain, sidetone;
 
-	if (unlikely(sig_org == 0) || unlikely(sig_cros == 0)) {
-		WARN_ON(1);
+	if (WARN_ON(sig_org == 0 || sig_cros == 0))
 		return 0;
-	}
 
 	sig_org = nau8825_intlog10_dec3(sig_org);
 	sig_cros = nau8825_intlog10_dec3(sig_cros);

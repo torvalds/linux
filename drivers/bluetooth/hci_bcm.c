@@ -31,6 +31,7 @@
 #include <linux/property.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/tty.h>
@@ -51,7 +52,15 @@
 #define BCM_LM_DIAG_PKT 0x07
 #define BCM_LM_DIAG_SIZE 63
 
+#define BCM_TYPE49_PKT 0x31
+#define BCM_TYPE49_SIZE 0
+
+#define BCM_TYPE52_PKT 0x34
+#define BCM_TYPE52_SIZE 0
+
 #define BCM_AUTOSUSPEND_DELAY	5000 /* default autosleep delay */
+
+#define BCM_NUM_SUPPLIES 2
 
 /**
  * struct bcm_device - device driver resources
@@ -71,8 +80,10 @@
  * @btlp: Apple ACPI method to toggle BT_WAKE pin ("Bluetooth Low Power")
  * @btpu: Apple ACPI method to drive BT_REG_ON pin high ("Bluetooth Power Up")
  * @btpd: Apple ACPI method to drive BT_REG_ON pin low ("Bluetooth Power Down")
- * @clk: clock used by Bluetooth device
- * @clk_enabled: whether @clk is prepared and enabled
+ * @txco_clk: external reference frequency clock used by Bluetooth device
+ * @lpo_clk: external LPO clock used by Bluetooth device
+ * @supplies: VBAT and VDDIO supplies used by Bluetooth device
+ * @res_enabled: whether clocks and supplies are prepared and enabled
  * @init_speed: default baudrate of Bluetooth device;
  *	the host UART is initially set to this baudrate so that
  *	it can configure the Bluetooth device for @oper_speed
@@ -102,8 +113,10 @@ struct bcm_device {
 	int			gpio_int_idx;
 #endif
 
-	struct clk		*clk;
-	bool			clk_enabled;
+	struct clk		*txco_clk;
+	struct clk		*lpo_clk;
+	struct regulator_bulk_data supplies[BCM_NUM_SUPPLIES];
+	bool			res_enabled;
 
 	u32			init_speed;
 	u32			oper_speed;
@@ -214,32 +227,59 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 {
 	int err;
 
-	if (powered && !IS_ERR(dev->clk) && !dev->clk_enabled) {
-		err = clk_prepare_enable(dev->clk);
+	if (powered && !dev->res_enabled) {
+		err = regulator_bulk_enable(BCM_NUM_SUPPLIES, dev->supplies);
 		if (err)
 			return err;
+
+		/* LPO clock needs to be 32.768 kHz */
+		err = clk_set_rate(dev->lpo_clk, 32768);
+		if (err) {
+			dev_err(dev->dev, "Could not set LPO clock rate\n");
+			goto err_regulator_disable;
+		}
+
+		err = clk_prepare_enable(dev->lpo_clk);
+		if (err)
+			goto err_regulator_disable;
+
+		err = clk_prepare_enable(dev->txco_clk);
+		if (err)
+			goto err_lpo_clk_disable;
 	}
 
 	err = dev->set_shutdown(dev, powered);
 	if (err)
-		goto err_clk_disable;
+		goto err_txco_clk_disable;
 
 	err = dev->set_device_wakeup(dev, powered);
 	if (err)
 		goto err_revert_shutdown;
 
-	if (!powered && !IS_ERR(dev->clk) && dev->clk_enabled)
-		clk_disable_unprepare(dev->clk);
+	if (!powered && dev->res_enabled) {
+		clk_disable_unprepare(dev->txco_clk);
+		clk_disable_unprepare(dev->lpo_clk);
+		regulator_bulk_disable(BCM_NUM_SUPPLIES, dev->supplies);
+	}
 
-	dev->clk_enabled = powered;
+	/* wait for device to power on and come out of reset */
+	usleep_range(10000, 20000);
+
+	dev->res_enabled = powered;
 
 	return 0;
 
 err_revert_shutdown:
 	dev->set_shutdown(dev, !powered);
-err_clk_disable:
-	if (powered && !IS_ERR(dev->clk) && !dev->clk_enabled)
-		clk_disable_unprepare(dev->clk);
+err_txco_clk_disable:
+	if (powered && !dev->res_enabled)
+		clk_disable_unprepare(dev->txco_clk);
+err_lpo_clk_disable:
+	if (powered && !dev->res_enabled)
+		clk_disable_unprepare(dev->lpo_clk);
+err_regulator_disable:
+	if (powered && !dev->res_enabled)
+		regulator_bulk_disable(BCM_NUM_SUPPLIES, dev->supplies);
 	return err;
 }
 
@@ -561,12 +601,28 @@ finalize:
 	.lsize = 0, \
 	.maxlen = BCM_NULL_SIZE
 
+#define BCM_RECV_TYPE49 \
+	.type = BCM_TYPE49_PKT, \
+	.hlen = BCM_TYPE49_SIZE, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = BCM_TYPE49_SIZE
+
+#define BCM_RECV_TYPE52 \
+	.type = BCM_TYPE52_PKT, \
+	.hlen = BCM_TYPE52_SIZE, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = BCM_TYPE52_SIZE
+
 static const struct h4_recv_pkt bcm_recv_pkts[] = {
 	{ H4_RECV_ACL,      .recv = hci_recv_frame },
 	{ H4_RECV_SCO,      .recv = hci_recv_frame },
 	{ H4_RECV_EVENT,    .recv = hci_recv_frame },
 	{ BCM_RECV_LM_DIAG, .recv = hci_recv_diag  },
 	{ BCM_RECV_NULL,    .recv = hci_recv_diag  },
+	{ BCM_RECV_TYPE49,  .recv = hci_recv_diag  },
+	{ BCM_RECV_TYPE52,  .recv = hci_recv_diag  },
 };
 
 static int bcm_recv(struct hci_uart *hu, const void *data, int count)
@@ -896,16 +952,57 @@ static int bcm_gpio_set_shutdown(struct bcm_device *dev, bool powered)
 	return 0;
 }
 
+/* Try a bunch of names for TXCO */
+static struct clk *bcm_get_txco(struct device *dev)
+{
+	struct clk *clk;
+
+	/* New explicit name */
+	clk = devm_clk_get(dev, "txco");
+	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
+		return clk;
+
+	/* Deprecated name */
+	clk = devm_clk_get(dev, "extclk");
+	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
+		return clk;
+
+	/* Original code used no name at all */
+	return devm_clk_get(dev, NULL);
+}
+
 static int bcm_get_resources(struct bcm_device *dev)
 {
 	const struct dmi_system_id *dmi_id;
+	int err;
 
 	dev->name = dev_name(dev->dev);
 
 	if (x86_apple_machine && !bcm_apple_get_resources(dev))
 		return 0;
 
-	dev->clk = devm_clk_get(dev->dev, NULL);
+	dev->txco_clk = bcm_get_txco(dev->dev);
+
+	/* Handle deferred probing */
+	if (dev->txco_clk == ERR_PTR(-EPROBE_DEFER))
+		return PTR_ERR(dev->txco_clk);
+
+	/* Ignore all other errors as before */
+	if (IS_ERR(dev->txco_clk))
+		dev->txco_clk = NULL;
+
+	dev->lpo_clk = devm_clk_get(dev->dev, "lpo");
+	if (dev->lpo_clk == ERR_PTR(-EPROBE_DEFER))
+		return PTR_ERR(dev->lpo_clk);
+
+	if (IS_ERR(dev->lpo_clk))
+		dev->lpo_clk = NULL;
+
+	/* Check if we accidentally fetched the lpo clock twice */
+	if (dev->lpo_clk && clk_is_match(dev->lpo_clk, dev->txco_clk)) {
+		devm_clk_put(dev->dev, dev->txco_clk);
+		dev->txco_clk = NULL;
+	}
 
 	dev->device_wakeup = devm_gpiod_get_optional(dev->dev, "device-wakeup",
 						     GPIOD_OUT_LOW);
@@ -919,6 +1016,13 @@ static int bcm_get_resources(struct bcm_device *dev)
 
 	dev->set_device_wakeup = bcm_gpio_set_device_wakeup;
 	dev->set_shutdown = bcm_gpio_set_shutdown;
+
+	dev->supplies[0].supply = "vbat";
+	dev->supplies[1].supply = "vddio";
+	err = devm_regulator_bulk_get(dev->dev, BCM_NUM_SUPPLIES,
+				      dev->supplies);
+	if (err)
+		return err;
 
 	/* IRQ can be declared in ACPI table as Interrupt or GpioInt */
 	if (dev->irq <= 0) {
@@ -1314,6 +1418,8 @@ static void bcm_serdev_remove(struct serdev_device *serdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id bcm_bluetooth_of_match[] = {
+	{ .compatible = "brcm,bcm20702a1" },
+	{ .compatible = "brcm,bcm4330-bt" },
 	{ .compatible = "brcm,bcm43438-bt" },
 	{ },
 };

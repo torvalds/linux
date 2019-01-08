@@ -307,6 +307,12 @@ struct rockchip_mux_recalced_data {
 	u8 mask;
 };
 
+enum rockchip_mux_route_location {
+	ROCKCHIP_ROUTE_SAME = 0,
+	ROCKCHIP_ROUTE_PMU,
+	ROCKCHIP_ROUTE_GRF,
+};
+
 /**
  * struct rockchip_mux_recalced_data: represent a pin iomux data.
  * @bank_num: bank number.
@@ -319,6 +325,7 @@ struct rockchip_mux_route_data {
 	u8 bank_num;
 	u8 pin;
 	u8 func;
+	enum rockchip_mux_route_location route_location;
 	u32 route_offset;
 	u32 route_val;
 };
@@ -815,6 +822,26 @@ static struct rockchip_mux_route_data rk3128_mux_route_data[] = {
 	},
 };
 
+static struct rockchip_mux_route_data rk3188_mux_route_data[] = {
+	{
+		/* non-iomuxed emmc/flash pins on flash-dqs */
+		.bank_num = 0,
+		.pin = 24,
+		.func = 1,
+		.route_location = ROCKCHIP_ROUTE_GRF,
+		.route_offset = 0xa0,
+		.route_val = BIT(16 + 11),
+	}, {
+		/* non-iomuxed emmc/flash pins on emmc-clk */
+		.bank_num = 0,
+		.pin = 24,
+		.func = 2,
+		.route_location = ROCKCHIP_ROUTE_GRF,
+		.route_offset = 0xa0,
+		.route_val = BIT(16 + 11) | BIT(11),
+	},
+};
+
 static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
 	{
 		/* pwm0-0 */
@@ -1091,7 +1118,7 @@ static struct rockchip_mux_route_data rk3399_mux_route_data[] = {
 };
 
 static bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
-				   int mux, u32 *reg, u32 *value)
+				   int mux, u32 *loc, u32 *reg, u32 *value)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
@@ -1108,6 +1135,7 @@ static bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
 	if (i >= ctrl->niomux_routes)
 		return false;
 
+	*loc = data->route_location;
 	*reg = data->route_offset;
 	*value = data->route_val;
 
@@ -1210,7 +1238,7 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	struct regmap *regmap;
 	int reg, ret, mask, mux_type;
 	u8 bit;
-	u32 data, rmask, route_reg, route_val;
+	u32 data, rmask, route_location, route_reg, route_val;
 
 	ret = rockchip_verify_mux(bank, pin, mux);
 	if (ret < 0)
@@ -1247,9 +1275,21 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 		rockchip_get_recalced_mux(bank, pin, &reg, &bit, &mask);
 
 	if (bank->route_mask & BIT(pin)) {
-		if (rockchip_get_mux_route(bank, pin, mux, &route_reg,
-					   &route_val)) {
-			ret = regmap_write(regmap, route_reg, route_val);
+		if (rockchip_get_mux_route(bank, pin, mux, &route_location,
+					   &route_reg, &route_val)) {
+			struct regmap *route_regmap = regmap;
+
+			/* handle special locations */
+			switch (route_location) {
+			case ROCKCHIP_ROUTE_PMU:
+				route_regmap = info->regmap_pmu;
+				break;
+			case ROCKCHIP_ROUTE_GRF:
+				route_regmap = info->regmap_base;
+				break;
+			}
+
+			ret = regmap_write(route_regmap, route_reg, route_val);
 			if (ret)
 				return ret;
 		}
@@ -3606,6 +3646,8 @@ static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
 		.label			= "RK3188-GPIO",
 		.type			= RK3188,
 		.grf_mux_offset		= 0x60,
+		.iomux_routes		= rk3188_mux_route_data,
+		.niomux_routes		= ARRAY_SIZE(rk3188_mux_route_data),
 		.pull_calc_reg		= rk3188_calc_pull_reg_and_bit,
 };
 

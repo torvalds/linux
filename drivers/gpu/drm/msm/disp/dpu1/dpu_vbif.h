@@ -78,17 +78,6 @@ void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms);
  */
 void dpu_vbif_init_memtypes(struct dpu_kms *dpu_kms);
 
-#ifdef CONFIG_DEBUG_FS
-int dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root);
-void dpu_debugfs_vbif_destroy(struct dpu_kms *dpu_kms);
-#else
-static inline int dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms,
-		struct dentry *debugfs_root)
-{
-	return 0;
-}
-static inline void dpu_debugfs_vbif_destroy(struct dpu_kms *dpu_kms)
-{
-}
-#endif
+void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root);
+
 #endif /* __DPU_VBIF_H__ */

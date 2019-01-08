@@ -6071,7 +6071,7 @@ static const char * const s_igu_fifo_error_strs[] = {
 	"no error",
 	"length error",
 	"function disabled",
-	"VF sent command to attnetion address",
+	"VF sent command to attention address",
 	"host sent prod update command",
 	"read of during interrupt register while in MIMD mode",
 	"access to PXP BAR reserved address",

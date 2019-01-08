@@ -1477,10 +1477,10 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	chip->legacy.write_byte = atmel_nand_write_byte;
 	chip->legacy.read_buf = atmel_nand_read_buf;
 	chip->legacy.write_buf = atmel_nand_write_buf;
-	chip->select_chip = atmel_nand_select_chip;
+	chip->legacy.select_chip = atmel_nand_select_chip;
 
-	if (nc->mck && nc->caps->ops->setup_data_interface)
-		chip->setup_data_interface = atmel_nand_setup_data_interface;
+	if (!nc->mck || !nc->caps->ops->setup_data_interface)
+		chip->options |= NAND_KEEP_TIMINGS;
 
 	/* Some NANDs require a longer delay than the default one (20us). */
 	chip->legacy.chip_delay = 40;
@@ -1525,7 +1525,7 @@ static void atmel_hsmc_nand_init(struct atmel_nand_controller *nc,
 
 	/* Overload some methods for the HSMC controller. */
 	chip->legacy.cmd_ctrl = atmel_hsmc_nand_cmd_ctrl;
-	chip->select_chip = atmel_hsmc_nand_select_chip;
+	chip->legacy.select_chip = atmel_hsmc_nand_select_chip;
 }
 
 static int atmel_nand_controller_remove_nand(struct atmel_nand *nand)
@@ -1908,6 +1908,7 @@ static int atmel_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops atmel_nand_controller_ops = {
 	.attach_chip = atmel_nand_attach_chip,
+	.setup_data_interface = atmel_nand_setup_data_interface,
 };
 
 static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
@@ -2032,8 +2033,7 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	int ret;
 
 	nand_np = dev->of_node;
-	nfc_np = of_find_compatible_node(dev->of_node, NULL,
-					 "atmel,sama5d3-nfc");
+	nfc_np = of_get_compatible_child(dev->of_node, "atmel,sama5d3-nfc");
 	if (!nfc_np) {
 		dev_err(dev, "Could not find device node for sama5d3-nfc\n");
 		return -ENODEV;
@@ -2447,15 +2447,19 @@ static int atmel_nand_controller_probe(struct platform_device *pdev)
 	}
 
 	if (caps->legacy_of_bindings) {
+		struct device_node *nfc_node;
 		u32 ale_offs = 21;
 
 		/*
 		 * If we are parsing legacy DT props and the DT contains a
 		 * valid NFC node, forward the request to the sama5 logic.
 		 */
-		if (of_find_compatible_node(pdev->dev.of_node, NULL,
-					    "atmel,sama5d3-nfc"))
+		nfc_node = of_get_compatible_child(pdev->dev.of_node,
+						   "atmel,sama5d3-nfc");
+		if (nfc_node) {
 			caps = &atmel_sama5_nand_caps;
+			of_node_put(nfc_node);
+		}
 
 		/*
 		 * Even if the compatible says we are dealing with an

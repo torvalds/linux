@@ -10,7 +10,7 @@ drm-y       :=	drm_auth.o drm_bufs.o drm_cache.o \
 		drm_scatter.o drm_pci.o \
 		drm_sysfs.o drm_hashtab.o drm_mm.o \
 		drm_crtc.o drm_fourcc.o drm_modes.o drm_edid.o \
-		drm_info.o drm_encoder_slave.o \
+		drm_encoder_slave.o \
 		drm_trace_points.o drm_prime.o \
 		drm_rect.o drm_vma_manager.o drm_flip_work.o \
 		drm_modeset_lock.o drm_atomic.o drm_bridge.o \
@@ -37,7 +37,7 @@ drm_kms_helper-y := drm_crtc_helper.o drm_dp_helper.o drm_dsc.o drm_probe_helper
 		drm_kms_helper_common.o drm_dp_dual_mode_helper.o \
 		drm_simple_kms_helper.o drm_modeset_helper.o \
 		drm_scdc_helper.o drm_gem_framebuffer_helper.o \
-		drm_atomic_state_helper.o
+		drm_atomic_state_helper.o drm_damage_helper.o
 
 drm_kms_helper-$(CONFIG_DRM_PANEL_BRIDGE) += bridge/panel.o
 drm_kms_helper-$(CONFIG_DRM_FBDEV_EMULATION) += drm_fb_helper.o

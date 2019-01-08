@@ -42,6 +42,11 @@ Supported chips:
     Addresses scanned: none
     Datasheet: Publicly available at the ST website
                http://www.st.com/internet/analog/product/121769.jsp
+  * ST Microelectronics STLM75
+    Prefix: 'stlm75'
+    Addresses scanned: none
+    Datasheet: Publicly available at the ST website
+	       https://www.st.com/resource/en/datasheet/stlm75.pdf
   * Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75, TMP75C, TMP175, TMP275
     Prefixes: 'tmp100', 'tmp101', 'tmp105', 'tmp112', 'tmp175', 'tmp75', 'tmp75c', 'tmp275'
     Addresses scanned: none

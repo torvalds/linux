@@ -267,7 +267,7 @@ void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
 
 	if (unlikely(t->flags & PF_EXITING))
 		return;
-	if (unlikely(!access_ok(VERIFY_WRITE, t->rseq, sizeof(*t->rseq))))
+	if (unlikely(!access_ok(t->rseq, sizeof(*t->rseq))))
 		goto error;
 	ret = rseq_ip_fixup(regs);
 	if (unlikely(ret < 0))
@@ -295,7 +295,7 @@ void rseq_syscall(struct pt_regs *regs)
 
 	if (!t->rseq)
 		return;
-	if (!access_ok(VERIFY_READ, t->rseq, sizeof(*t->rseq)) ||
+	if (!access_ok(t->rseq, sizeof(*t->rseq)) ||
 	    rseq_get_rseq_cs(t, &rseq_cs) || in_rseq_cs(ip, &rseq_cs))
 		force_sig(SIGSEGV, t);
 }
@@ -351,7 +351,7 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
 	if (!IS_ALIGNED((unsigned long)rseq, __alignof__(*rseq)) ||
 	    rseq_len != sizeof(*rseq))
 		return -EINVAL;
-	if (!access_ok(VERIFY_WRITE, rseq, rseq_len))
+	if (!access_ok(rseq, rseq_len))
 		return -EFAULT;
 	current->rseq = rseq;
 	current->rseq_len = rseq_len;

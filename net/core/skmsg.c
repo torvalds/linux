@@ -94,6 +94,9 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 	}
 
 	while (len) {
+		if (sk_msg_full(dst))
+			return -ENOSPC;
+
 		sge_len = sge->length - off;
 		sge_off = sge->offset + off;
 		if (sge_len > len)
@@ -403,7 +406,7 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
 	msg->skb = skb;
 
 	sk_psock_queue_msg(psock, msg);
-	sk->sk_data_ready(sk);
+	sk_psock_data_ready(sk, psock);
 	return copied;
 }
 
@@ -572,6 +575,7 @@ void sk_psock_drop(struct sock *sk, struct sk_psock *psock)
 {
 	rcu_assign_sk_user_data(sk, NULL);
 	sk_psock_cork_free(psock);
+	sk_psock_zap_ingress(psock);
 	sk_psock_restore_proto(sk, psock);
 
 	write_lock_bh(&sk->sk_callback_lock);
@@ -580,7 +584,7 @@ void sk_psock_drop(struct sock *sk, struct sk_psock *psock)
 	write_unlock_bh(&sk->sk_callback_lock);
 	sk_psock_clear_state(psock, SK_PSOCK_TX_ENABLED);
 
-	call_rcu_sched(&psock->rcu, sk_psock_destroy);
+	call_rcu(&psock->rcu, sk_psock_destroy);
 }
 EXPORT_SYMBOL_GPL(sk_psock_drop);
 
@@ -669,6 +673,22 @@ static void sk_psock_verdict_apply(struct sk_psock *psock,
 	bool ingress;
 
 	switch (verdict) {
+	case __SK_PASS:
+		sk_other = psock->sk;
+		if (sock_flag(sk_other, SOCK_DEAD) ||
+		    !sk_psock_test_state(psock, SK_PSOCK_TX_ENABLED)) {
+			goto out_free;
+		}
+		if (atomic_read(&sk_other->sk_rmem_alloc) <=
+		    sk_other->sk_rcvbuf) {
+			struct tcp_skb_cb *tcp = TCP_SKB_CB(skb);
+
+			tcp->bpf.flags |= BPF_F_INGRESS;
+			skb_queue_tail(&psock->ingress_skb, skb);
+			schedule_work(&psock->work);
+			break;
+		}
+		goto out_free;
 	case __SK_REDIRECT:
 		sk_other = tcp_skb_bpf_redirect_fetch(skb);
 		if (unlikely(!sk_other))
@@ -735,7 +755,7 @@ static int sk_psock_strp_parse(struct strparser *strp, struct sk_buff *skb)
 }
 
 /* Called with socket lock held. */
-static void sk_psock_data_ready(struct sock *sk)
+static void sk_psock_strp_data_ready(struct sock *sk)
 {
 	struct sk_psock *psock;
 
@@ -783,7 +803,7 @@ void sk_psock_start_strp(struct sock *sk, struct sk_psock *psock)
 		return;
 
 	parser->saved_data_ready = sk->sk_data_ready;
-	sk->sk_data_ready = sk_psock_data_ready;
+	sk->sk_data_ready = sk_psock_strp_data_ready;
 	sk->sk_write_space = sk_psock_write_space;
 	parser->enabled = true;
 }

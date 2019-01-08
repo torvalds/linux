@@ -46,7 +46,7 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	if (topo.flags != 0)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, u64_to_user_ptr(query_item->data_ptr),
+	if (!access_ok(u64_to_user_ptr(query_item->data_ptr),
 		       total_length))
 		return -EFAULT;
 

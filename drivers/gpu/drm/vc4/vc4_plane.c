@@ -129,12 +129,12 @@ static const struct hvs_format *vc4_get_hvs_format(u32 drm_format)
 
 static enum vc4_scaling_mode vc4_get_scaling_mode(u32 src, u32 dst)
 {
-	if (dst > src)
-		return VC4_SCALING_PPF;
-	else if (dst < src)
-		return VC4_SCALING_TPZ;
-	else
+	if (dst == src)
 		return VC4_SCALING_NONE;
+	if (3 * dst >= 2 * src)
+		return VC4_SCALING_PPF;
+	else
+		return VC4_SCALING_TPZ;
 }
 
 static bool plane_enabled(struct drm_plane_state *state)
@@ -154,6 +154,7 @@ static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane
 		return NULL;
 
 	memset(&vc4_state->lbm, 0, sizeof(vc4_state->lbm));
+	vc4_state->dlist_initialized = 0;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &vc4_state->base);
 
@@ -259,14 +260,12 @@ static u32 vc4_get_scl_field(struct drm_plane_state *state, int plane)
 
 static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
-	struct drm_plane *plane = state->plane;
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	u32 subpixel_src_mask = (1 << 16) - 1;
 	u32 format = fb->format->format;
 	int num_planes = fb->format->num_planes;
-	int min_scale = 1, max_scale = INT_MAX;
 	struct drm_crtc_state *crtc_state;
 	u32 h_subsample, v_subsample;
 	int i, ret;
@@ -278,21 +277,8 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 		return -EINVAL;
 	}
 
-	/* No configuring scaling on the cursor plane, since it gets
-	 * non-vblank-synced updates, and scaling requires LBM changes which
-	 * have to be vblank-synced.
-	 */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-		min_scale = DRM_PLANE_HELPER_NO_SCALING;
-		max_scale = DRM_PLANE_HELPER_NO_SCALING;
-	} else {
-		min_scale = 1;
-		max_scale = INT_MAX;
-	}
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
-						  min_scale, max_scale,
-						  true, true);
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, 1,
+						  INT_MAX, true, true);
 	if (ret)
 		return ret;
 
@@ -341,12 +327,14 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 			vc4_get_scaling_mode(vc4_state->src_h[1],
 					     vc4_state->crtc_h);
 
-		/* YUV conversion requires that horizontal scaling be enabled,
-		 * even on a plane that's otherwise 1:1. Looks like only PPF
-		 * works in that case, so let's pick that one.
+		/* YUV conversion requires that horizontal scaling be enabled
+		 * on the UV plane even if vc4_get_scaling_mode() returned
+		 * VC4_SCALING_NONE (which can happen when the down-scaling
+		 * ratio is 0.5). Let's force it to VC4_SCALING_PPF in this
+		 * case.
 		 */
-		if (vc4_state->is_unity)
-			vc4_state->x_scaling[0] = VC4_SCALING_PPF;
+		if (vc4_state->x_scaling[1] == VC4_SCALING_NONE)
+			vc4_state->x_scaling[1] = VC4_SCALING_PPF;
 	} else {
 		vc4_state->is_yuv = false;
 		vc4_state->x_scaling[1] = VC4_SCALING_NONE;
@@ -393,10 +381,13 @@ static u32 vc4_lbm_size(struct drm_plane_state *state)
 	u32 pix_per_line = max(vc4_state->src_w[0], (u32)vc4_state->crtc_w);
 	u32 lbm;
 
+	/* LBM is not needed when there's no vertical scaling. */
+	if (vc4_state->y_scaling[0] == VC4_SCALING_NONE &&
+	    vc4_state->y_scaling[1] == VC4_SCALING_NONE)
+		return 0;
+
 	if (!vc4_state->is_yuv) {
-		if (vc4_state->is_unity)
-			return 0;
-		else if (vc4_state->y_scaling[0] == VC4_SCALING_TPZ)
+		if (vc4_state->y_scaling[0] == VC4_SCALING_TPZ)
 			lbm = pix_per_line * 8;
 		else {
 			/* In special cases, this multiplier might be 12. */
@@ -447,6 +438,43 @@ static void vc4_write_scaling_parameters(struct drm_plane_state *state,
 	}
 }
 
+static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	unsigned long irqflags;
+	u32 lbm_size;
+
+	lbm_size = vc4_lbm_size(state);
+	if (!lbm_size)
+		return 0;
+
+	if (WARN_ON(!vc4_state->lbm_offset))
+		return -EINVAL;
+
+	/* Allocate the LBM memory that the HVS will use for temporary
+	 * storage due to our scaling/format conversion.
+	 */
+	if (!vc4_state->lbm.allocated) {
+		int ret;
+
+		spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
+		ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
+						 &vc4_state->lbm,
+						 lbm_size, 32, 0, 0);
+		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
+
+		if (ret)
+			return ret;
+	} else {
+		WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
+	}
+
+	vc4_state->dlist[vc4_state->lbm_offset] = vc4_state->lbm.start;
+
+	return 0;
+}
+
 /* Writes out a full display list for an active plane to the plane's
  * private dlist state.
  */
@@ -464,31 +492,14 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
-	u32 lbm_size, tiling;
-	unsigned long irqflags;
+	u32 tiling;
 	u32 hvs_format = format->hvs;
 	int ret, i;
 
+	if (vc4_state->dlist_initialized)
+		return 0;
+
 	ret = vc4_plane_setup_clipping_and_scaling(state);
-	if (ret)
-		return ret;
-
-	/* Allocate the LBM memory that the HVS will use for temporary
-	 * storage due to our scaling/format conversion.
-	 */
-	lbm_size = vc4_lbm_size(state);
-	if (lbm_size) {
-		if (!vc4_state->lbm.allocated) {
-			spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
-			ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
-							 &vc4_state->lbm,
-							 lbm_size, 32, 0, 0);
-			spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
-		} else {
-			WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
-		}
-	}
-
 	if (ret)
 		return ret;
 
@@ -712,15 +723,18 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		vc4_dlist_write(vc4_state, SCALER_CSC2_ITR_R_601_5);
 	}
 
+	vc4_state->lbm_offset = 0;
+
 	if (vc4_state->x_scaling[0] != VC4_SCALING_NONE ||
 	    vc4_state->x_scaling[1] != VC4_SCALING_NONE ||
 	    vc4_state->y_scaling[0] != VC4_SCALING_NONE ||
 	    vc4_state->y_scaling[1] != VC4_SCALING_NONE) {
-		/* LBM Base Address. */
+		/* Reserve a slot for the LBM Base Address. The real value will
+		 * be set when calling vc4_plane_allocate_lbm().
+		 */
 		if (vc4_state->y_scaling[0] != VC4_SCALING_NONE ||
-		    vc4_state->y_scaling[1] != VC4_SCALING_NONE) {
-			vc4_dlist_write(vc4_state, vc4_state->lbm.start);
-		}
+		    vc4_state->y_scaling[1] != VC4_SCALING_NONE)
+			vc4_state->lbm_offset = vc4_state->dlist_count++;
 
 		if (num_planes > 1) {
 			/* Emit Cb/Cr as channel 0 and Y as channel
@@ -766,6 +780,13 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen ||
 				   state->alpha != DRM_BLEND_ALPHA_OPAQUE;
 
+	/* Flag the dlist as initialized to avoid checking it twice in case
+	 * the async update check already called vc4_plane_mode_set() and
+	 * decided to fallback to sync update because async update was not
+	 * possible.
+	 */
+	vc4_state->dlist_initialized = 1;
+
 	return 0;
 }
 
@@ -780,13 +801,18 @@ static int vc4_plane_atomic_check(struct drm_plane *plane,
 				  struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	int ret;
 
 	vc4_state->dlist_count = 0;
 
-	if (plane_enabled(state))
-		return vc4_plane_mode_set(plane, state);
-	else
+	if (!plane_enabled(state))
 		return 0;
+
+	ret = vc4_plane_mode_set(plane, state);
+	if (ret)
+		return ret;
+
+	return vc4_plane_allocate_lbm(state);
 }
 
 static void vc4_plane_atomic_update(struct drm_plane *plane,
@@ -852,28 +878,59 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
-	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
+	struct vc4_plane_state *vc4_state, *new_vc4_state;
 
-	if (plane->state->fb != state->fb) {
-		vc4_plane_async_set_fb(plane, state->fb);
-		drm_atomic_set_fb_for_plane(plane->state, state->fb);
-	}
-
-	/* Set the cursor's position on the screen.  This is the
-	 * expected change from the drm_mode_cursor_universal()
-	 * helper.
-	 */
+	drm_atomic_set_fb_for_plane(plane->state, state->fb);
 	plane->state->crtc_x = state->crtc_x;
 	plane->state->crtc_y = state->crtc_y;
-
-	/* Allow changing the start position within the cursor BO, if
-	 * that matters.
-	 */
+	plane->state->crtc_w = state->crtc_w;
+	plane->state->crtc_h = state->crtc_h;
 	plane->state->src_x = state->src_x;
 	plane->state->src_y = state->src_y;
+	plane->state->src_w = state->src_w;
+	plane->state->src_h = state->src_h;
+	plane->state->src_h = state->src_h;
+	plane->state->alpha = state->alpha;
+	plane->state->pixel_blend_mode = state->pixel_blend_mode;
+	plane->state->rotation = state->rotation;
+	plane->state->zpos = state->zpos;
+	plane->state->normalized_zpos = state->normalized_zpos;
+	plane->state->color_encoding = state->color_encoding;
+	plane->state->color_range = state->color_range;
+	plane->state->src = state->src;
+	plane->state->dst = state->dst;
+	plane->state->visible = state->visible;
 
-	/* Update the display list based on the new crtc_x/y. */
-	vc4_plane_atomic_check(plane, plane->state);
+	new_vc4_state = to_vc4_plane_state(state);
+	vc4_state = to_vc4_plane_state(plane->state);
+
+	vc4_state->crtc_x = new_vc4_state->crtc_x;
+	vc4_state->crtc_y = new_vc4_state->crtc_y;
+	vc4_state->crtc_h = new_vc4_state->crtc_h;
+	vc4_state->crtc_w = new_vc4_state->crtc_w;
+	vc4_state->src_x = new_vc4_state->src_x;
+	vc4_state->src_y = new_vc4_state->src_y;
+	memcpy(vc4_state->src_w, new_vc4_state->src_w,
+	       sizeof(vc4_state->src_w));
+	memcpy(vc4_state->src_h, new_vc4_state->src_h,
+	       sizeof(vc4_state->src_h));
+	memcpy(vc4_state->x_scaling, new_vc4_state->x_scaling,
+	       sizeof(vc4_state->x_scaling));
+	memcpy(vc4_state->y_scaling, new_vc4_state->y_scaling,
+	       sizeof(vc4_state->y_scaling));
+	vc4_state->is_unity = new_vc4_state->is_unity;
+	vc4_state->is_yuv = new_vc4_state->is_yuv;
+	memcpy(vc4_state->offsets, new_vc4_state->offsets,
+	       sizeof(vc4_state->offsets));
+	vc4_state->needs_bg_fill = new_vc4_state->needs_bg_fill;
+
+	/* Update the current vc4_state pos0, pos2 and ptr0 dlist entries. */
+	vc4_state->dlist[vc4_state->pos0_offset] =
+		new_vc4_state->dlist[vc4_state->pos0_offset];
+	vc4_state->dlist[vc4_state->pos2_offset] =
+		new_vc4_state->dlist[vc4_state->pos2_offset];
+	vc4_state->dlist[vc4_state->ptr0_offset] =
+		new_vc4_state->dlist[vc4_state->ptr0_offset];
 
 	/* Note that we can't just call vc4_plane_write_dlist()
 	 * because that would smash the context data that the HVS is
@@ -890,12 +947,37 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 static int vc4_plane_atomic_async_check(struct drm_plane *plane,
 					struct drm_plane_state *state)
 {
-	/* No configuring new scaling in the fast path. */
-	if (plane->state->crtc_w != state->crtc_w ||
-	    plane->state->crtc_h != state->crtc_h ||
-	    plane->state->src_w != state->src_w ||
-	    plane->state->src_h != state->src_h)
+	struct vc4_plane_state *old_vc4_state, *new_vc4_state;
+	int ret;
+	u32 i;
+
+	ret = vc4_plane_mode_set(plane, state);
+	if (ret)
+		return ret;
+
+	old_vc4_state = to_vc4_plane_state(plane->state);
+	new_vc4_state = to_vc4_plane_state(state);
+	if (old_vc4_state->dlist_count != new_vc4_state->dlist_count ||
+	    old_vc4_state->pos0_offset != new_vc4_state->pos0_offset ||
+	    old_vc4_state->pos2_offset != new_vc4_state->pos2_offset ||
+	    old_vc4_state->ptr0_offset != new_vc4_state->ptr0_offset ||
+	    vc4_lbm_size(plane->state) != vc4_lbm_size(state))
 		return -EINVAL;
+
+	/* Only pos0, pos2 and ptr0 DWORDS can be updated in an async update
+	 * if anything else has changed, fallback to a sync update.
+	 */
+	for (i = 0; i < new_vc4_state->dlist_count; i++) {
+		if (i == new_vc4_state->pos0_offset ||
+		    i == new_vc4_state->pos2_offset ||
+		    i == new_vc4_state->ptr0_offset ||
+		    (new_vc4_state->lbm_offset &&
+		     i == new_vc4_state->lbm_offset))
+			continue;
+
+		if (new_vc4_state->dlist[i] != old_vc4_state->dlist[i])
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1013,7 +1095,6 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct vc4_plane *vc4_plane;
 	u32 formats[ARRAY_SIZE(hvs_formats)];
-	u32 num_formats = 0;
 	int ret = 0;
 	unsigned i;
 	static const uint64_t modifiers[] = {
@@ -1030,20 +1111,13 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	if (!vc4_plane)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++) {
-		/* Don't allow YUV in cursor planes, since that means
-		 * tuning on the scaler, which we don't allow for the
-		 * cursor.
-		 */
-		if (type != DRM_PLANE_TYPE_CURSOR ||
-		    hvs_formats[i].hvs < HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE) {
-			formats[num_formats++] = hvs_formats[i].drm;
-		}
-	}
+	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++)
+		formats[i] = hvs_formats[i].drm;
+
 	plane = &vc4_plane->base;
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
-				       formats, num_formats,
+				       formats, ARRAY_SIZE(formats),
 				       modifiers, type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);

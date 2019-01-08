@@ -8,11 +8,6 @@
 
 #include "ff.h"
 
-static inline unsigned int get_multiplier_mode_with_index(unsigned int index)
-{
-	return ((int)index - 1) / 2;
-}
-
 static int hw_rule_rate(struct snd_pcm_hw_params *params,
 			struct snd_pcm_hw_rule *rule)
 {
@@ -24,10 +19,16 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 	struct snd_interval t = {
 		.min = UINT_MAX, .max = 0, .integer = 1
 	};
-	unsigned int i, mode;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(amdtp_rate_table); i++) {
-		mode = get_multiplier_mode_with_index(i);
+		enum snd_ff_stream_mode mode;
+		int err;
+
+		err = snd_ff_stream_get_multiplier_mode(i, &mode);
+		if (err < 0)
+			continue;
+
 		if (!snd_interval_test(c, pcm_channels[mode]))
 			continue;
 
@@ -49,10 +50,16 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 	struct snd_interval t = {
 		.min = UINT_MAX, .max = 0, .integer = 1
 	};
-	unsigned int i, mode;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(amdtp_rate_table); i++) {
-		mode = get_multiplier_mode_with_index(i);
+		enum snd_ff_stream_mode mode;
+		int err;
+
+		err = snd_ff_stream_get_multiplier_mode(i, &mode);
+		if (err < 0)
+			continue;
+
 		if (!snd_interval_test(r, amdtp_rate_table[i]))
 			continue;
 
@@ -66,7 +73,6 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 static void limit_channels_and_rates(struct snd_pcm_hardware *hw,
 				     const unsigned int *pcm_channels)
 {
-	unsigned int mode;
 	unsigned int rate, channels;
 	int i;
 
@@ -76,7 +82,12 @@ static void limit_channels_and_rates(struct snd_pcm_hardware *hw,
 	hw->rate_max = 0;
 
 	for (i = 0; i < ARRAY_SIZE(amdtp_rate_table); i++) {
-		mode = get_multiplier_mode_with_index(i);
+		enum snd_ff_stream_mode mode;
+		int err;
+
+		err = snd_ff_stream_get_multiplier_mode(i, &mode);
+		if (err < 0)
+			continue;
 
 		channels = pcm_channels[mode];
 		if (pcm_channels[mode] == 0)
@@ -141,7 +152,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto release_lock;
 
-	err = ff->spec->protocol->get_clock(ff, &rate, &src);
+	err = snd_ff_transaction_get_clock(ff, &rate, &src);
 	if (err < 0)
 		goto release_lock;
 

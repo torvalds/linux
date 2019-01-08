@@ -27,6 +27,8 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto out;
 
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
+				     MT_CALIBRATE_INTERVAL);
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 out:
@@ -48,11 +50,12 @@ static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
 	struct mt76x02_dev *dev = hw->priv;
+	unsigned int idx = 8;
 
 	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))
 		mt76x02_mac_setaddr(dev, vif->addr);
 
-	mt76x02_vif_init(dev, vif, 0);
+	mt76x02_vif_init(dev, vif, idx);
 	return 0;
 }
 
@@ -79,29 +82,6 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	mt76_txq_schedule_all(&dev->mt76);
 
 	return err;
-}
-
-static void
-mt76x2u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_bss_conf *info, u32 changed)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-
-	if (changed & BSS_CHANGED_ASSOC) {
-		mt76x2u_phy_channel_calibrate(dev);
-		mt76x2_apply_gain_adj(dev);
-	}
-
-	if (changed & BSS_CHANGED_BSSID) {
-		mt76_wr(dev, MT_MAC_BSSID_DW0,
-			get_unaligned_le32(info->bssid));
-		mt76_wr(dev, MT_MAC_BSSID_DW1,
-			get_unaligned_le16(info->bssid + 4));
-	}
-
-	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -141,39 +121,22 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 	return err;
 }
 
-static void
-mt76x2u_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		const u8 *mac)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	set_bit(MT76_SCANNING, &dev->mt76.state);
-}
-
-static void
-mt76x2u_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	clear_bit(MT76_SCANNING, &dev->mt76.state);
-}
-
 const struct ieee80211_ops mt76x2u_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x2u_start,
 	.stop = mt76x2u_stop,
 	.add_interface = mt76x2u_add_interface,
 	.remove_interface = mt76x02_remove_interface,
-	.sta_add = mt76x02_sta_add,
-	.sta_remove = mt76x02_sta_remove,
+	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,
 	.ampdu_action = mt76x02_ampdu_action,
 	.config = mt76x2u_config,
 	.wake_tx_queue = mt76_wake_tx_queue,
-	.bss_info_changed = mt76x2u_bss_info_changed,
+	.bss_info_changed = mt76x02_bss_info_changed,
 	.configure_filter = mt76x02_configure_filter,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x2u_sw_scan,
-	.sw_scan_complete = mt76x2u_sw_scan_complete,
+	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
+	.get_txpower = mt76x02_get_txpower,
 };

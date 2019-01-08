@@ -30,7 +30,7 @@ void __iomem *ioremap(phys_addr_t addr, size_t size)
 	vaddr = (unsigned long)area->addr;
 
 	prot = __pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE |
-			_PAGE_GLOBAL | _CACHE_UNCACHED);
+			_PAGE_GLOBAL | _CACHE_UNCACHED | _PAGE_SO);
 
 	if (ioremap_page_range(vaddr, vaddr + size, addr, prot)) {
 		free_vm_area(area);

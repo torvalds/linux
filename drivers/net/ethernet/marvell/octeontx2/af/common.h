@@ -143,6 +143,14 @@ enum nix_scheduler {
 	NIX_TXSCH_LVL_CNT = 0x5,
 };
 
+#define TXSCH_TL1_DFLT_RR_QTM      ((1 << 24) - 1)
+#define TXSCH_TL1_DFLT_RR_PRIO     (0x1ull)
+
+/* Min/Max packet sizes, excluding FCS */
+#define	NIC_HW_MIN_FRS			40
+#define	NIC_HW_MAX_FRS			9212
+#define	SDP_HW_MAX_FRS			65535
+
 /* NIX RX action operation*/
 #define NIX_RX_ACTIONOP_DROP		(0x0ull)
 #define NIX_RX_ACTIONOP_UCAST		(0x1ull)
@@ -169,7 +177,9 @@ enum nix_scheduler {
 
 #define MAX_LMAC_PKIND			12
 #define NIX_LINK_CGX_LMAC(a, b)		(0 + 4 * (a) + (b))
+#define NIX_LINK_LBK(a)			(12 + (a))
 #define NIX_CHAN_CGX_LMAC_CHX(a, b, c)	(0x800 + 0x100 * (a) + 0x10 * (b) + (c))
+#define NIX_CHAN_LBK_CHX(a, b)		(0 + 0x100 * (a) + (b))
 
 /* NIX LSO format indices.
  * As of now TSO is the only one using, so statically assigning indices.
@@ -185,27 +195,5 @@ enum nix_scheduler {
  */
 #define DEFAULT_RSS_CONTEXT_GROUP	0
 #define MAX_RSS_INDIR_TBL_SIZE		256 /* 1 << Max adder bits */
-
-/* NIX flow tag, key type flags */
-#define FLOW_KEY_TYPE_PORT	BIT(0)
-#define FLOW_KEY_TYPE_IPV4	BIT(1)
-#define FLOW_KEY_TYPE_IPV6	BIT(2)
-#define FLOW_KEY_TYPE_TCP	BIT(3)
-#define FLOW_KEY_TYPE_UDP	BIT(4)
-#define FLOW_KEY_TYPE_SCTP	BIT(5)
-
-/* NIX flow tag algorithm indices, max is 31 */
-enum {
-	FLOW_KEY_ALG_PORT,
-	FLOW_KEY_ALG_IP,
-	FLOW_KEY_ALG_TCP,
-	FLOW_KEY_ALG_UDP,
-	FLOW_KEY_ALG_SCTP,
-	FLOW_KEY_ALG_TCP_UDP,
-	FLOW_KEY_ALG_TCP_SCTP,
-	FLOW_KEY_ALG_UDP_SCTP,
-	FLOW_KEY_ALG_TCP_UDP_SCTP,
-	FLOW_KEY_ALG_MAX,
-};
 
 #endif /* COMMON_H */

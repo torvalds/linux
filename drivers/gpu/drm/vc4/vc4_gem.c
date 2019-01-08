@@ -681,7 +681,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	exec->fence = &fence->base;
 
 	if (out_sync)
-		drm_syncobj_replace_fence(out_sync, 0, exec->fence);
+		drm_syncobj_replace_fence(out_sync, exec->fence);
 
 	vc4_update_bo_seqnos(exec, seqno);
 

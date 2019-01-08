@@ -1304,7 +1304,7 @@ static inline int pgd_devmap(pgd_t pgd)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-static inline const int pud_pfn(pud_t pud)
+static inline int pud_pfn(pud_t pud)
 {
 	/*
 	 * Currently all calls to pud_pfn() are gated around a pud_devmap()

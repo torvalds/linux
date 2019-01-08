@@ -74,11 +74,11 @@ out:
 	return ret;
 }
 
-struct btrfs_free_space_info *
-search_free_space_info(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info,
-		       struct btrfs_block_group_cache *block_group,
-		       struct btrfs_path *path, int cow)
+EXPORT_FOR_TESTS
+struct btrfs_free_space_info *search_free_space_info(
+		struct btrfs_trans_handle *trans, struct btrfs_fs_info *fs_info,
+		struct btrfs_block_group_cache *block_group,
+		struct btrfs_path *path, int cow)
 {
 	struct btrfs_root *root = fs_info->free_space_root;
 	struct btrfs_key key;
@@ -176,6 +176,7 @@ static void le_bitmap_set(unsigned long *map, unsigned int start, int len)
 	}
 }
 
+EXPORT_FOR_TESTS
 int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 				  struct btrfs_block_group_cache *block_group,
 				  struct btrfs_path *path)
@@ -315,6 +316,7 @@ out:
 	return ret;
 }
 
+EXPORT_FOR_TESTS
 int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 				  struct btrfs_block_group_cache *block_group,
 				  struct btrfs_path *path)
@@ -487,6 +489,7 @@ out:
 	return ret;
 }
 
+EXPORT_FOR_TESTS
 int free_space_test_bit(struct btrfs_block_group_cache *block_group,
 			struct btrfs_path *path, u64 offset)
 {
@@ -775,6 +778,7 @@ out:
 	return ret;
 }
 
+EXPORT_FOR_TESTS
 int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 				  struct btrfs_block_group_cache *block_group,
 				  struct btrfs_path *path, u64 start, u64 size)
@@ -968,6 +972,7 @@ out:
 	return ret;
 }
 
+EXPORT_FOR_TESTS
 int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
 			     struct btrfs_block_group_cache *block_group,
 			     struct btrfs_path *path, u64 start, u64 size)

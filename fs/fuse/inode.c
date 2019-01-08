@@ -115,7 +115,7 @@ static void fuse_i_callback(struct rcu_head *head)
 static void fuse_destroy_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	if (S_ISREG(inode->i_mode)) {
+	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
 		WARN_ON(!list_empty(&fi->write_files));
 		WARN_ON(!list_empty(&fi->queued_writes));
 	}
@@ -824,7 +824,7 @@ static const struct super_operations fuse_super_operations = {
 static void sanitize_global_limit(unsigned *limit)
 {
 	if (*limit == 0)
-		*limit = ((totalram_pages << PAGE_SHIFT) >> 13) /
+		*limit = ((totalram_pages() << PAGE_SHIFT) >> 13) /
 			 sizeof(struct fuse_req);
 
 	if (*limit >= 1 << 16)
@@ -1068,6 +1068,7 @@ void fuse_dev_free(struct fuse_dev *fud)
 
 		fuse_conn_put(fc);
 	}
+	kfree(fud->pq.processing);
 	kfree(fud);
 }
 EXPORT_SYMBOL_GPL(fuse_dev_free);

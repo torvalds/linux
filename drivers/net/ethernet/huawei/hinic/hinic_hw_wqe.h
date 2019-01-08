@@ -170,6 +170,10 @@
 
 #define HINIC_RQ_CQE_STATUS_RXDONE_MASK         0x1
 
+#define HINIC_RQ_CQE_STATUS_CSUM_ERR_SHIFT	0
+
+#define HINIC_RQ_CQE_STATUS_CSUM_ERR_MASK	0xFFFFU
+
 #define HINIC_RQ_CQE_STATUS_GET(val, member)    \
 		(((val) >> HINIC_RQ_CQE_STATUS_##member##_SHIFT) & \
 		 HINIC_RQ_CQE_STATUS_##member##_MASK)

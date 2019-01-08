@@ -400,13 +400,13 @@ static int uvd_v6_0_sw_init(void *handle)
 		DRM_INFO("UVD ENC is disabled\n");
 	}
 
-	r = amdgpu_uvd_resume(adev);
-	if (r)
-		return r;
-
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0);
+	if (r)
+		return r;
+
+	r = amdgpu_uvd_resume(adev);
 	if (r)
 		return r;
 

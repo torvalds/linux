@@ -52,6 +52,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 	if (lockres->l_flags & OCFS2_LOCK_ATTACHED &&
 	    lockres->l_level > LKM_NLMODE) {
 		int old_level = 0;
+		struct file_lock request;
 
 		if (lockres->l_level == LKM_EXMODE)
 			old_level = 1;
@@ -66,11 +67,10 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 		 * level.
 		 */
 
-		locks_lock_file_wait(file,
-				&(struct file_lock) {
-					.fl_type = F_UNLCK,
-					.fl_flags = FL_FLOCK
-				});
+		locks_init_lock(&request);
+		request.fl_type = F_UNLCK;
+		request.fl_flags = FL_FLOCK;
+		locks_lock_file_wait(file, &request);
 
 		ocfs2_file_unlock(file);
 	}

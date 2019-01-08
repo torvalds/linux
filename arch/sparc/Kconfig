@@ -21,6 +21,7 @@ config SPARC
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_EXIT_THREAD
+	select HAVE_PCI
 	select SYSCTL_EXCEPTION_TRACE
 	select RTC_CLASS
 	select RTC_DRV_M48T59
@@ -38,9 +39,9 @@ config SPARC
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select MODULES_USE_ELF_RELA
+	select PCI_SYSCALL if PCI
 	select ODD_RT_SIGACTION
 	select OLD_SIGSUSPEND
-	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
 	select LOCKDEP_SMALL if LOCKDEP
 	select NEED_DMA_MAP_STATE
@@ -49,7 +50,6 @@ config SPARC
 config SPARC32
 	def_bool !64BIT
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
-	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select HAVE_UID16
@@ -89,6 +89,7 @@ config SPARC64
 	select GENERIC_TIME_VSYSCALL
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_HAS_PTE_SPECIAL
+	select PCI_DOMAINS if PCI
 
 config ARCH_DEFCONFIG
 	string
@@ -187,7 +188,7 @@ config NR_CPUS
 	default 32 if SPARC32
 	default 4096 if SPARC64
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -472,24 +473,6 @@ config SUN_LDOMS
 	  Say Y here is you want to support virtual devices via
 	  Logical Domains.
 
-config PCI
-	bool "Support for PCI and PS/2 keyboard/mouse"
-	help
-	  Find out whether your system includes a PCI bus. PCI is the name of
-	  a bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box.  If you say Y here, the kernel will include drivers and
-	  infrastructure code to support PCI bus devices.
-
-	  CONFIG_PCI is needed for all JavaStation's (including MrCoffee),
-	  CP-1200, JavaEngine-1, Corona, Red October, and Serengeti SGSC.
-	  All of these platforms are extremely obscure, so say N if unsure.
-
-config PCI_DOMAINS
-	def_bool PCI if SPARC64
-
-config PCI_SYSCALL
-	def_bool PCI
-
 config PCIC_PCI
 	bool
 	depends on PCI && SPARC32 && !SPARC_LEON
@@ -517,10 +500,6 @@ config SPARC_GRPCI2
 	default y
 	help
 	  Say Y here to include the GRPCI2 Host Bridge Driver.
-
-source "drivers/pci/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
 
 config SUN_OPENPROMFS
 	tristate "Openprom tree appears in /proc/openprom"

@@ -349,13 +349,15 @@ lio_vf_rep_packet_sent_callback(struct octeon_device *oct,
 	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
 	struct sk_buff *skb = sc->ctxptr;
 	struct net_device *ndev = skb->dev;
+	u32 iq_no;
 
 	dma_unmap_single(&oct->pci_dev->dev, sc->dmadptr,
 			 sc->datasize, DMA_TO_DEVICE);
 	dev_kfree_skb_any(skb);
+	iq_no = sc->iq_no;
 	octeon_free_soft_command(oct, sc);
 
-	if (octnet_iq_is_full(oct, sc->iq_no))
+	if (octnet_iq_is_full(oct, iq_no))
 		return;
 
 	if (netif_queue_stopped(ndev))

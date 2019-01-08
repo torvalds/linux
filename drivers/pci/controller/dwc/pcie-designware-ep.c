@@ -440,7 +440,6 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 	tbl_offset = dw_pcie_readl_dbi(pci, reg);
 	bir = (tbl_offset & PCI_MSIX_TABLE_BIR);
 	tbl_offset &= PCI_MSIX_TABLE_OFFSET;
-	tbl_offset >>= 3;
 
 	reg = PCI_BASE_ADDRESS_0 + (4 * bir);
 	bar_addr_upper = 0;
@@ -502,6 +501,10 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 
 	if (!pci->dbi_base || !pci->dbi_base2) {
 		dev_err(dev, "dbi_base/dbi_base2 is not populated\n");
+		return -EINVAL;
+	}
+	if (pci->iatu_unroll_enabled && !pci->atu_base) {
+		dev_err(dev, "atu_base is not populated\n");
 		return -EINVAL;
 	}
 

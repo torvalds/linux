@@ -86,6 +86,55 @@
 # define V3D_TOP_GR_BRIDGE_SW_INIT_1                   0x0000c
 # define V3D_TOP_GR_BRIDGE_SW_INIT_1_V3D_CLK_108_SW_INIT BIT(0)
 
+#define V3D_TFU_CS                                     0x00400
+/* Stops current job, empties input fifo. */
+# define V3D_TFU_CS_TFURST                             BIT(31)
+# define V3D_TFU_CS_CVTCT_MASK                         V3D_MASK(23, 16)
+# define V3D_TFU_CS_CVTCT_SHIFT                        16
+# define V3D_TFU_CS_NFREE_MASK                         V3D_MASK(13, 8)
+# define V3D_TFU_CS_NFREE_SHIFT                        8
+# define V3D_TFU_CS_BUSY                               BIT(0)
+
+#define V3D_TFU_SU                                     0x00404
+/* Interrupt when FINTTHR input slots are free (0 = disabled) */
+# define V3D_TFU_SU_FINTTHR_MASK                       V3D_MASK(13, 8)
+# define V3D_TFU_SU_FINTTHR_SHIFT                      8
+/* Skips resetting the CRC at the start of CRC generation. */
+# define V3D_TFU_SU_CRCCHAIN                           BIT(4)
+/* skips writes, computes CRC of the image.  miplevels must be 0. */
+# define V3D_TFU_SU_CRC                                BIT(3)
+# define V3D_TFU_SU_THROTTLE_MASK                      V3D_MASK(1, 0)
+# define V3D_TFU_SU_THROTTLE_SHIFT                     0
+
+#define V3D_TFU_ICFG                                   0x00408
+/* Interrupt when the conversion is complete. */
+# define V3D_TFU_ICFG_IOC                              BIT(0)
+
+/* Input Image Address */
+#define V3D_TFU_IIA                                    0x0040c
+/* Input Chroma Address */
+#define V3D_TFU_ICA                                    0x00410
+/* Input Image Stride */
+#define V3D_TFU_IIS                                    0x00414
+/* Input Image U-Plane Address */
+#define V3D_TFU_IUA                                    0x00418
+/* Output Image Address */
+#define V3D_TFU_IOA                                    0x0041c
+/* Image Output Size */
+#define V3D_TFU_IOS                                    0x00420
+/* TFU YUV Coefficient 0 */
+#define V3D_TFU_COEF0                                  0x00424
+/* Use these regs instead of the defaults. */
+# define V3D_TFU_COEF0_USECOEF                         BIT(31)
+/* TFU YUV Coefficient 1 */
+#define V3D_TFU_COEF1                                  0x00428
+/* TFU YUV Coefficient 2 */
+#define V3D_TFU_COEF2                                  0x0042c
+/* TFU YUV Coefficient 3 */
+#define V3D_TFU_COEF3                                  0x00430
+
+#define V3D_TFU_CRC                                    0x00434
+
 /* Per-MMU registers. */
 
 #define V3D_MMUC_CONTROL                               0x01000

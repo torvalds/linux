@@ -341,17 +341,17 @@ static int clariion_check_sense(struct scsi_device *sdev,
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
-static int clariion_prep_fn(struct scsi_device *sdev, struct request *req)
+static blk_status_t clariion_prep_fn(struct scsi_device *sdev,
+		struct request *req)
 {
 	struct clariion_dh_data *h = sdev->handler_data;
-	int ret = BLKPREP_OK;
 
 	if (h->lun_state != CLARIION_LUN_OWNED) {
-		ret = BLKPREP_KILL;
 		req->rq_flags |= RQF_QUIET;
+		return BLK_STS_IOERR;
 	}
-	return ret;
 
+	return BLK_STS_OK;
 }
 
 static int clariion_std_inquiry(struct scsi_device *sdev,

@@ -28,6 +28,7 @@
 #include <drm/drmP.h>
 #include <drm/virtgpu_drm.h>
 #include <drm/ttm/ttm_execbuf_util.h>
+#include <linux/sync_file.h>
 
 #include "virtgpu_drv.h"
 
@@ -105,7 +106,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_fpriv *vfpriv = drm_file->driver_priv;
 	struct drm_gem_object *gobj;
-	struct virtio_gpu_fence *fence;
+	struct virtio_gpu_fence *out_fence;
 	struct virtio_gpu_object *qobj;
 	int ret;
 	uint32_t *bo_handles = NULL;
@@ -114,10 +115,45 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	struct ttm_validate_buffer *buflist = NULL;
 	int i;
 	struct ww_acquire_ctx ticket;
+	struct sync_file *sync_file;
+	int in_fence_fd = exbuf->fence_fd;
+	int out_fence_fd = -1;
 	void *buf;
 
 	if (vgdev->has_virgl_3d == false)
 		return -ENOSYS;
+
+	if ((exbuf->flags & ~VIRTGPU_EXECBUF_FLAGS))
+		return -EINVAL;
+
+	exbuf->fence_fd = -1;
+
+	if (exbuf->flags & VIRTGPU_EXECBUF_FENCE_FD_IN) {
+		struct dma_fence *in_fence;
+
+		in_fence = sync_file_get_fence(in_fence_fd);
+
+		if (!in_fence)
+			return -EINVAL;
+
+		/*
+		 * Wait if the fence is from a foreign context, or if the fence
+		 * array contains any fence from a foreign context.
+		 */
+		ret = 0;
+		if (!dma_fence_match_context(in_fence, vgdev->fence_drv.context))
+			ret = dma_fence_wait(in_fence, true);
+
+		dma_fence_put(in_fence);
+		if (ret)
+			return ret;
+	}
+
+	if (exbuf->flags & VIRTGPU_EXECBUF_FENCE_FD_OUT) {
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0)
+			return out_fence_fd;
+	}
 
 	INIT_LIST_HEAD(&validate_list);
 	if (exbuf->num_bo_handles) {
@@ -128,26 +164,22 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 					   sizeof(struct ttm_validate_buffer),
 					   GFP_KERNEL | __GFP_ZERO);
 		if (!bo_handles || !buflist) {
-			kvfree(bo_handles);
-			kvfree(buflist);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out_unused_fd;
 		}
 
 		user_bo_handles = (void __user *)(uintptr_t)exbuf->bo_handles;
 		if (copy_from_user(bo_handles, user_bo_handles,
 				   exbuf->num_bo_handles * sizeof(uint32_t))) {
 			ret = -EFAULT;
-			kvfree(bo_handles);
-			kvfree(buflist);
-			return ret;
+			goto out_unused_fd;
 		}
 
 		for (i = 0; i < exbuf->num_bo_handles; i++) {
 			gobj = drm_gem_object_lookup(drm_file, bo_handles[i]);
 			if (!gobj) {
-				kvfree(bo_handles);
-				kvfree(buflist);
-				return -ENOENT;
+				ret = -ENOENT;
+				goto out_unused_fd;
 			}
 
 			qobj = gem_to_virtio_gpu_obj(gobj);
@@ -156,6 +188,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 			list_add(&buflist[i].head, &validate_list);
 		}
 		kvfree(bo_handles);
+		bo_handles = NULL;
 	}
 
 	ret = virtio_gpu_object_list_validate(&ticket, &validate_list);
@@ -168,22 +201,48 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 		ret = PTR_ERR(buf);
 		goto out_unresv;
 	}
-	virtio_gpu_cmd_submit(vgdev, buf, exbuf->size,
-			      vfpriv->ctx_id, &fence);
 
-	ttm_eu_fence_buffer_objects(&ticket, &validate_list, &fence->f);
+	out_fence = virtio_gpu_fence_alloc(vgdev);
+	if(!out_fence) {
+		ret = -ENOMEM;
+		goto out_memdup;
+	}
+
+	if (out_fence_fd >= 0) {
+		sync_file = sync_file_create(&out_fence->f);
+		if (!sync_file) {
+			dma_fence_put(&out_fence->f);
+			ret = -ENOMEM;
+			goto out_memdup;
+		}
+
+		exbuf->fence_fd = out_fence_fd;
+		fd_install(out_fence_fd, sync_file->file);
+	}
+
+	virtio_gpu_cmd_submit(vgdev, buf, exbuf->size,
+			      vfpriv->ctx_id, out_fence);
+
+	ttm_eu_fence_buffer_objects(&ticket, &validate_list, &out_fence->f);
 
 	/* fence the command bo */
 	virtio_gpu_unref_list(&validate_list);
 	kvfree(buflist);
-	dma_fence_put(&fence->f);
 	return 0;
 
+out_memdup:
+	kfree(buf);
 out_unresv:
 	ttm_eu_backoff_reservation(&ticket, &validate_list);
 out_free:
 	virtio_gpu_unref_list(&validate_list);
+out_unused_fd:
+	kvfree(bo_handles);
 	kvfree(buflist);
+
+	if (out_fence_fd >= 0)
+		put_unused_fd(out_fence_fd);
+
 	return ret;
 }
 
@@ -283,11 +342,17 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 		rc_3d.nr_samples = cpu_to_le32(rc->nr_samples);
 		rc_3d.flags = cpu_to_le32(rc->flags);
 
-		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &rc_3d, NULL);
-		ret = virtio_gpu_object_attach(vgdev, qobj, &fence);
+		fence = virtio_gpu_fence_alloc(vgdev);
+		if (!fence) {
+			ret = -ENOMEM;
+			goto fail_backoff;
+		}
+
+		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &rc_3d);
+		ret = virtio_gpu_object_attach(vgdev, qobj, fence);
 		if (ret) {
-			ttm_eu_backoff_reservation(&ticket, &validate_list);
-			goto fail_unref;
+			virtio_gpu_fence_cleanup(fence);
+			goto fail_backoff;
 		}
 		ttm_eu_fence_buffer_objects(&ticket, &validate_list, &fence->f);
 	}
@@ -312,6 +377,8 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 		dma_fence_put(&fence->f);
 	}
 	return 0;
+fail_backoff:
+	ttm_eu_backoff_reservation(&ticket, &validate_list);
 fail_unref:
 	if (vgdev->has_virgl_3d) {
 		virtio_gpu_unref_list(&validate_list);
@@ -374,10 +441,16 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 		goto out_unres;
 
 	convert_to_hw_box(&box, &args->box);
+
+	fence = virtio_gpu_fence_alloc(vgdev);
+	if (!fence) {
+		ret = -ENOMEM;
+		goto out_unres;
+	}
 	virtio_gpu_cmd_transfer_from_host_3d
 		(vgdev, qobj->hw_res_handle,
 		 vfpriv->ctx_id, offset, args->level,
-		 &box, &fence);
+		 &box, fence);
 	reservation_object_add_excl_fence(qobj->tbo.resv,
 					  &fence->f);
 
@@ -423,10 +496,15 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 			(vgdev, qobj, offset,
 			 box.w, box.h, box.x, box.y, NULL);
 	} else {
+		fence = virtio_gpu_fence_alloc(vgdev);
+		if (!fence) {
+			ret = -ENOMEM;
+			goto out_unres;
+		}
 		virtio_gpu_cmd_transfer_to_host_3d
 			(vgdev, qobj,
 			 vfpriv ? vfpriv->ctx_id : 0, offset,
-			 args->level, &box, &fence);
+			 args->level, &box, fence);
 		reservation_object_add_excl_fence(qobj->tbo.resv,
 						  &fence->f);
 		dma_fence_put(&fence->f);

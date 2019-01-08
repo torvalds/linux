@@ -2462,6 +2462,9 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 			     asoc->c.sinit_max_instreams, gfp))
 		goto clean_up;
 
+	/* Update frag_point when stream_interleave may get changed. */
+	sctp_assoc_update_frag_point(asoc);
+
 	if (!asoc->temp && sctp_assoc_set_id(asoc, gfp))
 		goto clean_up;
 

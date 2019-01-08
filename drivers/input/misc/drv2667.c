@@ -177,9 +177,9 @@ static int drv2667_set_waveform_freq(struct drv2667_data *haptics)
 		error = regmap_write(haptics->regmap, DRV2667_PAGE, read_buf);
 		if (error) {
 			dev_err(&haptics->client->dev,
-					"Failed to set the page: %d\n", error);
-				return -EIO;
-			}
+				"Failed to set the page: %d\n", error);
+			return -EIO;
+		}
 	}
 
 	return error;

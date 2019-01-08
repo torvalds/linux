@@ -61,4 +61,6 @@ int mlx5_cmd_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid,
 			u32 qpn, u16 uid);
 int mlx5_cmd_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn, u16 uid);
 int mlx5_cmd_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn, u16 uid);
+int mlx5_cmd_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id,
+			     u16 uid);
 #endif /* MLX5_IB_CMD_H */

@@ -79,9 +79,6 @@ count for the TTM, which will call your initialization function.
 
 See the radeon_ttm.c file for an example of usage.
 
-.. kernel-doc:: drivers/gpu/drm/drm_global.c
-   :export:
-
 
 The Graphics Execution Manager (GEM)
 ====================================

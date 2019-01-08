@@ -66,13 +66,12 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 //	pm_runtime_get_sync(mmu->dev);
 	ret = iommu_map_sg(iommu->domain, iova, sgt->sgl, sgt->nents, prot);
 //	pm_runtime_put_sync(mmu->dev);
-	WARN_ON(ret < 0);
+	WARN_ON(!ret);
 
 	return (ret == len) ? 0 : -EINVAL;
 }
 
-static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova,
-		struct sg_table *sgt, unsigned len)
+static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova, unsigned len)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 

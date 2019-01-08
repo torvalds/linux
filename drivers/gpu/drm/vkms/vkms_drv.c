@@ -68,7 +68,6 @@ static struct drm_driver vkms_driver = {
 	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
 	.dumb_create		= vkms_dumb_create,
-	.dumb_map_offset	= vkms_dumb_map,
 	.gem_vm_ops		= &vkms_gem_vm_ops,
 	.gem_free_object_unlocked = vkms_gem_free_object,
 	.get_vblank_timestamp	= vkms_get_vblank_timestamp,

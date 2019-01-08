@@ -207,6 +207,19 @@ static int rcu_gp_in_progress(void)
 	return rcu_seq_state(rcu_seq_current(&rcu_state.gp_seq));
 }
 
+/*
+ * Return the number of callbacks queued on the specified CPU.
+ * Handles both the nocbs and normal cases.
+ */
+static long rcu_get_n_cbs_cpu(int cpu)
+{
+	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+
+	if (rcu_segcblist_is_enabled(&rdp->cblist)) /* Online normal CPU? */
+		return rcu_segcblist_n_cbs(&rdp->cblist);
+	return rcu_get_n_cbs_nocb_cpu(rdp); /* Works for offline, too. */
+}
+
 void rcu_softirq_qs(void)
 {
 	rcu_qs();
@@ -500,16 +513,29 @@ void rcu_force_quiescent_state(void)
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
+ * Convert a ->gp_state value to a character string.
+ */
+static const char *gp_state_getname(short gs)
+{
+	if (gs < 0 || gs >= ARRAY_SIZE(gp_state_names))
+		return "???";
+	return gp_state_names[gs];
+}
+
+/*
  * Show the state of the grace-period kthreads.
  */
 void show_rcu_gp_kthreads(void)
 {
 	int cpu;
+	unsigned long j;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
-	pr_info("%s: wait state: %d ->state: %#lx\n", rcu_state.name,
-		rcu_state.gp_state, rcu_state.gp_kthread->state);
+	j = jiffies - READ_ONCE(rcu_state.gp_activity);
+	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %ld\n",
+		rcu_state.name, gp_state_getname(rcu_state.gp_state),
+		rcu_state.gp_state, rcu_state.gp_kthread->state, j);
 	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
 			continue;
@@ -891,12 +917,12 @@ void rcu_irq_enter_irqson(void)
 }
 
 /**
- * rcu_is_watching - see if RCU thinks that the current CPU is idle
+ * rcu_is_watching - see if RCU thinks that the current CPU is not idle
  *
  * Return true if RCU is watching the running CPU, which means that this
  * CPU can safely enter RCU read-side critical sections.  In other words,
- * if the current CPU is in its idle loop and is neither in an interrupt
- * or NMI handler, return true.
+ * if the current CPU is not in its idle loop or is in an interrupt or
+ * NMI handler, return true.
  */
 bool notrace rcu_is_watching(void)
 {
@@ -1143,16 +1169,6 @@ static void record_gp_stall_check_time(void)
 }
 
 /*
- * Convert a ->gp_state value to a character string.
- */
-static const char *gp_state_getname(short gs)
-{
-	if (gs < 0 || gs >= ARRAY_SIZE(gp_state_names))
-		return "???";
-	return gp_state_names[gs];
-}
-
-/*
  * Complain about starvation of grace-period kthread.
  */
 static void rcu_check_gp_kthread_starvation(void)
@@ -1262,8 +1278,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 
 	print_cpu_stall_info_end();
 	for_each_possible_cpu(cpu)
-		totqlen += rcu_segcblist_n_cbs(&per_cpu_ptr(&rcu_data,
-							    cpu)->cblist);
+		totqlen += rcu_get_n_cbs_cpu(cpu);
 	pr_cont("(detected by %d, t=%ld jiffies, g=%ld, q=%lu)\n",
 	       smp_processor_id(), (long)(jiffies - rcu_state.gp_start),
 	       (long)rcu_seq_current(&rcu_state.gp_seq), totqlen);
@@ -1323,8 +1338,7 @@ static void print_cpu_stall(void)
 	raw_spin_unlock_irqrestore_rcu_node(rdp->mynode, flags);
 	print_cpu_stall_info_end();
 	for_each_possible_cpu(cpu)
-		totqlen += rcu_segcblist_n_cbs(&per_cpu_ptr(&rcu_data,
-							    cpu)->cblist);
+		totqlen += rcu_get_n_cbs_cpu(cpu);
 	pr_cont(" (t=%lu jiffies g=%ld q=%lu)\n",
 		jiffies - rcu_state.gp_start,
 		(long)rcu_seq_current(&rcu_state.gp_seq), totqlen);
@@ -1986,7 +2000,8 @@ static void rcu_gp_cleanup(void)
 
 	WRITE_ONCE(rcu_state.gp_activity, jiffies);
 	raw_spin_lock_irq_rcu_node(rnp);
-	gp_duration = jiffies - rcu_state.gp_start;
+	rcu_state.gp_end = jiffies;
+	gp_duration = rcu_state.gp_end - rcu_state.gp_start;
 	if (gp_duration > rcu_state.gp_max)
 		rcu_state.gp_max = gp_duration;
 
@@ -2032,9 +2047,9 @@ static void rcu_gp_cleanup(void)
 	rnp = rcu_get_root();
 	raw_spin_lock_irq_rcu_node(rnp); /* GP before ->gp_seq update. */
 
-	/* Declare grace period done. */
-	rcu_seq_end(&rcu_state.gp_seq);
+	/* Declare grace period done, trace first to use old GP number. */
 	trace_rcu_grace_period(rcu_state.name, rcu_state.gp_seq, TPS("end"));
+	rcu_seq_end(&rcu_state.gp_seq);
 	rcu_state.gp_state = RCU_GP_IDLE;
 	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(&rcu_data);
@@ -2600,10 +2615,10 @@ static void force_quiescent_state(void)
  * This function checks for grace-period requests that fail to motivate
  * RCU to come out of its idle mode.
  */
-static void
-rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
+void
+rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
+			 const unsigned long gpssdelay)
 {
-	const unsigned long gpssdelay = rcu_jiffies_till_stall_check() * HZ;
 	unsigned long flags;
 	unsigned long j;
 	struct rcu_node *rnp_root = rcu_get_root();
@@ -2655,6 +2670,48 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
 }
 
 /*
+ * Do a forward-progress check for rcutorture.  This is normally invoked
+ * due to an OOM event.  The argument "j" gives the time period during
+ * which rcutorture would like progress to have been made.
+ */
+void rcu_fwd_progress_check(unsigned long j)
+{
+	unsigned long cbs;
+	int cpu;
+	unsigned long max_cbs = 0;
+	int max_cpu = -1;
+	struct rcu_data *rdp;
+
+	if (rcu_gp_in_progress()) {
+		pr_info("%s: GP age %lu jiffies\n",
+			__func__, jiffies - rcu_state.gp_start);
+		show_rcu_gp_kthreads();
+	} else {
+		pr_info("%s: Last GP end %lu jiffies ago\n",
+			__func__, jiffies - rcu_state.gp_end);
+		preempt_disable();
+		rdp = this_cpu_ptr(&rcu_data);
+		rcu_check_gp_start_stall(rdp->mynode, rdp, j);
+		preempt_enable();
+	}
+	for_each_possible_cpu(cpu) {
+		cbs = rcu_get_n_cbs_cpu(cpu);
+		if (!cbs)
+			continue;
+		if (max_cpu < 0)
+			pr_info("%s: callbacks", __func__);
+		pr_cont(" %d: %lu", cpu, cbs);
+		if (cbs <= max_cbs)
+			continue;
+		max_cbs = cbs;
+		max_cpu = cpu;
+	}
+	if (max_cpu >= 0)
+		pr_cont("\n");
+}
+EXPORT_SYMBOL_GPL(rcu_fwd_progress_check);
+
+/*
  * This does the RCU core processing work for the specified rcu_data
  * structures.  This may be called only from the CPU to whom the rdp
  * belongs.
@@ -2690,7 +2747,7 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 		local_irq_restore(flags);
 	}
 
-	rcu_check_gp_start_stall(rnp, rdp);
+	rcu_check_gp_start_stall(rnp, rdp, rcu_jiffies_till_stall_check());
 
 	/* If there are callbacks ready, invoke them. */
 	if (rcu_segcblist_ready_cbs(&rdp->cblist))
@@ -2826,7 +2883,7 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
 		 * Very early boot, before rcu_init().  Initialize if needed
 		 * and then drop through to queue the callback.
 		 */
-		BUG_ON(cpu != -1);
+		WARN_ON_ONCE(cpu != -1);
 		WARN_ON_ONCE(!rcu_is_watching());
 		if (rcu_segcblist_empty(&rdp->cblist))
 			rcu_segcblist_init(&rdp->cblist);
@@ -3485,7 +3542,8 @@ static int __init rcu_spawn_gp_kthread(void)
 
 	rcu_scheduler_fully_active = 1;
 	t = kthread_create(rcu_gp_kthread, NULL, "%s", rcu_state.name);
-	BUG_ON(IS_ERR(t));
+	if (WARN_ONCE(IS_ERR(t), "%s: Could not start grace-period kthread, OOM is now expected behavior\n", __func__))
+		return 0;
 	rnp = rcu_get_root();
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	rcu_state.gp_kthread = t;

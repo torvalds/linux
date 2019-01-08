@@ -51,6 +51,7 @@ struct led_classdev {
 #define LED_PANIC_INDICATOR	BIT(20)
 #define LED_BRIGHT_HW_CHANGED	BIT(21)
 #define LED_RETAIN_AT_SHUTDOWN	BIT(22)
+#define LED_INIT_DEFAULT_TRIGGER BIT(23)
 
 	/* set_brightness_work / blink_timer flags, atomic, private. */
 	unsigned long		work_flags;
@@ -486,5 +487,25 @@ struct led_pattern {
 	u32 delta_t;
 	int brightness;
 };
+
+enum led_audio {
+	LED_AUDIO_MUTE,		/* master mute LED */
+	LED_AUDIO_MICMUTE,	/* mic mute LED */
+	NUM_AUDIO_LEDS
+};
+
+#if IS_ENABLED(CONFIG_LEDS_TRIGGER_AUDIO)
+enum led_brightness ledtrig_audio_get(enum led_audio type);
+void ledtrig_audio_set(enum led_audio type, enum led_brightness state);
+#else
+static inline enum led_brightness ledtrig_audio_get(enum led_audio type)
+{
+	return LED_OFF;
+}
+static inline void ledtrig_audio_set(enum led_audio type,
+				     enum led_brightness state)
+{
+}
+#endif
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

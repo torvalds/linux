@@ -39,8 +39,8 @@ simpad_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 {
 	long cs3reg = simpad_get_cs3_ro();
 
-	state->bvd1 = 1; /* Might be cs3reg & PCMCIA_BVD1 */
-	state->bvd2 = 1; /* Might be cs3reg & PCMCIA_BVD2 */
+	/* bvd1 might be cs3reg & PCMCIA_BVD1 */
+	/* bvd2 might be cs3reg & PCMCIA_BVD2 */
 
 	if ((cs3reg & (PCMCIA_VS1|PCMCIA_VS2)) ==
 			(PCMCIA_VS1|PCMCIA_VS2)) {

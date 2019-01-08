@@ -176,7 +176,7 @@ void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 int nf_register_sockopt(struct nf_sockopt_ops *reg);
 void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 #endif
 
@@ -198,7 +198,7 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 	struct nf_hook_entries *hook_head = NULL;
 	int ret = 1;
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 	if (__builtin_constant_p(pf) &&
 	    __builtin_constant_p(hook) &&
 	    !static_key_false(&nf_hooks_needed[pf][hook]))

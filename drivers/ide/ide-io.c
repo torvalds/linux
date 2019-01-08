@@ -67,7 +67,15 @@ int ide_end_rq(ide_drive_t *drive, struct request *rq, blk_status_t error,
 		ide_dma_on(drive);
 	}
 
-	return blk_end_request(rq, error, nr_bytes);
+	if (!blk_update_request(rq, error, nr_bytes)) {
+		if (rq == drive->sense_rq)
+			drive->sense_rq = NULL;
+
+		__blk_mq_end_request(rq, error);
+		return 0;
+	}
+
+	return 1;
 }
 EXPORT_SYMBOL_GPL(ide_end_rq);
 
@@ -103,7 +111,7 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 	}
 
 	if (rq && ata_taskfile_request(rq)) {
-		struct ide_cmd *orig_cmd = rq->special;
+		struct ide_cmd *orig_cmd = ide_req(rq)->special;
 
 		if (cmd->tf_flags & IDE_TFLAG_DYN)
 			kfree(orig_cmd);
@@ -253,7 +261,7 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
-	struct ide_cmd *cmd = rq->special;
+	struct ide_cmd *cmd = ide_req(rq)->special;
 
 	if (cmd) {
 		if (cmd->protocol == ATA_PROT_PIO) {
@@ -307,8 +315,6 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
 
-	BUG_ON(!(rq->rq_flags & RQF_STARTED));
-
 #ifdef DEBUG
 	printk("%s: start_request: current=0x%08lx\n",
 		drive->hwif->name, (unsigned long) rq);
@@ -319,6 +325,9 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		rq->rq_flags |= RQF_FAILED;
 		goto kill_rq;
 	}
+
+	if (drive->prep_rq && !drive->prep_rq(drive, rq))
+		return ide_stopped;
 
 	if (ata_pm_request(rq))
 		ide_check_pm_state(drive, rq);
@@ -343,7 +352,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		if (ata_taskfile_request(rq))
 			return execute_drive_cmd(drive, rq);
 		else if (ata_pm_request(rq)) {
-			struct ide_pm_state *pm = rq->special;
+			struct ide_pm_state *pm = ide_req(rq)->special;
 #ifdef DEBUG_PM
 			printk("%s: start_power_step(step: %d)\n",
 				drive->name, pm->pm_step);
@@ -430,44 +439,42 @@ static inline void ide_unlock_host(struct ide_host *host)
 	}
 }
 
-static void __ide_requeue_and_plug(struct request_queue *q, struct request *rq)
-{
-	if (rq)
-		blk_requeue_request(q, rq);
-	if (rq || blk_peek_request(q)) {
-		/* Use 3ms as that was the old plug delay */
-		blk_delay_queue(q, 3);
-	}
-}
-
 void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
 {
 	struct request_queue *q = drive->queue;
-	unsigned long flags;
 
-	spin_lock_irqsave(q->queue_lock, flags);
-	__ide_requeue_and_plug(q, rq);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	/* Use 3ms as that was the old plug delay */
+	if (rq) {
+		blk_mq_requeue_request(rq, false);
+		blk_mq_delay_kick_requeue_list(q, 3);
+	} else
+		blk_mq_delay_run_hw_queue(q->queue_hw_ctx[0], 3);
 }
 
 /*
  * Issue a new request to a device.
  */
-void do_ide_request(struct request_queue *q)
+blk_status_t ide_queue_rq(struct blk_mq_hw_ctx *hctx,
+			  const struct blk_mq_queue_data *bd)
 {
-	ide_drive_t	*drive = q->queuedata;
+	ide_drive_t	*drive = hctx->queue->queuedata;
 	ide_hwif_t	*hwif = drive->hwif;
 	struct ide_host *host = hwif->host;
-	struct request	*rq = NULL;
+	struct request	*rq = bd->rq;
 	ide_startstop_t	startstop;
 
-	spin_unlock_irq(q->queue_lock);
+	if (!blk_rq_is_passthrough(rq) && !(rq->rq_flags & RQF_DONTPREP)) {
+		rq->rq_flags |= RQF_DONTPREP;
+		ide_req(rq)->special = NULL;
+	}
 
 	/* HLD do_request() callback might sleep, make sure it's okay */
 	might_sleep();
 
 	if (ide_lock_host(host, hwif))
-		goto plug_device_2;
+		return BLK_STS_DEV_RESOURCE;
+
+	blk_mq_start_request(rq);
 
 	spin_lock_irq(&hwif->lock);
 
@@ -503,21 +510,16 @@ repeat:
 		hwif->cur_dev = drive;
 		drive->dev_flags &= ~(IDE_DFLAG_SLEEPING | IDE_DFLAG_PARKED);
 
-		spin_unlock_irq(&hwif->lock);
-		spin_lock_irq(q->queue_lock);
 		/*
 		 * we know that the queue isn't empty, but this can happen
-		 * if the q->prep_rq_fn() decides to kill a request
+		 * if ->prep_rq() decides to kill a request
 		 */
-		if (!rq)
-			rq = blk_fetch_request(drive->queue);
-
-		spin_unlock_irq(q->queue_lock);
-		spin_lock_irq(&hwif->lock);
-
 		if (!rq) {
-			ide_unlock_port(hwif);
-			goto out;
+			rq = bd->rq;
+			if (!rq) {
+				ide_unlock_port(hwif);
+				goto out;
+			}
 		}
 
 		/*
@@ -551,23 +553,24 @@ repeat:
 		if (startstop == ide_stopped) {
 			rq = hwif->rq;
 			hwif->rq = NULL;
-			goto repeat;
+			if (rq)
+				goto repeat;
+			ide_unlock_port(hwif);
+			goto out;
 		}
-	} else
-		goto plug_device;
+	} else {
+plug_device:
+		spin_unlock_irq(&hwif->lock);
+		ide_unlock_host(host);
+		ide_requeue_and_plug(drive, rq);
+		return BLK_STS_OK;
+	}
+
 out:
 	spin_unlock_irq(&hwif->lock);
 	if (rq == NULL)
 		ide_unlock_host(host);
-	spin_lock_irq(q->queue_lock);
-	return;
-
-plug_device:
-	spin_unlock_irq(&hwif->lock);
-	ide_unlock_host(host);
-plug_device_2:
-	spin_lock_irq(q->queue_lock);
-	__ide_requeue_and_plug(q, rq);
+	return BLK_STS_OK;
 }
 
 static int drive_is_ready(ide_drive_t *drive)
@@ -887,3 +890,16 @@ void ide_pad_transfer(ide_drive_t *drive, int write, int len)
 	}
 }
 EXPORT_SYMBOL_GPL(ide_pad_transfer);
+
+void ide_insert_request_head(ide_drive_t *drive, struct request *rq)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	unsigned long flags;
+
+	spin_lock_irqsave(&hwif->lock, flags);
+	list_add_tail(&rq->queuelist, &drive->rq_list);
+	spin_unlock_irqrestore(&hwif->lock, flags);
+
+	kblockd_schedule_work(&drive->rq_work);
+}
+EXPORT_SYMBOL_GPL(ide_insert_request_head);

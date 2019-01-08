@@ -143,6 +143,14 @@ static void deactivate_traps_vhe(void)
 {
 	extern char vectors[];	/* kernel exception vectors */
 	write_sysreg(HCR_HOST_VHE_FLAGS, hcr_el2);
+
+	/*
+	 * ARM erratum 1165522 requires the actual execution of the above
+	 * before we can switch to the EL2/EL0 translation regime used by
+	 * the host.
+	 */
+	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_1165522));
+
 	write_sysreg(CPACR_EL1_DEFAULT, cpacr_el1);
 	write_sysreg(vectors, vbar_el1);
 }
@@ -157,7 +165,7 @@ static void __hyp_text __deactivate_traps_nvhe(void)
 	mdcr_el2 |= MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT;
 
 	write_sysreg(mdcr_el2, mdcr_el2);
-	write_sysreg(HCR_RW, hcr_el2);
+	write_sysreg(HCR_HOST_NVHE_FLAGS, hcr_el2);
 	write_sysreg(CPTR_EL2_DEFAULT, cptr_el2);
 }
 
@@ -305,33 +313,6 @@ static bool __hyp_text __populate_fault_info(struct kvm_vcpu *vcpu)
 	return true;
 }
 
-/* Skip an instruction which has been emulated. Returns true if
- * execution can continue or false if we need to exit hyp mode because
- * single-step was in effect.
- */
-static bool __hyp_text __skip_instr(struct kvm_vcpu *vcpu)
-{
-	*vcpu_pc(vcpu) = read_sysreg_el2(elr);
-
-	if (vcpu_mode_is_32bit(vcpu)) {
-		vcpu->arch.ctxt.gp_regs.regs.pstate = read_sysreg_el2(spsr);
-		kvm_skip_instr32(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-		write_sysreg_el2(vcpu->arch.ctxt.gp_regs.regs.pstate, spsr);
-	} else {
-		*vcpu_pc(vcpu) += 4;
-	}
-
-	write_sysreg_el2(*vcpu_pc(vcpu), elr);
-
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
-		vcpu->arch.fault.esr_el2 =
-			(ESR_ELx_EC_SOFTSTP_LOW << ESR_ELx_EC_SHIFT) | 0x22;
-		return false;
-	} else {
-		return true;
-	}
-}
-
 static bool __hyp_text __hyp_switch_fpsimd(struct kvm_vcpu *vcpu)
 {
 	struct user_fpsimd_state *host_fpsimd = vcpu->arch.host_fpsimd_state;
@@ -420,20 +401,12 @@ static bool __hyp_text fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 		if (valid) {
 			int ret = __vgic_v2_perform_cpuif_access(vcpu);
 
-			if (ret ==  1 && __skip_instr(vcpu))
+			if (ret == 1)
 				return true;
 
-			if (ret == -1) {
-				/* Promote an illegal access to an
-				 * SError. If we would be returning
-				 * due to single-step clear the SS
-				 * bit so handle_exit knows what to
-				 * do after dealing with the error.
-				 */
-				if (!__skip_instr(vcpu))
-					*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
+			/* Promote an illegal access to an SError.*/
+			if (ret == -1)
 				*exit_code = ARM_EXCEPTION_EL1_SERROR;
-			}
 
 			goto exit;
 		}
@@ -444,7 +417,7 @@ static bool __hyp_text fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 	     kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_CP15_32)) {
 		int ret = __vgic_v3_perform_cpuif_access(vcpu);
 
-		if (ret == 1 && __skip_instr(vcpu))
+		if (ret == 1)
 			return true;
 	}
 
@@ -499,8 +472,19 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 
 	sysreg_save_host_state_vhe(host_ctxt);
 
-	__activate_traps(vcpu);
+	/*
+	 * ARM erratum 1165522 requires us to configure both stage 1 and
+	 * stage 2 translation for the guest context before we clear
+	 * HCR_EL2.TGE.
+	 *
+	 * We have already configured the guest's stage 1 translation in
+	 * kvm_vcpu_load_sysregs above.  We must now call __activate_vm
+	 * before __activate_traps, because __activate_vm configures
+	 * stage 2 translation, and __activate_traps clear HCR_EL2.TGE
+	 * (among other things).
+	 */
 	__activate_vm(vcpu->kvm);
+	__activate_traps(vcpu);
 
 	sysreg_restore_guest_state_vhe(guest_ctxt);
 	__debug_switch_to_guest(vcpu);
@@ -545,8 +529,8 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 
 	__sysreg_save_state_nvhe(host_ctxt);
 
-	__activate_traps(vcpu);
 	__activate_vm(kern_hyp_va(vcpu->kvm));
+	__activate_traps(vcpu);
 
 	__hyp_vgic_restore_state(vcpu);
 	__timer_enable_traps(vcpu);

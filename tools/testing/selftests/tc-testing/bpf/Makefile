@@ -4,6 +4,7 @@ APIDIR := ../../../../include/uapi
 TEST_GEN_FILES = action.o
 
 top_srcdir = ../../../../..
+KSFT_KHDR_INSTALL := 1
 include ../../lib.mk
 
 CLANG ?= clang

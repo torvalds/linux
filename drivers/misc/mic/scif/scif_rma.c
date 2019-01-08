@@ -15,7 +15,7 @@
  * Intel SCIF driver.
  *
  */
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/pagemap.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
@@ -416,7 +416,7 @@ static int scif_create_remote_lookup(struct scif_dev *remote_dev,
 		if (err)
 			goto error_window;
 		err = scif_map_page(&window->num_pages_lookup.lookup[j],
-				    vmalloc_dma_phys ?
+				    vmalloc_num_pages ?
 				    vmalloc_to_page(&window->num_pages[i]) :
 				    virt_to_page(&window->num_pages[i]),
 				    remote_dev);

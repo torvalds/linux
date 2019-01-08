@@ -466,9 +466,9 @@ static int vce_v4_0_sw_init(void *handle)
 			 * so set unused location for other unused rings.
 			 */
 			if (i == 0)
-				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING0_1 * 2;
+				ring->doorbell_index = adev->doorbell_index.uvd_vce.vce_ring0_1 * 2;
 			else
-				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING2_3 * 2 + 1;
+				ring->doorbell_index = adev->doorbell_index.uvd_vce.vce_ring2_3 * 2 + 1;
 		}
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
 		if (r)

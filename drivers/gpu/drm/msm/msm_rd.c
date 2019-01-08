@@ -316,10 +316,11 @@ static void snapshot_buf(struct msm_rd_state *rd,
 		uint64_t iova, uint32_t size)
 {
 	struct msm_gem_object *obj = submit->bos[idx].obj;
+	unsigned offset = 0;
 	const char *buf;
 
 	if (iova) {
-		buf += iova - submit->bos[idx].iova;
+		offset = iova - submit->bos[idx].iova;
 	} else {
 		iova = submit->bos[idx].iova;
 		size = obj->base.size;
@@ -340,9 +341,17 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	if (IS_ERR(buf))
 		return;
 
+	buf += offset;
+
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
 	msm_gem_put_vaddr(&obj->base);
+}
+
+static bool
+should_dump(struct msm_gem_submit *submit, int idx)
+{
+	return rd_full || (submit->bos[idx].flags & MSM_SUBMIT_BO_DUMP);
 }
 
 /* called under struct_mutex */
@@ -386,15 +395,16 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 
 	rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
 
-	for (i = 0; rd_full && i < submit->nr_bos; i++)
-		snapshot_buf(rd, submit, i, 0, 0);
+	for (i = 0; i < submit->nr_bos; i++)
+		if (should_dump(submit, i))
+			snapshot_buf(rd, submit, i, 0, 0);
 
 	for (i = 0; i < submit->nr_cmds; i++) {
 		uint64_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		/* snapshot cmdstream bo's (if we haven't already): */
-		if (!rd_full) {
+		if (!should_dump(submit, i)) {
 			snapshot_buf(rd, submit, submit->cmd[i].idx,
 					submit->cmd[i].iova, szd * 4);
 		}

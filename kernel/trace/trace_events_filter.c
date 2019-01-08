@@ -570,11 +570,13 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 		}
 	}
 
+	kfree(op_stack);
+	kfree(inverts);
 	return prog;
 out_free:
 	kfree(op_stack);
-	kfree(prog_stack);
 	kfree(inverts);
+	kfree(prog_stack);
 	return ERR_PTR(ret);
 }
 
@@ -1614,7 +1616,7 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 
 	/*
 	 * The calls can still be using the old filters.
-	 * Do a synchronize_sched() and to ensure all calls are
+	 * Do a synchronize_rcu() and to ensure all calls are
 	 * done with them before we free them.
 	 */
 	tracepoint_synchronize_unregister();
@@ -1718,6 +1720,7 @@ static int create_filter(struct trace_event_call *call,
 	err = process_preds(call, filter_string, *filterp, pe);
 	if (err && set_str)
 		append_filter_err(pe, *filterp);
+	create_filter_finish(pe);
 
 	return err;
 }
@@ -1845,7 +1848,7 @@ int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 	if (filter) {
 		/*
 		 * No event actually uses the system filter
-		 * we can free it without synchronize_sched().
+		 * we can free it without synchronize_rcu().
 		 */
 		__free_filter(system->filter);
 		system->filter = filter;

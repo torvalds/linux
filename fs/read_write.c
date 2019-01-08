@@ -442,7 +442,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_READ))
 		return -EINVAL;
-	if (unlikely(!access_ok(VERIFY_WRITE, buf, count)))
+	if (unlikely(!access_ok(buf, count)))
 		return -EFAULT;
 
 	ret = rw_verify_area(READ, file, pos, count);
@@ -538,7 +538,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_WRITE))
 		return -EINVAL;
-	if (unlikely(!access_ok(VERIFY_READ, buf, count)))
+	if (unlikely(!access_ok(buf, count)))
 		return -EFAULT;
 
 	ret = rw_verify_area(WRITE, file, pos, count);
@@ -718,9 +718,6 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
 	return ret;
 }
 
-/* A write operation does a read from user space and vice versa */
-#define vrfy_dir(type) ((type) == READ ? VERIFY_WRITE : VERIFY_READ)
-
 /**
  * rw_copy_check_uvector() - Copy an array of &struct iovec from userspace
  *     into the kernel and check that it is valid.
@@ -810,7 +807,7 @@ ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
 			goto out;
 		}
 		if (type >= 0
-		    && unlikely(!access_ok(vrfy_dir(type), buf, len))) {
+		    && unlikely(!access_ok(buf, len))) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -856,7 +853,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 	*ret_pointer = iov;
 
 	ret = -EFAULT;
-	if (!access_ok(VERIFY_READ, uvector, nr_segs*sizeof(*uvector)))
+	if (!access_ok(uvector, nr_segs*sizeof(*uvector)))
 		goto out;
 
 	/*
@@ -881,7 +878,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		if (len < 0)	/* size_t not fitting in compat_ssize_t .. */
 			goto out;
 		if (type >= 0 &&
-		    !access_ok(vrfy_dir(type), compat_ptr(buf), len)) {
+		    !access_ok(compat_ptr(buf), len)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1956,7 +1953,7 @@ loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
 	struct inode *inode_out = file_inode(file_out);
 	loff_t ret;
 
-	WARN_ON_ONCE(remap_flags);
+	WARN_ON_ONCE(remap_flags & REMAP_FILE_DEDUP);
 
 	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
 		return -EISDIR;
@@ -2094,17 +2091,18 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 	off = same->src_offset;
 	len = same->src_length;
 
-	ret = -EISDIR;
 	if (S_ISDIR(src->i_mode))
-		goto out;
+		return -EISDIR;
 
-	ret = -EINVAL;
 	if (!S_ISREG(src->i_mode))
-		goto out;
+		return -EINVAL;
+
+	if (!file->f_op->remap_file_range)
+		return -EOPNOTSUPP;
 
 	ret = remap_verify_area(file, off, len, false);
 	if (ret < 0)
-		goto out;
+		return ret;
 	ret = 0;
 
 	if (off + len > i_size_read(src))
@@ -2147,10 +2145,8 @@ next_fdput:
 		fdput(dst_fd);
 next_loop:
 		if (fatal_signal_pending(current))
-			goto out;
+			break;
 	}
-
-out:
 	return ret;
 }
 EXPORT_SYMBOL(vfs_dedupe_file_range);

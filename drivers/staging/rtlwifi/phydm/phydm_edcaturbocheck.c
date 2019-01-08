@@ -25,13 +25,13 @@ void odm_edca_turbo_init(void *dm_void)
 	dm->dm_edca_table.is_current_turbo_edca = false;
 	dm->dm_edca_table.is_cur_rdl_state = false;
 
-	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Orginial VO PARAM: 0x%x\n",
+	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Original VO PARAM: 0x%x\n",
 		     odm_read_4byte(dm, ODM_EDCA_VO_PARAM));
-	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Orginial VI PARAM: 0x%x\n",
+	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Original VI PARAM: 0x%x\n",
 		     odm_read_4byte(dm, ODM_EDCA_VI_PARAM));
-	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Orginial BE PARAM: 0x%x\n",
+	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Original BE PARAM: 0x%x\n",
 		     odm_read_4byte(dm, ODM_EDCA_BE_PARAM));
-	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Orginial BK PARAM: 0x%x\n",
+	ODM_RT_TRACE(dm, ODM_COMP_EDCA_TURBO, "Original BK PARAM: 0x%x\n",
 		     odm_read_4byte(dm, ODM_EDCA_BK_PARAM));
 
 } /* ODM_InitEdcaTurbo */

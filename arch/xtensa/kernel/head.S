@@ -59,10 +59,6 @@ ENTRY(_start)
 
 	.align	4
 	.literal_position
-.Lstartup:
-	.word	_startup
-
-	.align	4
 _SetupOCD:
 	/*
 	 * Initialize WB, WS, and clear PS.EXCM (to allow loop instructions).
@@ -99,12 +95,12 @@ _SetupMMU:
 1:
 #endif
 #endif
-	.end	no-absolute-literals
 
-	l32r	a0, .Lstartup
+	movi	a0, _startup
 	jx	a0
 
 ENDPROC(_start)
+	.end	no-absolute-literals
 
 	__REF
 	.literal_position

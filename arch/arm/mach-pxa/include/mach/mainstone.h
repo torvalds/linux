@@ -119,6 +119,10 @@
 #define MST_PCMCIA_PWR_VCC_33   0x8	   /* voltage VCC = 3.3V */
 #define MST_PCMCIA_PWR_VCC_50   0x4	   /* voltage VCC = 5.0V */
 
+#define MST_PCMCIA_INPUTS \
+	(MST_PCMCIA_nIRQ | MST_PCMCIA_nSPKR_BVD2 | MST_PCMCIA_nSTSCHG_BVD1 | \
+	 MST_PCMCIA_nVS2 | MST_PCMCIA_nVS1 | MST_PCMCIA_nCD)
+
 /* board specific IRQs */
 #define MAINSTONE_NR_IRQS	IRQ_BOARD_START
 

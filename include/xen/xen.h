@@ -29,6 +29,9 @@ extern bool xen_pvh;
 
 extern uint32_t xen_start_flags;
 
+#include <xen/interface/hvm/start_info.h>
+extern struct hvm_start_info pvh_start_info;
+
 #ifdef CONFIG_XEN_DOM0
 #include <xen/interface/xen.h>
 #include <asm/xen/hypervisor.h>

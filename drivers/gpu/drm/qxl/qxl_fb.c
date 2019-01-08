@@ -111,7 +111,7 @@ static int qxlfb_create_pinned_object(struct qxl_device *qdev,
 	qbo->surf.stride = mode_cmd->pitches[0];
 	qbo->surf.format = SPICE_SURFACE_FMT_32_xRGB;
 
-	ret = qxl_bo_pin(qbo, QXL_GEM_DOMAIN_SURFACE, NULL);
+	ret = qxl_bo_pin(qbo);
 	if (ret) {
 		goto out_unref;
 	}

@@ -767,11 +767,8 @@ static int setplane_internal(struct drm_plane *plane,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-retry:
-	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
-	if (ret)
-		goto fail;
+	DRM_MODESET_LOCK_ALL_BEGIN(plane->dev, ctx,
+				   DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
 	if (drm_drv_uses_atomic_modeset(plane->dev))
 		ret = __setplane_atomic(plane, crtc, fb,
@@ -782,14 +779,7 @@ retry:
 					  crtc_x, crtc_y, crtc_w, crtc_h,
 					  src_x, src_y, src_w, src_h, &ctx);
 
-fail:
-	if (ret == -EDEADLK) {
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 
 	return ret;
 }

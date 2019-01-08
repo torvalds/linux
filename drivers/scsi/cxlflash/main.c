@@ -3088,12 +3088,6 @@ static ssize_t hwq_mode_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	if ((mode == HWQ_MODE_TAG) && !shost_use_blk_mq(shost)) {
-		dev_info(cfgdev, "SCSI-MQ is not enabled, use a different "
-			 "HWQ steering mode.\n");
-		return -EINVAL;
-	}
-
 	afu->hwq_mode = mode;
 
 	return count;
@@ -3180,7 +3174,6 @@ static struct scsi_host_template driver_template = {
 	.this_id = -1,
 	.sg_tablesize = 1,	/* No scatter gather support */
 	.max_sectors = CXLFLASH_MAX_SECTORS,
-	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = cxlflash_host_attrs,
 	.sdev_attrs = cxlflash_dev_attrs,
 };

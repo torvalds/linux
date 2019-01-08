@@ -238,7 +238,7 @@ __weak void arch_unregister_hw_breakpoint(struct perf_event *bp)
 }
 
 /*
- * Contraints to check before allowing this new breakpoint counter:
+ * Constraints to check before allowing this new breakpoint counter:
  *
  *  == Non-pinned counter == (Considered as pinned for now)
  *

@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include "lib/mlx5.h"
 #include "en.h"
 #include "en_accel/ipsec.h"
 #include "en_accel/tls.h"
@@ -74,7 +75,6 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_recover) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_cqes) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_wake) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_udp_seg_rem) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_cqe_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xdp_xmit) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xdp_full) },
@@ -83,6 +83,7 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_wqe_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_filler_cqes) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_filler_strides) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_oversize_pkts_sw_drop) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_buff_alloc_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_blks) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_pkts) },
@@ -161,6 +162,7 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 		s->rx_wqe_err   += rq_stats->wqe_err;
 		s->rx_mpwqe_filler_cqes    += rq_stats->mpwqe_filler_cqes;
 		s->rx_mpwqe_filler_strides += rq_stats->mpwqe_filler_strides;
+		s->rx_oversize_pkts_sw_drop += rq_stats->oversize_pkts_sw_drop;
 		s->rx_buff_alloc_err += rq_stats->buff_alloc_err;
 		s->rx_cqe_compress_blks += rq_stats->cqe_compress_blks;
 		s->rx_cqe_compress_pkts += rq_stats->cqe_compress_pkts;
@@ -196,7 +198,6 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 			s->tx_nop               += sq_stats->nop;
 			s->tx_queue_stopped	+= sq_stats->stopped;
 			s->tx_queue_wake	+= sq_stats->wake;
-			s->tx_udp_seg_rem	+= sq_stats->udp_seg_rem;
 			s->tx_queue_dropped	+= sq_stats->dropped;
 			s->tx_cqe_err		+= sq_stats->cqe_err;
 			s->tx_recover		+= sq_stats->recover;
@@ -480,13 +481,19 @@ static int mlx5e_grp_802_3_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
-static void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv)
+#define MLX5_BASIC_PPCNT_SUPPORTED(mdev) \
+	(MLX5_CAP_GEN(mdev, pcam_reg) ? MLX5_CAP_PCAM_REG(mdev, ppcnt) : 1)
+
+void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv)
 {
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {0};
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	void *out;
+
+	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+		return;
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 	out = pstats->IEEE_802_3_counters;
@@ -599,6 +606,9 @@ static void mlx5e_grp_2819_update_stats(struct mlx5e_priv *priv)
 	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {0};
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	void *out;
+
+	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+		return;
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 	out = pstats->RFC_2819_counters;
@@ -934,7 +944,7 @@ static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
 };
 
 static const struct counter_desc pport_pfc_stall_stats_desc[] = {
-	{ "tx_pause_storm_warning_events ", PPORT_PER_PRIO_OFF(device_stall_minor_watermark_cnt) },
+	{ "tx_pause_storm_warning_events", PPORT_PER_PRIO_OFF(device_stall_minor_watermark_cnt) },
 	{ "tx_pause_storm_error_events", PPORT_PER_PRIO_OFF(device_stall_critical_watermark_cnt) },
 };
 
@@ -1075,6 +1085,9 @@ static void mlx5e_grp_per_prio_update_stats(struct mlx5e_priv *priv)
 	int prio;
 	void *out;
 
+	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+		return;
+
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
@@ -1086,13 +1099,13 @@ static void mlx5e_grp_per_prio_update_stats(struct mlx5e_priv *priv)
 }
 
 static const struct counter_desc mlx5e_pme_status_desc[] = {
-	{ "module_unplug", 8 },
+	{ "module_unplug",       sizeof(u64) * MLX5_MODULE_STATUS_UNPLUGGED },
 };
 
 static const struct counter_desc mlx5e_pme_error_desc[] = {
-	{ "module_bus_stuck", 16 },       /* bus stuck (I2C or data shorted) */
-	{ "module_high_temp", 48 },       /* high temperature */
-	{ "module_bad_shorted", 56 },    /* bad or shorted cable/module */
+	{ "module_bus_stuck",    sizeof(u64) * MLX5_MODULE_EVENT_ERROR_BUS_STUCK },
+	{ "module_high_temp",    sizeof(u64) * MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE },
+	{ "module_bad_shorted",  sizeof(u64) * MLX5_MODULE_EVENT_ERROR_BAD_CABLE },
 };
 
 #define NUM_PME_STATUS_STATS		ARRAY_SIZE(mlx5e_pme_status_desc)
@@ -1120,15 +1133,17 @@ static int mlx5e_grp_pme_fill_strings(struct mlx5e_priv *priv, u8 *data,
 static int mlx5e_grp_pme_fill_stats(struct mlx5e_priv *priv, u64 *data,
 				    int idx)
 {
-	struct mlx5_priv *mlx5_priv = &priv->mdev->priv;
+	struct mlx5_pme_stats pme_stats;
 	int i;
 
+	mlx5_get_pme_stats(priv->mdev, &pme_stats);
+
 	for (i = 0; i < NUM_PME_STATUS_STATS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.status_counters,
+		data[idx++] = MLX5E_READ_CTR64_CPU(pme_stats.status_counters,
 						   mlx5e_pme_status_desc, i);
 
 	for (i = 0; i < NUM_PME_ERR_STATS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
+		data[idx++] = MLX5E_READ_CTR64_CPU(pme_stats.error_counters,
 						   mlx5e_pme_error_desc, i);
 
 	return idx;
@@ -1189,6 +1204,7 @@ static const struct counter_desc rq_stats_desc[] = {
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, wqe_err) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, mpwqe_filler_cqes) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, mpwqe_filler_strides) },
+	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, oversize_pkts_sw_drop) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, buff_alloc_err) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_blks) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_pkts) },

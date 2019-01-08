@@ -24,6 +24,10 @@ int cec_debug;
 module_param_named(debug, cec_debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 
+static bool debug_phys_addr;
+module_param(debug_phys_addr, bool, 0644);
+MODULE_PARM_DESC(debug_phys_addr, "add CEC_CAP_PHYS_ADDR if set");
+
 static dev_t cec_dev_t;
 
 /* Active devices */
@@ -270,6 +274,8 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
 	adap->log_addrs.vendor_id = CEC_VENDOR_ID_NONE;
 	adap->capabilities = caps;
+	if (debug_phys_addr)
+		adap->capabilities |= CEC_CAP_PHYS_ADDR;
 	adap->needs_hpd = caps & CEC_CAP_NEEDS_HPD;
 	adap->available_log_addrs = available_las;
 	adap->sequence = 0;

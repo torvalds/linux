@@ -22,4 +22,6 @@
 #define __IGNORE_vfork				/* use clone */
 #define __IGNORE_fadvise64			/* use fadvise64_64 */
 
+#define NR_syscalls				__NR_syscalls
+
 #endif /* _XTENSA_UNISTD_H */

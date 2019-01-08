@@ -23,7 +23,6 @@
 #include <linux/mm_types.h>
 #include <linux/rbtree.h>
 #include <linux/sched/task.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -95,6 +94,13 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		goto err1;
 	}
 
+	spin_lock(&heap->stat_lock);
+	heap->num_of_buffers++;
+	heap->num_of_alloc_bytes += len;
+	if (heap->num_of_alloc_bytes > heap->alloc_bytes_wm)
+		heap->alloc_bytes_wm = heap->num_of_alloc_bytes;
+	spin_unlock(&heap->stat_lock);
+
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
 	mutex_lock(&dev->buffer_lock);
@@ -117,6 +123,11 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	}
 	buffer->heap->ops->free(buffer);
+	spin_lock(&buffer->heap->stat_lock);
+	buffer->heap->num_of_buffers--;
+	buffer->heap->num_of_alloc_bytes -= buffer->size;
+	spin_unlock(&buffer->heap->stat_lock);
+
 	kfree(buffer);
 }
 
@@ -528,12 +539,15 @@ void ion_device_add_heap(struct ion_heap *heap)
 {
 	struct ion_device *dev = internal_dev;
 	int ret;
+	struct dentry *heap_root;
+	char debug_name[64];
 
 	if (!heap->ops->allocate || !heap->ops->free)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
 		       __func__);
 
 	spin_lock_init(&heap->free_lock);
+	spin_lock_init(&heap->stat_lock);
 	heap->free_list_size = 0;
 
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
@@ -546,6 +560,33 @@ void ion_device_add_heap(struct ion_heap *heap)
 	}
 
 	heap->dev = dev;
+	heap->num_of_buffers = 0;
+	heap->num_of_alloc_bytes = 0;
+	heap->alloc_bytes_wm = 0;
+
+	heap_root = debugfs_create_dir(heap->name, dev->debug_root);
+	debugfs_create_u64("num_of_buffers",
+			   0444, heap_root,
+			   &heap->num_of_buffers);
+	debugfs_create_u64("num_of_alloc_bytes",
+			   0444,
+			   heap_root,
+			   &heap->num_of_alloc_bytes);
+	debugfs_create_u64("alloc_bytes_wm",
+			   0444,
+			   heap_root,
+			   &heap->alloc_bytes_wm);
+
+	if (heap->shrinker.count_objects &&
+	    heap->shrinker.scan_objects) {
+		snprintf(debug_name, 64, "%s_shrink", heap->name);
+		debugfs_create_file(debug_name,
+				    0644,
+				    heap_root,
+				    heap,
+				    &debug_shrink_fops);
+	}
+
 	down_write(&dev->lock);
 	heap->id = heap_id++;
 	/*
@@ -554,14 +595,6 @@ void ion_device_add_heap(struct ion_heap *heap)
 	 */
 	plist_node_init(&heap->node, -heap->id);
 	plist_add(&heap->node, &dev->heaps);
-
-	if (heap->shrinker.count_objects && heap->shrinker.scan_objects) {
-		char debug_name[64];
-
-		snprintf(debug_name, 64, "%s_shrink", heap->name);
-		debugfs_create_file(debug_name, 0644, dev->debug_root,
-				    heap, &debug_shrink_fops);
-	}
 
 	dev->heap_cnt++;
 	up_write(&dev->lock);

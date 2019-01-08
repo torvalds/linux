@@ -1175,8 +1175,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (args->size == 0)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE,
-		       u64_to_user_ptr(args->data_ptr),
+	if (!access_ok(u64_to_user_ptr(args->data_ptr),
 		       args->size))
 		return -EFAULT;
 
@@ -1462,9 +1461,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (args->size == 0)
 		return 0;
 
-	if (!access_ok(VERIFY_READ,
-		       u64_to_user_ptr(args->data_ptr),
-		       args->size))
+	if (!access_ok(u64_to_user_ptr(args->data_ptr), args->size))
 		return -EFAULT;
 
 	obj = i915_gem_object_lookup(file, args->handle);
@@ -2412,7 +2409,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	 * If there's no chance of allocating enough pages for the whole
 	 * object, bail early.
 	 */
-	if (page_count > totalram_pages)
+	if (page_count > totalram_pages())
 		return -ENOMEM;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);

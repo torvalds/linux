@@ -570,7 +570,7 @@ static int vmballoon_send_get_target(struct vmballoon *b)
 	unsigned long status;
 	unsigned long limit;
 
-	limit = totalram_pages;
+	limit = totalram_pages();
 
 	/* Ensure limit fits in 32-bits */
 	if (limit != (u32)limit)
@@ -1470,18 +1470,7 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
-static int vmballoon_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vmballoon_debug_show, inode->i_private);
-}
-
-static const struct file_operations vmballoon_debug_fops = {
-	.owner		= THIS_MODULE,
-	.open		= vmballoon_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(vmballoon_debug);
 
 static int __init vmballoon_debugfs_init(struct vmballoon *b)
 {

@@ -97,18 +97,14 @@ struct netns_ct {
 	struct delayed_work ecache_dwork;
 	bool ecache_dwork_pending;
 #endif
+	bool			auto_assign_helper_warned;
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_header;
-	struct ctl_table_header	*acct_sysctl_header;
-	struct ctl_table_header	*tstamp_sysctl_header;
-	struct ctl_table_header	*event_sysctl_header;
-	struct ctl_table_header	*helper_sysctl_header;
 #endif
 	unsigned int		sysctl_log_invalid; /* Log invalid packets */
 	int			sysctl_events;
 	int			sysctl_acct;
 	int			sysctl_auto_assign_helper;
-	bool			auto_assign_helper_warned;
 	int			sysctl_tstamp;
 	int			sysctl_checksum;
 

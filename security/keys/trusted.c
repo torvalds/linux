@@ -711,7 +711,7 @@ static int key_unseal(struct trusted_key_payload *p,
 }
 
 enum {
-	Opt_err = -1,
+	Opt_err,
 	Opt_new, Opt_load, Opt_update,
 	Opt_keyhandle, Opt_keyauth, Opt_blobauth,
 	Opt_pcrinfo, Opt_pcrlock, Opt_migratable,
@@ -1199,14 +1199,14 @@ static int __init trusted_shash_alloc(void)
 {
 	int ret;
 
-	hmacalg = crypto_alloc_shash(hmac_alg, 0, CRYPTO_ALG_ASYNC);
+	hmacalg = crypto_alloc_shash(hmac_alg, 0, 0);
 	if (IS_ERR(hmacalg)) {
 		pr_info("trusted_key: could not allocate crypto %s\n",
 			hmac_alg);
 		return PTR_ERR(hmacalg);
 	}
 
-	hashalg = crypto_alloc_shash(hash_alg, 0, CRYPTO_ALG_ASYNC);
+	hashalg = crypto_alloc_shash(hash_alg, 0, 0);
 	if (IS_ERR(hashalg)) {
 		pr_info("trusted_key: could not allocate crypto %s\n",
 			hash_alg);

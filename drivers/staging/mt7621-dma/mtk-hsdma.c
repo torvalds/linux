@@ -335,6 +335,8 @@ static int mtk_hsdma_start_transfer(struct mtk_hsdam_engine *hsdma,
 	/* tx desc */
 	src = sg->src_addr;
 	for (i = 0; i < chan->desc->num_sgs; i++) {
+		tx_desc = &chan->tx_ring[chan->tx_idx];
+
 		if (len > HSDMA_MAX_PLEN)
 			tlen = HSDMA_MAX_PLEN;
 		else
@@ -344,7 +346,6 @@ static int mtk_hsdma_start_transfer(struct mtk_hsdam_engine *hsdma,
 			tx_desc->addr1 = src;
 			tx_desc->flags |= HSDMA_DESC_PLEN1(tlen);
 		} else {
-			tx_desc = &chan->tx_ring[chan->tx_idx];
 			tx_desc->addr0 = src;
 			tx_desc->flags = HSDMA_DESC_PLEN0(tlen);
 
@@ -418,8 +419,9 @@ static void mtk_hsdma_chan_done(struct mtk_hsdam_engine *hsdma,
 			vchan_cookie_complete(&desc->vdesc);
 			chan_issued = gdma_next_desc(chan);
 		}
-	} else
+	} else {
 		dev_dbg(hsdma->ddev.dev, "no desc to complete\n");
+	}
 
 	if (chan_issued)
 		set_bit(chan->id, &hsdma->chan_issued);
@@ -456,8 +458,9 @@ static void mtk_hsdma_issue_pending(struct dma_chan *c)
 		if (gdma_next_desc(chan)) {
 			set_bit(chan->id, &hsdma->chan_issued);
 			tasklet_schedule(&hsdma->task);
-		} else
+		} else {
 			dev_dbg(hsdma->ddev.dev, "no desc to issue\n");
+		}
 	}
 	spin_unlock_bh(&chan->vchan.lock);
 }

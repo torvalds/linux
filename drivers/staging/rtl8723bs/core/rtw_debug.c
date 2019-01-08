@@ -519,7 +519,7 @@ int proc_get_ap_info(struct seq_file *m, void *v)
 			}
 		}
 
-	} else{
+	} else {
 		DBG_871X_SEL_NL(m, "can't get sta's macaddr, cur_network's macaddr:" MAC_FMT "\n", MAC_ARG(cur_network->network.MacAddress));
 	}
 

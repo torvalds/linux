@@ -101,6 +101,17 @@ struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
 	return master;
 }
 
+int l3mdev_master_upper_ifindex_by_index_rcu(struct net *net, int ifindex);
+static inline
+int l3mdev_master_upper_ifindex_by_index(struct net *net, int ifindex)
+{
+	rcu_read_lock();
+	ifindex = l3mdev_master_upper_ifindex_by_index_rcu(net, ifindex);
+	rcu_read_unlock();
+
+	return ifindex;
+}
+
 u32 l3mdev_fib_table_rcu(const struct net_device *dev);
 u32 l3mdev_fib_table_by_index(struct net *net, int ifindex);
 static inline u32 l3mdev_fib_table(const struct net_device *dev)
@@ -203,6 +214,17 @@ static inline int l3mdev_master_ifindex(struct net_device *dev)
 }
 
 static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
+{
+	return 0;
+}
+
+static inline
+int l3mdev_master_upper_ifindex_by_index_rcu(struct net *net, int ifindex)
+{
+	return 0;
+}
+static inline
+int l3mdev_master_upper_ifindex_by_index(struct net *net, int ifindex)
 {
 	return 0;
 }

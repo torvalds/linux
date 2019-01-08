@@ -243,12 +243,14 @@
 	.endm
 #endif
 
-#define USER(x...)				\
+#define USERL(l, x...)				\
 9999:	x;					\
 	.pushsection __ex_table,"a";		\
 	.align	3;				\
-	.long	9999b,9001f;			\
+	.long	9999b,l;			\
 	.popsection
+
+#define USER(x...)	USERL(9001f, x)
 
 #ifdef CONFIG_SMP
 #define ALT_SMP(instr...)					\

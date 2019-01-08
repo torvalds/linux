@@ -78,7 +78,7 @@
 
 &can0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&can0_pins_a>;
+	pinctrl-0 = <&can_ph_pins>;
 	status = "okay";
 };
 
@@ -104,7 +104,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
 	phy = <&phy3>;
 	phy-mode = "rgmii";
 	phy-supply = <&reg_vcc3v3>;
@@ -130,8 +130,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -143,8 +141,6 @@
 
 /* Exposed to UEXT1 */
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
 	eeprom: eeprom@50 {
@@ -156,20 +152,16 @@
 
 /* Exposed to UEXT2 */
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>;
@@ -177,8 +169,6 @@
 };
 
 &mmc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&rtl_pwrseq>;
 	bus-width = <4>;
@@ -203,8 +193,8 @@
 };
 
 &pio {
-	bt_uart_pins: bt_uart_pins@0 {
-		pins = "PG6", "PG7", "PG8";
+	uart3_rts_pin: uart3-rts-pin {
+		pins = "PG8";
 		function = "uart3";
 	};
 };
@@ -274,43 +264,43 @@
 /* Exposed to UEXT1 */
 &spi1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi1_pins_a>,
-		    <&spi1_cs0_pins_a>;
+	pinctrl-0 = <&spi1_pi_pins>,
+		    <&spi1_cs0_pi_pin>;
 	status = "okay";
 };
 
 /* Exposed to UEXT2 */
 &spi2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_a>,
-		    <&spi2_cs0_pins_a>;
+	pinctrl-0 = <&spi2_pc_pins>,
+		    <&spi2_cs0_pc_pin>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 
 /* Used for RTL8723BS bluetooth */
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&bt_uart_pins>;
+	pinctrl-0 = <&uart3_pg_pins>, <&uart3_rts_pin>;
 	status = "okay";
 };
 
 /* Exposed to UEXT1 */
 &uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart4_pins_a>;
+	pinctrl-0 = <&uart4_pg_pins>;
 	status = "okay";
 };
 
 /* Exposed to UEXT2 */
 &uart7 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart7_pins_a>;
+	pinctrl-0 = <&uart7_pi_pins>;
 	status = "okay";
 };
 

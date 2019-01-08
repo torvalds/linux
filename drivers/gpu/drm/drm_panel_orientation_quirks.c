@@ -63,7 +63,7 @@ static const struct drm_dmi_panel_orientation_data gpd_win2 = {
 	.width = 720,
 	.height = 1280,
 	.bios_dates = (const char * const []){
-		"12/07/2017", "05/24/2018", NULL },
+		"12/07/2017", "05/24/2018", "06/29/2018", NULL },
 	.orientation = DRM_MODE_PANEL_ORIENTATION_RIGHT_UP,
 };
 

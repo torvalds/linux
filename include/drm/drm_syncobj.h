@@ -32,15 +32,10 @@ struct drm_file;
 
 struct drm_syncobj_cb;
 
-enum drm_syncobj_type {
-	DRM_SYNCOBJ_TYPE_BINARY,
-	DRM_SYNCOBJ_TYPE_TIMELINE
-};
-
 /**
  * struct drm_syncobj - sync object.
  *
- * This structure defines a generic sync object which is timeline based.
+ * This structure defines a generic sync object which wraps a &dma_fence.
  */
 struct drm_syncobj {
 	/**
@@ -48,42 +43,21 @@ struct drm_syncobj {
 	 */
 	struct kref refcount;
 	/**
-	 * @type: indicate syncobj type
+	 * @fence:
+	 * NULL or a pointer to the fence bound to this object.
+	 *
+	 * This field should not be used directly. Use drm_syncobj_fence_get()
+	 * and drm_syncobj_replace_fence() instead.
 	 */
-	enum drm_syncobj_type type;
+	struct dma_fence __rcu *fence;
 	/**
-	 * @wq: wait signal operation work queue
+	 * @cb_list: List of callbacks to call when the &fence gets replaced.
 	 */
-	wait_queue_head_t	wq;
-	/**
-	 * @timeline_context: fence context used by timeline
-	 */
-	u64 timeline_context;
-	/**
-	 * @timeline: syncobj timeline value, which indicates point is signaled.
-	 */
-	u64 timeline;
-	/**
-	 * @signal_point: which indicates the latest signaler point.
-	 */
-	u64 signal_point;
-	/**
-	 * @signal_pt_list: signaler point list.
-	 */
-	struct list_head signal_pt_list;
-
-	/**
-         * @cb_list: List of callbacks to call when the &fence gets replaced.
-         */
 	struct list_head cb_list;
 	/**
-	 * @pt_lock: Protects pt list.
+	 * @lock: Protects &cb_list and write-locks &fence.
 	 */
-	spinlock_t pt_lock;
-	/**
-	 * @cb_mutex: Protects syncobj cb list.
-	 */
-	struct mutex cb_mutex;
+	spinlock_t lock;
 	/**
 	 * @file: A file backing for this syncobj.
 	 */
@@ -96,7 +70,7 @@ typedef void (*drm_syncobj_func_t)(struct drm_syncobj *syncobj,
 /**
  * struct drm_syncobj_cb - callback for drm_syncobj_add_callback
  * @node: used by drm_syncob_add_callback to append this struct to
- *       &drm_syncobj.cb_list
+ *	  &drm_syncobj.cb_list
  * @func: drm_syncobj_func_t to call
  *
  * This struct will be initialized by drm_syncobj_add_callback, additional
@@ -134,9 +108,32 @@ drm_syncobj_put(struct drm_syncobj *obj)
 	kref_put(&obj->refcount, drm_syncobj_free);
 }
 
+/**
+ * drm_syncobj_fence_get - get a reference to a fence in a sync object
+ * @syncobj: sync object.
+ *
+ * This acquires additional reference to &drm_syncobj.fence contained in @obj,
+ * if not NULL. It is illegal to call this without already holding a reference.
+ * No locks required.
+ *
+ * Returns:
+ * Either the fence of @obj or NULL if there's none.
+ */
+static inline struct dma_fence *
+drm_syncobj_fence_get(struct drm_syncobj *syncobj)
+{
+	struct dma_fence *fence;
+
+	rcu_read_lock();
+	fence = dma_fence_get_rcu_safe(&syncobj->fence);
+	rcu_read_unlock();
+
+	return fence;
+}
+
 struct drm_syncobj *drm_syncobj_find(struct drm_file *file_private,
 				     u32 handle);
-void drm_syncobj_replace_fence(struct drm_syncobj *syncobj, u64 point,
+void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 			       struct dma_fence *fence);
 int drm_syncobj_find_fence(struct drm_file *file_private,
 			   u32 handle, u64 point, u64 flags,
@@ -147,7 +144,5 @@ int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
 int drm_syncobj_get_handle(struct drm_file *file_private,
 			   struct drm_syncobj *syncobj, u32 *handle);
 int drm_syncobj_get_fd(struct drm_syncobj *syncobj, int *p_fd);
-int drm_syncobj_search_fence(struct drm_syncobj *syncobj, u64 point, u64 flags,
-			     struct dma_fence **fence);
 
 #endif

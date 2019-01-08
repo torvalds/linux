@@ -2187,7 +2187,7 @@ static void shutdown_smi(void *send_info)
 	 * handlers might have been running before we freed the
 	 * interrupt.
 	 */
-	synchronize_sched();
+	synchronize_rcu();
 
 	/*
 	 * Timeouts are stopped, now make sure the interrupts are off

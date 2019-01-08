@@ -24,6 +24,7 @@
 #include <linux/fdtable.h>
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
+#include <linux/mmu_context.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"

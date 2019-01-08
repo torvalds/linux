@@ -113,7 +113,7 @@ static struct scsi_host_template cxgb4i_host_template = {
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.target_alloc	= iscsi_target_alloc,
-	.use_clustering	= DISABLE_CLUSTERING,
+	.dma_boundary	= PAGE_SIZE - 1,
 	.this_id	= -1,
 	.track_queue_depth = 1,
 };
@@ -1767,8 +1767,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 		csk->mtu = dst_mtu(csk->dst);
 	cxgb4_best_mtu(lldi->mtus, csk->mtu, &csk->mss_idx);
 	csk->tx_chan = cxgb4_port_chan(ndev);
-	csk->smac_idx = cxgb4_tp_smt_idx(lldi->adapter_type,
-					 cxgb4_port_viid(ndev));
+	csk->smac_idx = ((struct port_info *)netdev_priv(ndev))->smt_idx;
 	step = lldi->ntxq / lldi->nchan;
 	csk->txq_idx = cxgb4_port_idx(ndev) * step;
 	step = lldi->nrxq / lldi->nchan;

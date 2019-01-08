@@ -102,7 +102,7 @@ struct pp_smu_funcs_rv {
 	 */
 	void (*set_display_count)(struct pp_smu *pp, int count);
 
-	/* which SMU message?  are reader and writer WM separate SMU msg? */
+	/* reader and writer WM's are sent together as part of one table*/
 	/*
 	 * PPSMC_MSG_SetDriverDramAddrHigh
 	 * PPSMC_MSG_SetDriverDramAddrLow
