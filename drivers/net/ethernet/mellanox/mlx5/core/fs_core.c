@@ -420,22 +420,37 @@ static void del_sw_flow_table(struct fs_node *node)
 	kfree(ft);
 }
 
-static void del_sw_hw_rule(struct fs_node *node)
+static void modify_fte(struct fs_fte *fte)
 {
 	struct mlx5_flow_root_namespace *root;
-	struct mlx5_flow_rule *rule;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
-	struct fs_fte *fte;
-	int modify_mask;
-	struct mlx5_core_dev *dev = get_dev(node);
+	struct mlx5_core_dev *dev;
 	int err;
-	bool update_fte = false;
+
+	if (!fte->modify_mask)
+		return;
+
+	fs_get_obj(fg, fte->node.parent);
+	fs_get_obj(ft, fg->node.parent);
+	dev = get_dev(&fte->node);
+
+	root = find_root(&ft->node);
+	err = root->cmds->update_fte(dev, ft, fg->id, fte->modify_mask, fte);
+	if (err)
+		mlx5_core_warn(dev,
+			       "%s can't del rule fg id=%d fte_index=%d\n",
+			       __func__, fg->id, fte->index);
+	fte->modify_mask = 0;
+}
+
+static void del_sw_hw_rule(struct fs_node *node)
+{
+	struct mlx5_flow_rule *rule;
+	struct fs_fte *fte;
 
 	fs_get_obj(rule, node);
 	fs_get_obj(fte, rule->node.parent);
-	fs_get_obj(fg, fte->node.parent);
-	fs_get_obj(ft, fg->node.parent);
 	trace_mlx5_fs_del_rule(rule);
 	if (rule->sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		mutex_lock(&rule->dest_attr.ft->lock);
@@ -445,27 +460,20 @@ static void del_sw_hw_rule(struct fs_node *node)
 
 	if (rule->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER  &&
 	    --fte->dests_size) {
-		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION) |
-			      BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS);
+		fte->modify_mask |=
+			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION) |
+			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS);
 		fte->action.action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
-		update_fte = true;
 		goto out;
 	}
 
 	if ((fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 	    --fte->dests_size) {
-		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
-		update_fte = true;
+		fte->modify_mask |=
+			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
 	}
 out:
-	root = find_root(&ft->node);
-	if (update_fte && fte->dests_size) {
-		err = root->cmds->update_fte(dev, ft, fg->id, modify_mask, fte);
-		if (err)
-			mlx5_core_warn(dev,
-				       "%s can't del rule fg id=%d fte_index=%d\n",
-				       __func__, fg->id, fte->index);
-	}
+	modify_fte(fte);
 	kfree(rule);
 }
 
