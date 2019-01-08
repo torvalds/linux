@@ -827,11 +827,6 @@ int irq_choose_cpu(const struct cpumask *mask)
 }
 #endif
 
-int arch_early_irq_init(void)
-{
-	return 0;
-}
-
 #ifdef CONFIG_PPC64
 static int __init setup_noirqdistrib(char *str)
 {
