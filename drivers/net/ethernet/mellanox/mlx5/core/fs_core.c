@@ -430,9 +430,6 @@ static void modify_fte(struct fs_fte *fte)
 	struct mlx5_core_dev *dev;
 	int err;
 
-	if (!fte->modify_mask)
-		return;
-
 	fs_get_obj(fg, fte->node.parent);
 	fs_get_obj(ft, fg->node.parent);
 	dev = get_dev(&fte->node);
@@ -475,7 +472,6 @@ static void del_sw_hw_rule(struct fs_node *node)
 			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
 	}
 out:
-	modify_fte(fte);
 	kfree(rule);
 }
 
@@ -602,7 +598,7 @@ static struct fs_fte *alloc_fte(struct mlx5_flow_table *ft,
 	fte->node.type =  FS_TYPE_FLOW_ENTRY;
 	fte->action = *flow_act;
 
-	tree_init_node(&fte->node, del_hw_fte, del_sw_fte);
+	tree_init_node(&fte->node, NULL, del_sw_fte);
 
 	return fte;
 }
@@ -1882,10 +1878,33 @@ EXPORT_SYMBOL(mlx5_add_flow_rules);
 
 void mlx5_del_flow_rules(struct mlx5_flow_handle *handle)
 {
+	struct fs_fte *fte;
 	int i;
 
+	/* In order to consolidate the HW changes we lock the FTE for other
+	 * changes, and increase its refcount, in order not to perform the
+	 * "del" functions of the FTE. Will handle them here.
+	 * The removal of the rules is done under locked FTE.
+	 * After removing all the handle's rules, if there are remaining
+	 * rules, it means we just need to modify the FTE in FW, and
+	 * unlock/decrease the refcount we increased before.
+	 * Otherwise, it means the FTE should be deleted. First delete the
+	 * FTE in FW. Then, unlock the FTE, and proceed the tree_put_node of
+	 * the FTE, which will handle the last decrease of the refcount, as
+	 * well as required handling of its parent.
+	 */
+	fs_get_obj(fte, handle->rule[0]->node.parent);
+	down_write_ref_node(&fte->node, false);
 	for (i = handle->num_rules - 1; i >= 0; i--)
-		tree_remove_node(&handle->rule[i]->node, false);
+		tree_remove_node(&handle->rule[i]->node, true);
+	if (fte->modify_mask && fte->dests_size) {
+		modify_fte(fte);
+		up_write_ref_node(&fte->node, false);
+	} else {
+		del_hw_fte(&fte->node);
+		up_write(&fte->node.lock);
+		tree_put_node(&fte->node, false);
+	}
 	kfree(handle);
 }
 EXPORT_SYMBOL(mlx5_del_flow_rules);
