@@ -151,7 +151,13 @@ static u8 rtl8723e_dm_initial_gain_min_pwdb(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
+	struct rtl_mac *mac = rtl_mac(rtlpriv);
 	long rssi_val_min = 0;
+
+	if (mac->link_state == MAC80211_LINKED &&
+	    mac->opmode == NL80211_IFTYPE_STATION &&
+	    rtlpriv->link_info.bcn_rx_inperiod == 0)
+		return 0;
 
 	if ((dm_digtable->curmultista_cstate == DIG_MULTISTA_CONNECT) &&
 	    (dm_digtable->cursta_cstate == DIG_STA_CONNECT)) {
@@ -417,6 +423,8 @@ static void rtl8723e_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 		} else {
 			rtl_set_bbreg(hw, RCCK0_CCA, MASKBYTE2, 0xcd);
 			rtl_set_bbreg(hw, RCCK0_SYSTEM, MASKBYTE1, 0x47);
+			dm_digtable->pre_cck_fa_state = 0;
+			dm_digtable->cur_cck_fa_state = 0;
 
 		}
 		dm_digtable->pre_cck_pd_state = dm_digtable->cur_cck_pd_state;
