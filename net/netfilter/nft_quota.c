@@ -61,7 +61,7 @@ static void nft_quota_obj_eval(struct nft_object *obj,
 
 	if (overquota &&
 	    !test_and_set_bit(NFT_QUOTA_DEPLETED_BIT, &priv->flags))
-		nft_obj_notify(nft_net(pkt), obj->table, obj, 0, 0,
+		nft_obj_notify(nft_net(pkt), obj->key.table, obj, 0, 0,
 			       NFT_MSG_NEWOBJ, nft_pf(pkt), 0, GFP_ATOMIC);
 }
 

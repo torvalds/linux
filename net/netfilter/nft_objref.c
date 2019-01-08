@@ -53,7 +53,7 @@ static int nft_objref_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_object *obj = nft_objref_priv(expr);
 
-	if (nla_put_string(skb, NFTA_OBJREF_IMM_NAME, obj->name) ||
+	if (nla_put_string(skb, NFTA_OBJREF_IMM_NAME, obj->key.name) ||
 	    nla_put_be32(skb, NFTA_OBJREF_IMM_TYPE,
 			 htonl(obj->ops->type->type)))
 		goto nla_put_failure;
