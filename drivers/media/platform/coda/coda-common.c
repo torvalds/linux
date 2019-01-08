@@ -728,7 +728,7 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 		ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 		break;
 	case V4L2_PIX_FMT_NV12:
-		if (!disable_tiling) {
+		if (!disable_tiling && ctx->dev->devtype->product == CODA_960) {
 			ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 			break;
 		}
