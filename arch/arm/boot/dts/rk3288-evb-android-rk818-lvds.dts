@@ -113,13 +113,15 @@
 	status = "okay";
 	compatible ="simple-panel";
 	backlight = <&backlight>;
-	bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
 	enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
 	enable-delay-ms = <10>;
 	power-supply = <&vcc_lcd>;
-	rockchip,data-mapping = "jeida";
-	rockchip,data-width = <24>;
-	rockchip,output = "lvds";
+	/*
+	 * MEDIA_BUS_FMT_RGB666_1X7X3_SPWG  - "jeida-18"
+	 * MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA - "jeida-24"
+	 * MEDIA_BUS_FMT_RGB888_1X7X4_SPWG  - "vesa-24"
+	 */
+	bus-format = <MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA>;
 
 	display-timings {
 		native-mode = <&timing0>;
