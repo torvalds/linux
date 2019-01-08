@@ -250,6 +250,7 @@ struct rockchip_pcie {
 	size_t mem_reserve_size;
 	int dma_trx_enabled;
 	int deferred;
+	int wait_ep;
 	struct dma_trx_obj *dma_obj;
 	struct list_head resources;
 };
@@ -503,6 +504,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	struct device *dev = rockchip->dev;
 	int err;
 	u32 status;
+	int timeouts = 500;
 
 	gpiod_set_value(rockchip->ep_gpio, 0);
 
@@ -642,10 +644,13 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 
 	gpiod_set_value(rockchip->ep_gpio, 1);
 
+	if (rockchip->wait_ep)
+		timeouts = 5000;
+
 	/* 500ms timeout value should be enough for Gen1/2 training */
 	err = readl_poll_timeout(rockchip->apb_base + PCIE_CLIENT_BASIC_STATUS1,
 				 status, PCIE_LINK_UP(status), 20,
-				 500 * USEC_PER_MSEC);
+				 timeouts * USEC_PER_MSEC);
 	if (err) {
 		dev_err(dev, "PCIe link training gen1 timeout!\n");
 		return -ETIMEDOUT;
@@ -1423,6 +1428,7 @@ static ssize_t pcie_deferred_store(struct device *dev,
 		return err;
 
 	if (val) {
+		rockchip->wait_ep = 1;
 		err = rockchip_pcie_really_probe(rockchip);
 		if (err)
 			return -EINVAL;
@@ -1431,10 +1437,44 @@ static ssize_t pcie_deferred_store(struct device *dev,
 	return size;
 }
 
+static ssize_t pcie_reset_ep_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t size)
+{
+	u32 val = 0;
+	int err;
+	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
+
+	err = kstrtou32(buf, 10, &val);
+	if (err)
+		return err;
+
+	if (val) {
+		phy_power_off(rockchip->phy);
+		phy_exit(rockchip->phy);
+
+		rockchip->wait_ep = 1;
+
+		err = rockchip_pcie_init_port(rockchip);
+		if (err)
+			return err;
+
+		rockchip_pcie_enable_interrupts(rockchip);
+
+		err = rockchip_cfg_atu(rockchip);
+		if (err)
+			return err;
+	}
+
+	return size;
+}
+
 static DEVICE_ATTR_WO(pcie_deferred);
+static DEVICE_ATTR_WO(pcie_reset_ep);
 
 static struct attribute *pcie_attrs[] = {
 	&dev_attr_pcie_deferred.attr,
+	&dev_attr_pcie_reset_ep.attr,
 	NULL
 };
 
