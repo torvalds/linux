@@ -87,6 +87,11 @@ properties:
           - const: firefly,roc-rk3399-pc
           - const: rockchip,rk3399
 
+      - description: FriendlyElec NanoPC-T4
+        items:
+          - const: friendlyarm,nanopc-t4
+          - const: rockchip,rk3399
+
       - description: GeekBuying GeekBox
         items:
           - const: geekbuying,geekbox
