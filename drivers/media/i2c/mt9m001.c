@@ -738,9 +738,16 @@ static const struct i2c_device_id mt9m001_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mt9m001_id);
 
+static const struct of_device_id mt9m001_of_match[] = {
+	{ .compatible = "onnn,mt9m001", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, mt9m001_of_match);
+
 static struct i2c_driver mt9m001_i2c_driver = {
 	.driver = {
 		.name = "mt9m001",
+		.of_match_table = mt9m001_of_match,
 	},
 	.probe		= mt9m001_probe,
 	.remove		= mt9m001_remove,
