@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for MT9M001 CMOS Image Sensor from Micron
  *
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/videodev2.h>
@@ -754,4 +751,4 @@ module_i2c_driver(mt9m001_i2c_driver);
 
 MODULE_DESCRIPTION("Micron MT9M001 Camera driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
