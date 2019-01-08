@@ -914,9 +914,8 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	if (WARN_ON(resp->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
 		return -E2BIG;
 
-	hwinfo->rd = kzalloc(sizeof(*hwinfo->rd)
-			     + sizeof(struct ieee80211_reg_rule)
-			     * resp->n_reg_rules, GFP_KERNEL);
+	hwinfo->rd = kzalloc(struct_size(hwinfo->rd, reg_rules,
+					 resp->n_reg_rules), GFP_KERNEL);
 
 	if (!hwinfo->rd)
 		return -ENOMEM;
