@@ -1690,13 +1690,6 @@ static int vega20_upload_dpm_min_level(struct pp_hwmgr *hwmgr)
 					(PPCLK_UCLK << 16) | (min_freq & 0xffff))),
 					"Failed to set soft min memclk !",
 					return ret);
-
-		min_freq = data->dpm_table.mem_table.dpm_state.hard_min_level;
-		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
-					hwmgr, PPSMC_MSG_SetHardMinByFreq,
-					(PPCLK_UCLK << 16) | (min_freq & 0xffff))),
-					"Failed to set hard min memclk !",
-					return ret);
 	}
 
 	if (data->smu_features[GNLD_DPM_UVD].enabled) {
