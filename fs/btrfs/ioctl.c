@@ -4781,7 +4781,7 @@ do_balance:
 	ret = btrfs_balance(fs_info, bctl, bargs);
 	bctl = NULL;
 
-	if (arg) {
+	if ((ret == 0 || ret == -ECANCELED) && arg) {
 		if (copy_to_user(arg, bargs, sizeof(*bargs)))
 			ret = -EFAULT;
 	}
