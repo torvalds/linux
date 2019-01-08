@@ -29,7 +29,6 @@
  */
 
 #include <linux/dma-buf.h>
-#include <drm/drmP.h>
 #include <linux/vfio.h>
 
 #include "i915_drv.h"
