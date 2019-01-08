@@ -67,9 +67,6 @@ static int psp_sw_init(void *handle)
 
 	psp->adev = adev;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	ret = psp_init_microcode(psp);
 	if (ret) {
 		DRM_ERROR("Failed to load psp firmware!\n");
@@ -82,9 +79,6 @@ static int psp_sw_init(void *handle)
 static int psp_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
 
 	release_firmware(adev->psp.sos_fw);
 	adev->psp.sos_fw = NULL;
@@ -721,10 +715,6 @@ static int psp_hw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	mutex_lock(&adev->firmware.mutex);
 	/*
 	 * This sequence is just used on hw_init only once, no need on
@@ -754,9 +744,6 @@ static int psp_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
 	    psp->xgmi_context.initialized == 1)
                 psp_xgmi_terminate(psp);
@@ -785,9 +772,6 @@ static int psp_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
-
 	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
 	    psp->xgmi_context.initialized == 1) {
 		ret = psp_xgmi_terminate(psp);
@@ -811,9 +795,6 @@ static int psp_resume(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		return 0;
 
 	DRM_INFO("PSP is resuming...\n");
 
@@ -849,11 +830,6 @@ static bool psp_check_fw_loading_status(struct amdgpu_device *adev,
 					enum AMDGPU_UCODE_ID ucode_type)
 {
 	struct amdgpu_firmware_info *ucode = NULL;
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-		DRM_INFO("firmware is not loaded by PSP\n");
-		return true;
-	}
 
 	if (!adev->firmware.fw_size)
 		return false;
