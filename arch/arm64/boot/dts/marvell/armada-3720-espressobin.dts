@@ -46,6 +46,8 @@
 /* J9 */
 &pcie0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_reset_pins &pcie_clkreq_pins>;
 };
 
 /* J6 */
