@@ -386,7 +386,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	if (ret < 0)
 		goto err_i2c;
 
-	/* send OCP event to all regualtor devices */
+	/* send OCP event to all regulator devices */
 	if ((flag1 & 0x01) && (pchip->irqmask & 0x01))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL)
@@ -394,7 +394,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 							      LP8755_EVENT_OCP,
 							      NULL);
 
-	/* send OVP event to all regualtor devices */
+	/* send OVP event to all regulator devices */
 	if ((flag1 & 0x02) && (pchip->irqmask & 0x02))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL)
