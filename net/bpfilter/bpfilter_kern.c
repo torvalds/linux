@@ -13,9 +13,6 @@
 extern char bpfilter_umh_start;
 extern char bpfilter_umh_end;
 
-/* since ip_getsockopt() can run in parallel, serialize access to umh */
-static DEFINE_MUTEX(bpfilter_lock);
-
 static void shutdown_umh(void)
 {
 	struct task_struct *tsk;
@@ -36,13 +33,6 @@ static void __stop_umh(void)
 		shutdown_umh();
 }
 
-static void stop_umh(void)
-{
-	mutex_lock(&bpfilter_lock);
-	__stop_umh();
-	mutex_unlock(&bpfilter_lock);
-}
-
 static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 				      char __user *optval,
 				      unsigned int optlen, bool is_set)
@@ -58,7 +48,6 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	req.cmd = optname;
 	req.addr = (long __force __user)optval;
 	req.len = optlen;
-	mutex_lock(&bpfilter_lock);
 	if (!bpfilter_ops.info.pid)
 		goto out;
 	n = __kernel_write(bpfilter_ops.info.pipe_to_umh, &req, sizeof(req),
@@ -80,7 +69,6 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	}
 	ret = reply.status;
 out:
-	mutex_unlock(&bpfilter_lock);
 	return ret;
 }
 
@@ -99,7 +87,7 @@ static int start_umh(void)
 
 	/* health check that usermode process started correctly */
 	if (__bpfilter_process_sockopt(NULL, 0, NULL, 0, 0) != 0) {
-		stop_umh();
+		shutdown_umh();
 		return -EFAULT;
 	}
 
@@ -110,24 +98,30 @@ static int __init load_umh(void)
 {
 	int err;
 
-	if (!bpfilter_ops.stop)
-		return -EFAULT;
+	mutex_lock(&bpfilter_ops.lock);
+	if (!bpfilter_ops.stop) {
+		err = -EFAULT;
+		goto out;
+	}
 	err = start_umh();
 	if (!err && IS_ENABLED(CONFIG_INET)) {
 		bpfilter_ops.sockopt = &__bpfilter_process_sockopt;
 		bpfilter_ops.start = &start_umh;
 	}
-
+out:
+	mutex_unlock(&bpfilter_ops.lock);
 	return err;
 }
 
 static void __exit fini_umh(void)
 {
+	mutex_lock(&bpfilter_ops.lock);
 	if (IS_ENABLED(CONFIG_INET)) {
+		shutdown_umh();
 		bpfilter_ops.start = NULL;
 		bpfilter_ops.sockopt = NULL;
 	}
-	stop_umh();
+	mutex_unlock(&bpfilter_ops.lock);
 }
 module_init(load_umh);
 module_exit(fini_umh);

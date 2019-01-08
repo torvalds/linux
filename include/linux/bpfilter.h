@@ -12,6 +12,8 @@ int bpfilter_ip_get_sockopt(struct sock *sk, int optname, char __user *optval,
 			    int __user *optlen);
 struct bpfilter_umh_ops {
 	struct umh_info info;
+	/* since ip_getsockopt() can run in parallel, serialize access to umh */
+	struct mutex lock;
 	int (*sockopt)(struct sock *sk, int optname,
 		       char __user *optval,
 		       unsigned int optlen, bool is_set);
