@@ -287,6 +287,10 @@
 	status = "okay";
 };
 
+&nandc0 {
+	status = "disabled";
+};
+
 &sdmmc {
 	clock-frequency = <37500000>;
 	clock-freq-min-max = <400000 37500000>;
