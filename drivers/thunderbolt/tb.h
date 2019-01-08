@@ -436,6 +436,16 @@ static inline struct tb_switch *tb_to_switch(struct device *dev)
 	return NULL;
 }
 
+static inline bool tb_switch_is_lr(const struct tb_switch *sw)
+{
+	return sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE;
+}
+
+static inline bool tb_switch_is_er(const struct tb_switch *sw)
+{
+	return sw->config.device_id == PCI_DEVICE_ID_INTEL_EAGLE_RIDGE;
+}
+
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_clear_counter(struct tb_port *port, int counter);
