@@ -160,6 +160,7 @@ static inline struct nd_blk_region_desc *to_blk_region_desc(
 }
 
 enum nvdimm_security_state {
+	NVDIMM_SECURITY_ERROR = -1,
 	NVDIMM_SECURITY_DISABLED,
 	NVDIMM_SECURITY_UNLOCKED,
 	NVDIMM_SECURITY_LOCKED,
