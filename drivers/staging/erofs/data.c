@@ -165,12 +165,6 @@ err_out:
 	return err;
 }
 
-#ifdef CONFIG_EROFS_FS_ZIP
-extern int z_erofs_map_blocks_iter(struct inode *,
-				   struct erofs_map_blocks *,
-				   struct page **, int);
-#endif
-
 int erofs_map_blocks_iter(struct inode *inode,
 			  struct erofs_map_blocks *map,
 			  struct page **mpage_ret, int flags)

@@ -288,6 +288,8 @@ static inline void erofs_workstation_cleanup_all(struct super_block *sb)
 	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
 }
 
+extern void erofs_workgroup_free_rcu(struct erofs_workgroup *grp);
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 extern int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 	struct erofs_workgroup *egrp);
@@ -530,6 +532,11 @@ struct erofs_map_blocks_iter {
 	struct page *mpage;
 };
 
+#ifdef CONFIG_EROFS_FS_ZIP
+extern int z_erofs_map_blocks_iter(struct inode *,
+				   struct erofs_map_blocks *,
+				   struct page **, int);
+#endif
 
 static inline struct page *
 erofs_get_inline_page(struct inode *inode,
