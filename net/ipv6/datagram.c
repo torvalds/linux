@@ -341,6 +341,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info)
 	skb_reset_network_header(skb);
 	iph = ipv6_hdr(skb);
 	iph->daddr = fl6->daddr;
+	ip6_flow_hdr(iph, 0, 0);
 
 	serr = SKB_EXT_ERR(skb);
 	serr->ee.ee_errno = err;
