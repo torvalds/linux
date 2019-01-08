@@ -1078,8 +1078,7 @@ static int
 mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_bridge_port *bridge_port,
 			      u16 vid, bool is_untagged, bool is_pvid,
-			      struct netlink_ext_ack *extack,
-			      struct switchdev_trans *trans)
+			      struct netlink_ext_ack *extack)
 {
 	u16 pvid = mlxsw_sp_port_pvid_determine(mlxsw_sp_port, vid, is_pvid);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
@@ -1094,9 +1093,6 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (mlxsw_sp_port_vlan &&
 	    mlxsw_sp_port_vlan->bridge_port != bridge_port)
 		return -EEXIST;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	if (!mlxsw_sp_port_vlan) {
 		mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_create(mlxsw_sp_port,
@@ -1188,6 +1184,9 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 	}
 
+	if (switchdev_trans_ph_commit(trans))
+		return 0;
+
 	bridge_port = mlxsw_sp_bridge_port_find(mlxsw_sp->bridge, orig_dev);
 	if (WARN_ON(!bridge_port))
 		return -EINVAL;
@@ -1200,7 +1199,7 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 
 		err = mlxsw_sp_bridge_port_vlan_add(mlxsw_sp_port, bridge_port,
 						    vid, flag_untagged,
-						    flag_pvid, extack, trans);
+						    flag_pvid, extack);
 		if (err)
 			return err;
 	}
@@ -1808,7 +1807,7 @@ static void
 mlxsw_sp_bridge_port_vlan_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_bridge_port *bridge_port, u16 vid)
 {
-	u16 pvid = mlxsw_sp_port->pvid == vid ? 0 : vid;
+	u16 pvid = mlxsw_sp_port->pvid == vid ? 0 : mlxsw_sp_port->pvid;
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
@@ -3207,7 +3206,6 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_bridge_device *bridge_device,
 				  const struct net_device *vxlan_dev, u16 vid,
 				  bool flag_untagged, bool flag_pvid,
-				  struct switchdev_trans *trans,
 				  struct netlink_ext_ack *extack)
 {
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
@@ -3224,9 +3222,6 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 	if (flag_untagged && flag_pvid &&
 	    mlxsw_sp_bridge_8021q_vxlan_dev_find(bridge_device->dev, vid))
 		return -EINVAL;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	if (!netif_running(vxlan_dev))
 		return 0;
@@ -3345,6 +3340,9 @@ mlxsw_sp_switchdev_vxlan_vlans_add(struct net_device *vxlan_dev,
 
 	port_obj_info->handled = true;
 
+	if (switchdev_trans_ph_commit(trans))
+		return 0;
+
 	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
 	if (!bridge_device)
 		return -EINVAL;
@@ -3358,8 +3356,7 @@ mlxsw_sp_switchdev_vxlan_vlans_add(struct net_device *vxlan_dev,
 		err = mlxsw_sp_switchdev_vxlan_vlan_add(mlxsw_sp, bridge_device,
 							vxlan_dev, vid,
 							flag_untagged,
-							flag_pvid, trans,
-							extack);
+							flag_pvid, extack);
 		if (err)
 			return err;
 	}
