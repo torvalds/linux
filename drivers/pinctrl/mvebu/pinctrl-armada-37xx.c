@@ -1107,8 +1107,8 @@ static int armada_3700_pinctrl_resume(struct device *dev)
  * to other IO drivers.
  */
 static const struct dev_pm_ops armada_3700_pinctrl_pm_ops = {
-	.suspend_late = armada_3700_pinctrl_suspend,
-	.resume_early = armada_3700_pinctrl_resume,
+	.suspend_noirq = armada_3700_pinctrl_suspend,
+	.resume_noirq = armada_3700_pinctrl_resume,
 };
 
 #define PINCTRL_ARMADA_37XX_DEV_PM_OPS (&armada_3700_pinctrl_pm_ops)
