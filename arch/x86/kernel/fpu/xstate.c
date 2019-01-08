@@ -669,7 +669,7 @@ static bool is_supported_xstate_size(unsigned int test_xstate_size)
 	return false;
 }
 
-static int init_xstate_size(void)
+static int __init init_xstate_size(void)
 {
 	/* Recompute the context size for enabled features: */
 	unsigned int possible_xstate_size;
