@@ -6,7 +6,9 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/remoteproc/qcom_rproc.h>
@@ -24,6 +26,7 @@ struct qcom_sysmon {
 
 	const char *name;
 
+	int shutdown_irq;
 	int ssctl_version;
 	int ssctl_instance;
 
@@ -33,6 +36,7 @@ struct qcom_sysmon {
 
 	struct rpmsg_endpoint *ept;
 	struct completion comp;
+	struct completion shutdown_comp;
 	struct mutex lock;
 
 	bool ssr_ack;
@@ -431,6 +435,15 @@ static int sysmon_notify(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_DONE;
 }
 
+static irqreturn_t sysmon_shutdown_interrupt(int irq, void *data)
+{
+	struct qcom_sysmon *sysmon = data;
+
+	complete(&sysmon->shutdown_comp);
+
+	return IRQ_HANDLED;
+}
+
 /**
  * qcom_add_sysmon_subdev() - create a sysmon subdev for the given remoteproc
  * @rproc:	rproc context to associate the subdev with
@@ -448,7 +461,7 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 
 	sysmon = kzalloc(sizeof(*sysmon), GFP_KERNEL);
 	if (!sysmon)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	sysmon->dev = rproc->dev.parent;
 	sysmon->rproc = rproc;
@@ -457,13 +470,35 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 	sysmon->ssctl_instance = ssctl_instance;
 
 	init_completion(&sysmon->comp);
+	init_completion(&sysmon->shutdown_comp);
 	mutex_init(&sysmon->lock);
+
+	sysmon->shutdown_irq = of_irq_get_byname(sysmon->dev->of_node,
+						 "shutdown-ack");
+	if (sysmon->shutdown_irq < 0) {
+		if (sysmon->shutdown_irq != -ENODATA) {
+			dev_err(sysmon->dev,
+				"failed to retrieve shutdown-ack IRQ\n");
+			return ERR_PTR(sysmon->shutdown_irq);
+		}
+	} else {
+		ret = devm_request_threaded_irq(sysmon->dev,
+						sysmon->shutdown_irq,
+						NULL, sysmon_shutdown_interrupt,
+						IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+						"q6v5 shutdown-ack", sysmon);
+		if (ret) {
+			dev_err(sysmon->dev,
+				"failed to acquire shutdown-ack IRQ\n");
+			return ERR_PTR(ret);
+		}
+	}
 
 	ret = qmi_handle_init(&sysmon->qmi, SSCTL_MAX_MSG_LEN, &ssctl_ops, NULL);
 	if (ret < 0) {
 		dev_err(sysmon->dev, "failed to initialize qmi handle\n");
 		kfree(sysmon);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	qmi_add_lookup(&sysmon->qmi, 43, 0, 0);

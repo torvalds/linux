@@ -553,6 +553,10 @@ static int wcnss_probe(struct platform_device *pdev)
 
 	qcom_add_smd_subdev(rproc, &wcnss->smd_subdev);
 	wcnss->sysmon = qcom_add_sysmon_subdev(rproc, "wcnss", WCNSS_SSCTL_ID);
+	if (IS_ERR(wcnss->sysmon)) {
+		ret = PTR_ERR(wcnss->sysmon);
+		goto free_rproc;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)

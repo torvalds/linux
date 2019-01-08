@@ -439,6 +439,10 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->sysmon = qcom_add_sysmon_subdev(rproc,
 					      desc->sysmon_name,
 					      desc->ssctl_id);
+	if (IS_ERR(adsp->sysmon)) {
+		ret = PTR_ERR(adsp->sysmon);
+		goto disable_pm;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)

@@ -1341,6 +1341,10 @@ static int q6v5_probe(struct platform_device *pdev)
 	qcom_add_smd_subdev(rproc, &qproc->smd_subdev);
 	qcom_add_ssr_subdev(rproc, &qproc->ssr_subdev, "mpss");
 	qproc->sysmon = qcom_add_sysmon_subdev(rproc, "modem", 0x12);
+	if (IS_ERR(qproc->sysmon)) {
+		ret = PTR_ERR(qproc->sysmon);
+		goto free_rproc;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)
