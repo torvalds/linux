@@ -235,4 +235,4 @@ cpus {
 ===========================================
 
 [1] ARM Linux Kernel documentation - CPUs bindings
-    Documentation/devicetree/bindings/arm/cpus.txt
+    Documentation/devicetree/bindings/arm/cpus.yaml
