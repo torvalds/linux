@@ -2116,7 +2116,8 @@ tegra_sor_hdmi_setup_avi_infoframe(struct tegra_sor *sor,
 	value &= ~INFOFRAME_CTRL_ENABLE;
 	tegra_sor_writel(sor, value, SOR_HDMI_AVI_INFOFRAME_CTRL);
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &sor->output.connector, mode);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to setup AVI infoframe: %d\n", err);
 		return err;

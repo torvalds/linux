@@ -462,10 +462,8 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	uint8_t buf[VIDEO_DIP_DATA_SIZE];
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
-	struct intel_dp *intel_dp = &dig_port->dp;
-	struct drm_connector *connector = &intel_dp->attached_connector->base;
-	const struct drm_display_mode *mode = &crtc_state->base.adjusted_mode;
-	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 
 	if (!lspcon->active) {
 		DRM_ERROR("Writing infoframes while LSPCON disabled ?\n");
@@ -473,7 +471,8 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	}
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       mode, is_hdmi2_sink);
+						       conn_state->connector,
+						       adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
@@ -488,11 +487,13 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 	}
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi, mode,
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   conn_state->connector,
+					   adjusted_mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL,
-					   false, is_hdmi2_sink);
+					   false);
 
 	ret = hdmi_infoframe_pack(&frame, buf, sizeof(buf));
 	if (ret < 0) {

@@ -4830,19 +4830,32 @@ void drm_set_preferred_mode(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_set_preferred_mode);
 
+static bool is_hdmi2_sink(struct drm_connector *connector)
+{
+	/*
+	 * FIXME: sil-sii8620 doesn't have a connector around when
+	 * we need one, so we have to be prepared for a NULL connector.
+	 */
+	if (!connector)
+		return true;
+
+	return connector->display_info.hdmi.scdc.supported ||
+		connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB420;
+}
+
 /**
  * drm_hdmi_avi_infoframe_from_display_mode() - fill an HDMI AVI infoframe with
  *                                              data from a DRM display mode
  * @frame: HDMI AVI infoframe
+ * @connector: the connector
  * @mode: DRM display mode
- * @is_hdmi2_sink: Sink is HDMI 2.0 compliant
  *
  * Return: 0 on success or a negative error code on failure.
  */
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-					 const struct drm_display_mode *mode,
-					 bool is_hdmi2_sink)
+					 struct drm_connector *connector,
+					 const struct drm_display_mode *mode)
 {
 	enum hdmi_picture_aspect picture_aspect;
 	int err;
@@ -4864,7 +4877,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	 * HDMI 2.0 VIC range: 1 <= VIC <= 107 (CEA-861-F). So we
 	 * have to make sure we dont break HDMI 1.4 sinks.
 	 */
-	if (!is_hdmi2_sink && frame->video_code > 64)
+	if (!is_hdmi2_sink(connector) && frame->video_code > 64)
 		frame->video_code = 0;
 
 	/*
@@ -4923,21 +4936,17 @@ EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
  * drm_hdmi_avi_infoframe_quant_range() - fill the HDMI AVI infoframe
  *                                        quantization range information
  * @frame: HDMI AVI infoframe
+ * @connector: the connector
  * @mode: DRM display mode
  * @rgb_quant_range: RGB quantization range (Q)
  * @rgb_quant_range_selectable: Sink support selectable RGB quantization range (QS)
- * @is_hdmi2_sink: HDMI 2.0 sink, which has different default recommendations
- *
- * Note that @is_hdmi2_sink can be derived by looking at the
- * &drm_scdc.supported flag stored in &drm_hdmi_info.scdc,
- * &drm_display_info.hdmi, which can be found in &drm_connector.display_info.
  */
 void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
+				   struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable,
-				   bool is_hdmi2_sink)
+				   bool rgb_quant_range_selectable)
 {
 	/*
 	 * CEA-861:
@@ -4968,7 +4977,7 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 * we limit non-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
 	 * on on CEA-861-F.
 	 */
-	if (!is_hdmi2_sink ||
+	if (!is_hdmi2_sink(connector) ||
 	    rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
 		frame->ycc_quantization_range =
 			HDMI_YCC_QUANTIZATION_RANGE_LIMITED;

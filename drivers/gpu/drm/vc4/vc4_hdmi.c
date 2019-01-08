@@ -424,18 +424,19 @@ static void vc4_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
 	union hdmi_infoframe frame;
 	int ret;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						       hdmi->connector, mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
 	}
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi, mode,
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   hdmi->connector, mode,
 					   vc4_encoder->limited_rgb_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL,
-					   vc4_encoder->rgb_range_selectable,
-					   false);
+					   vc4_encoder->rgb_range_selectable);
 
 	frame.avi.right_bar = cstate->tv.margins.right;
 	frame.avi.left_bar = cstate->tv.margins.left;

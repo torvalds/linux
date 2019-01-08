@@ -981,7 +981,8 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 }
 
 static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
-					 const struct intel_crtc_state *pipe_config)
+					 const struct intel_crtc_state *pipe_config,
+					 const struct drm_connector_state *conn_state)
 {
 	uint8_t sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
 	union hdmi_infoframe frame;
@@ -989,8 +990,8 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 	ssize_t len;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       &pipe_config->base.adjusted_mode,
-						       false);
+						       conn_state->connector,
+						       &pipe_config->base.adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return false;
@@ -1316,7 +1317,8 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
-		intel_sdvo_set_avi_infoframe(intel_sdvo, crtc_state);
+		intel_sdvo_set_avi_infoframe(intel_sdvo,
+					     crtc_state, conn_state);
 	} else
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 

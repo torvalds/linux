@@ -128,8 +128,8 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	if (hdmi_mode && dssdev->ops->hdmi.set_infoframe) {
 		struct hdmi_avi_infoframe avi;
 
-		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode,
-							     false);
+		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, connector,
+							     adjusted_mode);
 		if (r == 0)
 			dssdev->ops->hdmi.set_infoframe(dssdev, &avi);
 	}

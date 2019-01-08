@@ -434,7 +434,8 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&infoframe, mode, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&infoframe,
+						       hdmi->drm_connector, mode);
 	if (ret < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %d\n", ret);
 		return ret;
