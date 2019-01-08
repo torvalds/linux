@@ -1390,6 +1390,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->disable = gen11_dsi_disable;
 	encoder->port = port;
 	encoder->get_config = gen11_dsi_get_config;
+	encoder->update_pipe = intel_panel_update_backlight;
 	encoder->compute_config = gen11_dsi_compute_config;
 	encoder->get_hw_state = gen11_dsi_get_hw_state;
 	encoder->type = INTEL_OUTPUT_DSI;

@@ -1697,6 +1697,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
 	intel_encoder->get_config = intel_dsi_get_config;
+	intel_encoder->update_pipe = intel_panel_update_backlight;
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 

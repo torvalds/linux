@@ -3556,6 +3556,8 @@ static void intel_ddi_update_pipe_dp(struct intel_encoder *encoder,
 
 	intel_psr_enable(intel_dp, crtc_state);
 	intel_edp_drrs_enable(intel_dp, crtc_state);
+
+	intel_panel_update_backlight(encoder, crtc_state, conn_state);
 }
 
 static void intel_ddi_update_pipe(struct intel_encoder *encoder,

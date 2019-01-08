@@ -1087,20 +1087,11 @@ static void pwm_enable_backlight(const struct intel_crtc_state *crtc_state,
 	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
 }
 
-void intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
-				  const struct drm_connector_state *conn_state)
+static void __intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
+					   const struct drm_connector_state *conn_state)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
-
-	if (!panel->backlight.present)
-		return;
-
-	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
-
-	mutex_lock(&dev_priv->backlight_lock);
 
 	WARN_ON(panel->backlight.max == 0);
 
@@ -1117,6 +1108,24 @@ void intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
 	panel->backlight.enabled = true;
 	if (panel->backlight.device)
 		panel->backlight.device->props.power = FB_BLANK_UNBLANK;
+}
+
+void intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+	enum pipe pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+
+	if (!panel->backlight.present)
+		return;
+
+	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
+
+	mutex_lock(&dev_priv->backlight_lock);
+
+	__intel_panel_enable_backlight(crtc_state, conn_state);
 
 	mutex_unlock(&dev_priv->backlight_lock);
 }
@@ -1774,6 +1783,24 @@ static int pwm_setup_backlight(struct intel_connector *connector,
 	panel->backlight.enabled = panel->backlight.level != 0;
 
 	return 0;
+}
+
+void intel_panel_update_backlight(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+
+	if (!panel->backlight.present)
+		return;
+
+	mutex_lock(&dev_priv->backlight_lock);
+	if (!panel->backlight.enabled)
+		__intel_panel_enable_backlight(crtc_state, conn_state);
+
+	mutex_unlock(&dev_priv->backlight_lock);
 }
 
 int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
