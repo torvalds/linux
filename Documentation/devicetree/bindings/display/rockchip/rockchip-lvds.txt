@@ -10,6 +10,9 @@ Required properties:
 - phys : phandle for the PHY device
 - phy-names : should be "phy"
 
+Optional properties:
+- rockchip,data-swap: boolean to enable odd/even data swap in dual channel mode
+
 Required nodes:
 
 The lvds has two video ports as described by
