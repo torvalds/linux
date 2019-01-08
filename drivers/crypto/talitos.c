@@ -1416,12 +1416,15 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 	/* if its a ahash, add space for a second desc next to the first one */
 	if (is_sec1 && !dst)
 		alloc_len += sizeof(struct talitos_desc);
+	alloc_len += ivsize;
 
 	edesc = kmalloc(alloc_len, GFP_DMA | flags);
 	if (!edesc)
 		return ERR_PTR(-ENOMEM);
-	if (ivsize)
+	if (ivsize) {
+		iv = memcpy(((u8 *)edesc) + alloc_len - ivsize, iv, ivsize);
 		iv_dma = dma_map_single(dev, iv, ivsize, DMA_TO_DEVICE);
+	}
 	memset(&edesc->desc, 0, sizeof(edesc->desc));
 
 	edesc->src_nents = src_nents;
