@@ -96,6 +96,7 @@ struct rockchip_lvds {
 	const struct rockchip_lvds_funcs *funcs;
 
 	enum lvds_format format;
+	bool data_swap;
 	int output;
 
 	struct drm_panel *panel;
@@ -428,6 +429,9 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	lvds->funcs = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, lvds);
 
+	lvds->data_swap = of_property_read_bool(dev->of_node,
+						"rockchip,data-swap");
+
 	lvds->phy = devm_phy_get(dev, "phy");
 	if (IS_ERR(lvds->phy)) {
 		ret = PTR_ERR(lvds->phy);
@@ -517,7 +521,8 @@ static void rk3288_lvds_enable(struct rockchip_lvds *lvds)
 		u32 h_bp = mode->htotal - mode->hsync_start;
 
 		val |= RK3288_LVDS_CON_ENABLE_2(1) |
-		       RK3288_LVDS_CON_ENABLE_1(1);
+		       RK3288_LVDS_CON_ENABLE_1(1) |
+		       RK3288_LVDS_CON_STARTSEL(lvds->data_swap);
 
 		if (h_bp % 2)
 			val |= RK3288_LVDS_CON_STARTPHASE(1);
