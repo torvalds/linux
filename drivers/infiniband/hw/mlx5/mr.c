@@ -95,10 +95,9 @@ static bool use_umr_mtt_update(struct mlx5_ib_mr *mr, u64 start, u64 length)
 		length + (start & (MLX5_ADAPTER_PAGE_SIZE - 1));
 }
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 static void update_odp_mr(struct mlx5_ib_mr *mr)
 {
-	if (mr->umem->is_odp) {
+	if (is_odp_mr(mr)) {
 		/*
 		 * This barrier prevents the compiler from moving the
 		 * setting of umem->odp_data->private to point to our
@@ -121,7 +120,6 @@ static void update_odp_mr(struct mlx5_ib_mr *mr)
 		smp_wmb();
 	}
 }
-#endif
 
 static void reg_mr_callback(int status, void *context)
 {
@@ -1386,9 +1384,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->umem = umem;
 	set_mr_fields(dev, mr, npages, length, access_flags);
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	update_odp_mr(mr);
-#endif
 
 	if (!populate_mtts) {
 		int update_xlt_flags = MLX5_IB_UPD_XLT_ENABLE;
@@ -1553,9 +1549,7 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 
 	set_mr_fields(dev, mr, npages, len, access_flags);
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	update_odp_mr(mr);
-#endif
 	return 0;
 
 err:
@@ -1641,8 +1635,7 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	int npages = mr->npages;
 	struct ib_umem *umem = mr->umem;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	if (umem && umem->is_odp) {
+	if (is_odp_mr(mr)) {
 		struct ib_umem_odp *umem_odp = to_ib_umem_odp(umem);
 
 		/* Prevent new page faults from succeeding */
@@ -1666,7 +1659,7 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		/* Avoid double-freeing the umem. */
 		umem = NULL;
 	}
-#endif
+
 	clean_mr(dev, mr);
 
 	/*
