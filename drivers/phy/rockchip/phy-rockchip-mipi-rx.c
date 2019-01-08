@@ -646,6 +646,39 @@ static int mipidphy_get_sensor_data_rate(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int mipidphy_update_sensor_mbus(struct v4l2_subdev *sd)
+{
+	struct mipidphy_priv *priv = to_dphy_priv(sd);
+	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
+	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	struct v4l2_mbus_config mbus;
+	int ret;
+
+	ret = v4l2_subdev_call(sensor_sd, video, g_mbus_config, &mbus);
+	if (ret)
+		return ret;
+
+	sensor->mbus = mbus;
+	switch (mbus.flags & V4L2_MBUS_CSI2_LANES) {
+	case V4L2_MBUS_CSI2_1_LANE:
+		sensor->lanes = 1;
+		break;
+	case V4L2_MBUS_CSI2_2_LANE:
+		sensor->lanes = 2;
+		break;
+	case V4L2_MBUS_CSI2_3_LANE:
+		sensor->lanes = 3;
+		break;
+	case V4L2_MBUS_CSI2_4_LANE:
+		sensor->lanes = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mipidphy_s_stream_start(struct v4l2_subdev *sd)
 {
 	struct mipidphy_priv *priv = to_dphy_priv(sd);
@@ -658,6 +691,7 @@ static int mipidphy_s_stream_start(struct v4l2_subdev *sd)
 	if (ret < 0)
 		return ret;
 
+	mipidphy_update_sensor_mbus(sd);
 	priv->stream_on(priv, sd);
 
 	priv->is_streaming = true;
@@ -694,6 +728,7 @@ static int mipidphy_g_mbus_config(struct v4l2_subdev *sd,
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
 	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
 
+	mipidphy_update_sensor_mbus(sd);
 	*config = sensor->mbus;
 
 	return 0;
