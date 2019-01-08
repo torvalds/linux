@@ -55,6 +55,13 @@ struct amdgpu_mec {
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 };
 
+enum amdgpu_unmap_queues_action {
+	PREEMPT_QUEUES = 0,
+	RESET_QUEUES,
+	DISABLE_PROCESS_QUEUES,
+	PREEMPT_QUEUES_NO_UNMAP,
+};
+
 struct kiq_pm4_funcs {
 	/* Support ASIC-specific kiq pm4 packets*/
 	void (*kiq_set_resources)(struct amdgpu_ring *kiq_ring,
@@ -62,7 +69,9 @@ struct kiq_pm4_funcs {
 	void (*kiq_map_queues)(struct amdgpu_ring *kiq_ring,
 					struct amdgpu_ring *ring);
 	void (*kiq_unmap_queues)(struct amdgpu_ring *kiq_ring,
-				 struct amdgpu_ring *ring, bool reset);
+				 struct amdgpu_ring *ring,
+				 enum amdgpu_unmap_queues_action action,
+				 u64 gpu_addr, u64 seq);
 	void (*kiq_query_status)(struct amdgpu_ring *kiq_ring,
 					struct amdgpu_ring *ring,
 					u64 addr,
