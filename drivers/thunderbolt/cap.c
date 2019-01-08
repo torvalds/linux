@@ -52,6 +52,21 @@ static int tb_port_enable_tmu(struct tb_port *port, bool enable)
 	return tb_sw_write(sw, &value, TB_CFG_SWITCH, offset, 1);
 }
 
+static void tb_port_dummy_read(struct tb_port *port)
+{
+	/*
+	 * When reading from next capability pointer location in port
+	 * config space the read data is not cleared on LR. To avoid
+	 * reading stale data on next read perform one dummy read after
+	 * port capabilities are walked.
+	 */
+	if (tb_switch_is_lr(port->sw)) {
+		u32 dummy;
+
+		tb_port_read(port, &dummy, TB_CFG_PORT, 0, 1);
+	}
+}
+
 static int __tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
 {
 	u32 offset = 1;
@@ -92,6 +107,7 @@ int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
 
 	ret = __tb_port_find_cap(port, cap);
 
+	tb_port_dummy_read(port);
 	tb_port_enable_tmu(port, false);
 
 	return ret;
