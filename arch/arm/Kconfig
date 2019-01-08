@@ -1316,7 +1316,6 @@ config HAVE_ARM_ARCH_TIMER
 
 config HAVE_ARM_TWD
 	bool
-	select TIMER_OF if OF
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
