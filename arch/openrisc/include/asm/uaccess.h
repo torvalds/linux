@@ -58,8 +58,12 @@
 /* Ensure that addr is below task's addr_limit */
 #define __addr_ok(addr) ((unsigned long) addr < get_fs())
 
-#define access_ok(type, addr, size) \
-	__range_ok((unsigned long)addr, (unsigned long)size)
+#define access_ok(type, addr, size)						\
+({ 									\
+	unsigned long __ao_addr = (unsigned long)(addr);		\
+	unsigned long __ao_size = (unsigned long)(size);		\
+	__range_ok(__ao_addr, __ao_size);				\
+})
 
 /*
  * These are the main single-value transfer routines.  They automatically
