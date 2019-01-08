@@ -24,6 +24,25 @@ struct inode;
 struct pci_dev;
 struct pci_controller;
 
+
+/**
+ * enum drm_switch_power - power state of drm device
+ */
+
+enum switch_power_state {
+	/** @DRM_SWITCH_POWER_ON: Power state is ON */
+	DRM_SWITCH_POWER_ON = 0,
+
+	/** @DRM_SWITCH_POWER_OFF: Power state is OFF */
+	DRM_SWITCH_POWER_OFF = 1,
+
+	/** @DRM_SWITCH_POWER_CHANGING: Power state is changing */
+	DRM_SWITCH_POWER_CHANGING = 2,
+
+	/** @DRM_SWITCH_POWER_DYNAMIC_OFF: Suspended */
+	DRM_SWITCH_POWER_DYNAMIC_OFF = 3,
+};
+
 /**
  * struct drm_device - DRM device structure
  *
@@ -291,7 +310,15 @@ struct drm_device {
 	/** @vma_offset_manager: GEM information */
 	struct drm_vma_offset_manager *vma_offset_manager;
 
-	int switch_power_state;
+	/**
+	 * @switch_power_state:
+	 *
+	 * Power state of the client.
+	 * Used by drivers supporting the switcheroo driver.
+	 * The state is maintained in the
+	 * &vga_switcheroo_client_ops.set_gpu_state callback
+	 */
+	enum switch_power_state switch_power_state;
 
 	/**
 	 * @fb_helper:
