@@ -375,7 +375,7 @@ typedef int (*parser_cmd_handler)(struct parser_exec_state *s);
 #define ADDR_FIX_5(x1, x2, x3, x4, x5)  (ADDR_FIX_1(x1) | ADDR_FIX_4(x2, x3, x4, x5))
 
 struct cmd_info {
-	char *name;
+	const char *name;
 	u32 opcode;
 
 #define F_LEN_MASK	(1U<<0)
@@ -425,7 +425,7 @@ struct cmd_info {
 
 struct cmd_entry {
 	struct hlist_node hlist;
-	struct cmd_info *info;
+	const struct cmd_info *info;
 };
 
 enum {
@@ -474,7 +474,7 @@ struct parser_exec_state {
 	int saved_buf_addr_type;
 	bool is_ctx_wa;
 
-	struct cmd_info *info;
+	const struct cmd_info *info;
 
 	struct intel_vgpu_workload *workload;
 };
@@ -625,7 +625,7 @@ static inline u32 get_opcode(u32 cmd, int ring_id)
 	return cmd >> (32 - d_info->op_len);
 }
 
-static inline struct cmd_info *find_cmd_entry(struct intel_gvt *gvt,
+static inline const struct cmd_info *find_cmd_entry(struct intel_gvt *gvt,
 		unsigned int opcode, int ring_id)
 {
 	struct cmd_entry *e;
@@ -638,7 +638,7 @@ static inline struct cmd_info *find_cmd_entry(struct intel_gvt *gvt,
 	return NULL;
 }
 
-static inline struct cmd_info *get_cmd_info(struct intel_gvt *gvt,
+static inline const struct cmd_info *get_cmd_info(struct intel_gvt *gvt,
 		u32 cmd, int ring_id)
 {
 	u32 opcode;
@@ -776,7 +776,7 @@ static inline int ip_gma_advance(struct parser_exec_state *s,
 	return 0;
 }
 
-static inline int get_cmd_length(struct cmd_info *info, u32 cmd)
+static inline int get_cmd_length(const struct cmd_info *info, u32 cmd)
 {
 	if ((info->flag & F_LEN_MASK) == F_LEN_CONST)
 		return info->len;
@@ -1643,7 +1643,7 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 {
 	unsigned long gma = 0;
-	struct cmd_info *info;
+	const struct cmd_info *info;
 	uint32_t cmd_len = 0;
 	bool bb_end = false;
 	struct intel_vgpu *vgpu = s->vgpu;
@@ -1842,7 +1842,7 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 
 static int mi_noop_index;
 
-static struct cmd_info cmd_info[] = {
+static const struct cmd_info cmd_info[] = {
 	{"MI_NOOP", OP_MI_NOOP, F_LEN_CONST, R_ALL, D_ALL, 0, 1, NULL},
 
 	{"MI_SET_PREDICATE", OP_MI_SET_PREDICATE, F_LEN_CONST, R_ALL, D_ALL,
@@ -2521,7 +2521,7 @@ static void add_cmd_entry(struct intel_gvt *gvt, struct cmd_entry *e)
 static int cmd_parser_exec(struct parser_exec_state *s)
 {
 	struct intel_vgpu *vgpu = s->vgpu;
-	struct cmd_info *info;
+	const struct cmd_info *info;
 	u32 cmd;
 	int ret = 0;
 
@@ -2895,10 +2895,10 @@ int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	return 0;
 }
 
-static struct cmd_info *find_cmd_entry_any_ring(struct intel_gvt *gvt,
+static const struct cmd_info *find_cmd_entry_any_ring(struct intel_gvt *gvt,
 		unsigned int opcode, unsigned long rings)
 {
-	struct cmd_info *info = NULL;
+	const struct cmd_info *info = NULL;
 	unsigned int ring;
 
 	for_each_set_bit(ring, &rings, I915_NUM_ENGINES) {
@@ -2913,7 +2913,7 @@ static int init_cmd_table(struct intel_gvt *gvt)
 {
 	int i;
 	struct cmd_entry *e;
-	struct cmd_info	*info;
+	const struct cmd_info *info;
 	unsigned int gen_type;
 
 	gen_type = intel_gvt_get_device_type(gvt);
