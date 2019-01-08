@@ -1225,7 +1225,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 		return;
 	}
 
-	/* If another context is idling the device then defer */
+	/* If another context is idling the device then defer to kthread */
 	if (ctlr->idling) {
 		kthread_queue_work(&ctlr->kworker, &ctlr->pump_messages);
 		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
@@ -1239,34 +1239,10 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 			return;
 		}
 
-		/* Only do teardown in the thread */
-		if (!in_kthread) {
-			kthread_queue_work(&ctlr->kworker,
-					   &ctlr->pump_messages);
-			spin_unlock_irqrestore(&ctlr->queue_lock, flags);
-			return;
-		}
-
-		ctlr->busy = false;
-		ctlr->idling = true;
-		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
-
-		kfree(ctlr->dummy_rx);
-		ctlr->dummy_rx = NULL;
-		kfree(ctlr->dummy_tx);
-		ctlr->dummy_tx = NULL;
-		if (ctlr->unprepare_transfer_hardware &&
-		    ctlr->unprepare_transfer_hardware(ctlr))
-			dev_err(&ctlr->dev,
-				"failed to unprepare transfer hardware\n");
-		if (ctlr->auto_runtime_pm) {
-			pm_runtime_mark_last_busy(ctlr->dev.parent);
-			pm_runtime_put_autosuspend(ctlr->dev.parent);
-		}
-		trace_spi_controller_idle(ctlr);
-
-		spin_lock_irqsave(&ctlr->queue_lock, flags);
-		ctlr->idling = false;
+		/* schedule idle teardown with a delay of 1 second */
+		kthread_mod_delayed_work(&ctlr->kworker,
+					 &ctlr->pump_idle_teardown,
+					 HZ);
 		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 		return;
 	}
@@ -1359,6 +1335,77 @@ static void spi_pump_messages(struct kthread_work *work)
 	__spi_pump_messages(ctlr, true);
 }
 
+/**
+ * spi_pump_idle_teardown - kthread delayed work function which tears down
+ *                          the controller settings after some delay
+ * @work: pointer to kthread work struct contained in the controller struct
+ */
+static void spi_pump_idle_teardown(struct kthread_work *work)
+{
+	struct spi_controller *ctlr =
+		container_of(work, struct spi_controller,
+			     pump_idle_teardown.work);
+	unsigned long flags;
+
+	/* Lock queue */
+	spin_lock_irqsave(&ctlr->queue_lock, flags);
+
+	/* Make sure we are not already running a message */
+	if (ctlr->cur_msg)
+		goto out;
+
+	/* if there is anything in the list then exit */
+	if (!list_empty(&ctlr->queue))
+		goto out;
+
+	/* if the controller is running then exit */
+	if (ctlr->running)
+		goto out;
+
+	/* if the controller is busy then exit */
+	if (ctlr->busy)
+		goto out;
+
+	/* if the controller is idling then exit
+	 * this is actually a bit strange and would indicate that
+	 * this function is scheduled twice, which should not happen
+	 */
+	if (ctlr->idling)
+		goto out;
+
+	/* set up the initial states */
+	ctlr->busy = false;
+	ctlr->idling = true;
+	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
+
+	/* free dummy receive buffers */
+	kfree(ctlr->dummy_rx);
+	ctlr->dummy_rx = NULL;
+	kfree(ctlr->dummy_tx);
+	ctlr->dummy_tx = NULL;
+
+	/* unprepare hardware */
+	if (ctlr->unprepare_transfer_hardware &&
+	    ctlr->unprepare_transfer_hardware(ctlr))
+		dev_err(&ctlr->dev,
+			"failed to unprepare transfer hardware\n");
+	/* handle pm */
+	if (ctlr->auto_runtime_pm) {
+		pm_runtime_mark_last_busy(ctlr->dev.parent);
+		pm_runtime_put_autosuspend(ctlr->dev.parent);
+	}
+
+	/* mark controller as idle */
+	trace_spi_controller_idle(ctlr);
+
+	/* finally put us from idling into stopped */
+	spin_lock_irqsave(&ctlr->queue_lock, flags);
+	ctlr->idling = false;
+
+out:
+	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
+}
+
 static int spi_init_queue(struct spi_controller *ctlr)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
@@ -1374,7 +1421,8 @@ static int spi_init_queue(struct spi_controller *ctlr)
 		return PTR_ERR(ctlr->kworker_task);
 	}
 	kthread_init_work(&ctlr->pump_messages, spi_pump_messages);
-
+	kthread_init_delayed_work(&ctlr->pump_idle_teardown,
+				  spi_pump_idle_teardown);
 	/*
 	 * Controller config will indicate if this controller should run the
 	 * message pump with high (realtime) priority to reduce the transfer
@@ -1446,7 +1494,16 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 	spin_lock_irqsave(&ctlr->queue_lock, flags);
 	ctlr->cur_msg = NULL;
 	ctlr->cur_msg_prepared = false;
-	kthread_queue_work(&ctlr->kworker, &ctlr->pump_messages);
+
+	/* if there is something queued, then wake the queue */
+	if (!list_empty(&ctlr->queue))
+		kthread_queue_work(&ctlr->kworker, &ctlr->pump_messages);
+	else
+		/* otherwise schedule delayed teardown */
+		kthread_mod_delayed_work(&ctlr->kworker,
+					 &ctlr->pump_idle_teardown,
+					 HZ);
+
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 
 	trace_spi_message_done(mesg);
@@ -1551,7 +1608,7 @@ static int __spi_queued_transfer(struct spi_device *spi,
 	msg->status = -EINPROGRESS;
 
 	list_add_tail(&msg->queue, &ctlr->queue);
-	if (!ctlr->busy && need_pump)
+	if (need_pump)
 		kthread_queue_work(&ctlr->kworker, &ctlr->pump_messages);
 
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
@@ -3726,4 +3783,3 @@ err0:
  * include needing to have boardinfo data structures be much more public.
  */
 postcore_initcall(spi_init);
-

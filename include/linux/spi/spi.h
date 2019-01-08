@@ -334,6 +334,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @kworker: thread struct for message pump
  * @kworker_task: pointer to task for message pump kworker thread
  * @pump_messages: work struct for scheduling work to the message pump
+ * @pump_idle_teardown: work structure for scheduling a teardown delayed
  * @queue_lock: spinlock to syncronise access to message queue
  * @queue: message queue
  * @idling: the device is entering idle state
@@ -532,6 +533,7 @@ struct spi_controller {
 	struct kthread_worker		kworker;
 	struct task_struct		*kworker_task;
 	struct kthread_work		pump_messages;
+	struct kthread_delayed_work     pump_idle_teardown;
 	spinlock_t			queue_lock;
 	struct list_head		queue;
 	struct spi_message		*cur_msg;
