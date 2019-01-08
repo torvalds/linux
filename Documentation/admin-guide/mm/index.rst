@@ -5,7 +5,7 @@ Memory Management
 Linux memory management subsystem is responsible, as the name implies,
 for managing the memory in the system. This includes implemnetation of
 virtual memory and demand paging, memory allocation both for kernel
-internal structures and user space programms, mapping of files into
+internal structures and user space programs, mapping of files into
 processes address space and many other cool things.
 
 Linux memory management is a complex system with many configurable
