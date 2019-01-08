@@ -18,18 +18,10 @@ Their connections are modeled using the OF graph bindings specified in
 	Documentation/devicetree/bindings/graph.txt.
 
 - video port 0 for the VOP inputs
-- video port 1 for either a panel or subsequent encoder
+- video port 1 for either a panel or bridge
 
-the lvds panel described by
-	Documentation/devicetree/bindings/display/panel/simple-panel.txt
-
-- rockchip,data-mapping: should be "vesa" or "jeida",
-	This describes how the color bits are laid out in the
-	serialized LVDS signal.
-- rockchip,data-width : should be <18> or <24>;
 - rockchip,output: should be "lvds" or "duallvds",
 	This describes the output face.
-- ports for remote LVDS output
 
 Example:
 
