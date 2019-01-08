@@ -85,7 +85,7 @@
 #define DEF_FIFO_DEPTH_WORDS	16
 #define DEF_TX_WM		2
 #define DEF_FIFO_WIDTH_BITS	32
-#define UART_CONSOLE_RX_WM	2
+#define UART_RX_WM		2
 #define MAX_LOOPBACK_CFG	3
 
 #ifdef CONFIG_CONSOLE_POLL
@@ -101,9 +101,6 @@ struct qcom_geni_serial_port {
 	u32 tx_fifo_depth;
 	u32 tx_fifo_width;
 	u32 rx_fifo_depth;
-	u32 tx_wm;
-	u32 rx_wm;
-	u32 rx_rfr;
 	enum geni_se_xfer_mode xfer_mode;
 	bool setup;
 	int (*handle_rx)(struct uart_port *uport, u32 bytes, bool drop);
@@ -361,9 +358,7 @@ static int qcom_geni_serial_get_char(struct uart_port *uport)
 static void qcom_geni_serial_poll_put_char(struct uart_port *uport,
 							unsigned char c)
 {
-	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
-
-	writel(port->tx_wm, uport->membase + SE_GENI_TX_WATERMARK_REG);
+	writel(DEF_TX_WM, uport->membase + SE_GENI_TX_WATERMARK_REG);
 	qcom_geni_serial_setup_tx(uport, 1);
 	WARN_ON(!qcom_geni_serial_poll_bit(uport, SE_GENI_M_IRQ_STATUS,
 						M_TX_FIFO_WATERMARK_EN, true));
@@ -571,7 +566,7 @@ static void qcom_geni_serial_start_tx(struct uart_port *uport)
 		irq_en = readl(uport->membase +	SE_GENI_M_IRQ_EN);
 		irq_en |= M_TX_FIFO_WATERMARK_EN | M_CMD_DONE_EN;
 
-		writel(port->tx_wm, uport->membase +
+		writel(DEF_TX_WM, uport->membase +
 						SE_GENI_TX_WATERMARK_REG);
 		writel(irq_en, uport->membase +	SE_GENI_M_IRQ_EN);
 	}
@@ -840,17 +835,6 @@ static void get_tx_fifo_size(struct qcom_geni_serial_port *port)
 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
 }
 
-static void set_rfr_wm(struct qcom_geni_serial_port *port)
-{
-	/*
-	 * Set RFR (Flow off) to FIFO_DEPTH - 2.
-	 * RX WM level at 10% RX_FIFO_DEPTH.
-	 * TX WM level at 10% TX_FIFO_DEPTH.
-	 */
-	port->rx_rfr = port->rx_fifo_depth - 2;
-	port->rx_wm = UART_CONSOLE_RX_WM;
-	port->tx_wm = DEF_TX_WM;
-}
 
 static void qcom_geni_serial_shutdown(struct uart_port *uport)
 {
@@ -889,7 +873,6 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 
 	get_tx_fifo_size(port);
 
-	set_rfr_wm(port);
 	writel(rxstale, uport->membase + SE_UART_RX_STALE_CNT);
 	/*
 	 * Make an unconditional cancel on the main sequencer to reset
@@ -902,7 +885,7 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 						false, true, false);
 	geni_se_config_packing(&port->se, BITS_PER_BYTE, port->rx_bytes_pw,
 						false, false, true);
-	geni_se_init(&port->se, port->rx_wm, port->rx_rfr);
+	geni_se_init(&port->se, UART_RX_WM, port->rx_fifo_depth - 2);
 	geni_se_select_mode(&port->se, port->xfer_mode);
 	if (!uart_console(uport)) {
 		port->rx_fifo = devm_kcalloc(uport->dev,
