@@ -146,10 +146,92 @@ static int vega20_allocate_dpm_context(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_setup_od8_information(struct smu_context *smu)
+{
+	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
+	struct smu_table_context *table_context = &smu->smu_table;
+
+	uint32_t od_feature_count, od_feature_array_size,
+		 od_setting_count, od_setting_array_size;
+
+	if (!table_context->power_play_table)
+		return -EINVAL;
+
+	powerplay_table = table_context->power_play_table;
+
+	if (powerplay_table->OverDrive8Table.ucODTableRevision == 1) {
+		/* Setup correct ODFeatureCount, and store ODFeatureArray from
+		 * powerplay table to od_feature_capabilities */
+		od_feature_count =
+			(le32_to_cpu(powerplay_table->OverDrive8Table.ODFeatureCount) >
+			 ATOM_VEGA20_ODFEATURE_COUNT) ?
+			ATOM_VEGA20_ODFEATURE_COUNT :
+			le32_to_cpu(powerplay_table->OverDrive8Table.ODFeatureCount);
+
+		od_feature_array_size = sizeof(uint8_t) * od_feature_count;
+
+		if (table_context->od_feature_capabilities)
+			return -EINVAL;
+
+		table_context->od_feature_capabilities = kzalloc(od_feature_array_size, GFP_KERNEL);
+		if (!table_context->od_feature_capabilities)
+			return -ENOMEM;
+
+		memcpy(table_context->od_feature_capabilities,
+		       &powerplay_table->OverDrive8Table.ODFeatureCapabilities,
+		       od_feature_array_size);
+
+		/* Setup correct ODSettingCount, and store ODSettingArray from
+		 * powerplay table to od_settings_max and od_setting_min */
+		od_setting_count =
+			(le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingCount) >
+			 ATOM_VEGA20_ODSETTING_COUNT) ?
+			ATOM_VEGA20_ODSETTING_COUNT :
+			le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingCount);
+
+		od_setting_array_size = sizeof(uint32_t) * od_setting_count;
+
+		if (table_context->od_settings_max)
+			return -EINVAL;
+
+		table_context->od_settings_max = kzalloc(od_setting_array_size, GFP_KERNEL);
+
+		if (!table_context->od_settings_max) {
+			kfree(table_context->od_feature_capabilities);
+			table_context->od_feature_capabilities = NULL;
+			return -ENOMEM;
+		}
+
+		memcpy(table_context->od_settings_max,
+		       &powerplay_table->OverDrive8Table.ODSettingsMax,
+		       od_setting_array_size);
+
+		if (table_context->od_settings_min)
+			return -EINVAL;
+
+		table_context->od_settings_min = kzalloc(od_setting_array_size, GFP_KERNEL);
+
+		if (!table_context->od_settings_min) {
+			kfree(table_context->od_feature_capabilities);
+			table_context->od_feature_capabilities = NULL;
+			kfree(table_context->od_settings_max);
+			table_context->od_settings_max = NULL;
+			return -ENOMEM;
+		}
+
+		memcpy(table_context->od_settings_min,
+		       &powerplay_table->OverDrive8Table.ODSettingsMin,
+		       od_setting_array_size);
+	}
+
+	return 0;
+}
+
 static int vega20_store_powerplay_table(struct smu_context *smu)
 {
 	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	int ret;
 
 	if (!table_context->power_play_table)
 		return -EINVAL;
@@ -162,7 +244,9 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 	table_context->software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
 	table_context->thermal_controller_type = powerplay_table->ucThermalControllerType;
 
-	return 0;
+	ret = vega20_setup_od8_information(smu);
+
+	return ret;
 }
 
 static int vega20_append_powerplay_table(struct smu_context *smu)

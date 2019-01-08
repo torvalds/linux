@@ -689,6 +689,21 @@ static int smu_hw_fini(void *handle)
 		table_context->max_sustainable_clocks = NULL;
 	}
 
+	if (table_context->od_feature_capabilities) {
+		kfree(table_context->od_feature_capabilities);
+		table_context->od_feature_capabilities = NULL;
+	}
+
+	if (table_context->od_settings_max) {
+		kfree(table_context->od_settings_max);
+		table_context->od_settings_max = NULL;
+	}
+
+	if (table_context->od_settings_min) {
+		kfree(table_context->od_settings_min);
+		table_context->od_settings_min = NULL;
+	}
+
 	ret = smu_fini_fb_allocations(smu);
 	if (ret)
 		return ret;
