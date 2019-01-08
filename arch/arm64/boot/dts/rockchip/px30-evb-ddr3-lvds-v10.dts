@@ -101,13 +101,15 @@
 		prepare-delay-ms = <20>;
 		unprepare-delay-ms = <20>;
 		disable-delay-ms = <20>;
+		/*
+		 * MEDIA_BUS_FMT_RGB666_1X7X3_SPWG  - "jeida-18"
+		 * MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA - "jeida-24"
+		 * MEDIA_BUS_FMT_RGB888_1X7X4_SPWG  - "vesa-24"
+		 */
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
 
 		width-mm = <217>;
 		height-mm = <136>;
-
-		rockchip,data-mapping = "vesa";
-		rockchip,data-width = <24>;
-		rockchip,output = "lvds";
 
 		display-timings {
 			native-mode = <&timing0>;
