@@ -87,11 +87,10 @@ struct iram_table_v_2 {
 
 	/* For reading PSR State directly from IRAM */
 	uint8_t psr_state;						/* 0xf0       */
-	uint8_t dmcu_interface_version;					/* 0xf1       */
-	uint8_t dmcu_date_version_year_b0;				/* 0xf2       */
-	uint8_t dmcu_date_version_year_b1;				/* 0xf3       */
-	uint8_t dmcu_date_version_month;				/* 0xf4       */
-	uint8_t dmcu_date_version_day;					/* 0xf5       */
+	uint8_t dmcu_mcp_interface_version;							/* 0xf1       */
+	uint8_t dmcu_abm_feature_version;							/* 0xf2       */
+	uint8_t dmcu_psr_feature_version;							/* 0xf3       */
+	uint16_t dmcu_version;										/* 0xf4       */
 	uint8_t dmcu_state;						/* 0xf6       */
 
 	uint16_t blRampReduction;					/* 0xf7       */

@@ -39,10 +39,10 @@ enum dmcu_state {
 };
 
 struct dmcu_version {
-	unsigned int date;
-	unsigned int month;
-	unsigned int year;
 	unsigned int interface_version;
+	unsigned int abm_version;
+	unsigned int psr_version;
+	unsigned int build_version;
 };
 
 struct dmcu {

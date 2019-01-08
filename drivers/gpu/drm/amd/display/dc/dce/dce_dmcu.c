@@ -331,10 +331,10 @@ static void dcn10_get_dmcu_version(struct dmcu *dmcu)
 	/* Write address to IRAM_RD_ADDR and read from DATA register */
 	REG_WRITE(DMCU_IRAM_RD_CTRL, dmcu_version_offset);
 	dmcu->dmcu_version.interface_version = REG_READ(DMCU_IRAM_RD_DATA);
-	dmcu->dmcu_version.year = ((REG_READ(DMCU_IRAM_RD_DATA) << 8) |
+	dmcu->dmcu_version.abm_version = REG_READ(DMCU_IRAM_RD_DATA);
+	dmcu->dmcu_version.psr_version = REG_READ(DMCU_IRAM_RD_DATA);
+	dmcu->dmcu_version.build_version = ((REG_READ(DMCU_IRAM_RD_DATA) << 8) |
 						REG_READ(DMCU_IRAM_RD_DATA));
-	dmcu->dmcu_version.month = REG_READ(DMCU_IRAM_RD_DATA);
-	dmcu->dmcu_version.date = REG_READ(DMCU_IRAM_RD_DATA);
 
 	/* Disable write access to IRAM to allow dynamic sleep state */
 	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
