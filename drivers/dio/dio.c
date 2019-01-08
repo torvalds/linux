@@ -89,8 +89,8 @@ static struct dioname names[] =
 #undef DIONAME
 #undef DIOFBNAME
 
-static const char *unknowndioname 
-        = "unknown DIO board -- please email <linux-m68k@lists.linux-m68k.org>!";
+static const char unknowndioname[]
+	= "unknown DIO board, please email linux-m68k@lists.linux-m68k.org";
 
 static const char *dio_getname(int id)
 {
