@@ -8878,6 +8878,7 @@ static void skylake_get_pfit_config(struct intel_crtc *crtc,
 			pipe_config->pch_pfit.enabled = true;
 			pipe_config->pch_pfit.pos = I915_READ(SKL_PS_WIN_POS(crtc->pipe, i));
 			pipe_config->pch_pfit.size = I915_READ(SKL_PS_WIN_SZ(crtc->pipe, i));
+			scaler_state->scalers[i].in_use = true;
 			break;
 		}
 	}
