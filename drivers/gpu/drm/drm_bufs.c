@@ -377,6 +377,17 @@ int drm_legacy_addmap(struct drm_device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(drm_legacy_addmap);
 
+struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
+					 unsigned int token)
+{
+	struct drm_map_list *_entry;
+	list_for_each_entry(_entry, &dev->maplist, head)
+		if (_entry->user_token == token)
+			return _entry->map;
+	return NULL;
+}
+EXPORT_SYMBOL(drm_legacy_findmap);
+
 /**
  * Ioctl to specify a range of memory that is available for mapping by a
  * non-root process.
