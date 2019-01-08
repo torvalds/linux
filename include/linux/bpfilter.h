@@ -3,13 +3,18 @@
 #define _LINUX_BPFILTER_H
 
 #include <uapi/linux/bpfilter.h>
+#include <linux/umh.h>
 
 struct sock;
 int bpfilter_ip_set_sockopt(struct sock *sk, int optname, char __user *optval,
 			    unsigned int optlen);
 int bpfilter_ip_get_sockopt(struct sock *sk, int optname, char __user *optval,
 			    int __user *optlen);
-extern int (*bpfilter_process_sockopt)(struct sock *sk, int optname,
-				       char __user *optval,
-				       unsigned int optlen, bool is_set);
+struct bpfilter_umh_ops {
+	struct umh_info info;
+	int (*sockopt)(struct sock *sk, int optname,
+		       char __user *optval,
+		       unsigned int optlen, bool is_set);
+};
+extern struct bpfilter_umh_ops bpfilter_ops;
 #endif

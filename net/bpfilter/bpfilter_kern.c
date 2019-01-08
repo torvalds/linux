@@ -13,7 +13,6 @@
 extern char bpfilter_umh_start;
 extern char bpfilter_umh_end;
 
-static struct umh_info info;
 /* since ip_getsockopt() can run in parallel, serialize access to umh */
 static DEFINE_MUTEX(bpfilter_lock);
 
@@ -28,16 +27,13 @@ static void shutdown_umh(struct umh_info *info)
 		force_sig(SIGKILL, tsk);
 		put_task_struct(tsk);
 	}
-	fput(info->pipe_to_umh);
-	fput(info->pipe_from_umh);
-	info->pid = 0;
 }
 
 static void __stop_umh(void)
 {
 	if (IS_ENABLED(CONFIG_INET)) {
-		bpfilter_process_sockopt = NULL;
-		shutdown_umh(&info);
+		bpfilter_ops.sockopt = NULL;
+		shutdown_umh(&bpfilter_ops.info);
 	}
 }
 
@@ -64,9 +60,10 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	req.addr = (long __force __user)optval;
 	req.len = optlen;
 	mutex_lock(&bpfilter_lock);
-	if (!info.pid)
+	if (!bpfilter_ops.info.pid)
 		goto out;
-	n = __kernel_write(info.pipe_to_umh, &req, sizeof(req), &pos);
+	n = __kernel_write(bpfilter_ops.info.pipe_to_umh, &req, sizeof(req),
+			   &pos);
 	if (n != sizeof(req)) {
 		pr_err("write fail %zd\n", n);
 		__stop_umh();
@@ -74,7 +71,8 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 		goto out;
 	}
 	pos = 0;
-	n = kernel_read(info.pipe_from_umh, &reply, sizeof(reply), &pos);
+	n = kernel_read(bpfilter_ops.info.pipe_from_umh, &reply, sizeof(reply),
+			&pos);
 	if (n != sizeof(reply)) {
 		pr_err("read fail %zd\n", n);
 		__stop_umh();
@@ -92,13 +90,12 @@ static int __init load_umh(void)
 	int err;
 
 	/* fork usermode process */
-	info.cmdline = "bpfilter_umh";
 	err = fork_usermode_blob(&bpfilter_umh_start,
 				 &bpfilter_umh_end - &bpfilter_umh_start,
-				 &info);
+				 &bpfilter_ops.info);
 	if (err)
 		return err;
-	pr_info("Loaded bpfilter_umh pid %d\n", info.pid);
+	pr_info("Loaded bpfilter_umh pid %d\n", bpfilter_ops.info.pid);
 
 	/* health check that usermode process started correctly */
 	if (__bpfilter_process_sockopt(NULL, 0, NULL, 0, 0) != 0) {
@@ -106,7 +103,7 @@ static int __init load_umh(void)
 		return -EFAULT;
 	}
 	if (IS_ENABLED(CONFIG_INET))
-		bpfilter_process_sockopt = &__bpfilter_process_sockopt;
+		bpfilter_ops.sockopt = &__bpfilter_process_sockopt;
 
 	return 0;
 }
