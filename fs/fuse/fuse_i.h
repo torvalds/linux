@@ -630,6 +630,9 @@ struct fuse_conn {
 	/** Is open/release not implemented by fs? */
 	unsigned no_open:1;
 
+	/** Is opendir/releasedir not implemented by fs? */
+	unsigned no_opendir:1;
+
 	/** Is fsync not implemented by fs? */
 	unsigned no_fsync:1;
 
