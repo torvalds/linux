@@ -946,15 +946,13 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	const __le16 *ch_section;
 
 	if (cfg->nvm_type != IWL_NVM_EXT)
-		data = kzalloc(sizeof(*data) +
-			       sizeof(struct ieee80211_channel) *
-			       IWL_NVM_NUM_CHANNELS,
-			       GFP_KERNEL);
+		data = kzalloc(struct_size(data, channels,
+					   IWL_NVM_NUM_CHANNELS),
+					   GFP_KERNEL);
 	else
-		data = kzalloc(sizeof(*data) +
-			       sizeof(struct ieee80211_channel) *
-			       IWL_NVM_NUM_CHANNELS_EXT,
-			       GFP_KERNEL);
+		data = kzalloc(struct_size(data, channels,
+					   IWL_NVM_NUM_CHANNELS_EXT),
+					   GFP_KERNEL);
 	if (!data)
 		return NULL;
 
@@ -1441,9 +1439,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	if (empty_otp)
 		IWL_INFO(trans, "OTP is empty\n");
 
-	nvm = kzalloc(sizeof(*nvm) +
-		      sizeof(struct ieee80211_channel) * IWL_NUM_CHANNELS,
-		      GFP_KERNEL);
+	nvm = kzalloc(struct_size(nvm, channels, IWL_NUM_CHANNELS), GFP_KERNEL);
 	if (!nvm) {
 		ret = -ENOMEM;
 		goto out;
