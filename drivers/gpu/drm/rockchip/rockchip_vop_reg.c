@@ -1144,6 +1144,7 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 	.hact_st_end = VOP_REG(RK3036_DSP_HACT_ST_END, 0x1fff1fff, 0),
 	.hdmi_en = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 22),
 	.hdmi_dclk_pol = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 23),
+	.hdmi_pin_pol = VOP_REG(RK3036_INT_SCALER, 0x7, 4),
 	.rgb_en = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 24),
 	.rgb_dclk_pol = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 25),
 	.lvds_en = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 26),
