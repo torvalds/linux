@@ -2,8 +2,11 @@
 #ifndef __DRM_GEM_CMA_HELPER_H__
 #define __DRM_GEM_CMA_HELPER_H__
 
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_gem.h>
+
+struct drm_mode_create_dumb;
 
 /**
  * struct drm_gem_cma_object - GEM object backed by CMA memory allocations
