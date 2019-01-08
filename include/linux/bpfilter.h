@@ -15,6 +15,8 @@ struct bpfilter_umh_ops {
 	int (*sockopt)(struct sock *sk, int optname,
 		       char __user *optval,
 		       unsigned int optlen, bool is_set);
+	int (*start)(void);
+	bool stop;
 };
 extern struct bpfilter_umh_ops bpfilter_ops;
 #endif

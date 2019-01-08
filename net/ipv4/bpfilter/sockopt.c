@@ -14,6 +14,7 @@ EXPORT_SYMBOL_GPL(bpfilter_ops);
 
 static void bpfilter_umh_cleanup(struct umh_info *info)
 {
+	bpfilter_ops.stop = true;
 	fput(info->pipe_to_umh);
 	fput(info->pipe_from_umh);
 	info->pid = 0;
@@ -23,13 +24,20 @@ static int bpfilter_mbox_request(struct sock *sk, int optname,
 				 char __user *optval,
 				 unsigned int optlen, bool is_set)
 {
+	int err;
+
 	if (!bpfilter_ops.sockopt) {
-		int err = request_module("bpfilter");
+		err = request_module("bpfilter");
 
 		if (err)
 			return err;
 		if (!bpfilter_ops.sockopt)
 			return -ECHILD;
+	}
+	if (bpfilter_ops.stop) {
+		err = bpfilter_ops.start();
+		if (err)
+			return err;
 	}
 	return bpfilter_ops.sockopt(sk, optname, optval, optlen, is_set);
 }
@@ -53,6 +61,7 @@ int bpfilter_ip_get_sockopt(struct sock *sk, int optname, char __user *optval,
 
 static int __init bpfilter_sockopt_init(void)
 {
+	bpfilter_ops.stop = true;
 	bpfilter_ops.info.cmdline = "bpfilter_umh";
 	bpfilter_ops.info.cleanup = &bpfilter_umh_cleanup;
 

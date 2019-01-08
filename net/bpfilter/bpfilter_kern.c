@@ -16,13 +16,14 @@ extern char bpfilter_umh_end;
 /* since ip_getsockopt() can run in parallel, serialize access to umh */
 static DEFINE_MUTEX(bpfilter_lock);
 
-static void shutdown_umh(struct umh_info *info)
+static void shutdown_umh(void)
 {
 	struct task_struct *tsk;
 
-	if (!info->pid)
+	if (bpfilter_ops.stop)
 		return;
-	tsk = get_pid_task(find_vpid(info->pid), PIDTYPE_PID);
+
+	tsk = get_pid_task(find_vpid(bpfilter_ops.info.pid), PIDTYPE_PID);
 	if (tsk) {
 		force_sig(SIGKILL, tsk);
 		put_task_struct(tsk);
@@ -31,10 +32,8 @@ static void shutdown_umh(struct umh_info *info)
 
 static void __stop_umh(void)
 {
-	if (IS_ENABLED(CONFIG_INET)) {
-		bpfilter_ops.sockopt = NULL;
-		shutdown_umh(&bpfilter_ops.info);
-	}
+	if (IS_ENABLED(CONFIG_INET))
+		shutdown_umh();
 }
 
 static void stop_umh(void)
@@ -85,7 +84,7 @@ out:
 	return ret;
 }
 
-static int __init load_umh(void)
+static int start_umh(void)
 {
 	int err;
 
@@ -95,6 +94,7 @@ static int __init load_umh(void)
 				 &bpfilter_ops.info);
 	if (err)
 		return err;
+	bpfilter_ops.stop = false;
 	pr_info("Loaded bpfilter_umh pid %d\n", bpfilter_ops.info.pid);
 
 	/* health check that usermode process started correctly */
@@ -102,14 +102,31 @@ static int __init load_umh(void)
 		stop_umh();
 		return -EFAULT;
 	}
-	if (IS_ENABLED(CONFIG_INET))
-		bpfilter_ops.sockopt = &__bpfilter_process_sockopt;
 
 	return 0;
 }
 
+static int __init load_umh(void)
+{
+	int err;
+
+	if (!bpfilter_ops.stop)
+		return -EFAULT;
+	err = start_umh();
+	if (!err && IS_ENABLED(CONFIG_INET)) {
+		bpfilter_ops.sockopt = &__bpfilter_process_sockopt;
+		bpfilter_ops.start = &start_umh;
+	}
+
+	return err;
+}
+
 static void __exit fini_umh(void)
 {
+	if (IS_ENABLED(CONFIG_INET)) {
+		bpfilter_ops.start = NULL;
+		bpfilter_ops.sockopt = NULL;
+	}
 	stop_umh();
 }
 module_init(load_umh);
