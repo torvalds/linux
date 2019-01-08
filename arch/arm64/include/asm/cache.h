@@ -58,6 +58,12 @@
  */
 #define ARCH_DMA_MINALIGN	(128)
 
+#ifdef CONFIG_KASAN_SW_TAGS
+#define ARCH_SLAB_MINALIGN	(1ULL << KASAN_SHADOW_SCALE_SHIFT)
+#else
+#define ARCH_SLAB_MINALIGN	__alignof__(unsigned long long)
+#endif
+
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
