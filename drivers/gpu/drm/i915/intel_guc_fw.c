@@ -77,10 +77,6 @@ static void guc_fw_select(struct intel_uc_fw *guc_fw)
 		guc_fw->path = I915_KBL_GUC_UCODE;
 		guc_fw->major_ver_wanted = KBL_FW_MAJOR;
 		guc_fw->minor_ver_wanted = KBL_FW_MINOR;
-	} else {
-		dev_info(dev_priv->drm.dev,
-			 "%s: No firmware known for this platform!\n",
-			 intel_uc_fw_type_repr(guc_fw->type));
 	}
 }
 
