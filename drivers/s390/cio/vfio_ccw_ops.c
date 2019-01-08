@@ -169,16 +169,20 @@ static ssize_t vfio_ccw_mdev_read(struct mdev_device *mdev,
 {
 	struct vfio_ccw_private *private;
 	struct ccw_io_region *region;
+	int ret;
 
 	if (*ppos + count > sizeof(*region))
 		return -EINVAL;
 
 	private = dev_get_drvdata(mdev_parent_dev(mdev));
+	mutex_lock(&private->io_mutex);
 	region = private->io_region;
 	if (copy_to_user(buf, (void *)region + *ppos, count))
-		return -EFAULT;
-
-	return count;
+		ret = -EFAULT;
+	else
+		ret = count;
+	mutex_unlock(&private->io_mutex);
+	return ret;
 }
 
 static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
@@ -188,23 +192,29 @@ static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
 {
 	struct vfio_ccw_private *private;
 	struct ccw_io_region *region;
+	int ret;
 
 	if (*ppos + count > sizeof(*region))
 		return -EINVAL;
 
 	private = dev_get_drvdata(mdev_parent_dev(mdev));
+	if (!mutex_trylock(&private->io_mutex))
+		return -EAGAIN;
 
 	region = private->io_region;
-	if (copy_from_user((void *)region + *ppos, buf, count))
-		return -EFAULT;
-
-	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_IO_REQ);
-	if (region->ret_code != 0) {
-		private->state = VFIO_CCW_STATE_IDLE;
-		return region->ret_code;
+	if (copy_from_user((void *)region + *ppos, buf, count)) {
+		ret = -EFAULT;
+		goto out_unlock;
 	}
 
-	return count;
+	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_IO_REQ);
+	if (region->ret_code != 0)
+		private->state = VFIO_CCW_STATE_IDLE;
+	ret = (region->ret_code != 0) ? region->ret_code : count;
+
+out_unlock:
+	mutex_unlock(&private->io_mutex);
+	return ret;
 }
 
 static int vfio_ccw_mdev_get_device_info(struct vfio_device_info *info)

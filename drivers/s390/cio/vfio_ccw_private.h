@@ -28,6 +28,7 @@
  * @mdev: pointer to the mediated device
  * @nb: notifier for vfio events
  * @io_region: MMIO region to input/output I/O arguments/results
+ * @io_mutex: protect against concurrent update of I/O regions
  * @cp: channel program for the current I/O operation
  * @irb: irb info received from interrupt
  * @scsw: scsw info
@@ -42,6 +43,7 @@ struct vfio_ccw_private {
 	struct mdev_device	*mdev;
 	struct notifier_block	nb;
 	struct ccw_io_region	*io_region;
+	struct mutex		io_mutex;
 
 	struct channel_program	cp;
 	struct irb		irb;

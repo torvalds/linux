@@ -84,7 +84,9 @@ static void vfio_ccw_sch_io_todo(struct work_struct *work)
 		if (is_final)
 			cp_free(&private->cp);
 	}
+	mutex_lock(&private->io_mutex);
 	memcpy(private->io_region->irb_area, irb, sizeof(*irb));
+	mutex_unlock(&private->io_mutex);
 
 	if (private->io_trigger)
 		eventfd_signal(private->io_trigger, 1);
@@ -129,6 +131,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	private->sch = sch;
 	dev_set_drvdata(&sch->dev, private);
+	mutex_init(&private->io_mutex);
 
 	spin_lock_irq(sch->lock);
 	private->state = VFIO_CCW_STATE_NOT_OPER;
