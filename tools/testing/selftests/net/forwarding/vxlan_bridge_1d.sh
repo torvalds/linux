@@ -629,7 +629,7 @@ __test_ecn_decap()
 	RET=0
 
 	tc filter add dev $h1 ingress pref 77 prot ip \
-		flower ip_tos $decapped_tos action pass
+		flower ip_tos $decapped_tos action drop
 	sleep 1
 	vxlan_encapped_ping_test v2 v1 192.0.2.17 \
 				 $orig_inner_tos $orig_outer_tos \
