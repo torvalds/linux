@@ -3285,9 +3285,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	    (BTRFS_I(dst)->flags & BTRFS_INODE_NODATASUM))
 		return -EINVAL;
 
-	if (IS_SWAPFILE(src) || IS_SWAPFILE(dst))
-		return -ETXTBSY;
-
 	tail_len = olen % BTRFS_MAX_DEDUPE_LEN;
 	chunk_count = div_u64(olen, BTRFS_MAX_DEDUPE_LEN);
 
@@ -3909,9 +3906,6 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
 	    (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
 		return -EINVAL;
-
-	if (IS_SWAPFILE(src) || IS_SWAPFILE(inode))
-		return -ETXTBSY;
 
 	/*
 	 * VFS's generic_remap_file_range_prep() protects us from cloning the
