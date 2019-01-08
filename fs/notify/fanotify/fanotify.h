@@ -12,7 +12,8 @@ extern struct kmem_cache *fanotify_perm_event_cachep;
 enum {
 	FAN_EVENT_INIT,
 	FAN_EVENT_REPORTED,
-	FAN_EVENT_ANSWERED
+	FAN_EVENT_ANSWERED,
+	FAN_EVENT_CANCELED,
 };
 
 /*

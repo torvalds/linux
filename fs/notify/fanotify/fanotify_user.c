@@ -147,10 +147,17 @@ static void finish_permission_event(struct fsnotify_group *group,
 				    unsigned int response)
 				    __releases(&group->notification_lock)
 {
+	bool destroy = false;
+
 	assert_spin_locked(&group->notification_lock);
 	event->response = response;
-	event->state = FAN_EVENT_ANSWERED;
+	if (event->state == FAN_EVENT_CANCELED)
+		destroy = true;
+	else
+		event->state = FAN_EVENT_ANSWERED;
 	spin_unlock(&group->notification_lock);
+	if (destroy)
+		fsnotify_destroy_event(group, &event->fae.fse);
 }
 
 static int process_access_response(struct fsnotify_group *group,

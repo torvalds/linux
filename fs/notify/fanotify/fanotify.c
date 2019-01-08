@@ -77,6 +77,13 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 	return 0;
 }
 
+/*
+ * Wait for response to permission event. The function also takes care of
+ * freeing the permission event (or offloads that in case the wait is canceled
+ * by a signal). The function returns 0 in case access got allowed by userspace,
+ * -EPERM in case userspace disallowed the access, and -ERESTARTSYS in case
+ * the wait got interrupted by a signal.
+ */
 static int fanotify_get_response(struct fsnotify_group *group,
 				 struct fanotify_perm_event *event,
 				 struct fsnotify_iter_info *iter_info)
@@ -85,8 +92,29 @@ static int fanotify_get_response(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	wait_event(group->fanotify_data.access_waitq,
-		   event->state == FAN_EVENT_ANSWERED);
+	ret = wait_event_interruptible(group->fanotify_data.access_waitq,
+				       event->state == FAN_EVENT_ANSWERED);
+	/* Signal pending? */
+	if (ret < 0) {
+		spin_lock(&group->notification_lock);
+		/* Event reported to userspace and no answer yet? */
+		if (event->state == FAN_EVENT_REPORTED) {
+			/* Event will get freed once userspace answers to it */
+			event->state = FAN_EVENT_CANCELED;
+			spin_unlock(&group->notification_lock);
+			return ret;
+		}
+		/* Event not yet reported? Just remove it. */
+		if (event->state == FAN_EVENT_INIT)
+			fsnotify_remove_queued_event(group, &event->fae.fse);
+		/*
+		 * Event may be also answered in case signal delivery raced
+		 * with wakeup. In that case we have nothing to do besides
+		 * freeing the event and reporting error.
+		 */
+		spin_unlock(&group->notification_lock);
+		goto out;
+	}
 
 	/* userspace responded, convert to something usable */
 	switch (event->response & ~FAN_AUDIT) {
@@ -104,6 +132,8 @@ static int fanotify_get_response(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p about to return ret=%d\n", __func__,
 		 group, event, ret);
+out:
+	fsnotify_destroy_event(group, &event->fae.fse);
 
 	return ret;
 }
@@ -406,7 +436,6 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	} else if (fanotify_is_perm_event(mask)) {
 		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event),
 					    iter_info);
-		fsnotify_destroy_event(group, fsn_event);
 	}
 finish:
 	if (fanotify_is_perm_event(mask))
