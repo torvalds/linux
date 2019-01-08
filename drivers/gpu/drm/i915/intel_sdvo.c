@@ -984,6 +984,8 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 					 const struct intel_crtc_state *pipe_config,
 					 const struct drm_connector_state *conn_state)
 {
+	const struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
 	uint8_t sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
 	union hdmi_infoframe frame;
 	int ret;
@@ -991,20 +993,19 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
 						       conn_state->connector,
-						       &pipe_config->base.adjusted_mode);
+						       adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return false;
 	}
 
-	if (intel_sdvo->rgb_quant_range_selectable) {
-		if (pipe_config->limited_color_range)
-			frame.avi.quantization_range =
-				HDMI_QUANTIZATION_RANGE_LIMITED;
-		else
-			frame.avi.quantization_range =
-				HDMI_QUANTIZATION_RANGE_FULL;
-	}
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   conn_state->connector,
+					   adjusted_mode,
+					   pipe_config->limited_color_range ?
+					   HDMI_QUANTIZATION_RANGE_LIMITED :
+					   HDMI_QUANTIZATION_RANGE_FULL,
+					   intel_sdvo->rgb_quant_range_selectable);
 
 	len = hdmi_infoframe_pack(&frame, sdvo_data, sizeof(sdvo_data));
 	if (len < 0)
