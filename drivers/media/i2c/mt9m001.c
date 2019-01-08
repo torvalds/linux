@@ -5,17 +5,17 @@
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
  */
 
-#include <linux/videodev2.h>
-#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/videodev2.h>
 
-#include <media/soc_camera.h>
 #include <media/drv-intf/soc_mediabus.h>
+#include <media/soc_camera.h>
 #include <media/v4l2-clk.h>
-#include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-subdev.h>
 
 /*
  * mt9m001 i2c address 0x5d
