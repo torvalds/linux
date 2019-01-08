@@ -23,6 +23,24 @@
 			0x50000000 0x08000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		mfc_left: region@43000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x43000000 0x2000000>;
+		};
+
+		mfc_right: region@51000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x51000000 0x2000000>;
+		};
+	};
+
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpg1 2 GPIO_ACTIVE_LOW>;
@@ -327,6 +345,10 @@
 	vusb_d-supply = <&ldo3_reg>;
 	dr_mode = "peripheral";
 	status = "okay";
+};
+
+&mfc {
+	memory-region = <&mfc_left>, <&mfc_right>;
 };
 
 &pinctrl0 {
