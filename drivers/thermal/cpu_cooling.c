@@ -578,7 +578,8 @@ __cpufreq_cooling_register(struct device_node *np,
 	if (try_model) {
 		struct em_perf_domain *em = em_cpu_get(policy->cpu);
 
-		if (!em || !cpumask_equal(policy->cpus, to_cpumask(em->cpus))) {
+		if (!em || !cpumask_equal(policy->related_cpus,
+					  to_cpumask(em->cpus))) {
 			cdev = ERR_PTR(-EINVAL);
 			goto free_idle_time;
 		}
