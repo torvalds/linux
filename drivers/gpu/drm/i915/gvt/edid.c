@@ -77,6 +77,22 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 	return chr;
 }
 
+static inline int cnp_get_port_from_gmbus0(u32 gmbus0)
+{
+	int port_select = gmbus0 & _GMBUS_PIN_SEL_MASK;
+	int port = -EINVAL;
+
+	if (port_select == GMBUS_PIN_1_BXT)
+		port = PORT_B;
+	else if (port_select == GMBUS_PIN_2_BXT)
+		port = PORT_C;
+	else if (port_select == GMBUS_PIN_3_BXT)
+		port = PORT_D;
+	else if (port_select == GMBUS_PIN_4_CNP)
+		port = PORT_E;
+	return port;
+}
+
 static inline int bxt_get_port_from_gmbus0(u32 gmbus0)
 {
 	int port_select = gmbus0 & _GMBUS_PIN_SEL_MASK;
@@ -133,6 +149,8 @@ static int gmbus0_mmio_write(struct intel_vgpu *vgpu,
 
 	if (IS_BROXTON(dev_priv))
 		port = bxt_get_port_from_gmbus0(pin_select);
+	else if (IS_COFFEELAKE(dev_priv))
+		port = cnp_get_port_from_gmbus0(pin_select);
 	else
 		port = get_port_from_gmbus0(pin_select);
 	if (WARN_ON(port < 0))
