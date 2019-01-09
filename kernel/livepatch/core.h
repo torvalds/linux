@@ -7,6 +7,8 @@
 extern struct mutex klp_mutex;
 extern struct list_head klp_patches;
 
+void klp_free_patch_start(struct klp_patch *patch);
+
 static inline bool klp_is_object_loaded(struct klp_object *obj)
 {
 	return !obj->name || obj->mod;

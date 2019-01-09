@@ -134,13 +134,6 @@ static void klp_complete_transition(void)
 	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
-	/*
-	 * patch->forced set implies unbounded increase of module's ref count if
-	 * the module is disabled/enabled in a loop.
-	 */
-	if (!klp_transition_patch->forced && klp_target_state == KLP_UNPATCHED)
-		module_put(klp_transition_patch->mod);
-
 	klp_target_state = KLP_UNDEFINED;
 	klp_transition_patch = NULL;
 }
@@ -357,6 +350,7 @@ void klp_try_complete_transition(void)
 {
 	unsigned int cpu;
 	struct task_struct *g, *task;
+	struct klp_patch *patch;
 	bool complete = true;
 
 	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
@@ -405,7 +399,18 @@ void klp_try_complete_transition(void)
 	}
 
 	/* we're done, now cleanup the data structures */
+	patch = klp_transition_patch;
 	klp_complete_transition();
+
+	/*
+	 * It would make more sense to free the patch in
+	 * klp_complete_transition() but it is called also
+	 * from klp_cancel_transition().
+	 */
+	if (!patch->enabled) {
+		klp_free_patch_start(patch);
+		schedule_work(&patch->free_work);
+	}
 }
 
 /*
