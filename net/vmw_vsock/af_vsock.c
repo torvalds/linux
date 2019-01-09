@@ -505,7 +505,7 @@ out:
 static int __vsock_bind_stream(struct vsock_sock *vsk,
 			       struct sockaddr_vm *addr)
 {
-	static u32 port = 0;
+	static u32 port;
 	struct sockaddr_vm new_addr;
 
 	if (!port)
