@@ -48,6 +48,7 @@
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
+#include "vega10_baco.h"
 
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
@@ -4980,6 +4981,9 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_power_limit = vega10_set_power_limit,
 	.odn_edit_dpm_table = vega10_odn_edit_dpm_table,
 	.get_performance_level = vega10_get_performance_level,
+	.get_asic_baco_capability = vega10_baco_get_capability,
+	.get_asic_baco_state = vega10_baco_get_state,
+	.set_asic_baco_state = vega10_baco_set_state,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
