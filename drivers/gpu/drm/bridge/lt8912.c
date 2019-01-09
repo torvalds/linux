@@ -269,29 +269,12 @@ lt8912_connector_best_encoder(struct drm_connector *connector)
 
 static int lt8912_connector_get_modes(struct drm_connector *connector)
 {
-	struct lt8912 *lt8912 = connector_to_lt8912(connector);
-	struct drm_display_mode *mode;
-	int ret;
+	int num_modes = 0;
 
-	/* TODO: EDID handing */
+	num_modes = drm_add_modes_noedid(connector, 1920, 1080);
+	drm_set_preferred_mode(connector, 1920, 1080);
 
-	mode = drm_mode_create(connector->dev);
-	if (!mode)
-		return -EINVAL;
-
-	ret = of_get_drm_display_mode(lt8912->dev->of_node, mode,
-				      OF_USE_NATIVE_MODE);
-	if (ret) {
-		dev_err(lt8912->dev, "failed to get display timings\n");
-		drm_mode_destroy(connector->dev, mode);
-		return 0;
-	}
-
-	mode->type |= DRM_MODE_TYPE_PREFERRED;
-	drm_mode_set_name(mode);
-	drm_mode_probed_add(connector, mode);
-
-	return 1;
+	return num_modes;
 }
 
 static const struct drm_connector_helper_funcs lt8912_connector_helper_funcs = {

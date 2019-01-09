@@ -5,7 +5,6 @@ Required properties:
  - reg: virtual channel id
  - reset-gpios: a GPIO spec for the reset pin
  - i2c-bus: phandle of an I2C controller used for register access
- - display-timings : Refer to binding doc display-timing.txt for details
 
 Example:
 
@@ -17,25 +16,5 @@ Example:
 		reg = <0>;
 		reset-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
 		i2c-bus = <&i2c1>;
-
-		display-timings {
-			native-mode = <&timing0>;
-
-			timing0: timing0 {
-				clock-frequency = <74250000>;
-				hactive = <1280>;
-				vactive = <720>;
-				hfront-porch = <110>;
-				hsync-len = <40>;
-				hback-porch = <220>;
-				vfront-porch = <5>;
-				vsync-len = <5>;
-				vback-porch = <20>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
 	};
 };
