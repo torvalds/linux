@@ -57,6 +57,8 @@ unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt)
 		return D_KBL;
 	else if (IS_BROXTON(gvt->dev_priv))
 		return D_BXT;
+	else if (IS_COFFEELAKE(gvt->dev_priv))
+		return D_CFL;
 
 	return 0;
 }
