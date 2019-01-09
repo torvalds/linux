@@ -191,7 +191,7 @@
 		clock-frequency = <24576000>;
 	};
 
-	reg_12p0v: regulator1 {
+	reg_12p0v: regulator2 {
 		compatible = "regulator-fixed";
 		regulator-name = "D12.0V";
 		regulator-min-microvolt = <12000000>;
