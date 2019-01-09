@@ -1066,7 +1066,7 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 
 	/* use ocr_mask if no regulator */
 	if (!mmc->ocr_avail)
-		mmc->ocr_avail =  pdata->ocr_mask;
+		mmc->ocr_avail = pdata->ocr_mask;
 
 	/*
 	 * try again.
