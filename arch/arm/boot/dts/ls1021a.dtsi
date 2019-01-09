@@ -45,11 +45,12 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton64.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	compatible = "fsl,ls1021a";
 	interrupt-parent = <&gic>;
 
@@ -86,6 +87,11 @@
 			clocks = <&clockgen 1 0>;
 			#cooling-cells = <2>;
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x0>;
 	};
 
 	sysclk: sysclk {

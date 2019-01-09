@@ -9,10 +9,11 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/mt8135-resets.h>
-#include "skeleton64.dtsi"
 #include "mt8135-pinfunc.h"
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	compatible = "mediatek,mt8135";
 	interrupt-parent = <&sysirq>;
 

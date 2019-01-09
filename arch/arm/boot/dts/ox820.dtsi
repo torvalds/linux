@@ -6,12 +6,13 @@
  * Licensed under GPLv2 or later
  */
 
-/include/ "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/oxsemi,ox820.h>
 #include <dt-bindings/reset/oxsemi,ox820.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "oxsemi,ox820";
 
 	cpus {
@@ -35,6 +36,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		/* Max 512MB @ 0x60000000 */
 		reg = <0x60000000 0x20000000>;
 	};

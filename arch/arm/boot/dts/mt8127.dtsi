@@ -7,9 +7,10 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "skeleton64.dtsi"
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	compatible = "mediatek,mt8127";
 	interrupt-parent = <&sysirq>;
 

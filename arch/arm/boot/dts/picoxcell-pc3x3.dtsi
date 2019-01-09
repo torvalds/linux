@@ -10,7 +10,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-/include/ "skeleton.dtsi"
 / {
 	model = "Picochip picoXcell PC3X3";
 	compatible = "picochip,pc3x3";

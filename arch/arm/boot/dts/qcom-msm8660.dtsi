@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8660.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Qualcomm MSM8660";
 	compatible = "qcom,msm8660";
 	interrupt-parent = <&intc>;
@@ -37,6 +37,11 @@
 			compatible = "cache";
 			cache-level = <2>;
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
 	cpu-pmu {

@@ -6,9 +6,10 @@
 #include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/reset/qcom,gcc-msm8974.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Qualcomm MSM8974";
 	compatible = "qcom,msm8974";
 	interrupt-parent = <&intc>;
@@ -128,6 +129,11 @@
 				min-residency-us = <2000>;
 			};
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
 	thermal-zones {

@@ -11,12 +11,12 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/clock/lpc32xx-clock.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "nxp,lpc3220";
 	interrupt-parent = <&mic>;
 
