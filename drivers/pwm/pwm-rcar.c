@@ -8,6 +8,8 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/log2.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -68,19 +70,15 @@ static void rcar_pwm_update(struct rcar_pwm_chip *rp, u32 mask, u32 data,
 static int rcar_pwm_get_clock_division(struct rcar_pwm_chip *rp, int period_ns)
 {
 	unsigned long clk_rate = clk_get_rate(rp->clk);
-	unsigned long long max; /* max cycle / nanoseconds */
-	unsigned int div;
+	u64 div, tmp;
 
 	if (clk_rate == 0)
 		return -EINVAL;
 
-	for (div = 0; div <= RCAR_PWM_MAX_DIVISION; div++) {
-		max = (unsigned long long)NSEC_PER_SEC * RCAR_PWM_MAX_CYCLE *
-			(1 << div);
-		do_div(max, clk_rate);
-		if (period_ns <= max)
-			break;
-	}
+	div = (u64)NSEC_PER_SEC * RCAR_PWM_MAX_CYCLE;
+	tmp = (u64)period_ns * clk_rate + div - 1;
+	tmp = div64_u64(tmp, div);
+	div = ilog2(tmp - 1) + 1;
 
 	return (div <= RCAR_PWM_MAX_DIVISION) ? div : -ERANGE;
 }
