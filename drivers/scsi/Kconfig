@@ -1196,8 +1196,6 @@ config SCSI_AM53C974
 	  PCscsi/PCnet (Am53/79C974) solutions.
 	  This is a new implementation base on the generic esp_scsi driver.
 
-	  Documentation can be found in <file:Documentation/scsi/tmscsim.txt>.
-
 	  Note that this driver does NOT support Tekram DC390W/U/F, which are
 	  based on NCR/Symbios chips. Use "NCR53C8XX SCSI support" for those.
 
