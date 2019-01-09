@@ -1272,6 +1272,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (con_is_visible(vc))
 		update_screen(vc);
 	vt_event_post(VT_EVENT_RESIZE, vc->vc_num, vc->vc_num);
+	notify_update(vc);
 	return err;
 }
 
