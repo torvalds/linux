@@ -9,7 +9,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -1252,26 +1251,6 @@ static const struct acpi_device_id rt5660_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, rt5660_acpi_match);
 
-static const struct acpi_gpio_params audio_wake_intr_gpio = { 0, 0, false };
-static const struct acpi_gpio_params lineout_mute_gpio = { 1, 0, true };
-
-static const struct acpi_gpio_mapping byt_rt5660_gpios[] = {
-	{ "audio-wake-intr-gpios", &audio_wake_intr_gpio, 1 },
-	{ "lineout-mute-gpios", &lineout_mute_gpio , 1 },
-	{ NULL },
-};
-
-static void rt5660_read_acpi_properties(struct rt5660_priv *rt5660,
-		struct device *dev)
-{
-	int ret;
-
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev),
-			byt_rt5660_gpios);
-	if (ret)
-		dev_warn(dev, "Failed to add driver gpios\n");
-}
-
 static int rt5660_parse_dt(struct rt5660_priv *rt5660, struct device *dev)
 {
 	rt5660->pdata.in1_diff = device_property_read_bool(dev,
@@ -1311,10 +1290,6 @@ static int rt5660_i2c_probe(struct i2c_client *i2c,
 		rt5660->pdata = *pdata;
 	else if (i2c->dev.of_node)
 		rt5660_parse_dt(rt5660, &i2c->dev);
-	else if (ACPI_HANDLE(&i2c->dev))
-		rt5660_read_acpi_properties(rt5660, &i2c->dev);
-	else
-		return -EINVAL;
 
 	rt5660->regmap = devm_regmap_init_i2c(i2c, &rt5660_regmap);
 	if (IS_ERR(rt5660->regmap)) {

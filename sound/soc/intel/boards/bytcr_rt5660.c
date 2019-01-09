@@ -193,23 +193,35 @@ static int byt_rt5660_aif1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const struct acpi_gpio_params audio_wake_intr_gpio = { 0, 0, false };
+static const struct acpi_gpio_params lineout_mute_gpio = { 1, 0, true };
+
+static const struct acpi_gpio_mapping byt_rt5660_gpios[] = {
+	{ "audio-wake-intr-gpios", &audio_wake_intr_gpio, 1 },
+	{ "lineout-mute-gpios", &lineout_mute_gpio , 1 },
+	{ NULL },
+};
+
 static int byt_rt5660_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
 	struct byt_rt5660_private *priv = snd_soc_card_get_drvdata(card);
+	struct snd_soc_dai *codec_dai = runtime->codec_dai;
+	struct snd_soc_component *component = codec_dai->component;
+
 	int ret;
+
+	ret = devm_acpi_dev_add_driver_gpios(component->dev, byt_rt5660_gpios);
+	if (ret)
+		dev_warn(component->dev, "Failed to add driver gpios\n");
 
 	/* Request rt5660 GPIO for lineout mute control */
 	priv->gpio_lo_mute = devm_gpiod_get_index(card->dev,
-			"lineout-mute", 0, 0);
+			"lineout-mute", 0, GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->gpio_lo_mute)) {
 		dev_err(card->dev, "Can't find GPIO_MUTE# gpio\n");
 		return PTR_ERR(priv->gpio_lo_mute);
 	}
-
-	ret = gpiod_direction_output(priv->gpio_lo_mute, 1);
-	if (ret)
-		return ret;
 
 	if (byt_rt5660_quirk & BYT_RT5660_MCLK_EN) {
 		/*
