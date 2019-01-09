@@ -533,6 +533,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_set_od8_default_settings(smu);
+	if (ret)
+		return ret;
+
 	ret = smu_populate_umd_state_clk(smu);
 	if (ret)
 		return ret;
@@ -702,6 +706,16 @@ static int smu_hw_fini(void *handle)
 	if (table_context->od_settings_min) {
 		kfree(table_context->od_settings_min);
 		table_context->od_settings_min = NULL;
+	}
+
+	if (table_context->overdrive_table) {
+		kfree(table_context->overdrive_table);
+		table_context->overdrive_table = NULL;
+	}
+
+	if (table_context->od8_settings) {
+		kfree(table_context->od8_settings);
+		table_context->od8_settings = NULL;
 	}
 
 	ret = smu_fini_fb_allocations(smu);

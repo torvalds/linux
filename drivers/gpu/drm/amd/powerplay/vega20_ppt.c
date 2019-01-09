@@ -904,6 +904,208 @@ static int vega20_get_clock_by_type_with_latency(struct smu_context *smu,
 	return ret;
 }
 
+static int vega20_overdrive_get_gfx_clk_base_voltage(struct smu_context *smu,
+						     uint32_t *voltage,
+						     uint32_t freq)
+{
+	int ret;
+
+	ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_GetAVFSVoltageByDpm,
+			((AVFS_CURVE << 24) | (OD8_HOTCURVE_TEMPERATURE << 16) | freq));
+	if (ret) {
+		pr_err("[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!");
+		return ret;
+	}
+
+	smu_read_smc_arg(smu, voltage);
+	*voltage = *voltage / VOLTAGE_SCALE;
+
+	return 0;
+}
+
+static int vega20_set_default_od8_setttings(struct smu_context *smu)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	OverDriveTable_t *od_table = (OverDriveTable_t *)(table_context->overdrive_table);
+	struct vega20_od8_settings *od8_settings = NULL;
+	PPTable_t *smc_pptable = table_context->driver_pptable;
+	int i, ret;
+
+	if (table_context->od8_settings)
+		return -EINVAL;
+
+	table_context->od8_settings = kzalloc(sizeof(struct vega20_od8_settings), GFP_KERNEL);
+
+	if (!table_context->od8_settings)
+		return -ENOMEM;
+
+	memset(table_context->od8_settings, 0, sizeof(struct vega20_od8_settings));
+	od8_settings = (struct vega20_od8_settings *)table_context->od8_settings;
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
+		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_LIMITS] &&
+		    table_context->od_settings_max[OD8_SETTING_GFXCLK_FMAX] > 0 &&
+		    table_context->od_settings_min[OD8_SETTING_GFXCLK_FMIN] > 0 &&
+		    (table_context->od_settings_max[OD8_SETTING_GFXCLK_FMAX] >=
+		     table_context->od_settings_min[OD8_SETTING_GFXCLK_FMIN])) {
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id =
+				OD8_GFXCLK_LIMITS;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id =
+				OD8_GFXCLK_LIMITS;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].default_value =
+				od_table->GfxclkFmin;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].default_value =
+				od_table->GfxclkFmax;
+		}
+
+		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_CURVE] &&
+		    (table_context->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] >=
+		     smc_pptable->MinVoltageGfx / VOLTAGE_SCALE) &&
+		    (table_context->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3] <=
+		     smc_pptable->MaxVoltageGfx / VOLTAGE_SCALE) &&
+		    (table_context->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] <=
+		     table_context->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3])) {
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id =
+				OD8_GFXCLK_CURVE;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id =
+				OD8_GFXCLK_CURVE;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].feature_id =
+				OD8_GFXCLK_CURVE;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id =
+				OD8_GFXCLK_CURVE;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].feature_id =
+				OD8_GFXCLK_CURVE;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id =
+				OD8_GFXCLK_CURVE;
+
+			od_table->GfxclkFreq1 = od_table->GfxclkFmin;
+			od_table->GfxclkFreq2 = (od_table->GfxclkFmin + od_table->GfxclkFmax) / 2;
+			od_table->GfxclkFreq3 = od_table->GfxclkFmax;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].default_value =
+				od_table->GfxclkFreq1;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].default_value =
+				od_table->GfxclkFreq2;
+			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].default_value =
+				od_table->GfxclkFreq3;
+
+			ret = vega20_overdrive_get_gfx_clk_base_voltage(smu,
+				&od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].default_value,
+				od_table->GfxclkFreq1);
+			if (ret)
+				od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].default_value = 0;
+			od_table->GfxclkVolt1 =
+				od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].default_value
+				* VOLTAGE_SCALE;
+			ret = vega20_overdrive_get_gfx_clk_base_voltage(smu,
+				&od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].default_value,
+				od_table->GfxclkFreq2);
+			if (ret)
+				od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].default_value = 0;
+			od_table->GfxclkVolt2 =
+				od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].default_value
+				* VOLTAGE_SCALE;
+			ret = vega20_overdrive_get_gfx_clk_base_voltage(smu,
+				&od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].default_value,
+				od_table->GfxclkFreq3);
+			if (ret)
+				od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].default_value = 0;
+			od_table->GfxclkVolt3 =
+				od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].default_value
+				* VOLTAGE_SCALE;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_UCLK_MAX] &&
+		    table_context->od_settings_min[OD8_SETTING_UCLK_FMAX] > 0 &&
+		    table_context->od_settings_max[OD8_SETTING_UCLK_FMAX] > 0 &&
+		    (table_context->od_settings_max[OD8_SETTING_UCLK_FMAX] >=
+		     table_context->od_settings_min[OD8_SETTING_UCLK_FMAX])) {
+			od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id =
+				OD8_UCLK_MAX;
+			od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].default_value =
+				od_table->UclkFmax;
+		}
+	}
+
+	if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_POWER_LIMIT] &&
+	    table_context->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
+	    table_context->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] <= 100 &&
+	    table_context->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
+	    table_context->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] <= 100) {
+		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].feature_id =
+			OD8_POWER_LIMIT;
+		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].default_value =
+			od_table->OverDrivePct;
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_FAN_CONTROL_BIT)) {
+		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_ACOUSTIC_LIMIT] &&
+		    table_context->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
+		    table_context->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
+		    (table_context->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] >=
+		     table_context->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT])) {
+			od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].feature_id =
+				OD8_ACOUSTIC_LIMIT_SCLK;
+			od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].default_value =
+				od_table->FanMaximumRpm;
+		}
+
+		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_SPEED_MIN] &&
+		    table_context->od_settings_min[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
+		    table_context->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
+		    (table_context->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] >=
+		     table_context->od_settings_min[OD8_SETTING_FAN_MIN_SPEED])) {
+			od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].feature_id =
+				OD8_FAN_SPEED_MIN;
+			od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].default_value =
+				od_table->FanMinimumPwm * smc_pptable->FanMaximumRpm / 100;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_THERMAL_BIT)) {
+		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_FAN] &&
+		    table_context->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
+		    table_context->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
+		    (table_context->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] >=
+		     table_context->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP])) {
+			od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].feature_id =
+				OD8_TEMPERATURE_FAN;
+			od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].default_value =
+				od_table->FanTargetTemperature;
+		}
+
+		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_SYSTEM] &&
+		    table_context->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
+		    table_context->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
+		    (table_context->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] >=
+		     table_context->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX])) {
+			od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].feature_id =
+				OD8_TEMPERATURE_SYSTEM;
+			od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].default_value =
+				od_table->MaxOpTemp;
+		}
+	}
+
+	for (i = 0; i < OD8_SETTING_COUNT; i++) {
+		if (od8_settings->od8_settings_array[i].feature_id) {
+			od8_settings->od8_settings_array[i].min_value =
+				table_context->od_settings_min[i];
+			od8_settings->od8_settings_array[i].max_value =
+				table_context->od_settings_max[i];
+			od8_settings->od8_settings_array[i].current_value =
+				od8_settings->od8_settings_array[i].default_value;
+		} else {
+			od8_settings->od8_settings_array[i].min_value = 0;
+			od8_settings->od8_settings_array[i].max_value = 0;
+			od8_settings->od8_settings_array[i].current_value = 0;
+		}
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -917,6 +1119,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.print_clk_levels = vega20_print_clk_levels,
 	.force_clk_levels = vega20_force_clk_levels,
 	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
+	.set_default_od8_settings = vega20_set_default_od8_setttings,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

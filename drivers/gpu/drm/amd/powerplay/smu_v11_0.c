@@ -542,61 +542,12 @@ static int smu_v11_0_populate_smc_pptable(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_v11_0_copy_table_to_smc(struct smu_context *smu,
-				       uint32_t table_id)
-{
-	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_table *driver_pptable = &smu->smu_table.tables[table_id];
-	int ret = 0;
-
-	if (table_id >= TABLE_COUNT) {
-		pr_err("Invalid SMU Table ID for smu11!");
-		return -EINVAL;
-	}
-
-	if (!driver_pptable->cpu_addr) {
-		pr_err("Invalid virtual address for smu11!");
-		return -EINVAL;
-	}
-	if (!driver_pptable->mc_address) {
-		pr_err("Invalid MC address for smu11!");
-		return -EINVAL;
-	}
-	if (!driver_pptable->size) {
-		pr_err("Invalid SMU Table size for smu11!");
-		return -EINVAL;
-	}
-
-	memcpy(driver_pptable->cpu_addr, table_context->driver_pptable,
-	       driver_pptable->size);
-
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(driver_pptable->mc_address));
-	if (ret) {
-		pr_err("[CopyTableToSMC] Attempt to Set Dram Addr High Failed!");
-		return ret;
-	}
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrLow,
-			lower_32_bits(driver_pptable->mc_address));
-	if (ret) {
-		pr_err("[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!");
-		return ret;
-	}
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_TransferTableDram2Smu,
-					  table_id);
-	if (ret) {
-		pr_err("[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int smu_v11_0_write_pptable(struct smu_context *smu)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	ret = smu_v11_0_copy_table_to_smc(smu, TABLE_PPTABLE);
+	ret = smu_update_table(smu, TABLE_PPTABLE, table_context->driver_pptable, true);
 
 	return ret;
 }
@@ -1246,6 +1197,36 @@ smu_v11_0_set_watermarks_for_clock_ranges(struct smu_context *smu, struct
 	return ret;
 }
 
+static int smu_v11_0_set_od8_default_settings(struct smu_context *smu)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	int ret;
+
+	if (table_context->overdrive_table)
+		 return -EINVAL;
+
+	table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
+
+	if (!table_context->overdrive_table)
+		return -ENOMEM;
+
+	ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, false);
+	if (ret) {
+		pr_err("Failed to export over drive table!\n");
+		return ret;
+	}
+
+	smu_set_default_od8_settings(smu);
+
+	ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, true);
+	if (ret) {
+		pr_err("Failed to import over drive table!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1282,6 +1263,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.set_watermarks_for_clock_ranges = smu_v11_0_set_watermarks_for_clock_ranges,
+	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
