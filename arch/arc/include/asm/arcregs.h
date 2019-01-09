@@ -216,6 +216,14 @@ struct bcr_fp_arcv2 {
 #endif
 };
 
+struct bcr_actionpoint {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:21, min:1, num:2, ver:8;
+#else
+	unsigned int ver:8, num:2, min:1, pad:21;
+#endif
+};
+
 #include <soc/arc/timers.h>
 
 struct bcr_bpu_arcompact {
@@ -302,7 +310,7 @@ struct cpuinfo_arc {
 	struct {
 		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
 			     fpu_sp:1, fpu_dp:1, dual:1, dual_enb:1, pad2:4,
-			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
+			     ap_num:4, ap_full:1, smart:1, rtt:1, pad3:1,
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;
 	struct bcr_mpy extn_mpy;
