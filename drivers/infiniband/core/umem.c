@@ -72,15 +72,16 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
  * If access flags indicate ODP memory, avoid pinning. Instead, stores
  * the mm for future page fault handling in conjunction with MMU notifiers.
  *
- * @context: userspace context to pin memory for
+ * @udata: userspace context to pin memory for
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
  * @access: IB_ACCESS_xxx flags for memory being pinned
  * @dmasync: flush in-flight DMA when the memory region is written
  */
-struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 			    size_t size, int access, int dmasync)
 {
+	struct ib_ucontext *context;
 	struct ib_umem *umem;
 	struct page **page_list;
 	struct vm_area_struct **vma_list;
@@ -94,6 +95,10 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	unsigned long dma_attrs = 0;
 	struct scatterlist *sg, *sg_list_start;
 	unsigned int gup_flags = FOLL_WRITE;
+
+	context = rdma_get_ucontext(udata);
+	if (IS_ERR(context))
+		return ERR_CAST(context);
 
 	if (dmasync)
 		dma_attrs |= DMA_ATTR_WRITE_BARRIER;

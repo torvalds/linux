@@ -134,16 +134,16 @@ static void mlx4_ib_free_cq_buf(struct mlx4_ib_dev *dev, struct mlx4_ib_cq_buf *
 	mlx4_buf_free(dev->dev, (cqe + 1) * buf->entry_size, &buf->buf);
 }
 
-static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_ucontext *context,
-			       struct mlx4_ib_cq_buf *buf, struct ib_umem **umem,
-			       u64 buf_addr, int cqe)
+static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_udata *udata,
+			       struct mlx4_ib_cq_buf *buf,
+			       struct ib_umem **umem, u64 buf_addr, int cqe)
 {
 	int err;
 	int cqe_size = dev->dev->caps.cqe_size;
 	int shift;
 	int n;
 
-	*umem = ib_umem_get(context, buf_addr, cqe * cqe_size,
+	*umem = ib_umem_get(udata, buf_addr, cqe * cqe_size,
 			    IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
@@ -213,14 +213,13 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 		}
 
 		buf_addr = (void *)(unsigned long)ucmd.buf_addr;
-
-		err = mlx4_ib_get_cq_umem(dev, context, &cq->buf, &cq->umem,
+		err = mlx4_ib_get_cq_umem(dev, udata, &cq->buf, &cq->umem,
 					  ucmd.buf_addr, entries);
 		if (err)
 			goto err_cq;
 
-		err = mlx4_ib_db_map_user(to_mucontext(context), ucmd.db_addr,
-					  &cq->db);
+		err = mlx4_ib_db_map_user(to_mucontext(context), udata,
+					  ucmd.db_addr, &cq->db);
 		if (err)
 			goto err_mtt;
 
@@ -336,7 +335,7 @@ static int mlx4_alloc_resize_umem(struct mlx4_ib_dev *dev, struct mlx4_ib_cq *cq
 	if (!cq->resize_buf)
 		return -ENOMEM;
 
-	err = mlx4_ib_get_cq_umem(dev, cq->umem->context, &cq->resize_buf->buf,
+	err = mlx4_ib_get_cq_umem(dev, udata, &cq->resize_buf->buf,
 				  &cq->resize_umem, ucmd.buf_addr, entries);
 	if (err) {
 		kfree(cq->resize_buf);

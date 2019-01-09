@@ -101,6 +101,30 @@ struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile)
 }
 EXPORT_SYMBOL(ib_uverbs_get_ucontext_file);
 
+/* rdma_get_ucontext - Return the ucontext from a udata
+ * @udata: The udata to get the context from
+ *
+ * This can only be called from within a uapi method that was passed ib_udata
+ * as a parameter. It returns the ucontext associated with the udata, or ERR_PTR
+ * if the udata is NULL or the ucontext has been disassociated.
+ */
+struct ib_ucontext *rdma_get_ucontext(struct ib_udata *udata)
+{
+	if (!udata)
+		return ERR_PTR(-EIO);
+
+	/*
+	 * FIXME: Really all cases that get here with a udata will have
+	 * already called ib_uverbs_get_ucontext_file, or located a uobject
+	 * that points to a ucontext. We could store that result in the udata
+	 * so this function can't fail.
+	 */
+	return ib_uverbs_get_ucontext_file(
+		container_of(udata, struct uverbs_attr_bundle, driver_udata)
+			->ufile);
+}
+EXPORT_SYMBOL(rdma_get_ucontext);
+
 int uverbs_dealloc_mw(struct ib_mw *mw)
 {
 	struct ib_pd *pd = mw->pd;

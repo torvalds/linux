@@ -252,8 +252,8 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 			goto err_srq;
 		}
 
-		srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
-					srq_buf_size, 0, 0);
+		srq->umem =
+			ib_umem_get(udata, ucmd.buf_addr, srq_buf_size, 0, 0);
 		if (IS_ERR(srq->umem)) {
 			ret = PTR_ERR(srq->umem);
 			goto err_srq;
@@ -280,8 +280,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 			goto err_srq_mtt;
 
 		/* config index queue BA */
-		srq->idx_que.umem = ib_umem_get(pd->uobject->context,
-						ucmd.que_addr,
+		srq->idx_que.umem = ib_umem_get(udata, ucmd.que_addr,
 						srq->idx_que.buf_size, 0, 0);
 		if (IS_ERR(srq->idx_que.umem)) {
 			dev_err(hr_dev->dev,
