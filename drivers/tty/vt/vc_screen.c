@@ -80,7 +80,7 @@
 struct vcs_poll_data {
 	struct notifier_block notifier;
 	unsigned int cons_num;
-	bool seen_last_update;
+	int event;
 	wait_queue_head_t waitq;
 	struct fasync_struct *fasync;
 };
@@ -94,7 +94,7 @@ vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
 		container_of(nb, struct vcs_poll_data, notifier);
 	int currcons = poll->cons_num;
 
-	if (code != VT_UPDATE)
+	if (code != VT_UPDATE && code != VT_DEALLOCATE)
 		return NOTIFY_DONE;
 
 	if (currcons == 0)
@@ -104,7 +104,7 @@ vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
 	if (currcons != vc->vc_num)
 		return NOTIFY_DONE;
 
-	poll->seen_last_update = false;
+	poll->event = code;
 	wake_up_interruptible(&poll->waitq);
 	kill_fasync(&poll->fasync, SIGIO, POLL_IN);
 	return NOTIFY_OK;
@@ -261,7 +261,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	poll = file->private_data;
 	if (count && poll)
-		poll->seen_last_update = true;
+		poll->event = 0;
 	read = 0;
 	ret = 0;
 	while (count) {
@@ -616,12 +616,21 @@ static __poll_t
 vcs_poll(struct file *file, poll_table *wait)
 {
 	struct vcs_poll_data *poll = vcs_poll_data_get(file);
-	__poll_t ret = DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
+	__poll_t ret = DEFAULT_POLLMASK|EPOLLERR;
 
 	if (poll) {
 		poll_wait(file, &poll->waitq, wait);
-		if (poll->seen_last_update)
+		switch (poll->event) {
+		case VT_UPDATE:
+			ret = DEFAULT_POLLMASK|EPOLLPRI;
+			break;
+		case VT_DEALLOCATE:
+			ret = DEFAULT_POLLMASK|EPOLLHUP|EPOLLERR;
+			break;
+		case 0:
 			ret = DEFAULT_POLLMASK;
+			break;
+		}
 	}
 	return ret;
 }
