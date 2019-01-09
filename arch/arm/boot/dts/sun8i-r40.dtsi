@@ -342,6 +342,11 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
+			clk_out_a_pin: clk-out-a-pin {
+				pins = "PI12";
+				function = "clk_out_a";
+			};
+
 			gmac_rgmii_pins: gmac-rgmii-pins {
 				pins = "PA0", "PA1", "PA2", "PA3",
 				       "PA4", "PA5", "PA6", "PA7",
