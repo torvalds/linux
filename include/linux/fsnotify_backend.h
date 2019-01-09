@@ -422,6 +422,9 @@ extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 extern struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group);
 /* return AND dequeue the first event on the notification queue */
 extern struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group);
+/* Remove event queued in the notification list */
+extern void fsnotify_remove_queued_event(struct fsnotify_group *group,
+					 struct fsnotify_event *event);
 
 /* functions used to manipulate the marks attached to inodes */
 

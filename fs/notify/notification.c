@@ -141,6 +141,18 @@ queue:
 	return ret;
 }
 
+void fsnotify_remove_queued_event(struct fsnotify_group *group,
+				  struct fsnotify_event *event)
+{
+	assert_spin_locked(&group->notification_lock);
+	/*
+	 * We need to init list head for the case of overflow event so that
+	 * check in fsnotify_add_event() works
+	 */
+	list_del_init(&event->list);
+	group->q_len--;
+}
+
 /*
  * Remove and return the first event from the notification list.  It is the
  * responsibility of the caller to destroy the obtained event
@@ -155,13 +167,7 @@ struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group)
 
 	event = list_first_entry(&group->notification_list,
 				 struct fsnotify_event, list);
-	/*
-	 * We need to init list head for the case of overflow event so that
-	 * check in fsnotify_add_event() works
-	 */
-	list_del_init(&event->list);
-	group->q_len--;
-
+	fsnotify_remove_queued_event(group, event);
 	return event;
 }
 
