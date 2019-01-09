@@ -20,6 +20,7 @@
 #include "thread.h"
 #include "event.h"
 #include "machine.h"
+#include "env.h"
 #include "util.h"
 #include "debug.h"
 #include "symbol.h"
@@ -28,6 +29,19 @@
 #include "thread-stack.h"
 
 #define STACK_GROWTH 2048
+
+/*
+ * State of retpoline detection.
+ *
+ * RETPOLINE_NONE: no retpoline detection
+ * X86_RETPOLINE_POSSIBLE: x86 retpoline possible
+ * X86_RETPOLINE_DETECTED: x86 retpoline detected
+ */
+enum retpoline_state_t {
+	RETPOLINE_NONE,
+	X86_RETPOLINE_POSSIBLE,
+	X86_RETPOLINE_DETECTED,
+};
 
 /**
  * struct thread_stack_entry - thread stack entry.
@@ -64,6 +78,7 @@ struct thread_stack_entry {
  * @crp: call/return processor
  * @comm: current comm
  * @arr_sz: size of array if this is the first element of an array
+ * @rstate: used to detect retpolines
  */
 struct thread_stack {
 	struct thread_stack_entry *stack;
@@ -76,6 +91,7 @@ struct thread_stack {
 	struct call_return_processor *crp;
 	struct comm *comm;
 	unsigned int arr_sz;
+	enum retpoline_state_t rstate;
 };
 
 /*
@@ -115,10 +131,16 @@ static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
 	if (err)
 		return err;
 
-	if (thread->mg && thread->mg->machine)
-		ts->kernel_start = machine__kernel_start(thread->mg->machine);
-	else
+	if (thread->mg && thread->mg->machine) {
+		struct machine *machine = thread->mg->machine;
+		const char *arch = perf_env__arch(machine->env);
+
+		ts->kernel_start = machine__kernel_start(machine);
+		if (!strcmp(arch, "x86"))
+			ts->rstate = X86_RETPOLINE_POSSIBLE;
+	} else {
 		ts->kernel_start = 1ULL << 63;
+	}
 	ts->crp = crp;
 
 	return 0;
@@ -733,6 +755,70 @@ static int thread_stack__trace_end(struct thread_stack *ts,
 				     false, true);
 }
 
+static bool is_x86_retpoline(const char *name)
+{
+	const char *p = strstr(name, "__x86_indirect_thunk_");
+
+	return p == name || !strcmp(name, "__indirect_thunk_start");
+}
+
+/*
+ * x86 retpoline functions pollute the call graph. This function removes them.
+ * This does not handle function return thunks, nor is there any improvement
+ * for the handling of inline thunks or extern thunks.
+ */
+static int thread_stack__x86_retpoline(struct thread_stack *ts,
+				       struct perf_sample *sample,
+				       struct addr_location *to_al)
+{
+	struct thread_stack_entry *tse = &ts->stack[ts->cnt - 1];
+	struct call_path_root *cpr = ts->crp->cpr;
+	struct symbol *sym = tse->cp->sym;
+	struct symbol *tsym = to_al->sym;
+	struct call_path *cp;
+
+	if (sym && is_x86_retpoline(sym->name)) {
+		/*
+		 * This is a x86 retpoline fn. It pollutes the call graph by
+		 * showing up everywhere there is an indirect branch, but does
+		 * not itself mean anything. Here the top-of-stack is removed,
+		 * by decrementing the stack count, and then further down, the
+		 * resulting top-of-stack is replaced with the actual target.
+		 * The result is that the retpoline functions will no longer
+		 * appear in the call graph. Note this only affects the call
+		 * graph, since all the original branches are left unchanged.
+		 */
+		ts->cnt -= 1;
+		sym = ts->stack[ts->cnt - 2].cp->sym;
+		if (sym && sym == tsym && to_al->addr != tsym->start) {
+			/*
+			 * Target is back to the middle of the symbol we came
+			 * from so assume it is an indirect jmp and forget it
+			 * altogether.
+			 */
+			ts->cnt -= 1;
+			return 0;
+		}
+	} else if (sym && sym == tsym) {
+		/*
+		 * Target is back to the symbol we came from so assume it is an
+		 * indirect jmp and forget it altogether.
+		 */
+		ts->cnt -= 1;
+		return 0;
+	}
+
+	cp = call_path__findnew(cpr, ts->stack[ts->cnt - 2].cp, tsym,
+				sample->addr, ts->kernel_start);
+	if (!cp)
+		return -ENOMEM;
+
+	/* Replace the top-of-stack with the actual target */
+	ts->stack[ts->cnt - 1].cp = cp;
+
+	return 0;
+}
+
 int thread_stack__process(struct thread *thread, struct comm *comm,
 			  struct perf_sample *sample,
 			  struct addr_location *from_al,
@@ -740,6 +826,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 			  struct call_return_processor *crp)
 {
 	struct thread_stack *ts = thread__stack(thread, sample->cpu);
+	enum retpoline_state_t rstate;
 	int err = 0;
 
 	if (ts && !ts->crp) {
@@ -754,6 +841,10 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 			return -ENOMEM;
 		ts->comm = comm;
 	}
+
+	rstate = ts->rstate;
+	if (rstate == X86_RETPOLINE_DETECTED)
+		ts->rstate = X86_RETPOLINE_POSSIBLE;
 
 	/* Flush stack on exec */
 	if (ts->comm != comm && thread->pid_ == thread->tid) {
@@ -791,9 +882,24 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 					ts->kernel_start);
 		err = thread_stack__push_cp(ts, ret_addr, sample->time, ref,
 					    cp, false, trace_end);
+
+		/*
+		 * A call to the same symbol but not the start of the symbol,
+		 * may be the start of a x86 retpoline.
+		 */
+		if (!err && rstate == X86_RETPOLINE_POSSIBLE && to_al->sym &&
+		    from_al->sym == to_al->sym &&
+		    to_al->addr != to_al->sym->start)
+			ts->rstate = X86_RETPOLINE_DETECTED;
+
 	} else if (sample->flags & PERF_IP_FLAG_RETURN) {
 		if (!sample->ip || !sample->addr)
 			return 0;
+
+		/* x86 retpoline 'return' doesn't match the stack */
+		if (rstate == X86_RETPOLINE_DETECTED && ts->cnt > 2 &&
+		    ts->stack[ts->cnt - 1].ret_addr != sample->addr)
+			return thread_stack__x86_retpoline(ts, sample, to_al);
 
 		err = thread_stack__pop_cp(thread, ts, sample->addr,
 					   sample->time, ref, from_al->sym);
