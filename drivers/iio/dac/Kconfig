@@ -148,9 +148,9 @@ config AD5686_SPI
 	depends on SPI
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5672R, AD5676,
-	  AD5676R, AD5684, AD5684R, AD5684R, AD5685R, AD5686, AD5686R.
-	  Voltage Output Digital to Analog Converter.
+	  Say yes here to build support for Analog Devices AD5672R, AD5674R,
+	  AD5676, AD5676R, AD5679R, AD5684, AD5684R, AD5684R, AD5685R, AD5686,
+	  AD5686R Voltage Output Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5686.
