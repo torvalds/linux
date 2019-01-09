@@ -40,7 +40,7 @@
  * @new_func:	pointer to the patched function code
  * @old_sympos: a hint indicating which symbol position the old function
  *		can be found (optional)
- * @old_addr:	the address of the function being patched
+ * @old_func:	pointer to the function being patched
  * @kobj:	kobject for sysfs resources
  * @stack_node:	list node for klp_ops func_stack list
  * @old_size:	size of the old function
@@ -77,7 +77,7 @@ struct klp_func {
 	unsigned long old_sympos;
 
 	/* internal */
-	unsigned long old_addr;
+	void *old_func;
 	struct kobject kobj;
 	struct list_head stack_node;
 	unsigned long old_size, new_size;

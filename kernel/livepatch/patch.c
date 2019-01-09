@@ -34,7 +34,7 @@
 
 static LIST_HEAD(klp_ops);
 
-struct klp_ops *klp_find_ops(unsigned long old_addr)
+struct klp_ops *klp_find_ops(void *old_func)
 {
 	struct klp_ops *ops;
 	struct klp_func *func;
@@ -42,7 +42,7 @@ struct klp_ops *klp_find_ops(unsigned long old_addr)
 	list_for_each_entry(ops, &klp_ops, node) {
 		func = list_first_entry(&ops->func_stack, struct klp_func,
 					stack_node);
-		if (func->old_addr == old_addr)
+		if (func->old_func == old_func)
 			return ops;
 	}
 
@@ -142,17 +142,18 @@ static void klp_unpatch_func(struct klp_func *func)
 
 	if (WARN_ON(!func->patched))
 		return;
-	if (WARN_ON(!func->old_addr))
+	if (WARN_ON(!func->old_func))
 		return;
 
-	ops = klp_find_ops(func->old_addr);
+	ops = klp_find_ops(func->old_func);
 	if (WARN_ON(!ops))
 		return;
 
 	if (list_is_singular(&ops->func_stack)) {
 		unsigned long ftrace_loc;
 
-		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		ftrace_loc =
+			klp_get_ftrace_location((unsigned long)func->old_func);
 		if (WARN_ON(!ftrace_loc))
 			return;
 
@@ -174,17 +175,18 @@ static int klp_patch_func(struct klp_func *func)
 	struct klp_ops *ops;
 	int ret;
 
-	if (WARN_ON(!func->old_addr))
+	if (WARN_ON(!func->old_func))
 		return -EINVAL;
 
 	if (WARN_ON(func->patched))
 		return -EINVAL;
 
-	ops = klp_find_ops(func->old_addr);
+	ops = klp_find_ops(func->old_func);
 	if (!ops) {
 		unsigned long ftrace_loc;
 
-		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		ftrace_loc =
+			klp_get_ftrace_location((unsigned long)func->old_func);
 		if (!ftrace_loc) {
 			pr_err("failed to find location for function '%s'\n",
 				func->old_name);

@@ -648,7 +648,7 @@ static void klp_free_object_loaded(struct klp_object *obj)
 	obj->mod = NULL;
 
 	klp_for_each_func(obj, func)
-		func->old_addr = 0;
+		func->old_func = NULL;
 }
 
 /*
@@ -721,11 +721,11 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 	klp_for_each_func(obj, func) {
 		ret = klp_find_object_symbol(obj->name, func->old_name,
 					     func->old_sympos,
-					     &func->old_addr);
+					     (unsigned long *)&func->old_func);
 		if (ret)
 			return ret;
 
-		ret = kallsyms_lookup_size_offset(func->old_addr,
+		ret = kallsyms_lookup_size_offset((unsigned long)func->old_func,
 						  &func->old_size, NULL);
 		if (!ret) {
 			pr_err("kallsyms size lookup failed for '%s'\n",
