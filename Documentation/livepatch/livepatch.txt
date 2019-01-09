@@ -365,6 +365,8 @@ the ftrace handler is unregistered and the struct klp_ops is
 freed when the related function is not modified by the new patch
 and func_stack list becomes empty.
 
+See Documentation/livepatch/cumulative-patches.txt for more details.
+
 
 5.4. Disabling
 --------------
