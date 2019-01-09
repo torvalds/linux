@@ -143,9 +143,9 @@ without HAVE_RELIABLE_STACKTRACE are not considered fully supported by
 the kernel livepatching.
 
 The /sys/kernel/livepatch/<patch>/transition file shows whether a patch
-is in transition.  Only a single patch (the topmost patch on the stack)
-can be in transition at a given time.  A patch can remain in transition
-indefinitely, if any of the tasks are stuck in the initial patch state.
+is in transition.  Only a single patch can be in transition at a given
+time.  A patch can remain in transition indefinitely, if any of the tasks
+are stuck in the initial patch state.
 
 A transition can be reversed and effectively canceled by writing the
 opposite value to the /sys/kernel/livepatch/<patch>/enabled file while
@@ -351,6 +351,10 @@ to '0'.
     The right implementation is selected by the ftrace handler, see
     the "Consistency model" section.
 
+    That said, it is highly recommended to use cumulative livepatches
+    because they help keeping the consistency of all changes. In this case,
+    functions might be patched two times only during the transition period.
+
 
 5.3. Replacing
 --------------
@@ -388,9 +392,6 @@ is unregistered and the struct klp_ops is freed when the func_stack list
 becomes empty.
 
 Third, the sysfs interface is destroyed.
-
-Note that patches must be disabled in exactly the reverse order in which
-they were enabled. It makes the problem and the implementation much easier.
 
 
 5.5. Removing

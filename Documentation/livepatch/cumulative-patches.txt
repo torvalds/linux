@@ -7,8 +7,8 @@ to do different changes to the same function(s) then we need to define
 an order in which the patches will be installed. And function implementations
 from any newer livepatch must be done on top of the older ones.
 
-This might become a maintenance nightmare. Especially if anyone would want
-to remove a patch that is in the middle of the stack.
+This might become a maintenance nightmare. Especially when more patches
+modified the same function in different ways.
 
 An elegant solution comes with the feature called "Atomic Replace". It allows
 creation of so called "Cumulative Patches". They include all wanted changes
@@ -26,11 +26,9 @@ for example:
 		.replace = true,
 	};
 
-Such a patch is added on top of the livepatch stack when enabled.
-
 All processes are then migrated to use the code only from the new patch.
 Once the transition is finished, all older patches are automatically
-disabled and removed from the stack of patches.
+disabled.
 
 Ftrace handlers are transparently removed from functions that are no
 longer modified by the new cumulative patch.
@@ -57,8 +55,7 @@ The atomic replace allows:
   + Remove eventual performance impact caused by core redirection
     for functions that are no longer patched.
 
-  + Decrease user confusion about stacking order and what code
-    is actually in use.
+  + Decrease user confusion about dependencies between livepatches.
 
 
 Limitations:
