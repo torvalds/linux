@@ -63,6 +63,7 @@ struct tb_switch_nvm {
  * @device_name: Name of the device (or %NULL if not known)
  * @generation: Switch Thunderbolt generation
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
+ * @cap_lc: Offset to the link controller capability (%0 if not found)
  * @is_unplugged: The switch is going away
  * @drom: DROM of the switch (%NULL if not found)
  * @nvm: Pointer to the NVM if the switch has one (%NULL otherwise)
@@ -96,6 +97,7 @@ struct tb_switch {
 	const char *device_name;
 	unsigned int generation;
 	int cap_plug_events;
+	int cap_lc;
 	bool is_unplugged;
 	u8 *drom;
 	struct tb_switch_nvm *nvm;
@@ -462,6 +464,7 @@ bool tb_path_is_invalid(struct tb_path *path);
 int tb_drom_read(struct tb_switch *sw);
 int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid);
 
+int tb_lc_read_uuid(struct tb_switch *sw, u32 *uuid);
 
 static inline int tb_route_length(u64 route)
 {

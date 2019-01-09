@@ -237,5 +237,7 @@ struct tb_regs_hop {
 	u32 unknown3:4; /* set to zero */
 } __packed;
 
+/* Common link controller registers */
+#define TB_LC_FUSE			0x03
 
 #endif

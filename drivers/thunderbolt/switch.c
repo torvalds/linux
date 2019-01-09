@@ -1182,6 +1182,10 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	}
 	sw->cap_plug_events = cap;
 
+	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_LINK_CONTROLLER);
+	if (cap > 0)
+		sw->cap_lc = cap;
+
 	/* Root switch is always authorized */
 	if (!route)
 		sw->authorized = true;
@@ -1278,22 +1282,17 @@ int tb_switch_configure(struct tb_switch *sw)
 static int tb_switch_set_uuid(struct tb_switch *sw)
 {
 	u32 uuid[4];
-	int cap, ret;
+	int ret;
 
-	ret = 0;
 	if (sw->uuid)
-		return ret;
+		return 0;
 
 	/*
 	 * The newer controllers include fused UUID as part of link
 	 * controller specific registers
 	 */
-	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_LINK_CONTROLLER);
-	if (cap > 0) {
-		ret = tb_sw_read(sw, uuid, TB_CFG_SWITCH, cap + 3, 4);
-		if (ret)
-			return ret;
-	} else {
+	ret = tb_lc_read_uuid(sw, uuid);
+	if (ret) {
 		/*
 		 * ICM generates UUID based on UID and fills the upper
 		 * two words with ones. This is not strictly following
@@ -1308,8 +1307,8 @@ static int tb_switch_set_uuid(struct tb_switch *sw)
 
 	sw->uuid = kmemdup(uuid, sizeof(uuid), GFP_KERNEL);
 	if (!sw->uuid)
-		ret = -ENOMEM;
-	return ret;
+		return -ENOMEM;
+	return 0;
 }
 
 static int tb_switch_add_dma_port(struct tb_switch *sw)
