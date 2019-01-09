@@ -80,7 +80,7 @@
 			};
 		};
 
-		onenand: onenand@b0000000 {
+		onenand: onenand@b0600000 {
 			compatible = "samsung,s5pv210-onenand";
 			reg = <0xb0600000 0x2000>,
 				<0xb0000000 0x20000>,
