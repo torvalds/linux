@@ -192,12 +192,49 @@ static void rcar_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	rcar_pwm_update(rp, RCAR_PWMCR_EN0, 0, RCAR_PWMCR);
 }
 
+static int rcar_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			  struct pwm_state *state)
+{
+	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
+	struct pwm_state cur_state;
+	int div, ret;
+
+	/* This HW/driver only supports normal polarity */
+	pwm_get_state(pwm, &cur_state);
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -ENOTSUPP;
+
+	if (!state->enabled) {
+		rcar_pwm_disable(chip, pwm);
+		return 0;
+	}
+
+	div = rcar_pwm_get_clock_division(rp, state->period);
+	if (div < 0)
+		return div;
+
+	rcar_pwm_update(rp, RCAR_PWMCR_SYNC, RCAR_PWMCR_SYNC, RCAR_PWMCR);
+
+	ret = rcar_pwm_set_counter(rp, div, state->duty_cycle, state->period);
+	if (!ret)
+		rcar_pwm_set_clock_control(rp, div);
+
+	/* The SYNC should be set to 0 even if rcar_pwm_set_counter failed */
+	rcar_pwm_update(rp, RCAR_PWMCR_SYNC, 0, RCAR_PWMCR);
+
+	if (!ret && state->enabled)
+		ret = rcar_pwm_enable(chip, pwm);
+
+	return ret;
+}
+
 static const struct pwm_ops rcar_pwm_ops = {
 	.request = rcar_pwm_request,
 	.free = rcar_pwm_free,
 	.config = rcar_pwm_config,
 	.enable = rcar_pwm_enable,
 	.disable = rcar_pwm_disable,
+	.apply = rcar_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
