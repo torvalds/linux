@@ -390,7 +390,6 @@
 				regulator-name = "LDO20_1.8V";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-boot-on;
 			};
 
 			ldo21_reg: LDO21 {
