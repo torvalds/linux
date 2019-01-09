@@ -432,7 +432,8 @@ int vc4_kms_load(struct drm_device *dev)
 	ctm_state = kzalloc(sizeof(*ctm_state), GFP_KERNEL);
 	if (!ctm_state)
 		return -ENOMEM;
-	drm_atomic_private_obj_init(&vc4->ctm_manager, &ctm_state->base,
+
+	drm_atomic_private_obj_init(dev, &vc4->ctm_manager, &ctm_state->base,
 				    &vc4_ctm_state_funcs);
 
 	drm_mode_config_reset(dev);

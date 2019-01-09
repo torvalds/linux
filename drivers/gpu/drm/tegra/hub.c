@@ -716,7 +716,7 @@ static int tegra_display_hub_init(struct host1x_client *client)
 	if (!state)
 		return -ENOMEM;
 
-	drm_atomic_private_obj_init(&hub->base, &state->base,
+	drm_atomic_private_obj_init(drm, &hub->base, &state->base,
 				    &tegra_display_hub_state_funcs);
 
 	tegra->hub = hub;

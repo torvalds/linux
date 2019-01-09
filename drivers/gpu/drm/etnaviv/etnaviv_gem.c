@@ -449,7 +449,7 @@ static void etnaviv_gem_describe_fence(struct dma_fence *fence,
 	const char *type, struct seq_file *m)
 {
 	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		seq_printf(m, "\t%9s: %s %s seq %u\n",
+		seq_printf(m, "\t%9s: %s %s seq %llu\n",
 			   type,
 			   fence->ops->get_driver_name(fence),
 			   fence->ops->get_timeline_name(fence),

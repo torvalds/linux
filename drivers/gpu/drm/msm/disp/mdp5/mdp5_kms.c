@@ -144,7 +144,7 @@ static int mdp5_global_obj_init(struct mdp5_kms *mdp5_kms)
 
 	state->mdp5_kms = mdp5_kms;
 
-	drm_atomic_private_obj_init(&mdp5_kms->glob_state,
+	drm_atomic_private_obj_init(mdp5_kms->dev, &mdp5_kms->glob_state,
 				    &state->base,
 				    &mdp5_global_state_funcs);
 	return 0;

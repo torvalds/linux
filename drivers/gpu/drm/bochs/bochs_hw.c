@@ -86,7 +86,14 @@ static int bochs_get_edid_block(void *data, u8 *buf,
 
 int bochs_hw_load_edid(struct bochs_device *bochs)
 {
+	u8 header[8];
+
 	if (!bochs->mmio)
+		return -1;
+
+	/* check header to detect whenever edid support is enabled in qemu */
+	bochs_get_edid_block(bochs, header, 0, ARRAY_SIZE(header));
+	if (drm_edid_header_is_valid(header) != 8)
 		return -1;
 
 	kfree(bochs->edid);

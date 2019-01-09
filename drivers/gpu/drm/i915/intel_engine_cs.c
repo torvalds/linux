@@ -1201,7 +1201,7 @@ static void print_request(struct drm_printer *m,
 
 	x = print_sched_attr(rq->i915, &rq->sched.attr, buf, x, sizeof(buf));
 
-	drm_printf(m, "%s%x%s [%llx:%x]%s @ %dms: %s\n",
+	drm_printf(m, "%s%x%s [%llx:%llx]%s @ %dms: %s\n",
 		   prefix,
 		   rq->global_seqno,
 		   i915_request_completed(rq) ? "!" : "",

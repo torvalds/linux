@@ -3184,7 +3184,7 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 	 */
 
 	if (i915_request_completed(request)) {
-		GEM_TRACE("%s pardoned global=%d (fence %llx:%d), current %d\n",
+		GEM_TRACE("%s pardoned global=%d (fence %llx:%lld), current %d\n",
 			  engine->name, request->global_seqno,
 			  request->fence.context, request->fence.seqno,
 			  intel_engine_get_seqno(engine));
@@ -3308,7 +3308,7 @@ static void nop_submit_request(struct i915_request *request)
 {
 	unsigned long flags;
 
-	GEM_TRACE("%s fence %llx:%d -> -EIO\n",
+	GEM_TRACE("%s fence %llx:%lld -> -EIO\n",
 		  request->engine->name,
 		  request->fence.context, request->fence.seqno);
 	dma_fence_set_error(&request->fence, -EIO);
