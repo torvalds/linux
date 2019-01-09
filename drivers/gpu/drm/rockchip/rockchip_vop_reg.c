@@ -344,6 +344,7 @@ static const struct vop_win_phy rk3368_win23_data = {
 	.enable = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 4),
 	.format = VOP_REG(RK3368_WIN2_CTRL0, 0x3, 5),
 	.rb_swap = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 20),
+	.y_mir_en = VOP_REG(RK3368_WIN2_CTRL1, 0x1, 15),
 	.dsp_info = VOP_REG(RK3368_WIN2_DSP_INFO0, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(RK3368_WIN2_DSP_ST0, 0x1fff1fff, 0),
 	.yrgb_mst = VOP_REG(RK3368_WIN2_MST0, 0xffffffff, 0),
