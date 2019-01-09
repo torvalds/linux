@@ -66,7 +66,7 @@ struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 	struct hns_roce_pd *pd;
 	int ret;
 
-	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 

@@ -2263,7 +2263,7 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 	u32 in[MLX5_ST_SZ_DW(alloc_pd_in)]   = {};
 	u16 uid = 0;
 
-	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 

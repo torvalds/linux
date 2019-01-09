@@ -66,7 +66,7 @@ struct ib_pd *rvt_alloc_pd(struct ib_device *ibdev,
 	struct rvt_pd *pd;
 	struct ib_pd *ret;
 
-	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;

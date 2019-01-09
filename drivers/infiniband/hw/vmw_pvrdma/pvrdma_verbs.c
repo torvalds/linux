@@ -457,7 +457,7 @@ struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
 	if (!atomic_add_unless(&dev->num_pds, 1, dev->dsr->caps.max_pd))
 		return ERR_PTR(-ENOMEM);
 
-	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd) {
 		ptr = ERR_PTR(-ENOMEM);
 		goto err;

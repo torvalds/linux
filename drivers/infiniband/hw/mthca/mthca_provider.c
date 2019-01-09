@@ -381,7 +381,7 @@ static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
 	struct mthca_pd *pd;
 	int err;
 
-	pd = kmalloc(sizeof *pd, GFP_KERNEL);
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
