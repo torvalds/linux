@@ -744,9 +744,11 @@ __SYSCALL(__NR_kexec_file_load,     sys_kexec_file_load)
 __SYSCALL(__NR_io_uring_setup, sys_io_uring_setup)
 #define __NR_io_uring_enter 426
 __SYSCALL(__NR_io_uring_enter, sys_io_uring_enter)
+#define __NR_io_uring_register 427
+__SYSCALL(__NR_io_uring_register, sys_io_uring_register)
 
 #undef __NR_syscalls
-#define __NR_syscalls 427
+#define __NR_syscalls 428
 
 /*
  * 32 bit systems traditionally used different
