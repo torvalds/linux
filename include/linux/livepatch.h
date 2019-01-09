@@ -143,6 +143,7 @@ struct klp_object {
  * @kobj:	kobject for sysfs resources
  * @kobj_added: @kobj has been added and needs freeing
  * @enabled:	the patch is enabled (but operation may be incomplete)
+ * @forced:	was involved in a forced transition
  * @finish:	for waiting till it is safe to remove the patch module
  */
 struct klp_patch {
@@ -155,6 +156,7 @@ struct klp_patch {
 	struct kobject kobj;
 	bool kobj_added;
 	bool enabled;
+	bool forced;
 	struct completion finish;
 };
 

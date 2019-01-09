@@ -33,8 +33,6 @@ struct klp_patch *klp_transition_patch;
 
 static int klp_target_state = KLP_UNDEFINED;
 
-static bool klp_forced = false;
-
 /*
  * This work can be performed periodically to finish patching or unpatching any
  * "straggler" tasks which failed to transition in the first attempt.
@@ -137,10 +135,10 @@ static void klp_complete_transition(void)
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	/*
-	 * klp_forced set implies unbounded increase of module's ref count if
+	 * patch->forced set implies unbounded increase of module's ref count if
 	 * the module is disabled/enabled in a loop.
 	 */
-	if (!klp_forced && klp_target_state == KLP_UNPATCHED)
+	if (!klp_transition_patch->forced && klp_target_state == KLP_UNPATCHED)
 		module_put(klp_transition_patch->mod);
 
 	klp_target_state = KLP_UNDEFINED;
@@ -620,6 +618,7 @@ void klp_send_signals(void)
  */
 void klp_force_transition(void)
 {
+	struct klp_patch *patch;
 	struct task_struct *g, *task;
 	unsigned int cpu;
 
@@ -633,5 +632,6 @@ void klp_force_transition(void)
 	for_each_possible_cpu(cpu)
 		klp_update_patch_state(idle_task(cpu));
 
-	klp_forced = true;
+	list_for_each_entry(patch, &klp_patches, list)
+		patch->forced = true;
 }

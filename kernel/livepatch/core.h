@@ -5,6 +5,7 @@
 #include <linux/livepatch.h>
 
 extern struct mutex klp_mutex;
+extern struct list_head klp_patches;
 
 static inline bool klp_is_object_loaded(struct klp_object *obj)
 {
