@@ -497,7 +497,7 @@ Create :file:`/test` directory and try to mount the new disk:
 .. code-block:: bash
 
     mkdir /test
-    mount /dev/sda /test
+    mount /dev/vdd /test
 
 The reason why we can not mount the virtual disk is because we do not have support in the
 kernel for the filesystem with which the :file:`mydisk.img` is formatted. You will need
