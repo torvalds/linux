@@ -1166,7 +1166,11 @@ static ssize_t __ref rescan_store(struct device *dev,
 {
 	int rc;
 
+	rc = lock_device_hotplug_sysfs();
+	if (rc)
+		return rc;
 	rc = smp_rescan_cpus();
+	unlock_device_hotplug();
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_WO(rescan);
