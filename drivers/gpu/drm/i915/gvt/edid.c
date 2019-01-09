@@ -82,11 +82,11 @@ static inline int bxt_get_port_from_gmbus0(u32 gmbus0)
 	int port_select = gmbus0 & _GMBUS_PIN_SEL_MASK;
 	int port = -EINVAL;
 
-	if (port_select == 1)
+	if (port_select == GMBUS_PIN_1_BXT)
 		port = PORT_B;
-	else if (port_select == 2)
+	else if (port_select == GMBUS_PIN_2_BXT)
 		port = PORT_C;
-	else if (port_select == 3)
+	else if (port_select == GMBUS_PIN_3_BXT)
 		port = PORT_D;
 	return port;
 }
@@ -96,13 +96,13 @@ static inline int get_port_from_gmbus0(u32 gmbus0)
 	int port_select = gmbus0 & _GMBUS_PIN_SEL_MASK;
 	int port = -EINVAL;
 
-	if (port_select == 2)
+	if (port_select == GMBUS_PIN_VGADDC)
 		port = PORT_E;
-	else if (port_select == 4)
+	else if (port_select == GMBUS_PIN_DPC)
 		port = PORT_C;
-	else if (port_select == 5)
+	else if (port_select == GMBUS_PIN_DPB)
 		port = PORT_B;
-	else if (port_select == 6)
+	else if (port_select == GMBUS_PIN_DPD)
 		port = PORT_D;
 	return port;
 }
