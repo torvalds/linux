@@ -45,6 +45,7 @@
  * @stack_node:	list node for klp_ops func_stack list
  * @old_size:	size of the old function
  * @new_size:	size of the new function
+ * @kobj_added: @kobj has been added and needs freeing
  * @patched:	the func has been added to the klp_ops list
  * @transition:	the func is currently being applied or reverted
  *
@@ -81,6 +82,7 @@ struct klp_func {
 	struct kobject kobj;
 	struct list_head stack_node;
 	unsigned long old_size, new_size;
+	bool kobj_added;
 	bool patched;
 	bool transition;
 };
@@ -117,6 +119,7 @@ struct klp_callbacks {
  * @kobj:	kobject for sysfs resources
  * @mod:	kernel module associated with the patched object
  *		(NULL for vmlinux)
+ * @kobj_added: @kobj has been added and needs freeing
  * @patched:	the object's funcs have been added to the klp_ops list
  */
 struct klp_object {
@@ -128,6 +131,7 @@ struct klp_object {
 	/* internal */
 	struct kobject kobj;
 	struct module *mod;
+	bool kobj_added;
 	bool patched;
 };
 
@@ -137,6 +141,7 @@ struct klp_object {
  * @objs:	object entries for kernel objects to be patched
  * @list:	list node for global list of registered patches
  * @kobj:	kobject for sysfs resources
+ * @kobj_added: @kobj has been added and needs freeing
  * @enabled:	the patch is enabled (but operation may be incomplete)
  * @finish:	for waiting till it is safe to remove the patch module
  */
@@ -148,6 +153,7 @@ struct klp_patch {
 	/* internal */
 	struct list_head list;
 	struct kobject kobj;
+	bool kobj_added;
 	bool enabled;
 	struct completion finish;
 };

@@ -465,17 +465,15 @@ static struct kobj_type klp_ktype_func = {
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-/*
- * Free all functions' kobjects in the array up to some limit. When limit is
- * NULL, all kobjects are freed.
- */
-static void klp_free_funcs_limited(struct klp_object *obj,
-				   struct klp_func *limit)
+static void klp_free_funcs(struct klp_object *obj)
 {
 	struct klp_func *func;
 
-	for (func = obj->funcs; func->old_name && func != limit; func++)
-		kobject_put(&func->kobj);
+	klp_for_each_func(obj, func) {
+		/* Might be called from klp_init_patch() error path. */
+		if (func->kobj_added)
+			kobject_put(&func->kobj);
+	}
 }
 
 /* Clean up when a patched object is unloaded */
@@ -489,30 +487,60 @@ static void klp_free_object_loaded(struct klp_object *obj)
 		func->old_func = NULL;
 }
 
-/*
- * Free all objects' kobjects in the array up to some limit. When limit is
- * NULL, all kobjects are freed.
- */
-static void klp_free_objects_limited(struct klp_patch *patch,
-				     struct klp_object *limit)
+static void klp_free_objects(struct klp_patch *patch)
 {
 	struct klp_object *obj;
 
-	for (obj = patch->objs; obj->funcs && obj != limit; obj++) {
-		klp_free_funcs_limited(obj, NULL);
-		kobject_put(&obj->kobj);
+	klp_for_each_object(patch, obj) {
+		klp_free_funcs(obj);
+
+		/* Might be called from klp_init_patch() error path. */
+		if (obj->kobj_added)
+			kobject_put(&obj->kobj);
 	}
 }
 
-static void klp_free_patch(struct klp_patch *patch)
+/*
+ * This function implements the free operations that can be called safely
+ * under klp_mutex.
+ *
+ * The operation must be completed by calling klp_free_patch_finish()
+ * outside klp_mutex.
+ */
+static void klp_free_patch_start(struct klp_patch *patch)
 {
-	klp_free_objects_limited(patch, NULL);
 	if (!list_empty(&patch->list))
 		list_del(&patch->list);
+
+	klp_free_objects(patch);
+}
+
+/*
+ * This function implements the free part that must be called outside
+ * klp_mutex.
+ *
+ * It must be called after klp_free_patch_start(). And it has to be
+ * the last function accessing the livepatch structures when the patch
+ * gets disabled.
+ */
+static void klp_free_patch_finish(struct klp_patch *patch)
+{
+	/*
+	 * Avoid deadlock with enabled_store() sysfs callback by
+	 * calling this outside klp_mutex. It is safe because
+	 * this is called when the patch gets disabled and it
+	 * cannot get enabled again.
+	 */
+	if (patch->kobj_added) {
+		kobject_put(&patch->kobj);
+		wait_for_completion(&patch->finish);
+	}
 }
 
 static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 {
+	int ret;
+
 	if (!func->old_name || !func->new_func)
 		return -EINVAL;
 
@@ -528,9 +556,13 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 	 * object. If the user selects 0 for old_sympos, then 1 will be used
 	 * since a unique symbol will be the first occurrence.
 	 */
-	return kobject_init_and_add(&func->kobj, &klp_ktype_func,
-				    &obj->kobj, "%s,%lu", func->old_name,
-				    func->old_sympos ? func->old_sympos : 1);
+	ret = kobject_init_and_add(&func->kobj, &klp_ktype_func,
+				   &obj->kobj, "%s,%lu", func->old_name,
+				   func->old_sympos ? func->old_sympos : 1);
+	if (!ret)
+		func->kobj_added = true;
+
+	return ret;
 }
 
 /* Arches may override this to finish any remaining arch-specific tasks */
@@ -589,9 +621,6 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 	int ret;
 	const char *name;
 
-	if (!obj->funcs)
-		return -EINVAL;
-
 	if (klp_is_module(obj) && strlen(obj->name) >= MODULE_NAME_LEN)
 		return -EINVAL;
 
@@ -605,25 +634,44 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 				   &patch->kobj, "%s", name);
 	if (ret)
 		return ret;
+	obj->kobj_added = true;
 
 	klp_for_each_func(obj, func) {
 		ret = klp_init_func(obj, func);
 		if (ret)
-			goto free;
+			return ret;
 	}
 
-	if (klp_is_object_loaded(obj)) {
+	if (klp_is_object_loaded(obj))
 		ret = klp_init_object_loaded(patch, obj);
-		if (ret)
-			goto free;
+
+	return ret;
+}
+
+static int klp_init_patch_early(struct klp_patch *patch)
+{
+	struct klp_object *obj;
+	struct klp_func *func;
+
+	if (!patch->objs)
+		return -EINVAL;
+
+	INIT_LIST_HEAD(&patch->list);
+	patch->kobj_added = false;
+	patch->enabled = false;
+	init_completion(&patch->finish);
+
+	klp_for_each_object(patch, obj) {
+		if (!obj->funcs)
+			return -EINVAL;
+
+		obj->kobj_added = false;
+
+		klp_for_each_func(obj, func)
+			func->kobj_added = false;
 	}
 
 	return 0;
-
-free:
-	klp_free_funcs_limited(obj, func);
-	kobject_put(&obj->kobj);
-	return ret;
 }
 
 static int klp_init_patch(struct klp_patch *patch)
@@ -631,13 +679,13 @@ static int klp_init_patch(struct klp_patch *patch)
 	struct klp_object *obj;
 	int ret;
 
-	if (!patch->objs)
-		return -EINVAL;
-
 	mutex_lock(&klp_mutex);
 
-	patch->enabled = false;
-	init_completion(&patch->finish);
+	ret = klp_init_patch_early(patch);
+	if (ret) {
+		mutex_unlock(&klp_mutex);
+		return ret;
+	}
 
 	ret = kobject_init_and_add(&patch->kobj, &klp_ktype_patch,
 				   klp_root_kobj, "%s", patch->mod->name);
@@ -645,6 +693,7 @@ static int klp_init_patch(struct klp_patch *patch)
 		mutex_unlock(&klp_mutex);
 		return ret;
 	}
+	patch->kobj_added = true;
 
 	klp_for_each_object(patch, obj) {
 		ret = klp_init_object(patch, obj);
@@ -659,12 +708,11 @@ static int klp_init_patch(struct klp_patch *patch)
 	return 0;
 
 free:
-	klp_free_objects_limited(patch, obj);
+	klp_free_patch_start(patch);
 
 	mutex_unlock(&klp_mutex);
 
-	kobject_put(&patch->kobj);
-	wait_for_completion(&patch->finish);
+	klp_free_patch_finish(patch);
 
 	return ret;
 }
@@ -693,12 +741,11 @@ int klp_unregister_patch(struct klp_patch *patch)
 		goto err;
 	}
 
-	klp_free_patch(patch);
+	klp_free_patch_start(patch);
 
 	mutex_unlock(&klp_mutex);
 
-	kobject_put(&patch->kobj);
-	wait_for_completion(&patch->finish);
+	klp_free_patch_finish(patch);
 
 	return 0;
 err:
