@@ -1061,17 +1061,6 @@ static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 }
 #endif
 
-#if defined(CONFIG_ACPI) && IS_ENABLED(CONFIG_I2C)
-bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
-			       struct acpi_resource_i2c_serialbus **i2c);
-#else
-static inline bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
-					     struct acpi_resource_i2c_serialbus **i2c)
-{
-	return false;
-}
-#endif
-
 /* Device properties */
 
 #ifdef CONFIG_ACPI
