@@ -89,6 +89,9 @@
 #define VOP_WIN_GET(vop, win, name) \
 		vop_read_reg(vop, win->offset, win->phy->name)
 
+#define VOP_WIN_HAS_REG(win, name) \
+	(!!(win->phy->name.mask))
+
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->base + win->phy->yrgb_mst.offset)
 
@@ -712,6 +715,11 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
+	if (fb->format->is_yuv && state->rotation & DRM_MODE_REFLECT_Y) {
+		DRM_ERROR("Invalid Source: Yuv format does not support this rotation\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -790,6 +798,13 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	offset += (src->y1 >> 16) * fb->pitches[0];
 	dma_addr = rk_obj->dma_addr + offset + fb->offsets[0];
 
+	/*
+	 * For y-mirroring we need to move address
+	 * to the beginning of the last line.
+	 */
+	if (state->rotation & DRM_MODE_REFLECT_Y)
+		dma_addr += (actual_h - 1) * fb->pitches[0];
+
 	format = vop_convert_format(fb->format->format);
 
 	spin_lock(&vop->reg_lock);
@@ -798,6 +813,10 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
 	VOP_WIN_SET(vop, win, yrgb_mst, dma_addr);
 	VOP_WIN_YUV2YUV_SET(vop, win_yuv2yuv, y2r_en, is_yuv);
+	VOP_WIN_SET(vop, win, y_mir_en,
+		    (state->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0);
+	VOP_WIN_SET(vop, win, x_mir_en,
+		    (state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
 
 	if (is_yuv) {
 		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
@@ -1385,6 +1404,18 @@ out:
 	return ret;
 }
 
+static void vop_plane_add_properties(struct drm_plane *plane,
+				     const struct vop_win_data *win_data)
+{
+	unsigned int flags = 0;
+
+	flags |= VOP_WIN_HAS_REG(win_data, x_mir_en) ? DRM_MODE_REFLECT_X : 0;
+	flags |= VOP_WIN_HAS_REG(win_data, y_mir_en) ? DRM_MODE_REFLECT_Y : 0;
+	if (flags)
+		drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
+						   DRM_MODE_ROTATE_0 | flags);
+}
+
 static int vop_create_crtc(struct vop *vop)
 {
 	const struct vop_data *vop_data = vop->data;
@@ -1422,6 +1453,7 @@ static int vop_create_crtc(struct vop *vop)
 
 		plane = &vop_win->base;
 		drm_plane_helper_add(plane, &plane_helper_funcs);
+		vop_plane_add_properties(plane, win_data);
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			primary = plane;
 		else if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -1459,6 +1491,7 @@ static int vop_create_crtc(struct vop *vop)
 			goto err_cleanup_crtc;
 		}
 		drm_plane_helper_add(&vop_win->base, &plane_helper_funcs);
+		vop_plane_add_properties(&vop_win->base, win_data);
 	}
 
 	port = of_get_child_by_name(dev->of_node, "port");

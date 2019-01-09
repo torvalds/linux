@@ -146,6 +146,8 @@ struct vop_win_phy {
 	struct vop_reg uv_mst;
 	struct vop_reg yrgb_vir;
 	struct vop_reg uv_vir;
+	struct vop_reg y_mir_en;
+	struct vop_reg x_mir_en;
 
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
