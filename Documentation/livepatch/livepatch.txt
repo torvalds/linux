@@ -15,8 +15,9 @@ Table of Contents:
 5. Livepatch life-cycle
    5.1. Loading
    5.2. Enabling
-   5.3. Disabling
-   5.4. Removing
+   5.3. Replacing
+   5.4. Disabling
+   5.5. Removing
 6. Sysfs
 7. Limitations
 
@@ -300,8 +301,12 @@ into three levels:
 5. Livepatch life-cycle
 =======================
 
-Livepatching can be described by four basic operations:
-loading, enabling, disabling, removing.
+Livepatching can be described by five basic operations:
+loading, enabling, replacing, disabling, removing.
+
+Where the replacing and the disabling operations are mutually
+exclusive. They have the same result for the given patch but
+not for the system.
 
 
 5.1. Loading
@@ -347,7 +352,21 @@ to '0'.
     the "Consistency model" section.
 
 
-5.3. Disabling
+5.3. Replacing
+--------------
+
+All enabled patches might get replaced by a cumulative patch that
+has the .replace flag set.
+
+Once the new patch is enabled and the 'transition' finishes then
+all the functions (struct klp_func) associated with the replaced
+patches are removed from the corresponding struct klp_ops. Also
+the ftrace handler is unregistered and the struct klp_ops is
+freed when the related function is not modified by the new patch
+and func_stack list becomes empty.
+
+
+5.4. Disabling
 --------------
 
 Enabled patches might get disabled by writing '0' to
@@ -372,7 +391,7 @@ Note that patches must be disabled in exactly the reverse order in which
 they were enabled. It makes the problem and the implementation much easier.
 
 
-5.4. Removing
+5.5. Removing
 -------------
 
 Module removal is only safe when there are no users of functions provided

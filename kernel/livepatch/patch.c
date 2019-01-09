@@ -118,7 +118,15 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 		}
 	}
 
+	/*
+	 * NOPs are used to replace existing patches with original code.
+	 * Do nothing! Setting pc would cause an infinite loop.
+	 */
+	if (func->nop)
+		goto unlock;
+
 	klp_arch_set_pc(regs, (unsigned long)func->new_func);
+
 unlock:
 	preempt_enable_notrace();
 }

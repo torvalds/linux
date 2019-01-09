@@ -48,6 +48,7 @@
  * @old_size:	size of the old function
  * @new_size:	size of the new function
  * @kobj_added: @kobj has been added and needs freeing
+ * @nop:        temporary patch to use the original code again; dyn. allocated
  * @patched:	the func has been added to the klp_ops list
  * @transition:	the func is currently being applied or reverted
  *
@@ -86,6 +87,7 @@ struct klp_func {
 	struct list_head stack_node;
 	unsigned long old_size, new_size;
 	bool kobj_added;
+	bool nop;
 	bool patched;
 	bool transition;
 };
@@ -125,6 +127,7 @@ struct klp_callbacks {
  * @mod:	kernel module associated with the patched object
  *		(NULL for vmlinux)
  * @kobj_added: @kobj has been added and needs freeing
+ * @dynamic:    temporary object for nop functions; dynamically allocated
  * @patched:	the object's funcs have been added to the klp_ops list
  */
 struct klp_object {
@@ -139,6 +142,7 @@ struct klp_object {
 	struct list_head node;
 	struct module *mod;
 	bool kobj_added;
+	bool dynamic;
 	bool patched;
 };
 
@@ -146,6 +150,7 @@ struct klp_object {
  * struct klp_patch - patch structure for live patching
  * @mod:	reference to the live patch module
  * @objs:	object entries for kernel objects to be patched
+ * @replace:	replace all actively used patches
  * @list:	list node for global list of actively used patches
  * @kobj:	kobject for sysfs resources
  * @obj_list:	dynamic list of the object entries
@@ -159,6 +164,7 @@ struct klp_patch {
 	/* external */
 	struct module *mod;
 	struct klp_object *objs;
+	bool replace;
 
 	/* internal */
 	struct list_head list;
@@ -174,6 +180,9 @@ struct klp_patch {
 #define klp_for_each_object_static(patch, obj) \
 	for (obj = patch->objs; obj->funcs || obj->name; obj++)
 
+#define klp_for_each_object_safe(patch, obj, tmp_obj)		\
+	list_for_each_entry_safe(obj, tmp_obj, &patch->obj_list, node)
+
 #define klp_for_each_object(patch, obj)	\
 	list_for_each_entry(obj, &patch->obj_list, node)
 
@@ -181,6 +190,9 @@ struct klp_patch {
 	for (func = obj->funcs; \
 	     func->old_name || func->new_func || func->old_sympos; \
 	     func++)
+
+#define klp_for_each_func_safe(obj, func, tmp_func)			\
+	list_for_each_entry_safe(func, tmp_func, &obj->func_list, node)
 
 #define klp_for_each_func(obj, func)	\
 	list_for_each_entry(func, &obj->func_list, node)
