@@ -1101,7 +1101,6 @@ static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 	struct xilinx_vdma_config *config = &chan->config;
 	struct xilinx_dma_tx_descriptor *desc, *tail_desc;
 	u32 reg, j;
-	struct xilinx_vdma_tx_segment *tail_segment;
 	struct xilinx_vdma_tx_segment *segment, *last = NULL;
 	int i = 0;
 
@@ -1119,9 +1118,6 @@ static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 				struct xilinx_dma_tx_descriptor, node);
 	tail_desc = list_last_entry(&chan->pending_list,
 				    struct xilinx_dma_tx_descriptor, node);
-
-	tail_segment = list_last_entry(&tail_desc->segments,
-				       struct xilinx_vdma_tx_segment, node);
 
 	/* Configure the hardware using info in the config structure */
 	if (chan->has_vflip) {
