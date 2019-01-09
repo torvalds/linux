@@ -125,6 +125,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 {
 	struct hid_collection *collection;
 	unsigned usage;
+	int collection_index;
 
 	usage = parser->local.usage[0];
 
@@ -167,13 +168,13 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 	parser->collection_stack[parser->collection_stack_ptr++] =
 		parser->device->maxcollection;
 
-	collection = parser->device->collection +
-		parser->device->maxcollection++;
+	collection_index = parser->device->maxcollection++;
+	collection = parser->device->collection + collection_index;
 	collection->type = type;
 	collection->usage = usage;
 	collection->level = parser->collection_stack_ptr - 1;
-	collection->parent = parser->active_collection;
-	parser->active_collection = collection;
+	collection->parent_idx = parser->active_collection_idx;
+	parser->active_collection_idx = collection_index;
 
 	if (type == HID_COLLECTION_APPLICATION)
 		parser->device->maxapplication++;
@@ -192,8 +193,13 @@ static int close_collection(struct hid_parser *parser)
 		return -EINVAL;
 	}
 	parser->collection_stack_ptr--;
-	if (parser->active_collection)
-		parser->active_collection = parser->active_collection->parent;
+	if (parser->active_collection_idx != -1) {
+		struct hid_device *device = parser->device;
+		struct hid_collection *c;
+
+		c = &device->collection[parser->active_collection_idx];
+		parser->active_collection_idx = c->parent_idx;
+	}
 	return 0;
 }
 
@@ -819,6 +825,7 @@ static int hid_scan_report(struct hid_device *hid)
 		return -ENOMEM;
 
 	parser->device = hid;
+	parser->active_collection_idx = -1;
 	hid->group = HID_GROUP_GENERIC;
 
 	/*
@@ -1006,10 +1013,12 @@ static void hid_apply_multiplier_to_field(struct hid_device *hid,
 		usage = &field->usage[i];
 
 		collection = &hid->collection[usage->collection_index];
-		while (collection && collection != multiplier_collection)
-			collection = collection->parent;
+		while (collection->parent_idx != -1 &&
+		       collection != multiplier_collection)
+			collection = &hid->collection[collection->parent_idx];
 
-		if (collection || multiplier_collection == NULL)
+		if (collection->parent_idx != -1 ||
+		    multiplier_collection == NULL)
 			usage->resolution_multiplier = effective_multiplier;
 
 	}
@@ -1044,9 +1053,9 @@ static void hid_apply_multiplier(struct hid_device *hid,
 	 * applicable fields later.
 	 */
 	multiplier_collection = &hid->collection[multiplier->usage->collection_index];
-	while (multiplier_collection &&
+	while (multiplier_collection->parent_idx != -1 &&
 	       multiplier_collection->type != HID_COLLECTION_LOGICAL)
-		multiplier_collection = multiplier_collection->parent;
+		multiplier_collection = &hid->collection[multiplier_collection->parent_idx];
 
 	effective_multiplier = hid_calculate_multiplier(hid, multiplier);
 
@@ -1170,6 +1179,7 @@ int hid_open_report(struct hid_device *device)
 	}
 
 	parser->device = device;
+	parser->active_collection_idx = -1;
 
 	end = start + size;
 
