@@ -385,31 +385,6 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	return sc->nr_scanned ? freed : SHRINK_STOP;
 }
 
-static bool
-shrinker_lock_uninterruptible(struct drm_i915_private *i915, bool *unlock,
-			      int timeout_ms)
-{
-	unsigned long timeout = jiffies + msecs_to_jiffies_timeout(timeout_ms);
-
-	do {
-		if (i915_gem_wait_for_idle(i915,
-					   0, MAX_SCHEDULE_TIMEOUT) == 0 &&
-		    shrinker_lock(i915, 0, unlock))
-			break;
-
-		schedule_timeout_killable(1);
-		if (fatal_signal_pending(current))
-			return false;
-
-		if (time_after(jiffies, timeout)) {
-			pr_err("Unable to lock GPU to purge memory.\n");
-			return false;
-		}
-	} while (1);
-
-	return true;
-}
-
 static int
 i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 {
@@ -461,16 +436,14 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	struct i915_vma *vma, *next;
 	unsigned long freed_pages = 0;
 	bool unlock;
-	int ret;
 
-	if (!shrinker_lock_uninterruptible(i915, &unlock, 5000))
+	if (!shrinker_lock(i915, 0, &unlock))
 		return NOTIFY_DONE;
 
 	/* Force everything onto the inactive lists */
-	ret = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (ret)
+	if (i915_gem_wait_for_idle(i915,
+				   I915_WAIT_LOCKED,
+				   MAX_SCHEDULE_TIMEOUT))
 		goto out;
 
 	intel_runtime_pm_get(i915);
