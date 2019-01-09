@@ -37,6 +37,18 @@ Optional properties for child nodes:
      "ide-disk" - LED indicates IDE disk activity (deprecated),
                   in new implementations use "disk-activity"
      "timer" - LED flashes at a fixed, configurable rate
+     "pattern" - LED alters the brightness for the specified duration with one
+                 software timer (requires "led-pattern" property)
+
+- led-pattern : Array of integers with default pattern for certain triggers.
+                Each trigger may parse this property differently:
+                - one-shot : two numbers specifying delay on and delay off (in ms),
+                - timer : two numbers specifying delay on and delay off (in ms),
+                - pattern : the pattern is given by a series of tuples, of
+                  brightness and duration (in ms).  The exact format is
+                  described in:
+                  Documentation/devicetree/bindings/leds/leds-trigger-pattern.txt
+
 
 - led-max-microamp : Maximum LED supply current in microamperes. This property
                      can be made mandatory for the board configurations
