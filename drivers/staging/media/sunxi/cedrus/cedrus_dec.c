@@ -22,6 +22,19 @@
 #include "cedrus_dec.h"
 #include "cedrus_hw.h"
 
+int cedrus_reference_index_find(struct vb2_queue *queue,
+				struct vb2_buffer *vb2_buf, u64 timestamp)
+{
+	/*
+	 * Allow using the current capture buffer as reference, which can occur
+	 * for field-coded pictures.
+	 */
+	if (vb2_buf->timestamp == timestamp)
+		return vb2_buf->index;
+	else
+		return vb2_find_timestamp(queue, timestamp, 0);
+}
+
 void cedrus_device_run(void *priv)
 {
 	struct cedrus_ctx *ctx = priv;
