@@ -4607,8 +4607,9 @@ EXPORT_SYMBOL_GPL(screen_pos);
 
 void getconsxy(struct vc_data *vc, unsigned char *p)
 {
-	p[0] = vc->vc_x;
-	p[1] = vc->vc_y;
+	/* clamp values if they don't fit */
+	p[0] = min(vc->vc_x, 0xFFu);
+	p[1] = min(vc->vc_y, 0xFFu);
 }
 
 void putconsxy(struct vc_data *vc, unsigned char *p)

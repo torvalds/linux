@@ -335,8 +335,9 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			if (p < HEADER_SIZE) {
 				size_t tmp_count;
 
-				con_buf0[0] = (char)vc->vc_rows;
-				con_buf0[1] = (char)vc->vc_cols;
+				/* clamp header values if they don't fit */
+				con_buf0[0] = min(vc->vc_rows, 0xFFu);
+				con_buf0[1] = min(vc->vc_cols, 0xFFu);
 				getconsxy(vc, con_buf0 + 2);
 
 				con_buf_start += p;
