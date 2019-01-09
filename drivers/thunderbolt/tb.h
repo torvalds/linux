@@ -467,6 +467,7 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid);
 int tb_lc_read_uuid(struct tb_switch *sw, u32 *uuid);
 int tb_lc_configure_link(struct tb_switch *sw);
 void tb_lc_unconfigure_link(struct tb_switch *sw);
+int tb_lc_set_sleep(struct tb_switch *sw);
 
 static inline int tb_route_length(u64 route)
 {

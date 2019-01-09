@@ -1586,10 +1586,8 @@ void tb_switch_suspend(struct tb_switch *sw)
 		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
 			tb_switch_suspend(sw->ports[i].remote->sw);
 	}
-	/*
-	 * TODO: invoke tb_cfg_prepare_to_sleep here? does not seem to have any
-	 * effect?
-	 */
+
+	tb_lc_set_sleep(sw);
 }
 
 struct tb_sw_lookup {

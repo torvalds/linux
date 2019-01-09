@@ -239,6 +239,7 @@ struct tb_regs_hop {
 
 /* Common link controller registers */
 #define TB_LC_DESC			0x02
+#define TB_LC_DESC_NLC_MASK		GENMASK(3, 0)
 #define TB_LC_DESC_SIZE_SHIFT		8
 #define TB_LC_DESC_SIZE_MASK		GENMASK(15, 8)
 #define TB_LC_DESC_PORT_SIZE_SHIFT	16
@@ -250,5 +251,6 @@ struct tb_regs_hop {
 #define TB_LC_SX_CTRL_L1C		BIT(16)
 #define TB_LC_SX_CTRL_L2C		BIT(20)
 #define TB_LC_SX_CTRL_UPSTREAM		BIT(30)
+#define TB_LC_SX_CTRL_SLP		BIT(31)
 
 #endif

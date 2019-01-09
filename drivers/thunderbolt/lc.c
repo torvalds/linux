@@ -133,3 +133,47 @@ void tb_lc_unconfigure_link(struct tb_switch *sw)
 	tb_lc_configure_lane(up, false);
 	tb_lc_configure_lane(down, false);
 }
+
+/**
+ * tb_lc_set_sleep() - Inform LC that the switch is going to sleep
+ * @sw: Switch to set sleep
+ *
+ * Let the switch link controllers know that the switch is going to
+ * sleep.
+ */
+int tb_lc_set_sleep(struct tb_switch *sw)
+{
+	int start, size, nlc, ret, i;
+	u32 desc;
+
+	if (sw->generation < 2)
+		return 0;
+
+	ret = read_lc_desc(sw, &desc);
+	if (ret)
+		return ret;
+
+	/* Figure out number of link controllers */
+	nlc = desc & TB_LC_DESC_NLC_MASK;
+	start = (desc & TB_LC_DESC_SIZE_MASK) >> TB_LC_DESC_SIZE_SHIFT;
+	size = (desc & TB_LC_DESC_PORT_SIZE_MASK) >> TB_LC_DESC_PORT_SIZE_SHIFT;
+
+	/* For each link controller set sleep bit */
+	for (i = 0; i < nlc; i++) {
+		unsigned int offset = sw->cap_lc + start + i * size;
+		u32 ctrl;
+
+		ret = tb_sw_read(sw, &ctrl, TB_CFG_SWITCH,
+				 offset + TB_LC_SX_CTRL, 1);
+		if (ret)
+			return ret;
+
+		ctrl |= TB_LC_SX_CTRL_SLP;
+		ret = tb_sw_write(sw, &ctrl, TB_CFG_SWITCH,
+				  offset + TB_LC_SX_CTRL, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
