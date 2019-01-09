@@ -115,8 +115,9 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 				struct pwm_device *pwm, struct pwm_state *state)
 {
 	struct pwm_imx27_chip *imx = to_pwm_imx27_chip(chip);
-	u32 period, prescaler, pwm_clk, ret, val;
+	u32 period, prescaler, pwm_clk, val;
 	u64 tmp;
+	int ret;
 
 	ret = pwm_imx27_clk_prepare_enable(chip);
 	if (ret < 0)
