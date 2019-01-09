@@ -46,21 +46,21 @@
 #include "rockchip_drm_vop.h"
 #include "rockchip_rgb.h"
 
-#define VOP_WIN_SET(x, win, name, v) \
+#define VOP_WIN_SET(vop, win, name, v) \
 		vop_reg_set(vop, &win->phy->name, win->base, ~0, v, #name)
-#define VOP_SCL_SET(x, win, name, v) \
+#define VOP_SCL_SET(vop, win, name, v) \
 		vop_reg_set(vop, &win->phy->scl->name, win->base, ~0, v, #name)
-#define VOP_SCL_SET_EXT(x, win, name, v) \
+#define VOP_SCL_SET_EXT(vop, win, name, v) \
 		vop_reg_set(vop, &win->phy->scl->ext->name, \
 			    win->base, ~0, v, #name)
 
-#define VOP_WIN_YUV2YUV_SET(x, win_yuv2yuv, name, v) \
+#define VOP_WIN_YUV2YUV_SET(vop, win_yuv2yuv, name, v) \
 	do { \
 		if (win_yuv2yuv && win_yuv2yuv->name.mask) \
 			vop_reg_set(vop, &win_yuv2yuv->name, 0, ~0, v, #name); \
 	} while (0)
 
-#define VOP_WIN_YUV2YUV_COEFFICIENT_SET(x, win_yuv2yuv, name, v) \
+#define VOP_WIN_YUV2YUV_COEFFICIENT_SET(vop, win_yuv2yuv, name, v) \
 	do { \
 		if (win_yuv2yuv && win_yuv2yuv->phy->name.mask) \
 			vop_reg_set(vop, &win_yuv2yuv->phy->name, win_yuv2yuv->base, ~0, v, #name); \
@@ -86,8 +86,8 @@
 #define VOP_INTR_GET_TYPE(vop, name, type) \
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
 
-#define VOP_WIN_GET(x, win, name) \
-		vop_read_reg(x, win->offset, win->phy->name)
+#define VOP_WIN_GET(vop, win, name) \
+		vop_read_reg(vop, win->offset, win->phy->name)
 
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->base + win->phy->yrgb_mst.offset)
