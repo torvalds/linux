@@ -304,7 +304,7 @@ static struct ib_ucontext *rvt_alloc_ucontext(struct ib_device *ibdev,
 {
 	struct rvt_ucontext *context;
 
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return ERR_PTR(-ENOMEM);
 	return &context->ibucontext;

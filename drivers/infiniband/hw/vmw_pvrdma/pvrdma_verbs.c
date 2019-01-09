@@ -327,7 +327,7 @@ struct ib_ucontext *pvrdma_alloc_ucontext(struct ib_device *ibdev,
 	if (!vdev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return ERR_PTR(-ENOMEM);
 

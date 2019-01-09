@@ -318,7 +318,7 @@ static struct ib_ucontext *mthca_alloc_ucontext(struct ib_device *ibdev,
 	else
 		uresp.uarc_size = 0;
 
-	context = kmalloc(sizeof *context, GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return ERR_PTR(-ENOMEM);
 
