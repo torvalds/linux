@@ -93,9 +93,18 @@ vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
 	struct vcs_poll_data *poll =
 		container_of(nb, struct vcs_poll_data, notifier);
 	int currcons = poll->cons_num;
+	int fa_band;
 
-	if (code != VT_UPDATE && code != VT_DEALLOCATE)
+	switch (code) {
+	case VT_UPDATE:
+		fa_band = POLL_PRI;
+		break;
+	case VT_DEALLOCATE:
+		fa_band = POLL_HUP;
+		break;
+	default:
 		return NOTIFY_DONE;
+	}
 
 	if (currcons == 0)
 		currcons = fg_console;
@@ -106,7 +115,7 @@ vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
 
 	poll->event = code;
 	wake_up_interruptible(&poll->waitq);
-	kill_fasync(&poll->fasync, SIGIO, POLL_IN);
+	kill_fasync(&poll->fasync, SIGIO, fa_band);
 	return NOTIFY_OK;
 }
 
