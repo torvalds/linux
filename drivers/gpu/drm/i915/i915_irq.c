@@ -4172,9 +4172,6 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT
 		};
 
-	if (HAS_L3_DPF(dev_priv))
-		gt_interrupts[0] |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-
 	dev_priv->pm_ier = 0x0;
 	dev_priv->pm_imr = ~dev_priv->pm_ier;
 	GEN8_IRQ_INIT_NDX(GT, 0, ~gt_interrupts[0], gt_interrupts[0]);
