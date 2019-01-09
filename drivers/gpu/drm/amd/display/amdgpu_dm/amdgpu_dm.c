@@ -4760,15 +4760,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 					surface,
 					flip->flip_addrs[flip_count].flip_timestamp_in_us);
 
-			/* Update surface timing information. */
-			surface->time.time_elapsed_in_us[surface->time.index] =
-				flip->flip_addrs[flip_count].flip_timestamp_in_us -
-				surface->time.prev_update_time_in_us;
-			surface->time.prev_update_time_in_us = flip->flip_addrs[flip_count].flip_timestamp_in_us;
-			surface->time.index++;
-			if (surface->time.index >= DC_PLANE_UPDATE_TIMES_MAX)
-				surface->time.index = 0;
-
 			DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x\n",
 					 __func__,
 					 flip->flip_addrs[flip_count].address.grph.addr.high_part,

@@ -1440,6 +1440,101 @@ static struct dc_stream_status *stream_get_status(
 
 static const enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
+static void copy_surface_update_to_plane(
+		struct dc_plane_state *surface,
+		struct dc_surface_update *srf_update)
+{
+	if (srf_update->flip_addr) {
+		surface->address = srf_update->flip_addr->address;
+		surface->flip_immediate =
+			srf_update->flip_addr->flip_immediate;
+		surface->time.time_elapsed_in_us[surface->time.index] =
+			srf_update->flip_addr->flip_timestamp_in_us -
+				surface->time.prev_update_time_in_us;
+		surface->time.prev_update_time_in_us =
+			srf_update->flip_addr->flip_timestamp_in_us;
+		surface->time.index++;
+		if (surface->time.index >= DC_PLANE_UPDATE_TIMES_MAX)
+			surface->time.index = 0;
+	}
+
+	if (srf_update->scaling_info) {
+		surface->scaling_quality =
+				srf_update->scaling_info->scaling_quality;
+		surface->dst_rect =
+				srf_update->scaling_info->dst_rect;
+		surface->src_rect =
+				srf_update->scaling_info->src_rect;
+		surface->clip_rect =
+				srf_update->scaling_info->clip_rect;
+	}
+
+	if (srf_update->plane_info) {
+		surface->color_space =
+				srf_update->plane_info->color_space;
+		surface->format =
+				srf_update->plane_info->format;
+		surface->plane_size =
+				srf_update->plane_info->plane_size;
+		surface->rotation =
+				srf_update->plane_info->rotation;
+		surface->horizontal_mirror =
+				srf_update->plane_info->horizontal_mirror;
+		surface->stereo_format =
+				srf_update->plane_info->stereo_format;
+		surface->tiling_info =
+				srf_update->plane_info->tiling_info;
+		surface->visible =
+				srf_update->plane_info->visible;
+		surface->per_pixel_alpha =
+				srf_update->plane_info->per_pixel_alpha;
+		surface->global_alpha =
+				srf_update->plane_info->global_alpha;
+		surface->global_alpha_value =
+				srf_update->plane_info->global_alpha_value;
+		surface->dcc =
+				srf_update->plane_info->dcc;
+		surface->sdr_white_level =
+				srf_update->plane_info->sdr_white_level;
+	}
+
+	if (srf_update->gamma &&
+			(surface->gamma_correction !=
+					srf_update->gamma)) {
+		memcpy(&surface->gamma_correction->entries,
+			&srf_update->gamma->entries,
+			sizeof(struct dc_gamma_entries));
+		surface->gamma_correction->is_identity =
+			srf_update->gamma->is_identity;
+		surface->gamma_correction->num_entries =
+			srf_update->gamma->num_entries;
+		surface->gamma_correction->type =
+			srf_update->gamma->type;
+	}
+
+	if (srf_update->in_transfer_func &&
+			(surface->in_transfer_func !=
+				srf_update->in_transfer_func)) {
+		surface->in_transfer_func->sdr_ref_white_level =
+			srf_update->in_transfer_func->sdr_ref_white_level;
+		surface->in_transfer_func->tf =
+			srf_update->in_transfer_func->tf;
+		surface->in_transfer_func->type =
+			srf_update->in_transfer_func->type;
+		memcpy(&surface->in_transfer_func->tf_pts,
+			&srf_update->in_transfer_func->tf_pts,
+			sizeof(struct dc_transfer_func_distributed_points));
+	}
+
+	if (srf_update->input_csc_color_matrix)
+		surface->input_csc_color_matrix =
+			*srf_update->input_csc_color_matrix;
+
+	if (srf_update->coeff_reduction_factor)
+		surface->coeff_reduction_factor =
+			*srf_update->coeff_reduction_factor;
+}
+
 static void commit_planes_do_stream_update(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
@@ -1645,14 +1740,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	for (i = 0; i < surface_count; i++) {
 		struct dc_plane_state *surface = srf_updates[i].surface;
 
-		/* TODO: On flip we don't build the state, so it still has the
-		 * old address. Which is why we are updating the address here
-		 */
-		if (srf_updates[i].flip_addr) {
-			surface->address = srf_updates[i].flip_addr->address;
-			surface->flip_immediate = srf_updates[i].flip_addr->flip_immediate;
-
-		}
+		copy_surface_update_to_plane(surface, &srf_updates[i]);
 
 		if (update_type >= UPDATE_TYPE_MED) {
 			for (j = 0; j < dc->res_pool->pipe_count; j++) {
