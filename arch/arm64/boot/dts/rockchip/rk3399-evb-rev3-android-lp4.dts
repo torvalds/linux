@@ -125,8 +125,13 @@
 		SYS_STATUS_DUALVIEW     800000
 		SYS_STATUS_ISP          800000
 	>;
+	vop-bw-dmc-freq = <
+	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
+		0       577      400000
+		578     99999    800000
+	>;
 	auto-min-freq = <400000>;
-	auto-freq-en = <0>;
+	auto-freq-en = <1>;
 };
 
 &dmc_opp_table {
