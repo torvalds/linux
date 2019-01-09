@@ -543,17 +543,14 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = sdev->pci;
-	const struct sof_intel_dsp_desc *chip = NULL;
-
-	if (hda)
-		chip = hda->desc;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(bus);
 #endif
 
-	if (hda && (!IS_ERR_OR_NULL(hda->dmic_dev)))
+	if (!IS_ERR_OR_NULL(hda->dmic_dev))
 		platform_device_unregister(hda->dmic_dev);
 
 	/* disable DSP IRQ */
