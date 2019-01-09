@@ -845,7 +845,6 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	if (byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) {
 		ret = snd_soc_dapm_add_routes(&card->dapm,
 					byt_rt5640_ssp2_aif2_map,
@@ -865,7 +864,6 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 	if (ret)
 		return ret;
-#endif
 
 	if (byt_rt5640_quirk & BYT_RT5640_MONO_SPEAKER) {
 		ret = snd_soc_dapm_add_routes(&card->dapm,
