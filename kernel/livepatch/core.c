@@ -611,11 +611,16 @@ static struct kobj_type klp_ktype_func = {
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-static void klp_free_funcs(struct klp_object *obj)
+static void __klp_free_funcs(struct klp_object *obj, bool nops_only)
 {
 	struct klp_func *func, *tmp_func;
 
 	klp_for_each_func_safe(obj, func, tmp_func) {
+		if (nops_only && !func->nop)
+			continue;
+
+		list_del(&func->node);
+
 		/* Might be called from klp_init_patch() error path. */
 		if (func->kobj_added) {
 			kobject_put(&func->kobj);
@@ -640,12 +645,17 @@ static void klp_free_object_loaded(struct klp_object *obj)
 	}
 }
 
-static void klp_free_objects(struct klp_patch *patch)
+static void __klp_free_objects(struct klp_patch *patch, bool nops_only)
 {
 	struct klp_object *obj, *tmp_obj;
 
 	klp_for_each_object_safe(patch, obj, tmp_obj) {
-		klp_free_funcs(obj);
+		__klp_free_funcs(obj, nops_only);
+
+		if (nops_only && !obj->dynamic)
+			continue;
+
+		list_del(&obj->node);
 
 		/* Might be called from klp_init_patch() error path. */
 		if (obj->kobj_added) {
@@ -654,6 +664,16 @@ static void klp_free_objects(struct klp_patch *patch)
 			klp_free_object_dynamic(obj);
 		}
 	}
+}
+
+static void klp_free_objects(struct klp_patch *patch)
+{
+	__klp_free_objects(patch, false);
+}
+
+static void klp_free_objects_dynamic(struct klp_patch *patch)
+{
+	__klp_free_objects(patch, true);
 }
 
 /*
@@ -1082,6 +1102,28 @@ void klp_discard_replaced_patches(struct klp_patch *new_patch)
 		klp_free_patch_start(old_patch);
 		schedule_work(&old_patch->free_work);
 	}
+}
+
+/*
+ * This function removes the dynamically allocated 'nop' functions.
+ *
+ * We could be pretty aggressive. NOPs do not change the existing
+ * behavior except for adding unnecessary delay by the ftrace handler.
+ *
+ * It is safe even when the transition was forced. The ftrace handler
+ * will see a valid ops->func_stack entry thanks to RCU.
+ *
+ * We could even free the NOPs structures. They must be the last entry
+ * in ops->func_stack. Therefore unregister_ftrace_function() is called.
+ * It does the same as klp_synchronize_transition() to make sure that
+ * nobody is inside the ftrace handler once the operation finishes.
+ *
+ * IMPORTANT: It must be called right after removing the replaced patches!
+ */
+void klp_discard_nops(struct klp_patch *new_patch)
+{
+	klp_unpatch_objects_dynamic(klp_transition_patch);
+	klp_free_objects_dynamic(klp_transition_patch);
 }
 
 /*

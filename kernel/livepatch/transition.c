@@ -85,8 +85,10 @@ static void klp_complete_transition(void)
 		 klp_transition_patch->mod->name,
 		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
-	if (klp_transition_patch->replace && klp_target_state == KLP_PATCHED)
+	if (klp_transition_patch->replace && klp_target_state == KLP_PATCHED) {
 		klp_discard_replaced_patches(klp_transition_patch);
+		klp_discard_nops(klp_transition_patch);
+	}
 
 	if (klp_target_state == KLP_UNPATCHED) {
 		/*
