@@ -299,7 +299,8 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	void *shadow_ring_buffer_va;
 	u32 *cs;
 
-	if ((IS_KABYLAKE(req->i915) || IS_BROXTON(req->i915))
+	if ((IS_KABYLAKE(req->i915) || IS_BROXTON(req->i915)
+		|| IS_COFFEELAKE(req->i915))
 		&& is_inhibit_context(req->hw_context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
@@ -939,9 +940,7 @@ static int workload_thread(void *priv)
 	struct intel_vgpu_workload *workload = NULL;
 	struct intel_vgpu *vgpu = NULL;
 	int ret;
-	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv)
-			|| IS_KABYLAKE(gvt->dev_priv)
-			|| IS_BROXTON(gvt->dev_priv);
+	bool need_force_wake = (INTEL_GEN(gvt->dev_priv) >= 9);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	kfree(p);

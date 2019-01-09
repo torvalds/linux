@@ -901,7 +901,8 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	 * It's good enough to support initializing mmio by lri command in
 	 * vgpu inhibit context on KBL.
 	 */
-	if (IS_KABYLAKE(s->vgpu->gvt->dev_priv) &&
+	if ((IS_KABYLAKE(s->vgpu->gvt->dev_priv)
+		|| IS_COFFEELAKE(s->vgpu->gvt->dev_priv)) &&
 			intel_gvt_mmio_is_in_ctx(gvt, offset) &&
 			!strncmp(cmd, "lri", 3)) {
 		intel_gvt_hypervisor_read_gpa(s->vgpu,
@@ -1280,9 +1281,7 @@ static int gen8_check_mi_display_flip(struct parser_exec_state *s,
 	if (!info->async_flip)
 		return 0;
 
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		stride = vgpu_vreg_t(s->vgpu, info->stride_reg) & GENMASK(9, 0);
 		tile = (vgpu_vreg_t(s->vgpu, info->ctrl_reg) &
 				GENMASK(12, 10)) >> 10;
@@ -1310,9 +1309,7 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 
 	set_mask_bits(&vgpu_vreg_t(vgpu, info->surf_reg), GENMASK(31, 12),
 		      info->surf_val << 12);
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		set_mask_bits(&vgpu_vreg_t(vgpu, info->stride_reg), GENMASK(9, 0),
 			      info->stride_val);
 		set_mask_bits(&vgpu_vreg_t(vgpu, info->ctrl_reg), GENMASK(12, 10),
@@ -1336,9 +1333,7 @@ static int decode_mi_display_flip(struct parser_exec_state *s,
 
 	if (IS_BROADWELL(dev_priv))
 		return gen8_decode_mi_display_flip(s, info);
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 9)
 		return skl_decode_mi_display_flip(s, info);
 
 	return -ENODEV;

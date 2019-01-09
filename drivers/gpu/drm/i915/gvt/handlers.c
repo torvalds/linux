@@ -283,9 +283,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 	old = vgpu_vreg(vgpu, offset);
 	new = CALC_MODE_MASK_REG(old, *(u32 *)p_data);
 
-	if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-		|| IS_KABYLAKE(vgpu->gvt->dev_priv)
-		|| IS_BROXTON(vgpu->gvt->dev_priv)) {
+	if (INTEL_GEN(vgpu->gvt->dev_priv)  >=  9) {
 		switch (offset) {
 		case FORCEWAKE_RENDER_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_RENDER_GEN9_REG;
@@ -891,9 +889,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	if ((IS_SKYLAKE(vgpu->gvt->dev_priv)
-		|| IS_KABYLAKE(vgpu->gvt->dev_priv)
-		|| IS_BROXTON(vgpu->gvt->dev_priv))
+	if ((INTEL_GEN(vgpu->gvt->dev_priv) >= 9)
 		&& offset != _REG_SKL_DP_AUX_CH_CTL(port_index)) {
 		/* SKL DPB/C/D aux ctl register changed */
 		return 0;
@@ -1409,7 +1405,8 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 	switch (cmd) {
 	case GEN9_PCODE_READ_MEM_LATENCY:
 		if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-			 || IS_KABYLAKE(vgpu->gvt->dev_priv)) {
+			 || IS_KABYLAKE(vgpu->gvt->dev_priv)
+			 || IS_COFFEELAKE(vgpu->gvt->dev_priv)) {
 			/**
 			 * "Read memory latency" command on gen9.
 			 * Below memory latency values are read
@@ -1433,7 +1430,8 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 		break;
 	case SKL_PCODE_CDCLK_CONTROL:
 		if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-			 || IS_KABYLAKE(vgpu->gvt->dev_priv))
+			 || IS_KABYLAKE(vgpu->gvt->dev_priv)
+			 || IS_COFFEELAKE(vgpu->gvt->dev_priv))
 			*data0 = SKL_CDCLK_READY_FOR_CHANGE;
 		break;
 	case GEN6_PCODE_READ_RC6VIDS:
@@ -3304,7 +3302,8 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 		if (ret)
 			goto err;
 	} else if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)) {
+		|| IS_KABYLAKE(dev_priv)
+		|| IS_COFFEELAKE(dev_priv)) {
 		ret = init_broadwell_mmio_info(gvt);
 		if (ret)
 			goto err;
