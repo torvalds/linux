@@ -1,7 +1,7 @@
 	This is at least a partial credits-file of people that have
-	contributed to the Linux project.  It is sorted by name and
+	contributed to the Linux project. It is sorted by name and
 	formatted to allow easy grepping and beautification by
-	scripts.  The fields are: name (N), email (E), web-address
+	scripts. The fields are: name (N), email (E), web-address
 	(W), PGP key ID and fingerprint (P), description (D), and
 	snail-mail address (S).
 	Thanks,
