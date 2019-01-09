@@ -493,6 +493,9 @@ static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 	struct thread_stack_entry *tse;
 	int err;
 
+	if (!cp)
+		return -ENOMEM;
+
 	if (ts->cnt == ts->sz) {
 		err = thread_stack__grow(ts);
 		if (err)
@@ -576,8 +579,6 @@ static int thread_stack__bottom(struct thread_stack *ts,
 
 	cp = call_path__findnew(cpr, &cpr->call_path, sym, ip,
 				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
 
 	return thread_stack__push_cp(ts, ip, sample->time, ref, cp,
 				     true, false);
@@ -609,8 +610,6 @@ static int thread_stack__no_call_return(struct thread *thread,
 			cp = call_path__findnew(cpr, &cpr->call_path,
 						to_al->sym, sample->addr,
 						ts->kernel_start);
-			if (!cp)
-				return -ENOMEM;
 			return thread_stack__push_cp(ts, 0, sample->time, ref,
 						     cp, true, false);
 		}
@@ -633,8 +632,6 @@ static int thread_stack__no_call_return(struct thread *thread,
 	/* This 'return' had no 'call', so push and pop top of stack */
 	cp = call_path__findnew(cpr, parent, from_al->sym, sample->ip,
 				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
 
 	err = thread_stack__push_cp(ts, sample->addr, sample->time, ref, cp,
 				    true, false);
@@ -680,8 +677,6 @@ static int thread_stack__trace_end(struct thread_stack *ts,
 
 	cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp, NULL, 0,
 				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
 
 	ret_addr = sample->ip + sample->insn_len;
 
@@ -745,8 +740,6 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp,
 					to_al->sym, sample->addr,
 					ts->kernel_start);
-		if (!cp)
-			return -ENOMEM;
 		err = thread_stack__push_cp(ts, ret_addr, sample->time, ref,
 					    cp, false, trace_end);
 	} else if (sample->flags & PERF_IP_FLAG_RETURN) {
