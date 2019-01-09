@@ -15,6 +15,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -25,6 +26,50 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/rockchip/rockchip_sip.h>
+
+#define T_CSB_P_S		0
+#define T_PGENB_P_S		0
+#define T_LOAD_P_S		0
+#define T_ADDR_P_S		0
+#define T_STROBE_P_S		(0 + 110) /* 1.1us */
+#define T_CSB_P_L		(0 + 110 + 1000 + 20) /* 200ns */
+#define T_PGENB_P_L		(0 + 110 + 1000 + 20)
+#define T_LOAD_P_L		(0 + 110 + 1000 + 20)
+#define T_ADDR_P_L		(0 + 110 + 1000 + 20)
+#define T_STROBE_P_L		(0 + 110 + 1000) /* 10us */
+#define T_CSB_R_S		0
+#define T_PGENB_R_S		0
+#define T_LOAD_R_S		0
+#define T_ADDR_R_S		2
+#define T_STROBE_R_S		(2 + 3)
+#define T_CSB_R_L		(2 + 3 + 3 + 3)
+#define T_PGENB_R_L		(2 + 3 + 3 + 3)
+#define T_LOAD_R_L		(2 + 3 + 3 + 3)
+#define T_ADDR_R_L		(2 + 3 + 3 + 2)
+#define T_STROBE_R_L		(2 + 3 + 3)
+
+#define T_CSB_P			0x28
+#define T_PGENB_P		0x2c
+#define T_LOAD_P		0x30
+#define T_ADDR_P		0x34
+#define T_STROBE_P		0x38
+#define T_CSB_R			0x3c
+#define T_PGENB_R		0x40
+#define T_LOAD_R		0x44
+#define T_ADDR_R		0x48
+#define T_STROBE_R		0x4c
+
+#define RK1808_MOD		0x00
+#define RK1808_INT_STATUS	RK3328_INT_STATUS
+#define RK1808_DOUT		RK3328_DOUT
+#define RK1808_AUTO_CTRL	RK3328_AUTO_CTRL
+#define RK1808_USER_MODE	BIT(0)
+#define RK1808_INT_FINISH	RK3328_INT_FINISH
+#define RK1808_AUTO_ENB		RK3328_AUTO_ENB
+#define RK1808_AUTO_RD		RK3328_AUTO_RD
+#define RK1808_A_SHIFT		RK3399_A_SHIFT
+#define RK1808_A_MASK		RK3399_A_MASK
+#define RK1808_NBYTES		RK3399_NBYTES
 
 #define RK3128_A_SHIFT		7
 #define RK3288_A_SHIFT		6
@@ -64,8 +109,96 @@ struct rockchip_efuse_chip {
 	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
+	struct clk *sclk;
 	phys_addr_t phys;
 };
+
+static void rk1808_efuse_timing_init(void __iomem *base)
+{
+	static bool init;
+
+	if (init)
+		return;
+
+	/* enable auto mode */
+	writel(readl(base + RK1808_MOD) & (~RK1808_USER_MODE),
+	       base + RK1808_MOD);
+
+	/* setup efuse timing */
+	writel((T_CSB_P_S << 16) | T_CSB_P_L, base + T_CSB_P);
+	writel((T_PGENB_P_S << 16) | T_PGENB_P_L, base + T_PGENB_P);
+	writel((T_LOAD_P_S << 16) | T_LOAD_P_L, base + T_LOAD_P);
+	writel((T_ADDR_P_S << 16) | T_ADDR_P_L, base + T_ADDR_P);
+	writel((T_STROBE_P_S << 16) | T_STROBE_P_L, base + T_STROBE_P);
+	writel((T_CSB_R_S << 16) | T_CSB_R_L, base + T_CSB_R);
+	writel((T_PGENB_R_S << 16) | T_PGENB_R_L, base + T_PGENB_R);
+	writel((T_LOAD_R_S << 16) | T_LOAD_R_L, base + T_LOAD_R);
+	writel((T_ADDR_R_S << 16) | T_ADDR_R_L, base + T_ADDR_R);
+	writel((T_STROBE_R_S << 16) | T_STROBE_R_L, base + T_STROBE_R);
+
+	init = true;
+}
+
+static int rockchip_rk1808_efuse_read(void *context, unsigned int offset,
+				      void *val, size_t bytes)
+{
+	struct rockchip_efuse_chip *efuse = context;
+	unsigned int addr_start, addr_end, addr_offset, addr_len;
+	u32 out_value, status;
+	u8 *buf;
+	int ret, i = 0;
+
+	ret = clk_prepare_enable(efuse->clk);
+	if (ret < 0) {
+		dev_err(efuse->dev, "failed to prepare/enable efuse pclk\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(efuse->sclk);
+	if (ret < 0) {
+		clk_disable_unprepare(efuse->clk);
+		dev_err(efuse->dev, "failed to prepare/enable efuse sclk\n");
+		return ret;
+	}
+
+	rk1808_efuse_timing_init(efuse->base);
+
+	addr_start = rounddown(offset, RK1808_NBYTES) / RK1808_NBYTES;
+	addr_end = roundup(offset + bytes, RK1808_NBYTES) / RK1808_NBYTES;
+	addr_offset = offset % RK1808_NBYTES;
+	addr_len = addr_end - addr_start;
+
+	buf = kzalloc(sizeof(*buf) * addr_len * RK1808_NBYTES, GFP_KERNEL);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto nomem;
+	}
+
+	while (addr_len--) {
+		writel(RK1808_AUTO_RD | RK1808_AUTO_ENB |
+		       ((addr_start++ & RK1808_A_MASK) << RK1808_A_SHIFT),
+		       efuse->base + RK1808_AUTO_CTRL);
+		udelay(2);
+		status = readl(efuse->base + RK1808_INT_STATUS);
+		if (!(status & RK1808_INT_FINISH)) {
+			ret = -EIO;
+			goto err;
+		}
+		out_value = readl(efuse->base + RK1808_DOUT);
+		writel(RK1808_INT_FINISH, efuse->base + RK1808_INT_STATUS);
+
+		memcpy(&buf[i], &out_value, RK1808_NBYTES);
+		i += RK1808_NBYTES;
+	}
+	memcpy(val, buf + addr_offset, bytes);
+err:
+	kfree(buf);
+nomem:
+	clk_disable_unprepare(efuse->clk);
+	clk_disable_unprepare(efuse->sclk);
+
+	return ret;
+}
 
 static int rockchip_rk3128_efuse_read(void *context, unsigned int offset,
 				      void *val, size_t bytes)
@@ -397,6 +530,10 @@ static struct nvmem_config econfig = {
 static const struct of_device_id rockchip_efuse_match[] = {
 	/* deprecated but kept around for dts binding compatibility */
 	{
+		.compatible = "rockchip,rk1808-efuse",
+		.data = (void *)&rockchip_rk1808_efuse_read,
+	},
+	{
 		.compatible = "rockchip,rockchip-efuse",
 		.data = (void *)&rockchip_rk3288_efuse_read,
 	},
@@ -451,6 +588,7 @@ static int __init rockchip_efuse_probe(struct platform_device *pdev)
 	struct rockchip_efuse_chip *efuse;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
+	int count;
 
 	match = of_match_device(dev->driver->of_match_table, dev);
 	if (!match || !match->data) {
@@ -472,6 +610,14 @@ static int __init rockchip_efuse_probe(struct platform_device *pdev)
 	efuse->clk = devm_clk_get(&pdev->dev, "pclk_efuse");
 	if (IS_ERR(efuse->clk))
 		return PTR_ERR(efuse->clk);
+
+	count = of_clk_get_parent_count(pdev->dev.of_node);
+	if (count == 2)
+		efuse->sclk = devm_clk_get(&pdev->dev, "sclk_efuse");
+	else
+		efuse->sclk = efuse->clk;
+	if (IS_ERR(efuse->sclk))
+		return PTR_ERR(efuse->sclk);
 
 	efuse->dev = &pdev->dev;
 	if (of_property_read_u32_index(dev->of_node,
