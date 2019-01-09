@@ -278,170 +278,6 @@ static int klp_write_object_relocations(struct module *pmod,
 	return ret;
 }
 
-static int __klp_disable_patch(struct klp_patch *patch)
-{
-	struct klp_object *obj;
-
-	if (WARN_ON(!patch->enabled))
-		return -EINVAL;
-
-	if (klp_transition_patch)
-		return -EBUSY;
-
-	/* enforce stacking: only the last enabled patch can be disabled */
-	if (!list_is_last(&patch->list, &klp_patches) &&
-	    list_next_entry(patch, list)->enabled)
-		return -EBUSY;
-
-	klp_init_transition(patch, KLP_UNPATCHED);
-
-	klp_for_each_object(patch, obj)
-		if (obj->patched)
-			klp_pre_unpatch_callback(obj);
-
-	/*
-	 * Enforce the order of the func->transition writes in
-	 * klp_init_transition() and the TIF_PATCH_PENDING writes in
-	 * klp_start_transition().  In the rare case where klp_ftrace_handler()
-	 * is called shortly after klp_update_patch_state() switches the task,
-	 * this ensures the handler sees that func->transition is set.
-	 */
-	smp_wmb();
-
-	klp_start_transition();
-	klp_try_complete_transition();
-	patch->enabled = false;
-
-	return 0;
-}
-
-/**
- * klp_disable_patch() - disables a registered patch
- * @patch:	The registered, enabled patch to be disabled
- *
- * Unregisters the patched functions from ftrace.
- *
- * Return: 0 on success, otherwise error
- */
-int klp_disable_patch(struct klp_patch *patch)
-{
-	int ret;
-
-	mutex_lock(&klp_mutex);
-
-	if (!klp_is_patch_registered(patch)) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	if (!patch->enabled) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	ret = __klp_disable_patch(patch);
-
-err:
-	mutex_unlock(&klp_mutex);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(klp_disable_patch);
-
-static int __klp_enable_patch(struct klp_patch *patch)
-{
-	struct klp_object *obj;
-	int ret;
-
-	if (klp_transition_patch)
-		return -EBUSY;
-
-	if (WARN_ON(patch->enabled))
-		return -EINVAL;
-
-	/* enforce stacking: only the first disabled patch can be enabled */
-	if (patch->list.prev != &klp_patches &&
-	    !list_prev_entry(patch, list)->enabled)
-		return -EBUSY;
-
-	/*
-	 * A reference is taken on the patch module to prevent it from being
-	 * unloaded.
-	 */
-	if (!try_module_get(patch->mod))
-		return -ENODEV;
-
-	pr_notice("enabling patch '%s'\n", patch->mod->name);
-
-	klp_init_transition(patch, KLP_PATCHED);
-
-	/*
-	 * Enforce the order of the func->transition writes in
-	 * klp_init_transition() and the ops->func_stack writes in
-	 * klp_patch_object(), so that klp_ftrace_handler() will see the
-	 * func->transition updates before the handler is registered and the
-	 * new funcs become visible to the handler.
-	 */
-	smp_wmb();
-
-	klp_for_each_object(patch, obj) {
-		if (!klp_is_object_loaded(obj))
-			continue;
-
-		ret = klp_pre_patch_callback(obj);
-		if (ret) {
-			pr_warn("pre-patch callback failed for object '%s'\n",
-				klp_is_module(obj) ? obj->name : "vmlinux");
-			goto err;
-		}
-
-		ret = klp_patch_object(obj);
-		if (ret) {
-			pr_warn("failed to patch object '%s'\n",
-				klp_is_module(obj) ? obj->name : "vmlinux");
-			goto err;
-		}
-	}
-
-	klp_start_transition();
-	klp_try_complete_transition();
-	patch->enabled = true;
-
-	return 0;
-err:
-	pr_warn("failed to enable patch '%s'\n", patch->mod->name);
-
-	klp_cancel_transition();
-	return ret;
-}
-
-/**
- * klp_enable_patch() - enables a registered patch
- * @patch:	The registered, disabled patch to be enabled
- *
- * Performs the needed symbol lookups and code relocations,
- * then registers the patched functions with ftrace.
- *
- * Return: 0 on success, otherwise error
- */
-int klp_enable_patch(struct klp_patch *patch)
-{
-	int ret;
-
-	mutex_lock(&klp_mutex);
-
-	if (!klp_is_patch_registered(patch)) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	ret = __klp_enable_patch(patch);
-
-err:
-	mutex_unlock(&klp_mutex);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(klp_enable_patch);
-
 /*
  * Sysfs Interface
  *
@@ -454,6 +290,8 @@ EXPORT_SYMBOL_GPL(klp_enable_patch);
  * /sys/kernel/livepatch/<patch>/<object>
  * /sys/kernel/livepatch/<patch>/<object>/<function,sympos>
  */
+static int __klp_disable_patch(struct klp_patch *patch);
+static int __klp_enable_patch(struct klp_patch *patch);
 
 static ssize_t enabled_store(struct kobject *kobj, struct kobj_attribute *attr,
 			     const char *buf, size_t count)
@@ -903,6 +741,170 @@ int klp_register_patch(struct klp_patch *patch)
 	return klp_init_patch(patch);
 }
 EXPORT_SYMBOL_GPL(klp_register_patch);
+
+static int __klp_disable_patch(struct klp_patch *patch)
+{
+	struct klp_object *obj;
+
+	if (WARN_ON(!patch->enabled))
+		return -EINVAL;
+
+	if (klp_transition_patch)
+		return -EBUSY;
+
+	/* enforce stacking: only the last enabled patch can be disabled */
+	if (!list_is_last(&patch->list, &klp_patches) &&
+	    list_next_entry(patch, list)->enabled)
+		return -EBUSY;
+
+	klp_init_transition(patch, KLP_UNPATCHED);
+
+	klp_for_each_object(patch, obj)
+		if (obj->patched)
+			klp_pre_unpatch_callback(obj);
+
+	/*
+	 * Enforce the order of the func->transition writes in
+	 * klp_init_transition() and the TIF_PATCH_PENDING writes in
+	 * klp_start_transition().  In the rare case where klp_ftrace_handler()
+	 * is called shortly after klp_update_patch_state() switches the task,
+	 * this ensures the handler sees that func->transition is set.
+	 */
+	smp_wmb();
+
+	klp_start_transition();
+	klp_try_complete_transition();
+	patch->enabled = false;
+
+	return 0;
+}
+
+/**
+ * klp_disable_patch() - disables a registered patch
+ * @patch:	The registered, enabled patch to be disabled
+ *
+ * Unregisters the patched functions from ftrace.
+ *
+ * Return: 0 on success, otherwise error
+ */
+int klp_disable_patch(struct klp_patch *patch)
+{
+	int ret;
+
+	mutex_lock(&klp_mutex);
+
+	if (!klp_is_patch_registered(patch)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (!patch->enabled) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = __klp_disable_patch(patch);
+
+err:
+	mutex_unlock(&klp_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(klp_disable_patch);
+
+static int __klp_enable_patch(struct klp_patch *patch)
+{
+	struct klp_object *obj;
+	int ret;
+
+	if (klp_transition_patch)
+		return -EBUSY;
+
+	if (WARN_ON(patch->enabled))
+		return -EINVAL;
+
+	/* enforce stacking: only the first disabled patch can be enabled */
+	if (patch->list.prev != &klp_patches &&
+	    !list_prev_entry(patch, list)->enabled)
+		return -EBUSY;
+
+	/*
+	 * A reference is taken on the patch module to prevent it from being
+	 * unloaded.
+	 */
+	if (!try_module_get(patch->mod))
+		return -ENODEV;
+
+	pr_notice("enabling patch '%s'\n", patch->mod->name);
+
+	klp_init_transition(patch, KLP_PATCHED);
+
+	/*
+	 * Enforce the order of the func->transition writes in
+	 * klp_init_transition() and the ops->func_stack writes in
+	 * klp_patch_object(), so that klp_ftrace_handler() will see the
+	 * func->transition updates before the handler is registered and the
+	 * new funcs become visible to the handler.
+	 */
+	smp_wmb();
+
+	klp_for_each_object(patch, obj) {
+		if (!klp_is_object_loaded(obj))
+			continue;
+
+		ret = klp_pre_patch_callback(obj);
+		if (ret) {
+			pr_warn("pre-patch callback failed for object '%s'\n",
+				klp_is_module(obj) ? obj->name : "vmlinux");
+			goto err;
+		}
+
+		ret = klp_patch_object(obj);
+		if (ret) {
+			pr_warn("failed to patch object '%s'\n",
+				klp_is_module(obj) ? obj->name : "vmlinux");
+			goto err;
+		}
+	}
+
+	klp_start_transition();
+	klp_try_complete_transition();
+	patch->enabled = true;
+
+	return 0;
+err:
+	pr_warn("failed to enable patch '%s'\n", patch->mod->name);
+
+	klp_cancel_transition();
+	return ret;
+}
+
+/**
+ * klp_enable_patch() - enables a registered patch
+ * @patch:	The registered, disabled patch to be enabled
+ *
+ * Performs the needed symbol lookups and code relocations,
+ * then registers the patched functions with ftrace.
+ *
+ * Return: 0 on success, otherwise error
+ */
+int klp_enable_patch(struct klp_patch *patch)
+{
+	int ret;
+
+	mutex_lock(&klp_mutex);
+
+	if (!klp_is_patch_registered(patch)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = __klp_enable_patch(patch);
+
+err:
+	mutex_unlock(&klp_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(klp_enable_patch);
 
 /*
  * Remove parts of patches that touch a given kernel module. The list of
