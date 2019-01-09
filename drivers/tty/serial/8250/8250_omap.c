@@ -12,6 +12,7 @@
 #define SUPPORT_SYSRQ
 #endif
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -1203,7 +1204,18 @@ static int omap8250_probe(struct platform_device *pdev)
 	}
 	up.port.line = ret;
 
-	of_property_read_u32(np, "clock-frequency", &up.port.uartclk);
+	if (of_property_read_u32(np, "clock-frequency", &up.port.uartclk)) {
+		struct clk *clk;
+
+		clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(clk)) {
+			if (PTR_ERR(clk) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+		} else {
+			up.port.uartclk = clk_get_rate(clk);
+		}
+	}
+
 	priv->wakeirq = irq_of_parse_and_map(np, 1);
 
 	id = of_match_device(of_match_ptr(omap8250_dt_ids), &pdev->dev);
