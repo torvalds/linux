@@ -404,7 +404,7 @@ static ssize_t fanotify_write(struct file *file, const char __user *buf, size_t 
 static int fanotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
-	struct fanotify_perm_event *event, *next;
+	struct fanotify_perm_event *event;
 	struct fsnotify_event *fsn_event;
 
 	/*
@@ -419,11 +419,9 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	 * and simulate reply from userspace.
 	 */
 	spin_lock(&group->notification_lock);
-	list_for_each_entry_safe(event, next, &group->fanotify_data.access_list,
-				 fae.fse.list) {
-		pr_debug("%s: found group=%p event=%p\n", __func__, group,
-			 event);
-
+	while (!list_empty(&group->fanotify_data.access_list)) {
+		event = list_first_entry(&group->fanotify_data.access_list,
+				struct fanotify_perm_event, fae.fse.list);
 		list_del_init(&event->fae.fse.list);
 		event->response = FAN_ALLOW;
 	}
