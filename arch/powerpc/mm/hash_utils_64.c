@@ -1889,12 +1889,12 @@ static int hpt_order_set(void *data, u64 val)
 	return mmu_hash_ops.resize_hpt(val);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
 
 static int __init hash64_debugfs(void)
 {
-	if (!debugfs_create_file("hpt_order", 0600, powerpc_debugfs_root,
-				 NULL, &fops_hpt_order)) {
+	if (!debugfs_create_file_unsafe("hpt_order", 0600, powerpc_debugfs_root,
+					NULL, &fops_hpt_order)) {
 		pr_err("lpar: unable to create hpt_order debugsfs file\n");
 	}
 
