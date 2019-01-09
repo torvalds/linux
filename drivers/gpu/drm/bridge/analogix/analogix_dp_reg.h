@@ -45,6 +45,7 @@
 #define ANALOGIX_DP_PLL_REG_4			0x9ec
 #define ANALOGIX_DP_PLL_REG_5			0xa00
 
+#define ANALOIGX_DP_SSC_REG			0x104
 #define ANALOGIX_DP_PD				0x12c
 
 #define ANALOGIX_DP_IF_TYPE			0x244

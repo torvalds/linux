@@ -557,6 +557,7 @@ static const struct rockchip_dp_chip_data rk3399_edp = {
 	.lcdsel_big = HIWORD_UPDATE(0, RK3399_EDP_LCDC_SEL),
 	.lcdsel_lit = HIWORD_UPDATE(RK3399_EDP_LCDC_SEL, RK3399_EDP_LCDC_SEL),
 	.chip_type = RK3399_EDP,
+	.ssc = true,
 };
 
 static const struct rockchip_dp_chip_data rk3288_dp = {
@@ -564,6 +565,7 @@ static const struct rockchip_dp_chip_data rk3288_dp = {
 	.lcdsel_big = HIWORD_UPDATE(0, RK3288_EDP_LCDC_SEL),
 	.lcdsel_lit = HIWORD_UPDATE(RK3288_EDP_LCDC_SEL, RK3288_EDP_LCDC_SEL),
 	.chip_type = RK3288_DP,
+	.ssc = true,
 };
 
 static const struct rockchip_dp_chip_data rk3568_edp = {

@@ -525,6 +525,32 @@ void analogix_dp_enable_sw_function(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_1, reg);
 }
 
+static void analogix_dp_ssc_enable(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	/* 4500ppm */
+	writel(0x19, dp->reg_base + ANALOIGX_DP_SSC_REG);
+	/*
+	 * To apply updated SSC parameters into SSC operation,
+	 * firmware must disable and enable this bit.
+	 */
+	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	reg |= SSC_FUNC_EN_N;
+	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	reg &= ~SSC_FUNC_EN_N;
+	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+}
+
+static void analogix_dp_ssc_disable(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	reg |= SSC_FUNC_EN_N;
+	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+}
+
 bool analogix_dp_ssc_supported(struct analogix_dp_device *dp)
 {
 	/* Check if SSC is supported by both sides */
@@ -556,6 +582,11 @@ void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 				__func__, ret);
 			return;
 		}
+	} else {
+		if (analogix_dp_ssc_supported(dp))
+			analogix_dp_ssc_enable(dp);
+		else
+			analogix_dp_ssc_disable(dp);
 	}
 
 	ret = readx_poll_timeout(analogix_dp_get_pll_lock_status, dp, status,
