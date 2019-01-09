@@ -52,8 +52,8 @@
 #	define RS5C_CTRL1_CT4		(4 << 0)	/* 1 Hz level irq */
 #define RS5C_REG_CTRL2		15
 #	define RS5C372_CTRL2_24		(1 << 5)
-#	define R2025_CTRL2_XST		(1 << 5)
-#	define RS5C_CTRL2_XSTP		(1 << 4)	/* only if !R2025S/D */
+#	define R2x2x_CTRL2_XSTP		(1 << 5)	/* only if R2x2x */
+#	define RS5C_CTRL2_XSTP		(1 << 4)	/* only if !R2x2x */
 #	define RS5C_CTRL2_CTFG		(1 << 2)
 #	define RS5C_CTRL2_AAFG		(1 << 1)	/* or WAFG */
 #	define RS5C_CTRL2_BAFG		(1 << 0)	/* or DAFG */
@@ -519,19 +519,29 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 	unsigned char buf[2];
 	int addr, i, ret = 0;
 
-	if (rs5c372->type == rtc_r2025sd) {
-		if (rs5c372->regs[RS5C_REG_CTRL2] & R2025_CTRL2_XST)
-			return ret;
-		rs5c372->regs[RS5C_REG_CTRL2] |= R2025_CTRL2_XST;
-	} else {
-		if (!(rs5c372->regs[RS5C_REG_CTRL2] & RS5C_CTRL2_XSTP))
-			return ret;
-		rs5c372->regs[RS5C_REG_CTRL2] &= ~RS5C_CTRL2_XSTP;
-	}
-
 	addr   = RS5C_ADDR(RS5C_REG_CTRL1);
 	buf[0] = rs5c372->regs[RS5C_REG_CTRL1];
 	buf[1] = rs5c372->regs[RS5C_REG_CTRL2];
+
+	/* handle xstp bit */
+	switch (rs5c372->type) {
+	case rtc_r2025sd:
+		if (buf[1] & R2x2x_CTRL2_XSTP)
+			return ret;
+		rs5c372->regs[RS5C_REG_CTRL2] |= R2x2x_CTRL2_XSTP;
+		break;
+	case rtc_r2221tl:
+		if (!(buf[1] & R2x2x_CTRL2_XSTP))
+			return ret;
+		rs5c372->regs[RS5C_REG_CTRL2] &= ~R2x2x_CTRL2_XSTP;
+		break;
+
+	default:
+		if (!(buf[1] & RS5C_CTRL2_XSTP))
+			return ret;
+		rs5c372->regs[RS5C_REG_CTRL2] &= ~RS5C_CTRL2_XSTP;
+		break;
+	}
 
 	/* use 24hr mode */
 	switch (rs5c372->type) {
