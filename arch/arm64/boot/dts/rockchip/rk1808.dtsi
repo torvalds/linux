@@ -70,6 +70,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "leakage";
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <750000 750000 950000>;
@@ -103,6 +106,12 @@
 		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>;
+	};
+
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&efuse_id>, <&efuse_cpu_version>;
+		nvmem-cell-names = "id", "cpu-version";
 	};
 
 	gmac_clkin: external-gmac-clock {
@@ -467,6 +476,36 @@
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			reg = <0x0 0xff120000 0x0 0x20000>;
+		};
+	};
+
+	efuse: efuse@ff260000 {
+		compatible = "rockchip,rk1808-efuse";
+		reg = <0x0 0xff3b0000 0x0 0x50>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru SCLK_EFUSE_NS>, <&cru PCLK_EFUSE>;
+		clock-names = "sclk_efuse", "pclk_efuse";
+		assigned-clocks = <&cru SCLK_EFUSE_NS>;
+		assigned-clock-rates = <24000000>;
+		rockchip,efuse-size = <0x20>;
+
+		/* Data cells */
+		efuse_id: id@7 {
+			reg = <0x07 0x10>;
+		};
+		cpu_leakage: cpu-leakage@17 {
+			reg = <0x17 0x1>;
+		};
+		logic_leakage: logic-leakage@18 {
+			reg = <0x18 0x1>;
+		};
+		npu_leakage: npu-leakage@19 {
+			reg = <0x19 0x1>;
+		};
+		efuse_cpu_version: cpu-version@1c {
+			reg = <0x1c 0x1>;
+			bits = <3 3>;
 		};
 	};
 
@@ -1201,6 +1240,9 @@
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
+		nvmem-cells = <&logic_leakage>;
+		nvmem-cell-names = "leakage";
+
 		opp-194000000 {
 			opp-hz = /bits/ 64 <194000000>;
 			opp-microvolt = <800000>;
@@ -1502,6 +1544,9 @@
 
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
+
+		nvmem-cells = <&npu_leakage>;
+		nvmem-cell-names = "leakage";
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
