@@ -39,18 +39,18 @@ static bool shrinker_lock(struct drm_i915_private *i915,
 			  unsigned int flags,
 			  bool *unlock)
 {
-	switch (mutex_trylock_recursive(&i915->drm.struct_mutex)) {
+	struct mutex *m = &i915->drm.struct_mutex;
+
+	switch (mutex_trylock_recursive(m)) {
 	case MUTEX_TRYLOCK_RECURSIVE:
 		*unlock = false;
 		return true;
 
 	case MUTEX_TRYLOCK_FAILED:
 		*unlock = false;
-		if (flags & I915_SHRINK_ACTIVE) {
-			mutex_lock_nested(&i915->drm.struct_mutex,
-					  I915_MM_SHRINKER);
+		if (flags & I915_SHRINK_ACTIVE &&
+		    mutex_lock_killable_nested(m, I915_MM_SHRINKER) == 0)
 			*unlock = true;
-		}
 		return *unlock;
 
 	case MUTEX_TRYLOCK_SUCCESS:
