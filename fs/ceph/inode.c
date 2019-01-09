@@ -877,6 +877,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 			ci->i_rbytes = le64_to_cpu(info->rbytes);
 			ci->i_rfiles = le64_to_cpu(info->rfiles);
 			ci->i_rsubdirs = le64_to_cpu(info->rsubdirs);
+			ci->i_dir_pin = iinfo->dir_pin;
 			ceph_decode_timespec64(&ci->i_rctime, &info->rctime);
 		}
 	}

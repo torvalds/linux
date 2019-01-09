@@ -68,6 +68,7 @@ struct ceph_mds_reply_info_in {
 	char *pool_ns_data;
 	u64 max_bytes;
 	u64 max_files;
+	s32 dir_pin;
 };
 
 struct ceph_mds_reply_dir_entry {

@@ -318,6 +318,8 @@ struct ceph_inode_info {
 	/* quotas */
 	u64 i_max_bytes, i_max_files;
 
+	s32 i_dir_pin;
+
 	struct rb_root i_fragtree;
 	int i_fragtree_nsplits;
 	struct mutex i_fragtree_mutex;

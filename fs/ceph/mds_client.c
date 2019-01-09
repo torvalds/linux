@@ -157,6 +157,13 @@ static int parse_reply_info_in(void **p, void *end,
 			ceph_decode_64_safe(p, end, change_attr, bad);
 		}
 
+		/* dir pin */
+		if (struct_v >= 2) {
+			ceph_decode_32_safe(p, end, info->dir_pin, bad);
+		} else {
+			info->dir_pin = -ENODATA;
+		}
+
 		*p = end;
 	} else {
 		if (features & CEPH_FEATURE_MDS_INLINE_DATA) {
@@ -187,6 +194,8 @@ static int parse_reply_info_in(void **p, void *end,
 				*p += info->pool_ns_len;
 			}
 		}
+
+		info->dir_pin = -ENODATA;
 	}
 	return 0;
 bad:
