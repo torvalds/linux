@@ -3043,8 +3043,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(GEN9_WM_CHICKEN3, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
 		 NULL, NULL);
 
-	MMIO_D(_MMIO(0x4ab8), D_KBL);
-	MMIO_D(_MMIO(0x2248), D_KBL | D_SKL);
+	MMIO_D(_MMIO(0x4ab8), D_KBL | D_CFL);
+	MMIO_D(_MMIO(0x2248), D_SKL_PLUS);
 
 	return 0;
 }
