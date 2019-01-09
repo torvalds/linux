@@ -566,7 +566,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 
 	mutex_lock(&spa->spa_lock);
 
-	pe->tid = tid;
+	pe->tid = cpu_to_be32(tid);
 
 	/*
 	 * The barrier makes sure the PE is updated

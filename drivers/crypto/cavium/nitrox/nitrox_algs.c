@@ -73,7 +73,7 @@ static int flexi_aes_keylen(int keylen)
 static int nitrox_skcipher_init(struct crypto_skcipher *tfm)
 {
 	struct nitrox_crypto_ctx *nctx = crypto_skcipher_ctx(tfm);
-	void *fctx;
+	struct crypto_ctx_hdr *chdr;
 
 	/* get the first device */
 	nctx->ndev = nitrox_get_first_device();
@@ -81,12 +81,14 @@ static int nitrox_skcipher_init(struct crypto_skcipher *tfm)
 		return -ENODEV;
 
 	/* allocate nitrox crypto context */
-	fctx = crypto_alloc_context(nctx->ndev);
-	if (!fctx) {
+	chdr = crypto_alloc_context(nctx->ndev);
+	if (!chdr) {
 		nitrox_put_device(nctx->ndev);
 		return -ENOMEM;
 	}
-	nctx->u.ctx_handle = (uintptr_t)fctx;
+	nctx->chdr = chdr;
+	nctx->u.ctx_handle = (uintptr_t)((u8 *)chdr->vaddr +
+					 sizeof(struct ctx_hdr));
 	crypto_skcipher_set_reqsize(tfm, crypto_skcipher_reqsize(tfm) +
 				    sizeof(struct nitrox_kcrypt_request));
 	return 0;
@@ -102,7 +104,7 @@ static void nitrox_skcipher_exit(struct crypto_skcipher *tfm)
 
 		memset(&fctx->crypto, 0, sizeof(struct crypto_keys));
 		memset(&fctx->auth, 0, sizeof(struct auth_keys));
-		crypto_free_context((void *)fctx);
+		crypto_free_context((void *)nctx->chdr);
 	}
 	nitrox_put_device(nctx->ndev);
 

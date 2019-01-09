@@ -42,6 +42,7 @@ struct machine {
 	u16		  id_hdr_size;
 	bool		  comm_exec;
 	bool		  kptr_restrict_warned;
+	bool		  single_address_space;
 	char		  *root_dir;
 	char		  *mmap_name;
 	struct threads    threads[THREADS__TABLE_SIZE];
@@ -98,6 +99,8 @@ static inline bool machine__kernel_ip(struct machine *machine, u64 ip)
 
 	return ip >= kernel_start;
 }
+
+u8 machine__addr_cpumode(struct machine *machine, u8 cpumode, u64 addr);
 
 struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 				    pid_t tid);

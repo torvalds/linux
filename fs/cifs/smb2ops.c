@@ -3184,8 +3184,10 @@ smb3_receive_transform(struct TCP_Server_Info *server,
 	}
 
 	/* TODO: add support for compounds containing READ. */
-	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server))
+	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server)) {
+		*num_mids = 1;
 		return receive_encrypted_read(server, &mids[0]);
+	}
 
 	return receive_encrypted_standard(server, mids, bufs, num_mids);
 }
