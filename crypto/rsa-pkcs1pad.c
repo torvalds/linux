@@ -12,6 +12,7 @@
 #include <crypto/algapi.h>
 #include <crypto/akcipher.h>
 #include <crypto/internal/akcipher.h>
+#include <crypto/internal/rsa.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
