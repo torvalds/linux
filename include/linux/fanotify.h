@@ -35,9 +35,27 @@
 				 FAN_MARK_IGNORED_SURV_MODIFY | \
 				 FAN_MARK_FLUSH)
 
-/* Events that user can request to be notified on */
-#define FANOTIFY_EVENTS		(FAN_ACCESS | FAN_MODIFY | \
+/*
+ * Events that can be reported with data type FSNOTIFY_EVENT_PATH.
+ * Note that FAN_MODIFY can also be reported with data type
+ * FSNOTIFY_EVENT_INODE.
+ */
+#define FANOTIFY_PATH_EVENTS	(FAN_ACCESS | FAN_MODIFY | \
 				 FAN_CLOSE | FAN_OPEN | FAN_OPEN_EXEC)
+
+/*
+ * Directory entry modification events - reported only to directory
+ * where entry is modified and not to a watching parent.
+ */
+#define FANOTIFY_DIRENT_EVENTS	(FAN_MOVE | FAN_CREATE | FAN_DELETE)
+
+/* Events that can only be reported with data type FSNOTIFY_EVENT_INODE */
+#define FANOTIFY_INODE_EVENTS	(FANOTIFY_DIRENT_EVENTS | \
+				 FAN_ATTRIB | FAN_MOVE_SELF | FAN_DELETE_SELF)
+
+/* Events that user can request to be notified on */
+#define FANOTIFY_EVENTS		(FANOTIFY_PATH_EVENTS | \
+				 FANOTIFY_INODE_EVENTS)
 
 /* Events that require a permission response from user */
 #define FANOTIFY_PERM_EVENTS	(FAN_OPEN_PERM | FAN_ACCESS_PERM | \

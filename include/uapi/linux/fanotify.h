@@ -7,9 +7,16 @@
 /* the following events that user-space can register for */
 #define FAN_ACCESS		0x00000001	/* File was accessed */
 #define FAN_MODIFY		0x00000002	/* File was modified */
+#define FAN_ATTRIB		0x00000004	/* Metadata changed */
 #define FAN_CLOSE_WRITE		0x00000008	/* Writtable file closed */
 #define FAN_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
 #define FAN_OPEN		0x00000020	/* File was opened */
+#define FAN_MOVED_FROM		0x00000040	/* File was moved from X */
+#define FAN_MOVED_TO		0x00000080	/* File was moved to Y */
+#define FAN_CREATE		0x00000100	/* Subfile was created */
+#define FAN_DELETE		0x00000200	/* Subfile was deleted */
+#define FAN_DELETE_SELF		0x00000400	/* Self was deleted */
+#define FAN_MOVE_SELF		0x00000800	/* Self was moved */
 #define FAN_OPEN_EXEC		0x00001000	/* File was opened for exec */
 
 #define FAN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
@@ -24,6 +31,7 @@
 
 /* helper events */
 #define FAN_CLOSE		(FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE) /* close */
+#define FAN_MOVE		(FAN_MOVED_FROM | FAN_MOVED_TO) /* moves */
 
 /* flags used for fanotify_init() */
 #define FAN_CLOEXEC		0x00000001
