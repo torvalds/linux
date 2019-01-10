@@ -15,8 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __MT76X02_UTIL_H
-#define __MT76X02_UTIL_H
+#ifndef __MT76x02_H
+#define __MT76x02_H
 
 #include <linux/kfifo.h>
 
@@ -238,4 +238,4 @@ mt76x02_rx_get_sta_wcid(struct mt76x02_sta *sta, bool unicast)
 		return &sta->vif->group_wcid;
 }
 
-#endif
+#endif /* __MT76x02_H */
