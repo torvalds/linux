@@ -17,6 +17,8 @@
 #include <linux/compat.h>
 #include <linux/sched/signal.h>
 #include <linux/memcontrol.h>
+#include <linux/statfs.h>
+#include <linux/exportfs.h>
 
 #include <asm/ioctls.h>
 
@@ -768,6 +770,10 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		return -EINVAL;
 	}
 
+	if ((flags & FAN_REPORT_FID) &&
+	    (flags & FANOTIFY_CLASS_BITS) != FAN_CLASS_NOTIF)
+		return -EINVAL;
+
 	user = get_current_user();
 	if (atomic_read(&user->fanotify_listeners) > FANOTIFY_DEFAULT_MAX_LISTENERS) {
 		free_uid(user);
@@ -852,6 +858,52 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 out_destroy_group:
 	fsnotify_destroy_group(group);
 	return fd;
+}
+
+/* Check if filesystem can encode a unique fid */
+static int fanotify_test_fid(struct path *path)
+{
+	struct kstatfs stat, root_stat;
+	struct path root = {
+		.mnt = path->mnt,
+		.dentry = path->dentry->d_sb->s_root,
+	};
+	int err;
+
+	/*
+	 * Make sure path is not in filesystem with zero fsid (e.g. tmpfs).
+	 */
+	err = vfs_statfs(path, &stat);
+	if (err)
+		return err;
+
+	if (!stat.f_fsid.val[0] && !stat.f_fsid.val[1])
+		return -ENODEV;
+
+	/*
+	 * Make sure path is not inside a filesystem subvolume (e.g. btrfs)
+	 * which uses a different fsid than sb root.
+	 */
+	err = vfs_statfs(&root, &root_stat);
+	if (err)
+		return err;
+
+	if (root_stat.f_fsid.val[0] != stat.f_fsid.val[0] ||
+	    root_stat.f_fsid.val[1] != stat.f_fsid.val[1])
+		return -EXDEV;
+
+	/*
+	 * We need to make sure that the file system supports at least
+	 * encoding a file handle so user can use name_to_handle_at() to
+	 * compare fid returned with event to the file handle of watched
+	 * objects. However, name_to_handle_at() requires that the
+	 * filesystem also supports decoding file handles.
+	 */
+	if (!path->dentry->d_sb->s_export_op ||
+	    !path->dentry->d_sb->s_export_op->fh_to_dentry)
+		return -EOPNOTSUPP;
+
+	return 0;
 }
 
 static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
@@ -939,6 +991,12 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	if (ret)
 		goto fput_and_out;
 
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+		ret = fanotify_test_fid(&path);
+		if (ret)
+			goto path_put_and_out;
+	}
+
 	/* inode held in place by reference to path; group by fget on fd */
 	if (mark_type == FAN_MARK_INODE)
 		inode = path.dentry->d_inode;
@@ -967,6 +1025,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		ret = -EINVAL;
 	}
 
+path_put_and_out:
 	path_put(&path);
 fput_and_out:
 	fdput(f);
@@ -1003,7 +1062,7 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
  */
 static int __init fanotify_user_setup(void)
 {
-	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_INIT_FLAGS) != 7);
+	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_INIT_FLAGS) != 8);
 	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_MARK_FLAGS) != 9);
 
 	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
