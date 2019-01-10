@@ -131,6 +131,24 @@ unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
 
 /**
+ * dev_pm_opp_get_level() - Gets the level corresponding to an available opp
+ * @opp:	opp for which level value has to be returned for
+ *
+ * Return: level read from device tree corresponding to the opp, else
+ * return 0.
+ */
+unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
+{
+	if (IS_ERR_OR_NULL(opp) || !opp->available) {
+		pr_err("%s: Invalid parameters\n", __func__);
+		return 0;
+	}
+
+	return opp->level;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_level);
+
+/**
  * dev_pm_opp_is_turbo() - Returns if opp is turbo OPP or not
  * @opp: opp for which turbo mode is being verified
  *
