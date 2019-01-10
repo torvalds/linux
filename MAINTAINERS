@@ -13820,8 +13820,9 @@ F:	drivers/media/mmc/siano/
 
 SIFIVE DRIVERS
 M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Paul Walmsley <paul.walmsley@sifive.com>
 L:	linux-riscv@lists.infradead.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/palmer/riscv-linux.git
+T:	git git://github.com/sifive/riscv-linux.git
 S:	Supported
 K:	sifive
 N:	sifive
