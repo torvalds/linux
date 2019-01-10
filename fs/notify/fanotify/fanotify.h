@@ -14,6 +14,7 @@ extern struct kmem_cache *fanotify_perm_event_cachep;
  */
 struct fanotify_event_info {
 	struct fsnotify_event fse;
+	u32 mask;
 	/*
 	 * We hold ref to this path so it may be dereferenced at any point
 	 * during this object's lifetime

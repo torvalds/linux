@@ -135,7 +135,6 @@ struct fsnotify_event {
 	struct list_head list;
 	/* inode may ONLY be dereferenced during handle_event(). */
 	struct inode *inode;	/* either the inode the event happened to or its parent */
-	u32 mask;		/* the type of access, bitwise OR for FS_* event types */
 };
 
 /*
@@ -485,9 +484,12 @@ extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info);
 extern bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info);
 
-/* put here because inotify does some weird stuff when destroying watches */
-extern void fsnotify_init_event(struct fsnotify_event *event,
-				struct inode *to_tell, u32 mask);
+static inline void fsnotify_init_event(struct fsnotify_event *event,
+				       struct inode *inode)
+{
+	INIT_LIST_HEAD(&event->list);
+	event->inode = inode;
+}
 
 #else
 

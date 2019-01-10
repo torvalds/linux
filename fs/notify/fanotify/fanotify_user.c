@@ -131,9 +131,9 @@ static int fill_event_metadata(struct fsnotify_group *group,
 	metadata->metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
 	metadata->reserved = 0;
-	metadata->mask = fsn_event->mask & FANOTIFY_OUTGOING_EVENTS;
+	metadata->mask = event->mask & FANOTIFY_OUTGOING_EVENTS;
 	metadata->pid = pid_vnr(event->pid);
-	if (unlikely(fsn_event->mask & FAN_Q_OVERFLOW))
+	if (unlikely(event->mask & FAN_Q_OVERFLOW))
 		metadata->fd = FAN_NOFD;
 	else {
 		metadata->fd = create_fd(group, event, file);
@@ -230,7 +230,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 			 fanotify_event_metadata.event_len))
 		goto out_close_fd;
 
-	if (fanotify_is_perm_event(event->mask))
+	if (fanotify_is_perm_event(FANOTIFY_E(event)->mask))
 		FANOTIFY_PE(event)->fd = fd;
 
 	if (fd != FAN_NOFD)
@@ -316,7 +316,7 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 		 * Permission events get queued to wait for response.  Other
 		 * events can be destroyed now.
 		 */
-		if (!fanotify_is_perm_event(kevent->mask)) {
+		if (!fanotify_is_perm_event(FANOTIFY_E(kevent)->mask)) {
 			fsnotify_destroy_event(group, kevent);
 		} else {
 			if (ret <= 0) {
@@ -401,7 +401,7 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	 */
 	while (!fsnotify_notify_queue_is_empty(group)) {
 		fsn_event = fsnotify_remove_first_event(group);
-		if (!(fsn_event->mask & FANOTIFY_PERM_EVENTS)) {
+		if (!(FANOTIFY_E(fsn_event)->mask & FANOTIFY_PERM_EVENTS)) {
 			spin_unlock(&group->notification_lock);
 			fsnotify_destroy_event(group, fsn_event);
 			spin_lock(&group->notification_lock);

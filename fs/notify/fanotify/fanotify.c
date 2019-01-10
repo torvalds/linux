@@ -36,20 +36,22 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
 	struct fsnotify_event *test_event;
+	struct fanotify_event_info *new;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
+	new = FANOTIFY_E(event);
 
 	/*
 	 * Don't merge a permission event with any other event so that we know
 	 * the event structure we have created in fanotify_handle_event() is the
 	 * one we should check for permission response.
 	 */
-	if (fanotify_is_perm_event(event->mask))
+	if (fanotify_is_perm_event(new->mask))
 		return 0;
 
 	list_for_each_entry_reverse(test_event, list, list) {
 		if (should_merge(test_event, event)) {
-			test_event->mask |= event->mask;
+			FANOTIFY_E(test_event)->mask |= new->mask;
 			return 1;
 		}
 	}
@@ -173,7 +175,8 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
 	if (!event)
 		goto out;
 init: __maybe_unused
-	fsnotify_init_event(&event->fse, inode, mask);
+	fsnotify_init_event(&event->fse, inode);
+	event->mask = mask;
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
 		event->pid = get_pid(task_pid(current));
 	else
@@ -280,7 +283,7 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 	event = FANOTIFY_E(fsn_event);
 	path_put(&event->path);
 	put_pid(event->pid);
-	if (fanotify_is_perm_event(fsn_event->mask)) {
+	if (fanotify_is_perm_event(event->mask)) {
 		kmem_cache_free(fanotify_perm_event_cachep,
 				FANOTIFY_PE(fsn_event));
 		return;
