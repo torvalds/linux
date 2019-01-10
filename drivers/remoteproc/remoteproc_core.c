@@ -819,7 +819,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 		mem->da = (u32)dma;
 	}
 
-	mem->dma = (u32)dma;
+	mem->dma = dma;
 	mem->va = va;
 
 	return 0;
