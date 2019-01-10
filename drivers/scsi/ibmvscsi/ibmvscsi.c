@@ -454,7 +454,7 @@ static int initialize_event_pool(struct event_pool *pool,
 	pool->iu_storage =
 	    dma_alloc_coherent(hostdata->dev,
 			       pool->size * sizeof(*pool->iu_storage),
-			       &pool->iu_token, 0);
+			       &pool->iu_token, GFP_KERNEL);
 	if (!pool->iu_storage) {
 		kfree(pool->events);
 		return -ENOMEM;
