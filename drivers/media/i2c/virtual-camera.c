@@ -52,7 +52,11 @@ struct virtual_camera {
 #define to_virtual_camera(sd) container_of(sd, struct virtual_camera, subdev)
 
 static const s64 link_freq_menu_items[] = {
+	40000000,	/* minimum support frequency */
+	55000000,
+	75000000,
 	100000000,
+	125000000,
 	150000000,
 	200000000,
 	250000000,
@@ -64,7 +68,10 @@ static const s64 link_freq_menu_items[] = {
 	700000000,
 	800000000,
 	900000000,
-	1000000000
+	1000000000,
+	1100000000,
+	1200000000,
+	1250000000	/* maximum support frequency */
 };
 
 static const struct output_pixfmt supported_formats[] = {
@@ -432,6 +439,13 @@ static int vcamera_initialize_controls(struct virtual_camera *vcam)
 			v4l2_ctrl_s_ctrl(vcam->link_freq, i - 1);
 			break;
 		}
+	}
+
+	if (i == ARRAY_SIZE(link_freq_menu_items)) {
+		dev_warn(&vcam->client->dev,
+			 "vcam->link_frequency: %lld, max support clock: %lld\n",
+			 vcam->link_frequency, link_freq_menu_items[i - 1]);
+		v4l2_ctrl_s_ctrl(vcam->link_freq, i - 1);
 	}
 
 	return 0;
