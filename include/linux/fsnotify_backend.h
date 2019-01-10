@@ -59,27 +59,33 @@
  * dnotify and inotify. */
 #define FS_EVENT_ON_CHILD	0x08000000
 
-/* This is a list of all events that may get sent to a parernt based on fs event
- * happening to inodes inside that directory */
-#define FS_EVENTS_POSS_ON_CHILD   (FS_ACCESS | FS_MODIFY | FS_ATTRIB |\
-				   FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN |\
-				   FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE |\
-				   FS_DELETE | FS_OPEN_PERM | FS_ACCESS_PERM | \
-				   FS_OPEN_EXEC | FS_OPEN_EXEC_PERM)
-
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
+
+/*
+ * Directory entry modification events - reported only to directory
+ * where entry is modified and not to a watching parent.
+ * The watching parent may get an FS_ATTRIB|FS_EVENT_ON_CHILD event
+ * when a directory entry inside a child subdir changes.
+ */
+#define ALL_FSNOTIFY_DIRENT_EVENTS	(FS_CREATE | FS_DELETE | FS_MOVE)
 
 #define ALL_FSNOTIFY_PERM_EVENTS (FS_OPEN_PERM | FS_ACCESS_PERM | \
 				  FS_OPEN_EXEC_PERM)
 
+/*
+ * This is a list of all events that may get sent to a parent based on fs event
+ * happening to inodes inside that directory.
+ */
+#define FS_EVENTS_POSS_ON_CHILD   (ALL_FSNOTIFY_PERM_EVENTS | \
+				   FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
+				   FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | \
+				   FS_OPEN | FS_OPEN_EXEC)
+
 /* Events that can be reported to backends */
-#define ALL_FSNOTIFY_EVENTS (FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
-			     FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN | \
-			     FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE | \
-			     FS_DELETE | FS_DELETE_SELF | FS_MOVE_SELF | \
-			     FS_UNMOUNT | FS_Q_OVERFLOW | FS_IN_IGNORED | \
-			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_DN_RENAME | \
-			     FS_OPEN_EXEC | FS_OPEN_EXEC_PERM)
+#define ALL_FSNOTIFY_EVENTS (ALL_FSNOTIFY_DIRENT_EVENTS | \
+			     FS_EVENTS_POSS_ON_CHILD | \
+			     FS_DELETE_SELF | FS_MOVE_SELF | FS_DN_RENAME | \
+			     FS_UNMOUNT | FS_Q_OVERFLOW | FS_IN_IGNORED)
 
 /* Extra flags that may be reported with event or control handling of events */
 #define ALL_FSNOTIFY_FLAGS  (FS_EXCL_UNLINK | FS_ISDIR | FS_IN_ONESHOT | \
