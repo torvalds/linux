@@ -47,6 +47,8 @@
 
 #include "remoteproc_internal.h"
 
+#define HIGH_BITS_MASK 0xFFFFFFFF00000000ULL
+
 static DEFINE_MUTEX(rproc_list_mutex);
 static LIST_HEAD(rproc_list);
 
@@ -816,6 +818,10 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 		dev_dbg(dev, "carveout mapped 0x%x to %pad\n",
 			mem->da, &dma);
 	} else {
+		/* Update device address as undefined by requester */
+		if ((u64)dma & HIGH_BITS_MASK)
+			dev_warn(dev, "DMA address cast in 32bit to fit resource table format\n");
+
 		mem->da = (u32)dma;
 	}
 
@@ -1159,6 +1165,7 @@ static int rproc_alloc_registered_carveouts(struct rproc *rproc)
 	struct rproc_mem_entry *entry, *tmp;
 	struct fw_rsc_carveout *rsc;
 	struct device *dev = &rproc->dev;
+	u64 pa;
 	int ret;
 
 	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
@@ -1195,10 +1202,15 @@ static int rproc_alloc_registered_carveouts(struct rproc *rproc)
 
 			/* Use va if defined else dma to generate pa */
 			if (entry->va)
-				rsc->pa = (u32)rproc_va_to_pa(entry->va);
+				pa = (u64)rproc_va_to_pa(entry->va);
 			else
-				rsc->pa = (u32)entry->dma;
+				pa = (u64)entry->dma;
 
+			if (((u64)pa) & HIGH_BITS_MASK)
+				dev_warn(dev,
+					 "Physical address cast in 32bit to fit resource table format\n");
+
+			rsc->pa = (u32)pa;
 			rsc->da = entry->da;
 			rsc->len = entry->len;
 		}
