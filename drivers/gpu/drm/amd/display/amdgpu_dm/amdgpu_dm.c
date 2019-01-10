@@ -5991,7 +5991,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->color_mgmt_changed &&
-		    !new_crtc_state->vrr_enabled)
+		    old_crtc_state->vrr_enabled == new_crtc_state->vrr_enabled)
 			continue;
 
 		if (!new_crtc_state->enable)
