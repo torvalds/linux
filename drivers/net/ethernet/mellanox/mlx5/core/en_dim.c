@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 #include "en.h"
 
 static void

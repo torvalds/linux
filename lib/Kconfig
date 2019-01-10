@@ -562,6 +562,14 @@ config SIGNATURE
 	  Digital signature verification. Currently only RSA is supported.
 	  Implementation is done using GnuPG MPI library
 
+config DIMLIB
+	bool "DIM library"
+	default y
+	help
+	  Dynamic Interrupt Moderation library.
+	  Implements an algorithm for dynamically change CQ modertion values
+	  according to run time performance.
+
 #
 # libfdt files, only selected if needed.
 #

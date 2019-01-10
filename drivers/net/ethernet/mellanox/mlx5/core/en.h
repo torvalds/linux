@@ -48,7 +48,7 @@
 #include <linux/rhashtable.h>
 #include <net/switchdev.h>
 #include <net/xdp.h>
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 #include <linux/bits.h>
 #include "wq.h"
 #include "mlx5_core.h"

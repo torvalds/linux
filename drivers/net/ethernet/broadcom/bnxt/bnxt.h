@@ -23,7 +23,7 @@
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 #include <net/xdp.h>
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;

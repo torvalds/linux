@@ -16,7 +16,7 @@
 #include <linux/mii.h>
 #include <linux/if_vlan.h>
 #include <linux/phy.h>
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 
 /* total number of Buffer Descriptors, same for Rx/Tx */
 #define TOTAL_DESC				256

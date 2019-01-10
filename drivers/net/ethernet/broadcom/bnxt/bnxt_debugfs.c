@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include "bnxt_hsi.h"
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 #include "bnxt.h"
 #include "bnxt_debugfs.h"
 

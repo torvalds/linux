@@ -7,7 +7,7 @@
  * the Free Software Foundation.
  */
 
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 

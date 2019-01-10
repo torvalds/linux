@@ -6,20 +6,49 @@
 
 #include <linux/module.h>
 
+/**
+ * Number of events between DIM iterations.
+ * Causes a moderation of the algorithm run.
+ */
 #define DIM_NEVENTS 64
 
-/* more than 10% difference */
+/**
+ * Is a difference between values justifies taking an action.
+ * We consider 10% difference as significant.
+ */
 #define IS_SIGNIFICANT_DIFF(val, ref) \
 	(((100UL * abs((val) - (ref))) / (ref)) > 10)
-#define BIT_GAP(bits, end, start) ((((end) - (start)) + BIT_ULL(bits)) \
-& (BIT_ULL(bits) - 1))
 
+/**
+ * Calculate the gap between two values.
+ * Take wrap-around and variable size into consideration.
+ */
+#define BIT_GAP(bits, end, start) ((((end) - (start)) + BIT_ULL(bits)) \
+		& (BIT_ULL(bits) - 1))
+
+/**
+ * Structure for CQ moderation values.
+ * Used for communications between DIM and its consumer.
+ *
+ * @usec: CQ timer suggestion (by DIM)
+ * @pkts: CQ packet counter suggestion (by DIM)
+ * @cq_period_mode: CQ priod count mode (from CQE/EQE)
+ */
 struct dim_cq_moder {
 	u16 usec;
 	u16 pkts;
 	u8 cq_period_mode;
 };
 
+/**
+ * Structure for DIM sample data.
+ * Used for communications between DIM and its consumer.
+ *
+ * @time: Sample timestamp
+ * @pkt_ctr: Number of packets
+ * @byte_ctr: Number of bytes
+ * @event_ctr: Number of events
+ */
 struct dim_sample {
 	ktime_t time;
 	u32 pkt_ctr;
@@ -27,13 +56,36 @@ struct dim_sample {
 	u16 event_ctr;
 };
 
+/**
+ * Structure for DIM stats.
+ * Used for holding current measured rates.
+ *
+ * @ppms: Packets per msec
+ * @bpms: Bytes per msec
+ * @epms: Events per msec
+ */
 struct dim_stats {
-	int ppms; /* packets per msec */
-	int bpms; /* bytes per msec */
-	int epms; /* events per msec */
+	int ppms;
+	int bpms;
+	int epms;
 };
 
-struct dim { /* Dynamic Interrupt Moderation */
+/**
+ * Main structure for dynamic interrupt moderation (DIM).
+ * Used for holding all information about a specific DIM instance.
+ *
+ * @state: Algorithm state (see below)
+ * @prev_stats: Measured rates from previous iteration (for comparison)
+ * @start_sample: Sampled data at start of current iteration
+ * @work: Work to perform on action required
+ * @profile_ix: Current moderation profile
+ * @mode: CQ period count mode
+ * @tune_state: Algorithm tuning state (see below)
+ * @steps_right: Number of steps taken towards higher moderation
+ * @steps_left: Number of steps taken towards lower moderation
+ * @tired: Parking depth counter
+ */
+struct dim {
 	u8 state;
 	struct dim_stats prev_stats;
 	struct dim_sample start_sample;
@@ -46,18 +98,49 @@ struct dim { /* Dynamic Interrupt Moderation */
 	u8 tired;
 };
 
+/**
+ * enum dim_cq_period_mode
+ *
+ * These are the modes for CQ period count.
+ *
+ * @DIM_CQ_PERIOD_MODE_START_FROM_EQE: Start counting from EQE
+ * @DIM_CQ_PERIOD_MODE_START_FROM_CQE: Start counting from CQE (implies timer reset)
+ * @DIM_CQ_PERIOD_NUM_MODES: Number of modes
+ */
 enum {
 	DIM_CQ_PERIOD_MODE_START_FROM_EQE = 0x0,
 	DIM_CQ_PERIOD_MODE_START_FROM_CQE = 0x1,
 	DIM_CQ_PERIOD_NUM_MODES
 };
 
+/**
+ * enum dim_state
+ *
+ * These are the DIM algorithm states.
+ * These will determine if the algorithm is in a valid state to start an iteration.
+ *
+ * @DIM_START_MEASURE: This is the first iteration (also after applying a new profile)
+ * @DIM_MEASURE_IN_PROGRESS: Algorithm is already in progress - check if
+ * need to perform an action
+ * @DIM_APPLY_NEW_PROFILE: DIM consumer is currently applying a profile - no need to measure
+ */
 enum {
 	DIM_START_MEASURE,
 	DIM_MEASURE_IN_PROGRESS,
 	DIM_APPLY_NEW_PROFILE,
 };
 
+/**
+ * enum dim_tune_state
+ *
+ * These are the DIM algorithm tune states.
+ * These will determine which action the algorithm should perform.
+ *
+ * @DIM_PARKING_ON_TOP: Algorithm found a local top point - exit on significant difference
+ * @DIM_PARKING_TIRED: Algorithm found a deep top point - don't exit if tired > 0
+ * @DIM_GOING_RIGHT: Algorithm is currently trying higher moderation levels
+ * @DIM_GOING_LEFT: Algorithm is currently trying lower moderation levels
+ */
 enum {
 	DIM_PARKING_ON_TOP,
 	DIM_PARKING_TIRED,
@@ -65,63 +148,95 @@ enum {
 	DIM_GOING_LEFT,
 };
 
+/**
+ * enum dim_stats_state
+ *
+ * These are the DIM algorithm statistics states.
+ * These will determine the verdict of current iteration.
+ *
+ * @DIM_STATS_WORSE: Current iteration shows worse performance than before
+ * @DIM_STATS_WORSE: Current iteration shows same performance than before
+ * @DIM_STATS_WORSE: Current iteration shows better performance than before
+ */
 enum {
 	DIM_STATS_WORSE,
 	DIM_STATS_SAME,
 	DIM_STATS_BETTER,
 };
 
+/**
+ * enum dim_step_result
+ *
+ * These are the DIM algorithm step results.
+ * These describe the result of a step.
+ *
+ * @DIM_STEPPED: Performed a regular step
+ * @DIM_TOO_TIRED: Same kind of step was done multiple times - should go to
+ * tired parking
+ * @DIM_ON_EDGE: Stepped to the most left/right profile
+ */
 enum {
 	DIM_STEPPED,
 	DIM_TOO_TIRED,
 	DIM_ON_EDGE,
 };
 
-static inline bool dim_on_top(struct dim *dim)
-{
-	switch (dim->tune_state) {
-	case DIM_PARKING_ON_TOP:
-	case DIM_PARKING_TIRED:
-		return true;
-	case DIM_GOING_RIGHT:
-		return (dim->steps_left > 1) && (dim->steps_right == 1);
-	default: /* DIM_GOING_LEFT */
-		return (dim->steps_right > 1) && (dim->steps_left == 1);
-	}
-}
+/**
+ *	dim_on_top - check if current state is a good place to stop (top location)
+ *	@dim: DIM context
+ *
+ * Check if current profile is a good place to park at.
+ * This will result in reducing the DIM checks frequency as we assume we
+ * shouldn't probably change profiles, unless traffic pattern wasn't changed.
+ */
+bool dim_on_top(struct dim *dim);
 
-static inline void dim_turn(struct dim *dim)
-{
-	switch (dim->tune_state) {
-	case DIM_PARKING_ON_TOP:
-	case DIM_PARKING_TIRED:
-		break;
-	case DIM_GOING_RIGHT:
-		dim->tune_state = DIM_GOING_LEFT;
-		dim->steps_left = 0;
-		break;
-	case DIM_GOING_LEFT:
-		dim->tune_state = DIM_GOING_RIGHT;
-		dim->steps_right = 0;
-		break;
-	}
-}
+/**
+ *	dim_turn - change profile alterning direction
+ *	@dim: DIM context
+ *
+ * Go left if we were going right and vice-versa.
+ * Do nothing if currently parking.
+ */
+void dim_turn(struct dim *dim);
 
-static inline void dim_park_on_top(struct dim *dim)
-{
-	dim->steps_right  = 0;
-	dim->steps_left   = 0;
-	dim->tired        = 0;
-	dim->tune_state   = DIM_PARKING_ON_TOP;
-}
+/**
+ *	dim_park_on_top - enter a parking state on a top location
+ *	@dim: DIM context
+ *
+ * Enter parking state.
+ * Clear all movement history.
+ */
+void dim_park_on_top(struct dim *dim);
 
-static inline void dim_park_tired(struct dim *dim)
-{
-	dim->steps_right  = 0;
-	dim->steps_left   = 0;
-	dim->tune_state   = DIM_PARKING_TIRED;
-}
+/**
+ *	dim_park_tired - enter a tired parking state
+ *	@dim: DIM context
+ *
+ * Enter parking state.
+ * Clear all movement history and cause DIM checks frequency to reduce.
+ */
+void dim_park_tired(struct dim *dim);
 
+/**
+ *	dim_calc_stats - calculate the difference between two samples
+ *	@start: start sample
+ *	@end: end sample
+ *	@curr_stats: delta between samples
+ *
+ * Calculate the delta between two samples (in data rates).
+ * Takes into consideration counter wrap-around.
+ */
+void dim_calc_stats(struct dim_sample *start, struct dim_sample *end,
+		    struct dim_stats *curr_stats);
+
+/**
+ *	dim_update_sample - set a sample's fields with give values
+ *	@event_ctr: number of events to set
+ *	@packets: number of packets to set
+ *	@bytes: number of bytes to set
+ *	@s: DIM sample
+ */
 static inline void
 dim_update_sample(u16 event_ctr, u64 packets, u64 bytes, struct dim_sample *s)
 {
@@ -131,23 +246,99 @@ dim_update_sample(u16 event_ctr, u64 packets, u64 bytes, struct dim_sample *s)
 	s->event_ctr = event_ctr;
 }
 
-static inline void
-dim_calc_stats(struct dim_sample *start, struct dim_sample *end,
-	       struct dim_stats *curr_stats)
-{
-	/* u32 holds up to 71 minutes, should be enough */
-	u32 delta_us = ktime_us_delta(end->time, start->time);
-	u32 npkts = BIT_GAP(BITS_PER_TYPE(u32), end->pkt_ctr, start->pkt_ctr);
-	u32 nbytes = BIT_GAP(BITS_PER_TYPE(u32), end->byte_ctr,
-			     start->byte_ctr);
+/* Net DIM */
 
-	if (!delta_us)
-		return;
+/*
+ * Net DIM profiles:
+ *        There are different set of profiles for each CQ period mode.
+ *        There are different set of profiles for RX/TX CQs.
+ *        Each profile size must be of NET_DIM_PARAMS_NUM_PROFILES
+ */
+#define NET_DIM_PARAMS_NUM_PROFILES 5
+#define NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE 256
+#define NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE 128
+#define NET_DIM_DEF_PROFILE_CQE 1
+#define NET_DIM_DEF_PROFILE_EQE 1
 
-	curr_stats->ppms = DIV_ROUND_UP(npkts * USEC_PER_MSEC, delta_us);
-	curr_stats->bpms = DIV_ROUND_UP(nbytes * USEC_PER_MSEC, delta_us);
-	curr_stats->epms = DIV_ROUND_UP(DIM_NEVENTS * USEC_PER_MSEC,
-					delta_us);
+#define NET_DIM_RX_EQE_PROFILES { \
+	{1,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{8,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{64,  NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{128, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{256, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
 }
+
+#define NET_DIM_RX_CQE_PROFILES { \
+	{2,  256},             \
+	{8,  128},             \
+	{16, 64},              \
+	{32, 64},              \
+	{64, 64}               \
+}
+
+#define NET_DIM_TX_EQE_PROFILES { \
+	{1,   NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{8,   NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{32,  NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{64,  NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{128, NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE}   \
+}
+
+#define NET_DIM_TX_CQE_PROFILES { \
+	{5,  128},  \
+	{8,  64},  \
+	{16, 32},  \
+	{32, 32},  \
+	{64, 32}   \
+}
+
+static const struct dim_cq_moder
+rx_profile[DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
+	NET_DIM_RX_EQE_PROFILES,
+	NET_DIM_RX_CQE_PROFILES,
+};
+
+static const struct dim_cq_moder
+tx_profile[DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
+	NET_DIM_TX_EQE_PROFILES,
+	NET_DIM_TX_CQE_PROFILES,
+};
+
+/**
+ *	net_dim_get_rx_moderation - provide a CQ moderation object for the given RX profile
+ *	@cq_period_mode: CQ period mode
+ *	@ix: Profile index
+ */
+struct dim_cq_moder net_dim_get_rx_moderation(u8 cq_period_mode, int ix);
+
+/**
+ *	net_dim_get_def_rx_moderation - provide the default RX moderation
+ *	@cq_period_mode: CQ period mode
+ */
+struct dim_cq_moder net_dim_get_def_rx_moderation(u8 cq_period_mode);
+
+/**
+ *	net_dim_get_tx_moderation - provide a CQ moderation object for the given TX profile
+ *	@cq_period_mode: CQ period mode
+ *	@ix: Profile index
+ */
+struct dim_cq_moder net_dim_get_tx_moderation(u8 cq_period_mode, int ix);
+
+/**
+ *	net_dim_get_def_tx_moderation - provide the default TX moderation
+ *	@cq_period_mode: CQ period mode
+ */
+struct dim_cq_moder net_dim_get_def_tx_moderation(u8 cq_period_mode);
+
+/**
+ *	net_dim - main DIM algorithm entry point
+ *	@dim: DIM instance information
+ *	@end_sample: Current data measurement
+ *
+ * Called by the consumer.
+ * This is the main logic of the algorithm, where data is processed in order to decide on next
+ * required action.
+ */
+void net_dim(struct dim *dim, struct dim_sample end_sample);
 
 #endif /* DIM_H */
