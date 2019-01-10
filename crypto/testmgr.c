@@ -1889,7 +1889,7 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 			   const char *driver, u32 type, u32 mask)
 {
 	struct crypto_shash *tfm;
-	u32 val;
+	__le32 val;
 	int err;
 
 	err = alg_test_hash(desc, driver, type, mask);
@@ -1911,7 +1911,7 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 		shash->tfm = tfm;
 		shash->flags = 0;
 
-		*ctx = le32_to_cpu(420553207);
+		*ctx = 420553207;
 		err = crypto_shash_final(shash, (u8 *)&val);
 		if (err) {
 			printk(KERN_ERR "alg: crc32c: Operation failed for "
@@ -1919,9 +1919,9 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 			break;
 		}
 
-		if (val != ~420553207) {
-			printk(KERN_ERR "alg: crc32c: Test failed for %s: "
-			       "%d\n", driver, val);
+		if (val != cpu_to_le32(~420553207)) {
+			pr_err("alg: crc32c: Test failed for %s: %u\n",
+			       driver, le32_to_cpu(val));
 			err = -EINVAL;
 		}
 	} while (0);
