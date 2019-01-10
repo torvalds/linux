@@ -1444,6 +1444,7 @@ static ssize_t pcie_reset_ep_store(struct device *dev,
 	u32 val = 0;
 	int err;
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
+	struct dma_trx_obj *obj = rockchip->dma_obj;
 
 	err = kstrtou32(buf, 10, &val);
 	if (err)
@@ -1464,6 +1465,19 @@ static ssize_t pcie_reset_ep_store(struct device *dev,
 		err = rockchip_cfg_atu(rockchip);
 		if (err)
 			return err;
+
+		/*
+		 * In order not to bother sending remain but unused data to the
+		 * peer,we need to flush out the pending data to the link before
+		 * setting up the ATU. This is safe as the peer's ATU isn't
+		 * ready at this moment and the sender also can turn its FSM
+		 * back without any exception.
+		 */
+		obj->loop_count = 0;
+		obj->local_read_available = 0x0;
+		obj->local_write_available = 0xff;
+		obj->remote_write_available = 0xff;
+		obj->dma_free = true;
 	}
 
 	return size;
