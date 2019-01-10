@@ -98,8 +98,6 @@ struct jfs_superblock {
 	__le64 s_xsize;		/* 8: extendfs s_size */
 	pxd_t s_xfsckpxd;	/* 8: extendfs fsckpxd */
 	pxd_t s_xlogpxd;	/* 8: extendfs logpxd */
-	/* - 128 byte boundary - */
-
 	char s_uuid[16];	/* 16: 128-bit uuid for volume */
 	char s_label[16];	/* 16: volume label */
 	char s_loguuid[16];	/* 16: 128-bit uuid for log device */
