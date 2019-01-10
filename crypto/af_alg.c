@@ -530,17 +530,17 @@ static int af_alg_alloc_tsgl(struct sock *sk)
  */
 unsigned int af_alg_count_tsgl(struct sock *sk, size_t bytes, size_t offset)
 {
-	struct alg_sock *ask = alg_sk(sk);
-	struct af_alg_ctx *ctx = ask->private;
-	struct af_alg_tsgl *sgl, *tmp;
+	const struct alg_sock *ask = alg_sk(sk);
+	const struct af_alg_ctx *ctx = ask->private;
+	const struct af_alg_tsgl *sgl;
 	unsigned int i;
 	unsigned int sgl_count = 0;
 
 	if (!bytes)
 		return 0;
 
-	list_for_each_entry_safe(sgl, tmp, &ctx->tsgl_list, list) {
-		struct scatterlist *sg = sgl->sg;
+	list_for_each_entry(sgl, &ctx->tsgl_list, list) {
+		const struct scatterlist *sg = sgl->sg;
 
 		for (i = 0; i < sgl->cur; i++) {
 			size_t bytes_count;
