@@ -94,6 +94,7 @@ struct adv748x_csi2 {
 #define is_tx_enabled(_tx) ((_tx)->state->endpoints[(_tx)->port] != NULL)
 #define is_txa(_tx) ((_tx) == &(_tx)->state->txa)
 #define is_txb(_tx) ((_tx) == &(_tx)->state->txb)
+#define is_tx(_tx) (is_txa(_tx) || is_txb(_tx))
 
 #define is_afe_enabled(_state)					\
 	((_state)->endpoints[ADV748X_PORT_AIN0] != NULL ||	\
@@ -223,6 +224,7 @@ struct adv748x_state {
 #define ADV748X_IO_10_CSI4_EN		BIT(7)
 #define ADV748X_IO_10_CSI1_EN		BIT(6)
 #define ADV748X_IO_10_PIX_OUT_EN	BIT(5)
+#define ADV748X_IO_10_CSI4_IN_SEL_AFE	BIT(3)
 
 #define ADV748X_IO_CHIP_REV_ID_1	0xdf
 #define ADV748X_IO_CHIP_REV_ID_2	0xe0
