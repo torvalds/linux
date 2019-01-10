@@ -137,6 +137,7 @@ uint amdgpu_smu_memory_pool_size = 0;
 /* FBC (bit 0) disabled by default*/
 uint amdgpu_dc_feature_mask = 0;
 int amdgpu_async_gfx_ring = 1;
+int amdgpu_mcbp = 0;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -573,6 +574,10 @@ module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444
 MODULE_PARM_DESC(async_gfx_ring,
 	"Asynchronous GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
 module_param_named(async_gfx_ring, amdgpu_async_gfx_ring, int, 0444);
+
+MODULE_PARM_DESC(mcbp,
+	"Enable Mid-command buffer preemption (0 = disabled (default), 1 = enabled)");
+module_param_named(mcbp, amdgpu_mcbp, int, 0444);
 
 #ifdef CONFIG_HSA_AMD
 /**

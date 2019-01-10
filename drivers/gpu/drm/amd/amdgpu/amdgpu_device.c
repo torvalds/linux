@@ -2575,6 +2575,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	amdgpu_device_get_pcie_info(adev);
 
+	if (amdgpu_mcbp)
+		DRM_INFO("MCBP is enabled\n");
+
 	/* early init functions */
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
