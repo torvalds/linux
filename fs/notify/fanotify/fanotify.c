@@ -13,6 +13,7 @@
 #include <linux/wait.h>
 #include <linux/audit.h>
 #include <linux/sched/mm.h>
+#include <linux/statfs.h>
 
 #include "fanotify.h"
 
@@ -25,10 +26,18 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 	old = FANOTIFY_E(old_fsn);
 	new = FANOTIFY_E(new_fsn);
 
-	if (old_fsn->inode == new_fsn->inode && old->pid == new->pid &&
-	    old->path.mnt == new->path.mnt &&
-	    old->path.dentry == new->path.dentry)
-		return true;
+	if (old_fsn->inode != new_fsn->inode || old->pid != new->pid ||
+	    old->fh_type != new->fh_type || old->fh_len != new->fh_len)
+		return false;
+
+	if (fanotify_event_has_path(old)) {
+		return old->path.mnt == new->path.mnt &&
+			old->path.dentry == new->path.dentry;
+	} else if (fanotify_event_has_fid(old)) {
+		return fanotify_fid_equal(&old->fid, &new->fid, old->fh_len);
+	}
+
+	/* Do not merge events if we failed to encode fid */
 	return false;
 }
 
@@ -143,6 +152,60 @@ static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
 		~marks_ignored_mask;
 }
 
+static int fanotify_encode_fid(struct fanotify_event *event,
+			       const struct path *path, gfp_t gfp)
+{
+	struct fanotify_fid *fid = &event->fid;
+	int dwords, bytes = 0;
+	struct kstatfs stat;
+	int err, type;
+
+	stat.f_fsid.val[0] = stat.f_fsid.val[1] = 0;
+	fid->ext_fh = NULL;
+	dwords = 0;
+	err = -ENOENT;
+	type = exportfs_encode_inode_fh(d_inode(path->dentry), NULL, &dwords,
+					NULL);
+	if (!dwords)
+		goto out_err;
+
+	err = vfs_statfs(path, &stat);
+	if (err)
+		goto out_err;
+
+	bytes = dwords << 2;
+	if (bytes > FANOTIFY_INLINE_FH_LEN) {
+		/* Treat failure to allocate fh as failure to allocate event */
+		err = -ENOMEM;
+		fid->ext_fh = kmalloc(bytes, gfp);
+		if (!fid->ext_fh)
+			goto out_err;
+	}
+
+	type = exportfs_encode_inode_fh(d_inode(path->dentry),
+					fanotify_fid_fh(fid, bytes), &dwords,
+					NULL);
+	err = -EINVAL;
+	if (!type || type == FILEID_INVALID || bytes != dwords << 2)
+		goto out_err;
+
+	fid->fsid = stat.f_fsid;
+	event->fh_len = bytes;
+
+	return type;
+
+out_err:
+	pr_warn_ratelimited("fanotify: failed to encode fid (fsid=%x.%x, "
+			    "type=%d, bytes=%d, err=%i)\n",
+			    stat.f_fsid.val[0], stat.f_fsid.val[1],
+			    type, bytes, err);
+	kfree(fid->ext_fh);
+	fid->ext_fh = NULL;
+	event->fh_len = 0;
+
+	return FILEID_INVALID;
+}
+
 struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 						 struct inode *inode, u32 mask,
 						 const struct path *path)
@@ -181,10 +244,16 @@ init: __maybe_unused
 		event->pid = get_pid(task_pid(current));
 	else
 		event->pid = get_pid(task_tgid(current));
-	if (path) {
+	event->fh_len = 0;
+	if (path && FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+		/* Report the event without a file identifier on encode error */
+		event->fh_type = fanotify_encode_fid(event, path, gfp);
+	} else if (path) {
+		event->fh_type = FILEID_ROOT;
 		event->path = *path;
 		path_get(&event->path);
 	} else {
+		event->fh_type = FILEID_INVALID;
 		event->path.mnt = NULL;
 		event->path.dentry = NULL;
 	}
@@ -281,7 +350,10 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 	struct fanotify_event *event;
 
 	event = FANOTIFY_E(fsn_event);
-	path_put(&event->path);
+	if (fanotify_event_has_path(event))
+		path_put(&event->path);
+	else if (fanotify_event_has_ext_fh(event))
+		kfree(event->fid.ext_fh);
 	put_pid(event->pid);
 	if (fanotify_is_perm_event(event->mask)) {
 		kmem_cache_free(fanotify_perm_event_cachep,

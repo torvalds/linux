@@ -181,7 +181,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	struct fanotify_event_metadata metadata;
 	struct fanotify_event *event;
 	struct file *f = NULL;
-	int fd, ret;
+	int ret, fd = FAN_NOFD;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, fsn_event);
 
@@ -193,9 +193,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	metadata.mask = event->mask & FANOTIFY_OUTGOING_EVENTS;
 	metadata.pid = pid_vnr(event->pid);
 
-	if (unlikely(event->mask & FAN_Q_OVERFLOW)) {
-		fd = FAN_NOFD;
-	} else {
+	if (fanotify_event_has_path(event)) {
 		fd = create_fd(group, event, &f);
 		if (fd < 0)
 			return fd;
