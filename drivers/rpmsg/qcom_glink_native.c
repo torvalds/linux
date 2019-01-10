@@ -1275,6 +1275,10 @@ static void qcom_glink_destroy_ept(struct rpmsg_endpoint *ept)
 	unsigned long flags;
 
 	spin_lock_irqsave(&channel->recv_lock, flags);
+	if (!channel->ept.cb) {
+		spin_unlock_irqrestore(&channel->recv_lock, flags);
+		return;
+	}
 	channel->ept.cb = NULL;
 	spin_unlock_irqrestore(&channel->recv_lock, flags);
 
