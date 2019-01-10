@@ -34,7 +34,16 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 		return old->path.mnt == new->path.mnt &&
 			old->path.dentry == new->path.dentry;
 	} else if (fanotify_event_has_fid(old)) {
-		return fanotify_fid_equal(&old->fid, &new->fid, old->fh_len);
+		/*
+		 * We want to merge many dirent events in the same dir (i.e.
+		 * creates/unlinks/renames), but we do not want to merge dirent
+		 * events referring to subdirs with dirent events referring to
+		 * non subdirs, otherwise, user won't be able to tell from a
+		 * mask FAN_CREATE|FAN_DELETE|FAN_ONDIR if it describes mkdir+
+		 * unlink pair or rmdir+create pair of events.
+		 */
+		return (old->mask & FS_ISDIR) == (new->mask & FS_ISDIR) &&
+			fanotify_fid_equal(&old->fid, &new->fid, old->fh_len);
 	}
 
 	/* Do not merge events if we failed to encode fid */
@@ -112,6 +121,7 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 				     int data_type)
 {
 	__u32 marks_mask = 0, marks_ignored_mask = 0;
+	__u32 test_mask, user_mask = FANOTIFY_OUTGOING_EVENTS;
 	const struct path *path = data;
 	struct fsnotify_mark *mark;
 	int type;
@@ -145,12 +155,30 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 		marks_ignored_mask |= mark->ignored_mask;
 	}
 
+	test_mask = event_mask & marks_mask & ~marks_ignored_mask;
+
+	/*
+	 * dirent modification events (create/delete/move) do not carry the
+	 * child entry name/inode information. Instead, we report FAN_ONDIR
+	 * for mkdir/rmdir so user can differentiate them from creat/unlink.
+	 *
+	 * For backward compatibility and consistency, do not report FAN_ONDIR
+	 * to user in legacy fanotify mode (reporting fd) and report FAN_ONDIR
+	 * to user in FAN_REPORT_FID mode for all event types.
+	 */
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+		/* Do not report FAN_ONDIR without any event */
+		if (!(test_mask & ~FAN_ONDIR))
+			return 0;
+	} else {
+		user_mask &= ~FAN_ONDIR;
+	}
+
 	if (event_mask & FS_ISDIR &&
 	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
 		return 0;
 
-	return event_mask & FANOTIFY_OUTGOING_EVENTS & marks_mask &
-		~marks_ignored_mask;
+	return test_mask & user_mask;
 }
 
 static int fanotify_encode_fid(struct fanotify_event *event,
