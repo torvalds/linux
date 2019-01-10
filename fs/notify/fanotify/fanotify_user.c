@@ -114,36 +114,6 @@ static int create_fd(struct fsnotify_group *group,
 	return client_fd;
 }
 
-static int fill_event_metadata(struct fsnotify_group *group,
-			       struct fanotify_event_metadata *metadata,
-			       struct fsnotify_event *fsn_event,
-			       struct file **file)
-{
-	int ret = 0;
-	struct fanotify_event *event;
-
-	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__,
-		 group, metadata, fsn_event);
-
-	*file = NULL;
-	event = container_of(fsn_event, struct fanotify_event, fse);
-	metadata->event_len = FAN_EVENT_METADATA_LEN;
-	metadata->metadata_len = FAN_EVENT_METADATA_LEN;
-	metadata->vers = FANOTIFY_METADATA_VERSION;
-	metadata->reserved = 0;
-	metadata->mask = event->mask & FANOTIFY_OUTGOING_EVENTS;
-	metadata->pid = pid_vnr(event->pid);
-	if (unlikely(event->mask & FAN_Q_OVERFLOW))
-		metadata->fd = FAN_NOFD;
-	else {
-		metadata->fd = create_fd(group, event, file);
-		if (metadata->fd < 0)
-			ret = metadata->fd;
-	}
-
-	return ret;
-}
-
 static struct fanotify_perm_event *dequeue_event(
 				struct fsnotify_group *group, int fd)
 {
@@ -205,37 +175,50 @@ static int process_access_response(struct fsnotify_group *group,
 }
 
 static ssize_t copy_event_to_user(struct fsnotify_group *group,
-				  struct fsnotify_event *event,
+				  struct fsnotify_event *fsn_event,
 				  char __user *buf, size_t count)
 {
-	struct fanotify_event_metadata fanotify_event_metadata;
-	struct file *f;
+	struct fanotify_event_metadata metadata;
+	struct fanotify_event *event;
+	struct file *f = NULL;
 	int fd, ret;
 
-	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
+	pr_debug("%s: group=%p event=%p\n", __func__, group, fsn_event);
 
-	ret = fill_event_metadata(group, &fanotify_event_metadata, event, &f);
-	if (ret < 0)
-		return ret;
+	event = container_of(fsn_event, struct fanotify_event, fse);
+	metadata.event_len = FAN_EVENT_METADATA_LEN;
+	metadata.metadata_len = FAN_EVENT_METADATA_LEN;
+	metadata.vers = FANOTIFY_METADATA_VERSION;
+	metadata.reserved = 0;
+	metadata.mask = event->mask & FANOTIFY_OUTGOING_EVENTS;
+	metadata.pid = pid_vnr(event->pid);
 
-	fd = fanotify_event_metadata.fd;
+	if (unlikely(event->mask & FAN_Q_OVERFLOW)) {
+		fd = FAN_NOFD;
+	} else {
+		fd = create_fd(group, event, &f);
+		if (fd < 0)
+			return fd;
+	}
+	metadata.fd = fd;
+
 	ret = -EFAULT;
 	/*
 	 * Sanity check copy size in case get_one_event() and
 	 * fill_event_metadata() event_len sizes ever get out of sync.
 	 */
-	if (WARN_ON_ONCE(fanotify_event_metadata.event_len > count))
-		goto out_close_fd;
-	if (copy_to_user(buf, &fanotify_event_metadata,
-			 fanotify_event_metadata.event_len))
+	if (WARN_ON_ONCE(metadata.event_len > count))
 		goto out_close_fd;
 
-	if (fanotify_is_perm_event(FANOTIFY_E(event)->mask))
-		FANOTIFY_PE(event)->fd = fd;
+	if (copy_to_user(buf, &metadata, metadata.event_len))
+		goto out_close_fd;
+
+	if (fanotify_is_perm_event(event->mask))
+		FANOTIFY_PE(fsn_event)->fd = fd;
 
 	if (fd != FAN_NOFD)
 		fd_install(fd, f);
-	return fanotify_event_metadata.event_len;
+	return metadata.event_len;
 
 out_close_fd:
 	if (fd != FAN_NOFD) {
