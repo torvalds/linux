@@ -5773,7 +5773,6 @@ dm_determine_update_type_for_commit(struct dc *dc,
 
 	struct dc_surface_update *updates;
 	struct dc_plane_state *surface;
-	struct dc_stream_update stream_update;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
 
 	updates = kcalloc(MAX_SURFACES, sizeof(*updates), GFP_KERNEL);
@@ -5787,6 +5786,8 @@ dm_determine_update_type_for_commit(struct dc *dc,
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct dc_stream_update stream_update = { 0 };
+
 		new_dm_crtc_state = to_dm_crtc_state(new_crtc_state);
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
 		num_plane = 0;
