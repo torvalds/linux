@@ -5791,75 +5791,79 @@ dm_determine_update_type_for_commit(struct dc *dc,
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
 		num_plane = 0;
 
-		if (new_dm_crtc_state->stream) {
-
-			for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
-				new_plane_crtc = new_plane_state->crtc;
-				old_plane_crtc = old_plane_state->crtc;
-				new_dm_plane_state = to_dm_plane_state(new_plane_state);
-				old_dm_plane_state = to_dm_plane_state(old_plane_state);
-
-				if (plane->type == DRM_PLANE_TYPE_CURSOR)
-					continue;
-
-				if (!state->allow_modeset)
-					continue;
-
-				if (crtc == new_plane_crtc) {
-					updates[num_plane].surface = &surface[num_plane];
-
-					if (new_crtc_state->mode_changed) {
-						updates[num_plane].surface->src_rect =
-									new_dm_plane_state->dc_state->src_rect;
-						updates[num_plane].surface->dst_rect =
-									new_dm_plane_state->dc_state->dst_rect;
-						updates[num_plane].surface->rotation =
-									new_dm_plane_state->dc_state->rotation;
-						updates[num_plane].surface->in_transfer_func =
-									new_dm_plane_state->dc_state->in_transfer_func;
-						stream_update.dst = new_dm_crtc_state->stream->dst;
-						stream_update.src = new_dm_crtc_state->stream->src;
-					}
-
-					if (new_crtc_state->color_mgmt_changed) {
-						updates[num_plane].gamma =
-								new_dm_plane_state->dc_state->gamma_correction;
-						updates[num_plane].in_transfer_func =
-								new_dm_plane_state->dc_state->in_transfer_func;
-						stream_update.gamut_remap =
-								&new_dm_crtc_state->stream->gamut_remap_matrix;
-						stream_update.out_transfer_func =
-								new_dm_crtc_state->stream->out_transfer_func;
-					}
-
-					num_plane++;
-				}
+		if (!new_dm_crtc_state->stream) {
+			if (!new_dm_crtc_state->stream && old_dm_crtc_state->stream) {
+				update_type = UPDATE_TYPE_FULL;
+				goto cleanup;
 			}
 
-			if (num_plane > 0) {
-				ret = dm_atomic_get_state(state, &dm_state);
-				if (ret)
-					goto cleanup;
+			continue;
+		}
 
-				old_dm_state = dm_atomic_get_old_state(state);
-				if (!old_dm_state) {
-					ret = -EINVAL;
-					goto cleanup;
-				}
+		for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
+			new_plane_crtc = new_plane_state->crtc;
+			old_plane_crtc = old_plane_state->crtc;
+			new_dm_plane_state = to_dm_plane_state(new_plane_state);
+			old_dm_plane_state = to_dm_plane_state(old_plane_state);
 
-				status = dc_stream_get_status_from_state(old_dm_state->context,
-									 new_dm_crtc_state->stream);
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
 
-				update_type = dc_check_update_surfaces_for_stream(dc, updates, num_plane,
-										  &stream_update, status);
+			if (!state->allow_modeset)
+				continue;
 
-				if (update_type > UPDATE_TYPE_MED) {
-					update_type = UPDATE_TYPE_FULL;
-					goto cleanup;
-				}
+			if (crtc != new_plane_crtc)
+				continue;
+
+			updates[num_plane].surface = &surface[num_plane];
+
+			if (new_crtc_state->mode_changed) {
+				updates[num_plane].surface->src_rect =
+						new_dm_plane_state->dc_state->src_rect;
+				updates[num_plane].surface->dst_rect =
+						new_dm_plane_state->dc_state->dst_rect;
+				updates[num_plane].surface->rotation =
+						new_dm_plane_state->dc_state->rotation;
+				updates[num_plane].surface->in_transfer_func =
+						new_dm_plane_state->dc_state->in_transfer_func;
+				stream_update.dst = new_dm_crtc_state->stream->dst;
+				stream_update.src = new_dm_crtc_state->stream->src;
 			}
 
-		} else if (!new_dm_crtc_state->stream && old_dm_crtc_state->stream) {
+			if (new_crtc_state->color_mgmt_changed) {
+				updates[num_plane].gamma =
+						new_dm_plane_state->dc_state->gamma_correction;
+				updates[num_plane].in_transfer_func =
+						new_dm_plane_state->dc_state->in_transfer_func;
+				stream_update.gamut_remap =
+						&new_dm_crtc_state->stream->gamut_remap_matrix;
+				stream_update.out_transfer_func =
+						new_dm_crtc_state->stream->out_transfer_func;
+			}
+
+			num_plane++;
+		}
+
+		if (num_plane == 0)
+			continue;
+
+		ret = dm_atomic_get_state(state, &dm_state);
+		if (ret)
+			goto cleanup;
+
+		old_dm_state = dm_atomic_get_old_state(state);
+		if (!old_dm_state) {
+			ret = -EINVAL;
+			goto cleanup;
+		}
+
+		status = dc_stream_get_status_from_state(old_dm_state->context,
+							 new_dm_crtc_state->stream);
+
+		update_type = dc_check_update_surfaces_for_stream(dc, updates, num_plane,
+								  &stream_update, status);
+
+		if (update_type > UPDATE_TYPE_MED) {
 			update_type = UPDATE_TYPE_FULL;
 			goto cleanup;
 		}
