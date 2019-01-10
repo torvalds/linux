@@ -140,6 +140,15 @@ vcs_poll_data_get(struct file *file)
 	poll->cons_num = console(file_inode(file));
 	init_waitqueue_head(&poll->waitq);
 	poll->notifier.notifier_call = vcs_notifier;
+	/*
+	 * In order not to lose any update event, we must pretend one might
+	 * have occurred before we have a chance to register our notifier.
+	 * This is also how user space has come to detect which kernels
+	 * support POLLPRI on /dev/vcs* devices i.e. using poll() with
+	 * POLLPRI and a zero timeout.
+	 */
+	poll->event = VT_UPDATE;
+
 	if (register_vt_notifier(&poll->notifier) != 0) {
 		kfree(poll);
 		return NULL;
