@@ -1010,7 +1010,9 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			 CODA_264PARAM_DEBLKFILTEROFFSETALPHA_OFFSET) |
 			((ctx->params.h264_slice_beta_offset_div2 &
 			  CODA_264PARAM_DEBLKFILTEROFFSETBETA_MASK) <<
-			 CODA_264PARAM_DEBLKFILTEROFFSETBETA_OFFSET);
+			 CODA_264PARAM_DEBLKFILTEROFFSETBETA_OFFSET) |
+			(ctx->params.h264_constrained_intra_pred_flag <<
+			 CODA_264PARAM_CONSTRAINEDINTRAPREDFLAG_OFFSET);
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_264_PARA);
 		break;
 	case V4L2_PIX_FMT_JPEG:

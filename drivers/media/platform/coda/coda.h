@@ -118,6 +118,7 @@ struct coda_params {
 	u8			h264_disable_deblocking_filter_idc;
 	s8			h264_slice_alpha_c0_offset_div2;
 	s8			h264_slice_beta_offset_div2;
+	bool			h264_constrained_intra_pred_flag;
 	u8			h264_profile_idc;
 	u8			h264_level_idc;
 	u8			mpeg4_intra_qp;
