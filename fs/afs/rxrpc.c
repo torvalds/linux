@@ -23,6 +23,7 @@ struct workqueue_struct *afs_async_calls;
 static void afs_wake_up_call_waiter(struct sock *, struct rxrpc_call *, unsigned long);
 static long afs_wait_for_call_to_complete(struct afs_call *, struct afs_addr_cursor *);
 static void afs_wake_up_async_call(struct sock *, struct rxrpc_call *, unsigned long);
+static void afs_delete_async_call(struct work_struct *);
 static void afs_process_async_call(struct work_struct *);
 static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_rx_discard_new_call(struct rxrpc_call *, unsigned long);
@@ -404,6 +405,12 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 		}
 	}
 
+	/* If the call is going to be asynchronous, we need an extra ref for
+	 * the call to hold itself so the caller need not hang on to its ref.
+	 */
+	if (call->async)
+		afs_get_call(call, afs_call_trace_get);
+
 	/* create a call */
 	rxcall = rxrpc_kernel_begin_call(call->net->socket, srx, call->key,
 					 (unsigned long)call,
@@ -444,15 +451,17 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 			goto error_do_abort;
 	}
 
-	/* at this point, an async call may no longer exist as it may have
-	 * already completed */
-	if (call->async)
+	/* Note that at this point, we may have received the reply or an abort
+	 * - and an asynchronous call may already have completed.
+	 */
+	if (call->async) {
+		afs_put_call(call);
 		return -EINPROGRESS;
+	}
 
 	return afs_wait_for_call_to_complete(call, ac);
 
 error_do_abort:
-	call->state = AFS_CALL_COMPLETE;
 	if (ret != -ECONNABORTED) {
 		rxrpc_kernel_abort_call(call->net->socket, rxcall,
 					RX_USER_ABORT, ret, "KSD");
@@ -469,8 +478,24 @@ error_do_abort:
 error_kill_call:
 	if (call->type->done)
 		call->type->done(call);
-	afs_put_call(call);
+
+	/* We need to dispose of the extra ref we grabbed for an async call.
+	 * The call, however, might be queued on afs_async_calls and we need to
+	 * make sure we don't get any more notifications that might requeue it.
+	 */
+	if (call->rxcall) {
+		rxrpc_kernel_end_call(call->net->socket, call->rxcall);
+		call->rxcall = NULL;
+	}
+	if (call->async) {
+		if (cancel_work_sync(&call->async_work))
+			afs_put_call(call);
+		afs_put_call(call);
+	}
+
 	ac->error = ret;
+	call->state = AFS_CALL_COMPLETE;
+	afs_put_call(call);
 	_leave(" = %d", ret);
 	return ret;
 }
