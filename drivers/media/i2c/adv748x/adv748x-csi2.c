@@ -82,7 +82,7 @@ static int adv748x_csi2_registered(struct v4l2_subdev *sd)
 		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
 						  &state->hdmi.sd,
 						  ADV748X_HDMI_SOURCE);
-	if (!is_txa(tx) && is_afe_enabled(state))
+	if (is_txb(tx) && is_afe_enabled(state))
 		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
 						  &state->afe.sd,
 						  ADV748X_AFE_SOURCE);
