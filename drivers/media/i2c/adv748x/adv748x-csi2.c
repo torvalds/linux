@@ -46,9 +46,16 @@ static int adv748x_csi2_register_link(struct adv748x_csi2 *tx,
 			return ret;
 	}
 
-	return media_create_pad_link(&src->entity, src_pad,
-				     &tx->sd.entity, ADV748X_CSI2_SINK,
-				     enable ? MEDIA_LNK_FL_ENABLED : 0);
+	ret = media_create_pad_link(&src->entity, src_pad,
+				    &tx->sd.entity, ADV748X_CSI2_SINK,
+				    enable ? MEDIA_LNK_FL_ENABLED : 0);
+	if (ret)
+		return ret;
+
+	if (enable)
+		tx->src = src;
+
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------

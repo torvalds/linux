@@ -254,7 +254,7 @@ static int adv748x_power_up_tx(struct adv748x_csi2 *tx)
 	adv748x_write_check(state, page, 0x00, 0xa0 | tx->num_lanes, &ret);
 
 	/* ADI Required Write */
-	if (is_txa(tx)) {
+	if (tx->src == &state->hdmi.sd) {
 		adv748x_write_check(state, page, 0xdb, 0x10, &ret);
 		adv748x_write_check(state, page, 0xd6, 0x07, &ret);
 	} else {

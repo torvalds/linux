@@ -84,6 +84,7 @@ struct adv748x_csi2 {
 	struct media_pad pads[ADV748X_CSI2_NR_PADS];
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_subdev *src;
 	struct v4l2_subdev sd;
 };
 
