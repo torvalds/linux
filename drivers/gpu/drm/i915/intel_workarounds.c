@@ -639,10 +639,9 @@ wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 	wa_write_masked_or(wal, reg, val, val);
 }
 
-static void gen9_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+gen9_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
 	/* WaDisableKillLogic:bxt,skl,kbl */
 	if (!IS_COFFEELAKE(i915))
 		wa_write_or(wal,
@@ -666,11 +665,10 @@ static void gen9_gt_workarounds_init(struct drm_i915_private *i915)
 		    BDW_DISABLE_HDC_INVALIDATION);
 }
 
-static void skl_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+skl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
-	gen9_gt_workarounds_init(i915);
+	gen9_gt_workarounds_init(i915, wal);
 
 	/* WaDisableGafsUnitClkGating:skl */
 	wa_write_or(wal,
@@ -684,11 +682,10 @@ static void skl_gt_workarounds_init(struct drm_i915_private *i915)
 			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
-static void bxt_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+bxt_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
-	gen9_gt_workarounds_init(i915);
+	gen9_gt_workarounds_init(i915, wal);
 
 	/* WaInPlaceDecompressionHang:bxt */
 	wa_write_or(wal,
@@ -696,11 +693,10 @@ static void bxt_gt_workarounds_init(struct drm_i915_private *i915)
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
-static void kbl_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+kbl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
-	gen9_gt_workarounds_init(i915);
+	gen9_gt_workarounds_init(i915, wal);
 
 	/* WaDisableDynamicCreditSharing:kbl */
 	if (IS_KBL_REVID(i915, 0, KBL_REVID_B0))
@@ -719,16 +715,16 @@ static void kbl_gt_workarounds_init(struct drm_i915_private *i915)
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
-static void glk_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+glk_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	gen9_gt_workarounds_init(i915);
+	gen9_gt_workarounds_init(i915, wal);
 }
 
-static void cfl_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+cfl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
-	gen9_gt_workarounds_init(i915);
+	gen9_gt_workarounds_init(i915, wal);
 
 	/* WaDisableGafsUnitClkGating:cfl */
 	wa_write_or(wal,
@@ -741,10 +737,10 @@ static void cfl_gt_workarounds_init(struct drm_i915_private *i915)
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
-static void wa_init_mcr(struct drm_i915_private *dev_priv)
+static void
+wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
 {
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
-	struct i915_wa_list *wal = &dev_priv->gt_wa_list;
 	u32 mcr_slice_subslice_mask;
 
 	/*
@@ -804,11 +800,10 @@ static void wa_init_mcr(struct drm_i915_private *dev_priv)
 			   intel_calculate_mcr_s_ss_select(dev_priv));
 }
 
-static void cnl_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+cnl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
-	wa_init_mcr(i915);
+	wa_init_mcr(i915, wal);
 
 	/* WaDisableI2mCycleOnWRPort:cnl (pre-prod) */
 	if (IS_CNL_REVID(i915, CNL_REVID_B0, CNL_REVID_B0))
@@ -822,11 +817,10 @@ static void cnl_gt_workarounds_init(struct drm_i915_private *i915)
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
-static void icl_gt_workarounds_init(struct drm_i915_private *i915)
+static void
+icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
-	wa_init_mcr(i915);
+	wa_init_mcr(i915, wal);
 
 	/* WaInPlaceDecompressionHang:icl */
 	wa_write_or(wal,
@@ -879,12 +873,9 @@ static void icl_gt_workarounds_init(struct drm_i915_private *i915)
 		    GAMT_CHKN_DISABLE_L3_COH_PIPE);
 }
 
-void intel_gt_init_workarounds(struct drm_i915_private *i915)
+static void
+gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
-
-	wa_init_start(wal, "GT");
-
 	if (INTEL_GEN(i915) < 8)
 		return;
 	else if (IS_BROADWELL(i915))
@@ -892,22 +883,29 @@ void intel_gt_init_workarounds(struct drm_i915_private *i915)
 	else if (IS_CHERRYVIEW(i915))
 		return;
 	else if (IS_SKYLAKE(i915))
-		skl_gt_workarounds_init(i915);
+		skl_gt_workarounds_init(i915, wal);
 	else if (IS_BROXTON(i915))
-		bxt_gt_workarounds_init(i915);
+		bxt_gt_workarounds_init(i915, wal);
 	else if (IS_KABYLAKE(i915))
-		kbl_gt_workarounds_init(i915);
+		kbl_gt_workarounds_init(i915, wal);
 	else if (IS_GEMINILAKE(i915))
-		glk_gt_workarounds_init(i915);
+		glk_gt_workarounds_init(i915, wal);
 	else if (IS_COFFEELAKE(i915))
-		cfl_gt_workarounds_init(i915);
+		cfl_gt_workarounds_init(i915, wal);
 	else if (IS_CANNONLAKE(i915))
-		cnl_gt_workarounds_init(i915);
+		cnl_gt_workarounds_init(i915, wal);
 	else if (IS_ICELAKE(i915))
-		icl_gt_workarounds_init(i915);
+		icl_gt_workarounds_init(i915, wal);
 	else
 		MISSING_CASE(INTEL_GEN(i915));
+}
 
+void intel_gt_init_workarounds(struct drm_i915_private *i915)
+{
+	struct i915_wa_list *wal = &i915->gt_wa_list;
+
+	wa_init_start(wal, "GT");
+	gt_init_workarounds(i915, wal);
 	wa_init_finish(wal);
 }
 
@@ -1126,10 +1124,10 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 			   i915_mmio_reg_offset(RING_NOPID(base)));
 }
 
-static void rcs_engine_wa_init(struct intel_engine_cs *engine)
+static void
+rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	struct i915_wa_list *wal = &engine->wa_list;
 
 	if (IS_ICELAKE(i915)) {
 		/* This is not an Wa. Enable for better image quality */
@@ -1233,10 +1231,10 @@ static void rcs_engine_wa_init(struct intel_engine_cs *engine)
 	}
 }
 
-static void xcs_engine_wa_init(struct intel_engine_cs *engine)
+static void
+xcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	struct i915_wa_list *wal = &engine->wa_list;
 
 	/* WaKBLVECSSemaphoreWaitPoll:kbl */
 	if (IS_KBL_REVID(i915, KBL_REVID_A0, KBL_REVID_E0)) {
@@ -1244,6 +1242,18 @@ static void xcs_engine_wa_init(struct intel_engine_cs *engine)
 			 RING_SEMA_WAIT_POLL(engine->mmio_base),
 			 1);
 	}
+}
+
+static void
+engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	if (I915_SELFTEST_ONLY(INTEL_GEN(engine->i915) < 8))
+		return;
+
+	if (engine->id == RCS)
+		rcs_engine_wa_init(engine, wal);
+	else
+		xcs_engine_wa_init(engine, wal);
 }
 
 void intel_engine_init_workarounds(struct intel_engine_cs *engine)
@@ -1254,12 +1264,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 		return;
 
 	wa_init_start(wal, engine->name);
-
-	if (engine->id == RCS)
-		rcs_engine_wa_init(engine);
-	else
-		xcs_engine_wa_init(engine);
-
+	engine_init_workarounds(engine, wal);
 	wa_init_finish(wal);
 }
 
@@ -1269,11 +1274,5 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-static bool intel_engine_verify_workarounds(struct intel_engine_cs *engine,
-					    const char *from)
-{
-	return wa_list_verify(engine->i915, &engine->wa_list, from);
-}
-
 #include "selftests/intel_workarounds.c"
 #endif
