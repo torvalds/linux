@@ -863,35 +863,31 @@ out_destroy_group:
 }
 
 /* Check if filesystem can encode a unique fid */
-static int fanotify_test_fid(struct path *path, struct kstatfs *stat)
+static int fanotify_test_fid(struct path *path, __kernel_fsid_t *fsid)
 {
-	struct kstatfs root_stat;
-	struct path root = {
-		.mnt = path->mnt,
-		.dentry = path->dentry->d_sb->s_root,
-	};
+	__kernel_fsid_t root_fsid;
 	int err;
 
 	/*
 	 * Make sure path is not in filesystem with zero fsid (e.g. tmpfs).
 	 */
-	err = vfs_statfs(path, stat);
+	err = vfs_get_fsid(path->dentry, fsid);
 	if (err)
 		return err;
 
-	if (!stat->f_fsid.val[0] && !stat->f_fsid.val[1])
+	if (!fsid->val[0] && !fsid->val[1])
 		return -ENODEV;
 
 	/*
 	 * Make sure path is not inside a filesystem subvolume (e.g. btrfs)
 	 * which uses a different fsid than sb root.
 	 */
-	err = vfs_statfs(&root, &root_stat);
+	err = vfs_get_fsid(path->dentry->d_sb->s_root, &root_fsid);
 	if (err)
 		return err;
 
-	if (root_stat.f_fsid.val[0] != stat->f_fsid.val[0] ||
-	    root_stat.f_fsid.val[1] != stat->f_fsid.val[1])
+	if (root_fsid.val[0] != fsid->val[0] ||
+	    root_fsid.val[1] != fsid->val[1])
 		return -EXDEV;
 
 	/*
@@ -916,8 +912,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	struct fsnotify_group *group;
 	struct fd f;
 	struct path path;
-	struct kstatfs stat;
-	__kernel_fsid_t *fsid = NULL;
+	__kernel_fsid_t __fsid, *fsid = NULL;
 	u32 valid_mask = FANOTIFY_EVENTS | FANOTIFY_EVENT_FLAGS;
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
 	int ret;
@@ -996,11 +991,11 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
-		ret = fanotify_test_fid(&path, &stat);
+		ret = fanotify_test_fid(&path, &__fsid);
 		if (ret)
 			goto path_put_and_out;
 
-		fsid = &stat.f_fsid;
+		fsid = &__fsid;
 	}
 
 	/* inode held in place by reference to path; group by fget on fd */
