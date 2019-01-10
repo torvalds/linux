@@ -872,7 +872,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		struct dma_fence *f;
 
 		bo_va = fpriv->csa_va;
@@ -961,7 +961,8 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
 			continue;
 
-		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX && amdgpu_sriov_vf(adev)) {
+		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX &&
+		    (amdgpu_mcbp || amdgpu_sriov_vf(adev))) {
 			if (chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
 				if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
 					ce_preempt++;
