@@ -582,7 +582,7 @@ static void csi_mipidphy_wr_ths_settle(struct mipidphy_priv *priv, int hsfreq,
 	}
 
 	read_csiphy_reg(priv, offset, &val);
-	val = (val & ~0xf) | hsfreq;
+	val = (val & ~0x7f) | hsfreq;
 	write_csiphy_reg(priv, offset, val);
 }
 
@@ -889,6 +889,13 @@ static int mipidphy_rx_stream_on(struct mipidphy_priv *priv,
 		}
 	}
 
+	if (i == num_hsfreq_ranges) {
+		i = num_hsfreq_ranges - 1;
+		dev_warn(priv->dev, "data rate: %lld mbps, max support %d mbps",
+			 priv->data_rate_mbps, hsfreq_ranges[i].range_h + 1);
+		hsfreq = hsfreq_ranges[i].cfg_bit;
+	}
+
 	/* RK3288 isp connected to phy0-rx */
 	write_grf_reg(priv, GRF_CON_ISP_DPHY_SEL, 0);
 
@@ -971,6 +978,13 @@ static int mipidphy_txrx_stream_on(struct mipidphy_priv *priv,
 			hsfreq = hsfreq_ranges[i].cfg_bit;
 			break;
 		}
+	}
+
+	if (i == num_hsfreq_ranges) {
+		i = num_hsfreq_ranges - 1;
+		dev_warn(priv->dev, "data rate: %lld mbps, max support %d mbps",
+			 priv->data_rate_mbps, hsfreq_ranges[i].range_h + 1);
+		hsfreq = hsfreq_ranges[i].cfg_bit;
 	}
 
 	/*
@@ -1119,6 +1133,14 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 			break;
 		}
 	}
+
+	if (i == num_hsfreq_ranges) {
+		i = num_hsfreq_ranges - 1;
+		dev_warn(priv->dev, "data rate: %lld mbps, max support %d mbps",
+			 priv->data_rate_mbps, hsfreq_ranges[i].range_h + 1);
+		hsfreq = hsfreq_ranges[i].cfg_bit;
+	}
+
 	csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_CLOCK);
 	if (sensor->lanes > 0x00)
 		csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA0);
