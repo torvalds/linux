@@ -765,6 +765,18 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%x\n",
 		va, &dma, mem->len);
 
+	if (mem->da != FW_RSC_ADDR_ANY && !rproc->domain) {
+		/*
+		 * Check requested da is equal to dma address
+		 * and print a warn message in case of missalignment.
+		 * Don't stop rproc_start sequence as coprocessor may
+		 * build pa to da translation on its side.
+		 */
+		if (mem->da != (u32)dma)
+			dev_warn(dev->parent,
+				 "Allocated carveout doesn't fit device address request\n");
+	}
+
 	/*
 	 * Ok, this is non-standard.
 	 *
@@ -782,15 +794,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	 * to use the iommu-based DMA API: we expect 'dma' to contain the
 	 * physical address in this case.
 	 */
-
-	if (mem->da != FW_RSC_ADDR_ANY) {
-		if (!rproc->domain) {
-			dev_err(dev->parent,
-				"Bad carveout rsc configuration\n");
-			ret = -ENOMEM;
-			goto dma_free;
-		}
-
+	if (mem->da != FW_RSC_ADDR_ANY && rproc->domain) {
 		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 		if (!mapping) {
 			ret = -ENOMEM;
@@ -817,7 +821,9 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 
 		dev_dbg(dev, "carveout mapped 0x%x to %pad\n",
 			mem->da, &dma);
-	} else {
+	}
+
+	if (mem->da == FW_RSC_ADDR_ANY) {
 		/* Update device address as undefined by requester */
 		if ((u64)dma & HIGH_BITS_MASK)
 			dev_warn(dev, "DMA address cast in 32bit to fit resource table format\n");
