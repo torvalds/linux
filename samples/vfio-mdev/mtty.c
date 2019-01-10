@@ -156,15 +156,15 @@ static const struct file_operations vd_fops = {
 
 /* function prototypes */
 
-static int mtty_trigger_interrupt(uuid_le uuid);
+static int mtty_trigger_interrupt(const guid_t *uuid);
 
 /* Helper functions */
-static struct mdev_state *find_mdev_state_by_uuid(uuid_le uuid)
+static struct mdev_state *find_mdev_state_by_uuid(const guid_t *uuid)
 {
 	struct mdev_state *mds;
 
 	list_for_each_entry(mds, &mdev_devices_list, next) {
-		if (uuid_le_cmp(mdev_uuid(mds->mdev), uuid) == 0)
+		if (guid_equal(mdev_uuid(mds->mdev), uuid))
 			return mds;
 	}
 
@@ -1032,7 +1032,7 @@ static int mtty_set_irqs(struct mdev_device *mdev, uint32_t flags,
 	return ret;
 }
 
-static int mtty_trigger_interrupt(uuid_le uuid)
+static int mtty_trigger_interrupt(const guid_t *uuid)
 {
 	int ret = -1;
 	struct mdev_state *mdev_state;
