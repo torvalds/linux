@@ -992,6 +992,7 @@ rk_pcie_handle_dma_interrupt(struct rk_pcie *rk_pcie)
 		return;
 
 	obj->dma_free = true;
+	obj->irq_num++;
 
 	if (list_empty(&obj->tbl_list)) {
 		if (obj->dma_free &&

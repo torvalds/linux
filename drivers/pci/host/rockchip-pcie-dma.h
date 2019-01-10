@@ -3,6 +3,8 @@
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  */
 
+#include <linux/debugfs.h>
+
 #define PCIE_DMA_TABLE_NUM		24
 
 #define PCIE_DMA_TRX_TYPE_NUM		3
@@ -168,6 +170,8 @@ struct dma_trx_obj {
 	int				busno;
 	void				*priv;
 	struct completion		done;
+	unsigned long			irq_num;
+	struct dentry			*pcie_root;
 };
 
 #ifdef CONFIG_PCIE_DW_ROCKCHIP

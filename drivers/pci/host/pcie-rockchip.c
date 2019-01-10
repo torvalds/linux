@@ -724,8 +724,10 @@ rk_pcie_handle_dma_interrupt(struct rockchip_pcie *rockchip)
 
 	WARN_ONCE(!(dma_status & 0x3), "dma_status 0x%x\n", dma_status);
 
-	if (dma_status & (1 << 0))
+	if (dma_status & (1 << 0)) {
+		obj->irq_num++;
 		obj->dma_free = true;
+	}
 
 	if (list_empty(&obj->tbl_list)) {
 		if (obj->dma_free &&
@@ -1445,6 +1447,8 @@ static ssize_t pcie_reset_ep_store(struct device *dev,
 	int err;
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
 	struct dma_trx_obj *obj = rockchip->dma_obj;
+
+	dev_info(dev, "loop_cout = %d\n", obj->loop_count);
 
 	err = kstrtou32(buf, 10, &val);
 	if (err)

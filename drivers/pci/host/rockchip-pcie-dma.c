@@ -606,6 +606,41 @@ free_table:
 	return -ENOMEM;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int rk_pcie_debugfs_trx_show(struct seq_file *s, void *v)
+{
+	struct dma_trx_obj *dma_obj = s->private;
+	bool list = list_empty(&dma_obj->tbl_list);
+
+	seq_printf(s, "irq_num = %ld, loop_count = %d,",
+			dma_obj->irq_num, dma_obj->loop_count);
+	seq_printf(s, "loop_threshold = %d,",
+			dma_obj->loop_count_threshold);
+	seq_printf(s, "lwa = %lx, rwa = %lx, lra = %lx,",
+			dma_obj->local_write_available,
+			dma_obj->remote_write_available,
+			dma_obj->local_read_available);
+	seq_printf(s, "list : (%s), dma chn : (%s)\n",
+			list ? "empty" : "not empty",
+			dma_obj->dma_free ? "free" : "busy");
+
+	return 0;
+}
+
+static int rk_pcie_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk_pcie_debugfs_trx_show, inode->i_private);
+}
+
+static const struct file_operations rk_pcie_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = rk_pcie_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+#endif
+
 struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 {
 	int ret;
@@ -676,11 +711,23 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 	}
 
 	obj->dma_free = true;
+	obj->irq_num = 0;
 	obj->loop_count = 0;
 	obj->loop_count_threshold = 0;
 	init_completion(&obj->done);
 
 	rk_pcie_add_misc(obj);
+
+#ifdef CONFIG_DEBUG_FS
+	obj->pcie_root = debugfs_create_dir("pcie", NULL);
+	if (!obj->pcie_root) {
+		obj = ERR_PTR(-EINVAL);
+		goto free_dma_table;
+	}
+
+	debugfs_create_file("pcie_trx", 0644, obj->pcie_root, obj,
+			&rk_pcie_debugfs_fops);
+#endif
 
 	return obj;
 free_dma_table:
