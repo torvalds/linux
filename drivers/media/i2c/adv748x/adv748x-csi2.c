@@ -88,14 +88,25 @@ static int adv748x_csi2_registered(struct v4l2_subdev *sd)
 						 is_txb(tx));
 		if (ret)
 			return ret;
+
+		/* TXB can output AFE signals only. */
+		if (is_txb(tx))
+			state->afe.tx = tx;
 	}
 
 	/* Register link to HDMI for TXA only. */
 	if (is_txb(tx) || !is_hdmi_enabled(state))
 		return 0;
 
-	return adv748x_csi2_register_link(tx, sd->v4l2_dev, &state->hdmi.sd,
-					  ADV748X_HDMI_SOURCE, true);
+	ret = adv748x_csi2_register_link(tx, sd->v4l2_dev, &state->hdmi.sd,
+					 ADV748X_HDMI_SOURCE, true);
+	if (ret)
+		return ret;
+
+	/* The default HDMI output is TXA. */
+	state->hdmi.tx = tx;
+
+	return 0;
 }
 
 static const struct v4l2_subdev_internal_ops adv748x_csi2_internal_ops = {

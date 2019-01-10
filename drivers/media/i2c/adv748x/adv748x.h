@@ -121,6 +121,8 @@ struct adv748x_hdmi {
 	struct v4l2_dv_timings timings;
 	struct v4l2_fract aspect_ratio;
 
+	struct adv748x_csi2 *tx;
+
 	struct {
 		u8 edid[512];
 		u32 present;
@@ -150,6 +152,8 @@ struct adv748x_afe {
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct v4l2_subdev sd;
 	struct v4l2_mbus_framefmt format;
+
+	struct adv748x_csi2 *tx;
 
 	bool streaming;
 	v4l2_std_id curr_norm;
