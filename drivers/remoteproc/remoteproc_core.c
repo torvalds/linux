@@ -608,9 +608,8 @@ void rproc_vdev_release(struct kref *ref)
 static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 			      int offset, int avail)
 {
-	struct rproc_mem_entry *trace;
+	struct rproc_debug_trace *trace;
 	struct device *dev = &rproc->dev;
-	void *ptr;
 	char name[15];
 
 	if (sizeof(*rsc) > avail) {
@@ -624,28 +623,23 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 		return -EINVAL;
 	}
 
-	/* what's the kernel address of this resource ? */
-	ptr = rproc_da_to_va(rproc, rsc->da, rsc->len);
-	if (!ptr) {
-		dev_err(dev, "erroneous trace resource entry\n");
-		return -EINVAL;
-	}
-
 	trace = kzalloc(sizeof(*trace), GFP_KERNEL);
 	if (!trace)
 		return -ENOMEM;
 
 	/* set the trace buffer dma properties */
-	trace->len = rsc->len;
-	trace->va = ptr;
+	trace->trace_mem.len = rsc->len;
+	trace->trace_mem.da = rsc->da;
+
+	/* set pointer on rproc device */
+	trace->rproc = rproc;
 
 	/* make sure snprintf always null terminates, even if truncating */
 	snprintf(name, sizeof(name), "trace%d", rproc->num_traces);
 
 	/* create the debugfs entry */
-	trace->priv = rproc_create_trace_file(name, rproc, trace);
-	if (!trace->priv) {
-		trace->va = NULL;
+	trace->tfile = rproc_create_trace_file(name, rproc, trace);
+	if (!trace->tfile) {
 		kfree(trace);
 		return -EINVAL;
 	}
@@ -654,8 +648,8 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 
 	rproc->num_traces++;
 
-	dev_dbg(dev, "%s added: va %pK, da 0x%x, len 0x%x\n",
-		name, ptr, rsc->da, rsc->len);
+	dev_dbg(dev, "%s added: da 0x%x, len 0x%x\n",
+		name, rsc->da, rsc->len);
 
 	return 0;
 }
@@ -1249,15 +1243,16 @@ static void rproc_coredump_cleanup(struct rproc *rproc)
 static void rproc_resource_cleanup(struct rproc *rproc)
 {
 	struct rproc_mem_entry *entry, *tmp;
+	struct rproc_debug_trace *trace, *ttmp;
 	struct rproc_vdev *rvdev, *rvtmp;
 	struct device *dev = &rproc->dev;
 
 	/* clean up debugfs trace entries */
-	list_for_each_entry_safe(entry, tmp, &rproc->traces, node) {
-		rproc_remove_trace_file(entry->priv);
+	list_for_each_entry_safe(trace, ttmp, &rproc->traces, node) {
+		rproc_remove_trace_file(trace->tfile);
 		rproc->num_traces--;
-		list_del(&entry->node);
-		kfree(entry);
+		list_del(&trace->node);
+		kfree(trace);
 	}
 
 	/* clean up iommu mapping entries */

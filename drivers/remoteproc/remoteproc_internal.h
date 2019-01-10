@@ -25,6 +25,13 @@
 
 struct rproc;
 
+struct rproc_debug_trace {
+	struct rproc *rproc;
+	struct dentry *tfile;
+	struct list_head node;
+	struct rproc_mem_entry trace_mem;
+};
+
 /* from remoteproc_core.c */
 void rproc_release(struct kref *kref);
 irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int vq_id);
@@ -37,7 +44,7 @@ int rproc_remove_virtio_dev(struct device *dev, void *data);
 /* from remoteproc_debugfs.c */
 void rproc_remove_trace_file(struct dentry *tfile);
 struct dentry *rproc_create_trace_file(const char *name, struct rproc *rproc,
-				       struct rproc_mem_entry *trace);
+				       struct rproc_debug_trace *trace);
 void rproc_delete_debug_dir(struct rproc *rproc);
 void rproc_create_debug_dir(struct rproc *rproc);
 void rproc_init_debugfs(void);
