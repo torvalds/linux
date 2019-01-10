@@ -342,54 +342,6 @@ struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
 	return dev;
 }
 
-static void mt76x2_led_set_config(struct mt76_dev *mt76, u8 delay_on,
-				  u8 delay_off)
-{
-	struct mt76x02_dev *dev = container_of(mt76, struct mt76x02_dev,
-					       mt76);
-	u32 val;
-
-	val = MT_LED_STATUS_DURATION(0xff) |
-	      MT_LED_STATUS_OFF(delay_off) |
-	      MT_LED_STATUS_ON(delay_on);
-
-	mt76_wr(dev, MT_LED_S0(mt76->led_pin), val);
-	mt76_wr(dev, MT_LED_S1(mt76->led_pin), val);
-
-	val = MT_LED_CTRL_REPLAY(mt76->led_pin) |
-	      MT_LED_CTRL_KICK(mt76->led_pin);
-	if (mt76->led_al)
-		val |= MT_LED_CTRL_POLARITY(mt76->led_pin);
-	mt76_wr(dev, MT_LED_CTRL, val);
-}
-
-static int mt76x2_led_set_blink(struct led_classdev *led_cdev,
-				unsigned long *delay_on,
-				unsigned long *delay_off)
-{
-	struct mt76_dev *mt76 = container_of(led_cdev, struct mt76_dev,
-					     led_cdev);
-	u8 delta_on, delta_off;
-
-	delta_off = max_t(u8, *delay_off / 10, 1);
-	delta_on = max_t(u8, *delay_on / 10, 1);
-
-	mt76x2_led_set_config(mt76, delta_on, delta_off);
-	return 0;
-}
-
-static void mt76x2_led_set_brightness(struct led_classdev *led_cdev,
-				      enum led_brightness brightness)
-{
-	struct mt76_dev *mt76 = container_of(led_cdev, struct mt76_dev,
-					     led_cdev);
-
-	if (!brightness)
-		mt76x2_led_set_config(mt76, 0, 0xff);
-	else
-		mt76x2_led_set_config(mt76, 0xff, 0);
-}
-
 int mt76x2_register_device(struct mt76x02_dev *dev)
 {
 	int ret;
@@ -403,12 +355,6 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 		return ret;
 
 	mt76x02_config_mac_addr_list(dev);
-
-	/* init led callbacks */
-	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;
-		dev->mt76.led_cdev.blink_set = mt76x2_led_set_blink;
-	}
 
 	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));

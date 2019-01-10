@@ -75,6 +75,58 @@ static const struct ieee80211_iface_combination mt76x02_if_comb[] = {
 	}
 };
 
+static void
+mt76x02_led_set_config(struct mt76_dev *mdev, u8 delay_on,
+		       u8 delay_off)
+{
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev,
+					       mt76);
+	u32 val;
+
+	val = MT_LED_STATUS_DURATION(0xff) |
+	      MT_LED_STATUS_OFF(delay_off) |
+	      MT_LED_STATUS_ON(delay_on);
+
+	mt76_wr(dev, MT_LED_S0(mdev->led_pin), val);
+	mt76_wr(dev, MT_LED_S1(mdev->led_pin), val);
+
+	val = MT_LED_CTRL_REPLAY(mdev->led_pin) |
+	      MT_LED_CTRL_KICK(mdev->led_pin);
+	if (mdev->led_al)
+		val |= MT_LED_CTRL_POLARITY(mdev->led_pin);
+	mt76_wr(dev, MT_LED_CTRL, val);
+}
+
+static int
+mt76x02_led_set_blink(struct led_classdev *led_cdev,
+		      unsigned long *delay_on,
+		      unsigned long *delay_off)
+{
+	struct mt76_dev *mdev = container_of(led_cdev, struct mt76_dev,
+					     led_cdev);
+	u8 delta_on, delta_off;
+
+	delta_off = max_t(u8, *delay_off / 10, 1);
+	delta_on = max_t(u8, *delay_on / 10, 1);
+
+	mt76x02_led_set_config(mdev, delta_on, delta_off);
+
+	return 0;
+}
+
+static void
+mt76x02_led_set_brightness(struct led_classdev *led_cdev,
+			   enum led_brightness brightness)
+{
+	struct mt76_dev *mdev = container_of(led_cdev, struct mt76_dev,
+					     led_cdev);
+
+	if (!brightness)
+		mt76x02_led_set_config(mdev, 0, 0xff);
+	else
+		mt76x02_led_set_config(mdev, 0xff, 0);
+}
+
 void mt76x02_init_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
@@ -109,6 +161,13 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 			BIT(NL80211_IFTYPE_ADHOC);
 
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
+
+		/* init led callbacks */
+		if (IS_ENABLED(CONFIG_MT76_LEDS)) {
+			dev->mt76.led_cdev.brightness_set =
+					mt76x02_led_set_brightness;
+			dev->mt76.led_cdev.blink_set = mt76x02_led_set_blink;
+		}
 	}
 
 	hw->sta_data_size = sizeof(struct mt76x02_sta);
