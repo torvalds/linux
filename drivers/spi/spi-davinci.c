@@ -423,7 +423,6 @@ static int davinci_spi_of_setup(struct spi_device *spi)
 static int davinci_spi_setup(struct spi_device *spi)
 {
 	struct davinci_spi *dspi;
-	struct spi_master *master = spi->master;
 	struct device_node *np = spi->dev.of_node;
 	bool internal_cs = true;
 
