@@ -1154,6 +1154,10 @@ enum v4l2_mpeg_video_h264_entropy_mode -
 ``V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM (boolean)``
     Enable 8X8 transform for H264. Applicable to the H264 encoder.
 
+``V4L2_CID_MPEG_VIDEO_H264_CONSTRAINED_INTRA_PREDICTION (boolean)``
+    Enable constrained intra prediction for H264. Applicable to the H264
+    encoder.
+
 ``V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB (integer)``
     Cyclic intra macroblock refresh. This is the number of continuous
     macroblocks refreshed every frame. Each frame a successive set of
