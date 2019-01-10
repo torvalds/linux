@@ -203,20 +203,26 @@ void afs_put_call(struct afs_call *call)
 	}
 }
 
+static struct afs_call *afs_get_call(struct afs_call *call,
+				     enum afs_call_trace why)
+{
+	int u = atomic_inc_return(&call->usage);
+
+	trace_afs_call(call, why, u,
+		       atomic_read(&call->net->nr_outstanding_calls),
+		       __builtin_return_address(0));
+	return call;
+}
+
 /*
  * Queue the call for actual work.
  */
 static void afs_queue_call_work(struct afs_call *call)
 {
 	if (call->type->work) {
-		int u = atomic_inc_return(&call->usage);
-
-		trace_afs_call(call, afs_call_trace_work, u,
-			       atomic_read(&call->net->nr_outstanding_calls),
-			       __builtin_return_address(0));
-
 		INIT_WORK(&call->work, call->type->work);
 
+		afs_get_call(call, afs_call_trace_work);
 		if (!queue_work(afs_wq, &call->work))
 			afs_put_call(call);
 	}
