@@ -2978,6 +2978,18 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 }
 
 /**
+ * amdgpu_vm_wait_idle - wait for the VM to become idle
+ *
+ * @vm: VM object to wait for
+ * @timeout: timeout to wait for VM to become idle
+ */
+long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
+{
+	return reservation_object_wait_timeout_rcu(vm->root.base.bo->tbo.resv,
+						   true, true, timeout);
+}
+
+/**
  * amdgpu_vm_init - initialize a vm instance
  *
  * @adev: amdgpu_device pointer
