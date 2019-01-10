@@ -113,6 +113,15 @@ int inotify_handle_event(struct fsnotify_group *group,
 		return -ENOMEM;
 	}
 
+	/*
+	 * We now report FS_ISDIR flag with MOVE_SELF and DELETE_SELF events
+	 * for fanotify. inotify never reported IN_ISDIR with those events.
+	 * It looks like an oversight, but to avoid the risk of breaking
+	 * existing inotify programs, mask the flag out from those events.
+	 */
+	if (mask & (IN_MOVE_SELF | IN_DELETE_SELF))
+		mask &= ~IN_ISDIR;
+
 	fsn_event = &event->fse;
 	fsnotify_init_event(fsn_event, inode);
 	event->mask = mask;
