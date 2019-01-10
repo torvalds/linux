@@ -2171,6 +2171,19 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	val = hdmi_readb(hdmi, HDMI_FC_INVIDCONF);
 	for (i = 0; i < count; i++)
 		hdmi_writeb(hdmi, val, HDMI_FC_INVIDCONF);
+
+	/* Audio software reset */
+	if (hdmi->sink_has_audio) {
+		val = hdmi_readb(hdmi, HDMI_AUD_CONF0);
+		val &= HDMI_AUD_CONF0_I2S_SELECT_MASK;
+		hdmi_modb(hdmi, ~val, HDMI_AUD_CONF0_I2S_SELECT_MASK,
+			  HDMI_AUD_CONF0);
+		udelay(10);
+		hdmi_modb(hdmi, val | HDMI_AUD_CONF0_SW_RESET,
+			  HDMI_AUD_CONF0_SW_RESET |
+			  HDMI_AUD_CONF0_I2S_SELECT_MASK,
+			  HDMI_AUD_CONF0);
+	}
 }
 
 static void hdmi_enable_overflow_interrupts(struct dw_hdmi *hdmi)
