@@ -18,12 +18,8 @@
 #include "desc_constr.h"
 #include "ctrl.h"
 
-bool caam_little_end;
-EXPORT_SYMBOL(caam_little_end);
 bool caam_dpaa2;
 EXPORT_SYMBOL(caam_dpaa2);
-bool caam_imx;
-EXPORT_SYMBOL(caam_imx);
 
 #ifdef CONFIG_CAAM_QI
 #include "qi.h"
