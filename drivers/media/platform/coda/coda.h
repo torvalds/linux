@@ -119,6 +119,7 @@ struct coda_params {
 	s8			h264_slice_alpha_c0_offset_div2;
 	s8			h264_slice_beta_offset_div2;
 	bool			h264_constrained_intra_pred_flag;
+	s8			h264_chroma_qp_index_offset;
 	u8			h264_profile_idc;
 	u8			h264_level_idc;
 	u8			mpeg4_intra_qp;
