@@ -1302,7 +1302,7 @@ static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 static int parse_tunnel_attr(struct mlx5e_priv *priv,
 			     struct mlx5_flow_spec *spec,
 			     struct tc_cls_flower_offload *f,
-			     struct net_device *filter_dev)
+			     struct net_device *filter_dev, u8 *match_level)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
@@ -1317,7 +1317,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 	int err = 0;
 
 	err = mlx5e_tc_tun_parse(filter_dev, priv, spec, f,
-				 headers_c, headers_v);
+				 headers_c, headers_v, match_level);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "failed to parse tunnel attributes");
@@ -1426,7 +1426,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			      struct mlx5_flow_spec *spec,
 			      struct tc_cls_flower_offload *f,
 			      struct net_device *filter_dev,
-			      u8 *match_level)
+			      u8 *match_level, u8 *tunnel_match_level)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
@@ -1477,7 +1477,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		switch (key->addr_type) {
 		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
 		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
-			if (parse_tunnel_attr(priv, spec, f, filter_dev))
+			if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
 				return -EOPNOTSUPP;
 			break;
 		default:
@@ -1826,11 +1826,11 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	u8 match_level, tunnel_match_level = MLX5_MATCH_NONE;
 	struct mlx5_eswitch_rep *rep;
-	u8 match_level;
 	int err;
 
-	err = __parse_cls_flower(priv, spec, f, filter_dev, &match_level);
+	err = __parse_cls_flower(priv, spec, f, filter_dev, &match_level, &tunnel_match_level);
 
 	if (!err && (flow->flags & MLX5E_TC_FLOW_ESWITCH)) {
 		rep = rpriv->rep;
@@ -1846,10 +1846,12 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 		}
 	}
 
-	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH) {
 		flow->esw_attr->match_level = match_level;
-	else
+		flow->esw_attr->tunnel_match_level = tunnel_match_level;
+	} else {
 		flow->nic_attr->match_level = match_level;
+	}
 
 	return err;
 }
