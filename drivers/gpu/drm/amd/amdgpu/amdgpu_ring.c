@@ -281,6 +281,16 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
+	r = amdgpu_device_wb_get(adev, &ring->trail_fence_offs);
+	if (r) {
+		dev_err(adev->dev,
+			"(%d) ring trail_fence_offs wb alloc failed\n", r);
+		return r;
+	}
+	ring->trail_fence_gpu_addr =
+		adev->wb.gpu_addr + (ring->trail_fence_offs * 4);
+	ring->trail_fence_cpu_addr = &adev->wb.wb[ring->trail_fence_offs];
+
 	r = amdgpu_device_wb_get(adev, &ring->cond_exe_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);

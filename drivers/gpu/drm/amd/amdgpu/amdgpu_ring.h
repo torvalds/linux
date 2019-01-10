@@ -206,6 +206,10 @@ struct amdgpu_ring {
 	unsigned		fence_offs;
 	uint64_t		current_ctx;
 	char			name[16];
+	u32                     trail_seq;
+	unsigned		trail_fence_offs;
+	u64			trail_fence_gpu_addr;
+	volatile u32		*trail_fence_cpu_addr;
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
