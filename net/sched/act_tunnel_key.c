@@ -197,6 +197,15 @@ static const struct nla_policy tunnel_key_policy[TCA_TUNNEL_KEY_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_TTL]      = { .type = NLA_U8 },
 };
 
+static void tunnel_key_release_params(struct tcf_tunnel_key_params *p)
+{
+	if (!p)
+		return;
+	if (p->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
+		dst_release(&p->tcft_enc_metadata->dst);
+	kfree_rcu(p, rcu);
+}
+
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
@@ -360,8 +369,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	rcu_swap_protected(t->params, params_new,
 			   lockdep_is_held(&t->tcf_lock));
 	spin_unlock_bh(&t->tcf_lock);
-	if (params_new)
-		kfree_rcu(params_new, rcu);
+	tunnel_key_release_params(params_new);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -385,12 +393,7 @@ static void tunnel_key_release(struct tc_action *a)
 	struct tcf_tunnel_key_params *params;
 
 	params = rcu_dereference_protected(t->params, 1);
-	if (params) {
-		if (params->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
-			dst_release(&params->tcft_enc_metadata->dst);
-
-		kfree_rcu(params, rcu);
-	}
+	tunnel_key_release_params(params);
 }
 
 static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
