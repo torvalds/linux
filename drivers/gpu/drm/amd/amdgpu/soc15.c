@@ -605,7 +605,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		if (!amdgpu_sriov_vf(adev)) {
-			if (amdgpu_dpm == 1 && adev->asic_type >= CHIP_VEGA20)
+			if (is_support_sw_smu(adev))
 				amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 			else
 				amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);

@@ -65,6 +65,17 @@ int smu_update_table(struct smu_context *smu, uint32_t table_id,
 	return ret;
 }
 
+bool is_support_sw_smu(struct amdgpu_device *adev)
+{
+	if (amdgpu_dpm != 1)
+		return false;
+
+	if (adev->asic_type >= CHIP_VEGA20)
+		return true;
+
+	return false;
+}
+
 int smu_feature_init_dpm(struct smu_context *smu)
 {
 	struct smu_feature *feature = &smu->smu_feature;
@@ -222,7 +233,7 @@ static int smu_sw_init(void *handle)
 	struct smu_context *smu = &adev->smu;
 	int ret;
 
-	if (adev->asic_type < CHIP_VEGA20)
+	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
 	smu->pool_size = adev->pm.smu_prv_buffer_size;
@@ -252,7 +263,7 @@ static int smu_sw_fini(void *handle)
 	struct smu_context *smu = &adev->smu;
 	int ret;
 
-	if (adev->asic_type < CHIP_VEGA20)
+	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
 	ret = smu_smc_table_sw_fini(smu);
@@ -517,7 +528,7 @@ static int smu_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 
-	if (adev->asic_type < CHIP_VEGA20)
+	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
@@ -576,7 +587,7 @@ static int smu_hw_fini(void *handle)
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	if (adev->asic_type < CHIP_VEGA20)
+	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
 	if (!table_context->driver_pptable)
@@ -603,7 +614,7 @@ static int smu_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->asic_type < CHIP_VEGA20)
+	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
 	return 0;
@@ -615,7 +626,7 @@ static int smu_resume(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 
-	if (adev->asic_type < CHIP_VEGA20)
+	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
 	pr_info("SMU is resuming...\n");

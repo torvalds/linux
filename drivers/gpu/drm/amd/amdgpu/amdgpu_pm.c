@@ -712,7 +712,7 @@ static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->smu.ppt_funcs)
+	if (is_support_sw_smu(adev))
 		return smu_print_clk_levels(&adev->smu, PP_SCLK, buf);
 	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_SCLK, buf);
@@ -786,7 +786,7 @@ static ssize_t amdgpu_get_pp_dpm_mclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->smu.ppt_funcs)
+	if (is_support_sw_smu(adev))
 		return smu_print_clk_levels(&adev->smu, PP_MCLK, buf);
 	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_MCLK, buf);

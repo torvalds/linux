@@ -366,5 +366,6 @@ extern int smu_feature_set_supported(struct smu_context *smu, int feature_id, bo
 
 int smu_update_table(struct smu_context *smu, uint32_t table_id,
 		     void *table_data, bool drv2smu);
+bool is_support_sw_smu(struct amdgpu_device *adev);
 
 #endif
