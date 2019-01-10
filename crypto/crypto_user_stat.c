@@ -22,8 +22,6 @@
 
 static DEFINE_MUTEX(crypto_cfg_mutex);
 
-extern struct sock *crypto_nlsk;
-
 struct crypto_dump_info {
 	struct sk_buff *in_skb;
 	struct sk_buff *out_skb;
