@@ -31,6 +31,7 @@ nv50_wimm_init(struct nouveau_drm *drm, struct nv50_wndw *wndw)
 		int version;
 		int (*init)(struct nouveau_drm *, s32, struct nv50_wndw *);
 	} wimms[] = {
+		{ TU104_DISP_WINDOW_IMM_CHANNEL_DMA, 0, wimmc37b_init },
 		{ GV100_DISP_WINDOW_IMM_CHANNEL_DMA, 0, wimmc37b_init },
 		{}
 	};

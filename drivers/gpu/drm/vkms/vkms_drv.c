@@ -68,7 +68,6 @@ static struct drm_driver vkms_driver = {
 	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
 	.dumb_create		= vkms_dumb_create,
-	.dumb_map_offset	= vkms_dumb_map,
 	.gem_vm_ops		= &vkms_gem_vm_ops,
 	.gem_free_object_unlocked = vkms_gem_free_object,
 	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
@@ -108,16 +107,17 @@ static int __init vkms_init(void)
 	if (!vkms_device)
 		return -ENOMEM;
 
-	ret = drm_dev_init(&vkms_device->drm, &vkms_driver, NULL);
-	if (ret)
-		goto out_free;
-
 	vkms_device->platform =
 		platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
 	if (IS_ERR(vkms_device->platform)) {
 		ret = PTR_ERR(vkms_device->platform);
-		goto out_fini;
+		goto out_free;
 	}
+
+	ret = drm_dev_init(&vkms_device->drm, &vkms_driver,
+			   &vkms_device->platform->dev);
+	if (ret)
+		goto out_unregister;
 
 	vkms_device->drm.irq_enabled = true;
 
@@ -129,19 +129,19 @@ static int __init vkms_init(void)
 
 	ret = vkms_modeset_init(vkms_device);
 	if (ret)
-		goto out_unregister;
+		goto out_fini;
 
 	ret = drm_dev_register(&vkms_device->drm, 0);
 	if (ret)
-		goto out_unregister;
+		goto out_fini;
 
 	return 0;
 
-out_unregister:
-	platform_device_unregister(vkms_device->platform);
-
 out_fini:
 	drm_dev_fini(&vkms_device->drm);
+
+out_unregister:
+	platform_device_unregister(vkms_device->platform);
 
 out_free:
 	kfree(vkms_device);

@@ -13,12 +13,10 @@ config ARC
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select ARCH_HAS_SG_CHAIN
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64 if !ISA_ARCV2 || !(ARC_HAS_LL64 && ARC_HAS_LLSC)
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_FIND_FIRST_BIT
@@ -26,6 +24,7 @@ config ARC
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_PENDING_IRQ if SMP
+	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
@@ -46,13 +45,11 @@ config ARC
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
+	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
 
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
-
-config MIGHT_HAVE_PCI
-	bool
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
@@ -541,25 +538,5 @@ config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "12" if ARC_HUGEPAGE_16M
 	default "11"
-
-menu "Bus Support"
-
-config PCI
-	bool "PCI support" if MIGHT_HAVE_PCI
-	help
-	  PCI is the name of a bus system, i.e., the way the CPU talks to
-	  the other stuff inside your box.  Find out if your board/platform
-	  has PCI.
-
-	  Note: PCIe support for Synopsys Device will be available only
-	  when HAPS DX is configured with PCIe RC bitmap. If you have PCI,
-	  say Y, otherwise N.
-
-config PCI_SYSCALL
-	def_bool PCI
-
-source "drivers/pci/Kconfig"
-
-endmenu
 
 source "kernel/power/Kconfig"

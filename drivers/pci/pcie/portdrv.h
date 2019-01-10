@@ -71,19 +71,19 @@ static inline void *get_service_data(struct pcie_device *dev)
 
 struct pcie_port_service_driver {
 	const char *name;
-	int (*probe) (struct pcie_device *dev);
-	void (*remove) (struct pcie_device *dev);
-	int (*suspend) (struct pcie_device *dev);
-	int (*resume_noirq) (struct pcie_device *dev);
-	int (*resume) (struct pcie_device *dev);
-	int (*runtime_suspend) (struct pcie_device *dev);
-	int (*runtime_resume) (struct pcie_device *dev);
+	int (*probe)(struct pcie_device *dev);
+	void (*remove)(struct pcie_device *dev);
+	int (*suspend)(struct pcie_device *dev);
+	int (*resume_noirq)(struct pcie_device *dev);
+	int (*resume)(struct pcie_device *dev);
+	int (*runtime_suspend)(struct pcie_device *dev);
+	int (*runtime_resume)(struct pcie_device *dev);
 
 	/* Device driver may resume normal operations */
 	void (*error_resume)(struct pci_dev *dev);
 
 	/* Link Reset Capability - AER service driver specific */
-	pci_ers_result_t (*reset_link) (struct pci_dev *dev);
+	pci_ers_result_t (*reset_link)(struct pci_dev *dev);
 
 	int port_type;  /* Type of the port this driver can handle */
 	u32 service;    /* Port service this device represents */

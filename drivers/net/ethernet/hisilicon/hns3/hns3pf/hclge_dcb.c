@@ -35,7 +35,9 @@ static int hclge_ieee_ets_to_tm_info(struct hclge_dev *hdev,
 		}
 	}
 
-	return hclge_tm_prio_tc_info_update(hdev, ets->prio_tc);
+	hclge_tm_prio_tc_info_update(hdev, ets->prio_tc);
+
+	return 0;
 }
 
 static void hclge_tm_info_to_ieee_ets(struct hclge_dev *hdev,
@@ -70,25 +72,61 @@ static int hclge_ieee_getets(struct hnae3_handle *h, struct ieee_ets *ets)
 	return 0;
 }
 
+static int hclge_dcb_common_validate(struct hclge_dev *hdev, u8 num_tc,
+				     u8 *prio_tc)
+{
+	int i;
+
+	if (num_tc > hdev->tc_max) {
+		dev_err(&hdev->pdev->dev,
+			"tc num checking failed, %u > tc_max(%u)\n",
+			num_tc, hdev->tc_max);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
+		if (prio_tc[i] >= num_tc) {
+			dev_err(&hdev->pdev->dev,
+				"prio_tc[%u] checking failed, %u >= num_tc(%u)\n",
+				i, prio_tc[i], num_tc);
+			return -EINVAL;
+		}
+	}
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		if (num_tc > hdev->vport[i].alloc_tqps) {
+			dev_err(&hdev->pdev->dev,
+				"allocated tqp(%u) checking failed, %u > tqp(%u)\n",
+				i, num_tc, hdev->vport[i].alloc_tqps);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 			      u8 *tc, bool *changed)
 {
 	bool has_ets_tc = false;
 	u32 total_ets_bw = 0;
 	u8 max_tc = 0;
+	int ret;
 	u8 i;
 
-	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		if (ets->prio_tc[i] >= hdev->tc_max ||
-		    i >= hdev->tc_max)
-			return -EINVAL;
-
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
 		if (ets->prio_tc[i] != hdev->tm_info.prio_tc[i])
 			*changed = true;
 
 		if (ets->prio_tc[i] > max_tc)
 			max_tc = ets->prio_tc[i];
+	}
 
+	ret = hclge_dcb_common_validate(hdev, max_tc + 1, ets->prio_tc);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
 		switch (ets->tc_tsa[i]) {
 		case IEEE_8021QAZ_TSA_STRICT:
 			if (hdev->tm_info.tc_info[i].tc_sch_mode !=
@@ -184,9 +222,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (ret)
 		return ret;
 
-	ret = hclge_tm_schd_info_update(hdev, num_tc);
-	if (ret)
-		return ret;
+	hclge_tm_schd_info_update(hdev, num_tc);
 
 	ret = hclge_ieee_ets_to_tm_info(hdev, ets);
 	if (ret)
@@ -305,20 +341,12 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	if (hdev->flag & HCLGE_FLAG_DCB_ENABLE)
 		return -EINVAL;
 
-	if (tc > hdev->tc_max) {
-		dev_err(&hdev->pdev->dev,
-			"setup tc failed, tc(%u) > tc_max(%u)\n",
-			tc, hdev->tc_max);
+	ret = hclge_dcb_common_validate(hdev, tc, prio_tc);
+	if (ret)
 		return -EINVAL;
-	}
 
-	ret = hclge_tm_schd_info_update(hdev, tc);
-	if (ret)
-		return ret;
-
-	ret = hclge_tm_prio_tc_info_update(hdev, prio_tc);
-	if (ret)
-		return ret;
+	hclge_tm_schd_info_update(hdev, tc);
+	hclge_tm_prio_tc_info_update(hdev, prio_tc);
 
 	ret = hclge_tm_init_hw(hdev);
 	if (ret)

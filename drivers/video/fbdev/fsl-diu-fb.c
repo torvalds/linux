@@ -1575,8 +1575,7 @@ static void uninstall_fb(struct fb_info *info)
 
 	unregister_framebuffer(info);
 	unmap_video_memory(info);
-	if (&info->cmap)
-		fb_dealloc_cmap(&info->cmap);
+	fb_dealloc_cmap(&info->cmap);
 
 	mfbi->registered = 0;
 }

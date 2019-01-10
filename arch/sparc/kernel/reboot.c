@@ -7,6 +7,7 @@
 #include <linux/reboot.h>
 #include <linux/export.h>
 #include <linux/pm.h>
+#include <linux/of.h>
 
 #include <asm/oplib.h>
 #include <asm/prom.h>
@@ -25,7 +26,7 @@ EXPORT_SYMBOL(pm_power_off);
 
 void machine_power_off(void)
 {
-	if (strcmp(of_console_device->type, "serial") || scons_pwroff)
+	if (!of_node_is_type(of_console_device, "serial") || scons_pwroff)
 		prom_halt_power_off();
 
 	prom_halt();

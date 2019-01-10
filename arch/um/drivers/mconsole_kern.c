@@ -96,7 +96,6 @@ static irqreturn_t mconsole_interrupt(int irq, void *dev_id)
 	}
 	if (!list_empty(&mc_requests))
 		schedule_work(&mconsole_work);
-	reactivate_fd(fd, MCONSOLE_IRQ);
 	return IRQ_HANDLED;
 }
 
@@ -240,7 +239,6 @@ void mconsole_stop(struct mc_request *req)
 		(*req->cmd->handler)(req);
 	}
 	os_set_fd_block(req->originating_fd, 0);
-	reactivate_fd(req->originating_fd, MCONSOLE_IRQ);
 	mconsole_reply(req, "", 0, 0);
 }
 

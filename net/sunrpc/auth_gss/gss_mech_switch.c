@@ -244,7 +244,7 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 
 /**
  * gss_mech_list_pseudoflavors - Discover registered GSS pseudoflavors
- * @array: array to fill in
+ * @array_ptr: array to fill in
  * @size: size of "array"
  *
  * Returns the number of array items filled in, or a negative errno.

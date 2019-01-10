@@ -273,13 +273,13 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
 
-	if (GEM_WARN_ON(info->class > MAX_ENGINE_CLASS))
+	if (GEM_DEBUG_WARN_ON(info->class > MAX_ENGINE_CLASS))
 		return -EINVAL;
 
-	if (GEM_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
+	if (GEM_DEBUG_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
 		return -EINVAL;
 
-	if (GEM_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
+	if (GEM_DEBUG_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
 		return -EINVAL;
 
 	GEM_BUG_ON(dev_priv->engine[id]);
@@ -335,7 +335,10 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 
 	WARN_ON(ring_mask == 0);
 	WARN_ON(ring_mask &
-		GENMASK(sizeof(mask) * BITS_PER_BYTE - 1, I915_NUM_ENGINES));
+		GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
+
+	if (i915_inject_load_failure())
+		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
 		if (!HAS_ENGINE(dev_priv, i))
@@ -399,7 +402,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 		err = -EINVAL;
 		err_id = id;
 
-		if (GEM_WARN_ON(!init))
+		if (GEM_DEBUG_WARN_ON(!init))
 			goto cleanup;
 
 		err = init(engine);
@@ -463,7 +466,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
 	execlists->port_mask = 1;
-	BUILD_BUG_ON_NOT_POWER_OF_2(execlists_num_ports(execlists));
+	GEM_BUG_ON(!is_power_of_2(execlists_num_ports(execlists)));
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
 	execlists->queue_priority = INT_MIN;
@@ -482,7 +485,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
 	i915_timeline_init(engine->i915, &engine->timeline, engine->name);
-	lockdep_set_subclass(&engine->timeline.lock, TIMELINE_ENGINE);
+	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
 
 	intel_engine_init_execlist(engine);
 	intel_engine_init_hangcheck(engine);
@@ -679,7 +682,9 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 
 	i915_timeline_fini(&engine->timeline);
 
+	intel_wa_list_free(&engine->ctx_wa_list);
 	intel_wa_list_free(&engine->wa_list);
+	intel_wa_list_free(&engine->whitelist);
 }
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)
@@ -769,7 +774,7 @@ u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 	u32 slice = fls(sseu->slice_mask);
 	u32 subslice = fls(sseu->subslice_mask[slice]);
 
-	if (INTEL_GEN(dev_priv) == 10)
+	if (IS_GEN10(dev_priv))
 		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
 				  GEN8_MCR_SUBSLICE(subslice);
 	else if (INTEL_GEN(dev_priv) >= 11)
@@ -1494,10 +1499,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	count = 0;
 	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
 	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
-		struct i915_priolist *p =
-			rb_entry(rb, typeof(*p), node);
+		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+		int i;
 
-		list_for_each_entry(rq, &p->requests, sched.link) {
+		priolist_for_each_request(rq, p, i) {
 			if (count++ < MAX_REQUESTS_TO_SHOW - 1)
 				print_request(m, rq, "\t\tQ ");
 			else
@@ -1519,8 +1524,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
-		drm_printf(m, "\t%s [%d] waiting for %x\n",
-			   w->tsk->comm, w->tsk->pid, w->seqno);
+		drm_printf(m, "\t%s [%d:%c] waiting for %x\n",
+			   w->tsk->comm, w->tsk->pid,
+			   task_state_to_char(w->tsk),
+			   w->seqno);
 	}
 	spin_unlock(&b->rb_lock);
 	local_irq_restore(flags);

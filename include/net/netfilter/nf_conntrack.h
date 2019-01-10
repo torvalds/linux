@@ -27,12 +27,17 @@
 
 #include <net/netfilter/nf_conntrack_tuple.h>
 
+struct nf_ct_udp {
+	unsigned long	stream_ts;
+};
+
 /* per conntrack: protocol private data */
 union nf_conntrack_proto {
 	/* insert conntrack proto private data here */
 	struct nf_ct_dccp dccp;
 	struct ip_ct_sctp sctp;
 	struct ip_ct_tcp tcp;
+	struct nf_ct_udp udp;
 	struct nf_ct_gre gre;
 	unsigned int tmpl_padto;
 };

@@ -42,15 +42,11 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
-
 #include "sun5i.dtsi"
 
 #include <dt-bindings/thermal/thermal.h>
 
 / {
-	interrupt-parent = <&intc>;
-
 	thermal-zones {
 		cpu_thermal {
 			/* milliseconds */
@@ -88,7 +84,7 @@
 		allwinner,pipelines = <&fe0>;
 	};
 
-	soc@1c00000 {
+	soc {
 		pwm: pwm@1c20e00 {
 			compatible = "allwinner,sun5i-a13-pwm";
 			reg = <0x01c20e00 0xc>;

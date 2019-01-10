@@ -80,14 +80,14 @@ struct call_return_processor {
 	void *data;
 };
 
-int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
+int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 			u64 to_ip, u16 insn_len, u64 trace_nr);
-void thread_stack__set_trace_nr(struct thread *thread, u64 trace_nr);
-void thread_stack__sample(struct thread *thread, struct ip_callchain *chain,
+void thread_stack__set_trace_nr(struct thread *thread, int cpu, u64 trace_nr);
+void thread_stack__sample(struct thread *thread, int cpu, struct ip_callchain *chain,
 			  size_t sz, u64 ip, u64 kernel_start);
 int thread_stack__flush(struct thread *thread);
 void thread_stack__free(struct thread *thread);
-size_t thread_stack__depth(struct thread *thread);
+size_t thread_stack__depth(struct thread *thread, int cpu);
 
 struct call_return_processor *
 call_return_processor__new(int (*process)(struct call_return *cr, void *data),

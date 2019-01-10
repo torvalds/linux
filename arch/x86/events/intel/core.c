@@ -1930,7 +1930,7 @@ static void intel_pmu_enable_all(int added)
  *   in sequence on the same PMC or on different PMCs.
  *
  * In practise it appears some of these events do in fact count, and
- * we need to programm all 4 events.
+ * we need to program all 4 events.
  */
 static void intel_pmu_nhm_workaround(void)
 {

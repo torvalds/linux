@@ -396,4 +396,9 @@ int v4l2_g_parm_cap(struct video_device *vdev,
 int v4l2_s_parm_cap(struct video_device *vdev,
 		    struct v4l2_subdev *sd, struct v4l2_streamparm *a);
 
+/* Compare two v4l2_fract structs */
+#define V4L2_FRACT_COMPARE(a, OP, b)			\
+	((u64)(a).numerator * (b).denominator OP	\
+	(u64)(b).numerator * (a).denominator)
+
 #endif /* V4L2_COMMON_H_ */

@@ -11,6 +11,28 @@
  * distribution for more details.
  */
 #include "unzip_vle.h"
+#include <linux/lz4.h>
+
+int z_erofs_unzip_lz4(void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret = LZ4_decompress_safe_partial(in, out, inlen, outlen, outlen);
+
+	if (ret >= 0)
+		return ret;
+
+	/*
+	 * LZ4_decompress_safe_partial will return an error code
+	 * (< 0) if decompression failed
+	 */
+	errln("%s, failed to decompress, in[%p, %zu] outlen[%p, %zu]",
+	      __func__, in, inlen, out, outlen);
+	WARN_ON(1);
+	print_hex_dump(KERN_DEBUG, "raw data [in]: ", DUMP_PREFIX_OFFSET,
+		       16, 1, in, inlen, true);
+	print_hex_dump(KERN_DEBUG, "raw data [out]: ", DUMP_PREFIX_OFFSET,
+		       16, 1, out, outlen, true);
+	return -EIO;
+}
 
 #if Z_EROFS_CLUSTER_MAX_PAGES > Z_EROFS_VLE_INLINE_PAGEVECS
 #define EROFS_PERCPU_NR_PAGES   Z_EROFS_CLUSTER_MAX_PAGES
@@ -57,7 +79,7 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 			if (compressed_pages[j] != page)
 				continue;
 
-			BUG_ON(mirrored[j]);
+			DBG_BUGON(mirrored[j]);
 			memcpy(percpu_data + j * PAGE_SIZE, dst, PAGE_SIZE);
 			mirrored[j] = true;
 			break;
@@ -98,8 +120,6 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 	preempt_enable();
 	return 0;
 }
-
-extern int z_erofs_unzip_lz4(void *in, void *out, size_t inlen, size_t outlen);
 
 int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 				  unsigned int clusterpages,
@@ -206,3 +226,4 @@ int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
 	}
 	return ret;
 }
+

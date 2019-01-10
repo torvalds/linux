@@ -51,10 +51,10 @@ static struct {
 	struct iphdr iph;
 	struct tcphdr tcp;
 } __packed pkt_v4 = {
-	.eth.h_proto = bpf_htons(ETH_P_IP),
+	.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
 	.iph.ihl = 5,
 	.iph.protocol = 6,
-	.iph.tot_len = bpf_htons(MAGIC_BYTES),
+	.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
 	.tcp.urg_ptr = 123,
 };
 
@@ -64,13 +64,13 @@ static struct {
 	struct ipv6hdr iph;
 	struct tcphdr tcp;
 } __packed pkt_v6 = {
-	.eth.h_proto = bpf_htons(ETH_P_IPV6),
+	.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
 	.iph.nexthdr = 6,
-	.iph.payload_len = bpf_htons(MAGIC_BYTES),
+	.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
 	.tcp.urg_ptr = 123,
 };
 
-#define CHECK(condition, tag, format...) ({				\
+#define _CHECK(condition, tag, duration, format...) ({			\
 	int __ret = !!(condition);					\
 	if (__ret) {							\
 		error_cnt++;						\
@@ -82,6 +82,11 @@ static struct {
 	}								\
 	__ret;								\
 })
+
+#define CHECK(condition, tag, format...) \
+	_CHECK(condition, tag, duration, format)
+#define CHECK_ATTR(condition, tag, format...) \
+	_CHECK(condition, tag, tattr.duration, format)
 
 static int bpf_find_map(const char *test, struct bpf_object *obj,
 			const char *name)
@@ -121,6 +126,53 @@ static void test_pkt_access(void)
 	CHECK(err || retval, "ipv6",
 	      "err %d errno %d retval %d duration %d\n",
 	      err, errno, retval, duration);
+	bpf_object__close(obj);
+}
+
+static void test_prog_run_xattr(void)
+{
+	const char *file = "./test_pkt_access.o";
+	struct bpf_object *obj;
+	char buf[10];
+	int err;
+	struct bpf_prog_test_run_attr tattr = {
+		.repeat = 1,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.data_out = buf,
+		.data_size_out = 5,
+	};
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj,
+			    &tattr.prog_fd);
+	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
+		return;
+
+	memset(buf, 0, sizeof(buf));
+
+	err = bpf_prog_test_run_xattr(&tattr);
+	CHECK_ATTR(err != -1 || errno != ENOSPC || tattr.retval, "run",
+	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
+
+	CHECK_ATTR(tattr.data_size_out != sizeof(pkt_v4), "data_size_out",
+	      "incorrect output size, want %lu have %u\n",
+	      sizeof(pkt_v4), tattr.data_size_out);
+
+	CHECK_ATTR(buf[5] != 0, "overflow",
+	      "BPF_PROG_TEST_RUN ignored size hint\n");
+
+	tattr.data_out = NULL;
+	tattr.data_size_out = 0;
+	errno = 0;
+
+	err = bpf_prog_test_run_xattr(&tattr);
+	CHECK_ATTR(err || errno || tattr.retval, "run_no_output",
+	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
+
+	tattr.data_size_out = 1;
+	err = bpf_prog_test_run_xattr(&tattr);
+	CHECK_ATTR(err != -EINVAL, "run_wrong_size_out", "err %d\n", err);
+
 	bpf_object__close(obj);
 }
 
@@ -524,7 +576,7 @@ static void test_bpf_obj_id(void)
 			  load_time < now - 60 || load_time > now + 60 ||
 			  prog_infos[i].created_by_uid != my_uid ||
 			  prog_infos[i].nr_map_ids != 1 ||
-			  *(int *)prog_infos[i].map_ids != map_infos[i].id ||
+			  *(int *)(long)prog_infos[i].map_ids != map_infos[i].id ||
 			  strcmp((char *)prog_infos[i].name, expected_prog_name),
 			  "get-prog-info(fd)",
 			  "err %d errno %d i %d type %d(%d) info_len %u(%Zu) jit_enabled %d jited_prog_len %u xlated_prog_len %u jited_prog %d xlated_prog %d load_time %lu(%lu) uid %u(%u) nr_map_ids %u(%u) map_id %u(%u) name %s(%s)\n",
@@ -539,7 +591,7 @@ static void test_bpf_obj_id(void)
 			  load_time, now,
 			  prog_infos[i].created_by_uid, my_uid,
 			  prog_infos[i].nr_map_ids, 1,
-			  *(int *)prog_infos[i].map_ids, map_infos[i].id,
+			  *(int *)(long)prog_infos[i].map_ids, map_infos[i].id,
 			  prog_infos[i].name, expected_prog_name))
 			goto done;
 	}
@@ -585,7 +637,7 @@ static void test_bpf_obj_id(void)
 		bzero(&prog_info, sizeof(prog_info));
 		info_len = sizeof(prog_info);
 
-		saved_map_id = *(int *)(prog_infos[i].map_ids);
+		saved_map_id = *(int *)((long)prog_infos[i].map_ids);
 		prog_info.map_ids = prog_infos[i].map_ids;
 		prog_info.nr_map_ids = 2;
 		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
@@ -593,12 +645,12 @@ static void test_bpf_obj_id(void)
 		prog_infos[i].xlated_prog_insns = 0;
 		CHECK(err || info_len != sizeof(struct bpf_prog_info) ||
 		      memcmp(&prog_info, &prog_infos[i], info_len) ||
-		      *(int *)prog_info.map_ids != saved_map_id,
+		      *(int *)(long)prog_info.map_ids != saved_map_id,
 		      "get-prog-info(next_id->fd)",
 		      "err %d errno %d info_len %u(%Zu) memcmp %d map_id %u(%u)\n",
 		      err, errno, info_len, sizeof(struct bpf_prog_info),
 		      memcmp(&prog_info, &prog_infos[i], info_len),
-		      *(int *)prog_info.map_ids, saved_map_id);
+		      *(int *)(long)prog_info.map_ids, saved_map_id);
 		close(prog_fd);
 	}
 	CHECK(nr_id_found != nr_iters,
@@ -1703,7 +1755,7 @@ static void test_reference_tracking()
 	const char *file = "./test_sk_lookup_kern.o";
 	struct bpf_object *obj;
 	struct bpf_program *prog;
-	__u32 duration;
+	__u32 duration = 0;
 	int err = 0;
 
 	obj = bpf_object__open(file);
@@ -1837,6 +1889,7 @@ int main(void)
 	jit_enabled = is_jit_enabled();
 
 	test_pkt_access();
+	test_prog_run_xattr();
 	test_xdp();
 	test_xdp_adjust_tail();
 	test_l4lb_all();

@@ -78,82 +78,72 @@ static void __mdb_entry_to_br_ip(struct br_mdb_entry *entry, struct br_ip *ip)
 static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev)
 {
+	int idx = 0, s_idx = cb->args[1], err = 0;
 	struct net_bridge *br = netdev_priv(dev);
-	struct net_bridge_mdb_htable *mdb;
+	struct net_bridge_mdb_entry *mp;
 	struct nlattr *nest, *nest2;
-	int i, err = 0;
-	int idx = 0, s_idx = cb->args[1];
 
 	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
-		return 0;
-
-	mdb = rcu_dereference(br->mdb);
-	if (!mdb)
 		return 0;
 
 	nest = nla_nest_start(skb, MDBA_MDB);
 	if (nest == NULL)
 		return -EMSGSIZE;
 
-	for (i = 0; i < mdb->max; i++) {
-		struct net_bridge_mdb_entry *mp;
+	hlist_for_each_entry_rcu(mp, &br->mdb_list, mdb_node) {
 		struct net_bridge_port_group *p;
 		struct net_bridge_port_group __rcu **pp;
 		struct net_bridge_port *port;
 
-		hlist_for_each_entry_rcu(mp, &mdb->mhash[i], hlist[mdb->ver]) {
-			if (idx < s_idx)
-				goto skip;
+		if (idx < s_idx)
+			goto skip;
 
-			nest2 = nla_nest_start(skb, MDBA_MDB_ENTRY);
-			if (nest2 == NULL) {
+		nest2 = nla_nest_start(skb, MDBA_MDB_ENTRY);
+		if (!nest2) {
+			err = -EMSGSIZE;
+			break;
+		}
+
+		for (pp = &mp->ports; (p = rcu_dereference(*pp)) != NULL;
+		      pp = &p->next) {
+			struct nlattr *nest_ent;
+			struct br_mdb_entry e;
+
+			port = p->port;
+			if (!port)
+				continue;
+
+			memset(&e, 0, sizeof(e));
+			e.ifindex = port->dev->ifindex;
+			e.vid = p->addr.vid;
+			__mdb_entry_fill_flags(&e, p->flags);
+			if (p->addr.proto == htons(ETH_P_IP))
+				e.addr.u.ip4 = p->addr.u.ip4;
+#if IS_ENABLED(CONFIG_IPV6)
+			if (p->addr.proto == htons(ETH_P_IPV6))
+				e.addr.u.ip6 = p->addr.u.ip6;
+#endif
+			e.addr.proto = p->addr.proto;
+			nest_ent = nla_nest_start(skb, MDBA_MDB_ENTRY_INFO);
+			if (!nest_ent) {
+				nla_nest_cancel(skb, nest2);
 				err = -EMSGSIZE;
 				goto out;
 			}
-
-			for (pp = &mp->ports;
-			     (p = rcu_dereference(*pp)) != NULL;
-			      pp = &p->next) {
-				struct nlattr *nest_ent;
-				struct br_mdb_entry e;
-
-				port = p->port;
-				if (!port)
-					continue;
-
-				memset(&e, 0, sizeof(e));
-				e.ifindex = port->dev->ifindex;
-				e.vid = p->addr.vid;
-				__mdb_entry_fill_flags(&e, p->flags);
-				if (p->addr.proto == htons(ETH_P_IP))
-					e.addr.u.ip4 = p->addr.u.ip4;
-#if IS_ENABLED(CONFIG_IPV6)
-				if (p->addr.proto == htons(ETH_P_IPV6))
-					e.addr.u.ip6 = p->addr.u.ip6;
-#endif
-				e.addr.proto = p->addr.proto;
-				nest_ent = nla_nest_start(skb,
-							  MDBA_MDB_ENTRY_INFO);
-				if (!nest_ent) {
-					nla_nest_cancel(skb, nest2);
-					err = -EMSGSIZE;
-					goto out;
-				}
-				if (nla_put_nohdr(skb, sizeof(e), &e) ||
-				    nla_put_u32(skb,
-						MDBA_MDB_EATTR_TIMER,
-						br_timer_value(&p->timer))) {
-					nla_nest_cancel(skb, nest_ent);
-					nla_nest_cancel(skb, nest2);
-					err = -EMSGSIZE;
-					goto out;
-				}
-				nla_nest_end(skb, nest_ent);
+			if (nla_put_nohdr(skb, sizeof(e), &e) ||
+			    nla_put_u32(skb,
+					MDBA_MDB_EATTR_TIMER,
+					br_timer_value(&p->timer))) {
+				nla_nest_cancel(skb, nest_ent);
+				nla_nest_cancel(skb, nest2);
+				err = -EMSGSIZE;
+				goto out;
 			}
-			nla_nest_end(skb, nest2);
-		skip:
-			idx++;
+			nla_nest_end(skb, nest_ent);
 		}
+		nla_nest_end(skb, nest2);
+skip:
+		idx++;
 	}
 
 out:
@@ -203,8 +193,7 @@ static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rcu_read_lock();
 
-	/* In theory this could be wrapped to 0... */
-	cb->seq = net->dev_base_seq + br_mdb_rehash_seq;
+	cb->seq = net->dev_base_seq;
 
 	for_each_netdev_rcu(net, dev) {
 		if (dev->priv_flags & IFF_EBRIDGE) {
@@ -297,7 +286,6 @@ static void br_mdb_complete(struct net_device *dev, int err, void *priv)
 	struct br_mdb_complete_info *data = priv;
 	struct net_bridge_port_group __rcu **pp;
 	struct net_bridge_port_group *p;
-	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port *port = data->port;
 	struct net_bridge *br = port->br;
@@ -306,8 +294,7 @@ static void br_mdb_complete(struct net_device *dev, int err, void *priv)
 		goto err;
 
 	spin_lock_bh(&br->multicast_lock);
-	mdb = mlock_dereference(br->mdb, br);
-	mp = br_mdb_ip_get(mdb, &data->ip);
+	mp = br_mdb_ip_get(br, &data->ip);
 	if (!mp)
 		goto out;
 	for (pp = &mp->ports; (p = mlock_dereference(*pp, br)) != NULL;
@@ -344,7 +331,7 @@ static void br_mdb_switchdev_host_port(struct net_device *dev,
 	mdb.obj.orig_dev = dev;
 	switch (type) {
 	case RTM_NEWMDB:
-		switchdev_port_obj_add(lower_dev, &mdb.obj);
+		switchdev_port_obj_add(lower_dev, &mdb.obj, NULL);
 		break;
 	case RTM_DELMDB:
 		switchdev_port_obj_del(lower_dev, &mdb.obj);
@@ -394,7 +381,7 @@ static void __br_mdb_notify(struct net_device *dev, struct net_bridge_port *p,
 			__mdb_entry_to_br_ip(entry, &complete_info->ip);
 			mdb.obj.complete_priv = complete_info;
 			mdb.obj.complete = br_mdb_complete;
-			if (switchdev_port_obj_add(port_dev, &mdb.obj))
+			if (switchdev_port_obj_add(port_dev, &mdb.obj, NULL))
 				kfree(complete_info);
 		}
 	} else if (p && port_dev && type == RTM_DELMDB) {
@@ -588,14 +575,12 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
-	struct net_bridge_mdb_htable *mdb;
 	unsigned long now = jiffies;
 	int err;
 
-	mdb = mlock_dereference(br->mdb, br);
-	mp = br_mdb_ip_get(mdb, group);
+	mp = br_mdb_ip_get(br, group);
 	if (!mp) {
-		mp = br_multicast_new_group(br, port, group);
+		mp = br_multicast_new_group(br, group);
 		err = PTR_ERR_OR_ZERO(mp);
 		if (err)
 			return err;
@@ -696,7 +681,6 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 {
-	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
@@ -709,9 +693,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	__mdb_entry_to_br_ip(entry, &ip);
 
 	spin_lock_bh(&br->multicast_lock);
-	mdb = mlock_dereference(br->mdb, br);
-
-	mp = br_mdb_ip_get(mdb, &ip);
+	mp = br_mdb_ip_get(br, &ip);
 	if (!mp)
 		goto unlock;
 
@@ -728,7 +710,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		rcu_assign_pointer(*pp, p->next);
 		hlist_del_init(&p->mglist);
 		del_timer(&p->timer);
-		call_rcu_bh(&p->rcu, br_multicast_free_pg);
+		kfree_rcu(p, rcu);
 		err = 0;
 
 		if (!mp->ports && !mp->host_joined &&

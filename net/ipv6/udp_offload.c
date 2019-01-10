@@ -11,6 +11,7 @@
  */
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/indirect_call_wrapper.h>
 #include <net/protocol.h>
 #include <net/ipv6.h>
 #include <net/udp.h>
@@ -114,8 +115,8 @@ out:
 	return segs;
 }
 
-static struct sk_buff *udp6_gro_receive(struct list_head *head,
-					struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE
+struct sk_buff *udp6_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
 
@@ -142,18 +143,14 @@ flush:
 	return NULL;
 }
 
-static int udp6_gro_complete(struct sk_buff *skb, int nhoff)
+INDIRECT_CALLABLE_SCOPE int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct udphdr *uh = (struct udphdr *)(skb->data + nhoff);
 
-	if (uh->check) {
-		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
+	if (uh->check)
 		uh->check = ~udp_v6_check(skb->len - nhoff, &ipv6h->saddr,
 					  &ipv6h->daddr, 0);
-	} else {
-		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
-	}
 
 	return udp_gro_complete(skb, nhoff, udp6_lib_lookup_skb);
 }

@@ -128,6 +128,7 @@ config PPC
 	#
 	# Please keep this list sorted alphabetically.
 	#
+	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
 	select ARCH_HAS_ELF_RANDOMIZE
@@ -138,7 +139,6 @@ config PPC
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_MEMBARRIER_CALLBACKS
 	select ARCH_HAS_SCALED_CPUTIME		if VIRT_CPU_ACCOUNTING_NATIVE && PPC64
-	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX	if ((PPC_BOOK3S_64 || PPC32) && !RELOCATABLE && !HIBERNATION)
 	select ARCH_HAS_TICK_BROADCAST		if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UACCESS_FLUSHCACHE	if PPC64
@@ -168,6 +168,7 @@ config PPC
 	select GENERIC_CPU_VULNERABILITIES	if PPC_BARRIER_NOSPEC
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
+	select GENERIC_PCI_IOMAP		if PCI
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
@@ -235,6 +236,8 @@ config PPC
 	select OF_RESERVED_MEM
 	select OLD_SIGACTION			if PPC32
 	select OLD_SIGSUSPEND
+	select PCI_DOMAINS			if PCI
+	select PCI_SYSCALL			if PCI
 	select RTC_LIB
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
@@ -374,9 +377,9 @@ config PPC_ADV_DEBUG_DAC_RANGE
 	depends on PPC_ADV_DEBUG_REGS && 44x
 	default y
 
-config ZONE_DMA32
+config ZONE_DMA
 	bool
-	default y if PPC64
+	default y if PPC_BOOK3E_64
 
 config PGTABLE_LEVELS
 	int
@@ -393,7 +396,7 @@ config HIGHMEM
 	bool "High memory support"
 	depends on PPC32
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
@@ -556,7 +559,7 @@ config RELOCATABLE_TEST
 
 config CRASH_DUMP
 	bool "Build a dump capture kernel"
-	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
+	depends on PPC64 || PPC_BOOK3S_32 || FSL_BOOKE || (44x && !SMP)
 	select RELOCATABLE if PPC64 || 44x || FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a dump capture kernel.
@@ -816,7 +819,7 @@ config ARCH_WANTS_FREEZER_CONTROL
 	def_bool y
 	depends on ADB_PMU
 
-source kernel/power/Kconfig
+source "kernel/power/Kconfig"
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
@@ -869,10 +872,6 @@ config ISA
 	  have an IBM RS/6000 or pSeries machine, say Y.  If you have an
 	  embedded board, consult your board documentation.
 
-config ZONE_DMA
-	bool
-	default y
-
 config GENERIC_ISA_DMA
 	bool
 	depends on ISA_DMA_API
@@ -882,9 +881,6 @@ config PPC_INDIRECT_PCI
 	bool
 	depends on PCI
 	default y if 40x || 44x
-
-config EISA
-	bool
 
 config SBUS
 	bool
@@ -930,58 +926,19 @@ config FSL_GTM
 	help
 	  Freescale General-purpose Timers support
 
-# Platforms that what PCI turned unconditionally just do select PCI
-# in their config node.  Platforms that want to choose at config
-# time should select PPC_PCI_CHOICE
-config PPC_PCI_CHOICE
-	bool
-
-config PCI
-	bool "PCI support" if PPC_PCI_CHOICE
-	default y if !40x && !CPM2 && !PPC_8xx && !PPC_83xx \
-		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
-	select GENERIC_PCI_IOMAP
-	help
-	  Find out whether your system includes a PCI bus. PCI is the name of
-	  a bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box.  If you say Y here, the kernel will include drivers and
-	  infrastructure code to support PCI bus devices.
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_SYSCALL
-	def_bool PCI
-
 config PCI_8260
 	bool
 	depends on PCI && 8260
 	select PPC_INDIRECT_PCI
 	default y
 
-source "drivers/pci/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
-
-config HAS_RAPIDIO
-	bool
-
-config RAPIDIO
-	tristate "RapidIO support"
-	depends on HAS_RAPIDIO || PCI
-	help
-	  If you say Y here, the kernel will include drivers and
-	  infrastructure code to support RapidIO interconnect devices.
-
 config FSL_RIO
 	bool "Freescale Embedded SRIO Controller support"
-	depends on RAPIDIO = y && HAS_RAPIDIO
+	depends on RAPIDIO = y && HAVE_RAPIDIO
 	default "n"
 	---help---
 	  Include support for RapidIO controller on Freescale embedded
 	  processors (MPC8548, MPC8641, etc).
-
-source "drivers/rapidio/Kconfig"
 
 endmenu
 
@@ -1096,7 +1053,7 @@ config PHYSICAL_START_BOOL
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
-	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP && !NONSTATIC_KERNEL
+	default "0x02000000" if PPC_BOOK3S && CRASH_DUMP && !NONSTATIC_KERNEL
 	default "0x00000000"
 
 config PHYSICAL_ALIGN
@@ -1146,7 +1103,7 @@ config PIN_TLB_DATA
 
 config PIN_TLB_IMMR
 	bool "Pinned TLB for IMMR"
-	depends on PIN_TLB
+	depends on PIN_TLB || PPC_EARLY_DEBUG_CPM
 	default y
 
 config PIN_TLB_TEXT

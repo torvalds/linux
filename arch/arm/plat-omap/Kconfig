@@ -92,7 +92,6 @@ config OMAP_32K_TIMER
 config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"
 	depends on ARCH_OMAP3 && PM
-	default n
 	help
 	  Without this option, L2 Auxiliary control register contents are
 	  lost during off-mode entry on HS/EMU devices. This feature

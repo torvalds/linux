@@ -117,6 +117,55 @@ int amdtp_tscm_add_pcm_hw_constraints(struct amdtp_stream *s,
 	return amdtp_stream_add_pcm_hw_constraints(s, runtime);
 }
 
+static void read_status_messages(struct amdtp_stream *s,
+				 __be32 *buffer, unsigned int data_blocks)
+{
+	struct snd_tscm *tscm = container_of(s, struct snd_tscm, tx_stream);
+	bool used = READ_ONCE(tscm->hwdep->used);
+	int i;
+
+	for (i = 0; i < data_blocks; i++) {
+		unsigned int index;
+		__be32 before;
+		__be32 after;
+
+		index = be32_to_cpu(buffer[0]) % SNDRV_FIREWIRE_TASCAM_STATE_COUNT;
+		before = tscm->state[index];
+		after = buffer[s->data_block_quadlets - 1];
+
+		if (used && index > 4 && index < 16) {
+			__be32 mask;
+
+			if (index == 5)
+				mask = cpu_to_be32(~0x0000ffff);
+			else if (index == 6)
+				mask = cpu_to_be32(~0x0000ffff);
+			else if (index == 8)
+				mask = cpu_to_be32(~0x000f0f00);
+			else
+				mask = cpu_to_be32(~0x00000000);
+
+			if ((before ^ after) & mask) {
+				struct snd_firewire_tascam_change *entry =
+						&tscm->queue[tscm->push_pos];
+
+				spin_lock_irq(&tscm->lock);
+				entry->index = index;
+				entry->before = before;
+				entry->after = after;
+				if (++tscm->push_pos >= SND_TSCM_QUEUE_COUNT)
+					tscm->push_pos = 0;
+				spin_unlock_irq(&tscm->lock);
+
+				wake_up(&tscm->hwdep_wait);
+			}
+		}
+
+		tscm->state[index] = after;
+		buffer += s->data_block_quadlets;
+	}
+}
+
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 					   __be32 *buffer,
 					   unsigned int data_blocks,
@@ -128,7 +177,7 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 	if (data_blocks > 0 && pcm)
 		read_pcm_s32(s, pcm, buffer, data_blocks);
 
-	/* A place holder for control messages. */
+	read_status_messages(s, buffer, data_blocks);
 
 	return data_blocks;
 }

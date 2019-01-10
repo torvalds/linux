@@ -132,6 +132,8 @@ static struct sctp_association *sctp_association_init(
 	 */
 	asoc->max_burst = sp->max_burst;
 
+	asoc->subscribe = sp->subscribe;
+
 	/* initialize association timers */
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] = asoc->rto_initial;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] = asoc->rto_initial;

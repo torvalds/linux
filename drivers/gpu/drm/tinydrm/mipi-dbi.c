@@ -9,15 +9,19 @@
  * (at your option) any later version.
  */
 
-#include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/tinydrm/mipi-dbi.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/tinydrm/mipi-dbi.h>
+#include <drm/tinydrm/tinydrm-helpers.h>
+#include <uapi/drm/drm.h>
 #include <video/mipi_display.h>
 
 #define MIPI_DBI_MAX_SPI_READ_SPEED 2000000 /* 2MHz */
@@ -240,10 +244,10 @@ static int mipi_dbi_fb_dirty(struct drm_framebuffer *fb,
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_COLUMN_ADDRESS,
 			 (clip.x1 >> 8) & 0xFF, clip.x1 & 0xFF,
-			 (clip.x2 >> 8) & 0xFF, (clip.x2 - 1) & 0xFF);
+			 ((clip.x2 - 1) >> 8) & 0xFF, (clip.x2 - 1) & 0xFF);
 	mipi_dbi_command(mipi, MIPI_DCS_SET_PAGE_ADDRESS,
 			 (clip.y1 >> 8) & 0xFF, clip.y1 & 0xFF,
-			 (clip.y2 >> 8) & 0xFF, (clip.y2 - 1) & 0xFF);
+			 ((clip.y2 - 1) >> 8) & 0xFF, (clip.y2 - 1) & 0xFF);
 
 	ret = mipi_dbi_command_buf(mipi, MIPI_DCS_WRITE_MEMORY_START, tr,
 				(clip.x2 - clip.x1) * (clip.y2 - clip.y1) * 2);

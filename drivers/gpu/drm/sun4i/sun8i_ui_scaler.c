@@ -10,6 +10,7 @@
  */
 
 #include "sun8i_ui_scaler.h"
+#include "sun8i_vi_scaler.h"
 
 static const u32 lan2coefftab16[240] = {
 	0x00004000, 0x00033ffe, 0x00063efc, 0x000a3bfb,
@@ -88,6 +89,20 @@ static const u32 lan2coefftab16[240] = {
 	0x0b1c1603, 0x0d1c1502, 0x0e1d1401, 0x0f1d1301,
 };
 
+static u32 sun8i_ui_scaler_base(struct sun8i_mixer *mixer, int channel)
+{
+	int vi_num = mixer->cfg->vi_num;
+
+	if (mixer->cfg->is_de3)
+		return DE3_VI_SCALER_UNIT_BASE +
+		       DE3_VI_SCALER_UNIT_SIZE * vi_num +
+		       DE3_UI_SCALER_UNIT_SIZE * (channel - vi_num);
+	else
+		return DE2_VI_SCALER_UNIT_BASE +
+		       DE2_VI_SCALER_UNIT_SIZE * vi_num +
+		       DE2_UI_SCALER_UNIT_SIZE * (channel - vi_num);
+}
+
 static int sun8i_ui_scaler_coef_index(unsigned int step)
 {
 	unsigned int scale, int_part, float_part;
@@ -114,11 +129,12 @@ static int sun8i_ui_scaler_coef_index(unsigned int step)
 
 void sun8i_ui_scaler_enable(struct sun8i_mixer *mixer, int layer, bool enable)
 {
-	int vi_cnt = mixer->cfg->vi_num;
-	u32 val;
+	u32 val, base;
 
-	if (WARN_ON(layer < vi_cnt))
+	if (WARN_ON(layer < mixer->cfg->vi_num))
 		return;
+
+	base = sun8i_ui_scaler_base(mixer, layer);
 
 	if (enable)
 		val = SUN8I_SCALER_GSU_CTRL_EN |
@@ -126,20 +142,21 @@ void sun8i_ui_scaler_enable(struct sun8i_mixer *mixer, int layer, bool enable)
 	else
 		val = 0;
 
-	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_GSU_CTRL(vi_cnt, layer - vi_cnt), val);
+	regmap_write(mixer->engine.regs, SUN8I_SCALER_GSU_CTRL(base), val);
 }
 
 void sun8i_ui_scaler_setup(struct sun8i_mixer *mixer, int layer,
 			   u32 src_w, u32 src_h, u32 dst_w, u32 dst_h,
 			   u32 hscale, u32 vscale, u32 hphase, u32 vphase)
 {
-	int vi_cnt = mixer->cfg->vi_num;
 	u32 insize, outsize;
 	int i, offset;
+	u32 base;
 
-	if (WARN_ON(layer < vi_cnt))
+	if (WARN_ON(layer < mixer->cfg->vi_num))
 		return;
+
+	base = sun8i_ui_scaler_base(mixer, layer);
 
 	hphase <<= SUN8I_UI_SCALER_PHASE_FRAC - 16;
 	vphase <<= SUN8I_UI_SCALER_PHASE_FRAC - 16;
@@ -149,24 +166,22 @@ void sun8i_ui_scaler_setup(struct sun8i_mixer *mixer, int layer,
 	insize = SUN8I_UI_SCALER_SIZE(src_w, src_h);
 	outsize = SUN8I_UI_SCALER_SIZE(dst_w, dst_h);
 
-	layer -= vi_cnt;
-
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_GSU_OUTSIZE(vi_cnt, layer), outsize);
+		     SUN8I_SCALER_GSU_OUTSIZE(base), outsize);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_GSU_INSIZE(vi_cnt, layer), insize);
+		     SUN8I_SCALER_GSU_INSIZE(base), insize);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_GSU_HSTEP(vi_cnt, layer), hscale);
+		     SUN8I_SCALER_GSU_HSTEP(base), hscale);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_GSU_VSTEP(vi_cnt, layer), vscale);
+		     SUN8I_SCALER_GSU_VSTEP(base), vscale);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_GSU_HPHASE(vi_cnt, layer), hphase);
+		     SUN8I_SCALER_GSU_HPHASE(base), hphase);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_GSU_VPHASE(vi_cnt, layer), vphase);
+		     SUN8I_SCALER_GSU_VPHASE(base), vphase);
 	offset = sun8i_ui_scaler_coef_index(hscale) *
 			SUN8I_UI_SCALER_COEFF_COUNT;
 	for (i = 0; i < SUN8I_UI_SCALER_COEFF_COUNT; i++)
 		regmap_write(mixer->engine.regs,
-			     SUN8I_SCALER_GSU_HCOEFF(vi_cnt, layer, i),
+			     SUN8I_SCALER_GSU_HCOEFF(base, i),
 			     lan2coefftab16[offset + i]);
 }

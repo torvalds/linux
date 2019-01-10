@@ -73,7 +73,7 @@ asmlinkage void sysn32_rt_sigreturn(void)
 
 	regs = current_pt_regs();
 	frame = (struct rt_sigframe_n32 __user *)regs->regs[29];
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
@@ -110,7 +110,7 @@ static int setup_rt_frame_n32(void *sig_return, struct ksignal *ksig,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	/* Create siginfo.  */

@@ -142,7 +142,7 @@ good_area:
 	fault = handle_mm_fault(vma, address, flags);
 
 	/* If Pagefault was interrupted by SIGKILL, exit page fault "early" */
-	if (unlikely(fatal_signal_pending(current))) {
+	if (fatal_signal_pending(current)) {
 		if ((fault & VM_FAULT_ERROR) && !(fault & VM_FAULT_RETRY))
 			up_read(&mm->mmap_sem);
 		if (user_mode(regs))

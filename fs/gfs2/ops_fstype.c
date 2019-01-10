@@ -41,6 +41,7 @@
 #include "dir.h"
 #include "meta_io.h"
 #include "trace_gfs2.h"
+#include "lops.h"
 
 #define DO 0
 #define UNDO 1

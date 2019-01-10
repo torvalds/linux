@@ -121,6 +121,9 @@
 #ifndef SVE_GET_VL
 # define SVE_GET_VL()		(-EINVAL)
 #endif
+#ifndef PAC_RESET_KEYS
+# define PAC_RESET_KEYS(a, b)	(-EINVAL)
+#endif
 
 /*
  * this is where the system-wide overflow UID and GID are defined, for
@@ -2476,6 +2479,11 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			return -EINVAL;
 		error = arch_prctl_spec_ctrl_set(me, arg2, arg3);
 		break;
+	case PR_PAC_RESET_KEYS:
+		if (arg3 || arg4 || arg5)
+			return -EINVAL;
+		error = PAC_RESET_KEYS(me, arg2);
+		break;
 	default:
 		error = -EINVAL;
 		break;
@@ -2619,7 +2627,7 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
 		s.freehigh >>= bitcount;
 	}
 
-	if (!access_ok(VERIFY_WRITE, info, sizeof(struct compat_sysinfo)) ||
+	if (!access_ok(info, sizeof(struct compat_sysinfo)) ||
 	    __put_user(s.uptime, &info->uptime) ||
 	    __put_user(s.loads[0], &info->loads[0]) ||
 	    __put_user(s.loads[1], &info->loads[1]) ||

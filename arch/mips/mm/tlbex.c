@@ -576,6 +576,7 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_R5500:
 		if (m4kc_tlbp_war())
 			uasm_i_nop(p);
+		/* fall through */
 	case CPU_ALCHEMY:
 		tlbw(p);
 		break;

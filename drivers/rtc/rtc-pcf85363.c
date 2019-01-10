@@ -120,6 +120,11 @@ struct pcf85363 {
 	struct regmap		*regmap;
 };
 
+struct pcf85x63_config {
+	struct regmap_config regmap;
+	unsigned int num_nvram;
+};
+
 static int pcf85363_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pcf85363 *pcf85363 = dev_get_drvdata(dev);
@@ -311,25 +316,75 @@ static int pcf85363_nvram_write(void *priv, unsigned int offset, void *val,
 				 val, bytes);
 }
 
-static const struct regmap_config regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = 0x7f,
+static int pcf85x63_nvram_read(void *priv, unsigned int offset, void *val,
+			       size_t bytes)
+{
+	struct pcf85363 *pcf85363 = priv;
+	unsigned int tmp_val;
+	int ret;
+
+	ret = regmap_read(pcf85363->regmap, CTRL_RAMBYTE, &tmp_val);
+	(*(unsigned char *) val) = (unsigned char) tmp_val;
+
+	return ret;
+}
+
+static int pcf85x63_nvram_write(void *priv, unsigned int offset, void *val,
+				size_t bytes)
+{
+	struct pcf85363 *pcf85363 = priv;
+	unsigned char tmp_val;
+
+	tmp_val = *((unsigned char *)val);
+	return regmap_write(pcf85363->regmap, CTRL_RAMBYTE,
+				(unsigned int)tmp_val);
+}
+
+static const struct pcf85x63_config pcf_85263_config = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x2f,
+	},
+	.num_nvram = 1
+};
+
+static const struct pcf85x63_config pcf_85363_config = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x7f,
+	},
+	.num_nvram = 2
 };
 
 static int pcf85363_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct pcf85363 *pcf85363;
-	struct nvmem_config nvmem_cfg = {
-		.name = "pcf85363-",
-		.word_size = 1,
-		.stride = 1,
-		.size = NVRAM_SIZE,
-		.reg_read = pcf85363_nvram_read,
-		.reg_write = pcf85363_nvram_write,
+	const struct pcf85x63_config *config = &pcf_85363_config;
+	const void *data = of_device_get_match_data(&client->dev);
+	static struct nvmem_config nvmem_cfg[] = {
+		{
+			.name = "pcf85x63-",
+			.word_size = 1,
+			.stride = 1,
+			.size = 1,
+			.reg_read = pcf85x63_nvram_read,
+			.reg_write = pcf85x63_nvram_write,
+		}, {
+			.name = "pcf85363-",
+			.word_size = 1,
+			.stride = 1,
+			.size = NVRAM_SIZE,
+			.reg_read = pcf85363_nvram_read,
+			.reg_write = pcf85363_nvram_write,
+		},
 	};
-	int ret;
+	int ret, i;
+
+	if (data)
+		config = data;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -339,7 +394,7 @@ static int pcf85363_probe(struct i2c_client *client,
 	if (!pcf85363)
 		return -ENOMEM;
 
-	pcf85363->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	pcf85363->regmap = devm_regmap_init_i2c(client, &config->regmap);
 	if (IS_ERR(pcf85363->regmap)) {
 		dev_err(&client->dev, "regmap allocation failed\n");
 		return PTR_ERR(pcf85363->regmap);
@@ -370,15 +425,18 @@ static int pcf85363_probe(struct i2c_client *client,
 
 	ret = rtc_register_device(pcf85363->rtc);
 
-	nvmem_cfg.priv = pcf85363;
-	rtc_nvmem_register(pcf85363->rtc, &nvmem_cfg);
+	for (i = 0; i < config->num_nvram; i++) {
+		nvmem_cfg[i].priv = pcf85363;
+		rtc_nvmem_register(pcf85363->rtc, &nvmem_cfg[i]);
+	}
 
 	return ret;
 }
 
 static const struct of_device_id dev_ids[] = {
-	{ .compatible = "nxp,pcf85363" },
-	{}
+	{ .compatible = "nxp,pcf85263", .data = &pcf_85263_config },
+	{ .compatible = "nxp,pcf85363", .data = &pcf_85363_config },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dev_ids);
 
@@ -393,5 +451,5 @@ static struct i2c_driver pcf85363_driver = {
 module_i2c_driver(pcf85363_driver);
 
 MODULE_AUTHOR("Eric Nelson");
-MODULE_DESCRIPTION("pcf85363 I2C RTC driver");
+MODULE_DESCRIPTION("pcf85263/pcf85363 I2C RTC driver");
 MODULE_LICENSE("GPL");

@@ -638,6 +638,7 @@ static enum bp_result get_ss_info_v4_1(
 {
 	enum bp_result result = BP_RESULT_OK;
 	struct atom_display_controller_info_v4_1 *disp_cntl_tbl = NULL;
+	struct atom_smu_info_v3_3 *smu_info = NULL;
 
 	if (!ss_info)
 		return BP_RESULT_BADINPUT;
@@ -649,6 +650,7 @@ static enum bp_result get_ss_info_v4_1(
 							DATA_TABLES(dce_info));
 	if (!disp_cntl_tbl)
 		return BP_RESULT_BADBIOSTABLE;
+
 
 	ss_info->type.STEP_AND_DELAY_INFO = false;
 	ss_info->spread_percentage_divider = 1000;
@@ -687,6 +689,19 @@ static enum bp_result get_ss_info_v4_1(
 		 * copy it into dce_info
 		 */
 		result = BP_RESULT_UNSUPPORTED;
+		break;
+	case AS_SIGNAL_TYPE_XGMI:
+		smu_info =  GET_IMAGE(struct atom_smu_info_v3_3,
+				      DATA_TABLES(smu_info));
+		if (!smu_info)
+			return BP_RESULT_BADBIOSTABLE;
+
+		ss_info->spread_spectrum_percentage =
+				smu_info->waflclk_ss_percentage;
+		ss_info->spread_spectrum_range =
+				smu_info->gpuclk_ss_rate_10hz * 10;
+		if (smu_info->waflclk_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
 		break;
 	default:
 		result = BP_RESULT_UNSUPPORTED;
@@ -1883,6 +1898,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.is_device_id_supported = bios_parser_is_device_id_supported,
 
 	.is_accelerated_mode = bios_parser_is_accelerated_mode,
+
+	.is_active_display = bios_is_active_display,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 

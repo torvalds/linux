@@ -77,7 +77,7 @@ static int orangefs_readpages(struct file *file,
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
 		struct page *page;
 
-		page = list_entry(pages->prev, struct page, lru);
+		page = lru_to_page(pages);
 		list_del(&page->lru);
 		if (!add_to_page_cache(page,
 				       mapping,

@@ -2842,6 +2842,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	bnx2x_set_rx_mode_inner(bp);
 
 	if (bp->flags & PTP_SUPPORTED) {
+		bnx2x_register_phc(bp);
 		bnx2x_init_ptp(bp);
 		bnx2x_configure_ptp_filters(bp);
 	}

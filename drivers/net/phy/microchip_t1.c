@@ -47,7 +47,6 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 		.name           = "Microchip LAN87xx T1",
 
 		.features       = PHY_BASIC_T1_FEATURES,
-		.flags          = PHY_HAS_INTERRUPT,
 
 		.config_init    = genphy_config_init,
 		.config_aneg    = genphy_config_aneg,

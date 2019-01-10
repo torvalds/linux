@@ -171,7 +171,7 @@ Operations are used through the following procedure:
  (3) If the submitting thread wants to do the work itself, and has marked the
      operation with FSCACHE_OP_MYTHREAD, then it should monitor
      FSCACHE_OP_WAITING as described above and check the state of the object if
-     necessary (the object might have died whilst the thread was waiting).
+     necessary (the object might have died while the thread was waiting).
 
      When it has finished doing its processing, it should call
      fscache_op_complete() and fscache_put_operation() on it.

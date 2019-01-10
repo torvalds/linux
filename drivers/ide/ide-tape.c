@@ -639,7 +639,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		goto out;
 	}
 	if (req->cmd[13] & REQ_IDETAPE_PC1) {
-		pc = (struct ide_atapi_pc *)rq->special;
+		pc = (struct ide_atapi_pc *)ide_req(rq)->special;
 		req->cmd[13] &= ~(REQ_IDETAPE_PC1);
 		req->cmd[13] |= REQ_IDETAPE_PC2;
 		goto out;

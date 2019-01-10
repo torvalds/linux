@@ -26,26 +26,37 @@
 #include <linux/errno.h>
 #include <linux/kmsg_dump.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
+#include <linux/semaphore.h>
 #include <linux/time.h>
 #include <linux/types.h>
 
 struct module;
 
-/* pstore record types (see fs/pstore/inode.c for filename templates) */
+/*
+ * pstore record types (see fs/pstore/platform.c for pstore_type_names[])
+ * These values may be written to storage (see EFI vars backend), so
+ * they are kind of an ABI. Be careful changing the mappings.
+ */
 enum pstore_type_id {
+	/* Frontend storage types */
 	PSTORE_TYPE_DMESG	= 0,
 	PSTORE_TYPE_MCE		= 1,
 	PSTORE_TYPE_CONSOLE	= 2,
 	PSTORE_TYPE_FTRACE	= 3,
-	/* PPC64 partition types */
+
+	/* PPC64-specific partition types */
 	PSTORE_TYPE_PPC_RTAS	= 4,
 	PSTORE_TYPE_PPC_OF	= 5,
 	PSTORE_TYPE_PPC_COMMON	= 6,
 	PSTORE_TYPE_PMSG	= 7,
 	PSTORE_TYPE_PPC_OPAL	= 8,
-	PSTORE_TYPE_UNKNOWN	= 255
+
+	/* End of the list */
+	PSTORE_TYPE_MAX
 };
+
+const char *pstore_type_to_name(enum pstore_type_id type);
+enum pstore_type_id pstore_name_to_type(const char *name);
 
 struct pstore_info;
 /**
@@ -85,10 +96,10 @@ struct pstore_record {
 /**
  * struct pstore_info - backend pstore driver structure
  *
- * @owner:	module which is repsonsible for this backend driver
+ * @owner:	module which is responsible for this backend driver
  * @name:	name of the backend driver
  *
- * @buf_lock:	spinlock to serialize access to @buf
+ * @buf_lock:	semaphore to serialize access to @buf
  * @buf:	preallocated crash dump buffer
  * @bufsize:	size of @buf available for crash dump bytes (must match
  *		smallest number of bytes available for writing to a
@@ -173,7 +184,7 @@ struct pstore_info {
 	struct module	*owner;
 	char		*name;
 
-	spinlock_t	buf_lock;
+	struct semaphore buf_lock;
 	char		*buf;
 	size_t		bufsize;
 
@@ -192,14 +203,13 @@ struct pstore_info {
 };
 
 /* Supported frontends */
-#define PSTORE_FLAGS_DMESG	(1 << 0)
-#define PSTORE_FLAGS_CONSOLE	(1 << 1)
-#define PSTORE_FLAGS_FTRACE	(1 << 2)
-#define PSTORE_FLAGS_PMSG	(1 << 3)
+#define PSTORE_FLAGS_DMESG	BIT(0)
+#define PSTORE_FLAGS_CONSOLE	BIT(1)
+#define PSTORE_FLAGS_FTRACE	BIT(2)
+#define PSTORE_FLAGS_PMSG	BIT(3)
 
 extern int pstore_register(struct pstore_info *);
 extern void pstore_unregister(struct pstore_info *);
-extern bool pstore_cannot_block_path(enum kmsg_dump_reason reason);
 
 struct pstore_ftrace_record {
 	unsigned long ip;

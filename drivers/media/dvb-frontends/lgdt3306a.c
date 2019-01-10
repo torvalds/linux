@@ -2205,14 +2205,12 @@ static int lgdt3306a_probe(struct i2c_client *client,
 	struct dvb_frontend *fe;
 	int ret;
 
-	config = kzalloc(sizeof(struct lgdt3306a_config), GFP_KERNEL);
+	config = kmemdup(client->dev.platform_data,
+			 sizeof(struct lgdt3306a_config), GFP_KERNEL);
 	if (config == NULL) {
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	memcpy(config, client->dev.platform_data,
-			sizeof(struct lgdt3306a_config));
 
 	config->i2c_addr = client->addr;
 	fe = lgdt3306a_attach(config, client->adapter);

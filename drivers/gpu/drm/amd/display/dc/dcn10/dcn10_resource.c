@@ -28,23 +28,23 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
-#include "dcn10/dcn10_resource.h"
+#include "dcn10_resource.h"
 
-#include "dcn10/dcn10_ipp.h"
-#include "dcn10/dcn10_mpc.h"
+#include "dcn10_ipp.h"
+#include "dcn10_mpc.h"
 #include "irq/dcn10/irq_service_dcn10.h"
-#include "dcn10/dcn10_dpp.h"
+#include "dcn10_dpp.h"
 #include "dcn10_optc.h"
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
-#include "dcn10/dcn10_opp.h"
-#include "dcn10/dcn10_link_encoder.h"
-#include "dcn10/dcn10_stream_encoder.h"
-#include "dce/dce_clocks.h"
+#include "dcn10_opp.h"
+#include "dcn10_link_encoder.h"
+#include "dcn10_stream_encoder.h"
+#include "dcn10_clk_mgr.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
-#include "../virtual/virtual_stream_encoder.h"
+#include "virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
 #include "dcn10_hubp.h"
@@ -202,7 +202,6 @@ enum dcn10_clk_src_array_id {
 #define MMHUB_SR(reg_name)\
 		.reg_name = MMHUB_BASE(mm ## reg_name ## _BASE_IDX) +  \
 					mm ## reg_name
-
 /* macros to expend register list macro defined in HW object header file
  * end *********************/
 
@@ -436,8 +435,8 @@ static const struct dcn_optc_mask tg_mask = {
 	TG_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
 
-
 static const struct bios_registers bios_regs = {
+		NBIO_SR(BIOS_SCRATCH_0),
 		NBIO_SR(BIOS_SCRATCH_3),
 		NBIO_SR(BIOS_SCRATCH_6)
 };
@@ -495,7 +494,6 @@ static const struct dce110_clk_src_shift cs_shift = {
 static const struct dce110_clk_src_mask cs_mask = {
 		CS_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
-
 
 static const struct resource_caps res_cap = {
 		.num_timing_generator = 4,
@@ -719,7 +717,8 @@ static struct timing_generator *dcn10_timing_generator_create(
 static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
 		.max_hdmi_pixel_clock = 600000,
-		.ycbcr420_supported = true,
+		.hdmi_ycbcr420_supported = true,
+		.dp_ycbcr420_supported = false,
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
@@ -949,8 +948,8 @@ static void destruct(struct dcn10_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 
 	kfree(pool->base.pp_smu);
 }
@@ -1275,9 +1274,8 @@ static bool construct(
 			goto fail;
 		}
 	}
-
-	pool->base.dccg = dcn1_dccg_create(ctx);
-	if (pool->base.dccg == NULL) {
+	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto fail;

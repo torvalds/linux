@@ -24,7 +24,7 @@
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
-#if defined(CONFIG_SCHED_DEBUG) && defined(HAVE_JUMP_LABEL)
+#if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_JUMP_LABEL)
 /*
  * Debugging: various feature bits
  *
@@ -697,7 +697,7 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
 	 */
-	if (idle_policy(p->policy)) {
+	if (task_has_idle_policy(p)) {
 		load->weight = scale_load(WEIGHT_IDLEPRIO);
 		load->inv_weight = WMULT_IDLEPRIO;
 		p->se.runnable_weight = load->weight;
@@ -2857,7 +2857,7 @@ unsigned long nr_running(void)
  * preemption, thus the result might have a time-of-check-to-time-of-use
  * race.  The caller is responsible to use it correctly, for example:
  *
- * - from a non-preemptable section (of course)
+ * - from a non-preemptible section (of course)
  *
  * - from a thread that is bound to a single CPU
  *
@@ -3416,7 +3416,7 @@ static void __sched notrace __schedule(bool preempt)
 
 	switch_count = &prev->nivcsw;
 	if (!preempt && prev->state) {
-		if (unlikely(signal_pending_state(prev->state, prev))) {
+		if (signal_pending_state(prev->state, prev)) {
 			prev->state = TASK_RUNNING;
 		} else {
 			deactivate_task(rq, prev, DEQUEUE_SLEEP | DEQUEUE_NOCLOCK);
@@ -4191,7 +4191,7 @@ recheck:
 		 * Treat SCHED_IDLE as nice 20. Only allow a switch to
 		 * SCHED_NORMAL if the RLIMIT_NICE would normally permit it.
 		 */
-		if (idle_policy(p->policy) && !idle_policy(policy)) {
+		if (task_has_idle_policy(p) && !idle_policy(policy)) {
 			if (!can_nice(p, task_nice(p)))
 				return -EPERM;
 		}
@@ -4450,7 +4450,7 @@ static int sched_copy_attr(struct sched_attr __user *uattr, struct sched_attr *a
 	u32 size;
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, uattr, SCHED_ATTR_SIZE_VER0))
+	if (!access_ok(uattr, SCHED_ATTR_SIZE_VER0))
 		return -EFAULT;
 
 	/* Zero the full structure, so that a short copy will be nice: */
@@ -4650,7 +4650,7 @@ static int sched_read_attr(struct sched_attr __user *uattr,
 {
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, uattr, usize))
+	if (!access_ok(uattr, usize))
 		return -EFAULT;
 
 	/*
@@ -5783,7 +5783,7 @@ int sched_cpu_deactivate(unsigned int cpu)
 	 *
 	 * Do sync before park smpboot threads to take care the rcu boost case.
 	 */
-	synchronize_rcu_mult(call_rcu, call_rcu_sched);
+	synchronize_rcu();
 
 #ifdef CONFIG_SCHED_SMT
 	/*

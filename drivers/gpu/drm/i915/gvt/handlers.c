@@ -475,6 +475,7 @@ static i915_reg_t force_nonpriv_white_list[] = {
 	_MMIO(0x7704),
 	_MMIO(0x7708),
 	_MMIO(0x770c),
+	_MMIO(0x83a8),
 	_MMIO(0xb110),
 	GEN8_L3SQCREG4,//_MMIO(0xb118)
 	_MMIO(0xe100),

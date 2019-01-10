@@ -285,11 +285,6 @@ static int vhost_scsi_check_false(struct se_portal_group *se_tpg)
 	return 0;
 }
 
-static char *vhost_scsi_get_fabric_name(void)
-{
-	return "vhost";
-}
-
 static char *vhost_scsi_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
@@ -889,7 +884,7 @@ vhost_scsi_get_req(struct vhost_virtqueue *vq, struct vhost_scsi_ctx *vc,
 
 	if (unlikely(!copy_from_iter_full(vc->req, vc->req_size,
 					  &vc->out_iter))) {
-		vq_err(vq, "Faulted on copy_from_iter\n");
+		vq_err(vq, "Faulted on copy_from_iter_full\n");
 	} else if (unlikely(*vc->lunp != 1)) {
 		/* virtio-scsi spec requires byte 0 of the lun to be 1 */
 		vq_err(vq, "Illegal virtio-scsi lun: %u\n", *vc->lunp);
@@ -1441,7 +1436,7 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 			se_tpg = &tpg->se_tpg;
 			ret = target_depend_item(&se_tpg->tpg_group.cg_item);
 			if (ret) {
-				pr_warn("configfs_depend_item() failed: %d\n", ret);
+				pr_warn("target_depend_item() failed: %d\n", ret);
 				kfree(vs_tpg);
 				mutex_unlock(&tpg->tv_tpg_mutex);
 				goto out;
@@ -2289,8 +2284,7 @@ static struct configfs_attribute *vhost_scsi_wwn_attrs[] = {
 
 static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.module				= THIS_MODULE,
-	.name				= "vhost",
-	.get_fabric_name		= vhost_scsi_get_fabric_name,
+	.fabric_name			= "vhost",
 	.tpg_get_wwn			= vhost_scsi_get_fabric_wwn,
 	.tpg_get_tag			= vhost_scsi_get_tpgt,
 	.tpg_check_demo_mode		= vhost_scsi_check_true,

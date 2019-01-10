@@ -230,8 +230,8 @@ chrp_find_bridges(void)
 		else if (strncmp(machine, "Pegasos", 7) == 0)
 			is_pegasos = 1;
 	}
-	for (dev = root->child; dev != NULL; dev = dev->sibling) {
-		if (dev->type == NULL || strcmp(dev->type, "pci") != 0)
+	for_each_child_of_node(root, dev) {
+		if (!of_node_is_type(dev, "pci"))
 			continue;
 		++index;
 		/* The GG2 bridge on the LongTrail doesn't have an address */

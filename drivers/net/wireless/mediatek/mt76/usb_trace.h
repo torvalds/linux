@@ -26,12 +26,12 @@
 #define MAXNAME		32
 #define DEV_ENTRY   __array(char, wiphy_name, 32)
 #define DEV_ASSIGN  strlcpy(__entry->wiphy_name, wiphy_name(dev->hw->wiphy), MAXNAME)
-#define DEV_PR_FMT  "%s"
+#define DEV_PR_FMT  "%s "
 #define DEV_PR_ARG  __entry->wiphy_name
 
 #define REG_ENTRY	__field(u32, reg) __field(u32, val)
 #define REG_ASSIGN	__entry->reg = reg; __entry->val = val
-#define REG_PR_FMT	" %04x=%08x"
+#define REG_PR_FMT	"reg:0x%04x=0x%08x"
 #define REG_PR_ARG	__entry->reg, __entry->val
 
 DECLARE_EVENT_CLASS(dev_reg_evt,
@@ -59,6 +59,31 @@ DEFINE_EVENT(dev_reg_evt, usb_reg_rr,
 DEFINE_EVENT(dev_reg_evt, usb_reg_wr,
 	TP_PROTO(struct mt76_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val)
+);
+
+DECLARE_EVENT_CLASS(urb_transfer,
+	TP_PROTO(struct mt76_dev *dev, struct urb *u),
+	TP_ARGS(dev, u),
+	TP_STRUCT__entry(
+		DEV_ENTRY __field(unsigned, pipe) __field(u32, len)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->pipe = u->pipe;
+		__entry->len = u->transfer_buffer_length;
+	),
+	TP_printk(DEV_PR_FMT "p:%08x len:%u",
+		  DEV_PR_ARG, __entry->pipe, __entry->len)
+);
+
+DEFINE_EVENT(urb_transfer, submit_urb,
+	TP_PROTO(struct mt76_dev *dev, struct urb *u),
+	TP_ARGS(dev, u)
+);
+
+DEFINE_EVENT(urb_transfer, rx_urb,
+	TP_PROTO(struct mt76_dev *dev, struct urb *u),
+	TP_ARGS(dev, u)
 );
 
 #endif

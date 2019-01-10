@@ -753,31 +753,49 @@ u32 fwht_encode_frame(struct fwht_raw_frame *frm,
 	__be16 *rlco = cf->rlc_data;
 	__be16 *rlco_max;
 	u32 encoding;
-	u32 chroma_h = frm->height / frm->height_div;
-	u32 chroma_w = frm->width / frm->width_div;
-	unsigned int chroma_size = chroma_h * chroma_w;
 
 	rlco_max = rlco + size / 2 - 256;
 	encoding = encode_plane(frm->luma, ref_frm->luma, &rlco, rlco_max, cf,
 				frm->height, frm->width,
-				frm->luma_step, is_intra, next_is_intra);
+				frm->luma_alpha_step, is_intra, next_is_intra);
 	if (encoding & FWHT_FRAME_UNENCODED)
 		encoding |= FWHT_LUMA_UNENCODED;
 	encoding &= ~FWHT_FRAME_UNENCODED;
-	rlco_max = rlco + chroma_size / 2 - 256;
-	encoding |= encode_plane(frm->cb, ref_frm->cb, &rlco, rlco_max, cf,
-				 chroma_h, chroma_w,
-				 frm->chroma_step, is_intra, next_is_intra);
-	if (encoding & FWHT_FRAME_UNENCODED)
-		encoding |= FWHT_CB_UNENCODED;
-	encoding &= ~FWHT_FRAME_UNENCODED;
-	rlco_max = rlco + chroma_size / 2 - 256;
-	encoding |= encode_plane(frm->cr, ref_frm->cr, &rlco, rlco_max, cf,
-				 chroma_h, chroma_w,
-				 frm->chroma_step, is_intra, next_is_intra);
-	if (encoding & FWHT_FRAME_UNENCODED)
-		encoding |= FWHT_CR_UNENCODED;
-	encoding &= ~FWHT_FRAME_UNENCODED;
+
+	if (frm->components_num >= 3) {
+		u32 chroma_h = frm->height / frm->height_div;
+		u32 chroma_w = frm->width / frm->width_div;
+		unsigned int chroma_size = chroma_h * chroma_w;
+
+		rlco_max = rlco + chroma_size / 2 - 256;
+		encoding |= encode_plane(frm->cb, ref_frm->cb, &rlco, rlco_max,
+					 cf, chroma_h, chroma_w,
+					 frm->chroma_step,
+					 is_intra, next_is_intra);
+		if (encoding & FWHT_FRAME_UNENCODED)
+			encoding |= FWHT_CB_UNENCODED;
+		encoding &= ~FWHT_FRAME_UNENCODED;
+		rlco_max = rlco + chroma_size / 2 - 256;
+		encoding |= encode_plane(frm->cr, ref_frm->cr, &rlco, rlco_max,
+					 cf, chroma_h, chroma_w,
+					 frm->chroma_step,
+					 is_intra, next_is_intra);
+		if (encoding & FWHT_FRAME_UNENCODED)
+			encoding |= FWHT_CR_UNENCODED;
+		encoding &= ~FWHT_FRAME_UNENCODED;
+	}
+
+	if (frm->components_num == 4) {
+		rlco_max = rlco + size / 2 - 256;
+		encoding = encode_plane(frm->alpha, ref_frm->alpha, &rlco,
+					rlco_max, cf, frm->height, frm->width,
+					frm->luma_alpha_step,
+					is_intra, next_is_intra);
+		if (encoding & FWHT_FRAME_UNENCODED)
+			encoding |= FWHT_ALPHA_UNENCODED;
+		encoding &= ~FWHT_FRAME_UNENCODED;
+	}
+
 	cf->size = (rlco - cf->rlc_data) * sizeof(*rlco);
 	return encoding;
 }
@@ -836,20 +854,28 @@ static void decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 }
 
 void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
-		       u32 hdr_flags)
+		       u32 hdr_flags, unsigned int components_num)
 {
 	const __be16 *rlco = cf->rlc_data;
-	u32 h = cf->height / 2;
-	u32 w = cf->width / 2;
 
-	if (hdr_flags & FWHT_FL_CHROMA_FULL_HEIGHT)
-		h *= 2;
-	if (hdr_flags & FWHT_FL_CHROMA_FULL_WIDTH)
-		w *= 2;
 	decode_plane(cf, &rlco, ref->luma, cf->height, cf->width,
 		     hdr_flags & FWHT_FL_LUMA_IS_UNCOMPRESSED);
-	decode_plane(cf, &rlco, ref->cb, h, w,
-		     hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED);
-	decode_plane(cf, &rlco, ref->cr, h, w,
-		     hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED);
+
+	if (components_num >= 3) {
+		u32 h = cf->height;
+		u32 w = cf->width;
+
+		if (!(hdr_flags & FWHT_FL_CHROMA_FULL_HEIGHT))
+			h /= 2;
+		if (!(hdr_flags & FWHT_FL_CHROMA_FULL_WIDTH))
+			w /= 2;
+		decode_plane(cf, &rlco, ref->cb, h, w,
+			     hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED);
+		decode_plane(cf, &rlco, ref->cr, h, w,
+			     hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED);
+	}
+
+	if (components_num == 4)
+		decode_plane(cf, &rlco, ref->alpha, cf->height, cf->width,
+			     hdr_flags & FWHT_FL_ALPHA_IS_UNCOMPRESSED);
 }

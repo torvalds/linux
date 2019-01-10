@@ -1855,7 +1855,7 @@ static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var,
 	var->yspot = par->crsr.spot_y;
 	if (size > var->height * var->width)
 		return -ENAMETOOLONG;
-	if (!access_ok(VERIFY_WRITE, data, size))
+	if (!access_ok(data, size))
 		return -EFAULT;
 	delta = 1 << par->crsr.fmode;
 	lspr = lofsprite + (delta << 1);
@@ -1935,7 +1935,7 @@ static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var,
 		return -EINVAL;
 	if (!var->height)
 		return -EINVAL;
-	if (!access_ok(VERIFY_READ, data, var->width * var->height))
+	if (!access_ok(data, var->width * var->height))
 		return -EFAULT;
 	delta = 1 << fmode;
 	lofsprite = shfsprite = (u_short *)spritememory;

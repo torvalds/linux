@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 digraph board {
 	rankdir=TB
 	n00000001 [label="{{<port0> 0} | msm_csiphy0\n/dev/v4l-subdev0 | {<port1> 1}}", shape=Mrecord, style=filled, fillcolor=green]

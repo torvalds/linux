@@ -137,8 +137,6 @@ static irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 		schedule_work(&lp->work);
 		goto out;
 	}
-	reactivate_fd(lp->fd, UM_ETH_IRQ);
-
 out:
 	spin_unlock(&lp->lock);
 	return IRQ_HANDLED;

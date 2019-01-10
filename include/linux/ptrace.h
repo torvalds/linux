@@ -411,4 +411,5 @@ extern int task_current_syscall(struct task_struct *target, long *callno,
 				unsigned long args[6], unsigned int maxargs,
 				unsigned long *sp, unsigned long *pc);
 
+extern void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact);
 #endif

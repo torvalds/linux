@@ -14,8 +14,8 @@
  * code that will combine entry/exit in a strace like way.
  */
 
-#include <stdio.h>
-#include <linux/socket.h>
+#include <unistd.h>
+#include <pid_filter.h>
 
 /* bpf-output associated map */
 struct bpf_map SEC("maps") __augmented_syscalls__ = {
@@ -23,6 +23,17 @@ struct bpf_map SEC("maps") __augmented_syscalls__ = {
 	.key_size = sizeof(int),
 	.value_size = sizeof(u32),
 	.max_entries = __NR_CPUS__,
+};
+
+struct syscall {
+	bool	enabled;
+};
+
+struct bpf_map SEC("maps") syscalls = {
+	.type	     = BPF_MAP_TYPE_ARRAY,
+	.key_size    = sizeof(int),
+	.value_size  = sizeof(struct syscall),
+	.max_entries = 512,
 };
 
 struct syscall_enter_args {
@@ -44,7 +55,10 @@ struct augmented_filename {
 };
 
 #define SYS_OPEN 2
+#define SYS_ACCESS 21
 #define SYS_OPENAT 257
+
+pid_filter(pids_filtered);
 
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
@@ -53,10 +67,18 @@ int sys_enter(struct syscall_enter_args *args)
 		struct syscall_enter_args args;
 		struct augmented_filename filename;
 	} augmented_args;
+	struct syscall *syscall;
 	unsigned int len = sizeof(augmented_args);
 	const void *filename_arg = NULL;
 
+	if (pid_filter__has(&pids_filtered, getpid()))
+		return 0;
+
 	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
+
+	syscall = bpf_map_lookup_elem(&syscalls, &augmented_args.args.syscall_nr);
+	if (syscall == NULL || !syscall->enabled)
+		return 0;
 	/*
 	 * Yonghong and Edward Cree sayz:
 	 *
@@ -98,6 +120,7 @@ int sys_enter(struct syscall_enter_args *args)
 	 * 	 after the ctx memory access to prevent their down stream merging.
 	 */
 	switch (augmented_args.args.syscall_nr) {
+	case SYS_ACCESS:
 	case SYS_OPEN:	 filename_arg = (const void *)args->args[0];
 			__asm__ __volatile__("": : :"memory");
 			 break;
@@ -125,7 +148,19 @@ int sys_enter(struct syscall_enter_args *args)
 SEC("raw_syscalls:sys_exit")
 int sys_exit(struct syscall_exit_args *args)
 {
-	return 1; /* 0 as soon as we start copying data returned by the kernel, e.g. 'read' */
+	struct syscall_exit_args exit_args;
+	struct syscall *syscall;
+
+	if (pid_filter__has(&pids_filtered, getpid()))
+		return 0;
+
+	probe_read(&exit_args, sizeof(exit_args), args);
+
+	syscall = bpf_map_lookup_elem(&syscalls, &exit_args.syscall_nr);
+	if (syscall == NULL || !syscall->enabled)
+		return 0;
+
+	return 1;
 }
 
 license(GPL);

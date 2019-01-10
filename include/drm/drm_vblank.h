@@ -95,7 +95,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @queue: Wait queue for vblank waiters.
 	 */
-	wait_queue_head_t queue;	/**< VBLANK wait queue */
+	wait_queue_head_t queue;
 	/**
 	 * @disable_timer: Disable timer for the delayed vblank disabling
 	 * hysteresis logic. Vblank disabling is controlled through the
@@ -107,7 +107,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @seqlock: Protect vblank count and time.
 	 */
-	seqlock_t seqlock;		/* protects vblank count and time */
+	seqlock_t seqlock;
 
 	/**
 	 * @count: Current software vblank counter.
@@ -123,7 +123,7 @@ struct drm_vblank_crtc {
 	 * this refcount reaches 0 can the hardware interrupt be disabled using
 	 * @disable_timer.
 	 */
-	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
+	atomic_t refcount;
 	/**
 	 * @last: Protected by &drm_device.vbl_lock, used for wraparound handling.
 	 */
@@ -136,7 +136,7 @@ struct drm_vblank_crtc {
 	 * call drm_crtc_vblank_off() and drm_crtc_vblank_on(), which explicitly
 	 * save and restore the vblank count.
 	 */
-	unsigned int inmodeset;		/* Display driver is setting mode */
+	unsigned int inmodeset;
 	/**
 	 * @pipe: drm_crtc_index() of the &drm_crtc corresponding to this
 	 * structure.

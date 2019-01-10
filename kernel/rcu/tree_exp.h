@@ -450,10 +450,12 @@ static void sync_rcu_exp_select_cpus(smp_call_func_t func)
 		}
 		INIT_WORK(&rnp->rew.rew_work, sync_rcu_exp_select_node_cpus);
 		preempt_disable();
-		cpu = cpumask_next(rnp->grplo - 1, cpu_online_mask);
+		cpu = find_next_bit(&rnp->ffmask, BITS_PER_LONG, -1);
 		/* If all offline, queue the work on an unbound CPU. */
-		if (unlikely(cpu > rnp->grphi))
+		if (unlikely(cpu > rnp->grphi - rnp->grplo))
 			cpu = WORK_CPU_UNBOUND;
+		else
+			cpu += rnp->grplo;
 		queue_work_on(cpu, rcu_par_gp_wq, &rnp->rew.rew_work);
 		preempt_enable();
 		rnp->exp_need_flush = true;
@@ -690,8 +692,10 @@ static void sync_rcu_exp_handler(void *unused)
 	 */
 	if (t->rcu_read_lock_nesting > 0) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
-		if (rnp->expmask & rdp->grpmask)
+		if (rnp->expmask & rdp->grpmask) {
 			rdp->deferred_qs = true;
+			WRITE_ONCE(t->rcu_read_unlock_special.b.exp_hint, true);
+		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 

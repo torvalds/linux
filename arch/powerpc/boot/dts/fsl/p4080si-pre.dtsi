@@ -94,7 +94,7 @@
 		cpu0: PowerPC,e500mc@0 {
 			device_type = "cpu";
 			reg = <0>;
-			clocks = <&mux0>;
+			clocks = <&clockgen 1 0>;
 			next-level-cache = <&L2_0>;
 			fsl,portid-mapping = <0x80000000>;
 			L2_0: l2-cache {
@@ -104,7 +104,7 @@
 		cpu1: PowerPC,e500mc@1 {
 			device_type = "cpu";
 			reg = <1>;
-			clocks = <&mux1>;
+			clocks = <&clockgen 1 1>;
 			next-level-cache = <&L2_1>;
 			fsl,portid-mapping = <0x40000000>;
 			L2_1: l2-cache {
@@ -114,7 +114,7 @@
 		cpu2: PowerPC,e500mc@2 {
 			device_type = "cpu";
 			reg = <2>;
-			clocks = <&mux2>;
+			clocks = <&clockgen 1 2>;
 			next-level-cache = <&L2_2>;
 			fsl,portid-mapping = <0x20000000>;
 			L2_2: l2-cache {
@@ -124,7 +124,7 @@
 		cpu3: PowerPC,e500mc@3 {
 			device_type = "cpu";
 			reg = <3>;
-			clocks = <&mux3>;
+			clocks = <&clockgen 1 3>;
 			next-level-cache = <&L2_3>;
 			fsl,portid-mapping = <0x10000000>;
 			L2_3: l2-cache {
@@ -134,7 +134,7 @@
 		cpu4: PowerPC,e500mc@4 {
 			device_type = "cpu";
 			reg = <4>;
-			clocks = <&mux4>;
+			clocks = <&clockgen 1 4>;
 			next-level-cache = <&L2_4>;
 			fsl,portid-mapping = <0x08000000>;
 			L2_4: l2-cache {
@@ -144,7 +144,7 @@
 		cpu5: PowerPC,e500mc@5 {
 			device_type = "cpu";
 			reg = <5>;
-			clocks = <&mux5>;
+			clocks = <&clockgen 1 5>;
 			next-level-cache = <&L2_5>;
 			fsl,portid-mapping = <0x04000000>;
 			L2_5: l2-cache {
@@ -154,7 +154,7 @@
 		cpu6: PowerPC,e500mc@6 {
 			device_type = "cpu";
 			reg = <6>;
-			clocks = <&mux6>;
+			clocks = <&clockgen 1 6>;
 			next-level-cache = <&L2_6>;
 			fsl,portid-mapping = <0x02000000>;
 			L2_6: l2-cache {
@@ -164,7 +164,7 @@
 		cpu7: PowerPC,e500mc@7 {
 			device_type = "cpu";
 			reg = <7>;
-			clocks = <&mux7>;
+			clocks = <&clockgen 1 7>;
 			next-level-cache = <&L2_7>;
 			fsl,portid-mapping = <0x01000000>;
 			L2_7: l2-cache {

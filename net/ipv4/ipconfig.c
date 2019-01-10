@@ -220,7 +220,7 @@ static int __init ic_open_devs(void)
 	for_each_netdev(&init_net, dev) {
 		if (!(dev->flags & IFF_LOOPBACK) && !netdev_uses_dsa(dev))
 			continue;
-		if (dev_change_flags(dev, dev->flags | IFF_UP) < 0)
+		if (dev_change_flags(dev, dev->flags | IFF_UP, NULL) < 0)
 			pr_err("IP-Config: Failed to open %s\n", dev->name);
 	}
 
@@ -238,7 +238,7 @@ static int __init ic_open_devs(void)
 			if (ic_proto_enabled && !able)
 				continue;
 			oflags = dev->flags;
-			if (dev_change_flags(dev, oflags | IFF_UP) < 0) {
+			if (dev_change_flags(dev, oflags | IFF_UP, NULL) < 0) {
 				pr_err("IP-Config: Failed to open %s\n",
 				       dev->name);
 				continue;
@@ -315,7 +315,7 @@ static void __init ic_close_devs(void)
 		dev = d->dev;
 		if (d != ic_dev && !netdev_uses_dsa(dev)) {
 			pr_debug("IP-Config: Downing %s\n", dev->name);
-			dev_change_flags(dev, d->flags);
+			dev_change_flags(dev, d->flags, NULL);
 		}
 		kfree(d);
 	}
@@ -429,6 +429,8 @@ static int __init ic_defaults(void)
 			ic_netmask = htonl(IN_CLASSB_NET);
 		else if (IN_CLASSC(ntohl(ic_myaddr)))
 			ic_netmask = htonl(IN_CLASSC_NET);
+		else if (IN_CLASSE(ntohl(ic_myaddr)))
+			ic_netmask = htonl(IN_CLASSE_NET);
 		else {
 			pr_err("IP-Config: Unable to guess netmask for address %pI4\n",
 			       &ic_myaddr);
@@ -1361,18 +1363,7 @@ static int ntp_servers_seq_show(struct seq_file *seq, void *v)
 	}
 	return 0;
 }
-
-static int ntp_servers_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ntp_servers_seq_show, NULL);
-}
-
-static const struct file_operations ntp_servers_seq_fops = {
-	.open		= ntp_servers_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ntp_servers_seq);
 #endif /* CONFIG_PROC_FS */
 
 /*

@@ -78,7 +78,6 @@ static struct scsi_host_template mvme147_host_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING
 };
 
 static struct Scsi_Host *mvme147_shost;

@@ -49,6 +49,10 @@
 #include "soc15_common.h"
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
+#include "nbio/nbio_7_4_sh_mask.h"
+
+#define smnPCIE_LC_SPEED_CNTL			0x11140290
+#define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
 
 static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 {
@@ -2282,6 +2286,18 @@ static int vega20_force_clock_level(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_PCIE:
+		soft_min_level = mask ? (ffs(mask) - 1) : 0;
+		soft_max_level = mask ? (fls(mask) - 1) : 0;
+		if (soft_min_level >= NUM_LINK_LEVELS ||
+		    soft_max_level >= NUM_LINK_LEVELS)
+			return -EINVAL;
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetMinLinkDpmByIndex, soft_min_level);
+		PP_ASSERT_WITH_CODE(!ret,
+			"Failed to set min link dpm level!",
+			return ret);
+
 		break;
 
 	default:
@@ -2758,9 +2774,14 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 			data->od8_settings.od8_settings_array;
 	OverDriveTable_t *od_table =
 			&(data->smc_state_table.overdrive_table);
+	struct phm_ppt_v3_information *pptable_information =
+		(struct phm_ppt_v3_information *)hwmgr->pptable;
+	PPTable_t *pptable = (PPTable_t *)pptable_information->smc_pptable;
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct pp_clock_levels_with_latency clocks;
 	int i, now, size = 0;
 	int ret = 0;
+	uint32_t gen_speed, lane_width;
 
 	switch (type) {
 	case PP_SCLK:
@@ -2777,7 +2798,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
 		break;
 
 	case PP_MCLK:
@@ -2794,10 +2815,32 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
 		break;
 
 	case PP_PCIE:
+		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+			    >> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+		lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+			      PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+			    >> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+		for (i = 0; i < NUM_LINK_LEVELS; i++)
+			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
+					(pptable->PcieGenSpeed[i] == 0) ? "2.5GT/s," :
+					(pptable->PcieGenSpeed[i] == 1) ? "5.0GT/s," :
+					(pptable->PcieGenSpeed[i] == 2) ? "8.0GT/s," :
+					(pptable->PcieGenSpeed[i] == 3) ? "16.0GT/s," : "",
+					(pptable->PcieLaneCount[i] == 1) ? "x1" :
+					(pptable->PcieLaneCount[i] == 2) ? "x2" :
+					(pptable->PcieLaneCount[i] == 3) ? "x4" :
+					(pptable->PcieLaneCount[i] == 4) ? "x8" :
+					(pptable->PcieLaneCount[i] == 5) ? "x12" :
+					(pptable->PcieLaneCount[i] == 6) ? "x16" : "",
+					pptable->LclkFreq[i],
+					(gen_speed == pptable->PcieGenSpeed[i]) &&
+					(lane_width == pptable->PcieLaneCount[i]) ?
+					"*" : "");
 		break;
 
 	case OD_SCLK:
@@ -3476,109 +3519,64 @@ static int vega20_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 
 static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	/* init/fini related */
-	.backend_init =
-		vega20_hwmgr_backend_init,
-	.backend_fini =
-		vega20_hwmgr_backend_fini,
-	.asic_setup =
-		vega20_setup_asic_task,
-	.power_off_asic =
-		vega20_power_off_asic,
-	.dynamic_state_management_enable =
-		vega20_enable_dpm_tasks,
-	.dynamic_state_management_disable =
-		vega20_disable_dpm_tasks,
+	.backend_init = vega20_hwmgr_backend_init,
+	.backend_fini = vega20_hwmgr_backend_fini,
+	.asic_setup = vega20_setup_asic_task,
+	.power_off_asic = vega20_power_off_asic,
+	.dynamic_state_management_enable = vega20_enable_dpm_tasks,
+	.dynamic_state_management_disable = vega20_disable_dpm_tasks,
 	/* power state related */
-	.apply_clocks_adjust_rules =
-		vega20_apply_clocks_adjust_rules,
-	.pre_display_config_changed =
-		vega20_pre_display_configuration_changed_task,
-	.display_config_changed =
-		vega20_display_configuration_changed_task,
+	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
+	.pre_display_config_changed = vega20_pre_display_configuration_changed_task,
+	.display_config_changed = vega20_display_configuration_changed_task,
 	.check_smc_update_required_for_display_configuration =
 		vega20_check_smc_update_required_for_display_configuration,
 	.notify_smc_display_config_after_ps_adjustment =
 		vega20_notify_smc_display_config_after_ps_adjustment,
 	/* export to DAL */
-	.get_sclk =
-		vega20_dpm_get_sclk,
-	.get_mclk =
-		vega20_dpm_get_mclk,
-	.get_dal_power_level =
-		vega20_get_dal_power_level,
-	.get_clock_by_type_with_latency =
-		vega20_get_clock_by_type_with_latency,
-	.get_clock_by_type_with_voltage =
-		vega20_get_clock_by_type_with_voltage,
-	.set_watermarks_for_clocks_ranges =
-		vega20_set_watermarks_for_clocks_ranges,
-	.display_clock_voltage_request =
-		vega20_display_clock_voltage_request,
-	.get_performance_level =
-		vega20_get_performance_level,
+	.get_sclk = vega20_dpm_get_sclk,
+	.get_mclk = vega20_dpm_get_mclk,
+	.get_dal_power_level = vega20_get_dal_power_level,
+	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
+	.get_clock_by_type_with_voltage = vega20_get_clock_by_type_with_voltage,
+	.set_watermarks_for_clocks_ranges = vega20_set_watermarks_for_clocks_ranges,
+	.display_clock_voltage_request = vega20_display_clock_voltage_request,
+	.get_performance_level = vega20_get_performance_level,
 	/* UMD pstate, profile related */
-	.force_dpm_level =
-		vega20_dpm_force_dpm_level,
-	.get_power_profile_mode =
-		vega20_get_power_profile_mode,
-	.set_power_profile_mode =
-		vega20_set_power_profile_mode,
+	.force_dpm_level = vega20_dpm_force_dpm_level,
+	.get_power_profile_mode = vega20_get_power_profile_mode,
+	.set_power_profile_mode = vega20_set_power_profile_mode,
 	/* od related */
-	.set_power_limit =
-		vega20_set_power_limit,
-	.get_sclk_od =
-		vega20_get_sclk_od,
-	.set_sclk_od =
-		vega20_set_sclk_od,
-	.get_mclk_od =
-		vega20_get_mclk_od,
-	.set_mclk_od =
-		vega20_set_mclk_od,
-	.odn_edit_dpm_table =
-		vega20_odn_edit_dpm_table,
+	.set_power_limit = vega20_set_power_limit,
+	.get_sclk_od = vega20_get_sclk_od,
+	.set_sclk_od = vega20_set_sclk_od,
+	.get_mclk_od = vega20_get_mclk_od,
+	.set_mclk_od = vega20_set_mclk_od,
+	.odn_edit_dpm_table = vega20_odn_edit_dpm_table,
 	/* for sysfs to retrive/set gfxclk/memclk */
-	.force_clock_level =
-		vega20_force_clock_level,
-	.print_clock_levels =
-		vega20_print_clock_levels,
-	.read_sensor =
-		vega20_read_sensor,
+	.force_clock_level = vega20_force_clock_level,
+	.print_clock_levels = vega20_print_clock_levels,
+	.read_sensor = vega20_read_sensor,
 	/* powergate related */
-	.powergate_uvd =
-		vega20_power_gate_uvd,
-	.powergate_vce =
-		vega20_power_gate_vce,
+	.powergate_uvd = vega20_power_gate_uvd,
+	.powergate_vce = vega20_power_gate_vce,
 	/* thermal related */
-	.start_thermal_controller =
-		vega20_start_thermal_controller,
-	.stop_thermal_controller =
-		vega20_thermal_stop_thermal_controller,
-	.get_thermal_temperature_range =
-		vega20_get_thermal_temperature_range,
-	.register_irq_handlers =
-		smu9_register_irq_handlers,
-	.disable_smc_firmware_ctf =
-		vega20_thermal_disable_alert,
+	.start_thermal_controller = vega20_start_thermal_controller,
+	.stop_thermal_controller = vega20_thermal_stop_thermal_controller,
+	.get_thermal_temperature_range = vega20_get_thermal_temperature_range,
+	.register_irq_handlers = smu9_register_irq_handlers,
+	.disable_smc_firmware_ctf = vega20_thermal_disable_alert,
 	/* fan control related */
-	.get_fan_speed_percent =
-		vega20_fan_ctrl_get_fan_speed_percent,
-	.set_fan_speed_percent =
-		vega20_fan_ctrl_set_fan_speed_percent,
-	.get_fan_speed_info =
-		vega20_fan_ctrl_get_fan_speed_info,
-	.get_fan_speed_rpm =
-		vega20_fan_ctrl_get_fan_speed_rpm,
-	.set_fan_speed_rpm =
-		vega20_fan_ctrl_set_fan_speed_rpm,
-	.get_fan_control_mode =
-		vega20_get_fan_control_mode,
-	.set_fan_control_mode =
-		vega20_set_fan_control_mode,
+	.get_fan_speed_percent = vega20_fan_ctrl_get_fan_speed_percent,
+	.set_fan_speed_percent = vega20_fan_ctrl_set_fan_speed_percent,
+	.get_fan_speed_info = vega20_fan_ctrl_get_fan_speed_info,
+	.get_fan_speed_rpm = vega20_fan_ctrl_get_fan_speed_rpm,
+	.set_fan_speed_rpm = vega20_fan_ctrl_set_fan_speed_rpm,
+	.get_fan_control_mode = vega20_get_fan_control_mode,
+	.set_fan_control_mode = vega20_set_fan_control_mode,
 	/* smu memory related */
-	.notify_cac_buffer_info =
-		vega20_notify_cac_buffer_info,
-	.enable_mgpu_fan_boost =
-		vega20_enable_mgpu_fan_boost,
+	.notify_cac_buffer_info = vega20_notify_cac_buffer_info,
+	.enable_mgpu_fan_boost = vega20_enable_mgpu_fan_boost,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)

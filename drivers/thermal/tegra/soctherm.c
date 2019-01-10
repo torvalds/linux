@@ -803,17 +803,7 @@ static int regs_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, regs_show, inode->i_private);
-}
-
-static const struct file_operations regs_fops = {
-	.open		= regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(regs);
 
 static void soctherm_debug_init(struct platform_device *pdev)
 {

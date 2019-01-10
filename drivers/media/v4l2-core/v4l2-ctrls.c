@@ -1636,7 +1636,8 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 		switch (p_mpeg2_slice_params->picture.intra_dc_precision) {
 		case 0: /* 8 bits */
 		case 1: /* 9 bits */
-		case 11: /* 11 bits */
+		case 2: /* 10 bits */
+		case 3: /* 11 bits */
 			break;
 		default:
 			return -EINVAL;
