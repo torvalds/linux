@@ -2364,7 +2364,10 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			 * If update fails - SF might be running in associated
 			 * mode while disassociated - which is forbidden.
 			 */
-			WARN_ONCE(iwl_mvm_sf_update(mvm, vif, false),
+			ret = iwl_mvm_sf_update(mvm, vif, false);
+			WARN_ONCE(ret &&
+				  !test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
+					    &mvm->status),
 				  "Failed to update SF upon disassociation\n");
 
 			/*
@@ -3169,7 +3172,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		/* disable beacon filtering */
-		WARN_ON(iwl_mvm_disable_beacon_filter(mvm, vif, 0));
+		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+		WARN_ON(ret &&
+			!test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
+				  &mvm->status));
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTH) {
