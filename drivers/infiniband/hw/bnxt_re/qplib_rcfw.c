@@ -684,8 +684,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 	/* General */
 	rcfw->seq_num = 0;
 	set_bit(FIRMWARE_FIRST_FLAG, &rcfw->flags);
-	bmap_size = BITS_TO_LONGS(rcfw->cmdq_depth *
-				  sizeof(unsigned long));
+	bmap_size = BITS_TO_LONGS(rcfw->cmdq_depth) * sizeof(unsigned long);
 	rcfw->cmdq_bitmap = kzalloc(bmap_size, GFP_KERNEL);
 	if (!rcfw->cmdq_bitmap)
 		return -ENOMEM;
