@@ -49,6 +49,9 @@ struct smu_funcs
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
 	int (*notify_memory_pool_location)(struct smu_context *smu);
+	int (*write_watermarks_table)(struct smu_context *smu);
+	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
+	int (*system_features_control)(struct smu_context *smu, bool en);
 };
 
 #define smu_init_microcode(smu) \
@@ -81,6 +84,12 @@ struct smu_funcs
 	((smu)->funcs->set_tool_table_location ? (smu)->funcs->set_tool_table_location((smu)) : 0)
 #define smu_notify_memory_pool_location(smu) \
 	((smu)->funcs->notify_memory_pool_location ? (smu)->funcs->notify_memory_pool_location((smu)) : 0)
+#define smu_write_watermarks_table(smu) \
+	((smu)->funcs->write_watermarks_table ? (smu)->funcs->write_watermarks_table((smu)) : 0)
+#define smu_set_last_dcef_min_deep_sleep_clk(smu) \
+	((smu)->funcs->set_last_dcef_min_deep_sleep_clk ? (smu)->funcs->set_last_dcef_min_deep_sleep_clk((smu)) : 0)
+#define smu_system_features_control(smu, en) \
+	((smu)->funcs->system_features_control ? (smu)->funcs->system_features_control((smu), (en)) : 0)
 
 
 extern const struct amd_ip_funcs smu_ip_funcs;
