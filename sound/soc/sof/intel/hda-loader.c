@@ -82,8 +82,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
-	int ret, i;
-	u32 hipcie;
+	int ret;
 
 	/* step 1: power up corex */
 	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
@@ -106,25 +105,16 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	}
 
 	/* step 4: wait for IPC DONE bit from ROM */
-	for (i = HDA_DSP_INIT_TIMEOUT; i > 0; i--) {
-		hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					  chip->ipc_ack);
+	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
+					chip->ipc_ack,
+					chip->ipc_ack_mask, chip->ipc_ack_mask,
+					HDA_DSP_INIT_TIMEOUT);
 
-		if (hipcie & chip->ipc_ack_mask) {
-			snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-						chip->ipc_ack,
-						chip->ipc_ack_mask,
-						chip->ipc_ack_mask);
-			goto step5;
-		}
-		mdelay(1);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: waiting for HIPCIE done\n");
+		goto err;
 	}
 
-	dev_err(sdev->dev, "error: waiting for HIPCIE done, reg: 0x%x\n",
-		hipcie);
-	goto err;
-
-step5:
 	/* step 5: power down corex */
 	ret = hda_dsp_core_power_down(sdev,
 				  chip->cores_mask & ~(HDA_DSP_CORE_MASK(0)));
