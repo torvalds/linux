@@ -293,9 +293,11 @@ static int kirin_drm_platform_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id kirin_drm_dt_ids[] = {
+#ifdef CONFIG_DRM_HISI_KIRIN620
 	{ .compatible = "hisilicon,hi6220-ade",
 	  .data = &ade_driver_data,
 	},
+#endif
 	{ /* end node */ },
 };
 MODULE_DEVICE_TABLE(of, kirin_drm_dt_ids);

@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
-kirin-drm-y := kirin_drm_drv.o \
-	       kirin_drm_ade.o
+EXTRA_CFLAGS += \
+		-Iinclude/drm
 
-obj-$(CONFIG_DRM_HISI_KIRIN) += kirin-drm.o dw_drm_dsi.o
+kirin-drm-y := kirin_drm_drv.o
+kirin-drm-$(CONFIG_DRM_HISI_KIRIN620) += kirin_drm_ade.o
 
+kirin-dsi-y := kirin_drm_dsi.o
+kirin-dsi-$(CONFIG_DRM_HISI_KIRIN620) += kirin/dw_drm_dsi.o
+kirin-dsi-$(CONFIG_DRM_HISI_KIRIN960) += kirin960/dw_drm_dsi.o
+
+obj-$(CONFIG_DRM_HISI_KIRIN) += kirin-drm.o kirin-dsi.o

@@ -52,6 +52,8 @@ struct kirin_drm_data {
 	void (*cleanup_hw_ctx)(void *hw_ctx);
 };
 
+#ifdef CONFIG_DRM_HISI_KIRIN620
 extern struct kirin_drm_data ade_driver_data;
+#endif
 
 #endif /* __KIRIN_DRM_DRV_H__ */
