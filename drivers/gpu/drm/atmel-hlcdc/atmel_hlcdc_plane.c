@@ -692,13 +692,14 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 
 		switch (state->base.rotation & DRM_MODE_ROTATE_MASK) {
 		case DRM_MODE_ROTATE_90:
-			offset = ((y_offset + state->src_y + patched_src_w - 1) /
-				  ydiv) * fb->pitches[i];
-			offset += ((x_offset + state->src_x) / xdiv) *
-				  state->bpp[i];
-			state->xstride[i] = ((patched_src_w - 1) / ydiv) *
-					  fb->pitches[i];
-			state->pstride[i] = -fb->pitches[i] - state->bpp[i];
+			offset = ((y_offset + state->src_y) / ydiv) *
+				 fb->pitches[i];
+			offset += ((x_offset + state->src_x + patched_src_h - 1) /
+				   xdiv) * state->bpp[i];
+			state->xstride[i] = -(((patched_src_w - 1) / ydiv) *
+					    fb->pitches[i]) -
+					  (2 * state->bpp[i]);
+			state->pstride[i] = fb->pitches[i] - state->bpp[i];
 			break;
 		case DRM_MODE_ROTATE_180:
 			offset = ((y_offset + state->src_y + patched_src_h - 1) /
@@ -710,14 +711,13 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 			state->pstride[i] = -2 * state->bpp[i];
 			break;
 		case DRM_MODE_ROTATE_270:
-			offset = ((y_offset + state->src_y) / ydiv) *
-				 fb->pitches[i];
-			offset += ((x_offset + state->src_x + patched_src_h - 1) /
-				   xdiv) * state->bpp[i];
-			state->xstride[i] = -(((patched_src_w - 1) / ydiv) *
-					    fb->pitches[i]) -
-					  (2 * state->bpp[i]);
-			state->pstride[i] = fb->pitches[i] - state->bpp[i];
+			offset = ((y_offset + state->src_y + patched_src_w - 1) /
+				  ydiv) * fb->pitches[i];
+			offset += ((x_offset + state->src_x) / xdiv) *
+				  state->bpp[i];
+			state->xstride[i] = ((patched_src_w - 1) / ydiv) *
+					  fb->pitches[i];
+			state->pstride[i] = -fb->pitches[i] - state->bpp[i];
 			break;
 		case DRM_MODE_ROTATE_0:
 		default:
