@@ -517,9 +517,9 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 	ram_table->hybridFactor[3] = 0xc0;
 
 	ram_table->contrastFactor[0] = 0x99;
-	ram_table->contrastFactor[1] = 0x80;
-	ram_table->contrastFactor[2] = 0x80;
-	ram_table->contrastFactor[3] = 0x4D;
+	ram_table->contrastFactor[1] = 0x99;
+	ram_table->contrastFactor[2] = 0x99;
+	ram_table->contrastFactor[3] = 0x80;
 
 	ram_table->iir_curve[0] = 0x65;
 	ram_table->iir_curve[1] = 0x65;
