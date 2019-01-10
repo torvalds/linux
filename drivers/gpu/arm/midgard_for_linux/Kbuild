@@ -1,0 +1,229 @@
+#
+# (C) COPYRIGHT 2012,2014 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+# Driver version string which is returned to userspace via an ioctl
+MALI_RELEASE_NAME ?= "r14p0-01rel0"
+
+# Paths required for build
+KBASE_PATH = $(src)
+KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
+UMP_PATH = $(src)/../../../base
+
+ifeq ($(CONFIG_MALI_ERROR_INJECTION),y)
+MALI_ERROR_INJECT_ON = 1
+endif
+
+# Set up defaults if not defined by build system
+MALI_CUSTOMER_RELEASE ?= 1
+MALI_UNIT_TEST ?= 0
+MALI_KERNEL_TEST_API ?= 0
+MALI_ERROR_INJECT_ON ?= 0
+MALI_MOCK_TEST ?= 0
+MALI_COVERAGE ?= 0
+MALI_INSTRUMENTATION_LEVEL ?= 0
+# This workaround is for what seems to be a compiler bug we observed in
+# GCC 4.7 on AOSP 4.3.  The bug caused an intermittent failure compiling
+# the "_Pragma" syntax, where an error message is returned:
+#
+# "internal compiler error: unspellable token PRAGMA"
+#
+# This regression has thus far only been seen on the GCC 4.7 compiler bundled
+# with AOSP 4.3.0.  So this makefile, intended for in-tree kernel builds
+# which are not known to be used with AOSP, is hardcoded to disable the
+# workaround, i.e. set the define to 0.
+MALI_GCC_WORKAROUND_MIDCOM_4598 ?= 0
+
+# Set up our defines, which will be passed to gcc
+DEFINES = \
+	-DMALI_CUSTOMER_RELEASE=$(MALI_CUSTOMER_RELEASE) \
+	-DMALI_KERNEL_TEST_API=$(MALI_KERNEL_TEST_API) \
+	-DMALI_UNIT_TEST=$(MALI_UNIT_TEST) \
+	-DMALI_ERROR_INJECT_ON=$(MALI_ERROR_INJECT_ON) \
+	-DMALI_MOCK_TEST=$(MALI_MOCK_TEST) \
+	-DMALI_COVERAGE=$(MALI_COVERAGE) \
+	-DMALI_INSTRUMENTATION_LEVEL=$(MALI_INSTRUMENTATION_LEVEL) \
+	-DMALI_RELEASE_NAME=\"$(MALI_RELEASE_NAME)\" \
+	-DMALI_GCC_WORKAROUND_MIDCOM_4598=$(MALI_GCC_WORKAROUND_MIDCOM_4598)
+
+ifeq ($(KBUILD_EXTMOD),)
+# in-tree
+DEFINES +=-DMALI_KBASE_THIRDPARTY_PATH=../../$(src)/platform/$(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME)
+else
+# out-of-tree
+DEFINES +=-DMALI_KBASE_THIRDPARTY_PATH=$(src)/platform/$(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME)
+endif
+
+DEFINES += -I$(srctree)/drivers/staging/android
+
+# Use our defines when compiling
+ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
+subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(OSK_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
+
+SRC := \
+	mali_kbase_device.c \
+	mali_kbase_cache_policy.c \
+	mali_kbase_mem.c \
+	mali_kbase_mmu.c \
+	mali_kbase_ipa.c \
+	mali_kbase_jd.c \
+	mali_kbase_jd_debugfs.c \
+	mali_kbase_jm.c \
+	mali_kbase_gpuprops.c \
+	mali_kbase_js.c \
+	mali_kbase_js_ctx_attr.c \
+	mali_kbase_event.c \
+	mali_kbase_context.c \
+	mali_kbase_pm.c \
+	mali_kbase_config.c \
+	mali_kbase_vinstr.c \
+	mali_kbase_softjobs.c \
+	mali_kbase_10969_workaround.c \
+	mali_kbase_hw.c \
+	mali_kbase_utility.c \
+	mali_kbase_debug.c \
+	mali_kbase_trace_timeline.c \
+	mali_kbase_gpu_memory_debugfs.c \
+	mali_kbase_mem_linux.c \
+	mali_kbase_core_linux.c \
+	mali_kbase_sync.c \
+	mali_kbase_sync_user.c \
+	mali_kbase_replay.c \
+	mali_kbase_mem_profile_debugfs.c \
+	mali_kbase_mmu_mode_lpae.c \
+	mali_kbase_mmu_mode_aarch64.c \
+	mali_kbase_disjoint_events.c \
+	mali_kbase_gator_api.c \
+	mali_kbase_debug_mem_view.c \
+	mali_kbase_debug_job_fault.c \
+	mali_kbase_smc.c \
+	mali_kbase_mem_pool.c \
+	mali_kbase_mem_pool_debugfs.c \
+	mali_kbase_tlstream.c \
+	mali_kbase_strings.c \
+	mali_kbase_as_fault_debugfs.c \
+	mali_kbase_regs_history_debugfs.c
+
+ifeq ($(MALI_UNIT_TEST),1)
+	SRC += mali_kbase_tlstream_test.c
+endif
+
+ifeq ($(MALI_CUSTOMER_RELEASE),0)
+	SRC += mali_kbase_regs_dump_debugfs.c
+endif
+
+
+# Job Scheduler Policy: Completely Fair Scheduler
+SRC += mali_kbase_js_policy_cfs.c
+
+ccflags-y += -I$(KBASE_PATH)
+
+ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
+	SRC += mali_kbase_platform_fake.c
+
+	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS),y)
+		SRC += platform/vexpress/mali_kbase_config_vexpress.c \
+		platform/vexpress/mali_kbase_cpu_vexpress.c
+		ccflags-y += -I$(src)/platform/vexpress
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_RTSM_VE),y)
+		SRC += platform/rtsm_ve/mali_kbase_config_vexpress.c
+		ccflags-y += -I$(src)/platform/rtsm_ve
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_JUNO),y)
+		SRC += platform/juno/mali_kbase_config_vexpress.c
+		ccflags-y += -I$(src)/platform/juno
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_JUNO_SOC),y)
+		SRC += platform/juno_soc/mali_kbase_config_juno_soc.c
+		ccflags-y += -I$(src)/platform/juno_soc
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_1XV7_A57),y)
+		SRC += platform/vexpress_1xv7_a57/mali_kbase_config_vexpress.c
+		ccflags-y += -I$(src)/platform/vexpress_1xv7_a57
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_6XVIRTEX7_10MHZ),y)
+		SRC += platform/vexpress_6xvirtex7_10mhz/mali_kbase_config_vexpress.c \
+		platform/vexpress_6xvirtex7_10mhz/mali_kbase_cpu_vexpress.c
+		ccflags-y += -I$(src)/platform/vexpress_6xvirtex7_10mhz
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_A7_KIPLING),y)
+		SRC += platform/a7_kipling/mali_kbase_config_a7_kipling.c \
+		platform/a7_kipling/mali_kbase_cpu_a7_kipling.c
+		ccflags-y += -I$(src)/platform/a7_kipling
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
+	# remove begin and end quotes from the Kconfig string type
+	platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
+	MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
+	ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
+	ifeq ($(CONFIG_MALI_MIDGARD),m)
+	include  $(src)/platform/$(platform_name)/Kbuild
+	else ifeq ($(CONFIG_MALI_MIDGARD),y)
+	obj-$(CONFIG_MALI_MIDGARD) += platform/
+	endif
+	endif
+endif # CONFIG_MALI_PLATFORM_FAKE=y
+
+ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
+# remove begin and end quotes from the Kconfig string type
+platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
+MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
+ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
+MALI_PLATFORM_DIR := platform/$(platform_name)
+include  $(src)/platform/$(platform_name)/Kbuild
+endif
+
+# Tell the Linux build system from which .o file to create the kernel module
+obj-$(CONFIG_MALI_MIDGARD) += midgard_kbase.o
+
+# Tell the Linux build system to enable building of our .c files
+midgard_kbase-y := $(SRC:.c=.o)
+
+midgard_kbase-$(CONFIG_MALI_DMA_FENCE) += mali_kbase_dma_fence.o
+
+MALI_BACKEND_PATH ?= backend
+CONFIG_MALI_BACKEND ?= gpu
+CONFIG_MALI_BACKEND_REAL ?= $(CONFIG_MALI_BACKEND)
+
+ifeq ($(MALI_MOCK_TEST),1)
+ifeq ($(CONFIG_MALI_BACKEND_REAL),gpu)
+# Test functionality
+midgard_kbase-y += tests/internal/src/mock/mali_kbase_pm_driver_mock.o
+endif
+endif
+
+include  $(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)/Kbuild
+midgard_kbase-y += $(BACKEND:.c=.o)
+
+ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)
+subdir-ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)
+
+# Default to devicetree platform if neither a fake platform or a thirdparty
+# platform is configured.
+ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY)$(CONFIG_MALI_PLATFORM_FAKE),)
+CONFIG_MALI_PLATFORM_DEVICETREE := y
+endif
+
+midgard_kbase-$(CONFIG_MALI_PLATFORM_DEVICETREE) += \
+	platform/devicetree/mali_kbase_runtime_pm.o \
+	platform/devicetree/mali_kbase_config_devicetree.o
+ccflags-$(CONFIG_MALI_PLATFORM_DEVICETREE) += -I$(src)/platform/devicetree

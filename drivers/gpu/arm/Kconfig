@@ -20,6 +20,18 @@
 #
 #
 source "drivers/gpu/arm/mali400/mali/Kconfig"
+
+choice
+	prompt "Mali Midgard driver"
+
+config MALI_MIDGARD_FOR_ANDROID
+	bool "Mali Midgard for Android"
+
+config MALI_MIDGARD_FOR_LINUX
+	bool "Mali Midgard for Linux only"
+
+endchoice
+
 source "drivers/gpu/arm/midgard/Kconfig"
 
 choice

@@ -1,0 +1,62 @@
+#
+# (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+BACKEND += \
+	backend/gpu/mali_kbase_cache_policy_backend.c \
+	backend/gpu/mali_kbase_device_hw.c \
+	backend/gpu/mali_kbase_gpu.c \
+	backend/gpu/mali_kbase_gpuprops_backend.c \
+	backend/gpu/mali_kbase_debug_job_fault_backend.c \
+	backend/gpu/mali_kbase_irq_linux.c \
+	backend/gpu/mali_kbase_instr_backend.c \
+	backend/gpu/mali_kbase_jm_as.c \
+	backend/gpu/mali_kbase_jm_hw.c \
+	backend/gpu/mali_kbase_jm_rb.c \
+	backend/gpu/mali_kbase_js_affinity.c \
+	backend/gpu/mali_kbase_js_backend.c \
+	backend/gpu/mali_kbase_mmu_hw_direct.c \
+	backend/gpu/mali_kbase_pm_backend.c \
+	backend/gpu/mali_kbase_pm_driver.c \
+	backend/gpu/mali_kbase_pm_metrics.c \
+	backend/gpu/mali_kbase_pm_ca.c \
+	backend/gpu/mali_kbase_pm_ca_fixed.c \
+	backend/gpu/mali_kbase_pm_always_on.c \
+	backend/gpu/mali_kbase_pm_coarse_demand.c \
+	backend/gpu/mali_kbase_pm_demand.c \
+	backend/gpu/mali_kbase_pm_policy.c \
+	backend/gpu/mali_kbase_time.c
+
+ifeq ($(MALI_CUSTOMER_RELEASE),0)
+BACKEND += \
+	backend/gpu/mali_kbase_pm_ca_random.c \
+	backend/gpu/mali_kbase_pm_demand_always_powered.c \
+	backend/gpu/mali_kbase_pm_fast_start.c
+endif
+
+ifeq ($(CONFIG_MALI_DEVFREQ),y)
+BACKEND += backend/gpu/mali_kbase_devfreq.c
+endif
+
+ifeq ($(CONFIG_MALI_NO_MALI),y)
+	# Dummy model
+	BACKEND += backend/gpu/mali_kbase_model_dummy.c
+	BACKEND += backend/gpu/mali_kbase_model_linux.c
+	# HW error simulation
+	BACKEND += backend/gpu/mali_kbase_model_error_generator.c
+endif
+
+ifeq ($(CONFIG_DEVFREQ_THERMAL),y)
+	BACKEND += backend/gpu/mali_kbase_power_model_simple.c
+endif
