@@ -96,7 +96,7 @@ static int fanotify_get_response(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p about to return ret=%d\n", __func__,
 		 group, event, ret);
-	
+
 	return ret;
 }
 
@@ -106,9 +106,10 @@ static int fanotify_get_response(struct fsnotify_group *group,
  * been included within the event mask, but have not been explicitly
  * requested by the user, will not be present in the returned mask.
  */
-static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
-				       u32 event_mask, const void *data,
-				       int data_type)
+static u32 fanotify_group_event_mask(struct fsnotify_group *group,
+				     struct fsnotify_iter_info *iter_info,
+				     u32 event_mask, const void *data,
+				     int data_type)
 {
 	__u32 marks_mask = 0, marks_ignored_mask = 0;
 	const struct path *path = data;
@@ -118,14 +119,14 @@ static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
 	pr_debug("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
 		 __func__, iter_info->report_mask, event_mask, data, data_type);
 
-	/* If we don't have enough info to send an event to userspace say no */
-	if (data_type != FSNOTIFY_EVENT_PATH)
-		return 0;
-
-	/* Sorry, fanotify only gives a damn about files and dirs */
-	if (!d_is_reg(path->dentry) &&
-	    !d_can_lookup(path->dentry))
-		return 0;
+	if (!FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+		/* Do we have path to open a file descriptor? */
+		if (data_type != FSNOTIFY_EVENT_PATH)
+			return 0;
+		/* Path type events are only relevant for files and dirs */
+		if (!d_is_reg(path->dentry) && !d_can_lookup(path->dentry))
+			return 0;
+	}
 
 	fsnotify_foreach_obj_type(type) {
 		if (!fsnotify_iter_should_report_type(iter_info, type))
@@ -198,13 +199,34 @@ out_err:
 	return FILEID_INVALID;
 }
 
+/*
+ * The inode to use as identifier when reporting fid depends on the event.
+ * Report the modified directory inode on dirent modification events.
+ * Report the "victim" inode otherwise.
+ * For example:
+ * FS_ATTRIB reports the child inode even if reported on a watched parent.
+ * FS_CREATE reports the modified dir inode and not the created inode.
+ */
+static struct inode *fanotify_fid_inode(struct inode *to_tell, u32 event_mask,
+					const void *data, int data_type)
+{
+	if (event_mask & ALL_FSNOTIFY_DIRENT_EVENTS)
+		return to_tell;
+	else if (data_type == FSNOTIFY_EVENT_INODE)
+		return (struct inode *)data;
+	else if (data_type == FSNOTIFY_EVENT_PATH)
+		return d_inode(((struct path *)data)->dentry);
+	return NULL;
+}
+
 struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 					    struct inode *inode, u32 mask,
-					    const struct path *path,
+					    const void *data, int data_type,
 					    __kernel_fsid_t *fsid)
 {
 	struct fanotify_event *event = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
+	struct inode *id = fanotify_fid_inode(inode, mask, data, data_type);
 
 	/*
 	 * For queues with unlimited length lost events are not expected and
@@ -238,13 +260,12 @@ init: __maybe_unused
 	else
 		event->pid = get_pid(task_tgid(current));
 	event->fh_len = 0;
-	if (path && FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+	if (id && FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
 		/* Report the event without a file identifier on encode error */
-		event->fh_type = fanotify_encode_fid(event,
-					d_inode(path->dentry), gfp, fsid);
-	} else if (path) {
+		event->fh_type = fanotify_encode_fid(event, id, gfp, fsid);
+	} else if (data_type == FSNOTIFY_EVENT_PATH) {
 		event->fh_type = FILEID_ROOT;
-		event->path = *path;
+		event->path = *((struct path *)data);
 		path_get(&event->path);
 	} else {
 		event->fh_type = FILEID_INVALID;
@@ -305,7 +326,8 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 
 	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 12);
 
-	mask = fanotify_group_event_mask(iter_info, mask, data, data_type);
+	mask = fanotify_group_event_mask(group, iter_info, mask, data,
+					 data_type);
 	if (!mask)
 		return 0;
 
@@ -324,7 +346,8 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID))
 		fsid = fanotify_get_fsid(iter_info);
 
-	event = fanotify_alloc_event(group, inode, mask, data, &fsid);
+	event = fanotify_alloc_event(group, inode, mask, data, data_type,
+				     &fsid);
 	ret = -ENOMEM;
 	if (unlikely(!event)) {
 		/*
