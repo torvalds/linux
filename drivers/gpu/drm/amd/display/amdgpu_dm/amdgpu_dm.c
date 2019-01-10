@@ -4613,12 +4613,6 @@ static void update_freesync_state_on_stream(
 			      new_crtc_state->base.crtc->base.id,
 			      (int)new_crtc_state->base.vrr_enabled,
 			      (int)vrr_params.state);
-
-	if (new_crtc_state->freesync_timing_changed)
-		DRM_DEBUG_KMS("VRR timing update: crtc=%u min=%u max=%u\n",
-			      new_crtc_state->base.crtc->base.id,
-				  vrr_params.adjust.v_total_min,
-				  vrr_params.adjust.v_total_max);
 }
 
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
