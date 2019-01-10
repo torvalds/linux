@@ -1435,7 +1435,7 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 		 * before enabling it if !phy_interrupt_is_valid()
 		 */
 		if (!phy_interrupt_is_valid(phydev))
-			phy_read(phydev, MII_M1011_IEVENT);
+			__phy_read(phydev, MII_M1011_IEVENT);
 
 		/* Enable the WOL interrupt */
 		err = __phy_modify(phydev, MII_88E1318S_PHY_CSIER, 0,
