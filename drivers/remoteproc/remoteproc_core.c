@@ -281,25 +281,27 @@ rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...)
  * @len: associated area size
  *
  * This function is a helper function to verify requested device area (couple
- * da, len) is part of specified carevout.
+ * da, len) is part of specified carveout.
+ * If da is not set (defined as FW_RSC_ADDR_ANY), only requested length is
+ * checked.
  *
- * Return: 0 if carveout match request else -ENOMEM
+ * Return: 0 if carveout matches request else error
  */
-int rproc_check_carveout_da(struct rproc *rproc, struct rproc_mem_entry *mem,
-			    u32 da, u32 len)
+static int rproc_check_carveout_da(struct rproc *rproc,
+				   struct rproc_mem_entry *mem, u32 da, u32 len)
 {
 	struct device *dev = &rproc->dev;
-	int delta = 0;
+	int delta;
 
 	/* Check requested resource length */
 	if (len > mem->len) {
 		dev_err(dev, "Registered carveout doesn't fit len request\n");
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	if (da != FW_RSC_ADDR_ANY && mem->da == FW_RSC_ADDR_ANY) {
-		/* Update existing carveout da */
-		mem->da = da;
+		/* Address doesn't match registered carveout configuration */
+		return -EINVAL;
 	} else if (da != FW_RSC_ADDR_ANY && mem->da != FW_RSC_ADDR_ANY) {
 		delta = da - mem->da;
 
@@ -307,13 +309,13 @@ int rproc_check_carveout_da(struct rproc *rproc, struct rproc_mem_entry *mem,
 		if (delta < 0) {
 			dev_err(dev,
 				"Registered carveout doesn't fit da request\n");
-			return -ENOMEM;
+			return -EINVAL;
 		}
 
 		if (delta + len > mem->len) {
 			dev_err(dev,
 				"Registered carveout doesn't fit len request\n");
-			return -ENOMEM;
+			return -EINVAL;
 		}
 	}
 
