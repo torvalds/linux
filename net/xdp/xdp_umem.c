@@ -41,13 +41,20 @@ void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
  * not know if the device has more tx queues than rx, or the opposite.
  * This might also change during run time.
  */
-static void xdp_reg_umem_at_qid(struct net_device *dev, struct xdp_umem *umem,
-				u16 queue_id)
+static int xdp_reg_umem_at_qid(struct net_device *dev, struct xdp_umem *umem,
+			       u16 queue_id)
 {
+	if (queue_id >= max_t(unsigned int,
+			      dev->real_num_rx_queues,
+			      dev->real_num_tx_queues))
+		return -EINVAL;
+
 	if (queue_id < dev->real_num_rx_queues)
 		dev->_rx[queue_id].umem = umem;
 	if (queue_id < dev->real_num_tx_queues)
 		dev->_tx[queue_id].umem = umem;
+
+	return 0;
 }
 
 struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
@@ -88,7 +95,10 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 		goto out_rtnl_unlock;
 	}
 
-	xdp_reg_umem_at_qid(dev, umem, queue_id);
+	err = xdp_reg_umem_at_qid(dev, umem, queue_id);
+	if (err)
+		goto out_rtnl_unlock;
+
 	umem->dev = dev;
 	umem->queue_id = queue_id;
 	if (force_copy)
