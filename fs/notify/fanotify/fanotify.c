@@ -144,7 +144,7 @@ static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
 		marks_ignored_mask |= mark->ignored_mask;
 	}
 
-	if (d_is_dir(path->dentry) &&
+	if (event_mask & FS_ISDIR &&
 	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
 		return 0;
 
