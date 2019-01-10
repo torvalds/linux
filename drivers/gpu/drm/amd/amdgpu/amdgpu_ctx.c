@@ -570,12 +570,6 @@ void amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr)
 
 	mutex_lock(&mgr->lock);
 	idr_for_each_entry(idp, ctx, id) {
-
-		if (!ctx->adev) {
-			mutex_unlock(&mgr->lock);
-			return;
-		}
-
 		for (i = 0; i < num_entities; i++) {
 			struct drm_sched_entity *entity;
 
@@ -596,10 +590,6 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 	idp = &mgr->ctx_handles;
 
 	idr_for_each_entry(idp, ctx, id) {
-
-		if (!ctx->adev)
-			return;
-
 		if (kref_read(&ctx->refcount) != 1) {
 			DRM_ERROR("ctx %p is still alive\n", ctx);
 			continue;
