@@ -623,6 +623,28 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 	list_add(&entry->tv.head, validated);
 }
 
+void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo)
+{
+	struct amdgpu_bo *abo;
+	struct amdgpu_vm_bo_base *bo_base;
+
+	if (!amdgpu_bo_is_amdgpu_bo(bo))
+		return;
+
+	if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT)
+		return;
+
+	abo = ttm_to_amdgpu_bo(bo);
+	if (!abo->parent)
+		return;
+	for (bo_base = abo->vm_bo; bo_base; bo_base = bo_base->next) {
+		struct amdgpu_vm *vm = bo_base->vm;
+
+		if (abo->tbo.resv == vm->root.base.bo->tbo.resv)
+			vm->bulk_moveable = false;
+	}
+
+}
 /**
  * amdgpu_vm_move_to_lru_tail - move all BOs to the end of LRU
  *
