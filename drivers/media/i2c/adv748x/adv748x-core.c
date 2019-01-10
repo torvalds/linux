@@ -353,9 +353,8 @@ static const struct adv748x_reg_value adv748x_sw_reset[] = {
 	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
 };
 
-/* Supported Formats For Script Below */
-/* - 01-29 HDMI to MIPI TxA CSI 4-Lane - RGB888: */
-static const struct adv748x_reg_value adv748x_init_txa_4lane[] = {
+/* Initialize CP Core with RGB888 format. */
+static const struct adv748x_reg_value adv748x_init_hdmi[] = {
 	/* Disable chip powerdown & Enable HDMI Rx block */
 	{ADV748X_PAGE_IO, 0x00, 0x40},
 
@@ -399,10 +398,8 @@ static const struct adv748x_reg_value adv748x_init_txa_4lane[] = {
 	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
 };
 
-/* 02-01 Analog CVBS to MIPI TX-B CSI 1-Lane - */
-/* Autodetect CVBS Single Ended In Ain 1 - MIPI Out */
-static const struct adv748x_reg_value adv748x_init_txb_1lane[] = {
-
+/* Initialize AFE core with YUV8 format. */
+static const struct adv748x_reg_value adv748x_init_afe[] = {
 	{ADV748X_PAGE_IO, 0x00, 0x30},	/* Disable chip powerdown Rx */
 	{ADV748X_PAGE_IO, 0xf2, 0x01},	/* Enable I2C Read Auto-Increment */
 
@@ -445,19 +442,18 @@ static int adv748x_reset(struct adv748x_state *state)
 	if (ret < 0)
 		return ret;
 
-	/* Init and power down TXA */
-	ret = adv748x_write_regs(state, adv748x_init_txa_4lane);
+	/* Initialize CP and AFE cores. */
+	ret = adv748x_write_regs(state, adv748x_init_hdmi);
 	if (ret)
 		return ret;
 
+	ret = adv748x_write_regs(state, adv748x_init_afe);
+	if (ret)
+		return ret;
+
+	/* Reset TXA and TXB */
 	adv748x_tx_power(&state->txa, 1);
 	adv748x_tx_power(&state->txa, 0);
-
-	/* Init and power down TXB */
-	ret = adv748x_write_regs(state, adv748x_init_txb_1lane);
-	if (ret)
-		return ret;
-
 	adv748x_tx_power(&state->txb, 1);
 	adv748x_tx_power(&state->txb, 0);
 
