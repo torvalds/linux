@@ -153,24 +153,18 @@ static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
 }
 
 static int fanotify_encode_fid(struct fanotify_event *event,
-			       const struct path *path, gfp_t gfp)
+			       struct inode *inode, gfp_t gfp,
+			       __kernel_fsid_t *fsid)
 {
 	struct fanotify_fid *fid = &event->fid;
 	int dwords, bytes = 0;
-	struct kstatfs stat;
 	int err, type;
 
-	stat.f_fsid.val[0] = stat.f_fsid.val[1] = 0;
 	fid->ext_fh = NULL;
 	dwords = 0;
 	err = -ENOENT;
-	type = exportfs_encode_inode_fh(d_inode(path->dentry), NULL, &dwords,
-					NULL);
+	type = exportfs_encode_inode_fh(inode, NULL, &dwords, NULL);
 	if (!dwords)
-		goto out_err;
-
-	err = vfs_statfs(path, &stat);
-	if (err)
 		goto out_err;
 
 	bytes = dwords << 2;
@@ -182,14 +176,13 @@ static int fanotify_encode_fid(struct fanotify_event *event,
 			goto out_err;
 	}
 
-	type = exportfs_encode_inode_fh(d_inode(path->dentry),
-					fanotify_fid_fh(fid, bytes), &dwords,
-					NULL);
+	type = exportfs_encode_inode_fh(inode, fanotify_fid_fh(fid, bytes),
+					&dwords, NULL);
 	err = -EINVAL;
 	if (!type || type == FILEID_INVALID || bytes != dwords << 2)
 		goto out_err;
 
-	fid->fsid = stat.f_fsid;
+	fid->fsid = *fsid;
 	event->fh_len = bytes;
 
 	return type;
@@ -197,8 +190,7 @@ static int fanotify_encode_fid(struct fanotify_event *event,
 out_err:
 	pr_warn_ratelimited("fanotify: failed to encode fid (fsid=%x.%x, "
 			    "type=%d, bytes=%d, err=%i)\n",
-			    stat.f_fsid.val[0], stat.f_fsid.val[1],
-			    type, bytes, err);
+			    fsid->val[0], fsid->val[1], type, bytes, err);
 	kfree(fid->ext_fh);
 	fid->ext_fh = NULL;
 	event->fh_len = 0;
@@ -207,8 +199,9 @@ out_err:
 }
 
 struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
-						 struct inode *inode, u32 mask,
-						 const struct path *path)
+					    struct inode *inode, u32 mask,
+					    const struct path *path,
+					    __kernel_fsid_t *fsid)
 {
 	struct fanotify_event *event = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
@@ -247,7 +240,8 @@ init: __maybe_unused
 	event->fh_len = 0;
 	if (path && FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
 		/* Report the event without a file identifier on encode error */
-		event->fh_type = fanotify_encode_fid(event, path, gfp);
+		event->fh_type = fanotify_encode_fid(event,
+					d_inode(path->dentry), gfp, fsid);
 	} else if (path) {
 		event->fh_type = FILEID_ROOT;
 		event->path = *path;
@@ -262,6 +256,29 @@ out:
 	return event;
 }
 
+/*
+ * Get cached fsid of the filesystem containing the object from any connector.
+ * All connectors are supposed to have the same fsid, but we do not verify that
+ * here.
+ */
+static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
+{
+	int type;
+	__kernel_fsid_t fsid = {};
+
+	fsnotify_foreach_obj_type(type) {
+		if (!fsnotify_iter_should_report_type(iter_info, type))
+			continue;
+
+		fsid = iter_info->marks[type]->connector->fsid;
+		if (WARN_ON_ONCE(!fsid.val[0] && !fsid.val[1]))
+			continue;
+		return fsid;
+	}
+
+	return fsid;
+}
+
 static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct inode *inode,
 				 u32 mask, const void *data, int data_type,
@@ -271,6 +288,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	int ret = 0;
 	struct fanotify_event *event;
 	struct fsnotify_event *fsn_event;
+	__kernel_fsid_t fsid = {};
 
 	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
 	BUILD_BUG_ON(FAN_MODIFY != FS_MODIFY);
@@ -303,7 +321,10 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 			return 0;
 	}
 
-	event = fanotify_alloc_event(group, inode, mask, data);
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID))
+		fsid = fanotify_get_fsid(iter_info);
+
+	event = fanotify_alloc_event(group, inode, mask, data, &fsid);
 	ret = -ENOMEM;
 	if (unlikely(!event)) {
 		/*

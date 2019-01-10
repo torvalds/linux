@@ -653,7 +653,8 @@ static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark,
 
 static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 						   fsnotify_connp_t *connp,
-						   unsigned int type)
+						   unsigned int type,
+						   __kernel_fsid_t *fsid)
 {
 	struct fsnotify_mark *mark;
 	int ret;
@@ -666,7 +667,7 @@ static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 		return ERR_PTR(-ENOMEM);
 
 	fsnotify_init_mark(mark, group);
-	ret = fsnotify_add_mark_locked(mark, connp, type, 0);
+	ret = fsnotify_add_mark_locked(mark, connp, type, 0, fsid);
 	if (ret) {
 		fsnotify_put_mark(mark);
 		return ERR_PTR(ret);
@@ -678,7 +679,8 @@ static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 
 static int fanotify_add_mark(struct fsnotify_group *group,
 			     fsnotify_connp_t *connp, unsigned int type,
-			     __u32 mask, unsigned int flags)
+			     __u32 mask, unsigned int flags,
+			     __kernel_fsid_t *fsid)
 {
 	struct fsnotify_mark *fsn_mark;
 	__u32 added;
@@ -686,7 +688,7 @@ static int fanotify_add_mark(struct fsnotify_group *group,
 	mutex_lock(&group->mark_mutex);
 	fsn_mark = fsnotify_find_mark(connp, group);
 	if (!fsn_mark) {
-		fsn_mark = fanotify_add_new_mark(group, connp, type);
+		fsn_mark = fanotify_add_new_mark(group, connp, type, fsid);
 		if (IS_ERR(fsn_mark)) {
 			mutex_unlock(&group->mark_mutex);
 			return PTR_ERR(fsn_mark);
@@ -703,23 +705,23 @@ static int fanotify_add_mark(struct fsnotify_group *group,
 
 static int fanotify_add_vfsmount_mark(struct fsnotify_group *group,
 				      struct vfsmount *mnt, __u32 mask,
-				      unsigned int flags)
+				      unsigned int flags, __kernel_fsid_t *fsid)
 {
 	return fanotify_add_mark(group, &real_mount(mnt)->mnt_fsnotify_marks,
-				 FSNOTIFY_OBJ_TYPE_VFSMOUNT, mask, flags);
+				 FSNOTIFY_OBJ_TYPE_VFSMOUNT, mask, flags, fsid);
 }
 
 static int fanotify_add_sb_mark(struct fsnotify_group *group,
-				      struct super_block *sb, __u32 mask,
-				      unsigned int flags)
+				struct super_block *sb, __u32 mask,
+				unsigned int flags, __kernel_fsid_t *fsid)
 {
 	return fanotify_add_mark(group, &sb->s_fsnotify_marks,
-				 FSNOTIFY_OBJ_TYPE_SB, mask, flags);
+				 FSNOTIFY_OBJ_TYPE_SB, mask, flags, fsid);
 }
 
 static int fanotify_add_inode_mark(struct fsnotify_group *group,
 				   struct inode *inode, __u32 mask,
-				   unsigned int flags)
+				   unsigned int flags, __kernel_fsid_t *fsid)
 {
 	pr_debug("%s: group=%p inode=%p\n", __func__, group, inode);
 
@@ -734,7 +736,7 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 		return 0;
 
 	return fanotify_add_mark(group, &inode->i_fsnotify_marks,
-				 FSNOTIFY_OBJ_TYPE_INODE, mask, flags);
+				 FSNOTIFY_OBJ_TYPE_INODE, mask, flags, fsid);
 }
 
 /* fanotify syscalls */
@@ -798,7 +800,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	atomic_inc(&user->fanotify_listeners);
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
 
-	oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL);
+	oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL, NULL);
 	if (unlikely(!oevent)) {
 		fd = -ENOMEM;
 		goto out_destroy_group;
@@ -861,9 +863,9 @@ out_destroy_group:
 }
 
 /* Check if filesystem can encode a unique fid */
-static int fanotify_test_fid(struct path *path)
+static int fanotify_test_fid(struct path *path, struct kstatfs *stat)
 {
-	struct kstatfs stat, root_stat;
+	struct kstatfs root_stat;
 	struct path root = {
 		.mnt = path->mnt,
 		.dentry = path->dentry->d_sb->s_root,
@@ -873,11 +875,11 @@ static int fanotify_test_fid(struct path *path)
 	/*
 	 * Make sure path is not in filesystem with zero fsid (e.g. tmpfs).
 	 */
-	err = vfs_statfs(path, &stat);
+	err = vfs_statfs(path, stat);
 	if (err)
 		return err;
 
-	if (!stat.f_fsid.val[0] && !stat.f_fsid.val[1])
+	if (!stat->f_fsid.val[0] && !stat->f_fsid.val[1])
 		return -ENODEV;
 
 	/*
@@ -888,8 +890,8 @@ static int fanotify_test_fid(struct path *path)
 	if (err)
 		return err;
 
-	if (root_stat.f_fsid.val[0] != stat.f_fsid.val[0] ||
-	    root_stat.f_fsid.val[1] != stat.f_fsid.val[1])
+	if (root_stat.f_fsid.val[0] != stat->f_fsid.val[0] ||
+	    root_stat.f_fsid.val[1] != stat->f_fsid.val[1])
 		return -EXDEV;
 
 	/*
@@ -914,6 +916,8 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	struct fsnotify_group *group;
 	struct fd f;
 	struct path path;
+	struct kstatfs stat;
+	__kernel_fsid_t *fsid = NULL;
 	u32 valid_mask = FANOTIFY_EVENTS | FANOTIFY_EVENT_FLAGS;
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
 	int ret;
@@ -992,9 +996,11 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
-		ret = fanotify_test_fid(&path);
+		ret = fanotify_test_fid(&path, &stat);
 		if (ret)
 			goto path_put_and_out;
+
+		fsid = &stat.f_fsid;
 	}
 
 	/* inode held in place by reference to path; group by fget on fd */
@@ -1007,19 +1013,25 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
 		if (mark_type == FAN_MARK_MOUNT)
-			ret = fanotify_add_vfsmount_mark(group, mnt, mask, flags);
+			ret = fanotify_add_vfsmount_mark(group, mnt, mask,
+							 flags, fsid);
 		else if (mark_type == FAN_MARK_FILESYSTEM)
-			ret = fanotify_add_sb_mark(group, mnt->mnt_sb, mask, flags);
+			ret = fanotify_add_sb_mark(group, mnt->mnt_sb, mask,
+						   flags, fsid);
 		else
-			ret = fanotify_add_inode_mark(group, inode, mask, flags);
+			ret = fanotify_add_inode_mark(group, inode, mask,
+						      flags, fsid);
 		break;
 	case FAN_MARK_REMOVE:
 		if (mark_type == FAN_MARK_MOUNT)
-			ret = fanotify_remove_vfsmount_mark(group, mnt, mask, flags);
+			ret = fanotify_remove_vfsmount_mark(group, mnt, mask,
+							    flags);
 		else if (mark_type == FAN_MARK_FILESYSTEM)
-			ret = fanotify_remove_sb_mark(group, mnt->mnt_sb, mask, flags);
+			ret = fanotify_remove_sb_mark(group, mnt->mnt_sb, mask,
+						      flags);
 		else
-			ret = fanotify_remove_inode_mark(group, inode, mask, flags);
+			ret = fanotify_remove_inode_mark(group, inode, mask,
+							 flags);
 		break;
 	default:
 		ret = -EINVAL;

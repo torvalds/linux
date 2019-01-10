@@ -293,6 +293,7 @@ typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
 struct fsnotify_mark_connector {
 	spinlock_t lock;
 	unsigned int type;	/* Type of object [lock] */
+	__kernel_fsid_t fsid;	/* fsid of filesystem containing object */
 	union {
 		/* Object pointer [lock] */
 		fsnotify_connp_t *obj;
@@ -433,28 +434,35 @@ extern void fsnotify_init_mark(struct fsnotify_mark *mark,
 /* Find mark belonging to given group in the list of marks */
 extern struct fsnotify_mark *fsnotify_find_mark(fsnotify_connp_t *connp,
 						struct fsnotify_group *group);
+/* Get cached fsid of filesystem containing object */
+extern int fsnotify_get_conn_fsid(const struct fsnotify_mark_connector *conn,
+				  __kernel_fsid_t *fsid);
 /* attach the mark to the object */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark,
 			     fsnotify_connp_t *connp, unsigned int type,
-			     int allow_dups);
+			     int allow_dups, __kernel_fsid_t *fsid);
 extern int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
-				    fsnotify_connp_t *connp, unsigned int type,
-				    int allow_dups);
+				    fsnotify_connp_t *connp,
+				    unsigned int type, int allow_dups,
+				    __kernel_fsid_t *fsid);
+
 /* attach the mark to the inode */
 static inline int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 					  struct inode *inode,
 					  int allow_dups)
 {
 	return fsnotify_add_mark(mark, &inode->i_fsnotify_marks,
-				 FSNOTIFY_OBJ_TYPE_INODE, allow_dups);
+				 FSNOTIFY_OBJ_TYPE_INODE, allow_dups, NULL);
 }
 static inline int fsnotify_add_inode_mark_locked(struct fsnotify_mark *mark,
 						 struct inode *inode,
 						 int allow_dups)
 {
 	return fsnotify_add_mark_locked(mark, &inode->i_fsnotify_marks,
-					FSNOTIFY_OBJ_TYPE_INODE, allow_dups);
+					FSNOTIFY_OBJ_TYPE_INODE, allow_dups,
+					NULL);
 }
+
 /* given a group and a mark, flag mark to be freed when all references are dropped */
 extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 				  struct fsnotify_group *group);
