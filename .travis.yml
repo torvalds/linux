@@ -4,8 +4,10 @@ git:
   depth: false
 
 before_install:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
-  - sudo apt-get install -y python-ply python-git libelf-dev codespell sparse fakeroot
+  - sudo apt-get install -y python-ply python-git libelf-dev codespell sparse fakeroot gcc-7 g++-7
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7
   - git clone https://github.com/thesofproject/kconfig.git
 
 jobs:
