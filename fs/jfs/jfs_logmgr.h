@@ -19,6 +19,8 @@
 #ifndef	_H_JFS_LOGMGR
 #define _H_JFS_LOGMGR
 
+#include <linux/uuid.h>
+
 #include "jfs_filsys.h"
 #include "jfs_lock.h"
 
@@ -73,14 +75,12 @@ struct logsuper {
 	__le32 state;		/* 4: state - see below */
 
 	__le32 end;		/* 4: addr of last log record set by logredo */
-	char uuid[16];		/* 16: 128-bit journal uuid */
+	uuid_t uuid;		/* 16: 128-bit journal uuid */
 	char label[16];		/* 16: journal label */
 	struct {
-		char uuid[16];
+		uuid_t uuid;
 	} active[MAX_ACTIVE];	/* 2048: active file systems list */
 };
-
-#define NULL_UUID "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 
 /* log flag: commit option (see jfs_filsys.h) */
 
@@ -410,7 +410,7 @@ struct jfs_log {
 	spinlock_t synclock;	/* 4: synclist lock */
 	struct lbuf *wqueue;	/* 4: log pageout queue */
 	int count;		/* 4: count */
-	char uuid[16];		/* 16: 128-bit uuid of log device */
+	uuid_t uuid;		/* 16: 128-bit uuid of log device */
 
 	int no_integrity;	/* 3: flag to disable journaling to disk */
 };

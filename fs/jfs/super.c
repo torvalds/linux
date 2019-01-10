@@ -174,9 +174,11 @@ static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = maxinodes;
 	buf->f_ffree = maxinodes - (atomic_read(&imap->im_numinos) -
 				    atomic_read(&imap->im_numfree));
-	buf->f_fsid.val[0] = (u32)crc32_le(0, sbi->uuid, sizeof(sbi->uuid)/2);
-	buf->f_fsid.val[1] = (u32)crc32_le(0, sbi->uuid + sizeof(sbi->uuid)/2,
-					sizeof(sbi->uuid)/2);
+	buf->f_fsid.val[0] = crc32_le(0, (char *)&sbi->uuid,
+				      sizeof(sbi->uuid)/2);
+	buf->f_fsid.val[1] = crc32_le(0,
+				      (char *)&sbi->uuid + sizeof(sbi->uuid)/2,
+				      sizeof(sbi->uuid)/2);
 
 	buf->f_namelen = JFS_NAME_MAX;
 	return 0;

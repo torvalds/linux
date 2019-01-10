@@ -389,8 +389,8 @@ static int chkSuper(struct super_block *sb)
 		sbi->logpxd = j_sb->s_logpxd;
 	else {
 		sbi->logdev = new_decode_dev(le32_to_cpu(j_sb->s_logdev));
-		memcpy(sbi->uuid, j_sb->s_uuid, sizeof(sbi->uuid));
-		memcpy(sbi->loguuid, j_sb->s_loguuid, sizeof(sbi->uuid));
+		uuid_copy(&sbi->uuid, &j_sb->s_uuid);
+		uuid_copy(&sbi->loguuid, &j_sb->s_loguuid);
 	}
 	sbi->fsckpxd = j_sb->s_fsckpxd;
 	sbi->ait2 = j_sb->s_ait2;
