@@ -137,11 +137,11 @@ struct kgd2kfd_shared_resources {
 	/* Bit n == 1 means Queue n is available for KFD */
 	DECLARE_BITMAP(queue_bitmap, KGD_MAX_QUEUES);
 
-	/* Doorbell assignments (SOC15 and later chips only). Only
+	/* SDMA doorbell assignments (SOC15 and later chips only). Only
 	 * specific doorbells are routed to each SDMA engine. Others
 	 * are routed to IH and VCN. They are not usable by the CP.
 	 */
-	unsigned int sdma_doorbell[2][8];
+	uint32_t *sdma_doorbell_idx;
 
 	/* From SOC15 onward, the doorbell index range not usable for CP
 	 * queues.

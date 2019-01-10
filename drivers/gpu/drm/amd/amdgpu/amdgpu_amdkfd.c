@@ -131,7 +131,7 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 {
-	int i, n;
+	int i;
 	int last_valid_bit;
 
 	if (adev->kfd.dev) {
@@ -142,7 +142,9 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			.gpuvm_size = min(adev->vm_manager.max_pfn
 					  << AMDGPU_GPU_PAGE_SHIFT,
 					  AMDGPU_GMC_HOLE_START),
-			.drm_render_minor = adev->ddev->render->index
+			.drm_render_minor = adev->ddev->render->index,
+			.sdma_doorbell_idx = adev->doorbell_index.sdma_engine,
+
 		};
 
 		/* this is going to have a few of the MSBs set that we need to
@@ -172,31 +174,6 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				&gpu_resources.doorbell_aperture_size,
 				&gpu_resources.doorbell_start_offset);
 
-		if (adev->asic_type < CHIP_VEGA10) {
-			kgd2kfd_device_init(adev->kfd.dev, &gpu_resources);
-			return;
-		}
-
-		n = (adev->asic_type < CHIP_VEGA20) ? 2 : 8;
-
-		for (i = 0; i < n; i += 2) {
-			/* On SOC15 the BIF is involved in routing
-			 * doorbells using the low 12 bits of the
-			 * address. Communicate the assignments to
-			 * KFD. KFD uses two doorbell pages per
-			 * process in case of 64-bit doorbells so we
-			 * can use each doorbell assignment twice.
-			 */
-			gpu_resources.sdma_doorbell[0][i] =
-				adev->doorbell_index.sdma_engine[0] + (i >> 1);
-			gpu_resources.sdma_doorbell[0][i+1] =
-				adev->doorbell_index.sdma_engine[0] + 0x200 + (i >> 1);
-			gpu_resources.sdma_doorbell[1][i] =
-				adev->doorbell_index.sdma_engine[1] + (i >> 1);
-			gpu_resources.sdma_doorbell[1][i+1] =
-				adev->doorbell_index.sdma_engine[1] + 0x200 + (i >> 1);
-		}
-
 		/* Since SOC15, BIF starts to statically use the
 		 * lower 12 bits of doorbell addresses for routing
 		 * based on settings in registers like
@@ -205,10 +182,12 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		 * 12 bits of its address has to be outside the range
 		 * set for SDMA, VCN, and IH blocks.
 		 */
-		gpu_resources.non_cp_doorbells_start =
-				adev->doorbell_index.first_non_cp;
-		gpu_resources.non_cp_doorbells_end =
-				adev->doorbell_index.last_non_cp;
+		if (adev->asic_type >= CHIP_VEGA10) {
+			gpu_resources.non_cp_doorbells_start =
+					adev->doorbell_index.first_non_cp;
+			gpu_resources.non_cp_doorbells_end =
+					adev->doorbell_index.last_non_cp;
+		}
 
 		kgd2kfd_device_init(adev->kfd.dev, &gpu_resources);
 	}
