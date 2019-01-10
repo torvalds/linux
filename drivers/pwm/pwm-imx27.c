@@ -125,14 +125,10 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 
 	val = readl(imx->mmio_base + MX3_PWMCR);
 
-	if (val & MX3_PWMCR_EN) {
+	if (val & MX3_PWMCR_EN)
 		state->enabled = true;
-		ret = pwm_imx27_clk_prepare_enable(chip);
-		if (ret)
-			return;
-	} else {
+	else
 		state->enabled = false;
-	}
 
 	switch (FIELD_GET(MX3_PWMCR_POUTC, val)) {
 	case MX3_PWMCR_POUTC_NORMAL:
@@ -164,7 +160,8 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 		state->duty_cycle = 0;
 	}
 
-	pwm_imx27_clk_disable_unprepare(chip);
+	if (!state->enabled)
+		pwm_imx27_clk_disable_unprepare(chip);
 }
 
 static void pwm_imx27_sw_reset(struct pwm_chip *chip)
