@@ -171,6 +171,23 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 	}
 }
 
+static struct hdac_ext_stream *get_stream_with_tag(struct snd_sof_dev *sdev,
+						   int tag)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_stream *s;
+
+	/* get stream with tag */
+	list_for_each_entry(s, &bus->stream_list, list) {
+		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		    s->stream_tag == tag) {
+			return stream_to_hdac_ext_stream(s);
+		}
+	}
+
+	return NULL;
+}
+
 static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 		      struct hdac_ext_stream *stream)
 {
@@ -200,28 +217,9 @@ static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 	return ret;
 }
 
-static int cl_copy_fw(struct snd_sof_dev *sdev, int tag)
+static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 {
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_ext_stream *stream = NULL;
-	struct hdac_stream *s;
 	int ret, status;
-
-	/* get stream with tag */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		    s->stream_tag == tag) {
-			stream = stream_to_hdac_ext_stream(s);
-			break;
-		}
-	}
-
-	if (!stream) {
-		dev_err(sdev->dev,
-			"error: could not get stream with stream tag%d\n",
-			tag);
-		return -ENODEV;
-	}
 
 	ret = cl_trigger(sdev, stream, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
@@ -259,10 +257,8 @@ int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev)
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
+	struct hdac_ext_stream *stream;
 	struct firmware stripped_firmware;
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_ext_stream *stream = NULL;
-	struct hdac_stream *s;
 	int ret, ret1, tag, i;
 
 	stripped_firmware.data = plat_data->fw->data;
@@ -280,6 +276,16 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: dma prepare for fw loading err: %x\n",
 			tag);
 		return tag;
+	}
+
+	/* get stream with tag */
+	stream = get_stream_with_tag(sdev, tag);
+	if (!stream) {
+		dev_err(sdev->dev,
+			"error: could not get stream with stream tag %d\n",
+			tag);
+		ret = -ENODEV;
+		goto err;
 	}
 
 	memcpy(sdev->dmab.area, stripped_firmware.data,
@@ -306,49 +312,43 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	if (i == HDA_FW_BOOT_ATTEMPTS) {
 		dev_err(sdev->dev, "error: dsp init failed after %d attempts with err: %d\n",
 			i, ret);
-
-		hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
-
-		/* disable DSP */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
-					SOF_HDA_REG_PP_PPCTL,
-					SOF_HDA_PPCTL_GPROCEN, 0);
-		goto done;
+		goto cleanup;
 	}
 
 	/* at this point DSP ROM has been initialized and
 	 * should be ready for code loading and firmware boot
 	 */
-	ret = cl_copy_fw(sdev, tag);
-	if (ret < 0)
-		dev_err(sdev->dev, "error: load fw failed ret: %d\n", ret);
-	else
+	ret = cl_copy_fw(sdev, stream);
+	if (!ret)
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
+	else
+		dev_err(sdev->dev, "error: load fw failed ret: %d\n", ret);
 
-done:
-	/* get stream with tag for code loader stream cleanup */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		    s->stream_tag == tag) {
-			stream = stream_to_hdac_ext_stream(s);
-			break;
-		}
-	}
-
-	if (!stream) {
-		dev_err(sdev->dev,
-			"error: could not get stream with stream tag%d\n",
-			tag);
-		return -ENODEV;
-	}
-
-	/* cleanup code loader stream */
+cleanup:
+	/*
+	 * Perform codeloader stream cleanup.
+	 * This should be done even if firmware loading fails.
+	 */
 	ret1 = cl_cleanup(sdev, &sdev->dmab, stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
-		return ret1;
+
+		/* set return value to indicate cleanup failure */
+		ret = ret1;
 	}
 
+	/* return if both copying fw and stream clean up are successful */
+	if (!ret)
+		return ret;
+
+	/* dump dsp registers and disable DSP upon error */
+err:
+	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
+
+	/* disable DSP */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
+				SOF_HDA_REG_PP_PPCTL,
+				SOF_HDA_PPCTL_GPROCEN, 0);
 	return ret;
 }
 
