@@ -19,7 +19,7 @@
 static bool should_merge(struct fsnotify_event *old_fsn,
 			 struct fsnotify_event *new_fsn)
 {
-	struct fanotify_event_info *old, *new;
+	struct fanotify_event *old, *new;
 
 	pr_debug("%s: old=%p new=%p\n", __func__, old_fsn, new_fsn);
 	old = FANOTIFY_E(old_fsn);
@@ -36,7 +36,7 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
 	struct fsnotify_event *test_event;
-	struct fanotify_event_info *new;
+	struct fanotify_event *new;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
 	new = FANOTIFY_E(event);
@@ -60,7 +60,7 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 }
 
 static int fanotify_get_response(struct fsnotify_group *group,
-				 struct fanotify_perm_event_info *event,
+				 struct fanotify_perm_event *event,
 				 struct fsnotify_iter_info *iter_info)
 {
 	int ret;
@@ -143,11 +143,11 @@ static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
 		~marks_ignored_mask;
 }
 
-struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 						 struct inode *inode, u32 mask,
 						 const struct path *path)
 {
-	struct fanotify_event_info *event = NULL;
+	struct fanotify_event *event = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
 
 	/*
@@ -162,7 +162,7 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
 	memalloc_use_memcg(group->memcg);
 
 	if (fanotify_is_perm_event(mask)) {
-		struct fanotify_perm_event_info *pevent;
+		struct fanotify_perm_event *pevent;
 
 		pevent = kmem_cache_alloc(fanotify_perm_event_cachep, gfp);
 		if (!pevent)
@@ -200,7 +200,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct fsnotify_iter_info *iter_info)
 {
 	int ret = 0;
-	struct fanotify_event_info *event;
+	struct fanotify_event *event;
 	struct fsnotify_event *fsn_event;
 
 	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
@@ -278,7 +278,7 @@ static void fanotify_free_group_priv(struct fsnotify_group *group)
 
 static void fanotify_free_event(struct fsnotify_event *fsn_event)
 {
-	struct fanotify_event_info *event;
+	struct fanotify_event *event;
 
 	event = FANOTIFY_E(fsn_event);
 	path_put(&event->path);

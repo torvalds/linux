@@ -73,7 +73,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 }
 
 static int create_fd(struct fsnotify_group *group,
-		     struct fanotify_event_info *event,
+		     struct fanotify_event *event,
 		     struct file **file)
 {
 	int client_fd;
@@ -120,13 +120,13 @@ static int fill_event_metadata(struct fsnotify_group *group,
 			       struct file **file)
 {
 	int ret = 0;
-	struct fanotify_event_info *event;
+	struct fanotify_event *event;
 
 	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__,
 		 group, metadata, fsn_event);
 
 	*file = NULL;
-	event = container_of(fsn_event, struct fanotify_event_info, fse);
+	event = container_of(fsn_event, struct fanotify_event, fse);
 	metadata->event_len = FAN_EVENT_METADATA_LEN;
 	metadata->metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
@@ -144,10 +144,10 @@ static int fill_event_metadata(struct fsnotify_group *group,
 	return ret;
 }
 
-static struct fanotify_perm_event_info *dequeue_event(
+static struct fanotify_perm_event *dequeue_event(
 				struct fsnotify_group *group, int fd)
 {
-	struct fanotify_perm_event_info *event, *return_e = NULL;
+	struct fanotify_perm_event *event, *return_e = NULL;
 
 	spin_lock(&group->notification_lock);
 	list_for_each_entry(event, &group->fanotify_data.access_list,
@@ -169,7 +169,7 @@ static struct fanotify_perm_event_info *dequeue_event(
 static int process_access_response(struct fsnotify_group *group,
 				   struct fanotify_response *response_struct)
 {
-	struct fanotify_perm_event_info *event;
+	struct fanotify_perm_event *event;
 	int fd = response_struct->fd;
 	int response = response_struct->response;
 
@@ -370,7 +370,7 @@ static ssize_t fanotify_write(struct file *file, const char __user *buf, size_t 
 static int fanotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
-	struct fanotify_perm_event_info *event, *next;
+	struct fanotify_perm_event *event, *next;
 	struct fsnotify_event *fsn_event;
 
 	/*
@@ -688,7 +688,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	struct fsnotify_group *group;
 	int f_flags, fd;
 	struct user_struct *user;
-	struct fanotify_event_info *oevent;
+	struct fanotify_event *oevent;
 
 	pr_debug("%s: flags=%x event_f_flags=%x\n",
 		 __func__, flags, event_f_flags);
@@ -955,10 +955,10 @@ static int __init fanotify_user_setup(void)
 
 	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
 					 SLAB_PANIC|SLAB_ACCOUNT);
-	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
+	fanotify_event_cachep = KMEM_CACHE(fanotify_event, SLAB_PANIC);
 	if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS)) {
 		fanotify_perm_event_cachep =
-			KMEM_CACHE(fanotify_perm_event_info, SLAB_PANIC);
+			KMEM_CACHE(fanotify_perm_event, SLAB_PANIC);
 	}
 
 	return 0;
