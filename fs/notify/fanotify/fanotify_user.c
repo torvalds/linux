@@ -47,6 +47,18 @@ struct kmem_cache *fanotify_mark_cache __read_mostly;
 struct kmem_cache *fanotify_event_cachep __read_mostly;
 struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
 
+#define FANOTIFY_EVENT_ALIGN 4
+
+static int fanotify_event_info_len(struct fanotify_event *event)
+{
+	if (!fanotify_event_has_fid(event))
+		return 0;
+
+	return roundup(sizeof(struct fanotify_event_info_fid) +
+		       sizeof(struct file_handle) + event->fh_len,
+		       FANOTIFY_EVENT_ALIGN);
+}
+
 /*
  * Get an fsnotify notification event if one exists and is small
  * enough to fit in "count". Return an error pointer if the count
@@ -57,6 +69,9 @@ struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
 static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 					    size_t count)
 {
+	size_t event_size = FAN_EVENT_METADATA_LEN;
+	struct fanotify_event *event;
+
 	assert_spin_locked(&group->notification_lock);
 
 	pr_debug("%s: group=%p count=%zd\n", __func__, group, count);
@@ -64,11 +79,18 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 	if (fsnotify_notify_queue_is_empty(group))
 		return NULL;
 
-	if (FAN_EVENT_METADATA_LEN > count)
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+		event = FANOTIFY_E(fsnotify_peek_first_event(group));
+		event_size += fanotify_event_info_len(event);
+	}
+
+	if (event_size > count)
 		return ERR_PTR(-EINVAL);
 
-	/* held the notification_lock the whole time, so this is the
-	 * same event we peeked above */
+	/*
+	 * Held the notification_lock the whole time, so this is the
+	 * same event we peeked above
+	 */
 	return fsnotify_remove_first_event(group);
 }
 
@@ -174,6 +196,48 @@ static int process_access_response(struct fsnotify_group *group,
 	return 0;
 }
 
+static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
+{
+	struct fanotify_event_info_fid info = { };
+	struct file_handle handle = { };
+	size_t fh_len = event->fh_len;
+	size_t len = fanotify_event_info_len(event);
+
+	if (!len)
+		return 0;
+
+	if (WARN_ON_ONCE(len < sizeof(info) + sizeof(handle) + fh_len))
+		return -EFAULT;
+
+	/* Copy event info fid header followed by vaiable sized file handle */
+	info.hdr.info_type = FAN_EVENT_INFO_TYPE_FID;
+	info.hdr.len = len;
+	info.fsid = event->fid.fsid;
+	if (copy_to_user(buf, &info, sizeof(info)))
+		return -EFAULT;
+
+	buf += sizeof(info);
+	len -= sizeof(info);
+	handle.handle_type = event->fh_type;
+	handle.handle_bytes = fh_len;
+	if (copy_to_user(buf, &handle, sizeof(handle)))
+		return -EFAULT;
+
+	buf += sizeof(handle);
+	len -= sizeof(handle);
+	if (copy_to_user(buf, fanotify_event_fh(event), fh_len))
+		return -EFAULT;
+
+	/* Pad with 0's */
+	buf += fh_len;
+	len -= fh_len;
+	WARN_ON_ONCE(len < 0 || len >= FANOTIFY_EVENT_ALIGN);
+	if (len > 0 && clear_user(buf, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 static ssize_t copy_event_to_user(struct fsnotify_group *group,
 				  struct fsnotify_event *fsn_event,
 				  char __user *buf, size_t count)
@@ -197,6 +261,8 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 		fd = create_fd(group, event, &f);
 		if (fd < 0)
 			return fd;
+	} else if (fanotify_event_has_fid(event)) {
+		metadata.event_len += fanotify_event_info_len(event);
 	}
 	metadata.fd = fd;
 
@@ -208,14 +274,20 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	if (WARN_ON_ONCE(metadata.event_len > count))
 		goto out_close_fd;
 
-	if (copy_to_user(buf, &metadata, metadata.event_len))
+	if (copy_to_user(buf, &metadata, FAN_EVENT_METADATA_LEN))
 		goto out_close_fd;
 
 	if (fanotify_is_perm_event(event->mask))
 		FANOTIFY_PE(fsn_event)->fd = fd;
 
-	if (fd != FAN_NOFD)
+	if (fanotify_event_has_path(event)) {
 		fd_install(fd, f);
+	} else if (fanotify_event_has_fid(event)) {
+		ret = copy_fid_to_user(event, buf + FAN_EVENT_METADATA_LEN);
+		if (ret < 0)
+			return ret;
+	}
+
 	return metadata.event_len;
 
 out_close_fd:

@@ -107,6 +107,26 @@ struct fanotify_event_metadata {
 	__s32 pid;
 };
 
+#define FAN_EVENT_INFO_TYPE_FID		1
+
+/* Variable length info record following event metadata */
+struct fanotify_event_info_header {
+	__u8 info_type;
+	__u8 pad;
+	__u16 len;
+};
+
+/* Unique file identifier info record */
+struct fanotify_event_info_fid {
+	struct fanotify_event_info_header hdr;
+	__kernel_fsid_t fsid;
+	/*
+	 * Following is an opaque struct file_handle that can be passed as
+	 * an argument to open_by_handle_at(2).
+	 */
+	unsigned char handle[0];
+};
+
 struct fanotify_response {
 	__s32 fd;
 	__u32 response;

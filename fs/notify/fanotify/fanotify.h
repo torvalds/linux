@@ -95,6 +95,11 @@ static inline bool fanotify_event_has_ext_fh(struct fanotify_event *event)
 		event->fh_len > FANOTIFY_INLINE_FH_LEN;
 }
 
+static inline void *fanotify_event_fh(struct fanotify_event *event)
+{
+	return fanotify_fid_fh(&event->fid, event->fh_len);
+}
+
 /*
  * Structure for permission fanotify events. It gets allocated and freed in
  * fanotify_handle_event() since we wait there for user response. When the
