@@ -307,6 +307,50 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	return IRQ_HANDLED;
 }
 
+#define CSIHOST_MAX_ERRINT_COUNT	10
+
+static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
+{
+	struct device *dev = ctx;
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+	static int csi_err1_cnt;
+	u32 val;
+
+	val = read_csihost_reg(cif_dev->csi_base, CSIHOST_ERR1);
+	if (val) {
+		pr_err("ERROR: csi err1 intr: 0x%x\n", val);
+
+		if (++csi_err1_cnt > CSIHOST_MAX_ERRINT_COUNT) {
+			write_csihost_reg(cif_dev->csi_base,
+					  CSIHOST_MSK1, 0xffffffff);
+			csi_err1_cnt = 0;
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
+{
+	struct device *dev = ctx;
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+	static int csi_err2_cnt;
+	u32 val;
+
+	val = read_csihost_reg(cif_dev->csi_base, CSIHOST_ERR2);
+	if (val) {
+		pr_err("ERROR: csi err2 intr: 0x%x\n", val);
+
+		if (++csi_err2_cnt > CSIHOST_MAX_ERRINT_COUNT) {
+			write_csihost_reg(cif_dev->csi_base,
+					  CSIHOST_MSK2, 0xffffffff);
+			csi_err2_cnt = 0;
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
 static void rkcif_disable_sys_clk(struct rkcif_device *cif_dev)
 {
 	int i;
@@ -477,6 +521,28 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		cif_dev->csi_base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(cif_dev->csi_base))
 			return PTR_ERR(cif_dev->csi_base);
+
+		irq = platform_get_irq_byname(pdev, "csi-intr1");
+		if (irq > 0) {
+			ret = devm_request_irq(dev, irq, rk_csirx_irq1_handler,
+					       0, dev_driver_string(dev), dev);
+			if (ret < 0)
+				dev_err(dev, "request csi-intr1 irq failed: %d\n",
+					ret);
+		} else {
+			dev_err(dev, "No found irq csi-intr1\n");
+		}
+
+		irq = platform_get_irq_byname(pdev, "csi-intr2");
+		if (irq > 0) {
+			ret = devm_request_irq(dev, irq, rk_csirx_irq2_handler,
+					       0, dev_driver_string(dev), dev);
+			if (ret < 0)
+				dev_err(dev, "request csi-intr2 failed: %d\n",
+					ret);
+		} else {
+			dev_err(dev, "No found irq csi-intr2\n");
+		}
 	} else {
 		using_pingpong = 0;
 

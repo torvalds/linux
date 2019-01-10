@@ -237,6 +237,10 @@
 #define CSIHOST_N_LANES		0x04
 #define CSIHOST_PHY_RSTZ	0x0c
 #define CSIHOST_RESETN		0x10
+#define CSIHOST_ERR1		0x20
+#define CSIHOST_ERR2		0x24
+#define CSIHOST_MSK1		0x28
+#define CSIHOST_MSK2		0x2c
 #define CSIHOST_CONTROL		0x40
 
 #define SW_CPHY_EN(x)		((x) << 0)
