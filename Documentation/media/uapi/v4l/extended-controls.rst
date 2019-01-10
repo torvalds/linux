@@ -1158,6 +1158,11 @@ enum v4l2_mpeg_video_h264_entropy_mode -
     Enable constrained intra prediction for H264. Applicable to the H264
     encoder.
 
+``V4L2_CID_MPEG_VIDEO_H264_CHROMA_QP_INDEX_OFFSET (integer)``
+    Specify the offset that should be added to the luma quantization
+    parameter to determine the chroma quantization parameter. Applicable
+    to the H264 encoder.
+
 ``V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB (integer)``
     Cyclic intra macroblock refresh. This is the number of continuous
     macroblocks refreshed every frame. Each frame a successive set of
