@@ -1034,7 +1034,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 	dma_addr_t dma;
 	int ret;
 
-	if (!vma)
+	if (!vma || !vma->pages)
 		return NULL;
 
 	num_pages = min_t(u64, vma->size, vma->obj->base.size) >> PAGE_SHIFT;
