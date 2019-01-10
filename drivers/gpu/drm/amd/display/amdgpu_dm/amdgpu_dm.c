@@ -4642,7 +4642,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	unsigned long flags;
 	struct amdgpu_bo *abo;
 	uint64_t tiling_flags, dcc_address;
-	struct dc_stream_status *stream_status;
 	uint32_t target, target_vblank;
 
 	struct {
@@ -4673,7 +4672,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct drm_framebuffer *fb = new_plane_state->fb;
 		struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
 		bool pflip_needed;
-		struct dc_plane_state *surface, *dc_plane;
+		struct dc_plane_state *dc_plane;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
@@ -4736,28 +4735,20 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			timestamp_ns = ktime_get_ns();
 			flip->flip_addrs[flip_count].flip_timestamp_in_us = div_u64(timestamp_ns, 1000);
 			flip->surface_updates[flip_count].flip_addr = &flip->flip_addrs[flip_count];
+			flip->surface_updates[flip_count].surface = dc_plane;
 
-			stream_status = dc_stream_get_status(acrtc_state->stream);
-			if (!stream_status) {
-				DRM_ERROR("No stream status for CRTC: id=%d\n",
-						acrtc_attach->crtc_id);
-				continue;
-			}
-
-			surface = stream_status->plane_states[0];
-			flip->surface_updates[flip_count].surface = surface;
 			if (!flip->surface_updates[flip_count].surface) {
 				DRM_ERROR("No surface for CRTC: id=%d\n",
 						acrtc_attach->crtc_id);
 				continue;
 			}
 
-			if (acrtc_state->stream)
+			if (plane == pcrtc->primary)
 				update_freesync_state_on_stream(
 					dm,
 					acrtc_state,
 					acrtc_state->stream,
-					surface,
+					dc_plane,
 					flip->flip_addrs[flip_count].flip_timestamp_in_us);
 
 			DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x\n",
