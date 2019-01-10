@@ -25,6 +25,8 @@
 #include <linux/binfmts.h>
 #include <linux/in.h>
 #include <linux/spinlock.h>
+#include <linux/lsm_hooks.h>
+#include <linux/msg.h>
 #include <net/net_namespace.h>
 #include "flask.h"
 #include "avc.h"
@@ -56,10 +58,7 @@ enum label_initialized {
 
 struct inode_security_struct {
 	struct inode *inode;	/* back pointer to inode object */
-	union {
-		struct list_head list;	/* list of inode_security_struct */
-		struct rcu_head rcu;	/* for freeing the inode_security_struct */
-	};
+	struct list_head list;	/* list of inode_security_struct */
 	u32 task_sid;		/* SID of creating task */
 	u32 sid;		/* SID of this object */
 	u16 sclass;		/* security class of this object */
@@ -157,5 +156,36 @@ struct pkey_security_struct {
 struct bpf_security_struct {
 	u32 sid;  /*SID of bpf obj creater*/
 };
+
+extern struct lsm_blob_sizes selinux_blob_sizes;
+static inline struct task_security_struct *selinux_cred(const struct cred *cred)
+{
+	return cred->security + selinux_blob_sizes.lbs_cred;
+}
+
+static inline struct file_security_struct *selinux_file(const struct file *file)
+{
+	return file->f_security + selinux_blob_sizes.lbs_file;
+}
+
+static inline struct inode_security_struct *selinux_inode(
+						const struct inode *inode)
+{
+	if (unlikely(!inode->i_security))
+		return NULL;
+	return inode->i_security + selinux_blob_sizes.lbs_inode;
+}
+
+static inline struct msg_security_struct *selinux_msg_msg(
+						const struct msg_msg *msg_msg)
+{
+	return msg_msg->security + selinux_blob_sizes.lbs_msg_msg;
+}
+
+static inline struct ipc_security_struct *selinux_ipc(
+						const struct kern_ipc_perm *ipc)
+{
+	return ipc->security + selinux_blob_sizes.lbs_ipc;
+}
 
 #endif /* _SELINUX_OBJSEC_H_ */
