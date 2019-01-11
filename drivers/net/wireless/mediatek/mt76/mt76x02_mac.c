@@ -433,7 +433,7 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 	}
 
 	if (wcid) {
-		if (stat->pktid)
+		if (stat->pktid >= MT_PACKET_ID_FIRST)
 			status.skb = mt76_tx_status_skb_get(mdev, wcid,
 							    stat->pktid, &list);
 		if (status.skb)

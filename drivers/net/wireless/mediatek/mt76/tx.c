@@ -170,21 +170,22 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	int pid;
 
 	if (!wcid)
-		return 0;
+		return MT_PACKET_ID_NO_ACK;
 
 	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return MT_PACKET_ID_NO_ACK;
 
 	if (!(info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
 			     IEEE80211_TX_CTL_RATE_CTRL_PROBE)))
-		return 0;
+		return MT_PACKET_ID_NO_SKB;
 
 	spin_lock_bh(&dev->status_list.lock);
 
 	memset(cb, 0, sizeof(*cb));
 	wcid->packet_id = (wcid->packet_id + 1) & MT_PACKET_ID_MASK;
-	if (!wcid->packet_id || wcid->packet_id == MT_PACKET_ID_NO_ACK)
-		wcid->packet_id = 1;
+	if (wcid->packet_id == MT_PACKET_ID_NO_ACK ||
+	    wcid->packet_id == MT_PACKET_ID_NO_SKB)
+		wcid->packet_id = MT_PACKET_ID_FIRST;
 
 	pid = wcid->packet_id;
 	cb->wcid = wcid->idx;
