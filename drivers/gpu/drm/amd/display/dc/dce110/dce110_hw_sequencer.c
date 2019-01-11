@@ -1520,7 +1520,7 @@ static struct dc_link *get_link_for_edp(struct dc *dc)
 	return NULL;
 }
 
-static struct dc_link *get_link_for_edp_not_in_use(
+static struct dc_link *get_link_for_edp_to_turn_off(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -1529,8 +1529,12 @@ static struct dc_link *get_link_for_edp_not_in_use(
 
 	/* check if eDP panel is suppose to be set mode, if yes, no need to disable */
 	for (i = 0; i < context->stream_count; i++) {
-		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
-			return NULL;
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
+			if (context->streams[i]->dpms_off == true)
+				return context->streams[i]->sink->link;
+			else
+				return NULL;
+		}
 	}
 
 	/* check if there is an eDP panel not in use */
@@ -1572,7 +1576,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	}
 
 	if (can_edp_fast_boot_optimize)
-		edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
+		edp_link_to_turnoff = get_link_for_edp_to_turn_off(dc, context);
 
 	/* if OS doesn't light up eDP and eDP link is available, we want to disable
 	 * If resume from S4/S5, should optimization.
