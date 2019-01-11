@@ -80,7 +80,8 @@ static int bochs_crtc_mode_set(struct drm_crtc *crtc,
 	if (WARN_ON(crtc->primary->fb == NULL))
 		return -EINVAL;
 
-	bochs_hw_setmode(bochs, mode, crtc->primary->fb->format);
+	bochs_hw_setmode(bochs, mode);
+	bochs_hw_setformat(bochs, crtc->primary->fb->format);
 	bochs_crtc_mode_set_base(crtc, x, y, old_fb);
 	return 0;
 }
