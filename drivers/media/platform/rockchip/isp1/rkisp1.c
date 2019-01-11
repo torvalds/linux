@@ -306,17 +306,20 @@ static int rkisp1_config_dvp(struct rkisp1_device *dev)
 {
 	struct ispsd_in_fmt *in_fmt = &dev->isp_sdev.in_fmt;
 	void __iomem *base = dev->base_addr;
-	u32 val, input_sel;
+	u32 val, input_sel, data_width;
 
 	switch (in_fmt->bus_width) {
 	case 8:
 		input_sel = CIF_ISP_ACQ_PROP_IN_SEL_8B_ZERO;
+		data_width = ISP_CIF_DATA_WIDTH_8B;
 		break;
 	case 10:
 		input_sel = CIF_ISP_ACQ_PROP_IN_SEL_10B_ZERO;
+		data_width = ISP_CIF_DATA_WIDTH_10B;
 		break;
 	case 12:
 		input_sel = CIF_ISP_ACQ_PROP_IN_SEL_12B;
+		data_width = ISP_CIF_DATA_WIDTH_12B;
 		break;
 	default:
 		v4l2_err(&dev->v4l2_dev, "Invalid bus width\n");
@@ -329,11 +332,10 @@ static int rkisp1_config_dvp(struct rkisp1_device *dev)
 	if (!IS_ERR(dev->grf) &&
 		(dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13))
-		/* config isp cif 12bit datawidth */
 		regmap_update_bits(dev->grf,
 			GRF_VI_CON0,
 			ISP_CIF_DATA_WIDTH_MASK,
-			ISP_CIF_DATA_WIDTH_12B);
+			data_width);
 
 	return 0;
 }

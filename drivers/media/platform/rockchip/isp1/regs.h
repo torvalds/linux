@@ -39,7 +39,9 @@
 /* GRF */
 #define GRF_VI_CON0 				0x430
 #define ISP_CIF_DATA_WIDTH_MASK 		0x60006000
-#define ISP_CIF_DATA_WIDTH_12B 			(2 << 13 | 2 << 29)
+#define ISP_CIF_DATA_WIDTH_8B			(0 << 13 | 3 << 29)
+#define ISP_CIF_DATA_WIDTH_10B			(BIT(13) | 3 << 29)
+#define ISP_CIF_DATA_WIDTH_12B			(2 << 13 | 3 << 29)
 
 /* ISP_CTRL */
 #define CIF_ISP_CTRL_ISP_ENABLE			BIT(0)
