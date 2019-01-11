@@ -2001,6 +2001,7 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 			      struct sof_ipc_dai_config *config)
 {
 	struct snd_sof_dai *dai;
+	int found = 0;
 
 	list_for_each_entry(dai, &sdev->dai_list, list) {
 		if (!dai->name)
@@ -2010,7 +2011,19 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 			dai->dai_config = kmemdup(config, size, GFP_KERNEL);
 			if (!dai->dai_config)
 				return -ENOMEM;
+
+			found = 1;
 		}
+	}
+
+	/*
+	 * machine driver may define a dai link with playback and capture
+	 * dai enabled, but the dai link in topology would support both, one
+	 * or none of them. Here print a warning message to notify user
+	 */
+	if (!found) {
+		dev_warn(sdev->dev, "warning: failed to find dai for dai link %s",
+			 link->name);
 	}
 
 	return 0;
@@ -2204,48 +2217,75 @@ err:
 	return ret;
 }
 
+/*
+ * for hda link, playback and capture are supported by different dai
+ * in FW. Here get the dai_index, set dma channel of each dai
+ * and send config to FW. In FW, each dai sets config by dai_index
+ */
 static int sof_link_hda_process(struct snd_sof_dev *sdev,
 				struct snd_soc_dai_link *link,
 				struct sof_ipc_dai_config *config,
-				int slot,
-				int direction)
+				int tx_slot,
+				int rx_slot)
 {
 	struct sof_ipc_reply reply;
 	u32 size = sizeof(*config);
-	struct snd_sof_dai *dai;
+	struct snd_sof_dai *sof_dai;
 	int found = 0;
 	int ret;
 
-	/* for hda link, playback and capture are supported by different
-	 * dai in FW. Here get the dai_index of each dai and send config
-	 * to FW. In FW, each dai sets config by dai_index
-	 */
-	list_for_each_entry(dai, &sdev->dai_list, list) {
-		if (!dai->name)
+	list_for_each_entry(sof_dai, &sdev->dai_list, list) {
+		if (!sof_dai->name)
 			continue;
 
-		if (strcmp(link->name, dai->name) == 0 &&
-		    dai->comp_dai.direction == direction) {
-			config->dai_index = dai->comp_dai.dai_index;
+		if (strcmp(link->name, sof_dai->name) == 0) {
+			if (sof_dai->comp_dai.direction ==
+			    SNDRV_PCM_STREAM_PLAYBACK) {
+				if (!link->dpcm_playback)
+					return -EINVAL;
+
+				config->hda.link_dma_ch = tx_slot;
+			} else {
+				if (!link->dpcm_capture)
+					return -EINVAL;
+
+				config->hda.link_dma_ch = rx_slot;
+			}
+
+			config->dai_index = sof_dai->comp_dai.dai_index;
 			found = 1;
-			break;
+
+			/* save config in dai component */
+			sof_dai->dai_config = kmemdup(config, size, GFP_KERNEL);
+			if (!sof_dai->dai_config)
+				return -ENOMEM;
+
+			/* send message to DSP */
+			ret = sof_ipc_tx_message(sdev->ipc,
+						 config->hdr.cmd, config, size,
+						 &reply, sizeof(reply));
+
+			if (ret < 0) {
+				dev_err(sdev->dev, "error: failed to set DAI config for direction:%d of HDA dai %d\n",
+					sof_dai->comp_dai.direction,
+					config->dai_index);
+
+				return ret;
+			}
 		}
 	}
 
+	/*
+	 * machine driver may define a dai link with playback and capture
+	 * dai enabled, but the dai link in topology would support both, one
+	 * or none of them. Here print a warning message to notify user
+	 */
 	if (!found) {
-		dev_err(sdev->dev, "error: failed to find dai %s in %s",
-			link->name, __func__);
-		return -EINVAL;
+		dev_warn(sdev->dev, "warning: failed to find dai for dai link %s",
+			 link->name);
 	}
 
-	config->hda.link_dma_ch = slot;
-
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config->hdr.cmd, config, size, &reply,
-				 sizeof(reply));
-
-	return ret;
+	return 0;
 }
 
 static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
@@ -2258,7 +2298,6 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_dai_link_component dai_component;
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct snd_soc_dai *dai;
-
 	u32 size = sizeof(*config);
 	u32 tx_num = 0;
 	u32 tx_slot = 0;
@@ -2304,42 +2343,10 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
-	/* for hda link, playback and capture are supported by different
-	 * dai in FW. Here send dai config according to capability of dai.
-	 */
-	if (link->dpcm_playback) {
-		ret = sof_link_hda_process(sdev, link, config, tx_slot,
-					   SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to set DAI config for playback dai HDA%d\n",
-				config->dai_index);
-
-			return ret;
-		}
-	}
-
-	if (link->dpcm_capture) {
-		ret = sof_link_hda_process(sdev, link, config, rx_slot,
-					   SNDRV_PCM_STREAM_CAPTURE);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to set DAI config for capture dai HDA%d\n",
-				config->dai_index);
-
-			return ret;
-		}
-	}
-
-	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
-	if (ret < 0) {
-		if (link->dpcm_playback)
-			dev_err(sdev->dev, "error: failed to save DAI config for playback HDA%d\n",
-				config->dai_index);
-
-		if (link->dpcm_capture)
-			dev_err(sdev->dev, "error: failed to save DAI config for capture HDA%d\n",
-				config->dai_index);
-	}
+	ret = sof_link_hda_process(sdev, link, config, tx_slot, rx_slot);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to process hda dai link %s",
+			link->name);
 
 	return ret;
 }
