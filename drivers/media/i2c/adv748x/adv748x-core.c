@@ -389,15 +389,6 @@ static const struct media_entity_operations adv748x_media_ops = {
  * HW setup
  */
 
-static const struct adv748x_reg_value adv748x_sw_reset[] = {
-
-	{ADV748X_PAGE_IO, 0xff, 0xff},	/* SW reset */
-	{ADV748X_PAGE_WAIT, 0x00, 0x05},/* delay 5 */
-	{ADV748X_PAGE_IO, 0x01, 0x76},	/* ADI Required Write */
-	{ADV748X_PAGE_IO, 0xf2, 0x01},	/* Enable I2C Read Auto-Increment */
-	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
-};
-
 /* Initialize CP Core with RGB888 format. */
 static const struct adv748x_reg_value adv748x_init_hdmi[] = {
 	/* Disable chip powerdown & Enable HDMI Rx block */
@@ -474,12 +465,33 @@ static const struct adv748x_reg_value adv748x_init_afe[] = {
 	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
 };
 
+static int adv748x_sw_reset(struct adv748x_state *state)
+{
+	int ret;
+
+	ret = io_write(state, ADV748X_IO_REG_FF, ADV748X_IO_REG_FF_MAIN_RESET);
+	if (ret)
+		return ret;
+
+	usleep_range(5000, 6000);
+
+	/* Disable CEC Wakeup from power-down mode */
+	ret = io_clrset(state, ADV748X_IO_REG_01, ADV748X_IO_REG_01_PWRDN_MASK,
+			ADV748X_IO_REG_01_PWRDNB);
+	if (ret)
+		return ret;
+
+	/* Enable I2C Read Auto-Increment for consecutive reads */
+	return io_write(state, ADV748X_IO_REG_F2,
+			ADV748X_IO_REG_F2_READ_AUTO_INC);
+}
+
 static int adv748x_reset(struct adv748x_state *state)
 {
 	int ret;
 	u8 regval = 0;
 
-	ret = adv748x_write_regs(state, adv748x_sw_reset);
+	ret = adv748x_sw_reset(state);
 	if (ret < 0)
 		return ret;
 

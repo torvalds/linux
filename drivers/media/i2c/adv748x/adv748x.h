@@ -211,6 +211,11 @@ struct adv748x_state {
 #define ADV748X_IO_PD			0x00	/* power down controls */
 #define ADV748X_IO_PD_RX_EN		BIT(6)
 
+#define ADV748X_IO_REG_01		0x01	/* pwrdn{2}b, prog_xtal_freq */
+#define ADV748X_IO_REG_01_PWRDN_MASK	(BIT(7) | BIT(6))
+#define ADV748X_IO_REG_01_PWRDN2B	BIT(7)	/* CEC Wakeup Support */
+#define ADV748X_IO_REG_01_PWRDNB	BIT(6)	/* CEC Wakeup Support */
+
 #define ADV748X_IO_REG_04		0x04
 #define ADV748X_IO_REG_04_FORCE_FR	BIT(0)	/* Force CP free-run */
 
@@ -229,7 +234,18 @@ struct adv748x_state {
 #define ADV748X_IO_CHIP_REV_ID_1	0xdf
 #define ADV748X_IO_CHIP_REV_ID_2	0xe0
 
+#define ADV748X_IO_REG_F2		0xf2
+#define ADV748X_IO_REG_F2_READ_AUTO_INC	BIT(0)
+
+/* For PAGE slave address offsets */
 #define ADV748X_IO_SLAVE_ADDR_BASE	0xf2
+
+/*
+ * The ADV748x_Recommended_Settings_PrA_2014-08-20.pdf details both 0x80 and
+ * 0xff as examples for performing a software reset.
+ */
+#define ADV748X_IO_REG_FF		0xff
+#define ADV748X_IO_REG_FF_MAIN_RESET	0xff
 
 /* HDMI RX Map */
 #define ADV748X_HDMI_LW1		0x07	/* line width_1 */
