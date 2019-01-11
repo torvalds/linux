@@ -1406,7 +1406,7 @@ static void dsi_pll_disable(struct dss_pll *pll)
 
 static int dsi_dump_dsi_clocks(struct seq_file *s, void *p)
 {
-	struct dsi_data *dsi = p;
+	struct dsi_data *dsi = s->private;
 	struct dss_pll_clock_info *cinfo = &dsi->pll.cinfo;
 	enum dss_clk_source dispc_clk_src, dsi_clk_src;
 	int dsi_module = dsi->module_id;
@@ -1467,7 +1467,7 @@ static int dsi_dump_dsi_clocks(struct seq_file *s, void *p)
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 static int dsi_dump_dsi_irqs(struct seq_file *s, void *p)
 {
-	struct dsi_data *dsi = p;
+	struct dsi_data *dsi = s->private;
 	unsigned long flags;
 	struct dsi_irq_stats stats;
 
@@ -1558,7 +1558,7 @@ static int dsi_dump_dsi_irqs(struct seq_file *s, void *p)
 
 static int dsi_dump_dsi_regs(struct seq_file *s, void *p)
 {
-	struct dsi_data *dsi = p;
+	struct dsi_data *dsi = s->private;
 
 	if (dsi_runtime_get(dsi))
 		return 0;
@@ -5083,15 +5083,15 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	snprintf(name, sizeof(name), "dsi%u_regs", dsi->module_id + 1);
 	dsi->debugfs.regs = dss_debugfs_create_file(dss, name,
-						    dsi_dump_dsi_regs, &dsi);
+						    dsi_dump_dsi_regs, dsi);
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	snprintf(name, sizeof(name), "dsi%u_irqs", dsi->module_id + 1);
 	dsi->debugfs.irqs = dss_debugfs_create_file(dss, name,
-						    dsi_dump_dsi_irqs, &dsi);
+						    dsi_dump_dsi_irqs, dsi);
 #endif
 	snprintf(name, sizeof(name), "dsi%u_clks", dsi->module_id + 1);
 	dsi->debugfs.clks = dss_debugfs_create_file(dss, name,
-						    dsi_dump_dsi_clocks, &dsi);
+						    dsi_dump_dsi_clocks, dsi);
 
 	return 0;
 }
