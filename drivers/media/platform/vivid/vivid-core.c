@@ -371,7 +371,7 @@ static int vidioc_s_parm(struct file *file, void *fh,
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
 		return vivid_vid_cap_s_parm(file, fh, parm);
-	return vivid_vid_out_g_parm(file, fh, parm);
+	return -ENOTTY;
 }
 
 static int vidioc_log_status(struct file *file, void *fh)
