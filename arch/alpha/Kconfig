@@ -4,6 +4,7 @@ config ALPHA
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_NO_PREEMPT
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_AOUT
 	select HAVE_IDE
@@ -73,9 +74,6 @@ config GENERIC_ISA_DMA
 config PGTABLE_LEVELS
 	int
 	default 3
-
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
 
 config AUDIT_ARCH
 	bool
@@ -573,8 +571,6 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa.rst> for more.
 
-source "mm/Kconfig"
-
 config NUMA
 	bool "NUMA Support (EXPERIMENTAL)"
 	depends on DISCONTIGMEM && BROKEN
@@ -713,17 +709,7 @@ config SRM_ENV
 	  This driver is also available as a module and will be called
 	  srm_env then.
 
-source "fs/Kconfig.binfmt"
-
 endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/alpha/Kconfig.debug"
 
 # DUMMY_CONSOLE may be defined in drivers/video/console/Kconfig
 # but we also need it if VGA_HOSE is set
@@ -731,10 +717,3 @@ config DUMMY_CONSOLE
 	bool
 	depends on VGA_HOSE
 	default y
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-

@@ -116,9 +116,16 @@ static int parser_trx_parse(struct mtd_info *mtd,
 	return i;
 };
 
+static const struct of_device_id mtd_parser_trx_of_match_table[] = {
+	{ .compatible = "brcm,trx" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, mtd_parser_trx_of_match_table);
+
 static struct mtd_part_parser mtd_parser_trx = {
 	.parse_fn = parser_trx_parse,
 	.name = "trx",
+	.of_match_table = mtd_parser_trx_of_match_table,
 };
 module_mtd_part_parser(mtd_parser_trx);
 

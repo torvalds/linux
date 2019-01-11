@@ -17,6 +17,7 @@ enum {
 	XFS_IO_UNWRITTEN,	/* covers allocated but uninitialized data */
 	XFS_IO_OVERWRITE,	/* covers already allocated extent */
 	XFS_IO_COW,		/* covers copy-on-write extent */
+	XFS_IO_HOLE,		/* covers region without any block allocation */
 };
 
 #define XFS_IO_TYPES \
@@ -24,7 +25,8 @@ enum {
 	{ XFS_IO_DELALLOC,		"delalloc" }, \
 	{ XFS_IO_UNWRITTEN,		"unwritten" }, \
 	{ XFS_IO_OVERWRITE,		"overwrite" }, \
-	{ XFS_IO_COW,			"CoW" }
+	{ XFS_IO_COW,			"CoW" }, \
+	{ XFS_IO_HOLE,			"hole" }
 
 /*
  * Structure for buffered I/O completions.

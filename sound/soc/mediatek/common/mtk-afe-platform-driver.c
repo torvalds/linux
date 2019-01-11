@@ -15,20 +15,12 @@
 
 int mtk_afe_combine_sub_dai(struct mtk_base_afe *afe)
 {
-	struct snd_soc_dai_driver *sub_dai_drivers;
+	struct mtk_base_afe_dai *dai;
 	size_t num_dai_drivers = 0, dai_idx = 0;
-	int i;
-
-	if (!afe->sub_dais) {
-		dev_err(afe->dev, "%s(), sub_dais == NULL\n", __func__);
-		return -EINVAL;
-	}
 
 	/* calcualte total dai driver size */
-	for (i = 0; i < afe->num_sub_dais; i++) {
-		if (afe->sub_dais[i].dai_drivers &&
-		    afe->sub_dais[i].num_dai_drivers != 0)
-			num_dai_drivers += afe->sub_dais[i].num_dai_drivers;
+	list_for_each_entry(dai, &afe->sub_dais, list) {
+		num_dai_drivers += dai->num_dai_drivers;
 	}
 
 	dev_info(afe->dev, "%s(), num of dai %zd\n", __func__, num_dai_drivers);
@@ -42,19 +34,14 @@ int mtk_afe_combine_sub_dai(struct mtk_base_afe *afe)
 	if (!afe->dai_drivers)
 		return -ENOMEM;
 
-	for (i = 0; i < afe->num_sub_dais; i++) {
-		if (afe->sub_dais[i].dai_drivers &&
-		    afe->sub_dais[i].num_dai_drivers != 0) {
-			sub_dai_drivers = afe->sub_dais[i].dai_drivers;
-			/* dai driver */
-			memcpy(&afe->dai_drivers[dai_idx],
-			       sub_dai_drivers,
-			       afe->sub_dais[i].num_dai_drivers *
-			       sizeof(struct snd_soc_dai_driver));
-			dai_idx += afe->sub_dais[i].num_dai_drivers;
-		}
+	list_for_each_entry(dai, &afe->sub_dais, list) {
+		/* dai driver */
+		memcpy(&afe->dai_drivers[dai_idx],
+		       dai->dai_drivers,
+		       dai->num_dai_drivers *
+		       sizeof(struct snd_soc_dai_driver));
+		dai_idx += dai->num_dai_drivers;
 	}
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mtk_afe_combine_sub_dai);
@@ -62,28 +49,25 @@ EXPORT_SYMBOL_GPL(mtk_afe_combine_sub_dai);
 int mtk_afe_add_sub_dai_control(struct snd_soc_component *component)
 {
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
-	int i;
+	struct mtk_base_afe_dai *dai;
 
-	if (!afe->sub_dais) {
-		dev_err(afe->dev, "%s(), sub_dais == NULL\n", __func__);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < afe->num_sub_dais; i++) {
-		if (afe->sub_dais[i].controls)
+	list_for_each_entry(dai, &afe->sub_dais, list) {
+		if (dai->controls)
 			snd_soc_add_component_controls(component,
-				afe->sub_dais[i].controls,
-				afe->sub_dais[i].num_controls);
+						       dai->controls,
+						       dai->num_controls);
 
-		if (afe->sub_dais[i].dapm_widgets)
+		if (dai->dapm_widgets)
 			snd_soc_dapm_new_controls(&component->dapm,
-				afe->sub_dais[i].dapm_widgets,
-				afe->sub_dais[i].num_dapm_widgets);
-
-		if (afe->sub_dais[i].dapm_routes)
+						  dai->dapm_widgets,
+						  dai->num_dapm_widgets);
+	}
+	/* add routes after all widgets are added */
+	list_for_each_entry(dai, &afe->sub_dais, list) {
+		if (dai->dapm_routes)
 			snd_soc_dapm_add_routes(&component->dapm,
-				afe->sub_dais[i].dapm_routes,
-				afe->sub_dais[i].num_dapm_routes);
+						dai->dapm_routes,
+						dai->num_dapm_routes);
 	}
 
 	snd_soc_dapm_new_widgets(component->dapm.card);

@@ -61,7 +61,7 @@ static int tc_fill_actions(struct stmmac_tc_entry *entry,
 	struct stmmac_tc_entry *action_entry = entry;
 	const struct tc_action *act;
 	struct tcf_exts *exts;
-	LIST_HEAD(actions);
+	int i;
 
 	exts = cls->knode.exts;
 	if (!tcf_exts_has_actions(exts))
@@ -69,8 +69,7 @@ static int tc_fill_actions(struct stmmac_tc_entry *entry,
 	if (frag)
 		action_entry = frag;
 
-	tcf_exts_to_list(exts, &actions);
-	list_for_each_entry(act, &actions, list) {
+	tcf_exts_for_each_action(i, act, exts) {
 		/* Accept */
 		if (is_tcf_gact_ok(act)) {
 			action_entry->val.af = 1;
@@ -289,7 +288,67 @@ static int tc_init(struct stmmac_priv *priv)
 	return 0;
 }
 
+static int tc_setup_cbs(struct stmmac_priv *priv,
+			struct tc_cbs_qopt_offload *qopt)
+{
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	u32 queue = qopt->queue;
+	u32 ptr, speed_div;
+	u32 mode_to_use;
+	u64 value;
+	int ret;
+
+	/* Queue 0 is not AVB capable */
+	if (queue <= 0 || queue >= tx_queues_count)
+		return -EINVAL;
+	if (priv->speed != SPEED_100 && priv->speed != SPEED_1000)
+		return -EOPNOTSUPP;
+
+	mode_to_use = priv->plat->tx_queues_cfg[queue].mode_to_use;
+	if (mode_to_use == MTL_QUEUE_DCB && qopt->enable) {
+		ret = stmmac_dma_qmode(priv, priv->ioaddr, queue, MTL_QUEUE_AVB);
+		if (ret)
+			return ret;
+
+		priv->plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
+	} else if (!qopt->enable) {
+		return stmmac_dma_qmode(priv, priv->ioaddr, queue, MTL_QUEUE_DCB);
+	}
+
+	/* Port Transmit Rate and Speed Divider */
+	ptr = (priv->speed == SPEED_100) ? 4 : 8;
+	speed_div = (priv->speed == SPEED_100) ? 100000 : 1000000;
+
+	/* Final adjustments for HW */
+	value = div_s64(qopt->idleslope * 1024ll * ptr, speed_div);
+	priv->plat->tx_queues_cfg[queue].idle_slope = value & GENMASK(31, 0);
+
+	value = div_s64(-qopt->sendslope * 1024ll * ptr, speed_div);
+	priv->plat->tx_queues_cfg[queue].send_slope = value & GENMASK(31, 0);
+
+	value = qopt->hicredit * 1024ll * 8;
+	priv->plat->tx_queues_cfg[queue].high_credit = value & GENMASK(31, 0);
+
+	value = qopt->locredit * 1024ll * 8;
+	priv->plat->tx_queues_cfg[queue].low_credit = value & GENMASK(31, 0);
+
+	ret = stmmac_config_cbs(priv, priv->hw,
+				priv->plat->tx_queues_cfg[queue].send_slope,
+				priv->plat->tx_queues_cfg[queue].idle_slope,
+				priv->plat->tx_queues_cfg[queue].high_credit,
+				priv->plat->tx_queues_cfg[queue].low_credit,
+				queue);
+	if (ret)
+		return ret;
+
+	dev_info(priv->device, "CBS queue %d: send %d, idle %d, hi %d, lo %d\n",
+			queue, qopt->sendslope, qopt->idleslope,
+			qopt->hicredit, qopt->locredit);
+	return 0;
+}
+
 const struct stmmac_tc_ops dwmac510_tc_ops = {
 	.init = tc_init,
 	.setup_cls_u32 = tc_setup_cls_u32,
+	.setup_cbs = tc_setup_cbs,
 };

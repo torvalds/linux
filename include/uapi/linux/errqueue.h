@@ -20,11 +20,15 @@ struct sock_extended_err {
 #define SO_EE_ORIGIN_ICMP6	3
 #define SO_EE_ORIGIN_TXSTATUS	4
 #define SO_EE_ORIGIN_ZEROCOPY	5
+#define SO_EE_ORIGIN_TXTIME	6
 #define SO_EE_ORIGIN_TIMESTAMPING SO_EE_ORIGIN_TXSTATUS
 
 #define SO_EE_OFFENDER(ee)	((struct sockaddr*)((ee)+1))
 
 #define SO_EE_CODE_ZEROCOPY_COPIED	1
+
+#define SO_EE_CODE_TXTIME_INVALID_PARAM	1
+#define SO_EE_CODE_TXTIME_MISSED	2
 
 /**
  *	struct scm_timestamping - timestamps exposed through cmsg

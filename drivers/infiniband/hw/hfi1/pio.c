@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -86,6 +86,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 	unsigned long flags;
 	int write = 1;	/* write sendctrl back */
 	int flush = 0;	/* re-read sendctrl to make sure it is flushed */
+	int i;
 
 	spin_lock_irqsave(&dd->sendctrl_lock, flags);
 
@@ -95,9 +96,13 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 		reg |= SEND_CTRL_SEND_ENABLE_SMASK;
 	/* Fall through */
 	case PSC_DATA_VL_ENABLE:
+		mask = 0;
+		for (i = 0; i < ARRAY_SIZE(dd->vld); i++)
+			if (!dd->vld[i].mtu)
+				mask |= BIT_ULL(i);
 		/* Disallow sending on VLs not enabled */
-		mask = (((~0ull) << num_vls) & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
-				SEND_CTRL_UNSUPPORTED_VL_SHIFT;
+		mask = (mask & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
+			SEND_CTRL_UNSUPPORTED_VL_SHIFT;
 		reg = (reg & ~SEND_CTRL_UNSUPPORTED_VL_SMASK) | mask;
 		break;
 	case PSC_GLOBAL_DISABLE:
@@ -226,7 +231,7 @@ static const char *sc_type_name(int index)
 int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 {
 	struct mem_pool_info mem_pool_info[NUM_SC_POOLS] = { { 0 } };
-	int total_blocks = (dd->chip_pio_mem_size / PIO_BLOCK_SIZE) - 1;
+	int total_blocks = (chip_pio_mem_size(dd) / PIO_BLOCK_SIZE) - 1;
 	int total_contexts = 0;
 	int fixed_blocks;
 	int pool_blocks;
@@ -343,8 +348,8 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 				sc_type_name(i), count);
 			return -EINVAL;
 		}
-		if (total_contexts + count > dd->chip_send_contexts)
-			count = dd->chip_send_contexts - total_contexts;
+		if (total_contexts + count > chip_send_contexts(dd))
+			count = chip_send_contexts(dd) - total_contexts;
 
 		total_contexts += count;
 
@@ -507,7 +512,7 @@ static int sc_hw_alloc(struct hfi1_devdata *dd, int type, u32 *sw_index,
 		if (sci->type == type && sci->allocated == 0) {
 			sci->allocated = 1;
 			/* use a 1:1 mapping, but make them non-equal */
-			context = dd->chip_send_contexts - index - 1;
+			context = chip_send_contexts(dd) - index - 1;
 			dd->hw_to_sw[context] = index;
 			*sw_index = index;
 			*hw_context = context;
@@ -921,20 +926,18 @@ void sc_free(struct send_context *sc)
 void sc_disable(struct send_context *sc)
 {
 	u64 reg;
-	unsigned long flags;
 	struct pio_buf *pbuf;
 
 	if (!sc)
 		return;
 
 	/* do all steps, even if already disabled */
-	spin_lock_irqsave(&sc->alloc_lock, flags);
+	spin_lock_irq(&sc->alloc_lock);
 	reg = read_kctxt_csr(sc->dd, sc->hw_context, SC(CTRL));
 	reg &= ~SC(CTRL_CTXT_ENABLE_SMASK);
 	sc->flags &= ~SCF_ENABLED;
 	sc_wait_for_packet_egress(sc, 1);
 	write_kctxt_csr(sc->dd, sc->hw_context, SC(CTRL), reg);
-	spin_unlock_irqrestore(&sc->alloc_lock, flags);
 
 	/*
 	 * Flush any waiters.  Once the context is disabled,
@@ -944,7 +947,7 @@ void sc_disable(struct send_context *sc)
 	 * proceed with the flush.
 	 */
 	udelay(1);
-	spin_lock_irqsave(&sc->release_lock, flags);
+	spin_lock(&sc->release_lock);
 	if (sc->sr) {	/* this context has a shadow ring */
 		while (sc->sr_tail != sc->sr_head) {
 			pbuf = &sc->sr[sc->sr_tail].pbuf;
@@ -955,7 +958,8 @@ void sc_disable(struct send_context *sc)
 				sc->sr_tail = 0;
 		}
 	}
-	spin_unlock_irqrestore(&sc->release_lock, flags);
+	spin_unlock(&sc->release_lock);
+	spin_unlock_irq(&sc->alloc_lock);
 }
 
 /* return SendEgressCtxtStatus.PacketOccupancy */
@@ -1178,8 +1182,36 @@ void pio_kernel_unfreeze(struct hfi1_devdata *dd)
 		sc = dd->send_contexts[i].sc;
 		if (!sc || !(sc->flags & SCF_FROZEN) || sc->type == SC_USER)
 			continue;
+		if (sc->flags & SCF_LINK_DOWN)
+			continue;
 
 		sc_enable(sc);	/* will clear the sc frozen flag */
+	}
+}
+
+/**
+ * pio_kernel_linkup() - Re-enable send contexts after linkup event
+ * @dd: valid devive data
+ *
+ * When the link goes down, the freeze path is taken.  However, a link down
+ * event is different from a freeze because if the send context is re-enabled
+ * whowever is sending data will start sending data again, which will hang
+ * any QP that is sending data.
+ *
+ * The freeze path now looks at the type of event that occurs and takes this
+ * path for link down event.
+ */
+void pio_kernel_linkup(struct hfi1_devdata *dd)
+{
+	struct send_context *sc;
+	int i;
+
+	for (i = 0; i < dd->num_send_contexts; i++) {
+		sc = dd->send_contexts[i].sc;
+		if (!sc || !(sc->flags & SCF_LINK_DOWN) || sc->type == SC_USER)
+			continue;
+
+		sc_enable(sc);	/* will clear the sc link down flag */
 	}
 }
 
@@ -1382,11 +1414,10 @@ void sc_stop(struct send_context *sc, int flag)
 {
 	unsigned long flags;
 
-	/* mark the context */
-	sc->flags |= flag;
-
 	/* stop buffer allocations */
 	spin_lock_irqsave(&sc->alloc_lock, flags);
+	/* mark the context */
+	sc->flags |= flag;
 	sc->flags &= ~SCF_ENABLED;
 	spin_unlock_irqrestore(&sc->alloc_lock, flags);
 	wake_up(&sc->halt_wait);
@@ -1618,11 +1649,11 @@ static void sc_piobufavail(struct send_context *sc)
 	/* Wake up the most starved one first */
 	if (n)
 		hfi1_qp_wakeup(qps[max_idx],
-			       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
+			       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 	for (i = 0; i < n; i++)
 		if (i != max_idx)
 			hfi1_qp_wakeup(qps[i],
-				       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
+				       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 }
 
 /* translate a send credit update to a bit code of reasons */

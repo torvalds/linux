@@ -1078,6 +1078,25 @@ struct drm_dp_aux_msg {
 	size_t size;
 };
 
+struct cec_adapter;
+struct edid;
+
+/**
+ * struct drm_dp_aux_cec - DisplayPort CEC-Tunneling-over-AUX
+ * @lock: mutex protecting this struct
+ * @adap: the CEC adapter for CEC-Tunneling-over-AUX support.
+ * @name: name of the CEC adapter
+ * @parent: parent device of the CEC adapter
+ * @unregister_work: unregister the CEC adapter
+ */
+struct drm_dp_aux_cec {
+	struct mutex lock;
+	struct cec_adapter *adap;
+	const char *name;
+	struct device *parent;
+	struct delayed_work unregister_work;
+};
+
 /**
  * struct drm_dp_aux - DisplayPort AUX channel
  * @name: user-visible name of this AUX channel and the I2C-over-AUX adapter
@@ -1136,6 +1155,10 @@ struct drm_dp_aux {
 	 * @i2c_defer_count: Counts I2C DEFERs, used for DP validation.
 	 */
 	unsigned i2c_defer_count;
+	/**
+	 * @cec: struct containing fields used for CEC-Tunneling-over-AUX.
+	 */
+	struct drm_dp_aux_cec cec;
 };
 
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
@@ -1257,5 +1280,38 @@ drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
 {
 	return desc->quirks & BIT(quirk);
 }
+
+#ifdef CONFIG_DRM_DP_CEC
+void drm_dp_cec_irq(struct drm_dp_aux *aux);
+void drm_dp_cec_register_connector(struct drm_dp_aux *aux, const char *name,
+				   struct device *parent);
+void drm_dp_cec_unregister_connector(struct drm_dp_aux *aux);
+void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid);
+void drm_dp_cec_unset_edid(struct drm_dp_aux *aux);
+#else
+static inline void drm_dp_cec_irq(struct drm_dp_aux *aux)
+{
+}
+
+static inline void drm_dp_cec_register_connector(struct drm_dp_aux *aux,
+						 const char *name,
+						 struct device *parent)
+{
+}
+
+static inline void drm_dp_cec_unregister_connector(struct drm_dp_aux *aux)
+{
+}
+
+static inline void drm_dp_cec_set_edid(struct drm_dp_aux *aux,
+				       const struct edid *edid)
+{
+}
+
+static inline void drm_dp_cec_unset_edid(struct drm_dp_aux *aux)
+{
+}
+
+#endif
 
 #endif /* _DRM_DP_HELPER_H_ */

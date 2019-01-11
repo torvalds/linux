@@ -126,7 +126,6 @@ struct htb_class {
 
 	union {
 		struct htb_class_leaf {
-			struct list_head drop_list;
 			int		deficit[TC_HTB_MAXDEPTH];
 			struct Qdisc	*q;
 		} leaf;
@@ -171,7 +170,6 @@ struct htb_sched {
 	struct qdisc_watchdog	watchdog;
 
 	s64			now;	/* cached dequeue time */
-	struct list_head	drops[TC_HTB_NUMPRIO];/* active leaves (for drops) */
 
 	/* time of nearest event per level (row) */
 	s64			near_ev_cache[TC_HTB_MAXDEPTH];
@@ -562,8 +560,6 @@ static inline void htb_activate(struct htb_sched *q, struct htb_class *cl)
 	if (!cl->prio_activity) {
 		cl->prio_activity = 1 << cl->prio;
 		htb_activate_prios(q, cl);
-		list_add_tail(&cl->un.leaf.drop_list,
-			      q->drops + cl->prio);
 	}
 }
 
@@ -579,7 +575,6 @@ static inline void htb_deactivate(struct htb_sched *q, struct htb_class *cl)
 
 	htb_deactivate_prios(q, cl);
 	cl->prio_activity = 0;
-	list_del_init(&cl->un.leaf.drop_list);
 }
 
 static void htb_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
@@ -981,7 +976,6 @@ static void htb_reset(struct Qdisc *sch)
 			else {
 				if (cl->un.leaf.q)
 					qdisc_reset(cl->un.leaf.q);
-				INIT_LIST_HEAD(&cl->un.leaf.drop_list);
 			}
 			cl->prio_activity = 0;
 			cl->cmode = HTB_CAN_SEND;
@@ -993,8 +987,6 @@ static void htb_reset(struct Qdisc *sch)
 	sch->qstats.backlog = 0;
 	memset(q->hlevel, 0, sizeof(q->hlevel));
 	memset(q->row_mask, 0, sizeof(q->row_mask));
-	for (i = 0; i < TC_HTB_NUMPRIO; i++)
-		INIT_LIST_HEAD(q->drops + i);
 }
 
 static const struct nla_policy htb_policy[TCA_HTB_MAX + 1] = {
@@ -1024,7 +1016,6 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_HTB_MAX + 1];
 	struct tc_htb_glob *gopt;
 	int err;
-	int i;
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 	INIT_WORK(&q->work, htb_work_func);
@@ -1050,8 +1041,6 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	err = qdisc_class_hash_init(&q->clhash);
 	if (err < 0)
 		return err;
-	for (i = 0; i < TC_HTB_NUMPRIO; i++)
-		INIT_LIST_HEAD(q->drops + i);
 
 	qdisc_skb_head_init(&q->direct_queue);
 
@@ -1224,7 +1213,6 @@ static void htb_parent_to_leaf(struct htb_sched *q, struct htb_class *cl,
 
 	parent->level = 0;
 	memset(&parent->un.inner, 0, sizeof(parent->un.inner));
-	INIT_LIST_HEAD(&parent->un.leaf.drop_list);
 	parent->un.leaf.q = new_q ? new_q : &noop_qdisc;
 	parent->tokens = parent->buffer;
 	parent->ctokens = parent->cbuffer;
@@ -1418,7 +1406,6 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		}
 
 		cl->children = 0;
-		INIT_LIST_HEAD(&cl->un.leaf.drop_list);
 		RB_CLEAR_NODE(&cl->pq_node);
 
 		for (prio = 0; prio < TC_HTB_NUMPRIO; prio++)

@@ -63,7 +63,7 @@ pl111_mode_valid(struct drm_crtc *crtc,
 	 * We use the pixelclock to also account for interlaced modes, the
 	 * resulting bandwidth is in bytes per second.
 	 */
-	bw = mode->clock * 1000; /* In Hz */
+	bw = mode->clock * 1000ULL; /* In Hz */
 	bw = bw * mode->hdisplay * mode->vdisplay * cpp;
 	bw = div_u64(bw, mode->htotal * mode->vtotal);
 
@@ -223,48 +223,84 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 
 	/* Hard-code TFT panel */
 	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
+	/* On the ST Micro variant, assume all 24 bits are connected */
+	if (priv->variant->st_bitmux_control)
+		cntl |= CNTL_ST_CDWID_24;
 
-	/* Note that the the hardware's format reader takes 'r' from
+	/*
+	 * Note that the the ARM hardware's format reader takes 'r' from
 	 * the low bit, while DRM formats list channels from high bit
-	 * to low bit as you read left to right.
+	 * to low bit as you read left to right. The ST Micro version of
+	 * the PL110 (LCDC) however uses the standard DRM format.
 	 */
 	switch (fb->format->format) {
+	case DRM_FORMAT_BGR888:
+		/* Only supported on the ST Micro variant */
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_LCDBPP24_PACKED | CNTL_BGR;
+		break;
+	case DRM_FORMAT_RGB888:
+		/* Only supported on the ST Micro variant */
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_LCDBPP24_PACKED;
+		break;
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_XBGR8888:
-		cntl |= CNTL_LCDBPP24;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP24 | CNTL_BGR;
+		else
+			cntl |= CNTL_LCDBPP24;
 		break;
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB8888:
-		cntl |= CNTL_LCDBPP24 | CNTL_BGR;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP24;
+		else
+			cntl |= CNTL_LCDBPP24 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_BGR565:
 		if (priv->variant->is_pl110)
 			cntl |= CNTL_LCDBPP16;
+		else if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP16 | CNTL_ST_1XBPP_565 | CNTL_BGR;
 		else
 			cntl |= CNTL_LCDBPP16_565;
 		break;
 	case DRM_FORMAT_RGB565:
 		if (priv->variant->is_pl110)
-			cntl |= CNTL_LCDBPP16;
+			cntl |= CNTL_LCDBPP16 | CNTL_BGR;
+		else if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP16 | CNTL_ST_1XBPP_565;
 		else
-			cntl |= CNTL_LCDBPP16_565;
-		cntl |= CNTL_BGR;
+			cntl |= CNTL_LCDBPP16_565 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_ABGR1555:
 	case DRM_FORMAT_XBGR1555:
 		cntl |= CNTL_LCDBPP16;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_5551 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_ARGB1555:
 	case DRM_FORMAT_XRGB1555:
-		cntl |= CNTL_LCDBPP16 | CNTL_BGR;
+		cntl |= CNTL_LCDBPP16;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_5551;
+		else
+			cntl |= CNTL_BGR;
 		break;
 	case DRM_FORMAT_ABGR4444:
 	case DRM_FORMAT_XBGR4444:
 		cntl |= CNTL_LCDBPP16_444;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_444 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_ARGB4444:
 	case DRM_FORMAT_XRGB4444:
-		cntl |= CNTL_LCDBPP16_444 | CNTL_BGR;
+		cntl |= CNTL_LCDBPP16_444;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_444;
+		else
+			cntl |= CNTL_BGR;
 		break;
 	default:
 		WARN_ONCE(true, "Unknown FB format 0x%08x\n",

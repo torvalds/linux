@@ -3307,9 +3307,9 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
 	case CX88_BOARD_PROLINK_PV_8000GT:
 		cx_write(MO_GP2_IO, 0xcf7);
-		mdelay(50);
+		msleep(50);
 		cx_write(MO_GP2_IO, 0xef5);
-		mdelay(50);
+		msleep(50);
 		cx_write(MO_GP2_IO, 0xcf7);
 		usleep_range(10000, 20000);
 		break;

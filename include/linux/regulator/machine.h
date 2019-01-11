@@ -48,9 +48,9 @@ struct regulator;
  * DISABLE_IN_SUSPEND	- turn off regulator in suspend states
  * ENABLE_IN_SUSPEND	- keep regulator on in suspend states
  */
-#define DO_NOTHING_IN_SUSPEND	(-1)
-#define DISABLE_IN_SUSPEND	0
-#define ENABLE_IN_SUSPEND	1
+#define DO_NOTHING_IN_SUSPEND	0
+#define DISABLE_IN_SUSPEND	1
+#define ENABLE_IN_SUSPEND	2
 
 /* Regulator active discharge flags */
 enum regulator_active_discharge {

@@ -51,6 +51,7 @@
 
 static const struct iwl_base_params iwl1000_base_params = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.max_tfd_queue_size = 256,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.pll_cfg = true,
 	.max_ll_items = OTP_MAX_LL_ITEMS_1000,

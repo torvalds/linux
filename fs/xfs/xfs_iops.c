@@ -26,6 +26,7 @@
 #include "xfs_dir2.h"
 #include "xfs_trans_space.h"
 #include "xfs_iomap.h"
+#include "xfs_defer.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
@@ -208,7 +209,7 @@ xfs_generic_create(
 	xfs_finish_inode_setup(ip);
 	if (!tmpfile)
 		xfs_cleanup_inode(dir, inode, dentry);
-	iput(inode);
+	xfs_irele(ip);
 	goto out_free_acl;
 }
 
@@ -390,7 +391,7 @@ xfs_vn_symlink(
  out_cleanup_inode:
 	xfs_finish_inode_setup(cip);
 	xfs_cleanup_inode(dir, inode, dentry);
-	iput(inode);
+	xfs_irele(cip);
  out:
 	return error;
 }
@@ -470,8 +471,18 @@ xfs_vn_get_link_inline(
 	struct inode		*inode,
 	struct delayed_call	*done)
 {
+	char			*link;
+
 	ASSERT(XFS_I(inode)->i_df.if_flags & XFS_IFINLINE);
-	return XFS_I(inode)->i_df.if_u1.if_data;
+
+	/*
+	 * The VFS crashes on a NULL pointer, so return -EFSCORRUPTED if
+	 * if_data is junk.
+	 */
+	link = XFS_I(inode)->i_df.if_u1.if_data;
+	if (!link)
+		return ERR_PTR(-EFSCORRUPTED);
+	return link;
 }
 
 STATIC int
@@ -1253,7 +1264,7 @@ xfs_setup_inode(
 
 	inode_sb_list_add(inode);
 	/* make the inode look hashed for the writeback code */
-	hlist_add_fake(&inode->i_hash);
+	inode_fake_hash(inode);
 
 	inode->i_uid    = xfs_uid_to_kuid(ip->i_d.di_uid);
 	inode->i_gid    = xfs_gid_to_kgid(ip->i_d.di_gid);

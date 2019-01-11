@@ -198,12 +198,10 @@ pgm_check_entry:
 
 	/* Suspend CPU not available -> panic */
 	larl	%r15,init_thread_union
-	ahi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER)
+	aghi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER)
+	aghi	%r15,-STACK_FRAME_OVERHEAD
 	larl	%r2,.Lpanic_string
-	lghi	%r1,0
-	sam31
-	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE
-	brasl	%r14,sclp_early_printk
+	brasl	%r14,sclp_early_printk_force
 	larl	%r3,.Ldisabled_wait_31
 	lpsw	0(%r3)
 4:

@@ -4,6 +4,7 @@ comment "Linux Kernel Configuration for Hexagon"
 
 config HEXAGON
 	def_bool y
+	select ARCH_NO_PREEMPT
 	select HAVE_OPROFILE
 	# Other pending projects/to-do items.
 	# select HAVE_REGS_AND_STACK_ACCESS_API
@@ -146,26 +147,6 @@ config PAGE_SIZE_256KB
 
 endchoice
 
-source "mm/Kconfig"
-
 source "kernel/Kconfig.hz"
 
-endmenu
-
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
-source "drivers/Kconfig"
-source "fs/Kconfig"
-
-menu "Executable File Formats"
-source "fs/Kconfig.binfmt"
-endmenu
-
-source "net/Kconfig"
-source "security/Kconfig"
-source "crypto/Kconfig"
-source "lib/Kconfig"
-
-menu "Kernel hacking"
-source "lib/Kconfig.debug"
 endmenu

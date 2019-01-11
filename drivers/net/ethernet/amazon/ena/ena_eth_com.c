@@ -51,6 +51,11 @@ static inline struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	if (desc_phase != expected_phase)
 		return NULL;
 
+	/* Make sure we read the rest of the descriptor after the phase bit
+	 * has been read
+	 */
+	dma_rmb();
+
 	return cdesc;
 }
 
@@ -240,11 +245,11 @@ static inline void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_SHIFT;
 	ena_rx_ctx->l3_csum_err =
-		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT;
+		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK) >>
+		ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT);
 	ena_rx_ctx->l4_csum_err =
-		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT;
+		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK) >>
+		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT);
 	ena_rx_ctx->hash = cdesc->hash;
 	ena_rx_ctx->frag =
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
@@ -493,6 +498,7 @@ int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
 	if (cdesc_phase != expected_phase)
 		return -EAGAIN;
 
+	dma_rmb();
 	if (unlikely(cdesc->req_id >= io_cq->q_depth)) {
 		pr_err("Invalid req id %d\n", cdesc->req_id);
 		return -EINVAL;

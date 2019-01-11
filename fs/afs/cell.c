@@ -514,6 +514,8 @@ static int afs_alloc_anon_key(struct afs_cell *cell)
  */
 static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 {
+	struct hlist_node **p;
+	struct afs_cell *pcell;
 	int ret;
 
 	if (!cell->anonymous_key) {
@@ -534,7 +536,18 @@ static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 		return ret;
 
 	mutex_lock(&net->proc_cells_lock);
-	list_add_tail(&cell->proc_link, &net->proc_cells);
+	for (p = &net->proc_cells.first; *p; p = &(*p)->next) {
+		pcell = hlist_entry(*p, struct afs_cell, proc_link);
+		if (strcmp(cell->name, pcell->name) < 0)
+			break;
+	}
+
+	cell->proc_link.pprev = p;
+	cell->proc_link.next = *p;
+	rcu_assign_pointer(*p, &cell->proc_link.next);
+	if (cell->proc_link.next)
+		cell->proc_link.next->pprev = &cell->proc_link.next;
+
 	afs_dynroot_mkdir(net, cell);
 	mutex_unlock(&net->proc_cells_lock);
 	return 0;
@@ -550,7 +563,7 @@ static void afs_deactivate_cell(struct afs_net *net, struct afs_cell *cell)
 	afs_proc_cell_remove(cell);
 
 	mutex_lock(&net->proc_cells_lock);
-	list_del_init(&cell->proc_link);
+	hlist_del_rcu(&cell->proc_link);
 	afs_dynroot_rmdir(net, cell);
 	mutex_unlock(&net->proc_cells_lock);
 

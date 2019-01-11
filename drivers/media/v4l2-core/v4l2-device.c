@@ -267,7 +267,8 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 
 			link = media_create_intf_link(&sd->entity,
 						      &vdev->intf_devnode->intf,
-						      MEDIA_LNK_FL_ENABLED);
+						      MEDIA_LNK_FL_ENABLED |
+						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link) {
 				err = -ENOMEM;
 				goto clean_up;

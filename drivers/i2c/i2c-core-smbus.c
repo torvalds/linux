@@ -463,7 +463,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			msg[num-1].len++;
 	}
 
-	status = i2c_transfer(adapter, msg, num);
+	status = __i2c_transfer(adapter, msg, num);
 	if (status < 0)
 		goto cleanup;
 	if (status != num) {
@@ -524,9 +524,24 @@ cleanup:
  * This executes an SMBus protocol operation, and returns a negative
  * errno code else zero on success.
  */
-s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
-		   char read_write, u8 command, int protocol,
-		   union i2c_smbus_data *data)
+s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
+		   unsigned short flags, char read_write,
+		   u8 command, int protocol, union i2c_smbus_data *data)
+{
+	s32 res;
+
+	i2c_lock_bus(adapter, I2C_LOCK_SEGMENT);
+	res = __i2c_smbus_xfer(adapter, addr, flags, read_write,
+			       command, protocol, data);
+	i2c_unlock_bus(adapter, I2C_LOCK_SEGMENT);
+
+	return res;
+}
+EXPORT_SYMBOL(i2c_smbus_xfer);
+
+s32 __i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
+		     unsigned short flags, char read_write,
+		     u8 command, int protocol, union i2c_smbus_data *data)
 {
 	unsigned long orig_jiffies;
 	int try;
@@ -543,8 +558,6 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 	flags &= I2C_M_TEN | I2C_CLIENT_PEC | I2C_CLIENT_SCCB;
 
 	if (adapter->algo->smbus_xfer) {
-		i2c_lock_bus(adapter, I2C_LOCK_SEGMENT);
-
 		/* Retry automatically on arbitration loss */
 		orig_jiffies = jiffies;
 		for (res = 0, try = 0; try <= adapter->retries; try++) {
@@ -557,7 +570,6 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 				       orig_jiffies + adapter->timeout))
 				break;
 		}
-		i2c_unlock_bus(adapter, I2C_LOCK_SEGMENT);
 
 		if (res != -EOPNOTSUPP || !adapter->algo->master_xfer)
 			goto trace;
@@ -579,7 +591,7 @@ trace:
 
 	return res;
 }
-EXPORT_SYMBOL(i2c_smbus_xfer);
+EXPORT_SYMBOL(__i2c_smbus_xfer);
 
 /**
  * i2c_smbus_read_i2c_block_data_or_emulated - read block or emulate

@@ -156,6 +156,100 @@
 		};
 	};
 
+	/* This is a RealTek RTL8366RB switch and PHY using SMI over GPIO */
+	switch {
+		compatible = "realtek,rtl8366rb";
+		/* 22 = MDIO (has input reads), 21 = MDC (clock, output only) */
+		mdc-gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
+		mdio-gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+		realtek,disable-leds;
+
+		switch_intc: interrupt-controller {
+			/* GPIO 15 provides the interrupt */
+			interrupt-parent = <&gpio0>;
+			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan0";
+				phy-handle = <&phy0>;
+			};
+			port@1 {
+				reg = <1>;
+				label = "lan1";
+				phy-handle = <&phy1>;
+			};
+			port@2 {
+				reg = <2>;
+				label = "lan2";
+				phy-handle = <&phy2>;
+			};
+			port@3 {
+				reg = <3>;
+				label = "lan3";
+				phy-handle = <&phy3>;
+			};
+			port@4 {
+				reg = <4>;
+				label = "wan";
+				phy-handle = <&phy4>;
+			};
+			rtl8366rb_cpu_port: port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&gmac0>;
+				phy-mode = "rgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+
+		};
+
+		mdio {
+			compatible = "realtek,smi-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy0: phy@0 {
+				reg = <0>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <0>;
+			};
+			phy1: phy@1 {
+				reg = <1>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <1>;
+			};
+			phy2: phy@2 {
+				reg = <2>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <2>;
+			};
+			phy3: phy@3 {
+				reg = <3>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <3>;
+			};
+			phy4: phy@4 {
+				reg = <4>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <12>;
+			};
+		};
+	};
+
 	soc {
 		flash@30000000 {
 			/*
@@ -223,10 +317,12 @@
 				 * gpio0bgrp cover line 7 used by WPS LED
 				 * gpio0cgrp cover line 8, 13 used by keys
 				 *           and 11, 12 used by the HD LEDs
+				 *           and line 14, 15 used by RTL8366
+				 *           RESET and phy ready
 				 * gpio0egrp cover line 16 used by VDISP
 				 * gpio0fgrp cover line 17 used by TK IRQ
 				 * gpio0ggrp cover line 20 used by panel CS
-				 * gpio0hgrp cover line 21,22 used by RTL8366RB
+				 * gpio0hgrp cover line 21,22 used by RTL8366RB MDIO
 				 */
 				gpio0_default_pins: pinctrl-gpio0 {
 					mux {
@@ -248,6 +344,32 @@
 					mux {
 						function = "gpio1";
 						groups = "gpio1bgrp";
+					};
+				};
+				pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp";
+					};
+					conf0 {
+						pins = "V8 GMAC0 RXDV", "T10 GMAC1 RXDV",
+						     "Y7 GMAC0 RXC", "Y11 GMAC1 RXC",
+						     "T8 GMAC0 TXEN", "W11 GMAC1 TXEN",
+						     "U8 GMAC0 TXC", "V11 GMAC1 TXC",
+						     "W8 GMAC0 RXD0", "V9 GMAC0 RXD1",
+						     "Y8 GMAC0 RXD2", "U9 GMAC0 RXD3",
+						     "T7 GMAC0 TXD0", "U6 GMAC0 TXD1",
+						     "V7 GMAC0 TXD2", "U7 GMAC0 TXD3",
+						     "Y12 GMAC1 RXD0", "V12 GMAC1 RXD1",
+						     "T11 GMAC1 RXD2", "W12 GMAC1 RXD3",
+						     "U10 GMAC1 TXD0", "Y10 GMAC1 TXD1",
+						     "W10 GMAC1 TXD2", "T9 GMAC1 TXD3";
+						skew-delay = <7>;
+					};
+					/* Set up drive strength on GMAC0 to 16 mA */
+					conf1 {
+						groups = "gmii_gmac0_grp";
+						drive-strength = <16>;
 					};
 				};
 			};
@@ -289,6 +411,22 @@
 				<0x6000 0 0 2 &pci_intc 0>,
 				<0x6000 0 0 3 &pci_intc 1>,
 				<0x6000 0 0 4 &pci_intc 2>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
 		};
 
 		ata@63000000 {

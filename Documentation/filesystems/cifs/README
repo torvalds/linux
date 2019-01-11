@@ -603,8 +603,7 @@ DebugData		Displays information about active CIFS sessions and
 			shares, features enabled as well as the cifs.ko
 			version.
 Stats			Lists summary resource usage information as well as per
-			share statistics, if CONFIG_CIFS_STATS in enabled
-			in the kernel configuration.
+			share statistics.
 
 Configuration pseudo-files:
 SecurityFlags		Flags which control security negotiation and
@@ -687,23 +686,22 @@ cifsFYI functions as a bit mask. Setting it to 1 enables additional kernel
 logging of various informational messages.  2 enables logging of non-zero
 SMB return codes while 4 enables logging of requests that take longer
 than one second to complete (except for byte range lock requests). 
-Setting it to 4 requires defining CONFIG_CIFS_STATS2 manually in the
-source code (typically by setting it in the beginning of cifsglob.h),
-and setting it to seven enables all three.  Finally, tracing
+Setting it to 4 requires CONFIG_CIFS_STATS2 to be set in kernel configuration
+(.config). Setting it to seven enables all three.  Finally, tracing
 the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
 
-Per share (per client mount) statistics are available in /proc/fs/cifs/Stats
-if the kernel was configured with cifs statistics enabled.  The statistics
-represent the number of successful (ie non-zero return code from the server) 
-SMB responses to some of the more common commands (open, delete, mkdir etc.).
+Per share (per client mount) statistics are available in /proc/fs/cifs/Stats.
+Additional information is available if CONFIG_CIFS_STATS2 is enabled in the
+kernel configuration (.config).  The statistics returned include counters which
+represent the number of attempted and failed (ie non-zero return code from the
+server) SMB3 (or cifs) requests grouped by request type (read, write, close etc.).
 Also recorded is the total bytes read and bytes written to the server for
 that share.  Note that due to client caching effects this can be less than the
 number of bytes read and written by the application running on the client.
-The statistics for the number of total SMBs and oplock breaks are different in
-that they represent all for that share, not just those for which the server
-returned success.
+Statistics can be reset to zero by "echo 0 > /proc/fs/cifs/Stats" which may be
+useful if comparing performance of two different scenarios.
 	
 Also note that "cat /proc/fs/cifs/DebugData" will display information about
 the active sessions and the shares that are mounted.

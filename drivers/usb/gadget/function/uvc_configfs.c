@@ -31,7 +31,11 @@ static struct configfs_attribute prefix##attr_##cname = { \
 	.show		= prefix##cname##_show,				\
 }
 
-static inline struct f_uvc_opts *to_f_uvc_opts(struct config_item *item);
+static inline struct f_uvc_opts *to_f_uvc_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_uvc_opts,
+			    func_inst.group);
+}
 
 /* control/header/<NAME> */
 DECLARE_UVC_HEADER_DESCRIPTOR(1);
@@ -2104,12 +2108,6 @@ static struct uvcg_streaming_grp {
 static const struct config_item_type uvcg_streaming_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
-
-static inline struct f_uvc_opts *to_f_uvc_opts(struct config_item *item)
-{
-	return container_of(to_config_group(item), struct f_uvc_opts,
-			    func_inst.group);
-}
 
 static void uvc_attr_release(struct config_item *item)
 {

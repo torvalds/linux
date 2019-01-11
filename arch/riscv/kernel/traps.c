@@ -138,7 +138,6 @@ asmlinkage void do_trap_break(struct pt_regs *regs)
 #endif /* CONFIG_GENERIC_BUG */
 
 	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)(regs->sepc), current);
-	regs->sepc += 0x4;
 }
 
 #ifdef CONFIG_GENERIC_BUG

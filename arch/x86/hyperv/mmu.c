@@ -9,6 +9,7 @@
 #include <asm/mshyperv.h>
 #include <asm/msr.h>
 #include <asm/tlbflush.h>
+#include <asm/tlb.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/hyperv.h>
@@ -16,6 +17,8 @@
 /* Each gva in gva_list encodes up to 4096 pages to flush */
 #define HV_TLB_FLUSH_UNIT (4096 * PAGE_SIZE)
 
+static u64 hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
+				      const struct flush_tlb_info *info);
 
 /*
  * Fills in gva_list starting from offset. Returns the number of items added.
@@ -93,10 +96,29 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 	if (cpumask_equal(cpus, cpu_present_mask)) {
 		flush->flags |= HV_FLUSH_ALL_PROCESSORS;
 	} else {
+		/*
+		 * From the supplied CPU set we need to figure out if we can get
+		 * away with cheaper HVCALL_FLUSH_VIRTUAL_ADDRESS_{LIST,SPACE}
+		 * hypercalls. This is possible when the highest VP number in
+		 * the set is < 64. As VP numbers are usually in ascending order
+		 * and match Linux CPU ids, here is an optimization: we check
+		 * the VP number for the highest bit in the supplied set first
+		 * so we can quickly find out if using *_EX hypercalls is a
+		 * must. We will also check all VP numbers when walking the
+		 * supplied CPU set to remain correct in all cases.
+		 */
+		if (hv_cpu_number_to_vp_number(cpumask_last(cpus)) >= 64)
+			goto do_ex_hypercall;
+
 		for_each_cpu(cpu, cpus) {
 			vcpu = hv_cpu_number_to_vp_number(cpu);
-			if (vcpu >= 64)
+			if (vcpu == VP_INVAL) {
+				local_irq_restore(flags);
 				goto do_native;
+			}
+
+			if (vcpu >= 64)
+				goto do_ex_hypercall;
 
 			__set_bit(vcpu, (unsigned long *)
 				  &flush->processor_mask);
@@ -123,7 +145,12 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 		status = hv_do_rep_hypercall(HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST,
 					     gva_n, 0, flush, NULL);
 	}
+	goto check_status;
 
+do_ex_hypercall:
+	status = hyperv_flush_tlb_others_ex(cpus, info);
+
+check_status:
 	local_irq_restore(flags);
 
 	if (!(status & HV_HYPERCALL_RESULT_MASK))
@@ -132,34 +159,21 @@ do_native:
 	native_flush_tlb_others(cpus, info);
 }
 
-static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
-				       const struct flush_tlb_info *info)
+static u64 hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
+				      const struct flush_tlb_info *info)
 {
 	int nr_bank = 0, max_gvas, gva_n;
 	struct hv_tlb_flush_ex **flush_pcpu;
 	struct hv_tlb_flush_ex *flush;
-	u64 status = U64_MAX;
-	unsigned long flags;
+	u64 status;
 
-	trace_hyperv_mmu_flush_tlb_others(cpus, info);
-
-	if (!hv_hypercall_pg)
-		goto do_native;
-
-	if (cpumask_empty(cpus))
-		return;
-
-	local_irq_save(flags);
+	if (!(ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
+		return U64_MAX;
 
 	flush_pcpu = (struct hv_tlb_flush_ex **)
 		     this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	flush = *flush_pcpu;
-
-	if (unlikely(!flush)) {
-		local_irq_restore(flags);
-		goto do_native;
-	}
 
 	if (info->mm) {
 		/*
@@ -176,15 +190,10 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 
 	flush->hv_vp_set.valid_bank_mask = 0;
 
-	if (!cpumask_equal(cpus, cpu_present_mask)) {
-		flush->hv_vp_set.format = HV_GENERIC_SET_SPARSE_4K;
-		nr_bank = cpumask_to_vpset(&(flush->hv_vp_set), cpus);
-	}
-
-	if (!nr_bank) {
-		flush->hv_vp_set.format = HV_GENERIC_SET_ALL;
-		flush->flags |= HV_FLUSH_ALL_PROCESSORS;
-	}
+	flush->hv_vp_set.format = HV_GENERIC_SET_SPARSE_4K;
+	nr_bank = cpumask_to_vpset(&(flush->hv_vp_set), cpus);
+	if (nr_bank < 0)
+		return U64_MAX;
 
 	/*
 	 * We can flush not more than max_gvas with one hypercall. Flush the
@@ -213,12 +222,7 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 			gva_n, nr_bank, flush, NULL);
 	}
 
-	local_irq_restore(flags);
-
-	if (!(status & HV_HYPERCALL_RESULT_MASK))
-		return;
-do_native:
-	native_flush_tlb_others(cpus, info);
+	return status;
 }
 
 void hyperv_setup_mmu_ops(void)
@@ -226,11 +230,7 @@ void hyperv_setup_mmu_ops(void)
 	if (!(ms_hyperv.hints & HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED))
 		return;
 
-	if (!(ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED)) {
-		pr_info("Using hypercall for remote TLB flush\n");
-		pv_mmu_ops.flush_tlb_others = hyperv_flush_tlb_others;
-	} else {
-		pr_info("Using ext hypercall for remote TLB flush\n");
-		pv_mmu_ops.flush_tlb_others = hyperv_flush_tlb_others_ex;
-	}
+	pr_info("Using hypercall for remote TLB flush\n");
+	pv_mmu_ops.flush_tlb_others = hyperv_flush_tlb_others;
+	pv_mmu_ops.tlb_remove_table = tlb_remove_table;
 }

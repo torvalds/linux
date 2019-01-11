@@ -6,6 +6,8 @@
 
 config OPENRISC
 	def_bool y
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select DMA_NONCOHERENT_OPS
 	select OF
 	select OF_EARLY_FLATTREE
 	select IRQ_DOMAIN
@@ -27,7 +29,6 @@ config OPENRISC
 	select GENERIC_STRNLEN_USER
 	select GENERIC_SMP_IDLE_THREAD
 	select MODULES_USE_ELF_RELA
-	select MULTI_IRQ_HANDLER
 	select HAVE_DEBUG_STACKOVERFLOW
 	select OR1K_PIC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
@@ -36,6 +37,7 @@ config OPENRISC
 	select ARCH_USE_QUEUED_RWLOCKS
 	select OMPIC if SMP
 	select ARCH_WANT_FRAME_POINTERS
+	select GENERIC_IRQ_MULTI_HANDLER
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -68,13 +70,6 @@ config STACKTRACE_SUPPORT
 
 config LOCKDEP_SUPPORT
 	def_bool  y
-
-config MULTI_IRQ_HANDLER
-	def_bool y
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -147,8 +142,6 @@ config SMP
 	  If you don't know what to do here, say N.
 
 source kernel/Kconfig.hz
-source kernel/Kconfig.preempt
-source "mm/Kconfig"
 
 config OPENRISC_NO_SPR_SR_DSX
 	bool "use SPR_SR_DSX software emulation" if OR1K_1200
@@ -204,29 +197,5 @@ config OPENRISC_ESR_EXCEPTION_BUG_CHECK
 	  Say N if you are unsure.
 
 endmenu
-
-endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
 
 endmenu

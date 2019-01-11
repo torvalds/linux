@@ -673,6 +673,8 @@ err:
 static const struct dev_pm_ops exynos5433_decon_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos5433_decon_suspend, exynos5433_decon_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
 };
 
 static const struct of_device_id exynos5433_decon_driver_dt_match[] = {

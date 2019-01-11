@@ -32,14 +32,6 @@ void __init shmobile_init_delay(void)
 	for_each_child_of_node(cpus, np) {
 		u32 freq;
 
-		if (IS_ENABLED(CONFIG_ARM_ARCH_TIMER) &&
-		    (of_device_is_compatible(np, "arm,cortex-a7") ||
-		     of_device_is_compatible(np, "arm,cortex-a15"))) {
-			of_node_put(np);
-			of_node_put(cpus);
-			return;
-		}
-
 		if (!of_property_read_u32(np, "clock-frequency", &freq))
 			max_freq = max(max_freq, freq);
 	}

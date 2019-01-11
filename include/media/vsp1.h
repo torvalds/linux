@@ -25,6 +25,7 @@ int vsp1_du_init(struct device *dev);
  * struct vsp1_du_lif_config - VSP LIF configuration
  * @width: output frame width
  * @height: output frame height
+ * @interlaced: true for interlaced pipelines
  * @callback: frame completion callback function (optional). When a callback
  *	      is provided, the VSP driver guarantees that it will be called once
  *	      and only once for each vsp1_du_atomic_flush() call.
@@ -33,6 +34,7 @@ int vsp1_du_init(struct device *dev);
 struct vsp1_du_lif_config {
 	unsigned int width;
 	unsigned int height;
+	bool interlaced;
 
 	void (*callback)(void *data, bool completed, u32 crc);
 	void *callback_data;

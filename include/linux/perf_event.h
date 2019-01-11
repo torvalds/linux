@@ -490,7 +490,7 @@ struct perf_addr_filters_head {
 };
 
 /**
- * enum perf_event_state - the states of a event
+ * enum perf_event_state - the states of an event:
  */
 enum perf_event_state {
 	PERF_EVENT_STATE_DEAD		= -4,

@@ -20,13 +20,10 @@
 
 #include "cgroup_helpers.h"
 #include "bpf_rlimit.h"
+#include "bpf_util.h"
 
 #ifndef ENOTSUPP
 # define ENOTSUPP 524
-#endif
-
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
 #define CG_PATH	"/foo"
@@ -998,8 +995,9 @@ int init_pktinfo(int domain, struct cmsghdr *cmsg)
 	return 0;
 }
 
-static int sendmsg_to_server(const struct sockaddr_storage *addr,
-			     socklen_t addr_len, int set_cmsg, int *syscall_err)
+static int sendmsg_to_server(int type, const struct sockaddr_storage *addr,
+			     socklen_t addr_len, int set_cmsg, int flags,
+			     int *syscall_err)
 {
 	union {
 		char buf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
@@ -1022,7 +1020,7 @@ static int sendmsg_to_server(const struct sockaddr_storage *addr,
 		goto err;
 	}
 
-	fd = socket(domain, SOCK_DGRAM, 0);
+	fd = socket(domain, type, 0);
 	if (fd == -1) {
 		log_err("Failed to create client socket");
 		goto err;
@@ -1052,7 +1050,7 @@ static int sendmsg_to_server(const struct sockaddr_storage *addr,
 		}
 	}
 
-	if (sendmsg(fd, &hdr, 0) != sizeof(data)) {
+	if (sendmsg(fd, &hdr, flags) != sizeof(data)) {
 		log_err("Fail to send message to server");
 		*syscall_err = errno;
 		goto err;
@@ -1064,6 +1062,15 @@ err:
 	fd = -1;
 out:
 	return fd;
+}
+
+static int fastconnect_to_server(const struct sockaddr_storage *addr,
+				 socklen_t addr_len)
+{
+	int sendmsg_err;
+
+	return sendmsg_to_server(SOCK_STREAM, addr, addr_len, /*set_cmsg*/0,
+				 MSG_FASTOPEN, &sendmsg_err);
 }
 
 static int recvmsg_from_client(int sockfd, struct sockaddr_storage *src_addr)
@@ -1185,6 +1192,20 @@ static int run_connect_test_case(const struct sock_addr_test *test)
 	if (cmp_local_ip(clientfd, &expected_src_addr))
 		goto err;
 
+	if (test->type == SOCK_STREAM) {
+		/* Test TCP Fast Open scenario */
+		clientfd = fastconnect_to_server(&requested_addr, addr_len);
+		if (clientfd == -1)
+			goto err;
+
+		/* Make sure src and dst addrs were overridden properly */
+		if (cmp_peer_addr(clientfd, &expected_addr))
+			goto err;
+
+		if (cmp_local_ip(clientfd, &expected_src_addr))
+			goto err;
+	}
+
 	goto out;
 err:
 	err = -1;
@@ -1222,8 +1243,9 @@ static int run_sendmsg_test_case(const struct sock_addr_test *test)
 		if (clientfd >= 0)
 			close(clientfd);
 
-		clientfd = sendmsg_to_server(&requested_addr, addr_len,
-					     set_cmsg, &err);
+		clientfd = sendmsg_to_server(test->type, &requested_addr,
+					     addr_len, set_cmsg, /*flags*/0,
+					     &err);
 		if (err)
 			goto out;
 		else if (clientfd == -1)

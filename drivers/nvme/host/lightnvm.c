@@ -414,12 +414,6 @@ static int nvme_nvm_setup_20(struct nvme_nvm_id20 *id,
 	/* Set compacted version for upper layers */
 	geo->version = NVM_OCSSD_SPEC_20;
 
-	if (!(geo->major_ver_id == 2 && geo->minor_ver_id == 0)) {
-		pr_err("nvm: OCSSD version not supported (v%d.%d)\n",
-				geo->major_ver_id, geo->minor_ver_id);
-		return -EINVAL;
-	}
-
 	geo->num_ch = le16_to_cpu(id->num_grp);
 	geo->num_lun = le16_to_cpu(id->num_pu);
 	geo->all_luns = geo->num_ch * geo->num_lun;
@@ -583,7 +577,13 @@ static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
 	struct ppa_addr ppa;
 	size_t left = nchks * sizeof(struct nvme_nvm_chk_meta);
 	size_t log_pos, offset, len;
-	int ret, i;
+	int ret, i, max_len;
+
+	/*
+	 * limit requests to maximum 256K to avoid issuing arbitrary large
+	 * requests when the device does not specific a maximum transfer size.
+	 */
+	max_len = min_t(unsigned int, ctrl->max_hw_sectors << 9, 256 * 1024);
 
 	/* Normalize lba address space to obtain log offset */
 	ppa.ppa = slba;
@@ -596,10 +596,11 @@ static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
 	offset = log_pos * sizeof(struct nvme_nvm_chk_meta);
 
 	while (left) {
-		len = min_t(unsigned int, left, ctrl->max_hw_sectors << 9);
+		len = min_t(unsigned int, left, max_len);
 
-		ret = nvme_get_log_ext(ctrl, ns, NVME_NVM_LOG_REPORT_CHUNK,
-				dev_meta, len, offset);
+		ret = nvme_get_log(ctrl, ns->head->ns_id,
+				NVME_NVM_LOG_REPORT_CHUNK, 0, dev_meta, len,
+				offset);
 		if (ret) {
 			dev_err(ctrl->device, "Get REPORT CHUNK log error\n");
 			break;
@@ -662,12 +663,10 @@ static struct request *nvme_nvm_alloc_request(struct request_queue *q,
 
 	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
-	if (rqd->bio) {
+	if (rqd->bio)
 		blk_init_request_from_bio(rq, rqd->bio);
-	} else {
+	else
 		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
-		rq->__data_len = 0;
-	}
 
 	return rq;
 }

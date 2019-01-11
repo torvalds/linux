@@ -7,6 +7,11 @@
 #include "i40e_diag.h"
 
 struct i40e_stats {
+	/* The stat_string is expected to be a format string formatted using
+	 * vsnprintf by i40e_add_stat_strings. Every member of a stats array
+	 * should use the same format specifiers as they will be formatted
+	 * using the same variadic arguments.
+	 */
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int stat_offset;
@@ -26,6 +31,8 @@ struct i40e_stats {
 	I40E_STAT(struct i40e_vsi, _name, _stat)
 #define I40E_VEB_STAT(_name, _stat) \
 	I40E_STAT(struct i40e_veb, _name, _stat)
+#define I40E_PFC_STAT(_name, _stat) \
+	I40E_STAT(struct i40e_pfc_stats, _name, _stat)
 
 static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_packets),
@@ -54,6 +61,13 @@ static const struct i40e_stats i40e_gstrings_veb_stats[] = {
 	I40E_VEB_STAT("veb.tx_discards", stats.tx_discards),
 	I40E_VEB_STAT("veb.tx_errors", stats.tx_errors),
 	I40E_VEB_STAT("veb.rx_unknown_protocol", stats.rx_unknown_protocol),
+};
+
+static const struct i40e_stats i40e_gstrings_veb_tc_stats[] = {
+	I40E_VEB_STAT("veb.tc_%u_tx_packets", tc_stats.tc_tx_packets),
+	I40E_VEB_STAT("veb.tc_%u_tx_bytes", tc_stats.tc_tx_bytes),
+	I40E_VEB_STAT("veb.tc_%u_rx_packets", tc_stats.tc_rx_packets),
+	I40E_VEB_STAT("veb.tc_%u_rx_bytes", tc_stats.tc_rx_bytes),
 };
 
 static const struct i40e_stats i40e_gstrings_misc_stats[] = {
@@ -141,6 +155,22 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("port.rx_lpi_count", stats.rx_lpi_count),
 };
 
+struct i40e_pfc_stats {
+	u64 priority_xon_rx;
+	u64 priority_xoff_rx;
+	u64 priority_xon_tx;
+	u64 priority_xoff_tx;
+	u64 priority_xon_2_xoff;
+};
+
+static const struct i40e_stats i40e_gstrings_pfc_stats[] = {
+	I40E_PFC_STAT("port.tx_priority_%u_xon_tx", priority_xon_tx),
+	I40E_PFC_STAT("port.tx_priority_%u_xoff_tx", priority_xoff_tx),
+	I40E_PFC_STAT("port.rx_priority_%u_xon_rx", priority_xon_rx),
+	I40E_PFC_STAT("port.rx_priority_%u_xoff_rx", priority_xoff_rx),
+	I40E_PFC_STAT("port.rx_priority_%u_xon_2_xoff", priority_xon_2_xoff),
+};
+
 /* We use num_tx_queues here as a proxy for the maximum number of queues
  * available because we always allocate queues symmetrically.
  */
@@ -155,23 +185,17 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 #define I40E_VSI_STATS_LEN(n)	(I40E_NETDEV_STATS_LEN + \
 				 I40E_MISC_STATS_LEN + \
 				 I40E_QUEUE_STATS_LEN((n)))
-#define I40E_PFC_STATS_LEN ( \
-		(FIELD_SIZEOF(struct i40e_pf, stats.priority_xoff_rx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_rx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xoff_tx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_tx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_2_xoff)) \
-		 / sizeof(u64))
-#define I40E_VEB_TC_STATS_LEN ( \
-		(FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_rx_packets) + \
-		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_rx_bytes) + \
-		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_tx_packets) + \
-		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_tx_bytes)) \
-		 / sizeof(u64))
-#define I40E_VEB_STATS_LEN	ARRAY_SIZE(i40e_gstrings_veb_stats)
-#define I40E_VEB_STATS_TOTAL	(I40E_VEB_STATS_LEN + I40E_VEB_TC_STATS_LEN)
+
+#define I40E_PFC_STATS_LEN	(ARRAY_SIZE(i40e_gstrings_pfc_stats) * \
+				 I40E_MAX_USER_PRIORITY)
+
+#define I40E_VEB_STATS_LEN	(ARRAY_SIZE(i40e_gstrings_veb_stats) + \
+				 (ARRAY_SIZE(i40e_gstrings_veb_tc_stats) * \
+				  I40E_MAX_TRAFFIC_CLASS))
+
 #define I40E_PF_STATS_LEN(n)	(I40E_GLOBAL_STATS_LEN + \
 				 I40E_PFC_STATS_LEN + \
+				 I40E_VEB_STATS_LEN + \
 				 I40E_VSI_STATS_LEN((n)))
 
 enum i40e_ethtool_test_id {
@@ -1565,7 +1589,6 @@ static int i40e_set_ringparam(struct net_device *netdev,
 		}
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			struct i40e_ring *ring;
 			u16 unused;
 
 			/* clone ring and setup updated count */
@@ -1589,9 +1612,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			/* now allocate the Rx buffers to make sure the OS
 			 * has enough memory, any failure here means abort
 			 */
-			ring = &rx_rings[i];
-			unused = I40E_DESC_UNUSED(ring);
-			err = i40e_alloc_rx_buffers(ring, unused);
+			unused = I40E_DESC_UNUSED(&rx_rings[i]);
+			err = i40e_alloc_rx_buffers(&rx_rings[i], unused);
 rx_unwind:
 			if (err) {
 				do {
@@ -1681,7 +1703,7 @@ static int i40e_get_stats_count(struct net_device *netdev)
 	struct i40e_pf *pf = vsi->back;
 
 	if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1)
-		return I40E_PF_STATS_LEN(netdev) + I40E_VEB_STATS_TOTAL;
+		return I40E_PF_STATS_LEN(netdev);
 	else
 		return I40E_VSI_STATS_LEN(netdev);
 }
@@ -1706,6 +1728,114 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 }
 
 /**
+ * i40e_add_one_ethtool_stat - copy the stat into the supplied buffer
+ * @data: location to store the stat value
+ * @pointer: basis for where to copy from
+ * @stat: the stat definition
+ *
+ * Copies the stat data defined by the pointer and stat structure pair into
+ * the memory supplied as data. Used to implement i40e_add_ethtool_stats.
+ * If the pointer is null, data will be zero'd.
+ */
+static inline void
+i40e_add_one_ethtool_stat(u64 *data, void *pointer,
+			  const struct i40e_stats *stat)
+{
+	char *p;
+
+	if (!pointer) {
+		/* ensure that the ethtool data buffer is zero'd for any stats
+		 * which don't have a valid pointer.
+		 */
+		*data = 0;
+		return;
+	}
+
+	p = (char *)pointer + stat->stat_offset;
+	switch (stat->sizeof_stat) {
+	case sizeof(u64):
+		*data = *((u64 *)p);
+		break;
+	case sizeof(u32):
+		*data = *((u32 *)p);
+		break;
+	case sizeof(u16):
+		*data = *((u16 *)p);
+		break;
+	case sizeof(u8):
+		*data = *((u8 *)p);
+		break;
+	default:
+		WARN_ONCE(1, "unexpected stat size for %s",
+			  stat->stat_string);
+		*data = 0;
+	}
+}
+
+/**
+ * __i40e_add_ethtool_stats - copy stats into the ethtool supplied buffer
+ * @data: ethtool stats buffer
+ * @pointer: location to copy stats from
+ * @stats: array of stats to copy
+ * @size: the size of the stats definition
+ *
+ * Copy the stats defined by the stats array using the pointer as a base into
+ * the data buffer supplied by ethtool. Updates the data pointer to point to
+ * the next empty location for successive calls to __i40e_add_ethtool_stats.
+ * If pointer is null, set the data values to zero and update the pointer to
+ * skip these stats.
+ **/
+static inline void
+__i40e_add_ethtool_stats(u64 **data, void *pointer,
+			 const struct i40e_stats stats[],
+			 const unsigned int size)
+{
+	unsigned int i;
+
+	for (i = 0; i < size; i++)
+		i40e_add_one_ethtool_stat((*data)++, pointer, &stats[i]);
+}
+
+/**
+ * i40e_add_ethtool_stats - copy stats into ethtool supplied buffer
+ * @data: ethtool stats buffer
+ * @pointer: location where stats are stored
+ * @stats: static const array of stat definitions
+ *
+ * Macro to ease the use of __i40e_add_ethtool_stats by taking a static
+ * constant stats array and passing the ARRAY_SIZE(). This avoids typos by
+ * ensuring that we pass the size associated with the given stats array.
+ * Assumes that stats is an array.
+ **/
+#define i40e_add_ethtool_stats(data, pointer, stats) \
+	__i40e_add_ethtool_stats(data, pointer, stats, ARRAY_SIZE(stats))
+
+/**
+ * i40e_get_pfc_stats - copy HW PFC statistics to formatted structure
+ * @pf: the PF device structure
+ * @i: the priority value to copy
+ *
+ * The PFC stats are found as arrays in pf->stats, which is not easy to pass
+ * into i40e_add_ethtool_stats. Produce a formatted i40e_pfc_stats structure
+ * of the PFC stats for the given priority.
+ **/
+static inline struct i40e_pfc_stats
+i40e_get_pfc_stats(struct i40e_pf *pf, unsigned int i)
+{
+#define I40E_GET_PFC_STAT(stat, priority) \
+	.stat = pf->stats.stat[priority]
+
+	struct i40e_pfc_stats pfc = {
+		I40E_GET_PFC_STAT(priority_xon_rx, i),
+		I40E_GET_PFC_STAT(priority_xoff_rx, i),
+		I40E_GET_PFC_STAT(priority_xon_tx, i),
+		I40E_GET_PFC_STAT(priority_xoff_tx, i),
+		I40E_GET_PFC_STAT(priority_xon_2_xoff, i),
+	};
+	return pfc;
+}
+
+/**
  * i40e_get_ethtool_stats - copy stat values into supplied buffer
  * @netdev: the netdev to collect stats for
  * @stats: ethtool stats command structure
@@ -1726,23 +1856,19 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
+	struct i40e_veb *veb = pf->veb[pf->lan_veb];
 	unsigned int i;
-	char *p;
-	struct rtnl_link_stats64 *net_stats = i40e_get_vsi_stats_struct(vsi);
 	unsigned int start;
+	bool veb_stats;
+	u64 *p = data;
 
 	i40e_update_stats(vsi);
 
-	for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
-		p = (char *)net_stats + i40e_gstrings_net_stats[i].stat_offset;
-		*(data++) = (i40e_gstrings_net_stats[i].sizeof_stat ==
-			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-	}
-	for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
-		p = (char *)vsi + i40e_gstrings_misc_stats[i].stat_offset;
-		*(data++) = (i40e_gstrings_misc_stats[i].sizeof_stat ==
-			    sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-	}
+	i40e_add_ethtool_stats(&data, i40e_get_vsi_stats_struct(vsi),
+			       i40e_gstrings_net_stats);
+
+	i40e_add_ethtool_stats(&data, vsi, i40e_gstrings_misc_stats);
+
 	rcu_read_lock();
 	for (i = 0; i < I40E_MAX_NUM_QUEUES(netdev) ; i++) {
 		tx_ring = READ_ONCE(vsi->tx_rings[i]);
@@ -1777,43 +1903,70 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	}
 	rcu_read_unlock();
 	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
-		return;
+		goto check_data_pointer;
 
-	if ((pf->lan_veb != I40E_NO_VEB) &&
-	    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
-		struct i40e_veb *veb = pf->veb[pf->lan_veb];
+	veb_stats = ((pf->lan_veb != I40E_NO_VEB) &&
+		     (pf->flags & I40E_FLAG_VEB_STATS_ENABLED));
 
-		for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
-			p = (char *)veb;
-			p += i40e_gstrings_veb_stats[i].stat_offset;
-			*(data++) = (i40e_gstrings_veb_stats[i].sizeof_stat ==
-				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-		}
-		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-			*(data++) = veb->tc_stats.tc_tx_packets[i];
-			*(data++) = veb->tc_stats.tc_tx_bytes[i];
-			*(data++) = veb->tc_stats.tc_rx_packets[i];
-			*(data++) = veb->tc_stats.tc_rx_bytes[i];
-		}
-	} else {
-		data += I40E_VEB_STATS_TOTAL;
-	}
-	for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
-		p = (char *)pf + i40e_gstrings_stats[i].stat_offset;
-		*(data++) = (i40e_gstrings_stats[i].sizeof_stat ==
-			     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-	}
+	/* If veb stats aren't enabled, pass NULL instead of the veb so that
+	 * we initialize stats to zero and update the data pointer
+	 * intelligently
+	 */
+	i40e_add_ethtool_stats(&data, veb_stats ? veb : NULL,
+			       i40e_gstrings_veb_stats);
+
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++)
+		i40e_add_ethtool_stats(&data, veb_stats ? veb : NULL,
+				       i40e_gstrings_veb_tc_stats);
+
+	i40e_add_ethtool_stats(&data, pf, i40e_gstrings_stats);
+
 	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		*(data++) = pf->stats.priority_xon_tx[i];
-		*(data++) = pf->stats.priority_xoff_tx[i];
+		struct i40e_pfc_stats pfc = i40e_get_pfc_stats(pf, i);
+
+		i40e_add_ethtool_stats(&data, &pfc, i40e_gstrings_pfc_stats);
 	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		*(data++) = pf->stats.priority_xon_rx[i];
-		*(data++) = pf->stats.priority_xoff_rx[i];
-	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
-		*(data++) = pf->stats.priority_xon_2_xoff[i];
+
+check_data_pointer:
+	WARN_ONCE(data - p != i40e_get_stats_count(netdev),
+		  "ethtool stats count mismatch!");
 }
+
+/**
+ * __i40e_add_stat_strings - copy stat strings into ethtool buffer
+ * @p: ethtool supplied buffer
+ * @stats: stat definitions array
+ * @size: size of the stats array
+ *
+ * Format and copy the strings described by stats into the buffer pointed at
+ * by p.
+ **/
+static void __i40e_add_stat_strings(u8 **p, const struct i40e_stats stats[],
+				    const unsigned int size, ...)
+{
+	unsigned int i;
+
+	for (i = 0; i < size; i++) {
+		va_list args;
+
+		va_start(args, size);
+		vsnprintf(*p, ETH_GSTRING_LEN, stats[i].stat_string, args);
+		*p += ETH_GSTRING_LEN;
+		va_end(args);
+	}
+}
+
+/**
+ * 40e_add_stat_strings - copy stat strings into ethtool buffer
+ * @p: ethtool supplied buffer
+ * @stats: stat definitions array
+ *
+ * Format and copy the strings described by the const static stats value into
+ * the buffer pointed at by p. Assumes that stats can have ARRAY_SIZE called
+ * for it.
+ **/
+#define i40e_add_stat_strings(p, stats, ...) \
+	__i40e_add_stat_strings(p, stats, ARRAY_SIZE(stats), ## __VA_ARGS__)
 
 /**
  * i40e_get_stat_strings - copy stat strings into supplied buffer
@@ -1833,16 +1986,10 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 	unsigned int i;
 	u8 *p = data;
 
-	for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_net_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_misc_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
+	i40e_add_stat_strings(&data, i40e_gstrings_net_stats);
+
+	i40e_add_stat_strings(&data, i40e_gstrings_misc_stats);
+
 	for (i = 0; i < I40E_MAX_NUM_QUEUES(netdev); i++) {
 		snprintf(data, ETH_GSTRING_LEN, "tx-%u.tx_packets", i);
 		data += ETH_GSTRING_LEN;
@@ -1856,54 +2003,17 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
 		return;
 
-	for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_veb_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 "veb.tc_%u_tx_packets", i);
-		data += ETH_GSTRING_LEN;
-		snprintf(data, ETH_GSTRING_LEN,
-			 "veb.tc_%u_tx_bytes", i);
-		data += ETH_GSTRING_LEN;
-		snprintf(data, ETH_GSTRING_LEN,
-			 "veb.tc_%u_rx_packets", i);
-		data += ETH_GSTRING_LEN;
-		snprintf(data, ETH_GSTRING_LEN,
-			 "veb.tc_%u_rx_bytes", i);
-		data += ETH_GSTRING_LEN;
-	}
+	i40e_add_stat_strings(&data, i40e_gstrings_veb_stats);
 
-	for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.tx_priority_%u_xon", i);
-		data += ETH_GSTRING_LEN;
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.tx_priority_%u_xoff", i);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.rx_priority_%u_xon", i);
-		data += ETH_GSTRING_LEN;
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.rx_priority_%u_xoff", i);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.rx_priority_%u_xon_2_xoff", i);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++)
+		i40e_add_stat_strings(&data, i40e_gstrings_veb_tc_stats, i);
 
-	WARN_ONCE(p - data != i40e_get_stats_count(netdev) * ETH_GSTRING_LEN,
+	i40e_add_stat_strings(&data, i40e_gstrings_stats);
+
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
+		i40e_add_stat_strings(&data, i40e_gstrings_pfc_stats, i);
+
+	WARN_ONCE(data - p != i40e_get_stats_count(netdev) * ETH_GSTRING_LEN,
 		  "stat strings count mismatch!");
 }
 
@@ -4535,7 +4645,6 @@ flags_complete:
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {
 			struct i40e_dcbx_config *dcbcfg;
-			int i;
 
 			i40e_aq_stop_lldp(&pf->hw, true, NULL);
 			i40e_aq_set_dcb_parameters(&pf->hw, true, NULL);

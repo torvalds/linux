@@ -237,8 +237,8 @@ processor idle states, defined as device tree nodes, are listed.
 		Value type: <stringlist>
 		Usage and definition depend on ARM architecture version.
 			# On ARM v8 64-bit this property is required and must
-			  be one of:
-			   - "psci" (see bindings in [2])
+			  be:
+			   - "psci"
 			# On ARM 32-bit systems this property is optional
 
 The nodes describing the idle states (state) can only be defined within the

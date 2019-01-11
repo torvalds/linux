@@ -63,22 +63,33 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 	return device;
 }
 
-struct kfd_dev *kfd_device_by_id(uint32_t gpu_id)
+struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id)
 {
-	struct kfd_topology_device *top_dev;
-	struct kfd_dev *device = NULL;
+	struct kfd_topology_device *top_dev = NULL;
+	struct kfd_topology_device *ret = NULL;
 
 	down_read(&topology_lock);
 
 	list_for_each_entry(top_dev, &topology_device_list, list)
 		if (top_dev->gpu_id == gpu_id) {
-			device = top_dev->gpu;
+			ret = top_dev;
 			break;
 		}
 
 	up_read(&topology_lock);
 
-	return device;
+	return ret;
+}
+
+struct kfd_dev *kfd_device_by_id(uint32_t gpu_id)
+{
+	struct kfd_topology_device *top_dev;
+
+	top_dev = kfd_topology_device_by_id(gpu_id);
+	if (!top_dev)
+		return NULL;
+
+	return top_dev->gpu;
 }
 
 struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev)

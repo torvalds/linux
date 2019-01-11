@@ -329,19 +329,19 @@ struct ice_aqc_vsi_props {
 	/* VLAN section */
 	__le16 pvid; /* VLANS include priority bits */
 	u8 pvlan_reserved[2];
-	u8 port_vlan_flags;
-#define ICE_AQ_VSI_PVLAN_MODE_S	0
-#define ICE_AQ_VSI_PVLAN_MODE_M	(0x3 << ICE_AQ_VSI_PVLAN_MODE_S)
-#define ICE_AQ_VSI_PVLAN_MODE_UNTAGGED	0x1
-#define ICE_AQ_VSI_PVLAN_MODE_TAGGED	0x2
-#define ICE_AQ_VSI_PVLAN_MODE_ALL	0x3
+	u8 vlan_flags;
+#define ICE_AQ_VSI_VLAN_MODE_S	0
+#define ICE_AQ_VSI_VLAN_MODE_M	(0x3 << ICE_AQ_VSI_VLAN_MODE_S)
+#define ICE_AQ_VSI_VLAN_MODE_UNTAGGED	0x1
+#define ICE_AQ_VSI_VLAN_MODE_TAGGED	0x2
+#define ICE_AQ_VSI_VLAN_MODE_ALL	0x3
 #define ICE_AQ_VSI_PVLAN_INSERT_PVID	BIT(2)
-#define ICE_AQ_VSI_PVLAN_EMOD_S	3
-#define ICE_AQ_VSI_PVLAN_EMOD_M	(0x3 << ICE_AQ_VSI_PVLAN_EMOD_S)
-#define ICE_AQ_VSI_PVLAN_EMOD_STR_BOTH	(0x0 << ICE_AQ_VSI_PVLAN_EMOD_S)
-#define ICE_AQ_VSI_PVLAN_EMOD_STR_UP	(0x1 << ICE_AQ_VSI_PVLAN_EMOD_S)
-#define ICE_AQ_VSI_PVLAN_EMOD_STR	(0x2 << ICE_AQ_VSI_PVLAN_EMOD_S)
-#define ICE_AQ_VSI_PVLAN_EMOD_NOTHING	(0x3 << ICE_AQ_VSI_PVLAN_EMOD_S)
+#define ICE_AQ_VSI_VLAN_EMOD_S		3
+#define ICE_AQ_VSI_VLAN_EMOD_M		(0x3 << ICE_AQ_VSI_VLAN_EMOD_S)
+#define ICE_AQ_VSI_VLAN_EMOD_STR_BOTH	(0x0 << ICE_AQ_VSI_VLAN_EMOD_S)
+#define ICE_AQ_VSI_VLAN_EMOD_STR_UP	(0x1 << ICE_AQ_VSI_VLAN_EMOD_S)
+#define ICE_AQ_VSI_VLAN_EMOD_STR	(0x2 << ICE_AQ_VSI_VLAN_EMOD_S)
+#define ICE_AQ_VSI_VLAN_EMOD_NOTHING	(0x3 << ICE_AQ_VSI_VLAN_EMOD_S)
 	u8 pvlan_reserved2[3];
 	/* ingress egress up sections */
 	__le32 ingress_table; /* bitmap, 3 bits per up */
@@ -594,6 +594,7 @@ struct ice_sw_rule_lg_act {
 #define ICE_LG_ACT_GENERIC_OFFSET_M	(0x7 << ICE_LG_ACT_GENERIC_OFFSET_S)
 #define ICE_LG_ACT_GENERIC_PRIORITY_S	22
 #define ICE_LG_ACT_GENERIC_PRIORITY_M	(0x7 << ICE_LG_ACT_GENERIC_PRIORITY_S)
+#define ICE_LG_ACT_GENERIC_OFF_RX_DESC_PROF_IDX	7
 
 	/* Action = 7 - Set Stat count */
 #define ICE_LG_ACT_STAT_COUNT		0x7

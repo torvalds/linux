@@ -907,6 +907,7 @@ static inline int opcode_slow_path(union octeon_rh *rh)
 #define VITESSE_PHY_GPIO_LOW      0x3
 #define LED_IDENTIFICATION_ON     0x1
 #define LED_IDENTIFICATION_OFF    0x0
+#define LIO23XX_COPPERHEAD_LED_GPIO 0x2
 
 struct oct_mdio_cmd {
 	u64 op;

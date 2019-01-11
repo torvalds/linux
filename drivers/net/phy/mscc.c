@@ -123,7 +123,7 @@ static const struct vsc8531_edge_rate_table edge_table[] = {
 };
 #endif /* CONFIG_OF_MDIO */
 
-static int vsc85xx_phy_page_set(struct phy_device *phydev, u8 page)
+static int vsc85xx_phy_page_set(struct phy_device *phydev, u16 page)
 {
 	int rc;
 

@@ -120,7 +120,9 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		break;
 	}
 
-	if (use_cached_root_handle == false)
+	if (use_cached_root_handle)
+		close_shroot(&tcon->crfid);
+	else
 		rc = SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	if (tmprc)
 		rc = tmprc;
@@ -281,7 +283,7 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	int rc;
 
 	if ((buf->CreationTime == 0) && (buf->LastAccessTime == 0) &&
-	    (buf->LastWriteTime == 0) && (buf->ChangeTime) &&
+	    (buf->LastWriteTime == 0) && (buf->ChangeTime == 0) &&
 	    (buf->Attributes == 0))
 		return 0; /* would be a no op, no sense sending this */
 

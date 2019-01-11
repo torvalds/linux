@@ -15,8 +15,6 @@ Required properties:
    information relating to regulators)
 
 Optional properties:
-- interrupt-parent: Specifies the phandle of the interrupt controller to which
-  the IRQs from DA7218 are delivered to.
 - interrupts: IRQ line info for DA7218 chip.
   (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
    further information relating to interrupt properties)

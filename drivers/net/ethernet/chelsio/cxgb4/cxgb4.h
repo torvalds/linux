@@ -46,6 +46,7 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
+#include <linux/rhashtable.h>
 #include <linux/etherdevice.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
@@ -319,6 +320,21 @@ struct vpd_params {
 	u8 na[MACADDR_LEN + 1];
 };
 
+/* Maximum resources provisioned for a PCI PF.
+ */
+struct pf_resources {
+	unsigned int nvi;		/* N virtual interfaces */
+	unsigned int neq;		/* N egress Qs */
+	unsigned int nethctrl;		/* N egress ETH or CTRL Qs */
+	unsigned int niqflint;		/* N ingress Qs/w free list(s) & intr */
+	unsigned int niq;		/* N ingress Qs */
+	unsigned int tc;		/* PCI-E traffic class */
+	unsigned int pmask;		/* port access rights mask */
+	unsigned int nexactf;		/* N exact MPS filters */
+	unsigned int r_caps;		/* read capabilities */
+	unsigned int wx_caps;		/* write/execute capabilities */
+};
+
 struct pci_params {
 	unsigned int vpd_cap_addr;
 	unsigned char speed;
@@ -346,6 +362,7 @@ struct adapter_params {
 	struct sge_params sge;
 	struct tp_params  tp;
 	struct vpd_params vpd;
+	struct pf_resources pfres;
 	struct pci_params pci;
 	struct devlog_params devlog;
 	enum pcie_memwin drv_memwin;
@@ -521,6 +538,15 @@ enum {
 	MAX_INGQ = MAX_ETH_QSETS + INGQ_EXTRAS,
 };
 
+enum {
+	PRIV_FLAG_PORT_TX_VM_BIT,
+};
+
+#define PRIV_FLAG_PORT_TX_VM		BIT(PRIV_FLAG_PORT_TX_VM_BIT)
+
+#define PRIV_FLAGS_ADAP			0
+#define PRIV_FLAGS_PORT			PRIV_FLAG_PORT_TX_VM
+
 struct adapter;
 struct sge_rspq;
 
@@ -557,6 +583,7 @@ struct port_info {
 	struct hwtstamp_config tstamp_config;
 	bool ptp_enable;
 	struct sched_table *sched_tbl;
+	u32 eth_flags;
 };
 
 struct dentry;
@@ -867,6 +894,7 @@ struct adapter {
 	unsigned int flags;
 	unsigned int adap_idx;
 	enum chip_type chip;
+	u32 eth_flags;
 
 	int msg_enable;
 	__be16 vxlan_port;
@@ -956,6 +984,7 @@ struct adapter {
 	struct chcr_stats_debug chcr_stats;
 
 	/* TC flower offload */
+	bool tc_flower_initialized;
 	struct rhashtable flower_tbl;
 	struct rhashtable_params flower_ht_params;
 	struct timer_list flower_stats_timer;
@@ -1333,7 +1362,7 @@ void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 void t4_free_sge_resources(struct adapter *adap);
 void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q);
 irq_handler_t t4_intr_handler(struct adapter *adap);
-netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		     const struct pkt_gl *gl);
 int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
@@ -1555,6 +1584,7 @@ int t4_eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz);
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_get_vpd_params(struct adapter *adapter, struct vpd_params *p);
+int t4_get_pfres(struct adapter *adapter);
 int t4_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
@@ -1823,4 +1853,5 @@ void cxgb4_write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 void cxgb4_ring_tx_db(struct adapter *adap, struct sge_txq *q, int n);
 int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 		    u16 vlan);
+int cxgb4_dcb_enabled(const struct net_device *dev);
 #endif /* __CXGB4_H__ */

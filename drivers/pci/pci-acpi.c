@@ -403,24 +403,7 @@ bool pciehp_is_native(struct pci_dev *bridge)
  */
 bool shpchp_is_native(struct pci_dev *bridge)
 {
-	const struct pci_host_bridge *host;
-
-	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_SHPC))
-		return false;
-
-	/*
-	 * It is assumed that AMD GOLAM chips support SHPC but they do not
-	 * have SHPC capability.
-	 */
-	if (bridge->vendor == PCI_VENDOR_ID_AMD &&
-	    bridge->device == PCI_DEVICE_ID_AMD_GOLAM_7450)
-		return true;
-
-	if (!pci_find_capability(bridge, PCI_CAP_ID_SHPC))
-		return false;
-
-	host = pci_find_host_bridge(bridge->bus);
-	return host->native_shpc_hotplug;
+	return bridge->shpc_managed;
 }
 
 /**
@@ -632,13 +615,11 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 	/*
 	 * In some cases (eg. Samsung 305V4A) leaving a bridge in suspend over
 	 * system-wide suspend/resume confuses the platform firmware, so avoid
-	 * doing that, unless the bridge has a driver that should take care of
-	 * the PM handling.  According to Section 16.1.6 of ACPI 6.2, endpoint
+	 * doing that.  According to Section 16.1.6 of ACPI 6.2, endpoint
 	 * devices are expected to be in D3 before invoking the S3 entry path
 	 * from the firmware, so they should not be affected by this issue.
 	 */
-	if (pci_is_bridge(dev) && !dev->driver &&
-	    acpi_target_system_state() != ACPI_STATE_S0)
+	if (pci_is_bridge(dev) && acpi_target_system_state() != ACPI_STATE_S0)
 		return true;
 
 	if (!adev || !acpi_device_power_manageable(adev))

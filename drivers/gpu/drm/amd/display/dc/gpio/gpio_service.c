@@ -375,6 +375,7 @@ struct gpio *dal_gpio_create_irq(
 	case GPIO_ID_GPIO_PAD:
 	break;
 	default:
+		id = GPIO_ID_HPD;
 		ASSERT_CRITICAL(false);
 		return NULL;
 	}

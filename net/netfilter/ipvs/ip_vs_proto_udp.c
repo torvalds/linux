@@ -460,6 +460,8 @@ udp_state_transition(struct ip_vs_conn *cp, int direction,
 	}
 
 	cp->timeout = pd->timeout_table[IP_VS_UDP_S_NORMAL];
+	if (direction == IP_VS_DIR_OUTPUT)
+		ip_vs_control_assure_ct(cp);
 }
 
 static int __udp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)

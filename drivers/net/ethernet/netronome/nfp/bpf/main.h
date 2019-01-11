@@ -47,6 +47,8 @@
 #include "../nfp_asm.h"
 #include "fw.h"
 
+#define cmsg_warn(bpf, msg...)	nn_dp_warn(&(bpf)->app->ctrl->dp, msg)
+
 /* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
  */
@@ -110,6 +112,8 @@ enum pkt_vec {
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
  *
+ * @bpf_dev:		BPF offload device handle
+ *
  * @tag_allocator:	bitmap of control message tags in use
  * @tag_alloc_next:	next tag bit to allocate
  * @tag_alloc_last:	next tag bit to be freed
@@ -146,9 +150,12 @@ enum pkt_vec {
  *
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  * @queue_select:	BPF can set the RX queue ID in packet vector
+ * @adjust_tail:	BPF can simply trunc packet size for adjust tail
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
+
+	struct bpf_offload_dev *bpf_dev;
 
 	DECLARE_BITMAP(tag_allocator, U16_MAX + 1);
 	u16 tag_alloc_next;
@@ -189,6 +196,7 @@ struct nfp_app_bpf {
 
 	bool pseudo_random;
 	bool queue_select;
+	bool adjust_tail;
 };
 
 enum nfp_bpf_map_use {
@@ -217,6 +225,7 @@ struct nfp_bpf_map {
 struct nfp_bpf_neutral_map {
 	struct rhash_head l;
 	struct bpf_map *ptr;
+	u32 map_id;
 	u32 count;
 };
 
@@ -263,8 +272,10 @@ struct nfp_bpf_reg_state {
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
- * @umin: copy of core verifier umin_value.
- * @umax: copy of core verifier umax_value.
+ * @umin_src: copy of core verifier umin_value for src opearnd.
+ * @umax_src: copy of core verifier umax_value for src operand.
+ * @umin_dst: copy of core verifier umin_value for dst opearnd.
+ * @umax_dst: copy of core verifier umax_value for dst operand.
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -300,12 +311,15 @@ struct nfp_insn_meta {
 			struct bpf_reg_state arg1;
 			struct nfp_bpf_reg_state arg2;
 		};
-		/* We are interested in range info for some operands,
-		 * for example, the shift amount.
+		/* We are interested in range info for operands of ALU
+		 * operations. For example, shift amount, multiplicand and
+		 * multiplier etc.
 		 */
 		struct {
-			u64 umin;
-			u64 umax;
+			u64 umin_src;
+			u64 umax_src;
+			u64 umin_dst;
+			u64 umax_dst;
 		};
 	};
 	unsigned int off;
@@ -337,6 +351,11 @@ static inline u8 mbpf_op(const struct nfp_insn_meta *meta)
 static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
 {
 	return BPF_MODE(meta->insn.code);
+}
+
+static inline bool is_mbpf_alu(const struct nfp_insn_meta *meta)
+{
+	return mbpf_class(meta) == BPF_ALU64 || mbpf_class(meta) == BPF_ALU;
 }
 
 static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
@@ -384,23 +403,14 @@ static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_XADD);
 }
 
-static inline bool is_mbpf_indir_shift(const struct nfp_insn_meta *meta)
+static inline bool is_mbpf_mul(const struct nfp_insn_meta *meta)
 {
-	u8 code = meta->insn.code;
-	bool is_alu, is_shift;
-	u8 opclass, opcode;
+	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_MUL;
+}
 
-	opclass = BPF_CLASS(code);
-	is_alu = opclass == BPF_ALU64 || opclass == BPF_ALU;
-	if (!is_alu)
-		return false;
-
-	opcode = BPF_OP(code);
-	is_shift = opcode == BPF_LSH || opcode == BPF_RSH || opcode == BPF_ARSH;
-	if (!is_shift)
-		return false;
-
-	return BPF_SRC(code) == BPF_X;
+static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_DIV;
 }
 
 /**
@@ -496,7 +506,11 @@ int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
 int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 			       void *key, void *next_key);
 
-int nfp_bpf_event_output(struct nfp_app_bpf *bpf, struct sk_buff *skb);
+int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
+			 unsigned int len);
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
+void
+nfp_bpf_ctrl_msg_rx_raw(struct nfp_app *app, const void *data,
+			unsigned int len);
 #endif

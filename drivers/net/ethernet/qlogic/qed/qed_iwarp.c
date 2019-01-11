@@ -377,7 +377,7 @@ qed_iwarp2roce_state(enum qed_iwarp_qp_state state)
 	}
 }
 
-const char *iwarp_state_names[] = {
+const static char *iwarp_state_names[] = {
 	"IDLE",
 	"RTS",
 	"TERMINATE",
@@ -942,7 +942,7 @@ qed_iwarp_return_ep(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 	spin_unlock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
 }
 
-void
+static void
 qed_iwarp_parse_private_data(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 {
 	struct mpa_v2_hdr *mpa_v2_params;
@@ -967,7 +967,7 @@ qed_iwarp_parse_private_data(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 				       mpa_data_size;
 }
 
-void
+static void
 qed_iwarp_mpa_reply_arrived(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 {
 	struct qed_iwarp_cm_event_params params;
@@ -1710,7 +1710,7 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 
 		cm_info->local_ip[0] = ntohl(iph->daddr);
 		cm_info->remote_ip[0] = ntohl(iph->saddr);
-		cm_info->ip_version = TCP_IPV4;
+		cm_info->ip_version = QED_TCP_IPV4;
 
 		ip_hlen = (iph->ihl) * sizeof(u32);
 		*payload_len = ntohs(iph->tot_len) - ip_hlen;
@@ -1730,7 +1730,7 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 			cm_info->remote_ip[i] =
 			    ntohl(ip6h->saddr.in6_u.u6_addr32[i]);
 		}
-		cm_info->ip_version = TCP_IPV6;
+		cm_info->ip_version = QED_TCP_IPV6;
 
 		ip_hlen = sizeof(*ip6h);
 		*payload_len = ntohs(ip6h->payload_len);
@@ -2500,7 +2500,7 @@ static void qed_iwarp_ll2_rel_tx_pkt(void *cxt, u8 connection_handle,
 /* The only slowpath for iwarp ll2 is unalign flush. When this completion
  * is received, need to reset the FPDU.
  */
-void
+static void
 qed_iwarp_ll2_slowpath(void *cxt,
 		       u8 connection_handle,
 		       u32 opaque_data_0, u32 opaque_data_1)
@@ -2803,8 +2803,9 @@ int qed_iwarp_stop(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return qed_iwarp_ll2_stop(p_hwfn, p_ptt);
 }
 
-void qed_iwarp_qp_in_error(struct qed_hwfn *p_hwfn,
-			   struct qed_iwarp_ep *ep, u8 fw_return_code)
+static void qed_iwarp_qp_in_error(struct qed_hwfn *p_hwfn,
+				  struct qed_iwarp_ep *ep,
+				  u8 fw_return_code)
 {
 	struct qed_iwarp_cm_event_params params;
 
@@ -2824,8 +2825,9 @@ void qed_iwarp_qp_in_error(struct qed_hwfn *p_hwfn,
 	ep->event_cb(ep->cb_context, &params);
 }
 
-void qed_iwarp_exception_received(struct qed_hwfn *p_hwfn,
-				  struct qed_iwarp_ep *ep, int fw_ret_code)
+static void qed_iwarp_exception_received(struct qed_hwfn *p_hwfn,
+					 struct qed_iwarp_ep *ep,
+					 int fw_ret_code)
 {
 	struct qed_iwarp_cm_event_params params;
 	bool event_cb = false;
@@ -2954,7 +2956,7 @@ qed_iwarp_tcp_connect_unsuccessful(struct qed_hwfn *p_hwfn,
 	}
 }
 
-void
+static void
 qed_iwarp_connect_complete(struct qed_hwfn *p_hwfn,
 			   struct qed_iwarp_ep *ep, u8 fw_return_code)
 {

@@ -412,6 +412,7 @@ struct cgroup {
 	 * specific task are charged to the dom_cgrp.
 	 */
 	struct cgroup *dom_cgrp;
+	struct cgroup *old_dom_cgrp;		/* used while enabling threaded */
 
 	/* per-cpu recursive resource statistics */
 	struct cgroup_rstat_cpu __percpu *rstat_cpu;
@@ -437,6 +438,9 @@ struct cgroup {
 
 	/* used to store eBPF programs */
 	struct cgroup_bpf bpf;
+
+	/* If there is block congestion on this cgroup. */
+	atomic_t congestion_count;
 
 	/* ids of the ancestors at each level including self */
 	int ancestor_ids[];

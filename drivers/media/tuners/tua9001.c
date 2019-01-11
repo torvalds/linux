@@ -164,9 +164,9 @@ static int tua9001_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops tua9001_tuner_ops = {
 	.info = {
-		.name           = "Infineon TUA9001",
-		.frequency_min  = 170000000,
-		.frequency_max  = 862000000,
+		.name             = "Infineon TUA9001",
+		.frequency_min_hz = 170 * MHz,
+		.frequency_max_hz = 862 * MHz,
 	},
 
 	.init = tua9001_init,

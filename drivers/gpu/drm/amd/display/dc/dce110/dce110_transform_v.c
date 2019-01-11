@@ -235,7 +235,7 @@ static void program_overscan(
 	int overscan_right = data->h_active - data->recout.x - data->recout.width;
 	int overscan_bottom = data->v_active - data->recout.y - data->recout.height;
 
-	if (xfm_dce->base.ctx->dc->debug.surface_visual_confirm) {
+	if (xfm_dce->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE) {
 		overscan_bottom += 2;
 		overscan_right += 2;
 	}

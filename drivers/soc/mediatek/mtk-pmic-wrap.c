@@ -146,6 +146,21 @@ static const u32 mt6397_regs[] = {
 	[PWRAP_DEW_CIPHER_SWRST] =	0xbc24,
 };
 
+static const u32 mt6351_regs[] = {
+	[PWRAP_DEW_DIO_EN] =		0x02F2,
+	[PWRAP_DEW_READ_TEST] =		0x02F4,
+	[PWRAP_DEW_WRITE_TEST] =	0x02F6,
+	[PWRAP_DEW_CRC_EN] =		0x02FA,
+	[PWRAP_DEW_CRC_VAL] =		0x02FC,
+	[PWRAP_DEW_CIPHER_KEY_SEL] =	0x0300,
+	[PWRAP_DEW_CIPHER_IV_SEL] =	0x0302,
+	[PWRAP_DEW_CIPHER_EN] =		0x0304,
+	[PWRAP_DEW_CIPHER_RDY] =	0x0306,
+	[PWRAP_DEW_CIPHER_MODE] =	0x0308,
+	[PWRAP_DEW_CIPHER_SWRST] =	0x030A,
+	[PWRAP_DEW_RDDMY_NO] =		0x030C,
+};
+
 enum pwrap_regs {
 	PWRAP_MUX_SEL,
 	PWRAP_WRAP_EN,
@@ -364,6 +379,39 @@ static int mt2701_regs[] = {
 	[PWRAP_ADC_RDY_ADDR] =		0x14c,
 	[PWRAP_ADC_RDATA_ADDR1] =	0x150,
 	[PWRAP_ADC_RDATA_ADDR2] =	0x154,
+};
+
+static int mt6797_regs[] = {
+	[PWRAP_MUX_SEL] =		0x0,
+	[PWRAP_WRAP_EN] =		0x4,
+	[PWRAP_DIO_EN] =		0x8,
+	[PWRAP_SIDLY] =			0xC,
+	[PWRAP_RDDMY] =			0x10,
+	[PWRAP_CSHEXT_WRITE] =		0x18,
+	[PWRAP_CSHEXT_READ] =		0x1C,
+	[PWRAP_CSLEXT_START] =		0x20,
+	[PWRAP_CSLEXT_END] =		0x24,
+	[PWRAP_STAUPD_PRD] =		0x28,
+	[PWRAP_HARB_HPRIO] =		0x50,
+	[PWRAP_HIPRIO_ARB_EN] =		0x54,
+	[PWRAP_MAN_EN] =		0x60,
+	[PWRAP_MAN_CMD] =		0x64,
+	[PWRAP_WACS0_EN] =		0x70,
+	[PWRAP_WACS1_EN] =		0x84,
+	[PWRAP_WACS2_EN] =		0x98,
+	[PWRAP_INIT_DONE2] =		0x9C,
+	[PWRAP_WACS2_CMD] =		0xA0,
+	[PWRAP_WACS2_RDATA] =		0xA4,
+	[PWRAP_WACS2_VLDCLR] =		0xA8,
+	[PWRAP_INT_EN] =		0xC0,
+	[PWRAP_INT_FLG_RAW] =		0xC4,
+	[PWRAP_INT_FLG] =		0xC8,
+	[PWRAP_INT_CLR] =		0xCC,
+	[PWRAP_TIMER_EN] =		0xF4,
+	[PWRAP_WDT_UNIT] =		0xFC,
+	[PWRAP_WDT_SRC_EN] =		0x100,
+	[PWRAP_DCM_EN] =		0x1CC,
+	[PWRAP_DCM_DBC_PRD] =		0x1D4,
 };
 
 static int mt7622_regs[] = {
@@ -635,12 +683,14 @@ static int mt8135_regs[] = {
 
 enum pmic_type {
 	PMIC_MT6323,
+	PMIC_MT6351,
 	PMIC_MT6380,
 	PMIC_MT6397,
 };
 
 enum pwrap_type {
 	PWRAP_MT2701,
+	PWRAP_MT6797,
 	PWRAP_MT7622,
 	PWRAP_MT8135,
 	PWRAP_MT8173,
@@ -1067,6 +1117,7 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 		pwrap_writel(wrp, 1, PWRAP_CIPHER_START);
 		break;
 	case PWRAP_MT2701:
+	case PWRAP_MT6797:
 	case PWRAP_MT8173:
 		pwrap_writel(wrp, 1, PWRAP_CIPHER_EN);
 		break;
@@ -1080,8 +1131,6 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_SWRST], 0x0);
 	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_KEY_SEL], 0x1);
 	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_IV_SEL], 0x2);
-	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_LOAD], 0x1);
-	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_START], 0x1);
 
 	switch (wrp->slave->type) {
 	case PMIC_MT6397:
@@ -1091,6 +1140,7 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 			    0x1);
 		break;
 	case PMIC_MT6323:
+	case PMIC_MT6351:
 		pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_EN],
 			    0x1);
 		break;
@@ -1367,6 +1417,15 @@ static const struct pwrap_slv_type pmic_mt6397 = {
 	.pwrap_write = pwrap_write16,
 };
 
+static const struct pwrap_slv_type pmic_mt6351 = {
+	.dew_regs = mt6351_regs,
+	.type = PMIC_MT6351,
+	.regmap = &pwrap_regmap_config16,
+	.caps = 0,
+	.pwrap_read = pwrap_read16,
+	.pwrap_write = pwrap_write16,
+};
+
 static const struct of_device_id of_slave_match_tbl[] = {
 	{
 		.compatible = "mediatek,mt6323",
@@ -1380,6 +1439,9 @@ static const struct of_device_id of_slave_match_tbl[] = {
 	}, {
 		.compatible = "mediatek,mt6397",
 		.data = &pmic_mt6397,
+	}, {
+		.compatible = "mediatek,mt6351",
+		.data = &pmic_mt6351,
 	}, {
 		/* sentinel */
 	}
@@ -1396,6 +1458,18 @@ static const struct pmic_wrapper_type pwrap_mt2701 = {
 	.has_bridge = 0,
 	.init_reg_clock = pwrap_mt2701_init_reg_clock,
 	.init_soc_specific = pwrap_mt2701_init_soc_specific,
+};
+
+static const struct pmic_wrapper_type pwrap_mt6797 = {
+	.regs = mt6797_regs,
+	.type = PWRAP_MT6797,
+	.arb_en_all = 0x01fff,
+	.int_en_all = 0xffffffc6,
+	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
+	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
+	.has_bridge = 0,
+	.init_reg_clock = pwrap_common_init_reg_clock,
+	.init_soc_specific = NULL,
 };
 
 static const struct pmic_wrapper_type pwrap_mt7622 = {
@@ -1438,6 +1512,9 @@ static const struct of_device_id of_pwrap_match_tbl[] = {
 	{
 		.compatible = "mediatek,mt2701-pwrap",
 		.data = &pwrap_mt2701,
+	}, {
+		.compatible = "mediatek,mt6797-pwrap",
+		.data = &pwrap_mt6797,
 	}, {
 		.compatible = "mediatek,mt7622-pwrap",
 		.data = &pwrap_mt7622,

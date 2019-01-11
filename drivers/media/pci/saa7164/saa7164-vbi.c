@@ -629,12 +629,12 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 		port->last_poll_msecs_diff);
 
 	if (!video_is_registered(port->v4l_device))
-		return -EIO;
+		return EPOLLERR;
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {
 			if (saa7164_vbi_initialize(port) < 0)
-				return -EINVAL;
+				return EPOLLERR;
 			saa7164_vbi_start_streaming(port);
 			msleep(200);
 		}
@@ -644,7 +644,7 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 	if ((file->f_flags & O_NONBLOCK) == 0) {
 		if (wait_event_interruptible(port->wait_read,
 			saa7164_vbi_next_buf(port))) {
-				return -ERESTARTSYS;
+				return EPOLLERR;
 		}
 	}
 

@@ -95,6 +95,13 @@ struct gpio_irq_chip {
 	unsigned int num_parents;
 
 	/**
+	 * @parent_irq:
+	 *
+	 * For use by gpiochip_set_cascaded_irqchip()
+	 */
+	unsigned int parent_irq;
+
+	/**
 	 * @parents:
 	 *
 	 * A list of interrupt parents of a GPIO chip. This is owned by the
@@ -201,6 +208,8 @@ static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
  * @reg_set: output set register (out=high) for generic GPIO
  * @reg_clr: output clear register (out=low) for generic GPIO
  * @reg_dir: direction setting register for generic GPIO
+ * @bgpio_dir_inverted: indicates that the direction register is inverted
+ *	(gpiolib private state variable)
  * @bgpio_bits: number of register bits used for a generic GPIO i.e.
  *	<register width> * 8
  * @bgpio_lock: used to lock chip->bgpio_data. Also, this is needed to keep
@@ -267,6 +276,7 @@ struct gpio_chip {
 	void __iomem *reg_set;
 	void __iomem *reg_clr;
 	void __iomem *reg_dir;
+	bool bgpio_dir_inverted;
 	int bgpio_bits;
 	spinlock_t bgpio_lock;
 	unsigned long bgpio_data;

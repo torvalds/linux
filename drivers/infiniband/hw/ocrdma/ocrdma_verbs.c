@@ -89,7 +89,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 					IB_DEVICE_SYS_IMAGE_GUID |
 					IB_DEVICE_LOCAL_DMA_LKEY |
 					IB_DEVICE_MEM_MGT_EXTENSIONS;
-	attr->max_sge = min(dev->attr.max_send_sge, dev->attr.max_recv_sge);
+	attr->max_send_sge = dev->attr.max_send_sge;
+	attr->max_recv_sge = dev->attr.max_recv_sge;
 	attr->max_sge_rd = dev->attr.max_rdma_sge;
 	attr->max_cq = dev->attr.max_cq;
 	attr->max_cqe = dev->attr.max_cqe;
@@ -196,11 +197,10 @@ int ocrdma_query_port(struct ib_device *ibdev,
 	props->sm_lid = 0;
 	props->sm_sl = 0;
 	props->state = port_state;
-	props->port_cap_flags =
-	    IB_PORT_CM_SUP |
-	    IB_PORT_REINIT_SUP |
-	    IB_PORT_DEVICE_MGMT_SUP | IB_PORT_VENDOR_CLASS_SUP |
-	    IB_PORT_IP_BASED_GIDS;
+	props->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_REINIT_SUP |
+				IB_PORT_DEVICE_MGMT_SUP |
+				IB_PORT_VENDOR_CLASS_SUP;
+	props->ip_gids = true;
 	props->gid_tbl_len = OCRDMA_MAX_SGID;
 	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
@@ -1774,13 +1774,13 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 	 * protect against proessing in-flight CQEs for this QP.
 	 */
 	spin_lock_irqsave(&qp->sq_cq->cq_lock, flags);
-	if (qp->rq_cq && (qp->rq_cq != qp->sq_cq))
+	if (qp->rq_cq && (qp->rq_cq != qp->sq_cq)) {
 		spin_lock(&qp->rq_cq->cq_lock);
-
-	ocrdma_del_qpn_map(dev, qp);
-
-	if (qp->rq_cq && (qp->rq_cq != qp->sq_cq))
+		ocrdma_del_qpn_map(dev, qp);
 		spin_unlock(&qp->rq_cq->cq_lock);
+	} else {
+		ocrdma_del_qpn_map(dev, qp);
+	}
 	spin_unlock_irqrestore(&qp->sq_cq->cq_lock, flags);
 
 	if (!pd->uctx) {
@@ -1953,7 +1953,7 @@ int ocrdma_destroy_srq(struct ib_srq *ibsrq)
 /* unprivileged verbs and their support functions. */
 static void ocrdma_build_ud_hdr(struct ocrdma_qp *qp,
 				struct ocrdma_hdr_wqe *hdr,
-				struct ib_send_wr *wr)
+				const struct ib_send_wr *wr)
 {
 	struct ocrdma_ewqe_ud_hdr *ud_hdr =
 		(struct ocrdma_ewqe_ud_hdr *)(hdr + 1);
@@ -2000,7 +2000,7 @@ static inline uint32_t ocrdma_sglist_len(struct ib_sge *sg_list, int num_sge)
 static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 				    struct ocrdma_hdr_wqe *hdr,
 				    struct ocrdma_sge *sge,
-				    struct ib_send_wr *wr, u32 wqe_size)
+				    const struct ib_send_wr *wr, u32 wqe_size)
 {
 	int i;
 	char *dpp_addr;
@@ -2038,7 +2038,7 @@ static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 }
 
 static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			     struct ib_send_wr *wr)
+			     const struct ib_send_wr *wr)
 {
 	int status;
 	struct ocrdma_sge *sge;
@@ -2057,7 +2057,7 @@ static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 }
 
 static int ocrdma_build_write(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			      struct ib_send_wr *wr)
+			      const struct ib_send_wr *wr)
 {
 	int status;
 	struct ocrdma_sge *ext_rw = (struct ocrdma_sge *)(hdr + 1);
@@ -2075,7 +2075,7 @@ static int ocrdma_build_write(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 }
 
 static void ocrdma_build_read(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			      struct ib_send_wr *wr)
+			      const struct ib_send_wr *wr)
 {
 	struct ocrdma_sge *ext_rw = (struct ocrdma_sge *)(hdr + 1);
 	struct ocrdma_sge *sge = ext_rw + 1;
@@ -2105,7 +2105,7 @@ static int get_encoded_page_size(int pg_sz)
 
 static int ocrdma_build_reg(struct ocrdma_qp *qp,
 			    struct ocrdma_hdr_wqe *hdr,
-			    struct ib_reg_wr *wr)
+			    const struct ib_reg_wr *wr)
 {
 	u64 fbo;
 	struct ocrdma_ewqe_fr *fast_reg = (struct ocrdma_ewqe_fr *)(hdr + 1);
@@ -2166,8 +2166,8 @@ static void ocrdma_ring_sq_db(struct ocrdma_qp *qp)
 	iowrite32(val, qp->sq_db);
 }
 
-int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		     struct ib_send_wr **bad_wr)
+int ocrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		     const struct ib_send_wr **bad_wr)
 {
 	int status = 0;
 	struct ocrdma_qp *qp = get_ocrdma_qp(ibqp);
@@ -2278,8 +2278,8 @@ static void ocrdma_ring_rq_db(struct ocrdma_qp *qp)
 	iowrite32(val, qp->rq_db);
 }
 
-static void ocrdma_build_rqe(struct ocrdma_hdr_wqe *rqe, struct ib_recv_wr *wr,
-			     u16 tag)
+static void ocrdma_build_rqe(struct ocrdma_hdr_wqe *rqe,
+			     const struct ib_recv_wr *wr, u16 tag)
 {
 	u32 wqe_size = 0;
 	struct ocrdma_sge *sge;
@@ -2299,8 +2299,8 @@ static void ocrdma_build_rqe(struct ocrdma_hdr_wqe *rqe, struct ib_recv_wr *wr,
 	ocrdma_cpu_to_le32(rqe, wqe_size);
 }
 
-int ocrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		     struct ib_recv_wr **bad_wr)
+int ocrdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		     const struct ib_recv_wr **bad_wr)
 {
 	int status = 0;
 	unsigned long flags;
@@ -2369,8 +2369,8 @@ static void ocrdma_ring_srq_db(struct ocrdma_srq *srq)
 	iowrite32(val, srq->db + OCRDMA_DB_GEN2_SRQ_OFFSET);
 }
 
-int ocrdma_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			 struct ib_recv_wr **bad_wr)
+int ocrdma_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+			 const struct ib_recv_wr **bad_wr)
 {
 	int status = 0;
 	unsigned long flags;

@@ -13,6 +13,7 @@
 
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
+#include "hash_func01.h"
 
 #define MAX_CPUS 64 /* WARNING - sync with _user.c */
 
@@ -134,7 +135,16 @@ bool parse_eth(struct ethhdr *eth, void *data_end,
 			return false;
 		eth_type = vlan_hdr->h_vlan_encapsulated_proto;
 	}
-	/* TODO: Handle double VLAN tagged packet */
+	/* Handle double VLAN tagged packet */
+	if (eth_type == htons(ETH_P_8021Q) || eth_type == htons(ETH_P_8021AD)) {
+		struct vlan_hdr *vlan_hdr;
+
+		vlan_hdr = (void *)eth + offset;
+		offset += sizeof(*vlan_hdr);
+		if ((void *)eth + offset > data_end)
+			return false;
+		eth_type = vlan_hdr->h_vlan_encapsulated_proto;
+	}
 
 	*eth_proto = ntohs(eth_type);
 	*l3_offset = offset;
@@ -452,6 +462,108 @@ int  xdp_prognum4_ddos_filter_pktgen(struct xdp_md *ctx)
 	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
 }
 
+/* Hashing initval */
+#define INITVAL 15485863
+
+static __always_inline
+u32 get_ipv4_hash_ip_pair(struct xdp_md *ctx, u64 nh_off)
+{
+	void *data_end = (void *)(long)ctx->data_end;
+	void *data     = (void *)(long)ctx->data;
+	struct iphdr *iph = data + nh_off;
+	u32 cpu_hash;
+
+	if (iph + 1 > data_end)
+		return 0;
+
+	cpu_hash = iph->saddr + iph->daddr;
+	cpu_hash = SuperFastHash((char *)&cpu_hash, 4, INITVAL + iph->protocol);
+
+	return cpu_hash;
+}
+
+static __always_inline
+u32 get_ipv6_hash_ip_pair(struct xdp_md *ctx, u64 nh_off)
+{
+	void *data_end = (void *)(long)ctx->data_end;
+	void *data     = (void *)(long)ctx->data;
+	struct ipv6hdr *ip6h = data + nh_off;
+	u32 cpu_hash;
+
+	if (ip6h + 1 > data_end)
+		return 0;
+
+	cpu_hash  = ip6h->saddr.s6_addr32[0] + ip6h->daddr.s6_addr32[0];
+	cpu_hash += ip6h->saddr.s6_addr32[1] + ip6h->daddr.s6_addr32[1];
+	cpu_hash += ip6h->saddr.s6_addr32[2] + ip6h->daddr.s6_addr32[2];
+	cpu_hash += ip6h->saddr.s6_addr32[3] + ip6h->daddr.s6_addr32[3];
+	cpu_hash = SuperFastHash((char *)&cpu_hash, 4, INITVAL + ip6h->nexthdr);
+
+	return cpu_hash;
+}
+
+/* Load-Balance traffic based on hashing IP-addrs + L4-proto.  The
+ * hashing scheme is symmetric, meaning swapping IP src/dest still hit
+ * same CPU.
+ */
+SEC("xdp_cpu_map5_lb_hash_ip_pairs")
+int  xdp_prognum5_lb_hash_ip_pairs(struct xdp_md *ctx)
+{
+	void *data_end = (void *)(long)ctx->data_end;
+	void *data     = (void *)(long)ctx->data;
+	struct ethhdr *eth = data;
+	u8 ip_proto = IPPROTO_UDP;
+	struct datarec *rec;
+	u16 eth_proto = 0;
+	u64 l3_offset = 0;
+	u32 cpu_dest = 0;
+	u32 cpu_idx = 0;
+	u32 *cpu_lookup;
+	u32 *cpu_max;
+	u32 cpu_hash;
+	u32 key = 0;
+
+	/* Count RX packet in map */
+	rec = bpf_map_lookup_elem(&rx_cnt, &key);
+	if (!rec)
+		return XDP_ABORTED;
+	rec->processed++;
+
+	cpu_max = bpf_map_lookup_elem(&cpus_count, &key);
+	if (!cpu_max)
+		return XDP_ABORTED;
+
+	if (!(parse_eth(eth, data_end, &eth_proto, &l3_offset)))
+		return XDP_PASS; /* Just skip */
+
+	/* Hash for IPv4 and IPv6 */
+	switch (eth_proto) {
+	case ETH_P_IP:
+		cpu_hash = get_ipv4_hash_ip_pair(ctx, l3_offset);
+		break;
+	case ETH_P_IPV6:
+		cpu_hash = get_ipv6_hash_ip_pair(ctx, l3_offset);
+		break;
+	case ETH_P_ARP: /* ARP packet handled on CPU idx 0 */
+	default:
+		cpu_hash = 0;
+	}
+
+	/* Choose CPU based on hash */
+	cpu_idx = cpu_hash % *cpu_max;
+
+	cpu_lookup = bpf_map_lookup_elem(&cpus_available, &cpu_idx);
+	if (!cpu_lookup)
+		return XDP_ABORTED;
+	cpu_dest = *cpu_lookup;
+
+	if (cpu_dest >= MAX_CPUS) {
+		rec->issue++;
+		return XDP_ABORTED;
+	}
+
+	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
+}
 
 char _license[] SEC("license") = "GPL";
 

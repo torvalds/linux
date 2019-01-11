@@ -15,6 +15,7 @@
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
 #	AArch64, PARISC ports by Kyle McMartin
 #	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
+#	ppc64le port by Breno Leitao <leitao@debian.org>
 #
 #	Usage:
 #	objdump -d vmlinux | scripts/checkstack.pl [arch]
@@ -78,13 +79,9 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 		$re = qr/.*l\.addi.*r1,r1,-(([0-9]{2}|[3-9])[0-9]{2})/o;
 	} elsif ($arch eq 'parisc' || $arch eq 'parisc64') {
 		$re = qr/.*ldo ($x{1,8})\(sp\),sp/o;
-	} elsif ($arch eq 'ppc') {
-		#c00029f4:       94 21 ff 30     stwu    r1,-208(r1)
-		$re = qr/.*stwu.*r1,-($x{1,8})\(r1\)/o;
-	} elsif ($arch eq 'ppc64') {
-		#XXX
-		$re = qr/.*stdu.*r1,-($x{1,8})\(r1\)/o;
-	} elsif ($arch eq 'powerpc') {
+	} elsif ($arch eq 'powerpc' || $arch =~ /^ppc(64)?(le)?$/ ) {
+		# powerpc    : 94 21 ff 30     stwu    r1,-208(r1)
+		# ppc64(le)  : 81 ff 21 f8     stdu    r1,-128(r1)
 		$re = qr/.*st[dw]u.*r1,-($x{1,8})\(r1\)/o;
 	} elsif ($arch =~ /^s390x?$/) {
 		#   11160:       a7 fb ff 60             aghi   %r15,-160

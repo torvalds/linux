@@ -341,8 +341,8 @@ schedule:
 			   nft_set_gc_interval(set));
 }
 
-static unsigned int nft_rhash_privsize(const struct nlattr * const nla[],
-				       const struct nft_set_desc *desc)
+static u64 nft_rhash_privsize(const struct nlattr * const nla[],
+			      const struct nft_set_desc *desc)
 {
 	return sizeof(struct nft_rhash);
 }
@@ -585,8 +585,8 @@ cont:
 	}
 }
 
-static unsigned int nft_hash_privsize(const struct nlattr * const nla[],
-				      const struct nft_set_desc *desc)
+static u64 nft_hash_privsize(const struct nlattr * const nla[],
+			     const struct nft_set_desc *desc)
 {
 	return sizeof(struct nft_hash) +
 	       nft_hash_buckets(desc->size) * sizeof(struct hlist_head);

@@ -7838,8 +7838,8 @@ int qed_dbg_igu_fifo_size(struct qed_dev *cdev)
 	return qed_dbg_feature_size(cdev, DBG_FEATURE_IGU_FIFO);
 }
 
-int qed_dbg_nvm_image_length(struct qed_hwfn *p_hwfn,
-			     enum qed_nvm_images image_id, u32 *length)
+static int qed_dbg_nvm_image_length(struct qed_hwfn *p_hwfn,
+				    enum qed_nvm_images image_id, u32 *length)
 {
 	struct qed_nvm_image_att image_att;
 	int rc;
@@ -7854,8 +7854,9 @@ int qed_dbg_nvm_image_length(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
-		      u32 *num_dumped_bytes, enum qed_nvm_images image_id)
+static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
+			     u32 *num_dumped_bytes,
+			     enum qed_nvm_images image_id)
 {
 	struct qed_hwfn *p_hwfn =
 		&cdev->hwfns[cdev->dbg_params.engine_for_debug];

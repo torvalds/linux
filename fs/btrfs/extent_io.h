@@ -46,7 +46,7 @@
 #define EXTENT_BUFFER_STALE 6
 #define EXTENT_BUFFER_WRITEBACK 7
 #define EXTENT_BUFFER_READ_ERR 8        /* read IO error */
-#define EXTENT_BUFFER_DUMMY 9
+#define EXTENT_BUFFER_UNMAPPED 9
 #define EXTENT_BUFFER_IN_TREE 10
 #define EXTENT_BUFFER_WRITE_ERR 11    /* write IO error */
 
@@ -92,9 +92,6 @@ typedef	blk_status_t (extent_submit_bio_hook_t)(void *private_data, struct bio *
 typedef blk_status_t (extent_submit_bio_start_t)(void *private_data,
 		struct bio *bio, u64 bio_offset);
 
-typedef blk_status_t (extent_submit_bio_done_t)(void *private_data,
-		struct bio *bio, int mirror_num);
-
 struct extent_io_ops {
 	/*
 	 * The following callbacks must be allways defined, the function
@@ -104,12 +101,7 @@ struct extent_io_ops {
 	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
 				    struct page *page, u64 start, u64 end,
 				    int mirror);
-	int (*merge_bio_hook)(struct page *page, unsigned long offset,
-			      size_t size, struct bio *bio,
-			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
-	struct btrfs_fs_info *(*tree_fs_info)(void *private_data);
-	void (*set_range_writeback)(void *private_data, u64 start, u64 end);
 
 	/*
 	 * Optional hooks, called if the pointer is not NULL
@@ -440,10 +432,10 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     int mirror_num);
 void wait_on_extent_buffer_writeback(struct extent_buffer *eb);
 
-static inline unsigned long num_extent_pages(u64 start, u64 len)
+static inline int num_extent_pages(const struct extent_buffer *eb)
 {
-	return ((start + len + PAGE_SIZE - 1) >> PAGE_SHIFT) -
-		(start >> PAGE_SHIFT);
+	return (round_up(eb->start + eb->len, PAGE_SIZE) >> PAGE_SHIFT) -
+	       (eb->start >> PAGE_SHIFT);
 }
 
 static inline void extent_buffer_get(struct extent_buffer *eb)

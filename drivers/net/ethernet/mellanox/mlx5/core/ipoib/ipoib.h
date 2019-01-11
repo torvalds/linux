@@ -109,12 +109,11 @@ struct mlx5i_tx_wqe {
 
 static inline void mlx5i_sq_fetch_wqe(struct mlx5e_txqsq *sq,
 				      struct mlx5i_tx_wqe **wqe,
-				      u16 *pi)
+				      u16 pi)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 
-	*pi  = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	*wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
+	*wqe = mlx5_wq_cyc_get_wqe(wq, pi);
 	memset(*wqe, 0, sizeof(**wqe));
 }
 

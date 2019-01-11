@@ -155,6 +155,25 @@
 		};
 	};
 
+	spi_gpio {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-chipselects = <2>;
+
+		gpio-miso = <&gpe 14 0>;
+		gpio-sck = <&gpe 15 0>;
+		gpio-mosi = <&gpe 17 0>;
+		cs-gpios = <&gpe 16 0
+			    &gpe 18 0>;
+
+		spidev@0 {
+			compatible = "spidev";
+			reg = <0>;
+			spi-max-frequency = <1000000>;
+		};
+	};
+
 	uart0: serial@10030000 {
 		compatible = "ingenic,jz4780-uart";
 		reg = <0x10030000 0x100>;

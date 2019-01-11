@@ -92,9 +92,7 @@ APICs
 Timing
 
   notsc
-  Don't use the CPU time stamp counter to read the wall time.
-  This can be used to work around timing problems on multiprocessor systems
-  with not properly synchronized CPUs.
+  Deprecated, use tsc=unstable instead.
 
   nohpet
   Don't use the HPET timer.
@@ -155,6 +153,10 @@ NUMA
   numa=fake=<N>
 		If given as an integer, fills all system RAM with N fake nodes
 		interleaved over physical nodes.
+
+  numa=fake=<N>U
+		If given as an integer followed by 'U', it will divide each
+		physical node into N emulated nodes.
 
 ACPI
 

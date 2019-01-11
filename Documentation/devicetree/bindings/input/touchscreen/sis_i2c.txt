@@ -3,8 +3,6 @@
 Required properties:
 - compatible: must be "sis,9200-ts"
 - reg: i2c slave address
-- interrupt-parent: the phandle for the interrupt controller
-  (see interrupt binding [0])
 - interrupts: touch controller interrupt (see interrupt
   binding [0])
 

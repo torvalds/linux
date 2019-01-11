@@ -46,11 +46,6 @@ enum {
 	PORT_DONE,
 };
 
-struct vmx_page {
-	vm_vaddr_t virt;
-	vm_paddr_t phys;
-};
-
 enum {
 	VMXON_PAGE = 0,
 	VMCS_PAGE,
@@ -67,30 +62,12 @@ struct kvm_single_msr {
 /* The virtual machine object. */
 static struct kvm_vm *vm;
 
-/* Array of vmx_page descriptors that is shared with the guest. */
-struct vmx_page *vmx_pages;
-
-#define exit_to_l0(_port, _arg) do_exit_to_l0(_port, (unsigned long) (_arg))
-static void do_exit_to_l0(uint16_t port, unsigned long arg)
-{
-	__asm__ __volatile__("in %[port], %%al"
-		:
-		: [port]"d"(port), "D"(arg)
-		: "rax");
-}
-
-
-#define GUEST_ASSERT(_condition) do {					     \
-	if (!(_condition))						     \
-		exit_to_l0(PORT_ABORT, "Failed guest assert: " #_condition); \
-} while (0)
-
 static void check_ia32_tsc_adjust(int64_t max)
 {
 	int64_t adjust;
 
 	adjust = rdmsr(MSR_IA32_TSC_ADJUST);
-	exit_to_l0(PORT_REPORT, adjust);
+	GUEST_SYNC(adjust);
 	GUEST_ASSERT(adjust <= max);
 }
 
@@ -105,7 +82,7 @@ static void l2_guest_code(void)
 	__asm__ __volatile__("vmcall");
 }
 
-static void l1_guest_code(struct vmx_page *vmx_pages)
+static void l1_guest_code(struct vmx_pages *vmx_pages)
 {
 #define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
@@ -116,23 +93,14 @@ static void l1_guest_code(struct vmx_page *vmx_pages)
 	wrmsr(MSR_IA32_TSC, rdtsc() - TSC_ADJUST_VALUE);
 	check_ia32_tsc_adjust(-1 * TSC_ADJUST_VALUE);
 
-	prepare_for_vmx_operation();
-
-	/* Enter VMX root operation. */
-	*(uint32_t *)vmx_pages[VMXON_PAGE].virt = vmcs_revision();
-	GUEST_ASSERT(!vmxon(vmx_pages[VMXON_PAGE].phys));
-
-	/* Load a VMCS. */
-	*(uint32_t *)vmx_pages[VMCS_PAGE].virt = vmcs_revision();
-	GUEST_ASSERT(!vmclear(vmx_pages[VMCS_PAGE].phys));
-	GUEST_ASSERT(!vmptrld(vmx_pages[VMCS_PAGE].phys));
+	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
 
 	/* Prepare the VMCS for L2 execution. */
-	prepare_vmcs(l2_guest_code, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx_pages, l2_guest_code,
+		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 	control = vmreadz(CPU_BASED_VM_EXEC_CONTROL);
 	control |= CPU_BASED_USE_MSR_BITMAPS | CPU_BASED_USE_TSC_OFFSETING;
 	vmwrite(CPU_BASED_VM_EXEC_CONTROL, control);
-	vmwrite(MSR_BITMAP, vmx_pages[MSR_BITMAP_PAGE].phys);
 	vmwrite(TSC_OFFSET, TSC_OFFSET_VALUE);
 
 	/* Jump into L2.  First, test failure to load guest CR3.  */
@@ -149,34 +117,7 @@ static void l1_guest_code(struct vmx_page *vmx_pages)
 
 	check_ia32_tsc_adjust(-2 * TSC_ADJUST_VALUE);
 
-	exit_to_l0(PORT_DONE, 0);
-}
-
-static void allocate_vmx_page(struct vmx_page *page)
-{
-	vm_vaddr_t virt;
-
-	virt = vm_vaddr_alloc(vm, PAGE_SIZE, 0, 0, 0);
-	memset(addr_gva2hva(vm, virt), 0, PAGE_SIZE);
-
-	page->virt = virt;
-	page->phys = addr_gva2gpa(vm, virt);
-}
-
-static vm_vaddr_t allocate_vmx_pages(void)
-{
-	vm_vaddr_t vmx_pages_vaddr;
-	int i;
-
-	vmx_pages_vaddr = vm_vaddr_alloc(
-		vm, sizeof(struct vmx_page) * NUM_VMX_PAGES, 0, 0, 0);
-
-	vmx_pages = (void *) addr_gva2hva(vm, vmx_pages_vaddr);
-
-	for (i = 0; i < NUM_VMX_PAGES; i++)
-		allocate_vmx_page(&vmx_pages[i]);
-
-	return vmx_pages_vaddr;
+	GUEST_DONE();
 }
 
 void report(int64_t val)
@@ -187,7 +128,8 @@ void report(int64_t val)
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_vaddr;
+	struct vmx_pages *vmx_pages;
+	vm_vaddr_t vmx_pages_gva;
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
 	if (!(entry->ecx & CPUID_VMX)) {
@@ -195,35 +137,35 @@ int main(int argc, char *argv[])
 		exit(KSFT_SKIP);
 	}
 
-	vm = vm_create_default_vmx(VCPU_ID, (void *) l1_guest_code);
+	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
+	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
 	/* Allocate VMX pages and shared descriptors (vmx_pages). */
-	vmx_pages_vaddr = allocate_vmx_pages();
-	vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_vaddr);
+	vmx_pages = vcpu_alloc_vmx(vm, &vmx_pages_gva);
+	vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 
 	for (;;) {
 		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
-		struct kvm_regs regs;
+		struct guest_args args;
 
 		vcpu_run(vm, VCPU_ID);
+		guest_args_read(vm, VCPU_ID, &args);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "Got exit_reason other than KVM_EXIT_IO: %u (%s),\n",
+			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 			    run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		vcpu_regs_get(vm, VCPU_ID, &regs);
-
-		switch (run->io.port) {
-		case PORT_ABORT:
-			TEST_ASSERT(false, "%s", (const char *) regs.rdi);
+		switch (args.port) {
+		case GUEST_PORT_ABORT:
+			TEST_ASSERT(false, "%s", (const char *) args.arg0);
 			/* NOT REACHED */
-		case PORT_REPORT:
-			report(regs.rdi);
+		case GUEST_PORT_SYNC:
+			report(args.arg1);
 			break;
-		case PORT_DONE:
+		case GUEST_PORT_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown port 0x%x.", run->io.port);
+			TEST_ASSERT(false, "Unknown port 0x%x.", args.port);
 		}
 	}
 

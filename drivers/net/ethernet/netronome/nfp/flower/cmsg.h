@@ -37,6 +37,7 @@
 #include <linux/bitfield.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
+#include <net/geneve.h>
 
 #include "../nfp_app.h"
 #include "../nfpcore/nfp_cpp.h"
@@ -51,6 +52,7 @@
 #define NFP_FLOWER_LAYER_VXLAN		BIT(7)
 
 #define NFP_FLOWER_LAYER2_GENEVE	BIT(5)
+#define NFP_FLOWER_LAYER2_GENEVE_OP	BIT(6)
 
 #define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
@@ -81,6 +83,11 @@
 #define NFP_FL_MAX_A_SIZ		1216
 #define NFP_FL_LW_SIZ			2
 
+/* Maximum allowed geneve options */
+#define NFP_FL_MAX_GENEVE_OPT_ACT	32
+#define NFP_FL_MAX_GENEVE_OPT_CNT	64
+#define NFP_FL_MAX_GENEVE_OPT_KEY	32
+
 /* Action opcodes */
 #define NFP_FL_ACTION_OPCODE_OUTPUT		0
 #define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
@@ -94,6 +101,7 @@
 #define NFP_FL_ACTION_OPCODE_SET_TCP		15
 #define NFP_FL_ACTION_OPCODE_PRE_LAG		16
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
+#define NFP_FL_ACTION_OPCODE_PUSH_GENEVE	26
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
 #define NFP_FL_OUT_FLAGS_LAST		BIT(15)
@@ -203,10 +211,22 @@ struct nfp_fl_set_ipv4_udp_tun {
 	__be16 reserved;
 	__be64 tun_id __packed;
 	__be32 tun_type_index;
-	__be16 reserved2;
+	__be16 tun_flags;
 	u8 ttl;
-	u8 reserved3;
-	__be32 extra[2];
+	u8 tos;
+	__be32 extra;
+	u8 tun_len;
+	u8 res2;
+	__be16 tun_proto;
+};
+
+struct nfp_fl_push_geneve {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be16 class;
+	u8 type;
+	u8 length;
+	u8 opt_data[];
 };
 
 /* Metadata with L2 (1W/4B)
@@ -346,7 +366,7 @@ struct nfp_flower_ipv6 {
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                         ipv4_addr_dst                         |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |                            Reserved                           |
+ * |           Reserved            |      tos      |      ttl      |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                            Reserved                           |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -356,8 +376,15 @@ struct nfp_flower_ipv6 {
 struct nfp_flower_ipv4_udp_tun {
 	__be32 ip_src;
 	__be32 ip_dst;
-	__be32 reserved[2];
+	__be16 reserved1;
+	u8 tos;
+	u8 ttl;
+	__be32 reserved2;
 	__be32 tun_id;
+};
+
+struct nfp_flower_geneve_options {
+	u8 data[NFP_FL_MAX_GENEVE_OPT_KEY];
 };
 
 #define NFP_FL_TUN_VNI_OFFSET 8

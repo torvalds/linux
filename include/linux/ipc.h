@@ -4,7 +4,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/uidgid.h>
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 #include <uapi/linux/ipc.h>
 #include <linux/refcount.h>
 

@@ -11,6 +11,7 @@
 #include "sama5d2-pinfunc.h"
 #include <dt-bindings/mfd/atmel-flexcom.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/at91.h>
 
 / {
 	model = "Atmel SAMA5D2 PTC EK";
@@ -299,6 +300,7 @@
 							 <PIN_PA30__NWE_NANDWE>,
 							 <PIN_PB2__NRD_NANDOE>;
 						bias-pull-up;
+						atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
 					};
 
 					ale_cle_rdy_cs {

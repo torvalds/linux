@@ -182,39 +182,19 @@ static struct dst_entry *rxe_find_route6(struct net_device *ndev,
 
 #endif
 
-/*
- * Derive the net_device from the av.
- * For physical devices, this will just return rxe->ndev.
- * But for VLAN devices, it will return the vlan dev.
- * Caller should dev_put() the returned net_device.
- */
-static struct net_device *rxe_netdev_from_av(struct rxe_dev *rxe,
-					     int port_num,
-					     struct rxe_av *av)
-{
-	union ib_gid gid;
-	struct ib_gid_attr attr;
-	struct net_device *ndev = rxe->ndev;
-
-	if (ib_get_cached_gid(&rxe->ib_dev, port_num, av->grh.sgid_index,
-			      &gid, &attr) == 0 &&
-	    attr.ndev && attr.ndev != ndev)
-		ndev = attr.ndev;
-	else
-		/* Only to ensure that caller may call dev_put() */
-		dev_hold(ndev);
-
-	return ndev;
-}
-
 static struct dst_entry *rxe_find_route(struct rxe_dev *rxe,
 					struct rxe_qp *qp,
 					struct rxe_av *av)
 {
+	const struct ib_gid_attr *attr;
 	struct dst_entry *dst = NULL;
 	struct net_device *ndev;
 
-	ndev = rxe_netdev_from_av(rxe, qp->attr.port_num, av);
+	attr = rdma_get_gid_attr(&rxe->ib_dev, qp->attr.port_num,
+				 av->grh.sgid_index);
+	if (IS_ERR(attr))
+		return NULL;
+	ndev = attr->ndev;
 
 	if (qp_type(qp) == IB_QPT_RC)
 		dst = sk_dst_get(qp->sk->sk);
@@ -243,9 +223,13 @@ static struct dst_entry *rxe_find_route(struct rxe_dev *rxe,
 					rt6_get_cookie((struct rt6_info *)dst);
 #endif
 		}
-	}
 
-	dev_put(ndev);
+		if (dst && (qp_type(qp) == IB_QPT_RC)) {
+			dst_hold(dst);
+			sk_dst_set(qp->sk->sk, dst);
+		}
+	}
+	rdma_put_gid_attr(attr);
 	return dst;
 }
 
@@ -418,11 +402,7 @@ static int prepare4(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	prepare_ipv4_hdr(dst, skb, saddr->s_addr, daddr->s_addr, IPPROTO_UDP,
 			 av->grh.traffic_class, av->grh.hop_limit, df, xnet);
 
-	if (qp_type(qp) == IB_QPT_RC)
-		sk_dst_set(qp->sk->sk, dst);
-	else
-		dst_release(dst);
-
+	dst_release(dst);
 	return 0;
 }
 
@@ -450,11 +430,7 @@ static int prepare6(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 			 av->grh.traffic_class,
 			 av->grh.hop_limit);
 
-	if (qp_type(qp) == IB_QPT_RC)
-		sk_dst_set(qp->sk->sk, dst);
-	else
-		dst_release(dst);
-
+	dst_release(dst);
 	return 0;
 }
 
@@ -536,9 +512,13 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 	unsigned int hdr_len;
 	struct sk_buff *skb;
 	struct net_device *ndev;
+	const struct ib_gid_attr *attr;
 	const int port_num = 1;
 
-	ndev = rxe_netdev_from_av(rxe, port_num, av);
+	attr = rdma_get_gid_attr(&rxe->ib_dev, port_num, av->grh.sgid_index);
+	if (IS_ERR(attr))
+		return NULL;
+	ndev = attr->ndev;
 
 	if (av->network_type == RDMA_NETWORK_IPV4)
 		hdr_len = ETH_HLEN + sizeof(struct udphdr) +
@@ -550,10 +530,8 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 	skb = alloc_skb(paylen + hdr_len + LL_RESERVED_SPACE(ndev),
 			GFP_ATOMIC);
 
-	if (unlikely(!skb)) {
-		dev_put(ndev);
-		return NULL;
-	}
+	if (unlikely(!skb))
+		goto out;
 
 	skb_reserve(skb, hdr_len + LL_RESERVED_SPACE(rxe->ndev));
 
@@ -568,7 +546,8 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 	pkt->hdr	= skb_put_zero(skb, paylen);
 	pkt->mask	|= RXE_GRH_MASK;
 
-	dev_put(ndev);
+out:
+	rdma_put_gid_attr(attr);
 	return skb;
 }
 

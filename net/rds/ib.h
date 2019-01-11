@@ -57,16 +57,44 @@ struct rds_ib_refill_cache {
 	struct list_head	 *ready;
 };
 
+/* This is the common structure for the IB private data exchange in setting up
+ * an RDS connection.  The exchange is different for IPv4 and IPv6 connections.
+ * The reason is that the address size is different and the addresses
+ * exchanged are in the beginning of the structure.  Hence it is not possible
+ * for interoperability if same structure is used.
+ */
+struct rds_ib_conn_priv_cmn {
+	u8			ricpc_protocol_major;
+	u8			ricpc_protocol_minor;
+	__be16			ricpc_protocol_minor_mask;	/* bitmask */
+	__be32			ricpc_reserved1;
+	__be64			ricpc_ack_seq;
+	__be32			ricpc_credit;	/* non-zero enables flow ctl */
+};
+
 struct rds_ib_connect_private {
 	/* Add new fields at the end, and don't permute existing fields. */
-	__be32			dp_saddr;
-	__be32			dp_daddr;
-	u8			dp_protocol_major;
-	u8			dp_protocol_minor;
-	__be16			dp_protocol_minor_mask; /* bitmask */
-	__be32			dp_reserved1;
-	__be64			dp_ack_seq;
-	__be32			dp_credit;		/* non-zero enables flow ctl */
+	__be32				dp_saddr;
+	__be32				dp_daddr;
+	struct rds_ib_conn_priv_cmn	dp_cmn;
+};
+
+struct rds6_ib_connect_private {
+	/* Add new fields at the end, and don't permute existing fields. */
+	struct in6_addr			dp_saddr;
+	struct in6_addr			dp_daddr;
+	struct rds_ib_conn_priv_cmn	dp_cmn;
+};
+
+#define dp_protocol_major	dp_cmn.ricpc_protocol_major
+#define dp_protocol_minor	dp_cmn.ricpc_protocol_minor
+#define dp_protocol_minor_mask	dp_cmn.ricpc_protocol_minor_mask
+#define dp_ack_seq		dp_cmn.ricpc_ack_seq
+#define dp_credit		dp_cmn.ricpc_credit
+
+union rds_ib_conn_priv {
+	struct rds_ib_connect_private	ricp_v4;
+	struct rds6_ib_connect_private	ricp_v6;
 };
 
 struct rds_ib_send_work {
@@ -351,8 +379,8 @@ void rds_ib_listen_stop(void);
 __printf(2, 3)
 void __rds_ib_conn_error(struct rds_connection *conn, const char *, ...);
 int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
-			     struct rdma_cm_event *event);
-int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id);
+			     struct rdma_cm_event *event, bool isv6);
+int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id, bool isv6);
 void rds_ib_cm_connect_complete(struct rds_connection *conn,
 				struct rdma_cm_event *event);
 
@@ -361,7 +389,8 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn,
 	__rds_ib_conn_error(conn, KERN_WARNING "RDS/IB: " fmt)
 
 /* ib_rdma.c */
-int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr);
+int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev,
+			 struct in6_addr *ipaddr);
 void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_destroy_nodev_conns(void);
@@ -371,7 +400,7 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc);
 int rds_ib_recv_init(void);
 void rds_ib_recv_exit(void);
 int rds_ib_recv_path(struct rds_conn_path *conn);
-int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic);
+int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic, gfp_t gfp);
 void rds_ib_recv_free_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp);
 void rds_ib_inc_free(struct rds_incoming *inc);
@@ -414,7 +443,7 @@ int rds_ib_send_grab_credits(struct rds_ib_connection *ic, u32 wanted,
 int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op);
 
 /* ib_stats.c */
-DECLARE_PER_CPU(struct rds_ib_statistics, rds_ib_stats);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct rds_ib_statistics, rds_ib_stats);
 #define rds_ib_stats_inc(member) rds_stats_inc_which(rds_ib_stats, member)
 #define rds_ib_stats_add(member, count) \
 		rds_stats_add_which(rds_ib_stats, member, count)

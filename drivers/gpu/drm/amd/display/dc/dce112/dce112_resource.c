@@ -49,6 +49,7 @@
 #include "dce112/dce112_hw_sequencer.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
+#include "dce/dce_aux.h"
 
 #include "reg_helper.h"
 
@@ -146,15 +147,15 @@ static const struct dce110_timing_generator_offsets dce112_tg_offsets[] = {
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
 
-static const struct dce_disp_clk_registers disp_clk_regs = {
+static const struct dccg_registers disp_clk_regs = {
 		CLK_COMMON_REG_LIST_DCE_BASE()
 };
 
-static const struct dce_disp_clk_shift disp_clk_shift = {
+static const struct dccg_shift disp_clk_shift = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
-static const struct dce_disp_clk_mask disp_clk_mask = {
+static const struct dccg_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
@@ -312,6 +313,21 @@ static const struct dce_opp_shift opp_shift = {
 
 static const struct dce_opp_mask opp_mask = {
 	OPP_COMMON_MASK_SH_LIST_DCE_112(_MASK)
+};
+
+#define aux_engine_regs(id)\
+[id] = {\
+	AUX_COMMON_REG_LIST(id), \
+	.AUX_RESET_MASK = 0 \
+}
+
+static const struct dce110_aux_registers aux_engine_regs[] = {
+		aux_engine_regs(0),
+		aux_engine_regs(1),
+		aux_engine_regs(2),
+		aux_engine_regs(3),
+		aux_engine_regs(4),
+		aux_engine_regs(5)
 };
 
 #define audio_regs(id)\
@@ -588,6 +604,23 @@ struct output_pixel_processor *dce112_opp_create(
 	return &opp->base;
 }
 
+struct aux_engine *dce112_aux_engine_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct aux_engine_dce110 *aux_engine =
+		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+
+	if (!aux_engine)
+		return NULL;
+
+	dce110_aux_engine_construct(aux_engine, ctx, inst,
+				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
+				    &aux_engine_regs[inst]);
+
+	return &aux_engine->base;
+}
+
 struct clock_source *dce112_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
@@ -625,6 +658,9 @@ static void destruct(struct dce110_resource_pool *pool)
 		if (pool->base.opps[i] != NULL)
 			dce110_opp_destroy(&pool->base.opps[i]);
 
+		if (pool->base.engines[i] != NULL)
+			dce110_engine_destroy(&pool->base.engines[i]);
+
 		if (pool->base.transforms[i] != NULL)
 			dce112_transform_destroy(&pool->base.transforms[i]);
 
@@ -640,6 +676,7 @@ static void destruct(struct dce110_resource_pool *pool)
 			kfree(DCE110TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
+
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
@@ -668,8 +705,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
@@ -744,43 +781,38 @@ bool dce112_validate_bandwidth(
 
 	if (memcmp(&dc->current_state->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
-		struct log_entry log_entry;
-		dm_logger_open(
-			dc->ctx->logger,
-			&log_entry,
-			LOG_BANDWIDTH_CALCS);
-		dm_logger_append(&log_entry, "%s: finish,\n"
+
+		DC_LOG_BANDWIDTH_CALCS(
+			"%s: finish,\n"
 			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d\n",
+			"stutMark_b: %d stutMark_a: %d\n"
+			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
+			"stutMark_b: %d stutMark_a: %d\n"
+			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
+			"stutMark_b: %d stutMark_a: %d stutter_mode_enable: %d\n"
+			"cstate: %d pstate: %d nbpstate: %d sync: %d dispclk: %d\n"
+			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n"
+			,
 			__func__,
 			context->bw.dce.nbp_state_change_wm_ns[0].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[0].a_mark,
 			context->bw.dce.urgent_wm_ns[0].b_mark,
 			context->bw.dce.urgent_wm_ns[0].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[0].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].a_mark);
-		dm_logger_append(&log_entry,
-			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d\n",
+			context->bw.dce.stutter_exit_wm_ns[0].a_mark,
 			context->bw.dce.nbp_state_change_wm_ns[1].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[1].a_mark,
 			context->bw.dce.urgent_wm_ns[1].b_mark,
 			context->bw.dce.urgent_wm_ns[1].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[1].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].a_mark);
-		dm_logger_append(&log_entry,
-			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d stutter_mode_enable: %d\n",
+			context->bw.dce.stutter_exit_wm_ns[1].a_mark,
 			context->bw.dce.nbp_state_change_wm_ns[2].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[2].a_mark,
 			context->bw.dce.urgent_wm_ns[2].b_mark,
 			context->bw.dce.urgent_wm_ns[2].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[2].b_mark,
 			context->bw.dce.stutter_exit_wm_ns[2].a_mark,
-			context->bw.dce.stutter_mode_enable);
-		dm_logger_append(&log_entry,
-			"cstate: %d pstate: %d nbpstate: %d sync: %d dispclk: %d\n"
-			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n",
+			context->bw.dce.stutter_mode_enable,
 			context->bw.dce.cpuc_state_change_enable,
 			context->bw.dce.cpup_state_change_enable,
 			context->bw.dce.nbp_state_change_enable,
@@ -790,7 +822,6 @@ bool dce112_validate_bandwidth(
 			context->bw.dce.sclk_deep_sleep_khz,
 			context->bw.dce.yclk_khz,
 			context->bw.dce.blackout_recovery_time_us);
-		dm_logger_close(&log_entry);
 	}
 	return result;
 }
@@ -1000,7 +1031,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[0].wm_max_eng_clk_in_khz =
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz - 1;
-	clk_ranges.wm_clk_ranges[0].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[0].wm_min_mem_clk_in_khz =
 			mem_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[0].wm_max_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz - 1;
@@ -1010,7 +1041,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz;
 	/* 5 GHz instead of data[7].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[1].wm_max_eng_clk_in_khz = 5000000;
-	clk_ranges.wm_clk_ranges[1].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[1].wm_min_mem_clk_in_khz =
 			mem_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[1].wm_max_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz - 1;
@@ -1020,7 +1051,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[2].wm_max_eng_clk_in_khz =
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz - 1;
-	clk_ranges.wm_clk_ranges[2].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[2].wm_min_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz;
 	/* 5 GHz instead of data[2].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[2].wm_max_mem_clk_in_khz = 5000000;
@@ -1030,7 +1061,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz;
 	/* 5 GHz instead of data[7].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[3].wm_max_eng_clk_in_khz = 5000000;
-	clk_ranges.wm_clk_ranges[3].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[3].wm_min_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz;
 	/* 5 GHz instead of data[2].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[3].wm_max_mem_clk_in_khz = 5000000;
@@ -1124,11 +1155,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce112_disp_clk_create(ctx,
+	pool->base.dccg = dce112_dccg_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.display_clock == NULL) {
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -1158,7 +1189,7 @@ static bool construct(
 	 * max_clock_state
 	 */
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.display_clock->max_clks_state =
+		pool->base.dccg->max_clks_state =
 				static_clk_info.max_clocks_state;
 
 	{
@@ -1212,6 +1243,13 @@ static bool construct(
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC:failed to create output pixel processor!\n");
+			goto res_create_fail;
+		}
+		pool->base.engines[i] = dce112_aux_engine_create(ctx, i);
+		if (pool->base.engines[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
 	}

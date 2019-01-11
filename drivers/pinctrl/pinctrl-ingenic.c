@@ -793,7 +793,7 @@ static int ingenic_pinctrl_probe(struct platform_device *pdev)
 
 		err = pinctrl_generic_add_group(jzpc->pctl, group->name,
 				group->pins, group->num_pins, group->data);
-		if (err) {
+		if (err < 0) {
 			dev_err(dev, "Failed to register group %s\n",
 					group->name);
 			return err;
@@ -806,7 +806,7 @@ static int ingenic_pinctrl_probe(struct platform_device *pdev)
 		err = pinmux_generic_add_function(jzpc->pctl, func->name,
 				func->group_names, func->num_group_names,
 				func->data);
-		if (err) {
+		if (err < 0) {
 			dev_err(dev, "Failed to register function %s\n",
 					func->name);
 			return err;

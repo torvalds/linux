@@ -232,8 +232,7 @@
 #define NETSEC_EEPROM_PKT_ME_ADDRESS		0x20
 #define NETSEC_EEPROM_PKT_ME_SIZE		0x24
 
-#define DESC_NUM	128
-#define NAPI_BUDGET	(DESC_NUM / 2)
+#define DESC_NUM	256
 
 #define DESC_SZ	sizeof(struct netsec_de)
 
@@ -642,8 +641,6 @@ static struct sk_buff *netsec_get_rx_pkt_data(struct netsec_priv *priv,
 
 	tmp_skb = netsec_alloc_skb(priv, &td);
 
-	dma_rmb();
-
 	tail = dring->tail;
 
 	if (!tmp_skb) {
@@ -656,8 +653,6 @@ static struct sk_buff *netsec_get_rx_pkt_data(struct netsec_priv *priv,
 
 	/* move tail ahead */
 	dring->tail = (dring->tail + 1) % DESC_NUM;
-
-	dring->pkt_cnt--;
 
 	return skb;
 }
@@ -731,25 +726,27 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
 	struct net_device *ndev = priv->ndev;
 	struct netsec_rx_pkt_info rx_info;
-	int done = 0, rx_num = 0;
+	int done = 0;
 	struct netsec_desc desc;
 	struct sk_buff *skb;
 	u16 len;
 
 	while (done < budget) {
-		if (!rx_num) {
-			rx_num = netsec_read(priv, NETSEC_REG_NRM_RX_PKTCNT);
-			dring->pkt_cnt += rx_num;
+		u16 idx = dring->tail;
+		struct netsec_de *de = dring->vaddr + (DESC_SZ * idx);
 
-			/* move head 'rx_num' */
-			dring->head = (dring->head + rx_num) % DESC_NUM;
-
-			rx_num = dring->pkt_cnt;
-			if (!rx_num)
-				break;
+		if (de->attr & (1U << NETSEC_RX_PKT_OWN_FIELD)) {
+			/* reading the register clears the irq */
+			netsec_read(priv, NETSEC_REG_NRM_RX_PKTCNT);
+			break;
 		}
+
+		/* This  barrier is needed to keep us from reading
+		 * any other fields out of the netsec_de until we have
+		 * verified the descriptor has been written back
+		 */
+		dma_rmb();
 		done++;
-		rx_num--;
 		skb = netsec_get_rx_pkt_data(priv, &rx_info, &desc, &len);
 		if (unlikely(!skb) || rx_info.err_flag) {
 			netif_err(priv, drv, priv->ndev,
@@ -780,11 +777,9 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 static int netsec_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct netsec_priv *priv;
-	struct net_device *ndev;
 	int tx, rx, done, todo;
 
 	priv = container_of(napi, struct netsec_priv, napi);
-	ndev = priv->ndev;
 
 	todo = budget;
 	do {
@@ -1666,7 +1661,7 @@ static int netsec_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "hardware revision %d.%d\n",
 		 hw_ver >> 16, hw_ver & 0xffff);
 
-	netif_napi_add(ndev, &priv->napi, netsec_napi_poll, NAPI_BUDGET);
+	netif_napi_add(ndev, &priv->napi, netsec_napi_poll, NAPI_POLL_WEIGHT);
 
 	ndev->netdev_ops = &netsec_netdev_ops;
 	ndev->ethtool_ops = &netsec_ethtool_ops;

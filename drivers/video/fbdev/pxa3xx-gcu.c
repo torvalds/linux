@@ -44,6 +44,7 @@
 #include <linux/clk.h>
 #include <linux/fs.h>
 #include <linux/io.h>
+#include <linux/of.h>
 
 #include "pxa3xx-gcu.h"
 
@@ -703,11 +704,20 @@ static int pxa3xx_gcu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id pxa3xx_gcu_of_match[] = {
+	{ .compatible = "marvell,pxa300-gcu", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, pxa3xx_gcu_of_match);
+#endif
+
 static struct platform_driver pxa3xx_gcu_driver = {
 	.probe	  = pxa3xx_gcu_probe,
 	.remove	 = pxa3xx_gcu_remove,
 	.driver	 = {
 		.name   = DRV_NAME,
+		.of_match_table = of_match_ptr(pxa3xx_gcu_of_match),
 	},
 };
 

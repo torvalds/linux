@@ -28,12 +28,6 @@
 #include <linux/pci.h>
 
 /*
- * This variable should be used with the
- * pci_driver structure initialization.
- */
-#define PCI_DEVICE_DATA(__ops)	.driver_data = (kernel_ulong_t)(__ops)
-
-/*
  * PCI driver handlers.
  */
 int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops);

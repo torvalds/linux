@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define  _RTW_SECURITY_C_
@@ -139,23 +131,22 @@ static __le32 getcrc32(u8 *buf, int len)
 	Need to consider the fragment  situation
 */
 void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
-{	/*  exclude ICV */
-
-	unsigned char	crc[4];
-	struct arc4context	 mycontext;
-
+{
 	int	curfragnum, length;
-	u32	keylength;
-
-	u8	*pframe, *payload, *iv;    /* wepkey */
-	u8	wepkey[16];
-	u8   hw_hdr_offset = 0;
+	u8 *pframe;
+	u8 hw_hdr_offset = 0;
 	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
-
+	const int keyindex = psecuritypriv->dot11PrivacyKeyIndex;
+	void *crypto_private;
+	struct sk_buff *skb;
+	struct lib80211_crypto_ops *crypto_ops;
 
 	if (((struct xmit_frame *)pxmitframe)->buf_addr == NULL)
+		return;
+
+	if ((pattrib->encrypt != _WEP40_) && (pattrib->encrypt != _WEP104_))
 		return;
 
 	hw_hdr_offset = TXDESC_SIZE +
@@ -163,37 +154,49 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
 
-	/* start to encrypt each fragment */
-	if ((pattrib->encrypt == _WEP40_) || (pattrib->encrypt == _WEP104_)) {
-		keylength = psecuritypriv->dot11DefKeylen[psecuritypriv->dot11PrivacyKeyIndex];
+	crypto_ops = try_then_request_module(lib80211_get_crypto_ops("WEP"), "lib80211_crypt_wep");
 
-		for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
-			iv = pframe+pattrib->hdrlen;
-			memcpy(&wepkey[0], iv, 3);
-			memcpy(&wepkey[3], &psecuritypriv->dot11DefKey[psecuritypriv->dot11PrivacyKeyIndex].skey[0], keylength);
-			payload = pframe+pattrib->iv_len+pattrib->hdrlen;
+	if (!crypto_ops)
+		return;
 
-			if ((curfragnum+1) == pattrib->nr_frags) {	/* the last fragment */
-				length = pattrib->last_txcmdsz-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
+	crypto_private = crypto_ops->init(keyindex);
+	if (!crypto_private)
+		return;
 
-				*((__le32 *)crc) = getcrc32(payload, length);
+	if (crypto_ops->set_key(psecuritypriv->dot11DefKey[keyindex].skey,
+				psecuritypriv->dot11DefKeylen[keyindex], NULL, crypto_private) < 0)
+		goto free_crypto_private;
 
-				arcfour_init(&mycontext, wepkey, 3+keylength);
-				arcfour_encrypt(&mycontext, payload, payload, length);
-				arcfour_encrypt(&mycontext, payload+length, crc, 4);
-			} else {
-				length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
-				*((__le32 *)crc) = getcrc32(payload, length);
-				arcfour_init(&mycontext, wepkey, 3+keylength);
-				arcfour_encrypt(&mycontext, payload, payload, length);
-				arcfour_encrypt(&mycontext, payload+length, crc, 4);
+	for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
+		if (curfragnum + 1 == pattrib->nr_frags)
+			length = pattrib->last_txcmdsz;
+		else
+			length = pxmitpriv->frag_len;
+		skb = dev_alloc_skb(length);
+		if (!skb)
+			goto free_crypto_private;
 
-				pframe += pxmitpriv->frag_len;
-				pframe = (u8 *)round_up((size_t)(pframe), 4);
-			}
+		skb_put_data(skb, pframe, length);
+
+		memmove(skb->data + 4, skb->data, pattrib->hdrlen);
+		skb_pull(skb, 4);
+		skb_trim(skb, skb->len - 4);
+
+		if (crypto_ops->encrypt_mpdu(skb, pattrib->hdrlen, crypto_private)) {
+			kfree_skb(skb);
+			goto free_crypto_private;
 		}
+
+		memcpy(pframe, skb->data, skb->len);
+
+		pframe += skb->len;
+		pframe = (u8 *)round_up((size_t)(pframe), 4);
+
+		kfree_skb(skb);
 	}
 
+free_crypto_private:
+	crypto_ops->deinit(crypto_private);
 }
 
 int rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
@@ -1038,7 +1041,6 @@ static void construct_mic_header2(u8 *mic_header2, u8 *mpdu, int a4_exists, int 
 		mic_header2[14] = mpdu[30] & 0x0f;
 		mic_header2[15] = mpdu[31] & 0x00;
 	}
-
 }
 
 /************************************************/

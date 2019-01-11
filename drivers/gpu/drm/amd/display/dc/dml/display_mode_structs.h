@@ -64,10 +64,9 @@ struct _vcs_dpi_voltage_scaling_st {
 	double dscclk_mhz;
 	double dcfclk_mhz;
 	double socclk_mhz;
-	double dram_speed_mhz;
+	double dram_speed_mts;
 	double fabricclk_mhz;
 	double dispclk_mhz;
-	double dram_bw_per_chan_gbps;
 	double phyclk_mhz;
 	double dppclk_mhz;
 };
@@ -112,6 +111,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double xfc_bus_transport_time_us;
 	double xfc_xbuf_latency_tolerance_us;
 	int use_urgent_burst_bw;
+	double max_hscl_ratio;
+	double max_vscl_ratio;
 	struct _vcs_dpi_voltage_scaling_st clock_limits[7];
 };
 
@@ -304,6 +305,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned char otg_inst;
 	unsigned char odm_split_cnt;
 	unsigned char odm_combine;
+	unsigned char use_maximum_vstartup;
 };
 
 struct _vcs_dpi_display_pipe_params_st {

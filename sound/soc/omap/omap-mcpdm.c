@@ -310,15 +310,19 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 			/* up to 3 channels for capture */
 			return -EINVAL;
 		link_mask |= 1 << 4;
+		/* fall through */
 	case 4:
 		if (stream == SNDRV_PCM_STREAM_CAPTURE)
 			/* up to 3 channels for capture */
 			return -EINVAL;
 		link_mask |= 1 << 3;
+		/* fall through */
 	case 3:
 		link_mask |= 1 << 2;
+		/* fall through */
 	case 2:
 		link_mask |= 1 << 1;
+		/* fall through */
 	case 1:
 		link_mask |= 1 << 0;
 		break;

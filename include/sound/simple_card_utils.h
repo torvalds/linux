@@ -1,16 +1,19 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * simple_card_utils.h
  *
  * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
+
 #ifndef __SIMPLE_CARD_UTILS_H
 #define __SIMPLE_CARD_UTILS_H
 
 #include <sound/soc.h>
+
+#define asoc_simple_card_init_hp(card, sjack, prefix) \
+	asoc_simple_card_init_jack(card, sjack, 1, prefix)
+#define asoc_simple_card_init_mic(card, sjack, prefix) \
+	asoc_simple_card_init_jack(card, sjack, 0, prefix)
 
 struct asoc_simple_dai {
 	const char *name;
@@ -26,6 +29,12 @@ struct asoc_simple_dai {
 struct asoc_simple_card_data {
 	u32 convert_rate;
 	u32 convert_channels;
+};
+
+struct asoc_simple_jack {
+	struct snd_soc_jack jack;
+	struct snd_soc_jack_pin pin;
+	struct snd_soc_jack_gpio gpio;
 };
 
 int asoc_simple_card_parse_daifmt(struct device *dev,
@@ -106,5 +115,9 @@ int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
 				      int optional);
 int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
 				      char *prefix);
+
+int asoc_simple_card_init_jack(struct snd_soc_card *card,
+			       struct asoc_simple_jack *sjack,
+			       int is_hp, char *prefix);
 
 #endif /* __SIMPLE_CARD_UTILS_H */

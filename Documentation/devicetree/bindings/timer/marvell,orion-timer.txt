@@ -3,7 +3,6 @@ Marvell Orion SoC timer
 Required properties:
 - compatible: shall be "marvell,orion-timer"
 - reg: base address of the timer register starting with TIMERS CONTROL register
-- interrupt-parent: phandle of the bridge interrupt controller
 - interrupts: should contain the interrupts for Timer0 and Timer1
 - clocks: phandle of timer reference clock (tclk)
 

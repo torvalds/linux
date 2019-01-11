@@ -24,6 +24,7 @@
 #include "smc.h"
 #include "smc_wr.h"
 #include "smc_cdc.h"
+#include "smc_ism.h"
 #include "smc_tx.h"
 
 #define SMC_TX_WORK_DELAY	HZ
@@ -180,9 +181,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		copylen = min_t(size_t, send_remaining, writespace);
 		/* determine start of sndbuf */
 		sndbuf_base = conn->sndbuf_desc->cpu_addr;
-		smc_curs_write(&prep,
-			       smc_curs_read(&conn->tx_curs_prep, conn),
-			       conn);
+		smc_curs_copy(&prep, &conn->tx_curs_prep, conn);
 		tx_cnt_prep = prep.count;
 		/* determine chunks where to write into sndbuf */
 		/* either unwrapped case, or 1st chunk of wrapped case */
@@ -213,9 +212,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		smc_sndbuf_sync_sg_for_device(conn);
 		/* update cursors */
 		smc_curs_add(conn->sndbuf_desc->len, &prep, copylen);
-		smc_curs_write(&conn->tx_curs_prep,
-			       smc_curs_read(&prep, conn),
-			       conn);
+		smc_curs_copy(&conn->tx_curs_prep, &prep, conn);
 		/* increased in send tasklet smc_cdc_tx_handler() */
 		smp_mb__before_atomic();
 		atomic_sub(copylen, &conn->sndbuf_space);
@@ -250,12 +247,29 @@ out_err:
 
 /***************************** sndbuf consumer *******************************/
 
+/* sndbuf consumer: actual data transfer of one target chunk with ISM write */
+int smcd_tx_ism_write(struct smc_connection *conn, void *data, size_t len,
+		      u32 offset, int signal)
+{
+	struct smc_ism_position pos;
+	int rc;
+
+	memset(&pos, 0, sizeof(pos));
+	pos.token = conn->peer_token;
+	pos.index = conn->peer_rmbe_idx;
+	pos.offset = conn->tx_off + offset;
+	pos.signal = signal;
+	rc = smc_ism_write(conn->lgr->smcd, &pos, data, len);
+	if (rc)
+		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
+	return rc;
+}
+
 /* sndbuf consumer: actual data transfer of one target chunk with RDMA write */
 static int smc_tx_rdma_write(struct smc_connection *conn, int peer_rmbe_offset,
 			     int num_sges, struct ib_sge sges[])
 {
 	struct smc_link_group *lgr = conn->lgr;
-	struct ib_send_wr *failed_wr = NULL;
 	struct ib_rdma_wr rdma_wr;
 	struct smc_link *link;
 	int rc;
@@ -273,7 +287,7 @@ static int smc_tx_rdma_write(struct smc_connection *conn, int peer_rmbe_offset,
 		/* offset within RMBE */
 		peer_rmbe_offset;
 	rdma_wr.rkey = lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey;
-	rc = ib_post_send(link->roce_qp, &rdma_wr.wr, &failed_wr);
+	rc = ib_post_send(link->roce_qp, &rdma_wr.wr, NULL);
 	if (rc) {
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 		smc_lgr_terminate(lgr);
@@ -297,79 +311,21 @@ static inline void smc_tx_advance_cursors(struct smc_connection *conn,
 	smc_curs_add(conn->sndbuf_desc->len, sent, len);
 }
 
-/* sndbuf consumer: prepare all necessary (src&dst) chunks of data transmit;
- * usable snd_wnd as max transmit
- */
-static int smc_tx_rdma_writes(struct smc_connection *conn)
+/* SMC-R helper for smc_tx_rdma_writes() */
+static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
+			       size_t src_off, size_t src_len,
+			       size_t dst_off, size_t dst_len)
 {
-	size_t src_off, src_len, dst_off, dst_len; /* current chunk values */
-	size_t len, dst_len_sum, src_len_sum, dstchunk, srcchunk;
-	union smc_host_cursor sent, prep, prod, cons;
+	dma_addr_t dma_addr =
+		sg_dma_address(conn->sndbuf_desc->sgt[SMC_SINGLE_LINK].sgl);
+	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
+	int src_len_sum = src_len, dst_len_sum = dst_len;
 	struct ib_sge sges[SMC_IB_MAX_SEND_SGE];
-	struct smc_link_group *lgr = conn->lgr;
-	struct smc_cdc_producer_flags *pflags;
-	int to_send, rmbespace;
-	struct smc_link *link;
-	dma_addr_t dma_addr;
+	int sent_count = src_off;
+	int srcchunk, dstchunk;
 	int num_sges;
 	int rc;
 
-	/* source: sndbuf */
-	smc_curs_write(&sent, smc_curs_read(&conn->tx_curs_sent, conn), conn);
-	smc_curs_write(&prep, smc_curs_read(&conn->tx_curs_prep, conn), conn);
-	/* cf. wmem_alloc - (snd_max - snd_una) */
-	to_send = smc_curs_diff(conn->sndbuf_desc->len, &sent, &prep);
-	if (to_send <= 0)
-		return 0;
-
-	/* destination: RMBE */
-	/* cf. snd_wnd */
-	rmbespace = atomic_read(&conn->peer_rmbe_space);
-	if (rmbespace <= 0)
-		return 0;
-	smc_curs_write(&prod,
-		       smc_curs_read(&conn->local_tx_ctrl.prod, conn),
-		       conn);
-	smc_curs_write(&cons,
-		       smc_curs_read(&conn->local_rx_ctrl.cons, conn),
-		       conn);
-
-	/* if usable snd_wnd closes ask peer to advertise once it opens again */
-	pflags = &conn->local_tx_ctrl.prod_flags;
-	pflags->write_blocked = (to_send >= rmbespace);
-	/* cf. usable snd_wnd */
-	len = min(to_send, rmbespace);
-
-	/* initialize variables for first iteration of subsequent nested loop */
-	link = &lgr->lnk[SMC_SINGLE_LINK];
-	dst_off = prod.count;
-	if (prod.wrap == cons.wrap) {
-		/* the filled destination area is unwrapped,
-		 * hence the available free destination space is wrapped
-		 * and we need 2 destination chunks of sum len; start with 1st
-		 * which is limited by what's available in sndbuf
-		 */
-		dst_len = min_t(size_t,
-				conn->peer_rmbe_size - prod.count, len);
-	} else {
-		/* the filled destination area is wrapped,
-		 * hence the available free destination space is unwrapped
-		 * and we need a single destination chunk of entire len
-		 */
-		dst_len = len;
-	}
-	dst_len_sum = dst_len;
-	src_off = sent.count;
-	/* dst_len determines the maximum src_len */
-	if (sent.count + dst_len <= conn->sndbuf_desc->len) {
-		/* unwrapped src case: single chunk of entire dst_len */
-		src_len = dst_len;
-	} else {
-		/* wrapped src case: 2 chunks of sum dst_len; start with 1st: */
-		src_len = conn->sndbuf_desc->len - sent.count;
-	}
-	src_len_sum = src_len;
-	dma_addr = sg_dma_address(conn->sndbuf_desc->sgt[SMC_SINGLE_LINK].sgl);
 	for (dstchunk = 0; dstchunk < 2; dstchunk++) {
 		num_sges = 0;
 		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
@@ -377,6 +333,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 			sges[srcchunk].length = src_len;
 			sges[srcchunk].lkey = link->roce_pd->local_dma_lkey;
 			num_sges++;
+
 			src_off += src_len;
 			if (src_off >= conn->sndbuf_desc->len)
 				src_off -= conn->sndbuf_desc->len;
@@ -396,23 +353,128 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 		dst_off = 0; /* modulo offset in RMBE ring buffer */
 		dst_len = len - dst_len; /* remainder */
 		dst_len_sum += dst_len;
-		src_len = min_t(int,
-				dst_len, conn->sndbuf_desc->len - sent.count);
+		src_len = min_t(int, dst_len, conn->sndbuf_desc->len -
+				sent_count);
 		src_len_sum = src_len;
 	}
+	return 0;
+}
+
+/* SMC-D helper for smc_tx_rdma_writes() */
+static int smcd_tx_rdma_writes(struct smc_connection *conn, size_t len,
+			       size_t src_off, size_t src_len,
+			       size_t dst_off, size_t dst_len)
+{
+	int src_len_sum = src_len, dst_len_sum = dst_len;
+	int srcchunk, dstchunk;
+	int rc;
+
+	for (dstchunk = 0; dstchunk < 2; dstchunk++) {
+		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
+			void *data = conn->sndbuf_desc->cpu_addr + src_off;
+
+			rc = smcd_tx_ism_write(conn, data, src_len, dst_off +
+					       sizeof(struct smcd_cdc_msg), 0);
+			if (rc)
+				return rc;
+			dst_off += src_len;
+			src_off += src_len;
+			if (src_off >= conn->sndbuf_desc->len)
+				src_off -= conn->sndbuf_desc->len;
+						/* modulo in send ring */
+			if (src_len_sum == dst_len)
+				break; /* either on 1st or 2nd iteration */
+			/* prepare next (== 2nd) iteration */
+			src_len = dst_len - src_len; /* remainder */
+			src_len_sum += src_len;
+		}
+		if (dst_len_sum == len)
+			break; /* either on 1st or 2nd iteration */
+		/* prepare next (== 2nd) iteration */
+		dst_off = 0; /* modulo offset in RMBE ring buffer */
+		dst_len = len - dst_len; /* remainder */
+		dst_len_sum += dst_len;
+		src_len = min_t(int, dst_len, conn->sndbuf_desc->len - src_off);
+		src_len_sum = src_len;
+	}
+	return 0;
+}
+
+/* sndbuf consumer: prepare all necessary (src&dst) chunks of data transmit;
+ * usable snd_wnd as max transmit
+ */
+static int smc_tx_rdma_writes(struct smc_connection *conn)
+{
+	size_t len, src_len, dst_off, dst_len; /* current chunk values */
+	union smc_host_cursor sent, prep, prod, cons;
+	struct smc_cdc_producer_flags *pflags;
+	int to_send, rmbespace;
+	int rc;
+
+	/* source: sndbuf */
+	smc_curs_copy(&sent, &conn->tx_curs_sent, conn);
+	smc_curs_copy(&prep, &conn->tx_curs_prep, conn);
+	/* cf. wmem_alloc - (snd_max - snd_una) */
+	to_send = smc_curs_diff(conn->sndbuf_desc->len, &sent, &prep);
+	if (to_send <= 0)
+		return 0;
+
+	/* destination: RMBE */
+	/* cf. snd_wnd */
+	rmbespace = atomic_read(&conn->peer_rmbe_space);
+	if (rmbespace <= 0)
+		return 0;
+	smc_curs_copy(&prod, &conn->local_tx_ctrl.prod, conn);
+	smc_curs_copy(&cons, &conn->local_rx_ctrl.cons, conn);
+
+	/* if usable snd_wnd closes ask peer to advertise once it opens again */
+	pflags = &conn->local_tx_ctrl.prod_flags;
+	pflags->write_blocked = (to_send >= rmbespace);
+	/* cf. usable snd_wnd */
+	len = min(to_send, rmbespace);
+
+	/* initialize variables for first iteration of subsequent nested loop */
+	dst_off = prod.count;
+	if (prod.wrap == cons.wrap) {
+		/* the filled destination area is unwrapped,
+		 * hence the available free destination space is wrapped
+		 * and we need 2 destination chunks of sum len; start with 1st
+		 * which is limited by what's available in sndbuf
+		 */
+		dst_len = min_t(size_t,
+				conn->peer_rmbe_size - prod.count, len);
+	} else {
+		/* the filled destination area is wrapped,
+		 * hence the available free destination space is unwrapped
+		 * and we need a single destination chunk of entire len
+		 */
+		dst_len = len;
+	}
+	/* dst_len determines the maximum src_len */
+	if (sent.count + dst_len <= conn->sndbuf_desc->len) {
+		/* unwrapped src case: single chunk of entire dst_len */
+		src_len = dst_len;
+	} else {
+		/* wrapped src case: 2 chunks of sum dst_len; start with 1st: */
+		src_len = conn->sndbuf_desc->len - sent.count;
+	}
+
+	if (conn->lgr->is_smcd)
+		rc = smcd_tx_rdma_writes(conn, len, sent.count, src_len,
+					 dst_off, dst_len);
+	else
+		rc = smcr_tx_rdma_writes(conn, len, sent.count, src_len,
+					 dst_off, dst_len);
+	if (rc)
+		return rc;
 
 	if (conn->urg_tx_pend && len == to_send)
 		pflags->urg_data_present = 1;
 	smc_tx_advance_cursors(conn, &prod, &sent, len);
 	/* update connection's cursors with advanced local cursors */
-	smc_curs_write(&conn->local_tx_ctrl.prod,
-		       smc_curs_read(&prod, conn),
-		       conn);
+	smc_curs_copy(&conn->local_tx_ctrl.prod, &prod, conn);
 							/* dst: peer RMBE */
-	smc_curs_write(&conn->tx_curs_sent,
-		       smc_curs_read(&sent, conn),
-		       conn);
-							/* src: local sndbuf */
+	smc_curs_copy(&conn->tx_curs_sent, &sent, conn);/* src: local sndbuf */
 
 	return 0;
 }
@@ -420,7 +482,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 /* Wakeup sndbuf consumers from any context (IRQ or process)
  * since there is more data to transmit; usable snd_wnd as max transmit
  */
-int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
+static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 {
 	struct smc_cdc_producer_flags *pflags;
 	struct smc_cdc_tx_pend *pend;
@@ -467,6 +529,37 @@ out_unlock:
 	return rc;
 }
 
+static int smcd_tx_sndbuf_nonempty(struct smc_connection *conn)
+{
+	struct smc_cdc_producer_flags *pflags = &conn->local_tx_ctrl.prod_flags;
+	int rc = 0;
+
+	spin_lock_bh(&conn->send_lock);
+	if (!pflags->urg_data_present)
+		rc = smc_tx_rdma_writes(conn);
+	if (!rc)
+		rc = smcd_cdc_msg_send(conn);
+
+	if (!rc && pflags->urg_data_present) {
+		pflags->urg_data_pending = 0;
+		pflags->urg_data_present = 0;
+	}
+	spin_unlock_bh(&conn->send_lock);
+	return rc;
+}
+
+int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
+{
+	int rc;
+
+	if (conn->lgr->is_smcd)
+		rc = smcd_tx_sndbuf_nonempty(conn);
+	else
+		rc = smcr_tx_sndbuf_nonempty(conn);
+
+	return rc;
+}
+
 /* Wakeup sndbuf consumers from process context
  * since there is more data to transmit
  */
@@ -499,17 +592,11 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 	int sender_free = conn->rmb_desc->len;
 	int to_confirm;
 
-	smc_curs_write(&cons,
-		       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
-		       conn);
-	smc_curs_write(&cfed,
-		       smc_curs_read(&conn->rx_curs_confirmed, conn),
-		       conn);
+	smc_curs_copy(&cons, &conn->local_tx_ctrl.cons, conn);
+	smc_curs_copy(&cfed, &conn->rx_curs_confirmed, conn);
 	to_confirm = smc_curs_diff(conn->rmb_desc->len, &cfed, &cons);
 	if (to_confirm > conn->rmbe_update_limit) {
-		smc_curs_write(&prod,
-			       smc_curs_read(&conn->local_rx_ctrl.prod, conn),
-			       conn);
+		smc_curs_copy(&prod, &conn->local_rx_ctrl.prod, conn);
 		sender_free = conn->rmb_desc->len -
 			      smc_curs_diff(conn->rmb_desc->len, &prod, &cfed);
 	}
@@ -525,9 +612,8 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 					      SMC_TX_WORK_DELAY);
 			return;
 		}
-		smc_curs_write(&conn->rx_curs_confirmed,
-			       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
-			       conn);
+		smc_curs_copy(&conn->rx_curs_confirmed,
+			      &conn->local_tx_ctrl.cons, conn);
 		conn->local_rx_ctrl.prod_flags.cons_curs_upd_req = 0;
 	}
 	if (conn->local_rx_ctrl.prod_flags.write_blocked &&

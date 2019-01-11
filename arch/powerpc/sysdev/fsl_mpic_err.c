@@ -76,7 +76,7 @@ int mpic_setup_error_int(struct mpic *mpic, int intvec)
 	mpic->flags |= MPIC_FSL_HAS_EIMR;
 	/* allocate interrupt vectors for error interrupts */
 	for (i = MPIC_MAX_ERR - 1; i >= 0; i--)
-		mpic->err_int_vecs[i] = --intvec;
+		mpic->err_int_vecs[i] = intvec--;
 
 	return 0;
 }

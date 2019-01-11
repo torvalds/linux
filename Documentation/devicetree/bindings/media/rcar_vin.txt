@@ -21,7 +21,9 @@ on Gen3 platforms to a CSI-2 receiver.
    - "renesas,vin-r8a7794" for the R8A7794 device
    - "renesas,vin-r8a7795" for the R8A7795 device
    - "renesas,vin-r8a7796" for the R8A7796 device
+   - "renesas,vin-r8a77965" for the R8A77965 device
    - "renesas,vin-r8a77970" for the R8A77970 device
+   - "renesas,vin-r8a77995" for the R8A77995 device
    - "renesas,rcar-gen2-vin" for a generic R-Car Gen2 or RZ/G1 compatible
      device.
 
@@ -37,30 +39,51 @@ Additionally, an alias named vinX will need to be created to specify
 which video input device this is.
 
 The per-board settings Gen2 platforms:
- - port sub-node describing a single endpoint connected to the vin
-   as described in video-interfaces.txt[1]. Only the first one will
-   be considered as each vin interface has one input port.
+
+- port - sub-node describing a single endpoint connected to the VIN
+  from external SoC pins as described in video-interfaces.txt[1].
+  Only the first one will be considered as each vin interface has one
+  input port.
+
+  - Optional properties for endpoint nodes:
+    - hsync-active: see [1] for description. Default is active high.
+    - vsync-active: see [1] for description. Default is active high.
+      If both HSYNC and VSYNC polarities are not specified, embedded
+      synchronization is selected.
+    - field-active-even: see [1] for description. Default is active high.
+    - bus-width: see [1] for description. The selected bus width depends on
+      the SoC type and selected input image format.
+      Valid values are: 8, 10, 12, 16, 24 and 32.
+    - data-shift: see [1] for description. Valid values are 0 and 8.
+    - data-enable-active: polarity of CLKENB signal, see [1] for
+      description. Default is active high.
 
 The per-board settings Gen3 platforms:
 
 Gen3 platforms can support both a single connected parallel input source
-from external SoC pins (port0) and/or multiple parallel input sources
-from local SoC CSI-2 receivers (port1) depending on SoC.
+from external SoC pins (port@0) and/or multiple parallel input sources
+from local SoC CSI-2 receivers (port@1) depending on SoC.
 
 - renesas,id - ID number of the VIN, VINx in the documentation.
 - ports
-    - port 0 - sub-node describing a single endpoint connected to the VIN
-      from external SoC pins described in video-interfaces.txt[1].
-      Describing more then one endpoint in port 0 is invalid. Only VIN
-      instances that are connected to external pins should have port 0.
-    - port 1 - sub-nodes describing one or more endpoints connected to
+    - port@0 - sub-node describing a single endpoint connected to the VIN
+      from external SoC pins as described in video-interfaces.txt[1].
+      Describing more than one endpoint in port@0 is invalid. Only VIN
+      instances that are connected to external pins should have port@0.
+
+      Endpoint nodes of port@0 support the optional properties listed in
+      the Gen2 per-board settings description.
+
+    - port@1 - sub-nodes describing one or more endpoints connected to
       the VIN from local SoC CSI-2 receivers. The endpoint numbers must
       use the following schema.
 
-        - Endpoint 0 - sub-node describing the endpoint connected to CSI20
-        - Endpoint 1 - sub-node describing the endpoint connected to CSI21
-        - Endpoint 2 - sub-node describing the endpoint connected to CSI40
-        - Endpoint 3 - sub-node describing the endpoint connected to CSI41
+        - endpoint@0 - sub-node describing the endpoint connected to CSI20
+        - endpoint@1 - sub-node describing the endpoint connected to CSI21
+        - endpoint@2 - sub-node describing the endpoint connected to CSI40
+        - endpoint@3 - sub-node describing the endpoint connected to CSI41
+
+      Endpoint nodes of port@1 do not support any optional endpoint property.
 
 Device node example for Gen2 platforms
 --------------------------------------
@@ -107,9 +130,6 @@ Board setup example for Gen2 platforms (vin1 composite video input)
         status = "okay";
 
         port {
-                #address-cells = <1>;
-                #size-cells = <0>;
-
                 vin1ep0: endpoint {
                         remote-endpoint = <&adv7180>;
                         bus-width = <8>;

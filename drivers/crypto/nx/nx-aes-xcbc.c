@@ -386,7 +386,6 @@ struct shash_alg nx_shash_aes_xcbc_alg = {
 		.cra_name        = "xcbc(aes)",
 		.cra_driver_name = "xcbc-aes-nx",
 		.cra_priority    = 300,
-		.cra_flags       = CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize   = AES_BLOCK_SIZE,
 		.cra_module      = THIS_MODULE,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),

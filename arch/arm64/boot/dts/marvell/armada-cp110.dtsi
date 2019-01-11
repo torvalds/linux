@@ -398,7 +398,7 @@
 		};
 
 		CP110_LABEL(crypto): crypto@800000 {
-			compatible = "inside-secure,safexcel-eip197";
+			compatible = "inside-secure,safexcel-eip197b";
 			reg = <0x800000 0x200000>;
 			interrupts = <ICU_GRP_NSR 87 IRQ_TYPE_LEVEL_HIGH>,
 				<ICU_GRP_NSR 88 IRQ_TYPE_LEVEL_HIGH>,

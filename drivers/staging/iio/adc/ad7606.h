@@ -57,7 +57,7 @@ struct ad7606_state {
 
 struct ad7606_bus_ops {
 	/* more methods added in future? */
-	int (*read_block)(struct device *, int, void *);
+	int (*read_block)(struct device *dev, int num, void *data);
 };
 
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,

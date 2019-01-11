@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * OMAP mailbox driver
  *
@@ -6,15 +7,6 @@
  *
  * Contact: Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
  *          Suman Anna <s-anna@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/interrupt.h>
@@ -75,6 +67,10 @@ struct omap_mbox_queue {
 	struct work_struct	work;
 	struct omap_mbox	*mbox;
 	bool full;
+};
+
+struct omap_mbox_match_data {
+	u32 intr_type;
 };
 
 struct omap_mbox_device {
@@ -646,18 +642,21 @@ static const struct dev_pm_ops omap_mbox_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(omap_mbox_suspend, omap_mbox_resume)
 };
 
+static const struct omap_mbox_match_data omap2_data = { MBOX_INTR_CFG_TYPE1 };
+static const struct omap_mbox_match_data omap4_data = { MBOX_INTR_CFG_TYPE2 };
+
 static const struct of_device_id omap_mailbox_of_match[] = {
 	{
 		.compatible	= "ti,omap2-mailbox",
-		.data		= (void *)MBOX_INTR_CFG_TYPE1,
+		.data		= &omap2_data,
 	},
 	{
 		.compatible	= "ti,omap3-mailbox",
-		.data		= (void *)MBOX_INTR_CFG_TYPE1,
+		.data		= &omap2_data,
 	},
 	{
 		.compatible	= "ti,omap4-mailbox",
-		.data		= (void *)MBOX_INTR_CFG_TYPE2,
+		.data		= &omap4_data,
 	},
 	{
 		/* end */
@@ -700,7 +699,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	struct omap_mbox_fifo *fifo;
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *child;
-	const struct of_device_id *match;
+	const struct omap_mbox_match_data *match_data;
 	u32 intr_type, info_count;
 	u32 num_users, num_fifos;
 	u32 tmp[3];
@@ -712,10 +711,10 @@ static int omap_mbox_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	match = of_match_device(omap_mailbox_of_match, &pdev->dev);
-	if (!match)
+	match_data = of_device_get_match_data(&pdev->dev);
+	if (!match_data)
 		return -ENODEV;
-	intr_type = (u32)match->data;
+	intr_type = match_data->intr_type;
 
 	if (of_property_read_u32(node, "ti,mbox-num-users", &num_users))
 		return -ENODEV;

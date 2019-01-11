@@ -31,5 +31,3 @@ config X25
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called x25. If unsure, say N.
-
-

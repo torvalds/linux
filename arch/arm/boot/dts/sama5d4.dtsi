@@ -392,7 +392,7 @@
 			};
 
 			pmc: pmc@f0018000 {
-				compatible = "atmel,sama5d3-pmc", "syscon";
+				compatible = "atmel,sama5d4-pmc", "syscon";
 				reg = <0xf0018000 0x120>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				interrupt-controller;

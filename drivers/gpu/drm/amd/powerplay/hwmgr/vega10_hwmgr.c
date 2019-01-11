@@ -55,12 +55,6 @@
 
 static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 
-#define MEM_FREQ_LOW_LATENCY        25000
-#define MEM_FREQ_HIGH_LATENCY       80000
-#define MEM_LATENCY_HIGH            245
-#define MEM_LATENCY_LOW             35
-#define MEM_LATENCY_ERR             0xFFFF
-
 #define mmDF_CS_AON0_DramBaseAddress0                                                                  0x0044
 #define mmDF_CS_AON0_DramBaseAddress0_BASE_IDX                                                         0
 
@@ -295,7 +289,15 @@ static int vega10_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_voltage_lookup_table *vddc_lookup_table;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table[3];
 	struct phm_ppt_v1_clock_voltage_dependency_table *od_table[3];
+	struct pp_atomfwctrl_avfs_parameters avfs_params = {0};
 	uint32_t i;
+	int result;
+
+	result = pp_atomfwctrl_get_avfs_information(hwmgr, &avfs_params);
+	if (!result) {
+		data->odn_dpm_table.max_vddc = avfs_params.ulMaxVddc;
+		data->odn_dpm_table.min_vddc = avfs_params.ulMinVddc;
+	}
 
 	od_lookup_table = &odn_table->vddc_lookup_table;
 	vddc_lookup_table = table_info->vddc_lookup_table;
@@ -2078,9 +2080,6 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 	if (data->smu_features[GNLD_AVFS].supported) {
 		result = pp_atomfwctrl_get_avfs_information(hwmgr, &avfs_params);
 		if (!result) {
-			data->odn_dpm_table.max_vddc = avfs_params.ulMaxVddc;
-			data->odn_dpm_table.min_vddc = avfs_params.ulMinVddc;
-
 			pp_table->MinVoltageVid = (uint8_t)
 					convert_to_vid((uint16_t)(avfs_params.ulMinVddc));
 			pp_table->MaxVoltageVid = (uint8_t)
@@ -2414,6 +2413,40 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+static void vega10_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct vega10_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct phm_ppt_v2_information *table_info = hwmgr->pptable;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
+	uint32_t i;
+
+	dep_table = table_info->vdd_dep_on_mclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dep_on_mclk);
+
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
+			return;
+		}
+	}
+
+	dep_table = table_info->vdd_dep_on_sclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dep_on_sclk);
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
+			return;
+		}
+	}
+
+	if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
+		data->need_update_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
+	}
+}
+
 /**
 * Initializes the SMC table and uploads it
 *
@@ -2430,6 +2463,7 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct pp_atomfwctrl_voltage_table voltage_table;
 	struct pp_atomfwctrl_bios_boot_up_values boot_up_values;
+	struct vega10_odn_dpm_table *odn_table = &(data->odn_dpm_table);
 
 	result = vega10_setup_default_dpm_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
@@ -2437,8 +2471,14 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 			return result);
 
 	/* initialize ODN table */
-	if (hwmgr->od_enabled)
-		vega10_odn_initial_default_setting(hwmgr);
+	if (hwmgr->od_enabled) {
+		if (odn_table->max_vddc) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
+			vega10_check_dpm_table_updated(hwmgr);
+		} else {
+			vega10_odn_initial_default_setting(hwmgr);
+		}
+	}
 
 	pp_atomfwctrl_get_voltage_table_v4(hwmgr, VOLTAGE_TYPE_VDDC,
 			VOLTAGE_OBJ_SVID2,  &voltage_table);
@@ -2861,11 +2901,6 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	vega10_enable_disable_PCC_limit_feature(hwmgr, true);
 
-	if ((hwmgr->smu_version == 0x001c2c00) ||
-			(hwmgr->smu_version == 0x001c2d00))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
-
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 		PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
 
@@ -3061,6 +3096,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state  *request_ps,
 			const struct pp_power_state *current_ps)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct vega10_power_state *vega10_ps =
 				cast_phw_vega10_power_state(&request_ps->hardware);
 	uint32_t sclk;
@@ -3086,12 +3122,12 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	if (vega10_ps->performance_level_count != 2)
 		pr_info("VI should always have 2 performance levels");
 
-	max_limits = (PP_PowerSource_AC == hwmgr->power_source) ?
+	max_limits = adev->pm.ac_power ?
 			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
 			&(hwmgr->dyn_state.max_clock_voltage_on_dc);
 
 	/* Cap clock DPM tables at DC MAX if it is in DC. */
-	if (PP_PowerSource_DC == hwmgr->power_source) {
+	if (!adev->pm.ac_power) {
 		for (i = 0; i < vega10_ps->performance_level_count; i++) {
 			if (vega10_ps->performance_levels[i].mem_clock >
 				max_limits->mclk)
@@ -3181,7 +3217,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		/* Find the lowest MCLK frequency that is within
 		 * the tolerable latency defined in DAL
 		 */
-		latency = 0;
+		latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
 		for (i = 0; i < data->mclk_latency_table.count; i++) {
 			if ((data->mclk_latency_table.entries[i].latency <= latency) &&
 				(data->mclk_latency_table.entries[i].frequency >=
@@ -3223,9 +3259,24 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 {
 	int result = 0;
 	struct vega10_hwmgr *data = hwmgr->backend;
+	struct vega10_dpm_table *dpm_table = &data->dpm_table;
+	struct vega10_odn_dpm_table *odn_table = &data->odn_dpm_table;
+	struct vega10_odn_clock_voltage_dependency_table *odn_clk_table = &odn_table->vdd_dep_on_sclk;
+	int count;
 
 	if (!data->need_update_dpm_table)
 		return 0;
+
+	if (hwmgr->od_enabled && data->need_update_dpm_table & DPMTABLE_OD_UPDATE_SCLK) {
+		for (count = 0; count < dpm_table->gfx_table.count; count++)
+			dpm_table->gfx_table.dpm_levels[count].value = odn_clk_table->entries[count].clk;
+	}
+
+	odn_clk_table = &odn_table->vdd_dep_on_mclk;
+	if (hwmgr->od_enabled && data->need_update_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
+		for (count = 0; count < dpm_table->mem_table.count; count++)
+			dpm_table->mem_table.dpm_levels[count].value = odn_clk_table->entries[count].clk;
+	}
 
 	if (data->need_update_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK + DPMTABLE_UPDATE_SOCCLK)) {
@@ -3674,7 +3725,7 @@ static void vega10_notify_smc_display_change(struct pp_hwmgr *hwmgr,
 {
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetUclkFastSwitch,
-			has_disp ? 0 : 1);
+			has_disp ? 1 : 0);
 }
 
 int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
@@ -3749,7 +3800,9 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 	uint32_t i;
 	struct pp_display_clock_request clock_req;
 
-	if (hwmgr->display_config->num_display > 1)
+	if ((hwmgr->display_config->num_display > 1) &&
+	     !hwmgr->display_config->multi_monitor_in_sync &&
+	     !hwmgr->display_config->nb_pstate_switch_disable)
 		vega10_notify_smc_display_change(hwmgr, false);
 	else
 		vega10_notify_smc_display_change(hwmgr, true);
@@ -3765,7 +3818,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 	if (i < dpm_table->count) {
 		clock_req.clock_type = amd_pp_dcef_clock;
-		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value;
+		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value * 10;
 		if (!vega10_display_clock_voltage_request(hwmgr, &clock_req)) {
 			smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetMinDeepSleepDcefclk,
@@ -4022,26 +4075,15 @@ static void vega10_get_sclks(struct pp_hwmgr *hwmgr,
 			table_info->vdd_dep_on_sclk;
 	uint32_t i;
 
+	clocks->num_levels = 0;
 	for (i = 0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].clk) {
 			clocks->data[clocks->num_levels].clocks_in_khz =
-					dep_table->entries[i].clk;
+					dep_table->entries[i].clk * 10;
 			clocks->num_levels++;
 		}
 	}
 
-}
-
-static uint32_t vega10_get_mem_latency(struct pp_hwmgr *hwmgr,
-		uint32_t clock)
-{
-	if (clock >= MEM_FREQ_LOW_LATENCY &&
-			clock < MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_HIGH;
-	else if (clock >= MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_LOW;
-	else
-		return MEM_LATENCY_ERR;
 }
 
 static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
@@ -4052,26 +4094,22 @@ static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table =
 			table_info->vdd_dep_on_mclk;
 	struct vega10_hwmgr *data = hwmgr->backend;
+	uint32_t j = 0;
 	uint32_t i;
-
-	clocks->num_levels = 0;
-	data->mclk_latency_table.count = 0;
 
 	for (i = 0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].clk) {
-			clocks->data[clocks->num_levels].clocks_in_khz =
-			data->mclk_latency_table.entries
-			[data->mclk_latency_table.count].frequency =
-					dep_table->entries[i].clk;
-			clocks->data[clocks->num_levels].latency_in_us =
-			data->mclk_latency_table.entries
-			[data->mclk_latency_table.count].latency =
-					vega10_get_mem_latency(hwmgr,
-						dep_table->entries[i].clk);
-			clocks->num_levels++;
-			data->mclk_latency_table.count++;
+
+			clocks->data[j].clocks_in_khz =
+						dep_table->entries[i].clk * 10;
+			data->mclk_latency_table.entries[j].frequency =
+							dep_table->entries[i].clk;
+			clocks->data[j].latency_in_us =
+				data->mclk_latency_table.entries[j].latency = 25;
+			j++;
 		}
 	}
+	clocks->num_levels = data->mclk_latency_table.count = j;
 }
 
 static void vega10_get_dcefclocks(struct pp_hwmgr *hwmgr,
@@ -4084,7 +4122,7 @@ static void vega10_get_dcefclocks(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk * 10;
 		clocks->data[i].latency_in_us = 0;
 		clocks->num_levels++;
 	}
@@ -4100,7 +4138,7 @@ static void vega10_get_socclocks(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk * 10;
 		clocks->data[i].latency_in_us = 0;
 		clocks->num_levels++;
 	}
@@ -4160,7 +4198,7 @@ static int vega10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 	}
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk  * 10;
 		clocks->data[i].voltage_in_mv = (uint32_t)(table_info->vddc_lookup_table->
 				entries[dep_table->entries[i].vddInd].us_vdd);
 		clocks->num_levels++;
@@ -4173,9 +4211,10 @@ static int vega10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 }
 
 static int vega10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+							void *clock_range)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_range;
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
 	int result = 0;
 
@@ -4693,40 +4732,6 @@ static bool vega10_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
 	}
 
 	return true;
-}
-
-static void vega10_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
-{
-	struct vega10_hwmgr *data = hwmgr->backend;
-	struct vega10_odn_dpm_table *odn_table = &(data->odn_dpm_table);
-	struct phm_ppt_v2_information *table_info = hwmgr->pptable;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
-	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
-	uint32_t i;
-
-	dep_table = table_info->vdd_dep_on_mclk;
-	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dep_on_mclk);
-
-	for (i = 0; i < dep_table->count; i++) {
-		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
-			return;
-		}
-	}
-
-	dep_table = table_info->vdd_dep_on_sclk;
-	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dep_on_sclk);
-	for (i = 0; i < dep_table->count; i++) {
-		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
-			return;
-		}
-	}
-
-	if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
-		data->need_update_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
-		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
-	}
 }
 
 static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,

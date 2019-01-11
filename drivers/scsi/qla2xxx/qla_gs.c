@@ -1962,7 +1962,6 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 	void *entries;
 	struct ct_fdmiv2_hba_attr *eiter;
 	struct qla_hw_data *ha = vha->hw;
-	struct init_cb_24xx *icb24 = (struct init_cb_24xx *)ha->init_cb;
 	struct new_utsname *p_sysid = NULL;
 
 	/* Issue RHBA */
@@ -2142,9 +2141,7 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 	/* MAX CT Payload Length */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH);
-	eiter->a.max_ct_len = IS_FWI2_CAPABLE(ha) ?
-	    le16_to_cpu(icb24->frame_payload_size) :
-	    le16_to_cpu(ha->init_cb->frame_payload_size);
+	eiter->a.max_ct_len = cpu_to_be32(ha->frame_payload_size);
 	eiter->a.max_ct_len = cpu_to_be32(eiter->a.max_ct_len);
 	eiter->len = cpu_to_be16(4 + 4);
 	size += 4 + 4;
@@ -3394,19 +3391,40 @@ int qla24xx_post_gpnid_work(struct scsi_qla_host *vha, port_id_t *id)
 
 void qla24xx_sp_unmap(scsi_qla_host_t *vha, srb_t *sp)
 {
-	if (sp->u.iocb_cmd.u.ctarg.req) {
-		dma_free_coherent(&vha->hw->pdev->dev,
-			sp->u.iocb_cmd.u.ctarg.req_allocated_size,
-			sp->u.iocb_cmd.u.ctarg.req,
-			sp->u.iocb_cmd.u.ctarg.req_dma);
-		sp->u.iocb_cmd.u.ctarg.req = NULL;
-	}
-	if (sp->u.iocb_cmd.u.ctarg.rsp) {
-		dma_free_coherent(&vha->hw->pdev->dev,
-			sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
-			sp->u.iocb_cmd.u.ctarg.rsp,
-			sp->u.iocb_cmd.u.ctarg.rsp_dma);
-		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+	struct srb_iocb *c = &sp->u.iocb_cmd;
+
+	switch (sp->type) {
+	case SRB_ELS_DCMD:
+		if (c->u.els_plogi.els_plogi_pyld)
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    c->u.els_plogi.tx_size,
+			    c->u.els_plogi.els_plogi_pyld,
+			    c->u.els_plogi.els_plogi_pyld_dma);
+
+		if (c->u.els_plogi.els_resp_pyld)
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    c->u.els_plogi.rx_size,
+			    c->u.els_plogi.els_resp_pyld,
+			    c->u.els_plogi.els_resp_pyld_dma);
+		break;
+	case SRB_CT_PTHRU_CMD:
+	default:
+		if (sp->u.iocb_cmd.u.ctarg.req) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
+			    sp->u.iocb_cmd.u.ctarg.req,
+			    sp->u.iocb_cmd.u.ctarg.req_dma);
+			sp->u.iocb_cmd.u.ctarg.req = NULL;
+		}
+
+		if (sp->u.iocb_cmd.u.ctarg.rsp) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
+			    sp->u.iocb_cmd.u.ctarg.rsp,
+			    sp->u.iocb_cmd.u.ctarg.rsp_dma);
+			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+		}
+		break;
 	}
 
 	sp->free(sp);
@@ -3483,6 +3501,14 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 			fcport->rscn_gen++;
 			fcport->scan_state = QLA_FCPORT_FOUND;
 			fcport->flags |= FCF_FABRIC_DEVICE;
+			if (fcport->login_retry == 0) {
+				fcport->login_retry =
+					vha->hw->login_retry_count;
+				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				    "Port login retry %8phN, lid 0x%04x cnt=%d.\n",
+				    fcport->port_name, fcport->loop_id,
+				    fcport->login_retry);
+			}
 			switch (fcport->disc_state) {
 			case DSC_LOGIN_COMPLETE:
 				/* recheck session is still intact. */
@@ -3981,6 +4007,14 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		} else {
 			if (fcport->rscn_rcvd ||
 			    fcport->disc_state != DSC_LOGIN_COMPLETE) {
+				if (fcport->login_retry == 0) {
+					fcport->login_retry =
+						vha->hw->login_retry_count;
+					ql_dbg(ql_dbg_disc, vha, 0x20a3,
+					    "Port login retry %8phN, lid 0x%04x retry cnt=%d.\n",
+					    fcport->port_name, fcport->loop_id,
+					    fcport->login_retry);
+				}
 				fcport->rscn_rcvd = 0;
 				qla24xx_fcport_handle_login(vha, fcport);
 			}

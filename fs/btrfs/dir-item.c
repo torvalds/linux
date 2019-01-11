@@ -160,8 +160,8 @@ second_insert:
 	}
 	btrfs_release_path(path);
 
-	ret2 = btrfs_insert_delayed_dir_index(trans, root->fs_info, name,
-			name_len, dir, &disk_key, type, index);
+	ret2 = btrfs_insert_delayed_dir_index(trans, name, name_len, dir,
+					      &disk_key, type, index);
 out_free:
 	btrfs_free_path(path);
 	if (ret)

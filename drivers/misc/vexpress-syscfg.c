@@ -258,13 +258,9 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&syscfg->funcs);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-			resource_size(res), pdev->name))
-		return -EBUSY;
-
-	syscfg->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!syscfg->base)
-		return -EFAULT;
+	syscfg->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(syscfg->base))
+		return PTR_ERR(syscfg->base);
 
 	/* Must use dev.parent (MFD), as that's where DT phandle points at... */
 	bridge = vexpress_config_bridge_register(pdev->dev.parent,

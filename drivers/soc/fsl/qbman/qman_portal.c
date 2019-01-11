@@ -227,6 +227,14 @@ static int qman_portal_probe(struct platform_device *pdev)
 	int irq, cpu, err;
 	u32 val;
 
+	err = qman_is_probed();
+	if (!err)
+		return -EPROBE_DEFER;
+	if (err < 0) {
+		dev_err(&pdev->dev, "failing probe due to qman probe error\n");
+		return -ENODEV;
+	}
+
 	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
 	if (!pcfg)
 		return -ENOMEM;

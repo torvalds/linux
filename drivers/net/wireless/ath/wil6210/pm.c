@@ -211,7 +211,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 		goto reject_suspend;
 	}
 
-	if (!wil_is_rx_idle(wil)) {
+	if (!wil->txrx_ops.is_rx_idle(wil)) {
 		wil_dbg_pm(wil, "Pending RX data, reject suspend\n");
 		wil->suspend_stats.rejected_by_host++;
 		goto reject_suspend;
@@ -235,9 +235,9 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 	start = jiffies;
 	data_comp_to = jiffies + msecs_to_jiffies(WIL_DATA_COMPLETION_TO_MS);
 	if (test_bit(wil_status_napi_en, wil->status)) {
-		while (!wil_is_rx_idle(wil)) {
+		while (!wil->txrx_ops.is_rx_idle(wil)) {
 			if (time_after(jiffies, data_comp_to)) {
-				if (wil_is_rx_idle(wil))
+				if (wil->txrx_ops.is_rx_idle(wil))
 					break;
 				wil_err(wil,
 					"TO waiting for idle RX, suspend failed\n");

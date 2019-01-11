@@ -628,7 +628,6 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 			goto alloc_err;
 		}
 		bss_hotplug_slot->ops = &sn_hotplug_slot_ops;
-		bss_hotplug_slot->release = &sn_release_slot;
 
 		rc = pci_hp_register(bss_hotplug_slot, pci_bus, device, name);
 		if (rc)
@@ -656,8 +655,10 @@ alloc_err:
 		sn_release_slot(bss_hotplug_slot);
 
 	/* destroy anything else on the list */
-	while ((bss_hotplug_slot = sn_hp_destroy()))
+	while ((bss_hotplug_slot = sn_hp_destroy())) {
 		pci_hp_deregister(bss_hotplug_slot);
+		sn_release_slot(bss_hotplug_slot);
+	}
 
 	return rc;
 }
@@ -703,8 +704,10 @@ static void __exit sn_pci_hotplug_exit(void)
 {
 	struct hotplug_slot *bss_hotplug_slot;
 
-	while ((bss_hotplug_slot = sn_hp_destroy()))
+	while ((bss_hotplug_slot = sn_hp_destroy())) {
 		pci_hp_deregister(bss_hotplug_slot);
+		sn_release_slot(bss_hotplug_slot);
+	}
 
 	if (!list_empty(&sn_hp_list))
 		printk(KERN_ERR "%s: internal list is not empty\n", __FILE__);

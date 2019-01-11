@@ -587,6 +587,18 @@
 			status = "disabled";
 		};
 
+		spi0: spi@ffda4000 {
+			compatible = "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xffda4000 0x100>;
+			interrupts = <0 101 4>;
+			num-cs = <4>;
+			/*32bit_access;*/
+			clocks = <&spi_m_clk>;
+			status = "disabled";
+		};
+
 		spi1: spi@ffda5000 {
 			compatible = "snps,dw-apb-ssi";
 			#address-cells = <1>;

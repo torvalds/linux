@@ -115,12 +115,17 @@ extern struct cpumask __cpu_active_mask;
 #define cpu_active(cpu)		((cpu) == 0)
 #endif
 
+static inline void cpu_max_bits_warn(unsigned int cpu, unsigned int bits)
+{
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+	WARN_ON_ONCE(cpu >= bits);
+#endif /* CONFIG_DEBUG_PER_CPU_MAPS */
+}
+
 /* verify cpu argument to cpumask_* operators */
 static inline unsigned int cpumask_check(unsigned int cpu)
 {
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-	WARN_ON_ONCE(cpu >= nr_cpumask_bits);
-#endif /* CONFIG_DEBUG_PER_CPU_MAPS */
+	cpu_max_bits_warn(cpu, nr_cpumask_bits);
 	return cpu;
 }
 
@@ -152,6 +157,13 @@ static inline unsigned int cpumask_next_and(int n,
 					    const struct cpumask *andp)
 {
 	return n+1;
+}
+
+static inline unsigned int cpumask_next_wrap(int n, const struct cpumask *mask,
+					     int start, bool wrap)
+{
+	/* cpu0 unless stop condition, wrap and at cpu0, then nr_cpumask_bits */
+	return (wrap && n == 0);
 }
 
 /* cpu must be a valid cpu, ie 0, so there's no other choice. */

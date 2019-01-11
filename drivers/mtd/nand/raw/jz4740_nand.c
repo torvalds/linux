@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -23,9 +24,9 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
-#include <asm/mach-jz4740/jz4740_nand.h>
+#include <linux/platform_data/jz4740/jz4740_nand.h>
 
 #define JZ_REG_NAND_CTRL	0x50
 #define JZ_REG_NAND_ECC_CTRL	0x100
@@ -330,7 +331,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 
 	if (chipnr == 0) {
 		/* Detect first chip. */
-		ret = nand_scan_ident(mtd, 1, NULL);
+		ret = nand_scan(mtd, 1);
 		if (ret)
 			goto notfound_id;
 
@@ -355,7 +356,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 		mtd->size += chip->chipsize;
 	}
 
-	dev_info(&pdev->dev, "Found chip %i on bank %i\n", chipnr, bank);
+	dev_info(&pdev->dev, "Found chip %zu on bank %i\n", chipnr, bank);
 	return 0;
 
 notfound_id:
@@ -366,6 +367,24 @@ notfound_id:
 				 nand->bank_base[bank - 1]);
 	return ret;
 }
+
+static int jz_nand_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct device *dev = mtd->dev.parent;
+	struct jz_nand_platform_data *pdata = dev_get_platdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	if (pdata && pdata->ident_callback)
+		pdata->ident_callback(pdev, mtd, &pdata->partitions,
+				      &pdata->num_partitions);
+
+	return 0;
+}
+
+static const struct nand_controller_ops jz_nand_controller_ops = {
+	.attach_chip = jz_nand_attach_chip,
+};
 
 static int jz_nand_probe(struct platform_device *pdev)
 {
@@ -410,6 +429,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	chip->chip_delay = 50;
 	chip->cmd_ctrl = jz_nand_cmd_ctrl;
 	chip->select_chip = jz_nand_select_chip;
+	chip->dummy_controller.ops = &jz_nand_controller_ops;
 
 	if (nand->busy_gpio)
 		chip->dev_ready = jz_nand_dev_ready;
@@ -455,33 +475,20 @@ static int jz_nand_probe(struct platform_device *pdev)
 		goto err_iounmap_mmio;
 	}
 
-	if (pdata && pdata->ident_callback) {
-		pdata->ident_callback(pdev, mtd, &pdata->partitions,
-					&pdata->num_partitions);
-	}
-
-	ret = nand_scan_tail(mtd);
-	if (ret) {
-		dev_err(&pdev->dev,  "Failed to scan NAND\n");
-		goto err_unclaim_banks;
-	}
-
-	ret = mtd_device_parse_register(mtd, NULL, NULL,
-					pdata ? pdata->partitions : NULL,
-					pdata ? pdata->num_partitions : 0);
+	ret = mtd_device_register(mtd, pdata ? pdata->partitions : NULL,
+				  pdata ? pdata->num_partitions : 0);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add mtd device\n");
-		goto err_nand_release;
+		goto err_cleanup_nand;
 	}
 
 	dev_info(&pdev->dev, "Successfully registered JZ4740 NAND driver\n");
 
 	return 0;
 
-err_nand_release:
-	nand_release(mtd);
-err_unclaim_banks:
+err_cleanup_nand:
+	nand_cleanup(chip);
 	while (chipnr--) {
 		unsigned char bank = nand->banks[chipnr];
 		jz_nand_iounmap_resource(nand->bank_mem[bank - 1],

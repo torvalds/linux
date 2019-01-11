@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #ifndef __HCLGE_MAIN_H
 #define __HCLGE_MAIN_H
@@ -21,8 +15,6 @@
 #define HCLGE_DRIVER_NAME "hclge"
 
 #define HCLGE_INVALID_VPORT 0xffff
-
-#define HCLGE_ROCE_VECTOR_OFFSET	96
 
 #define HCLGE_PF_CFG_BLOCK_SIZE		32
 #define HCLGE_PF_CFG_DESC_NUM \
@@ -40,7 +32,7 @@
 #define HCLGE_RSS_HASH_ALGO_TOEPLITZ	0
 #define HCLGE_RSS_HASH_ALGO_SIMPLE	1
 #define HCLGE_RSS_HASH_ALGO_SYMMETRIC	2
-#define HCLGE_RSS_HASH_ALGO_MASK	0xf
+#define HCLGE_RSS_HASH_ALGO_MASK	GENMASK(3, 0)
 #define HCLGE_RSS_CFG_TBL_NUM \
 	(HCLGE_RSS_IND_TBL_SIZE / HCLGE_RSS_CFG_TBL_SIZE)
 
@@ -77,11 +69,11 @@
 /* Copper Specific Status Register */
 #define HCLGE_PHY_CSS_REG		17
 
-#define HCLGE_PHY_MDIX_CTRL_S		(5)
+#define HCLGE_PHY_MDIX_CTRL_S		5
 #define HCLGE_PHY_MDIX_CTRL_M		GENMASK(6, 5)
 
-#define HCLGE_PHY_MDIX_STATUS_B	(6)
-#define HCLGE_PHY_SPEED_DUP_RESOLVE_B	(11)
+#define HCLGE_PHY_MDIX_STATUS_B		6
+#define HCLGE_PHY_SPEED_DUP_RESOLVE_B	11
 
 /* Factor used to calculate offset and bitmap of VF num */
 #define HCLGE_VF_NUM_PER_CMD           64
@@ -89,9 +81,10 @@
 
 /* Reset related Registers */
 #define HCLGE_MISC_RESET_STS_REG	0x20700
+#define HCLGE_MISC_VECTOR_INT_STS	0x20800
 #define HCLGE_GLOBAL_RESET_REG		0x20A00
-#define HCLGE_GLOBAL_RESET_BIT		0x0
-#define HCLGE_CORE_RESET_BIT		0x1
+#define HCLGE_GLOBAL_RESET_BIT		0
+#define HCLGE_CORE_RESET_BIT		1
 #define HCLGE_FUN_RST_ING		0x20C00
 #define HCLGE_FUN_RST_ING_B		0
 
@@ -128,6 +121,7 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_MBX_SERVICE_SCHED,
 	HCLGE_STATE_MBX_HANDLING,
 	HCLGE_STATE_STATISTICS_UPDATING,
+	HCLGE_STATE_CMD_DISABLE,
 	HCLGE_STATE_MAX
 };
 
@@ -138,12 +132,6 @@ enum hclge_evt_cause {
 };
 
 #define HCLGE_MPF_ENBALE 1
-struct hclge_caps {
-	u16 num_tqp;
-	u16 num_buffer_cell;
-	u32 flag;
-	u16 vmdq;
-};
 
 enum HCLGE_MAC_SPEED {
 	HCLGE_MAC_SPEED_10M	= 10,		/* 10 Mbps */
@@ -189,8 +177,6 @@ struct hclge_hw {
 	struct hclge_mac mac;
 	int num_vec;
 	struct hclge_cmq cmq;
-	struct hclge_caps caps;
-	void *back;
 };
 
 /* TQP stats */
@@ -202,7 +188,10 @@ struct hlcge_tqp_stats {
 };
 
 struct hclge_tqp {
-	struct device *dev;	/* Device for DMA mapping */
+	/* copy of device pointer from pci_dev,
+	 * used when perform DMA mapping
+	 */
+	struct device *dev;
 	struct hnae3_queue q;
 	struct hlcge_tqp_stats tqp_stats;
 	u16 index;	/* Global index in a NIC controller */
@@ -492,13 +481,11 @@ struct hclge_dev {
 	u16 num_tqps;			/* Num task queue pairs of this PF */
 	u16 num_req_vfs;		/* Num VFs requested for this PF */
 
-	/* Base task tqp physical id of this PF */
-	u16 base_tqp_pid;
+	u16 base_tqp_pid;	/* Base task tqp physical id of this PF */
 	u16 alloc_rss_size;		/* Allocated RSS task queue */
 	u16 rss_size_max;		/* HW defined max RSS task queue */
 
-	/* Num of guaranteed filters for this PF */
-	u16 fdir_pf_filter_count;
+	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */
 	u32 numa_node_mask;
 	u16 rx_buf_len;
@@ -520,6 +507,7 @@ struct hclge_dev {
 	u16 num_msi;
 	u16 num_msi_left;
 	u16 num_msi_used;
+	u16 roce_base_msix_offset;
 	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
@@ -560,7 +548,7 @@ struct hclge_dev {
 	u32 mps; /* Max packet size */
 
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
-	bool enable_mta; /* Mutilcast filter enable */
+	bool enable_mta; /* Multicast filter enable */
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 

@@ -224,11 +224,7 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	ppsmc_pptable->AcgGfxclkSpreadPercent = smc_dpm_table.acggfxclkspreadpercent;
 	ppsmc_pptable->AcgGfxclkSpreadFreq = smc_dpm_table.acggfxclkspreadfreq;
 
-	/* 0xFFFF will disable the ACG feature */
-	if (!(hwmgr->feature_mask & PP_ACG_MASK)) {
-		ppsmc_pptable->AcgThresholdFreqHigh = 0xFFFF;
-		ppsmc_pptable->AcgThresholdFreqLow = 0xFFFF;
-	}
+	ppsmc_pptable->Vr2_I2C_address = smc_dpm_table.Vr2_I2C_address;
 
 	ppsmc_pptable->Vr2_I2C_address = smc_dpm_table.Vr2_I2C_address;
 

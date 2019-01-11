@@ -6,8 +6,11 @@
 
 #include <linux/bitrev.h>
 #include <linux/clk.h>
+#include <linux/crc32poly.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include <crypto/internal/hash.h>
 
@@ -28,9 +31,7 @@
 #define CRC_CR_REVERSE          (BIT(7) | BIT(6) | BIT(5))
 #define CRC_INIT_DEFAULT        0xFFFFFFFF
 
-/* Polynomial reversed */
-#define POLY_CRC32              0xEDB88320
-#define POLY_CRC32C             0x82F63B78
+#define CRC_AUTOSUSPEND_DELAY	50
 
 struct stm32_crc {
 	struct list_head list;
@@ -66,7 +67,7 @@ static int stm32_crc32_cra_init(struct crypto_tfm *tfm)
 	struct stm32_crc_ctx *mctx = crypto_tfm_ctx(tfm);
 
 	mctx->key = CRC_INIT_DEFAULT;
-	mctx->poly = POLY_CRC32;
+	mctx->poly = CRC32_POLY_LE;
 	return 0;
 }
 
@@ -75,7 +76,7 @@ static int stm32_crc32c_cra_init(struct crypto_tfm *tfm)
 	struct stm32_crc_ctx *mctx = crypto_tfm_ctx(tfm);
 
 	mctx->key = CRC_INIT_DEFAULT;
-	mctx->poly = POLY_CRC32C;
+	mctx->poly = CRC32C_POLY_LE;
 	return 0;
 }
 
@@ -106,6 +107,8 @@ static int stm32_crc_init(struct shash_desc *desc)
 	}
 	spin_unlock_bh(&crc_list.lock);
 
+	pm_runtime_get_sync(ctx->crc->dev);
+
 	/* Reset, set key, poly and configure in bit reverse mode */
 	writel_relaxed(bitrev32(mctx->key), ctx->crc->regs + CRC_INIT);
 	writel_relaxed(bitrev32(mctx->poly), ctx->crc->regs + CRC_POL);
@@ -114,6 +117,9 @@ static int stm32_crc_init(struct shash_desc *desc)
 	/* Store partial result */
 	ctx->partial = readl_relaxed(ctx->crc->regs + CRC_DR);
 	ctx->crc->nb_pending_bytes = 0;
+
+	pm_runtime_mark_last_busy(ctx->crc->dev);
+	pm_runtime_put_autosuspend(ctx->crc->dev);
 
 	return 0;
 }
@@ -125,6 +131,8 @@ static int stm32_crc_update(struct shash_desc *desc, const u8 *d8,
 	struct stm32_crc *crc = ctx->crc;
 	u32 *d32;
 	unsigned int i;
+
+	pm_runtime_get_sync(crc->dev);
 
 	if (unlikely(crc->nb_pending_bytes)) {
 		while (crc->nb_pending_bytes != sizeof(u32) && length) {
@@ -148,6 +156,9 @@ static int stm32_crc_update(struct shash_desc *desc, const u8 *d8,
 
 	/* Store partial result */
 	ctx->partial = readl_relaxed(crc->regs + CRC_DR);
+
+	pm_runtime_mark_last_busy(crc->dev);
+	pm_runtime_put_autosuspend(crc->dev);
 
 	/* Check for pending data (non 32 bits) */
 	length &= 3;
@@ -174,7 +185,7 @@ static int stm32_crc_final(struct shash_desc *desc, u8 *out)
 	struct stm32_crc_ctx *mctx = crypto_shash_ctx(desc->tfm);
 
 	/* Send computed CRC */
-	put_unaligned_le32(mctx->poly == POLY_CRC32C ?
+	put_unaligned_le32(mctx->poly == CRC32C_POLY_LE ?
 			   ~ctx->partial : ctx->partial, out);
 
 	return 0;
@@ -272,6 +283,13 @@ static int stm32_crc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pm_runtime_set_autosuspend_delay(dev, CRC_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(dev);
+
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	platform_set_drvdata(pdev, crc);
 
 	spin_lock(&crc_list.lock);
@@ -287,12 +305,18 @@ static int stm32_crc_probe(struct platform_device *pdev)
 
 	dev_info(dev, "Initialized\n");
 
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
 static int stm32_crc_remove(struct platform_device *pdev)
 {
 	struct stm32_crc *crc = platform_get_drvdata(pdev);
+	int ret = pm_runtime_get_sync(crc->dev);
+
+	if (ret < 0)
+		return ret;
 
 	spin_lock(&crc_list.lock);
 	list_del(&crc->list);
@@ -300,10 +324,45 @@ static int stm32_crc_remove(struct platform_device *pdev)
 
 	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 
+	pm_runtime_disable(crc->dev);
+	pm_runtime_put_noidle(crc->dev);
+
 	clk_disable_unprepare(crc->clk);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int stm32_crc_runtime_suspend(struct device *dev)
+{
+	struct stm32_crc *crc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(crc->clk);
+
+	return 0;
+}
+
+static int stm32_crc_runtime_resume(struct device *dev)
+{
+	struct stm32_crc *crc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(crc->clk);
+	if (ret) {
+		dev_err(crc->dev, "Failed to prepare_enable clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops stm32_crc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(stm32_crc_runtime_suspend,
+			   stm32_crc_runtime_resume, NULL)
+};
 
 static const struct of_device_id stm32_dt_ids[] = {
 	{ .compatible = "st,stm32f7-crc", },
@@ -316,6 +375,7 @@ static struct platform_driver stm32_crc_driver = {
 	.remove = stm32_crc_remove,
 	.driver = {
 		.name           = DRIVER_NAME,
+		.pm		= &stm32_crc_pm_ops,
 		.of_match_table = stm32_dt_ids,
 	},
 };

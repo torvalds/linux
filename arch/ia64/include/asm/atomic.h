@@ -215,91 +215,10 @@ ATOMIC64_FETCH_OP(xor, ^)
 	(cmpxchg(&((v)->counter), old, new))
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
 
-static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
-{
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c;
-}
-
-
-static __inline__ long atomic64_add_unless(atomic64_t *v, long a, long u)
-{
-	long c, old;
-	c = atomic64_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic64_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c != (u);
-}
-
-#define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
-
-static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
-{
-	long c, old, dec;
-	c = atomic64_read(v);
-	for (;;) {
-		dec = c - 1;
-		if (unlikely(dec < 0))
-			break;
-		old = atomic64_cmpxchg((v), c, dec);
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return dec;
-}
-
-/*
- * Atomically add I to V and return TRUE if the resulting value is
- * negative.
- */
-static __inline__ int
-atomic_add_negative (int i, atomic_t *v)
-{
-	return atomic_add_return(i, v) < 0;
-}
-
-static __inline__ long
-atomic64_add_negative (__s64 i, atomic64_t *v)
-{
-	return atomic64_add_return(i, v) < 0;
-}
-
-#define atomic_dec_return(v)		atomic_sub_return(1, (v))
-#define atomic_inc_return(v)		atomic_add_return(1, (v))
-#define atomic64_dec_return(v)		atomic64_sub_return(1, (v))
-#define atomic64_inc_return(v)		atomic64_add_return(1, (v))
-
-#define atomic_sub_and_test(i,v)	(atomic_sub_return((i), (v)) == 0)
-#define atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
-#define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
-#define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i), (v)) == 0)
-#define atomic64_dec_and_test(v)	(atomic64_sub_return(1, (v)) == 0)
-#define atomic64_inc_and_test(v)	(atomic64_add_return(1, (v)) == 0)
-
 #define atomic_add(i,v)			(void)atomic_add_return((i), (v))
 #define atomic_sub(i,v)			(void)atomic_sub_return((i), (v))
-#define atomic_inc(v)			atomic_add(1, (v))
-#define atomic_dec(v)			atomic_sub(1, (v))
 
 #define atomic64_add(i,v)		(void)atomic64_add_return((i), (v))
 #define atomic64_sub(i,v)		(void)atomic64_sub_return((i), (v))
-#define atomic64_inc(v)			atomic64_add(1, (v))
-#define atomic64_dec(v)			atomic64_sub(1, (v))
 
 #endif /* _ASM_IA64_ATOMIC_H */

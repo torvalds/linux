@@ -389,32 +389,6 @@ static int unpack_strdup(struct aa_ext *e, char **string, const char *name)
 	return res;
 }
 
-#define DFA_VALID_PERM_MASK		0xffffffff
-#define DFA_VALID_PERM2_MASK		0xffffffff
-
-/**
- * verify_accept - verify the accept tables of a dfa
- * @dfa: dfa to verify accept tables of (NOT NULL)
- * @flags: flags governing dfa
- *
- * Returns: 1 if valid accept tables else 0 if error
- */
-static bool verify_accept(struct aa_dfa *dfa, int flags)
-{
-	int i;
-
-	/* verify accept permissions */
-	for (i = 0; i < dfa->tables[YYTD_ID_ACCEPT]->td_lolen; i++) {
-		int mode = ACCEPT_TABLE(dfa)[i];
-
-		if (mode & ~DFA_VALID_PERM_MASK)
-			return 0;
-
-		if (ACCEPT_TABLE2(dfa)[i] & ~DFA_VALID_PERM2_MASK)
-			return 0;
-	}
-	return 1;
-}
 
 /**
  * unpack_dfa - unpack a file rule dfa
@@ -445,15 +419,9 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e)
 		if (IS_ERR(dfa))
 			return dfa;
 
-		if (!verify_accept(dfa, flags))
-			goto fail;
 	}
 
 	return dfa;
-
-fail:
-	aa_put_dfa(dfa);
-	return ERR_PTR(-EPROTO);
 }
 
 /**

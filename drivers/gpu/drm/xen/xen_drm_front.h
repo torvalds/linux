@@ -126,12 +126,12 @@ struct xen_drm_front_drm_info {
 
 static inline u64 xen_drm_front_fb_to_cookie(struct drm_framebuffer *fb)
 {
-	return (u64)fb;
+	return (uintptr_t)fb;
 }
 
 static inline u64 xen_drm_front_dbuf_to_cookie(struct drm_gem_object *gem_obj)
 {
-	return (u64)gem_obj;
+	return (uintptr_t)gem_obj;
 }
 
 int xen_drm_front_mode_set(struct xen_drm_front_drm_pipeline *pipeline,

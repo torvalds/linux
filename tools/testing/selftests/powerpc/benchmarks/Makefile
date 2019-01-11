@@ -4,6 +4,7 @@ TEST_GEN_FILES := exec_target
 
 CFLAGS += -O2
 
+top_srcdir = ../../../../..
 include ../../lib.mk
 
 $(TEST_GEN_PROGS): ../harness.c

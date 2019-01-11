@@ -84,8 +84,6 @@ struct device_private {
 #define to_device_private_bus(obj)	\
 	container_of(obj, struct device_private, knode_bus)
 
-extern int device_private_init(struct device *dev);
-
 /* initialisation functions */
 extern int devices_init(void);
 extern int buses_init(void);

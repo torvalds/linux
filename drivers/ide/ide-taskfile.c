@@ -128,7 +128,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 			return pre_task_out_intr(drive, cmd);
 		}
 		handler = task_pio_intr;
-		/* fall-through */
+		/* fall through */
 	case ATA_PROT_NODATA:
 		if (handler == NULL)
 			handler = task_no_data_intr;
@@ -140,6 +140,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		hwif->expiry = dma_ops->dma_timer_expiry;
 		ide_execute_command(drive, cmd, ide_dma_intr, 2 * WAIT_CMD);
 		dma_ops->dma_start(drive);
+		/* fall through */
 	default:
 		return ide_started;
 	}

@@ -586,7 +586,6 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	wndw->id = index;
 	wndw->interlock.type = interlock_type;
 	wndw->interlock.data = interlock_data;
-	wndw->ctxdma.parent = &wndw->wndw.base.user;
 
 	wndw->ctxdma.parent = &wndw->wndw.base.user;
 	INIT_LIST_HEAD(&wndw->ctxdma.list);

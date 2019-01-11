@@ -16,6 +16,8 @@
 
 #include "kcs_bmc.h"
 
+#define DEVICE_NAME "ipmi-kcs"
+
 #define KCS_MSG_BUFSIZ    1000
 
 #define KCS_ZERO_DATA     0
@@ -429,8 +431,6 @@ struct kcs_bmc *kcs_bmc_alloc(struct device *dev, int sizeof_priv, u32 channel)
 	if (!kcs_bmc)
 		return NULL;
 
-	dev_set_name(dev, "ipmi-kcs%u", channel);
-
 	spin_lock_init(&kcs_bmc->lock);
 	kcs_bmc->channel = channel;
 
@@ -444,7 +444,8 @@ struct kcs_bmc *kcs_bmc_alloc(struct device *dev, int sizeof_priv, u32 channel)
 		return NULL;
 
 	kcs_bmc->miscdev.minor = MISC_DYNAMIC_MINOR;
-	kcs_bmc->miscdev.name = dev_name(dev);
+	kcs_bmc->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%u",
+					       DEVICE_NAME, channel);
 	kcs_bmc->miscdev.fops = &kcs_bmc_fops;
 
 	return kcs_bmc;

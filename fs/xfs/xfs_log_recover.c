@@ -196,7 +196,7 @@ xlog_bread_noalign(
 	bp->b_io_length = nbblks;
 	bp->b_error = 0;
 
-	error = xfs_buf_submit_wait(bp);
+	error = xfs_buf_submit(bp);
 	if (error && !XFS_FORCED_SHUTDOWN(log->l_mp))
 		xfs_buf_ioerror_alert(bp, __func__);
 	return error;
@@ -1570,16 +1570,6 @@ xlog_find_zeroed(
 	if (last_cycle != 0) {		/* log completely written to */
 		xlog_put_bp(bp);
 		return 0;
-	} else if (first_cycle != 1) {
-		/*
-		 * If the cycle of the last block is zero, the cycle of
-		 * the first block must be 1. If it's not, maybe we're
-		 * not looking at a log... Bail out.
-		 */
-		xfs_warn(log->l_mp,
-			"Log inconsistent or not a log (last==0, first!=1)");
-		error = -EINVAL;
-		goto bp_err;
 	}
 
 	/* we have a partially zeroed log */
@@ -4733,10 +4723,9 @@ xlog_recover_cancel_rui(
 /* Recover the CUI if necessary. */
 STATIC int
 xlog_recover_process_cui(
-	struct xfs_mount		*mp,
+	struct xfs_trans		*parent_tp,
 	struct xfs_ail			*ailp,
-	struct xfs_log_item		*lip,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_log_item		*lip)
 {
 	struct xfs_cui_log_item		*cuip;
 	int				error;
@@ -4749,7 +4738,7 @@ xlog_recover_process_cui(
 		return 0;
 
 	spin_unlock(&ailp->ail_lock);
-	error = xfs_cui_recover(mp, cuip, dfops);
+	error = xfs_cui_recover(parent_tp, cuip);
 	spin_lock(&ailp->ail_lock);
 
 	return error;
@@ -4774,10 +4763,9 @@ xlog_recover_cancel_cui(
 /* Recover the BUI if necessary. */
 STATIC int
 xlog_recover_process_bui(
-	struct xfs_mount		*mp,
+	struct xfs_trans		*parent_tp,
 	struct xfs_ail			*ailp,
-	struct xfs_log_item		*lip,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_log_item		*lip)
 {
 	struct xfs_bui_log_item		*buip;
 	int				error;
@@ -4790,7 +4778,7 @@ xlog_recover_process_bui(
 		return 0;
 
 	spin_unlock(&ailp->ail_lock);
-	error = xfs_bui_recover(mp, buip, dfops);
+	error = xfs_bui_recover(parent_tp, buip);
 	spin_lock(&ailp->ail_lock);
 
 	return error;
@@ -4829,9 +4817,9 @@ static inline bool xlog_item_is_intent(struct xfs_log_item *lip)
 /* Take all the collected deferred ops and finish them in order. */
 static int
 xlog_finish_defer_ops(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops)
+	struct xfs_trans	*parent_tp)
 {
+	struct xfs_mount	*mp = parent_tp->t_mountp;
 	struct xfs_trans	*tp;
 	int64_t			freeblks;
 	uint			resblks;
@@ -4854,16 +4842,10 @@ xlog_finish_defer_ops(
 			0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
-
-	error = xfs_defer_finish(&tp, dfops);
-	if (error)
-		goto out_cancel;
+	/* transfer all collected dfops to this transaction */
+	xfs_defer_move(tp, parent_tp);
 
 	return xfs_trans_commit(tp);
-
-out_cancel:
-	xfs_trans_cancel(tp);
-	return error;
 }
 
 /*
@@ -4886,15 +4868,27 @@ STATIC int
 xlog_recover_process_intents(
 	struct xlog		*log)
 {
-	struct xfs_defer_ops	dfops;
+	struct xfs_trans	*parent_tp;
 	struct xfs_ail_cursor	cur;
 	struct xfs_log_item	*lip;
 	struct xfs_ail		*ailp;
-	xfs_fsblock_t		firstfsb;
-	int			error = 0;
+	int			error;
 #if defined(DEBUG) || defined(XFS_WARN)
 	xfs_lsn_t		last_lsn;
 #endif
+
+	/*
+	 * The intent recovery handlers commit transactions to complete recovery
+	 * for individual intents, but any new deferred operations that are
+	 * queued during that process are held off until the very end. The
+	 * purpose of this transaction is to serve as a container for deferred
+	 * operations. Each intent recovery handler must transfer dfops here
+	 * before its local transaction commits, and we'll finish the entire
+	 * list below.
+	 */
+	error = xfs_trans_alloc_empty(log->l_mp, &parent_tp);
+	if (error)
+		return error;
 
 	ailp = log->l_ailp;
 	spin_lock(&ailp->ail_lock);
@@ -4902,7 +4896,6 @@ xlog_recover_process_intents(
 #if defined(DEBUG) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
 #endif
-	xfs_defer_init(&dfops, &firstfsb);
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an intent.
@@ -4937,12 +4930,10 @@ xlog_recover_process_intents(
 			error = xlog_recover_process_rui(log->l_mp, ailp, lip);
 			break;
 		case XFS_LI_CUI:
-			error = xlog_recover_process_cui(log->l_mp, ailp, lip,
-					&dfops);
+			error = xlog_recover_process_cui(parent_tp, ailp, lip);
 			break;
 		case XFS_LI_BUI:
-			error = xlog_recover_process_bui(log->l_mp, ailp, lip,
-					&dfops);
+			error = xlog_recover_process_bui(parent_tp, ailp, lip);
 			break;
 		}
 		if (error)
@@ -4952,10 +4943,9 @@ xlog_recover_process_intents(
 out:
 	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->ail_lock);
-	if (error)
-		xfs_defer_cancel(&dfops);
-	else
-		error = xlog_finish_defer_ops(log->l_mp, &dfops);
+	if (!error)
+		error = xlog_finish_defer_ops(parent_tp);
+	xfs_trans_cancel(parent_tp);
 
 	return error;
 }
@@ -5094,11 +5084,11 @@ xlog_recover_process_one_iunlink(
 	 */
 	ip->i_d.di_dmevmask = 0;
 
-	IRELE(ip);
+	xfs_irele(ip);
 	return agino;
 
  fail_iput:
-	IRELE(ip);
+	xfs_irele(ip);
  fail:
 	/*
 	 * We can't read in the inode this bucket points to, or this inode
@@ -5707,7 +5697,7 @@ xlog_do_recover(
 	bp->b_flags |= XBF_READ;
 	bp->b_ops = &xfs_sb_buf_ops;
 
-	error = xfs_buf_submit_wait(bp);
+	error = xfs_buf_submit(bp);
 	if (error) {
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_buf_ioerror_alert(bp, __func__);

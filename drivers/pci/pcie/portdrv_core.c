@@ -353,14 +353,19 @@ error_disable:
 }
 
 #ifdef CONFIG_PM
-static int suspend_iter(struct device *dev, void *data)
+typedef int (*pcie_pm_callback_t)(struct pcie_device *);
+
+static int pm_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
+	size_t offset = *(size_t *)data;
+	pcie_pm_callback_t cb;
 
 	if ((dev->bus == &pcie_port_bus_type) && dev->driver) {
 		service_driver = to_service_driver(dev->driver);
-		if (service_driver->suspend)
-			service_driver->suspend(to_pcie_device(dev));
+		cb = *(pcie_pm_callback_t *)((void *)service_driver + offset);
+		if (cb)
+			return cb(to_pcie_device(dev));
 	}
 	return 0;
 }
@@ -371,20 +376,14 @@ static int suspend_iter(struct device *dev, void *data)
  */
 int pcie_port_device_suspend(struct device *dev)
 {
-	return device_for_each_child(dev, NULL, suspend_iter);
+	size_t off = offsetof(struct pcie_port_service_driver, suspend);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 
-static int resume_iter(struct device *dev, void *data)
+int pcie_port_device_resume_noirq(struct device *dev)
 {
-	struct pcie_port_service_driver *service_driver;
-
-	if ((dev->bus == &pcie_port_bus_type) &&
-	    (dev->driver)) {
-		service_driver = to_service_driver(dev->driver);
-		if (service_driver->resume)
-			service_driver->resume(to_pcie_device(dev));
-	}
-	return 0;
+	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 
 /**
@@ -393,7 +392,8 @@ static int resume_iter(struct device *dev, void *data)
  */
 int pcie_port_device_resume(struct device *dev)
 {
-	return device_for_each_child(dev, NULL, resume_iter);
+	size_t off = offsetof(struct pcie_port_service_driver, resume);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 #endif /* PM */
 

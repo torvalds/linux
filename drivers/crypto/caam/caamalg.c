@@ -1553,8 +1553,8 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
-	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
-			 desc_bytes;
+	edesc->sec4_sg = (struct sec4_sg_entry *)((u8 *)edesc->hw_desc +
+						  desc_bytes);
 	edesc->iv_dir = DMA_TO_DEVICE;
 
 	/* Make sure IV is located in a DMAable area */
@@ -1757,8 +1757,8 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
-	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
-			 desc_bytes;
+	edesc->sec4_sg = (struct sec4_sg_entry *)((u8 *)edesc->hw_desc +
+						  desc_bytes);
 	edesc->iv_dir = DMA_FROM_DEVICE;
 
 	/* Make sure IV is located in a DMAable area */

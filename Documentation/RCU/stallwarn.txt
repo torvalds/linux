@@ -172,7 +172,7 @@ it will print a message similar to the following:
 	INFO: rcu_sched detected stalls on CPUs/tasks:
 	2-...: (3 GPs behind) idle=06c/0/0 softirq=1453/1455 fqs=0
 	16-...: (0 ticks this GP) idle=81c/0/0 softirq=764/764 fqs=0
-	(detected by 32, t=2603 jiffies, g=7073, c=7072, q=625)
+	(detected by 32, t=2603 jiffies, g=7075, q=625)
 
 This message indicates that CPU 32 detected that CPUs 2 and 16 were both
 causing stalls, and that the stall was affecting RCU-sched.  This message
@@ -215,11 +215,10 @@ CPU since the last time that this CPU noted the beginning of a grace
 period.
 
 The "detected by" line indicates which CPU detected the stall (in this
-case, CPU 32), how many jiffies have elapsed since the start of the
-grace period (in this case 2603), the number of the last grace period
-to start and to complete (7073 and 7072, respectively), and an estimate
-of the total number of RCU callbacks queued across all CPUs (625 in
-this case).
+case, CPU 32), how many jiffies have elapsed since the start of the grace
+period (in this case 2603), the grace-period sequence number (7075), and
+an estimate of the total number of RCU callbacks queued across all CPUs
+(625 in this case).
 
 In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed
 for each CPU:
@@ -266,15 +265,16 @@ If the relevant grace-period kthread has been unable to run prior to
 the stall warning, as was the case in the "All QSes seen" line above,
 the following additional line is printed:
 
-	kthread starved for 23807 jiffies! g7073 c7072 f0x0 RCU_GP_WAIT_FQS(3) ->state=0x1
+	kthread starved for 23807 jiffies! g7075 f0x0 RCU_GP_WAIT_FQS(3) ->state=0x1 ->cpu=5
 
 Starving the grace-period kthreads of CPU time can of course result
 in RCU CPU stall warnings even when all CPUs and tasks have passed
-through the required quiescent states.  The "g" and "c" numbers flag the
-number of the last grace period started and completed, respectively,
-the "f" precedes the ->gp_flags command to the grace-period kthread,
-the "RCU_GP_WAIT_FQS" indicates that the kthread is waiting for a short
-timeout, and the "state" precedes value of the task_struct ->state field.
+through the required quiescent states.  The "g" number shows the current
+grace-period sequence number, the "f" precedes the ->gp_flags command
+to the grace-period kthread, the "RCU_GP_WAIT_FQS" indicates that the
+kthread is waiting for a short timeout, the "state" precedes value of the
+task_struct ->state field, and the "cpu" indicates that the grace-period
+kthread last ran on CPU 5.
 
 
 Multiple Warnings From One Stall

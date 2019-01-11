@@ -31,7 +31,7 @@
 #include <linux/power_supply.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-
+#include <linux/nospec.h>
 
 static int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
 
@@ -68,11 +68,11 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 	if (adev->pm.dpm_enabled) {
 		mutex_lock(&adev->pm.mutex);
 		if (power_supply_is_system_supplied() > 0)
-			adev->pm.dpm.ac_power = true;
+			adev->pm.ac_power = true;
 		else
-			adev->pm.dpm.ac_power = false;
+			adev->pm.ac_power = false;
 		if (adev->powerplay.pp_funcs->enable_bapm)
-			amdgpu_dpm_enable_bapm(adev, adev->pm.dpm.ac_power);
+			amdgpu_dpm_enable_bapm(adev, adev->pm.ac_power);
 		mutex_unlock(&adev->pm.mutex);
 	}
 }
@@ -80,12 +80,15 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 /**
  * DOC: power_dpm_state
  *
- * This is a legacy interface and is only provided for backwards compatibility.
- * The amdgpu driver provides a sysfs API for adjusting certain power
- * related parameters.  The file power_dpm_state is used for this.
+ * The power_dpm_state file is a legacy interface and is only provided for
+ * backwards compatibility. The amdgpu driver provides a sysfs API for adjusting
+ * certain power related parameters.  The file power_dpm_state is used for this.
  * It accepts the following arguments:
+ *
  * - battery
+ *
  * - balanced
+ *
  * - performance
  *
  * battery
@@ -169,14 +172,21 @@ fail:
  * The amdgpu driver provides a sysfs API for adjusting certain power
  * related parameters.  The file power_dpm_force_performance_level is
  * used for this.  It accepts the following arguments:
+ *
  * - auto
+ *
  * - low
+ *
  * - high
+ *
  * - manual
- * - GPU fan
+ *
  * - profile_standard
+ *
  * - profile_min_sclk
+ *
  * - profile_min_mclk
+ *
  * - profile_peak
  *
  * auto
@@ -393,6 +403,7 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 			count = -EINVAL;
 			goto fail;
 		}
+		idx = array_index_nospec(idx, ARRAY_SIZE(data.states));
 
 		amdgpu_dpm_get_pp_num_states(adev, &data);
 		state = data.states[idx];
@@ -463,8 +474,11 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * this.
  *
  * Reading the file will display:
+ *
  * - a list of engine clock levels and voltages labeled OD_SCLK
+ *
  * - a list of memory clock levels and voltages labeled OD_MCLK
+ *
  * - a list of valid ranges for sclk, mclk, and voltage labeled OD_RANGE
  *
  * To manually adjust these settings, first select manual using
@@ -593,6 +607,42 @@ static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
 		return snprintf(buf, PAGE_SIZE, "\n");
 }
 
+/*
+ * Worst case: 32 bits individually specified, in octal at 12 characters
+ * per line (+1 for \n).
+ */
+#define AMDGPU_MASK_BUF_MAX	(32 * 13)
+
+static ssize_t amdgpu_read_mask(const char *buf, size_t count, uint32_t *mask)
+{
+	int ret;
+	long level;
+	char *sub_str = NULL;
+	char *tmp;
+	char buf_cpy[AMDGPU_MASK_BUF_MAX + 1];
+	const char delimiter[3] = {' ', '\n', '\0'};
+	size_t bytes;
+
+	*mask = 0;
+
+	bytes = min(count, sizeof(buf_cpy) - 1);
+	memcpy(buf_cpy, buf, bytes);
+	buf_cpy[bytes] = '\0';
+	tmp = buf_cpy;
+	while (tmp[0]) {
+		sub_str = strsep(&tmp, delimiter);
+		if (strlen(sub_str)) {
+			ret = kstrtol(sub_str, 0, &level);
+			if (ret)
+				return -EINVAL;
+			*mask |= 1 << level;
+		} else
+			break;
+	}
+
+	return 0;
+}
+
 static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
@@ -601,32 +651,15 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
-	long level;
 	uint32_t mask = 0;
-	char *sub_str = NULL;
-	char *tmp;
-	char buf_cpy[count];
-	const char delimiter[3] = {' ', '\n', '\0'};
 
-	memcpy(buf_cpy, buf, count+1);
-	tmp = buf_cpy;
-	while (tmp[0]) {
-		sub_str =  strsep(&tmp, delimiter);
-		if (strlen(sub_str)) {
-			ret = kstrtol(sub_str, 0, &level);
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
 
-			if (ret) {
-				count = -EINVAL;
-				goto fail;
-			}
-			mask |= 1 << level;
-		} else
-			break;
-	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
 
-fail:
 	return count;
 }
 
@@ -651,32 +684,15 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
-	long level;
 	uint32_t mask = 0;
-	char *sub_str = NULL;
-	char *tmp;
-	char buf_cpy[count];
-	const char delimiter[3] = {' ', '\n', '\0'};
 
-	memcpy(buf_cpy, buf, count+1);
-	tmp = buf_cpy;
-	while (tmp[0]) {
-		sub_str =  strsep(&tmp, delimiter);
-		if (strlen(sub_str)) {
-			ret = kstrtol(sub_str, 0, &level);
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
 
-			if (ret) {
-				count = -EINVAL;
-				goto fail;
-			}
-			mask |= 1 << level;
-		} else
-			break;
-	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
 
-fail:
 	return count;
 }
 
@@ -701,33 +717,15 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
-	long level;
 	uint32_t mask = 0;
-	char *sub_str = NULL;
-	char *tmp;
-	char buf_cpy[count];
-	const char delimiter[3] = {' ', '\n', '\0'};
 
-	memcpy(buf_cpy, buf, count+1);
-	tmp = buf_cpy;
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
 
-	while (tmp[0]) {
-		sub_str =  strsep(&tmp, delimiter);
-		if (strlen(sub_str)) {
-			ret = kstrtol(sub_str, 0, &level);
-
-			if (ret) {
-				count = -EINVAL;
-				goto fail;
-			}
-			mask |= 1 << level;
-		} else
-			break;
-	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
 
-fail:
 	return count;
 }
 
@@ -905,6 +903,36 @@ fail:
 	return -EINVAL;
 }
 
+/**
+ * DOC: busy_percent
+ *
+ * The amdgpu driver provides a sysfs API for reading how busy the GPU
+ * is as a percentage.  The file gpu_busy_percent is used for this.
+ * The SMU firmware computes a percentage of load based on the
+ * aggregate activity level in the IP cores.
+ */
+static ssize_t amdgpu_get_busy_percent(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int r, value, size = sizeof(value);
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+		return -EINVAL;
+
+	/* read the IP busy sensor */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD,
+				   (void *)&value, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
 static DEVICE_ATTR(power_dpm_state, S_IRUGO | S_IWUSR, amdgpu_get_dpm_state, amdgpu_set_dpm_state);
 static DEVICE_ATTR(power_dpm_force_performance_level, S_IRUGO | S_IWUSR,
 		   amdgpu_get_dpm_forced_performance_level,
@@ -938,6 +966,8 @@ static DEVICE_ATTR(pp_power_profile_mode, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(pp_od_clk_voltage, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_od_clk_voltage,
 		amdgpu_set_pp_od_clk_voltage);
+static DEVICE_ATTR(gpu_busy_percent, S_IRUGO,
+		amdgpu_get_busy_percent, NULL);
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
@@ -1156,7 +1186,7 @@ static ssize_t amdgpu_hwmon_show_vddnb(struct device *dev,
 	int r, size = sizeof(vddnb);
 
 	/* only APUs have vddnb */
-	if  (adev->flags & AMD_IS_APU)
+	if  (!(adev->flags & AMD_IS_APU))
 		return -EINVAL;
 
 	/* Can't get voltage when the card is off */
@@ -1285,35 +1315,51 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
  * DOC: hwmon
  *
  * The amdgpu driver exposes the following sensor interfaces:
+ *
  * - GPU temperature (via the on-die sensor)
+ *
  * - GPU voltage
+ *
  * - Northbridge voltage (APUs only)
+ *
  * - GPU power
+ *
  * - GPU fan
  *
  * hwmon interfaces for GPU temperature:
+ *
  * - temp1_input: the on die GPU temperature in millidegrees Celsius
+ *
  * - temp1_crit: temperature critical max value in millidegrees Celsius
+ *
  * - temp1_crit_hyst: temperature hysteresis for critical limit in millidegrees Celsius
  *
  * hwmon interfaces for GPU voltage:
+ *
  * - in0_input: the voltage on the GPU in millivolts
+ *
  * - in1_input: the voltage on the Northbridge in millivolts
  *
  * hwmon interfaces for GPU power:
+ *
  * - power1_average: average power used by the GPU in microWatts
+ *
  * - power1_cap_min: minimum cap supported in microWatts
+ *
  * - power1_cap_max: maximum cap supported in microWatts
+ *
  * - power1_cap: selected power cap in microWatts
  *
  * hwmon interfaces for GPU fan:
+ *
  * - pwm1: pulse width modulation fan level (0-255)
- * - pwm1_enable: pulse width modulation fan control method
- *                0: no fan speed control
- *                1: manual fan speed control using pwm interface
- *                2: automatic fan speed control
+ *
+ * - pwm1_enable: pulse width modulation fan control method (0: no fan speed control, 1: manual fan speed control using pwm interface, 2: automatic fan speed control)
+ *
  * - pwm1_min: pulse width modulation fan control minimum level (0)
+ *
  * - pwm1_max: pulse width modulation fan control maximum level (255)
+ *
  * - fan1_input: fan speed in RPM
  *
  * You can use hwmon tools like sensors to view this information on your system.
@@ -1668,10 +1714,10 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->powerplay.pp_funcs->powergate_uvd) {
+	if (adev->powerplay.pp_funcs->set_powergating_by_smu) {
 		/* enable/disable UVD */
 		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_powergate_uvd(adev, !enable);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_UVD, !enable);
 		mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {
@@ -1690,10 +1736,10 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->powerplay.pp_funcs->powergate_vce) {
+	if (adev->powerplay.pp_funcs->set_powergating_by_smu) {
 		/* enable/disable VCE */
 		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_powergate_vce(adev, !enable);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_VCE, !enable);
 		mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {
@@ -1825,6 +1871,13 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"pp_od_clk_voltage\n");
 		return ret;
 	}
+	ret = device_create_file(adev->dev,
+			&dev_attr_gpu_busy_percent);
+	if (ret) {
+		DRM_ERROR("failed to create device file	"
+				"gpu_busy_level\n");
+		return ret;
+	}
 	ret = amdgpu_debugfs_pm_init(adev);
 	if (ret) {
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
@@ -1860,6 +1913,7 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 			&dev_attr_pp_power_profile_mode);
 	device_remove_file(adev->dev,
 			&dev_attr_pp_od_clk_voltage);
+	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
@@ -1898,14 +1952,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 	} else {
 		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_get_active_displays(adev);
-		/* update battery/ac status */
-		if (power_supply_is_system_supplied() > 0)
-			adev->pm.dpm.ac_power = true;
-		else
-			adev->pm.dpm.ac_power = false;
-
 		amdgpu_dpm_change_power_state_locked(adev);
-
 		mutex_unlock(&adev->pm.mutex);
 	}
 }

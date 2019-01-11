@@ -83,7 +83,7 @@ struct ice_link_status {
 	u64 phy_type_low;
 	u16 max_frame_size;
 	u16 link_speed;
-	bool lse_ena;	/* Link Status Event notification */
+	u8 lse_ena;	/* Link Status Event notification */
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
@@ -101,7 +101,7 @@ struct ice_phy_info {
 	struct ice_link_status link_info_old;
 	u64 phy_type_low;
 	enum ice_media_type media_type;
-	bool get_link_info;
+	u8 get_link_info;
 };
 
 /* Common HW capabilities for SW use */
@@ -167,7 +167,7 @@ struct ice_nvm_info {
 	u32 oem_ver;              /* OEM version info */
 	u16 sr_words;             /* Shadow RAM size in words */
 	u16 ver;                  /* NVM package version */
-	bool blank_nvm_mode;      /* is NVM empty (no FW present) */
+	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */
 };
 
 /* Max number of port to queue branches w.r.t topology */
@@ -181,7 +181,7 @@ struct ice_sched_node {
 	struct ice_aqc_txsched_elem_data info;
 	u32 agg_id;			/* aggregator group id */
 	u16 vsi_id;
-	bool in_use;			/* suspended or in use */
+	u8 in_use;			/* suspended or in use */
 	u8 tx_sched_layer;		/* Logical Layer (1-9) */
 	u8 num_children;
 	u8 tc_num;
@@ -218,7 +218,7 @@ struct ice_sched_vsi_info {
 struct ice_sched_tx_policy {
 	u16 max_num_vsis;
 	u8 max_num_lan_qs_per_tc[ICE_MAX_TRAFFIC_CLASS];
-	bool rdma_ena;
+	u8 rdma_ena;
 };
 
 struct ice_port_info {
@@ -243,7 +243,7 @@ struct ice_port_info {
 	struct list_head agg_list;	/* lists all aggregator */
 	u8 lport;
 #define ICE_LPORT_MASK		0xff
-	bool is_vf;
+	u8 is_vf;
 };
 
 struct ice_switch_info {
@@ -287,7 +287,7 @@ struct ice_hw {
 	u8 max_cgds;
 	u8 sw_entry_point_layer;
 
-	bool evb_veb;		/* true for VEB, false for VEPA */
+	u8 evb_veb;		/* true for VEB, false for VEPA */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */
@@ -318,7 +318,7 @@ struct ice_hw {
 	u8 itr_gran_100;
 	u8 itr_gran_50;
 	u8 itr_gran_25;
-	bool ucast_shared;	/* true if VSIs can share unicast addr */
+	u8 ucast_shared;	/* true if VSIs can share unicast addr */
 
 };
 

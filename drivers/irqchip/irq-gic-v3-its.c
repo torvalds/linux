@@ -23,6 +23,8 @@
 #include <linux/dma-iommu.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
+#include <linux/list.h>
+#include <linux/list_sort.h>
 #include <linux/log2.h>
 #include <linux/mm.h>
 #include <linux/msi.h>
@@ -160,7 +162,7 @@ static struct {
 } vpe_proxy;
 
 static LIST_HEAD(its_nodes);
-static DEFINE_SPINLOCK(its_lock);
+static DEFINE_RAW_SPINLOCK(its_lock);
 static struct rdists *gic_rdists;
 static struct irq_domain *its_parent;
 
@@ -1421,112 +1423,177 @@ static struct irq_chip its_irq_chip = {
 	.irq_set_vcpu_affinity	= its_irq_set_vcpu_affinity,
 };
 
+
 /*
  * How we allocate LPIs:
  *
- * The GIC has id_bits bits for interrupt identifiers. From there, we
- * must subtract 8192 which are reserved for SGIs/PPIs/SPIs. Then, as
- * we allocate LPIs by chunks of 32, we can shift the whole thing by 5
- * bits to the right.
+ * lpi_range_list contains ranges of LPIs that are to available to
+ * allocate from. To allocate LPIs, just pick the first range that
+ * fits the required allocation, and reduce it by the required
+ * amount. Once empty, remove the range from the list.
  *
- * This gives us (((1UL << id_bits) - 8192) >> 5) possible allocations.
+ * To free a range of LPIs, add a free range to the list, sort it and
+ * merge the result if the new range happens to be adjacent to an
+ * already free block.
+ *
+ * The consequence of the above is that allocation is cost is low, but
+ * freeing is expensive. We assumes that freeing rarely occurs.
  */
-#define IRQS_PER_CHUNK_SHIFT	5
-#define IRQS_PER_CHUNK		(1UL << IRQS_PER_CHUNK_SHIFT)
 #define ITS_MAX_LPI_NRBITS	16 /* 64K LPIs */
 
-static unsigned long *lpi_bitmap;
-static u32 lpi_chunks;
-static DEFINE_SPINLOCK(lpi_lock);
+static DEFINE_MUTEX(lpi_range_lock);
+static LIST_HEAD(lpi_range_list);
 
-static int its_lpi_to_chunk(int lpi)
+struct lpi_range {
+	struct list_head	entry;
+	u32			base_id;
+	u32			span;
+};
+
+static struct lpi_range *mk_lpi_range(u32 base, u32 span)
 {
-	return (lpi - 8192) >> IRQS_PER_CHUNK_SHIFT;
+	struct lpi_range *range;
+
+	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	if (range) {
+		INIT_LIST_HEAD(&range->entry);
+		range->base_id = base;
+		range->span = span;
+	}
+
+	return range;
 }
 
-static int its_chunk_to_lpi(int chunk)
+static int lpi_range_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
-	return (chunk << IRQS_PER_CHUNK_SHIFT) + 8192;
+	struct lpi_range *ra, *rb;
+
+	ra = container_of(a, struct lpi_range, entry);
+	rb = container_of(b, struct lpi_range, entry);
+
+	return rb->base_id - ra->base_id;
+}
+
+static void merge_lpi_ranges(void)
+{
+	struct lpi_range *range, *tmp;
+
+	list_for_each_entry_safe(range, tmp, &lpi_range_list, entry) {
+		if (!list_is_last(&range->entry, &lpi_range_list) &&
+		    (tmp->base_id == (range->base_id + range->span))) {
+			tmp->base_id = range->base_id;
+			tmp->span += range->span;
+			list_del(&range->entry);
+			kfree(range);
+		}
+	}
+}
+
+static int alloc_lpi_range(u32 nr_lpis, u32 *base)
+{
+	struct lpi_range *range, *tmp;
+	int err = -ENOSPC;
+
+	mutex_lock(&lpi_range_lock);
+
+	list_for_each_entry_safe(range, tmp, &lpi_range_list, entry) {
+		if (range->span >= nr_lpis) {
+			*base = range->base_id;
+			range->base_id += nr_lpis;
+			range->span -= nr_lpis;
+
+			if (range->span == 0) {
+				list_del(&range->entry);
+				kfree(range);
+			}
+
+			err = 0;
+			break;
+		}
+	}
+
+	mutex_unlock(&lpi_range_lock);
+
+	pr_debug("ITS: alloc %u:%u\n", *base, nr_lpis);
+	return err;
+}
+
+static int free_lpi_range(u32 base, u32 nr_lpis)
+{
+	struct lpi_range *new;
+	int err = 0;
+
+	mutex_lock(&lpi_range_lock);
+
+	new = mk_lpi_range(base, nr_lpis);
+	if (!new) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	list_add(&new->entry, &lpi_range_list);
+	list_sort(NULL, &lpi_range_list, lpi_range_cmp);
+	merge_lpi_ranges();
+out:
+	mutex_unlock(&lpi_range_lock);
+	return err;
 }
 
 static int __init its_lpi_init(u32 id_bits)
 {
-	lpi_chunks = its_lpi_to_chunk(1UL << id_bits);
+	u32 lpis = (1UL << id_bits) - 8192;
+	u32 numlpis;
+	int err;
 
-	lpi_bitmap = kcalloc(BITS_TO_LONGS(lpi_chunks), sizeof(long),
-			     GFP_KERNEL);
-	if (!lpi_bitmap) {
-		lpi_chunks = 0;
-		return -ENOMEM;
+	numlpis = 1UL << GICD_TYPER_NUM_LPIS(gic_rdists->gicd_typer);
+
+	if (numlpis > 2 && !WARN_ON(numlpis > lpis)) {
+		lpis = numlpis;
+		pr_info("ITS: Using hypervisor restricted LPI range [%u]\n",
+			lpis);
 	}
 
-	pr_info("ITS: Allocated %d chunks for LPIs\n", (int)lpi_chunks);
-	return 0;
+	/*
+	 * Initializing the allocator is just the same as freeing the
+	 * full range of LPIs.
+	 */
+	err = free_lpi_range(8192, lpis);
+	pr_debug("ITS: Allocator initialized for %u LPIs\n", lpis);
+	return err;
 }
 
-static unsigned long *its_lpi_alloc_chunks(int nr_irqs, int *base, int *nr_ids)
+static unsigned long *its_lpi_alloc(int nr_irqs, u32 *base, int *nr_ids)
 {
 	unsigned long *bitmap = NULL;
-	int chunk_id;
-	int nr_chunks;
-	int i;
-
-	nr_chunks = DIV_ROUND_UP(nr_irqs, IRQS_PER_CHUNK);
-
-	spin_lock(&lpi_lock);
+	int err = 0;
 
 	do {
-		chunk_id = bitmap_find_next_zero_area(lpi_bitmap, lpi_chunks,
-						      0, nr_chunks, 0);
-		if (chunk_id < lpi_chunks)
+		err = alloc_lpi_range(nr_irqs, base);
+		if (!err)
 			break;
 
-		nr_chunks--;
-	} while (nr_chunks > 0);
+		nr_irqs /= 2;
+	} while (nr_irqs > 0);
 
-	if (!nr_chunks)
+	if (err)
 		goto out;
 
-	bitmap = kcalloc(BITS_TO_LONGS(nr_chunks * IRQS_PER_CHUNK),
-			 sizeof(long),
-			 GFP_ATOMIC);
+	bitmap = kcalloc(BITS_TO_LONGS(nr_irqs), sizeof (long), GFP_ATOMIC);
 	if (!bitmap)
 		goto out;
 
-	for (i = 0; i < nr_chunks; i++)
-		set_bit(chunk_id + i, lpi_bitmap);
-
-	*base = its_chunk_to_lpi(chunk_id);
-	*nr_ids = nr_chunks * IRQS_PER_CHUNK;
+	*nr_ids = nr_irqs;
 
 out:
-	spin_unlock(&lpi_lock);
-
 	if (!bitmap)
 		*base = *nr_ids = 0;
 
 	return bitmap;
 }
 
-static void its_lpi_free_chunks(unsigned long *bitmap, int base, int nr_ids)
+static void its_lpi_free(unsigned long *bitmap, u32 base, u32 nr_ids)
 {
-	int lpi;
-
-	spin_lock(&lpi_lock);
-
-	for (lpi = base; lpi < (base + nr_ids); lpi += IRQS_PER_CHUNK) {
-		int chunk = its_lpi_to_chunk(lpi);
-
-		BUG_ON(chunk > lpi_chunks);
-		if (test_bit(chunk, lpi_bitmap)) {
-			clear_bit(chunk, lpi_bitmap);
-		} else {
-			pr_err("Bad LPI chunk %d\n", chunk);
-		}
-	}
-
-	spin_unlock(&lpi_lock);
-
+	WARN_ON(free_lpi_range(base, nr_ids));
 	kfree(bitmap);
 }
 
@@ -1559,7 +1626,8 @@ static int __init its_alloc_lpi_tables(void)
 {
 	phys_addr_t paddr;
 
-	lpi_id_bits = min_t(u32, gic_rdists->id_bits, ITS_MAX_LPI_NRBITS);
+	lpi_id_bits = min_t(u32, GICD_TYPER_ID_BITS(gic_rdists->gicd_typer),
+				ITS_MAX_LPI_NRBITS);
 	gic_rdists->prop_page = its_allocate_prop_table(GFP_NOWAIT);
 	if (!gic_rdists->prop_page) {
 		pr_err("Failed to allocate PROPBASE\n");
@@ -1997,12 +2065,12 @@ static void its_cpu_init_collections(void)
 {
 	struct its_node *its;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 
 	list_for_each_entry(its, &its_nodes, entry)
 		its_cpu_init_collection(its);
 
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 }
 
 static struct its_device *its_find_device(struct its_node *its, u32 dev_id)
@@ -2134,17 +2202,20 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	if (!its_alloc_device_table(its, dev_id))
 		return NULL;
 
+	if (WARN_ON(!is_power_of_2(nvecs)))
+		nvecs = roundup_pow_of_two(nvecs);
+
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	/*
-	 * We allocate at least one chunk worth of LPIs bet device,
-	 * and thus that many ITEs. The device may require less though.
+	 * Even if the device wants a single LPI, the ITT must be
+	 * sized as a power of two (and you need at least one bit...).
 	 */
-	nr_ites = max(IRQS_PER_CHUNK, roundup_pow_of_two(nvecs));
+	nr_ites = max(2, nvecs);
 	sz = nr_ites * its->ite_size;
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
 	itt = kzalloc(sz, GFP_KERNEL);
 	if (alloc_lpis) {
-		lpi_map = its_lpi_alloc_chunks(nvecs, &lpi_base, &nr_lpis);
+		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
 			col_map = kcalloc(nr_lpis, sizeof(*col_map),
 					  GFP_KERNEL);
@@ -2379,9 +2450,9 @@ static void its_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 	/* If all interrupts have been freed, start mopping the floor */
 	if (bitmap_empty(its_dev->event_map.lpi_map,
 			 its_dev->event_map.nr_lpis)) {
-		its_lpi_free_chunks(its_dev->event_map.lpi_map,
-				    its_dev->event_map.lpi_base,
-				    its_dev->event_map.nr_lpis);
+		its_lpi_free(its_dev->event_map.lpi_map,
+			     its_dev->event_map.lpi_base,
+			     its_dev->event_map.nr_lpis);
 		kfree(its_dev->event_map.col_map);
 
 		/* Unmap device/itt */
@@ -2780,7 +2851,7 @@ static void its_vpe_irq_domain_free(struct irq_domain *domain,
 	}
 
 	if (bitmap_empty(vm->db_bitmap, vm->nr_db_lpis)) {
-		its_lpi_free_chunks(vm->db_bitmap, vm->db_lpi_base, vm->nr_db_lpis);
+		its_lpi_free(vm->db_bitmap, vm->db_lpi_base, vm->nr_db_lpis);
 		its_free_prop_table(vm->vprop_page);
 	}
 }
@@ -2795,18 +2866,18 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 
 	BUG_ON(!vm);
 
-	bitmap = its_lpi_alloc_chunks(nr_irqs, &base, &nr_ids);
+	bitmap = its_lpi_alloc(roundup_pow_of_two(nr_irqs), &base, &nr_ids);
 	if (!bitmap)
 		return -ENOMEM;
 
 	if (nr_ids < nr_irqs) {
-		its_lpi_free_chunks(bitmap, base, nr_ids);
+		its_lpi_free(bitmap, base, nr_ids);
 		return -ENOMEM;
 	}
 
 	vprop_page = its_allocate_prop_table(GFP_KERNEL);
 	if (!vprop_page) {
-		its_lpi_free_chunks(bitmap, base, nr_ids);
+		its_lpi_free(bitmap, base, nr_ids);
 		return -ENOMEM;
 	}
 
@@ -2833,7 +2904,7 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 		if (i > 0)
 			its_vpe_irq_domain_free(domain, virq, i - 1);
 
-		its_lpi_free_chunks(bitmap, base, nr_ids);
+		its_lpi_free(bitmap, base, nr_ids);
 		its_free_prop_table(vprop_page);
 	}
 
@@ -3070,7 +3141,7 @@ static int its_save_disable(void)
 	struct its_node *its;
 	int err = 0;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_for_each_entry(its, &its_nodes, entry) {
 		void __iomem *base;
 
@@ -3102,7 +3173,7 @@ err:
 			writel_relaxed(its->ctlr_save, base + GITS_CTLR);
 		}
 	}
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 
 	return err;
 }
@@ -3112,7 +3183,7 @@ static void its_restore_enable(void)
 	struct its_node *its;
 	int ret;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_for_each_entry(its, &its_nodes, entry) {
 		void __iomem *base;
 		int i;
@@ -3164,7 +3235,7 @@ static void its_restore_enable(void)
 		    GITS_TYPER_HCC(gic_read_typer(base + GITS_TYPER)))
 			its_cpu_init_collection(its);
 	}
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 }
 
 static struct syscore_ops its_syscore_ops = {
@@ -3398,9 +3469,9 @@ static int __init its_probe_one(struct resource *res,
 	if (err)
 		goto out_free_tables;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_add(&its->entry, &its_nodes);
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 
 	return 0;
 

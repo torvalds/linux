@@ -267,8 +267,6 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	if (!lvds_lfp_data_ptrs)
 		return;
 
-	dev_priv->vbt.lvds_vbt = 1;
-
 	panel_dvo_timing = get_lvds_dvo_timing(lvds_lfp_data,
 					       lvds_lfp_data_ptrs,
 					       panel_type);
@@ -518,8 +516,31 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	if (!driver)
 		return;
 
-	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
-		dev_priv->vbt.edp.support = 1;
+	if (INTEL_GEN(dev_priv) >= 5) {
+		/*
+		 * Note that we consider BDB_DRIVER_FEATURE_INT_SDVO_LVDS
+		 * to mean "eDP". The VBT spec doesn't agree with that
+		 * interpretation, but real world VBTs seem to.
+		 */
+		if (driver->lvds_config != BDB_DRIVER_FEATURE_INT_LVDS)
+			dev_priv->vbt.int_lvds_support = 0;
+	} else {
+		/*
+		 * FIXME it's not clear which BDB version has the LVDS config
+		 * bits defined. Revision history in the VBT spec says:
+		 * "0.92 | Add two definitions for VBT value of LVDS Active
+		 *  Config (00b and 11b values defined) | 06/13/2005"
+		 * but does not the specify the BDB version.
+		 *
+		 * So far version 134 (on i945gm) is the oldest VBT observed
+		 * in the wild with the bits correctly populated. Version
+		 * 108 (on i85x) does not have the bits correctly populated.
+		 */
+		if (bdb->version >= 134 &&
+		    driver->lvds_config != BDB_DRIVER_FEATURE_INT_LVDS &&
+		    driver->lvds_config != BDB_DRIVER_FEATURE_INT_SDVO_LVDS)
+			dev_priv->vbt.int_lvds_support = 0;
+	}
 
 	DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
 	/*
@@ -542,11 +563,8 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	int panel_type = dev_priv->vbt.panel_type;
 
 	edp = find_section(bdb, BDB_EDP);
-	if (!edp) {
-		if (dev_priv->vbt.edp.support)
-			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported.\n");
+	if (!edp)
 		return;
-	}
 
 	switch ((edp->color_depth >> (panel_type * 2)) & 3) {
 	case EDP_18BPP:
@@ -634,7 +652,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	}
 
 	if (bdb->version >= 173) {
-		uint8_t vswing;
+		u8 vswing;
 
 		/* Don't read from VBT if module parameter has valid value*/
 		if (i915_modparams.edp_vswing) {
@@ -688,8 +706,54 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		break;
 	}
 
-	dev_priv->vbt.psr.tp1_wakeup_time = psr_table->tp1_wakeup_time;
-	dev_priv->vbt.psr.tp2_tp3_wakeup_time = psr_table->tp2_tp3_wakeup_time;
+	/*
+	 * New psr options 0=500us, 1=100us, 2=2500us, 3=0us
+	 * Old decimal value is wake up time in multiples of 100 us.
+	 */
+	if (bdb->version >= 205 &&
+	    (IS_GEN9_BC(dev_priv) || IS_GEMINILAKE(dev_priv) ||
+	     INTEL_GEN(dev_priv) >= 10)) {
+		switch (psr_table->tp1_wakeup_time) {
+		case 0:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 500;
+			break;
+		case 1:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 100;
+			break;
+		case 3:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 0;
+			break;
+		default:
+			DRM_DEBUG_KMS("VBT tp1 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
+					psr_table->tp1_wakeup_time);
+			/* fallthrough */
+		case 2:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 2500;
+			break;
+		}
+
+		switch (psr_table->tp2_tp3_wakeup_time) {
+		case 0:
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 500;
+			break;
+		case 1:
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 100;
+			break;
+		case 3:
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 0;
+			break;
+		default:
+			DRM_DEBUG_KMS("VBT tp2_tp3 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
+					psr_table->tp2_tp3_wakeup_time);
+			/* fallthrough */
+		case 2:
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 2500;
+		break;
+		}
+	} else {
+		dev_priv->vbt.psr.tp1_wakeup_time_us = psr_table->tp1_wakeup_time * 100;
+		dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = psr_table->tp2_tp3_wakeup_time * 100;
+	}
 }
 
 static void parse_dsi_backlight_ports(struct drm_i915_private *dev_priv,
@@ -902,7 +966,7 @@ static int goto_next_sequence_v3(const u8 *data, int index, int total)
 	 * includes MIPI_SEQ_ELEM_END byte, excludes the final MIPI_SEQ_END
 	 * byte.
 	 */
-	size_of_sequence = *((const uint32_t *)(data + index));
+	size_of_sequence = *((const u32 *)(data + index));
 	index += 4;
 
 	seq_end = index + size_of_sequence;
@@ -1197,18 +1261,37 @@ static const u8 cnp_ddc_pin_map[] = {
 	[DDC_BUS_DDI_F] = GMBUS_PIN_3_BXT, /* sic */
 };
 
+static const u8 icp_ddc_pin_map[] = {
+	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
+	[ICL_DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
+	[ICL_DDC_BUS_PORT_1] = GMBUS_PIN_9_TC1_ICP,
+	[ICL_DDC_BUS_PORT_2] = GMBUS_PIN_10_TC2_ICP,
+	[ICL_DDC_BUS_PORT_3] = GMBUS_PIN_11_TC3_ICP,
+	[ICL_DDC_BUS_PORT_4] = GMBUS_PIN_12_TC4_ICP,
+};
+
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
-	if (HAS_PCH_CNP(dev_priv)) {
-		if (vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map)) {
-			return cnp_ddc_pin_map[vbt_pin];
-		} else {
-			DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n", vbt_pin);
-			return 0;
-		}
+	const u8 *ddc_pin_map;
+	int n_entries;
+
+	if (HAS_PCH_ICP(dev_priv)) {
+		ddc_pin_map = icp_ddc_pin_map;
+		n_entries = ARRAY_SIZE(icp_ddc_pin_map);
+	} else if (HAS_PCH_CNP(dev_priv)) {
+		ddc_pin_map = cnp_ddc_pin_map;
+		n_entries = ARRAY_SIZE(cnp_ddc_pin_map);
+	} else {
+		/* Assuming direct map */
+		return vbt_pin;
 	}
 
-	return vbt_pin;
+	if (vbt_pin < n_entries && ddc_pin_map[vbt_pin] != 0)
+		return ddc_pin_map[vbt_pin];
+
+	DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n",
+		      vbt_pin);
+	return 0;
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
@@ -1504,7 +1587,6 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 
 	/* LFP panel data */
 	dev_priv->vbt.lvds_dither = 1;
-	dev_priv->vbt.lvds_vbt = 0;
 
 	/* SDVO panel data */
 	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
@@ -1512,6 +1594,9 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	/* general features */
 	dev_priv->vbt.int_tv_support = 1;
 	dev_priv->vbt.int_crt_support = 1;
+
+	/* driver features */
+	dev_priv->vbt.int_lvds_support = 1;
 
 	/* Default to using SSC */
 	dev_priv->vbt.lvds_use_ssc = 1;
@@ -1636,7 +1721,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
 
-	if (HAS_PCH_NOP(dev_priv)) {
+	if (INTEL_INFO(dev_priv)->num_pipes == 0) {
 		DRM_DEBUG_KMS("Skipping VBT init due to disabled display.\n");
 		return;
 	}

@@ -41,6 +41,7 @@ config TI_DAVINCI_MDIO
 config TI_DAVINCI_CPDMA
 	tristate "TI DaVinci CPDMA Support"
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
+	select GENERIC_ALLOCATOR
 	---help---
 	  This driver supports TI's DaVinci CPDMA dma engine.
 

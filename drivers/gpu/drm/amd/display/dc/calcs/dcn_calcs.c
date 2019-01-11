@@ -31,6 +31,8 @@
 
 #include "resource.h"
 #include "dcn10/dcn10_resource.h"
+#include "dcn10/dcn10_hubbub.h"
+
 #include "dcn_calc_math.h"
 
 #define DC_LOGGER \
@@ -248,7 +250,24 @@ static void pipe_ctx_to_e2e_pipe_params (
 	else if (pipe->bottom_pipe != NULL && pipe->bottom_pipe->plane_state == pipe->plane_state)
 		input->src.is_hsplit = true;
 
-	input->src.dcc                 = pipe->plane_state->dcc.enable;
+	if (pipe->plane_res.dpp->ctx->dc->debug.optimized_watermark) {
+		/*
+		 * this method requires us to always re-calculate watermark when dcc change
+		 * between flip.
+		 */
+		input->src.dcc = pipe->plane_state->dcc.enable ? 1 : 0;
+	} else {
+		/*
+		 * allow us to disable dcc on the fly without re-calculating WM
+		 *
+		 * extra overhead for DCC is quite small.  for 1080p WM without
+		 * DCC is only 0.417us lower (urgent goes from 6.979us to 6.562us)
+		 */
+		unsigned int bpe;
+
+		input->src.dcc = pipe->plane_res.dpp->ctx->dc->res_pool->hubbub->funcs->
+			dcc_support_pixel_format(pipe->plane_state->format, &bpe) ? 1 : 0;
+	}
 	input->src.dcc_rate            = 1;
 	input->src.meta_pitch          = pipe->plane_state->dcc.grph.meta_pitch;
 	input->src.source_scan         = dm_horz;
@@ -423,6 +442,10 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	int total_flip_bytes = 0;
 	int i;
 
+	memset(dlg_regs, 0, sizeof(*dlg_regs));
+	memset(ttu_regs, 0, sizeof(*ttu_regs));
+	memset(rq_regs, 0, sizeof(*rq_regs));
+
 	for (i = 0; i < number_of_planes; i++) {
 		total_active_bw += v->read_bandwidth[i];
 		total_prefetch_bw += v->prefetch_bandwidth[i];
@@ -501,6 +524,7 @@ static void split_stream_across_pipes(
 	resource_build_scaling_params(secondary_pipe);
 }
 
+#if 0
 static void calc_wm_sets_and_perf_params(
 		struct dc_state *context,
 		struct dcn_bw_internal_vars *v)
@@ -582,6 +606,7 @@ static void calc_wm_sets_and_perf_params(
 	if (v->voltage_level >= 3)
 		context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
 }
+#endif
 
 static bool dcn_bw_apply_registry_override(struct dc *dc)
 {
@@ -651,7 +676,7 @@ static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 }
 
 static void hack_bounding_box(struct dcn_bw_internal_vars *v,
-		struct dc_debug *dbg,
+		struct dc_debug_options *dbg,
 		struct dc_state *context)
 {
 	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID)
@@ -883,7 +908,26 @@ bool dcn_validate_bandwidth(
 				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dc_fixpt_one.value
 					|| v->scaler_rec_out_width[input_idx] == v->viewport_height[input_idx]);
 			}
-			v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
+
+			if (dc->debug.optimized_watermark) {
+				/*
+				 * this method requires us to always re-calculate watermark when dcc change
+				 * between flip.
+				 */
+				v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
+			} else {
+				/*
+				 * allow us to disable dcc on the fly without re-calculating WM
+				 *
+				 * extra overhead for DCC is quite small.  for 1080p WM without
+				 * DCC is only 0.417us lower (urgent goes from 6.979us to 6.562us)
+				 */
+				unsigned int bpe;
+
+				v->dcc_enable[input_idx] = dc->res_pool->hubbub->funcs->dcc_support_pixel_format(
+						pipe->plane_state->format, &bpe) ? dcn_bw_yes : dcn_bw_no;
+			}
+
 			v->source_pixel_format[input_idx] = tl_pixel_format_to_bw_defs(
 					pipe->plane_state->format);
 			v->source_surface_mode[input_idx] = tl_sw_mode_to_bw_defs(
@@ -976,43 +1020,60 @@ bool dcn_validate_bandwidth(
 				bw_consumed = v->fabric_and_dram_bandwidth;
 
 		display_pipe_configuration(v);
-		calc_wm_sets_and_perf_params(context, v);
-		context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 /
+		/*calc_wm_sets_and_perf_params(context, v);*/
+		/* Only 1 set is used by dcn since no noticeable
+		 * performance improvement was measured and due to hw bug DEGVIDCN10-254
+		 */
+		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
+
+		context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
+			v->stutter_exit_watermark * 1000;
+		context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
+				v->stutter_enter_plus_exit_watermark * 1000;
+		context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
+				v->dram_clock_change_watermark * 1000;
+		context->bw.dcn.watermarks.a.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
+		context->bw.dcn.watermarks.a.urgent_ns = v->urgent_watermark * 1000;
+		context->bw.dcn.watermarks.b = context->bw.dcn.watermarks.a;
+		context->bw.dcn.watermarks.c = context->bw.dcn.watermarks.a;
+		context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
+
+		context->bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 /
 				(ddr4_dram_factor_single_Channel * v->number_of_channels));
 		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65) {
-			context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
+			context->bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
 		}
 
-		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
-		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
+		context->bw.dcn.clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
+		context->bw.dcn.clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 
-		context->bw.dcn.calc_clk.dispclk_khz = (int)(v->dispclk * 1000);
+		context->bw.dcn.clk.dispclk_khz = (int)(v->dispclk * 1000);
 		if (dc->debug.max_disp_clk == true)
-			context->bw.dcn.calc_clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
+			context->bw.dcn.clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
 
-		if (context->bw.dcn.calc_clk.dispclk_khz <
+		if (context->bw.dcn.clk.dispclk_khz <
 				dc->debug.min_disp_clk_khz) {
-			context->bw.dcn.calc_clk.dispclk_khz =
+			context->bw.dcn.clk.dispclk_khz =
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw.dcn.calc_clk.dppclk_khz = context->bw.dcn.calc_clk.dispclk_khz / v->dispclk_dppclk_ratio;
-
+		context->bw.dcn.clk.dppclk_khz = context->bw.dcn.clk.dispclk_khz / v->dispclk_dppclk_ratio;
+		context->bw.dcn.clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
 		switch (v->voltage_level) {
 		case 0:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmin0p65 * 1000);
 			break;
 		case 1:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmid0p72 * 1000);
 			break;
 		case 2:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vnom0p8 * 1000);
 			break;
 		default:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmax0p9 * 1000);
 			break;
 		}
@@ -1225,27 +1286,27 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 
 unsigned int dcn_find_dcfclk_suits_all(
 	const struct dc *dc,
-	struct clocks_value *clocks)
+	struct dc_clocks *clocks)
 {
 	unsigned vdd_level, vdd_level_temp;
 	unsigned dcf_clk;
 
 	/*find a common supported voltage level*/
 	vdd_level = dcn_find_normalized_clock_vdd_Level(
-		dc, DM_PP_CLOCK_TYPE_DISPLAY_CLK, clocks->dispclk_in_khz);
+		dc, DM_PP_CLOCK_TYPE_DISPLAY_CLK, clocks->dispclk_khz);
 	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
-		dc, DM_PP_CLOCK_TYPE_DISPLAYPHYCLK, clocks->phyclk_in_khz);
+		dc, DM_PP_CLOCK_TYPE_DISPLAYPHYCLK, clocks->phyclk_khz);
 
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
 	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
-		dc, DM_PP_CLOCK_TYPE_DPPCLK, clocks->dppclk_in_khz);
+		dc, DM_PP_CLOCK_TYPE_DPPCLK, clocks->dppclk_khz);
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
 
 	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
-		dc, DM_PP_CLOCK_TYPE_MEMORY_CLK, clocks->dcfclock_in_khz);
+		dc, DM_PP_CLOCK_TYPE_MEMORY_CLK, clocks->fclk_khz);
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
 	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
-		dc, DM_PP_CLOCK_TYPE_DCFCLK, clocks->dcfclock_in_khz);
+		dc, DM_PP_CLOCK_TYPE_DCFCLK, clocks->dcfclk_khz);
 
 	/*find that level conresponding dcfclk*/
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
@@ -1331,21 +1392,14 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 {
 	struct pp_smu_funcs_rv *pp = dc->res_pool->pp_smu;
 	struct pp_smu_wm_range_sets ranges = {0};
-	int max_fclk_khz, nom_fclk_khz, mid_fclk_khz, min_fclk_khz;
-	int max_dcfclk_khz, min_dcfclk_khz;
-	int socclk_khz;
+	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
 	const int overdrive = 5000000; /* 5 GHz to cover Overdrive */
-	unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc->number_of_channels);
 
 	if (!pp->set_wm_ranges)
 		return;
 
 	kernel_fpu_begin();
-	max_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 * 1000000 / factor;
-	nom_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 * 1000000 / factor;
-	mid_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 * 1000000 / factor;
 	min_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
-	max_dcfclk_khz = dc->dcn_soc->dcfclkv_max0p9 * 1000;
 	min_dcfclk_khz = dc->dcn_soc->dcfclkv_min0p65 * 1000;
 	socclk_khz = dc->dcn_soc->socclk * 1000;
 	kernel_fpu_end();
@@ -1353,104 +1407,45 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
 	 * depending on DPM state they are in. And update BW MGR GFX Engine and
 	 * Memory clock member variables for Watermarks calculations for each
-	 * Watermark Set
+	 * Watermark Set. Only one watermark set for dcn1 due to hw bug DEGVIDCN10-254.
 	 */
 	/* SOCCLK does not affect anytihng but writeback for DCN so for now we dont
 	 * care what the value is, hence min to overdrive level
 	 */
-	ranges.num_reader_wm_sets = WM_COUNT;
-	ranges.num_writer_wm_sets = WM_COUNT;
+	ranges.num_reader_wm_sets = WM_SET_COUNT;
+	ranges.num_writer_wm_sets = WM_SET_COUNT;
 	ranges.reader_wm_sets[0].wm_inst = WM_A;
 	ranges.reader_wm_sets[0].min_drain_clk_khz = min_dcfclk_khz;
-	ranges.reader_wm_sets[0].max_drain_clk_khz = max_dcfclk_khz;
+	ranges.reader_wm_sets[0].max_drain_clk_khz = overdrive;
 	ranges.reader_wm_sets[0].min_fill_clk_khz = min_fclk_khz;
-	ranges.reader_wm_sets[0].max_fill_clk_khz = min_fclk_khz;
+	ranges.reader_wm_sets[0].max_fill_clk_khz = overdrive;
 	ranges.writer_wm_sets[0].wm_inst = WM_A;
 	ranges.writer_wm_sets[0].min_fill_clk_khz = socclk_khz;
 	ranges.writer_wm_sets[0].max_fill_clk_khz = overdrive;
 	ranges.writer_wm_sets[0].min_drain_clk_khz = min_fclk_khz;
-	ranges.writer_wm_sets[0].max_drain_clk_khz = min_fclk_khz;
-
-	ranges.reader_wm_sets[1].wm_inst = WM_B;
-	ranges.reader_wm_sets[1].min_drain_clk_khz = min_fclk_khz;
-	ranges.reader_wm_sets[1].max_drain_clk_khz = max_dcfclk_khz;
-	ranges.reader_wm_sets[1].min_fill_clk_khz = mid_fclk_khz;
-	ranges.reader_wm_sets[1].max_fill_clk_khz = mid_fclk_khz;
-	ranges.writer_wm_sets[1].wm_inst = WM_B;
-	ranges.writer_wm_sets[1].min_fill_clk_khz = socclk_khz;
-	ranges.writer_wm_sets[1].max_fill_clk_khz = overdrive;
-	ranges.writer_wm_sets[1].min_drain_clk_khz = mid_fclk_khz;
-	ranges.writer_wm_sets[1].max_drain_clk_khz = mid_fclk_khz;
-
-
-	ranges.reader_wm_sets[2].wm_inst = WM_C;
-	ranges.reader_wm_sets[2].min_drain_clk_khz = min_fclk_khz;
-	ranges.reader_wm_sets[2].max_drain_clk_khz = max_dcfclk_khz;
-	ranges.reader_wm_sets[2].min_fill_clk_khz = nom_fclk_khz;
-	ranges.reader_wm_sets[2].max_fill_clk_khz = nom_fclk_khz;
-	ranges.writer_wm_sets[2].wm_inst = WM_C;
-	ranges.writer_wm_sets[2].min_fill_clk_khz = socclk_khz;
-	ranges.writer_wm_sets[2].max_fill_clk_khz = overdrive;
-	ranges.writer_wm_sets[2].min_drain_clk_khz = nom_fclk_khz;
-	ranges.writer_wm_sets[2].max_drain_clk_khz = nom_fclk_khz;
-
-	ranges.reader_wm_sets[3].wm_inst = WM_D;
-	ranges.reader_wm_sets[3].min_drain_clk_khz = min_fclk_khz;
-	ranges.reader_wm_sets[3].max_drain_clk_khz = max_dcfclk_khz;
-	ranges.reader_wm_sets[3].min_fill_clk_khz = max_fclk_khz;
-	ranges.reader_wm_sets[3].max_fill_clk_khz = max_fclk_khz;
-	ranges.writer_wm_sets[3].wm_inst = WM_D;
-	ranges.writer_wm_sets[3].min_fill_clk_khz = socclk_khz;
-	ranges.writer_wm_sets[3].max_fill_clk_khz = overdrive;
-	ranges.writer_wm_sets[3].min_drain_clk_khz = max_fclk_khz;
-	ranges.writer_wm_sets[3].max_drain_clk_khz = max_fclk_khz;
+	ranges.writer_wm_sets[0].max_drain_clk_khz = overdrive;
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		ranges.reader_wm_sets[0].wm_inst = WM_A;
 		ranges.reader_wm_sets[0].min_drain_clk_khz = 300000;
-		ranges.reader_wm_sets[0].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[0].max_drain_clk_khz = 5000000;
 		ranges.reader_wm_sets[0].min_fill_clk_khz = 800000;
-		ranges.reader_wm_sets[0].max_fill_clk_khz = 800000;
+		ranges.reader_wm_sets[0].max_fill_clk_khz = 5000000;
 		ranges.writer_wm_sets[0].wm_inst = WM_A;
 		ranges.writer_wm_sets[0].min_fill_clk_khz = 200000;
-		ranges.writer_wm_sets[0].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[0].max_fill_clk_khz = 5000000;
 		ranges.writer_wm_sets[0].min_drain_clk_khz = 800000;
-		ranges.writer_wm_sets[0].max_drain_clk_khz = 800000;
-
-		ranges.reader_wm_sets[1].wm_inst = WM_B;
-		ranges.reader_wm_sets[1].min_drain_clk_khz = 300000;
-		ranges.reader_wm_sets[1].max_drain_clk_khz = 654000;
-		ranges.reader_wm_sets[1].min_fill_clk_khz = 933000;
-		ranges.reader_wm_sets[1].max_fill_clk_khz = 933000;
-		ranges.writer_wm_sets[1].wm_inst = WM_B;
-		ranges.writer_wm_sets[1].min_fill_clk_khz = 200000;
-		ranges.writer_wm_sets[1].max_fill_clk_khz = 757000;
-		ranges.writer_wm_sets[1].min_drain_clk_khz = 933000;
-		ranges.writer_wm_sets[1].max_drain_clk_khz = 933000;
-
-
-		ranges.reader_wm_sets[2].wm_inst = WM_C;
-		ranges.reader_wm_sets[2].min_drain_clk_khz = 300000;
-		ranges.reader_wm_sets[2].max_drain_clk_khz = 654000;
-		ranges.reader_wm_sets[2].min_fill_clk_khz = 1067000;
-		ranges.reader_wm_sets[2].max_fill_clk_khz = 1067000;
-		ranges.writer_wm_sets[2].wm_inst = WM_C;
-		ranges.writer_wm_sets[2].min_fill_clk_khz = 200000;
-		ranges.writer_wm_sets[2].max_fill_clk_khz = 757000;
-		ranges.writer_wm_sets[2].min_drain_clk_khz = 1067000;
-		ranges.writer_wm_sets[2].max_drain_clk_khz = 1067000;
-
-		ranges.reader_wm_sets[3].wm_inst = WM_D;
-		ranges.reader_wm_sets[3].min_drain_clk_khz = 300000;
-		ranges.reader_wm_sets[3].max_drain_clk_khz = 654000;
-		ranges.reader_wm_sets[3].min_fill_clk_khz = 1200000;
-		ranges.reader_wm_sets[3].max_fill_clk_khz = 1200000;
-		ranges.writer_wm_sets[3].wm_inst = WM_D;
-		ranges.writer_wm_sets[3].min_fill_clk_khz = 200000;
-		ranges.writer_wm_sets[3].max_fill_clk_khz = 757000;
-		ranges.writer_wm_sets[3].min_drain_clk_khz = 1200000;
-		ranges.writer_wm_sets[3].max_drain_clk_khz = 1200000;
+		ranges.writer_wm_sets[0].max_drain_clk_khz = 5000000;
 	}
+
+	ranges.reader_wm_sets[1] = ranges.writer_wm_sets[0];
+	ranges.reader_wm_sets[1].wm_inst = WM_B;
+
+	ranges.reader_wm_sets[2] = ranges.writer_wm_sets[0];
+	ranges.reader_wm_sets[2].wm_inst = WM_C;
+
+	ranges.reader_wm_sets[3] = ranges.writer_wm_sets[0];
+	ranges.reader_wm_sets[3].wm_inst = WM_D;
 
 	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
 	pp->set_wm_ranges(&pp->pp_smu, &ranges);

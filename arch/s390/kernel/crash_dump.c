@@ -293,17 +293,13 @@ int remap_oldmem_pfn_range(struct vm_area_struct *vma, unsigned long from,
 						       prot);
 }
 
-/*
- * Alloc memory and panic in case of ENOMEM
- */
-static void *kzalloc_panic(int len)
+static const char *nt_name(Elf64_Word type)
 {
-	void *rc;
+	const char *name = "LINUX";
 
-	rc = kzalloc(len, GFP_KERNEL);
-	if (!rc)
-		panic("s390 kdump kzalloc (%d) failed", len);
-	return rc;
+	if (type == NT_PRPSINFO || type == NT_PRSTATUS || type == NT_PRFPREG)
+		name = KEXEC_CORE_NOTE_NAME;
+	return name;
 }
 
 /*
@@ -332,11 +328,26 @@ static void *nt_init_name(void *buf, Elf64_Word type, void *desc, int d_len,
 
 static inline void *nt_init(void *buf, Elf64_Word type, void *desc, int d_len)
 {
-	const char *note_name = "LINUX";
+	return nt_init_name(buf, type, desc, d_len, nt_name(type));
+}
 
-	if (type == NT_PRPSINFO || type == NT_PRSTATUS || type == NT_PRFPREG)
-		note_name = KEXEC_CORE_NOTE_NAME;
-	return nt_init_name(buf, type, desc, d_len, note_name);
+/*
+ * Calculate the size of ELF note
+ */
+static size_t nt_size_name(int d_len, const char *name)
+{
+	size_t size;
+
+	size = sizeof(Elf64_Nhdr);
+	size += roundup(strlen(name) + 1, 4);
+	size += roundup(d_len, 4);
+
+	return size;
+}
+
+static inline size_t nt_size(Elf64_Word type, int d_len)
+{
+	return nt_size_name(d_len, nt_name(type));
 }
 
 /*
@@ -375,6 +386,29 @@ static void *fill_cpu_elf_notes(void *ptr, int cpu, struct save_area *sa)
 }
 
 /*
+ * Calculate size of ELF notes per cpu
+ */
+static size_t get_cpu_elf_notes_size(void)
+{
+	struct save_area *sa = NULL;
+	size_t size;
+
+	size =	nt_size(NT_PRSTATUS, sizeof(struct elf_prstatus));
+	size +=  nt_size(NT_PRFPREG, sizeof(elf_fpregset_t));
+	size +=  nt_size(NT_S390_TIMER, sizeof(sa->timer));
+	size +=  nt_size(NT_S390_TODCMP, sizeof(sa->todcmp));
+	size +=  nt_size(NT_S390_TODPREG, sizeof(sa->todpreg));
+	size +=  nt_size(NT_S390_CTRS, sizeof(sa->ctrs));
+	size +=  nt_size(NT_S390_PREFIX, sizeof(sa->prefix));
+	if (MACHINE_HAS_VX) {
+		size += nt_size(NT_S390_VXRS_HIGH, sizeof(sa->vxrs_high));
+		size += nt_size(NT_S390_VXRS_LOW, sizeof(sa->vxrs_low));
+	}
+
+	return size;
+}
+
+/*
  * Initialize prpsinfo note (new kernel)
  */
 static void *nt_prpsinfo(void *ptr)
@@ -404,11 +438,15 @@ static void *get_vmcoreinfo_old(unsigned long *size)
 	if (copy_oldmem_kernel(nt_name, addr + sizeof(note),
 			       sizeof(nt_name) - 1))
 		return NULL;
-	if (strcmp(nt_name, "VMCOREINFO") != 0)
+	if (strcmp(nt_name, VMCOREINFO_NOTE_NAME) != 0)
 		return NULL;
-	vmcoreinfo = kzalloc_panic(note.n_descsz);
-	if (copy_oldmem_kernel(vmcoreinfo, addr + 24, note.n_descsz))
+	vmcoreinfo = kzalloc(note.n_descsz, GFP_KERNEL);
+	if (!vmcoreinfo)
 		return NULL;
+	if (copy_oldmem_kernel(vmcoreinfo, addr + 24, note.n_descsz)) {
+		kfree(vmcoreinfo);
+		return NULL;
+	}
 	*size = note.n_descsz;
 	return vmcoreinfo;
 }
@@ -418,15 +456,38 @@ static void *get_vmcoreinfo_old(unsigned long *size)
  */
 static void *nt_vmcoreinfo(void *ptr)
 {
+	const char *name = VMCOREINFO_NOTE_NAME;
 	unsigned long size;
 	void *vmcoreinfo;
 
 	vmcoreinfo = os_info_old_entry(OS_INFO_VMCOREINFO, &size);
-	if (!vmcoreinfo)
-		vmcoreinfo = get_vmcoreinfo_old(&size);
+	if (vmcoreinfo)
+		return nt_init_name(ptr, 0, vmcoreinfo, size, name);
+
+	vmcoreinfo = get_vmcoreinfo_old(&size);
 	if (!vmcoreinfo)
 		return ptr;
-	return nt_init_name(ptr, 0, vmcoreinfo, size, "VMCOREINFO");
+	ptr = nt_init_name(ptr, 0, vmcoreinfo, size, name);
+	kfree(vmcoreinfo);
+	return ptr;
+}
+
+static size_t nt_vmcoreinfo_size(void)
+{
+	const char *name = VMCOREINFO_NOTE_NAME;
+	unsigned long size;
+	void *vmcoreinfo;
+
+	vmcoreinfo = os_info_old_entry(OS_INFO_VMCOREINFO, &size);
+	if (vmcoreinfo)
+		return nt_size_name(size, name);
+
+	vmcoreinfo = get_vmcoreinfo_old(&size);
+	if (!vmcoreinfo)
+		return 0;
+
+	kfree(vmcoreinfo);
+	return nt_size_name(size, name);
 }
 
 /*
@@ -539,6 +600,27 @@ static void *notes_init(Elf64_Phdr *phdr, void *ptr, u64 notes_offset)
 	return ptr;
 }
 
+static size_t get_elfcorehdr_size(int mem_chunk_cnt)
+{
+	size_t size;
+
+	size = sizeof(Elf64_Ehdr);
+	/* PT_NOTES */
+	size += sizeof(Elf64_Phdr);
+	/* nt_prpsinfo */
+	size += nt_size(NT_PRPSINFO, sizeof(struct elf_prpsinfo));
+	/* regsets */
+	size += get_cpu_cnt() * get_cpu_elf_notes_size();
+	/* nt_vmcoreinfo */
+	size += nt_vmcoreinfo_size();
+	/* nt_final */
+	size += sizeof(Elf64_Nhdr);
+	/* PT_LOADS */
+	size += mem_chunk_cnt * sizeof(Elf64_Phdr);
+
+	return size;
+}
+
 /*
  * Create ELF core header (new kernel)
  */
@@ -566,9 +648,17 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 
 	mem_chunk_cnt = get_mem_chunk_cnt();
 
-	alloc_size = 0x1000 + get_cpu_cnt() * 0x4a0 +
-		mem_chunk_cnt * sizeof(Elf64_Phdr);
-	hdr = kzalloc_panic(alloc_size);
+	alloc_size = get_elfcorehdr_size(mem_chunk_cnt);
+
+	hdr = kzalloc(alloc_size, GFP_KERNEL);
+
+	/* Without elfcorehdr /proc/vmcore cannot be created. Thus creating
+	 * a dump with this crash kernel will fail. Panic now to allow other
+	 * dump mechanisms to take over.
+	 */
+	if (!hdr)
+		panic("s390 kdump allocating elfcorehdr failed");
+
 	/* Init elf header */
 	ptr = ehdr_init(hdr, mem_chunk_cnt);
 	/* Init program headers */

@@ -1071,7 +1071,7 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	unsigned int num_bars)
 {
 	if (!vdev) {
-		vdev = kzalloc(sizeof(struct vnic_dev), GFP_ATOMIC);
+		vdev = kzalloc(sizeof(struct vnic_dev), GFP_KERNEL);
 		if (!vdev)
 			return NULL;
 	}

@@ -670,14 +670,8 @@ xfs_rmap_free(
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
 
 	error = xfs_rmap_unmap(cur, bno, len, false, oinfo);
-	if (error)
-		goto out_error;
 
-	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
-	return 0;
-
-out_error:
-	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+	xfs_btree_del_cursor(cur, error);
 	return error;
 }
 
@@ -753,19 +747,19 @@ xfs_rmap_map(
 			&have_lt);
 	if (error)
 		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
+	if (have_lt) {
+		error = xfs_rmap_get_rec(cur, &ltrec, &have_lt);
+		if (error)
+			goto out_error;
+		XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
+		trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
+				cur->bc_private.a.agno, ltrec.rm_startblock,
+				ltrec.rm_blockcount, ltrec.rm_owner,
+				ltrec.rm_offset, ltrec.rm_flags);
 
-	error = xfs_rmap_get_rec(cur, &ltrec, &have_lt);
-	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
-	trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
-			cur->bc_private.a.agno, ltrec.rm_startblock,
-			ltrec.rm_blockcount, ltrec.rm_owner,
-			ltrec.rm_offset, ltrec.rm_flags);
-
-	if (!xfs_rmap_is_mergeable(&ltrec, owner, flags))
-		have_lt = 0;
+		if (!xfs_rmap_is_mergeable(&ltrec, owner, flags))
+			have_lt = 0;
+	}
 
 	XFS_WANT_CORRUPTED_GOTO(mp,
 		have_lt == 0 ||
@@ -912,14 +906,8 @@ xfs_rmap_alloc(
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
 	error = xfs_rmap_map(cur, bno, len, false, oinfo);
-	if (error)
-		goto out_error;
 
-	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
-	return 0;
-
-out_error:
-	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+	xfs_btree_del_cursor(cur, error);
 	return error;
 }
 
@@ -2156,7 +2144,7 @@ xfs_rmap_finish_one_cleanup(
 	if (rcur == NULL)
 		return;
 	agbp = rcur->bc_private.a.agbp;
-	xfs_btree_del_cursor(rcur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(rcur, error);
 	if (error)
 		xfs_trans_brelse(tp, agbp);
 }
@@ -2289,18 +2277,18 @@ xfs_rmap_update_is_needed(
  */
 static int
 __xfs_rmap_add(
-	struct xfs_mount		*mp,
-	struct xfs_defer_ops		*dfops,
+	struct xfs_trans		*tp,
 	enum xfs_rmap_intent_type	type,
 	uint64_t			owner,
 	int				whichfork,
 	struct xfs_bmbt_irec		*bmap)
 {
-	struct xfs_rmap_intent	*ri;
+	struct xfs_rmap_intent		*ri;
 
-	trace_xfs_rmap_defer(mp, XFS_FSB_TO_AGNO(mp, bmap->br_startblock),
+	trace_xfs_rmap_defer(tp->t_mountp,
+			XFS_FSB_TO_AGNO(tp->t_mountp, bmap->br_startblock),
 			type,
-			XFS_FSB_TO_AGBNO(mp, bmap->br_startblock),
+			XFS_FSB_TO_AGBNO(tp->t_mountp, bmap->br_startblock),
 			owner, whichfork,
 			bmap->br_startoff,
 			bmap->br_blockcount,
@@ -2313,23 +2301,22 @@ __xfs_rmap_add(
 	ri->ri_whichfork = whichfork;
 	ri->ri_bmap = *bmap;
 
-	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_RMAP, &ri->ri_list);
+	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_RMAP, &ri->ri_list);
 	return 0;
 }
 
 /* Map an extent into a file. */
 int
 xfs_rmap_map_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	struct xfs_bmbt_irec	*PREV)
 {
-	if (!xfs_rmap_update_is_needed(mp, whichfork))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, whichfork))
 		return 0;
 
-	return __xfs_rmap_add(mp, dfops, xfs_is_reflink_inode(ip) ?
+	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_MAP_SHARED : XFS_RMAP_MAP, ip->i_ino,
 			whichfork, PREV);
 }
@@ -2337,25 +2324,29 @@ xfs_rmap_map_extent(
 /* Unmap an extent out of a file. */
 int
 xfs_rmap_unmap_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	struct xfs_bmbt_irec	*PREV)
 {
-	if (!xfs_rmap_update_is_needed(mp, whichfork))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, whichfork))
 		return 0;
 
-	return __xfs_rmap_add(mp, dfops, xfs_is_reflink_inode(ip) ?
+	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_UNMAP_SHARED : XFS_RMAP_UNMAP, ip->i_ino,
 			whichfork, PREV);
 }
 
-/* Convert a data fork extent from unwritten to real or vice versa. */
+/*
+ * Convert a data fork extent from unwritten to real or vice versa.
+ *
+ * Note that tp can be NULL here as no transaction is used for COW fork
+ * unwritten conversion.
+ */
 int
 xfs_rmap_convert_extent(
 	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	struct xfs_bmbt_irec	*PREV)
@@ -2363,7 +2354,7 @@ xfs_rmap_convert_extent(
 	if (!xfs_rmap_update_is_needed(mp, whichfork))
 		return 0;
 
-	return __xfs_rmap_add(mp, dfops, xfs_is_reflink_inode(ip) ?
+	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_CONVERT_SHARED : XFS_RMAP_CONVERT, ip->i_ino,
 			whichfork, PREV);
 }
@@ -2371,8 +2362,7 @@ xfs_rmap_convert_extent(
 /* Schedule the creation of an rmap for non-file data. */
 int
 xfs_rmap_alloc_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
@@ -2380,23 +2370,21 @@ xfs_rmap_alloc_extent(
 {
 	struct xfs_bmbt_irec	bmap;
 
-	if (!xfs_rmap_update_is_needed(mp, XFS_DATA_FORK))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, XFS_DATA_FORK))
 		return 0;
 
-	bmap.br_startblock = XFS_AGB_TO_FSB(mp, agno, bno);
+	bmap.br_startblock = XFS_AGB_TO_FSB(tp->t_mountp, agno, bno);
 	bmap.br_blockcount = len;
 	bmap.br_startoff = 0;
 	bmap.br_state = XFS_EXT_NORM;
 
-	return __xfs_rmap_add(mp, dfops, XFS_RMAP_ALLOC, owner,
-			XFS_DATA_FORK, &bmap);
+	return __xfs_rmap_add(tp, XFS_RMAP_ALLOC, owner, XFS_DATA_FORK, &bmap);
 }
 
 /* Schedule the deletion of an rmap for non-file data. */
 int
 xfs_rmap_free_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
@@ -2404,16 +2392,15 @@ xfs_rmap_free_extent(
 {
 	struct xfs_bmbt_irec	bmap;
 
-	if (!xfs_rmap_update_is_needed(mp, XFS_DATA_FORK))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, XFS_DATA_FORK))
 		return 0;
 
-	bmap.br_startblock = XFS_AGB_TO_FSB(mp, agno, bno);
+	bmap.br_startblock = XFS_AGB_TO_FSB(tp->t_mountp, agno, bno);
 	bmap.br_blockcount = len;
 	bmap.br_startoff = 0;
 	bmap.br_state = XFS_EXT_NORM;
 
-	return __xfs_rmap_add(mp, dfops, XFS_RMAP_FREE, owner,
-			XFS_DATA_FORK, &bmap);
+	return __xfs_rmap_add(tp, XFS_RMAP_FREE, owner, XFS_DATA_FORK, &bmap);
 }
 
 /* Compare rmap records.  Returns -1 if a < b, 1 if a > b, and 0 if equal. */

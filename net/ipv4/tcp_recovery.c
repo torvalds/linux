@@ -25,7 +25,7 @@ static u32 tcp_rack_reo_wnd(const struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (!tp->rack.reord) {
+	if (!tp->reord_seen) {
 		/* If reordering has not been observed, be aggressive during
 		 * the recovery or starting the recovery by DUPACK threshold.
 		 */

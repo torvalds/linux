@@ -119,6 +119,7 @@ enum nfit_dimm_notifiers {
 
 enum nfit_ars_state {
 	ARS_REQ,
+	ARS_REQ_REDO,
 	ARS_DONE,
 	ARS_SHORT,
 	ARS_FAILED,

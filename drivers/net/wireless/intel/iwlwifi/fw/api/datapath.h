@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +83,16 @@ enum iwl_data_path_subcmd_ids {
 	 * @TRIGGER_RX_QUEUES_NOTIF_CMD: &struct iwl_rxq_sync_cmd
 	 */
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+
+	/**
+	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd
+	 */
+	STA_HE_CTXT_CMD = 0x7,
+
+	/**
+	 * @RFH_QUEUE_CONFIG_CMD: &struct iwl_rfh_queue_config
+	 */
+	RFH_QUEUE_CONFIG_CMD = 0xD,
 
 	/**
 	 * @TLC_MNG_CONFIG_CMD: &struct iwl_tlc_config_cmd

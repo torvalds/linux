@@ -895,7 +895,6 @@ static int wmi_dev_probe(struct device *dev)
 	struct wmi_driver *wdriver =
 		container_of(dev->driver, struct wmi_driver, driver);
 	int ret = 0;
-	int count;
 	char *buf;
 
 	if (ACPI_FAILURE(wmi_method_enable(wblock, 1)))
@@ -917,9 +916,8 @@ static int wmi_dev_probe(struct device *dev)
 			goto probe_failure;
 		}
 
-		count = get_order(wblock->req_buf_size);
-		wblock->handler_data = (void *)__get_free_pages(GFP_KERNEL,
-								count);
+		wblock->handler_data = kmalloc(wblock->req_buf_size,
+					       GFP_KERNEL);
 		if (!wblock->handler_data) {
 			ret = -ENOMEM;
 			goto probe_failure;
@@ -964,8 +962,7 @@ static int wmi_dev_remove(struct device *dev)
 	if (wdriver->filter_callback) {
 		misc_deregister(&wblock->char_dev);
 		kfree(wblock->char_dev.name);
-		free_pages((unsigned long)wblock->handler_data,
-			   get_order(wblock->req_buf_size));
+		kfree(wblock->handler_data);
 	}
 
 	if (wdriver->remove)

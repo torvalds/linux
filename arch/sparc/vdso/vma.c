@@ -262,7 +262,9 @@ static __init int vdso_setup(char *s)
 	unsigned long val;
 
 	err = kstrtoul(s, 10, &val);
+	if (err)
+		return err;
 	vdso_enabled = val;
-	return err;
+	return 0;
 }
 __setup("vdso=", vdso_setup);

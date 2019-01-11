@@ -30,12 +30,11 @@
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
 
-
 /*
  * Supported optional AENs:
  */
 #define NVMET_AEN_CFG_OPTIONAL \
-	NVME_AEN_CFG_NS_ATTR
+	(NVME_AEN_CFG_NS_ATTR | NVME_AEN_CFG_ANA_CHANGE)
 
 /*
  * Plus mandatory SMART AENs (we'll never send them, but allow enabling them):
@@ -59,12 +58,15 @@ struct nvmet_ns {
 	struct percpu_ref	ref;
 	struct block_device	*bdev;
 	struct file		*file;
+	bool			readonly;
 	u32			nsid;
 	u32			blksize_shift;
 	loff_t			size;
 	u8			nguid[16];
 	uuid_t			uuid;
+	u32			anagrpid;
 
+	bool			buffered_io;
 	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
@@ -97,6 +99,18 @@ struct nvmet_sq {
 	struct completion	confirm_done;
 };
 
+struct nvmet_ana_group {
+	struct config_group	group;
+	struct nvmet_port	*port;
+	u32			grpid;
+};
+
+static inline struct nvmet_ana_group *to_ana_group(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct nvmet_ana_group,
+			group);
+}
+
 /**
  * struct nvmet_port -	Common structure to keep port
  *				information for the target.
@@ -114,14 +128,25 @@ struct nvmet_port {
 	struct list_head		subsystems;
 	struct config_group		referrals_group;
 	struct list_head		referrals;
+	struct config_group		ana_groups_group;
+	struct nvmet_ana_group		ana_default_group;
+	enum nvme_ana_state		*ana_state;
 	void				*priv;
 	bool				enabled;
+	int				inline_data_size;
 };
 
 static inline struct nvmet_port *to_nvmet_port(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct nvmet_port,
 			group);
+}
+
+static inline struct nvmet_port *ana_groups_to_port(
+		struct config_item *item)
+{
+	return container_of(to_config_group(item), struct nvmet_port,
+			ana_groups_group);
 }
 
 struct nvmet_ctrl {
@@ -137,6 +162,8 @@ struct nvmet_ctrl {
 	uuid_t			hostid;
 	u16			cntlid;
 	u32			kato;
+
+	struct nvmet_port	*port;
 
 	u32			aen_enabled;
 	unsigned long		aen_masked;
@@ -166,6 +193,7 @@ struct nvmet_subsys {
 	struct kref		ref;
 
 	struct list_head	namespaces;
+	unsigned int		nr_namespaces;
 	unsigned int		max_nsid;
 
 	struct list_head	ctrls;
@@ -225,7 +253,6 @@ struct nvmet_req;
 struct nvmet_fabrics_ops {
 	struct module *owner;
 	unsigned int type;
-	unsigned int sqe_inline_size;
 	unsigned int msdbd;
 	bool has_keyed_sgls : 1;
 	void (*queue_response)(struct nvmet_req *req);
@@ -268,6 +295,8 @@ struct nvmet_req {
 	void (*execute)(struct nvmet_req *req);
 	const struct nvmet_fabrics_ops *ops;
 };
+
+extern struct workqueue_struct *buffered_io_wq;
 
 static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 {
@@ -337,6 +366,10 @@ void nvmet_ns_disable(struct nvmet_ns *ns);
 struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid);
 void nvmet_ns_free(struct nvmet_ns *ns);
 
+void nvmet_send_ana_event(struct nvmet_subsys *subsys,
+		struct nvmet_port *port);
+void nvmet_port_send_ana_event(struct nvmet_port *port);
+
 int nvmet_register_transport(const struct nvmet_fabrics_ops *ops);
 void nvmet_unregister_transport(const struct nvmet_fabrics_ops *ops);
 
@@ -357,6 +390,22 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd);
 #define NVMET_QUEUE_SIZE	1024
 #define NVMET_NR_QUEUES		128
 #define NVMET_MAX_CMD		NVMET_QUEUE_SIZE
+
+/*
+ * Nice round number that makes a list of nsids fit into a page.
+ * Should become tunable at some point in the future.
+ */
+#define NVMET_MAX_NAMESPACES	1024
+
+/*
+ * 0 is not a valid ANA group ID, so we start numbering at 1.
+ *
+ * ANA Group 1 exists without manual intervention, has namespaces assigned to it
+ * by default, and is available in an optimized state through all ports.
+ */
+#define NVMET_MAX_ANAGRPS	128
+#define NVMET_DEFAULT_ANA_GRPID	1
+
 #define NVMET_KAS		10
 #define NVMET_DISC_KATO		120
 
@@ -370,6 +419,10 @@ extern struct nvmet_subsys *nvmet_disc_subsys;
 extern u64 nvmet_genctr;
 extern struct rw_semaphore nvmet_config_sem;
 
+extern u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
+extern u64 nvmet_ana_chgcnt;
+extern struct rw_semaphore nvmet_ana_sem;
+
 bool nvmet_host_allowed(struct nvmet_req *req, struct nvmet_subsys *subsys,
 		const char *hostnqn);
 
@@ -377,6 +430,9 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns);
 int nvmet_file_ns_enable(struct nvmet_ns *ns);
 void nvmet_bdev_ns_disable(struct nvmet_ns *ns);
 void nvmet_file_ns_disable(struct nvmet_ns *ns);
+u16 nvmet_bdev_flush(struct nvmet_req *req);
+u16 nvmet_file_flush(struct nvmet_req *req);
+void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid);
 
 static inline u32 nvmet_rw_len(struct nvmet_req *req)
 {

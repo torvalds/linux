@@ -870,7 +870,7 @@ static bool _is_fw_read_cmd_down(struct rtl_priv *rtlpriv, u8 msgbox_num)
 		if (valid == 0)
 			read_down = true;
 		else
-			schedule();
+			mdelay(1);
 	} while ((!read_down) && (retry_cnts--));
 
 	return read_down;

@@ -229,4 +229,3 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		return gss_get_mic_v2(ctx, text, token);
 	}
 }
-

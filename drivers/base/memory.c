@@ -417,25 +417,23 @@ static ssize_t show_valid_zones(struct device *dev,
 	int nid;
 
 	/*
-	 * The block contains more than one zone can not be offlined.
-	 * This can happen e.g. for ZONE_DMA and ZONE_DMA32
-	 */
-	if (!test_pages_in_a_zone(start_pfn, start_pfn + nr_pages, &valid_start_pfn, &valid_end_pfn))
-		return sprintf(buf, "none\n");
-
-	start_pfn = valid_start_pfn;
-	nr_pages = valid_end_pfn - start_pfn;
-
-	/*
 	 * Check the existing zone. Make sure that we do that only on the
 	 * online nodes otherwise the page_zone is not reliable
 	 */
 	if (mem->state == MEM_ONLINE) {
+		/*
+		 * The block contains more than one zone can not be offlined.
+		 * This can happen e.g. for ZONE_DMA and ZONE_DMA32
+		 */
+		if (!test_pages_in_a_zone(start_pfn, start_pfn + nr_pages,
+					  &valid_start_pfn, &valid_end_pfn))
+			return sprintf(buf, "none\n");
+		start_pfn = valid_start_pfn;
 		strcat(buf, page_zone(pfn_to_page(start_pfn))->name);
 		goto out;
 	}
 
-	nid = pfn_to_nid(start_pfn);
+	nid = mem->nid;
 	default_zone = zone_for_pfn_range(MMOP_ONLINE_KEEP, nid, start_pfn, nr_pages);
 	strcat(buf, default_zone->name);
 
@@ -736,8 +734,6 @@ int hotplug_memory_register(int nid, struct mem_section *section)
 		mem->section_count++;
 	}
 
-	if (mem->section_count == sections_per_block)
-		ret = register_mem_sect_under_node(mem, nid, false);
 out:
 	mutex_unlock(&mem_sysfs_mutex);
 	return ret;

@@ -397,7 +397,7 @@ int inet_pton_with_scope(struct net *net, __kernel_sa_family_t af,
 		break;
 	default:
 		pr_err("unexpected address family %d\n", af);
-	};
+	}
 
 	return ret;
 }

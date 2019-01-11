@@ -3108,12 +3108,9 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 		return -EINVAL;
 
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg);
-	if (ret) {
-		of_node_put(endpoint);
-		return ret;
-	}
-
 	of_node_put(endpoint);
+	if (ret)
+		return ret;
 
 	if (!of_property_read_u32(np, "default-input", &v))
 		state->pdata.default_input = v;
@@ -3502,6 +3499,7 @@ static int adv76xx_probe(struct i2c_client *client,
 	for (i = 0; i < state->source_pad; ++i)
 		state->pads[i].flags = MEDIA_PAD_FL_SINK;
 	state->pads[state->source_pad].flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.function = MEDIA_ENT_F_DV_DECODER;
 
 	err = media_entity_pads_init(&sd->entity, state->source_pad + 1,
 				state->pads);

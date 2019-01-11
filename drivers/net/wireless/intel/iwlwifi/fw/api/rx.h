@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -343,6 +345,169 @@ enum iwl_rx_mpdu_mac_info {
 	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
 };
 
+/*
+ * enum iwl_rx_he_phy - HE PHY data
+ */
+enum iwl_rx_he_phy {
+	IWL_RX_HE_PHY_BEAM_CHNG			= BIT(0),
+	IWL_RX_HE_PHY_UPLINK			= BIT(1),
+	IWL_RX_HE_PHY_BSS_COLOR_MASK		= 0xfc,
+	IWL_RX_HE_PHY_SPATIAL_REUSE_MASK	= 0xf00,
+	IWL_RX_HE_PHY_SU_EXT_BW10		= BIT(12),
+	IWL_RX_HE_PHY_TXOP_DUR_MASK		= 0xfe000,
+	IWL_RX_HE_PHY_LDPC_EXT_SYM		= BIT(20),
+	IWL_RX_HE_PHY_PRE_FEC_PAD_MASK		= 0x600000,
+	IWL_RX_HE_PHY_PE_DISAMBIG		= BIT(23),
+	IWL_RX_HE_PHY_DOPPLER			= BIT(24),
+	/* 6 bits reserved */
+	IWL_RX_HE_PHY_DELIM_EOF			= BIT(31),
+
+	/* second dword - MU data */
+	IWL_RX_HE_PHY_SIGB_COMPRESSION		= BIT_ULL(32 + 0),
+	IWL_RX_HE_PHY_SIBG_SYM_OR_USER_NUM_MASK	= 0x1e00000000ULL,
+	IWL_RX_HE_PHY_HE_LTF_NUM_MASK		= 0xe000000000ULL,
+	IWL_RX_HE_PHY_RU_ALLOC_SEC80		= BIT_ULL(32 + 8),
+	/* trigger encoded */
+	IWL_RX_HE_PHY_RU_ALLOC_MASK		= 0xfe0000000000ULL,
+	IWL_RX_HE_PHY_SIGB_MCS_MASK		= 0xf000000000000ULL,
+	/* 1 bit reserved */
+	IWL_RX_HE_PHY_SIGB_DCM			= BIT_ULL(32 + 21),
+	IWL_RX_HE_PHY_PREAMBLE_PUNC_TYPE_MASK	= 0xc0000000000000ULL,
+	/* 8 bits reserved */
+};
+
+/**
+ * struct iwl_rx_mpdu_desc_v1 - RX MPDU descriptor
+ */
+struct iwl_rx_mpdu_desc_v1 {
+	/* DW7 - carries rss_hash only when rpa_en == 1 */
+	/**
+	 * @rss_hash: RSS hash value
+	 */
+	__le32 rss_hash;
+	/* DW8 - carries filter_match only when rpa_en == 1 */
+	/**
+	 * @filter_match: filter match value
+	 */
+	__le32 filter_match;
+	/* DW9 */
+	/**
+	 * @rate_n_flags: RX rate/flags encoding
+	 */
+	__le32 rate_n_flags;
+	/* DW10 */
+	/**
+	 * @energy_a: energy chain A
+	 */
+	u8 energy_a;
+	/**
+	 * @energy_b: energy chain B
+	 */
+	u8 energy_b;
+	/**
+	 * @channel: channel number
+	 */
+	u8 channel;
+	/**
+	 * @mac_context: MAC context mask
+	 */
+	u8 mac_context;
+	/* DW11 */
+	/**
+	 * @gp2_on_air_rise: GP2 timer value on air rise (INA)
+	 */
+	__le32 gp2_on_air_rise;
+	/* DW12 & DW13 */
+	union {
+		/**
+		 * @tsf_on_air_rise:
+		 * TSF value on air rise (INA), only valid if
+		 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
+		 */
+		__le64 tsf_on_air_rise;
+		/**
+		 * @he_phy_data:
+		 * HE PHY data, see &enum iwl_rx_he_phy, valid
+		 * only if %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set
+		 */
+		__le64 he_phy_data;
+	};
+} __packed;
+
+/**
+ * struct iwl_rx_mpdu_desc_v3 - RX MPDU descriptor
+ */
+struct iwl_rx_mpdu_desc_v3 {
+	/* DW7 - carries filter_match only when rpa_en == 1 */
+	/**
+	 * @filter_match: filter match value
+	 */
+	__le32 filter_match;
+	/* DW8 - carries rss_hash only when rpa_en == 1 */
+	/**
+	 * @rss_hash: RSS hash value
+	 */
+	__le32 rss_hash;
+	/* DW9 */
+	/**
+	 * @partial_hash: 31:0 ip/tcp header hash
+	 *	w/o some fields (such as IP SRC addr)
+	 */
+	__le32 partial_hash;
+	/* DW10 */
+	/**
+	 * @raw_xsum: raw xsum value
+	 */
+	__le32 raw_xsum;
+	/* DW11 */
+	/**
+	 * @rate_n_flags: RX rate/flags encoding
+	 */
+	__le32 rate_n_flags;
+	/* DW12 */
+	/**
+	 * @energy_a: energy chain A
+	 */
+	u8 energy_a;
+	/**
+	 * @energy_b: energy chain B
+	 */
+	u8 energy_b;
+	/**
+	 * @channel: channel number
+	 */
+	u8 channel;
+	/**
+	 * @mac_context: MAC context mask
+	 */
+	u8 mac_context;
+	/* DW13 */
+	/**
+	 * @gp2_on_air_rise: GP2 timer value on air rise (INA)
+	 */
+	__le32 gp2_on_air_rise;
+	/* DW14 & DW15 */
+	union {
+		/**
+		 * @tsf_on_air_rise:
+		 * TSF value on air rise (INA), only valid if
+		 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
+		 */
+		__le64 tsf_on_air_rise;
+		/**
+		 * @he_phy_data:
+		 * HE PHY data, see &enum iwl_rx_he_phy, valid
+		 * only if %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set
+		 */
+		__le64 he_phy_data;
+	};
+	/* DW16 & DW17 */
+	/**
+	 * @reserved: reserved
+	 */
+	__le32 reserved[2];
+} __packed; /* RX_MPDU_RES_START_API_S_VER_3 */
+
 /**
  * struct iwl_rx_mpdu_desc - RX MPDU descriptor
  */
@@ -400,51 +565,14 @@ struct iwl_rx_mpdu_desc {
 	 * @reorder_data: &enum iwl_rx_mpdu_reorder_data
 	 */
 	__le32 reorder_data;
-	/* DW7 - carries rss_hash only when rpa_en == 1 */
-	/**
-	 * @rss_hash: RSS hash value
-	 */
-	__le32 rss_hash;
-	/* DW8 - carries filter_match only when rpa_en == 1 */
-	/**
-	 * @filter_match: filter match value
-	 */
-	__le32 filter_match;
-	/* DW9 */
-	/**
-	 * @rate_n_flags: RX rate/flags encoding
-	 */
-	__le32 rate_n_flags;
-	/* DW10 */
-	/**
-	 * @energy_a: energy chain A
-	 */
-	u8 energy_a;
-	/**
-	 * @energy_b: energy chain B
-	 */
-	u8 energy_b;
-	/**
-	 * @channel: channel number
-	 */
-	u8 channel;
-	/**
-	 * @mac_context: MAC context mask
-	 */
-	u8 mac_context;
-	/* DW11 */
-	/**
-	 * @gp2_on_air_rise: GP2 timer value on air rise (INA)
-	 */
-	__le32 gp2_on_air_rise;
-	/* DW12 & DW13 */
-	/**
-	 * @tsf_on_air_rise:
-	 * TSF value on air rise (INA), only valid if
-	 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
-	 */
-	__le64 tsf_on_air_rise;
-} __packed;
+
+	union {
+		struct iwl_rx_mpdu_desc_v1 v1;
+		struct iwl_rx_mpdu_desc_v3 v3;
+	};
+} __packed; /* RX_MPDU_RES_START_API_S_VER_3 */
+
+#define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
 
 struct iwl_frame_release {
 	u8 baid;
@@ -586,5 +714,37 @@ struct iwl_ba_window_status_notif {
 	__le32 start_seq_num[BA_WINDOW_STREAMS_MAX];
 	__le16 mpdu_rx_count[BA_WINDOW_STREAMS_MAX];
 } __packed; /* BA_WINDOW_STATUS_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_rfh_queue_config - RX queue configuration
+ * @q_num: Q num
+ * @enable: enable queue
+ * @reserved: alignment
+ * @urbd_stts_wrptr: DMA address of urbd_stts_wrptr
+ * @fr_bd_cb: DMA address of freeRB table
+ * @ur_bd_cb: DMA address of used RB table
+ * @fr_bd_wid: Initial index of the free table
+ */
+struct iwl_rfh_queue_data {
+	u8 q_num;
+	u8 enable;
+	__le16 reserved;
+	__le64 urbd_stts_wrptr;
+	__le64 fr_bd_cb;
+	__le64 ur_bd_cb;
+	__le32 fr_bd_wid;
+} __packed; /* RFH_QUEUE_CONFIG_S_VER_1 */
+
+/**
+ * struct iwl_rfh_queue_config - RX queue configuration
+ * @num_queues: number of queues configured
+ * @reserved: alignment
+ * @data: DMA addresses per-queue
+ */
+struct iwl_rfh_queue_config {
+	u8 num_queues;
+	u8 reserved[3];
+	struct iwl_rfh_queue_data data[];
+} __packed; /* RFH_QUEUE_CONFIG_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_rx_h__ */

@@ -19,10 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #include <linux/kernel.h>
@@ -158,7 +154,7 @@ int iforce_init_device(struct iforce *iforce);
 int iforce_control_playback(struct iforce*, u16 id, unsigned int);
 void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data);
 int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data);
-void iforce_dump_packet(char *msg, u16 cmd, unsigned char *data) ;
+void iforce_dump_packet(struct iforce *iforce, char *msg, u16 cmd, unsigned char *data);
 int iforce_get_id_packet(struct iforce *iforce, char *packet);
 
 /* iforce-ff.c */

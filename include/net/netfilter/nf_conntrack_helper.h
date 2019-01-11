@@ -103,9 +103,7 @@ int nf_conntrack_helpers_register(struct nf_conntrack_helper *, unsigned int);
 void nf_conntrack_helpers_unregister(struct nf_conntrack_helper *,
 				     unsigned int);
 
-struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct,
-					  struct nf_conntrack_helper *helper,
-					  gfp_t gfp);
+struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp);
 
 int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			      gfp_t flags);

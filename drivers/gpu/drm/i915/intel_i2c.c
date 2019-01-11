@@ -77,12 +77,12 @@ static const struct gmbus_pin gmbus_pins_cnp[] = {
 };
 
 static const struct gmbus_pin gmbus_pins_icp[] = {
-	[GMBUS_PIN_1_BXT] = { "dpa", GPIOA },
-	[GMBUS_PIN_2_BXT] = { "dpb", GPIOB },
-	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOC },
-	[GMBUS_PIN_10_TC2_ICP] = { "tc2", GPIOD },
-	[GMBUS_PIN_11_TC3_ICP] = { "tc3", GPIOE },
-	[GMBUS_PIN_12_TC4_ICP] = { "tc4", GPIOF },
+	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
+	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOJ },
+	[GMBUS_PIN_10_TC2_ICP] = { "tc2", GPIOK },
+	[GMBUS_PIN_11_TC3_ICP] = { "tc3", GPIOL },
+	[GMBUS_PIN_12_TC4_ICP] = { "tc4", GPIOM },
 };
 
 /* pin is expected to be valid */
@@ -361,15 +361,39 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static inline
+unsigned int gmbus_max_xfer_size(struct drm_i915_private *dev_priv)
+{
+	return INTEL_GEN(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
+	       GMBUS_BYTE_COUNT_MAX;
+}
+
 static int
 gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 		      unsigned short addr, u8 *buf, unsigned int len,
-		      u32 gmbus1_index)
+		      u32 gmbus0_reg, u32 gmbus1_index)
 {
+	unsigned int size = len;
+	bool burst_read = len > gmbus_max_xfer_size(dev_priv);
+	bool extra_byte_added = false;
+
+	if (burst_read) {
+		/*
+		 * As per HW Spec, for 512Bytes need to read extra Byte and
+		 * Ignore the extra byte read.
+		 */
+		if (len == 512) {
+			extra_byte_added = true;
+			len++;
+		}
+		size = len % 256 + 256;
+		I915_WRITE_FW(GMBUS0, gmbus0_reg | GMBUS_BYTE_CNT_OVERRIDE);
+	}
+
 	I915_WRITE_FW(GMBUS1,
 		      gmbus1_index |
 		      GMBUS_CYCLE_WAIT |
-		      (len << GMBUS_BYTE_COUNT_SHIFT) |
+		      (size << GMBUS_BYTE_COUNT_SHIFT) |
 		      (addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		      GMBUS_SLAVE_READ | GMBUS_SW_RDY);
 	while (len) {
@@ -382,17 +406,34 @@ gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 
 		val = I915_READ_FW(GMBUS3);
 		do {
+			if (extra_byte_added && len == 1)
+				break;
+
 			*buf++ = val & 0xff;
 			val >>= 8;
 		} while (--len && ++loop < 4);
+
+		if (burst_read && len == size - 4)
+			/* Reset the override bit */
+			I915_WRITE_FW(GMBUS0, gmbus0_reg);
 	}
 
 	return 0;
 }
 
+/*
+ * HW spec says that 512Bytes in Burst read need special treatment.
+ * But it doesn't talk about other multiple of 256Bytes. And couldn't locate
+ * an I2C slave, which supports such a lengthy burst read too for experiments.
+ *
+ * So until things get clarified on HW support, to avoid the burst read length
+ * in fold of 256Bytes except 512, max burst read length is fixed at 767Bytes.
+ */
+#define INTEL_GMBUS_BURST_READ_MAX_LEN		767U
+
 static int
 gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
-		u32 gmbus1_index)
+		u32 gmbus0_reg, u32 gmbus1_index)
 {
 	u8 *buf = msg->buf;
 	unsigned int rx_size = msg->len;
@@ -400,10 +441,13 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	int ret;
 
 	do {
-		len = min(rx_size, GMBUS_BYTE_COUNT_MAX);
+		if (HAS_GMBUS_BURST_READ(dev_priv))
+			len = min(rx_size, INTEL_GMBUS_BURST_READ_MAX_LEN);
+		else
+			len = min(rx_size, gmbus_max_xfer_size(dev_priv));
 
-		ret = gmbus_xfer_read_chunk(dev_priv, msg->addr,
-					    buf, len, gmbus1_index);
+		ret = gmbus_xfer_read_chunk(dev_priv, msg->addr, buf, len,
+					    gmbus0_reg, gmbus1_index);
 		if (ret)
 			return ret;
 
@@ -462,7 +506,7 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	int ret;
 
 	do {
-		len = min(tx_size, GMBUS_BYTE_COUNT_MAX);
+		len = min(tx_size, gmbus_max_xfer_size(dev_priv));
 
 		ret = gmbus_xfer_write_chunk(dev_priv, msg->addr, buf, len,
 					     gmbus1_index);
@@ -491,7 +535,8 @@ gmbus_is_index_xfer(struct i2c_msg *msgs, int i, int num)
 }
 
 static int
-gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
+gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs,
+		 u32 gmbus0_reg)
 {
 	u32 gmbus1_index = 0;
 	u32 gmbus5 = 0;
@@ -509,7 +554,8 @@ gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 		I915_WRITE_FW(GMBUS5, gmbus5);
 
 	if (msgs[1].flags & I2C_M_RD)
-		ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus1_index);
+		ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus0_reg,
+				      gmbus1_index);
 	else
 		ret = gmbus_xfer_write(dev_priv, &msgs[1], gmbus1_index);
 
@@ -544,10 +590,12 @@ retry:
 	for (; i < num; i += inc) {
 		inc = 1;
 		if (gmbus_is_index_xfer(msgs, i, num)) {
-			ret = gmbus_index_xfer(dev_priv, &msgs[i]);
+			ret = gmbus_index_xfer(dev_priv, &msgs[i],
+					       gmbus0_source | bus->reg0);
 			inc = 2; /* an index transmission is two msgs */
 		} else if (msgs[i].flags & I2C_M_RD) {
-			ret = gmbus_xfer_read(dev_priv, &msgs[i], 0);
+			ret = gmbus_xfer_read(dev_priv, &msgs[i],
+					      gmbus0_source | bus->reg0, 0);
 		} else {
 			ret = gmbus_xfer_write(dev_priv, &msgs[i], 0);
 		}
@@ -771,7 +819,7 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 	unsigned int pin;
 	int ret;
 
-	if (HAS_PCH_NOP(dev_priv))
+	if (INTEL_INFO(dev_priv)->num_pipes == 0)
 		return 0;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))

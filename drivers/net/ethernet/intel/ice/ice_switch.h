@@ -17,7 +17,7 @@ struct ice_vsi_ctx {
 	u16 vsis_unallocated;
 	u16 flags;
 	struct ice_aqc_vsi_props info;
-	bool alloc_from_pool;
+	u8 alloc_from_pool;
 };
 
 enum ice_sw_fwd_act_type {
@@ -94,8 +94,8 @@ struct ice_fltr_info {
 	u8 qgrp_size;
 
 	/* Rule creations populate these indicators basing on the switch type */
-	bool lb_en;	/* Indicate if packet can be looped back */
-	bool lan_en;	/* Indicate if packet can be forwarded to the uplink */
+	u8 lb_en;	/* Indicate if packet can be looped back */
+	u8 lan_en;	/* Indicate if packet can be forwarded to the uplink */
 };
 
 /* Bookkeeping structure to hold bitmap of VSIs corresponding to VSI list id */

@@ -42,8 +42,8 @@ static const struct kvm_regs default_regs_reset = {
 };
 
 static const struct kvm_regs default_regs_reset32 = {
-	.regs.pstate = (COMPAT_PSR_MODE_SVC | COMPAT_PSR_A_BIT |
-			COMPAT_PSR_I_BIT | COMPAT_PSR_F_BIT),
+	.regs.pstate = (PSR_AA32_MODE_SVC | PSR_AA32_A_BIT |
+			PSR_AA32_I_BIT | PSR_AA32_F_BIT),
 };
 
 static bool cpu_has_32bit_el1(void)
@@ -77,8 +77,12 @@ int kvm_arch_dev_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ARM_PMU_V3:
 		r = kvm_arm_support_pmu_v3();
 		break;
+	case KVM_CAP_ARM_INJECT_SERROR_ESR:
+		r = cpus_have_const_cap(ARM64_HAS_RAS_EXTN);
+		break;
 	case KVM_CAP_SET_GUEST_DEBUG:
 	case KVM_CAP_VCPU_ATTRIBUTES:
+	case KVM_CAP_VCPU_EVENTS:
 		r = 1;
 		break;
 	default:

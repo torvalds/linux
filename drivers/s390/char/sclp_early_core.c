@@ -210,11 +210,11 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
  * Output one or more lines of text on the SCLP console (VT220 and /
  * or line-mode).
  */
-void __sclp_early_printk(const char *str, unsigned int len)
+void __sclp_early_printk(const char *str, unsigned int len, unsigned int force)
 {
 	int have_linemode, have_vt220;
 
-	if (sclp_init_state != sclp_init_state_uninitialized)
+	if (!force && sclp_init_state != sclp_init_state_uninitialized)
 		return;
 	if (sclp_early_setup(0, &have_linemode, &have_vt220) != 0)
 		return;
@@ -227,5 +227,10 @@ void __sclp_early_printk(const char *str, unsigned int len)
 
 void sclp_early_printk(const char *str)
 {
-	__sclp_early_printk(str, strlen(str));
+	__sclp_early_printk(str, strlen(str), 0);
+}
+
+void sclp_early_printk_force(const char *str)
+{
+	__sclp_early_printk(str, strlen(str), 1);
 }

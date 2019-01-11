@@ -2083,18 +2083,9 @@ static int try_smi_init(struct smi_info *new_smi)
 		 si_to_str[new_smi->io.si_type]);
 
 	WARN_ON(new_smi->io.dev->init_name != NULL);
+
+ out_err:
 	kfree(init_name);
-
-	return 0;
-
-out_err:
-	if (new_smi->intf) {
-		ipmi_unregister_smi(new_smi->intf);
-		new_smi->intf = NULL;
-	}
-
-	kfree(init_name);
-
 	return rv;
 }
 
@@ -2227,6 +2218,8 @@ static void shutdown_smi(void *send_info)
 
 	kfree(smi_info->si_sm);
 	smi_info->si_sm = NULL;
+
+	smi_info->intf = NULL;
 }
 
 /*
@@ -2240,10 +2233,8 @@ static void cleanup_one_si(struct smi_info *smi_info)
 
 	list_del(&smi_info->link);
 
-	if (smi_info->intf) {
+	if (smi_info->intf)
 		ipmi_unregister_smi(smi_info->intf);
-		smi_info->intf = NULL;
-	}
 
 	if (smi_info->pdev) {
 		if (smi_info->pdev_registered)

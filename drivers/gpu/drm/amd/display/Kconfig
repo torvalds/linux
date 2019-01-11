@@ -4,27 +4,16 @@ menu "Display Engine Configuration"
 config DRM_AMD_DC
 	bool "AMD DC - Enable new display engine"
 	default y
+	select DRM_AMD_DC_DCN1_0 if X86 && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
 	help
 	  Choose this option if you want to use the new display engine
 	  support for AMDGPU. This adds required support for Vega and
 	  Raven ASICs.
 
-config DRM_AMD_DC_FBC
-	bool "AMD FBC - Enable Frame Buffer Compression"
-	depends on DRM_AMD_DC
-	help
-	  Choose this option if you want to use frame buffer compression
-	  support.
-	  This is a power optimisation feature, check its availability
-	  on your hardware before enabling this option.
-
-
 config DRM_AMD_DC_DCN1_0
-	bool "DCN 1.0 Raven family"
-	depends on DRM_AMD_DC && X86
+	def_bool n
 	help
-	  Choose this option if you want to have
-	  RV family for display engine
+	  RV family support for display engine
 
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"

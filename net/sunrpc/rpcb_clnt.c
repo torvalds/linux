@@ -213,7 +213,7 @@ static void rpcb_set_local(struct net *net, struct rpc_clnt *clnt,
 	sn->rpcb_local_clnt = clnt;
 	sn->rpcb_local_clnt4 = clnt4;
 	sn->rpcb_is_af_local = is_af_local ? 1 : 0;
-	smp_wmb(); 
+	smp_wmb();
 	sn->rpcb_users = 1;
 	dprintk("RPC:       created new rpcb local clients (rpcb_local_clnt: "
 		"%p, rpcb_local_clnt4: %p) for net %x%s\n",

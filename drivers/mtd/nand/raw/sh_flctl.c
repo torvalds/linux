@@ -1002,10 +1002,17 @@ static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	flctl->index += len;
 }
 
-static int flctl_chip_init_tail(struct mtd_info *mtd)
+static int flctl_chip_attach_chip(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	struct nand_chip *chip = &flctl->chip;
+
+	/*
+	 * NAND_BUSWIDTH_16 may have been set by nand_scan_ident().
+	 * Add the SEL_16BIT flag in flctl->flcmncr_base.
+	 */
+	if (chip->options & NAND_BUSWIDTH_16)
+		flctl->flcmncr_base |= SEL_16BIT;
 
 	if (mtd->writesize == 512) {
 		flctl->page_size = 0;
@@ -1062,6 +1069,10 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 
 	return 0;
 }
+
+static const struct nand_controller_ops flctl_nand_controller_ops = {
+	.attach_chip = flctl_chip_attach_chip,
+};
 
 static irqreturn_t flctl_handle_flste(int irq, void *dev_id)
 {
@@ -1191,25 +1202,8 @@ static int flctl_probe(struct platform_device *pdev)
 
 	flctl_setup_dma(flctl);
 
-	ret = nand_scan_ident(flctl_mtd, 1, NULL);
-	if (ret)
-		goto err_chip;
-
-	if (nand->options & NAND_BUSWIDTH_16) {
-		/*
-		 * NAND_BUSWIDTH_16 may have been set by nand_scan_ident().
-		 * Add the SEL_16BIT flag in pdata->flcmncr_val and re-assign
-		 * flctl->flcmncr_base to pdata->flcmncr_val.
-		 */
-		pdata->flcmncr_val |= SEL_16BIT;
-		flctl->flcmncr_base = pdata->flcmncr_val;
-	}
-
-	ret = flctl_chip_init_tail(flctl_mtd);
-	if (ret)
-		goto err_chip;
-
-	ret = nand_scan_tail(flctl_mtd);
+	nand->dummy_controller.ops = &flctl_nand_controller_ops;
+	ret = nand_scan(flctl_mtd, 1);
 	if (ret)
 		goto err_chip;
 

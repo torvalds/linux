@@ -21,6 +21,7 @@ config CLK_RENESAS
 	select CLK_R8A77980 if ARCH_R8A77980
 	select CLK_R8A77990 if ARCH_R8A77990
 	select CLK_R8A77995 if ARCH_R8A77995
+	select CLK_R9A06G032 if ARCH_R9A06G032
 	select CLK_SH73A0 if ARCH_SH73A0
 
 if CLK_RENESAS
@@ -124,6 +125,11 @@ config CLK_R8A77990
 config CLK_R8A77995
 	bool "R-Car D3 clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
+
+config CLK_R9A06G032
+	bool "Renesas R9A06G032 clock driver"
+	help
+	  This is a driver for R9A06G032 clocks
 
 config CLK_SH73A0
 	bool "SH-Mobile AG5 clock support" if COMPILE_TEST

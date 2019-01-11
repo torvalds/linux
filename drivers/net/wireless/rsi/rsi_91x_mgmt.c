@@ -334,20 +334,17 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 			struct ieee80211_conf *conf = &hw->conf;
 
 			if (conf_is_ht40_plus(conf)) {
-				radio_caps->radio_cfg_info =
-					RSI_CMDDESC_LOWER_20_ENABLE;
-				radio_caps->radio_info =
-					RSI_CMDDESC_LOWER_20_ENABLE;
+				radio_caps->ppe_ack_rate =
+					cpu_to_le16(LOWER_20_ENABLE |
+						    (LOWER_20_ENABLE >> 12));
 			} else if (conf_is_ht40_minus(conf)) {
-				radio_caps->radio_cfg_info =
-					RSI_CMDDESC_UPPER_20_ENABLE;
-				radio_caps->radio_info =
-					RSI_CMDDESC_UPPER_20_ENABLE;
+				radio_caps->ppe_ack_rate =
+					cpu_to_le16(UPPER_20_ENABLE |
+						    (UPPER_20_ENABLE >> 12));
 			} else {
-				radio_caps->radio_cfg_info =
-					RSI_CMDDESC_40MHZ;
-				radio_caps->radio_info =
-					RSI_CMDDESC_FULL_40_ENABLE;
+				radio_caps->ppe_ack_rate =
+					cpu_to_le16((BW_40MHZ << 12) |
+						    FULL40M_ENABLE);
 			}
 		}
 	}
@@ -749,7 +746,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 			key_descriptor |= RSI_CIPHER_TKIP;
 	}
 	key_descriptor |= RSI_PROTECT_DATA_FRAMES;
-	key_descriptor |= ((key_id << RSI_KEY_ID_OFFSET) & RSI_KEY_ID_MASK);
+	key_descriptor |= (key_id << RSI_KEY_ID_OFFSET);
 
 	rsi_set_len_qno(&set_key->desc_dword0.len_qno,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);

@@ -68,6 +68,7 @@ extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 
 extern int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
 			struct cifs_fid *pfid);
+extern void close_shroot(struct cached_fid *cfid);
 extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 				   struct smb2_file_all_info *src);
 extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
@@ -132,6 +133,10 @@ extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     __le16 *path, __u8 *oplock,
 		     struct smb2_file_all_info *buf,
 		     struct kvec *err_iov, int *resp_buftype);
+extern int SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+			  __u8 *oplock, struct cifs_open_parms *oparms,
+			  __le16 *path);
+extern void SMB2_open_free(struct smb_rqst *rqst);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
 		     bool is_fsctl, char *in_data, u32 indatalen,
@@ -140,6 +145,9 @@ extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
 extern int SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 			    u64 persistent_fid, u64 volatile_fid, int flags);
+extern int SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+		      u64 persistent_file_id, u64 volatile_file_id);
+extern void SMB2_close_free(struct smb_rqst *rqst);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
 extern int SMB2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
@@ -149,6 +157,11 @@ extern int SMB2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   struct smb2_file_all_info *data);
+extern int SMB2_query_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+				u64 persistent_fid, u64 volatile_fid,
+				u8 info_class, u8 info_type,
+				u32 additional_info, size_t output_len);
+extern void SMB2_query_info_free(struct smb_rqst *rqst);
 extern int SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   void **data, unsigned int *plen);
@@ -197,6 +210,9 @@ void smb2_cancelled_close_fid(struct work_struct *work);
 extern int SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_file_id, u64 volatile_file_id,
 			 struct kstatfs *FSData);
+extern int SMB311_posix_qfs_info(const unsigned int xid, struct cifs_tcon *tcon,
+			 u64 persistent_file_id, u64 volatile_file_id,
+			 struct kstatfs *FSData);
 extern int SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_file_id, u64 volatile_file_id, int lvl);
 extern int SMB2_lock(const unsigned int xid, struct cifs_tcon *tcon,
@@ -213,9 +229,13 @@ extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
 extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
-#ifdef CONFIG_CIFS_SMB311
+extern int smb3_encryption_required(const struct cifs_tcon *tcon);
+extern int smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
+			     struct kvec *iov, unsigned int min_buf_size);
+extern void smb2_copy_fs_info_to_kstatfs(
+	 struct smb2_fs_full_size_info *pfs_inf,
+	 struct kstatfs *kst);
 extern int smb311_crypto_shash_allocate(struct TCP_Server_Info *server);
 extern int smb311_update_preauth_hash(struct cifs_ses *ses,
 				      struct kvec *iov, int nvec);
-#endif
 #endif			/* _SMB2PROTO_H */

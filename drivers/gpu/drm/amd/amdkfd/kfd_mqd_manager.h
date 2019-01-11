@@ -93,4 +93,8 @@ struct mqd_manager {
 	struct kfd_dev	*dev;
 };
 
+void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
+		const uint32_t *cu_mask, uint32_t cu_mask_count,
+		uint32_t *se_mask);
+
 #endif /* KFD_MQD_MANAGER_H_ */

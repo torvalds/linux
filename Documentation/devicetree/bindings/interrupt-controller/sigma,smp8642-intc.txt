@@ -4,7 +4,6 @@ Required properties:
 - compatible: should be "sigma,smp8642-intc"
 - reg: physical address of MMIO region
 - ranges: address space mapping of child nodes
-- interrupt-parent: phandle of parent interrupt controller
 - interrupt-controller: boolean
 - #address-cells: should be <1>
 - #size-cells: should be <1>

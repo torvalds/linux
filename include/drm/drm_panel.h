@@ -199,7 +199,7 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np);
 #else
 static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 #endif
 

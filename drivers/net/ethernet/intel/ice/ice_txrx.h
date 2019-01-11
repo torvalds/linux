@@ -143,7 +143,7 @@ struct ice_ring {
 	u16 next_to_use;
 	u16 next_to_clean;
 
-	bool ring_active;		/* is ring online or not */
+	u8 ring_active;			/* is ring online or not */
 
 	/* stats structs */
 	struct ice_q_stats	stats;

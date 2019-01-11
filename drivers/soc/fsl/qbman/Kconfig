@@ -1,5 +1,5 @@
 menuconfig FSL_DPAA
-	bool "Freescale DPAA 1.x support"
+	bool "QorIQ DPAA1 framework support"
 	depends on (FSL_SOC_BOOKE || ARCH_LAYERSCAPE)
 	select GENERIC_ALLOCATOR
 	help

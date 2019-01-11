@@ -87,16 +87,11 @@ struct rtc_class_ops {
 	int (*set_offset)(struct device *, long offset);
 };
 
-typedef struct rtc_task {
-	void (*func)(void *private_data);
-	void *private_data;
-} rtc_task_t;
-
-
 struct rtc_timer {
-	struct rtc_task	task;
 	struct timerqueue_node node;
 	ktime_t period;
+	void (*func)(void *private_data);
+	void *private_data;
 	int enabled;
 };
 
@@ -121,8 +116,6 @@ struct rtc_device {
 	wait_queue_head_t irq_queue;
 	struct fasync_struct *async_queue;
 
-	struct rtc_task *irq_task;
-	spinlock_t irq_task_lock;
 	int irq_freq;
 	int max_user_freq;
 
@@ -204,14 +197,8 @@ extern void rtc_update_irq(struct rtc_device *rtc,
 extern struct rtc_device *rtc_class_open(const char *name);
 extern void rtc_class_close(struct rtc_device *rtc);
 
-extern int rtc_irq_register(struct rtc_device *rtc,
-				struct rtc_task *task);
-extern void rtc_irq_unregister(struct rtc_device *rtc,
-				struct rtc_task *task);
-extern int rtc_irq_set_state(struct rtc_device *rtc,
-				struct rtc_task *task, int enabled);
-extern int rtc_irq_set_freq(struct rtc_device *rtc,
-				struct rtc_task *task, int freq);
+extern int rtc_irq_set_state(struct rtc_device *rtc, int enabled);
+extern int rtc_irq_set_freq(struct rtc_device *rtc, int freq);
 extern int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled);
 extern int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled);
 extern int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc,

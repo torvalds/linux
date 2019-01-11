@@ -97,6 +97,23 @@ static inline int test_and_set_bit(int nr, unsigned long *addr)
 }
 
 /**
+ * test_and_clear_bit - Clear a bit and return its old value
+ * @nr: Bit to clear
+ * @addr: Address to count from
+ */
+static inline int test_and_clear_bit(int nr, unsigned long *addr)
+{
+	unsigned long mask = BIT_MASK(nr);
+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+	unsigned long old;
+
+	old = *p;
+	*p = old & ~mask;
+
+	return (old & mask) != 0;
+}
+
+/**
  * bitmap_alloc - Allocate bitmap
  * @nbits: Number of bits
  */

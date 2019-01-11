@@ -11,8 +11,6 @@ Required properties:
 Optional properties:
  - brcm,drive-strength : drive strength used for SDIO pins on device in mA
 	(default = 6).
- - interrupt-parent : the phandle for the interrupt controller to which the
-	device interrupts are connected.
  - interrupts : specifies attributes for the out-of-band interrupt (host-wake).
 	When not specified the device will use in-band SDIO interrupts.
  - interrupt-names : name of the out-of-band interrupt, which must be set

@@ -53,7 +53,8 @@ static int c4iw_init_qid_table(struct c4iw_rdev *rdev)
 }
 
 /* nr_* must be power of 2 */
-int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid)
+int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt,
+		       u32 nr_pdid, u32 nr_srqt)
 {
 	int err = 0;
 	err = c4iw_id_table_alloc(&rdev->resource.tpt_table, 0, nr_tpt, 1,
@@ -67,7 +68,17 @@ int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid)
 					nr_pdid, 1, 0);
 	if (err)
 		goto pdid_err;
+	if (!nr_srqt)
+		err = c4iw_id_table_alloc(&rdev->resource.srq_table, 0,
+					  1, 1, 0);
+	else
+		err = c4iw_id_table_alloc(&rdev->resource.srq_table, 0,
+					  nr_srqt, 0, 0);
+	if (err)
+		goto srq_err;
 	return 0;
+ srq_err:
+	c4iw_id_table_free(&rdev->resource.pdid_table);
  pdid_err:
 	c4iw_id_table_free(&rdev->resource.qid_table);
  qid_err:
@@ -371,13 +382,21 @@ void c4iw_rqtpool_free(struct c4iw_rdev *rdev, u32 addr, int size)
 int c4iw_rqtpool_create(struct c4iw_rdev *rdev)
 {
 	unsigned rqt_start, rqt_chunk, rqt_top;
+	int skip = 0;
 
 	rdev->rqt_pool = gen_pool_create(MIN_RQT_SHIFT, -1);
 	if (!rdev->rqt_pool)
 		return -ENOMEM;
 
-	rqt_start = rdev->lldi.vr->rq.start;
-	rqt_chunk = rdev->lldi.vr->rq.size;
+	/*
+	 * If SRQs are supported, then never use the first RQE from
+	 * the RQT region. This is because HW uses RQT index 0 as NULL.
+	 */
+	if (rdev->lldi.vr->srq.size)
+		skip = T4_RQT_ENTRY_SIZE;
+
+	rqt_start = rdev->lldi.vr->rq.start + skip;
+	rqt_chunk = rdev->lldi.vr->rq.size - skip;
 	rqt_top = rqt_start + rqt_chunk;
 
 	while (rqt_start < rqt_top) {
@@ -403,6 +422,32 @@ int c4iw_rqtpool_create(struct c4iw_rdev *rdev)
 void c4iw_rqtpool_destroy(struct c4iw_rdev *rdev)
 {
 	kref_put(&rdev->rqt_kref, destroy_rqtpool);
+}
+
+int c4iw_alloc_srq_idx(struct c4iw_rdev *rdev)
+{
+	int idx;
+
+	idx = c4iw_id_alloc(&rdev->resource.srq_table);
+	mutex_lock(&rdev->stats.lock);
+	if (idx == -1) {
+		rdev->stats.srqt.fail++;
+		mutex_unlock(&rdev->stats.lock);
+		return -ENOMEM;
+	}
+	rdev->stats.srqt.cur++;
+	if (rdev->stats.srqt.cur > rdev->stats.srqt.max)
+		rdev->stats.srqt.max = rdev->stats.srqt.cur;
+	mutex_unlock(&rdev->stats.lock);
+	return idx;
+}
+
+void c4iw_free_srq_idx(struct c4iw_rdev *rdev, int idx)
+{
+	c4iw_id_free(&rdev->resource.srq_table, idx);
+	mutex_lock(&rdev->stats.lock);
+	rdev->stats.srqt.cur--;
+	mutex_unlock(&rdev->stats.lock);
 }
 
 /*

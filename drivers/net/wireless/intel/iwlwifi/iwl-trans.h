@@ -350,6 +350,8 @@ static inline int
 iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
 {
 	switch (rb_size) {
+	case IWL_AMSDU_2K:
+		return get_order(2 * 1024);
 	case IWL_AMSDU_4K:
 		return get_order(4 * 1024);
 	case IWL_AMSDU_8K:
@@ -435,6 +437,20 @@ struct iwl_trans_txq_scd_cfg {
 	u8 tid;
 	bool aggregate;
 	int frame_limit;
+};
+
+/**
+ * struct iwl_trans_rxq_dma_data - RX queue DMA data
+ * @fr_bd_cb: DMA address of free BD cyclic buffer
+ * @fr_bd_wid: Initial write index of the free BD cyclic buffer
+ * @urbd_stts_wrptr: DMA address of urbd_stts_wrptr
+ * @ur_bd_cb: DMA address of used BD cyclic buffer
+ */
+struct iwl_trans_rxq_dma_data {
+	u64 fr_bd_cb;
+	u32 fr_bd_wid;
+	u64 urbd_stts_wrptr;
+	u64 ur_bd_cb;
 };
 
 /**
@@ -557,6 +573,8 @@ struct iwl_trans_ops {
 			 int cmd_id, int size,
 			 unsigned int queue_wdg_timeout);
 	void (*txq_free)(struct iwl_trans *trans, int queue);
+	int (*rxq_dma_data)(struct iwl_trans *trans, int queue,
+			    struct iwl_trans_rxq_dma_data *data);
 
 	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
 				    bool shared);
@@ -753,6 +771,7 @@ struct iwl_trans {
 	const struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv;
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
+	u32 dbg_dump_mask;
 	u8 dbg_dest_reg_num;
 
 	enum iwl_plat_pm_mode system_pm_mode;
@@ -943,6 +962,16 @@ iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
 
 	return trans->ops->txq_enable(trans, queue, ssn,
 				      cfg, queue_wdg_timeout);
+}
+
+static inline int
+iwl_trans_get_rxq_dma_data(struct iwl_trans *trans, int queue,
+			   struct iwl_trans_rxq_dma_data *data)
+{
+	if (WARN_ON_ONCE(!trans->ops->rxq_dma_data))
+		return -ENOTSUPP;
+
+	return trans->ops->rxq_dma_data(trans, queue, data);
 }
 
 static inline void

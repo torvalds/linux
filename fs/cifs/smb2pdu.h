@@ -153,6 +153,8 @@ struct smb2_transform_hdr {
  *
  */
 
+#define COMPOUND_FID 0xFFFFFFFFFFFFFFFFULL
+
 #define SMB2_ERROR_STRUCTURE_SIZE2 cpu_to_le16(9)
 
 struct smb2_err_rsp {
@@ -612,6 +614,18 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_CREATE_TAG_POSIX		0x93AD25509CB411E7B42383DE968BCD7C
 
 
+/*
+ * Maximum number of iovs we need for an open/create request.
+ * [0] : struct smb2_create_req
+ * [1] : path
+ * [2] : lease context
+ * [3] : durable context
+ * [4] : posix context
+ * [5] : time warp context
+ * [6] : compound padding
+ */
+#define SMB2_CREATE_IOV_SIZE 7
+
 struct smb2_create_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 57 */
@@ -763,6 +777,14 @@ struct create_durable_handle_reconnect_v2 {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct durable_reconnect_context_v2 dcontext;
+} __packed;
+
+/* See MS-SMB2 2.2.13.2.5 */
+struct crt_twarp_ctxt {
+	struct create_context ccontext;
+	__u8	Name[8];
+	__le64	Timestamp;
+
 } __packed;
 
 #define COPY_CHUNK_RES_KEY_SIZE	24
@@ -1223,6 +1245,7 @@ struct smb2_lease_ack {
 #define FS_DRIVER_PATH_INFORMATION	9 /* Local only */
 #define FS_VOLUME_FLAGS_INFORMATION	10 /* Local only */
 #define FS_SECTOR_SIZE_INFORMATION	11 /* SMB3 or later. Query */
+#define FS_POSIX_INFORMATION		100 /* SMB3.1.1 POSIX. Query */
 
 struct smb2_fs_full_size_info {
 	__le64 TotalAllocationUnits;
@@ -1246,6 +1269,17 @@ struct smb3_fs_ss_info {
 	__le32 Flags;
 	__le32 ByteOffsetForSectorAlignment;
 	__le32 ByteOffsetForPartitionAlignment;
+} __packed;
+
+/* volume info struct - see MS-FSCC 2.5.9 */
+#define MAX_VOL_LABEL_LEN	32
+struct smb3_fs_vol_info {
+	__le64	VolumeCreationTime;
+	__u32	VolumeSerialNumber;
+	__le32	VolumeLabelLength; /* includes trailing null */
+	__u8	SupportsObjects; /* True if eg like NTFS, supports objects */
+	__u8	Reserved;
+	__u8	VolumeLabel[0]; /* variable len */
 } __packed;
 
 /* partial list of QUERY INFO levels */
@@ -1360,5 +1394,7 @@ struct smb2_file_all_info { /* data block encoding of response to level 18 */
 struct smb2_file_eof_info { /* encoding of request for level 10 */
 	__le64 EndOfFile; /* new end of file value */
 } __packed; /* level 20 Set */
+
+extern char smb2_padding[7];
 
 #endif				/* _SMB2PDU_H */
