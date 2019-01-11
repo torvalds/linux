@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra210-p2894.dtsi"
+
+/ {
+	model = "NVIDIA Shield TV";
+	compatible = "nvidia,p2894-0050-a08", "nvidia,darcy", "nvidia,tegra210";
+};
