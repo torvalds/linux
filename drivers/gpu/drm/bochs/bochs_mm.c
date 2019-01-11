@@ -210,20 +210,13 @@ static void bochs_ttm_placement(struct bochs_bo *bo, int domain)
 	bo->placement.num_busy_placement = c;
 }
 
-static inline u64 bochs_bo_gpu_offset(struct bochs_bo *bo)
-{
-	return bo->bo.offset;
-}
-
-int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr)
+int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (bo->pin_count) {
 		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = bochs_bo_gpu_offset(bo);
 		return 0;
 	}
 
@@ -235,8 +228,6 @@ int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr)
 		return ret;
 
 	bo->pin_count = 1;
-	if (gpu_addr)
-		*gpu_addr = bochs_bo_gpu_offset(bo);
 	return 0;
 }
 

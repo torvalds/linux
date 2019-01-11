@@ -101,7 +101,7 @@ static int bochs_plane_prepare_fb(struct drm_plane *plane,
 	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret)
 		return ret;
-	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM, NULL);
+	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
 	ttm_bo_unreserve(&bo->bo);
 	return ret;
 }

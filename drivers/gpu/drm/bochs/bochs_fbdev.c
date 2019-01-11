@@ -81,7 +81,7 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 	if (ret)
 		return ret;
 
-	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM, NULL);
+	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
 	if (ret) {
 		DRM_ERROR("failed to pin fbcon\n");
 		ttm_bo_unreserve(&bo->bo);
