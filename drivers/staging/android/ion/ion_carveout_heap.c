@@ -20,7 +20,6 @@
 struct ion_carveout_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
-	phys_addr_t base;
 };
 
 static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
@@ -125,8 +124,7 @@ struct ion_heap *ion_carveout_heap_create(phys_addr_t base, size_t size)
 		kfree(carveout_heap);
 		return ERR_PTR(-ENOMEM);
 	}
-	carveout_heap->base = base;
-	gen_pool_add(carveout_heap->pool, carveout_heap->base, size, -1);
+	gen_pool_add(carveout_heap->pool, base, size, -1);
 	carveout_heap->heap.ops = &carveout_heap_ops;
 	carveout_heap->heap.type = ION_HEAP_TYPE_CARVEOUT;
 	carveout_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
