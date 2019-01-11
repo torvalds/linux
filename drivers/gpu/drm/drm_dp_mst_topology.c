@@ -2790,7 +2790,8 @@ EXPORT_SYMBOL(drm_dp_mst_reset_vcpi_slots);
  * @mgr: manager for this port
  * @port: unverified port to deallocate vcpi for
  */
-void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
+void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
+				struct drm_dp_mst_port *port)
 {
 	port = drm_dp_get_validated_port_ref(mgr, port);
 	if (!port)
