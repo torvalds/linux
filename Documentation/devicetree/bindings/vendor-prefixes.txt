@@ -302,6 +302,7 @@ oranth	Shenzhen Oranth Technology Co., Ltd.
 ORCL	Oracle Corporation
 orisetech	Orise Technology
 ortustech	Ortus Technology Co., Ltd.
+osddisplays	OSD Displays
 ovti	OmniVision Technologies
 oxsemi	Oxford Semiconductor, Ltd.
 panasonic	Panasonic Corporation
