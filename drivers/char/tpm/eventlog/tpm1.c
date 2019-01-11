@@ -88,7 +88,7 @@ static void *tpm1_bios_measurements_start(struct seq_file *m, loff_t *pos)
 		event = addr;
 
 		/* check if current entry is valid */
-		if (addr + sizeof(struct tcpa_event) >= limit)
+		if (addr + sizeof(struct tcpa_event) > limit)
 			return NULL;
 
 		converted_event_size =
@@ -98,7 +98,7 @@ static void *tpm1_bios_measurements_start(struct seq_file *m, loff_t *pos)
 
 		if (((converted_event_type == 0) && (converted_event_size == 0))
 		    || ((addr + sizeof(struct tcpa_event) + converted_event_size)
-			>= limit))
+			> limit))
 			return NULL;
 
 		if (i++ == *pos)
@@ -125,7 +125,7 @@ static void *tpm1_bios_measurements_next(struct seq_file *m, void *v,
 	v += sizeof(struct tcpa_event) + converted_event_size;
 
 	/* now check if current entry is valid */
-	if ((v + sizeof(struct tcpa_event)) >= limit)
+	if ((v + sizeof(struct tcpa_event)) > limit)
 		return NULL;
 
 	event = v;
@@ -134,7 +134,7 @@ static void *tpm1_bios_measurements_next(struct seq_file *m, void *v,
 	converted_event_type = do_endian_conversion(event->event_type);
 
 	if (((converted_event_type == 0) && (converted_event_size == 0)) ||
-	    ((v + sizeof(struct tcpa_event) + converted_event_size) >= limit))
+	    ((v + sizeof(struct tcpa_event) + converted_event_size) > limit))
 		return NULL;
 
 	(*pos)++;
