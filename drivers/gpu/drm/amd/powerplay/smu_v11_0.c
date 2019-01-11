@@ -990,6 +990,46 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
+						  uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, TABLE_SMU_METRICS, (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	*value = metrics.AverageGfxActivity;
+
+	return 0;
+}
+
+static int smu_v11_0_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size)
+{
+	int ret = 0;
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = smu_v11_0_get_current_activity_percent(smu,
+							     (uint32_t *)data);
+		*size = 4;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret)
+		*size = 0;
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1022,6 +1062,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.start_thermal_control = smu_v11_0_start_thermal_control,
+	.read_sensor = smu_v11_0_read_sensor,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

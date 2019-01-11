@@ -23,6 +23,7 @@
 #define __AMDGPU_SMU_H__
 
 #include "amdgpu.h"
+#include "kgd_pp_interface.h"
 
 enum smu_message_type
 {
@@ -258,6 +259,8 @@ struct smu_funcs
 	int (*get_current_clk_freq)(struct smu_context *smu, uint32_t clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 	int (*start_thermal_control)(struct smu_context *smu);
+	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
+			   void *data, uint32_t *size);
 };
 
 #define smu_init_microcode(smu) \
@@ -342,6 +345,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->print_clk_levels ? (smu)->ppt_funcs->print_clk_levels((smu), (type), (buf)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
+#define smu_read_sensor(smu, sensor, data, size) \
+	((smu)->funcs->read_sensor? (smu)->funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)

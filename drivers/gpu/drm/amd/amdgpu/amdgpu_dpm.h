@@ -260,9 +260,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_enable_bapm(adev, e) \
 		((adev)->powerplay.pp_funcs->enable_bapm((adev)->powerplay.pp_handle, (e)))
 
-#define amdgpu_dpm_read_sensor(adev, idx, value, size) \
-		((adev)->powerplay.pp_funcs->read_sensor((adev)->powerplay.pp_handle, (idx), (value), (size)))
-
 #define amdgpu_dpm_set_fan_control_mode(adev, m) \
 		((adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)))
 
@@ -486,6 +483,8 @@ void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
 u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev);
 void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev);
+int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
+			   void *data, uint32_t *size);
 
 bool amdgpu_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor);
 

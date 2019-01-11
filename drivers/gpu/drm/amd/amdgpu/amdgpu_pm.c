@@ -81,6 +81,27 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 	}
 }
 
+int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
+			   void *data, uint32_t *size)
+{
+	int ret = 0;
+
+	if (!data || !size)
+		return -EINVAL;
+
+	if (is_support_sw_smu(adev))
+		ret = smu_read_sensor(&adev->smu, sensor, data, size);
+	else {
+		if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->read_sensor)
+			ret = adev->powerplay.pp_funcs->read_sensor((adev)->powerplay.pp_handle,
+								    sensor, data, size);
+		else
+			ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 /**
  * DOC: power_dpm_state
  *
@@ -1151,14 +1172,10 @@ static ssize_t amdgpu_get_busy_percent(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int r, value, size = sizeof(value);
 
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
-		return -EINVAL;
-
 	/* read the IP busy sensor */
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD,
 				   (void *)&value, &size);
+
 	if (r)
 		return r;
 
@@ -1250,11 +1267,6 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 	/* Can't get temperature when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
-		return -EINVAL;
-
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
 		return -EINVAL;
 
 	/* get the temperature */
@@ -1427,9 +1439,6 @@ static ssize_t amdgpu_hwmon_get_fan1_min(struct device *dev,
 	u32 size = sizeof(min_rpm);
 	int r;
 
-	if (!adev->powerplay.pp_funcs->read_sensor)
-		return -EINVAL;
-
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MIN_FAN_RPM,
 				   (void *)&min_rpm, &size);
 	if (r)
@@ -1446,9 +1455,6 @@ static ssize_t amdgpu_hwmon_get_fan1_max(struct device *dev,
 	u32 max_rpm = 0;
 	u32 size = sizeof(max_rpm);
 	int r;
-
-	if (!adev->powerplay.pp_funcs->read_sensor)
-		return -EINVAL;
 
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MAX_FAN_RPM,
 				   (void *)&max_rpm, &size);
@@ -1574,11 +1580,6 @@ static ssize_t amdgpu_hwmon_show_vddgfx(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
-	      return -EINVAL;
-
 	/* get the voltage */
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDGFX,
 				   (void *)&vddgfx, &size);
@@ -1613,11 +1614,6 @@ static ssize_t amdgpu_hwmon_show_vddnb(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
-	      return -EINVAL;
-
 	/* get the voltage */
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB,
 				   (void *)&vddnb, &size);
@@ -1648,11 +1644,6 @@ static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
-
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
-	      return -EINVAL;
 
 	/* get the voltage */
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_POWER,
@@ -2044,9 +2035,7 @@ void amdgpu_dpm_thermal_work_handler(struct work_struct *work)
 	if (!adev->pm.dpm_enabled)
 		return;
 
-	if (adev->powerplay.pp_funcs &&
-	    adev->powerplay.pp_funcs->read_sensor &&
-	    !amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP,
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP,
 				    (void *)&temp, &size)) {
 		if (temp < adev->pm.dpm.thermal.min_temp)
 			/* switch back the user state */
@@ -2557,11 +2546,6 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	uint64_t value64;
 	uint32_t query = 0;
 	int size;
-
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
-	      return -EINVAL;
 
 	/* GPU Clocks */
 	size = sizeof(value);
