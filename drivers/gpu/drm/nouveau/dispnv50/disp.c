@@ -1091,11 +1091,8 @@ nv50_mstm_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 	int ret;
 
 	ret = nv50_mstc_new(mstm, port, path, &mstc);
-	if (ret) {
-		if (mstc)
-			mstc->connector.funcs->destroy(&mstc->connector);
+	if (ret)
 		return NULL;
-	}
 
 	return &mstc->connector;
 }
