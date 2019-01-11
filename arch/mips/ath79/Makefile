@@ -11,13 +11,3 @@
 obj-y	:= prom.o setup.o common.o clock.o
 
 obj-$(CONFIG_EARLY_PRINTK)		+= early_printk.o
-
-#
-# Devices
-#
-obj-y					+= dev-common.o
-obj-$(CONFIG_ATH79_DEV_GPIO_BUTTONS)	+= dev-gpio-buttons.o
-obj-$(CONFIG_ATH79_DEV_LEDS_GPIO)	+= dev-leds-gpio.o
-obj-$(CONFIG_ATH79_DEV_SPI)		+= dev-spi.o
-obj-$(CONFIG_ATH79_DEV_USB)		+= dev-usb.o
-obj-$(CONFIG_ATH79_DEV_WMAC)		+= dev-wmac.o

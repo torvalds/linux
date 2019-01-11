@@ -32,7 +32,6 @@
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include "common.h"
-#include "dev-common.h"
 
 #define ATH79_SYS_TYPE_LEN	64
 
