@@ -104,27 +104,6 @@ static void bochs_crtc_commit(struct drm_crtc *crtc)
 {
 }
 
-static int bochs_crtc_page_flip(struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				struct drm_pending_vblank_event *event,
-				uint32_t page_flip_flags,
-				struct drm_modeset_acquire_ctx *ctx)
-{
-	struct bochs_device *bochs =
-		container_of(crtc, struct bochs_device, crtc);
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	unsigned long irqflags;
-
-	drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
-	bochs_crtc_mode_set_base(crtc, 0, 0, old_fb);
-	if (event) {
-		spin_lock_irqsave(&bochs->dev->event_lock, irqflags);
-		drm_crtc_send_vblank_event(crtc, event);
-		spin_unlock_irqrestore(&bochs->dev->event_lock, irqflags);
-	}
-	return 0;
-}
-
 static void bochs_crtc_atomic_enable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_crtc_state)
 {
@@ -152,7 +131,7 @@ static void bochs_crtc_atomic_flush(struct drm_crtc *crtc,
 static const struct drm_crtc_funcs bochs_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = drm_crtc_cleanup,
-	.page_flip = bochs_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
