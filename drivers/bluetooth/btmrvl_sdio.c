@@ -62,13 +62,14 @@ static const struct of_device_id btmrvl_sdio_of_match_table[] = {
 static irqreturn_t btmrvl_wake_irq_bt(int irq, void *priv)
 {
 	struct btmrvl_sdio_card *card = priv;
+	struct device *dev = &card->func->dev;
 	struct btmrvl_plt_wake_cfg *cfg = card->plt_wake_cfg;
 
-	pr_info("%s: wake by bt\n", __func__);
+	dev_info(dev, "wake by bt\n");
 	cfg->wake_by_bt = true;
 	disable_irq_nosync(irq);
 
-	pm_wakeup_event(&card->func->dev, 0);
+	pm_wakeup_event(dev, 0);
 	pm_system_wakeup();
 
 	return IRQ_HANDLED;
@@ -87,7 +88,7 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 
 	if (!dev->of_node ||
 	    !of_match_node(btmrvl_sdio_of_match_table, dev->of_node)) {
-		pr_err("sdio platform data not available\n");
+		dev_err(dev, "sdio platform data not available\n");
 		return -1;
 	}
 
