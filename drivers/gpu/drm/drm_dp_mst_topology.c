@@ -2048,24 +2048,40 @@ static struct drm_dp_mst_port *drm_dp_get_last_connected_port_to_mstb(struct drm
 	return drm_dp_get_last_connected_port_to_mstb(mstb->port_parent->parent);
 }
 
-static struct drm_dp_mst_branch *drm_dp_get_last_connected_port_and_mstb(struct drm_dp_mst_topology_mgr *mgr,
-									 struct drm_dp_mst_branch *mstb,
-									 int *port_num)
+/*
+ * Searches upwards in the topology starting from mstb to try to find the
+ * closest available parent of mstb that's still connected to the rest of the
+ * topology. This can be used in order to perform operations like releasing
+ * payloads, where the branch device which owned the payload may no longer be
+ * around and thus would require that the payload on the last living relative
+ * be freed instead.
+ */
+static struct drm_dp_mst_branch *
+drm_dp_get_last_connected_port_and_mstb(struct drm_dp_mst_topology_mgr *mgr,
+					struct drm_dp_mst_branch *mstb,
+					int *port_num)
 {
 	struct drm_dp_mst_branch *rmstb = NULL;
 	struct drm_dp_mst_port *found_port;
-	mutex_lock(&mgr->lock);
-	if (mgr->mst_primary) {
-		found_port = drm_dp_get_last_connected_port_to_mstb(mstb);
 
-		if (found_port) {
+	mutex_lock(&mgr->lock);
+	if (!mgr->mst_primary)
+		goto out;
+
+	do {
+		found_port = drm_dp_get_last_connected_port_to_mstb(mstb);
+		if (!found_port)
+			break;
+
+		if (drm_dp_mst_topology_try_get_mstb(found_port->parent)) {
 			rmstb = found_port->parent;
-			if (drm_dp_mst_topology_try_get_mstb(rmstb))
-				*port_num = found_port->port_num;
-			else
-				rmstb = NULL;
+			*port_num = found_port->port_num;
+		} else {
+			/* Search again, starting from this parent */
+			mstb = found_port->parent;
 		}
-	}
+	} while (!rmstb);
+out:
 	mutex_unlock(&mgr->lock);
 	return rmstb;
 }
@@ -2114,6 +2130,14 @@ static int drm_dp_payload_send_msg(struct drm_dp_mst_topology_mgr *mgr,
 
 	drm_dp_queue_down_tx(mgr, txmsg);
 
+	/*
+	 * FIXME: there is a small chance that between getting the last
+	 * connected mstb and sending the payload message, the last connected
+	 * mstb could also be removed from the topology. In the future, this
+	 * needs to be fixed by restarting the
+	 * drm_dp_get_last_connected_port_and_mstb() search in the event of a
+	 * timeout if the topology is still connected to the system.
+	 */
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
 	if (ret > 0) {
 		if (txmsg->reply.reply_type == 1)
