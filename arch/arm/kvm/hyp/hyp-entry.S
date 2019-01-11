@@ -176,7 +176,7 @@ THUMB(	orr	lr, lr, #PSR_T_BIT	)
 	msr	spsr_cxsf, lr
 	ldr	lr, =panic
 	msr	ELR_hyp, lr
-	ldr	lr, =kvm_call_hyp
+	ldr	lr, =__kvm_call_hyp
 	clrex
 	eret
 ENDPROC(__hyp_do_panic)
