@@ -4952,6 +4952,15 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 			ret = 0;
 		break;
 	case COMMIT_TRANS:
+		/*
+		 * If we have pending delayed iputs then we could free up a
+		 * bunch of pinned space, so make sure we run the iputs before
+		 * we do our pinned bytes check below.
+		 */
+		mutex_lock(&fs_info->cleaner_delayed_iput_mutex);
+		btrfs_run_delayed_iputs(fs_info);
+		mutex_unlock(&fs_info->cleaner_delayed_iput_mutex);
+
 		ret = may_commit_transaction(fs_info, space_info);
 		break;
 	default:
