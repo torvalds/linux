@@ -13,6 +13,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+
 #include "ion.h"
 
 #define NUM_ORDERS ARRAY_SIZE(orders)
@@ -236,6 +237,7 @@ static int ion_system_heap_create_pools(struct ion_page_pool **pools)
 			goto err_create_pool;
 		pools[i] = pool;
 	}
+
 	return 0;
 
 err_create_pool:
@@ -274,6 +276,7 @@ static int ion_system_heap_create(void)
 	heap->name = "ion_system_heap";
 
 	ion_device_add_heap(heap);
+
 	return 0;
 }
 device_initcall(ion_system_heap_create);
@@ -355,6 +358,7 @@ static struct ion_heap *__ion_system_contig_heap_create(void)
 	heap->ops = &kmalloc_ops;
 	heap->type = ION_HEAP_TYPE_SYSTEM_CONTIG;
 	heap->name = "ion_system_contig_heap";
+
 	return heap;
 }
 
@@ -367,7 +371,7 @@ static int ion_system_contig_heap_create(void)
 		return PTR_ERR(heap);
 
 	ion_device_add_heap(heap);
+
 	return 0;
 }
 device_initcall(ion_system_contig_heap_create);
-

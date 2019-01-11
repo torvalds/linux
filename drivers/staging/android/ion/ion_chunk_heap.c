@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2012 Google, Inc.
  */
+
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/genalloc.h>
@@ -147,4 +148,3 @@ error_gen_pool_create:
 	kfree(chunk_heap);
 	return ERR_PTR(ret);
 }
-

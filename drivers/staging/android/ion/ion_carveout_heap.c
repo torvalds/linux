@@ -44,6 +44,7 @@ static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
 
 	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
 		return;
+
 	gen_pool_free(carveout_heap->pool, addr, size);
 }
 
