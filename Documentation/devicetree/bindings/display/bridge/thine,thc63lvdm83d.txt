@@ -10,7 +10,7 @@ Required properties:
 
 Optional properties:
 
-- pwdn-gpios: Power down control GPIO
+- powerdown-gpios: Power down control GPIO (the /PWDN pin, active low).
 
 Required nodes:
 
