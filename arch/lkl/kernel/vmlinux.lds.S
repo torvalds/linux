@@ -2,6 +2,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/cache.h>
+#include <linux/export.h>
 
 OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT)
 

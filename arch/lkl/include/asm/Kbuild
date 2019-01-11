@@ -70,7 +70,6 @@ generic-y += termbits.h
 generic-y += termios.h
 generic-y += time.h
 generic-y += timex.h
-generic-y += tlb.h
 generic-y += tlbflush.h
 generic-y += topology.h
 generic-y += trace_clock.h
