@@ -110,9 +110,6 @@ static void __init ar71xx_clocks_init(void)
 	ath79_set_clk(ATH79_CLK_CPU, cpu_rate);
 	ath79_set_clk(ATH79_CLK_DDR, ddr_rate);
 	ath79_set_clk(ATH79_CLK_AHB, ahb_rate);
-
-	clk_add_alias("wdt", NULL, "ahb", NULL);
-	clk_add_alias("uart", NULL, "ahb", NULL);
 }
 
 static void __init ar724x_clk_init(struct clk *ref_clk, void __iomem *pll_base)
@@ -140,9 +137,6 @@ static void __init ar724x_clocks_init(void)
 	ref_clk = ath79_set_clk(ATH79_CLK_REF, AR724X_BASE_FREQ);
 
 	ar724x_clk_init(ref_clk, ath79_pll_base);
-
-	clk_add_alias("wdt", NULL, "ahb", NULL);
-	clk_add_alias("uart", NULL, "ahb", NULL);
 }
 
 static void __init ar9330_clk_init(struct clk *ref_clk, void __iomem *pll_base)
@@ -218,9 +212,6 @@ static void __init ar933x_clocks_init(void)
 	ref_clk = ath79_set_clk(ATH79_CLK_REF, ref_rate);
 
 	ar9330_clk_init(ref_clk, ath79_pll_base);
-
-	clk_add_alias("wdt", NULL, "ahb", NULL);
-	clk_add_alias("uart", NULL, "ref", NULL);
 }
 
 static u32 __init ar934x_get_pll_freq(u32 ref, u32 ref_div, u32 nint, u32 nfrac,
@@ -353,9 +344,6 @@ static void __init ar934x_clocks_init(void)
 	ath79_set_clk(ATH79_CLK_DDR, ddr_rate);
 	ath79_set_clk(ATH79_CLK_AHB, ahb_rate);
 
-	clk_add_alias("wdt", NULL, "ref", NULL);
-	clk_add_alias("uart", NULL, "ref", NULL);
-
 	iounmap(dpll_base);
 }
 
@@ -439,9 +427,6 @@ static void __init qca953x_clocks_init(void)
 	ath79_set_clk(ATH79_CLK_CPU, cpu_rate);
 	ath79_set_clk(ATH79_CLK_DDR, ddr_rate);
 	ath79_set_clk(ATH79_CLK_AHB, ahb_rate);
-
-	clk_add_alias("wdt", NULL, "ref", NULL);
-	clk_add_alias("uart", NULL, "ref", NULL);
 }
 
 static void __init qca955x_clocks_init(void)
@@ -524,9 +509,6 @@ static void __init qca955x_clocks_init(void)
 	ath79_set_clk(ATH79_CLK_CPU, cpu_rate);
 	ath79_set_clk(ATH79_CLK_DDR, ddr_rate);
 	ath79_set_clk(ATH79_CLK_AHB, ahb_rate);
-
-	clk_add_alias("wdt", NULL, "ref", NULL);
-	clk_add_alias("uart", NULL, "ref", NULL);
 }
 
 static void __init qca956x_clocks_init(void)
@@ -628,13 +610,13 @@ static void __init qca956x_clocks_init(void)
 	ath79_set_clk(ATH79_CLK_CPU, cpu_rate);
 	ath79_set_clk(ATH79_CLK_DDR, ddr_rate);
 	ath79_set_clk(ATH79_CLK_AHB, ahb_rate);
-
-	clk_add_alias("wdt", NULL, "ref", NULL);
-	clk_add_alias("uart", NULL, "ref", NULL);
 }
 
 void __init ath79_clocks_init(void)
 {
+	const char *wdt;
+	const char *uart;
+
 	if (soc_is_ar71xx())
 		ar71xx_clocks_init();
 	else if (soc_is_ar724x() || soc_is_ar913x())
@@ -651,6 +633,20 @@ void __init ath79_clocks_init(void)
 		qca956x_clocks_init();
 	else
 		BUG();
+
+	if (soc_is_ar71xx() || soc_is_ar724x() || soc_is_ar913x()) {
+		wdt = "ahb";
+		uart = "ahb";
+	} else if (soc_is_ar933x()) {
+		wdt = "ahb";
+		uart = "ref";
+	} else {
+		wdt = "ref";
+		uart = "ref";
+	}
+
+	clk_add_alias("wdt", NULL, wdt, NULL);
+	clk_add_alias("uart", NULL, uart, NULL);
 }
 
 unsigned long __init
