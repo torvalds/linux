@@ -81,7 +81,8 @@ static const struct file_operations bochs_fops = {
 };
 
 static struct drm_driver bochs_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
+				  DRIVER_PRIME,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
@@ -91,6 +92,14 @@ static struct drm_driver bochs_driver = {
 	.gem_free_object_unlocked = bochs_gem_free_object,
 	.dumb_create            = bochs_dumb_create,
 	.dumb_map_offset        = bochs_dumb_mmap_offset,
+
+	.gem_prime_export = drm_gem_prime_export,
+	.gem_prime_import = drm_gem_prime_import,
+	.gem_prime_pin = bochs_gem_prime_pin,
+	.gem_prime_unpin = bochs_gem_prime_unpin,
+	.gem_prime_vmap = bochs_gem_prime_vmap,
+	.gem_prime_vunmap = bochs_gem_prime_vunmap,
+	.gem_prime_mmap = bochs_gem_prime_mmap,
 };
 
 /* ---------------------------------------------------------------------- */

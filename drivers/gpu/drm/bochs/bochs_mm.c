@@ -395,3 +395,52 @@ int bochs_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
 	drm_gem_object_put_unlocked(obj);
 	return 0;
 }
+
+/* ---------------------------------------------------------------------- */
+
+int bochs_gem_prime_pin(struct drm_gem_object *obj)
+{
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+
+	return bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
+}
+
+void bochs_gem_prime_unpin(struct drm_gem_object *obj)
+{
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+
+	bochs_bo_unpin(bo);
+}
+
+void *bochs_gem_prime_vmap(struct drm_gem_object *obj)
+{
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+	bool is_iomem;
+	int ret;
+
+	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
+	if (ret)
+		return NULL;
+	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
+	if (ret) {
+		bochs_bo_unpin(bo);
+		return NULL;
+	}
+	return ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
+}
+
+void bochs_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+
+	ttm_bo_kunmap(&bo->kmap);
+	bochs_bo_unpin(bo);
+}
+
+int bochs_gem_prime_mmap(struct drm_gem_object *obj,
+			 struct vm_area_struct *vma)
+{
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+
+	return ttm_fbdev_mmap(vma, &bo->bo);
+}
