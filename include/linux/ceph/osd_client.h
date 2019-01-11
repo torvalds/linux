@@ -354,7 +354,6 @@ struct ceph_osd_client {
 	struct rb_root         linger_map_checks;
 	atomic_t               num_requests;
 	atomic_t               num_homeless;
-	bool                   abort_on_full; /* abort w/ ENOSPC when full */
 	int                    abort_err;
 	struct delayed_work    timeout_work;
 	struct delayed_work    osds_timeout_work;
