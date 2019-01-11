@@ -5,6 +5,7 @@ config BCACHEFS_FS
 	select EXPORTFS
 	select CLOSURES
 	select LIBCRC32C
+	select CRC64
 	select FS_POSIX_ACL
 	select LZ4_COMPRESS
 	select LZ4_DECOMPRESS

@@ -6,9 +6,13 @@
 #include "extents_types.h"
 #include "super-io.h"
 
+#include <linux/crc64.h>
 #include <crypto/chacha.h>
 
-u64 bch2_crc64_update(u64, const void *, size_t);
+static inline u64 bch2_crc64_update(u64 crc, const void *p, size_t len)
+{
+	return crc64_be(crc, p, len);
+}
 
 #define BCH_NONCE_EXTENT	cpu_to_le32(1 << 28)
 #define BCH_NONCE_BTREE		cpu_to_le32(2 << 28)
