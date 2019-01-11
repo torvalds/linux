@@ -23,8 +23,8 @@
 
 /**
  * struct ion_buffer - metadata for a particular buffer
- * @ref:		reference count
  * @node:		node in the ion_device buffers tree
+ * @list:		element in list of deferred freeable buffers
  * @dev:		back pointer to the ion_device
  * @heap:		back pointer to the heap the buffer came from
  * @flags:		buffer specific flags
@@ -35,7 +35,8 @@
  * @lock:		protects the buffers cnt fields
  * @kmap_cnt:		number of times the buffer is mapped to the kernel
  * @vaddr:		the kernel mapping if kmap_cnt is not zero
- * @sg_table:		the sg table for the buffer if dmap_cnt is not zero
+ * @sg_table:		the sg table for the buffer
+ * @attachments:	list of devices attached to this buffer
  */
 struct ion_buffer {
 	union {
@@ -151,12 +152,16 @@ struct ion_heap {
 	unsigned long flags;
 	unsigned int id;
 	const char *name;
+
+	/* deferred free support */
 	struct shrinker shrinker;
 	struct list_head free_list;
 	size_t free_list_size;
 	spinlock_t free_lock;
 	wait_queue_head_t waitqueue;
 	struct task_struct *task;
+
+	/* heap statistics */
 	u64 num_of_buffers;
 	u64 num_of_alloc_bytes;
 	u64 alloc_bytes_wm;
