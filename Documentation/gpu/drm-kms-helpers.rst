@@ -116,8 +116,6 @@ Framebuffer CMA Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fb_cma_helper.c
    :export:
 
-.. _drm_bridges:
-
 Framebuffer GEM Helper Reference
 ================================
 
@@ -126,6 +124,8 @@ Framebuffer GEM Helper Reference
 
 .. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
    :export:
+
+.. _drm_bridges:
 
 Bridges
 =======
