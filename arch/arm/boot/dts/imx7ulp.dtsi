@@ -347,4 +347,17 @@
 			gpio-ranges = <&iomuxc1 0 96 32>;
 		};
 	};
+
+	m4aips1: bus@41080000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x41080000 0x80000>;
+		ranges;
+
+		sim: sim@410a3000 {
+			compatible = "fsl,imx7ulp-sim", "syscon";
+			reg = <0x410a3000 0x1000>;
+		};
+	};
 };
