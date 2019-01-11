@@ -672,6 +672,8 @@ nv50_msto_payload(struct nv50_msto *msto)
 	struct nv50_mstm *mstm = mstc->mstm;
 	int vcpi = mstc->port->vcpi.vcpi, i;
 
+	WARN_ON(!mutex_is_locked(&mstm->mgr.payload_lock));
+
 	NV_ATOMIC(drm, "%s: vcpi %d\n", msto->encoder.name, vcpi);
 	for (i = 0; i < mstm->mgr.max_payloads; i++) {
 		struct drm_dp_payload *payload = &mstm->mgr.payloads[i];
@@ -725,6 +727,8 @@ nv50_msto_prepare(struct nv50_msto *msto)
 			       (0x0100 << msto->head->base.index),
 	};
 
+	mutex_lock(&mstm->mgr.payload_lock);
+
 	NV_ATOMIC(drm, "%s: msto prepare\n", msto->encoder.name);
 	if (mstc->port->vcpi.vcpi > 0) {
 		struct drm_dp_payload *payload = nv50_msto_payload(msto);
@@ -740,7 +744,9 @@ nv50_msto_prepare(struct nv50_msto *msto)
 		  msto->encoder.name, msto->head->base.base.name,
 		  args.vcpi.start_slot, args.vcpi.num_slots,
 		  args.vcpi.pbn, args.vcpi.aligned_pbn);
+
 	nvif_mthd(&drm->display->disp.object, 0, &args, sizeof(args));
+	mutex_unlock(&mstm->mgr.payload_lock);
 }
 
 static int
