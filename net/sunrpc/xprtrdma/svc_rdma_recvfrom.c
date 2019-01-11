@@ -314,8 +314,9 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 	spin_lock(&rdma->sc_rq_dto_lock);
 	list_add_tail(&ctxt->rc_list, &rdma->sc_rq_dto_q);
-	spin_unlock(&rdma->sc_rq_dto_lock);
+	/* Note the unlock pairs with the smp_rmb in svc_xprt_ready: */
 	set_bit(XPT_DATA, &rdma->sc_xprt.xpt_flags);
+	spin_unlock(&rdma->sc_rq_dto_lock);
 	if (!test_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags))
 		svc_xprt_enqueue(&rdma->sc_xprt);
 	goto out;

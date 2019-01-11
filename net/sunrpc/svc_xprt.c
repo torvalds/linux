@@ -357,6 +357,7 @@ static void svc_xprt_release_slot(struct svc_rqst *rqstp)
 	struct svc_xprt	*xprt = rqstp->rq_xprt;
 	if (test_and_clear_bit(RQ_DATA, &rqstp->rq_flags)) {
 		atomic_dec(&xprt->xpt_nr_rqsts);
+		smp_wmb(); /* See smp_rmb() in svc_xprt_ready() */
 		svc_xprt_enqueue(xprt);
 	}
 }
@@ -365,6 +366,15 @@ static bool svc_xprt_ready(struct svc_xprt *xprt)
 {
 	unsigned long xpt_flags;
 
+	/*
+	 * If another cpu has recently updated xpt_flags,
+	 * sk_sock->flags, xpt_reserved, or xpt_nr_rqsts, we need to
+	 * know about it; otherwise it's possible that both that cpu and
+	 * this one could call svc_xprt_enqueue() without either
+	 * svc_xprt_enqueue() recognizing that the conditions below
+	 * are satisfied, and we could stall indefinitely:
+	 */
+	smp_rmb();
 	xpt_flags = READ_ONCE(xprt->xpt_flags);
 
 	if (xpt_flags & (BIT(XPT_CONN) | BIT(XPT_CLOSE)))
@@ -479,7 +489,7 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 	if (xprt && space < rqstp->rq_reserved) {
 		atomic_sub((rqstp->rq_reserved - space), &xprt->xpt_reserved);
 		rqstp->rq_reserved = space;
-
+		smp_wmb(); /* See smp_rmb() in svc_xprt_ready() */
 		svc_xprt_enqueue(xprt);
 	}
 }

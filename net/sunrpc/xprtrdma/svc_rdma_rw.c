@@ -287,9 +287,10 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 		spin_lock(&rdma->sc_rq_dto_lock);
 		list_add_tail(&info->ri_readctxt->rc_list,
 			      &rdma->sc_read_complete_q);
+		/* Note the unlock pairs with the smp_rmb in svc_xprt_ready: */
+		set_bit(XPT_DATA, &rdma->sc_xprt.xpt_flags);
 		spin_unlock(&rdma->sc_rq_dto_lock);
 
-		set_bit(XPT_DATA, &rdma->sc_xprt.xpt_flags);
 		svc_xprt_enqueue(&rdma->sc_xprt);
 	}
 
