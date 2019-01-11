@@ -5509,6 +5509,9 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		dm_new_conn_state = to_dm_connector_state(drm_new_conn_state);
 		dm_old_conn_state = to_dm_connector_state(drm_old_conn_state);
 
+		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+			goto skip_modeset;
+
 		new_stream = create_stream_for_sink(aconnector,
 						     &new_crtc_state->mode,
 						    dm_new_conn_state,
@@ -5538,6 +5541,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		}
 	}
 
+	/* mode_changed flag may get updated above, need to check again */
 	if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 		goto skip_modeset;
 
