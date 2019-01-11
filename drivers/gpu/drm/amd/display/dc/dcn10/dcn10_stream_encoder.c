@@ -1425,6 +1425,14 @@ void enc1_setup_stereo_sync(
 	REG_UPDATE(DIG_FE_CNTL, DIG_STEREOSYNC_GATE_EN, !enable);
 }
 
+void enc1_dig_connect_to_otg(
+	struct stream_encoder *enc,
+	int tg_inst)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	REG_UPDATE(DIG_FE_CNTL, DIG_SOURCE_SELECT, tg_inst);
+}
 
 static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 	.dp_set_stream_attribute =
@@ -1457,6 +1465,7 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 	.hdmi_audio_disable = enc1_se_hdmi_audio_disable,
 	.setup_stereo_sync  = enc1_setup_stereo_sync,
 	.set_avmute = enc1_stream_encoder_set_avmute,
+	.dig_connect_to_otg  = enc1_dig_connect_to_otg,
 };
 
 void dcn10_stream_encoder_construct(

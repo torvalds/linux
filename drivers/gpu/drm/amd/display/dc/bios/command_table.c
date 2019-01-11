@@ -55,7 +55,6 @@ static void init_adjust_display_pll(struct bios_parser *bp);
 static void init_dac_encoder_control(struct bios_parser *bp);
 static void init_dac_output_control(struct bios_parser *bp);
 static void init_set_crtc_timing(struct bios_parser *bp);
-static void init_select_crtc_source(struct bios_parser *bp);
 static void init_enable_crtc(struct bios_parser *bp);
 static void init_enable_crtc_mem_req(struct bios_parser *bp);
 static void init_external_encoder_control(struct bios_parser *bp);
@@ -73,7 +72,6 @@ void dal_bios_parser_init_cmd_tbl(struct bios_parser *bp)
 	init_dac_encoder_control(bp);
 	init_dac_output_control(bp);
 	init_set_crtc_timing(bp);
-	init_select_crtc_source(bp);
 	init_enable_crtc(bp);
 	init_enable_crtc_mem_req(bp);
 	init_program_clock(bp);
@@ -1890,120 +1888,6 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 				cpu_to_le16(le16_to_cpu(params.susModeMiscInfo.usAccess) | ATOM_DOUBLE_CLOCK_MODE);
 
 	if (EXEC_BIOS_CMD_TABLE(SetCRTC_UsingDTDTiming, params))
-		result = BP_RESULT_OK;
-
-	return result;
-}
-
-/*******************************************************************************
- ********************************************************************************
- **
- **                  SELECT CRTC SOURCE
- **
- ********************************************************************************
- *******************************************************************************/
-
-static enum bp_result select_crtc_source_v2(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params);
-static enum bp_result select_crtc_source_v3(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params);
-
-static void init_select_crtc_source(struct bios_parser *bp)
-{
-	switch (BIOS_CMD_TABLE_PARA_REVISION(SelectCRTC_Source)) {
-	case 2:
-		bp->cmd_tbl.select_crtc_source = select_crtc_source_v2;
-		break;
-	case 3:
-		bp->cmd_tbl.select_crtc_source = select_crtc_source_v3;
-		break;
-	default:
-		dm_output_to_console("Don't select_crtc_source enable_crtc for v%d\n",
-			 BIOS_CMD_TABLE_PARA_REVISION(SelectCRTC_Source));
-		bp->cmd_tbl.select_crtc_source = NULL;
-		break;
-	}
-}
-
-static enum bp_result select_crtc_source_v2(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params)
-{
-	enum bp_result result = BP_RESULT_FAILURE;
-	SELECT_CRTC_SOURCE_PARAMETERS_V2 params;
-	uint8_t atom_controller_id;
-	uint32_t atom_engine_id;
-	enum signal_type s = bp_params->signal;
-
-	memset(&params, 0, sizeof(params));
-
-	/* set controller id */
-	if (bp->cmd_helper->controller_id_to_atom(
-			bp_params->controller_id, &atom_controller_id))
-		params.ucCRTC = atom_controller_id;
-	else
-		return BP_RESULT_FAILURE;
-
-	/* set encoder id */
-	if (bp->cmd_helper->engine_bp_to_atom(
-			bp_params->engine_id, &atom_engine_id))
-		params.ucEncoderID = (uint8_t)atom_engine_id;
-	else
-		return BP_RESULT_FAILURE;
-
-	if (SIGNAL_TYPE_EDP == s ||
-			(SIGNAL_TYPE_DISPLAY_PORT == s &&
-					SIGNAL_TYPE_LVDS == bp_params->sink_signal))
-		s = SIGNAL_TYPE_LVDS;
-
-	params.ucEncodeMode =
-			(uint8_t)bp->cmd_helper->encoder_mode_bp_to_atom(
-					s, bp_params->enable_dp_audio);
-
-	if (EXEC_BIOS_CMD_TABLE(SelectCRTC_Source, params))
-		result = BP_RESULT_OK;
-
-	return result;
-}
-
-static enum bp_result select_crtc_source_v3(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params)
-{
-	bool result = BP_RESULT_FAILURE;
-	SELECT_CRTC_SOURCE_PARAMETERS_V3 params;
-	uint8_t atom_controller_id;
-	uint32_t atom_engine_id;
-	enum signal_type s = bp_params->signal;
-
-	memset(&params, 0, sizeof(params));
-
-	if (bp->cmd_helper->controller_id_to_atom(bp_params->controller_id,
-			&atom_controller_id))
-		params.ucCRTC = atom_controller_id;
-	else
-		return result;
-
-	if (bp->cmd_helper->engine_bp_to_atom(bp_params->engine_id,
-			&atom_engine_id))
-		params.ucEncoderID = (uint8_t)atom_engine_id;
-	else
-		return result;
-
-	if (SIGNAL_TYPE_EDP == s ||
-			(SIGNAL_TYPE_DISPLAY_PORT == s &&
-					SIGNAL_TYPE_LVDS == bp_params->sink_signal))
-		s = SIGNAL_TYPE_LVDS;
-
-	params.ucEncodeMode =
-			bp->cmd_helper->encoder_mode_bp_to_atom(
-					s, bp_params->enable_dp_audio);
-	/* Needed for VBIOS Random Spatial Dithering feature */
-	params.ucDstBpc = (uint8_t)(bp_params->display_output_bit_depth);
-
-	if (EXEC_BIOS_CMD_TABLE(SelectCRTC_Source, params))
 		result = BP_RESULT_OK;
 
 	return result;

@@ -614,52 +614,6 @@ dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	return true;
 }
 
-static enum dc_status bios_parser_crtc_source_select(
-		struct pipe_ctx *pipe_ctx)
-{
-	struct dc_bios *dcb = pipe_ctx->stream->ctx->dc_bios;
-	/* call VBIOS table to set CRTC source for the HW
-	 * encoder block
-	 * note: video bios clears all FMT setting here. */
-	struct bp_crtc_source_select crtc_source_select = {0};
-
-	crtc_source_select.engine_id = pipe_ctx->stream_res.stream_enc->id;
-	crtc_source_select.controller_id = pipe_ctx->stream_res.tg->inst + 1;
-	/*TODO: Need to un-hardcode color depth, dp_audio and account for
-	 * the case where signal and sink signal is different (translator
-	 * encoder)*/
-	crtc_source_select.signal = pipe_ctx->stream->signal;
-	crtc_source_select.enable_dp_audio = false;
-	crtc_source_select.sink_signal = pipe_ctx->stream->signal;
-
-	switch (pipe_ctx->stream->timing.display_color_depth) {
-	case COLOR_DEPTH_666:
-		crtc_source_select.display_output_bit_depth = PANEL_6BIT_COLOR;
-		break;
-	case COLOR_DEPTH_888:
-		crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
-		break;
-	case COLOR_DEPTH_101010:
-		crtc_source_select.display_output_bit_depth = PANEL_10BIT_COLOR;
-		break;
-	case COLOR_DEPTH_121212:
-		crtc_source_select.display_output_bit_depth = PANEL_12BIT_COLOR;
-		break;
-	default:
-		BREAK_TO_DEBUGGER();
-		crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
-		break;
-	}
-
-	if (BP_RESULT_OK != dcb->funcs->crtc_source_select(
-		dcb,
-		&crtc_source_select)) {
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	return DC_OK;
-}
-
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 {
 	bool is_hdmi;
@@ -1387,12 +1341,10 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	/*  */
 	dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
 
-	/* TODO: move to stream encoder */
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
-		if (DC_OK != bios_parser_crtc_source_select(pipe_ctx)) {
-			BREAK_TO_DEBUGGER();
-			return DC_ERROR_UNEXPECTED;
-		}
+		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
+			pipe_ctx->stream_res.stream_enc,
+			pipe_ctx->stream_res.tg->inst);
 
 	pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
 			pipe_ctx->stream_res.opp,
