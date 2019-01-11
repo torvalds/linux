@@ -262,6 +262,7 @@ struct pptable_funcs {
 	int (*print_clk_levels)(struct smu_context *smu, enum pp_clock_type type, char *buf);
 	int (*force_clk_levels)(struct smu_context *smu, enum pp_clock_type type, uint32_t mask);
 	int (*set_default_od8_settings)(struct smu_context *smu);
+	int (*get_od_percentage)(struct smu_context *smu, enum pp_clock_type type);
 	int (*get_clock_by_type_with_latency)(struct smu_context *smu,
 					      enum amd_pp_clock_type type,
 					      struct
@@ -424,6 +425,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->print_clk_levels ? (smu)->ppt_funcs->print_clk_levels((smu), (type), (buf)) : 0)
 #define smu_force_clk_levels(smu, type, level) \
 	((smu)->ppt_funcs->force_clk_levels ? (smu)->ppt_funcs->force_clk_levels((smu), (type), (level)) : 0)
+#define smu_get_od_percentage(smu, type) \
+	((smu)->ppt_funcs->get_od_percentage ? (smu)->ppt_funcs->get_od_percentage((smu), (type)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \

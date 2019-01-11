@@ -1120,6 +1120,42 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_get_od_percentage(struct smu_context *smu,
+				    enum pp_clock_type type)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct vega20_dpm_table *dpm_table = NULL;
+	struct vega20_dpm_table *golden_table = NULL;
+	struct vega20_single_dpm_table *single_dpm_table;
+	struct vega20_single_dpm_table *golden_dpm_table;
+	int value, golden_value;
+
+	dpm_table = smu_dpm->dpm_context;
+	golden_table = smu_dpm->golden_dpm_context;
+
+	switch (type) {
+	case OD_SCLK:
+		single_dpm_table = &(dpm_table->gfx_table);
+		golden_dpm_table = &(golden_table->gfx_table);
+		break;
+	case OD_MCLK:
+		single_dpm_table = &(dpm_table->mem_table);
+		golden_dpm_table = &(golden_table->mem_table);
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
+	value = single_dpm_table->dpm_levels[single_dpm_table->count - 1].value;
+	golden_value = golden_dpm_table->dpm_levels[golden_dpm_table->count - 1].value;
+
+	value -= golden_value;
+	value = DIV_ROUND_UP(value * 100, golden_value);
+
+	return value;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -1134,6 +1170,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.force_clk_levels = vega20_force_clk_levels,
 	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
 	.set_default_od8_settings = vega20_set_default_od8_setttings,
+	.get_od_percentage = vega20_get_od_percentage,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

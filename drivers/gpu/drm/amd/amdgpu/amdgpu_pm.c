@@ -1016,7 +1016,9 @@ static ssize_t amdgpu_get_pp_sclk_od(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	uint32_t value = 0;
 
-	if (adev->powerplay.pp_funcs->get_sclk_od)
+	if (is_support_sw_smu(adev))
+		value = smu_get_od_percentage(&(adev->smu), OD_SCLK);
+	else if (adev->powerplay.pp_funcs->get_sclk_od)
 		value = amdgpu_dpm_get_sclk_od(adev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
@@ -1060,7 +1062,9 @@ static ssize_t amdgpu_get_pp_mclk_od(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	uint32_t value = 0;
 
-	if (adev->powerplay.pp_funcs->get_mclk_od)
+	if (is_support_sw_smu(adev))
+		value = smu_get_od_percentage(&(adev->smu), OD_MCLK);
+	else if (adev->powerplay.pp_funcs->get_mclk_od)
 		value = amdgpu_dpm_get_mclk_od(adev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
