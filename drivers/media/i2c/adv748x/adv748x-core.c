@@ -631,7 +631,7 @@ static int adv748x_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	state = kzalloc(sizeof(struct adv748x_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
@@ -729,7 +729,6 @@ err_cleanup_dt:
 	adv748x_dt_cleanup(state);
 err_free_mutex:
 	mutex_destroy(&state->mutex);
-	kfree(state);
 
 	return ret;
 }
@@ -747,8 +746,6 @@ static int adv748x_remove(struct i2c_client *client)
 	adv748x_unregister_clients(state);
 	adv748x_dt_cleanup(state);
 	mutex_destroy(&state->mutex);
-
-	kfree(state);
 
 	return 0;
 }
