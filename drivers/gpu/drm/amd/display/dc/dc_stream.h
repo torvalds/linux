@@ -45,6 +45,11 @@ struct freesync_context {
 	bool dummy;
 };
 
+struct vline_config {
+	unsigned int start_line;
+	unsigned int end_line;
+};
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
@@ -85,8 +90,6 @@ struct dc_stream_state {
 	uint8_t qs_bit;
 	uint8_t qy_bit;
 
-	unsigned long long periodic_fn_vsync_delta;
-
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
 	/* PSR info */
@@ -95,6 +98,9 @@ struct dc_stream_state {
 
 	/* DMCU info */
 	unsigned int abm_level;
+
+	struct vline_config vline0_config;
+	struct vline_config vline1_config;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -143,7 +149,9 @@ struct dc_stream_update {
 	struct dc_info_packet *hdr_static_metadata;
 	unsigned int *abm_level;
 
-	unsigned long long *periodic_fn_vsync_delta;
+	struct vline_config *vline0_config;
+	struct vline_config *vline1_config;
+
 	struct dc_crtc_timing_adjust *adjust;
 	struct dc_info_packet *vrr_infopacket;
 	struct dc_info_packet *vsc_infopacket;

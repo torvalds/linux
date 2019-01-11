@@ -134,6 +134,15 @@ struct dc_crtc_timing;
 
 struct drr_params;
 
+struct vline_config;
+
+
+enum vline_select {
+	VLINE0,
+	VLINE1,
+	VLINE2
+};
+
 struct timing_generator_funcs {
 	bool (*validate_timing)(struct timing_generator *tg,
 							const struct dc_crtc_timing *timing);
@@ -141,8 +150,8 @@ struct timing_generator_funcs {
 							const struct dc_crtc_timing *timing,
 							bool use_vbios);
 	void (*program_vline_interrupt)(struct timing_generator *optc,
-			const struct dc_crtc_timing *dc_crtc_timing,
-			unsigned long long vsync_delta);
+			enum vline_select vline,
+			struct vline_config vline_config);
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);
