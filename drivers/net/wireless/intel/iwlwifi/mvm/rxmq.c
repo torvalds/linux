@@ -1093,7 +1093,6 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 	case IWL_RX_PHY_INFO_TYPE_HE_TB:
 		/* HE common */
 		he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
-					 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN |
 					 IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN |
 					 IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN);
 		he->data2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
@@ -1113,9 +1112,6 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 		he->data3 |= le16_encode_bits(le32_get_bits(phy_data->d0,
 							    IWL_RX_PHY_DATA0_HE_LDPC_EXT_SYM),
 					      IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG);
-		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d0,
-							    IWL_RX_PHY_DATA0_HE_SPATIAL_REUSE_MASK),
-					      IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE);
 		he->data5 |= le16_encode_bits(le32_get_bits(phy_data->d0,
 							    IWL_RX_PHY_DATA0_HE_PRE_FEC_PAD_MASK),
 					      IEEE80211_RADIOTAP_HE_DATA5_PRE_FEC_PAD);
@@ -1131,6 +1127,20 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 		he->data6 |= le16_encode_bits(le32_get_bits(phy_data->d0,
 							    IWL_RX_PHY_DATA0_HE_DOPPLER),
 					      IEEE80211_RADIOTAP_HE_DATA6_DOPPLER);
+		break;
+	}
+
+	switch (phy_data->info_type) {
+	case IWL_RX_PHY_INFO_TYPE_HE_MU_EXT:
+	case IWL_RX_PHY_INFO_TYPE_HE_MU:
+	case IWL_RX_PHY_INFO_TYPE_HE_SU:
+		he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN);
+		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d0,
+							    IWL_RX_PHY_DATA0_HE_SPATIAL_REUSE_MASK),
+					      IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE);
+		break;
+	default:
+		/* nothing here */
 		break;
 	}
 
