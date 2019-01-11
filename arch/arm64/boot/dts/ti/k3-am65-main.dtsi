@@ -6,6 +6,26 @@
  */
 
 &cbass_main {
+	msmc_ram: sram@70000000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x70000000 0x0 0x200000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x70000000 0x200000>;
+
+		atf-sram@0 {
+			reg = <0x0 0x20000>;
+		};
+
+		sysfw-sram@f0000 {
+			reg = <0xf0000 0x10000>;
+		};
+
+		l3cache-sram@100000 {
+			reg = <0x100000 0x100000>;
+		};
+	};
+
 	gic500: interrupt-controller@1800000 {
 		compatible = "arm,gic-v3";
 		#address-cells = <2>;
