@@ -456,3 +456,5 @@
 525	common	pkey_alloc			sys_pkey_alloc
 526	common	pkey_free			sys_pkey_free
 527	common	rseq				sys_rseq
+528	common	statfs64			sys_statfs64
+529	common	fstatfs64			sys_fstatfs64
