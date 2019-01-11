@@ -241,8 +241,10 @@ static int smu_v11_0_read_pptable_from_vbios(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	smu->smu_table.power_play_table = table;
-	smu->smu_table.power_play_table_size = size;
+	if (!smu->smu_table.power_play_table)
+		smu->smu_table.power_play_table = table;
+	if (!smu->smu_table.power_play_table_size)
+		smu->smu_table.power_play_table_size = size;
 
 	return 0;
 }

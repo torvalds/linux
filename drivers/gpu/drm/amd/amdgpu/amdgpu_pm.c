@@ -464,7 +464,12 @@ static ssize_t amdgpu_get_pp_table(struct device *dev,
 	char *table = NULL;
 	int size;
 
-	if (adev->powerplay.pp_funcs->get_pp_table)
+	if (is_support_sw_smu(adev)) {
+		size = smu_sys_get_pp_table(&adev->smu, (void **)&table);
+		if (size < 0)
+			return size;
+	}
+	else if (adev->powerplay.pp_funcs->get_pp_table)
 		size = amdgpu_dpm_get_pp_table(adev, &table);
 	else
 		return 0;
@@ -484,8 +489,13 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
+	int ret = 0;
 
-	if (adev->powerplay.pp_funcs->set_pp_table)
+	if (is_support_sw_smu(adev)) {
+		ret = smu_sys_set_pp_table(&adev->smu, (void *)buf, count);
+		if (ret)
+			return ret;
+	} else if (adev->powerplay.pp_funcs->set_pp_table)
 		amdgpu_dpm_set_pp_table(adev, buf, count);
 
 	return count;

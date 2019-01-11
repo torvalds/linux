@@ -76,6 +76,54 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	return false;
 }
 
+int smu_sys_get_pp_table(struct smu_context *smu, void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	if (!smu_table->power_play_table && !smu_table->hardcode_pptable)
+		return -EINVAL;
+
+	if (smu_table->hardcode_pptable)
+		*table = smu_table->hardcode_pptable;
+	else
+		*table = smu_table->power_play_table;
+
+	return smu_table->power_play_table_size;
+}
+
+int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	ATOM_COMMON_TABLE_HEADER *header = (ATOM_COMMON_TABLE_HEADER *)buf;
+	int ret = 0;
+
+	if (header->usStructureSize != size) {
+		pr_err("pp table size not matched !\n");
+		return -EIO;
+	}
+
+	mutex_lock(&smu->mutex);
+	if (!smu_table->hardcode_pptable)
+		smu_table->hardcode_pptable = kzalloc(size, GFP_KERNEL);
+	if (!smu_table->hardcode_pptable) {
+		ret = -ENOMEM;
+		goto failed;
+	}
+
+	memcpy(smu_table->hardcode_pptable, buf, size);
+	smu_table->power_play_table = smu_table->hardcode_pptable;
+	smu_table->power_play_table_size = size;
+	mutex_unlock(&smu->mutex);
+
+	ret = smu_reset(smu);
+	if (ret)
+		pr_info("smu reset failed, ret = %d\n", ret);
+
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
+}
+
 int smu_feature_init_dpm(struct smu_context *smu)
 {
 	struct smu_feature *feature = &smu->smu_feature;
@@ -328,7 +376,7 @@ static int smu_fini_fb_allocations(struct smu_context *smu)
 	uint32_t i = 0;
 
 	if (table_count == 0 || tables == NULL)
-		return -EINVAL;
+		return 0;
 
 	for (i = 0 ; i < table_count; i++) {
 		if (tables[i].size == 0)
@@ -590,9 +638,10 @@ static int smu_hw_fini(void *handle)
 	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
-	if (!table_context->driver_pptable)
-		return -EINVAL;
-	kfree(table_context->driver_pptable);
+	if (table_context->driver_pptable) {
+		kfree(table_context->driver_pptable);
+		table_context->driver_pptable = NULL;
+	}
 
 	if (table_context->max_sustainable_clocks) {
 		kfree(table_context->max_sustainable_clocks);
@@ -608,6 +657,22 @@ static int smu_hw_fini(void *handle)
 		return ret;
 
 	return 0;
+}
+
+int smu_reset(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	ret = smu_hw_fini(adev);
+	if (ret)
+		return ret;
+
+	ret = smu_hw_init(adev);
+	if (ret)
+		return ret;
+
+	return ret;
 }
 
 static int smu_suspend(void *handle)
