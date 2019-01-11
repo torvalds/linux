@@ -683,6 +683,31 @@ static inline int snd_pcm_substream_proc_done(struct snd_pcm_substream *substrea
 
 static const struct attribute_group *pcm_dev_attr_groups[];
 
+/*
+ * PM callbacks: we need to deal only with suspend here, as the resume is
+ * triggered either from user-space or the driver's resume callback
+ */
+#ifdef CONFIG_PM_SLEEP
+static int do_pcm_suspend(struct device *dev)
+{
+	struct snd_pcm_str *pstr = container_of(dev, struct snd_pcm_str, dev);
+
+	if (!pstr->pcm->no_device_suspend)
+		snd_pcm_suspend_all(pstr->pcm);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops pcm_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(do_pcm_suspend, NULL)
+};
+
+/* device type for PCM -- basically only for passing PM callbacks */
+static const struct device_type pcm_dev_type = {
+	.name = "pcm",
+	.pm = &pcm_dev_pm_ops,
+};
+
 /**
  * snd_pcm_new_stream - create a new PCM stream
  * @pcm: the pcm instance
@@ -713,6 +738,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 
 	snd_device_initialize(&pstr->dev, pcm->card);
 	pstr->dev.groups = pcm_dev_attr_groups;
+	pstr->dev.type = &pcm_dev_type;
 	dev_set_name(&pstr->dev, "pcmC%iD%i%c", pcm->card->number, pcm->device,
 		     stream == SNDRV_PCM_STREAM_PLAYBACK ? 'p' : 'c');
 
