@@ -34,48 +34,47 @@ static struct drm_bridge_funcs funcs = {
 
 static int lvds_encoder_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct device_node *port;
 	struct device_node *endpoint;
 	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct lvds_encoder *lvds_encoder;
 
-	lvds_encoder = devm_kzalloc(&pdev->dev, sizeof(*lvds_encoder),
-				    GFP_KERNEL);
+	lvds_encoder = devm_kzalloc(dev, sizeof(*lvds_encoder), GFP_KERNEL);
 	if (!lvds_encoder)
 		return -ENOMEM;
 
 	/* Locate the panel DT node. */
-	port = of_graph_get_port_by_id(pdev->dev.of_node, 1);
+	port = of_graph_get_port_by_id(dev->of_node, 1);
 	if (!port) {
-		dev_dbg(&pdev->dev, "port 1 not found\n");
+		dev_dbg(dev, "port 1 not found\n");
 		return -ENXIO;
 	}
 
 	endpoint = of_get_child_by_name(port, "endpoint");
 	of_node_put(port);
 	if (!endpoint) {
-		dev_dbg(&pdev->dev, "no endpoint for port 1\n");
+		dev_dbg(dev, "no endpoint for port 1\n");
 		return -ENXIO;
 	}
 
 	panel_node = of_graph_get_remote_port_parent(endpoint);
 	of_node_put(endpoint);
 	if (!panel_node) {
-		dev_dbg(&pdev->dev, "no remote endpoint for port 1\n");
+		dev_dbg(dev, "no remote endpoint for port 1\n");
 		return -ENXIO;
 	}
 
 	panel = of_drm_find_panel(panel_node);
 	of_node_put(panel_node);
 	if (IS_ERR(panel)) {
-		dev_dbg(&pdev->dev, "panel not found, deferring probe\n");
+		dev_dbg(dev, "panel not found, deferring probe\n");
 		return PTR_ERR(panel);
 	}
 
 	lvds_encoder->panel_bridge =
-		devm_drm_panel_bridge_add(&pdev->dev,
-					  panel, DRM_MODE_CONNECTOR_LVDS);
+		devm_drm_panel_bridge_add(dev, panel, DRM_MODE_CONNECTOR_LVDS);
 	if (IS_ERR(lvds_encoder->panel_bridge))
 		return PTR_ERR(lvds_encoder->panel_bridge);
 
@@ -83,7 +82,7 @@ static int lvds_encoder_probe(struct platform_device *pdev)
 	 * but we need a bridge attached to our of_node for our user
 	 * to look up.
 	 */
-	lvds_encoder->bridge.of_node = pdev->dev.of_node;
+	lvds_encoder->bridge.of_node = dev->of_node;
 	lvds_encoder->bridge.funcs = &funcs;
 	drm_bridge_add(&lvds_encoder->bridge);
 
