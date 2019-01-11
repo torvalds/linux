@@ -1034,17 +1034,18 @@ static int snd_soc_init_platform(struct snd_soc_card *card,
 	 * this function should be removed in the future
 	 */
 	/* convert Legacy platform link */
-	if (!platform) {
+	if (!platform || dai_link->legacy_platform) {
 		platform = devm_kzalloc(card->dev,
 				sizeof(struct snd_soc_dai_link_component),
 				GFP_KERNEL);
 		if (!platform)
 			return -ENOMEM;
 
-		dai_link->platform	= platform;
-		platform->name		= dai_link->platform_name;
-		platform->of_node	= dai_link->platform_of_node;
-		platform->dai_name	= NULL;
+		dai_link->platform	  = platform;
+		dai_link->legacy_platform = 1;
+		platform->name		  = dai_link->platform_name;
+		platform->of_node	  = dai_link->platform_of_node;
+		platform->dai_name	  = NULL;
 	}
 
 	/* if there's no platform we match on the empty platform */
