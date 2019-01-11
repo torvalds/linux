@@ -696,14 +696,17 @@ nv50_msto_cleanup(struct nv50_msto *msto)
 	struct nv50_mstc *mstc = msto->mstc;
 	struct nv50_mstm *mstm = mstc->mstm;
 
+	if (!msto->disabled)
+		return;
+
 	NV_ATOMIC(drm, "%s: msto cleanup\n", msto->encoder.name);
-	if (mstc->port && mstc->port->vcpi.vcpi > 0 && !nv50_msto_payload(msto))
+
+	if (mstc->port)
 		drm_dp_mst_deallocate_vcpi(&mstm->mgr, mstc->port);
-	if (msto->disabled) {
-		msto->mstc = NULL;
-		msto->head = NULL;
-		msto->disabled = false;
-	}
+
+	msto->mstc = NULL;
+	msto->head = NULL;
+	msto->disabled = false;
 }
 
 static void
