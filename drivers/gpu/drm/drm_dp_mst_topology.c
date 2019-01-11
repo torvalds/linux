@@ -3641,7 +3641,7 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_mst_topology_state *mst_state)
 {
 	struct drm_dp_vcpi_allocation *vcpi;
-	int avail_slots = 63;
+	int avail_slots = 63, payload_count = 0;
 
 	list_for_each_entry(vcpi, &mst_state->vcpis, next) {
 		/* Releasing VCPI is always OK-even if the port is gone */
@@ -3660,6 +3660,12 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 					 vcpi->port, mst_state,
 					 avail_slots + vcpi->vcpi);
 			return -ENOSPC;
+		}
+
+		if (++payload_count > mgr->max_payloads) {
+			DRM_DEBUG_ATOMIC("[MST MGR:%p] state %p has too many payloads (max=%d)\n",
+					 mgr, mst_state, mgr->max_payloads);
+			return -EINVAL;
 		}
 	}
 	DRM_DEBUG_ATOMIC("[MST MGR:%p] mst state %p VCPI avail=%d used=%d\n",
