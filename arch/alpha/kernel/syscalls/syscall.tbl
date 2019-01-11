@@ -458,3 +458,6 @@
 527	common	rseq				sys_rseq
 528	common	statfs64			sys_statfs64
 529	common	fstatfs64			sys_fstatfs64
+530	common	getegid				sys_getegid
+531	common	geteuid				sys_geteuid
+532	common	getppid				sys_getppid
