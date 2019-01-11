@@ -263,6 +263,7 @@ struct smu_funcs
 	int (*start_thermal_control)(struct smu_context *smu);
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
+	int (*set_deep_sleep_dcefclk)(struct smu_context *smu, uint32_t clk);
 };
 
 #define smu_init_microcode(smu) \
@@ -358,6 +359,8 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
 #define smu_get_unallowed_feature_mask(smu, feature_mask, num) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_unallowed_feature_mask? (smu)->ppt_funcs->get_unallowed_feature_mask((smu), (feature_mask), (num)) : 0) : 0)
+#define smu_set_deep_sleep_dcefclk(smu, clk) \
+	((smu)->funcs->set_deep_sleep_dcefclk ? (smu)->funcs->set_deep_sleep_dcefclk((smu), (clk)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

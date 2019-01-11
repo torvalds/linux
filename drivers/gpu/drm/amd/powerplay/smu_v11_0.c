@@ -601,21 +601,27 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
+{
+	int ret;
+
+	ret = smu_send_smc_msg_with_param(smu,
+					  SMU_MSG_SetMinDeepSleepDcefclk, clk);
+	if (ret)
+		pr_err("SMU11 attempt to set divider for DCEFCLK Failed!");
+
+	return ret;
+}
+
 static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 {
-	int ret = 0;
 	struct smu_table_context *table_context = &smu->smu_table;
 
 	if (!table_context)
 		return -EINVAL;
 
-	ret = smu_send_smc_msg_with_param(smu,
-					  SMU_MSG_SetMinDeepSleepDcefclk,
+	return smu_set_deep_sleep_dcefclk(smu,
 					  table_context->boot_values.dcefclk / 100);
-	if (ret)
-		pr_err("SMU11 attempt to set divider for DCEFCLK Failed!");
-
-	return ret;
 }
 
 static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
@@ -1151,6 +1157,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.start_thermal_control = smu_v11_0_start_thermal_control,
 	.read_sensor = smu_v11_0_read_sensor,
+	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
