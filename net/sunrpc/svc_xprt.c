@@ -361,7 +361,7 @@ static void svc_xprt_release_slot(struct svc_rqst *rqstp)
 	}
 }
 
-static bool svc_xprt_has_something_to_do(struct svc_xprt *xprt)
+static bool svc_xprt_ready(struct svc_xprt *xprt)
 {
 	unsigned long xpt_flags;
 
@@ -385,7 +385,7 @@ void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 	struct svc_rqst	*rqstp = NULL;
 	int cpu;
 
-	if (!svc_xprt_has_something_to_do(xprt))
+	if (!svc_xprt_ready(xprt))
 		return;
 
 	/* Mark transport as busy. It will remain in this state until
