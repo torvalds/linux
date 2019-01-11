@@ -69,7 +69,13 @@ struct drm_device {
 	/** @driver: DRM driver managing the device */
 	struct drm_driver *driver;
 
-	/** @dev_private: DRM driver private data */
+	/**
+	 * @dev_private:
+	 *
+	 * DRM driver private data. Instead of using this pointer it is
+	 * recommended that drivers use drm_dev_init() and embed struct
+	 * &drm_device in their larger per-device structure.
+	 */
 	void *dev_private;
 
 	/** @primary: Primary node */
@@ -78,6 +84,11 @@ struct drm_device {
 	/** @render: Render node */
 	struct drm_minor *render;
 
+	/**
+	 * @registered:
+	 *
+	 * Internally used by drm_dev_register() and drm_connector_register().
+	 */
 	bool registered;
 
 	/**
@@ -134,16 +145,13 @@ struct drm_device {
 	 */
 	int open_count;
 
-	/** @buf_lock: Lock for &buf_use and a few other things. */
-	spinlock_t buf_lock;
-
-	/** @buf_use: Usage counter for buffers in use -- cannot alloc */
-	int buf_use;
-
-	/** @buf_alloc: Buffer allocation in progress */
-	atomic_t buf_alloc;
-
+	/** @filelist_mutex: Protects @filelist. */
 	struct mutex filelist_mutex;
+	/**
+	 * @filelist:
+	 *
+	 * List of userspace clients, linked through &drm_file.lhead.
+	 */
 	struct list_head filelist;
 
 	/**
@@ -168,46 +176,6 @@ struct drm_device {
 	 */
 	struct list_head clientlist;
 
-	/** @maplist: Memory management - linked list of regions */
-	struct list_head maplist;
-
-	/** @map_hash: Memory management - user token hash table for maps */
-	struct drm_open_hash map_hash;
-
-	/**
-	 * @ctxlist:
-	 * Context handle management - linked list of context handles
-	 */
-	struct list_head ctxlist;
-
-	/**
-	 * @ctxlist_mutex:
-	 *
-	 * Context handle management - mutex for &ctxlist
-	 */
-	struct mutex ctxlist_mutex;
-
-	/**
-	 * @ctx_idr:
-	 * Context handle management
-	 */
-	struct idr ctx_idr;
-
-	/**
-	 * @vmalist:
-	 * Context handle management - list of vmas (for debugging)
-	 */
-	struct list_head vmalist;
-
-	/** @dma: Optional pointer for DMA support */
-	struct drm_device_dma *dma;
-
-	/** @context_flag: Context swapping flag */
-	__volatile__ long context_flag;
-
-	/** @last_context: Last current context */
-	int last_context;
-
 	/**
 	 * @irq_enabled:
 	 *
@@ -216,6 +184,10 @@ struct drm_device {
 	 * to true manually.
 	 */
 	bool irq_enabled;
+
+	/**
+	 * @irq: Used by the drm_irq_install() and drm_irq_unistall() helpers.
+	 */
 	int irq;
 
 	/**
@@ -249,6 +221,10 @@ struct drm_device {
 	 *  Protects vblank count and time updates during vblank enable/disable
 	 */
 	spinlock_t vblank_time_lock;
+	/**
+	 * @vbl_lock: Top-level vblank references lock, wraps the low-level
+	 * @vblank_time_lock.
+	 */
 	spinlock_t vbl_lock;
 
 	/**
@@ -264,14 +240,19 @@ struct drm_device {
 	 * races and imprecision over longer time periods, hence exposing a
 	 * hardware vblank counter is always recommended.
 	 *
-	 * If non-zeor, &drm_crtc_funcs.get_vblank_counter must be set.
+	 * If non-zero, &drm_crtc_funcs.get_vblank_counter must be set.
 	 */
-
-	/** @max_vblank_count: Size of vblank counter register */
 	u32 max_vblank_count;
 
 	/** @vblank_event_list: List of vblank events */
 	struct list_head vblank_event_list;
+
+	/**
+	 * @event_lock:
+	 *
+	 * Protects @vblank_event_list and event delivery in
+	 * general. See drm_send_event() and drm_send_event_locked().
+	 */
 	spinlock_t event_lock;
 
 	/** @agp: AGP data */
@@ -281,22 +262,11 @@ struct drm_device {
 	struct pci_dev *pdev;
 
 #ifdef __alpha__
+	/** @hose: PCI hose, only used on ALPHA platforms. */
 	struct pci_controller *hose;
 #endif
-
-	/** @sg: Scatter gather memory */
-	struct drm_sg_mem *sg;
-
 	/** @num_crtcs: Number of CRTCs on this device */
 	unsigned int num_crtcs;
-
-	struct {
-		int context;
-		struct drm_hw_lock *lock;
-	} sigdata;
-
-	struct drm_local_map *agp_buffer_map;
-	unsigned int agp_buffer_token;
 
 	/** @mode_config: Current mode config */
 	struct drm_mode_config mode_config;
@@ -327,6 +297,56 @@ struct drm_device {
 	 * Set by drm_fb_helper_init() and cleared by drm_fb_helper_fini().
 	 */
 	struct drm_fb_helper *fb_helper;
+
+	/* Everything below here is for legacy driver, never use! */
+	/* private: */
+
+	/* Context handle management - linked list of context handles */
+	struct list_head ctxlist;
+
+	/* Context handle management - mutex for &ctxlist */
+	struct mutex ctxlist_mutex;
+
+	/* Context handle management */
+	struct idr ctx_idr;
+
+	/* Memory management - linked list of regions */
+	struct list_head maplist;
+
+	/* Memory management - user token hash table for maps */
+	struct drm_open_hash map_hash;
+
+	/* Context handle management - list of vmas (for debugging) */
+	struct list_head vmalist;
+
+	/* Optional pointer for DMA support */
+	struct drm_device_dma *dma;
+
+	/* Context swapping flag */
+	__volatile__ long context_flag;
+
+	/* Last current context */
+	int last_context;
+
+	/* Lock for &buf_use and a few other things. */
+	spinlock_t buf_lock;
+
+	/* Usage counter for buffers in use -- cannot alloc */
+	int buf_use;
+
+	/* Buffer allocation in progress */
+	atomic_t buf_alloc;
+
+	struct {
+		int context;
+		struct drm_hw_lock *lock;
+	} sigdata;
+
+	struct drm_local_map *agp_buffer_map;
+	unsigned int agp_buffer_token;
+
+	/* Scatter gather memory */
+	struct drm_sg_mem *sg;
 };
 
 #endif
