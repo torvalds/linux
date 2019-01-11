@@ -103,17 +103,14 @@ static struct ion_heap_ops carveout_heap_ops = {
 	.unmap_kernel = ion_heap_unmap_kernel,
 };
 
-struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
+struct ion_heap *ion_carveout_heap_create(phys_addr_t base, size_t size)
 {
 	struct ion_carveout_heap *carveout_heap;
 	int ret;
 
 	struct page *page;
-	size_t size;
 
-	page = pfn_to_page(PFN_DOWN(heap_data->base));
-	size = heap_data->size;
-
+	page = pfn_to_page(PFN_DOWN(base));
 	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
 	if (ret)
 		return ERR_PTR(ret);
@@ -127,9 +124,8 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 		kfree(carveout_heap);
 		return ERR_PTR(-ENOMEM);
 	}
-	carveout_heap->base = heap_data->base;
-	gen_pool_add(carveout_heap->pool, carveout_heap->base, heap_data->size,
-		     -1);
+	carveout_heap->base = base;
+	gen_pool_add(carveout_heap->pool, carveout_heap->base, size, -1);
 	carveout_heap->heap.ops = &carveout_heap_ops;
 	carveout_heap->heap.type = ION_HEAP_TYPE_CARVEOUT;
 	carveout_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;

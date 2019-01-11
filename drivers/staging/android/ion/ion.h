@@ -22,29 +22,6 @@
 #include "../uapi/ion.h"
 
 /**
- * struct ion_platform_heap - defines a heap in the given platform
- * @type:	type of the heap from ion_heap_type enum
- * @id:		unique identifier for heap.  When allocating higher numb ers
- *		will be allocated from first.  At allocation these are passed
- *		as a bit mask and therefore can not exceed ION_NUM_HEAP_IDS.
- * @name:	used for debug purposes
- * @base:	base address of heap in physical memory if applicable
- * @size:	size of the heap in bytes if applicable
- * @priv:	private info passed from the board file
- *
- * Provided by the board file.
- */
-struct ion_platform_heap {
-	enum ion_heap_type type;
-	unsigned int id;
-	const char *name;
-	phys_addr_t base;
-	size_t size;
-	phys_addr_t align;
-	void *priv;
-};
-
-/**
  * struct ion_buffer - metadata for a particular buffer
  * @ref:		reference count
  * @node:		node in the ion_device buffers tree
