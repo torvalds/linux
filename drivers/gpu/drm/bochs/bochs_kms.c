@@ -92,34 +92,22 @@ static int bochs_plane_prepare_fb(struct drm_plane *plane,
 				struct drm_plane_state *new_state)
 {
 	struct bochs_bo *bo;
-	int ret;
 
 	if (!new_state->fb)
 		return 0;
 	bo = gem_to_bochs_bo(new_state->fb->obj[0]);
-
-	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
-	if (ret)
-		return ret;
-	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
-	ttm_bo_unreserve(&bo->bo);
-	return ret;
+	return bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
 }
 
 static void bochs_plane_cleanup_fb(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
 	struct bochs_bo *bo;
-	int ret;
 
 	if (!old_state->fb)
 		return;
 	bo = gem_to_bochs_bo(old_state->fb->obj[0]);
-	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
-	if (ret)
-		return;
 	bochs_bo_unpin(bo);
-	ttm_bo_unreserve(&bo->bo);
 }
 
 static const struct drm_plane_helper_funcs bochs_plane_helper_funcs = {

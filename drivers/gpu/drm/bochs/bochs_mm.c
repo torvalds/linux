@@ -223,7 +223,11 @@ int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag)
 	bochs_ttm_placement(bo, pl_flag);
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
+	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
+	if (ret)
+		return ret;
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
+	ttm_bo_unreserve(&bo->bo);
 	if (ret)
 		return ret;
 
@@ -247,7 +251,11 @@ int bochs_bo_unpin(struct bochs_bo *bo)
 
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
+	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
+	if (ret)
+		return ret;
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
+	ttm_bo_unreserve(&bo->bo);
 	if (ret)
 		return ret;
 

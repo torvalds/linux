@@ -77,14 +77,9 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 
 	bo = gem_to_bochs_bo(gobj);
 
-	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
-	if (ret)
-		return ret;
-
 	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
 	if (ret) {
 		DRM_ERROR("failed to pin fbcon\n");
-		ttm_bo_unreserve(&bo->bo);
 		return ret;
 	}
 
@@ -92,11 +87,8 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 			  &bo->kmap);
 	if (ret) {
 		DRM_ERROR("failed to kmap fbcon\n");
-		ttm_bo_unreserve(&bo->bo);
 		return ret;
 	}
-
-	ttm_bo_unreserve(&bo->bo);
 
 	/* init fb device */
 	info = drm_fb_helper_alloc_fbi(helper);
