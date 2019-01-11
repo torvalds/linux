@@ -1899,7 +1899,7 @@ int usb_runtime_idle(struct device *dev)
 	return -EBUSY;
 }
 
-int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
+static int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 {
 	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
 	int ret = -EPERM;
@@ -1914,6 +1914,16 @@ int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 	}
 
 	return ret;
+}
+
+int usb_enable_usb2_hardware_lpm(struct usb_device *udev)
+{
+	return usb_set_usb2_hardware_lpm(udev, 1);
+}
+
+int usb_disable_usb2_hardware_lpm(struct usb_device *udev)
+{
+	return usb_set_usb2_hardware_lpm(udev, 0);
 }
 
 #endif /* CONFIG_PM */
