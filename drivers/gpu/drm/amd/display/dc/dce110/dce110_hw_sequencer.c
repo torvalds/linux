@@ -1557,7 +1557,6 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	int i;
 	struct dc_link *edp_link_to_turnoff = NULL;
 	struct dc_link *edp_link = get_link_for_edp(dc);
-	struct dc_bios *bios = dc->ctx->dc_bios;
 	bool can_edp_fast_boot_optimize = false;
 	bool apply_edp_fast_boot_optimization = false;
 
@@ -1584,20 +1583,6 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
 				context->streams[i]->apply_edp_fast_boot_optimization = true;
 				apply_edp_fast_boot_optimization = true;
-
-				/* When after S4 and S5, vbios may post edp and previous dpms_off
-				 * doesn't make sense.
-				 * Update dpms_off state to align hw and sw state via check
-				 * vBios scratch register.
-				 */
-				if (bios->funcs->is_active_display)	{
-					const struct connector_device_tag_info *device_tag = &(edp_link->device_tag);
-
-					if (bios->funcs->is_active_display(bios,
-							context->streams[i]->signal,
-							device_tag))
-						context->streams[i]->dpms_off = false;
-				}
 			}
 		}
 	}
