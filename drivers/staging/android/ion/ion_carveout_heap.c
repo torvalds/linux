@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Google, Inc.
  */
-#include <linux/spinlock.h>
+
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/genalloc.h>
@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
+
 #include "ion.h"
 
 #define ION_CARVEOUT_ALLOCATE_FAIL	-1

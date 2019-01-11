@@ -8,11 +8,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/genalloc.h>
-#include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
+
 #include "ion.h"
 
 struct ion_chunk_heap {

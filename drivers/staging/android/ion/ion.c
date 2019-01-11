@@ -5,7 +5,6 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/anon_inodes.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
@@ -14,10 +13,8 @@
 #include <linux/file.h>
 #include <linux/freezer.h>
 #include <linux/fs.h>
-#include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
-#include <linux/memblock.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
