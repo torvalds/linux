@@ -86,11 +86,11 @@ SECTIONS
 
 #ifdef CONFIG_PPC64
 	/*
-	 * BLOCK(0) overrides the default output section alignment because
+	 * ALIGN(0) overrides the default output section alignment because
 	 * this needs to start right after .head.text in order for fixed
 	 * section placement to work.
 	 */
-	.text BLOCK(0) : AT(ADDR(.text) - LOAD_OFFSET) {
+	.text ALIGN(0) : AT(ADDR(.text) - LOAD_OFFSET) {
 #ifdef CONFIG_LD_HEAD_STUB_CATCH
 		KEEP(*(.linker_stub_catch));
 		. = . ;
