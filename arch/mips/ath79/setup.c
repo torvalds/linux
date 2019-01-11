@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/of_fdt.h>
+#include <linux/irqchip.h>
 
 #include <asm/bootinfo.h>
 #include <asm/idle.h>
@@ -309,6 +310,11 @@ void __init plat_time_init(void)
 		ref_clk_rate / 1000000, (ref_clk_rate / 1000) % 1000);
 
 	mips_hpt_frequency = cpu_clk_rate / 2;
+}
+
+void __init arch_init_irq(void)
+{
+	irqchip_init();
 }
 
 static int __init ath79_setup(void)
