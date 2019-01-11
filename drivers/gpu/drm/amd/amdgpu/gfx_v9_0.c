@@ -4805,6 +4805,7 @@ static int gfx_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 		struct amdgpu_iv_entry *entry)
 {
 	/* TODO ue will trigger an interrupt. */
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 	amdgpu_ras_reset_gpu(adev, 0);
 	return AMDGPU_RAS_UE;
 }
