@@ -31,22 +31,10 @@ static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
 	return 0;
 }
 
-/* fix up the cases where the ioctl direction bits are incorrect */
-static unsigned int ion_ioctl_dir(unsigned int cmd)
-{
-	switch (cmd) {
-	default:
-		return _IOC_DIR(cmd);
-	}
-}
-
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	unsigned int dir;
 	union ion_ioctl_arg data;
-
-	dir = ion_ioctl_dir(cmd);
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
@@ -65,7 +53,7 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return ret;
 	}
 
-	if (!(dir & _IOC_WRITE))
+	if (!(_IOC_DIR(cmd) & _IOC_WRITE))
 		memset(&data, 0, sizeof(data));
 
 	switch (cmd) {
@@ -90,7 +78,7 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -ENOTTY;
 	}
 
-	if (dir & _IOC_READ) {
+	if (_IOC_DIR(cmd) & _IOC_READ) {
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 	}
