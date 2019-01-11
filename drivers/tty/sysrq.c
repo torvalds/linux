@@ -560,6 +560,7 @@ void __handle_sysrq(int key, bool check_mask)
 			op_p->handler(key);
 		} else {
 			pr_cont("This sysrq operation is disabled.\n");
+			console_loglevel = orig_log_level;
 		}
 	} else {
 		pr_cont("HELP : ");
