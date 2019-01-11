@@ -60,6 +60,10 @@ static int uverbs_response(struct uverbs_attr_bundle *attrs, const void *resp,
 {
 	int ret;
 
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CORE_OUT))
+		return uverbs_copy_to_struct_or_zero(
+			attrs, UVERBS_ATTR_CORE_OUT, resp, resp_len);
+
 	if (copy_to_user(attrs->ucore.outbuf, resp,
 			 min(attrs->ucore.outlen, resp_len)))
 		return -EFAULT;
@@ -1180,6 +1184,9 @@ static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs)
 		ret = -EFAULT;
 		goto out_put;
 	}
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CORE_OUT))
+		ret = uverbs_output_written(attrs, UVERBS_ATTR_CORE_OUT);
 
 	ret = 0;
 
