@@ -21,6 +21,7 @@
 static unsigned long byt_machine_id;
 
 #define BYT_THINKPAD_10  1
+#define BYT_POV_P1006W   2
 
 static int byt_thinkpad10_quirk_cb(const struct dmi_system_id *id)
 {
@@ -28,6 +29,11 @@ static int byt_thinkpad10_quirk_cb(const struct dmi_system_id *id)
 	return 1;
 }
 
+static int byt_pov_p1006w_quirk_cb(const struct dmi_system_id *id)
+{
+	byt_machine_id = BYT_POV_P1006W;
+	return 1;
+}
 
 static const struct dmi_system_id byt_table[] = {
 	{
@@ -58,6 +64,17 @@ static const struct dmi_system_id byt_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
 		},
 	},
+	{
+		/* Point of View mobii wintab p1006w (v1.0) */
+		.callback = byt_pov_p1006w_quirk_cb,
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
+			/* Note 105b is Foxcon's USB/PCI vendor id */
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
+		},
+	},
 	{ }
 };
 
@@ -71,16 +88,30 @@ static struct snd_soc_acpi_mach byt_thinkpad_10 = {
 	.asoc_plat_name = "sst-mfld-platform",
 };
 
+static struct snd_soc_acpi_mach byt_pov_p1006w = {
+	.id = "10EC5640",
+	.drv_name = "bytcr_rt5651",
+	.fw_filename = "intel/fw_sst_0f28.bin",
+	.board = "bytcr_rt5651",
+	.sof_fw_filename = "intel/sof-byt.ri",
+	.sof_tplg_filename = "intel/sof-byt-rt5651.tplg",
+	.asoc_plat_name = "sst-mfld-platform",
+};
+
 static struct snd_soc_acpi_mach *byt_quirk(void *arg)
 {
 	struct snd_soc_acpi_mach *mach = arg;
 
 	dmi_check_system(byt_table);
 
-	if (byt_machine_id == BYT_THINKPAD_10)
+	switch (byt_machine_id) {
+	case BYT_THINKPAD_10:
 		return &byt_thinkpad_10;
-	else
+	case BYT_POV_P1006W:
+		return &byt_pov_p1006w;
+	default:
 		return mach;
+	}
 }
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_baytrail_legacy_machines[] = {
@@ -152,6 +183,15 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.board = "bytcht_da7213",
 		.sof_fw_filename = "intel/sof-byt.ri",
 		.sof_tplg_filename = "intel/sof-byt-da7213.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
+	},
+	{
+		.id = "ESSX8316",
+		.drv_name = "bytcht_es8316",
+		.fw_filename = "intel/fw_sst_0f28.bin",
+		.board = "bytcht_es8316",
+		.sof_fw_filename = "intel/sof-byt.ri",
+		.sof_tplg_filename = "intel/sof-byt-es8316.tplg",
 		.asoc_plat_name = "sst-mfld-platform",
 	},
 	/* some Baytrail platforms rely on RT5645, use CHT machine driver */
