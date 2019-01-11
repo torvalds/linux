@@ -107,7 +107,19 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 		goto cleanup;
 	}
 
+	/* Optional object evaluation log */
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			      "%-26s:  (Definition Block level)\n",
+			      "Module-level evaluation"));
+
 	status = acpi_ps_execute_table(info);
+
+	/* Optional object evaluation log */
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			      "%-26s:  (Definition Block level)\n",
+			      "Module-level complete"));
 
 cleanup:
 	if (info) {

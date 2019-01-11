@@ -127,7 +127,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	else
 #endif
 		if (skb_vlan_tag_present(skb))
-			up = skb->vlan_tci >> VLAN_PRIO_SHIFT;
+			up = skb_vlan_tag_get_prio(skb);
 
 	/* channel_ix can be larger than num_channels since
 	 * dev->num_real_tx_queues = num_channels * num_tc
@@ -290,10 +290,9 @@ dma_unmap_wqe_err:
 
 static inline void mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq,
 					   struct mlx5_wq_cyc *wq,
-					   u16 pi, u16 frag_pi)
+					   u16 pi, u16 nnops)
 {
 	struct mlx5e_tx_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
-	u8 nnops = mlx5_wq_cyc_get_frag_size(wq) - frag_pi;
 
 	edge_wi = wi + nnops;
 
@@ -348,8 +347,8 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5e_tx_wqe_info *wi;
 
 	struct mlx5e_sq_stats *stats = sq->stats;
+	u16 headlen, ihs, contig_wqebbs_room;
 	u16 ds_cnt, ds_cnt_inl = 0;
-	u16 headlen, ihs, frag_pi;
 	u8 num_wqebbs, opcode;
 	u32 num_bytes;
 	int num_dma;
@@ -386,9 +385,9 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
-	frag_pi = mlx5_wq_cyc_ctr2fragix(wq, sq->pc);
-	if (unlikely(frag_pi + num_wqebbs > mlx5_wq_cyc_get_frag_size(wq))) {
-		mlx5e_fill_sq_frag_edge(sq, wq, pi, frag_pi);
+	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs_room < num_wqebbs)) {
+		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 		mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
 	}
 
@@ -460,9 +459,10 @@ static void mlx5e_dump_error_cqe(struct mlx5e_txqsq *sq,
 	u32 ci = mlx5_cqwq_get_ci(&sq->cq.wq);
 
 	netdev_err(sq->channel->netdev,
-		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
-		   sq->cq.mcq.cqn, ci, sq->sqn, err_cqe->syndrome,
-		   err_cqe->vendor_err_synd);
+		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
+		   sq->cq.mcq.cqn, ci, sq->sqn,
+		   get_cqe_opcode((struct mlx5_cqe64 *)err_cqe),
+		   err_cqe->syndrome, err_cqe->vendor_err_synd);
 	mlx5_dump_err_cqe(sq->cq.mdev, err_cqe);
 }
 
@@ -508,7 +508,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
-		if (unlikely(cqe->op_own >> 4 == MLX5_CQE_REQ_ERR)) {
+		if (unlikely(get_cqe_opcode(cqe) == MLX5_CQE_REQ_ERR)) {
 			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
 					      &sq->state)) {
 				mlx5e_dump_error_cqe(sq,
@@ -636,7 +636,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5e_tx_wqe_info *wi;
 
 	struct mlx5e_sq_stats *stats = sq->stats;
-	u16 headlen, ihs, pi, frag_pi;
+	u16 headlen, ihs, pi, contig_wqebbs_room;
 	u16 ds_cnt, ds_cnt_inl = 0;
 	u8 num_wqebbs, opcode;
 	u32 num_bytes;
@@ -672,13 +672,14 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
-	frag_pi = mlx5_wq_cyc_ctr2fragix(wq, sq->pc);
-	if (unlikely(frag_pi + num_wqebbs > mlx5_wq_cyc_get_frag_size(wq))) {
+	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs_room < num_wqebbs)) {
+		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-		mlx5e_fill_sq_frag_edge(sq, wq, pi, frag_pi);
 	}
 
-	mlx5i_sq_fetch_wqe(sq, &wqe, &pi);
+	mlx5i_sq_fetch_wqe(sq, &wqe, pi);
 
 	/* fill wqe */
 	wi       = &sq->db.wqe_info[pi];

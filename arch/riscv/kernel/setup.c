@@ -35,30 +35,8 @@
 #include <asm/sections.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
-#include <asm/sbi.h>
 #include <asm/tlbflush.h>
 #include <asm/thread_info.h>
-
-#ifdef CONFIG_EARLY_PRINTK
-static void sbi_console_write(struct console *co, const char *buf,
-			      unsigned int n)
-{
-	int i;
-
-	for (i = 0; i < n; ++i) {
-		if (buf[i] == '\n')
-			sbi_console_putchar('\r');
-		sbi_console_putchar(buf[i]);
-	}
-}
-
-struct console riscv_sbi_early_console_dev __initdata = {
-	.name	= "early",
-	.write	= sbi_console_write,
-	.flags	= CON_PRINTBUFFER | CON_BOOT | CON_ANYTIME,
-	.index	= -1
-};
-#endif
 
 #ifdef CONFIG_DUMMY_CONSOLE
 struct screen_info screen_info = {
@@ -81,18 +59,21 @@ EXPORT_SYMBOL(empty_zero_page);
 
 /* The lucky hart to first increment this variable will boot the other cores */
 atomic_t hart_lottery;
+unsigned long boot_cpu_hartid;
+
+unsigned long __cpuid_to_hartid_map[NR_CPUS] = {
+	[0 ... NR_CPUS-1] = INVALID_HARTID
+};
+
+void __init smp_setup_processor_id(void)
+{
+	cpuid_to_hartid_map(0) = boot_cpu_hartid;
+}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 static void __init setup_initrd(void)
 {
-	extern char __initramfs_start[];
-	extern unsigned long __initramfs_size;
 	unsigned long size;
-
-	if (__initramfs_size > 0) {
-		initrd_start = (unsigned long)(&__initramfs_start);
-		initrd_end = initrd_start + __initramfs_size;
-	}
 
 	if (initrd_start >= initrd_end) {
 		printk(KERN_INFO "initrd not found or empty");
@@ -193,7 +174,7 @@ static void __init setup_bootmem(void)
 	BUG_ON(mem_size == 0);
 
 	set_max_mapnr(PFN_DOWN(mem_size));
-	max_low_pfn = pfn_base + PFN_DOWN(mem_size);
+	max_low_pfn = memblock_end_of_DRAM();
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	setup_initrd();
@@ -216,12 +197,6 @@ static void __init setup_bootmem(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-#if defined(CONFIG_EARLY_PRINTK)
-       if (likely(early_console == NULL)) {
-               early_console = &riscv_sbi_early_console_dev;
-               register_console(early_console);
-       }
-#endif
 	*cmdline_p = boot_command_line;
 
 	parse_early_param();
@@ -234,7 +209,10 @@ void __init setup_arch(char **cmdline_p)
 	setup_bootmem();
 	paging_init();
 	unflatten_device_tree();
+
+#ifdef CONFIG_SWIOTLB
 	swiotlb_init(1);
+#endif
 
 #ifdef CONFIG_SMP
 	setup_smp();

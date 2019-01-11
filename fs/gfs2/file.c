@@ -314,6 +314,17 @@ static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 	return do_gfs2_set_flags(filp, gfsflags, mask);
 }
 
+static int gfs2_getlabel(struct file *filp, char __user *label)
+{
+	struct inode *inode = file_inode(filp);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+
+	if (copy_to_user(label, sdp->sd_sb.sb_locktable, GFS2_LOCKNAME_LEN))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	switch(cmd) {
@@ -323,7 +334,10 @@ static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return gfs2_set_flags(filp, (u32 __user *)arg);
 	case FITRIM:
 		return gfs2_fitrim(filp, (void __user *)arg);
+	case FS_IOC_GETFSLABEL:
+		return gfs2_getlabel(filp, (char __user *)arg);
 	}
+
 	return -ENOTTY;
 }
 
@@ -347,8 +361,8 @@ static void gfs2_size_hint(struct file *filep, loff_t offset, size_t size)
 	size_t blks = (size + sdp->sd_sb.sb_bsize - 1) >> sdp->sd_sb.sb_bsize_shift;
 	int hint = min_t(size_t, INT_MAX, blks);
 
-	if (hint > atomic_read(&ip->i_res.rs_sizehint))
-		atomic_set(&ip->i_res.rs_sizehint, hint);
+	if (hint > atomic_read(&ip->i_sizehint))
+		atomic_set(&ip->i_sizehint, hint);
 }
 
 /**
@@ -1185,13 +1199,13 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	mutex_lock(&fp->f_fl_mutex);
 
 	if (gfs2_holder_initialized(fl_gh)) {
+		struct file_lock request;
 		if (fl_gh->gh_state == state)
 			goto out;
-		locks_lock_file_wait(file,
-				     &(struct file_lock) {
-					     .fl_type = F_UNLCK,
-					     .fl_flags = FL_FLOCK
-				     });
+		locks_init_lock(&request);
+		request.fl_type = F_UNLCK;
+		request.fl_flags = FL_FLOCK;
+		locks_lock_file_wait(file, &request);
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_reinit(state, flags, fl_gh);
 	} else {

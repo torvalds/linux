@@ -38,6 +38,7 @@ show up in /proc/sys/kernel:
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
+- hung_task_check_interval_secs
 - hung_task_warnings
 - hyperv_record_panic_msg
 - kexec_load_disabled
@@ -59,6 +60,7 @@ show up in /proc/sys/kernel:
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
 - panic_on_warn
+- panic_print
 - panic_on_rcu_stall
 - perf_cpu_time_max_percent
 - perf_event_paranoid
@@ -88,6 +90,7 @@ show up in /proc/sys/kernel:
 - shmmni
 - softlockup_all_cpu_backtrace
 - soft_watchdog
+- stack_erasing
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/admin-guide/sysrq.rst
 - sysctl_writes_strict
@@ -355,11 +358,23 @@ This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 hung_task_timeout_secs:
 
-Check interval. When a task in D state did not get scheduled
+When a task in D state did not get scheduled
 for more than this value report a warning.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 0: means infinite timeout - no checking done.
+Possible values to set are in range {0..LONG_MAX/HZ}.
+
+==============================================================
+
+hung_task_check_interval_secs:
+
+Hung task check interval. If hung task checking is enabled
+(see hung_task_timeout_secs), the check is done every
+hung_task_check_interval_secs seconds.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0 (default): means use hung_task_timeout_secs as checking interval.
 Possible values to set are in range {0..LONG_MAX/HZ}.
 
 ==============================================================
@@ -451,7 +466,8 @@ Notes:
 1) kernel doesn't guarantee, that new object will have desired id. So,
 it's up to userspace, how to handle an object with "wrong" id.
 2) Toggle with non-default value will be set back to -1 by kernel after
-successful IPC object allocation.
+successful IPC object allocation. If an IPC object allocation syscall
+fails, it is undefined if the value remains unmodified or is reset to -1.
 
 ==============================================================
 
@@ -636,6 +652,22 @@ a kernel rebuild when attempting to kdump at the location of a WARN().
 0: only WARN(), default behaviour.
 
 1: call panic() after printing out WARN() location.
+
+==============================================================
+
+panic_print:
+
+Bitmask for printing system info when panic happens. User can chose
+combination of the following bits:
+
+bit 0: print all tasks info
+bit 1: print system memory info
+bit 2: print timer info
+bit 3: print locks info if CONFIG_LOCKDEP is on
+bit 4: print ftrace buffer
+
+So for example to print tasks and memory info on panic, user can:
+  echo 3 > /proc/sys/kernel/panic_print
 
 ==============================================================
 
@@ -970,6 +1002,23 @@ from running. The mechanism depends on the CPUs ability to respond to timer
 interrupts which are needed for the 'watchdog/N' threads to be woken up by
 the watchdog timer function, otherwise the NMI watchdog - if enabled - can
 detect a hard lockup condition.
+
+==============================================================
+
+stack_erasing
+
+This parameter can be used to control kernel stack erasing at the end
+of syscalls for kernels built with CONFIG_GCC_PLUGIN_STACKLEAK.
+
+That erasing reduces the information which kernel stack leak bugs
+can reveal and blocks some uninitialized stack variable attacks.
+The tradeoff is the performance impact: on a single CPU system kernel
+compilation sees a 1% slowdown, other systems and workloads may vary.
+
+  0: kernel stack erasing is disabled, STACKLEAK_METRICS are not updated.
+
+  1: kernel stack erasing is enabled (default), it is performed before
+     returning to the userspace at the end of syscalls.
 
 ==============================================================
 

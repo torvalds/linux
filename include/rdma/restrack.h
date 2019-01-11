@@ -39,6 +39,10 @@ enum rdma_restrack_type {
 	 */
 	RDMA_RESTRACK_MR,
 	/**
+	 * @RDMA_RESTRACK_CTX: Verbs contexts (CTX)
+	 */
+	RDMA_RESTRACK_CTX,
+	/**
 	 * @RDMA_RESTRACK_MAX: Last entry, used for array dclarations
 	 */
 	RDMA_RESTRACK_MAX
@@ -112,6 +116,10 @@ struct rdma_restrack_entry {
 	 * @type: various objects in restrack database
 	 */
 	enum rdma_restrack_type	type;
+	/**
+	 * @user: user resource
+	 */
+	bool			user;
 };
 
 /**
@@ -136,11 +144,8 @@ int rdma_restrack_count(struct rdma_restrack_root *res,
 			enum rdma_restrack_type type,
 			struct pid_namespace *ns);
 
-/**
- * rdma_restrack_add() - add object to the reource tracking database
- * @res:  resource entry
- */
-void rdma_restrack_add(struct rdma_restrack_entry *res);
+void rdma_restrack_kadd(struct rdma_restrack_entry *res);
+void rdma_restrack_uadd(struct rdma_restrack_entry *res);
 
 /**
  * rdma_restrack_del() - delete object from the reource tracking database
@@ -155,7 +160,7 @@ void rdma_restrack_del(struct rdma_restrack_entry *res);
  */
 static inline bool rdma_is_kernel_res(struct rdma_restrack_entry *res)
 {
-	return !res->task;
+	return !res->user;
 }
 
 /**
@@ -173,16 +178,10 @@ int rdma_restrack_put(struct rdma_restrack_entry *res);
 /**
  * rdma_restrack_set_task() - set the task for this resource
  * @res:  resource entry
- * @task: task struct
+ * @caller: kernel name, the current task will be used if the caller is NULL.
  */
-static inline void rdma_restrack_set_task(struct rdma_restrack_entry *res,
-					  struct task_struct *task)
-{
-	if (res->task)
-		put_task_struct(res->task);
-	get_task_struct(task);
-	res->task = task;
-}
+void rdma_restrack_set_task(struct rdma_restrack_entry *res,
+			    const char *caller);
 
 /*
  * Helper functions for rdma drivers when filling out

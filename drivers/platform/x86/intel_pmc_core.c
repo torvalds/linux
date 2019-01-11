@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Core SoC Power Management Controller Driver
  *
@@ -6,21 +7,12 @@
  *
  * Authors: Rajneesh Bhardwaj <rajneesh.bhardwaj@intel.com>
  *          Vishwanath Somayaji <vishwanath.somayaji@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -110,10 +102,35 @@ static const struct pmc_bit_map spt_pfear_map[] = {
 	{},
 };
 
+static const struct pmc_bit_map spt_ltr_show_map[] = {
+	{"SOUTHPORT_A",		SPT_PMC_LTR_SPA},
+	{"SOUTHPORT_B",		SPT_PMC_LTR_SPB},
+	{"SATA",		SPT_PMC_LTR_SATA},
+	{"GIGABIT_ETHERNET",	SPT_PMC_LTR_GBE},
+	{"XHCI",		SPT_PMC_LTR_XHCI},
+	{"ME",			SPT_PMC_LTR_ME},
+	/* EVA is Enterprise Value Add, doesn't really exist on PCH */
+	{"EVA",			SPT_PMC_LTR_EVA},
+	{"SOUTHPORT_C",		SPT_PMC_LTR_SPC},
+	{"HD_AUDIO",		SPT_PMC_LTR_AZ},
+	{"LPSS",		SPT_PMC_LTR_LPSS},
+	{"SOUTHPORT_D",		SPT_PMC_LTR_SPD},
+	{"SOUTHPORT_E",		SPT_PMC_LTR_SPE},
+	{"CAMERA",		SPT_PMC_LTR_CAM},
+	{"ESPI",		SPT_PMC_LTR_ESPI},
+	{"SCC",			SPT_PMC_LTR_SCC},
+	{"ISH",			SPT_PMC_LTR_ISH},
+	/* Below two cannot be used for LTR_IGNORE */
+	{"CURRENT_PLATFORM",	SPT_PMC_LTR_CUR_PLT},
+	{"AGGREGATED_SYSTEM",	SPT_PMC_LTR_CUR_ASLT},
+	{}
+};
+
 static const struct pmc_reg_map spt_reg_map = {
 	.pfear_sts = spt_pfear_map,
 	.mphy_sts = spt_mphy_map,
 	.pll_sts = spt_pll_map,
+	.ltr_show_sts = spt_ltr_show_map,
 	.slp_s0_offset = SPT_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.ltr_ignore_offset = SPT_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = SPT_PMC_MMIO_REG_LEN,
@@ -121,6 +138,7 @@ static const struct pmc_reg_map spt_reg_map = {
 	.ppfear_buckets = SPT_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = SPT_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = SPT_PMC_READ_DISABLE_BIT,
+	.ltr_ignore_max = SPT_NUM_IP_IGN_ALLOWED,
 };
 
 /* Cannonlake: PGD PFET Enable Ack Status Register(s) bitmap */
@@ -196,15 +214,102 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{}
 };
 
+static const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
+	{"AUDIO_D3",		BIT(0)},
+	{"OTG_D3",		BIT(1)},
+	{"XHCI_D3",		BIT(2)},
+	{"LPIO_D3",		BIT(3)},
+	{"SDX_D3",		BIT(4)},
+	{"SATA_D3",		BIT(5)},
+	{"UFS0_D3",		BIT(6)},
+	{"UFS1_D3",		BIT(7)},
+	{"EMMC_D3",		BIT(8)},
+	{}
+};
+
+static const struct pmc_bit_map cnp_slps0_dbg1_map[] = {
+	{"SDIO_PLL_OFF",	BIT(0)},
+	{"USB2_PLL_OFF",	BIT(1)},
+	{"AUDIO_PLL_OFF",	BIT(2)},
+	{"OC_PLL_OFF",		BIT(3)},
+	{"MAIN_PLL_OFF",	BIT(4)},
+	{"XOSC_OFF",		BIT(5)},
+	{"LPC_CLKS_GATED",	BIT(6)},
+	{"PCIE_CLKREQS_IDLE",	BIT(7)},
+	{"AUDIO_ROSC_OFF",	BIT(8)},
+	{"HPET_XOSC_CLK_REQ",	BIT(9)},
+	{"PMC_ROSC_SLOW_CLK",	BIT(10)},
+	{"AON2_ROSC_GATED",	BIT(11)},
+	{"CLKACKS_DEASSERTED",	BIT(12)},
+	{}
+};
+
+static const struct pmc_bit_map cnp_slps0_dbg2_map[] = {
+	{"MPHY_CORE_GATED",	BIT(0)},
+	{"CSME_GATED",		BIT(1)},
+	{"USB2_SUS_GATED",	BIT(2)},
+	{"DYN_FLEX_IO_IDLE",	BIT(3)},
+	{"GBE_NO_LINK",		BIT(4)},
+	{"THERM_SEN_DISABLED",	BIT(5)},
+	{"PCIE_LOW_POWER",	BIT(6)},
+	{"ISH_VNNAON_REQ_ACT",	BIT(7)},
+	{"ISH_VNN_REQ_ACT",	BIT(8)},
+	{"CNV_VNNAON_REQ_ACT",	BIT(9)},
+	{"CNV_VNN_REQ_ACT",	BIT(10)},
+	{"NPK_VNNON_REQ_ACT",	BIT(11)},
+	{"PMSYNC_STATE_IDLE",	BIT(12)},
+	{"ALST_GT_THRES",	BIT(13)},
+	{"PMC_ARC_PG_READY",	BIT(14)},
+	{}
+};
+
+static const struct pmc_bit_map *cnp_slps0_dbg_maps[] = {
+	cnp_slps0_dbg0_map,
+	cnp_slps0_dbg1_map,
+	cnp_slps0_dbg2_map,
+	NULL,
+};
+
+static const struct pmc_bit_map cnp_ltr_show_map[] = {
+	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
+	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
+	{"SATA",		CNP_PMC_LTR_SATA},
+	{"GIGABIT_ETHERNET",	CNP_PMC_LTR_GBE},
+	{"XHCI",		CNP_PMC_LTR_XHCI},
+	{"ME",			CNP_PMC_LTR_ME},
+	/* EVA is Enterprise Value Add, doesn't really exist on PCH */
+	{"EVA",			CNP_PMC_LTR_EVA},
+	{"SOUTHPORT_C",		CNP_PMC_LTR_SPC},
+	{"HD_AUDIO",		CNP_PMC_LTR_AZ},
+	{"CNV",			CNP_PMC_LTR_CNV},
+	{"LPSS",		CNP_PMC_LTR_LPSS},
+	{"SOUTHPORT_D",		CNP_PMC_LTR_SPD},
+	{"SOUTHPORT_E",		CNP_PMC_LTR_SPE},
+	{"CAMERA",		CNP_PMC_LTR_CAM},
+	{"ESPI",		CNP_PMC_LTR_ESPI},
+	{"SCC",			CNP_PMC_LTR_SCC},
+	{"ISH",			CNP_PMC_LTR_ISH},
+	{"UFSX2",		CNP_PMC_LTR_UFSX2},
+	{"EMMC",		CNP_PMC_LTR_EMMC},
+	/* Below two cannot be used for LTR_IGNORE */
+	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
+	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
+	{}
+};
+
 static const struct pmc_reg_map cnp_reg_map = {
 	.pfear_sts = cnp_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slps0_dbg_maps = cnp_slps0_dbg_maps,
+	.ltr_show_sts = cnp_ltr_show_map,
+	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
 	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = CNP_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.ppfear_buckets = CNP_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
+	.ltr_ignore_max = CNP_NUM_IP_IGN_ALLOWED,
 };
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
@@ -252,6 +357,8 @@ static int pmc_core_check_read_lock_bit(void)
 }
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
+static bool slps0_dbg_latch;
+
 static void pmc_core_display_map(struct seq_file *s, int index,
 				 u8 pf_reg, const struct pmc_bit_map *pf_map)
 {
@@ -260,7 +367,7 @@ static void pmc_core_display_map(struct seq_file *s, int index,
 		   pf_map[index].bit_mask & pf_reg ? "Off" : "On");
 }
 
-static int pmc_core_ppfear_sts_show(struct seq_file *s, void *unused)
+static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
 	const struct pmc_bit_map *map = pmcdev->map->pfear_sts;
@@ -278,18 +385,7 @@ static int pmc_core_ppfear_sts_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int pmc_core_ppfear_sts_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_core_ppfear_sts_show, inode->i_private);
-}
-
-static const struct file_operations pmc_core_ppfear_ops = {
-	.open           = pmc_core_ppfear_sts_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pmc_core_ppfear);
 
 /* This function should return link status, 0 means ready */
 static int pmc_core_mtpmc_link_status(void)
@@ -321,7 +417,7 @@ static int pmc_core_send_msg(u32 *addr_xram)
 	return 0;
 }
 
-static int pmc_core_mphy_pg_sts_show(struct seq_file *s, void *unused)
+static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
 	const struct pmc_bit_map *map = pmcdev->map->mphy_sts;
@@ -373,18 +469,7 @@ out_unlock:
 	mutex_unlock(&pmcdev->lock);
 	return err;
 }
-
-static int pmc_core_mphy_pg_sts_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_core_mphy_pg_sts_show, inode->i_private);
-}
-
-static const struct file_operations pmc_core_mphy_pg_ops = {
-	.open           = pmc_core_mphy_pg_sts_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pmc_core_mphy_pg);
 
 static int pmc_core_pll_show(struct seq_file *s, void *unused)
 {
@@ -420,18 +505,7 @@ out_unlock:
 	mutex_unlock(&pmcdev->lock);
 	return err;
 }
-
-static int pmc_core_pll_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_core_pll_show, inode->i_private);
-}
-
-static const struct file_operations pmc_core_pll_ops = {
-	.open           = pmc_core_pll_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
 static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
 *userbuf, size_t count, loff_t *ppos)
@@ -449,7 +523,7 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
 		goto out_unlock;
 	}
 
-	if (val > NUM_IP_IGN_ALLOWED) {
+	if (val > map->ltr_ignore_max) {
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -481,6 +555,128 @@ static const struct file_operations pmc_core_ltr_ignore_ops = {
 	.release        = single_release,
 };
 
+static void pmc_core_slps0_dbg_latch(struct pmc_dev *pmcdev, bool reset)
+{
+	const struct pmc_reg_map *map = pmcdev->map;
+	u32 fd;
+
+	mutex_lock(&pmcdev->lock);
+
+	if (!reset && !slps0_dbg_latch)
+		goto out_unlock;
+
+	fd = pmc_core_reg_read(pmcdev, map->slps0_dbg_offset);
+	if (reset)
+		fd &= ~CNP_PMC_LATCH_SLPS0_EVENTS;
+	else
+		fd |= CNP_PMC_LATCH_SLPS0_EVENTS;
+	pmc_core_reg_write(pmcdev, map->slps0_dbg_offset, fd);
+
+	slps0_dbg_latch = 0;
+
+out_unlock:
+	mutex_unlock(&pmcdev->lock);
+}
+
+static int pmc_core_slps0_dbg_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map **maps = pmcdev->map->slps0_dbg_maps;
+	const struct pmc_bit_map *map;
+	int offset;
+	u32 data;
+
+	pmc_core_slps0_dbg_latch(pmcdev, false);
+	offset = pmcdev->map->slps0_dbg_offset;
+	while (*maps) {
+		map = *maps;
+		data = pmc_core_reg_read(pmcdev, offset);
+		offset += 4;
+		while (map->name) {
+			seq_printf(s, "SLP_S0_DBG: %-32s\tState: %s\n",
+				   map->name,
+				   data & map->bit_mask ?
+				   "Yes" : "No");
+			++map;
+		}
+		++maps;
+	}
+	pmc_core_slps0_dbg_latch(pmcdev, true);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_slps0_dbg);
+
+static u32 convert_ltr_scale(u32 val)
+{
+	/*
+	 * As per PCIE specification supporting document
+	 * ECN_LatencyTolnReporting_14Aug08.pdf the Latency
+	 * Tolerance Reporting data payload is encoded in a
+	 * 3 bit scale and 10 bit value fields. Values are
+	 * multiplied by the indicated scale to yield an absolute time
+	 * value, expressible in a range from 1 nanosecond to
+	 * 2^25*(2^10-1) = 34,326,183,936 nanoseconds.
+	 *
+	 * scale encoding is as follows:
+	 *
+	 * ----------------------------------------------
+	 * |scale factor	|	Multiplier (ns)	|
+	 * ----------------------------------------------
+	 * |	0		|	1		|
+	 * |	1		|	32		|
+	 * |	2		|	1024		|
+	 * |	3		|	32768		|
+	 * |	4		|	1048576		|
+	 * |	5		|	33554432	|
+	 * |	6		|	Invalid		|
+	 * |	7		|	Invalid		|
+	 * ----------------------------------------------
+	 */
+	if (val > 5) {
+		pr_warn("Invalid LTR scale factor.\n");
+		return 0;
+	}
+
+	return 1U << (5 * val);
+}
+
+static int pmc_core_ltr_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map *map = pmcdev->map->ltr_show_sts;
+	u64 decoded_snoop_ltr, decoded_non_snoop_ltr;
+	u32 ltr_raw_data, scale, val;
+	u16 snoop_ltr, nonsnoop_ltr;
+	int index;
+
+	for (index = 0; map[index].name ; index++) {
+		decoded_snoop_ltr = decoded_non_snoop_ltr = 0;
+		ltr_raw_data = pmc_core_reg_read(pmcdev,
+						 map[index].bit_mask);
+		snoop_ltr = ltr_raw_data & ~MTPMC_MASK;
+		nonsnoop_ltr = (ltr_raw_data >> 0x10) & ~MTPMC_MASK;
+
+		if (FIELD_GET(LTR_REQ_NONSNOOP, ltr_raw_data)) {
+			scale = FIELD_GET(LTR_DECODED_SCALE, nonsnoop_ltr);
+			val = FIELD_GET(LTR_DECODED_VAL, nonsnoop_ltr);
+			decoded_non_snoop_ltr = val * convert_ltr_scale(scale);
+		}
+
+		if (FIELD_GET(LTR_REQ_SNOOP, ltr_raw_data)) {
+			scale = FIELD_GET(LTR_DECODED_SCALE, snoop_ltr);
+			val = FIELD_GET(LTR_DECODED_VAL, snoop_ltr);
+			decoded_snoop_ltr = val * convert_ltr_scale(scale);
+		}
+
+		seq_printf(s, "%-32s\tLTR: RAW: 0x%-16x\tNon-Snoop(ns): %-16llu\tSnoop(ns): %-16llu\n",
+			   map[index].name, ltr_raw_data,
+			   decoded_non_snoop_ltr,
+			   decoded_snoop_ltr);
+	}
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
+
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
@@ -500,19 +696,30 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 			    &pmc_core_dev_state);
 
 	debugfs_create_file("pch_ip_power_gating_status", 0444, dir, pmcdev,
-			    &pmc_core_ppfear_ops);
+			    &pmc_core_ppfear_fops);
 
 	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
 			    &pmc_core_ltr_ignore_ops);
 
+	debugfs_create_file("ltr_show", 0644, dir, pmcdev, &pmc_core_ltr_fops);
+
 	if (pmcdev->map->pll_sts)
 		debugfs_create_file("pll_status", 0444, dir, pmcdev,
-				    &pmc_core_pll_ops);
+				    &pmc_core_pll_fops);
 
 	if (pmcdev->map->mphy_sts)
 		debugfs_create_file("mphy_core_lanes_power_gating_status",
 				    0444, dir, pmcdev,
-				    &pmc_core_mphy_pg_ops);
+				    &pmc_core_mphy_pg_fops);
+
+	if (pmcdev->map->slps0_dbg_maps) {
+		debugfs_create_file("slp_s0_debug_status", 0444,
+				    dir, pmcdev,
+				    &pmc_core_slps0_dbg_fops);
+
+		debugfs_create_bool("slp_s0_dbg_latch", 0644,
+				    dir, &slps0_dbg_latch);
+	}
 
 	return 0;
 }

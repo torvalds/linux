@@ -196,7 +196,7 @@ config RCU_BOOST
 	  This option boosts the priority of preempted RCU readers that
 	  block the current preemptible RCU grace period for too long.
 	  This option also prevents heavy loads from blocking RCU
-	  callback invocation for all flavors of RCU.
+	  callback invocation.
 
 	  Say Y here if you are working with real-time apps or heavy loads
 	  Say N here if you are unsure.
@@ -225,12 +225,12 @@ config RCU_NOCB_CPU
 	  callback invocation to energy-efficient CPUs in battery-powered
 	  asymmetric multiprocessors.
 
-	  This option offloads callback invocation from the set of
-	  CPUs specified at boot time by the rcu_nocbs parameter.
-	  For each such CPU, a kthread ("rcuox/N") will be created to
-	  invoke callbacks, where the "N" is the CPU being offloaded,
-	  and where the "x" is "b" for RCU-bh, "p" for RCU-preempt, and
-	  "s" for RCU-sched.  Nothing prevents this kthread from running
+	  This option offloads callback invocation from the set of CPUs
+	  specified at boot time by the rcu_nocbs parameter.  For each
+	  such CPU, a kthread ("rcuox/N") will be created to invoke
+	  callbacks, where the "N" is the CPU being offloaded, and where
+	  the "p" for RCU-preempt (PREEMPT kernels) and "s" for RCU-sched
+	  (!PREEMPT kernels).  Nothing prevents this kthread from running
 	  on the specified CPUs, but (1) the kthreads may be preempted
 	  between each callback, and (2) affinity or cgroups can be used
 	  to force the kthreads to run on whatever set of CPUs is desired.

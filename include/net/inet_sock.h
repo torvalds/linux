@@ -130,10 +130,25 @@ static inline int inet_request_bound_dev_if(const struct sock *sk,
 	return sk->sk_bound_dev_if;
 }
 
-static inline struct ip_options_rcu *ireq_opt_deref(const struct inet_request_sock *ireq)
+static inline int inet_sk_bound_l3mdev(const struct sock *sk)
 {
-	return rcu_dereference_check(ireq->ireq_opt,
-				     refcount_read(&ireq->req.rsk_refcnt) > 0);
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	struct net *net = sock_net(sk);
+
+	if (!net->ipv4.sysctl_tcp_l3mdev_accept)
+		return l3mdev_master_ifindex_by_index(net,
+						      sk->sk_bound_dev_if);
+#endif
+
+	return 0;
+}
+
+static inline bool inet_bound_dev_eq(bool l3mdev_accept, int bound_dev_if,
+				     int dif, int sdif)
+{
+	if (!bound_dev_if)
+		return !sdif || l3mdev_accept;
+	return bound_dev_if == dif || bound_dev_if == sdif;
 }
 
 struct inet_cork {

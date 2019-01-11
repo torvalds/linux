@@ -29,6 +29,8 @@
 #include "xfs_ag_resv.h"
 #include "xfs_trans_space.h"
 #include "xfs_quota.h"
+#include "xfs_attr.h"
+#include "xfs_reflink.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -195,8 +197,8 @@ xrep_calc_ag_resblks(
 	struct xfs_scrub_metadata	*sm = sc->sm;
 	struct xfs_perag		*pag;
 	struct xfs_buf			*bp;
-	xfs_agino_t			icount = 0;
-	xfs_extlen_t			aglen = 0;
+	xfs_agino_t			icount = NULLAGINO;
+	xfs_extlen_t			aglen = NULLAGBLOCK;
 	xfs_extlen_t			usedlen;
 	xfs_extlen_t			freelen;
 	xfs_extlen_t			bnobt_sz;
@@ -208,20 +210,14 @@ xrep_calc_ag_resblks(
 	if (!(sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
 		return 0;
 
-	/* Use in-core counters if possible. */
 	pag = xfs_perag_get(mp, sm->sm_agno);
-	if (pag->pagi_init)
+	if (pag->pagi_init) {
+		/* Use in-core icount if possible. */
 		icount = pag->pagi_count;
-
-	/*
-	 * Otherwise try to get the actual counters from disk; if not, make
-	 * some worst case assumptions.
-	 */
-	if (icount == 0) {
+	} else {
+		/* Try to get the actual counters from disk. */
 		error = xfs_ialloc_read_agi(mp, NULL, sm->sm_agno, &bp);
-		if (error) {
-			icount = mp->m_sb.sb_agblocks / mp->m_sb.sb_inopblock;
-		} else {
+		if (!error) {
 			icount = pag->pagi_count;
 			xfs_buf_relse(bp);
 		}
@@ -229,17 +225,31 @@ xrep_calc_ag_resblks(
 
 	/* Now grab the block counters from the AGF. */
 	error = xfs_alloc_read_agf(mp, NULL, sm->sm_agno, 0, &bp);
-	if (error) {
-		aglen = mp->m_sb.sb_agblocks;
-		freelen = aglen;
-		usedlen = aglen;
-	} else {
+	if (!error) {
 		aglen = be32_to_cpu(XFS_BUF_TO_AGF(bp)->agf_length);
-		freelen = pag->pagf_freeblks;
+		freelen = be32_to_cpu(XFS_BUF_TO_AGF(bp)->agf_freeblks);
 		usedlen = aglen - freelen;
 		xfs_buf_relse(bp);
 	}
 	xfs_perag_put(pag);
+
+	/* If the icount is impossible, make some worst-case assumptions. */
+	if (icount == NULLAGINO ||
+	    !xfs_verify_agino(mp, sm->sm_agno, icount)) {
+		xfs_agino_t	first, last;
+
+		xfs_agino_range(mp, sm->sm_agno, &first, &last);
+		icount = last - first + 1;
+	}
+
+	/* If the block counts are impossible, make worst-case assumptions. */
+	if (aglen == NULLAGBLOCK ||
+	    aglen != xfs_ag_block_count(mp, sm->sm_agno) ||
+	    freelen >= aglen) {
+		aglen = xfs_ag_block_count(mp, sm->sm_agno);
+		freelen = aglen;
+		usedlen = aglen;
+	}
 
 	trace_xrep_calc_ag_resblks(mp, sm->sm_agno, icount, aglen,
 			freelen, usedlen);
@@ -289,14 +299,14 @@ xrep_calc_ag_resblks(
 /* Allocate a block in an AG. */
 int
 xrep_alloc_ag_block(
-	struct xfs_scrub	*sc,
-	struct xfs_owner_info	*oinfo,
-	xfs_fsblock_t		*fsbno,
-	enum xfs_ag_resv_type	resv)
+	struct xfs_scrub		*sc,
+	const struct xfs_owner_info	*oinfo,
+	xfs_fsblock_t			*fsbno,
+	enum xfs_ag_resv_type		resv)
 {
-	struct xfs_alloc_arg	args = {0};
-	xfs_agblock_t		bno;
-	int			error;
+	struct xfs_alloc_arg		args = {0};
+	xfs_agblock_t			bno;
+	int				error;
 
 	switch (resv) {
 	case XFS_AG_RESV_AGFL:
@@ -495,7 +505,6 @@ xrep_put_freelist(
 	struct xfs_scrub	*sc,
 	xfs_agblock_t		agbno)
 {
-	struct xfs_owner_info	oinfo;
 	int			error;
 
 	/* Make sure there's space on the freelist. */
@@ -508,9 +517,8 @@ xrep_put_freelist(
 	 * create an rmap for the block prior to merging it or else other
 	 * parts will break.
 	 */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 	error = xfs_rmap_alloc(sc->tp, sc->sa.agf_bp, sc->sa.agno, agbno, 1,
-			&oinfo);
+			&XFS_RMAP_OINFO_AG);
 	if (error)
 		return error;
 
@@ -528,17 +536,17 @@ xrep_put_freelist(
 /* Dispose of a single block. */
 STATIC int
 xrep_reap_block(
-	struct xfs_scrub	*sc,
-	xfs_fsblock_t		fsbno,
-	struct xfs_owner_info	*oinfo,
-	enum xfs_ag_resv_type	resv)
+	struct xfs_scrub		*sc,
+	xfs_fsblock_t			fsbno,
+	const struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type		resv)
 {
-	struct xfs_btree_cur	*cur;
-	struct xfs_buf		*agf_bp = NULL;
-	xfs_agnumber_t		agno;
-	xfs_agblock_t		agbno;
-	bool			has_other_rmap;
-	int			error;
+	struct xfs_btree_cur		*cur;
+	struct xfs_buf			*agf_bp = NULL;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	bool				has_other_rmap;
+	int				error;
 
 	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
@@ -602,15 +610,15 @@ out_free:
 /* Dispose of every block of every extent in the bitmap. */
 int
 xrep_reap_extents(
-	struct xfs_scrub	*sc,
-	struct xfs_bitmap	*bitmap,
-	struct xfs_owner_info	*oinfo,
-	enum xfs_ag_resv_type	type)
+	struct xfs_scrub		*sc,
+	struct xfs_bitmap		*bitmap,
+	const struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type		type)
 {
-	struct xfs_bitmap_range	*bmr;
-	struct xfs_bitmap_range	*n;
-	xfs_fsblock_t		fsbno;
-	int			error = 0;
+	struct xfs_bitmap_range		*bmr;
+	struct xfs_bitmap_range		*n;
+	xfs_fsblock_t			fsbno;
+	int				error = 0;
 
 	ASSERT(xfs_sb_version_hasrmapbt(&sc->mp->m_sb));
 
@@ -684,13 +692,14 @@ xrep_findroot_block(
 	struct xrep_find_ag_btree	*fab,
 	uint64_t			owner,
 	xfs_agblock_t			agbno,
-	bool				*found_it)
+	bool				*done_with_block)
 {
 	struct xfs_mount		*mp = ri->sc->mp;
 	struct xfs_buf			*bp;
 	struct xfs_btree_block		*btblock;
 	xfs_daddr_t			daddr;
-	int				error;
+	int				block_level;
+	int				error = 0;
 
 	daddr = XFS_AGB_TO_DADDR(mp, ri->sc->sa.agno, agbno);
 
@@ -709,36 +718,111 @@ xrep_findroot_block(
 			return error;
 	}
 
+	/*
+	 * Read the buffer into memory so that we can see if it's a match for
+	 * our btree type.  We have no clue if it is beforehand, and we want to
+	 * avoid xfs_trans_read_buf's behavior of dumping the DONE state (which
+	 * will cause needless disk reads in subsequent calls to this function)
+	 * and logging metadata verifier failures.
+	 *
+	 * Therefore, pass in NULL buffer ops.  If the buffer was already in
+	 * memory from some other caller it will already have b_ops assigned.
+	 * If it was in memory from a previous unsuccessful findroot_block
+	 * call, the buffer won't have b_ops but it should be clean and ready
+	 * for us to try to verify if the read call succeeds.  The same applies
+	 * if the buffer wasn't in memory at all.
+	 *
+	 * Note: If we never match a btree type with this buffer, it will be
+	 * left in memory with NULL b_ops.  This shouldn't be a problem unless
+	 * the buffer gets written.
+	 */
 	error = xfs_trans_read_buf(mp, ri->sc->tp, mp->m_ddev_targp, daddr,
 			mp->m_bsize, 0, &bp, NULL);
 	if (error)
 		return error;
 
-	/*
-	 * Does this look like a block matching our fs and higher than any
-	 * other block we've found so far?  If so, reattach buffer verifiers
-	 * so the AIL won't complain if the buffer is also dirty.
-	 */
+	/* Ensure the block magic matches the btree type we're looking for. */
 	btblock = XFS_BUF_TO_BLOCK(bp);
 	if (be32_to_cpu(btblock->bb_magic) != fab->magic)
 		goto out;
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
-	    !uuid_equal(&btblock->bb_u.s.bb_uuid, &mp->m_sb.sb_meta_uuid))
-		goto out;
-	bp->b_ops = fab->buf_ops;
 
-	/* Ignore this block if it's lower in the tree than we've seen. */
-	if (fab->root != NULLAGBLOCK &&
-	    xfs_btree_get_level(btblock) < fab->height)
-		goto out;
+	/*
+	 * If the buffer already has ops applied and they're not the ones for
+	 * this btree type, we know this block doesn't match the btree and we
+	 * can bail out.
+	 *
+	 * If the buffer ops match ours, someone else has already validated
+	 * the block for us, so we can move on to checking if this is a root
+	 * block candidate.
+	 *
+	 * If the buffer does not have ops, nobody has successfully validated
+	 * the contents and the buffer cannot be dirty.  If the magic, uuid,
+	 * and structure match this btree type then we'll move on to checking
+	 * if it's a root block candidate.  If there is no match, bail out.
+	 */
+	if (bp->b_ops) {
+		if (bp->b_ops != fab->buf_ops)
+			goto out;
+	} else {
+		ASSERT(!xfs_trans_buf_is_dirty(bp));
+		if (!uuid_equal(&btblock->bb_u.s.bb_uuid,
+				&mp->m_sb.sb_meta_uuid))
+			goto out;
+		fab->buf_ops->verify_read(bp);
+		if (bp->b_error) {
+			bp->b_error = 0;
+			goto out;
+		}
 
-	/* Make sure we pass the verifiers. */
-	bp->b_ops->verify_read(bp);
-	if (bp->b_error)
+		/*
+		 * Some read verifiers will (re)set b_ops, so we must be
+		 * careful not to blow away any such assignment.
+		 */
+		if (!bp->b_ops)
+			bp->b_ops = fab->buf_ops;
+	}
+
+	/*
+	 * This block passes the magic/uuid and verifier tests for this btree
+	 * type.  We don't need the caller to try the other tree types.
+	 */
+	*done_with_block = true;
+
+	/*
+	 * Compare this btree block's level to the height of the current
+	 * candidate root block.
+	 *
+	 * If the level matches the root we found previously, throw away both
+	 * blocks because there can't be two candidate roots.
+	 *
+	 * If level is lower in the tree than the root we found previously,
+	 * ignore this block.
+	 */
+	block_level = xfs_btree_get_level(btblock);
+	if (block_level + 1 == fab->height) {
+		fab->root = NULLAGBLOCK;
 		goto out;
-	fab->root = agbno;
-	fab->height = xfs_btree_get_level(btblock) + 1;
-	*found_it = true;
+	} else if (block_level < fab->height) {
+		goto out;
+	}
+
+	/*
+	 * This is the highest block in the tree that we've found so far.
+	 * Update the btree height to reflect what we've learned from this
+	 * block.
+	 */
+	fab->height = block_level + 1;
+
+	/*
+	 * If this block doesn't have sibling pointers, then it's the new root
+	 * block candidate.  Otherwise, the root will be found farther up the
+	 * tree.
+	 */
+	if (btblock->bb_u.s.bb_leftsib == cpu_to_be32(NULLAGBLOCK) &&
+	    btblock->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK))
+		fab->root = agbno;
+	else
+		fab->root = NULLAGBLOCK;
 
 	trace_xrep_findroot_block(mp, ri->sc->sa.agno, agbno,
 			be32_to_cpu(btblock->bb_magic), fab->height - 1);
@@ -760,7 +844,7 @@ xrep_findroot_rmap(
 	struct xrep_findroot		*ri = priv;
 	struct xrep_find_ag_btree	*fab;
 	xfs_agblock_t			b;
-	bool				found_it;
+	bool				done;
 	int				error = 0;
 
 	/* Ignore anything that isn't AG metadata. */
@@ -769,16 +853,16 @@ xrep_findroot_rmap(
 
 	/* Otherwise scan each block + btree type. */
 	for (b = 0; b < rec->rm_blockcount; b++) {
-		found_it = false;
+		done = false;
 		for (fab = ri->btree_info; fab->buf_ops; fab++) {
 			if (rec->rm_owner != fab->rmap_owner)
 				continue;
 			error = xrep_findroot_block(ri, fab,
 					rec->rm_owner, rec->rm_startblock + b,
-					&found_it);
+					&done);
 			if (error)
 				return error;
-			if (found_it)
+			if (done)
 				break;
 		}
 	}

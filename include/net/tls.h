@@ -39,9 +39,11 @@
 #include <linux/crypto.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
+#include <linux/skmsg.h>
+
 #include <net/tcp.h>
 #include <net/strparser.h>
-
+#include <crypto/aead.h>
 #include <uapi/linux/tls.h>
 
 
@@ -74,6 +76,10 @@
  *
  * void (*unhash)(struct tls_device *device, struct sock *sk);
  *     This function cleans listen state set by Inline TLS driver
+ *
+ * void (*release)(struct kref *kref);
+ *     Release the registered device and allocated resources
+ * @kref: Number of reference to tls_device
  */
 struct tls_device {
 	char name[TLS_DEVICE_NAME_MAX];
@@ -81,6 +87,8 @@ struct tls_device {
 	int  (*feature)(struct tls_device *device);
 	int  (*hash)(struct tls_device *device, struct sock *sk);
 	void (*unhash)(struct tls_device *device, struct sock *sk);
+	void (*release)(struct kref *kref);
+	struct kref kref;
 };
 
 enum {
@@ -93,24 +101,45 @@ enum {
 	TLS_NUM_CONFIG,
 };
 
+/* TLS records are maintained in 'struct tls_rec'. It stores the memory pages
+ * allocated or mapped for each TLS record. After encryption, the records are
+ * stores in a linked list.
+ */
+struct tls_rec {
+	struct list_head list;
+	int tx_ready;
+	int tx_flags;
+	int inplace_crypto;
+
+	struct sk_msg msg_plaintext;
+	struct sk_msg msg_encrypted;
+
+	/* AAD | msg_plaintext.sg.data | sg_tag */
+	struct scatterlist sg_aead_in[2];
+	/* AAD | msg_encrypted.sg.data (data contains overhead for hdr & iv & tag) */
+	struct scatterlist sg_aead_out[2];
+
+	char aad_space[TLS_AAD_SPACE_SIZE];
+	struct aead_request aead_req;
+	u8 aead_req_ctx[];
+};
+
+struct tx_work {
+	struct delayed_work work;
+	struct sock *sk;
+};
+
 struct tls_sw_context_tx {
 	struct crypto_aead *aead_send;
 	struct crypto_wait async_wait;
+	struct tx_work tx_work;
+	struct tls_rec *open_rec;
+	struct list_head tx_list;
+	atomic_t encrypt_pending;
+	int async_notify;
 
-	char aad_space[TLS_AAD_SPACE_SIZE];
-
-	unsigned int sg_plaintext_size;
-	int sg_plaintext_num_elem;
-	struct scatterlist sg_plaintext_data[MAX_SKB_FRAGS];
-
-	unsigned int sg_encrypted_size;
-	int sg_encrypted_num_elem;
-	struct scatterlist sg_encrypted_data[MAX_SKB_FRAGS];
-
-	/* AAD | sg_plaintext_data | sg_tag */
-	struct scatterlist sg_aead_in[2];
-	/* AAD | sg_encrypted_data (data contain overhead for hdr&iv&tag) */
-	struct scatterlist sg_aead_out[2];
+#define BIT_TX_SCHEDULED	0
+	unsigned long tx_bitmask;
 };
 
 struct tls_sw_context_rx {
@@ -119,11 +148,12 @@ struct tls_sw_context_rx {
 
 	struct strparser strp;
 	void (*saved_data_ready)(struct sock *sk);
-	unsigned int (*sk_poll)(struct file *file, struct socket *sock,
-				struct poll_table_struct *wait);
+
 	struct sk_buff *recv_pkt;
 	u8 control;
 	bool decrypted;
+	atomic_t decrypt_pending;
+	bool async_notify;
 };
 
 struct tls_record_info {
@@ -171,15 +201,14 @@ struct cipher_context {
 	char *rec_seq;
 };
 
+union tls_crypto_context {
+	struct tls_crypto_info info;
+	struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
+};
+
 struct tls_context {
-	union {
-		struct tls_crypto_info crypto_send;
-		struct tls12_crypto_info_aes_gcm_128 crypto_send_aes_gcm_128;
-	};
-	union {
-		struct tls_crypto_info crypto_recv;
-		struct tls12_crypto_info_aes_gcm_128 crypto_recv_aes_gcm_128;
-	};
+	union tls_crypto_context crypto_send;
+	union tls_crypto_context crypto_recv;
 
 	struct list_head list;
 	struct net_device *netdev;
@@ -196,10 +225,11 @@ struct tls_context {
 
 	struct scatterlist *partially_sent_record;
 	u16 partially_sent_offset;
+
 	unsigned long flags;
 	bool in_tcp_sendpages;
+	bool pending_open_record_frags;
 
-	u16 pending_open_record_frags;
 	int (*push_pending_record)(struct sock *sk, int flags);
 
 	void (*sk_write_space)(struct sock *sk);
@@ -247,8 +277,7 @@ void tls_sw_free_resources_rx(struct sock *sk);
 void tls_sw_release_resources_rx(struct sock *sk);
 int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		   int nonblock, int flags, int *addr_len);
-unsigned int tls_sw_poll(struct file *file, struct socket *sock,
-			 struct poll_table_struct *wait);
+bool tls_sw_stream_read(const struct sock *sk);
 ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
 			   struct pipe_inode_info *pipe,
 			   size_t len, unsigned int flags);
@@ -260,6 +289,7 @@ int tls_device_sendpage(struct sock *sk, struct page *page,
 void tls_device_sk_destruct(struct sock *sk);
 void tls_device_init(void);
 void tls_device_cleanup(void);
+int tls_tx_records(struct sock *sk, int flags);
 
 struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 				       u32 seq, u64 *p_record_sn);
@@ -278,6 +308,9 @@ void tls_sk_destruct(struct sock *sk, struct tls_context *ctx);
 int tls_push_sg(struct sock *sk, struct tls_context *ctx,
 		struct scatterlist *sg, u16 first_offset,
 		int flags);
+int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
+			    int flags);
+
 int tls_push_pending_closed_record(struct sock *sk, struct tls_context *ctx,
 				   int flags, long *timeo);
 
@@ -309,6 +342,17 @@ static inline bool tls_is_partially_sent_record(struct tls_context *ctx)
 static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 {
 	return tls_ctx->pending_open_record_frags;
+}
+
+static inline bool is_tx_ready(struct tls_sw_context_tx *ctx)
+{
+	struct tls_rec *rec;
+
+	rec = list_first_entry(&ctx->tx_list, struct tls_rec, list);
+	if (!rec)
+		return false;
+
+	return READ_ONCE(rec->tx_ready);
 }
 
 struct sk_buff *
@@ -367,8 +411,8 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 	 * size KTLS_DTLS_HEADER_SIZE + KTLS_DTLS_NONCE_EXPLICIT_SIZE
 	 */
 	buf[0] = record_type;
-	buf[1] = TLS_VERSION_MINOR(ctx->crypto_send.version);
-	buf[2] = TLS_VERSION_MAJOR(ctx->crypto_send.version);
+	buf[1] = TLS_VERSION_MINOR(ctx->crypto_send.info.version);
+	buf[2] = TLS_VERSION_MAJOR(ctx->crypto_send.info.version);
 	/* we can use IV for nonce explicit according to spec */
 	buf[3] = pkt_len >> 8;
 	buf[4] = pkt_len & 0xFF;
@@ -414,6 +458,15 @@ static inline struct tls_offload_context_tx *
 tls_offload_ctx_tx(const struct tls_context *tls_ctx)
 {
 	return (struct tls_offload_context_tx *)tls_ctx->priv_ctx_tx;
+}
+
+static inline bool tls_sw_has_ctx_tx(const struct sock *sk)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+
+	if (!ctx)
+		return false;
+	return !!tls_sw_ctx_tx(ctx);
 }
 
 static inline struct tls_offload_context_rx *

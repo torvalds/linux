@@ -21,8 +21,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 					 struct netlink_ext_ack *extack)
 {
 	const struct tc_action *a;
-	LIST_HEAD(actions);
-	int err;
+	int err, i;
 
 	if (!tcf_exts_has_actions(exts))
 		return 0;
@@ -32,8 +31,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	tcf_exts_to_list(exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	tcf_exts_for_each_action(i, a, exts) {
 		if (is_tcf_gact_ok(a)) {
 			err = mlxsw_sp_acl_rulei_act_terminate(rulei);
 			if (err) {
@@ -408,7 +406,7 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
-	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie,
+	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie, NULL,
 					f->common.extack);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);

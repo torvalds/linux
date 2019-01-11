@@ -47,6 +47,7 @@
 #include <linux/wait.h>
 #include <uapi/linux/batadv_packet.h>
 
+#include "debugfs.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
@@ -73,6 +74,8 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
+
+	batadv_debugfs_deprecated(file, "");
 
 	nonseekable_open(inode, file);
 
@@ -144,7 +147,7 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	error = wait_event_interruptible(socket_client->queue_wait,

@@ -294,7 +294,7 @@ static void meson_mx_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		vdd = 0;
-		/* fall-through: */
+		/* fall through */
 	case MMC_POWER_UP:
 		if (!IS_ERR(mmc->supply.vmmc)) {
 			host->error = mmc_regulator_set_ocr(mmc,
@@ -517,19 +517,23 @@ static struct mmc_host_ops meson_mx_mmc_ops = {
 static struct platform_device *meson_mx_mmc_slot_pdev(struct device *parent)
 {
 	struct device_node *slot_node;
+	struct platform_device *pdev;
 
 	/*
 	 * TODO: the MMC core framework currently does not support
 	 * controllers with multiple slots properly. So we only register
 	 * the first slot for now
 	 */
-	slot_node = of_find_compatible_node(parent->of_node, NULL, "mmc-slot");
+	slot_node = of_get_compatible_child(parent->of_node, "mmc-slot");
 	if (!slot_node) {
 		dev_warn(parent, "no 'mmc-slot' sub-node found\n");
 		return ERR_PTR(-ENOENT);
 	}
 
-	return of_platform_device_create(slot_node, NULL, parent);
+	pdev = of_platform_device_create(slot_node, NULL, parent);
+	of_node_put(slot_node);
+
+	return pdev;
 }
 
 static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
@@ -592,6 +596,9 @@ static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
 	init.name = devm_kasprintf(host->controller_dev, GFP_KERNEL,
 				   "%s#fixed_factor",
 				   dev_name(host->controller_dev));
+	if (!init.name)
+		return -ENOMEM;
+
 	init.ops = &clk_fixed_factor_ops;
 	init.flags = 0;
 	init.parent_names = &clk_fixed_factor_parent;
@@ -608,6 +615,9 @@ static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
 	clk_div_parent = __clk_get_name(host->fixed_factor_clk);
 	init.name = devm_kasprintf(host->controller_dev, GFP_KERNEL,
 				   "%s#div", dev_name(host->controller_dev));
+	if (!init.name)
+		return -ENOMEM;
+
 	init.ops = &clk_divider_ops;
 	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = &clk_div_parent;

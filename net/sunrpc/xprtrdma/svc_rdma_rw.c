@@ -680,6 +680,7 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 				     struct svc_rdma_read_info *info,
 				     __be32 *p)
 {
+	unsigned int i;
 	int ret;
 
 	ret = -EINVAL;
@@ -701,6 +702,12 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 		trace_svcrdma_encode_rseg(rs_handle, rs_length, rs_offset);
 		info->ri_chunklen += rs_length;
 	}
+
+	/* Pages under I/O have been copied to head->rc_pages.
+	 * Prevent their premature release by svc_xprt_release() .
+	 */
+	for (i = 0; i < info->ri_readctxt->rc_page_count; i++)
+		rqstp->rq_pages[i] = NULL;
 
 	return ret;
 }
@@ -817,7 +824,6 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 			     struct svc_rdma_recv_ctxt *head, __be32 *p)
 {
 	struct svc_rdma_read_info *info;
-	struct page **page;
 	int ret;
 
 	/* The request (with page list) is constructed in
@@ -844,27 +850,15 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 		ret = svc_rdma_build_normal_read_chunk(rqstp, info, p);
 	else
 		ret = svc_rdma_build_pz_read_chunk(rqstp, info, p);
-
-	/* Mark the start of the pages that can be used for the reply */
-	if (info->ri_pageoff > 0)
-		info->ri_pageno++;
-	rqstp->rq_respages = &rqstp->rq_pages[info->ri_pageno];
-	rqstp->rq_next_page = rqstp->rq_respages + 1;
-
 	if (ret < 0)
-		goto out;
+		goto out_err;
 
 	ret = svc_rdma_post_chunk_ctxt(&info->ri_cc);
-
-out:
-	/* Read sink pages have been moved from rqstp->rq_pages to
-	 * head->rc_arg.pages. Force svc_recv to refill those slots
-	 * in rq_pages.
-	 */
-	for (page = rqstp->rq_pages; page < rqstp->rq_respages; page++)
-		*page = NULL;
-
 	if (ret < 0)
-		svc_rdma_read_info_free(info);
+		goto out_err;
+	return 0;
+
+out_err:
+	svc_rdma_read_info_free(info);
 	return ret;
 }

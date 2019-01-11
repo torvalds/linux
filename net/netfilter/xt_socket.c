@@ -56,7 +56,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	struct sk_buff *pskb = (struct sk_buff *)skb;
 	struct sock *sk = skb->sk;
 
-	if (!net_eq(xt_net(par), sock_net(sk)))
+	if (sk && !net_eq(xt_net(par), sock_net(sk)))
 		sk = NULL;
 
 	if (!sk)
@@ -117,7 +117,7 @@ socket_mt6_v1_v2_v3(const struct sk_buff *skb, struct xt_action_param *par)
 	struct sk_buff *pskb = (struct sk_buff *)skb;
 	struct sock *sk = skb->sk;
 
-	if (!net_eq(xt_net(par), sock_net(sk)))
+	if (sk && !net_eq(xt_net(par), sock_net(sk)))
 		sk = NULL;
 
 	if (!sk)

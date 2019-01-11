@@ -601,8 +601,9 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			break;
 		/* Was the message ACKed? */
 		ack = cec_msg_is_broadcast(&pin->tx_msg) ? v : !v;
-		if (!ack && !pin->tx_ignore_nack_until_eom &&
-		    pin->tx_bit / 10 < pin->tx_msg.len && !pin->tx_post_eom) {
+		if (!ack && (!pin->tx_ignore_nack_until_eom ||
+		    pin->tx_bit / 10 == pin->tx_msg.len - 1) &&
+		    !pin->tx_post_eom) {
 			/*
 			 * Note: the CEC spec is ambiguous regarding
 			 * what action to take when a NACK appears
@@ -935,6 +936,17 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 			/* Start bit, switch to receive state */
 			pin->ts = ts;
 			pin->state = CEC_ST_RX_START_BIT_LOW;
+			/*
+			 * If a transmit is pending, then that transmit should
+			 * use a signal free time of no more than
+			 * CEC_SIGNAL_FREE_TIME_NEW_INITIATOR since it will
+			 * have a new initiator due to the receive that is now
+			 * starting.
+			 */
+			if (pin->tx_msg.len && pin->tx_signal_free_time >
+			    CEC_SIGNAL_FREE_TIME_NEW_INITIATOR)
+				pin->tx_signal_free_time =
+					CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
 			break;
 		}
 		if (ktime_to_ns(pin->ts) == 0)
@@ -1156,6 +1168,15 @@ static int cec_pin_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg)
 {
 	struct cec_pin *pin = adap->pin;
+
+	/*
+	 * If a receive is in progress, then this transmit should use
+	 * a signal free time of max CEC_SIGNAL_FREE_TIME_NEW_INITIATOR
+	 * since when it starts transmitting it will have a new initiator.
+	 */
+	if (pin->state != CEC_ST_IDLE &&
+	    signal_free_time > CEC_SIGNAL_FREE_TIME_NEW_INITIATOR)
+		signal_free_time = CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
 
 	pin->tx_signal_free_time = signal_free_time;
 	pin->tx_extra_bytes = 0;

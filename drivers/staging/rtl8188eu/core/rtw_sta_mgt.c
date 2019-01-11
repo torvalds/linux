@@ -429,7 +429,7 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, hash_list);
 
-		if ((!memcmp(psta->hwaddr, addr, ETH_ALEN)) == true) {
+		if (!memcmp(psta->hwaddr, addr, ETH_ALEN)) {
 			/*  if found the matched address */
 			break;
 		}

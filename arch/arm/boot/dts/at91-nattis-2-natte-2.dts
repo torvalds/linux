@@ -16,46 +16,6 @@
 	compatible = "axentia,nattis-2", "axentia,natte-2", "axentia,linea",
 		     "atmel,sama5d31", "atmel,sama5d3", "atmel,sama5";
 
-	ahb {
-		apb {
-			pinctrl@fffff200 {
-				nattis {
-					pinctrl_usba_vbus: usba_vbus {
-						atmel,pins =
-							<AT91_PIOD 28
-							 AT91_PERIPH_GPIO
-							 AT91_PINCTRL_DEGLITCH>;
-					};
-
-					pinctrl_mmc0_cd: mmc0_cd {
-						atmel,pins =
-							<AT91_PIOD 5
-							 AT91_PERIPH_GPIO
-							 AT91_PINCTRL_PULL_UP_DEGLITCH>;
-					};
-
-					pinctrl_lcd_prlud0: lcd_prlud0 {
-						atmel,pins =
-							<AT91_PIOA 21
-							 AT91_PERIPH_GPIO
-							 AT91_PINCTRL_OUTPUT_VAL(0)>;
-					};
-
-					pinctrl_lcd_hipow0: lcd_hipow0 {
-						atmel,pins =
-							<AT91_PIOA 23
-							 AT91_PERIPH_GPIO
-							 AT91_PINCTRL_OUTPUT_VAL(0)>;
-					};
-				};
-			};
-
-			watchdog@fffffe40 {
-				status = "okay";
-			};
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -100,12 +60,33 @@
 
 		power-supply = <&bl_reg>;
 		enable-gpios = <&pioA 20 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_blon>;
 	};
 
 	panel: panel {
-		compatible = "sharp,lq150x1lg11";
+		compatible = "sharp,lq150x1lg11", "panel-lvds";
+
 		backlight = <&panel_bl>;
 		power-supply = <&panel_reg>;
+
+		width-mm = <304>;
+		height-mm = <228>;
+
+		data-mapping = "jeida-18";
+
+		panel-timing {
+			// 1024x768 @ 60Hz (typical)
+			clock-frequency = <50000000 65000000 80000000>;
+			hactive = <1024>;
+			vactive = <768>;
+			hfront-porch = <48 88 88>;
+			hback-porch = <96 168 168>;
+			hsync-len = <32 64 64>;
+			vsync-len = <3 13 74>;
+			vfront-porch = <3 13 74>;
+			vback-porch = <3 12 74>;
+		};
 
 		port {
 			panel_input: endpoint {
@@ -115,7 +96,10 @@
 	};
 
 	lvds-encoder {
-		compatible = "lvds-encoder";
+		compatible = "ti,ds90c185", "lvds-encoder";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lvds_prlud0 &pinctrl_lvds_hipow0>;
 
 		ports {
 			#address-cells = <1>;
@@ -159,6 +143,42 @@
 	};
 };
 
+&pinctrl {
+	nattis {
+		pinctrl_usba_vbus: usba_vbus {
+			atmel,pins = <AT91_PIOD 28 AT91_PERIPH_GPIO
+				      AT91_PINCTRL_DEGLITCH>;
+		};
+
+		pinctrl_mmc0_cd: mmc0_cd {
+			atmel,pins = <AT91_PIOD  5 AT91_PERIPH_GPIO
+				      AT91_PINCTRL_PULL_UP_DEGLITCH>;
+		};
+
+		pinctrl_lvds_prlud0: lvds_prlud0 {
+			atmel,pins = <AT91_PIOA 21 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+
+		pinctrl_lvds_hipow0: lvds_hipow0 {
+			atmel,pins = <AT91_PIOA 23 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+
+		pinctrl_blon: blon {
+			atmel,pins = <AT91_PIOA 20 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+	};
+};
+
+&watchdog {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -195,14 +215,12 @@
 
 	hlcdc-display-controller {
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_lcd_base
-			     &pinctrl_lcd_rgb565
-			     &pinctrl_lcd_prlud0
-			     &pinctrl_lcd_hipow0>;
+		pinctrl-0 = <&pinctrl_lcd_base &pinctrl_lcd_rgb565>;
 
 		port@0 {
 			hlcdc_output: endpoint {
 				remote-endpoint = <&lvds_encoder_input>;
+				bus-width = <16>;
 			};
 		};
 	};
@@ -219,6 +237,7 @@
 		reg = <0>;
 		bus-width = <4>;
 		cd-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+		cd-inverted;
 	};
 };
 

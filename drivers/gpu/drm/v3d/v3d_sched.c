@@ -30,16 +30,34 @@ to_v3d_job(struct drm_sched_job *sched_job)
 	return container_of(sched_job, struct v3d_job, base);
 }
 
+static struct v3d_tfu_job *
+to_tfu_job(struct drm_sched_job *sched_job)
+{
+	return container_of(sched_job, struct v3d_tfu_job, base);
+}
+
 static void
 v3d_job_free(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 
+	drm_sched_job_cleanup(sched_job);
+
 	v3d_exec_put(job->exec);
 }
 
+static void
+v3d_tfu_job_free(struct drm_sched_job *sched_job)
+{
+	struct v3d_tfu_job *job = to_tfu_job(sched_job);
+
+	drm_sched_job_cleanup(sched_job);
+
+	v3d_tfu_job_put(job);
+}
+
 /**
- * Returns the fences that the bin job depends on, one by one.
+ * Returns the fences that the bin or render job depends on, one by one.
  * v3d_job_run() won't be called until all of them have been signaled.
  */
 static struct dma_fence *
@@ -74,6 +92,27 @@ v3d_job_dependency(struct drm_sched_job *sched_job,
 	 */
 
 	return fence;
+}
+
+/**
+ * Returns the fences that the TFU job depends on, one by one.
+ * v3d_tfu_job_run() won't be called until all of them have been
+ * signaled.
+ */
+static struct dma_fence *
+v3d_tfu_job_dependency(struct drm_sched_job *sched_job,
+		       struct drm_sched_entity *s_entity)
+{
+	struct v3d_tfu_job *job = to_tfu_job(sched_job);
+	struct dma_fence *fence;
+
+	fence = job->in_fence;
+	if (fence) {
+		job->in_fence = NULL;
+		return fence;
+	}
+
+	return NULL;
 }
 
 static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
@@ -147,31 +186,47 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	return fence;
 }
 
-static void
-v3d_job_timedout(struct drm_sched_job *sched_job)
+static struct dma_fence *
+v3d_tfu_job_run(struct drm_sched_job *sched_job)
 {
-	struct v3d_job *job = to_v3d_job(sched_job);
-	struct v3d_exec_info *exec = job->exec;
-	struct v3d_dev *v3d = exec->v3d;
-	enum v3d_queue job_q = job == &exec->bin ? V3D_BIN : V3D_RENDER;
-	enum v3d_queue q;
-	u32 ctca = V3D_CORE_READ(0, V3D_CLE_CTNCA(job_q));
-	u32 ctra = V3D_CORE_READ(0, V3D_CLE_CTNRA(job_q));
+	struct v3d_tfu_job *job = to_tfu_job(sched_job);
+	struct v3d_dev *v3d = job->v3d;
+	struct drm_device *dev = &v3d->drm;
+	struct dma_fence *fence;
 
-	/* If the current address or return address have changed, then
-	 * the GPU has probably made progress and we should delay the
-	 * reset.  This could fail if the GPU got in an infinite loop
-	 * in the CL, but that is pretty unlikely outside of an i-g-t
-	 * testcase.
-	 */
-	if (job->timedout_ctca != ctca || job->timedout_ctra != ctra) {
-		job->timedout_ctca = ctca;
-		job->timedout_ctra = ctra;
+	fence = v3d_fence_create(v3d, V3D_TFU);
+	if (IS_ERR(fence))
+		return NULL;
 
-		schedule_delayed_work(&job->base.work_tdr,
-				      job->base.sched->timeout);
-		return;
+	v3d->tfu_job = job;
+	if (job->done_fence)
+		dma_fence_put(job->done_fence);
+	job->done_fence = dma_fence_get(fence);
+
+	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqno);
+
+	V3D_WRITE(V3D_TFU_IIA, job->args.iia);
+	V3D_WRITE(V3D_TFU_IIS, job->args.iis);
+	V3D_WRITE(V3D_TFU_ICA, job->args.ica);
+	V3D_WRITE(V3D_TFU_IUA, job->args.iua);
+	V3D_WRITE(V3D_TFU_IOA, job->args.ioa);
+	V3D_WRITE(V3D_TFU_IOS, job->args.ios);
+	V3D_WRITE(V3D_TFU_COEF0, job->args.coef[0]);
+	if (job->args.coef[0] & V3D_TFU_COEF0_USECOEF) {
+		V3D_WRITE(V3D_TFU_COEF1, job->args.coef[1]);
+		V3D_WRITE(V3D_TFU_COEF2, job->args.coef[2]);
+		V3D_WRITE(V3D_TFU_COEF3, job->args.coef[3]);
 	}
+	/* ICFG kicks off the job. */
+	V3D_WRITE(V3D_TFU_ICFG, job->args.icfg | V3D_TFU_ICFG_IOC);
+
+	return fence;
+}
+
+static void
+v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
+{
+	enum v3d_queue q;
 
 	mutex_lock(&v3d->reset_lock);
 
@@ -196,11 +251,51 @@ v3d_job_timedout(struct drm_sched_job *sched_job)
 	mutex_unlock(&v3d->reset_lock);
 }
 
+static void
+v3d_job_timedout(struct drm_sched_job *sched_job)
+{
+	struct v3d_job *job = to_v3d_job(sched_job);
+	struct v3d_exec_info *exec = job->exec;
+	struct v3d_dev *v3d = exec->v3d;
+	enum v3d_queue job_q = job == &exec->bin ? V3D_BIN : V3D_RENDER;
+	u32 ctca = V3D_CORE_READ(0, V3D_CLE_CTNCA(job_q));
+	u32 ctra = V3D_CORE_READ(0, V3D_CLE_CTNRA(job_q));
+
+	/* If the current address or return address have changed, then
+	 * the GPU has probably made progress and we should delay the
+	 * reset.  This could fail if the GPU got in an infinite loop
+	 * in the CL, but that is pretty unlikely outside of an i-g-t
+	 * testcase.
+	 */
+	if (job->timedout_ctca != ctca || job->timedout_ctra != ctra) {
+		job->timedout_ctca = ctca;
+		job->timedout_ctra = ctra;
+		return;
+	}
+
+	v3d_gpu_reset_for_timeout(v3d, sched_job);
+}
+
+static void
+v3d_tfu_job_timedout(struct drm_sched_job *sched_job)
+{
+	struct v3d_tfu_job *job = to_tfu_job(sched_job);
+
+	v3d_gpu_reset_for_timeout(job->v3d, sched_job);
+}
+
 static const struct drm_sched_backend_ops v3d_sched_ops = {
 	.dependency = v3d_job_dependency,
 	.run_job = v3d_job_run,
 	.timedout_job = v3d_job_timedout,
 	.free_job = v3d_job_free
+};
+
+static const struct drm_sched_backend_ops v3d_tfu_sched_ops = {
+	.dependency = v3d_tfu_job_dependency,
+	.run_job = v3d_tfu_job_run,
+	.timedout_job = v3d_tfu_job_timedout,
+	.free_job = v3d_tfu_job_free
 };
 
 int
@@ -229,6 +324,19 @@ v3d_sched_init(struct v3d_dev *v3d)
 	if (ret) {
 		dev_err(v3d->dev, "Failed to create render scheduler: %d.",
 			ret);
+		drm_sched_fini(&v3d->queue[V3D_BIN].sched);
+		return ret;
+	}
+
+	ret = drm_sched_init(&v3d->queue[V3D_TFU].sched,
+			     &v3d_tfu_sched_ops,
+			     hw_jobs_limit, job_hang_limit,
+			     msecs_to_jiffies(hang_limit_ms),
+			     "v3d_tfu");
+	if (ret) {
+		dev_err(v3d->dev, "Failed to create TFU scheduler: %d.",
+			ret);
+		drm_sched_fini(&v3d->queue[V3D_RENDER].sched);
 		drm_sched_fini(&v3d->queue[V3D_BIN].sched);
 		return ret;
 	}

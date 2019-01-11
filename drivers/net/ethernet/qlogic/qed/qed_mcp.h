@@ -322,14 +322,61 @@ int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
  * @brief Get media type value of the port.
  *
  * @param cdev      - qed dev pointer
+ * @param p_ptt
  * @param mfw_ver    - media type value
  *
  * @return int -
  *      0 - Operation was successul.
  *      -EBUSY - Operation failed
  */
-int qed_mcp_get_media_type(struct qed_dev      *cdev,
-			   u32                  *media_type);
+int qed_mcp_get_media_type(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u32 *media_type);
+
+/**
+ * @brief Get transceiver data of the port.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_transceiver_state - transceiver state.
+ * @param p_transceiver_type - media type value
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_transceiver_data(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 u32 *p_transceiver_state,
+				 u32 *p_tranceiver_type);
+
+/**
+ * @brief Get transceiver supported speed mask.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_speed_mask - Bit mask of all supported speeds.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+
+int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_speed_mask);
+
+/**
+ * @brief Get board configuration.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_board_config - Board config.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_board_config(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_board_config);
 
 /**
  * @brief General function for sending commands to the MCP
@@ -496,16 +543,6 @@ int qed_mcp_nvm_write(struct qed_dev *cdev,
 		      u32 cmd, u32 addr, u8 *p_buf, u32 len);
 
 /**
- * @brief Put file begin
- *
- *  @param cdev
- *  @param addr - nvm offset
- *
- * @return int - 0 - operation was successful.
- */
-int qed_mcp_nvm_put_file_begin(struct qed_dev *cdev, u32 addr);
-
-/**
  * @brief Check latest response
  *
  *  @param cdev
@@ -635,11 +672,14 @@ struct qed_mcp_info {
 	 */
 	spinlock_t				cmd_lock;
 
+	/* Flag to indicate whether sending a MFW mailbox command is blocked */
+	bool					b_block_cmd;
+
 	/* Spinlock used for syncing SW link-changes and link-changes
 	 * originating from attention context.
 	 */
 	spinlock_t				link_lock;
-	bool					block_mb_sending;
+
 	u32					public_base;
 	u32					drv_mb_addr;
 	u32					mfw_mb_addr;
@@ -660,14 +700,20 @@ struct qed_mcp_info {
 };
 
 struct qed_mcp_mb_params {
-	u32			cmd;
-	u32			param;
-	void			*p_data_src;
-	u8			data_src_size;
-	void			*p_data_dst;
-	u8			data_dst_size;
-	u32			mcp_resp;
-	u32			mcp_param;
+	u32 cmd;
+	u32 param;
+	void *p_data_src;
+	void *p_data_dst;
+	u8 data_src_size;
+	u8 data_dst_size;
+	u32 mcp_resp;
+	u32 mcp_param;
+	u32 flags;
+#define QED_MB_FLAG_CAN_SLEEP	(0x1 << 0)
+#define QED_MB_FLAG_AVOID_BLOCK	(0x1 << 1)
+#define QED_MB_FLAGS_IS_SET(params, flag) \
+	({ typeof(params) __params = (params); \
+	   (__params && (__params->flags & QED_MB_FLAG_ ## flag)); })
 };
 
 struct qed_drv_tlv_hdr {

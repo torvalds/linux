@@ -27,15 +27,33 @@
 	};
 
 	cbb {
+		ethernet@2490000 {
+			status = "okay";
+
+			phy-reset-gpios = <&gpio TEGRA194_MAIN_GPIO(G, 5) GPIO_ACTIVE_LOW>;
+			phy-handle = <&phy>;
+			phy-mode = "rgmii";
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				phy: phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c22";
+					reg = <0x0>;
+					interrupt-parent = <&gpio>;
+					interrupts = <TEGRA194_MAIN_GPIO(G, 4) IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+		};
+
 		serial@3110000 {
 			status = "okay";
 		};
 
 		/* SDMMC1 (SD/MMC) */
 		sdhci@3400000 {
-/*
 			cd-gpios = <&gpio TEGRA194_MAIN_GPIO(A, 0) GPIO_ACTIVE_LOW>;
-*/
 		};
 
 		/* SDMMC4 (eMMC) */
@@ -46,6 +64,10 @@
 
 			vqmmc-supply = <&vdd_1v8ls>;
 			vmmc-supply = <&vdd_emmc_3v3>;
+		};
+
+		rtc@c2a0000 {
+			status = "okay";
 		};
 
 		pmc@c360000 {
@@ -145,7 +167,7 @@
 					in-ldo4-6-supply = <&vdd_5v0_sys>;
 					in-ldo7-8-supply = <&vdd_1v8ls>;
 
-					sd0 {
+					vdd_1v0: sd0 {
 						regulator-name = "VDD_1V0";
 						regulator-min-microvolt = <1000000>;
 						regulator-max-microvolt = <1000000>;
@@ -153,7 +175,7 @@
 						regulator-boot-on;
 					};
 
-					sd1 {
+					vdd_1v8hs: sd1 {
 						regulator-name = "VDD_1V8HS";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
@@ -226,6 +248,17 @@
 					};
 				};
 			};
+
+			temperature-sensor@4c {
+				compatible = "ti,tmp451";
+				reg = <0x4c>;
+
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA194_MAIN_GPIO(H, 2)
+					      IRQ_TYPE_LEVEL_LOW>;
+
+				#thermal-sensor-cells = <1>;
+			};
 		};
 	};
 
@@ -243,6 +276,17 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
 			regulator-boot-on;
+		};
+
+		vdd_hdmi: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+
+			regulator-name = "VDD_5V0_HDMI_CON";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA194_MAIN_GPIO(A, 3) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 		};
 	};
 };

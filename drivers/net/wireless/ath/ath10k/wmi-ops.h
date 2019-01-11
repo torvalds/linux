@@ -210,12 +210,18 @@ struct wmi_ops {
 					       u32 fw_feature_bitmap);
 	int (*get_vdev_subtype)(struct ath10k *ar,
 				enum wmi_vdev_subtype subtype);
+	struct sk_buff *(*gen_wow_config_pno)(struct ath10k *ar,
+					      u32 vdev_id,
+					      struct wmi_pno_scan_req *pno_scan);
 	struct sk_buff *(*gen_pdev_bss_chan_info_req)
 					(struct ath10k *ar,
 					 enum wmi_bss_survey_req_type type);
 	struct sk_buff *(*gen_echo)(struct ath10k *ar, u32 value);
 	struct sk_buff *(*gen_pdev_get_tpc_table_cmdid)(struct ath10k *ar,
 							u32 param);
+	struct sk_buff *(*gen_bb_timing)
+			(struct ath10k *ar,
+			 const struct wmi_bb_timing_cfg_arg *arg);
 
 };
 
@@ -1361,6 +1367,24 @@ ath10k_wmi_wow_del_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id)
 }
 
 static inline int
+ath10k_wmi_wow_config_pno(struct ath10k *ar, u32 vdev_id,
+			  struct wmi_pno_scan_req  *pno_scan)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_config_pno)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_config_pno(ar, vdev_id, pno_scan);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->network_list_offload_config_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
 ath10k_wmi_update_fw_tdls_state(struct ath10k *ar, u32 vdev_id,
 				enum wmi_tdls_state state)
 {
@@ -1555,4 +1579,21 @@ ath10k_wmi_report_radar_found(struct ath10k *ar,
 				   ar->wmi.cmd->radar_found_cmdid);
 }
 
+static inline int
+ath10k_wmi_pdev_bb_timing(struct ath10k *ar,
+			  const struct wmi_bb_timing_cfg_arg *arg)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_bb_timing)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_bb_timing(ar, arg);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->set_bb_timing_cmdid);
+}
 #endif

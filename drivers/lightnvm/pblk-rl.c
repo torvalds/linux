@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -127,7 +128,7 @@ static void __pblk_rl_update_rates(struct pblk_rl *rl,
 	} else if (free_blocks < rl->high) {
 		int shift = rl->high_pw - rl->rb_windows_pw;
 		int user_windows = free_blocks >> shift;
-		int user_max = user_windows << PBLK_MAX_REQ_ADDRS_PW;
+		int user_max = user_windows << ilog2(NVM_MAX_VLBA);
 
 		rl->rb_user_max = user_max;
 		rl->rb_gc_max = max - user_max;
@@ -213,10 +214,9 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
-	int min_blocks = lm->blk_per_line * PBLK_GC_RSV_LINE;
 	int sec_meta, blk_meta;
-
 	unsigned int rb_windows;
+
 
 	/* Consider sectors used for metadata */
 	sec_meta = (lm->smeta_sec + lm->emeta_sec[0]) * l_mg->nr_free_lines;
@@ -225,10 +225,10 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	rl->high = pblk->op_blks - blk_meta - lm->blk_per_line;
 	rl->high_pw = get_count_order(rl->high);
 
-	rl->rsv_blocks = min_blocks;
+	rl->rsv_blocks = pblk_get_min_chks(pblk);
 
 	/* This will always be a power-of-2 */
-	rb_windows = budget / PBLK_MAX_REQ_ADDRS;
+	rb_windows = budget / NVM_MAX_VLBA;
 	rl->rb_windows_pw = get_count_order(rb_windows);
 
 	/* To start with, all buffer is available to user I/O writers */

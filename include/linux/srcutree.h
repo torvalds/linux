@@ -51,7 +51,7 @@ struct srcu_data {
 	unsigned long grpmask;			/* Mask for leaf srcu_node */
 						/*  ->srcu_data_have_cbs[]. */
 	int cpu;
-	struct srcu_struct *sp;
+	struct srcu_struct *ssp;
 };
 
 /*
@@ -105,12 +105,13 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN2	2
 
 #define __SRCU_STRUCT_INIT(name, pcpu_name)				\
-	{								\
-		.sda = &pcpu_name,					\
-		.lock = __SPIN_LOCK_UNLOCKED(name.lock),		\
-		.srcu_gp_seq_needed = 0 - 1,				\
-		__SRCU_DEP_MAP_INIT(name)				\
-	}
+{									\
+	.sda = &pcpu_name,						\
+	.lock = __SPIN_LOCK_UNLOCKED(name.lock),			\
+	.srcu_gp_seq_needed = -1UL,					\
+	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),		\
+	__SRCU_DEP_MAP_INIT(name)					\
+}
 
 /*
  * Define and initialize a srcu struct at build time.
@@ -137,8 +138,8 @@ struct srcu_struct {
 #define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
 
-void synchronize_srcu_expedited(struct srcu_struct *sp);
-void srcu_barrier(struct srcu_struct *sp);
-void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf);
+void synchronize_srcu_expedited(struct srcu_struct *ssp);
+void srcu_barrier(struct srcu_struct *ssp);
+void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf);
 
 #endif

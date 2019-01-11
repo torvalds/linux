@@ -260,7 +260,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 	 * so clean up would happen at the wrong time
 	 */
 	config.ena_gpiod = gpiod_get_optional(parent_dev, "wlf,ldoena",
-					      GPIOD_OUT_LOW);
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	if (IS_ERR(config.ena_gpiod))
 		return PTR_ERR(config.ena_gpiod);
 
@@ -283,9 +283,6 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 	of_node_put(config.of_node);
 
 	if (IS_ERR(ldo1->regulator)) {
-		if (config.ena_gpiod)
-			gpiod_put(config.ena_gpiod);
-
 		ret = PTR_ERR(ldo1->regulator);
 		dev_err(&pdev->dev, "Failed to register LDO1 supply: %d\n",
 			ret);

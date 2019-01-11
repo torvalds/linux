@@ -47,8 +47,6 @@
 #include <asm/smp.h>
 #include <asm/sysmem.h>
 
-#include <platform/hardware.h>
-
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = {
 	.orig_x = 0,
@@ -81,6 +79,7 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
 
+#ifdef CONFIG_PARSE_BOOTPARAM
 /*
  * Boot parameter parsing.
  *
@@ -178,6 +177,13 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 
 	return 0;
 }
+#else
+static int __init parse_bootparam(const bp_tag_t *tag)
+{
+	pr_info("Ignoring boot parameters at %p\n", tag);
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_OF
 
@@ -312,9 +318,9 @@ static inline int mem_reserve(unsigned long start, unsigned long end)
 void __init setup_arch(char **cmdline_p)
 {
 	pr_info("config ID: %08x:%08x\n",
-		get_sr(SREG_EPC), get_sr(SREG_EXCSAVE));
-	if (get_sr(SREG_EPC) != XCHAL_HW_CONFIGID0 ||
-	    get_sr(SREG_EXCSAVE) != XCHAL_HW_CONFIGID1)
+		xtensa_get_sr(SREG_EPC), xtensa_get_sr(SREG_EXCSAVE));
+	if (xtensa_get_sr(SREG_EPC) != XCHAL_HW_CONFIGID0 ||
+	    xtensa_get_sr(SREG_EXCSAVE) != XCHAL_HW_CONFIGID1)
 		pr_info("built for config ID: %08x:%08x\n",
 			XCHAL_HW_CONFIGID0, XCHAL_HW_CONFIGID1);
 
@@ -590,7 +596,7 @@ c_show(struct seq_file *f, void *slot)
 		      num_online_cpus(),
 		      cpumask_pr_args(cpu_online_mask),
 		      XCHAL_BUILD_UNIQUE_ID,
-		      get_sr(SREG_EPC), get_sr(SREG_EXCSAVE),
+		      xtensa_get_sr(SREG_EPC), xtensa_get_sr(SREG_EXCSAVE),
 		      XCHAL_HAVE_BE ?  "big" : "little",
 		      ccount_freq/1000000,
 		      (ccount_freq/10000) % 100,

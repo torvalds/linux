@@ -10,7 +10,7 @@
 
 struct spk_ldisc_data {
 	char buf;
-	struct semaphore sem;
+	struct completion completion;
 	bool buf_free;
 };
 
@@ -55,7 +55,7 @@ static int spk_ttyio_ldisc_open(struct tty_struct *tty)
 	if (!ldisc_data)
 		return -ENOMEM;
 
-	sema_init(&ldisc_data->sem, 0);
+	init_completion(&ldisc_data->completion);
 	ldisc_data->buf_free = true;
 	speakup_tty->disc_data = ldisc_data;
 
@@ -95,7 +95,7 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 
 	ldisc_data->buf = cp[0];
 	ldisc_data->buf_free = false;
-	up(&ldisc_data->sem);
+	complete(&ldisc_data->completion);
 
 	return 1;
 }
@@ -227,9 +227,9 @@ static int spk_ttyio_out_unicode(struct spk_synth *in_synth, u16 ch)
 {
 	int ret;
 
-	if (ch < 0x80)
+	if (ch < 0x80) {
 		ret = spk_ttyio_out(in_synth, ch);
-	else if (ch < 0x800) {
+	} else if (ch < 0x800) {
 		ret  = spk_ttyio_out(in_synth, 0xc0 | (ch >> 6));
 		ret &= spk_ttyio_out(in_synth, 0x80 | (ch & 0x3f));
 	} else {
@@ -286,7 +286,8 @@ static unsigned char ttyio_in(int timeout)
 	struct spk_ldisc_data *ldisc_data = speakup_tty->disc_data;
 	char rv;
 
-	if (down_timeout(&ldisc_data->sem, usecs_to_jiffies(timeout)) == -ETIME) {
+	if (wait_for_completion_timeout(&ldisc_data->completion,
+					usecs_to_jiffies(timeout)) == 0) {
 		if (timeout)
 			pr_warn("spk_ttyio: timeout (%d)  while waiting for input\n",
 				timeout);

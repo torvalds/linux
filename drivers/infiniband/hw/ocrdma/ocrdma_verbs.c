@@ -177,11 +177,6 @@ int ocrdma_query_port(struct ib_device *ibdev,
 
 	/* props being zeroed by the caller, avoid zeroing it here */
 	dev = get_ocrdma_dev(ibdev);
-	if (port > 1) {
-		pr_err("%s(%d) invalid_port=0x%x\n", __func__,
-		       dev->id, port);
-		return -EINVAL;
-	}
 	netdev = dev->nic_info.netdev;
 	if (netif_running(netdev) && netif_oper_up(netdev)) {
 		port_state = IB_PORT_ACTIVE;
@@ -215,13 +210,6 @@ int ocrdma_query_port(struct ib_device *ibdev,
 int ocrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
 		       struct ib_port_modify *props)
 {
-	struct ocrdma_dev *dev;
-
-	dev = get_ocrdma_dev(ibdev);
-	if (port > 1) {
-		pr_err("%s(%d) invalid_port=0x%x\n", __func__, dev->id, port);
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -1169,7 +1157,8 @@ static void ocrdma_del_qpn_map(struct ocrdma_dev *dev, struct ocrdma_qp *qp)
 }
 
 static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
-				  struct ib_qp_init_attr *attrs)
+				  struct ib_qp_init_attr *attrs,
+				  struct ib_udata *udata)
 {
 	if ((attrs->qp_type != IB_QPT_GSI) &&
 	    (attrs->qp_type != IB_QPT_RC) &&
@@ -1217,7 +1206,7 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 		return -EINVAL;
 	}
 	/* unprivileged user space cannot create special QP */
-	if (ibpd->uobject && attrs->qp_type == IB_QPT_GSI) {
+	if (udata && attrs->qp_type == IB_QPT_GSI) {
 		pr_err
 		    ("%s(%d) Userspace can't create special QPs of type=0x%x\n",
 		     __func__, dev->id, attrs->qp_type);
@@ -1374,7 +1363,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	struct ocrdma_create_qp_ureq ureq;
 	u16 dpp_credit_lmt, dpp_offset;
 
-	status = ocrdma_check_qp_params(ibpd, dev, attrs);
+	status = ocrdma_check_qp_params(ibpd, dev, attrs, udata);
 	if (status)
 		goto gen_err;
 
@@ -1480,8 +1469,7 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		new_qps = old_qps;
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	if (!ib_modify_qp_is_ok(old_qps, new_qps, ibqp->qp_type, attr_mask,
-				IB_LINK_LAYER_ETHERNET)) {
+	if (!ib_modify_qp_is_ok(old_qps, new_qps, ibqp->qp_type, attr_mask)) {
 		pr_err("%s(%d) invalid attribute mask=0x%x specified for\n"
 		       "qpn=0x%x of type=0x%x old_qps=0x%x, new_qps=0x%x\n",
 		       __func__, dev->id, attr_mask, qp->id, ibqp->qp_type,

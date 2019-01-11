@@ -69,6 +69,11 @@ struct thread_group_cputimer {
 	bool checking_timer;
 };
 
+struct multiprocess_signals {
+	sigset_t signal;
+	struct hlist_node node;
+};
+
 /*
  * NOTE! "signal_struct" does not have its own
  * locking, because a shared signal_struct always
@@ -89,6 +94,9 @@ struct signal_struct {
 
 	/* shared signal handling: */
 	struct sigpending	shared_pending;
+
+	/* For collecting multiprocess signals during fork */
+	struct hlist_head	multiprocess;
 
 	/* thread group exit support */
 	int			group_exit_code;
@@ -146,7 +154,8 @@ struct signal_struct {
 
 #endif
 
-	struct pid *leader_pid;
+	/* PID/PID hash table linkage. */
+	struct pid *pids[PIDTYPE_MAX];
 
 #ifdef CONFIG_NO_HZ_FULL
 	atomic_t tick_dep_mask;
@@ -261,16 +270,16 @@ static inline int signal_group_exit(const struct signal_struct *sig)
 extern void flush_signals(struct task_struct *);
 extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
-extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info);
+extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, kernel_siginfo_t *info);
 
-static inline int kernel_dequeue_signal(siginfo_t *info)
+static inline int kernel_dequeue_signal(void)
 {
 	struct task_struct *tsk = current;
-	siginfo_t __info;
+	kernel_siginfo_t __info;
 	int ret;
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	ret = dequeue_signal(tsk, &tsk->blocked, info ?: &__info);
+	ret = dequeue_signal(tsk, &tsk->blocked, &__info);
 	spin_unlock_irq(&tsk->sighand->siglock);
 
 	return ret;
@@ -313,12 +322,12 @@ int force_sig_pkuerr(void __user *addr, u32 pkey);
 
 int force_sig_ptrace_errno_trap(int errno, void __user *addr);
 
-extern int send_sig_info(int, struct siginfo *, struct task_struct *);
-extern int force_sigsegv(int, struct task_struct *);
-extern int force_sig_info(int, struct siginfo *, struct task_struct *);
-extern int __kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp);
-extern int kill_pid_info(int sig, struct siginfo *info, struct pid *pid);
-extern int kill_pid_info_as_cred(int, struct siginfo *, struct pid *,
+extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
+extern void force_sigsegv(int sig, struct task_struct *p);
+extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
+extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
+extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
+extern int kill_pid_info_as_cred(int, struct kernel_siginfo *, struct pid *,
 				const struct cred *);
 extern int kill_pgrp(struct pid *pid, int sig, int priv);
 extern int kill_pid(struct pid *pid, int sig, int priv);
@@ -329,7 +338,7 @@ extern int send_sig(int, struct task_struct *, int);
 extern int zap_other_threads(struct task_struct *p);
 extern struct sigqueue *sigqueue_alloc(void);
 extern void sigqueue_free(struct sigqueue *);
-extern int send_sigqueue(struct sigqueue *,  struct task_struct *, int group);
+extern int send_sigqueue(struct sigqueue *, struct pid *, enum pid_type);
 extern int do_sigaction(int, struct k_sigaction *, struct k_sigaction *);
 
 static inline int restart_syscall(void)
@@ -371,6 +380,7 @@ static inline int signal_pending_state(long state, struct task_struct *p)
  */
 extern void recalc_sigpending_and_wake(struct task_struct *t);
 extern void recalc_sigpending(void);
+extern void calculate_sigpending(void);
 
 extern void signal_wake_up_state(struct task_struct *t, unsigned int state);
 
@@ -382,6 +392,8 @@ static inline void ptrace_signal_wake_up(struct task_struct *t, bool resume)
 {
 	signal_wake_up_state(t, resume ? __TASK_TRACED : 0);
 }
+
+void task_join_group_stop(struct task_struct *task);
 
 #ifdef TIF_RESTORE_SIGMASK
 /*
@@ -463,9 +475,8 @@ static inline int kill_cad_pid(int sig, int priv)
 }
 
 /* These can be the second arg to send_sig_info/send_group_sig_info.  */
-#define SEND_SIG_NOINFO ((struct siginfo *) 0)
-#define SEND_SIG_PRIV	((struct siginfo *) 1)
-#define SEND_SIG_FORCED	((struct siginfo *) 2)
+#define SEND_SIG_NOINFO ((struct kernel_siginfo *) 0)
+#define SEND_SIG_PRIV	((struct kernel_siginfo *) 1)
 
 /*
  * True if we are on the alternate signal stack.
@@ -556,6 +567,37 @@ extern bool current_is_single_threaded(void);
 typedef int (*proc_visitor)(struct task_struct *p, void *data);
 void walk_process_tree(struct task_struct *top, proc_visitor, void *);
 
+static inline
+struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
+{
+	struct pid *pid;
+	if (type == PIDTYPE_PID)
+		pid = task_pid(task);
+	else
+		pid = task->signal->pids[type];
+	return pid;
+}
+
+static inline struct pid *task_tgid(struct task_struct *task)
+{
+	return task->signal->pids[PIDTYPE_TGID];
+}
+
+/*
+ * Without tasklist or RCU lock it is not safe to dereference
+ * the result of task_pgrp/task_session even if task == current,
+ * we can race with another thread doing sys_setsid/sys_setpgid.
+ */
+static inline struct pid *task_pgrp(struct task_struct *task)
+{
+	return task->signal->pids[PIDTYPE_PGID];
+}
+
+static inline struct pid *task_session(struct task_struct *task)
+{
+	return task->signal->pids[PIDTYPE_SID];
+}
+
 static inline int get_nr_threads(struct task_struct *tsk)
 {
 	return tsk->signal->nr_threads;
@@ -574,7 +616,7 @@ static inline bool thread_group_leader(struct task_struct *p)
  */
 static inline bool has_group_leader_pid(struct task_struct *p)
 {
-	return task_pid(p) == p->signal->leader_pid;
+	return task_pid(p) == task_tgid(p);
 }
 
 static inline

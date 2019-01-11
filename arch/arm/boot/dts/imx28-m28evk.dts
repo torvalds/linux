@@ -1,4 +1,5 @@
 /*
+
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  *
  * The code contained herein is licensed under the GNU General Public
@@ -18,7 +19,7 @@
 
 	apb@80000000 {
 		apbh@80000000 {
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_8bit_pins_a
@@ -30,7 +31,7 @@
 				status = "okay";
 			};
 
-			ssp2: ssp@80014000 {
+			ssp2: spi@80014000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx28-spi";

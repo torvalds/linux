@@ -177,7 +177,7 @@ static int zd1301_frontend_attach(struct dvb_usb_adapter *adap)
 	dev->mt2060_pdata.i2c_write_max = 9;
 	dev->mt2060_pdata.dvb_frontend = frontend;
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "mt2060", I2C_NAME_SIZE);
+	strscpy(board_info.type, "mt2060", I2C_NAME_SIZE);
 	board_info.addr = 0x60;
 	board_info.platform_data = &dev->mt2060_pdata;
 	request_module("%s", "mt2060");

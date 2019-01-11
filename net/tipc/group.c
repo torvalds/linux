@@ -666,6 +666,7 @@ static void tipc_group_create_event(struct tipc_group *grp,
 	struct sk_buff *skb;
 	struct tipc_msg *hdr;
 
+	memset(&evt, 0, sizeof(evt));
 	evt.event = event;
 	evt.found_lower = m->instance;
 	evt.found_upper = m->instance;

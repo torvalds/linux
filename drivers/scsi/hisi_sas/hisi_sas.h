@@ -34,6 +34,7 @@
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_RESET_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
+#define HISI_SAS_RESERVED_IPTT_CNT  96
 
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
@@ -67,6 +68,12 @@
 #define HISI_SAS_SATA_PROTOCOL_DMA			0x4
 #define HISI_SAS_SATA_PROTOCOL_FPDMA		0x8
 #define HISI_SAS_SATA_PROTOCOL_ATAPI		0x10
+
+#define HISI_SAS_DIF_PROT_MASK (SHOST_DIF_TYPE1_PROTECTION | \
+				SHOST_DIF_TYPE2_PROTECTION | \
+				SHOST_DIF_TYPE3_PROTECTION)
+
+#define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK)
 
 struct hisi_hba;
 
@@ -210,14 +217,14 @@ struct hisi_sas_slot {
 	/* Do not reorder/change members after here */
 	void	*buf;
 	dma_addr_t buf_dma;
-	int	idx;
+	u16	idx;
 };
 
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
 	void (*setup_itct)(struct hisi_hba *hisi_hba,
 			   struct hisi_sas_device *device);
-	int (*slot_index_alloc)(struct hisi_hba *hisi_hba, int *slot_idx,
+	int (*slot_index_alloc)(struct hisi_hba *hisi_hba,
 				struct domain_device *device);
 	struct hisi_sas_device *(*alloc_dev)(struct domain_device *device);
 	void (*sl_notify)(struct hisi_hba *hisi_hba, int phy_no);
@@ -266,6 +273,8 @@ struct hisi_hba {
 	struct platform_device *platform_dev;
 	struct pci_dev *pci_dev;
 	struct device *dev;
+
+	int prot_mask;
 
 	void __iomem *regs;
 	void __iomem *sgpio_regs;
@@ -321,6 +330,8 @@ struct hisi_hba {
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
 	u32 phy_state;
+	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
+	u32 intr_coal_count;	/* Interrupt count to coalesce */
 };
 
 /* Generic HW DMA host memory structures */
@@ -467,7 +478,6 @@ extern int hisi_sas_remove(struct platform_device *pdev);
 extern int hisi_sas_slave_configure(struct scsi_device *sdev);
 extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern void hisi_sas_scan_start(struct Scsi_Host *shost);
-extern struct device_attribute *host_attrs[];
 extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);
 extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,

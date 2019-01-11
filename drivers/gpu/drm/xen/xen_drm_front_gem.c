@@ -22,7 +22,6 @@
 #include <xen/balloon.h>
 
 #include "xen_drm_front.h"
-#include "xen_drm_front_shbuf.h"
 
 struct xen_gem_object {
 	struct drm_gem_object base;
@@ -179,7 +178,7 @@ struct sg_table *xen_drm_front_gem_get_sg_table(struct drm_gem_object *gem_obj)
 	struct xen_gem_object *xen_obj = to_xen_gem_obj(gem_obj);
 
 	if (!xen_obj->pages)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	return drm_prime_pages_to_sg(xen_obj->pages, xen_obj->num_pages);
 }

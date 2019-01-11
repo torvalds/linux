@@ -619,6 +619,14 @@ void hw_atl_rpb_rx_flow_ctl_mode_set(struct aq_hw_s *aq_hw, u32 rx_flow_ctl_mode
 			    HW_ATL_RPB_RX_FC_MODE_SHIFT, rx_flow_ctl_mode);
 }
 
+void hw_atl_rdm_rx_dma_desc_cache_init_set(struct aq_hw_s *aq_hw, u32 init)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_ADR,
+			    HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_MSK,
+			    HW_ATL_RDM_RX_DMA_DESC_CACHE_INIT_SHIFT,
+			    init);
+}
+
 void hw_atl_rpb_rx_pkt_buff_size_per_tc_set(struct aq_hw_s *aq_hw,
 					    u32 rx_pkt_buff_size_per_tc, u32 buffer)
 {
@@ -890,6 +898,24 @@ void hw_atl_rpf_vlan_id_flr_set(struct aq_hw_s *aq_hw, u32 vlan_id_flr,
 			    vlan_id_flr);
 }
 
+void hw_atl_rpf_vlan_rxq_en_flr_set(struct aq_hw_s *aq_hw, u32 vlan_rxq_en,
+				    u32 filter)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_RXQ_EN_F_ADR(filter),
+			    HW_ATL_RPF_VL_RXQ_EN_F_MSK,
+			    HW_ATL_RPF_VL_RXQ_EN_F_SHIFT,
+			    vlan_rxq_en);
+}
+
+void hw_atl_rpf_vlan_rxq_flr_set(struct aq_hw_s *aq_hw, u32 vlan_rxq,
+				 u32 filter)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_RXQ_F_ADR(filter),
+			    HW_ATL_RPF_VL_RXQ_F_MSK,
+			    HW_ATL_RPF_VL_RXQ_F_SHIFT,
+			    vlan_rxq);
+};
+
 void hw_atl_rpf_etht_flr_en_set(struct aq_hw_s *aq_hw, u32 etht_flr_en,
 				u32 filter)
 {
@@ -955,6 +981,20 @@ void hw_atl_rpf_etht_flr_set(struct aq_hw_s *aq_hw, u32 etht_flr, u32 filter)
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_VALF_ADR(filter),
 			    HW_ATL_RPF_ET_VALF_MSK,
 			    HW_ATL_RPF_ET_VALF_SHIFT, etht_flr);
+}
+
+void hw_atl_rpf_l4_spd_set(struct aq_hw_s *aq_hw, u32 val, u32 filter)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_SPD_ADR(filter),
+			    HW_ATL_RPF_L4_SPD_MSK,
+			    HW_ATL_RPF_L4_SPD_SHIFT, val);
+}
+
+void hw_atl_rpf_l4_dpd_set(struct aq_hw_s *aq_hw, u32 val, u32 filter)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_DPD_ADR(filter),
+			    HW_ATL_RPF_L4_DPD_MSK,
+			    HW_ATL_RPF_L4_DPD_SHIFT, val);
 }
 
 /* RPO: rx packet offload */
@@ -1459,4 +1499,89 @@ void hw_atl_reg_glb_cpu_scratch_scp_set(struct aq_hw_s *aq_hw,
 {
 	aq_hw_write_reg(aq_hw, HW_ATL_GLB_CPU_SCRATCH_SCP_ADR(scratch_scp),
 			glb_cpu_scratch_scp);
+}
+
+void hw_atl_mcp_up_force_intr_set(struct aq_hw_s *aq_hw, u32 up_force_intr)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_MCP_UP_FORCE_INTERRUPT_ADR,
+			    HW_ATL_MCP_UP_FORCE_INTERRUPT_MSK,
+			    HW_ATL_MCP_UP_FORCE_INTERRUPT_SHIFT,
+			    up_force_intr);
+}
+
+void hw_atl_rpfl3l4_ipv4_dest_addr_clear(struct aq_hw_s *aq_hw, u8 location)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_RPF_L3_DSTA_ADR(location), 0U);
+}
+
+void hw_atl_rpfl3l4_ipv4_src_addr_clear(struct aq_hw_s *aq_hw, u8 location)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_RPF_L3_SRCA_ADR(location), 0U);
+}
+
+void hw_atl_rpfl3l4_cmd_clear(struct aq_hw_s *aq_hw, u8 location)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_RPF_L3_REG_CTRL_ADR(location), 0U);
+}
+
+void hw_atl_rpfl3l4_ipv6_dest_addr_clear(struct aq_hw_s *aq_hw, u8 location)
+{
+	int i;
+
+	for (i = 0; i < 4; ++i)
+		aq_hw_write_reg(aq_hw,
+				HW_ATL_RPF_L3_DSTA_ADR(location + i),
+				0U);
+}
+
+void hw_atl_rpfl3l4_ipv6_src_addr_clear(struct aq_hw_s *aq_hw, u8 location)
+{
+	int i;
+
+	for (i = 0; i < 4; ++i)
+		aq_hw_write_reg(aq_hw,
+				HW_ATL_RPF_L3_SRCA_ADR(location + i),
+				0U);
+}
+
+void hw_atl_rpfl3l4_ipv4_dest_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				       u32 ipv4_dest)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_RPF_L3_DSTA_ADR(location),
+			ipv4_dest);
+}
+
+void hw_atl_rpfl3l4_ipv4_src_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				      u32 ipv4_src)
+{
+	aq_hw_write_reg(aq_hw,
+			HW_ATL_RPF_L3_SRCA_ADR(location),
+			ipv4_src);
+}
+
+void hw_atl_rpfl3l4_cmd_set(struct aq_hw_s *aq_hw, u8 location, u32 cmd)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_RPF_L3_REG_CTRL_ADR(location), cmd);
+}
+
+void hw_atl_rpfl3l4_ipv6_src_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				      u32 *ipv6_src)
+{
+	int i;
+
+	for (i = 0; i < 4; ++i)
+		aq_hw_write_reg(aq_hw,
+				HW_ATL_RPF_L3_SRCA_ADR(location + i),
+				ipv6_src[i]);
+}
+
+void hw_atl_rpfl3l4_ipv6_dest_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				       u32 *ipv6_dest)
+{
+	int i;
+
+	for (i = 0; i < 4; ++i)
+		aq_hw_write_reg(aq_hw,
+				HW_ATL_RPF_L3_DSTA_ADR(location + i),
+				ipv6_dest[i]);
 }

@@ -8,9 +8,8 @@
 #include "pwrseq.h"
 #include <rtl8188e_hal.h>
 
-/*
-    drivers should parse below arrays and do the corresponding actions
-*/
+/* drivers should parse below arrays and do the corresponding actions */
+
 /* 3 Power on  Array */
 struct wl_pwr_cfg rtl8188E_power_on_flow[RTL8188E_TRANS_CARDEMU_TO_ACT_STEPS +
 					 RTL8188E_TRANS_END_STEPS] = {

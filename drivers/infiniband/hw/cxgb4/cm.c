@@ -403,8 +403,7 @@ void _c4iw_free_ep(struct kref *kref)
 				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
-		if (ep->mpa_skb)
-			kfree_skb(ep->mpa_skb);
+		kfree_skb(ep->mpa_skb);
 	}
 	if (!skb_queue_empty(&ep->com.ep_skb_list))
 		skb_queue_purge(&ep->com.ep_skb_list);
@@ -2059,8 +2058,7 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 		}
 		ep->mtu = pdev->mtu;
 		ep->tx_chan = cxgb4_port_chan(pdev);
-		ep->smac_idx = cxgb4_tp_smt_idx(adapter_type,
-						cxgb4_port_viid(pdev));
+		ep->smac_idx = ((struct port_info *)netdev_priv(pdev))->smt_idx;
 		step = cdev->rdev.lldi.ntxq /
 			cdev->rdev.lldi.nchan;
 		ep->txq_idx = cxgb4_port_idx(pdev) * step;
@@ -2079,8 +2077,7 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 			goto out;
 		ep->mtu = dst_mtu(dst);
 		ep->tx_chan = cxgb4_port_chan(pdev);
-		ep->smac_idx = cxgb4_tp_smt_idx(adapter_type,
-						cxgb4_port_viid(pdev));
+		ep->smac_idx = ((struct port_info *)netdev_priv(pdev))->smt_idx;
 		step = cdev->rdev.lldi.ntxq /
 			cdev->rdev.lldi.nchan;
 		ep->txq_idx = cxgb4_port_idx(pdev) * step;
@@ -2796,7 +2793,8 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		break;
 	case MPA_REQ_SENT:
 		(void)stop_ep_timer(ep);
-		if (mpa_rev == 1 || (mpa_rev == 2 && ep->tried_with_mpa_v1))
+		if (status != CPL_ERR_CONN_RESET || mpa_rev == 1 ||
+		    (mpa_rev == 2 && ep->tried_with_mpa_v1))
 			connect_reply_upcall(ep, -ECONNRESET);
 		else {
 			/*
@@ -3945,7 +3943,7 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	} else {
 		vlan_eh = (struct vlan_ethhdr *)(req + 1);
 		iph = (struct iphdr *)(vlan_eh + 1);
-		skb->vlan_tci = ntohs(cpl->vlan);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(cpl->vlan));
 	}
 
 	if (iph->version != 0x4)

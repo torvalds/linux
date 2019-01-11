@@ -3,7 +3,7 @@
 #include <linux/dma-debug.h>
 #include <linux/dmar.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
 
@@ -17,7 +17,7 @@
 
 static bool disable_dac_quirk __read_mostly;
 
-const struct dma_map_ops *dma_ops = &dma_direct_ops;
+const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 #ifdef CONFIG_IOMMU_DEBUG
@@ -40,8 +40,14 @@ int iommu_detected __read_mostly = 0;
  * devices and allow every device to access to whole physical memory. This is
  * useful if a user wants to use an IOMMU only for KVM device assignment to
  * guests and not for driver dma translation.
+ * It is also possible to disable by default in kernel config, and enable with
+ * iommu=nopt at boot time.
  */
+#ifdef CONFIG_IOMMU_DEFAULT_PASSTHROUGH
+int iommu_pass_through __read_mostly = 1;
+#else
 int iommu_pass_through __read_mostly;
+#endif
 
 extern struct iommu_table_entry __iommu_table[], __iommu_table_end[];
 
@@ -135,6 +141,8 @@ static __init int iommu_setup(char *p)
 #endif
 		if (!strncmp(p, "pt", 2))
 			iommu_pass_through = 1;
+		if (!strncmp(p, "nopt", 4))
+			iommu_pass_through = 0;
 
 		gart_parse_options(p);
 

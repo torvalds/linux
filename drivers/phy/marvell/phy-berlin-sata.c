@@ -231,14 +231,14 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 		struct phy_berlin_desc *phy_desc;
 
 		if (of_property_read_u32(child, "reg", &phy_id)) {
-			dev_err(dev, "missing reg property in node %s\n",
-				child->name);
+			dev_err(dev, "missing reg property in node %pOFn\n",
+				child);
 			ret = -EINVAL;
 			goto put_child;
 		}
 
 		if (phy_id >= ARRAY_SIZE(phy_berlin_power_down_bits)) {
-			dev_err(dev, "invalid reg in node %s\n", child->name);
+			dev_err(dev, "invalid reg in node %pOFn\n", child);
 			ret = -EINVAL;
 			goto put_child;
 		}

@@ -56,6 +56,21 @@ static inline bool qeth_intparm_is_iob(unsigned long intparm)
 #define IPA_CMD_INITIATOR_OSA_REPLY   0x81
 #define IPA_CMD_PRIM_VERSION_NO 0x01
 
+struct qeth_ipa_caps {
+	u32 supported;
+	u32 enabled;
+};
+
+static inline bool qeth_ipa_caps_supported(struct qeth_ipa_caps *caps, u32 mask)
+{
+	return (caps->supported & mask) == mask;
+}
+
+static inline bool qeth_ipa_caps_enabled(struct qeth_ipa_caps *caps, u32 mask)
+{
+	return (caps->enabled & mask) == mask;
+}
+
 enum qeth_card_types {
 	QETH_CARD_TYPE_OSD     = 1,
 	QETH_CARD_TYPE_IQD     = 5,
@@ -65,7 +80,9 @@ enum qeth_card_types {
 };
 
 #define IS_IQD(card)	((card)->info.type == QETH_CARD_TYPE_IQD)
+#define IS_OSD(card)	((card)->info.type == QETH_CARD_TYPE_OSD)
 #define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
+#define IS_VM_NIC(card)	((card)->info.guestlan)
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
 /* only the first two bytes are looked at in qeth_get_cardname_short */
@@ -75,6 +92,7 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_GBIT_ETH     = 0x03,
 	QETH_LINK_TYPE_OSN          = 0x04,
 	QETH_LINK_TYPE_10GBIT_ETH   = 0x10,
+	QETH_LINK_TYPE_25GBIT_ETH   = 0x12,
 	QETH_LINK_TYPE_LANE_ETH100  = 0x81,
 	QETH_LINK_TYPE_LANE_TR      = 0x82,
 	QETH_LINK_TYPE_LANE_ETH1000 = 0x83,
@@ -332,6 +350,7 @@ enum qeth_card_info_port_speed {
 	CARD_INFO_PORTS_100M		= 0x00000006,
 	CARD_INFO_PORTS_1G		= 0x00000007,
 	CARD_INFO_PORTS_10G		= 0x00000008,
+	CARD_INFO_PORTS_25G		= 0x0000000A,
 };
 
 /* (SET)DELIP(M) IPA stuff ***************************************************/
@@ -405,14 +424,25 @@ struct qeth_checksum_cmd {
 	__u32 enabled;
 } __packed;
 
+enum qeth_ipa_large_send_caps {
+	QETH_IPA_LARGE_SEND_TCP		= 0x00000001,
+};
+
+struct qeth_tso_start_data {
+	u32 mss;
+	u32 supported;
+};
+
 /* SETASSPARMS IPA Command: */
 struct qeth_ipacmd_setassparms {
 	struct qeth_ipacmd_setassparms_hdr hdr;
 	union {
 		__u32 flags_32bit;
+		struct qeth_ipa_caps caps;
 		struct qeth_checksum_cmd chksum;
-		struct qeth_arp_cache_entry add_arp_entry;
+		struct qeth_arp_cache_entry arp_entry;
 		struct qeth_arp_query_data query_arp;
+		struct qeth_tso_start_data tso;
 		__u8 ip[16];
 	} data;
 } __attribute__ ((packed));
@@ -501,17 +531,20 @@ struct qeth_query_switch_attributes {
 	__u8  reserved3[8];
 };
 
+#define QETH_SETADP_FLAGS_VIRTUAL_MAC	0x80	/* for CHANGE_ADDR_READ_MAC */
+
 struct qeth_ipacmd_setadpparms_hdr {
-	__u32 supp_hw_cmds;
-	__u32 reserved1;
-	__u16 cmdlength;
-	__u16 reserved2;
-	__u32 command_code;
-	__u16 return_code;
-	__u8  used_total;
-	__u8  seq_no;
-	__u32 reserved3;
-} __attribute__ ((packed));
+	u32 supp_hw_cmds;
+	u32 reserved1;
+	u16 cmdlength;
+	u16 reserved2;
+	u32 command_code;
+	u16 return_code;
+	u8 used_total;
+	u8 seq_no;
+	u8 flags;
+	u8 reserved3[3];
+};
 
 struct qeth_ipacmd_setadpparms {
 	struct qeth_ipacmd_setadpparms_hdr hdr;
@@ -797,13 +830,12 @@ enum qeth_ipa_arp_return_codes {
 	QETH_IPA_ARP_RC_Q_NO_DATA    = 0x0008,
 };
 
-extern char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
-extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
+extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
+extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
-#define QETH_SETASS_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
-			       sizeof(struct qeth_ipacmd_setassparms_hdr))
-#define QETH_IPA_ARP_DATA_POS(buffer) (buffer + IPA_PDU_HEADER_SIZE + \
-				       QETH_SETASS_BASE_LEN)
+#define QETH_SETASS_BASE_LEN (IPA_PDU_HEADER_SIZE + \
+			      sizeof(struct qeth_ipacmd_hdr) + \
+			      sizeof(struct qeth_ipacmd_setassparms_hdr))
 #define QETH_SETADP_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
 			      sizeof(struct qeth_ipacmd_setadpparms_hdr))
 #define QETH_SNMP_SETADP_CMDLENGTH 16

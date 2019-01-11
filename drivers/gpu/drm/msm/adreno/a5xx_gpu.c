@@ -20,7 +20,6 @@
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/pm_opp.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/iopoll.h>
 #include <linux/slab.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
@@ -511,13 +510,16 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 		a5xx_gpu->pm4_bo = adreno_fw_create_bo(gpu,
 			adreno_gpu->fw[ADRENO_FW_PM4], &a5xx_gpu->pm4_iova);
 
+
 		if (IS_ERR(a5xx_gpu->pm4_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pm4_bo);
 			a5xx_gpu->pm4_bo = NULL;
-			dev_err(gpu->dev->dev, "could not allocate PM4: %d\n",
+			DRM_DEV_ERROR(gpu->dev->dev, "could not allocate PM4: %d\n",
 				ret);
 			return ret;
 		}
+
+		msm_gem_object_set_name(a5xx_gpu->pm4_bo, "pm4fw");
 	}
 
 	if (!a5xx_gpu->pfp_bo) {
@@ -527,10 +529,12 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 		if (IS_ERR(a5xx_gpu->pfp_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pfp_bo);
 			a5xx_gpu->pfp_bo = NULL;
-			dev_err(gpu->dev->dev, "could not allocate PFP: %d\n",
+			DRM_DEV_ERROR(gpu->dev->dev, "could not allocate PFP: %d\n",
 				ret);
 			return ret;
 		}
+
+		msm_gem_object_set_name(a5xx_gpu->pfp_bo, "pfpfw");
 	}
 
 	gpu_write64(gpu, REG_A5XX_CP_ME_INSTR_BASE_LO,
@@ -841,20 +845,17 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 	a5xx_preempt_fini(gpu);
 
 	if (a5xx_gpu->pm4_bo) {
-		if (a5xx_gpu->pm4_iova)
-			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->aspace);
+		msm_gem_unpin_iova(a5xx_gpu->pm4_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a5xx_gpu->pm4_bo);
 	}
 
 	if (a5xx_gpu->pfp_bo) {
-		if (a5xx_gpu->pfp_iova)
-			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->aspace);
+		msm_gem_unpin_iova(a5xx_gpu->pfp_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a5xx_gpu->pfp_bo);
 	}
 
 	if (a5xx_gpu->gpmu_bo) {
-		if (a5xx_gpu->gpmu_iova)
-			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
+		msm_gem_unpin_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a5xx_gpu->gpmu_bo);
 	}
 
@@ -1028,7 +1029,7 @@ static void a5xx_fault_detect_irq(struct msm_gpu *gpu)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
 
-	dev_err(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
+	DRM_DEV_ERROR(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
 		ring ? ring->id : -1, ring ? ring->seqno : 0,
 		gpu_read(gpu, REG_A5XX_RBBM_STATUS),
 		gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
@@ -1134,7 +1135,7 @@ static const u32 a5xx_registers[] = {
 
 static void a5xx_dump(struct msm_gpu *gpu)
 {
-	dev_info(gpu->dev->dev, "status:   %08x\n",
+	DRM_DEV_INFO(gpu->dev->dev, "status:   %08x\n",
 		gpu_read(gpu, REG_A5XX_RBBM_STATUS));
 	adreno_dump(gpu);
 }
@@ -1211,10 +1212,6 @@ struct a5xx_gpu_state {
 	u32 *hlsqregs;
 };
 
-#define gpu_poll_timeout(gpu, addr, val, cond, interval, timeout) \
-	readl_poll_timeout((gpu)->mmio + ((addr) << 2), val, cond, \
-		interval, timeout)
-
 static int a5xx_crashdumper_init(struct msm_gpu *gpu,
 		struct a5xx_crashdumper *dumper)
 {
@@ -1222,19 +1219,10 @@ static int a5xx_crashdumper_init(struct msm_gpu *gpu,
 		SZ_1M, MSM_BO_UNCACHED, gpu->aspace,
 		&dumper->bo, &dumper->iova);
 
-	if (IS_ERR(dumper->ptr))
-		return PTR_ERR(dumper->ptr);
+	if (!IS_ERR(dumper->ptr))
+		msm_gem_object_set_name(dumper->bo, "crashdump");
 
-	return 0;
-}
-
-static void a5xx_crashdumper_free(struct msm_gpu *gpu,
-		struct a5xx_crashdumper *dumper)
-{
-	msm_gem_put_iova(dumper->bo, gpu->aspace);
-	msm_gem_put_vaddr(dumper->bo);
-
-	drm_gem_object_unreference(dumper->bo);
+	return PTR_ERR_OR_ZERO(dumper->ptr);
 }
 
 static int a5xx_crashdumper_run(struct msm_gpu *gpu,
@@ -1329,7 +1317,7 @@ static void a5xx_gpu_state_get_hlsq_regs(struct msm_gpu *gpu,
 
 	if (a5xx_crashdumper_run(gpu, &dumper)) {
 		kfree(a5xx_state->hlsqregs);
-		a5xx_crashdumper_free(gpu, &dumper);
+		msm_gem_kernel_put(dumper.bo, gpu->aspace, true);
 		return;
 	}
 
@@ -1337,7 +1325,7 @@ static void a5xx_gpu_state_get_hlsq_regs(struct msm_gpu *gpu,
 	memcpy(a5xx_state->hlsqregs, dumper.ptr + (256 * SZ_1K),
 		count * sizeof(u32));
 
-	a5xx_crashdumper_free(gpu, &dumper);
+	msm_gem_kernel_put(dumper.bo, gpu->aspace, true);
 }
 
 static struct msm_gpu_state *a5xx_gpu_state_get(struct msm_gpu *gpu)
@@ -1436,12 +1424,22 @@ static struct msm_ringbuffer *a5xx_active_ring(struct msm_gpu *gpu)
 	return a5xx_gpu->cur_ring;
 }
 
-static int a5xx_gpu_busy(struct msm_gpu *gpu, uint64_t *value)
+static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
 {
-	*value = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
-		REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
+	u64 busy_cycles, busy_time;
 
-	return 0;
+	busy_cycles = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
+			REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
+
+	busy_time = busy_cycles - gpu->devfreq.busy_cycles;
+	do_div(busy_time, clk_get_rate(gpu->core_clk) / 1000000);
+
+	gpu->devfreq.busy_cycles = busy_cycles;
+
+	if (WARN_ON(busy_time > ~0LU))
+		return ~0LU;
+
+	return (unsigned long)busy_time;
 }
 
 static const struct adreno_gpu_funcs funcs = {
@@ -1498,7 +1496,7 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	int ret;
 
 	if (!pdev) {
-		dev_err(dev->dev, "No A5XX device is defined\n");
+		DRM_DEV_ERROR(dev->dev, "No A5XX device is defined\n");
 		return ERR_PTR(-ENXIO);
 	}
 

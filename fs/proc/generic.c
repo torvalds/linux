@@ -286,9 +286,9 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
+	i = ctx->pos - 2;
 	read_lock(&proc_subdir_lock);
 	de = pde_subdir_first(de);
-	i = ctx->pos - 2;
 	for (;;) {
 		if (!de) {
 			read_unlock(&proc_subdir_lock);
@@ -309,8 +309,8 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 			pde_put(de);
 			return 0;
 		}
-		read_lock(&proc_subdir_lock);
 		ctx->pos++;
+		read_lock(&proc_subdir_lock);
 		next = pde_subdir_next(de);
 		pde_put(de);
 		de = next;

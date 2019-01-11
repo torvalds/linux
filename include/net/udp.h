@@ -252,6 +252,17 @@ static inline int udp_rqueue_get(struct sock *sk)
 	return sk_rmem_alloc_get(sk) - READ_ONCE(udp_sk(sk)->forward_deficit);
 }
 
+static inline bool udp_sk_bound_dev_eq(struct net *net, int bound_dev_if,
+				       int dif, int sdif)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	return inet_bound_dev_eq(!!net->ipv4.sysctl_udp_l3mdev_accept,
+				 bound_dev_if, dif, sdif);
+#else
+	return inet_bound_dev_eq(true, bound_dev_if, dif, sdif);
+#endif
+}
+
 /* net/ipv4/udp.c */
 void udp_destruct_sock(struct sock *sk);
 void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);
@@ -272,7 +283,7 @@ bool udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst);
 int udp_get_port(struct sock *sk, unsigned short snum,
 		 int (*saddr_cmp)(const struct sock *,
 				  const struct sock *));
-void udp_err(struct sk_buff *, u32);
+int udp_err(struct sk_buff *, u32);
 int udp_abort(struct sock *sk, int err);
 int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
 int udp_push_pending_frames(struct sock *sk);
@@ -406,16 +417,23 @@ static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
 } while(0)
 
 #if IS_ENABLED(CONFIG_IPV6)
-#define __UDPX_INC_STATS(sk, field)					\
-do {									\
-	if ((sk)->sk_family == AF_INET)					\
-		__UDP_INC_STATS(sock_net(sk), field, 0);		\
-	else								\
-		__UDP6_INC_STATS(sock_net(sk), field, 0);		\
-} while (0)
+#define __UDPX_MIB(sk, ipv4)						\
+({									\
+	ipv4 ? (IS_UDPLITE(sk) ? sock_net(sk)->mib.udplite_statistics :	\
+				 sock_net(sk)->mib.udp_statistics) :	\
+		(IS_UDPLITE(sk) ? sock_net(sk)->mib.udplite_stats_in6 :	\
+				 sock_net(sk)->mib.udp_stats_in6);	\
+})
 #else
-#define __UDPX_INC_STATS(sk, field) __UDP_INC_STATS(sock_net(sk), field, 0)
+#define __UDPX_MIB(sk, ipv4)						\
+({									\
+	IS_UDPLITE(sk) ? sock_net(sk)->mib.udplite_statistics :		\
+			 sock_net(sk)->mib.udp_statistics;		\
+})
 #endif
+
+#define __UDPX_INC_STATS(sk, field) \
+	__SNMP_INC_STATS(__UDPX_MIB(sk, (sk)->sk_family == AF_INET), field)
 
 #ifdef CONFIG_PROC_FS
 struct udp_seq_afinfo {
@@ -443,9 +461,33 @@ int udpv4_offload_init(void);
 
 void udp_init(void);
 
+DECLARE_STATIC_KEY_FALSE(udp_encap_needed_key);
 void udp_encap_enable(void);
 #if IS_ENABLED(CONFIG_IPV6)
+DECLARE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
 void udpv6_encap_enable(void);
 #endif
+
+static inline struct sk_buff *udp_rcv_segment(struct sock *sk,
+					      struct sk_buff *skb, bool ipv4)
+{
+	struct sk_buff *segs;
+
+	/* the GSO CB lays after the UDP one, no need to save and restore any
+	 * CB fragment
+	 */
+	segs = __skb_gso_segment(skb, NETIF_F_SG, false);
+	if (unlikely(IS_ERR_OR_NULL(segs))) {
+		int segs_nr = skb_shinfo(skb)->gso_segs;
+
+		atomic_add(segs_nr, &sk->sk_drops);
+		SNMP_ADD_STATS(__UDPX_MIB(sk, ipv4), UDP_MIB_INERRORS, segs_nr);
+		kfree_skb(skb);
+		return NULL;
+	}
+
+	consume_skb(skb);
+	return segs;
+}
 
 #endif	/* _UDP_H */

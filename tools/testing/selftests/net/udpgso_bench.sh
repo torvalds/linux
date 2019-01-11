@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
 # Run a series of udpgso benchmarks
@@ -34,7 +34,10 @@ run_udp() {
 	run_in_netns ${args}
 
 	echo "udp gso"
-	run_in_netns ${args} -S
+	run_in_netns ${args} -S 0
+
+	echo "udp gso zerocopy"
+	run_in_netns ${args} -S 0 -z
 }
 
 run_tcp() {

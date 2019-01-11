@@ -70,7 +70,7 @@ int mtk_connect_phy_node(struct mtk_eth *eth, struct mtk_mac *mac,
 	_port = of_get_property(phy_node, "reg", NULL);
 
 	if (!_port || (be32_to_cpu(*_port) >= 0x20)) {
-		pr_err("%s: invalid port id\n", phy_node->name);
+		pr_err("%pOFn: invalid port id\n", phy_node);
 		return -EINVAL;
 	}
 	port = be32_to_cpu(*_port);
@@ -89,7 +89,7 @@ int mtk_connect_phy_node(struct mtk_eth *eth, struct mtk_mac *mac,
 		return -ENODEV;
 	}
 
-	phydev->supported &= PHY_GBIT_FEATURES;
+	phydev->supported &= PHY_1000BT_FEATURES;
 	phydev->advertising = phydev->supported;
 
 	dev_info(eth->dev,
@@ -112,7 +112,7 @@ static void phy_init(struct mtk_eth *eth, struct mtk_mac *mac,
 	phy->autoneg = AUTONEG_ENABLE;
 	phy->speed = 0;
 	phy->duplex = 0;
-	phy->supported &= PHY_BASIC_FEATURES;
+	phy_set_max_speed(phy, SPEED_100);
 	phy->advertising = phy->supported | ADVERTISED_Autoneg;
 
 	phy_start_aneg(phy);
@@ -249,7 +249,7 @@ int mtk_mdio_init(struct mtk_eth *eth)
 	eth->mii_bus->priv = eth;
 	eth->mii_bus->parent = eth->dev;
 
-	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%s", mii_np->name);
+	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np);
 	err = of_mdiobus_register(eth->mii_bus, mii_np);
 	if (err)
 		goto err_free_bus;

@@ -483,6 +483,13 @@ enum {
 	TCA_FLOWER_KEY_ENC_OPTS,
 	TCA_FLOWER_KEY_ENC_OPTS_MASK,
 
+	TCA_FLOWER_IN_HW_COUNT,
+
+	TCA_FLOWER_KEY_PORT_SRC_MIN,	/* be16 */
+	TCA_FLOWER_KEY_PORT_SRC_MAX,	/* be16 */
+	TCA_FLOWER_KEY_PORT_DST_MIN,	/* be16 */
+	TCA_FLOWER_KEY_PORT_DST_MAX,	/* be16 */
+
 	__TCA_FLOWER_MAX,
 };
 
@@ -515,6 +522,8 @@ enum {
 	TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT = (1 << 0),
 	TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST = (1 << 1),
 };
+
+#define TCA_FLOWER_MASK_FLAGS_RANGE	(1 << 0) /* Range-based match */
 
 /* Match-all classifier */
 

@@ -646,8 +646,7 @@ static int tcf_csum_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_csum_search(struct net *net, struct tc_action **a, u32 index,
-			   struct netlink_ext_ack *extack)
+static int tcf_csum_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
 
@@ -657,13 +656,6 @@ static int tcf_csum_search(struct net *net, struct tc_action **a, u32 index,
 static size_t tcf_csum_get_fill_size(const struct tc_action *act)
 {
 	return nla_total_size(sizeof(struct tc_csum));
-}
-
-static int tcf_csum_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, csum_net_id);
-
-	return tcf_idr_delete_index(tn, index);
 }
 
 static struct tc_action_ops act_csum_ops = {
@@ -677,7 +669,6 @@ static struct tc_action_ops act_csum_ops = {
 	.walk		= tcf_csum_walker,
 	.lookup		= tcf_csum_search,
 	.get_fill_size  = tcf_csum_get_fill_size,
-	.delete		= tcf_csum_delete,
 	.size		= sizeof(struct tcf_csum),
 };
 

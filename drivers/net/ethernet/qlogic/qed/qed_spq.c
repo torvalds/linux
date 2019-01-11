@@ -142,6 +142,7 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 
 	DP_INFO(p_hwfn, "Ramrod is stuck, requesting MCP drain\n");
 	rc = qed_mcp_drain(p_hwfn, p_ptt);
+	qed_ptt_release(p_hwfn, p_ptt);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "MCP drain failed\n");
 		goto err;
@@ -150,18 +151,15 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 	/* Retry after drain */
 	rc = __qed_spq_block(p_hwfn, p_ent, p_fw_ret, true);
 	if (!rc)
-		goto out;
+		return 0;
 
 	comp_done = (struct qed_spq_comp_done *)p_ent->comp_cb.cookie;
-	if (comp_done->done == 1)
+	if (comp_done->done == 1) {
 		if (p_fw_ret)
 			*p_fw_ret = comp_done->fw_return_code;
-out:
-	qed_ptt_release(p_hwfn, p_ptt);
-	return 0;
-
+		return 0;
+	}
 err:
-	qed_ptt_release(p_hwfn, p_ptt);
 	DP_NOTICE(p_hwfn,
 		  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
 		  le32_to_cpu(p_ent->elem.hdr.cid),
@@ -254,9 +252,9 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 			   struct qed_spq *p_spq, struct qed_spq_entry *p_ent)
 {
 	struct qed_chain *p_chain = &p_hwfn->p_spq->chain;
+	struct core_db_data *p_db_data = &p_spq->db_data;
 	u16 echo = qed_chain_get_prod_idx(p_chain);
 	struct slow_path_element	*elem;
-	struct core_db_data		db;
 
 	p_ent->elem.hdr.echo	= cpu_to_le16(echo);
 	elem = qed_chain_produce(p_chain);
@@ -268,27 +266,22 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 	*elem = p_ent->elem; /* struct assignment */
 
 	/* send a doorbell on the slow hwfn session */
-	memset(&db, 0, sizeof(db));
-	SET_FIELD(db.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
-	SET_FIELD(db.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
-	SET_FIELD(db.params, CORE_DB_DATA_AGG_VAL_SEL,
-		  DQ_XCM_CORE_SPQ_PROD_CMD);
-	db.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-	db.spq_prod = cpu_to_le16(qed_chain_get_prod_idx(p_chain));
+	p_db_data->spq_prod = cpu_to_le16(qed_chain_get_prod_idx(p_chain));
 
 	/* make sure the SPQE is updated before the doorbell */
 	wmb();
 
-	DOORBELL(p_hwfn, qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY), *(u32 *)&db);
+	DOORBELL(p_hwfn, p_spq->db_addr_offset, *(u32 *)p_db_data);
 
 	/* make sure doorbell is rang */
 	wmb();
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Doorbelled [0x%08x, CID 0x%08x] with Flags: %02x agg_params: %02x, prod: %04x\n",
-		   qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY),
-		   p_spq->cid, db.params, db.agg_flags,
-		   qed_chain_get_prod_idx(p_chain));
+		   p_spq->db_addr_offset,
+		   p_spq->cid,
+		   p_db_data->params,
+		   p_db_data->agg_flags, qed_chain_get_prod_idx(p_chain));
 
 	return 0;
 }
@@ -492,8 +485,11 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
 	struct qed_spq_entry *p_virt = NULL;
+	struct core_db_data *p_db_data;
+	void __iomem *db_addr;
 	dma_addr_t p_phys = 0;
 	u32 i, capacity;
+	int rc;
 
 	INIT_LIST_HEAD(&p_spq->pending);
 	INIT_LIST_HEAD(&p_spq->completion_pending);
@@ -530,6 +526,25 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 
 	/* reset the chain itself */
 	qed_chain_reset(&p_spq->chain);
+
+	/* Initialize the address/data of the SPQ doorbell */
+	p_spq->db_addr_offset = qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY);
+	p_db_data = &p_spq->db_data;
+	memset(p_db_data, 0, sizeof(*p_db_data));
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_DEST, DB_DEST_XCM);
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_MAX);
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_AGG_VAL_SEL,
+		  DQ_XCM_CORE_SPQ_PROD_CMD);
+	p_db_data->agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
+
+	/* Register the SPQ doorbell with the doorbell recovery mechanism */
+	db_addr = (void __iomem *)((u8 __iomem *)p_hwfn->doorbells +
+				   p_spq->db_addr_offset);
+	rc = qed_db_recovery_add(p_hwfn->cdev, db_addr, &p_spq->db_data,
+				 DB_REC_WIDTH_32B, DB_REC_KERNEL);
+	if (rc)
+		DP_INFO(p_hwfn,
+			"Failed to register the SPQ doorbell with the doorbell recovery mechanism\n");
 }
 
 int qed_spq_alloc(struct qed_hwfn *p_hwfn)
@@ -577,10 +592,16 @@ spq_allocate_fail:
 void qed_spq_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
+	void __iomem *db_addr;
 	u32 capacity;
 
 	if (!p_spq)
 		return;
+
+	/* Delete the SPQ doorbell from the doorbell recovery mechanism */
+	db_addr = (void __iomem *)((u8 __iomem *)p_hwfn->doorbells +
+				   p_spq->db_addr_offset);
+	qed_db_recovery_del(p_hwfn->cdev, db_addr, &p_spq->db_data);
 
 	if (p_spq->p_virt) {
 		capacity = qed_chain_get_capacity(&p_spq->chain);
@@ -685,6 +706,8 @@ static int qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 			/* EBLOCK responsible to free the allocated p_ent */
 			if (p_ent->comp_mode != QED_SPQ_MODE_EBLOCK)
 				kfree(p_ent);
+			else
+				p_ent->post_ent = p_en2;
 
 			p_ent = p_en2;
 		}
@@ -730,8 +753,7 @@ static int qed_spq_post_list(struct qed_hwfn *p_hwfn,
 	       !list_empty(head)) {
 		struct qed_spq_entry *p_ent =
 			list_first_entry(head, struct qed_spq_entry, list);
-		list_del(&p_ent->list);
-		list_add_tail(&p_ent->list, &p_spq->completion_pending);
+		list_move_tail(&p_ent->list, &p_spq->completion_pending);
 		p_spq->comp_sent_count++;
 
 		rc = qed_spq_hw_post(p_hwfn, p_spq, p_ent);
@@ -766,6 +788,25 @@ static int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
 
 	return qed_spq_post_list(p_hwfn, &p_spq->pending,
 				 SPQ_HIGH_PRI_RESERVE_DEFAULT);
+}
+
+/* Avoid overriding of SPQ entries when getting out-of-order completions, by
+ * marking the completions in a bitmap and increasing the chain consumer only
+ * for the first successive completed entries.
+ */
+static void qed_spq_comp_bmap_update(struct qed_hwfn *p_hwfn, __le16 echo)
+{
+	u16 pos = le16_to_cpu(echo) % SPQ_RING_SIZE;
+	struct qed_spq *p_spq = p_hwfn->p_spq;
+
+	__set_bit(pos, p_spq->p_comp_bitmap);
+	while (test_bit(p_spq->comp_bitmap_idx,
+			p_spq->p_comp_bitmap)) {
+		__clear_bit(p_spq->comp_bitmap_idx,
+			    p_spq->p_comp_bitmap);
+		p_spq->comp_bitmap_idx++;
+		qed_chain_return_produced(&p_spq->chain);
+	}
 }
 
 int qed_spq_post(struct qed_hwfn *p_hwfn,
@@ -825,11 +866,12 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 				   p_ent->queue == &p_spq->unlimited_pending);
 
 		if (p_ent->queue == &p_spq->unlimited_pending) {
-			/* This is an allocated p_ent which does not need to
-			 * return to pool.
-			 */
+			struct qed_spq_entry *p_post_ent = p_ent->post_ent;
+
 			kfree(p_ent);
-			return rc;
+
+			/* Return the entry which was actually posted */
+			p_ent = p_post_ent;
 		}
 
 		if (rc)
@@ -843,7 +885,7 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 spq_post_fail2:
 	spin_lock_bh(&p_spq->lock);
 	list_del(&p_ent->list);
-	qed_chain_return_produced(&p_spq->chain);
+	qed_spq_comp_bmap_update(p_hwfn, p_ent->elem.hdr.echo);
 
 spq_post_fail:
 	/* return to the free pool */
@@ -875,25 +917,8 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	spin_lock_bh(&p_spq->lock);
 	list_for_each_entry_safe(p_ent, tmp, &p_spq->completion_pending, list) {
 		if (p_ent->elem.hdr.echo == echo) {
-			u16 pos = le16_to_cpu(echo) % SPQ_RING_SIZE;
-
 			list_del(&p_ent->list);
-
-			/* Avoid overriding of SPQ entries when getting
-			 * out-of-order completions, by marking the completions
-			 * in a bitmap and increasing the chain consumer only
-			 * for the first successive completed entries.
-			 */
-			__set_bit(pos, p_spq->p_comp_bitmap);
-
-			while (test_bit(p_spq->comp_bitmap_idx,
-					p_spq->p_comp_bitmap)) {
-				__clear_bit(p_spq->comp_bitmap_idx,
-					    p_spq->p_comp_bitmap);
-				p_spq->comp_bitmap_idx++;
-				qed_chain_return_produced(&p_spq->chain);
-			}
-
+			qed_spq_comp_bmap_update(p_hwfn, echo);
 			p_spq->comp_count++;
 			found = p_ent;
 			break;
@@ -932,11 +957,9 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 			   QED_MSG_SPQ,
 			   "Got a completion without a callback function\n");
 
-	if ((found->comp_mode != QED_SPQ_MODE_EBLOCK) ||
-	    (found->queue == &p_spq->unlimited_pending))
+	if (found->comp_mode != QED_SPQ_MODE_EBLOCK)
 		/* EBLOCK  is responsible for returning its own entry into the
-		 * free list, unless it originally added the entry into the
-		 * unlimited pending list.
+		 * free list.
 		 */
 		qed_spq_return_entry(p_hwfn, found);
 

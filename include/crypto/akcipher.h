@@ -285,8 +285,14 @@ static inline int crypto_akcipher_encrypt(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
+	struct crypto_alg *calg = tfm->base.__crt_alg;
+	unsigned int src_len = req->src_len;
+	int ret;
 
-	return alg->encrypt(req);
+	crypto_stats_get(calg);
+	ret = alg->encrypt(req);
+	crypto_stats_akcipher_encrypt(src_len, ret, calg);
+	return ret;
 }
 
 /**
@@ -303,8 +309,14 @@ static inline int crypto_akcipher_decrypt(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
+	struct crypto_alg *calg = tfm->base.__crt_alg;
+	unsigned int src_len = req->src_len;
+	int ret;
 
-	return alg->decrypt(req);
+	crypto_stats_get(calg);
+	ret = alg->decrypt(req);
+	crypto_stats_akcipher_decrypt(src_len, ret, calg);
+	return ret;
 }
 
 /**
@@ -321,8 +333,13 @@ static inline int crypto_akcipher_sign(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
+	struct crypto_alg *calg = tfm->base.__crt_alg;
+	int ret;
 
-	return alg->sign(req);
+	crypto_stats_get(calg);
+	ret = alg->sign(req);
+	crypto_stats_akcipher_sign(ret, calg);
+	return ret;
 }
 
 /**
@@ -339,8 +356,13 @@ static inline int crypto_akcipher_verify(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
+	struct crypto_alg *calg = tfm->base.__crt_alg;
+	int ret;
 
-	return alg->verify(req);
+	crypto_stats_get(calg);
+	ret = alg->verify(req);
+	crypto_stats_akcipher_verify(ret, calg);
+	return ret;
 }
 
 /**

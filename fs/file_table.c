@@ -52,7 +52,8 @@ static void file_free_rcu(struct rcu_head *head)
 static inline void file_free(struct file *f)
 {
 	security_file_free(f);
-	percpu_counter_dec(&nr_files);
+	if (!(f->f_mode & FMODE_NOACCOUNT))
+		percpu_counter_dec(&nr_files);
 	call_rcu(&f->f_u.fu_rcuhead, file_free_rcu);
 }
 
@@ -91,33 +92,10 @@ int proc_nr_files(struct ctl_table *table, int write,
 }
 #endif
 
-/* Find an unused file structure and return a pointer to it.
- * Returns an error pointer if some error happend e.g. we over file
- * structures limit, run out of memory or operation is not permitted.
- *
- * Be very careful using this.  You are responsible for
- * getting write access to any mount that you might assign
- * to this filp, if it is opened for write.  If this is not
- * done, you will imbalance int the mount's writer count
- * and a warning at __fput() time.
- */
-struct file *alloc_empty_file(int flags, const struct cred *cred)
+static struct file *__alloc_file(int flags, const struct cred *cred)
 {
-	static long old_max;
 	struct file *f;
 	int error;
-
-	/*
-	 * Privileged users can go above max_files
-	 */
-	if (get_nr_files() >= files_stat.max_files && !capable(CAP_SYS_ADMIN)) {
-		/*
-		 * percpu_counters are inaccurate.  Do an expensive check before
-		 * we go and fail.
-		 */
-		if (percpu_counter_sum_positive(&nr_files) >= files_stat.max_files)
-			goto over;
-	}
 
 	f = kmem_cache_zalloc(filp_cachep, GFP_KERNEL);
 	if (unlikely(!f))
@@ -138,7 +116,41 @@ struct file *alloc_empty_file(int flags, const struct cred *cred)
 	f->f_flags = flags;
 	f->f_mode = OPEN_FMODE(flags);
 	/* f->f_version: 0 */
-	percpu_counter_inc(&nr_files);
+
+	return f;
+}
+
+/* Find an unused file structure and return a pointer to it.
+ * Returns an error pointer if some error happend e.g. we over file
+ * structures limit, run out of memory or operation is not permitted.
+ *
+ * Be very careful using this.  You are responsible for
+ * getting write access to any mount that you might assign
+ * to this filp, if it is opened for write.  If this is not
+ * done, you will imbalance int the mount's writer count
+ * and a warning at __fput() time.
+ */
+struct file *alloc_empty_file(int flags, const struct cred *cred)
+{
+	static long old_max;
+	struct file *f;
+
+	/*
+	 * Privileged users can go above max_files
+	 */
+	if (get_nr_files() >= files_stat.max_files && !capable(CAP_SYS_ADMIN)) {
+		/*
+		 * percpu_counters are inaccurate.  Do an expensive check before
+		 * we go and fail.
+		 */
+		if (percpu_counter_sum_positive(&nr_files) >= files_stat.max_files)
+			goto over;
+	}
+
+	f = __alloc_file(flags, cred);
+	if (!IS_ERR(f))
+		percpu_counter_inc(&nr_files);
+
 	return f;
 
 over:
@@ -148,6 +160,21 @@ over:
 		old_max = get_nr_files();
 	}
 	return ERR_PTR(-ENFILE);
+}
+
+/*
+ * Variant of alloc_empty_file() that doesn't check and modify nr_files.
+ *
+ * Should not be used unless there's a very good reason to do so.
+ */
+struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred)
+{
+	struct file *f = __alloc_file(flags, cred);
+
+	if (!IS_ERR(f))
+		f->f_mode |= FMODE_NOACCOUNT;
+
+	return f;
 }
 
 /**
@@ -353,10 +380,11 @@ void __init files_init(void)
 void __init files_maxfiles_init(void)
 {
 	unsigned long n;
-	unsigned long memreserve = (totalram_pages - nr_free_pages()) * 3/2;
+	unsigned long nr_pages = totalram_pages();
+	unsigned long memreserve = (nr_pages - nr_free_pages()) * 3/2;
 
-	memreserve = min(memreserve, totalram_pages - 1);
-	n = ((totalram_pages - memreserve) * (PAGE_SIZE / 1024)) / 10;
+	memreserve = min(memreserve, nr_pages - 1);
+	n = ((nr_pages - memreserve) * (PAGE_SIZE / 1024)) / 10;
 
 	files_stat.max_files = max_t(unsigned long, n, NR_FILE);
 }

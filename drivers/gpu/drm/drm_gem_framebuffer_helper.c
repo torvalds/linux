@@ -16,6 +16,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
@@ -170,7 +171,7 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 		}
 
 		min_size = (height - 1) * mode_cmd->pitches[i]
-			 + width * info->cpp[i]
+			 + drm_format_info_min_pitch(info, i, width)
 			 + mode_cmd->offsets[i];
 
 		if (objs[i]->size < min_size) {
@@ -315,8 +316,8 @@ drm_gem_fbdev_fb_create(struct drm_device *dev,
 	if (pitch_align)
 		mode_cmd.pitches[0] = roundup(mode_cmd.pitches[0],
 					      pitch_align);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-							sizes->surface_depth);
+	mode_cmd.pixel_format = drm_driver_legacy_fb_format(dev, sizes->surface_bpp,
+							    sizes->surface_depth);
 	if (obj->size < mode_cmd.pitches[0] * mode_cmd.height)
 		return ERR_PTR(-EINVAL);
 

@@ -363,7 +363,6 @@ static inline void net_dim_sample(u16 event_ctr,
 }
 
 #define NET_DIM_NEVENTS 64
-#define BITS_PER_TYPE(type) (sizeof(type) * BITS_PER_BYTE)
 #define BIT_GAP(bits, end, start) ((((end) - (start)) + BIT_ULL(bits)) & (BIT_ULL(bits) - 1))
 
 static inline void net_dim_calc_stats(struct net_dim_sample *start,
@@ -407,6 +406,8 @@ static inline void net_dim(struct net_dim *dim,
 		}
 		/* fall through */
 	case NET_DIM_START_MEASURE:
+		net_dim_sample(end_sample.event_ctr, end_sample.pkt_ctr, end_sample.byte_ctr,
+			       &dim->start_sample);
 		dim->state = NET_DIM_MEASURE_IN_PROGRESS;
 		break;
 	case NET_DIM_APPLY_NEW_PROFILE:

@@ -15,13 +15,15 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **dump** | **update** | **lookup** | **getnext** | **delete**
-	| **pin** | **help** }
+	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext**
+	| **delete** | **pin** | **help** }
 
 MAP COMMANDS
 =============
 
 |	**bpftool** **map { show | list }**   [*MAP*]
+|	**bpftool** **map create**     *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE* \
+|		**entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
 |	**bpftool** **map dump**       *MAP*
 |	**bpftool** **map update**     *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
 |	**bpftool** **map lookup**     *MAP*  **key** *DATA*
@@ -36,6 +38,12 @@ MAP COMMANDS
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
 |	*VALUE* := { *DATA* | *MAP* | *PROG* }
 |	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
+|	*TYPE* := { **hash** | **array** | **prog_array** | **perf_event_array** | **percpu_hash**
+|		| **percpu_array** | **stack_trace** | **cgroup_array** | **lru_hash**
+|		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
+|		| **devmap** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
+|		| **cgroup_storage** | **reuseport_sockarray** | **percpu_cgroup_storage**
+|		| **queue** | **stack** }
 
 DESCRIPTION
 ===========
@@ -46,6 +54,10 @@ DESCRIPTION
 
 		  Output will start with map ID followed by map type and
 		  zero or more named attributes (depending on kernel version).
+
+	**bpftool map create** *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE*  **entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
+		  Create a new map with given parameters and pin it to *bpffs*
+		  as *FILE*.
 
 	**bpftool map dump**    *MAP*
 		  Dump all entries in a given *MAP*.
@@ -75,7 +87,9 @@ DESCRIPTION
 	**bpftool map pin**     *MAP*  *FILE*
 		  Pin map *MAP* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount.
+		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  contain a dot character ('.'), which is reserved for future
+		  extensions of *bpffs*.
 
 	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
 		  Read events from a BPF_MAP_TYPE_PERF_EVENT_ARRAY map.
@@ -113,6 +127,10 @@ OPTIONS
 
 	-f, --bpffs
 		  Show file names of pinned maps.
+
+	-n, --nomount
+		  Do not automatically attempt to mount any virtual file system
+		  (such as tracefs or BPF virtual file system) when necessary.
 
 EXAMPLES
 ========
@@ -156,6 +174,67 @@ The following three commands are equivalent:
 | **# bpftool map pin id 10 /sys/fs/bpf/map**
 | **# bpftool map del pinned /sys/fs/bpf/map key 13 00 07 00**
 
+Note that map update can also be used in order to change the program references
+hold by a program array map. This can be used, for example, to change the
+programs used for tail-call jumps at runtime, without having to reload the
+entry-point program. Below is an example for this use case: we load a program
+defining a prog array map, and with a main function that contains a tail call
+to other programs that can be used either to "process" packets or to "debug"
+processing. Note that the prog array map MUST be pinned into the BPF virtual
+file system for the map update to work successfully, as kernel flushes prog
+array maps when they have no more references from user space (and the update
+would be lost as soon as bpftool exits).
+
+|
+| **# bpftool prog loadall tail_calls.o /sys/fs/bpf/foo type xdp**
+| **# bpftool prog --bpffs**
+
+::
+
+  545: xdp  name main_func  tag 674b4b5597193dc3  gpl
+          loaded_at 2018-12-12T15:02:58+0000  uid 0
+          xlated 240B  jited 257B  memlock 4096B  map_ids 294
+          pinned /sys/fs/bpf/foo/xdp
+  546: xdp  name bpf_func_process  tag e369a529024751fc  gpl
+          loaded_at 2018-12-12T15:02:58+0000  uid 0
+          xlated 200B  jited 164B  memlock 4096B
+          pinned /sys/fs/bpf/foo/process
+  547: xdp  name bpf_func_debug  tag 0b597868bc7f0976  gpl
+          loaded_at 2018-12-12T15:02:58+0000  uid 0
+          xlated 200B  jited 164B  memlock 4096B
+          pinned /sys/fs/bpf/foo/debug
+
+**# bpftool map**
+
+::
+
+  294: prog_array  name jmp_table  flags 0x0
+          key 4B  value 4B  max_entries 1  memlock 4096B
+          owner_prog_type xdp  owner jited
+
+|
+| **# bpftool map pin id 294 /sys/fs/bpf/bar**
+| **# bpftool map dump pinned /sys/fs/bpf/bar**
+
+::
+
+  Found 0 elements
+
+|
+| **# bpftool map update pinned /sys/fs/bpf/bar key 0 0 0 0 value pinned /sys/fs/bpf/foo/debug**
+| **# bpftool map dump pinned /sys/fs/bpf/bar**
+
+::
+
+  key: 00 00 00 00  value: 22 02 00 00
+  Found 1 element
+
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-cgroup**\ (8)
+	**bpf**\ (2),
+	**bpf-helpers**\ (7),
+	**bpftool**\ (8),
+	**bpftool-prog**\ (8),
+	**bpftool-cgroup**\ (8),
+	**bpftool-net**\ (8),
+	**bpftool-perf**\ (8)

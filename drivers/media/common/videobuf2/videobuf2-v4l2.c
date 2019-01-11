@@ -25,6 +25,7 @@
 #include <linux/kthread.h>
 
 #include <media/v4l2-dev.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-common.h>
@@ -40,10 +41,12 @@ module_param(debug, int, 0644);
 			pr_info("vb2-v4l2: %s: " fmt, __func__, ## arg); \
 	} while (0)
 
-/* Flags that are set by the vb2 core */
+/* Flags that are set by us */
 #define V4L2_BUFFER_MASK_FLAGS	(V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_QUEUED | \
 				 V4L2_BUF_FLAG_DONE | V4L2_BUF_FLAG_ERROR | \
 				 V4L2_BUF_FLAG_PREPARED | \
+				 V4L2_BUF_FLAG_IN_REQUEST | \
+				 V4L2_BUF_FLAG_REQUEST_FD | \
 				 V4L2_BUF_FLAG_TIMESTAMP_MASK)
 /* Output buffer flags that should be passed on to the driver */
 #define V4L2_BUFFER_OUT_FLAGS	(V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME | \
@@ -118,6 +121,16 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	return 0;
 }
 
+/*
+ * __init_v4l2_vb2_buffer() - initialize the v4l2_vb2_buffer struct
+ */
+static void __init_v4l2_vb2_buffer(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+
+	vbuf->request_fd = -1;
+}
+
 static void __copy_timestamp(struct vb2_buffer *vb, const void *pb)
 {
 	const struct v4l2_buffer *b = pb;
@@ -145,7 +158,6 @@ static void vb2_warn_zero_bytesused(struct vb2_buffer *vb)
 		return;
 
 	check_once = true;
-	WARN_ON(1);
 
 	pr_warn("use of bytesused == 0 is deprecated and will be removed in the future,\n");
 	if (vb->vb2_queue->allow_zero_bytesused)
@@ -154,9 +166,181 @@ static void vb2_warn_zero_bytesused(struct vb2_buffer *vb)
 		pr_warn("use the actual size instead.\n");
 }
 
-static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
-				    const char *opname)
+static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 {
+	struct vb2_queue *q = vb->vb2_queue;
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct vb2_plane *planes = vbuf->planes;
+	unsigned int plane;
+	int ret;
+
+	ret = __verify_length(vb, b);
+	if (ret < 0) {
+		dprintk(1, "plane parameters verification failed: %d\n", ret);
+		return ret;
+	}
+	if (b->field == V4L2_FIELD_ALTERNATE && q->is_output) {
+		/*
+		 * If the format's field is ALTERNATE, then the buffer's field
+		 * should be either TOP or BOTTOM, not ALTERNATE since that
+		 * makes no sense. The driver has to know whether the
+		 * buffer represents a top or a bottom field in order to
+		 * program any DMA correctly. Using ALTERNATE is wrong, since
+		 * that just says that it is either a top or a bottom field,
+		 * but not which of the two it is.
+		 */
+		dprintk(1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
+		return -EINVAL;
+	}
+	vbuf->sequence = 0;
+	vbuf->request_fd = -1;
+
+	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
+		switch (b->memory) {
+		case VB2_MEMORY_USERPTR:
+			for (plane = 0; plane < vb->num_planes; ++plane) {
+				planes[plane].m.userptr =
+					b->m.planes[plane].m.userptr;
+				planes[plane].length =
+					b->m.planes[plane].length;
+			}
+			break;
+		case VB2_MEMORY_DMABUF:
+			for (plane = 0; plane < vb->num_planes; ++plane) {
+				planes[plane].m.fd =
+					b->m.planes[plane].m.fd;
+				planes[plane].length =
+					b->m.planes[plane].length;
+			}
+			break;
+		default:
+			for (plane = 0; plane < vb->num_planes; ++plane) {
+				planes[plane].m.offset =
+					vb->planes[plane].m.offset;
+				planes[plane].length =
+					vb->planes[plane].length;
+			}
+			break;
+		}
+
+		/* Fill in driver-provided information for OUTPUT types */
+		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
+			/*
+			 * Will have to go up to b->length when API starts
+			 * accepting variable number of planes.
+			 *
+			 * If bytesused == 0 for the output buffer, then fall
+			 * back to the full buffer size. In that case
+			 * userspace clearly never bothered to set it and
+			 * it's a safe assumption that they really meant to
+			 * use the full plane sizes.
+			 *
+			 * Some drivers, e.g. old codec drivers, use bytesused == 0
+			 * as a way to indicate that streaming is finished.
+			 * In that case, the driver should use the
+			 * allow_zero_bytesused flag to keep old userspace
+			 * applications working.
+			 */
+			for (plane = 0; plane < vb->num_planes; ++plane) {
+				struct vb2_plane *pdst = &planes[plane];
+				struct v4l2_plane *psrc = &b->m.planes[plane];
+
+				if (psrc->bytesused == 0)
+					vb2_warn_zero_bytesused(vb);
+
+				if (vb->vb2_queue->allow_zero_bytesused)
+					pdst->bytesused = psrc->bytesused;
+				else
+					pdst->bytesused = psrc->bytesused ?
+						psrc->bytesused : pdst->length;
+				pdst->data_offset = psrc->data_offset;
+			}
+		}
+	} else {
+		/*
+		 * Single-planar buffers do not use planes array,
+		 * so fill in relevant v4l2_buffer struct fields instead.
+		 * In videobuf we use our internal V4l2_planes struct for
+		 * single-planar buffers as well, for simplicity.
+		 *
+		 * If bytesused == 0 for the output buffer, then fall back
+		 * to the full buffer size as that's a sensible default.
+		 *
+		 * Some drivers, e.g. old codec drivers, use bytesused == 0 as
+		 * a way to indicate that streaming is finished. In that case,
+		 * the driver should use the allow_zero_bytesused flag to keep
+		 * old userspace applications working.
+		 */
+		switch (b->memory) {
+		case VB2_MEMORY_USERPTR:
+			planes[0].m.userptr = b->m.userptr;
+			planes[0].length = b->length;
+			break;
+		case VB2_MEMORY_DMABUF:
+			planes[0].m.fd = b->m.fd;
+			planes[0].length = b->length;
+			break;
+		default:
+			planes[0].m.offset = vb->planes[0].m.offset;
+			planes[0].length = vb->planes[0].length;
+			break;
+		}
+
+		planes[0].data_offset = 0;
+		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
+			if (b->bytesused == 0)
+				vb2_warn_zero_bytesused(vb);
+
+			if (vb->vb2_queue->allow_zero_bytesused)
+				planes[0].bytesused = b->bytesused;
+			else
+				planes[0].bytesused = b->bytesused ?
+					b->bytesused : planes[0].length;
+		} else
+			planes[0].bytesused = 0;
+
+	}
+
+	/* Zero flags that we handle */
+	vbuf->flags = b->flags & ~V4L2_BUFFER_MASK_FLAGS;
+	if (!vb->vb2_queue->copy_timestamp || !V4L2_TYPE_IS_OUTPUT(b->type)) {
+		/*
+		 * Non-COPY timestamps and non-OUTPUT queues will get
+		 * their timestamp and timestamp source flags from the
+		 * queue.
+		 */
+		vbuf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	}
+
+	if (V4L2_TYPE_IS_OUTPUT(b->type)) {
+		/*
+		 * For output buffers mask out the timecode flag:
+		 * this will be handled later in vb2_qbuf().
+		 * The 'field' is valid metadata for this output buffer
+		 * and so that needs to be copied here.
+		 */
+		vbuf->flags &= ~V4L2_BUF_FLAG_TIMECODE;
+		vbuf->field = b->field;
+	} else {
+		/* Zero any output buffer flags as this is a capture buffer */
+		vbuf->flags &= ~V4L2_BUFFER_OUT_FLAGS;
+		/* Zero last flag, this is a signal from driver to userspace */
+		vbuf->flags &= ~V4L2_BUF_FLAG_LAST;
+	}
+
+	return 0;
+}
+
+static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
+				    struct v4l2_buffer *b, bool is_prepare,
+				    struct media_request **p_req)
+{
+	const char *opname = is_prepare ? "prepare_buf" : "qbuf";
+	struct media_request *req;
+	struct vb2_v4l2_buffer *vbuf;
+	struct vb2_buffer *vb;
+	int ret;
+
 	if (b->type != q->type) {
 		dprintk(1, "%s: invalid buffer type\n", opname);
 		return -EINVAL;
@@ -178,7 +362,85 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
 		return -EINVAL;
 	}
 
-	return __verify_planes_array(q->bufs[b->index], b);
+	vb = q->bufs[b->index];
+	vbuf = to_vb2_v4l2_buffer(vb);
+	ret = __verify_planes_array(vb, b);
+	if (ret)
+		return ret;
+
+	if (!vb->prepared) {
+		/* Copy relevant information provided by the userspace */
+		memset(vbuf->planes, 0,
+		       sizeof(vbuf->planes[0]) * vb->num_planes);
+		ret = vb2_fill_vb2_v4l2_buffer(vb, b);
+		if (ret)
+			return ret;
+	}
+
+	if (is_prepare)
+		return 0;
+
+	if (!(b->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
+		if (q->uses_requests) {
+			dprintk(1, "%s: queue uses requests\n", opname);
+			return -EBUSY;
+		}
+		return 0;
+	} else if (!q->supports_requests) {
+		dprintk(1, "%s: queue does not support requests\n", opname);
+		return -EACCES;
+	} else if (q->uses_qbuf) {
+		dprintk(1, "%s: queue does not use requests\n", opname);
+		return -EBUSY;
+	}
+
+	/*
+	 * For proper locking when queueing a request you need to be able
+	 * to lock access to the vb2 queue, so check that there is a lock
+	 * that we can use. In addition p_req must be non-NULL.
+	 */
+	if (WARN_ON(!q->lock || !p_req))
+		return -EINVAL;
+
+	/*
+	 * Make sure this op is implemented by the driver. It's easy to forget
+	 * this callback, but is it important when canceling a buffer in a
+	 * queued request.
+	 */
+	if (WARN_ON(!q->ops->buf_request_complete))
+		return -EINVAL;
+
+	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
+		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
+		return -EINVAL;
+	}
+
+	if (b->request_fd < 0) {
+		dprintk(1, "%s: request_fd < 0\n", opname);
+		return -EINVAL;
+	}
+
+	req = media_request_get_by_fd(mdev, b->request_fd);
+	if (IS_ERR(req)) {
+		dprintk(1, "%s: invalid request_fd\n", opname);
+		return PTR_ERR(req);
+	}
+
+	/*
+	 * Early sanity check. This is checked again when the buffer
+	 * is bound to the request in vb2_core_qbuf().
+	 */
+	if (req->state != MEDIA_REQUEST_STATE_IDLE &&
+	    req->state != MEDIA_REQUEST_STATE_UPDATING) {
+		dprintk(1, "%s: request is not idle\n", opname);
+		media_request_put(req);
+		return -EBUSY;
+	}
+
+	*p_req = req;
+	vbuf->request_fd = b->request_fd;
+
+	return 0;
 }
 
 /*
@@ -204,7 +466,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	b->timecode = vbuf->timecode;
 	b->sequence = vbuf->sequence;
 	b->reserved2 = 0;
-	b->reserved = 0;
+	b->request_fd = 0;
 
 	if (q->is_multiplanar) {
 		/*
@@ -261,14 +523,14 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	case VB2_BUF_STATE_ACTIVE:
 		b->flags |= V4L2_BUF_FLAG_QUEUED;
 		break;
+	case VB2_BUF_STATE_IN_REQUEST:
+		b->flags |= V4L2_BUF_FLAG_IN_REQUEST;
+		break;
 	case VB2_BUF_STATE_ERROR:
 		b->flags |= V4L2_BUF_FLAG_ERROR;
 		/* fall through */
 	case VB2_BUF_STATE_DONE:
 		b->flags |= V4L2_BUF_FLAG_DONE;
-		break;
-	case VB2_BUF_STATE_PREPARED:
-		b->flags |= V4L2_BUF_FLAG_PREPARED;
 		break;
 	case VB2_BUF_STATE_PREPARING:
 	case VB2_BUF_STATE_DEQUEUED:
@@ -277,8 +539,17 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		break;
 	}
 
+	if ((vb->state == VB2_BUF_STATE_DEQUEUED ||
+	     vb->state == VB2_BUF_STATE_IN_REQUEST) &&
+	    vb->synced && vb->prepared)
+		b->flags |= V4L2_BUF_FLAG_PREPARED;
+
 	if (vb2_buffer_in_use(q, vb))
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
+	if (vbuf->request_fd >= 0) {
+		b->flags |= V4L2_BUF_FLAG_REQUEST_FD;
+		b->request_fd = vbuf->request_fd;
+	}
 
 	if (!q->is_output &&
 		b->flags & V4L2_BUF_FLAG_DONE &&
@@ -291,158 +562,28 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
  * v4l2_buffer by the userspace. It also verifies that struct
  * v4l2_buffer has a valid number of planes.
  */
-static int __fill_vb2_buffer(struct vb2_buffer *vb,
-		const void *pb, struct vb2_plane *planes)
+static int __fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
 {
-	struct vb2_queue *q = vb->vb2_queue;
-	const struct v4l2_buffer *b = pb;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	unsigned int plane;
-	int ret;
 
-	ret = __verify_length(vb, b);
-	if (ret < 0) {
-		dprintk(1, "plane parameters verification failed: %d\n", ret);
-		return ret;
-	}
-	if (b->field == V4L2_FIELD_ALTERNATE && q->is_output) {
-		/*
-		 * If the format's field is ALTERNATE, then the buffer's field
-		 * should be either TOP or BOTTOM, not ALTERNATE since that
-		 * makes no sense. The driver has to know whether the
-		 * buffer represents a top or a bottom field in order to
-		 * program any DMA correctly. Using ALTERNATE is wrong, since
-		 * that just says that it is either a top or a bottom field,
-		 * but not which of the two it is.
-		 */
-		dprintk(1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
-		return -EINVAL;
-	}
-	vb->timestamp = 0;
-	vbuf->sequence = 0;
+	if (!vb->vb2_queue->is_output || !vb->vb2_queue->copy_timestamp)
+		vb->timestamp = 0;
 
-	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
-		if (b->memory == VB2_MEMORY_USERPTR) {
-			for (plane = 0; plane < vb->num_planes; ++plane) {
-				planes[plane].m.userptr =
-					b->m.planes[plane].m.userptr;
-				planes[plane].length =
-					b->m.planes[plane].length;
-			}
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		if (vb->vb2_queue->memory != VB2_MEMORY_MMAP) {
+			planes[plane].m = vbuf->planes[plane].m;
+			planes[plane].length = vbuf->planes[plane].length;
 		}
-		if (b->memory == VB2_MEMORY_DMABUF) {
-			for (plane = 0; plane < vb->num_planes; ++plane) {
-				planes[plane].m.fd =
-					b->m.planes[plane].m.fd;
-				planes[plane].length =
-					b->m.planes[plane].length;
-			}
-		}
-
-		/* Fill in driver-provided information for OUTPUT types */
-		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
-			/*
-			 * Will have to go up to b->length when API starts
-			 * accepting variable number of planes.
-			 *
-			 * If bytesused == 0 for the output buffer, then fall
-			 * back to the full buffer size. In that case
-			 * userspace clearly never bothered to set it and
-			 * it's a safe assumption that they really meant to
-			 * use the full plane sizes.
-			 *
-			 * Some drivers, e.g. old codec drivers, use bytesused == 0
-			 * as a way to indicate that streaming is finished.
-			 * In that case, the driver should use the
-			 * allow_zero_bytesused flag to keep old userspace
-			 * applications working.
-			 */
-			for (plane = 0; plane < vb->num_planes; ++plane) {
-				struct vb2_plane *pdst = &planes[plane];
-				struct v4l2_plane *psrc = &b->m.planes[plane];
-
-				if (psrc->bytesused == 0)
-					vb2_warn_zero_bytesused(vb);
-
-				if (vb->vb2_queue->allow_zero_bytesused)
-					pdst->bytesused = psrc->bytesused;
-				else
-					pdst->bytesused = psrc->bytesused ?
-						psrc->bytesused : pdst->length;
-				pdst->data_offset = psrc->data_offset;
-			}
-		}
-	} else {
-		/*
-		 * Single-planar buffers do not use planes array,
-		 * so fill in relevant v4l2_buffer struct fields instead.
-		 * In videobuf we use our internal V4l2_planes struct for
-		 * single-planar buffers as well, for simplicity.
-		 *
-		 * If bytesused == 0 for the output buffer, then fall back
-		 * to the full buffer size as that's a sensible default.
-		 *
-		 * Some drivers, e.g. old codec drivers, use bytesused == 0 as
-		 * a way to indicate that streaming is finished. In that case,
-		 * the driver should use the allow_zero_bytesused flag to keep
-		 * old userspace applications working.
-		 */
-		if (b->memory == VB2_MEMORY_USERPTR) {
-			planes[0].m.userptr = b->m.userptr;
-			planes[0].length = b->length;
-		}
-
-		if (b->memory == VB2_MEMORY_DMABUF) {
-			planes[0].m.fd = b->m.fd;
-			planes[0].length = b->length;
-		}
-
-		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
-			if (b->bytesused == 0)
-				vb2_warn_zero_bytesused(vb);
-
-			if (vb->vb2_queue->allow_zero_bytesused)
-				planes[0].bytesused = b->bytesused;
-			else
-				planes[0].bytesused = b->bytesused ?
-					b->bytesused : planes[0].length;
-		} else
-			planes[0].bytesused = 0;
-
+		planes[plane].bytesused = vbuf->planes[plane].bytesused;
+		planes[plane].data_offset = vbuf->planes[plane].data_offset;
 	}
-
-	/* Zero flags that the vb2 core handles */
-	vbuf->flags = b->flags & ~V4L2_BUFFER_MASK_FLAGS;
-	if (!vb->vb2_queue->copy_timestamp || !V4L2_TYPE_IS_OUTPUT(b->type)) {
-		/*
-		 * Non-COPY timestamps and non-OUTPUT queues will get
-		 * their timestamp and timestamp source flags from the
-		 * queue.
-		 */
-		vbuf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	}
-
-	if (V4L2_TYPE_IS_OUTPUT(b->type)) {
-		/*
-		 * For output buffers mask out the timecode flag:
-		 * this will be handled later in vb2_qbuf().
-		 * The 'field' is valid metadata for this output buffer
-		 * and so that needs to be copied here.
-		 */
-		vbuf->flags &= ~V4L2_BUF_FLAG_TIMECODE;
-		vbuf->field = b->field;
-	} else {
-		/* Zero any output buffer flags as this is a capture buffer */
-		vbuf->flags &= ~V4L2_BUFFER_OUT_FLAGS;
-		/* Zero last flag, this is a signal from driver to userspace */
-		vbuf->flags &= ~V4L2_BUF_FLAG_LAST;
-	}
-
 	return 0;
 }
 
 static const struct vb2_buf_ops v4l2_buf_ops = {
 	.verify_planes_array	= __verify_planes_array_core,
+	.init_buffer		= __init_v4l2_vb2_buffer,
 	.fill_user_buffer	= __fill_v4l2_buffer,
 	.fill_vb2_buffer	= __fill_vb2_buffer,
 	.copy_timestamp		= __copy_timestamp,
@@ -483,15 +624,32 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 }
 EXPORT_SYMBOL(vb2_querybuf);
 
+static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+{
+	*caps = V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS;
+	if (q->io_modes & VB2_MMAP)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP;
+	if (q->io_modes & VB2_USERPTR)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_USERPTR;
+	if (q->io_modes & VB2_DMABUF)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
+#ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
+	if (q->supports_requests)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
+#endif
+}
+
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 {
 	int ret = vb2_verify_memory_type(q, req->memory, req->type);
 
+	fill_buf_caps(q, &req->capabilities);
 	return ret ? ret : vb2_core_reqbufs(q, req->memory, &req->count);
 }
 EXPORT_SYMBOL_GPL(vb2_reqbufs);
 
-int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b)
+int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
+		    struct v4l2_buffer *b)
 {
 	int ret;
 
@@ -500,7 +658,10 @@ int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b)
 		return -EBUSY;
 	}
 
-	ret = vb2_queue_or_prepare_buf(q, b, "prepare_buf");
+	if (b->flags & V4L2_BUF_FLAG_REQUEST_FD)
+		return -EINVAL;
+
+	ret = vb2_queue_or_prepare_buf(q, mdev, b, true, NULL);
 
 	return ret ? ret : vb2_core_prepare_buf(q, b->index, b);
 }
@@ -514,6 +675,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	int ret = vb2_verify_memory_type(q, create->memory, f->type);
 	unsigned i;
 
+	fill_buf_caps(q, &create->capabilities);
 	create->index = q->num_buffers;
 	if (create->count == 0)
 		return ret != -EBUSY ? ret : 0;
@@ -547,6 +709,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 		requested_sizes[0] = f->fmt.sdr.buffersize;
 		break;
 	case V4L2_BUF_TYPE_META_CAPTURE:
+	case V4L2_BUF_TYPE_META_OUTPUT:
 		requested_sizes[0] = f->fmt.meta.buffersize;
 		break;
 	default:
@@ -560,8 +723,10 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 }
 EXPORT_SYMBOL_GPL(vb2_create_bufs);
 
-int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
+int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
+	     struct v4l2_buffer *b)
 {
+	struct media_request *req = NULL;
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
@@ -569,8 +734,13 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		return -EBUSY;
 	}
 
-	ret = vb2_queue_or_prepare_buf(q, b, "qbuf");
-	return ret ? ret : vb2_core_qbuf(q, b->index, b);
+	ret = vb2_queue_or_prepare_buf(q, mdev, b, false, &req);
+	if (ret)
+		return ret;
+	ret = vb2_core_qbuf(q, b->index, b, req);
+	if (req)
+		media_request_put(req);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_qbuf);
 
@@ -714,6 +884,7 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 	struct video_device *vdev = video_devdata(file);
 	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
 
+	fill_buf_caps(vdev->queue, &p->capabilities);
 	if (res)
 		return res;
 	if (vb2_queue_is_busy(vdev, file))
@@ -735,6 +906,7 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 			p->format.type);
 
 	p->index = vdev->queue->num_buffers;
+	fill_buf_caps(vdev->queue, &p->capabilities);
 	/*
 	 * If count == 0, then just check if memory and type are valid.
 	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.
@@ -760,7 +932,7 @@ int vb2_ioctl_prepare_buf(struct file *file, void *priv,
 
 	if (vb2_queue_is_busy(vdev, file))
 		return -EBUSY;
-	return vb2_prepare_buf(vdev->queue, p);
+	return vb2_prepare_buf(vdev->queue, vdev->v4l2_dev->mdev, p);
 }
 EXPORT_SYMBOL_GPL(vb2_ioctl_prepare_buf);
 
@@ -779,7 +951,7 @@ int vb2_ioctl_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	if (vb2_queue_is_busy(vdev, file))
 		return -EBUSY;
-	return vb2_qbuf(vdev->queue, p);
+	return vb2_qbuf(vdev->queue, vdev->v4l2_dev->mdev, p);
 }
 EXPORT_SYMBOL_GPL(vb2_ioctl_qbuf);
 
@@ -960,6 +1132,57 @@ void vb2_ops_wait_finish(struct vb2_queue *vq)
 	mutex_lock(vq->lock);
 }
 EXPORT_SYMBOL_GPL(vb2_ops_wait_finish);
+
+/*
+ * Note that this function is called during validation time and
+ * thus the req_queue_mutex is held to ensure no request objects
+ * can be added or deleted while validating. So there is no need
+ * to protect the objects list.
+ */
+int vb2_request_validate(struct media_request *req)
+{
+	struct media_request_object *obj;
+	int ret = 0;
+
+	if (!vb2_request_buffer_cnt(req))
+		return -ENOENT;
+
+	list_for_each_entry(obj, &req->objects, list) {
+		if (!obj->ops->prepare)
+			continue;
+
+		ret = obj->ops->prepare(obj);
+		if (ret)
+			break;
+	}
+
+	if (ret) {
+		list_for_each_entry_continue_reverse(obj, &req->objects, list)
+			if (obj->ops->unprepare)
+				obj->ops->unprepare(obj);
+		return ret;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vb2_request_validate);
+
+void vb2_request_queue(struct media_request *req)
+{
+	struct media_request_object *obj, *obj_safe;
+
+	/*
+	 * Queue all objects. Note that buffer objects are at the end of the
+	 * objects list, after all other object types. Once buffer objects
+	 * are queued, the driver might delete them immediately (if the driver
+	 * processes the buffer at once), so we have to use
+	 * list_for_each_entry_safe() to handle the case where the object we
+	 * queue is deleted.
+	 */
+	list_for_each_entry_safe(obj, obj_safe, &req->objects, list)
+		if (obj->ops->queue)
+			obj->ops->queue(obj);
+}
+EXPORT_SYMBOL_GPL(vb2_request_queue);
 
 MODULE_DESCRIPTION("Driver helper framework for Video for Linux 2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");

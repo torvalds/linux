@@ -197,8 +197,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
-	strcpy(cap->driver, "vivid");
-	strcpy(cap->card, "vivid");
+	strscpy(cap->driver, "vivid", sizeof(cap->driver));
+	strscpy(cap->card, "vivid", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 			"platform:%s", dev->v4l2_dev.name);
 
@@ -324,13 +324,14 @@ static int vidioc_s_dv_timings(struct file *file, void *fh, struct v4l2_dv_timin
 	return vivid_vid_out_s_dv_timings(file, fh, timings);
 }
 
-static int vidioc_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *fh,
+				int type, struct v4l2_fract *f)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_cropcap(file, fh, cc);
-	return vivid_vid_out_cropcap(file, fh, cc);
+		return vivid_vid_cap_g_pixelaspect(file, fh, type, f);
+	return vivid_vid_out_g_pixelaspect(file, fh, type, f);
 }
 
 static int vidioc_g_selection(struct file *file, void *fh,
@@ -519,7 +520,7 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 
 	.vidioc_g_selection		= vidioc_g_selection,
 	.vidioc_s_selection		= vidioc_s_selection,
-	.vidioc_cropcap			= vidioc_cropcap,
+	.vidioc_g_pixelaspect		= vidioc_g_pixelaspect,
 
 	.vidioc_g_fmt_vbi_cap		= vidioc_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap		= vidioc_g_fmt_vbi_cap,
@@ -624,8 +625,27 @@ static void vivid_dev_release(struct v4l2_device *v4l2_dev)
 	vfree(dev->bitmap_out);
 	tpg_free(&dev->tpg);
 	kfree(dev->query_dv_timings_qmenu);
+	kfree(dev->query_dv_timings_qmenu_strings);
 	kfree(dev);
 }
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+static int vivid_req_validate(struct media_request *req)
+{
+	struct vivid_dev *dev = container_of(req->mdev, struct vivid_dev, mdev);
+
+	if (dev->req_validate_error) {
+		dev->req_validate_error = false;
+		return -EINVAL;
+	}
+	return vb2_request_validate(req);
+}
+
+static const struct media_device_ops vivid_media_ops = {
+	.req_validate = vivid_req_validate,
+	.req_queue = vb2_request_queue,
+};
+#endif
 
 static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
@@ -656,6 +676,18 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		return -ENOMEM;
 
 	dev->inst = inst;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	dev->v4l2_dev.mdev = &dev->mdev;
+
+	/* Initialize media device */
+	strlcpy(dev->mdev.model, VIVID_MODULE_NAME, sizeof(dev->mdev.model));
+	snprintf(dev->mdev.bus_info, sizeof(dev->mdev.bus_info),
+		 "platform:%s-%03d", VIVID_MODULE_NAME, inst);
+	dev->mdev.dev = &pdev->dev;
+	media_device_init(&dev->mdev);
+	dev->mdev.ops = &vivid_media_ops;
+#endif
 
 	/* register v4l2_device */
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
@@ -856,20 +888,31 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (!dev->edid)
 		goto free_dev;
 
-	/* create a string array containing the names of all the preset timings */
 	while (v4l2_dv_timings_presets[dev->query_dv_timings_size].bt.width)
 		dev->query_dv_timings_size++;
+
+	/*
+	 * Create a char pointer array that points to the names of all the
+	 * preset timings
+	 */
 	dev->query_dv_timings_qmenu = kmalloc_array(dev->query_dv_timings_size,
-						    (sizeof(void *) + 32),
-						    GFP_KERNEL);
-	if (dev->query_dv_timings_qmenu == NULL)
+						    sizeof(char *), GFP_KERNEL);
+	/*
+	 * Create a string array containing the names of all the preset
+	 * timings. Each name is max 31 chars long (+ terminating 0).
+	 */
+	dev->query_dv_timings_qmenu_strings =
+		kmalloc_array(dev->query_dv_timings_size, 32, GFP_KERNEL);
+
+	if (!dev->query_dv_timings_qmenu ||
+	    !dev->query_dv_timings_qmenu_strings)
 		goto free_dev;
+
 	for (i = 0; i < dev->query_dv_timings_size; i++) {
 		const struct v4l2_bt_timings *bt = &v4l2_dv_timings_presets[i].bt;
-		char *p = (char *)&dev->query_dv_timings_qmenu[dev->query_dv_timings_size];
+		char *p = dev->query_dv_timings_qmenu_strings + i * 32;
 		u32 htot, vtot;
 
-		p += i * 32;
 		dev->query_dv_timings_qmenu[i] = p;
 
 		htot = V4L2_DV_BT_FRAME_WIDTH(bt);
@@ -1060,6 +1103,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1080,6 +1124,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1100,6 +1145,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1120,6 +1166,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1139,6 +1186,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 8;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1173,6 +1221,13 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		 */
 		vfd->lock = &dev->mutex;
 		video_set_drvdata(vfd, dev);
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->vid_cap_pad.flags = MEDIA_PAD_FL_SINK;
+		ret = media_entity_pads_init(&vfd->entity, 1, &dev->vid_cap_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
 
 #ifdef CONFIG_VIDEO_VIVID_CEC
 		if (in_type_counter[HDMI]) {
@@ -1226,6 +1281,13 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		vfd->lock = &dev->mutex;
 		video_set_drvdata(vfd, dev);
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->vid_out_pad.flags = MEDIA_PAD_FL_SOURCE;
+		ret = media_entity_pads_init(&vfd->entity, 1, &dev->vid_out_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
+
 #ifdef CONFIG_VIDEO_VIVID_CEC
 		for (i = 0; i < dev->num_outputs; i++) {
 			struct cec_adapter *adap;
@@ -1275,6 +1337,13 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		vfd->tvnorms = tvnorms_cap;
 		video_set_drvdata(vfd, dev);
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->vbi_cap_pad.flags = MEDIA_PAD_FL_SINK;
+		ret = media_entity_pads_init(&vfd->entity, 1, &dev->vbi_cap_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
+
 		ret = video_register_device(vfd, VFL_TYPE_VBI, vbi_cap_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;
@@ -1300,6 +1369,13 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		vfd->tvnorms = tvnorms_out;
 		video_set_drvdata(vfd, dev);
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->vbi_out_pad.flags = MEDIA_PAD_FL_SOURCE;
+		ret = media_entity_pads_init(&vfd->entity, 1, &dev->vbi_out_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
+
 		ret = video_register_device(vfd, VFL_TYPE_VBI, vbi_out_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;
@@ -1322,6 +1398,13 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		vfd->queue = &dev->vb_sdr_cap_q;
 		vfd->lock = &dev->mutex;
 		video_set_drvdata(vfd, dev);
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->sdr_cap_pad.flags = MEDIA_PAD_FL_SINK;
+		ret = media_entity_pads_init(&vfd->entity, 1, &dev->sdr_cap_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
 
 		ret = video_register_device(vfd, VFL_TYPE_SDR, sdr_cap_nr[inst]);
 		if (ret < 0)
@@ -1369,12 +1452,25 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 					  video_device_node_name(vfd));
 	}
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	/* Register the media device */
+	ret = media_device_register(&dev->mdev);
+	if (ret) {
+		dev_err(dev->mdev.dev,
+			"media device register failed (err=%d)\n", ret);
+		goto unreg_dev;
+	}
+#endif
+
 	/* Now that everything is fine, let's add it to device list */
 	vivid_devs[inst] = dev;
 
 	return 0;
 
 unreg_dev:
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_device_unregister(&dev->mdev);
+#endif
 	video_unregister_device(&dev->radio_tx_dev);
 	video_unregister_device(&dev->radio_rx_dev);
 	video_unregister_device(&dev->sdr_cap_dev);
@@ -1444,6 +1540,10 @@ static int vivid_remove(struct platform_device *pdev)
 		dev = vivid_devs[i];
 		if (!dev)
 			continue;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+		media_device_unregister(&dev->mdev);
+#endif
 
 		if (dev->has_vid_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",

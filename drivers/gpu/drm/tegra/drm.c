@@ -15,6 +15,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+#include <asm/dma-iommu.h>
+#endif
+
 #include "drm.h"
 #include "gem.h"
 
@@ -1068,6 +1072,14 @@ struct iommu_group *host1x_client_iommu_attach(struct host1x_client *client,
 		}
 
 		if (!shared || (shared && (group != tegra->group))) {
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+			if (client->dev->archdata.mapping) {
+				struct dma_iommu_mapping *mapping =
+					to_dma_iommu_mapping(client->dev);
+				arm_iommu_detach_device(client->dev);
+				arm_iommu_release_mapping(mapping);
+			}
+#endif
 			err = iommu_attach_group(tegra->domain, group);
 			if (err < 0) {
 				iommu_group_put(group);
@@ -1187,14 +1199,18 @@ static int host1x_drm_probe(struct host1x_device *dev)
 
 	dev_set_drvdata(&dev->dev, drm);
 
+	err = drm_fb_helper_remove_conflicting_framebuffers(NULL, "tegradrmfb", false);
+	if (err < 0)
+		goto put;
+
 	err = drm_dev_register(drm, 0);
 	if (err < 0)
-		goto unref;
+		goto put;
 
 	return 0;
 
-unref:
-	drm_dev_unref(drm);
+put:
+	drm_dev_put(drm);
 	return err;
 }
 
@@ -1203,7 +1219,7 @@ static int host1x_drm_remove(struct host1x_device *dev)
 	struct drm_device *drm = dev_get_drvdata(&dev->dev);
 
 	drm_dev_unregister(drm);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return 0;
 }
@@ -1212,31 +1228,15 @@ static int host1x_drm_remove(struct host1x_device *dev)
 static int host1x_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct tegra_drm *tegra = drm->dev_private;
 
-	drm_kms_helper_poll_disable(drm);
-	tegra_drm_fb_suspend(drm);
-
-	tegra->state = drm_atomic_helper_suspend(drm);
-	if (IS_ERR(tegra->state)) {
-		tegra_drm_fb_resume(drm);
-		drm_kms_helper_poll_enable(drm);
-		return PTR_ERR(tegra->state);
-	}
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm);
 }
 
 static int host1x_drm_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct tegra_drm *tegra = drm->dev_private;
 
-	drm_atomic_helper_resume(drm, tegra->state);
-	tegra_drm_fb_resume(drm);
-	drm_kms_helper_poll_enable(drm);
-
-	return 0;
+	return drm_mode_config_helper_resume(drm);
 }
 #endif
 
@@ -1271,6 +1271,10 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra186-sor", },
 	{ .compatible = "nvidia,tegra186-sor1", },
 	{ .compatible = "nvidia,tegra186-vic", },
+	{ .compatible = "nvidia,tegra194-display", },
+	{ .compatible = "nvidia,tegra194-dc", },
+	{ .compatible = "nvidia,tegra194-sor", },
+	{ .compatible = "nvidia,tegra194-vic", },
 	{ /* sentinel */ }
 };
 

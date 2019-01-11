@@ -29,13 +29,6 @@
 
 #define VIRTIO_GPU_FBCON_POLL_PERIOD (HZ / 60)
 
-struct virtio_gpu_fbdev {
-	struct drm_fb_helper           helper;
-	struct virtio_gpu_framebuffer  vgfb;
-	struct virtio_gpu_device       *vgdev;
-	struct delayed_work            work;
-};
-
 static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 				   bool store, int x, int y,
 				   int width, int height)
@@ -102,7 +95,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 
 		offset = (y * fb->base.pitches[0]) + x * bpp;
 
-		virtio_gpu_cmd_transfer_to_host_2d(vgdev, obj->hw_res_handle,
+		virtio_gpu_cmd_transfer_to_host_2d(vgdev, obj,
 						   offset,
 						   cpu_to_le32(w),
 						   cpu_to_le32(h),
@@ -210,12 +203,6 @@ static struct fb_ops virtio_gpufb_ops = {
 	.fb_imageblit = virtio_gpu_3d_imageblit,
 };
 
-static int virtio_gpu_vmap_fb(struct virtio_gpu_device *vgdev,
-			      struct virtio_gpu_object *obj)
-{
-	return virtio_gpu_object_kmap(obj, NULL);
-}
-
 static int virtio_gpufb_create(struct drm_fb_helper *helper,
 			       struct drm_fb_helper_surface_size *sizes)
 {
@@ -227,13 +214,13 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct virtio_gpu_object *obj;
-	uint32_t resid, format, size;
+	uint32_t format, size;
 	int ret;
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 	mode_cmd.pitches[0] = mode_cmd.width * 4;
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(32, 24);
+	mode_cmd.pixel_format = DRM_FORMAT_HOST_XRGB8888;
 
 	format = virtio_gpu_translate_format(mode_cmd.pixel_format);
 	if (format == 0)
@@ -244,18 +231,17 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	virtio_gpu_resource_id_get(vgdev, &resid);
-	virtio_gpu_cmd_create_resource(vgdev, resid, format,
+	virtio_gpu_cmd_create_resource(vgdev, obj, format,
 				       mode_cmd.width, mode_cmd.height);
 
-	ret = virtio_gpu_vmap_fb(vgdev, obj);
+	ret = virtio_gpu_object_kmap(obj);
 	if (ret) {
-		DRM_ERROR("failed to vmap fb %d\n", ret);
+		DRM_ERROR("failed to kmap fb %d\n", ret);
 		goto err_obj_vmap;
 	}
 
 	/* attach the object to the resource */
-	ret = virtio_gpu_object_attach(vgdev, obj, resid, NULL);
+	ret = virtio_gpu_object_attach(vgdev, obj, NULL);
 	if (ret)
 		goto err_obj_attach;
 
@@ -291,7 +277,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_fb_alloc:
-	virtio_gpu_cmd_resource_inval_backing(vgdev, resid);
+	virtio_gpu_object_detach(vgdev, obj);
 err_obj_attach:
 err_obj_vmap:
 	virtio_gpu_gem_free_object(&obj->gem_base);

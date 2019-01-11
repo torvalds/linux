@@ -29,6 +29,7 @@
 #define DRM_ATOMIC_H_
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_util.h>
 
 /**
  * struct drm_crtc_commit - track modeset commits on a CRTC
@@ -153,6 +154,17 @@ struct __drm_planes_state {
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 	struct drm_crtc_state *state, *old_state, *new_state;
+
+	/**
+	 * @commit:
+	 *
+	 * A reference to the CRTC commit object that is kept for use by
+	 * drm_atomic_helper_wait_for_flip_done() after
+	 * drm_atomic_helper_commit_hw_done() is called. This ensures that a
+	 * concurrent commit won't free a commit object that is still in use.
+	 */
+	struct drm_crtc_commit *commit;
+
 	s32 __user *out_fence_ptr;
 	u64 last_vblank_count;
 };
@@ -253,7 +265,6 @@ struct __drm_private_objs_state {
  * struct drm_atomic_state - the global state object for atomic updates
  * @ref: count of all references to this state (will not be freed until zero)
  * @dev: parent DRM device
- * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
  * @async_update: hint for asynchronous plane update
  * @planes: pointer to array of structures with per-plane data
@@ -272,6 +283,15 @@ struct drm_atomic_state {
 	struct kref ref;
 
 	struct drm_device *dev;
+
+	/**
+	 * @allow_modeset:
+	 *
+	 * Allow full modeset. This is used by the ATOMIC IOCTL handler to
+	 * implement the DRM_MODE_ATOMIC_ALLOW_MODESET flag. Drivers should
+	 * never consult this flag, instead looking at the output of
+	 * drm_atomic_crtc_needs_modeset().
+	 */
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool async_update : 1;
@@ -373,9 +393,6 @@ void drm_atomic_state_default_release(struct drm_atomic_state *state);
 struct drm_crtc_state * __must_check
 drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 			  struct drm_crtc *crtc);
-int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
-		struct drm_crtc_state *state, struct drm_property *property,
-		uint64_t val);
 struct drm_plane_state * __must_check
 drm_atomic_get_plane_state(struct drm_atomic_state *state,
 			   struct drm_plane *plane);
@@ -586,25 +603,6 @@ __drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
 	return plane->state;
 }
 
-int __must_check
-drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
-			     const struct drm_display_mode *mode);
-int __must_check
-drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
-				  struct drm_property_blob *blob);
-int __must_check
-drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
-			      struct drm_crtc *crtc);
-void drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
-				 struct drm_framebuffer *fb);
-void drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
-				    struct dma_fence *fence);
-int __must_check
-drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
-				  struct drm_crtc *crtc);
-int drm_atomic_set_writeback_fb_for_connector(
-		struct drm_connector_state *conn_state,
-		struct drm_framebuffer *fb);
 int __must_check
 drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc);

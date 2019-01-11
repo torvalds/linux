@@ -99,10 +99,6 @@ void __init dma_ops_init(void)
 
 	case pcxl2:
 		pa7300lc_init();
-	case pcxl: /* falls through */
-	case pcxs:
-	case pcxt:
-		hppa_dma_ops = &dma_noncoherent_ops;
 		break;
 	default:
 		break;
@@ -346,6 +342,7 @@ static int __init parisc_init(void)
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);
 
+	apply_alternatives_all();
 	parisc_setup_cache_timing();
 
 	/* These are in a non-obvious order, will fix when we have an iotree */

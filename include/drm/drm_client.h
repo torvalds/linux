@@ -87,9 +87,10 @@ struct drm_client_dev {
 	struct drm_file *file;
 };
 
-int drm_client_new(struct drm_device *dev, struct drm_client_dev *client,
-		   const char *name, const struct drm_client_funcs *funcs);
+int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
+		    const char *name, const struct drm_client_funcs *funcs);
 void drm_client_release(struct drm_client_dev *client);
+void drm_client_add(struct drm_client_dev *client);
 
 void drm_client_dev_unregister(struct drm_device *dev);
 void drm_client_dev_hotplug(struct drm_device *dev);

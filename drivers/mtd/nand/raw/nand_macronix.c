@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/rawnand.h>
+#include "internals.h"
 
 /*
  * Macronix AC series does not support using SET/GET_FEATURES to change
@@ -33,6 +33,13 @@ static void macronix_nand_fix_broken_get_timings(struct nand_chip *chip)
 		"MX30LF4G18AC",
 		"MX30LF4G28AC",
 		"MX60LF8G18AC",
+		"MX30UF1G18AC",
+		"MX30UF1G16AC",
+		"MX30UF2G18AC",
+		"MX30UF2G16AC",
+		"MX30UF4G18AC",
+		"MX30UF4G16AC",
+		"MX30UF4G28AC",
 	};
 
 	if (!chip->parameters.supports_set_get_features)

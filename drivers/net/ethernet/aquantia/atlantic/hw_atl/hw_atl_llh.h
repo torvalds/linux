@@ -325,6 +325,9 @@ void hw_atl_rpb_rx_pkt_buff_size_per_tc_set(struct aq_hw_s *aq_hw,
 					    u32 rx_pkt_buff_size_per_tc,
 					    u32 buffer);
 
+/* set rdm rx dma descriptor cache init */
+void hw_atl_rdm_rx_dma_desc_cache_init_set(struct aq_hw_s *aq_hw, u32 init);
+
 /* set rx xoff enable (per tc) */
 void hw_atl_rpb_rx_xoff_en_per_tc_set(struct aq_hw_s *aq_hw, u32 rx_xoff_en_per_tc,
 				      u32 buffer);
@@ -438,6 +441,14 @@ void hw_atl_rpf_vlan_flr_act_set(struct aq_hw_s *aq_hw, u32 vlan_filter_act,
 void hw_atl_rpf_vlan_id_flr_set(struct aq_hw_s *aq_hw, u32 vlan_id_flr,
 				u32 filter);
 
+/* Set VLAN RX queue assignment enable */
+void hw_atl_rpf_vlan_rxq_en_flr_set(struct aq_hw_s *aq_hw, u32 vlan_rxq_en,
+				    u32 filter);
+
+/* Set VLAN RX queue */
+void hw_atl_rpf_vlan_rxq_flr_set(struct aq_hw_s *aq_hw, u32 vlan_rxq,
+				 u32 filter);
+
 /* set ethertype filter enable */
 void hw_atl_rpf_etht_flr_en_set(struct aq_hw_s *aq_hw, u32 etht_flr_en,
 				u32 filter);
@@ -471,6 +482,12 @@ void hw_atl_rpf_etht_flr_act_set(struct aq_hw_s *aq_hw, u32 etht_flr_act,
 
 /* set ethertype filter */
 void hw_atl_rpf_etht_flr_set(struct aq_hw_s *aq_hw, u32 etht_flr, u32 filter);
+
+/* set L4 source port */
+void hw_atl_rpf_l4_spd_set(struct aq_hw_s *aq_hw, u32 val, u32 filter);
+
+/* set L4 destination port */
+void hw_atl_rpf_l4_dpd_set(struct aq_hw_s *aq_hw, u32 val, u32 filter);
 
 /* rpo */
 
@@ -697,5 +714,42 @@ void hw_atl_msm_reg_wr_strobe_set(struct aq_hw_s *aq_hw, u32 reg_wr_strobe);
 
 /* set pci register reset disable */
 void hw_atl_pci_pci_reg_res_dis_set(struct aq_hw_s *aq_hw, u32 pci_reg_res_dis);
+
+/* set uP Force Interrupt */
+void hw_atl_mcp_up_force_intr_set(struct aq_hw_s *aq_hw, u32 up_force_intr);
+
+/* clear ipv4 filter destination address */
+void hw_atl_rpfl3l4_ipv4_dest_addr_clear(struct aq_hw_s *aq_hw, u8 location);
+
+/* clear ipv4 filter source address */
+void hw_atl_rpfl3l4_ipv4_src_addr_clear(struct aq_hw_s *aq_hw, u8 location);
+
+/* clear command for filter l3-l4 */
+void hw_atl_rpfl3l4_cmd_clear(struct aq_hw_s *aq_hw, u8 location);
+
+/* clear ipv6 filter destination address */
+void hw_atl_rpfl3l4_ipv6_dest_addr_clear(struct aq_hw_s *aq_hw, u8 location);
+
+/* clear ipv6 filter source address */
+void hw_atl_rpfl3l4_ipv6_src_addr_clear(struct aq_hw_s *aq_hw, u8 location);
+
+/* set ipv4 filter destination address */
+void hw_atl_rpfl3l4_ipv4_dest_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				       u32 ipv4_dest);
+
+/* set ipv4 filter source address */
+void hw_atl_rpfl3l4_ipv4_src_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				      u32 ipv4_src);
+
+/* set command for filter l3-l4 */
+void hw_atl_rpfl3l4_cmd_set(struct aq_hw_s *aq_hw, u8 location, u32 cmd);
+
+/* set ipv6 filter source address */
+void hw_atl_rpfl3l4_ipv6_src_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				      u32 *ipv6_src);
+
+/* set ipv6 filter destination address */
+void hw_atl_rpfl3l4_ipv6_dest_addr_set(struct aq_hw_s *aq_hw, u8 location,
+				       u32 *ipv6_dest);
 
 #endif /* HW_ATL_LLH_H */

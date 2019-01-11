@@ -836,7 +836,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	 * Kernel users need more wq space for fastreg WRs which can take
 	 * 2 WR fragments.
 	 */
-	ucontext = pd->uobject ? to_iwch_ucontext(pd->uobject->context) : NULL;
+	ucontext = udata ? to_iwch_ucontext(pd->uobject->context) : NULL;
 	if (!ucontext && wqsize < (rqsize + (2 * sqsize)))
 		wqsize = roundup_pow_of_two(rqsize +
 				roundup_pow_of_two(attrs->cap.max_send_wr * 2));
@@ -1127,17 +1127,18 @@ static int iwch_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
-static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
 						 ibdev.dev);
 	pr_debug("%s dev 0x%p\n", __func__, dev);
 	return sprintf(buf, "%d\n", iwch_dev->rdev.t3cdev_p->type);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
-static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t hca_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
 						 ibdev.dev);
@@ -1148,9 +1149,10 @@ static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
 	return sprintf(buf, "%s\n", info.driver);
 }
+static DEVICE_ATTR_RO(hca_type);
 
-static ssize_t show_board(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
 						 ibdev.dev);
@@ -1158,6 +1160,7 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%x.%x\n", iwch_dev->rdev.rnic_info.pdev->vendor,
 		       iwch_dev->rdev.rnic_info.pdev->device);
 }
+static DEVICE_ATTR_RO(board_id);
 
 enum counters {
 	IPINRECEIVES,
@@ -1274,14 +1277,15 @@ static int iwch_get_mib(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	return stats->num_counters;
 }
 
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
+static struct attribute *iwch_class_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
+};
 
-static struct device_attribute *iwch_class_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id,
+static const struct attribute_group iwch_attr_group = {
+	.attrs = iwch_class_attributes,
 };
 
 static int iwch_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -1313,13 +1317,44 @@ static void get_dev_fw_ver_str(struct ib_device *ibdev, char *str)
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%s", info.fw_version);
 }
 
+static const struct ib_device_ops iwch_dev_ops = {
+	.alloc_hw_stats	= iwch_alloc_stats,
+	.alloc_mr = iwch_alloc_mr,
+	.alloc_mw = iwch_alloc_mw,
+	.alloc_pd = iwch_allocate_pd,
+	.alloc_ucontext = iwch_alloc_ucontext,
+	.create_cq = iwch_create_cq,
+	.create_qp = iwch_create_qp,
+	.dealloc_mw = iwch_dealloc_mw,
+	.dealloc_pd = iwch_deallocate_pd,
+	.dealloc_ucontext = iwch_dealloc_ucontext,
+	.dereg_mr = iwch_dereg_mr,
+	.destroy_cq = iwch_destroy_cq,
+	.destroy_qp = iwch_destroy_qp,
+	.get_dev_fw_str = get_dev_fw_ver_str,
+	.get_dma_mr = iwch_get_dma_mr,
+	.get_hw_stats = iwch_get_mib,
+	.get_port_immutable = iwch_port_immutable,
+	.map_mr_sg = iwch_map_mr_sg,
+	.mmap = iwch_mmap,
+	.modify_qp = iwch_ib_modify_qp,
+	.poll_cq = iwch_poll_cq,
+	.post_recv = iwch_post_receive,
+	.post_send = iwch_post_send,
+	.query_device = iwch_query_device,
+	.query_gid = iwch_query_gid,
+	.query_pkey = iwch_query_pkey,
+	.query_port = iwch_query_port,
+	.reg_user_mr = iwch_reg_user_mr,
+	.req_notify_cq = iwch_arm_cq,
+	.resize_cq = iwch_resize_cq,
+};
+
 int iwch_register_device(struct iwch_dev *dev)
 {
 	int ret;
-	int i;
 
 	pr_debug("%s iwch_dev %p\n", __func__, dev);
-	strlcpy(dev->ibdev.name, "cxgb3_%d", IB_DEVICE_NAME_MAX);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
@@ -1354,37 +1389,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.phys_port_cnt = dev->rdev.port_info.nports;
 	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dev.parent = &dev->rdev.rnic_info.pdev->dev;
-	dev->ibdev.query_device = iwch_query_device;
-	dev->ibdev.query_port = iwch_query_port;
-	dev->ibdev.query_pkey = iwch_query_pkey;
-	dev->ibdev.query_gid = iwch_query_gid;
-	dev->ibdev.alloc_ucontext = iwch_alloc_ucontext;
-	dev->ibdev.dealloc_ucontext = iwch_dealloc_ucontext;
-	dev->ibdev.mmap = iwch_mmap;
-	dev->ibdev.alloc_pd = iwch_allocate_pd;
-	dev->ibdev.dealloc_pd = iwch_deallocate_pd;
-	dev->ibdev.create_qp = iwch_create_qp;
-	dev->ibdev.modify_qp = iwch_ib_modify_qp;
-	dev->ibdev.destroy_qp = iwch_destroy_qp;
-	dev->ibdev.create_cq = iwch_create_cq;
-	dev->ibdev.destroy_cq = iwch_destroy_cq;
-	dev->ibdev.resize_cq = iwch_resize_cq;
-	dev->ibdev.poll_cq = iwch_poll_cq;
-	dev->ibdev.get_dma_mr = iwch_get_dma_mr;
-	dev->ibdev.reg_user_mr = iwch_reg_user_mr;
-	dev->ibdev.dereg_mr = iwch_dereg_mr;
-	dev->ibdev.alloc_mw = iwch_alloc_mw;
-	dev->ibdev.dealloc_mw = iwch_dealloc_mw;
-	dev->ibdev.alloc_mr = iwch_alloc_mr;
-	dev->ibdev.map_mr_sg = iwch_map_mr_sg;
-	dev->ibdev.req_notify_cq = iwch_arm_cq;
-	dev->ibdev.post_send = iwch_post_send;
-	dev->ibdev.post_recv = iwch_post_receive;
-	dev->ibdev.alloc_hw_stats = iwch_alloc_stats;
-	dev->ibdev.get_hw_stats = iwch_get_mib;
 	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
-	dev->ibdev.get_port_immutable = iwch_port_immutable;
-	dev->ibdev.get_dev_fw_str = get_dev_fw_ver_str;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)
@@ -1402,33 +1407,17 @@ int iwch_register_device(struct iwch_dev *dev)
 	       sizeof(dev->ibdev.iwcm->ifname));
 
 	dev->ibdev.driver_id = RDMA_DRIVER_CXGB3;
-	ret = ib_register_device(&dev->ibdev, NULL);
+	rdma_set_device_sysfs_group(&dev->ibdev, &iwch_attr_group);
+	ib_set_device_ops(&dev->ibdev, &iwch_dev_ops);
+	ret = ib_register_device(&dev->ibdev, "cxgb3_%d", NULL);
 	if (ret)
-		goto bail1;
-
-	for (i = 0; i < ARRAY_SIZE(iwch_class_attributes); ++i) {
-		ret = device_create_file(&dev->ibdev.dev,
-					 iwch_class_attributes[i]);
-		if (ret) {
-			goto bail2;
-		}
-	}
-	return 0;
-bail2:
-	ib_unregister_device(&dev->ibdev);
-bail1:
-	kfree(dev->ibdev.iwcm);
+		kfree(dev->ibdev.iwcm);
 	return ret;
 }
 
 void iwch_unregister_device(struct iwch_dev *dev)
 {
-	int i;
-
 	pr_debug("%s iwch_dev %p\n", __func__, dev);
-	for (i = 0; i < ARRAY_SIZE(iwch_class_attributes); ++i)
-		device_remove_file(&dev->ibdev.dev,
-				   iwch_class_attributes[i]);
 	ib_unregister_device(&dev->ibdev);
 	kfree(dev->ibdev.iwcm);
 	return;

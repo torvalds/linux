@@ -28,6 +28,7 @@
 #include <linux/ctype.h>
 #include <linux/hdmi.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_util.h>
 
 #include <uapi/drm/drm_mode.h>
 
@@ -79,6 +80,53 @@ enum drm_connector_status {
 	 * there's not connector with @connector_status_connected.
 	 */
 	connector_status_unknown = 3,
+};
+
+/**
+ * enum drm_connector_registration_status - userspace registration status for
+ * a &drm_connector
+ *
+ * This enum is used to track the status of initializing a connector and
+ * registering it with userspace, so that DRM can prevent bogus modesets on
+ * connectors that no longer exist.
+ */
+enum drm_connector_registration_state {
+	/**
+	 * @DRM_CONNECTOR_INITIALIZING: The connector has just been created,
+	 * but has yet to be exposed to userspace. There should be no
+	 * additional restrictions to how the state of this connector may be
+	 * modified.
+	 */
+	DRM_CONNECTOR_INITIALIZING = 0,
+
+	/**
+	 * @DRM_CONNECTOR_REGISTERED: The connector has been fully initialized
+	 * and registered with sysfs, as such it has been exposed to
+	 * userspace. There should be no additional restrictions to how the
+	 * state of this connector may be modified.
+	 */
+	DRM_CONNECTOR_REGISTERED = 1,
+
+	/**
+	 * @DRM_CONNECTOR_UNREGISTERED: The connector has either been exposed
+	 * to userspace and has since been unregistered and removed from
+	 * userspace, or the connector was unregistered before it had a chance
+	 * to be exposed to userspace (e.g. still in the
+	 * @DRM_CONNECTOR_INITIALIZING state). When a connector is
+	 * unregistered, there are additional restrictions to how its state
+	 * may be modified:
+	 *
+	 * - An unregistered connector may only have its DPMS changed from
+	 *   On->Off. Once DPMS is changed to Off, it may not be switched back
+	 *   to On.
+	 * - Modesets are not allowed on unregistered connectors, unless they
+	 *   would result in disabling its assigned CRTCs. This means
+	 *   disabling a CRTC on an unregistered connector is OK, but enabling
+	 *   one is not.
+	 * - Removing a CRTC from an unregistered connector is OK, but new
+	 *   CRTCs may never be assigned to an unregistered connector.
+	 */
+	DRM_CONNECTOR_UNREGISTERED = 2,
 };
 
 enum subpixel_order {
@@ -460,6 +508,18 @@ struct drm_connector_state {
 	 * drm_writeback_signal_completion()
 	 */
 	struct drm_writeback_job *writeback_job;
+
+	/**
+	 * @max_requested_bpc: Connector property to limit the maximum bit
+	 * depth of the pixels.
+	 */
+	u8 max_requested_bpc;
+
+	/**
+	 * @max_bpc: Connector max_bpc based on the requested max_bpc property
+	 * and the connector bpc limitations obtained from edid.
+	 */
+	u8 max_bpc;
 };
 
 /**
@@ -852,10 +912,12 @@ struct drm_connector {
 	bool ycbcr_420_allowed;
 
 	/**
-	 * @registered: Is this connector exposed (registered) with userspace?
+	 * @registration_state: Is this connector initializing, exposed
+	 * (registered) with userspace, or unregistered?
+	 *
 	 * Protected by @mutex.
 	 */
-	bool registered;
+	enum drm_connector_registration_state registration_state;
 
 	/**
 	 * @modes:
@@ -910,6 +972,17 @@ struct drm_connector {
 	struct drm_property *scaling_mode_property;
 
 	/**
+	 * @vrr_capable_property: Optional property to help userspace
+	 * query hardware support for variable refresh rate on a connector.
+	 * connector. Drivers can add the property to a connector by
+	 * calling drm_connector_attach_vrr_capable_property().
+	 *
+	 * This should be updated only by calling
+	 * drm_connector_set_vrr_capable_property().
+	 */
+	struct drm_property *vrr_capable_property;
+
+	/**
 	 * @content_protection_property: DRM ENUM property for content
 	 * protection. See drm_connector_attach_content_protection_property().
 	 */
@@ -922,6 +995,12 @@ struct drm_connector {
 	 * be updated by calling drm_connector_set_path_property().
 	 */
 	struct drm_property_blob *path_blob_ptr;
+
+	/**
+	 * @max_bpc_property: Default connector property for the max bpc to be
+	 * driven out of the connector.
+	 */
+	struct drm_property *max_bpc_property;
 
 #define DRM_CONNECTOR_POLL_HPD (1 << 0)
 #define DRM_CONNECTOR_POLL_CONNECT (1 << 1)
@@ -1083,6 +1162,7 @@ int drm_connector_init(struct drm_device *dev,
 		       struct drm_connector *connector,
 		       const struct drm_connector_funcs *funcs,
 		       int connector_type);
+void drm_connector_attach_edid_property(struct drm_connector *connector);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
 int drm_connector_attach_encoder(struct drm_connector *connector,
@@ -1142,27 +1222,21 @@ static inline void drm_connector_put(struct drm_connector *connector)
 }
 
 /**
- * drm_connector_reference - acquire a connector reference
+ * drm_connector_is_unregistered - has the connector been unregistered from
+ * userspace?
  * @connector: DRM connector
  *
- * This is a compatibility alias for drm_connector_get() and should not be
- * used by new code.
- */
-static inline void drm_connector_reference(struct drm_connector *connector)
-{
-	drm_connector_get(connector);
-}
-
-/**
- * drm_connector_unreference - release a connector reference
- * @connector: DRM connector
+ * Checks whether or not @connector has been unregistered from userspace.
  *
- * This is a compatibility alias for drm_connector_put() and should not be
- * used by new code.
+ * Returns:
+ * True if the connector was unregistered, false if the connector is
+ * registered or has not yet been registered with userspace.
  */
-static inline void drm_connector_unreference(struct drm_connector *connector)
+static inline bool
+drm_connector_is_unregistered(struct drm_connector *connector)
 {
-	drm_connector_put(connector);
+	return READ_ONCE(connector->registration_state) ==
+		DRM_CONNECTOR_UNREGISTERED;
 }
 
 const char *drm_get_connector_status_name(enum drm_connector_status status);
@@ -1182,6 +1256,8 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 int drm_connector_attach_content_type_property(struct drm_connector *dev);
 int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 					       u32 scaling_mode_mask);
+int drm_connector_attach_vrr_capable_property(
+		struct drm_connector *connector);
 int drm_connector_attach_content_protection_property(
 		struct drm_connector *connector);
 int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
@@ -1198,8 +1274,12 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 				       const struct edid *edid);
 void drm_connector_set_link_status_property(struct drm_connector *connector,
 					    uint64_t link_status);
+void drm_connector_set_vrr_capable_property(
+		struct drm_connector *connector, bool capable);
 int drm_connector_init_panel_orientation_property(
 	struct drm_connector *connector, int width, int height);
+int drm_connector_attach_max_bpc_property(struct drm_connector *connector,
+					  int min, int max);
 
 /**
  * struct drm_tile_group - Tile group metadata

@@ -19,9 +19,13 @@ struct Qdisc_ops;
 struct qdisc_walker;
 struct tcf_walker;
 struct module;
+struct bpf_flow_keys;
 
 typedef int tc_setup_cb_t(enum tc_setup_type type,
 			  void *type_data, void *cb_priv);
+
+typedef int tc_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
+				    enum tc_setup_type type, void *type_data);
 
 struct qdisc_rate_table {
 	struct tc_ratespec rate;
@@ -105,6 +109,7 @@ struct Qdisc {
 
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
 	spinlock_t		seqlock;
+	struct rcu_head		rcu;
 };
 
 static inline void qdisc_refcount_inc(struct Qdisc *qdisc)
@@ -112,6 +117,19 @@ static inline void qdisc_refcount_inc(struct Qdisc *qdisc)
 	if (qdisc->flags & TCQ_F_BUILTIN)
 		return;
 	refcount_inc(&qdisc->refcnt);
+}
+
+/* Intended to be used by unlocked users, when concurrent qdisc release is
+ * possible.
+ */
+
+static inline struct Qdisc *qdisc_refcount_inc_nz(struct Qdisc *qdisc)
+{
+	if (qdisc->flags & TCQ_F_BUILTIN)
+		return qdisc;
+	if (refcount_inc_not_zero(&qdisc->refcnt))
+		return qdisc;
+	return NULL;
 }
 
 static inline bool qdisc_is_running(struct Qdisc *qdisc)
@@ -307,9 +325,14 @@ struct tcf_proto {
 };
 
 struct qdisc_skb_cb {
-	unsigned int		pkt_len;
-	u16			slave_dev_queue_mapping;
-	u16			tc_classid;
+	union {
+		struct {
+			unsigned int		pkt_len;
+			u16			slave_dev_queue_mapping;
+			u16			tc_classid;
+		};
+		struct bpf_flow_keys *flow_keys;
+	};
 #define QDISC_CB_PRIV_LEN 20
 	unsigned char		data[QDISC_CB_PRIV_LEN];
 };
@@ -331,7 +354,7 @@ struct tcf_chain {
 struct tcf_block {
 	struct list_head chain_list;
 	u32 index; /* block index for shared blocks */
-	unsigned int refcnt;
+	refcount_t refcnt;
 	struct net *net;
 	struct Qdisc *q;
 	struct list_head cb_list;
@@ -343,6 +366,7 @@ struct tcf_block {
 		struct tcf_chain *chain;
 		struct list_head filter_chain_list;
 	} chain0;
+	struct rcu_head rcu;
 };
 
 static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
@@ -362,7 +386,7 @@ static inline void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
 }
 
 static inline void
-tc_cls_offload_cnt_update(struct tcf_block *block, unsigned int *cnt,
+tc_cls_offload_cnt_update(struct tcf_block *block, u32 *cnt,
 			  u32 *flags, bool add)
 {
 	if (add) {
@@ -554,9 +578,34 @@ void dev_deactivate_many(struct list_head *head);
 struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 			      struct Qdisc *qdisc);
 void qdisc_reset(struct Qdisc *qdisc);
-void qdisc_destroy(struct Qdisc *qdisc);
+void qdisc_put(struct Qdisc *qdisc);
+void qdisc_put_unlocked(struct Qdisc *qdisc);
 void qdisc_tree_reduce_backlog(struct Qdisc *qdisc, unsigned int n,
 			       unsigned int len);
+#ifdef CONFIG_NET_SCHED
+int qdisc_offload_dump_helper(struct Qdisc *q, enum tc_setup_type type,
+			      void *type_data);
+void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+				struct Qdisc *new, struct Qdisc *old,
+				enum tc_setup_type type, void *type_data,
+				struct netlink_ext_ack *extack);
+#else
+static inline int
+qdisc_offload_dump_helper(struct Qdisc *q, enum tc_setup_type type,
+			  void *type_data)
+{
+	q->flags &= ~TCQ_F_OFFLOADED;
+	return 0;
+}
+
+static inline void
+qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+			   struct Qdisc *new, struct Qdisc *old,
+			   enum tc_setup_type type, void *type_data,
+			   struct netlink_ext_ack *extack)
+{
+}
+#endif
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops,
 			  struct netlink_ext_ack *extack);
@@ -828,8 +877,8 @@ static inline void qdisc_skb_head_init(struct qdisc_skb_head *qh)
 	qh->qlen = 0;
 }
 
-static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
-				       struct qdisc_skb_head *qh)
+static inline void __qdisc_enqueue_tail(struct sk_buff *skb,
+					struct qdisc_skb_head *qh)
 {
 	struct sk_buff *last = qh->tail;
 
@@ -842,14 +891,24 @@ static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 		qh->head = skb;
 	}
 	qh->qlen++;
-	qdisc_qstats_backlog_inc(sch, skb);
-
-	return NET_XMIT_SUCCESS;
 }
 
 static inline int qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch)
 {
-	return __qdisc_enqueue_tail(skb, sch, &sch->q);
+	__qdisc_enqueue_tail(skb, &sch->q);
+	qdisc_qstats_backlog_inc(sch, skb);
+	return NET_XMIT_SUCCESS;
+}
+
+static inline void __qdisc_enqueue_head(struct sk_buff *skb,
+					struct qdisc_skb_head *qh)
+{
+	skb->next = qh->head;
+
+	if (!qh->head)
+		qh->tail = skb;
+	qh->head = skb;
+	qh->qlen++;
 }
 
 static inline struct sk_buff *__qdisc_dequeue_head(struct qdisc_skb_head *qh)

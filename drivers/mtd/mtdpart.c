@@ -61,6 +61,15 @@ static inline struct mtd_part *mtd_to_part(const struct mtd_info *mtd)
 	return container_of(mtd, struct mtd_part, mtd);
 }
 
+static u64 part_absolute_offset(struct mtd_info *mtd)
+{
+	struct mtd_part *part = mtd_to_part(mtd);
+
+	if (!mtd_is_partition(mtd))
+		return 0;
+
+	return part_absolute_offset(part->parent) + part->offset;
+}
 
 /*
  * MTD methods which simply translate the effective address and pass through
@@ -346,7 +355,8 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 
 	/* set up the MTD object for this partition */
 	slave->mtd.type = parent->type;
-	slave->mtd.flags = parent->flags & ~part->mask_flags;
+	slave->mtd.flags = parent->orig_flags & ~part->mask_flags;
+	slave->mtd.orig_flags = slave->mtd.flags;
 	slave->mtd.size = part->size;
 	slave->mtd.writesize = parent->writesize;
 	slave->mtd.writebufsize = parent->writebufsize;
@@ -513,7 +523,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 	if (!(slave->mtd.flags & MTD_NO_ERASE))
 		wr_alignment = slave->mtd.erasesize;
 
-	tmp = slave->offset;
+	tmp = part_absolute_offset(parent) + slave->offset;
 	remainder = do_div(tmp, wr_alignment);
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {
 		/* Doesn't start on a boundary of major erase size */
@@ -524,7 +534,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			part->name);
 	}
 
-	tmp = slave->mtd.size;
+	tmp = part_absolute_offset(parent) + slave->mtd.size;
 	remainder = do_div(tmp, wr_alignment);
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {
 		slave->mtd.flags &= ~MTD_WRITEABLE;
@@ -873,8 +883,11 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	int ret, err = 0;
 
 	np = mtd_get_of_node(master);
-	if (!mtd_is_partition(master))
+	if (mtd_is_partition(master))
+		of_node_get(np);
+	else
 		np = of_get_child_by_name(np, "partitions");
+
 	of_property_for_each_string(np, "compatible", prop, compat) {
 		parser = mtd_part_get_compatible_parser(compat);
 		if (!parser)

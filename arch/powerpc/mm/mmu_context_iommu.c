@@ -18,10 +18,14 @@
 #include <linux/migrate.h>
 #include <linux/hugetlb.h>
 #include <linux/swap.h>
+#include <linux/sizes.h>
 #include <asm/mmu_context.h>
 #include <asm/pte-walk.h>
 
 static DEFINE_MUTEX(mem_list_mutex);
+
+#define MM_IOMMU_TABLE_GROUP_PAGE_DIRTY	0x1
+#define MM_IOMMU_TABLE_GROUP_PAGE_MASK	~(SZ_4K - 1)
 
 struct mm_iommu_table_group_mem_t {
 	struct list_head next;
@@ -32,6 +36,8 @@ struct mm_iommu_table_group_mem_t {
 	u64 ua;			/* userspace address */
 	u64 entries;		/* number of entries in hpas[] */
 	u64 *hpas;		/* vmalloc'ed */
+#define MM_IOMMU_TABLE_INVALID_HPA	((uint64_t)-1)
+	u64 dev_hpa;		/* Device memory base address */
 };
 
 static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
@@ -122,25 +128,21 @@ static int mm_iommu_move_page_from_cma(struct page *page)
 	return 0;
 }
 
-long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
+static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+		unsigned long entries, unsigned long dev_hpa,
 		struct mm_iommu_table_group_mem_t **pmem)
 {
 	struct mm_iommu_table_group_mem_t *mem;
 	long i, j, ret = 0, locked_entries = 0;
 	unsigned int pageshift;
 	unsigned long flags;
+	unsigned long cur_ua;
 	struct page *page = NULL;
 
 	mutex_lock(&mem_list_mutex);
 
 	list_for_each_entry_rcu(mem, &mm->context.iommu_group_mem_list,
 			next) {
-		if ((mem->ua == ua) && (mem->entries == entries)) {
-			++mem->used;
-			*pmem = mem;
-			goto unlock_exit;
-		}
-
 		/* Overlap? */
 		if ((mem->ua < (ua + (entries << PAGE_SHIFT))) &&
 				(ua < (mem->ua +
@@ -151,17 +153,26 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 
 	}
 
-	ret = mm_iommu_adjust_locked_vm(mm, entries, true);
-	if (ret)
-		goto unlock_exit;
+	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
+		ret = mm_iommu_adjust_locked_vm(mm, entries, true);
+		if (ret)
+			goto unlock_exit;
 
-	locked_entries = entries;
+		locked_entries = entries;
+	}
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem) {
 		ret = -ENOMEM;
 		goto unlock_exit;
 	}
+
+	if (dev_hpa != MM_IOMMU_TABLE_INVALID_HPA) {
+		mem->pageshift = __ffs(dev_hpa | (entries << PAGE_SHIFT));
+		mem->dev_hpa = dev_hpa;
+		goto good_exit;
+	}
+	mem->dev_hpa = MM_IOMMU_TABLE_INVALID_HPA;
 
 	/*
 	 * For a starting point for a maximum page size calculation
@@ -177,7 +188,8 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 	}
 
 	for (i = 0; i < entries; ++i) {
-		if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+		cur_ua = ua + (i << PAGE_SHIFT);
+		if (1 != get_user_pages_fast(cur_ua,
 					1/* pages */, 1/* iswrite */, &page)) {
 			ret = -EFAULT;
 			for (j = 0; j < i; ++j)
@@ -196,7 +208,7 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 		if (is_migrate_cma_page(page)) {
 			if (mm_iommu_move_page_from_cma(page))
 				goto populate;
-			if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+			if (1 != get_user_pages_fast(cur_ua,
 						1/* pages */, 1/* iswrite */,
 						&page)) {
 				ret = -EFAULT;
@@ -210,25 +222,27 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 		}
 populate:
 		pageshift = PAGE_SHIFT;
-		if (PageCompound(page)) {
+		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
 			pte_t *pte;
 			struct page *head = compound_head(page);
 			unsigned int compshift = compound_order(head);
+			unsigned int pteshift;
 
 			local_irq_save(flags); /* disables as well */
-			pte = find_linux_pte(mm->pgd, ua, NULL, &pageshift);
-			local_irq_restore(flags);
+			pte = find_linux_pte(mm->pgd, cur_ua, NULL, &pteshift);
 
 			/* Double check it is still the same pinned page */
 			if (pte && pte_page(*pte) == head &&
-					pageshift == compshift)
-				pageshift = max_t(unsigned int, pageshift,
+			    pteshift == compshift + PAGE_SHIFT)
+				pageshift = max_t(unsigned int, pteshift,
 						PAGE_SHIFT);
+			local_irq_restore(flags);
 		}
 		mem->pageshift = min(mem->pageshift, pageshift);
 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
 	}
 
+good_exit:
 	atomic64_set(&mem->mapped, 1);
 	mem->used = 1;
 	mem->ua = ua;
@@ -245,12 +259,30 @@ unlock_exit:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mm_iommu_get);
+
+long mm_iommu_new(struct mm_struct *mm, unsigned long ua, unsigned long entries,
+		struct mm_iommu_table_group_mem_t **pmem)
+{
+	return mm_iommu_do_alloc(mm, ua, entries, MM_IOMMU_TABLE_INVALID_HPA,
+			pmem);
+}
+EXPORT_SYMBOL_GPL(mm_iommu_new);
+
+long mm_iommu_newdev(struct mm_struct *mm, unsigned long ua,
+		unsigned long entries, unsigned long dev_hpa,
+		struct mm_iommu_table_group_mem_t **pmem)
+{
+	return mm_iommu_do_alloc(mm, ua, entries, dev_hpa, pmem);
+}
+EXPORT_SYMBOL_GPL(mm_iommu_newdev);
 
 static void mm_iommu_unpin(struct mm_iommu_table_group_mem_t *mem)
 {
 	long i;
 	struct page *page = NULL;
+
+	if (!mem->hpas)
+		return;
 
 	for (i = 0; i < mem->entries; ++i) {
 		if (!mem->hpas[i])
@@ -259,6 +291,9 @@ static void mm_iommu_unpin(struct mm_iommu_table_group_mem_t *mem)
 		page = pfn_to_page(mem->hpas[i] >> PAGE_SHIFT);
 		if (!page)
 			continue;
+
+		if (mem->hpas[i] & MM_IOMMU_TABLE_GROUP_PAGE_DIRTY)
+			SetPageDirty(page);
 
 		put_page(page);
 		mem->hpas[i] = 0;
@@ -290,6 +325,7 @@ static void mm_iommu_release(struct mm_iommu_table_group_mem_t *mem)
 long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 {
 	long ret = 0;
+	unsigned long entries, dev_hpa;
 
 	mutex_lock(&mem_list_mutex);
 
@@ -311,9 +347,12 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 	}
 
 	/* @mapped became 0 so now mappings are disabled, release the region */
+	entries = mem->entries;
+	dev_hpa = mem->dev_hpa;
 	mm_iommu_release(mem);
 
-	mm_iommu_adjust_locked_vm(mm, mem->entries, false);
+	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA)
+		mm_iommu_adjust_locked_vm(mm, entries, false);
 
 unlock_exit:
 	mutex_unlock(&mem_list_mutex);
@@ -357,29 +396,33 @@ struct mm_iommu_table_group_mem_t *mm_iommu_lookup_rm(struct mm_struct *mm,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mm_iommu_lookup_rm);
 
-struct mm_iommu_table_group_mem_t *mm_iommu_find(struct mm_struct *mm,
+struct mm_iommu_table_group_mem_t *mm_iommu_get(struct mm_struct *mm,
 		unsigned long ua, unsigned long entries)
 {
 	struct mm_iommu_table_group_mem_t *mem, *ret = NULL;
 
+	mutex_lock(&mem_list_mutex);
+
 	list_for_each_entry_rcu(mem, &mm->context.iommu_group_mem_list, next) {
 		if ((mem->ua == ua) && (mem->entries == entries)) {
 			ret = mem;
+			++mem->used;
 			break;
 		}
 	}
 
+	mutex_unlock(&mem_list_mutex);
+
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mm_iommu_find);
+EXPORT_SYMBOL_GPL(mm_iommu_get);
 
 long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 		unsigned long ua, unsigned int pageshift, unsigned long *hpa)
 {
 	const long entry = (ua - mem->ua) >> PAGE_SHIFT;
-	u64 *va = &mem->hpas[entry];
+	u64 *va;
 
 	if (entry >= mem->entries)
 		return -EFAULT;
@@ -387,7 +430,13 @@ long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 	if (pageshift > mem->pageshift)
 		return -EFAULT;
 
-	*hpa = *va | (ua & ~PAGE_MASK);
+	if (!mem->hpas) {
+		*hpa = mem->dev_hpa + (ua - mem->ua);
+		return 0;
+	}
+
+	va = &mem->hpas[entry];
+	*hpa = (*va & MM_IOMMU_TABLE_GROUP_PAGE_MASK) | (ua & ~PAGE_MASK);
 
 	return 0;
 }
@@ -397,7 +446,6 @@ long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
 		unsigned long ua, unsigned int pageshift, unsigned long *hpa)
 {
 	const long entry = (ua - mem->ua) >> PAGE_SHIFT;
-	void *va = &mem->hpas[entry];
 	unsigned long *pa;
 
 	if (entry >= mem->entries)
@@ -406,15 +454,70 @@ long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
 	if (pageshift > mem->pageshift)
 		return -EFAULT;
 
-	pa = (void *) vmalloc_to_phys(va);
+	if (!mem->hpas) {
+		*hpa = mem->dev_hpa + (ua - mem->ua);
+		return 0;
+	}
+
+	pa = (void *) vmalloc_to_phys(&mem->hpas[entry]);
 	if (!pa)
 		return -EFAULT;
 
-	*hpa = *pa | (ua & ~PAGE_MASK);
+	*hpa = (*pa & MM_IOMMU_TABLE_GROUP_PAGE_MASK) | (ua & ~PAGE_MASK);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mm_iommu_ua_to_hpa_rm);
+
+extern void mm_iommu_ua_mark_dirty_rm(struct mm_struct *mm, unsigned long ua)
+{
+	struct mm_iommu_table_group_mem_t *mem;
+	long entry;
+	void *va;
+	unsigned long *pa;
+
+	mem = mm_iommu_lookup_rm(mm, ua, PAGE_SIZE);
+	if (!mem)
+		return;
+
+	if (mem->dev_hpa != MM_IOMMU_TABLE_INVALID_HPA)
+		return;
+
+	entry = (ua - mem->ua) >> PAGE_SHIFT;
+	va = &mem->hpas[entry];
+
+	pa = (void *) vmalloc_to_phys(va);
+	if (!pa)
+		return;
+
+	*pa |= MM_IOMMU_TABLE_GROUP_PAGE_DIRTY;
+}
+
+bool mm_iommu_is_devmem(struct mm_struct *mm, unsigned long hpa,
+		unsigned int pageshift, unsigned long *size)
+{
+	struct mm_iommu_table_group_mem_t *mem;
+	unsigned long end;
+
+	list_for_each_entry_rcu(mem, &mm->context.iommu_group_mem_list, next) {
+		if (mem->dev_hpa == MM_IOMMU_TABLE_INVALID_HPA)
+			continue;
+
+		end = mem->dev_hpa + (mem->entries << PAGE_SHIFT);
+		if ((mem->dev_hpa <= hpa) && (hpa < end)) {
+			/*
+			 * Since the IOMMU page size might be bigger than
+			 * PAGE_SIZE, the amount of preregistered memory
+			 * starting from @hpa might be smaller than 1<<pageshift
+			 * and the caller needs to distinguish this situation.
+			 */
+			*size = min(1UL << pageshift, end - hpa);
+			return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(mm_iommu_is_devmem);
 
 long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem)
 {

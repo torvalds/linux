@@ -107,6 +107,10 @@ static void __init fwnmi_init(void)
 	u8 *mce_data_buf;
 	unsigned int i;
 	int nr_cpus = num_possible_cpus();
+#ifdef CONFIG_PPC_BOOK3S_64
+	struct slb_entry *slb_ptr;
+	size_t size;
+#endif
 
 	int ibm_nmi_register = rtas_token("ibm,nmi-register");
 	if (ibm_nmi_register == RTAS_UNKNOWN_SERVICE)
@@ -132,6 +136,15 @@ static void __init fwnmi_init(void)
 		paca_ptrs[i]->mce_data_buf = mce_data_buf +
 						(RTAS_ERROR_LOG_MAX * i);
 	}
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Allocate per cpu slb area to save old slb contents during MCE */
+	size = sizeof(struct slb_entry) * mmu_slb_size * nr_cpus;
+	slb_ptr = __va(memblock_alloc_base(size, sizeof(struct slb_entry),
+					   ppc64_rma_size));
+	for_each_possible_cpu(i)
+		paca_ptrs[i]->mce_faulty_slbs = slb_ptr + (mmu_slb_size * i);
+#endif
 }
 
 static void pseries_8259_cascade(struct irq_desc *desc)
@@ -177,7 +190,7 @@ static void __init pseries_setup_i8259_cascade(void)
 		of_node_put(old);
 		if (np == NULL)
 			break;
-		if (strcmp(np->name, "pci") != 0)
+		if (!of_node_name_eq(np, "pci"))
 			continue;
 		addrp = of_get_property(np, "8259-interrupt-acknowledge", NULL);
 		if (addrp == NULL)
@@ -456,8 +469,8 @@ static void __init find_and_init_phbs(void)
 	struct device_node *root = of_find_node_by_path("/");
 
 	for_each_child_of_node(root, node) {
-		if (node->type == NULL || (strcmp(node->type, "pci") != 0 &&
-					   strcmp(node->type, "pciex") != 0))
+		if (!of_node_is_type(node, "pci") &&
+		    !of_node_is_type(node, "pciex"))
 			continue;
 
 		phb = pcibios_alloc_controller(node);
@@ -965,11 +978,7 @@ static void pseries_power_off(void)
 
 static int __init pSeries_probe(void)
 {
-	const char *dtype = of_get_property(of_root, "device_type", NULL);
-
- 	if (dtype == NULL)
- 		return 0;
- 	if (strcmp(dtype, "chrp"))
+	if (!of_node_is_type(of_root, "chrp"))
 		return 0;
 
 	/* Cell blades firmware claims to be chrp while it's not. Until this
@@ -1017,6 +1026,7 @@ define_machine(pseries) {
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= rtas_progress,
 	.system_reset_exception = pSeries_system_reset_exception,
+	.machine_check_early	= pseries_machine_check_realmode,
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC_CORE
 	.machine_kexec          = pSeries_machine_kexec,

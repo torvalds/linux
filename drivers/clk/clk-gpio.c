@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 - 2014 Texas Instruments Incorporated - http://www.ti.com
  *
  * Authors:
  *    Jyri Sarha <jsarha@ti.com>
  *    Sergej Sawazki <ce3a@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Gpio controlled clock implementation
  */
@@ -233,11 +230,11 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	if (IS_ERR(gpiod)) {
 		ret = PTR_ERR(gpiod);
 		if (ret == -EPROBE_DEFER)
-			pr_debug("%s: %s: GPIOs not yet available, retry later\n",
-					node->name, __func__);
+			pr_debug("%pOFn: %s: GPIOs not yet available, retry later\n",
+					node, __func__);
 		else
-			pr_err("%s: %s: Can't get '%s' named GPIO property\n",
-					node->name, __func__,
+			pr_err("%pOFn: %s: Can't get '%s' named GPIO property\n",
+					node, __func__,
 					gpio_name);
 		return ret;
 	}

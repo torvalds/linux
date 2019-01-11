@@ -15,10 +15,8 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
-	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; };
 
 	aliases {
 		can0 = &flexcan1;
@@ -79,6 +77,7 @@
 				198000	    1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
+			#cooling-cells = <2>;
 			clocks = <&clks IMX6SX_CLK_ARM>,
 				 <&clks IMX6SX_CLK_PLL2_PFD2>,
 				 <&clks IMX6SX_CLK_STEP>,
@@ -158,12 +157,23 @@
 		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	usbphynop1: usbphynop1 {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&gpc>;
 		ranges;
+
+		ocram_s: sram@8f8000 {
+			compatible = "mmio-sram";
+			reg = <0x008f8000 0x4000>;
+			clocks = <&clks IMX6SX_CLK_OCRAM_S>;
+		};
 
 		ocram: sram@900000 {
 			compatible = "mmio-sram";
@@ -261,7 +271,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@2008000 {
+				ecspi1: spi@2008000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -273,7 +283,7 @@
 					status = "disabled";
 				};
 
-				ecspi2: ecspi@200c000 {
+				ecspi2: spi@200c000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -285,7 +295,7 @@
 					status = "disabled";
 				};
 
-				ecspi3: ecspi@2010000 {
+				ecspi3: spi@2010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -297,7 +307,7 @@
 					status = "disabled";
 				};
 
-				ecspi4: ecspi@2014000 {
+				ecspi4: spi@2014000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -441,6 +451,7 @@
 				clocks = <&clks IMX6SX_CLK_CAN1_IPG>,
 					 <&clks IMX6SX_CLK_CAN1_SERIAL>;
 				clock-names = "ipg", "per";
+				fsl,stop-mode = <&gpr 0x10 1 0x10 17>;
 				status = "disabled";
 			};
 
@@ -451,6 +462,7 @@
 				clocks = <&clks IMX6SX_CLK_CAN2_IPG>,
 					 <&clks IMX6SX_CLK_CAN2_SERIAL>;
 				clock-names = "ipg", "per";
+				fsl,stop-mode = <&gpr 0x10 2 0x10 18>;
 				status = "disabled";
 			};
 
@@ -551,7 +563,7 @@
 				compatible = "fsl,imx6sx-kpp", "fsl,imx21-kpp";
 				reg = <0x020b8000 0x4000>;
 				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 				status = "disabled";
 			};
 
@@ -559,14 +571,14 @@
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x020bc000 0x4000>;
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 			};
 
 			wdog2: wdog@20c0000 {
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x020c0000 0x4000>;
 				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 				status = "disabled";
 			};
 
@@ -591,8 +603,8 @@
 				regulator-1p1 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p1";
-					regulator-min-microvolt = <800000>;
-					regulator-max-microvolt = <1375000>;
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x110>;
 					anatop-vol-bit-shift = <8>;
@@ -621,8 +633,8 @@
 				regulator-2p5 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd2p5";
-					regulator-min-microvolt = <2100000>;
-					regulator-max-microvolt = <2875000>;
+					regulator-min-microvolt = <2250000>;
+					regulator-max-microvolt = <2750000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x130>;
 					anatop-vol-bit-shift = <8>;
@@ -814,7 +826,6 @@
 
 			crypto: caam@2100000 {
 				compatible = "fsl,sec-v4.0";
-				fsl,sec-era = <4>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0x2100000 0x10000>;
@@ -871,6 +882,7 @@
 				reg = <0x02184400 0x200>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_USBOH3>;
+				fsl,usbphy = <&usbphynop1>;
 				fsl,usbmisc = <&usbmisc 2>;
 				phy_type = "hsic";
 				fsl,anatop = <&anatop>;
@@ -996,6 +1008,7 @@
 			mmdc: mmdc@21b0000 {
 				compatible = "fsl,imx6sx-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
+				clocks = <&clks IMX6SX_CLK_MMDC_P0_IPG>;
 			};
 
 			fec2: ethernet@21b4000 {
@@ -1073,7 +1086,7 @@
 				status = "disabled";
 			};
 
-			qspi1: qspi@21e0000 {
+			qspi1: spi@21e0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-qspi";
@@ -1086,7 +1099,7 @@
 				status = "disabled";
 			};
 
-			qspi2: qspi@21e4000 {
+			qspi2: spi@21e4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-qspi";
@@ -1187,11 +1200,11 @@
 				};
 
 				pxp: pxp@2218000 {
+					compatible = "fsl,imx6sx-pxp", "fsl,imx6ull-pxp";
 					reg = <0x02218000 0x4000>;
 					interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&clks IMX6SX_CLK_PXP_AXI>,
-						 <&clks IMX6SX_CLK_DISPLAY_AXI>;
-					clock-names = "pxp-axi", "disp-axi";
+					clocks = <&clks IMX6SX_CLK_PXP_AXI>;
+					clock-names = "axi";
 					status = "disabled";
 				};
 
@@ -1263,11 +1276,11 @@
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x02288000 0x4000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 				status = "disabled";
 			};
 
-			ecspi5: ecspi@228c000 {
+			ecspi5: spi@228c000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";

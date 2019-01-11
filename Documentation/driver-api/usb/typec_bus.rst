@@ -13,10 +13,10 @@ every alternate mode, so every alternate mode will need a custom driver.
 USB Type-C bus allows binding a driver to the discovered partner alternate
 modes by using the SVID and the mode number.
 
-USB Type-C Connector Class provides a device for every alternate mode a port
-supports, and separate device for every alternate mode the partner supports.
-The drivers for the alternate modes are bound to the partner alternate mode
-devices, and the port alternate mode devices must be handled by the port
+:ref:`USB Type-C Connector Class <typec>` provides a device for every alternate
+mode a port supports, and separate device for every alternate mode the partner
+supports. The drivers for the alternate modes are bound to the partner alternate
+mode devices, and the port alternate mode devices must be handled by the port
 drivers.
 
 When a new partner alternate mode device is registered, it is linked to the
@@ -46,7 +46,7 @@ enter any modes on their own.
 ``->vdm`` is the most important callback in the operation callbacks vector. It
 will be used to deliver all the SVID specific commands from the partner to the
 alternate mode driver, and vice versa in case of port drivers. The drivers send
-the SVID specific commands to each other using :c:func:`typec_altmode_vmd()`.
+the SVID specific commands to each other using :c:func:`typec_altmode_vdm()`.
 
 If the communication with the partner using the SVID specific commands results
 in need to reconfigure the pins on the connector, the alternate mode driver
@@ -67,15 +67,15 @@ Type-C Specification, and also put the connector back to ``TYPEC_STATE_USB``
 after the mode has been exited.
 
 An example of working definitions for SVID specific pin configurations would
-look like this:
+look like this::
 
-enum {
-	ALTMODEX_CONF_A = TYPEC_STATE_MODAL,
-	ALTMODEX_CONF_B,
-	...
-};
+    enum {
+        ALTMODEX_CONF_A = TYPEC_STATE_MODAL,
+        ALTMODEX_CONF_B,
+        ...
+    };
 
-Helper macro ``TYPEC_MODAL_STATE()`` can also be used:
+Helper macro ``TYPEC_MODAL_STATE()`` can also be used::
 
 #define ALTMODEX_CONF_A = TYPEC_MODAL_STATE(0);
 #define ALTMODEX_CONF_B = TYPEC_MODAL_STATE(1);

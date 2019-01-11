@@ -1,0 +1,26 @@
+Freescale Pixel Pipeline
+========================
+
+The Pixel Pipeline (PXP) is a memory-to-memory graphics processing engine
+that supports scaling, colorspace conversion, alpha blending, rotation, and
+pixel conversion via lookup table. Different versions are present on various
+i.MX SoCs from i.MX23 to i.MX7.
+
+Required properties:
+- compatible: should be "fsl,<soc>-pxp", where SoC can be one of imx23, imx28,
+  imx6dl, imx6sl, imx6ul, imx6sx, imx6ull, or imx7d.
+- reg: the register base and size for the device registers
+- interrupts: the PXP interrupt, two interrupts for imx6ull and imx7d.
+- clock-names: should be "axi"
+- clocks: the PXP AXI clock
+
+Example:
+
+pxp@21cc000 {
+	compatible = "fsl,imx6ull-pxp";
+	reg = <0x021cc000 0x4000>;
+	interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+	clock-names = "axi";
+	clocks = <&clks IMX6UL_CLK_PXP>;
+};

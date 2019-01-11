@@ -279,8 +279,6 @@ static int do_read_bitmap(struct feat_fd *ff, unsigned long **pset, u64 *psize)
 	if (!set)
 		return -ENOMEM;
 
-	bitmap_zero(set, size);
-
 	p = (u64 *) set;
 
 	for (i = 0; (u64) i < BITS_TO_U64(size); i++) {
@@ -990,6 +988,45 @@ static int write_group_desc(struct feat_fd *ff,
 }
 
 /*
+ * Return the CPU id as a raw string.
+ *
+ * Each architecture should provide a more precise id string that
+ * can be use to match the architecture's "mapfile".
+ */
+char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
+{
+	return NULL;
+}
+
+/* Return zero when the cpuid from the mapfile.csv matches the
+ * cpuid string generated on this platform.
+ * Otherwise return non-zero.
+ */
+int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
+{
+	regex_t re;
+	regmatch_t pmatch[1];
+	int match;
+
+	if (regcomp(&re, mapcpuid, REG_EXTENDED) != 0) {
+		/* Warn unable to generate match particular string. */
+		pr_info("Invalid regular expression %s\n", mapcpuid);
+		return 1;
+	}
+
+	match = !regexec(&re, cpuid, 1, pmatch, 0);
+	regfree(&re);
+	if (match) {
+		size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
+
+		/* Verify the entire string matched. */
+		if (match_len == strlen(cpuid))
+			return 0;
+	}
+	return 1;
+}
+
+/*
  * default get_cpuid(): nothing gets recorded
  * actual implementation must be in arch/$(SRCARCH)/util/header.c
  */
@@ -1034,6 +1071,13 @@ static int write_auxtrace(struct feat_fd *ff,
 	if (err < 0)
 		pr_err("Failed to write auxtrace index\n");
 	return err;
+}
+
+static int write_clockid(struct feat_fd *ff,
+			 struct perf_evlist *evlist __maybe_unused)
+{
+	return do_write(ff, &ff->ph->env.clockid_res_ns,
+			sizeof(ff->ph->env.clockid_res_ns));
 }
 
 static int cpu_cache_level__sort(const void *a, const void *b)
@@ -1285,7 +1329,6 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 		return -ENOMEM;
 	}
 
-	bitmap_zero(n->set, size);
 	n->node = idx;
 	n->size = size;
 
@@ -1509,6 +1552,12 @@ static void print_cpu_topology(struct feat_fd *ff, FILE *fp)
 				ph->env.cpu[i].core_id, ph->env.cpu[i].socket_id);
 	} else
 		fprintf(fp, "# Core ID and Socket ID information is not available\n");
+}
+
+static void print_clockid(struct feat_fd *ff, FILE *fp)
+{
+	fprintf(fp, "# clockid frequency: %"PRIu64" MHz\n",
+		ff->ph->env.clockid_res_ns * 1000);
 }
 
 static void free_event_desc(struct perf_evsel *events)
@@ -2534,6 +2583,15 @@ out:
 	return ret;
 }
 
+static int process_clockid(struct feat_fd *ff,
+			   void *data __maybe_unused)
+{
+	if (do_read_u64(ff, &ff->ph->env.clockid_res_ns))
+		return -1;
+
+	return 0;
+}
+
 struct feature_ops {
 	int (*write)(struct feat_fd *ff, struct perf_evlist *evlist);
 	void (*print)(struct feat_fd *ff, FILE *fp);
@@ -2593,6 +2651,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPN(CACHE,		cache,		true),
 	FEAT_OPR(SAMPLE_TIME,	sample_time,	false),
 	FEAT_OPR(MEM_TOPOLOGY,	mem_topology,	true),
+	FEAT_OPR(CLOCKID,       clockid,        false)
 };
 
 struct header_print_data {
@@ -2639,6 +2698,7 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	struct perf_header *header = &session->header;
 	int fd = perf_data__fd(session->data);
 	struct stat st;
+	time_t stctime;
 	int ret, bit;
 
 	hd.fp = fp;
@@ -2648,7 +2708,8 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	if (ret == -1)
 		return -1;
 
-	fprintf(fp, "# captured on    : %s", ctime(&st.st_ctime));
+	stctime = st.st_ctime;
+	fprintf(fp, "# captured on    : %s", ctime(&stctime));
 
 	fprintf(fp, "# header version : %u\n", header->version);
 	fprintf(fp, "# data offset    : %" PRIu64 "\n", header->data_offset);
@@ -2739,7 +2800,7 @@ static int perf_header__adds_write(struct perf_header *header,
 	lseek(fd, sec_start, SEEK_SET);
 	/*
 	 * may write more than needed due to dropped feature, but
-	 * this is okay, reader will skip the mising entries
+	 * this is okay, reader will skip the missing entries
 	 */
 	err = do_write(&ff, feat_sec, sec_size);
 	if (err < 0)
@@ -3207,9 +3268,9 @@ static int read_attr(int fd, struct perf_header *ph,
 }
 
 static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
-						struct pevent *pevent)
+						struct tep_handle *pevent)
 {
-	struct event_format *event;
+	struct tep_event *event;
 	char bf[128];
 
 	/* already prepared */
@@ -3221,7 +3282,7 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 		return -1;
 	}
 
-	event = pevent_find_event(pevent, evsel->attr.config);
+	event = tep_find_event(pevent, evsel->attr.config);
 	if (event == NULL) {
 		pr_debug("cannot find event format for %d\n", (int)evsel->attr.config);
 		return -1;
@@ -3239,7 +3300,7 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 }
 
 static int perf_evlist__prepare_tracepoint_events(struct perf_evlist *evlist,
-						  struct pevent *pevent)
+						  struct tep_handle *pevent)
 {
 	struct perf_evsel *pos;
 
@@ -3451,10 +3512,10 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 	return ret;
 }
 
-int perf_event__process_feature(struct perf_tool *tool,
-				union perf_event *event,
-				struct perf_session *session __maybe_unused)
+int perf_event__process_feature(struct perf_session *session,
+				union perf_event *event)
 {
+	struct perf_tool *tool = session->tool;
 	struct feat_fd ff = { .fd = 0 };
 	struct feature_event *fe = (struct feature_event *)event;
 	int type = fe->header.type;
@@ -3524,7 +3585,7 @@ perf_event__synthesize_event_update_unit(struct perf_tool *tool,
 	if (ev == NULL)
 		return -ENOMEM;
 
-	strncpy(ev->data, evsel->unit, size);
+	strlcpy(ev->data, evsel->unit, size + 1);
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -3563,7 +3624,7 @@ perf_event__synthesize_event_update_name(struct perf_tool *tool,
 	if (ev == NULL)
 		return -ENOMEM;
 
-	strncpy(ev->data, evsel->name, len);
+	strlcpy(ev->data, evsel->name, len + 1);
 	err = process(tool, (union perf_event*) ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -3640,13 +3701,13 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 }
 
 int perf_event__synthesize_attrs(struct perf_tool *tool,
-				   struct perf_session *session,
-				   perf_event__handler_t process)
+				 struct perf_evlist *evlist,
+				 perf_event__handler_t process)
 {
 	struct perf_evsel *evsel;
 	int err = 0;
 
-	evlist__for_each_entry(session->evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		err = perf_event__synthesize_attr(tool, &evsel->attr, evsel->ids,
 						  evsel->id, process);
 		if (err) {
@@ -3859,9 +3920,8 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 	return aligned_size;
 }
 
-int perf_event__process_tracing_data(struct perf_tool *tool __maybe_unused,
-				     union perf_event *event,
-				     struct perf_session *session)
+int perf_event__process_tracing_data(struct perf_session *session,
+				     union perf_event *event)
 {
 	ssize_t size_read, padding, size = event->tracing_data.size;
 	int fd = perf_data__fd(session->data);
@@ -3927,9 +3987,8 @@ int perf_event__synthesize_build_id(struct perf_tool *tool,
 	return err;
 }
 
-int perf_event__process_build_id(struct perf_tool *tool __maybe_unused,
-				 union perf_event *event,
-				 struct perf_session *session)
+int perf_event__process_build_id(struct perf_session *session,
+				 union perf_event *event)
 {
 	__event_process_build_id(&event->build_id,
 				 event->build_id.filename,

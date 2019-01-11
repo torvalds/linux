@@ -31,6 +31,7 @@
 #include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
+#include "amdgpu_display.h"
 #include "amd_acpi.h"
 #include "atom.h"
 
@@ -40,28 +41,21 @@ struct amdgpu_atif_notification_cfg {
 };
 
 struct amdgpu_atif_notifications {
-	bool display_switch;
-	bool expansion_mode_change;
 	bool thermal_state;
 	bool forced_power_state;
 	bool system_power_state;
-	bool display_conf_change;
-	bool px_gfx_switch;
 	bool brightness_change;
 	bool dgpu_display_event;
+	bool gpu_package_power_limit;
 };
 
 struct amdgpu_atif_functions {
 	bool system_params;
 	bool sbios_requests;
-	bool select_active_disp;
-	bool lid_state;
-	bool get_tv_standard;
-	bool set_tv_standard;
-	bool get_panel_expansion_mode;
-	bool set_panel_expansion_mode;
 	bool temperature_change;
-	bool graphics_device_types;
+	bool query_backlight_transfer_characteristics;
+	bool ready_to_undock;
+	bool external_gpu_information;
 };
 
 struct amdgpu_atif {
@@ -71,6 +65,7 @@ struct amdgpu_atif {
 	struct amdgpu_atif_functions functions;
 	struct amdgpu_atif_notification_cfg notification_cfg;
 	struct amdgpu_encoder *encoder_for_bl;
+	struct amdgpu_dm_backlight_caps backlight_caps;
 };
 
 /* Call the ATIF method
@@ -136,15 +131,12 @@ static union acpi_object *amdgpu_atif_call(struct amdgpu_atif *atif,
  */
 static void amdgpu_atif_parse_notification(struct amdgpu_atif_notifications *n, u32 mask)
 {
-	n->display_switch = mask & ATIF_DISPLAY_SWITCH_REQUEST_SUPPORTED;
-	n->expansion_mode_change = mask & ATIF_EXPANSION_MODE_CHANGE_REQUEST_SUPPORTED;
 	n->thermal_state = mask & ATIF_THERMAL_STATE_CHANGE_REQUEST_SUPPORTED;
 	n->forced_power_state = mask & ATIF_FORCED_POWER_STATE_CHANGE_REQUEST_SUPPORTED;
 	n->system_power_state = mask & ATIF_SYSTEM_POWER_SOURCE_CHANGE_REQUEST_SUPPORTED;
-	n->display_conf_change = mask & ATIF_DISPLAY_CONF_CHANGE_REQUEST_SUPPORTED;
-	n->px_gfx_switch = mask & ATIF_PX_GFX_SWITCH_REQUEST_SUPPORTED;
 	n->brightness_change = mask & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST_SUPPORTED;
 	n->dgpu_display_event = mask & ATIF_DGPU_DISPLAY_EVENT_SUPPORTED;
+	n->gpu_package_power_limit = mask & ATIF_GPU_PACKAGE_POWER_LIMIT_REQUEST_SUPPORTED;
 }
 
 /**
@@ -161,14 +153,11 @@ static void amdgpu_atif_parse_functions(struct amdgpu_atif_functions *f, u32 mas
 {
 	f->system_params = mask & ATIF_GET_SYSTEM_PARAMETERS_SUPPORTED;
 	f->sbios_requests = mask & ATIF_GET_SYSTEM_BIOS_REQUESTS_SUPPORTED;
-	f->select_active_disp = mask & ATIF_SELECT_ACTIVE_DISPLAYS_SUPPORTED;
-	f->lid_state = mask & ATIF_GET_LID_STATE_SUPPORTED;
-	f->get_tv_standard = mask & ATIF_GET_TV_STANDARD_FROM_CMOS_SUPPORTED;
-	f->set_tv_standard = mask & ATIF_SET_TV_STANDARD_IN_CMOS_SUPPORTED;
-	f->get_panel_expansion_mode = mask & ATIF_GET_PANEL_EXPANSION_MODE_FROM_CMOS_SUPPORTED;
-	f->set_panel_expansion_mode = mask & ATIF_SET_PANEL_EXPANSION_MODE_IN_CMOS_SUPPORTED;
 	f->temperature_change = mask & ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED;
-	f->graphics_device_types = mask & ATIF_GET_GRAPHICS_DEVICE_TYPES_SUPPORTED;
+	f->query_backlight_transfer_characteristics =
+		mask & ATIF_QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS_SUPPORTED;
+	f->ready_to_undock = mask & ATIF_READY_TO_UNDOCK_NOTIFICATION_SUPPORTED;
+	f->external_gpu_information = mask & ATIF_GET_EXTERNAL_GPU_INFORMATION_SUPPORTED;
 }
 
 /**
@@ -310,6 +299,65 @@ out:
 }
 
 /**
+ * amdgpu_atif_query_backlight_caps - get min and max backlight input signal
+ *
+ * @handle: acpi handle
+ *
+ * Execute the QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS ATIF function
+ * to determine the acceptable range of backlight values
+ *
+ * Backlight_caps.caps_valid will be set to true if the query is successful
+ *
+ * The input signals are in range 0-255
+ *
+ * This function assumes the display with backlight is the first LCD
+ *
+ * Returns 0 on success, error on failure.
+ */
+static int amdgpu_atif_query_backlight_caps(struct amdgpu_atif *atif)
+{
+	union acpi_object *info;
+	struct atif_qbtc_output characteristics;
+	struct atif_qbtc_arguments arguments;
+	struct acpi_buffer params;
+	size_t size;
+	int err = 0;
+
+	arguments.size = sizeof(arguments);
+	arguments.requested_display = ATIF_QBTC_REQUEST_LCD1;
+
+	params.length = sizeof(arguments);
+	params.pointer = (void *)&arguments;
+
+	info = amdgpu_atif_call(atif,
+		ATIF_FUNCTION_QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS,
+		&params);
+	if (!info) {
+		err = -EIO;
+		goto out;
+	}
+
+	size = *(u16 *) info->buffer.pointer;
+	if (size < 10) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	memset(&characteristics, 0, sizeof(characteristics));
+	size = min(sizeof(characteristics), size);
+	memcpy(&characteristics, info->buffer.pointer, size);
+
+	atif->backlight_caps.caps_valid = true;
+	atif->backlight_caps.min_input_signal =
+			characteristics.min_input_signal;
+	atif->backlight_caps.max_input_signal =
+			characteristics.max_input_signal;
+out:
+	kfree(info);
+	return err;
+}
+
+/**
  * amdgpu_atif_get_sbios_requests - get requested sbios event
  *
  * @handle: acpi handle
@@ -358,7 +406,9 @@ out:
  *
  * Checks the acpi event and if it matches an atif event,
  * handles it.
- * Returns NOTIFY code
+ *
+ * Returns:
+ * NOTIFY_BAD or NOTIFY_DONE, depending on the event.
  */
 static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			       struct acpi_bus_event *event)
@@ -372,11 +422,16 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
 		return NOTIFY_DONE;
 
+	/* Is this actually our event? */
 	if (!atif ||
 	    !atif->notification_cfg.enabled ||
-	    event->type != atif->notification_cfg.command_code)
-		/* Not our event */
-		return NOTIFY_DONE;
+	    event->type != atif->notification_cfg.command_code) {
+		/* These events will generate keypresses otherwise */
+		if (event->type == ACPI_VIDEO_NOTIFY_PROBE)
+			return NOTIFY_BAD;
+		else
+			return NOTIFY_DONE;
+	}
 
 	if (atif->functions.sbios_requests) {
 		struct atif_sbios_requests req;
@@ -385,7 +440,7 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 		count = amdgpu_atif_get_sbios_requests(atif, &req);
 
 		if (count <= 0)
-			return NOTIFY_DONE;
+			return NOTIFY_BAD;
 
 		DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
@@ -791,11 +846,34 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 		}
 	}
 
+	if (atif->functions.query_backlight_transfer_characteristics) {
+		ret = amdgpu_atif_query_backlight_caps(atif);
+		if (ret) {
+			DRM_DEBUG_DRIVER("Call to QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS failed: %d\n",
+					ret);
+			atif->backlight_caps.caps_valid = false;
+		}
+	} else {
+		atif->backlight_caps.caps_valid = false;
+	}
+
 out:
 	adev->acpi_nb.notifier_call = amdgpu_acpi_event;
 	register_acpi_notifier(&adev->acpi_nb);
 
 	return ret;
+}
+
+void amdgpu_acpi_get_backlight_caps(struct amdgpu_device *adev,
+		struct amdgpu_dm_backlight_caps *caps)
+{
+	if (!adev->atif) {
+		caps->caps_valid = false;
+		return;
+	}
+	caps->caps_valid = adev->atif->backlight_caps.caps_valid;
+	caps->min_input_signal = adev->atif->backlight_caps.min_input_signal;
+	caps->max_input_signal = adev->atif->backlight_caps.max_input_signal;
 }
 
 /**
@@ -808,6 +886,5 @@ out:
 void amdgpu_acpi_fini(struct amdgpu_device *adev)
 {
 	unregister_acpi_notifier(&adev->acpi_nb);
-	if (adev->atif)
-		kfree(adev->atif);
+	kfree(adev->atif);
 }

@@ -10,23 +10,24 @@ extern struct bio_set xfs_ioend_bioset;
 
 /*
  * Types of I/O for bmap clustering and I/O completion tracking.
+ *
+ * This enum is used in string mapping in xfs_trace.h; please keep the
+ * TRACE_DEFINE_ENUMs for it up to date.
  */
 enum {
-	XFS_IO_INVALID,		/* initial state */
+	XFS_IO_HOLE,		/* covers region without any block allocation */
 	XFS_IO_DELALLOC,	/* covers delalloc region */
 	XFS_IO_UNWRITTEN,	/* covers allocated but uninitialized data */
 	XFS_IO_OVERWRITE,	/* covers already allocated extent */
 	XFS_IO_COW,		/* covers copy-on-write extent */
-	XFS_IO_HOLE,		/* covers region without any block allocation */
 };
 
 #define XFS_IO_TYPES \
-	{ XFS_IO_INVALID,		"invalid" }, \
-	{ XFS_IO_DELALLOC,		"delalloc" }, \
-	{ XFS_IO_UNWRITTEN,		"unwritten" }, \
-	{ XFS_IO_OVERWRITE,		"overwrite" }, \
-	{ XFS_IO_COW,			"CoW" }, \
-	{ XFS_IO_HOLE,			"hole" }
+	{ XFS_IO_HOLE,			"hole" },	\
+	{ XFS_IO_DELALLOC,		"delalloc" },	\
+	{ XFS_IO_UNWRITTEN,		"unwritten" },	\
+	{ XFS_IO_OVERWRITE,		"overwrite" },	\
+	{ XFS_IO_COW,			"CoW" }
 
 /*
  * Structure for buffered I/O completions.

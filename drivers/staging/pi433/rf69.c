@@ -4,16 +4,6 @@
  *
  * Copyright (C) 2016 Wolf-Entwicklungen
  *	Marcus Wolf <linux@wolf-entwicklungen.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* enable prosa debug info */
@@ -853,7 +843,6 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 #ifdef DEBUG_FIFO_ACCESS
 	int i;
 #endif
-	char spi_address = REG_FIFO | WRITE_BIT;
 	u8 local_buffer[FIFO_SIZE + 1];
 
 	if (size > FIFO_SIZE) {
@@ -862,7 +851,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 		return -EMSGSIZE;
 	}
 
-	local_buffer[0] = spi_address;
+	local_buffer[0] = REG_FIFO | WRITE_BIT;
 	memcpy(&local_buffer[1], buffer, size);
 
 #ifdef DEBUG_FIFO_ACCESS

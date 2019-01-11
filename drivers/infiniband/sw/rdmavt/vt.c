@@ -392,16 +392,51 @@ enum {
 	_VERB_IDX_MAX /* Must always be last! */
 };
 
-static inline int check_driver_override(struct rvt_dev_info *rdi,
-					size_t offset, void *func)
-{
-	if (!*(void **)((void *)&rdi->ibdev + offset)) {
-		*(void **)((void *)&rdi->ibdev + offset) = func;
-		return 0;
-	}
-
-	return 1;
-}
+static const struct ib_device_ops rvt_dev_ops = {
+	.alloc_fmr = rvt_alloc_fmr,
+	.alloc_mr = rvt_alloc_mr,
+	.alloc_pd = rvt_alloc_pd,
+	.alloc_ucontext = rvt_alloc_ucontext,
+	.attach_mcast = rvt_attach_mcast,
+	.create_ah = rvt_create_ah,
+	.create_cq = rvt_create_cq,
+	.create_qp = rvt_create_qp,
+	.create_srq = rvt_create_srq,
+	.dealloc_fmr = rvt_dealloc_fmr,
+	.dealloc_pd = rvt_dealloc_pd,
+	.dealloc_ucontext = rvt_dealloc_ucontext,
+	.dereg_mr = rvt_dereg_mr,
+	.destroy_ah = rvt_destroy_ah,
+	.destroy_cq = rvt_destroy_cq,
+	.destroy_qp = rvt_destroy_qp,
+	.destroy_srq = rvt_destroy_srq,
+	.detach_mcast = rvt_detach_mcast,
+	.get_dma_mr = rvt_get_dma_mr,
+	.get_port_immutable = rvt_get_port_immutable,
+	.map_mr_sg = rvt_map_mr_sg,
+	.map_phys_fmr = rvt_map_phys_fmr,
+	.mmap = rvt_mmap,
+	.modify_ah = rvt_modify_ah,
+	.modify_device = rvt_modify_device,
+	.modify_port = rvt_modify_port,
+	.modify_qp = rvt_modify_qp,
+	.modify_srq = rvt_modify_srq,
+	.poll_cq = rvt_poll_cq,
+	.post_recv = rvt_post_recv,
+	.post_send = rvt_post_send,
+	.post_srq_recv = rvt_post_srq_recv,
+	.query_ah = rvt_query_ah,
+	.query_device = rvt_query_device,
+	.query_gid = rvt_query_gid,
+	.query_pkey = rvt_query_pkey,
+	.query_port = rvt_query_port,
+	.query_qp = rvt_query_qp,
+	.query_srq = rvt_query_srq,
+	.reg_user_mr = rvt_reg_user_mr,
+	.req_notify_cq = rvt_req_notify_cq,
+	.resize_cq = rvt_resize_cq,
+	.unmap_fmr = rvt_unmap_fmr,
+};
 
 static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 {
@@ -416,76 +451,36 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 			return -EINVAL;
 		break;
 
-	case QUERY_DEVICE:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    query_device),
-						    rvt_query_device);
-		break;
-
 	case MODIFY_DEVICE:
 		/*
 		 * rdmavt does not support modify device currently drivers must
 		 * provide.
 		 */
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 modify_device),
-					   rvt_modify_device))
+		if (!rdi->ibdev.ops.modify_device)
 			return -EOPNOTSUPP;
 		break;
 
 	case QUERY_PORT:
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 query_port),
-					   rvt_query_port))
+		if (!rdi->ibdev.ops.query_port)
 			if (!rdi->driver_f.query_port_state)
 				return -EINVAL;
 		break;
 
 	case MODIFY_PORT:
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 modify_port),
-					   rvt_modify_port))
+		if (!rdi->ibdev.ops.modify_port)
 			if (!rdi->driver_f.cap_mask_chg ||
 			    !rdi->driver_f.shut_down_port)
 				return -EINVAL;
 		break;
 
-	case QUERY_PKEY:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    query_pkey),
-				      rvt_query_pkey);
-		break;
-
 	case QUERY_GID:
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 query_gid),
-					   rvt_query_gid))
+		if (!rdi->ibdev.ops.query_gid)
 			if (!rdi->driver_f.get_guid_be)
 				return -EINVAL;
 		break;
 
-	case ALLOC_UCONTEXT:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    alloc_ucontext),
-				      rvt_alloc_ucontext);
-		break;
-
-	case DEALLOC_UCONTEXT:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    dealloc_ucontext),
-				      rvt_dealloc_ucontext);
-		break;
-
-	case GET_PORT_IMMUTABLE:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    get_port_immutable),
-				      rvt_get_port_immutable);
-		break;
-
 	case CREATE_QP:
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 create_qp),
-					   rvt_create_qp))
+		if (!rdi->ibdev.ops.create_qp)
 			if (!rdi->driver_f.qp_priv_alloc ||
 			    !rdi->driver_f.qp_priv_free ||
 			    !rdi->driver_f.notify_qp_reset ||
@@ -496,9 +491,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		break;
 
 	case MODIFY_QP:
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 modify_qp),
-					   rvt_modify_qp))
+		if (!rdi->ibdev.ops.modify_qp)
 			if (!rdi->driver_f.notify_qp_reset ||
 			    !rdi->driver_f.schedule_send ||
 			    !rdi->driver_f.get_pmtu_from_attr ||
@@ -512,9 +505,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		break;
 
 	case DESTROY_QP:
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 destroy_qp),
-					   rvt_destroy_qp))
+		if (!rdi->ibdev.ops.destroy_qp)
 			if (!rdi->driver_f.qp_priv_free ||
 			    !rdi->driver_f.notify_qp_reset ||
 			    !rdi->driver_f.flush_qp_waiters ||
@@ -523,197 +514,14 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 				return -EINVAL;
 		break;
 
-	case QUERY_QP:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    query_qp),
-						    rvt_query_qp);
-		break;
-
 	case POST_SEND:
-		if (!check_driver_override(rdi, offsetof(struct ib_device,
-							 post_send),
-					   rvt_post_send))
+		if (!rdi->ibdev.ops.post_send)
 			if (!rdi->driver_f.schedule_send ||
 			    !rdi->driver_f.do_send ||
 			    !rdi->post_parms)
 				return -EINVAL;
 		break;
 
-	case POST_RECV:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    post_recv),
-				      rvt_post_recv);
-		break;
-	case POST_SRQ_RECV:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    post_srq_recv),
-				      rvt_post_srq_recv);
-		break;
-
-	case CREATE_AH:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    create_ah),
-				      rvt_create_ah);
-		break;
-
-	case DESTROY_AH:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    destroy_ah),
-				      rvt_destroy_ah);
-		break;
-
-	case MODIFY_AH:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    modify_ah),
-				      rvt_modify_ah);
-		break;
-
-	case QUERY_AH:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    query_ah),
-				      rvt_query_ah);
-		break;
-
-	case CREATE_SRQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    create_srq),
-				      rvt_create_srq);
-		break;
-
-	case MODIFY_SRQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    modify_srq),
-				      rvt_modify_srq);
-		break;
-
-	case DESTROY_SRQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    destroy_srq),
-				      rvt_destroy_srq);
-		break;
-
-	case QUERY_SRQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    query_srq),
-				      rvt_query_srq);
-		break;
-
-	case ATTACH_MCAST:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    attach_mcast),
-				      rvt_attach_mcast);
-		break;
-
-	case DETACH_MCAST:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    detach_mcast),
-				      rvt_detach_mcast);
-		break;
-
-	case GET_DMA_MR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    get_dma_mr),
-				      rvt_get_dma_mr);
-		break;
-
-	case REG_USER_MR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    reg_user_mr),
-				      rvt_reg_user_mr);
-		break;
-
-	case DEREG_MR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    dereg_mr),
-				      rvt_dereg_mr);
-		break;
-
-	case ALLOC_FMR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    alloc_fmr),
-				      rvt_alloc_fmr);
-		break;
-
-	case ALLOC_MR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    alloc_mr),
-				      rvt_alloc_mr);
-		break;
-
-	case MAP_MR_SG:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    map_mr_sg),
-				      rvt_map_mr_sg);
-		break;
-
-	case MAP_PHYS_FMR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    map_phys_fmr),
-				      rvt_map_phys_fmr);
-		break;
-
-	case UNMAP_FMR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    unmap_fmr),
-				      rvt_unmap_fmr);
-		break;
-
-	case DEALLOC_FMR:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    dealloc_fmr),
-				      rvt_dealloc_fmr);
-		break;
-
-	case MMAP:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    mmap),
-				      rvt_mmap);
-		break;
-
-	case CREATE_CQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    create_cq),
-				      rvt_create_cq);
-		break;
-
-	case DESTROY_CQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    destroy_cq),
-				      rvt_destroy_cq);
-		break;
-
-	case POLL_CQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    poll_cq),
-				      rvt_poll_cq);
-		break;
-
-	case REQ_NOTFIY_CQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    req_notify_cq),
-				      rvt_req_notify_cq);
-		break;
-
-	case RESIZE_CQ:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    resize_cq),
-				      rvt_resize_cq);
-		break;
-
-	case ALLOC_PD:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    alloc_pd),
-				      rvt_alloc_pd);
-		break;
-
-	case DEALLOC_PD:
-		check_driver_override(rdi, offsetof(struct ib_device,
-						    dealloc_pd),
-				      rvt_dealloc_pd);
-		break;
-
-	default:
-		return -EINVAL;
 	}
 
 	return 0;
@@ -745,6 +553,7 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 			return -EINVAL;
 		}
 
+	ib_set_device_ops(&rdi->ibdev, &rvt_dev_ops);
 
 	/* Once we get past here we can use rvt_pr macros and tracepoints */
 	trace_rvt_dbg(rdi, "Driver attempting registration");
@@ -772,6 +581,13 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 	if (ret) {
 		pr_err("Error in driver MR init.\n");
 		goto bail_no_mr;
+	}
+
+	/* Memory Working Set Size */
+	ret = rvt_wss_init(rdi);
+	if (ret) {
+		rvt_pr_err(rdi, "Error in WSS init.\n");
+		goto bail_mr;
 	}
 
 	/* Completion queues */
@@ -828,10 +644,11 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 
 	rdi->ibdev.driver_id = driver_id;
 	/* We are now good to announce we exist */
-	ret =  ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
+	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev),
+				 rdi->driver_f.port_callback);
 	if (ret) {
 		rvt_pr_err(rdi, "Failed to register driver with ib core.\n");
-		goto bail_mr;
+		goto bail_wss;
 	}
 
 	rvt_create_mad_agents(rdi);
@@ -839,6 +656,8 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 	rvt_pr_info(rdi, "Registration with rdmavt done.\n");
 	return ret;
 
+bail_wss:
+	rvt_wss_exit(rdi);
 bail_mr:
 	rvt_mr_exit(rdi);
 
@@ -862,6 +681,7 @@ void rvt_unregister_device(struct rvt_dev_info *rdi)
 	rvt_free_mad_agents(rdi);
 
 	ib_unregister_device(&rdi->ibdev);
+	rvt_wss_exit(rdi);
 	rvt_mr_exit(rdi);
 	rvt_qp_exit(rdi);
 }

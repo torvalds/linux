@@ -479,18 +479,32 @@ static const struct vm_operations_struct gntdev_vmops = {
 
 /* ------------------------------------------------------------------ */
 
-static void unmap_if_in_range(struct gntdev_grant_map *map,
+static bool in_range(struct gntdev_grant_map *map,
 			      unsigned long start, unsigned long end)
+{
+	if (!map->vma)
+		return false;
+	if (map->vma->vm_start >= end)
+		return false;
+	if (map->vma->vm_end <= start)
+		return false;
+
+	return true;
+}
+
+static int unmap_if_in_range(struct gntdev_grant_map *map,
+			      unsigned long start, unsigned long end,
+			      bool blockable)
 {
 	unsigned long mstart, mend;
 	int err;
 
-	if (!map->vma)
-		return;
-	if (map->vma->vm_start >= end)
-		return;
-	if (map->vma->vm_end <= start)
-		return;
+	if (!in_range(map, start, end))
+		return 0;
+
+	if (!blockable)
+		return -EAGAIN;
+
 	mstart = max(start, map->vma->vm_start);
 	mend   = min(end,   map->vma->vm_end);
 	pr_debug("map %d+%d (%lx %lx), range %lx %lx, mrange %lx %lx\n",
@@ -501,23 +515,39 @@ static void unmap_if_in_range(struct gntdev_grant_map *map,
 				(mstart - map->vma->vm_start) >> PAGE_SHIFT,
 				(mend - mstart) >> PAGE_SHIFT);
 	WARN_ON(err);
+
+	return 0;
 }
 
-static void mn_invl_range_start(struct mmu_notifier *mn,
-				struct mm_struct *mm,
-				unsigned long start, unsigned long end)
+static int mn_invl_range_start(struct mmu_notifier *mn,
+			       const struct mmu_notifier_range *range)
 {
 	struct gntdev_priv *priv = container_of(mn, struct gntdev_priv, mn);
 	struct gntdev_grant_map *map;
+	int ret = 0;
 
-	mutex_lock(&priv->lock);
+	if (range->blockable)
+		mutex_lock(&priv->lock);
+	else if (!mutex_trylock(&priv->lock))
+		return -EAGAIN;
+
 	list_for_each_entry(map, &priv->maps, next) {
-		unmap_if_in_range(map, start, end);
+		ret = unmap_if_in_range(map, range->start, range->end,
+					range->blockable);
+		if (ret)
+			goto out_unlock;
 	}
 	list_for_each_entry(map, &priv->freeable_maps, next) {
-		unmap_if_in_range(map, start, end);
+		ret = unmap_if_in_range(map, range->start, range->end,
+					range->blockable);
+		if (ret)
+			goto out_unlock;
 	}
+
+out_unlock:
 	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static void mn_release(struct mmu_notifier *mn,

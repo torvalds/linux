@@ -24,6 +24,8 @@
 
 #include "rcar_lvds_regs.h"
 
+struct rcar_lvds;
+
 /* Keep in sync with the LVDCR0.LVMD hardware register values. */
 enum rcar_lvds_mode {
 	RCAR_LVDS_MODE_JEIDA = 0,
@@ -31,14 +33,16 @@ enum rcar_lvds_mode {
 	RCAR_LVDS_MODE_VESA = 4,
 };
 
-#define RCAR_LVDS_QUIRK_LANES	(1 << 0)	/* LVDS lanes 1 and 3 inverted */
-#define RCAR_LVDS_QUIRK_GEN2_PLLCR (1 << 1)	/* LVDPLLCR has gen2 layout */
-#define RCAR_LVDS_QUIRK_GEN3_LVEN (1 << 2)	/* LVEN bit needs to be set */
-						/* on R8A77970/R8A7799x */
+#define RCAR_LVDS_QUIRK_LANES		BIT(0)	/* LVDS lanes 1 and 3 inverted */
+#define RCAR_LVDS_QUIRK_GEN3_LVEN	BIT(1)	/* LVEN bit needs to be set on R8A77970/R8A7799x */
+#define RCAR_LVDS_QUIRK_PWD		BIT(2)	/* PWD bit available (all of Gen3 but E3) */
+#define RCAR_LVDS_QUIRK_EXT_PLL		BIT(3)	/* Has extended PLL */
+#define RCAR_LVDS_QUIRK_DUAL_LINK	BIT(4)	/* Supports dual-link operation */
 
 struct rcar_lvds_device_info {
 	unsigned int gen;
 	unsigned int quirks;
+	void (*pll_setup)(struct rcar_lvds *lvds, unsigned int freq);
 };
 
 struct rcar_lvds {
@@ -52,7 +56,11 @@ struct rcar_lvds {
 	struct drm_panel *panel;
 
 	void __iomem *mmio;
-	struct clk *clock;
+	struct {
+		struct clk *mod;		/* CPG module clock */
+		struct clk *extal;		/* External clock */
+		struct clk *dotclkin[2];	/* External DU clocks */
+	} clocks;
 	bool enabled;
 
 	struct drm_display_mode display_mode;
@@ -128,32 +136,215 @@ static const struct drm_connector_funcs rcar_lvds_conn_funcs = {
 };
 
 /* -----------------------------------------------------------------------------
- * Bridge
+ * PLL Setup
  */
 
-static u32 rcar_lvds_lvdpllcr_gen2(unsigned int freq)
+static void rcar_lvds_pll_setup_gen2(struct rcar_lvds *lvds, unsigned int freq)
 {
-	if (freq < 39000)
-		return LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_38M;
-	else if (freq < 61000)
-		return LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_60M;
-	else if (freq < 121000)
-		return LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_121M;
+	u32 val;
+
+	if (freq < 39000000)
+		val = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_38M;
+	else if (freq < 61000000)
+		val = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_60M;
+	else if (freq < 121000000)
+		val = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_121M;
 	else
-		return LVDPLLCR_PLLDLYCNT_150M;
+		val = LVDPLLCR_PLLDLYCNT_150M;
+
+	rcar_lvds_write(lvds, LVDPLLCR, val);
 }
 
-static u32 rcar_lvds_lvdpllcr_gen3(unsigned int freq)
+static void rcar_lvds_pll_setup_gen3(struct rcar_lvds *lvds, unsigned int freq)
 {
-	if (freq < 42000)
-		return LVDPLLCR_PLLDIVCNT_42M;
-	else if (freq < 85000)
-		return LVDPLLCR_PLLDIVCNT_85M;
-	else if (freq < 128000)
-		return LVDPLLCR_PLLDIVCNT_128M;
+	u32 val;
+
+	if (freq < 42000000)
+		val = LVDPLLCR_PLLDIVCNT_42M;
+	else if (freq < 85000000)
+		val = LVDPLLCR_PLLDIVCNT_85M;
+	else if (freq < 128000000)
+		val = LVDPLLCR_PLLDIVCNT_128M;
 	else
-		return LVDPLLCR_PLLDIVCNT_148M;
+		val = LVDPLLCR_PLLDIVCNT_148M;
+
+	rcar_lvds_write(lvds, LVDPLLCR, val);
 }
+
+struct pll_info {
+	unsigned long diff;
+	unsigned int pll_m;
+	unsigned int pll_n;
+	unsigned int pll_e;
+	unsigned int div;
+	u32 clksel;
+};
+
+static void rcar_lvds_d3_e3_pll_calc(struct rcar_lvds *lvds, struct clk *clk,
+				     unsigned long target, struct pll_info *pll,
+				     u32 clksel)
+{
+	unsigned long output;
+	unsigned long fin;
+	unsigned int m_min;
+	unsigned int m_max;
+	unsigned int m;
+	int error;
+
+	if (!clk)
+		return;
+
+	/*
+	 * The LVDS PLL is made of a pre-divider and a multiplier (strangely
+	 * enough called M and N respectively), followed by a post-divider E.
+	 *
+	 *         ,-----.         ,-----.     ,-----.         ,-----.
+	 * Fin --> | 1/M | -Fpdf-> | PFD | --> | VCO | -Fvco-> | 1/E | --> Fout
+	 *         `-----'     ,-> |     |     `-----'   |     `-----'
+	 *                     |   `-----'               |
+	 *                     |         ,-----.         |
+	 *                     `-------- | 1/N | <-------'
+	 *                               `-----'
+	 *
+	 * The clock output by the PLL is then further divided by a programmable
+	 * divider DIV to achieve the desired target frequency. Finally, an
+	 * optional fixed /7 divider is used to convert the bit clock to a pixel
+	 * clock (as LVDS transmits 7 bits per lane per clock sample).
+	 *
+	 *          ,-------.     ,-----.     |\
+	 * Fout --> | 1/DIV | --> | 1/7 | --> | |
+	 *          `-------'  |  `-----'     | | --> dot clock
+	 *                     `------------> | |
+	 *                                    |/
+	 *
+	 * The /7 divider is optional when the LVDS PLL is used to generate a
+	 * dot clock for the DU RGB output, without using the LVDS encoder. We
+	 * don't support this configuration yet.
+	 *
+	 * The PLL allowed input frequency range is 12 MHz to 192 MHz.
+	 */
+
+	fin = clk_get_rate(clk);
+	if (fin < 12000000 || fin > 192000000)
+		return;
+
+	/*
+	 * The comparison frequency range is 12 MHz to 24 MHz, which limits the
+	 * allowed values for the pre-divider M (normal range 1-8).
+	 *
+	 * Fpfd = Fin / M
+	 */
+	m_min = max_t(unsigned int, 1, DIV_ROUND_UP(fin, 24000000));
+	m_max = min_t(unsigned int, 8, fin / 12000000);
+
+	for (m = m_min; m <= m_max; ++m) {
+		unsigned long fpfd;
+		unsigned int n_min;
+		unsigned int n_max;
+		unsigned int n;
+
+		/*
+		 * The VCO operating range is 900 Mhz to 1800 MHz, which limits
+		 * the allowed values for the multiplier N (normal range
+		 * 60-120).
+		 *
+		 * Fvco = Fin * N / M
+		 */
+		fpfd = fin / m;
+		n_min = max_t(unsigned int, 60, DIV_ROUND_UP(900000000, fpfd));
+		n_max = min_t(unsigned int, 120, 1800000000 / fpfd);
+
+		for (n = n_min; n < n_max; ++n) {
+			unsigned long fvco;
+			unsigned int e_min;
+			unsigned int e;
+
+			/*
+			 * The output frequency is limited to 1039.5 MHz,
+			 * limiting again the allowed values for the
+			 * post-divider E (normal value 1, 2 or 4).
+			 *
+			 * Fout = Fvco / E
+			 */
+			fvco = fpfd * n;
+			e_min = fvco > 1039500000 ? 1 : 0;
+
+			for (e = e_min; e < 3; ++e) {
+				unsigned long fout;
+				unsigned long diff;
+				unsigned int div;
+
+				/*
+				 * Finally we have a programable divider after
+				 * the PLL, followed by a an optional fixed /7
+				 * divider.
+				 */
+				fout = fvco / (1 << e) / 7;
+				div = DIV_ROUND_CLOSEST(fout, target);
+				diff = abs(fout / div - target);
+
+				if (diff < pll->diff) {
+					pll->diff = diff;
+					pll->pll_m = m;
+					pll->pll_n = n;
+					pll->pll_e = e;
+					pll->div = div;
+					pll->clksel = clksel;
+
+					if (diff == 0)
+						goto done;
+				}
+			}
+		}
+	}
+
+done:
+	output = fin * pll->pll_n / pll->pll_m / (1 << pll->pll_e)
+	       / 7 / pll->div;
+	error = (long)(output - target) * 10000 / (long)target;
+
+	dev_dbg(lvds->dev,
+		"%pC %lu Hz -> Fout %lu Hz (target %lu Hz, error %d.%02u%%), PLL M/N/E/DIV %u/%u/%u/%u\n",
+		clk, fin, output, target, error / 100,
+		error < 0 ? -error % 100 : error % 100,
+		pll->pll_m, pll->pll_n, pll->pll_e, pll->div);
+}
+
+static void rcar_lvds_pll_setup_d3_e3(struct rcar_lvds *lvds, unsigned int freq)
+{
+	struct pll_info pll = { .diff = (unsigned long)-1 };
+	u32 lvdpllcr;
+
+	rcar_lvds_d3_e3_pll_calc(lvds, lvds->clocks.dotclkin[0], freq, &pll,
+				 LVDPLLCR_CKSEL_DU_DOTCLKIN(0));
+	rcar_lvds_d3_e3_pll_calc(lvds, lvds->clocks.dotclkin[1], freq, &pll,
+				 LVDPLLCR_CKSEL_DU_DOTCLKIN(1));
+	rcar_lvds_d3_e3_pll_calc(lvds, lvds->clocks.extal, freq, &pll,
+				 LVDPLLCR_CKSEL_EXTAL);
+
+	lvdpllcr = LVDPLLCR_PLLON | pll.clksel | LVDPLLCR_CLKOUT
+		 | LVDPLLCR_PLLN(pll.pll_n - 1) | LVDPLLCR_PLLM(pll.pll_m - 1);
+
+	if (pll.pll_e > 0)
+		lvdpllcr |= LVDPLLCR_STP_CLKOUTE | LVDPLLCR_OUTCLKSEL
+			 |  LVDPLLCR_PLLE(pll.pll_e - 1);
+
+	rcar_lvds_write(lvds, LVDPLLCR, lvdpllcr);
+
+	if (pll.div > 1)
+		/*
+		 * The DIVRESET bit is a misnomer, setting it to 1 deasserts the
+		 * divisor reset.
+		 */
+		rcar_lvds_write(lvds, LVDDIV, LVDDIV_DIVSEL |
+				LVDDIV_DIVRESET | LVDDIV_DIV(pll.div - 1));
+	else
+		rcar_lvds_write(lvds, LVDDIV, 0);
+}
+
+/* -----------------------------------------------------------------------------
+ * Bridge
+ */
 
 static void rcar_lvds_enable(struct drm_bridge *bridge)
 {
@@ -164,14 +355,13 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	 * do we get a state pointer?
 	 */
 	struct drm_crtc *crtc = lvds->bridge.encoder->crtc;
-	u32 lvdpllcr;
 	u32 lvdhcr;
 	u32 lvdcr0;
 	int ret;
 
 	WARN_ON(lvds->enabled);
 
-	ret = clk_prepare_enable(lvds->clock);
+	ret = clk_prepare_enable(lvds->clocks.mod);
 	if (ret < 0)
 		return;
 
@@ -196,12 +386,13 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 
 	rcar_lvds_write(lvds, LVDCHCR, lvdhcr);
 
+	if (lvds->info->quirks & RCAR_LVDS_QUIRK_DUAL_LINK) {
+		/* Disable dual-link mode. */
+		rcar_lvds_write(lvds, LVDSTRIPE, 0);
+	}
+
 	/* PLL clock configuration. */
-	if (lvds->info->quirks & RCAR_LVDS_QUIRK_GEN2_PLLCR)
-		lvdpllcr = rcar_lvds_lvdpllcr_gen2(mode->clock);
-	else
-		lvdpllcr = rcar_lvds_lvdpllcr_gen3(mode->clock);
-	rcar_lvds_write(lvds, LVDPLLCR, lvdpllcr);
+	lvds->info->pll_setup(lvds, mode->clock * 1000);
 
 	/* Set the LVDS mode and select the input. */
 	lvdcr0 = lvds->mode << LVDCR0_LVMD_SHIFT;
@@ -220,11 +411,16 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 	}
 
-	/* Turn the PLL on. */
-	lvdcr0 |= LVDCR0_PLLON;
-	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
+	if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)) {
+		/*
+		 * Turn the PLL on (simple PLL only, extended PLL is fully
+		 * controlled through LVDPLLCR).
+		 */
+		lvdcr0 |= LVDCR0_PLLON;
+		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
+	}
 
-	if (lvds->info->gen > 2) {
+	if (lvds->info->quirks & RCAR_LVDS_QUIRK_PWD) {
 		/* Set LVDS normal mode. */
 		lvdcr0 |= LVDCR0_PWD;
 		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
@@ -236,8 +432,10 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 	}
 
-	/* Wait for the startup delay. */
-	usleep_range(100, 150);
+	if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)) {
+		/* Wait for the PLL startup delay (simple PLL only). */
+		usleep_range(100, 150);
+	}
 
 	/* Turn the output on. */
 	lvdcr0 |= LVDCR0_LVRES;
@@ -264,8 +462,9 @@ static void rcar_lvds_disable(struct drm_bridge *bridge)
 
 	rcar_lvds_write(lvds, LVDCR0, 0);
 	rcar_lvds_write(lvds, LVDCR1, 0);
+	rcar_lvds_write(lvds, LVDPLLCR, 0);
 
-	clk_disable_unprepare(lvds->clock);
+	clk_disable_unprepare(lvds->clocks.mod);
 
 	lvds->enabled = false;
 }
@@ -446,6 +645,60 @@ done:
 	return ret;
 }
 
+static struct clk *rcar_lvds_get_clock(struct rcar_lvds *lvds, const char *name,
+				       bool optional)
+{
+	struct clk *clk;
+
+	clk = devm_clk_get(lvds->dev, name);
+	if (!IS_ERR(clk))
+		return clk;
+
+	if (PTR_ERR(clk) == -ENOENT && optional)
+		return NULL;
+
+	if (PTR_ERR(clk) != -EPROBE_DEFER)
+		dev_err(lvds->dev, "failed to get %s clock\n",
+			name ? name : "module");
+
+	return clk;
+}
+
+static int rcar_lvds_get_clocks(struct rcar_lvds *lvds)
+{
+	lvds->clocks.mod = rcar_lvds_get_clock(lvds, NULL, false);
+	if (IS_ERR(lvds->clocks.mod))
+		return PTR_ERR(lvds->clocks.mod);
+
+	/*
+	 * LVDS encoders without an extended PLL have no external clock inputs.
+	 */
+	if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL))
+		return 0;
+
+	lvds->clocks.extal = rcar_lvds_get_clock(lvds, "extal", true);
+	if (IS_ERR(lvds->clocks.extal))
+		return PTR_ERR(lvds->clocks.extal);
+
+	lvds->clocks.dotclkin[0] = rcar_lvds_get_clock(lvds, "dclkin.0", true);
+	if (IS_ERR(lvds->clocks.dotclkin[0]))
+		return PTR_ERR(lvds->clocks.dotclkin[0]);
+
+	lvds->clocks.dotclkin[1] = rcar_lvds_get_clock(lvds, "dclkin.1", true);
+	if (IS_ERR(lvds->clocks.dotclkin[1]))
+		return PTR_ERR(lvds->clocks.dotclkin[1]);
+
+	/* At least one input to the PLL must be available. */
+	if (!lvds->clocks.extal && !lvds->clocks.dotclkin[0] &&
+	    !lvds->clocks.dotclkin[1]) {
+		dev_err(lvds->dev,
+			"no input clock (extal, dclkin.0 or dclkin.1)\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rcar_lvds_probe(struct platform_device *pdev)
 {
 	struct rcar_lvds *lvds;
@@ -475,11 +728,9 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 	if (IS_ERR(lvds->mmio))
 		return PTR_ERR(lvds->mmio);
 
-	lvds->clock = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(lvds->clock)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
-		return PTR_ERR(lvds->clock);
-	}
+	ret = rcar_lvds_get_clocks(lvds);
+	if (ret < 0)
+		return ret;
 
 	drm_bridge_add(&lvds->bridge);
 
@@ -497,21 +748,39 @@ static int rcar_lvds_remove(struct platform_device *pdev)
 
 static const struct rcar_lvds_device_info rcar_lvds_gen2_info = {
 	.gen = 2,
-	.quirks = RCAR_LVDS_QUIRK_GEN2_PLLCR,
+	.pll_setup = rcar_lvds_pll_setup_gen2,
 };
 
 static const struct rcar_lvds_device_info rcar_lvds_r8a7790_info = {
 	.gen = 2,
-	.quirks = RCAR_LVDS_QUIRK_GEN2_PLLCR | RCAR_LVDS_QUIRK_LANES,
+	.quirks = RCAR_LVDS_QUIRK_LANES,
+	.pll_setup = rcar_lvds_pll_setup_gen2,
 };
 
 static const struct rcar_lvds_device_info rcar_lvds_gen3_info = {
 	.gen = 3,
+	.quirks = RCAR_LVDS_QUIRK_PWD,
+	.pll_setup = rcar_lvds_pll_setup_gen3,
 };
 
 static const struct rcar_lvds_device_info rcar_lvds_r8a77970_info = {
 	.gen = 3,
-	.quirks = RCAR_LVDS_QUIRK_GEN2_PLLCR | RCAR_LVDS_QUIRK_GEN3_LVEN,
+	.quirks = RCAR_LVDS_QUIRK_PWD | RCAR_LVDS_QUIRK_GEN3_LVEN,
+	.pll_setup = rcar_lvds_pll_setup_gen2,
+};
+
+static const struct rcar_lvds_device_info rcar_lvds_r8a77990_info = {
+	.gen = 3,
+	.quirks = RCAR_LVDS_QUIRK_GEN3_LVEN | RCAR_LVDS_QUIRK_EXT_PLL
+		| RCAR_LVDS_QUIRK_DUAL_LINK,
+	.pll_setup = rcar_lvds_pll_setup_d3_e3,
+};
+
+static const struct rcar_lvds_device_info rcar_lvds_r8a77995_info = {
+	.gen = 3,
+	.quirks = RCAR_LVDS_QUIRK_GEN3_LVEN | RCAR_LVDS_QUIRK_PWD
+		| RCAR_LVDS_QUIRK_EXT_PLL | RCAR_LVDS_QUIRK_DUAL_LINK,
+	.pll_setup = rcar_lvds_pll_setup_d3_e3,
 };
 
 static const struct of_device_id rcar_lvds_of_table[] = {
@@ -521,7 +790,11 @@ static const struct of_device_id rcar_lvds_of_table[] = {
 	{ .compatible = "renesas,r8a7793-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7795-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a7796-lvds", .data = &rcar_lvds_gen3_info },
+	{ .compatible = "renesas,r8a77965-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a77970-lvds", .data = &rcar_lvds_r8a77970_info },
+	{ .compatible = "renesas,r8a77980-lvds", .data = &rcar_lvds_gen3_info },
+	{ .compatible = "renesas,r8a77990-lvds", .data = &rcar_lvds_r8a77990_info },
+	{ .compatible = "renesas,r8a77995-lvds", .data = &rcar_lvds_r8a77995_info },
 	{ }
 };
 

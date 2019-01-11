@@ -20,12 +20,13 @@
 	compatible = "i2se,duckbill-2-485", "i2se,duckbill-2", "fsl,imx28";
 
 	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x08000000>;
 	};
 
 	apb@80000000 {
 		apbh@80000000 {
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_8bit_pins_a
@@ -36,7 +37,7 @@
 				non-removable;
 			};
 
-			ssp2: ssp@80014000 {
+			ssp2: spi@80014000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc2_4bit_pins_b

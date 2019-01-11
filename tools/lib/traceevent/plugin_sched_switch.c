@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "event-parse.h"
+#include "trace-seq.h"
 
 static void write_state(struct trace_seq *s, int val)
 {
@@ -44,8 +45,8 @@ static void write_state(struct trace_seq *s, int val)
 		trace_seq_putc(s, 'R');
 }
 
-static void write_and_save_comm(struct format_field *field,
-				struct pevent_record *record,
+static void write_and_save_comm(struct tep_format_field *field,
+				struct tep_record *record,
 				struct trace_seq *s, int pid)
 {
 	const char *comm;
@@ -61,100 +62,100 @@ static void write_and_save_comm(struct format_field *field,
 	comm = &s->buffer[len];
 
 	/* Help out the comm to ids. This will handle dups */
-	pevent_register_comm(field->event->pevent, comm, pid);
+	tep_register_comm(field->event->pevent, comm, pid);
 }
 
 static int sched_wakeup_handler(struct trace_seq *s,
-				struct pevent_record *record,
-				struct event_format *event, void *context)
+				struct tep_record *record,
+				struct tep_event *event, void *context)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val;
 
-	if (pevent_get_field_val(s, event, "pid", record, &val, 1))
+	if (tep_get_field_val(s, event, "pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	field = pevent_find_any_field(event, "comm");
+	field = tep_find_any_field(event, "comm");
 	if (field) {
 		write_and_save_comm(field, record, s, val);
 		trace_seq_putc(s, ':');
 	}
 	trace_seq_printf(s, "%lld", val);
 
-	if (pevent_get_field_val(s, event, "prio", record, &val, 0) == 0)
+	if (tep_get_field_val(s, event, "prio", record, &val, 0) == 0)
 		trace_seq_printf(s, " [%lld]", val);
 
-	if (pevent_get_field_val(s, event, "success", record, &val, 1) == 0)
+	if (tep_get_field_val(s, event, "success", record, &val, 1) == 0)
 		trace_seq_printf(s, " success=%lld", val);
 
-	if (pevent_get_field_val(s, event, "target_cpu", record, &val, 0) == 0)
+	if (tep_get_field_val(s, event, "target_cpu", record, &val, 0) == 0)
 		trace_seq_printf(s, " CPU:%03llu", val);
 
 	return 0;
 }
 
 static int sched_switch_handler(struct trace_seq *s,
-				struct pevent_record *record,
-				struct event_format *event, void *context)
+				struct tep_record *record,
+				struct tep_event *event, void *context)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val;
 
-	if (pevent_get_field_val(s, event, "prev_pid", record, &val, 1))
+	if (tep_get_field_val(s, event, "prev_pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	field = pevent_find_any_field(event, "prev_comm");
+	field = tep_find_any_field(event, "prev_comm");
 	if (field) {
 		write_and_save_comm(field, record, s, val);
 		trace_seq_putc(s, ':');
 	}
 	trace_seq_printf(s, "%lld ", val);
 
-	if (pevent_get_field_val(s, event, "prev_prio", record, &val, 0) == 0)
+	if (tep_get_field_val(s, event, "prev_prio", record, &val, 0) == 0)
 		trace_seq_printf(s, "[%d] ", (int) val);
 
-	if (pevent_get_field_val(s,  event, "prev_state", record, &val, 0) == 0)
+	if (tep_get_field_val(s,  event, "prev_state", record, &val, 0) == 0)
 		write_state(s, val);
 
 	trace_seq_puts(s, " ==> ");
 
-	if (pevent_get_field_val(s, event, "next_pid", record, &val, 1))
+	if (tep_get_field_val(s, event, "next_pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	field = pevent_find_any_field(event, "next_comm");
+	field = tep_find_any_field(event, "next_comm");
 	if (field) {
 		write_and_save_comm(field, record, s, val);
 		trace_seq_putc(s, ':');
 	}
 	trace_seq_printf(s, "%lld", val);
 
-	if (pevent_get_field_val(s, event, "next_prio", record, &val, 0) == 0)
+	if (tep_get_field_val(s, event, "next_prio", record, &val, 0) == 0)
 		trace_seq_printf(s, " [%d]", (int) val);
 
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_event_handler(pevent, -1, "sched", "sched_switch",
-				      sched_switch_handler, NULL);
+	tep_register_event_handler(pevent, -1, "sched", "sched_switch",
+				   sched_switch_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "sched", "sched_wakeup",
-				      sched_wakeup_handler, NULL);
+	tep_register_event_handler(pevent, -1, "sched", "sched_wakeup",
+				   sched_wakeup_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "sched", "sched_wakeup_new",
-				      sched_wakeup_handler, NULL);
+	tep_register_event_handler(pevent, -1, "sched", "sched_wakeup_new",
+				   sched_wakeup_handler, NULL);
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
-	pevent_unregister_event_handler(pevent, -1, "sched", "sched_switch",
-					sched_switch_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "sched", "sched_switch",
+				     sched_switch_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "sched", "sched_wakeup",
-					sched_wakeup_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "sched", "sched_wakeup",
+				     sched_wakeup_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "sched", "sched_wakeup_new",
-					sched_wakeup_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "sched", "sched_wakeup_new",
+				     sched_wakeup_handler, NULL);
 }

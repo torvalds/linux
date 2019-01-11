@@ -78,10 +78,6 @@ source "drivers/staging/goldfish/Kconfig"
 
 source "drivers/staging/netlogic/Kconfig"
 
-source "drivers/staging/mt29f_spinand/Kconfig"
-
-source "drivers/staging/dgnc/Kconfig"
-
 source "drivers/staging/gs_fpgaboot/Kconfig"
 
 source "drivers/staging/unisys/Kconfig"
@@ -89,8 +85,6 @@ source "drivers/staging/unisys/Kconfig"
 source "drivers/staging/clocking-wizard/Kconfig"
 
 source "drivers/staging/fbtft/Kconfig"
-
-source "drivers/staging/fsl-mc/Kconfig"
 
 source "drivers/staging/fsl-dpaa2/Kconfig"
 

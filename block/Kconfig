@@ -74,7 +74,6 @@ config BLK_DEV_BSG
 
 config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
-	default n
 	select BLK_DEV_BSG
 	select BLK_SCSI_REQUEST
 	help
@@ -107,7 +106,6 @@ config BLK_DEV_ZONED
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
 	depends on BLK_CGROUP=y
-	default n
 	---help---
 	Block layer bio throttling support. It can be used to limit
 	the IO rate to a device. IO rate policies are per cgroup and
@@ -119,7 +117,6 @@ config BLK_DEV_THROTTLING
 config BLK_DEV_THROTTLING_LOW
 	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
 	depends on BLK_DEV_THROTTLING
-	default n
 	---help---
 	Add .low limit interface for block throttling. The low limit is a best
 	effort limit to prioritize cgroups. Depending on the setting, the limit
@@ -130,7 +127,6 @@ config BLK_DEV_THROTTLING_LOW
 
 config BLK_CMDLINE_PARSER
 	bool "Block device command line partition parser"
-	default n
 	---help---
 	Enabling this option allows you to specify the partition layout from
 	the kernel boot args.  This is typically of use for embedded devices
@@ -141,7 +137,6 @@ config BLK_CMDLINE_PARSER
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
-	default n
 	---help---
 	Enabling this option enables the block layer to throttle buffered
 	background writeback from the VM, making it more smooth and having
@@ -152,7 +147,6 @@ config BLK_WBT
 config BLK_CGROUP_IOLATENCY
 	bool "Enable support for latency based cgroup IO protection"
 	depends on BLK_CGROUP=y
-	default n
 	---help---
 	Enabling this option enables the .latency interface for IO throttling.
 	The IO controller will attempt to maintain average IO latencies below
@@ -160,13 +154,6 @@ config BLK_CGROUP_IOLATENCY
 	target than the victimized group.
 
 	Note, this is an experimental interface and could be changed someday.
-
-config BLK_WBT_SQ
-	bool "Single queue writeback throttling"
-	default n
-	depends on BLK_WBT
-	---help---
-	Enable writeback throttling by default on legacy single queue devices
 
 config BLK_WBT_MQ
 	bool "Multiqueue writeback throttling"
@@ -228,4 +215,7 @@ config BLK_MQ_RDMA
 	depends on BLOCK && INFINIBAND
 	default y
 
-source block/Kconfig.iosched
+config BLK_PM
+	def_bool BLOCK && PM
+
+source "block/Kconfig.iosched"

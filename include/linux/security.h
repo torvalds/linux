@@ -35,7 +35,7 @@
 struct linux_binprm;
 struct cred;
 struct rlimit;
-struct siginfo;
+struct kernel_siginfo;
 struct sembuf;
 struct kern_ipc_perm;
 struct audit_context;
@@ -182,35 +182,9 @@ static inline const char *kernel_load_data_id_str(enum kernel_load_data_id id)
 
 #ifdef CONFIG_SECURITY
 
-struct security_mnt_opts {
-	char **mnt_opts;
-	int *mnt_opts_flags;
-	int num_mnt_opts;
-};
-
 int call_lsm_notifier(enum lsm_event event, void *data);
 int register_lsm_notifier(struct notifier_block *nb);
 int unregister_lsm_notifier(struct notifier_block *nb);
-
-static inline void security_init_mnt_opts(struct security_mnt_opts *opts)
-{
-	opts->mnt_opts = NULL;
-	opts->mnt_opts_flags = NULL;
-	opts->num_mnt_opts = 0;
-}
-
-static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
-{
-	int i;
-	if (opts->mnt_opts)
-		for (i = 0; i < opts->num_mnt_opts; i++)
-			kfree(opts->mnt_opts[i]);
-	kfree(opts->mnt_opts);
-	opts->mnt_opts = NULL;
-	kfree(opts->mnt_opts_flags);
-	opts->mnt_opts_flags = NULL;
-	opts->num_mnt_opts = 0;
-}
 
 /* prototypes */
 extern int security_init(void);
@@ -248,9 +222,10 @@ void security_bprm_committing_creds(struct linux_binprm *bprm);
 void security_bprm_committed_creds(struct linux_binprm *bprm);
 int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
-int security_sb_copy_data(char *orig, char *copy);
-int security_sb_remount(struct super_block *sb, void *data);
-int security_sb_kern_mount(struct super_block *sb, int flags, void *data);
+void security_free_mnt_opts(void **mnt_opts);
+int security_sb_eat_lsm_opts(char *options, void **mnt_opts);
+int security_sb_remount(struct super_block *sb, void *mnt_opts);
+int security_sb_kern_mount(struct super_block *sb);
 int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(const char *dev_name, const struct path *path,
@@ -258,14 +233,15 @@ int security_sb_mount(const char *dev_name, const struct path *path,
 int security_sb_umount(struct vfsmount *mnt, int flags);
 int security_sb_pivotroot(const struct path *old_path, const struct path *new_path);
 int security_sb_set_mnt_opts(struct super_block *sb,
-				struct security_mnt_opts *opts,
+				void *mnt_opts,
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
 int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb,
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
-int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts);
+int security_add_mnt_opt(const char *option, const char *val,
+				int len, void **mnt_opts);
 int security_dentry_init_security(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
@@ -361,7 +337,7 @@ int security_task_setrlimit(struct task_struct *p, unsigned int resource,
 int security_task_setscheduler(struct task_struct *p);
 int security_task_getscheduler(struct task_struct *p);
 int security_task_movememory(struct task_struct *p);
-int security_task_kill(struct task_struct *p, struct siginfo *info,
+int security_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 			int sig, const struct cred *cred);
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			unsigned long arg4, unsigned long arg5);
@@ -403,8 +379,6 @@ int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen);
 int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen);
 int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen);
 #else /* CONFIG_SECURITY */
-struct security_mnt_opts {
-};
 
 static inline int call_lsm_notifier(enum lsm_event event, void *data)
 {
@@ -421,11 +395,7 @@ static inline  int unregister_lsm_notifier(struct notifier_block *nb)
 	return 0;
 }
 
-static inline void security_init_mnt_opts(struct security_mnt_opts *opts)
-{
-}
-
-static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+static inline void security_free_mnt_opts(void **mnt_opts)
 {
 }
 
@@ -555,17 +525,19 @@ static inline int security_sb_alloc(struct super_block *sb)
 static inline void security_sb_free(struct super_block *sb)
 { }
 
-static inline int security_sb_copy_data(char *orig, char *copy)
+static inline int security_sb_eat_lsm_opts(char *options,
+					   void **mnt_opts)
 {
 	return 0;
 }
 
-static inline int security_sb_remount(struct super_block *sb, void *data)
+static inline int security_sb_remount(struct super_block *sb,
+				      void *mnt_opts)
 {
 	return 0;
 }
 
-static inline int security_sb_kern_mount(struct super_block *sb, int flags, void *data)
+static inline int security_sb_kern_mount(struct super_block *sb)
 {
 	return 0;
 }
@@ -600,7 +572,7 @@ static inline int security_sb_pivotroot(const struct path *old_path,
 }
 
 static inline int security_sb_set_mnt_opts(struct super_block *sb,
-					   struct security_mnt_opts *opts,
+					   void *mnt_opts,
 					   unsigned long kern_flags,
 					   unsigned long *set_kern_flags)
 {
@@ -615,7 +587,8 @@ static inline int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 	return 0;
 }
 
-static inline int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
+static inline int security_add_mnt_opt(const char *option, const char *val,
+					int len, void **mnt_opts)
 {
 	return 0;
 }
@@ -1020,7 +993,7 @@ static inline int security_task_movememory(struct task_struct *p)
 }
 
 static inline int security_task_kill(struct task_struct *p,
-				     struct siginfo *info, int sig,
+				     struct kernel_siginfo *info, int sig,
 				     const struct cred *cred)
 {
 	return 0;
@@ -1819,29 +1792,6 @@ static inline void security_bpf_prog_free(struct bpf_prog_aux *aux)
 { }
 #endif /* CONFIG_SECURITY */
 #endif /* CONFIG_BPF_SYSCALL */
-
-#ifdef CONFIG_SECURITY
-
-static inline char *alloc_secdata(void)
-{
-	return (char *)get_zeroed_page(GFP_KERNEL);
-}
-
-static inline void free_secdata(void *secdata)
-{
-	free_page((unsigned long)secdata);
-}
-
-#else
-
-static inline char *alloc_secdata(void)
-{
-        return (char *)1;
-}
-
-static inline void free_secdata(void *secdata)
-{ }
-#endif /* CONFIG_SECURITY */
 
 #endif /* ! __LINUX_SECURITY_H */
 

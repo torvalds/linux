@@ -10,6 +10,7 @@
 #include "amlcode.h"
 #include "acdebug.h"
 #include "acinterp.h"
+#include "acparser.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbxface")
@@ -21,6 +22,13 @@ acpi_db_start_command(struct acpi_walk_state *walk_state,
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 void acpi_db_method_end(struct acpi_walk_state *walk_state);
+#endif
+
+#ifdef ACPI_DISASSEMBLER
+static union acpi_parse_object *acpi_db_get_display_op(struct acpi_walk_state
+						       *walk_state,
+						       union acpi_parse_object
+						       *op);
 #endif
 
 /*******************************************************************************
@@ -112,6 +120,70 @@ void acpi_db_signal_break_point(struct acpi_walk_state *walk_state)
 	acpi_os_printf("**break** Executed AML BreakPoint opcode\n");
 }
 
+#ifdef ACPI_DISASSEMBLER
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_get_display_op
+ *
+ * PARAMETERS:  walk_state      - Current walk
+ *              op              - Current executing op (from aml interpreter)
+ *
+ * RETURN:      Opcode to display
+ *
+ * DESCRIPTION: Find the opcode to display during single stepping
+ *
+ ******************************************************************************/
+
+static union acpi_parse_object *acpi_db_get_display_op(struct acpi_walk_state
+						       *walk_state,
+						       union acpi_parse_object
+						       *op)
+{
+	union acpi_parse_object *display_op;
+	union acpi_parse_object *parent_op;
+
+	display_op = op;
+	parent_op = op->common.parent;
+	if (parent_op) {
+		if ((walk_state->control_state) &&
+		    (walk_state->control_state->common.state ==
+		     ACPI_CONTROL_PREDICATE_EXECUTING)) {
+			/*
+			 * We are executing the predicate of an IF or WHILE statement
+			 * Search upwards for the containing IF or WHILE so that the
+			 * entire predicate can be displayed.
+			 */
+			while (parent_op) {
+				if ((parent_op->common.aml_opcode == AML_IF_OP)
+				    || (parent_op->common.aml_opcode ==
+					AML_WHILE_OP)) {
+					display_op = parent_op;
+					break;
+				}
+				parent_op = parent_op->common.parent;
+			}
+		} else {
+			while (parent_op) {
+				if ((parent_op->common.aml_opcode == AML_IF_OP)
+				    || (parent_op->common.aml_opcode ==
+					AML_ELSE_OP)
+				    || (parent_op->common.aml_opcode ==
+					AML_SCOPE_OP)
+				    || (parent_op->common.aml_opcode ==
+					AML_METHOD_OP)
+				    || (parent_op->common.aml_opcode ==
+					AML_WHILE_OP)) {
+					break;
+				}
+				display_op = parent_op;
+				parent_op = parent_op->common.parent;
+			}
+		}
+	}
+	return display_op;
+}
+#endif
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_db_single_step
@@ -133,8 +205,6 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 	union acpi_parse_object *next;
 	acpi_status status = AE_OK;
 	u32 original_debug_level;
-	union acpi_parse_object *display_op;
-	union acpi_parse_object *parent_op;
 	u32 aml_offset;
 
 	ACPI_FUNCTION_ENTRY();
@@ -221,51 +291,19 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		next = op->common.next;
 		op->common.next = NULL;
 
-		display_op = op;
-		parent_op = op->common.parent;
-		if (parent_op) {
-			if ((walk_state->control_state) &&
-			    (walk_state->control_state->common.state ==
-			     ACPI_CONTROL_PREDICATE_EXECUTING)) {
-				/*
-				 * We are executing the predicate of an IF or WHILE statement
-				 * Search upwards for the containing IF or WHILE so that the
-				 * entire predicate can be displayed.
-				 */
-				while (parent_op) {
-					if ((parent_op->common.aml_opcode ==
-					     AML_IF_OP)
-					    || (parent_op->common.aml_opcode ==
-						AML_WHILE_OP)) {
-						display_op = parent_op;
-						break;
-					}
-					parent_op = parent_op->common.parent;
-				}
-			} else {
-				while (parent_op) {
-					if ((parent_op->common.aml_opcode ==
-					     AML_IF_OP)
-					    || (parent_op->common.aml_opcode ==
-						AML_ELSE_OP)
-					    || (parent_op->common.aml_opcode ==
-						AML_SCOPE_OP)
-					    || (parent_op->common.aml_opcode ==
-						AML_METHOD_OP)
-					    || (parent_op->common.aml_opcode ==
-						AML_WHILE_OP)) {
-						break;
-					}
-					display_op = parent_op;
-					parent_op = parent_op->common.parent;
-				}
-			}
-		}
-
-		/* Now we can display it */
+		/* Now we can disassemble and display it */
 
 #ifdef ACPI_DISASSEMBLER
-		acpi_dm_disassemble(walk_state, display_op, ACPI_UINT32_MAX);
+		acpi_dm_disassemble(walk_state,
+				    acpi_db_get_display_op(walk_state, op),
+				    ACPI_UINT32_MAX);
+#else
+		/*
+		 * The AML Disassembler is not configured - at least we can
+		 * display the opcode value and name
+		 */
+		acpi_os_printf("AML Opcode: %4.4X %s\n", op->common.aml_opcode,
+			       acpi_ps_get_opcode_name(op->common.aml_opcode));
 #endif
 
 		if ((op->common.aml_opcode == AML_IF_OP) ||

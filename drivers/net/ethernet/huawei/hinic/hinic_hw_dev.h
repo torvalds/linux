@@ -50,6 +50,8 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_GET_LINK_STATE   = 24,
 
+	HINIC_PORT_CMD_SET_RX_CSUM	= 26,
+
 	HINIC_PORT_CMD_SET_PORT_STATE   = 41,
 
 	HINIC_PORT_CMD_FWCTXT_INIT      = 69,
@@ -57,6 +59,8 @@ enum hinic_port_cmd {
 	HINIC_PORT_CMD_SET_FUNC_STATE   = 93,
 
 	HINIC_PORT_CMD_GET_GLOBAL_QPN   = 102,
+
+	HINIC_PORT_CMD_SET_TSO          = 112,
 
 	HINIC_PORT_CMD_GET_CAP          = 170,
 };

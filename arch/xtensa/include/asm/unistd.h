@@ -5,9 +5,9 @@
 #define __ARCH_WANT_SYS_CLONE
 #include <uapi/asm/unistd.h>
 
+#define __ARCH_WANT_NEW_STAT
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_UTIME
-#define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_GETPGRP
 
 /* 
@@ -21,5 +21,7 @@
 #define __IGNORE_mmap				/* use mmap2 */
 #define __IGNORE_vfork				/* use clone */
 #define __IGNORE_fadvise64			/* use fadvise64_64 */
+
+#define NR_syscalls				__NR_syscalls
 
 #endif /* _XTENSA_UNISTD_H */

@@ -16,6 +16,8 @@ struct mlx5e_tc_table {
 
 	DECLARE_HASHTABLE(mod_hdr_tbl, 8);
 	DECLARE_HASHTABLE(hairpin_tbl, 8);
+
+	struct notifier_block     netdevice_nb;
 };
 
 struct mlx5e_flow_table {
@@ -70,6 +72,22 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_TT,
 	MLX5E_NUM_INDIR_TIRS = MLX5E_TT_ANY,
 };
+
+struct mlx5e_tirc_config {
+	u8 l3_prot_type;
+	u8 l4_prot_type;
+	u32 rx_hash_fields;
+};
+
+#define MLX5_HASH_IP		(MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP)
+#define MLX5_HASH_IP_L4PORTS	(MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP   |\
+				 MLX5_HASH_FIELD_SEL_L4_SPORT |\
+				 MLX5_HASH_FIELD_SEL_L4_DPORT)
+#define MLX5_HASH_IP_IPSEC_SPI	(MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP   |\
+				 MLX5_HASH_FIELD_SEL_IPSEC_SPI)
 
 enum mlx5e_tunnel_types {
 	MLX5E_TT_IPV4_GRE,

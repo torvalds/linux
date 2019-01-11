@@ -99,7 +99,7 @@ static void dealloc_oc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 static void dealloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 {
 	dma_free_coherent(&(rdev->lldi.pdev->dev), sq->memsize, sq->queue,
-			  pci_unmap_addr(sq, mapping));
+			  dma_unmap_addr(sq, mapping));
 }
 
 static void dealloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
@@ -132,7 +132,7 @@ static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 	if (!sq->queue)
 		return -ENOMEM;
 	sq->phys_addr = virt_to_phys(sq->queue);
-	pci_unmap_addr_set(sq, mapping, sq->dma_addr);
+	dma_unmap_addr_set(sq, mapping, sq->dma_addr);
 	return 0;
 }
 
@@ -279,12 +279,13 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 
 	wq->db = rdev->lldi.db_reg;
 
-	wq->sq.bar2_va = c4iw_bar2_addrs(rdev, wq->sq.qid, T4_BAR2_QTYPE_EGRESS,
+	wq->sq.bar2_va = c4iw_bar2_addrs(rdev, wq->sq.qid,
+					 CXGB4_BAR2_QTYPE_EGRESS,
 					 &wq->sq.bar2_qid,
 					 user ? &wq->sq.bar2_pa : NULL);
 	if (need_rq)
 		wq->rq.bar2_va = c4iw_bar2_addrs(rdev, wq->rq.qid,
-						 T4_BAR2_QTYPE_EGRESS,
+						 CXGB4_BAR2_QTYPE_EGRESS,
 						 &wq->rq.bar2_qid,
 						 user ? &wq->rq.bar2_pa : NULL);
 
@@ -1685,6 +1686,12 @@ static void flush_qp(struct c4iw_qp *qhp)
 	schp = to_c4iw_cq(qhp->ibqp.send_cq);
 
 	if (qhp->ibqp.uobject) {
+
+		/* for user qps, qhp->wq.flushed is protected by qhp->mutex */
+		if (qhp->wq.flushed)
+			return;
+
+		qhp->wq.flushed = 1;
 		t4_set_wq_in_error(&qhp->wq, 0);
 		t4_set_cq_in_error(&rchp->cq);
 		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
@@ -2156,7 +2163,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (sqsize < 8)
 		sqsize = 8;
 
-	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
+	ucontext = udata ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)
@@ -2515,7 +2522,7 @@ static void free_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 
 	dma_free_coherent(&rdev->lldi.pdev->dev,
 			  wq->memsize, wq->queue,
-			pci_unmap_addr(wq, mapping));
+			dma_unmap_addr(wq, mapping));
 	c4iw_rqtpool_free(rdev, wq->rqt_hwaddr, wq->rqt_size);
 	kfree(wq->sw_rq);
 	c4iw_put_qpid(rdev, wq->qid, uctx);
@@ -2557,16 +2564,15 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 	wq->rqt_abs_idx = (wq->rqt_hwaddr - rdev->lldi.vr->rq.start) >>
 		T4_RQT_ENTRY_SHIFT;
 
-	wq->queue = dma_alloc_coherent(&rdev->lldi.pdev->dev,
+	wq->queue = dma_zalloc_coherent(&rdev->lldi.pdev->dev,
 				       wq->memsize, &wq->dma_addr,
 			GFP_KERNEL);
 	if (!wq->queue)
 		goto err_free_rqtpool;
 
-	memset(wq->queue, 0, wq->memsize);
-	pci_unmap_addr_set(wq, mapping, wq->dma_addr);
+	dma_unmap_addr_set(wq, mapping, wq->dma_addr);
 
-	wq->bar2_va = c4iw_bar2_addrs(rdev, wq->qid, T4_BAR2_QTYPE_EGRESS,
+	wq->bar2_va = c4iw_bar2_addrs(rdev, wq->qid, CXGB4_BAR2_QTYPE_EGRESS,
 				      &wq->bar2_qid,
 			user ? &wq->bar2_pa : NULL);
 
@@ -2643,7 +2649,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 err_free_queue:
 	dma_free_coherent(&rdev->lldi.pdev->dev,
 			  wq->memsize, wq->queue,
-			pci_unmap_addr(wq, mapping));
+			dma_unmap_addr(wq, mapping));
 err_free_rqtpool:
 	c4iw_rqtpool_free(rdev, wq->rqt_hwaddr, wq->rqt_size);
 err_free_pending_wrs:
@@ -2706,7 +2712,7 @@ struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
 	rqsize = attrs->attr.max_wr + 1;
 	rqsize = roundup_pow_of_two(max_t(u16, rqsize, 16));
 
-	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
+	ucontext = udata ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
 	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
 	if (!srq)
@@ -2807,8 +2813,7 @@ err_free_queue:
 	free_srq_queue(srq, ucontext ? &ucontext->uctx : &rhp->rdev.uctx,
 		       srq->wr_waitp);
 err_free_skb:
-	if (srq->destroy_skb)
-		kfree_skb(srq->destroy_skb);
+	kfree_skb(srq->destroy_skb);
 err_free_srq_idx:
 	c4iw_free_srq_idx(&rhp->rdev, srq->idx);
 err_free_wr_wait:

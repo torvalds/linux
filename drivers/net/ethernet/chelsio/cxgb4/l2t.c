@@ -433,10 +433,12 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 	else
 		lport = netdev2pinfo(physdev)->lport;
 
-	if (is_vlan_dev(neigh->dev))
+	if (is_vlan_dev(neigh->dev)) {
 		vlan = vlan_dev_vlan_id(neigh->dev);
-	else
+		vlan |= vlan_dev_get_egress_qos_mask(neigh->dev, priority);
+	} else {
 		vlan = VLAN_NONE;
+	}
 
 	write_lock_bh(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
@@ -493,14 +495,11 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 		ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
 
 	if (tp->vnic_shift >= 0 && (tp->ingress_config & VNIC_F)) {
-		u32 viid = cxgb4_port_viid(dev);
-		u32 vf = FW_VIID_VIN_G(viid);
-		u32 pf = FW_VIID_PFN_G(viid);
-		u32 vld = FW_VIID_VIVLD_G(viid);
+		struct port_info *pi = (struct port_info *)netdev_priv(dev);
 
-		ntuple |= (u64)(FT_VNID_ID_VF_V(vf) |
-				FT_VNID_ID_PF_V(pf) |
-				FT_VNID_ID_VLD_V(vld)) << tp->vnic_shift;
+		ntuple |= (u64)(FT_VNID_ID_VF_V(pi->vin) |
+				FT_VNID_ID_PF_V(adap->pf) |
+				FT_VNID_ID_VLD_V(pi->vivld)) << tp->vnic_shift;
 	}
 
 	return ntuple;

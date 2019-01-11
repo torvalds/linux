@@ -1660,7 +1660,8 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 	head->r.eof = true;
 	if (tomoyo_str_starts(&buf, "global-pid "))
 		global_pid = true;
-	pid = (unsigned int) simple_strtoul(buf, NULL, 10);
+	if (kstrtouint(buf, 10, &pid))
+		return;
 	rcu_read_lock();
 	if (global_pid)
 		p = find_task_by_pid_ns(pid, &init_pid_ns);
@@ -2590,7 +2591,7 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 	int idx;
 	if (!head->write)
 		return -ENOSYS;
-	if (!access_ok(VERIFY_READ, buffer, buffer_len))
+	if (!access_ok(buffer, buffer_len))
 		return -EFAULT;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;

@@ -34,7 +34,7 @@ void __cold extent_map_exit(void)
  */
 void extent_map_tree_init(struct extent_map_tree *tree)
 {
-	tree->map = RB_ROOT;
+	tree->map = RB_ROOT_CACHED;
 	INIT_LIST_HEAD(&tree->modified_extents);
 	rwlock_init(&tree->lock);
 }
@@ -90,24 +90,27 @@ static u64 range_end(u64 start, u64 len)
 	return start + len;
 }
 
-static int tree_insert(struct rb_root *root, struct extent_map *em)
+static int tree_insert(struct rb_root_cached *root, struct extent_map *em)
 {
-	struct rb_node **p = &root->rb_node;
+	struct rb_node **p = &root->rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct extent_map *entry = NULL;
 	struct rb_node *orig_parent = NULL;
 	u64 end = range_end(em->start, em->len);
+	bool leftmost = true;
 
 	while (*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct extent_map, rb_node);
 
-		if (em->start < entry->start)
+		if (em->start < entry->start) {
 			p = &(*p)->rb_left;
-		else if (em->start >= extent_map_end(entry))
+		} else if (em->start >= extent_map_end(entry)) {
 			p = &(*p)->rb_right;
-		else
+			leftmost = false;
+		} else {
 			return -EEXIST;
+		}
 	}
 
 	orig_parent = parent;
@@ -130,7 +133,7 @@ static int tree_insert(struct rb_root *root, struct extent_map *em)
 			return -EEXIST;
 
 	rb_link_node(&em->rb_node, orig_parent, p);
-	rb_insert_color(&em->rb_node, root);
+	rb_insert_color_cached(&em->rb_node, root, leftmost);
 	return 0;
 }
 
@@ -242,7 +245,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 			em->mod_start = merge->mod_start;
 			em->generation = max(em->generation, merge->generation);
 
-			rb_erase(&merge->rb_node, &tree->map);
+			rb_erase_cached(&merge->rb_node, &tree->map);
 			RB_CLEAR_NODE(&merge->rb_node);
 			free_extent_map(merge);
 		}
@@ -254,7 +257,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 	if (rb && mergable_maps(em, merge)) {
 		em->len += merge->len;
 		em->block_len += merge->block_len;
-		rb_erase(&merge->rb_node, &tree->map);
+		rb_erase_cached(&merge->rb_node, &tree->map);
 		RB_CLEAR_NODE(&merge->rb_node);
 		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
 		em->generation = max(em->generation, merge->generation);
@@ -367,7 +370,7 @@ __lookup_extent_mapping(struct extent_map_tree *tree,
 	struct rb_node *next = NULL;
 	u64 end = range_end(start, len);
 
-	rb_node = __tree_search(&tree->map, start, &prev, &next);
+	rb_node = __tree_search(&tree->map.rb_root, start, &prev, &next);
 	if (!rb_node) {
 		if (prev)
 			rb_node = prev;
@@ -428,16 +431,13 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
  * Removes @em from @tree.  No reference counts are dropped, and no checks
  * are done to see if the range is in use
  */
-int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
+void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 {
-	int ret = 0;
-
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
-	rb_erase(&em->rb_node, &tree->map);
+	rb_erase_cached(&em->rb_node, &tree->map);
 	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
 		list_del_init(&em->list);
 	RB_CLEAR_NODE(&em->rb_node);
-	return ret;
 }
 
 void replace_extent_mapping(struct extent_map_tree *tree,
@@ -449,7 +449,7 @@ void replace_extent_mapping(struct extent_map_tree *tree,
 	ASSERT(extent_map_in_tree(cur));
 	if (!test_bit(EXTENT_FLAG_LOGGING, &cur->flags))
 		list_del_init(&cur->list);
-	rb_replace_node(&cur->rb_node, &new->rb_node, &tree->map);
+	rb_replace_node_cached(&cur->rb_node, &new->rb_node, &tree->map);
 	RB_CLEAR_NODE(&cur->rb_node);
 
 	setup_extent_mapping(tree, new, modified);
@@ -475,7 +475,8 @@ static struct extent_map *prev_extent_map(struct extent_map *em)
 	return container_of(prev, struct extent_map, rb_node);
 }
 
-/* helper for btfs_get_extent.  Given an existing extent in the tree,
+/*
+ * Helper for btrfs_get_extent.  Given an existing extent in the tree,
  * the existing extent is the nearest extent to map_start,
  * and an extent that you want to insert, deal with overlap and insert
  * the best fitted new extent into the tree.

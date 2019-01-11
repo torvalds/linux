@@ -32,7 +32,7 @@
 #include <linux/dmi.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/efi-bgrt.h>
@@ -48,6 +48,7 @@
 #include <asm/mpspec.h>
 #include <asm/smp.h>
 #include <asm/i8259.h>
+#include <asm/setup.h>
 
 #include "sleep.h" /* To include x86_acpi_suspend_lowlevel */
 static int __initdata acpi_force = 0;
@@ -847,7 +848,7 @@ EXPORT_SYMBOL(acpi_unregister_ioapic);
 /**
  * acpi_ioapic_registered - Check whether IOAPIC assoicatied with @gsi_base
  *			    has been registered
- * @handle:	ACPI handle of the IOAPIC deivce
+ * @handle:	ACPI handle of the IOAPIC device
  * @gsi_base:	GSI base associated with the IOAPIC
  *
  * Assume caller holds some type of lock to serialize acpi_ioapic_registered()
@@ -932,7 +933,8 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	 * the resource tree during the lateinit timeframe.
 	 */
 #define HPET_RESOURCE_NAME_SIZE 9
-	hpet_res = alloc_bootmem(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
+	hpet_res = memblock_alloc(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE,
+				  SMP_CACHE_BYTES);
 
 	hpet_res->name = (void *)&hpet_res[1];
 	hpet_res->flags = IORESOURCE_MEM;
@@ -1770,4 +1772,9 @@ void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 {
 	e820__range_add(addr, size, E820_TYPE_ACPI);
 	e820__update_table_print();
+}
+
+u64 x86_default_get_root_pointer(void)
+{
+	return boot_params.acpi_rsdp_addr;
 }

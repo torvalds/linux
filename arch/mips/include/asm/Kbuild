@@ -1,6 +1,11 @@
 # MIPS headers
+generated-y += syscall_table_32_o32.h
+generated-y += syscall_table_64_n32.h
+generated-y += syscall_table_64_n64.h
+generated-y += syscall_table_64_o32.h
 generic-(CONFIG_GENERIC_CSUM) += checksum.h
 generic-y += current.h
+generic-y += device.h
 generic-y += dma-contiguous.h
 generic-y += emergency-restart.h
 generic-y += export.h

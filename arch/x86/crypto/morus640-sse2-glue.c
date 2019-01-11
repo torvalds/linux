@@ -40,7 +40,6 @@ MORUS640_DECLARE_ALGS(sse2, "morus640-sse2", 400);
 static int __init crypto_morus640_sse2_module_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_XMM2) ||
-	    !boot_cpu_has(X86_FEATURE_OSXSAVE) ||
 	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
 		return -ENODEV;
 

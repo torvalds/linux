@@ -96,6 +96,7 @@ el1_sync:				// Guest trapped into EL2
 	do_el2_call
 
 	eret
+	sb
 
 el1_hvc_guest:
 	/*
@@ -146,6 +147,7 @@ wa_epilogue:
 	mov	x0, xzr
 	add	sp, sp, #16
 	eret
+	sb
 
 el1_trap:
 	get_vcpu_ptr	x1, x0
@@ -161,6 +163,20 @@ el1_error:
 	get_vcpu_ptr	x1, x0
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
+
+el2_sync:
+	/* Check for illegal exception return, otherwise panic */
+	mrs	x0, spsr_el2
+
+	/* if this was something else, then panic! */
+	tst	x0, #PSR_IL_BIT
+	b.eq	__hyp_panic
+
+	/* Let's attempt a recovery from the illegal exception return */
+	get_vcpu_ptr	x1, x0
+	mov	x0, #ARM_EXCEPTION_IL
+	b	__guest_exit
+
 
 el2_error:
 	ldp	x0, x1, [sp], #16
@@ -185,6 +201,7 @@ el2_error:
 	b.ne	__hyp_panic
 	mov	x0, #(1 << ARM_EXIT_WITH_SERROR_BIT)
 	eret
+	sb
 
 ENTRY(__hyp_do_panic)
 	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
@@ -193,6 +210,7 @@ ENTRY(__hyp_do_panic)
 	ldr	lr, =panic
 	msr	elr_el2, lr
 	eret
+	sb
 ENDPROC(__hyp_do_panic)
 
 ENTRY(__hyp_panic)
@@ -240,7 +258,7 @@ ENTRY(__kvm_hyp_vector)
 	invalid_vect	el2t_fiq_invalid	// FIQ EL2t
 	invalid_vect	el2t_error_invalid	// Error EL2t
 
-	invalid_vect	el2h_sync_invalid	// Synchronous EL2h
+	valid_vect	el2_sync		// Synchronous EL2h
 	invalid_vect	el2h_irq_invalid	// IRQ EL2h
 	invalid_vect	el2h_fiq_invalid	// FIQ EL2h
 	valid_vect	el2_error		// Error EL2h

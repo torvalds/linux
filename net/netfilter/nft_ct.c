@@ -279,7 +279,7 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 {
 	const struct nft_ct *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
-#ifdef CONFIG_NF_CONNTRACK_MARK
+#if defined(CONFIG_NF_CONNTRACK_MARK) || defined(CONFIG_NF_CONNTRACK_SECMARK)
 	u32 value = regs->data[priv->sreg];
 #endif
 	enum ip_conntrack_info ctinfo;
@@ -295,6 +295,14 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 		if (ct->mark != value) {
 			ct->mark = value;
 			nf_conntrack_event_cache(IPCT_MARK, ct);
+		}
+		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	case NFT_CT_SECMARK:
+		if (ct->secmark != value) {
+			ct->secmark = value;
+			nf_conntrack_event_cache(IPCT_SECMARK, ct);
 		}
 		break;
 #endif
@@ -565,6 +573,13 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		len = sizeof(u32);
 		break;
 #endif
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	case NFT_CT_SECMARK:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
+		len = sizeof(u32);
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -776,9 +791,6 @@ nft_ct_timeout_parse_policy(void *timeouts,
 	struct nlattr **tb;
 	int ret = 0;
 
-	if (!l4proto->ctnl_timeout.nlattr_to_obj)
-		return 0;
-
 	tb = kcalloc(l4proto->ctnl_timeout.nlattr_max + 1, sizeof(*tb),
 		     GFP_KERNEL);
 
@@ -799,7 +811,7 @@ err:
 }
 
 struct nft_ct_timeout_obj {
-	struct nf_conn		*tmpl;
+	struct nf_ct_timeout    *timeout;
 	u8			l4proto;
 };
 
@@ -809,26 +821,42 @@ static void nft_ct_timeout_obj_eval(struct nft_object *obj,
 {
 	const struct nft_ct_timeout_obj *priv = nft_obj_data(obj);
 	struct nf_conn *ct = (struct nf_conn *)skb_nfct(pkt->skb);
-	struct sk_buff *skb = pkt->skb;
+	struct nf_conn_timeout *timeout;
+	const unsigned int *values;
 
-	if (ct ||
-	    priv->l4proto != pkt->tprot)
+	if (priv->l4proto != pkt->tprot)
 		return;
 
-	nf_ct_set(skb, priv->tmpl, IP_CT_NEW);
+	if (!ct || nf_ct_is_template(ct) || nf_ct_is_confirmed(ct))
+		return;
+
+	timeout = nf_ct_timeout_find(ct);
+	if (!timeout) {
+		timeout = nf_ct_timeout_ext_add(ct, priv->timeout, GFP_ATOMIC);
+		if (!timeout) {
+			regs->verdict.code = NF_DROP;
+			return;
+		}
+	}
+
+	rcu_assign_pointer(timeout->timeout, priv->timeout);
+
+	/* adjust the timeout as per 'new' state. ct is unconfirmed,
+	 * so the current timestamp must not be added.
+	 */
+	values = nf_ct_timeout_data(timeout);
+	if (values)
+		nf_ct_refresh(ct, pkt->skb, values[0]);
 }
 
 static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 				   const struct nlattr * const tb[],
 				   struct nft_object *obj)
 {
-	const struct nf_conntrack_zone *zone = &nf_ct_zone_dflt;
 	struct nft_ct_timeout_obj *priv = nft_obj_data(obj);
 	const struct nf_conntrack_l4proto *l4proto;
-	struct nf_conn_timeout *timeout_ext;
 	struct nf_ct_timeout *timeout;
 	int l3num = ctx->family;
-	struct nf_conn *tmpl;
 	__u8 l4num;
 	int ret;
 
@@ -842,7 +870,7 @@ static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 	l4num = nla_get_u8(tb[NFTA_CT_TIMEOUT_L4PROTO]);
 	priv->l4proto = l4num;
 
-	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
+	l4proto = nf_ct_l4proto_find_get(l4num);
 
 	if (l4proto->l4proto != l4num) {
 		ret = -EOPNOTSUPP;
@@ -863,28 +891,14 @@ static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 
 	timeout->l3num = l3num;
 	timeout->l4proto = l4proto;
-	tmpl = nf_ct_tmpl_alloc(ctx->net, zone, GFP_ATOMIC);
-	if (!tmpl) {
-		ret = -ENOMEM;
-		goto err_free_timeout;
-	}
-
-	timeout_ext = nf_ct_timeout_ext_add(tmpl, timeout, GFP_ATOMIC);
-	if (!timeout_ext) {
-		ret = -ENOMEM;
-		goto err_free_tmpl;
-	}
 
 	ret = nf_ct_netns_get(ctx->net, ctx->family);
 	if (ret < 0)
-		goto err_free_tmpl;
+		goto err_free_timeout;
 
-	priv->tmpl = tmpl;
-
+	priv->timeout = timeout;
 	return 0;
 
-err_free_tmpl:
-	nf_ct_tmpl_free(tmpl);
 err_free_timeout:
 	kfree(timeout);
 err_proto_put:
@@ -896,22 +910,19 @@ static void nft_ct_timeout_obj_destroy(const struct nft_ctx *ctx,
 				       struct nft_object *obj)
 {
 	struct nft_ct_timeout_obj *priv = nft_obj_data(obj);
-	struct nf_conn_timeout *t = nf_ct_timeout_find(priv->tmpl);
-	struct nf_ct_timeout *timeout;
+	struct nf_ct_timeout *timeout = priv->timeout;
 
-	timeout = rcu_dereference_raw(t->timeout);
 	nf_ct_untimeout(ctx->net, timeout);
 	nf_ct_l4proto_put(timeout->l4proto);
 	nf_ct_netns_put(ctx->net, ctx->family);
-	nf_ct_tmpl_free(priv->tmpl);
+	kfree(priv->timeout);
 }
 
 static int nft_ct_timeout_obj_dump(struct sk_buff *skb,
 				   struct nft_object *obj, bool reset)
 {
 	const struct nft_ct_timeout_obj *priv = nft_obj_data(obj);
-	const struct nf_conn_timeout *t = nf_ct_timeout_find(priv->tmpl);
-	const struct nf_ct_timeout *timeout = rcu_dereference_raw(t->timeout);
+	const struct nf_ct_timeout *timeout = priv->timeout;
 	struct nlattr *nest_params;
 	int ret;
 

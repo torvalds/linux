@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hardkernel Odroid XU3/XU4/HC1 boards core device tree source
+ * Hardkernel Odroid XU3/XU3-Lite/XU4/HC1 boards core device tree source
  *
  * Copyright (c) 2017 Marek Szyprowski
  * Copyright (c) 2013-2017 Samsung Electronics Co., Ltd.
@@ -141,6 +141,7 @@
 		pinctrl-0 = <&s2mps11_irq>;
 
 		s2mps11_osc: clocks {
+			compatible = "samsung,s2mps11-clk";
 			#clock-cells = <1>;
 			clock-output-names = "s2mps11_ap",
 					"s2mps11_cp", "s2mps11_bt";
@@ -151,6 +152,13 @@
 				regulator-name = "vdd_ldo1";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
+			};
+
+			ldo2_reg: LDO2 {
+				regulator-name = "vdd_ldo2";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 			};
 
@@ -216,16 +224,23 @@
 			};
 
 			ldo12_reg: LDO12 {
+				/* Unused */
 				regulator-name = "vdd_ldo12";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
 			};
 
 			ldo13_reg: LDO13 {
 				regulator-name = "vddq_mmc2";
-				regulator-min-microvolt = <2800000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <2800000>;
+			};
+
+			ldo14_reg: LDO14 {
+				/* Unused */
+				regulator-name = "vdd_ldo14";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo15_reg: LDO15 {
@@ -236,10 +251,10 @@
 			};
 
 			ldo16_reg: LDO16 {
+				/* Unused */
 				regulator-name = "vdd_ldo16";
-				regulator-min-microvolt = <2200000>;
-				regulator-max-microvolt = <2200000>;
-				regulator-always-on;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo17_reg: LDO17 {
@@ -261,18 +276,137 @@
 				regulator-max-microvolt = <2800000>;
 			};
 
-			ldo24_reg: LDO24 {
-				regulator-name = "tsp_io";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
+			ldo20_reg: LDO20 {
+				/* Unused */
+				regulator-name = "vdd_ldo20";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo21_reg: LDO21 {
+				/* Unused */
+				regulator-name = "vdd_ldo21";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo22_reg: LDO22 {
+				/* Unused */
+				regulator-name = "vdd_ldo22";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
+			};
+
+			ldo23_reg: LDO23 {
+				regulator-name = "vdd_mifs";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 			};
 
+			ldo24_reg: LDO24 {
+				/* Unused */
+				regulator-name = "vdd_ldo24";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo25_reg: LDO25 {
+				/* Unused */
+				regulator-name = "vdd_ldo25";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
 			ldo26_reg: LDO26 {
+				/* Used on XU3, XU3-Lite and XU4 */
 				regulator-name = "vdd_ldo26";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo27_reg: LDO27 {
+				regulator-name = "vdd_g3ds";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
+			};
+
+			ldo28_reg: LDO28 {
+				/* Used on XU3 */
+				regulator-name = "vdd_ldo28";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo29_reg: LDO29 {
+				/* Unused */
+				regulator-name = "vdd_ldo29";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo30_reg: LDO30 {
+				/* Unused */
+				regulator-name = "vdd_ldo30";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo31_reg: LDO31 {
+				/* Unused */
+				regulator-name = "vdd_ldo31";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo32_reg: LDO32 {
+				/* Unused */
+				regulator-name = "vdd_ldo32";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo33_reg: LDO33 {
+				/* Unused */
+				regulator-name = "vdd_ldo33";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo34_reg: LDO34 {
+				/* Unused */
+				regulator-name = "vdd_ldo34";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo35_reg: LDO35 {
+				/* Unused */
+				regulator-name = "vdd_ldo35";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
+			};
+
+			ldo36_reg: LDO36 {
+				/* Unused */
+				regulator-name = "vdd_ldo36";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo37_reg: LDO37 {
+				/* Unused */
+				regulator-name = "vdd_ldo37";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo38_reg: LDO38 {
+				/* Unused */
+				regulator-name = "vdd_ldo38";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			buck1_reg: BUCK1 {
@@ -365,11 +499,15 @@
 	samsung,dw-mshc-sdr-timing = <0 4>;
 	samsung,dw-mshc-ddr-timing = <0 2>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_wp &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
 	cap-sd-highspeed;
+	max-frequency = <200000000>;
 	vmmc-supply = <&ldo19_reg>;
 	vqmmc-supply = <&ldo13_reg>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	sd-uhs-ddr50;
 };
 
 &nocp_mem0_0 {

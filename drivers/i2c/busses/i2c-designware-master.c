@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Synopsys DesignWare I2C adapter driver (master only).
  *
@@ -6,20 +7,6 @@
  * Copyright (C) 2006 Texas Instruments.
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
- *
- * ----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * ----------------------------------------------------------------------------
- *
  */
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -45,6 +32,116 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
 	dw_writel(dev, dev->master_cfg, DW_IC_CON);
 }
 
+static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
+{
+	const char *mode_str, *fp_str = "";
+	u32 comp_param1;
+	u32 sda_falling_time, scl_falling_time;
+	struct i2c_timings *t = &dev->timings;
+	u32 ic_clk;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
+	i2c_dw_release_lock(dev);
+
+	/* Set standard and fast speed dividers for high/low periods */
+	sda_falling_time = t->sda_fall_ns ?: 300; /* ns */
+	scl_falling_time = t->scl_fall_ns ?: 300; /* ns */
+
+	/* Calculate SCL timing parameters for standard mode if not set */
+	if (!dev->ss_hcnt || !dev->ss_lcnt) {
+		ic_clk = i2c_dw_clk_rate(dev);
+		dev->ss_hcnt =
+			i2c_dw_scl_hcnt(ic_clk,
+					4000,	/* tHD;STA = tHIGH = 4.0 us */
+					sda_falling_time,
+					0,	/* 0: DW default, 1: Ideal */
+					0);	/* No offset */
+		dev->ss_lcnt =
+			i2c_dw_scl_lcnt(ic_clk,
+					4700,	/* tLOW = 4.7 us */
+					scl_falling_time,
+					0);	/* No offset */
+	}
+	dev_dbg(dev->dev, "Standard Mode HCNT:LCNT = %d:%d\n",
+		dev->ss_hcnt, dev->ss_lcnt);
+
+	/*
+	 * Set SCL timing parameters for fast mode or fast mode plus. Only
+	 * difference is the timing parameter values since the registers are
+	 * the same.
+	 */
+	if (t->bus_freq_hz == 1000000) {
+		/*
+		 * Check are fast mode plus parameters available and use
+		 * fast mode if not.
+		 */
+		if (dev->fp_hcnt && dev->fp_lcnt) {
+			dev->fs_hcnt = dev->fp_hcnt;
+			dev->fs_lcnt = dev->fp_lcnt;
+			fp_str = " Plus";
+		}
+	}
+	/*
+	 * Calculate SCL timing parameters for fast mode if not set. They are
+	 * needed also in high speed mode.
+	 */
+	if (!dev->fs_hcnt || !dev->fs_lcnt) {
+		ic_clk = i2c_dw_clk_rate(dev);
+		dev->fs_hcnt =
+			i2c_dw_scl_hcnt(ic_clk,
+					600,	/* tHD;STA = tHIGH = 0.6 us */
+					sda_falling_time,
+					0,	/* 0: DW default, 1: Ideal */
+					0);	/* No offset */
+		dev->fs_lcnt =
+			i2c_dw_scl_lcnt(ic_clk,
+					1300,	/* tLOW = 1.3 us */
+					scl_falling_time,
+					0);	/* No offset */
+	}
+	dev_dbg(dev->dev, "Fast Mode%s HCNT:LCNT = %d:%d\n",
+		fp_str, dev->fs_hcnt, dev->fs_lcnt);
+
+	/* Check is high speed possible and fall back to fast mode if not */
+	if ((dev->master_cfg & DW_IC_CON_SPEED_MASK) ==
+		DW_IC_CON_SPEED_HIGH) {
+		if ((comp_param1 & DW_IC_COMP_PARAM_1_SPEED_MODE_MASK)
+			!= DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH) {
+			dev_err(dev->dev, "High Speed not supported!\n");
+			dev->master_cfg &= ~DW_IC_CON_SPEED_MASK;
+			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
+			dev->hs_hcnt = 0;
+			dev->hs_lcnt = 0;
+		} else if (dev->hs_hcnt && dev->hs_lcnt) {
+			dev_dbg(dev->dev, "High Speed Mode HCNT:LCNT = %d:%d\n",
+				dev->hs_hcnt, dev->hs_lcnt);
+		}
+	}
+
+	ret = i2c_dw_set_sda_hold(dev);
+	if (ret)
+		goto out;
+
+	switch (dev->master_cfg & DW_IC_CON_SPEED_MASK) {
+	case DW_IC_CON_SPEED_STD:
+		mode_str = "Standard Mode";
+		break;
+	case DW_IC_CON_SPEED_HIGH:
+		mode_str = "High Speed Mode";
+		break;
+	default:
+		mode_str = "Fast Mode";
+	}
+	dev_dbg(dev->dev, "Bus speed: %s%s\n", mode_str, fp_str);
+
+out:
+	return ret;
+}
+
 /**
  * i2c_dw_init() - Initialize the designware I2C master hardware
  * @dev: device private data
@@ -55,118 +152,32 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
  */
 static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 {
-	u32 hcnt, lcnt;
-	u32 reg, comp_param1;
-	u32 sda_falling_time, scl_falling_time;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
 		return ret;
 
-	reg = dw_readl(dev, DW_IC_COMP_TYPE);
-	if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
-		/* Configure register endianess access */
-		dev->flags |= ACCESS_SWAP;
-	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
-		/* Configure register access mode 16bit */
-		dev->flags |= ACCESS_16BIT;
-	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
-		dev_err(dev->dev,
-			"Unknown Synopsys component type: 0x%08x\n", reg);
-		i2c_dw_release_lock(dev);
-		return -ENODEV;
-	}
-
-	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
-
 	/* Disable the adapter */
 	__i2c_dw_disable(dev);
 
-	/* Set standard and fast speed deviders for high/low periods */
+	/* Write standard speed timing parameters */
+	dw_writel(dev, dev->ss_hcnt, DW_IC_SS_SCL_HCNT);
+	dw_writel(dev, dev->ss_lcnt, DW_IC_SS_SCL_LCNT);
 
-	sda_falling_time = dev->sda_falling_time ?: 300; /* ns */
-	scl_falling_time = dev->scl_falling_time ?: 300; /* ns */
+	/* Write fast mode/fast mode plus timing parameters */
+	dw_writel(dev, dev->fs_hcnt, DW_IC_FS_SCL_HCNT);
+	dw_writel(dev, dev->fs_lcnt, DW_IC_FS_SCL_LCNT);
 
-	/* Set SCL timing parameters for standard-mode */
-	if (dev->ss_hcnt && dev->ss_lcnt) {
-		hcnt = dev->ss_hcnt;
-		lcnt = dev->ss_lcnt;
-	} else {
-		hcnt = i2c_dw_scl_hcnt(i2c_dw_clk_rate(dev),
-					4000,	/* tHD;STA = tHIGH = 4.0 us */
-					sda_falling_time,
-					0,	/* 0: DW default, 1: Ideal */
-					0);	/* No offset */
-		lcnt = i2c_dw_scl_lcnt(i2c_dw_clk_rate(dev),
-					4700,	/* tLOW = 4.7 us */
-					scl_falling_time,
-					0);	/* No offset */
-	}
-	dw_writel(dev, hcnt, DW_IC_SS_SCL_HCNT);
-	dw_writel(dev, lcnt, DW_IC_SS_SCL_LCNT);
-	dev_dbg(dev->dev, "Standard-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
-
-	/* Set SCL timing parameters for fast-mode or fast-mode plus */
-	if ((dev->clk_freq == 1000000) && dev->fp_hcnt && dev->fp_lcnt) {
-		hcnt = dev->fp_hcnt;
-		lcnt = dev->fp_lcnt;
-	} else if (dev->fs_hcnt && dev->fs_lcnt) {
-		hcnt = dev->fs_hcnt;
-		lcnt = dev->fs_lcnt;
-	} else {
-		hcnt = i2c_dw_scl_hcnt(i2c_dw_clk_rate(dev),
-					600,	/* tHD;STA = tHIGH = 0.6 us */
-					sda_falling_time,
-					0,	/* 0: DW default, 1: Ideal */
-					0);	/* No offset */
-		lcnt = i2c_dw_scl_lcnt(i2c_dw_clk_rate(dev),
-					1300,	/* tLOW = 1.3 us */
-					scl_falling_time,
-					0);	/* No offset */
-	}
-	dw_writel(dev, hcnt, DW_IC_FS_SCL_HCNT);
-	dw_writel(dev, lcnt, DW_IC_FS_SCL_LCNT);
-	dev_dbg(dev->dev, "Fast-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
-
-	if ((dev->master_cfg & DW_IC_CON_SPEED_MASK) ==
-		DW_IC_CON_SPEED_HIGH) {
-		if ((comp_param1 & DW_IC_COMP_PARAM_1_SPEED_MODE_MASK)
-			!= DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH) {
-			dev_err(dev->dev, "High Speed not supported!\n");
-			dev->master_cfg &= ~DW_IC_CON_SPEED_MASK;
-			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
-		} else if (dev->hs_hcnt && dev->hs_lcnt) {
-			hcnt = dev->hs_hcnt;
-			lcnt = dev->hs_lcnt;
-			dw_writel(dev, hcnt, DW_IC_HS_SCL_HCNT);
-			dw_writel(dev, lcnt, DW_IC_HS_SCL_LCNT);
-			dev_dbg(dev->dev, "HighSpeed-mode HCNT:LCNT = %d:%d\n",
-				hcnt, lcnt);
-		}
+	/* Write high speed timing parameters if supported */
+	if (dev->hs_hcnt && dev->hs_lcnt) {
+		dw_writel(dev, dev->hs_hcnt, DW_IC_HS_SCL_HCNT);
+		dw_writel(dev, dev->hs_lcnt, DW_IC_HS_SCL_LCNT);
 	}
 
-	/* Configure SDA Hold Time if required */
-	reg = dw_readl(dev, DW_IC_COMP_VERSION);
-	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
-		if (!dev->sda_hold_time) {
-			/* Keep previous hold time setting if no one set it */
-			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
-		}
-		/*
-		 * Workaround for avoiding TX arbitration lost in case I2C
-		 * slave pulls SDA down "too quickly" after falling egde of
-		 * SCL by enabling non-zero SDA RX hold. Specification says it
-		 * extends incoming SDA low to high transition while SCL is
-		 * high but it apprears to help also above issue.
-		 */
-		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
-			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
+	/* Write SDA hold time if supported */
+	if (dev->sda_hold_time)
 		dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
-	} else if (dev->sda_hold_time) {
-		dev_warn(dev->dev,
-			"Hardware too old to adjust SDA hold time.\n");
-	}
 
 	i2c_dw_configure_fifo_master(dev);
 	i2c_dw_release_lock(dev);
@@ -249,13 +260,6 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 		if (msgs[dev->msg_write_idx].addr != addr) {
 			dev_err(dev->dev,
 				"%s: invalid target address\n", __func__);
-			dev->msg_err = -EINVAL;
-			break;
-		}
-
-		if (msgs[dev->msg_write_idx].len == 0) {
-			dev_err(dev->dev,
-				"%s: invalid message length\n", __func__);
 			dev->msg_err = -EINVAL;
 			break;
 		}
@@ -502,6 +506,10 @@ static const struct i2c_algorithm i2c_dw_algo = {
 	.functionality = i2c_dw_func,
 };
 
+static const struct i2c_adapter_quirks i2c_dw_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
+};
+
 static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 {
 	u32 stat;
@@ -681,6 +689,14 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	dev->disable = i2c_dw_disable;
 	dev->disable_int = i2c_dw_disable_int;
 
+	ret = i2c_dw_set_reg_access(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_timings_master(dev);
+	if (ret)
+		return ret;
+
 	ret = dev->init(dev);
 	if (ret)
 		return ret;
@@ -689,11 +705,11 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 		 "Synopsys DesignWare I2C adapter");
 	adap->retries = 3;
 	adap->algo = &i2c_dw_algo;
+	adap->quirks = &i2c_dw_quirks;
 	adap->dev.parent = dev->dev;
 	i2c_set_adapdata(adap, dev);
 
-	if (dev->pm_disabled) {
-		dev_pm_syscore_device(dev->dev, true);
+	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
 		irq_flags = IRQF_NO_SUSPEND;
 	} else {
 		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;

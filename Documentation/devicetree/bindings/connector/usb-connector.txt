@@ -14,6 +14,8 @@ Optional properties:
 - label: symbolic name for the connector,
 - type: size of the connector, should be specified in case of USB-A, USB-B
   non-fullsize connectors: "mini", "micro".
+- self-powered: Set this property if the usb device that has its own power
+  source.
 
 Optional properties for usb-c-connector:
 - power-role: should be one of "source", "sink" or "dual"(DRP) if typec
@@ -29,15 +31,15 @@ Required properties for usb-c-connector with power delivery support:
   in "Universal Serial Bus Power Delivery Specification" chapter 6.4.1.2
   Source_Capabilities Message, the order of each entry(PDO) should follow
   the PD spec chapter 6.4.1. Required for power source and power dual role.
-  User can specify the source PDO array via PDO_FIXED/BATT/VAR() defined in
-  dt-bindings/usb/pd.h.
+  User can specify the source PDO array via PDO_FIXED/BATT/VAR/PPS_APDO()
+  defined in dt-bindings/usb/pd.h.
 - sink-pdos: An array of u32 with each entry providing supported power
   sink data object(PDO), the detailed bit definitions of PDO can be found
   in "Universal Serial Bus Power Delivery Specification" chapter 6.4.1.3
   Sink Capabilities Message, the order of each entry(PDO) should follow
   the PD spec chapter 6.4.1. Required for power sink and power dual role.
-  User can specify the sink PDO array via PDO_FIXED/BATT/VAR() defined in
-  dt-bindings/usb/pd.h.
+  User can specify the sink PDO array via PDO_FIXED/BATT/VAR/PPS_APDO() defined
+  in dt-bindings/usb/pd.h.
 - op-sink-microwatt: Sink required operating power in microwatt, if source
   can't offer the power, Capability Mismatch is set. Required for power
   sink and power dual role.

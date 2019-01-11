@@ -140,7 +140,6 @@ static int tilcdc_commit(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = tilcdc_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = tilcdc_atomic_check,
 	.atomic_commit = tilcdc_commit,
 };
@@ -191,9 +190,6 @@ static void tilcdc_fini(struct drm_device *dev)
 		drm_dev_unregister(dev);
 
 	drm_kms_helper_poll_fini(dev);
-
-	drm_fb_cma_fbdev_fini(dev);
-
 	drm_irq_uninstall(dev);
 	drm_mode_config_cleanup(dev);
 	tilcdc_remove_external_device(dev);
@@ -396,15 +392,13 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 
 	drm_mode_config_reset(ddev);
 
-	ret = drm_fb_cma_fbdev_init(ddev, bpp, 0);
-	if (ret)
-		goto init_failed;
-
 	drm_kms_helper_poll_init(ddev);
 
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto init_failed;
+
+	drm_fbdev_generic_setup(ddev, bpp);
 
 	priv->is_registered = true;
 	return 0;
@@ -519,7 +513,6 @@ DEFINE_DRM_GEM_CMA_FOPS(fops);
 static struct drm_driver tilcdc_driver = {
 	.driver_features    = (DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET |
 			       DRIVER_PRIME | DRIVER_ATOMIC),
-	.lastclose          = drm_fb_helper_lastclose,
 	.irq_handler        = tilcdc_irq,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_print_info     = drm_gem_cma_print_info,
@@ -554,29 +547,23 @@ static struct drm_driver tilcdc_driver = {
 static int tilcdc_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct tilcdc_drm_private *priv = ddev->dev_private;
+	int ret = 0;
 
-	priv->saved_state = drm_atomic_helper_suspend(ddev);
+	ret = drm_mode_config_helper_suspend(ddev);
 
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(dev);
 
-	return 0;
+	return ret;
 }
 
 static int tilcdc_pm_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct tilcdc_drm_private *priv = ddev->dev_private;
-	int ret = 0;
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
-
-	if (priv->saved_state)
-		ret = drm_atomic_helper_resume(ddev, priv->saved_state);
-
-	return ret;
+	return  drm_mode_config_helper_resume(ddev);
 }
 #endif
 

@@ -222,9 +222,9 @@ static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
 static int vidioc_venc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, MTK_VCODEC_ENC_NAME, sizeof(cap->driver));
-	strlcpy(cap->bus_info, MTK_PLATFORM_STR, sizeof(cap->bus_info));
-	strlcpy(cap->card, MTK_PLATFORM_STR, sizeof(cap->card));
+	strscpy(cap->driver, MTK_VCODEC_ENC_NAME, sizeof(cap->driver));
+	strscpy(cap->bus_info, MTK_PLATFORM_STR, sizeof(cap->bus_info));
+	strscpy(cap->card, MTK_PLATFORM_STR, sizeof(cap->card));
 
 	return 0;
 }
@@ -1087,7 +1087,6 @@ static void mtk_venc_worker(struct work_struct *work)
 	src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 	memset(&frm_buf, 0, sizeof(frm_buf));
 	for (i = 0; i < src_buf->num_planes ; i++) {
-		frm_buf.fb_addr[i].va = vb2_plane_vaddr(src_buf, i);
 		frm_buf.fb_addr[i].dma_addr =
 				vb2_dma_contig_plane_dma_addr(src_buf, i);
 		frm_buf.fb_addr[i].size =
@@ -1098,14 +1097,11 @@ static void mtk_venc_worker(struct work_struct *work)
 	bs_buf.size = (size_t)dst_buf->planes[0].length;
 
 	mtk_v4l2_debug(2,
-			"Framebuf VA=%p PA=%llx Size=0x%zx;VA=%p PA=0x%llx Size=0x%zx;VA=%p PA=0x%llx Size=%zu",
-			frm_buf.fb_addr[0].va,
+			"Framebuf PA=%llx Size=0x%zx;PA=0x%llx Size=0x%zx;PA=0x%llx Size=%zu",
 			(u64)frm_buf.fb_addr[0].dma_addr,
 			frm_buf.fb_addr[0].size,
-			frm_buf.fb_addr[1].va,
 			(u64)frm_buf.fb_addr[1].dma_addr,
 			frm_buf.fb_addr[1].size,
-			frm_buf.fb_addr[2].va,
 			(u64)frm_buf.fb_addr[2].dma_addr,
 			frm_buf.fb_addr[2].size);
 

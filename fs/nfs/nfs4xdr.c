@@ -3516,7 +3516,7 @@ static int decode_attr_exclcreat_supported(struct xdr_stream *xdr,
 static int decode_attr_filehandle(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_fh *fh)
 {
 	__be32 *p;
-	int len;
+	u32 len;
 
 	if (fh != NULL)
 		memset(fh, 0, sizeof(*fh));
@@ -7789,6 +7789,7 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC42(LAYOUTSTATS,	enc_layoutstats,	dec_layoutstats),
 	PROC42(CLONE,		enc_clone,		dec_clone),
 	PROC42(COPY,		enc_copy,		dec_copy),
+	PROC42(OFFLOAD_CANCEL,	enc_offload_cancel,	dec_offload_cancel),
 	PROC(LOOKUPP,		enc_lookupp,		dec_lookupp),
 };
 

@@ -11,6 +11,28 @@
  * distribution for more details.
  */
 #include "unzip_vle.h"
+#include <linux/lz4.h>
+
+int z_erofs_unzip_lz4(void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret = LZ4_decompress_safe_partial(in, out, inlen, outlen, outlen);
+
+	if (ret >= 0)
+		return ret;
+
+	/*
+	 * LZ4_decompress_safe_partial will return an error code
+	 * (< 0) if decompression failed
+	 */
+	errln("%s, failed to decompress, in[%p, %zu] outlen[%p, %zu]",
+	      __func__, in, inlen, out, outlen);
+	WARN_ON(1);
+	print_hex_dump(KERN_DEBUG, "raw data [in]: ", DUMP_PREFIX_OFFSET,
+		       16, 1, in, inlen, true);
+	print_hex_dump(KERN_DEBUG, "raw data [out]: ", DUMP_PREFIX_OFFSET,
+		       16, 1, out, outlen, true);
+	return -EIO;
+}
 
 #if Z_EROFS_CLUSTER_MAX_PAGES > Z_EROFS_VLE_INLINE_PAGEVECS
 #define EROFS_PERCPU_NR_PAGES   Z_EROFS_CLUSTER_MAX_PAGES
@@ -23,14 +45,14 @@ static struct {
 } erofs_pcpubuf[NR_CPUS];
 
 int z_erofs_vle_plain_copy(struct page **compressed_pages,
-			   unsigned clusterpages,
+			   unsigned int clusterpages,
 			   struct page **pages,
-			   unsigned nr_pages,
+			   unsigned int nr_pages,
 			   unsigned short pageofs)
 {
-	unsigned i, j;
+	unsigned int i, j;
 	void *src = NULL;
-	const unsigned righthalf = PAGE_SIZE - pageofs;
+	const unsigned int righthalf = PAGE_SIZE - pageofs;
 	char *percpu_data;
 	bool mirrored[Z_EROFS_CLUSTER_MAX_PAGES] = { 0 };
 
@@ -42,8 +64,8 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 		struct page *page = pages[i];
 		void *dst;
 
-		if (page == NULL) {
-			if (src != NULL) {
+		if (!page) {
+			if (src) {
 				if (!mirrored[j])
 					kunmap_atomic(src);
 				src = NULL;
@@ -57,21 +79,21 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 			if (compressed_pages[j] != page)
 				continue;
 
-			BUG_ON(mirrored[j]);
+			DBG_BUGON(mirrored[j]);
 			memcpy(percpu_data + j * PAGE_SIZE, dst, PAGE_SIZE);
 			mirrored[j] = true;
 			break;
 		}
 
 		if (i) {
-			if (src == NULL)
-				src = mirrored[i-1] ?
-					percpu_data + (i-1) * PAGE_SIZE :
-					kmap_atomic(compressed_pages[i-1]);
+			if (!src)
+				src = mirrored[i - 1] ?
+					percpu_data + (i - 1) * PAGE_SIZE :
+					kmap_atomic(compressed_pages[i - 1]);
 
 			memcpy(dst, src + righthalf, pageofs);
 
-			if (!mirrored[i-1])
+			if (!mirrored[i - 1])
 				kunmap_atomic(src);
 
 			if (unlikely(i >= clusterpages)) {
@@ -80,9 +102,9 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 			}
 		}
 
-		if (!righthalf)
+		if (!righthalf) {
 			src = NULL;
-		else {
+		} else {
 			src = mirrored[i] ? percpu_data + i * PAGE_SIZE :
 				kmap_atomic(compressed_pages[i]);
 
@@ -92,24 +114,22 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 		kunmap_atomic(dst);
 	}
 
-	if (src != NULL && !mirrored[j])
+	if (src && !mirrored[j])
 		kunmap_atomic(src);
 
 	preempt_enable();
 	return 0;
 }
 
-extern int z_erofs_unzip_lz4(void *in, void *out, size_t inlen, size_t outlen);
-
 int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
-				  unsigned clusterpages,
+				  unsigned int clusterpages,
 				  struct page **pages,
-				  unsigned outlen,
+				  unsigned int outlen,
 				  unsigned short pageofs,
 				  void (*endio)(struct page *))
 {
 	void *vin, *vout;
-	unsigned nr_pages, i, j;
+	unsigned int nr_pages, i, j;
 	int ret;
 
 	if (outlen + pageofs > EROFS_PERCPU_NR_PAGES * PAGE_SIZE)
@@ -126,7 +146,7 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 	vout = erofs_pcpubuf[smp_processor_id()].data;
 
 	ret = z_erofs_unzip_lz4(vin, vout + pageofs,
-		clusterpages * PAGE_SIZE, outlen);
+				clusterpages * PAGE_SIZE, outlen);
 
 	if (ret >= 0) {
 		outlen = ret;
@@ -134,14 +154,15 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 	}
 
 	for (i = 0; i < nr_pages; ++i) {
-		j = min((unsigned)PAGE_SIZE - pageofs, outlen);
+		j = min((unsigned int)PAGE_SIZE - pageofs, outlen);
 
-		if (pages[i] != NULL) {
-			if (ret < 0)
+		if (pages[i]) {
+			if (ret < 0) {
 				SetPageError(pages[i]);
-			else if (clusterpages == 1 && pages[i] == compressed_pages[0])
+			} else if (clusterpages == 1 &&
+				   pages[i] == compressed_pages[0]) {
 				memcpy(vin + pageofs, vout + pageofs, j);
-			else {
+			} else {
 				void *dst = kmap_atomic(pages[i]);
 
 				memcpy(dst + pageofs, vout + pageofs, j);
@@ -164,14 +185,14 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 }
 
 int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
-			   unsigned clusterpages,
+			   unsigned int clusterpages,
 			   void *vout,
-			   unsigned llen,
+			   unsigned int llen,
 			   unsigned short pageofs,
 			   bool overlapped)
 {
 	void *vin;
-	unsigned i;
+	unsigned int i;
 	int ret;
 
 	if (overlapped) {
@@ -181,29 +202,28 @@ int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
 		for (i = 0; i < clusterpages; ++i) {
 			void *t = kmap_atomic(compressed_pages[i]);
 
-			memcpy(vin + PAGE_SIZE *i, t, PAGE_SIZE);
+			memcpy(vin + PAGE_SIZE * i, t, PAGE_SIZE);
 			kunmap_atomic(t);
 		}
-	} else if (clusterpages == 1)
+	} else if (clusterpages == 1) {
 		vin = kmap_atomic(compressed_pages[0]);
-	else {
+	} else {
 		vin = erofs_vmap(compressed_pages, clusterpages);
 	}
 
 	ret = z_erofs_unzip_lz4(vin, vout + pageofs,
-		clusterpages * PAGE_SIZE, llen);
+				clusterpages * PAGE_SIZE, llen);
 	if (ret > 0)
 		ret = 0;
 
 	if (!overlapped) {
 		if (clusterpages == 1)
 			kunmap_atomic(vin);
-		else {
+		else
 			erofs_vunmap(vin, clusterpages);
-		}
-	} else
+	} else {
 		preempt_enable();
-
+	}
 	return ret;
 }
 

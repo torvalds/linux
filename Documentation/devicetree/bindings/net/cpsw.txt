@@ -19,6 +19,11 @@ Required properties:
 - slaves		: Specifies number for slaves
 - active_slave		: Specifies the slave to use for time stamping,
 			  ethtool and SIOCGMIIPHY
+- cpsw-phy-sel		: Specifies the phandle to the CPSW phy mode selection
+			  device. See also cpsw-phy-sel.txt for it's binding.
+			  Note that in legacy cases cpsw-phy-sel may be
+			  a child device instead of a phandle
+			  (DEPRECATED, use phys property instead).
 
 Optional properties:
 - ti,hwmods		: Must be "cpgmac0"
@@ -40,6 +45,7 @@ Optional properties:
 Slave Properties:
 Required properties:
 - phy-mode		: See ethernet.txt file in the same directory
+- phys			: phandle on phy-gmii-sel PHY (see phy/ti-phy-gmii-sel.txt)
 
 Optional properties:
 - dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
@@ -75,17 +81,20 @@ Examples:
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
 		syscon = <&cm>;
+		cpsw-phy-sel = <&phy_sel>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
 			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
+			phys = <&phy_gmii_sel 1 0>;
 		};
 		cpsw_emac1: slave@1 {
 			phy_id = <&davinci_mdio>, <1>;
 			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
+			phys = <&phy_gmii_sel 2 0>;
 		};
 	};
 
@@ -103,16 +112,19 @@ Examples:
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
 		syscon = <&cm>;
+		cpsw-phy-sel = <&phy_sel>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
 			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
+			phys = <&phy_gmii_sel 1 0>;
 		};
 		cpsw_emac1: slave@1 {
 			phy_id = <&davinci_mdio>, <1>;
 			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
+			phys = <&phy_gmii_sel 2 0>;
 		};
 	};

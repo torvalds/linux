@@ -199,7 +199,6 @@ vma_create(struct drm_i915_gem_object *obj,
 		vma->flags |= I915_VMA_GGTT;
 		list_add(&vma->obj_link, &obj->vma_list);
 	} else {
-		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 		list_add_tail(&vma->obj_link, &obj->vma_list);
 	}
 
@@ -306,12 +305,12 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(vma->size > vma->node.size);
 
-	if (GEM_WARN_ON(range_overflows(vma->node.start,
-					vma->node.size,
-					vma->vm->total)))
+	if (GEM_DEBUG_WARN_ON(range_overflows(vma->node.start,
+					      vma->node.size,
+					      vma->vm->total)))
 		return -ENODEV;
 
-	if (GEM_WARN_ON(!flags))
+	if (GEM_DEBUG_WARN_ON(!flags))
 		return -EINVAL;
 
 	bind_flags = 0;
@@ -406,7 +405,7 @@ void i915_vma_unpin_iomap(struct i915_vma *vma)
 	i915_vma_unpin(vma);
 }
 
-void i915_vma_unpin_and_release(struct i915_vma **p_vma)
+void i915_vma_unpin_and_release(struct i915_vma **p_vma, unsigned int flags)
 {
 	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
@@ -420,6 +419,9 @@ void i915_vma_unpin_and_release(struct i915_vma **p_vma)
 
 	i915_vma_unpin(vma);
 	i915_vma_close(vma);
+
+	if (flags & I915_VMA_RELEASE_MAP)
+		i915_gem_object_unpin_map(obj);
 
 	__i915_gem_object_release_unless_active(obj);
 }
@@ -807,9 +809,6 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 	if (vma->obj)
 		rb_erase(&vma->obj_node, &vma->obj->vma_tree);
 
-	if (!i915_vma_is_ggtt(vma))
-		i915_ppgtt_put(i915_vm_to_ppgtt(vma->vm));
-
 	rbtree_postorder_for_each_entry_safe(iter, n, &vma->active, node) {
 		GEM_BUG_ON(i915_gem_active_isset(&iter->base));
 		kfree(iter);
@@ -893,7 +892,7 @@ static void export_fence(struct i915_vma *vma,
 	reservation_object_lock(resv, NULL);
 	if (flags & EXEC_OBJECT_WRITE)
 		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv) == 0)
+	else if (reservation_object_reserve_shared(resv, 1) == 0)
 		reservation_object_add_shared_fence(resv, &rq->fence);
 	reservation_object_unlock(resv);
 }

@@ -17,10 +17,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -1101,7 +1097,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	if (!iwl_queue_used(txq, last_to_free)) {
 		IWL_ERR(trans,
-			"%s: Read index for DMA queue txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
+			"%s: Read index for txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
 			__func__, txq_id, last_to_free,
 			trans->cfg->base_params->max_tfd_queue_size,
 			txq->write_ptr, txq->read_ptr);
@@ -1164,10 +1160,11 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			 */
 			iwl_trans_tx(trans, skb, dev_cmd_ptr, txq_id);
 		}
-		spin_lock_bh(&txq->lock);
 
 		if (iwl_queue_space(trans, txq) > txq->low_mark)
 			iwl_wake_queue(trans, txq);
+
+		spin_lock_bh(&txq->lock);
 	}
 
 	if (txq->read_ptr == txq->write_ptr) {
@@ -1187,6 +1184,10 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	int ret;
 
 	lockdep_assert_held(&trans_pcie->reg_lock);
+
+	/* Make sure the NIC is still alive in the bus */
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return -ENODEV;
 
 	if (!(cmd->flags & CMD_SEND_IN_IDLE) &&
 	    !trans_pcie->ref_cmd_in_flight) {
@@ -1230,7 +1231,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
  * need to be reclaimed. As result, some free space forms.  If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
-static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
+void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txq[txq_id];
@@ -1245,11 +1246,11 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 
 	if (idx >= trans->cfg->base_params->max_tfd_queue_size ||
 	    (!iwl_queue_used(txq, idx))) {
-		IWL_ERR(trans,
-			"%s: Read index for DMA queue txq id (%d), index %d is out of range [0-%d] %d %d.\n",
-			__func__, txq_id, idx,
-			trans->cfg->base_params->max_tfd_queue_size,
-			txq->write_ptr, txq->read_ptr);
+		WARN_ONCE(test_bit(txq_id, trans_pcie->queue_used),
+			  "%s: Read index for DMA queue txq id (%d), index %d is out of range [0-%d] %d %d.\n",
+			  __func__, txq_id, idx,
+			  trans->cfg->base_params->max_tfd_queue_size,
+			  txq->write_ptr, txq->read_ptr);
 		return;
 	}
 
@@ -1912,7 +1913,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	}
 
 	if (test_bit(STATUS_FW_ERROR, &trans->status)) {
-		iwl_trans_dump_regs(trans);
+		iwl_trans_pcie_dump_regs(trans);
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
 			iwl_get_cmd_string(trans, cmd->id));
 		dump_stack();
@@ -1957,6 +1958,10 @@ cancel:
 
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
+	/* Make sure the NIC is still alive in the bus */
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return -ENODEV;
+
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
 		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
@@ -1973,29 +1978,27 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 			     struct iwl_txq *txq, u8 hdr_len,
-			     struct iwl_cmd_meta *out_meta,
-			     struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+			     struct iwl_cmd_meta *out_meta)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u16 tb2_len;
+	u16 head_tb_len;
 	int i;
 
 	/*
 	 * Set up TFD's third entry to point directly to remainder
 	 * of skb's head, if any
 	 */
-	tb2_len = skb_headlen(skb) - hdr_len;
+	head_tb_len = skb_headlen(skb) - hdr_len;
 
-	if (tb2_len > 0) {
-		dma_addr_t tb2_phys = dma_map_single(trans->dev,
-						     skb->data + hdr_len,
-						     tb2_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, tb2_phys))) {
-			iwl_pcie_tfd_unmap(trans, out_meta, txq,
-					   txq->write_ptr);
+	if (head_tb_len > 0) {
+		dma_addr_t tb_phys = dma_map_single(trans->dev,
+						    skb->data + hdr_len,
+						    head_tb_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 			return -EINVAL;
-		}
-		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, false);
+		trace_iwlwifi_dev_tx_tb(trans->dev, skb,
+					skb->data + hdr_len,
+					head_tb_len);
+		iwl_pcie_txq_build_tfd(trans, txq, tb_phys, head_tb_len, false);
 	}
 
 	/* set up the remaining entries to point to the data */
@@ -2010,23 +2013,19 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
 					   skb_frag_size(frag), DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
-			iwl_pcie_tfd_unmap(trans, out_meta, txq,
-					   txq->write_ptr);
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 			return -EINVAL;
-		}
+		trace_iwlwifi_dev_tx_tb(trans->dev, skb,
+					skb_frag_address(frag),
+					skb_frag_size(frag));
 		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
 						skb_frag_size(frag), false);
+		if (tb_idx < 0)
+			return tb_idx;
 
 		out_meta->tbs |= BIT(tb_idx);
 	}
 
-	trace_iwlwifi_dev_tx(trans->dev, skb,
-			     iwl_pcie_get_tfd(trans, txq, txq->write_ptr),
-			     trans_pcie->tfd_size,
-			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
-			     hdr_len);
-	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len);
 	return 0;
 }
 
@@ -2087,7 +2086,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	u8 *start_hdr;
 	struct iwl_tso_hdr_page *hdr_page;
 	struct page **page_ptr;
-	int ret;
 	struct tso_t tso;
 
 	/* if the packet is protected, then it must be CCMP or GCMP */
@@ -2173,10 +2171,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		if (trans_pcie->sw_csum_tx) {
 			csum_skb = alloc_skb(data_left + tcp_hdrlen(skb),
 					     GFP_ATOMIC);
-			if (!csum_skb) {
-				ret = -ENOMEM;
-				goto out_unmap;
-			}
+			if (!csum_skb)
+				return -ENOMEM;
 
 			iwl_compute_pseudo_hdr_csum(iph, tcph,
 						    skb->protocol ==
@@ -2197,13 +2193,12 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 					     hdr_tb_len, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(trans->dev, hdr_tb_phys))) {
 			dev_kfree_skb(csum_skb);
-			ret = -EINVAL;
-			goto out_unmap;
+			return -EINVAL;
 		}
 		iwl_pcie_txq_build_tfd(trans, txq, hdr_tb_phys,
 				       hdr_tb_len, false);
-		trace_iwlwifi_dev_tx_tso_chunk(trans->dev, start_hdr,
-					       hdr_tb_len);
+		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
+					hdr_tb_len);
 		/* add this subframe's headers' length to the tx_cmd */
 		le16_add_cpu(&tx_cmd->len, hdr_page->pos - subf_hdrs_start);
 
@@ -2223,14 +2218,13 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 						 size, DMA_TO_DEVICE);
 			if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
 				dev_kfree_skb(csum_skb);
-				ret = -EINVAL;
-				goto out_unmap;
+				return -EINVAL;
 			}
 
 			iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
 					       size, false);
-			trace_iwlwifi_dev_tx_tso_chunk(trans->dev, tso.data,
-						       size);
+			trace_iwlwifi_dev_tx_tb(trans->dev, skb, tso.data,
+						size);
 
 			data_left -= size;
 			tso_build_data(skb, &tso, size);
@@ -2258,10 +2252,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	skb_push(skb, hdr_len + iv_len);
 
 	return 0;
-
-out_unmap:
-	iwl_pcie_tfd_unmap(trans, out_meta, txq, txq->write_ptr);
-	return ret;
 }
 #else /* CONFIG_INET */
 static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
@@ -2415,6 +2405,13 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		goto out_err;
 	iwl_pcie_txq_build_tfd(trans, txq, tb1_phys, tb1_len, false);
 
+	trace_iwlwifi_dev_tx(trans->dev, skb,
+			     iwl_pcie_get_tfd(trans, txq,
+					      txq->write_ptr),
+			     trans_pcie->tfd_size,
+			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
+			     hdr_len);
+
 	/*
 	 * If gso_size wasn't set, don't give the frame "amsdu treatment"
 	 * (adding subframes, etc.).
@@ -2426,9 +2423,18 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 						     out_meta, dev_cmd,
 						     tb1_len)))
 			goto out_err;
-	} else if (unlikely(iwl_fill_data_tbs(trans, skb, txq, hdr_len,
-				       out_meta, dev_cmd, tb1_len))) {
-		goto out_err;
+	} else {
+		struct sk_buff *frag;
+
+		if (unlikely(iwl_fill_data_tbs(trans, skb, txq, hdr_len,
+					       out_meta)))
+			goto out_err;
+
+		skb_walk_frags(skb, frag) {
+			if (unlikely(iwl_fill_data_tbs(trans, frag, txq, 0,
+						       out_meta)))
+				goto out_err;
+		}
 	}
 
 	/* building the A-MSDU might have changed this data, so memcpy it now */
@@ -2473,6 +2479,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	spin_unlock(&txq->lock);
 	return 0;
 out_err:
+	iwl_pcie_tfd_unmap(trans, out_meta, txq, txq->write_ptr);
 	spin_unlock(&txq->lock);
 	return -1;
 }

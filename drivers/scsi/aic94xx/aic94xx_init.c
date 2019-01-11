@@ -68,7 +68,6 @@ static struct scsi_host_template aic94xx_sht = {
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler	= sas_eh_device_reset_handler,
 	.eh_target_reset_handler	= sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
@@ -771,13 +770,8 @@ static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto Err_remove;
 
 	err = -ENODEV;
-	if (!pci_set_dma_mask(dev, DMA_BIT_MASK(64))
-	    && !pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(64)))
-		;
-	else if (!pci_set_dma_mask(dev, DMA_BIT_MASK(32))
-		 && !pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(32)))
-		;
-	else {
+	if (dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(64)) ||
+	    dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32))) {
 		asd_printk("no suitable DMA mask for %s\n", pci_name(dev));
 		goto Err_remove;
 	}

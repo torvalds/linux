@@ -8,6 +8,7 @@
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -35,6 +31,7 @@
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,6 +113,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_INTERNAL_TXF = 14,
 	IWL_FW_ERROR_DUMP_EXTERNAL = 15, /* Do not move */
 	IWL_FW_ERROR_DUMP_MEM_CFG = 16,
+	IWL_FW_ERROR_DUMP_D3_DEBUG_DATA = 17,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -189,6 +187,8 @@ enum iwl_fw_error_dump_family {
  * @fw_human_readable: human readable FW version
  * @dev_human_readable: name of the device
  * @bus_human_readable: name of the bus used
+ * @rt_status: the error_id/rt_status that that triggered the latest dump
+ *	if the dump collection was not initiated by an assert, the value is 0
  */
 struct iwl_fw_error_dump_info {
 	__le32 device_family;
@@ -196,6 +196,7 @@ struct iwl_fw_error_dump_info {
 	u8 fw_human_readable[FW_VER_HUMAN_READABLE_SZ];
 	u8 dev_human_readable[64];
 	u8 bus_human_readable[8];
+	__le32 rt_status;
 } __packed;
 
 /**
@@ -251,6 +252,7 @@ struct iwl_fw_error_dump_prph {
 enum iwl_fw_error_dump_mem_type {
 	IWL_FW_ERROR_DUMP_MEM_SRAM,
 	IWL_FW_ERROR_DUMP_MEM_SMEM,
+	IWL_FW_ERROR_DUMP_MEM_NAMED_MEM = 10,
 };
 
 /**
@@ -262,6 +264,22 @@ enum iwl_fw_error_dump_mem_type {
 struct iwl_fw_error_dump_mem {
 	__le32 type;
 	__le32 offset;
+	u8 data[];
+};
+
+/**
+ * struct iwl_fw_error_dump_named_mem - chunk of memory
+ * @type: &enum iwl_fw_error_dump_mem_type
+ * @offset: the offset from which the memory was read
+ * @name_len: name length
+ * @name: file name
+ * @data: the content of the memory
+ */
+struct iwl_fw_error_dump_named_mem {
+	__le32 type;
+	__le32 offset;
+	u8 name_len;
+	u8 name[32];
 	u8 data[];
 };
 
@@ -330,6 +348,7 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
  * @FW_DBG_TRIGGER_TX_STATUS: trigger log collection upon tx status when
  *  the firmware sends a tx reply.
+ * @FW_DBG_TRIGGER_NO_ALIVE: trigger log collection if alive flow fails
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -347,6 +366,7 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_TX_LATENCY,
 	FW_DBG_TRIGGER_TDLS,
 	FW_DBG_TRIGGER_TX_STATUS,
+	FW_DBG_TRIGGER_NO_ALIVE,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

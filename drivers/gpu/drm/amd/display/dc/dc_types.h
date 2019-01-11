@@ -73,10 +73,18 @@ struct hw_asic_id {
 	void *atombios_base_address;
 };
 
+struct dc_perf_trace {
+	unsigned long read_count;
+	unsigned long write_count;
+	unsigned long last_entry_read;
+	unsigned long last_entry_write;
+};
+
 struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
+	struct dc_perf_trace *perf_trace;
 	void *cgs_device;
 
 	enum dce_environment dce_environment;
@@ -513,13 +521,11 @@ struct audio_info {
 	struct audio_mode modes[DC_MAX_AUDIO_DESC_COUNT];
 };
 
-struct vrr_params {
-	enum vrr_state state;
-	uint32_t window_min;
-	uint32_t window_max;
-	uint32_t inserted_frame_duration_in_us;
-	uint32_t frames_to_insert;
-	uint32_t frame_counter;
+enum dc_infoframe_type {
+	DC_HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
+	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
+	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
+	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
 };
 
 struct dc_info_packet {
@@ -537,16 +543,6 @@ struct dc_plane_flip_time {
 	unsigned int time_elapsed_in_us[DC_PLANE_UPDATE_TIMES_MAX];
 	unsigned int index;
 	unsigned int prev_update_time_in_us;
-};
-
-// Will combine with vrr_params at some point.
-struct freesync_context {
-	bool supported;
-	bool enabled;
-	bool active;
-
-	unsigned int min_refresh_in_micro_hz;
-	unsigned int nominal_refresh_in_micro_hz;
 };
 
 struct psr_config {
@@ -668,6 +664,18 @@ enum i2c_mot_mode {
 	I2C_MOT_UNDEF,
 	I2C_MOT_TRUE,
 	I2C_MOT_FALSE
+};
+
+struct AsicStateEx {
+	unsigned int memoryClock;
+	unsigned int displayClock;
+	unsigned int engineClock;
+	unsigned int maxSupportedDppClock;
+	unsigned int dppClock;
+	unsigned int socClock;
+	unsigned int dcfClockDeepSleep;
+	unsigned int fClock;
+	unsigned int phyClock;
 };
 
 #endif /* DC_TYPES_H_ */

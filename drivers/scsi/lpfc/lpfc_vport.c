@@ -138,8 +138,8 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	 * Grab buffer pointer and clear context1 so we can use
 	 * lpfc_sli_issue_box_wait
 	 */
-	mp = (struct lpfc_dmabuf *) pmb->context1;
-	pmb->context1 = NULL;
+	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+	pmb->ctx_buf = NULL;
 
 	pmb->vport = vport;
 	rc = lpfc_sli_issue_mbox_wait(phba, pmb, phba->fc_ratov * 2);
@@ -207,7 +207,7 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 	struct lpfc_vport *vport;
 	unsigned long flags;
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irqsave(&phba->port_list_lock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
 		if (vport == new_vport)
 			continue;
@@ -215,11 +215,11 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 		if (memcmp(&vport->fc_sparam.portName,
 			   &new_vport->fc_sparam.portName,
 			   sizeof(struct lpfc_name)) == 0) {
-			spin_unlock_irqrestore(&phba->hbalock, flags);
+			spin_unlock_irqrestore(&phba->port_list_lock, flags);
 			return 0;
 		}
 	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irqrestore(&phba->port_list_lock, flags);
 	return 1;
 }
 
@@ -825,9 +825,9 @@ skip_logo:
 
 	lpfc_free_vpi(phba, vport->vpi);
 	vport->work_port_events = 0;
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
 			 "1828 Vport Deleted.\n");
 	scsi_host_put(shost);
@@ -844,7 +844,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 			 GFP_KERNEL);
 	if (vports == NULL)
 		return NULL;
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
 		if (port_iterator->load_flag & FC_UNLOADING)
 			continue;
@@ -856,7 +856,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 		}
 		vports[index++] = port_iterator;
 	}
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 	return vports;
 }
 

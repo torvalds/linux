@@ -307,39 +307,32 @@ static struct device *to_vmd_dev(struct device *dev)
 	return &vmd->dev->dev;
 }
 
-static const struct dma_map_ops *vmd_dma_ops(struct device *dev)
-{
-	return get_dma_ops(to_vmd_dev(dev));
-}
-
 static void *vmd_alloc(struct device *dev, size_t size, dma_addr_t *addr,
 		       gfp_t flag, unsigned long attrs)
 {
-	return vmd_dma_ops(dev)->alloc(to_vmd_dev(dev), size, addr, flag,
-				       attrs);
+	return dma_alloc_attrs(to_vmd_dev(dev), size, addr, flag, attrs);
 }
 
 static void vmd_free(struct device *dev, size_t size, void *vaddr,
 		     dma_addr_t addr, unsigned long attrs)
 {
-	return vmd_dma_ops(dev)->free(to_vmd_dev(dev), size, vaddr, addr,
-				      attrs);
+	return dma_free_attrs(to_vmd_dev(dev), size, vaddr, addr, attrs);
 }
 
 static int vmd_mmap(struct device *dev, struct vm_area_struct *vma,
 		    void *cpu_addr, dma_addr_t addr, size_t size,
 		    unsigned long attrs)
 {
-	return vmd_dma_ops(dev)->mmap(to_vmd_dev(dev), vma, cpu_addr, addr,
-				      size, attrs);
+	return dma_mmap_attrs(to_vmd_dev(dev), vma, cpu_addr, addr, size,
+			attrs);
 }
 
 static int vmd_get_sgtable(struct device *dev, struct sg_table *sgt,
 			   void *cpu_addr, dma_addr_t addr, size_t size,
 			   unsigned long attrs)
 {
-	return vmd_dma_ops(dev)->get_sgtable(to_vmd_dev(dev), sgt, cpu_addr,
-					     addr, size, attrs);
+	return dma_get_sgtable_attrs(to_vmd_dev(dev), sgt, cpu_addr, addr, size,
+			attrs);
 }
 
 static dma_addr_t vmd_map_page(struct device *dev, struct page *page,
@@ -347,69 +340,61 @@ static dma_addr_t vmd_map_page(struct device *dev, struct page *page,
 			       enum dma_data_direction dir,
 			       unsigned long attrs)
 {
-	return vmd_dma_ops(dev)->map_page(to_vmd_dev(dev), page, offset, size,
-					  dir, attrs);
+	return dma_map_page_attrs(to_vmd_dev(dev), page, offset, size, dir,
+			attrs);
 }
 
 static void vmd_unmap_page(struct device *dev, dma_addr_t addr, size_t size,
 			   enum dma_data_direction dir, unsigned long attrs)
 {
-	vmd_dma_ops(dev)->unmap_page(to_vmd_dev(dev), addr, size, dir, attrs);
+	dma_unmap_page_attrs(to_vmd_dev(dev), addr, size, dir, attrs);
 }
 
 static int vmd_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		      enum dma_data_direction dir, unsigned long attrs)
 {
-	return vmd_dma_ops(dev)->map_sg(to_vmd_dev(dev), sg, nents, dir, attrs);
+	return dma_map_sg_attrs(to_vmd_dev(dev), sg, nents, dir, attrs);
 }
 
 static void vmd_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 			 enum dma_data_direction dir, unsigned long attrs)
 {
-	vmd_dma_ops(dev)->unmap_sg(to_vmd_dev(dev), sg, nents, dir, attrs);
+	dma_unmap_sg_attrs(to_vmd_dev(dev), sg, nents, dir, attrs);
 }
 
 static void vmd_sync_single_for_cpu(struct device *dev, dma_addr_t addr,
 				    size_t size, enum dma_data_direction dir)
 {
-	vmd_dma_ops(dev)->sync_single_for_cpu(to_vmd_dev(dev), addr, size, dir);
+	dma_sync_single_for_cpu(to_vmd_dev(dev), addr, size, dir);
 }
 
 static void vmd_sync_single_for_device(struct device *dev, dma_addr_t addr,
 				       size_t size, enum dma_data_direction dir)
 {
-	vmd_dma_ops(dev)->sync_single_for_device(to_vmd_dev(dev), addr, size,
-						 dir);
+	dma_sync_single_for_device(to_vmd_dev(dev), addr, size, dir);
 }
 
 static void vmd_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 				int nents, enum dma_data_direction dir)
 {
-	vmd_dma_ops(dev)->sync_sg_for_cpu(to_vmd_dev(dev), sg, nents, dir);
+	dma_sync_sg_for_cpu(to_vmd_dev(dev), sg, nents, dir);
 }
 
 static void vmd_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 				   int nents, enum dma_data_direction dir)
 {
-	vmd_dma_ops(dev)->sync_sg_for_device(to_vmd_dev(dev), sg, nents, dir);
-}
-
-static int vmd_mapping_error(struct device *dev, dma_addr_t addr)
-{
-	return vmd_dma_ops(dev)->mapping_error(to_vmd_dev(dev), addr);
+	dma_sync_sg_for_device(to_vmd_dev(dev), sg, nents, dir);
 }
 
 static int vmd_dma_supported(struct device *dev, u64 mask)
 {
-	return vmd_dma_ops(dev)->dma_supported(to_vmd_dev(dev), mask);
+	return dma_supported(to_vmd_dev(dev), mask);
 }
 
-#ifdef ARCH_HAS_DMA_GET_REQUIRED_MASK
 static u64 vmd_get_required_mask(struct device *dev)
 {
-	return vmd_dma_ops(dev)->get_required_mask(to_vmd_dev(dev));
+	return dma_get_required_mask(to_vmd_dev(dev));
 }
-#endif
 
 static void vmd_teardown_dma_ops(struct vmd_dev *vmd)
 {
@@ -448,11 +433,8 @@ static void vmd_setup_dma_ops(struct vmd_dev *vmd)
 	ASSIGN_VMD_DMA_OPS(source, dest, sync_single_for_device);
 	ASSIGN_VMD_DMA_OPS(source, dest, sync_sg_for_cpu);
 	ASSIGN_VMD_DMA_OPS(source, dest, sync_sg_for_device);
-	ASSIGN_VMD_DMA_OPS(source, dest, mapping_error);
 	ASSIGN_VMD_DMA_OPS(source, dest, dma_supported);
-#ifdef ARCH_HAS_DMA_GET_REQUIRED_MASK
 	ASSIGN_VMD_DMA_OPS(source, dest, get_required_mask);
-#endif
 	add_dma_domain(domain);
 }
 #undef ASSIGN_VMD_DMA_OPS
@@ -813,12 +795,12 @@ static void vmd_remove(struct pci_dev *dev)
 {
 	struct vmd_dev *vmd = pci_get_drvdata(dev);
 
-	vmd_detach_resources(vmd);
 	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_stop_root_bus(vmd->bus);
 	pci_remove_root_bus(vmd->bus);
 	vmd_cleanup_srcu(vmd);
 	vmd_teardown_dma_ops(vmd);
+	vmd_detach_resources(vmd);
 	irq_domain_remove(vmd->irq_domain);
 }
 

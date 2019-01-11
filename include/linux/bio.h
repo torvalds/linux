@@ -21,12 +21,8 @@
 #include <linux/highmem.h>
 #include <linux/mempool.h>
 #include <linux/ioprio.h>
-#include <linux/bug.h>
 
 #ifdef CONFIG_BLOCK
-
-#include <asm/io.h>
-
 /* struct bio, bio_vec and BIO_* flags are defined in blk_types.h */
 #include <linux/blk_types.h>
 
@@ -133,32 +129,6 @@ static inline bool bio_full(struct bio *bio)
 }
 
 /*
- * will die
- */
-#define bvec_to_phys(bv)	(page_to_phys((bv)->bv_page) + (unsigned long) (bv)->bv_offset)
-
-/*
- * merge helpers etc
- */
-
-/* Default implementation of BIOVEC_PHYS_MERGEABLE */
-#define __BIOVEC_PHYS_MERGEABLE(vec1, vec2)	\
-	((bvec_to_phys((vec1)) + (vec1)->bv_len) == bvec_to_phys((vec2)))
-
-/*
- * allow arch override, for eg virtualized architectures (put in asm/io.h)
- */
-#ifndef BIOVEC_PHYS_MERGEABLE
-#define BIOVEC_PHYS_MERGEABLE(vec1, vec2)	\
-	__BIOVEC_PHYS_MERGEABLE(vec1, vec2)
-#endif
-
-#define __BIO_SEG_BOUNDARY(addr1, addr2, mask) \
-	(((addr1) | (mask)) == (((addr2) - 1) | (mask)))
-#define BIOVEC_SEG_BOUNDARY(q, b1, b2) \
-	__BIO_SEG_BOUNDARY(bvec_to_phys((b1)), bvec_to_phys((b2)) + (b2)->bv_len, queue_segment_boundary((q)))
-
-/*
  * drivers should _never_ use the all version - the bio may have been split
  * before it got to the driver and the driver won't own all of it
  */
@@ -170,27 +140,11 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
 {
 	iter->bi_sector += bytes >> 9;
 
-	if (bio_no_advance_iter(bio)) {
+	if (bio_no_advance_iter(bio))
 		iter->bi_size -= bytes;
-		iter->bi_done += bytes;
-	} else {
+	else
 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
 		/* TODO: It is reasonable to complete bio with error here. */
-	}
-}
-
-static inline bool bio_rewind_iter(struct bio *bio, struct bvec_iter *iter,
-		unsigned int bytes)
-{
-	iter->bi_sector -= bytes >> 9;
-
-	if (bio_no_advance_iter(bio)) {
-		iter->bi_size += bytes;
-		iter->bi_done -= bytes;
-		return true;
-	}
-
-	return bvec_iter_rewind(bio->bi_io_vec, iter, bytes);
 }
 
 #define __bio_for_each_segment(bvl, bio, iter, start)			\
@@ -352,6 +306,8 @@ struct bio_integrity_payload {
 	unsigned short		bip_vcnt;	/* # of integrity bio_vecs */
 	unsigned short		bip_max_vcnt;	/* integrity bio_vec slots */
 	unsigned short		bip_flags;	/* control flags */
+
+	struct bvec_iter	bio_iter;	/* for rewinding parent bio */
 
 	struct work_struct	bip_work;	/* I/O completion */
 
@@ -535,35 +491,40 @@ do {						\
 		bio_clear_flag(bio, BIO_THROTTLED);\
 	(bio)->bi_disk = (bdev)->bd_disk;	\
 	(bio)->bi_partno = (bdev)->bd_partno;	\
+	bio_associate_blkg(bio);		\
 } while (0)
 
 #define bio_copy_dev(dst, src)			\
 do {						\
 	(dst)->bi_disk = (src)->bi_disk;	\
 	(dst)->bi_partno = (src)->bi_partno;	\
+	bio_clone_blkg_association(dst, src);	\
 } while (0)
 
 #define bio_dev(bio) \
 	disk_devt((bio)->bi_disk)
 
 #if defined(CONFIG_MEMCG) && defined(CONFIG_BLK_CGROUP)
-int bio_associate_blkcg_from_page(struct bio *bio, struct page *page);
+void bio_associate_blkg_from_page(struct bio *bio, struct page *page);
 #else
-static inline int bio_associate_blkcg_from_page(struct bio *bio,
-						struct page *page) {  return 0; }
+static inline void bio_associate_blkg_from_page(struct bio *bio,
+						struct page *page) { }
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
-int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css);
-int bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg);
-void bio_disassociate_task(struct bio *bio);
-void bio_clone_blkcg_association(struct bio *dst, struct bio *src);
+void bio_disassociate_blkg(struct bio *bio);
+void bio_associate_blkg(struct bio *bio);
+void bio_associate_blkg_from_css(struct bio *bio,
+				 struct cgroup_subsys_state *css);
+void bio_clone_blkg_association(struct bio *dst, struct bio *src);
 #else	/* CONFIG_BLK_CGROUP */
-static inline int bio_associate_blkcg(struct bio *bio,
-			struct cgroup_subsys_state *blkcg_css) { return 0; }
-static inline void bio_disassociate_task(struct bio *bio) { }
-static inline void bio_clone_blkcg_association(struct bio *dst,
-			struct bio *src) { }
+static inline void bio_disassociate_blkg(struct bio *bio) { }
+static inline void bio_associate_blkg(struct bio *bio) { }
+static inline void bio_associate_blkg_from_css(struct bio *bio,
+					       struct cgroup_subsys_state *css)
+{ }
+static inline void bio_clone_blkg_association(struct bio *dst,
+					      struct bio *src) { }
 #endif	/* CONFIG_BLK_CGROUP */
 
 #ifdef CONFIG_HIGHMEM

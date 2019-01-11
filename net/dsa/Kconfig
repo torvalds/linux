@@ -38,8 +38,15 @@ config NET_DSA_TAG_DSA
 config NET_DSA_TAG_EDSA
 	bool
 
+config NET_DSA_TAG_GSWIP
+	bool
+
 config NET_DSA_TAG_KSZ
 	bool
+
+config NET_DSA_TAG_KSZ9477
+	bool
+	select NET_DSA_TAG_KSZ
 
 config NET_DSA_TAG_LAN9303
 	bool

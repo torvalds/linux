@@ -10,6 +10,8 @@ Required Properties:
 	- "mediatek,mt2712-apmixedsys", "syscon"
 	- "mediatek,mt6797-apmixedsys"
 	- "mediatek,mt7622-apmixedsys"
+	- "mediatek,mt7623-apmixedsys", "mediatek,mt2701-apmixedsys"
+	- "mediatek,mt7629-apmixedsys"
 	- "mediatek,mt8135-apmixedsys"
 	- "mediatek,mt8173-apmixedsys"
 - #clock-cells: Must be 1

@@ -71,7 +71,7 @@ void ath10k_sta_update_rx_tid_stats_ampdu(struct ath10k *ar, u16 peer_id, u8 tid
 	spin_lock_bh(&ar->data_lock);
 
 	peer = ath10k_peer_find_by_id(ar, peer_id);
-	if (!peer)
+	if (!peer || !peer->sta)
 		goto out;
 
 	arsta = (struct ath10k_sta *)peer->sta->drv_priv;
@@ -460,6 +460,33 @@ static const struct file_operations fops_peer_debug_trigger = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_dbg_sta_read_peer_ps_state(struct file *file,
+						 char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	char buf[20];
+	int len = 0;
+
+	spin_lock_bh(&ar->data_lock);
+
+	len = scnprintf(buf, sizeof(buf) - len, "%d\n",
+			arsta->peer_ps_state);
+
+	spin_unlock_bh(&ar->data_lock);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_peer_ps_state = {
+	.open = simple_open,
+	.read = ath10k_dbg_sta_read_peer_ps_state,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static char *get_err_str(enum ath10k_pkt_rx_err i)
 {
 	switch (i) {
@@ -626,9 +653,115 @@ static const struct file_operations fops_tid_stats_dump = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
+					    char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	struct ath10k_htt_data_stats *stats;
+	const char *str_name[ATH10K_STATS_TYPE_MAX] = {"succ", "fail",
+						       "retry", "ampdu"};
+	const char *str[ATH10K_COUNTER_TYPE_MAX] = {"bytes", "packets"};
+	int len = 0, i, j, k, retval = 0;
+	const int size = 16 * 4096;
+	char *buf;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&ar->conf_mutex);
+
+	spin_lock_bh(&ar->data_lock);
+	for (k = 0; k < ATH10K_STATS_TYPE_MAX; k++) {
+		for (j = 0; j < ATH10K_COUNTER_TYPE_MAX; j++) {
+			stats = &arsta->tx_stats->stats[k];
+			len += scnprintf(buf + len, size - len, "%s_%s\n",
+					 str_name[k],
+					 str[j]);
+			len += scnprintf(buf + len, size - len,
+					 " VHT MCS %s\n",
+					 str[j]);
+			for (i = 0; i < ATH10K_VHT_MCS_NUM; i++)
+				len += scnprintf(buf + len, size - len,
+						 "  %llu ",
+						 stats->vht[j][i]);
+			len += scnprintf(buf + len, size - len, "\n");
+			len += scnprintf(buf + len, size - len, " HT MCS %s\n",
+					 str[j]);
+			for (i = 0; i < ATH10K_HT_MCS_NUM; i++)
+				len += scnprintf(buf + len, size - len,
+						 "  %llu ", stats->ht[j][i]);
+			len += scnprintf(buf + len, size - len, "\n");
+			len += scnprintf(buf + len, size - len,
+					" BW %s (20,40,80,160 MHz)\n", str[j]);
+			len += scnprintf(buf + len, size - len,
+					 "  %llu %llu %llu %llu\n",
+					 stats->bw[j][0], stats->bw[j][1],
+					 stats->bw[j][2], stats->bw[j][3]);
+			len += scnprintf(buf + len, size - len,
+					 " NSS %s (1x1,2x2,3x3,4x4)\n", str[j]);
+			len += scnprintf(buf + len, size - len,
+					 "  %llu %llu %llu %llu\n",
+					 stats->nss[j][0], stats->nss[j][1],
+					 stats->nss[j][2], stats->nss[j][3]);
+			len += scnprintf(buf + len, size - len,
+					 " GI %s (LGI,SGI)\n",
+					 str[j]);
+			len += scnprintf(buf + len, size - len, "  %llu %llu\n",
+					 stats->gi[j][0], stats->gi[j][1]);
+			len += scnprintf(buf + len, size - len,
+					 " legacy rate %s (1,2 ... Mbps)\n  ",
+					 str[j]);
+			for (i = 0; i < ATH10K_LEGACY_NUM; i++)
+				len += scnprintf(buf + len, size - len, "%llu ",
+						 stats->legacy[j][i]);
+			len += scnprintf(buf + len, size - len, "\n");
+			len += scnprintf(buf + len, size - len,
+					 " Rate table %s (1,2 ... Mbps)\n  ",
+					 str[j]);
+			for (i = 0; i < ATH10K_RATE_TABLE_NUM; i++) {
+				len += scnprintf(buf + len, size - len, "%llu ",
+						 stats->rate_table[j][i]);
+				if (!((i + 1) % 8))
+					len +=
+					scnprintf(buf + len, size - len, "\n  ");
+			}
+		}
+	}
+
+	len += scnprintf(buf + len, size - len,
+			 "\nTX duration\n %llu usecs\n",
+			 arsta->tx_stats->tx_duration);
+	len += scnprintf(buf + len, size - len,
+			"BA fails\n %llu\n", arsta->tx_stats->ba_fails);
+	len += scnprintf(buf + len, size - len,
+			"ack fails\n %llu\n", arsta->tx_stats->ack_fails);
+	spin_unlock_bh(&ar->data_lock);
+
+	if (len > size)
+		len = size;
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	mutex_unlock(&ar->conf_mutex);
+	return retval;
+}
+
+static const struct file_operations fops_tx_stats = {
+	.read = ath10k_dbg_sta_dump_tx_stats,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
+	struct ath10k *ar = hw->priv;
+
 	debugfs_create_file("aggr_mode", 0644, dir, sta, &fops_aggr_mode);
 	debugfs_create_file("addba", 0200, dir, sta, &fops_addba);
 	debugfs_create_file("addba_resp", 0200, dir, sta, &fops_addba_resp);
@@ -637,4 +770,11 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    &fops_peer_debug_trigger);
 	debugfs_create_file("dump_tid_stats", 0400, dir, sta,
 			    &fops_tid_stats_dump);
+
+	if (ath10k_peer_stats_enabled(ar) &&
+	    ath10k_debug_is_extd_tx_stats_enabled(ar))
+		debugfs_create_file("tx_stats", 0400, dir, sta,
+				    &fops_tx_stats);
+	debugfs_create_file("peer_ps_state", 0400, dir, sta,
+			    &fops_peer_ps_state);
 }

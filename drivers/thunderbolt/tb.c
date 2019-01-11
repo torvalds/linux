@@ -404,10 +404,10 @@ static int tb_suspend_noirq(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
 
-	tb_info(tb, "suspending...\n");
+	tb_dbg(tb, "suspending...\n");
 	tb_switch_suspend(tb->root_switch);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
-	tb_info(tb, "suspend finished\n");
+	tb_dbg(tb, "suspend finished\n");
 
 	return 0;
 }
@@ -417,7 +417,7 @@ static int tb_resume_noirq(struct tb *tb)
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_pci_tunnel *tunnel, *n;
 
-	tb_info(tb, "resuming...\n");
+	tb_dbg(tb, "resuming...\n");
 
 	/* remove any pci devices the firmware might have setup */
 	tb_switch_reset(tb, 0);
@@ -432,12 +432,12 @@ static int tb_resume_noirq(struct tb *tb)
 		 * the pcie links need some time to get going.
 		 * 100ms works for me...
 		 */
-		tb_info(tb, "tunnels restarted, sleeping for 100ms\n");
+		tb_dbg(tb, "tunnels restarted, sleeping for 100ms\n");
 		msleep(100);
 	}
 	 /* Allow tb_handle_hotplug to progress events */
 	tcm->hotplug_active = true;
-	tb_info(tb, "resume finished\n");
+	tb_dbg(tb, "resume finished\n");
 
 	return 0;
 }

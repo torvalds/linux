@@ -33,8 +33,6 @@ struct klp_patch *klp_transition_patch;
 
 static int klp_target_state = KLP_UNDEFINED;
 
-static bool klp_forced = false;
-
 /*
  * This work can be performed periodically to finish patching or unpatching any
  * "straggler" tasks which failed to transition in the first attempt.
@@ -52,7 +50,7 @@ static DECLARE_DELAYED_WORK(klp_transition_work, klp_transition_work_fn);
 
 /*
  * This function is just a stub to implement a hard force
- * of synchronize_sched(). This requires synchronizing
+ * of synchronize_rcu(). This requires synchronizing
  * tasks even in userspace and idle.
  */
 static void klp_sync(struct work_struct *work)
@@ -86,6 +84,11 @@ static void klp_complete_transition(void)
 	pr_debug("'%s': completing %s transition\n",
 		 klp_transition_patch->mod->name,
 		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+
+	if (klp_transition_patch->replace && klp_target_state == KLP_PATCHED) {
+		klp_discard_replaced_patches(klp_transition_patch);
+		klp_discard_nops(klp_transition_patch);
+	}
 
 	if (klp_target_state == KLP_UNPATCHED) {
 		/*
@@ -136,13 +139,6 @@ static void klp_complete_transition(void)
 	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
-	/*
-	 * klp_forced set implies unbounded increase of module's ref count if
-	 * the module is disabled/enabled in a loop.
-	 */
-	if (!klp_forced && klp_target_state == KLP_UNPATCHED)
-		module_put(klp_transition_patch->mod);
-
 	klp_target_state = KLP_UNDEFINED;
 	klp_transition_patch = NULL;
 }
@@ -175,7 +171,7 @@ void klp_cancel_transition(void)
 void klp_update_patch_state(struct task_struct *task)
 {
 	/*
-	 * A variant of synchronize_sched() is used to allow patching functions
+	 * A variant of synchronize_rcu() is used to allow patching functions
 	 * where RCU is not watching, see klp_synchronize_transition().
 	 */
 	preempt_disable_notrace();
@@ -224,11 +220,11 @@ static int klp_check_stack_func(struct klp_func *func,
 			 * Check for the to-be-patched function
 			 * (the previous func).
 			 */
-			ops = klp_find_ops(func->old_addr);
+			ops = klp_find_ops(func->old_func);
 
 			if (list_is_singular(&ops->func_stack)) {
 				/* original function */
-				func_addr = func->old_addr;
+				func_addr = (unsigned long)func->old_func;
 				func_size = func->old_size;
 			} else {
 				/* previously patched function */
@@ -359,6 +355,7 @@ void klp_try_complete_transition(void)
 {
 	unsigned int cpu;
 	struct task_struct *g, *task;
+	struct klp_patch *patch;
 	bool complete = true;
 
 	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
@@ -407,7 +404,18 @@ void klp_try_complete_transition(void)
 	}
 
 	/* we're done, now cleanup the data structures */
+	patch = klp_transition_patch;
 	klp_complete_transition();
+
+	/*
+	 * It would make more sense to free the patch in
+	 * klp_complete_transition() but it is called also
+	 * from klp_cancel_transition().
+	 */
+	if (!patch->enabled) {
+		klp_free_patch_start(patch);
+		schedule_work(&patch->free_work);
+	}
 }
 
 /*
@@ -620,6 +628,7 @@ void klp_send_signals(void)
  */
 void klp_force_transition(void)
 {
+	struct klp_patch *patch;
 	struct task_struct *g, *task;
 	unsigned int cpu;
 
@@ -633,5 +642,6 @@ void klp_force_transition(void)
 	for_each_possible_cpu(cpu)
 		klp_update_patch_state(idle_task(cpu));
 
-	klp_forced = true;
+	list_for_each_entry(patch, &klp_patches, list)
+		patch->forced = true;
 }

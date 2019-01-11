@@ -608,7 +608,7 @@ static int macvlan_open(struct net_device *dev)
 		goto hash_add;
 	}
 
-	err = -EBUSY;
+	err = -EADDRINUSE;
 	if (macvlan_addr_busy(vlan->port, dev->dev_addr))
 		goto out;
 
@@ -706,7 +706,7 @@ static int macvlan_sync_address(struct net_device *dev, unsigned char *addr)
 	} else {
 		/* Rehash and update the device filters */
 		if (macvlan_addr_busy(vlan->port, addr))
-			return -EBUSY;
+			return -EADDRINUSE;
 
 		if (!macvlan_passthru(port)) {
 			err = dev_uc_add(lowerdev, addr);
@@ -744,8 +744,11 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 
 	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
 		macvlan_set_addr_change(vlan->port);
-		return dev_set_mac_address(vlan->lowerdev, addr);
+		return dev_set_mac_address(vlan->lowerdev, addr, NULL);
 	}
+
+	if (macvlan_addr_busy(vlan->port, addr->sa_data))
+		return -EADDRINUSE;
 
 	return macvlan_sync_address(dev, addr->sa_data);
 }
@@ -1077,7 +1080,7 @@ static void macvlan_dev_netpoll_cleanup(struct net_device *dev)
 
 	vlan->netpoll = NULL;
 
-	__netpoll_free_async(netpoll);
+	__netpoll_free(netpoll);
 }
 #endif	/* CONFIG_NET_POLL_CONTROLLER */
 
@@ -1210,7 +1213,7 @@ static void macvlan_port_destroy(struct net_device *dev)
 
 		sa.sa_family = port->dev->type;
 		memcpy(&sa.sa_data, port->perm_addr, port->dev->addr_len);
-		dev_set_mac_address(port->dev, &sa);
+		dev_set_mac_address(port->dev, &sa, NULL);
 	}
 
 	kfree(port);

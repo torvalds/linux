@@ -287,8 +287,14 @@ Atomic Mode Setting Function Reference
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
-   :internal:
+Atomic Mode Setting IOCTL and UAPI Functions
+--------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
+   :export:
 
 CRTC Abstraction
 ================
@@ -322,6 +328,12 @@ Frame Buffer Functions Reference
 
 DRM Format Handling
 ===================
+
+.. kernel-doc:: include/uapi/drm/drm_fourcc.h
+   :doc: overview
+
+Format Functions Reference
+--------------------------
 
 .. kernel-doc:: include/drm/drm_fourcc.h
    :internal:
@@ -542,6 +554,18 @@ Plane Composition Properties
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :export:
 
+FB_DAMAGE_CLIPS
+~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_damage_helper.h
+   :internal:
+
 Color Management Properties
 ---------------------------
 
@@ -560,8 +584,15 @@ Tile Group Property
 Explicit Fencing Properties
 ---------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
    :doc: explicit fencing properties
+
+
+Variable Refresh Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: Variable refresh properties
 
 Existing KMS Properties
 -----------------------

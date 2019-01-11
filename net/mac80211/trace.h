@@ -1052,10 +1052,10 @@ TRACE_EVENT(drv_ampdu_action,
 );
 
 TRACE_EVENT(drv_get_survey,
-	TP_PROTO(struct ieee80211_local *local, int idx,
+	TP_PROTO(struct ieee80211_local *local, int _idx,
 		 struct survey_info *survey),
 
-	TP_ARGS(local, idx, survey),
+	TP_ARGS(local, _idx, survey),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -1064,7 +1064,7 @@ TRACE_EVENT(drv_get_survey,
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
-		__entry->idx = idx;
+		__entry->idx = _idx;
 	),
 
 	TP_printk(
@@ -1882,6 +1882,18 @@ TRACE_EVENT(drv_del_nan_func,
 	)
 );
 
+DEFINE_EVENT(local_sdata_evt, drv_start_pmsr,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
+DEFINE_EVENT(local_sdata_evt, drv_abort_pmsr,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
@@ -2597,6 +2609,29 @@ TRACE_EVENT(drv_wake_tx_queue,
 	TP_printk(
 		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT " ac:%d tid:%d",
 		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->ac, __entry->tid
+	)
+);
+
+TRACE_EVENT(drv_get_ftm_responder_stats,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct cfg80211_ftm_responder_stats *ftm_stats),
+
+	TP_ARGS(local, sdata, ftm_stats),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG
 	)
 );
 

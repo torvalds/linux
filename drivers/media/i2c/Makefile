@@ -106,7 +106,10 @@ obj-$(CONFIG_VIDEO_I2C)		+= video-i2c.o
 obj-$(CONFIG_VIDEO_ML86V7667)	+= ml86v7667.o
 obj-$(CONFIG_VIDEO_OV2659)	+= ov2659.o
 obj-$(CONFIG_VIDEO_TC358743)	+= tc358743.o
+obj-$(CONFIG_VIDEO_IMX214)	+= imx214.o
 obj-$(CONFIG_VIDEO_IMX258)	+= imx258.o
 obj-$(CONFIG_VIDEO_IMX274)	+= imx274.o
+obj-$(CONFIG_VIDEO_IMX319)	+= imx319.o
+obj-$(CONFIG_VIDEO_IMX355)	+= imx355.o
 
 obj-$(CONFIG_SDR_MAX2175) += max2175.o

@@ -158,8 +158,6 @@ extern struct key *request_key_and_link(struct key_type *type,
 
 extern bool lookup_user_key_possessed(const struct key *key,
 				      const struct key_match_data *match_data);
-extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
-				 key_perm_t perm);
 #define KEY_LOOKUP_CREATE	0x01
 #define KEY_LOOKUP_PARTIAL	0x02
 #define KEY_LOOKUP_FOR_UNLINK	0x04
@@ -296,6 +294,45 @@ static inline long compat_keyctl_dh_compute(
 	return -EOPNOTSUPP;
 }
 #endif
+#endif
+
+#ifdef CONFIG_ASYMMETRIC_KEY_TYPE
+extern long keyctl_pkey_query(key_serial_t,
+			      const char __user *,
+			      struct keyctl_pkey_query __user *);
+
+extern long keyctl_pkey_verify(const struct keyctl_pkey_params __user *,
+			       const char __user *,
+			       const void __user *, const void __user *);
+
+extern long keyctl_pkey_e_d_s(int,
+			      const struct keyctl_pkey_params __user *,
+			      const char __user *,
+			      const void __user *, void __user *);
+#else
+static inline long keyctl_pkey_query(key_serial_t id,
+				     const char __user *_info,
+				     struct keyctl_pkey_query __user *_res)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline long keyctl_pkey_verify(const struct keyctl_pkey_params __user *params,
+				      const char __user *_info,
+				      const void __user *_in,
+				      const void __user *_in2)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline long keyctl_pkey_e_d_s(int op,
+				     const struct keyctl_pkey_params __user *params,
+				     const char __user *_info,
+				     const void __user *_in,
+				     void __user *_out)
+{
+	return -EOPNOTSUPP;
+}
 #endif
 
 /*

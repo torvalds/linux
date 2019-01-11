@@ -219,34 +219,6 @@ static u32 tonga_ih_get_wptr(struct amdgpu_device *adev)
 }
 
 /**
- * tonga_ih_prescreen_iv - prescreen an interrupt vector
- *
- * @adev: amdgpu_device pointer
- *
- * Returns true if the interrupt vector should be further processed.
- */
-static bool tonga_ih_prescreen_iv(struct amdgpu_device *adev)
-{
-	u32 ring_index = adev->irq.ih.rptr >> 2;
-	u16 pasid;
-
-	switch (le32_to_cpu(adev->irq.ih.ring[ring_index]) & 0xff) {
-	case 146:
-	case 147:
-		pasid = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]) >> 16;
-		if (!pasid || amdgpu_vm_pasid_fault_credit(adev, pasid))
-			return true;
-		break;
-	default:
-		/* Not a VM fault */
-		return true;
-	}
-
-	adev->irq.ih.rptr += 16;
-	return false;
-}
-
-/**
  * tonga_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
@@ -266,7 +238,7 @@ static void tonga_ih_decode_iv(struct amdgpu_device *adev,
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
 	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
 
-	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
+	entry->client_id = AMDGPU_IRQ_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
 	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
@@ -317,12 +289,12 @@ static int tonga_ih_sw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_ih_ring_init(adev, 64 * 1024, true);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, true);
 	if (r)
 		return r;
 
 	adev->irq.ih.use_doorbell = true;
-	adev->irq.ih.doorbell_index = AMDGPU_DOORBELL_IH;
+	adev->irq.ih.doorbell_index = adev->doorbell_index.ih;
 
 	r = amdgpu_irq_init(adev);
 
@@ -334,7 +306,7 @@ static int tonga_ih_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
 	amdgpu_irq_remove_domain(adev);
 
 	return 0;
@@ -506,15 +478,13 @@ static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs tonga_ih_funcs = {
 	.get_wptr = tonga_ih_get_wptr,
-	.prescreen_iv = tonga_ih_prescreen_iv,
 	.decode_iv = tonga_ih_decode_iv,
 	.set_rptr = tonga_ih_set_rptr
 };
 
 static void tonga_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 {
-	if (adev->irq.ih_funcs == NULL)
-		adev->irq.ih_funcs = &tonga_ih_funcs;
+	adev->irq.ih_funcs = &tonga_ih_funcs;
 }
 
 const struct amdgpu_ip_block_version tonga_ih_ip_block =

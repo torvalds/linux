@@ -246,8 +246,14 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 static inline int crypto_acomp_compress(struct acomp_req *req)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int slen = req->slen;
+	int ret;
 
-	return tfm->compress(req);
+	crypto_stats_get(alg);
+	ret = tfm->compress(req);
+	crypto_stats_compress(slen, ret, alg);
+	return ret;
 }
 
 /**
@@ -262,8 +268,14 @@ static inline int crypto_acomp_compress(struct acomp_req *req)
 static inline int crypto_acomp_decompress(struct acomp_req *req)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int slen = req->slen;
+	int ret;
 
-	return tfm->decompress(req);
+	crypto_stats_get(alg);
+	ret = tfm->decompress(req);
+	crypto_stats_decompress(slen, ret, alg);
+	return ret;
 }
 
 #endif

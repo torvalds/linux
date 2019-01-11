@@ -494,7 +494,8 @@ retry:
 			do_xmote(gl, gh, LM_ST_UNLOCKED);
 			break;
 		default: /* Everything else */
-			pr_err("wanted %u got %u\n", gl->gl_target, state);
+			fs_err(gl->gl_name.ln_sbd, "wanted %u got %u\n",
+			       gl->gl_target, state);
 			GLOCK_BUG_ON(gl, 1);
 		}
 		spin_unlock(&gl->gl_lockref.lock);
@@ -577,7 +578,7 @@ __acquires(&gl->gl_lockref.lock)
 			gfs2_glock_queue_work(gl, 0);
 		}
 		else if (ret) {
-			pr_err("lm_lock ret %d\n", ret);
+			fs_err(sdp, "lm_lock ret %d\n", ret);
 			GLOCK_BUG_ON(gl, !test_bit(SDF_SHUTDOWN,
 						   &sdp->sd_flags));
 		}
@@ -1064,13 +1065,13 @@ do_cancel:
 	return;
 
 trap_recursive:
-	pr_err("original: %pSR\n", (void *)gh2->gh_ip);
-	pr_err("pid: %d\n", pid_nr(gh2->gh_owner_pid));
-	pr_err("lock type: %d req lock state : %d\n",
+	fs_err(sdp, "original: %pSR\n", (void *)gh2->gh_ip);
+	fs_err(sdp, "pid: %d\n", pid_nr(gh2->gh_owner_pid));
+	fs_err(sdp, "lock type: %d req lock state : %d\n",
 	       gh2->gh_gl->gl_name.ln_type, gh2->gh_state);
-	pr_err("new: %pSR\n", (void *)gh->gh_ip);
-	pr_err("pid: %d\n", pid_nr(gh->gh_owner_pid));
-	pr_err("lock type: %d req lock state : %d\n",
+	fs_err(sdp, "new: %pSR\n", (void *)gh->gh_ip);
+	fs_err(sdp, "pid: %d\n", pid_nr(gh->gh_owner_pid));
+	fs_err(sdp, "lock type: %d req lock state : %d\n",
 	       gh->gh_gl->gl_name.ln_type, gh->gh_state);
 	gfs2_dump_glock(NULL, gl);
 	BUG();
@@ -1776,7 +1777,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
  *
  */
 
-void gfs2_dump_glock(struct seq_file *seq, const struct gfs2_glock *gl)
+void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned long long dtime;

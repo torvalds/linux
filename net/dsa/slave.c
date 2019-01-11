@@ -722,7 +722,7 @@ static void dsa_slave_netpoll_cleanup(struct net_device *dev)
 
 	p->netpoll = NULL;
 
-	__netpoll_free_async(netpoll);
+	__netpoll_free(netpoll);
 }
 
 static void dsa_slave_poll_controller(struct net_device *dev)
@@ -767,7 +767,6 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 	const struct tc_action *a;
 	struct dsa_port *to_dp;
 	int err = -EOPNOTSUPP;
-	LIST_HEAD(actions);
 
 	if (!ds->ops->port_mirror_add)
 		return err;
@@ -775,8 +774,7 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 	if (!tcf_exts_has_one_action(cls->exts))
 		return err;
 
-	tcf_exts_to_list(cls->exts, &actions);
-	a = list_first_entry(&actions, struct tc_action, list);
+	a = tcf_exts_first_action(cls->exts);
 
 	if (is_tcf_mirred_egress_mirror(a) && protocol == htons(ETH_P_ALL)) {
 		struct dsa_mall_mirror_tc_entry *mirror;
@@ -1052,8 +1050,6 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
 	.switchdev_port_attr_get	= dsa_slave_port_attr_get,
 	.switchdev_port_attr_set	= dsa_slave_port_attr_set,
-	.switchdev_port_obj_add		= dsa_slave_port_obj_add,
-	.switchdev_port_obj_del		= dsa_slave_port_obj_del,
 };
 
 static struct device_type dsa_type = {
@@ -1452,6 +1448,7 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 			netdev_dbg(dev, "fdb add failed err=%d\n", err);
 			break;
 		}
+		fdb_info->offloaded = true;
 		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
 					 &fdb_info->info);
 		break;
@@ -1530,6 +1527,44 @@ err_fdb_work_init:
 	return NOTIFY_BAD;
 }
 
+static int
+dsa_slave_switchdev_port_obj_event(unsigned long event,
+			struct net_device *netdev,
+			struct switchdev_notifier_port_obj_info *port_obj_info)
+{
+	int err = -EOPNOTSUPP;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = dsa_slave_port_obj_add(netdev, port_obj_info->obj,
+					     port_obj_info->trans);
+		break;
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = dsa_slave_port_obj_del(netdev, port_obj_info->obj);
+		break;
+	}
+
+	port_obj_info->handled = true;
+	return notifier_from_errno(err);
+}
+
+static int dsa_slave_switchdev_blocking_event(struct notifier_block *unused,
+					      unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+
+	if (!dsa_slave_dev_check(dev))
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD: /* fall through */
+	case SWITCHDEV_PORT_OBJ_DEL:
+		return dsa_slave_switchdev_port_obj_event(event, dev, ptr);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block dsa_slave_nb __read_mostly = {
 	.notifier_call  = dsa_slave_netdevice_event,
 };
@@ -1538,8 +1573,13 @@ static struct notifier_block dsa_slave_switchdev_notifier = {
 	.notifier_call = dsa_slave_switchdev_event,
 };
 
+static struct notifier_block dsa_slave_switchdev_blocking_notifier = {
+	.notifier_call = dsa_slave_switchdev_blocking_event,
+};
+
 int dsa_slave_register_notifier(void)
 {
+	struct notifier_block *nb;
 	int err;
 
 	err = register_netdevice_notifier(&dsa_slave_nb);
@@ -1550,8 +1590,15 @@ int dsa_slave_register_notifier(void)
 	if (err)
 		goto err_switchdev_nb;
 
+	nb = &dsa_slave_switchdev_blocking_notifier;
+	err = register_switchdev_blocking_notifier(nb);
+	if (err)
+		goto err_switchdev_blocking_nb;
+
 	return 0;
 
+err_switchdev_blocking_nb:
+	unregister_switchdev_notifier(&dsa_slave_switchdev_notifier);
 err_switchdev_nb:
 	unregister_netdevice_notifier(&dsa_slave_nb);
 	return err;
@@ -1559,7 +1606,13 @@ err_switchdev_nb:
 
 void dsa_slave_unregister_notifier(void)
 {
+	struct notifier_block *nb;
 	int err;
+
+	nb = &dsa_slave_switchdev_blocking_notifier;
+	err = unregister_switchdev_blocking_notifier(nb);
+	if (err)
+		pr_err("DSA: failed to unregister switchdev blocking notifier (%d)\n", err);
 
 	err = unregister_switchdev_notifier(&dsa_slave_switchdev_notifier);
 	if (err)

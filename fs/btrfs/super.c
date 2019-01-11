@@ -93,7 +93,7 @@ const char *btrfs_decode_error(int errno)
 
 /*
  * __btrfs_handle_fs_error decodes expected errors from the caller and
- * invokes the approciate error response.
+ * invokes the appropriate error response.
  */
 __cold
 void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function,
@@ -151,7 +151,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 	 * although there is no way to update the progress. It would add the
 	 * risk of a deadlock, therefore the canceling is omitted. The only
 	 * penalty is that some I/O remains active until the procedure
-	 * completes. The next time when the filesystem is mounted writeable
+	 * completes. The next time when the filesystem is mounted writable
 	 * again, the device replace operation continues.
 	 */
 }
@@ -1458,56 +1458,6 @@ out:
 	return root;
 }
 
-static int parse_security_options(char *orig_opts,
-				  struct security_mnt_opts *sec_opts)
-{
-	char *secdata = NULL;
-	int ret = 0;
-
-	secdata = alloc_secdata();
-	if (!secdata)
-		return -ENOMEM;
-	ret = security_sb_copy_data(orig_opts, secdata);
-	if (ret) {
-		free_secdata(secdata);
-		return ret;
-	}
-	ret = security_sb_parse_opts_str(secdata, sec_opts);
-	free_secdata(secdata);
-	return ret;
-}
-
-static int setup_security_options(struct btrfs_fs_info *fs_info,
-				  struct super_block *sb,
-				  struct security_mnt_opts *sec_opts)
-{
-	int ret = 0;
-
-	/*
-	 * Call security_sb_set_mnt_opts() to check whether new sec_opts
-	 * is valid.
-	 */
-	ret = security_sb_set_mnt_opts(sb, sec_opts, 0, NULL);
-	if (ret)
-		return ret;
-
-#ifdef CONFIG_SECURITY
-	if (!fs_info->security_opts.num_mnt_opts) {
-		/* first time security setup, copy sec_opts to fs_info */
-		memcpy(&fs_info->security_opts, sec_opts, sizeof(*sec_opts));
-	} else {
-		/*
-		 * Since SELinux (the only one supporting security_mnt_opts)
-		 * does NOT support changing context during remount/mount of
-		 * the same sb, this must be the same or part of the same
-		 * security options, just free it.
-		 */
-		security_free_mnt_opts(sec_opts);
-	}
-#endif
-	return ret;
-}
-
 /*
  * Find a superblock for the given device / mount point.
  *
@@ -1522,16 +1472,15 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 	struct btrfs_device *device = NULL;
 	struct btrfs_fs_devices *fs_devices = NULL;
 	struct btrfs_fs_info *fs_info = NULL;
-	struct security_mnt_opts new_sec_opts;
+	void *new_sec_opts = NULL;
 	fmode_t mode = FMODE_READ;
 	int error = 0;
 
 	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
-	security_init_mnt_opts(&new_sec_opts);
 	if (data) {
-		error = parse_security_options(data, &new_sec_opts);
+		error = security_sb_eat_lsm_opts(data, &new_sec_opts);
 		if (error)
 			return ERR_PTR(error);
 	}
@@ -1550,7 +1499,6 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 
 	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
-	security_init_mnt_opts(&fs_info->security_opts);
 	if (!fs_info->super_copy || !fs_info->super_for_commit) {
 		error = -ENOMEM;
 		goto error_fs_info;
@@ -1601,16 +1549,12 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 		btrfs_sb(s)->bdev_holder = fs_type;
 		error = btrfs_fill_super(s, fs_devices, data);
 	}
+	if (!error)
+		error = security_sb_set_mnt_opts(s, new_sec_opts, 0, NULL);
+	security_free_mnt_opts(&new_sec_opts);
 	if (error) {
 		deactivate_locked_super(s);
-		goto error_sec_opts;
-	}
-
-	fs_info = btrfs_sb(s);
-	error = setup_security_options(fs_info, s, &new_sec_opts);
-	if (error) {
-		deactivate_locked_super(s);
-		goto error_sec_opts;
+		return ERR_PTR(error);
 	}
 
 	return dget(s->s_root);
@@ -1779,18 +1723,14 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	btrfs_remount_prepare(fs_info);
 
 	if (data) {
-		struct security_mnt_opts new_sec_opts;
+		void *new_sec_opts = NULL;
 
-		security_init_mnt_opts(&new_sec_opts);
-		ret = parse_security_options(data, &new_sec_opts);
+		ret = security_sb_eat_lsm_opts(data, &new_sec_opts);
+		if (!ret)
+			ret = security_sb_remount(sb, new_sec_opts);
+		security_free_mnt_opts(&new_sec_opts);
 		if (ret)
 			goto restore;
-		ret = setup_security_options(fs_info, sb,
-					     &new_sec_opts);
-		if (ret) {
-			security_free_mnt_opts(&new_sec_opts);
-			goto restore;
-		}
 	}
 
 	ret = btrfs_parse_options(fs_info, data, *flags);
@@ -1848,7 +1788,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 
 		if (!btrfs_check_rw_degradable(fs_info, NULL)) {
 			btrfs_warn(fs_info,
-				"too many missing devices, writeable remount is not allowed");
+		"too many missing devices, writable remount is not allowed");
 			ret = -EACCES;
 			goto restore;
 		}
@@ -1916,7 +1856,7 @@ restore:
 }
 
 /* Used to sort the devices by max_avail(descending sort) */
-static int btrfs_cmp_device_free_bytes(const void *dev_info1,
+static inline int btrfs_cmp_device_free_bytes(const void *dev_info1,
 				       const void *dev_info2)
 {
 	if (((struct btrfs_device_info *)dev_info1)->max_avail >
@@ -1945,8 +1885,8 @@ static inline void btrfs_descending_sort_devices(
  * The helper to calc the free space on the devices that can be used to store
  * file data.
  */
-static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
-				       u64 *free_bytes)
+static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
+					      u64 *free_bytes)
 {
 	struct btrfs_device_info *devices_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
@@ -2090,7 +2030,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	u64 total_free_data = 0;
 	u64 total_free_meta = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
-	__be32 *fsid = (__be32 *)fs_info->fsid;
+	__be32 *fsid = (__be32 *)fs_info->fs_devices->fsid;
 	unsigned factor = 1;
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	int ret;
@@ -2177,8 +2117,10 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid.val[0] = be32_to_cpu(fsid[0]) ^ be32_to_cpu(fsid[2]);
 	buf->f_fsid.val[1] = be32_to_cpu(fsid[1]) ^ be32_to_cpu(fsid[3]);
 	/* Mask in the root object ID too, to disambiguate subvols */
-	buf->f_fsid.val[0] ^= BTRFS_I(d_inode(dentry))->root->objectid >> 32;
-	buf->f_fsid.val[1] ^= BTRFS_I(d_inode(dentry))->root->objectid;
+	buf->f_fsid.val[0] ^=
+		BTRFS_I(d_inode(dentry))->root->root_key.objectid >> 32;
+	buf->f_fsid.val[1] ^=
+		BTRFS_I(d_inode(dentry))->root->root_key.objectid;
 
 	return 0;
 }
@@ -2235,6 +2177,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	vol = memdup_user((void __user *)arg, sizeof(*vol));
 	if (IS_ERR(vol))
 		return PTR_ERR(vol);
+	vol->name[BTRFS_PATH_NAME_MAX] = '\0';
 
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:
@@ -2309,7 +2252,7 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 	 * device_list_mutex here as we only read the device data and the list
 	 * is protected by RCU.  Even if a device is deleted during the list
 	 * traversals, we'll get valid data, the freeing callback will wait at
-	 * least until until the rcu_read_unlock.
+	 * least until the rcu_read_unlock.
 	 */
 	rcu_read_lock();
 	cur_devices = fs_info->fs_devices;

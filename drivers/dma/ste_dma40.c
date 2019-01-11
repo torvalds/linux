@@ -442,6 +442,7 @@ struct d40_base;
  * @queue: Queued jobs.
  * @prepare_queue: Prepared jobs.
  * @dma_cfg: The client configuration of this dma channel.
+ * @slave_config: DMA slave configuration.
  * @configured: whether the dma_cfg configuration is valid
  * @base: Pointer to the device instance struct.
  * @src_def_cfg: Default cfg register setting for src.
@@ -468,6 +469,7 @@ struct d40_chan {
 	struct list_head		 queue;
 	struct list_head		 prepare_queue;
 	struct stedma40_chan_cfg	 dma_cfg;
+	struct dma_slave_config		 slave_config;
 	bool				 configured;
 	struct d40_base			*base;
 	/* Default register configurations */
@@ -624,6 +626,10 @@ static void __iomem *chan_base(struct d40_chan *chan)
 
 #define chan_err(d40c, format, arg...)		\
 	d40_err(chan2dev(d40c), format, ## arg)
+
+static int d40_set_runtime_config_write(struct dma_chan *chan,
+				  struct dma_slave_config *config,
+				  enum dma_transfer_direction direction);
 
 static int d40_pool_lli_alloc(struct d40_chan *d40c, struct d40_desc *d40d,
 			      int lli_len)
@@ -2216,6 +2222,8 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 		return NULL;
 	}
 
+	d40_set_runtime_config_write(dchan, &chan->slave_config, direction);
+
 	spin_lock_irqsave(&chan->lock, flags);
 
 	desc = d40_prep_desc(chan, sg_src, sg_len, dma_flags);
@@ -2634,9 +2642,20 @@ dma40_config_to_halfchannel(struct d40_chan *d40c,
 	return 0;
 }
 
-/* Runtime reconfiguration extension */
 static int d40_set_runtime_config(struct dma_chan *chan,
 				  struct dma_slave_config *config)
+{
+	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
+
+	memcpy(&d40c->slave_config, config, sizeof(*config));
+
+	return 0;
+}
+
+/* Runtime reconfiguration extension */
+static int d40_set_runtime_config_write(struct dma_chan *chan,
+				  struct dma_slave_config *config,
+				  enum dma_transfer_direction direction)
 {
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	struct stedma40_chan_cfg *cfg = &d40c->dma_cfg;
@@ -2655,7 +2674,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	dst_addr_width = config->dst_addr_width;
 	dst_maxburst = config->dst_maxburst;
 
-	if (config->direction == DMA_DEV_TO_MEM) {
+	if (direction == DMA_DEV_TO_MEM) {
 		config_addr = config->src_addr;
 
 		if (cfg->dir != DMA_DEV_TO_MEM)
@@ -2671,7 +2690,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 		if (dst_maxburst == 0)
 			dst_maxburst = src_maxburst;
 
-	} else if (config->direction == DMA_MEM_TO_DEV) {
+	} else if (direction == DMA_MEM_TO_DEV) {
 		config_addr = config->dst_addr;
 
 		if (cfg->dir != DMA_MEM_TO_DEV)
@@ -2689,7 +2708,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	} else {
 		dev_err(d40c->base->dev,
 			"unrecognized channel direction %d\n",
-			config->direction);
+			direction);
 		return -EINVAL;
 	}
 
@@ -2746,12 +2765,12 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 
 	/* These settings will take precedence later */
 	d40c->runtime_addr = config_addr;
-	d40c->runtime_direction = config->direction;
+	d40c->runtime_direction = direction;
 	dev_dbg(d40c->base->dev,
 		"configured channel %s for %s, data width %d/%d, "
 		"maxburst %d/%d elements, LE, no flow control\n",
 		dma_chan_name(chan),
-		(config->direction == DMA_DEV_TO_MEM) ? "RX" : "TX",
+		(direction == DMA_DEV_TO_MEM) ? "RX" : "TX",
 		src_addr_width, dst_addr_width,
 		src_maxburst, dst_maxburst);
 
@@ -2839,7 +2858,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 
 	d40_ops_init(base, &base->dma_slave);
 
-	err = dma_async_device_register(&base->dma_slave);
+	err = dmaenginem_async_device_register(&base->dma_slave);
 
 	if (err) {
 		d40_err(base->dev, "Failed to register slave channels\n");
@@ -2854,12 +2873,12 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 
 	d40_ops_init(base, &base->dma_memcpy);
 
-	err = dma_async_device_register(&base->dma_memcpy);
+	err = dmaenginem_async_device_register(&base->dma_memcpy);
 
 	if (err) {
 		d40_err(base->dev,
 			"Failed to register memcpy only channels\n");
-		goto unregister_slave;
+		goto exit;
 	}
 
 	d40_chan_init(base, &base->dma_both, base->phy_chans,
@@ -2871,18 +2890,14 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	dma_cap_set(DMA_CYCLIC, base->dma_slave.cap_mask);
 
 	d40_ops_init(base, &base->dma_both);
-	err = dma_async_device_register(&base->dma_both);
+	err = dmaenginem_async_device_register(&base->dma_both);
 
 	if (err) {
 		d40_err(base->dev,
 			"Failed to register logical and physical capable channels\n");
-		goto unregister_memcpy;
+		goto exit;
 	}
 	return 0;
- unregister_memcpy:
-	dma_async_device_unregister(&base->dma_memcpy);
- unregister_slave:
-	dma_async_device_unregister(&base->dma_slave);
  exit:
 	return err;
 }

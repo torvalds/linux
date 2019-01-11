@@ -540,7 +540,7 @@
 &epwmss2 {
 	status = "okay";
 
-	ecap2: ecap@48304100 {
+	ecap2: ecap@100 {
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&ecap2_pins>;
@@ -639,16 +639,24 @@
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <2>;
 };
@@ -690,7 +698,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>; /* gpio 31 */
+		interrupts = <31 IRQ_TYPE_EDGE_RISING>; /* gpio 31 */
 		ref-clock-frequency = <38400000>;
 	};
 };
@@ -730,6 +738,6 @@
 };
 
 &rtc {
-	clocks = <&clk_32768_ck>, <&l4_per_clkctrl AM3_CLKDIV32K_CLKCTRL 0>;
+	clocks = <&clk_32768_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
 	clock-names = "ext-clk", "int-clk";
 };

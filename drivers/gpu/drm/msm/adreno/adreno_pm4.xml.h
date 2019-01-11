@@ -10,14 +10,14 @@ git clone https://github.com/freedreno/envytools.git
 The rules-ng-ng source files this header was generated from are:
 - /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
 - /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  36805 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  13634 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  42393 bytes, from 2018-08-06 18:45:45)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
 - /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
 - /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-08-06 18:45:45)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 101627 bytes, from 2018-08-06 18:45:45)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
 - /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
 
 Copyright (C) 2013-2018 by the following authors:
@@ -106,6 +106,13 @@ enum pc_di_src_sel {
 	DI_SRC_SEL_IMMEDIATE = 1,
 	DI_SRC_SEL_AUTO_INDEX = 2,
 	DI_SRC_SEL_RESERVED = 3,
+};
+
+enum pc_di_face_cull_sel {
+	DI_FACE_CULL_NONE = 0,
+	DI_FACE_CULL_FETCH = 1,
+	DI_FACE_BACKFACE_CULL = 2,
+	DI_FACE_FRONTFACE_CULL = 3,
 };
 
 enum pc_di_index_size {
@@ -237,7 +244,7 @@ enum adreno_pm4_type3_packets {
 	CP_UNK_A6XX_14 = 20,
 	CP_UNK_A6XX_36 = 54,
 	CP_UNK_A6XX_55 = 85,
-	UNK_A6XX_6D = 109,
+	CP_REG_WRITE = 109,
 };
 
 enum adreno_state_block {
@@ -356,6 +363,7 @@ enum a6xx_render_mode {
 	RM6_GMEM = 4,
 	RM6_BLIT2D = 5,
 	RM6_RESOLVE = 6,
+	RM6_BLIT2DSCALE = 12,
 };
 
 enum pseudo_reg {
@@ -968,19 +976,19 @@ static inline uint32_t CP_SET_BIN_DATA5_4_BIN_SIZE_ADDRESS_HI(uint32_t val)
 }
 
 #define REG_CP_SET_BIN_DATA5_5					0x00000005
-#define CP_SET_BIN_DATA5_5_XXX_ADDRESS_LO__MASK			0xffffffff
-#define CP_SET_BIN_DATA5_5_XXX_ADDRESS_LO__SHIFT		0
-static inline uint32_t CP_SET_BIN_DATA5_5_XXX_ADDRESS_LO(uint32_t val)
+#define CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__MASK		0xffffffff
+#define CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__SHIFT		0
+static inline uint32_t CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO(uint32_t val)
 {
-	return ((val) << CP_SET_BIN_DATA5_5_XXX_ADDRESS_LO__SHIFT) & CP_SET_BIN_DATA5_5_XXX_ADDRESS_LO__MASK;
+	return ((val) << CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__SHIFT) & CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__MASK;
 }
 
 #define REG_CP_SET_BIN_DATA5_6					0x00000006
-#define CP_SET_BIN_DATA5_6_XXX_ADDRESS_HI__MASK			0xffffffff
-#define CP_SET_BIN_DATA5_6_XXX_ADDRESS_HI__SHIFT		0
-static inline uint32_t CP_SET_BIN_DATA5_6_XXX_ADDRESS_HI(uint32_t val)
+#define CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__MASK		0xffffffff
+#define CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__SHIFT		0
+static inline uint32_t CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO(uint32_t val)
 {
-	return ((val) << CP_SET_BIN_DATA5_6_XXX_ADDRESS_HI__SHIFT) & CP_SET_BIN_DATA5_6_XXX_ADDRESS_HI__MASK;
+	return ((val) << CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__SHIFT) & CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__MASK;
 }
 
 #define REG_CP_REG_TO_MEM_0					0x00000000

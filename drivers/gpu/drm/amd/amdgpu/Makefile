@@ -35,7 +35,8 @@ ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_DISPLAY_PATH) \
 	-I$(FULL_AMD_DISPLAY_PATH)/include \
 	-I$(FULL_AMD_DISPLAY_PATH)/dc \
-	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm
+	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm \
+	-I$(FULL_AMD_PATH)/amdkfd
 
 amdgpu-y := amdgpu_drv.o
 
@@ -51,8 +52,8 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_prime.o amdgpu_vm.o amdgpu_ib.o amdgpu_pll.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o \
 	amdgpu_gtt_mgr.o amdgpu_vram_mgr.o amdgpu_virt.o amdgpu_atomfirmware.o \
-	amdgpu_queue_mgr.o amdgpu_vf_error.o amdgpu_sched.o amdgpu_debugfs.o \
-	amdgpu_ids.o
+	amdgpu_vf_error.o amdgpu_sched.o amdgpu_debugfs.o amdgpu_ids.o \
+	amdgpu_gmc.o amdgpu_xgmi.o amdgpu_csa.o
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
@@ -62,7 +63,7 @@ amdgpu-$(CONFIG_DRM_AMDGPU_SI)+= si.o gmc_v6_0.o gfx_v6_0.o si_ih.o si_dma.o dce
 
 amdgpu-y += \
 	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o emu_soc.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o \
-	vega20_reg_init.o
+	vega20_reg_init.o nbio_v7_4.o
 
 # add DF block
 amdgpu-y += \
@@ -73,7 +74,7 @@ amdgpu-y += \
 amdgpu-y += \
 	gmc_v7_0.o \
 	gmc_v8_0.o \
-	gfxhub_v1_0.o mmhub_v1_0.o gmc_v9_0.o
+	gfxhub_v1_0.o mmhub_v1_0.o gmc_v9_0.o gfxhub_v1_1.o
 
 # add IH block
 amdgpu-y += \
@@ -88,7 +89,8 @@ amdgpu-y += \
 amdgpu-y += \
 	amdgpu_psp.o \
 	psp_v3_1.o \
-	psp_v10_0.o
+	psp_v10_0.o \
+	psp_v11_0.o
 
 # add SMC block
 amdgpu-y += \
@@ -103,11 +105,13 @@ amdgpu-y += \
 # add GFX block
 amdgpu-y += \
 	amdgpu_gfx.o \
+	amdgpu_rlc.o \
 	gfx_v8_0.o \
 	gfx_v9_0.o
 
 # add async DMA block
 amdgpu-y += \
+	amdgpu_sdma.o \
 	sdma_v2_4.o \
 	sdma_v3_0.o \
 	sdma_v4_0.o
@@ -134,6 +138,9 @@ amdgpu-y += \
 amdgpu-y += amdgpu_amdkfd.o
 
 ifneq ($(CONFIG_HSA_AMD),)
+AMDKFD_PATH := ../amdkfd
+include $(FULL_AMD_PATH)/amdkfd/Makefile
+amdgpu-y += $(AMDKFD_FILES)
 amdgpu-y += \
 	 amdgpu_amdkfd_fence.o \
 	 amdgpu_amdkfd_gpuvm.o \

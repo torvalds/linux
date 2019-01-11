@@ -189,7 +189,11 @@ Power-Down (SRPD), among other things.
 
 Required properties:
 - compatible     : should contain one of these
+	"brcm,brcmstb-memc-ddr-rev-b.2.1"
 	"brcm,brcmstb-memc-ddr-rev-b.2.2"
+	"brcm,brcmstb-memc-ddr-rev-b.2.3"
+	"brcm,brcmstb-memc-ddr-rev-b.3.0"
+	"brcm,brcmstb-memc-ddr-rev-b.3.1"
 	"brcm,brcmstb-memc-ddr"
 - reg            : the MEMC DDR register range
 

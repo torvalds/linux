@@ -312,9 +312,6 @@ enum iwl_mvm_agg_state {
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
  * @tx_time: medium time consumed by this A-MPDU
- * @is_tid_active: has this TID sent traffic in the last
- *	%IWL_MVM_DQA_QUEUE_TIMEOUT time period. If %txq_id is invalid, this
- *	field should be ignored.
  * @tpt_meas_start: time of the throughput measurements start, is reset every HZ
  * @tx_count_last: number of frames transmitted during the last second
  * @tx_count: counts the number of frames transmitted since the last reset of
@@ -332,7 +329,6 @@ struct iwl_mvm_tid_data {
 	u16 txq_id;
 	u16 ssn;
 	u16 tx_time;
-	bool is_tid_active;
 	unsigned long tpt_meas_start;
 	u32 tx_count_last;
 	u32 tx_count;
@@ -401,6 +397,9 @@ struct iwl_mvm_rxq_dup_data {
  * @ptk_pn: per-queue PTK PN data structures
  * @dup_data: per queue duplicate packet detection data
  * @deferred_traffic_tid_map: indication bitmap of deferred traffic per-TID
+ * @tx_ant: the index of the antenna to use for data tx to this station. Only
+ *	used during connection establishment (e.g. for the 4 way handshake
+ *	exchange).
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -443,6 +442,7 @@ struct iwl_mvm_sta {
 	u8 agg_tids;
 	u8 sleep_tx_count;
 	u8 avg_energy;
+	u8 tx_ant;
 };
 
 u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data);
@@ -571,9 +571,5 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 				       bool disable);
 void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
-
-int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
-			       int ac, int ssn, unsigned int wdg_timeout,
-			       bool force);
 
 #endif /* __sta_h__ */

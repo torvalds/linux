@@ -276,6 +276,8 @@ int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 
 		/* Start the stream in the subdevice direct connected */
 		pad = media_entity_remote_pad(&ent->pads[i]);
+		if (!pad)
+			continue;
 
 		if (!is_media_entity_v4l2_subdev(pad->entity))
 			return -EINVAL;
@@ -430,7 +432,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 	sd->entity.function = function;
 	sd->entity.ops = &vimc_ent_sd_mops;
 	sd->owner = THIS_MODULE;
-	strlcpy(sd->name, name, sizeof(sd->name));
+	strscpy(sd->name, name, sizeof(sd->name));
 	v4l2_set_subdevdata(sd, ved);
 
 	/* Expose this subdev to user space */

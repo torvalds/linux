@@ -13,7 +13,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_intf.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 
 #define INTF_TIMING_ENGINE_EN           0x000
@@ -64,9 +63,6 @@
 #define   INTF_FRAME_LINE_COUNT_EN      0x0A8
 #define   INTF_FRAME_COUNT              0x0AC
 #define   INTF_LINE_COUNT               0x0B0
-
-#define INTF_MISR_CTRL			0x180
-#define INTF_MISR_SIGNATURE		0x184
 
 static struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
 		struct dpu_mdss_cfg *m,
@@ -246,30 +242,6 @@ static void dpu_hw_intf_get_status(
 	}
 }
 
-static void dpu_hw_intf_setup_misr(struct dpu_hw_intf *intf,
-						bool enable, u32 frame_count)
-{
-	struct dpu_hw_blk_reg_map *c = &intf->hw;
-	u32 config = 0;
-
-	DPU_REG_WRITE(c, INTF_MISR_CTRL, MISR_CTRL_STATUS_CLEAR);
-	/* clear misr data */
-	wmb();
-
-	if (enable)
-		config = (frame_count & MISR_FRAME_COUNT_MASK) |
-			MISR_CTRL_ENABLE | INTF_MISR_CTRL_FREE_RUN_MASK;
-
-	DPU_REG_WRITE(c, INTF_MISR_CTRL, config);
-}
-
-static u32 dpu_hw_intf_collect_misr(struct dpu_hw_intf *intf)
-{
-	struct dpu_hw_blk_reg_map *c = &intf->hw;
-
-	return DPU_REG_READ(c, INTF_MISR_SIGNATURE);
-}
-
 static u32 dpu_hw_intf_get_line_count(struct dpu_hw_intf *intf)
 {
 	struct dpu_hw_blk_reg_map *c;
@@ -289,15 +261,10 @@ static void _setup_intf_ops(struct dpu_hw_intf_ops *ops,
 	ops->setup_prg_fetch  = dpu_hw_intf_setup_prg_fetch;
 	ops->get_status = dpu_hw_intf_get_status;
 	ops->enable_timing = dpu_hw_intf_enable_timing_engine;
-	ops->setup_misr = dpu_hw_intf_setup_misr;
-	ops->collect_misr = dpu_hw_intf_collect_misr;
 	ops->get_line_count = dpu_hw_intf_get_line_count;
 }
 
-static struct dpu_hw_blk_ops dpu_hw_ops = {
-	.start = NULL,
-	.stop = NULL,
-};
+static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
 		void __iomem *addr,
@@ -305,7 +272,6 @@ struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
 {
 	struct dpu_hw_intf *c;
 	struct dpu_intf_cfg *cfg;
-	int rc;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -326,18 +292,9 @@ struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
 	c->mdss = m;
 	_setup_intf_ops(&c->ops, c->cap->features);
 
-	rc = dpu_hw_blk_init(&c->base, DPU_HW_BLK_INTF, idx, &dpu_hw_ops);
-	if (rc) {
-		DPU_ERROR("failed to init hw blk %d\n", rc);
-		goto blk_init_error;
-	}
+	dpu_hw_blk_init(&c->base, DPU_HW_BLK_INTF, idx, &dpu_hw_ops);
 
 	return c;
-
-blk_init_error:
-	kzfree(c);
-
-	return ERR_PTR(rc);
 }
 
 void dpu_hw_intf_destroy(struct dpu_hw_intf *intf)

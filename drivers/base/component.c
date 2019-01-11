@@ -85,17 +85,7 @@ static int component_devices_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int component_devices_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, component_devices_show, inode->i_private);
-}
-
-static const struct file_operations component_devices_fops = {
-	.open = component_devices_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(component_devices);
 
 static int __init component_debug_init(void)
 {
@@ -536,9 +526,9 @@ int component_bind_all(struct device *master_dev, void *data)
 		}
 
 	if (ret != 0) {
-		for (; i--; )
-			if (!master->match->compare[i].duplicate) {
-				c = master->match->compare[i].component;
+		for (; i > 0; i--)
+			if (!master->match->compare[i - 1].duplicate) {
+				c = master->match->compare[i - 1].component;
 				component_unbind(c, master, data);
 			}
 	}

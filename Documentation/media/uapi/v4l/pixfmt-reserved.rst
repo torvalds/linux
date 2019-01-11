@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _pixfmt-reserved:
 
@@ -243,7 +250,20 @@ please make a proposal on the linux-media mailing list.
 	It is an opaque intermediate format and the MDP hardware must be
 	used to convert ``V4L2_PIX_FMT_MT21C`` to ``V4L2_PIX_FMT_NV12M``,
 	``V4L2_PIX_FMT_YUV420M`` or ``V4L2_PIX_FMT_YVU420``.
+    * .. _V4L2-PIX-FMT-SUNXI-TILED-NV12:
 
+      - ``V4L2_PIX_FMT_SUNXI_TILED_NV12``
+      - 'ST12'
+      - Two-planar NV12-based format used by the video engine found on Allwinner
+	(codenamed sunxi) platforms, with 32x32 tiles for the luminance plane
+	and 32x64 tiles for the chrominance plane. The data in each tile is
+	stored in linear order, within the tile bounds. Each tile follows the
+	previous one linearly in memory (from left to right, top to bottom).
+
+	The associated buffer dimensions are aligned to match an integer number
+	of tiles, resulting in 32-aligned resolutions for the luminance plane
+	and 16-aligned resolutions for the chrominance plane (with 2x2
+	subsampling).
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

@@ -256,11 +256,29 @@ static int spi_gpio_setup(struct spi_device *spi)
 static int spi_gpio_set_direction(struct spi_device *spi, bool output)
 {
 	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
+	int ret;
 
 	if (output)
 		return gpiod_direction_output(spi_gpio->mosi, 1);
-	else
-		return gpiod_direction_input(spi_gpio->mosi);
+
+	ret = gpiod_direction_input(spi_gpio->mosi);
+	if (ret)
+		return ret;
+	/*
+	 * Send a turnaround high impedance cycle when switching
+	 * from output to input. Theoretically there should be
+	 * a clock delay here, but as has been noted above, the
+	 * nsec delay function for bit-banged GPIO is simply
+	 * {} because bit-banging just doesn't get fast enough
+	 * anyway.
+	 */
+	if (spi->mode & SPI_3WIRE_HIZ) {
+		gpiod_set_value_cansleep(spi_gpio->sck,
+					 !(spi->mode & SPI_CPOL));
+		gpiod_set_value_cansleep(spi_gpio->sck,
+					 !!(spi->mode & SPI_CPOL));
+	}
+	return 0;
 }
 
 static void spi_gpio_cleanup(struct spi_device *spi)
@@ -295,13 +313,15 @@ static int spi_gpio_request(struct device *dev,
 	spi_gpio->miso = devm_gpiod_get_optional(dev, "miso", GPIOD_IN);
 	if (IS_ERR(spi_gpio->miso))
 		return PTR_ERR(spi_gpio->miso);
-	if (!spi_gpio->miso)
-		/* HW configuration without MISO pin */
-		*mflags |= SPI_MASTER_NO_RX;
+	/*
+	 * No setting SPI_MASTER_NO_RX here - if there is only a MOSI
+	 * pin connected the host can still do RX by changing the
+	 * direction of the line.
+	 */
 
 	spi_gpio->sck = devm_gpiod_get(dev, "sck", GPIOD_OUT_LOW);
-	if (IS_ERR(spi_gpio->mosi))
-		return PTR_ERR(spi_gpio->mosi);
+	if (IS_ERR(spi_gpio->sck))
+		return PTR_ERR(spi_gpio->sck);
 
 	for (i = 0; i < num_chipselects; i++) {
 		spi_gpio->cs_gpios[i] = devm_gpiod_get_index(dev, "cs",
@@ -408,7 +428,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 		return status;
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
-	master->mode_bits = SPI_3WIRE | SPI_CPHA | SPI_CPOL;
+	master->mode_bits = SPI_3WIRE | SPI_3WIRE_HIZ | SPI_CPHA | SPI_CPOL;
 	master->flags = master_flags;
 	master->bus_num = pdev->id;
 	/* The master needs to think there is a chipselect even if not connected */
@@ -423,7 +443,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	spi_gpio->bitbang.chipselect = spi_gpio_chipselect;
 	spi_gpio->bitbang.set_line_direction = spi_gpio_set_direction;
 
-	if ((master_flags & (SPI_MASTER_NO_TX | SPI_MASTER_NO_RX)) == 0) {
+	if ((master_flags & SPI_MASTER_NO_TX) == 0) {
 		spi_gpio->bitbang.txrx_word[SPI_MODE_0] = spi_gpio_txrx_word_mode0;
 		spi_gpio->bitbang.txrx_word[SPI_MODE_1] = spi_gpio_txrx_word_mode1;
 		spi_gpio->bitbang.txrx_word[SPI_MODE_2] = spi_gpio_txrx_word_mode2;
@@ -447,10 +467,8 @@ static int spi_gpio_probe(struct platform_device *pdev)
 static int spi_gpio_remove(struct platform_device *pdev)
 {
 	struct spi_gpio			*spi_gpio;
-	struct spi_gpio_platform_data	*pdata;
 
 	spi_gpio = platform_get_drvdata(pdev);
-	pdata = dev_get_platdata(&pdev->dev);
 
 	/* stop() unregisters child devices too */
 	spi_bitbang_stop(&spi_gpio->bitbang);

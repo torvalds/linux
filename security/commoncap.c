@@ -9,7 +9,6 @@
 
 #include <linux/capability.h>
 #include <linux/audit.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/lsm_hooks.h>
@@ -388,7 +387,7 @@ int cap_inode_getsecurity(struct inode *inode, const char *name, void **buffer,
 	if (strcmp(name, "capability") != 0)
 		return -EOPNOTSUPP;
 
-	dentry = d_find_alias(inode);
+	dentry = d_find_any_alias(inode);
 	if (!dentry)
 		return -EINVAL;
 
@@ -684,9 +683,6 @@ static int get_file_caps(struct linux_binprm *bprm, bool *effective, bool *has_f
 	}
 
 	rc = bprm_caps_from_vfs_caps(&vcaps, bprm, effective, has_fcap);
-	if (rc == -EINVAL)
-		printk(KERN_NOTICE "%s: cap_from_disk returned %d for %s\n",
-		       __func__, rc, bprm->filename);
 
 out:
 	if (rc)

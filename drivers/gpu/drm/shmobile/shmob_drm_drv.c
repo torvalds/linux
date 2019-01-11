@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * shmob_drm_drv.c  --  SH Mobile DRM driver
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -198,7 +194,7 @@ static int shmob_drm_remove(struct platform_device *pdev)
 	drm_kms_helper_poll_fini(ddev);
 	drm_mode_config_cleanup(ddev);
 	drm_irq_uninstall(ddev);
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 
 	return 0;
 }
@@ -294,7 +290,7 @@ err_modeset_cleanup:
 	drm_kms_helper_poll_fini(ddev);
 	drm_mode_config_cleanup(ddev);
 err_free_drm_dev:
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 
 	return ret;
 }

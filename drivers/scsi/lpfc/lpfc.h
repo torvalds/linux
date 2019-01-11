@@ -52,7 +52,7 @@ struct lpfc_sli2_slim;
 		downloads using bsg */
 
 #define LPFC_MIN_SG_SLI4_BUF_SZ	0x800	/* based on LPFC_DEFAULT_SG_SEG_CNT */
-#define LPFC_MAX_SG_SLI4_SEG_CNT_DIF 128 /* sg element count per scsi cmnd */
+#define LPFC_MAX_BG_SLI4_SEG_CNT_DIF 128 /* sg element count for BlockGuard */
 #define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
 #define LPFC_MIN_SG_SEG_CNT	32	/* sg element count per scsi cmnd */
@@ -335,6 +335,18 @@ enum hba_state {
 	LPFC_HBA_ERROR       =  -1
 };
 
+struct lpfc_trunk_link_state {
+	enum hba_state state;
+	uint8_t fault;
+};
+
+struct lpfc_trunk_link  {
+	struct lpfc_trunk_link_state link0,
+				     link1,
+				     link2,
+				     link3;
+};
+
 struct lpfc_vport {
 	struct lpfc_hba *phba;
 	struct list_head listentry;
@@ -490,6 +502,7 @@ struct lpfc_vport {
 	struct nvme_fc_local_port *localport;
 	uint8_t  nvmei_support; /* driver supports NVME Initiator */
 	uint32_t last_fcp_wqidx;
+	uint32_t rcv_flogi_cnt; /* How many unsol FLOGIs ACK'd. */
 };
 
 struct hbq_s {
@@ -583,6 +596,25 @@ struct lpfc_mbox_ext_buf_ctx {
 	struct list_head ext_dmabuf_list;
 };
 
+struct lpfc_ras_fwlog {
+	uint8_t *fwlog_buff;
+	uint32_t fw_buffcount; /* Buffer size posted to FW */
+#define LPFC_RAS_BUFF_ENTERIES  16      /* Each entry can hold max of 64k */
+#define LPFC_RAS_MAX_ENTRY_SIZE (64 * 1024)
+#define LPFC_RAS_MIN_BUFF_POST_SIZE (256 * 1024)
+#define LPFC_RAS_MAX_BUFF_POST_SIZE (1024 * 1024)
+	uint32_t fw_loglevel; /* Log level set */
+	struct lpfc_dmabuf lwpd;
+	struct list_head fwlog_buff_list;
+
+	/* RAS support status on adapter */
+	bool ras_hwsupport; /* RAS Support available on HW or not */
+	bool ras_enabled;   /* Ras Enabled for the function */
+#define LPFC_RAS_DISABLE_LOGGING 0x00
+#define LPFC_RAS_ENABLE_LOGGING 0x01
+	bool ras_active;    /* RAS logging running state */
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	int (*lpfc_new_scsi_buf)
@@ -664,6 +696,7 @@ struct lpfc_hba {
 	uint32_t iocb_cmd_size;
 	uint32_t iocb_rsp_size;
 
+	struct lpfc_trunk_link  trunk_link;
 	enum hba_state link_state;
 	uint32_t link_flag;	/* link state flags */
 #define LS_LOOPBACK_MODE      0x1	/* NPort is in Loopback mode */
@@ -672,7 +705,7 @@ struct lpfc_hba {
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
 #define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
 #define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
-#define LS_MDS_LOOPBACK      0x16	/* MDS Diagnostics Link Up (Loopback) */
+#define LS_MDS_LOOPBACK      0x10	/* MDS Diagnostics Link Up (Loopback) */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
@@ -698,6 +731,7 @@ struct lpfc_hba {
 					 * capability
 					 */
 #define HBA_NVME_IOQ_FLUSH      0x80000 /* NVME IO queues flushed. */
+#define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
 
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
@@ -764,6 +798,7 @@ struct lpfc_hba {
 #define LPFC_FCF_PRIORITY 2	/* Priority fcf failover */
 	uint32_t cfg_fcf_failover_policy;
 	uint32_t cfg_fcp_io_sched;
+	uint32_t cfg_ns_query;
 	uint32_t cfg_fcp2_no_tgt_reset;
 	uint32_t cfg_cr_delay;
 	uint32_t cfg_cr_count;
@@ -790,6 +825,7 @@ struct lpfc_hba {
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_nvme_seg_cnt;
+	uint32_t cfg_scsi_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
@@ -833,6 +869,9 @@ struct lpfc_hba {
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
+	uint32_t cfg_ras_fwlog_level;
+	uint32_t cfg_ras_fwlog_buffsize;
+	uint32_t cfg_ras_fwlog_func;
 	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
 	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
@@ -963,9 +1002,11 @@ struct lpfc_hba {
 	uint32_t intr_mode;
 #define LPFC_INTR_ERROR	0xFFFFFFFF
 	struct list_head port_list;
+	spinlock_t port_list_lock;	/* lock for port_list mutations */
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
 	uint16_t max_vpi;		/* Maximum virtual nports */
-#define LPFC_MAX_VPI 0xFFFF		/* Max number of VPI supported */
+#define LPFC_MAX_VPI	0xFF		/* Max number VPI supported 0 - 0xff */
+#define LPFC_MAX_VPORTS	0x100		/* Max vports per port, with pport */
 	uint16_t max_vports;            /*
 					 * For IOV HBAs max_vpi can change
 					 * after a reset. max_vports is max
@@ -1087,10 +1128,17 @@ struct lpfc_hba {
 	uint16_t vlan_id;
 	struct list_head fcf_conn_rec_list;
 
+	bool defer_flogi_acc_flag;
+	uint16_t defer_flogi_acc_rx_id;
+	uint16_t defer_flogi_acc_ox_id;
+
 	spinlock_t ct_ev_lock; /* synchronize access to ct_ev_waiters */
 	struct list_head ct_ev_waiters;
 	struct unsol_rcv_ct_ctx ct_ctx[LPFC_CT_CTX_MAX];
 	uint32_t ctx_idx;
+
+	/* RAS Support */
+	struct lpfc_ras_fwlog ras_fwlog;
 
 	uint8_t menlo_flag;	/* menlo generic flags */
 #define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
@@ -1235,6 +1283,12 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 static inline struct lpfc_sli_ring *
 lpfc_phba_elsring(struct lpfc_hba *phba)
 {
+	/* Return NULL if sli_rev has become invalid due to bad fw */
+	if (phba->sli_rev != LPFC_SLI_REV4  &&
+	    phba->sli_rev != LPFC_SLI_REV3  &&
+	    phba->sli_rev != LPFC_SLI_REV2)
+		return NULL;
+
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		if (phba->sli4_hba.els_wq)
 			return phba->sli4_hba.els_wq->pring;

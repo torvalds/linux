@@ -59,19 +59,27 @@ bool vgic_supports_direct_msis(struct kvm *kvm)
 	return kvm_vgic_global_state.has_gicv4 && vgic_has_its(kvm);
 }
 
+/*
+ * The Revision field in the IIDR have the following meanings:
+ *
+ * Revision 2: Interrupt groups are guest-configurable and signaled using
+ * 	       their configured groups.
+ */
+
 static unsigned long vgic_mmio_read_v3_misc(struct kvm_vcpu *vcpu,
 					    gpa_t addr, unsigned int len)
 {
+	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
 	u32 value = 0;
 
 	switch (addr & 0x0c) {
 	case GICD_CTLR:
-		if (vcpu->kvm->arch.vgic.enabled)
+		if (vgic->enabled)
 			value |= GICD_CTLR_ENABLE_SS_G1;
 		value |= GICD_CTLR_ARE_NS | GICD_CTLR_DS;
 		break;
 	case GICD_TYPER:
-		value = vcpu->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
+		value = vgic->nr_spis + VGIC_NR_PRIVATE_IRQS;
 		value = (value >> 5) - 1;
 		if (vgic_has_its(vcpu->kvm)) {
 			value |= (INTERRUPT_ID_BITS_ITS - 1) << 19;
@@ -81,7 +89,9 @@ static unsigned long vgic_mmio_read_v3_misc(struct kvm_vcpu *vcpu,
 		}
 		break;
 	case GICD_IIDR:
-		value = (PRODUCT_ID_KVM << 24) | (IMPLEMENTER_ARM << 0);
+		value = (PRODUCT_ID_KVM << GICD_IIDR_PRODUCT_ID_SHIFT) |
+			(vgic->implementation_rev << GICD_IIDR_REVISION_SHIFT) |
+			(IMPLEMENTER_ARM << GICD_IIDR_IMPLEMENTER_SHIFT);
 		break;
 	default:
 		return 0;
@@ -108,6 +118,20 @@ static void vgic_mmio_write_v3_misc(struct kvm_vcpu *vcpu,
 	case GICD_IIDR:
 		return;
 	}
+}
+
+static int vgic_mmio_uaccess_write_v3_misc(struct kvm_vcpu *vcpu,
+					   gpa_t addr, unsigned int len,
+					   unsigned long val)
+{
+	switch (addr & 0x0c) {
+	case GICD_IIDR:
+		if (val != vgic_mmio_read_v3_misc(vcpu, addr, len))
+			return -EINVAL;
+	}
+
+	vgic_mmio_write_v3_misc(vcpu, addr, len, val);
+	return 0;
 }
 
 static unsigned long vgic_mmio_read_irouter(struct kvm_vcpu *vcpu,
@@ -246,9 +270,9 @@ static unsigned long vgic_v3_uaccess_read_pending(struct kvm_vcpu *vcpu,
 	return value;
 }
 
-static void vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
-					  gpa_t addr, unsigned int len,
-					  unsigned long val)
+static int vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
+					 gpa_t addr, unsigned int len,
+					 unsigned long val)
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
@@ -273,6 +297,8 @@ static void vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
 
 		vgic_put_irq(vcpu->kvm, irq);
 	}
+
+	return 0;
 }
 
 /* We want to avoid outer shareable. */
@@ -338,7 +364,6 @@ static u64 vgic_sanitise_pendbaser(u64 reg)
 				  vgic_sanitise_outer_cacheability);
 
 	reg &= ~PENDBASER_RES0_MASK;
-	reg &= ~GENMASK_ULL(51, 48);
 
 	return reg;
 }
@@ -356,7 +381,6 @@ static u64 vgic_sanitise_propbaser(u64 reg)
 				  vgic_sanitise_outer_cacheability);
 
 	reg &= ~PROPBASER_RES0_MASK;
-	reg &= ~GENMASK_ULL(51, 48);
 	return reg;
 }
 
@@ -444,14 +468,15 @@ static void vgic_mmio_write_pendbase(struct kvm_vcpu *vcpu,
 	}
 
 static const struct vgic_register_region vgic_v3_dist_registers[] = {
-	REGISTER_DESC_WITH_LENGTH(GICD_CTLR,
-		vgic_mmio_read_v3_misc, vgic_mmio_write_v3_misc, 16,
-		VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_LENGTH_UACCESS(GICD_CTLR,
+		vgic_mmio_read_v3_misc, vgic_mmio_write_v3_misc,
+		NULL, vgic_mmio_uaccess_write_v3_misc,
+		16, VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GICD_STATUSR,
 		vgic_mmio_read_rao, vgic_mmio_write_wi, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IGROUPR,
-		vgic_mmio_read_rao, vgic_mmio_write_wi, NULL, NULL, 1,
+		vgic_mmio_read_group, vgic_mmio_write_group, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISENABLER,
 		vgic_mmio_read_enable, vgic_mmio_write_senable, NULL, NULL, 1,
@@ -465,7 +490,7 @@ static const struct vgic_register_region vgic_v3_dist_registers[] = {
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICPENDR,
 		vgic_mmio_read_pending, vgic_mmio_write_cpending,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 1,
+		vgic_mmio_read_raz, vgic_mmio_uaccess_write_wi, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISACTIVER,
 		vgic_mmio_read_active, vgic_mmio_write_sactive,
@@ -524,7 +549,7 @@ static const struct vgic_register_region vgic_v3_rdbase_registers[] = {
 
 static const struct vgic_register_region vgic_v3_sgibase_registers[] = {
 	REGISTER_DESC_WITH_LENGTH(GICR_IGROUPR0,
-		vgic_mmio_read_rao, vgic_mmio_write_wi, 4,
+		vgic_mmio_read_group, vgic_mmio_write_group, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GICR_ISENABLER0,
 		vgic_mmio_read_enable, vgic_mmio_write_senable, 4,
@@ -538,7 +563,7 @@ static const struct vgic_register_region vgic_v3_sgibase_registers[] = {
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ICPENDR0,
 		vgic_mmio_read_pending, vgic_mmio_write_cpending,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 4,
+		vgic_mmio_read_raz, vgic_mmio_uaccess_write_wi, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ISACTIVER0,
 		vgic_mmio_read_active, vgic_mmio_write_sactive,
@@ -873,7 +898,8 @@ static int match_mpidr(u64 sgi_aff, u16 sgi_cpu_mask, struct kvm_vcpu *vcpu)
 /**
  * vgic_v3_dispatch_sgi - handle SGI requests from VCPUs
  * @vcpu: The VCPU requesting a SGI
- * @reg: The value written into the ICC_SGI1R_EL1 register by that VCPU
+ * @reg: The value written into ICC_{ASGI1,SGI0,SGI1}R by that VCPU
+ * @allow_group1: Does the sysreg access allow generation of G1 SGIs
  *
  * With GICv3 (and ARE=1) CPUs trigger SGIs by writing to a system register.
  * This will trap in sys_regs.c and call this function.
@@ -883,7 +909,7 @@ static int match_mpidr(u64 sgi_aff, u16 sgi_cpu_mask, struct kvm_vcpu *vcpu)
  * check for matching ones. If this bit is set, we signal all, but not the
  * calling VCPU.
  */
-void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
+void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *c_vcpu;
@@ -932,9 +958,19 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
 		irq = vgic_get_irq(vcpu->kvm, c_vcpu, sgi);
 
 		spin_lock_irqsave(&irq->irq_lock, flags);
-		irq->pending_latch = true;
 
-		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
+		/*
+		 * An access targetting Group0 SGIs can only generate
+		 * those, while an access targetting Group1 SGIs can
+		 * generate interrupts of either group.
+		 */
+		if (!irq->group || allow_group1) {
+			irq->pending_latch = true;
+			vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
+		} else {
+			spin_unlock_irqrestore(&irq->irq_lock, flags);
+		}
+
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 }

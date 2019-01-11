@@ -38,33 +38,39 @@
 u64 mmhub_v1_0_get_fb_location(struct amdgpu_device *adev)
 {
 	u64 base = RREG32_SOC15(MMHUB, 0, mmMC_VM_FB_LOCATION_BASE);
+	u64 top = RREG32_SOC15(MMHUB, 0, mmMC_VM_FB_LOCATION_TOP);
 
 	base &= MC_VM_FB_LOCATION_BASE__FB_BASE_MASK;
 	base <<= 24;
 
+	top &= MC_VM_FB_LOCATION_TOP__FB_TOP_MASK;
+	top <<= 24;
+
+	adev->gmc.fb_start = base;
+	adev->gmc.fb_end = top;
+
 	return base;
 }
 
-static void mmhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
+void mmhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base)
 {
-	uint64_t value;
+	/* two registers distance between mmVM_CONTEXT0_* to mmVM_CONTEXT1_* */
+	int offset = mmVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32
+			- mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32;
 
-	BUG_ON(adev->gart.table_addr & (~0x0000FFFFFFFFF000ULL));
-	value = adev->gart.table_addr - adev->gmc.vram_start +
-		adev->vm_manager.vram_base_offset;
-	value &= 0x0000FFFFFFFFF000ULL;
-	value |= 0x1; /* valid bit */
+	WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+			offset * vmid, lower_32_bits(page_table_base));
 
-	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-		     lower_32_bits(value));
-
-	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-		     upper_32_bits(value));
+	WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+			offset * vmid, upper_32_bits(page_table_base));
 }
 
 static void mmhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 {
-	mmhub_v1_0_init_gart_pt_regs(adev);
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+
+	mmhub_v1_0_setup_vm_pt_regs(adev, 0, pt_base);
 
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
 		     (u32)(adev->gmc.gart_start >> 12));
@@ -82,16 +88,28 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	uint64_t value;
 	uint32_t tmp;
 
-	/* Disable AGP. */
+	/* Program the AGP BAR */
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_AGP_BASE, 0);
-	WREG32_SOC15(MMHUB, 0, mmMC_VM_AGP_TOP, 0);
-	WREG32_SOC15(MMHUB, 0, mmMC_VM_AGP_BOT, 0x00FFFFFF);
+	WREG32_SOC15(MMHUB, 0, mmMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
+	WREG32_SOC15(MMHUB, 0, mmMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
 
 	/* Program the system aperture low logical page number. */
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-		     adev->gmc.vram_start >> 18);
-	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-		     adev->gmc.vram_end >> 18);
+		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
+
+	if (adev->asic_type == CHIP_RAVEN && adev->rev_id >= 0x8)
+		/*
+		 * Raven2 has a HW issue that it is unable to use the vram which
+		 * is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR. So here is the
+		 * workaround that increase system aperture high address (add 1)
+		 * to get rid of the VM fault and hardware hang.
+		 */
+		WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			     max((adev->gmc.fb_end >> 18) + 0x1,
+				 adev->gmc.agp_end >> 18));
+	else
+		WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
 	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
@@ -260,236 +278,16 @@ static void mmhub_v1_0_program_invalidation(struct amdgpu_device *adev)
 	}
 }
 
-struct pctl_data {
-	uint32_t index;
-	uint32_t data;
-};
-
-static const struct pctl_data pctl0_data[] = {
-	{0x0, 0x7a640},
-	{0x9, 0x2a64a},
-	{0xd, 0x2a680},
-	{0x11, 0x6a684},
-	{0x19, 0xea68e},
-	{0x29, 0xa69e},
-	{0x2b, 0x0010a6c0},
-	{0x3d, 0x83a707},
-	{0xc2, 0x8a7a4},
-	{0xcc, 0x1a7b8},
-	{0xcf, 0xfa7cc},
-	{0xe0, 0x17a7dd},
-	{0xf9, 0xa7dc},
-	{0xfb, 0x12a7f5},
-	{0x10f, 0xa808},
-	{0x111, 0x12a810},
-	{0x125, 0x7a82c}
-};
-#define PCTL0_DATA_LEN (ARRAY_SIZE(pctl0_data))
-
-#define PCTL0_RENG_EXEC_END_PTR 0x12d
-#define PCTL0_STCTRL_REG_SAVE_RANGE0_BASE  0xa640
-#define PCTL0_STCTRL_REG_SAVE_RANGE0_LIMIT 0xa833
-
-static const struct pctl_data pctl1_data[] = {
-	{0x0, 0x39a000},
-	{0x3b, 0x44a040},
-	{0x81, 0x2a08d},
-	{0x85, 0x6ba094},
-	{0xf2, 0x18a100},
-	{0x10c, 0x4a132},
-	{0x112, 0xca141},
-	{0x120, 0x2fa158},
-	{0x151, 0x17a1d0},
-	{0x16a, 0x1a1e9},
-	{0x16d, 0x13a1ec},
-	{0x182, 0x7a201},
-	{0x18b, 0x3a20a},
-	{0x190, 0x7a580},
-	{0x199, 0xa590},
-	{0x19b, 0x4a594},
-	{0x1a1, 0x1a59c},
-	{0x1a4, 0x7a82c},
-	{0x1ad, 0xfa7cc},
-	{0x1be, 0x17a7dd},
-	{0x1d7, 0x12a810},
-	{0x1eb, 0x4000a7e1},
-	{0x1ec, 0x5000a7f5},
-	{0x1ed, 0x4000a7e2},
-	{0x1ee, 0x5000a7dc},
-	{0x1ef, 0x4000a7e3},
-	{0x1f0, 0x5000a7f6},
-	{0x1f1, 0x5000a7e4}
-};
-#define PCTL1_DATA_LEN (ARRAY_SIZE(pctl1_data))
-
-#define PCTL1_RENG_EXEC_END_PTR 0x1f1
-#define PCTL1_STCTRL_REG_SAVE_RANGE0_BASE  0xa000
-#define PCTL1_STCTRL_REG_SAVE_RANGE0_LIMIT 0xa20d
-#define PCTL1_STCTRL_REG_SAVE_RANGE1_BASE  0xa580
-#define PCTL1_STCTRL_REG_SAVE_RANGE1_LIMIT 0xa59d
-#define PCTL1_STCTRL_REG_SAVE_RANGE2_BASE  0xa82c
-#define PCTL1_STCTRL_REG_SAVE_RANGE2_LIMIT 0xa833
-
-static void mmhub_v1_0_power_gating_write_save_ranges(struct amdgpu_device *adev)
-{
-	uint32_t tmp = 0;
-
-	/* PCTL0_STCTRL_REGISTER_SAVE_RANGE0 */
-	tmp = REG_SET_FIELD(tmp, PCTL0_STCTRL_REGISTER_SAVE_RANGE0,
-			STCTRL_REGISTER_SAVE_BASE,
-			PCTL0_STCTRL_REG_SAVE_RANGE0_BASE);
-	tmp = REG_SET_FIELD(tmp, PCTL0_STCTRL_REGISTER_SAVE_RANGE0,
-			STCTRL_REGISTER_SAVE_LIMIT,
-			PCTL0_STCTRL_REG_SAVE_RANGE0_LIMIT);
-	WREG32_SOC15(MMHUB, 0, mmPCTL0_STCTRL_REGISTER_SAVE_RANGE0, tmp);
-
-	/* PCTL1_STCTRL_REGISTER_SAVE_RANGE0 */
-	tmp = 0;
-	tmp = REG_SET_FIELD(tmp, PCTL1_STCTRL_REGISTER_SAVE_RANGE0,
-			STCTRL_REGISTER_SAVE_BASE,
-			PCTL1_STCTRL_REG_SAVE_RANGE0_BASE);
-	tmp = REG_SET_FIELD(tmp, PCTL1_STCTRL_REGISTER_SAVE_RANGE0,
-			STCTRL_REGISTER_SAVE_LIMIT,
-			PCTL1_STCTRL_REG_SAVE_RANGE0_LIMIT);
-	WREG32_SOC15(MMHUB, 0, mmPCTL1_STCTRL_REGISTER_SAVE_RANGE0, tmp);
-
-	/* PCTL1_STCTRL_REGISTER_SAVE_RANGE1 */
-	tmp = 0;
-	tmp = REG_SET_FIELD(tmp, PCTL1_STCTRL_REGISTER_SAVE_RANGE1,
-			STCTRL_REGISTER_SAVE_BASE,
-			PCTL1_STCTRL_REG_SAVE_RANGE1_BASE);
-	tmp = REG_SET_FIELD(tmp, PCTL1_STCTRL_REGISTER_SAVE_RANGE1,
-			STCTRL_REGISTER_SAVE_LIMIT,
-			PCTL1_STCTRL_REG_SAVE_RANGE1_LIMIT);
-	WREG32_SOC15(MMHUB, 0, mmPCTL1_STCTRL_REGISTER_SAVE_RANGE1, tmp);
-
-	/* PCTL1_STCTRL_REGISTER_SAVE_RANGE2 */
-	tmp = 0;
-	tmp = REG_SET_FIELD(tmp, PCTL1_STCTRL_REGISTER_SAVE_RANGE2,
-			STCTRL_REGISTER_SAVE_BASE,
-			PCTL1_STCTRL_REG_SAVE_RANGE2_BASE);
-	tmp = REG_SET_FIELD(tmp, PCTL1_STCTRL_REGISTER_SAVE_RANGE2,
-			STCTRL_REGISTER_SAVE_LIMIT,
-			PCTL1_STCTRL_REG_SAVE_RANGE2_LIMIT);
-	WREG32_SOC15(MMHUB, 0, mmPCTL1_STCTRL_REGISTER_SAVE_RANGE2, tmp);
-}
-
-void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev)
-{
-	uint32_t pctl0_misc = 0;
-	uint32_t pctl0_reng_execute = 0;
-	uint32_t pctl1_misc = 0;
-	uint32_t pctl1_reng_execute = 0;
-	int i = 0;
-
-	if (amdgpu_sriov_vf(adev))
-		return;
-
-	/****************** pctl0 **********************/
-	pctl0_misc = RREG32_SOC15(MMHUB, 0, mmPCTL0_MISC);
-	pctl0_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE);
-
-	/* Light sleep must be disabled before writing to pctl0 registers */
-	pctl0_misc &= ~PCTL0_MISC__RENG_MEM_LS_ENABLE_MASK;
-	WREG32_SOC15(MMHUB, 0, mmPCTL0_MISC, pctl0_misc);
-
-	/* Write data used to access ram of register engine */
-	for (i = 0; i < PCTL0_DATA_LEN; i++) {
-                WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_RAM_INDEX,
-			pctl0_data[i].index);
-                WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_RAM_DATA,
-			pctl0_data[i].data);
-        }
-
-	/* Re-enable light sleep */
-	pctl0_misc |= PCTL0_MISC__RENG_MEM_LS_ENABLE_MASK;
-	WREG32_SOC15(MMHUB, 0, mmPCTL0_MISC, pctl0_misc);
-
-	/****************** pctl1 **********************/
-	pctl1_misc = RREG32_SOC15(MMHUB, 0, mmPCTL1_MISC);
-	pctl1_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE);
-
-	/* Light sleep must be disabled before writing to pctl1 registers */
-	pctl1_misc &= ~PCTL1_MISC__RENG_MEM_LS_ENABLE_MASK;
-	WREG32_SOC15(MMHUB, 0, mmPCTL1_MISC, pctl1_misc);
-
-	/* Write data used to access ram of register engine */
-	for (i = 0; i < PCTL1_DATA_LEN; i++) {
-                WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_RAM_INDEX,
-			pctl1_data[i].index);
-                WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_RAM_DATA,
-			pctl1_data[i].data);
-        }
-
-	/* Re-enable light sleep */
-	pctl1_misc |= PCTL1_MISC__RENG_MEM_LS_ENABLE_MASK;
-	WREG32_SOC15(MMHUB, 0, mmPCTL1_MISC, pctl1_misc);
-
-	mmhub_v1_0_power_gating_write_save_ranges(adev);
-
-	/* Set the reng execute end ptr for pctl0 */
-	pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
-					PCTL0_RENG_EXECUTE,
-					RENG_EXECUTE_END_PTR,
-					PCTL0_RENG_EXEC_END_PTR);
-	WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE, pctl0_reng_execute);
-
-	/* Set the reng execute end ptr for pctl1 */
-	pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
-					PCTL1_RENG_EXECUTE,
-					RENG_EXECUTE_END_PTR,
-					PCTL1_RENG_EXEC_END_PTR);
-	WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
-}
-
 void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
 				bool enable)
 {
-	uint32_t pctl0_reng_execute = 0;
-	uint32_t pctl1_reng_execute = 0;
-
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	pctl0_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE);
-	pctl1_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE);
-
 	if (enable && adev->pg_flags & AMD_PG_SUPPORT_MMHUB) {
-		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
-						PCTL0_RENG_EXECUTE,
-						RENG_EXECUTE_ON_PWR_UP, 1);
-		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
-						PCTL0_RENG_EXECUTE,
-						RENG_EXECUTE_ON_REG_UPDATE, 1);
-		WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE, pctl0_reng_execute);
-
-		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
-						PCTL1_RENG_EXECUTE,
-						RENG_EXECUTE_ON_PWR_UP, 1);
-		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
-						PCTL1_RENG_EXECUTE,
-						RENG_EXECUTE_ON_REG_UPDATE, 1);
-		WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
-
-		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
+		if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->set_powergating_by_smu)
 			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GMC, true);
 
-	} else {
-		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
-						PCTL0_RENG_EXECUTE,
-						RENG_EXECUTE_ON_PWR_UP, 0);
-		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
-						PCTL0_RENG_EXECUTE,
-						RENG_EXECUTE_ON_REG_UPDATE, 0);
-		WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE, pctl0_reng_execute);
-
-		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
-						PCTL1_RENG_EXECUTE,
-						RENG_EXECUTE_ON_PWR_UP, 0);
-		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
-						PCTL1_RENG_EXECUTE,
-						RENG_EXECUTE_ON_REG_UPDATE, 0);
-		WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
 	}
 }
 

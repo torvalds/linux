@@ -763,6 +763,8 @@ struct gbe_priv {
 
 	int                             cpts_registered;
 	struct cpts                     *cpts;
+	int				rx_ts_enabled;
+	int				tx_ts_enabled;
 };
 
 struct gbe_intf {
@@ -2564,7 +2566,7 @@ static int gbe_txtstamp_mark_pkt(struct gbe_intf *gbe_intf,
 	struct gbe_priv *gbe_dev = gbe_intf->gbe_dev;
 
 	if (!(skb_shinfo(p_info->skb)->tx_flags & SKBTX_HW_TSTAMP) ||
-	    !cpts_is_tx_enabled(gbe_dev->cpts))
+	    !gbe_dev->tx_ts_enabled)
 		return 0;
 
 	/* If phy has the txtstamp api, assume it will do it.
@@ -2598,7 +2600,9 @@ static int gbe_rxtstamp(struct gbe_intf *gbe_intf, struct netcp_packet *p_info)
 		return 0;
 	}
 
-	cpts_rx_timestamp(gbe_dev->cpts, p_info->skb);
+	if (gbe_dev->rx_ts_enabled)
+		cpts_rx_timestamp(gbe_dev->cpts, p_info->skb);
+
 	p_info->rxtstamp_complete = true;
 
 	return 0;
@@ -2614,10 +2618,8 @@ static int gbe_hwtstamp_get(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 		return -EOPNOTSUPP;
 
 	cfg.flags = 0;
-	cfg.tx_type = cpts_is_tx_enabled(cpts) ?
-		      HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	cfg.rx_filter = (cpts_is_rx_enabled(cpts) ?
-			 cpts->rx_enable : HWTSTAMP_FILTER_NONE);
+	cfg.tx_type = gbe_dev->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	cfg.rx_filter = gbe_dev->rx_ts_enabled;
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
@@ -2628,8 +2630,8 @@ static void gbe_hwtstamp(struct gbe_intf *gbe_intf)
 	struct gbe_slave *slave = gbe_intf->slave;
 	u32 ts_en, seq_id, ctl;
 
-	if (!cpts_is_rx_enabled(gbe_dev->cpts) &&
-	    !cpts_is_tx_enabled(gbe_dev->cpts)) {
+	if (!gbe_dev->rx_ts_enabled &&
+	    !gbe_dev->tx_ts_enabled) {
 		writel(0, GBE_REG_ADDR(slave, port_regs, ts_ctl));
 		return;
 	}
@@ -2641,10 +2643,10 @@ static void gbe_hwtstamp(struct gbe_intf *gbe_intf)
 		(slave->ts_ctl.uni ?  TS_UNI_EN :
 			slave->ts_ctl.maddr_map << TS_CTL_MADDR_SHIFT);
 
-	if (cpts_is_tx_enabled(gbe_dev->cpts))
+	if (gbe_dev->tx_ts_enabled)
 		ts_en |= (TS_TX_ANX_ALL_EN | TS_TX_VLAN_LT1_EN);
 
-	if (cpts_is_rx_enabled(gbe_dev->cpts))
+	if (gbe_dev->rx_ts_enabled)
 		ts_en |= (TS_RX_ANX_ALL_EN | TS_RX_VLAN_LT1_EN);
 
 	writel(ts_en,  GBE_REG_ADDR(slave, port_regs, ts_ctl));
@@ -2670,10 +2672,10 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 
 	switch (cfg.tx_type) {
 	case HWTSTAMP_TX_OFF:
-		cpts_tx_enable(cpts, 0);
+		gbe_dev->tx_ts_enabled = 0;
 		break;
 	case HWTSTAMP_TX_ON:
-		cpts_tx_enable(cpts, 1);
+		gbe_dev->tx_ts_enabled = 1;
 		break;
 	default:
 		return -ERANGE;
@@ -2681,12 +2683,12 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		cpts_rx_enable(cpts, 0);
+		gbe_dev->rx_ts_enabled = HWTSTAMP_FILTER_NONE;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		cpts_rx_enable(cpts, HWTSTAMP_FILTER_PTP_V1_L4_EVENT);
+		gbe_dev->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -2698,7 +2700,7 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		cpts_rx_enable(cpts, HWTSTAMP_FILTER_PTP_V2_EVENT);
+		gbe_dev->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	default:
@@ -3137,15 +3139,15 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 	for_each_child_of_node(node, port) {
 		slave = devm_kzalloc(dev, sizeof(*slave), GFP_KERNEL);
 		if (!slave) {
-			dev_err(dev, "memory alloc failed for secondary port(%s), skipping...\n",
-				port->name);
+			dev_err(dev, "memory alloc failed for secondary port(%pOFn), skipping...\n",
+				port);
 			continue;
 		}
 
 		if (init_slave(gbe_dev, slave, port)) {
 			dev_err(dev,
-				"Failed to initialize secondary port(%s), skipping...\n",
-				port->name);
+				"Failed to initialize secondary port(%pOFn), skipping...\n",
+				port);
 			devm_kfree(dev, slave);
 			continue;
 		}
@@ -3239,8 +3241,8 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, XGBE_SS_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't xlate xgbe of node(%s) ss address at %d\n",
-			node->name, XGBE_SS_REG_INDEX);
+			"Can't xlate xgbe of node(%pOFn) ss address at %d\n",
+			node, XGBE_SS_REG_INDEX);
 		return ret;
 	}
 
@@ -3254,8 +3256,8 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, XGBE_SM_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't xlate xgbe of node(%s) sm address at %d\n",
-			node->name, XGBE_SM_REG_INDEX);
+			"Can't xlate xgbe of node(%pOFn) sm address at %d\n",
+			node, XGBE_SM_REG_INDEX);
 		return ret;
 	}
 
@@ -3269,8 +3271,8 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, XGBE_SERDES_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't xlate xgbe serdes of node(%s) address at %d\n",
-			node->name, XGBE_SERDES_REG_INDEX);
+			"Can't xlate xgbe serdes of node(%pOFn) address at %d\n",
+			node, XGBE_SERDES_REG_INDEX);
 		return ret;
 	}
 
@@ -3347,8 +3349,8 @@ static int get_gbe_resource_version(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBE_SS_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of node(%s) of gbe ss address at %d\n",
-			node->name, GBE_SS_REG_INDEX);
+			"Can't translate of node(%pOFn) of gbe ss address at %d\n",
+			node, GBE_SS_REG_INDEX);
 		return ret;
 	}
 
@@ -3372,8 +3374,8 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBE_SGMII34_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of gbe node(%s) address at index %d\n",
-			node->name, GBE_SGMII34_REG_INDEX);
+			"Can't translate of gbe node(%pOFn) address at index %d\n",
+			node, GBE_SGMII34_REG_INDEX);
 		return ret;
 	}
 
@@ -3388,8 +3390,8 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBE_SM_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of gbe node(%s) address at index %d\n",
-			node->name, GBE_SM_REG_INDEX);
+			"Can't translate of gbe node(%pOFn) address at index %d\n",
+			node, GBE_SM_REG_INDEX);
 		return ret;
 	}
 
@@ -3498,8 +3500,8 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBENU_SM_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of gbenu node(%s) addr at index %d\n",
-			node->name, GBENU_SM_REG_INDEX);
+			"Can't translate of gbenu node(%pOFn) addr at index %d\n",
+			node, GBENU_SM_REG_INDEX);
 		return ret;
 	}
 
@@ -3621,7 +3623,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		return -EINVAL;
 	}
 
-	if (!strcmp(node->name, "gbe")) {
+	if (of_node_name_eq(node, "gbe")) {
 		ret = get_gbe_resource_version(gbe_dev, node);
 		if (ret)
 			return ret;
@@ -3635,14 +3637,14 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		else
 			ret = -ENODEV;
 
-	} else if (!strcmp(node->name, "xgbe")) {
+	} else if (of_node_name_eq(node, "xgbe")) {
 		ret = set_xgbe_ethss10_priv(gbe_dev, node);
 		if (ret)
 			return ret;
 		ret = netcp_xgbe_serdes_init(gbe_dev->xgbe_serdes_regs,
 					     gbe_dev->ss_regs);
 	} else {
-		dev_err(dev, "unknown GBE node(%s)\n", node->name);
+		dev_err(dev, "unknown GBE node(%pOFn)\n", node);
 		ret = -ENODEV;
 	}
 
@@ -3667,8 +3669,8 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	for_each_child_of_node(interfaces, interface) {
 		ret = of_property_read_u32(interface, "slave-port", &slave_num);
 		if (ret) {
-			dev_err(dev, "missing slave-port parameter, skipping interface configuration for %s\n",
-				interface->name);
+			dev_err(dev, "missing slave-port parameter, skipping interface configuration for %pOFn\n",
+				interface);
 			continue;
 		}
 		gbe_dev->num_slaves++;

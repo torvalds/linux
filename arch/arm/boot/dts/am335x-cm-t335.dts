@@ -393,7 +393,7 @@ status = "okay";
 &epwmss0 {
 	status = "okay";
 
-	ecap0: ecap@48300100 {
+	ecap0: ecap@100 {
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&ecap0_pins>;
@@ -486,10 +486,14 @@ status = "okay";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii-txid";
 };
 

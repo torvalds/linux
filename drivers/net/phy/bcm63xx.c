@@ -42,6 +42,9 @@ static int bcm63xx_config_init(struct phy_device *phydev)
 {
 	int reg, err;
 
+	/* ASYM_PAUSE bit is marked RO in datasheet, so don't cheat */
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
+
 	reg = phy_read(phydev, MII_BCM63XX_IR);
 	if (reg < 0)
 		return reg;
@@ -65,9 +68,8 @@ static struct phy_driver bcm63xx_driver[] = {
 	.phy_id		= 0x00406000,
 	.phy_id_mask	= 0xfffffc00,
 	.name		= "Broadcom BCM63XX (1)",
-	/* ASYM_PAUSE bit is marked RO in datasheet, so don't cheat */
-	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
-	.flags		= PHY_HAS_INTERRUPT | PHY_IS_INTERNAL,
+	.features	= PHY_BASIC_FEATURES,
+	.flags		= PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm63xx_config_intr,
@@ -75,9 +77,8 @@ static struct phy_driver bcm63xx_driver[] = {
 	/* same phy as above, with just a different OUI */
 	.phy_id		= 0x002bdc00,
 	.phy_id_mask	= 0xfffffc00,
-	.name		= "Broadcom BCM63XX (2)",
-	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
-	.flags		= PHY_HAS_INTERRUPT | PHY_IS_INTERNAL,
+	.features	= PHY_BASIC_FEATURES,
+	.flags		= PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm63xx_config_intr,

@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <net/pkt_cls.h>
@@ -56,7 +26,7 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *frame,
 						      FLOW_DISSECTOR_KEY_VLAN,
 						      target);
 		/* Populate the tci field. */
-		if (flow_vlan->vlan_id) {
+		if (flow_vlan->vlan_id || flow_vlan->vlan_priority) {
 			tmp_tci = FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
 					     flow_vlan->vlan_priority) |
 				  FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
@@ -82,10 +52,13 @@ nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
 		return 0;
 	}
 
-	if (tun_type)
+	if (tun_type) {
 		frame->in_port = cpu_to_be32(NFP_FL_PORT_TYPE_TUN | tun_type);
-	else
+	} else {
+		if (!cmsg_port)
+			return -EOPNOTSUPP;
 		frame->in_port = cpu_to_be32(cmsg_port);
+	}
 
 	return 0;
 }
@@ -319,16 +292,20 @@ nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *frame,
 	}
 }
 
-int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
+int nfp_flower_compile_flow_match(struct nfp_app *app,
+				  struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
 				  enum nfp_flower_tun_type tun_type)
 {
-	struct nfp_repr *netdev_repr;
+	u32 cmsg_port = 0;
 	int err;
 	u8 *ext;
 	u8 *msk;
+
+	if (nfp_netdev_is_nfp_repr(netdev))
+		cmsg_port = nfp_repr_get_port_id(netdev);
 
 	memset(nfp_flow->unmasked_data, 0, key_ls->key_size);
 	memset(nfp_flow->mask_data, 0, key_ls->key_size);
@@ -357,15 +334,13 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 
 	/* Populate Exact Port data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
-				      nfp_repr_get_port_id(netdev),
-				      false, tun_type);
+				      cmsg_port, false, tun_type);
 	if (err)
 		return err;
 
 	/* Populate Mask Port Data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
-				      nfp_repr_get_port_id(netdev),
-				      true, tun_type);
+				      cmsg_port, true, tun_type);
 	if (err)
 		return err;
 
@@ -429,16 +404,13 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 		msk += sizeof(struct nfp_flower_ipv4_udp_tun);
 
 		/* Configure tunnel end point MAC. */
-		if (nfp_netdev_is_nfp_repr(netdev)) {
-			netdev_repr = netdev_priv(netdev);
-			nfp_tunnel_write_macs(netdev_repr->app);
+		nfp_tunnel_write_macs(app);
 
-			/* Store the tunnel destination in the rule data.
-			 * This must be present and be an exact match.
-			 */
-			nfp_flow->nfp_tun_ipv4_addr = tun_dst;
-			nfp_tunnel_add_ipv4_off(netdev_repr->app, tun_dst);
-		}
+		/* Store the tunnel destination in the rule data.
+		 * This must be present and be an exact match.
+		 */
+		nfp_flow->nfp_tun_ipv4_addr = tun_dst;
+		nfp_tunnel_add_ipv4_off(app, tun_dst);
 
 		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_GENEVE_OP) {
 			err = nfp_flower_compile_geneve_opt(ext, flow, false);

@@ -162,7 +162,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_context_info *ctxt_info;
 	struct iwl_context_info_rbd_cfg *rx_cfg;
-	u32 control_flags = 0;
+	u32 control_flags = 0, rb_size;
 	int ret;
 
 	ctxt_info = dma_alloc_coherent(trans->dev, sizeof(*ctxt_info),
@@ -177,11 +177,29 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	/* size is in DWs */
 	ctxt_info->version.size = cpu_to_le16(sizeof(*ctxt_info) / 4);
 
+	switch (trans_pcie->rx_buf_size) {
+	case IWL_AMSDU_2K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_2K;
+		break;
+	case IWL_AMSDU_4K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_4K;
+		break;
+	case IWL_AMSDU_8K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_8K;
+		break;
+	case IWL_AMSDU_12K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_12K;
+		break;
+	default:
+		WARN_ON(1);
+		rb_size = IWL_CTXT_INFO_RB_SIZE_4K;
+	}
+
 	BUILD_BUG_ON(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) > 0xF);
-	control_flags = IWL_CTXT_INFO_RB_SIZE_4K |
-			IWL_CTXT_INFO_TFD_FORMAT_LONG |
-			RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) <<
-			IWL_CTXT_INFO_RB_CB_SIZE_POS;
+	control_flags = IWL_CTXT_INFO_TFD_FORMAT_LONG |
+			(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) <<
+			 IWL_CTXT_INFO_RB_CB_SIZE_POS) |
+			(rb_size << IWL_CTXT_INFO_RB_SIZE_POS);
 	ctxt_info->control.control_flags = cpu_to_le32(control_flags);
 
 	/* initialize RX default queue */
@@ -209,7 +227,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	iwl_enable_interrupts(trans);
 
 	/* Configure debug, if exists */
-	if (trans->dbg_dest_tlv)
+	if (iwl_pcie_dbg_on(trans))
 		iwl_pcie_apply_destination(trans);
 
 	/* kick FW self load */

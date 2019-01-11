@@ -178,7 +178,7 @@ int gpmi_is_ready(struct gpmi_nand_data *, unsigned chip);
 int gpmi_send_command(struct gpmi_nand_data *);
 int gpmi_enable_clk(struct gpmi_nand_data *this);
 int gpmi_disable_clk(struct gpmi_nand_data *this);
-int gpmi_setup_data_interface(struct mtd_info *mtd, int chipnr,
+int gpmi_setup_data_interface(struct nand_chip *chip, int chipnr,
 			      const struct nand_data_interface *conf);
 void gpmi_nfc_apply_timings(struct gpmi_nand_data *this);
 int gpmi_read_data(struct gpmi_nand_data *, void *buf, int len);

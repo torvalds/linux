@@ -3,6 +3,7 @@
 # Makefile for the video capture/playback device drivers.
 #
 
+obj-$(CONFIG_VIDEO_ASPEED)		+= aspeed-video.o
 obj-$(CONFIG_VIDEO_CADENCE)		+= cadence/
 obj-$(CONFIG_VIDEO_VIA_CAMERA) += via-camera.o
 obj-$(CONFIG_VIDEO_CAFE_CCIC) += marvell-ccic/
@@ -24,6 +25,8 @@ obj-$(CONFIG_VIDEO_TI_CAL)		+= ti-vpe/
 
 obj-$(CONFIG_VIDEO_MX2_EMMAPRP)		+= mx2_emmaprp.o
 obj-$(CONFIG_VIDEO_CODA)		+= coda/
+
+obj-$(CONFIG_VIDEO_IMX_PXP)		+= imx-pxp.o
 
 obj-$(CONFIG_VIDEO_SH_VEU)		+= sh_veu.o
 
@@ -52,6 +55,8 @@ obj-$(CONFIG_VIDEO_STI_DELTA)		+= sti/delta/
 obj-$(CONFIG_VIDEO_TEGRA_HDMI_CEC)	+= tegra-cec/
 
 obj-y					+= stm32/
+
+obj-$(CONFIG_VIDEO_SECO_CEC)		+= seco-cec/
 
 obj-y					+= davinci/
 
@@ -96,3 +101,5 @@ obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/
 obj-y					+= meson/
 
 obj-y					+= cros-ec-cec/
+
+obj-$(CONFIG_VIDEO_SUN6I_CSI)		+= sunxi/sun6i-csi/

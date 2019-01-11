@@ -233,8 +233,6 @@ static struct crypto_instance *crypto_ctr_alloc(struct rtattr **tb)
 	inst->alg.cra_blkcipher.encrypt = crypto_ctr_crypt;
 	inst->alg.cra_blkcipher.decrypt = crypto_ctr_crypt;
 
-	inst->alg.cra_blkcipher.geniv = "chainiv";
-
 out:
 	crypto_mod_put(alg);
 	return inst;

@@ -900,8 +900,6 @@ Except where otherwise noted, these non-guarantees were premeditated.
 	Grace Periods Don't Partition Read-Side Critical Sections</a>
 <li>	<a href="#Read-Side Critical Sections Don't Partition Grace Periods">
 	Read-Side Critical Sections Don't Partition Grace Periods</a>
-<li>	<a href="#Disabling Preemption Does Not Block Grace Periods">
-	Disabling Preemption Does Not Block Grace Periods</a>
 </ol>
 
 <h3><a name="Readers Impose Minimal Ordering">Readers Impose Minimal Ordering</a></h3>
@@ -1259,56 +1257,6 @@ of RCU grace periods.
 <tr><td>&nbsp;</td></tr>
 </table>
 
-<h3><a name="Disabling Preemption Does Not Block Grace Periods">
-Disabling Preemption Does Not Block Grace Periods</a></h3>
-
-<p>
-There was a time when disabling preemption on any given CPU would block
-subsequent grace periods.
-However, this was an accident of implementation and is not a requirement.
-And in the current Linux-kernel implementation, disabling preemption
-on a given CPU in fact does not block grace periods, as Oleg Nesterov
-<a href="https://lkml.kernel.org/g/20150614193825.GA19582@redhat.com">demonstrated</a>.
-
-<p>
-If you need a preempt-disable region to block grace periods, you need to add
-<tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>, for example
-as follows:
-
-<blockquote>
-<pre>
- 1 preempt_disable();
- 2 rcu_read_lock();
- 3 do_something();
- 4 rcu_read_unlock();
- 5 preempt_enable();
- 6
- 7 /* Spinlocks implicitly disable preemption. */
- 8 spin_lock(&amp;mylock);
- 9 rcu_read_lock();
-10 do_something();
-11 rcu_read_unlock();
-12 spin_unlock(&amp;mylock);
-</pre>
-</blockquote>
-
-<p>
-In theory, you could enter the RCU read-side critical section first,
-but it is more efficient to keep the entire RCU read-side critical
-section contained in the preempt-disable region as shown above.
-Of course, RCU read-side critical sections that extend outside of
-preempt-disable regions will work correctly, but such critical sections
-can be preempted, which forces <tt>rcu_read_unlock()</tt> to do
-more work.
-And no, this is <i>not</i> an invitation to enclose all of your RCU
-read-side critical sections within preempt-disable regions, because
-doing so would degrade real-time response.
-
-<p>
-This non-requirement appeared with preemptible RCU.
-If you need a grace period that waits on non-preemptible code regions, use
-<a href="#Sched Flavor">RCU-sched</a>.
-
 <h2><a name="Parallelism Facts of Life">Parallelism Facts of Life</a></h2>
 
 <p>
@@ -1383,6 +1331,7 @@ Classes of quality-of-implementation requirements are as follows:
 <ol>
 <li>	<a href="#Specialization">Specialization</a>
 <li>	<a href="#Performance and Scalability">Performance and Scalability</a>
+<li>	<a href="#Forward Progress">Forward Progress</a>
 <li>	<a href="#Composability">Composability</a>
 <li>	<a href="#Corner Cases">Corner Cases</a>
 </ol>
@@ -1647,7 +1596,7 @@ used in place of <tt>synchronize_rcu()</tt> as follows:
 16   struct foo *p;
 17
 18   spin_lock(&amp;gp_lock);
-19   p = rcu_dereference(gp);
+19   p = rcu_access_pointer(gp);
 20   if (!p) {
 21     spin_unlock(&amp;gp_lock);
 22     return false;
@@ -1823,6 +1772,106 @@ so it is too early to tell whether they will stand the test of time.
 <p>
 RCU thus provides a range of tools to allow updaters to strike the
 required tradeoff between latency, flexibility and CPU overhead.
+
+<h3><a name="Forward Progress">Forward Progress</a></h3>
+
+<p>
+In theory, delaying grace-period completion and callback invocation
+is harmless.
+In practice, not only are memory sizes finite but also callbacks sometimes
+do wakeups, and sufficiently deferred wakeups can be difficult
+to distinguish from system hangs.
+Therefore, RCU must provide a number of mechanisms to promote forward
+progress.
+
+<p>
+These mechanisms are not foolproof, nor can they be.
+For one simple example, an infinite loop in an RCU read-side critical
+section must by definition prevent later grace periods from ever completing.
+For a more involved example, consider a 64-CPU system built with
+<tt>CONFIG_RCU_NOCB_CPU=y</tt> and booted with <tt>rcu_nocbs=1-63</tt>,
+where CPUs&nbsp;1 through&nbsp;63 spin in tight loops that invoke
+<tt>call_rcu()</tt>.
+Even if these tight loops also contain calls to <tt>cond_resched()</tt>
+(thus allowing grace periods to complete), CPU&nbsp;0 simply will
+not be able to invoke callbacks as fast as the other 63 CPUs can
+register them, at least not until the system runs out of memory.
+In both of these examples, the Spiderman principle applies:  With great
+power comes great responsibility.
+However, short of this level of abuse, RCU is required to
+ensure timely completion of grace periods and timely invocation of
+callbacks.
+
+<p>
+RCU takes the following steps to encourage timely completion of
+grace periods:
+
+<ol>
+<li>	If a grace period fails to complete within 100&nbsp;milliseconds,
+	RCU causes future invocations of <tt>cond_resched()</tt> on
+	the holdout CPUs to provide an RCU quiescent state.
+	RCU also causes those CPUs' <tt>need_resched()</tt> invocations
+	to return <tt>true</tt>, but only after the corresponding CPU's
+	next scheduling-clock.
+<li>	CPUs mentioned in the <tt>nohz_full</tt> kernel boot parameter
+	can run indefinitely in the kernel without scheduling-clock
+	interrupts, which defeats the above <tt>need_resched()</tt>
+	strategem.
+	RCU will therefore invoke <tt>resched_cpu()</tt> on any
+	<tt>nohz_full</tt> CPUs still holding out after
+	109&nbsp;milliseconds.
+<li>	In kernels built with <tt>CONFIG_RCU_BOOST=y</tt>, if a given
+	task that has been preempted within an RCU read-side critical
+	section is holding out for more than 500&nbsp;milliseconds,
+	RCU will resort to priority boosting.
+<li>	If a CPU is still holding out 10&nbsp;seconds into the grace
+	period, RCU will invoke <tt>resched_cpu()</tt> on it regardless
+	of its <tt>nohz_full</tt> state.
+</ol>
+
+<p>
+The above values are defaults for systems running with <tt>HZ=1000</tt>.
+They will vary as the value of <tt>HZ</tt> varies, and can also be
+changed using the relevant Kconfig options and kernel boot parameters.
+RCU currently does not do much sanity checking of these
+parameters, so please use caution when changing them.
+Note that these forward-progress measures are provided only for RCU,
+not for
+<a href="#Sleepable RCU">SRCU</a> or
+<a href="#Tasks RCU">Tasks RCU</a>.
+
+<p>
+RCU takes the following steps in <tt>call_rcu()</tt> to encourage timely
+invocation of callbacks when any given non-<tt>rcu_nocbs</tt> CPU has
+10,000 callbacks, or has 10,000 more callbacks than it had the last time
+encouragement was provided:
+
+<ol>
+<li>	Starts a grace period, if one is not already in progress.
+<li>	Forces immediate checking for quiescent states, rather than
+	waiting for three milliseconds to have elapsed since the
+	beginning of the grace period.
+<li>	Immediately tags the CPU's callbacks with their grace period
+	completion numbers, rather than waiting for the <tt>RCU_SOFTIRQ</tt>
+	handler to get around to it.
+<li>	Lifts callback-execution batch limits, which speeds up callback
+	invocation at the expense of degrading realtime response.
+</ol>
+
+<p>
+Again, these are default values when running at <tt>HZ=1000</tt>,
+and can be overridden.
+Again, these forward-progress measures are provided only for RCU,
+not for
+<a href="#Sleepable RCU">SRCU</a> or
+<a href="#Tasks RCU">Tasks RCU</a>.
+Even for RCU, callback-invocation forward progress for <tt>rcu_nocbs</tt>
+CPUs is much less well-developed, in part because workloads benefiting
+from <tt>rcu_nocbs</tt> CPUs tend to invoke <tt>call_rcu()</tt>
+relatively infrequently.
+If workloads emerge that need both <tt>rcu_nocbs</tt> CPUs and high
+<tt>call_rcu()</tt> invocation rates, then additional forward-progress
+work will be required.
 
 <h3><a name="Composability">Composability</a></h3>
 
@@ -2165,14 +2214,9 @@ however, this is not a panacea because there would be severe restrictions
 on what operations those callbacks could invoke.
 
 <p>
-Perhaps surprisingly, <tt>synchronize_rcu()</tt>,
-<a href="#Bottom-Half Flavor"><tt>synchronize_rcu_bh()</tt></a>
-(<a href="#Bottom-Half Flavor">discussed below</a>),
-<a href="#Sched Flavor"><tt>synchronize_sched()</tt></a>,
+Perhaps surprisingly, <tt>synchronize_rcu()</tt> and
 <tt>synchronize_rcu_expedited()</tt>,
-<tt>synchronize_rcu_bh_expedited()</tt>, and
-<tt>synchronize_sched_expedited()</tt>
-will all operate normally
+will operate normally
 during very early boot, the reason being that there is only one CPU
 and preemption is disabled.
 This means that the call <tt>synchronize_rcu()</tt> (or friends)
@@ -2269,11 +2313,22 @@ Thankfully, RCU update-side primitives, including
 The name notwithstanding, some Linux-kernel architectures
 can have nested NMIs, which RCU must handle correctly.
 Andy Lutomirski
-<a href="https://lkml.kernel.org/g/CALCETrXLq1y7e_dKFPgou-FKHB6Pu-r8+t-6Ds+8=va7anBWDA@mail.gmail.com">surprised me</a>
+<a href="https://lkml.kernel.org/r/CALCETrXLq1y7e_dKFPgou-FKHB6Pu-r8+t-6Ds+8=va7anBWDA@mail.gmail.com">surprised me</a>
 with this requirement;
 he also kindly surprised me with
-<a href="https://lkml.kernel.org/g/CALCETrXSY9JpW3uE6H8WYk81sg56qasA2aqmjMPsq5dOtzso=g@mail.gmail.com">an algorithm</a>
+<a href="https://lkml.kernel.org/r/CALCETrXSY9JpW3uE6H8WYk81sg56qasA2aqmjMPsq5dOtzso=g@mail.gmail.com">an algorithm</a>
 that meets this requirement.
+
+<p>
+Furthermore, NMI handlers can be interrupted by what appear to RCU
+to be normal interrupts.
+One way that this can happen is for code that directly invokes
+<tt>rcu_irq_enter()</tt> and <tt>rcu_irq_exit()</tt> to be called
+from an NMI handler.
+This astonishing fact of life prompted the current code structure,
+which has <tt>rcu_irq_enter()</tt> invoking <tt>rcu_nmi_enter()</tt>
+and <tt>rcu_irq_exit()</tt> invoking <tt>rcu_nmi_exit()</tt>.
+And yes, I also learned of this requirement the hard way.
 
 <h3><a name="Loadable Modules">Loadable Modules</a></h3>
 
@@ -2290,7 +2345,7 @@ via <tt>del_timer_sync()</tt> or similar.
 <p>
 Unfortunately, there is no way to cancel an RCU callback;
 once you invoke <tt>call_rcu()</tt>, the callback function is
-going to eventually be invoked, unless the system goes down first.
+eventually going to be invoked, unless the system goes down first.
 Because it is normally considered socially irresponsible to crash the system
 in response to a module unload request, we need some other way
 to deal with in-flight RCU callbacks.
@@ -2394,30 +2449,9 @@ when invoked from a CPU-hotplug notifier.
 <p>
 RCU depends on the scheduler, and the scheduler uses RCU to
 protect some of its data structures.
-This means the scheduler is forbidden from acquiring
-the runqueue locks and the priority-inheritance locks
-in the middle of an outermost RCU read-side critical section unless either
-(1)&nbsp;it releases them before exiting that same
-RCU read-side critical section, or
-(2)&nbsp;interrupts are disabled across
-that entire RCU read-side critical section.
-This same prohibition also applies (recursively!) to any lock that is acquired
-while holding any lock to which this prohibition applies.
-Adhering to this rule prevents preemptible RCU from invoking
-<tt>rcu_read_unlock_special()</tt> while either runqueue or
-priority-inheritance locks are held, thus avoiding deadlock.
-
-<p>
-Prior to v4.4, it was only necessary to disable preemption across
-RCU read-side critical sections that acquired scheduler locks.
-In v4.4, expedited grace periods started using IPIs, and these
-IPIs could force a <tt>rcu_read_unlock()</tt> to take the slowpath.
-Therefore, this expedited-grace-period change required disabling of
-interrupts, not just preemption.
-
-<p>
-For RCU's part, the preemptible-RCU <tt>rcu_read_unlock()</tt>
-implementation must be written carefully to avoid similar deadlocks.
+The preemptible-RCU <tt>rcu_read_unlock()</tt>
+implementation must therefore be written carefully to avoid deadlocks
+involving the scheduler's runqueue and priority-inheritance locks.
 In particular, <tt>rcu_read_unlock()</tt> must tolerate an
 interrupt where the interrupt handler invokes both
 <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>.
@@ -2426,7 +2460,7 @@ negative nesting levels to avoid destructive recursion via
 interrupt handler's use of RCU.
 
 <p>
-This pair of mutual scheduler-RCU requirements came as a
+This scheduler-RCU requirement came as a
 <a href="https://lwn.net/Articles/453002/">complete surprise</a>.
 
 <p>
@@ -2437,8 +2471,41 @@ when running context-switch-heavy workloads when built with
 <tt>CONFIG_NO_HZ_FULL=y</tt>
 <a href="http://www.rdrop.com/users/paulmck/scalability/paper/BareMetal.2015.01.15b.pdf">did come as a surprise [PDF]</a>.
 RCU has made good progress towards meeting this requirement, even
-for context-switch-have <tt>CONFIG_NO_HZ_FULL=y</tt> workloads,
+for context-switch-heavy <tt>CONFIG_NO_HZ_FULL=y</tt> workloads,
 but there is room for further improvement.
+
+<p>
+It is forbidden to hold any of scheduler's runqueue or priority-inheritance
+spinlocks across an <tt>rcu_read_unlock()</tt> unless interrupts have been
+disabled across the entire RCU read-side critical section, that is,
+up to and including the matching <tt>rcu_read_lock()</tt>.
+Violating this restriction can result in deadlocks involving these
+scheduler spinlocks.
+There was hope that this restriction might be lifted when interrupt-disabled
+calls to <tt>rcu_read_unlock()</tt> started deferring the reporting of
+the resulting RCU-preempt quiescent state until the end of the corresponding
+interrupts-disabled region.
+Unfortunately, timely reporting of the corresponding quiescent state
+to expedited grace periods requires a call to <tt>raise_softirq()</tt>,
+which can acquire these scheduler spinlocks.
+In addition, real-time systems using RCU priority boosting
+need this restriction to remain in effect because deferred
+quiescent-state reporting would also defer deboosting, which in turn
+would degrade real-time latencies.
+
+<p>
+In theory, if a given RCU read-side critical section could be
+guaranteed to be less than one second in duration, holding a scheduler
+spinlock across that critical section's <tt>rcu_read_unlock()</tt>
+would require only that preemption be disabled across the entire
+RCU read-side critical section, not interrupts.
+Unfortunately, given the possibility of vCPU preemption, long-running
+interrupts, and so on, it is not possible in practice to guarantee
+that a given RCU read-side critical section will complete in less than
+one second.
+Therefore, as noted above, if scheduler spinlocks are held across
+a given call to <tt>rcu_read_unlock()</tt>, interrupts must be
+disabled across the entire RCU read-side critical section.
 
 <h3><a name="Tracing and RCU">Tracing and RCU</a></h3>
 
@@ -2850,15 +2917,22 @@ The other four flavors are listed below, with requirements for each
 described in a separate section.
 
 <ol>
-<li>	<a href="#Bottom-Half Flavor">Bottom-Half Flavor</a>
-<li>	<a href="#Sched Flavor">Sched Flavor</a>
+<li>	<a href="#Bottom-Half Flavor">Bottom-Half Flavor (Historical)</a>
+<li>	<a href="#Sched Flavor">Sched Flavor (Historical)</a>
 <li>	<a href="#Sleepable RCU">Sleepable RCU</a>
 <li>	<a href="#Tasks RCU">Tasks RCU</a>
-<li>	<a href="#Waiting for Multiple Grace Periods">
-	Waiting for Multiple Grace Periods</a>
 </ol>
 
-<h3><a name="Bottom-Half Flavor">Bottom-Half Flavor</a></h3>
+<h3><a name="Bottom-Half Flavor">Bottom-Half Flavor (Historical)</a></h3>
+
+<p>
+The RCU-bh flavor of RCU has since been expressed in terms of
+the other RCU flavors as part of a consolidation of the three
+flavors into a single flavor.
+The read-side API remains, and continues to disable softirq and to
+be accounted for by lockdep.
+Much of the material in this section is therefore strictly historical
+in nature.
 
 <p>
 The softirq-disable (AKA &ldquo;bottom-half&rdquo;,
@@ -2918,8 +2992,20 @@ includes
 <tt>call_rcu_bh()</tt>,
 <tt>rcu_barrier_bh()</tt>, and
 <tt>rcu_read_lock_bh_held()</tt>.
+However, the update-side APIs are now simple wrappers for other RCU
+flavors, namely RCU-sched in CONFIG_PREEMPT=n kernels and RCU-preempt
+otherwise.
 
-<h3><a name="Sched Flavor">Sched Flavor</a></h3>
+<h3><a name="Sched Flavor">Sched Flavor (Historical)</a></h3>
+
+<p>
+The RCU-sched flavor of RCU has since been expressed in terms of
+the other RCU flavors as part of a consolidation of the three
+flavors into a single flavor.
+The read-side API remains, and continues to disable preemption and to
+be accounted for by lockdep.
+Much of the material in this section is therefore strictly historical
+in nature.
 
 <p>
 Before preemptible RCU, waiting for an RCU grace period had the
@@ -3139,94 +3225,14 @@ The tasks-RCU API is quite compact, consisting only of
 <tt>call_rcu_tasks()</tt>,
 <tt>synchronize_rcu_tasks()</tt>, and
 <tt>rcu_barrier_tasks()</tt>.
-
-<h3><a name="Waiting for Multiple Grace Periods">
-Waiting for Multiple Grace Periods</a></h3>
-
-<p>
-Perhaps you have an RCU protected data structure that is accessed from
-RCU read-side critical sections, from softirq handlers, and from
-hardware interrupt handlers.
-That is three flavors of RCU, the normal flavor, the bottom-half flavor,
-and the sched flavor.
-How to wait for a compound grace period?
-
-<p>
-The best approach is usually to &ldquo;just say no!&rdquo; and
-insert <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
-around each RCU read-side critical section, regardless of what
-environment it happens to be in.
-But suppose that some of the RCU read-side critical sections are
-on extremely hot code paths, and that use of <tt>CONFIG_PREEMPT=n</tt>
-is not a viable option, so that <tt>rcu_read_lock()</tt> and
-<tt>rcu_read_unlock()</tt> are not free.
-What then?
-
-<p>
-You <i>could</i> wait on all three grace periods in succession, as follows:
-
-<blockquote>
-<pre>
- 1 synchronize_rcu();
- 2 synchronize_rcu_bh();
- 3 synchronize_sched();
-</pre>
-</blockquote>
-
-<p>
-This works, but triples the update-side latency penalty.
-In cases where this is not acceptable, <tt>synchronize_rcu_mult()</tt>
-may be used to wait on all three flavors of grace period concurrently:
-
-<blockquote>
-<pre>
- 1 synchronize_rcu_mult(call_rcu, call_rcu_bh, call_rcu_sched);
-</pre>
-</blockquote>
-
-<p>
-But what if it is necessary to also wait on SRCU?
-This can be done as follows:
-
-<blockquote>
-<pre>
- 1 static void call_my_srcu(struct rcu_head *head,
- 2        void (*func)(struct rcu_head *head))
- 3 {
- 4   call_srcu(&amp;my_srcu, head, func);
- 5 }
- 6
- 7 synchronize_rcu_mult(call_rcu, call_rcu_bh, call_rcu_sched, call_my_srcu);
-</pre>
-</blockquote>
-
-<p>
-If you needed to wait on multiple different flavors of SRCU
-(but why???), you would need to create a wrapper function resembling
-<tt>call_my_srcu()</tt> for each SRCU flavor.
-
-<table>
-<tr><th>&nbsp;</th></tr>
-<tr><th align="left">Quick Quiz:</th></tr>
-<tr><td>
-	But what if I need to wait for multiple RCU flavors, but I also need
-	the grace periods to be expedited?
-</td></tr>
-<tr><th align="left">Answer:</th></tr>
-<tr><td bgcolor="#ffffff"><font color="ffffff">
-	If you are using expedited grace periods, there should be less penalty
-	for waiting on them in succession.
-	But if that is nevertheless a problem, you can use workqueues
-	or multiple kthreads to wait on the various expedited grace
-	periods concurrently.
-</font></td></tr>
-<tr><td>&nbsp;</td></tr>
-</table>
-
-<p>
-Again, it is usually better to adjust the RCU read-side critical sections
-to use a single flavor of RCU, but when this is not feasible, you can use
-<tt>synchronize_rcu_mult()</tt>.
+In <tt>CONFIG_PREEMPT=n</tt> kernels, trampolines cannot be preempted,
+so these APIs map to
+<tt>call_rcu()</tt>,
+<tt>synchronize_rcu()</tt>, and
+<tt>rcu_barrier()</tt>, respectively.
+In <tt>CONFIG_PREEMPT=y</tt> kernels, trampolines can be preempted,
+and these three APIs are therefore implemented by separate functions
+that check for voluntary context switches.
 
 <h2><a name="Possible Future Changes">Possible Future Changes</a></h2>
 
@@ -3236,12 +3242,6 @@ to increase grace-period latency with increasing numbers of CPUs.
 If this becomes a serious problem, it will be necessary to rework the
 grace-period state machine so as to avoid the need for the additional
 latency.
-
-<p>
-Expedited grace periods scan the CPUs, so their latency and overhead
-increases with increasing numbers of CPUs.
-If this becomes a serious problem on large systems, it will be necessary
-to do some redesign to avoid this scalability problem.
 
 <p>
 RCU disables CPU hotplug in a few places, perhaps most notably in the
@@ -3288,11 +3288,6 @@ require extremely good demonstration of need and full exploration of
 alternatives.
 
 <p>
-There is an embarrassingly large number of flavors of RCU, and this
-number has been increasing over time.
-Perhaps it will be possible to combine some at some future date.
-
-<p>
 RCU's various kthreads are reasonably recent additions.
 It is quite likely that adjustments will be required to more gracefully
 handle extreme loads.
@@ -3302,6 +3297,11 @@ CPU utilization.
 For example, RCU callback overhead might be charged back to the
 originating <tt>call_rcu()</tt> instance, though probably not
 in production kernels.
+
+<p>
+Additional work may be required to provide reasonable forward-progress
+guarantees under heavy load for grace periods and for callback
+invocation.
 
 <h2><a name="Summary">Summary</a></h2>
 

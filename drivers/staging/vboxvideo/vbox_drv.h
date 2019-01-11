@@ -1,28 +1,8 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Copyright (C) 2013-2017 Oracle Corporation
  * This file is based on ast_drv.h
  * Copyright 2012 Red Hat Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
  * Authors: Dave Airlie <airlied@redhat.com>
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
@@ -32,10 +12,10 @@
 
 #include <linux/genalloc.h>
 #include <linux/io.h>
+#include <linux/irqreturn.h>
 #include <linux/string.h>
 #include <linux/version.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
@@ -72,10 +52,16 @@
 				sizeof(struct hgsmi_host_flags))
 #define HOST_FLAGS_OFFSET GUEST_HEAP_USABLE_SIZE
 
-struct vbox_fbdev;
+struct vbox_framebuffer {
+	struct drm_framebuffer base;
+	struct drm_gem_object *obj;
+};
 
 struct vbox_private {
-	struct drm_device *dev;
+	/* Must be first; or we must define our own release callback */
+	struct drm_device ddev;
+	struct drm_fb_helper fb_helper;
+	struct vbox_framebuffer afb;
 
 	u8 __iomem *guest_heap;
 	u8 __iomem *vbva_buffers;
@@ -83,25 +69,21 @@ struct vbox_private {
 	struct vbva_buf_ctx *vbva_info;
 	bool any_pitch;
 	u32 num_crtcs;
-	/** Amount of available VRAM, including space used for buffers. */
+	/* Amount of available VRAM, including space used for buffers. */
 	u32 full_vram_size;
-	/** Amount of available VRAM, not including space used for buffers. */
+	/* Amount of available VRAM, not including space used for buffers. */
 	u32 available_vram_size;
-	/** Array of structures for receiving mode hints. */
+	/* Array of structures for receiving mode hints. */
 	struct vbva_modehint *last_mode_hints;
-
-	struct vbox_fbdev *fbdev;
 
 	int fb_mtrr;
 
 	struct {
-		struct drm_global_reference mem_global_ref;
-		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 	} ttm;
 
 	struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
-	/**
+	/*
 	 * We decide whether or not user-space supports display hot-plug
 	 * depending on whether they react to a hot-plug event after the initial
 	 * mode query.
@@ -110,25 +92,16 @@ struct vbox_private {
 	struct work_struct hotplug_work;
 	u32 input_mapping_width;
 	u32 input_mapping_height;
-	/**
+	/*
 	 * Is user-space using an X.Org-style layout of one large frame-buffer
 	 * encompassing all screen ones or is the fbdev console active?
 	 */
 	bool single_framebuffer;
-	u32 cursor_width;
-	u32 cursor_height;
-	u32 cursor_hot_x;
-	u32 cursor_hot_y;
-	size_t cursor_data_size;
 	u8 cursor_data[CURSOR_DATA_SIZE];
 };
 
 #undef CURSOR_PIXEL_COUNT
 #undef CURSOR_DATA_SIZE
-
-int vbox_driver_load(struct drm_device *dev);
-void vbox_driver_unload(struct drm_device *dev);
-void vbox_driver_lastclose(struct drm_device *dev);
 
 struct vbox_gem_object;
 
@@ -145,31 +118,36 @@ struct vbox_connector {
 
 struct vbox_crtc {
 	struct drm_crtc base;
-	bool blanked;
 	bool disconnected;
 	unsigned int crtc_id;
 	u32 fb_offset;
 	bool cursor_enabled;
 	u32 x_hint;
 	u32 y_hint;
+	/*
+	 * When setting a mode we not only pass the mode to the hypervisor,
+	 * but also information on how to map / translate input coordinates
+	 * for the emulated USB tablet.  This input-mapping may change when
+	 * the mode on *another* crtc changes.
+	 *
+	 * This means that sometimes we must do a modeset on other crtc-s then
+	 * the one being changed to update the input-mapping. Including crtc-s
+	 * which may be disabled inside the guest (shown as a black window
+	 * on the host unless closed by the user).
+	 *
+	 * With atomic modesetting the mode-info of disabled crtcs gets zeroed
+	 * yet we need it when updating the input-map to avoid resizing the
+	 * window as a side effect of a mode_set on another crtc. Therefor we
+	 * cache the info of the last mode below.
+	 */
+	u32 width;
+	u32 height;
+	u32 x;
+	u32 y;
 };
 
 struct vbox_encoder {
 	struct drm_encoder base;
-};
-
-struct vbox_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
-};
-
-struct vbox_fbdev {
-	struct drm_fb_helper helper;
-	struct vbox_framebuffer afb;
-	int size;
-	struct ttm_bo_kmap_obj mapping;
-	int x1, y1, x2, y2;	/* dirty rect */
-	spinlock_t dirty_lock;
 };
 
 #define to_vbox_crtc(x) container_of(x, struct vbox_crtc, base)
@@ -177,28 +155,27 @@ struct vbox_fbdev {
 #define to_vbox_encoder(x) container_of(x, struct vbox_encoder, base)
 #define to_vbox_framebuffer(x) container_of(x, struct vbox_framebuffer, base)
 
-int vbox_mode_init(struct drm_device *dev);
-void vbox_mode_fini(struct drm_device *dev);
+bool vbox_check_supported(u16 id);
+int vbox_hw_init(struct vbox_private *vbox);
+void vbox_hw_fini(struct vbox_private *vbox);
 
-#define DRM_MODE_FB_CMD drm_mode_fb_cmd2
-#define CRTC_FB(crtc) ((crtc)->primary->fb)
+int vbox_mode_init(struct vbox_private *vbox);
+void vbox_mode_fini(struct vbox_private *vbox);
 
-void vbox_enable_accel(struct vbox_private *vbox);
-void vbox_disable_accel(struct vbox_private *vbox);
 void vbox_report_caps(struct vbox_private *vbox);
 
 void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 				       struct drm_clip_rect *rects,
 				       unsigned int num_rects);
 
-int vbox_framebuffer_init(struct drm_device *dev,
+int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
-			  const struct DRM_MODE_FB_CMD *mode_cmd,
+			  const struct drm_mode_fb_cmd2 *mode_cmd,
 			  struct drm_gem_object *obj);
 
-int vbox_fbdev_init(struct drm_device *dev);
-void vbox_fbdev_fini(struct drm_device *dev);
-void vbox_fbdev_set_base(struct vbox_private *vbox, unsigned long gpu_addr);
+int vboxfb_create(struct drm_fb_helper *helper,
+		  struct drm_fb_helper_surface_size *sizes);
+void vbox_fbdev_fini(struct vbox_private *vbox);
 
 struct vbox_bo {
 	struct ttm_buffer_object bo;
@@ -218,6 +195,11 @@ static inline struct vbox_bo *vbox_bo(struct ttm_buffer_object *bo)
 
 #define to_vbox_obj(x) container_of(x, struct vbox_gem_object, base)
 
+static inline u64 vbox_bo_gpu_offset(struct vbox_bo *bo)
+{
+	return bo->bo.offset;
+}
+
 int vbox_dumb_create(struct drm_file *file,
 		     struct drm_device *dev,
 		     struct drm_mode_create_dumb *args);
@@ -232,13 +214,13 @@ int vbox_dumb_mmap_offset(struct drm_file *file,
 int vbox_mm_init(struct vbox_private *vbox);
 void vbox_mm_fini(struct vbox_private *vbox);
 
-int vbox_bo_create(struct drm_device *dev, int size, int align,
+int vbox_bo_create(struct vbox_private *vbox, int size, int align,
 		   u32 flags, struct vbox_bo **pvboxbo);
 
-int vbox_gem_create(struct drm_device *dev,
+int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj);
 
-int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr);
+int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag);
 int vbox_bo_unpin(struct vbox_bo *bo);
 
 static inline int vbox_bo_reserve(struct vbox_bo *bo, bool no_wait)
@@ -262,6 +244,8 @@ static inline void vbox_bo_unreserve(struct vbox_bo *bo)
 void vbox_ttm_placement(struct vbox_bo *bo, int domain);
 int vbox_bo_push_sysram(struct vbox_bo *bo);
 int vbox_mmap(struct file *filp, struct vm_area_struct *vma);
+void *vbox_bo_kmap(struct vbox_bo *bo);
+void vbox_bo_kunmap(struct vbox_bo *bo);
 
 /* vbox_prime.c */
 int vbox_gem_prime_pin(struct drm_gem_object *obj);

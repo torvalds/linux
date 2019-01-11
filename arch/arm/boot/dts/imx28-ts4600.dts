@@ -20,12 +20,13 @@
 	compatible = "technologic,imx28-ts4600", "fsl,imx28";
 
 	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x10000000>;   /* 256MB */
 	};
 
 	apb@80000000 {
 		apbh@80000000 {
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_4bit_pins_a

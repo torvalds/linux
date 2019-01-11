@@ -76,7 +76,9 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 	struct device *dev = &rproc->dev;
+	struct rproc_mem_entry *mem;
 	struct rproc_vring *rvring;
+	struct fw_rsc_vdev *rsc;
 	struct virtqueue *vq;
 	void *addr;
 	int len, size;
@@ -88,8 +90,14 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	if (!name)
 		return NULL;
 
+	/* Search allocated memory region by name */
+	mem = rproc_find_carveout_by_name(rproc, "vdev%dvring%d", rvdev->index,
+					  id);
+	if (!mem || !mem->va)
+		return ERR_PTR(-ENOMEM);
+
 	rvring = &rvdev->vring[id];
-	addr = rvring->va;
+	addr = mem->va;
 	len = rvring->len;
 
 	/* zero vring */
@@ -113,6 +121,10 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 
 	rvring->vq = vq;
 	vq->priv = rvring;
+
+	/* Update vring in resource table */
+	rsc = (void *)rproc->table_ptr + rvdev->rsc_offset;
+	rsc->vring[id].da = mem->da;
 
 	return vq;
 }
@@ -202,6 +214,16 @@ static u64 rproc_virtio_get_features(struct virtio_device *vdev)
 	return rsc->dfeatures;
 }
 
+static void rproc_transport_features(struct virtio_device *vdev)
+{
+	/*
+	 * Packed ring isn't enabled on remoteproc for now,
+	 * because remoteproc uses vring_new_virtqueue() which
+	 * creates virtio rings on preallocated memory.
+	 */
+	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
+}
+
 static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
@@ -211,6 +233,9 @@ static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 
 	/* Give virtio_ring a chance to accept features */
 	vring_transport_features(vdev);
+
+	/* Give virtio_rproc a chance to accept features. */
+	rproc_transport_features(vdev);
 
 	/* Make sure we don't have any features > 32 bits! */
 	BUG_ON((u32)vdev->features != vdev->features);

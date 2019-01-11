@@ -32,6 +32,7 @@ static const char *type2str(enum rdma_restrack_type type)
 		[RDMA_RESTRACK_QP] = "QP",
 		[RDMA_RESTRACK_CM_ID] = "CM_ID",
 		[RDMA_RESTRACK_MR] = "MR",
+		[RDMA_RESTRACK_CTX] = "CTX",
 	};
 
 	return names[type];
@@ -50,8 +51,7 @@ void rdma_restrack_clean(struct rdma_restrack_root *res)
 
 	dev = container_of(res, struct ib_device, res);
 	pr_err("restrack: %s", CUT_HERE);
-	pr_err("restrack: BUG: RESTRACK detected leak of resources on %s\n",
-	       dev->name);
+	dev_err(&dev->dev, "BUG: RESTRACK detected leak of resources\n");
 	hash_for_each(res->hash, bkt, e, node) {
 		if (rdma_is_kernel_res(e)) {
 			owner = e->kern_name;
@@ -131,44 +131,42 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 				    res)->id.device;
 	case RDMA_RESTRACK_MR:
 		return container_of(res, struct ib_mr, res)->device;
+	case RDMA_RESTRACK_CTX:
+		return container_of(res, struct ib_ucontext, res)->device;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return NULL;
 	}
 }
 
-static bool res_is_user(struct rdma_restrack_entry *res)
+void rdma_restrack_set_task(struct rdma_restrack_entry *res,
+			    const char *caller)
 {
-	switch (res->type) {
-	case RDMA_RESTRACK_PD:
-		return container_of(res, struct ib_pd, res)->uobject;
-	case RDMA_RESTRACK_CQ:
-		return container_of(res, struct ib_cq, res)->uobject;
-	case RDMA_RESTRACK_QP:
-		return container_of(res, struct ib_qp, res)->uobject;
-	case RDMA_RESTRACK_CM_ID:
-		return !res->kern_name;
-	case RDMA_RESTRACK_MR:
-		return container_of(res, struct ib_mr, res)->pd->uobject;
-	default:
-		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
-		return false;
+	if (caller) {
+		res->kern_name = caller;
+		return;
 	}
-}
 
-void rdma_restrack_add(struct rdma_restrack_entry *res)
+	if (res->task)
+		put_task_struct(res->task);
+	get_task_struct(current);
+	res->task = current;
+}
+EXPORT_SYMBOL(rdma_restrack_set_task);
+
+static void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
 
 	if (!dev)
 		return;
 
-	if (res->type != RDMA_RESTRACK_CM_ID || !res_is_user(res))
+	if (res->type != RDMA_RESTRACK_CM_ID || rdma_is_kernel_res(res))
 		res->task = NULL;
 
-	if (res_is_user(res)) {
+	if (!rdma_is_kernel_res(res)) {
 		if (!res->task)
-			rdma_restrack_set_task(res, current);
+			rdma_restrack_set_task(res, NULL);
 		res->kern_name = NULL;
 	} else {
 		set_kern_name(res);
@@ -182,7 +180,28 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 	hash_add(dev->res.hash, &res->node, res->type);
 	up_write(&dev->res.rwsem);
 }
-EXPORT_SYMBOL(rdma_restrack_add);
+
+/**
+ * rdma_restrack_kadd() - add kernel object to the reource tracking database
+ * @res:  resource entry
+ */
+void rdma_restrack_kadd(struct rdma_restrack_entry *res)
+{
+	res->user = false;
+	rdma_restrack_add(res);
+}
+EXPORT_SYMBOL(rdma_restrack_kadd);
+
+/**
+ * rdma_restrack_uadd() - add user object to the reource tracking database
+ * @res:  resource entry
+ */
+void rdma_restrack_uadd(struct rdma_restrack_entry *res)
+{
+	res->user = true;
+	rdma_restrack_add(res);
+}
+EXPORT_SYMBOL(rdma_restrack_uadd);
 
 int __must_check rdma_restrack_get(struct rdma_restrack_entry *res)
 {
@@ -209,7 +228,7 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	struct ib_device *dev;
 
 	if (!res->valid)
-		return;
+		goto out;
 
 	dev = res_to_dev(res);
 	if (!dev)
@@ -222,8 +241,12 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	down_write(&dev->res.rwsem);
 	hash_del(&res->node);
 	res->valid = false;
-	if (res->task)
-		put_task_struct(res->task);
 	up_write(&dev->res.rwsem);
+
+out:
+	if (res->task) {
+		put_task_struct(res->task);
+		res->task = NULL;
+	}
 }
 EXPORT_SYMBOL(rdma_restrack_del);

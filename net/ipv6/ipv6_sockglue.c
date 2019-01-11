@@ -486,7 +486,7 @@ sticky_done:
 				retv = -EFAULT;
 				break;
 		}
-		if (sk->sk_bound_dev_if && pkt.ipi6_ifindex != sk->sk_bound_dev_if)
+		if (!sk_dev_equal_l3scope(sk, pkt.ipi6_ifindex))
 			goto e_inval;
 
 		np->sticky_pktinfo.ipi6_ifindex = pkt.ipi6_ifindex;
@@ -674,6 +674,13 @@ done:
 			retv = ipv6_sock_ac_drop(sk, mreq.ipv6mr_ifindex, &mreq.ipv6mr_acaddr);
 		break;
 	}
+	case IPV6_MULTICAST_ALL:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		np->mc_all = valbool;
+		retv = 0;
+		break;
+
 	case MCAST_JOIN_GROUP:
 	case MCAST_LEAVE_GROUP:
 	{
@@ -1264,6 +1271,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_MULTICAST_IF:
 		val = np->mcast_oif;
+		break;
+
+	case IPV6_MULTICAST_ALL:
+		val = np->mc_all;
 		break;
 
 	case IPV6_UNICAST_IF:

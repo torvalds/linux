@@ -15,7 +15,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
@@ -27,7 +27,7 @@
 #define EVMKEY "evm-key"
 #define MAX_KEY_SIZE 128
 static unsigned char evmkey[MAX_KEY_SIZE];
-static int evmkey_len = MAX_KEY_SIZE;
+static const int evmkey_len = MAX_KEY_SIZE;
 
 struct crypto_shash *hmac_tfm;
 static struct crypto_shash *evm_tfm[HASH_ALGO__LAST];
@@ -38,7 +38,7 @@ static DEFINE_MUTEX(mutex);
 
 static unsigned long evm_set_key_flags;
 
-static char * const evm_hmac = "hmac(sha1)";
+static const char evm_hmac[] = "hmac(sha1)";
 
 /**
  * evm_set_key() - set EVM HMAC key from the kernel
@@ -97,8 +97,7 @@ static struct shash_desc *init_desc(char type, uint8_t hash_algo)
 		mutex_lock(&mutex);
 		if (*tfm)
 			goto out;
-		*tfm = crypto_alloc_shash(algo, 0,
-					  CRYPTO_ALG_ASYNC | CRYPTO_NOLOAD);
+		*tfm = crypto_alloc_shash(algo, 0, CRYPTO_NOLOAD);
 		if (IS_ERR(*tfm)) {
 			rc = PTR_ERR(*tfm);
 			pr_err("Can not allocate %s (reason: %ld)\n", algo, rc);

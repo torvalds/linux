@@ -35,14 +35,12 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct bochs_device *bochs =
 		container_of(crtc, struct bochs_device, crtc);
-	struct bochs_framebuffer *bochs_fb;
 	struct bochs_bo *bo;
 	u64 gpu_addr = 0;
 	int ret;
 
 	if (old_fb) {
-		bochs_fb = to_bochs_framebuffer(old_fb);
-		bo = gem_to_bochs_bo(bochs_fb->obj);
+		bo = gem_to_bochs_bo(old_fb->obj[0]);
 		ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 		if (ret) {
 			DRM_ERROR("failed to reserve old_fb bo\n");
@@ -55,8 +53,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (WARN_ON(crtc->primary->fb == NULL))
 		return -EINVAL;
 
-	bochs_fb = to_bochs_framebuffer(crtc->primary->fb);
-	bo = gem_to_bochs_bo(bochs_fb->obj);
+	bo = gem_to_bochs_bo(crtc->primary->fb->obj[0]);
 	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret)
 		return ret;
@@ -80,7 +77,10 @@ static int bochs_crtc_mode_set(struct drm_crtc *crtc,
 	struct bochs_device *bochs =
 		container_of(crtc, struct bochs_device, crtc);
 
-	bochs_hw_setmode(bochs, mode);
+	if (WARN_ON(crtc->primary->fb == NULL))
+		return -EINVAL;
+
+	bochs_hw_setmode(bochs, mode, crtc->primary->fb->format);
 	bochs_crtc_mode_set_base(crtc, x, y, old_fb);
 	return 0;
 }
@@ -129,12 +129,44 @@ static const struct drm_crtc_helper_funcs bochs_helper_funcs = {
 	.commit = bochs_crtc_commit,
 };
 
+static const uint32_t bochs_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_BGRX8888,
+};
+
+static struct drm_plane *bochs_primary_plane(struct drm_device *dev)
+{
+	struct drm_plane *primary;
+	int ret;
+
+	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
+	if (primary == NULL) {
+		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
+		return NULL;
+	}
+
+	ret = drm_universal_plane_init(dev, primary, 0,
+				       &drm_primary_helper_funcs,
+				       bochs_formats,
+				       ARRAY_SIZE(bochs_formats),
+				       NULL,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret) {
+		kfree(primary);
+		primary = NULL;
+	}
+
+	return primary;
+}
+
 static void bochs_crtc_init(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
 	struct drm_crtc *crtc = &bochs->crtc;
+	struct drm_plane *primary = bochs_primary_plane(dev);
 
-	drm_crtc_init(dev, crtc, &bochs_crtc_funcs);
+	drm_crtc_init_with_planes(dev, crtc, primary, NULL,
+				  &bochs_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &bochs_helper_funcs);
 }
 
@@ -181,10 +213,17 @@ static void bochs_encoder_init(struct drm_device *dev)
 
 static int bochs_connector_get_modes(struct drm_connector *connector)
 {
-	int count;
+	struct bochs_device *bochs =
+		container_of(connector, struct bochs_device, connector);
+	int count = 0;
 
-	count = drm_add_modes_noedid(connector, 8192, 8192);
-	drm_set_preferred_mode(connector, defx, defy);
+	if (bochs->edid)
+		count = drm_add_edid_modes(connector, bochs->edid);
+
+	if (!count) {
+		count = drm_add_modes_noedid(connector, 8192, 8192);
+		drm_set_preferred_mode(connector, defx, defy);
+	}
 	return count;
 }
 
@@ -239,6 +278,13 @@ static void bochs_connector_init(struct drm_device *dev)
 	drm_connector_helper_add(connector,
 				 &bochs_connector_connector_helper_funcs);
 	drm_connector_register(connector);
+
+	bochs_hw_load_edid(bochs);
+	if (bochs->edid) {
+		DRM_INFO("Found EDID data blob.\n");
+		drm_connector_attach_edid_property(connector);
+		drm_connector_update_edid_property(connector, bochs->edid);
+	}
 }
 
 
@@ -253,6 +299,7 @@ int bochs_kms_init(struct bochs_device *bochs)
 	bochs->dev->mode_config.fb_base = bochs->fb_base;
 	bochs->dev->mode_config.preferred_depth = 24;
 	bochs->dev->mode_config.prefer_shadow = 0;
+	bochs->dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
 
 	bochs->dev->mode_config.funcs = &bochs_mode_funcs;
 

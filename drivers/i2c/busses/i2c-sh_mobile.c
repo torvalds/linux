@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH Mobile I2C Controller
  *
@@ -7,15 +8,6 @@
  *
  * Portions of the code based on out-of-tree driver i2c-sh7343.c
  * Copyright (c) 2006 Carlos Munoz <carlos@kenati.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -515,8 +507,6 @@ static void sh_mobile_i2c_dma_callback(void *data)
 	pd->pos = pd->msg->len;
 	pd->stop_after_dma = true;
 
-	i2c_release_dma_safe_msg_buf(pd->msg, pd->dma_buf);
-
 	iic_set_clr(pd, ICIC, 0, ICIC_TDMAE | ICIC_RDMAE);
 }
 
@@ -610,14 +600,9 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 	dma_async_issue_pending(chan);
 }
 
-static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
-		    bool do_init)
+static void start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
+		     bool do_init)
 {
-	if (usr_msg->len == 0 && (usr_msg->flags & I2C_M_RD)) {
-		dev_err(pd->dev, "Unsupported zero length i2c read\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (do_init) {
 		/* Initialize channel registers */
 		iic_wr(pd, ICCR, ICCR_SCP);
@@ -640,7 +625,6 @@ static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
 
 	/* Enable all interrupts to begin with */
 	iic_wr(pd, ICIC, ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
-	return 0;
 }
 
 static int poll_dte(struct sh_mobile_i2c_data *pd)
@@ -711,9 +695,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		pd->send_stop = i == num - 1 || msg->flags & I2C_M_STOP;
 		pd->stop_after_dma = false;
 
-		err = start_ch(pd, msg, do_start);
-		if (err)
-			break;
+		start_ch(pd, msg, do_start);
 
 		if (do_start)
 			i2c_op(pd, OP_START, 0);
@@ -722,6 +704,10 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		timeout = wait_event_timeout(pd->wait,
 				       pd->sr & (ICSR_TACK | SW_DONE),
 				       adapter->timeout);
+
+		/* 'stop_after_dma' tells if DMA transfer was complete */
+		i2c_put_dma_safe_msg_buf(pd->dma_buf, pd->msg, pd->stop_after_dma);
+
 		if (!timeout) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
@@ -756,6 +742,10 @@ static u32 sh_mobile_i2c_func(struct i2c_adapter *adapter)
 static const struct i2c_algorithm sh_mobile_i2c_algorithm = {
 	.functionality	= sh_mobile_i2c_func,
 	.master_xfer	= sh_mobile_i2c_xfer,
+};
+
+static const struct i2c_adapter_quirks sh_mobile_i2c_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN_READ,
 };
 
 /*
@@ -925,6 +915,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 	adap->owner = THIS_MODULE;
 	adap->algo = &sh_mobile_i2c_algorithm;
+	adap->quirks = &sh_mobile_i2c_quirks;
 	adap->dev.parent = &dev->dev;
 	adap->retries = 5;
 	adap->nr = dev->id;
@@ -956,27 +947,9 @@ static int sh_mobile_i2c_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int sh_mobile_i2c_runtime_nop(struct device *dev)
-{
-	/* Runtime PM callback shared between ->runtime_suspend()
-	 * and ->runtime_resume(). Simply returns success.
-	 *
-	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
-	 * to save and restore registers here.
-	 */
-	return 0;
-}
-
-static const struct dev_pm_ops sh_mobile_i2c_dev_pm_ops = {
-	.runtime_suspend = sh_mobile_i2c_runtime_nop,
-	.runtime_resume = sh_mobile_i2c_runtime_nop,
-};
-
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
-		.pm		= &sh_mobile_i2c_dev_pm_ops,
 		.of_match_table = sh_mobile_i2c_dt_ids,
 	},
 	.probe		= sh_mobile_i2c_probe,

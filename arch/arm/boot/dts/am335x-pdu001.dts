@@ -373,7 +373,7 @@
 	ti,pindir-d0-out-d1-in;
 	status = "okay";
 
-	cfaf240320a032t {
+	display-controller@0 {
 		compatible = "orisetech,otm3225a";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
@@ -533,16 +533,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&davinci_mdio_default>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "mii";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "mii";
 	dual_emac_res_vlan = <2>;
 };
@@ -577,7 +585,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
-	cd-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
 };
 
 &sham {

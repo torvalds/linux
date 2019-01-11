@@ -157,16 +157,19 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		if (entry.schedule)
 			q->swq_queued--;
 
-		if (entry.skb)
+		q->tail = (q->tail + 1) % q->ndesc;
+		q->queued--;
+
+		if (entry.skb) {
+			spin_unlock_bh(&q->lock);
 			dev->drv->tx_complete_skb(dev, q, &entry, flush);
+			spin_lock_bh(&q->lock);
+		}
 
 		if (entry.txwi) {
 			mt76_put_txwi(dev, entry.txwi);
-			wake = true;
+			wake = !flush;
 		}
-
-		q->tail = (q->tail + 1) % q->ndesc;
-		q->queued--;
 
 		if (!flush && q->tail == last)
 			last = ioread32(&q->regs->dma_idx);
@@ -258,6 +261,7 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 		return -ENOMEM;
 	}
 
+	skb->prev = skb->next = NULL;
 	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
 				DMA_TO_DEVICE);
 	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, q, wcid, sta,
@@ -322,19 +326,13 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q, bool napi)
 	int len = SKB_WITH_OVERHEAD(q->buf_size);
 	int offset = q->buf_offset;
 	int idx;
-	void *(*alloc)(unsigned int fragsz);
-
-	if (napi)
-		alloc = napi_alloc_frag;
-	else
-		alloc = netdev_alloc_frag;
 
 	spin_lock_bh(&q->lock);
 
 	while (q->queued < q->ndesc - 1) {
 		struct mt76_queue_buf qbuf;
 
-		buf = alloc(q->buf_size);
+		buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
 		if (!buf)
 			break;
 
@@ -361,6 +359,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q, bool napi)
 static void
 mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 {
+	struct page *page;
 	void *buf;
 	bool more;
 
@@ -373,6 +372,13 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 		skb_free_frag(buf);
 	} while (1);
 	spin_unlock_bh(&q->lock);
+
+	if (!q->rx_page.va)
+		return;
+
+	page = virt_to_page(q->rx_page.va);
+	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
+	memset(&q->rx_page, 0, sizeof(q->rx_page));
 }
 
 static void

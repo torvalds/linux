@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015 IT University of Copenhagen (rrpc.c)
  * Copyright (C) 2016 CNEX Labs
@@ -19,15 +20,31 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 
 static unsigned int write_buffer_size;
 
 module_param(write_buffer_size, uint, 0644);
 MODULE_PARM_DESC(write_buffer_size, "number of entries in a write buffer");
 
-static struct kmem_cache *pblk_ws_cache, *pblk_rec_cache, *pblk_g_rq_cache,
-				*pblk_w_rq_cache;
-static DECLARE_RWSEM(pblk_lock);
+struct pblk_global_caches {
+	struct kmem_cache	*ws;
+	struct kmem_cache	*rec;
+	struct kmem_cache	*g_rq;
+	struct kmem_cache	*w_rq;
+
+	struct kref		kref;
+
+	struct mutex		mutex; /* Ensures consistency between
+					* caches and kref
+					*/
+};
+
+static struct pblk_global_caches pblk_caches = {
+	.mutex = __MUTEX_INITIALIZER(pblk_caches.mutex),
+	.kref = KREF_INIT(0),
+};
+
 struct bio_set pblk_bio_set;
 
 static int pblk_rw_io(struct request_queue *q, struct pblk *pblk,
@@ -168,40 +185,27 @@ static void pblk_rwb_free(struct pblk *pblk)
 	if (pblk_rb_tear_down_check(&pblk->rwb))
 		pblk_err(pblk, "write buffer error on tear down\n");
 
-	pblk_rb_data_free(&pblk->rwb);
-	vfree(pblk_rb_entries_ref(&pblk->rwb));
+	pblk_rb_free(&pblk->rwb);
 }
 
 static int pblk_rwb_init(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct pblk_rb_entry *entries;
-	unsigned long nr_entries, buffer_size;
-	unsigned int power_size, power_seg_sz;
-	int pgs_in_buffer;
+	unsigned long buffer_size;
+	int pgs_in_buffer, threshold;
 
-	pgs_in_buffer = max(geo->mw_cunits, geo->ws_opt) * geo->all_luns;
+	threshold = geo->mw_cunits * geo->all_luns;
+	pgs_in_buffer = (max(geo->mw_cunits, geo->ws_opt) + geo->ws_opt)
+								* geo->all_luns;
 
 	if (write_buffer_size && (write_buffer_size > pgs_in_buffer))
 		buffer_size = write_buffer_size;
 	else
 		buffer_size = pgs_in_buffer;
 
-	nr_entries = pblk_rb_calculate_size(buffer_size);
-
-	entries = vzalloc(array_size(nr_entries, sizeof(struct pblk_rb_entry)));
-	if (!entries)
-		return -ENOMEM;
-
-	power_size = get_count_order(nr_entries);
-	power_seg_sz = get_count_order(geo->csecs);
-
-	return pblk_rb_init(&pblk->rwb, entries, power_size, power_seg_sz);
+	return pblk_rb_init(&pblk->rwb, buffer_size, threshold, geo->csecs);
 }
-
-/* Minimum pages needed within a lun */
-#define ADDR_POOL_SIZE 64
 
 static int pblk_set_addrf_12(struct pblk *pblk, struct nvm_geo *geo,
 			     struct nvm_addrf_12 *dst)
@@ -306,53 +310,76 @@ static int pblk_set_addrf(struct pblk *pblk)
 	return 0;
 }
 
-static int pblk_init_global_caches(struct pblk *pblk)
+static int pblk_create_global_caches(void)
 {
-	down_write(&pblk_lock);
-	pblk_ws_cache = kmem_cache_create("pblk_blk_ws",
+
+	pblk_caches.ws = kmem_cache_create("pblk_blk_ws",
 				sizeof(struct pblk_line_ws), 0, 0, NULL);
-	if (!pblk_ws_cache) {
-		up_write(&pblk_lock);
+	if (!pblk_caches.ws)
 		return -ENOMEM;
-	}
 
-	pblk_rec_cache = kmem_cache_create("pblk_rec",
+	pblk_caches.rec = kmem_cache_create("pblk_rec",
 				sizeof(struct pblk_rec_ctx), 0, 0, NULL);
-	if (!pblk_rec_cache) {
-		kmem_cache_destroy(pblk_ws_cache);
-		up_write(&pblk_lock);
-		return -ENOMEM;
-	}
+	if (!pblk_caches.rec)
+		goto fail_destroy_ws;
 
-	pblk_g_rq_cache = kmem_cache_create("pblk_g_rq", pblk_g_rq_size,
+	pblk_caches.g_rq = kmem_cache_create("pblk_g_rq", pblk_g_rq_size,
 				0, 0, NULL);
-	if (!pblk_g_rq_cache) {
-		kmem_cache_destroy(pblk_ws_cache);
-		kmem_cache_destroy(pblk_rec_cache);
-		up_write(&pblk_lock);
-		return -ENOMEM;
-	}
+	if (!pblk_caches.g_rq)
+		goto fail_destroy_rec;
 
-	pblk_w_rq_cache = kmem_cache_create("pblk_w_rq", pblk_w_rq_size,
+	pblk_caches.w_rq = kmem_cache_create("pblk_w_rq", pblk_w_rq_size,
 				0, 0, NULL);
-	if (!pblk_w_rq_cache) {
-		kmem_cache_destroy(pblk_ws_cache);
-		kmem_cache_destroy(pblk_rec_cache);
-		kmem_cache_destroy(pblk_g_rq_cache);
-		up_write(&pblk_lock);
-		return -ENOMEM;
-	}
-	up_write(&pblk_lock);
+	if (!pblk_caches.w_rq)
+		goto fail_destroy_g_rq;
 
 	return 0;
+
+fail_destroy_g_rq:
+	kmem_cache_destroy(pblk_caches.g_rq);
+fail_destroy_rec:
+	kmem_cache_destroy(pblk_caches.rec);
+fail_destroy_ws:
+	kmem_cache_destroy(pblk_caches.ws);
+
+	return -ENOMEM;
 }
 
-static void pblk_free_global_caches(struct pblk *pblk)
+static int pblk_get_global_caches(void)
 {
-	kmem_cache_destroy(pblk_ws_cache);
-	kmem_cache_destroy(pblk_rec_cache);
-	kmem_cache_destroy(pblk_g_rq_cache);
-	kmem_cache_destroy(pblk_w_rq_cache);
+	int ret = 0;
+
+	mutex_lock(&pblk_caches.mutex);
+
+	if (kref_get_unless_zero(&pblk_caches.kref))
+		goto out;
+
+	ret = pblk_create_global_caches();
+	if (!ret)
+		kref_init(&pblk_caches.kref);
+
+out:
+	mutex_unlock(&pblk_caches.mutex);
+	return ret;
+}
+
+static void pblk_destroy_global_caches(struct kref *ref)
+{
+	struct pblk_global_caches *c;
+
+	c = container_of(ref, struct pblk_global_caches, kref);
+
+	kmem_cache_destroy(c->ws);
+	kmem_cache_destroy(c->rec);
+	kmem_cache_destroy(c->g_rq);
+	kmem_cache_destroy(c->w_rq);
+}
+
+static void pblk_put_global_caches(void)
+{
+	mutex_lock(&pblk_caches.mutex);
+	kref_put(&pblk_caches.kref, pblk_destroy_global_caches);
+	mutex_unlock(&pblk_caches.mutex);
 }
 
 static int pblk_core_init(struct pblk *pblk)
@@ -371,15 +398,44 @@ static int pblk_core_init(struct pblk *pblk)
 	atomic64_set(&pblk->nr_flush, 0);
 	pblk->nr_flush_rst = 0;
 
-	pblk->min_write_pgs = geo->ws_opt * (geo->csecs / PAGE_SIZE);
+	pblk->min_write_pgs = geo->ws_opt;
+	pblk->min_write_pgs_data = pblk->min_write_pgs;
 	max_write_ppas = pblk->min_write_pgs * geo->all_luns;
 	pblk->max_write_pgs = min_t(int, max_write_ppas, NVM_MAX_VLBA);
+	pblk->max_write_pgs = min_t(int, pblk->max_write_pgs,
+		queue_max_hw_sectors(dev->q) / (geo->csecs >> SECTOR_SHIFT));
 	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
 
-	if (pblk->max_write_pgs > PBLK_MAX_REQ_ADDRS) {
-		pblk_err(pblk, "vector list too big(%u > %u)\n",
-				pblk->max_write_pgs, PBLK_MAX_REQ_ADDRS);
-		return -EINVAL;
+	pblk->oob_meta_size = geo->sos;
+	if (!pblk_is_oob_meta_supported(pblk)) {
+		/* For drives which does not have OOB metadata feature
+		 * in order to support recovery feature we need to use
+		 * so called packed metadata. Packed metada will store
+		 * the same information as OOB metadata (l2p table mapping,
+		 * but in the form of the single page at the end of
+		 * every write request.
+		 */
+		if (pblk->min_write_pgs
+			* sizeof(struct pblk_sec_meta) > PAGE_SIZE) {
+			/* We want to keep all the packed metadata on single
+			 * page per write requests. So we need to ensure that
+			 * it will fit.
+			 *
+			 * This is more like sanity check, since there is
+			 * no device with such a big minimal write size
+			 * (above 1 metabytes).
+			 */
+			pblk_err(pblk, "Not supported min write size\n");
+			return -EINVAL;
+		}
+		/* For packed meta approach we do some simplification.
+		 * On read path we always issue requests which size
+		 * equal to max_write_pgs, with all pages filled with
+		 * user payload except of last one page which will be
+		 * filled with packed metadata.
+		 */
+		pblk->max_write_pgs = pblk->min_write_pgs;
+		pblk->min_write_pgs_data = pblk->min_write_pgs - 1;
 	}
 
 	pblk->pad_dist = kcalloc(pblk->min_write_pgs - 1, sizeof(atomic64_t),
@@ -387,7 +443,7 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->pad_dist)
 		return -ENOMEM;
 
-	if (pblk_init_global_caches(pblk))
+	if (pblk_get_global_caches())
 		goto fail_free_pad_dist;
 
 	/* Internal bios can be at most the sectors signaled by the device. */
@@ -396,27 +452,27 @@ static int pblk_core_init(struct pblk *pblk)
 		goto free_global_caches;
 
 	ret = mempool_init_slab_pool(&pblk->gen_ws_pool, PBLK_GEN_WS_POOL_SIZE,
-				     pblk_ws_cache);
+				     pblk_caches.ws);
 	if (ret)
 		goto free_page_bio_pool;
 
 	ret = mempool_init_slab_pool(&pblk->rec_pool, geo->all_luns,
-				     pblk_rec_cache);
+				     pblk_caches.rec);
 	if (ret)
 		goto free_gen_ws_pool;
 
 	ret = mempool_init_slab_pool(&pblk->r_rq_pool, geo->all_luns,
-				     pblk_g_rq_cache);
+				     pblk_caches.g_rq);
 	if (ret)
 		goto free_rec_pool;
 
 	ret = mempool_init_slab_pool(&pblk->e_rq_pool, geo->all_luns,
-				     pblk_g_rq_cache);
+				     pblk_caches.g_rq);
 	if (ret)
 		goto free_r_rq_pool;
 
 	ret = mempool_init_slab_pool(&pblk->w_rq_pool, geo->all_luns,
-				     pblk_w_rq_cache);
+				     pblk_caches.w_rq);
 	if (ret)
 		goto free_e_rq_pool;
 
@@ -462,7 +518,7 @@ free_gen_ws_pool:
 free_page_bio_pool:
 	mempool_exit(&pblk->page_bio_pool);
 free_global_caches:
-	pblk_free_global_caches(pblk);
+	pblk_put_global_caches();
 fail_free_pad_dist:
 	kfree(pblk->pad_dist);
 	return -ENOMEM;
@@ -486,7 +542,7 @@ static void pblk_core_free(struct pblk *pblk)
 	mempool_exit(&pblk->e_rq_pool);
 	mempool_exit(&pblk->w_rq_pool);
 
-	pblk_free_global_caches(pblk);
+	pblk_put_global_caches();
 	kfree(pblk->pad_dist);
 }
 
@@ -504,6 +560,9 @@ static void pblk_line_mg_free(struct pblk *pblk)
 		pblk_mfree(l_mg->eline_meta[i]->buf, l_mg->emeta_alloc_type);
 		kfree(l_mg->eline_meta[i]);
 	}
+
+	mempool_destroy(l_mg->bitmap_pool);
+	kmem_cache_destroy(l_mg->bitmap_cache);
 }
 
 static void pblk_line_meta_free(struct pblk_line_mgmt *l_mg,
@@ -538,67 +597,6 @@ static void pblk_lines_free(struct pblk *pblk)
 
 	kfree(pblk->luns);
 	kfree(pblk->lines);
-}
-
-static int pblk_bb_get_tbl(struct nvm_tgt_dev *dev, struct pblk_lun *rlun,
-			   u8 *blks, int nr_blks)
-{
-	struct ppa_addr ppa;
-	int ret;
-
-	ppa.ppa = 0;
-	ppa.g.ch = rlun->bppa.g.ch;
-	ppa.g.lun = rlun->bppa.g.lun;
-
-	ret = nvm_get_tgt_bb_tbl(dev, ppa, blks);
-	if (ret)
-		return ret;
-
-	nr_blks = nvm_bb_tbl_fold(dev->parent, blks, nr_blks);
-	if (nr_blks < 0)
-		return -EIO;
-
-	return 0;
-}
-
-static void *pblk_bb_get_meta(struct pblk *pblk)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	u8 *meta;
-	int i, nr_blks, blk_per_lun;
-	int ret;
-
-	blk_per_lun = geo->num_chk * geo->pln_mode;
-	nr_blks = blk_per_lun * geo->all_luns;
-
-	meta = kmalloc(nr_blks, GFP_KERNEL);
-	if (!meta)
-		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < geo->all_luns; i++) {
-		struct pblk_lun *rlun = &pblk->luns[i];
-		u8 *meta_pos = meta + i * blk_per_lun;
-
-		ret = pblk_bb_get_tbl(dev, rlun, meta_pos, blk_per_lun);
-		if (ret) {
-			kfree(meta);
-			return ERR_PTR(-EIO);
-		}
-	}
-
-	return meta;
-}
-
-static void *pblk_chunk_get_meta(struct pblk *pblk)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-
-	if (geo->version == NVM_OCSSD_SPEC_12)
-		return pblk_bb_get_meta(pblk);
-	else
-		return pblk_chunk_get_info(pblk);
 }
 
 static int pblk_luns_init(struct pblk *pblk)
@@ -663,87 +661,64 @@ static unsigned int calc_emeta_len(struct pblk *pblk)
 	return (lm->emeta_len[1] + lm->emeta_len[2] + lm->emeta_len[3]);
 }
 
-static void pblk_set_provision(struct pblk *pblk, long nr_free_blks)
+static int pblk_set_provision(struct pblk *pblk, int nr_free_chks)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct nvm_geo *geo = &dev->geo;
 	sector_t provisioned;
-	int sec_meta, blk_meta;
+	int sec_meta, blk_meta, clba;
+	int minimum;
 
 	if (geo->op == NVM_TARGET_DEFAULT_OP)
 		pblk->op = PBLK_DEFAULT_OP;
 	else
 		pblk->op = geo->op;
 
-	provisioned = nr_free_blks;
+	minimum = pblk_get_min_chks(pblk);
+	provisioned = nr_free_chks;
 	provisioned *= (100 - pblk->op);
 	sector_div(provisioned, 100);
 
-	pblk->op_blks = nr_free_blks - provisioned;
+	if ((nr_free_chks - provisioned) < minimum) {
+		if (geo->op != NVM_TARGET_DEFAULT_OP) {
+			pblk_err(pblk, "OP too small to create a sane instance\n");
+			return -EINTR;
+		}
+
+		/* If the user did not specify an OP value, and PBLK_DEFAULT_OP
+		 * is not enough, calculate and set sane value
+		 */
+
+		provisioned = nr_free_chks - minimum;
+		pblk->op =  (100 * minimum) / nr_free_chks;
+		pblk_info(pblk, "Default OP insufficient, adjusting OP to %d\n",
+				pblk->op);
+	}
+
+	pblk->op_blks = nr_free_chks - provisioned;
 
 	/* Internally pblk manages all free blocks, but all calculations based
 	 * on user capacity consider only provisioned blocks
 	 */
-	pblk->rl.total_blocks = nr_free_blks;
-	pblk->rl.nr_secs = nr_free_blks * geo->clba;
+	pblk->rl.total_blocks = nr_free_chks;
+	pblk->rl.nr_secs = nr_free_chks * geo->clba;
 
 	/* Consider sectors used for metadata */
 	sec_meta = (lm->smeta_sec + lm->emeta_sec[0]) * l_mg->nr_free_lines;
 	blk_meta = DIV_ROUND_UP(sec_meta, geo->clba);
 
-	pblk->capacity = (provisioned - blk_meta) * geo->clba;
+	clba = (geo->clba / pblk->min_write_pgs) * pblk->min_write_pgs_data;
+	pblk->capacity = (provisioned - blk_meta) * clba;
 
-	atomic_set(&pblk->rl.free_blocks, nr_free_blks);
-	atomic_set(&pblk->rl.free_user_blocks, nr_free_blks);
+	atomic_set(&pblk->rl.free_blocks, nr_free_chks);
+	atomic_set(&pblk->rl.free_user_blocks, nr_free_chks);
+
+	return 0;
 }
 
-static int pblk_setup_line_meta_12(struct pblk *pblk, struct pblk_line *line,
-				   void *chunk_meta)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	struct pblk_line_meta *lm = &pblk->lm;
-	int i, chk_per_lun, nr_bad_chks = 0;
-
-	chk_per_lun = geo->num_chk * geo->pln_mode;
-
-	for (i = 0; i < lm->blk_per_line; i++) {
-		struct pblk_lun *rlun = &pblk->luns[i];
-		struct nvm_chk_meta *chunk;
-		int pos = pblk_ppa_to_pos(geo, rlun->bppa);
-		u8 *lun_bb_meta = chunk_meta + pos * chk_per_lun;
-
-		chunk = &line->chks[pos];
-
-		/*
-		 * In 1.2 spec. chunk state is not persisted by the device. Thus
-		 * some of the values are reset each time pblk is instantiated,
-		 * so we have to assume that the block is closed.
-		 */
-		if (lun_bb_meta[line->id] == NVM_BLK_T_FREE)
-			chunk->state =  NVM_CHK_ST_CLOSED;
-		else
-			chunk->state = NVM_CHK_ST_OFFLINE;
-
-		chunk->type = NVM_CHK_TP_W_SEQ;
-		chunk->wi = 0;
-		chunk->slba = -1;
-		chunk->cnlb = geo->clba;
-		chunk->wp = 0;
-
-		if (!(chunk->state & NVM_CHK_ST_OFFLINE))
-			continue;
-
-		set_bit(pos, line->blk_bitmap);
-		nr_bad_chks++;
-	}
-
-	return nr_bad_chks;
-}
-
-static int pblk_setup_line_meta_20(struct pblk *pblk, struct pblk_line *line,
+static int pblk_setup_line_meta_chk(struct pblk *pblk, struct pblk_line *line,
 				   struct nvm_chk_meta *meta)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
@@ -772,6 +747,9 @@ static int pblk_setup_line_meta_20(struct pblk *pblk, struct pblk_line *line,
 		chunk->cnlb = chunk_meta->cnlb;
 		chunk->wp = chunk_meta->wp;
 
+		trace_pblk_chunk_state(pblk_disk_name(pblk), &ppa,
+					chunk->state);
+
 		if (chunk->type & NVM_CHK_TP_SZ_SPEC) {
 			WARN_ONCE(1, "pblk: custom-sized chunks unsupported\n");
 			continue;
@@ -790,8 +768,6 @@ static int pblk_setup_line_meta_20(struct pblk *pblk, struct pblk_line *line,
 static long pblk_setup_line_meta(struct pblk *pblk, struct pblk_line *line,
 				 void *chunk_meta, int line_id)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	long nr_bad_chks, chk_in_line;
@@ -804,10 +780,7 @@ static long pblk_setup_line_meta(struct pblk *pblk, struct pblk_line *line,
 	line->vsc = &l_mg->vsc_list[line_id];
 	spin_lock_init(&line->lock);
 
-	if (geo->version == NVM_OCSSD_SPEC_12)
-		nr_bad_chks = pblk_setup_line_meta_12(pblk, line, chunk_meta);
-	else
-		nr_bad_chks = pblk_setup_line_meta_20(pblk, line, chunk_meta);
+	nr_bad_chks = pblk_setup_line_meta_chk(pblk, line, chunk_meta);
 
 	chk_in_line = lm->blk_per_line - nr_bad_chks;
 	if (nr_bad_chks < 0 || nr_bad_chks > lm->blk_per_line ||
@@ -913,6 +886,17 @@ static int pblk_line_mg_init(struct pblk *pblk)
 			goto fail_free_smeta;
 	}
 
+	l_mg->bitmap_cache = kmem_cache_create("pblk_lm_bitmap",
+			lm->sec_bitmap_len, 0, 0, NULL);
+	if (!l_mg->bitmap_cache)
+		goto fail_free_smeta;
+
+	/* the bitmap pool is used for both valid and map bitmaps */
+	l_mg->bitmap_pool = mempool_create_slab_pool(PBLK_DATA_LINES * 2,
+				l_mg->bitmap_cache);
+	if (!l_mg->bitmap_pool)
+		goto fail_destroy_bitmap_cache;
+
 	/* emeta allocates three different buffers for managing metadata with
 	 * in-memory and in-media layouts
 	 */
@@ -965,6 +949,10 @@ fail_free_emeta:
 			kfree(l_mg->eline_meta[i]->buf);
 		kfree(l_mg->eline_meta[i]);
 	}
+
+	mempool_destroy(l_mg->bitmap_pool);
+fail_destroy_bitmap_cache:
+	kmem_cache_destroy(l_mg->bitmap_cache);
 fail_free_smeta:
 	for (i = 0; i < PBLK_DATA_LINES; i++)
 		kfree(l_mg->sline_meta[i]);
@@ -1043,7 +1031,7 @@ static int pblk_lines_init(struct pblk *pblk)
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line *line;
 	void *chunk_meta;
-	long nr_free_chks = 0;
+	int nr_free_chks = 0;
 	int i, ret;
 
 	ret = pblk_line_meta_init(pblk);
@@ -1058,7 +1046,7 @@ static int pblk_lines_init(struct pblk *pblk)
 	if (ret)
 		goto fail_free_meta;
 
-	chunk_meta = pblk_chunk_get_meta(pblk);
+	chunk_meta = pblk_get_chunk_meta(pblk);
 	if (IS_ERR(chunk_meta)) {
 		ret = PTR_ERR(chunk_meta);
 		goto fail_free_luns;
@@ -1079,16 +1067,22 @@ static int pblk_lines_init(struct pblk *pblk)
 			goto fail_free_lines;
 
 		nr_free_chks += pblk_setup_line_meta(pblk, line, chunk_meta, i);
+
+		trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+								line->state);
 	}
 
 	if (!nr_free_chks) {
 		pblk_err(pblk, "too many bad blocks prevent for sane instance\n");
-		return -EINTR;
+		ret = -EINTR;
+		goto fail_free_lines;
 	}
 
-	pblk_set_provision(pblk, nr_free_chks);
+	ret = pblk_set_provision(pblk, nr_free_chks);
+	if (ret)
+		goto fail_free_lines;
 
-	kfree(chunk_meta);
+	vfree(chunk_meta);
 	return 0;
 
 fail_free_lines:
@@ -1096,7 +1090,7 @@ fail_free_lines:
 		pblk_line_meta_free(l_mg, &pblk->lines[i]);
 	kfree(pblk->lines);
 fail_free_chunk_meta:
-	kfree(chunk_meta);
+	vfree(chunk_meta);
 fail_free_luns:
 	kfree(pblk->luns);
 fail_free_meta:
@@ -1165,7 +1159,6 @@ static void pblk_exit(void *private, bool graceful)
 {
 	struct pblk *pblk = private;
 
-	down_write(&pblk_lock);
 	pblk_gc_exit(pblk, graceful);
 	pblk_tear_down(pblk, graceful);
 
@@ -1174,7 +1167,6 @@ static void pblk_exit(void *private, bool graceful)
 #endif
 
 	pblk_free(pblk);
-	up_write(&pblk_lock);
 }
 
 static sector_t pblk_capacity(void *private)
@@ -1200,6 +1192,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	pblk->dev = dev;
 	pblk->disk = tdisk;
 	pblk->state = PBLK_STATE_RUNNING;
+	trace_pblk_state(pblk_disk_name(pblk), pblk->state);
 	pblk->gc.gc_enabled = 0;
 
 	if (!(geo->version == NVM_OCSSD_SPEC_12 ||
@@ -1210,9 +1203,8 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (geo->version == NVM_OCSSD_SPEC_12 && geo->dom & NVM_RSP_L2P) {
-		pblk_err(pblk, "host-side L2P table not supported. (%x)\n",
-							geo->dom);
+	if (geo->ext) {
+		pblk_err(pblk, "extended metadata not supported\n");
 		kfree(pblk);
 		return ERR_PTR(-EINVAL);
 	}

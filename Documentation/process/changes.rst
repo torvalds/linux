@@ -86,7 +86,7 @@ pkg-config
 
 The build system, as of 4.18, requires pkg-config to check for installed
 kconfig tools and to determine flags settings for use in
-'make {menu,n,g,x}config'.  Previously pkg-config was being used but not
+'make {g,x}config'.  Previously pkg-config was being used but not
 verified or documented.
 
 Flex
@@ -326,7 +326,7 @@ Kernel documentation
 Sphinx
 ------
 
-Please see :ref:`sphinx_install` in ``Documentation/doc-guide/sphinx.rst``
+Please see :ref:`sphinx_install` in :ref:`Documentation/doc-guide/sphinx.rst <sphinxdoc>`
 for details about Sphinx requirements.
 
 Getting updated software

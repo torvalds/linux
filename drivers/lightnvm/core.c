@@ -355,6 +355,11 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		return -EINVAL;
 	}
 
+	if ((tt->flags & NVM_TGT_F_HOST_L2P) != (dev->geo.dom & NVM_RSP_L2P)) {
+		pr_err("nvm: device is incompatible with target L2P type.\n");
+		return -EINVAL;
+	}
+
 	if (nvm_target_exists(create->tgtname)) {
 		pr_err("nvm: target name already exists (%s)\n",
 							create->tgtname);
@@ -384,7 +389,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		goto err_dev;
 	}
 
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node, NULL);
+	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
 	if (!tqueue) {
 		ret = -ENOMEM;
 		goto err_disk;
@@ -598,22 +603,16 @@ static void nvm_ppa_dev_to_tgt(struct nvm_tgt_dev *tgt_dev,
 
 static void nvm_rq_tgt_to_dev(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
-	if (rqd->nr_ppas == 1) {
-		nvm_ppa_tgt_to_dev(tgt_dev, &rqd->ppa_addr, 1);
-		return;
-	}
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
-	nvm_ppa_tgt_to_dev(tgt_dev, rqd->ppa_list, rqd->nr_ppas);
+	nvm_ppa_tgt_to_dev(tgt_dev, ppa_list, rqd->nr_ppas);
 }
 
 static void nvm_rq_dev_to_tgt(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
-	if (rqd->nr_ppas == 1) {
-		nvm_ppa_dev_to_tgt(tgt_dev, &rqd->ppa_addr, 1);
-		return;
-	}
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
-	nvm_ppa_dev_to_tgt(tgt_dev, rqd->ppa_list, rqd->nr_ppas);
+	nvm_ppa_dev_to_tgt(tgt_dev, ppa_list, rqd->nr_ppas);
 }
 
 int nvm_register_tgt_type(struct nvm_tgt_type *tt)
@@ -712,45 +711,23 @@ static void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev,
 	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 }
 
-int nvm_get_chunk_meta(struct nvm_tgt_dev *tgt_dev, struct nvm_chk_meta *meta,
-		struct ppa_addr ppa, int nchks)
+static int nvm_set_flags(struct nvm_geo *geo, struct nvm_rq *rqd)
 {
-	struct nvm_dev *dev = tgt_dev->parent;
+	int flags = 0;
 
-	nvm_ppa_tgt_to_dev(tgt_dev, &ppa, 1);
+	if (geo->version == NVM_OCSSD_SPEC_20)
+		return 0;
 
-	return dev->ops->get_chk_meta(tgt_dev->parent, meta,
-						(sector_t)ppa.ppa, nchks);
+	if (rqd->is_seq)
+		flags |= geo->pln_mode >> 1;
+
+	if (rqd->opcode == NVM_OP_PREAD)
+		flags |= (NVM_IO_SCRAMBLE_ENABLE | NVM_IO_SUSPEND);
+	else if (rqd->opcode == NVM_OP_PWRITE)
+		flags |= NVM_IO_SCRAMBLE_ENABLE;
+
+	return flags;
 }
-EXPORT_SYMBOL(nvm_get_chunk_meta);
-
-int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
-		       int nr_ppas, int type)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-	struct nvm_rq rqd;
-	int ret;
-
-	if (nr_ppas > NVM_MAX_VLBA) {
-		pr_err("nvm: unable to update all blocks atomically\n");
-		return -EINVAL;
-	}
-
-	memset(&rqd, 0, sizeof(struct nvm_rq));
-
-	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
-	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
-
-	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
-	nvm_free_rqd_ppalist(tgt_dev, &rqd);
-	if (ret) {
-		pr_err("nvm: failed bb mark\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(nvm_set_tgt_bb_tbl);
 
 int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
@@ -763,6 +740,7 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	nvm_rq_tgt_to_dev(tgt_dev, rqd);
 
 	rqd->dev = tgt_dev;
+	rqd->flags = nvm_set_flags(&tgt_dev->geo, rqd);
 
 	/* In case of error, fail with right address format */
 	ret = dev->ops->submit_io(dev, rqd);
@@ -783,6 +761,7 @@ int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	nvm_rq_tgt_to_dev(tgt_dev, rqd);
 
 	rqd->dev = tgt_dev;
+	rqd->flags = nvm_set_flags(&tgt_dev->geo, rqd);
 
 	/* In case of error, fail with right address format */
 	ret = dev->ops->submit_io_sync(dev, rqd);
@@ -805,27 +784,159 @@ void nvm_end_io(struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_end_io);
 
+static int nvm_submit_io_sync_raw(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	if (!dev->ops->submit_io_sync)
+		return -ENODEV;
+
+	rqd->flags = nvm_set_flags(&dev->geo, rqd);
+
+	return dev->ops->submit_io_sync(dev, rqd);
+}
+
+static int nvm_bb_chunk_sense(struct nvm_dev *dev, struct ppa_addr ppa)
+{
+	struct nvm_rq rqd = { NULL };
+	struct bio bio;
+	struct bio_vec bio_vec;
+	struct page *page;
+	int ret;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	bio_init(&bio, &bio_vec, 1);
+	bio_add_page(&bio, page, PAGE_SIZE, 0);
+	bio_set_op_attrs(&bio, REQ_OP_READ, 0);
+
+	rqd.bio = &bio;
+	rqd.opcode = NVM_OP_PREAD;
+	rqd.is_seq = 1;
+	rqd.nr_ppas = 1;
+	rqd.ppa_addr = generic_to_dev_addr(dev, ppa);
+
+	ret = nvm_submit_io_sync_raw(dev, &rqd);
+	if (ret)
+		return ret;
+
+	__free_page(page);
+
+	return rqd.error;
+}
+
 /*
- * folds a bad block list from its plane representation to its virtual
- * block representation. The fold is done in place and reduced size is
- * returned.
- *
- * If any of the planes status are bad or grown bad block, the virtual block
- * is marked bad. If not bad, the first plane state acts as the block state.
+ * Scans a 1.2 chunk first and last page to determine if its state.
+ * If the chunk is found to be open, also scan it to update the write
+ * pointer.
  */
-int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
+static int nvm_bb_chunk_scan(struct nvm_dev *dev, struct ppa_addr ppa,
+			     struct nvm_chk_meta *meta)
 {
 	struct nvm_geo *geo = &dev->geo;
-	int blk, offset, pl, blktype;
+	int ret, pg, pl;
 
-	if (nr_blks != geo->num_chk * geo->pln_mode)
-		return -EINVAL;
+	/* sense first page */
+	ret = nvm_bb_chunk_sense(dev, ppa);
+	if (ret < 0) /* io error */
+		return ret;
+	else if (ret == 0) /* valid data */
+		meta->state = NVM_CHK_ST_OPEN;
+	else if (ret > 0) {
+		/*
+		 * If empty page, the chunk is free, else it is an
+		 * actual io error. In that case, mark it offline.
+		 */
+		switch (ret) {
+		case NVM_RSP_ERR_EMPTYPAGE:
+			meta->state = NVM_CHK_ST_FREE;
+			return 0;
+		case NVM_RSP_ERR_FAILCRC:
+		case NVM_RSP_ERR_FAILECC:
+		case NVM_RSP_WARN_HIGHECC:
+			meta->state = NVM_CHK_ST_OPEN;
+			goto scan;
+		default:
+			return -ret; /* other io error */
+		}
+	}
+
+	/* sense last page */
+	ppa.g.pg = geo->num_pg - 1;
+	ppa.g.pl = geo->num_pln - 1;
+
+	ret = nvm_bb_chunk_sense(dev, ppa);
+	if (ret < 0) /* io error */
+		return ret;
+	else if (ret == 0) { /* Chunk fully written */
+		meta->state = NVM_CHK_ST_CLOSED;
+		meta->wp = geo->clba;
+		return 0;
+	} else if (ret > 0) {
+		switch (ret) {
+		case NVM_RSP_ERR_EMPTYPAGE:
+		case NVM_RSP_ERR_FAILCRC:
+		case NVM_RSP_ERR_FAILECC:
+		case NVM_RSP_WARN_HIGHECC:
+			meta->state = NVM_CHK_ST_OPEN;
+			break;
+		default:
+			return -ret; /* other io error */
+		}
+	}
+
+scan:
+	/*
+	 * chunk is open, we scan sequentially to update the write pointer.
+	 * We make the assumption that targets write data across all planes
+	 * before moving to the next page.
+	 */
+	for (pg = 0; pg < geo->num_pg; pg++) {
+		for (pl = 0; pl < geo->num_pln; pl++) {
+			ppa.g.pg = pg;
+			ppa.g.pl = pl;
+
+			ret = nvm_bb_chunk_sense(dev, ppa);
+			if (ret < 0) /* io error */
+				return ret;
+			else if (ret == 0) {
+				meta->wp += geo->ws_min;
+			} else if (ret > 0) {
+				switch (ret) {
+				case NVM_RSP_ERR_EMPTYPAGE:
+					return 0;
+				case NVM_RSP_ERR_FAILCRC:
+				case NVM_RSP_ERR_FAILECC:
+				case NVM_RSP_WARN_HIGHECC:
+					meta->wp += geo->ws_min;
+					break;
+				default:
+					return -ret; /* other io error */
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * folds a bad block list from its plane representation to its
+ * chunk representation.
+ *
+ * If any of the planes status are bad or grown bad, the chunk is marked
+ * offline. If not bad, the first plane state acts as the chunk state.
+ */
+static int nvm_bb_to_chunk(struct nvm_dev *dev, struct ppa_addr ppa,
+			   u8 *blks, int nr_blks, struct nvm_chk_meta *meta)
+{
+	struct nvm_geo *geo = &dev->geo;
+	int ret, blk, pl, offset, blktype;
 
 	for (blk = 0; blk < geo->num_chk; blk++) {
 		offset = blk * geo->pln_mode;
 		blktype = blks[offset];
 
-		/* Bad blocks on any planes take precedence over other types */
 		for (pl = 0; pl < geo->pln_mode; pl++) {
 			if (blks[offset + pl] &
 					(NVM_BLK_T_BAD|NVM_BLK_T_GRWN_BAD)) {
@@ -834,23 +945,124 @@ int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
 			}
 		}
 
-		blks[blk] = blktype;
+		ppa.g.blk = blk;
+
+		meta->wp = 0;
+		meta->type = NVM_CHK_TP_W_SEQ;
+		meta->wi = 0;
+		meta->slba = generic_to_dev_addr(dev, ppa).ppa;
+		meta->cnlb = dev->geo.clba;
+
+		if (blktype == NVM_BLK_T_FREE) {
+			ret = nvm_bb_chunk_scan(dev, ppa, meta);
+			if (ret)
+				return ret;
+		} else {
+			meta->state = NVM_CHK_ST_OFFLINE;
+		}
+
+		meta++;
 	}
 
-	return geo->num_chk;
+	return 0;
 }
-EXPORT_SYMBOL(nvm_bb_tbl_fold);
 
-int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr ppa,
-		       u8 *blks)
+static int nvm_get_bb_meta(struct nvm_dev *dev, sector_t slba,
+			   int nchks, struct nvm_chk_meta *meta)
+{
+	struct nvm_geo *geo = &dev->geo;
+	struct ppa_addr ppa;
+	u8 *blks;
+	int ch, lun, nr_blks;
+	int ret = 0;
+
+	ppa.ppa = slba;
+	ppa = dev_to_generic_addr(dev, ppa);
+
+	if (ppa.g.blk != 0)
+		return -EINVAL;
+
+	if ((nchks % geo->num_chk) != 0)
+		return -EINVAL;
+
+	nr_blks = geo->num_chk * geo->pln_mode;
+
+	blks = kmalloc(nr_blks, GFP_KERNEL);
+	if (!blks)
+		return -ENOMEM;
+
+	for (ch = ppa.g.ch; ch < geo->num_ch; ch++) {
+		for (lun = ppa.g.lun; lun < geo->num_lun; lun++) {
+			struct ppa_addr ppa_gen, ppa_dev;
+
+			if (!nchks)
+				goto done;
+
+			ppa_gen.ppa = 0;
+			ppa_gen.g.ch = ch;
+			ppa_gen.g.lun = lun;
+			ppa_dev = generic_to_dev_addr(dev, ppa_gen);
+
+			ret = dev->ops->get_bb_tbl(dev, ppa_dev, blks);
+			if (ret)
+				goto done;
+
+			ret = nvm_bb_to_chunk(dev, ppa_gen, blks, nr_blks,
+									meta);
+			if (ret)
+				goto done;
+
+			meta += geo->num_chk;
+			nchks -= geo->num_chk;
+		}
+	}
+done:
+	kfree(blks);
+	return ret;
+}
+
+int nvm_get_chunk_meta(struct nvm_tgt_dev *tgt_dev, struct ppa_addr ppa,
+		       int nchks, struct nvm_chk_meta *meta)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 
 	nvm_ppa_tgt_to_dev(tgt_dev, &ppa, 1);
 
-	return dev->ops->get_bb_tbl(dev, ppa, blks);
+	if (dev->geo.version == NVM_OCSSD_SPEC_12)
+		return nvm_get_bb_meta(dev, (sector_t)ppa.ppa, nchks, meta);
+
+	return dev->ops->get_chk_meta(dev, (sector_t)ppa.ppa, nchks, meta);
 }
-EXPORT_SYMBOL(nvm_get_tgt_bb_tbl);
+EXPORT_SYMBOL_GPL(nvm_get_chunk_meta);
+
+int nvm_set_chunk_meta(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
+		       int nr_ppas, int type)
+{
+	struct nvm_dev *dev = tgt_dev->parent;
+	struct nvm_rq rqd;
+	int ret;
+
+	if (dev->geo.version == NVM_OCSSD_SPEC_20)
+		return 0;
+
+	if (nr_ppas > NVM_MAX_VLBA) {
+		pr_err("nvm: unable to update all blocks atomically\n");
+		return -EINVAL;
+	}
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+
+	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
+	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
+
+	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
+	nvm_free_rqd_ppalist(tgt_dev, &rqd);
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvm_set_chunk_meta);
 
 static int nvm_core_init(struct nvm_dev *dev)
 {
@@ -928,20 +1140,26 @@ EXPORT_SYMBOL(nvm_alloc_dev);
 
 int nvm_register(struct nvm_dev *dev)
 {
-	int ret;
+	int ret, exp_pool_size;
 
 	if (!dev->q || !dev->ops)
 		return -EINVAL;
 
-	dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist");
-	if (!dev->dma_pool) {
-		pr_err("nvm: could not create dma pool\n");
-		return -ENOMEM;
-	}
-
 	ret = nvm_init(dev);
 	if (ret)
-		goto err_init;
+		return ret;
+
+	exp_pool_size = max_t(int, PAGE_SIZE,
+			      (NVM_MAX_VLBA * (sizeof(u64) + dev->geo.sos)));
+	exp_pool_size = round_up(exp_pool_size, PAGE_SIZE);
+
+	dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist",
+						  exp_pool_size);
+	if (!dev->dma_pool) {
+		pr_err("nvm: could not create dma pool\n");
+		nvm_free(dev);
+		return -ENOMEM;
+	}
 
 	/* register device with a supported media manager */
 	down_write(&nvm_lock);
@@ -949,9 +1167,6 @@ int nvm_register(struct nvm_dev *dev)
 	up_write(&nvm_lock);
 
 	return 0;
-err_init:
-	dev->ops->destroy_dma_pool(dev->dma_pool);
-	return ret;
 }
 EXPORT_SYMBOL(nvm_register);
 

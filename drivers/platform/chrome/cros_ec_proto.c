@@ -520,7 +520,7 @@ static int get_next_event_xfer(struct cros_ec_device *ec_dev,
 	ret = cros_ec_cmd_xfer(ec_dev, msg);
 	if (ret > 0) {
 		ec_dev->event_size = ret - 1;
-		memcpy(&ec_dev->event_data, msg->data, ec_dev->event_size);
+		memcpy(&ec_dev->event_data, msg->data, ret);
 	}
 
 	return ret;

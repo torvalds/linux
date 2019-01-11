@@ -743,19 +743,19 @@ static int ci_enable_didt(struct amdgpu_device *adev, bool enable)
 
 	if (pi->caps_sq_ramping || pi->caps_db_ramping ||
 	    pi->caps_td_ramping || pi->caps_tcp_ramping) {
-		adev->gfx.rlc.funcs->enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev);
 
 		if (enable) {
 			ret = ci_program_pt_config_registers(adev, didt_config_ci);
 			if (ret) {
-				adev->gfx.rlc.funcs->exit_safe_mode(adev);
+				amdgpu_gfx_rlc_exit_safe_mode(adev);
 				return ret;
 			}
 		}
 
 		ci_do_enable_didt(adev, enable);
 
-		adev->gfx.rlc.funcs->exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev);
 	}
 
 	return 0;
@@ -6277,12 +6277,12 @@ static int ci_dpm_sw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 230,
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 230,
 				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
-	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 231,
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 231,
 				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;

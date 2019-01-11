@@ -1,15 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
- *
- * Licensed under the ISC license.
  */
 
 #include "bcm4708.dtsi"
 
 / {
-	usb3_phy: usb3-phy {
-		compatible = "brcm,ns-bx-usb3-phy";
-	};
+};
+
+&usb3_phy {
+	compatible = "brcm,ns-bx-usb3-phy";
 };
 
 &uart0 {

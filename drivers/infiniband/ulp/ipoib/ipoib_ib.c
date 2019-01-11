@@ -66,7 +66,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 	ah->last_send = 0;
 	kref_init(&ah->ref);
 
-	vah = rdma_create_ah(pd, attr);
+	vah = rdma_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
 	if (IS_ERR(vah)) {
 		kfree(ah);
 		ah = (struct ipoib_ah *)vah;
@@ -678,7 +678,7 @@ static void __ipoib_reap_ah(struct net_device *dev)
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
 		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
-			rdma_destroy_ah(ah->ah);
+			rdma_destroy_ah(ah->ah, 0);
 			kfree(ah);
 		}
 

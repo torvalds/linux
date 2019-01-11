@@ -32,7 +32,8 @@
 #include <linux/initrd.h>
 #include <linux/module.h>
 #include <linux/start_kernel.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
+#include <uapi/linux/mount.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -621,12 +622,10 @@ void __init alloc_irqstack_bootmem(void)
 	for_each_possible_cpu(i) {
 		node = cpu_to_node(i);
 
-		softirq_stack[i] = __alloc_bootmem_node(NODE_DATA(node),
-							THREAD_SIZE,
-							THREAD_SIZE, 0);
-		hardirq_stack[i] = __alloc_bootmem_node(NODE_DATA(node),
-							THREAD_SIZE,
-							THREAD_SIZE, 0);
+		softirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
+						       THREAD_SIZE, node);
+		hardirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
+						       THREAD_SIZE, node);
 	}
 }
 
@@ -644,9 +643,9 @@ void __init setup_arch(char **cmdline_p)
 		register_console(&prom_early_console);
 
 	if (tlb_type == hypervisor)
-		printk("ARCH: SUN4V\n");
+		pr_info("ARCH: SUN4V\n");
 	else
-		printk("ARCH: SUN4U\n");
+		pr_info("ARCH: SUN4U\n");
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

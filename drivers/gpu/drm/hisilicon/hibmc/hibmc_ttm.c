@@ -29,55 +29,6 @@ hibmc_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct hibmc_drm_private, bdev);
 }
 
-static int
-hibmc_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void
-hibmc_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-static int hibmc_ttm_global_init(struct hibmc_drm_private *hibmc)
-{
-	int ret;
-
-	hibmc->mem_global_ref.global_type = DRM_GLOBAL_TTM_MEM;
-	hibmc->mem_global_ref.size = sizeof(struct ttm_mem_global);
-	hibmc->mem_global_ref.init = &hibmc_ttm_mem_global_init;
-	hibmc->mem_global_ref.release = &hibmc_ttm_mem_global_release;
-	ret = drm_global_item_ref(&hibmc->mem_global_ref);
-	if (ret) {
-		DRM_ERROR("could not get ref on ttm global: %d\n", ret);
-		return ret;
-	}
-
-	hibmc->bo_global_ref.mem_glob =
-		hibmc->mem_global_ref.object;
-	hibmc->bo_global_ref.ref.global_type = DRM_GLOBAL_TTM_BO;
-	hibmc->bo_global_ref.ref.size = sizeof(struct ttm_bo_global);
-	hibmc->bo_global_ref.ref.init = &ttm_bo_global_init;
-	hibmc->bo_global_ref.ref.release = &ttm_bo_global_release;
-	ret = drm_global_item_ref(&hibmc->bo_global_ref.ref);
-	if (ret) {
-		DRM_ERROR("failed setting up TTM BO subsystem: %d\n", ret);
-		drm_global_item_unref(&hibmc->mem_global_ref);
-		return ret;
-	}
-	return 0;
-}
-
-static void
-hibmc_ttm_global_release(struct hibmc_drm_private *hibmc)
-{
-	drm_global_item_unref(&hibmc->bo_global_ref.ref);
-	drm_global_item_unref(&hibmc->mem_global_ref);
-	hibmc->mem_global_ref.release = NULL;
-}
-
 static void hibmc_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 {
 	struct hibmc_bo *bo = container_of(tbo, struct hibmc_bo, bo);
@@ -237,18 +188,12 @@ int hibmc_mm_init(struct hibmc_drm_private *hibmc)
 	struct drm_device *dev = hibmc->dev;
 	struct ttm_bo_device *bdev = &hibmc->bdev;
 
-	ret = hibmc_ttm_global_init(hibmc);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&hibmc->bdev,
-				 hibmc->bo_global_ref.ref.object,
 				 &hibmc_bo_driver,
 				 dev->anon_inode->i_mapping,
 				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
-		hibmc_ttm_global_release(hibmc);
 		DRM_ERROR("error initializing bo driver: %d\n", ret);
 		return ret;
 	}
@@ -256,7 +201,6 @@ int hibmc_mm_init(struct hibmc_drm_private *hibmc)
 	ret = ttm_bo_init_mm(bdev, TTM_PL_VRAM,
 			     hibmc->fb_size >> PAGE_SHIFT);
 	if (ret) {
-		hibmc_ttm_global_release(hibmc);
 		DRM_ERROR("failed ttm VRAM init: %d\n", ret);
 		return ret;
 	}
@@ -271,7 +215,6 @@ void hibmc_mm_fini(struct hibmc_drm_private *hibmc)
 		return;
 
 	ttm_bo_device_release(&hibmc->bdev);
-	hibmc_ttm_global_release(hibmc);
 	hibmc->mm_inited = false;
 }
 
@@ -283,7 +226,7 @@ static void hibmc_bo_unref(struct hibmc_bo **bo)
 		return;
 
 	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
+	ttm_bo_put(tbo);
 	*bo = NULL;
 }
 

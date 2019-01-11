@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 /* Copyright (c) 2018 Facebook */
 
 #include <stdlib.h>
@@ -36,6 +36,48 @@ struct btf {
 	__u32 data_size;
 	int fd;
 };
+
+struct btf_ext_info {
+	/*
+	 * info points to a deep copy of the individual info section
+	 * (e.g. func_info and line_info) from the .BTF.ext.
+	 * It does not include the __u32 rec_size.
+	 */
+	void *info;
+	__u32 rec_size;
+	__u32 len;
+};
+
+struct btf_ext {
+	struct btf_ext_info func_info;
+	struct btf_ext_info line_info;
+};
+
+struct btf_ext_info_sec {
+	__u32	sec_name_off;
+	__u32	num_info;
+	/* Followed by num_info * record_size number of bytes */
+	__u8	data[0];
+};
+
+/* The minimum bpf_func_info checked by the loader */
+struct bpf_func_info_min {
+	__u32   insn_off;
+	__u32   type_id;
+};
+
+/* The minimum bpf_line_info checked by the loader */
+struct bpf_line_info_min {
+	__u32	insn_off;
+	__u32	file_name_off;
+	__u32	line_off;
+	__u32	line_col;
+};
+
+static inline __u64 ptr_to_u64(const void *ptr)
+{
+	return (__u64) (unsigned long) ptr;
+}
 
 static int btf_add_type(struct btf *btf, struct btf_type *t)
 {
@@ -165,6 +207,10 @@ static int btf_parse_type_sec(struct btf *btf, btf_print_fn_t err_log)
 		case BTF_KIND_ENUM:
 			next_type += vlen * sizeof(struct btf_enum);
 			break;
+		case BTF_KIND_FUNC_PROTO:
+			next_type += vlen * sizeof(struct btf_param);
+			break;
+		case BTF_KIND_FUNC:
 		case BTF_KIND_TYPEDEF:
 		case BTF_KIND_PTR:
 		case BTF_KIND_FWD:
@@ -392,4 +438,351 @@ const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
 		return &btf->strings[offset];
 	else
 		return NULL;
+}
+
+int btf__get_from_id(__u32 id, struct btf **btf)
+{
+	struct bpf_btf_info btf_info = { 0 };
+	__u32 len = sizeof(btf_info);
+	__u32 last_size;
+	int btf_fd;
+	void *ptr;
+	int err;
+
+	err = 0;
+	*btf = NULL;
+	btf_fd = bpf_btf_get_fd_by_id(id);
+	if (btf_fd < 0)
+		return 0;
+
+	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
+	 * let's start with a sane default - 4KiB here - and resize it only if
+	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
+	 */
+	btf_info.btf_size = 4096;
+	last_size = btf_info.btf_size;
+	ptr = malloc(last_size);
+	if (!ptr) {
+		err = -ENOMEM;
+		goto exit_free;
+	}
+
+	bzero(ptr, last_size);
+	btf_info.btf = ptr_to_u64(ptr);
+	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+
+	if (!err && btf_info.btf_size > last_size) {
+		void *temp_ptr;
+
+		last_size = btf_info.btf_size;
+		temp_ptr = realloc(ptr, last_size);
+		if (!temp_ptr) {
+			err = -ENOMEM;
+			goto exit_free;
+		}
+		ptr = temp_ptr;
+		bzero(ptr, last_size);
+		btf_info.btf = ptr_to_u64(ptr);
+		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+	}
+
+	if (err || btf_info.btf_size > last_size) {
+		err = errno;
+		goto exit_free;
+	}
+
+	*btf = btf__new((__u8 *)(long)btf_info.btf, btf_info.btf_size, NULL);
+	if (IS_ERR(*btf)) {
+		err = PTR_ERR(*btf);
+		*btf = NULL;
+	}
+
+exit_free:
+	close(btf_fd);
+	free(ptr);
+
+	return err;
+}
+
+struct btf_ext_sec_copy_param {
+	__u32 off;
+	__u32 len;
+	__u32 min_rec_size;
+	struct btf_ext_info *ext_info;
+	const char *desc;
+};
+
+static int btf_ext_copy_info(struct btf_ext *btf_ext,
+			     __u8 *data, __u32 data_size,
+			     struct btf_ext_sec_copy_param *ext_sec,
+			     btf_print_fn_t err_log)
+{
+	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
+	const struct btf_ext_info_sec *sinfo;
+	struct btf_ext_info *ext_info;
+	__u32 info_left, record_size;
+	/* The start of the info sec (including the __u32 record_size). */
+	const void *info;
+
+	/* data and data_size do not include btf_ext_header from now on */
+	data = data + hdr->hdr_len;
+	data_size -= hdr->hdr_len;
+
+	if (ext_sec->off & 0x03) {
+		elog(".BTF.ext %s section is not aligned to 4 bytes\n",
+		     ext_sec->desc);
+		return -EINVAL;
+	}
+
+	if (data_size < ext_sec->off ||
+	    ext_sec->len > data_size - ext_sec->off) {
+		elog("%s section (off:%u len:%u) is beyond the end of the ELF section .BTF.ext\n",
+		     ext_sec->desc, ext_sec->off, ext_sec->len);
+		return -EINVAL;
+	}
+
+	info = data + ext_sec->off;
+	info_left = ext_sec->len;
+
+	/* At least a record size */
+	if (info_left < sizeof(__u32)) {
+		elog(".BTF.ext %s record size not found\n", ext_sec->desc);
+		return -EINVAL;
+	}
+
+	/* The record size needs to meet the minimum standard */
+	record_size = *(__u32 *)info;
+	if (record_size < ext_sec->min_rec_size ||
+	    record_size & 0x03) {
+		elog("%s section in .BTF.ext has invalid record size %u\n",
+		     ext_sec->desc, record_size);
+		return -EINVAL;
+	}
+
+	sinfo = info + sizeof(__u32);
+	info_left -= sizeof(__u32);
+
+	/* If no records, return failure now so .BTF.ext won't be used. */
+	if (!info_left) {
+		elog("%s section in .BTF.ext has no records", ext_sec->desc);
+		return -EINVAL;
+	}
+
+	while (info_left) {
+		unsigned int sec_hdrlen = sizeof(struct btf_ext_info_sec);
+		__u64 total_record_size;
+		__u32 num_records;
+
+		if (info_left < sec_hdrlen) {
+			elog("%s section header is not found in .BTF.ext\n",
+			     ext_sec->desc);
+			return -EINVAL;
+		}
+
+		num_records = sinfo->num_info;
+		if (num_records == 0) {
+			elog("%s section has incorrect num_records in .BTF.ext\n",
+			     ext_sec->desc);
+			return -EINVAL;
+		}
+
+		total_record_size = sec_hdrlen +
+				    (__u64)num_records * record_size;
+		if (info_left < total_record_size) {
+			elog("%s section has incorrect num_records in .BTF.ext\n",
+			     ext_sec->desc);
+			return -EINVAL;
+		}
+
+		info_left -= total_record_size;
+		sinfo = (void *)sinfo + total_record_size;
+	}
+
+	ext_info = ext_sec->ext_info;
+	ext_info->len = ext_sec->len - sizeof(__u32);
+	ext_info->rec_size = record_size;
+	ext_info->info = malloc(ext_info->len);
+	if (!ext_info->info)
+		return -ENOMEM;
+	memcpy(ext_info->info, info + sizeof(__u32), ext_info->len);
+
+	return 0;
+}
+
+static int btf_ext_copy_func_info(struct btf_ext *btf_ext,
+				  __u8 *data, __u32 data_size,
+				  btf_print_fn_t err_log)
+{
+	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
+	struct btf_ext_sec_copy_param param = {
+		.off = hdr->func_info_off,
+		.len = hdr->func_info_len,
+		.min_rec_size = sizeof(struct bpf_func_info_min),
+		.ext_info = &btf_ext->func_info,
+		.desc = "func_info"
+	};
+
+	return btf_ext_copy_info(btf_ext, data, data_size, &param, err_log);
+}
+
+static int btf_ext_copy_line_info(struct btf_ext *btf_ext,
+				  __u8 *data, __u32 data_size,
+				  btf_print_fn_t err_log)
+{
+	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
+	struct btf_ext_sec_copy_param param = {
+		.off = hdr->line_info_off,
+		.len = hdr->line_info_len,
+		.min_rec_size = sizeof(struct bpf_line_info_min),
+		.ext_info = &btf_ext->line_info,
+		.desc = "line_info",
+	};
+
+	return btf_ext_copy_info(btf_ext, data, data_size, &param, err_log);
+}
+
+static int btf_ext_parse_hdr(__u8 *data, __u32 data_size,
+			     btf_print_fn_t err_log)
+{
+	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
+
+	if (data_size < offsetof(struct btf_ext_header, func_info_off) ||
+	    data_size < hdr->hdr_len) {
+		elog("BTF.ext header not found");
+		return -EINVAL;
+	}
+
+	if (hdr->magic != BTF_MAGIC) {
+		elog("Invalid BTF.ext magic:%x\n", hdr->magic);
+		return -EINVAL;
+	}
+
+	if (hdr->version != BTF_VERSION) {
+		elog("Unsupported BTF.ext version:%u\n", hdr->version);
+		return -ENOTSUP;
+	}
+
+	if (hdr->flags) {
+		elog("Unsupported BTF.ext flags:%x\n", hdr->flags);
+		return -ENOTSUP;
+	}
+
+	if (data_size == hdr->hdr_len) {
+		elog("BTF.ext has no data\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void btf_ext__free(struct btf_ext *btf_ext)
+{
+	if (!btf_ext)
+		return;
+
+	free(btf_ext->func_info.info);
+	free(btf_ext->line_info.info);
+	free(btf_ext);
+}
+
+struct btf_ext *btf_ext__new(__u8 *data, __u32 size, btf_print_fn_t err_log)
+{
+	struct btf_ext *btf_ext;
+	int err;
+
+	err = btf_ext_parse_hdr(data, size, err_log);
+	if (err)
+		return ERR_PTR(err);
+
+	btf_ext = calloc(1, sizeof(struct btf_ext));
+	if (!btf_ext)
+		return ERR_PTR(-ENOMEM);
+
+	err = btf_ext_copy_func_info(btf_ext, data, size, err_log);
+	if (err) {
+		btf_ext__free(btf_ext);
+		return ERR_PTR(err);
+	}
+
+	err = btf_ext_copy_line_info(btf_ext, data, size, err_log);
+	if (err) {
+		btf_ext__free(btf_ext);
+		return ERR_PTR(err);
+	}
+
+	return btf_ext;
+}
+
+static int btf_ext_reloc_info(const struct btf *btf,
+			      const struct btf_ext_info *ext_info,
+			      const char *sec_name, __u32 insns_cnt,
+			      void **info, __u32 *cnt)
+{
+	__u32 sec_hdrlen = sizeof(struct btf_ext_info_sec);
+	__u32 i, record_size, existing_len, records_len;
+	struct btf_ext_info_sec *sinfo;
+	const char *info_sec_name;
+	__u64 remain_len;
+	void *data;
+
+	record_size = ext_info->rec_size;
+	sinfo = ext_info->info;
+	remain_len = ext_info->len;
+	while (remain_len > 0) {
+		records_len = sinfo->num_info * record_size;
+		info_sec_name = btf__name_by_offset(btf, sinfo->sec_name_off);
+		if (strcmp(info_sec_name, sec_name)) {
+			remain_len -= sec_hdrlen + records_len;
+			sinfo = (void *)sinfo + sec_hdrlen + records_len;
+			continue;
+		}
+
+		existing_len = (*cnt) * record_size;
+		data = realloc(*info, existing_len + records_len);
+		if (!data)
+			return -ENOMEM;
+
+		memcpy(data + existing_len, sinfo->data, records_len);
+		/* adjust insn_off only, the rest data will be passed
+		 * to the kernel.
+		 */
+		for (i = 0; i < sinfo->num_info; i++) {
+			__u32 *insn_off;
+
+			insn_off = data + existing_len + (i * record_size);
+			*insn_off = *insn_off / sizeof(struct bpf_insn) +
+				insns_cnt;
+		}
+		*info = data;
+		*cnt += sinfo->num_info;
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+int btf_ext__reloc_func_info(const struct btf *btf, const struct btf_ext *btf_ext,
+			     const char *sec_name, __u32 insns_cnt,
+			     void **func_info, __u32 *cnt)
+{
+	return btf_ext_reloc_info(btf, &btf_ext->func_info, sec_name,
+				  insns_cnt, func_info, cnt);
+}
+
+int btf_ext__reloc_line_info(const struct btf *btf, const struct btf_ext *btf_ext,
+			     const char *sec_name, __u32 insns_cnt,
+			     void **line_info, __u32 *cnt)
+{
+	return btf_ext_reloc_info(btf, &btf_ext->line_info, sec_name,
+				  insns_cnt, line_info, cnt);
+}
+
+__u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext)
+{
+	return btf_ext->func_info.rec_size;
+}
+
+__u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext)
+{
+	return btf_ext->line_info.rec_size;
 }

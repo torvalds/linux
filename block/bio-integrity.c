@@ -306,6 +306,8 @@ bool bio_integrity_prep(struct bio *bio)
 	if (bio_data_dir(bio) == WRITE) {
 		bio_integrity_process(bio, &bio->bi_iter,
 				      bi->profile->generate_fn);
+	} else {
+		bip->bio_iter = bio->bi_iter;
 	}
 	return true;
 
@@ -331,20 +333,14 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
-	struct bvec_iter iter = bio->bi_iter;
 
 	/*
 	 * At the moment verify is called bio's iterator was advanced
 	 * during split and completion, we need to rewind iterator to
 	 * it's original position.
 	 */
-	if (bio_rewind_iter(bio, &iter, iter.bi_done)) {
-		bio->bi_status = bio_integrity_process(bio, &iter,
-						       bi->profile->verify_fn);
-	} else {
-		bio->bi_status = BLK_STS_IOERR;
-	}
-
+	bio->bi_status = bio_integrity_process(bio, &bip->bio_iter,
+						bi->profile->verify_fn);
 	bio_integrity_free(bio);
 	bio_endio(bio);
 }
@@ -394,7 +390,6 @@ void bio_integrity_advance(struct bio *bio, unsigned int bytes_done)
 	bip->bip_iter.bi_sector += bytes_done >> 9;
 	bvec_iter_advance(bip->bip_vec, &bip->bip_iter, bytes);
 }
-EXPORT_SYMBOL(bio_integrity_advance);
 
 /**
  * bio_integrity_trim - Trim integrity vector
@@ -464,7 +459,6 @@ void bioset_integrity_free(struct bio_set *bs)
 	mempool_exit(&bs->bio_integrity_pool);
 	mempool_exit(&bs->bvec_integrity_pool);
 }
-EXPORT_SYMBOL(bioset_integrity_free);
 
 void __init bio_integrity_init(void)
 {

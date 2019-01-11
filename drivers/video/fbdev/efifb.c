@@ -9,16 +9,40 @@
 
 #include <linux/kernel.h>
 #include <linux/efi.h>
+#include <linux/efi-bgrt.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/printk.h>
 #include <linux/screen_info.h>
 #include <video/vga.h>
 #include <asm/efi.h>
 #include <drm/drm_utils.h> /* For drm_get_panel_orientation_quirk */
 #include <drm/drm_connector.h>  /* For DRM_MODE_PANEL_ORIENTATION_* */
 
+struct bmp_file_header {
+	u16 id;
+	u32 file_size;
+	u32 reserved;
+	u32 bitmap_offset;
+} __packed;
+
+struct bmp_dib_header {
+	u32 dib_header_size;
+	s32 width;
+	s32 height;
+	u16 planes;
+	u16 bpp;
+	u32 compression;
+	u32 bitmap_size;
+	u32 horz_resolution;
+	u32 vert_resolution;
+	u32 colors_used;
+	u32 colors_important;
+} __packed;
+
+static bool use_bgrt = true;
 static bool request_mem_succeeded = false;
 static u64 mem_flags = EFI_MEMORY_WC | EFI_MEMORY_UC;
 
@@ -66,6 +90,167 @@ static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
+/*
+ * If fbcon deffered console takeover is configured, the intent is for the
+ * framebuffer to show the boot graphics (e.g. vendor logo) until there is some
+ * (error) message to display. But the boot graphics may have been destroyed by
+ * e.g. option ROM output, detect this and restore the boot graphics.
+ */
+#if defined CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER && \
+    defined CONFIG_ACPI_BGRT
+static void efifb_copy_bmp(u8 *src, u32 *dst, int width, struct screen_info *si)
+{
+	u8 r, g, b;
+
+	while (width--) {
+		b = *src++;
+		g = *src++;
+		r = *src++;
+		*dst++ = (r << si->red_pos)   |
+			 (g << si->green_pos) |
+			 (b << si->blue_pos);
+	}
+}
+
+#ifdef CONFIG_X86
+/*
+ * On x86 some firmwares use a low non native resolution for the display when
+ * they have shown some text messages. While keeping the bgrt filled with info
+ * for the native resolution. If the bgrt image intended for the native
+ * resolution still fits, it will be displayed very close to the right edge of
+ * the display looking quite bad. This function checks for this.
+ */
+static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
+{
+	static const int default_resolutions[][2] = {
+		{  800,  600 },
+		{ 1024,  768 },
+		{ 1280, 1024 },
+	};
+	u32 i, right_margin;
+
+	for (i = 0; i < ARRAY_SIZE(default_resolutions); i++) {
+		if (default_resolutions[i][0] == si->lfb_width &&
+		    default_resolutions[i][1] == si->lfb_height)
+			break;
+	}
+	/* If not a default resolution used for textmode, this should be fine */
+	if (i >= ARRAY_SIZE(default_resolutions))
+		return true;
+
+	/* If the right margin is 5 times smaller then the left one, reject */
+	right_margin = si->lfb_width - (bgrt_tab.image_offset_x + bmp_width);
+	if (right_margin < (bgrt_tab.image_offset_x / 5))
+		return false;
+
+	return true;
+}
+#else
+static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
+{
+	return true;
+}
+#endif
+
+static void efifb_show_boot_graphics(struct fb_info *info)
+{
+	u32 bmp_width, bmp_height, bmp_pitch, screen_pitch, dst_x, y, src_y;
+	struct screen_info *si = &screen_info;
+	struct bmp_file_header *file_header;
+	struct bmp_dib_header *dib_header;
+	void *bgrt_image = NULL;
+	u8 *dst = info->screen_base;
+
+	if (!use_bgrt)
+		return;
+
+	if (!bgrt_tab.image_address) {
+		pr_info("efifb: No BGRT, not showing boot graphics\n");
+		return;
+	}
+
+	/* Avoid flashing the logo if we're going to print std probe messages */
+	if (console_loglevel > CONSOLE_LOGLEVEL_QUIET)
+		return;
+
+	/* bgrt_tab.status is unreliable, so we don't check it */
+
+	if (si->lfb_depth != 32) {
+		pr_info("efifb: not 32 bits, not showing boot graphics\n");
+		return;
+	}
+
+	bgrt_image = memremap(bgrt_tab.image_address, bgrt_image_size,
+			      MEMREMAP_WB);
+	if (!bgrt_image) {
+		pr_warn("efifb: Ignoring BGRT: failed to map image memory\n");
+		return;
+	}
+
+	if (bgrt_image_size < (sizeof(*file_header) + sizeof(*dib_header)))
+		goto error;
+
+	file_header = bgrt_image;
+	if (file_header->id != 0x4d42 || file_header->reserved != 0)
+		goto error;
+
+	dib_header = bgrt_image + sizeof(*file_header);
+	if (dib_header->dib_header_size != 40 || dib_header->width < 0 ||
+	    dib_header->planes != 1 || dib_header->bpp != 24 ||
+	    dib_header->compression != 0)
+		goto error;
+
+	bmp_width = dib_header->width;
+	bmp_height = abs(dib_header->height);
+	bmp_pitch = round_up(3 * bmp_width, 4);
+	screen_pitch = si->lfb_linelength;
+
+	if ((file_header->bitmap_offset + bmp_pitch * bmp_height) >
+				bgrt_image_size)
+		goto error;
+
+	if ((bgrt_tab.image_offset_x + bmp_width) > si->lfb_width ||
+	    (bgrt_tab.image_offset_y + bmp_height) > si->lfb_height)
+		goto error;
+
+	if (!efifb_bgrt_sanity_check(si, bmp_width))
+		goto error;
+
+	pr_info("efifb: showing boot graphics\n");
+
+	for (y = 0; y < si->lfb_height; y++, dst += si->lfb_linelength) {
+		/* Only background? */
+		if (y < bgrt_tab.image_offset_y ||
+		    y >= (bgrt_tab.image_offset_y + bmp_height)) {
+			memset(dst, 0, 4 * si->lfb_width);
+			continue;
+		}
+
+		src_y = y - bgrt_tab.image_offset_y;
+		/* Positive header height means upside down row order */
+		if (dib_header->height > 0)
+			src_y = (bmp_height - 1) - src_y;
+
+		memset(dst, 0, bgrt_tab.image_offset_x * 4);
+		dst_x = bgrt_tab.image_offset_x;
+		efifb_copy_bmp(bgrt_image + file_header->bitmap_offset +
+					    src_y * bmp_pitch,
+			       (u32 *)dst + dst_x, bmp_width, si);
+		dst_x += bmp_width;
+		memset((u32 *)dst + dst_x, 0, (si->lfb_width - dst_x) * 4);
+	}
+
+	memunmap(bgrt_image);
+	return;
+
+error:
+	memunmap(bgrt_image);
+	pr_warn("efifb: Ignoring BGRT: unexpected or invalid BMP data\n");
+}
+#else
+static inline void efifb_show_boot_graphics(struct fb_info *info) {}
+#endif
+
 static void efifb_destroy(struct fb_info *info)
 {
 	if (info->screen_base) {
@@ -109,6 +294,8 @@ static int efifb_setup(char *options)
 				screen_info.lfb_width = simple_strtoul(this_opt+6, NULL, 0);
 			else if (!strcmp(this_opt, "nowc"))
 				mem_flags &= ~EFI_MEMORY_WC;
+			else if (!strcmp(this_opt, "nobgrt"))
+				use_bgrt = false;
 		}
 	}
 
@@ -310,6 +497,8 @@ static int efifb_probe(struct platform_device *dev)
 		err = -EIO;
 		goto err_release_fb;
 	}
+
+	efifb_show_boot_graphics(info);
 
 	pr_info("efifb: framebuffer at 0x%lx, using %dk, total %dk\n",
 	       efifb_fix.smem_start, size_remap/1024, size_total/1024);

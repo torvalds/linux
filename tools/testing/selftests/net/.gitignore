@@ -3,6 +3,7 @@ socket
 psock_fanout
 psock_snd
 psock_tpacket
+reuseport_addr_any
 reuseport_bpf
 reuseport_bpf_cpu
 reuseport_bpf_numa
@@ -14,3 +15,5 @@ udpgso_bench_rx
 udpgso_bench_tx
 tcp_inq
 tls
+txring_overwrite
+ip_defrag

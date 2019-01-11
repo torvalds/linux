@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -61,9 +62,13 @@ static uint32_t smu8_get_argument(struct pp_hwmgr *hwmgr)
 					mmSMU_MP1_SRBM2P_ARG_0);
 }
 
-static int smu8_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
+/* Send a message to the SMC, and wait for its response.*/
+static int smu8_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+					    uint16_t msg, uint32_t parameter)
 {
 	int result = 0;
+	ktime_t t_start;
+	s64 elapsed_us;
 
 	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
@@ -71,27 +76,34 @@ static int smu8_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
 	result = PHM_WAIT_FIELD_UNEQUAL(hwmgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 	if (result != 0) {
-		pr_err("smu8_send_msg_to_smc_async (0x%04x) failed\n", msg);
+		/* Read the last message to SMU, to report actual cause */
+		uint32_t val = cgs_read_register(hwmgr->device,
+						 mmSMU_MP1_SRBM2P_MSG_0);
+		pr_err("%s(0x%04x) aborted; SMU still servicing msg (0x%04x)\n",
+			__func__, msg, val);
 		return result;
 	}
+	t_start = ktime_get();
+
+	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0, parameter);
 
 	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_RESP_0, 0);
 	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_MSG_0, msg);
 
-	return 0;
+	result = PHM_WAIT_FIELD_UNEQUAL(hwmgr,
+					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
+
+	elapsed_us = ktime_us_delta(ktime_get(), t_start);
+
+	WARN(result, "%s(0x%04x, %#x) timed out after %lld us\n",
+			__func__, msg, parameter, elapsed_us);
+
+	return result;
 }
 
-/* Send a message to the SMC, and wait for its response.*/
 static int smu8_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
-	int result = 0;
-
-	result = smu8_send_msg_to_smc_async(hwmgr, msg);
-	if (result != 0)
-		return result;
-
-	return PHM_WAIT_FIELD_UNEQUAL(hwmgr,
-					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
+	return smu8_send_msg_to_smc_with_parameter(hwmgr, msg, 0);
 }
 
 static int smu8_set_smc_sram_address(struct pp_hwmgr *hwmgr,
@@ -129,17 +141,6 @@ static int smu8_write_smc_sram_dword(struct pp_hwmgr *hwmgr,
 		cgs_write_register(hwmgr->device, mmMP0PUB_IND_DATA_0, value);
 
 	return result;
-}
-
-static int smu8_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
-					  uint16_t msg, uint32_t parameter)
-{
-	if (hwmgr == NULL || hwmgr->device == NULL)
-		return -EINVAL;
-
-	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0, parameter);
-
-	return smu8_send_msg_to_smc(hwmgr, msg);
 }
 
 static int smu8_check_fw_load_finish(struct pp_hwmgr *hwmgr,
@@ -658,11 +659,10 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 {
 	struct smu8_smumgr *smu8_smu = hwmgr->smu_backend;
 	uint32_t smc_address;
+	uint32_t fw_to_check = 0;
+	int ret;
 
-	if (!hwmgr->reload_fw) {
-		pr_info("skip reloading...\n");
-		return 0;
-	}
+	amdgpu_ucode_init_bo(hwmgr->adev);
 
 	smu8_smu_populate_firmware_entries(hwmgr);
 
@@ -689,28 +689,9 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	smu8_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
 				smu8_smu->toc_entry_power_profiling_index);
 
-	return smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smu8_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_ExecuteJob,
 					smu8_smu->toc_entry_initialize_index);
-}
-
-static int smu8_start_smu(struct pp_hwmgr *hwmgr)
-{
-	int ret = 0;
-	uint32_t fw_to_check = 0;
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	uint32_t index = SMN_MP1_SRAM_START_ADDR +
-			 SMU8_FIRMWARE_HEADER_LOCATION +
-			 offsetof(struct SMU8_Firmware_Header, Version);
-
-
-	if (hwmgr == NULL || hwmgr->device == NULL)
-		return -EINVAL;
-
-	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX, index);
-	hwmgr->smu_version = cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA);
-	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
 	fw_to_check = UCODE_ID_RLC_G_MASK |
 			UCODE_ID_SDMA0_MASK |
@@ -724,17 +705,42 @@ static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 	if (hwmgr->chip_id == CHIP_STONEY)
 		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
 
-	ret = smu8_request_smu_load_fw(hwmgr);
-	if (ret)
+	ret = smu8_check_fw_load_finish(hwmgr, fw_to_check);
+	if (ret) {
 		pr_err("SMU firmware load failed\n");
-
-	smu8_check_fw_load_finish(hwmgr, fw_to_check);
+		return ret;
+	}
 
 	ret = smu8_load_mec_firmware(hwmgr);
-	if (ret)
+	if (ret) {
 		pr_err("Mec Firmware load failed\n");
+		return ret;
+	}
 
-	return ret;
+	return 0;
+}
+
+static int smu8_start_smu(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	uint32_t index = SMN_MP1_SRAM_START_ADDR +
+			 SMU8_FIRMWARE_HEADER_LOCATION +
+			 offsetof(struct SMU8_Firmware_Header, Version);
+
+
+	if (hwmgr == NULL || hwmgr->device == NULL)
+		return -EINVAL;
+
+	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX, index);
+	hwmgr->smu_version = cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA);
+	pr_info("smu version %02d.%02d.%02d\n",
+		((hwmgr->smu_version >> 16) & 0xFF),
+		((hwmgr->smu_version >> 8) & 0xFF),
+		(hwmgr->smu_version & 0xFF));
+	adev->pm.fw_version = hwmgr->smu_version >> 8;
+
+	return smu8_request_smu_load_fw(hwmgr);
 }
 
 static int smu8_smu_init(struct pp_hwmgr *hwmgr)

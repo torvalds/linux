@@ -104,6 +104,7 @@
 #define OP_31_XOP_LHZUX     311
 #define OP_31_XOP_MSGSNDP   142
 #define OP_31_XOP_MSGCLRP   174
+#define OP_31_XOP_TLBIE     306
 #define OP_31_XOP_MFSPR     339
 #define OP_31_XOP_LWAX      341
 #define OP_31_XOP_LHAX      343
@@ -256,6 +257,7 @@
 #define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1ffffe
 #define PPC_INST_MFVSRD			0x7c000066
 #define PPC_INST_MTVSRD			0x7c000166
+#define PPC_INST_SC			0x44000002
 #define PPC_INST_SLBFEE			0x7c0007a7
 #define PPC_INST_SLBIA			0x7c0003e4
 
@@ -341,6 +343,8 @@
 #define PPC_INST_SLW			0x7c000030
 #define PPC_INST_SLD			0x7c000036
 #define PPC_INST_SRW			0x7c000430
+#define PPC_INST_SRAW			0x7c000630
+#define PPC_INST_SRAWI			0x7c000670
 #define PPC_INST_SRD			0x7c000436
 #define PPC_INST_SRAD			0x7c000634
 #define PPC_INST_SRADI			0x7c000674
@@ -492,6 +496,8 @@
 					__PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE | \
 					__PPC_RT(t) | __PPC_RB(b))
+#define __PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE |	\
+					       ___PPC_RT(t) | ___PPC_RB(b))
 #define PPC_ICBT(c,a,b)		stringify_in_c(.long PPC_INST_ICBT | \
 				       __PPC_CT(c) | __PPC_RA0(a) | __PPC_RB(b))
 /* PASemi instructions */

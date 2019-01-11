@@ -1780,16 +1780,10 @@ csio_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmnd)
 	int nsge = 0;
 	int rv = SCSI_MLQUEUE_HOST_BUSY, nr;
 	int retval;
-	int cpu;
 	struct csio_scsi_qset *sqset;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 
-	if (!blk_rq_cpu_valid(cmnd->request))
-		cpu = smp_processor_id();
-	else
-		cpu = cmnd->request->cpu;
-
-	sqset = &hw->sqset[ln->portid][cpu];
+	sqset = &hw->sqset[ln->portid][blk_mq_rq_cpu(cmnd->request)];
 
 	nr = fc_remote_port_chkready(rport);
 	if (nr) {
@@ -2280,7 +2274,6 @@ struct scsi_host_template csio_fcoe_shost_template = {
 	.this_id		= -1,
 	.sg_tablesize		= CSIO_SCSI_MAX_SGE,
 	.cmd_per_lun		= CSIO_MAX_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= csio_fcoe_lport_attrs,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
 };
@@ -2300,7 +2293,6 @@ struct scsi_host_template csio_fcoe_shost_vport_template = {
 	.this_id		= -1,
 	.sg_tablesize		= CSIO_SCSI_MAX_SGE,
 	.cmd_per_lun		= CSIO_MAX_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= csio_fcoe_vport_attrs,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
 };
@@ -2349,8 +2341,8 @@ csio_scsi_alloc_ddp_bufs(struct csio_scsim *scm, struct csio_hw *hw,
 		}
 
 		/* Allocate Dma buffers for DDP */
-		ddp_desc->vaddr = pci_alloc_consistent(hw->pdev, unit_size,
-							&ddp_desc->paddr);
+		ddp_desc->vaddr = dma_alloc_coherent(&hw->pdev->dev, unit_size,
+				&ddp_desc->paddr, GFP_KERNEL);
 		if (!ddp_desc->vaddr) {
 			csio_err(hw,
 				 "SCSI response DMA buffer (ddp) allocation"
@@ -2372,8 +2364,8 @@ no_mem:
 	list_for_each(tmp, &scm->ddp_freelist) {
 		ddp_desc = (struct csio_dma_buf *) tmp;
 		tmp = csio_list_prev(tmp);
-		pci_free_consistent(hw->pdev, ddp_desc->len, ddp_desc->vaddr,
-				    ddp_desc->paddr);
+		dma_free_coherent(&hw->pdev->dev, ddp_desc->len,
+				  ddp_desc->vaddr, ddp_desc->paddr);
 		list_del_init(&ddp_desc->list);
 		kfree(ddp_desc);
 	}
@@ -2399,8 +2391,8 @@ csio_scsi_free_ddp_bufs(struct csio_scsim *scm, struct csio_hw *hw)
 	list_for_each(tmp, &scm->ddp_freelist) {
 		ddp_desc = (struct csio_dma_buf *) tmp;
 		tmp = csio_list_prev(tmp);
-		pci_free_consistent(hw->pdev, ddp_desc->len, ddp_desc->vaddr,
-				    ddp_desc->paddr);
+		dma_free_coherent(&hw->pdev->dev, ddp_desc->len,
+				  ddp_desc->vaddr, ddp_desc->paddr);
 		list_del_init(&ddp_desc->list);
 		kfree(ddp_desc);
 	}

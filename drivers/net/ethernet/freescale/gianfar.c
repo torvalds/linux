@@ -102,8 +102,6 @@
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 
 #include "gianfar.h"
 
@@ -112,7 +110,7 @@
 const char gfar_driver_version[] = "2.0";
 
 static int gfar_enet_open(struct net_device *dev);
-static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void gfar_reset_task(struct work_struct *work);
 static void gfar_timeout(struct net_device *dev);
 static int gfar_close(struct net_device *dev);
@@ -502,6 +500,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
 	.ndo_get_stats = gfar_get_stats,
+	.ndo_change_carrier = fixed_phy_change_carrier,
 	.ndo_set_mac_address = gfar_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -722,7 +721,7 @@ static int gfar_of_group_count(struct device_node *np)
 	int num = 0;
 
 	for_each_available_child_of_node(np, child)
-		if (!of_node_cmp(child->name, "queue-group"))
+		if (of_node_name_eq(child, "queue-group"))
 			num++;
 
 	return num;
@@ -840,7 +839,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	/* Parse and initialize group specific information */
 	if (priv->mode == MQ_MG_MODE) {
 		for_each_available_child_of_node(np, child) {
-			if (of_node_cmp(child->name, "queue-group"))
+			if (!of_node_name_eq(child, "queue-group"))
 				continue;
 
 			err = gfar_parse_group(child, priv, model);
@@ -1786,13 +1785,19 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
  */
 static int init_phy(struct net_device *dev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct gfar_private *priv = netdev_priv(dev);
-	uint gigabit_support =
-		priv->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
-		GFAR_SUPPORTED_GBIT : 0;
 	phy_interface_t interface;
 	struct phy_device *phydev;
 	struct ethtool_eee edata;
+
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_MII_BIT, mask);
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, mask);
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
@@ -1811,11 +1816,11 @@ static int init_phy(struct net_device *dev)
 		gfar_configure_serdes(dev);
 
 	/* Remove any features not supported by the controller */
-	phydev->supported &= (GFAR_SUPPORTED | gigabit_support);
-	phydev->advertising = phydev->supported;
+	linkmode_and(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
-	/* Add support for flow control, but don't advertise it by default */
-	phydev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	/* Add support for flow control */
+	phy_support_asym_pause(phydev);
 
 	/* disable EEE autoneg, EEE not supported by eTSEC */
 	memset(&edata, 0, sizeof(struct ethtool_eee));
@@ -2334,7 +2339,7 @@ static inline bool gfar_csum_errata_76(struct gfar_private *priv,
 /* This is called by the kernel when a frame is ready for transmission.
  * It is pointed to by the dev->hard_start_xmit function pointer
  */
-static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar_priv_tx_q *tx_queue = NULL;
@@ -3658,12 +3663,7 @@ static u32 gfar_get_flowctrl_cfg(struct gfar_private *priv)
 		if (phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
 
-		lcl_adv = 0;
-		if (phydev->advertising & ADVERTISED_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_CAP;
-		if (phydev->advertising & ADVERTISED_Asym_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_ASYM;
-
+		lcl_adv = linkmode_adv_to_lcl_adv_t(phydev->advertising);
 		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 		if (flowctrl & FLOW_CTRL_TX)
 			val |= MACCFG1_TX_FLOW;

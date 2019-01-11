@@ -423,7 +423,7 @@ static void emac_hash_mc(struct emac_instance *dev)
 {
 	const int regs = EMAC_XAHT_REGS(dev);
 	u32 *gaht_base = emac_gaht_base(dev);
-	u32 gaht_temp[regs];
+	u32 gaht_temp[EMAC_XAHT_MAX_REGS];
 	struct netdev_hw_addr *ha;
 	int i;
 
@@ -494,9 +494,6 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 	case 16384:
 		ret |= EMAC_MR1_RFS_16K;
 		break;
-	case 8192:
-		ret |= EMAC4_MR1_RFS_8K;
-		break;
 	case 4096:
 		ret |= EMAC_MR1_RFS_4K;
 		break;
@@ -536,6 +533,9 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 	switch(rx_size) {
 	case 16384:
 		ret |= EMAC4_MR1_RFS_16K;
+		break;
+	case 8192:
+		ret |= EMAC4_MR1_RFS_8K;
 		break;
 	case 4096:
 		ret |= EMAC4_MR1_RFS_4K;
@@ -1409,7 +1409,7 @@ static inline u16 emac_tx_csum(struct emac_instance *dev,
 	return 0;
 }
 
-static inline int emac_xmit_finish(struct emac_instance *dev, int len)
+static inline netdev_tx_t emac_xmit_finish(struct emac_instance *dev, int len)
 {
 	struct emac_regs __iomem *p = dev->emacp;
 	struct net_device *ndev = dev->ndev;
@@ -1436,7 +1436,7 @@ static inline int emac_xmit_finish(struct emac_instance *dev, int len)
 }
 
 /* Tx lock BH */
-static int emac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t emac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 	unsigned int len = skb->len;
@@ -1494,7 +1494,8 @@ static inline int emac_xmit_split(struct emac_instance *dev, int slot,
 }
 
 /* Tx lock BH disabled (SG version for TAH equipped EMACs) */
-static int emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t
+emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
@@ -2454,7 +2455,8 @@ static void emac_adjust_link(struct net_device *ndev)
 	dev->phy.duplex = phy->duplex;
 	dev->phy.pause = phy->pause;
 	dev->phy.asym_pause = phy->asym_pause;
-	dev->phy.advertising = phy->advertising;
+	ethtool_convert_link_mode_to_legacy_u32(&dev->phy.advertising,
+						phy->advertising);
 }
 
 static int emac_mii_bus_read(struct mii_bus *bus, int addr, int regnum)
@@ -2489,7 +2491,8 @@ static int emac_mdio_phy_start_aneg(struct mii_phy *phy,
 	phy_dev->autoneg = phy->autoneg;
 	phy_dev->speed = phy->speed;
 	phy_dev->duplex = phy->duplex;
-	phy_dev->advertising = phy->advertising;
+	ethtool_convert_legacy_u32_to_link_mode(phy_dev->advertising,
+						phy->advertising);
 	return phy_start_aneg(phy_dev);
 }
 
@@ -2623,7 +2626,8 @@ static int emac_dt_phy_connect(struct emac_instance *dev,
 	dev->phy.def->phy_id_mask = dev->phy_dev->drv->phy_id_mask;
 	dev->phy.def->name = dev->phy_dev->drv->name;
 	dev->phy.def->ops = &emac_dt_mdio_phy_ops;
-	dev->phy.features = dev->phy_dev->supported;
+	ethtool_convert_link_mode_to_legacy_u32(&dev->phy.features,
+						dev->phy_dev->supported);
 	dev->phy.address = dev->phy_dev->mdio.addr;
 	dev->phy.mode = dev->phy_dev->interface;
 	return 0;
@@ -2677,12 +2681,17 @@ static int emac_init_phy(struct emac_instance *dev)
 		if (of_phy_is_fixed_link(np)) {
 			int res = emac_dt_mdio_probe(dev);
 
-			if (!res) {
-				res = of_phy_register_fixed_link(np);
-				if (res)
-					mdiobus_unregister(dev->mii_bus);
+			if (res)
+				return res;
+
+			res = of_phy_register_fixed_link(np);
+			dev->phy_dev = of_phy_find_device(np);
+			if (res || !dev->phy_dev) {
+				mdiobus_unregister(dev->mii_bus);
+				return res ? res : -EINVAL;
 			}
-			return res;
+			emac_adjust_link(dev->ndev);
+			put_device(&dev->phy_dev->mdio.dev);
 		}
 		return 0;
 	}
@@ -2963,6 +2972,10 @@ static int emac_init_config(struct emac_instance *dev)
 		dev->xaht_slots_shift = EMAC4_XAHT_SLOTS_SHIFT;
 		dev->xaht_width_shift = EMAC4_XAHT_WIDTH_SHIFT;
 	}
+
+	/* This should never happen */
+	if (WARN_ON(EMAC_XAHT_REGS(dev) > EMAC_XAHT_MAX_REGS))
+		return -ENXIO;
 
 	DBG(dev, "features     : 0x%08x / 0x%08x\n", dev->features, EMAC_FTRS_POSSIBLE);
 	DBG(dev, "tx_fifo_size : %d (%d gige)\n", dev->tx_fifo_size, dev->tx_fifo_size_gige);

@@ -181,7 +181,7 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	phydev->lp_advertising = mii_lpa_to_ethtool_lpa_t(val);
+	mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, val);
 	phydev->pause = val & LPA_PAUSE_CAP ? 1 : 0;
 	phydev->asym_pause = val & LPA_PAUSE_ASYM ? 1 : 0;
 
@@ -191,7 +191,8 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 		return val;
 
 	if (val & MDIO_AN_10GBT_STAT_LP10G)
-		phydev->lp_advertising |= ADVERTISED_10000baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+				 phydev->lp_advertising);
 
 	return 0;
 }
@@ -304,8 +305,11 @@ EXPORT_SYMBOL_GPL(gen10g_no_soft_reset);
 int gen10g_config_init(struct phy_device *phydev)
 {
 	/* Temporarily just say we support everything */
-	phydev->supported = SUPPORTED_10000baseT_Full;
-	phydev->advertising = SUPPORTED_10000baseT_Full;
+	linkmode_zero(phydev->supported);
+
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 phydev->supported);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	return 0;
 }
@@ -329,7 +333,7 @@ struct phy_driver genphy_10g_driver = {
 	.name           = "Generic 10G PHY",
 	.soft_reset	= gen10g_no_soft_reset,
 	.config_init    = gen10g_config_init,
-	.features       = 0,
+	.features       = PHY_10GBIT_FEATURES,
 	.config_aneg    = gen10g_config_aneg,
 	.read_status    = gen10g_read_status,
 	.suspend        = gen10g_suspend,

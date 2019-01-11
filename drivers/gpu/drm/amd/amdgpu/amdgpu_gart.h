@@ -40,8 +40,8 @@ struct amdgpu_bo;
 #define AMDGPU_GPU_PAGES_IN_CPU_PAGE (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE)
 
 struct amdgpu_gart {
-	u64				table_addr;
-	struct amdgpu_bo		*robj;
+	struct amdgpu_bo		*bo;
+	/* CPU kmapped address of gart table */
 	void				*ptr;
 	unsigned			num_gpu_pages;
 	unsigned			num_cpu_pages;

@@ -37,6 +37,8 @@
 			reg = <0x0400 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart1>;
 			status = "disabled";
 		};
 	};
@@ -152,13 +154,6 @@
 		#phy-cells = <0>;
 		clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
 		clock-names = "phy-ref-clk";
-	};
-
-	usb3_phy: usb3-phy {
-		compatible = "brcm,ns-ax-usb3-phy";
-		reg = <0x18105000 0x1000>, <0x18003000 0x1000>;
-		reg-names = "dmp", "ccb-mii";
-		#phy-cells = <0>;
 	};
 
 	axi@18000000 {
@@ -359,7 +354,33 @@
 		reg = <0x18003000 0x8>;
 		#size-cells = <1>;
 		#address-cells = <0>;
-		status = "disabled";
+	};
+
+	mdio-bus-mux {
+		compatible = "mdio-mux-mmioreg";
+		mdio-parent-bus = <&mdio>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x18003000 0x4>;
+		mux-mask = <0x200>;
+
+		mdio@0 {
+			reg = <0x0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			usb3_phy: usb3-phy@10 {
+				compatible = "brcm,ns-ax-usb3-phy";
+				reg = <0x10>;
+				usb3-dmp-syscon = <&usb3_dmp>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
+	};
+
+	usb3_dmp: syscon@18105000 {
+		reg = <0x18105000 0x1000>;
 	};
 
 	i2c0: i2c@18009000 {
@@ -370,6 +391,48 @@
 		#size-cells = <0>;
 		clock-frequency = <100000>;
 		status = "disabled";
+	};
+
+	dmu@1800c000 {
+		compatible = "simple-bus";
+		ranges = <0 0x1800c000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		cru@100 {
+			compatible = "simple-bus";
+			reg = <0x100 0x1a4>;
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pin-controller@1c0 {
+				compatible = "brcm,bcm4708-pinmux";
+				reg = <0x1c0 0x24>;
+				reg-names = "cru_gpio_control";
+
+				spi-pins {
+					groups = "spi_grp";
+					function = "spi";
+				};
+
+				i2c {
+					groups = "i2c_grp";
+					function = "i2c";
+				};
+
+				pwm {
+					groups = "pwm0_grp", "pwm1_grp",
+						 "pwm2_grp", "pwm3_grp";
+					function = "pwm";
+				};
+
+				pinmux_uart1: uart1 {
+					groups = "uart1_grp";
+					function = "uart1";
+				};
+			};
+		};
 	};
 
 	lcpll0: lcpll0@1800c100 {
@@ -456,8 +519,11 @@
 			compatible = "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
-			linux,part-probe = "ofpart", "bcm47xxpart";
 			status = "disabled";
+
+			partitions {
+				compatible = "brcm,bcm947xx-cfe-partitions";
+			};
 		};
 	};
 

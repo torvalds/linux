@@ -24,6 +24,7 @@
 #include <linux/fdtable.h>
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
+#include <linux/mmu_context.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
@@ -44,8 +45,6 @@ enum hqd_dequeue_request_type {
 	DRAIN_PIPE,
 	RESET_WAVES
 };
-
-struct vi_sdma_mqd;
 
 /*
  * Register access functions
@@ -100,7 +99,7 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 static void set_scratch_backing_va(struct kgd_dev *kgd,
 					uint64_t va, uint32_t vmid);
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t page_table_base);
+		uint64_t page_table_base);
 static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid);
 static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid);
 
@@ -130,13 +129,6 @@ static int get_tile_config(struct kgd_dev *kgd,
 }
 
 static const struct kfd2kgd_calls kfd2kgd = {
-	.init_gtt_mem_allocation = alloc_gtt_mem,
-	.free_gtt_mem = free_gtt_mem,
-	.get_local_mem_info = get_local_mem_info,
-	.get_gpu_clock_counter = get_gpu_clock_counter,
-	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
-	.alloc_pasid = amdgpu_pasid_alloc,
-	.free_pasid = amdgpu_pasid_free,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_interrupts = kgd_init_interrupts,
@@ -159,26 +151,9 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_fw_version = get_fw_version,
 	.set_scratch_backing_va = set_scratch_backing_va,
 	.get_tile_config = get_tile_config,
-	.get_cu_info = get_cu_info,
-	.get_vram_usage = amdgpu_amdkfd_get_vram_usage,
-	.create_process_vm = amdgpu_amdkfd_gpuvm_create_process_vm,
-	.acquire_process_vm = amdgpu_amdkfd_gpuvm_acquire_process_vm,
-	.destroy_process_vm = amdgpu_amdkfd_gpuvm_destroy_process_vm,
-	.get_process_page_dir = amdgpu_amdkfd_gpuvm_get_process_page_dir,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
-	.alloc_memory_of_gpu = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu,
-	.free_memory_of_gpu = amdgpu_amdkfd_gpuvm_free_memory_of_gpu,
-	.map_memory_to_gpu = amdgpu_amdkfd_gpuvm_map_memory_to_gpu,
-	.unmap_memory_to_gpu = amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu,
-	.sync_memory = amdgpu_amdkfd_gpuvm_sync_memory,
-	.map_gtt_bo_to_kernel = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel,
-	.restore_process_bos = amdgpu_amdkfd_gpuvm_restore_process_bos,
 	.invalidate_tlbs = invalidate_tlbs,
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
-	.submit_ib = amdgpu_amdkfd_submit_ib,
-	.get_vm_fault_info = amdgpu_amdkfd_gpuvm_get_vm_fault_info,
-	.gpu_recover = amdgpu_amdkfd_gpu_reset,
-	.set_compute_idle = amdgpu_amdkfd_set_compute_idle
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
@@ -281,7 +256,8 @@ static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
 
 	lock_srbm(kgd, mec, pipe, 0, 0);
 
-	WREG32(mmCPC_INT_CNTL, CP_INT_CNTL_RING0__TIME_STAMP_INT_ENABLE_MASK);
+	WREG32(mmCPC_INT_CNTL, CP_INT_CNTL_RING0__TIME_STAMP_INT_ENABLE_MASK |
+			CP_INT_CNTL_RING0__OPCODE_ERROR_INT_ENABLE_MASK);
 
 	unlock_srbm(kgd);
 
@@ -833,7 +809,7 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 }
 
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t page_table_base)
+		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
@@ -841,7 +817,8 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		pr_err("trying to set page table base for wrong VMID\n");
 		return;
 	}
-	WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8, page_table_base);
+	WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8,
+			lower_32_bits(page_table_base));
 }
 
 static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)

@@ -26,6 +26,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -332,15 +333,15 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	function = sunxi_pctrl_parse_function_prop(node);
 	if (!function) {
-		dev_err(pctl->dev, "missing function property in node %s\n",
-			node->name);
+		dev_err(pctl->dev, "missing function property in node %pOFn\n",
+			node);
 		return -EINVAL;
 	}
 
 	pin_prop = sunxi_pctrl_find_pins_prop(node, &npins);
 	if (!pin_prop) {
-		dev_err(pctl->dev, "missing pins property in node %s\n",
-			node->name);
+		dev_err(pctl->dev, "missing pins property in node %pOFn\n",
+			node);
 		return -EINVAL;
 	}
 
@@ -693,12 +694,74 @@ sunxi_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int sunxi_pmx_request(struct pinctrl_dev *pctldev, unsigned offset)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	unsigned short bank = offset / PINS_PER_BANK;
+	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank];
+	struct regulator *reg;
+	int ret;
+
+	reg = s_reg->regulator;
+	if (!reg) {
+		char supply[16];
+
+		snprintf(supply, sizeof(supply), "vcc-p%c", 'a' + bank);
+		reg = regulator_get(pctl->dev, supply);
+		if (IS_ERR(reg)) {
+			dev_err(pctl->dev, "Couldn't get bank P%c regulator\n",
+				'A' + bank);
+			return PTR_ERR(reg);
+		}
+
+		s_reg->regulator = reg;
+		refcount_set(&s_reg->refcount, 1);
+	} else {
+		refcount_inc(&s_reg->refcount);
+	}
+
+	ret = regulator_enable(reg);
+	if (ret) {
+		dev_err(pctl->dev,
+			"Couldn't enable bank P%c regulator\n", 'A' + bank);
+		goto out;
+	}
+
+	return 0;
+
+out:
+	if (refcount_dec_and_test(&s_reg->refcount)) {
+		regulator_put(s_reg->regulator);
+		s_reg->regulator = NULL;
+	}
+
+	return ret;
+}
+
+static int sunxi_pmx_free(struct pinctrl_dev *pctldev, unsigned offset)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	unsigned short bank = offset / PINS_PER_BANK;
+	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank];
+
+	if (!refcount_dec_and_test(&s_reg->refcount))
+		return 0;
+
+	regulator_disable(s_reg->regulator);
+	regulator_put(s_reg->regulator);
+	s_reg->regulator = NULL;
+
+	return 0;
+}
+
 static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_functions_count	= sunxi_pmx_get_funcs_cnt,
 	.get_function_name	= sunxi_pmx_get_func_name,
 	.get_function_groups	= sunxi_pmx_get_func_groups,
 	.set_mux		= sunxi_pmx_set_mux,
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
+	.request		= sunxi_pmx_request,
+	.free			= sunxi_pmx_free,
 	.strict			= true,
 };
 
@@ -1042,6 +1105,7 @@ static int sunxi_pinctrl_add_function(struct sunxi_pinctrl *pctl,
 static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 {
 	struct sunxi_pinctrl *pctl = platform_get_drvdata(pdev);
+	void *ptr;
 	int i;
 
 	/*
@@ -1079,10 +1143,9 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * We suppose that we won't have any more functions than pins,
 	 * we'll reallocate that later anyway
 	 */
-	pctl->functions = devm_kcalloc(&pdev->dev,
-				       pctl->ngroups,
-				       sizeof(*pctl->functions),
-				       GFP_KERNEL);
+	pctl->functions = kcalloc(pctl->ngroups,
+				  sizeof(*pctl->functions),
+				  GFP_KERNEL);
 	if (!pctl->functions)
 		return -ENOMEM;
 
@@ -1109,13 +1172,15 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	}
 
 	/* And now allocated and fill the array for real */
-	pctl->functions = krealloc(pctl->functions,
-				   pctl->nfunctions * sizeof(*pctl->functions),
-				   GFP_KERNEL);
-	if (!pctl->functions) {
+	ptr = krealloc(pctl->functions,
+		       pctl->nfunctions * sizeof(*pctl->functions),
+		       GFP_KERNEL);
+	if (!ptr) {
 		kfree(pctl->functions);
+		pctl->functions = NULL;
 		return -ENOMEM;
 	}
+	pctl->functions = ptr;
 
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
@@ -1133,8 +1198,10 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 
 			func_item = sunxi_pinctrl_find_function_by_name(pctl,
 									func->name);
-			if (!func_item)
+			if (!func_item) {
+				kfree(pctl->functions);
 				return -EINVAL;
+			}
 
 			if (!func_item->groups) {
 				func_item->groups =
@@ -1142,8 +1209,10 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 						     func_item->ngroups,
 						     sizeof(*func_item->groups),
 						     GFP_KERNEL);
-				if (!func_item->groups)
+				if (!func_item->groups) {
+					kfree(pctl->functions);
 					return -ENOMEM;
+				}
 			}
 
 			func_grp = func_item->groups;

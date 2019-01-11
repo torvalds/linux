@@ -38,24 +38,13 @@
 #error Sorry, your compiler targets APCS-26 but this kernel requires APCS-32
 #endif
 /*
- * GCC 3.0, 3.1: general bad code generation.
- * GCC 3.2.0: incorrect function argument offset calculation.
- * GCC 3.2.x: miscompiles NEW_AUX_ENT in fs/binfmt_elf.c
- *            (http://gcc.gnu.org/PR8896) and incorrect structure
- *	      initialisation in fs/jffs2/erase.c
  * GCC 4.8.0-4.8.2: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58854
  *	      miscompiles find_get_entry(), and can result in EXT3 and EXT4
  *	      filesystem corruption (possibly other FS too).
  */
-#ifdef __GNUC__
-#if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
-#error Your compiler is too buggy; it is known to miscompile kernels.
-#error    Known good compilers: 3.3, 4.x
-#endif
-#if GCC_VERSION >= 40800 && GCC_VERSION < 40803
+#if defined(GCC_VERSION) && GCC_VERSION >= 40800 && GCC_VERSION < 40803
 #error Your compiler is too buggy; it is known to miscompile kernels
 #error and result in filesystem corruption and oopses.
-#endif
 #endif
 
 int main(void)
@@ -90,6 +79,10 @@ int main(void)
 #ifdef CONFIG_CRUNCH
   DEFINE(TI_CRUNCH_STATE,	offsetof(struct thread_info, crunchstate));
 #endif
+#ifdef CONFIG_STACKPROTECTOR_PER_TASK
+  DEFINE(TI_STACK_CANARY,	offsetof(struct thread_info, stack_canary));
+#endif
+  DEFINE(THREAD_SZ_ORDER,	THREAD_SIZE_ORDER);
   BLANK();
   DEFINE(S_R0,			offsetof(struct pt_regs, ARM_r0));
   DEFINE(S_R1,			offsetof(struct pt_regs, ARM_r1));

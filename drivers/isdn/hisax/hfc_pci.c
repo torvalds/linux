@@ -86,7 +86,7 @@ release_io_hfcpci(struct IsdnCardState *cs)
 	pci_free_consistent(cs->hw.hfcpci.dev, 0x8000,
 			    cs->hw.hfcpci.fifos, cs->hw.hfcpci.dma);
 	cs->hw.hfcpci.fifos = NULL;
-	iounmap((void *)cs->hw.hfcpci.pci_io);
+	iounmap(cs->hw.hfcpci.pci_io);
 }
 
 /********************************************************************************/
@@ -128,7 +128,7 @@ reset_hfcpci(struct IsdnCardState *cs)
 	Write_hfc(cs, HFCPCI_INT_M1, cs->hw.hfcpci.int_m1);
 
 	/* Clear already pending ints */
-	if (Read_hfc(cs, HFCPCI_INT_S1));
+	Read_hfc(cs, HFCPCI_INT_S1);
 
 	Write_hfc(cs, HFCPCI_STATES, HFCPCI_LOAD_STATE | 2);	/* HFC ST 2 */
 	udelay(10);
@@ -158,7 +158,7 @@ reset_hfcpci(struct IsdnCardState *cs)
 	/* Finally enable IRQ output */
 	cs->hw.hfcpci.int_m2 = HFCPCI_IRQ_ENABLE;
 	Write_hfc(cs, HFCPCI_INT_M2, cs->hw.hfcpci.int_m2);
-	if (Read_hfc(cs, HFCPCI_INT_S1));
+	Read_hfc(cs, HFCPCI_INT_S1);
 }
 
 /***************************************************/
@@ -274,7 +274,7 @@ hfcpci_empty_fifo(struct BCState *bcs, bzfifo_type *bz, u_char *bdata, int count
 	u_char *ptr, *ptr1, new_f2;
 	struct sk_buff *skb;
 	struct IsdnCardState *cs = bcs->cs;
-	int total, maxlen, new_z2;
+	int maxlen, new_z2;
 	z_type *zp;
 
 	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
@@ -297,7 +297,6 @@ hfcpci_empty_fifo(struct BCState *bcs, bzfifo_type *bz, u_char *bdata, int count
 	} else if (!(skb = dev_alloc_skb(count - 3)))
 		printk(KERN_WARNING "HFCPCI: receive out of memory\n");
 	else {
-		total = count;
 		count -= 3;
 		ptr = skb_put(skb, count);
 
@@ -1170,11 +1169,13 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 		if (cs->debug & L1_DEB_LAPD)
 			debugl1(cs, "-> PH_REQUEST_PULL");
 #endif
+		spin_lock_irqsave(&cs->lock, flags);
 		if (!cs->tx_skb) {
 			test_and_clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
 			st->l1.l1l2(st, PH_PULL | CONFIRM, NULL);
 		} else
 			test_and_set_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
+		spin_unlock_irqrestore(&cs->lock, flags);
 		break;
 	case (HW_RESET | REQUEST):
 		spin_lock_irqsave(&cs->lock, flags);
@@ -1537,7 +1538,7 @@ hfcpci_bh(struct work_struct *work)
 					cs->hw.hfcpci.int_m1 &= ~HFCPCI_INTS_TIMER;
 					Write_hfc(cs, HFCPCI_INT_M1, cs->hw.hfcpci.int_m1);
 					/* Clear already pending ints */
-					if (Read_hfc(cs, HFCPCI_INT_S1));
+					Read_hfc(cs, HFCPCI_INT_S1);
 					Write_hfc(cs, HFCPCI_STATES, 4 | HFCPCI_LOAD_STATE);
 					udelay(10);
 					Write_hfc(cs, HFCPCI_STATES, 4);
@@ -1692,7 +1693,7 @@ setup_hfcpci(struct IsdnCard *card)
 		printk(KERN_WARNING "HFC-PCI: No IRQ for PCI card found\n");
 		return (0);
 	}
-	cs->hw.hfcpci.pci_io = (char *)(unsigned long)dev_hfcpci->resource[1].start;
+	cs->hw.hfcpci.pci_io = ioremap(dev_hfcpci->resource[1].start, 256);
 	printk(KERN_INFO "HiSax: HFC-PCI card manufacturer: %s card name: %s\n", id_list[i].vendor_name, id_list[i].card_name);
 
 	if (!cs->hw.hfcpci.pci_io) {
@@ -1716,7 +1717,6 @@ setup_hfcpci(struct IsdnCard *card)
 		return 0;
 	}
 	pci_write_config_dword(cs->hw.hfcpci.dev, 0x80, (u32)cs->hw.hfcpci.dma);
-	cs->hw.hfcpci.pci_io = ioremap((ulong) cs->hw.hfcpci.pci_io, 256);
 	printk(KERN_INFO
 	       "HFC-PCI: defined at mem %p fifo %p(%lx) IRQ %d HZ %d\n",
 	       cs->hw.hfcpci.pci_io,

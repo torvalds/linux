@@ -101,7 +101,7 @@ static inline bool has_acpi_companion(struct device *dev)
 static inline void acpi_preset_companion(struct device *dev,
 					 struct acpi_device *parent, u64 addr)
 {
-	ACPI_COMPANION_SET(dev, acpi_find_child_device(parent, addr, NULL));
+	ACPI_COMPANION_SET(dev, acpi_find_child_device(parent, addr, false));
 }
 
 static inline const char *acpi_dev_name(struct acpi_device *adev)
@@ -340,7 +340,14 @@ struct pci_dev;
 int acpi_pci_irq_enable (struct pci_dev *dev);
 void acpi_penalize_isa_irq(int irq, int active);
 bool acpi_isa_irq_available(int irq);
+#ifdef CONFIG_PCI
 void acpi_penalize_sci_irq(int irq, int trigger, int polarity);
+#else
+static inline void acpi_penalize_sci_irq(int irq, int trigger,
+					int polarity)
+{
+}
+#endif
 void acpi_pci_irq_disable (struct pci_dev *dev);
 
 extern int ec_read(u8 addr, u8 *val);
@@ -831,8 +838,6 @@ static inline int acpi_dma_configure(struct device *dev,
 	return 0;
 }
 
-static inline void acpi_dma_deconfigure(struct device *dev) { }
-
 #define ACPI_PTR(_ptr)	(NULL)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)
@@ -1056,6 +1061,17 @@ static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 }
 #endif
 
+#if defined(CONFIG_ACPI) && IS_ENABLED(CONFIG_I2C)
+bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
+			       struct acpi_resource_i2c_serialbus **i2c);
+#else
+static inline bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
+					     struct acpi_resource_i2c_serialbus **i2c)
+{
+	return false;
+}
+#endif
+
 /* Device properties */
 
 #ifdef CONFIG_ACPI
@@ -1073,6 +1089,15 @@ static inline int acpi_node_get_property_reference(
 	return __acpi_node_get_property_reference(fwnode, name, index,
 		NR_FWNODE_REFERENCE_ARGS, args);
 }
+
+static inline bool acpi_dev_has_props(const struct acpi_device *adev)
+{
+	return !list_empty(&adev->data.properties);
+}
+
+struct acpi_device_properties *
+acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
+		    const union acpi_object *properties);
 
 int acpi_node_prop_get(const struct fwnode_handle *fwnode, const char *propname,
 		       void **valptr);
@@ -1303,6 +1328,16 @@ static inline int find_acpi_cpu_topology_package(unsigned int cpu)
 static inline int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 {
 	return -EINVAL;
+}
+#endif
+
+#ifdef CONFIG_ACPI
+extern int acpi_platform_notify(struct device *dev, enum kobject_action action);
+#else
+static inline int
+acpi_platform_notify(struct device *dev, enum kobject_action action)
+{
+	return 0;
 }
 #endif
 

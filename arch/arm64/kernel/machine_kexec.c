@@ -212,9 +212,17 @@ void machine_kexec(struct kimage *kimage)
 	 * uses physical addressing to relocate the new image to its final
 	 * position and transfers control to the image entry point when the
 	 * relocation is complete.
+	 * In kexec case, kimage->start points to purgatory assuming that
+	 * kernel entry and dtb address are embedded in purgatory by
+	 * userspace (kexec-tools).
+	 * In kexec_file case, the kernel starts directly without purgatory.
 	 */
-
-	cpu_soft_restart(reboot_code_buffer_phys, kimage->head, kimage->start, 0);
+	cpu_soft_restart(reboot_code_buffer_phys, kimage->head, kimage->start,
+#ifdef CONFIG_KEXEC_FILE
+						kimage->arch.dtb_mem);
+#else
+						0);
+#endif
 
 	BUG(); /* Should never get here. */
 }
@@ -358,14 +366,3 @@ void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
 	}
 }
 #endif /* CONFIG_HIBERNATION */
-
-void arch_crash_save_vmcoreinfo(void)
-{
-	VMCOREINFO_NUMBER(VA_BITS);
-	/* Please note VMCOREINFO_NUMBER() uses "%d", not "%x" */
-	vmcoreinfo_append_str("NUMBER(kimage_voffset)=0x%llx\n",
-						kimage_voffset);
-	vmcoreinfo_append_str("NUMBER(PHYS_OFFSET)=0x%llx\n",
-						PHYS_OFFSET);
-	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
-}

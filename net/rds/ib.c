@@ -148,8 +148,8 @@ static void rds_ib_add_one(struct ib_device *device)
 
 	has_fr = (device->attrs.device_cap_flags &
 		  IB_DEVICE_MEM_MGT_EXTENSIONS);
-	has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
-		   device->map_phys_fmr && device->unmap_fmr);
+	has_fmr = (device->ops.alloc_fmr && device->ops.dealloc_fmr &&
+		   device->ops.map_phys_fmr && device->ops.unmap_fmr);
 	rds_ibdev->use_fastreg = (has_fr && !has_fmr);
 
 	rds_ibdev->fmr_max_remaps = device->attrs.max_map_per_fmr?: 32;
@@ -341,15 +341,10 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 
 	if (rds_conn_state(conn) == RDS_CONN_UP) {
 		struct rds_ib_device *rds_ibdev;
-		struct rdma_dev_addr *dev_addr;
 
 		ic = conn->c_transport_data;
-		dev_addr = &ic->i_cm_id->route.addr.dev_addr;
-		rdma_addr_get_sgid(dev_addr,
-				   (union ib_gid *)&iinfo6->src_gid);
-		rdma_addr_get_dgid(dev_addr,
-				   (union ib_gid *)&iinfo6->dst_gid);
-
+		rdma_read_gids(ic->i_cm_id, (union ib_gid *)&iinfo6->src_gid,
+			       (union ib_gid *)&iinfo6->dst_gid);
 		rds_ibdev = ic->rds_ibdev;
 		iinfo6->max_send_wr = ic->i_send_ring.w_nr;
 		iinfo6->max_recv_wr = ic->i_recv_ring.w_nr;

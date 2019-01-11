@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #ifndef NFP_FLOWER_CMSG_H
 #define NFP_FLOWER_CMSG_H
@@ -38,6 +8,7 @@
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <net/geneve.h>
+#include <net/vxlan.h>
 
 #include "../nfp_app.h"
 #include "../nfpcore/nfp_cpp.h"
@@ -95,8 +66,10 @@
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
 #define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_TTL_TOS	10
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
+#define NFP_FL_ACTION_OPCODE_SET_IPV6_TC_HL_FL	13
 #define NFP_FL_ACTION_OPCODE_SET_UDP		14
 #define NFP_FL_ACTION_OPCODE_SET_TCP		15
 #define NFP_FL_ACTION_OPCODE_PRE_LAG		16
@@ -111,6 +84,8 @@
 #define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
 #define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
+
+#define IPV6_FLOW_LABEL_MASK		cpu_to_be32(0x000fffff)
 
 /* LAG ports */
 #define NFP_FL_LAG_OUT			0xC0DE0000
@@ -153,6 +128,26 @@ struct nfp_fl_set_ip4_addrs {
 	__be32 ipv4_src;
 	__be32 ipv4_dst_mask;
 	__be32 ipv4_dst;
+};
+
+struct nfp_fl_set_ip4_ttl_tos {
+	struct nfp_fl_act_head head;
+	u8 ipv4_ttl_mask;
+	u8 ipv4_tos_mask;
+	u8 ipv4_ttl;
+	u8 ipv4_tos;
+	__be16 reserved;
+};
+
+struct nfp_fl_set_ipv6_tc_hl_fl {
+	struct nfp_fl_act_head head;
+	u8 ipv6_tc_mask;
+	u8 ipv6_hop_limit_mask;
+	__be16 reserved;
+	u8 ipv6_tc;
+	u8 ipv6_hop_limit;
+	__be32 ipv6_label_mask;
+	__be32 ipv6_label;
 };
 
 struct nfp_fl_set_ipv6_addr {
@@ -503,6 +498,32 @@ static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
 static inline int nfp_flower_cmsg_get_data_len(struct sk_buff *skb)
 {
 	return skb->len - NFP_FLOWER_CMSG_HLEN;
+}
+
+static inline bool
+nfp_fl_netdev_is_tunnel_type(struct net_device *netdev,
+			     enum nfp_flower_tun_type tun_type)
+{
+	if (netif_is_vxlan(netdev))
+		return tun_type == NFP_FL_TUNNEL_VXLAN;
+	if (netif_is_geneve(netdev))
+		return tun_type == NFP_FL_TUNNEL_GENEVE;
+
+	return false;
+}
+
+static inline bool nfp_fl_is_netdev_to_offload(struct net_device *netdev)
+{
+	if (!netdev->rtnl_link_ops)
+		return false;
+	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
+		return true;
+	if (netif_is_vxlan(netdev))
+		return true;
+	if (netif_is_geneve(netdev))
+		return true;
+
+	return false;
 }
 
 struct sk_buff *

@@ -134,23 +134,10 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 			goto fail;
 		}
 
-		if (vma->addr != addr) {
-			const u64 tail = vma->size + vma->addr - addr;
-			if (ret = -ENOMEM, !(vma = nvkm_vma_tail(vma, tail)))
-				goto fail;
-			vma->part = true;
-			nvkm_vmm_node_insert(vmm, vma);
-		}
-
-		if (vma->size != size) {
-			const u64 tail = vma->size - size;
-			struct nvkm_vma *tmp;
-			if (ret = -ENOMEM, !(tmp = nvkm_vma_tail(vma, tail))) {
-				nvkm_vmm_unmap_region(vmm, vma);
-				goto fail;
-			}
-			tmp->part = true;
-			nvkm_vmm_node_insert(vmm, tmp);
+		vma = nvkm_vmm_node_split(vmm, vma, addr, size);
+		if (!vma) {
+			ret = -ENOMEM;
+			goto fail;
 		}
 	}
 	vma->busy = true;

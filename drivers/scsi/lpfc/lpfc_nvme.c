@@ -282,7 +282,7 @@ lpfc_nvme_delete_queue(struct nvme_fc_local_port *pnvme_lport,
 	vport = lport->vport;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-			"6001 ENTER.  lpfc_pnvme %p, qidx x%xi qhandle %p\n",
+			"6001 ENTER.  lpfc_pnvme %p, qidx x%x qhandle %p\n",
 			lport, qidx, handle);
 	kfree(handle);
 }
@@ -1855,7 +1855,6 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	bf_set(abort_cmd_criteria, &abts_wqe->abort_cmd, T_XRI_TAG);
 
 	/* word 7 */
-	bf_set(wqe_ct, &abts_wqe->abort_cmd.wqe_com, 0);
 	bf_set(wqe_cmnd, &abts_wqe->abort_cmd.wqe_com, CMD_ABORT_XRI_CX);
 	bf_set(wqe_class, &abts_wqe->abort_cmd.wqe_com,
 	       nvmereq_wqe->iocb.ulpClass);
@@ -1870,7 +1869,6 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	       abts_buf->iotag);
 
 	/* word 10 */
-	bf_set(wqe_wqid, &abts_wqe->abort_cmd.wqe_com, nvmereq_wqe->hba_wqidx);
 	bf_set(wqe_qosd, &abts_wqe->abort_cmd.wqe_com, 1);
 	bf_set(wqe_lenloc, &abts_wqe->abort_cmd.wqe_com, LPFC_WQE_LENLOC_NONE);
 
@@ -2235,12 +2233,10 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 	struct sli4_sge *sgl;
 	dma_addr_t pdma_phys_sgl;
 	uint16_t iotag, lxri = 0;
-	int bcnt, num_posted, sgl_size;
+	int bcnt, num_posted;
 	LIST_HEAD(prep_nblist);
 	LIST_HEAD(post_nblist);
 	LIST_HEAD(nvme_nblist);
-
-	sgl_size = phba->cfg_sg_dma_buf_size;
 
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
 		lpfc_ncmd = kzalloc(sizeof(struct lpfc_nvme_buf), GFP_KERNEL);
@@ -2462,17 +2458,10 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	nfcp_info.node_name = wwn_to_u64(vport->fc_nodename.u.wwn);
 	nfcp_info.port_name = wwn_to_u64(vport->fc_portname.u.wwn);
 
-	/* Limit to LPFC_MAX_NVME_SEG_CNT.
-	 * For now need + 1 to get around NVME transport logic.
+	/* We need to tell the transport layer + 1 because it takes page
+	 * alignment into account. When space for the SGL is allocated we
+	 * allocate + 3, one for cmd, one for rsp and one for this alignment
 	 */
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME | LOG_INIT,
-				 "6300 Reducing sg segment cnt to %d\n",
-				 LPFC_MAX_NVME_SEG_CNT);
-		phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
-	} else {
-		phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
-	}
 	lpfc_nvme_template.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
 	lpfc_nvme_template.max_hw_queues = phba->cfg_nvme_io_channel;
 
@@ -2725,7 +2714,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	rpinfo.port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 	rpinfo.node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
 
+	spin_lock_irq(&vport->phba->hbalock);
 	oldrport = lpfc_ndlp_get_nrport(ndlp);
+	spin_unlock_irq(&vport->phba->hbalock);
 	if (!oldrport)
 		lpfc_nlp_get(ndlp);
 
@@ -2840,7 +2831,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_rport *rport;
-	struct nvme_fc_remote_port *remoteport;
+	struct nvme_fc_remote_port *remoteport = NULL;
 
 	localport = vport->localport;
 
@@ -2854,11 +2845,14 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (!lport)
 		goto input_err;
 
+	spin_lock_irq(&vport->phba->hbalock);
 	rport = lpfc_ndlp_get_nrport(ndlp);
-	if (!rport)
+	if (rport)
+		remoteport = rport->remoteport;
+	spin_unlock_irq(&vport->phba->hbalock);
+	if (!remoteport)
 		goto input_err;
 
-	remoteport = rport->remoteport;
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6033 Unreg nvme remoteport %p, portname x%llx, "
 			 "port_id x%06x, portstate x%x port type x%x\n",

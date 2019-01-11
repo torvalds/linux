@@ -24,6 +24,7 @@
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/debug.h>
+#include <asm/code-patching.h>
 #include <linux/slab.h>
 
 /*
@@ -116,14 +117,14 @@ int kgdb_skipexception(int exception, struct pt_regs *regs)
 	return kgdb_isremovedbreak(regs->nip);
 }
 
-static int kgdb_call_nmi_hook(struct pt_regs *regs)
+static int kgdb_debugger_ipi(struct pt_regs *regs)
 {
 	kgdb_nmicallback(raw_smp_processor_id(), regs);
 	return 0;
 }
 
 #ifdef CONFIG_SMP
-void kgdb_roundup_cpus(unsigned long flags)
+void kgdb_roundup_cpus(void)
 {
 	smp_send_debugger_break();
 }
@@ -144,7 +145,7 @@ static int kgdb_handle_breakpoint(struct pt_regs *regs)
 	if (kgdb_handle_exception(1, SIGTRAP, 0, regs) != 0)
 		return 0;
 
-	if (*(u32 *) (regs->nip) == *(u32 *) (&arch_kgdb_ops.gdb_bpt_instr))
+	if (*(u32 *)regs->nip == BREAK_INSTR)
 		regs->nip += BREAK_INSTR_SIZE;
 
 	return 1;
@@ -441,16 +442,42 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	return -1;
 }
 
+int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
+{
+	int err;
+	unsigned int instr;
+	unsigned int *addr = (unsigned int *)bpt->bpt_addr;
+
+	err = probe_kernel_address(addr, instr);
+	if (err)
+		return err;
+
+	err = patch_instruction(addr, BREAK_INSTR);
+	if (err)
+		return -EFAULT;
+
+	*(unsigned int *)bpt->saved_instr = instr;
+
+	return 0;
+}
+
+int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
+{
+	int err;
+	unsigned int instr = *(unsigned int *)bpt->saved_instr;
+	unsigned int *addr = (unsigned int *)bpt->bpt_addr;
+
+	err = patch_instruction(addr, instr);
+	if (err)
+		return -EFAULT;
+
+	return 0;
+}
+
 /*
  * Global data
  */
-struct kgdb_arch arch_kgdb_ops = {
-#ifdef __LITTLE_ENDIAN__
-	.gdb_bpt_instr = {0x08, 0x10, 0x82, 0x7d},
-#else
-	.gdb_bpt_instr = {0x7d, 0x82, 0x10, 0x08},
-#endif
-};
+const struct kgdb_arch arch_kgdb_ops;
 
 static int kgdb_not_implemented(struct pt_regs *regs)
 {
@@ -475,7 +502,7 @@ int kgdb_arch_init(void)
 	old__debugger_break_match = __debugger_break_match;
 	old__debugger_fault_handler = __debugger_fault_handler;
 
-	__debugger_ipi = kgdb_call_nmi_hook;
+	__debugger_ipi = kgdb_debugger_ipi;
 	__debugger = kgdb_debugger;
 	__debugger_bpt = kgdb_handle_breakpoint;
 	__debugger_sstep = kgdb_singlestep;

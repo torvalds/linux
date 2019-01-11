@@ -5,7 +5,11 @@ ifeq ($(SRCARCH),$(filter $(SRCARCH),x86))
 libperf-y += ioctl.o
 endif
 libperf-y += kcmp.o
+libperf-y += mount_flags.o
 libperf-y += pkey_alloc.o
+libperf-y += arch_prctl.o
 libperf-y += prctl.o
+libperf-y += renameat.o
+libperf-y += sockaddr.o
 libperf-y += socket.o
 libperf-y += statx.o

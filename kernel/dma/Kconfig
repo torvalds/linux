@@ -13,6 +13,9 @@ config NEED_DMA_MAP_STATE
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool 64BIT || PHYS_ADDR_T_64BIT
 
+config ARCH_HAS_DMA_COHERENCE_H
+	bool
+
 config HAVE_GENERIC_DMA_COHERENT
 	bool
 
@@ -23,22 +26,17 @@ config ARCH_HAS_SYNC_DMA_FOR_CPU
 	bool
 	select NEED_DMA_MAP_STATE
 
-config DMA_DIRECT_OPS
+config ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
 	bool
-	depends on HAS_DMA
 
-config DMA_NONCOHERENT_OPS
+config ARCH_HAS_DMA_COHERENT_TO_PFN
 	bool
-	depends on HAS_DMA
-	select DMA_DIRECT_OPS
 
-config DMA_NONCOHERENT_MMAP
+config ARCH_HAS_DMA_MMAP_PGPROT
 	bool
-	depends on DMA_NONCOHERENT_OPS
 
 config DMA_NONCOHERENT_CACHE_SYNC
 	bool
-	depends on DMA_NONCOHERENT_OPS
 
 config DMA_VIRT_OPS
 	bool
@@ -46,5 +44,12 @@ config DMA_VIRT_OPS
 
 config SWIOTLB
 	bool
-	select DMA_DIRECT_OPS
 	select NEED_DMA_MAP_STATE
+
+config DMA_REMAP
+	depends on MMU
+	bool
+
+config DMA_DIRECT_REMAP
+	bool
+	select DMA_REMAP

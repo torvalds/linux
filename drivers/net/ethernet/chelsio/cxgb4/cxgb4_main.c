@@ -62,7 +62,6 @@
 #include <net/netevent.h>
 #include <net/addrconf.h>
 #include <net/bonding.h>
-#include <net/addrconf.h>
 #include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 #include <net/udp_tunnel.h>
@@ -454,7 +453,7 @@ static int link_start(struct net_device *dev)
 	if (ret == 0) {
 		ret = t4_change_mac(pi->adapter, mb, pi->viid,
 				    pi->xact_addr_filt, dev->dev_addr, true,
-				    true);
+				    &pi->smt_idx);
 		if (ret >= 0) {
 			pi->xact_addr_filt = ret;
 			ret = 0;
@@ -1586,28 +1585,6 @@ unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
 EXPORT_SYMBOL(cxgb4_best_aligned_mtu);
 
 /**
- *	cxgb4_tp_smt_idx - Get the Source Mac Table index for this VI
- *	@chip: chip type
- *	@viid: VI id of the given port
- *
- *	Return the SMT index for this VI.
- */
-unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid)
-{
-	/* In T4/T5, SMT contains 256 SMAC entries organized in
-	 * 128 rows of 2 entries each.
-	 * In T6, SMT contains 256 SMAC entries in 256 rows.
-	 * TODO: The below code needs to be updated when we add support
-	 * for 256 VFs.
-	 */
-	if (CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5)
-		return ((viid & 0x7f) << 1);
-	else
-		return (viid & 0x7f);
-}
-EXPORT_SYMBOL(cxgb4_tp_smt_idx);
-
-/**
  *	cxgb4_port_chan - get the HW channel of a port
  *	@dev: the net device for the port
  *
@@ -2281,8 +2258,6 @@ static int cxgb_up(struct adapter *adap)
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
 #endif
-	/* Initialize hash mac addr list*/
-	INIT_LIST_HEAD(&adap->mac_hlist);
 	return err;
 
  irq_err:
@@ -2304,6 +2279,7 @@ static void cxgb_down(struct adapter *adapter)
 
 	t4_sge_stop(adapter);
 	t4_free_sge_resources(adapter);
+
 	adapter->flags &= ~FULL_INIT_DONE;
 }
 
@@ -2670,7 +2646,7 @@ static void cxgb4_mgmt_fill_vf_station_mac_addr(struct adapter *adap)
 
 	for (vf = 0, nvfs = pci_sriov_get_totalvfs(adap->pdev);
 		vf < nvfs; vf++) {
-		macaddr[5] = adap->pf * 16 + vf;
+		macaddr[5] = adap->pf * nvfs + vf;
 		ether_addr_copy(adap->vfinfo[vf].vf_mac_addr, macaddr);
 	}
 }
@@ -2749,6 +2725,27 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 		return -EINVAL;
 	}
 
+	if (max_tx_rate == 0) {
+		/* unbind VF to to any Traffic Class */
+		fw_pfvf =
+		    (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+		     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_SCHEDCLASS_ETH));
+		fw_class = 0xffffffff;
+		ret = t4_set_params(adap, adap->mbox, adap->pf, vf + 1, 1,
+				    &fw_pfvf, &fw_class);
+		if (ret) {
+			dev_err(adap->pdev_dev,
+				"Err %d in unbinding PF %d VF %d from TX Rate Limiting\n",
+				ret, adap->pf, vf);
+			return -EINVAL;
+		}
+		dev_info(adap->pdev_dev,
+			 "PF %d VF %d is unbound from TX Rate Limiting\n",
+			 adap->pf, vf);
+		adap->vfinfo[vf].tx_rate = 0;
+		return 0;
+	}
+
 	ret = t4_get_link_params(pi, &link_ok, &speed, &mtu);
 	if (ret != FW_SUCCESS) {
 		dev_err(adap->pdev_dev,
@@ -2798,8 +2795,8 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 			    &fw_class);
 	if (ret) {
 		dev_err(adap->pdev_dev,
-			"Err %d in binding VF %d to Traffic Class %d\n",
-			ret, vf, class_id);
+			"Err %d in binding PF %d VF %d to Traffic Class %d\n",
+			ret, adap->pf, vf, class_id);
 		return -EINVAL;
 	}
 	dev_info(adap->pdev_dev, "PF %d VF %d is bound to Class %d\n",
@@ -2843,7 +2840,8 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 		return -EADDRNOTAVAIL;
 
 	ret = t4_change_mac(pi->adapter, pi->adapter->pf, pi->viid,
-			    pi->xact_addr_filt, addr->sa_data, true, true);
+			    pi->xact_addr_filt, addr->sa_data, true,
+			    &pi->smt_idx);
 	if (ret < 0)
 		return ret;
 
@@ -4447,6 +4445,15 @@ static int adap_init0(struct adapter *adap)
 		adap->params.filter2_wr_support = (ret == 0 && val[0] != 0);
 	}
 
+	/* Check if FW supports returning vin and smt index.
+	 * If this is not supported, driver will interpret
+	 * these values from viid.
+	 */
+	params[0] = FW_PARAM_DEV(OPAQUE_VIID_SMT_EXTN);
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+			      1, params, val);
+	adap->params.viid_smt_extn_support = (ret == 0 && val[0] != 0);
+
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
@@ -4747,7 +4754,6 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	if (t4_wait_dev_ready(adap->regs) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -4758,14 +4764,26 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	for_each_port(adap, i) {
-		struct port_info *p = adap2pinfo(adap, i);
+		struct port_info *pi = adap2pinfo(adap, i);
+		u8 vivld = 0, vin = 0;
 
-		ret = t4_alloc_vi(adap, adap->mbox, p->tx_chan, adap->pf, 0, 1,
-				  NULL, NULL);
+		ret = t4_alloc_vi(adap, adap->mbox, pi->tx_chan, adap->pf, 0, 1,
+				  NULL, NULL, &vivld, &vin);
 		if (ret < 0)
 			return PCI_ERS_RESULT_DISCONNECT;
-		p->viid = ret;
-		p->xact_addr_filt = -1;
+		pi->viid = ret;
+		pi->xact_addr_filt = -1;
+		/* If fw supports returning the VIN as part of FW_VI_CMD,
+		 * save the returned values.
+		 */
+		if (adap->params.viid_smt_extn_support) {
+			pi->vivld = vivld;
+			pi->vin = vin;
+		} else {
+			/* Retrieve the values from VIID */
+			pi->vivld = FW_VIID_VIVLD_G(pi->viid);
+			pi->vin = FW_VIID_VIN_G(pi->viid);
+		}
 	}
 
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
@@ -5602,6 +5620,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     (is_t5(adapter->params.chip) ? STATMODE_V(0) :
 			      T6_STATMODE_V(0)));
 
+	/* Initialize hash mac addr list */
+	INIT_LIST_HEAD(&adapter->mac_hlist);
+
 	for_each_port(adapter, i) {
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_ETH_QSETS);
@@ -5844,6 +5865,10 @@ fw_attach_fail:
 	if (!is_t4(adapter->params.chip))
 		cxgb4_ptp_init(adapter);
 
+	if (IS_REACHABLE(CONFIG_THERMAL) &&
+	    !is_t4(adapter->params.chip) && (adapter->flags & FW_OK))
+		cxgb4_thermal_init(adapter);
+
 	print_adapter_info(adapter);
 	return 0;
 
@@ -5876,6 +5901,7 @@ fw_attach_fail:
 static void remove_one(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
+	struct hash_mac_addr *entry, *tmp;
 
 	if (!adapter) {
 		pci_release_regions(pdev);
@@ -5909,6 +5935,8 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (!is_t4(adapter->params.chip))
 			cxgb4_ptp_stop(adapter);
+		if (IS_REACHABLE(CONFIG_THERMAL))
+			cxgb4_thermal_remove(adapter);
 
 		/* If we allocated filters, free up state associated with any
 		 * valid filters ...
@@ -5923,6 +5951,12 @@ static void remove_one(struct pci_dev *pdev)
 		if (adapter->num_uld || adapter->num_ofld_uld)
 			t4_uld_mem_free(adapter);
 		free_some_resources(adapter);
+		list_for_each_entry_safe(entry, tmp, &adapter->mac_hlist,
+					 list) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
+
 #if IS_ENABLED(CONFIG_IPV6)
 		t4_cleanup_clip_tbl(adapter);
 #endif

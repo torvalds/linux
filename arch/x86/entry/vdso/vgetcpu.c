@@ -13,14 +13,8 @@
 notrace long
 __vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused)
 {
-	unsigned int p;
+	vdso_read_cpunode(cpu, node);
 
-	p = __getcpu();
-
-	if (cpu)
-		*cpu = p & VGETCPU_CPU_MASK;
-	if (node)
-		*node = p >> 12;
 	return 0;
 }
 

@@ -59,7 +59,6 @@ static struct kmem_cache *pde_opener_cache __ro_after_init;
 static struct inode *proc_alloc_inode(struct super_block *sb)
 {
 	struct proc_inode *ei;
-	struct inode *inode;
 
 	ei = kmem_cache_alloc(proc_inode_cachep, GFP_KERNEL);
 	if (!ei)
@@ -71,8 +70,7 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->sysctl = NULL;
 	ei->sysctl_entry = NULL;
 	ei->ns_ops = NULL;
-	inode = &ei->vfs_inode;
-	return inode;
+	return &ei->vfs_inode;
 }
 
 static void proc_i_callback(struct rcu_head *head)
@@ -105,8 +103,10 @@ void __init proc_init_kmemcache(void)
 		kmem_cache_create("pde_opener", sizeof(struct pde_opener), 0,
 				  SLAB_ACCOUNT|SLAB_PANIC, NULL);
 	proc_dir_entry_cache = kmem_cache_create_usercopy(
-		"proc_dir_entry", SIZEOF_PDE_SLOT, 0, SLAB_PANIC,
-		OFFSETOF_PDE_NAME, SIZEOF_PDE_INLINE_NAME, NULL);
+		"proc_dir_entry", SIZEOF_PDE, 0, SLAB_PANIC,
+		offsetof(struct proc_dir_entry, inline_name),
+		SIZEOF_PDE_INLINE_NAME, NULL);
+	BUILD_BUG_ON(sizeof(struct proc_dir_entry) >= SIZEOF_PDE);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
@@ -514,6 +514,9 @@ int proc_fill_super(struct super_block *s, void *data, int silent)
 	 */
 	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
 	
+	/* procfs dentries and inodes don't require IO to create */
+	s->s_shrink.seeks = 0;
+
 	pde_get(&proc_root);
 	root_inode = proc_get_inode(s, &proc_root);
 	if (!root_inode) {

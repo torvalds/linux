@@ -1186,10 +1186,13 @@ static int igbvf_poll(struct napi_struct *napi, int budget)
 
 	igbvf_clean_rx_irq(adapter, &work_done, budget);
 
-	/* If not enough Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete_done(napi, work_done);
+	if (work_done == budget)
+		return budget;
 
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done))) {
 		if (adapter->requested_itr & 3)
 			igbvf_set_itr(adapter);
 
@@ -3011,7 +3014,7 @@ module_exit(igbvf_exit_module);
 
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Virtual Function Network Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 /* netdev.c */

@@ -96,14 +96,14 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp);
 static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
 #endif
 
-int shm_init_ns(struct ipc_namespace *ns)
+void shm_init_ns(struct ipc_namespace *ns)
 {
 	ns->shm_ctlmax = SHMMAX;
 	ns->shm_ctlall = SHMALL;
 	ns->shm_ctlmni = SHMMNI;
 	ns->shm_rmid_forced = 0;
 	ns->shm_tot = 0;
-	return ipc_init_ids(&shm_ids(ns));
+	ipc_init_ids(&shm_ids(ns));
 }
 
 /*
@@ -136,9 +136,8 @@ void shm_exit_ns(struct ipc_namespace *ns)
 
 static int __init ipc_ns_init(void)
 {
-	const int err = shm_init_ns(&init_ipc_ns);
-	WARN(err, "ipc: sysv shm_init_ns failed: %d\n", err);
-	return err;
+	shm_init_ns(&init_ipc_ns);
+	return 0;
 }
 
 pure_initcall(ipc_ns_init);
@@ -180,16 +179,34 @@ static inline struct shmid_kernel *shm_obtain_object_check(struct ipc_namespace 
  */
 static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
 {
-	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
+	struct kern_ipc_perm *ipcp;
 
+	rcu_read_lock();
+	ipcp = ipc_obtain_object_idr(&shm_ids(ns), id);
+	if (IS_ERR(ipcp))
+		goto err;
+
+	ipc_lock_object(ipcp);
+	/*
+	 * ipc_rmid() may have already freed the ID while ipc_lock_object()
+	 * was spinning: here verify that the structure is still valid.
+	 * Upon races with RMID, return -EIDRM, thus indicating that
+	 * the ID points to a removed identifier.
+	 */
+	if (ipc_valid_object(ipcp)) {
+		/* return a locked ipc object upon success */
+		return container_of(ipcp, struct shmid_kernel, shm_perm);
+	}
+
+	ipc_unlock_object(ipcp);
+	ipcp = ERR_PTR(-EIDRM);
+err:
+	rcu_read_unlock();
 	/*
 	 * Callers of shm_lock() must validate the status of the returned ipc
-	 * object pointer (as returned by ipc_lock()), and error out as
-	 * appropriate.
+	 * object pointer and error out as appropriate.
 	 */
-	if (IS_ERR(ipcp))
-		return (void *)ipcp;
-	return container_of(ipcp, struct shmid_kernel, shm_perm);
+	return ERR_CAST(ipcp);
 }
 
 static inline void shm_lock_by_ptr(struct shmid_kernel *ipcp)
@@ -684,6 +701,8 @@ no_id:
 	if (is_file_hugepages(file) && shp->mlock_user)
 		user_shm_unlock(size, shp->mlock_user);
 	fput(file);
+	ipc_rcu_putref(&shp->shm_perm, shm_rcu_free);
+	return error;
 no_file:
 	call_rcu(&shp->shm_perm.rcu, shm_rcu_free);
 	return error;
@@ -879,7 +898,7 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 	down_write(&shm_ids(ns).rwsem);
 	rcu_read_lock();
 
-	ipcp = ipcctl_pre_down_nolock(ns, &shm_ids(ns), shmid, cmd,
+	ipcp = ipcctl_obtain_check(ns, &shm_ids(ns), shmid, cmd,
 				      &shmid64->shm_perm, 0);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
@@ -930,7 +949,7 @@ static int shmctl_ipc_info(struct ipc_namespace *ns,
 		shminfo->shmall = ns->shm_ctlall;
 		shminfo->shmmin = SHMMIN;
 		down_read(&shm_ids(ns).rwsem);
-		err = ipc_get_maxid(&shm_ids(ns));
+		err = ipc_get_maxidx(&shm_ids(ns));
 		up_read(&shm_ids(ns).rwsem);
 		if (err < 0)
 			err = 0;
@@ -950,7 +969,7 @@ static int shmctl_shm_info(struct ipc_namespace *ns,
 		shm_info->shm_tot = ns->shm_tot;
 		shm_info->swap_attempts = 0;
 		shm_info->swap_successes = 0;
-		err = ipc_get_maxid(&shm_ids(ns));
+		err = ipc_get_maxidx(&shm_ids(ns));
 		up_read(&shm_ids(ns).rwsem);
 		if (err < 0)
 			err = 0;
@@ -962,7 +981,6 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 			int cmd, struct shmid64_ds *tbuf)
 {
 	struct shmid_kernel *shp;
-	int id = 0;
 	int err;
 
 	memset(tbuf, 0, sizeof(*tbuf));
@@ -974,7 +992,6 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 			err = PTR_ERR(shp);
 			goto out_unlock;
 		}
-		id = shp->shm_perm.id;
 	} else { /* IPC_STAT */
 		shp = shm_obtain_object_check(ns, shmid);
 		if (IS_ERR(shp)) {
@@ -1024,10 +1041,21 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 	tbuf->shm_lpid	= pid_vnr(shp->shm_lprid);
 	tbuf->shm_nattch = shp->shm_nattch;
 
-	ipc_unlock_object(&shp->shm_perm);
-	rcu_read_unlock();
-	return id;
+	if (cmd == IPC_STAT) {
+		/*
+		 * As defined in SUS:
+		 * Return 0 on success
+		 */
+		err = 0;
+	} else {
+		/*
+		 * SHM_STAT and SHM_STAT_ANY (both Linux specific)
+		 * Return the full id, including the sequence number
+		 */
+		err = shp->shm_perm.id;
+	}
 
+	ipc_unlock_object(&shp->shm_perm);
 out_unlock:
 	rcu_read_unlock();
 	return err;
@@ -1174,9 +1202,9 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 struct compat_shmid_ds {
 	struct compat_ipc_perm shm_perm;
 	int shm_segsz;
-	compat_time_t shm_atime;
-	compat_time_t shm_dtime;
-	compat_time_t shm_ctime;
+	old_time32_t shm_atime;
+	old_time32_t shm_dtime;
+	old_time32_t shm_ctime;
 	compat_ipc_pid_t shm_cpid;
 	compat_ipc_pid_t shm_lpid;
 	unsigned short shm_nattch;

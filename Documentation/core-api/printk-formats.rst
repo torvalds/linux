@@ -376,15 +376,15 @@ correctness of the format string and va_list arguments.
 
 Passed by reference.
 
-kobjects
---------
+Device tree nodes
+-----------------
 
 ::
 
 	%pOF[fnpPcCF]
 
 
-For printing kobject based structs (device nodes). Default behaviour is
+For printing device tree node structures. Default behaviour is
 equivalent to %pOFf.
 
 	- f - device node full_name
@@ -412,6 +412,24 @@ Examples::
 
 Passed by reference.
 
+Time and date (struct rtc_time)
+-------------------------------
+
+::
+
+	%ptR		YYYY-mm-ddTHH:MM:SS
+	%ptRd		YYYY-mm-dd
+	%ptRt		HH:MM:SS
+	%ptR[dt][r]
+
+For printing date and time as represented by struct rtc_time structure in
+human readable format.
+
+By default year will be incremented by 1900 and month by 1. Use %ptRr (raw)
+to suppress this behaviour.
+
+Passed by reference.
+
 struct clk
 ----------
 
@@ -420,9 +438,8 @@ struct clk
 	%pC	pll1
 	%pCn	pll1
 
-For printing struct clk structures. %pC and %pCn print the name
-(Common Clock Framework) or address (legacy clock framework) of the
-structure.
+For printing struct clk structures. %pC and %pCn print the name of the clock
+(Common Clock Framework) or a unique 32-bit ID (legacy clock framework).
 
 Passed by reference.
 

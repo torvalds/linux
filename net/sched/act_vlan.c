@@ -63,7 +63,7 @@ static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
 		/* extract existing tag (and guarantee no hw-accel tag) */
 		if (skb_vlan_tag_present(skb)) {
 			tci = skb_vlan_tag_get(skb);
-			skb->vlan_tci = 0;
+			__vlan_hwaccel_clear_tag(skb);
 		} else {
 			/* in-payload vlan tag, pop it */
 			err = __skb_vlan_pop(skb, &tci);
@@ -288,19 +288,11 @@ static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index,
-			   struct netlink_ext_ack *extack)
+static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
 	return tcf_idr_search(tn, a, index);
-}
-
-static int tcf_vlan_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
-
-	return tcf_idr_delete_index(tn, index);
 }
 
 static struct tc_action_ops act_vlan_ops = {
@@ -313,7 +305,6 @@ static struct tc_action_ops act_vlan_ops = {
 	.cleanup	=	tcf_vlan_cleanup,
 	.walk		=	tcf_vlan_walker,
 	.lookup		=	tcf_vlan_search,
-	.delete		=	tcf_vlan_delete,
 	.size		=	sizeof(struct tcf_vlan),
 };
 

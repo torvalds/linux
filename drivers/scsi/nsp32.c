@@ -274,7 +274,7 @@ static struct scsi_host_template nsp32_template = {
 	.sg_tablesize			= NSP32_SG_SIZE,
 	.max_sectors			= 128,
 	.this_id			= NSP32_HOST_SCSIID,
-	.use_clustering			= DISABLE_CLUSTERING,
+	.dma_boundary			= PAGE_SIZE - 1,
 	.eh_abort_handler		= nsp32_eh_abort,
 	.eh_host_reset_handler		= nsp32_eh_host_reset,
 /*	.highmem_io			= 1, */
@@ -2638,7 +2638,7 @@ static int nsp32_detect(struct pci_dev *pdev)
 	/*
 	 * setup DMA 
 	 */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) != 0) {
 		nsp32_msg (KERN_ERR, "failed to set PCI DMA mask");
 		goto scsi_unregister;
 	}
@@ -2646,7 +2646,9 @@ static int nsp32_detect(struct pci_dev *pdev)
 	/*
 	 * allocate autoparam DMA resource.
 	 */
-	data->autoparam = pci_alloc_consistent(pdev, sizeof(nsp32_autoparam), &(data->auto_paddr));
+	data->autoparam = dma_alloc_coherent(&pdev->dev,
+			sizeof(nsp32_autoparam), &(data->auto_paddr),
+			GFP_KERNEL);
 	if (data->autoparam == NULL) {
 		nsp32_msg(KERN_ERR, "failed to allocate DMA memory");
 		goto scsi_unregister;
@@ -2655,8 +2657,8 @@ static int nsp32_detect(struct pci_dev *pdev)
 	/*
 	 * allocate scatter-gather DMA resource.
 	 */
-	data->sg_list = pci_alloc_consistent(pdev, NSP32_SG_TABLE_SIZE,
-					     &(data->sg_paddr));
+	data->sg_list = dma_alloc_coherent(&pdev->dev, NSP32_SG_TABLE_SIZE,
+			&data->sg_paddr, GFP_KERNEL);
 	if (data->sg_list == NULL) {
 		nsp32_msg(KERN_ERR, "failed to allocate DMA memory");
 		goto free_autoparam;
@@ -2761,11 +2763,11 @@ static int nsp32_detect(struct pci_dev *pdev)
 	free_irq(host->irq, data);
 
  free_sg_list:
-	pci_free_consistent(pdev, NSP32_SG_TABLE_SIZE,
+	dma_free_coherent(&pdev->dev, NSP32_SG_TABLE_SIZE,
 			    data->sg_list, data->sg_paddr);
 
  free_autoparam:
-	pci_free_consistent(pdev, sizeof(nsp32_autoparam),
+	dma_free_coherent(&pdev->dev, sizeof(nsp32_autoparam),
 			    data->autoparam, data->auto_paddr);
 	
  scsi_unregister:
@@ -2780,12 +2782,12 @@ static int nsp32_release(struct Scsi_Host *host)
 	nsp32_hw_data *data = (nsp32_hw_data *)host->hostdata;
 
 	if (data->autoparam) {
-		pci_free_consistent(data->Pci, sizeof(nsp32_autoparam),
+		dma_free_coherent(&data->Pci->dev, sizeof(nsp32_autoparam),
 				    data->autoparam, data->auto_paddr);
 	}
 
 	if (data->sg_list) {
-		pci_free_consistent(data->Pci, NSP32_SG_TABLE_SIZE,
+		dma_free_coherent(&data->Pci->dev, NSP32_SG_TABLE_SIZE,
 				    data->sg_list, data->sg_paddr);
 	}
 

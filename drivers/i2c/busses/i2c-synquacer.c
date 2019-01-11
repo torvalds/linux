@@ -404,7 +404,7 @@ static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
 		if (i2c->state == STATE_READ)
 			goto prepare_read;
 
-		/* fallthru */
+		/* fall through */
 
 	case STATE_WRITE:
 		if (bsr & SYNQUACER_I2C_BSR_LRB) {

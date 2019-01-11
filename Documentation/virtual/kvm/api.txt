@@ -123,6 +123,37 @@ memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
 flag KVM_VM_MIPS_VZ.
 
 
+On arm64, the physical address size for a VM (IPA Size limit) is limited
+to 40bits by default. The limit can be configured if the host supports the
+extension KVM_CAP_ARM_VM_IPA_SIZE. When supported, use
+KVM_VM_TYPE_ARM_IPA_SIZE(IPA_Bits) to set the size in the machine type
+identifier, where IPA_Bits is the maximum width of any physical
+address used by the VM. The IPA_Bits is encoded in bits[7-0] of the
+machine type identifier.
+
+e.g, to configure a guest to use 48bit physical address size :
+
+    vm_fd = ioctl(dev_fd, KVM_CREATE_VM, KVM_VM_TYPE_ARM_IPA_SIZE(48));
+
+The requested size (IPA_Bits) must be :
+  0 - Implies default size, 40bits (for backward compatibility)
+
+  or
+
+  N - Implies N bits, where N is a positive integer such that,
+      32 <= N <= Host_IPA_Limit
+
+Host_IPA_Limit is the maximum possible value for IPA_Bits on the host and
+is dependent on the CPU capability and the kernel configuration. The limit can
+be retrieved using KVM_CAP_ARM_VM_IPA_SIZE of the KVM_CHECK_EXTENSION
+ioctl() at run-time.
+
+Please note that configuring the IPA size does not affect the capability
+exposed by the guest CPUs in ID_AA64MMFR0_EL1[PARange]. It only affects
+size of the address translated by the stage2 level (guest physical to
+host physical address translations).
+
+
 4.3 KVM_GET_MSR_INDEX_LIST, KVM_GET_MSR_FEATURE_INDEX_LIST
 
 Capability: basic, KVM_CAP_GET_MSR_FEATURES for KVM_GET_MSR_FEATURE_INDEX_LIST
@@ -274,6 +305,9 @@ the address space for which you want to return the dirty bitmap.
 They must be less than the value that KVM_CHECK_EXTENSION returns for
 the KVM_CAP_MULTI_ADDRESS_SPACE capability.
 
+The bits in the dirty bitmap are cleared before the ioctl returns, unless
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is enabled.  For more information,
+see the description of the capability.
 
 4.9 KVM_SET_MEMORY_ALIAS
 
@@ -835,10 +869,12 @@ struct kvm_clock_data {
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86
-Type: vm ioctl
+Architectures: x86, arm, arm64
+Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (out)
 Returns: 0 on success, -1 on error
+
+X86:
 
 Gets currently pending exceptions, interrupts, and NMIs as well as related
 states of the vcpu.
@@ -848,7 +884,7 @@ struct kvm_vcpu_events {
 		__u8 injected;
 		__u8 nr;
 		__u8 has_error_code;
-		__u8 pad;
+		__u8 pending;
 		__u32 error_code;
 	} exception;
 	struct {
@@ -871,24 +907,81 @@ struct kvm_vcpu_events {
 		__u8 smm_inside_nmi;
 		__u8 latched_init;
 	} smi;
+	__u8 reserved[27];
+	__u8 exception_has_payload;
+	__u64 exception_payload;
 };
 
-Only two fields are defined in the flags field:
+The following bits are defined in the flags field:
 
-- KVM_VCPUEVENT_VALID_SHADOW may be set in the flags field to signal that
+- KVM_VCPUEVENT_VALID_SHADOW may be set to signal that
   interrupt.shadow contains a valid state.
 
-- KVM_VCPUEVENT_VALID_SMM may be set in the flags field to signal that
-  smi contains a valid state.
+- KVM_VCPUEVENT_VALID_SMM may be set to signal that smi contains a
+  valid state.
+
+- KVM_VCPUEVENT_VALID_PAYLOAD may be set to signal that the
+  exception_has_payload, exception_payload, and exception.pending
+  fields contain a valid state. This bit will be set whenever
+  KVM_CAP_EXCEPTION_PAYLOAD is enabled.
+
+ARM/ARM64:
+
+If the guest accesses a device that is being emulated by the host kernel in
+such a way that a real device would generate a physical SError, KVM may make
+a virtual SError pending for that VCPU. This system error interrupt remains
+pending until the guest takes the exception by unmasking PSTATE.A.
+
+Running the VCPU may cause it to take a pending SError, or make an access that
+causes an SError to become pending. The event's description is only valid while
+the VPCU is not running.
+
+This API provides a way to read and write the pending 'event' state that is not
+visible to the guest. To save, restore or migrate a VCPU the struct representing
+the state can be read then written using this GET/SET API, along with the other
+guest-visible registers. It is not possible to 'cancel' an SError that has been
+made pending.
+
+A device being emulated in user-space may also wish to generate an SError. To do
+this the events structure can be populated by user-space. The current state
+should be read first, to ensure no existing SError is pending. If an existing
+SError is pending, the architecture's 'Multiple SError interrupts' rules should
+be followed. (2.5.3 of DDI0587.a "ARM Reliability, Availability, and
+Serviceability (RAS) Specification").
+
+SError exceptions always have an ESR value. Some CPUs have the ability to
+specify what the virtual SError's ESR value should be. These systems will
+advertise KVM_CAP_ARM_INJECT_SERROR_ESR. In this case exception.has_esr will
+always have a non-zero value when read, and the agent making an SError pending
+should specify the ISS field in the lower 24 bits of exception.serror_esr. If
+the system supports KVM_CAP_ARM_INJECT_SERROR_ESR, but user-space sets the events
+with exception.has_esr as zero, KVM will choose an ESR.
+
+Specifying exception.has_esr on a system that does not support it will return
+-EINVAL. Setting anything other than the lower 24bits of exception.serror_esr
+will return -EINVAL.
+
+struct kvm_vcpu_events {
+	struct {
+		__u8 serror_pending;
+		__u8 serror_has_esr;
+		/* Align it to 8 bytes */
+		__u8 pad[6];
+		__u64 serror_esr;
+	} exception;
+	__u32 reserved[12];
+};
 
 4.32 KVM_SET_VCPU_EVENTS
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86
-Type: vm ioctl
+Architectures: x86, arm, arm64
+Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (in)
 Returns: 0 on success, -1 on error
+
+X86:
 
 Set pending exceptions, interrupts, and NMIs as well as related states of the
 vcpu.
@@ -909,6 +1002,18 @@ the flags field to signal that interrupt.shadow contains a valid state and
 shall be written into the VCPU.
 
 KVM_VCPUEVENT_VALID_SMM can only be set if KVM_CAP_X86_SMM is available.
+
+If KVM_CAP_EXCEPTION_PAYLOAD is enabled, KVM_VCPUEVENT_VALID_PAYLOAD
+can be set in the flags field to signal that the
+exception_has_payload, exception_payload, and exception.pending fields
+contain a valid state and shall be written into the VCPU.
+
+ARM/ARM64:
+
+Set the pending SError exception state for this VCPU. It is not possible to
+'cancel' an Serror that has been made pending.
+
+See KVM_GET_VCPU_EVENTS for the data structure.
 
 
 4.33 KVM_GET_DEBUGREGS
@@ -1027,10 +1132,15 @@ documentation when it pops into existence).
 
 4.37 KVM_ENABLE_CAP
 
-Capability: KVM_CAP_ENABLE_CAP, KVM_CAP_ENABLE_CAP_VM
-Architectures: x86 (only KVM_CAP_ENABLE_CAP_VM),
-	       mips (only KVM_CAP_ENABLE_CAP), ppc, s390
-Type: vcpu ioctl, vm ioctl (with KVM_CAP_ENABLE_CAP_VM)
+Capability: KVM_CAP_ENABLE_CAP
+Architectures: mips, ppc, s390
+Type: vcpu ioctl
+Parameters: struct kvm_enable_cap (in)
+Returns: 0 on success; -1 on error
+
+Capability: KVM_CAP_ENABLE_CAP_VM
+Architectures: all
+Type: vcpu ioctl
 Parameters: struct kvm_enable_cap (in)
 Returns: 0 on success; -1 on error
 
@@ -1864,6 +1974,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TIDR              | 64
   PPC   | KVM_REG_PPC_PSSCR             | 64
   PPC   | KVM_REG_PPC_DEC_EXPIRY        | 64
+  PPC   | KVM_REG_PPC_PTCR              | 64
   PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31          | 64
@@ -2210,6 +2321,10 @@ The supported flags are:
     - KVM_PPC_1T_SEGMENTS
         The emulated MMU supports 1T segments in addition to the
         standard 256M ones.
+
+    - KVM_PPC_NO_HASH
+	This flag indicates that HPT guests are not supported by KVM,
+	thus all guests must use radix MMU mode.
 
 The "slb_size" field indicates how many SLB entries are supported
 
@@ -3618,6 +3733,130 @@ Returns: 0 on success, -1 on error
 This copies the vcpu's kvm_nested_state struct from userspace to the kernel.  For
 the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
 
+4.116 KVM_(UN)REGISTER_COALESCED_MMIO
+
+Capability: KVM_CAP_COALESCED_MMIO (for coalesced mmio)
+	    KVM_CAP_COALESCED_PIO (for coalesced pio)
+Architectures: all
+Type: vm ioctl
+Parameters: struct kvm_coalesced_mmio_zone
+Returns: 0 on success, < 0 on error
+
+Coalesced I/O is a performance optimization that defers hardware
+register write emulation so that userspace exits are avoided.  It is
+typically used to reduce the overhead of emulating frequently accessed
+hardware registers.
+
+When a hardware register is configured for coalesced I/O, write accesses
+do not exit to userspace and their value is recorded in a ring buffer
+that is shared between kernel and userspace.
+
+Coalesced I/O is used if one or more write accesses to a hardware
+register can be deferred until a read or a write to another hardware
+register on the same device.  This last access will cause a vmexit and
+userspace will process accesses from the ring buffer before emulating
+it. That will avoid exiting to userspace on repeated writes.
+
+Coalesced pio is based on coalesced mmio. There is little difference
+between coalesced mmio and pio except that coalesced pio records accesses
+to I/O ports.
+
+4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
+
+Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_dirty_log (in)
+Returns: 0 on success, -1 on error
+
+/* for KVM_CLEAR_DIRTY_LOG */
+struct kvm_clear_dirty_log {
+	__u32 slot;
+	__u32 num_pages;
+	__u64 first_page;
+	union {
+		void __user *dirty_bitmap; /* one bit per page */
+		__u64 padding;
+	};
+};
+
+The ioctl clears the dirty status of pages in a memory slot, according to
+the bitmap that is passed in struct kvm_clear_dirty_log's dirty_bitmap
+field.  Bit 0 of the bitmap corresponds to page "first_page" in the
+memory slot, and num_pages is the size in bits of the input bitmap.
+Both first_page and num_pages must be a multiple of 64.  For each bit
+that is set in the input bitmap, the corresponding page is marked "clean"
+in KVM's dirty bitmap, and dirty tracking is re-enabled for that page
+(for example via write-protection, or by clearing the dirty bit in
+a page table entry).
+
+If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 specifies
+the address space for which you want to return the dirty bitmap.
+They must be less than the value that KVM_CHECK_EXTENSION returns for
+the KVM_CAP_MULTI_ADDRESS_SPACE capability.
+
+This ioctl is mostly useful when KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+is enabled; for more information, see the description of the capability.
+However, it can always be used as long as KVM_CHECK_EXTENSION confirms
+that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is present.
+
+4.118 KVM_GET_SUPPORTED_HV_CPUID
+
+Capability: KVM_CAP_HYPERV_CPUID
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features leaves related to Hyper-V emulation in
+KVM.  Userspace can use the information returned by this ioctl to construct
+cpuid information presented to guests consuming Hyper-V enlightenments (e.g.
+Windows or Hyper-V guests).
+
+CPUID feature leaves returned by this ioctl are defined by Hyper-V Top Level
+Functional Specification (TLFS). These leaves can't be obtained with
+KVM_GET_SUPPORTED_CPUID ioctl because some of them intersect with KVM feature
+leaves (0x40000000, 0x40000001).
+
+Currently, the following list of CPUID leaves are returned:
+ HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS
+ HYPERV_CPUID_INTERFACE
+ HYPERV_CPUID_VERSION
+ HYPERV_CPUID_FEATURES
+ HYPERV_CPUID_ENLIGHTMENT_INFO
+ HYPERV_CPUID_IMPLEMENT_LIMITS
+ HYPERV_CPUID_NESTED_FEATURES
+
+HYPERV_CPUID_NESTED_FEATURES leaf is only exposed when Enlightened VMCS was
+enabled on the corresponding vCPU (KVM_CAP_HYPERV_ENLIGHTENED_VMCS).
+
+Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
+with the 'nent' field indicating the number of entries in the variable-size
+array 'entries'.  If the number of entries is too low to describe all Hyper-V
+feature leaves, an error (E2BIG) is returned. If the number is more or equal
+to the number of Hyper-V feature leaves, the 'nent' field is adjusted to the
+number of valid entries in the 'entries' array, which is then filled.
+
+'index' and 'flags' fields in 'struct kvm_cpuid_entry2' are currently reserved,
+userspace should not expect to get any particular value there.
+
 5. The kvm_run structure
 ------------------------
 
@@ -4452,7 +4691,8 @@ Do not enable KVM_FEATURE_PV_UNHALT if you disable HLT exits.
 Architectures: s390
 Parameters: none
 Returns: 0 on success, -EINVAL if hpage module parameter was not set
-	 or cmma is enabled
+	 or cmma is enabled, or the VM has the KVM_VM_S390_UCONTROL
+	 flag set
 
 With this capability the KVM support for memory backing with 1m pages
 through hugetlbfs can be enabled for a VM. After the capability is
@@ -4462,6 +4702,78 @@ hpage module parameter is not set to 1, -EINVAL is returned.
 
 While it is generally possible to create a huge page backed VM without
 this capability, the VM will not be able to run.
+
+7.15 KVM_CAP_MSR_PLATFORM_INFO
+
+Architectures: x86
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability, a guest may read the MSR_PLATFORM_INFO MSR. Otherwise,
+a #GP would be raised when the guest tries to access. Currently, this
+capability does not enable write permissions of this MSR for the guest.
+
+7.16 KVM_CAP_PPC_NESTED_HV
+
+Architectures: ppc
+Parameters: none
+Returns: 0 on success, -EINVAL when the implementation doesn't support
+	 nested-HV virtualization.
+
+HV-KVM on POWER9 and later systems allows for "nested-HV"
+virtualization, which provides a way for a guest VM to run guests that
+can run using the CPU's supervisor mode (privileged non-hypervisor
+state).  Enabling this capability on a VM depends on the CPU having
+the necessary functionality and on the facility being enabled with a
+kvm-hv module parameter.
+
+7.17 KVM_CAP_EXCEPTION_PAYLOAD
+
+Architectures: x86
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability enabled, CR2 will not be modified prior to the
+emulated VM-exit when L1 intercepts a #PF exception that occurs in
+L2. Similarly, for kvm-intel only, DR6 will not be modified prior to
+the emulated VM-exit when L1 intercepts a #DB exception that occurs in
+L2. As a result, when KVM_GET_VCPU_EVENTS reports a pending #PF (or
+#DB) exception for L2, exception.has_payload will be set and the
+faulting address (or the new DR6 bits*) will be reported in the
+exception_payload field. Similarly, when userspace injects a #PF (or
+#DB) into L2 using KVM_SET_VCPU_EVENTS, it is expected to set
+exception.has_payload and to put the faulting address (or the new DR6
+bits*) in the exception_payload field.
+
+This capability also enables exception.pending in struct
+kvm_vcpu_events, which allows userspace to distinguish between pending
+and injected exceptions.
+
+
+* For the new DR6 bits, note that bit 16 is set iff the #DB exception
+  will clear DR6.RTM.
+
+7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+
+Architectures: all
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability enabled, KVM_GET_DIRTY_LOG will not automatically
+clear and write-protect all pages that are returned as dirty.
+Rather, userspace will have to do this operation separately using
+KVM_CLEAR_DIRTY_LOG.
+
+At the cost of a slightly more complicated operation, this provides better
+scalability and responsiveness for two reasons.  First,
+KVM_CLEAR_DIRTY_LOG ioctl can operate on a 64-page granularity rather
+than requiring to sync a full memslot; this ensures that KVM does not
+take spinlocks for an extended period of time.  Second, in some cases a
+large amount of time can pass between a call to KVM_GET_DIRTY_LOG and
+userspace actually using the data in the page.  Pages can be modified
+during this time, which is inefficint for both the guest and userspace:
+the guest will incur a higher penalty due to write protection faults,
+while userspace can see false reports of dirty pages.  Manual reprotection
+helps reducing this time, improving guest performance and reducing the
+number of dirty log false positives.
+
 
 8. Other capabilities.
 ----------------------
@@ -4690,3 +5002,24 @@ This capability indicates that KVM supports paravirtualized Hyper-V TLB Flush
 hypercalls:
 HvFlushVirtualAddressSpace, HvFlushVirtualAddressSpaceEx,
 HvFlushVirtualAddressList, HvFlushVirtualAddressListEx.
+
+8.19 KVM_CAP_ARM_INJECT_SERROR_ESR
+
+Architectures: arm, arm64
+
+This capability indicates that userspace can specify (via the
+KVM_SET_VCPU_EVENTS ioctl) the syndrome value reported to the guest when it
+takes a virtual SError interrupt exception.
+If KVM advertises this capability, userspace can only specify the ISS field for
+the ESR syndrome. Other parts of the ESR, such as the EC are generated by the
+CPU when the exception is taken. If this virtual SError is taken to EL1 using
+AArch64, this value will be reported in the ISS field of ESR_ELx.
+
+See KVM_CAP_VCPU_EVENTS for more details.
+8.20 KVM_CAP_HYPERV_SEND_IPI
+
+Architectures: x86
+
+This capability indicates that KVM supports paravirtualized Hyper-V IPI send
+hypercalls:
+HvCallSendSyntheticClusterIpi, HvCallSendSyntheticClusterIpiEx.

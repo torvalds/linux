@@ -1689,6 +1689,8 @@ static int mtk_open(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 
+	dma_coerce_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
+
 	if (!atomic_read(&eth->dma_refcnt)) {
 		int err = mtk_start_dma(eth);
 
@@ -2062,9 +2064,6 @@ static int mtk_probe(struct platform_device *pdev)
 	struct clk *sysclk;
 	int err;
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-
 	device_reset(&pdev->dev);
 
 	match = of_match_device(of_mtk_match, &pdev->dev);
@@ -2167,7 +2166,6 @@ static struct platform_driver mtk_driver = {
 	.remove = mtk_remove,
 	.driver = {
 		.name = "mtk_soc_eth",
-		.owner = THIS_MODULE,
 		.of_match_table = of_mtk_match,
 	},
 };

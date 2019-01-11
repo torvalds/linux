@@ -334,9 +334,9 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
 			       struct intel_crtc *crtc,
 			       struct drm_atomic_state *state);
-void intel_prepare_shared_dpll(struct intel_crtc *crtc);
-void intel_enable_shared_dpll(struct intel_crtc *crtc);
-void intel_disable_shared_dpll(struct intel_crtc *crtc);
+void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state);
+void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
+void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct drm_atomic_state *state);
 void intel_shared_dpll_init(struct drm_device *dev);
 
@@ -344,5 +344,8 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state);
 int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
 			       uint32_t pll_id);
+int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv);
+enum intel_dpll_id icl_port_to_mg_pll_id(enum port port);
+bool intel_dpll_is_combophy(enum intel_dpll_id id);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

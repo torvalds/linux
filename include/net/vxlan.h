@@ -5,7 +5,8 @@
 #include <linux/if_vlan.h>
 #include <net/udp_tunnel.h>
 #include <net/dst_metadata.h>
-#include <net/udp_tunnel.h>
+#include <net/rtnetlink.h>
+#include <net/switchdev.h>
 
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -191,6 +192,7 @@ union vxlan_addr {
 struct vxlan_rdst {
 	union vxlan_addr	 remote_ip;
 	__be16			 remote_port;
+	u8			 offloaded:1;
 	__be32			 remote_vni;
 	u32			 remote_ifindex;
 	struct list_head	 list;
@@ -214,6 +216,7 @@ struct vxlan_config {
 	unsigned long		age_interval;
 	unsigned int		addrmax;
 	bool			no_share;
+	enum ifla_vxlan_df	df;
 };
 
 struct vxlan_dev_node {
@@ -370,5 +373,82 @@ static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
 {
 	return vs->sock->sk->sk_family;
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+
+static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
+{
+	if (ipa->sa.sa_family == AF_INET6)
+		return ipv6_addr_any(&ipa->sin6.sin6_addr);
+	else
+		return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
+}
+
+static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
+{
+	if (ipa->sa.sa_family == AF_INET6)
+		return ipv6_addr_is_multicast(&ipa->sin6.sin6_addr);
+	else
+		return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+}
+
+#else /* !IS_ENABLED(CONFIG_IPV6) */
+
+static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
+{
+	return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
+}
+
+static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
+{
+	return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+}
+
+#endif /* IS_ENABLED(CONFIG_IPV6) */
+
+static inline bool netif_is_vxlan(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops &&
+	       !strcmp(dev->rtnl_link_ops->kind, "vxlan");
+}
+
+struct switchdev_notifier_vxlan_fdb_info {
+	struct switchdev_notifier_info info; /* must be first */
+	union vxlan_addr remote_ip;
+	__be16 remote_port;
+	__be32 remote_vni;
+	u32 remote_ifindex;
+	u8 eth_addr[ETH_ALEN];
+	__be32 vni;
+	bool offloaded;
+	bool added_by_user;
+};
+
+#if IS_ENABLED(CONFIG_VXLAN)
+int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
+		      struct switchdev_notifier_vxlan_fdb_info *fdb_info);
+int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+		     struct notifier_block *nb);
+void vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni);
+
+#else
+static inline int
+vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
+		  struct switchdev_notifier_vxlan_fdb_info *fdb_info)
+{
+	return -ENOENT;
+}
+
+static inline int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+				   struct notifier_block *nb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void
+vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni)
+{
+}
+#endif
 
 #endif

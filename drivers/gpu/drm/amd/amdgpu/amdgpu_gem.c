@@ -169,7 +169,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	INIT_LIST_HEAD(&duplicates);
 
 	tv.bo = &bo->tbo;
-	tv.shared = true;
+	tv.num_shared = 1;
 	list_add(&tv.head, &list);
 
 	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
@@ -244,16 +244,10 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 		}
 		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
-		if (args->in.domains == AMDGPU_GEM_DOMAIN_GDS)
-			size = size << AMDGPU_GDS_SHIFT;
-		else if (args->in.domains == AMDGPU_GEM_DOMAIN_GWS)
-			size = size << AMDGPU_GWS_SHIFT;
-		else if (args->in.domains == AMDGPU_GEM_DOMAIN_OA)
-			size = size << AMDGPU_OA_SHIFT;
-		else
-			return -EINVAL;
+		/* GDS allocations must be DW aligned */
+		if (args->in.domains & AMDGPU_GEM_DOMAIN_GDS)
+			size = ALIGN(size, 4);
 	}
-	size = roundup(size, PAGE_SIZE);
 
 	if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
 		r = amdgpu_bo_reserve(vm->root.base.bo, false);
@@ -572,16 +566,16 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (args->va_address >= AMDGPU_VA_HOLE_START &&
-	    args->va_address < AMDGPU_VA_HOLE_END) {
+	if (args->va_address >= AMDGPU_GMC_HOLE_START &&
+	    args->va_address < AMDGPU_GMC_HOLE_END) {
 		dev_dbg(&dev->pdev->dev,
 			"va_address 0x%LX is in VA hole 0x%LX-0x%LX\n",
-			args->va_address, AMDGPU_VA_HOLE_START,
-			AMDGPU_VA_HOLE_END);
+			args->va_address, AMDGPU_GMC_HOLE_START,
+			AMDGPU_GMC_HOLE_END);
 		return -EINVAL;
 	}
 
-	args->va_address &= AMDGPU_VA_HOLE_MASK;
+	args->va_address &= AMDGPU_GMC_HOLE_MASK;
 
 	if ((args->flags & ~valid_flags) && (args->flags & ~prt_flags)) {
 		dev_dbg(&dev->pdev->dev, "invalid flags combination 0x%08X\n",
@@ -610,7 +604,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			return -ENOENT;
 		abo = gem_to_amdgpu_bo(gobj);
 		tv.bo = &abo->tbo;
-		tv.shared = !!(abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID);
+		if (abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
+			tv.num_shared = 1;
+		else
+			tv.num_shared = 0;
 		list_add(&tv.head, &list);
 	} else {
 		gobj = NULL;

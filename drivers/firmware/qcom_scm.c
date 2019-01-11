@@ -525,34 +525,44 @@ static int qcom_scm_probe(struct platform_device *pdev)
 		return ret;
 
 	clks = (unsigned long)of_device_get_match_data(&pdev->dev);
-	if (clks & SCM_HAS_CORE_CLK) {
-		scm->core_clk = devm_clk_get(&pdev->dev, "core");
-		if (IS_ERR(scm->core_clk)) {
-			if (PTR_ERR(scm->core_clk) != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"failed to acquire core clk\n");
+
+	scm->core_clk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(scm->core_clk)) {
+		if (PTR_ERR(scm->core_clk) == -EPROBE_DEFER)
+			return PTR_ERR(scm->core_clk);
+
+		if (clks & SCM_HAS_CORE_CLK) {
+			dev_err(&pdev->dev, "failed to acquire core clk\n");
 			return PTR_ERR(scm->core_clk);
 		}
+
+		scm->core_clk = NULL;
 	}
 
-	if (clks & SCM_HAS_IFACE_CLK) {
-		scm->iface_clk = devm_clk_get(&pdev->dev, "iface");
-		if (IS_ERR(scm->iface_clk)) {
-			if (PTR_ERR(scm->iface_clk) != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"failed to acquire iface clk\n");
+	scm->iface_clk = devm_clk_get(&pdev->dev, "iface");
+	if (IS_ERR(scm->iface_clk)) {
+		if (PTR_ERR(scm->iface_clk) == -EPROBE_DEFER)
+			return PTR_ERR(scm->iface_clk);
+
+		if (clks & SCM_HAS_IFACE_CLK) {
+			dev_err(&pdev->dev, "failed to acquire iface clk\n");
 			return PTR_ERR(scm->iface_clk);
 		}
+
+		scm->iface_clk = NULL;
 	}
 
-	if (clks & SCM_HAS_BUS_CLK) {
-		scm->bus_clk = devm_clk_get(&pdev->dev, "bus");
-		if (IS_ERR(scm->bus_clk)) {
-			if (PTR_ERR(scm->bus_clk) != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"failed to acquire bus clk\n");
+	scm->bus_clk = devm_clk_get(&pdev->dev, "bus");
+	if (IS_ERR(scm->bus_clk)) {
+		if (PTR_ERR(scm->bus_clk) == -EPROBE_DEFER)
+			return PTR_ERR(scm->bus_clk);
+
+		if (clks & SCM_HAS_BUS_CLK) {
+			dev_err(&pdev->dev, "failed to acquire bus clk\n");
 			return PTR_ERR(scm->bus_clk);
 		}
+
+		scm->bus_clk = NULL;
 	}
 
 	scm->reset.ops = &qcom_scm_pas_reset_ops;
@@ -594,23 +604,23 @@ static const struct of_device_id qcom_scm_dt_match[] = {
 	{ .compatible = "qcom,scm-apq8064",
 	  /* FIXME: This should have .data = (void *) SCM_HAS_CORE_CLK */
 	},
-	{ .compatible = "qcom,scm-msm8660",
-	  .data = (void *) SCM_HAS_CORE_CLK,
+	{ .compatible = "qcom,scm-apq8084", .data = (void *)(SCM_HAS_CORE_CLK |
+							     SCM_HAS_IFACE_CLK |
+							     SCM_HAS_BUS_CLK)
 	},
-	{ .compatible = "qcom,scm-msm8960",
-	  .data = (void *) SCM_HAS_CORE_CLK,
+	{ .compatible = "qcom,scm-ipq4019" },
+	{ .compatible = "qcom,scm-msm8660", .data = (void *) SCM_HAS_CORE_CLK },
+	{ .compatible = "qcom,scm-msm8960", .data = (void *) SCM_HAS_CORE_CLK },
+	{ .compatible = "qcom,scm-msm8916", .data = (void *)(SCM_HAS_CORE_CLK |
+							     SCM_HAS_IFACE_CLK |
+							     SCM_HAS_BUS_CLK)
 	},
-	{ .compatible = "qcom,scm-msm8996",
-	  .data = NULL, /* no clocks */
+	{ .compatible = "qcom,scm-msm8974", .data = (void *)(SCM_HAS_CORE_CLK |
+							     SCM_HAS_IFACE_CLK |
+							     SCM_HAS_BUS_CLK)
 	},
-	{ .compatible = "qcom,scm-ipq4019",
-	  .data = NULL, /* no clocks */
-	},
-	{ .compatible = "qcom,scm",
-	  .data = (void *)(SCM_HAS_CORE_CLK
-			   | SCM_HAS_IFACE_CLK
-			   | SCM_HAS_BUS_CLK),
-	},
+	{ .compatible = "qcom,scm-msm8996" },
+	{ .compatible = "qcom,scm" },
 	{}
 };
 

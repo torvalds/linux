@@ -295,6 +295,7 @@ enum mlxsw_reg_sfd_rec_type {
 	MLXSW_REG_SFD_REC_TYPE_UNICAST = 0x0,
 	MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG = 0x1,
 	MLXSW_REG_SFD_REC_TYPE_MULTICAST = 0x2,
+	MLXSW_REG_SFD_REC_TYPE_UNICAST_TUNNEL = 0xC,
 };
 
 /* reg_sfd_rec_type
@@ -525,6 +526,61 @@ mlxsw_reg_sfd_mc_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_mc_mid_set(payload, rec_index, mid);
 }
 
+/* reg_sfd_uc_tunnel_uip_msb
+ * When protocol is IPv4, the most significant byte of the underlay IPv4
+ * destination IP.
+ * When protocol is IPv6, reserved.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_uip_msb, MLXSW_REG_SFD_BASE_LEN, 24,
+		     8, MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+/* reg_sfd_uc_tunnel_fid
+ * Filtering ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_fid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
+		     MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+enum mlxsw_reg_sfd_uc_tunnel_protocol {
+	MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV4,
+	MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV6,
+};
+
+/* reg_sfd_uc_tunnel_protocol
+ * IP protocol.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_protocol, MLXSW_REG_SFD_BASE_LEN, 27,
+		     1, MLXSW_REG_SFD_REC_LEN, 0x0C, false);
+
+/* reg_sfd_uc_tunnel_uip_lsb
+ * When protocol is IPv4, the least significant bytes of the underlay
+ * IPv4 destination IP.
+ * When protocol is IPv6, pointer to the underlay IPv6 destination IP
+ * which is configured by RIPS.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_uip_lsb, MLXSW_REG_SFD_BASE_LEN, 0,
+		     24, MLXSW_REG_SFD_REC_LEN, 0x0C, false);
+
+static inline void
+mlxsw_reg_sfd_uc_tunnel_pack(char *payload, int rec_index,
+			     enum mlxsw_reg_sfd_rec_policy policy,
+			     const char *mac, u16 fid,
+			     enum mlxsw_reg_sfd_rec_action action, u32 uip,
+			     enum mlxsw_reg_sfd_uc_tunnel_protocol proto)
+{
+	mlxsw_reg_sfd_rec_pack(payload, rec_index,
+			       MLXSW_REG_SFD_REC_TYPE_UNICAST_TUNNEL, mac,
+			       action);
+	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
+	mlxsw_reg_sfd_uc_tunnel_uip_msb_set(payload, rec_index, uip >> 24);
+	mlxsw_reg_sfd_uc_tunnel_uip_lsb_set(payload, rec_index, uip);
+	mlxsw_reg_sfd_uc_tunnel_fid_set(payload, rec_index, fid);
+	mlxsw_reg_sfd_uc_tunnel_protocol_set(payload, rec_index, proto);
+}
+
 /* SFN - Switch FDB Notification Register
  * -------------------------------------------
  * The switch provides notifications on newly learned FDB entries and
@@ -585,6 +641,10 @@ enum mlxsw_reg_sfn_rec_type {
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC = 0x7,
 	/* Aged-out MAC address on a LAG port. */
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC_LAG = 0x8,
+	/* Learned unicast tunnel record. */
+	MLXSW_REG_SFN_REC_TYPE_LEARNED_UNICAST_TUNNEL = 0xD,
+	/* Aged-out unicast tunnel record. */
+	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_UNICAST_TUNNEL = 0xE,
 };
 
 /* reg_sfn_rec_type
@@ -646,6 +706,66 @@ static inline void mlxsw_reg_sfn_mac_lag_unpack(char *payload, int rec_index,
 	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
 	*p_lag_id = mlxsw_reg_sfn_mac_lag_lag_id_get(payload, rec_index);
+}
+
+/* reg_sfn_uc_tunnel_uip_msb
+ * When protocol is IPv4, the most significant byte of the underlay IPv4
+ * address of the remote VTEP.
+ * When protocol is IPv6, reserved.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_uip_msb, MLXSW_REG_SFN_BASE_LEN, 24,
+		     8, MLXSW_REG_SFN_REC_LEN, 0x08, false);
+
+enum mlxsw_reg_sfn_uc_tunnel_protocol {
+	MLXSW_REG_SFN_UC_TUNNEL_PROTOCOL_IPV4,
+	MLXSW_REG_SFN_UC_TUNNEL_PROTOCOL_IPV6,
+};
+
+/* reg_sfn_uc_tunnel_protocol
+ * IP protocol.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_protocol, MLXSW_REG_SFN_BASE_LEN, 27,
+		     1, MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+/* reg_sfn_uc_tunnel_uip_lsb
+ * When protocol is IPv4, the least significant bytes of the underlay
+ * IPv4 address of the remote VTEP.
+ * When protocol is IPv6, ipv6_id to be queried from TNIPSD.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_uip_lsb, MLXSW_REG_SFN_BASE_LEN, 0,
+		     24, MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+enum mlxsw_reg_sfn_tunnel_port {
+	MLXSW_REG_SFN_TUNNEL_PORT_NVE,
+	MLXSW_REG_SFN_TUNNEL_PORT_VPLS,
+	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL0,
+	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL1,
+};
+
+/* reg_sfn_uc_tunnel_port
+ * Tunnel port.
+ * Reserved on Spectrum.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, tunnel_port, MLXSW_REG_SFN_BASE_LEN, 0, 4,
+		     MLXSW_REG_SFN_REC_LEN, 0x10, false);
+
+static inline void
+mlxsw_reg_sfn_uc_tunnel_unpack(char *payload, int rec_index, char *mac,
+			       u16 *p_fid, u32 *p_uip,
+			       enum mlxsw_reg_sfn_uc_tunnel_protocol *p_proto)
+{
+	u32 uip_msb, uip_lsb;
+
+	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
+	*p_fid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
+	uip_msb = mlxsw_reg_sfn_uc_tunnel_uip_msb_get(payload, rec_index);
+	uip_lsb = mlxsw_reg_sfn_uc_tunnel_uip_lsb_get(payload, rec_index);
+	*p_uip = uip_msb << 24 | uip_lsb;
+	*p_proto = mlxsw_reg_sfn_uc_tunnel_protocol_get(payload, rec_index);
 }
 
 /* SPMS - Switch Port MSTP/RSTP State Register
@@ -1069,6 +1189,8 @@ enum mlxsw_reg_sfdf_flush_type {
 	MLXSW_REG_SFDF_FLUSH_PER_PORT_AND_FID,
 	MLXSW_REG_SFDF_FLUSH_PER_LAG,
 	MLXSW_REG_SFDF_FLUSH_PER_LAG_AND_FID,
+	MLXSW_REG_SFDF_FLUSH_PER_NVE,
+	MLXSW_REG_SFDF_FLUSH_PER_NVE_AND_FID,
 };
 
 /* reg_sfdf_flush_type
@@ -1079,6 +1201,10 @@ enum mlxsw_reg_sfdf_flush_type {
  * 3 - All FID dynamic entries pointing to port are flushed.
  * 4 - All dynamic entries pointing to LAG are flushed.
  * 5 - All FID dynamic entries pointing to LAG are flushed.
+ * 6 - All entries of type "Unicast Tunnel" or "Multicast Tunnel" are
+ *     flushed.
+ * 7 - All entries of type "Unicast Tunnel" or "Multicast Tunnel" are
+ *     flushed, per FID.
  * Access: RW
  */
 MLXSW_ITEM32(reg, sfdf, flush_type, 0x04, 28, 4);
@@ -1315,12 +1441,19 @@ MLXSW_ITEM32(reg, slcr, type, 0x00, 0, 4);
  */
 MLXSW_ITEM32(reg, slcr, lag_hash, 0x04, 0, 20);
 
-static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash)
+/* reg_slcr_seed
+ * LAG seed value. The seed is the same for all ports.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcr, seed, 0x08, 0, 32);
+
+static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash, u32 seed)
 {
 	MLXSW_REG_ZERO(slcr, payload);
 	mlxsw_reg_slcr_pp_set(payload, MLXSW_REG_SLCR_PP_GLOBAL);
 	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_CRC);
 	mlxsw_reg_slcr_lag_hash_set(payload, lag_hash);
+	mlxsw_reg_slcr_seed_set(payload, seed);
 }
 
 /* SLCOR - Switch LAG Collector Register
@@ -2362,6 +2495,43 @@ static inline void mlxsw_reg_pefa_unpack(char *payload, bool *p_a)
 	*p_a = mlxsw_reg_pefa_a_get(payload);
 }
 
+/* PEMRBT - Policy-Engine Multicast Router Binding Table Register
+ * --------------------------------------------------------------
+ * This register is used for binding Multicast router to an ACL group
+ * that serves the MC router.
+ * This register is not supported by SwitchX/-2 and Spectrum.
+ */
+#define MLXSW_REG_PEMRBT_ID 0x3014
+#define MLXSW_REG_PEMRBT_LEN 0x14
+
+MLXSW_REG_DEFINE(pemrbt, MLXSW_REG_PEMRBT_ID, MLXSW_REG_PEMRBT_LEN);
+
+enum mlxsw_reg_pemrbt_protocol {
+	MLXSW_REG_PEMRBT_PROTO_IPV4,
+	MLXSW_REG_PEMRBT_PROTO_IPV6,
+};
+
+/* reg_pemrbt_protocol
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pemrbt, protocol, 0x00, 0, 1);
+
+/* reg_pemrbt_group_id
+ * ACL group identifier.
+ * Range 0..cap_max_acl_groups-1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pemrbt, group_id, 0x10, 0, 16);
+
+static inline void
+mlxsw_reg_pemrbt_pack(char *payload, enum mlxsw_reg_pemrbt_protocol protocol,
+		      u16 group_id)
+{
+	MLXSW_REG_ZERO(pemrbt, payload);
+	mlxsw_reg_pemrbt_protocol_set(payload, protocol);
+	mlxsw_reg_pemrbt_group_id_set(payload, group_id);
+}
+
 /* PTCE-V2 - Policy-Engine TCAM Entry Register Version 2
  * -----------------------------------------------------
  * This register is used for accessing rules within a TCAM region.
@@ -2573,7 +2743,7 @@ mlxsw_reg_perpt_pack(char *payload, u8 erpt_bank, u8 erpt_index,
 	mlxsw_reg_perpt_erpt_bank_set(payload, erpt_bank);
 	mlxsw_reg_perpt_erpt_index_set(payload, erpt_index);
 	mlxsw_reg_perpt_key_size_set(payload, key_size);
-	mlxsw_reg_perpt_bf_bypass_set(payload, true);
+	mlxsw_reg_perpt_bf_bypass_set(payload, false);
 	mlxsw_reg_perpt_erp_id_set(payload, erp_id);
 	mlxsw_reg_perpt_erpt_base_bank_set(payload, erpt_base_bank);
 	mlxsw_reg_perpt_erpt_base_index_set(payload, erpt_base_index);
@@ -2765,8 +2935,9 @@ static inline void mlxsw_reg_ptce3_pack(char *payload, bool valid,
 					u32 priority,
 					const char *tcam_region_info,
 					const char *key, u8 erp_id,
-					bool large_exists, u32 lkey_id,
-					u32 action_pointer)
+					u16 delta_start, u8 delta_mask,
+					u8 delta_value, bool large_exists,
+					u32 lkey_id, u32 action_pointer)
 {
 	MLXSW_REG_ZERO(ptce3, payload);
 	mlxsw_reg_ptce3_v_set(payload, valid);
@@ -2775,6 +2946,9 @@ static inline void mlxsw_reg_ptce3_pack(char *payload, bool valid,
 	mlxsw_reg_ptce3_tcam_region_info_memcpy_to(payload, tcam_region_info);
 	mlxsw_reg_ptce3_flex2_key_blocks_memcpy_to(payload, key);
 	mlxsw_reg_ptce3_erp_id_set(payload, erp_id);
+	mlxsw_reg_ptce3_delta_start_set(payload, delta_start);
+	mlxsw_reg_ptce3_delta_mask_set(payload, delta_mask);
+	mlxsw_reg_ptce3_delta_value_set(payload, delta_value);
 	mlxsw_reg_ptce3_large_exists_set(payload, large_exists);
 	mlxsw_reg_ptce3_large_entry_key_id_set(payload, lkey_id);
 	mlxsw_reg_ptce3_action_pointer_set(payload, action_pointer);
@@ -2832,7 +3006,7 @@ static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
 	mlxsw_reg_percr_region_id_set(payload, region_id);
 	mlxsw_reg_percr_atcam_ignore_prune_set(payload, false);
 	mlxsw_reg_percr_ctcam_ignore_prune_set(payload, false);
-	mlxsw_reg_percr_bf_bypass_set(payload, true);
+	mlxsw_reg_percr_bf_bypass_set(payload, false);
 }
 
 /* PERERP - Policy-Engine Region eRP Register
@@ -2919,6 +3093,72 @@ static inline void mlxsw_reg_pererp_pack(char *payload, u16 region_id,
 	mlxsw_reg_pererp_erpt_bank_pointer_set(payload, erpt_bank_pointer);
 	mlxsw_reg_pererp_erpt_pointer_set(payload, erpt_pointer);
 	mlxsw_reg_pererp_master_rp_id_set(payload, master_rp_id);
+}
+
+/* PEABFE - Policy-Engine Algorithmic Bloom Filter Entries Register
+ * ----------------------------------------------------------------
+ * This register configures the Bloom filter entries.
+ */
+#define MLXSW_REG_PEABFE_ID 0x3022
+#define MLXSW_REG_PEABFE_BASE_LEN 0x10
+#define MLXSW_REG_PEABFE_BF_REC_LEN 0x4
+#define MLXSW_REG_PEABFE_BF_REC_MAX_COUNT 256
+#define MLXSW_REG_PEABFE_LEN (MLXSW_REG_PEABFE_BASE_LEN + \
+			      MLXSW_REG_PEABFE_BF_REC_LEN * \
+			      MLXSW_REG_PEABFE_BF_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(peabfe, MLXSW_REG_PEABFE_ID, MLXSW_REG_PEABFE_LEN);
+
+/* reg_peabfe_size
+ * Number of BF entries to be updated.
+ * Range 1..256
+ * Access: Op
+ */
+MLXSW_ITEM32(reg, peabfe, size, 0x00, 0, 9);
+
+/* reg_peabfe_bf_entry_state
+ * Bloom filter state
+ * 0 - Clear
+ * 1 - Set
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_state,
+		     MLXSW_REG_PEABFE_BASE_LEN,	31, 1,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+/* reg_peabfe_bf_entry_bank
+ * Bloom filter bank ID
+ * Range 0..cap_max_erp_table_banks-1
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_bank,
+		     MLXSW_REG_PEABFE_BASE_LEN,	24, 4,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+/* reg_peabfe_bf_entry_index
+ * Bloom filter entry index
+ * Range 0..2^cap_max_bf_log-1
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_index,
+		     MLXSW_REG_PEABFE_BASE_LEN,	0, 24,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_peabfe_pack(char *payload)
+{
+	MLXSW_REG_ZERO(peabfe, payload);
+}
+
+static inline void mlxsw_reg_peabfe_rec_pack(char *payload, int rec_index,
+					     u8 state, u8 bank, u32 bf_index)
+{
+	u8 num_rec = mlxsw_reg_peabfe_size_get(payload);
+
+	if (rec_index >= num_rec)
+		mlxsw_reg_peabfe_size_set(payload, rec_index + 1);
+	mlxsw_reg_peabfe_bf_entry_state_set(payload, rec_index, state);
+	mlxsw_reg_peabfe_bf_entry_bank_set(payload, rec_index, bank);
+	mlxsw_reg_peabfe_bf_entry_index_set(payload, rec_index, bf_index);
 }
 
 /* IEDR - Infrastructure Entry Delete Register
@@ -3215,7 +3455,7 @@ static inline void mlxsw_reg_qtct_pack(char *payload, u8 local_port,
  * Configures the ETS elements.
  */
 #define MLXSW_REG_QEEC_ID 0x400D
-#define MLXSW_REG_QEEC_LEN 0x1C
+#define MLXSW_REG_QEEC_LEN 0x20
 
 MLXSW_REG_DEFINE(qeec, MLXSW_REG_QEEC_ID, MLXSW_REG_QEEC_LEN);
 
@@ -3257,6 +3497,15 @@ MLXSW_ITEM32(reg, qeec, element_index, 0x04, 0, 8);
  */
 MLXSW_ITEM32(reg, qeec, next_element_index, 0x08, 0, 8);
 
+/* reg_qeec_mise
+ * Min shaper configuration enable. Enables configuration of the min
+ * shaper on this ETS element
+ * 0 - Disable
+ * 1 - Enable
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qeec, mise, 0x0C, 31, 1);
+
 enum {
 	MLXSW_REG_QEEC_BYTES_MODE,
 	MLXSW_REG_QEEC_PACKETS_MODE,
@@ -3272,6 +3521,17 @@ enum {
  * is supported only for traffic classes of CPU port.
  */
 MLXSW_ITEM32(reg, qeec, pb, 0x0C, 28, 1);
+
+/* The smallest permitted min shaper rate. */
+#define MLXSW_REG_QEEC_MIS_MIN	200000		/* Kbps */
+
+/* reg_qeec_min_shaper_rate
+ * Min shaper information rate.
+ * For CPU port, can only be configured for port hierarchy.
+ * When in bytes mode, value is specified in units of 1000bps.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qeec, min_shaper_rate, 0x0C, 0, 28);
 
 /* reg_qeec_mase
  * Max shaper configuration enable. Enables configuration of the max
@@ -4142,8 +4402,11 @@ MLXSW_ITEM32(reg, ppcnt, pnat, 0x00, 14, 2);
 
 enum mlxsw_reg_ppcnt_grp {
 	MLXSW_REG_PPCNT_IEEE_8023_CNT = 0x0,
+	MLXSW_REG_PPCNT_RFC_2863_CNT = 0x1,
 	MLXSW_REG_PPCNT_RFC_2819_CNT = 0x2,
+	MLXSW_REG_PPCNT_RFC_3635_CNT = 0x3,
 	MLXSW_REG_PPCNT_EXT_CNT = 0x5,
+	MLXSW_REG_PPCNT_DISCARD_CNT = 0x6,
 	MLXSW_REG_PPCNT_PRIO_CNT = 0x10,
 	MLXSW_REG_PPCNT_TC_CNT = 0x11,
 	MLXSW_REG_PPCNT_TC_CONG_TC = 0x13,
@@ -4158,6 +4421,7 @@ enum mlxsw_reg_ppcnt_grp {
  * 0x2: RFC 2819 Counters
  * 0x3: RFC 3635 Counters
  * 0x5: Ethernet Extended Counters
+ * 0x6: Ethernet Discard Counters
  * 0x8: Link Level Retransmission Counters
  * 0x10: Per Priority Counters
  * 0x11: Per Traffic Class Counters
@@ -4301,7 +4565,45 @@ MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_received,
 MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_transmitted,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x90, 0, 64);
 
+/* Ethernet RFC 2863 Counter Group */
+
+/* reg_ppcnt_if_in_discards
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, if_in_discards,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x10, 0, 64);
+
+/* reg_ppcnt_if_out_discards
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, if_out_discards,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x38, 0, 64);
+
+/* reg_ppcnt_if_out_errors
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, if_out_errors,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x40, 0, 64);
+
 /* Ethernet RFC 2819 Counter Group */
+
+/* reg_ppcnt_ether_stats_undersize_pkts
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_undersize_pkts,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x30, 0, 64);
+
+/* reg_ppcnt_ether_stats_oversize_pkts
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_oversize_pkts,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x38, 0, 64);
+
+/* reg_ppcnt_ether_stats_fragments
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_fragments,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x40, 0, 64);
 
 /* reg_ppcnt_ether_stats_pkts64octets
  * Access: RO
@@ -4363,6 +4665,32 @@ MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts4096to8191octets,
 MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts8192to10239octets,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0xA0, 0, 64);
 
+/* Ethernet RFC 3635 Counter Group */
+
+/* reg_ppcnt_dot3stats_fcs_errors
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3stats_fcs_errors,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
+/* reg_ppcnt_dot3stats_symbol_errors
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3stats_symbol_errors,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
+
+/* reg_ppcnt_dot3control_in_unknown_opcodes
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3control_in_unknown_opcodes,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x68, 0, 64);
+
+/* reg_ppcnt_dot3in_pause_frames
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3in_pause_frames,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
+
 /* Ethernet Extended Counter Group Counters */
 
 /* reg_ppcnt_ecn_marked
@@ -4370,6 +4698,80 @@ MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts8192to10239octets,
  */
 MLXSW_ITEM64(reg, ppcnt, ecn_marked,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
+/* Ethernet Discard Counter Group Counters */
+
+/* reg_ppcnt_ingress_general
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_general,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
+
+/* reg_ppcnt_ingress_policy_engine
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_policy_engine,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
+/* reg_ppcnt_ingress_vlan_membership
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_vlan_membership,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x10, 0, 64);
+
+/* reg_ppcnt_ingress_tag_frame_type
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_tag_frame_type,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x18, 0, 64);
+
+/* reg_ppcnt_egress_vlan_membership
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_vlan_membership,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x20, 0, 64);
+
+/* reg_ppcnt_loopback_filter
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, loopback_filter,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x28, 0, 64);
+
+/* reg_ppcnt_egress_general
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_general,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x30, 0, 64);
+
+/* reg_ppcnt_egress_hoq
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_hoq,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x40, 0, 64);
+
+/* reg_ppcnt_egress_policy_engine
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_policy_engine,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x50, 0, 64);
+
+/* reg_ppcnt_ingress_tx_link_down
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_tx_link_down,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x58, 0, 64);
+
+/* reg_ppcnt_egress_stp_filter
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_stp_filter,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
+
+/* reg_ppcnt_egress_sll
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_sll,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
 
 /* Ethernet Per Priority Group Counters */
 
@@ -4773,6 +5175,7 @@ enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_EVENT,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_MLD,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_ND,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR,
 };
 
 /* reg_htgt_trap_group
@@ -8279,6 +8682,508 @@ static inline void mlxsw_reg_mgpc_pack(char *payload, u32 counter_index,
 	mlxsw_reg_mgpc_opcode_set(payload, opcode);
 }
 
+/* MPRS - Monitoring Parsing State Register
+ * ----------------------------------------
+ * The MPRS register is used for setting up the parsing for hash,
+ * policy-engine and routing.
+ */
+#define MLXSW_REG_MPRS_ID 0x9083
+#define MLXSW_REG_MPRS_LEN 0x14
+
+MLXSW_REG_DEFINE(mprs, MLXSW_REG_MPRS_ID, MLXSW_REG_MPRS_LEN);
+
+/* reg_mprs_parsing_depth
+ * Minimum parsing depth.
+ * Need to enlarge parsing depth according to L3, MPLS, tunnels, ACL
+ * rules, traps, hash, etc. Default is 96 bytes. Reserved when SwitchX-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mprs, parsing_depth, 0x00, 0, 16);
+
+/* reg_mprs_parsing_en
+ * Parsing enable.
+ * Bit 0 - Enable parsing of NVE of types VxLAN, VxLAN-GPE, GENEVE and
+ * NVGRE. Default is enabled. Reserved when SwitchX-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mprs, parsing_en, 0x04, 0, 16);
+
+/* reg_mprs_vxlan_udp_dport
+ * VxLAN UDP destination port.
+ * Used for identifying VxLAN packets and for dport field in
+ * encapsulation. Default is 4789.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mprs, vxlan_udp_dport, 0x10, 0, 16);
+
+static inline void mlxsw_reg_mprs_pack(char *payload, u16 parsing_depth,
+				       u16 vxlan_udp_dport)
+{
+	MLXSW_REG_ZERO(mprs, payload);
+	mlxsw_reg_mprs_parsing_depth_set(payload, parsing_depth);
+	mlxsw_reg_mprs_parsing_en_set(payload, true);
+	mlxsw_reg_mprs_vxlan_udp_dport_set(payload, vxlan_udp_dport);
+}
+
+/* TNGCR - Tunneling NVE General Configuration Register
+ * ----------------------------------------------------
+ * The TNGCR register is used for setting up the NVE Tunneling configuration.
+ */
+#define MLXSW_REG_TNGCR_ID 0xA001
+#define MLXSW_REG_TNGCR_LEN 0x44
+
+MLXSW_REG_DEFINE(tngcr, MLXSW_REG_TNGCR_ID, MLXSW_REG_TNGCR_LEN);
+
+enum mlxsw_reg_tngcr_type {
+	MLXSW_REG_TNGCR_TYPE_VXLAN,
+	MLXSW_REG_TNGCR_TYPE_VXLAN_GPE,
+	MLXSW_REG_TNGCR_TYPE_GENEVE,
+	MLXSW_REG_TNGCR_TYPE_NVGRE,
+};
+
+/* reg_tngcr_type
+ * Tunnel type for encapsulation and decapsulation. The types are mutually
+ * exclusive.
+ * Note: For Spectrum the NVE parsing must be enabled in MPRS.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, type, 0x00, 0, 4);
+
+/* reg_tngcr_nve_valid
+ * The VTEP is valid. Allows adding FDB entries for tunnel encapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_valid, 0x04, 31, 1);
+
+/* reg_tngcr_nve_ttl_uc
+ * The TTL for NVE tunnel encapsulation underlay unicast packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_ttl_uc, 0x04, 0, 8);
+
+/* reg_tngcr_nve_ttl_mc
+ * The TTL for NVE tunnel encapsulation underlay multicast packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_ttl_mc, 0x08, 0, 8);
+
+enum {
+	/* Do not copy flow label. Calculate flow label using nve_flh. */
+	MLXSW_REG_TNGCR_FL_NO_COPY,
+	/* Copy flow label from inner packet if packet is IPv6 and
+	 * encapsulation is by IPv6. Otherwise, calculate flow label using
+	 * nve_flh.
+	 */
+	MLXSW_REG_TNGCR_FL_COPY,
+};
+
+/* reg_tngcr_nve_flc
+ * For NVE tunnel encapsulation: Flow label copy from inner packet.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_flc, 0x0C, 25, 1);
+
+enum {
+	/* Flow label is static. In Spectrum this means '0'. Spectrum-2
+	 * uses {nve_fl_prefix, nve_fl_suffix}.
+	 */
+	MLXSW_REG_TNGCR_FL_NO_HASH,
+	/* 8 LSBs of the flow label are calculated from ECMP hash of the
+	 * inner packet. 12 MSBs are configured by nve_fl_prefix.
+	 */
+	MLXSW_REG_TNGCR_FL_HASH,
+};
+
+/* reg_tngcr_nve_flh
+ * NVE flow label hash.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_flh, 0x0C, 24, 1);
+
+/* reg_tngcr_nve_fl_prefix
+ * NVE flow label prefix. Constant 12 MSBs of the flow label.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_fl_prefix, 0x0C, 8, 12);
+
+/* reg_tngcr_nve_fl_suffix
+ * NVE flow label suffix. Constant 8 LSBs of the flow label.
+ * Reserved when nve_flh=1 and for Spectrum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_fl_suffix, 0x0C, 0, 8);
+
+enum {
+	/* Source UDP port is fixed (default '0') */
+	MLXSW_REG_TNGCR_UDP_SPORT_NO_HASH,
+	/* Source UDP port is calculated based on hash */
+	MLXSW_REG_TNGCR_UDP_SPORT_HASH,
+};
+
+/* reg_tngcr_nve_udp_sport_type
+ * NVE UDP source port type.
+ * Spectrum uses LAG hash (SLCRv2). Spectrum-2 uses ECMP hash (RECRv2).
+ * When the source UDP port is calculated based on hash, then the 8 LSBs
+ * are calculated from hash the 8 MSBs are configured by
+ * nve_udp_sport_prefix.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_udp_sport_type, 0x10, 24, 1);
+
+/* reg_tngcr_nve_udp_sport_prefix
+ * NVE UDP source port prefix. Constant 8 MSBs of the UDP source port.
+ * Reserved when NVE type is NVGRE.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_udp_sport_prefix, 0x10, 8, 8);
+
+/* reg_tngcr_nve_group_size_mc
+ * The amount of sequential linked lists of MC entries. The first linked
+ * list is configured by SFD.underlay_mc_ptr.
+ * Valid values: 1, 2, 4, 8, 16, 32, 64
+ * The linked list are configured by TNUMT.
+ * The hash is set by LAG hash.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_group_size_mc, 0x18, 0, 8);
+
+/* reg_tngcr_nve_group_size_flood
+ * The amount of sequential linked lists of flooding entries. The first
+ * linked list is configured by SFMR.nve_tunnel_flood_ptr
+ * Valid values: 1, 2, 4, 8, 16, 32, 64
+ * The linked list are configured by TNUMT.
+ * The hash is set by LAG hash.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_group_size_flood, 0x1C, 0, 8);
+
+/* reg_tngcr_learn_enable
+ * During decapsulation, whether to learn from NVE port.
+ * Reserved when Spectrum-2. See TNPC.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, learn_enable, 0x20, 31, 1);
+
+/* reg_tngcr_underlay_virtual_router
+ * Underlay virtual router.
+ * Reserved when Spectrum-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, underlay_virtual_router, 0x20, 0, 16);
+
+/* reg_tngcr_underlay_rif
+ * Underlay ingress router interface. RIF type should be loopback generic.
+ * Reserved when Spectrum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, underlay_rif, 0x24, 0, 16);
+
+/* reg_tngcr_usipv4
+ * Underlay source IPv4 address of the NVE.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, usipv4, 0x28, 0, 32);
+
+/* reg_tngcr_usipv6
+ * Underlay source IPv6 address of the NVE. For Spectrum, must not be
+ * modified under traffic of NVE tunneling encapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, tngcr, usipv6, 0x30, 16);
+
+static inline void mlxsw_reg_tngcr_pack(char *payload,
+					enum mlxsw_reg_tngcr_type type,
+					bool valid, u8 ttl)
+{
+	MLXSW_REG_ZERO(tngcr, payload);
+	mlxsw_reg_tngcr_type_set(payload, type);
+	mlxsw_reg_tngcr_nve_valid_set(payload, valid);
+	mlxsw_reg_tngcr_nve_ttl_uc_set(payload, ttl);
+	mlxsw_reg_tngcr_nve_ttl_mc_set(payload, ttl);
+	mlxsw_reg_tngcr_nve_flc_set(payload, MLXSW_REG_TNGCR_FL_NO_COPY);
+	mlxsw_reg_tngcr_nve_flh_set(payload, 0);
+	mlxsw_reg_tngcr_nve_udp_sport_type_set(payload,
+					       MLXSW_REG_TNGCR_UDP_SPORT_HASH);
+	mlxsw_reg_tngcr_nve_udp_sport_prefix_set(payload, 0);
+	mlxsw_reg_tngcr_nve_group_size_mc_set(payload, 1);
+	mlxsw_reg_tngcr_nve_group_size_flood_set(payload, 1);
+}
+
+/* TNUMT - Tunneling NVE Underlay Multicast Table Register
+ * -------------------------------------------------------
+ * The TNUMT register is for building the underlay MC table. It is used
+ * for MC, flooding and BC traffic into the NVE tunnel.
+ */
+#define MLXSW_REG_TNUMT_ID 0xA003
+#define MLXSW_REG_TNUMT_LEN 0x20
+
+MLXSW_REG_DEFINE(tnumt, MLXSW_REG_TNUMT_ID, MLXSW_REG_TNUMT_LEN);
+
+enum mlxsw_reg_tnumt_record_type {
+	MLXSW_REG_TNUMT_RECORD_TYPE_IPV4,
+	MLXSW_REG_TNUMT_RECORD_TYPE_IPV6,
+	MLXSW_REG_TNUMT_RECORD_TYPE_LABEL,
+};
+
+/* reg_tnumt_record_type
+ * Record type.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, record_type, 0x00, 28, 4);
+
+enum mlxsw_reg_tnumt_tunnel_port {
+	MLXSW_REG_TNUMT_TUNNEL_PORT_NVE,
+	MLXSW_REG_TNUMT_TUNNEL_PORT_VPLS,
+	MLXSW_REG_TNUMT_TUNNEL_FLEX_TUNNEL0,
+	MLXSW_REG_TNUMT_TUNNEL_FLEX_TUNNEL1,
+};
+
+/* reg_tnumt_tunnel_port
+ * Tunnel port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, tunnel_port, 0x00, 24, 4);
+
+/* reg_tnumt_underlay_mc_ptr
+ * Index to the underlay multicast table.
+ * For Spectrum the index is to the KVD linear.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tnumt, underlay_mc_ptr, 0x00, 0, 24);
+
+/* reg_tnumt_vnext
+ * The next_underlay_mc_ptr is valid.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, vnext, 0x04, 31, 1);
+
+/* reg_tnumt_next_underlay_mc_ptr
+ * The next index to the underlay multicast table.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, next_underlay_mc_ptr, 0x04, 0, 24);
+
+/* reg_tnumt_record_size
+ * Number of IP addresses in the record.
+ * Range is 1..cap_max_nve_mc_entries_ipv{4,6}
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, record_size, 0x08, 0, 3);
+
+/* reg_tnumt_udip
+ * The underlay IPv4 addresses. udip[i] is reserved if i >= size
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, tnumt, udip, 0x0C, 0, 32, 0x04, 0x00, false);
+
+/* reg_tnumt_udip_ptr
+ * The pointer to the underlay IPv6 addresses. udip_ptr[i] is reserved if
+ * i >= size. The IPv6 addresses are configured by RIPS.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, tnumt, udip_ptr, 0x0C, 0, 24, 0x04, 0x00, false);
+
+static inline void mlxsw_reg_tnumt_pack(char *payload,
+					enum mlxsw_reg_tnumt_record_type type,
+					enum mlxsw_reg_tnumt_tunnel_port tport,
+					u32 underlay_mc_ptr, bool vnext,
+					u32 next_underlay_mc_ptr,
+					u8 record_size)
+{
+	MLXSW_REG_ZERO(tnumt, payload);
+	mlxsw_reg_tnumt_record_type_set(payload, type);
+	mlxsw_reg_tnumt_tunnel_port_set(payload, tport);
+	mlxsw_reg_tnumt_underlay_mc_ptr_set(payload, underlay_mc_ptr);
+	mlxsw_reg_tnumt_vnext_set(payload, vnext);
+	mlxsw_reg_tnumt_next_underlay_mc_ptr_set(payload, next_underlay_mc_ptr);
+	mlxsw_reg_tnumt_record_size_set(payload, record_size);
+}
+
+/* TNQCR - Tunneling NVE QoS Configuration Register
+ * ------------------------------------------------
+ * The TNQCR register configures how QoS is set in encapsulation into the
+ * underlay network.
+ */
+#define MLXSW_REG_TNQCR_ID 0xA010
+#define MLXSW_REG_TNQCR_LEN 0x0C
+
+MLXSW_REG_DEFINE(tnqcr, MLXSW_REG_TNQCR_ID, MLXSW_REG_TNQCR_LEN);
+
+/* reg_tnqcr_enc_set_dscp
+ * For encapsulation: How to set DSCP field:
+ * 0 - Copy the DSCP from the overlay (inner) IP header to the underlay
+ * (outer) IP header. If there is no IP header, use TNQDR.dscp
+ * 1 - Set the DSCP field as TNQDR.dscp
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnqcr, enc_set_dscp, 0x04, 28, 1);
+
+static inline void mlxsw_reg_tnqcr_pack(char *payload)
+{
+	MLXSW_REG_ZERO(tnqcr, payload);
+	mlxsw_reg_tnqcr_enc_set_dscp_set(payload, 0);
+}
+
+/* TNQDR - Tunneling NVE QoS Default Register
+ * ------------------------------------------
+ * The TNQDR register configures the default QoS settings for NVE
+ * encapsulation.
+ */
+#define MLXSW_REG_TNQDR_ID 0xA011
+#define MLXSW_REG_TNQDR_LEN 0x08
+
+MLXSW_REG_DEFINE(tnqdr, MLXSW_REG_TNQDR_ID, MLXSW_REG_TNQDR_LEN);
+
+/* reg_tnqdr_local_port
+ * Local port number (receive port). CPU port is supported.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tnqdr, local_port, 0x00, 16, 8);
+
+/* reg_tnqdr_dscp
+ * For encapsulation, the default DSCP.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnqdr, dscp, 0x04, 0, 6);
+
+static inline void mlxsw_reg_tnqdr_pack(char *payload, u8 local_port)
+{
+	MLXSW_REG_ZERO(tnqdr, payload);
+	mlxsw_reg_tnqdr_local_port_set(payload, local_port);
+	mlxsw_reg_tnqdr_dscp_set(payload, 0);
+}
+
+/* TNEEM - Tunneling NVE Encapsulation ECN Mapping Register
+ * --------------------------------------------------------
+ * The TNEEM register maps ECN of the IP header at the ingress to the
+ * encapsulation to the ECN of the underlay network.
+ */
+#define MLXSW_REG_TNEEM_ID 0xA012
+#define MLXSW_REG_TNEEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tneem, MLXSW_REG_TNEEM_ID, MLXSW_REG_TNEEM_LEN);
+
+/* reg_tneem_overlay_ecn
+ * ECN of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tneem, overlay_ecn, 0x04, 24, 2);
+
+/* reg_tneem_underlay_ecn
+ * ECN of the IP header in the underlay network.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tneem, underlay_ecn, 0x04, 16, 2);
+
+static inline void mlxsw_reg_tneem_pack(char *payload, u8 overlay_ecn,
+					u8 underlay_ecn)
+{
+	MLXSW_REG_ZERO(tneem, payload);
+	mlxsw_reg_tneem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tneem_underlay_ecn_set(payload, underlay_ecn);
+}
+
+/* TNDEM - Tunneling NVE Decapsulation ECN Mapping Register
+ * --------------------------------------------------------
+ * The TNDEM register configures the actions that are done in the
+ * decapsulation.
+ */
+#define MLXSW_REG_TNDEM_ID 0xA013
+#define MLXSW_REG_TNDEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tndem, MLXSW_REG_TNDEM_ID, MLXSW_REG_TNDEM_LEN);
+
+/* reg_tndem_underlay_ecn
+ * ECN field of the IP header in the underlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tndem, underlay_ecn, 0x04, 24, 2);
+
+/* reg_tndem_overlay_ecn
+ * ECN field of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tndem, overlay_ecn, 0x04, 16, 2);
+
+/* reg_tndem_eip_ecn
+ * Egress IP ECN. ECN field of the IP header of the packet which goes out
+ * from the decapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tndem, eip_ecn, 0x04, 8, 2);
+
+/* reg_tndem_trap_en
+ * Trap enable:
+ * 0 - No trap due to decap ECN
+ * 1 - Trap enable with trap_id
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tndem, trap_en, 0x08, 28, 4);
+
+/* reg_tndem_trap_id
+ * Trap ID. Either DECAP_ECN0 or DECAP_ECN1.
+ * Reserved when trap_en is '0'.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tndem, trap_id, 0x08, 0, 9);
+
+static inline void mlxsw_reg_tndem_pack(char *payload, u8 underlay_ecn,
+					u8 overlay_ecn, u8 ecn, bool trap_en,
+					u16 trap_id)
+{
+	MLXSW_REG_ZERO(tndem, payload);
+	mlxsw_reg_tndem_underlay_ecn_set(payload, underlay_ecn);
+	mlxsw_reg_tndem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tndem_eip_ecn_set(payload, ecn);
+	mlxsw_reg_tndem_trap_en_set(payload, trap_en);
+	mlxsw_reg_tndem_trap_id_set(payload, trap_id);
+}
+
+/* TNPC - Tunnel Port Configuration Register
+ * -----------------------------------------
+ * The TNPC register is used for tunnel port configuration.
+ * Reserved when Spectrum.
+ */
+#define MLXSW_REG_TNPC_ID 0xA020
+#define MLXSW_REG_TNPC_LEN 0x18
+
+MLXSW_REG_DEFINE(tnpc, MLXSW_REG_TNPC_ID, MLXSW_REG_TNPC_LEN);
+
+enum mlxsw_reg_tnpc_tunnel_port {
+	MLXSW_REG_TNPC_TUNNEL_PORT_NVE,
+	MLXSW_REG_TNPC_TUNNEL_PORT_VPLS,
+	MLXSW_REG_TNPC_TUNNEL_FLEX_TUNNEL0,
+	MLXSW_REG_TNPC_TUNNEL_FLEX_TUNNEL1,
+};
+
+/* reg_tnpc_tunnel_port
+ * Tunnel port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tnpc, tunnel_port, 0x00, 0, 4);
+
+/* reg_tnpc_learn_enable_v6
+ * During IPv6 underlay decapsulation, whether to learn from tunnel port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnpc, learn_enable_v6, 0x04, 1, 1);
+
+/* reg_tnpc_learn_enable_v4
+ * During IPv4 underlay decapsulation, whether to learn from tunnel port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnpc, learn_enable_v4, 0x04, 0, 1);
+
+static inline void mlxsw_reg_tnpc_pack(char *payload,
+				       enum mlxsw_reg_tnpc_tunnel_port tport,
+				       bool learn_enable)
+{
+	MLXSW_REG_ZERO(tnpc, payload);
+	mlxsw_reg_tnpc_tunnel_port_set(payload, tport);
+	mlxsw_reg_tnpc_learn_enable_v4_set(payload, learn_enable);
+	mlxsw_reg_tnpc_learn_enable_v6_set(payload, learn_enable);
+}
+
 /* TIGCR - Tunneling IPinIP General Configuration Register
  * -------------------------------------------------------
  * The TIGCR register is used for setting up the IPinIP Tunnel configuration.
@@ -8336,8 +9241,15 @@ MLXSW_ITEM32(reg, sbpr, dir, 0x00, 24, 2);
  */
 MLXSW_ITEM32(reg, sbpr, pool, 0x00, 0, 4);
 
+/* reg_sbpr_infi_size
+ * Size is infinite.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbpr, infi_size, 0x04, 31, 1);
+
 /* reg_sbpr_size
  * Pool size in buffer cells.
+ * Reserved when infi_size = 1.
  * Access: RW
  */
 MLXSW_ITEM32(reg, sbpr, size, 0x04, 0, 24);
@@ -8355,13 +9267,15 @@ MLXSW_ITEM32(reg, sbpr, mode, 0x08, 0, 4);
 
 static inline void mlxsw_reg_sbpr_pack(char *payload, u8 pool,
 				       enum mlxsw_reg_sbxx_dir dir,
-				       enum mlxsw_reg_sbpr_mode mode, u32 size)
+				       enum mlxsw_reg_sbpr_mode mode, u32 size,
+				       bool infi_size)
 {
 	MLXSW_REG_ZERO(sbpr, payload);
 	mlxsw_reg_sbpr_pool_set(payload, pool);
 	mlxsw_reg_sbpr_dir_set(payload, dir);
 	mlxsw_reg_sbpr_mode_set(payload, mode);
 	mlxsw_reg_sbpr_size_set(payload, size);
+	mlxsw_reg_sbpr_infi_size_set(payload, infi_size);
 }
 
 /* SBCM - Shared Buffer Class Management Register
@@ -8409,6 +9323,12 @@ MLXSW_ITEM32(reg, sbcm, min_buff, 0x18, 0, 24);
 #define MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN 1
 #define MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX 14
 
+/* reg_sbcm_infi_max
+ * Max buffer is infinite.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbcm, infi_max, 0x1C, 31, 1);
+
 /* reg_sbcm_max_buff
  * When the pool associated to the port-pg/tclass is configured to
  * static, Maximum buffer size for the limiter configured in cells.
@@ -8418,6 +9338,7 @@ MLXSW_ITEM32(reg, sbcm, min_buff, 0x18, 0, 24);
  * 0: 0
  * i: (1/128)*2^(i-1), for i=1..14
  * 0xFF: Infinity
+ * Reserved when infi_max = 1.
  * Access: RW
  */
 MLXSW_ITEM32(reg, sbcm, max_buff, 0x1C, 0, 24);
@@ -8430,7 +9351,8 @@ MLXSW_ITEM32(reg, sbcm, pool, 0x24, 0, 4);
 
 static inline void mlxsw_reg_sbcm_pack(char *payload, u8 local_port, u8 pg_buff,
 				       enum mlxsw_reg_sbxx_dir dir,
-				       u32 min_buff, u32 max_buff, u8 pool)
+				       u32 min_buff, u32 max_buff,
+				       bool infi_max, u8 pool)
 {
 	MLXSW_REG_ZERO(sbcm, payload);
 	mlxsw_reg_sbcm_local_port_set(payload, local_port);
@@ -8438,6 +9360,7 @@ static inline void mlxsw_reg_sbcm_pack(char *payload, u8 local_port, u8 pg_buff,
 	mlxsw_reg_sbcm_dir_set(payload, dir);
 	mlxsw_reg_sbcm_min_buff_set(payload, min_buff);
 	mlxsw_reg_sbcm_max_buff_set(payload, max_buff);
+	mlxsw_reg_sbcm_infi_max_set(payload, infi_max);
 	mlxsw_reg_sbcm_pool_set(payload, pool);
 }
 
@@ -8748,8 +9671,10 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(ppbs),
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),
+	MLXSW_REG(pemrbt),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(perpt),
+	MLXSW_REG(peabfe),
 	MLXSW_REG(perar),
 	MLXSW_REG(ptce3),
 	MLXSW_REG(percr),
@@ -8810,6 +9735,14 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcc),
 	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
+	MLXSW_REG(mprs),
+	MLXSW_REG(tngcr),
+	MLXSW_REG(tnumt),
+	MLXSW_REG(tnqcr),
+	MLXSW_REG(tnqdr),
+	MLXSW_REG(tneem),
+	MLXSW_REG(tndem),
+	MLXSW_REG(tnpc),
 	MLXSW_REG(tigcr),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),

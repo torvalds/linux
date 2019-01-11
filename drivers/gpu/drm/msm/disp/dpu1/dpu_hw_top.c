@@ -13,7 +13,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_top.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 
 #define SSPP_SPARE                        0x28
@@ -96,23 +95,6 @@ static void dpu_hw_setup_split_pipe(struct dpu_hw_mdp *mdp,
 	DPU_REG_WRITE(c, SPLIT_DISPLAY_LOWER_PIPE_CTRL, lower_pipe);
 	DPU_REG_WRITE(c, SPLIT_DISPLAY_UPPER_PIPE_CTRL, upper_pipe);
 	DPU_REG_WRITE(c, SPLIT_DISPLAY_EN, cfg->en & 0x1);
-}
-
-static void dpu_hw_setup_cdm_output(struct dpu_hw_mdp *mdp,
-		struct cdm_output_cfg *cfg)
-{
-	struct dpu_hw_blk_reg_map *c;
-	u32 out_ctl = 0;
-
-	if (!mdp || !cfg)
-		return;
-
-	c = &mdp->hw;
-
-	if (cfg->intf_en)
-		out_ctl |= BIT(19);
-
-	DPU_REG_WRITE(c, MDP_OUT_CTL_0, out_ctl);
 }
 
 static bool dpu_hw_setup_clk_force_ctrl(struct dpu_hw_mdp *mdp,
@@ -307,7 +289,6 @@ static void _setup_mdp_ops(struct dpu_hw_mdp_ops *ops,
 		unsigned long cap)
 {
 	ops->setup_split_pipe = dpu_hw_setup_split_pipe;
-	ops->setup_cdm_output = dpu_hw_setup_cdm_output;
 	ops->setup_clk_force_ctrl = dpu_hw_setup_clk_force_ctrl;
 	ops->get_danger_status = dpu_hw_get_danger_status;
 	ops->setup_vsync_source = dpu_hw_setup_vsync_source;
@@ -340,10 +321,7 @@ static const struct dpu_mdp_cfg *_top_offset(enum dpu_mdp mdp,
 	return ERR_PTR(-EINVAL);
 }
 
-static struct dpu_hw_blk_ops dpu_hw_ops = {
-	.start = NULL,
-	.stop = NULL,
-};
+static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_mdp *dpu_hw_mdptop_init(enum dpu_mdp idx,
 		void __iomem *addr,
@@ -351,7 +329,6 @@ struct dpu_hw_mdp *dpu_hw_mdptop_init(enum dpu_mdp idx,
 {
 	struct dpu_hw_mdp *mdp;
 	const struct dpu_mdp_cfg *cfg;
-	int rc;
 
 	if (!addr || !m)
 		return ERR_PTR(-EINVAL);
@@ -373,20 +350,9 @@ struct dpu_hw_mdp *dpu_hw_mdptop_init(enum dpu_mdp idx,
 	mdp->caps = cfg;
 	_setup_mdp_ops(&mdp->ops, mdp->caps->features);
 
-	rc = dpu_hw_blk_init(&mdp->base, DPU_HW_BLK_TOP, idx, &dpu_hw_ops);
-	if (rc) {
-		DPU_ERROR("failed to init hw blk %d\n", rc);
-		goto blk_init_error;
-	}
-
-	dpu_dbg_set_dpu_top_offset(mdp->hw.blk_off);
+	dpu_hw_blk_init(&mdp->base, DPU_HW_BLK_TOP, idx, &dpu_hw_ops);
 
 	return mdp;
-
-blk_init_error:
-	kzfree(mdp);
-
-	return ERR_PTR(rc);
 }
 
 void dpu_hw_mdp_destroy(struct dpu_hw_mdp *mdp)

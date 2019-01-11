@@ -126,6 +126,7 @@ xchk_inode_flags(
 {
 	struct xfs_mount	*mp = sc->mp;
 
+	/* di_flags are all taken, last bit cannot be used */
 	if (flags & ~XFS_DIFLAG_ANY)
 		goto bad;
 
@@ -172,8 +173,9 @@ xchk_inode_flags2(
 {
 	struct xfs_mount	*mp = sc->mp;
 
+	/* Unknown di_flags2 could be from a future kernel */
 	if (flags2 & ~XFS_DIFLAG2_ANY)
-		goto bad;
+		xchk_ino_set_warning(sc, ino);
 
 	/* reflink flag requires reflink feature */
 	if ((flags2 & XFS_DIFLAG2_REFLINK) &&
@@ -507,7 +509,6 @@ xchk_inode_xref(
 	xfs_ino_t		ino,
 	struct xfs_dinode	*dip)
 {
-	struct xfs_owner_info	oinfo;
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
 	int			error;
@@ -524,8 +525,7 @@ xchk_inode_xref(
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_inode_xref_finobt(sc, ino);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
-	xchk_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_INODES);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 	xchk_inode_xref_bmap(sc, dip);
 

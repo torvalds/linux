@@ -1,7 +1,10 @@
 config MICROBLAZE
 	def_bool y
 	select ARCH_NO_SWAP
+	select ARCH_HAS_DMA_COHERENT_TO_PFN if MMU
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -24,15 +27,16 @@ config MICROBLAZE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
-	select NO_BOOTMEM
-	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_OPROFILE
+	select HAVE_PCI
 	select IRQ_DOMAIN
 	select XILINX_INTC
 	select MODULES_USE_ELF_RELA
 	select OF
 	select OF_EARLY_FLATTREE
+	select PCI_DOMAINS_GENERIC if PCI
+	select PCI_SYSCALL if PCI
 	select TRACING_SUPPORT
 	select VIRT_TO_BUS
 	select CPU_NO_EFFICIENT_FFS
@@ -264,22 +268,8 @@ endmenu
 
 menu "Bus Options"
 
-config PCI
-	bool "PCI support"
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI_DOMAINS
-
-config PCI_SYSCALL
-	def_bool PCI
-
 config PCI_XILINX
 	bool "Xilinx PCI host bridge support"
 	depends on PCI
-
-source "drivers/pci/Kconfig"
 
 endmenu

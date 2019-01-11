@@ -360,12 +360,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		goto buffer_done;
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		nrport = NULL;
+		spin_lock(&vport->phba->hbalock);
 		rport = lpfc_ndlp_get_nrport(ndlp);
-		if (!rport)
-			continue;
-
-		/* local short-hand pointer. */
-		nrport = rport->remoteport;
+		if (rport)
+			nrport = rport->remoteport;
+		spin_unlock(&vport->phba->hbalock);
 		if (!nrport)
 			continue;
 
@@ -883,6 +883,42 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 		}
 	}
 
+	if ((phba->sli_rev == LPFC_SLI_REV4) &&
+	    ((bf_get(lpfc_sli_intf_if_type,
+	     &phba->sli4_hba.sli_intf) ==
+	     LPFC_SLI_INTF_IF_TYPE_6))) {
+		struct lpfc_trunk_link link = phba->trunk_link;
+
+		if (bf_get(lpfc_conf_trunk_port0, &phba->sli4_hba))
+			len += snprintf(buf + len, PAGE_SIZE - len,
+				"Trunk port 0: Link %s %s\n",
+				(link.link0.state == LPFC_LINK_UP) ?
+				 "Up" : "Down. ",
+				trunk_errmsg[link.link0.fault]);
+
+		if (bf_get(lpfc_conf_trunk_port1, &phba->sli4_hba))
+			len += snprintf(buf + len, PAGE_SIZE - len,
+				"Trunk port 1: Link %s %s\n",
+				(link.link1.state == LPFC_LINK_UP) ?
+				 "Up" : "Down. ",
+				trunk_errmsg[link.link1.fault]);
+
+		if (bf_get(lpfc_conf_trunk_port2, &phba->sli4_hba))
+			len += snprintf(buf + len, PAGE_SIZE - len,
+				"Trunk port 2: Link %s %s\n",
+				(link.link2.state == LPFC_LINK_UP) ?
+				 "Up" : "Down. ",
+				trunk_errmsg[link.link2.fault]);
+
+		if (bf_get(lpfc_conf_trunk_port3, &phba->sli4_hba))
+			len += snprintf(buf + len, PAGE_SIZE - len,
+				"Trunk port 3: Link %s %s\n",
+				(link.link3.state == LPFC_LINK_UP) ?
+				 "Up" : "Down. ",
+				trunk_errmsg[link.link3.fault]);
+
+	}
+
 	return len;
 }
 
@@ -1156,6 +1192,82 @@ out:
 }
 
 /**
+ * lpfc_reset_pci_bus - resets PCI bridge controller's secondary bus of an HBA
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * Issues a PCI secondary bus reset for the phba->pcidev.
+ *
+ * Notes:
+ * First walks the bus_list to ensure only PCI devices with Emulex
+ * vendor id, device ids that support hot reset, only one occurrence
+ * of function 0, and all ports on the bus are in offline mode to ensure the
+ * hot reset only affects one valid HBA.
+ *
+ * Returns:
+ * -ENOTSUPP, cfg_enable_hba_reset must be of value 2
+ * -ENODEV,   NULL ptr to pcidev
+ * -EBADSLT,  detected invalid device
+ * -EBUSY,    port is not in offline state
+ *      0,    successful
+ */
+int
+lpfc_reset_pci_bus(struct lpfc_hba *phba)
+{
+	struct pci_dev *pdev = phba->pcidev;
+	struct Scsi_Host *shost = NULL;
+	struct lpfc_hba *phba_other = NULL;
+	struct pci_dev *ptr = NULL;
+	int res;
+
+	if (phba->cfg_enable_hba_reset != 2)
+		return -ENOTSUPP;
+
+	if (!pdev) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT, "8345 pdev NULL!\n");
+		return -ENODEV;
+	}
+
+	res = lpfc_check_pci_resettable(phba);
+	if (res)
+		return res;
+
+	/* Walk the list of devices on the pci_dev's bus */
+	list_for_each_entry(ptr, &pdev->bus->devices, bus_list) {
+		/* Check port is offline */
+		shost = pci_get_drvdata(ptr);
+		if (shost) {
+			phba_other =
+				((struct lpfc_vport *)shost->hostdata)->phba;
+			if (!(phba_other->pport->fc_flag & FC_OFFLINE_MODE)) {
+				lpfc_printf_log(phba_other, KERN_INFO, LOG_INIT,
+						"8349 WWPN = 0x%02x%02x%02x%02x"
+						"%02x%02x%02x%02x is not "
+						"offline!\n",
+						phba_other->wwpn[0],
+						phba_other->wwpn[1],
+						phba_other->wwpn[2],
+						phba_other->wwpn[3],
+						phba_other->wwpn[4],
+						phba_other->wwpn[5],
+						phba_other->wwpn[6],
+						phba_other->wwpn[7]);
+				return -EBUSY;
+			}
+		}
+	}
+
+	/* Issue PCI bus reset */
+	res = pci_reset_bus(pdev);
+	if (res) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"8350 PCI reset bus failed: %d\n", res);
+	}
+
+	return res;
+}
+
+/**
  * lpfc_selective_reset - Offline then onlines the port
  * @phba: lpfc_hba pointer.
  *
@@ -1322,7 +1434,7 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 		return -EACCES;
 
 	if ((phba->sli_rev < LPFC_SLI_REV4) ||
-	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 	     LPFC_SLI_INTF_IF_TYPE_2))
 		return -EPERM;
 
@@ -1430,6 +1542,66 @@ lpfc_nport_evt_cnt_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%d\n", phba->nport_event_cnt);
 }
 
+int
+lpfc_set_trunking(struct lpfc_hba *phba, char *buff_out)
+{
+	LPFC_MBOXQ_t *mbox = NULL;
+	unsigned long val = 0;
+	char *pval = 0;
+	int rc = 0;
+
+	if (!strncmp("enable", buff_out,
+				 strlen("enable"))) {
+		pval = buff_out + strlen("enable") + 1;
+		rc = kstrtoul(pval, 0, &val);
+		if (rc)
+			return rc; /* Invalid  number */
+	} else if (!strncmp("disable", buff_out,
+				 strlen("disable"))) {
+		val = 0;
+	} else {
+		return -EINVAL;  /* Invalid command */
+	}
+
+	switch (val) {
+	case 0:
+		val = 0x0; /* Disable */
+		break;
+	case 2:
+		val = 0x1; /* Enable two port trunk */
+		break;
+	case 4:
+		val = 0x2; /* Enable four port trunk */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+			"0070 Set trunk mode with val %ld ", val);
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
+			 LPFC_MBOX_OPCODE_FCOE_FC_SET_TRUNK_MODE,
+			 12, LPFC_SLI4_MBX_EMBED);
+
+	bf_set(lpfc_mbx_set_trunk_mode,
+	       &mbox->u.mqe.un.set_trunk_mode,
+	       val);
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	if (rc)
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"0071 Set trunk mode failed with status: %d",
+				rc);
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mbox, phba->mbox_mem_pool);
+
+	return 0;
+}
+
 /**
  * lpfc_board_mode_show - Return the state of the board
  * @dev: class device that is converted into a Scsi_host.
@@ -1522,6 +1694,11 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 		status = lpfc_sli4_pdev_reg_request(phba, LPFC_FW_RESET);
 	else if (strncmp(buf, "dv_reset", sizeof("dv_reset") - 1) == 0)
 		status = lpfc_sli4_pdev_reg_request(phba, LPFC_DV_RESET);
+	else if (strncmp(buf, "pci_bus_reset", sizeof("pci_bus_reset") - 1)
+		 == 0)
+		status = lpfc_reset_pci_bus(phba);
+	else if (strncmp(buf, "trunk", sizeof("trunk") - 1) == 0)
+		status = lpfc_set_trunking(phba, (char *)buf + sizeof("trunk"));
 	else
 		status = -EINVAL;
 
@@ -1590,7 +1767,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	pmb = &pmboxq->u.mb;
 	pmb->mbxCommand = MBX_READ_CONFIG;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 
 	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
 		rc = MBX_NOT_FINISHED;
@@ -1622,6 +1799,9 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		max_vpi = (bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) > 0) ?
 			(bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) - 1) : 0;
 
+		/* Limit the max we support */
+		if (max_vpi > LPFC_MAX_VPI)
+			max_vpi = LPFC_MAX_VPI;
 		if (mvpi)
 			*mvpi = max_vpi;
 		if (avpi)
@@ -1637,8 +1817,13 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 			*axri = pmb->un.varRdConfig.avail_xri;
 		if (mvpi)
 			*mvpi = pmb->un.varRdConfig.max_vpi;
-		if (avpi)
-			*avpi = pmb->un.varRdConfig.avail_vpi;
+		if (avpi) {
+			/* avail_vpi is only valid if link is up and ready */
+			if (phba->link_state == LPFC_HBA_READY)
+				*avpi = pmb->un.varRdConfig.avail_vpi;
+			else
+				*avpi = pmb->un.varRdConfig.max_vpi;
+		}
 	}
 
 	mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -3386,6 +3571,7 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 	struct lpfc_nodelist  *ndlp;
 #if (IS_ENABLED(CONFIG_NVME_FC))
 	struct lpfc_nvme_rport *rport;
+	struct nvme_fc_remote_port *remoteport = NULL;
 #endif
 
 	shost = lpfc_shost_from_vport(vport);
@@ -3396,8 +3582,12 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 		if (ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 #if (IS_ENABLED(CONFIG_NVME_FC))
+		spin_lock(&vport->phba->hbalock);
 		rport = lpfc_ndlp_get_nrport(ndlp);
 		if (rport)
+			remoteport = rport->remoteport;
+		spin_unlock(&vport->phba->hbalock);
+		if (remoteport)
 			nvme_fc_set_remoteport_devloss(rport->remoteport,
 						       vport->cfg_devloss_tmo);
 #endif
@@ -3826,8 +4016,9 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 				val);
 			return -EINVAL;
 		}
-		if (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
-			val == 4) {
+		if ((phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC ||
+		     phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC) &&
+		    val == 4) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 				"3114 Loop mode not supported\n");
 			return -EINVAL;
@@ -4249,7 +4440,7 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 	uint32_t prev_val, if_type;
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
-	if (if_type == LPFC_SLI_INTF_IF_TYPE_2 &&
+	if (if_type >= LPFC_SLI_INTF_IF_TYPE_2 &&
 	    phba->hba_flag & HBA_FORCED_LINK_SPEED)
 		return -EPERM;
 
@@ -5065,6 +5256,18 @@ LPFC_ATTR_RW(fcp_io_sched, LPFC_FCP_SCHED_ROUND_ROBIN,
 	     "issuing commands [0] - Round Robin, [1] - Current CPU");
 
 /*
+ * lpfc_ns_query: Determine algrithmn for NameServer queries after RSCN
+ * range is [0,1]. Default value is 0.
+ * For [0], GID_FT is used for NameServer queries after RSCN (default)
+ * For [1], GID_PT is used for NameServer queries after RSCN
+ *
+ */
+LPFC_ATTR_RW(ns_query, LPFC_NS_QUERY_GID_FT,
+	     LPFC_NS_QUERY_GID_FT, LPFC_NS_QUERY_GID_PT,
+	     "Determine algorithm NameServer queries after RSCN "
+	     "[0] - GID_FT, [1] - GID_PT");
+
+/*
 # lpfc_fcp2_no_tgt_reset: Determine bus reset behavior
 # range is [0,1]. Default value is 0.
 # For [0], bus reset issues target reset to ALL devices
@@ -5122,16 +5325,16 @@ LPFC_ATTR_R(enable_SmartSAN, 0, 0, 1, "Enable SmartSAN functionality");
 
 /*
 # lpfc_fdmi_on: Controls FDMI support.
-#       0       No FDMI support (default)
-#       1       Traditional FDMI support
+#       0       No FDMI support
+#       1       Traditional FDMI support (default)
 # Traditional FDMI support means the driver will assume FDMI-2 support;
 # however, if that fails, it will fallback to FDMI-1.
 # If lpfc_enable_SmartSAN is set to 1, the driver ignores lpfc_fdmi_on.
 # If lpfc_enable_SmartSAN is set 0, the driver uses the current value of
 # lpfc_fdmi_on.
-# Value range [0,1]. Default value is 0.
+# Value range [0,1]. Default value is 1.
 */
-LPFC_ATTR_R(fdmi_on, 0, 0, 1, "Enable FDMI support");
+LPFC_ATTR_R(fdmi_on, 1, 0, 1, "Enable FDMI support");
 
 /*
 # Specifies the maximum number of ELS cmds we can have outstanding (for
@@ -5252,9 +5455,10 @@ LPFC_ATTR_R(nvme_io_channel,
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
 #       0  = HBA resets disabled
 #       1  = HBA resets enabled (default)
-# Value range is [0,1]. Default value is 1.
+#       2  = HBA reset via PCI bus reset enabled
+# Value range is [0,2]. Default value is 1.
 */
-LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
+LPFC_ATTR_RW(enable_hba_reset, 1, 0, 2, "Enable HBA resets from the driver.");
 
 /*
 # lpfc_enable_hba_heartbeat: Disable HBA heartbeat timer..
@@ -5353,15 +5557,74 @@ LPFC_ATTR(delay_discovery, 0, 0, 1,
 
 /*
  * lpfc_sg_seg_cnt - Initial Maximum DMA Segment Count
- * This value can be set to values between 64 and 4096. The default value is
- * 64, but may be increased to allow for larger Max I/O sizes. The scsi layer
- * will be allowed to request I/Os of sizes up to (MAX_SEG_COUNT * SEG_SIZE).
+ * This value can be set to values between 64 and 4096. The default value
+ * is 64, but may be increased to allow for larger Max I/O sizes. The scsi
+ * and nvme layers will allow I/O sizes up to (MAX_SEG_COUNT * SEG_SIZE).
  * Because of the additional overhead involved in setting up T10-DIF,
  * this parameter will be limited to 128 if BlockGuard is enabled under SLI4
  * and will be limited to 512 if BlockGuard is enabled under SLI3.
  */
-LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_MIN_SG_SEG_CNT,
-	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
+static uint lpfc_sg_seg_cnt = LPFC_DEFAULT_SG_SEG_CNT;
+module_param(lpfc_sg_seg_cnt, uint, 0444);
+MODULE_PARM_DESC(lpfc_sg_seg_cnt, "Max Scatter Gather Segment Count");
+
+/**
+ * lpfc_sg_seg_cnt_show - Display the scatter/gather list sizes
+ *    configured for the adapter
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains a string with the list sizes
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_sg_seg_cnt_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int len;
+
+	len = snprintf(buf, PAGE_SIZE, "SGL sz: %d  total SGEs: %d\n",
+		       phba->cfg_sg_dma_buf_size, phba->cfg_total_seg_cnt);
+
+	len += snprintf(buf + len, PAGE_SIZE, "Cfg: %d  SCSI: %d  NVME: %d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_scsi_seg_cnt,
+			phba->cfg_nvme_seg_cnt);
+	return len;
+}
+
+static DEVICE_ATTR_RO(lpfc_sg_seg_cnt);
+
+/**
+ * lpfc_sg_seg_cnt_init - Set the hba sg_seg_cnt initial value
+ * @phba: lpfc_hba pointer.
+ * @val: contains the initial value
+ *
+ * Description:
+ * Validates the initial value is within range and assigns it to the
+ * adapter. If not in range, an error message is posted and the
+ * default value is assigned.
+ *
+ * Returns:
+ * zero if value is in range and is set
+ * -EINVAL if value was out of range
+ **/
+static int
+lpfc_sg_seg_cnt_init(struct lpfc_hba *phba, int val)
+{
+	if (val >= LPFC_MIN_SG_SEG_CNT && val <= LPFC_MAX_SG_SEG_CNT) {
+		phba->cfg_sg_seg_cnt = val;
+		return 0;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0409 "LPFC_DRIVER_NAME"_sg_seg_cnt attribute cannot "
+			"be set to %d, allowed range is [%d, %d]\n",
+			val, LPFC_MIN_SG_SEG_CNT, LPFC_MAX_SG_SEG_CNT);
+	phba->cfg_sg_seg_cnt = LPFC_DEFAULT_SG_SEG_CNT;
+	return -EINVAL;
+}
 
 /*
  * lpfc_enable_mds_diags: Enable MDS Diagnostics
@@ -5370,6 +5633,31 @@ LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_MIN_SG_SEG_CNT,
  * Value range is [0,1]. Default value is 0.
  */
 LPFC_ATTR_R(enable_mds_diags, 0, 0, 1, "Enable MDS Diagnostics");
+
+/*
+ * lpfc_ras_fwlog_buffsize: Firmware logging host buffer size
+ *	0 = Disable firmware logging (default)
+ *	[1-4] = Multiple of 1/4th Mb of host memory for FW logging
+ * Value range [0..4]. Default value is 0
+ */
+LPFC_ATTR_RW(ras_fwlog_buffsize, 0, 0, 4, "Host memory for FW logging");
+
+/*
+ * lpfc_ras_fwlog_level: Firmware logging verbosity level
+ * Valid only if firmware logging is enabled
+ * 0(Least Verbosity) 4 (most verbosity)
+ * Value range is [0..4]. Default value is 0
+ */
+LPFC_ATTR_RW(ras_fwlog_level, 0, 0, 4, "Firmware Logging Level");
+
+/*
+ * lpfc_ras_fwlog_func: Firmware logging enabled on function number
+ * Default function which has RAS support : 0
+ * Value Range is [0..7].
+ * FW logging is a global action and enablement is via a specific
+ * port.
+ */
+LPFC_ATTR_RW(ras_fwlog_func, 0, 0, 7, "Firmware Logging Enabled on Function");
 
 /*
  * lpfc_enable_bbcr: Enable BB Credit Recovery
@@ -5425,6 +5713,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_scan_down,
 	&dev_attr_lpfc_link_speed,
 	&dev_attr_lpfc_fcp_io_sched,
+	&dev_attr_lpfc_ns_query,
 	&dev_attr_lpfc_fcp2_no_tgt_reset,
 	&dev_attr_lpfc_cr_delay,
 	&dev_attr_lpfc_cr_count,
@@ -5496,6 +5785,9 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_protocol,
 	&dev_attr_lpfc_xlane_supported,
 	&dev_attr_lpfc_enable_mds_diags,
+	&dev_attr_lpfc_ras_fwlog_buffsize,
+	&dev_attr_lpfc_ras_fwlog_level,
+	&dev_attr_lpfc_ras_fwlog_func,
 	&dev_attr_lpfc_enable_bbcr,
 	&dev_attr_lpfc_enable_dpp,
 	NULL,
@@ -5914,6 +6206,9 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 		case LPFC_LINK_SPEED_64GHZ:
 			fc_host_speed(shost) = FC_PORTSPEED_64GBIT;
 			break;
+		case LPFC_LINK_SPEED_128GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_128GBIT;
+			break;
 		default:
 			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
@@ -6013,7 +6308,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmb = &pmboxq->u.mb;
 	pmb->mbxCommand = MBX_READ_STATUS;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
@@ -6045,7 +6340,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
@@ -6125,7 +6420,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmb->mbxCommand = MBX_READ_STATUS;
 	pmb->mbxOwner = OWN_HOST;
 	pmb->un.varWords[0] = 0x1; /* reset request */
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
@@ -6143,7 +6438,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
@@ -6472,6 +6767,7 @@ void
 lpfc_get_cfgparam(struct lpfc_hba *phba)
 {
 	lpfc_fcp_io_sched_init(phba, lpfc_fcp_io_sched);
+	lpfc_ns_query_init(phba, lpfc_ns_query);
 	lpfc_fcp2_no_tgt_reset_init(phba, lpfc_fcp2_no_tgt_reset);
 	lpfc_cr_delay_init(phba, lpfc_cr_delay);
 	lpfc_cr_count_init(phba, lpfc_cr_count);
@@ -6582,6 +6878,20 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_sli_mode_init(phba, lpfc_sli_mode);
 	phba->cfg_enable_dss = 1;
 	lpfc_enable_mds_diags_init(phba, lpfc_enable_mds_diags);
+	lpfc_ras_fwlog_buffsize_init(phba, lpfc_ras_fwlog_buffsize);
+	lpfc_ras_fwlog_level_init(phba, lpfc_ras_fwlog_level);
+	lpfc_ras_fwlog_func_init(phba, lpfc_ras_fwlog_func);
+
+
+	/* If the NVME FC4 type is enabled, scale the sg_seg_cnt to
+	 * accommodate 512K and 1M IOs in a single nvme buf and supply
+	 * enough NVME LS iocb buffers for larger connectivity counts.
+	 */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		phba->cfg_sg_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
+		phba->cfg_iocb_cnt = 5;
+	}
+
 	return;
 }
 

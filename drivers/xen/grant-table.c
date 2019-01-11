@@ -33,7 +33,7 @@
 
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -914,7 +914,7 @@ int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args)
 
 	ret = xenmem_reservation_increase(args->nr_pages, args->frames);
 	if (ret != args->nr_pages) {
-		pr_debug("Failed to decrease reservation for DMA buffer\n");
+		pr_debug("Failed to increase reservation for DMA buffer\n");
 		ret = -EFAULT;
 	} else {
 		ret = 0;
@@ -1040,18 +1040,33 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		return ret;
 
 	for (i = 0; i < count; i++) {
-		/* Retry eagain maps */
-		if (map_ops[i].status == GNTST_eagain)
-			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref, map_ops + i,
-						&map_ops[i].status, __func__);
-
-		if (map_ops[i].status == GNTST_okay) {
+		switch (map_ops[i].status) {
+		case GNTST_okay:
+		{
 			struct xen_page_foreign *foreign;
 
 			SetPageForeign(pages[i]);
 			foreign = xen_page_foreign(pages[i]);
 			foreign->domid = map_ops[i].dom;
 			foreign->gref = map_ops[i].ref;
+			break;
+		}
+
+		case GNTST_no_device_space:
+			pr_warn_ratelimited("maptrack limit reached, can't map all guest pages\n");
+			break;
+
+		case GNTST_eagain:
+			/* Retry eagain maps */
+			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref,
+						map_ops + i,
+						&map_ops[i].status, __func__);
+			/* Test status in next loop iteration. */
+			i--;
+			break;
+
+		default:
+			break;
 		}
 	}
 

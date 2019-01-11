@@ -29,7 +29,6 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
-#include <linux/property.h>
 #include <asm/unaligned.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -489,7 +488,7 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data, bool retry)
 			bootloader = appmode - 0x24;
 			break;
 		}
-		/* Fall through for normal case */
+		/* Fall through - for normal case */
 	case 0x4c:
 	case 0x4d:
 	case 0x5a:
@@ -1586,10 +1585,10 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 	/* T7 config may have changed */
 	mxt_init_t7_power_cfg(data);
 
-release_raw:
-	kfree(cfg.raw);
 release_mem:
 	kfree(cfg.mem);
+release_raw:
+	kfree(cfg.raw);
 	return ret;
 }
 

@@ -85,12 +85,7 @@ pgd_t * __init efi_call_phys_prolog(void)
 
 void __init efi_call_phys_epilog(pgd_t *save_pgd)
 {
-	struct desc_ptr gdt_descr;
-
-	gdt_descr.address = (unsigned long)get_cpu_gdt_rw(0);
-	gdt_descr.size = GDT_SIZE - 1;
-	load_gdt(&gdt_descr);
-
+	load_fixmap_gdt(0);
 	load_cr3(save_pgd);
 	__flush_tlb_all();
 }

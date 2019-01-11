@@ -114,6 +114,26 @@ int hns_mac_get_port_info(struct hns_mac_cb *mac_cb,
 	return 0;
 }
 
+/**
+ *hns_mac_is_adjust_link - check is need change mac speed and duplex register
+ *@mac_cb: mac device
+ *@speed: phy device speed
+ *@duplex:phy device duplex
+ *
+ */
+bool hns_mac_need_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex)
+{
+	struct mac_driver *mac_ctrl_drv;
+
+	mac_ctrl_drv = (struct mac_driver *)(mac_cb->priv.mac);
+
+	if (mac_ctrl_drv->need_adjust_link)
+		return mac_ctrl_drv->need_adjust_link(mac_ctrl_drv,
+			(enum mac_speed)speed, duplex);
+	else
+		return true;
+}
+
 void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex)
 {
 	int ret;
@@ -426,6 +446,16 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 			ret = hns_dsaf_add_mac_mc_port(dsaf_dev, &mac_entry);
 		return ret;
 	}
+
+	return 0;
+}
+
+int hns_mac_wait_fifo_clean(struct hns_mac_cb *mac_cb)
+{
+	struct mac_driver *drv = hns_mac_get_drv(mac_cb);
+
+	if (drv->wait_fifo_clean)
+		return drv->wait_fifo_clean(drv);
 
 	return 0;
 }
@@ -748,6 +778,17 @@ static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 	return rc;
 }
 
+static void hns_mac_remove_phydev(struct hns_mac_cb *mac_cb)
+{
+	if (!to_acpi_device_node(mac_cb->fw_port) || !mac_cb->phy_dev)
+		return;
+
+	phy_device_remove(mac_cb->phy_dev);
+	phy_device_free(mac_cb->phy_dev);
+
+	mac_cb->phy_dev = NULL;
+}
+
 #define MAC_MEDIA_TYPE_MAX_LEN		16
 
 static const struct {
@@ -807,8 +848,8 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 			 */
 			put_device(&mac_cb->phy_dev->mdio.dev);
 
-			dev_dbg(mac_cb->dev, "mac%d phy_node: %s\n",
-				mac_cb->mac_id, np->name);
+			dev_dbg(mac_cb->dev, "mac%d phy_node: %pOFn\n",
+				mac_cb->mac_id, np);
 		}
 		of_node_put(np);
 
@@ -825,8 +866,8 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 			 * if the phy_dev is found
 			 */
 			put_device(&mac_cb->phy_dev->mdio.dev);
-			dev_dbg(mac_cb->dev, "mac%d phy_node: %s\n",
-				mac_cb->mac_id, np->name);
+			dev_dbg(mac_cb->dev, "mac%d phy_node: %pOFn\n",
+				mac_cb->mac_id, np);
 		}
 		of_node_put(np);
 
@@ -998,6 +1039,20 @@ static int hns_mac_get_max_port_num(struct dsaf_device *dsaf_dev)
 		return  DSAF_MAX_PORT_NUM;
 }
 
+void hns_mac_enable(struct hns_mac_cb *mac_cb, enum mac_commom_mode mode)
+{
+	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
+
+	mac_ctrl_drv->mac_enable(mac_cb->priv.mac, mode);
+}
+
+void hns_mac_disable(struct hns_mac_cb *mac_cb, enum mac_commom_mode mode)
+{
+	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
+
+	mac_ctrl_drv->mac_disable(mac_cb->priv.mac, mode);
+}
+
 /**
  * hns_mac_init - init mac
  * @dsaf_dev: dsa fabric device struct pointer
@@ -1073,7 +1128,11 @@ void hns_mac_uninit(struct dsaf_device *dsaf_dev)
 	int max_port_num = hns_mac_get_max_port_num(dsaf_dev);
 
 	for (i = 0; i < max_port_num; i++) {
+		if (!dsaf_dev->mac_cb[i])
+			continue;
+
 		dsaf_dev->misc_op->cpld_reset_led(dsaf_dev->mac_cb[i]);
+		hns_mac_remove_phydev(dsaf_dev->mac_cb[i]);
 		dsaf_dev->mac_cb[i] = NULL;
 	}
 }

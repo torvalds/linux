@@ -861,11 +861,10 @@ static void dma_callback(void *data)
 
 	/* Update total bytes transferred */
 	msg->actual_length += pl022->cur_transfer->len;
-	if (pl022->cur_transfer->cs_change)
-		pl022_cs_control(pl022, SSP_CHIP_DESELECT);
-
 	/* Move to next transfer */
 	msg->state = next_transfer(pl022);
+	if (msg->state != STATE_DONE && pl022->cur_transfer->cs_change)
+		pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 	tasklet_schedule(&pl022->pump_transfers);
 }
 
@@ -1333,10 +1332,10 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 		}
 		/* Update total bytes transferred */
 		msg->actual_length += pl022->cur_transfer->len;
-		if (pl022->cur_transfer->cs_change)
-			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		/* Move to next transfer */
 		msg->state = next_transfer(pl022);
+		if (msg->state != STATE_DONE && pl022->cur_transfer->cs_change)
+			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		tasklet_schedule(&pl022->pump_transfers);
 		return IRQ_HANDLED;
 	}
@@ -1490,10 +1489,8 @@ static void do_polling_transfer(struct pl022 *pl022)
 	struct spi_message *message = NULL;
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
-	struct chip_data *chip;
 	unsigned long time, timeout;
 
-	chip = pl022->cur_chip;
 	message = pl022->cur_msg;
 
 	while (message->state != STATE_DONE) {
@@ -1546,10 +1543,11 @@ static void do_polling_transfer(struct pl022 *pl022)
 
 		/* Update total byte transferred */
 		message->actual_length += pl022->cur_transfer->len;
-		if (pl022->cur_transfer->cs_change)
-			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		/* Move to next transfer */
 		message->state = next_transfer(pl022);
+		if (message->state != STATE_DONE
+		    && pl022->cur_transfer->cs_change)
+			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 	}
 out:
 	/* Handle end of message */
@@ -2325,10 +2323,8 @@ static int pl022_suspend(struct device *dev)
 	int ret;
 
 	ret = spi_master_suspend(pl022->master);
-	if (ret) {
-		dev_warn(dev, "cannot suspend master\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret) {
@@ -2353,9 +2349,7 @@ static int pl022_resume(struct device *dev)
 
 	/* Start the queue running */
 	ret = spi_master_resume(pl022->master);
-	if (ret)
-		dev_err(dev, "problem starting queue (%d)\n", ret);
-	else
+	if (!ret)
 		dev_dbg(dev, "resumed\n");
 
 	return ret;

@@ -242,7 +242,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_lut->crtc_id);
 	if (!crtc)
@@ -255,11 +255,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	if (crtc_lut->gamma_size != crtc->gamma_size)
 		return -EINVAL;
 
-	drm_modeset_acquire_init(&ctx, 0);
-retry:
-	ret = drm_modeset_lock_all_ctx(dev, &ctx);
-	if (ret)
-		goto out;
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
 	size = crtc_lut->gamma_size * (sizeof(uint16_t));
 	r_base = crtc->gamma_store;
@@ -284,13 +280,7 @@ retry:
 				     crtc->gamma_size, &ctx);
 
 out:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 	return ret;
 
 }
@@ -320,7 +310,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_lut->crtc_id);
 	if (!crtc)

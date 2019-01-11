@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/serial_s3c.h>
@@ -558,10 +559,19 @@ static void rx1950_set_mmc_power(unsigned char power_mode, unsigned short vdd)
 }
 
 static struct s3c24xx_mci_pdata rx1950_mmc_cfg __initdata = {
-	.gpio_detect = S3C2410_GPF(5),
-	.gpio_wprotect = S3C2410_GPH(8),
 	.set_power = rx1950_set_mmc_power,
 	.ocr_avail = MMC_VDD_32_33,
+};
+
+static struct gpiod_lookup_table rx1950_mmc_gpio_table = {
+	.dev_id = "s3c2410-sdi",
+	.table = {
+		/* Card detect S3C2410_GPF(5) */
+		GPIO_LOOKUP("GPF", 5, "cd", GPIO_ACTIVE_LOW),
+		/* Write protect S3C2410_GPH(8) */
+		GPIO_LOOKUP("GPH", 8, "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct mtd_partition rx1950_nand_part[] = {
@@ -762,6 +772,7 @@ static void __init rx1950_init_machine(void)
 	s3c24xx_fb_set_platdata(&rx1950_lcd_cfg);
 	s3c24xx_udc_set_platdata(&rx1950_udc_cfg);
 	s3c24xx_ts_set_platdata(&rx1950_ts_cfg);
+	gpiod_add_lookup_table(&rx1950_mmc_gpio_table);
 	s3c24xx_mci_set_platdata(&rx1950_mmc_cfg);
 	s3c_i2c0_set_platdata(NULL);
 	s3c_nand_set_platdata(&rx1950_nand_info);

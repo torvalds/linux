@@ -536,7 +536,7 @@ __xfs_bmap_add_free(
 	struct xfs_trans		*tp,
 	xfs_fsblock_t			bno,
 	xfs_filblks_t			len,
-	struct xfs_owner_info		*oinfo,
+	const struct xfs_owner_info	*oinfo,
 	bool				skip_discard)
 {
 	struct xfs_extent_free_item	*new;		/* new element */
@@ -564,7 +564,7 @@ __xfs_bmap_add_free(
 	if (oinfo)
 		new->xefi_oinfo = *oinfo;
 	else
-		xfs_rmap_skip_owner_update(&new->xefi_oinfo);
+		new->xefi_oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
 	new->xefi_skip_discard = skip_discard;
 	trace_xfs_bmap_free_defer(tp->t_mountp,
 			XFS_FSB_TO_AGNO(tp->t_mountp, bno), 0,
@@ -673,7 +673,8 @@ xfs_bmap_extents_to_btree(
 	ASSERT(XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_EXTENTS);
 
 	/*
-	 * Make space in the inode incore.
+	 * Make space in the inode incore. This needs to be undone if we fail
+	 * to expand the root.
 	 */
 	xfs_iroot_realloc(ip, 1, whichfork);
 	ifp->if_flags |= XFS_IFBROOT;
@@ -711,16 +712,15 @@ xfs_bmap_extents_to_btree(
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = wasdel;
 	*logflagsp = 0;
-	if ((error = xfs_alloc_vextent(&args))) {
-		ASSERT(ifp->if_broot == NULL);
-		goto err1;
-	}
+	error = xfs_alloc_vextent(&args);
+	if (error)
+		goto out_root_realloc;
 
 	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
-		ASSERT(ifp->if_broot == NULL);
 		error = -ENOSPC;
-		goto err1;
+		goto out_root_realloc;
 	}
+
 	/*
 	 * Allocation can't fail, the space was reserved.
 	 */
@@ -732,9 +732,10 @@ xfs_bmap_extents_to_btree(
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, 1L);
 	abp = xfs_btree_get_bufl(mp, tp, args.fsbno, 0);
 	if (!abp) {
-		error = -ENOSPC;
-		goto err2;
+		error = -EFSCORRUPTED;
+		goto out_unreserve_dquot;
 	}
+
 	/*
 	 * Fill in the child block.
 	 */
@@ -775,11 +776,12 @@ xfs_bmap_extents_to_btree(
 	*logflagsp = XFS_ILOG_CORE | xfs_ilog_fbroot(whichfork);
 	return 0;
 
-err2:
+out_unreserve_dquot:
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
-err1:
+out_root_realloc:
 	xfs_iroot_realloc(ip, -1, whichfork);
 	XFS_IFORK_FMT_SET(ip, whichfork, XFS_DINODE_FMT_EXTENTS);
+	ASSERT(ifp->if_broot == NULL);
 	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 
 	return error;
@@ -1017,6 +1019,34 @@ xfs_bmap_add_attrfork_local(
 	return -EFSCORRUPTED;
 }
 
+/* Set an inode attr fork off based on the format */
+int
+xfs_bmap_set_attrforkoff(
+	struct xfs_inode	*ip,
+	int			size,
+	int			*version)
+{
+	switch (ip->i_d.di_format) {
+	case XFS_DINODE_FMT_DEV:
+		ip->i_d.di_forkoff = roundup(sizeof(xfs_dev_t), 8) >> 3;
+		break;
+	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DINODE_FMT_BTREE:
+		ip->i_d.di_forkoff = xfs_attr_shortform_bytesfit(ip, size);
+		if (!ip->i_d.di_forkoff)
+			ip->i_d.di_forkoff = xfs_default_attroffset(ip) >> 3;
+		else if ((ip->i_mount->m_flags & XFS_MOUNT_ATTR2) && version)
+			*version = 2;
+		break;
+	default:
+		ASSERT(0);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * Convert inode from non-attributed to attributed.
  * Must not be in a transaction, ip must not be locked.
@@ -1068,26 +1098,9 @@ xfs_bmap_add_attrfork(
 
 	xfs_trans_ijoin(tp, ip, 0);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-
-	switch (ip->i_d.di_format) {
-	case XFS_DINODE_FMT_DEV:
-		ip->i_d.di_forkoff = roundup(sizeof(xfs_dev_t), 8) >> 3;
-		break;
-	case XFS_DINODE_FMT_LOCAL:
-	case XFS_DINODE_FMT_EXTENTS:
-	case XFS_DINODE_FMT_BTREE:
-		ip->i_d.di_forkoff = xfs_attr_shortform_bytesfit(ip, size);
-		if (!ip->i_d.di_forkoff)
-			ip->i_d.di_forkoff = xfs_default_attroffset(ip) >> 3;
-		else if (mp->m_flags & XFS_MOUNT_ATTR2)
-			version = 2;
-		break;
-	default:
-		ASSERT(0);
-		error = -EINVAL;
+	error = xfs_bmap_set_attrforkoff(ip, size, &version);
+	if (error)
 		goto trans_cancel;
-	}
-
 	ASSERT(ip->i_afp == NULL);
 	ip->i_afp = kmem_zone_zalloc(xfs_ifork_zone, KM_SLEEP);
 	ip->i_afp->if_flags = XFS_IFEXTENTS;
@@ -1681,10 +1694,13 @@ xfs_bmap_add_extent_delay_real(
 	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Filling in all of a previously delayed allocation extent.
-		 * The right neighbor is contiguous, the left is not.
+		 * The right neighbor is contiguous, the left is not. Take care
+		 * with delay -> unwritten extent allocation here because the
+		 * delalloc record we are overwriting is always written.
 		 */
 		PREV.br_startblock = new->br_startblock;
 		PREV.br_blockcount += RIGHT.br_blockcount;
+		PREV.br_state = new->br_state;
 
 		xfs_iext_next(ifp, &bma->icur);
 		xfs_iext_remove(bma->ip, &bma->icur, state);
@@ -3437,7 +3453,7 @@ xfs_bmap_btalloc(
 	args.tp = ap->tp;
 	args.mp = mp;
 	args.fsbno = ap->blkno;
-	xfs_rmap_skip_owner_update(&args.oinfo);
+	args.oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
 
 	/* Trim the allocation back to the maximum an AG can fit. */
 	args.maxlen = min(ap->length, mp->m_ag_max_usable);
@@ -4079,8 +4095,7 @@ xfs_bmapi_allocate(
 	 * extents to real extents when we're about to write the data.
 	 */
 	if ((!bma->wasdel || (bma->flags & XFS_BMAPI_COWFORK)) &&
-	    (bma->flags & XFS_BMAPI_PREALLOC) &&
-	    xfs_sb_version_hasextflgbit(&mp->m_sb))
+	    (bma->flags & XFS_BMAPI_PREALLOC))
 		bma->got.br_state = XFS_EXT_UNWRITTEN;
 
 	if (bma->wasdel)
@@ -5243,8 +5258,7 @@ __xfs_bunmapi(
 			 * unmapping part of it.  But we can't really
 			 * get rid of part of a realtime extent.
 			 */
-			if (del.br_state == XFS_EXT_UNWRITTEN ||
-			    !xfs_sb_version_hasextflgbit(&mp->m_sb)) {
+			if (del.br_state == XFS_EXT_UNWRITTEN) {
 				/*
 				 * This piece is unwritten, or we're not
 				 * using unwritten extents.  Skip over it.
@@ -5294,10 +5308,9 @@ __xfs_bunmapi(
 				del.br_blockcount -= mod;
 				del.br_startoff += mod;
 				del.br_startblock += mod;
-			} else if ((del.br_startoff == start &&
-				    (del.br_state == XFS_EXT_UNWRITTEN ||
-				     tp->t_blk_res == 0)) ||
-				   !xfs_sb_version_hasextflgbit(&mp->m_sb)) {
+			} else if (del.br_startoff == start &&
+				   (del.br_state == XFS_EXT_UNWRITTEN ||
+				    tp->t_blk_res == 0)) {
 				/*
 				 * Can't make it unwritten.  There isn't
 				 * a full extent here so just skip it.
@@ -6112,11 +6125,7 @@ xfs_bmap_validate_extent(
 		    XFS_FSB_TO_AGNO(mp, endfsb))
 			return __this_address;
 	}
-	if (irec->br_state != XFS_EXT_NORM) {
-		if (whichfork != XFS_DATA_FORK)
-			return __this_address;
-		if (!xfs_sb_version_hasextflgbit(&mp->m_sb))
-			return __this_address;
-	}
+	if (irec->br_state != XFS_EXT_NORM && whichfork != XFS_DATA_FORK)
+		return __this_address;
 	return NULL;
 }

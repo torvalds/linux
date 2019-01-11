@@ -112,8 +112,8 @@ static u32 vi_smc_rreg(struct amdgpu_device *adev, u32 reg)
 	u32 r;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32(mmSMC_IND_INDEX_11, (reg));
-	r = RREG32(mmSMC_IND_DATA_11);
+	WREG32_NO_KIQ(mmSMC_IND_INDEX_11, (reg));
+	r = RREG32_NO_KIQ(mmSMC_IND_DATA_11);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 	return r;
 }
@@ -955,6 +955,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.flush_hdp = &vi_flush_hdp,
 	.invalidate_hdp = &vi_invalidate_hdp,
 	.need_full_reset = &vi_need_full_reset,
+	.init_doorbell_index = &legacy_doorbell_index_init,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \
@@ -1596,16 +1597,18 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_4_ip_block);
 		amdgpu_device_ip_block_add(adev, &iceland_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v2_4_ip_block);
 		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &sdma_v2_4_ip_block);
 		break;
 	case CHIP_FIJI:
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_5_ip_block);
 		amdgpu_device_ip_block_add(adev, &tonga_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -1615,8 +1618,6 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v10_1_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		if (!amdgpu_sriov_vf(adev)) {
 			amdgpu_device_ip_block_add(adev, &uvd_v6_0_ip_block);
 			amdgpu_device_ip_block_add(adev, &vce_v3_0_ip_block);
@@ -1626,6 +1627,8 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &tonga_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -1635,8 +1638,6 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v10_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		if (!amdgpu_sriov_vf(adev)) {
 			amdgpu_device_ip_block_add(adev, &uvd_v5_0_ip_block);
 			amdgpu_device_ip_block_add(adev, &vce_v3_0_ip_block);
@@ -1649,6 +1650,8 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_1_ip_block);
 		amdgpu_device_ip_block_add(adev, &tonga_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v3_1_ip_block);
 		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -1658,8 +1661,6 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v11_2_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &sdma_v3_1_ip_block);
 		amdgpu_device_ip_block_add(adev, &uvd_v6_3_ip_block);
 		amdgpu_device_ip_block_add(adev, &vce_v3_4_ip_block);
 		break;
@@ -1667,6 +1668,8 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cz_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -1676,8 +1679,6 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v11_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &uvd_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vce_v3_1_ip_block);
 #if defined(CONFIG_DRM_AMD_ACP)
@@ -1688,6 +1689,8 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cz_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v8_1_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -1697,8 +1700,6 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v11_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v8_1_ip_block);
-		amdgpu_device_ip_block_add(adev, &sdma_v3_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &uvd_v6_2_ip_block);
 		amdgpu_device_ip_block_add(adev, &vce_v3_4_ip_block);
 #if defined(CONFIG_DRM_AMD_ACP)
@@ -1711,4 +1712,22 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+void legacy_doorbell_index_init(struct amdgpu_device *adev)
+{
+	adev->doorbell_index.kiq = AMDGPU_DOORBELL_KIQ;
+	adev->doorbell_index.mec_ring0 = AMDGPU_DOORBELL_MEC_RING0;
+	adev->doorbell_index.mec_ring1 = AMDGPU_DOORBELL_MEC_RING1;
+	adev->doorbell_index.mec_ring2 = AMDGPU_DOORBELL_MEC_RING2;
+	adev->doorbell_index.mec_ring3 = AMDGPU_DOORBELL_MEC_RING3;
+	adev->doorbell_index.mec_ring4 = AMDGPU_DOORBELL_MEC_RING4;
+	adev->doorbell_index.mec_ring5 = AMDGPU_DOORBELL_MEC_RING5;
+	adev->doorbell_index.mec_ring6 = AMDGPU_DOORBELL_MEC_RING6;
+	adev->doorbell_index.mec_ring7 = AMDGPU_DOORBELL_MEC_RING7;
+	adev->doorbell_index.gfx_ring0 = AMDGPU_DOORBELL_GFX_RING0;
+	adev->doorbell_index.sdma_engine0 = AMDGPU_DOORBELL_sDMA_ENGINE0;
+	adev->doorbell_index.sdma_engine1 = AMDGPU_DOORBELL_sDMA_ENGINE1;
+	adev->doorbell_index.ih = AMDGPU_DOORBELL_IH;
+	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_MAX_ASSIGNMENT;
 }

@@ -15,6 +15,7 @@
 #include <linux/exportfs.h>
 
 #include "inotify/inotify.h"
+#include "fdinfo.h"
 #include "fsnotify.h"
 
 #if defined(CONFIG_PROC_FS)
@@ -131,37 +132,20 @@ static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 
 		seq_printf(m, "fanotify mnt_id:%x mflags:%x mask:%x ignored_mask:%x\n",
 			   mnt->mnt_id, mflags, mark->mask, mark->ignored_mask);
+	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_SB) {
+		struct super_block *sb = fsnotify_conn_sb(mark->connector);
+
+		seq_printf(m, "fanotify sdev:%x mflags:%x mask:%x ignored_mask:%x\n",
+			   sb->s_dev, mflags, mark->mask, mark->ignored_mask);
 	}
 }
 
 void fanotify_show_fdinfo(struct seq_file *m, struct file *f)
 {
 	struct fsnotify_group *group = f->private_data;
-	unsigned int flags = 0;
-
-	switch (group->priority) {
-	case FS_PRIO_0:
-		flags |= FAN_CLASS_NOTIF;
-		break;
-	case FS_PRIO_1:
-		flags |= FAN_CLASS_CONTENT;
-		break;
-	case FS_PRIO_2:
-		flags |= FAN_CLASS_PRE_CONTENT;
-		break;
-	}
-
-	if (group->max_events == UINT_MAX)
-		flags |= FAN_UNLIMITED_QUEUE;
-
-	if (group->fanotify_data.max_marks == UINT_MAX)
-		flags |= FAN_UNLIMITED_MARKS;
-
-	if (group->fanotify_data.audit)
-		flags |= FAN_ENABLE_AUDIT;
 
 	seq_printf(m, "fanotify flags:%x event-flags:%x\n",
-		   flags, group->fanotify_data.f_flags);
+		   group->fanotify_data.flags, group->fanotify_data.f_flags);
 
 	show_fdinfo(m, f, fanotify_fdinfo);
 }

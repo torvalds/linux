@@ -71,14 +71,6 @@ void __cm_reset(struct hfi1_devdata *dd, u64 sendctrl)
 	}
 }
 
-/* defined in header release 48 and higher */
-#ifndef SEND_CTRL_UNSUPPORTED_VL_SHIFT
-#define SEND_CTRL_UNSUPPORTED_VL_SHIFT 3
-#define SEND_CTRL_UNSUPPORTED_VL_MASK 0xffull
-#define SEND_CTRL_UNSUPPORTED_VL_SMASK (SEND_CTRL_UNSUPPORTED_VL_MASK \
-		<< SEND_CTRL_UNSUPPORTED_VL_SHIFT)
-#endif
-
 /* global control of PIO send */
 void pio_send_control(struct hfi1_devdata *dd, int op)
 {
@@ -86,6 +78,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 	unsigned long flags;
 	int write = 1;	/* write sendctrl back */
 	int flush = 0;	/* re-read sendctrl to make sure it is flushed */
+	int i;
 
 	spin_lock_irqsave(&dd->sendctrl_lock, flags);
 
@@ -95,9 +88,13 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 		reg |= SEND_CTRL_SEND_ENABLE_SMASK;
 	/* Fall through */
 	case PSC_DATA_VL_ENABLE:
+		mask = 0;
+		for (i = 0; i < ARRAY_SIZE(dd->vld); i++)
+			if (!dd->vld[i].mtu)
+				mask |= BIT_ULL(i);
 		/* Disallow sending on VLs not enabled */
-		mask = (((~0ull) << num_vls) & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
-				SEND_CTRL_UNSUPPORTED_VL_SHIFT;
+		mask = (mask & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
+			SEND_CTRL_UNSUPPORTED_VL_SHIFT;
 		reg = (reg & ~SEND_CTRL_UNSUPPORTED_VL_SMASK) | mask;
 		break;
 	case PSC_GLOBAL_DISABLE:
@@ -745,6 +742,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	spin_lock_init(&sc->alloc_lock);
 	spin_lock_init(&sc->release_lock);
 	spin_lock_init(&sc->credit_ctrl_lock);
+	seqlock_init(&sc->waitlock);
 	INIT_LIST_HEAD(&sc->piowait);
 	INIT_WORK(&sc->halt_work, sc_halted);
 	init_waitqueue_head(&sc->halt_wait);
@@ -921,20 +919,18 @@ void sc_free(struct send_context *sc)
 void sc_disable(struct send_context *sc)
 {
 	u64 reg;
-	unsigned long flags;
 	struct pio_buf *pbuf;
 
 	if (!sc)
 		return;
 
 	/* do all steps, even if already disabled */
-	spin_lock_irqsave(&sc->alloc_lock, flags);
+	spin_lock_irq(&sc->alloc_lock);
 	reg = read_kctxt_csr(sc->dd, sc->hw_context, SC(CTRL));
 	reg &= ~SC(CTRL_CTXT_ENABLE_SMASK);
 	sc->flags &= ~SCF_ENABLED;
 	sc_wait_for_packet_egress(sc, 1);
 	write_kctxt_csr(sc->dd, sc->hw_context, SC(CTRL), reg);
-	spin_unlock_irqrestore(&sc->alloc_lock, flags);
 
 	/*
 	 * Flush any waiters.  Once the context is disabled,
@@ -944,7 +940,7 @@ void sc_disable(struct send_context *sc)
 	 * proceed with the flush.
 	 */
 	udelay(1);
-	spin_lock_irqsave(&sc->release_lock, flags);
+	spin_lock(&sc->release_lock);
 	if (sc->sr) {	/* this context has a shadow ring */
 		while (sc->sr_tail != sc->sr_head) {
 			pbuf = &sc->sr[sc->sr_tail].pbuf;
@@ -955,7 +951,8 @@ void sc_disable(struct send_context *sc)
 				sc->sr_tail = 0;
 		}
 	}
-	spin_unlock_irqrestore(&sc->release_lock, flags);
+	spin_unlock(&sc->release_lock);
+	spin_unlock_irq(&sc->alloc_lock);
 }
 
 /* return SendEgressCtxtStatus.PacketOccupancy */
@@ -1178,8 +1175,36 @@ void pio_kernel_unfreeze(struct hfi1_devdata *dd)
 		sc = dd->send_contexts[i].sc;
 		if (!sc || !(sc->flags & SCF_FROZEN) || sc->type == SC_USER)
 			continue;
+		if (sc->flags & SCF_LINK_DOWN)
+			continue;
 
 		sc_enable(sc);	/* will clear the sc frozen flag */
+	}
+}
+
+/**
+ * pio_kernel_linkup() - Re-enable send contexts after linkup event
+ * @dd: valid devive data
+ *
+ * When the link goes down, the freeze path is taken.  However, a link down
+ * event is different from a freeze because if the send context is re-enabled
+ * whowever is sending data will start sending data again, which will hang
+ * any QP that is sending data.
+ *
+ * The freeze path now looks at the type of event that occurs and takes this
+ * path for link down event.
+ */
+void pio_kernel_linkup(struct hfi1_devdata *dd)
+{
+	struct send_context *sc;
+	int i;
+
+	for (i = 0; i < dd->num_send_contexts; i++) {
+		sc = dd->send_contexts[i].sc;
+		if (!sc || !(sc->flags & SCF_LINK_DOWN) || sc->type == SC_USER)
+			continue;
+
+		sc_enable(sc);	/* will clear the sc link down flag */
 	}
 }
 
@@ -1382,11 +1407,10 @@ void sc_stop(struct send_context *sc, int flag)
 {
 	unsigned long flags;
 
-	/* mark the context */
-	sc->flags |= flag;
-
 	/* stop buffer allocations */
 	spin_lock_irqsave(&sc->alloc_lock, flags);
+	/* mark the context */
+	sc->flags |= flag;
 	sc->flags &= ~SCF_ENABLED;
 	spin_unlock_irqrestore(&sc->alloc_lock, flags);
 	wake_up(&sc->halt_wait);
@@ -1570,7 +1594,6 @@ void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint)
 static void sc_piobufavail(struct send_context *sc)
 {
 	struct hfi1_devdata *dd = sc->dd;
-	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	struct list_head *list;
 	struct rvt_qp *qps[PIO_WAIT_BATCH_SIZE];
 	struct rvt_qp *qp;
@@ -1589,7 +1612,7 @@ static void sc_piobufavail(struct send_context *sc)
 	 * could end up with QPs on the wait list with the interrupt
 	 * disabled.
 	 */
-	write_seqlock_irqsave(&dev->iowait_lock, flags);
+	write_seqlock_irqsave(&sc->waitlock, flags);
 	while (!list_empty(list)) {
 		struct iowait *wait;
 
@@ -1613,7 +1636,7 @@ static void sc_piobufavail(struct send_context *sc)
 		if (!list_empty(list))
 			hfi1_sc_wantpiobuf_intr(sc, 1);
 	}
-	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
+	write_sequnlock_irqrestore(&sc->waitlock, flags);
 
 	/* Wake up the most starved one first */
 	if (n)
@@ -2113,4 +2136,29 @@ void free_credit_return(struct hfi1_devdata *dd)
 	}
 	kfree(dd->cr_base);
 	dd->cr_base = NULL;
+}
+
+void seqfile_dump_sci(struct seq_file *s, u32 i,
+		      struct send_context_info *sci)
+{
+	struct send_context *sc = sci->sc;
+	u64 reg;
+
+	seq_printf(s, "SCI %u: type %u base %u credits %u\n",
+		   i, sci->type, sci->base, sci->credits);
+	seq_printf(s, "  flags 0x%x sw_inx %u hw_ctxt %u grp %u\n",
+		   sc->flags,  sc->sw_index, sc->hw_context, sc->group);
+	seq_printf(s, "  sr_size %u credits %u sr_head %u sr_tail %u\n",
+		   sc->sr_size, sc->credits, sc->sr_head, sc->sr_tail);
+	seq_printf(s, "  fill %lu free %lu fill_wrap %u alloc_free %lu\n",
+		   sc->fill, sc->free, sc->fill_wrap, sc->alloc_free);
+	seq_printf(s, "  credit_intr_count %u credit_ctrl 0x%llx\n",
+		   sc->credit_intr_count, sc->credit_ctrl);
+	reg = read_kctxt_csr(sc->dd, sc->hw_context, SC(CREDIT_STATUS));
+	seq_printf(s, "  *hw_free %llu CurrentFree %llu LastReturned %llu\n",
+		   (le64_to_cpu(*sc->hw_free) & CR_COUNTER_SMASK) >>
+		    CR_COUNTER_SHIFT,
+		   (reg >> SC(CREDIT_STATUS_CURRENT_FREE_COUNTER_SHIFT)) &
+		    SC(CREDIT_STATUS_CURRENT_FREE_COUNTER_MASK),
+		   reg & SC(CREDIT_STATUS_LAST_RETURNED_COUNTER_SMASK));
 }

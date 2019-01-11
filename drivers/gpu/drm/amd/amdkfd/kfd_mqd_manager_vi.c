@@ -269,6 +269,28 @@ static bool is_occupied(struct mqd_manager *mm, void *mqd,
 		pipe_id, queue_id);
 }
 
+static int get_wave_state(struct mqd_manager *mm, void *mqd,
+			  void __user *ctl_stack,
+			  u32 *ctl_stack_used_size,
+			  u32 *save_area_used_size)
+{
+	struct vi_mqd *m;
+
+	m = get_mqd(mqd);
+
+	*ctl_stack_used_size = m->cp_hqd_cntl_stack_size -
+		m->cp_hqd_cntl_stack_offset;
+	*save_area_used_size = m->cp_hqd_wg_state_offset -
+		m->cp_hqd_cntl_stack_size;
+
+	/* Control stack is not copied to user mode for GFXv8 because
+	 * it's part of the context save area that is already
+	 * accessible to user mode
+	 */
+
+	return 0;
+}
+
 static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
@@ -436,6 +458,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+		mqd->get_wave_state = get_wave_state;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif

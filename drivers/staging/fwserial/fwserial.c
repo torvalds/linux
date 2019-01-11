@@ -1209,42 +1209,40 @@ static int wait_msr_change(struct fwtty_port *port, unsigned long mask)
 					check_msr_delta(port, mask, &prev));
 }
 
-static int get_serial_info(struct fwtty_port *port,
-			   struct serial_struct __user *info)
+static int get_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss)
 {
-	struct serial_struct tmp;
-
-	memset(&tmp, 0, sizeof(tmp));
-
-	tmp.type =  PORT_UNKNOWN;
-	tmp.line =  port->port.tty->index;
-	tmp.flags = port->port.flags;
-	tmp.xmit_fifo_size = FWTTY_PORT_TXFIFO_LEN;
-	tmp.baud_base = 400000000;
-	tmp.close_delay = port->port.close_delay;
-
-	return (copy_to_user(info, &tmp, sizeof(*info))) ? -EFAULT : 0;
+	struct fwtty_port *port = tty->driver_data;
+	mutex_lock(&port->port.mutex);
+	ss->type =  PORT_UNKNOWN;
+	ss->line =  port->port.tty->index;
+	ss->flags = port->port.flags;
+	ss->xmit_fifo_size = FWTTY_PORT_TXFIFO_LEN;
+	ss->baud_base = 400000000;
+	ss->close_delay = port->port.close_delay;
+	mutex_unlock(&port->port.mutex);
+	return 0;
 }
 
-static int set_serial_info(struct fwtty_port *port,
-			   struct serial_struct __user *info)
+static int set_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss)
 {
-	struct serial_struct tmp;
+	struct fwtty_port *port = tty->driver_data;
 
-	if (copy_from_user(&tmp, info, sizeof(tmp)))
-		return -EFAULT;
-
-	if (tmp.irq != 0 || tmp.port != 0 || tmp.custom_divisor != 0 ||
-	    tmp.baud_base != 400000000)
+	if (ss->irq != 0 || ss->port != 0 || ss->custom_divisor != 0 ||
+	    ss->baud_base != 400000000)
 		return -EPERM;
 
+	mutex_lock(&port->port.mutex);
 	if (!capable(CAP_SYS_ADMIN)) {
-		if (((tmp.flags & ~ASYNC_USR_MASK) !=
-		     (port->port.flags & ~ASYNC_USR_MASK)))
+		if (((ss->flags & ~ASYNC_USR_MASK) !=
+		     (port->port.flags & ~ASYNC_USR_MASK))) {
+			mutex_unlock(&port->port.mutex);
 			return -EPERM;
-	} else {
-		port->port.close_delay = tmp.close_delay * HZ / 100;
+		}
 	}
+	port->port.close_delay = ss->close_delay * HZ / 100;
+	mutex_unlock(&port->port.mutex);
 
 	return 0;
 }
@@ -1256,18 +1254,6 @@ static int fwtty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	int err;
 
 	switch (cmd) {
-	case TIOCGSERIAL:
-		mutex_lock(&port->port.mutex);
-		err = get_serial_info(port, (void __user *)arg);
-		mutex_unlock(&port->port.mutex);
-		break;
-
-	case TIOCSSERIAL:
-		mutex_lock(&port->port.mutex);
-		err = set_serial_info(port, (void __user *)arg);
-		mutex_unlock(&port->port.mutex);
-		break;
-
 	case TIOCMIWAIT:
 		err = wait_msr_change(port, arg);
 		break;
@@ -1472,7 +1458,7 @@ static int fwtty_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int fwtty_debugfs_stats_show(struct seq_file *m, void *v)
+static int fwtty_stats_show(struct seq_file *m, void *v)
 {
 	struct fw_serial *serial = m->private;
 	struct fwtty_port *port;
@@ -1490,8 +1476,9 @@ static int fwtty_debugfs_stats_show(struct seq_file *m, void *v)
 	}
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(fwtty_stats);
 
-static int fwtty_debugfs_peers_show(struct seq_file *m, void *v)
+static int fwtty_peers_show(struct seq_file *m, void *v)
 {
 	struct fw_serial *serial = m->private;
 	struct fwtty_peer *peer;
@@ -1505,32 +1492,7 @@ static int fwtty_debugfs_peers_show(struct seq_file *m, void *v)
 	rcu_read_unlock();
 	return 0;
 }
-
-static int fwtty_stats_open(struct inode *inode, struct file *fp)
-{
-	return single_open(fp, fwtty_debugfs_stats_show, inode->i_private);
-}
-
-static int fwtty_peers_open(struct inode *inode, struct file *fp)
-{
-	return single_open(fp, fwtty_debugfs_peers_show, inode->i_private);
-}
-
-static const struct file_operations fwtty_stats_fops = {
-	.owner =	THIS_MODULE,
-	.open =		fwtty_stats_open,
-	.read =		seq_read,
-	.llseek =	seq_lseek,
-	.release =	single_release,
-};
-
-static const struct file_operations fwtty_peers_fops = {
-	.owner =	THIS_MODULE,
-	.open =		fwtty_peers_open,
-	.read =		seq_read,
-	.llseek =	seq_lseek,
-	.release =	single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fwtty_peers);
 
 static const struct tty_port_operations fwtty_port_ops = {
 	.dtr_rts =		fwtty_port_dtr_rts,
@@ -1557,6 +1519,8 @@ static const struct tty_operations fwtty_ops = {
 	.tiocmget =		fwtty_tiocmget,
 	.tiocmset =		fwtty_tiocmset,
 	.get_icount =		fwtty_get_icount,
+	.set_serial =		set_serial_info,
+	.get_serial =		get_serial_info,
 	.proc_show =		fwtty_proc_show,
 };
 
@@ -1578,6 +1542,8 @@ static const struct tty_operations fwloop_ops = {
 	.tiocmget =		fwtty_tiocmget,
 	.tiocmset =		fwtty_tiocmset,
 	.get_icount =		fwtty_get_icount,
+	.set_serial =		set_serial_info,
+	.get_serial =		get_serial_info,
 };
 
 static inline int mgmt_pkt_expected_len(__be16 code)

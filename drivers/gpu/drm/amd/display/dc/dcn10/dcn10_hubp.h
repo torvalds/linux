@@ -251,6 +251,7 @@
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_CLEAR, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_VTG_SEL, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_DISABLE, mask_sh),\
@@ -270,6 +271,8 @@
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_PITCH_C, META_PITCH_C, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_SURFACE_CONFIG, SURFACE_PIXEL_FORMAT, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL, SURFACE_FLIP_TYPE, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL, SURFACE_FLIP_PENDING, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL, SURFACE_UPDATE_LOCK, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION, PRI_VIEWPORT_WIDTH, mask_sh),\
@@ -433,6 +436,7 @@
 	type HUBP_NO_OUTSTANDING_REQ;\
 	type HUBP_VTG_SEL;\
 	type HUBP_UNDERFLOW_STATUS;\
+	type HUBP_UNDERFLOW_CLEAR;\
 	type NUM_PIPES;\
 	type NUM_BANKS;\
 	type PIPE_INTERLEAVE;\
@@ -451,6 +455,8 @@
 	type H_MIRROR_EN;\
 	type SURFACE_PIXEL_FORMAT;\
 	type SURFACE_FLIP_TYPE;\
+	type SURFACE_FLIP_MODE_FOR_STEREOSYNC;\
+	type SURFACE_FLIP_IN_STEREOSYNC;\
 	type SURFACE_UPDATE_LOCK;\
 	type SURFACE_FLIP_PENDING;\
 	type PRI_VIEWPORT_WIDTH; \
@@ -635,6 +641,7 @@ struct dcn_hubp_state {
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	uint32_t pixel_format;
 	uint32_t inuse_addr_hi;
+	uint32_t inuse_addr_lo;
 	uint32_t viewport_width;
 	uint32_t viewport_height;
 	uint32_t rotation_angle;
@@ -664,7 +671,8 @@ void hubp1_program_surface_config(
 	union plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror);
+	bool horizontal_mirror,
+	unsigned int compat_level);
 
 void hubp1_program_deadline(
 		struct hubp *hubp,
@@ -733,6 +741,7 @@ void dcn10_hubp_construct(
 	const struct dcn_mi_mask *hubp_mask);
 
 void hubp1_read_state(struct hubp *hubp);
+void hubp1_clear_underflow(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 

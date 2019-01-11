@@ -85,6 +85,9 @@ static struct symbol *new_inline_sym(struct dso *dso,
 	struct symbol *inline_sym;
 	char *demangled = NULL;
 
+	if (!funcname)
+		funcname = "??";
+
 	if (dso) {
 		demangled = dso__demangle_sym(dso, 0, funcname);
 		if (demangled)
@@ -543,6 +546,34 @@ out:
 	} else if (asprintf(&srcline, "%s[%" PRIx64 "]", dso->short_name, addr) < 0)
 		return SRCLINE_UNKNOWN;
 	return srcline;
+}
+
+/* Returns filename and fills in line number in line */
+char *get_srcline_split(struct dso *dso, u64 addr, unsigned *line)
+{
+	char *file = NULL;
+	const char *dso_name;
+
+	if (!dso->has_srcline)
+		goto out;
+
+	dso_name = dso__name(dso);
+	if (dso_name == NULL)
+		goto out;
+
+	if (!addr2line(dso_name, addr, &file, line, dso, true, NULL, NULL))
+		goto out;
+
+	dso->a2l_fails = 0;
+	return file;
+
+out:
+	if (dso->a2l_fails && ++dso->a2l_fails > A2L_FAIL_LIMIT) {
+		dso->has_srcline = 0;
+		dso__free_a2l(dso);
+	}
+
+	return NULL;
 }
 
 void free_srcline(char *srcline)

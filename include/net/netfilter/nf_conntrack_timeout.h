@@ -30,7 +30,7 @@ struct nf_conn_timeout {
 };
 
 static inline unsigned int *
-nf_ct_timeout_data(struct nf_conn_timeout *t)
+nf_ct_timeout_data(const struct nf_conn_timeout *t)
 {
 	struct nf_ct_timeout *timeout;
 

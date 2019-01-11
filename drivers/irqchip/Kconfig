@@ -150,6 +150,9 @@ config IMGPDC_IRQ
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config MADERA_IRQ
+	tristate
+
 config IRQ_MIPS_CPU
 	bool
 	select GENERIC_IRQ_CHIP
@@ -194,6 +197,10 @@ config JCORE_AIC
 	select IRQ_DOMAIN
 	help
 	  Support for the J-Core integrated AIC.
+
+config RDA_INTC
+	bool
+	select IRQ_DOMAIN
 
 config RENESAS_INTC_IRQPIN
 	bool
@@ -310,6 +317,9 @@ config MVEBU_ODMI
 config MVEBU_PIC
 	bool
 
+config MVEBU_SEI
+        bool
+
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
 	depends on PCI && PCI_MSI
@@ -370,6 +380,31 @@ config QCOM_PDC
 	help
 	  Power Domain Controller driver to manage and configure wakeup
 	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
+
+config CSKY_MPINTC
+	bool "C-SKY Multi Processor Interrupt Controller"
+	depends on CSKY
+	help
+	  Say yes here to enable C-SKY SMP interrupt controller driver used
+	  for C-SKY SMP system.
+	  In fact it's not mmio map in hw and it use ld/st to visit the
+	  controller's register inside CPU.
+
+config CSKY_APB_INTC
+	bool "C-SKY APB Interrupt Controller"
+	depends on CSKY
+	help
+	  Say yes here to enable C-SKY APB interrupt controller driver used
+	  by C-SKY single core SOC system. It use mmio map apb-bus to visit
+	  the controller's register.
+
+config IMX_IRQSTEER
+	bool "i.MX IRQSTEER support"
+	depends on ARCH_MXC || COMPILE_TEST
+	default ARCH_MXC
+	select IRQ_DOMAIN
+	help
+	  Support for the i.MX IRQSTEER interrupt multiplexer/remapper.
 
 endmenu
 

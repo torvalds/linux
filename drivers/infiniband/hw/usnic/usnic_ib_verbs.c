@@ -159,7 +159,8 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 
 	err = ib_copy_to_udata(udata, &resp, sizeof(resp));
 	if (err) {
-		usnic_err("Failed to copy udata for %s", us_ibdev->ib_dev.name);
+		usnic_err("Failed to copy udata for %s",
+			  dev_name(&us_ibdev->ib_dev.dev));
 		return err;
 	}
 
@@ -197,7 +198,7 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 			vnic = vf->vnic;
 			if (!usnic_vnic_check_room(vnic, res_spec)) {
 				usnic_dbg("Found used vnic %s from %s\n",
-						us_ibdev->ib_dev.name,
+						dev_name(&us_ibdev->ib_dev.dev),
 						pci_name(usnic_vnic_get_pdev(
 									vnic)));
 				qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev,
@@ -230,7 +231,8 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 		spin_unlock(&vf->lock);
 	}
 
-	usnic_info("No free qp grp found on %s\n", us_ibdev->ib_dev.name);
+	usnic_info("No free qp grp found on %s\n",
+		   dev_name(&us_ibdev->ib_dev.dev));
 	return ERR_PTR(-ENOMEM);
 
 qp_grp_check:
@@ -334,13 +336,16 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	usnic_dbg("\n");
 
-	mutex_lock(&us_ibdev->usdev_lock);
 	if (ib_get_eth_speed(ibdev, port, &props->active_speed,
-			     &props->active_width)) {
-		mutex_unlock(&us_ibdev->usdev_lock);
+			     &props->active_width))
 		return -EINVAL;
-	}
 
+	/*
+	 * usdev_lock is acquired after (and not before) ib_get_eth_speed call
+	 * because acquiring rtnl_lock in ib_get_eth_speed, while holding
+	 * usdev_lock could lead to a deadlock.
+	 */
+	mutex_lock(&us_ibdev->usdev_lock);
 	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
@@ -471,7 +476,7 @@ struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
 	}
 
 	usnic_info("domain 0x%p allocated for context 0x%p and device %s\n",
-			pd, context, ibdev->name);
+		   pd, context, dev_name(&ibdev->dev));
 	return &pd->ibpd;
 }
 
@@ -508,20 +513,20 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	err = ib_copy_from_udata(&cmd, udata, sizeof(cmd));
 	if (err) {
 		usnic_err("%s: cannot copy udata for create_qp\n",
-				us_ibdev->ib_dev.name);
+			  dev_name(&us_ibdev->ib_dev.dev));
 		return ERR_PTR(-EINVAL);
 	}
 
 	err = create_qp_validate_user_data(cmd);
 	if (err) {
 		usnic_err("%s: Failed to validate user data\n",
-				us_ibdev->ib_dev.name);
+			  dev_name(&us_ibdev->ib_dev.dev));
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (init_attr->qp_type != IB_QPT_UD) {
 		usnic_err("%s asked to make a non-UD QP: %d\n",
-				us_ibdev->ib_dev.name, init_attr->qp_type);
+			  dev_name(&us_ibdev->ib_dev.dev), init_attr->qp_type);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -758,6 +763,7 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 /* In ib callbacks section -  Start of stub funcs */
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 				 struct rdma_ah_attr *ah_attr,
+				 u32 flags,
 				 struct ib_udata *udata)
 
 {
@@ -765,7 +771,7 @@ struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 	return ERR_PTR(-EPERM);
 }
 
-int usnic_ib_destroy_ah(struct ib_ah *ah)
+int usnic_ib_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	usnic_dbg("\n");
 	return -EINVAL;

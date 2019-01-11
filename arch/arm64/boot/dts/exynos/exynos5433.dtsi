@@ -544,6 +544,21 @@
 			power-domains = <&pd_cam1>;
 		};
 
+		cmu_imem: clock-controller@11060000 {
+			compatible = "samsung,exynos5433-cmu-imem";
+			reg = <0x11060000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk",
+				"aclk_imem_sssx_266",
+				"aclk_imem_266",
+				"aclk_imem_200";
+			clocks = <&xxti>,
+				<&cmu_top CLK_DIV_ACLK_IMEM_SSSX_266>,
+				<&cmu_top CLK_DIV_ACLK_IMEM_266>,
+				<&cmu_top CLK_DIV_ACLK_IMEM_200>;
+		};
+
 		pd_gscl: power-domain@105c4000 {
 			compatible = "samsung,exynos5433-pd";
 			reg = <0x105c4000 0x20>;
@@ -630,7 +645,7 @@
 			clocks = <&cmu_peris CLK_PCLK_TMU0_APBIF>,
 				<&cmu_peris CLK_SCLK_TMU0>;
 			clock-names = "tmu_apbif", "tmu_sclk";
-			#include "exynos5433-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 			status = "disabled";
 		};
 
@@ -641,7 +656,7 @@
 			clocks = <&cmu_peris CLK_PCLK_TMU0_APBIF>,
 				<&cmu_peris CLK_SCLK_TMU0>;
 			clock-names = "tmu_apbif", "tmu_sclk";
-			#include "exynos5433-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 			status = "disabled";
 		};
 
@@ -652,7 +667,7 @@
 			clocks = <&cmu_peris CLK_PCLK_TMU1_APBIF>,
 				<&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
-			#include "exynos5433-tmu-g3d-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 			status = "disabled";
 		};
 
@@ -663,7 +678,7 @@
 			clocks = <&cmu_peris CLK_PCLK_TMU1_APBIF>,
 				<&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
-			#include "exynos5433-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 			status = "disabled";
 		};
 
@@ -674,7 +689,7 @@
 			clocks = <&cmu_peris CLK_PCLK_TMU1_APBIF>,
 				<&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
-			#include "exynos5433-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 			status = "disabled";
 		};
 
@@ -1171,7 +1186,7 @@
 			power-domains = <&pd_gscl>;
 		};
 
-		sysmmu_scaler_0: sysmmu@0x15040000 {
+		sysmmu_scaler_0: sysmmu@15040000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15040000 0x1000>;
 			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
@@ -1182,7 +1197,7 @@
 			power-domains = <&pd_mscl>;
 		};
 
-		sysmmu_scaler_1: sysmmu@0x15050000 {
+		sysmmu_scaler_1: sysmmu@15050000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15050000 0x1000>;
 			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
@@ -1559,10 +1574,12 @@
 		};
 
 		usbdrd30: usbdrd {
-			compatible = "samsung,exynos5250-dwusb3";
+			compatible = "samsung,exynos5433-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBDRD30>,
-				<&cmu_fsys CLK_SCLK_USBDRD30>;
-			clock-names = "usbdrd30", "usbdrd30_susp_clk";
+				<&cmu_fsys CLK_SCLK_USBDRD30>,
+				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK>,
+				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK>;
+			clock-names = "aclk", "susp_clk", "phyclk", "pipe_pclk";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -1570,6 +1587,10 @@
 
 			usbdrd_dwc3: dwc3@15400000 {
 				compatible = "snps,dwc3";
+				clocks = <&cmu_fsys CLK_SCLK_USBDRD30>,
+					<&cmu_fsys CLK_ACLK_USBDRD30>,
+					<&cmu_fsys CLK_SCLK_USBDRD30>;
+				clock-names = "ref", "bus_early", "suspend";
 				reg = <0x15400000 0x10000>;
 				interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usbdrd30_phy 0>, <&usbdrd30_phy 1>;
@@ -1606,10 +1627,12 @@
 		};
 
 		usbhost30: usbhost {
-			compatible = "samsung,exynos5250-dwusb3";
+			compatible = "samsung,exynos5433-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBHOST30>,
-				<&cmu_fsys CLK_SCLK_USBHOST30>;
-			clock-names = "usbdrd30", "usbdrd30_susp_clk";
+				<&cmu_fsys CLK_SCLK_USBHOST30>,
+				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK>,
+				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK>;
+			clock-names = "aclk", "susp_clk", "phyclk", "pipe_pclk";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -1617,6 +1640,10 @@
 
 			usbhost_dwc3: dwc3@15a00000 {
 				compatible = "snps,dwc3";
+				clocks = <&cmu_fsys CLK_SCLK_USBHOST30>,
+					<&cmu_fsys CLK_ACLK_USBHOST30>,
+					<&cmu_fsys CLK_SCLK_USBHOST30>;
+				clock-names = "ref", "bus_early", "suspend";
 				reg = <0x15a00000 0x10000>;
 				interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usbhost30_phy 0>, <&usbhost30_phy 1>;

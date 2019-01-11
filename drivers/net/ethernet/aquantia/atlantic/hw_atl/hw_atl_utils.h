@@ -75,7 +75,7 @@ union __packed ip_addr {
 	} v4;
 };
 
-struct __packed hw_aq_atl_utils_fw_rpc {
+struct __packed hw_atl_utils_fw_rpc {
 	u32 msg_id;
 
 	union {
@@ -101,8 +101,6 @@ struct __packed hw_aq_atl_utils_fw_rpc {
 		struct {
 			u32 priority;
 			u32 wol_packet_type;
-			u16 friendly_name_len;
-			u16 friendly_name[65];
 			u32 pattern_id;
 			u32 next_wol_pattern_offset;
 
@@ -134,26 +132,171 @@ struct __packed hw_aq_atl_utils_fw_rpc {
 					u32 pattern_offset;
 					u32 pattern_size;
 				} wol_bit_map_pattern;
+
+				struct {
+					u8 mac_addr[ETH_ALEN];
+				} wol_magic_packet_patter;
 			} wol_pattern;
 		} msg_wol;
 
 		struct {
-			u32 is_wake_on_link_down;
-			u32 is_wake_on_link_up;
-		} msg_wolink;
+			union {
+				u32 pattern_mask;
+
+				struct {
+					u32 reason_arp_v4_pkt : 1;
+					u32 reason_ipv4_ping_pkt : 1;
+					u32 reason_ipv6_ns_pkt : 1;
+					u32 reason_ipv6_ping_pkt : 1;
+					u32 reason_link_up : 1;
+					u32 reason_link_down : 1;
+					u32 reason_maximum : 1;
+				};
+			};
+
+			union {
+				u32 offload_mask;
+			};
+		} msg_enable_wakeup;
+
+		struct {
+			u32 id;
+		} msg_del_id;
 	};
 };
 
-struct __packed hw_aq_atl_utils_mbox_header {
+struct __packed hw_atl_utils_mbox_header {
 	u32 version;
 	u32 transaction_id;
 	u32 error;
 };
 
-struct __packed hw_aq_atl_utils_mbox {
-	struct hw_aq_atl_utils_mbox_header header;
-	struct hw_atl_stats_s stats;
+struct __packed hw_aq_info {
+	u8 reserved[6];
+	u16 phy_fault_code;
+	u16 phy_temperature;
+	u8 cable_len;
+	u8 reserved1;
+	u32 cable_diag_data[4];
+	u8 reserved2[32];
+	u32 caps_lo;
+	u32 caps_hi;
 };
+
+struct __packed hw_atl_utils_mbox {
+	struct hw_atl_utils_mbox_header header;
+	struct hw_atl_stats_s stats;
+	struct hw_aq_info info;
+};
+
+/* fw2x */
+typedef u32	fw_offset_t;
+
+struct __packed offload_ip_info {
+	u8 v4_local_addr_count;
+	u8 v4_addr_count;
+	u8 v6_local_addr_count;
+	u8 v6_addr_count;
+	fw_offset_t v4_addr;
+	fw_offset_t v4_prefix;
+	fw_offset_t v6_addr;
+	fw_offset_t v6_prefix;
+};
+
+struct __packed offload_port_info {
+	u16 udp_port_count;
+	u16 tcp_port_count;
+	fw_offset_t udp_port;
+	fw_offset_t tcp_port;
+};
+
+struct __packed offload_ka_info {
+	u16 v4_ka_count;
+	u16 v6_ka_count;
+	u32 retry_count;
+	u32 retry_interval;
+	fw_offset_t v4_ka;
+	fw_offset_t v6_ka;
+};
+
+struct __packed offload_rr_info {
+	u32 rr_count;
+	u32 rr_buf_len;
+	fw_offset_t rr_id_x;
+	fw_offset_t rr_buf;
+};
+
+struct __packed offload_info {
+	u32 version;
+	u32 len;
+	u8 mac_addr[ETH_ALEN];
+
+	u8 reserved[2];
+
+	struct offload_ip_info ips;
+	struct offload_port_info ports;
+	struct offload_ka_info kas;
+	struct offload_rr_info rrs;
+	u8 buf[0];
+};
+
+enum hw_atl_rx_action_with_traffic {
+	HW_ATL_RX_DISCARD,
+	HW_ATL_RX_HOST,
+};
+
+struct aq_rx_filter_vlan {
+	u8 enable;
+	u8 location;
+	u16 vlan_id;
+	u8 queue;
+};
+
+struct aq_rx_filter_l2 {
+	s8 queue;
+	u8 location;
+	u8 user_priority_en;
+	u8 user_priority;
+	u16 ethertype;
+};
+
+struct aq_rx_filter_l3l4 {
+	u32 cmd;
+	u8 location;
+	u32 ip_dst[4];
+	u32 ip_src[4];
+	u16 p_dst;
+	u16 p_src;
+	u8 is_ipv6;
+};
+
+enum hw_atl_rx_protocol_value_l3l4 {
+	HW_ATL_RX_TCP,
+	HW_ATL_RX_UDP,
+	HW_ATL_RX_SCTP,
+	HW_ATL_RX_ICMP
+};
+
+enum hw_atl_rx_ctrl_registers_l3l4 {
+	HW_ATL_RX_ENABLE_MNGMNT_QUEUE_L3L4 = BIT(22),
+	HW_ATL_RX_ENABLE_QUEUE_L3L4        = BIT(23),
+	HW_ATL_RX_ENABLE_ARP_FLTR_L3       = BIT(24),
+	HW_ATL_RX_ENABLE_CMP_PROT_L4       = BIT(25),
+	HW_ATL_RX_ENABLE_CMP_DEST_PORT_L4  = BIT(26),
+	HW_ATL_RX_ENABLE_CMP_SRC_PORT_L4   = BIT(27),
+	HW_ATL_RX_ENABLE_CMP_DEST_ADDR_L3  = BIT(28),
+	HW_ATL_RX_ENABLE_CMP_SRC_ADDR_L3   = BIT(29),
+	HW_ATL_RX_ENABLE_L3_IPV6           = BIT(30),
+	HW_ATL_RX_ENABLE_FLTR_L3L4         = BIT(31)
+};
+
+#define HW_ATL_RX_QUEUE_FL3L4_SHIFT       8U
+#define HW_ATL_RX_ACTION_FL3F4_SHIFT      16U
+
+#define HW_ATL_RX_CNT_REG_ADDR_IPV6       4U
+
+#define HW_ATL_GET_REG_LOCATION_FL3L4(location) \
+	((location) - AQ_RX_FIRST_LOC_FL3L4)
 
 #define HAL_ATLANTIC_UTILS_CHIP_MIPS         0x00000001U
 #define HAL_ATLANTIC_UTILS_CHIP_TPO2         0x00000002U
@@ -180,6 +323,21 @@ enum hal_atl_utils_fw_state_e {
 #define HAL_ATLANTIC_RATE_1G         BIT(4)
 #define HAL_ATLANTIC_RATE_100M       BIT(5)
 #define HAL_ATLANTIC_RATE_INVALID    BIT(6)
+
+#define HAL_ATLANTIC_UTILS_FW_MSG_PING          0x1U
+#define HAL_ATLANTIC_UTILS_FW_MSG_ARP           0x2U
+#define HAL_ATLANTIC_UTILS_FW_MSG_INJECT        0x3U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_ADD       0x4U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_PRIOR     0x10000000U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_PATTERN   0x1U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_MAG_PKT   0x2U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_DEL       0x5U
+#define HAL_ATLANTIC_UTILS_FW_MSG_ENABLE_WAKEUP 0x6U
+#define HAL_ATLANTIC_UTILS_FW_MSG_MSM_PFC       0x7U
+#define HAL_ATLANTIC_UTILS_FW_MSG_PROVISIONING  0x8U
+#define HAL_ATLANTIC_UTILS_FW_MSG_OFFLOAD_ADD   0x9U
+#define HAL_ATLANTIC_UTILS_FW_MSG_OFFLOAD_DEL   0xAU
+#define HAL_ATLANTIC_UTILS_FW_MSG_CABLE_DIAG    0xDU
 
 enum hw_atl_fw2x_rate {
 	FW2X_RATE_100M    = 0x20,
@@ -286,10 +444,10 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self);
 void hw_atl_utils_hw_chip_features_init(struct aq_hw_s *self, u32 *p);
 
 int hw_atl_utils_mpi_read_mbox(struct aq_hw_s *self,
-			       struct hw_aq_atl_utils_mbox_header *pmbox);
+			       struct hw_atl_utils_mbox_header *pmbox);
 
 void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
-				 struct hw_aq_atl_utils_mbox *pmbox);
+				 struct hw_atl_utils_mbox *pmbox);
 
 void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 			  enum hal_atl_utils_fw_state_e state,
@@ -316,8 +474,16 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version);
 int hw_atl_utils_update_stats(struct aq_hw_s *self);
 
 struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self);
+
 int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 				  u32 *p, u32 cnt);
+
+int hw_atl_utils_fw_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac);
+
+int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size);
+
+int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
+			     struct hw_atl_utils_fw_rpc **rpc);
 
 extern const struct aq_fw_ops aq_fw_1x_ops;
 extern const struct aq_fw_ops aq_fw_2x_ops;

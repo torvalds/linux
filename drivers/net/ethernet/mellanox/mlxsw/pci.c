@@ -718,14 +718,17 @@ static void mlxsw_pci_eq_tasklet(unsigned long data)
 	memset(&active_cqns, 0, sizeof(active_cqns));
 
 	while ((eqe = mlxsw_pci_eq_sw_eqe_get(q))) {
-		u8 event_type = mlxsw_pci_eqe_event_type_get(eqe);
 
-		switch (event_type) {
-		case MLXSW_PCI_EQE_EVENT_TYPE_CMD:
+		/* Command interface completion events are always received on
+		 * queue MLXSW_PCI_EQ_ASYNC_NUM (EQ0) and completion events
+		 * are mapped to queue MLXSW_PCI_EQ_COMP_NUM (EQ1).
+		 */
+		switch (q->num) {
+		case MLXSW_PCI_EQ_ASYNC_NUM:
 			mlxsw_pci_eq_cmd_event(mlxsw_pci, eqe);
 			q->u.eq.ev_cmd_count++;
 			break;
-		case MLXSW_PCI_EQE_EVENT_TYPE_COMP:
+		case MLXSW_PCI_EQ_COMP_NUM:
 			cqn = mlxsw_pci_eqe_cqn_get(eqe);
 			set_bit(cqn, active_cqns);
 			cq_handle = true;
@@ -1717,7 +1720,6 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	const char *driver_name = pdev->driver->name;
 	struct mlxsw_pci *mlxsw_pci;
-	bool called_again = false;
 	int err;
 
 	mlxsw_pci = kzalloc(sizeof(*mlxsw_pci), GFP_KERNEL);
@@ -1774,18 +1776,10 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mlxsw_pci->bus_info.dev = &pdev->dev;
 	mlxsw_pci->id = id;
 
-again:
 	err = mlxsw_core_bus_device_register(&mlxsw_pci->bus_info,
 					     &mlxsw_pci_bus, mlxsw_pci, false,
 					     NULL);
-	/* -EAGAIN is returned in case the FW was updated. FW needs
-	 * a reset, so lets try to call mlxsw_core_bus_device_register()
-	 * again.
-	 */
-	if (err == -EAGAIN && !called_again) {
-		called_again = true;
-		goto again;
-	} else if (err) {
+	if (err) {
 		dev_err(&pdev->dev, "cannot register bus device\n");
 		goto err_bus_device_register;
 	}

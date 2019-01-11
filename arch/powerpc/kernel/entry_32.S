@@ -200,14 +200,14 @@ transfer_to_handler:
 	cmplw	r1,r9			/* if r1 <= ksp_limit */
 	ble-	stack_ovf		/* then the kernel stack overflowed */
 5:
-#if defined(CONFIG_6xx) || defined(CONFIG_E500)
+#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
 	CURRENT_THREAD_INFO(r9, r1)
 	tophys(r9,r9)			/* check local flags */
 	lwz	r12,TI_LOCAL_FLAGS(r9)
 	mtcrf	0x01,r12
 	bt-	31-TLF_NAPPING,4f
 	bt-	31-TLF_SLEEPING,7f
-#endif /* CONFIG_6xx || CONFIG_E500 */
+#endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_E500 */
 	.globl transfer_to_handler_cont
 transfer_to_handler_cont:
 3:
@@ -273,7 +273,7 @@ reenable_mmu:				/* re-enable mmu so we can */
 	RFI				/* jump to handler, enable MMU */
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-#if defined (CONFIG_6xx) || defined(CONFIG_E500)
+#if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
 4:	rlwinm	r12,r12,0,~_TLF_NAPPING
 	stw	r12,TI_LOCAL_FLAGS(r9)
 	b	power_save_ppc32_restore
@@ -612,7 +612,7 @@ ppc_swapcontext:
 handle_page_fault:
 	stw	r4,_DAR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	andis.  r0,r5,DSISR_DABRMATCH@h
 	bne-    handle_dabr_fault
 #endif
@@ -629,7 +629,7 @@ handle_page_fault:
 	bl	bad_page_fault
 	b	ret_from_except_full
 
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	/* We have a data breakpoint exception - handle it */
 handle_dabr_fault:
 	SAVE_NVGPRS(r1)
@@ -794,7 +794,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_601)
 	lis	r10,MSR_KERNEL@h
 	ori	r10,r10,MSR_KERNEL@l
 	bl	transfer_to_handler_full
-	.long	nonrecoverable_exception
+	.long	unrecoverable_exception
 	.long	ret_from_except
 #endif
 
@@ -1297,7 +1297,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_601)
 	rlwinm	r3,r3,0,0,30
 	stw	r3,_TRAP(r1)
 4:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	nonrecoverable_exception
+	bl	unrecoverable_exception
 	/* shouldn't return */
 	b	4b
 

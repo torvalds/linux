@@ -23,7 +23,7 @@
 #include <linux/pm.h>
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/nmi.h>
 #include <linux/syscalls.h>
 #include <linux/console.h>
@@ -105,7 +105,7 @@ unsigned long image_size;
 
 void __init hibernate_image_size_init(void)
 {
-	image_size = ((totalram_pages * 2) / 5) * PAGE_SIZE;
+	image_size = ((totalram_pages() * 2) / 5) * PAGE_SIZE;
 }
 
 /*
@@ -963,7 +963,8 @@ void __init __register_nosave_region(unsigned long start_pfn,
 		BUG_ON(!region);
 	} else {
 		/* This allocation cannot fail */
-		region = memblock_virt_alloc(sizeof(struct nosave_region), 0);
+		region = memblock_alloc(sizeof(struct nosave_region),
+					SMP_CACHE_BYTES);
 	}
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;

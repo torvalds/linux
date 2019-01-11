@@ -32,7 +32,6 @@
 #include <asm/cpufeature.h>
 #include <asm/ptrace.h>
 #include <asm/memory.h>
-#include <asm/compiler.h>
 #include <asm/extable.h>
 
 #define get_ds()	(KERNEL_DS)
@@ -46,8 +45,7 @@ static inline void set_fs(mm_segment_t fs)
 	 * Prevent a mispredicted conditional call to set_fs from forwarding
 	 * the wrong address limit to access_ok under speculation.
 	 */
-	dsb(nsh);
-	isb();
+	spec_bar();
 
 	/* On user-mode return, check fs is correct */
 	set_thread_flag(TIF_FSCHECK);
@@ -97,14 +95,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 	return ret;
 }
 
-/*
- * When dealing with data aborts, watchpoints, or instruction traps we may end
- * up with a tagged userland pointer. Clear the tag to get a sane pointer to
- * pass on to access_ok(), for instance.
- */
-#define untagged_addr(addr)		sign_extend64(addr, 55)
-
-#define access_ok(type, addr, size)	__range_ok(addr, size)
+#define access_ok(addr, size)	__range_ok(addr, size)
 #define user_addr_max			get_fs
 
 #define _ASM_EXTABLE(from, to)						\
@@ -310,7 +301,7 @@ do {									\
 ({									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
 	might_fault();							\
-	if (access_ok(VERIFY_READ, __p, sizeof(*__p))) {		\
+	if (access_ok(__p, sizeof(*__p))) {				\
 		__p = uaccess_mask_ptr(__p);				\
 		__get_user_err((x), __p, (err));			\
 	} else {							\
@@ -379,7 +370,7 @@ do {									\
 ({									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
 	might_fault();							\
-	if (access_ok(VERIFY_WRITE, __p, sizeof(*__p))) {		\
+	if (access_ok(__p, sizeof(*__p))) {				\
 		__p = uaccess_mask_ptr(__p);				\
 		__put_user_err((x), __p, (err));			\
 	} else	{							\
@@ -427,7 +418,7 @@ extern unsigned long __must_check __arch_copy_in_user(void __user *to, const voi
 extern unsigned long __must_check __arch_clear_user(void __user *to, unsigned long n);
 static inline unsigned long __must_check __clear_user(void __user *to, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
+	if (access_ok(to, n))
 		n = __arch_clear_user(__uaccess_mask_ptr(to), n);
 	return n;
 }

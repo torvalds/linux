@@ -100,10 +100,6 @@ struct vpbe_config {
 struct vpbe_device;
 
 struct vpbe_device_ops {
-	/* crop cap for the display */
-	int (*g_cropcap)(struct vpbe_device *vpbe_dev,
-			 struct v4l2_cropcap *cropcap);
-
 	/* Enumerate the outputs */
 	int (*enum_outputs)(struct vpbe_device *vpbe_dev,
 			    struct v4l2_output *output);

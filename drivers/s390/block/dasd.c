@@ -1192,20 +1192,7 @@ static int dasd_hosts_show(struct seq_file *m, void *v)
 	return rc;
 }
 
-static int dasd_hosts_open(struct inode *inode, struct file *file)
-{
-	struct dasd_device *device = inode->i_private;
-
-	return single_open(file, dasd_hosts_show, device);
-}
-
-static const struct file_operations dasd_hosts_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dasd_hosts_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dasd_hosts);
 
 static void dasd_hosts_exit(struct dasd_device *device)
 {
@@ -3309,10 +3296,8 @@ dasd_exit(void)
 	dasd_proc_exit();
 #endif
 	dasd_eer_exit();
-        if (dasd_page_cache != NULL) {
-		kmem_cache_destroy(dasd_page_cache);
-		dasd_page_cache = NULL;
-	}
+	kmem_cache_destroy(dasd_page_cache);
+	dasd_page_cache = NULL;
 	dasd_gendisk_exit();
 	dasd_devmap_exit();
 	if (dasd_debug_area != NULL) {

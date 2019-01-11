@@ -1,16 +1,10 @@
-/*
- * RTC driver for Maxim MAX8997
- *
- * Copyright (C) 2013 Samsung Electronics Co.Ltd
- *
- *  based on rtc-max8998.c
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// RTC driver for Maxim MAX8997
+//
+// Copyright (C) 2013 Samsung Electronics Co.Ltd
+//
+//  based on rtc-max8998.c
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -221,7 +215,7 @@ static int max8997_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 out:
 	mutex_unlock(&info->lock);
-	return 0;
+	return ret;
 }
 
 static int max8997_rtc_stop_alarm(struct max8997_rtc_info *info)

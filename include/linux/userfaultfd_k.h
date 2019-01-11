@@ -28,7 +28,7 @@
 #define UFFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
 #define UFFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS)
 
-extern int handle_userfault(struct vm_fault *vmf, unsigned long reason);
+extern vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason);
 
 extern ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
 			    unsigned long src_start, unsigned long len,
@@ -77,7 +77,8 @@ extern void userfaultfd_unmap_complete(struct mm_struct *mm,
 #else /* CONFIG_USERFAULTFD */
 
 /* mm helpers */
-static inline int handle_userfault(struct vm_fault *vmf, unsigned long reason)
+static inline vm_fault_t handle_userfault(struct vm_fault *vmf,
+				unsigned long reason)
 {
 	return VM_FAULT_SIGBUS;
 }

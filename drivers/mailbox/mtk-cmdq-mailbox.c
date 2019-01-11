@@ -337,16 +337,7 @@ static int cmdq_remove(struct platform_device *pdev)
 {
 	struct cmdq *cmdq = platform_get_drvdata(pdev);
 
-	mbox_controller_unregister(&cmdq->mbox);
 	clk_unprepare(cmdq->clock);
-
-	if (cmdq->mbox.chans)
-		devm_kfree(&pdev->dev, cmdq->mbox.chans);
-
-	if (cmdq->thread)
-		devm_kfree(&pdev->dev, cmdq->thread);
-
-	devm_kfree(&pdev->dev, cmdq);
 
 	return 0;
 }
@@ -363,6 +354,9 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	WARN_ON(cmdq->suspended);
 
 	task = kzalloc(sizeof(*task), GFP_ATOMIC);
+	if (!task)
+		return -ENOMEM;
+
 	task->cmdq = cmdq;
 	INIT_LIST_HEAD(&task->list_entry);
 	task->pa_base = pkt->pa_base;
@@ -521,7 +515,7 @@ static int cmdq_probe(struct platform_device *pdev)
 		cmdq->mbox.chans[i].con_priv = (void *)&cmdq->thread[i];
 	}
 
-	err = mbox_controller_register(&cmdq->mbox);
+	err = devm_mbox_controller_register(dev, &cmdq->mbox);
 	if (err < 0) {
 		dev_err(dev, "failed to register mailbox: %d\n", err);
 		return err;

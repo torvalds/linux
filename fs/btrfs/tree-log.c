@@ -205,14 +205,11 @@ static int join_running_log_trans(struct btrfs_root *root)
  * until you call btrfs_end_log_trans() or it makes any future
  * log transactions wait until you call btrfs_end_log_trans()
  */
-int btrfs_pin_log_trans(struct btrfs_root *root)
+void btrfs_pin_log_trans(struct btrfs_root *root)
 {
-	int ret = -ENOENT;
-
 	mutex_lock(&root->log_mutex);
 	atomic_inc(&root->log_writers);
 	mutex_unlock(&root->log_mutex);
-	return ret;
 }
 
 /*
@@ -257,6 +254,13 @@ struct walk_control {
 
 	/* what stage of the replay code we're currently in */
 	int stage;
+
+	/*
+	 * Ignore any items from the inode currently being processed. Needs
+	 * to be set every time we find a BTRFS_INODE_ITEM_KEY and we are in
+	 * the LOG_WALK_REPLAY_INODES stage.
+	 */
+	bool ignore_cur_inode;
 
 	/* the root we are currently replaying */
 	struct btrfs_root *replay_dest;
@@ -1140,7 +1144,7 @@ next:
 	}
 	btrfs_release_path(path);
 
-	/* look for a conflicing name */
+	/* look for a conflicting name */
 	di = btrfs_lookup_dir_item(trans, root, path, btrfs_ino(dir),
 				   name, namelen, 0);
 	if (di && !IS_ERR(di)) {
@@ -2487,6 +2491,20 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 
 			inode_item = btrfs_item_ptr(eb, i,
 					    struct btrfs_inode_item);
+			/*
+			 * If we have a tmpfile (O_TMPFILE) that got fsync'ed
+			 * and never got linked before the fsync, skip it, as
+			 * replaying it is pointless since it would be deleted
+			 * later. We skip logging tmpfiles, but it's always
+			 * possible we are replaying a log created with a kernel
+			 * that used to log tmpfiles.
+			 */
+			if (btrfs_inode_nlink(eb, inode_item) == 0) {
+				wc->ignore_cur_inode = true;
+				continue;
+			} else {
+				wc->ignore_cur_inode = false;
+			}
 			ret = replay_xattr_deletes(wc->trans, root, log,
 						   path, key.objectid);
 			if (ret)
@@ -2524,16 +2542,8 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 					     root->fs_info->sectorsize);
 				ret = btrfs_drop_extents(wc->trans, root, inode,
 							 from, (u64)-1, 1);
-				/*
-				 * If the nlink count is zero here, the iput
-				 * will free the inode.  We bump it to make
-				 * sure it doesn't get freed until the link
-				 * count fixup is done.
-				 */
 				if (!ret) {
-					if (inode->i_nlink == 0)
-						inc_nlink(inode);
-					/* Update link count and nbytes. */
+					/* Update the inode's nbytes. */
 					ret = btrfs_update_inode(wc->trans,
 								 root, inode);
 				}
@@ -2547,6 +2557,9 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			if (ret)
 				break;
 		}
+
+		if (wc->ignore_cur_inode)
+			continue;
 
 		if (key.type == BTRFS_DIR_INDEX_KEY &&
 		    wc->stage == LOG_WALK_REPLAY_DIR_INDEX) {
@@ -3136,7 +3149,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	mutex_unlock(&log_root_tree->log_mutex);
 
 	/*
-	 * nobody else is going to jump in and write the the ctree
+	 * Nobody else is going to jump in and write the ctree
 	 * super here because the log_commit atomic below is protecting
 	 * us.  We must be called with a transaction handle pinning
 	 * the running transaction open, so a full commit can't hop
@@ -3188,30 +3201,21 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *log)
 {
 	int ret;
-	u64 start;
-	u64 end;
 	struct walk_control wc = {
 		.free = 1,
 		.process_func = process_one_buffer
 	};
 
 	ret = walk_log_tree(trans, log, &wc);
-	/* I don't think this can happen but just in case */
-	if (ret)
-		btrfs_abort_transaction(trans, ret);
-
-	while (1) {
-		ret = find_first_extent_bit(&log->dirty_log_pages,
-				0, &start, &end,
-				EXTENT_DIRTY | EXTENT_NEW | EXTENT_NEED_WAIT,
-				NULL);
-		if (ret)
-			break;
-
-		clear_extent_bits(&log->dirty_log_pages, start, end,
-				  EXTENT_DIRTY | EXTENT_NEW | EXTENT_NEED_WAIT);
+	if (ret) {
+		if (trans)
+			btrfs_abort_transaction(trans, ret);
+		else
+			btrfs_handle_fs_error(log->fs_info, ret, NULL);
 	}
 
+	clear_extent_bits(&log->dirty_log_pages, 0, (u64)-1,
+			  EXTENT_DIRTY | EXTENT_NEW | EXTENT_NEED_WAIT);
 	free_extent_buffer(log->node);
 	kfree(log);
 }
@@ -4367,20 +4371,33 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	struct extent_map *em, *n;
 	struct list_head extents;
 	struct extent_map_tree *tree = &inode->extent_tree;
-	u64 logged_start, logged_end;
 	u64 test_gen;
 	int ret = 0;
 	int num = 0;
 
 	INIT_LIST_HEAD(&extents);
 
-	down_write(&inode->dio_sem);
 	write_lock(&tree->lock);
 	test_gen = root->fs_info->last_trans_committed;
-	logged_start = start;
-	logged_end = end;
 
 	list_for_each_entry_safe(em, n, &tree->modified_extents, list) {
+		/*
+		 * Skip extents outside our logging range. It's important to do
+		 * it for correctness because if we don't ignore them, we may
+		 * log them before their ordered extent completes, and therefore
+		 * we could log them without logging their respective checksums
+		 * (the checksum items are added to the csum tree at the very
+		 * end of btrfs_finish_ordered_io()). Also leave such extents
+		 * outside of our range in the list, since we may have another
+		 * ranged fsync in the near future that needs them. If an extent
+		 * outside our range corresponds to a hole, log it to avoid
+		 * leaving gaps between extents (fsck will complain when we are
+		 * not using the NO_HOLES feature).
+		 */
+		if ((em->start > end || em->start + em->len <= start) &&
+		    em->block_start != EXTENT_MAP_HOLE)
+			continue;
+
 		list_del_init(&em->list);
 		/*
 		 * Just an arbitrary number, this can be really CPU intensive
@@ -4401,11 +4418,6 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags) &&
 		    em->start >= i_size_read(&inode->vfs_inode))
 			continue;
-
-		if (em->start < logged_start)
-			logged_start = em->start;
-		if ((em->start + em->len - 1) > logged_end)
-			logged_end = em->start + em->len - 1;
 
 		/* Need a ref to keep it from getting evicted from cache */
 		refcount_inc(&em->refs);
@@ -4440,7 +4452,6 @@ process:
 	}
 	WARN_ON(!list_empty(&extents));
 	write_unlock(&tree->lock);
-	up_write(&inode->dio_sem);
 
 	btrfs_release_path(path);
 	if (!ret)
@@ -4636,7 +4647,8 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 			ASSERT(len == i_size ||
 			       (len == fs_info->sectorsize &&
 				btrfs_file_extent_compression(leaf, extent) !=
-				BTRFS_COMPRESS_NONE));
+				BTRFS_COMPRESS_NONE) ||
+			       (len < i_size && i_size < fs_info->sectorsize));
 			return 0;
 		}
 
@@ -5564,9 +5576,33 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 
 			dir_inode = btrfs_iget(fs_info->sb, &inode_key,
 					       root, NULL);
-			/* If parent inode was deleted, skip it. */
-			if (IS_ERR(dir_inode))
-				continue;
+			/*
+			 * If the parent inode was deleted, return an error to
+			 * fallback to a transaction commit. This is to prevent
+			 * getting an inode that was moved from one parent A to
+			 * a parent B, got its former parent A deleted and then
+			 * it got fsync'ed, from existing at both parents after
+			 * a log replay (and the old parent still existing).
+			 * Example:
+			 *
+			 * mkdir /mnt/A
+			 * mkdir /mnt/B
+			 * touch /mnt/B/bar
+			 * sync
+			 * mv /mnt/B/bar /mnt/A/bar
+			 * mv -T /mnt/A /mnt/B
+			 * fsync /mnt/B/bar
+			 * <power fail>
+			 *
+			 * If we ignore the old parent B which got deleted,
+			 * after a log replay we would have file bar linked
+			 * at both parents and the old parent B would still
+			 * exist.
+			 */
+			if (IS_ERR(dir_inode)) {
+				ret = PTR_ERR(dir_inode);
+				goto out;
+			}
 
 			if (ctx)
 				ctx->log_new_dentries = false;
@@ -5640,7 +5676,13 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto end_no_trans;
 
-	if (btrfs_inode_in_log(inode, trans->transid)) {
+	/*
+	 * Skip already logged inodes or inodes corresponding to tmpfiles
+	 * (since logging them is pointless, a link count of 0 means they
+	 * will never be accessible).
+	 */
+	if (btrfs_inode_in_log(inode, trans->transid) ||
+	    inode->vfs_inode.i_nlink == 0) {
 		ret = BTRFS_NO_LOG_SYNC;
 		goto end_no_trans;
 	}
@@ -5714,6 +5756,22 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		ret = btrfs_log_all_parents(trans, orig_inode, ctx);
 		if (ret)
 			goto end_trans;
+	}
+
+	/*
+	 * If a new hard link was added to the inode in the current transaction
+	 * and its link count is now greater than 1, we need to fallback to a
+	 * transaction commit, otherwise we can end up not logging all its new
+	 * parents for all the hard links. Here just from the dentry used to
+	 * fsync, we can not visit the ancestor inodes for all the other hard
+	 * links to figure out if any is new, so we fallback to a transaction
+	 * commit (instead of adding a lot of complexity of scanning a btree,
+	 * since this scenario is not a common use case).
+	 */
+	if (inode->vfs_inode.i_nlink > 1 &&
+	    inode->last_link_trans > last_committed) {
+		ret = -EMLINK;
+		goto end_trans;
 	}
 
 	while (1) {
@@ -6025,14 +6083,25 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
  * Call this after adding a new name for a file and it will properly
  * update the log to reflect the new name.
  *
- * It will return zero if all goes well, and it will return 1 if a
- * full transaction commit is required.
+ * @ctx can not be NULL when @sync_log is false, and should be NULL when it's
+ * true (because it's not used).
+ *
+ * Return value depends on whether @sync_log is true or false.
+ * When true: returns BTRFS_NEED_TRANS_COMMIT if the transaction needs to be
+ *            committed by the caller, and BTRFS_DONT_NEED_TRANS_COMMIT
+ *            otherwise.
+ * When false: returns BTRFS_DONT_NEED_LOG_SYNC if the caller does not need to
+ *             to sync the log, BTRFS_NEED_LOG_SYNC if it needs to sync the log,
+ *             or BTRFS_NEED_TRANS_COMMIT if the transaction needs to be
+ *             committed (without attempting to sync the log).
  */
 int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct btrfs_inode *inode, struct btrfs_inode *old_dir,
-			struct dentry *parent)
+			struct dentry *parent,
+			bool sync_log, struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
+	int ret;
 
 	/*
 	 * this will force the logging code to walk the dentry chain
@@ -6047,9 +6116,34 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 */
 	if (inode->logged_trans <= fs_info->last_trans_committed &&
 	    (!old_dir || old_dir->logged_trans <= fs_info->last_trans_committed))
-		return 0;
+		return sync_log ? BTRFS_DONT_NEED_TRANS_COMMIT :
+			BTRFS_DONT_NEED_LOG_SYNC;
 
-	return btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
-				      LOG_INODE_EXISTS, NULL);
+	if (sync_log) {
+		struct btrfs_log_ctx ctx2;
+
+		btrfs_init_log_ctx(&ctx2, &inode->vfs_inode);
+		ret = btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
+					     LOG_INODE_EXISTS, &ctx2);
+		if (ret == BTRFS_NO_LOG_SYNC)
+			return BTRFS_DONT_NEED_TRANS_COMMIT;
+		else if (ret)
+			return BTRFS_NEED_TRANS_COMMIT;
+
+		ret = btrfs_sync_log(trans, inode->root, &ctx2);
+		if (ret)
+			return BTRFS_NEED_TRANS_COMMIT;
+		return BTRFS_DONT_NEED_TRANS_COMMIT;
+	}
+
+	ASSERT(ctx);
+	ret = btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
+				     LOG_INODE_EXISTS, ctx);
+	if (ret == BTRFS_NO_LOG_SYNC)
+		return BTRFS_DONT_NEED_LOG_SYNC;
+	else if (ret)
+		return BTRFS_NEED_TRANS_COMMIT;
+
+	return BTRFS_NEED_LOG_SYNC;
 }
 

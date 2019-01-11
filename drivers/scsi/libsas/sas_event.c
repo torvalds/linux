@@ -25,7 +25,6 @@
 #include <linux/export.h>
 #include <scsi/scsi_host.h>
 #include "sas_internal.h"
-#include "sas_dump.h"
 
 int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 {

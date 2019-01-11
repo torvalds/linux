@@ -25,6 +25,9 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/rwsem.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/vmw_vmci_defs.h>
 #include <linux/vmw_vmci_api.h>
 #include <asm/hypervisor.h>
@@ -37,20 +40,20 @@ MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
 
 /*
- * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't
- * allow wait (__GFP_RECLAIM) for NOSLEEP page allocations. Use
- * __GFP_NOWARN, to suppress page allocation failure warnings.
+ * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't allow wait
+ * (__GFP_RECLAIM) for huge page allocations. Use __GFP_NOWARN, to suppress page
+ * allocation failure warnings. Disallow access to emergency low-memory pools.
  */
-#define VMW_PAGE_ALLOC_NOSLEEP		(__GFP_HIGHMEM|__GFP_NOWARN)
+#define VMW_HUGE_PAGE_ALLOC_FLAGS	(__GFP_HIGHMEM|__GFP_NOWARN|	\
+					 __GFP_NOMEMALLOC)
 
 /*
- * Use GFP_HIGHUSER when executing in a separate kernel thread
- * context and allocation can sleep.  This is less stressful to
- * the guest memory system, since it allows the thread to block
- * while memory is reclaimed, and won't take pages from emergency
- * low-memory pools.
+ * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We allow lightweight
+ * reclamation (__GFP_NORETRY). Use __GFP_NOWARN, to suppress page allocation
+ * failure warnings. Disallow access to emergency low-memory pools.
  */
-#define VMW_PAGE_ALLOC_CANSLEEP		(GFP_HIGHUSER)
+#define VMW_PAGE_ALLOC_FLAGS		(__GFP_HIGHMEM|__GFP_NOWARN|	\
+					 __GFP_NOMEMALLOC|__GFP_NORETRY)
 
 /* Maximum number of refused pages we accumulate during inflation cycle */
 #define VMW_BALLOON_MAX_REFUSED		16
@@ -77,225 +80,420 @@ enum vmwballoon_capabilities {
 					| VMW_BALLOON_BATCHED_2M_CMDS \
 					| VMW_BALLOON_SIGNALLED_WAKEUP_CMD)
 
-#define VMW_BALLOON_2M_SHIFT		(9)
-#define VMW_BALLOON_NUM_PAGE_SIZES	(2)
+#define VMW_BALLOON_2M_ORDER		(PMD_SHIFT - PAGE_SHIFT)
 
-/*
- * Backdoor commands availability:
+enum vmballoon_page_size_type {
+	VMW_BALLOON_4K_PAGE,
+	VMW_BALLOON_2M_PAGE,
+	VMW_BALLOON_LAST_SIZE = VMW_BALLOON_2M_PAGE
+};
+
+#define VMW_BALLOON_NUM_PAGE_SIZES	(VMW_BALLOON_LAST_SIZE + 1)
+
+static const char * const vmballoon_page_size_names[] = {
+	[VMW_BALLOON_4K_PAGE]			= "4k",
+	[VMW_BALLOON_2M_PAGE]			= "2M"
+};
+
+enum vmballoon_op {
+	VMW_BALLOON_INFLATE,
+	VMW_BALLOON_DEFLATE
+};
+
+enum vmballoon_op_stat_type {
+	VMW_BALLOON_OP_STAT,
+	VMW_BALLOON_OP_FAIL_STAT
+};
+
+#define VMW_BALLOON_OP_STAT_TYPES	(VMW_BALLOON_OP_FAIL_STAT + 1)
+
+/**
+ * enum vmballoon_cmd_type - backdoor commands.
  *
- * START, GET_TARGET and GUEST_ID are always available,
+ * Availability of the commands is as followed:
  *
- * VMW_BALLOON_BASIC_CMDS:
- *	LOCK and UNLOCK commands,
- * VMW_BALLOON_BATCHED_CMDS:
- *	BATCHED_LOCK and BATCHED_UNLOCK commands.
- * VMW BALLOON_BATCHED_2M_CMDS:
- *	BATCHED_2M_LOCK and BATCHED_2M_UNLOCK commands,
- * VMW VMW_BALLOON_SIGNALLED_WAKEUP_CMD:
- *	VMW_BALLOON_CMD_VMCI_DOORBELL_SET command.
+ * %VMW_BALLOON_CMD_START, %VMW_BALLOON_CMD_GET_TARGET and
+ * %VMW_BALLOON_CMD_GUEST_ID are always available.
+ *
+ * If the host reports %VMW_BALLOON_BASIC_CMDS are supported then
+ * %VMW_BALLOON_CMD_LOCK and %VMW_BALLOON_CMD_UNLOCK commands are available.
+ *
+ * If the host reports %VMW_BALLOON_BATCHED_CMDS are supported then
+ * %VMW_BALLOON_CMD_BATCHED_LOCK and VMW_BALLOON_CMD_BATCHED_UNLOCK commands
+ * are available.
+ *
+ * If the host reports %VMW_BALLOON_BATCHED_2M_CMDS are supported then
+ * %VMW_BALLOON_CMD_BATCHED_2M_LOCK and %VMW_BALLOON_CMD_BATCHED_2M_UNLOCK
+ * are supported.
+ *
+ * If the host reports  VMW_BALLOON_SIGNALLED_WAKEUP_CMD is supported then
+ * VMW_BALLOON_CMD_VMCI_DOORBELL_SET command is supported.
+ *
+ * @VMW_BALLOON_CMD_START: Communicating supported version with the hypervisor.
+ * @VMW_BALLOON_CMD_GET_TARGET: Gets the balloon target size.
+ * @VMW_BALLOON_CMD_LOCK: Informs the hypervisor about a ballooned page.
+ * @VMW_BALLOON_CMD_UNLOCK: Informs the hypervisor about a page that is about
+ *			    to be deflated from the balloon.
+ * @VMW_BALLOON_CMD_GUEST_ID: Informs the hypervisor about the type of OS that
+ *			      runs in the VM.
+ * @VMW_BALLOON_CMD_BATCHED_LOCK: Inform the hypervisor about a batch of
+ *				  ballooned pages (up to 512).
+ * @VMW_BALLOON_CMD_BATCHED_UNLOCK: Inform the hypervisor about a batch of
+ *				  pages that are about to be deflated from the
+ *				  balloon (up to 512).
+ * @VMW_BALLOON_CMD_BATCHED_2M_LOCK: Similar to @VMW_BALLOON_CMD_BATCHED_LOCK
+ *				     for 2MB pages.
+ * @VMW_BALLOON_CMD_BATCHED_2M_UNLOCK: Similar to
+ *				       @VMW_BALLOON_CMD_BATCHED_UNLOCK for 2MB
+ *				       pages.
+ * @VMW_BALLOON_CMD_VMCI_DOORBELL_SET: A command to set doorbell notification
+ *				       that would be invoked when the balloon
+ *				       size changes.
+ * @VMW_BALLOON_CMD_LAST: Value of the last command.
  */
-#define VMW_BALLOON_CMD_START			0
-#define VMW_BALLOON_CMD_GET_TARGET		1
-#define VMW_BALLOON_CMD_LOCK			2
-#define VMW_BALLOON_CMD_UNLOCK			3
-#define VMW_BALLOON_CMD_GUEST_ID		4
-#define VMW_BALLOON_CMD_BATCHED_LOCK		6
-#define VMW_BALLOON_CMD_BATCHED_UNLOCK		7
-#define VMW_BALLOON_CMD_BATCHED_2M_LOCK		8
-#define VMW_BALLOON_CMD_BATCHED_2M_UNLOCK	9
-#define VMW_BALLOON_CMD_VMCI_DOORBELL_SET	10
+enum vmballoon_cmd_type {
+	VMW_BALLOON_CMD_START,
+	VMW_BALLOON_CMD_GET_TARGET,
+	VMW_BALLOON_CMD_LOCK,
+	VMW_BALLOON_CMD_UNLOCK,
+	VMW_BALLOON_CMD_GUEST_ID,
+	/* No command 5 */
+	VMW_BALLOON_CMD_BATCHED_LOCK = 6,
+	VMW_BALLOON_CMD_BATCHED_UNLOCK,
+	VMW_BALLOON_CMD_BATCHED_2M_LOCK,
+	VMW_BALLOON_CMD_BATCHED_2M_UNLOCK,
+	VMW_BALLOON_CMD_VMCI_DOORBELL_SET,
+	VMW_BALLOON_CMD_LAST = VMW_BALLOON_CMD_VMCI_DOORBELL_SET,
+};
 
+#define VMW_BALLOON_CMD_NUM	(VMW_BALLOON_CMD_LAST + 1)
 
-/* error codes */
-#define VMW_BALLOON_SUCCESS		        0
-#define VMW_BALLOON_FAILURE		        -1
-#define VMW_BALLOON_ERROR_CMD_INVALID	        1
-#define VMW_BALLOON_ERROR_PPN_INVALID	        2
-#define VMW_BALLOON_ERROR_PPN_LOCKED	        3
-#define VMW_BALLOON_ERROR_PPN_UNLOCKED	        4
-#define VMW_BALLOON_ERROR_PPN_PINNED	        5
-#define VMW_BALLOON_ERROR_PPN_NOTNEEDED	        6
-#define VMW_BALLOON_ERROR_RESET		        7
-#define VMW_BALLOON_ERROR_BUSY		        8
+enum vmballoon_error_codes {
+	VMW_BALLOON_SUCCESS,
+	VMW_BALLOON_ERROR_CMD_INVALID,
+	VMW_BALLOON_ERROR_PPN_INVALID,
+	VMW_BALLOON_ERROR_PPN_LOCKED,
+	VMW_BALLOON_ERROR_PPN_UNLOCKED,
+	VMW_BALLOON_ERROR_PPN_PINNED,
+	VMW_BALLOON_ERROR_PPN_NOTNEEDED,
+	VMW_BALLOON_ERROR_RESET,
+	VMW_BALLOON_ERROR_BUSY
+};
 
 #define VMW_BALLOON_SUCCESS_WITH_CAPABILITIES	(0x03000000)
 
-/* Batch page description */
+#define VMW_BALLOON_CMD_WITH_TARGET_MASK			\
+	((1UL << VMW_BALLOON_CMD_GET_TARGET)		|	\
+	 (1UL << VMW_BALLOON_CMD_LOCK)			|	\
+	 (1UL << VMW_BALLOON_CMD_UNLOCK)		|	\
+	 (1UL << VMW_BALLOON_CMD_BATCHED_LOCK)		|	\
+	 (1UL << VMW_BALLOON_CMD_BATCHED_UNLOCK)	|	\
+	 (1UL << VMW_BALLOON_CMD_BATCHED_2M_LOCK)	|	\
+	 (1UL << VMW_BALLOON_CMD_BATCHED_2M_UNLOCK))
 
-/*
- * Layout of a page in the batch page:
- *
- * +-------------+----------+--------+
- * |             |          |        |
- * | Page number | Reserved | Status |
- * |             |          |        |
- * +-------------+----------+--------+
- * 64  PAGE_SHIFT          6         0
- *
- * The reserved field should be set to 0.
- */
-#define VMW_BALLOON_BATCH_MAX_PAGES	(PAGE_SIZE / sizeof(u64))
-#define VMW_BALLOON_BATCH_STATUS_MASK	((1UL << 5) - 1)
-#define VMW_BALLOON_BATCH_PAGE_MASK	(~((1UL << PAGE_SHIFT) - 1))
-
-struct vmballoon_batch_page {
-	u64 pages[VMW_BALLOON_BATCH_MAX_PAGES];
+static const char * const vmballoon_cmd_names[] = {
+	[VMW_BALLOON_CMD_START]			= "start",
+	[VMW_BALLOON_CMD_GET_TARGET]		= "target",
+	[VMW_BALLOON_CMD_LOCK]			= "lock",
+	[VMW_BALLOON_CMD_UNLOCK]		= "unlock",
+	[VMW_BALLOON_CMD_GUEST_ID]		= "guestType",
+	[VMW_BALLOON_CMD_BATCHED_LOCK]		= "batchLock",
+	[VMW_BALLOON_CMD_BATCHED_UNLOCK]	= "batchUnlock",
+	[VMW_BALLOON_CMD_BATCHED_2M_LOCK]	= "2m-lock",
+	[VMW_BALLOON_CMD_BATCHED_2M_UNLOCK]	= "2m-unlock",
+	[VMW_BALLOON_CMD_VMCI_DOORBELL_SET]	= "doorbellSet"
 };
 
-static u64 vmballoon_batch_get_pa(struct vmballoon_batch_page *batch, int idx)
-{
-	return batch->pages[idx] & VMW_BALLOON_BATCH_PAGE_MASK;
-}
-
-static int vmballoon_batch_get_status(struct vmballoon_batch_page *batch,
-				int idx)
-{
-	return (int)(batch->pages[idx] & VMW_BALLOON_BATCH_STATUS_MASK);
-}
-
-static void vmballoon_batch_set_pa(struct vmballoon_batch_page *batch, int idx,
-				u64 pa)
-{
-	batch->pages[idx] = pa;
-}
-
-
-#define VMWARE_BALLOON_CMD(cmd, arg1, arg2, result)		\
-({								\
-	unsigned long __status, __dummy1, __dummy2, __dummy3;	\
-	__asm__ __volatile__ ("inl %%dx" :			\
-		"=a"(__status),					\
-		"=c"(__dummy1),					\
-		"=d"(__dummy2),					\
-		"=b"(result),					\
-		"=S" (__dummy3) :				\
-		"0"(VMW_BALLOON_HV_MAGIC),			\
-		"1"(VMW_BALLOON_CMD_##cmd),			\
-		"2"(VMW_BALLOON_HV_PORT),			\
-		"3"(arg1),					\
-		"4" (arg2) :					\
-		"memory");					\
-	if (VMW_BALLOON_CMD_##cmd == VMW_BALLOON_CMD_START)	\
-		result = __dummy1;				\
-	result &= -1UL;						\
-	__status & -1UL;					\
-})
-
-#ifdef CONFIG_DEBUG_FS
-struct vmballoon_stats {
-	unsigned int timer;
-	unsigned int doorbell;
-
-	/* allocation statistics */
-	unsigned int alloc[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int alloc_fail[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int sleep_alloc;
-	unsigned int sleep_alloc_fail;
-	unsigned int refused_alloc[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int refused_free[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int free[VMW_BALLOON_NUM_PAGE_SIZES];
-
-	/* monitor operations */
-	unsigned int lock[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int lock_fail[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int unlock[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int unlock_fail[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int target;
-	unsigned int target_fail;
-	unsigned int start;
-	unsigned int start_fail;
-	unsigned int guest_type;
-	unsigned int guest_type_fail;
-	unsigned int doorbell_set;
-	unsigned int doorbell_unset;
+enum vmballoon_stat_page {
+	VMW_BALLOON_PAGE_STAT_ALLOC,
+	VMW_BALLOON_PAGE_STAT_ALLOC_FAIL,
+	VMW_BALLOON_PAGE_STAT_REFUSED_ALLOC,
+	VMW_BALLOON_PAGE_STAT_REFUSED_FREE,
+	VMW_BALLOON_PAGE_STAT_FREE,
+	VMW_BALLOON_PAGE_STAT_LAST = VMW_BALLOON_PAGE_STAT_FREE
 };
 
-#define STATS_INC(stat) (stat)++
-#else
-#define STATS_INC(stat)
-#endif
+#define VMW_BALLOON_PAGE_STAT_NUM	(VMW_BALLOON_PAGE_STAT_LAST + 1)
 
-struct vmballoon;
+enum vmballoon_stat_general {
+	VMW_BALLOON_STAT_TIMER,
+	VMW_BALLOON_STAT_DOORBELL,
+	VMW_BALLOON_STAT_RESET,
+	VMW_BALLOON_STAT_LAST = VMW_BALLOON_STAT_RESET
+};
 
-struct vmballoon_ops {
-	void (*add_page)(struct vmballoon *b, int idx, struct page *p);
-	int (*lock)(struct vmballoon *b, unsigned int num_pages,
-			bool is_2m_pages, unsigned int *target);
-	int (*unlock)(struct vmballoon *b, unsigned int num_pages,
-			bool is_2m_pages, unsigned int *target);
+#define VMW_BALLOON_STAT_NUM		(VMW_BALLOON_STAT_LAST + 1)
+
+
+static DEFINE_STATIC_KEY_TRUE(vmw_balloon_batching);
+static DEFINE_STATIC_KEY_FALSE(balloon_stat_enabled);
+
+struct vmballoon_ctl {
+	struct list_head pages;
+	struct list_head refused_pages;
+	unsigned int n_refused_pages;
+	unsigned int n_pages;
+	enum vmballoon_page_size_type page_size;
+	enum vmballoon_op op;
 };
 
 struct vmballoon_page_size {
 	/* list of reserved physical pages */
 	struct list_head pages;
-
-	/* transient list of non-balloonable pages */
-	struct list_head refused_pages;
-	unsigned int n_refused_pages;
 };
+
+/**
+ * struct vmballoon_batch_entry - a batch entry for lock or unlock.
+ *
+ * @status: the status of the operation, which is written by the hypervisor.
+ * @reserved: reserved for future use. Must be set to zero.
+ * @pfn: the physical frame number of the page to be locked or unlocked.
+ */
+struct vmballoon_batch_entry {
+	u64 status : 5;
+	u64 reserved : PAGE_SHIFT - 5;
+	u64 pfn : 52;
+} __packed;
 
 struct vmballoon {
 	struct vmballoon_page_size page_sizes[VMW_BALLOON_NUM_PAGE_SIZES];
 
-	/* supported page sizes. 1 == 4k pages only, 2 == 4k and 2m pages */
-	unsigned supported_page_sizes;
+	/**
+	 * @max_page_size: maximum supported page size for ballooning.
+	 *
+	 * Protected by @conf_sem
+	 */
+	enum vmballoon_page_size_type max_page_size;
 
-	/* balloon size in pages */
-	unsigned int size;
-	unsigned int target;
+	/**
+	 * @size: balloon actual size in basic page size (frames).
+	 *
+	 * While we currently do not support size which is bigger than 32-bit,
+	 * in preparation for future support, use 64-bits.
+	 */
+	atomic64_t size;
 
-	/* reset flag */
+	/**
+	 * @target: balloon target size in basic page size (frames).
+	 *
+	 * We do not protect the target under the assumption that setting the
+	 * value is always done through a single write. If this assumption ever
+	 * breaks, we would have to use X_ONCE for accesses, and suffer the less
+	 * optimized code. Although we may read stale target value if multiple
+	 * accesses happen at once, the performance impact should be minor.
+	 */
+	unsigned long target;
+
+	/**
+	 * @reset_required: reset flag
+	 *
+	 * Setting this flag may introduce races, but the code is expected to
+	 * handle them gracefully. In the worst case, another operation will
+	 * fail as reset did not take place. Clearing the flag is done while
+	 * holding @conf_sem for write.
+	 */
 	bool reset_required;
 
+	/**
+	 * @capabilities: hypervisor balloon capabilities.
+	 *
+	 * Protected by @conf_sem.
+	 */
 	unsigned long capabilities;
 
-	struct vmballoon_batch_page *batch_page;
+	/**
+	 * @batch_page: pointer to communication batch page.
+	 *
+	 * When batching is used, batch_page points to a page, which holds up to
+	 * %VMW_BALLOON_BATCH_MAX_PAGES entries for locking or unlocking.
+	 */
+	struct vmballoon_batch_entry *batch_page;
+
+	/**
+	 * @batch_max_pages: maximum pages that can be locked/unlocked.
+	 *
+	 * Indicates the number of pages that the hypervisor can lock or unlock
+	 * at once, according to whether batching is enabled. If batching is
+	 * disabled, only a single page can be locked/unlock on each operation.
+	 *
+	 * Protected by @conf_sem.
+	 */
 	unsigned int batch_max_pages;
+
+	/**
+	 * @page: page to be locked/unlocked by the hypervisor
+	 *
+	 * @page is only used when batching is disabled and a single page is
+	 * reclaimed on each iteration.
+	 *
+	 * Protected by @comm_lock.
+	 */
 	struct page *page;
 
-	const struct vmballoon_ops *ops;
+	/* statistics */
+	struct vmballoon_stats *stats;
 
 #ifdef CONFIG_DEBUG_FS
-	/* statistics */
-	struct vmballoon_stats stats;
-
 	/* debugfs file exporting statistics */
 	struct dentry *dbg_entry;
 #endif
 
-	struct sysinfo sysinfo;
-
 	struct delayed_work dwork;
 
+	/**
+	 * @vmci_doorbell.
+	 *
+	 * Protected by @conf_sem.
+	 */
 	struct vmci_handle vmci_doorbell;
+
+	/**
+	 * @conf_sem: semaphore to protect the configuration and the statistics.
+	 */
+	struct rw_semaphore conf_sem;
+
+	/**
+	 * @comm_lock: lock to protect the communication with the host.
+	 *
+	 * Lock ordering: @conf_sem -> @comm_lock .
+	 */
+	spinlock_t comm_lock;
 };
 
 static struct vmballoon balloon;
+
+struct vmballoon_stats {
+	/* timer / doorbell operations */
+	atomic64_t general_stat[VMW_BALLOON_STAT_NUM];
+
+	/* allocation statistics for huge and small pages */
+	atomic64_t
+	       page_stat[VMW_BALLOON_PAGE_STAT_NUM][VMW_BALLOON_NUM_PAGE_SIZES];
+
+	/* Monitor operations: total operations, and failures */
+	atomic64_t ops[VMW_BALLOON_CMD_NUM][VMW_BALLOON_OP_STAT_TYPES];
+};
+
+static inline bool is_vmballoon_stats_on(void)
+{
+	return IS_ENABLED(CONFIG_DEBUG_FS) &&
+		static_branch_unlikely(&balloon_stat_enabled);
+}
+
+static inline void vmballoon_stats_op_inc(struct vmballoon *b, unsigned int op,
+					  enum vmballoon_op_stat_type type)
+{
+	if (is_vmballoon_stats_on())
+		atomic64_inc(&b->stats->ops[op][type]);
+}
+
+static inline void vmballoon_stats_gen_inc(struct vmballoon *b,
+					   enum vmballoon_stat_general stat)
+{
+	if (is_vmballoon_stats_on())
+		atomic64_inc(&b->stats->general_stat[stat]);
+}
+
+static inline void vmballoon_stats_gen_add(struct vmballoon *b,
+					   enum vmballoon_stat_general stat,
+					   unsigned int val)
+{
+	if (is_vmballoon_stats_on())
+		atomic64_add(val, &b->stats->general_stat[stat]);
+}
+
+static inline void vmballoon_stats_page_inc(struct vmballoon *b,
+					    enum vmballoon_stat_page stat,
+					    enum vmballoon_page_size_type size)
+{
+	if (is_vmballoon_stats_on())
+		atomic64_inc(&b->stats->page_stat[stat][size]);
+}
+
+static inline void vmballoon_stats_page_add(struct vmballoon *b,
+					    enum vmballoon_stat_page stat,
+					    enum vmballoon_page_size_type size,
+					    unsigned int val)
+{
+	if (is_vmballoon_stats_on())
+		atomic64_add(val, &b->stats->page_stat[stat][size]);
+}
+
+static inline unsigned long
+__vmballoon_cmd(struct vmballoon *b, unsigned long cmd, unsigned long arg1,
+		unsigned long arg2, unsigned long *result)
+{
+	unsigned long status, dummy1, dummy2, dummy3, local_result;
+
+	vmballoon_stats_op_inc(b, cmd, VMW_BALLOON_OP_STAT);
+
+	asm volatile ("inl %%dx" :
+		"=a"(status),
+		"=c"(dummy1),
+		"=d"(dummy2),
+		"=b"(local_result),
+		"=S"(dummy3) :
+		"0"(VMW_BALLOON_HV_MAGIC),
+		"1"(cmd),
+		"2"(VMW_BALLOON_HV_PORT),
+		"3"(arg1),
+		"4"(arg2) :
+		"memory");
+
+	/* update the result if needed */
+	if (result)
+		*result = (cmd == VMW_BALLOON_CMD_START) ? dummy1 :
+							   local_result;
+
+	/* update target when applicable */
+	if (status == VMW_BALLOON_SUCCESS &&
+	    ((1ul << cmd) & VMW_BALLOON_CMD_WITH_TARGET_MASK))
+		WRITE_ONCE(b->target, local_result);
+
+	if (status != VMW_BALLOON_SUCCESS &&
+	    status != VMW_BALLOON_SUCCESS_WITH_CAPABILITIES) {
+		vmballoon_stats_op_inc(b, cmd, VMW_BALLOON_OP_FAIL_STAT);
+		pr_debug("%s: %s [0x%lx,0x%lx) failed, returned %ld\n",
+			 __func__, vmballoon_cmd_names[cmd], arg1, arg2,
+			 status);
+	}
+
+	/* mark reset required accordingly */
+	if (status == VMW_BALLOON_ERROR_RESET)
+		b->reset_required = true;
+
+	return status;
+}
+
+static __always_inline unsigned long
+vmballoon_cmd(struct vmballoon *b, unsigned long cmd, unsigned long arg1,
+	      unsigned long arg2)
+{
+	unsigned long dummy;
+
+	return __vmballoon_cmd(b, cmd, arg1, arg2, &dummy);
+}
 
 /*
  * Send "start" command to the host, communicating supported version
  * of the protocol.
  */
-static bool vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
+static int vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
 {
-	unsigned long status, capabilities, dummy = 0;
-	bool success;
+	unsigned long status, capabilities;
 
-	STATS_INC(b->stats.start);
-
-	status = VMWARE_BALLOON_CMD(START, req_caps, dummy, capabilities);
+	status = __vmballoon_cmd(b, VMW_BALLOON_CMD_START, req_caps, 0,
+				 &capabilities);
 
 	switch (status) {
 	case VMW_BALLOON_SUCCESS_WITH_CAPABILITIES:
 		b->capabilities = capabilities;
-		success = true;
 		break;
 	case VMW_BALLOON_SUCCESS:
 		b->capabilities = VMW_BALLOON_BASIC_CMDS;
-		success = true;
 		break;
 	default:
-		success = false;
+		return -EIO;
 	}
 
 	/*
@@ -303,626 +501,693 @@ static bool vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
 	 * reason disabled, do not use 2MB pages, since otherwise the legacy
 	 * mechanism is used with 2MB pages, causing a failure.
 	 */
+	b->max_page_size = VMW_BALLOON_4K_PAGE;
 	if ((b->capabilities & VMW_BALLOON_BATCHED_2M_CMDS) &&
 	    (b->capabilities & VMW_BALLOON_BATCHED_CMDS))
-		b->supported_page_sizes = 2;
-	else
-		b->supported_page_sizes = 1;
+		b->max_page_size = VMW_BALLOON_2M_PAGE;
 
-	if (!success) {
-		pr_debug("%s - failed, hv returns %ld\n", __func__, status);
-		STATS_INC(b->stats.start_fail);
-	}
-	return success;
+
+	return 0;
 }
 
-static bool vmballoon_check_status(struct vmballoon *b, unsigned long status)
-{
-	switch (status) {
-	case VMW_BALLOON_SUCCESS:
-		return true;
-
-	case VMW_BALLOON_ERROR_RESET:
-		b->reset_required = true;
-		/* fall through */
-
-	default:
-		return false;
-	}
-}
-
-/*
+/**
+ * vmballoon_send_guest_id - communicate guest type to the host.
+ *
+ * @b: pointer to the balloon.
+ *
  * Communicate guest type to the host so that it can adjust ballooning
  * algorithm to the one most appropriate for the guest. This command
  * is normally issued after sending "start" command and is part of
  * standard reset sequence.
+ *
+ * Return: zero on success or appropriate error code.
  */
-static bool vmballoon_send_guest_id(struct vmballoon *b)
-{
-	unsigned long status, dummy = 0;
-
-	status = VMWARE_BALLOON_CMD(GUEST_ID, VMW_BALLOON_GUEST_ID, dummy,
-				dummy);
-
-	STATS_INC(b->stats.guest_type);
-
-	if (vmballoon_check_status(b, status))
-		return true;
-
-	pr_debug("%s - failed, hv returns %ld\n", __func__, status);
-	STATS_INC(b->stats.guest_type_fail);
-	return false;
-}
-
-static u16 vmballoon_page_size(bool is_2m_page)
-{
-	if (is_2m_page)
-		return 1 << VMW_BALLOON_2M_SHIFT;
-
-	return 1;
-}
-
-/*
- * Retrieve desired balloon size from the host.
- */
-static bool vmballoon_send_get_target(struct vmballoon *b, u32 *new_target)
+static int vmballoon_send_guest_id(struct vmballoon *b)
 {
 	unsigned long status;
-	unsigned long target;
-	unsigned long limit;
-	unsigned long dummy = 0;
-	u32 limit32;
 
-	/*
-	 * si_meminfo() is cheap. Moreover, we want to provide dynamic
-	 * max balloon size later. So let us call si_meminfo() every
-	 * iteration.
-	 */
-	si_meminfo(&b->sysinfo);
-	limit = b->sysinfo.totalram;
+	status = vmballoon_cmd(b, VMW_BALLOON_CMD_GUEST_ID,
+			       VMW_BALLOON_GUEST_ID, 0);
 
-	/* Ensure limit fits in 32-bits */
-	limit32 = (u32)limit;
-	if (limit != limit32)
-		return false;
-
-	/* update stats */
-	STATS_INC(b->stats.target);
-
-	status = VMWARE_BALLOON_CMD(GET_TARGET, limit, dummy, target);
-	if (vmballoon_check_status(b, status)) {
-		*new_target = target;
-		return true;
-	}
-
-	pr_debug("%s - failed, hv returns %ld\n", __func__, status);
-	STATS_INC(b->stats.target_fail);
-	return false;
+	return status == VMW_BALLOON_SUCCESS ? 0 : -EIO;
 }
 
-/*
- * Notify the host about allocated page so that host can use it without
- * fear that guest will need it. Host may reject some pages, we need to
- * check the return value and maybe submit a different page.
+/**
+ * vmballoon_page_order() - return the order of the page
+ * @page_size: the size of the page.
+ *
+ * Return: the allocation order.
  */
-static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
-				unsigned int *hv_status, unsigned int *target)
+static inline
+unsigned int vmballoon_page_order(enum vmballoon_page_size_type page_size)
 {
-	unsigned long status, dummy = 0;
-	u32 pfn32;
+	return page_size == VMW_BALLOON_2M_PAGE ? VMW_BALLOON_2M_ORDER : 0;
+}
 
-	pfn32 = (u32)pfn;
-	if (pfn32 != pfn)
+/**
+ * vmballoon_page_in_frames() - returns the number of frames in a page.
+ * @page_size: the size of the page.
+ *
+ * Return: the number of 4k frames.
+ */
+static inline unsigned int
+vmballoon_page_in_frames(enum vmballoon_page_size_type page_size)
+{
+	return 1 << vmballoon_page_order(page_size);
+}
+
+/**
+ * vmballoon_send_get_target() - Retrieve desired balloon size from the host.
+ *
+ * @b: pointer to the balloon.
+ *
+ * Return: zero on success, EINVAL if limit does not fit in 32-bit, as required
+ * by the host-guest protocol and EIO if an error occurred in communicating with
+ * the host.
+ */
+static int vmballoon_send_get_target(struct vmballoon *b)
+{
+	unsigned long status;
+	unsigned long limit;
+
+	limit = totalram_pages();
+
+	/* Ensure limit fits in 32-bits */
+	if (limit != (u32)limit)
 		return -EINVAL;
 
-	STATS_INC(b->stats.lock[false]);
+	status = vmballoon_cmd(b, VMW_BALLOON_CMD_GET_TARGET, limit, 0);
 
-	*hv_status = status = VMWARE_BALLOON_CMD(LOCK, pfn, dummy, *target);
-	if (vmballoon_check_status(b, status))
+	return status == VMW_BALLOON_SUCCESS ? 0 : -EIO;
+}
+
+/**
+ * vmballoon_alloc_page_list - allocates a list of pages.
+ *
+ * @b: pointer to the balloon.
+ * @ctl: pointer for the %struct vmballoon_ctl, which defines the operation.
+ * @req_n_pages: the number of requested pages.
+ *
+ * Tries to allocate @req_n_pages. Add them to the list of balloon pages in
+ * @ctl.pages and updates @ctl.n_pages to reflect the number of pages.
+ *
+ * Return: zero on success or error code otherwise.
+ */
+static int vmballoon_alloc_page_list(struct vmballoon *b,
+				     struct vmballoon_ctl *ctl,
+				     unsigned int req_n_pages)
+{
+	struct page *page;
+	unsigned int i;
+
+	for (i = 0; i < req_n_pages; i++) {
+		if (ctl->page_size == VMW_BALLOON_2M_PAGE)
+			page = alloc_pages(VMW_HUGE_PAGE_ALLOC_FLAGS,
+					   VMW_BALLOON_2M_ORDER);
+		else
+			page = alloc_page(VMW_PAGE_ALLOC_FLAGS);
+
+		/* Update statistics */
+		vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_ALLOC,
+					 ctl->page_size);
+
+		if (page) {
+			/* Success. Add the page to the list and continue. */
+			list_add(&page->lru, &ctl->pages);
+			continue;
+		}
+
+		/* Allocation failed. Update statistics and stop. */
+		vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_ALLOC_FAIL,
+					 ctl->page_size);
+		break;
+	}
+
+	ctl->n_pages = i;
+
+	return req_n_pages == ctl->n_pages ? 0 : -ENOMEM;
+}
+
+/**
+ * vmballoon_handle_one_result - Handle lock/unlock result for a single page.
+ *
+ * @b: pointer for %struct vmballoon.
+ * @page: pointer for the page whose result should be handled.
+ * @page_size: size of the page.
+ * @status: status of the operation as provided by the hypervisor.
+ */
+static int vmballoon_handle_one_result(struct vmballoon *b, struct page *page,
+				       enum vmballoon_page_size_type page_size,
+				       unsigned long status)
+{
+	/* On success do nothing. The page is already on the balloon list. */
+	if (likely(status == VMW_BALLOON_SUCCESS))
 		return 0;
 
-	pr_debug("%s - ppn %lx, hv returns %ld\n", __func__, pfn, status);
-	STATS_INC(b->stats.lock_fail[false]);
+	pr_debug("%s: failed comm pfn %lx status %lu page_size %s\n", __func__,
+		 page_to_pfn(page), status,
+		 vmballoon_page_size_names[page_size]);
+
+	/* Error occurred */
+	vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_REFUSED_ALLOC,
+				 page_size);
+
 	return -EIO;
 }
 
-static int vmballoon_send_batched_lock(struct vmballoon *b,
-		unsigned int num_pages, bool is_2m_pages, unsigned int *target)
+/**
+ * vmballoon_status_page - returns the status of (un)lock operation
+ *
+ * @b: pointer to the balloon.
+ * @idx: index for the page for which the operation is performed.
+ * @p: pointer to where the page struct is returned.
+ *
+ * Following a lock or unlock operation, returns the status of the operation for
+ * an individual page. Provides the page that the operation was performed on on
+ * the @page argument.
+ *
+ * Returns: The status of a lock or unlock operation for an individual page.
+ */
+static unsigned long vmballoon_status_page(struct vmballoon *b, int idx,
+					   struct page **p)
 {
-	unsigned long status;
-	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
+	if (static_branch_likely(&vmw_balloon_batching)) {
+		/* batching mode */
+		*p = pfn_to_page(b->batch_page[idx].pfn);
+		return b->batch_page[idx].status;
+	}
 
-	STATS_INC(b->stats.lock[is_2m_pages]);
+	/* non-batching mode */
+	*p = b->page;
 
-	if (is_2m_pages)
-		status = VMWARE_BALLOON_CMD(BATCHED_2M_LOCK, pfn, num_pages,
-				*target);
+	/*
+	 * If a failure occurs, the indication will be provided in the status
+	 * of the entire operation, which is considered before the individual
+	 * page status. So for non-batching mode, the indication is always of
+	 * success.
+	 */
+	return VMW_BALLOON_SUCCESS;
+}
+
+/**
+ * vmballoon_lock_op - notifies the host about inflated/deflated pages.
+ * @b: pointer to the balloon.
+ * @num_pages: number of inflated/deflated pages.
+ * @page_size: size of the page.
+ * @op: the type of operation (lock or unlock).
+ *
+ * Notify the host about page(s) that were ballooned (or removed from the
+ * balloon) so that host can use it without fear that guest will need it (or
+ * stop using them since the VM does). Host may reject some pages, we need to
+ * check the return value and maybe submit a different page. The pages that are
+ * inflated/deflated are pointed by @b->page.
+ *
+ * Return: result as provided by the hypervisor.
+ */
+static unsigned long vmballoon_lock_op(struct vmballoon *b,
+				       unsigned int num_pages,
+				       enum vmballoon_page_size_type page_size,
+				       enum vmballoon_op op)
+{
+	unsigned long cmd, pfn;
+
+	lockdep_assert_held(&b->comm_lock);
+
+	if (static_branch_likely(&vmw_balloon_batching)) {
+		if (op == VMW_BALLOON_INFLATE)
+			cmd = page_size == VMW_BALLOON_2M_PAGE ?
+				VMW_BALLOON_CMD_BATCHED_2M_LOCK :
+				VMW_BALLOON_CMD_BATCHED_LOCK;
+		else
+			cmd = page_size == VMW_BALLOON_2M_PAGE ?
+				VMW_BALLOON_CMD_BATCHED_2M_UNLOCK :
+				VMW_BALLOON_CMD_BATCHED_UNLOCK;
+
+		pfn = PHYS_PFN(virt_to_phys(b->batch_page));
+	} else {
+		cmd = op == VMW_BALLOON_INFLATE ? VMW_BALLOON_CMD_LOCK :
+						  VMW_BALLOON_CMD_UNLOCK;
+		pfn = page_to_pfn(b->page);
+
+		/* In non-batching mode, PFNs must fit in 32-bit */
+		if (unlikely(pfn != (u32)pfn))
+			return VMW_BALLOON_ERROR_PPN_INVALID;
+	}
+
+	return vmballoon_cmd(b, cmd, pfn, num_pages);
+}
+
+/**
+ * vmballoon_add_page - adds a page towards lock/unlock operation.
+ *
+ * @b: pointer to the balloon.
+ * @idx: index of the page to be ballooned in this batch.
+ * @p: pointer to the page that is about to be ballooned.
+ *
+ * Adds the page to be ballooned. Must be called while holding @comm_lock.
+ */
+static void vmballoon_add_page(struct vmballoon *b, unsigned int idx,
+			       struct page *p)
+{
+	lockdep_assert_held(&b->comm_lock);
+
+	if (static_branch_likely(&vmw_balloon_batching))
+		b->batch_page[idx] = (struct vmballoon_batch_entry)
+					{ .pfn = page_to_pfn(p) };
 	else
-		status = VMWARE_BALLOON_CMD(BATCHED_LOCK, pfn, num_pages,
-				*target);
+		b->page = p;
+}
 
-	if (vmballoon_check_status(b, status))
+/**
+ * vmballoon_lock - lock or unlock a batch of pages.
+ *
+ * @b: pointer to the balloon.
+ * @ctl: pointer for the %struct vmballoon_ctl, which defines the operation.
+ *
+ * Notifies the host of about ballooned pages (after inflation or deflation,
+ * according to @ctl). If the host rejects the page put it on the
+ * @ctl refuse list. These refused page are then released when moving to the
+ * next size of pages.
+ *
+ * Note that we neither free any @page here nor put them back on the ballooned
+ * pages list. Instead we queue it for later processing. We do that for several
+ * reasons. First, we do not want to free the page under the lock. Second, it
+ * allows us to unify the handling of lock and unlock. In the inflate case, the
+ * caller will check if there are too many refused pages and release them.
+ * Although it is not identical to the past behavior, it should not affect
+ * performance.
+ */
+static int vmballoon_lock(struct vmballoon *b, struct vmballoon_ctl *ctl)
+{
+	unsigned long batch_status;
+	struct page *page;
+	unsigned int i, num_pages;
+
+	num_pages = ctl->n_pages;
+	if (num_pages == 0)
 		return 0;
 
-	pr_debug("%s - batch ppn %lx, hv returns %ld\n", __func__, pfn, status);
-	STATS_INC(b->stats.lock_fail[is_2m_pages]);
-	return 1;
-}
+	/* communication with the host is done under the communication lock */
+	spin_lock(&b->comm_lock);
 
-/*
- * Notify the host that guest intends to release given page back into
- * the pool of available (to the guest) pages.
- */
-static bool vmballoon_send_unlock_page(struct vmballoon *b, unsigned long pfn,
-							unsigned int *target)
-{
-	unsigned long status, dummy = 0;
-	u32 pfn32;
+	i = 0;
+	list_for_each_entry(page, &ctl->pages, lru)
+		vmballoon_add_page(b, i++, page);
 
-	pfn32 = (u32)pfn;
-	if (pfn32 != pfn)
-		return false;
+	batch_status = vmballoon_lock_op(b, ctl->n_pages, ctl->page_size,
+					 ctl->op);
 
-	STATS_INC(b->stats.unlock[false]);
+	/*
+	 * Iterate over the pages in the provided list. Since we are changing
+	 * @ctl->n_pages we are saving the original value in @num_pages and
+	 * use this value to bound the loop.
+	 */
+	for (i = 0; i < num_pages; i++) {
+		unsigned long status;
 
-	status = VMWARE_BALLOON_CMD(UNLOCK, pfn, dummy, *target);
-	if (vmballoon_check_status(b, status))
-		return true;
-
-	pr_debug("%s - ppn %lx, hv returns %ld\n", __func__, pfn, status);
-	STATS_INC(b->stats.unlock_fail[false]);
-	return false;
-}
-
-static bool vmballoon_send_batched_unlock(struct vmballoon *b,
-		unsigned int num_pages, bool is_2m_pages, unsigned int *target)
-{
-	unsigned long status;
-	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
-
-	STATS_INC(b->stats.unlock[is_2m_pages]);
-
-	if (is_2m_pages)
-		status = VMWARE_BALLOON_CMD(BATCHED_2M_UNLOCK, pfn, num_pages,
-				*target);
-	else
-		status = VMWARE_BALLOON_CMD(BATCHED_UNLOCK, pfn, num_pages,
-				*target);
-
-	if (vmballoon_check_status(b, status))
-		return true;
-
-	pr_debug("%s - batch ppn %lx, hv returns %ld\n", __func__, pfn, status);
-	STATS_INC(b->stats.unlock_fail[is_2m_pages]);
-	return false;
-}
-
-static struct page *vmballoon_alloc_page(gfp_t flags, bool is_2m_page)
-{
-	if (is_2m_page)
-		return alloc_pages(flags, VMW_BALLOON_2M_SHIFT);
-
-	return alloc_page(flags);
-}
-
-static void vmballoon_free_page(struct page *page, bool is_2m_page)
-{
-	if (is_2m_page)
-		__free_pages(page, VMW_BALLOON_2M_SHIFT);
-	else
-		__free_page(page);
-}
-
-/*
- * Quickly release all pages allocated for the balloon. This function is
- * called when host decides to "reset" balloon for one reason or another.
- * Unlike normal "deflate" we do not (shall not) notify host of the pages
- * being released.
- */
-static void vmballoon_pop(struct vmballoon *b)
-{
-	struct page *page, *next;
-	unsigned is_2m_pages;
-
-	for (is_2m_pages = 0; is_2m_pages < VMW_BALLOON_NUM_PAGE_SIZES;
-			is_2m_pages++) {
-		struct vmballoon_page_size *page_size =
-				&b->page_sizes[is_2m_pages];
-		u16 size_per_page = vmballoon_page_size(is_2m_pages);
-
-		list_for_each_entry_safe(page, next, &page_size->pages, lru) {
-			list_del(&page->lru);
-			vmballoon_free_page(page, is_2m_pages);
-			STATS_INC(b->stats.free[is_2m_pages]);
-			b->size -= size_per_page;
-			cond_resched();
-		}
-	}
-
-	/* Clearing the batch_page unconditionally has no adverse effect */
-	free_page((unsigned long)b->batch_page);
-	b->batch_page = NULL;
-}
-
-/*
- * Notify the host of a ballooned page. If host rejects the page put it on the
- * refuse list, those refused page are then released at the end of the
- * inflation cycle.
- */
-static int vmballoon_lock_page(struct vmballoon *b, unsigned int num_pages,
-				bool is_2m_pages, unsigned int *target)
-{
-	int locked, hv_status;
-	struct page *page = b->page;
-	struct vmballoon_page_size *page_size = &b->page_sizes[false];
-
-	/* is_2m_pages can never happen as 2m pages support implies batching */
-
-	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status,
-								target);
-	if (locked) {
-		STATS_INC(b->stats.refused_alloc[false]);
-
-		if (locked == -EIO &&
-		    (hv_status == VMW_BALLOON_ERROR_RESET ||
-		     hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED)) {
-			vmballoon_free_page(page, false);
-			return -EIO;
-		}
+		status = vmballoon_status_page(b, i, &page);
 
 		/*
-		 * Place page on the list of non-balloonable pages
-		 * and retry allocation, unless we already accumulated
-		 * too many of them, in which case take a breather.
+		 * Failure of the whole batch overrides a single operation
+		 * results.
 		 */
-		if (page_size->n_refused_pages < VMW_BALLOON_MAX_REFUSED) {
-			page_size->n_refused_pages++;
-			list_add(&page->lru, &page_size->refused_pages);
-		} else {
-			vmballoon_free_page(page, false);
-		}
-		return locked;
+		if (batch_status != VMW_BALLOON_SUCCESS)
+			status = batch_status;
+
+		/* Continue if no error happened */
+		if (!vmballoon_handle_one_result(b, page, ctl->page_size,
+						 status))
+			continue;
+
+		/*
+		 * Error happened. Move the pages to the refused list and update
+		 * the pages number.
+		 */
+		list_move(&page->lru, &ctl->refused_pages);
+		ctl->n_pages--;
+		ctl->n_refused_pages++;
 	}
 
-	/* track allocated page */
-	list_add(&page->lru, &page_size->pages);
+	spin_unlock(&b->comm_lock);
 
-	/* update balloon size */
-	b->size++;
-
-	return 0;
+	return batch_status == VMW_BALLOON_SUCCESS ? 0 : -EIO;
 }
 
-static int vmballoon_lock_batched_page(struct vmballoon *b,
-		unsigned int num_pages, bool is_2m_pages, unsigned int *target)
-{
-	int locked, i;
-	u16 size_per_page = vmballoon_page_size(is_2m_pages);
-
-	locked = vmballoon_send_batched_lock(b, num_pages, is_2m_pages,
-			target);
-	if (locked > 0) {
-		for (i = 0; i < num_pages; i++) {
-			u64 pa = vmballoon_batch_get_pa(b->batch_page, i);
-			struct page *p = pfn_to_page(pa >> PAGE_SHIFT);
-
-			vmballoon_free_page(p, is_2m_pages);
-		}
-
-		return -EIO;
-	}
-
-	for (i = 0; i < num_pages; i++) {
-		u64 pa = vmballoon_batch_get_pa(b->batch_page, i);
-		struct page *p = pfn_to_page(pa >> PAGE_SHIFT);
-		struct vmballoon_page_size *page_size =
-				&b->page_sizes[is_2m_pages];
-
-		locked = vmballoon_batch_get_status(b->batch_page, i);
-
-		switch (locked) {
-		case VMW_BALLOON_SUCCESS:
-			list_add(&p->lru, &page_size->pages);
-			b->size += size_per_page;
-			break;
-		case VMW_BALLOON_ERROR_PPN_PINNED:
-		case VMW_BALLOON_ERROR_PPN_INVALID:
-			if (page_size->n_refused_pages
-					< VMW_BALLOON_MAX_REFUSED) {
-				list_add(&p->lru, &page_size->refused_pages);
-				page_size->n_refused_pages++;
-				break;
-			}
-			/* Fallthrough */
-		case VMW_BALLOON_ERROR_RESET:
-		case VMW_BALLOON_ERROR_PPN_NOTNEEDED:
-			vmballoon_free_page(p, is_2m_pages);
-			break;
-		default:
-			/* This should never happen */
-			WARN_ON_ONCE(true);
-		}
-	}
-
-	return 0;
-}
-
-/*
- * Release the page allocated for the balloon. Note that we first notify
- * the host so it can make sure the page will be available for the guest
- * to use, if needed.
+/**
+ * vmballoon_release_page_list() - Releases a page list
+ *
+ * @page_list: list of pages to release.
+ * @n_pages: pointer to the number of pages.
+ * @page_size: whether the pages in the list are 2MB (or else 4KB).
+ *
+ * Releases the list of pages and zeros the number of pages.
  */
-static int vmballoon_unlock_page(struct vmballoon *b, unsigned int num_pages,
-		bool is_2m_pages, unsigned int *target)
+static void vmballoon_release_page_list(struct list_head *page_list,
+				       int *n_pages,
+				       enum vmballoon_page_size_type page_size)
 {
-	struct page *page = b->page;
-	struct vmballoon_page_size *page_size = &b->page_sizes[false];
+	struct page *page, *tmp;
 
-	/* is_2m_pages can never happen as 2m pages support implies batching */
-
-	if (!vmballoon_send_unlock_page(b, page_to_pfn(page), target)) {
-		list_add(&page->lru, &page_size->pages);
-		return -EIO;
+	list_for_each_entry_safe(page, tmp, page_list, lru) {
+		list_del(&page->lru);
+		__free_pages(page, vmballoon_page_order(page_size));
 	}
 
-	/* deallocate page */
-	vmballoon_free_page(page, false);
-	STATS_INC(b->stats.free[false]);
-
-	/* update balloon size */
-	b->size--;
-
-	return 0;
+	*n_pages = 0;
 }
 
-static int vmballoon_unlock_batched_page(struct vmballoon *b,
-				unsigned int num_pages, bool is_2m_pages,
-				unsigned int *target)
-{
-	int locked, i, ret = 0;
-	bool hv_success;
-	u16 size_per_page = vmballoon_page_size(is_2m_pages);
-
-	hv_success = vmballoon_send_batched_unlock(b, num_pages, is_2m_pages,
-			target);
-	if (!hv_success)
-		ret = -EIO;
-
-	for (i = 0; i < num_pages; i++) {
-		u64 pa = vmballoon_batch_get_pa(b->batch_page, i);
-		struct page *p = pfn_to_page(pa >> PAGE_SHIFT);
-		struct vmballoon_page_size *page_size =
-				&b->page_sizes[is_2m_pages];
-
-		locked = vmballoon_batch_get_status(b->batch_page, i);
-		if (!hv_success || locked != VMW_BALLOON_SUCCESS) {
-			/*
-			 * That page wasn't successfully unlocked by the
-			 * hypervisor, re-add it to the list of pages owned by
-			 * the balloon driver.
-			 */
-			list_add(&p->lru, &page_size->pages);
-		} else {
-			/* deallocate page */
-			vmballoon_free_page(p, is_2m_pages);
-			STATS_INC(b->stats.free[is_2m_pages]);
-
-			/* update balloon size */
-			b->size -= size_per_page;
-		}
-	}
-
-	return ret;
-}
 
 /*
  * Release pages that were allocated while attempting to inflate the
  * balloon but were refused by the host for one reason or another.
  */
 static void vmballoon_release_refused_pages(struct vmballoon *b,
-		bool is_2m_pages)
+					    struct vmballoon_ctl *ctl)
 {
-	struct page *page, *next;
-	struct vmballoon_page_size *page_size =
-			&b->page_sizes[is_2m_pages];
+	vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_REFUSED_FREE,
+				 ctl->page_size);
 
-	list_for_each_entry_safe(page, next, &page_size->refused_pages, lru) {
-		list_del(&page->lru);
-		vmballoon_free_page(page, is_2m_pages);
-		STATS_INC(b->stats.refused_free[is_2m_pages]);
+	vmballoon_release_page_list(&ctl->refused_pages, &ctl->n_refused_pages,
+				    ctl->page_size);
+}
+
+/**
+ * vmballoon_change - retrieve the required balloon change
+ *
+ * @b: pointer for the balloon.
+ *
+ * Return: the required change for the balloon size. A positive number
+ * indicates inflation, a negative number indicates a deflation.
+ */
+static int64_t vmballoon_change(struct vmballoon *b)
+{
+	int64_t size, target;
+
+	size = atomic64_read(&b->size);
+	target = READ_ONCE(b->target);
+
+	/*
+	 * We must cast first because of int sizes
+	 * Otherwise we might get huge positives instead of negatives
+	 */
+
+	if (b->reset_required)
+		return 0;
+
+	/* consider a 2MB slack on deflate, unless the balloon is emptied */
+	if (target < size && target != 0 &&
+	    size - target < vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE))
+		return 0;
+
+	return target - size;
+}
+
+/**
+ * vmballoon_enqueue_page_list() - Enqueues list of pages after inflation.
+ *
+ * @b: pointer to balloon.
+ * @pages: list of pages to enqueue.
+ * @n_pages: pointer to number of pages in list. The value is zeroed.
+ * @page_size: whether the pages are 2MB or 4KB pages.
+ *
+ * Enqueues the provides list of pages in the ballooned page list, clears the
+ * list and zeroes the number of pages that was provided.
+ */
+static void vmballoon_enqueue_page_list(struct vmballoon *b,
+					struct list_head *pages,
+					unsigned int *n_pages,
+					enum vmballoon_page_size_type page_size)
+{
+	struct vmballoon_page_size *page_size_info = &b->page_sizes[page_size];
+
+	list_splice_init(pages, &page_size_info->pages);
+	*n_pages = 0;
+}
+
+/**
+ * vmballoon_dequeue_page_list() - Dequeues page lists for deflation.
+ *
+ * @b: pointer to balloon.
+ * @pages: list of pages to enqueue.
+ * @n_pages: pointer to number of pages in list. The value is zeroed.
+ * @page_size: whether the pages are 2MB or 4KB pages.
+ * @n_req_pages: the number of requested pages.
+ *
+ * Dequeues the number of requested pages from the balloon for deflation. The
+ * number of dequeued pages may be lower, if not enough pages in the requested
+ * size are available.
+ */
+static void vmballoon_dequeue_page_list(struct vmballoon *b,
+					struct list_head *pages,
+					unsigned int *n_pages,
+					enum vmballoon_page_size_type page_size,
+					unsigned int n_req_pages)
+{
+	struct vmballoon_page_size *page_size_info = &b->page_sizes[page_size];
+	struct page *page, *tmp;
+	unsigned int i = 0;
+
+	list_for_each_entry_safe(page, tmp, &page_size_info->pages, lru) {
+		list_move(&page->lru, pages);
+		if (++i == n_req_pages)
+			break;
 	}
-
-	page_size->n_refused_pages = 0;
+	*n_pages = i;
 }
 
-static void vmballoon_add_page(struct vmballoon *b, int idx, struct page *p)
-{
-	b->page = p;
-}
-
-static void vmballoon_add_batched_page(struct vmballoon *b, int idx,
-				struct page *p)
-{
-	vmballoon_batch_set_pa(b->batch_page, idx,
-			(u64)page_to_pfn(p) << PAGE_SHIFT);
-}
-
-/*
- * Inflate the balloon towards its target size. Note that we try to limit
- * the rate of allocation to make sure we are not choking the rest of the
- * system.
+/**
+ * vmballoon_inflate() - Inflate the balloon towards its target size.
+ *
+ * @b: pointer to the balloon.
  */
 static void vmballoon_inflate(struct vmballoon *b)
 {
-	unsigned int num_pages = 0;
-	int error = 0;
-	gfp_t flags = VMW_PAGE_ALLOC_NOSLEEP;
-	bool is_2m_pages;
+	int64_t to_inflate_frames;
+	struct vmballoon_ctl ctl = {
+		.pages = LIST_HEAD_INIT(ctl.pages),
+		.refused_pages = LIST_HEAD_INIT(ctl.refused_pages),
+		.page_size = b->max_page_size,
+		.op = VMW_BALLOON_INFLATE
+	};
 
-	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
+	while ((to_inflate_frames = vmballoon_change(b)) > 0) {
+		unsigned int to_inflate_pages, page_in_frames;
+		int alloc_error, lock_error = 0;
 
-	/*
-	 * First try NOSLEEP page allocations to inflate balloon.
-	 *
-	 * If we do not throttle nosleep allocations, we can drain all
-	 * free pages in the guest quickly (if the balloon target is high).
-	 * As a side-effect, draining free pages helps to inform (force)
-	 * the guest to start swapping if balloon target is not met yet,
-	 * which is a desired behavior. However, balloon driver can consume
-	 * all available CPU cycles if too many pages are allocated in a
-	 * second. Therefore, we throttle nosleep allocations even when
-	 * the guest is not under memory pressure. OTOH, if we have already
-	 * predicted that the guest is under memory pressure, then we
-	 * slowdown page allocations considerably.
-	 */
+		VM_BUG_ON(!list_empty(&ctl.pages));
+		VM_BUG_ON(ctl.n_pages != 0);
 
-	/*
-	 * Start with no sleep allocation rate which may be higher
-	 * than sleeping allocation rate.
-	 */
-	is_2m_pages = b->supported_page_sizes == VMW_BALLOON_NUM_PAGE_SIZES;
+		page_in_frames = vmballoon_page_in_frames(ctl.page_size);
 
-	pr_debug("%s - goal: %d",  __func__, b->target - b->size);
+		to_inflate_pages = min_t(unsigned long, b->batch_max_pages,
+					 DIV_ROUND_UP_ULL(to_inflate_frames,
+							  page_in_frames));
 
-	while (!b->reset_required &&
-		b->size + num_pages * vmballoon_page_size(is_2m_pages)
-		< b->target) {
-		struct page *page;
+		/* Start by allocating */
+		alloc_error = vmballoon_alloc_page_list(b, &ctl,
+							to_inflate_pages);
 
-		if (flags == VMW_PAGE_ALLOC_NOSLEEP)
-			STATS_INC(b->stats.alloc[is_2m_pages]);
-		else
-			STATS_INC(b->stats.sleep_alloc);
+		/* Actually lock the pages by telling the hypervisor */
+		lock_error = vmballoon_lock(b, &ctl);
 
-		page = vmballoon_alloc_page(flags, is_2m_pages);
-		if (!page) {
-			STATS_INC(b->stats.alloc_fail[is_2m_pages]);
+		/*
+		 * If an error indicates that something serious went wrong,
+		 * stop the inflation.
+		 */
+		if (lock_error)
+			break;
 
-			if (is_2m_pages) {
-				b->ops->lock(b, num_pages, true, &b->target);
+		/* Update the balloon size */
+		atomic64_add(ctl.n_pages * page_in_frames, &b->size);
 
-				/*
-				 * ignore errors from locking as we now switch
-				 * to 4k pages and we might get different
-				 * errors.
-				 */
+		vmballoon_enqueue_page_list(b, &ctl.pages, &ctl.n_pages,
+					    ctl.page_size);
 
-				num_pages = 0;
-				is_2m_pages = false;
-				continue;
-			}
-
-			if (flags == VMW_PAGE_ALLOC_CANSLEEP) {
-				/*
-				 * CANSLEEP page allocation failed, so guest
-				 * is under severe memory pressure. We just log
-				 * the event, but do not stop the inflation
-				 * due to its negative impact on performance.
-				 */
-				STATS_INC(b->stats.sleep_alloc_fail);
+		/*
+		 * If allocation failed or the number of refused pages exceeds
+		 * the maximum allowed, move to the next page size.
+		 */
+		if (alloc_error ||
+		    ctl.n_refused_pages >= VMW_BALLOON_MAX_REFUSED) {
+			if (ctl.page_size == VMW_BALLOON_4K_PAGE)
 				break;
-			}
 
 			/*
-			 * NOSLEEP page allocation failed, so the guest is
-			 * under memory pressure. Slowing down page alloctions
-			 * seems to be reasonable, but doing so might actually
-			 * cause the hypervisor to throttle us down, resulting
-			 * in degraded performance. We will count on the
-			 * scheduler and standard memory management mechanisms
-			 * for now.
+			 * Ignore errors from locking as we now switch to 4k
+			 * pages and we might get different errors.
 			 */
-			flags = VMW_PAGE_ALLOC_CANSLEEP;
-			continue;
-		}
-
-		b->ops->add_page(b, num_pages++, page);
-		if (num_pages == b->batch_max_pages) {
-			error = b->ops->lock(b, num_pages, is_2m_pages,
-					&b->target);
-			num_pages = 0;
-			if (error)
-				break;
+			vmballoon_release_refused_pages(b, &ctl);
+			ctl.page_size--;
 		}
 
 		cond_resched();
 	}
 
-	if (num_pages > 0)
-		b->ops->lock(b, num_pages, is_2m_pages, &b->target);
-
-	vmballoon_release_refused_pages(b, true);
-	vmballoon_release_refused_pages(b, false);
+	/*
+	 * Release pages that were allocated while attempting to inflate the
+	 * balloon but were refused by the host for one reason or another,
+	 * and update the statistics.
+	 */
+	if (ctl.n_refused_pages != 0)
+		vmballoon_release_refused_pages(b, &ctl);
 }
 
-/*
+/**
+ * vmballoon_deflate() - Decrease the size of the balloon.
+ *
+ * @b: pointer to the balloon
+ * @n_frames: the number of frames to deflate. If zero, automatically
+ * calculated according to the target size.
+ * @coordinated: whether to coordinate with the host
+ *
  * Decrease the size of the balloon allowing guest to use more memory.
+ *
+ * Return: The number of deflated frames (i.e., basic page size units)
  */
-static void vmballoon_deflate(struct vmballoon *b)
+static unsigned long vmballoon_deflate(struct vmballoon *b, uint64_t n_frames,
+				       bool coordinated)
 {
-	unsigned is_2m_pages;
-
-	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
+	unsigned long deflated_frames = 0;
+	unsigned long tried_frames = 0;
+	struct vmballoon_ctl ctl = {
+		.pages = LIST_HEAD_INIT(ctl.pages),
+		.refused_pages = LIST_HEAD_INIT(ctl.refused_pages),
+		.page_size = VMW_BALLOON_4K_PAGE,
+		.op = VMW_BALLOON_DEFLATE
+	};
 
 	/* free pages to reach target */
-	for (is_2m_pages = 0; is_2m_pages < b->supported_page_sizes;
-			is_2m_pages++) {
-		struct page *page, *next;
-		unsigned int num_pages = 0;
-		struct vmballoon_page_size *page_size =
-				&b->page_sizes[is_2m_pages];
+	while (true) {
+		unsigned int to_deflate_pages, n_unlocked_frames;
+		unsigned int page_in_frames;
+		int64_t to_deflate_frames;
+		bool deflated_all;
 
-		list_for_each_entry_safe(page, next, &page_size->pages, lru) {
-			if (b->reset_required ||
-				(b->target > 0 &&
-					b->size - num_pages
-					* vmballoon_page_size(is_2m_pages)
-				< b->target + vmballoon_page_size(true)))
+		page_in_frames = vmballoon_page_in_frames(ctl.page_size);
+
+		VM_BUG_ON(!list_empty(&ctl.pages));
+		VM_BUG_ON(ctl.n_pages);
+		VM_BUG_ON(!list_empty(&ctl.refused_pages));
+		VM_BUG_ON(ctl.n_refused_pages);
+
+		/*
+		 * If we were requested a specific number of frames, we try to
+		 * deflate this number of frames. Otherwise, deflation is
+		 * performed according to the target and balloon size.
+		 */
+		to_deflate_frames = n_frames ? n_frames - tried_frames :
+					       -vmballoon_change(b);
+
+		/* break if no work to do */
+		if (to_deflate_frames <= 0)
+			break;
+
+		/*
+		 * Calculate the number of frames based on current page size,
+		 * but limit the deflated frames to a single chunk
+		 */
+		to_deflate_pages = min_t(unsigned long, b->batch_max_pages,
+					 DIV_ROUND_UP_ULL(to_deflate_frames,
+							  page_in_frames));
+
+		/* First take the pages from the balloon pages. */
+		vmballoon_dequeue_page_list(b, &ctl.pages, &ctl.n_pages,
+					    ctl.page_size, to_deflate_pages);
+
+		/*
+		 * Before pages are moving to the refused list, count their
+		 * frames as frames that we tried to deflate.
+		 */
+		tried_frames += ctl.n_pages * page_in_frames;
+
+		/*
+		 * Unlock the pages by communicating with the hypervisor if the
+		 * communication is coordinated (i.e., not pop). We ignore the
+		 * return code. Instead we check if all the pages we manage to
+		 * unlock all the pages. If we failed, we will move to the next
+		 * page size, and would eventually try again later.
+		 */
+		if (coordinated)
+			vmballoon_lock(b, &ctl);
+
+		/*
+		 * Check if we deflated enough. We will move to the next page
+		 * size if we did not manage to do so. This calculation takes
+		 * place now, as once the pages are released, the number of
+		 * pages is zeroed.
+		 */
+		deflated_all = (ctl.n_pages == to_deflate_pages);
+
+		/* Update local and global counters */
+		n_unlocked_frames = ctl.n_pages * page_in_frames;
+		atomic64_sub(n_unlocked_frames, &b->size);
+		deflated_frames += n_unlocked_frames;
+
+		vmballoon_stats_page_add(b, VMW_BALLOON_PAGE_STAT_FREE,
+					 ctl.page_size, ctl.n_pages);
+
+		/* free the ballooned pages */
+		vmballoon_release_page_list(&ctl.pages, &ctl.n_pages,
+					    ctl.page_size);
+
+		/* Return the refused pages to the ballooned list. */
+		vmballoon_enqueue_page_list(b, &ctl.refused_pages,
+					    &ctl.n_refused_pages,
+					    ctl.page_size);
+
+		/* If we failed to unlock all the pages, move to next size. */
+		if (!deflated_all) {
+			if (ctl.page_size == b->max_page_size)
 				break;
-
-			list_del(&page->lru);
-			b->ops->add_page(b, num_pages++, page);
-
-			if (num_pages == b->batch_max_pages) {
-				int error;
-
-				error = b->ops->unlock(b, num_pages,
-						is_2m_pages, &b->target);
-				num_pages = 0;
-				if (error)
-					return;
-			}
-
-			cond_resched();
+			ctl.page_size++;
 		}
 
-		if (num_pages > 0)
-			b->ops->unlock(b, num_pages, is_2m_pages, &b->target);
+		cond_resched();
 	}
+
+	return deflated_frames;
 }
 
-static const struct vmballoon_ops vmballoon_basic_ops = {
-	.add_page = vmballoon_add_page,
-	.lock = vmballoon_lock_page,
-	.unlock = vmballoon_unlock_page
-};
+/**
+ * vmballoon_deinit_batching - disables batching mode.
+ *
+ * @b: pointer to &struct vmballoon.
+ *
+ * Disables batching, by deallocating the page for communication with the
+ * hypervisor and disabling the static key to indicate that batching is off.
+ */
+static void vmballoon_deinit_batching(struct vmballoon *b)
+{
+	free_page((unsigned long)b->batch_page);
+	b->batch_page = NULL;
+	static_branch_disable(&vmw_balloon_batching);
+	b->batch_max_pages = 1;
+}
 
-static const struct vmballoon_ops vmballoon_batched_ops = {
-	.add_page = vmballoon_add_batched_page,
-	.lock = vmballoon_lock_batched_page,
-	.unlock = vmballoon_unlock_batched_page
-};
-
-static bool vmballoon_init_batching(struct vmballoon *b)
+/**
+ * vmballoon_init_batching - enable batching mode.
+ *
+ * @b: pointer to &struct vmballoon.
+ *
+ * Enables batching, by allocating a page for communication with the hypervisor
+ * and enabling the static_key to use batching.
+ *
+ * Return: zero on success or an appropriate error-code.
+ */
+static int vmballoon_init_batching(struct vmballoon *b)
 {
 	struct page *page;
 
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page)
-		return false;
+		return -ENOMEM;
 
 	b->batch_page = page_address(page);
-	return true;
+	b->batch_max_pages = PAGE_SIZE / sizeof(struct vmballoon_batch_entry);
+
+	static_branch_enable(&vmw_balloon_batching);
+
+	return 0;
 }
 
 /*
@@ -932,7 +1197,7 @@ static void vmballoon_doorbell(void *client_data)
 {
 	struct vmballoon *b = client_data;
 
-	STATS_INC(b->stats.doorbell);
+	vmballoon_stats_gen_inc(b, VMW_BALLOON_STAT_DOORBELL);
 
 	mod_delayed_work(system_freezable_wq, &b->dwork, 0);
 }
@@ -942,11 +1207,8 @@ static void vmballoon_doorbell(void *client_data)
  */
 static void vmballoon_vmci_cleanup(struct vmballoon *b)
 {
-	int error;
-
-	VMWARE_BALLOON_CMD(VMCI_DOORBELL_SET, VMCI_INVALID_ID,
-			VMCI_INVALID_ID, error);
-	STATS_INC(b->stats.doorbell_unset);
+	vmballoon_cmd(b, VMW_BALLOON_CMD_VMCI_DOORBELL_SET,
+		      VMCI_INVALID_ID, VMCI_INVALID_ID);
 
 	if (!vmci_handle_is_invalid(b->vmci_doorbell)) {
 		vmci_doorbell_destroy(b->vmci_doorbell);
@@ -954,12 +1216,19 @@ static void vmballoon_vmci_cleanup(struct vmballoon *b)
 	}
 }
 
-/*
- * Initialize vmci doorbell, to get notified as soon as balloon changes
+/**
+ * vmballoon_vmci_init - Initialize vmci doorbell.
+ *
+ * @b: pointer to the balloon.
+ *
+ * Return: zero on success or when wakeup command not supported. Error-code
+ * otherwise.
+ *
+ * Initialize vmci doorbell, to get notified as soon as balloon changes.
  */
 static int vmballoon_vmci_init(struct vmballoon *b)
 {
-	unsigned long error, dummy;
+	unsigned long error;
 
 	if ((b->capabilities & VMW_BALLOON_SIGNALLED_WAKEUP_CMD) == 0)
 		return 0;
@@ -971,10 +1240,9 @@ static int vmballoon_vmci_init(struct vmballoon *b)
 	if (error != VMCI_SUCCESS)
 		goto fail;
 
-	error = VMWARE_BALLOON_CMD(VMCI_DOORBELL_SET, b->vmci_doorbell.context,
-				   b->vmci_doorbell.resource, dummy);
-
-	STATS_INC(b->stats.doorbell_set);
+	error =	__vmballoon_cmd(b, VMW_BALLOON_CMD_VMCI_DOORBELL_SET,
+				b->vmci_doorbell.context,
+				b->vmci_doorbell.resource, NULL);
 
 	if (error != VMW_BALLOON_SUCCESS)
 		goto fail;
@@ -983,6 +1251,23 @@ static int vmballoon_vmci_init(struct vmballoon *b)
 fail:
 	vmballoon_vmci_cleanup(b);
 	return -EIO;
+}
+
+/**
+ * vmballoon_pop - Quickly release all pages allocate for the balloon.
+ *
+ * @b: pointer to the balloon.
+ *
+ * This function is called when host decides to "reset" balloon for one reason
+ * or another. Unlike normal "deflate" we do not (shall not) notify host of the
+ * pages being released.
+ */
+static void vmballoon_pop(struct vmballoon *b)
+{
+	unsigned long size;
+
+	while ((size = atomic64_read(&b->size)))
+		vmballoon_deflate(b, size, false);
 }
 
 /*
@@ -994,18 +1279,18 @@ static void vmballoon_reset(struct vmballoon *b)
 {
 	int error;
 
+	down_write(&b->conf_sem);
+
 	vmballoon_vmci_cleanup(b);
 
 	/* free all pages, skipping monitor unlock */
 	vmballoon_pop(b);
 
-	if (!vmballoon_send_start(b, VMW_BALLOON_CAPABILITIES))
+	if (vmballoon_send_start(b, VMW_BALLOON_CAPABILITIES))
 		return;
 
 	if ((b->capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
-		b->ops = &vmballoon_batched_ops;
-		b->batch_max_pages = VMW_BALLOON_BATCH_MAX_PAGES;
-		if (!vmballoon_init_batching(b)) {
+		if (vmballoon_init_batching(b)) {
 			/*
 			 * We failed to initialize batching, inform the monitor
 			 * about it by sending a null capability.
@@ -1016,45 +1301,62 @@ static void vmballoon_reset(struct vmballoon *b)
 			return;
 		}
 	} else if ((b->capabilities & VMW_BALLOON_BASIC_CMDS) != 0) {
-		b->ops = &vmballoon_basic_ops;
-		b->batch_max_pages = 1;
+		vmballoon_deinit_batching(b);
 	}
 
+	vmballoon_stats_gen_inc(b, VMW_BALLOON_STAT_RESET);
 	b->reset_required = false;
 
 	error = vmballoon_vmci_init(b);
 	if (error)
 		pr_err("failed to initialize vmci doorbell\n");
 
-	if (!vmballoon_send_guest_id(b))
+	if (vmballoon_send_guest_id(b))
 		pr_err("failed to send guest ID to the host\n");
+
+	up_write(&b->conf_sem);
 }
 
-/*
- * Balloon work function: reset protocol, if needed, get the new size and
- * adjust balloon as needed. Repeat in 1 sec.
+/**
+ * vmballoon_work - periodic balloon worker for reset, inflation and deflation.
+ *
+ * @work: pointer to the &work_struct which is provided by the workqueue.
+ *
+ * Resets the protocol if needed, gets the new size and adjusts balloon as
+ * needed. Repeat in 1 sec.
  */
 static void vmballoon_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct vmballoon *b = container_of(dwork, struct vmballoon, dwork);
-	unsigned int target;
-
-	STATS_INC(b->stats.timer);
+	int64_t change = 0;
 
 	if (b->reset_required)
 		vmballoon_reset(b);
 
-	if (!b->reset_required && vmballoon_send_get_target(b, &target)) {
-		/* update target, adjust size */
-		b->target = target;
+	down_read(&b->conf_sem);
 
-		if (b->size < target)
+	/*
+	 * Update the stats while holding the semaphore to ensure that
+	 * @stats_enabled is consistent with whether the stats are actually
+	 * enabled
+	 */
+	vmballoon_stats_gen_inc(b, VMW_BALLOON_STAT_TIMER);
+
+	if (!vmballoon_send_get_target(b))
+		change = vmballoon_change(b);
+
+	if (change != 0) {
+		pr_debug("%s - size: %llu, target %lu\n", __func__,
+			 atomic64_read(&b->size), READ_ONCE(b->target));
+
+		if (change > 0)
 			vmballoon_inflate(b);
-		else if (target == 0 ||
-				b->size > target + vmballoon_page_size(true))
-			vmballoon_deflate(b);
+		else  /* (change < 0) */
+			vmballoon_deflate(b, 0, true);
 	}
+
+	up_read(&b->conf_sem);
 
 	/*
 	 * We are using a freezable workqueue so that balloon operations are
@@ -1062,6 +1364,7 @@ static void vmballoon_work(struct work_struct *work)
 	 */
 	queue_delayed_work(system_freezable_wq,
 			   dwork, round_jiffies_relative(HZ));
+
 }
 
 /*
@@ -1069,80 +1372,105 @@ static void vmballoon_work(struct work_struct *work)
  */
 #ifdef CONFIG_DEBUG_FS
 
+static const char * const vmballoon_stat_page_names[] = {
+	[VMW_BALLOON_PAGE_STAT_ALLOC]		= "alloc",
+	[VMW_BALLOON_PAGE_STAT_ALLOC_FAIL]	= "allocFail",
+	[VMW_BALLOON_PAGE_STAT_REFUSED_ALLOC]	= "errAlloc",
+	[VMW_BALLOON_PAGE_STAT_REFUSED_FREE]	= "errFree",
+	[VMW_BALLOON_PAGE_STAT_FREE]		= "free"
+};
+
+static const char * const vmballoon_stat_names[] = {
+	[VMW_BALLOON_STAT_TIMER]		= "timer",
+	[VMW_BALLOON_STAT_DOORBELL]		= "doorbell",
+	[VMW_BALLOON_STAT_RESET]		= "reset",
+};
+
+static int vmballoon_enable_stats(struct vmballoon *b)
+{
+	int r = 0;
+
+	down_write(&b->conf_sem);
+
+	/* did we somehow race with another reader which enabled stats? */
+	if (b->stats)
+		goto out;
+
+	b->stats = kzalloc(sizeof(*b->stats), GFP_KERNEL);
+
+	if (!b->stats) {
+		/* allocation failed */
+		r = -ENOMEM;
+		goto out;
+	}
+	static_key_enable(&balloon_stat_enabled.key);
+out:
+	up_write(&b->conf_sem);
+	return r;
+}
+
+/**
+ * vmballoon_debug_show - shows statistics of balloon operations.
+ * @f: pointer to the &struct seq_file.
+ * @offset: ignored.
+ *
+ * Provides the statistics that can be accessed in vmmemctl in the debugfs.
+ * To avoid the overhead - mainly that of memory - of collecting the statistics,
+ * we only collect statistics after the first time the counters are read.
+ *
+ * Return: zero on success or an error code.
+ */
 static int vmballoon_debug_show(struct seq_file *f, void *offset)
 {
 	struct vmballoon *b = f->private;
-	struct vmballoon_stats *stats = &b->stats;
+	int i, j;
+
+	/* enables stats if they are disabled */
+	if (!b->stats) {
+		int r = vmballoon_enable_stats(b);
+
+		if (r)
+			return r;
+	}
 
 	/* format capabilities info */
-	seq_printf(f,
-		   "balloon capabilities:   %#4x\n"
-		   "used capabilities:      %#4lx\n"
-		   "is resetting:           %c\n",
-		   VMW_BALLOON_CAPABILITIES, b->capabilities,
-		   b->reset_required ? 'y' : 'n');
+	seq_printf(f, "%-22s: %#16x\n", "balloon capabilities",
+		   VMW_BALLOON_CAPABILITIES);
+	seq_printf(f, "%-22s: %#16lx\n", "used capabilities", b->capabilities);
+	seq_printf(f, "%-22s: %16s\n", "is resetting",
+		   b->reset_required ? "y" : "n");
 
 	/* format size info */
-	seq_printf(f,
-		   "target:             %8d pages\n"
-		   "current:            %8d pages\n",
-		   b->target, b->size);
+	seq_printf(f, "%-22s: %16lu\n", "target", READ_ONCE(b->target));
+	seq_printf(f, "%-22s: %16llu\n", "current", atomic64_read(&b->size));
 
-	seq_printf(f,
-		   "\n"
-		   "timer:              %8u\n"
-		   "doorbell:           %8u\n"
-		   "start:              %8u (%4u failed)\n"
-		   "guestType:          %8u (%4u failed)\n"
-		   "2m-lock:            %8u (%4u failed)\n"
-		   "lock:               %8u (%4u failed)\n"
-		   "2m-unlock:          %8u (%4u failed)\n"
-		   "unlock:             %8u (%4u failed)\n"
-		   "target:             %8u (%4u failed)\n"
-		   "prim2mAlloc:        %8u (%4u failed)\n"
-		   "primNoSleepAlloc:   %8u (%4u failed)\n"
-		   "primCanSleepAlloc:  %8u (%4u failed)\n"
-		   "prim2mFree:         %8u\n"
-		   "primFree:           %8u\n"
-		   "err2mAlloc:         %8u\n"
-		   "errAlloc:           %8u\n"
-		   "err2mFree:          %8u\n"
-		   "errFree:            %8u\n"
-		   "doorbellSet:        %8u\n"
-		   "doorbellUnset:      %8u\n",
-		   stats->timer,
-		   stats->doorbell,
-		   stats->start, stats->start_fail,
-		   stats->guest_type, stats->guest_type_fail,
-		   stats->lock[true],  stats->lock_fail[true],
-		   stats->lock[false],  stats->lock_fail[false],
-		   stats->unlock[true], stats->unlock_fail[true],
-		   stats->unlock[false], stats->unlock_fail[false],
-		   stats->target, stats->target_fail,
-		   stats->alloc[true], stats->alloc_fail[true],
-		   stats->alloc[false], stats->alloc_fail[false],
-		   stats->sleep_alloc, stats->sleep_alloc_fail,
-		   stats->free[true],
-		   stats->free[false],
-		   stats->refused_alloc[true], stats->refused_alloc[false],
-		   stats->refused_free[true], stats->refused_free[false],
-		   stats->doorbell_set, stats->doorbell_unset);
+	for (i = 0; i < VMW_BALLOON_CMD_NUM; i++) {
+		if (vmballoon_cmd_names[i] == NULL)
+			continue;
+
+		seq_printf(f, "%-22s: %16llu (%llu failed)\n",
+			   vmballoon_cmd_names[i],
+			   atomic64_read(&b->stats->ops[i][VMW_BALLOON_OP_STAT]),
+			   atomic64_read(&b->stats->ops[i][VMW_BALLOON_OP_FAIL_STAT]));
+	}
+
+	for (i = 0; i < VMW_BALLOON_STAT_NUM; i++)
+		seq_printf(f, "%-22s: %16llu\n",
+			   vmballoon_stat_names[i],
+			   atomic64_read(&b->stats->general_stat[i]));
+
+	for (i = 0; i < VMW_BALLOON_PAGE_STAT_NUM; i++) {
+		for (j = 0; j < VMW_BALLOON_NUM_PAGE_SIZES; j++)
+			seq_printf(f, "%-18s(%s): %16llu\n",
+				   vmballoon_stat_page_names[i],
+				   vmballoon_page_size_names[j],
+				   atomic64_read(&b->stats->page_stat[i][j]));
+	}
 
 	return 0;
 }
 
-static int vmballoon_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vmballoon_debug_show, inode->i_private);
-}
-
-static const struct file_operations vmballoon_debug_fops = {
-	.owner		= THIS_MODULE,
-	.open		= vmballoon_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(vmballoon_debug);
 
 static int __init vmballoon_debugfs_init(struct vmballoon *b)
 {
@@ -1161,7 +1489,10 @@ static int __init vmballoon_debugfs_init(struct vmballoon *b)
 
 static void __exit vmballoon_debugfs_exit(struct vmballoon *b)
 {
+	static_key_disable(&balloon_stat_enabled.key);
 	debugfs_remove(b->dbg_entry);
+	kfree(b->stats);
+	b->stats = NULL;
 }
 
 #else
@@ -1179,8 +1510,9 @@ static inline void vmballoon_debugfs_exit(struct vmballoon *b)
 
 static int __init vmballoon_init(void)
 {
+	enum vmballoon_page_size_type page_size;
 	int error;
-	unsigned is_2m_pages;
+
 	/*
 	 * Check if we are running on VMware's hypervisor and bail out
 	 * if we are not.
@@ -1188,11 +1520,10 @@ static int __init vmballoon_init(void)
 	if (x86_hyper_type != X86_HYPER_VMWARE)
 		return -ENODEV;
 
-	for (is_2m_pages = 0; is_2m_pages < VMW_BALLOON_NUM_PAGE_SIZES;
-			is_2m_pages++) {
-		INIT_LIST_HEAD(&balloon.page_sizes[is_2m_pages].pages);
-		INIT_LIST_HEAD(&balloon.page_sizes[is_2m_pages].refused_pages);
-	}
+	for (page_size = VMW_BALLOON_4K_PAGE;
+	     page_size <= VMW_BALLOON_LAST_SIZE; page_size++)
+		INIT_LIST_HEAD(&balloon.page_sizes[page_size].pages);
+
 
 	INIT_DELAYED_WORK(&balloon.dwork, vmballoon_work);
 
@@ -1200,6 +1531,8 @@ static int __init vmballoon_init(void)
 	if (error)
 		return error;
 
+	spin_lock_init(&balloon.comm_lock);
+	init_rwsem(&balloon.conf_sem);
 	balloon.vmci_doorbell = VMCI_INVALID_HANDLE;
 	balloon.batch_page = NULL;
 	balloon.page = NULL;

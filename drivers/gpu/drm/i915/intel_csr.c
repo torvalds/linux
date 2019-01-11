@@ -34,28 +34,38 @@
  * low-power state and comes back to normal.
  */
 
-#define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
-MODULE_FIRMWARE(I915_CSR_GLK);
-#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+#define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
 
-#define I915_CSR_CNL "i915/cnl_dmc_ver1_07.bin"
-MODULE_FIRMWARE(I915_CSR_CNL);
+#define ICL_CSR_PATH			"i915/icl_dmc_ver1_07.bin"
+#define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
+#define ICL_CSR_MAX_FW_SIZE		0x6000
+MODULE_FIRMWARE(ICL_CSR_PATH);
+
+#define CNL_CSR_PATH			"i915/cnl_dmc_ver1_07.bin"
 #define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
+#define CNL_CSR_MAX_FW_SIZE		GLK_CSR_MAX_FW_SIZE
+MODULE_FIRMWARE(CNL_CSR_PATH);
 
-#define I915_CSR_KBL "i915/kbl_dmc_ver1_04.bin"
-MODULE_FIRMWARE(I915_CSR_KBL);
+#define GLK_CSR_PATH			"i915/glk_dmc_ver1_04.bin"
+#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+#define GLK_CSR_MAX_FW_SIZE		0x4000
+MODULE_FIRMWARE(GLK_CSR_PATH);
+
+#define KBL_CSR_PATH			"i915/kbl_dmc_ver1_04.bin"
 #define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+#define KBL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
+MODULE_FIRMWARE(KBL_CSR_PATH);
 
-#define I915_CSR_SKL "i915/skl_dmc_ver1_27.bin"
-MODULE_FIRMWARE(I915_CSR_SKL);
+#define SKL_CSR_PATH			"i915/skl_dmc_ver1_27.bin"
 #define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 27)
+#define SKL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
+MODULE_FIRMWARE(SKL_CSR_PATH);
 
-#define I915_CSR_BXT "i915/bxt_dmc_ver1_07.bin"
-MODULE_FIRMWARE(I915_CSR_BXT);
+#define BXT_CSR_PATH			"i915/bxt_dmc_ver1_07.bin"
 #define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
+#define BXT_CSR_MAX_FW_SIZE		0x3000
+MODULE_FIRMWARE(BXT_CSR_PATH);
 
-
-#define CSR_MAX_FW_SIZE			0x2FFF
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
 
 struct intel_css_header {
@@ -184,6 +194,12 @@ static const struct stepping_info bxt_stepping_info[] = {
 	{'B', '0'}, {'B', '1'}, {'B', '2'}
 };
 
+static const struct stepping_info icl_stepping_info[] = {
+	{'A', '0'}, {'A', '1'}, {'A', '2'},
+	{'B', '0'}, {'B', '2'},
+	{'C', '0'}
+};
+
 static const struct stepping_info no_stepping_info = { '*', '*' };
 
 static const struct stepping_info *
@@ -192,7 +208,10 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 	const struct stepping_info *si;
 	unsigned int size;
 
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		size = ARRAY_SIZE(icl_stepping_info);
+		si = icl_stepping_info;
+	} else if (IS_SKYLAKE(dev_priv)) {
 		size = ARRAY_SIZE(skl_stepping_info);
 		si = skl_stepping_info;
 	} else if (IS_BROXTON(dev_priv)) {
@@ -281,7 +300,6 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
 	uint32_t *dmc_payload;
-	uint32_t required_version;
 
 	if (!fw)
 		return NULL;
@@ -296,35 +314,18 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 		return NULL;
 	}
 
-	csr->version = css_header->version;
-
-	if (csr->fw_path == i915_modparams.dmc_firmware_path) {
-		/* Bypass version check for firmware override. */
-		required_version = csr->version;
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		required_version = CNL_CSR_VERSION_REQUIRED;
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		required_version = GLK_CSR_VERSION_REQUIRED;
-	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		required_version = KBL_CSR_VERSION_REQUIRED;
-	} else if (IS_SKYLAKE(dev_priv)) {
-		required_version = SKL_CSR_VERSION_REQUIRED;
-	} else if (IS_BROXTON(dev_priv)) {
-		required_version = BXT_CSR_VERSION_REQUIRED;
-	} else {
-		MISSING_CASE(INTEL_REVID(dev_priv));
-		required_version = 0;
-	}
-
-	if (csr->version != required_version) {
+	if (csr->required_version &&
+	    css_header->version != csr->required_version) {
 		DRM_INFO("Refusing to load DMC firmware v%u.%u,"
 			 " please use v%u.%u\n",
-			 CSR_VERSION_MAJOR(csr->version),
-			 CSR_VERSION_MINOR(csr->version),
-			 CSR_VERSION_MAJOR(required_version),
-			 CSR_VERSION_MINOR(required_version));
+			 CSR_VERSION_MAJOR(css_header->version),
+			 CSR_VERSION_MINOR(css_header->version),
+			 CSR_VERSION_MAJOR(csr->required_version),
+			 CSR_VERSION_MINOR(csr->required_version));
 		return NULL;
 	}
+
+	csr->version = css_header->version;
 
 	readcount += sizeof(struct intel_css_header);
 
@@ -359,6 +360,8 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 			  si->stepping);
 		return NULL;
 	}
+	/* Convert dmc_offset into number of bytes. By default it is in dwords*/
+	dmc_offset *= 4;
 	readcount += dmc_offset;
 
 	/* Extract dmc_header information. */
@@ -391,8 +394,8 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* fw_size is in dwords, so multiplied by 4 to convert into bytes. */
 	nbytes = dmc_header->fw_size * 4;
-	if (nbytes > CSR_MAX_FW_SIZE) {
-		DRM_ERROR("DMC firmware too big (%u bytes)\n", nbytes);
+	if (nbytes > csr->max_fw_size) {
+		DRM_ERROR("DMC FW too big (%u bytes)\n", nbytes);
 		return NULL;
 	}
 	csr->dmc_fw_size = dmc_header->fw_size;
@@ -456,31 +459,65 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (i915_modparams.dmc_firmware_path)
+	/*
+	 * Obtain a runtime pm reference, until CSR is loaded, to avoid entering
+	 * runtime-suspend.
+	 *
+	 * On error, we return with the rpm wakeref held to prevent runtime
+	 * suspend as runtime suspend *requires* a working CSR for whatever
+	 * reason.
+	 */
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		/* Allow to load fw via parameter using the last known size */
+		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+	} else if (IS_ICELAKE(dev_priv)) {
+		csr->fw_path = ICL_CSR_PATH;
+		csr->required_version = ICL_CSR_VERSION_REQUIRED;
+		csr->max_fw_size = ICL_CSR_MAX_FW_SIZE;
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		csr->fw_path = CNL_CSR_PATH;
+		csr->required_version = CNL_CSR_VERSION_REQUIRED;
+		csr->max_fw_size = CNL_CSR_MAX_FW_SIZE;
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		csr->fw_path = GLK_CSR_PATH;
+		csr->required_version = GLK_CSR_VERSION_REQUIRED;
+		csr->max_fw_size = GLK_CSR_MAX_FW_SIZE;
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
+		csr->fw_path = KBL_CSR_PATH;
+		csr->required_version = KBL_CSR_VERSION_REQUIRED;
+		csr->max_fw_size = KBL_CSR_MAX_FW_SIZE;
+	} else if (IS_SKYLAKE(dev_priv)) {
+		csr->fw_path = SKL_CSR_PATH;
+		csr->required_version = SKL_CSR_VERSION_REQUIRED;
+		csr->max_fw_size = SKL_CSR_MAX_FW_SIZE;
+	} else if (IS_BROXTON(dev_priv)) {
+		csr->fw_path = BXT_CSR_PATH;
+		csr->required_version = BXT_CSR_VERSION_REQUIRED;
+		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
+	}
+
+	if (i915_modparams.dmc_firmware_path) {
+		if (strlen(i915_modparams.dmc_firmware_path) == 0) {
+			csr->fw_path = NULL;
+			DRM_INFO("Disabling CSR firmware and runtime PM\n");
+			return;
+		}
+
 		csr->fw_path = i915_modparams.dmc_firmware_path;
-	else if (IS_CANNONLAKE(dev_priv))
-		csr->fw_path = I915_CSR_CNL;
-	else if (IS_GEMINILAKE(dev_priv))
-		csr->fw_path = I915_CSR_GLK;
-	else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
-		csr->fw_path = I915_CSR_KBL;
-	else if (IS_SKYLAKE(dev_priv))
-		csr->fw_path = I915_CSR_SKL;
-	else if (IS_BROXTON(dev_priv))
-		csr->fw_path = I915_CSR_BXT;
-	else {
-		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
+		/* Bypass version check for firmware override. */
+		csr->required_version = 0;
+	}
+
+	if (csr->fw_path == NULL) {
+		DRM_DEBUG_KMS("No known CSR firmware for platform, disabling runtime PM\n");
+		WARN_ON(!IS_ALPHA_SUPPORT(INTEL_INFO(dev_priv)));
+
 		return;
 	}
 
 	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
-
-	/*
-	 * Obtain a runtime pm reference, until CSR is loaded,
-	 * to avoid entering runtime-suspend.
-	 */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
-
 	schedule_work(&dev_priv->csr.work);
 }
 

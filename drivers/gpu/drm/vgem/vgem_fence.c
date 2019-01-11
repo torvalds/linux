@@ -43,16 +43,6 @@ static const char *vgem_fence_get_timeline_name(struct dma_fence *fence)
 	return "unbound";
 }
 
-static bool vgem_fence_signaled(struct dma_fence *fence)
-{
-	return false;
-}
-
-static bool vgem_fence_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
 static void vgem_fence_release(struct dma_fence *base)
 {
 	struct vgem_fence *fence = container_of(base, typeof(*fence), base);
@@ -76,9 +66,6 @@ static void vgem_fence_timeline_value_str(struct dma_fence *fence, char *str,
 static const struct dma_fence_ops vgem_fence_ops = {
 	.get_driver_name = vgem_fence_get_driver_name,
 	.get_timeline_name = vgem_fence_get_timeline_name,
-	.enable_signaling = vgem_fence_enable_signaling,
-	.signaled = vgem_fence_signaled,
-	.wait = dma_fence_default_wait,
 	.release = vgem_fence_release,
 
 	.fence_value_str = vgem_fence_value_str,
@@ -193,7 +180,7 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 	reservation_object_lock(resv, NULL);
 	if (arg->flags & VGEM_FENCE_WRITE)
 		reservation_object_add_excl_fence(resv, fence);
-	else if ((ret = reservation_object_reserve_shared(resv)) == 0)
+	else if ((ret = reservation_object_reserve_shared(resv, 1)) == 0)
 		reservation_object_add_shared_fence(resv, fence);
 	reservation_object_unlock(resv);
 

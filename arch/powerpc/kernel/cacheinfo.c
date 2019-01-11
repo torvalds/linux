@@ -20,6 +20,8 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/prom.h>
+#include <asm/cputhreads.h>
+#include <asm/smp.h>
 
 #include "cacheinfo.h"
 
@@ -426,7 +428,7 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 static void do_subsidiary_caches_debugcheck(struct cache *cache)
 {
 	WARN_ON_ONCE(cache->level != 1);
-	WARN_ON_ONCE(strcmp(cache->ofnode->type, "cpu"));
+	WARN_ON_ONCE(!of_node_is_type(cache->ofnode, "cpu"));
 }
 
 static void do_subsidiary_caches(struct cache *cache)
@@ -627,17 +629,48 @@ static ssize_t level_show(struct kobject *k, struct kobj_attribute *attr, char *
 static struct kobj_attribute cache_level_attr =
 	__ATTR(level, 0444, level_show, NULL);
 
+static unsigned int index_dir_to_cpu(struct cache_index_dir *index)
+{
+	struct kobject *index_dir_kobj = &index->kobj;
+	struct kobject *cache_dir_kobj = index_dir_kobj->parent;
+	struct kobject *cpu_dev_kobj = cache_dir_kobj->parent;
+	struct device *dev = kobj_to_dev(cpu_dev_kobj);
+
+	return dev->id;
+}
+
+/*
+ * On big-core systems, each core has two groups of CPUs each of which
+ * has its own L1-cache. The thread-siblings which share l1-cache with
+ * @cpu can be obtained via cpu_smallcore_mask().
+ */
+static const struct cpumask *get_big_core_shared_cpu_map(int cpu, struct cache *cache)
+{
+	if (cache->level == 1)
+		return cpu_smallcore_mask(cpu);
+
+	return &cache->shared_cpu_map;
+}
+
 static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
 {
 	struct cache_index_dir *index;
 	struct cache *cache;
-	int ret;
+	const struct cpumask *mask;
+	int ret, cpu;
 
 	index = kobj_to_cache_index_dir(k);
 	cache = index->cache;
 
+	if (has_big_cores) {
+		cpu = index_dir_to_cpu(index);
+		mask = get_big_core_shared_cpu_map(cpu, cache);
+	} else {
+		mask  = &cache->shared_cpu_map;
+	}
+
 	ret = scnprintf(buf, PAGE_SIZE - 1, "%*pb\n",
-			cpumask_pr_args(&cache->shared_cpu_map));
+			cpumask_pr_args(mask));
 	buf[ret++] = '\n';
 	buf[ret] = '\0';
 	return ret;

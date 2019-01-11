@@ -933,6 +933,11 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 	struct nf_conn *ct;
 
 	if (!cached) {
+		struct nf_hook_state state = {
+			.hook = NF_INET_PRE_ROUTING,
+			.pf = info->family,
+			.net = net,
+		};
 		struct nf_conn *tmpl = info->ct;
 		int err;
 
@@ -944,8 +949,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
 
-		err = nf_conntrack_in(net, info->family,
-				      NF_INET_PRE_ROUTING, skb);
+		err = nf_conntrack_in(skb, &state);
 		if (err != NF_ACCEPT)
 			return -ENOENT;
 
@@ -1162,7 +1166,7 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 				&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 			if (err) {
 				net_warn_ratelimited("openvswitch: zone: %u "
-					"execeeds conntrack limit\n",
+					"exceeds conntrack limit\n",
 					info->zone.id);
 				return err;
 			}
@@ -1199,7 +1203,8 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 					 &info->labels.mask);
 		if (err)
 			return err;
-	} else if (labels_nonzero(&info->labels.mask)) {
+	} else if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
+		   labels_nonzero(&info->labels.mask)) {
 		err = ovs_ct_set_labels(ct, key, &info->labels.value,
 					&info->labels.mask);
 		if (err)
@@ -1312,6 +1317,10 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 
 	rcu_assign_pointer(help->helper, helper);
 	info->helper = helper;
+
+	if (info->nat)
+		request_module("ip_nat_%s", name);
+
 	return 0;
 }
 
@@ -1624,10 +1633,6 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
 	}
-
-	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
-	nf_conntrack_get(&ct_info.ct->ct_general);
-
 	if (helper) {
 		err = ovs_ct_add_helper(&ct_info, helper, key, log);
 		if (err)
@@ -1639,6 +1644,8 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	if (err)
 		goto err_free_ct;
 
+	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
+	nf_conntrack_get(&ct_info.ct->ct_general);
 	return 0;
 err_free_ct:
 	__ovs_ct_free_action(&ct_info);

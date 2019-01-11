@@ -753,7 +753,6 @@ struct cpl_abort_req_rss {
 };
 
 struct cpl_abort_req_rss6 {
-	WR_HDR;
 	union opcode_tid ot;
 	__be32 srqidx_status;
 };
@@ -1453,6 +1452,9 @@ struct cpl_tx_data {
 #define T6_TX_FORCE_S		20
 #define T6_TX_FORCE_V(x)	((x) << T6_TX_FORCE_S)
 #define T6_TX_FORCE_F		T6_TX_FORCE_V(1U)
+
+#define TX_URG_S    16
+#define TX_URG_V(x) ((x) << TX_URG_S)
 
 #define TX_SHOVE_S    14
 #define TX_SHOVE_V(x) ((x) << TX_SHOVE_S)

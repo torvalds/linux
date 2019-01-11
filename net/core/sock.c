@@ -567,6 +567,8 @@ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
 
 	lock_sock(sk);
 	sk->sk_bound_dev_if = index;
+	if (sk->sk_prot->rehash)
+		sk->sk_prot->rehash(sk);
 	sk_dst_reset(sk);
 	release_sock(sk);
 
@@ -698,6 +700,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	case SO_DONTROUTE:
 		sock_valbool_flag(sk, SOCK_LOCALROUTE, valbool);
+		sk_dst_reset(sk);
 		break;
 	case SO_BROADCAST:
 		sock_valbool_flag(sk, SOCK_BROADCAST, valbool);
@@ -950,10 +953,12 @@ set_rcvbuf:
 			clear_bit(SOCK_PASSSEC, &sock->flags);
 		break;
 	case SO_MARK:
-		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
 			ret = -EPERM;
-		else
+		} else if (val != sk->sk_mark) {
 			sk->sk_mark = val;
+			sk_dst_reset(sk);
+		}
 		break;
 
 	case SO_RXQ_OVFL:
@@ -998,7 +1003,7 @@ set_rcvbuf:
 			cmpxchg(&sk->sk_pacing_status,
 				SK_PACING_NONE,
 				SK_PACING_NEEDED);
-		sk->sk_max_pacing_rate = val;
+		sk->sk_max_pacing_rate = (val == ~0U) ? ~0UL : val;
 		sk->sk_pacing_rate = min(sk->sk_pacing_rate,
 					 sk->sk_max_pacing_rate);
 		break;
@@ -1014,7 +1019,10 @@ set_rcvbuf:
 
 	case SO_ZEROCOPY:
 		if (sk->sk_family == PF_INET || sk->sk_family == PF_INET6) {
-			if (sk->sk_protocol != IPPROTO_TCP)
+			if (!((sk->sk_type == SOCK_STREAM &&
+			       sk->sk_protocol == IPPROTO_TCP) ||
+			      (sk->sk_type == SOCK_DGRAM &&
+			       sk->sk_protocol == IPPROTO_UDP)))
 				ret = -ENOTSUPP;
 		} else if (sk->sk_family != PF_RDS) {
 			ret = -ENOTSUPP;
@@ -1336,7 +1344,8 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 #endif
 
 	case SO_MAX_PACING_RATE:
-		v.val = sk->sk_max_pacing_rate;
+		/* 32bit version */
+		v.val = min_t(unsigned long, sk->sk_max_pacing_rate, ~0U);
 		break;
 
 	case SO_INCOMING_CPU:
@@ -2238,67 +2247,6 @@ bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
 }
 EXPORT_SYMBOL(sk_page_frag_refill);
 
-int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
-		int sg_start, int *sg_curr_index, unsigned int *sg_curr_size,
-		int first_coalesce)
-{
-	int sg_curr = *sg_curr_index, use = 0, rc = 0;
-	unsigned int size = *sg_curr_size;
-	struct page_frag *pfrag;
-	struct scatterlist *sge;
-
-	len -= size;
-	pfrag = sk_page_frag(sk);
-
-	while (len > 0) {
-		unsigned int orig_offset;
-
-		if (!sk_page_frag_refill(sk, pfrag)) {
-			rc = -ENOMEM;
-			goto out;
-		}
-
-		use = min_t(int, len, pfrag->size - pfrag->offset);
-
-		if (!sk_wmem_schedule(sk, use)) {
-			rc = -ENOMEM;
-			goto out;
-		}
-
-		sk_mem_charge(sk, use);
-		size += use;
-		orig_offset = pfrag->offset;
-		pfrag->offset += use;
-
-		sge = sg + sg_curr - 1;
-		if (sg_curr > first_coalesce && sg_page(sge) == pfrag->page &&
-		    sge->offset + sge->length == orig_offset) {
-			sge->length += use;
-		} else {
-			sge = sg + sg_curr;
-			sg_unmark_end(sge);
-			sg_set_page(sge, pfrag->page, use, orig_offset);
-			get_page(pfrag->page);
-			sg_curr++;
-
-			if (sg_curr == MAX_SKB_FRAGS)
-				sg_curr = 0;
-
-			if (sg_curr == sg_start) {
-				rc = -ENOSPC;
-				break;
-			}
-		}
-
-		len -= use;
-	}
-out:
-	*sg_curr_size = size;
-	*sg_curr_index = sg_curr;
-	return rc;
-}
-EXPORT_SYMBOL(sk_alloc_sg);
-
 static void __lock_sock(struct sock *sk)
 	__releases(&sk->sk_lock.slock)
 	__acquires(&sk->sk_lock.slock)
@@ -2317,7 +2265,7 @@ static void __lock_sock(struct sock *sk)
 	finish_wait(&sk->sk_lock.wq, &wait);
 }
 
-static void __release_sock(struct sock *sk)
+void __release_sock(struct sock *sk)
 	__releases(&sk->sk_lock.slock)
 	__acquires(&sk->sk_lock.slock)
 {
@@ -2332,7 +2280,7 @@ static void __release_sock(struct sock *sk)
 			next = skb->next;
 			prefetch(next);
 			WARN_ON_ONCE(skb_dst_is_noref(skb));
-			skb->next = NULL;
+			skb_mark_not_on_list(skb);
 			sk_backlog_rcv(sk, skb);
 
 			cond_resched();
@@ -2803,6 +2751,9 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_sndtimeo		=	MAX_SCHEDULE_TIMEOUT;
 
 	sk->sk_stamp = SK_DEFAULT_STAMP;
+#if BITS_PER_LONG==32
+	seqlock_init(&sk->sk_stamp_seq);
+#endif
 	atomic_set(&sk->sk_zckey, 0);
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
@@ -2810,8 +2761,8 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_ll_usec		=	sysctl_net_busy_read;
 #endif
 
-	sk->sk_max_pacing_rate = ~0U;
-	sk->sk_pacing_rate = ~0U;
+	sk->sk_max_pacing_rate = ~0UL;
+	sk->sk_pacing_rate = ~0UL;
 	sk->sk_pacing_shift = 10;
 	sk->sk_incoming_cpu = -1;
 
@@ -2902,12 +2853,13 @@ int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 	struct timeval tv;
 
 	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
-	tv = ktime_to_timeval(sk->sk_stamp);
+	tv = ktime_to_timeval(sock_read_timestamp(sk));
 	if (tv.tv_sec == -1)
 		return -ENOENT;
 	if (tv.tv_sec == 0) {
-		sk->sk_stamp = ktime_get_real();
-		tv = ktime_to_timeval(sk->sk_stamp);
+		ktime_t kt = ktime_get_real();
+		sock_write_timestamp(sk, kt);
+		tv = ktime_to_timeval(kt);
 	}
 	return copy_to_user(userstamp, &tv, sizeof(tv)) ? -EFAULT : 0;
 }
@@ -2918,11 +2870,12 @@ int sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
 	struct timespec ts;
 
 	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
-	ts = ktime_to_timespec(sk->sk_stamp);
+	ts = ktime_to_timespec(sock_read_timestamp(sk));
 	if (ts.tv_sec == -1)
 		return -ENOENT;
 	if (ts.tv_sec == 0) {
-		sk->sk_stamp = ktime_get_real();
+		ktime_t kt = ktime_get_real();
+		sock_write_timestamp(sk, kt);
 		ts = ktime_to_timespec(sk->sk_stamp);
 	}
 	return copy_to_user(userstamp, &ts, sizeof(ts)) ? -EFAULT : 0;
@@ -3339,6 +3292,7 @@ int sock_load_diag_module(int family, int protocol)
 
 #ifdef CONFIG_INET
 	if (family == AF_INET &&
+	    protocol != IPPROTO_RAW &&
 	    !rcu_access_pointer(inet_protos[protocol]))
 		return -ENOENT;
 #endif

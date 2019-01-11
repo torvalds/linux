@@ -26,6 +26,7 @@
 #include <linux/videodev2.h>
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-image-sizes.h>
@@ -705,6 +706,11 @@ err:
 	return ret;
 }
 
+static const char * const ov2640_test_pattern_menu[] = {
+	"Disabled",
+	"Eight Vertical Colour Bars",
+};
+
 /*
  * functions
  */
@@ -740,6 +746,9 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_HFLIP:
 		val = ctrl->val ? REG04_HFLIP_IMG : 0x00;
 		return ov2640_mask_set(client, REG04, REG04_HFLIP_IMG, val);
+	case V4L2_CID_TEST_PATTERN:
+		val = ctrl->val ? COM7_COLOR_BAR_TEST : 0x00;
+		return ov2640_mask_set(client, COM7, COM7_COLOR_BAR_TEST, val);
 	}
 
 	return -EINVAL;
@@ -1010,7 +1019,6 @@ static int ov2640_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP:
 		sel->r.left = 0;
 		sel->r.top = 0;
@@ -1089,6 +1097,9 @@ static const struct v4l2_ctrl_ops ov2640_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov2640_g_register,
 	.s_register	= ov2640_s_register,
@@ -1183,14 +1194,19 @@ static int ov2640_probe(struct i2c_client *client,
 		goto err_clk;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
-	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+			      V4L2_SUBDEV_FL_HAS_EVENTS;
 	mutex_init(&priv->lock);
-	v4l2_ctrl_handler_init(&priv->hdl, 2);
+	v4l2_ctrl_handler_init(&priv->hdl, 3);
 	priv->hdl.lock = &priv->lock;
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 			V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 			V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std_menu_items(&priv->hdl, &ov2640_ctrl_ops,
+			V4L2_CID_TEST_PATTERN,
+			ARRAY_SIZE(ov2640_test_pattern_menu) - 1, 0, 0,
+			ov2640_test_pattern_menu);
 	priv->subdev.ctrl_handler = &priv->hdl;
 	if (priv->hdl.error) {
 		ret = priv->hdl.error;

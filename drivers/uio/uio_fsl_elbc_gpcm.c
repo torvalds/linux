@@ -74,8 +74,7 @@ DEVICE_ATTR(reg_or, S_IRUGO|S_IWUSR|S_IWGRP, reg_show, reg_store);
 static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uio_info *info = platform_get_drvdata(pdev);
+	struct uio_info *info = dev_get_drvdata(dev);
 	struct fsl_elbc_gpcm *priv = info->priv;
 	struct fsl_lbc_bank *bank = &priv->lbc->bank[priv->bank];
 
@@ -94,8 +93,7 @@ static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
 static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uio_info *info = platform_get_drvdata(pdev);
+	struct uio_info *info = dev_get_drvdata(dev);
 	struct fsl_elbc_gpcm *priv = info->priv;
 	struct fsl_lbc_bank *bank = &priv->lbc->bank[priv->bank];
 	unsigned long val;
@@ -382,8 +380,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	}
 
 	/* set all UIO data */
-	if (node->name)
-		info->mem[0].name = kstrdup(node->name, GFP_KERNEL);
+	info->mem[0].name = kasprintf(GFP_KERNEL, "%pOFn", node);
 	info->mem[0].addr = res.start;
 	info->mem[0].size = resource_size(&res);
 	info->mem[0].memtype = UIO_MEM_PHYS;

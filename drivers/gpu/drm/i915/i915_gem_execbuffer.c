@@ -26,7 +26,7 @@
  *
  */
 
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/reservation.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
@@ -64,7 +64,9 @@ enum {
 #define BATCH_OFFSET_BIAS (256*1024)
 
 #define __I915_EXEC_ILLEGAL_FLAGS \
-	(__I915_EXEC_UNKNOWN_FLAGS | I915_EXEC_CONSTANTS_MASK)
+	(__I915_EXEC_UNKNOWN_FLAGS | \
+	 I915_EXEC_CONSTANTS_MASK  | \
+	 I915_EXEC_RESOURCE_STREAMER)
 
 /* Catch emission of unexpected errors for CI! */
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
@@ -458,7 +460,7 @@ eb_validate_vma(struct i915_execbuffer *eb,
 	 * any non-page-aligned or non-canonical addresses.
 	 */
 	if (unlikely(entry->flags & EXEC_OBJECT_PINNED &&
-		     entry->offset != gen8_canonical_addr(entry->offset & PAGE_MASK)))
+		     entry->offset != gen8_canonical_addr(entry->offset & I915_GTT_PAGE_MASK)))
 		return -EINVAL;
 
 	/* pad_to_size was once a reserved field, so sanitize it */
@@ -691,9 +693,14 @@ static int eb_reserve(struct i915_execbuffer *eb)
 			eb_unreserve_vma(vma, &eb->flags[i]);
 
 			if (flags & EXEC_OBJECT_PINNED)
+				/* Pinned must have their slot */
 				list_add(&vma->exec_link, &eb->unbound);
 			else if (flags & __EXEC_OBJECT_NEEDS_MAP)
+				/* Map require the lowest 256MiB (aperture) */
 				list_add_tail(&vma->exec_link, &eb->unbound);
+			else if (!(flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS))
+				/* Prioritise 4GiB region for restricted bo */
+				list_add(&vma->exec_link, &last);
 			else
 				list_add_tail(&vma->exec_link, &last);
 		}
@@ -733,10 +740,15 @@ static int eb_select_context(struct i915_execbuffer *eb)
 		return -ENOENT;
 
 	eb->ctx = ctx;
-	eb->vm = ctx->ppgtt ? &ctx->ppgtt->vm : &eb->i915->ggtt.vm;
+	if (ctx->ppgtt) {
+		eb->vm = &ctx->ppgtt->vm;
+		eb->invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
+	} else {
+		eb->vm = &eb->i915->ggtt.vm;
+	}
 
 	eb->context_flags = 0;
-	if (ctx->flags & CONTEXT_NO_ZEROMAP)
+	if (test_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags))
 		eb->context_flags |= __EXEC_OBJECT_NEEDS_BIAS;
 
 	return 0;
@@ -1120,6 +1132,13 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	u32 *cmd;
 	int err;
 
+	if (DBG_FORCE_RELOC == FORCE_GPU_RELOC) {
+		obj = vma->obj;
+		if (obj->cache_dirty & ~obj->cache_coherent)
+			i915_gem_clflush_object(obj, 0);
+		obj->write_domain = 0;
+	}
+
 	GEM_BUG_ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
 
 	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
@@ -1428,7 +1447,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 	 * to read. However, if the array is not writable the user loses
 	 * the updated relocation values.
 	 */
-	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(*urelocs))))
+	if (unlikely(!access_ok(urelocs, remain*sizeof(*urelocs))))
 		return -EFAULT;
 
 	do {
@@ -1484,8 +1503,10 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 				 * can read from this userspace address.
 				 */
 				offset = gen8_canonical_addr(offset & ~UPDATE);
-				__put_user(offset,
-					   &urelocs[r-stack].presumed_offset);
+				if (unlikely(__put_user(offset, &urelocs[r-stack].presumed_offset))) {
+					remain = -EFAULT;
+					goto out;
+				}
 			}
 		} while (r++, --count);
 		urelocs += ARRAY_SIZE(stack);
@@ -1533,7 +1554,7 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 
 	addr = u64_to_user_ptr(entry->relocs_ptr);
 	size *= sizeof(struct drm_i915_gem_relocation_entry);
-	if (!access_ok(VERIFY_READ, addr, size))
+	if (!access_ok(addr, size))
 		return -EFAULT;
 
 	end = addr + size;
@@ -1570,7 +1591,6 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 
 		relocs = kvmalloc_array(size, 1, GFP_KERNEL);
 		if (!relocs) {
-			kvfree(relocs);
 			err = -ENOMEM;
 			goto err;
 		}
@@ -1584,6 +1604,8 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 			if (__copy_from_user((char *)relocs + copied,
 					     (char __user *)urelocs + copied,
 					     len)) {
+end_user:
+				user_access_end();
 				kvfree(relocs);
 				err = -EFAULT;
 				goto err;
@@ -1602,12 +1624,13 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 		 * happened we would make the mistake of assuming that the
 		 * relocations were valid.
 		 */
-		user_access_begin();
+		if (!user_access_begin(urelocs, size))
+			goto end_user;
+
 		for (copied = 0; copied < nreloc; copied++)
 			unsafe_put_user(-1,
 					&urelocs[copied].presumed_offset,
 					end_user);
-end_user:
 		user_access_end();
 
 		eb->exec[i].relocs_ptr = (uintptr_t)relocs;
@@ -2070,7 +2093,7 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 		return ERR_PTR(-EINVAL);
 
 	user = u64_to_user_ptr(args->cliprects_ptr);
-	if (!access_ok(VERIFY_READ, user, nfences * sizeof(*user)))
+	if (!access_ok(user, nfences * sizeof(*user)))
 		return ERR_PTR(-EFAULT);
 
 	fences = kvmalloc_array(nfences, sizeof(*fences),
@@ -2199,8 +2222,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	eb.flags = (unsigned int *)(eb.vma + args->buffer_count + 1);
 
 	eb.invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
-	if (USES_FULL_PPGTT(eb.i915))
-		eb.invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
 	reloc_cache_init(&eb.reloc_cache, eb.i915);
 
 	eb.buffer_count = args->buffer_count;
@@ -2220,20 +2241,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	eb.engine = eb_select_engine(eb.i915, file, args);
 	if (!eb.engine)
 		return -EINVAL;
-
-	if (args->flags & I915_EXEC_RESOURCE_STREAMER) {
-		if (!HAS_RESOURCE_STREAMER(eb.i915)) {
-			DRM_DEBUG("RS is only allowed for Haswell, Gen8 and above\n");
-			return -EINVAL;
-		}
-		if (eb.engine->id != RCS) {
-			DRM_DEBUG("RS is not available on %s\n",
-				 eb.engine->name);
-			return -EINVAL;
-		}
-
-		eb.batch_flags |= I915_DISPATCH_RS;
-	}
 
 	if (args->flags & I915_EXEC_FENCE_IN) {
 		in_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
@@ -2601,7 +2608,16 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 		unsigned int i;
 
 		/* Copy the new buffer offsets back to the user's exec list. */
-		user_access_begin();
+		/*
+		 * Note: count * sizeof(*user_exec_list) does not overflow,
+		 * because we checked 'count' in check_buffer_count().
+		 *
+		 * And this range already got effectively checked earlier
+		 * when we did the "copy_from_user()" above.
+		 */
+		if (!user_access_begin(user_exec_list, count * sizeof(*user_exec_list)))
+			goto end_user;
+
 		for (i = 0; i < args->buffer_count; i++) {
 			if (!(exec2_list[i].offset & UPDATE))
 				continue;

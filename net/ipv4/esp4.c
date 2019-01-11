@@ -125,10 +125,13 @@ static void esp_output_done(struct crypto_async_request *base, int err)
 	void *tmp;
 	struct xfrm_state *x;
 
-	if (xo && (xo->flags & XFRM_DEV_RESUME))
-		x = skb->sp->xvec[skb->sp->len - 1];
-	else
+	if (xo && (xo->flags & XFRM_DEV_RESUME)) {
+		struct sec_path *sp = skb_sec_path(skb);
+
+		x = sp->xvec[sp->len - 1];
+	} else {
 		x = skb_dst(skb)->xfrm;
+	}
 
 	tmp = ESP_SKB_CB(skb)->tmp;
 	esp_ssg_unref(x, tmp);
@@ -683,12 +686,11 @@ static void esp_input_done_esn(struct crypto_async_request *base, int err)
  */
 static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ip_esp_hdr *esph;
 	struct crypto_aead *aead = x->data;
 	struct aead_request *req;
 	struct sk_buff *trailer;
 	int ivlen = crypto_aead_ivsize(aead);
-	int elen = skb->len - sizeof(*esph) - ivlen;
+	int elen = skb->len - sizeof(struct ip_esp_hdr) - ivlen;
 	int nfrags;
 	int assoclen;
 	int seqhilen;
@@ -698,13 +700,13 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct scatterlist *sg;
 	int err = -EINVAL;
 
-	if (!pskb_may_pull(skb, sizeof(*esph) + ivlen))
+	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr) + ivlen))
 		goto out;
 
 	if (elen <= 0)
 		goto out;
 
-	assoclen = sizeof(*esph);
+	assoclen = sizeof(struct ip_esp_hdr);
 	seqhilen = 0;
 
 	if (x->props.flags & XFRM_STATE_ESN) {
@@ -820,9 +822,9 @@ static int esp4_err(struct sk_buff *skb, u32 info)
 		return 0;
 
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
-		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_ESP, 0);
+		ipv4_update_pmtu(skb, net, info, 0, IPPROTO_ESP);
 	else
-		ipv4_redirect(skb, net, 0, 0, IPPROTO_ESP, 0);
+		ipv4_redirect(skb, net, 0, IPPROTO_ESP);
 	xfrm_state_put(x);
 
 	return 0;

@@ -161,9 +161,7 @@ static void chan_dev_release(struct device *dev)
 
 	chan_dev = container_of(dev, typeof(*chan_dev), device);
 	if (atomic_dec_and_test(chan_dev->idr_ref)) {
-		mutex_lock(&dma_list_mutex);
-		ida_remove(&dma_ida, chan_dev->dev_id);
-		mutex_unlock(&dma_list_mutex);
+		ida_free(&dma_ida, chan_dev->dev_id);
 		kfree(chan_dev->idr_ref);
 	}
 	kfree(chan_dev);
@@ -898,17 +896,12 @@ static bool device_has_all_tx_types(struct dma_device *device)
 
 static int get_dma_id(struct dma_device *device)
 {
-	int rc;
+	int rc = ida_alloc(&dma_ida, GFP_KERNEL);
 
-	do {
-		if (!ida_pre_get(&dma_ida, GFP_KERNEL))
-			return -ENOMEM;
-		mutex_lock(&dma_list_mutex);
-		rc = ida_get_new(&dma_ida, &device->dev_id);
-		mutex_unlock(&dma_list_mutex);
-	} while (rc == -EAGAIN);
-
-	return rc;
+	if (rc < 0)
+		return rc;
+	device->dev_id = rc;
+	return 0;
 }
 
 /**
@@ -1092,9 +1085,7 @@ int dma_async_device_register(struct dma_device *device)
 err_out:
 	/* if we never registered a channel just release the idr */
 	if (atomic_read(idr_ref) == 0) {
-		mutex_lock(&dma_list_mutex);
-		ida_remove(&dma_ida, device->dev_id);
-		mutex_unlock(&dma_list_mutex);
+		ida_free(&dma_ida, device->dev_id);
 		kfree(idr_ref);
 		return rc;
 	}

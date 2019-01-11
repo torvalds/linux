@@ -31,8 +31,8 @@
 #define __DCN_CALCS_H__
 
 #include "bw_fixed.h"
-#include "display_clock.h"
 #include "../dml/display_mode_lib.h"
+#include "hw/clk_mgr.h"
 
 struct dc;
 struct dc_state;
@@ -504,10 +504,10 @@ struct dcn_bw_internal_vars {
 	float prefetch_mode;
 	float dstx_after_scaler;
 	float dsty_after_scaler;
-	float v_update_offset_pix;
+	float v_update_offset_pix[number_of_planes_minus_one + 1];
 	float total_repeater_delay_time;
-	float v_update_width_pix;
-	float v_ready_offset_pix;
+	float v_update_width_pix[number_of_planes_minus_one + 1];
+	float v_ready_offset_pix[number_of_planes_minus_one + 1];
 	float t_setup;
 	float t_wait;
 	float bandwidth_available_for_immediate_flip;

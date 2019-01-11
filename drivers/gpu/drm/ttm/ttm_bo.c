@@ -45,6 +45,14 @@
 
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
 
+/**
+ * ttm_global_mutex - protecting the global BO state
+ */
+DEFINE_MUTEX(ttm_global_mutex);
+struct ttm_bo_global ttm_bo_glob = {
+	.use_count = 0
+};
+
 static struct attribute ttm_bo_count = {
 	.name = "bo_count",
 	.mode = S_IRUGO
@@ -214,14 +222,88 @@ void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
 
-void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
+static void ttm_bo_bulk_move_set_pos(struct ttm_lru_bulk_move_pos *pos,
+				     struct ttm_buffer_object *bo)
+{
+	if (!pos->first)
+		pos->first = bo;
+	pos->last = bo;
+}
+
+void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
+			     struct ttm_lru_bulk_move *bulk)
 {
 	reservation_object_assert_held(bo->resv);
 
 	ttm_bo_del_from_lru(bo);
 	ttm_bo_add_to_lru(bo);
+
+	if (bulk && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+		switch (bo->mem.mem_type) {
+		case TTM_PL_TT:
+			ttm_bo_bulk_move_set_pos(&bulk->tt[bo->priority], bo);
+			break;
+
+		case TTM_PL_VRAM:
+			ttm_bo_bulk_move_set_pos(&bulk->vram[bo->priority], bo);
+			break;
+		}
+		if (bo->ttm && !(bo->ttm->page_flags &
+				 (TTM_PAGE_FLAG_SG | TTM_PAGE_FLAG_SWAPPED)))
+			ttm_bo_bulk_move_set_pos(&bulk->swap[bo->priority], bo);
+	}
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
+
+void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
+{
+	unsigned i;
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->tt[i];
+		struct ttm_mem_type_manager *man;
+
+		if (!pos->first)
+			continue;
+
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		man = &pos->first->bdev->man[TTM_PL_TT];
+		list_bulk_move_tail(&man->lru[i], &pos->first->lru,
+				    &pos->last->lru);
+	}
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->vram[i];
+		struct ttm_mem_type_manager *man;
+
+		if (!pos->first)
+			continue;
+
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		man = &pos->first->bdev->man[TTM_PL_VRAM];
+		list_bulk_move_tail(&man->lru[i], &pos->first->lru,
+				    &pos->last->lru);
+	}
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->swap[i];
+		struct list_head *lru;
+
+		if (!pos->first)
+			continue;
+
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		lru = &pos->first->bdev->glob->swap_lru[i];
+		list_bulk_move_tail(lru, &pos->first->swap, &pos->last->swap);
+	}
+}
+EXPORT_SYMBOL(ttm_bo_bulk_move_lru_tail);
 
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem, bool evict,
@@ -798,7 +880,7 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 	if (fence) {
 		reservation_object_add_shared_fence(bo->resv, fence);
 
-		ret = reservation_object_reserve_shared(bo->resv);
+		ret = reservation_object_reserve_shared(bo->resv, 1);
 		if (unlikely(ret))
 			return ret;
 
@@ -903,7 +985,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	bool has_erestartsys = false;
 	int i, ret;
 
-	ret = reservation_object_reserve_shared(bo->resv);
+	ret = reservation_object_reserve_shared(bo->resv, 1);
 	if (unlikely(ret))
 		return ret;
 
@@ -1445,35 +1527,45 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj)
 		container_of(kobj, struct ttm_bo_global, kobj);
 
 	__free_page(glob->dummy_read_page);
-	kfree(glob);
 }
 
-void ttm_bo_global_release(struct drm_global_reference *ref)
+static void ttm_bo_global_release(void)
 {
-	struct ttm_bo_global *glob = ref->object;
+	struct ttm_bo_global *glob = &ttm_bo_glob;
+
+	mutex_lock(&ttm_global_mutex);
+	if (--glob->use_count > 0)
+		goto out;
 
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
+	ttm_mem_global_release(&ttm_mem_glob);
+out:
+	mutex_unlock(&ttm_global_mutex);
 }
-EXPORT_SYMBOL(ttm_bo_global_release);
 
-int ttm_bo_global_init(struct drm_global_reference *ref)
+static int ttm_bo_global_init(void)
 {
-	struct ttm_bo_global_ref *bo_ref =
-		container_of(ref, struct ttm_bo_global_ref, ref);
-	struct ttm_bo_global *glob = ref->object;
-	int ret;
+	struct ttm_bo_global *glob = &ttm_bo_glob;
+	int ret = 0;
 	unsigned i;
 
-	mutex_init(&glob->device_list_mutex);
+	mutex_lock(&ttm_global_mutex);
+	if (++glob->use_count > 1)
+		goto out;
+
+	ret = ttm_mem_global_init(&ttm_mem_glob);
+	if (ret)
+		goto out;
+
 	spin_lock_init(&glob->lru_lock);
-	glob->mem_glob = bo_ref->mem_glob;
+	glob->mem_glob = &ttm_mem_glob;
 	glob->mem_glob->bo_glob = glob;
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);
 
 	if (unlikely(glob->dummy_read_page == NULL)) {
 		ret = -ENOMEM;
-		goto out_no_drp;
+		goto out;
 	}
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
@@ -1485,13 +1577,10 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 		&glob->kobj, &ttm_bo_glob_kobj_type, ttm_get_kobj(), "buffer_objects");
 	if (unlikely(ret != 0))
 		kobject_put(&glob->kobj);
-	return ret;
-out_no_drp:
-	kfree(glob);
+out:
+	mutex_unlock(&ttm_global_mutex);
 	return ret;
 }
-EXPORT_SYMBOL(ttm_bo_global_init);
-
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev)
 {
@@ -1513,9 +1602,9 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 		}
 	}
 
-	mutex_lock(&glob->device_list_mutex);
+	mutex_lock(&ttm_global_mutex);
 	list_del(&bdev->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	mutex_unlock(&ttm_global_mutex);
 
 	cancel_delayed_work_sync(&bdev->wq);
 
@@ -1530,18 +1619,25 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 
 	drm_vma_offset_manager_destroy(&bdev->vma_manager);
 
+	if (!ret)
+		ttm_bo_global_release();
+
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_device_release);
 
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
-		       struct ttm_bo_global *glob,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
 		       uint64_t file_page_offset,
 		       bool need_dma32)
 {
-	int ret = -EINVAL;
+	struct ttm_bo_global *glob = &ttm_bo_glob;
+	int ret;
+
+	ret = ttm_bo_global_init();
+	if (ret)
+		return ret;
 
 	bdev->driver = driver;
 
@@ -1562,12 +1658,13 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	bdev->dev_mapping = mapping;
 	bdev->glob = glob;
 	bdev->need_dma32 = need_dma32;
-	mutex_lock(&glob->device_list_mutex);
+	mutex_lock(&ttm_global_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	mutex_unlock(&ttm_global_mutex);
 
 	return 0;
 out_no_sys:
+	ttm_bo_global_release();
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_device_init);

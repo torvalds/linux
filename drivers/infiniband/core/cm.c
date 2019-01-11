@@ -343,7 +343,7 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 		ret = -ENODEV;
 		goto out;
 	}
-	ah = rdma_create_ah(mad_agent->qp->pd, &av->ah_attr);
+	ah = rdma_create_ah(mad_agent->qp->pd, &av->ah_attr, 0);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto out;
@@ -355,7 +355,7 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 			       GFP_ATOMIC,
 			       IB_MGMT_BASE_VERSION);
 	if (IS_ERR(m)) {
-		rdma_destroy_ah(ah);
+		rdma_destroy_ah(ah, 0);
 		ret = PTR_ERR(m);
 		goto out;
 	}
@@ -400,7 +400,7 @@ static int cm_create_response_msg_ah(struct cm_port *port,
 static void cm_free_msg(struct ib_mad_send_buf *msg)
 {
 	if (msg->ah)
-		rdma_destroy_ah(msg->ah);
+		rdma_destroy_ah(msg->ah, 0);
 	if (msg->context[0])
 		cm_deref_id(msg->context[0]);
 	ib_free_send_mad(msg);
@@ -3292,8 +3292,11 @@ static int cm_lap_handler(struct cm_work *work)
 	if (ret)
 		goto unlock;
 
-	cm_init_av_by_path(param->alternate_path, NULL, &cm_id_priv->alt_av,
-			   cm_id_priv);
+	ret = cm_init_av_by_path(param->alternate_path, NULL,
+				 &cm_id_priv->alt_av, cm_id_priv);
+	if (ret)
+		goto unlock;
+
 	cm_id_priv->id.lap_state = IB_CM_LAP_RCVD;
 	cm_id_priv->tid = lap_msg->hdr.tid;
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
@@ -4367,7 +4370,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->going_down = 0;
 	cm_dev->device = device_create(&cm_class, &ib_device->dev,
 				       MKDEV(0, 0), NULL,
-				       "%s", ib_device->name);
+				       "%s", dev_name(&ib_device->dev));
 	if (IS_ERR(cm_dev->device)) {
 		kfree(cm_dev);
 		return;

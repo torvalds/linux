@@ -23,6 +23,7 @@
 #include <asm/pci_x86.h>
 #include <asm/setup.h>
 #include <asm/i8259.h>
+#include <asm/prom.h>
 
 __initdata u64 initial_dtb;
 char __initdata cmd_line[COMMAND_LINE_SIZE];
@@ -140,7 +141,7 @@ static void __init dtb_cpu_setup(void)
 	int ret;
 
 	version = GET_APIC_VERSION(apic_read(APIC_LVR));
-	for_each_node_by_type(dn, "cpu") {
+	for_each_of_cpu_node(dn) {
 		ret = of_property_read_u32(dn, "reg", &apic_id);
 		if (ret < 0) {
 			pr_warn("%pOF: missing local APIC ID\n", dn);

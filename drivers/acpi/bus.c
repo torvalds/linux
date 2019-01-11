@@ -35,11 +35,11 @@
 #include <linux/delay.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
+#include <linux/dmi.h>
 #endif
 #include <linux/acpi_iort.h>
 #include <linux/pci.h>
 #include <acpi/apei.h>
-#include <linux/dmi.h>
 #include <linux/suspend.h>
 
 #include "internal.h"
@@ -80,10 +80,6 @@ static const struct dmi_system_id dsdt_dmi_table[] __initconst = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite"),
 		},
 	},
-	{}
-};
-#else
-static const struct dmi_system_id dsdt_dmi_table[] __initconst = {
 	{}
 };
 #endif
@@ -1033,11 +1029,16 @@ void __init acpi_early_init(void)
 
 	acpi_permanent_mmap = true;
 
+#ifdef CONFIG_X86
 	/*
 	 * If the machine falls into the DMI check table,
-	 * DSDT will be copied to memory
+	 * DSDT will be copied to memory.
+	 * Note that calling dmi_check_system() here on other architectures
+	 * would not be OK because only x86 initializes dmi early enough.
+	 * Thankfully only x86 systems need such quirks for now.
 	 */
 	dmi_check_system(dsdt_dmi_table);
+#endif
 
 	status = acpi_reallocate_root_table();
 	if (ACPI_FAILURE(status)) {
@@ -1053,15 +1054,17 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
-	if (!acpi_gbl_execute_tables_as_methods &&
-	    acpi_gbl_group_module_level_code) {
-		status = acpi_load_tables();
-		if (ACPI_FAILURE(status)) {
-			printk(KERN_ERR PREFIX
-			       "Unable to load the System Description Tables\n");
-			goto error0;
-		}
-	}
+	/*
+	 * ACPI 2.0 requires the EC driver to be loaded and work before
+	 * the EC device is found in the namespace (i.e. before
+	 * acpi_load_tables() is called).
+	 *
+	 * This is accomplished by looking for the ECDT table, and getting
+	 * the EC parameters out of that.
+	 *
+	 * Ignore the result. Not having an ECDT is not fatal.
+	 */
+	status = acpi_ec_ecdt_probe();
 
 #ifdef CONFIG_X86
 	if (!acpi_ioapic) {
@@ -1132,25 +1135,11 @@ static int __init acpi_bus_init(void)
 
 	acpi_os_initialize1();
 
-	/*
-	 * ACPI 2.0 requires the EC driver to be loaded and work before
-	 * the EC device is found in the namespace (i.e. before
-	 * acpi_load_tables() is called).
-	 *
-	 * This is accomplished by looking for the ECDT table, and getting
-	 * the EC parameters out of that.
-	 */
-	status = acpi_ec_ecdt_probe();
-	/* Ignore result. Not having an ECDT is not fatal. */
-
-	if (acpi_gbl_execute_tables_as_methods ||
-	    !acpi_gbl_group_module_level_code) {
-		status = acpi_load_tables();
-		if (ACPI_FAILURE(status)) {
-			printk(KERN_ERR PREFIX
-			       "Unable to load the System Description Tables\n");
-			goto error1;
-		}
+	status = acpi_load_tables();
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_ERR PREFIX
+		       "Unable to load the System Description Tables\n");
+		goto error1;
 	}
 
 	status = acpi_enable_subsystem(ACPI_NO_ACPI_ENABLE);
@@ -1248,7 +1237,6 @@ static int __init acpi_init(void)
 		acpi_kobj = NULL;
 	}
 
-	init_acpi_device_notify();
 	result = acpi_bus_init();
 	if (result) {
 		disable_acpi();

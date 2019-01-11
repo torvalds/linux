@@ -459,8 +459,7 @@ void __init smp_setup_cpu_maps(void)
 
 	DBG("smp_setup_cpu_maps()\n");
 
-	cpu_to_phys_id = __va(memblock_alloc(nr_cpu_ids * sizeof(u32),
-							__alignof__(u32)));
+	cpu_to_phys_id = __va(memblock_phys_alloc(nr_cpu_ids * sizeof(u32), __alignof__(u32)));
 	memset(cpu_to_phys_id, 0, nr_cpu_ids * sizeof(u32));
 
 	for_each_node_by_type(dn, "cpu") {
@@ -688,7 +687,7 @@ int check_legacy_ioport(unsigned long base_port)
 		return ret;
 	parent = of_get_parent(np);
 	if (parent) {
-		if (strcmp(parent->type, "isa") == 0)
+		if (of_node_is_type(parent, "isa"))
 			ret = 0;
 		of_node_put(parent);
 	}
@@ -801,7 +800,7 @@ static __init void print_system_info(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
 #endif
-#ifdef CONFIG_PPC_STD_MMU_32
+#ifdef CONFIG_PPC_BOOK3S_32
 	pr_info("Hash_size         = 0x%lx\n", Hash_size);
 #endif
 	pr_info("phys_mem_size     = 0x%llx\n",
@@ -831,7 +830,7 @@ static __init void print_system_info(void)
 	if (htab_hash_mask)
 		pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
 #endif
-#ifdef CONFIG_PPC_STD_MMU_32
+#ifdef CONFIG_PPC_BOOK3S_32
 	if (Hash)
 		pr_info("Hash              = 0x%p\n", Hash);
 	if (Hash_mask)
@@ -966,6 +965,8 @@ void __init setup_arch(char **cmdline_p)
 
 	initmem_init();
 
+	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
+
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
@@ -973,6 +974,7 @@ void __init setup_arch(char **cmdline_p)
 		ppc_md.setup_arch();
 
 	setup_barrier_nospec();
+	setup_spectre_v2();
 
 	paging_init();
 

@@ -10,6 +10,8 @@ Required Properties:
 	- "mediatek,mt2712-topckgen", "syscon"
 	- "mediatek,mt6797-topckgen"
 	- "mediatek,mt7622-topckgen"
+	- "mediatek,mt7623-topckgen", "mediatek,mt2701-topckgen"
+	- "mediatek,mt7629-topckgen"
 	- "mediatek,mt8135-topckgen"
 	- "mediatek,mt8173-topckgen"
 - #clock-cells: Must be 1

@@ -1,14 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Many of the syscalls used in this file expect some of the arguments
- * to be __user pointers not __kernel pointers.  To limit the sparse
- * noise, turn off sparse checking for this file.
- */
-#ifdef __CHECKER__
-#undef __CHECKER__
-#warning "Sparse checking disabled for this file"
-#endif
-
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
@@ -301,16 +291,6 @@ static int __init do_reset(void)
 	return 1;
 }
 
-static int __init maybe_link(void)
-{
-	if (nlink >= 2) {
-		char *old = find_link(major, minor, ino, mode, collected);
-		if (old)
-			return (ksys_link(old, collected) < 0) ? -1 : 1;
-	}
-	return 0;
-}
-
 static void __init clean_path(char *path, umode_t fmode)
 {
 	struct kstat st;
@@ -321,6 +301,18 @@ static void __init clean_path(char *path, umode_t fmode)
 		else
 			ksys_unlink(path);
 	}
+}
+
+static int __init maybe_link(void)
+{
+	if (nlink >= 2) {
+		char *old = find_link(major, minor, ino, mode, collected);
+		if (old) {
+			clean_path(collected, 0);
+			return (ksys_link(old, collected) < 0) ? -1 : 1;
+		}
+	}
+	return 0;
 }
 
 static __initdata int wfd;
@@ -558,7 +550,6 @@ skip:
 	initrd_end = 0;
 }
 
-#ifdef CONFIG_BLK_DEV_RAM
 #define BUF_SIZE 1024
 static void __init clean_rootfs(void)
 {
@@ -605,7 +596,6 @@ static void __init clean_rootfs(void)
 	ksys_close(fd);
 	kfree(buf);
 }
-#endif
 
 static int __init populate_rootfs(void)
 {
@@ -648,18 +638,14 @@ static int __init populate_rootfs(void)
 		printk(KERN_INFO "Unpacking initramfs...\n");
 		err = unpack_to_rootfs((char *)initrd_start,
 			initrd_end - initrd_start);
-		if (err)
+		if (err) {
 			printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
+			clean_rootfs();
+		}
 		free_initrd();
 #endif
 	}
 	flush_delayed_fput();
-	/*
-	 * Try loading default modules from initramfs.  This gives
-	 * us a chance to load before device_initcalls.
-	 */
-	load_default_modules();
-
 	return 0;
 }
 rootfs_initcall(populate_rootfs);

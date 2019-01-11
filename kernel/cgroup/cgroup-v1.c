@@ -27,6 +27,9 @@
 /* Controllers blocked by the commandline in v1 */
 static u16 cgroup_no_v1_mask;
 
+/* disable named v1 mounts */
+static bool cgroup_no_v1_named;
+
 /*
  * pidlist destructions need to be flushed on cgroup destruction.  Use a
  * separate workqueue as flush domain.
@@ -135,7 +138,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 		if (task) {
 			ret = cgroup_migrate(task, false, &mgctx);
 			if (!ret)
-				trace_cgroup_transfer_tasks(to, task, false);
+				TRACE_CGROUP_PATH(transfer_tasks, to, task, false);
 			put_task_struct(task);
 		}
 	} while (task && !ret);
@@ -865,7 +868,7 @@ static int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent
 
 	ret = kernfs_rename(kn, new_parent, new_name_str);
 	if (!ret)
-		trace_cgroup_rename(cgrp);
+		TRACE_CGROUP_PATH(rename, cgrp);
 
 	mutex_unlock(&cgroup_mutex);
 
@@ -963,6 +966,10 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 		}
 		if (!strncmp(token, "name=", 5)) {
 			const char *name = token + 5;
+
+			/* blocked by boot param? */
+			if (cgroup_no_v1_named)
+				return -ENOENT;
 			/* Can't specify an empty name */
 			if (!strlen(name))
 				return -EINVAL;
@@ -1292,7 +1299,12 @@ static int __init cgroup_no_v1(char *str)
 
 		if (!strcmp(token, "all")) {
 			cgroup_no_v1_mask = U16_MAX;
-			break;
+			continue;
+		}
+
+		if (!strcmp(token, "named")) {
+			cgroup_no_v1_named = true;
+			continue;
 		}
 
 		for_each_subsys(ss, i) {

@@ -17,6 +17,7 @@
 				    : "memory")
 
 #define mb()		asm volatile("sync" : : : "memory");
+#define barrier()	asm volatile("" : : : "memory");
 
 #define SPRN_MMCR2     769
 #define SPRN_MMCRA     770

@@ -157,6 +157,25 @@ data_flush             Enable data flushing before checkpoint in order to
                        persist data of regular and symlink.
 fault_injection=%d     Enable fault injection in all supported types with
                        specified injection rate.
+fault_type=%d          Support configuring fault injection type, should be
+                       enabled with fault_injection option, fault type value
+                       is shown below, it supports single or combined type.
+                       Type_Name		Type_Value
+                       FAULT_KMALLOC		0x000000001
+                       FAULT_KVMALLOC		0x000000002
+                       FAULT_PAGE_ALLOC		0x000000004
+                       FAULT_PAGE_GET		0x000000008
+                       FAULT_ALLOC_BIO		0x000000010
+                       FAULT_ALLOC_NID		0x000000020
+                       FAULT_ORPHAN		0x000000040
+                       FAULT_BLOCK		0x000000080
+                       FAULT_DIR_DEPTH		0x000000100
+                       FAULT_EVICT_INODE	0x000000200
+                       FAULT_TRUNCATE		0x000000400
+                       FAULT_READ_IO		0x000000800
+                       FAULT_CHECKPOINT		0x000001000
+                       FAULT_DISCARD		0x000002000
+                       FAULT_WRITE_IO		0x000004000
 mode=%s                Control block allocation mode which supports "adaptive"
                        and "lfs". In "lfs" mode, there should be no random
                        writes towards main area.
@@ -193,6 +212,11 @@ fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
                        non-atomic files likewise "nobarrier" mount option.
 test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
                        context. The fake fscrypt context is used by xfstests.
+checkpoint=%s          Set to "disable" to turn off checkpointing. Set to "enable"
+                       to reenable checkpointing. Is enabled by default. While
+                       disabled, any unmounting or unexpected shutdowns will cause
+                       the filesystem contents to appear as they did when the
+                       filesystem was mounted with that option.
 
 ================================================================================
 DEBUGFS ENTRIES

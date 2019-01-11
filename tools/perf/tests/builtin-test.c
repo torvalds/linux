@@ -121,6 +121,16 @@ static struct test generic_tests[] = {
 		.is_supported = test__bp_signal_is_supported,
 	},
 	{
+		.desc = "Watchpoint",
+		.func = test__wp,
+		.is_supported = test__wp_is_supported,
+		.subtest = {
+			.skip_if_fail	= false,
+			.get_nr		= test__wp_subtest_get_nr,
+			.get_desc	= test__wp_subtest_get_desc,
+		},
+	},
+	{
 		.desc = "Number of exit events of a simple workload",
 		.func = test__task_exit,
 	},
@@ -413,6 +423,9 @@ static const char *shell_test__description(char *description, size_t size,
 	fp = fopen(filename, "r");
 	if (!fp)
 		return NULL;
+
+	/* Skip shebang */
+	while (fgetc(fp) != '\n');
 
 	description = fgets(description, size, fp);
 	fclose(fp);

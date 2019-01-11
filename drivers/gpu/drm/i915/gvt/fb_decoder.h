@@ -101,7 +101,7 @@ struct intel_gvt;
 /* color space conversion and gamma correction are not included */
 struct intel_vgpu_primary_plane_format {
 	u8	enabled;	/* plane is enabled */
-	u8	tiled;		/* X-tiled */
+	u32	tiled;		/* tiling mode: linear, X-tiled, Y tiled, etc */
 	u8	bpp;		/* bits per pixel */
 	u32	hw_format;	/* format field in the PRI_CTL register */
 	u32	drm_format;	/* format in DRM definition */

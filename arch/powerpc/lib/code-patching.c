@@ -98,8 +98,7 @@ static int map_patch_area(void *addr, unsigned long text_poke_addr)
 	else
 		pfn = __pa_symbol(addr) >> PAGE_SHIFT;
 
-	err = map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT),
-				pgprot_val(PAGE_KERNEL));
+	err = map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT), PAGE_KERNEL);
 
 	pr_devel("Mapped addr %lx with pfn %lx:%d\n", text_poke_addr, pfn, err);
 	if (err)
@@ -142,7 +141,7 @@ static inline int unmap_patch_area(unsigned long addr)
 	return 0;
 }
 
-int patch_instruction(unsigned int *addr, unsigned int instr)
+static int do_patch_instruction(unsigned int *addr, unsigned int instr)
 {
 	int err;
 	unsigned int *patch_addr = NULL;
@@ -182,33 +181,27 @@ out:
 }
 #else /* !CONFIG_STRICT_KERNEL_RWX */
 
-int patch_instruction(unsigned int *addr, unsigned int instr)
+static int do_patch_instruction(unsigned int *addr, unsigned int instr)
 {
 	return raw_patch_instruction(addr, instr);
 }
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
+
+int patch_instruction(unsigned int *addr, unsigned int instr)
+{
+	/* Make sure we aren't patching a freed init section */
+	if (init_mem_is_free && init_section_contains(addr, 4)) {
+		pr_debug("Skipping init section patching addr: 0x%px\n", addr);
+		return 0;
+	}
+	return do_patch_instruction(addr, instr);
+}
 NOKPROBE_SYMBOL(patch_instruction);
 
 int patch_branch(unsigned int *addr, unsigned long target, int flags)
 {
 	return patch_instruction(addr, create_branch(addr, target, flags));
-}
-
-int patch_branch_site(s32 *site, unsigned long target, int flags)
-{
-	unsigned int *addr;
-
-	addr = (unsigned int *)((unsigned long)site + *site);
-	return patch_instruction(addr, create_branch(addr, target, flags));
-}
-
-int patch_instruction_site(s32 *site, unsigned int instr)
-{
-	unsigned int *addr;
-
-	addr = (unsigned int *)((unsigned long)site + *site);
-	return patch_instruction(addr, instr);
 }
 
 bool is_offset_in_branch_range(long offset)

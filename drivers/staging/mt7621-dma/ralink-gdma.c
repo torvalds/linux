@@ -47,7 +47,6 @@
 #define GDMA_REG_CTRL1_REQ_MASK		0x3f
 #define GDMA_REG_CTRL1_SRC_REQ_SHIFT	16
 #define GDMA_REG_CTRL1_DST_REQ_SHIFT	8
-#define GDMA_REG_CTRL1_CONTINOUS	BIT(14)
 #define GDMA_REG_CTRL1_NEXT_MASK	0x1f
 #define GDMA_REG_CTRL1_NEXT_SHIFT	3
 #define GDMA_REG_CTRL1_COHERENT		BIT(2)
@@ -460,12 +459,14 @@ static void gdma_dma_chan_irq(struct gdma_dma_dev *dma_dev,
 				list_del(&desc->vdesc.node);
 				vchan_cookie_complete(&desc->vdesc);
 				chan_issued = gdma_next_desc(chan);
-			} else
+			} else {
 				chan_issued = 1;
+			}
 		}
-	} else
+	} else {
 		dev_dbg(dma_dev->ddev.dev, "chan %d no desc to complete\n",
 			chan->id);
+	}
 	if (chan_issued)
 		set_bit(chan->id, &dma_dev->chan_issued);
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
@@ -513,9 +514,10 @@ static void gdma_dma_issue_pending(struct dma_chan *c)
 		if (gdma_next_desc(chan)) {
 			set_bit(chan->id, &dma_dev->chan_issued);
 			tasklet_schedule(&dma_dev->task);
-		} else
+		} else {
 			dev_dbg(dma_dev->ddev.dev, "chan %d no desc to issue\n",
 				chan->id);
+		}
 	}
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
 }
@@ -538,11 +540,11 @@ static struct dma_async_tx_descriptor *gdma_dma_prep_slave_sg(
 	desc->residue = 0;
 
 	for_each_sg(sgl, sg, sg_len, i) {
-		if (direction == DMA_MEM_TO_DEV)
+		if (direction == DMA_MEM_TO_DEV) {
 			desc->sg[i].src_addr = sg_dma_address(sg);
-		else if (direction == DMA_DEV_TO_MEM)
+		} else if (direction == DMA_DEV_TO_MEM) {
 			desc->sg[i].dst_addr = sg_dma_address(sg);
-		else {
+		} else {
 			dev_err(c->device->dev, "direction type %d error\n",
 				direction);
 			goto free_desc;
@@ -638,11 +640,11 @@ static struct dma_async_tx_descriptor *gdma_dma_prep_dma_cyclic(
 	desc->residue = buf_len;
 
 	for (i = 0; i < num_periods; i++) {
-		if (direction == DMA_MEM_TO_DEV)
+		if (direction == DMA_MEM_TO_DEV) {
 			desc->sg[i].src_addr = buf_addr;
-		else if (direction == DMA_DEV_TO_MEM)
+		} else if (direction == DMA_DEV_TO_MEM) {
 			desc->sg[i].dst_addr = buf_addr;
-		else {
+		} else {
 			dev_err(c->device->dev, "direction type %d error\n",
 				direction);
 			goto free_desc;
@@ -738,9 +740,9 @@ static void gdma_dma_tasklet(unsigned long arg)
 			if (chan->desc) {
 				atomic_inc(&dma_dev->cnt);
 				gdma_start_transfer(dma_dev, chan);
-			} else
+			} else {
 				dev_dbg(dma_dev->ddev.dev, "chan %d no desc to issue\n", chan->id);
-
+			}
 			if (!dma_dev->chan_issued)
 				break;
 		}

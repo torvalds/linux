@@ -713,6 +713,7 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 
 		pcie_capability_read_dword(bridge, PCI_EXP_LNKCAP, &linkcap);
 		bus->max_bus_speed = pcie_link_speed[linkcap & PCI_EXP_LNKCAP_SLS];
+		bridge->link_active_reporting = !!(linkcap & PCI_EXP_LNKCAP_DLLLARC);
 
 		pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &linksta);
 		pcie_update_link_speed(bus, linksta);
@@ -1377,6 +1378,19 @@ static void set_pcie_thunderbolt(struct pci_dev *dev)
 	}
 }
 
+static void set_pcie_untrusted(struct pci_dev *dev)
+{
+	struct pci_dev *parent;
+
+	/*
+	 * If the upstream bridge is untrusted we treat this device
+	 * untrusted as well.
+	 */
+	parent = pci_upstream_bridge(dev);
+	if (parent && parent->untrusted)
+		dev->untrusted = true;
+}
+
 /**
  * pci_ext_cfg_is_aliased - Is ext config space just an alias of std config?
  * @dev: PCI device
@@ -1438,11 +1452,28 @@ static int pci_cfg_space_size_ext(struct pci_dev *dev)
 	return PCI_CFG_SPACE_EXP_SIZE;
 }
 
+#ifdef CONFIG_PCI_IOV
+static bool is_vf0(struct pci_dev *dev)
+{
+	if (pci_iov_virtfn_devfn(dev->physfn, 0) == dev->devfn &&
+	    pci_iov_virtfn_bus(dev->physfn, 0) == dev->bus->number)
+		return true;
+
+	return false;
+}
+#endif
+
 int pci_cfg_space_size(struct pci_dev *dev)
 {
 	int pos;
 	u32 status;
 	u16 class;
+
+#ifdef CONFIG_PCI_IOV
+	/* Read cached value for all VFs except for VF0 */
+	if (dev->is_virtfn && !is_vf0(dev))
+		return dev->physfn->sriov->cfg_size;
+#endif
 
 	if (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_EXTCFG)
 		return PCI_CFG_SPACE_SIZE;
@@ -1619,6 +1650,8 @@ int pci_setup_device(struct pci_dev *dev)
 
 	/* Need to have dev->cfg_size ready */
 	set_pcie_thunderbolt(dev);
+
+	set_pcie_untrusted(dev);
 
 	/* "Unknown power state" */
 	dev->current_state = PCI_UNKNOWN;
@@ -2074,6 +2107,7 @@ static void pci_configure_eetlp_prefix(struct pci_dev *dev)
 {
 #ifdef CONFIG_PCI_PASID
 	struct pci_dev *bridge;
+	int pcie_type;
 	u32 cap;
 
 	if (!pci_is_pcie(dev))
@@ -2083,7 +2117,9 @@ static void pci_configure_eetlp_prefix(struct pci_dev *dev)
 	if (!(cap & PCI_EXP_DEVCAP2_EE_PREFIX))
 		return;
 
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
+	pcie_type = pci_pcie_type(dev);
+	if (pcie_type == PCI_EXP_TYPE_ROOT_PORT ||
+	    pcie_type == PCI_EXP_TYPE_RC_END)
 		dev->eetlp_prefix_path = 1;
 	else {
 		bridge = pci_upstream_bridge(dev);
@@ -2140,7 +2176,7 @@ static void pci_release_dev(struct device *dev)
 	pcibios_release_device(pci_dev);
 	pci_bus_put(pci_dev->bus);
 	kfree(pci_dev->driver_override);
-	kfree(pci_dev->dma_alias_mask);
+	bitmap_free(pci_dev->dma_alias_mask);
 	kfree(pci_dev);
 }
 
@@ -2394,8 +2430,8 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	dev->dev.dma_parms = &dev->dma_parms;
 	dev->dev.coherent_dma_mask = 0xffffffffull;
 
-	pci_set_dma_max_seg_size(dev, 65536);
-	pci_set_dma_seg_boundary(dev, 0xffffffff);
+	dma_set_max_seg_size(&dev->dev, 65536);
+	dma_set_seg_boundary(&dev->dev, 0xffffffff);
 
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);

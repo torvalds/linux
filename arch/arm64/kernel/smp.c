@@ -141,6 +141,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		}
 	} else {
 		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
+		return ret;
 	}
 
 	secondary_data.task = NULL;
@@ -151,7 +152,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		if (status == CPU_MMU_OFF)
 			status = READ_ONCE(__early_cpu_boot_status);
 
-		switch (status) {
+		switch (status & CPU_BOOT_STATUS_MASK) {
 		default:
 			pr_err("CPU%u: failed in unknown state : 0x%lx\n",
 					cpu, status);
@@ -165,6 +166,10 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 			pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
 		case CPU_STUCK_IN_KERNEL:
 			pr_crit("CPU%u: is stuck in kernel\n", cpu);
+			if (status & CPU_STUCK_REASON_52_BIT_VA)
+				pr_crit("CPU%u: does not support 52-bit VAs\n", cpu);
+			if (status & CPU_STUCK_REASON_NO_GRAN)
+				pr_crit("CPU%u: does not support %luK granule \n", cpu, PAGE_SIZE / SZ_1K);
 			cpus_stuck_in_kernel++;
 			break;
 		case CPU_PANIC_KERNEL:
@@ -602,7 +607,7 @@ static void __init of_parse_and_init_cpus(void)
 {
 	struct device_node *dn;
 
-	for_each_node_by_type(dn, "cpu") {
+	for_each_of_cpu_node(dn) {
 		u64 hwid = of_get_cpu_mpidr(dn);
 
 		if (hwid == INVALID_HWID)

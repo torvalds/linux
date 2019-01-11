@@ -30,7 +30,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#include <asm/set_memory.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include <sound/pcm.h>
@@ -1141,8 +1140,7 @@ static int had_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_intelhad *intelhaddata;
-	unsigned long addr;
-	int pages, buf_size, retval;
+	int buf_size, retval;
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	buf_size = params_buffer_bytes(hw_params);
@@ -1151,17 +1149,6 @@ static int had_pcm_hw_params(struct snd_pcm_substream *substream,
 		return retval;
 	dev_dbg(intelhaddata->dev, "%s:allocated memory = %d\n",
 		__func__, buf_size);
-	/* mark the pages as uncached region */
-	addr = (unsigned long) substream->runtime->dma_area;
-	pages = (substream->runtime->dma_bytes + PAGE_SIZE - 1) / PAGE_SIZE;
-	retval = set_memory_uc(addr, pages);
-	if (retval) {
-		dev_err(intelhaddata->dev, "set_memory_uc failed.Error:%d\n",
-			retval);
-		return retval;
-	}
-	memset(substream->runtime->dma_area, 0, buf_size);
-
 	return retval;
 }
 
@@ -1171,21 +1158,11 @@ static int had_pcm_hw_params(struct snd_pcm_substream *substream,
 static int had_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_intelhad *intelhaddata;
-	unsigned long addr;
-	u32 pages;
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	had_do_reset(intelhaddata);
 
-	/* mark back the pages as cached/writeback region before the free */
-	if (substream->runtime->dma_area != NULL) {
-		addr = (unsigned long) substream->runtime->dma_area;
-		pages = (substream->runtime->dma_bytes + PAGE_SIZE - 1) /
-								PAGE_SIZE;
-		set_memory_wb(addr, pages);
-		return snd_pcm_lib_free_pages(substream);
-	}
-	return 0;
+	return snd_pcm_lib_free_pages(substream);
 }
 
 /*
@@ -1671,7 +1648,7 @@ static int had_create_jack(struct snd_intelhad *ctx,
  * PM callbacks
  */
 
-static int hdmi_lpe_audio_runtime_suspend(struct device *dev)
+static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
 {
 	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
 	int port;
@@ -1687,23 +1664,8 @@ static int hdmi_lpe_audio_runtime_suspend(struct device *dev)
 		}
 	}
 
-	return 0;
-}
+	snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D3hot);
 
-static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
-{
-	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
-	int err;
-
-	err = hdmi_lpe_audio_runtime_suspend(dev);
-	if (!err)
-		snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D3hot);
-	return err;
-}
-
-static int hdmi_lpe_audio_runtime_resume(struct device *dev)
-{
-	pm_runtime_mark_last_busy(dev);
 	return 0;
 }
 
@@ -1711,8 +1673,10 @@ static int __maybe_unused hdmi_lpe_audio_resume(struct device *dev)
 {
 	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
 
-	hdmi_lpe_audio_runtime_resume(dev);
+	pm_runtime_mark_last_busy(dev);
+
 	snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D0);
+
 	return 0;
 }
 
@@ -1860,7 +1824,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		 * try to allocate 600k buffer as default which is large enough
 		 */
 		snd_pcm_lib_preallocate_pages_for_all(pcm,
-						      SNDRV_DMA_TYPE_DEV, NULL,
+						      SNDRV_DMA_TYPE_DEV_UC, NULL,
 						      HAD_DEFAULT_BUFFER, HAD_MAX_BUFFER);
 
 		/* create controls */
@@ -1900,7 +1864,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
 	for_each_port(card_ctx, port) {
@@ -1931,8 +1894,6 @@ static int hdmi_lpe_audio_remove(struct platform_device *pdev)
 
 static const struct dev_pm_ops hdmi_lpe_audio_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(hdmi_lpe_audio_suspend, hdmi_lpe_audio_resume)
-	SET_RUNTIME_PM_OPS(hdmi_lpe_audio_runtime_suspend,
-			   hdmi_lpe_audio_runtime_resume, NULL)
 };
 
 static struct platform_driver hdmi_lpe_audio_driver = {

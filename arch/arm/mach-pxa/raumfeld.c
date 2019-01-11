@@ -749,9 +749,6 @@ static struct pxamci_platform_data raumfeld_mci_platform_data = {
 	.init			= raumfeld_mci_init,
 	.exit			= raumfeld_mci_exit,
 	.detect_delay_ms	= 200,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 /*
@@ -886,7 +883,6 @@ static struct regulator_init_data audio_va_initdata = {
 static struct fixed_voltage_config audio_va_config = {
 	.supply_name		= "audio_va",
 	.microvolts		= 5000000,
-	.gpio			= GPIO_AUDIO_VA_ENABLE,
 	.enable_high		= 1,
 	.enabled_at_boot	= 0,
 	.init_data		= &audio_va_initdata,
@@ -897,6 +893,15 @@ static struct platform_device audio_va_device = {
 	.id	= 0,
 	.dev	= {
 		.platform_data = &audio_va_config,
+	},
+};
+
+static struct gpiod_lookup_table audio_va_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_AUDIO_VA_ENABLE,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -918,7 +923,6 @@ static struct regulator_init_data audio_dummy_initdata = {
 static struct fixed_voltage_config audio_dummy_config = {
 	.supply_name		= "audio_vd",
 	.microvolts		= 3300000,
-	.gpio			= -1,
 	.init_data		= &audio_dummy_initdata,
 };
 
@@ -1033,6 +1037,7 @@ static void __init raumfeld_audio_init(void)
 	else
 		gpio_direction_output(GPIO_MCLK_RESET, 1);
 
+	gpiod_add_lookup_table(&audio_va_gpiod_table);
 	platform_add_devices(ARRAY_AND_SIZE(audio_regulator_devices));
 }
 

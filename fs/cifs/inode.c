@@ -162,7 +162,11 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	cifs_revalidate_cache(inode, fattr);
 
 	spin_lock(&inode->i_lock);
-	inode->i_atime = fattr->cf_atime;
+	/* we do not want atime to be less than mtime, it broke some apps */
+	if (timespec64_compare(&fattr->cf_atime, &fattr->cf_mtime))
+		inode->i_atime = fattr->cf_mtime;
+	else
+		inode->i_atime = fattr->cf_atime;
 	inode->i_mtime = fattr->cf_mtime;
 	inode->i_ctime = fattr->cf_ctime;
 	inode->i_rdev = fattr->cf_rdev;
@@ -329,7 +333,7 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 	fattr->cf_mtime = timespec64_trunc(fattr->cf_mtime, sb->s_time_gran);
 	fattr->cf_atime = fattr->cf_ctime = fattr->cf_mtime;
 	fattr->cf_nlink = 2;
-	fattr->cf_flags |= CIFS_FATTR_DFS_REFERRAL;
+	fattr->cf_flags = CIFS_FATTR_DFS_REFERRAL;
 }
 
 static int
@@ -467,6 +471,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = GENERIC_READ;
 	oparms.create_options = CREATE_NOT_DIR;
+	if (backup_cred(cifs_sb))
+		oparms.create_options |= CREATE_OPEN_BACKUP_INTENT;
 	oparms.disposition = FILE_OPEN;
 	oparms.path = path;
 	oparms.fid = &fid;
@@ -724,7 +730,6 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 		    FILE_ALL_INFO *data, struct super_block *sb, int xid,
 		    const struct cifs_fid *fid)
 {
-	bool validinum = false;
 	__u16 srchflgs;
 	int rc = 0, tmprc = ENOSYS;
 	struct cifs_tcon *tcon;
@@ -775,38 +780,52 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 	} else if (rc == -EREMOTE) {
 		cifs_create_dfs_fattr(&fattr, sb);
 		rc = 0;
-	} else if (rc == -EACCES && backup_cred(cifs_sb)) {
-			srchinf = kzalloc(sizeof(struct cifs_search_info),
-						GFP_KERNEL);
-			if (srchinf == NULL) {
-				rc = -ENOMEM;
-				goto cgii_exit;
-			}
+	} else if ((rc == -EACCES) && backup_cred(cifs_sb) &&
+		   (strcmp(server->vals->version_string, SMB1_VERSION_STRING)
+		      == 0)) {
+		/*
+		 * For SMB2 and later the backup intent flag is already
+		 * sent if needed on open and there is no path based
+		 * FindFirst operation to use to retry with
+		 */
 
-			srchinf->endOfSearch = false;
+		srchinf = kzalloc(sizeof(struct cifs_search_info),
+					GFP_KERNEL);
+		if (srchinf == NULL) {
+			rc = -ENOMEM;
+			goto cgii_exit;
+		}
+
+		srchinf->endOfSearch = false;
+		if (tcon->unix_ext)
+			srchinf->info_level = SMB_FIND_FILE_UNIX;
+		else if ((tcon->ses->capabilities &
+			 tcon->ses->server->vals->cap_nt_find) == 0)
+			srchinf->info_level = SMB_FIND_FILE_INFO_STANDARD;
+		else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
 			srchinf->info_level = SMB_FIND_FILE_ID_FULL_DIR_INFO;
+		else /* no srvino useful for fallback to some netapp */
+			srchinf->info_level = SMB_FIND_FILE_DIRECTORY_INFO;
 
-			srchflgs = CIFS_SEARCH_CLOSE_ALWAYS |
-					CIFS_SEARCH_CLOSE_AT_END |
-					CIFS_SEARCH_BACKUP_SEARCH;
+		srchflgs = CIFS_SEARCH_CLOSE_ALWAYS |
+				CIFS_SEARCH_CLOSE_AT_END |
+				CIFS_SEARCH_BACKUP_SEARCH;
 
-			rc = CIFSFindFirst(xid, tcon, full_path,
-				cifs_sb, NULL, srchflgs, srchinf, false);
-			if (!rc) {
-				data =
-				(FILE_ALL_INFO *)srchinf->srch_entries_start;
+		rc = CIFSFindFirst(xid, tcon, full_path,
+			cifs_sb, NULL, srchflgs, srchinf, false);
+		if (!rc) {
+			data = (FILE_ALL_INFO *)srchinf->srch_entries_start;
 
-				cifs_dir_info_to_fattr(&fattr,
-				(FILE_DIRECTORY_INFO *)data, cifs_sb);
-				fattr.cf_uniqueid = le64_to_cpu(
-				((SEARCH_ID_FULL_DIR_INFO *)data)->UniqueId);
-				validinum = true;
+			cifs_dir_info_to_fattr(&fattr,
+			(FILE_DIRECTORY_INFO *)data, cifs_sb);
+			fattr.cf_uniqueid = le64_to_cpu(
+			((SEARCH_ID_FULL_DIR_INFO *)data)->UniqueId);
 
-				cifs_buf_release(srchinf->ntwrk_buf_start);
-			}
-			kfree(srchinf);
-			if (rc)
-				goto cgii_exit;
+			cifs_buf_release(srchinf->ntwrk_buf_start);
+		}
+		kfree(srchinf);
+		if (rc)
+			goto cgii_exit;
 	} else
 		goto cgii_exit;
 
@@ -819,31 +838,29 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 	 */
 	if (*inode == NULL) {
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
-			if (validinum == false) {
-				if (server->ops->get_srv_inum)
-					tmprc = server->ops->get_srv_inum(xid,
-						tcon, cifs_sb, full_path,
-						&fattr.cf_uniqueid, data);
-				if (tmprc) {
-					cifs_dbg(FYI, "GetSrvInodeNum rc %d\n",
-						 tmprc);
-					fattr.cf_uniqueid = iunique(sb, ROOT_I);
-					cifs_autodisable_serverino(cifs_sb);
-				} else if ((fattr.cf_uniqueid == 0) &&
-						strlen(full_path) == 0) {
-					/* some servers ret bad root ino ie 0 */
-					cifs_dbg(FYI, "Invalid (0) inodenum\n");
-					fattr.cf_flags |=
-						CIFS_FATTR_FAKE_ROOT_INO;
-					fattr.cf_uniqueid =
-						simple_hashstr(tcon->treeName);
-				}
+			if (server->ops->get_srv_inum)
+				tmprc = server->ops->get_srv_inum(xid,
+								  tcon, cifs_sb, full_path,
+								  &fattr.cf_uniqueid, data);
+			if (tmprc) {
+				cifs_dbg(FYI, "GetSrvInodeNum rc %d\n",
+					 tmprc);
+				fattr.cf_uniqueid = iunique(sb, ROOT_I);
+				cifs_autodisable_serverino(cifs_sb);
+			} else if ((fattr.cf_uniqueid == 0) &&
+				   strlen(full_path) == 0) {
+				/* some servers ret bad root ino ie 0 */
+				cifs_dbg(FYI, "Invalid (0) inodenum\n");
+				fattr.cf_flags |=
+					CIFS_FATTR_FAKE_ROOT_INO;
+				fattr.cf_uniqueid =
+					simple_hashstr(tcon->treeName);
 			}
 		} else
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);
 	} else {
-		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) &&
-		    validinum == false && server->ops->get_srv_inum) {
+		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+		    && server->ops->get_srv_inum) {
 			/*
 			 * Pass a NULL tcon to ensure we don't make a round
 			 * trip to the server. This only works for SMB2+.
@@ -1299,8 +1316,8 @@ cifs_drop_nlink(struct inode *inode)
 /*
  * If d_inode(dentry) is null (usually meaning the cached dentry
  * is a negative dentry) then we would attempt a standard SMB delete, but
- * if that fails we can not attempt the fall back mechanisms on EACCESS
- * but will return the EACCESS to the caller. Note that the VFS does not call
+ * if that fails we can not attempt the fall back mechanisms on EACCES
+ * but will return the EACCES to the caller. Note that the VFS does not call
  * unlink on negative dentries currently.
  */
 int cifs_unlink(struct inode *dir, struct dentry *dentry)

@@ -33,6 +33,7 @@
 static DECLARE_RWSEM(bpf_devs_lock);
 
 struct bpf_offload_dev {
+	const struct bpf_prog_offload_ops *ops;
 	struct list_head netdevs;
 };
 
@@ -106,6 +107,7 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 		err = -EINVAL;
 		goto err_unlock;
 	}
+	offload->offdev = ondev->offdev;
 	prog->aux->offload = offload;
 	list_add_tail(&offload->offloads, &ondev->progs);
 	dev_put(offload->netdev);
@@ -121,40 +123,20 @@ err_maybe_put:
 	return err;
 }
 
-static int __bpf_offload_ndo(struct bpf_prog *prog, enum bpf_netdev_command cmd,
-			     struct netdev_bpf *data)
+int bpf_prog_offload_verifier_prep(struct bpf_prog *prog)
 {
-	struct bpf_prog_offload *offload = prog->aux->offload;
-	struct net_device *netdev;
+	struct bpf_prog_offload *offload;
+	int ret = -ENODEV;
 
-	ASSERT_RTNL();
+	down_read(&bpf_devs_lock);
+	offload = prog->aux->offload;
+	if (offload) {
+		ret = offload->offdev->ops->prepare(prog);
+		offload->dev_state = !ret;
+	}
+	up_read(&bpf_devs_lock);
 
-	if (!offload)
-		return -ENODEV;
-	netdev = offload->netdev;
-
-	data->command = cmd;
-
-	return netdev->netdev_ops->ndo_bpf(netdev, data);
-}
-
-int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env)
-{
-	struct netdev_bpf data = {};
-	int err;
-
-	data.verifier.prog = env->prog;
-
-	rtnl_lock();
-	err = __bpf_offload_ndo(env->prog, BPF_OFFLOAD_VERIFIER_PREP, &data);
-	if (err)
-		goto exit_unlock;
-
-	env->prog->aux->offload->dev_ops = data.verifier.ops;
-	env->prog->aux->offload->dev_state = true;
-exit_unlock:
-	rtnl_unlock();
-	return err;
+	return ret;
 }
 
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
@@ -166,7 +148,26 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 	down_read(&bpf_devs_lock);
 	offload = env->prog->aux->offload;
 	if (offload)
-		ret = offload->dev_ops->insn_hook(env, insn_idx, prev_insn_idx);
+		ret = offload->offdev->ops->insn_hook(env, insn_idx,
+						      prev_insn_idx);
+	up_read(&bpf_devs_lock);
+
+	return ret;
+}
+
+int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
+{
+	struct bpf_prog_offload *offload;
+	int ret = -ENODEV;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		if (offload->offdev->ops->finalize)
+			ret = offload->offdev->ops->finalize(env);
+		else
+			ret = 0;
+	}
 	up_read(&bpf_devs_lock);
 
 	return ret;
@@ -175,12 +176,9 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload = prog->aux->offload;
-	struct netdev_bpf data = {};
-
-	data.offload.prog = prog;
 
 	if (offload->dev_state)
-		WARN_ON(__bpf_offload_ndo(prog, BPF_OFFLOAD_DESTROY, &data));
+		offload->offdev->ops->destroy(prog);
 
 	/* Make sure BPF_PROG_GET_NEXT_ID can't find this dead program */
 	bpf_prog_free_id(prog, true);
@@ -192,24 +190,22 @@ static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 
 void bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
-	rtnl_lock();
 	down_write(&bpf_devs_lock);
 	if (prog->aux->offload)
 		__bpf_prog_offload_destroy(prog);
 	up_write(&bpf_devs_lock);
-	rtnl_unlock();
 }
 
 static int bpf_prog_offload_translate(struct bpf_prog *prog)
 {
-	struct netdev_bpf data = {};
-	int ret;
+	struct bpf_prog_offload *offload;
+	int ret = -ENODEV;
 
-	data.offload.prog = prog;
-
-	rtnl_lock();
-	ret = __bpf_offload_ndo(prog, BPF_OFFLOAD_TRANSLATE, &data);
-	rtnl_unlock();
+	down_read(&bpf_devs_lock);
+	offload = prog->aux->offload;
+	if (offload)
+		ret = offload->offdev->ops->translate(prog);
+	up_read(&bpf_devs_lock);
 
 	return ret;
 }
@@ -637,7 +633,8 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(bpf_offload_dev_netdev_unregister);
 
-struct bpf_offload_dev *bpf_offload_dev_create(void)
+struct bpf_offload_dev *
+bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops)
 {
 	struct bpf_offload_dev *offdev;
 	int err;
@@ -655,6 +652,7 @@ struct bpf_offload_dev *bpf_offload_dev_create(void)
 	if (!offdev)
 		return ERR_PTR(-ENOMEM);
 
+	offdev->ops = ops;
 	INIT_LIST_HEAD(&offdev->netdevs);
 
 	return offdev;

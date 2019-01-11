@@ -63,7 +63,7 @@ struct workqueue_struct *mlx4_wq;
 
 #ifdef CONFIG_MLX4_DEBUG
 
-int mlx4_debug_level = 0;
+int mlx4_debug_level; /* 0 by default */
 module_param_named(debug_level, mlx4_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(msi_x, "0 - don't use MSI-X, 1 - use MSI-X, >1 - limit number o
 
 static uint8_t num_vfs[3] = {0, 0, 0};
 static int num_vfs_argc;
-module_param_array(num_vfs, byte , &num_vfs_argc, 0444);
+module_param_array(num_vfs, byte, &num_vfs_argc, 0444);
 MODULE_PARM_DESC(num_vfs, "enable #num_vfs functions if num_vfs > 0\n"
 			  "num_vfs=port1,port2,port1+2");
 
@@ -260,47 +260,34 @@ static const struct devlink_param mlx4_devlink_params[] = {
 			     NULL, NULL, NULL),
 };
 
-static void mlx4_devlink_set_init_value(struct devlink *devlink, u32 param_id,
-					union devlink_param_value init_val)
-{
-	struct mlx4_priv *priv = devlink_priv(devlink);
-	struct mlx4_dev *dev = &priv->dev;
-	int err;
-
-	err = devlink_param_driverinit_value_set(devlink, param_id, init_val);
-	if (err)
-		mlx4_warn(dev,
-			  "devlink set parameter %u value failed (err = %d)",
-			  param_id, err);
-}
-
 static void mlx4_devlink_set_params_init_values(struct devlink *devlink)
 {
 	union devlink_param_value value;
 
 	value.vbool = !!mlx4_internal_err_reset;
-	mlx4_devlink_set_init_value(devlink,
-				    DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+					   value);
 
 	value.vu32 = 1UL << log_num_mac;
-	mlx4_devlink_set_init_value(devlink,
-				    DEVLINK_PARAM_GENERIC_ID_MAX_MACS, value);
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					   value);
 
 	value.vbool = enable_64b_cqe_eqe;
-	mlx4_devlink_set_init_value(devlink,
-				    MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+					   value);
 
 	value.vbool = enable_4k_uar;
-	mlx4_devlink_set_init_value(devlink,
-				    MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+					   value);
 
 	value.vbool = false;
-	mlx4_devlink_set_init_value(devlink,
-				    DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
-				    value);
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+					   value);
 }
 
 static inline void mlx4_set_num_reserved_uars(struct mlx4_dev *dev,
@@ -326,7 +313,7 @@ int mlx4_check_port_params(struct mlx4_dev *dev,
 		for (i = 0; i < dev->caps.num_ports - 1; i++) {
 			if (port_type[i] != port_type[i + 1]) {
 				mlx4_err(dev, "Only same port types supported on this HCA, aborting\n");
-				return -EINVAL;
+				return -EOPNOTSUPP;
 			}
 		}
 	}
@@ -335,7 +322,7 @@ int mlx4_check_port_params(struct mlx4_dev *dev,
 		if (!(port_type[i] & dev->caps.supported_type[i+1])) {
 			mlx4_err(dev, "Requested port type for port %d is not supported on this HCA\n",
 				 i + 1);
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		}
 	}
 	return 0;
@@ -1201,8 +1188,7 @@ static int __set_port_type(struct mlx4_port_info *info,
 		mlx4_err(mdev,
 			 "Requested port type for port %d is not supported on this HCA\n",
 			 info->port);
-		err = -EINVAL;
-		goto err_sup;
+		return -EOPNOTSUPP;
 	}
 
 	mlx4_stop_sense(mdev);
@@ -1224,7 +1210,7 @@ static int __set_port_type(struct mlx4_port_info *info,
 		for (i = 1; i <= mdev->caps.num_ports; i++) {
 			if (mdev->caps.possible_type[i] == MLX4_PORT_TYPE_AUTO) {
 				mdev->caps.possible_type[i] = mdev->caps.port_type[i];
-				err = -EINVAL;
+				err = -EOPNOTSUPP;
 			}
 		}
 	}
@@ -1250,7 +1236,7 @@ static int __set_port_type(struct mlx4_port_info *info,
 out:
 	mlx4_start_sense(mdev);
 	mutex_unlock(&priv->port_mutex);
-err_sup:
+
 	return err;
 }
 
@@ -3265,7 +3251,7 @@ disable_sriov:
 free_mem:
 	dev->persist->num_vfs = 0;
 	kfree(dev->dev_vfs);
-        dev->dev_vfs = NULL;
+	dev->dev_vfs = NULL;
 	return dev_flags & ~MLX4_FLAG_MASTER;
 }
 

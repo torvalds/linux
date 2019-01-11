@@ -9,7 +9,7 @@
 extern u64 btrfs_debugfs_test;
 
 enum btrfs_feature_set {
-	FEAT_COMPAT = 0,
+	FEAT_COMPAT,
 	FEAT_COMPAT_RO,
 	FEAT_INCOMPAT,
 	FEAT_MAX

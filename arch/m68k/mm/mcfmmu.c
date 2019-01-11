@@ -13,7 +13,6 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 
 #include <asm/setup.h>
@@ -44,7 +43,7 @@ void __init paging_init(void)
 	enum zone_type zone;
 	int i;
 
-	empty_zero_page = (void *) alloc_bootmem_pages(PAGE_SIZE);
+	empty_zero_page = (void *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	memset((void *) empty_zero_page, 0, PAGE_SIZE);
 
 	pg_dir = swapper_pg_dir;
@@ -52,7 +51,7 @@ void __init paging_init(void)
 
 	size = num_pages * sizeof(pte_t);
 	size = (size + PAGE_SIZE) & ~(PAGE_SIZE-1);
-	next_pgtable = (unsigned long) alloc_bootmem_pages(size);
+	next_pgtable = (unsigned long) memblock_alloc(size, PAGE_SIZE);
 
 	bootmem_end = (next_pgtable + size + PAGE_SIZE) & PAGE_MASK;
 	pg_dir += PAGE_OFFSET >> PGDIR_SHIFT;
@@ -172,7 +171,7 @@ void __init cf_bootmem_alloc(void)
 	high_memory = (void *)_ramend;
 
 	/* Reserve kernel text/data/bss */
-	memblock_reserve(memstart, memstart - _rambase);
+	memblock_reserve(_rambase, memstart - _rambase);
 
 	m68k_virt_to_node_shift = fls(_ramend - 1) - 6;
 	module_fixup(NULL, __start_fixup, __stop_fixup);

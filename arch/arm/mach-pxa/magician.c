@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/mfd/htc-pasic3.h>
@@ -696,7 +697,6 @@ static struct regulator_init_data vads7846_regulator = {
 static struct fixed_voltage_config vads7846 = {
 	.supply_name	= "vads7846",
 	.microvolts	= 3300000, /* probably */
-	.gpio		= -EINVAL,
 	.startup_delay	= 0,
 	.init_data	= &vads7846_regulator,
 };
@@ -775,12 +775,31 @@ static struct pxamci_platform_data magician_mci_info = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init			= magician_mci_init,
 	.exit			= magician_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= EGPIO_MAGICIAN_nSD_READONLY,
 	.gpio_card_ro_invert	= 1,
-	.gpio_power		= EGPIO_MAGICIAN_SD_POWER,
 };
 
+/*
+ * Write protect on EGPIO register 5 index 4, this is on the second HTC
+ * EGPIO chip which starts at register 4, so we need offset 8+4=12 on that
+ * particular chip.
+ */
+#define EGPIO_MAGICIAN_nSD_READONLY_OFFSET 12
+/*
+ * Power on EGPIO register 2 index 0, so this is on the first HTC EGPIO chip
+ * starting at register 0 so we need offset 2*8+0 = 16 on that chip.
+ */
+#define EGPIO_MAGICIAN_nSD_POWER_OFFSET 16
+
+static struct gpiod_lookup_table magician_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("htc-egpio-1", EGPIO_MAGICIAN_nSD_READONLY_OFFSET,
+			    "wp", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("htc-egpio-0", EGPIO_MAGICIAN_nSD_POWER_OFFSET,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /*
  * USB OHCI
@@ -979,6 +998,7 @@ static void __init magician_init(void)
 	i2c_register_board_info(1,
 		ARRAY_AND_SIZE(magician_pwr_i2c_board_info));
 
+	gpiod_add_lookup_table(&magician_mci_gpio_table);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
 	pxa_set_udc_info(&magician_udc_info);

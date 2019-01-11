@@ -17,6 +17,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -38,7 +40,7 @@ struct video_i2c_buffer {
 };
 
 struct video_i2c_data {
-	struct i2c_client *client;
+	struct regmap *regmap;
 	const struct video_i2c_chip *chip;
 	struct mutex lock;
 	spinlock_t slock;
@@ -51,6 +53,8 @@ struct video_i2c_data {
 
 	struct task_struct *kthread_vid_cap;
 	struct list_head vid_cap_active;
+
+	struct v4l2_fract frame_interval;
 };
 
 static const struct v4l2_fmtdesc amg88xx_format = {
@@ -62,13 +66,20 @@ static const struct v4l2_frmsize_discrete amg88xx_size = {
 	.height = 8,
 };
 
+static const struct regmap_config amg88xx_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0xff
+};
+
 struct video_i2c_chip {
 	/* video dimensions */
 	const struct v4l2_fmtdesc *format;
 	const struct v4l2_frmsize_discrete *size;
 
-	/* max frames per second */
-	unsigned int max_fps;
+	/* available frame intervals */
+	const struct v4l2_fract *frame_intervals;
+	unsigned int num_frame_intervals;
 
 	/* pixel buffer size */
 	unsigned int buffer_size;
@@ -76,33 +87,111 @@ struct video_i2c_chip {
 	/* pixel size in bits */
 	unsigned int bpp;
 
+	const struct regmap_config *regmap_config;
+
+	/* setup function */
+	int (*setup)(struct video_i2c_data *data);
+
 	/* xfer function */
 	int (*xfer)(struct video_i2c_data *data, char *buf);
+
+	/* power control function */
+	int (*set_power)(struct video_i2c_data *data, bool on);
 
 	/* hwmon init function */
 	int (*hwmon_init)(struct video_i2c_data *data);
 };
 
+/* Power control register */
+#define AMG88XX_REG_PCTL	0x00
+#define AMG88XX_PCTL_NORMAL		0x00
+#define AMG88XX_PCTL_SLEEP		0x10
+
+/* Reset register */
+#define AMG88XX_REG_RST		0x01
+#define AMG88XX_RST_FLAG		0x30
+#define AMG88XX_RST_INIT		0x3f
+
+/* Frame rate register */
+#define AMG88XX_REG_FPSC	0x02
+#define AMG88XX_FPSC_1FPS		BIT(0)
+
+/* Thermistor register */
+#define AMG88XX_REG_TTHL	0x0e
+
+/* Temperature register */
+#define AMG88XX_REG_T01L	0x80
+
 static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 {
-	struct i2c_client *client = data->client;
-	struct i2c_msg msg[2];
-	u8 reg = 0x80;
+	return regmap_bulk_read(data->regmap, AMG88XX_REG_T01L, buf,
+				data->chip->buffer_size);
+}
+
+static int amg88xx_setup(struct video_i2c_data *data)
+{
+	unsigned int mask = AMG88XX_FPSC_1FPS;
+	unsigned int val;
+
+	if (data->frame_interval.numerator == data->frame_interval.denominator)
+		val = mask;
+	else
+		val = 0;
+
+	return regmap_update_bits(data->regmap, AMG88XX_REG_FPSC, mask, val);
+}
+
+static int amg88xx_set_power_on(struct video_i2c_data *data)
+{
 	int ret;
 
-	msg[0].addr = client->addr;
-	msg[0].flags = 0;
-	msg[0].len = 1;
-	msg[0].buf  = (char *)&reg;
+	ret = regmap_write(data->regmap, AMG88XX_REG_PCTL, AMG88XX_PCTL_NORMAL);
+	if (ret)
+		return ret;
 
-	msg[1].addr = client->addr;
-	msg[1].flags = I2C_M_RD;
-	msg[1].len = data->chip->buffer_size;
-	msg[1].buf = (char *)buf;
+	msleep(50);
 
-	ret = i2c_transfer(client->adapter, msg, 2);
+	ret = regmap_write(data->regmap, AMG88XX_REG_RST, AMG88XX_RST_INIT);
+	if (ret)
+		return ret;
 
-	return (ret == 2) ? 0 : -EIO;
+	usleep_range(2000, 3000);
+
+	ret = regmap_write(data->regmap, AMG88XX_REG_RST, AMG88XX_RST_FLAG);
+	if (ret)
+		return ret;
+
+	/*
+	 * Wait two frames before reading thermistor and temperature registers
+	 */
+	msleep(200);
+
+	return 0;
+}
+
+static int amg88xx_set_power_off(struct video_i2c_data *data)
+{
+	int ret;
+
+	ret = regmap_write(data->regmap, AMG88XX_REG_PCTL, AMG88XX_PCTL_SLEEP);
+	if (ret)
+		return ret;
+	/*
+	 * Wait for a while to avoid resuming normal mode immediately after
+	 * entering sleep mode, otherwise the device occasionally goes wrong
+	 * (thermistor and temperature registers are not updated at all)
+	 */
+	msleep(100);
+
+	return 0;
+}
+
+static int amg88xx_set_power(struct video_i2c_data *data, bool on)
+{
+	if (on)
+		return amg88xx_set_power_on(data);
+
+	return amg88xx_set_power_off(data);
 }
 
 #if IS_ENABLED(CONFIG_HWMON)
@@ -133,11 +222,22 @@ static int amg88xx_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
 {
 	struct video_i2c_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
-	int tmp = i2c_smbus_read_word_data(client, 0x0e);
+	__le16 buf;
+	int tmp;
 
-	if (tmp < 0)
+	tmp = pm_runtime_get_sync(regmap_get_device(data->regmap));
+	if (tmp < 0) {
+		pm_runtime_put_noidle(regmap_get_device(data->regmap));
 		return tmp;
+	}
+
+	tmp = regmap_bulk_read(data->regmap, AMG88XX_REG_TTHL, &buf, 2);
+	pm_runtime_mark_last_busy(regmap_get_device(data->regmap));
+	pm_runtime_put_autosuspend(regmap_get_device(data->regmap));
+	if (tmp)
+		return tmp;
+
+	tmp = le16_to_cpu(buf);
 
 	/*
 	 * Check for sign bit, this isn't a two's complement value but an
@@ -164,8 +264,9 @@ static const struct hwmon_chip_info amg88xx_chip_info = {
 
 static int amg88xx_hwmon_init(struct video_i2c_data *data)
 {
-	void *hwmon = devm_hwmon_device_register_with_info(&data->client->dev,
-				"amg88xx", data, &amg88xx_chip_info, NULL);
+	struct device *dev = regmap_get_device(data->regmap);
+	void *hwmon = devm_hwmon_device_register_with_info(dev, "amg88xx", data,
+						&amg88xx_chip_info, NULL);
 
 	return PTR_ERR_OR_ZERO(hwmon);
 }
@@ -175,14 +276,23 @@ static int amg88xx_hwmon_init(struct video_i2c_data *data)
 
 #define AMG88XX		0
 
+static const struct v4l2_fract amg88xx_frame_intervals[] = {
+	{ 1, 10 },
+	{ 1, 1 },
+};
+
 static const struct video_i2c_chip video_i2c_chip[] = {
 	[AMG88XX] = {
 		.size		= &amg88xx_size,
 		.format		= &amg88xx_format,
-		.max_fps	= 10,
+		.frame_intervals	= amg88xx_frame_intervals,
+		.num_frame_intervals	= ARRAY_SIZE(amg88xx_frame_intervals),
 		.buffer_size	= 128,
 		.bpp		= 16,
+		.regmap_config	= &amg88xx_regmap_config,
+		.setup		= &amg88xx_setup,
 		.xfer		= &amg88xx_xfer,
+		.set_power	= amg88xx_set_power,
 		.hwmon_init	= amg88xx_hwmon_init,
 	},
 };
@@ -246,7 +356,8 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int video_i2c_thread_vid_cap(void *priv)
 {
 	struct video_i2c_data *data = priv;
-	unsigned int delay = msecs_to_jiffies(1000 / data->chip->max_fps);
+	unsigned int delay = mult_frac(HZ, data->frame_interval.numerator,
+				       data->frame_interval.denominator);
 
 	set_freezable();
 
@@ -308,19 +419,36 @@ static void video_i2c_del_list(struct vb2_queue *vq, enum vb2_buffer_state state
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct video_i2c_data *data = vb2_get_drv_priv(vq);
+	struct device *dev = regmap_get_device(data->regmap);
+	int ret;
 
 	if (data->kthread_vid_cap)
 		return 0;
 
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		goto error_del_list;
+	}
+
+	ret = data->chip->setup(data);
+	if (ret)
+		goto error_rpm_put;
+
 	data->sequence = 0;
 	data->kthread_vid_cap = kthread_run(video_i2c_thread_vid_cap, data,
 					    "%s-vid-cap", data->v4l2_dev.name);
-	if (!IS_ERR(data->kthread_vid_cap))
+	ret = PTR_ERR_OR_ZERO(data->kthread_vid_cap);
+	if (!ret)
 		return 0;
 
+error_rpm_put:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+error_del_list:
 	video_i2c_del_list(vq, VB2_BUF_STATE_QUEUED);
 
-	return PTR_ERR(data->kthread_vid_cap);
+	return ret;
 }
 
 static void stop_streaming(struct vb2_queue *vq)
@@ -332,11 +460,13 @@ static void stop_streaming(struct vb2_queue *vq)
 
 	kthread_stop(data->kthread_vid_cap);
 	data->kthread_vid_cap = NULL;
+	pm_runtime_mark_last_busy(regmap_get_device(data->regmap));
+	pm_runtime_put_autosuspend(regmap_get_device(data->regmap));
 
 	video_i2c_del_list(vq, VB2_BUF_STATE_ERROR);
 }
 
-static struct vb2_ops video_i2c_video_qops = {
+static const struct vb2_ops video_i2c_video_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,
@@ -350,10 +480,11 @@ static int video_i2c_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *vcap)
 {
 	struct video_i2c_data *data = video_drvdata(file);
-	struct i2c_client *client = data->client;
+	struct device *dev = regmap_get_device(data->regmap);
+	struct i2c_client *client = to_i2c_client(dev);
 
-	strlcpy(vcap->driver, data->v4l2_dev.name, sizeof(vcap->driver));
-	strlcpy(vcap->card, data->vdev.name, sizeof(vcap->card));
+	strscpy(vcap->driver, data->v4l2_dev.name, sizeof(vcap->driver));
+	strscpy(vcap->card, data->vdev.name, sizeof(vcap->card));
 
 	sprintf(vcap->bus_info, "I2C:%d-%d", client->adapter->nr, client->addr);
 
@@ -378,7 +509,7 @@ static int video_i2c_enum_input(struct file *file, void *fh,
 	if (vin->index > 0)
 		return -EINVAL;
 
-	strlcpy(vin->name, "Camera", sizeof(vin->name));
+	strscpy(vin->name, "Camera", sizeof(vin->name));
 
 	vin->type = V4L2_INPUT_TYPE_CAMERA;
 
@@ -426,15 +557,14 @@ static int video_i2c_enum_frameintervals(struct file *file, void *priv,
 	const struct video_i2c_data *data = video_drvdata(file);
 	const struct v4l2_frmsize_discrete *size = data->chip->size;
 
-	if (fe->index > 0)
+	if (fe->index >= data->chip->num_frame_intervals)
 		return -EINVAL;
 
 	if (fe->width != size->width || fe->height != size->height)
 		return -EINVAL;
 
 	fe->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	fe->discrete.numerator = 1;
-	fe->discrete.denominator = data->chip->max_fps;
+	fe->discrete = data->chip->frame_intervals[fe->index];
 
 	return 0;
 }
@@ -479,10 +609,25 @@ static int video_i2c_g_parm(struct file *filp, void *priv,
 
 	parm->parm.capture.readbuffers = 1;
 	parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	parm->parm.capture.timeperframe.numerator = 1;
-	parm->parm.capture.timeperframe.denominator = data->chip->max_fps;
+	parm->parm.capture.timeperframe = data->frame_interval;
 
 	return 0;
+}
+
+static int video_i2c_s_parm(struct file *filp, void *priv,
+			      struct v4l2_streamparm *parm)
+{
+	struct video_i2c_data *data = video_drvdata(filp);
+	int i;
+
+	for (i = 0; i < data->chip->num_frame_intervals - 1; i++) {
+		if (V4L2_FRACT_COMPARE(parm->parm.capture.timeperframe, <=,
+				       data->chip->frame_intervals[i]))
+			break;
+	}
+	data->frame_interval = data->chip->frame_intervals[i];
+
+	return video_i2c_g_parm(filp, priv, parm);
 }
 
 static const struct v4l2_ioctl_ops video_i2c_ioctl_ops = {
@@ -496,7 +641,7 @@ static const struct v4l2_ioctl_ops video_i2c_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap		= video_i2c_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= video_i2c_s_fmt_vid_cap,
 	.vidioc_g_parm			= video_i2c_g_parm,
-	.vidioc_s_parm			= video_i2c_g_parm,
+	.vidioc_s_parm			= video_i2c_s_parm,
 	.vidioc_try_fmt_vid_cap		= video_i2c_try_fmt_vid_cap,
 	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
 	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
@@ -510,7 +655,13 @@ static const struct v4l2_ioctl_ops video_i2c_ioctl_ops = {
 
 static void video_i2c_release(struct video_device *vdev)
 {
-	kfree(video_get_drvdata(vdev));
+	struct video_i2c_data *data = video_get_drvdata(vdev);
+
+	v4l2_device_unregister(&data->v4l2_dev);
+	mutex_destroy(&data->lock);
+	mutex_destroy(&data->queue_lock);
+	regmap_exit(data->regmap);
+	kfree(data);
 }
 
 static int video_i2c_probe(struct i2c_client *client,
@@ -532,13 +683,18 @@ static int video_i2c_probe(struct i2c_client *client,
 	else
 		goto error_free_device;
 
-	data->client = client;
+	data->regmap = regmap_init_i2c(client, data->chip->regmap_config);
+	if (IS_ERR(data->regmap)) {
+		ret = PTR_ERR(data->regmap);
+		goto error_free_device;
+	}
+
 	v4l2_dev = &data->v4l2_dev;
-	strlcpy(v4l2_dev->name, VIDEO_I2C_DRIVER, sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, VIDEO_I2C_DRIVER, sizeof(v4l2_dev->name));
 
 	ret = v4l2_device_register(&client->dev, v4l2_dev);
 	if (ret < 0)
-		goto error_free_device;
+		goto error_regmap_exit;
 
 	mutex_init(&data->lock);
 	mutex_init(&data->queue_lock);
@@ -575,8 +731,22 @@ static int video_i2c_probe(struct i2c_client *client,
 	spin_lock_init(&data->slock);
 	INIT_LIST_HEAD(&data->vid_cap_active);
 
+	data->frame_interval = data->chip->frame_intervals[0];
+
 	video_set_drvdata(&data->vdev, data);
 	i2c_set_clientdata(client, data);
+
+	if (data->chip->set_power) {
+		ret = data->chip->set_power(data, true);
+		if (ret)
+			goto error_unregister_device;
+	}
+
+	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev, 2000);
+	pm_runtime_use_autosuspend(&client->dev);
 
 	if (data->chip->hwmon_init) {
 		ret = data->chip->hwmon_init(data);
@@ -588,14 +758,28 @@ static int video_i2c_probe(struct i2c_client *client,
 
 	ret = video_register_device(&data->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
-		goto error_unregister_device;
+		goto error_pm_disable;
+
+	pm_runtime_mark_last_busy(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 
 	return 0;
+
+error_pm_disable:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
+
+	if (data->chip->set_power)
+		data->chip->set_power(data, false);
 
 error_unregister_device:
 	v4l2_device_unregister(v4l2_dev);
 	mutex_destroy(&data->lock);
 	mutex_destroy(&data->queue_lock);
+
+error_regmap_exit:
+	regmap_exit(data->regmap);
 
 error_free_device:
 	kfree(data);
@@ -607,14 +791,47 @@ static int video_i2c_remove(struct i2c_client *client)
 {
 	struct video_i2c_data *data = i2c_get_clientdata(client);
 
-	video_unregister_device(&data->vdev);
-	v4l2_device_unregister(&data->v4l2_dev);
+	pm_runtime_get_sync(&client->dev);
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
 
-	mutex_destroy(&data->lock);
-	mutex_destroy(&data->queue_lock);
+	if (data->chip->set_power)
+		data->chip->set_power(data, false);
+
+	video_unregister_device(&data->vdev);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+
+static int video_i2c_pm_runtime_suspend(struct device *dev)
+{
+	struct video_i2c_data *data = i2c_get_clientdata(to_i2c_client(dev));
+
+	if (!data->chip->set_power)
+		return 0;
+
+	return data->chip->set_power(data, false);
+}
+
+static int video_i2c_pm_runtime_resume(struct device *dev)
+{
+	struct video_i2c_data *data = i2c_get_clientdata(to_i2c_client(dev));
+
+	if (!data->chip->set_power)
+		return 0;
+
+	return data->chip->set_power(data, true);
+}
+
+#endif
+
+static const struct dev_pm_ops video_i2c_pm_ops = {
+	SET_RUNTIME_PM_OPS(video_i2c_pm_runtime_suspend,
+			   video_i2c_pm_runtime_resume, NULL)
+};
 
 static const struct i2c_device_id video_i2c_id_table[] = {
 	{ "amg88xx", AMG88XX },
@@ -632,6 +849,7 @@ static struct i2c_driver video_i2c_driver = {
 	.driver = {
 		.name	= VIDEO_I2C_DRIVER,
 		.of_match_table = video_i2c_of_match,
+		.pm	= &video_i2c_pm_ops,
 	},
 	.probe		= video_i2c_probe,
 	.remove		= video_i2c_remove,

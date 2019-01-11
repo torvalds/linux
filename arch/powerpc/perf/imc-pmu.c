@@ -28,13 +28,13 @@ static DEFINE_MUTEX(nest_init_lock);
 static DEFINE_PER_CPU(struct imc_pmu_ref *, local_nest_imc_refc);
 static struct imc_pmu **per_nest_pmu_arr;
 static cpumask_t nest_imc_cpumask;
-struct imc_pmu_ref *nest_imc_refc;
+static struct imc_pmu_ref *nest_imc_refc;
 static int nest_pmus;
 
 /* Core IMC data structures and variables */
 
 static cpumask_t core_imc_cpumask;
-struct imc_pmu_ref *core_imc_refc;
+static struct imc_pmu_ref *core_imc_refc;
 static struct imc_pmu *core_imc_pmu;
 
 /* Thread IMC data structures and variables */
@@ -43,7 +43,7 @@ static DEFINE_PER_CPU(u64 *, thread_imc_mem);
 static struct imc_pmu *thread_imc_pmu;
 static int thread_imc_mem_size;
 
-struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
+static struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
 {
 	return container_of(event->pmu, struct imc_pmu, pmu);
 }
@@ -1392,7 +1392,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 	if (ret)
 		goto err_free_cpuhp_mem;
 
-	pr_info("%s performance monitor hardware support registered\n",
+	pr_debug("%s performance monitor hardware support registered\n",
 							pmu_ptr->pmu.name);
 
 	return 0;

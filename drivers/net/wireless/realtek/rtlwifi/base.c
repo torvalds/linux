@@ -2289,6 +2289,7 @@ void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (rtl_c2h_fast_cmd(hw, skb)) {
 		rtl_c2h_content_parsing(hw, skb);
+		kfree_skb(skb);
 		return;
 	}
 

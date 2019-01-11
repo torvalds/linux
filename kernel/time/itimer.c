@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/itimer.c
- *
  * Copyright (C) 1992 Darren Senn
  */
 
@@ -139,9 +137,10 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
 {
 	struct signal_struct *sig =
 		container_of(timer, struct signal_struct, real_timer);
+	struct pid *leader_pid = sig->pids[PIDTYPE_TGID];
 
-	trace_itimer_expire(ITIMER_REAL, sig->leader_pid, 0);
-	kill_pid_info(SIGALRM, SEND_SIG_PRIV, sig->leader_pid);
+	trace_itimer_expire(ITIMER_REAL, leader_pid, 0);
+	kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid);
 
 	return HRTIMER_NORESTART;
 }

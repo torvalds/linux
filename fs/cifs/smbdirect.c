@@ -1724,7 +1724,7 @@ static struct smbd_connection *_smbd_get_connection(
 		info->responder_resources);
 
 	/* Need to send IRD/ORD in private data for iWARP */
-	info->id->device->get_port_immutable(
+	info->id->device->ops.get_port_immutable(
 		info->id->device, info->id->port_num, &port_immutable);
 	if (port_immutable.core_cap_flags & RDMA_CORE_PORT_IWARP) {
 		ird_ord_hdr[0] = info->responder_resources;
@@ -2054,14 +2054,22 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 
 	info->smbd_recv_pending++;
 
-	switch (msg->msg_iter.type) {
-	case READ | ITER_KVEC:
+	if (iov_iter_rw(&msg->msg_iter) == WRITE) {
+		/* It's a bug in upper layer to get there */
+		cifs_dbg(VFS, "CIFS: invalid msg iter dir %u\n",
+			 iov_iter_rw(&msg->msg_iter));
+		rc = -EINVAL;
+		goto out;
+	}
+
+	switch (iov_iter_type(&msg->msg_iter)) {
+	case ITER_KVEC:
 		buf = msg->msg_iter.kvec->iov_base;
 		to_read = msg->msg_iter.kvec->iov_len;
 		rc = smbd_recv_buf(info, buf, to_read);
 		break;
 
-	case READ | ITER_BVEC:
+	case ITER_BVEC:
 		page = msg->msg_iter.bvec->bv_page;
 		page_offset = msg->msg_iter.bvec->bv_offset;
 		to_read = msg->msg_iter.bvec->bv_len;
@@ -2071,10 +2079,11 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 	default:
 		/* It's a bug in upper layer to get there */
 		cifs_dbg(VFS, "CIFS: invalid msg type %d\n",
-			msg->msg_iter.type);
+			 iov_iter_type(&msg->msg_iter));
 		rc = -EINVAL;
 	}
 
+out:
 	info->smbd_recv_pending--;
 	wake_up(&info->wait_smbd_recv_pending);
 
@@ -2295,8 +2304,12 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 	int rc;
 
 	list_for_each_entry(smbdirect_mr, &info->mr_list, list) {
-		if (smbdirect_mr->state == MR_INVALIDATED ||
-			smbdirect_mr->state == MR_ERROR) {
+		if (smbdirect_mr->state == MR_INVALIDATED)
+			ib_dma_unmap_sg(
+				info->id->device, smbdirect_mr->sgl,
+				smbdirect_mr->sgl_count,
+				smbdirect_mr->dir);
+		else if (smbdirect_mr->state == MR_ERROR) {
 
 			/* recover this MR entry */
 			rc = ib_dereg_mr(smbdirect_mr->mr);
@@ -2320,25 +2333,21 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 				smbd_disconnect_rdma_connection(info);
 				continue;
 			}
+		} else
+			/* This MR is being used, don't recover it */
+			continue;
 
-			if (smbdirect_mr->state == MR_INVALIDATED)
-				ib_dma_unmap_sg(
-					info->id->device, smbdirect_mr->sgl,
-					smbdirect_mr->sgl_count,
-					smbdirect_mr->dir);
+		smbdirect_mr->state = MR_READY;
 
-			smbdirect_mr->state = MR_READY;
-
-			/* smbdirect_mr->state is updated by this function
-			 * and is read and updated by I/O issuing CPUs trying
-			 * to get a MR, the call to atomic_inc_return
-			 * implicates a memory barrier and guarantees this
-			 * value is updated before waking up any calls to
-			 * get_mr() from the I/O issuing CPUs
-			 */
-			if (atomic_inc_return(&info->mr_ready_count) == 1)
-				wake_up_interruptible(&info->wait_mr);
-		}
+		/* smbdirect_mr->state is updated by this function
+		 * and is read and updated by I/O issuing CPUs trying
+		 * to get a MR, the call to atomic_inc_return
+		 * implicates a memory barrier and guarantees this
+		 * value is updated before waking up any calls to
+		 * get_mr() from the I/O issuing CPUs
+		 */
+		if (atomic_inc_return(&info->mr_ready_count) == 1)
+			wake_up_interruptible(&info->wait_mr);
 	}
 }
 

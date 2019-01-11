@@ -179,7 +179,7 @@ static void driver_deferred_probe_trigger(void)
 }
 
 /**
- * device_block_probing() - Block/defere device's probes
+ * device_block_probing() - Block/defer device's probes
  *
  *	It will disable probing of devices and defer their probes instead.
  */
@@ -223,7 +223,10 @@ DEFINE_SHOW_ATTRIBUTE(deferred_devs);
 static int deferred_probe_timeout = -1;
 static int __init deferred_probe_timeout_setup(char *str)
 {
-	deferred_probe_timeout = simple_strtol(str, NULL, 10);
+	int timeout;
+
+	if (!kstrtoint(str, 10, &timeout))
+		deferred_probe_timeout = timeout;
 	return 1;
 }
 __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
@@ -453,7 +456,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	if (defer_all_probes) {
 		/*
 		 * Value of defer_all_probes can be set only by
-		 * device_defer_all_probes_enable() which, in turn, will call
+		 * device_block_probing() which, in turn, will call
 		 * wait_for_device_probe() right after that to avoid any races.
 		 */
 		dev_dbg(dev, "Driver %s force probe deferral\n", drv->name);
@@ -480,9 +483,11 @@ re_probe:
 	if (ret)
 		goto pinctrl_bind_failed;
 
-	ret = dma_configure(dev);
-	if (ret)
-		goto dma_failed;
+	if (dev->bus->dma_configure) {
+		ret = dev->bus->dma_configure(dev);
+		if (ret)
+			goto dma_failed;
+	}
 
 	if (driver_sysfs_add(dev)) {
 		printk(KERN_ERR "%s: driver_sysfs_add(%s) failed\n",
@@ -537,7 +542,7 @@ re_probe:
 	goto done;
 
 probe_failed:
-	dma_deconfigure(dev);
+	arch_teardown_dma_ops(dev);
 dma_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -926,16 +931,13 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 
 	drv = dev->driver;
 	if (drv) {
-		if (driver_allows_async_probing(drv))
-			async_synchronize_full();
-
 		while (device_links_busy(dev)) {
 			device_unlock(dev);
-			if (parent)
+			if (parent && dev->bus->need_parent_lock)
 				device_unlock(parent);
 
 			device_links_unbind_consumers(dev);
-			if (parent)
+			if (parent && dev->bus->need_parent_lock)
 				device_lock(parent);
 
 			device_lock(dev);
@@ -966,7 +968,7 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			drv->remove(dev);
 
 		device_links_driver_cleanup(dev);
-		dma_deconfigure(dev);
+		arch_teardown_dma_ops(dev);
 
 		devres_release_all(dev);
 		dev->driver = NULL;
@@ -1033,6 +1035,9 @@ void driver_detach(struct device_driver *drv)
 {
 	struct device_private *dev_prv;
 	struct device *dev;
+
+	if (driver_allows_async_probing(drv))
+		async_synchronize_full();
 
 	for (;;) {
 		spin_lock(&drv->p->klist_devices.k_lock);

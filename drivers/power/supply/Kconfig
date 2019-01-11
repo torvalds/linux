@@ -75,6 +75,17 @@ config BATTERY_88PM860X
 	help
 	  Say Y here to enable battery monitor for Marvell 88PM860x chip.
 
+config CHARGER_ADP5061
+	tristate "ADP5061 battery charger driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the ADP5061 standalone battery
+	  charger.
+
+	  This driver can be built as a module. If so, the module will be
+	  called adp5061.
+
 config BATTERY_ACT8945A
 	tristate "Active-semi ACT8945A charger driver"
 	depends on MFD_ACT8945A || COMPILE_TEST
@@ -92,7 +103,7 @@ config BATTERY_CPCAP
 
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
-	depends on W1 && W1_SLAVE_DS2760
+	depends on W1
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
 
@@ -623,5 +634,30 @@ config CHARGER_RT9455
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
+
+config CHARGER_CROS_USBPD
+	tristate "ChromeOS EC based USBPD charger"
+	depends on MFD_CROS_EC
+	default n
+	help
+	  Say Y here to enable ChromeOS EC based USBPD charger
+	  driver. This driver gets various bits of information about
+	  what is connected to USB PD ports from the EC and converts
+	  that into power_supply properties.
+
+config CHARGER_SC2731
+	tristate "Spreadtrum SC2731 charger driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	 Say Y here to enable support for battery charging with SC2731
+	 PMIC chips.
+
+config FUEL_GAUGE_SC27XX
+	tristate "Spreadtrum SC27XX fuel gauge driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on IIO
+	help
+	 Say Y here to enable support for fuel gauge with SC27XX
+	 PMIC chips.
 
 endif # POWER_SUPPLY

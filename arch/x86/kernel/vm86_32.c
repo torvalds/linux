@@ -114,7 +114,7 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->veflags_mask);
 	user = vm86->user_vm86;
 
-	if (!access_ok(VERIFY_WRITE, user, vm86->vm86plus.is_vm86pus ?
+	if (!access_ok(user, vm86->vm86plus.is_vm86pus ?
 		       sizeof(struct vm86plus_struct) :
 		       sizeof(struct vm86_struct))) {
 		pr_alert("could not access userspace vm86 info\n");
@@ -199,7 +199,7 @@ static void mark_screen_rdonly(struct mm_struct *mm)
 	pte_unmap_unlock(pte, ptl);
 out:
 	up_write(&mm->mmap_sem);
-	flush_tlb_mm_range(mm, 0xA0000, 0xA0000 + 32*PAGE_SIZE, 0UL);
+	flush_tlb_mm_range(mm, 0xA0000, 0xA0000 + 32*PAGE_SIZE, PAGE_SHIFT, false);
 }
 
 
@@ -278,7 +278,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	if (vm86->saved_sp0)
 		return -EPERM;
 
-	if (!access_ok(VERIFY_READ, user_vm86, plus ?
+	if (!access_ok(user_vm86, plus ?
 		       sizeof(struct vm86_struct) :
 		       sizeof(struct vm86plus_struct)))
 		return -EFAULT;

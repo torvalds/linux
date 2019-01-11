@@ -118,21 +118,16 @@ static void rwb_wake_all(struct rq_wb *rwb)
 	for (i = 0; i < WBT_NUM_RWQ; i++) {
 		struct rq_wait *rqw = &rwb->rq_wait[i];
 
-		if (waitqueue_active(&rqw->wait))
+		if (wq_has_sleeper(&rqw->wait))
 			wake_up_all(&rqw->wait);
 	}
 }
 
-static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
+static void wbt_rqw_done(struct rq_wb *rwb, struct rq_wait *rqw,
+			 enum wbt_flags wb_acct)
 {
-	struct rq_wb *rwb = RQWB(rqos);
-	struct rq_wait *rqw;
 	int inflight, limit;
 
-	if (!(wb_acct & WBT_TRACKED))
-		return;
-
-	rqw = get_rq_wait(rwb, wb_acct);
 	inflight = atomic_dec_return(&rqw->inflight);
 
 	/*
@@ -162,12 +157,24 @@ static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
 	if (inflight && inflight >= limit)
 		return;
 
-	if (waitqueue_active(&rqw->wait)) {
+	if (wq_has_sleeper(&rqw->wait)) {
 		int diff = limit - inflight;
 
 		if (!inflight || diff >= rwb->wb_background / 2)
-			wake_up(&rqw->wait);
+			wake_up_all(&rqw->wait);
 	}
+}
+
+static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
+{
+	struct rq_wb *rwb = RQWB(rqos);
+	struct rq_wait *rqw;
+
+	if (!(wb_acct & WBT_TRACKED))
+		return;
+
+	rqw = get_rq_wait(rwb, wb_acct);
+	wbt_rqw_done(rwb, rqw, wb_acct);
 }
 
 /*
@@ -303,6 +310,7 @@ static void scale_up(struct rq_wb *rwb)
 	rq_depth_scale_up(&rwb->rq_depth);
 	calc_wb_limits(rwb);
 	rwb->unknown_cnt = 0;
+	rwb_wake_all(rwb);
 	rwb_trace_step(rwb, "scale up");
 }
 
@@ -311,7 +319,6 @@ static void scale_down(struct rq_wb *rwb, bool hard_throttle)
 	rq_depth_scale_down(&rwb->rq_depth, hard_throttle);
 	calc_wb_limits(rwb);
 	rwb->unknown_cnt = 0;
-	rwb_wake_all(rwb);
 	rwb_trace_step(rwb, "scale down");
 }
 
@@ -449,6 +456,13 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 {
 	unsigned int limit;
 
+	/*
+	 * If we got disabled, just return UINT_MAX. This ensures that
+	 * we'll properly inc a new IO, and dec+wakeup at the end.
+	 */
+	if (!rwb_enabled(rwb))
+		return UINT_MAX;
+
 	if ((rw & REQ_OP_MASK) == REQ_OP_DISCARD)
 		return rwb->wb_background;
 
@@ -474,54 +488,39 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 	return limit;
 }
 
+struct wbt_wait_data {
+	struct rq_wb *rwb;
+	enum wbt_flags wb_acct;
+	unsigned long rw;
+};
+
+static bool wbt_inflight_cb(struct rq_wait *rqw, void *private_data)
+{
+	struct wbt_wait_data *data = private_data;
+	return rq_wait_inc_below(rqw, get_limit(data->rwb, data->rw));
+}
+
+static void wbt_cleanup_cb(struct rq_wait *rqw, void *private_data)
+{
+	struct wbt_wait_data *data = private_data;
+	wbt_rqw_done(data->rwb, rqw, data->wb_acct);
+}
+
 /*
  * Block if we will exceed our limit, or if we are currently waiting for
  * the timer to kick off queuing again.
  */
 static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
-		       unsigned long rw, spinlock_t *lock)
-	__releases(lock)
-	__acquires(lock)
+		       unsigned long rw)
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
-	DECLARE_WAITQUEUE(wait, current);
+	struct wbt_wait_data data = {
+		.rwb = rwb,
+		.wb_acct = wb_acct,
+		.rw = rw,
+	};
 
-	/*
-	* inc it here even if disabled, since we'll dec it at completion.
-	* this only happens if the task was sleeping in __wbt_wait(),
-	* and someone turned it off at the same time.
-	*/
-	if (!rwb_enabled(rwb)) {
-		atomic_inc(&rqw->inflight);
-		return;
-	}
-
-	if (!waitqueue_active(&rqw->wait)
-		&& rq_wait_inc_below(rqw, get_limit(rwb, rw)))
-		return;
-
-	add_wait_queue_exclusive(&rqw->wait, &wait);
-	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-
-		if (!rwb_enabled(rwb)) {
-			atomic_inc(&rqw->inflight);
-			break;
-		}
-
-		if (rq_wait_inc_below(rqw, get_limit(rwb, rw)))
-			break;
-
-		if (lock) {
-			spin_unlock_irq(lock);
-			io_schedule();
-			spin_lock_irq(lock);
-		} else
-			io_schedule();
-	} while (1);
-
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&rqw->wait, &wait);
+	rq_qos_wait(rqw, &data, wbt_inflight_cb, wbt_cleanup_cb);
 }
 
 static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
@@ -545,6 +544,9 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
 static enum wbt_flags bio_to_wbt_flags(struct rq_wb *rwb, struct bio *bio)
 {
 	enum wbt_flags flags = 0;
+
+	if (!rwb_enabled(rwb))
+		return 0;
 
 	if (bio_op(bio) == REQ_OP_READ) {
 		flags = WBT_READ;
@@ -571,28 +573,19 @@ static void wbt_cleanup(struct rq_qos *rqos, struct bio *bio)
  * in an irq held spinlock, if it holds one when calling this function.
  * If we do sleep, we'll release and re-grab it.
  */
-static void wbt_wait(struct rq_qos *rqos, struct bio *bio, spinlock_t *lock)
+static void wbt_wait(struct rq_qos *rqos, struct bio *bio)
 {
 	struct rq_wb *rwb = RQWB(rqos);
 	enum wbt_flags flags;
 
-	if (!rwb_enabled(rwb))
-		return;
-
 	flags = bio_to_wbt_flags(rwb, bio);
-
-	if (!wbt_should_throttle(rwb, bio)) {
+	if (!(flags & WBT_TRACKED)) {
 		if (flags & WBT_READ)
 			wb_timestamp(rwb, &rwb->last_issue);
 		return;
 	}
 
-	if (current_is_kswapd())
-		flags |= WBT_KSWAPD;
-	if (bio_op(bio) == REQ_OP_DISCARD)
-		flags |= WBT_DISCARD;
-
-	__wbt_wait(rwb, flags, bio->bi_opf, lock);
+	__wbt_wait(rwb, flags, bio->bi_opf);
 
 	if (!blk_stat_is_active(rwb->cb))
 		rwb_arm_timer(rwb);
@@ -665,8 +658,7 @@ void wbt_enable_default(struct request_queue *q)
 	if (!test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags))
 		return;
 
-	if ((q->mq_ops && IS_ENABLED(CONFIG_BLK_WBT_MQ)) ||
-	    (q->request_fn && IS_ENABLED(CONFIG_BLK_WBT_SQ)))
+	if (queue_is_mq(q) && IS_ENABLED(CONFIG_BLK_WBT_MQ))
 		wbt_init(q);
 }
 EXPORT_SYMBOL_GPL(wbt_enable_default);
@@ -716,11 +708,100 @@ void wbt_disable_default(struct request_queue *q)
 	if (!rqos)
 		return;
 	rwb = RQWB(rqos);
-	if (rwb->enable_state == WBT_STATE_ON_DEFAULT)
+	if (rwb->enable_state == WBT_STATE_ON_DEFAULT) {
+		blk_stat_deactivate(rwb->cb);
 		rwb->wb_normal = 0;
+	}
 }
 EXPORT_SYMBOL_GPL(wbt_disable_default);
 
+#ifdef CONFIG_BLK_DEBUG_FS
+static int wbt_curr_win_nsec_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+	struct rq_wb *rwb = RQWB(rqos);
+
+	seq_printf(m, "%llu\n", rwb->cur_win_nsec);
+	return 0;
+}
+
+static int wbt_enabled_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+	struct rq_wb *rwb = RQWB(rqos);
+
+	seq_printf(m, "%d\n", rwb->enable_state);
+	return 0;
+}
+
+static int wbt_id_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+
+	seq_printf(m, "%u\n", rqos->id);
+	return 0;
+}
+
+static int wbt_inflight_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+	struct rq_wb *rwb = RQWB(rqos);
+	int i;
+
+	for (i = 0; i < WBT_NUM_RWQ; i++)
+		seq_printf(m, "%d: inflight %d\n", i,
+			   atomic_read(&rwb->rq_wait[i].inflight));
+	return 0;
+}
+
+static int wbt_min_lat_nsec_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+	struct rq_wb *rwb = RQWB(rqos);
+
+	seq_printf(m, "%lu\n", rwb->min_lat_nsec);
+	return 0;
+}
+
+static int wbt_unknown_cnt_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+	struct rq_wb *rwb = RQWB(rqos);
+
+	seq_printf(m, "%u\n", rwb->unknown_cnt);
+	return 0;
+}
+
+static int wbt_normal_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+	struct rq_wb *rwb = RQWB(rqos);
+
+	seq_printf(m, "%u\n", rwb->wb_normal);
+	return 0;
+}
+
+static int wbt_background_show(void *data, struct seq_file *m)
+{
+	struct rq_qos *rqos = data;
+	struct rq_wb *rwb = RQWB(rqos);
+
+	seq_printf(m, "%u\n", rwb->wb_background);
+	return 0;
+}
+
+static const struct blk_mq_debugfs_attr wbt_debugfs_attrs[] = {
+	{"curr_win_nsec", 0400, wbt_curr_win_nsec_show},
+	{"enabled", 0400, wbt_enabled_show},
+	{"id", 0400, wbt_id_show},
+	{"inflight", 0400, wbt_inflight_show},
+	{"min_lat_nsec", 0400, wbt_min_lat_nsec_show},
+	{"unknown_cnt", 0400, wbt_unknown_cnt_show},
+	{"wb_normal", 0400, wbt_normal_show},
+	{"wb_background", 0400, wbt_background_show},
+	{},
+};
+#endif
 
 static struct rq_qos_ops wbt_rqos_ops = {
 	.throttle = wbt_wait,
@@ -730,6 +811,9 @@ static struct rq_qos_ops wbt_rqos_ops = {
 	.done = wbt_done,
 	.cleanup = wbt_cleanup,
 	.exit = wbt_exit,
+#ifdef CONFIG_BLK_DEBUG_FS
+	.debugfs_attrs = wbt_debugfs_attrs,
+#endif
 };
 
 int wbt_init(struct request_queue *q)

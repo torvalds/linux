@@ -209,6 +209,8 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	 * We have to use void * instead of a function pointer, because
 	 * function pointers aren't a pointer to the function on 64-bit.
 	 * Make them const so the compiler knows they live in .text
+	 * Note: We could use dereference_kernel_function_descriptor()
+	 * instead but we want to keep it simple here.
 	 */
 	extern void * const handle_interruption;
 	extern void * const ret_from_kernel_thread;
@@ -216,7 +218,7 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	extern void * const intr_return;
 	extern void * const _switch_to_ret;
 #ifdef CONFIG_IRQSTACKS
-	extern void * const call_on_stack;
+	extern void * const _call_on_stack;
 #endif /* CONFIG_IRQSTACKS */
 
 	if (pc == (unsigned long) &handle_interruption) {
@@ -251,7 +253,7 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	}
 
 #ifdef CONFIG_IRQSTACKS
-	if (pc == (unsigned long) &call_on_stack) {
+	if (pc == (unsigned long) &_call_on_stack) {
 		info->prev_sp = *(unsigned long *)(info->sp - FRAME_SIZE - REG_SZ);
 		info->prev_ip = *(unsigned long *)(info->sp - FRAME_SIZE - RP_OFFSET);
 		return 1;
@@ -403,9 +405,31 @@ void unwind_frame_init_from_blocked_task(struct unwind_frame_info *info, struct 
 	kfree(r2);
 }
 
-void unwind_frame_init_running(struct unwind_frame_info *info, struct pt_regs *regs)
+#define get_parisc_stackpointer() ({ \
+	unsigned long sp; \
+	__asm__("copy %%r30, %0" : "=r"(sp)); \
+	(sp); \
+})
+
+void unwind_frame_init_task(struct unwind_frame_info *info,
+	struct task_struct *task, struct pt_regs *regs)
 {
-	unwind_frame_init(info, current, regs);
+	task = task ? task : current;
+
+	if (task == current) {
+		struct pt_regs r;
+
+		if (!regs) {
+			memset(&r, 0, sizeof(r));
+			r.iaoq[0] =  _THIS_IP_;
+			r.gr[2] = _RET_IP_;
+			r.gr[30] = get_parisc_stackpointer();
+			regs = &r;
+		}
+		unwind_frame_init(info, task, regs);
+	} else {
+		unwind_frame_init_from_blocked_task(info, task);
+	}
 }
 
 int unwind_once(struct unwind_frame_info *next_frame)
@@ -442,19 +466,12 @@ int unwind_to_user(struct unwind_frame_info *info)
 unsigned long return_address(unsigned int level)
 {
 	struct unwind_frame_info info;
-	struct pt_regs r;
-	unsigned long sp;
 
 	/* initialize unwind info */
-	asm volatile ("copy %%r30, %0" : "=r"(sp));
-	memset(&r, 0, sizeof(struct pt_regs));
-	r.iaoq[0] = _THIS_IP_;
-	r.gr[2] = _RET_IP_;
-	r.gr[30] = sp;
-	unwind_frame_init(&info, current, &r);
+	unwind_frame_init_task(&info, current, NULL);
 
 	/* unwind stack */
-	++level;
+	level += 2;
 	do {
 		if (unwind_once(&info) < 0 || info.ip == 0)
 			return 0;

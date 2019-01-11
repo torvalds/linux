@@ -894,7 +894,7 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 
 		trace_itimer_expire(signo == SIGPROF ?
 				    ITIMER_PROF : ITIMER_VIRTUAL,
-				    tsk->signal->leader_pid, cur_time);
+				    task_tgid(tsk), cur_time);
 		__group_send_sig_info(signo, SEND_SIG_PRIV, tsk);
 	}
 
@@ -916,9 +916,6 @@ static void check_process_timers(struct task_struct *tsk,
 	struct list_head *timers = sig->cpu_timers;
 	struct task_cputime cputime;
 	unsigned long soft;
-
-	if (dl_task(tsk))
-		check_dl_overrun(tsk);
 
 	/*
 	 * If cputimer is not running, then there are no active

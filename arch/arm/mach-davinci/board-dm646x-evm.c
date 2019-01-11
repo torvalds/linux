@@ -24,6 +24,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_data/at24.h>
 #include <linux/platform_data/pcf857x.h>
+#include <linux/platform_data/ti-aemif.h>
 
 #include <media/i2c/tvp514x.h>
 #include <media/i2c/adv7343.h>
@@ -31,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/nvmem-provider.h>
 #include <linux/clk.h>
 #include <linux/export.h>
 #include <linux/platform_data/gpio-davinci.h>
@@ -106,16 +108,47 @@ static struct resource davinci_nand_resources[] = {
 	},
 };
 
-static struct platform_device davinci_nand_device = {
-	.name			= "davinci_nand",
-	.id			= 0,
-
-	.num_resources		= ARRAY_SIZE(davinci_nand_resources),
-	.resource		= davinci_nand_resources,
-
-	.dev			= {
-		.platform_data	= &davinci_nand_data,
+static struct platform_device davinci_aemif_devices[] = {
+	{
+		.name		= "davinci_nand",
+		.id		= 0,
+		.num_resources	= ARRAY_SIZE(davinci_nand_resources),
+		.resource	= davinci_nand_resources,
+		.dev		= {
+			.platform_data	= &davinci_nand_data,
+		},
 	},
+};
+
+static struct resource davinci_aemif_resources[] = {
+	{
+		.start	= DM646X_ASYNC_EMIF_CONTROL_BASE,
+		.end	= DM646X_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct aemif_abus_data davinci_aemif_abus_data[] = {
+	{
+		.cs	= 1,
+	},
+};
+
+static struct aemif_platform_data davinci_aemif_pdata = {
+	.abus_data		= davinci_aemif_abus_data,
+	.num_abus_data		= ARRAY_SIZE(davinci_aemif_abus_data),
+	.sub_devices		= davinci_aemif_devices,
+	.num_sub_devices	= ARRAY_SIZE(davinci_aemif_devices),
+};
+
+static struct platform_device davinci_aemif_device = {
+	.name		= "ti-aemif",
+	.id		= -1,
+	.dev = {
+		.platform_data	= &davinci_aemif_pdata,
+	},
+	.resource	= davinci_aemif_resources,
+	.num_resources	= ARRAY_SIZE(davinci_aemif_resources),
 };
 
 #define HAS_ATA		(IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
@@ -309,6 +342,27 @@ static struct pcf857x_platform_data pcf_data = {
  *  - 0x7f00, 6 bytes Ethernet Address
  *  - ... newer boards may have more
  */
+
+static struct nvmem_cell_info dm646x_evm_nvmem_cells[] = {
+	{
+		.name		= "macaddr",
+		.offset		= 0x7f00,
+		.bytes		= ETH_ALEN,
+	}
+};
+
+static struct nvmem_cell_table dm646x_evm_nvmem_cell_table = {
+	.nvmem_name	= "1-00500",
+	.cells		= dm646x_evm_nvmem_cells,
+	.ncells		= ARRAY_SIZE(dm646x_evm_nvmem_cells),
+};
+
+static struct nvmem_cell_lookup dm646x_evm_nvmem_cell_lookup = {
+	.nvmem_name	= "1-00500",
+	.cell_name	= "macaddr",
+	.dev_id		= "davinci_emac.1",
+	.con_id		= "mac-address",
+};
 
 static struct at24_platform_data eeprom_info = {
 	.byte_len       = (256*1024) / 8,
@@ -776,11 +830,15 @@ static __init void evm_init(void)
 	int ret;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
+	dm646x_register_clocks();
+
 	ret = dm646x_gpio_register();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
 
 #ifdef CONFIG_I2C
+	nvmem_add_cell_table(&dm646x_evm_nvmem_cell_table);
+	nvmem_add_cell_lookups(&dm646x_evm_nvmem_cell_lookup, 1);
 	evm_init_i2c();
 #endif
 
@@ -791,10 +849,8 @@ static __init void evm_init(void)
 	if (machine_is_davinci_dm6467tevm())
 		davinci_nand_data.timing = &dm6467tevm_nandflash_timing;
 
-	platform_device_register(&davinci_nand_device);
-
-	if (davinci_aemif_setup(&davinci_nand_device))
-		pr_warn("%s: Cannot configure AEMIF.\n", __func__);
+	if (platform_device_register(&davinci_aemif_device))
+		pr_warn("%s: Cannot register AEMIF device.\n", __func__);
 
 	dm646x_init_edma(dm646x_edma_rsv);
 

@@ -20,11 +20,15 @@
  * OF THIS SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_utils.h>
+#include <drm/drm_print.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+
+#include <linux/uaccess.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -256,9 +260,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL &&
 	    connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
-		drm_object_attach_property(&connector->base,
-					      config->edid_property,
-					      0);
+		drm_connector_attach_edid_property(connector);
 
 	drm_object_attach_property(&connector->base,
 				      config->dpms_property, 0);
@@ -289,6 +291,24 @@ out_put:
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_init);
+
+/**
+ * drm_connector_attach_edid_property - attach edid property.
+ * @connector: the connector
+ *
+ * Some connector types like DRM_MODE_CONNECTOR_VIRTUAL do not get a
+ * edid property attached by default.  This function can be used to
+ * explicitly enable the edid property in these cases.
+ */
+void drm_connector_attach_edid_property(struct drm_connector *connector)
+{
+	struct drm_mode_config *config = &connector->dev->mode_config;
+
+	drm_object_attach_property(&connector->base,
+				   config->edid_property,
+				   0);
+}
+EXPORT_SYMBOL(drm_connector_attach_edid_property);
 
 /**
  * drm_connector_attach_encoder - attach a connector to an encoder
@@ -375,7 +395,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	/* The connector should have been removed from userspace long before
 	 * it is finally destroyed.
 	 */
-	if (WARN_ON(connector->registered))
+	if (WARN_ON(connector->registration_state ==
+		    DRM_CONNECTOR_REGISTERED))
 		drm_connector_unregister(connector);
 
 	if (connector->tile_group) {
@@ -432,7 +453,7 @@ int drm_connector_register(struct drm_connector *connector)
 		return 0;
 
 	mutex_lock(&connector->mutex);
-	if (connector->registered)
+	if (connector->registration_state != DRM_CONNECTOR_INITIALIZING)
 		goto unlock;
 
 	ret = drm_sysfs_connector_add(connector);
@@ -452,7 +473,7 @@ int drm_connector_register(struct drm_connector *connector)
 
 	drm_mode_object_register(connector->dev, &connector->base);
 
-	connector->registered = true;
+	connector->registration_state = DRM_CONNECTOR_REGISTERED;
 	goto unlock;
 
 err_debugfs:
@@ -474,7 +495,7 @@ EXPORT_SYMBOL(drm_connector_register);
 void drm_connector_unregister(struct drm_connector *connector)
 {
 	mutex_lock(&connector->mutex);
-	if (!connector->registered) {
+	if (connector->registration_state != DRM_CONNECTOR_REGISTERED) {
 		mutex_unlock(&connector->mutex);
 		return;
 	}
@@ -485,7 +506,7 @@ void drm_connector_unregister(struct drm_connector *connector)
 	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
 
-	connector->registered = false;
+	connector->registration_state = DRM_CONNECTOR_UNREGISTERED;
 	mutex_unlock(&connector->mutex);
 }
 EXPORT_SYMBOL(drm_connector_unregister);
@@ -911,6 +932,13 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  *	  is no longer protected and userspace should take appropriate action
  *	  (whatever that might be).
  *
+ * max bpc:
+ *	This range property is used by userspace to limit the bit depth. When
+ *	used the driver would limit the bpc in accordance with the valid range
+ *	supported by the hardware and sink. Drivers to use the function
+ *	drm_connector_attach_max_bpc_property() to create and attach the
+ *	property to the connector during initialization.
+ *
  * Connectors also have one standardized atomic property:
  *
  * CRTC_ID:
@@ -1251,6 +1279,105 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
 
 /**
+ * DOC: Variable refresh properties
+ *
+ * Variable refresh rate capable displays can dynamically adjust their
+ * refresh rate by extending the duration of their vertical front porch
+ * until page flip or timeout occurs. This can reduce or remove stuttering
+ * and latency in scenarios where the page flip does not align with the
+ * vblank interval.
+ *
+ * An example scenario would be an application flipping at a constant rate
+ * of 48Hz on a 60Hz display. The page flip will frequently miss the vblank
+ * interval and the same contents will be displayed twice. This can be
+ * observed as stuttering for content with motion.
+ *
+ * If variable refresh rate was active on a display that supported a
+ * variable refresh range from 35Hz to 60Hz no stuttering would be observable
+ * for the example scenario. The minimum supported variable refresh rate of
+ * 35Hz is below the page flip frequency and the vertical front porch can
+ * be extended until the page flip occurs. The vblank interval will be
+ * directly aligned to the page flip rate.
+ *
+ * Not all userspace content is suitable for use with variable refresh rate.
+ * Large and frequent changes in vertical front porch duration may worsen
+ * perceived stuttering for input sensitive applications.
+ *
+ * Panel brightness will also vary with vertical front porch duration. Some
+ * panels may have noticeable differences in brightness between the minimum
+ * vertical front porch duration and the maximum vertical front porch duration.
+ * Large and frequent changes in vertical front porch duration may produce
+ * observable flickering for such panels.
+ *
+ * Userspace control for variable refresh rate is supported via properties
+ * on the &drm_connector and &drm_crtc objects.
+ *
+ * "vrr_capable":
+ *	Optional &drm_connector boolean property that drivers should attach
+ *	with drm_connector_attach_vrr_capable_property() on connectors that
+ *	could support variable refresh rates. Drivers should update the
+ *	property value by calling drm_connector_set_vrr_capable_property().
+ *
+ *	Absence of the property should indicate absence of support.
+ *
+ * "vrr_enabled":
+ *	Default &drm_crtc boolean property that notifies the driver that the
+ *	content on the CRTC is suitable for variable refresh rate presentation.
+ *	The driver will take this property as a hint to enable variable
+ *	refresh rate support if the receiver supports it, ie. if the
+ *	"vrr_capable" property is true on the &drm_connector object. The
+ *	vertical front porch duration will be extended until page-flip or
+ *	timeout when enabled.
+ *
+ *	The minimum vertical front porch duration is defined as the vertical
+ *	front porch duration for the current mode.
+ *
+ *	The maximum vertical front porch duration is greater than or equal to
+ *	the minimum vertical front porch duration. The duration is derived
+ *	from the minimum supported variable refresh rate for the connector.
+ *
+ *	The driver may place further restrictions within these minimum
+ *	and maximum bounds.
+ *
+ *	The semantics for the vertical blank timestamp differ when
+ *	variable refresh rate is active. The vertical blank timestamp
+ *	is defined to be an estimate using the current mode's fixed
+ *	refresh rate timings. The semantics for the page-flip event
+ *	timestamp remain the same.
+ */
+
+/**
+ * drm_connector_attach_vrr_capable_property - creates the
+ * vrr_capable property
+ * @connector: connector to create the vrr_capable property on.
+ *
+ * This is used by atomic drivers to add support for querying
+ * variable refresh rate capability for a connector.
+ *
+ * Returns:
+ * Zero on success, negative errono on failure.
+ */
+int drm_connector_attach_vrr_capable_property(
+	struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	if (!connector->vrr_capable_property) {
+		prop = drm_property_create_bool(dev, DRM_MODE_PROP_IMMUTABLE,
+			"vrr_capable");
+		if (!prop)
+			return -ENOMEM;
+
+		connector->vrr_capable_property = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_vrr_capable_property);
+
+/**
  * drm_connector_attach_scaling_mode_property - attach atomic scaling mode property
  * @connector: connector to attach scaling mode property on.
  * @scaling_mode_mask: or'ed mask of BIT(%DRM_MODE_SCALE_\*).
@@ -1579,6 +1706,58 @@ void drm_connector_set_link_status_property(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_connector_set_link_status_property);
 
 /**
+ * drm_connector_attach_max_bpc_property - attach "max bpc" property
+ * @connector: connector to attach max bpc property on.
+ * @min: The minimum bit depth supported by the connector.
+ * @max: The maximum bit depth supported by the connector.
+ *
+ * This is used to add support for limiting the bit depth on a connector.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_max_bpc_property(struct drm_connector *connector,
+					  int min, int max)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	prop = connector->max_bpc_property;
+	if (!prop) {
+		prop = drm_property_create_range(dev, 0, "max bpc", min, max);
+		if (!prop)
+			return -ENOMEM;
+
+		connector->max_bpc_property = prop;
+	}
+
+	drm_object_attach_property(&connector->base, prop, max);
+	connector->state->max_requested_bpc = max;
+	connector->state->max_bpc = max;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_max_bpc_property);
+
+/**
+ * drm_connector_set_vrr_capable_property - sets the variable refresh rate
+ * capable property for a connector
+ * @connector: drm connector
+ * @capable: True if the connector is variable refresh rate capable
+ *
+ * Should be used by atomic drivers to update the indicated support for
+ * variable refresh rate over a connector.
+ */
+void drm_connector_set_vrr_capable_property(
+		struct drm_connector *connector, bool capable)
+{
+	drm_object_property_set_value(&connector->base,
+				      connector->vrr_capable_property,
+				      capable);
+}
+EXPORT_SYMBOL(drm_connector_set_vrr_capable_property);
+
+/**
  * drm_connector_init_panel_orientation_property -
  *	initialize the connecters panel_orientation property
  * @connector: connector for which to init the panel-orientation property.
@@ -1721,7 +1900,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	LIST_HEAD(export_list);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 

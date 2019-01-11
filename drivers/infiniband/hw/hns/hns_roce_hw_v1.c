@@ -731,7 +731,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	cq_init_attr.comp_vector	= 0;
 	cq = hns_roce_ib_create_cq(&hr_dev->ib_dev, &cq_init_attr, NULL, NULL);
 	if (IS_ERR(cq)) {
-		dev_err(dev, "Create cq for reseved loop qp failed!");
+		dev_err(dev, "Create cq for reserved loop qp failed!");
 		return -ENOMEM;
 	}
 	free_mr->mr_free_cq = to_hr_cq(cq);
@@ -744,7 +744,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 
 	pd = hns_roce_alloc_pd(&hr_dev->ib_dev, NULL, NULL);
 	if (IS_ERR(pd)) {
-		dev_err(dev, "Create pd for reseved loop qp failed!");
+		dev_err(dev, "Create pd for reserved loop qp failed!");
 		ret = -ENOMEM;
 		goto alloc_pd_failed;
 	}
@@ -3926,7 +3926,7 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
 	struct hns_roce_qp_work *qp_work;
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_cq *send_cq, *recv_cq;
-	int is_user = !!ibqp->pd->uobject;
+	bool is_user = ibqp->uobject;
 	int is_timeout = 0;
 	int ret;
 
@@ -4793,6 +4793,16 @@ static void hns_roce_v1_cleanup_eq_table(struct hns_roce_dev *hr_dev)
 	kfree(eq_table->eq);
 }
 
+static const struct ib_device_ops hns_roce_v1_dev_ops = {
+	.destroy_qp = hns_roce_v1_destroy_qp,
+	.modify_cq = hns_roce_v1_modify_cq,
+	.poll_cq = hns_roce_v1_poll_cq,
+	.post_recv = hns_roce_v1_post_recv,
+	.post_send = hns_roce_v1_post_send,
+	.query_qp = hns_roce_v1_query_qp,
+	.req_notify_cq = hns_roce_v1_req_notify_cq,
+};
+
 static const struct hns_roce_hw hns_roce_hw_v1 = {
 	.reset = hns_roce_v1_reset,
 	.hw_profile = hns_roce_v1_profile,
@@ -4818,6 +4828,7 @@ static const struct hns_roce_hw hns_roce_hw_v1 = {
 	.destroy_cq = hns_roce_v1_destroy_cq,
 	.init_eq = hns_roce_v1_init_eq_table,
 	.cleanup_eq = hns_roce_v1_cleanup_eq_table,
+	.hns_roce_dev_ops = &hns_roce_v1_dev_ops,
 };
 
 static const struct of_device_id hns_roce_of_match[] = {

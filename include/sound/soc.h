@@ -372,6 +372,11 @@
 #define SND_SOC_COMP_ORDER_LATE		1
 #define SND_SOC_COMP_ORDER_LAST		2
 
+#define for_each_comp_order(order)		\
+	for (order  = SND_SOC_COMP_ORDER_FIRST;	\
+	     order <= SND_SOC_COMP_ORDER_LAST;	\
+	     order++)
+
 /*
  * Bias levels
  *
@@ -548,12 +553,12 @@ static inline void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 }
 #endif
 
-#ifdef CONFIG_SND_SOC_AC97_BUS
 struct snd_ac97 *snd_soc_alloc_ac97_component(struct snd_soc_component *component);
 struct snd_ac97 *snd_soc_new_ac97_component(struct snd_soc_component *component,
 	unsigned int id, unsigned int id_mask);
 void snd_soc_free_ac97_component(struct snd_ac97 *ac97);
 
+#ifdef CONFIG_SND_SOC_AC97_BUS
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 		struct platform_device *pdev);
@@ -859,6 +864,11 @@ struct snd_soc_component {
 #endif
 };
 
+#define for_each_component_dais(component, dai)\
+	list_for_each_entry(dai, &(component)->dai_list, list)
+#define for_each_component_dais_safe(component, dai, _dai)\
+	list_for_each_entry_safe(dai, _dai, &(component)->dai_list, list)
+
 struct snd_soc_rtdcom_list {
 	struct snd_soc_component *component;
 	struct list_head list; /* rtd::component_list */
@@ -915,6 +925,8 @@ struct snd_soc_dai_link {
 	 */
 	const char *platform_name;
 	struct device_node *platform_of_node;
+	struct snd_soc_dai_link_component *platform;
+
 	int id;	/* optional ID for machine driver link identification */
 
 	const struct snd_soc_pcm_stream *params;
@@ -976,6 +988,10 @@ struct snd_soc_dai_link {
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */
 };
+#define for_each_link_codecs(link, i, codec)				\
+	for ((i) = 0;							\
+	     ((i) < link->num_codecs) && ((codec) = &link->codecs[i]);	\
+	     (i)++)
 
 struct snd_soc_codec_conf {
 	/*
@@ -1054,7 +1070,6 @@ struct snd_soc_card {
 	struct snd_soc_dai_link *dai_link;  /* predefined links only */
 	int num_links;  /* predefined links only */
 	struct list_head dai_link_list; /* all links */
-	int num_dai_links;
 
 	struct list_head rtd_list;
 	int num_rtd;
@@ -1092,6 +1107,7 @@ struct snd_soc_card {
 
 	/* lists of probed devices belonging to this card */
 	struct list_head component_dev_list;
+	struct list_head list;
 
 	struct list_head widgets;
 	struct list_head paths;
@@ -1114,6 +1130,23 @@ struct snd_soc_card {
 
 	void *drvdata;
 };
+#define for_each_card_prelinks(card, i, link)				\
+	for ((i) = 0;							\
+	     ((i) < (card)->num_links) && ((link) = &(card)->dai_link[i]); \
+	     (i)++)
+
+#define for_each_card_links(card, link)				\
+	list_for_each_entry(dai_link, &(card)->dai_link_list, list)
+#define for_each_card_links_safe(card, link, _link)			\
+	list_for_each_entry_safe(link, _link, &(card)->dai_link_list, list)
+
+#define for_each_card_rtds(card, rtd)			\
+	list_for_each_entry(rtd, &(card)->rtd_list, list)
+#define for_each_card_rtds_safe(card, rtd, _rtd)	\
+	list_for_each_entry_safe(rtd, _rtd, &(card)->rtd_list, list)
+
+#define for_each_card_components(card, component)			\
+	list_for_each_entry(component, &(card)->component_dev_list, card_list)
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
 struct snd_soc_pcm_runtime {
@@ -1123,6 +1156,8 @@ struct snd_soc_pcm_runtime {
 	struct mutex pcm_mutex;
 	enum snd_soc_pcm_subclass pcm_subclass;
 	struct snd_pcm_ops ops;
+
+	unsigned int params_select; /* currently selected param for dai link */
 
 	/* Dynamic PCM BE runtime data */
 	struct snd_soc_dpcm_runtime dpcm[2];
@@ -1152,6 +1187,13 @@ struct snd_soc_pcm_runtime {
 	unsigned int dev_registered:1;
 	unsigned int pop_wait:1;
 };
+#define for_each_rtd_codec_dai(rtd, i, dai)\
+	for ((i) = 0;						       \
+	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]); \
+	     (i)++)
+#define for_each_rtd_codec_dai_rollback(rtd, i, dai)		\
+	for (; ((--i) >= 0) && ((dai) = rtd->codec_dais[i]);)
+
 
 /* mixer control */
 struct soc_mixer_control {
@@ -1359,6 +1401,7 @@ static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->dapm_list);
 	INIT_LIST_HEAD(&card->aux_comp_list);
 	INIT_LIST_HEAD(&card->component_dev_list);
+	INIT_LIST_HEAD(&card->list);
 }
 
 static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
@@ -1434,10 +1477,20 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 			      unsigned int *rx_mask,
 			      unsigned int *slots,
 			      unsigned int *slot_width);
-void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
+void snd_soc_of_parse_node_prefix(struct device_node *np,
 				   struct snd_soc_codec_conf *codec_conf,
 				   struct device_node *of_node,
 				   const char *propname);
+static inline
+void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
+				   struct snd_soc_codec_conf *codec_conf,
+				   struct device_node *of_node,
+				   const char *propname)
+{
+	snd_soc_of_parse_node_prefix(card->dev->of_node,
+				     codec_conf, of_node, propname);
+}
+
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,

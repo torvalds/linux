@@ -28,22 +28,16 @@ them, but also all the virtual ones used by KVM, so everyone qualifies).
 
 Contact: Daniel Vetter, Thierry Reding, respective driver maintainers
 
-Switch from reference/unreference to get/put
---------------------------------------------
 
-For some reason DRM core uses ``reference``/``unreference`` suffixes for
-refcounting functions, but kernel uses ``get``/``put`` (e.g.
-``kref_get``/``put()``). It would be good to switch over for consistency, and
-it's shorter. Needs to be done in 3 steps for each pair of functions:
+Remove custom dumb_map_offset implementations
+---------------------------------------------
 
-* Create new ``get``/``put`` functions, define the old names as compatibility
-  wrappers
-* Switch over each file/driver using a cocci-generated spatch.
-* Once all users of the old names are gone, remove them.
+All GEM based drivers should be using drm_gem_create_mmap_offset() instead.
+Audit each individual driver, make sure it'll work with the generic
+implementation (there's lots of outdated locking leftovers in various
+implementations), and then remove it.
 
-This way drivers/patches in the progress of getting merged won't break.
-
-Contact: Daniel Vetter
+Contact: Daniel Vetter, respective driver maintainers
 
 Convert existing KMS drivers to atomic modesetting
 --------------------------------------------------
@@ -127,7 +121,8 @@ interfaces to fix these issues:
   the acquire context explicitly on stack and then also pass it down into
   drivers explicitly so that the legacy-on-atomic functions can use them.
 
-  Except for some driver code this is done.
+  Except for some driver code this is done. This task should be finished by
+  adding WARN_ON(!drm_drv_uses_atomic_modeset) in drm_modeset_lock_all().
 
 * A bunch of the vtable hooks are now in the wrong place: DRM has a split
   between core vfunc tables (named ``drm_foo_funcs``), which are used to
@@ -136,13 +131,6 @@ interfaces to fix these issues:
   internal use. Some of these hooks should be move from ``_funcs`` to
   ``_helper_funcs`` since they are not part of the core ABI. There's a
   ``FIXME`` comment in the kerneldoc for each such case in ``drm_crtc.h``.
-
-* There's a new helper ``drm_atomic_helper_best_encoder()`` which could be
-  used by all atomic drivers which don't select the encoder for a given
-  connector at runtime. That's almost all of them, and would allow us to get
-  rid of a lot of ``best_encoder`` boilerplate in drivers.
-
-  This was almost done, but new drivers added a few more cases again.
 
 Contact: Daniel Vetter
 
@@ -164,9 +152,8 @@ private lock. The tricky part is the BO free functions, since those can't
 reliably take that lock any more. Instead state needs to be protected with
 suitable subordinate locks or some cleanup work pushed to a worker thread. For
 performance-critical drivers it might also be better to go with a more
-fine-grained per-buffer object and per-context lockings scheme. Currently the
-following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
-``udl``.
+fine-grained per-buffer object and per-context lockings scheme. Currently only the
+``msm`` driver still use ``struct_mutex``.
 
 Contact: Daniel Vetter, respective driver maintainers
 
@@ -190,7 +177,8 @@ Convert drivers to use simple modeset suspend/resume
 
 Most drivers (except i915 and nouveau) that use
 drm_atomic_helper_suspend/resume() can probably be converted to use
-drm_mode_config_helper_suspend/resume().
+drm_mode_config_helper_suspend/resume(). Also there's still open-coded version
+of the atomic suspend/resume code in older atomic modeset drivers.
 
 Contact: Maintainer of the driver you plan to convert
 
@@ -240,26 +228,44 @@ efficient.
 
 Contact: Daniel Vetter
 
+Defaults for .gem_prime_import and export
+-----------------------------------------
+
+Most drivers don't need to set drm_driver->gem_prime_import and
+->gem_prime_export now that drm_gem_prime_import() and drm_gem_prime_export()
+are the default.
+
+struct drm_gem_object_funcs
+---------------------------
+
+GEM objects can now have a function table instead of having the callbacks on the
+DRM driver struct. This is now the preferred way and drivers can be moved over.
+
+Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
+---------------------------------------------------------
+
+For cases where drivers are attempting to grab the modeset locks with a local
+acquire context. Replace the boilerplate code surrounding
+drm_modeset_lock_all_ctx() with DRM_MODESET_LOCK_ALL_BEGIN() and
+DRM_MODESET_LOCK_ALL_END() instead.
+
+This should also be done for all places where drm_modest_lock_all() is still
+used.
+
+As a reference, take a look at the conversions already completed in drm core.
+
+Contact: Sean Paul, respective driver maintainers
+
 Core refactorings
 =================
 
 Clean up the DRM header mess
 ----------------------------
 
-Currently the DRM subsystem has only one global header, ``drmP.h``. This is
-used both for functions exported to helper libraries and drivers and functions
-only used internally in the ``drm.ko`` module. The goal would be to move all
-header declarations not needed outside of ``drm.ko`` into
-``drivers/gpu/drm/drm_*_internal.h`` header files. ``EXPORT_SYMBOL`` also
-needs to be dropped for these functions.
-
-This would nicely tie in with the below task to create kerneldoc after the API
-is cleaned up. Or with the "hide legacy cruft better" task.
-
-Note that this is well in progress, but ``drmP.h`` is still huge. The updated
-plan is to switch to per-file driver API headers, which will also structure
-the kerneldoc better. This should also allow more fine-grained ``#include``
-directives.
+The DRM subsystem originally had only one huge global header, ``drmP.h``. This
+is now split up, but many source files still include it. The remaining part of
+the cleanup work here is to replace any ``#include <drm/drmP.h>`` by only the
+headers needed (and fixing up any missing pre-declarations in the headers).
 
 In the end no .c file should need to include ``drmP.h`` anymore.
 
@@ -275,26 +281,6 @@ values for functions that never fail. Then write kerneldoc for all exported
 functions and an overview section and integrate it all into the drm book.
 
 See https://dri.freedesktop.org/docs/drm/ for what's there already.
-
-Contact: Daniel Vetter
-
-Hide legacy cruft better
-------------------------
-
-Way back DRM supported only drivers which shadow-attached to PCI devices with
-userspace or fbdev drivers setting up outputs. Modern DRM drivers take charge
-of the entire device, you can spot them with the DRIVER_MODESET flag.
-
-Unfortunately there's still large piles of legacy code around which needs to
-be hidden so that driver writers don't accidentally end up using it. And to
-prevent security issues in those legacy IOCTLs from being exploited on modern
-drivers. This has multiple possible subtasks:
-
-* Extract support code for legacy features into a ``drm-legacy.ko`` kernel
-  module and compile it only when one of the legacy drivers is enabled.
-
-This is mostly done, the only thing left is to split up ``drm_irq.c`` into
-legacy cruft and the parts needed by modern KMS drivers.
 
 Contact: Daniel Vetter
 
@@ -375,6 +361,16 @@ Some of these date from the very introduction of KMS in 2008 ...
   leftovers from older (never merged into upstream) KMS designs where modes
   where set using their ID, including support to add/remove modes.
 
+- Make ->funcs and ->helper_private vtables optional. There's a bunch of empty
+  function tables in drivers, but before we can remove them we need to make sure
+  that all the users in helpers and drivers do correctly check for a NULL
+  vtable.
+
+- Cleanup up the various ->destroy callbacks. A lot of them just wrapt the
+  drm_*_cleanup implementations and can be removed. Some tack a kfree() at the
+  end, for which we could add drm_*_cleanup_kfree(). And then there's the (for
+  historical reasons) misnamed drm_primary_helper_destroy() function.
+
 Better Testing
 ==============
 
@@ -396,17 +392,12 @@ converting things over. For modeset tests we also first need a bit of
 infrastructure to use dumb buffers for untiled buffers, to be able to run all
 the non-i915 specific modeset tests.
 
-Contact: Daniel Vetter
+Extend virtual test driver (VKMS)
+---------------------------------
 
-Create a virtual KMS driver for testing (vkms)
-----------------------------------------------
-
-With all the latest helpers it should be fairly simple to create a virtual KMS
-driver useful for testing, or for running X or similar on headless machines
-(to be able to still use the GPU). This would be similar to vgem, but aimed at
-the modeset side.
-
-Once the basics are there there's tons of possibilities to extend it.
+See the documentation of :ref:`VKMS <vkms>` for more details. This is an ideal
+internship task, since it only requires a virtual machine and can be sized to
+fit the available time.
 
 Contact: Daniel Vetter
 

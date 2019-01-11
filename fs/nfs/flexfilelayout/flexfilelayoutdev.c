@@ -330,10 +330,10 @@ int ff_layout_track_ds_error(struct nfs4_flexfile_layout *flo,
 	return 0;
 }
 
-static struct rpc_cred *
+static const struct cred *
 ff_layout_get_mirror_cred(struct nfs4_ff_layout_mirror *mirror, u32 iomode)
 {
-	struct rpc_cred *cred, __rcu **pcred;
+	const struct cred *cred, __rcu **pcred;
 
 	if (iomode == IOMODE_READ)
 		pcred = &mirror->ro_cred;
@@ -346,7 +346,7 @@ ff_layout_get_mirror_cred(struct nfs4_ff_layout_mirror *mirror, u32 iomode)
 		if (!cred)
 			break;
 
-		cred = get_rpccred_rcu(cred);
+		cred = get_cred_rcu(cred);
 	} while(!cred);
 	rcu_read_unlock();
 	return cred;
@@ -368,6 +368,25 @@ nfs4_ff_layout_select_ds_fh(struct pnfs_layout_segment *lseg, u32 mirror_idx)
 	fh = &mirror->fh_versions[0];
 out:
 	return fh;
+}
+
+int
+nfs4_ff_layout_select_ds_stateid(struct pnfs_layout_segment *lseg,
+				u32 mirror_idx,
+				nfs4_stateid *stateid)
+{
+	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, mirror_idx);
+
+	if (!ff_layout_mirror_valid(lseg, mirror, false)) {
+		pr_err_ratelimited("NFS: %s: No data server for mirror offset index %d\n",
+			__func__, mirror_idx);
+		goto out;
+	}
+
+	nfs4_stateid_copy(stateid, &mirror->stateid);
+	return 1;
+out:
+	return 0;
 }
 
 /**
@@ -446,19 +465,19 @@ out:
 	return ds;
 }
 
-struct rpc_cred *
+const struct cred *
 ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg, u32 ds_idx,
-		      struct rpc_cred *mdscred)
+		      const struct cred *mdscred)
 {
 	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, ds_idx);
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
-	if (mirror) {
+	if (mirror && !mirror->mirror_ds->ds_versions[0].tightly_coupled) {
 		cred = ff_layout_get_mirror_cred(mirror, lseg->pls_range.iomode);
 		if (!cred)
-			cred = get_rpccred(mdscred);
+			cred = get_cred(mdscred);
 	} else {
-		cred = get_rpccred(mdscred);
+		cred = get_cred(mdscred);
 	}
 	return cred;
 }

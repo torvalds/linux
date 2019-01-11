@@ -35,7 +35,7 @@ struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
-				   unsigned long flags, void *caller);
+				   pgprot_t prot, void *caller);
 	void		(*iounmap)(volatile void __iomem *token);
 
 #ifdef CONFIG_PM
@@ -108,6 +108,7 @@ struct machdep_calls {
 
 	/* Early exception handlers called in realmode */
 	int		(*hmi_exception_early)(struct pt_regs *regs);
+	long		(*machine_check_early)(struct pt_regs *regs);
 
 	/* Called during machine check exception to retrive fixup address. */
 	bool		(*mce_check_early_recovery)(struct pt_regs *regs);

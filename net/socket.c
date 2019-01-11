@@ -635,7 +635,7 @@ EXPORT_SYMBOL(sock_sendmsg);
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 		   struct kvec *vec, size_t num, size_t size)
 {
-	iov_iter_kvec(&msg->msg_iter, WRITE | ITER_KVEC, vec, num, size);
+	iov_iter_kvec(&msg->msg_iter, WRITE, vec, num, size);
 	return sock_sendmsg(sock, msg);
 }
 EXPORT_SYMBOL(kernel_sendmsg);
@@ -648,7 +648,7 @@ int kernel_sendmsg_locked(struct sock *sk, struct msghdr *msg,
 	if (!sock->ops->sendmsg_locked)
 		return sock_no_sendmsg_locked(sk, msg, size);
 
-	iov_iter_kvec(&msg->msg_iter, WRITE | ITER_KVEC, vec, num, size);
+	iov_iter_kvec(&msg->msg_iter, WRITE, vec, num, size);
 
 	return sock->ops->sendmsg_locked(sk, msg, msg_data_left(msg));
 }
@@ -823,7 +823,7 @@ int kernel_recvmsg(struct socket *sock, struct msghdr *msg,
 	mm_segment_t oldfs = get_fs();
 	int result;
 
-	iov_iter_kvec(&msg->msg_iter, READ | ITER_KVEC, vec, num, size);
+	iov_iter_kvec(&msg->msg_iter, READ, vec, num, size);
 	set_fs(KERNEL_DS);
 	result = sock_recvmsg(sock, msg, flags);
 	set_fs(oldfs);
@@ -853,7 +853,7 @@ static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
 	struct socket *sock = file->private_data;
 
 	if (unlikely(!sock->ops->splice_read))
-		return -EINVAL;
+		return generic_file_splice_read(file, ppos, pipe, len, flags);
 
 	return sock->ops->splice_read(sock, ppos, pipe, len, flags);
 }
@@ -941,7 +941,8 @@ void dlci_ioctl_set(int (*hook) (unsigned int, void __user *))
 EXPORT_SYMBOL(dlci_ioctl_set);
 
 static long sock_do_ioctl(struct net *net, struct socket *sock,
-				 unsigned int cmd, unsigned long arg)
+			  unsigned int cmd, unsigned long arg,
+			  unsigned int ifreq_size)
 {
 	int err;
 	void __user *argp = (void __user *)arg;
@@ -967,11 +968,11 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
 	} else {
 		struct ifreq ifr;
 		bool need_copyout;
-		if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+		if (copy_from_user(&ifr, argp, ifreq_size))
 			return -EFAULT;
 		err = dev_ioctl(net, cmd, &ifr, &need_copyout);
 		if (!err && need_copyout)
-			if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+			if (copy_to_user(argp, &ifr, ifreq_size))
 				return -EFAULT;
 	}
 	return err;
@@ -1070,7 +1071,8 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			err = open_related_ns(&net->ns, get_net_ns);
 			break;
 		default:
-			err = sock_do_ioctl(net, sock, cmd, arg);
+			err = sock_do_ioctl(net, sock, cmd, arg,
+					    sizeof(struct ifreq));
 			break;
 		}
 	return err;
@@ -1473,7 +1475,7 @@ int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
 		err = move_addr_to_kernel(umyaddr, addrlen, &address);
-		if (err >= 0) {
+		if (!err) {
 			err = security_socket_bind(sock,
 						   (struct sockaddr *)&address,
 						   addrlen);
@@ -2339,8 +2341,9 @@ SYSCALL_DEFINE3(recvmsg, int, fd, struct user_msghdr __user *, msg,
  *     Linux recvmmsg interface
  */
 
-int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
-		   unsigned int flags, struct timespec *timeout)
+static int do_recvmmsg(int fd, struct mmsghdr __user *mmsg,
+			  unsigned int vlen, unsigned int flags,
+			  struct timespec64 *timeout)
 {
 	int fput_needed, err, datagrams;
 	struct socket *sock;
@@ -2405,8 +2408,7 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 
 		if (timeout) {
 			ktime_get_ts64(&timeout64);
-			*timeout = timespec64_to_timespec(
-					timespec64_sub(end_time, timeout64));
+			*timeout = timespec64_sub(end_time, timeout64);
 			if (timeout->tv_sec < 0) {
 				timeout->tv_sec = timeout->tv_nsec = 0;
 				break;
@@ -2450,26 +2452,32 @@ out_put:
 	return datagrams;
 }
 
-static int do_sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
-			   unsigned int vlen, unsigned int flags,
-			   struct timespec __user *timeout)
+int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
+		   unsigned int vlen, unsigned int flags,
+		   struct __kernel_timespec __user *timeout,
+		   struct old_timespec32 __user *timeout32)
 {
 	int datagrams;
-	struct timespec timeout_sys;
+	struct timespec64 timeout_sys;
 
-	if (flags & MSG_CMSG_COMPAT)
-		return -EINVAL;
-
-	if (!timeout)
-		return __sys_recvmmsg(fd, mmsg, vlen, flags, NULL);
-
-	if (copy_from_user(&timeout_sys, timeout, sizeof(timeout_sys)))
+	if (timeout && get_timespec64(&timeout_sys, timeout))
 		return -EFAULT;
 
-	datagrams = __sys_recvmmsg(fd, mmsg, vlen, flags, &timeout_sys);
+	if (timeout32 && get_old_timespec32(&timeout_sys, timeout32))
+		return -EFAULT;
 
-	if (datagrams > 0 &&
-	    copy_to_user(timeout, &timeout_sys, sizeof(timeout_sys)))
+	if (!timeout && !timeout32)
+		return do_recvmmsg(fd, mmsg, vlen, flags, NULL);
+
+	datagrams = do_recvmmsg(fd, mmsg, vlen, flags, &timeout_sys);
+
+	if (datagrams <= 0)
+		return datagrams;
+
+	if (timeout && put_timespec64(&timeout_sys, timeout))
+		datagrams = -EFAULT;
+
+	if (timeout32 && put_old_timespec32(&timeout_sys, timeout32))
 		datagrams = -EFAULT;
 
 	return datagrams;
@@ -2477,10 +2485,25 @@ static int do_sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
 
 SYSCALL_DEFINE5(recvmmsg, int, fd, struct mmsghdr __user *, mmsg,
 		unsigned int, vlen, unsigned int, flags,
-		struct timespec __user *, timeout)
+		struct __kernel_timespec __user *, timeout)
 {
-	return do_sys_recvmmsg(fd, mmsg, vlen, flags, timeout);
+	if (flags & MSG_CMSG_COMPAT)
+		return -EINVAL;
+
+	return __sys_recvmmsg(fd, mmsg, vlen, flags, timeout, NULL);
 }
+
+#ifdef CONFIG_COMPAT_32BIT_TIME
+SYSCALL_DEFINE5(recvmmsg_time32, int, fd, struct mmsghdr __user *, mmsg,
+		unsigned int, vlen, unsigned int, flags,
+		struct old_timespec32 __user *, timeout)
+{
+	if (flags & MSG_CMSG_COMPAT)
+		return -EINVAL;
+
+	return __sys_recvmmsg(fd, mmsg, vlen, flags, NULL, timeout);
+}
+#endif
 
 #ifdef __ARCH_WANT_SYS_SOCKETCALL
 /* Argument list sizes for sys_socketcall */
@@ -2600,8 +2623,15 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 				    a[2], true);
 		break;
 	case SYS_RECVMMSG:
-		err = do_sys_recvmmsg(a0, (struct mmsghdr __user *)a1, a[2],
-				      a[3], (struct timespec __user *)a[4]);
+		if (IS_ENABLED(CONFIG_64BIT) || !IS_ENABLED(CONFIG_64BIT_TIME))
+			err = __sys_recvmmsg(a0, (struct mmsghdr __user *)a1,
+					     a[2], a[3],
+					     (struct __kernel_timespec __user *)a[4],
+					     NULL);
+		else
+			err = __sys_recvmmsg(a0, (struct mmsghdr __user *)a1,
+					     a[2], a[3], NULL,
+					     (struct old_timespec32 __user *)a[4]);
 		break;
 	case SYS_ACCEPT4:
 		err = __sys_accept4(a0, (struct sockaddr __user *)a1,
@@ -2750,7 +2780,8 @@ static int do_siocgstamp(struct net *net, struct socket *sock,
 	int err;
 
 	set_fs(KERNEL_DS);
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&ktv);
+	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&ktv,
+			    sizeof(struct compat_ifreq));
 	set_fs(old_fs);
 	if (!err)
 		err = compat_put_timeval(&ktv, up);
@@ -2766,7 +2797,8 @@ static int do_siocgstampns(struct net *net, struct socket *sock,
 	int err;
 
 	set_fs(KERNEL_DS);
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&kts);
+	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&kts,
+			    sizeof(struct compat_ifreq));
 	set_fs(old_fs);
 	if (!err)
 		err = compat_put_timespec(&kts, up);
@@ -2871,9 +2903,14 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 		    copy_in_user(&rxnfc->fs.ring_cookie,
 				 &compat_rxnfc->fs.ring_cookie,
 				 (void __user *)(&rxnfc->fs.location + 1) -
-				 (void __user *)&rxnfc->fs.ring_cookie) ||
-		    copy_in_user(&rxnfc->rule_cnt, &compat_rxnfc->rule_cnt,
-				 sizeof(rxnfc->rule_cnt)))
+				 (void __user *)&rxnfc->fs.ring_cookie))
+			return -EFAULT;
+		if (ethcmd == ETHTOOL_GRXCLSRLALL) {
+			if (put_user(rule_cnt, &rxnfc->rule_cnt))
+				return -EFAULT;
+		} else if (copy_in_user(&rxnfc->rule_cnt,
+					&compat_rxnfc->rule_cnt,
+					sizeof(rxnfc->rule_cnt)))
 			return -EFAULT;
 	}
 
@@ -3072,7 +3109,8 @@ static int routing_ioctl(struct net *net, struct socket *sock,
 	}
 
 	set_fs(KERNEL_DS);
-	ret = sock_do_ioctl(net, sock, cmd, (unsigned long) r);
+	ret = sock_do_ioctl(net, sock, cmd, (unsigned long) r,
+			    sizeof(struct compat_ifreq));
 	set_fs(old_fs);
 
 out:
@@ -3185,7 +3223,8 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBONDSETHWADDR:
 	case SIOCBONDCHANGEACTIVE:
 	case SIOCGIFNAME:
-		return sock_do_ioctl(net, sock, cmd, arg);
+		return sock_do_ioctl(net, sock, cmd, arg,
+				     sizeof(struct compat_ifreq));
 	}
 
 	return -ENOIOCTLCMD;

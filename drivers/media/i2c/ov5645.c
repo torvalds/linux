@@ -886,7 +886,7 @@ static int ov5645_s_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static struct v4l2_ctrl_ops ov5645_ctrl_ops = {
+static const struct v4l2_ctrl_ops ov5645_ctrl_ops = {
 	.s_ctrl = ov5645_s_ctrl,
 };
 
@@ -1127,7 +1127,7 @@ static int ov5645_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2) {
+	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "invalid bus type, must be CSI2\n");
 		return -EINVAL;
 	}

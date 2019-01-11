@@ -55,6 +55,20 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* Chipselect 2 is physically at 0x18000000 */
+		vram: vram@18000000 {
+			/* 8 MB of designated video RAM */
+			compatible = "shared-dma-pool";
+			reg = <0x18000000 0x00800000>;
+			no-map;
+		};
+	};
+
 	hdlcd@2a110000 {
 		compatible = "arm,hdlcd";
 		reg = <0x2a110000 0x1000>;

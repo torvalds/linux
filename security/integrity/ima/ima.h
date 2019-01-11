@@ -88,7 +88,7 @@ struct ima_template_desc {
 	char *name;
 	char *fmt;
 	int num_fields;
-	struct ima_template_field **fields;
+	const struct ima_template_field **fields;
 };
 
 struct ima_template_entry {

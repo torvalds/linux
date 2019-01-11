@@ -28,7 +28,6 @@
 #include "hardwaremanager.h"
 #include "hwmgr_ppt.h"
 #include "ppatomctrl.h"
-#include "hwmgr_ppt.h"
 #include "power_state.h"
 #include "smu_helper.h"
 
@@ -247,6 +246,7 @@ struct pp_hwmgr_func {
 	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
 	void (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
 	void (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
+	void (*powergate_acp)(struct pp_hwmgr *hwmgr, bool bgate);
 	uint32_t (*get_mclk)(struct pp_hwmgr *hwmgr, bool low);
 	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
@@ -297,7 +297,6 @@ struct pp_hwmgr_func {
 	int (*display_clock_voltage_request)(struct pp_hwmgr *hwmgr,
 			struct pp_display_clock_request *clock);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
-	int (*gfx_off_control)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
@@ -310,7 +309,7 @@ struct pp_hwmgr_func {
 	int (*avfs_control)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*disable_smc_firmware_ctf)(struct pp_hwmgr *hwmgr);
 	int (*set_active_display_count)(struct pp_hwmgr *hwmgr, uint32_t count);
-	int (*set_deep_sleep_dcefclk)(struct pp_hwmgr *hwmgr, uint32_t clock);
+	int (*set_min_deep_sleep_dcefclk)(struct pp_hwmgr *hwmgr, uint32_t clock);
 	int (*start_thermal_controller)(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *range);
 	int (*notify_cac_buffer_info)(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
@@ -318,6 +317,9 @@ struct pp_hwmgr_func {
 					uint32_t mc_addr_low,
 					uint32_t mc_addr_hi,
 					uint32_t size);
+	int (*update_nbdpm_pstate)(struct pp_hwmgr *hwmgr,
+					bool enable,
+					bool lock);
 	int (*get_thermal_temperature_range)(struct pp_hwmgr *hwmgr,
 					struct PP_TemperatureRange *range);
 	int (*get_power_profile_mode)(struct pp_hwmgr *hwmgr, char *buf);
@@ -328,6 +330,10 @@ struct pp_hwmgr_func {
 	int (*set_power_limit)(struct pp_hwmgr *hwmgr, uint32_t n);
 	int (*powergate_mmhub)(struct pp_hwmgr *hwmgr);
 	int (*smus_notify_pwe)(struct pp_hwmgr *hwmgr);
+	int (*powergate_sdma)(struct pp_hwmgr *hwmgr, bool bgate);
+	int (*enable_mgpu_fan_boost)(struct pp_hwmgr *hwmgr);
+	int (*set_hard_min_dcefclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
+	int (*set_hard_min_fclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
 };
 
 struct pp_table_func {
@@ -583,6 +589,7 @@ struct phm_ppt_v3_information
 	uint32_t *power_saving_clock_max;
 	uint32_t *power_saving_clock_min;
 
+	uint8_t *od_feature_capabilities;
 	uint32_t *od_settings_max;
 	uint32_t *od_settings_min;
 
@@ -731,7 +738,6 @@ struct pp_hwmgr {
 	void *smu_backend;
 	const struct pp_smumgr_func *smumgr_funcs;
 	bool is_kicker;
-	bool reload_fw;
 
 	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;

@@ -120,7 +120,7 @@
 			interrupts = <30>;
 
 			wakeup-interrupt-controller {
-				compatible = "samsung,exynos4210-wakeup-eint";
+				compatible = "samsung,s5pv210-wakeup-eint";
 				interrupts = <16>;
 				interrupt-parent = <&vic0>;
 			};
@@ -626,6 +626,15 @@
 				samsung,mainscaler-ext;
 				samsung,lcd-wb;
 			};
+		};
+
+		jpeg_codec: jpeg-codec@fb600000 {
+			compatible = "samsung,s5pv210-jpeg";
+			reg = <0xfb600000 0x1000>;
+			interrupt-parent = <&vic2>;
+			interrupts = <8>;
+			clocks = <&clocks CLK_JPEG>;
+			clock-names = "jpeg";
 		};
 	};
 };

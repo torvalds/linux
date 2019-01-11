@@ -1044,7 +1044,8 @@ static int safexcel_probe(struct platform_device *pdev)
 
 	safexcel_configure(priv);
 
-	priv->ring = devm_kzalloc(dev, priv->config.rings * sizeof(*priv->ring),
+	priv->ring = devm_kcalloc(dev, priv->config.rings,
+				  sizeof(*priv->ring),
 				  GFP_KERNEL);
 	if (!priv->ring) {
 		ret = -ENOMEM;
@@ -1063,8 +1064,9 @@ static int safexcel_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_reg_clk;
 
-		priv->ring[i].rdr_req = devm_kzalloc(dev,
-			sizeof(priv->ring[i].rdr_req) * EIP197_DEFAULT_RING_SIZE,
+		priv->ring[i].rdr_req = devm_kcalloc(dev,
+			EIP197_DEFAULT_RING_SIZE,
+			sizeof(priv->ring[i].rdr_req),
 			GFP_KERNEL);
 		if (!priv->ring[i].rdr_req) {
 			ret = -ENOMEM;

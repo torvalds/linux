@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hardkernel Odroid XU3 board device tree source
+ * Hardkernel Odroid XU3/XU3-Lite/XU4 boards common device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -113,24 +113,30 @@
 				 */
 				map3 {
 					trip = <&cpu0_alert3>;
-					cooling-device = <&cpu0 0 2>;
-				};
-				map4 {
-					trip = <&cpu0_alert3>;
-					cooling-device = <&cpu4 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				/*
 				 * When reaching cpu0_alert4, reduce CPU
 				 * further, down to 600 MHz (12 steps for big,
 				 * 7 steps for LITTLE).
 				 */
-				map5 {
+				map4 {
 					trip = <&cpu0_alert4>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map6 {
-					trip = <&cpu0_alert4>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};
@@ -185,19 +191,25 @@
 				};
 				map3 {
 					trip = <&cpu1_alert3>;
-					cooling-device = <&cpu0 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				map4 {
-					trip = <&cpu1_alert3>;
-					cooling-device = <&cpu4 0 2>;
-				};
-				map5 {
 					trip = <&cpu1_alert4>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map6 {
-					trip = <&cpu1_alert4>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};
@@ -252,19 +264,25 @@
 				};
 				map3 {
 					trip = <&cpu2_alert3>;
-					cooling-device = <&cpu0 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				map4 {
-					trip = <&cpu2_alert3>;
-					cooling-device = <&cpu4 0 2>;
-				};
-				map5 {
 					trip = <&cpu2_alert4>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map6 {
-					trip = <&cpu2_alert4>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};
@@ -319,19 +337,25 @@
 				};
 				map3 {
 					trip = <&cpu3_alert3>;
-					cooling-device = <&cpu0 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				map4 {
-					trip = <&cpu3_alert3>;
-					cooling-device = <&cpu4 0 2>;
-				};
-				map5 {
 					trip = <&cpu3_alert4>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map6 {
-					trip = <&cpu3_alert4>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};
@@ -367,6 +391,12 @@
 	status = "okay";
 };
 
+&ldo26_reg {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-always-on;
+};
+
 &mixer {
 	status = "okay";
 };
@@ -386,6 +416,7 @@
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
+	max-frequency = <200000000>;
 	vmmc-supply = <&ldo18_reg>;
 	vqmmc-supply = <&ldo3_reg>;
 };

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
+ * Copyright (C) 2018 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  *
@@ -98,7 +99,9 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	cfg80211_chandef_create(&sta_chan_def, sdata->vif.bss_conf.chandef.chan,
 				NL80211_CHAN_NO_HT);
 	ieee80211_chandef_ht_oper(ie->ht_operation, &sta_chan_def);
-	ieee80211_chandef_vht_oper(ie->vht_operation, &sta_chan_def);
+	ieee80211_chandef_vht_oper(&sdata->local->hw,
+				   ie->vht_operation, ie->ht_operation,
+				   &sta_chan_def);
 
 	if (!cfg80211_chandef_compatible(&sdata->vif.bss_conf.chandef,
 					 &sta_chan_def))
@@ -251,6 +254,9 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u8 *pos, neighbors;
 	u8 meshconf_len = sizeof(struct ieee80211_meshconf_ie);
+	bool is_connected_to_gate = ifmsh->num_gates > 0 ||
+		ifmsh->mshcfg.dot11MeshGateAnnouncementProtocol ||
+		ifmsh->mshcfg.dot11MeshConnectedToMeshGate;
 
 	if (skb_tailroom(skb) < 2 + meshconf_len)
 		return -ENOMEM;
@@ -275,7 +281,7 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	/* Mesh Formation Info - number of neighbors */
 	neighbors = atomic_read(&ifmsh->estab_plinks);
 	neighbors = min_t(int, neighbors, IEEE80211_MAX_MESH_PEERINGS);
-	*pos++ = neighbors << 1;
+	*pos++ = (neighbors << 1) | is_connected_to_gate;
 	/* Mesh capability */
 	*pos = 0x00;
 	*pos |= ifmsh->mshcfg.dot11MeshForwarding ?
@@ -1188,7 +1194,8 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		if (!sdata->u.mesh.user_mpm ||
 		    sdata->u.mesh.mshcfg.rssi_threshold == 0 ||
 		    sdata->u.mesh.mshcfg.rssi_threshold < rx_status->signal)
-			mesh_neighbour_update(sdata, mgmt->sa, &elems);
+			mesh_neighbour_update(sdata, mgmt->sa, &elems,
+					      rx_status);
 	}
 
 	if (ifmsh->sync_ops)

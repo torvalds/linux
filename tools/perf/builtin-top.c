@@ -46,6 +46,7 @@
 #include "arch/common.h"
 
 #include "util/debug.h"
+#include "util/ordered-events.h"
 
 #include <assert.h>
 #include <elf.h>
@@ -271,8 +272,6 @@ static void perf_top__print_sym_table(struct perf_top *top)
 
 	perf_top__header_snprintf(top, bf, sizeof(bf));
 	printf("%s\n", bf);
-
-	perf_top__reset_sample_counters(top);
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
@@ -553,8 +552,6 @@ static void perf_top__sort_new_samples(void *arg)
 	struct perf_evsel *evsel = t->sym_evsel;
 	struct hists *hists;
 
-	perf_top__reset_sample_counters(t);
-
 	if (t->evlist->selected != NULL)
 		t->sym_evsel = t->evlist->selected;
 
@@ -571,6 +568,15 @@ static void perf_top__sort_new_samples(void *arg)
 
 	hists__collapse_resort(hists, NULL);
 	perf_evsel__output_resort(evsel, NULL);
+
+	if (t->lost || t->drop)
+		pr_warning("Too slow to read ring buffer (change period (-c/-F) or limit CPUs (-C)\n");
+}
+
+static void stop_top(void)
+{
+	session_done = 1;
+	done = 1;
 }
 
 static void *display_thread_tui(void *arg)
@@ -595,7 +601,7 @@ static void *display_thread_tui(void *arg)
 
 	/*
 	 * Initialize the uid_filter_str, in the future the TUI will allow
-	 * Zooming in/out UIDs. For now juse use whatever the user passed
+	 * Zooming in/out UIDs. For now just use whatever the user passed
 	 * via --uid.
 	 */
 	evlist__for_each_entry(top->evlist, pos) {
@@ -609,13 +615,13 @@ static void *display_thread_tui(void *arg)
 				      !top->record_opts.overwrite,
 				      &top->annotation_opts);
 
-	done = 1;
+	stop_top();
 	return NULL;
 }
 
 static void display_sig(int sig __maybe_unused)
 {
-	done = 1;
+	stop_top();
 }
 
 static void display_setup_sig(void)
@@ -668,7 +674,7 @@ repeat:
 
 			if (perf_top__handle_keypress(top, c))
 				goto repeat;
-			done = 1;
+			stop_top();
 		}
 	}
 
@@ -800,78 +806,61 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	addr_location__put(&al);
 }
 
+static void
+perf_top__process_lost(struct perf_top *top, union perf_event *event,
+		       struct perf_evsel *evsel)
+{
+	struct hists *hists = evsel__hists(evsel);
+
+	top->lost += event->lost.lost;
+	top->lost_total += event->lost.lost;
+	hists->stats.total_lost += event->lost.lost;
+}
+
+static void
+perf_top__process_lost_samples(struct perf_top *top,
+			       union perf_event *event,
+			       struct perf_evsel *evsel)
+{
+	struct hists *hists = evsel__hists(evsel);
+
+	top->lost += event->lost_samples.lost;
+	top->lost_total += event->lost_samples.lost;
+	hists->stats.total_lost_samples += event->lost_samples.lost;
+}
+
+static u64 last_timestamp;
+
 static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 {
 	struct record_opts *opts = &top->record_opts;
 	struct perf_evlist *evlist = top->evlist;
-	struct perf_sample sample;
-	struct perf_evsel *evsel;
 	struct perf_mmap *md;
-	struct perf_session *session = top->session;
 	union perf_event *event;
-	struct machine *machine;
-	int ret;
 
 	md = opts->overwrite ? &evlist->overwrite_mmap[idx] : &evlist->mmap[idx];
 	if (perf_mmap__read_init(md) < 0)
 		return;
 
 	while ((event = perf_mmap__read_event(md)) != NULL) {
-		ret = perf_evlist__parse_sample(evlist, event, &sample);
-		if (ret) {
-			pr_err("Can't parse sample, err = %d\n", ret);
-			goto next_event;
-		}
+		int ret;
 
-		evsel = perf_evlist__id2evsel(session->evlist, sample.id);
-		assert(evsel != NULL);
-
-		if (event->header.type == PERF_RECORD_SAMPLE)
-			++top->samples;
-
-		switch (sample.cpumode) {
-		case PERF_RECORD_MISC_USER:
-			++top->us_samples;
-			if (top->hide_user_symbols)
-				goto next_event;
-			machine = &session->machines.host;
+		ret = perf_evlist__parse_sample_timestamp(evlist, event, &last_timestamp);
+		if (ret && ret != -1)
 			break;
-		case PERF_RECORD_MISC_KERNEL:
-			++top->kernel_samples;
-			if (top->hide_kernel_symbols)
-				goto next_event;
-			machine = &session->machines.host;
-			break;
-		case PERF_RECORD_MISC_GUEST_KERNEL:
-			++top->guest_kernel_samples;
-			machine = perf_session__find_machine(session,
-							     sample.pid);
-			break;
-		case PERF_RECORD_MISC_GUEST_USER:
-			++top->guest_us_samples;
-			/*
-			 * TODO: we don't process guest user from host side
-			 * except simple counting.
-			 */
-			goto next_event;
-		default:
-			if (event->header.type == PERF_RECORD_SAMPLE)
-				goto next_event;
-			machine = &session->machines.host;
-			break;
-		}
 
+		ret = ordered_events__queue(top->qe.in, event, last_timestamp, 0);
+		if (ret)
+			break;
 
-		if (event->header.type == PERF_RECORD_SAMPLE) {
-			perf_event__process_sample(&top->tool, event, evsel,
-						   &sample, machine);
-		} else if (event->header.type < PERF_RECORD_MAX) {
-			hists__inc_nr_events(evsel__hists(evsel), event->header.type);
-			machine__process_event(machine, event, &sample);
-		} else
-			++session->evlist->stats.nr_unknown_events;
-next_event:
 		perf_mmap__consume(md);
+
+		if (top->qe.rotate) {
+			pthread_mutex_lock(&top->qe.mutex);
+			top->qe.rotate = false;
+			pthread_cond_signal(&top->qe.cond);
+			pthread_mutex_unlock(&top->qe.mutex);
+		}
 	}
 
 	perf_mmap__read_done(md);
@@ -881,10 +870,8 @@ static void perf_top__mmap_read(struct perf_top *top)
 {
 	bool overwrite = top->record_opts.overwrite;
 	struct perf_evlist *evlist = top->evlist;
-	unsigned long long start, end;
 	int i;
 
-	start = rdclock();
 	if (overwrite)
 		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_DATA_PENDING);
 
@@ -895,13 +882,6 @@ static void perf_top__mmap_read(struct perf_top *top)
 		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
 		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 	}
-	end = rdclock();
-
-	if ((end - start) > (unsigned long long)top->delay_secs * NSEC_PER_SEC)
-		ui__warning("Too slow to read ring buffer.\n"
-			    "Please try increasing the period (-c) or\n"
-			    "decreasing the freq (-F) or\n"
-			    "limiting the number of CPUs (-C)\n");
 }
 
 /*
@@ -1063,6 +1043,150 @@ static int callchain_param__setup_sample_type(struct callchain_param *callchain)
 	return 0;
 }
 
+static struct ordered_events *rotate_queues(struct perf_top *top)
+{
+	struct ordered_events *in = top->qe.in;
+
+	if (top->qe.in == &top->qe.data[1])
+		top->qe.in = &top->qe.data[0];
+	else
+		top->qe.in = &top->qe.data[1];
+
+	return in;
+}
+
+static void *process_thread(void *arg)
+{
+	struct perf_top *top = arg;
+
+	while (!done) {
+		struct ordered_events *out, *in = top->qe.in;
+
+		if (!in->nr_events) {
+			usleep(100);
+			continue;
+		}
+
+		out = rotate_queues(top);
+
+		pthread_mutex_lock(&top->qe.mutex);
+		top->qe.rotate = true;
+		pthread_cond_wait(&top->qe.cond, &top->qe.mutex);
+		pthread_mutex_unlock(&top->qe.mutex);
+
+		if (ordered_events__flush(out, OE_FLUSH__TOP))
+			pr_err("failed to process events\n");
+	}
+
+	return NULL;
+}
+
+/*
+ * Allow only 'top->delay_secs' seconds behind samples.
+ */
+static int should_drop(struct ordered_event *qevent, struct perf_top *top)
+{
+	union perf_event *event = qevent->event;
+	u64 delay_timestamp;
+
+	if (event->header.type != PERF_RECORD_SAMPLE)
+		return false;
+
+	delay_timestamp = qevent->timestamp + top->delay_secs * NSEC_PER_SEC;
+	return delay_timestamp < last_timestamp;
+}
+
+static int deliver_event(struct ordered_events *qe,
+			 struct ordered_event *qevent)
+{
+	struct perf_top *top = qe->data;
+	struct perf_evlist *evlist = top->evlist;
+	struct perf_session *session = top->session;
+	union perf_event *event = qevent->event;
+	struct perf_sample sample;
+	struct perf_evsel *evsel;
+	struct machine *machine;
+	int ret = -1;
+
+	if (should_drop(qevent, top)) {
+		top->drop++;
+		top->drop_total++;
+		return 0;
+	}
+
+	ret = perf_evlist__parse_sample(evlist, event, &sample);
+	if (ret) {
+		pr_err("Can't parse sample, err = %d\n", ret);
+		goto next_event;
+	}
+
+	evsel = perf_evlist__id2evsel(session->evlist, sample.id);
+	assert(evsel != NULL);
+
+	if (event->header.type == PERF_RECORD_SAMPLE)
+		++top->samples;
+
+	switch (sample.cpumode) {
+	case PERF_RECORD_MISC_USER:
+		++top->us_samples;
+		if (top->hide_user_symbols)
+			goto next_event;
+		machine = &session->machines.host;
+		break;
+	case PERF_RECORD_MISC_KERNEL:
+		++top->kernel_samples;
+		if (top->hide_kernel_symbols)
+			goto next_event;
+		machine = &session->machines.host;
+		break;
+	case PERF_RECORD_MISC_GUEST_KERNEL:
+		++top->guest_kernel_samples;
+		machine = perf_session__find_machine(session,
+						     sample.pid);
+		break;
+	case PERF_RECORD_MISC_GUEST_USER:
+		++top->guest_us_samples;
+		/*
+		 * TODO: we don't process guest user from host side
+		 * except simple counting.
+		 */
+		goto next_event;
+	default:
+		if (event->header.type == PERF_RECORD_SAMPLE)
+			goto next_event;
+		machine = &session->machines.host;
+		break;
+	}
+
+	if (event->header.type == PERF_RECORD_SAMPLE) {
+		perf_event__process_sample(&top->tool, event, evsel,
+					   &sample, machine);
+	} else if (event->header.type == PERF_RECORD_LOST) {
+		perf_top__process_lost(top, event, evsel);
+	} else if (event->header.type == PERF_RECORD_LOST_SAMPLES) {
+		perf_top__process_lost_samples(top, event, evsel);
+	} else if (event->header.type < PERF_RECORD_MAX) {
+		hists__inc_nr_events(evsel__hists(evsel), event->header.type);
+		machine__process_event(machine, event, &sample);
+	} else
+		++session->evlist->stats.nr_unknown_events;
+
+	ret = 0;
+next_event:
+	return ret;
+}
+
+static void init_process_thread(struct perf_top *top)
+{
+	ordered_events__init(&top->qe.data[0], deliver_event, top);
+	ordered_events__init(&top->qe.data[1], deliver_event, top);
+	ordered_events__set_copy_on_queue(&top->qe.data[0], true);
+	ordered_events__set_copy_on_queue(&top->qe.data[1], true);
+	top->qe.in = &top->qe.data[0];
+	pthread_mutex_init(&top->qe.mutex, NULL);
+	pthread_cond_init(&top->qe.cond, NULL);
+}
+
 static int __cmd_top(struct perf_top *top)
 {
 	char msg[512];
@@ -1070,7 +1194,7 @@ static int __cmd_top(struct perf_top *top)
 	struct perf_evsel_config_term *err_term;
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
-	pthread_t thread;
+	pthread_t thread, thread_process;
 	int ret;
 
 	top->session = perf_session__new(NULL, false, NULL);
@@ -1094,9 +1218,10 @@ static int __cmd_top(struct perf_top *top)
 	if (top->nr_threads_synthesize > 1)
 		perf_set_multithreaded();
 
+	init_process_thread(top);
+
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false,
-				    opts->proc_map_timeout,
 				    top->nr_threads_synthesize);
 
 	if (top->nr_threads_synthesize > 1)
@@ -1134,16 +1259,16 @@ static int __cmd_top(struct perf_top *top)
         if (!target__none(&opts->target))
                 perf_evlist__enable(top->evlist);
 
-	/* Wait for a minimal set of events before starting the snapshot */
-	perf_evlist__poll(top->evlist, 100);
-
-	perf_top__mmap_read(top);
-
 	ret = -1;
+	if (pthread_create(&thread_process, NULL, process_thread, top)) {
+		ui__error("Could not create process thread.\n");
+		goto out_delete;
+	}
+
 	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
 							    display_thread), top)) {
 		ui__error("Could not create display thread.\n");
-		goto out_delete;
+		goto out_join_thread;
 	}
 
 	if (top->realtime_prio) {
@@ -1155,6 +1280,11 @@ static int __cmd_top(struct perf_top *top)
 			goto out_join;
 		}
 	}
+
+	/* Wait for a minimal set of events before starting the snapshot */
+	perf_evlist__poll(top->evlist, 100);
+
+	perf_top__mmap_read(top);
 
 	while (!done) {
 		u64 hits = top->samples;
@@ -1173,6 +1303,9 @@ static int __cmd_top(struct perf_top *top)
 	ret = 0;
 out_join:
 	pthread_join(thread, NULL);
+out_join_thread:
+	pthread_cond_signal(&top->qe.cond);
+	pthread_join(thread_process, NULL);
 out_delete:
 	perf_session__delete(top->session);
 	top->session = NULL;
@@ -1256,8 +1389,15 @@ int cmd_top(int argc, const char **argv)
 			.target		= {
 				.uses_mmap   = true,
 			},
-			.proc_map_timeout    = 500,
-			.overwrite	= 1,
+			/*
+			 * FIXME: This will lose PERF_RECORD_MMAP and other metadata
+			 * when we pause, fix that and reenable. Probably using a
+			 * separate evlist with a dummy event, i.e. a non-overwrite
+			 * ring buffer just for metadata events, while PERF_RECORD_SAMPLE
+			 * stays in overwrite mode. -acme
+			 * */
+			.overwrite	= 0,
+			.sample_time	= true,
 		},
 		.max_stack	     = sysctl__max_stack(),
 		.annotation_opts     = annotation__default_options,
@@ -1282,6 +1422,8 @@ int cmd_top(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
 		    "don't load vmlinux even if found"),
+	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
+		   "file", "kallsyms pathname"),
 	OPT_BOOLEAN('K', "hide_kernel_symbols", &top.hide_kernel_symbols,
 		    "hide kernel symbols"),
 	OPT_CALLBACK('m', "mmap-pages", &opts->mmap_pages, "pages",
@@ -1360,7 +1502,7 @@ int cmd_top(int argc, const char **argv)
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
-	OPT_UINTEGER(0, "proc-map-timeout", &opts->proc_map_timeout,
+	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_CALLBACK_NOOPT('b', "branch-any", &opts->branch_stack,
 		     "branch any", "sample any taken branches",
@@ -1372,6 +1514,8 @@ int cmd_top(int argc, const char **argv)
 		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
+	OPT_BOOLEAN(0, "overwrite", &top.record_opts.overwrite,
+		    "Use a backward ring buffer, default: no"),
 	OPT_BOOLEAN(0, "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_UINTEGER(0, "num-thread-synthesize", &top.nr_threads_synthesize,
 			"number of thread to run event synthesize"),
@@ -1419,6 +1563,9 @@ int cmd_top(int argc, const char **argv)
 			goto out_delete_evlist;
 		}
 	}
+
+	if (opts->branch_stack && callchain_param.enabled)
+		symbol_conf.show_branchflag_count = true;
 
 	sort__mode = SORT_MODE__TOP;
 	/* display thread wants entries to be collapsed in a different tree */

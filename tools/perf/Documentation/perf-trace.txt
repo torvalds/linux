@@ -171,6 +171,11 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --kernel-syscall-graph::
 	 Show the kernel callchains on the syscall exit path.
 
+--max-events=N::
+	Stop after processing N events. Note that strace-like events are considered
+	only at exit time or when a syscall is interrupted, i.e. in those cases this
+	option is equivalent to the number of lines printed.
+
 --max-stack::
         Set the stack depth limit when parsing the callchain, anything
         beyond the specified depth will be ignored. Note that at this point
@@ -199,6 +204,12 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
 	because the file may be huge. A time out is needed in such cases.
 	This option sets the time out limit. The default value is 500 ms.
+
+--sort-events::
+	Do sorting on batches of events, use when noticing out of order events that
+	may happen, for instance, when a thread gets migrated to a different CPU
+	while processing a syscall.
+
 
 PAGEFAULTS
 ----------
@@ -237,6 +248,68 @@ Trace syscalls, major and minor pagefaults:
 
   As you can see, there was major pagefault in python process, from
   CRYPTO_push_info_ routine which faulted somewhere in libcrypto.so.
+
+Trace the first 4 open, openat or open_by_handle_at syscalls (in the future more syscalls may match here):
+
+  $ perf trace -e open* --max-events 4
+  [root@jouet perf]# trace -e open* --max-events 4
+  2272.992 ( 0.037 ms): gnome-shell/1370 openat(dfd: CWD, filename: /proc/self/stat) = 31
+  2277.481 ( 0.139 ms): gnome-shell/3039 openat(dfd: CWD, filename: /proc/self/stat) = 65
+  3026.398 ( 0.076 ms): gnome-shell/3039 openat(dfd: CWD, filename: /proc/self/stat) = 65
+  4294.665 ( 0.015 ms): sed/15879 openat(dfd: CWD, filename: /etc/ld.so.cache, flags: CLOEXEC) = 3
+  $
+
+Trace the first minor page fault when running a workload:
+
+  # perf trace -F min --max-stack=7 --max-events 1 sleep 1
+     0.000 ( 0.000 ms): sleep/18006 minfault [__clear_user+0x1a] => 0x5626efa56080 (?k)
+                                       __clear_user ([kernel.kallsyms])
+                                       load_elf_binary ([kernel.kallsyms])
+                                       search_binary_handler ([kernel.kallsyms])
+                                       __do_execve_file.isra.33 ([kernel.kallsyms])
+                                       __x64_sys_execve ([kernel.kallsyms])
+                                       do_syscall_64 ([kernel.kallsyms])
+                                       entry_SYSCALL_64 ([kernel.kallsyms])
+  #
+
+Trace the next min page page fault to take place on the first CPU:
+
+  # perf trace -F min --call-graph=dwarf --max-events 1 --cpu 0
+     0.000 ( 0.000 ms): Web Content/17136 minfault [js::gc::Chunk::fetchNextDecommittedArena+0x4b] => 0x7fbe6181b000 (?.)
+                                       js::gc::FreeSpan::initAsEmpty (inlined)
+                                       js::gc::Arena::setAsNotAllocated (inlined)
+                                       js::gc::Chunk::fetchNextDecommittedArena (/usr/lib64/firefox/libxul.so)
+                                       js::gc::Chunk::allocateArena (/usr/lib64/firefox/libxul.so)
+                                       js::gc::GCRuntime::allocateArena (/usr/lib64/firefox/libxul.so)
+                                       js::gc::ArenaLists::allocateFromArena (/usr/lib64/firefox/libxul.so)
+                                       js::gc::GCRuntime::tryNewTenuredThing<JSString, (js::AllowGC)1> (inlined)
+                                       js::AllocateString<JSString, (js::AllowGC)1> (/usr/lib64/firefox/libxul.so)
+                                       js::Allocate<JSThinInlineString, (js::AllowGC)1> (inlined)
+                                       JSThinInlineString::new_<(js::AllowGC)1> (inlined)
+                                       AllocateInlineString<(js::AllowGC)1, unsigned char> (inlined)
+                                       js::ConcatStrings<(js::AllowGC)1> (/usr/lib64/firefox/libxul.so)
+                                       [0x18b26e6bc2bd] (/tmp/perf-17136.map)
+  #
+
+Trace the next two sched:sched_switch events, four block:*_plug events, the
+next block:*_unplug and the next three net:*dev_queue events, this last one
+with a backtrace of at most 16 entries, system wide:
+
+  # perf trace -e sched:*switch/nr=2/,block:*_plug/nr=4/,block:*_unplug/nr=1/,net:*dev_queue/nr=3,max-stack=16/
+     0.000 :0/0 sched:sched_switch:swapper/2:0 [120] S ==> rcu_sched:10 [120]
+     0.015 rcu_sched/10 sched:sched_switch:rcu_sched:10 [120] R ==> swapper/2:0 [120]
+   254.198 irq/50-iwlwifi/680 net:net_dev_queue:dev=wlp3s0 skbaddr=0xffff93498051f600 len=66
+                                       __dev_queue_xmit ([kernel.kallsyms])
+   273.977 :0/0 net:net_dev_queue:dev=wlp3s0 skbaddr=0xffff93498051f600 len=78
+                                       __dev_queue_xmit ([kernel.kallsyms])
+   274.007 :0/0 net:net_dev_queue:dev=wlp3s0 skbaddr=0xffff93498051ff00 len=78
+                                       __dev_queue_xmit ([kernel.kallsyms])
+  2930.140 kworker/u16:58/2722 block:block_plug:[kworker/u16:58]
+  2930.162 kworker/u16:58/2722 block:block_unplug:[kworker/u16:58] 1
+  4466.094 jbd2/dm-2-8/748 block:block_plug:[jbd2/dm-2-8]
+  8050.123 kworker/u16:30/2694 block:block_plug:[kworker/u16:30]
+  8050.271 kworker/u16:30/2694 block:block_plug:[kworker/u16:30]
+  #
 
 SEE ALSO
 --------

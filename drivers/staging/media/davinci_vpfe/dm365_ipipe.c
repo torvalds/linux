@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -62,7 +59,7 @@ static int ipipe_validate_lutdpc_params(struct vpfe_ipipe_lutdpc *lutdpc)
 
 	for (i = 0; i < lutdpc->dpc_size; i++)
 		if (lutdpc->table[i].horz_pos > LUT_DPC_H_POS_MASK ||
-		   lutdpc->table[i].vert_pos > LUT_DPC_V_POS_MASK)
+		    lutdpc->table[i].vert_pos > LUT_DPC_V_POS_MASK)
 			return -EINVAL;
 
 	return 0;
@@ -102,7 +99,7 @@ static int ipipe_get_lutdpc_params(struct vpfe_ipipe_device *ipipe, void *param)
 	lut_param->repl_white = lutdpc->repl_white;
 	lut_param->dpc_size = lutdpc->dpc_size;
 	memcpy(&lut_param->table, &lutdpc->table,
-	   (lutdpc->dpc_size * sizeof(struct vpfe_ipipe_lutdpc_entry)));
+	       (lutdpc->dpc_size * sizeof(struct vpfe_ipipe_lutdpc_entry)));
 
 	return 0;
 }
@@ -491,7 +488,7 @@ ipipe_validate_rgb2rgb_params(struct vpfe_ipipe_rgb2rgb *rgb2rgb,
 }
 
 static int ipipe_set_rgb2rgb_params(struct vpfe_ipipe_device *ipipe,
-			      unsigned int id, void *param)
+				    unsigned int id, void *param)
 {
 	struct vpfe_ipipe_rgb2rgb *rgb2rgb = &ipipe->config.rgb2rgb1;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
@@ -545,7 +542,7 @@ ipipe_set_rgb2rgb_2_params(struct vpfe_ipipe_device *ipipe, void *param)
 }
 
 static int ipipe_get_rgb2rgb_params(struct vpfe_ipipe_device *ipipe,
-			      unsigned int id, void *param)
+				    unsigned int id, void *param)
 {
 	struct vpfe_ipipe_rgb2rgb *rgb2rgb = &ipipe->config.rgb2rgb1;
 	struct vpfe_ipipe_rgb2rgb *rgb2rgb_param;
@@ -695,21 +692,21 @@ static int ipipe_get_gamma_params(struct vpfe_ipipe_device *ipipe, void *param)
 
 	if (!gamma->bypass_r) {
 		dev_err(dev,
-			"ipipe_get_gamma_params: table ptr empty for R\n");
+			"%s: table ptr empty for R\n", __func__);
 		return -EINVAL;
 	}
 	memcpy(gamma_param->table_r, gamma->table_r,
 	       (table_size * sizeof(struct vpfe_ipipe_gamma_entry)));
 
 	if (!gamma->bypass_g) {
-		dev_err(dev, "ipipe_get_gamma_params: table ptr empty for G\n");
+		dev_err(dev, "%s: table ptr empty for G\n", __func__);
 		return -EINVAL;
 	}
 	memcpy(gamma_param->table_g, gamma->table_g,
 	       (table_size * sizeof(struct vpfe_ipipe_gamma_entry)));
 
 	if (!gamma->bypass_b) {
-		dev_err(dev, "ipipe_get_gamma_params: table ptr empty for B\n");
+		dev_err(dev, "%s: table ptr empty for B\n", __func__);
 		return -EINVAL;
 	}
 	memcpy(gamma_param->table_b, gamma->table_b,
@@ -775,44 +772,44 @@ success:
 static int ipipe_validate_rgb2yuv_params(struct vpfe_ipipe_rgb2yuv *rgb2yuv)
 {
 	if (rgb2yuv->coef_ry.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_ry.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_ry.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_gy.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_gy.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_gy.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_by.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_by.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_by.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_rcb.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_rcb.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_rcb.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_gcb.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_gcb.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_gcb.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_bcb.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_bcb.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_bcb.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_rcr.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_rcr.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_rcr.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_gcr.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_gcr.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_gcr.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->coef_bcr.decimal > RGB2YCBCR_COEF_DECI_MASK ||
-	   rgb2yuv->coef_bcr.integer > RGB2YCBCR_COEF_INT_MASK)
+	    rgb2yuv->coef_bcr.integer > RGB2YCBCR_COEF_INT_MASK)
 		return -EINVAL;
 
 	if (rgb2yuv->out_ofst_y > RGB2YCBCR_OFST_MASK ||
-	   rgb2yuv->out_ofst_cb > RGB2YCBCR_OFST_MASK ||
-	   rgb2yuv->out_ofst_cr > RGB2YCBCR_OFST_MASK)
+	    rgb2yuv->out_ofst_cb > RGB2YCBCR_OFST_MASK ||
+	    rgb2yuv->out_ofst_cr > RGB2YCBCR_OFST_MASK)
 		return -EINVAL;
 
 	return 0;
@@ -918,7 +915,7 @@ static int ipipe_get_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 	gbce_param->type = gbce->type;
 
 	memcpy(gbce_param->table, gbce->table,
-		(VPFE_IPIPE_MAX_SIZE_GBCE_LUT * sizeof(unsigned short)));
+	       (VPFE_IPIPE_MAX_SIZE_GBCE_LUT * sizeof(unsigned short)));
 
 	return 0;
 }
@@ -945,7 +942,7 @@ ipipe_set_yuv422_conv_params(struct vpfe_ipipe_device *ipipe, void *param)
 		yuv422_conv->chrom_pos = VPFE_IPIPE_YUV422_CHR_POS_COSITE;
 	} else {
 		memcpy(yuv422_conv, yuv422_conv_param,
-			sizeof(struct vpfe_ipipe_yuv422_conv));
+		       sizeof(struct vpfe_ipipe_yuv422_conv));
 		if (ipipe_validate_yuv422_conv_params(yuv422_conv) < 0) {
 			dev_err(dev, "Invalid yuv422 params\n");
 			return -EINVAL;
@@ -1382,7 +1379,7 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
 	struct vpfe_device *vpfe_dev = to_vpfe_device(ipipe);
 
 	if (enable && ipipe->input != IPIPE_INPUT_NONE &&
-		ipipe->output != IPIPE_OUTPUT_NONE) {
+	    ipipe->output != IPIPE_OUTPUT_NONE) {
 		if (config_ipipe_hw(ipipe) < 0)
 			return -EINVAL;
 	}
@@ -1402,8 +1399,8 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
  */
 static struct v4l2_mbus_framefmt *
 __ipipe_get_format(struct vpfe_ipipe_device *ipipe,
-		       struct v4l2_subdev_pad_config *cfg, unsigned int pad,
-		       enum v4l2_subdev_format_whence which)
+		   struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		   enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&ipipe->subdev, cfg, pad);
@@ -1421,9 +1418,9 @@ __ipipe_get_format(struct vpfe_ipipe_device *ipipe,
  */
 static void
 ipipe_try_format(struct vpfe_ipipe_device *ipipe,
-		   struct v4l2_subdev_pad_config *cfg, unsigned int pad,
-		   struct v4l2_mbus_framefmt *fmt,
-		   enum v4l2_subdev_format_whence which)
+		 struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		 struct v4l2_mbus_framefmt *fmt,
+		 enum v4l2_subdev_format_whence which)
 {
 	unsigned int max_out_height;
 	unsigned int max_out_width;
@@ -1463,13 +1460,13 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
  */
 static int
 ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-		     struct v4l2_subdev_format *fmt)
+		 struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	ipipe_try_format(ipipe, cfg, fmt->pad, &fmt->format, fmt->which);
@@ -1479,11 +1476,11 @@ ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		return 0;
 
 	if (fmt->pad == IPIPE_PAD_SINK &&
-	   (ipipe->input == IPIPE_INPUT_CCDC ||
+	    (ipipe->input == IPIPE_INPUT_CCDC ||
 	    ipipe->input == IPIPE_INPUT_MEMORY))
 		ipipe->formats[fmt->pad] = fmt->format;
 	else if (fmt->pad == IPIPE_PAD_SOURCE &&
-		ipipe->output == IPIPE_OUTPUT_RESIZER)
+		 ipipe->output == IPIPE_OUTPUT_RESIZER)
 		ipipe->formats[fmt->pad] = fmt->format;
 	else
 		return -EINVAL;
@@ -1499,7 +1496,7 @@ ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
  */
 static int
 ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-		     struct v4l2_subdev_format *fmt)
+		 struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 
@@ -1519,8 +1516,8 @@ ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
  */
 static int
 ipipe_enum_frame_size(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
-		       struct v4l2_subdev_frame_size_enum *fse)
+		      struct v4l2_subdev_pad_config *cfg,
+		      struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -1687,7 +1684,7 @@ static const struct v4l2_subdev_ops ipipe_v4l2_ops = {
  */
 static int
 ipipe_link_setup(struct media_entity *entity, const struct media_pad *local,
-		     const struct media_pad *remote, u32 flags)
+		 const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
@@ -1749,7 +1746,7 @@ void vpfe_ipipe_unregister_entities(struct vpfe_ipipe_device *vpfe_ipipe)
  */
 int
 vpfe_ipipe_register_entities(struct vpfe_ipipe_device *ipipe,
-				 struct v4l2_device *vdev)
+			     struct v4l2_device *vdev)
 {
 	int ret;
 
@@ -1801,7 +1798,7 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 
 	v4l2_subdev_init(sd, &ipipe_v4l2_ops);
 	sd->internal_ops = &ipipe_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI IPIPE", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI IPIPE", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, ipipe);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1820,8 +1817,6 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 	v4l2_ctrl_new_std(&ipipe->ctrls, &ipipe_ctrl_ops,
 			  V4L2_CID_CONTRAST, 0,
 			  IPIPE_CONTRAST_HIGH, 1, 16);
-
-
 	v4l2_ctrl_handler_setup(&ipipe->ctrls);
 	sd->ctrl_handler = &ipipe->ctrls;
 

@@ -35,22 +35,25 @@
 		addr;							\
 	})
 
-/*
- * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.
- */
-#define KVM_MMU_CACHE_MIN_PAGES	2
-
 #ifndef __ASSEMBLY__
 
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
+#include <asm/kvm_arm.h>
 #include <asm/kvm_hyp.h>
 #include <asm/pgalloc.h>
 #include <asm/stage2_pgtable.h>
 
 /* Ensure compatibility with arm64 */
 #define VA_BITS			32
+
+#define kvm_phys_shift(kvm)		KVM_PHYS_SHIFT
+#define kvm_phys_size(kvm)		(1ULL << kvm_phys_shift(kvm))
+#define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - 1ULL)
+#define kvm_vttbr_baddr_mask(kvm)	VTTBR_BADDR_MASK
+
+#define stage2_pgd_size(kvm)		(PTRS_PER_S2_PGD * sizeof(pgd_t))
 
 int create_hyp_mappings(void *from, void *to, pgprot_t prot);
 int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
@@ -75,16 +78,69 @@ phys_addr_t kvm_get_idmap_vector(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
-static inline void kvm_set_pmd(pmd_t *pmd, pmd_t new_pmd)
+#define kvm_mk_pmd(ptep)	__pmd(__pa(ptep) | PMD_TYPE_TABLE)
+#define kvm_mk_pud(pmdp)	__pud(__pa(pmdp) | PMD_TYPE_TABLE)
+#define kvm_mk_pgd(pudp)	({ BUILD_BUG(); 0; })
+
+#define kvm_pfn_pte(pfn, prot)	pfn_pte(pfn, prot)
+#define kvm_pfn_pmd(pfn, prot)	pfn_pmd(pfn, prot)
+#define kvm_pfn_pud(pfn, prot)	(__pud(0))
+
+#define kvm_pud_pfn(pud)	({ WARN_ON(1); 0; })
+
+
+#define kvm_pmd_mkhuge(pmd)	pmd_mkhuge(pmd)
+/* No support for pud hugepages */
+#define kvm_pud_mkhuge(pud)	( {WARN_ON(1); pud; })
+
+/*
+ * The following kvm_*pud*() functions are provided strictly to allow
+ * sharing code with arm64. They should never be called in practice.
+ */
+static inline void kvm_set_s2pud_readonly(pud_t *pud)
 {
-	*pmd = new_pmd;
-	dsb(ishst);
+	WARN_ON(1);
 }
 
-static inline void kvm_set_pte(pte_t *pte, pte_t new_pte)
+static inline bool kvm_s2pud_readonly(pud_t *pud)
 {
-	*pte = new_pte;
-	dsb(ishst);
+	WARN_ON(1);
+	return false;
+}
+
+static inline void kvm_set_pud(pud_t *pud, pud_t new_pud)
+{
+	WARN_ON(1);
+}
+
+static inline pud_t kvm_s2pud_mkwrite(pud_t pud)
+{
+	WARN_ON(1);
+	return pud;
+}
+
+static inline pud_t kvm_s2pud_mkexec(pud_t pud)
+{
+	WARN_ON(1);
+	return pud;
+}
+
+static inline bool kvm_s2pud_exec(pud_t *pud)
+{
+	WARN_ON(1);
+	return false;
+}
+
+static inline pud_t kvm_s2pud_mkyoung(pud_t pud)
+{
+	BUG();
+	return pud;
+}
+
+static inline bool kvm_s2pud_young(pud_t pud)
+{
+	WARN_ON(1);
+	return false;
 }
 
 static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
@@ -362,6 +418,13 @@ static inline int hyp_map_aux_data(void)
 }
 
 #define kvm_phys_to_vttbr(addr)		(addr)
+
+static inline void kvm_set_ipa_limit(void) {}
+
+static inline bool kvm_cpu_has_cnp(void)
+{
+	return false;
+}
 
 #endif	/* !__ASSEMBLY__ */
 

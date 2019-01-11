@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright (C) 2012 Altera <www.altera.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2012 Altera <www.altera.com>
  */
 
 #include <dt-bindings/reset/altr,rst-mgr.h>
@@ -22,8 +10,6 @@
 	#size-cells = <1>;
 
 	aliases {
-		ethernet0 = &gmac0;
-		ethernet1 = &gmac1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		timer0 = &timer0;
@@ -483,10 +469,17 @@
 						clk-gate = <0xa0 9>;
 					};
 
+					nand_ecc_clk: nand_ecc_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&nand_x_clk>;
+						clk-gate = <0xa0 9>;
+					};
+
 					nand_clk: nand_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-gate-clk";
-						clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
+						clocks = <&nand_x_clk>;
 						clk-gate = <0xa0 10>;
 						fixed-divider = <4>;
 					};
@@ -753,8 +746,8 @@
 			      <0xffb80000 0x10000>;
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0x0 0x90 0x4>;
-			dma-mask = <0xffffffff>;
-			clocks = <&nand_x_clk>;
+			clocks = <&nand_clk>, <&nand_x_clk>, <&nand_ecc_clk>;
+			clock-names = "nand", "nand_x", "ecc";
 			status = "disabled";
 		};
 
@@ -765,7 +758,7 @@
 
 		qspi: spi@ff705000 {
 			compatible = "cdns,qspi-nor";
-                        #address-cells = <1>;
+			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xff705000 0x1000>,
 			      <0xffa00000 0x1000>;
@@ -841,6 +834,8 @@
 			reg = <0xffc08000 0x1000>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer1: timer1@ffc09000 {
@@ -849,6 +844,8 @@
 			reg = <0xffc09000 0x1000>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		timer2: timer2@ffd00000 {
@@ -857,6 +854,8 @@
 			reg = <0xffd00000 0x1000>;
 			clocks = <&osc1>;
 			clock-names = "timer";
+			resets = <&rst OSC1TIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer3: timer3@ffd01000 {
@@ -865,6 +864,8 @@
 			reg = <0xffd01000 0x1000>;
 			clocks = <&osc1>;
 			clock-names = "timer";
+			resets = <&rst OSC1TIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		uart0: serial0@ffc02000 {

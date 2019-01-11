@@ -103,7 +103,7 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->src_data[2] = iv->src_data[2];
 			   __entry->src_data[3] = iv->src_data[3];
 			   ),
-	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pasid:%u src_data: %08x %08x %08x %08x\n",
+	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pasid:%u src_data: %08x %08x %08x %08x",
 		      __entry->client_id, __entry->src_id,
 		      __entry->ring_id, __entry->vmid,
 		      __entry->timestamp, __entry->pasid,
@@ -150,10 +150,10 @@ TRACE_EVENT(amdgpu_cs,
 
 	    TP_fast_assign(
 			   __entry->bo_list = p->bo_list;
-			   __entry->ring = p->ring->idx;
+			   __entry->ring = to_amdgpu_ring(p->entity->rq->sched)->idx;
 			   __entry->dw = p->job->ibs[i].length_dw;
 			   __entry->fences = amdgpu_fence_count_emitted(
-				p->ring);
+				to_amdgpu_ring(p->entity->rq->sched));
 			   ),
 	    TP_printk("bo_list=%p, ring=%u, dw=%u, fences=%u",
 		      __entry->bo_list, __entry->ring, __entry->dw,
@@ -218,6 +218,7 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 	    TP_ARGS(vm, ring, job),
 	    TP_STRUCT__entry(
 			     __field(u32, pasid)
+			     __string(ring, ring->name)
 			     __field(u32, ring)
 			     __field(u32, vmid)
 			     __field(u32, vm_hub)
@@ -227,14 +228,14 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 
 	    TP_fast_assign(
 			   __entry->pasid = vm->pasid;
-			   __entry->ring = ring->idx;
+			   __assign_str(ring, ring->name)
 			   __entry->vmid = job->vmid;
 			   __entry->vm_hub = ring->funcs->vmhub,
 			   __entry->pd_addr = job->vm_pd_addr;
 			   __entry->needs_flush = job->vm_needs_flush;
 			   ),
-	    TP_printk("pasid=%d, ring=%u, id=%u, hub=%u, pd_addr=%010Lx needs_flush=%u",
-		      __entry->pasid, __entry->ring, __entry->vmid,
+	    TP_printk("pasid=%d, ring=%s, id=%u, hub=%u, pd_addr=%010Lx needs_flush=%u",
+		      __entry->pasid, __get_str(ring), __entry->vmid,
 		      __entry->vm_hub, __entry->pd_addr, __entry->needs_flush)
 );
 
@@ -366,20 +367,20 @@ TRACE_EVENT(amdgpu_vm_flush,
 		     uint64_t pd_addr),
 	    TP_ARGS(ring, vmid, pd_addr),
 	    TP_STRUCT__entry(
-			     __field(u32, ring)
+			     __string(ring, ring->name)
 			     __field(u32, vmid)
 			     __field(u32, vm_hub)
 			     __field(u64, pd_addr)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->ring = ring->idx;
+			   __assign_str(ring, ring->name)
 			   __entry->vmid = vmid;
 			   __entry->vm_hub = ring->funcs->vmhub;
 			   __entry->pd_addr = pd_addr;
 			   ),
-	    TP_printk("ring=%u, id=%u, hub=%u, pd_addr=%010Lx",
-		      __entry->ring, __entry->vmid,
+	    TP_printk("ring=%s, id=%u, hub=%u, pd_addr=%010Lx",
+		      __get_str(ring), __entry->vmid,
 		      __entry->vm_hub,__entry->pd_addr)
 );
 
@@ -460,6 +461,30 @@ TRACE_EVENT(amdgpu_bo_move,
 	    TP_printk("bo=%p, from=%d, to=%d, size=%Ld",
 			__entry->bo, __entry->old_placement,
 			__entry->new_placement, __entry->bo_size)
+);
+
+TRACE_EVENT(amdgpu_ib_pipe_sync,
+	    TP_PROTO(struct amdgpu_job *sched_job, struct dma_fence *fence),
+	    TP_ARGS(sched_job, fence),
+	    TP_STRUCT__entry(
+			     __field(const char *,name)
+			     __field(uint64_t, id)
+			     __field(struct dma_fence *, fence)
+			     __field(uint64_t, ctx)
+			     __field(unsigned, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->name = sched_job->base.sched->name;
+			   __entry->id = sched_job->base.id;
+			   __entry->fence = fence;
+			   __entry->ctx = fence->context;
+			   __entry->seqno = fence->seqno;
+			   ),
+	    TP_printk("job ring=%s, id=%llu, need pipe sync to fence=%p, context=%llu, seq=%u",
+		      __entry->name, __entry->id,
+		      __entry->fence, __entry->ctx,
+		      __entry->seqno)
 );
 
 #undef AMDGPU_JOB_GET_TIMELINE_NAME

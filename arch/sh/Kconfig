@@ -8,9 +8,7 @@ config SUPERH
 	select HAVE_PATA_PLATFORM
 	select CLKDEV_LOOKUP
 	select HAVE_IDE if HAS_IOPORT_MAP
-	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
-	select NO_BOOTMEM
 	select ARCH_DISCARD_MEMBLOCK
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
@@ -41,13 +39,16 @@ config SUPERH
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE if SH_SH03 || SH_DREAMCAST
+	select GENERIC_PCI_IOMAP if PCI
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HAVE_MOD_ARCH_SPECIFIC if DWARF_UNWINDER
 	select MODULES_USE_ELF_RELA
+	select NO_GENERIC_PCI_IOPORT_MAP if PCI
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION
+	select PCI_DOMAINS if PCI
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_NMI
@@ -131,9 +132,6 @@ config SYS_SUPPORTS_SMP
 config SYS_SUPPORTS_NUMA
 	bool
 
-config SYS_SUPPORTS_PCI
-	bool
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -158,13 +156,11 @@ config SWAP_IO_SPACE
 	bool
 
 config DMA_COHERENT
-	select DMA_DIRECT_OPS
 	bool
 
 config DMA_NONCOHERENT
 	def_bool !DMA_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select DMA_NONCOHERENT_OPS
 
 config PGTABLE_LEVELS
 	default 3 if X2TLB
@@ -600,7 +596,7 @@ endmenu
 
 menu "Kernel features"
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
@@ -857,24 +853,6 @@ config MAPLE
 	 probably want to say 'Y' here, unless you are only using the
 	 Dreamcast with a serial line terminal or a remote network
 	 connection.
-
-config PCI
-	bool "PCI support"
-	depends on SYS_SUPPORTS_PCI
-	select PCI_DOMAINS
-	select GENERIC_PCI_IOMAP
-	select NO_GENERIC_PCI_IOPORT_MAP
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. If you have PCI, say Y, otherwise N.
-
-config PCI_DOMAINS
-	bool
-
-source "drivers/pci/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
 
 endmenu
 

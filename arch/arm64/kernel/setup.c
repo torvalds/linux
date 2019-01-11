@@ -26,7 +26,6 @@
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/cache.h>
-#include <linux/bootmem.h>
 #include <linux/screen_info.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
@@ -63,6 +62,9 @@
 #include <asm/efi.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/mmu_context.h>
+
+static int num_standard_resources;
+static struct resource *standard_resources;
 
 phys_addr_t __fdt_pointer __initdata;
 
@@ -206,14 +208,20 @@ static void __init request_standard_resources(void)
 {
 	struct memblock_region *region;
 	struct resource *res;
+	unsigned long i = 0;
 
 	kernel_code.start   = __pa_symbol(_text);
 	kernel_code.end     = __pa_symbol(__init_begin - 1);
 	kernel_data.start   = __pa_symbol(_sdata);
 	kernel_data.end     = __pa_symbol(_end - 1);
 
+	num_standard_resources = memblock.memory.cnt;
+	standard_resources = memblock_alloc_low(num_standard_resources *
+					        sizeof(*standard_resources),
+					        SMP_CACHE_BYTES);
+
 	for_each_memblock(memory, region) {
-		res = alloc_bootmem_low(sizeof(*res));
+		res = &standard_resources[i++];
 		if (memblock_is_nomap(region)) {
 			res->name  = "reserved";
 			res->flags = IORESOURCE_MEM;
@@ -243,36 +251,26 @@ static void __init request_standard_resources(void)
 
 static int __init reserve_memblock_reserved_regions(void)
 {
-	phys_addr_t start, end, roundup_end = 0;
-	struct resource *mem, *res;
-	u64 i;
+	u64 i, j;
 
-	for_each_reserved_mem_region(i, &start, &end) {
-		if (end <= roundup_end)
-			continue; /* done already */
+	for (i = 0; i < num_standard_resources; ++i) {
+		struct resource *mem = &standard_resources[i];
+		phys_addr_t r_start, r_end, mem_size = resource_size(mem);
 
-		start = __pfn_to_phys(PFN_DOWN(start));
-		end = __pfn_to_phys(PFN_UP(end)) - 1;
-		roundup_end = end;
-
-		res = kzalloc(sizeof(*res), GFP_ATOMIC);
-		if (WARN_ON(!res))
-			return -ENOMEM;
-		res->start = start;
-		res->end = end;
-		res->name  = "reserved";
-		res->flags = IORESOURCE_MEM;
-
-		mem = request_resource_conflict(&iomem_resource, res);
-		/*
-		 * We expected memblock_reserve() regions to conflict with
-		 * memory created by request_standard_resources().
-		 */
-		if (WARN_ON_ONCE(!mem))
+		if (!memblock_is_region_reserved(mem->start, mem_size))
 			continue;
-		kfree(res);
 
-		reserve_region_with_split(mem, start, end, "reserved");
+		for_each_reserved_mem_region(j, &r_start, &r_end) {
+			resource_size_t start, end;
+
+			start = max(PFN_PHYS(PFN_DOWN(r_start)), mem->start);
+			end = min(PFN_PHYS(PFN_UP(r_end)) - 1, mem->end);
+
+			if (start > mem->end || end < mem->start)
+				continue;
+
+			reserve_region_with_split(mem, start, end, "reserved");
+		}
 	}
 
 	return 0;
@@ -315,6 +313,7 @@ void __init setup_arch(char **cmdline_p)
 	arm64_memblock_init();
 
 	paging_init();
+	efi_apply_persistent_mem_reservations();
 
 	acpi_table_upgrade();
 
@@ -351,11 +350,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_VT
-#if defined(CONFIG_VGA_CONSOLE)
-	conswitchp = &vga_con;
-#elif defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
-#endif
 #endif
 	if (boot_args[1] || boot_args[2] || boot_args[3]) {
 		pr_err("WARNING: x1-x3 nonzero in violation of boot protocol:\n"
@@ -393,6 +388,7 @@ static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && offset > 0) {
 		pr_emerg("Kernel Offset: 0x%lx from 0x%lx\n",
 			 offset, KIMAGE_VADDR);
+		pr_emerg("PHYS_OFFSET: 0x%llx\n", PHYS_OFFSET);
 	} else {
 		pr_emerg("Kernel Offset: disabled\n");
 	}

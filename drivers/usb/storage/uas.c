@@ -842,6 +842,27 @@ static int uas_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_8 = 1;
 		sdev->wce_default_on = 1;
 	}
+
+	/*
+	 * Some disks return the total number of blocks in response
+	 * to READ CAPACITY rather than the highest block number.
+	 * If this device makes that mistake, tell the sd driver.
+	 */
+	if (devinfo->flags & US_FL_FIX_CAPACITY)
+		sdev->fix_capacity = 1;
+
+	/*
+	 * Some devices don't like MODE SENSE with page=0x3f,
+	 * which is the command used for checking if a device
+	 * is write-protected.  Now that we tell the sd driver
+	 * to do a 192-byte transfer with this command the
+	 * majority of devices work fine, but a few still can't
+	 * handle it.  The sd driver will simply assume those
+	 * devices are write-enabled.
+	 */
+	if (devinfo->flags & US_FL_NO_WP_DETECT)
+		sdev->skip_ms_page_3f = 1;
+
 	scsi_change_queue_depth(sdev, devinfo->qdepth - 2);
 	return 0;
 }
@@ -858,6 +879,7 @@ static struct scsi_host_template uas_host_template = {
 	.this_id = -1,
 	.sg_tablesize = SG_NONE,
 	.skip_settle_delay = 1,
+	.dma_boundary = PAGE_SIZE - 1,
 };
 
 #define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \

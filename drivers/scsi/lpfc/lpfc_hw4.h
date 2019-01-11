@@ -186,6 +186,7 @@ struct lpfc_sli_intf {
 #define LPFC_CTL_PDEV_CTL_FRL_ALL	0x00
 #define LPFC_CTL_PDEV_CTL_FRL_FC_FCOE	0x10
 #define LPFC_CTL_PDEV_CTL_FRL_NIC	0x20
+#define LPFC_CTL_PDEV_CTL_DDL_RAS	0x1000000
 
 #define LPFC_FW_DUMP_REQUEST    (LPFC_CTL_PDEV_CTL_DD | LPFC_CTL_PDEV_CTL_FRST)
 
@@ -195,6 +196,10 @@ struct lpfc_sli_intf {
 /* Algrithmns for scheduling FCP commands to WQs */
 #define	LPFC_FCP_SCHED_ROUND_ROBIN	0
 #define	LPFC_FCP_SCHED_BY_CPU		1
+
+/* Algrithmns for NameServer Query after RSCN */
+#define LPFC_NS_QUERY_GID_FT	0
+#define LPFC_NS_QUERY_GID_PT	1
 
 /* Delay Multiplier constant */
 #define LPFC_DMULT_CONST       651042
@@ -964,6 +969,7 @@ struct mbox_header {
 /* Subsystem Definitions */
 #define LPFC_MBOX_SUBSYSTEM_NA		0x0
 #define LPFC_MBOX_SUBSYSTEM_COMMON	0x1
+#define LPFC_MBOX_SUBSYSTEM_LOWLEVEL	0xB
 #define LPFC_MBOX_SUBSYSTEM_FCOE	0xC
 
 /* Device Specific Definitions */
@@ -1029,6 +1035,10 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_FCOE_SET_FCLINK_SETTINGS	0x21
 #define LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE		0x22
 #define LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_LOOPBACK	0x23
+#define LPFC_MBOX_OPCODE_FCOE_FC_SET_TRUNK_MODE		0x42
+
+/* Low level Opcodes */
+#define LPFC_MBOX_OPCODE_SET_DIAG_LOG_OPTION		0x37
 
 /* Mailbox command structures */
 struct eq_context {
@@ -1161,6 +1171,45 @@ struct lpfc_mbx_nop {
 	struct mbox_header header;
 	uint32_t context[2];
 };
+
+
+
+struct lpfc_mbx_set_ras_fwlog {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word4;
+#define lpfc_fwlog_enable_SHIFT		0
+#define lpfc_fwlog_enable_MASK		0x00000001
+#define lpfc_fwlog_enable_WORD		word4
+#define lpfc_fwlog_loglvl_SHIFT		8
+#define lpfc_fwlog_loglvl_MASK		0x0000000F
+#define lpfc_fwlog_loglvl_WORD		word4
+#define lpfc_fwlog_ra_SHIFT		15
+#define lpfc_fwlog_ra_WORD		0x00000008
+#define lpfc_fwlog_buffcnt_SHIFT	16
+#define lpfc_fwlog_buffcnt_MASK		0x000000FF
+#define lpfc_fwlog_buffcnt_WORD		word4
+#define lpfc_fwlog_buffsz_SHIFT		24
+#define lpfc_fwlog_buffsz_MASK		0x000000FF
+#define lpfc_fwlog_buffsz_WORD		word4
+			uint32_t word5;
+#define lpfc_fwlog_acqe_SHIFT		0
+#define lpfc_fwlog_acqe_MASK		0x0000FFFF
+#define lpfc_fwlog_acqe_WORD		word5
+#define lpfc_fwlog_cqid_SHIFT		16
+#define lpfc_fwlog_cqid_MASK		0x0000FFFF
+#define lpfc_fwlog_cqid_WORD		word5
+#define LPFC_MAX_FWLOG_PAGE	16
+			struct dma_address lwpd;
+			struct dma_address buff_fwlog[LPFC_MAX_FWLOG_PAGE];
+		} request;
+		struct {
+			uint32_t word0;
+		} response;
+	} u;
+};
+
 
 struct cq_context {
 	uint32_t word0;
@@ -2733,6 +2782,9 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_lnk_ldv_SHIFT		8
 #define lpfc_mbx_rd_conf_lnk_ldv_MASK		0x00000001
 #define lpfc_mbx_rd_conf_lnk_ldv_WORD		word2
+#define lpfc_mbx_rd_conf_trunk_SHIFT		12
+#define lpfc_mbx_rd_conf_trunk_MASK		0x0000000F
+#define lpfc_mbx_rd_conf_trunk_WORD		word2
 #define lpfc_mbx_rd_conf_topology_SHIFT		24
 #define lpfc_mbx_rd_conf_topology_MASK		0x000000FF
 #define lpfc_mbx_rd_conf_topology_WORD		word2
@@ -3468,6 +3520,15 @@ struct lpfc_mbx_set_host_data {
 	uint8_t  data[LPFC_HOST_OS_DRIVER_VERSION_SIZE];
 };
 
+struct lpfc_mbx_set_trunk_mode {
+	struct mbox_header header;
+	uint32_t word0;
+#define lpfc_mbx_set_trunk_mode_WORD      word0
+#define lpfc_mbx_set_trunk_mode_SHIFT     0
+#define lpfc_mbx_set_trunk_mode_MASK      0xFF
+	uint32_t word1;
+	uint32_t word2;
+};
 
 struct lpfc_mbx_get_sli4_parameters {
 	struct mbox_header header;
@@ -3789,6 +3850,9 @@ struct lpfc_mbx_wr_object {
 #define lpfc_wr_object_eof_SHIFT		31
 #define lpfc_wr_object_eof_MASK			0x00000001
 #define lpfc_wr_object_eof_WORD			word4
+#define lpfc_wr_object_eas_SHIFT		29
+#define lpfc_wr_object_eas_MASK			0x00000001
+#define lpfc_wr_object_eas_WORD			word4
 #define lpfc_wr_object_write_length_SHIFT	0
 #define lpfc_wr_object_write_length_MASK	0x00FFFFFF
 #define lpfc_wr_object_write_length_WORD	word4
@@ -3799,6 +3863,15 @@ struct lpfc_mbx_wr_object {
 		} request;
 		struct {
 			uint32_t actual_write_length;
+			uint32_t word5;
+#define lpfc_wr_object_change_status_SHIFT	0
+#define lpfc_wr_object_change_status_MASK	0x000000FF
+#define lpfc_wr_object_change_status_WORD	word5
+#define LPFC_CHANGE_STATUS_NO_RESET_NEEDED	0x00
+#define LPFC_CHANGE_STATUS_PHYS_DEV_RESET	0x01
+#define LPFC_CHANGE_STATUS_FW_RESET		0x02
+#define LPFC_CHANGE_STATUS_PORT_MIGRATION	0x04
+#define LPFC_CHANGE_STATUS_PCI_RESET		0x05
 		} response;
 	} u;
 };
@@ -3867,7 +3940,9 @@ struct lpfc_mqe {
 		struct lpfc_mbx_set_feature  set_feature;
 		struct lpfc_mbx_memory_dump_type3 mem_dump_type3;
 		struct lpfc_mbx_set_host_data set_host_data;
+		struct lpfc_mbx_set_trunk_mode set_trunk_mode;
 		struct lpfc_mbx_nop nop;
+		struct lpfc_mbx_set_ras_fwlog ras_fwlog;
 	} un;
 };
 
@@ -4002,6 +4077,23 @@ struct lpfc_acqe_grp5 {
 	uint32_t trailer;
 };
 
+static char *const trunk_errmsg[] = {	/* map errcode */
+	"",	/* There is no such error code at index 0*/
+	"link negotiated speed does not match existing"
+		" trunk - link was \"low\" speed",
+	"link negotiated speed does not match"
+		" existing trunk - link was \"middle\" speed",
+	"link negotiated speed does not match existing"
+		" trunk - link was \"high\" speed",
+	"Attached to non-trunking port - F_Port",
+	"Attached to non-trunking port - N_Port",
+	"FLOGI response timeout",
+	"non-FLOGI frame received",
+	"Invalid FLOGI response",
+	"Trunking initialization protocol",
+	"Trunk peer device mismatch",
+};
+
 struct lpfc_acqe_fc_la {
 	uint32_t word0;
 #define lpfc_acqe_fc_la_speed_SHIFT		24
@@ -4035,6 +4127,7 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_TYPE_MDS_LINK_DOWN	0x4
 #define LPFC_FC_LA_TYPE_MDS_LOOPBACK	0x5
 #define LPFC_FC_LA_TYPE_UNEXP_WWPN	0x6
+#define LPFC_FC_LA_TYPE_TRUNKING_EVENT  0x7
 #define lpfc_acqe_fc_la_port_type_SHIFT		6
 #define lpfc_acqe_fc_la_port_type_MASK		0x00000003
 #define lpfc_acqe_fc_la_port_type_WORD		word0
@@ -4043,6 +4136,32 @@ struct lpfc_acqe_fc_la {
 #define lpfc_acqe_fc_la_port_number_SHIFT	0
 #define lpfc_acqe_fc_la_port_number_MASK	0x0000003F
 #define lpfc_acqe_fc_la_port_number_WORD	word0
+
+/* Attention Type is 0x07 (Trunking Event) word0 */
+#define lpfc_acqe_fc_la_trunk_link_status_port0_SHIFT	16
+#define lpfc_acqe_fc_la_trunk_link_status_port0_MASK	0x0000001
+#define lpfc_acqe_fc_la_trunk_link_status_port0_WORD	word0
+#define lpfc_acqe_fc_la_trunk_link_status_port1_SHIFT	17
+#define lpfc_acqe_fc_la_trunk_link_status_port1_MASK	0x0000001
+#define lpfc_acqe_fc_la_trunk_link_status_port1_WORD	word0
+#define lpfc_acqe_fc_la_trunk_link_status_port2_SHIFT	18
+#define lpfc_acqe_fc_la_trunk_link_status_port2_MASK	0x0000001
+#define lpfc_acqe_fc_la_trunk_link_status_port2_WORD	word0
+#define lpfc_acqe_fc_la_trunk_link_status_port3_SHIFT	19
+#define lpfc_acqe_fc_la_trunk_link_status_port3_MASK	0x0000001
+#define lpfc_acqe_fc_la_trunk_link_status_port3_WORD	word0
+#define lpfc_acqe_fc_la_trunk_config_port0_SHIFT	20
+#define lpfc_acqe_fc_la_trunk_config_port0_MASK		0x0000001
+#define lpfc_acqe_fc_la_trunk_config_port0_WORD		word0
+#define lpfc_acqe_fc_la_trunk_config_port1_SHIFT	21
+#define lpfc_acqe_fc_la_trunk_config_port1_MASK		0x0000001
+#define lpfc_acqe_fc_la_trunk_config_port1_WORD		word0
+#define lpfc_acqe_fc_la_trunk_config_port2_SHIFT	22
+#define lpfc_acqe_fc_la_trunk_config_port2_MASK		0x0000001
+#define lpfc_acqe_fc_la_trunk_config_port2_WORD		word0
+#define lpfc_acqe_fc_la_trunk_config_port3_SHIFT	23
+#define lpfc_acqe_fc_la_trunk_config_port3_MASK		0x0000001
+#define lpfc_acqe_fc_la_trunk_config_port3_WORD		word0
 	uint32_t word1;
 #define lpfc_acqe_fc_la_llink_spd_SHIFT		16
 #define lpfc_acqe_fc_la_llink_spd_MASK		0x0000FFFF
@@ -4050,6 +4169,12 @@ struct lpfc_acqe_fc_la {
 #define lpfc_acqe_fc_la_fault_SHIFT		0
 #define lpfc_acqe_fc_la_fault_MASK		0x000000FF
 #define lpfc_acqe_fc_la_fault_WORD		word1
+#define lpfc_acqe_fc_la_trunk_fault_SHIFT		0
+#define lpfc_acqe_fc_la_trunk_fault_MASK		0x0000000F
+#define lpfc_acqe_fc_la_trunk_fault_WORD		word1
+#define lpfc_acqe_fc_la_trunk_linkmask_SHIFT		4
+#define lpfc_acqe_fc_la_trunk_linkmask_MASK		0x000000F
+#define lpfc_acqe_fc_la_trunk_linkmask_WORD		word1
 #define LPFC_FC_LA_FAULT_NONE		0x0
 #define LPFC_FC_LA_FAULT_LOCAL		0x1
 #define LPFC_FC_LA_FAULT_REMOTE		0x2

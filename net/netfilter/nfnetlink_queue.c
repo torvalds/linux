@@ -233,6 +233,7 @@ static void nfqnl_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	int err;
 
 	if (verdict == NF_ACCEPT ||
+	    verdict == NF_REPEAT ||
 	    verdict == NF_STOP) {
 		rcu_read_lock();
 		ct_hook = rcu_dereference(nf_ct_hook);
@@ -726,13 +727,13 @@ nf_queue_entry_dup(struct nf_queue_entry *e)
  */
 static void nf_bridge_adjust_skb_data(struct sk_buff *skb)
 {
-	if (skb->nf_bridge)
+	if (nf_bridge_info_get(skb))
 		__skb_push(skb, skb->network_header - skb->mac_header);
 }
 
 static void nf_bridge_adjust_segmented_data(struct sk_buff *skb)
 {
-	if (skb->nf_bridge)
+	if (nf_bridge_info_get(skb))
 		__skb_pull(skb, skb->network_header - skb->mac_header);
 }
 #else
@@ -764,7 +765,7 @@ __nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
 		return ret;
 	}
 
-	skb->next = NULL;
+	skb_mark_not_on_list(skb);
 
 	entry_seg = nf_queue_entry_dup(entry);
 	if (entry_seg) {
@@ -903,23 +904,22 @@ nfqnl_set_mode(struct nfqnl_instance *queue,
 static int
 dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 {
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	int physinif, physoutif;
+
+	physinif = nf_bridge_get_physinif(entry->skb);
+	physoutif = nf_bridge_get_physoutif(entry->skb);
+
+	if (physinif == ifindex || physoutif == ifindex)
+		return 1;
+#endif
 	if (entry->state.in)
 		if (entry->state.in->ifindex == ifindex)
 			return 1;
 	if (entry->state.out)
 		if (entry->state.out->ifindex == ifindex)
 			return 1;
-#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	if (entry->skb->nf_bridge) {
-		int physinif, physoutif;
 
-		physinif = nf_bridge_get_physinif(entry->skb);
-		physoutif = nf_bridge_get_physoutif(entry->skb);
-
-		if (physinif == ifindex || physoutif == ifindex)
-			return 1;
-	}
-#endif
 	return 0;
 }
 
@@ -1147,8 +1147,9 @@ static int nfqa_parse_bridge(struct nf_queue_entry *entry,
 		if (!tb[NFQA_VLAN_TCI] || !tb[NFQA_VLAN_PROTO])
 			return -EINVAL;
 
-		entry->skb->vlan_tci = ntohs(nla_get_be16(tb[NFQA_VLAN_TCI]));
-		entry->skb->vlan_proto = nla_get_be16(tb[NFQA_VLAN_PROTO]);
+		__vlan_hwaccel_put_tag(entry->skb,
+			nla_get_be16(tb[NFQA_VLAN_PROTO]),
+			ntohs(nla_get_be16(tb[NFQA_VLAN_TCI])));
 	}
 
 	if (nfqa[NFQA_L2HDR]) {

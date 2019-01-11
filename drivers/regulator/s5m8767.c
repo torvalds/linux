@@ -447,15 +447,15 @@ static void s5m8767_regulator_config_ext_control(struct s5m8767_info *s5m8767,
 	}
 	if (mode != S5M8767_ENCTRL_USE_GPIO) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %s: mismatched op_mode (%x), ignoring\n",
-				rdata->reg_node->name, mode);
+				"ext-control for %pOFn: mismatched op_mode (%x), ignoring\n",
+				rdata->reg_node, mode);
 		return;
 	}
 
 	if (!rdata->ext_control_gpiod) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %s: GPIO not valid, ignoring\n",
-			 rdata->reg_node->name);
+				"ext-control for %pOFn: GPIO not valid, ignoring\n",
+			 rdata->reg_node);
 		return;
 	}
 
@@ -561,22 +561,23 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 	pdata->opmode = rmode;
 	for_each_child_of_node(regulators_np, reg_np) {
 		for (i = 0; i < ARRAY_SIZE(regulators); i++)
-			if (!of_node_cmp(reg_np->name, regulators[i].name))
+			if (of_node_name_eq(reg_np, regulators[i].name))
 				break;
 
 		if (i == ARRAY_SIZE(regulators)) {
 			dev_warn(iodev->dev,
-			"don't know how to configure regulator %s\n",
-			reg_np->name);
+			"don't know how to configure regulator %pOFn\n",
+			reg_np);
 			continue;
 		}
 
-		rdata->ext_control_gpiod = devm_gpiod_get_from_of_node(&pdev->dev,
-								       reg_np,
-								       "s5m8767,pmic-ext-control-gpios",
-								       0,
-								       GPIOD_OUT_HIGH,
-								       "s5m8767");
+		rdata->ext_control_gpiod = devm_gpiod_get_from_of_node(
+			&pdev->dev,
+			reg_np,
+			"s5m8767,pmic-ext-control-gpios",
+			0,
+			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+			"s5m8767");
 		if (IS_ERR(rdata->ext_control_gpiod))
 			return PTR_ERR(rdata->ext_control_gpiod);
 
@@ -955,10 +956,17 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.regmap = iodev->regmap_pmic;
 		config.of_node = pdata->regulators[i].reg_node;
 		config.ena_gpiod = NULL;
-		if (pdata->regulators[i].ext_control_gpiod)
+		if (pdata->regulators[i].ext_control_gpiod) {
+			/* Assigns config.ena_gpiod */
 			s5m8767_regulator_config_ext_control(s5m8767,
 					&pdata->regulators[i], &config);
 
+			/*
+			 * Hand the GPIO descriptor management over to the
+			 * regulator core, remove it from devres management.
+			 */
+			devm_gpiod_unhinge(s5m8767->dev, config.ena_gpiod);
+		}
 		rdev = devm_regulator_register(&pdev->dev, &regulators[id],
 						  &config);
 		if (IS_ERR(rdev)) {

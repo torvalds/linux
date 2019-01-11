@@ -23,6 +23,14 @@
 #define MCI_ST_DATA31DIREN	(1 << 5)
 #define MCI_ST_FBCLKEN		(1 << 7)
 #define MCI_ST_DATA74DIREN	(1 << 8)
+/*
+ * The STM32 sdmmc does not have PWR_UP/OD/ROD
+ * and uses the power register for
+ */
+#define MCI_STM32_PWR_CYC	0x02
+#define MCI_STM32_VSWITCH	BIT(2)
+#define MCI_STM32_VSWITCHEN	BIT(3)
+#define MCI_STM32_DIRPOL	BIT(4)
 
 #define MMCICLOCK		0x004
 #define MCI_CLK_ENABLE		(1 << 8)
@@ -50,6 +58,19 @@
 #define MCI_QCOM_CLK_SELECT_IN_FBCLK	BIT(15)
 #define MCI_QCOM_CLK_SELECT_IN_DDR_MODE	(BIT(14) | BIT(15))
 
+/* Modified on STM32 sdmmc */
+#define MCI_STM32_CLK_CLKDIV_MSK	GENMASK(9, 0)
+#define MCI_STM32_CLK_WIDEBUS_4		BIT(14)
+#define MCI_STM32_CLK_WIDEBUS_8		BIT(15)
+#define MCI_STM32_CLK_NEGEDGE		BIT(16)
+#define MCI_STM32_CLK_HWFCEN		BIT(17)
+#define MCI_STM32_CLK_DDR		BIT(18)
+#define MCI_STM32_CLK_BUSSPEED		BIT(19)
+#define MCI_STM32_CLK_SEL_MSK		GENMASK(21, 20)
+#define MCI_STM32_CLK_SELCK		(0 << 20)
+#define MCI_STM32_CLK_SELCKIN		(1 << 20)
+#define MCI_STM32_CLK_SELFBCK		(2 << 20)
+
 #define MMCIARGUMENT		0x008
 
 /* The command register controls the Command Path State Machine (CPSM) */
@@ -72,6 +93,15 @@
 #define MCI_CPSM_QCOM_CCSDISABLE	BIT(15)
 #define MCI_CPSM_QCOM_AUTO_CMD19	BIT(16)
 #define MCI_CPSM_QCOM_AUTO_CMD21	BIT(21)
+/* Command register in STM32 sdmmc versions */
+#define MCI_CPSM_STM32_CMDTRANS		BIT(6)
+#define MCI_CPSM_STM32_CMDSTOP		BIT(7)
+#define MCI_CPSM_STM32_WAITRESP_MASK	GENMASK(9, 8)
+#define MCI_CPSM_STM32_NORSP		(0 << 8)
+#define MCI_CPSM_STM32_SRSP_CRC		(1 << 8)
+#define MCI_CPSM_STM32_SRSP		(2 << 8)
+#define MCI_CPSM_STM32_LRSP_CRC		(3 << 8)
+#define MCI_CPSM_STM32_ENABLE		BIT(12)
 
 #define MMCIRESPCMD		0x010
 #define MMCIRESPONSE0		0x014
@@ -130,6 +160,8 @@
 #define MCI_ST_SDIOIT		(1 << 22)
 #define MCI_ST_CEATAEND		(1 << 23)
 #define MCI_ST_CARDBUSY		(1 << 24)
+/* Extended status bits for the STM32 variants */
+#define MCI_STM32_BUSYD0	BIT(20)
 
 #define MMCICLEAR		0x038
 #define MCI_CMDCRCFAILCLR	(1 << 0)
@@ -175,20 +207,44 @@
 #define MCI_ST_SDIOITMASK	(1 << 22)
 #define MCI_ST_CEATAENDMASK	(1 << 23)
 #define MCI_ST_BUSYENDMASK	(1 << 24)
+/* Extended status bits for the STM32 variants */
+#define MCI_STM32_BUSYD0ENDMASK	BIT(21)
 
 #define MMCIMASK1		0x040
 #define MMCIFIFOCNT		0x048
 #define MMCIFIFO		0x080 /* to 0x0bc */
 
+/* STM32 sdmmc registers for IDMA (Internal DMA) */
+#define MMCI_STM32_IDMACTRLR	0x050
+#define MMCI_STM32_IDMAEN	BIT(0)
+#define MMCI_STM32_IDMALLIEN	BIT(1)
+
+#define MMCI_STM32_IDMABSIZER		0x054
+#define MMCI_STM32_IDMABNDT_SHIFT	5
+#define MMCI_STM32_IDMABNDT_MASK	GENMASK(12, 5)
+
+#define MMCI_STM32_IDMABASE0R	0x058
+
+#define MMCI_STM32_IDMALAR	0x64
+#define MMCI_STM32_IDMALA_MASK	GENMASK(13, 0)
+#define MMCI_STM32_ABR		BIT(29)
+#define MMCI_STM32_ULS		BIT(30)
+#define MMCI_STM32_ULA		BIT(31)
+
+#define MMCI_STM32_IDMABAR	0x68
+
 #define MCI_IRQENABLE	\
-	(MCI_CMDCRCFAILMASK|MCI_DATACRCFAILMASK|MCI_CMDTIMEOUTMASK|	\
-	MCI_DATATIMEOUTMASK|MCI_TXUNDERRUNMASK|MCI_RXOVERRUNMASK|	\
-	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK|MCI_STARTBITERRMASK)
+	(MCI_CMDCRCFAILMASK | MCI_DATACRCFAILMASK | MCI_CMDTIMEOUTMASK | \
+	MCI_DATATIMEOUTMASK | MCI_TXUNDERRUNMASK | MCI_RXOVERRUNMASK |	\
+	MCI_CMDRESPENDMASK | MCI_CMDSENTMASK)
 
 /* These interrupts are directed to IRQ1 when two IRQ lines are available */
-#define MCI_IRQ1MASK \
+#define MCI_IRQ_PIO_MASK \
 	(MCI_RXFIFOHALFFULLMASK | MCI_RXDATAAVLBLMASK | \
 	 MCI_TXFIFOHALFEMPTYMASK)
+
+#define MCI_IRQ_PIO_STM32_MASK \
+	(MCI_RXFIFOHALFFULLMASK | MCI_TXFIFOHALFEMPTYMASK)
 
 #define NR_SG		128
 
@@ -204,6 +260,11 @@ struct mmci_host;
  * @clkreg_enable: enable value for MMCICLOCK register
  * @clkreg_8bit_bus_enable: enable value for 8 bit bus
  * @clkreg_neg_edge_enable: enable value for inverted data/cmd output
+ * @cmdreg_cpsm_enable: enable value for CPSM
+ * @cmdreg_lrsp_crc: enable value for long response with crc
+ * @cmdreg_srsp_crc: enable value for short response with crc
+ * @cmdreg_srsp: enable value for short response without crc
+ * @cmdreg_stop: enable value for stop and abort transmission
  * @datalength_bits: number of bits in the MMCIDATALENGTH register
  * @fifosize: number of bytes that can be written when MMCI_TXFIFOEMPTY
  *	      is asserted (likewise for RX)
@@ -212,11 +273,17 @@ struct mmci_host;
  * @data_cmd_enable: enable value for data commands.
  * @st_sdio: enable ST specific SDIO logic
  * @st_clkdiv: true if using a ST-specific clock divider algorithm
+ * @stm32_clkdiv: true if using a STM32-specific clock divider algorithm
  * @datactrl_mask_ddrmode: ddr mode mask in datactrl register.
  * @blksz_datactrl16: true if Block size is at b16..b30 position in datactrl register
  * @blksz_datactrl4: true if Block size is at b4..b16 position in datactrl
  *		     register
  * @datactrl_mask_sdio: SDIO enable mask in datactrl register
+ * @datactrl_blksz: block size in power of two
+ * @datactrl_dpsm_enable: enable value for DPSM
+ * @datactrl_first: true if data must be setup before send command
+ * @datacnt_useless: true if you could not use datacnt register to read
+ *		     remaining data
  * @pwrreg_powerup: power up value for MMCIPOWER register
  * @f_max: maximum clk frequency supported by the controller.
  * @signal_direction: input/out direction of bus signals can be indicated
@@ -233,53 +300,76 @@ struct mmci_host;
  * @qcom_dml: enables qcom specific dma glue for dma transfers.
  * @reversed_irq_handling: handle data irq before cmd irq.
  * @mmcimask1: true if variant have a MMCIMASK1 register.
+ * @irq_pio_mask: bitmask used to manage interrupt pio transfert in mmcimask
+ *		  register
  * @start_err: bitmask identifying the STARTBITERR bit inside MMCISTATUS
  *	       register.
  * @opendrain: bitmask identifying the OPENDRAIN bit inside MMCIPOWER register
+ * @dma_lli: true if variant has dma link list feature.
+ * @stm32_idmabsize_mask: stm32 sdmmc idma buffer size.
  */
 struct variant_data {
 	unsigned int		clkreg;
 	unsigned int		clkreg_enable;
 	unsigned int		clkreg_8bit_bus_enable;
 	unsigned int		clkreg_neg_edge_enable;
+	unsigned int		cmdreg_cpsm_enable;
+	unsigned int		cmdreg_lrsp_crc;
+	unsigned int		cmdreg_srsp_crc;
+	unsigned int		cmdreg_srsp;
+	unsigned int		cmdreg_stop;
 	unsigned int		datalength_bits;
 	unsigned int		fifosize;
 	unsigned int		fifohalfsize;
 	unsigned int		data_cmd_enable;
 	unsigned int		datactrl_mask_ddrmode;
 	unsigned int		datactrl_mask_sdio;
-	bool			st_sdio;
-	bool			st_clkdiv;
-	bool			blksz_datactrl16;
-	bool			blksz_datactrl4;
+	unsigned int		datactrl_blocksz;
+	unsigned int		datactrl_dpsm_enable;
+	u8			datactrl_first:1;
+	u8			datacnt_useless:1;
+	u8			st_sdio:1;
+	u8			st_clkdiv:1;
+	u8			stm32_clkdiv:1;
+	u8			blksz_datactrl16:1;
+	u8			blksz_datactrl4:1;
 	u32			pwrreg_powerup;
 	u32			f_max;
-	bool			signal_direction;
-	bool			pwrreg_clkgate;
-	bool			busy_detect;
+	u8			signal_direction:1;
+	u8			pwrreg_clkgate:1;
+	u8			busy_detect:1;
 	u32			busy_dpsm_flag;
 	u32			busy_detect_flag;
 	u32			busy_detect_mask;
-	bool			pwrreg_nopower;
-	bool			explicit_mclk_control;
-	bool			qcom_fifo;
-	bool			qcom_dml;
-	bool			reversed_irq_handling;
-	bool			mmcimask1;
+	u8			pwrreg_nopower:1;
+	u8			explicit_mclk_control:1;
+	u8			qcom_fifo:1;
+	u8			qcom_dml:1;
+	u8			reversed_irq_handling:1;
+	u8			mmcimask1:1;
+	unsigned int		irq_pio_mask;
 	u32			start_err;
 	u32			opendrain;
+	u8			dma_lli:1;
+	u32			stm32_idmabsize_mask;
 	void (*init)(struct mmci_host *host);
 };
 
 /* mmci variant callbacks */
 struct mmci_host_ops {
-	void (*dma_setup)(struct mmci_host *host);
-};
-
-struct mmci_host_next {
-	struct dma_async_tx_descriptor	*dma_desc;
-	struct dma_chan			*dma_chan;
-	s32				cookie;
+	int (*validate_data)(struct mmci_host *host, struct mmc_data *data);
+	int (*prep_data)(struct mmci_host *host, struct mmc_data *data,
+			 bool next);
+	void (*unprep_data)(struct mmci_host *host, struct mmc_data *data,
+			    int err);
+	void (*get_next_data)(struct mmci_host *host, struct mmc_data *data);
+	int (*dma_setup)(struct mmci_host *host);
+	void (*dma_release)(struct mmci_host *host);
+	int (*dma_start)(struct mmci_host *host, unsigned int *datactrl);
+	void (*dma_finalize)(struct mmci_host *host, struct mmc_data *data);
+	void (*dma_error)(struct mmci_host *host);
+	void (*set_clkreg)(struct mmci_host *host, unsigned int desired);
+	void (*set_pwrreg)(struct mmci_host *host, unsigned int pwr);
 };
 
 struct mmci_host {
@@ -290,7 +380,9 @@ struct mmci_host {
 	struct mmc_data		*data;
 	struct mmc_host		*mmc;
 	struct clk		*clk;
-	bool			singleirq;
+	u8			singleirq:1;
+
+	struct reset_control	*rst;
 
 	spinlock_t		lock;
 
@@ -301,10 +393,11 @@ struct mmci_host {
 	u32			pwr_reg;
 	u32			pwr_reg_add;
 	u32			clk_reg;
+	u32			clk_reg_add;
 	u32			datactrl_reg;
 	u32			busy_status;
 	u32			mask1_reg;
-	bool			vqmmc_enabled;
+	u8			vqmmc_enabled:1;
 	struct mmci_platform_data *plat;
 	struct mmci_host_ops	*ops;
 	struct variant_data	*variant;
@@ -323,18 +416,25 @@ struct mmci_host {
 	unsigned int		size;
 	int (*get_rx_fifocnt)(struct mmci_host *h, u32 status, int remain);
 
-#ifdef CONFIG_DMA_ENGINE
-	/* DMA stuff */
-	struct dma_chan		*dma_current;
-	struct dma_chan		*dma_rx_channel;
-	struct dma_chan		*dma_tx_channel;
-	struct dma_async_tx_descriptor	*dma_desc_current;
-	struct mmci_host_next	next_data;
-	bool			dma_in_progress;
+	u8			use_dma:1;
+	u8			dma_in_progress:1;
+	void			*dma_priv;
 
-#define dma_inprogress(host)	((host)->dma_in_progress)
-#else
-#define dma_inprogress(host)	(0)
-#endif
+	s32			next_cookie;
 };
 
+#define dma_inprogress(host)	((host)->dma_in_progress)
+
+void mmci_write_clkreg(struct mmci_host *host, u32 clk);
+void mmci_write_pwrreg(struct mmci_host *host, u32 pwr);
+
+int mmci_dmae_prep_data(struct mmci_host *host, struct mmc_data *data,
+			bool next);
+void mmci_dmae_unprep_data(struct mmci_host *host, struct mmc_data *data,
+			   int err);
+void mmci_dmae_get_next_data(struct mmci_host *host, struct mmc_data *data);
+int mmci_dmae_setup(struct mmci_host *host);
+void mmci_dmae_release(struct mmci_host *host);
+int mmci_dmae_start(struct mmci_host *host, unsigned int *datactrl);
+void mmci_dmae_finalize(struct mmci_host *host, struct mmc_data *data);
+void mmci_dmae_error(struct mmci_host *host);

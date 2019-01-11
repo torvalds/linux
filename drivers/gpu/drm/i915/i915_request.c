@@ -111,91 +111,6 @@ i915_request_remove_from_client(struct i915_request *request)
 	spin_unlock(&file_priv->mm.lock);
 }
 
-static struct i915_dependency *
-i915_dependency_alloc(struct drm_i915_private *i915)
-{
-	return kmem_cache_alloc(i915->dependencies, GFP_KERNEL);
-}
-
-static void
-i915_dependency_free(struct drm_i915_private *i915,
-		     struct i915_dependency *dep)
-{
-	kmem_cache_free(i915->dependencies, dep);
-}
-
-static void
-__i915_sched_node_add_dependency(struct i915_sched_node *node,
-				 struct i915_sched_node *signal,
-				 struct i915_dependency *dep,
-				 unsigned long flags)
-{
-	INIT_LIST_HEAD(&dep->dfs_link);
-	list_add(&dep->wait_link, &signal->waiters_list);
-	list_add(&dep->signal_link, &node->signalers_list);
-	dep->signaler = signal;
-	dep->flags = flags;
-}
-
-static int
-i915_sched_node_add_dependency(struct drm_i915_private *i915,
-			       struct i915_sched_node *node,
-			       struct i915_sched_node *signal)
-{
-	struct i915_dependency *dep;
-
-	dep = i915_dependency_alloc(i915);
-	if (!dep)
-		return -ENOMEM;
-
-	__i915_sched_node_add_dependency(node, signal, dep,
-					 I915_DEPENDENCY_ALLOC);
-	return 0;
-}
-
-static void
-i915_sched_node_fini(struct drm_i915_private *i915,
-		     struct i915_sched_node *node)
-{
-	struct i915_dependency *dep, *tmp;
-
-	GEM_BUG_ON(!list_empty(&node->link));
-
-	/*
-	 * Everyone we depended upon (the fences we wait to be signaled)
-	 * should retire before us and remove themselves from our list.
-	 * However, retirement is run independently on each timeline and
-	 * so we may be called out-of-order.
-	 */
-	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
-		GEM_BUG_ON(!i915_sched_node_signaled(dep->signaler));
-		GEM_BUG_ON(!list_empty(&dep->dfs_link));
-
-		list_del(&dep->wait_link);
-		if (dep->flags & I915_DEPENDENCY_ALLOC)
-			i915_dependency_free(i915, dep);
-	}
-
-	/* Remove ourselves from everyone who depends upon us */
-	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
-		GEM_BUG_ON(dep->signaler != node);
-		GEM_BUG_ON(!list_empty(&dep->dfs_link));
-
-		list_del(&dep->signal_link);
-		if (dep->flags & I915_DEPENDENCY_ALLOC)
-			i915_dependency_free(i915, dep);
-	}
-}
-
-static void
-i915_sched_node_init(struct i915_sched_node *node)
-{
-	INIT_LIST_HEAD(&node->signalers_list);
-	INIT_LIST_HEAD(&node->waiters_list);
-	INIT_LIST_HEAD(&node->link);
-	node->attr.priority = I915_PRIORITY_INVALID;
-}
-
 static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 {
 	struct intel_engine_cs *engine;
@@ -221,6 +136,11 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 			  intel_engine_get_seqno(engine),
 			  seqno);
 
+		if (seqno == engine->timeline.seqno)
+			continue;
+
+		kthread_park(engine->breadcrumbs.signaler);
+
 		if (!i915_seqno_passed(seqno, engine->timeline.seqno)) {
 			/* Flush any waiters before we reuse the seqno */
 			intel_engine_disarm_breadcrumbs(engine);
@@ -235,6 +155,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 		/* Finally reset hw state */
 		intel_engine_init_global_seqno(engine, seqno);
 		engine->timeline.seqno = seqno;
+
+		kthread_unpark(engine->breadcrumbs.signaler);
 	}
 
 	list_for_each_entry(timeline, &i915->gt.timelines, link)
@@ -527,7 +449,7 @@ void __i915_request_submit(struct i915_request *request)
 
 	seqno = timeline_get_seqno(&engine->timeline);
 	GEM_BUG_ON(!seqno);
-	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine), seqno));
+	GEM_BUG_ON(intel_engine_signaled(engine, seqno));
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
@@ -579,8 +501,7 @@ void __i915_request_unsubmit(struct i915_request *request)
 	 */
 	GEM_BUG_ON(!request->global_seqno);
 	GEM_BUG_ON(request->global_seqno != engine->timeline.seqno);
-	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine),
-				     request->global_seqno));
+	GEM_BUG_ON(intel_engine_has_completed(engine, request->global_seqno));
 	engine->timeline.seqno--;
 
 	/* We may be recursing from the signal callback of another i915 fence */
@@ -733,24 +654,13 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	rq = kmem_cache_alloc(i915->requests,
 			      GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (unlikely(!rq)) {
-		/* Ratelimit ourselves to prevent oom from malicious clients */
-		ret = i915_gem_wait_for_idle(i915,
-					     I915_WAIT_LOCKED |
-					     I915_WAIT_INTERRUPTIBLE,
-					     MAX_SCHEDULE_TIMEOUT);
-		if (ret)
-			goto err_unreserve;
+		i915_retire_requests(i915);
 
-		/*
-		 * We've forced the client to stall and catch up with whatever
-		 * backlog there might have been. As we are assuming that we
-		 * caused the mempressure, now is an opportune time to
-		 * recover as much memory from the request pool as is possible.
-		 * Having already penalized the client to stall, we spend
-		 * a little extra time to re-optimise page allocation.
-		 */
-		kmem_cache_shrink(i915->requests);
-		rcu_barrier(); /* Recover the TYPESAFE_BY_RCU pages */
+		/* Ratelimit ourselves to prevent oom from malicious clients */
+		rq = i915_gem_active_raw(&ce->ring->timeline->last_request,
+					 &i915->drm.struct_mutex);
+		if (rq)
+			cond_synchronize_rcu(rq->rcustate);
 
 		rq = kmem_cache_alloc(i915->requests, GFP_KERNEL);
 		if (!rq) {
@@ -758,6 +668,8 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 			goto err_unreserve;
 		}
 	}
+
+	rq->rcustate = get_state_synchronize_rcu();
 
 	INIT_LIST_HEAD(&rq->active_list);
 	rq->i915 = i915;
@@ -1126,8 +1038,20 @@ void i915_request_add(struct i915_request *request)
 	 */
 	local_bh_disable();
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
-	if (engine->schedule)
-		engine->schedule(request, &request->gem_context->sched);
+	if (engine->schedule) {
+		struct i915_sched_attr attr = request->gem_context->sched;
+
+		/*
+		 * Boost priorities to new clients (new request flows).
+		 *
+		 * Allow interactive/synchronous clients to jump ahead of
+		 * the bulk clients. (FQ_CODEL)
+		 */
+		if (!prev || i915_request_completed(prev))
+			attr.priority |= I915_PRIORITY_NEWCLIENT;
+
+		engine->schedule(request, &attr);
+	}
 	rcu_read_unlock();
 	i915_sw_fence_commit(&request->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
@@ -1205,7 +1129,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	 * it is a fair assumption that it will not complete within our
 	 * relatively short timeout.
 	 */
-	if (!i915_seqno_passed(intel_engine_get_seqno(engine), seqno - 1))
+	if (!intel_engine_has_started(engine, seqno))
 		return false;
 
 	/*
@@ -1222,7 +1146,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	irq = READ_ONCE(engine->breadcrumbs.irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
-		if (i915_seqno_passed(intel_engine_get_seqno(engine), seqno))
+		if (intel_engine_has_completed(engine, seqno))
 			return seqno == i915_request_global_seqno(rq);
 
 		/*
@@ -1309,6 +1233,8 @@ long i915_request_wait(struct i915_request *rq,
 		add_wait_queue(errq, &reset);
 
 	intel_wait_init(&wait);
+	if (flags & I915_WAIT_PRIORITY)
+		i915_schedule_bump_priority(rq, I915_PRIORITY_WAIT);
 
 restart:
 	do {

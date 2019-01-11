@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
@@ -279,7 +280,7 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 EXPORT_SYMBOL_GPL(hns_roce_release_range_qp);
 
 static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
-				struct ib_qp_cap *cap, int is_user, int has_srq,
+				struct ib_qp_cap *cap, bool is_user, int has_rq,
 				struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = hr_dev->dev;
@@ -293,14 +294,12 @@ static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
 		return -EINVAL;
 	}
 
-	/* If srq exit, set zero for relative number of rq */
-	if (has_srq) {
-		if (cap->max_recv_wr) {
-			dev_dbg(dev, "srq no need config max_recv_wr\n");
-			return -EINVAL;
-		}
-
-		hr_qp->rq.wqe_cnt = hr_qp->rq.max_gs = 0;
+	/* If srq exist, set zero for relative number of rq */
+	if (!has_rq) {
+		hr_qp->rq.wqe_cnt = 0;
+		hr_qp->rq.max_gs = 0;
+		cap->max_recv_wr = 0;
+		cap->max_recv_sge = 0;
 	} else {
 		if (is_user && (!cap->max_recv_wr || !cap->max_recv_sge)) {
 			dev_err(dev, "user space no need config max_recv_wr max_recv_sge\n");
@@ -343,6 +342,7 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 {
 	u32 roundup_sq_stride = roundup_pow_of_two(hr_dev->caps.max_sq_desc_sz);
 	u8 max_sq_stride = ilog2(roundup_sq_stride);
+	u32 ex_sge_num;
 	u32 page_size;
 	u32 max_cnt;
 
@@ -372,7 +372,18 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 	if (hr_qp->sq.max_gs > 2)
 		hr_qp->sge.sge_cnt = roundup_pow_of_two(hr_qp->sq.wqe_cnt *
 							(hr_qp->sq.max_gs - 2));
+
+	if ((hr_qp->sq.max_gs > 2) && (hr_dev->pci_dev->revision == 0x20)) {
+		if (hr_qp->sge.sge_cnt > hr_dev->caps.max_extend_sg) {
+			dev_err(hr_dev->dev,
+				"The extended sge cnt error! sge_cnt=%d\n",
+				hr_qp->sge.sge_cnt);
+			return -EINVAL;
+		}
+	}
+
 	hr_qp->sge.sge_shift = 4;
+	ex_sge_num = hr_qp->sge.sge_cnt;
 
 	/* Get buf size, SQ and RQ  are aligned to page_szie */
 	if (hr_dev->caps.max_sq_sg <= 2) {
@@ -386,6 +397,8 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 					     hr_qp->sq.wqe_shift), PAGE_SIZE);
 	} else {
 		page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
+		hr_qp->sge.sge_cnt =
+		       max(page_size / (1 << hr_qp->sge.sge_shift), ex_sge_num);
 		hr_qp->buff_size = HNS_ROCE_ALOGN_UP((hr_qp->rq.wqe_cnt <<
 					     hr_qp->rq.wqe_shift), page_size) +
 				   HNS_ROCE_ALOGN_UP((hr_qp->sge.sge_cnt <<
@@ -394,7 +407,7 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 					     hr_qp->sq.wqe_shift), page_size);
 
 		hr_qp->sq.offset = 0;
-		if (hr_qp->sge.sge_cnt) {
+		if (ex_sge_num) {
 			hr_qp->sge.offset = HNS_ROCE_ALOGN_UP(
 							(hr_qp->sq.wqe_cnt <<
 							hr_qp->sq.wqe_shift),
@@ -465,6 +478,14 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 		hr_qp->sge.sge_shift = 4;
 	}
 
+	if ((hr_qp->sq.max_gs > 2) && hr_dev->pci_dev->revision == 0x20) {
+		if (hr_qp->sge.sge_cnt > hr_dev->caps.max_extend_sg) {
+			dev_err(dev, "The extended sge cnt error! sge_cnt=%d\n",
+				hr_qp->sge.sge_cnt);
+			return -EINVAL;
+		}
+	}
+
 	/* Get buf size, SQ and RQ are aligned to PAGE_SIZE */
 	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
 	hr_qp->sq.offset = 0;
@@ -472,6 +493,8 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				 page_size);
 
 	if (hr_dev->caps.max_sq_sg > 2 && hr_qp->sge.sge_cnt) {
+		hr_qp->sge.sge_cnt = max(page_size/(1 << hr_qp->sge.sge_shift),
+					(u32)hr_qp->sge.sge_cnt);
 		hr_qp->sge.offset = size;
 		size += HNS_ROCE_ALOGN_UP(hr_qp->sge.sge_cnt <<
 					  hr_qp->sge.sge_shift, page_size);
@@ -537,14 +560,15 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_REQ_WR);
 
-	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, !!ib_pd->uobject,
-				   !!init_attr->srq, hr_qp);
+	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, udata,
+				   hns_roce_qp_has_rq(init_attr), hr_qp);
 	if (ret) {
 		dev_err(dev, "hns_roce_set_rq_size failed\n");
 		goto err_out;
 	}
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) {
+	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
+	    hns_roce_qp_has_rq(init_attr)) {
 		/* allocate recv inline buf */
 		hr_qp->rq_inl_buf.wqe_list = kcalloc(hr_qp->rq.wqe_cnt,
 					       sizeof(struct hns_roce_rinl_wqe),
@@ -574,7 +598,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				init_attr->cap.max_recv_sge];
 	}
 
-	if (ib_pd->uobject) {
+	if (udata) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			dev_err(dev, "ib_copy_from_udata error for create qp\n");
 			ret = -EFAULT;
@@ -759,7 +783,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->doorbell_qpn = cpu_to_le64(hr_qp->qpn);
 
-	if (ib_pd->uobject && (udata->outlen >= sizeof(resp)) &&
+	if (udata && (udata->outlen >= sizeof(resp)) &&
 		(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)) {
 
 		/* indicate kernel supports rq record db */
@@ -786,7 +810,7 @@ err_qpn:
 		hns_roce_release_range_qp(hr_dev, qpn, 1);
 
 err_wrid:
-	if (ib_pd->uobject) {
+	if (udata) {
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_rq(init_attr))
@@ -799,7 +823,7 @@ err_wrid:
 	}
 
 err_sq_dbmap:
-	if (ib_pd->uobject)
+	if (udata)
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
 		    (udata->inlen >= sizeof(ucmd)) &&
 		    (udata->outlen >= sizeof(resp)) &&
@@ -812,13 +836,13 @@ err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
 err_buf:
-	if (ib_pd->uobject)
+	if (hr_qp->umem)
 		ib_umem_release(hr_qp->umem);
 	else
 		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
 
 err_db:
-	if (!ib_pd->uobject && hns_roce_qp_has_rq(init_attr) &&
+	if (!udata && hns_roce_qp_has_rq(init_attr) &&
 	    (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
 		hns_roce_free_db(hr_dev, &hr_qp->rdb);
 
@@ -864,7 +888,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	}
 	case IB_QPT_GSI: {
 		/* Userspace is not allowed to create special QPs: */
-		if (pd->uobject) {
+		if (udata) {
 			dev_err(dev, "not support usr space GSI\n");
 			return ERR_PTR(-EINVAL);
 		}
@@ -952,8 +976,8 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		}
 	}
 
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask,
-				IB_LINK_LAYER_ETHERNET)) {
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
+				attr_mask)) {
 		dev_err(dev, "ib_modify_qp_is_ok failed\n");
 		goto out;
 	}
@@ -1106,14 +1130,20 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 	int reserved_from_top = 0;
+	int reserved_from_bot;
 	int ret;
 
 	spin_lock_init(&qp_table->lock);
 	INIT_RADIX_TREE(&hr_dev->qp_table_tree, GFP_ATOMIC);
 
-	/* A port include two SQP, six port total 12 */
+	/* In hw v1, a port include two SQP, six ports total 12 */
+	if (hr_dev->caps.max_sq_sg <= 2)
+		reserved_from_bot = SQP_NUM;
+	else
+		reserved_from_bot = hr_dev->caps.reserved_qps;
+
 	ret = hns_roce_bitmap_init(&qp_table->bitmap, hr_dev->caps.num_qps,
-				   hr_dev->caps.num_qps - 1, SQP_NUM,
+				   hr_dev->caps.num_qps - 1, reserved_from_bot,
 				   reserved_from_top);
 	if (ret) {
 		dev_err(hr_dev->dev, "qp bitmap init failed!error=%d\n",

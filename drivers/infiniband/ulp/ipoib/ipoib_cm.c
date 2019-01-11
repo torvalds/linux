@@ -1027,12 +1027,14 @@ static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id,
 
 	skb_queue_head_init(&skqueue);
 
+	netif_tx_lock_bh(p->dev);
 	spin_lock_irq(&priv->lock);
 	set_bit(IPOIB_FLAG_OPER_UP, &p->flags);
 	if (p->neigh)
 		while ((skb = __skb_dequeue(&p->neigh->queue)))
 			__skb_queue_tail(&skqueue, skb);
 	spin_unlock_irq(&priv->lock);
+	netif_tx_unlock_bh(p->dev);
 
 	while ((skb = __skb_dequeue(&skqueue))) {
 		skb->dev = p->dev;
@@ -1436,11 +1438,15 @@ static void ipoib_cm_skb_reap(struct work_struct *work)
 		spin_unlock_irqrestore(&priv->lock, flags);
 		netif_tx_unlock_bh(dev);
 
-		if (skb->protocol == htons(ETH_P_IP))
+		if (skb->protocol == htons(ETH_P_IP)) {
+			memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
+		}
 #if IS_ENABLED(CONFIG_IPV6)
-		else if (skb->protocol == htons(ETH_P_IPV6))
+		else if (skb->protocol == htons(ETH_P_IPV6)) {
+			memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		}
 #endif
 		dev_kfree_skb_any(skb);
 

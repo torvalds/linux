@@ -717,10 +717,7 @@ static int port_vlans_add(struct net_device *netdev,
 			  struct switchdev_trans *trans)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err;
-
-	if (netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
+	int vid, err = 0;
 
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
@@ -872,7 +869,7 @@ static int port_vlans_del(struct net_device *netdev,
 			  const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err;
+	int vid, err = 0;
 
 	if (netif_is_bridge_master(vlan->obj.orig_dev))
 		return -EOPNOTSUPP;
@@ -930,8 +927,6 @@ static int swdev_port_obj_del(struct net_device *netdev,
 static const struct switchdev_ops ethsw_port_switchdev_ops = {
 	.switchdev_port_attr_get	= swdev_port_attr_get,
 	.switchdev_port_attr_set	= swdev_port_attr_set,
-	.switchdev_port_obj_add		= swdev_port_obj_add,
-	.switchdev_port_obj_del		= swdev_port_obj_del,
 };
 
 /* For the moment, only flood setting needs to be updated */
@@ -972,6 +967,11 @@ static int port_bridge_leave(struct net_device *netdev)
 	return err;
 }
 
+static bool ethsw_port_dev_check(const struct net_device *netdev)
+{
+	return netdev->netdev_ops == &ethsw_port_ops;
+}
+
 static int port_netdevice_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
@@ -980,7 +980,7 @@ static int port_netdevice_event(struct notifier_block *unused,
 	struct net_device *upper_dev;
 	int err = 0;
 
-	if (netdev->netdev_ops != &ethsw_port_ops)
+	if (!ethsw_port_dev_check(netdev))
 		return NOTIFY_DONE;
 
 	/* Handle just upper dev link/unlink for the moment */
@@ -1014,10 +1014,8 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 		container_of(work, struct ethsw_switchdev_event_work, work);
 	struct net_device *dev = switchdev_work->dev;
 	struct switchdev_notifier_fdb_info *fdb_info;
-	struct ethsw_port_priv *port_priv;
 
 	rtnl_lock();
-	port_priv = netdev_priv(dev);
 	fdb_info = &switchdev_work->fdb_info;
 
 	switch (switchdev_work->event) {
@@ -1085,8 +1083,49 @@ err_addr_alloc:
 	return NOTIFY_BAD;
 }
 
+static int
+ethsw_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
+			struct switchdev_notifier_port_obj_info *port_obj_info)
+{
+	int err = -EOPNOTSUPP;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = swdev_port_obj_add(netdev, port_obj_info->obj,
+					 port_obj_info->trans);
+		break;
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = swdev_port_obj_del(netdev, port_obj_info->obj);
+		break;
+	}
+
+	port_obj_info->handled = true;
+	return notifier_from_errno(err);
+}
+
+static int port_switchdev_blocking_event(struct notifier_block *unused,
+					 unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+
+	if (!ethsw_port_dev_check(dev))
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD: /* fall through */
+	case SWITCHDEV_PORT_OBJ_DEL:
+		return ethsw_switchdev_port_obj_event(event, dev, ptr);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block port_switchdev_nb = {
 	.notifier_call = port_switchdev_event,
+};
+
+static struct notifier_block port_switchdev_blocking_nb = {
+	.notifier_call = port_switchdev_blocking_event,
 };
 
 static int ethsw_register_notifier(struct device *dev)
@@ -1105,8 +1144,16 @@ static int ethsw_register_notifier(struct device *dev)
 		goto err_switchdev_nb;
 	}
 
+	err = register_switchdev_blocking_notifier(&port_switchdev_blocking_nb);
+	if (err) {
+		dev_err(dev, "Failed to register switchdev blocking notifier\n");
+		goto err_switchdev_blocking_nb;
+	}
+
 	return 0;
 
+err_switchdev_blocking_nb:
+	unregister_switchdev_notifier(&port_switchdev_nb);
 err_switchdev_nb:
 	unregister_netdevice_notifier(&port_nb);
 	return err;
@@ -1125,7 +1172,7 @@ static int ethsw_open(struct ethsw_core *ethsw)
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		port_priv = ethsw->ports[i];
-		err = dev_open(port_priv->netdev);
+		err = dev_open(port_priv->netdev, NULL);
 		if (err) {
 			netdev_err(port_priv->netdev, "dev_open err %d\n", err);
 			return err;
@@ -1293,7 +1340,14 @@ static int ethsw_port_init(struct ethsw_port_priv *port_priv, u16 port)
 
 static void ethsw_unregister_notifier(struct device *dev)
 {
+	struct notifier_block *nb;
 	int err;
+
+	nb = &port_switchdev_blocking_nb;
+	err = unregister_switchdev_blocking_notifier(nb);
+	if (err)
+		dev_err(dev,
+			"Failed to unregister switchdev blocking notifier (%d)\n", err);
 
 	err = unregister_switchdev_notifier(&port_switchdev_nb);
 	if (err)

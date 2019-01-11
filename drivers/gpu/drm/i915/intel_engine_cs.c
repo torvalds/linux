@@ -273,13 +273,13 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
 
-	if (GEM_WARN_ON(info->class > MAX_ENGINE_CLASS))
+	if (GEM_DEBUG_WARN_ON(info->class > MAX_ENGINE_CLASS))
 		return -EINVAL;
 
-	if (GEM_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
+	if (GEM_DEBUG_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
 		return -EINVAL;
 
-	if (GEM_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
+	if (GEM_DEBUG_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
 		return -EINVAL;
 
 	GEM_BUG_ON(dev_priv->engine[id]);
@@ -335,7 +335,10 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 
 	WARN_ON(ring_mask == 0);
 	WARN_ON(ring_mask &
-		GENMASK(sizeof(mask) * BITS_PER_BYTE - 1, I915_NUM_ENGINES));
+		GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
+
+	if (i915_inject_load_failure())
+		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
 		if (!HAS_ENGINE(dev_priv, i))
@@ -399,7 +402,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 		err = -EINVAL;
 		err_id = id;
 
-		if (GEM_WARN_ON(!init))
+		if (GEM_DEBUG_WARN_ON(!init))
 			goto cleanup;
 
 		err = init(engine);
@@ -463,7 +466,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
 	execlists->port_mask = 1;
-	BUILD_BUG_ON_NOT_POWER_OF_2(execlists_num_ports(execlists));
+	GEM_BUG_ON(!is_power_of_2(execlists_num_ports(execlists)));
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
 	execlists->queue_priority = INT_MIN;
@@ -482,7 +485,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
 	i915_timeline_init(engine->i915, &engine->timeline, engine->name);
-	lockdep_set_subclass(&engine->timeline.lock, TIMELINE_ENGINE);
+	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
 
 	intel_engine_init_execlist(engine);
 	intel_engine_init_hangcheck(engine);
@@ -490,73 +493,16 @@ void intel_engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_cmd_parser(engine);
 }
 
-int intel_engine_create_scratch(struct intel_engine_cs *engine,
-				unsigned int size)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int ret;
-
-	WARN_ON(engine->scratch);
-
-	obj = i915_gem_object_create_stolen(engine->i915, size);
-	if (!obj)
-		obj = i915_gem_object_create_internal(engine->i915, size);
-	if (IS_ERR(obj)) {
-		DRM_ERROR("Failed to allocate scratch page\n");
-		return PTR_ERR(obj);
-	}
-
-	vma = i915_vma_instance(obj, &engine->i915->ggtt.vm, NULL);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
-		goto err_unref;
-	}
-
-	ret = i915_vma_pin(vma, 0, 4096, PIN_GLOBAL | PIN_HIGH);
-	if (ret)
-		goto err_unref;
-
-	engine->scratch = vma;
-	return 0;
-
-err_unref:
-	i915_gem_object_put(obj);
-	return ret;
-}
-
-void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
-{
-	i915_vma_unpin_and_release(&engine->scratch);
-}
-
-static void cleanup_phys_status_page(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	if (!dev_priv->status_page_dmah)
-		return;
-
-	drm_pci_free(&dev_priv->drm, dev_priv->status_page_dmah);
-	engine->status_page.page_addr = NULL;
-}
-
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
-	struct i915_vma *vma;
-	struct drm_i915_gem_object *obj;
+	if (HWS_NEEDS_PHYSICAL(engine->i915)) {
+		void *addr = fetch_and_zero(&engine->status_page.page_addr);
 
-	vma = fetch_and_zero(&engine->status_page.vma);
-	if (!vma)
-		return;
+		__free_page(virt_to_page(addr));
+	}
 
-	obj = vma->obj;
-
-	i915_vma_unpin(vma);
-	i915_vma_close(vma);
-
-	i915_gem_object_unpin_map(obj);
-	__i915_gem_object_release_unless_active(obj);
+	i915_vma_unpin_and_release(&engine->status_page.vma,
+				   I915_VMA_RELEASE_MAP);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)
@@ -598,7 +544,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;
-	ret = i915_vma_pin(vma, 0, 4096, flags);
+	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (ret)
 		goto err;
 
@@ -622,17 +568,18 @@ err:
 
 static int init_phys_status_page(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct page *page;
 
-	GEM_BUG_ON(engine->id != RCS);
-
-	dev_priv->status_page_dmah =
-		drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
-	if (!dev_priv->status_page_dmah)
+	/*
+	 * Though the HWS register does support 36bit addresses, historically
+	 * we have had hangs and corruption reported due to wild writes if
+	 * the HWS is placed above 4G.
+	 */
+	page = alloc_page(GFP_KERNEL | __GFP_DMA32 | __GFP_ZERO);
+	if (!page)
 		return -ENOMEM;
 
-	engine->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-	memset(engine->status_page.page_addr, 0, PAGE_SIZE);
+	engine->status_page.page_addr = page_address(page);
 
 	return 0;
 }
@@ -720,12 +667,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	intel_engine_cleanup_scratch(engine);
-
-	if (HWS_NEEDS_PHYSICAL(engine->i915))
-		cleanup_phys_status_page(engine);
-	else
-		cleanup_status_page(engine);
+	cleanup_status_page(engine);
 
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
@@ -739,6 +681,10 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	__intel_context_unpin(i915->kernel_context, engine);
 
 	i915_timeline_fini(&engine->timeline);
+
+	intel_wa_list_free(&engine->ctx_wa_list);
+	intel_wa_list_free(&engine->wa_list);
+	intel_wa_list_free(&engine->whitelist);
 }
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)
@@ -800,6 +746,16 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 	return err;
 }
 
+void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	I915_WRITE_FW(RING_MI_MODE(engine->mmio_base),
+		      _MASKED_BIT_DISABLE(STOP_RING));
+}
+
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 {
 	switch (type) {
@@ -818,7 +774,7 @@ u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 	u32 slice = fls(sseu->slice_mask);
 	u32 subslice = fls(sseu->subslice_mask[slice]);
 
-	if (INTEL_GEN(dev_priv) == 10)
+	if (IS_GEN10(dev_priv))
 		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
 				  GEN8_MCR_SUBSLICE(subslice);
 	else if (INTEL_GEN(dev_priv) >= 11)
@@ -980,8 +936,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* Any inflight/incomplete requests? */
-	if (!i915_seqno_passed(intel_engine_get_seqno(engine),
-			       intel_engine_last_submit(engine)))
+	if (!intel_engine_signaled(engine, intel_engine_last_submit(engine)))
 		return false;
 
 	if (I915_SELFTEST_ONLY(engine->breadcrumbs.mock))
@@ -999,6 +954,9 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 			tasklet_unlock(t);
 		}
 		local_bh_enable();
+
+		/* Otherwise flush the tasklet if it was on another cpu */
+		tasklet_unlock_wait(t);
 
 		if (READ_ONCE(engine->execlists.active))
 			return false;
@@ -1348,20 +1306,19 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 
 	if (HAS_EXECLISTS(dev_priv)) {
 		const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
-		u32 ptr, read, write;
 		unsigned int idx;
+		u8 read, write;
 
 		drm_printf(m, "\tExeclist status: 0x%08x %08x\n",
 			   I915_READ(RING_EXECLIST_STATUS_LO(engine)),
 			   I915_READ(RING_EXECLIST_STATUS_HI(engine)));
 
-		ptr = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
-		read = GEN8_CSB_READ_PTR(ptr);
-		write = GEN8_CSB_WRITE_PTR(ptr);
-		drm_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], tasklet queued? %s (%s)\n",
-			   read, execlists->csb_head,
-			   write,
-			   intel_read_status_page(engine, intel_hws_csb_write_index(engine->i915)),
+		read = execlists->csb_head;
+		write = READ_ONCE(*execlists->csb_write);
+
+		drm_printf(m, "\tExeclist CSB read %d, write %d [mmio:%d], tasklet queued? %s (%s)\n",
+			   read, write,
+			   GEN8_CSB_WRITE_PTR(I915_READ(RING_CONTEXT_STATUS_PTR(engine))),
 			   yesno(test_bit(TASKLET_STATE_SCHED,
 					  &engine->execlists.tasklet.state)),
 			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)));
@@ -1373,12 +1330,12 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 			write += GEN8_CSB_ENTRIES;
 		while (read < write) {
 			idx = ++read % GEN8_CSB_ENTRIES;
-			drm_printf(m, "\tExeclist CSB[%d]: 0x%08x [0x%08x in hwsp], context: %d [%d in hwsp]\n",
+			drm_printf(m, "\tExeclist CSB[%d]: 0x%08x [mmio:0x%08x], context: %d [mmio:%d]\n",
 				   idx,
-				   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
 				   hws[idx * 2],
-				   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)),
-				   hws[idx * 2 + 1]);
+				   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
+				   hws[idx * 2 + 1],
+				   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)));
 		}
 
 		rcu_read_lock();
@@ -1542,10 +1499,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	count = 0;
 	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
 	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
-		struct i915_priolist *p =
-			rb_entry(rb, typeof(*p), node);
+		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+		int i;
 
-		list_for_each_entry(rq, &p->requests, sched.link) {
+		priolist_for_each_request(rq, p, i) {
 			if (count++ < MAX_REQUESTS_TO_SHOW - 1)
 				print_request(m, rq, "\t\tQ ");
 			else
@@ -1567,8 +1524,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
-		drm_printf(m, "\t%s [%d] waiting for %x\n",
-			   w->tsk->comm, w->tsk->pid, w->seqno);
+		drm_printf(m, "\t%s [%d:%c] waiting for %x\n",
+			   w->tsk->comm, w->tsk->pid,
+			   task_state_to_char(w->tsk),
+			   w->seqno);
 	}
 	spin_unlock(&b->rb_lock);
 	local_irq_restore(flags);

@@ -119,11 +119,23 @@
 #define XGMAC_MTL_TXQ_OPMODE(x)		(0x00001100 + (0x80 * (x)))
 #define XGMAC_TQS			GENMASK(25, 16)
 #define XGMAC_TQS_SHIFT			16
+#define XGMAC_Q2TCMAP			GENMASK(10, 8)
+#define XGMAC_Q2TCMAP_SHIFT		8
 #define XGMAC_TTC			GENMASK(6, 4)
 #define XGMAC_TTC_SHIFT			4
 #define XGMAC_TXQEN			GENMASK(3, 2)
 #define XGMAC_TXQEN_SHIFT		2
 #define XGMAC_TSF			BIT(1)
+#define XGMAC_MTL_TCx_ETS_CONTROL(x)	(0x00001110 + (0x80 * (x)))
+#define XGMAC_MTL_TCx_QUANTUM_WEIGHT(x)	(0x00001118 + (0x80 * (x)))
+#define XGMAC_MTL_TCx_SENDSLOPE(x)	(0x0000111c + (0x80 * (x)))
+#define XGMAC_MTL_TCx_HICREDIT(x)	(0x00001120 + (0x80 * (x)))
+#define XGMAC_MTL_TCx_LOCREDIT(x)	(0x00001124 + (0x80 * (x)))
+#define XGMAC_CC			BIT(3)
+#define XGMAC_TSA			GENMASK(1, 0)
+#define XGMAC_SP			(0x0 << 0)
+#define XGMAC_CBS			(0x1 << 0)
+#define XGMAC_ETS			(0x2 << 0)
 #define XGMAC_MTL_RXQ_OPMODE(x)		(0x00001140 + (0x80 * (x)))
 #define XGMAC_RQS			GENMASK(25, 16)
 #define XGMAC_RQS_SHIFT			16

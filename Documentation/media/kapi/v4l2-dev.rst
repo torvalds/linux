@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Video device' s internal representation
 =======================================
 

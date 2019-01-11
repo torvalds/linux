@@ -215,6 +215,8 @@ static void vga_switcheroo_enable(void)
 			return;
 
 		client->id = ret | ID_BIT_AUDIO;
+		if (client->ops->gpu_bound)
+			client->ops->gpu_bound(client->pdev, ret);
 	}
 
 	vga_switcheroo_debugfs_init(&vgasr_priv);
@@ -378,6 +380,9 @@ int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 			mutex_unlock(&vgasr_mutex);
 			return -EINVAL;
 		}
+		/* notify if GPU has been already bound */
+		if (ops->gpu_bound)
+			ops->gpu_bound(pdev, id);
 	}
 	mutex_unlock(&vgasr_mutex);
 

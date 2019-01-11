@@ -345,35 +345,98 @@ enum iwl_rx_mpdu_mac_info {
 	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
 };
 
-/*
- * enum iwl_rx_he_phy - HE PHY data
- */
-enum iwl_rx_he_phy {
-	IWL_RX_HE_PHY_BEAM_CHNG			= BIT(0),
-	IWL_RX_HE_PHY_UPLINK			= BIT(1),
-	IWL_RX_HE_PHY_BSS_COLOR_MASK		= 0xfc,
-	IWL_RX_HE_PHY_SPATIAL_REUSE_MASK	= 0xf00,
-	IWL_RX_HE_PHY_SU_EXT_BW10		= BIT(12),
-	IWL_RX_HE_PHY_TXOP_DUR_MASK		= 0xfe000,
-	IWL_RX_HE_PHY_LDPC_EXT_SYM		= BIT(20),
-	IWL_RX_HE_PHY_PRE_FEC_PAD_MASK		= 0x600000,
-	IWL_RX_HE_PHY_PE_DISAMBIG		= BIT(23),
-	IWL_RX_HE_PHY_DOPPLER			= BIT(24),
-	/* 6 bits reserved */
-	IWL_RX_HE_PHY_DELIM_EOF			= BIT(31),
-
-	/* second dword - MU data */
-	IWL_RX_HE_PHY_SIGB_COMPRESSION		= BIT_ULL(32 + 0),
-	IWL_RX_HE_PHY_SIBG_SYM_OR_USER_NUM_MASK	= 0x1e00000000ULL,
-	IWL_RX_HE_PHY_HE_LTF_NUM_MASK		= 0xe000000000ULL,
-	IWL_RX_HE_PHY_RU_ALLOC_SEC80		= BIT_ULL(32 + 8),
-	/* trigger encoded */
-	IWL_RX_HE_PHY_RU_ALLOC_MASK		= 0xfe0000000000ULL,
-	IWL_RX_HE_PHY_SIGB_MCS_MASK		= 0xf000000000000ULL,
+/* TSF overload low dword */
+enum iwl_rx_phy_data0 {
+	/* info type: HE any */
+	IWL_RX_PHY_DATA0_HE_BEAM_CHNG				= 0x00000001,
+	IWL_RX_PHY_DATA0_HE_UPLINK				= 0x00000002,
+	IWL_RX_PHY_DATA0_HE_BSS_COLOR_MASK			= 0x000000fc,
+	IWL_RX_PHY_DATA0_HE_SPATIAL_REUSE_MASK			= 0x00000f00,
 	/* 1 bit reserved */
-	IWL_RX_HE_PHY_SIGB_DCM			= BIT_ULL(32 + 21),
-	IWL_RX_HE_PHY_PREAMBLE_PUNC_TYPE_MASK	= 0xc0000000000000ULL,
-	/* 8 bits reserved */
+	IWL_RX_PHY_DATA0_HE_TXOP_DUR_MASK			= 0x000fe000,
+	IWL_RX_PHY_DATA0_HE_LDPC_EXT_SYM			= 0x00100000,
+	IWL_RX_PHY_DATA0_HE_PRE_FEC_PAD_MASK			= 0x00600000,
+	IWL_RX_PHY_DATA0_HE_PE_DISAMBIG				= 0x00800000,
+	IWL_RX_PHY_DATA0_HE_DOPPLER				= 0x01000000,
+	/* 6 bits reserved */
+	IWL_RX_PHY_DATA0_HE_DELIM_EOF				= 0x80000000,
+};
+
+enum iwl_rx_phy_info_type {
+	IWL_RX_PHY_INFO_TYPE_NONE				= 0,
+	IWL_RX_PHY_INFO_TYPE_CCK				= 1,
+	IWL_RX_PHY_INFO_TYPE_OFDM_LGCY				= 2,
+	IWL_RX_PHY_INFO_TYPE_HT					= 3,
+	IWL_RX_PHY_INFO_TYPE_VHT_SU				= 4,
+	IWL_RX_PHY_INFO_TYPE_VHT_MU				= 5,
+	IWL_RX_PHY_INFO_TYPE_HE_SU				= 6,
+	IWL_RX_PHY_INFO_TYPE_HE_MU				= 7,
+	IWL_RX_PHY_INFO_TYPE_HE_TB				= 8,
+	IWL_RX_PHY_INFO_TYPE_HE_MU_EXT				= 9,
+	IWL_RX_PHY_INFO_TYPE_HE_TB_EXT				= 10,
+};
+
+/* TSF overload high dword */
+enum iwl_rx_phy_data1 {
+	/*
+	 * check this first - if TSF overload is set,
+	 * see &enum iwl_rx_phy_info_type
+	 */
+	IWL_RX_PHY_DATA1_INFO_TYPE_MASK				= 0xf0000000,
+
+	/* info type: HT/VHT/HE any */
+	IWL_RX_PHY_DATA1_LSIG_LEN_MASK				= 0x0fff0000,
+
+	/* info type: HE MU/MU-EXT */
+	IWL_RX_PHY_DATA1_HE_MU_SIGB_COMPRESSION			= 0x00000001,
+	IWL_RX_PHY_DATA1_HE_MU_SIBG_SYM_OR_USER_NUM_MASK	= 0x0000001e,
+
+	/* info type: HE any */
+	IWL_RX_PHY_DATA1_HE_LTF_NUM_MASK			= 0x000000e0,
+	IWL_RX_PHY_DATA1_HE_RU_ALLOC_SEC80			= 0x00000100,
+	/* trigger encoded */
+	IWL_RX_PHY_DATA1_HE_RU_ALLOC_MASK			= 0x0000fe00,
+
+	/* info type: HE TB/TX-EXT */
+	IWL_RX_PHY_DATA1_HE_TB_PILOT_TYPE			= 0x00000001,
+	IWL_RX_PHY_DATA1_HE_TB_LOW_SS_MASK			= 0x0000000e,
+};
+
+/* goes into Metadata DW 7 */
+enum iwl_rx_phy_data2 {
+	/* info type: HE MU-EXT */
+	/* the a1/a2/... is what the PHY/firmware calls the values */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH1_RU0		= 0x000000ff, /* a1 */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH1_RU2		= 0x0000ff00, /* a2 */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH2_RU0		= 0x00ff0000, /* b1 */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH2_RU2		= 0xff000000, /* b2 */
+
+	/* info type: HE TB-EXT */
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE1		= 0x0000000f,
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE2		= 0x000000f0,
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE3		= 0x00000f00,
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE4		= 0x0000f000,
+};
+
+/* goes into Metadata DW 8 */
+enum iwl_rx_phy_data3 {
+	/* info type: HE MU-EXT */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH1_RU1		= 0x000000ff, /* c1 */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH1_RU3		= 0x0000ff00, /* c2 */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH2_RU1		= 0x00ff0000, /* d1 */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH2_RU3		= 0xff000000, /* d2 */
+};
+
+/* goes into Metadata DW 4 high 16 bits */
+enum iwl_rx_phy_data4 {
+	/* info type: HE MU-EXT */
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH1_CTR_RU			= 0x0001,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH2_CTR_RU			= 0x0002,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH1_CRC_OK			= 0x0004,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH2_CRC_OK			= 0x0008,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_SIGB_MCS_MASK		= 0x00f0,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_SIGB_DCM			= 0x0100,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_PREAMBLE_PUNC_TYPE_MASK	= 0x0600,
 };
 
 /**
@@ -381,15 +444,31 @@ enum iwl_rx_he_phy {
  */
 struct iwl_rx_mpdu_desc_v1 {
 	/* DW7 - carries rss_hash only when rpa_en == 1 */
-	/**
-	 * @rss_hash: RSS hash value
-	 */
-	__le32 rss_hash;
+	union {
+		/**
+		 * @rss_hash: RSS hash value
+		 */
+		__le32 rss_hash;
+
+		/**
+		 * @phy_data2: depends on info type (see @phy_data1)
+		 */
+		__le32 phy_data2;
+	};
+
 	/* DW8 - carries filter_match only when rpa_en == 1 */
-	/**
-	 * @filter_match: filter match value
-	 */
-	__le32 filter_match;
+	union {
+		/**
+		 * @filter_match: filter match value
+		 */
+		__le32 filter_match;
+
+		/**
+		 * @phy_data3: depends on info type (see @phy_data1)
+		 */
+		__le32 phy_data3;
+	};
+
 	/* DW9 */
 	/**
 	 * @rate_n_flags: RX rate/flags encoding
@@ -425,12 +504,19 @@ struct iwl_rx_mpdu_desc_v1 {
 		 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
 		 */
 		__le64 tsf_on_air_rise;
-		/**
-		 * @he_phy_data:
-		 * HE PHY data, see &enum iwl_rx_he_phy, valid
-		 * only if %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set
-		 */
-		__le64 he_phy_data;
+
+		struct {
+			/**
+			 * @phy_data0: depends on info_type, see @phy_data1
+			 */
+			__le32 phy_data0;
+			/**
+			 * @phy_data1: valid only if
+			 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set,
+			 * see &enum iwl_rx_phy_data1.
+			 */
+			__le32 phy_data1;
+		};
 	};
 } __packed;
 
@@ -439,15 +525,30 @@ struct iwl_rx_mpdu_desc_v1 {
  */
 struct iwl_rx_mpdu_desc_v3 {
 	/* DW7 - carries filter_match only when rpa_en == 1 */
-	/**
-	 * @filter_match: filter match value
-	 */
-	__le32 filter_match;
+	union {
+		/**
+		 * @filter_match: filter match value
+		 */
+		__le32 filter_match;
+
+		/**
+		 * @phy_data2: depends on info type (see @phy_data1)
+		 */
+		__le32 phy_data2;
+	};
+
 	/* DW8 - carries rss_hash only when rpa_en == 1 */
-	/**
-	 * @rss_hash: RSS hash value
-	 */
-	__le32 rss_hash;
+	union {
+		/**
+		 * @rss_hash: RSS hash value
+		 */
+		__le32 rss_hash;
+
+		/**
+		 * @phy_data3: depends on info type (see @phy_data1)
+		 */
+		__le32 phy_data3;
+	};
 	/* DW9 */
 	/**
 	 * @partial_hash: 31:0 ip/tcp header hash
@@ -494,12 +595,19 @@ struct iwl_rx_mpdu_desc_v3 {
 		 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
 		 */
 		__le64 tsf_on_air_rise;
-		/**
-		 * @he_phy_data:
-		 * HE PHY data, see &enum iwl_rx_he_phy, valid
-		 * only if %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set
-		 */
-		__le64 he_phy_data;
+
+		struct {
+			/**
+			 * @phy_data0: depends on info_type, see @phy_data1
+			 */
+			__le32 phy_data0;
+			/**
+			 * @phy_data1: valid only if
+			 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set,
+			 * see &enum iwl_rx_phy_data1.
+			 */
+			__le32 phy_data1;
+		};
 	};
 	/* DW16 & DW17 */
 	/**
@@ -543,10 +651,18 @@ struct iwl_rx_mpdu_desc {
 	 * @raw_csum: raw checksum (alledgedly unreliable)
 	 */
 	__le16 raw_csum;
-	/**
-	 * @l3l4_flags: &enum iwl_rx_l3l4_flags
-	 */
-	__le16 l3l4_flags;
+
+	union {
+		/**
+		 * @l3l4_flags: &enum iwl_rx_l3l4_flags
+		 */
+		__le16 l3l4_flags;
+
+		/**
+		 * @phy_data4: depends on info type, see phy_data1
+		 */
+		__le16 phy_data4;
+	};
 	/* DW5 */
 	/**
 	 * @status: &enum iwl_rx_mpdu_status
@@ -573,6 +689,118 @@ struct iwl_rx_mpdu_desc {
 } __packed; /* RX_MPDU_RES_START_API_S_VER_3 */
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
+
+#define IWL_CD_STTS_OPTIMIZED_POS	0
+#define IWL_CD_STTS_OPTIMIZED_MSK	0x01
+#define IWL_CD_STTS_TRANSFER_STATUS_POS	1
+#define IWL_CD_STTS_TRANSFER_STATUS_MSK	0x0E
+#define IWL_CD_STTS_WIFI_STATUS_POS	4
+#define IWL_CD_STTS_WIFI_STATUS_MSK	0xF0
+
+#define RX_NO_DATA_CHAIN_A_POS		0
+#define RX_NO_DATA_CHAIN_A_MSK		(0xff << RX_NO_DATA_CHAIN_A_POS)
+#define RX_NO_DATA_CHAIN_B_POS		8
+#define RX_NO_DATA_CHAIN_B_MSK		(0xff << RX_NO_DATA_CHAIN_B_POS)
+#define RX_NO_DATA_CHANNEL_POS		16
+#define RX_NO_DATA_CHANNEL_MSK		(0xff << RX_NO_DATA_CHANNEL_POS)
+
+#define RX_NO_DATA_INFO_TYPE_POS	0
+#define RX_NO_DATA_INFO_TYPE_MSK	(0xff << RX_NO_DATA_INFO_TYPE_POS)
+#define RX_NO_DATA_INFO_TYPE_NONE	0
+#define RX_NO_DATA_INFO_TYPE_RX_ERR	1
+#define RX_NO_DATA_INFO_TYPE_NDP	2
+#define RX_NO_DATA_INFO_TYPE_MU_UNMATCHED	3
+#define RX_NO_DATA_INFO_TYPE_HE_TB_UNMATCHED	4
+
+#define RX_NO_DATA_INFO_ERR_POS		8
+#define RX_NO_DATA_INFO_ERR_MSK		(0xff << RX_NO_DATA_INFO_ERR_POS)
+#define RX_NO_DATA_INFO_ERR_NONE	0
+#define RX_NO_DATA_INFO_ERR_BAD_PLCP	1
+#define RX_NO_DATA_INFO_ERR_UNSUPPORTED_RATE	2
+#define RX_NO_DATA_INFO_ERR_NO_DELIM		3
+#define RX_NO_DATA_INFO_ERR_BAD_MAC_HDR	4
+
+#define RX_NO_DATA_FRAME_TIME_POS	0
+#define RX_NO_DATA_FRAME_TIME_MSK	(0xfffff << RX_NO_DATA_FRAME_TIME_POS)
+
+/**
+ * struct iwl_rx_no_data - RX no data descriptor
+ * @info: 7:0 frame type, 15:8 RX error type
+ * @rssi: 7:0 energy chain-A,
+ *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
+ * @on_air_rise_time: GP2 during on air rise
+ * @fr_time: frame time
+ * @rate: rate/mcs of frame
+ * @phy_info: &enum iwl_rx_phy_data0 and &enum iwl_rx_phy_info_type
+ * @rx_vec: DW-12:9 raw RX vectors from DSP according to modulation type.
+ *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
+ *	for HE: OFDM_RX_VECTOR_HE_SIGA1_OUT, OFDM_RX_VECTOR_HE_SIGA2_OUT
+ */
+struct iwl_rx_no_data {
+	__le32 info;
+	__le32 rssi;
+	__le32 on_air_rise_time;
+	__le32 fr_time;
+	__le32 rate;
+	__le32 phy_info[2];
+	__le32 rx_vec[3];
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1 */
+
+/**
+ * enum iwl_completion_desc_transfer_status -  transfer status (bits 1-3)
+ * @IWL_CD_STTS_UNUSED: unused
+ * @IWL_CD_STTS_UNUSED_2: unused
+ * @IWL_CD_STTS_END_TRANSFER: successful transfer complete.
+ *	In sniffer mode, when split is used, set in last CD completion. (RX)
+ * @IWL_CD_STTS_OVERFLOW: In sniffer mode, when using split - used for
+ *	all CD completion. (RX)
+ * @IWL_CD_STTS_ABORTED: CR abort / close flow. (RX)
+ * @IWL_CD_STTS_ERROR: general error (RX)
+ */
+enum iwl_completion_desc_transfer_status {
+	IWL_CD_STTS_UNUSED,
+	IWL_CD_STTS_UNUSED_2,
+	IWL_CD_STTS_END_TRANSFER,
+	IWL_CD_STTS_OVERFLOW,
+	IWL_CD_STTS_ABORTED,
+	IWL_CD_STTS_ERROR,
+};
+
+/**
+ * enum iwl_completion_desc_wifi_status - wifi status (bits 4-7)
+ * @IWL_CD_STTS_VALID: the packet is valid (RX)
+ * @IWL_CD_STTS_FCS_ERR: frame check sequence error (RX)
+ * @IWL_CD_STTS_SEC_KEY_ERR: error handling the security key of rx (RX)
+ * @IWL_CD_STTS_DECRYPTION_ERR: error decrypting the frame (RX)
+ * @IWL_CD_STTS_DUP: duplicate packet (RX)
+ * @IWL_CD_STTS_ICV_MIC_ERR: MIC error (RX)
+ * @IWL_CD_STTS_INTERNAL_SNAP_ERR: problems removing the snap (RX)
+ * @IWL_CD_STTS_SEC_PORT_FAIL: security port fail (RX)
+ * @IWL_CD_STTS_BA_OLD_SN: block ack received old SN (RX)
+ * @IWL_CD_STTS_QOS_NULL: QoS null packet (RX)
+ * @IWL_CD_STTS_MAC_HDR_ERR: MAC header conversion error (RX)
+ * @IWL_CD_STTS_MAX_RETRANS: reached max number of retransmissions (TX)
+ * @IWL_CD_STTS_EX_LIFETIME: exceeded lifetime (TX)
+ * @IWL_CD_STTS_NOT_USED: completed but not used (RX)
+ * @IWL_CD_STTS_REPLAY_ERR: pn check failed, replay error (RX)
+ */
+enum iwl_completion_desc_wifi_status {
+	IWL_CD_STTS_VALID,
+	IWL_CD_STTS_FCS_ERR,
+	IWL_CD_STTS_SEC_KEY_ERR,
+	IWL_CD_STTS_DECRYPTION_ERR,
+	IWL_CD_STTS_DUP,
+	IWL_CD_STTS_ICV_MIC_ERR,
+	IWL_CD_STTS_INTERNAL_SNAP_ERR,
+	IWL_CD_STTS_SEC_PORT_FAIL,
+	IWL_CD_STTS_BA_OLD_SN,
+	IWL_CD_STTS_QOS_NULL,
+	IWL_CD_STTS_MAC_HDR_ERR,
+	IWL_CD_STTS_MAX_RETRANS,
+	IWL_CD_STTS_EX_LIFETIME,
+	IWL_CD_STTS_NOT_USED,
+	IWL_CD_STTS_REPLAY_ERR,
+};
 
 struct iwl_frame_release {
 	u8 baid;

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  KVM paravirtual clock driver. A clocksource implementation
     Copyright (C) 2008 Glauber de Oliveira Costa, Red Hat Inc.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include <linux/clocksource.h>
@@ -28,6 +15,7 @@
 #include <linux/sched/clock.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/set_memory.h>
 
 #include <asm/hypervisor.h>
 #include <asm/mem_encrypt.h>
@@ -61,9 +49,10 @@ early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
 	(PAGE_SIZE / sizeof(struct pvclock_vsyscall_time_info))
 
 static struct pvclock_vsyscall_time_info
-			hv_clock_boot[HVC_BOOT_ARRAY_SIZE] __aligned(PAGE_SIZE);
-static struct pvclock_wall_clock wall_clock;
+			hv_clock_boot[HVC_BOOT_ARRAY_SIZE] __bss_decrypted __aligned(PAGE_SIZE);
+static struct pvclock_wall_clock wall_clock __bss_decrypted;
 static DEFINE_PER_CPU(struct pvclock_vsyscall_time_info *, hv_clock_per_cpu);
+static struct pvclock_vsyscall_time_info *hvclock_mem;
 
 static inline struct pvclock_vcpu_time_info *this_cpu_pvti(void)
 {
@@ -116,13 +105,13 @@ static u64 kvm_sched_clock_read(void)
 static inline void kvm_sched_clock_init(bool stable)
 {
 	if (!stable) {
-		pv_time_ops.sched_clock = kvm_clock_read;
+		pv_ops.time.sched_clock = kvm_clock_read;
 		clear_sched_clock_stable();
 		return;
 	}
 
 	kvm_sched_clock_offset = kvm_clock_read();
-	pv_time_ops.sched_clock = kvm_sched_clock_read;
+	pv_ops.time.sched_clock = kvm_sched_clock_read;
 
 	pr_info("kvm-clock: using sched offset of %llu cycles",
 		kvm_sched_clock_offset);
@@ -236,6 +225,45 @@ static void kvm_shutdown(void)
 	native_machine_shutdown();
 }
 
+static void __init kvmclock_init_mem(void)
+{
+	unsigned long ncpus;
+	unsigned int order;
+	struct page *p;
+	int r;
+
+	if (HVC_BOOT_ARRAY_SIZE >= num_possible_cpus())
+		return;
+
+	ncpus = num_possible_cpus() - HVC_BOOT_ARRAY_SIZE;
+	order = get_order(ncpus * sizeof(*hvclock_mem));
+
+	p = alloc_pages(GFP_KERNEL, order);
+	if (!p) {
+		pr_warn("%s: failed to alloc %d pages", __func__, (1U << order));
+		return;
+	}
+
+	hvclock_mem = page_address(p);
+
+	/*
+	 * hvclock is shared between the guest and the hypervisor, must
+	 * be mapped decrypted.
+	 */
+	if (sev_active()) {
+		r = set_memory_decrypted((unsigned long) hvclock_mem,
+					 1UL << order);
+		if (r) {
+			__free_pages(p, order);
+			hvclock_mem = NULL;
+			pr_warn("kvmclock: set_memory_decrypted() failed. Disabling\n");
+			return;
+		}
+	}
+
+	memset(hvclock_mem, 0, PAGE_SIZE << order);
+}
+
 static int __init kvm_setup_vsyscall_timeinfo(void)
 {
 #ifdef CONFIG_X86_64
@@ -250,6 +278,9 @@ static int __init kvm_setup_vsyscall_timeinfo(void)
 
 	kvm_clock.archdata.vclock_mode = VCLOCK_PVCLOCK;
 #endif
+
+	kvmclock_init_mem();
+
 	return 0;
 }
 early_initcall(kvm_setup_vsyscall_timeinfo);
@@ -269,8 +300,10 @@ static int kvmclock_setup_percpu(unsigned int cpu)
 	/* Use the static page for the first CPUs, allocate otherwise */
 	if (cpu < HVC_BOOT_ARRAY_SIZE)
 		p = &hv_clock_boot[cpu];
+	else if (hvclock_mem)
+		p = hvclock_mem + cpu - HVC_BOOT_ARRAY_SIZE;
 	else
-		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		return -ENOMEM;
 
 	per_cpu(hv_clock_per_cpu, cpu) = p;
 	return p ? 0 : -ENOMEM;

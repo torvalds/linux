@@ -53,6 +53,58 @@ i.MX6 Quad SABRE Automotive Board
 Required root node properties:
     - compatible = "fsl,imx6q-sabreauto", "fsl,imx6q";
 
+i.MX6SLL EVK board
+Required root node properties:
+    - compatible = "fsl,imx6sll-evk", "fsl,imx6sll";
+
+i.MX6 Quad Plus SABRE Smart Device Board
+Required root node properties:
+    - compatible = "fsl,imx6qp-sabresd", "fsl,imx6qp";
+
+i.MX6 Quad Plus SABRE Automotive Board
+Required root node properties:
+    - compatible = "fsl,imx6qp-sabreauto", "fsl,imx6qp";
+
+i.MX6 DualLite SABRE Smart Device Board
+Required root node properties:
+    - compatible = "fsl,imx6dl-sabresd", "fsl,imx6dl";
+
+i.MX6 DualLite/Solo SABRE Automotive Board
+Required root node properties:
+    - compatible = "fsl,imx6dl-sabreauto", "fsl,imx6dl";
+
+i.MX6 SoloLite EVK Board
+Required root node properties:
+    - compatible = "fsl,imx6sl-evk", "fsl,imx6sl";
+
+i.MX6 UltraLite 14x14 EVK Board
+Required root node properties:
+    - compatible = "fsl,imx6ul-14x14-evk", "fsl,imx6ul";
+
+i.MX6 UltraLiteLite 14x14 EVK Board
+Required root node properties:
+    - compatible = "fsl,imx6ull-14x14-evk", "fsl,imx6ull";
+
+i.MX6 ULZ 14x14 EVK Board
+Required root node properties:
+    - compatible = "fsl,imx6ulz-14x14-evk", "fsl,imx6ull", "fsl,imx6ulz";
+
+i.MX6 SoloX SDB Board
+Required root node properties:
+    - compatible = "fsl,imx6sx-sdb", "fsl,imx6sx";
+
+i.MX6 SoloX Sabre Auto Board
+Required root node properties:
+    - compatible = "fsl,imx6sx-sabreauto", "fsl,imx6sx";
+
+i.MX7 SabreSD Board
+Required root node properties:
+    - compatible = "fsl,imx7d-sdb", "fsl,imx7d";
+
+i.MX7ULP Evaluation Kit
+Required root node properties:
+    - compatible = "fsl,imx7ulp-evk", "fsl,imx7ulp";
+
 Generic i.MX boards
 -------------------
 
@@ -75,6 +127,10 @@ i.MX6q generic board
 Required root node properties:
     - compatible = "fsl,imx6q";
 
+i.MX7ULP generic board
+Required root node properties:
+    - compatible = "fsl,imx7ulp";
+
 Freescale Vybrid Platform Device Tree Bindings
 ----------------------------------------------
 
@@ -96,45 +152,6 @@ Freescale LS1021A Platform Device Tree Bindings
 
 Required root node compatible properties:
   - compatible = "fsl,ls1021a";
-
-Freescale SoC-specific Device Tree Bindings
--------------------------------------------
-
-Freescale SCFG
-  SCFG is the supplemental configuration unit, that provides SoC specific
-configuration and status registers for the chip. Such as getting PEX port
-status.
-  Required properties:
-  - compatible: Should contain a chip-specific compatible string,
-	Chip-specific strings are of the form "fsl,<chip>-scfg",
-	The following <chip>s are known to be supported:
-	ls1012a, ls1021a, ls1043a, ls1046a, ls2080a.
-
-  - reg: should contain base address and length of SCFG memory-mapped registers
-
-Example:
-	scfg: scfg@1570000 {
-		compatible = "fsl,ls1021a-scfg";
-		reg = <0x0 0x1570000 0x0 0x10000>;
-	};
-
-Freescale DCFG
-  DCFG is the device configuration unit, that provides general purpose
-configuration and status for the device. Such as setting the secondary
-core start address and release the secondary core from holdoff and startup.
-  Required properties:
-  - compatible: Should contain a chip-specific compatible string,
-	Chip-specific strings are of the form "fsl,<chip>-dcfg",
-	The following <chip>s are known to be supported:
-	ls1012a, ls1021a, ls1043a, ls1046a, ls2080a.
-
-  - reg : should contain base address and length of DCFG memory-mapped registers
-
-Example:
-	dcfg: dcfg@1ee0000 {
-		compatible = "fsl,ls1021a-dcfg";
-		reg = <0x0 0x1ee0000 0x0 0x10000>;
-	};
 
 Freescale ARMv8 based Layerscape SoC family Device Tree Bindings
 ----------------------------------------------------------------

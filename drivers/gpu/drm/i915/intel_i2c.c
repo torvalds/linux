@@ -37,7 +37,7 @@
 
 struct gmbus_pin {
 	const char *name;
-	i915_reg_t reg;
+	enum i915_gpio gpio;
 };
 
 /* Map gmbus pin pairs to names and registers. */
@@ -121,8 +121,7 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 	else
 		size = ARRAY_SIZE(gmbus_pins);
 
-	return pin < size &&
-		i915_mmio_reg_valid(get_gmbus_pin(dev_priv, pin)->reg);
+	return pin < size && get_gmbus_pin(dev_priv, pin)->name;
 }
 
 /* Intel GPIO access functions */
@@ -292,8 +291,7 @@ intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
 
 	algo = &bus->bit_algo;
 
-	bus->gpio_reg = _MMIO(dev_priv->gpio_mmio_base +
-			      i915_mmio_reg_offset(get_gmbus_pin(dev_priv, pin)->reg));
+	bus->gpio_reg = GPIO(get_gmbus_pin(dev_priv, pin)->gpio);
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
 	algo->setscl = set_clock;
@@ -819,15 +817,17 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 	unsigned int pin;
 	int ret;
 
-	if (INTEL_INFO(dev_priv)->num_pipes == 0)
+	if (!HAS_DISPLAY(dev_priv))
 		return 0;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
 	else if (!HAS_GMCH_DISPLAY(dev_priv))
-		dev_priv->gpio_mmio_base =
-			i915_mmio_reg_offset(PCH_GPIOA) -
-			i915_mmio_reg_offset(GPIOA);
+		/*
+		 * Broxton uses the same PCH offsets for South Display Engine,
+		 * even though it doesn't have a PCH.
+		 */
+		dev_priv->gpio_mmio_base = PCH_DISPLAY_BASE;
 
 	mutex_init(&dev_priv->gmbus_mutex);
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);

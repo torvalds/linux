@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -438,13 +433,14 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		struct ieee80211_vif *tx_blocked_vif =
 			rcu_dereference(mvm->csa_tx_blocked_vif);
+		struct iwl_fw_dbg_trigger_tlv *trig;
+		struct ieee80211_vif *vif = mvmsta->vif;
 
 		/* We have tx blocked stations (with CS bit). If we heard
 		 * frames from a blocked station on a new channel we can
 		 * TX to it again.
 		 */
-		if (unlikely(tx_blocked_vif) &&
-		    mvmsta->vif == tx_blocked_vif) {
+		if (unlikely(tx_blocked_vif) && vif == tx_blocked_vif) {
 			struct iwl_mvm_vif *mvmvif =
 				iwl_mvm_vif_from_mac80211(tx_blocked_vif);
 
@@ -455,23 +451,18 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 		rs_update_last_rssi(mvm, mvmsta, rx_status);
 
-		if (iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_RSSI) &&
-		    ieee80211_is_beacon(hdr->frame_control)) {
-			struct iwl_fw_dbg_trigger_tlv *trig;
+		trig = iwl_fw_dbg_trigger_on(&mvm->fwrt,
+					     ieee80211_vif_to_wdev(vif),
+					     FW_DBG_TRIGGER_RSSI);
+
+		if (trig && ieee80211_is_beacon(hdr->frame_control)) {
 			struct iwl_fw_dbg_trigger_low_rssi *rssi_trig;
-			bool trig_check;
 			s32 rssi;
 
-			trig = iwl_fw_dbg_get_trigger(mvm->fw,
-						      FW_DBG_TRIGGER_RSSI);
 			rssi_trig = (void *)trig->data;
 			rssi = le32_to_cpu(rssi_trig->rssi);
 
-			trig_check =
-				iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-							      ieee80211_vif_to_wdev(mvmsta->vif),
-							      trig);
-			if (trig_check && rx_status->signal < rssi)
+			if (rx_status->signal < rssi)
 				iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
 							NULL);
 		}
@@ -602,31 +593,28 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	int hyst = vif->bss_conf.cqm_rssi_hyst;
 	u16 id = le32_to_cpu(data->mac_id);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u16 vif_id = mvmvif->id;
 
 	/* This doesn't need the MAC ID check since it's not taking the
 	 * data copied into the "data" struct, but rather the data from
 	 * the notification directly.
 	 */
-	if (data->general) {
-		u16 vif_id = mvmvif->id;
+	if (iwl_mvm_is_cdb_supported(mvm)) {
+		struct mvm_statistics_general_cdb *general =
+			data->general;
 
-		if (iwl_mvm_is_cdb_supported(mvm)) {
-			struct mvm_statistics_general_cdb *general =
-				data->general;
+		mvmvif->beacon_stats.num_beacons =
+			le32_to_cpu(general->beacon_counter[vif_id]);
+		mvmvif->beacon_stats.avg_signal =
+			-general->beacon_average_energy[vif_id];
+	} else {
+		struct mvm_statistics_general_v8 *general =
+			data->general;
 
-			mvmvif->beacon_stats.num_beacons =
-				le32_to_cpu(general->beacon_counter[vif_id]);
-			mvmvif->beacon_stats.avg_signal =
-				-general->beacon_average_energy[vif_id];
-		} else {
-			struct mvm_statistics_general_v8 *general =
-				data->general;
-
-			mvmvif->beacon_stats.num_beacons =
-				le32_to_cpu(general->beacon_counter[vif_id]);
-			mvmvif->beacon_stats.avg_signal =
-				-general->beacon_average_energy[vif_id];
-		}
+		mvmvif->beacon_stats.num_beacons =
+			le32_to_cpu(general->beacon_counter[vif_id]);
+		mvmvif->beacon_stats.avg_signal =
+			-general->beacon_average_energy[vif_id];
 	}
 
 	if (mvmvif->id != id)
@@ -698,14 +686,11 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 	struct iwl_fw_dbg_trigger_stats *trig_stats;
 	u32 trig_offset, trig_thold;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_STATS))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt, NULL, FW_DBG_TRIGGER_STATS);
+	if (!trig)
 		return;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_STATS);
 	trig_stats = (void *)trig->data;
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
-		return;
 
 	trig_offset = le32_to_cpu(trig_stats->stop_offset);
 	trig_thold = le32_to_cpu(trig_stats->stop_threshold);

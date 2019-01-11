@@ -26,6 +26,7 @@
 #include <asm/apic.h>
 #include <asm/intel-family.h>
 #include <asm/i8259.h>
+#include <asm/uv/uv.h>
 
 unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
@@ -57,7 +58,7 @@ struct cyc2ns {
 
 static DEFINE_PER_CPU_ALIGNED(struct cyc2ns, cyc2ns);
 
-void cyc2ns_read_begin(struct cyc2ns_data *data)
+void __always_inline cyc2ns_read_begin(struct cyc2ns_data *data)
 {
 	int seq, idx;
 
@@ -74,7 +75,7 @@ void cyc2ns_read_begin(struct cyc2ns_data *data)
 	} while (unlikely(seq != this_cpu_read(cyc2ns.seq.sequence)));
 }
 
-void cyc2ns_read_end(void)
+void __always_inline cyc2ns_read_end(void)
 {
 	preempt_enable_notrace();
 }
@@ -103,7 +104,7 @@ void cyc2ns_read_end(void)
  *                      -johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
 
-static inline unsigned long long cycles_2_ns(unsigned long long cyc)
+static __always_inline unsigned long long cycles_2_ns(unsigned long long cyc)
 {
 	struct cyc2ns_data data;
 	unsigned long long ns;
@@ -246,7 +247,7 @@ unsigned long long sched_clock(void)
 
 bool using_native_sched_clock(void)
 {
-	return pv_time_ops.sched_clock == native_sched_clock;
+	return pv_ops.time.sched_clock == native_sched_clock;
 }
 #else
 unsigned long long
@@ -635,7 +636,7 @@ unsigned long native_calibrate_tsc(void)
 		case INTEL_FAM6_KABYLAKE_DESKTOP:
 			crystal_khz = 24000;	/* 24.0 MHz */
 			break;
-		case INTEL_FAM6_ATOM_DENVERTON:
+		case INTEL_FAM6_ATOM_GOLDMONT_X:
 			crystal_khz = 25000;	/* 25.0 MHz */
 			break;
 		case INTEL_FAM6_ATOM_GOLDMONT:
@@ -1415,7 +1416,7 @@ static bool __init determine_cpu_tsc_frequencies(bool early)
 
 static unsigned long __init get_loops_per_jiffy(void)
 {
-	unsigned long lpj = tsc_khz * KHZ;
+	u64 lpj = (u64)tsc_khz * KHZ;
 
 	do_div(lpj, HZ);
 	return lpj;
@@ -1432,6 +1433,9 @@ static void __init tsc_enable_sched_clock(void)
 void __init tsc_early_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_TSC))
+		return;
+	/* Don't change UV TSC multi-chassis synchronization */
+	if (is_early_uv_system())
 		return;
 	if (!determine_cpu_tsc_frequencies(true))
 		return;

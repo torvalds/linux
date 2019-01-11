@@ -361,7 +361,7 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 
 static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep;
+	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
 	struct fwnode_handle *fwh;
 	struct device_node *ep;
 	int ret;
@@ -378,7 +378,7 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 		return ret;
 	}
 
-	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2) {
+	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(csi2rx->dev, "Unsupported media bus type: 0x%x\n",
 			v4l2_ep.bus_type);
 		of_node_put(ep);
@@ -399,18 +399,22 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 	csi2rx->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 	of_node_put(ep);
 
-	csi2rx->notifier.subdevs = devm_kzalloc(csi2rx->dev,
-						sizeof(*csi2rx->notifier.subdevs),
-						GFP_KERNEL);
-	if (!csi2rx->notifier.subdevs)
-		return -ENOMEM;
+	v4l2_async_notifier_init(&csi2rx->notifier);
 
-	csi2rx->notifier.subdevs[0] = &csi2rx->asd;
-	csi2rx->notifier.num_subdevs = 1;
+	ret = v4l2_async_notifier_add_subdev(&csi2rx->notifier, &csi2rx->asd);
+	if (ret) {
+		fwnode_handle_put(csi2rx->asd.match.fwnode);
+		return ret;
+	}
+
 	csi2rx->notifier.ops = &csi2rx_notifier_ops;
 
-	return v4l2_async_subdev_notifier_register(&csi2rx->subdev,
-						   &csi2rx->notifier);
+	ret = v4l2_async_subdev_notifier_register(&csi2rx->subdev,
+						  &csi2rx->notifier);
+	if (ret)
+		v4l2_async_notifier_cleanup(&csi2rx->notifier);
+
+	return ret;
 }
 
 static int csi2rx_probe(struct platform_device *pdev)
@@ -450,11 +454,11 @@ static int csi2rx_probe(struct platform_device *pdev)
 	ret = media_entity_pads_init(&csi2rx->subdev.entity, CSI2RX_PAD_MAX,
 				     csi2rx->pads);
 	if (ret)
-		goto err_free_priv;
+		goto err_cleanup;
 
 	ret = v4l2_async_register_subdev(&csi2rx->subdev);
 	if (ret < 0)
-		goto err_free_priv;
+		goto err_cleanup;
 
 	dev_info(&pdev->dev,
 		 "Probed CSI2RX with %u/%u lanes, %u streams, %s D-PHY\n",
@@ -463,6 +467,8 @@ static int csi2rx_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_cleanup:
+	v4l2_async_notifier_cleanup(&csi2rx->notifier);
 err_free_priv:
 	kfree(csi2rx);
 	return ret;

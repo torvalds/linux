@@ -266,7 +266,7 @@ static unsigned int xive_get_irq(void)
 	 * of pending priorities. This will also have the effect of
 	 * updating the CPPR to the most favored pending interrupts.
 	 *
-	 * In the future, if we have a way to differenciate a first
+	 * In the future, if we have a way to differentiate a first
 	 * entry (on HW interrupt) from a replay triggered by EOI,
 	 * we could skip this on replays unless we soft-mask tells us
 	 * that a new HW interrupt occurred.
@@ -309,7 +309,7 @@ static void xive_do_queue_eoi(struct xive_cpu *xc)
  * EOI an interrupt at the source. There are several methods
  * to do this depending on the HW version and source type
  */
-void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
+static void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 {
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
@@ -1010,12 +1010,13 @@ static void xive_ipi_eoi(struct irq_data *d)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
 
-	DBG_VERBOSE("IPI eoi: irq=%d [0x%lx] (HW IRQ 0x%x) pending=%02x\n",
-		    d->irq, irqd_to_hwirq(d), xc->hw_ipi, xc->pending_prio);
-
 	/* Handle possible race with unplug and drop stale IPIs */
 	if (!xc)
 		return;
+
+	DBG_VERBOSE("IPI eoi: irq=%d [0x%lx] (HW IRQ 0x%x) pending=%02x\n",
+		    d->irq, irqd_to_hwirq(d), xc->hw_ipi, xc->pending_prio);
+
 	xive_do_source_eoi(xc->hw_ipi, &xc->ipi_data);
 	xive_do_queue_eoi(xc);
 }

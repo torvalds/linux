@@ -46,6 +46,10 @@
 /* Used by transport_get_inquiry_vpd_device_ident() */
 #define INQUIRY_VPD_DEVICE_IDENTIFIER_LEN	254
 
+#define INQUIRY_VENDOR_LEN			8
+#define INQUIRY_MODEL_LEN			16
+#define INQUIRY_REVISION_LEN			4
+
 /* Attempts before moving from SHORT to LONG */
 #define PYX_TRANSPORT_WINDOW_CLOSED_THRESHOLD	3
 #define PYX_TRANSPORT_WINDOW_CLOSED_WAIT_SHORT	3  /* In milliseconds */
@@ -87,6 +91,8 @@
 #define DA_EMULATE_3PC				1
 /* No Emulation for PSCSI by default */
 #define DA_EMULATE_ALUA				0
+/* Emulate SCSI2 RESERVE/RELEASE and Persistent Reservations by default */
+#define DA_EMULATE_PR				1
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
 #define DA_ENFORCE_PR_ISIDS			1
 /* Force SPC-3 PR Activate Persistence across Target Power Loss */
@@ -134,11 +140,9 @@ enum se_cmd_flags_table {
 	SCF_SENT_CHECK_CONDITION	= 0x00000800,
 	SCF_OVERFLOW_BIT		= 0x00001000,
 	SCF_UNDERFLOW_BIT		= 0x00002000,
-	SCF_SEND_DELAYED_TAS		= 0x00004000,
 	SCF_ALUA_NON_OPTIMIZED		= 0x00008000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
 	SCF_COMPARE_AND_WRITE		= 0x00080000,
-	SCF_COMPARE_AND_WRITE_POST	= 0x00100000,
 	SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC = 0x00200000,
 	SCF_ACK_KREF			= 0x00400000,
 	SCF_USE_CPUID			= 0x00800000,
@@ -315,9 +319,13 @@ struct t10_vpd {
 };
 
 struct t10_wwn {
-	char vendor[8];
-	char model[16];
-	char revision[4];
+	/*
+	 * SCSI left aligned strings may not be null terminated. +1 to ensure a
+	 * null terminator is always present.
+	 */
+	char vendor[INQUIRY_VENDOR_LEN + 1];
+	char model[INQUIRY_MODEL_LEN + 1];
+	char revision[INQUIRY_REVISION_LEN + 1];
 	char unit_serial[INQUIRY_VPD_SERIAL_LEN];
 	spinlock_t t10_vpd_lock;
 	struct se_device *t10_dev;
@@ -475,7 +483,8 @@ struct se_cmd {
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
 	struct list_head	se_cmd_list;
-	struct completion	*compl;
+	struct completion	*free_compl;
+	struct completion	*abrt_compl;
 	const struct target_core_fabric_ops *se_tfo;
 	sense_reason_t		(*execute_cmd)(struct se_cmd *);
 	sense_reason_t (*transport_complete_callback)(struct se_cmd *, bool, int *);
@@ -602,6 +611,7 @@ struct se_session {
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
 	void			*fabric_sess_ptr;
+	struct percpu_ref	cmd_count;
 	struct list_head	sess_list;
 	struct list_head	sess_acl_list;
 	struct list_head	sess_cmd_list;
@@ -665,7 +675,7 @@ struct se_dev_attrib {
 	int		emulate_tpws;
 	int		emulate_caw;
 	int		emulate_3pc;
-	int		pi_prot_format;
+	int		emulate_pr;
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
 	int		pi_prot_verify;
@@ -732,7 +742,6 @@ struct se_lun {
 	struct scsi_port_stats	lun_stats;
 	struct config_group	lun_group;
 	struct se_port_stat_grps port_stat_grps;
-	struct completion	lun_ref_comp;
 	struct completion	lun_shutdown_comp;
 	struct percpu_ref	lun_ref;
 	struct list_head	lun_dev_link;
@@ -795,7 +804,6 @@ struct se_device {
 	struct t10_pr_registration *dev_pr_res_holder;
 	struct list_head	dev_sep_list;
 	struct list_head	dev_tmr_list;
-	struct workqueue_struct *tmr_wq;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
 	struct list_head	state_list;

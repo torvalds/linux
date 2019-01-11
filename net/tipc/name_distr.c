@@ -94,8 +94,9 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 		list_add_tail_rcu(&publ->binding_node, &nt->node_scope);
 		return NULL;
 	}
-	list_add_tail_rcu(&publ->binding_node, &nt->cluster_scope);
-
+	write_lock_bh(&nt->cluster_scope_lock);
+	list_add_tail(&publ->binding_node, &nt->cluster_scope);
+	write_unlock_bh(&nt->cluster_scope_lock);
 	skb = named_prepare_buf(net, PUBLICATION, ITEM_SIZE, 0);
 	if (!skb) {
 		pr_warn("Publication distribution failure\n");
@@ -112,11 +113,13 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
  */
 struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 {
+	struct name_table *nt = tipc_name_table(net);
 	struct sk_buff *buf;
 	struct distr_item *item;
 
+	write_lock_bh(&nt->cluster_scope_lock);
 	list_del(&publ->binding_node);
-
+	write_unlock_bh(&nt->cluster_scope_lock);
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
 
@@ -189,11 +192,10 @@ void tipc_named_node_up(struct net *net, u32 dnode)
 
 	__skb_queue_head_init(&head);
 
-	rcu_read_lock();
+	read_lock_bh(&nt->cluster_scope_lock);
 	named_distribute(net, &head, dnode, &nt->cluster_scope);
-	rcu_read_unlock();
-
 	tipc_node_xmit(net, &head, dnode, 0);
+	read_unlock_bh(&nt->cluster_scope_lock);
 }
 
 /**

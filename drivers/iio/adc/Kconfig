@@ -10,6 +10,17 @@ config AD_SIGMA_DELTA
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 
+config AD7124
+	tristate "Analog Devices AD7124 and similar sigma-delta ADCs driver"
+	depends on SPI_MASTER
+	select AD_SIGMA_DELTA
+	help
+	  Say yes here to build support for Analog Devices AD7124-4 and AD7124-8
+	  SPI analog to digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7124.
+
 config AD7266
 	tristate "Analog Devices AD7265/AD7266 ADC driver"
 	depends on SPI_MASTER
@@ -115,6 +126,16 @@ config AD7923
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7923.
+
+config AD7949
+	tristate "Analog Devices AD7949 and similar ADCs driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7949, AD7682, AD7689 8 Channel ADCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7949.
 
 config AD799X
 	tristate "Analog Devices AD799x ADC driver"
@@ -274,7 +295,7 @@ config EP93XX_ADC
 
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
-	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
+	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210 || (OF && COMPILE_TEST)
 	depends on HAS_IOMEM
 	help
 	  Core support for the ADC block found in the Samsung EXYNOS series
@@ -501,6 +522,16 @@ config MCP3422
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3422.
 
+config MCP3911
+	tristate "Microchip Technology MCP3911 driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Microchip Technology's MCP3911
+	  analog to digital converter.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mcp3911.
+
 config MEDIATEK_MT6577_AUXADC
         tristate "MediaTek AUXADC driver"
         depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -595,6 +626,26 @@ config QCOM_SPMI_VADC
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called qcom-spmi-vadc.
+
+config QCOM_SPMI_ADC5
+	tristate "Qualcomm Technologies Inc. SPMI PMIC5 ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	select QCOM_VADC_COMMON
+	help
+	  This is the IIO Voltage PMIC5 ADC driver for Qualcomm Technologies Inc.
+
+	  The driver supports multiple channels read. The ADC is a 16-bit
+	  sigma-delta ADC. The hardware supports calibrated results for
+	  conversion requests and clients include reading voltage phone
+	  power, on board system thermistors connected to the PMIC ADC,
+	  PMIC die temperature, charger temperature, battery current, USB voltage
+	  input, voltage signals connected to supported PMIC GPIO inputs. The
+	  hardware supports internal pull-up for thermistors and can choose between
+	  a 100k, 30k and 400k pull up using the ADC channels.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-adc5.
 
 config RCAR_GYRO_ADC
 	tristate "Renesas R-Car GyroADC driver"

@@ -36,25 +36,18 @@
 
 #include "inc/hw_sequencer.h"
 #include "inc/compressor.h"
+#include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.59"
+#define DC_VER "3.2.08"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 
-
 /*******************************************************************************
  * Display Core Interfaces
  ******************************************************************************/
-struct dmcu_version {
-	unsigned int date;
-	unsigned int month;
-	unsigned int year;
-	unsigned int interface_version;
-};
-
 struct dc_versions {
 	const char *dc_ver;
 	struct dmcu_version dmcu_version;
@@ -170,6 +163,7 @@ struct link_training_settings;
 struct dc_config {
 	bool gpu_vm_support;
 	bool disable_disp_pll_sharing;
+	bool fbc_support;
 };
 
 enum visual_confirm {
@@ -208,6 +202,7 @@ struct dc_clocks {
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
 	int phyclk_khz;
+	int dramclk_khz;
 };
 
 struct dc_debug_options {
@@ -249,8 +244,6 @@ struct dc_debug_options {
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
-	bool disable_hbup_pg;
-	bool disable_dpp_pg;
 	bool disable_stereo_support;
 	bool vsr_support;
 	bool performance_trace;
@@ -294,7 +287,7 @@ struct dc {
 	/* Inputs into BW and WM calculations. */
 	struct bw_calcs_dceip *bw_dceip;
 	struct bw_calcs_vbios *bw_vbios;
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct dcn_soc_bounding_box *dcn_soc;
 	struct dcn_ip_params *dcn_ip;
 	struct display_mode_lib dml;
@@ -304,19 +297,14 @@ struct dc {
 	struct hw_sequencer_funcs hwss;
 	struct dce_hwseq *hwseq;
 
-	/* temp store of dm_pp_display_configuration
-	 * to compare to see if display config changed
-	 */
-	struct dm_pp_display_configuration prev_display_config;
-
 	bool optimized_required;
-
-	bool apply_edp_fast_boot_optimization;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
 
 	struct dc_debug_data debug_data;
+
+	const char *build_id;
 };
 
 enum frame_buffer_mode {
@@ -442,6 +430,7 @@ union surface_update_flags {
 		uint32_t color_space_change:1;
 		uint32_t horizontal_mirror_change:1;
 		uint32_t per_pixel_alpha_change:1;
+		uint32_t global_alpha_change:1;
 		uint32_t rotation_change:1;
 		uint32_t swizzle_change:1;
 		uint32_t scaling_change:1;
@@ -496,6 +485,8 @@ struct dc_plane_state {
 
 	bool is_tiling_rotated;
 	bool per_pixel_alpha;
+	bool global_alpha;
+	int  global_alpha_value;
 	bool visible;
 	bool flip_immediate;
 	bool horizontal_mirror;
@@ -522,6 +513,8 @@ struct dc_plane_info {
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
+	bool global_alpha;
+	int  global_alpha_value;
 	bool input_csc_enabled;
 };
 
@@ -595,6 +588,8 @@ struct dc_validation_set {
 };
 
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
+
+void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
 
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
@@ -747,5 +742,6 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
+bool dc_is_dmcu_initialized(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

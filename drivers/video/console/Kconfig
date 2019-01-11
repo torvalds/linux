@@ -152,7 +152,7 @@ config FRAMEBUFFER_CONSOLE_ROTATION
 
 config FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
 	bool "Framebuffer Console Deferred Takeover"
-	depends on FRAMEBUFFER_CONSOLE=y && DUMMY_CONSOLE=y
+	depends on FB=y && FRAMEBUFFER_CONSOLE && DUMMY_CONSOLE
 	help
 	  If enabled this defers the framebuffer console taking over the
 	  console from the dummy console until the first text is displayed on

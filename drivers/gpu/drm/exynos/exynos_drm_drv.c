@@ -30,7 +30,6 @@
 #include "exynos_drm_ipp.h"
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_g2d.h"
-#include "exynos_drm_iommu.h"
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -149,37 +148,15 @@ static struct drm_driver exynos_drm_driver = {
 static int exynos_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct exynos_drm_private *private;
 
-	if (!drm_dev)
-		return 0;
-
-	private = drm_dev->dev_private;
-
-	drm_kms_helper_poll_disable(drm_dev);
-	exynos_drm_fbdev_suspend(drm_dev);
-	private->suspend_state = drm_atomic_helper_suspend(drm_dev);
-	if (IS_ERR(private->suspend_state)) {
-		exynos_drm_fbdev_resume(drm_dev);
-		drm_kms_helper_poll_enable(drm_dev);
-		return PTR_ERR(private->suspend_state);
-	}
-
-	return 0;
+	return  drm_mode_config_helper_suspend(drm_dev);
 }
 
 static void exynos_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct exynos_drm_private *private;
 
-	if (!drm_dev)
-		return;
-
-	private = drm_dev->dev_private;
-	drm_atomic_helper_resume(drm_dev, private->suspend_state);
-	exynos_drm_fbdev_resume(drm_dev);
-	drm_kms_helper_poll_enable(drm_dev);
+	drm_mode_config_helper_resume(drm_dev);
 }
 
 static const struct dev_pm_ops exynos_drm_pm_ops = {
@@ -197,8 +174,7 @@ struct exynos_drm_driver_info {
 
 #define DRM_COMPONENT_DRIVER	BIT(0)	/* supports component framework */
 #define DRM_VIRTUAL_DEVICE	BIT(1)	/* create virtual platform device */
-#define DRM_DMA_DEVICE		BIT(2)	/* can be used for dma allocations */
-#define DRM_FIMC_DEVICE		BIT(3)	/* devices shared with V4L2 subsystem */
+#define DRM_FIMC_DEVICE		BIT(2)	/* devices shared with V4L2 subsystem */
 
 #define DRV_PTR(drv, cond) (IS_ENABLED(cond) ? &drv : NULL)
 
@@ -209,16 +185,16 @@ struct exynos_drm_driver_info {
 static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 	{
 		DRV_PTR(fimd_driver, CONFIG_DRM_EXYNOS_FIMD),
-		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
+		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(exynos5433_decon_driver, CONFIG_DRM_EXYNOS5433_DECON),
-		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
+		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(decon_driver, CONFIG_DRM_EXYNOS7_DECON),
-		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
+		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(mixer_driver, CONFIG_DRM_EXYNOS_MIXER),
-		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
+		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(mic_driver, CONFIG_DRM_EXYNOS_MIC),
 		DRM_COMPONENT_DRIVER
@@ -289,27 +265,6 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 	return match ?: ERR_PTR(-ENODEV);
 }
 
-static struct device *exynos_drm_get_dma_device(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
-		struct device *dev;
-
-		if (!info->driver || !(info->flags & DRM_DMA_DEVICE))
-			continue;
-
-		while ((dev = bus_find_device(&platform_bus_type, NULL,
-					    &info->driver->driver,
-					    (void *)platform_bus_type.match))) {
-			put_device(dev);
-			return dev;
-		}
-	}
-	return NULL;
-}
-
 static int exynos_drm_bind(struct device *dev)
 {
 	struct exynos_drm_private *private;
@@ -333,23 +288,6 @@ static int exynos_drm_bind(struct device *dev)
 
 	dev_set_drvdata(dev, drm);
 	drm->dev_private = (void *)private;
-
-	/* the first real CRTC device is used for all dma mapping operations */
-	private->dma_dev = exynos_drm_get_dma_device();
-	if (!private->dma_dev) {
-		DRM_ERROR("no device found for DMA mapping operations.\n");
-		ret = -ENODEV;
-		goto err_free_private;
-	}
-	DRM_INFO("Exynos DRM: using %s device for DMA mapping operations\n",
-		 dev_name(private->dma_dev));
-
-	/* create common IOMMU mapping for all devices attached to Exynos DRM */
-	ret = drm_create_iommu_mapping(drm);
-	if (ret < 0) {
-		DRM_ERROR("failed to create iommu mapping.\n");
-		goto err_free_private;
-	}
 
 	drm_mode_config_init(drm);
 
@@ -407,8 +345,7 @@ err_unbind_all:
 	component_unbind_all(drm->dev, drm);
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(drm);
-	drm_release_iommu_mapping(drm);
-err_free_private:
+	exynos_drm_cleanup_dma(drm);
 	kfree(private);
 err_free_drm:
 	drm_dev_put(drm);
@@ -427,7 +364,7 @@ static void exynos_drm_unbind(struct device *dev)
 
 	component_unbind_all(drm->dev, drm);
 	drm_mode_config_cleanup(drm);
-	drm_release_iommu_mapping(drm);
+	exynos_drm_cleanup_dma(drm);
 
 	kfree(drm->dev_private);
 	drm->dev_private = NULL;

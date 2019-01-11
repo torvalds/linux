@@ -8,6 +8,7 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 #include <linux/sched/user.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/audit.h>
@@ -24,7 +25,7 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 	old = FANOTIFY_E(old_fsn);
 	new = FANOTIFY_E(new_fsn);
 
-	if (old_fsn->inode == new_fsn->inode && old->tgid == new->tgid &&
+	if (old_fsn->inode == new_fsn->inode && old->pid == new->pid &&
 	    old->path.mnt == new->path.mnt &&
 	    old->path.dentry == new->path.dentry)
 		return true;
@@ -88,7 +89,13 @@ static int fanotify_get_response(struct fsnotify_group *group,
 	return ret;
 }
 
-static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
+/*
+ * This function returns a mask for an event that only contains the flags
+ * that have been specifically requested by the user. Flags that may have
+ * been included within the event mask, but have not been explicitly
+ * requested by the user, will not be present in the returned mask.
+ */
+static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
 				       u32 event_mask, const void *data,
 				       int data_type)
 {
@@ -100,26 +107,26 @@ static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
 	pr_debug("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
 		 __func__, iter_info->report_mask, event_mask, data, data_type);
 
-	/* if we don't have enough info to send an event to userspace say no */
+	/* If we don't have enough info to send an event to userspace say no */
 	if (data_type != FSNOTIFY_EVENT_PATH)
-		return false;
+		return 0;
 
-	/* sorry, fanotify only gives a damn about files and dirs */
+	/* Sorry, fanotify only gives a damn about files and dirs */
 	if (!d_is_reg(path->dentry) &&
 	    !d_can_lookup(path->dentry))
-		return false;
+		return 0;
 
 	fsnotify_foreach_obj_type(type) {
 		if (!fsnotify_iter_should_report_type(iter_info, type))
 			continue;
 		mark = iter_info->marks[type];
 		/*
-		 * if the event is for a child and this inode doesn't care about
-		 * events on the child, don't send it!
+		 * If the event is for a child and this mark doesn't care about
+		 * events on a child, don't send it!
 		 */
-		if (type == FSNOTIFY_OBJ_TYPE_INODE &&
-		    (event_mask & FS_EVENT_ON_CHILD) &&
-		    !(mark->mask & FS_EVENT_ON_CHILD))
+		if (event_mask & FS_EVENT_ON_CHILD &&
+		    (type != FSNOTIFY_OBJ_TYPE_INODE ||
+		     !(mark->mask & FS_EVENT_ON_CHILD)))
 			continue;
 
 		marks_mask |= mark->mask;
@@ -128,13 +135,10 @@ static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
 
 	if (d_is_dir(path->dentry) &&
 	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
-		return false;
+		return 0;
 
-	if (event_mask & FAN_ALL_OUTGOING_EVENTS & marks_mask &
-				 ~marks_ignored_mask)
-		return true;
-
-	return false;
+	return event_mask & FANOTIFY_OUTGOING_EVENTS & marks_mask &
+		~marks_ignored_mask;
 }
 
 struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
@@ -170,7 +174,10 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
 		goto out;
 init: __maybe_unused
 	fsnotify_init_event(&event->fse, inode, mask);
-	event->tgid = get_pid(task_tgid(current));
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
+		event->pid = get_pid(task_pid(current));
+	else
+		event->pid = get_pid(task_tgid(current));
 	if (path) {
 		event->path = *path;
 		path_get(&event->path);
@@ -203,8 +210,13 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_OPEN_PERM != FS_OPEN_PERM);
 	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
 	BUILD_BUG_ON(FAN_ONDIR != FS_ISDIR);
+	BUILD_BUG_ON(FAN_OPEN_EXEC != FS_OPEN_EXEC);
+	BUILD_BUG_ON(FAN_OPEN_EXEC_PERM != FS_OPEN_EXEC_PERM);
 
-	if (!fanotify_should_send_event(iter_info, mask, data, data_type))
+	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 12);
+
+	mask = fanotify_group_event_mask(iter_info, mask, data, data_type);
+	if (!mask)
 		return 0;
 
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
@@ -235,7 +247,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
 	if (ret) {
 		/* Permission events shouldn't be merged */
-		BUG_ON(ret == 1 && mask & FAN_ALL_PERM_EVENTS);
+		BUG_ON(ret == 1 && mask & FANOTIFY_PERM_EVENTS);
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
 
@@ -267,7 +279,7 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 
 	event = FANOTIFY_E(fsn_event);
 	path_put(&event->path);
-	put_pid(event->tgid);
+	put_pid(event->pid);
 	if (fanotify_is_perm_event(fsn_event->mask)) {
 		kmem_cache_free(fanotify_perm_event_cachep,
 				FANOTIFY_PE(fsn_event));

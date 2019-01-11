@@ -57,4 +57,13 @@ void a6xx_gmu_clear_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state);
 int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node);
 void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu);
 
+void a6xx_gmu_set_freq(struct msm_gpu *gpu, unsigned long freq);
+unsigned long a6xx_gmu_get_freq(struct msm_gpu *gpu);
+
+void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
+		struct drm_printer *p);
+
+struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu);
+int a6xx_gpu_state_put(struct msm_gpu_state *state);
+
 #endif /* __A6XX_GPU_H__ */

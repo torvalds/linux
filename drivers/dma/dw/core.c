@@ -160,12 +160,14 @@ static void dwc_initialize_chan_idma32(struct dw_dma_chan *dwc)
 
 static void dwc_initialize_chan_dw(struct dw_dma_chan *dwc)
 {
+	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
 	u32 cfghi = DWC_CFGH_FIFO_MODE;
 	u32 cfglo = DWC_CFGL_CH_PRIOR(dwc->priority);
 	bool hs_polarity = dwc->dws.hs_polarity;
 
 	cfghi |= DWC_CFGH_DST_PER(dwc->dws.dst_id);
 	cfghi |= DWC_CFGH_SRC_PER(dwc->dws.src_id);
+	cfghi |= DWC_CFGH_PROTCTL(dw->pdata->protctl);
 
 	/* Set polarity of handshake interface */
 	cfglo |= hs_polarity ? DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL : 0;
@@ -886,12 +888,7 @@ static int dwc_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	 */
 	u32 s = dw->pdata->is_idma32 ? 1 : 2;
 
-	/* Check if chan will be configured for slave transfers */
-	if (!is_slave_direction(sconfig->direction))
-		return -EINVAL;
-
 	memcpy(&dwc->dma_sconfig, sconfig, sizeof(*sconfig));
-	dwc->direction = sconfig->direction;
 
 	sc->src_maxburst = sc->src_maxburst > 1 ? fls(sc->src_maxburst) - s : 0;
 	sc->dst_maxburst = sc->dst_maxburst > 1 ? fls(sc->dst_maxburst) - s : 0;
@@ -1064,12 +1061,12 @@ static void dwc_issue_pending(struct dma_chan *chan)
 /*
  * Program FIFO size of channels.
  *
- * By default full FIFO (1024 bytes) is assigned to channel 0. Here we
+ * By default full FIFO (512 bytes) is assigned to channel 0. Here we
  * slice FIFO on equal parts between channels.
  */
 static void idma32_fifo_partition(struct dw_dma *dw)
 {
-	u64 value = IDMA32C_FP_PSIZE_CH0(128) | IDMA32C_FP_PSIZE_CH1(128) |
+	u64 value = IDMA32C_FP_PSIZE_CH0(64) | IDMA32C_FP_PSIZE_CH1(64) |
 		    IDMA32C_FP_UPDATE;
 	u64 fifo_partition = 0;
 
@@ -1082,7 +1079,7 @@ static void idma32_fifo_partition(struct dw_dma *dw)
 	/* Fill FIFO_PARTITION high bits (Channels 2..3, 6..7) */
 	fifo_partition |= value << 32;
 
-	/* Program FIFO Partition registers - 128 bytes for each channel */
+	/* Program FIFO Partition registers - 64 bytes per channel */
 	idma32_writeq(dw, FIFO_PARTITION1, fifo_partition);
 	idma32_writeq(dw, FIFO_PARTITION0, fifo_partition);
 }

@@ -54,12 +54,6 @@ static int to_nd_device_type(struct device *dev)
 
 static int nvdimm_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	/*
-	 * Ensure that region devices always have their numa node set as
-	 * early as possible.
-	 */
-	if (is_nd_region(dev))
-		set_dev_node(dev, to_nd_region(dev)->numa_node);
 	return add_uevent_var(env, "MODALIAS=" ND_DEVICE_MODALIAS_FMT,
 			to_nd_device_type(dev));
 }
@@ -337,6 +331,12 @@ struct nvdimm_bus *to_nvdimm_bus(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(to_nvdimm_bus);
 
+struct nvdimm_bus *nvdimm_to_bus(struct nvdimm *nvdimm)
+{
+	return to_nvdimm_bus(nvdimm->dev.parent);
+}
+EXPORT_SYMBOL_GPL(nvdimm_to_bus);
+
 struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nd_desc)
 {
@@ -350,12 +350,12 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 	INIT_LIST_HEAD(&nvdimm_bus->mapping_list);
 	init_waitqueue_head(&nvdimm_bus->probe_wait);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
-	mutex_init(&nvdimm_bus->reconfig_mutex);
-	badrange_init(&nvdimm_bus->badrange);
 	if (nvdimm_bus->id < 0) {
 		kfree(nvdimm_bus);
 		return NULL;
 	}
+	mutex_init(&nvdimm_bus->reconfig_mutex);
+	badrange_init(&nvdimm_bus->badrange);
 	nvdimm_bus->nd_desc = nd_desc;
 	nvdimm_bus->dev.parent = parent;
 	nvdimm_bus->dev.release = nvdimm_bus_release;
@@ -393,9 +393,24 @@ static int child_unregister(struct device *dev, void *data)
 	 * i.e. remove classless children
 	 */
 	if (dev->class)
-		/* pass */;
-	else
-		nd_device_unregister(dev, ND_SYNC);
+		return 0;
+
+	if (is_nvdimm(dev)) {
+		struct nvdimm *nvdimm = to_nvdimm(dev);
+		bool dev_put = false;
+
+		/* We are shutting down. Make state frozen artificially. */
+		nvdimm_bus_lock(dev);
+		nvdimm->sec.state = NVDIMM_SECURITY_FROZEN;
+		if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
+			dev_put = true;
+		nvdimm_bus_unlock(dev);
+		cancel_delayed_work_sync(&nvdimm->dwork);
+		if (dev_put)
+			put_device(dev);
+	}
+	nd_device_unregister(dev, ND_SYNC);
+
 	return 0;
 }
 
@@ -488,6 +503,8 @@ static void nd_async_device_register(void *d, async_cookie_t cookie)
 		put_device(dev);
 	}
 	put_device(dev);
+	if (dev->parent)
+		put_device(dev->parent);
 }
 
 static void nd_async_device_unregister(void *d, async_cookie_t cookie)
@@ -506,7 +523,19 @@ void __nd_device_register(struct device *dev)
 {
 	if (!dev)
 		return;
+
+	/*
+	 * Ensure that region devices always have their NUMA node set as
+	 * early as possible. This way we are able to make certain that
+	 * any memory associated with the creation and the creation
+	 * itself of the region is associated with the correct node.
+	 */
+	if (is_nd_region(dev))
+		set_dev_node(dev, to_nd_region(dev)->numa_node);
+
 	dev->bus = &nvdimm_bus_type;
+	if (dev->parent)
+		get_device(dev->parent);
 	get_device(dev);
 	async_schedule_domain(nd_async_device_register, dev,
 			&nd_async_domain);
@@ -812,9 +841,9 @@ u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 		 * overshoots the remainder by 4 bytes, assume it was
 		 * including 'status'.
 		 */
-		if (out_field[1] - 8 == remainder)
+		if (out_field[1] - 4 == remainder)
 			return remainder;
-		return out_field[1] - 4;
+		return out_field[1] - 8;
 	} else if (cmd == ND_CMD_CALL) {
 		struct nd_cmd_pkg *pkg = (struct nd_cmd_pkg *) in_field;
 
@@ -894,7 +923,7 @@ static int nd_cmd_clear_to_send(struct nvdimm_bus *nvdimm_bus,
 
 	/* ask the bus provider if it would like to block this request */
 	if (nd_desc->clear_to_send) {
-		int rc = nd_desc->clear_to_send(nd_desc, nvdimm, cmd);
+		int rc = nd_desc->clear_to_send(nd_desc, nvdimm, cmd, data);
 
 		if (rc)
 			return rc;

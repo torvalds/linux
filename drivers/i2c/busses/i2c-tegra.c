@@ -115,6 +115,18 @@
 
 #define I2C_CONFIG_LOAD_TIMEOUT			1000000
 
+#define I2C_MST_FIFO_CONTROL			0x0b4
+#define I2C_MST_FIFO_CONTROL_RX_FLUSH		BIT(0)
+#define I2C_MST_FIFO_CONTROL_TX_FLUSH		BIT(1)
+#define I2C_MST_FIFO_CONTROL_RX_TRIG(x)		(((x) - 1) <<  4)
+#define I2C_MST_FIFO_CONTROL_TX_TRIG(x)		(((x) - 1) << 16)
+
+#define I2C_MST_FIFO_STATUS			0x0b8
+#define I2C_MST_FIFO_STATUS_RX_MASK		0xff
+#define I2C_MST_FIFO_STATUS_RX_SHIFT		0
+#define I2C_MST_FIFO_STATUS_TX_MASK		0xff0000
+#define I2C_MST_FIFO_STATUS_TX_SHIFT		16
+
 /*
  * msg_end_type: The bus control which need to be send at end of transfer.
  * @MSG_END_STOP: Send stop pulse at end of transfer.
@@ -154,6 +166,7 @@ struct tegra_i2c_hw_feature {
 	u16 clk_divisor_fast_plus_mode;
 	bool has_multi_master_mode;
 	bool has_slcg_override_reg;
+	bool has_mst_fifo;
 };
 
 /**
@@ -266,13 +279,24 @@ static void tegra_i2c_unmask_irq(struct tegra_i2c_dev *i2c_dev, u32 mask)
 static int tegra_i2c_flush_fifos(struct tegra_i2c_dev *i2c_dev)
 {
 	unsigned long timeout = jiffies + HZ;
-	u32 val = i2c_readl(i2c_dev, I2C_FIFO_CONTROL);
+	unsigned int offset;
+	u32 mask, val;
 
-	val |= I2C_FIFO_CONTROL_TX_FLUSH | I2C_FIFO_CONTROL_RX_FLUSH;
-	i2c_writel(i2c_dev, val, I2C_FIFO_CONTROL);
+	if (i2c_dev->hw->has_mst_fifo) {
+		mask = I2C_MST_FIFO_CONTROL_TX_FLUSH |
+		       I2C_MST_FIFO_CONTROL_RX_FLUSH;
+		offset = I2C_MST_FIFO_CONTROL;
+	} else {
+		mask = I2C_FIFO_CONTROL_TX_FLUSH |
+		       I2C_FIFO_CONTROL_RX_FLUSH;
+		offset = I2C_FIFO_CONTROL;
+	}
 
-	while (i2c_readl(i2c_dev, I2C_FIFO_CONTROL) &
-		(I2C_FIFO_CONTROL_TX_FLUSH | I2C_FIFO_CONTROL_RX_FLUSH)) {
+	val = i2c_readl(i2c_dev, offset);
+	val |= mask;
+	i2c_writel(i2c_dev, val, offset);
+
+	while (i2c_readl(i2c_dev, offset) & mask) {
 		if (time_after(jiffies, timeout)) {
 			dev_warn(i2c_dev->dev, "timeout waiting for fifo flush\n");
 			return -ETIMEDOUT;
@@ -290,9 +314,15 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 	size_t buf_remaining = i2c_dev->msg_buf_remaining;
 	int words_to_transfer;
 
-	val = i2c_readl(i2c_dev, I2C_FIFO_STATUS);
-	rx_fifo_avail = (val & I2C_FIFO_STATUS_RX_MASK) >>
-		I2C_FIFO_STATUS_RX_SHIFT;
+	if (i2c_dev->hw->has_mst_fifo) {
+		val = i2c_readl(i2c_dev, I2C_MST_FIFO_STATUS);
+		rx_fifo_avail = (val & I2C_MST_FIFO_STATUS_RX_MASK) >>
+			I2C_MST_FIFO_STATUS_RX_SHIFT;
+	} else {
+		val = i2c_readl(i2c_dev, I2C_FIFO_STATUS);
+		rx_fifo_avail = (val & I2C_FIFO_STATUS_RX_MASK) >>
+			I2C_FIFO_STATUS_RX_SHIFT;
+	}
 
 	/* Rounds down to not include partial word at the end of buf */
 	words_to_transfer = buf_remaining / BYTES_PER_FIFO_WORD;
@@ -321,6 +351,7 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 	BUG_ON(rx_fifo_avail > 0 && buf_remaining > 0);
 	i2c_dev->msg_buf_remaining = buf_remaining;
 	i2c_dev->msg_buf = buf;
+
 	return 0;
 }
 
@@ -332,9 +363,15 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 	size_t buf_remaining = i2c_dev->msg_buf_remaining;
 	int words_to_transfer;
 
-	val = i2c_readl(i2c_dev, I2C_FIFO_STATUS);
-	tx_fifo_avail = (val & I2C_FIFO_STATUS_TX_MASK) >>
-		I2C_FIFO_STATUS_TX_SHIFT;
+	if (i2c_dev->hw->has_mst_fifo) {
+		val = i2c_readl(i2c_dev, I2C_MST_FIFO_STATUS);
+		tx_fifo_avail = (val & I2C_MST_FIFO_STATUS_TX_MASK) >>
+			I2C_MST_FIFO_STATUS_TX_SHIFT;
+	} else {
+		val = i2c_readl(i2c_dev, I2C_FIFO_STATUS);
+		tx_fifo_avail = (val & I2C_FIFO_STATUS_TX_MASK) >>
+			I2C_FIFO_STATUS_TX_SHIFT;
+	}
 
 	/* Rounds down to not include partial word at the end of buf */
 	words_to_transfer = buf_remaining / BYTES_PER_FIFO_WORD;
@@ -516,9 +553,15 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 		i2c_writel(i2c_dev, 0x00, I2C_SL_ADDR2);
 	}
 
-	val = 7 << I2C_FIFO_CONTROL_TX_TRIG_SHIFT |
-		0 << I2C_FIFO_CONTROL_RX_TRIG_SHIFT;
-	i2c_writel(i2c_dev, val, I2C_FIFO_CONTROL);
+	if (i2c_dev->hw->has_mst_fifo) {
+		val = I2C_MST_FIFO_CONTROL_TX_TRIG(8) |
+		      I2C_MST_FIFO_CONTROL_RX_TRIG(1);
+		i2c_writel(i2c_dev, val, I2C_MST_FIFO_CONTROL);
+	} else {
+		val = 7 << I2C_FIFO_CONTROL_TX_TRIG_SHIFT |
+			0 << I2C_FIFO_CONTROL_RX_TRIG_SHIFT;
+		i2c_writel(i2c_dev, val, I2C_FIFO_CONTROL);
+	}
 
 	err = tegra_i2c_flush_fifos(i2c_dev);
 	if (err)
@@ -640,9 +683,6 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	unsigned long flags;
 
 	tegra_i2c_flush_fifos(i2c_dev);
-
-	if (msg->len == 0)
-		return -EINVAL;
 
 	i2c_dev->msg_buf = msg->buf;
 	i2c_dev->msg_buf_remaining = msg->len;
@@ -788,6 +828,7 @@ static const struct i2c_algorithm tegra_i2c_algo = {
 
 /* payload size is only 12 bit */
 static const struct i2c_adapter_quirks tegra_i2c_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
 	.max_read_len = 4096,
 	.max_write_len = 4096,
 };
@@ -802,6 +843,7 @@ static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
 	.has_config_load_reg = false,
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = false,
+	.has_mst_fifo = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
@@ -814,6 +856,7 @@ static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
 	.has_config_load_reg = false,
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = false,
+	.has_mst_fifo = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
@@ -826,6 +869,7 @@ static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
 	.has_config_load_reg = false,
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = false,
+	.has_mst_fifo = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra124_i2c_hw = {
@@ -838,6 +882,7 @@ static const struct tegra_i2c_hw_feature tegra124_i2c_hw = {
 	.has_config_load_reg = true,
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = true,
+	.has_mst_fifo = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra210_i2c_hw = {
@@ -850,10 +895,25 @@ static const struct tegra_i2c_hw_feature tegra210_i2c_hw = {
 	.has_config_load_reg = true,
 	.has_multi_master_mode = true,
 	.has_slcg_override_reg = true,
+	.has_mst_fifo = false,
+};
+
+static const struct tegra_i2c_hw_feature tegra194_i2c_hw = {
+	.has_continue_xfer_support = true,
+	.has_per_pkt_xfer_complete_irq = true,
+	.has_single_clk_source = true,
+	.clk_divisor_hs_mode = 1,
+	.clk_divisor_std_fast_mode = 0x19,
+	.clk_divisor_fast_plus_mode = 0x10,
+	.has_config_load_reg = true,
+	.has_multi_master_mode = true,
+	.has_slcg_override_reg = true,
+	.has_mst_fifo = true,
 };
 
 /* Match table for of_platform binding */
 static const struct of_device_id tegra_i2c_of_match[] = {
+	{ .compatible = "nvidia,tegra194-i2c", .data = &tegra194_i2c_hw, },
 	{ .compatible = "nvidia,tegra210-i2c", .data = &tegra210_i2c_hw, },
 	{ .compatible = "nvidia,tegra124-i2c", .data = &tegra124_i2c_hw, },
 	{ .compatible = "nvidia,tegra114-i2c", .data = &tegra114_i2c_hw, },

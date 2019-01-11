@@ -37,7 +37,6 @@
 #include <net/tcp.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
-#include <net/tcp.h>
 #include <net/addrconf.h>
 
 #include "rds.h"
@@ -624,7 +623,7 @@ static void __net_exit rds_tcp_exit_net(struct net *net)
 	if (rtn->rds_tcp_sysctl)
 		unregister_net_sysctl_table(rtn->rds_tcp_sysctl);
 
-	if (net != &init_net && rtn->ctl_table)
+	if (net != &init_net)
 		kfree(rtn->ctl_table);
 }
 

@@ -15,11 +15,12 @@
 #ifndef __LINUX_REGULATOR_DRIVER_H_
 #define __LINUX_REGULATOR_DRIVER_H_
 
-#define MAX_COUPLED		4
+#define MAX_COUPLED		2
 
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
+#include <linux/ww_mutex.h>
 
 struct gpio_desc;
 struct regmap;
@@ -271,9 +272,16 @@ enum regulator_type {
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
  * @min_dropout_uV: The minimum dropout voltage this regulator can handle
  * @linear_ranges: A constant table of possible voltage ranges.
- * @n_linear_ranges: Number of entries in the @linear_ranges table.
+ * @linear_range_selectors: A constant table of voltage range selectors.
+ *			    If pickable ranges are used each range must
+ *			    have corresponding selector here.
+ * @n_linear_ranges: Number of entries in the @linear_ranges (and in
+ *		     linear_range_selectors if used) table(s).
  * @volt_table: Voltage mapping table (if table based mapping)
  *
+ * @vsel_range_reg: Register for range selector when using pickable ranges
+ *		    and regulator_regmap_X_voltage_X_pickable functions.
+ * @vsel_range_mask: Mask for register bitfield used for range selector
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
  * @csel_reg: Register for TPS65218 LS3 current regulator
@@ -338,10 +346,14 @@ struct regulator_desc {
 	int min_dropout_uV;
 
 	const struct regulator_linear_range *linear_ranges;
+	const unsigned int *linear_range_selectors;
+
 	int n_linear_ranges;
 
 	const unsigned int *volt_table;
 
+	unsigned int vsel_range_reg;
+	unsigned int vsel_range_mask;
 	unsigned int vsel_reg;
 	unsigned int vsel_mask;
 	unsigned int csel_reg;
@@ -451,7 +463,7 @@ struct regulator_dev {
 	struct coupling_desc coupling_desc;
 
 	struct blocking_notifier_head notifier;
-	struct mutex mutex; /* consumer lock */
+	struct ww_mutex mutex; /* consumer lock */
 	struct task_struct *mutex_owner;
 	int ref_cnt;
 	struct module *owner;
@@ -462,7 +474,6 @@ struct regulator_dev {
 	struct regmap *regmap;
 
 	struct delayed_work disable_work;
-	int deferred_disables;
 
 	void *reg_data;		/* regulator_dev data */
 
@@ -498,18 +509,25 @@ int regulator_mode_to_status(unsigned int);
 
 int regulator_list_voltage_linear(struct regulator_dev *rdev,
 				  unsigned int selector);
+int regulator_list_voltage_pickable_linear_range(struct regulator_dev *rdev,
+						   unsigned int selector);
 int regulator_list_voltage_linear_range(struct regulator_dev *rdev,
 					unsigned int selector);
 int regulator_list_voltage_table(struct regulator_dev *rdev,
 				  unsigned int selector);
 int regulator_map_voltage_linear(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
+int regulator_map_voltage_pickable_linear_range(struct regulator_dev *rdev,
+						  int min_uV, int max_uV);
 int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
 				       int min_uV, int max_uV);
 int regulator_map_voltage_iterate(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
 int regulator_map_voltage_ascend(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
+int regulator_get_voltage_sel_pickable_regmap(struct regulator_dev *rdev);
+int regulator_set_voltage_sel_pickable_regmap(struct regulator_dev *rdev,
+						unsigned int sel);
 int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev);
 int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel);
 int regulator_is_enabled_regmap(struct regulator_dev *rdev);
@@ -526,5 +544,8 @@ int regulator_set_pull_down_regmap(struct regulator_dev *rdev);
 int regulator_set_active_discharge_regmap(struct regulator_dev *rdev,
 					  bool enable);
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
+
+void regulator_lock(struct regulator_dev *rdev);
+void regulator_unlock(struct regulator_dev *rdev);
 
 #endif

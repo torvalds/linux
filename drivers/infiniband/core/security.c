@@ -626,10 +626,10 @@ int ib_security_modify_qp(struct ib_qp *qp,
 	}
 
 	if (!ret)
-		ret = real_qp->device->modify_qp(real_qp,
-						 qp_attr,
-						 qp_attr_mask,
-						 udata);
+		ret = real_qp->device->ops.modify_qp(real_qp,
+						     qp_attr,
+						     qp_attr_mask,
+						     udata);
 
 	if (new_pps) {
 		/* Clean up the lists and free the appropriate
@@ -685,9 +685,8 @@ static int ib_mad_agent_security_change(struct notifier_block *nb,
 	if (event != LSM_POLICY_CHANGE)
 		return NOTIFY_DONE;
 
-	ag->smp_allowed = !security_ib_endport_manage_subnet(ag->security,
-							     ag->device->name,
-							     ag->port_num);
+	ag->smp_allowed = !security_ib_endport_manage_subnet(
+		ag->security, dev_name(&ag->device->dev), ag->port_num);
 
 	return NOTIFY_OK;
 }
@@ -708,7 +707,7 @@ int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
 		return 0;
 
 	ret = security_ib_endport_manage_subnet(agent->security,
-						agent->device->name,
+						dev_name(&agent->device->dev),
 						agent->port_num);
 	if (ret)
 		return ret;

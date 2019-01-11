@@ -297,7 +297,7 @@ int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 	}
 #endif
 
-	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long))) {
+	if (regno < (sizeof(struct user_pt_regs) / sizeof(unsigned long))) {
 		*data = ((unsigned long *)task->thread.regs)[regno];
 		return 0;
 	}
@@ -360,10 +360,10 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					  &target->thread.regs->orig_gpr3,
 					  offsetof(struct pt_regs, orig_gpr3),
-					  sizeof(struct pt_regs));
+					  sizeof(struct user_pt_regs));
 	if (!ret)
 		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       sizeof(struct pt_regs), -1);
+					       sizeof(struct user_pt_regs), -1);
 
 	return ret;
 }
@@ -853,10 +853,10 @@ static int tm_cgpr_get(struct task_struct *target,
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					  &target->thread.ckpt_regs.orig_gpr3,
 					  offsetof(struct pt_regs, orig_gpr3),
-					  sizeof(struct pt_regs));
+					  sizeof(struct user_pt_regs));
 	if (!ret)
 		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       sizeof(struct pt_regs), -1);
+					       sizeof(struct user_pt_regs), -1);
 
 	return ret;
 }
@@ -1609,7 +1609,7 @@ static int ppr_get(struct task_struct *target,
 		      void *kbuf, void __user *ubuf)
 {
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.ppr, 0, sizeof(u64));
+				   &target->thread.regs->ppr, 0, sizeof(u64));
 }
 
 static int ppr_set(struct task_struct *target,
@@ -1618,7 +1618,7 @@ static int ppr_set(struct task_struct *target,
 		      const void *kbuf, const void __user *ubuf)
 {
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.ppr, 0, sizeof(u64));
+				  &target->thread.regs->ppr, 0, sizeof(u64));
 }
 
 static int dscr_get(struct task_struct *target,
@@ -2508,6 +2508,7 @@ void ptrace_disable(struct task_struct *child)
 {
 	/* make sure the single step bit is not set. */
 	user_disable_single_step(child);
+	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 }
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -3130,7 +3131,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_GETREGS:	/* Get all pt_regs from the child. */
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_GPR,
-					   0, sizeof(struct pt_regs),
+					   0, sizeof(struct user_pt_regs),
 					   datavp);
 
 #ifdef CONFIG_PPC64
@@ -3139,7 +3140,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_GPR,
-					     0, sizeof(struct pt_regs),
+					     0, sizeof(struct user_pt_regs),
 					     datavp);
 
 	case PTRACE_GETFPREGS: /* Get the child FPU state (FPR0...31 + FPSCR) */
@@ -3262,17 +3263,40 @@ static inline int do_seccomp(struct pt_regs *regs) { return 0; }
  */
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
+	u32 flags;
+
 	user_exit();
 
-	/*
-	 * The tracer may decide to abort the syscall, if so tracehook
-	 * will return !0. Note that the tracer may also just change
-	 * regs->gpr[0] to an invalid syscall number, that is handled
-	 * below on the exit path.
-	 */
-	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
-		goto skip;
+	flags = READ_ONCE(current_thread_info()->flags) &
+		(_TIF_SYSCALL_EMU | _TIF_SYSCALL_TRACE);
+
+	if (flags) {
+		int rc = tracehook_report_syscall_entry(regs);
+
+		if (unlikely(flags & _TIF_SYSCALL_EMU)) {
+			/*
+			 * A nonzero return code from
+			 * tracehook_report_syscall_entry() tells us to prevent
+			 * the syscall execution, but we are not going to
+			 * execute it anyway.
+			 *
+			 * Returning -1 will skip the syscall execution. We want
+			 * to avoid clobbering any registers, so we don't goto
+			 * the skip label below.
+			 */
+			return -1;
+		}
+
+		if (rc) {
+			/*
+			 * The tracer decided to abort the syscall. Note that
+			 * the tracer may also just change regs->gpr[0] to an
+			 * invalid syscall number, that is handled below on the
+			 * exit path.
+			 */
+			goto skip;
+		}
+	}
 
 	/* Run seccomp after ptrace; allow it to set gpr[3]. */
 	if (do_seccomp(regs))
@@ -3323,4 +3347,43 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 		tracehook_report_syscall_exit(regs, step);
 
 	user_enter();
+}
+
+void __init pt_regs_check(void)
+{
+	BUILD_BUG_ON(offsetof(struct pt_regs, gpr) !=
+		     offsetof(struct user_pt_regs, gpr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, nip) !=
+		     offsetof(struct user_pt_regs, nip));
+	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+		     offsetof(struct user_pt_regs, msr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+		     offsetof(struct user_pt_regs, msr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+		     offsetof(struct user_pt_regs, orig_gpr3));
+	BUILD_BUG_ON(offsetof(struct pt_regs, ctr) !=
+		     offsetof(struct user_pt_regs, ctr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, link) !=
+		     offsetof(struct user_pt_regs, link));
+	BUILD_BUG_ON(offsetof(struct pt_regs, xer) !=
+		     offsetof(struct user_pt_regs, xer));
+	BUILD_BUG_ON(offsetof(struct pt_regs, ccr) !=
+		     offsetof(struct user_pt_regs, ccr));
+#ifdef __powerpc64__
+	BUILD_BUG_ON(offsetof(struct pt_regs, softe) !=
+		     offsetof(struct user_pt_regs, softe));
+#else
+	BUILD_BUG_ON(offsetof(struct pt_regs, mq) !=
+		     offsetof(struct user_pt_regs, mq));
+#endif
+	BUILD_BUG_ON(offsetof(struct pt_regs, trap) !=
+		     offsetof(struct user_pt_regs, trap));
+	BUILD_BUG_ON(offsetof(struct pt_regs, dar) !=
+		     offsetof(struct user_pt_regs, dar));
+	BUILD_BUG_ON(offsetof(struct pt_regs, dsisr) !=
+		     offsetof(struct user_pt_regs, dsisr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, result) !=
+		     offsetof(struct user_pt_regs, result));
+
+	BUILD_BUG_ON(sizeof(struct user_pt_regs) > sizeof(struct pt_regs));
 }

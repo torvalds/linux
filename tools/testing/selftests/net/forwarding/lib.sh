@@ -15,6 +15,8 @@ PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
 NETIF_TYPE=${NETIF_TYPE:=veth}
 NETIF_CREATE=${NETIF_CREATE:=yes}
+MCD=${MCD:=smcrouted}
+MC_CLI=${MC_CLI:=smcroutectl}
 
 relative_path="${BASH_SOURCE%/*}"
 if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
@@ -104,7 +106,7 @@ create_netif_veth()
 {
 	local i
 
-	for i in $(eval echo {1..$NUM_NETIFS}); do
+	for ((i = 1; i <= NUM_NETIFS; ++i)); do
 		local j=$((i+1))
 
 		ip link show dev ${NETIFS[p$i]} &> /dev/null
@@ -135,7 +137,7 @@ if [[ "$NETIF_CREATE" = "yes" ]]; then
 	create_netif
 fi
 
-for i in $(eval echo {1..$NUM_NETIFS}); do
+for ((i = 1; i <= NUM_NETIFS; ++i)); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: could not find all required interfaces"
@@ -251,7 +253,7 @@ lldpad_app_wait_set()
 {
 	local dev=$1; shift
 
-	while lldptool -t -i $dev -V APP -c app | grep -q pending; do
+	while lldptool -t -i $dev -V APP -c app | grep -Eq "pending|unknown"; do
 		echo "$dev: waiting for lldpad to push pending APP updates"
 		sleep 5
 	done
@@ -477,11 +479,24 @@ master_name_get()
 	ip -j link show dev $if_name | jq -r '.[]["master"]'
 }
 
+link_stats_get()
+{
+	local if_name=$1; shift
+	local dir=$1; shift
+	local stat=$1; shift
+
+	ip -j -s link show dev $if_name \
+		| jq '.[]["stats64"]["'$dir'"]["'$stat'"]'
+}
+
 link_stats_tx_packets_get()
 {
-       local if_name=$1
+	link_stats_get $1 tx packets
+}
 
-       ip -j -s link show dev $if_name | jq '.[]["stats64"]["tx"]["packets"]'
+link_stats_rx_errors_get()
+{
+	link_stats_get $1 rx errors
 }
 
 tc_rule_stats_get()
@@ -492,6 +507,14 @@ tc_rule_stats_get()
 
 	tc -j -s filter show dev $dev ${dir:-ingress} pref $pref \
 	    | jq '.[1].options.actions[].stats.packets'
+}
+
+ethtool_stats_get()
+{
+	local dev=$1; shift
+	local stat=$1; shift
+
+	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
 }
 
 mac_get()
@@ -539,6 +562,23 @@ forwarding_restore()
 {
 	sysctl_restore net.ipv6.conf.all.forwarding
 	sysctl_restore net.ipv4.conf.all.forwarding
+}
+
+declare -A MTU_ORIG
+mtu_set()
+{
+	local dev=$1; shift
+	local mtu=$1; shift
+
+	MTU_ORIG["$dev"]=$(ip -j link show dev $dev | jq -e '.[].mtu')
+	ip link set dev $dev mtu $mtu
+}
+
+mtu_restore()
+{
+	local dev=$1; shift
+
+	ip link set dev $dev mtu ${MTU_ORIG["$dev"]}
 }
 
 tc_offload_check()
@@ -758,6 +798,17 @@ multipath_eval()
 	log_info "Expected ratio $weights_ratio Measured ratio $packets_ratio"
 }
 
+in_ns()
+{
+	local name=$1; shift
+
+	ip netns exec $name bash <<-EOF
+		NUM_NETIFS=0
+		source lib.sh
+		$(for a in "$@"; do printf "%q${IFS:0:1}" "$a"; done)
+	EOF
+}
+
 ##############################################################################
 # Tests
 
@@ -765,10 +816,11 @@ ping_do()
 {
 	local if_name=$1
 	local dip=$2
+	local args=$3
 	local vrf_name
 
 	vrf_name=$(master_name_get $if_name)
-	ip vrf exec $vrf_name $PING $dip -c 10 -i 0.1 -w 2 &> /dev/null
+	ip vrf exec $vrf_name $PING $args $dip -c 10 -i 0.1 -w 2 &> /dev/null
 }
 
 ping_test()
@@ -777,17 +829,18 @@ ping_test()
 
 	ping_do $1 $2
 	check_err $?
-	log_test "ping"
+	log_test "ping$3"
 }
 
 ping6_do()
 {
 	local if_name=$1
 	local dip=$2
+	local args=$3
 	local vrf_name
 
 	vrf_name=$(master_name_get $if_name)
-	ip vrf exec $vrf_name $PING6 $dip -c 10 -i 0.1 -w 2 &> /dev/null
+	ip vrf exec $vrf_name $PING6 $args $dip -c 10 -i 0.1 -w 2 &> /dev/null
 }
 
 ping6_test()
@@ -796,7 +849,7 @@ ping6_test()
 
 	ping6_do $1 $2
 	check_err $?
-	log_test "ping6"
+	log_test "ping6$3"
 }
 
 learning_test()

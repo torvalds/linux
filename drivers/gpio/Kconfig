@@ -160,6 +160,14 @@ config GPIO_BRCMSTB
 	help
 	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
 
+config GPIO_CADENCE
+	tristate "Cadence GPIO support"
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to enable support for Cadence GPIO controller.
+
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
@@ -200,6 +208,7 @@ config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 
 config GPIO_EXAR
 	tristate "Support for GPIO pins on XR17V352/354/358"
@@ -267,17 +276,6 @@ config GPIO_ICH
 
 	  If unsure, say N.
 
-config GPIO_INGENIC
-	tristate "Ingenic JZ47xx SoCs GPIO support"
-	depends on OF
-	depends on MACH_INGENIC || COMPILE_TEST
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support the GPIO functionality present on the
-	  JZ4740 and JZ4780 SoCs from Ingenic.
-
-	  If unsure, say N.
-
 config GPIO_IOP
 	tristate "Intel IOP GPIO"
 	depends on ARCH_IOP32X || ARCH_IOP33X || COMPILE_TEST
@@ -298,6 +296,7 @@ config GPIO_LPC18XX
 	tristate "NXP LPC18XX/43XX GPIO support"
 	default y if ARCH_LPC18XX
 	depends on OF_GPIO && (ARCH_LPC18XX || COMPILE_TEST)
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Select this option to enable GPIO driver for
 	  NXP LPC18XX/43XX devices.
@@ -439,6 +438,36 @@ config GPIO_REG
 	  A 32-bit single register GPIO fixed in/out implementation.  This
 	  can be used to represent any register as a set of GPIO signals.
 
+config GPIO_SAMA5D2_PIOBU
+	tristate "SAMA5D2 PIOBU GPIO support"
+	depends on MFD_SYSCON
+	depends on OF_GPIO
+	select GPIO_SYSCON
+	help
+	  Say yes here to use the PIOBU pins as GPIOs.
+
+	  PIOBU pins on the SAMA5D2 can be used as GPIOs.
+	  The difference from regular GPIOs is that they
+	  maintain their value during backup/self-refresh.
+
+config GPIO_SIOX
+	tristate "SIOX GPIO support"
+	depends on SIOX
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support SIOX I/O devices. These are units connected
+	  via a SIOX bus and have a number of fixed-direction I/O lines.
+
+config GPIO_SNPS_CREG
+	bool "Synopsys GPIO via CREG (Control REGisters) driver"
+	depends on ARC || COMPILE_TEST
+	depends on OF_GPIO
+	help
+	  This driver supports GPIOs via CREG on various Synopsys SoCs.
+	  This is a single-register MMIO GPIO driver for complex cases
+	  where only several fields in register belong to GPIO lines and
+	  each GPIO line owns a field with different length and on/off value.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
@@ -480,6 +509,7 @@ config GPIO_SYSCON
 
 config GPIO_TB10X
 	bool
+	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
 
@@ -840,6 +870,7 @@ config GPIO_MC9S08DZ60
 
 config GPIO_PCA953X
 	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"
+	select REGMAP_I2C
 	help
 	  Say yes here to provide access to several register-oriented
 	  SMBus I/O expanders, made mostly by NXP or TI.  Compatible

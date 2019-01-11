@@ -55,6 +55,8 @@ struct bus_attribute {
 	struct bus_attribute bus_attr_##_name = __ATTR_RW(_name)
 #define BUS_ATTR_RO(_name) \
 	struct bus_attribute bus_attr_##_name = __ATTR_RO(_name)
+#define BUS_ATTR_WO(_name) \
+	struct bus_attribute bus_attr_##_name = __ATTR_WO(_name)
 
 extern int __must_check bus_create_file(struct bus_type *,
 					struct bus_attribute *);
@@ -692,8 +694,10 @@ static inline void *devm_kcalloc(struct device *dev,
 {
 	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
 }
-extern void devm_kfree(struct device *dev, void *p);
+extern void devm_kfree(struct device *dev, const void *p);
 extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
+extern const char *devm_kstrdup_const(struct device *dev,
+				      const char *s, gfp_t gfp);
 extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
 			  gfp_t gfp);
 
@@ -772,6 +776,30 @@ struct device *device_connection_find(struct device *dev, const char *con_id);
 
 void device_connection_add(struct device_connection *con);
 void device_connection_remove(struct device_connection *con);
+
+/**
+ * device_connections_add - Add multiple device connections at once
+ * @cons: Zero terminated array of device connection descriptors
+ */
+static inline void device_connections_add(struct device_connection *cons)
+{
+	struct device_connection *c;
+
+	for (c = cons; c->endpoint[0]; c++)
+		device_connection_add(c);
+}
+
+/**
+ * device_connections_remove - Remove multiple device connections at once
+ * @cons: Zero terminated array of device connection descriptors
+ */
+static inline void device_connections_remove(struct device_connection *cons)
+{
+	struct device_connection *c;
+
+	for (c = cons; c->endpoint[0]; c++)
+		device_connection_remove(c);
+}
 
 /**
  * enum device_link_state - Device link states.
@@ -927,6 +955,8 @@ struct dev_links_info {
  * @offline:	Set after successful invocation of bus type's .offline().
  * @of_node_reused: Set if the device-tree node is shared with an ancestor
  *              device.
+ * @dma_coherent: this particular device is dma coherent, even if the
+ *		architecture supports non-coherent devices.
  *
  * At the lowest level, every device in a Linux system is represented by an
  * instance of struct device. The device structure contains the information
@@ -1016,11 +1046,26 @@ struct device {
 	bool			offline_disabled:1;
 	bool			offline:1;
 	bool			of_node_reused:1;
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
+	bool			dma_coherent:1;
+#endif
 };
 
 static inline struct device *kobj_to_dev(struct kobject *kobj)
 {
 	return container_of(kobj, struct device, kobj);
+}
+
+/**
+ * device_iommu_mapped - Returns true when the device DMA is translated
+ *			 by an IOMMU
+ * @dev: Device to perform the check on
+ */
+static inline bool device_iommu_mapped(struct device *dev)
+{
+	return (dev->iommu_group != NULL);
 }
 
 /* Get the wakeup routines, which depend on struct device */

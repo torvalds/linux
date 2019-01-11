@@ -28,26 +28,6 @@
 
 #include "virtgpu_drv.h"
 
-static void virtio_pci_kick_out_firmware_fb(struct pci_dev *pci_dev)
-{
-	struct apertures_struct *ap;
-	bool primary;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return;
-
-	ap->ranges[0].base = pci_resource_start(pci_dev, 0);
-	ap->ranges[0].size = pci_resource_len(pci_dev, 0);
-
-	primary = pci_dev->resource[PCI_ROM_RESOURCE].flags
-		& IORESOURCE_ROM_SHADOW;
-
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "virtiodrmfb", primary);
-
-	kfree(ap);
-}
-
 int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 {
 	struct drm_device *dev;
@@ -69,8 +49,41 @@ int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 			 pname);
 		dev->pdev = pdev;
 		if (vga)
-			virtio_pci_kick_out_firmware_fb(pdev);
+			drm_fb_helper_remove_conflicting_pci_framebuffers(pdev,
+									  0,
+									  "virtiodrmfb");
 
+		/*
+		 * Normally the drm_dev_set_unique() call is done by core DRM.
+		 * The following comment covers, why virtio cannot rely on it.
+		 *
+		 * Unlike the other virtual GPU drivers, virtio abstracts the
+		 * underlying bus type by using struct virtio_device.
+		 *
+		 * Hence the dev_is_pci() check, used in core DRM, will fail
+		 * and the unique returned will be the virtio_device "virtio0",
+		 * while a "pci:..." one is required.
+		 *
+		 * A few other ideas were considered:
+		 * - Extend the dev_is_pci() check [in drm_set_busid] to
+		 *   consider virtio.
+		 *   Seems like a bigger hack than what we have already.
+		 *
+		 * - Point drm_device::dev to the parent of the virtio_device
+		 *   Semantic changes:
+		 *   * Using the wrong device for i2c, framebuffer_alloc and
+		 *     prime import.
+		 *   Visual changes:
+		 *   * Helpers such as DRM_DEV_ERROR, dev_info, drm_printer,
+		 *     will print the wrong information.
+		 *
+		 * We could address the latter issues, by introducing
+		 * drm_device::bus_dev, ... which would be used solely for this.
+		 *
+		 * So for the moment keep things as-is, with a bulky comment
+		 * for the next person who feels like removing this
+		 * drm_dev_set_unique() quirk.
+		 */
 		snprintf(unique, sizeof(unique), "pci:%s", pname);
 		ret = drm_dev_set_unique(dev, unique);
 		if (ret)
@@ -85,6 +98,6 @@ int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 	return 0;
 
 err_free:
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 	return ret;
 }

@@ -18,7 +18,7 @@ extern const struct dma_map_ops arm_coherent_dma_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	return IS_ENABLED(CONFIG_MMU) ? &arm_dma_ops : &dma_direct_ops;
+	return IS_ENABLED(CONFIG_MMU) ? &arm_dma_ops : NULL;
 }
 
 #ifdef __arch_page_to_dma
@@ -100,8 +100,10 @@ static inline unsigned long dma_max_pfn(struct device *dev)
 extern void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			       const struct iommu_ops *iommu, bool coherent);
 
+#ifdef CONFIG_MMU
 #define arch_teardown_dma_ops arch_teardown_dma_ops
 extern void arch_teardown_dma_ops(struct device *dev);
+#endif
 
 /* do not use this function in a driver */
 static inline bool is_device_dma_coherent(struct device *dev)

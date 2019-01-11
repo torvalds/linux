@@ -25,15 +25,10 @@
 #define PHY_ID_AQR107	0x03a1b4e0
 #define PHY_ID_AQR405	0x03a1b4b0
 
-#define PHY_AQUANTIA_FEATURES	(SUPPORTED_10000baseT_Full | \
-				 SUPPORTED_1000baseT_Full | \
-				 SUPPORTED_100baseT_Full | \
-				 PHY_DEFAULT_FEATURES)
-
 static int aquantia_config_aneg(struct phy_device *phydev)
 {
-	phydev->supported = PHY_AQUANTIA_FEATURES;
-	phydev->advertising = phydev->supported;
+	linkmode_copy(phydev->supported, phy_10gbit_features);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	return 0;
 }
@@ -115,8 +110,7 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id		= PHY_ID_AQ1202,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQ1202",
-	.features	= PHY_AQUANTIA_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
 	.config_intr	= aquantia_config_intr,
@@ -127,8 +121,7 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id		= PHY_ID_AQ2104,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQ2104",
-	.features	= PHY_AQUANTIA_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
 	.config_intr	= aquantia_config_intr,
@@ -139,8 +132,7 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id		= PHY_ID_AQR105,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQR105",
-	.features	= PHY_AQUANTIA_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
 	.config_intr	= aquantia_config_intr,
@@ -151,8 +143,7 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id		= PHY_ID_AQR106,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQR106",
-	.features	= PHY_AQUANTIA_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
 	.config_intr	= aquantia_config_intr,
@@ -163,8 +154,7 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id		= PHY_ID_AQR107,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQR107",
-	.features	= PHY_AQUANTIA_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
 	.config_intr	= aquantia_config_intr,
@@ -175,8 +165,7 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id		= PHY_ID_AQR405,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQR405",
-	.features	= PHY_AQUANTIA_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
 	.config_intr	= aquantia_config_intr,

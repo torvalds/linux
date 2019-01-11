@@ -943,20 +943,8 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 				return 0;
 			}
 			spin_unlock_bh(&cmd->istate_lock);
-			/*
-			 * Determine if delayed TASK_ABORTED status for WRITEs
-			 * should be sent now if no unsolicited data out
-			 * payloads are expected, or if the delayed status
-			 * should be sent after unsolicited data out with
-			 * ISCSI_FLAG_CMD_FINAL set in iscsi_handle_data_out()
-			 */
-			if (transport_check_aborted_status(se_cmd,
-					(cmd->unsolicited_data == 0)) != 0)
+			if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
 				return 0;
-			/*
-			 * Otherwise send CHECK_CONDITION and sense for
-			 * exception
-			 */
 			return transport_send_check_condition_and_sense(se_cmd,
 					cmd->sense_reason, 0);
 		}
@@ -974,13 +962,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 
 			if (!(cmd->cmd_flags &
 					ICF_NON_IMMEDIATE_UNSOLICITED_DATA)) {
-				/*
-				 * Send the delayed TASK_ABORTED status for
-				 * WRITEs if no more unsolicitied data is
-				 * expected.
-				 */
-				if (transport_check_aborted_status(se_cmd, 1)
-						!= 0)
+				if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
 					return 0;
 
 				iscsit_set_dataout_sequence_values(cmd);
@@ -995,11 +977,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 
 		if ((cmd->data_direction == DMA_TO_DEVICE) &&
 		    !(cmd->cmd_flags & ICF_NON_IMMEDIATE_UNSOLICITED_DATA)) {
-			/*
-			 * Send the delayed TASK_ABORTED status for WRITEs if
-			 * no more nsolicitied data is expected.
-			 */
-			if (transport_check_aborted_status(se_cmd, 1) != 0)
+			if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
 				return 0;
 
 			iscsit_set_unsoliticed_dataout(cmd);
@@ -1169,15 +1147,21 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 	na = iscsit_tpg_get_node_attrib(sess);
 
 	if (!sess->sess_ops->ErrorRecoveryLevel) {
-		pr_debug("Unable to recover from DataOut timeout while"
-			" in ERL=0.\n");
+		pr_err("Unable to recover from DataOut timeout while"
+			" in ERL=0, closing iSCSI connection for I_T Nexus"
+			" %s,i,0x%6phN,%s,t,0x%02x\n",
+			sess->sess_ops->InitiatorName, sess->isid,
+			sess->tpg->tpg_tiqn->tiqn, (u32)sess->tpg->tpgt);
 		goto failure;
 	}
 
 	if (++cmd->dataout_timeout_retries == na->dataout_timeout_retries) {
-		pr_debug("Command ITT: 0x%08x exceeded max retries"
-			" for DataOUT timeout %u, closing iSCSI connection.\n",
-			cmd->init_task_tag, na->dataout_timeout_retries);
+		pr_err("Command ITT: 0x%08x exceeded max retries"
+			" for DataOUT timeout %u, closing iSCSI connection for"
+			" I_T Nexus %s,i,0x%6phN,%s,t,0x%02x\n",
+			cmd->init_task_tag, na->dataout_timeout_retries,
+			sess->sess_ops->InitiatorName, sess->isid,
+			sess->tpg->tpg_tiqn->tiqn, (u32)sess->tpg->tpgt);
 		goto failure;
 	}
 
@@ -1224,6 +1208,7 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 
 failure:
 	spin_unlock_bh(&cmd->dataout_timeout_lock);
+	iscsit_fill_cxn_timeout_err_stats(sess);
 	iscsit_cause_connection_reinstatement(conn, 0);
 	iscsit_dec_conn_usage_count(conn);
 }

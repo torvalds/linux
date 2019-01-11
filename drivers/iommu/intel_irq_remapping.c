@@ -76,7 +76,7 @@ static struct hpet_scope ir_hpet[MAX_HPET_TBS];
  * in single-threaded environment with interrupt disabled, so no need to tabke
  * the dmar_global_lock.
  */
-static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
+DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
 static const struct irq_domain_ops intel_ir_domain_ops;
 
 static void iommu_disable_irq_remapping(struct intel_iommu *iommu);
@@ -145,9 +145,11 @@ static int qi_flush_iec(struct intel_iommu *iommu, int index, int mask)
 {
 	struct qi_desc desc;
 
-	desc.low = QI_IEC_IIDEX(index) | QI_IEC_TYPE | QI_IEC_IM(mask)
+	desc.qw0 = QI_IEC_IIDEX(index) | QI_IEC_TYPE | QI_IEC_IM(mask)
 		   | QI_IEC_SELECTIVE;
-	desc.high = 0;
+	desc.qw1 = 0;
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
 	return qi_submit_sync(&desc, iommu);
 }

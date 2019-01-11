@@ -957,6 +957,47 @@ static void rt2800_rate_from_status(struct skb_frame_desc *skbdesc,
 	skbdesc->tx_rate_flags = flags;
 }
 
+static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
+{
+	__le32 *txwi;
+	u32 word;
+	int wcid, ack, pid;
+	int tx_wcid, tx_ack, tx_pid, is_agg;
+
+	/*
+	 * This frames has returned with an IO error,
+	 * so the status report is not intended for this
+	 * frame.
+	 */
+	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
+		return false;
+
+	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
+	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
+	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+	is_agg	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_AGGRE);
+
+	/*
+	 * Validate if this TX status report is intended for
+	 * this entry by comparing the WCID/ACK/PID fields.
+	 */
+	txwi = rt2800_drv_get_txwi(entry);
+
+	word = rt2x00_desc_read(txwi, 1);
+	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
+	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
+
+	if (wcid != tx_wcid || ack != tx_ack || (!is_agg && pid != tx_pid)) {
+		rt2x00_dbg(entry->queue->rt2x00dev,
+			   "TX status report missed for queue %d entry %d\n",
+			   entry->queue->qid, entry->entry_idx);
+		return false;
+	}
+
+	return true;
+}
+
 void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 			 bool match)
 {
@@ -1058,6 +1099,119 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone_entry);
+
+void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	struct queue_entry *entry;
+	u32 reg;
+	u8 qid;
+	bool match;
+
+	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
+		/*
+		 * TX_STA_FIFO_PID_QUEUE is a 2-bit field, thus qid is
+		 * guaranteed to be one of the TX QIDs .
+		 */
+		qid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
+
+		if (unlikely(rt2x00queue_empty(queue))) {
+			rt2x00_dbg(rt2x00dev, "Got TX status for an empty queue %u, dropping\n",
+				   qid);
+			break;
+		}
+
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+
+		if (unlikely(test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+			     !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))) {
+			rt2x00_warn(rt2x00dev, "Data pending for entry %u in queue %u\n",
+				    entry->entry_idx, qid);
+			break;
+		}
+
+		match = rt2800_txdone_entry_check(entry, reg);
+		rt2800_txdone_entry(entry, reg, rt2800_drv_get_txwi(entry), match);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2800_txdone);
+
+static inline bool rt2800_entry_txstatus_timeout(struct rt2x00_dev *rt2x00dev,
+						 struct queue_entry *entry)
+{
+	bool ret;
+	unsigned long tout;
+
+	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
+		return false;
+
+	if (test_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags))
+		tout = msecs_to_jiffies(50);
+	else
+		tout = msecs_to_jiffies(2000);
+
+	ret = time_after(jiffies, entry->last_action + tout);
+	if (unlikely(ret))
+		rt2x00_dbg(entry->queue->rt2x00dev,
+			   "TX status timeout for entry %d in queue %d\n",
+			   entry->entry_idx, entry->queue->qid);
+	return ret;
+}
+
+bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	struct queue_entry *entry;
+
+	if (!test_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags)) {
+		unsigned long tout = msecs_to_jiffies(1000);
+
+		if (time_before(jiffies, rt2x00dev->last_nostatus_check + tout))
+			return false;
+	}
+
+	rt2x00dev->last_nostatus_check = jiffies;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+		if (rt2800_entry_txstatus_timeout(rt2x00dev, entry))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(rt2800_txstatus_timeout);
+
+void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	struct queue_entry *entry;
+
+	/*
+	 * Process any trailing TX status reports for IO failures,
+	 * we loop until we find the first non-IO error entry. This
+	 * can either be a frame which is free, is being uploaded,
+	 * or has completed the upload but didn't have an entry
+	 * in the TX_STAT_FIFO register yet.
+	 */
+	tx_queue_for_each(rt2x00dev, queue) {
+		while (!rt2x00queue_empty(queue)) {
+			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+
+			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
+				break;
+
+			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags) ||
+			    rt2800_entry_txstatus_timeout(rt2x00dev, entry))
+				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+			else
+				break;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(rt2800_txdone_nostatus);
 
 static unsigned int rt2800_hw_beacon_base(struct rt2x00_dev *rt2x00dev,
 					  unsigned int index)
@@ -2328,6 +2482,7 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 		switch (rt2x00dev->default_ant.tx_chain_num) {
 		case 1:
 			rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 1);
+			/* fall through */
 		case 2:
 			rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 1);
 			break;
@@ -2336,6 +2491,7 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 		switch (rt2x00dev->default_ant.rx_chain_num) {
 		case 1:
 			rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 1);
+			/* fall through */
 		case 2:
 			rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 1);
 			break;
@@ -9303,8 +9459,10 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	switch (rx_chains) {
 	case 3:
 		spec->ht.mcs.rx_mask[2] = 0xff;
+		/* fall through */
 	case 2:
 		spec->ht.mcs.rx_mask[1] = 0xff;
+		/* fall through */
 	case 1:
 		spec->ht.mcs.rx_mask[0] = 0xff;
 		spec->ht.mcs.rx_mask[4] = 0x1; /* MCS32 */

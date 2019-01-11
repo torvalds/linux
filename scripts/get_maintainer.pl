@@ -48,6 +48,7 @@ my $output_roles = 0;
 my $output_rolestats = 1;
 my $output_section_maxlen = 50;
 my $scm = 0;
+my $tree = 1;
 my $web = 0;
 my $subsystem = 0;
 my $status = 0;
@@ -61,7 +62,7 @@ my $self_test = undef;
 my $version = 0;
 my $help = 0;
 my $find_maintainer_files = 0;
-
+my $maintainer_path;
 my $vcs_used = 0;
 
 my $exit = 0;
@@ -255,6 +256,7 @@ if (!GetOptions(
 		'subsystem!' => \$subsystem,
 		'status!' => \$status,
 		'scm!' => \$scm,
+		'tree!' => \$tree,
 		'web!' => \$web,
 		'letters=s' => \$letters,
 		'pattern-depth=i' => \$pattern_depth,
@@ -263,6 +265,7 @@ if (!GetOptions(
 		'fe|file-emails!' => \$file_emails,
 		'f|file' => \$from_filename,
 		'find-maintainer-files' => \$find_maintainer_files,
+		'mpath|maintainer-path=s' => \$maintainer_path,
 		'self-test:s' => \$self_test,
 		'v|version' => \$version,
 		'h|help|usage' => \$help,
@@ -319,7 +322,7 @@ if ($email &&
     die "$P: Please select at least 1 email option\n";
 }
 
-if (!top_of_kernel_tree($lk_path)) {
+if ($tree && !top_of_kernel_tree($lk_path)) {
     die "$P: The current directory does not appear to be "
 	. "a linux kernel source tree.\n";
 }
@@ -384,26 +387,36 @@ sub find_ignore_git {
 read_all_maintainer_files();
 
 sub read_all_maintainer_files {
-    if (-d "${lk_path}MAINTAINERS") {
-        opendir(DIR, "${lk_path}MAINTAINERS") or die $!;
-        my @files = readdir(DIR);
-        closedir(DIR);
-        foreach my $file (@files) {
-            push(@mfiles, "${lk_path}MAINTAINERS/$file") if ($file !~ /^\./);
-        }
+    my $path = "${lk_path}MAINTAINERS";
+    if (defined $maintainer_path) {
+	$path = $maintainer_path;
+	# Perl Cookbook tilde expansion if necessary
+	$path =~ s@^~([^/]*)@ $1 ? (getpwnam($1))[7] : ( $ENV{HOME} || $ENV{LOGDIR} || (getpwuid($<))[7])@ex;
     }
 
-    if ($find_maintainer_files) {
-        find( { wanted => \&find_is_maintainer_file,
-                preprocess => \&find_ignore_git,
-                no_chdir => 1,
-        }, "${lk_path}");
+    if (-d $path) {
+	$path .= '/' if ($path !~ m@/$@);
+	if ($find_maintainer_files) {
+	    find( { wanted => \&find_is_maintainer_file,
+		    preprocess => \&find_ignore_git,
+		    no_chdir => 1,
+		}, "$path");
+	} else {
+	    opendir(DIR, "$path") or die $!;
+	    my @files = readdir(DIR);
+	    closedir(DIR);
+	    foreach my $file (@files) {
+		push(@mfiles, "$path$file") if ($file !~ /^\./);
+	    }
+	}
+    } elsif (-f "$path") {
+	push(@mfiles, "$path");
     } else {
-        push(@mfiles, "${lk_path}MAINTAINERS") if -f "${lk_path}MAINTAINERS";
+	die "$P: MAINTAINER file not found '$path'\n";
     }
-
+    die "$P: No MAINTAINER files found in '$path'\n" if (scalar(@mfiles) == 0);
     foreach my $file (@mfiles) {
-        read_maintainer_file("$file");
+	read_maintainer_file("$file");
     }
 }
 
@@ -1031,13 +1044,14 @@ Other options:
   --sections => print all of the subsystem sections with pattern matches
   --letters => print all matching 'letter' types from all matching sections
   --mailmap => use .mailmap file (default: $email_use_mailmap)
+  --no-tree => run without a kernel tree
   --self-test => show potential issues with MAINTAINERS file content
   --version => show version
   --help => show this help information
 
 Default options:
-  [--email --nogit --git-fallback --m --r --n --l --multiline --pattern-depth=0
-   --remove-duplicates --rolestats]
+  [--email --tree --nogit --git-fallback --m --r --n --l --multiline
+   --pattern-depth=0 --remove-duplicates --rolestats]
 
 Notes:
   Using "-f directory" may give unexpected results:

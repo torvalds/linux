@@ -87,8 +87,8 @@ static int __i2c_mux_smbus_xfer(struct i2c_adapter *adap,
 
 	ret = muxc->select(muxc, priv->chan_id);
 	if (ret >= 0)
-		ret = parent->algo->smbus_xfer(parent, addr, flags,
-					read_write, command, size, data);
+		ret = __i2c_smbus_xfer(parent, addr, flags,
+				       read_write, command, size, data);
 	if (muxc->deselect)
 		muxc->deselect(muxc, priv->chan_id);
 

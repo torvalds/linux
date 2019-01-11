@@ -259,6 +259,14 @@ xfs_trans_alloc(
 	struct xfs_trans	*tp;
 	int			error;
 
+	/*
+	 * Allocate the handle before we do our freeze accounting and setting up
+	 * GFP_NOFS allocation context so that we avoid lockdep false positives
+	 * by doing GFP_KERNEL allocations inside sb_start_intwrite().
+	 */
+	tp = kmem_zone_zalloc(xfs_trans_zone,
+		(flags & XFS_TRANS_NOFS) ? KM_NOFS : KM_SLEEP);
+
 	if (!(flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_start_intwrite(mp->m_super);
 
@@ -270,8 +278,6 @@ xfs_trans_alloc(
 		mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
 	atomic_inc(&mp->m_active_trans);
 
-	tp = kmem_zone_zalloc(xfs_trans_zone,
-		(flags & XFS_TRANS_NOFS) ? KM_NOFS : KM_SLEEP);
 	tp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	tp->t_flags = flags;
 	tp->t_mountp = mp;

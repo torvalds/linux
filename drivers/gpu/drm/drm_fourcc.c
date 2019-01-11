@@ -45,38 +45,90 @@ static char printable_char(int c)
  */
 uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
 {
-	uint32_t fmt;
+	uint32_t fmt = DRM_FORMAT_INVALID;
 
 	switch (bpp) {
 	case 8:
-		fmt = DRM_FORMAT_C8;
+		if (depth == 8)
+			fmt = DRM_FORMAT_C8;
 		break;
+
 	case 16:
-		if (depth == 15)
+		switch (depth) {
+		case 15:
 			fmt = DRM_FORMAT_XRGB1555;
-		else
+			break;
+		case 16:
 			fmt = DRM_FORMAT_RGB565;
+			break;
+		default:
+			break;
+		}
 		break;
+
 	case 24:
-		fmt = DRM_FORMAT_RGB888;
-		break;
-	case 32:
 		if (depth == 24)
-			fmt = DRM_FORMAT_XRGB8888;
-		else if (depth == 30)
-			fmt = DRM_FORMAT_XRGB2101010;
-		else
-			fmt = DRM_FORMAT_ARGB8888;
+			fmt = DRM_FORMAT_RGB888;
 		break;
+
+	case 32:
+		switch (depth) {
+		case 24:
+			fmt = DRM_FORMAT_XRGB8888;
+			break;
+		case 30:
+			fmt = DRM_FORMAT_XRGB2101010;
+			break;
+		case 32:
+			fmt = DRM_FORMAT_ARGB8888;
+			break;
+		default:
+			break;
+		}
+		break;
+
 	default:
-		DRM_ERROR("bad bpp, assuming x8r8g8b8 pixel format\n");
-		fmt = DRM_FORMAT_XRGB8888;
 		break;
 	}
 
 	return fmt;
 }
 EXPORT_SYMBOL(drm_mode_legacy_fb_format);
+
+/**
+ * drm_driver_legacy_fb_format - compute drm fourcc code from legacy description
+ * @dev: DRM device
+ * @bpp: bits per pixels
+ * @depth: bit depth per pixel
+ *
+ * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
+ * Unlike drm_mode_legacy_fb_format() this looks at the drivers mode_config,
+ * and depending on the &drm_mode_config.quirk_addfb_prefer_host_byte_order flag
+ * it returns little endian byte order or host byte order framebuffer formats.
+ */
+uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
+				     uint32_t bpp, uint32_t depth)
+{
+	uint32_t fmt = drm_mode_legacy_fb_format(bpp, depth);
+
+	if (dev->mode_config.quirk_addfb_prefer_host_byte_order) {
+		if (fmt == DRM_FORMAT_XRGB8888)
+			fmt = DRM_FORMAT_HOST_XRGB8888;
+		if (fmt == DRM_FORMAT_ARGB8888)
+			fmt = DRM_FORMAT_HOST_ARGB8888;
+		if (fmt == DRM_FORMAT_RGB565)
+			fmt = DRM_FORMAT_HOST_RGB565;
+		if (fmt == DRM_FORMAT_XRGB1555)
+			fmt = DRM_FORMAT_HOST_XRGB1555;
+	}
+
+	if (dev->mode_config.quirk_addfb_prefer_xbgr_30bpp &&
+	    fmt == DRM_FORMAT_XRGB2101010)
+		fmt = DRM_FORMAT_XBGR2101010;
+
+	return fmt;
+}
+EXPORT_SYMBOL(drm_driver_legacy_fb_format);
 
 /**
  * drm_get_format_name - fill a string with a drm fourcc format's name
@@ -172,7 +224,20 @@ const struct drm_format_info *__drm_format_info(u32 format)
 		{ .format = DRM_FORMAT_YVYU,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_UYVY,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_VYUY,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_XYUV8888,	.depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_AYUV,		.depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y0L0,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_X0L0,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y0L2,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_X0L2,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true },
 	};
 
 	unsigned int i;
@@ -348,3 +413,65 @@ int drm_format_plane_height(int height, uint32_t format, int plane)
 	return height / info->vsub;
 }
 EXPORT_SYMBOL(drm_format_plane_height);
+
+/**
+ * drm_format_info_block_width - width in pixels of block.
+ * @info: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The width in pixels of a block, depending on the plane index.
+ */
+unsigned int drm_format_info_block_width(const struct drm_format_info *info,
+					 int plane)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	if (!info->block_w[plane])
+		return 1;
+	return info->block_w[plane];
+}
+EXPORT_SYMBOL(drm_format_info_block_width);
+
+/**
+ * drm_format_info_block_height - height in pixels of a block
+ * @info: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The height in pixels of a block, depending on the plane index.
+ */
+unsigned int drm_format_info_block_height(const struct drm_format_info *info,
+					  int plane)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	if (!info->block_h[plane])
+		return 1;
+	return info->block_h[plane];
+}
+EXPORT_SYMBOL(drm_format_info_block_height);
+
+/**
+ * drm_format_info_min_pitch - computes the minimum required pitch in bytes
+ * @info: pixel format info
+ * @plane: plane index
+ * @buffer_width: buffer width in pixels
+ *
+ * Returns:
+ * The minimum required pitch in bytes for a buffer by taking into consideration
+ * the pixel format information and the buffer width.
+ */
+uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
+				   int plane, unsigned int buffer_width)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	return DIV_ROUND_UP_ULL((u64)buffer_width * info->char_per_block[plane],
+			    drm_format_info_block_width(info, plane) *
+			    drm_format_info_block_height(info, plane));
+}
+EXPORT_SYMBOL(drm_format_info_min_pitch);

@@ -63,7 +63,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
 		rx_prod = tx_buf->rx_prod;
 	}
-	bnxt_db_write(bp, rxr->rx_doorbell, DB_KEY_RX | rx_prod);
+	bnxt_db_write(bp, &rxr->rx_db, rx_prod);
 }
 
 /* returns the following:
@@ -199,7 +199,6 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	bp->tx_nr_rings_xdp = tx_xdp;
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tc + tx_xdp;
 	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
-	bp->num_stat_ctxs = bp->cp_nr_rings;
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 

@@ -687,7 +687,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 	}
 
 	nes_debug(NES_DBG_PD, "Allocating PD (%p) for ib device %s\n",
-			nespd, nesvnic->nesibdev->ibdev.name);
+			nespd, dev_name(&nesvnic->nesibdev->ibdev.dev));
 
 	nespd->pd_id = (pd_num << (PAGE_SHIFT-12)) + nesadapter->base_pd;
 
@@ -1066,7 +1066,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 				if (req.user_qp_buffer)
 					nesqp->nesuqp_addr = req.user_qp_buffer;
-				if ((ibpd->uobject) && (ibpd->uobject->context)) {
+				if (udata && (ibpd->uobject->context)) {
 					nesqp->user_mode = 1;
 					nes_ucontext = to_nesucontext(ibpd->uobject->context);
 					if (virt_wqs) {
@@ -1257,7 +1257,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 			nes_put_cqp_request(nesdev, cqp_request);
 
-			if (ibpd->uobject) {
+			if (udata) {
 				uresp.mmap_sq_db_index = nesqp->mmap_sq_db_index;
 				uresp.mmap_rq_db_index = 0;
 				uresp.actual_sq_size = sq_size;
@@ -2556,8 +2556,8 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 /**
  * show_rev
  */
-static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct nes_ib_device *nesibdev =
 			container_of(dev, struct nes_ib_device, ibdev.dev);
@@ -2566,40 +2566,40 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%x\n", nesvnic->nesdev->nesadapter->hw_rev);
 }
-
+static DEVICE_ATTR_RO(hw_rev);
 
 /**
  * show_hca
  */
-static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
-		        char *buf)
+static ssize_t hca_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "NES020\n");
 }
-
+static DEVICE_ATTR_RO(hca_type);
 
 /**
  * show_board
  */
-static ssize_t show_board(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%.*s\n", 32, "NES020 Board ID");
 }
+static DEVICE_ATTR_RO(board_id);
 
-
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
-
-static struct device_attribute *nes_dev_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static struct attribute *nes_dev_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
 };
 
+static const struct attribute_group nes_attr_group = {
+	.attrs = nes_dev_attributes,
+};
 
 /**
  * nes_query_qp
@@ -3627,6 +3627,39 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 		 (nesvnic->nesdev->nesadapter->firmware_version & 0x000000ff));
 }
 
+static const struct ib_device_ops nes_dev_ops = {
+	.alloc_mr = nes_alloc_mr,
+	.alloc_mw = nes_alloc_mw,
+	.alloc_pd = nes_alloc_pd,
+	.alloc_ucontext = nes_alloc_ucontext,
+	.create_cq = nes_create_cq,
+	.create_qp = nes_create_qp,
+	.dealloc_mw = nes_dealloc_mw,
+	.dealloc_pd = nes_dealloc_pd,
+	.dealloc_ucontext = nes_dealloc_ucontext,
+	.dereg_mr = nes_dereg_mr,
+	.destroy_cq = nes_destroy_cq,
+	.destroy_qp = nes_destroy_qp,
+	.drain_rq = nes_drain_rq,
+	.drain_sq = nes_drain_sq,
+	.get_dev_fw_str = get_dev_fw_str,
+	.get_dma_mr = nes_get_dma_mr,
+	.get_port_immutable = nes_port_immutable,
+	.map_mr_sg = nes_map_mr_sg,
+	.mmap = nes_mmap,
+	.modify_qp = nes_modify_qp,
+	.poll_cq = nes_poll_cq,
+	.post_recv = nes_post_recv,
+	.post_send = nes_post_send,
+	.query_device = nes_query_device,
+	.query_gid = nes_query_gid,
+	.query_pkey = nes_query_pkey,
+	.query_port = nes_query_port,
+	.query_qp = nes_query_qp,
+	.reg_user_mr = nes_reg_user_mr,
+	.req_notify_cq = nes_req_notify_cq,
+};
+
 /**
  * nes_init_ofa_device
  */
@@ -3640,7 +3673,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	if (nesibdev == NULL) {
 		return NULL;
 	}
-	strlcpy(nesibdev->ibdev.name, "nes%d", IB_DEVICE_NAME_MAX);
 	nesibdev->ibdev.owner = THIS_MODULE;
 
 	nesibdev->ibdev.node_type = RDMA_NODE_RNIC;
@@ -3674,36 +3706,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.phys_port_cnt = 1;
 	nesibdev->ibdev.num_comp_vectors = 1;
 	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
-	nesibdev->ibdev.query_device = nes_query_device;
-	nesibdev->ibdev.query_port = nes_query_port;
-	nesibdev->ibdev.query_pkey = nes_query_pkey;
-	nesibdev->ibdev.query_gid = nes_query_gid;
-	nesibdev->ibdev.alloc_ucontext = nes_alloc_ucontext;
-	nesibdev->ibdev.dealloc_ucontext = nes_dealloc_ucontext;
-	nesibdev->ibdev.mmap = nes_mmap;
-	nesibdev->ibdev.alloc_pd = nes_alloc_pd;
-	nesibdev->ibdev.dealloc_pd = nes_dealloc_pd;
-	nesibdev->ibdev.create_qp = nes_create_qp;
-	nesibdev->ibdev.modify_qp = nes_modify_qp;
-	nesibdev->ibdev.query_qp = nes_query_qp;
-	nesibdev->ibdev.destroy_qp = nes_destroy_qp;
-	nesibdev->ibdev.create_cq = nes_create_cq;
-	nesibdev->ibdev.destroy_cq = nes_destroy_cq;
-	nesibdev->ibdev.poll_cq = nes_poll_cq;
-	nesibdev->ibdev.get_dma_mr = nes_get_dma_mr;
-	nesibdev->ibdev.reg_user_mr = nes_reg_user_mr;
-	nesibdev->ibdev.dereg_mr = nes_dereg_mr;
-	nesibdev->ibdev.alloc_mw = nes_alloc_mw;
-	nesibdev->ibdev.dealloc_mw = nes_dealloc_mw;
-
-	nesibdev->ibdev.alloc_mr = nes_alloc_mr;
-	nesibdev->ibdev.map_mr_sg = nes_map_mr_sg;
-
-	nesibdev->ibdev.req_notify_cq = nes_req_notify_cq;
-	nesibdev->ibdev.post_send = nes_post_send;
-	nesibdev->ibdev.post_recv = nes_post_recv;
-	nesibdev->ibdev.drain_sq = nes_drain_sq;
-	nesibdev->ibdev.drain_rq = nes_drain_rq;
 
 	nesibdev->ibdev.iwcm = kzalloc(sizeof(*nesibdev->ibdev.iwcm), GFP_KERNEL);
 	if (nesibdev->ibdev.iwcm == NULL) {
@@ -3718,8 +3720,8 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->reject = nes_reject;
 	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
-	nesibdev->ibdev.get_port_immutable   = nes_port_immutable;
-	nesibdev->ibdev.get_dev_fw_str   = get_dev_fw_str;
+
+	ib_set_device_ops(&nesibdev->ibdev, &nes_dev_ops);
 	memcpy(nesibdev->ibdev.iwcm->ifname, netdev->name,
 	       sizeof(nesibdev->ibdev.iwcm->ifname));
 
@@ -3795,10 +3797,11 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
-	int i, ret;
+	int ret;
 
+	rdma_set_device_sysfs_group(&nesvnic->nesibdev->ibdev, &nes_attr_group);
 	nesvnic->nesibdev->ibdev.driver_id = RDMA_DRIVER_NES;
-	ret = ib_register_device(&nesvnic->nesibdev->ibdev, NULL);
+	ret = ib_register_device(&nesvnic->nesibdev->ibdev, "nes%d", NULL);
 	if (ret) {
 		return ret;
 	}
@@ -3808,19 +3811,6 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	nesibdev->max_mr = nesadapter->max_mr / nesadapter->port_count;
 	nesibdev->max_qp = (nesadapter->max_qp-NES_FIRST_QPN) / nesadapter->port_count;
 	nesibdev->max_pd = nesadapter->max_pd / nesadapter->port_count;
-
-	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
-		ret = device_create_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
-		if (ret) {
-			while (i > 0) {
-				i--;
-				device_remove_file(&nesibdev->ibdev.dev,
-						   nes_dev_attributes[i]);
-			}
-			ib_unregister_device(&nesibdev->ibdev);
-			return ret;
-		}
-	}
 
 	nesvnic->of_device_registered = 1;
 
@@ -3834,15 +3824,9 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
 {
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
-		device_remove_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
-	}
-
-	if (nesvnic->of_device_registered) {
+	if (nesvnic->of_device_registered)
 		ib_unregister_device(&nesibdev->ibdev);
-	}
 
 	nesvnic->of_device_registered = 0;
 }

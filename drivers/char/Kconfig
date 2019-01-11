@@ -66,6 +66,14 @@ config TTY_PRINTK
 
 	  If unsure, say N.
 
+config TTY_PRINTK_LEVEL
+	depends on TTY_PRINTK
+	int "ttyprintk log level (1-7)"
+	range 1 7
+	default "6"
+	help
+	  Printk log level to use for ttyprintk messages.
+
 config PRINTER
 	tristate "Parallel printer support"
 	depends on PARPORT
@@ -268,7 +276,7 @@ if RTC_LIB=n
 
 config RTC
 	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
-	depends on ALPHA || (MIPS && MACH_LOONGSON64)
+	depends on ALPHA
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -566,5 +574,5 @@ config RANDOM_TRUST_CPU
 	that CPU manufacturer (perhaps with the insistence or mandate
 	of a Nation State's intelligence or law enforcement agencies)
 	has not installed a hidden back door to compromise the CPU's
-	random number generation facilities.
-
+	random number generation facilities. This can also be configured
+	at boot with "random.trust_cpu=on/off".

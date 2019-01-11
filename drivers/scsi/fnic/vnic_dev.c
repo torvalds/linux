@@ -195,9 +195,9 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 {
 	vnic_dev_desc_ring_size(ring, desc_count, desc_size);
 
-	ring->descs_unaligned = pci_alloc_consistent(vdev->pdev,
+	ring->descs_unaligned = dma_alloc_coherent(&vdev->pdev->dev,
 		ring->size_unaligned,
-		&ring->base_addr_unaligned);
+		&ring->base_addr_unaligned, GFP_KERNEL);
 
 	if (!ring->descs_unaligned) {
 		printk(KERN_ERR
@@ -221,7 +221,7 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 {
 	if (ring->descs) {
-		pci_free_consistent(vdev->pdev,
+		dma_free_coherent(&vdev->pdev->dev,
 			ring->size_unaligned,
 			ring->descs_unaligned,
 			ring->base_addr_unaligned);
@@ -298,9 +298,9 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 	int err = 0;
 
 	if (!vdev->fw_info) {
-		vdev->fw_info = pci_alloc_consistent(vdev->pdev,
+		vdev->fw_info = dma_alloc_coherent(&vdev->pdev->dev,
 			sizeof(struct vnic_devcmd_fw_info),
-			&vdev->fw_info_pa);
+			&vdev->fw_info_pa, GFP_KERNEL);
 		if (!vdev->fw_info)
 			return -ENOMEM;
 
@@ -361,8 +361,8 @@ int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats)
 	int wait = 1000;
 
 	if (!vdev->stats) {
-		vdev->stats = pci_alloc_consistent(vdev->pdev,
-			sizeof(struct vnic_stats), &vdev->stats_pa);
+		vdev->stats = dma_alloc_coherent(&vdev->pdev->dev,
+			sizeof(struct vnic_stats), &vdev->stats_pa, GFP_KERNEL);
 		if (!vdev->stats)
 			return -ENOMEM;
 	}
@@ -523,9 +523,9 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 	int wait = 1000;
 
 	if (!vdev->notify) {
-		vdev->notify = pci_alloc_consistent(vdev->pdev,
+		vdev->notify = dma_alloc_coherent(&vdev->pdev->dev,
 			sizeof(struct vnic_devcmd_notify),
-			&vdev->notify_pa);
+			&vdev->notify_pa, GFP_KERNEL);
 		if (!vdev->notify)
 			return -ENOMEM;
 	}
@@ -647,21 +647,21 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 {
 	if (vdev) {
 		if (vdev->notify)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(struct vnic_devcmd_notify),
 				vdev->notify,
 				vdev->notify_pa);
 		if (vdev->linkstatus)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(u32),
 				vdev->linkstatus,
 				vdev->linkstatus_pa);
 		if (vdev->stats)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(struct vnic_stats),
 				vdev->stats, vdev->stats_pa);
 		if (vdev->fw_info)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(struct vnic_devcmd_fw_info),
 				vdev->fw_info, vdev->fw_info_pa);
 		kfree(vdev);

@@ -80,15 +80,15 @@ static int qtnf_cmd_resp_result_decode(enum qlink_cmd_result qcode)
 static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 				    struct sk_buff *cmd_skb,
 				    struct sk_buff **response_skb,
-				    u16 *result_code,
 				    size_t const_resp_size,
 				    size_t *var_resp_size)
 {
 	struct qlink_cmd *cmd;
-	const struct qlink_resp *resp;
+	struct qlink_resp *resp = NULL;
 	struct sk_buff *resp_skb = NULL;
 	u16 cmd_id;
-	u8 mac_id, vif_id;
+	u8 mac_id;
+	u8 vif_id;
 	int ret;
 
 	cmd = (struct qlink_cmd *)cmd_skb->data;
@@ -97,8 +97,11 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 	vif_id = cmd->vifid;
 	cmd->mhdr.len = cpu_to_le16(cmd_skb->len);
 
-	if (unlikely(bus->fw_state != QTNF_FW_STATE_ACTIVE &&
-		     le16_to_cpu(cmd->cmd_id) != QLINK_CMD_FW_INIT)) {
+	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id,
+		 le16_to_cpu(cmd->cmd_id));
+
+	if (bus->fw_state != QTNF_FW_STATE_ACTIVE &&
+	    le16_to_cpu(cmd->cmd_id) != QLINK_CMD_FW_INIT) {
 		pr_warn("VIF%u.%u: drop cmd 0x%.4X in fw state %d\n",
 			mac_id, vif_id, le16_to_cpu(cmd->cmd_id),
 			bus->fw_state);
@@ -106,23 +109,20 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 		return -ENODEV;
 	}
 
-	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id,
-		 le16_to_cpu(cmd->cmd_id));
-
 	ret = qtnf_trans_send_cmd_with_resp(bus, cmd_skb, &resp_skb);
-
-	if (unlikely(ret))
+	if (ret)
 		goto out;
 
-	resp = (const struct qlink_resp *)resp_skb->data;
+	if (WARN_ON(!resp_skb || !resp_skb->data)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	resp = (struct qlink_resp *)resp_skb->data;
 	ret = qtnf_cmd_check_reply_header(resp, cmd_id, mac_id, vif_id,
 					  const_resp_size);
-
-	if (unlikely(ret))
+	if (ret)
 		goto out;
-
-	if (likely(result_code))
-		*result_code = le16_to_cpu(resp->result);
 
 	/* Return length of variable part of response */
 	if (response_skb && var_resp_size)
@@ -134,14 +134,18 @@ out:
 	else
 		consume_skb(resp_skb);
 
+	if (!ret && resp)
+		return qtnf_cmd_resp_result_decode(le16_to_cpu(resp->result));
+
+	pr_warn("VIF%u.%u: cmd 0x%.4X failed: %d\n",
+		mac_id, vif_id, le16_to_cpu(cmd->cmd_id), ret);
+
 	return ret;
 }
 
-static inline int qtnf_cmd_send(struct qtnf_bus *bus,
-				struct sk_buff *cmd_skb,
-				u16 *result_code)
+static inline int qtnf_cmd_send(struct qtnf_bus *bus, struct sk_buff *cmd_skb)
 {
-	return qtnf_cmd_send_with_reply(bus, cmd_skb, NULL, result_code,
+	return qtnf_cmd_send_with_reply(bus, cmd_skb, NULL,
 					sizeof(struct qlink_resp), NULL);
 }
 
@@ -228,7 +232,6 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_start_ap *cmd;
 	struct qlink_auth_encr *aen;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 	int i;
 
@@ -329,30 +332,21 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	}
 
 	qtnf_bus_lock(vif->mac->bus);
-
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 	netif_carrier_on(vif->netdev);
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
 int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif)
 {
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -362,23 +356,13 @@ int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
-
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
-
-	netif_carrier_off(vif->netdev);
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -386,7 +370,6 @@ int qtnf_cmd_send_register_mgmt(struct qtnf_vif *vif, u16 frame_type, bool reg)
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_mgmt_frame_register *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -401,20 +384,13 @@ int qtnf_cmd_send_register_mgmt(struct qtnf_vif *vif, u16 frame_type, bool reg)
 	cmd->frame_type = cpu_to_le16(frame_type);
 	cmd->do_register = reg;
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -423,7 +399,6 @@ int qtnf_cmd_send_mgmt_frame(struct qtnf_vif *vif, u32 cookie, u16 flags,
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_mgmt_frame_tx *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	if (sizeof(*cmd) + len > QTNF_MAX_CMD_BUF_SIZE) {
@@ -448,20 +423,13 @@ int qtnf_cmd_send_mgmt_frame(struct qtnf_vif *vif, u32 cookie, u16 flags,
 	if (len && buf)
 		qtnf_cmd_skb_put_buffer(cmd_skb, buf, len);
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -469,7 +437,6 @@ int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 				 const u8 *buf, size_t len)
 {
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	if (len > QTNF_MAX_CMD_BUF_SIZE) {
@@ -487,21 +454,13 @@ int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 	qtnf_cmd_tlv_ie_set_add(cmd_skb, frame_type, buf, len);
 
 	qtnf_bus_lock(vif->mac->bus);
-
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u frame %u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, frame_type, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -544,6 +503,9 @@ qtnf_sta_info_parse_rate(struct rate_info *rate_dst,
 		rate_dst->flags |= RATE_INFO_FLAGS_MCS;
 	else if (rate_src->flags & QLINK_STA_INFO_RATE_FLAG_VHT_MCS)
 		rate_dst->flags |= RATE_INFO_FLAGS_VHT_MCS;
+
+	if (rate_src->flags & QLINK_STA_INFO_RATE_FLAG_SHORT_GI)
+		rate_dst->flags |= RATE_INFO_FLAGS_SHORT_GI;
 }
 
 static void
@@ -729,8 +691,7 @@ int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	struct qlink_cmd_get_sta_info *cmd;
 	const struct qlink_resp_get_sta_info *resp;
-	size_t var_resp_len;
-	u16 res_code = QLINK_CMD_RESULT_OK;
+	size_t var_resp_len = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -745,31 +706,13 @@ int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
 	ether_addr_copy(cmd->sta_addr, sta_mac);
 
 	ret = qtnf_cmd_send_with_reply(vif->mac->bus, cmd_skb, &resp_skb,
-				       &res_code, sizeof(*resp),
-				       &var_resp_len);
-
-	if (unlikely(ret))
+				       sizeof(*resp), &var_resp_len);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		switch (res_code) {
-		case QLINK_CMD_RESULT_ENOTFOUND:
-			pr_warn("VIF%u.%u: %pM STA not found\n",
-				vif->mac->macid, vif->vifid, sta_mac);
-			ret = -ENOENT;
-			break;
-		default:
-			pr_err("VIF%u.%u: can't get info for %pM: %u\n",
-			       vif->mac->macid, vif->vifid, sta_mac, res_code);
-			ret = -EFAULT;
-			break;
-		}
-		goto out;
-	}
 
 	resp = (const struct qlink_resp_get_sta_info *)resp_skb->data;
 
-	if (unlikely(!ether_addr_equal(sta_mac, resp->sta_addr))) {
+	if (!ether_addr_equal(sta_mac, resp->sta_addr)) {
 		pr_err("VIF%u.%u: wrong mac in reply: %pM != %pM\n",
 		       vif->mac->macid, vif->vifid, resp->sta_addr, sta_mac);
 		ret = -EINVAL;
@@ -795,7 +738,6 @@ static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	struct qlink_cmd_manage_intf *cmd;
 	const struct qlink_resp_manage_intf *resp;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -828,17 +770,9 @@ static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 		eth_zero_addr(cmd->intf_info.mac_addr);
 
 	ret = qtnf_cmd_send_with_reply(vif->mac->bus, cmd_skb, &resp_skb,
-				       &res_code, sizeof(*resp), NULL);
-
-	if (unlikely(ret))
+				       sizeof(*resp), NULL);
+	if (ret)
 		goto out;
-
-	ret = qtnf_cmd_resp_result_decode(res_code);
-	if (ret) {
-		pr_err("VIF%u.%u: CMD %d failed: %u\n", vif->mac->macid,
-		       vif->vifid, cmd_type, res_code);
-		goto out;
-	}
 
 	resp = (const struct qlink_resp_manage_intf *)resp_skb->data;
 	ether_addr_copy(vif->mac_addr, resp->intf_info.mac_addr);
@@ -868,7 +802,6 @@ int qtnf_cmd_send_del_intf(struct qtnf_vif *vif)
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_manage_intf *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -897,17 +830,9 @@ int qtnf_cmd_send_del_intf(struct qtnf_vif *vif)
 
 	eth_zero_addr(cmd->intf_info.mac_addr);
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
@@ -1353,8 +1278,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		ext_capa_mask = NULL;
 	}
 
-	kfree(mac->macinfo.extended_capabilities);
-	kfree(mac->macinfo.extended_capabilities_mask);
+	qtnf_mac_ext_caps_free(mac);
 	mac->macinfo.extended_capabilities = ext_capa;
 	mac->macinfo.extended_capabilities_mask = ext_capa_mask;
 	mac->macinfo.extended_capabilities_len = ext_capa_len;
@@ -1731,8 +1655,7 @@ int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	const struct qlink_resp_get_mac_info *resp;
-	size_t var_data_len;
-	u16 res_code = QLINK_CMD_RESULT_OK;
+	size_t var_data_len = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
@@ -1742,17 +1665,10 @@ int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac)
 		return -ENOMEM;
 
 	qtnf_bus_lock(mac->bus);
-
-	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb, &res_code,
+	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb,
 				       sizeof(*resp), &var_data_len);
-	if (unlikely(ret))
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("MAC%u: CMD failed: %u\n", mac->macid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 	resp = (const struct qlink_resp_get_mac_info *)resp_skb->data;
 	qtnf_cmd_resp_proc_mac_info(mac, resp);
@@ -1769,9 +1685,8 @@ int qtnf_cmd_get_hw_info(struct qtnf_bus *bus)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	const struct qlink_resp_get_hw_info *resp;
-	u16 res_code = QLINK_CMD_RESULT_OK;
+	size_t info_len = 0;
 	int ret = 0;
-	size_t info_len;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
 					    QLINK_CMD_GET_HW_INFO,
@@ -1780,18 +1695,10 @@ int qtnf_cmd_get_hw_info(struct qtnf_bus *bus)
 		return -ENOMEM;
 
 	qtnf_bus_lock(bus);
-
-	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb, &res_code,
+	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb,
 				       sizeof(*resp), &info_len);
-
-	if (unlikely(ret))
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("cmd exec failed: 0x%.4X\n", res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 	resp = (const struct qlink_resp_get_hw_info *)resp_skb->data;
 	ret = qtnf_cmd_resp_proc_hw_info(bus, resp, info_len);
@@ -1807,10 +1714,9 @@ int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
 			   struct ieee80211_supported_band *band)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
-	size_t info_len;
 	struct qlink_cmd_band_info_get *cmd;
 	struct qlink_resp_band_info_get *resp;
-	u16 res_code = QLINK_CMD_RESULT_OK;
+	size_t info_len = 0;
 	int ret = 0;
 	u8 qband;
 
@@ -1838,18 +1744,10 @@ int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
 	cmd->band = qband;
 
 	qtnf_bus_lock(mac->bus);
-
-	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb, &res_code,
+	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb,
 				       sizeof(*resp), &info_len);
-
-	if (unlikely(ret))
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("MAC%u: CMD failed: %u\n", mac->macid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 	resp = (struct qlink_resp_band_info_get *)resp_skb->data;
 	if (resp->band != qband) {
@@ -1871,9 +1769,8 @@ out:
 int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
-	size_t response_size;
 	struct qlink_resp_phy_params *resp;
-	u16 res_code = QLINK_CMD_RESULT_OK;
+	size_t response_size = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
@@ -1883,18 +1780,10 @@ int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac)
 		return -ENOMEM;
 
 	qtnf_bus_lock(mac->bus);
-
-	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb, &res_code,
+	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb,
 				       sizeof(*resp), &response_size);
-
-	if (unlikely(ret))
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("MAC%u: CMD failed: %u\n", mac->macid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 	resp = (struct qlink_resp_phy_params *)resp_skb->data;
 	ret = qtnf_cmd_resp_proc_phy_params(mac, resp->info, response_size);
@@ -1910,7 +1799,6 @@ int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
@@ -1931,26 +1819,19 @@ int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed)
 		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_COVERAGE_CLASS,
 					wiphy->coverage_class);
 
-	ret = qtnf_cmd_send(mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("MAC%u: CMD failed: %u\n", mac->macid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(mac->bus);
+
 	return ret;
 }
 
 int qtnf_cmd_send_init_fw(struct qtnf_bus *bus)
 {
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
@@ -1960,20 +1841,13 @@ int qtnf_cmd_send_init_fw(struct qtnf_bus *bus)
 		return -ENOMEM;
 
 	qtnf_bus_lock(bus);
-
-	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("cmd exec failed: 0x%.4X\n", res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(bus);
+
 	return ret;
 }
 
@@ -1988,9 +1862,7 @@ void qtnf_cmd_send_deinit_fw(struct qtnf_bus *bus)
 		return;
 
 	qtnf_bus_lock(bus);
-
-	qtnf_cmd_send(bus, cmd_skb, NULL);
-
+	qtnf_cmd_send(bus, cmd_skb);
 	qtnf_bus_unlock(bus);
 }
 
@@ -1999,7 +1871,6 @@ int qtnf_cmd_send_add_key(struct qtnf_vif *vif, u8 key_index, bool pairwise,
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_add_key *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2031,19 +1902,13 @@ int qtnf_cmd_send_add_key(struct qtnf_vif *vif, u8 key_index, bool pairwise,
 					 params->seq,
 					 params->seq_len);
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n",
-		       vif->mac->macid, vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2052,7 +1917,6 @@ int qtnf_cmd_send_del_key(struct qtnf_vif *vif, u8 key_index, bool pairwise,
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_del_key *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2072,19 +1936,14 @@ int qtnf_cmd_send_del_key(struct qtnf_vif *vif, u8 key_index, bool pairwise,
 
 	cmd->key_index = key_index;
 	cmd->pairwise = pairwise;
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-	if (unlikely(ret))
-		goto out;
 
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n",
-		       vif->mac->macid, vif->vifid, res_code);
-		ret = -EFAULT;
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2093,7 +1952,6 @@ int qtnf_cmd_send_set_default_key(struct qtnf_vif *vif, u8 key_index,
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_set_def_key *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2108,19 +1966,14 @@ int qtnf_cmd_send_set_default_key(struct qtnf_vif *vif, u8 key_index,
 	cmd->key_index = key_index;
 	cmd->unicast = unicast;
 	cmd->multicast = multicast;
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-	if (unlikely(ret))
-		goto out;
 
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2128,7 +1981,6 @@ int qtnf_cmd_send_set_default_mgmt_key(struct qtnf_vif *vif, u8 key_index)
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_set_def_mgmt_key *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2141,19 +1993,14 @@ int qtnf_cmd_send_set_default_mgmt_key(struct qtnf_vif *vif, u8 key_index)
 
 	cmd = (struct qlink_cmd_set_def_mgmt_key *)cmd_skb->data;
 	cmd->key_index = key_index;
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-	if (unlikely(ret))
-		goto out;
 
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2183,7 +2030,6 @@ int qtnf_cmd_send_change_sta(struct qtnf_vif *vif, const u8 *mac,
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_change_sta *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2214,19 +2060,13 @@ int qtnf_cmd_send_change_sta(struct qtnf_vif *vif, const u8 *mac,
 		goto out;
 	}
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2235,7 +2075,6 @@ int qtnf_cmd_send_del_sta(struct qtnf_vif *vif,
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_del_sta *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2256,19 +2095,13 @@ int qtnf_cmd_send_del_sta(struct qtnf_vif *vif,
 	cmd->subtype = params->subtype;
 	cmd->reason_code = cpu_to_le16(params->reason_code);
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2312,7 +2145,6 @@ static void qtnf_cmd_randmac_tlv_add(struct sk_buff *cmd_skb,
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	struct ieee80211_channel *sc;
 	struct cfg80211_scan_request *scan_req = mac->scan_req;
 	int n_channels;
@@ -2370,20 +2202,28 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 					 scan_req->mac_addr_mask);
 	}
 
-	ret = qtnf_cmd_send(mac->bus, cmd_skb, &res_code);
+	if (scan_req->flags & NL80211_SCAN_FLAG_FLUSH) {
+		pr_debug("MAC%u: flush cache before scan\n", mac->macid);
 
-	if (unlikely(ret))
-		goto out;
-
-	pr_debug("MAC%u: scan started\n", mac->macid);
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("MAC%u: CMD failed: %u\n", mac->macid, res_code);
-		ret = -EFAULT;
-		goto out;
+		qtnf_cmd_skb_put_tlv_tag(cmd_skb, QTN_TLV_ID_SCAN_FLUSH);
 	}
+
+	if (scan_req->duration) {
+		pr_debug("MAC%u: %s scan duration %u\n", mac->macid,
+			 scan_req->duration_mandatory ? "mandatory" : "max",
+			 scan_req->duration);
+
+		qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_SCAN_DWELL,
+					 scan_req->duration);
+	}
+
+	ret = qtnf_cmd_send(mac->bus, cmd_skb);
+	if (ret)
+		goto out;
+
 out:
 	qtnf_bus_unlock(mac->bus);
+
 	return ret;
 }
 
@@ -2393,7 +2233,6 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_connect *cmd;
 	struct qlink_auth_encr *aen;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 	int i;
 	u32 connect_flags = 0;
@@ -2474,20 +2313,13 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 		qtnf_cmd_channel_tlv_add(cmd_skb, sme->channel);
 
 	qtnf_bus_lock(vif->mac->bus);
-
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
 
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2495,7 +2327,6 @@ int qtnf_cmd_send_disconnect(struct qtnf_vif *vif, u16 reason_code)
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_disconnect *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2509,19 +2340,13 @@ int qtnf_cmd_send_disconnect(struct qtnf_vif *vif, u16 reason_code)
 	cmd = (struct qlink_cmd_disconnect *)cmd_skb->data;
 	cmd->reason = cpu_to_le16(reason_code);
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
 
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2529,7 +2354,6 @@ int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif, bool up)
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_updown *cmd;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2542,20 +2366,13 @@ int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif, bool up)
 	cmd->if_up = !!up;
 
 	qtnf_bus_lock(vif->mac->bus);
-
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
 		goto out;
 
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+
 	return ret;
 }
 
@@ -2563,7 +2380,6 @@ int qtnf_cmd_reg_notify(struct qtnf_bus *bus, struct regulatory_request *req)
 {
 	struct sk_buff *cmd_skb;
 	int ret;
-	u16 res_code;
 	struct qlink_cmd_reg_notify *cmd;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
@@ -2604,28 +2420,9 @@ int qtnf_cmd_reg_notify(struct qtnf_bus *bus, struct regulatory_request *req)
 	}
 
 	qtnf_bus_lock(bus);
-
-	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
+	ret = qtnf_cmd_send(bus, cmd_skb);
 	if (ret)
 		goto out;
-
-	switch (res_code) {
-	case QLINK_CMD_RESULT_ENOTSUPP:
-		pr_warn("reg update not supported\n");
-		ret = -EOPNOTSUPP;
-		break;
-	case QLINK_CMD_RESULT_EALREADY:
-		pr_info("regulatory domain is already set to %c%c",
-			req->alpha2[0], req->alpha2[1]);
-		ret = -EALREADY;
-		break;
-	case QLINK_CMD_RESULT_OK:
-		ret = 0;
-		break;
-	default:
-		ret = -EFAULT;
-		break;
-	}
 
 out:
 	qtnf_bus_unlock(bus);
@@ -2639,8 +2436,7 @@ int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	struct qlink_cmd_get_chan_stats *cmd;
 	struct qlink_resp_get_chan_stats *resp;
-	size_t var_data_len;
-	u16 res_code = QLINK_CMD_RESULT_OK;
+	size_t var_data_len = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
@@ -2654,25 +2450,10 @@ int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 	cmd = (struct qlink_cmd_get_chan_stats *)cmd_skb->data;
 	cmd->channel = cpu_to_le16(channel);
 
-	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb, &res_code,
+	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb,
 				       sizeof(*resp), &var_data_len);
-	if (unlikely(ret)) {
-		qtnf_bus_unlock(mac->bus);
-		return ret;
-	}
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		switch (res_code) {
-		case QLINK_CMD_RESULT_ENOTFOUND:
-			ret = -ENOENT;
-			break;
-		default:
-			pr_err("cmd exec failed: 0x%.4X\n", res_code);
-			ret = -EFAULT;
-			break;
-		}
+	if (ret)
 		goto out;
-	}
 
 	resp = (struct qlink_resp_get_chan_stats *)resp_skb->data;
 	ret = qtnf_cmd_resp_proc_chan_stat_info(stats, resp->info,
@@ -2681,6 +2462,7 @@ int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 out:
 	qtnf_bus_unlock(mac->bus);
 	consume_skb(resp_skb);
+
 	return ret;
 }
 
@@ -2690,7 +2472,6 @@ int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 	struct qtnf_wmac *mac = vif->mac;
 	struct qlink_cmd_chan_switch *cmd;
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, vif->vifid,
@@ -2707,32 +2488,13 @@ int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 	cmd->block_tx = params->block_tx;
 	cmd->beacon_count = params->count;
 
-	ret = qtnf_cmd_send(mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(mac->bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	switch (res_code) {
-	case QLINK_CMD_RESULT_OK:
-		ret = 0;
-		break;
-	case QLINK_CMD_RESULT_ENOTFOUND:
-		ret = -ENOENT;
-		break;
-	case QLINK_CMD_RESULT_ENOTSUPP:
-		ret = -EOPNOTSUPP;
-		break;
-	case QLINK_CMD_RESULT_EALREADY:
-		ret = -EALREADY;
-		break;
-	case QLINK_CMD_RESULT_INVALID:
-	default:
-		ret = -EFAULT;
-		break;
-	}
 
 out:
 	qtnf_bus_unlock(mac->bus);
+
 	return ret;
 }
 
@@ -2742,7 +2504,6 @@ int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef)
 	const struct qlink_resp_channel_get *resp;
 	struct sk_buff *cmd_skb;
 	struct sk_buff *resp_skb = NULL;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2752,25 +2513,18 @@ int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef)
 		return -ENOMEM;
 
 	qtnf_bus_lock(bus);
-
-	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb, &res_code,
+	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb,
 				       sizeof(*resp), NULL);
-
-	qtnf_bus_unlock(bus);
-
-	if (unlikely(ret))
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		ret = -ENODATA;
-		goto out;
-	}
 
 	resp = (const struct qlink_resp_channel_get *)resp_skb->data;
 	qlink_chandef_q2cfg(priv_to_wiphy(vif->mac), &resp->chan, chdef);
 
 out:
+	qtnf_bus_unlock(bus);
 	consume_skb(resp_skb);
+
 	return ret;
 }
 
@@ -2782,7 +2536,6 @@ int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_start_cac *cmd;
 	int ret;
-	u16 res_code;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_START_CAC,
@@ -2795,19 +2548,12 @@ int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
 	qlink_chandef_cfg2q(chdef, &cmd->chan);
 
 	qtnf_bus_lock(bus);
-	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
-	qtnf_bus_unlock(bus);
-
+	ret = qtnf_cmd_send(bus, cmd_skb);
 	if (ret)
-		return ret;
+		goto out;
 
-	switch (res_code) {
-	case QLINK_CMD_RESULT_OK:
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
+out:
+	qtnf_bus_unlock(bus);
 
 	return ret;
 }
@@ -2819,7 +2565,6 @@ int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
 	struct sk_buff *cmd_skb;
 	struct qlink_tlv_hdr *tlv;
 	size_t acl_size = qtnf_cmd_acl_data_size(params);
-	u16 res_code;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2834,22 +2579,12 @@ int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
 	qlink_acl_data_cfg2q(params, (struct qlink_acl_data *)tlv->val);
 
 	qtnf_bus_lock(bus);
-	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
+	ret = qtnf_cmd_send(bus, cmd_skb);
+	if (ret)
+		goto out;
+
+out:
 	qtnf_bus_unlock(bus);
-
-	if (unlikely(ret))
-		return ret;
-
-	switch (res_code) {
-	case QLINK_CMD_RESULT_OK:
-		break;
-	case QLINK_CMD_RESULT_INVALID:
-		ret = -EINVAL;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
 
 	return ret;
 }
@@ -2858,7 +2593,6 @@ int qtnf_cmd_send_pm_set(const struct qtnf_vif *vif, u8 pm_mode, int timeout)
 {
 	struct qtnf_bus *bus = vif->mac->bus;
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	struct qlink_cmd_pm_set *cmd;
 	int ret = 0;
 
@@ -2873,18 +2607,13 @@ int qtnf_cmd_send_pm_set(const struct qtnf_vif *vif, u8 pm_mode, int timeout)
 
 	qtnf_bus_lock(bus);
 
-	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("cmd exec failed: 0x%.4X\n", res_code);
-		ret = -EFAULT;
-	}
 
 out:
 	qtnf_bus_unlock(bus);
+
 	return ret;
 }
 
@@ -2893,7 +2622,6 @@ int qtnf_cmd_send_wowlan_set(const struct qtnf_vif *vif,
 {
 	struct qtnf_bus *bus = vif->mac->bus;
 	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
 	struct qlink_cmd_wowlan_set *cmd;
 	u32 triggers = 0;
 	int count = 0;
@@ -2929,15 +2657,9 @@ int qtnf_cmd_send_wowlan_set(const struct qtnf_vif *vif,
 
 	cmd->triggers = cpu_to_le32(triggers);
 
-	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
+	ret = qtnf_cmd_send(bus, cmd_skb);
+	if (ret)
 		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("cmd exec failed: 0x%.4X\n", res_code);
-		ret = -EFAULT;
-	}
 
 out:
 	qtnf_bus_unlock(bus);

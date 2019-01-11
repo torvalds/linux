@@ -56,12 +56,7 @@ static int rxe_query_port(struct ib_device *dev,
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
-	int rc = -EINVAL;
-
-	if (unlikely(port_num != 1)) {
-		pr_warn("invalid port_number %d\n", port_num);
-		goto out;
-	}
+	int rc;
 
 	port = &rxe->port;
 
@@ -71,9 +66,16 @@ static int rxe_query_port(struct ib_device *dev,
 	mutex_lock(&rxe->usdev_lock);
 	rc = ib_get_eth_speed(dev, port_num, &attr->active_speed,
 			      &attr->active_width);
+
+	if (attr->state == IB_PORT_ACTIVE)
+		attr->phys_state = RDMA_LINK_PHYS_STATE_LINK_UP;
+	else if (dev_get_flags(rxe->ndev) & IFF_UP)
+		attr->phys_state = RDMA_LINK_PHYS_STATE_POLLING;
+	else
+		attr->phys_state = RDMA_LINK_PHYS_STATE_DISABLED;
+
 	mutex_unlock(&rxe->usdev_lock);
 
-out:
 	return rc;
 }
 
@@ -95,12 +97,6 @@ static int rxe_query_pkey(struct ib_device *device,
 {
 	struct rxe_dev *rxe = to_rdev(device);
 	struct rxe_port *port;
-
-	if (unlikely(port_num != 1)) {
-		dev_warn(device->dev.parent, "invalid port_num = %d\n",
-			 port_num);
-		goto err1;
-	}
 
 	port = &rxe->port;
 
@@ -139,11 +135,6 @@ static int rxe_modify_port(struct ib_device *dev,
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
 
-	if (unlikely(port_num != 1)) {
-		pr_warn("invalid port_num = %d\n", port_num);
-		goto err1;
-	}
-
 	port = &rxe->port;
 
 	port->attr.port_cap_flags |= attr->set_port_cap_mask;
@@ -153,9 +144,6 @@ static int rxe_modify_port(struct ib_device *dev,
 		port->attr.qkey_viol_cntr = 0;
 
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
@@ -231,6 +219,7 @@ static void rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 				   struct rdma_ah_attr *attr,
+				   u32 flags,
 				   struct ib_udata *udata)
 
 {
@@ -278,7 +267,7 @@ static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	return 0;
 }
 
-static int rxe_destroy_ah(struct ib_ah *ibah)
+static int rxe_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct rxe_ah *ah = to_rah(ibah);
 
@@ -498,7 +487,7 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 
 	rxe_add_index(qp);
 
-	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd);
+	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd, udata);
 	if (err)
 		goto err3;
 
@@ -1148,18 +1137,67 @@ static ssize_t parent_show(struct device *device,
 
 static DEVICE_ATTR_RO(parent);
 
-static struct device_attribute *rxe_dev_attributes[] = {
-	&dev_attr_parent,
+static struct attribute *rxe_dev_attributes[] = {
+	&dev_attr_parent.attr,
+	NULL
+};
+
+static const struct attribute_group rxe_attr_group = {
+	.attrs = rxe_dev_attributes,
+};
+
+static const struct ib_device_ops rxe_dev_ops = {
+	.alloc_hw_stats = rxe_ib_alloc_hw_stats,
+	.alloc_mr = rxe_alloc_mr,
+	.alloc_pd = rxe_alloc_pd,
+	.alloc_ucontext = rxe_alloc_ucontext,
+	.attach_mcast = rxe_attach_mcast,
+	.create_ah = rxe_create_ah,
+	.create_cq = rxe_create_cq,
+	.create_qp = rxe_create_qp,
+	.create_srq = rxe_create_srq,
+	.dealloc_pd = rxe_dealloc_pd,
+	.dealloc_ucontext = rxe_dealloc_ucontext,
+	.dereg_mr = rxe_dereg_mr,
+	.destroy_ah = rxe_destroy_ah,
+	.destroy_cq = rxe_destroy_cq,
+	.destroy_qp = rxe_destroy_qp,
+	.destroy_srq = rxe_destroy_srq,
+	.detach_mcast = rxe_detach_mcast,
+	.get_dma_mr = rxe_get_dma_mr,
+	.get_hw_stats = rxe_ib_get_hw_stats,
+	.get_link_layer = rxe_get_link_layer,
+	.get_netdev = rxe_get_netdev,
+	.get_port_immutable = rxe_port_immutable,
+	.map_mr_sg = rxe_map_mr_sg,
+	.mmap = rxe_mmap,
+	.modify_ah = rxe_modify_ah,
+	.modify_device = rxe_modify_device,
+	.modify_port = rxe_modify_port,
+	.modify_qp = rxe_modify_qp,
+	.modify_srq = rxe_modify_srq,
+	.peek_cq = rxe_peek_cq,
+	.poll_cq = rxe_poll_cq,
+	.post_recv = rxe_post_recv,
+	.post_send = rxe_post_send,
+	.post_srq_recv = rxe_post_srq_recv,
+	.query_ah = rxe_query_ah,
+	.query_device = rxe_query_device,
+	.query_pkey = rxe_query_pkey,
+	.query_port = rxe_query_port,
+	.query_qp = rxe_query_qp,
+	.query_srq = rxe_query_srq,
+	.reg_user_mr = rxe_reg_user_mr,
+	.req_notify_cq = rxe_req_notify_cq,
+	.resize_cq = rxe_resize_cq,
 };
 
 int rxe_register_device(struct rxe_dev *rxe)
 {
 	int err;
-	int i;
 	struct ib_device *dev = &rxe->ib_dev;
 	struct crypto_shash *tfm;
 
-	strlcpy(dev->name, "rxe%d", IB_DEVICE_NAME_MAX);
 	strlcpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
 
 	dev->owner = THIS_MODULE;
@@ -1208,49 +1246,7 @@ int rxe_register_device(struct rxe_dev *rxe)
 	    | BIT_ULL(IB_USER_VERBS_CMD_DETACH_MCAST)
 	    ;
 
-	dev->query_device = rxe_query_device;
-	dev->modify_device = rxe_modify_device;
-	dev->query_port = rxe_query_port;
-	dev->modify_port = rxe_modify_port;
-	dev->get_link_layer = rxe_get_link_layer;
-	dev->get_netdev = rxe_get_netdev;
-	dev->query_pkey = rxe_query_pkey;
-	dev->alloc_ucontext = rxe_alloc_ucontext;
-	dev->dealloc_ucontext = rxe_dealloc_ucontext;
-	dev->mmap = rxe_mmap;
-	dev->get_port_immutable = rxe_port_immutable;
-	dev->alloc_pd = rxe_alloc_pd;
-	dev->dealloc_pd = rxe_dealloc_pd;
-	dev->create_ah = rxe_create_ah;
-	dev->modify_ah = rxe_modify_ah;
-	dev->query_ah = rxe_query_ah;
-	dev->destroy_ah = rxe_destroy_ah;
-	dev->create_srq = rxe_create_srq;
-	dev->modify_srq = rxe_modify_srq;
-	dev->query_srq = rxe_query_srq;
-	dev->destroy_srq = rxe_destroy_srq;
-	dev->post_srq_recv = rxe_post_srq_recv;
-	dev->create_qp = rxe_create_qp;
-	dev->modify_qp = rxe_modify_qp;
-	dev->query_qp = rxe_query_qp;
-	dev->destroy_qp = rxe_destroy_qp;
-	dev->post_send = rxe_post_send;
-	dev->post_recv = rxe_post_recv;
-	dev->create_cq = rxe_create_cq;
-	dev->destroy_cq = rxe_destroy_cq;
-	dev->resize_cq = rxe_resize_cq;
-	dev->poll_cq = rxe_poll_cq;
-	dev->peek_cq = rxe_peek_cq;
-	dev->req_notify_cq = rxe_req_notify_cq;
-	dev->get_dma_mr = rxe_get_dma_mr;
-	dev->reg_user_mr = rxe_reg_user_mr;
-	dev->dereg_mr = rxe_dereg_mr;
-	dev->alloc_mr = rxe_alloc_mr;
-	dev->map_mr_sg = rxe_map_mr_sg;
-	dev->attach_mcast = rxe_attach_mcast;
-	dev->detach_mcast = rxe_detach_mcast;
-	dev->get_hw_stats = rxe_ib_get_hw_stats;
-	dev->alloc_hw_stats = rxe_ib_alloc_hw_stats;
+	ib_set_device_ops(dev, &rxe_dev_ops);
 
 	tfm = crypto_alloc_shash("crc32", 0, 0);
 	if (IS_ERR(tfm)) {
@@ -1260,41 +1256,25 @@ int rxe_register_device(struct rxe_dev *rxe)
 	}
 	rxe->tfm = tfm;
 
+	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
 	dev->driver_id = RDMA_DRIVER_RXE;
-	err = ib_register_device(dev, NULL);
+	err = ib_register_device(dev, "rxe%d", NULL);
 	if (err) {
 		pr_warn("%s failed with error %d\n", __func__, err);
 		goto err1;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(rxe_dev_attributes); ++i) {
-		err = device_create_file(&dev->dev, rxe_dev_attributes[i]);
-		if (err) {
-			pr_warn("%s failed with error %d for attr number %d\n",
-				__func__, err, i);
-			goto err2;
-		}
-	}
-
 	return 0;
 
-err2:
-	ib_unregister_device(dev);
 err1:
 	crypto_free_shash(rxe->tfm);
 
 	return err;
 }
 
-int rxe_unregister_device(struct rxe_dev *rxe)
+void rxe_unregister_device(struct rxe_dev *rxe)
 {
-	int i;
 	struct ib_device *dev = &rxe->ib_dev;
 
-	for (i = 0; i < ARRAY_SIZE(rxe_dev_attributes); ++i)
-		device_remove_file(&dev->dev, rxe_dev_attributes[i]);
-
 	ib_unregister_device(dev);
-
-	return 0;
 }

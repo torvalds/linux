@@ -276,7 +276,8 @@ dont_reuse:
  * If we return with a connection, the call will be on its waiting list.  It's
  * left to the caller to assign a channel and wake up the call.
  */
-static int rxrpc_get_client_conn(struct rxrpc_call *call,
+static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
+				 struct rxrpc_call *call,
 				 struct rxrpc_conn_parameters *cp,
 				 struct sockaddr_rxrpc *srx,
 				 gfp_t gfp)
@@ -289,7 +290,7 @@ static int rxrpc_get_client_conn(struct rxrpc_call *call,
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
-	cp->peer = rxrpc_lookup_peer(cp->local, srx, gfp);
+	cp->peer = rxrpc_lookup_peer(rx, cp->local, srx, gfp);
 	if (!cp->peer)
 		goto error;
 
@@ -683,7 +684,8 @@ out:
  * find a connection for a call
  * - called in process context with IRQs enabled
  */
-int rxrpc_connect_call(struct rxrpc_call *call,
+int rxrpc_connect_call(struct rxrpc_sock *rx,
+		       struct rxrpc_call *call,
 		       struct rxrpc_conn_parameters *cp,
 		       struct sockaddr_rxrpc *srx,
 		       gfp_t gfp)
@@ -696,7 +698,7 @@ int rxrpc_connect_call(struct rxrpc_call *call,
 	rxrpc_discard_expired_client_conns(&rxnet->client_conn_reaper);
 	rxrpc_cull_active_client_conns(rxnet);
 
-	ret = rxrpc_get_client_conn(call, cp, srx, gfp);
+	ret = rxrpc_get_client_conn(rx, call, cp, srx, gfp);
 	if (ret < 0)
 		goto out;
 
@@ -710,8 +712,8 @@ int rxrpc_connect_call(struct rxrpc_call *call,
 	}
 
 	spin_lock_bh(&call->conn->params.peer->lock);
-	hlist_add_head(&call->error_link,
-		       &call->conn->params.peer->error_targets);
+	hlist_add_head_rcu(&call->error_link,
+			   &call->conn->params.peer->error_targets);
 	spin_unlock_bh(&call->conn->params.peer->lock);
 
 out:

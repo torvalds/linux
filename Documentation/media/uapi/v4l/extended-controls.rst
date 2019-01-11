@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _extended-controls:
 
@@ -1110,10 +1117,16 @@ enum v4l2_mpeg_video_h264_loop_filter_mode -
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA (integer)``
     Loop filter alpha coefficient, defined in the H264 standard.
+    This value corresponds to the slice_alpha_c0_offset_div2 slice header
+    field, and should be in the range of -6 to +6, inclusive. The actual alpha
+    offset FilterOffsetA is twice this value.
     Applicable to the H264 encoder.
 
 ``V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_BETA (integer)``
     Loop filter beta coefficient, defined in the H264 standard.
+    This corresponds to the slice_beta_offset_div2 slice header field, and
+    should be in the range of -6 to +6, inclusive. The actual beta offset
+    FilterOffsetB is twice this value.
     Applicable to the H264 encoder.
 
 .. _v4l2-mpeg-video-h264-entropy-mode:
@@ -1497,6 +1510,192 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
 
 
+.. _v4l2-mpeg-mpeg2:
+
+``V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS (struct)``
+    Specifies the slice parameters (as extracted from the bitstream) for the
+    associated MPEG-2 slice data. This includes the necessary parameters for
+    configuring a stateless hardware decoding pipeline for MPEG-2.
+    The bitstream parameters are defined according to :ref:`mpeg2part2`.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_mpeg2_slice_params
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_mpeg2_slice_params
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u32
+      - ``bit_size``
+      - Size (in bits) of the current slice data.
+    * - __u32
+      - ``data_bit_offset``
+      - Offset (in bits) to the video data in the current slice data.
+    * - struct :c:type:`v4l2_mpeg2_sequence`
+      - ``sequence``
+      - Structure with MPEG-2 sequence metadata, merging relevant fields from
+	the sequence header and sequence extension parts of the bitstream.
+    * - struct :c:type:`v4l2_mpeg2_picture`
+      - ``picture``
+      - Structure with MPEG-2 picture metadata, merging relevant fields from
+	the picture header and picture coding extension parts of the bitstream.
+    * - __u8
+      - ``quantiser_scale_code``
+      - Code used to determine the quantization scale to use for the IDCT.
+    * - __u8
+      - ``backward_ref_index``
+      - Index for the V4L2 buffer to use as backward reference, used with
+	B-coded and P-coded frames.
+    * - __u8
+      - ``forward_ref_index``
+      - Index for the V4L2 buffer to use as forward reference, used with
+	B-coded frames.
+
+.. c:type:: v4l2_mpeg2_sequence
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_mpeg2_sequence
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u16
+      - ``horizontal_size``
+      - The width of the displayable part of the frame's luminance component.
+    * - __u16
+      - ``vertical_size``
+      - The height of the displayable part of the frame's luminance component.
+    * - __u32
+      - ``vbv_buffer_size``
+      - Used to calculate the required size of the video buffering verifier,
+	defined (in bits) as: 16 * 1024 * vbv_buffer_size.
+    * - __u8
+      - ``profile_and_level_indication``
+      - The current profile and level indication as extracted from the
+	bitstream.
+    * - __u8
+      - ``progressive_sequence``
+      - Indication that all the frames for the sequence are progressive instead
+	of interlaced.
+    * - __u8
+      - ``chroma_format``
+      - The chrominance sub-sampling format (1: 4:2:0, 2: 4:2:2, 3: 4:4:4).
+
+.. c:type:: v4l2_mpeg2_picture
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_mpeg2_picture
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``picture_coding_type``
+      - Picture coding type for the frame covered by the current slice
+	(V4L2_MPEG2_PICTURE_CODING_TYPE_I, V4L2_MPEG2_PICTURE_CODING_TYPE_P or
+	V4L2_MPEG2_PICTURE_CODING_TYPE_B).
+    * - __u8
+      - ``f_code[2][2]``
+      - Motion vector codes.
+    * - __u8
+      - ``intra_dc_precision``
+      - Precision of Discrete Cosine transform (0: 8 bits precision,
+	1: 9 bits precision, 2: 10 bits precision, 3: 11 bits precision).
+    * - __u8
+      - ``picture_structure``
+      - Picture structure (1: interlaced top field, 2: interlaced bottom field,
+	3: progressive frame).
+    * - __u8
+      - ``top_field_first``
+      - If set to 1 and interlaced stream, top field is output first.
+    * - __u8
+      - ``frame_pred_frame_dct``
+      - If set to 1, only frame-DCT and frame prediction are used.
+    * - __u8
+      - ``concealment_motion_vectors``
+      -  If set to 1, motion vectors are coded for intra macroblocks.
+    * - __u8
+      - ``q_scale_type``
+      - This flag affects the inverse quantization process.
+    * - __u8
+      - ``intra_vlc_format``
+      - This flag affects the decoding of transform coefficient data.
+    * - __u8
+      - ``alternate_scan``
+      - This flag affects the decoding of transform coefficient data.
+    * - __u8
+      - ``repeat_first_field``
+      - This flag affects the decoding process of progressive frames.
+    * - __u8
+      - ``progressive_frame``
+      - Indicates whether the current frame is progressive.
+
+``V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION (struct)``
+    Specifies quantization matrices (as extracted from the bitstream) for the
+    associated MPEG-2 slice data.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_mpeg2_quantization
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_mpeg2_quantization
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``load_intra_quantiser_matrix``
+      - One bit to indicate whether to load the ``intra_quantiser_matrix`` data.
+    * - __u8
+      - ``load_non_intra_quantiser_matrix``
+      - One bit to indicate whether to load the ``non_intra_quantiser_matrix``
+	data.
+    * - __u8
+      - ``load_chroma_intra_quantiser_matrix``
+      - One bit to indicate whether to load the
+	``chroma_intra_quantiser_matrix`` data, only relevant for non-4:2:0 YUV
+	formats.
+    * - __u8
+      - ``load_chroma_non_intra_quantiser_matrix``
+      - One bit to indicate whether to load the
+	``chroma_non_intra_quantiser_matrix`` data, only relevant for non-4:2:0
+	YUV formats.
+    * - __u8
+      - ``intra_quantiser_matrix[64]``
+      - The quantization matrix coefficients for intra-coded frames, in zigzag
+	scanning order. It is relevant for both luma and chroma components,
+	although it can be superseded by the chroma-specific matrix for
+	non-4:2:0 YUV formats.
+    * - __u8
+      - ``non_intra_quantiser_matrix[64]``
+      - The quantization matrix coefficients for non-intra-coded frames, in
+	zigzag scanning order. It is relevant for both luma and chroma
+	components, although it can be superseded by the chroma-specific matrix
+	for non-4:2:0 YUV formats.
+    * - __u8
+      - ``chroma_intra_quantiser_matrix[64]``
+      - The quantization matrix coefficients for the chominance component of
+	intra-coded frames, in zigzag scanning order. Only relevant for
+	non-4:2:0 YUV formats.
+    * - __u8
+      - ``chroma_non_intra_quantiser_matrix[64]``
+      - The quantization matrix coefficients for the chrominance component of
+	non-intra-coded frames, in zigzag scanning order. Only relevant for
+	non-4:2:0 YUV formats.
 
 MFC 5.1 MPEG Controls
 ---------------------
@@ -3804,7 +4003,7 @@ demodulator. It receives radio frequency (RF) from the antenna and
 converts that received signal to lower intermediate frequency (IF) or
 baseband frequency (BB). Tuners that could do baseband output are often
 called Zero-IF tuners. Older tuners were typically simple PLL tuners
-inside a metal box, whilst newer ones are highly integrated chips
+inside a metal box, while newer ones are highly integrated chips
 without a metal box "silicon tuners". These controls are mostly
 applicable for new feature rich silicon tuners, just because older
 tuners does not have much adjustable features.

@@ -140,6 +140,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	struct ip_tunnel *t;
 	int err = 0;
 
+	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
+			     iph->daddr, iph->saddr, 0);
+	if (!t) {
+		err = -ENOENT;
+		goto out;
+	}
+
 	switch (type) {
 	case ICMP_DEST_UNREACH:
 		switch (code) {
@@ -167,21 +174,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		goto out;
 	}
 
-	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
-			     iph->daddr, iph->saddr, 0);
-	if (!t) {
-		err = -ENOENT;
-		goto out;
-	}
-
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		ipv4_update_pmtu(skb, net, info, t->parms.link, 0,
-				 iph->protocol, 0);
+		ipv4_update_pmtu(skb, net, info, t->parms.link, iph->protocol);
 		goto out;
 	}
 
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, net, t->parms.link, 0, iph->protocol, 0);
+		ipv4_redirect(skb, net, t->parms.link, iph->protocol);
 		goto out;
 	}
 

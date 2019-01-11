@@ -519,7 +519,7 @@ static dma_addr_t vio_dma_iommu_map_page(struct device *dev, struct page *page,
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
 	struct iommu_table *tbl;
-	dma_addr_t ret = IOMMU_MAPPING_ERROR;
+	dma_addr_t ret = DMA_MAPPING_ERROR;
 
 	tbl = get_iommu_table_base(dev);
 	if (vio_cmo_alloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl)))) {
@@ -625,7 +625,6 @@ static const struct dma_map_ops vio_dma_mapping_ops = {
 	.unmap_page        = vio_dma_iommu_unmap_page,
 	.dma_supported     = vio_dma_iommu_dma_supported,
 	.get_required_mask = vio_dma_get_required_mask,
-	.mapping_error	   = dma_iommu_mapping_error,
 };
 
 /**
@@ -1349,7 +1348,6 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	struct device_node *parent_node;
 	const __be32 *prop;
 	enum vio_dev_family family;
-	const char *of_node_name = of_node->name ? of_node->name : "<unknown>";
 
 	/*
 	 * Determine if this node is a under the /vdevice node or under the
@@ -1357,29 +1355,29 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	 */
 	parent_node = of_get_parent(of_node);
 	if (parent_node) {
-		if (!strcmp(parent_node->type, "ibm,platform-facilities"))
+		if (of_node_is_type(parent_node, "ibm,platform-facilities"))
 			family = PFO;
-		else if (!strcmp(parent_node->type, "vdevice"))
+		else if (of_node_is_type(parent_node, "vdevice"))
 			family = VDEVICE;
 		else {
-			pr_warn("%s: parent(%pOF) of %s not recognized.\n",
+			pr_warn("%s: parent(%pOF) of %pOFn not recognized.\n",
 					__func__,
 					parent_node,
-					of_node_name);
+					of_node);
 			of_node_put(parent_node);
 			return NULL;
 		}
 		of_node_put(parent_node);
 	} else {
-		pr_warn("%s: could not determine the parent of node %s.\n",
-				__func__, of_node_name);
+		pr_warn("%s: could not determine the parent of node %pOFn.\n",
+				__func__, of_node);
 		return NULL;
 	}
 
 	if (family == PFO) {
 		if (of_get_property(of_node, "interrupt-controller", NULL)) {
-			pr_debug("%s: Skipping the interrupt controller %s.\n",
-					__func__, of_node_name);
+			pr_debug("%s: Skipping the interrupt controller %pOFn.\n",
+					__func__, of_node);
 			return NULL;
 		}
 	}
@@ -1396,18 +1394,17 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	if (viodev->family == VDEVICE) {
 		unsigned int unit_address;
 
-		if (of_node->type != NULL)
-			viodev->type = of_node->type;
-		else {
-			pr_warn("%s: node %s is missing the 'device_type' "
-					"property.\n", __func__, of_node_name);
+		viodev->type = of_node_get_device_type(of_node);
+		if (!viodev->type) {
+			pr_warn("%s: node %pOFn is missing the 'device_type' "
+					"property.\n", __func__, of_node);
 			goto out;
 		}
 
 		prop = of_get_property(of_node, "reg", NULL);
 		if (prop == NULL) {
-			pr_warn("%s: node %s missing 'reg'\n",
-					__func__, of_node_name);
+			pr_warn("%s: node %pOFn missing 'reg'\n",
+					__func__, of_node);
 			goto out;
 		}
 		unit_address = of_read_number(prop, 1);
@@ -1422,8 +1419,8 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 		if (prop != NULL)
 			viodev->resource_id = of_read_number(prop, 1);
 
-		dev_set_name(&viodev->dev, "%s", of_node_name);
-		viodev->type = of_node_name;
+		dev_set_name(&viodev->dev, "%pOFn", of_node);
+		viodev->type = dev_name(&viodev->dev);
 		viodev->irq = 0;
 	}
 
@@ -1673,32 +1670,30 @@ struct vio_dev *vio_find_node(struct device_node *vnode)
 {
 	char kobj_name[20];
 	struct device_node *vnode_parent;
-	const char *dev_type;
 
 	vnode_parent = of_get_parent(vnode);
 	if (!vnode_parent)
 		return NULL;
 
-	dev_type = of_get_property(vnode_parent, "device_type", NULL);
-	of_node_put(vnode_parent);
-	if (!dev_type)
-		return NULL;
-
 	/* construct the kobject name from the device node */
-	if (!strcmp(dev_type, "vdevice")) {
+	if (of_node_is_type(vnode_parent, "vdevice")) {
 		const __be32 *prop;
 		
 		prop = of_get_property(vnode, "reg", NULL);
 		if (!prop)
-			return NULL;
+			goto out;
 		snprintf(kobj_name, sizeof(kobj_name), "%x",
 			 (uint32_t)of_read_number(prop, 1));
-	} else if (!strcmp(dev_type, "ibm,platform-facilities"))
-		snprintf(kobj_name, sizeof(kobj_name), "%s", vnode->name);
+	} else if (of_node_is_type(vnode_parent, "ibm,platform-facilities"))
+		snprintf(kobj_name, sizeof(kobj_name), "%pOFn", vnode);
 	else
-		return NULL;
+		goto out;
 
+	of_node_put(vnode_parent);
 	return vio_find_name(kobj_name);
+out:
+	of_node_put(vnode_parent);
+	return NULL;
 }
 EXPORT_SYMBOL(vio_find_node);
 

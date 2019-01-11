@@ -23,6 +23,8 @@
 #ifndef __ASM_ASSEMBLER_H
 #define __ASM_ASSEMBLER_H
 
+#include <asm-generic/export.h>
+
 #include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
@@ -120,6 +122,19 @@
  */
 	.macro	csdb
 	hint	#20
+	.endm
+
+/*
+ * Speculation barrier
+ */
+	.macro	sb
+alternative_if_not ARM64_HAS_SB
+	dsb	nsh
+	isb
+alternative_else
+	SB_BARRIER_INSN
+	nop
+alternative_endif
 	.endm
 
 /*
@@ -286,12 +301,11 @@ alternative_endif
 	ldr	\rd, [\rn, #MM_CONTEXT_ID]
 	.endm
 /*
- * read_ctr - read CTR_EL0. If the system has mismatched
- * cache line sizes, provide the system wide safe value
- * from arm64_ftr_reg_ctrel0.sys_val
+ * read_ctr - read CTR_EL0. If the system has mismatched register fields,
+ * provide the system wide safe value from arm64_ftr_reg_ctrel0.sys_val
  */
 	.macro	read_ctr, reg
-alternative_if_not ARM64_MISMATCHED_CACHE_LINE_SIZE
+alternative_if_not ARM64_MISMATCHED_CACHE_TYPE
 	mrs	\reg, ctr_el0			// read CTR
 	nop
 alternative_else
@@ -343,11 +357,10 @@ alternative_endif
 	.endm
 
 /*
- * tcr_set_idmap_t0sz - update TCR.T0SZ so that we can load the ID map
+ * tcr_set_t0sz - update TCR.T0SZ so that we can load the ID map
  */
-	.macro	tcr_set_idmap_t0sz, valreg, tmpreg
-	ldr_l	\tmpreg, idmap_t0sz
-	bfi	\valreg, \tmpreg, #TCR_T0SZ_OFFSET, #TCR_TxSZ_WIDTH
+	.macro	tcr_set_t0sz, valreg, t0sz
+	bfi	\valreg, \t0sz, #TCR_T0SZ_OFFSET, #TCR_TxSZ_WIDTH
 	.endm
 
 /*
@@ -378,26 +391,32 @@ alternative_endif
  * 	size:		size of the region
  * 	Corrupts:	kaddr, size, tmp1, tmp2
  */
+	.macro __dcache_op_workaround_clean_cache, op, kaddr
+alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
+	dc	\op, \kaddr
+alternative_else
+	dc	civac, \kaddr
+alternative_endif
+	.endm
+
 	.macro dcache_by_line_op op, domain, kaddr, size, tmp1, tmp2
 	dcache_line_size \tmp1, \tmp2
 	add	\size, \kaddr, \size
 	sub	\tmp2, \tmp1, #1
 	bic	\kaddr, \kaddr, \tmp2
 9998:
-	.if	(\op == cvau || \op == cvac)
-alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
-	dc	\op, \kaddr
-alternative_else
-	dc	civac, \kaddr
-alternative_endif
-	.elseif	(\op == cvap)
-alternative_if ARM64_HAS_DCPOP
-	sys 3, c7, c12, 1, \kaddr	// dc cvap
-alternative_else
-	dc	cvac, \kaddr
-alternative_endif
+	.ifc	\op, cvau
+	__dcache_op_workaround_clean_cache \op, \kaddr
+	.else
+	.ifc	\op, cvac
+	__dcache_op_workaround_clean_cache \op, \kaddr
+	.else
+	.ifc	\op, cvap
+	sys	3, c7, c12, 1, \kaddr	// dc cvap
 	.else
 	dc	\op, \kaddr
+	.endif
+	.endif
 	.endif
 	add	\kaddr, \kaddr, \tmp1
 	cmp	\kaddr, \size
@@ -478,6 +497,13 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 #else
 #define NOKPROBE(x)
 #endif
+
+#ifdef CONFIG_KASAN
+#define EXPORT_SYMBOL_NOKASAN(name)
+#else
+#define EXPORT_SYMBOL_NOKASAN(name)	EXPORT_SYMBOL(name)
+#endif
+
 	/*
 	 * Emit a 64-bit absolute little endian symbol reference in a way that
 	 * ensures that it will be resolved at build time, even when building a
@@ -514,6 +540,29 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  */
 	.macro	get_thread_info, rd
 	mrs	\rd, sp_el0
+	.endm
+
+/*
+ * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
+ * orr is used as it can cover the immediate value (and is idempotent).
+ * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
+ * 	ttbr: Value of ttbr to set, modified.
+ */
+	.macro	offset_ttbr1, ttbr
+#ifdef CONFIG_ARM64_USER_VA_BITS_52
+	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+#endif
+	.endm
+
+/*
+ * Perform the reverse of offset_ttbr1.
+ * bic is used as it can cover the immediate value and, in future, won't need
+ * to be nop'ed out when dealing with 52-bit kernel VAs.
+ */
+	.macro	restore_ttbr1, ttbr
+#ifdef CONFIG_ARM64_USER_VA_BITS_52
+	bic	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+#endif
 	.endm
 
 /*
@@ -673,11 +722,9 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.macro		if_will_cond_yield_neon
 #ifdef CONFIG_PREEMPT
 	get_thread_info	x0
-	ldr		w1, [x0, #TSK_TI_PREEMPT]
-	ldr		x0, [x0, #TSK_TI_FLAGS]
-	cmp		w1, #PREEMPT_DISABLE_OFFSET
-	csel		x0, x0, xzr, eq
-	tbnz		x0, #TIF_NEED_RESCHED, .Lyield_\@	// needs rescheduling?
+	ldr		x0, [x0, #TSK_TI_PREEMPT]
+	sub		x0, x0, #PREEMPT_DISABLE_OFFSET
+	cbz		x0, .Lyield_\@
 	/* fall through to endif_yield_neon */
 	.subsection	1
 .Lyield_\@ :

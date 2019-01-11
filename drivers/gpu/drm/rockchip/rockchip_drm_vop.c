@@ -32,6 +32,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
+#include <linux/overflow.h>
 
 #include <linux/reset.h>
 #include <linux/delay.h>
@@ -41,6 +42,7 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
+#include "rockchip_rgb.h"
 
 #define VOP_WIN_SET(x, win, name, v) \
 		vop_reg_set(vop, &win->phy->name, win->base, ~0, v, #name)
@@ -92,6 +94,7 @@ struct vop_win {
 	struct vop *vop;
 };
 
+struct rockchip_rgb;
 struct vop {
 	struct drm_crtc crtc;
 	struct device *dev;
@@ -134,6 +137,9 @@ struct vop {
 
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
+
+	/* optional internal rgb encoder */
+	struct rockchip_rgb *rgb;
 
 	struct vop_win win[];
 };
@@ -910,6 +916,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC) ?
 		   BIT(VSYNC_POSITIVE) : 0;
 	VOP_REG_SET(vop, output, pin_pol, pin_pol);
+	VOP_REG_SET(vop, output, mipi_dual_channel_en, 0);
 
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -927,6 +934,8 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	case DRM_MODE_CONNECTOR_DSI:
 		VOP_REG_SET(vop, output, mipi_pin_pol, pin_pol);
 		VOP_REG_SET(vop, output, mipi_en, 1);
+		VOP_REG_SET(vop, output, mipi_dual_channel_en,
+			    !!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL));
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		pin_pol &= ~BIT(DCLK_INVERT);
@@ -1111,7 +1120,7 @@ static struct drm_connector *vop_get_edp_connector(struct vop *vop)
 }
 
 static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
-				   const char *source_name, size_t *values_cnt)
+				   const char *source_name)
 {
 	struct vop *vop = to_vop(crtc);
 	struct drm_connector *connector;
@@ -1120,8 +1129,6 @@ static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
 	connector = vop_get_edp_connector(vop);
 	if (!connector)
 		return -EINVAL;
-
-	*values_cnt = 3;
 
 	if (source_name && strcmp(source_name, "auto") == 0)
 		ret = analogix_dp_start_crc(connector);
@@ -1132,9 +1139,28 @@ static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
 
 	return ret;
 }
+
+static int
+vop_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
+			   size_t *values_cnt)
+{
+	if (source_name && strcmp(source_name, "auto") != 0)
+		return -EINVAL;
+
+	*values_cnt = 3;
+	return 0;
+}
+
 #else
 static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
-				   const char *source_name, size_t *values_cnt)
+				   const char *source_name)
+{
+	return -ENODEV;
+}
+
+static int
+vop_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
+			   size_t *values_cnt)
 {
 	return -ENODEV;
 }
@@ -1150,6 +1176,7 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
 	.set_crc_source = vop_crtc_set_crc_source,
+	.verify_crc_source = vop_crtc_verify_crc_source,
 };
 
 static void vop_fb_unref_worker(struct drm_flip_work *work, void *val)
@@ -1561,7 +1588,6 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct vop *vop;
 	struct resource *res;
-	size_t alloc_size;
 	int ret, irq;
 
 	vop_data = of_device_get_match_data(dev);
@@ -1569,8 +1595,8 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 
 	/* Allocate vop struct and its vop_win array */
-	alloc_size = sizeof(*vop) + sizeof(*vop->win) * vop_data->win_size;
-	vop = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
+	vop = devm_kzalloc(dev, struct_size(vop, win, vop_data->win_size),
+			   GFP_KERNEL);
 	if (!vop)
 		return -ENOMEM;
 
@@ -1620,6 +1646,14 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_disable_pm_runtime;
 
+	if (vop->data->feature & VOP_FEATURE_INTERNAL_RGB) {
+		vop->rgb = rockchip_rgb_init(dev, &vop->crtc, vop->drm_dev);
+		if (IS_ERR(vop->rgb)) {
+			ret = PTR_ERR(vop->rgb);
+			goto err_disable_pm_runtime;
+		}
+	}
+
 	return 0;
 
 err_disable_pm_runtime:
@@ -1631,6 +1665,9 @@ err_disable_pm_runtime:
 static void vop_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct vop *vop = dev_get_drvdata(dev);
+
+	if (vop->rgb)
+		rockchip_rgb_fini(vop->rgb);
 
 	pm_runtime_disable(dev);
 	vop_destroy_crtc(vop);

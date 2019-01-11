@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/highmem.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/export.h>
 
 #include <asm/tlbflush.h>
@@ -151,8 +151,8 @@ static struct ppc_vm_region *ppc_vm_region_find(struct ppc_vm_region *head, unsi
  * Allocate DMA-coherent memory space and return both the kernel remapped
  * virtual and bus address for that space.
  */
-void *
-__dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
+void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	struct page *page;
 	struct ppc_vm_region *c;
@@ -223,12 +223,12 @@ __dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t 
 		/*
 		 * Set the "dma handle"
 		 */
-		*handle = page_to_phys(page);
+		*dma_handle = phys_to_dma(dev, page_to_phys(page));
 
 		do {
 			SetPageReserved(page);
 			map_kernel_page(vaddr, page_to_phys(page),
-				 pgprot_val(pgprot_noncached(PAGE_KERNEL)));
+					pgprot_noncached(PAGE_KERNEL));
 			page++;
 			vaddr += PAGE_SIZE;
 		} while (size -= PAGE_SIZE);
@@ -249,12 +249,12 @@ __dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t 
  no_page:
 	return NULL;
 }
-EXPORT_SYMBOL(__dma_alloc_coherent);
 
 /*
  * free a page as defined by the above mapping.
  */
-void __dma_free_coherent(size_t size, void *vaddr)
+void __dma_nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, unsigned long attrs)
 {
 	struct ppc_vm_region *c;
 	unsigned long flags, addr;
@@ -309,7 +309,6 @@ void __dma_free_coherent(size_t size, void *vaddr)
 	       __func__, vaddr);
 	dump_stack();
 }
-EXPORT_SYMBOL(__dma_free_coherent);
 
 /*
  * make an area consistent.
@@ -401,7 +400,7 @@ EXPORT_SYMBOL(__dma_sync_page);
 
 /*
  * Return the PFN for a given cpu virtual address returned by
- * __dma_alloc_coherent. This is used by dma_mmap_coherent()
+ * __dma_nommu_alloc_coherent. This is used by dma_mmap_coherent()
  */
 unsigned long __dma_get_coherent_pfn(unsigned long cpu_addr)
 {

@@ -171,7 +171,7 @@ struct spacc_ablk_ctx {
 	 * The fallback cipher. If the operation can't be done in hardware,
 	 * fallback to a software version.
 	 */
-	struct crypto_skcipher		*sw_cipher;
+	struct crypto_sync_skcipher	*sw_cipher;
 };
 
 /* AEAD cipher context. */
@@ -799,17 +799,17 @@ static int spacc_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		 * Set the fallback transform to use the same request flags as
 		 * the hardware transform.
 		 */
-		crypto_skcipher_clear_flags(ctx->sw_cipher,
+		crypto_sync_skcipher_clear_flags(ctx->sw_cipher,
 					    CRYPTO_TFM_REQ_MASK);
-		crypto_skcipher_set_flags(ctx->sw_cipher,
+		crypto_sync_skcipher_set_flags(ctx->sw_cipher,
 					  cipher->base.crt_flags &
 					  CRYPTO_TFM_REQ_MASK);
 
-		err = crypto_skcipher_setkey(ctx->sw_cipher, key, len);
+		err = crypto_sync_skcipher_setkey(ctx->sw_cipher, key, len);
 
 		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
 		tfm->crt_flags |=
-			crypto_skcipher_get_flags(ctx->sw_cipher) &
+			crypto_sync_skcipher_get_flags(ctx->sw_cipher) &
 			CRYPTO_TFM_RES_MASK;
 
 		if (err)
@@ -914,7 +914,7 @@ static int spacc_ablk_do_fallback(struct ablkcipher_request *req,
 	struct crypto_tfm *old_tfm =
 	    crypto_ablkcipher_tfm(crypto_ablkcipher_reqtfm(req));
 	struct spacc_ablk_ctx *ctx = crypto_tfm_ctx(old_tfm);
-	SKCIPHER_REQUEST_ON_STACK(subreq, ctx->sw_cipher);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->sw_cipher);
 	int err;
 
 	/*
@@ -922,7 +922,7 @@ static int spacc_ablk_do_fallback(struct ablkcipher_request *req,
 	 * the ciphering has completed, put the old transform back into the
 	 * request.
 	 */
-	skcipher_request_set_tfm(subreq, ctx->sw_cipher);
+	skcipher_request_set_sync_tfm(subreq, ctx->sw_cipher);
 	skcipher_request_set_callback(subreq, req->base.flags, NULL, NULL);
 	skcipher_request_set_crypt(subreq, req->src, req->dst,
 				   req->nbytes, req->info);
@@ -1020,9 +1020,8 @@ static int spacc_ablk_cra_init(struct crypto_tfm *tfm)
 	ctx->generic.flags = spacc_alg->type;
 	ctx->generic.engine = engine;
 	if (alg->cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
-		ctx->sw_cipher = crypto_alloc_skcipher(
-			alg->cra_name, 0, CRYPTO_ALG_ASYNC |
-					  CRYPTO_ALG_NEED_FALLBACK);
+		ctx->sw_cipher = crypto_alloc_sync_skcipher(
+			alg->cra_name, 0, CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(ctx->sw_cipher)) {
 			dev_warn(engine->dev, "failed to allocate fallback for %s\n",
 				 alg->cra_name);
@@ -1041,7 +1040,7 @@ static void spacc_ablk_cra_exit(struct crypto_tfm *tfm)
 {
 	struct spacc_ablk_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	crypto_free_skcipher(ctx->sw_cipher);
+	crypto_free_sync_skcipher(ctx->sw_cipher);
 }
 
 static int spacc_ablk_encrypt(struct ablkcipher_request *req)
@@ -1586,8 +1585,7 @@ static struct spacc_alg l2_engine_algs[] = {
 			.cra_name = "f8(kasumi)",
 			.cra_driver_name = "f8-kasumi-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_GIVCIPHER |
-					CRYPTO_ALG_ASYNC |
+			.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 8,
 			.cra_ctxsize = sizeof(struct spacc_ablk_ctx),

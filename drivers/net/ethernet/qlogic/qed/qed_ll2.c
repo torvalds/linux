@@ -63,8 +63,8 @@
 #include "qed_sp.h"
 #include "qed_rdma.h"
 
-#define QED_LL2_RX_REGISTERED(ll2)	((ll2)->rx_queue.b_cb_registred)
-#define QED_LL2_TX_REGISTERED(ll2)	((ll2)->tx_queue.b_cb_registred)
+#define QED_LL2_RX_REGISTERED(ll2)	((ll2)->rx_queue.b_cb_registered)
+#define QED_LL2_TX_REGISTERED(ll2)	((ll2)->tx_queue.b_cb_registered)
 
 #define QED_LL2_TX_SIZE (256)
 #define QED_LL2_RX_SIZE (4096)
@@ -796,7 +796,18 @@ qed_ooo_submit_tx_buffers(struct qed_hwfn *p_hwfn,
 		tx_pkt.vlan = p_buffer->vlan;
 		tx_pkt.bd_flags = bd_flags;
 		tx_pkt.l4_hdr_offset_w = l4_hdr_offset_w;
-		tx_pkt.tx_dest = p_ll2_conn->tx_dest;
+		switch (p_ll2_conn->tx_dest) {
+		case CORE_TX_DEST_NW:
+			tx_pkt.tx_dest = QED_LL2_TX_DEST_NW;
+			break;
+		case CORE_TX_DEST_LB:
+			tx_pkt.tx_dest = QED_LL2_TX_DEST_LB;
+			break;
+		case CORE_TX_DEST_DROP:
+		default:
+			tx_pkt.tx_dest = QED_LL2_TX_DEST_DROP;
+			break;
+		}
 		tx_pkt.first_frag = first_frag;
 		tx_pkt.first_frag_len = p_buffer->packet_length;
 		tx_pkt.cookie = p_buffer;
@@ -1074,7 +1085,14 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->gsi_offload_flag = p_ll2_conn->input.gsi_enable;
 
-	return qed_spq_post(p_hwfn, p_ent, NULL);
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc)
+		return rc;
+
+	rc = qed_db_recovery_add(p_hwfn->cdev, p_tx->doorbell_addr,
+				 &p_tx->db_msg, DB_REC_WIDTH_32B,
+				 DB_REC_KERNEL);
+	return rc;
 }
 
 static int qed_sp_ll2_rx_queue_stop(struct qed_hwfn *p_hwfn,
@@ -1108,9 +1126,11 @@ static int qed_sp_ll2_rx_queue_stop(struct qed_hwfn *p_hwfn,
 static int qed_sp_ll2_tx_queue_stop(struct qed_hwfn *p_hwfn,
 				    struct qed_ll2_info *p_ll2_conn)
 {
+	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
+	qed_db_recovery_del(p_hwfn->cdev, p_tx->doorbell_addr, &p_tx->db_msg);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -1404,7 +1424,7 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 				    &p_hwfn->p_ll2_info[i],
 				    &p_ll2_info->rx_queue.rx_sb_index,
 				    &p_ll2_info->rx_queue.p_fw_cons);
-		p_ll2_info->rx_queue.b_cb_registred = true;
+		p_ll2_info->rx_queue.b_cb_registered = true;
 	}
 
 	if (data->input.tx_num_desc) {
@@ -1413,7 +1433,7 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 				    &p_hwfn->p_ll2_info[i],
 				    &p_ll2_info->tx_queue.tx_sb_index,
 				    &p_ll2_info->tx_queue.p_fw_cons);
-		p_ll2_info->tx_queue.b_cb_registred = true;
+		p_ll2_info->tx_queue.b_cb_registered = true;
 	}
 
 	*data->p_connection_handle = i;
@@ -1531,6 +1551,13 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	p_tx->doorbell_addr = (u8 __iomem *)p_hwfn->doorbells +
 					    qed_db_addr(p_ll2_conn->cid,
 							DQ_DEMS_LEGACY);
+	/* prepare db data */
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_AGG_VAL_SEL,
+		  DQ_XCM_CORE_TX_BD_PROD_CMD);
+	p_tx->db_msg.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
+
 
 	rc = qed_ll2_establish_connection_rx(p_hwfn, p_ll2_conn);
 	if (rc)
@@ -1769,7 +1796,6 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 	bool b_notify = p_ll2_conn->tx_queue.cur_send_packet->notify_fw;
 	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_ll2_tx_packet *p_pkt = NULL;
-	struct core_db_data db_msg = { 0, 0, 0 };
 	u16 bd_prod;
 
 	/* If there are missing BDs, don't do anything now */
@@ -1798,24 +1824,19 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 		list_move_tail(&p_pkt->list_entry, &p_tx->active_descq);
 	}
 
-	SET_FIELD(db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
-	SET_FIELD(db_msg.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
-	SET_FIELD(db_msg.params, CORE_DB_DATA_AGG_VAL_SEL,
-		  DQ_XCM_CORE_TX_BD_PROD_CMD);
-	db_msg.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-	db_msg.spq_prod = cpu_to_le16(bd_prod);
+	p_tx->db_msg.spq_prod = cpu_to_le16(bd_prod);
 
 	/* Make sure the BDs data is updated before ringing the doorbell */
 	wmb();
 
-	DIRECT_REG_WR(p_tx->doorbell_addr, *((u32 *)&db_msg));
+	DIRECT_REG_WR(p_tx->doorbell_addr, *((u32 *)&p_tx->db_msg));
 
 	DP_VERBOSE(p_hwfn,
 		   (NETIF_MSG_TX_QUEUED | QED_MSG_LL2),
 		   "LL2 [q 0x%02x cid 0x%08x type 0x%08x] Doorbelled [producer 0x%04x]\n",
 		   p_ll2_conn->queue_id,
 		   p_ll2_conn->cid,
-		   p_ll2_conn->input.conn_type, db_msg.spq_prod);
+		   p_ll2_conn->input.conn_type, p_tx->db_msg.spq_prod);
 }
 
 int qed_ll2_prepare_tx_packet(void *cxt,
@@ -1929,7 +1950,7 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 
 	/* Stop Tx & Rx of connection, if needed */
 	if (QED_LL2_TX_REGISTERED(p_ll2_conn)) {
-		p_ll2_conn->tx_queue.b_cb_registred = false;
+		p_ll2_conn->tx_queue.b_cb_registered = false;
 		smp_wmb(); /* Make sure this is seen by ll2_lb_rxq_completion */
 		rc = qed_sp_ll2_tx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
@@ -1940,7 +1961,7 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 	}
 
 	if (QED_LL2_RX_REGISTERED(p_ll2_conn)) {
-		p_ll2_conn->rx_queue.b_cb_registred = false;
+		p_ll2_conn->rx_queue.b_cb_registered = false;
 		smp_wmb(); /* Make sure this is seen by ll2_lb_rxq_completion */
 		rc = qed_sp_ll2_rx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
@@ -2485,6 +2506,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 		if (unlikely(dma_mapping_error(&cdev->pdev->dev, mapping))) {
 			DP_NOTICE(cdev,
 				  "Unable to map frag - dropping packet\n");
+			rc = -ENOMEM;
 			goto err;
 		}
 

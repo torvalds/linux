@@ -13,6 +13,9 @@
 #define _ASM_UNISTD_H
 
 #include <uapi/asm/unistd.h>
+#include <asm/unistd_nr_n32.h>
+#include <asm/unistd_nr_n64.h>
+#include <asm/unistd_nr_o32.h>
 
 #ifdef CONFIG_MIPS32_N32
 #define NR_syscalls  (__NR_N32_Linux + __NR_N32_Linux_syscalls)
@@ -24,16 +27,17 @@
 
 #ifndef __ASSEMBLY__
 
+#define __ARCH_WANT_NEW_STAT
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_IPC
 #define __ARCH_WANT_SYS_PAUSE
 #define __ARCH_WANT_SYS_UTIME
+#define __ARCH_WANT_SYS_UTIME32
 #define __ARCH_WANT_SYS_WAITPID
 #define __ARCH_WANT_SYS_SOCKETCALL
 #define __ARCH_WANT_SYS_GETPGRP
-#define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_NICE
 #define __ARCH_WANT_SYS_OLD_UNAME
 #define __ARCH_WANT_SYS_OLDUMOUNT

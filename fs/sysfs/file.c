@@ -334,7 +334,7 @@ int sysfs_create_file_ns(struct kobject *kobj, const struct attribute *attr,
 }
 EXPORT_SYMBOL_GPL(sysfs_create_file_ns);
 
-int sysfs_create_files(struct kobject *kobj, const struct attribute **ptr)
+int sysfs_create_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int err = 0;
 	int i;
@@ -493,7 +493,7 @@ bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
 	return ret;
 }
 
-void sysfs_remove_files(struct kobject *kobj, const struct attribute **ptr)
+void sysfs_remove_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int i;
 	for (i = 0; ptr[i]; i++)

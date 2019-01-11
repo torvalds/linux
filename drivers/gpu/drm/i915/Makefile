@@ -12,7 +12,7 @@
 # Note the danger in using -Wall -Wextra is that when CI updates gcc we
 # will most likely get a sudden build breakage... Hopefully we will fix
 # new warnings before CI updates!
-subdir-ccflags-y := -Wall -Wextra -Wvla
+subdir-ccflags-y := -Wall -Wextra
 subdir-ccflags-y += $(call cc-disable-warning, unused-parameter)
 subdir-ccflags-y += $(call cc-disable-warning, type-limits)
 subdir-ccflags-y += $(call cc-disable-warning, missing-field-initializers)
@@ -75,6 +75,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gemfs.o \
 	  i915_query.o \
 	  i915_request.o \
+	  i915_scheduler.o \
 	  i915_timeline.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
@@ -112,6 +113,8 @@ i915-y += intel_audio.o \
 	  intel_bios.o \
 	  intel_cdclk.o \
 	  intel_color.o \
+	  intel_combo_phy.o \
+	  intel_connector.o \
 	  intel_display.o \
 	  intel_dpio_phy.o \
 	  intel_dpll_mgr.o \
@@ -120,9 +123,9 @@ i915-y += intel_audio.o \
 	  intel_frontbuffer.o \
 	  intel_hdcp.o \
 	  intel_hotplug.o \
-	  intel_modes.o \
 	  intel_overlay.o \
 	  intel_psr.o \
+	  intel_quirks.o \
 	  intel_sideband.o \
 	  intel_sprite.o
 i915-$(CONFIG_ACPI)		+= intel_acpi.o intel_opregion.o
@@ -142,6 +145,7 @@ i915-y += dvo_ch7017.o \
 	  intel_dp_link_training.o \
 	  intel_dp_mst.o \
 	  intel_dp.o \
+	  intel_dsi.o \
 	  intel_dsi_dcs_backlight.o \
 	  intel_dsi_vbt.o \
 	  intel_dvo.o \
@@ -153,14 +157,17 @@ i915-y += dvo_ch7017.o \
 	  intel_sdvo.o \
 	  intel_tv.o \
 	  vlv_dsi.o \
-	  vlv_dsi_pll.o
+	  vlv_dsi_pll.o \
+	  intel_vdsc.o
 
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
-	selftests/igt_flush_test.o
+	selftests/igt_flush_test.o \
+	selftests/igt_reset.o \
+	selftests/igt_spinner.o
 
 # virtual gpu code
 i915-y += i915_vgpu.o

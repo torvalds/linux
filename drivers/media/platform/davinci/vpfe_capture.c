@@ -889,9 +889,9 @@ static int vpfe_querycap(struct file *file, void  *priv,
 
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	strlcpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
-	strlcpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
-	strlcpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
+	strscpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
+	strscpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
+	strscpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
 	return 0;
 }
 
@@ -1558,20 +1558,20 @@ static int vpfe_streamoff(struct file *file, void *priv,
 	return ret;
 }
 
-static int vpfe_cropcap(struct file *file, void *priv,
-			      struct v4l2_cropcap *crop)
+static int vpfe_g_pixelaspect(struct file *file, void *priv,
+			      int type, struct v4l2_fract *f)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_cropcap\n");
+	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_pixelaspect\n");
 
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	/* If std_index is invalid, then just return (== 1:1 aspect) */
 	if (vpfe_dev->std_index >= ARRAY_SIZE(vpfe_standards))
 		return 0;
 
-	crop->pixelaspect = vpfe_standards[vpfe_dev->std_index].pixelaspect;
+	*f = vpfe_standards[vpfe_dev->std_index].pixelaspect;
 	return 0;
 }
 
@@ -1677,7 +1677,7 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 	.vidioc_dqbuf		 = vpfe_dqbuf,
 	.vidioc_streamon	 = vpfe_streamon,
 	.vidioc_streamoff	 = vpfe_streamoff,
-	.vidioc_cropcap		 = vpfe_cropcap,
+	.vidioc_g_pixelaspect	 = vpfe_g_pixelaspect,
 	.vidioc_g_selection	 = vpfe_g_selection,
 	.vidioc_s_selection	 = vpfe_s_selection,
 };

@@ -59,10 +59,6 @@ ENTRY(_start)
 
 	.align	4
 	.literal_position
-.Lstartup:
-	.word	_startup
-
-	.align	4
 _SetupOCD:
 	/*
 	 * Initialize WB, WS, and clear PS.EXCM (to allow loop instructions).
@@ -88,20 +84,23 @@ _SetupMMU:
 	initialize_mmu
 #if defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
 	rsr	a2, excsave1
-	movi	a3, 0x08000000
+	movi	a3, XCHAL_KSEG_PADDR
+	bltu	a2, a3, 1f
+	sub	a2, a2, a3
+	movi	a3, XCHAL_KSEG_SIZE
 	bgeu	a2, a3, 1f
-	movi	a3, 0xd0000000
+	movi	a3, XCHAL_KSEG_CACHED_VADDR
 	add	a2, a2, a3
 	wsr	a2, excsave1
 1:
 #endif
 #endif
-	.end	no-absolute-literals
 
-	l32r	a0, .Lstartup
+	movi	a0, _startup
 	jx	a0
 
 ENDPROC(_start)
+	.end	no-absolute-literals
 
 	__REF
 	.literal_position
@@ -180,6 +179,8 @@ ENTRY(_startup)
 	___invalidate_icache_all a2 a3
 
 	isync
+
+	initialize_cacheattr
 
 #ifdef CONFIG_HAVE_SMP
 	movi	a2, CCON	# MX External Register to Configure Cache

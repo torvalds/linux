@@ -18,14 +18,17 @@ struct smc_diag_req {
  * on the internal clcsock, and more SMC-related socket data
  */
 struct smc_diag_msg {
-	__u8	diag_family;
-	__u8	diag_state;
-	__u8	diag_mode;
-	__u8	diag_shutdown;
+	__u8		diag_family;
+	__u8		diag_state;
+	union {
+		__u8	diag_mode;
+		__u8	diag_fallback; /* the old name of the field */
+	};
+	__u8		diag_shutdown;
 	struct inet_diag_sockid id;
 
-	__u32	diag_uid;
-	__u64	diag_inode;
+	__u32		diag_uid;
+	__aligned_u64	diag_inode;
 };
 
 /* Mode of a connection */
@@ -99,11 +102,11 @@ struct smc_diag_fallback {
 };
 
 struct smcd_diag_dmbinfo {		/* SMC-D Socket internals */
-	__u32 linkid;			/* Link identifier */
-	__u64 peer_gid;			/* Peer GID */
-	__u64 my_gid;			/* My GID */
-	__u64 token;			/* Token of DMB */
-	__u64 peer_token;		/* Token of remote DMBE */
+	__u32		linkid;		/* Link identifier */
+	__aligned_u64	peer_gid;	/* Peer GID */
+	__aligned_u64	my_gid;		/* My GID */
+	__aligned_u64	token;		/* Token of DMB */
+	__aligned_u64	peer_token;	/* Token of remote DMBE */
 };
 
 #endif /* _UAPI_SMC_DIAG_H_ */

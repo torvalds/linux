@@ -286,7 +286,7 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static struct v4l2_subdev_core_ops vimc_sen_core_ops = {
+static const struct v4l2_subdev_core_ops vimc_sen_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
@@ -316,6 +316,18 @@ static int vimc_sen_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VFLIP:
 		tpg_s_vflip(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_BRIGHTNESS:
+		tpg_s_brightness(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		tpg_s_contrast(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_HUE:
+		tpg_s_hue(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		tpg_s_saturation(&vsen->tpg, ctrl->val);
 		break;
 	default:
 		return -EINVAL;
@@ -378,6 +390,14 @@ static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 			  V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_CONTRAST, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_HUE, -128, 127, 1, 0);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_SATURATION, 0, 255, 1, 128);
 	vsen->sd.ctrl_handler = &vsen->hdl;
 	if (vsen->hdl.error) {
 		ret = vsen->hdl.error;

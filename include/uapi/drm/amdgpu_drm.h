@@ -326,6 +326,12 @@ struct drm_amdgpu_gem_userptr {
 /* GFX9 and later: */
 #define AMDGPU_TILING_SWIZZLE_MODE_SHIFT		0
 #define AMDGPU_TILING_SWIZZLE_MODE_MASK			0x1f
+#define AMDGPU_TILING_DCC_OFFSET_256B_SHIFT		5
+#define AMDGPU_TILING_DCC_OFFSET_256B_MASK		0xFFFFFF
+#define AMDGPU_TILING_DCC_PITCH_MAX_SHIFT		29
+#define AMDGPU_TILING_DCC_PITCH_MAX_MASK		0x3FFF
+#define AMDGPU_TILING_DCC_INDEPENDENT_64B_SHIFT		43
+#define AMDGPU_TILING_DCC_INDEPENDENT_64B_MASK		0x1
 
 /* Set/Get helpers for tiling flags. */
 #define AMDGPU_TILING_SET(field, value) \
@@ -665,6 +671,8 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_GPM_MEM 0x10
 	/* Subquery id: Query GFX RLC SRLS firmware version */
 	#define AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_SRM_MEM 0x11
+	/* Subquery id: Query DMCU firmware version */
+	#define AMDGPU_INFO_FW_DMCU		0x12
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */

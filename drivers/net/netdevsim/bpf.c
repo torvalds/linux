@@ -48,7 +48,7 @@ struct nsim_bpf_bound_map {
 	struct list_head l;
 };
 
-static int nsim_debugfs_bpf_string_read(struct seq_file *file, void *data)
+static int nsim_bpf_string_show(struct seq_file *file, void *data)
 {
 	const char **str = file->private;
 
@@ -57,19 +57,7 @@ static int nsim_debugfs_bpf_string_read(struct seq_file *file, void *data)
 
 	return 0;
 }
-
-static int nsim_debugfs_bpf_string_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, nsim_debugfs_bpf_string_read, inode->i_private);
-}
-
-static const struct file_operations nsim_bpf_string_fops = {
-	.owner = THIS_MODULE,
-	.open = nsim_debugfs_bpf_string_open,
-	.release = single_release,
-	.read = seq_read,
-	.llseek = seq_lseek
-};
+DEFINE_SHOW_ATTRIBUTE(nsim_bpf_string);
 
 static int
 nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
@@ -86,9 +74,10 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	return 0;
 }
 
-static const struct bpf_prog_offload_ops nsim_bpf_analyzer_ops = {
-	.insn_hook = nsim_bpf_verify_insn,
-};
+static int nsim_bpf_finalize(struct bpf_verifier_env *env)
+{
+	return 0;
+}
 
 static bool nsim_xdp_offload_active(struct netdevsim *ns)
 {
@@ -257,6 +246,24 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	return 0;
 }
 
+static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
+{
+	struct netdevsim *ns = netdev_priv(prog->aux->offload->netdev);
+
+	if (!ns->bpf_bind_accept)
+		return -EOPNOTSUPP;
+
+	return nsim_bpf_create_prog(ns, prog);
+}
+
+static int nsim_bpf_translate(struct bpf_prog *prog)
+{
+	struct nsim_bpf_bound_prog *state = prog->aux->offload->dev_priv;
+
+	state->state = "xlated";
+	return 0;
+}
+
 static void nsim_bpf_destroy_prog(struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state;
@@ -268,6 +275,14 @@ static void nsim_bpf_destroy_prog(struct bpf_prog *prog)
 	list_del(&state->l);
 	kfree(state);
 }
+
+static const struct bpf_prog_offload_ops nsim_bpf_dev_ops = {
+	.insn_hook	= nsim_bpf_verify_insn,
+	.finalize	= nsim_bpf_finalize,
+	.prepare	= nsim_bpf_verifier_prep,
+	.translate	= nsim_bpf_translate,
+	.destroy	= nsim_bpf_destroy_prog,
+};
 
 static int nsim_setup_prog_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 {
@@ -527,30 +542,11 @@ static void nsim_bpf_map_free(struct bpf_offloaded_map *offmap)
 int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bpf_bound_prog *state;
 	int err;
 
 	ASSERT_RTNL();
 
 	switch (bpf->command) {
-	case BPF_OFFLOAD_VERIFIER_PREP:
-		if (!ns->bpf_bind_accept)
-			return -EOPNOTSUPP;
-
-		err = nsim_bpf_create_prog(ns, bpf->verifier.prog);
-		if (err)
-			return err;
-
-		bpf->verifier.ops = &nsim_bpf_analyzer_ops;
-		return 0;
-	case BPF_OFFLOAD_TRANSLATE:
-		state = bpf->offload.prog->aux->offload->dev_priv;
-
-		state->state = "xlated";
-		return 0;
-	case BPF_OFFLOAD_DESTROY:
-		nsim_bpf_destroy_prog(bpf->offload.prog);
-		return 0;
 	case XDP_QUERY_PROG:
 		return xdp_attachment_query(&ns->xdp, bpf);
 	case XDP_QUERY_PROG_HW:
@@ -593,7 +589,7 @@ int nsim_bpf_init(struct netdevsim *ns)
 		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
 			return -ENOMEM;
 
-		ns->sdev->bpf_dev = bpf_offload_dev_create();
+		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops);
 		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
 		if (err)
 			return err;

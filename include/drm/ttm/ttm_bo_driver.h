@@ -31,7 +31,6 @@
 #define _TTM_BO_DRIVER_H_
 
 #include <drm/drm_mm.h>
-#include <drm/drm_global.h>
 #include <drm/drm_vma_manager.h>
 #include <linux/workqueue.h>
 #include <linux/fs.h>
@@ -385,15 +384,6 @@ struct ttm_bo_driver {
 };
 
 /**
- * struct ttm_bo_global_ref - Argument to initialize a struct ttm_bo_global.
- */
-
-struct ttm_bo_global_ref {
-	struct drm_global_reference ref;
-	struct ttm_mem_global *mem_glob;
-};
-
-/**
  * struct ttm_bo_global - Buffer object driver global data.
  *
  * @mem_glob: Pointer to a struct ttm_mem_global object for accounting.
@@ -407,7 +397,7 @@ struct ttm_bo_global_ref {
  * @swap_lru: Lru list of buffer objects used for swapping.
  */
 
-struct ttm_bo_global {
+extern struct ttm_bo_global {
 
 	/**
 	 * Constant after init.
@@ -416,12 +406,12 @@ struct ttm_bo_global {
 	struct kobject kobj;
 	struct ttm_mem_global *mem_glob;
 	struct page *dummy_read_page;
-	struct mutex device_list_mutex;
 	spinlock_t lru_lock;
 
 	/**
-	 * Protected by device_list_mutex.
+	 * Protected by ttm_global_mutex.
 	 */
+	unsigned int use_count;
 	struct list_head device_list;
 
 	/**
@@ -433,7 +423,7 @@ struct ttm_bo_global {
 	 * Internal protection.
 	 */
 	atomic_t bo_count;
-};
+} ttm_bo_glob;
 
 
 #define TTM_NUM_MEM_TYPES 8
@@ -488,6 +478,34 @@ struct ttm_bo_device {
 	bool need_dma32;
 
 	bool no_retry;
+};
+
+/**
+ * struct ttm_lru_bulk_move_pos
+ *
+ * @first: first BO in the bulk move range
+ * @last: last BO in the bulk move range
+ *
+ * Positions for a lru bulk move.
+ */
+struct ttm_lru_bulk_move_pos {
+	struct ttm_buffer_object *first;
+	struct ttm_buffer_object *last;
+};
+
+/**
+ * struct ttm_lru_bulk_move
+ *
+ * @tt: first/last lru entry for BOs in the TT domain
+ * @vram: first/last lru entry for BOs in the VRAM domain
+ * @swap: first/last lru entry for BOs on the swap list
+ *
+ * Helper structure for bulk moves on the LRU list.
+ */
+struct ttm_lru_bulk_move {
+	struct ttm_lru_bulk_move_pos tt[TTM_MAX_BO_PRIORITY];
+	struct ttm_lru_bulk_move_pos vram[TTM_MAX_BO_PRIORITY];
+	struct ttm_lru_bulk_move_pos swap[TTM_MAX_BO_PRIORITY];
 };
 
 /**
@@ -550,9 +568,6 @@ void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
 void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem);
 
-void ttm_bo_global_release(struct drm_global_reference *ref);
-int ttm_bo_global_init(struct drm_global_reference *ref);
-
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
 /**
@@ -570,7 +585,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * Returns:
  * !0: Failure.
  */
-int ttm_bo_device_init(struct ttm_bo_device *bdev, struct ttm_bo_global *glob,
+int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
 		       uint64_t file_page_offset, bool need_dma32);

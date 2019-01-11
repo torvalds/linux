@@ -40,6 +40,13 @@ struct hclge_nq_to_qs_link_cmd {
 	__le16 qset_id;
 };
 
+struct hclge_tqp_tx_queue_tc_cmd {
+	__le16 queue_id;
+	__le16 rsvd;
+	u8 tc_id;
+	u8 rev[3];
+};
+
 struct hclge_pg_weight_cmd {
 	u8 pg_id;
 	u8 dwrr;
@@ -53,6 +60,12 @@ struct hclge_priority_weight_cmd {
 struct hclge_qs_weight_cmd {
 	__le16 qs_id;
 	u8 dwrr;
+};
+
+struct hclge_ets_tc_weight_cmd {
+	u8 tc_weight[HNAE3_MAX_TC];
+	u8 weight_offset;
+	u8 rsvd[15];
 };
 
 #define HCLGE_TM_SHAP_IR_B_MSK  GENMASK(7, 0)
@@ -106,6 +119,10 @@ struct hclge_cfg_pause_param_cmd {
 	u8 pause_trans_gap;
 	u8 rsvd;
 	__le16 pause_trans_time;
+	u8 rsvd1[6];
+	/* extra mac address to do double check for pause frame */
+	u8 mac_addr_extra[ETH_ALEN];
+	u16 rsvd2;
 };
 
 struct hclge_pfc_stats_cmd {
@@ -127,7 +144,7 @@ struct hclge_port_shapping_cmd {
 int hclge_tm_schd_init(struct hclge_dev *hdev);
 int hclge_pause_setup_hw(struct hclge_dev *hdev);
 int hclge_tm_schd_mode_hw(struct hclge_dev *hdev);
-int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc);
+void hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc);
 void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc);
 int hclge_tm_dwrr_cfg(struct hclge_dev *hdev);
 int hclge_tm_map_cfg(struct hclge_dev *hdev);

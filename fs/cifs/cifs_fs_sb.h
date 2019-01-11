@@ -51,6 +51,7 @@
 					      */
 #define CIFS_MOUNT_UID_FROM_ACL 0x2000000 /* try to get UID via special SID */
 #define CIFS_MOUNT_NO_HANDLE_CACHE 0x4000000 /* disable caching dir handles */
+#define CIFS_MOUNT_NO_DFS 0x8000000 /* disable DFS resolving */
 
 struct cifs_sb_info {
 	struct rb_root tlink_tree;
@@ -71,6 +72,15 @@ struct cifs_sb_info {
 	char   *mountdata; /* options received at mount time or via DFS refs */
 	struct delayed_work prune_tlinks;
 	struct rcu_head rcu;
+
+	/* only used when CIFS_MOUNT_USE_PREFIX_PATH is set */
 	char *prepath;
+
+	/*
+	 * Path initially provided by the mount call. We might connect
+	 * to something different via DFS but we want to keep it to do
+	 * failover properly.
+	 */
+	char *origin_fullpath; /* \\HOST\SHARE\[OPTIONAL PATH] */
 };
 #endif				/* _CIFS_FS_SB_H */

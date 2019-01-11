@@ -389,7 +389,7 @@ static bool __ww_mutex_wound(struct mutex *lock,
 		/*
 		 * wake_up_process() paired with set_current_state()
 		 * inserts sufficient barriers to make sure @owner either sees
-		 * it's wounded in __ww_mutex_lock_check_stamp() or has a
+		 * it's wounded in __ww_mutex_check_kill() or has a
 		 * wakeup pending to re-read the wounded state.
 		 */
 		if (owner != current)
@@ -946,7 +946,6 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	}
 
 	debug_mutex_lock_common(lock, &waiter);
-	debug_mutex_add_waiter(lock, &waiter, current);
 
 	lock_contended(&lock->dep_map, ip);
 
@@ -988,7 +987,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * wait_lock. This ensures the lock cancellation is ordered
 		 * against mutex_unlock() and wake-ups do not go missing.
 		 */
-		if (unlikely(signal_pending_state(state, current))) {
+		if (signal_pending_state(state, current)) {
 			ret = -EINTR;
 			goto err;
 		}

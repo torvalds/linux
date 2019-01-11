@@ -32,7 +32,6 @@
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/platform_sst_audio.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -742,7 +741,7 @@ static int byt_rt5651_suspend(struct snd_soc_card *card)
 	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
 		return 0;
 
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		if (!strcmp(component->name, byt_rt5651_codec_name)) {
 			dev_dbg(component->dev, "disabling jack detect before suspend\n");
 			snd_soc_component_set_jack(component, NULL, NULL);
@@ -761,7 +760,7 @@ static int byt_rt5651_resume(struct snd_soc_card *card)
 	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
 		return 0;
 
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		if (!strcmp(component->name, byt_rt5651_codec_name)) {
 			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
 			snd_soc_component_set_jack(component, &priv->jack, NULL);
@@ -787,7 +786,7 @@ static struct snd_soc_card byt_rt5651_card = {
 };
 
 static const struct x86_cpu_id baytrail_cpu_ids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT1 }, /* Valleyview */
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT }, /* Valleyview */
 	{}
 };
 
@@ -920,10 +919,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	 * (will be overridden if DMI quirk is detected)
 	 */
 	if (x86_match_cpu(baytrail_cpu_ids)) {
-		struct sst_platform_info *p_info = mach->pdata;
-		const struct sst_res_info *res_info = p_info->res_info;
-
-		if (res_info->acpi_ipc_irq_index == 0)
+		if (mach->mach_params.acpi_ipc_irq_index == 0)
 			is_bytcr = true;
 	}
 

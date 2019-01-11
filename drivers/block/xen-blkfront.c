@@ -46,6 +46,7 @@
 #include <linux/scatterlist.h>
 #include <linux/bitmap.h>
 #include <linux/list.h>
+#include <linux/workqueue.h>
 
 #include <xen/xen.h>
 #include <xen/xenbus.h>
@@ -121,6 +122,8 @@ static inline struct blkif_req *blkif_req(struct request *rq)
 
 static DEFINE_MUTEX(blkfront_mutex);
 static const struct block_device_operations xlvbd_block_fops;
+static struct delayed_work blkfront_work;
+static LIST_HEAD(info_list);
 
 /*
  * Maximum number of segments in indirect requests, the actual value used by
@@ -216,6 +219,7 @@ struct blkfront_info
 	/* Save uncomplete reqs and bios for migration. */
 	struct list_head requests;
 	struct bio_list bio_list;
+	struct list_head info_list;
 };
 
 static unsigned int nr_minors;
@@ -1759,6 +1763,12 @@ abort_transaction:
 	return err;
 }
 
+static void free_info(struct blkfront_info *info)
+{
+	list_del(&info->info_list);
+	kfree(info);
+}
+
 /* Common code used when first setting up, and when resuming. */
 static int talk_to_blkback(struct xenbus_device *dev,
 			   struct blkfront_info *info)
@@ -1880,7 +1890,10 @@ again:
  destroy_blkring:
 	blkif_free(info, 0);
 
-	kfree(info);
+	mutex_lock(&blkfront_mutex);
+	free_info(info);
+	mutex_unlock(&blkfront_mutex);
+
 	dev_set_drvdata(&dev->dev, NULL);
 
 	return err;
@@ -1906,6 +1919,7 @@ static int negotiate_mq(struct blkfront_info *info)
 			      GFP_KERNEL);
 	if (!info->rinfo) {
 		xenbus_dev_fatal(info->xbdev, -ENOMEM, "allocating ring_info structure");
+		info->nr_rings = 0;
 		return -ENOMEM;
 	}
 
@@ -1990,6 +2004,10 @@ static int blkfront_probe(struct xenbus_device *dev,
 	/* Front end dir is a number, which is used as the id. */
 	info->handle = simple_strtoul(strrchr(dev->nodename, '/')+1, NULL, 0);
 	dev_set_drvdata(&dev->dev, info);
+
+	mutex_lock(&blkfront_mutex);
+	list_add(&info->info_list, &info_list);
+	mutex_unlock(&blkfront_mutex);
 
 	return 0;
 }
@@ -2301,6 +2319,12 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 	if (indirect_segments <= BLKIF_MAX_SEGMENTS_PER_REQUEST)
 		indirect_segments = 0;
 	info->max_indirect_segments = indirect_segments;
+
+	if (info->feature_persistent) {
+		mutex_lock(&blkfront_mutex);
+		schedule_delayed_work(&blkfront_work, HZ * 10);
+		mutex_unlock(&blkfront_mutex);
+	}
 }
 
 /*
@@ -2397,7 +2421,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	for (i = 0; i < info->nr_rings; i++)
 		kick_pending_request_queues(&info->rinfo[i]);
 
-	device_add_disk(&info->xbdev->dev, info->gd);
+	device_add_disk(&info->xbdev->dev, info->gd, NULL);
 
 	info->is_ready = 1;
 	return;
@@ -2470,6 +2494,9 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 
 	dev_dbg(&xbdev->dev, "%s removed", xbdev->nodename);
 
+	if (!info)
+		return 0;
+
 	blkif_free(info, 0);
 
 	mutex_lock(&info->mutex);
@@ -2482,7 +2509,9 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	mutex_unlock(&info->mutex);
 
 	if (!bdev) {
-		kfree(info);
+		mutex_lock(&blkfront_mutex);
+		free_info(info);
+		mutex_unlock(&blkfront_mutex);
 		return 0;
 	}
 
@@ -2502,7 +2531,9 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	if (info && !bdev->bd_openers) {
 		xlvbd_release_gendisk(info);
 		disk->private_data = NULL;
-		kfree(info);
+		mutex_lock(&blkfront_mutex);
+		free_info(info);
+		mutex_unlock(&blkfront_mutex);
 	}
 
 	mutex_unlock(&bdev->bd_mutex);
@@ -2585,7 +2616,7 @@ static void blkif_release(struct gendisk *disk, fmode_t mode)
 		dev_info(disk_to_dev(bdev->bd_disk), "releasing disk\n");
 		xlvbd_release_gendisk(info);
 		disk->private_data = NULL;
-		kfree(info);
+		free_info(info);
 	}
 
 out:
@@ -2618,6 +2649,61 @@ static struct xenbus_driver blkfront_driver = {
 	.is_ready = blkfront_is_ready,
 };
 
+static void purge_persistent_grants(struct blkfront_info *info)
+{
+	unsigned int i;
+	unsigned long flags;
+
+	for (i = 0; i < info->nr_rings; i++) {
+		struct blkfront_ring_info *rinfo = &info->rinfo[i];
+		struct grant *gnt_list_entry, *tmp;
+
+		spin_lock_irqsave(&rinfo->ring_lock, flags);
+
+		if (rinfo->persistent_gnts_c == 0) {
+			spin_unlock_irqrestore(&rinfo->ring_lock, flags);
+			continue;
+		}
+
+		list_for_each_entry_safe(gnt_list_entry, tmp, &rinfo->grants,
+					 node) {
+			if (gnt_list_entry->gref == GRANT_INVALID_REF ||
+			    gnttab_query_foreign_access(gnt_list_entry->gref))
+				continue;
+
+			list_del(&gnt_list_entry->node);
+			gnttab_end_foreign_access(gnt_list_entry->gref, 0, 0UL);
+			rinfo->persistent_gnts_c--;
+			gnt_list_entry->gref = GRANT_INVALID_REF;
+			list_add_tail(&gnt_list_entry->node, &rinfo->grants);
+		}
+
+		spin_unlock_irqrestore(&rinfo->ring_lock, flags);
+	}
+}
+
+static void blkfront_delay_work(struct work_struct *work)
+{
+	struct blkfront_info *info;
+	bool need_schedule_work = false;
+
+	mutex_lock(&blkfront_mutex);
+
+	list_for_each_entry(info, &info_list, info_list) {
+		if (info->feature_persistent) {
+			need_schedule_work = true;
+			mutex_lock(&info->mutex);
+			purge_persistent_grants(info);
+			mutex_unlock(&info->mutex);
+		}
+	}
+
+	if (need_schedule_work)
+		schedule_delayed_work(&blkfront_work, HZ * 10);
+
+	mutex_unlock(&blkfront_mutex);
+}
+
 static int __init xlblk_init(void)
 {
 	int ret;
@@ -2625,6 +2711,15 @@ static int __init xlblk_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	if (!xen_has_pv_disk_devices())
+		return -ENODEV;
+
+	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {
+		pr_warn("xen_blk: can't get major %d with name %s\n",
+			XENVBD_MAJOR, DEV_NAME);
+		return -ENODEV;
+	}
 
 	if (xen_blkif_max_segments < BLKIF_MAX_SEGMENTS_PER_REQUEST)
 		xen_blkif_max_segments = BLKIF_MAX_SEGMENTS_PER_REQUEST;
@@ -2641,14 +2736,7 @@ static int __init xlblk_init(void)
 		xen_blkif_max_queues = nr_cpus;
 	}
 
-	if (!xen_has_pv_disk_devices())
-		return -ENODEV;
-
-	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {
-		printk(KERN_WARNING "xen_blk: can't get major %d with name %s\n",
-		       XENVBD_MAJOR, DEV_NAME);
-		return -ENODEV;
-	}
+	INIT_DELAYED_WORK(&blkfront_work, blkfront_delay_work);
 
 	ret = xenbus_register_frontend(&blkfront_driver);
 	if (ret) {
@@ -2663,6 +2751,8 @@ module_init(xlblk_init);
 
 static void __exit xlblk_exit(void)
 {
+	cancel_delayed_work_sync(&blkfront_work);
+
 	xenbus_unregister_driver(&blkfront_driver);
 	unregister_blkdev(XENVBD_MAJOR, DEV_NAME);
 	kfree(minors);

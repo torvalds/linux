@@ -97,7 +97,7 @@ static irqreturn_t rga_isr(int irq, void *prv)
 	return IRQ_HANDLED;
 }
 
-static struct v4l2_m2m_ops rga_m2m_ops = {
+static const struct v4l2_m2m_ops rga_m2m_ops = {
 	.device_run = device_run,
 };
 
@@ -447,9 +447,9 @@ static const struct v4l2_file_operations rga_fops = {
 static int
 vidioc_querycap(struct file *file, void *priv, struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, RGA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, "rockchip-rga", sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:rga", sizeof(cap->bus_info));
+	strscpy(cap->driver, RGA_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "rockchip-rga", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:rga", sizeof(cap->bus_info));
 
 	return 0;
 }
@@ -700,7 +700,7 @@ static const struct v4l2_ioctl_ops rga_ioctl_ops = {
 	.vidioc_s_selection = vidioc_s_selection,
 };
 
-static struct video_device rga_videodev = {
+static const struct video_device rga_videodev = {
 	.name = "rockchip-rga",
 	.fops = &rga_fops,
 	.ioctl_ops = &rga_ioctl_ops,

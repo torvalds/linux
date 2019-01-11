@@ -13,6 +13,7 @@
 #include "strlist.h"
 #include <traceevent/event-parse.h>
 #include "mem-events.h"
+#include "annotate.h"
 #include <linux/kernel.h>
 
 regex_t		parent_regex;
@@ -36,7 +37,7 @@ enum sort_mode	sort__mode = SORT_MODE__NORMAL;
  * -t, --field-separator
  *
  * option, that uses a special separator character and don't pad with spaces,
- * replacing all occurances of this separator in symbol names (and other
+ * replacing all occurrences of this separator in symbol names (and other
  * output) with a '.' character, that thus it's the only non valid separator.
 */
 static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
@@ -422,6 +423,64 @@ struct sort_entry sort_srcline_to = {
 	.se_width_idx	= HISTC_SRCLINE_TO,
 };
 
+static int hist_entry__sym_ipc_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+
+	struct symbol *sym = he->ms.sym;
+	struct map *map = he->ms.map;
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
+	struct annotation *notes;
+	double ipc = 0.0, coverage = 0.0;
+	char tmp[64];
+
+	if (!sym)
+		return repsep_snprintf(bf, size, "%-*s", width, "-");
+
+	if (!sym->annotate2 && symbol__annotate2(sym, map, evsel,
+		&annotation__default_options, NULL) < 0) {
+		return 0;
+	}
+
+	notes = symbol__annotation(sym);
+
+	if (notes->hit_cycles)
+		ipc = notes->hit_insn / ((double)notes->hit_cycles);
+
+	if (notes->total_insn) {
+		coverage = notes->cover_insn * 100.0 /
+			((double)notes->total_insn);
+	}
+
+	snprintf(tmp, sizeof(tmp), "%-5.2f [%5.1f%%]", ipc, coverage);
+	return repsep_snprintf(bf, size, "%-*s", width, tmp);
+}
+
+struct sort_entry sort_sym_ipc = {
+	.se_header	= "IPC   [IPC Coverage]",
+	.se_cmp		= sort__sym_cmp,
+	.se_snprintf	= hist_entry__sym_ipc_snprintf,
+	.se_width_idx	= HISTC_SYMBOL_IPC,
+};
+
+static int hist_entry__sym_ipc_null_snprintf(struct hist_entry *he
+					     __maybe_unused,
+					     char *bf, size_t size,
+					     unsigned int width)
+{
+	char tmp[64];
+
+	snprintf(tmp, sizeof(tmp), "%-5s %2s", "-", "-");
+	return repsep_snprintf(bf, size, "%-*s", width, tmp);
+}
+
+struct sort_entry sort_sym_ipc_null = {
+	.se_header	= "IPC   [IPC Coverage]",
+	.se_cmp		= sort__sym_cmp,
+	.se_snprintf	= hist_entry__sym_ipc_null_snprintf,
+	.se_width_idx	= HISTC_SYMBOL_IPC,
+};
+
 /* --sort srcfile */
 
 static char no_srcfile[1];
@@ -601,7 +660,7 @@ static char *get_trace_output(struct hist_entry *he)
 {
 	struct trace_seq seq;
 	struct perf_evsel *evsel;
-	struct pevent_record rec = {
+	struct tep_record rec = {
 		.data = he->raw_data,
 		.size = he->raw_size,
 	};
@@ -610,10 +669,10 @@ static char *get_trace_output(struct hist_entry *he)
 
 	trace_seq_init(&seq);
 	if (symbol_conf.raw_trace) {
-		pevent_print_fields(&seq, he->raw_data, he->raw_size,
-				    evsel->tp_format);
+		tep_print_fields(&seq, he->raw_data, he->raw_size,
+				 evsel->tp_format);
 	} else {
-		pevent_event_info(&seq, evsel->tp_format, &rec);
+		tep_event_info(&seq, evsel->tp_format, &rec);
 	}
 	/*
 	 * Trim the buffer, it starts at 4KB and we're not going to
@@ -1574,6 +1633,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_SYM_SIZE, "symbol_size", sort_sym_size),
 	DIM(SORT_DSO_SIZE, "dso_size", sort_dso_size),
 	DIM(SORT_CGROUP_ID, "cgroup_id", sort_cgroup_id),
+	DIM(SORT_SYM_IPC_NULL, "ipc_null", sort_sym_ipc_null),
 };
 
 #undef DIM
@@ -1591,6 +1651,7 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 	DIM(SORT_CYCLES, "cycles", sort_cycles),
 	DIM(SORT_SRCLINE_FROM, "srcline_from", sort_srcline_from),
 	DIM(SORT_SRCLINE_TO, "srcline_to", sort_srcline_to),
+	DIM(SORT_SYM_IPC, "ipc_lbr", sort_sym_ipc),
 };
 
 #undef DIM
@@ -1884,7 +1945,7 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
 struct hpp_dynamic_entry {
 	struct perf_hpp_fmt hpp;
 	struct perf_evsel *evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned dynamic_len;
 	bool raw_trace;
 };
@@ -1899,7 +1960,7 @@ static int hde_width(struct hpp_dynamic_entry *hde)
 		if (namelen > len)
 			len = namelen;
 
-		if (!(hde->field->flags & FIELD_IS_STRING)) {
+		if (!(hde->field->flags & TEP_FIELD_IS_STRING)) {
 			/* length for print hex numbers */
 			fieldlen = hde->field->size * 2 + 2;
 		}
@@ -1915,7 +1976,7 @@ static void update_dynamic_len(struct hpp_dynamic_entry *hde,
 			       struct hist_entry *he)
 {
 	char *str, *pos;
-	struct format_field *field = hde->field;
+	struct tep_format_field *field = hde->field;
 	size_t namelen;
 	bool last = false;
 
@@ -2000,7 +2061,7 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	struct hpp_dynamic_entry *hde;
 	size_t len = fmt->user_len;
 	char *str, *pos;
-	struct format_field *field;
+	struct tep_format_field *field;
 	size_t namelen;
 	bool last = false;
 	int ret;
@@ -2047,7 +2108,7 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		struct trace_seq seq;
 raw_field:
 		trace_seq_init(&seq);
-		pevent_print_field(&seq, he->raw_data, hde->field);
+		tep_print_field(&seq, he->raw_data, hde->field);
 		str = seq.buffer;
 	}
 
@@ -2060,7 +2121,7 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 			       struct hist_entry *a, struct hist_entry *b)
 {
 	struct hpp_dynamic_entry *hde;
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned offset, size;
 
 	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
@@ -2071,10 +2132,10 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 	}
 
 	field = hde->field;
-	if (field->flags & FIELD_IS_DYNAMIC) {
+	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long dyn;
 
-		pevent_read_number_field(field, a->raw_data, &dyn);
+		tep_read_number_field(field, a->raw_data, &dyn);
 		offset = dyn & 0xffff;
 		size = (dyn >> 16) & 0xffff;
 
@@ -2117,7 +2178,7 @@ static void hde_free(struct perf_hpp_fmt *fmt)
 }
 
 static struct hpp_dynamic_entry *
-__alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field,
+__alloc_dynamic_entry(struct perf_evsel *evsel, struct tep_format_field *field,
 		      int level)
 {
 	struct hpp_dynamic_entry *hde;
@@ -2252,7 +2313,7 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 }
 
 static int __dynamic_dimension__add(struct perf_evsel *evsel,
-				    struct format_field *field,
+				    struct tep_format_field *field,
 				    bool raw_trace, int level)
 {
 	struct hpp_dynamic_entry *hde;
@@ -2270,7 +2331,7 @@ static int __dynamic_dimension__add(struct perf_evsel *evsel,
 static int add_evsel_fields(struct perf_evsel *evsel, bool raw_trace, int level)
 {
 	int ret;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	field = evsel->tp_format->format.fields;
 	while (field) {
@@ -2305,13 +2366,13 @@ static int add_all_matching_fields(struct perf_evlist *evlist,
 {
 	int ret = -ESRCH;
 	struct perf_evsel *evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
-		field = pevent_find_any_field(evsel->tp_format, field_name);
+		field = tep_find_any_field(evsel->tp_format, field_name);
 		if (field == NULL)
 			continue;
 
@@ -2327,7 +2388,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
 {
 	char *str, *event_name, *field_name, *opt_name;
 	struct perf_evsel *evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 	bool raw_trace = symbol_conf.raw_trace;
 	int ret = 0;
 
@@ -2378,7 +2439,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
 	if (!strcmp(field_name, "*")) {
 		ret = add_evsel_fields(evsel, raw_trace, level);
 	} else {
-		field = pevent_find_any_field(evsel->tp_format, field_name);
+		field = tep_find_any_field(evsel->tp_format, field_name);
 		if (field == NULL) {
 			pr_debug("Cannot find event field for %s.%s\n",
 				 event_name, field_name);

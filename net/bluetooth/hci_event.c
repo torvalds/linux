@@ -1454,6 +1454,45 @@ static void hci_cc_le_write_def_data_len(struct hci_dev *hdev,
 	hdev->le_def_tx_time = le16_to_cpu(sent->tx_time);
 }
 
+static void hci_cc_le_add_to_resolv_list(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	struct hci_cp_le_add_to_resolv_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_ADD_TO_RESOLV_LIST);
+	if (!sent)
+		return;
+
+	hci_bdaddr_list_add_with_irk(&hdev->le_resolv_list, &sent->bdaddr,
+				sent->bdaddr_type, sent->peer_irk,
+				sent->local_irk);
+}
+
+static void hci_cc_le_del_from_resolv_list(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_cp_le_del_from_resolv_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_DEL_FROM_RESOLV_LIST);
+	if (!sent)
+		return;
+
+	hci_bdaddr_list_del_with_irk(&hdev->le_resolv_list, &sent->bdaddr,
+			    sent->bdaddr_type);
+}
+
 static void hci_cc_le_clear_resolv_list(struct hci_dev *hdev,
 				       struct sk_buff *skb)
 {
@@ -3279,6 +3318,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 		hci_cc_le_write_def_data_len(hdev, skb);
 		break;
 
+	case HCI_OP_LE_ADD_TO_RESOLV_LIST:
+		hci_cc_le_add_to_resolv_list(hdev, skb);
+		break;
+
+	case HCI_OP_LE_DEL_FROM_RESOLV_LIST:
+		hci_cc_le_del_from_resolv_list(hdev, skb);
+		break;
+
 	case HCI_OP_LE_CLEAR_RESOLV_LIST:
 		hci_cc_le_clear_resolv_list(hdev, skb);
 		break;
@@ -4890,31 +4937,27 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	hci_debugfs_create_conn(conn);
 	hci_conn_add_sysfs(conn);
 
-	if (!status) {
-		/* The remote features procedure is defined for master
-		 * role only. So only in case of an initiated connection
-		 * request the remote features.
-		 *
-		 * If the local controller supports slave-initiated features
-		 * exchange, then requesting the remote features in slave
-		 * role is possible. Otherwise just transition into the
-		 * connected state without requesting the remote features.
-		 */
-		if (conn->out ||
-		    (hdev->le_features[0] & HCI_LE_SLAVE_FEATURES)) {
-			struct hci_cp_le_read_remote_features cp;
+	/* The remote features procedure is defined for master
+	 * role only. So only in case of an initiated connection
+	 * request the remote features.
+	 *
+	 * If the local controller supports slave-initiated features
+	 * exchange, then requesting the remote features in slave
+	 * role is possible. Otherwise just transition into the
+	 * connected state without requesting the remote features.
+	 */
+	if (conn->out ||
+	    (hdev->le_features[0] & HCI_LE_SLAVE_FEATURES)) {
+		struct hci_cp_le_read_remote_features cp;
 
-			cp.handle = __cpu_to_le16(conn->handle);
+		cp.handle = __cpu_to_le16(conn->handle);
 
-			hci_send_cmd(hdev, HCI_OP_LE_READ_REMOTE_FEATURES,
-				     sizeof(cp), &cp);
+		hci_send_cmd(hdev, HCI_OP_LE_READ_REMOTE_FEATURES,
+			     sizeof(cp), &cp);
 
-			hci_conn_hold(conn);
-		} else {
-			conn->state = BT_CONNECTED;
-			hci_connect_cfm(conn, status);
-		}
+		hci_conn_hold(conn);
 	} else {
+		conn->state = BT_CONNECTED;
 		hci_connect_cfm(conn, status);
 	}
 
@@ -5667,6 +5710,12 @@ static bool hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
 			return false;
 		return true;
 	}
+
+	/* Check if request ended in Command Status - no way to retreive
+	 * any extra parameters in this case.
+	 */
+	if (hdr->evt == HCI_EV_CMD_STATUS)
+		return false;
 
 	if (hdr->evt != HCI_EV_CMD_COMPLETE) {
 		bt_dev_err(hdev, "last event is not cmd complete (0x%2.2x)",

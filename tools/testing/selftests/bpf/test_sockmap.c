@@ -28,6 +28,7 @@
 #include <linux/sock_diag.h>
 #include <linux/bpf.h>
 #include <linux/if_link.h>
+#include <linux/tls.h>
 #include <assert.h>
 #include <libgen.h>
 
@@ -42,6 +43,13 @@
 
 int running;
 static void running_handler(int a);
+
+#ifndef TCP_ULP
+# define TCP_ULP 31
+#endif
+#ifndef SOL_TLS
+# define SOL_TLS 282
+#endif
 
 /* randomly selected ports for testing on lo */
 #define S1_PORT 10000
@@ -69,8 +77,14 @@ int txmsg_apply;
 int txmsg_cork;
 int txmsg_start;
 int txmsg_end;
+int txmsg_start_push;
+int txmsg_end_push;
+int txmsg_start_pop;
+int txmsg_pop;
 int txmsg_ingress;
 int txmsg_skb;
+int ktls;
+int peek_flag;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -90,8 +104,14 @@ static const struct option long_options[] = {
 	{"txmsg_cork",	required_argument,	NULL, 'k'},
 	{"txmsg_start", required_argument,	NULL, 's'},
 	{"txmsg_end",	required_argument,	NULL, 'e'},
+	{"txmsg_start_push", required_argument,	NULL, 'p'},
+	{"txmsg_end_push",   required_argument,	NULL, 'q'},
+	{"txmsg_start_pop",  required_argument,	NULL, 'w'},
+	{"txmsg_pop",	     required_argument,	NULL, 'x'},
 	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
 	{"txmsg_skb", no_argument,		&txmsg_skb, 1 },
+	{"ktls", no_argument,			&ktls, 1 },
+	{"peek", no_argument,			&peek_flag, 1 },
 	{0, 0, NULL, 0 }
 };
 
@@ -112,6 +132,71 @@ static void usage(char *argv[])
 	printf("\n");
 }
 
+char *sock_to_string(int s)
+{
+	if (s == c1)
+		return "client1";
+	else if (s == c2)
+		return "client2";
+	else if (s == s1)
+		return "server1";
+	else if (s == s2)
+		return "server2";
+	else if (s == p1)
+		return "peer1";
+	else if (s == p2)
+		return "peer2";
+	else
+		return "unknown";
+}
+
+static int sockmap_init_ktls(int verbose, int s)
+{
+	struct tls12_crypto_info_aes_gcm_128 tls_tx = {
+		.info = {
+			.version     = TLS_1_2_VERSION,
+			.cipher_type = TLS_CIPHER_AES_GCM_128,
+		},
+	};
+	struct tls12_crypto_info_aes_gcm_128 tls_rx = {
+		.info = {
+			.version     = TLS_1_2_VERSION,
+			.cipher_type = TLS_CIPHER_AES_GCM_128,
+		},
+	};
+	int so_buf = 6553500;
+	int err;
+
+	err = setsockopt(s, 6, TCP_ULP, "tls", sizeof("tls"));
+	if (err) {
+		fprintf(stderr, "setsockopt: TCP_ULP(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_TLS, TLS_TX, (void *)&tls_tx, sizeof(tls_tx));
+	if (err) {
+		fprintf(stderr, "setsockopt: TLS_TX(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_TLS, TLS_RX, (void *)&tls_rx, sizeof(tls_rx));
+	if (err) {
+		fprintf(stderr, "setsockopt: TLS_RX(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_SOCKET, SO_SNDBUF, &so_buf, sizeof(so_buf));
+	if (err) {
+		fprintf(stderr, "setsockopt: (%s) failed sndbuf with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_SOCKET, SO_RCVBUF, &so_buf, sizeof(so_buf));
+	if (err) {
+		fprintf(stderr, "setsockopt: (%s) failed rcvbuf with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+
+	if (verbose)
+		fprintf(stdout, "socket(%s) kTLS enabled\n", sock_to_string(s));
+	return 0;
+}
 static int sockmap_init_sockets(int verbose)
 {
 	int i, err, one = 1;
@@ -277,33 +362,40 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 	return 0;
 }
 
-static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
-		    struct msg_stats *s, bool tx,
-		    struct sockmap_options *opt)
+static void msg_free_iov(struct msghdr *msg)
 {
-	struct msghdr msg = {0};
-	int err, i, flags = MSG_NOSIGNAL;
+	int i;
+
+	for (i = 0; i < msg->msg_iovlen; i++)
+		free(msg->msg_iov[i].iov_base);
+	free(msg->msg_iov);
+	msg->msg_iov = NULL;
+	msg->msg_iovlen = 0;
+}
+
+static int msg_alloc_iov(struct msghdr *msg,
+			 int iov_count, int iov_length,
+			 bool data, bool xmit)
+{
+	unsigned char k = 0;
 	struct iovec *iov;
-	unsigned char k;
-	bool data_test = opt->data_test;
-	bool drop = opt->drop_expected;
+	int i;
 
 	iov = calloc(iov_count, sizeof(struct iovec));
 	if (!iov)
 		return errno;
 
-	k = 0;
 	for (i = 0; i < iov_count; i++) {
 		unsigned char *d = calloc(iov_length, sizeof(char));
 
 		if (!d) {
 			fprintf(stderr, "iov_count %i/%i OOM\n", i, iov_count);
-			goto out_errno;
+			goto unwind_iov;
 		}
 		iov[i].iov_base = d;
 		iov[i].iov_len = iov_length;
 
-		if (data_test && tx) {
+		if (data && xmit) {
 			int j;
 
 			for (j = 0; j < iov_length; j++)
@@ -311,9 +403,60 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		}
 	}
 
-	msg.msg_iov = iov;
-	msg.msg_iovlen = iov_count;
-	k = 0;
+	msg->msg_iov = iov;
+	msg->msg_iovlen = iov_count;
+
+	return 0;
+unwind_iov:
+	for (i--; i >= 0 ; i--)
+		free(msg->msg_iov[i].iov_base);
+	return -ENOMEM;
+}
+
+static int msg_verify_data(struct msghdr *msg, int size, int chunk_sz)
+{
+	int i, j, bytes_cnt = 0;
+	unsigned char k = 0;
+
+	for (i = 0; i < msg->msg_iovlen; i++) {
+		unsigned char *d = msg->msg_iov[i].iov_base;
+
+		for (j = 0;
+		     j < msg->msg_iov[i].iov_len && size; j++) {
+			if (d[j] != k++) {
+				fprintf(stderr,
+					"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
+					i, j, d[j], k - 1, d[j+1], k);
+				return -EIO;
+			}
+			bytes_cnt++;
+			if (bytes_cnt == chunk_sz) {
+				k = 0;
+				bytes_cnt = 0;
+			}
+			size--;
+		}
+	}
+	return 0;
+}
+
+static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
+		    struct msg_stats *s, bool tx,
+		    struct sockmap_options *opt)
+{
+	struct msghdr msg = {0}, msg_peek = {0};
+	int err, i, flags = MSG_NOSIGNAL;
+	bool drop = opt->drop_expected;
+	bool data = opt->data_test;
+
+	err = msg_alloc_iov(&msg, iov_count, iov_length, data, tx);
+	if (err)
+		goto out_errno;
+	if (peek_flag) {
+		err = msg_alloc_iov(&msg_peek, iov_count, iov_length, data, tx);
+		if (err)
+			goto out_errno;
+	}
 
 	if (tx) {
 		clock_gettime(CLOCK_MONOTONIC, &s->start);
@@ -333,21 +476,28 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		}
 		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	} else {
-		int slct, recv, max_fd = fd;
+		int slct, recvp = 0, recv, max_fd = fd;
+		float total_bytes, txmsg_pop_total;
 		int fd_flags = O_NONBLOCK;
 		struct timeval timeout;
-		float total_bytes;
-		int bytes_cnt = 0;
-		int chunk_sz;
 		fd_set w;
 
-		if (opt->sendpage)
-			chunk_sz = iov_length * cnt;
-		else
-			chunk_sz = iov_length * iov_count;
-
 		fcntl(fd, fd_flags);
+		/* Account for pop bytes noting each iteration of apply will
+		 * call msg_pop_data helper so we need to account for this
+		 * by calculating the number of apply iterations. Note user
+		 * of the tool can create cases where no data is sent by
+		 * manipulating pop/push/pull/etc. For example txmsg_apply 1
+		 * with txmsg_pop 1 will try to apply 1B at a time but each
+		 * iteration will then pop 1B so no data will ever be sent.
+		 * This is really only useful for testing edge cases in code
+		 * paths.
+		 */
 		total_bytes = (float)iov_count * (float)iov_length * (float)cnt;
+		txmsg_pop_total = txmsg_pop;
+		if (txmsg_apply)
+			txmsg_pop_total *= (total_bytes / txmsg_apply);
+		total_bytes -= txmsg_pop_total;
 		err = clock_gettime(CLOCK_MONOTONIC, &s->start);
 		if (err < 0)
 			perror("recv start time: ");
@@ -356,7 +506,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 				timeout.tv_sec = 0;
 				timeout.tv_usec = 300000;
 			} else {
-				timeout.tv_sec = 1;
+				timeout.tv_sec = 3;
 				timeout.tv_usec = 0;
 			}
 
@@ -371,10 +521,23 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 				goto out_errno;
 			} else if (!slct) {
 				if (opt->verbose)
-					fprintf(stderr, "unexpected timeout\n");
+					fprintf(stderr, "unexpected timeout: recved %zu/%f pop_total %f\n", s->bytes_recvd, total_bytes, txmsg_pop_total);
 				errno = -EIO;
 				clock_gettime(CLOCK_MONOTONIC, &s->end);
 				goto out_errno;
+			}
+
+			errno = 0;
+			if (peek_flag) {
+				flags |= MSG_PEEK;
+				recvp = recvmsg(fd, &msg_peek, flags);
+				if (recvp < 0) {
+					if (errno != EWOULDBLOCK) {
+						clock_gettime(CLOCK_MONOTONIC, &s->end);
+						goto out_errno;
+					}
+				}
+				flags = 0;
 			}
 
 			recv = recvmsg(fd, &msg, flags);
@@ -388,27 +551,23 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 
 			s->bytes_recvd += recv;
 
-			if (data_test) {
-				int j;
+			if (data) {
+				int chunk_sz = opt->sendpage ?
+						iov_length * cnt :
+						iov_length * iov_count;
 
-				for (i = 0; i < msg.msg_iovlen; i++) {
-					unsigned char *d = iov[i].iov_base;
-
-					for (j = 0;
-					     j < iov[i].iov_len && recv; j++) {
-						if (d[j] != k++) {
-							errno = -EIO;
-							fprintf(stderr,
-								"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
-								i, j, d[j], k - 1, d[j+1], k);
-							goto out_errno;
-						}
-						bytes_cnt++;
-						if (bytes_cnt == chunk_sz) {
-							k = 0;
-							bytes_cnt = 0;
-						}
-						recv--;
+				errno = msg_verify_data(&msg, recv, chunk_sz);
+				if (errno) {
+					perror("data verify msg failed\n");
+					goto out_errno;
+				}
+				if (recvp) {
+					errno = msg_verify_data(&msg_peek,
+								recvp,
+								chunk_sz);
+					if (errno) {
+						perror("data verify msg_peek failed\n");
+						goto out_errno;
 					}
 				}
 			}
@@ -416,14 +575,12 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	}
 
-	for (i = 0; i < iov_count; i++)
-		free(iov[i].iov_base);
-	free(iov);
-	return 0;
+	msg_free_iov(&msg);
+	msg_free_iov(&msg_peek);
+	return err;
 out_errno:
-	for (i = 0; i < iov_count; i++)
-		free(iov[i].iov_base);
-	free(iov);
+	msg_free_iov(&msg);
+	msg_free_iov(&msg_peek);
 	return errno;
 }
 
@@ -456,6 +613,21 @@ static int sendmsg_test(struct sockmap_options *opt)
 	else
 		rx_fd = p2;
 
+	if (ktls) {
+		/* Redirecting into non-TLS socket which sends into a TLS
+		 * socket is not a valid test. So in this case lets not
+		 * enable kTLS but still run the test.
+		 */
+		if (!txmsg_redir || (txmsg_redir && txmsg_ingress)) {
+			err = sockmap_init_ktls(opt->verbose, rx_fd);
+			if (err)
+				return err;
+		}
+		err = sockmap_init_ktls(opt->verbose, c1);
+		if (err)
+			return err;
+	}
+
 	rxpid = fork();
 	if (rxpid == 0) {
 		if (opt->drop_expected)
@@ -465,21 +637,20 @@ static int sendmsg_test(struct sockmap_options *opt)
 			iov_count = 1;
 		err = msg_loop(rx_fd, iov_count, iov_buf,
 			       cnt, &s, false, opt);
-		if (err && opt->verbose)
+		if (opt->verbose)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		shutdown(p2, SHUT_RDWR);
-		shutdown(p1, SHUT_RDWR);
 		if (s.end.tv_sec - s.start.tv_sec) {
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
 		}
 		if (opt->verbose)
 			fprintf(stdout,
-				"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s\n",
+				"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s %s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
-				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
+				s.bytes_recvd, recvd_Bps, recvd_Bps/giga,
+				peek_flag ? "(peek_msg)" : "");
 		if (err && txmsg_cork)
 			err = 0;
 		exit(err ? 1 : 0);
@@ -500,7 +671,6 @@ static int sendmsg_test(struct sockmap_options *opt)
 			fprintf(stderr,
 				"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		shutdown(c1, SHUT_RDWR);
 		if (s.end.tv_sec - s.start.tv_sec) {
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
@@ -755,6 +925,63 @@ run:
 			}
 		}
 
+		if (txmsg_start_push) {
+			i = 2;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start_push, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_start_push):  %d (%s)\n",
+					err, strerror(errno));
+				goto out;
+			}
+		}
+
+		if (txmsg_end_push) {
+			i = 3;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_end_push, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem %i@%i (txmsg_end_push):  %d (%s)\n",
+					txmsg_end_push, i, err, strerror(errno));
+				goto out;
+			}
+		}
+
+		if (txmsg_start_pop) {
+			i = 4;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start_pop, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem %i@%i (txmsg_start_pop):  %d (%s)\n",
+					txmsg_start_pop, i, err, strerror(errno));
+				goto out;
+			}
+		} else {
+			i = 4;
+			bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start_pop, BPF_ANY);
+		}
+
+		if (txmsg_pop) {
+			i = 5;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_pop, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem %i@%i (txmsg_pop):  %d (%s)\n",
+					txmsg_pop, i, err, strerror(errno));
+				goto out;
+			}
+		} else {
+			i = 5;
+			bpf_map_update_elem(map_fd[5],
+					    &i, &txmsg_pop, BPF_ANY);
+
+		}
+
 		if (txmsg_ingress) {
 			int in = BPF_F_INGRESS;
 
@@ -906,10 +1133,19 @@ static void test_options(char *options)
 		snprintf(tstr, OPTSTRING, "end %d,", txmsg_end);
 		strncat(options, tstr, OPTSTRING);
 	}
+	if (txmsg_start_pop) {
+		snprintf(tstr, OPTSTRING, "pop (%d,%d),",
+			 txmsg_start_pop, txmsg_start_pop + txmsg_pop);
+		strncat(options, tstr, OPTSTRING);
+	}
 	if (txmsg_ingress)
 		strncat(options, "ingress,", OPTSTRING);
 	if (txmsg_skb)
 		strncat(options, "skb,", OPTSTRING);
+	if (ktls)
+		strncat(options, "ktls,", OPTSTRING);
+	if (peek_flag)
+		strncat(options, "peek,", OPTSTRING);
 }
 
 static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
@@ -1083,6 +1319,9 @@ static int test_mixed(int cgrp)
 	txmsg_pass = txmsg_noisy = txmsg_redir_noisy = txmsg_drop = 0;
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_start = txmsg_end = 0;
+	txmsg_start_push = txmsg_end_push = 0;
+	txmsg_start_pop = txmsg_pop = 0;
+
 	/* Test small and large iov_count values with pass/redir/apply/cork */
 	txmsg_pass = 1;
 	txmsg_redir = 0;
@@ -1199,6 +1438,21 @@ static int test_start_end(int cgrp)
 	/* Test basic start/end with lots of iov_count and iov_lengths */
 	txmsg_start = 1;
 	txmsg_end = 2;
+	txmsg_start_push = 1;
+	txmsg_end_push = 2;
+	txmsg_start_pop = 1;
+	txmsg_pop = 1;
+	err = test_txmsg(cgrp);
+	if (err)
+		goto out;
+
+	/* Cut a byte of pushed data but leave reamining in place */
+	txmsg_start = 1;
+	txmsg_end = 2;
+	txmsg_start_push = 1;
+	txmsg_end_push = 3;
+	txmsg_start_pop = 1;
+	txmsg_pop = 1;
 	err = test_txmsg(cgrp);
 	if (err)
 		goto out;
@@ -1209,18 +1463,36 @@ static int test_start_end(int cgrp)
 	opt.iov_length = 100;
 	txmsg_cork = 1600;
 
+	txmsg_start_pop = 0;
+	txmsg_pop = 0;
+
 	for (i = 99; i <= 1600; i += 500) {
 		txmsg_start = 0;
 		txmsg_end = i;
+		txmsg_start_push = 0;
+		txmsg_end_push = i;
 		err = test_exec(cgrp, &opt);
 		if (err)
 			goto out;
 	}
 
+	/* Test pop data in middle of cork */
+	for (i = 99; i <= 1600; i += 500) {
+		txmsg_start_pop = 10;
+		txmsg_pop = i;
+		err = test_exec(cgrp, &opt);
+		if (err)
+			goto out;
+	}
+	txmsg_start_pop = 0;
+	txmsg_pop = 0;
+
 	/* Test start/end with cork but pull data in middle */
 	for (i = 199; i <= 1600; i += 500) {
 		txmsg_start = 100;
 		txmsg_end = i;
+		txmsg_start_push = 100;
+		txmsg_end_push = i;
 		err = test_exec(cgrp, &opt);
 		if (err)
 			goto out;
@@ -1229,13 +1501,33 @@ static int test_start_end(int cgrp)
 	/* Test start/end with cork pulling last sg entry */
 	txmsg_start = 1500;
 	txmsg_end = 1600;
+	txmsg_start_push = 1500;
+	txmsg_end_push = 1600;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
 
+	/* Test pop with cork pulling last sg entry */
+	txmsg_start_pop = 1500;
+	txmsg_pop = 1600;
+	err = test_exec(cgrp, &opt);
+	if (err)
+		goto out;
+	txmsg_start_pop = 0;
+	txmsg_pop = 0;
+
 	/* Test start/end pull of single byte in last page */
 	txmsg_start = 1111;
 	txmsg_end = 1112;
+	txmsg_start_push = 1111;
+	txmsg_end_push = 1112;
+	err = test_exec(cgrp, &opt);
+	if (err)
+		goto out;
+
+	/* Test pop of single byte in last page */
+	txmsg_start_pop = 1111;
+	txmsg_pop = 1112;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
@@ -1243,6 +1535,8 @@ static int test_start_end(int cgrp)
 	/* Test start/end with end < start */
 	txmsg_start = 1111;
 	txmsg_end = 0;
+	txmsg_start_push = 1111;
+	txmsg_end_push = 0;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
@@ -1250,6 +1544,8 @@ static int test_start_end(int cgrp)
 	/* Test start/end with end > data */
 	txmsg_start = 0;
 	txmsg_end = 1601;
+	txmsg_start_push = 0;
+	txmsg_end_push = 1601;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
@@ -1257,8 +1553,23 @@ static int test_start_end(int cgrp)
 	/* Test start/end with start > data */
 	txmsg_start = 1601;
 	txmsg_end = 1600;
+	txmsg_start_push = 1601;
+	txmsg_end_push = 1600;
 	err = test_exec(cgrp, &opt);
+	if (err)
+		goto out;
 
+	/* Test pop with start > data */
+	txmsg_start_pop = 1601;
+	txmsg_pop = 1;
+	err = test_exec(cgrp, &opt);
+	if (err)
+		goto out;
+
+	/* Test pop with pop range > data */
+	txmsg_start_pop = 1599;
+	txmsg_pop = 10;
+	err = test_exec(cgrp, &opt);
 out:
 	txmsg_start = 0;
 	txmsg_end = 0;
@@ -1272,7 +1583,7 @@ char *map_names[] = {
 	"sock_map_redir",
 	"sock_apply_bytes",
 	"sock_cork_bytes",
-	"sock_pull_bytes",
+	"sock_bytes",
 	"sock_redir_flags",
 	"sock_skb_opts",
 };
@@ -1348,9 +1659,9 @@ static int populate_progs(char *bpf_file)
 	return 0;
 }
 
-static int __test_suite(char *bpf_file)
+static int __test_suite(int cg_fd, char *bpf_file)
 {
-	int cg_fd, err;
+	int err, cleanup = cg_fd;
 
 	err = populate_progs(bpf_file);
 	if (err < 0) {
@@ -1358,26 +1669,28 @@ static int __test_suite(char *bpf_file)
 		return err;
 	}
 
-	if (setup_cgroup_environment()) {
-		fprintf(stderr, "ERROR: cgroup env failed\n");
-		return -EINVAL;
-	}
-
-	cg_fd = create_and_get_cgroup(CG_PATH);
 	if (cg_fd < 0) {
-		fprintf(stderr,
-			"ERROR: (%i) open cg path failed: %s\n",
-			cg_fd, optarg);
-		return cg_fd;
-	}
+		if (setup_cgroup_environment()) {
+			fprintf(stderr, "ERROR: cgroup env failed\n");
+			return -EINVAL;
+		}
 
-	if (join_cgroup(CG_PATH)) {
-		fprintf(stderr, "ERROR: failed to join cgroup\n");
-		return -EINVAL;
+		cg_fd = create_and_get_cgroup(CG_PATH);
+		if (cg_fd < 0) {
+			fprintf(stderr,
+				"ERROR: (%i) open cg path failed: %s\n",
+				cg_fd, optarg);
+			return cg_fd;
+		}
+
+		if (join_cgroup(CG_PATH)) {
+			fprintf(stderr, "ERROR: failed to join cgroup\n");
+			return -EINVAL;
+		}
 	}
 
 	/* Tests basic commands and APIs with range of iov values */
-	txmsg_start = txmsg_end = 0;
+	txmsg_start = txmsg_end = txmsg_start_push = txmsg_end_push = 0;
 	err = test_txmsg(cg_fd);
 	if (err)
 		goto out;
@@ -1394,20 +1707,24 @@ static int __test_suite(char *bpf_file)
 
 out:
 	printf("Summary: %i PASSED %i FAILED\n", passed, failed);
-	cleanup_cgroup_environment();
-	close(cg_fd);
+	if (cleanup < 0) {
+		cleanup_cgroup_environment();
+		close(cg_fd);
+	}
 	return err;
 }
 
-static int test_suite(void)
+static int test_suite(int cg_fd)
 {
 	int err;
 
-	err = __test_suite(BPF_SOCKMAP_FILENAME);
+	err = __test_suite(cg_fd, BPF_SOCKMAP_FILENAME);
 	if (err)
 		goto out;
-	err = __test_suite(BPF_SOCKHASH_FILENAME);
+	err = __test_suite(cg_fd, BPF_SOCKHASH_FILENAME);
 out:
+	if (cg_fd > -1)
+		close(cg_fd);
 	return err;
 }
 
@@ -1420,9 +1737,9 @@ int main(int argc, char **argv)
 	int test = PING_PONG;
 
 	if (argc < 2)
-		return test_suite();
+		return test_suite(-1);
 
-	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
+	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:p:q:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 's':
@@ -1430,6 +1747,18 @@ int main(int argc, char **argv)
 			break;
 		case 'e':
 			txmsg_end = atoi(optarg);
+			break;
+		case 'p':
+			txmsg_start_push = atoi(optarg);
+			break;
+		case 'q':
+			txmsg_end_push = atoi(optarg);
+			break;
+		case 'w':
+			txmsg_start_pop = atoi(optarg);
+			break;
+		case 'x':
+			txmsg_pop = atoi(optarg);
 			break;
 		case 'a':
 			txmsg_apply = atoi(optarg);
@@ -1485,6 +1814,9 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+
+	if (argc <= 3 && cg_fd)
+		return test_suite(cg_fd);
 
 	if (!cg_fd) {
 		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",

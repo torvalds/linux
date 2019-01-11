@@ -311,7 +311,7 @@ void context_timing_trace(
 {
 	int i;
 	struct dc  *core_dc = dc;
-	int h_pos[MAX_PIPES], v_pos[MAX_PIPES];
+	int h_pos[MAX_PIPES] = {0}, v_pos[MAX_PIPES] = {0};
 	struct crtc_position position;
 	unsigned int underlay_idx = core_dc->res_pool->underlay_pipe_index;
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -322,8 +322,7 @@ void context_timing_trace(
 		/* get_position() returns CRTC vertical/horizontal counter
 		 * hence not applicable for underlay pipe
 		 */
-		if (pipe_ctx->stream == NULL
-				 || pipe_ctx->pipe_idx == underlay_idx)
+		if (pipe_ctx->stream == NULL || pipe_ctx->pipe_idx == underlay_idx)
 			continue;
 
 		pipe_ctx->stream_res.tg->funcs->get_position(pipe_ctx->stream_res.tg, &position);
@@ -333,7 +332,7 @@ void context_timing_trace(
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream == NULL)
+		if (pipe_ctx->stream == NULL || pipe_ctx->pipe_idx == underlay_idx)
 			continue;
 
 		TIMING_TRACE("OTG_%d   H_tot:%d  V_tot:%d   H_pos:%d  V_pos:%d\n",
@@ -348,7 +347,7 @@ void context_clock_trace(
 		struct dc *dc,
 		struct dc_state *context)
 {
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	DC_LOGGER_INIT(dc->ctx->logger);
 	CLOCK_TRACE("Current: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
 			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",

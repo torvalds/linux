@@ -17,6 +17,7 @@ struct device_node;
 struct seq_file;
 struct gpio_device;
 struct module;
+enum gpiod_flags;
 
 #ifdef CONFIG_GPIOLIB
 
@@ -66,9 +67,15 @@ struct gpio_irq_chip {
 	/**
 	 * @lock_key:
 	 *
-	 * Per GPIO IRQ chip lockdep classes.
+	 * Per GPIO IRQ chip lockdep class for IRQ lock.
 	 */
 	struct lock_class_key *lock_key;
+
+	/**
+	 * @request_key:
+	 *
+	 * Per GPIO IRQ chip lockdep class for IRQ request.
+	 */
 	struct lock_class_key *request_key;
 
 	/**
@@ -93,6 +100,13 @@ struct gpio_irq_chip {
 	 * The number of interrupt parents of a GPIO chip.
 	 */
 	unsigned int num_parents;
+
+	/**
+	 * @parent_irq:
+	 *
+	 * For use by gpiochip_set_cascaded_irqchip()
+	 */
+	unsigned int parent_irq;
 
 	/**
 	 * @parents:
@@ -138,12 +152,21 @@ struct gpio_irq_chip {
 	 * will allocate and map all IRQs during initialization.
 	 */
 	unsigned int first;
-};
 
-static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
-{
-	return container_of(chip, struct gpio_irq_chip, chip);
-}
+	/**
+	 * @irq_enable:
+	 *
+	 * Store old irq_chip irq_enable callback
+	 */
+	void		(*irq_enable)(struct irq_data *data);
+
+	/**
+	 * @irq_disable:
+	 *
+	 * Store old irq_chip irq_disable callback
+	 */
+	void		(*irq_disable)(struct irq_data *data);
+};
 #endif
 
 /**
@@ -158,9 +181,13 @@ static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
  * @free: optional hook for chip-specific deactivation, such as
  *	disabling module power and clock; may sleep
  * @get_direction: returns direction for signal "offset", 0=out, 1=in,
- *	(same as GPIOF_DIR_XXX), or negative error
+ *	(same as GPIOF_DIR_XXX), or negative error.
+ *	It is recommended to always implement this function, even on
+ *	input-only or output-only gpio chips.
  * @direction_input: configures signal "offset" as input, or returns error
+ *	This can be omitted on input-only or output-only gpio chips.
  * @direction_output: configures signal "offset" as output, or returns error
+ *	This can be omitted on input-only or output-only gpio chips.
  * @get: returns value for signal "offset", 0=low, 1=high, or negative error
  * @get_multiple: reads values for multiple signals defined by "mask" and
  *	stores them in "bits", returns 0 on success or negative error
@@ -256,6 +283,9 @@ struct gpio_chip {
 
 	void			(*dbg_show)(struct seq_file *s,
 						struct gpio_chip *chip);
+
+	int			(*init_valid_mask)(struct gpio_chip *chip);
+
 	int			base;
 	u16			ngpio;
 	const char		*const *names;
@@ -294,7 +324,9 @@ struct gpio_chip {
 	/**
 	 * @need_valid_mask:
 	 *
-	 * If set core allocates @valid_mask with all bits set to one.
+	 * If set core allocates @valid_mask with all its values initialized
+	 * with init_valid_mask() or set to one if init_valid_mask() is not
+	 * defined
 	 */
 	bool need_valid_mask;
 
@@ -386,7 +418,6 @@ static inline int gpiochip_add(struct gpio_chip *chip)
 extern void gpiochip_remove(struct gpio_chip *chip);
 extern int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *chip,
 				  void *data);
-extern void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip);
 
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
@@ -395,6 +426,10 @@ extern struct gpio_chip *gpiochip_find(void *data,
 int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
 void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
 bool gpiochip_line_is_irq(struct gpio_chip *chip, unsigned int offset);
+int gpiochip_reqres_irq(struct gpio_chip *chip, unsigned int offset);
+void gpiochip_relres_irq(struct gpio_chip *chip, unsigned int offset);
+void gpiochip_disable_irq(struct gpio_chip *chip, unsigned int offset);
+void gpiochip_enable_irq(struct gpio_chip *chip, unsigned int offset);
 
 /* Line status inquiry for drivers */
 bool gpiochip_line_is_open_drain(struct gpio_chip *chip, unsigned int offset);
@@ -570,7 +605,8 @@ gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 #endif /* CONFIG_PINCTRL */
 
 struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
-					    const char *label);
+					    const char *label,
+					    enum gpiod_flags flags);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
 #else /* CONFIG_GPIOLIB */

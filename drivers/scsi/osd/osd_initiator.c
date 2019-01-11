@@ -445,7 +445,7 @@ static void _put_request(struct request *rq)
 	 *       code paths.
 	 */
 	if (unlikely(rq->bio))
-		blk_end_request(rq, BLK_STS_IOERR, blk_rq_bytes(rq));
+		blk_mq_end_request(rq, BLK_STS_IOERR);
 	else
 		blk_put_request(rq);
 }
@@ -506,11 +506,11 @@ static void osd_request_async_done(struct request *req, blk_status_t error)
 
 	_set_error_resid(or, req, error);
 	if (req->next_rq) {
-		__blk_put_request(req->q, req->next_rq);
+		blk_put_request(req->next_rq);
 		req->next_rq = NULL;
 	}
 
-	__blk_put_request(req->q, req);
+	blk_put_request(req);
 	or->request = NULL;
 	or->in.req = NULL;
 	or->out.req = NULL;

@@ -35,6 +35,7 @@
 
 #include "irq/dce110/irq_service_dce110.h"
 
+#include "dce/dce_clk_mgr.h"
 #include "dce/dce_mem_input.h"
 #include "dce/dce_transform.h"
 #include "dce/dce_link_encoder.h"
@@ -42,7 +43,6 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_opp.h"
 #include "dce/dce_ipp.h"
-#include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 
 #include "dce/dce_hwseq.h"
@@ -50,6 +50,7 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
+#include "dce/dce_i2c.h"
 
 #include "reg_helper.h"
 
@@ -147,15 +148,15 @@ static const struct dce110_timing_generator_offsets dce112_tg_offsets[] = {
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
 
-static const struct dccg_registers disp_clk_regs = {
+static const struct clk_mgr_registers disp_clk_regs = {
 		CLK_COMMON_REG_LIST_DCE_BASE()
 };
 
-static const struct dccg_shift disp_clk_shift = {
+static const struct clk_mgr_shift disp_clk_shift = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
-static const struct dccg_mask disp_clk_mask = {
+static const struct clk_mgr_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
@@ -383,6 +384,7 @@ static const struct resource_caps polaris_10_resource_cap = {
 		.num_audio = 6,
 		.num_stream_encoder = 6,
 		.num_pll = 8, /* why 8? 6 combo PHY PLL + 2 regular PLLs? */
+		.num_ddc = 6,
 };
 
 static const struct resource_caps polaris_11_resource_cap = {
@@ -390,6 +392,7 @@ static const struct resource_caps polaris_11_resource_cap = {
 		.num_audio = 5,
 		.num_stream_encoder = 5,
 		.num_pll = 8, /* why 8? 6 combo PHY PLL + 2 regular PLLs? */
+		.num_ddc = 5,
 };
 
 #define CTX  ctx
@@ -548,12 +551,12 @@ static struct transform *dce112_transform_create(
 static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
 		.max_hdmi_pixel_clock = 600000,
-		.ycbcr420_supported = true,
+		.hdmi_ycbcr420_supported = true,
+		.dp_ycbcr420_supported = false,
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
-		.flags.bits.IS_TPS4_CAPABLE = true,
-		.flags.bits.IS_YCBCR_CAPABLE = true
+		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
 struct link_encoder *dce112_link_encoder_create(
@@ -620,7 +623,40 @@ struct aux_engine *dce112_aux_engine_create(
 
 	return &aux_engine->base;
 }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
 
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
+};
+
+struct dce_i2c_hw *dce112_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dce112_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
 struct clock_source *dce112_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
@@ -634,7 +670,7 @@ struct clock_source *dce112_clock_source_create(
 	if (!clk_src)
 		return NULL;
 
-	if (dce110_clk_src_construct(clk_src, ctx, bios, id,
+	if (dce112_clk_src_construct(clk_src, ctx, bios, id,
 			regs, &cs_shift, &cs_mask)) {
 		clk_src->base.dp_clk_src = dp_clk_src;
 		return &clk_src->base;
@@ -658,9 +694,6 @@ static void destruct(struct dce110_resource_pool *pool)
 		if (pool->base.opps[i] != NULL)
 			dce110_opp_destroy(&pool->base.opps[i]);
 
-		if (pool->base.engines[i] != NULL)
-			dce110_engine_destroy(&pool->base.engines[i]);
-
 		if (pool->base.transforms[i] != NULL)
 			dce112_transform_destroy(&pool->base.transforms[i]);
 
@@ -676,7 +709,19 @@ static void destruct(struct dce110_resource_pool *pool)
 			kfree(DCE110TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
+	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+		if (pool->base.engines[i] != NULL)
+			dce110_engine_destroy(&pool->base.engines[i]);
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
+		}
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
@@ -705,8 +750,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
@@ -971,12 +1016,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 				&clks);
 
 		dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER, 1000);
+			clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
 		dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER,
+			clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER_CZ,
 			1000);
 		dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER,
+			clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER_CZ,
 			1000);
 
 		return;
@@ -1012,12 +1057,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER, 1000);
+		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER,
+		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER,
+		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -1087,7 +1132,6 @@ static bool construct(
 {
 	unsigned int i;
 	struct dc_context *ctx = dc->ctx;
-	struct dm_pp_static_clock_info static_clk_info = {0};
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1155,11 +1199,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.dccg = dce112_dccg_create(ctx,
+	pool->base.clk_mgr = dce112_clk_mgr_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.dccg == NULL) {
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -1184,13 +1228,6 @@ static bool construct(
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
 	}
-
-	/* get static clock information for PPLIB or firmware, save
-	 * max_clock_state
-	 */
-	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.dccg->max_clks_state =
-				static_clk_info.max_clocks_state;
 
 	{
 		struct irq_service_init_data init_data;
@@ -1245,6 +1282,9 @@ static bool construct(
 				"DC:failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
+	}
+
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce112_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -1252,6 +1292,14 @@ static bool construct(
 				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
+		pool->base.hw_i2cs[i] = dce112_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = NULL;
 	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,

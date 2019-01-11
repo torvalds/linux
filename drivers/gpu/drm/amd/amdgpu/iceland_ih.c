@@ -208,34 +208,6 @@ static u32 iceland_ih_get_wptr(struct amdgpu_device *adev)
 }
 
 /**
- * iceland_ih_prescreen_iv - prescreen an interrupt vector
- *
- * @adev: amdgpu_device pointer
- *
- * Returns true if the interrupt vector should be further processed.
- */
-static bool iceland_ih_prescreen_iv(struct amdgpu_device *adev)
-{
-	u32 ring_index = adev->irq.ih.rptr >> 2;
-	u16 pasid;
-
-	switch (le32_to_cpu(adev->irq.ih.ring[ring_index]) & 0xff) {
-	case 146:
-	case 147:
-		pasid = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]) >> 16;
-		if (!pasid || amdgpu_vm_pasid_fault_credit(adev, pasid))
-			return true;
-		break;
-	default:
-		/* Not a VM fault */
-		return true;
-	}
-
-	adev->irq.ih.rptr += 16;
-	return false;
-}
-
-/**
  * iceland_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
@@ -255,7 +227,7 @@ static void iceland_ih_decode_iv(struct amdgpu_device *adev,
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
 	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
 
-	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
+	entry->client_id = AMDGPU_IRQ_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
 	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
@@ -297,7 +269,7 @@ static int iceland_ih_sw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_ih_ring_init(adev, 64 * 1024, false);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, false);
 	if (r)
 		return r;
 
@@ -311,7 +283,7 @@ static int iceland_ih_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
 	amdgpu_irq_remove_domain(adev);
 
 	return 0;
@@ -440,15 +412,13 @@ static const struct amd_ip_funcs iceland_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs iceland_ih_funcs = {
 	.get_wptr = iceland_ih_get_wptr,
-	.prescreen_iv = iceland_ih_prescreen_iv,
 	.decode_iv = iceland_ih_decode_iv,
 	.set_rptr = iceland_ih_set_rptr
 };
 
 static void iceland_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 {
-	if (adev->irq.ih_funcs == NULL)
-		adev->irq.ih_funcs = &iceland_ih_funcs;
+	adev->irq.ih_funcs = &iceland_ih_funcs;
 }
 
 const struct amdgpu_ip_block_version iceland_ih_ip_block =

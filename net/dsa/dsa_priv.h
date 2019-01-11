@@ -86,6 +86,7 @@ struct dsa_slave_priv {
 /* dsa.c */
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 bool dsa_schedule_work(struct work_struct *work);
+const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops);
 
 /* legacy.c */
 #if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
@@ -205,8 +206,11 @@ extern const struct dsa_device_ops dsa_netdev_ops;
 /* tag_edsa.c */
 extern const struct dsa_device_ops edsa_netdev_ops;
 
+/* tag_gswip.c */
+extern const struct dsa_device_ops gswip_netdev_ops;
+
 /* tag_ksz.c */
-extern const struct dsa_device_ops ksz_netdev_ops;
+extern const struct dsa_device_ops ksz9477_netdev_ops;
 
 /* tag_lan9303.c */
 extern const struct dsa_device_ops lan9303_netdev_ops;

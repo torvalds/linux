@@ -24,8 +24,8 @@ static const unsigned char erofs_filetype_table[EROFS_FT_MAX] = {
 };
 
 static int erofs_fill_dentries(struct dir_context *ctx,
-	void *dentry_blk, unsigned *ofs,
-	unsigned nameoff, unsigned maxsize)
+	void *dentry_blk, unsigned int *ofs,
+	unsigned int nameoff, unsigned int maxsize)
 {
 	struct erofs_dirent *de = dentry_blk;
 	const struct erofs_dirent *end = dentry_blk + nameoff;
@@ -36,7 +36,7 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 		int de_namelen;
 		unsigned char d_type;
 #ifdef CONFIG_EROFS_FS_DEBUG
-		unsigned dbg_namelen;
+		unsigned int dbg_namelen;
 		unsigned char dbg_namebuf[EROFS_NAME_LEN];
 #endif
 
@@ -53,8 +53,11 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 			strnlen(de_name, maxsize - nameoff) :
 			le16_to_cpu(de[1].nameoff) - nameoff;
 
-		/* the corrupted directory found */
-		BUG_ON(de_namelen < 0);
+		/* a corrupted entry is found */
+		if (unlikely(de_namelen < 0)) {
+			DBG_BUGON(1);
+			return -EIO;
+		}
 
 #ifdef CONFIG_EROFS_FS_DEBUG
 		dbg_namelen = min(EROFS_NAME_LEN - 1, de_namelen);
@@ -66,8 +69,8 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 #endif
 
 		if (!dir_emit(ctx, de_name, de_namelen,
-					le64_to_cpu(de->nid), d_type))
-			/* stoped by some reason */
+			      le64_to_cpu(de->nid), d_type))
+			/* stopped by some reason */
 			return 1;
 		++de;
 		*ofs += sizeof(struct erofs_dirent);
@@ -81,15 +84,15 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 	struct inode *dir = file_inode(f);
 	struct address_space *mapping = dir->i_mapping;
 	const size_t dirsize = i_size_read(dir);
-	unsigned i = ctx->pos / EROFS_BLKSIZ;
-	unsigned ofs = ctx->pos % EROFS_BLKSIZ;
+	unsigned int i = ctx->pos / EROFS_BLKSIZ;
+	unsigned int ofs = ctx->pos % EROFS_BLKSIZ;
 	int err = 0;
 	bool initial = true;
 
 	while (ctx->pos < dirsize) {
 		struct page *dentry_page;
 		struct erofs_dirent *de;
-		unsigned nameoff, maxsize;
+		unsigned int nameoff, maxsize;
 
 		dentry_page = read_mapping_page(mapping, i, NULL);
 		if (IS_ERR(dentry_page))
@@ -109,7 +112,8 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 			goto skip_this;
 		}
 
-		maxsize = min_t(unsigned, dirsize - ctx->pos + ofs, PAGE_SIZE);
+		maxsize = min_t(unsigned int,
+				dirsize - ctx->pos + ofs, PAGE_SIZE);
 
 		/* search dirents at the arbitrary position */
 		if (unlikely(initial)) {

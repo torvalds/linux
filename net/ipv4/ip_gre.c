@@ -121,8 +121,8 @@ static unsigned int ipgre_net_id __read_mostly;
 static unsigned int gre_tap_net_id __read_mostly;
 static unsigned int erspan_net_id __read_mostly;
 
-static void ipgre_err(struct sk_buff *skb, u32 info,
-		      const struct tnl_ptk_info *tpi)
+static int ipgre_err(struct sk_buff *skb, u32 info,
+		     const struct tnl_ptk_info *tpi)
 {
 
 	/* All the routers (except for Linux) return only
@@ -146,17 +146,32 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 	unsigned int data_len = 0;
 	struct ip_tunnel *t;
 
+	if (tpi->proto == htons(ETH_P_TEB))
+		itn = net_generic(net, gre_tap_net_id);
+	else if (tpi->proto == htons(ETH_P_ERSPAN) ||
+		 tpi->proto == htons(ETH_P_ERSPAN2))
+		itn = net_generic(net, erspan_net_id);
+	else
+		itn = net_generic(net, ipgre_net_id);
+
+	iph = (const struct iphdr *)(icmp_hdr(skb) + 1);
+	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
+			     iph->daddr, iph->saddr, tpi->key);
+
+	if (!t)
+		return -ENOENT;
+
 	switch (type) {
 	default:
 	case ICMP_PARAMETERPROB:
-		return;
+		return 0;
 
 	case ICMP_DEST_UNREACH:
 		switch (code) {
 		case ICMP_SR_FAILED:
 		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
-			return;
+			return 0;
 		default:
 			/* All others are translated to HOST_UNREACH.
 			   rfc2003 contains "deep thoughts" about NET_UNREACH,
@@ -168,7 +183,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 
 	case ICMP_TIME_EXCEEDED:
 		if (code != ICMP_EXC_TTL)
-			return;
+			return 0;
 		data_len = icmp_hdr(skb)->un.reserved[1] * 4; /* RFC 4884 4.1 */
 		break;
 
@@ -176,37 +191,27 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 		break;
 	}
 
-	if (tpi->proto == htons(ETH_P_TEB))
-		itn = net_generic(net, gre_tap_net_id);
-	else
-		itn = net_generic(net, ipgre_net_id);
-
-	iph = (const struct iphdr *)(icmp_hdr(skb) + 1);
-	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
-			     iph->daddr, iph->saddr, tpi->key);
-
-	if (!t)
-		return;
-
 #if IS_ENABLED(CONFIG_IPV6)
        if (tpi->proto == htons(ETH_P_IPV6) &&
            !ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4 + tpi->hdr_len,
 				       type, data_len))
-               return;
+               return 0;
 #endif
 
 	if (t->parms.iph.daddr == 0 ||
 	    ipv4_is_multicast(t->parms.iph.daddr))
-		return;
+		return 0;
 
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
-		return;
+		return 0;
 
 	if (time_before(jiffies, t->err_time + IPTUNNEL_ERR_TIMEO))
 		t->err_count++;
 	else
 		t->err_count = 1;
 	t->err_time = jiffies;
+
+	return 0;
 }
 
 static void gre_err(struct sk_buff *skb, u32 info)
@@ -229,22 +234,19 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct tnl_ptk_info tpi;
-	bool csum_err = false;
 
-	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP),
-			     iph->ihl * 4) < 0) {
-		if (!csum_err)		/* ignore csum errors. */
-			return;
-	}
+	if (gre_parse_header(skb, &tpi, NULL, htons(ETH_P_IP),
+			     iph->ihl * 4) < 0)
+		return;
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 skb->dev->ifindex, 0, IPPROTO_GRE, 0);
+				 skb->dev->ifindex, IPPROTO_GRE);
 		return;
 	}
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, dev_net(skb->dev), skb->dev->ifindex, 0,
-			      IPPROTO_GRE, 0);
+		ipv4_redirect(skb, dev_net(skb->dev), skb->dev->ifindex,
+			      IPPROTO_GRE);
 		return;
 	}
 
@@ -328,6 +330,8 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		ip_tunnel_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 		return PACKET_RCVD;
 	}
+	return PACKET_REJECT;
+
 drop:
 	kfree_skb(skb);
 	return PACKET_RCVD;
@@ -672,6 +676,9 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr *tnl_params;
 
+	if (!pskb_inet_may_pull(skb))
+		goto free_skb;
+
 	if (tunnel->collect_md) {
 		gre_fb_xmit(skb, dev, skb->protocol);
 		return NETDEV_TX_OK;
@@ -715,6 +722,9 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	bool truncate = false;
 
+	if (!pskb_inet_may_pull(skb))
+		goto free_skb;
+
 	if (tunnel->collect_md) {
 		erspan_fb_xmit(skb, dev, skb->protocol);
 		return NETDEV_TX_OK;
@@ -757,6 +767,9 @@ static netdev_tx_t gre_tap_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+
+	if (!pskb_inet_may_pull(skb))
+		goto free_skb;
 
 	if (tunnel->collect_md) {
 		gre_fb_xmit(skb, dev, htons(ETH_P_TEB));
@@ -1337,12 +1350,6 @@ static void ipgre_tap_setup(struct net_device *dev)
 	ip_tunnel_setup(dev, gre_tap_net_id);
 }
 
-bool is_gretap_dev(const struct net_device *dev)
-{
-	return dev->netdev_ops == &gre_tap_netdev_ops;
-}
-EXPORT_SYMBOL_GPL(is_gretap_dev);
-
 static int ipgre_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],
 			 struct netlink_ext_ack *extack)
@@ -1508,11 +1515,14 @@ nla_put_failure:
 
 static void erspan_setup(struct net_device *dev)
 {
+	struct ip_tunnel *t = netdev_priv(dev);
+
 	ether_setup(dev);
 	dev->netdev_ops = &erspan_netdev_ops;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, erspan_net_id);
+	t->erspan_ver = 1;
 }
 
 static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
@@ -1596,7 +1606,7 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 	memset(&tb, 0, sizeof(tb));
 
 	dev = rtnl_create_link(net, name, name_assign_type,
-			       &ipgre_tap_ops, tb);
+			       &ipgre_tap_ops, tb, NULL);
 	if (IS_ERR(dev))
 		return dev;
 

@@ -17,6 +17,15 @@
 #include <linux/sched/clock.h>
 #include <trace/events/bcache.h>
 
+static void update_gc_after_writeback(struct cache_set *c)
+{
+	if (c->gc_after_writeback != (BCH_ENABLE_AUTO_GC) ||
+	    c->gc_stats.in_use < BCH_AUTO_GC_DIRTY_THRESHOLD)
+		return;
+
+	c->gc_after_writeback |= BCH_DO_AUTO_GC;
+}
+
 /* Rate limiting */
 static uint64_t __calc_target_rate(struct cached_dev *dc)
 {
@@ -191,6 +200,7 @@ static void update_writeback_rate(struct work_struct *work)
 		if (!set_at_max_writeback_rate(c, dc)) {
 			down_read(&dc->writeback_lock);
 			__update_writeback_rate(dc);
+			update_gc_after_writeback(c);
 			up_read(&dc->writeback_lock);
 		}
 	}
@@ -215,7 +225,8 @@ static void update_writeback_rate(struct work_struct *work)
 	smp_mb();
 }
 
-static unsigned writeback_delay(struct cached_dev *dc, unsigned sectors)
+static unsigned int writeback_delay(struct cached_dev *dc,
+				    unsigned int sectors)
 {
 	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
 	    !dc->writeback_percent)
@@ -249,6 +260,7 @@ static void dirty_init(struct keybuf_key *w)
 static void dirty_io_destructor(struct closure *cl)
 {
 	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
+
 	kfree(io);
 }
 
@@ -263,7 +275,7 @@ static void write_dirty_finish(struct closure *cl)
 	/* This is kind of a dumb way of signalling errors. */
 	if (KEY_DIRTY(&w->key)) {
 		int ret;
-		unsigned i;
+		unsigned int i;
 		struct keylist keys;
 
 		bch_keylist_init(&keys);
@@ -377,7 +389,7 @@ static void read_dirty_submit(struct closure *cl)
 
 static void read_dirty(struct cached_dev *dc)
 {
-	unsigned delay = 0;
+	unsigned int delay = 0;
 	struct keybuf_key *next, *keys[MAX_WRITEBACKS_IN_PASS], *w;
 	size_t size;
 	int nk, i;
@@ -442,7 +454,8 @@ static void read_dirty(struct cached_dev *dc)
 
 			io = kzalloc(sizeof(struct dirty_io) +
 				     sizeof(struct bio_vec) *
-				     DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS),
+				     DIV_ROUND_UP(KEY_SIZE(&w->key),
+						  PAGE_SECTORS),
 				     GFP_KERNEL);
 			if (!io)
 				goto err;
@@ -465,7 +478,8 @@ static void read_dirty(struct cached_dev *dc)
 
 			down(&dc->in_flight);
 
-			/* We've acquired a semaphore for the maximum
+			/*
+			 * We've acquired a semaphore for the maximum
 			 * simultaneous number of writebacks; from here
 			 * everything happens asynchronously.
 			 */
@@ -498,11 +512,11 @@ err:
 
 /* Scan for dirty data */
 
-void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
+void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
 				  uint64_t offset, int nr_sectors)
 {
 	struct bcache_device *d = c->devices[inode];
-	unsigned stripe_offset, stripe, sectors_dirty;
+	unsigned int stripe_offset, stripe, sectors_dirty;
 
 	if (!d)
 		return;
@@ -514,7 +528,7 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
 	stripe_offset = offset & (d->stripe_size - 1);
 
 	while (nr_sectors) {
-		int s = min_t(unsigned, abs(nr_sectors),
+		int s = min_t(unsigned int, abs(nr_sectors),
 			      d->stripe_size - stripe_offset);
 
 		if (nr_sectors < 0)
@@ -538,7 +552,9 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
 
 static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 {
-	struct cached_dev *dc = container_of(buf, struct cached_dev, writeback_keys);
+	struct cached_dev *dc = container_of(buf,
+					     struct cached_dev,
+					     writeback_keys);
 
 	BUG_ON(KEY_INODE(k) != dc->disk.id);
 
@@ -548,7 +564,7 @@ static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 static void refill_full_stripes(struct cached_dev *dc)
 {
 	struct keybuf *buf = &dc->writeback_keys;
-	unsigned start_stripe, stripe, next_stripe;
+	unsigned int start_stripe, stripe, next_stripe;
 	bool wrapped = false;
 
 	stripe = offset_to_stripe(&dc->disk, KEY_OFFSET(&buf->last_scanned));
@@ -679,8 +695,27 @@ static int bch_writeback_thread(void *arg)
 			 * data on cache. BCACHE_DEV_DETACHING flag is set in
 			 * bch_cached_dev_detach().
 			 */
-			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
+			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags)) {
+				up_write(&dc->writeback_lock);
 				break;
+			}
+
+			/*
+			 * When dirty data rate is high (e.g. 50%+), there might
+			 * be heavy buckets fragmentation after writeback
+			 * finished, which hurts following write performance.
+			 * If users really care about write performance they
+			 * may set BCH_ENABLE_AUTO_GC via sysfs, then when
+			 * BCH_DO_AUTO_GC is set, garbage collection thread
+			 * will be wake up here. After moving gc, the shrunk
+			 * btree and discarded free buckets SSD space may be
+			 * helpful for following write requests.
+			 */
+			if (c->gc_after_writeback ==
+			    (BCH_ENABLE_AUTO_GC|BCH_DO_AUTO_GC)) {
+				c->gc_after_writeback &= ~BCH_DO_AUTO_GC;
+				force_wake_up_gc(c);
+			}
 		}
 
 		up_write(&dc->writeback_lock);
@@ -688,7 +723,7 @@ static int bch_writeback_thread(void *arg)
 		read_dirty(dc);
 
 		if (searched_full_index) {
-			unsigned delay = dc->writeback_delay * HZ;
+			unsigned int delay = dc->writeback_delay * HZ;
 
 			while (delay &&
 			       !kthread_should_stop() &&
@@ -712,7 +747,7 @@ static int bch_writeback_thread(void *arg)
 
 struct sectors_dirty_init {
 	struct btree_op	op;
-	unsigned	inode;
+	unsigned int	inode;
 	size_t		count;
 	struct bkey	start;
 };
@@ -769,7 +804,7 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	bch_keybuf_init(&dc->writeback_keys);
 
 	dc->writeback_metadata		= true;
-	dc->writeback_running		= true;
+	dc->writeback_running		= false;
 	dc->writeback_percent		= 10;
 	dc->writeback_delay		= 30;
 	atomic_long_set(&dc->writeback_rate.rate, 1024);
@@ -797,6 +832,7 @@ int bch_cached_dev_writeback_start(struct cached_dev *dc)
 		cached_dev_put(dc);
 		return PTR_ERR(dc->writeback_thread);
 	}
+	dc->writeback_running = true;
 
 	WARN_ON(test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags));
 	schedule_delayed_work(&dc->writeback_rate_update,

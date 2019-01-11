@@ -227,8 +227,9 @@ enum rdma_nldev_command {
 	RDMA_NLDEV_CMD_UNSPEC,
 
 	RDMA_NLDEV_CMD_GET, /* can dump */
+	RDMA_NLDEV_CMD_SET,
 
-	/* 2 - 4 are free to use */
+	/* 3 - 4 are free to use */
 
 	RDMA_NLDEV_CMD_PORT_GET = 5, /* can dump */
 
@@ -282,6 +283,9 @@ enum rdma_nldev_attr {
 
 	/*
 	 * Device and port capabilities
+	 *
+	 * When used for port info, first 32-bits are CapabilityMask followed by
+	 * 16-bit CapabilityMask2.
 	 */
 	RDMA_NLDEV_ATTR_CAP_FLAGS,		/* u64 */
 

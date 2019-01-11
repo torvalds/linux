@@ -294,17 +294,17 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	/* read the card's PRI-SUP */
 	memset(&getmsg, 0, sizeof(getmsg));
-	getmsg.msgcode = DIDmsg_dot11req_mibget;
+	getmsg.msgcode = DIDMSG_DOT11REQ_MIBGET;
 	getmsg.msglen = sizeof(getmsg);
 	strcpy(getmsg.devname, wlandev->name);
 
-	getmsg.mibattribute.did = DIDmsg_dot11req_mibget_mibattribute;
+	getmsg.mibattribute.did = DIDMSG_DOT11REQ_MIBGET_MIBATTRIBUTE;
 	getmsg.mibattribute.status = P80211ENUM_msgitem_status_data_ok;
-	getmsg.resultcode.did = DIDmsg_dot11req_mibget_resultcode;
+	getmsg.resultcode.did = DIDMSG_DOT11REQ_MIBGET_RESULTCODE;
 	getmsg.resultcode.status = P80211ENUM_msgitem_status_no_value;
 
 	item = (struct p80211itemd *)getmsg.mibattribute.data;
-	item->did = DIDmib_p2_p2NIC_p2PRISupRange;
+	item->did = DIDMIB_P2_NIC_PRISUPRANGE;
 	item->status = P80211ENUM_msgitem_status_no_value;
 
 	data = (u32 *)item->data;
@@ -406,7 +406,6 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	int i;
 	int c;
 	u32 crcstart;
-	u32 crcend;
 	u32 cstart = 0;
 	u32 cend;
 	u8 *dest;
@@ -416,7 +415,6 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		if (!s3crc[i].dowrite)
 			continue;
 		crcstart = s3crc[i].addr;
-		crcend = s3crc[i].addr + s3crc[i].len;
 		/* Find chunk */
 		for (c = 0; c < nfchunks; c++) {
 			cstart = fchunk[c].addr;
@@ -559,7 +557,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 	for (i = 0; i < *ccnt; i++) {
 		clist[i].data = kzalloc(clist[i].len, GFP_KERNEL);
 		if (!clist[i].data) {
-			pr_err("failed to allocate image space, exitting.\n");
+			pr_err("failed to allocate image space, exiting.\n");
 			return 1;
 		}
 		pr_debug("chunk[%d]: addr=0x%06x len=%d\n",
@@ -706,7 +704,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 			pr_warn("warning: Failed to find PDR for plugrec 0x%04x.\n",
 				s3plug[i].itemcode);
 			continue;	/* and move on to the next PDR */
-#if 0
+
 			/* MSM: They swear that unless it's the MAC address,
 			 * the serial number, or the TX calibration records,
 			 * then there's reasonable defaults in the f/w
@@ -714,9 +712,6 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 			 * should only be a warning, not fatal.
 			 * TODO: add fatals for the PDRs mentioned above.
 			 */
-			result = 1;
-			continue;
-#endif
 		}
 
 		/* Validate plug len against PDR len */
@@ -790,13 +785,13 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 		return -ENOMEM;
 
 	/* set up the msg */
-	msg->msgcode = DIDmsg_p2req_readpda;
+	msg->msgcode = DIDMSG_P2REQ_READPDA;
 	msg->msglen = sizeof(msg);
 	strcpy(msg->devname, wlandev->name);
-	msg->pda.did = DIDmsg_p2req_readpda_pda;
+	msg->pda.did = DIDMSG_P2REQ_READPDA_PDA;
 	msg->pda.len = HFA384x_PDA_LEN_MAX;
 	msg->pda.status = P80211ENUM_msgitem_status_no_value;
-	msg->resultcode.did = DIDmsg_p2req_readpda_resultcode;
+	msg->resultcode.did = DIDMSG_P2REQ_READPDA_RESULTCODE;
 	msg->resultcode.len = sizeof(u32);
 	msg->resultcode.status = P80211ENUM_msgitem_status_no_value;
 
@@ -1024,11 +1019,11 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 
 	/* Initialize the messages */
 	strcpy(rstmsg->devname, wlandev->name);
-	rstmsg->msgcode = DIDmsg_p2req_ramdl_state;
+	rstmsg->msgcode = DIDMSG_P2REQ_RAMDL_STATE;
 	rstmsg->msglen = sizeof(*rstmsg);
-	rstmsg->enable.did = DIDmsg_p2req_ramdl_state_enable;
-	rstmsg->exeaddr.did = DIDmsg_p2req_ramdl_state_exeaddr;
-	rstmsg->resultcode.did = DIDmsg_p2req_ramdl_state_resultcode;
+	rstmsg->enable.did = DIDMSG_P2REQ_RAMDL_STATE_ENABLE;
+	rstmsg->exeaddr.did = DIDMSG_P2REQ_RAMDL_STATE_EXEADDR;
+	rstmsg->resultcode.did = DIDMSG_P2REQ_RAMDL_STATE_RESULTCODE;
 	rstmsg->enable.status = P80211ENUM_msgitem_status_data_ok;
 	rstmsg->exeaddr.status = P80211ENUM_msgitem_status_data_ok;
 	rstmsg->resultcode.status = P80211ENUM_msgitem_status_no_value;
@@ -1037,12 +1032,12 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rstmsg->resultcode.len = sizeof(u32);
 
 	strcpy(rwrmsg->devname, wlandev->name);
-	rwrmsg->msgcode = DIDmsg_p2req_ramdl_write;
+	rwrmsg->msgcode = DIDMSG_P2REQ_RAMDL_WRITE;
 	rwrmsg->msglen = sizeof(*rwrmsg);
-	rwrmsg->addr.did = DIDmsg_p2req_ramdl_write_addr;
-	rwrmsg->len.did = DIDmsg_p2req_ramdl_write_len;
-	rwrmsg->data.did = DIDmsg_p2req_ramdl_write_data;
-	rwrmsg->resultcode.did = DIDmsg_p2req_ramdl_write_resultcode;
+	rwrmsg->addr.did = DIDMSG_P2REQ_RAMDL_WRITE_ADDR;
+	rwrmsg->len.did = DIDMSG_P2REQ_RAMDL_WRITE_LEN;
+	rwrmsg->data.did = DIDMSG_P2REQ_RAMDL_WRITE_DATA;
+	rwrmsg->resultcode.did = DIDMSG_P2REQ_RAMDL_WRITE_RESULTCODE;
 	rwrmsg->addr.status = P80211ENUM_msgitem_status_data_ok;
 	rwrmsg->len.status = P80211ENUM_msgitem_status_data_ok;
 	rwrmsg->data.status = P80211ENUM_msgitem_status_data_ok;

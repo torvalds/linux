@@ -613,6 +613,20 @@ struct smb2_tree_disconnect_rsp {
 #define SVHDX_OPEN_DEVICE_CONTEX	0x9CCBCF9E04C1E643980E158DA1F6EC83
 #define SMB2_CREATE_TAG_POSIX		0x93AD25509CB411E7B42383DE968BCD7C
 
+/* Flag (SMB3 open response) values */
+#define SMB2_CREATE_FLAG_REPARSEPOINT 0x01
+
+/*
+ * Maximum number of iovs we need for an open/create request.
+ * [0] : struct smb2_create_req
+ * [1] : path
+ * [2] : lease context
+ * [3] : durable context
+ * [4] : posix context
+ * [5] : time warp context
+ * [6] : compound padding
+ */
+#define SMB2_CREATE_IOV_SIZE 7
 
 struct smb2_create_req {
 	struct smb2_sync_hdr sync_hdr;
@@ -638,7 +652,7 @@ struct smb2_create_rsp {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 89 */
 	__u8   OplockLevel;
-	__u8   Reserved;
+	__u8   Flag;  /* 0x01 if reparse point */
 	__le32 CreateAction;
 	__le64 CreationTime;
 	__le64 LastAccessTime;
@@ -828,6 +842,41 @@ struct fsctl_get_integrity_information_rsp {
 /* Integrity flags for above */
 #define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
 
+/* Reparse structures - see MS-FSCC 2.1.2 */
+
+/* struct fsctl_reparse_info_req is empty, only response structs (see below) */
+
+struct reparse_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__u8	DataBuffer[0]; /* Variable Length */
+} __packed;
+
+struct reparse_guid_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__u8	ReparseGuid[16];
+	__u8	DataBuffer[0]; /* Variable Length */
+} __packed;
+
+struct reparse_mount_point_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le16	SubstituteNameOffset;
+	__le16	SubstituteNameLength;
+	__le16	PrintNameOffset;
+	__le16	PrintNameLength;
+	__u8	PathBuffer[0]; /* Variable Length */
+} __packed;
+
+/* See MS-FSCC 2.1.2.4 and cifspdu.h for struct reparse_symlink_data */
+
+/* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
+
+
 /* See MS-DFSC 2.2.2 */
 struct fsctl_get_dfs_referral_req {
 	__le16 MaxReferralLevel;
@@ -849,7 +898,7 @@ struct validate_negotiate_info_req {
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
 	__le16 SecurityMode;
 	__le16 DialectCount;
-	__le16 Dialects[3]; /* BB expand this if autonegotiate > 3 dialects */
+	__le16 Dialects[4]; /* BB expand this if autonegotiate > 4 dialects */
 } __packed;
 
 struct validate_negotiate_info_rsp {
@@ -1162,6 +1211,15 @@ struct smb2_query_info_rsp {
 	__u8   Buffer[1];
 } __packed;
 
+/*
+ * Maximum number of iovs we need for a set-info request.
+ * The largest one is rename/hardlink
+ * [0] : struct smb2_set_info_req + smb2_file_[rename|link]_info
+ * [1] : path
+ * [2] : compound padding
+ */
+#define SMB2_SET_INFO_IOV_SIZE 3
+
 struct smb2_set_info_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 33 */
@@ -1340,7 +1398,6 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	char   FileName[0];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
 
-#define SMB2_MIN_EA_BUF  2048
 #define SMB2_MAX_EA_BUF 65536
 
 struct smb2_file_full_ea_info { /* encoding of response for level 15 */

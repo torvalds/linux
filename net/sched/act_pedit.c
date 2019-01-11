@@ -109,16 +109,18 @@ static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 {
 	struct nlattr *keys_start = nla_nest_start(skb, TCA_PEDIT_KEYS_EX);
 
+	if (!keys_start)
+		goto nla_failure;
 	for (; n > 0; n--) {
 		struct nlattr *key_start;
 
 		key_start = nla_nest_start(skb, TCA_PEDIT_KEY_EX);
+		if (!key_start)
+			goto nla_failure;
 
 		if (nla_put_u16(skb, TCA_PEDIT_KEY_EX_HTYPE, keys_ex->htype) ||
-		    nla_put_u16(skb, TCA_PEDIT_KEY_EX_CMD, keys_ex->cmd)) {
-			nlmsg_trim(skb, keys_start);
-			return -EINVAL;
-		}
+		    nla_put_u16(skb, TCA_PEDIT_KEY_EX_CMD, keys_ex->cmd))
+			goto nla_failure;
 
 		nla_nest_end(skb, key_start);
 
@@ -128,6 +130,9 @@ static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 	nla_nest_end(skb, keys_start);
 
 	return 0;
+nla_failure:
+	nla_nest_cancel(skb, keys_start);
+	return -EINVAL;
 }
 
 static int tcf_pedit_init(struct net *net, struct nlattr *nla,
@@ -196,7 +201,8 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 			goto out_release;
 		}
 	} else {
-		return err;
+		ret = err;
+		goto out_free;
 	}
 
 	p = to_pedit(*a);
@@ -418,7 +424,10 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->bindcnt = atomic_read(&p->tcf_bindcnt) - bind;
 
 	if (p->tcfp_keys_ex) {
-		tcf_pedit_key_ex_dump(skb, p->tcfp_keys_ex, p->tcfp_nkeys);
+		if (tcf_pedit_key_ex_dump(skb,
+					  p->tcfp_keys_ex,
+					  p->tcfp_nkeys))
+			goto nla_put_failure;
 
 		if (nla_put(skb, TCA_PEDIT_PARMS_EX, s, opt))
 			goto nla_put_failure;
@@ -452,19 +461,11 @@ static int tcf_pedit_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index,
-			    struct netlink_ext_ack *extack)
+static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 
 	return tcf_idr_search(tn, a, index);
-}
-
-static int tcf_pedit_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, pedit_net_id);
-
-	return tcf_idr_delete_index(tn, index);
 }
 
 static struct tc_action_ops act_pedit_ops = {
@@ -477,7 +478,6 @@ static struct tc_action_ops act_pedit_ops = {
 	.init		=	tcf_pedit_init,
 	.walk		=	tcf_pedit_walker,
 	.lookup		=	tcf_pedit_search,
-	.delete		=	tcf_pedit_delete,
 	.size		=	sizeof(struct tcf_pedit),
 };
 

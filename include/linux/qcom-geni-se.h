@@ -225,18 +225,13 @@ struct geni_se {
 #define HW_VER_MINOR_SHFT		16
 #define HW_VER_STEP_MASK		GENMASK(15, 0)
 
+#define GENI_SE_VERSION_MAJOR(ver) ((ver & HW_VER_MAJOR_MASK) >> HW_VER_MAJOR_SHFT)
+#define GENI_SE_VERSION_MINOR(ver) ((ver & HW_VER_MINOR_MASK) >> HW_VER_MINOR_SHFT)
+#define GENI_SE_VERSION_STEP(ver) (ver & HW_VER_STEP_MASK)
+
 #if IS_ENABLED(CONFIG_QCOM_GENI_SE)
 
 u32 geni_se_get_qup_hw_version(struct geni_se *se);
-
-#define geni_se_get_wrapper_version(se, major, minor, step) do { \
-	u32 ver; \
-\
-	ver = geni_se_get_qup_hw_version(se); \
-	major = (ver & HW_VER_MAJOR_MASK) >> HW_VER_MAJOR_SHFT; \
-	minor = (ver & HW_VER_MINOR_MASK) >> HW_VER_MINOR_SHFT; \
-	step = version & HW_VER_STEP_MASK; \
-} while (0)
 
 /**
  * geni_se_read_proto() - Read the protocol configured for a serial engine

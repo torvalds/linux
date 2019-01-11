@@ -366,7 +366,7 @@ static int gfs2_write_cache_jdata(struct address_space *mapping,
 	pgoff_t done_index;
 	int cycled;
 	int range_whole = 0;
-	int tag;
+	xa_mark_t tag;
 
 	pagevec_init(&pvec);
 	if (wbc->range_cyclic) {
@@ -820,10 +820,10 @@ out:
  * @page: the page that's being released
  * @gfp_mask: passed from Linux VFS, ignored by us
  *
- * Call try_to_free_buffers() if the buffers in this page can be
- * released.
+ * Calls try_to_free_buffers() to free the buffers and put the page if the
+ * buffers can be released.
  *
- * Returns: 0
+ * Returns: 1 if the page was put or else 0
  */
 
 int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
@@ -930,14 +930,14 @@ static const struct address_space_operations gfs2_jdata_aops = {
 void gfs2_set_aops(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
-	if (gfs2_is_writeback(ip))
-		inode->i_mapping->a_ops = &gfs2_writeback_aops;
-	else if (gfs2_is_ordered(ip))
-		inode->i_mapping->a_ops = &gfs2_ordered_aops;
-	else if (gfs2_is_jdata(ip))
+	if (gfs2_is_jdata(ip))
 		inode->i_mapping->a_ops = &gfs2_jdata_aops;
+	else if (gfs2_is_writeback(sdp))
+		inode->i_mapping->a_ops = &gfs2_writeback_aops;
+	else if (gfs2_is_ordered(sdp))
+		inode->i_mapping->a_ops = &gfs2_ordered_aops;
 	else
 		BUG();
 }
-

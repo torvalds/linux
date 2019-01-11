@@ -417,7 +417,7 @@ level directory:
 	filesystem from ever unmounting fully in the case of "retry forever"
 	handler configurations.
 
-	Note: there is no guarantee that fail_at_unmount can be set whilst an
+	Note: there is no guarantee that fail_at_unmount can be set while an
 	unmount is in progress. It is possible that the sysfs entries are
 	removed by the unmounting filesystem before a "retry forever" error
 	handler configuration causes unmount to hang, and hence the filesystem

@@ -151,9 +151,9 @@ enum iwl_tsf_id {
  * @beacon_time: beacon transmit time in system time
  * @beacon_tsf: beacon transmit time in TSF
  * @bi: beacon interval in TU
- * @bi_reciprocal: 2^32 / bi
+ * @reserved1: reserved
  * @dtim_interval: dtim transmit time in TU
- * @dtim_reciprocal: 2^32 / dtim_interval
+ * @reserved2: reserved
  * @mcast_qid: queue ID for multicast traffic.
  *	NOTE: obsolete from VER2 and on
  * @beacon_template: beacon template ID
@@ -162,9 +162,9 @@ struct iwl_mac_data_ap {
 	__le32 beacon_time;
 	__le64 beacon_tsf;
 	__le32 bi;
-	__le32 bi_reciprocal;
+	__le32 reserved1;
 	__le32 dtim_interval;
-	__le32 dtim_reciprocal;
+	__le32 reserved2;
 	__le32 mcast_qid;
 	__le32 beacon_template;
 } __packed; /* AP_MAC_DATA_API_S_VER_2 */
@@ -174,16 +174,24 @@ struct iwl_mac_data_ap {
  * @beacon_time: beacon transmit time in system time
  * @beacon_tsf: beacon transmit time in TSF
  * @bi: beacon interval in TU
- * @bi_reciprocal: 2^32 / bi
+ * @reserved: reserved
  * @beacon_template: beacon template ID
  */
 struct iwl_mac_data_ibss {
 	__le32 beacon_time;
 	__le64 beacon_tsf;
 	__le32 bi;
-	__le32 bi_reciprocal;
+	__le32 reserved;
 	__le32 beacon_template;
 } __packed; /* IBSS_MAC_DATA_API_S_VER_1 */
+
+/**
+ * enum iwl_mac_data_policy - policy of the data path for this MAC
+ * @TWT_SUPPORTED: twt is supported
+ */
+enum iwl_mac_data_policy {
+	TWT_SUPPORTED	= BIT(0),
+};
 
 /**
  * struct iwl_mac_data_sta - configuration data for station MAC context
@@ -191,9 +199,9 @@ struct iwl_mac_data_ibss {
  * @dtim_time: DTIM arrival time in system time
  * @dtim_tsf: DTIM arrival time in TSF
  * @bi: beacon interval in TU, applicable only when associated
- * @bi_reciprocal: 2^32 / bi , applicable only when associated
+ * @reserved1: reserved
  * @dtim_interval: DTIM interval in TU, applicable only when associated
- * @dtim_reciprocal: 2^32 / dtim_interval , applicable only when associated
+ * @data_policy: see &enum iwl_mac_data_policy
  * @listen_interval: in beacon intervals, applicable only when associated
  * @assoc_id: unique ID assigned by the AP during association
  * @assoc_beacon_arrive_time: TSF of first beacon after association
@@ -203,13 +211,13 @@ struct iwl_mac_data_sta {
 	__le32 dtim_time;
 	__le64 dtim_tsf;
 	__le32 bi;
-	__le32 bi_reciprocal;
+	__le32 reserved1;
 	__le32 dtim_interval;
-	__le32 dtim_reciprocal;
+	__le32 data_policy;
 	__le32 listen_interval;
 	__le32 assoc_id;
 	__le32 assoc_beacon_arrive_time;
-} __packed; /* STA_MAC_DATA_API_S_VER_1 */
+} __packed; /* STA_MAC_DATA_API_S_VER_2 */
 
 /**
  * struct iwl_mac_data_go - configuration data for P2P GO MAC context
@@ -233,7 +241,7 @@ struct iwl_mac_data_go {
 struct iwl_mac_data_p2p_sta {
 	struct iwl_mac_data_sta sta;
 	__le32 ctwin;
-} __packed; /* P2P_STA_MAC_DATA_API_S_VER_1 */
+} __packed; /* P2P_STA_MAC_DATA_API_S_VER_2 */
 
 /**
  * struct iwl_mac_data_pibss - Pseudo IBSS config data
@@ -378,13 +386,6 @@ struct iwl_mac_ctx_cmd {
 	};
 } __packed; /* MAC_CONTEXT_CMD_API_S_VER_1 */
 
-static inline u32 iwl_mvm_reciprocal(u32 v)
-{
-	if (!v)
-		return 0;
-	return 0xFFFFFFFF / v;
-}
-
 #define IWL_NONQOS_SEQ_GET	0x1
 #define IWL_NONQOS_SEQ_SET	0x2
 struct iwl_nonqos_seq_query_cmd {
@@ -442,7 +443,7 @@ struct iwl_he_backoff_conf {
  * Support for Nss x BW (or RU) matrix:
  *	(0=SISO, 1=MIMO2) x (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz)
  * Each entry contains 2 QAM thresholds for 8us and 16us:
- *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6/7=RES
+ *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6=RES, 7=NONE
  * i.e. QAM_th1 < QAM_th2 such if TX uses QAM_tx:
  *	QAM_tx < QAM_th1            --> PPE=0us
  *	QAM_th1 <= QAM_tx < QAM_th2 --> PPE=8us
@@ -577,5 +578,19 @@ struct iwl_he_sta_context_cmd {
 	/* The below fields are set via MU EDCA parameter set element */
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
 } __packed; /* STA_CONTEXT_DOT11AX_API_S */
+
+/**
+ * struct iwl_he_monitor_cmd - configure air sniffer for HE
+ * @bssid: the BSSID to sniff for
+ * @reserved1: reserved for dword alignment
+ * @aid: the AID to track on for HE MU
+ * @reserved2: reserved for future use
+ */
+struct iwl_he_monitor_cmd {
+	u8 bssid[6];
+	__le16 reserved1;
+	__le16 aid;
+	u8 reserved2[6];
+} __packed; /* HE_AIR_SNIFFER_CONFIG_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_h__ */

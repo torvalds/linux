@@ -214,8 +214,7 @@ static inline void idr_preload_end(void)
 	     ++id, (entry) = idr_get_next((idr), &(id)))
 
 /*
- * IDA - IDR based id allocator, use when translation from id to
- * pointer isn't necessary.
+ * IDA - ID Allocator, use when translation from id to pointer isn't necessary.
  */
 #define IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
 #define IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long))
@@ -225,45 +224,82 @@ struct ida_bitmap {
 	unsigned long		bitmap[IDA_BITMAP_LONGS];
 };
 
-DECLARE_PER_CPU(struct ida_bitmap *, ida_bitmap);
-
 struct ida {
-	struct radix_tree_root	ida_rt;
+	struct xarray xa;
 };
 
+#define IDA_INIT_FLAGS	(XA_FLAGS_LOCK_IRQ | XA_FLAGS_ALLOC)
+
 #define IDA_INIT(name)	{						\
-	.ida_rt = RADIX_TREE_INIT(name, IDR_RT_MARKER | GFP_NOWAIT),	\
+	.xa = XARRAY_INIT(name, IDA_INIT_FLAGS)				\
 }
 #define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
 
-int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
-int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
-void ida_remove(struct ida *ida, int id);
+int ida_alloc_range(struct ida *, unsigned int min, unsigned int max, gfp_t);
+void ida_free(struct ida *, unsigned int id);
 void ida_destroy(struct ida *ida);
 
-int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
-		   gfp_t gfp_mask);
-void ida_simple_remove(struct ida *ida, unsigned int id);
-
-static inline void ida_init(struct ida *ida)
+/**
+ * ida_alloc() - Allocate an unused ID.
+ * @ida: IDA handle.
+ * @gfp: Memory allocation flags.
+ *
+ * Allocate an ID between 0 and %INT_MAX, inclusive.
+ *
+ * Context: Any context.
+ * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
+ * or %-ENOSPC if there are no free IDs.
+ */
+static inline int ida_alloc(struct ida *ida, gfp_t gfp)
 {
-	INIT_RADIX_TREE(&ida->ida_rt, IDR_RT_MARKER | GFP_NOWAIT);
+	return ida_alloc_range(ida, 0, ~0, gfp);
 }
 
 /**
- * ida_get_new - allocate new ID
- * @ida:	idr handle
- * @p_id:	pointer to the allocated handle
+ * ida_alloc_min() - Allocate an unused ID.
+ * @ida: IDA handle.
+ * @min: Lowest ID to allocate.
+ * @gfp: Memory allocation flags.
  *
- * Simple wrapper around ida_get_new_above() w/ @starting_id of zero.
+ * Allocate an ID between @min and %INT_MAX, inclusive.
+ *
+ * Context: Any context.
+ * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
+ * or %-ENOSPC if there are no free IDs.
  */
-static inline int ida_get_new(struct ida *ida, int *p_id)
+static inline int ida_alloc_min(struct ida *ida, unsigned int min, gfp_t gfp)
 {
-	return ida_get_new_above(ida, 0, p_id);
+	return ida_alloc_range(ida, min, ~0, gfp);
 }
+
+/**
+ * ida_alloc_max() - Allocate an unused ID.
+ * @ida: IDA handle.
+ * @max: Highest ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Allocate an ID between 0 and @max, inclusive.
+ *
+ * Context: Any context.
+ * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
+ * or %-ENOSPC if there are no free IDs.
+ */
+static inline int ida_alloc_max(struct ida *ida, unsigned int max, gfp_t gfp)
+{
+	return ida_alloc_range(ida, 0, max, gfp);
+}
+
+static inline void ida_init(struct ida *ida)
+{
+	xa_init_flags(&ida->xa, IDA_INIT_FLAGS);
+}
+
+#define ida_simple_get(ida, start, end, gfp)	\
+			ida_alloc_range(ida, start, (end) - 1, gfp)
+#define ida_simple_remove(ida, id)	ida_free(ida, id)
 
 static inline bool ida_is_empty(const struct ida *ida)
 {
-	return radix_tree_empty(&ida->ida_rt);
+	return xa_empty(&ida->xa);
 }
 #endif /* __IDR_H__ */

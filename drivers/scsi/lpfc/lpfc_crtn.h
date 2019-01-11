@@ -74,7 +74,6 @@ void lpfc_mbx_cmpl_read_topology(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_init_vpi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *);
 void lpfc_retry_pport_discovery(struct lpfc_hba *);
-void lpfc_release_rpi(struct lpfc_hba *, struct lpfc_vport *, uint16_t);
 int lpfc_init_iocb_list(struct lpfc_hba *phba, int cnt);
 void lpfc_free_iocb_list(struct lpfc_hba *phba);
 int lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
@@ -175,6 +174,7 @@ void lpfc_hb_timeout_handler(struct lpfc_hba *);
 void lpfc_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			 struct lpfc_iocbq *);
 int lpfc_ct_handle_unsol_abort(struct lpfc_hba *, struct hbq_dmabuf *);
+int lpfc_issue_gidpt(struct lpfc_vport *vport);
 int lpfc_issue_gidft(struct lpfc_vport *vport);
 int lpfc_get_gidft_type(struct lpfc_vport *vport, struct lpfc_iocbq *iocbq);
 int lpfc_ns_cmd(struct lpfc_vport *, int, uint8_t, uint32_t);
@@ -380,8 +380,10 @@ void lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virtp, dma_addr_t dma);
 
 void lpfc_in_buf_free(struct lpfc_hba *, struct lpfc_dmabuf *);
 void lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp);
+int lpfc_link_reset(struct lpfc_vport *vport);
 
 /* Function prototypes. */
+int lpfc_check_pci_resettable(const struct lpfc_hba *phba);
 const char* lpfc_info(struct Scsi_Host *);
 int lpfc_scan_finished(struct Scsi_Host *, unsigned long);
 
@@ -544,6 +546,14 @@ bool lpfc_find_next_oas_lun(struct lpfc_hba *, struct lpfc_name *,
 			    uint32_t *, uint32_t *);
 int lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox);
 void lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb);
+
+/* RAS Interface */
+void lpfc_sli4_ras_init(struct lpfc_hba *phba);
+void lpfc_sli4_ras_setup(struct lpfc_hba *phba);
+int  lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba, uint32_t fwlog_level,
+			 uint32_t fwlog_enable);
+void lpfc_ras_stop_fwlog(struct lpfc_hba *phba);
+int lpfc_check_fwlog_support(struct lpfc_hba *phba);
 
 /* NVME interfaces. */
 void lpfc_nvme_unregister_port(struct lpfc_vport *vport,

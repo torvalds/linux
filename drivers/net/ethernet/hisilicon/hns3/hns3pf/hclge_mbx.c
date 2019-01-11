@@ -79,15 +79,26 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	return status;
 }
 
-static int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
+int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 {
+	struct hclge_dev *hdev = vport->back;
+	enum hnae3_reset_type reset_type;
 	u8 msg_data[2];
 	u8 dest_vfid;
 
 	dest_vfid = (u8)vport->vport_id;
 
+	if (hdev->reset_type == HNAE3_FUNC_RESET)
+		reset_type = HNAE3_VF_PF_FUNC_RESET;
+	else if (hdev->reset_type == HNAE3_FLR_RESET)
+		reset_type = HNAE3_VF_FULL_RESET;
+	else
+		return -EINVAL;
+
+	memcpy(&msg_data[0], &reset_type, sizeof(u16));
+
 	/* send this requested info to VF */
-	return hclge_send_mbx_msg(vport, msg_data, sizeof(u8),
+	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
 				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
 }
 
@@ -233,43 +244,6 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 	return 0;
 }
 
-static int hclge_set_vf_mc_mta_status(struct hclge_vport *vport,
-				      u8 *msg, u8 idx, bool is_end)
-{
-#define HCLGE_MTA_STATUS_MSG_SIZE 13
-#define HCLGE_MTA_STATUS_MSG_BITS \
-				(HCLGE_MTA_STATUS_MSG_SIZE * BITS_PER_BYTE)
-#define HCLGE_MTA_STATUS_MSG_END_BITS \
-				(HCLGE_MTA_TBL_SIZE % HCLGE_MTA_STATUS_MSG_BITS)
-	unsigned long status[BITS_TO_LONGS(HCLGE_MTA_STATUS_MSG_BITS)];
-	u16 tbl_cnt;
-	u16 tbl_idx;
-	u8 msg_ofs;
-	u8 msg_bit;
-
-	tbl_cnt = is_end ? HCLGE_MTA_STATUS_MSG_END_BITS :
-			HCLGE_MTA_STATUS_MSG_BITS;
-
-	/* set msg field */
-	msg_ofs = 0;
-	msg_bit = 0;
-	memset(status, 0, sizeof(status));
-	for (tbl_idx = 0; tbl_idx < tbl_cnt; tbl_idx++) {
-		if (msg[msg_ofs] & BIT(msg_bit))
-			set_bit(tbl_idx, status);
-
-		msg_bit++;
-		if (msg_bit == BITS_PER_BYTE) {
-			msg_bit = 0;
-			msg_ofs++;
-		}
-	}
-
-	return hclge_update_mta_status_common(vport,
-					status, idx * HCLGE_MTA_STATUS_MSG_BITS,
-					tbl_cnt, is_end);
-}
-
 static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 				    bool gen_resp)
@@ -284,27 +258,6 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 		status = hclge_add_mc_addr_common(vport, mac_addr);
 	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MC_REMOVE) {
 		status = hclge_rm_mc_addr_common(vport, mac_addr);
-	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MC_FUNC_MTA_ENABLE) {
-		u8 func_id = vport->vport_id;
-		bool enable = mbx_req->msg[2];
-
-		status = hclge_cfg_func_mta_filter(hdev, func_id, enable);
-	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MTA_TYPE_READ) {
-		resp_data = hdev->mta_mac_sel_type;
-		resp_len = sizeof(u8);
-		gen_resp = true;
-		status = 0;
-	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MTA_STATUS_UPDATE) {
-		/* mta status update msg format
-		 * msg[2.6 : 2.0]  msg index
-		 * msg[2.7]        msg is end
-		 * msg[15 : 3]     mta status bits[103 : 0]
-		 */
-		bool is_end = (mbx_req->msg[2] & 0x80) ? true : false;
-
-		status = hclge_set_vf_mc_mta_status(vport, &mbx_req->msg[3],
-						    mbx_req->msg[2] & 0x7F,
-						    is_end);
 	} else {
 		dev_err(&hdev->pdev->dev,
 			"failed to set mcast mac addr, unknown subcode %d\n",
@@ -346,6 +299,21 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 		status = hclge_gen_resp_to_vf(vport, mbx_req, status, NULL, 0);
 
 	return status;
+}
+
+static int hclge_set_vf_alive(struct hclge_vport *vport,
+			      struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+			      bool gen_resp)
+{
+	bool alive = !!mbx_req->msg[2];
+	int ret = 0;
+
+	if (alive)
+		ret = hclge_vport_start(vport);
+	else
+		hclge_vport_stop(vport);
+
+	return ret;
 }
 
 static int hclge_get_vf_tcinfo(struct hclge_vport *vport,
@@ -421,24 +389,41 @@ static void hclge_reset_vf(struct hclge_vport *vport,
 	int ret;
 
 	dev_warn(&hdev->pdev->dev, "PF received VF reset request from VF %d!",
-		 mbx_req->mbx_src_vfid);
+		 vport->vport_id);
 
-	/* Acknowledge VF that PF is now about to assert the reset for the VF.
-	 * On receiving this message VF will get into pending state and will
-	 * start polling for the hardware reset completion status.
-	 */
-	ret = hclge_inform_reset_assert_to_vf(vport);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"PF fail(%d) to inform VF(%d)of reset, reset failed!\n",
-			ret, vport->vport_id);
-		return;
-	}
+	ret = hclge_func_reset_cmd(hdev, vport->vport_id);
+	hclge_gen_resp_to_vf(vport, mbx_req, ret, NULL, 0);
+}
 
-	dev_warn(&hdev->pdev->dev, "PF is now resetting VF %d.\n",
-		 mbx_req->mbx_src_vfid);
-	/* reset this virtual function */
-	hclge_func_reset_cmd(hdev, mbx_req->mbx_src_vfid);
+static void hclge_vf_keep_alive(struct hclge_vport *vport,
+				struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	vport->last_active_jiffies = jiffies;
+}
+
+static int hclge_set_vf_mtu(struct hclge_vport *vport,
+			    struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	int ret;
+	u32 mtu;
+
+	memcpy(&mtu, &mbx_req->msg[2], sizeof(mtu));
+	ret = hclge_set_vport_mtu(vport, mtu);
+
+	return hclge_gen_resp_to_vf(vport, mbx_req, ret, NULL, 0);
+}
+
+static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	u16 queue_id, qid_in_pf;
+	u8 resp_data[2];
+
+	memcpy(&queue_id, &mbx_req->msg[2], sizeof(queue_id));
+	qid_in_pf = hclge_covert_handle_qid_global(&vport->nic, queue_id);
+	memcpy(resp_data, &qid_in_pf, sizeof(qid_in_pf));
+
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data, 2);
 }
 
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)
@@ -458,6 +443,12 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 
 	/* handle all the mailbox requests in the queue */
 	while (!hclge_cmd_crq_empty(&hdev->hw)) {
+		if (test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state)) {
+			dev_warn(&hdev->pdev->dev,
+				 "command queue needs re-initializing\n");
+			return;
+		}
+
 		desc = &crq->desc[crq->next_to_use];
 		req = (struct hclge_mbx_vf_to_pf_cmd *)desc->data;
 
@@ -512,6 +503,13 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					"PF failed(%d) to config VF's VLAN\n",
 					ret);
 			break;
+		case HCLGE_MBX_SET_ALIVE:
+			ret = hclge_set_vf_alive(vport, req, false);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF failed(%d) to set VF's ALIVE\n",
+					ret);
+			break;
 		case HCLGE_MBX_GET_QINFO:
 			ret = hclge_get_vf_queue_info(vport, req, true);
 			if (ret)
@@ -538,6 +536,22 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		case HCLGE_MBX_RESET:
 			hclge_reset_vf(vport, req);
+			break;
+		case HCLGE_MBX_KEEP_ALIVE:
+			hclge_vf_keep_alive(vport, req);
+			break;
+		case HCLGE_MBX_SET_MTU:
+			ret = hclge_set_vf_mtu(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"VF fail(%d) to set mtu\n", ret);
+			break;
+		case HCLGE_MBX_GET_QID_IN_PF:
+			ret = hclge_get_queue_id_in_pf(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF failed(%d) to get qid for VF\n",
+					ret);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,

@@ -23,7 +23,6 @@
 #include "regs-scaler.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_drv.h"
-#include "exynos_drm_iommu.h"
 #include "exynos_drm_ipp.h"
 
 #define scaler_read(offset)		readl(scaler->regs + (offset))
@@ -49,56 +48,46 @@ struct scaler_context {
 	const struct scaler_data	*scaler_data;
 };
 
-static u32 scaler_get_format(u32 drm_fmt)
-{
-	switch (drm_fmt) {
-	case DRM_FORMAT_NV12:
-		return SCALER_YUV420_2P_UV;
-	case DRM_FORMAT_NV21:
-		return SCALER_YUV420_2P_VU;
-	case DRM_FORMAT_YUV420:
-		return SCALER_YUV420_3P;
-	case DRM_FORMAT_YUYV:
-		return SCALER_YUV422_1P_YUYV;
-	case DRM_FORMAT_UYVY:
-		return SCALER_YUV422_1P_UYVY;
-	case DRM_FORMAT_YVYU:
-		return SCALER_YUV422_1P_YVYU;
-	case DRM_FORMAT_NV16:
-		return SCALER_YUV422_2P_UV;
-	case DRM_FORMAT_NV61:
-		return SCALER_YUV422_2P_VU;
-	case DRM_FORMAT_YUV422:
-		return SCALER_YUV422_3P;
-	case DRM_FORMAT_NV24:
-		return SCALER_YUV444_2P_UV;
-	case DRM_FORMAT_NV42:
-		return SCALER_YUV444_2P_VU;
-	case DRM_FORMAT_YUV444:
-		return SCALER_YUV444_3P;
-	case DRM_FORMAT_RGB565:
-		return SCALER_RGB_565;
-	case DRM_FORMAT_XRGB1555:
-		return SCALER_ARGB1555;
-	case DRM_FORMAT_ARGB1555:
-		return SCALER_ARGB1555;
-	case DRM_FORMAT_XRGB4444:
-		return SCALER_ARGB4444;
-	case DRM_FORMAT_ARGB4444:
-		return SCALER_ARGB4444;
-	case DRM_FORMAT_XRGB8888:
-		return SCALER_ARGB8888;
-	case DRM_FORMAT_ARGB8888:
-		return SCALER_ARGB8888;
-	case DRM_FORMAT_RGBX8888:
-		return SCALER_RGBA8888;
-	case DRM_FORMAT_RGBA8888:
-		return SCALER_RGBA8888;
-	default:
-		break;
-	}
+struct scaler_format {
+	u32	drm_fmt;
+	u32	internal_fmt;
+	u32	chroma_tile_w;
+	u32	chroma_tile_h;
+};
 
-	return 0;
+static const struct scaler_format scaler_formats[] = {
+	{ DRM_FORMAT_NV12, SCALER_YUV420_2P_UV, 8, 8 },
+	{ DRM_FORMAT_NV21, SCALER_YUV420_2P_VU, 8, 8 },
+	{ DRM_FORMAT_YUV420, SCALER_YUV420_3P, 8, 8 },
+	{ DRM_FORMAT_YUYV, SCALER_YUV422_1P_YUYV, 16, 16 },
+	{ DRM_FORMAT_UYVY, SCALER_YUV422_1P_UYVY, 16, 16 },
+	{ DRM_FORMAT_YVYU, SCALER_YUV422_1P_YVYU, 16, 16 },
+	{ DRM_FORMAT_NV16, SCALER_YUV422_2P_UV, 8, 16 },
+	{ DRM_FORMAT_NV61, SCALER_YUV422_2P_VU, 8, 16 },
+	{ DRM_FORMAT_YUV422, SCALER_YUV422_3P, 8, 16 },
+	{ DRM_FORMAT_NV24, SCALER_YUV444_2P_UV, 16, 16 },
+	{ DRM_FORMAT_NV42, SCALER_YUV444_2P_VU, 16, 16 },
+	{ DRM_FORMAT_YUV444, SCALER_YUV444_3P, 16, 16 },
+	{ DRM_FORMAT_RGB565, SCALER_RGB_565, 0, 0 },
+	{ DRM_FORMAT_XRGB1555, SCALER_ARGB1555, 0, 0 },
+	{ DRM_FORMAT_ARGB1555, SCALER_ARGB1555, 0, 0 },
+	{ DRM_FORMAT_XRGB4444, SCALER_ARGB4444, 0, 0 },
+	{ DRM_FORMAT_ARGB4444, SCALER_ARGB4444, 0, 0 },
+	{ DRM_FORMAT_XRGB8888, SCALER_ARGB8888, 0, 0 },
+	{ DRM_FORMAT_ARGB8888, SCALER_ARGB8888, 0, 0 },
+	{ DRM_FORMAT_RGBX8888, SCALER_RGBA8888, 0, 0 },
+	{ DRM_FORMAT_RGBA8888, SCALER_RGBA8888, 0, 0 },
+};
+
+static const struct scaler_format *scaler_get_format(u32 drm_fmt)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(scaler_formats); i++)
+		if (scaler_formats[i].drm_fmt == drm_fmt)
+			return &scaler_formats[i];
+
+	return NULL;
 }
 
 static inline int scaler_reset(struct scaler_context *scaler)
@@ -152,11 +141,11 @@ static inline void scaler_enable_int(struct scaler_context *scaler)
 }
 
 static inline void scaler_set_src_fmt(struct scaler_context *scaler,
-	u32 src_fmt)
+	u32 src_fmt, u32 tile)
 {
 	u32 val;
 
-	val = SCALER_SRC_CFG_SET_COLOR_FORMAT(src_fmt);
+	val = SCALER_SRC_CFG_SET_COLOR_FORMAT(src_fmt) | (tile << 10);
 	scaler_write(val, SCALER_SRC_CFG);
 }
 
@@ -188,15 +177,20 @@ static inline void scaler_set_src_span(struct scaler_context *scaler,
 	scaler_write(val, SCALER_SRC_SPAN);
 }
 
-static inline void scaler_set_src_luma_pos(struct scaler_context *scaler,
-	struct drm_exynos_ipp_task_rect *src_pos)
+static inline void scaler_set_src_luma_chroma_pos(struct scaler_context *scaler,
+			struct drm_exynos_ipp_task_rect *src_pos,
+			const struct scaler_format *fmt)
 {
 	u32 val;
 
 	val = SCALER_SRC_Y_POS_SET_YH_POS(src_pos->x << 2);
 	val |=  SCALER_SRC_Y_POS_SET_YV_POS(src_pos->y << 2);
 	scaler_write(val, SCALER_SRC_Y_POS);
-	scaler_write(val, SCALER_SRC_C_POS); /* ATTENTION! */
+	val = SCALER_SRC_C_POS_SET_CH_POS(
+		(src_pos->x * fmt->chroma_tile_w / 16) << 2);
+	val |=  SCALER_SRC_C_POS_SET_CV_POS(
+		(src_pos->y * fmt->chroma_tile_h / 16) << 2);
+	scaler_write(val, SCALER_SRC_C_POS);
 }
 
 static inline void scaler_set_src_wh(struct scaler_context *scaler,
@@ -366,11 +360,12 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	struct scaler_context *scaler =
 			container_of(ipp, struct scaler_context, ipp);
 
-	u32 src_fmt = scaler_get_format(task->src.buf.fourcc);
 	struct drm_exynos_ipp_task_rect *src_pos = &task->src.rect;
-
-	u32 dst_fmt = scaler_get_format(task->dst.buf.fourcc);
 	struct drm_exynos_ipp_task_rect *dst_pos = &task->dst.rect;
+	const struct scaler_format *src_fmt, *dst_fmt;
+
+	src_fmt = scaler_get_format(task->src.buf.fourcc);
+	dst_fmt = scaler_get_format(task->dst.buf.fourcc);
 
 	pm_runtime_get_sync(scaler->dev);
 	if (scaler_reset(scaler)) {
@@ -380,13 +375,14 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 
 	scaler->task = task;
 
-	scaler_set_src_fmt(scaler, src_fmt);
+	scaler_set_src_fmt(
+		scaler, src_fmt->internal_fmt, task->src.buf.modifier != 0);
 	scaler_set_src_base(scaler, &task->src);
 	scaler_set_src_span(scaler, &task->src);
-	scaler_set_src_luma_pos(scaler, src_pos);
+	scaler_set_src_luma_chroma_pos(scaler, src_pos, src_fmt);
 	scaler_set_src_wh(scaler, src_pos);
 
-	scaler_set_dst_fmt(scaler, dst_fmt);
+	scaler_set_dst_fmt(scaler, dst_fmt->internal_fmt);
 	scaler_set_dst_base(scaler, &task->dst);
 	scaler_set_dst_span(scaler, &task->dst);
 	scaler_set_dst_luma_pos(scaler, dst_pos);
@@ -455,7 +451,7 @@ static int scaler_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_ipp *ipp = &scaler->ipp;
 
 	scaler->drm_dev = drm_dev;
-	drm_iommu_attach_device(drm_dev, dev);
+	exynos_drm_register_dma(drm_dev, dev);
 
 	exynos_drm_ipp_register(drm_dev, ipp, &ipp_funcs,
 			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
@@ -476,7 +472,7 @@ static void scaler_unbind(struct device *dev, struct device *master,
 	struct exynos_drm_ipp *ipp = &scaler->ipp;
 
 	exynos_drm_ipp_unregister(drm_dev, ipp);
-	drm_iommu_detach_device(scaler->drm_dev, scaler->dev);
+	exynos_drm_unregister_dma(scaler->drm_dev, scaler->dev);
 }
 
 static const struct component_ops scaler_component_ops = {
@@ -617,6 +613,16 @@ static const struct drm_exynos_ipp_limit scaler_5420_one_pixel_limits[] = {
 			  .v = { 65536 * 1 / 4, 65536 * 16 }) },
 };
 
+static const struct drm_exynos_ipp_limit scaler_5420_tile_limits[] = {
+	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, SZ_8K }, .v = { 16, SZ_8K })},
+	{ IPP_SIZE_LIMIT(AREA, .h.align = 16, .v.align = 16) },
+	{ IPP_SCALE_LIMIT(.h = {1, 1}, .v = {1, 1})},
+	{ }
+};
+
+#define IPP_SRCDST_TILE_FORMAT(f, l)	\
+	IPP_SRCDST_MFORMAT(f, DRM_FORMAT_MOD_SAMSUNG_16_16_TILE, (l))
+
 static const struct exynos_drm_ipp_formats exynos5420_formats[] = {
 	/* SCALER_YUV420_2P_UV */
 	{ IPP_SRCDST_FORMAT(NV21, scaler_5420_two_pixel_hv_limits) },
@@ -680,6 +686,18 @@ static const struct exynos_drm_ipp_formats exynos5420_formats[] = {
 
 	/* SCALER_RGBA8888 */
 	{ IPP_SRCDST_FORMAT(RGBA8888, scaler_5420_one_pixel_limits) },
+
+	/* SCALER_YUV420_2P_UV TILE */
+	{ IPP_SRCDST_TILE_FORMAT(NV21, scaler_5420_tile_limits) },
+
+	/* SCALER_YUV420_2P_VU TILE */
+	{ IPP_SRCDST_TILE_FORMAT(NV12, scaler_5420_tile_limits) },
+
+	/* SCALER_YUV420_3P TILE */
+	{ IPP_SRCDST_TILE_FORMAT(YUV420, scaler_5420_tile_limits) },
+
+	/* SCALER_YUV422_1P_YUYV TILE */
+	{ IPP_SRCDST_TILE_FORMAT(YUYV, scaler_5420_tile_limits) },
 };
 
 static const struct scaler_data exynos5420_data = {

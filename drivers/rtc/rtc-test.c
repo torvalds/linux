@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * An RTC test device/driver
  * Copyright (C) 2005 Tower Technologies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -22,7 +19,7 @@ struct rtc_test_data {
 	bool alarm_en;
 };
 
-struct platform_device *pdev[MAX_RTC_TEST];
+static struct platform_device *pdev[MAX_RTC_TEST];
 
 static int test_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
@@ -197,7 +194,7 @@ static void __exit test_exit(void)
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("RTC test driver/device");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 module_init(test_init);
 module_exit(test_exit);

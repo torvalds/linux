@@ -471,6 +471,7 @@ struct mlx5_core_qp {
 	int			qpn;
 	struct mlx5_rsc_debug	*dbg;
 	int			pid;
+	u16			uid;
 };
 
 struct mlx5_core_dct {
@@ -594,6 +595,11 @@ int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id);
 int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id);
 int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 			      int reset, void *out, int out_size);
+
+struct mlx5_core_rsc_common *mlx5_core_res_hold(struct mlx5_core_dev *dev,
+						int res_num,
+						enum mlx5_res_type res_type);
+void mlx5_core_res_put(struct mlx5_core_rsc_common *res);
 
 static inline const char *mlx5_qp_type_str(int type)
 {

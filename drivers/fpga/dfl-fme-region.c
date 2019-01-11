@@ -14,6 +14,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/fpga/fpga-mgr.h>
 #include <linux/fpga/fpga-region.h>
 
 #include "dfl-fme-pr.h"
@@ -38,7 +39,7 @@ static int fme_region_probe(struct platform_device *pdev)
 	if (IS_ERR(mgr))
 		return -EPROBE_DEFER;
 
-	region = fpga_region_create(dev, mgr, fme_region_get_bridges);
+	region = devm_fpga_region_create(dev, mgr, fme_region_get_bridges);
 	if (!region) {
 		ret = -ENOMEM;
 		goto eprobe_mgr_put;
@@ -50,14 +51,12 @@ static int fme_region_probe(struct platform_device *pdev)
 
 	ret = fpga_region_register(region);
 	if (ret)
-		goto region_free;
+		goto eprobe_mgr_put;
 
 	dev_dbg(dev, "DFL FME FPGA Region probed\n");
 
 	return 0;
 
-region_free:
-	fpga_region_free(region);
 eprobe_mgr_put:
 	fpga_mgr_put(mgr);
 	return ret;
@@ -65,10 +64,11 @@ eprobe_mgr_put:
 
 static int fme_region_remove(struct platform_device *pdev)
 {
-	struct fpga_region *region = dev_get_drvdata(&pdev->dev);
+	struct fpga_region *region = platform_get_drvdata(pdev);
+	struct fpga_manager *mgr = region->mgr;
 
 	fpga_region_unregister(region);
-	fpga_mgr_put(region->mgr);
+	fpga_mgr_put(mgr);
 
 	return 0;
 }

@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
 
 #include <linux/spi/spi.h>
+#include <linux/regulator/consumer.h>
 #include <linux/ktime.h>
 
 #include <media/dvb_demux.h>
@@ -51,6 +52,7 @@ struct cxd2880_dvb_spi {
 	struct mutex spi_mutex; /* For SPI access exclusive control */
 	int feed_count;
 	int all_pid_feed_count;
+	struct regulator *vcc_supply;
 	u8 *ts_buf;
 	struct cxd2880_pid_filter_config filter_config;
 };
@@ -518,6 +520,17 @@ cxd2880_spi_probe(struct spi_device *spi)
 	if (!dvb_spi)
 		return -ENOMEM;
 
+	dvb_spi->vcc_supply = devm_regulator_get_optional(&spi->dev, "vcc");
+	if (IS_ERR(dvb_spi->vcc_supply)) {
+		if (PTR_ERR(dvb_spi->vcc_supply) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dvb_spi->vcc_supply = NULL;
+	} else {
+		ret = regulator_enable(dvb_spi->vcc_supply);
+		if (ret)
+			return ret;
+	}
+
 	dvb_spi->spi = spi;
 	mutex_init(&dvb_spi->spi_mutex);
 	dev_set_drvdata(&spi->dev, dvb_spi);
@@ -536,6 +549,7 @@ cxd2880_spi_probe(struct spi_device *spi)
 
 	if (!dvb_attach(cxd2880_attach, &dvb_spi->dvb_fe, &config)) {
 		pr_err("cxd2880_attach failed\n");
+		ret = -ENODEV;
 		goto fail_attach;
 	}
 
@@ -629,6 +643,9 @@ cxd2880_spi_remove(struct spi_device *spi)
 	dvb_unregister_frontend(&dvb_spi->dvb_fe);
 	dvb_frontend_detach(&dvb_spi->dvb_fe);
 	dvb_unregister_adapter(&dvb_spi->adapter);
+
+	if (dvb_spi->vcc_supply)
+		regulator_disable(dvb_spi->vcc_supply);
 
 	kfree(dvb_spi);
 	pr_info("cxd2880_spi remove ok.\n");

@@ -63,6 +63,17 @@
 			cache-level = <2>;
 		};
 
+		spi: spi@54006000 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006000 0x100>;
+			interrupts = <0 39 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi0>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
+
 		serial0: serial@54006800 {
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
@@ -228,6 +239,54 @@
 			};
 		};
 
+		dmac: dma-controller@5a000000 {
+			compatible = "socionext,uniphier-mio-dmac";
+			reg = <0x5a000000 0x1000>;
+			interrupts = <0 68 4>, <0 68 4>, <0 69 4>, <0 70 4>,
+				     <0 71 4>, <0 72 4>, <0 73 4>;
+			clocks = <&mio_clk 7>;
+			resets = <&mio_rst 7>;
+			#dma-cells = <1>;
+		};
+
+		sd: sdhc@5a400000 {
+			compatible = "socionext,uniphier-sd-v2.91";
+			status = "disabled";
+			reg = <0x5a400000 0x200>;
+			interrupts = <0 76 4>;
+			pinctrl-names = "default", "uhs";
+			pinctrl-0 = <&pinctrl_sd>;
+			pinctrl-1 = <&pinctrl_sd_uhs>;
+			clocks = <&mio_clk 0>;
+			reset-names = "host", "bridge";
+			resets = <&mio_rst 0>, <&mio_rst 3>;
+			dma-names = "rx-tx";
+			dmas = <&dmac 4>;
+			bus-width = <4>;
+			cap-sd-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+		};
+
+		emmc: sdhc@5a500000 {
+			compatible = "socionext,uniphier-sd-v2.91";
+			status = "disabled";
+			reg = <0x5a500000 0x200>;
+			interrupts = <0 78 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_emmc>;
+			clocks = <&mio_clk 1>;
+			reset-names = "host", "bridge", "hw";
+			resets = <&mio_rst 1>, <&mio_rst 4>, <&mio_rst 6>;
+			dma-names = "rx-tx";
+			dmas = <&dmac 6>;
+			bus-width = <8>;
+			cap-mmc-highspeed;
+			cap-mmc-hw-reset;
+			non-removable;
+		};
+
 		usb0: usb@5a800100 {
 			compatible = "socionext,uniphier-ehci", "generic-ehci";
 			status = "disabled";
@@ -351,7 +410,8 @@
 			interrupts = <0 65 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand2cs>;
-			clocks = <&sys_clk 2>;
+			clock-names = "nand", "nand_x", "ecc";
+			clocks = <&sys_clk 2>, <&sys_clk 3>, <&sys_clk 3>;
 			resets = <&sys_rst 2>;
 		};
 	};

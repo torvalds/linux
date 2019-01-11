@@ -181,6 +181,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_cq *cq;
 	struct mlx4_uar *uar;
+	void *buf_addr;
 	int err;
 
 	if (entries < 1 || entries > dev->dev->caps.max_cqes)
@@ -211,6 +212,8 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 			goto err_cq;
 		}
 
+		buf_addr = (void *)(unsigned long)ucmd.buf_addr;
+
 		err = mlx4_ib_get_cq_umem(dev, context, &cq->buf, &cq->umem,
 					  ucmd.buf_addr, entries);
 		if (err)
@@ -237,6 +240,8 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 		if (err)
 			goto err_db;
 
+		buf_addr = &cq->buf.buf;
+
 		uar = &dev->priv_uar;
 		cq->mcq.usage = MLX4_RES_USAGE_DRIVER;
 	}
@@ -246,7 +251,9 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
 			    cq->db.dma, &cq->mcq, vector, 0,
-			    !!(cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION));
+			    !!(cq->create_flags &
+			       IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION),
+			    buf_addr, !!context);
 	if (err)
 		goto err_dbmap;
 

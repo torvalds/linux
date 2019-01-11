@@ -63,6 +63,7 @@ enum xcan_reg {
 	XCAN_FSR_OFFSET		= 0x00E8, /* RX FIFO Status */
 	XCAN_TXMSG_BASE_OFFSET	= 0x0100, /* TX Message Space */
 	XCAN_RXMSG_BASE_OFFSET	= 0x1100, /* RX Message Space */
+	XCAN_RXMSG_2_BASE_OFFSET	= 0x2100, /* RX Message Space */
 };
 
 #define XCAN_FRAME_ID_OFFSET(frame_base)	((frame_base) + 0x00)
@@ -74,6 +75,8 @@ enum xcan_reg {
 #define XCAN_TXMSG_FRAME_OFFSET(n)	(XCAN_TXMSG_BASE_OFFSET + \
 					 XCAN_CANFD_FRAME_SIZE * (n))
 #define XCAN_RXMSG_FRAME_OFFSET(n)	(XCAN_RXMSG_BASE_OFFSET + \
+					 XCAN_CANFD_FRAME_SIZE * (n))
+#define XCAN_RXMSG_2_FRAME_OFFSET(n)	(XCAN_RXMSG_2_BASE_OFFSET + \
 					 XCAN_CANFD_FRAME_SIZE * (n))
 
 /* the single TX mailbox used by this driver on CAN FD HW */
@@ -152,6 +155,7 @@ enum xcan_reg {
  * instead of the regular FIFO at 0x50
  */
 #define XCAN_FLAG_RX_FIFO_MULTI	0x0010
+#define XCAN_FLAG_CANFD_2	0x0020
 
 struct xcan_devtype_data {
 	unsigned int flags;
@@ -216,6 +220,18 @@ static const struct can_bittiming_const xcan_bittiming_const_canfd = {
 	.tseg2_min = 1,
 	.tseg2_max = 16,
 	.sjw_max = 16,
+	.brp_min = 1,
+	.brp_max = 256,
+	.brp_inc = 1,
+};
+
+static const struct can_bittiming_const xcan_bittiming_const_canfd2 = {
+	.name = DRIVER_NAME,
+	.tseg1_min = 1,
+	.tseg1_max = 256,
+	.tseg2_min = 1,
+	.tseg2_max = 128,
+	.sjw_max = 128,
 	.brp_min = 1,
 	.brp_max = 256,
 	.brp_inc = 1,
@@ -612,7 +628,7 @@ static int xcan_start_xmit_mailbox(struct sk_buff *skb, struct net_device *ndev)
  *
  * Return: NETDEV_TX_OK on success and NETDEV_TX_BUSY when the tx queue is full
  */
-static int xcan_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t xcan_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct xcan_priv *priv = netdev_priv(ndev);
 	int ret;
@@ -973,7 +989,10 @@ static int xcan_rx_fifo_get_next_frame(struct xcan_priv *priv)
 		if (!(fsr & XCAN_FSR_FL_MASK))
 			return -ENOENT;
 
-		offset = XCAN_RXMSG_FRAME_OFFSET(fsr & XCAN_FSR_RI_MASK);
+		if (priv->devtype.flags & XCAN_FLAG_CANFD_2)
+			offset = XCAN_RXMSG_2_FRAME_OFFSET(fsr & XCAN_FSR_RI_MASK);
+		else
+			offset = XCAN_RXMSG_FRAME_OFFSET(fsr & XCAN_FSR_RI_MASK);
 
 	} else {
 		/* check if RX FIFO is empty */
@@ -1430,11 +1449,24 @@ static const struct xcan_devtype_data xcan_canfd_data = {
 	.bus_clk_name = "s_axi_aclk",
 };
 
+static const struct xcan_devtype_data xcan_canfd2_data = {
+	.flags = XCAN_FLAG_EXT_FILTERS |
+		 XCAN_FLAG_RXMNF |
+		 XCAN_FLAG_TX_MAILBOXES |
+		 XCAN_FLAG_CANFD_2 |
+		 XCAN_FLAG_RX_FIFO_MULTI,
+	.bittiming_const = &xcan_bittiming_const_canfd2,
+	.btr_ts2_shift = XCAN_BTR_TS2_SHIFT_CANFD,
+	.btr_sjw_shift = XCAN_BTR_SJW_SHIFT_CANFD,
+	.bus_clk_name = "s_axi_aclk",
+};
+
 /* Match table for OF platform binding */
 static const struct of_device_id xcan_of_match[] = {
 	{ .compatible = "xlnx,zynq-can-1.0", .data = &xcan_zynq_data },
 	{ .compatible = "xlnx,axi-can-1.00.a", .data = &xcan_axi_data },
 	{ .compatible = "xlnx,canfd-1.0", .data = &xcan_canfd_data },
+	{ .compatible = "xlnx,canfd-2.0", .data = &xcan_canfd2_data },
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(of, xcan_of_match);

@@ -97,8 +97,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	struct drm_connector_list_iter conn_iter;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
+		return -EOPNOTSUPP;
 
 	mutex_lock(&file_priv->fbs_lock);
 	count = 0;
@@ -298,6 +297,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.prop_crtc_id = prop;
 
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB, "FB_DAMAGE_CLIPS",
+				   0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_fb_damage_clips = prop;
+
 	prop = drm_property_create_bool(dev, DRM_MODE_PROP_ATOMIC,
 			"ACTIVE");
 	if (!prop)
@@ -310,6 +315,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.prop_mode_id = prop;
+
+	prop = drm_property_create_bool(dev, 0,
+			"VRR_ENABLED");
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_vrr_enabled = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_BLOB,

@@ -521,17 +521,15 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 
 	cl = cldev->cl;
 
+	mutex_lock(&bus->device_lock);
 	if (cl->state == MEI_FILE_UNINITIALIZED) {
-		mutex_lock(&bus->device_lock);
 		ret = mei_cl_link(cl);
-		mutex_unlock(&bus->device_lock);
 		if (ret)
-			return ret;
+			goto out;
 		/* update pointers */
 		cl->cldev = cldev;
 	}
 
-	mutex_lock(&bus->device_lock);
 	if (mei_cl_is_connected(cl)) {
 		ret = 0;
 		goto out;
@@ -616,9 +614,8 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	if (err < 0)
 		dev_err(bus->dev, "Could not disconnect from the ME client\n");
 
-out:
 	mei_cl_bus_module_put(cldev);
-
+out:
 	/* Flush queues and remove any pending read */
 	mei_cl_flush_queues(cl, NULL);
 	mei_cl_unlink(cl);
@@ -876,12 +873,13 @@ static void mei_cl_bus_dev_release(struct device *dev)
 
 	mei_me_cl_put(cldev->me_cl);
 	mei_dev_bus_put(cldev->bus);
+	mei_cl_unlink(cldev->cl);
 	kfree(cldev->cl);
 	kfree(cldev);
 }
 
 static const struct device_type mei_cl_device_type = {
-	.release	= mei_cl_bus_dev_release,
+	.release = mei_cl_bus_dev_release,
 };
 
 /**

@@ -63,7 +63,7 @@ int intel_huc_auth(struct intel_huc *huc)
 		return -ENOEXEC;
 
 	vma = i915_gem_object_ggtt_pin(huc->fw.obj, NULL, 0, 0,
-				       PIN_OFFSET_BIAS | guc->ggtt_pin_bias);
+				       PIN_OFFSET_BIAS | i915->ggtt.pin_bias);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		DRM_ERROR("HuC: Failed to pin huc fw object %d\n", ret);
@@ -108,13 +108,14 @@ fail:
  * This function reads status register to verify if HuC
  * firmware was successfully loaded.
  *
- * Returns positive value if HuC firmware is loaded and verified
- * and -ENODEV if HuC is not present.
+ * Returns: 1 if HuC firmware is loaded and verified,
+ * 0 if HuC firmware is not loaded and -ENODEV if HuC
+ * is not present on this platform.
  */
 int intel_huc_check_status(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
-	u32 status;
+	bool status;
 
 	if (!HAS_HUC(dev_priv))
 		return -ENODEV;

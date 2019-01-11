@@ -637,6 +637,7 @@ xfs_check_summary_counts(
 	 */
 	if (XFS_LAST_UNMOUNT_WAS_CLEAN(mp) &&
 	    (mp->m_sb.sb_fdblocks > mp->m_sb.sb_dblocks ||
+	     !xfs_verify_icount(mp, mp->m_sb.sb_icount) ||
 	     mp->m_sb.sb_ifree > mp->m_sb.sb_icount))
 		mp->m_flags |= XFS_MOUNT_BAD_SUMMARY;
 
@@ -797,6 +798,10 @@ xfs_mountfs(
 		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
 			mp->m_inode_cluster_size = new_size;
 	}
+	mp->m_blocks_per_cluster = xfs_icluster_size_fsb(mp);
+	mp->m_inodes_per_cluster = XFS_FSB_TO_INO(mp, mp->m_blocks_per_cluster);
+	mp->m_cluster_align = xfs_ialloc_cluster_alignment(mp);
+	mp->m_cluster_align_inodes = XFS_FSB_TO_INO(mp, mp->m_cluster_align);
 
 	/*
 	 * If enabled, sparse inode chunk alignment is expected to match the

@@ -4,6 +4,8 @@ menu "ASoC support for Amlogic platforms"
 config SND_MESON_AXG_FIFO
 	tristate
 	select REGMAP_MMIO
+	imply COMMON_CLK_AXG_AUDIO
+	imply RESET_MESON_AUDIO_ARB
 
 config SND_MESON_AXG_FRDDR
 	tristate "Amlogic AXG Playback FIFO support"
@@ -22,6 +24,7 @@ config SND_MESON_AXG_TODDR
 config SND_MESON_AXG_TDM_FORMATTER
 	tristate
 	select REGMAP_MMIO
+	imply COMMON_CLK_AXG_AUDIO
 
 config SND_MESON_AXG_TDM_INTERFACE
 	tristate
@@ -51,6 +54,8 @@ config SND_MESON_AXG_SOUND_CARD
 	imply SND_MESON_AXG_TDMIN
 	imply SND_MESON_AXG_TDMOUT
 	imply SND_MESON_AXG_SPDIFOUT
+	imply SND_MESON_AXG_SPDIFIN
+	imply SND_MESON_AXG_PDM
 	help
 	  Select Y or M to add support for the AXG SoC sound card
 
@@ -58,8 +63,23 @@ config SND_MESON_AXG_SPDIFOUT
 	tristate "Amlogic AXG SPDIF Output Support"
 	select SND_PCM_IEC958
 	imply SND_SOC_SPDIF
+	imply COMMON_CLK_AXG_AUDIO
 	help
 	  Select Y or M to add support for SPDIF output serializer embedded
 	  in the Amlogic AXG SoC family
 
+config SND_MESON_AXG_SPDIFIN
+	tristate "Amlogic AXG SPDIF Input Support"
+	imply SND_SOC_SPDIF
+	help
+	  Select Y or M to add support for SPDIF input embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_PDM
+	tristate "Amlogic AXG PDM Input Support"
+	imply SND_SOC_DMIC
+	imply COMMON_CLK_AXG_AUDIO
+	help
+	  Select Y or M to add support for PDM input embedded
+	  in the Amlogic AXG SoC family
 endmenu

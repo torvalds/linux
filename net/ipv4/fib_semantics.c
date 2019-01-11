@@ -208,7 +208,6 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 static void free_fib_info_rcu(struct rcu_head *head)
 {
 	struct fib_info *fi = container_of(head, struct fib_info, rcu);
-	struct dst_metrics *m;
 
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
@@ -219,9 +218,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
-	m = fi->fib_metrics;
-	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
-		kfree(m);
+	ip_fib_metrics_put(fi->fib_metrics);
+
 	kfree(fi);
 }
 
@@ -797,8 +795,10 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
 				return -EINVAL;
 			}
 			dev = __dev_get_by_index(net, nh->nh_oif);
-			if (!dev)
+			if (!dev) {
+				NL_SET_ERR_MSG(extack, "Nexthop device required for onlink");
 				return -ENODEV;
+			}
 			if (!(dev->flags & IFF_UP)) {
 				NL_SET_ERR_MSG(extack,
 					       "Nexthop device is not up");
@@ -1018,13 +1018,6 @@ static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
 	return true;
 }
 
-static int
-fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
-{
-	return ip_metrics_convert(fi->fib_net, cfg->fc_mx, cfg->fc_mx_len,
-				  fi->fib_metrics->metrics);
-}
-
 struct fib_info *fib_create_info(struct fib_config *cfg,
 				 struct netlink_ext_ack *extack)
 {
@@ -1082,16 +1075,14 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
 	if (!fi)
 		goto failure;
-	if (cfg->fc_mx) {
-		fi->fib_metrics = kzalloc(sizeof(*fi->fib_metrics), GFP_KERNEL);
-		if (unlikely(!fi->fib_metrics)) {
-			kfree(fi);
-			return ERR_PTR(err);
-		}
-		refcount_set(&fi->fib_metrics->refcnt, 1);
-	} else {
-		fi->fib_metrics = (struct dst_metrics *)&dst_default_metrics;
+	fi->fib_metrics = ip_fib_metrics_init(fi->fib_net, cfg->fc_mx,
+					      cfg->fc_mx_len, extack);
+	if (unlikely(IS_ERR(fi->fib_metrics))) {
+		err = PTR_ERR(fi->fib_metrics);
+		kfree(fi);
+		return ERR_PTR(err);
 	}
+
 	fib_info_cnt++;
 	fi->fib_net = net;
 	fi->fib_protocol = cfg->fc_protocol;
@@ -1109,10 +1100,6 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		if (!nexthop_nh->nh_pcpu_rth_output)
 			goto failure;
 	} endfor_nexthops(fi)
-
-	err = fib_convert_metrics(fi, cfg);
-	if (err)
-		goto failure;
 
 	if (cfg->fc_mp) {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -1468,6 +1455,56 @@ static int call_fib_nh_notifiers(struct fib_nh *fib_nh,
 	}
 
 	return NOTIFY_DONE;
+}
+
+/* Update the PMTU of exceptions when:
+ * - the new MTU of the first hop becomes smaller than the PMTU
+ * - the old MTU was the same as the PMTU, and it limited discovery of
+ *   larger MTUs on the path. With that limit raised, we can now
+ *   discover larger MTUs
+ * A special case is locked exceptions, for which the PMTU is smaller
+ * than the minimal accepted PMTU:
+ * - if the new MTU is greater than the PMTU, don't make any change
+ * - otherwise, unlock and set PMTU
+ */
+static void nh_update_mtu(struct fib_nh *nh, u32 new, u32 orig)
+{
+	struct fnhe_hash_bucket *bucket;
+	int i;
+
+	bucket = rcu_dereference_protected(nh->nh_exceptions, 1);
+	if (!bucket)
+		return;
+
+	for (i = 0; i < FNHE_HASH_SIZE; i++) {
+		struct fib_nh_exception *fnhe;
+
+		for (fnhe = rcu_dereference_protected(bucket[i].chain, 1);
+		     fnhe;
+		     fnhe = rcu_dereference_protected(fnhe->fnhe_next, 1)) {
+			if (fnhe->fnhe_mtu_locked) {
+				if (new <= fnhe->fnhe_pmtu) {
+					fnhe->fnhe_pmtu = new;
+					fnhe->fnhe_mtu_locked = false;
+				}
+			} else if (new < fnhe->fnhe_pmtu ||
+				   orig == fnhe->fnhe_pmtu) {
+				fnhe->fnhe_pmtu = new;
+			}
+		}
+	}
+}
+
+void fib_sync_mtu(struct net_device *dev, u32 orig_mtu)
+{
+	unsigned int hash = fib_devindex_hashfn(dev->ifindex);
+	struct hlist_head *head = &fib_info_devhash[hash];
+	struct fib_nh *nh;
+
+	hlist_for_each_entry(nh, head, nh_hash) {
+		if (nh->nh_dev == dev)
+			nh_update_mtu(nh, dev->mtu, orig_mtu);
+	}
 }
 
 /* Event              force Flags           Description

@@ -288,6 +288,8 @@ void __init collect_boot_cpu_data(void)
 		printk(KERN_INFO "model %s\n",
 			boot_cpu_data.pdc.sys_model_name);
 
+	dump_stack_set_arch_desc("%s", boot_cpu_data.pdc.sys_model_name);
+
 	boot_cpu_data.hversion =  boot_cpu_data.pdc.model.hversion;
 	boot_cpu_data.sversion =  boot_cpu_data.pdc.model.sversion;
 

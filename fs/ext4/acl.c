@@ -248,7 +248,8 @@ retry:
 		error = posix_acl_update_mode(inode, &mode, &acl);
 		if (error)
 			goto out_stop;
-		update_mode = 1;
+		if (mode != inode->i_mode)
+			update_mode = 1;
 	}
 
 	error = __ext4_set_acl(handle, inode, type, acl, 0 /* xattr_flags */);
@@ -284,12 +285,16 @@ ext4_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
 		error = __ext4_set_acl(handle, inode, ACL_TYPE_DEFAULT,
 				       default_acl, XATTR_CREATE);
 		posix_acl_release(default_acl);
+	} else {
+		inode->i_default_acl = NULL;
 	}
 	if (acl) {
 		if (!error)
 			error = __ext4_set_acl(handle, inode, ACL_TYPE_ACCESS,
 					       acl, XATTR_CREATE);
 		posix_acl_release(acl);
+	} else {
+		inode->i_acl = NULL;
 	}
 	return error;
 }

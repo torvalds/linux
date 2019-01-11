@@ -130,7 +130,7 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 #define     _LoadW(addr, value, res, type)   \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -151,8 +151,8 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#else
-/* MIPSR6 has no lwl instruction */
+#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+/* For CPUs without lwl instruction */
 #define     _LoadW(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (			    \
@@ -186,7 +186,7 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 
 #define     _LoadHWU(addr, value, res, type) \
 do {                                                        \
@@ -212,7 +212,7 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 #define     _LoadWU(addr, value, res, type)  \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -255,8 +255,8 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#else
-/* MIPSR6 has not lwl and ldl instructions */
+#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+/* For CPUs without lwl and ldl instructions */
 #define	    _LoadWU(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (			    \
@@ -339,7 +339,7 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 
 
 #define     _StoreHW(addr, value, res, type) \
@@ -365,7 +365,7 @@ do {                                                        \
 			: "r" (value), "r" (addr), "i" (-EFAULT));\
 } while(0)
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 #define     _StoreW(addr, value, res, type)  \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -406,8 +406,7 @@ do {                                                        \
 		: "r" (value), "r" (addr), "i" (-EFAULT));  \
 } while(0)
 
-#else
-/* MIPSR6 has no swl and sdl instructions */
+#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 #define     _StoreW(addr, value, res, type)  \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -483,7 +482,7 @@ do {                                                        \
 		: "memory");                                \
 } while(0)
 
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 
 #else /* __BIG_ENDIAN */
 
@@ -509,7 +508,7 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 #define     _LoadW(addr, value, res, type)   \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -530,8 +529,8 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#else
-/* MIPSR6 has no lwl instruction */
+#else  /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+/* For CPUs without lwl instruction */
 #define     _LoadW(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (			    \
@@ -565,7 +564,7 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 
 
 #define     _LoadHWU(addr, value, res, type) \
@@ -592,7 +591,7 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 #define     _LoadWU(addr, value, res, type)  \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -635,8 +634,8 @@ do {                                                        \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
 
-#else
-/* MIPSR6 has not lwl and ldl instructions */
+#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+/* For CPUs without lwl and ldl instructions */
 #define	    _LoadWU(addr, value, res, type) \
 do {                                                        \
 		__asm__ __volatile__ (			    \
@@ -718,7 +717,7 @@ do {                                                        \
 			: "=&r" (value), "=r" (res)	    \
 			: "r" (addr), "i" (-EFAULT));       \
 } while(0)
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 
 #define     _StoreHW(addr, value, res, type) \
 do {                                                        \
@@ -743,7 +742,7 @@ do {                                                        \
 			: "r" (value), "r" (addr), "i" (-EFAULT));\
 } while(0)
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 #define     _StoreW(addr, value, res, type)  \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -784,8 +783,8 @@ do {                                                        \
 		: "r" (value), "r" (addr), "i" (-EFAULT));  \
 } while(0)
 
-#else
-/* MIPSR6 has no swl and sdl instructions */
+#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+/* For CPUs without swl and sdl instructions */
 #define     _StoreW(addr, value, res, type)  \
 do {                                                        \
 		__asm__ __volatile__ (                      \
@@ -861,7 +860,7 @@ do {                                                        \
 		: "memory");                                \
 } while(0)
 
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 #endif
 
 #define LoadHWU(addr, value, res)	_LoadHWU(addr, value, res, kernel)
@@ -883,18 +882,12 @@ do {                                                        \
 static void emulate_load_store_insn(struct pt_regs *regs,
 	void __user *addr, unsigned int __user *pc)
 {
+	unsigned long origpc, orig31, value;
 	union mips_instruction insn;
-	unsigned long value;
-	unsigned int res, preempted;
-	unsigned long origpc;
-	unsigned long orig31;
-	void __user *fault_addr = NULL;
+	unsigned int res;
 #ifdef	CONFIG_EVA
 	mm_segment_t seg;
 #endif
-	union fpureg *fpr;
-	enum msa_2b_fmt df;
-	unsigned int wd;
 	origpc = (unsigned long)pc;
 	orig31 = regs->regs[31];
 
@@ -943,7 +936,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (insn.dsp_format.func == lx_op) {
 			switch (insn.dsp_format.op) {
 			case lwx_op:
-				if (!access_ok(VERIFY_READ, addr, 4))
+				if (!access_ok(addr, 4))
 					goto sigbus;
 				LoadW(addr, value, res);
 				if (res)
@@ -952,7 +945,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 				regs->regs[insn.dsp_format.rd] = value;
 				break;
 			case lhx_op:
-				if (!access_ok(VERIFY_READ, addr, 2))
+				if (!access_ok(addr, 2))
 					goto sigbus;
 				LoadHW(addr, value, res);
 				if (res)
@@ -975,7 +968,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			set_fs(USER_DS);
 			switch (insn.spec3_format.func) {
 			case lhe_op:
-				if (!access_ok(VERIFY_READ, addr, 2)) {
+				if (!access_ok(addr, 2)) {
 					set_fs(seg);
 					goto sigbus;
 				}
@@ -988,7 +981,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 				regs->regs[insn.spec3_format.rt] = value;
 				break;
 			case lwe_op:
-				if (!access_ok(VERIFY_READ, addr, 4)) {
+				if (!access_ok(addr, 4)) {
 					set_fs(seg);
 					goto sigbus;
 				}
@@ -1001,7 +994,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 				regs->regs[insn.spec3_format.rt] = value;
 				break;
 			case lhue_op:
-				if (!access_ok(VERIFY_READ, addr, 2)) {
+				if (!access_ok(addr, 2)) {
 					set_fs(seg);
 					goto sigbus;
 				}
@@ -1014,7 +1007,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 				regs->regs[insn.spec3_format.rt] = value;
 				break;
 			case she_op:
-				if (!access_ok(VERIFY_WRITE, addr, 2)) {
+				if (!access_ok(addr, 2)) {
 					set_fs(seg);
 					goto sigbus;
 				}
@@ -1027,7 +1020,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 				}
 				break;
 			case swe_op:
-				if (!access_ok(VERIFY_WRITE, addr, 4)) {
+				if (!access_ok(addr, 4)) {
 					set_fs(seg);
 					goto sigbus;
 				}
@@ -1048,7 +1041,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 #endif
 		break;
 	case lh_op:
-		if (!access_ok(VERIFY_READ, addr, 2))
+		if (!access_ok(addr, 2))
 			goto sigbus;
 
 		if (IS_ENABLED(CONFIG_EVA)) {
@@ -1067,7 +1060,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 
 	case lw_op:
-		if (!access_ok(VERIFY_READ, addr, 4))
+		if (!access_ok(addr, 4))
 			goto sigbus;
 
 		if (IS_ENABLED(CONFIG_EVA)) {
@@ -1086,7 +1079,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 
 	case lhu_op:
-		if (!access_ok(VERIFY_READ, addr, 2))
+		if (!access_ok(addr, 2))
 			goto sigbus;
 
 		if (IS_ENABLED(CONFIG_EVA)) {
@@ -1113,7 +1106,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(VERIFY_READ, addr, 4))
+		if (!access_ok(addr, 4))
 			goto sigbus;
 
 		LoadWU(addr, value, res);
@@ -1136,7 +1129,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(VERIFY_READ, addr, 8))
+		if (!access_ok(addr, 8))
 			goto sigbus;
 
 		LoadDW(addr, value, res);
@@ -1151,7 +1144,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		goto sigill;
 
 	case sh_op:
-		if (!access_ok(VERIFY_WRITE, addr, 2))
+		if (!access_ok(addr, 2))
 			goto sigbus;
 
 		compute_return_epc(regs);
@@ -1171,7 +1164,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 
 	case sw_op:
-		if (!access_ok(VERIFY_WRITE, addr, 4))
+		if (!access_ok(addr, 4))
 			goto sigbus;
 
 		compute_return_epc(regs);
@@ -1199,7 +1192,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(VERIFY_WRITE, addr, 8))
+		if (!access_ok(addr, 8))
 			goto sigbus;
 
 		compute_return_epc(regs);
@@ -1213,15 +1206,18 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		/* Cannot handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 	case lwc1_op:
 	case ldc1_op:
 	case swc1_op:
 	case sdc1_op:
-	case cop1x_op:
+	case cop1x_op: {
+		void __user *fault_addr = NULL;
+
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
 
-		lose_fpu(1);	/* Save FPU state for the emulator. */
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
 		own_fpu(1);	/* Restore FPU state. */
@@ -1232,8 +1228,16 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (res == 0)
 			break;
 		return;
+	}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 
-	case msa_op:
+#ifdef CONFIG_CPU_HAS_MSA
+
+	case msa_op: {
+		unsigned int wd, preempted;
+		enum msa_2b_fmt df;
+		union fpureg *fpr;
+
 		if (!cpu_has_msa)
 			goto sigill;
 
@@ -1250,7 +1254,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 
 		switch (insn.msa_mi10_format.func) {
 		case msa_ld_op:
-			if (!access_ok(VERIFY_READ, addr, sizeof(*fpr)))
+			if (!access_ok(addr, sizeof(*fpr)))
 				goto sigbus;
 
 			do {
@@ -1286,7 +1290,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			break;
 
 		case msa_st_op:
-			if (!access_ok(VERIFY_WRITE, addr, sizeof(*fpr)))
+			if (!access_ok(addr, sizeof(*fpr)))
 				goto sigbus;
 
 			/*
@@ -1310,6 +1314,8 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 
 		compute_return_epc(regs);
 		break;
+	}
+#endif /* CONFIG_CPU_HAS_MSA */
 
 #ifndef CONFIG_CPU_MIPSR6
 	/*
@@ -1394,7 +1400,6 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 	unsigned long origpc, contpc;
 	union mips_instruction insn;
 	struct mm_decoded_insn mminsn;
-	void __user *fault_addr = NULL;
 
 	origpc = regs->cp0_epc;
 	orig31 = regs->regs[31];
@@ -1458,7 +1463,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(VERIFY_READ, addr, 8))
+			if (!access_ok(addr, 8))
 				goto sigbus;
 
 			LoadW(addr, value, res);
@@ -1477,7 +1482,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(VERIFY_WRITE, addr, 8))
+			if (!access_ok(addr, 8))
 				goto sigbus;
 
 			value = regs->regs[reg];
@@ -1497,7 +1502,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(VERIFY_READ, addr, 16))
+			if (!access_ok(addr, 16))
 				goto sigbus;
 
 			LoadDW(addr, value, res);
@@ -1520,7 +1525,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(VERIFY_WRITE, addr, 16))
+			if (!access_ok(addr, 16))
 				goto sigbus;
 
 			value = regs->regs[reg];
@@ -1543,11 +1548,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok
-				    (VERIFY_READ, addr, 4 * (rvar + 1)))
+				if (!access_ok(addr, 4 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(VERIFY_READ, addr, 4 * rvar))
+				if (!access_ok(addr, 4 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1580,11 +1584,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok
-				    (VERIFY_WRITE, addr, 4 * (rvar + 1)))
+				if (!access_ok(addr, 4 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(VERIFY_WRITE, addr, 4 * rvar))
+				if (!access_ok(addr, 4 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1618,11 +1621,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok
-				    (VERIFY_READ, addr, 8 * (rvar + 1)))
+				if (!access_ok(addr, 8 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(VERIFY_READ, addr, 8 * rvar))
+				if (!access_ok(addr, 8 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1660,11 +1662,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok
-				    (VERIFY_WRITE, addr, 8 * (rvar + 1)))
+				if (!access_ok(addr, 8 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(VERIFY_WRITE, addr, 8 * rvar))
+				if (!access_ok(addr, 8 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1710,6 +1711,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 		/*  LL,SC,LLD,SCD are not serviced */
 		goto sigbus;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	case mm_pool32f_op:
 		switch (insn.mm_x_format.func) {
 		case mm_lwxc1_func:
@@ -1724,7 +1726,9 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 	case mm_ldc132_op:
 	case mm_sdc132_op:
 	case mm_lwc132_op:
-	case mm_swc132_op:
+	case mm_swc132_op: {
+		void __user *fault_addr = NULL;
+
 fpu_emul:
 		/* roll back jump/branch */
 		regs->cp0_epc = origpc;
@@ -1734,7 +1738,6 @@ fpu_emul:
 		BUG_ON(!used_math());
 		BUG_ON(!is_fpu_owner());
 
-		lose_fpu(1);	/* save the FPU state for the emulator */
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
 		own_fpu(1);	/* restore FPU state */
@@ -1745,6 +1748,8 @@ fpu_emul:
 		if (res == 0)
 			goto success;
 		return;
+	}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 
 	case mm_lh32_op:
 		reg = insn.mm_i_format.rt;
@@ -1779,7 +1784,7 @@ fpu_emul:
 		case mm_lwm16_op:
 			reg = insn.mm16_m_format.rlist;
 			rvar = reg + 1;
-			if (!access_ok(VERIFY_READ, addr, 4 * rvar))
+			if (!access_ok(addr, 4 * rvar))
 				goto sigbus;
 
 			for (i = 16; rvar; rvar--, i++) {
@@ -1799,7 +1804,7 @@ fpu_emul:
 		case mm_swm16_op:
 			reg = insn.mm16_m_format.rlist;
 			rvar = reg + 1;
-			if (!access_ok(VERIFY_WRITE, addr, 4 * rvar))
+			if (!access_ok(addr, 4 * rvar))
 				goto sigbus;
 
 			for (i = 16; rvar; rvar--, i++) {
@@ -1853,7 +1858,7 @@ fpu_emul:
 	}
 
 loadHW:
-	if (!access_ok(VERIFY_READ, addr, 2))
+	if (!access_ok(addr, 2))
 		goto sigbus;
 
 	LoadHW(addr, value, res);
@@ -1863,7 +1868,7 @@ loadHW:
 	goto success;
 
 loadHWU:
-	if (!access_ok(VERIFY_READ, addr, 2))
+	if (!access_ok(addr, 2))
 		goto sigbus;
 
 	LoadHWU(addr, value, res);
@@ -1873,7 +1878,7 @@ loadHWU:
 	goto success;
 
 loadW:
-	if (!access_ok(VERIFY_READ, addr, 4))
+	if (!access_ok(addr, 4))
 		goto sigbus;
 
 	LoadW(addr, value, res);
@@ -1891,7 +1896,7 @@ loadWU:
 	 * would blow up, so for now we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
-	if (!access_ok(VERIFY_READ, addr, 4))
+	if (!access_ok(addr, 4))
 		goto sigbus;
 
 	LoadWU(addr, value, res);
@@ -1913,7 +1918,7 @@ loadDW:
 	 * would blow up, so for now we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
-	if (!access_ok(VERIFY_READ, addr, 8))
+	if (!access_ok(addr, 8))
 		goto sigbus;
 
 	LoadDW(addr, value, res);
@@ -1927,7 +1932,7 @@ loadDW:
 	goto sigill;
 
 storeHW:
-	if (!access_ok(VERIFY_WRITE, addr, 2))
+	if (!access_ok(addr, 2))
 		goto sigbus;
 
 	value = regs->regs[reg];
@@ -1937,7 +1942,7 @@ storeHW:
 	goto success;
 
 storeW:
-	if (!access_ok(VERIFY_WRITE, addr, 4))
+	if (!access_ok(addr, 4))
 		goto sigbus;
 
 	value = regs->regs[reg];
@@ -1955,7 +1960,7 @@ storeDW:
 	 * would blow up, so for now we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
-	if (!access_ok(VERIFY_WRITE, addr, 8))
+	if (!access_ok(addr, 8))
 		goto sigbus;
 
 	value = regs->regs[reg];
@@ -2113,7 +2118,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		goto sigbus;
 
 	case MIPS16e_lh_op:
-		if (!access_ok(VERIFY_READ, addr, 2))
+		if (!access_ok(addr, 2))
 			goto sigbus;
 
 		LoadHW(addr, value, res);
@@ -2124,7 +2129,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		break;
 
 	case MIPS16e_lhu_op:
-		if (!access_ok(VERIFY_READ, addr, 2))
+		if (!access_ok(addr, 2))
 			goto sigbus;
 
 		LoadHWU(addr, value, res);
@@ -2137,7 +2142,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 	case MIPS16e_lw_op:
 	case MIPS16e_lwpc_op:
 	case MIPS16e_lwsp_op:
-		if (!access_ok(VERIFY_READ, addr, 4))
+		if (!access_ok(addr, 4))
 			goto sigbus;
 
 		LoadW(addr, value, res);
@@ -2156,7 +2161,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(VERIFY_READ, addr, 4))
+		if (!access_ok(addr, 4))
 			goto sigbus;
 
 		LoadWU(addr, value, res);
@@ -2180,7 +2185,7 @@ loadDW:
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(VERIFY_READ, addr, 8))
+		if (!access_ok(addr, 8))
 			goto sigbus;
 
 		LoadDW(addr, value, res);
@@ -2195,7 +2200,7 @@ loadDW:
 		goto sigill;
 
 	case MIPS16e_sh_op:
-		if (!access_ok(VERIFY_WRITE, addr, 2))
+		if (!access_ok(addr, 2))
 			goto sigbus;
 
 		MIPS16e_compute_return_epc(regs, &oldinst);
@@ -2208,7 +2213,7 @@ loadDW:
 	case MIPS16e_sw_op:
 	case MIPS16e_swsp_op:
 	case MIPS16e_i8_op:	/* actually - MIPS16e_swrasp_func */
-		if (!access_ok(VERIFY_WRITE, addr, 4))
+		if (!access_ok(addr, 4))
 			goto sigbus;
 
 		MIPS16e_compute_return_epc(regs, &oldinst);
@@ -2228,7 +2233,7 @@ writeDW:
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(VERIFY_WRITE, addr, 8))
+		if (!access_ok(addr, 8))
 			goto sigbus;
 
 		MIPS16e_compute_return_epc(regs, &oldinst);
@@ -2339,7 +2344,7 @@ asmlinkage void do_ade(struct pt_regs *regs)
 			set_fs(seg);
 
 			return;
-	}
+		}
 
 		goto sigbus;
 	}

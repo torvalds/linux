@@ -2434,9 +2434,8 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	/* LE address type */
 	addr_type = le_addr_type(cp->addr.type);
 
-	hci_remove_irk(hdev, &cp->addr.bdaddr, addr_type);
-
-	err = hci_remove_ltk(hdev, &cp->addr.bdaddr, addr_type);
+	/* Abort any ongoing SMP pairing. Removes ltk and irk if they exist. */
+	err = smp_cancel_and_remove_pairing(hdev, &cp->addr.bdaddr, addr_type);
 	if (err < 0) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_UNPAIR_DEVICE,
 					MGMT_STATUS_NOT_PAIRED, &rp,
@@ -2450,8 +2449,6 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto done;
 	}
 
-	/* Abort any ongoing SMP pairing */
-	smp_cancel_pairing(conn);
 
 	/* Defer clearing up the connection parameters until closing to
 	 * give a chance of keeping them if a repairing happens.

@@ -224,12 +224,14 @@ out_unlock:
  * uverbs_put_destroy.
  */
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
-				      u32 id, struct ib_uverbs_file *ufile)
+				      u32 id,
+				      const struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj;
 	int ret;
 
-	uobj = rdma_lookup_get_uobject(obj, ufile, id, UVERBS_LOOKUP_DESTROY);
+	uobj = rdma_lookup_get_uobject(obj, attrs->ufile, id,
+				       UVERBS_LOOKUP_DESTROY);
 	if (IS_ERR(uobj))
 		return uobj;
 
@@ -243,21 +245,20 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 }
 
 /*
- * Does both uobj_get_destroy() and uobj_put_destroy().  Returns success_res
- * on success (negative errno on failure). For use by callers that do not need
- * the uobj.
+ * Does both uobj_get_destroy() and uobj_put_destroy().  Returns 0 on success
+ * (negative errno on failure). For use by callers that do not need the uobj.
  */
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   struct ib_uverbs_file *ufile, int success_res)
+			   const struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj;
 
-	uobj = __uobj_get_destroy(obj, id, ufile);
+	uobj = __uobj_get_destroy(obj, id, attrs);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
-	return success_res;
+	return 0;
 }
 
 /* alloc_uobj must be undone by uverbs_destroy_uobject() */
@@ -267,7 +268,7 @@ static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
 	struct ib_uobject *uobj;
 	struct ib_ucontext *ucontext;
 
-	ucontext = ib_uverbs_get_ucontext(ufile);
+	ucontext = ib_uverbs_get_ucontext_file(ufile);
 	if (IS_ERR(ucontext))
 		return ERR_CAST(ucontext);
 
@@ -397,16 +398,23 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 	struct ib_uobject *uobj;
 	int ret;
 
-	if (!obj)
-		return ERR_PTR(-EINVAL);
+	if (IS_ERR(obj) && PTR_ERR(obj) == -ENOMSG) {
+		/* must be UVERBS_IDR_ANY_OBJECT, see uapi_get_object() */
+		uobj = lookup_get_idr_uobject(NULL, ufile, id, mode);
+		if (IS_ERR(uobj))
+			return uobj;
+	} else {
+		if (IS_ERR(obj))
+			return ERR_PTR(-EINVAL);
 
-	uobj = obj->type_class->lookup_get(obj, ufile, id, mode);
-	if (IS_ERR(uobj))
-		return uobj;
+		uobj = obj->type_class->lookup_get(obj, ufile, id, mode);
+		if (IS_ERR(uobj))
+			return uobj;
 
-	if (uobj->uapi_object != obj) {
-		ret = -EINVAL;
-		goto free;
+		if (uobj->uapi_object != obj) {
+			ret = -EINVAL;
+			goto free;
+		}
 	}
 
 	/*
@@ -426,7 +434,7 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 
 	return uobj;
 free:
-	obj->type_class->lookup_put(uobj, mode);
+	uobj->uapi_object->type_class->lookup_put(uobj, mode);
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
 }
@@ -490,7 +498,7 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
 {
 	struct ib_uobject *ret;
 
-	if (!obj)
+	if (IS_ERR(obj))
 		return ERR_PTR(-EINVAL);
 
 	/*
@@ -794,44 +802,6 @@ void uverbs_close_fd(struct file *f)
 	uverbs_uobject_put(uobj);
 }
 
-static void ufile_disassociate_ucontext(struct ib_ucontext *ibcontext)
-{
-	struct ib_device *ib_dev = ibcontext->device;
-	struct task_struct *owning_process  = NULL;
-	struct mm_struct   *owning_mm       = NULL;
-
-	owning_process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
-	if (!owning_process)
-		return;
-
-	owning_mm = get_task_mm(owning_process);
-	if (!owning_mm) {
-		pr_info("no mm, disassociate ucontext is pending task termination\n");
-		while (1) {
-			put_task_struct(owning_process);
-			usleep_range(1000, 2000);
-			owning_process = get_pid_task(ibcontext->tgid,
-						      PIDTYPE_PID);
-			if (!owning_process ||
-			    owning_process->state == TASK_DEAD) {
-				pr_info("disassociate ucontext done, task was terminated\n");
-				/* in case task was dead need to release the
-				 * task struct.
-				 */
-				if (owning_process)
-					put_task_struct(owning_process);
-				return;
-			}
-		}
-	}
-
-	down_write(&owning_mm->mmap_sem);
-	ib_dev->disassociate_ucontext(ibcontext);
-	up_write(&owning_mm->mmap_sem);
-	mmput(owning_mm);
-	put_task_struct(owning_process);
-}
-
 /*
  * Drop the ucontext off the ufile and completely disconnect it from the
  * ib_device
@@ -840,20 +810,30 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 				   enum rdma_remove_reason reason)
 {
 	struct ib_ucontext *ucontext = ufile->ucontext;
+	struct ib_device *ib_dev = ucontext->device;
 	int ret;
 
-	if (reason == RDMA_REMOVE_DRIVER_REMOVE)
-		ufile_disassociate_ucontext(ucontext);
+	/*
+	 * If we are closing the FD then the user mmap VMAs must have
+	 * already been destroyed as they hold on to the filep, otherwise
+	 * they need to be zap'd.
+	 */
+	if (reason == RDMA_REMOVE_DRIVER_REMOVE) {
+		uverbs_user_mmap_disassociate(ufile);
+		if (ib_dev->ops.disassociate_ucontext)
+			ib_dev->ops.disassociate_ucontext(ucontext);
+	}
 
-	put_pid(ucontext->tgid);
-	ib_rdmacg_uncharge(&ucontext->cg_obj, ucontext->device,
+	ib_rdmacg_uncharge(&ucontext->cg_obj, ib_dev,
 			   RDMACG_RESOURCE_HCA_HANDLE);
+
+	rdma_restrack_del(&ucontext->res);
 
 	/*
 	 * FIXME: Drivers are not permitted to fail dealloc_ucontext, remove
 	 * the error return.
 	 */
-	ret = ucontext->device->dealloc_ucontext(ucontext);
+	ret = ib_dev->ops.dealloc_ucontext(ucontext);
 	WARN_ON(ret);
 
 	ufile->ucontext = NULL;
@@ -882,6 +862,8 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 		WARN_ON(uverbs_try_lock_object(obj, UVERBS_LOOKUP_WRITE));
 		if (!uverbs_destroy_uobject(obj, reason))
 			ret = 0;
+		else
+			atomic_set(&obj->usecnt, 0);
 	}
 	return ret;
 }

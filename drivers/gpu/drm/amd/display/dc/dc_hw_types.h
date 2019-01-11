@@ -289,7 +289,8 @@ enum swizzle_mode_values {
 	DC_SW_VAR_S_X = 29,
 	DC_SW_VAR_D_X = 30,
 	DC_SW_VAR_R_X = 31,
-	DC_SW_MAX
+	DC_SW_MAX = 32,
+	DC_SW_UNKNOWN = DC_SW_MAX
 };
 
 union dc_tiling_info {
@@ -357,15 +358,16 @@ union dc_tiling_info {
 	} gfx8;
 
 	struct {
+		enum swizzle_mode_values swizzle;
 		unsigned int num_pipes;
-		unsigned int num_banks;
+		unsigned int max_compressed_frags;
 		unsigned int pipe_interleave;
+
+		unsigned int num_banks;
 		unsigned int num_shader_engines;
 		unsigned int num_rb_per_se;
-		unsigned int max_compressed_frags;
 		bool shaderEnable;
 
-		enum swizzle_mode_values swizzle;
 		bool meta_linear;
 		bool rb_aligned;
 		bool pipe_aligned;
@@ -706,12 +708,6 @@ struct crtc_trigger_info {
 	struct dc_stream_state *event_source;
 	enum crtc_event event;
 	enum trigger_delay delay;
-};
-
-enum vrr_state {
-	VRR_STATE_OFF = 0,
-	VRR_STATE_VARIABLE,
-	VRR_STATE_FIXED,
 };
 
 struct dc_crtc_timing_adjust {

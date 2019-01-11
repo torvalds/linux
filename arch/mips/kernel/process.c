@@ -32,6 +32,7 @@
 #include <linux/nmi.h>
 #include <linux/cpu.h>
 
+#include <asm/abi.h>
 #include <asm/asm.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
@@ -39,6 +40,7 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/irq.h>
+#include <asm/mips-cps.h>
 #include <asm/msa.h>
 #include <asm/pgtable.h>
 #include <asm/mipsregs.h>
@@ -645,6 +647,29 @@ out:
 	return pc;
 }
 
+unsigned long mips_stack_top(void)
+{
+	unsigned long top = TASK_SIZE & PAGE_MASK;
+
+	/* One page for branch delay slot "emulation" */
+	top -= PAGE_SIZE;
+
+	/* Space for the VDSO, data page & GIC user page */
+	top -= PAGE_ALIGN(current->thread.abi->vdso->size);
+	top -= PAGE_SIZE;
+	top -= mips_gic_present() ? PAGE_SIZE : 0;
+
+	/* Space for cache colour alignment */
+	if (cpu_has_dc_aliases)
+		top -= shm_align_mask + 1;
+
+	/* Space to randomize the VDSO base */
+	if (current->flags & PF_RANDOMIZE)
+		top -= VDSO_RANDOMIZE_SIZE;
+
+	return top;
+}
+
 /*
  * Don't forget that the stack pointer must be aligned on a 8 bytes
  * boundary for 32-bits ABI and 16 bytes for 64-bits ABI.
@@ -712,10 +737,9 @@ static long prepare_for_fp_mode_switch(void *unused)
 	/*
 	 * This is icky, but we use this to simply ensure that all CPUs have
 	 * context switched, regardless of whether they were previously running
-	 * kernel or user code. This ensures that no CPU currently has its FPU
-	 * enabled, or is about to attempt to enable it through any path other
-	 * than enable_restore_fp_context() which will wait appropriately for
-	 * fp_mode_switching to be zero.
+	 * kernel or user code. This ensures that no CPU that a mode-switching
+	 * program may execute on keeps its FPU enabled (& in the old mode)
+	 * throughout the mode switch.
 	 */
 	return 0;
 }
@@ -803,8 +827,6 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	for_each_cpu_and(cpu, &process_cpus, cpu_online_mask)
 		work_on_cpu(cpu, prepare_for_fp_mode_switch, NULL);
 	put_online_cpus();
-
-	wake_up_var(&task->mm->context.fp_mode_switching);
 
 	return 0;
 }

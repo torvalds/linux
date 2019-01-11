@@ -15,6 +15,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/libnvdimm.h>
+#include <linux/genalloc.h>
 #include <linux/vmalloc.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -24,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <nd-core.h>
+#include <intel.h>
 #include <nfit.h>
 #include <nd.h>
 #include "nfit_test.h"
@@ -139,8 +141,38 @@ static u32 handle[] = {
 	[6] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 1),
 };
 
-static unsigned long dimm_fail_cmd_flags[NUM_DCR];
-static int dimm_fail_cmd_code[NUM_DCR];
+static unsigned long dimm_fail_cmd_flags[ARRAY_SIZE(handle)];
+static int dimm_fail_cmd_code[ARRAY_SIZE(handle)];
+struct nfit_test_sec {
+	u8 state;
+	u8 ext_state;
+	u8 passphrase[32];
+	u8 master_passphrase[32];
+	u64 overwrite_end_time;
+} dimm_sec_info[NUM_DCR];
+
+static const struct nd_intel_smart smart_def = {
+	.flags = ND_INTEL_SMART_HEALTH_VALID
+		| ND_INTEL_SMART_SPARES_VALID
+		| ND_INTEL_SMART_ALARM_VALID
+		| ND_INTEL_SMART_USED_VALID
+		| ND_INTEL_SMART_SHUTDOWN_VALID
+		| ND_INTEL_SMART_SHUTDOWN_COUNT_VALID
+		| ND_INTEL_SMART_MTEMP_VALID
+		| ND_INTEL_SMART_CTEMP_VALID,
+	.health = ND_INTEL_SMART_NON_CRITICAL_HEALTH,
+	.media_temperature = 23 * 16,
+	.ctrl_temperature = 25 * 16,
+	.pmic_temperature = 40 * 16,
+	.spares = 75,
+	.alarm_flags = ND_INTEL_SMART_SPARE_TRIP
+		| ND_INTEL_SMART_TEMP_TRIP,
+	.ait_status = 1,
+	.life_used = 5,
+	.shutdown_state = 0,
+	.shutdown_count = 42,
+	.vendor_size = 0,
+};
 
 struct nfit_test_fw {
 	enum intel_fw_update_state state;
@@ -181,7 +213,7 @@ struct nfit_test {
 		unsigned long deadline;
 		spinlock_t lock;
 	} ars_state;
-	struct device *dimm_dev[NUM_DCR];
+	struct device *dimm_dev[ARRAY_SIZE(handle)];
 	struct nd_intel_smart *smart;
 	struct nd_intel_smart_threshold *smart_threshold;
 	struct badrange badrange;
@@ -190,6 +222,8 @@ struct nfit_test {
 };
 
 static struct workqueue_struct *nfit_wq;
+
+static struct gen_pool *nfit_pool;
 
 static struct nfit_test *to_nfit_test(struct device *dev)
 {
@@ -752,15 +786,30 @@ static int nfit_test_cmd_smart_inject(
 	if (buf_len != sizeof(*inj))
 		return -EINVAL;
 
-	if (inj->mtemp_enable)
-		smart->media_temperature = inj->media_temperature;
-	if (inj->spare_enable)
-		smart->spares = inj->spares;
-	if (inj->fatal_enable)
-		smart->health = ND_INTEL_SMART_FATAL_HEALTH;
-	if (inj->unsafe_shutdown_enable) {
-		smart->shutdown_state = 1;
-		smart->shutdown_count++;
+	if (inj->flags & ND_INTEL_SMART_INJECT_MTEMP) {
+		if (inj->mtemp_enable)
+			smart->media_temperature = inj->media_temperature;
+		else
+			smart->media_temperature = smart_def.media_temperature;
+	}
+	if (inj->flags & ND_INTEL_SMART_INJECT_SPARE) {
+		if (inj->spare_enable)
+			smart->spares = inj->spares;
+		else
+			smart->spares = smart_def.spares;
+	}
+	if (inj->flags & ND_INTEL_SMART_INJECT_FATAL) {
+		if (inj->fatal_enable)
+			smart->health = ND_INTEL_SMART_FATAL_HEALTH;
+		else
+			smart->health = ND_INTEL_SMART_NON_CRITICAL_HEALTH;
+	}
+	if (inj->flags & ND_INTEL_SMART_INJECT_SHUTDOWN) {
+		if (inj->unsafe_shutdown_enable) {
+			smart->shutdown_state = 1;
+			smart->shutdown_count++;
+		} else
+			smart->shutdown_state = 0;
 	}
 	inj->status = 0;
 	smart_notify(bus_dev, dimm_dev, smart, thresh);
@@ -884,6 +933,252 @@ static int nd_intel_test_cmd_set_lss_status(struct nfit_test *t,
 	return 0;
 }
 
+static int override_return_code(int dimm, unsigned int func, int rc)
+{
+	if ((1 << func) & dimm_fail_cmd_flags[dimm]) {
+		if (dimm_fail_cmd_code[dimm])
+			return dimm_fail_cmd_code[dimm];
+		return -EIO;
+	}
+	return rc;
+}
+
+static int nd_intel_test_cmd_security_status(struct nfit_test *t,
+		struct nd_intel_get_security_state *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	nd_cmd->status = 0;
+	nd_cmd->state = sec->state;
+	nd_cmd->extended_state = sec->ext_state;
+	dev_dbg(dev, "security state (%#x) returned\n", nd_cmd->state);
+
+	return 0;
+}
+
+static int nd_intel_test_cmd_unlock_unit(struct nfit_test *t,
+		struct nd_intel_unlock_unit *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (!(sec->state & ND_INTEL_SEC_STATE_LOCKED) ||
+			(sec->state & ND_INTEL_SEC_STATE_FROZEN)) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
+		dev_dbg(dev, "unlock unit: invalid state: %#x\n",
+				sec->state);
+	} else if (memcmp(nd_cmd->passphrase, sec->passphrase,
+				ND_INTEL_PASSPHRASE_SIZE) != 0) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
+		dev_dbg(dev, "unlock unit: invalid passphrase\n");
+	} else {
+		nd_cmd->status = 0;
+		sec->state = ND_INTEL_SEC_STATE_ENABLED;
+		dev_dbg(dev, "Unit unlocked\n");
+	}
+
+	dev_dbg(dev, "unlocking status returned: %#x\n", nd_cmd->status);
+	return 0;
+}
+
+static int nd_intel_test_cmd_set_pass(struct nfit_test *t,
+		struct nd_intel_set_passphrase *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (sec->state & ND_INTEL_SEC_STATE_FROZEN) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
+		dev_dbg(dev, "set passphrase: wrong security state\n");
+	} else if (memcmp(nd_cmd->old_pass, sec->passphrase,
+				ND_INTEL_PASSPHRASE_SIZE) != 0) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
+		dev_dbg(dev, "set passphrase: wrong passphrase\n");
+	} else {
+		memcpy(sec->passphrase, nd_cmd->new_pass,
+				ND_INTEL_PASSPHRASE_SIZE);
+		sec->state |= ND_INTEL_SEC_STATE_ENABLED;
+		nd_cmd->status = 0;
+		dev_dbg(dev, "passphrase updated\n");
+	}
+
+	return 0;
+}
+
+static int nd_intel_test_cmd_freeze_lock(struct nfit_test *t,
+		struct nd_intel_freeze_lock *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (!(sec->state & ND_INTEL_SEC_STATE_ENABLED)) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
+		dev_dbg(dev, "freeze lock: wrong security state\n");
+	} else {
+		sec->state |= ND_INTEL_SEC_STATE_FROZEN;
+		nd_cmd->status = 0;
+		dev_dbg(dev, "security frozen\n");
+	}
+
+	return 0;
+}
+
+static int nd_intel_test_cmd_disable_pass(struct nfit_test *t,
+		struct nd_intel_disable_passphrase *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (!(sec->state & ND_INTEL_SEC_STATE_ENABLED) ||
+			(sec->state & ND_INTEL_SEC_STATE_FROZEN)) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
+		dev_dbg(dev, "disable passphrase: wrong security state\n");
+	} else if (memcmp(nd_cmd->passphrase, sec->passphrase,
+				ND_INTEL_PASSPHRASE_SIZE) != 0) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
+		dev_dbg(dev, "disable passphrase: wrong passphrase\n");
+	} else {
+		memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
+		sec->state = 0;
+		dev_dbg(dev, "disable passphrase: done\n");
+	}
+
+	return 0;
+}
+
+static int nd_intel_test_cmd_secure_erase(struct nfit_test *t,
+		struct nd_intel_secure_erase *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (!(sec->state & ND_INTEL_SEC_STATE_ENABLED) ||
+			(sec->state & ND_INTEL_SEC_STATE_FROZEN)) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
+		dev_dbg(dev, "secure erase: wrong security state\n");
+	} else if (memcmp(nd_cmd->passphrase, sec->passphrase,
+				ND_INTEL_PASSPHRASE_SIZE) != 0) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
+		dev_dbg(dev, "secure erase: wrong passphrase\n");
+	} else {
+		memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
+		memset(sec->master_passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
+		sec->state = 0;
+		sec->ext_state = ND_INTEL_SEC_ESTATE_ENABLED;
+		dev_dbg(dev, "secure erase: done\n");
+	}
+
+	return 0;
+}
+
+static int nd_intel_test_cmd_overwrite(struct nfit_test *t,
+		struct nd_intel_overwrite *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if ((sec->state & ND_INTEL_SEC_STATE_ENABLED) &&
+			memcmp(nd_cmd->passphrase, sec->passphrase,
+				ND_INTEL_PASSPHRASE_SIZE) != 0) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
+		dev_dbg(dev, "overwrite: wrong passphrase\n");
+		return 0;
+	}
+
+	memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
+	sec->state = ND_INTEL_SEC_STATE_OVERWRITE;
+	dev_dbg(dev, "overwrite progressing.\n");
+	sec->overwrite_end_time = get_jiffies_64() + 5 * HZ;
+
+	return 0;
+}
+
+static int nd_intel_test_cmd_query_overwrite(struct nfit_test *t,
+		struct nd_intel_query_overwrite *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (!(sec->state & ND_INTEL_SEC_STATE_OVERWRITE)) {
+		nd_cmd->status = ND_INTEL_STATUS_OQUERY_SEQUENCE_ERR;
+		return 0;
+	}
+
+	if (time_is_before_jiffies64(sec->overwrite_end_time)) {
+		sec->overwrite_end_time = 0;
+		sec->state = 0;
+		sec->ext_state = ND_INTEL_SEC_ESTATE_ENABLED;
+		dev_dbg(dev, "overwrite is complete\n");
+	} else
+		nd_cmd->status = ND_INTEL_STATUS_OQUERY_INPROGRESS;
+	return 0;
+}
+
+static int nd_intel_test_cmd_master_set_pass(struct nfit_test *t,
+		struct nd_intel_set_master_passphrase *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (!(sec->ext_state & ND_INTEL_SEC_ESTATE_ENABLED)) {
+		nd_cmd->status = ND_INTEL_STATUS_NOT_SUPPORTED;
+		dev_dbg(dev, "master set passphrase: in wrong state\n");
+	} else if (sec->ext_state & ND_INTEL_SEC_ESTATE_PLIMIT) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
+		dev_dbg(dev, "master set passphrase: in wrong security state\n");
+	} else if (memcmp(nd_cmd->old_pass, sec->master_passphrase,
+				ND_INTEL_PASSPHRASE_SIZE) != 0) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
+		dev_dbg(dev, "master set passphrase: wrong passphrase\n");
+	} else {
+		memcpy(sec->master_passphrase, nd_cmd->new_pass,
+				ND_INTEL_PASSPHRASE_SIZE);
+		sec->ext_state = ND_INTEL_SEC_ESTATE_ENABLED;
+		dev_dbg(dev, "master passphrase: updated\n");
+	}
+
+	return 0;
+}
+
+static int nd_intel_test_cmd_master_secure_erase(struct nfit_test *t,
+		struct nd_intel_master_secure_erase *nd_cmd,
+		unsigned int buf_len, int dimm)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	if (!(sec->ext_state & ND_INTEL_SEC_ESTATE_ENABLED)) {
+		nd_cmd->status = ND_INTEL_STATUS_NOT_SUPPORTED;
+		dev_dbg(dev, "master secure erase: in wrong state\n");
+	} else if (sec->ext_state & ND_INTEL_SEC_ESTATE_PLIMIT) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
+		dev_dbg(dev, "master secure erase: in wrong security state\n");
+	} else if (memcmp(nd_cmd->passphrase, sec->master_passphrase,
+				ND_INTEL_PASSPHRASE_SIZE) != 0) {
+		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
+		dev_dbg(dev, "master secure erase: wrong passphrase\n");
+	} else {
+		/* we do not erase master state passphrase ever */
+		sec->ext_state = ND_INTEL_SEC_ESTATE_ENABLED;
+		memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
+		sec->state = 0;
+		dev_dbg(dev, "master secure erase: done\n");
+	}
+
+	return 0;
+}
+
+
 static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
 {
 	int i;
@@ -894,13 +1189,6 @@ static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
 			break;
 	if (i >= ARRAY_SIZE(handle))
 		return -ENXIO;
-
-	if ((1 << func) & dimm_fail_cmd_flags[i]) {
-		if (dimm_fail_cmd_code[i])
-			return dimm_fail_cmd_code[i];
-		return -EIO;
-	}
-
 	return i;
 }
 
@@ -938,49 +1226,100 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 				return i;
 
 			switch (func) {
+			case NVDIMM_INTEL_GET_SECURITY_STATE:
+				rc = nd_intel_test_cmd_security_status(t,
+						buf, buf_len, i);
+				break;
+			case NVDIMM_INTEL_UNLOCK_UNIT:
+				rc = nd_intel_test_cmd_unlock_unit(t,
+						buf, buf_len, i);
+				break;
+			case NVDIMM_INTEL_SET_PASSPHRASE:
+				rc = nd_intel_test_cmd_set_pass(t,
+						buf, buf_len, i);
+				break;
+			case NVDIMM_INTEL_DISABLE_PASSPHRASE:
+				rc = nd_intel_test_cmd_disable_pass(t,
+						buf, buf_len, i);
+				break;
+			case NVDIMM_INTEL_FREEZE_LOCK:
+				rc = nd_intel_test_cmd_freeze_lock(t,
+						buf, buf_len, i);
+				break;
+			case NVDIMM_INTEL_SECURE_ERASE:
+				rc = nd_intel_test_cmd_secure_erase(t,
+						buf, buf_len, i);
+				break;
+			case NVDIMM_INTEL_OVERWRITE:
+				rc = nd_intel_test_cmd_overwrite(t,
+						buf, buf_len, i - t->dcr_idx);
+				break;
+			case NVDIMM_INTEL_QUERY_OVERWRITE:
+				rc = nd_intel_test_cmd_query_overwrite(t,
+						buf, buf_len, i - t->dcr_idx);
+				break;
+			case NVDIMM_INTEL_SET_MASTER_PASSPHRASE:
+				rc = nd_intel_test_cmd_master_set_pass(t,
+						buf, buf_len, i);
+				break;
+			case NVDIMM_INTEL_MASTER_SECURE_ERASE:
+				rc = nd_intel_test_cmd_master_secure_erase(t,
+						buf, buf_len, i);
+				break;
 			case ND_INTEL_ENABLE_LSS_STATUS:
-				return nd_intel_test_cmd_set_lss_status(t,
+				rc = nd_intel_test_cmd_set_lss_status(t,
 						buf, buf_len);
+				break;
 			case ND_INTEL_FW_GET_INFO:
-				return nd_intel_test_get_fw_info(t, buf,
+				rc = nd_intel_test_get_fw_info(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_START_UPDATE:
-				return nd_intel_test_start_update(t, buf,
+				rc = nd_intel_test_start_update(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_SEND_DATA:
-				return nd_intel_test_send_data(t, buf,
+				rc = nd_intel_test_send_data(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_FINISH_UPDATE:
-				return nd_intel_test_finish_fw(t, buf,
+				rc = nd_intel_test_finish_fw(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_FINISH_QUERY:
-				return nd_intel_test_finish_query(t, buf,
+				rc = nd_intel_test_finish_query(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_SMART:
-				return nfit_test_cmd_smart(buf, buf_len,
+				rc = nfit_test_cmd_smart(buf, buf_len,
 						&t->smart[i - t->dcr_idx]);
+				break;
 			case ND_INTEL_SMART_THRESHOLD:
-				return nfit_test_cmd_smart_threshold(buf,
+				rc = nfit_test_cmd_smart_threshold(buf,
 						buf_len,
 						&t->smart_threshold[i -
 							t->dcr_idx]);
+				break;
 			case ND_INTEL_SMART_SET_THRESHOLD:
-				return nfit_test_cmd_smart_set_threshold(buf,
+				rc = nfit_test_cmd_smart_set_threshold(buf,
 						buf_len,
 						&t->smart_threshold[i -
 							t->dcr_idx],
 						&t->smart[i - t->dcr_idx],
 						&t->pdev.dev, t->dimm_dev[i]);
+				break;
 			case ND_INTEL_SMART_INJECT:
-				return nfit_test_cmd_smart_inject(buf,
+				rc = nfit_test_cmd_smart_inject(buf,
 						buf_len,
 						&t->smart_threshold[i -
 							t->dcr_idx],
 						&t->smart[i - t->dcr_idx],
 						&t->pdev.dev, t->dimm_dev[i]);
+				break;
 			default:
 				return -ENOTTY;
 			}
+			return override_return_code(i, func, rc);
 		}
 
 		if (!test_bit(cmd, &cmd_mask)
@@ -1006,6 +1345,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		default:
 			return -ENOTTY;
 		}
+		return override_return_code(i, func, rc);
 	} else {
 		struct ars_state *ars_state = &t->ars_state;
 		struct nd_cmd_pkg *call_pkg = buf;
@@ -1078,6 +1418,9 @@ static void release_nfit_res(void *data)
 	list_del(&nfit_res->list);
 	spin_unlock(&nfit_test_lock);
 
+	if (resource_size(&nfit_res->res) >= DIMM_SIZE)
+		gen_pool_free(nfit_pool, nfit_res->res.start,
+				resource_size(&nfit_res->res));
 	vfree(nfit_res->buf);
 	kfree(nfit_res);
 }
@@ -1090,7 +1433,7 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 			GFP_KERNEL);
 	int rc;
 
-	if (!buf || !nfit_res)
+	if (!buf || !nfit_res || !*dma)
 		goto err;
 	rc = devm_add_action(dev, release_nfit_res, nfit_res);
 	if (rc)
@@ -1110,6 +1453,8 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 
 	return nfit_res->buf;
  err:
+	if (*dma && size >= DIMM_SIZE)
+		gen_pool_free(nfit_pool, *dma, size);
 	if (buf)
 		vfree(buf);
 	kfree(nfit_res);
@@ -1118,9 +1463,16 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 
 static void *test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma)
 {
+	struct genpool_data_align data = {
+		.align = SZ_128M,
+	};
 	void *buf = vmalloc(size);
 
-	*dma = (unsigned long) buf;
+	if (size >= DIMM_SIZE)
+		*dma = gen_pool_alloc_algo(nfit_pool, size,
+				gen_pool_first_fit_align, &data);
+	else
+		*dma = (unsigned long) buf;
 	return __test_alloc(t, size, dma, buf);
 }
 
@@ -1259,10 +1611,22 @@ static ssize_t fail_cmd_code_store(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_RW(fail_cmd_code);
 
+static ssize_t lock_dimm_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int dimm = dimm_name_to_id(dev);
+	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
+
+	sec->state = ND_INTEL_SEC_STATE_ENABLED | ND_INTEL_SEC_STATE_LOCKED;
+	return size;
+}
+static DEVICE_ATTR_WO(lock_dimm);
+
 static struct attribute *nfit_test_dimm_attributes[] = {
 	&dev_attr_fail_cmd.attr,
 	&dev_attr_fail_cmd_code.attr,
 	&dev_attr_handle.attr,
+	&dev_attr_lock_dimm.attr,
 	NULL,
 };
 
@@ -1292,6 +1656,17 @@ static int nfit_test_dimm_init(struct nfit_test *t)
 	return 0;
 }
 
+static void security_init(struct nfit_test *t)
+{
+	int i;
+
+	for (i = 0; i < t->num_dcr; i++) {
+		struct nfit_test_sec *sec = &dimm_sec_info[i];
+
+		sec->ext_state = ND_INTEL_SEC_ESTATE_ENABLED;
+	}
+}
+
 static void smart_init(struct nfit_test *t)
 {
 	int i;
@@ -1302,29 +1677,9 @@ static void smart_init(struct nfit_test *t)
 		.ctrl_temperature = 30 * 16,
 		.spares = 5,
 	};
-	const struct nd_intel_smart smart_data = {
-		.flags = ND_INTEL_SMART_HEALTH_VALID
-			| ND_INTEL_SMART_SPARES_VALID
-			| ND_INTEL_SMART_ALARM_VALID
-			| ND_INTEL_SMART_USED_VALID
-			| ND_INTEL_SMART_SHUTDOWN_VALID
-			| ND_INTEL_SMART_MTEMP_VALID,
-		.health = ND_INTEL_SMART_NON_CRITICAL_HEALTH,
-		.media_temperature = 23 * 16,
-		.ctrl_temperature = 25 * 16,
-		.pmic_temperature = 40 * 16,
-		.spares = 75,
-		.alarm_flags = ND_INTEL_SMART_SPARE_TRIP
-			| ND_INTEL_SMART_TEMP_TRIP,
-		.ait_status = 1,
-		.life_used = 5,
-		.shutdown_state = 0,
-		.vendor_size = 0,
-		.shutdown_count = 100,
-	};
 
 	for (i = 0; i < t->num_dcr; i++) {
-		memcpy(&t->smart[i], &smart_data, sizeof(smart_data));
+		memcpy(&t->smart[i], &smart_def, sizeof(smart_def));
 		memcpy(&t->smart_threshold[i], &smart_t_data,
 				sizeof(smart_t_data));
 	}
@@ -1390,6 +1745,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	if (nfit_test_dimm_init(t))
 		return -ENOMEM;
 	smart_init(t);
+	security_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
 
@@ -2161,6 +2517,20 @@ static void nfit_test0_setup(struct nfit_test *t)
 	set_bit(ND_INTEL_FW_FINISH_UPDATE, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_INTEL_FW_FINISH_QUERY, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_INTEL_ENABLE_LSS_STATUS, &acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_GET_SECURITY_STATE,
+			&acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_SET_PASSPHRASE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_DISABLE_PASSPHRASE,
+			&acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_UNLOCK_UNIT, &acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_FREEZE_LOCK, &acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_SECURE_ERASE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_OVERWRITE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_QUERY_OVERWRITE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_SET_MASTER_PASSPHRASE,
+			&acpi_desc->dimm_cmd_force_en);
+	set_bit(NVDIMM_INTEL_MASTER_SECURE_ERASE,
+			&acpi_desc->dimm_cmd_force_en);
 }
 
 static void nfit_test1_setup(struct nfit_test *t)
@@ -2646,7 +3016,7 @@ static int nfit_test_probe(struct platform_device *pdev)
 		u32 nfit_handle = __to_nfit_memdev(nfit_mem)->device_handle;
 		int i;
 
-		for (i = 0; i < NUM_DCR; i++)
+		for (i = 0; i < ARRAY_SIZE(handle); i++)
 			if (nfit_handle == handle[i])
 				dev_set_drvdata(nfit_test->dimm_dev[i],
 						nfit_mem);
@@ -2805,6 +3175,17 @@ static __init int nfit_test_init(void)
 		goto err_register;
 	}
 
+	nfit_pool = gen_pool_create(ilog2(SZ_4M), NUMA_NO_NODE);
+	if (!nfit_pool) {
+		rc = -ENOMEM;
+		goto err_register;
+	}
+
+	if (gen_pool_add(nfit_pool, SZ_4G, SZ_4G, NUMA_NO_NODE)) {
+		rc = -ENOMEM;
+		goto err_register;
+	}
+
 	for (i = 0; i < NUM_NFITS; i++) {
 		struct nfit_test *nfit_test;
 		struct platform_device *pdev;
@@ -2860,6 +3241,9 @@ static __init int nfit_test_init(void)
 	return 0;
 
  err_register:
+	if (nfit_pool)
+		gen_pool_destroy(nfit_pool);
+
 	destroy_workqueue(nfit_wq);
 	for (i = 0; i < NUM_NFITS; i++)
 		if (instances[i])
@@ -2882,6 +3266,8 @@ static __exit void nfit_test_exit(void)
 		platform_device_unregister(&instances[i]->pdev);
 	platform_driver_unregister(&nfit_test_driver);
 	nfit_test_teardown();
+
+	gen_pool_destroy(nfit_pool);
 
 	for (i = 0; i < NUM_NFITS; i++)
 		put_device(&instances[i]->pdev.dev);

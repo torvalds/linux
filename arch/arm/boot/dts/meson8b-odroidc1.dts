@@ -57,6 +57,10 @@
 		mmc0 = &sd_card_slot;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x40000000 0x40000000>;
 	};
@@ -71,6 +75,14 @@
 		};
 	};
 
+	p5v0: regulator-p5v0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "P5V0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	tflash_vdd: regulator-tflash_vdd {
 		/*
 		 * signal name from schematics: TFLASH_VDD_EN
@@ -80,6 +92,8 @@
 		regulator-name = "TFLASH_VDD";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&vcc_3v3>;
 
 		gpio = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
@@ -92,6 +106,8 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
 
+		vin-supply = <&vcc_3v3>;
+
 		/*
 		 * signal name from schematics: TF_3V3N_1V8_EN
 		 */
@@ -101,6 +117,86 @@
 		states = <3300000 0
 			  1800000 1>;
 	};
+
+	vcc_1v8: regulator-vcc-1v8 {
+		/*
+		 * RICHTEK RT9179 configured for a fixed output voltage of
+		 * 1.8V. This supplies not only VCC1V8 but also IOREF_1V8 and
+		 * VDD1V8 according to the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		vin-supply = <&p5v0>;
+	};
+
+	vcc_3v3: regulator-vcc-3v3 {
+		/*
+		 * Monolithic Power Systems MP2161 configured for a fixed
+		 * output voltage of 3.3V. This supplies not only VCC3V3 but
+		 * also VDD3V3 and VDDIO_AO3V3 according to the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&p5v0>;
+	};
+
+	vcck: regulator-vcck {
+		/* Monolithic Power Systems MP2161 */
+		compatible = "pwm-regulator";
+
+		regulator-name = "VCCK";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1140000>;
+
+		vin-supply = <&p5v0>;
+
+		pwms = <&pwm_cd 0 12218 0>;
+		pwm-dutycycle-range = <91 0>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddc_ddr: regulator-vddc-ddr {
+		/*
+		 * Monolithic Power Systems MP2161 configured for a fixed
+		 * output voltage of 1.5V. This supplies not only DDR_VDDC but
+		 * also DDR3_1V5 according to the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "DDR_VDDC";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		vin-supply = <&p5v0>;
+	};
+
+	vdd_rtc: regulator-vdd-rtc {
+		/*
+		 * Torex Semiconductor XC6215 configured for a fixed output of
+		 * 0.9V.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_RTC";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		vin-supply = <&vcc_3v3>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vcck>;
 };
 
 &ethmac {
@@ -154,6 +250,11 @@
 	pinctrl-names = "default";
 };
 
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
+
 &sdio {
 	status = "okay";
 
@@ -178,6 +279,14 @@
 		vmmc-supply = <&tflash_vdd>;
 		vqmmc-supply = <&tf_io>;
 	};
+};
+
+&pwm_cd {
+	status = "okay";
+	pinctrl-0 = <&pwm_c1_pins>;
+	pinctrl-names = "default";
+	clocks = <&clkc CLKID_XTAL>;
+	clock-names = "clkin0";
 };
 
 &uart_AO {

@@ -80,16 +80,11 @@ enum hw_bar_type {
 	HW_BAR_COUNT
 };
 
-struct mlx4_ib_vma_private_data {
-	struct vm_area_struct *vma;
-};
-
 struct mlx4_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct mlx4_uar		uar;
 	struct list_head	db_page_list;
 	struct mutex		db_page_mutex;
-	struct mlx4_ib_vma_private_data hw_bar_info[HW_BAR_COUNT];
 	struct list_head	wqn_ranges_list;
 	struct mutex		wqn_ranges_mutex; /* protect wqn_ranges_list */
 };
@@ -524,6 +519,7 @@ struct mlx4_ib_iboe {
 	atomic64_t		mac[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
 	struct mlx4_port_gid_table gids[MLX4_MAX_PORTS];
+	enum ib_port_state	last_port_state[MLX4_MAX_PORTS];
 };
 
 struct pkey_mgt {
@@ -758,13 +754,13 @@ void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq)
 void mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 
 struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata);
+				u32 flags, struct ib_udata *udata);
 struct ib_ah *mlx4_ib_create_ah_slave(struct ib_pd *pd,
 				      struct rdma_ah_attr *ah_attr,
 				      int slave_sgid_index, u8 *s_mac,
 				      u16 vlan_tag);
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
-int mlx4_ib_destroy_ah(struct ib_ah *ah);
+int mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags);
 
 struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *init_attr,

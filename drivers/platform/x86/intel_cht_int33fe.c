@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Cherry Trail ACPI INT33FE pseudo device driver
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Some Intel Cherry Trail based device which ship with Windows 10, have
  * this weird INT33FE ACPI device with a CRS table with 4 I2cSerialBusV2
@@ -24,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
@@ -34,7 +32,7 @@ struct cht_int33fe_data {
 	struct i2c_client *fusb302;
 	struct i2c_client *pi3usb30532;
 	/* Contain a list-head must be per device */
-	struct device_connection connections[3];
+	struct device_connection connections[5];
 };
 
 /*
@@ -81,16 +79,16 @@ static const struct property_entry max17047_props[] = {
 };
 
 static const struct property_entry fusb302_props[] = {
-	PROPERTY_ENTRY_STRING("fcs,extcon-name", "cht_wcove_pwrsrc"),
+	PROPERTY_ENTRY_STRING("linux,extcon-name", "cht_wcove_pwrsrc"),
 	PROPERTY_ENTRY_U32("fcs,max-sink-microvolt", 12000000),
 	PROPERTY_ENTRY_U32("fcs,max-sink-microamp",   3000000),
 	PROPERTY_ENTRY_U32("fcs,max-sink-microwatt", 36000000),
 	{ }
 };
 
-static int cht_int33fe_probe(struct i2c_client *client)
+static int cht_int33fe_probe(struct platform_device *pdev)
 {
-	struct device *dev = &client->dev;
+	struct device *dev = &pdev->dev;
 	struct i2c_board_info board_info;
 	struct cht_int33fe_data *data;
 	struct i2c_client *max17047;
@@ -170,23 +168,24 @@ static int cht_int33fe_probe(struct i2c_client *client)
 		board_info.dev_name = "max17047";
 		board_info.properties = max17047_props;
 		data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
-		if (!data->max17047)
-			return -EPROBE_DEFER; /* Wait for i2c-adapter to load */
+		if (IS_ERR(data->max17047))
+			return PTR_ERR(data->max17047);
 	}
 
-	data->connections[0].endpoint[0] = "i2c-fusb302";
+	data->connections[0].endpoint[0] = "port0";
 	data->connections[0].endpoint[1] = "i2c-pi3usb30532";
 	data->connections[0].id = "typec-switch";
-	data->connections[1].endpoint[0] = "i2c-fusb302";
+	data->connections[1].endpoint[0] = "port0";
 	data->connections[1].endpoint[1] = "i2c-pi3usb30532";
 	data->connections[1].id = "typec-mux";
-	data->connections[2].endpoint[0] = "i2c-fusb302";
-	data->connections[2].endpoint[1] = "intel_xhci_usb_sw-role-switch";
-	data->connections[2].id = "usb-role-switch";
+	data->connections[2].endpoint[0] = "port0";
+	data->connections[2].endpoint[1] = "i2c-pi3usb30532";
+	data->connections[2].id = "idff01m01";
+	data->connections[3].endpoint[0] = "i2c-fusb302";
+	data->connections[3].endpoint[1] = "intel_xhci_usb_sw-role-switch";
+	data->connections[3].id = "usb-role-switch";
 
-	device_connection_add(&data->connections[0]);
-	device_connection_add(&data->connections[1]);
-	device_connection_add(&data->connections[2]);
+	device_connections_add(data->connections);
 
 	memset(&board_info, 0, sizeof(board_info));
 	strlcpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
@@ -195,18 +194,22 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	board_info.irq = fusb302_irq;
 
 	data->fusb302 = i2c_acpi_new_device(dev, 2, &board_info);
-	if (!data->fusb302)
+	if (IS_ERR(data->fusb302)) {
+		ret = PTR_ERR(data->fusb302);
 		goto out_unregister_max17047;
+	}
 
 	memset(&board_info, 0, sizeof(board_info));
 	board_info.dev_name = "pi3usb30532";
 	strlcpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
-	if (!data->pi3usb30532)
+	if (IS_ERR(data->pi3usb30532)) {
+		ret = PTR_ERR(data->pi3usb30532);
 		goto out_unregister_fusb302;
+	}
 
-	i2c_set_clientdata(client, data);
+	platform_set_drvdata(pdev, data);
 
 	return 0;
 
@@ -214,36 +217,25 @@ out_unregister_fusb302:
 	i2c_unregister_device(data->fusb302);
 
 out_unregister_max17047:
-	if (data->max17047)
-		i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->max17047);
 
-	device_connection_remove(&data->connections[2]);
-	device_connection_remove(&data->connections[1]);
-	device_connection_remove(&data->connections[0]);
+	device_connections_remove(data->connections);
 
-	return -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
+	return ret;
 }
 
-static int cht_int33fe_remove(struct i2c_client *i2c)
+static int cht_int33fe_remove(struct platform_device *pdev)
 {
-	struct cht_int33fe_data *data = i2c_get_clientdata(i2c);
+	struct cht_int33fe_data *data = platform_get_drvdata(pdev);
 
 	i2c_unregister_device(data->pi3usb30532);
 	i2c_unregister_device(data->fusb302);
-	if (data->max17047)
-		i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->max17047);
 
-	device_connection_remove(&data->connections[2]);
-	device_connection_remove(&data->connections[1]);
-	device_connection_remove(&data->connections[0]);
+	device_connections_remove(data->connections);
 
 	return 0;
 }
-
-static const struct i2c_device_id cht_int33fe_i2c_id[] = {
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, cht_int33fe_i2c_id);
 
 static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
 	{ "INT33FE", },
@@ -251,19 +243,17 @@ static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cht_int33fe_acpi_ids);
 
-static struct i2c_driver cht_int33fe_driver = {
+static struct platform_driver cht_int33fe_driver = {
 	.driver	= {
 		.name = "Intel Cherry Trail ACPI INT33FE driver",
 		.acpi_match_table = ACPI_PTR(cht_int33fe_acpi_ids),
 	},
-	.probe_new = cht_int33fe_probe,
+	.probe = cht_int33fe_probe,
 	.remove = cht_int33fe_remove,
-	.id_table = cht_int33fe_i2c_id,
-	.disable_i2c_core_irq_mapping = true,
 };
 
-module_i2c_driver(cht_int33fe_driver);
+module_platform_driver(cht_int33fe_driver);
 
 MODULE_DESCRIPTION("Intel Cherry Trail ACPI INT33FE pseudo device driver");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

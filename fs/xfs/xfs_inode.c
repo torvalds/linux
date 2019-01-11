@@ -1563,7 +1563,7 @@ xfs_itruncate_extents_flags(
 		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
 				    XFS_ITRUNC_MAX_EXTENTS, &done);
 		if (error)
-			goto out_bmap_cancel;
+			goto out;
 
 		/*
 		 * Duplicate the transaction that has the permanent
@@ -1599,14 +1599,6 @@ xfs_itruncate_extents_flags(
 out:
 	*tpp = tp;
 	return error;
-out_bmap_cancel:
-	/*
-	 * If the bunmapi call encounters an error, return to the caller where
-	 * the transaction can be properly aborted.  We just need to make sure
-	 * we're not holding any resources that we were not when we came in.
-	 */
-	xfs_defer_cancel(tp);
-	goto out;
 }
 
 int
@@ -2192,8 +2184,6 @@ xfs_ifree_cluster(
 	struct xfs_icluster	*xic)
 {
 	xfs_mount_t		*mp = free_ip->i_mount;
-	int			blks_per_cluster;
-	int			inodes_per_cluster;
 	int			nbufs;
 	int			i, j;
 	int			ioffset;
@@ -2207,11 +2197,9 @@ xfs_ifree_cluster(
 
 	inum = xic->first_ino;
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
-	nbufs = mp->m_ialloc_blks / blks_per_cluster;
+	nbufs = mp->m_ialloc_blks / mp->m_blocks_per_cluster;
 
-	for (j = 0; j < nbufs; j++, inum += inodes_per_cluster) {
+	for (j = 0; j < nbufs; j++, inum += mp->m_inodes_per_cluster) {
 		/*
 		 * The allocation bitmap tells us which inodes of the chunk were
 		 * physically allocated. Skip the cluster if an inode falls into
@@ -2219,7 +2207,7 @@ xfs_ifree_cluster(
 		 */
 		ioffset = inum - xic->first_ino;
 		if ((xic->alloc & XFS_INOBT_MASK(ioffset)) == 0) {
-			ASSERT(ioffset % inodes_per_cluster == 0);
+			ASSERT(ioffset % mp->m_inodes_per_cluster == 0);
 			continue;
 		}
 
@@ -2235,7 +2223,7 @@ xfs_ifree_cluster(
 		 * to mark all the active inodes on the buffer stale.
 		 */
 		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, blkno,
-					mp->m_bsize * blks_per_cluster,
+					mp->m_bsize * mp->m_blocks_per_cluster,
 					XBF_UNMAPPED);
 
 		if (!bp)
@@ -2250,7 +2238,7 @@ xfs_ifree_cluster(
 		 * want it to fail. We can acheive this by adding a write
 		 * verifier to the buffer.
 		 */
-		 bp->b_ops = &xfs_inode_buf_ops;
+		bp->b_ops = &xfs_inode_buf_ops;
 
 		/*
 		 * Walk the inodes already attached to the buffer and mark them
@@ -2282,7 +2270,7 @@ xfs_ifree_cluster(
 		 * transaction stale above, which means there is no point in
 		 * even trying to lock them.
 		 */
-		for (i = 0; i < inodes_per_cluster; i++) {
+		for (i = 0; i < mp->m_inodes_per_cluster; i++) {
 retry:
 			rcu_read_lock();
 			ip = radix_tree_lookup(&pag->pag_ici_root,

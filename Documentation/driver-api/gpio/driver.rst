@@ -374,7 +374,28 @@ When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .startup() and .shutdown() callbacks from the
 irqchip.
 
-When using the gpiolib irqchip helpers, these callback are automatically
+When using the gpiolib irqchip helpers, these callbacks are automatically
+assigned.
+
+
+Disabling and enabling IRQs
+---------------------------
+When a GPIO is used as an IRQ signal, then gpiolib also needs to know if
+the IRQ is enabled or disabled. In order to inform gpiolib about this,
+a driver should call::
+
+	void gpiochip_disable_irq(struct gpio_chip *chip, unsigned int offset)
+
+This allows drivers to drive the GPIO as an output while the IRQ is
+disabled. When the IRQ is enabled again, a driver should call::
+
+	void gpiochip_enable_irq(struct gpio_chip *chip, unsigned int offset)
+
+When implementing an irqchip inside a GPIO driver, these two functions should
+typically be called in the .irq_disable() and .irq_enable() callbacks from the
+irqchip.
+
+When using the gpiolib irqchip helpers, these callbacks are automatically
 assigned.
 
 Real-Time compliance for GPIO IRQ chips
@@ -413,7 +434,9 @@ try_module_get()). A GPIO driver can use the following functions instead
 to request and free descriptors without being pinned to the kernel forever::
 
 	struct gpio_desc *gpiochip_request_own_desc(struct gpio_desc *desc,
-						    const char *label)
+						    u16 hwnum,
+						    const char *label,
+						    enum gpiod_flags flags)
 
 	void gpiochip_free_own_desc(struct gpio_desc *desc)
 

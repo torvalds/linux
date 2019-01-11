@@ -40,15 +40,13 @@
 #define LITTLEENDIAN_CPU
 #endif
 
-#undef READ
-#undef WRITE
 #undef FRAME_SIZE
 
 #define dm_output_to_console(fmt, ...) DRM_DEBUG_KMS(fmt, ##__VA_ARGS__)
 
 #define dm_error(fmt, ...) DRM_ERROR(fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include <asm/fpu/api.h>
 #endif
 

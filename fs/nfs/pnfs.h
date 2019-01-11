@@ -125,6 +125,7 @@ struct pnfs_layoutdriver_type {
 	struct module *owner;
 	unsigned flags;
 	unsigned max_deviceinfo_size;
+	unsigned max_layoutget_response;
 
 	int (*set_layoutdriver) (struct nfs_server *, const struct nfs_fh *);
 	int (*clear_layoutdriver) (struct nfs_server *);
@@ -199,7 +200,7 @@ struct pnfs_layout_hdr {
 	u32			plh_return_seq;
 	enum pnfs_iomode	plh_return_iomode;
 	loff_t			plh_lwb; /* last write byte for layoutcommit */
-	struct rpc_cred		*plh_lc_cred; /* layoutcommit cred */
+	const struct cred	*plh_lc_cred; /* layoutcommit cred */
 	struct inode		*plh_inode;
 };
 
@@ -229,7 +230,7 @@ extern void pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *);
 extern size_t max_response_pages(struct nfs_server *server);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev,
-				   struct rpc_cred *cred);
+				   const struct cred *cred);
 extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync);
 
@@ -259,7 +260,9 @@ int pnfs_destroy_layouts_byfsid(struct nfs_client *clp,
 		bool is_recall);
 int pnfs_destroy_layouts_byclid(struct nfs_client *clp,
 		bool is_recall);
-bool nfs4_refresh_layout_stateid(nfs4_stateid *dst, struct inode *inode);
+bool nfs4_layoutreturn_refresh_stateid(nfs4_stateid *dst,
+		struct pnfs_layout_range *dst_range,
+		struct inode *inode);
 void pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     const nfs4_stateid *new,
@@ -277,7 +280,7 @@ int pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
 bool pnfs_roc(struct inode *ino,
 		struct nfs4_layoutreturn_args *args,
 		struct nfs4_layoutreturn_res *res,
-		const struct rpc_cred *cred);
+		const struct cred *cred);
 void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 		struct nfs4_layoutreturn_res *res,
 		int ret);
@@ -340,7 +343,7 @@ struct nfs4_deviceid_node {
 
 struct nfs4_deviceid_node *
 nfs4_find_get_deviceid(struct nfs_server *server,
-		const struct nfs4_deviceid *id, struct rpc_cred *cred,
+		const struct nfs4_deviceid *id, const struct cred *cred,
 		gfp_t gfp_mask);
 void nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
 void nfs4_init_deviceid_node(struct nfs4_deviceid_node *, struct nfs_server *,
@@ -691,7 +694,7 @@ static inline bool
 pnfs_roc(struct inode *ino,
 		struct nfs4_layoutreturn_args *args,
 		struct nfs4_layoutreturn_res *res,
-		const struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	return false;
 }
@@ -780,7 +783,8 @@ static inline void nfs4_pnfs_v3_ds_connect_unload(void)
 {
 }
 
-static inline bool nfs4_refresh_layout_stateid(nfs4_stateid *dst,
+static inline bool nfs4_layoutreturn_refresh_stateid(nfs4_stateid *dst,
+		struct pnfs_layout_range *dst_range,
 		struct inode *inode)
 {
 	return false;

@@ -661,7 +661,7 @@ A server would be set up to accept operations in the following manner:
 	setsockopt(server, SOL_RXRPC, RXRPC_SECURITY_KEYRING, "AFSkeys", 7);
 
      The keyring can be manipulated after it has been given to the socket. This
-     permits the server to add more keys, replace keys, etc. whilst it is live.
+     permits the server to add more keys, replace keys, etc. while it is live.
 
  (3) A local address must then be bound:
 
@@ -1032,7 +1032,7 @@ The kernel interface functions are as follows:
 				    struct sockaddr_rxrpc *srx,
 				    struct key *key);
 
-     This attempts to partially reinitialise a call and submit it again whilst
+     This attempts to partially reinitialise a call and submit it again while
      reusing the original call's Tx queue to avoid the need to repackage and
      re-encrypt the data to be sent.  call indicates the call to retry, srx the
      new address to send it to and key the encryption key to use for signing or
@@ -1056,18 +1056,48 @@ The kernel interface functions are as follows:
 
 	u32 rxrpc_kernel_check_life(struct socket *sock,
 				    struct rxrpc_call *call);
+	void rxrpc_kernel_probe_life(struct socket *sock,
+				     struct rxrpc_call *call);
 
-     This returns a number that is updated when ACKs are received from the peer
-     (notably including PING RESPONSE ACKs which we can elicit by sending PING
-     ACKs to see if the call still exists on the server).  The caller should
-     compare the numbers of two calls to see if the call is still alive after
-     waiting for a suitable interval.
+     The first function returns a number that is updated when ACKs are received
+     from the peer (notably including PING RESPONSE ACKs which we can elicit by
+     sending PING ACKs to see if the call still exists on the server).  The
+     caller should compare the numbers of two calls to see if the call is still
+     alive after waiting for a suitable interval.
 
      This allows the caller to work out if the server is still contactable and
-     if the call is still alive on the server whilst waiting for the server to
+     if the call is still alive on the server while waiting for the server to
      process a client operation.
 
-     This function may transmit a PING ACK.
+     The second function causes a ping ACK to be transmitted to try to provoke
+     the peer into responding, which would then cause the value returned by the
+     first function to change.  Note that this must be called in TASK_RUNNING
+     state.
+
+ (*) Get reply timestamp.
+
+	bool rxrpc_kernel_get_reply_time(struct socket *sock,
+					 struct rxrpc_call *call,
+					 ktime_t *_ts)
+
+     This allows the timestamp on the first DATA packet of the reply of a
+     client call to be queried, provided that it is still in the Rx ring.  If
+     successful, the timestamp will be stored into *_ts and true will be
+     returned; false will be returned otherwise.
+
+ (*) Get remote client epoch.
+
+	u32 rxrpc_kernel_get_epoch(struct socket *sock,
+				   struct rxrpc_call *call)
+
+     This allows the epoch that's contained in packets of an incoming client
+     call to be queried.  This value is returned.  The function always
+     successful if the call is still in progress.  It shouldn't be called once
+     the call has expired.  Note that calling this on a local client call only
+     returns the local epoch.
+
+     This value can be used to determine if the remote client has been
+     restarted as it shouldn't change otherwise.
 
 
 =======================
@@ -1119,14 +1149,14 @@ adjusted through sysctls in /proc/net/rxrpc/:
  (*) connection_expiry
 
      The amount of time in seconds after a connection was last used before we
-     remove it from the connection list.  Whilst a connection is in existence,
+     remove it from the connection list.  While a connection is in existence,
      it serves as a placeholder for negotiated security; when it is deleted,
      the security must be renegotiated.
 
  (*) transport_expiry
 
      The amount of time in seconds after a transport was last used before we
-     remove it from the transport list.  Whilst a transport is in existence, it
+     remove it from the transport list.  While a transport is in existence, it
      serves to anchor the peer data and keeps the connection ID counter.
 
  (*) rxrpc_rx_window_size

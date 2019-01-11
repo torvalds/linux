@@ -12,12 +12,12 @@
 #ifndef	__INCLUDE_MACH_PALM27X__
 #define	__INCLUDE_MACH_PALM27X__
 
+#include <linux/gpio/machine.h>
+
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
-extern void __init palm27x_mmc_init(int detect, int ro, int power,
-					int power_inverted);
+extern void __init palm27x_mmc_init(struct gpiod_lookup_table *gtable);
 #else
-static inline void palm27x_mmc_init(int detect, int ro, int power,
-					int power_inverted)
+static inline void palm27x_mmc_init(struct gpiod_lookup_table *gtable)
 {}
 #endif
 
