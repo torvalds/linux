@@ -562,7 +562,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	/* no topology exists for this BE, try a common configuration */
 	if (!dai) {
 		dev_warn(sdev->dev, "warning: no topology found for BE DAI %s config\n",
-			rtd->dai_link->name);
+			 rtd->dai_link->name);
 
 		/*  set 48k, stereo, 16bits by default */
 		rate->min = 48000;
