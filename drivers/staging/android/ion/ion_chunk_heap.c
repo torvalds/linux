@@ -18,7 +18,6 @@
 struct ion_chunk_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
-	phys_addr_t base;
 	unsigned long chunk_size;
 	unsigned long size;
 	unsigned long allocated;
@@ -131,16 +130,14 @@ struct ion_heap *ion_chunk_heap_create(phys_addr_t base, size_t size, size_t chu
 		ret = -ENOMEM;
 		goto error_gen_pool_create;
 	}
-	chunk_heap->base = base;
 	chunk_heap->size = size;
 	chunk_heap->allocated = 0;
 
-	gen_pool_add(chunk_heap->pool, chunk_heap->base, size, -1);
+	gen_pool_add(chunk_heap->pool, base, size, -1);
 	chunk_heap->heap.ops = &chunk_heap_ops;
 	chunk_heap->heap.type = ION_HEAP_TYPE_CHUNK;
 	chunk_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
-	pr_debug("%s: base %pa size %zu\n", __func__,
-		 &chunk_heap->base, size);
+	pr_debug("%s: base %pa size %zu\n", __func__, &base, size);
 
 	return &chunk_heap->heap;
 
