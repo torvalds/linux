@@ -33,6 +33,7 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "dm_pp_smu.h"
+#include "amdgpu_smu.h"
 
 
 bool dm_pp_apply_display_requirements(
@@ -40,6 +41,7 @@ bool dm_pp_apply_display_requirements(
 		const struct dm_pp_display_configuration *pp_display_cfg)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
+	struct smu_context *smu = &adev->smu;
 	int i;
 
 	if (adev->pm.dpm_enabled) {
@@ -105,6 +107,9 @@ bool dm_pp_apply_display_requirements(
 			adev->powerplay.pp_funcs->display_configuration_change(
 				adev->powerplay.pp_handle,
 				&adev->pm.pm_display_cfg);
+		else
+			smu_display_configuration_change(smu,
+							 &adev->pm.pm_display_cfg);
 
 		amdgpu_pm_compute_clocks(adev);
 	}

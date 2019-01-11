@@ -780,6 +780,40 @@ failed:
 	return ret;
 }
 
+int smu_display_configuration_change(struct smu_context *smu,
+				     const struct amd_pp_display_configuration *display_config)
+{
+	int index = 0;
+	int num_of_active_display = 0;
+
+	if (!is_support_sw_smu(smu->adev))
+		return -EINVAL;
+
+	if (!display_config)
+		return -EINVAL;
+
+	mutex_lock(&smu->mutex);
+
+	smu_set_deep_sleep_dcefclk(smu,
+				   display_config->min_dcef_deep_sleep_set_clk / 100);
+
+	for (index = 0; index < display_config->num_path_including_non_display; index++) {
+		if (display_config->displays[index].controller_id != 0)
+			num_of_active_display++;
+	}
+
+	smu_set_active_display_count(smu, num_of_active_display);
+
+	smu_store_cc6_data(smu, display_config->cpu_pstate_separation_time,
+			   display_config->cpu_cc6_disable,
+			   display_config->cpu_pstate_disable,
+			   display_config->nb_pstate_switch_disable);
+
+	mutex_unlock(&smu->mutex);
+
+	return 0;
+}
+
 static int smu_set_clockgating_state(void *handle,
 				     enum amd_clockgating_state state)
 {

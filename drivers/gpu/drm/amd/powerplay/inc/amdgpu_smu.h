@@ -24,6 +24,7 @@
 
 #include "amdgpu.h"
 #include "kgd_pp_interface.h"
+#include "dm_pp_interface.h"
 
 enum smu_message_type
 {
@@ -394,5 +395,10 @@ int smu_sys_get_pp_table(struct smu_context *smu, void **table);
 int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size);
 int smu_get_power_num_states(struct smu_context *smu, struct pp_states_info *state_info);
 enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu);
+
+/* smu to display interface */
+extern int smu_display_configuration_change(struct smu_context *smu, const
+					    struct amd_pp_display_configuration
+					    *display_config);
 
 #endif
