@@ -1004,7 +1004,7 @@ static int flexcan_chip_start(struct net_device *dev)
 		}
 	} else {
 		/* clear and invalidate unused mailboxes first */
-		for (i = FLEXCAN_TX_MB_RESERVED_OFF_FIFO; i <= ARRAY_SIZE(regs->mb); i++) {
+		for (i = FLEXCAN_TX_MB_RESERVED_OFF_FIFO; i < ARRAY_SIZE(regs->mb); i++) {
 			priv->write(FLEXCAN_MB_CODE_RX_INACTIVE,
 				    &regs->mb[i].can_ctrl);
 		}
