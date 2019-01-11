@@ -617,60 +617,6 @@ static void __init qca956x_clocks_init(void __iomem *pll_base)
 	ath79_set_clk(ATH79_CLK_AHB, ahb_rate);
 }
 
-void __init ath79_clocks_init(void)
-{
-	const char *wdt;
-	const char *uart;
-
-	if (soc_is_ar71xx())
-		ar71xx_clocks_init(ath79_pll_base);
-	else if (soc_is_ar724x() || soc_is_ar913x())
-		ar724x_clocks_init(ath79_pll_base);
-	else if (soc_is_ar933x())
-		ar933x_clocks_init(ath79_pll_base);
-	else if (soc_is_ar934x())
-		ar934x_clocks_init(ath79_pll_base);
-	else if (soc_is_qca953x())
-		qca953x_clocks_init(ath79_pll_base);
-	else if (soc_is_qca955x())
-		qca955x_clocks_init(ath79_pll_base);
-	else if (soc_is_qca956x() || soc_is_tp9343())
-		qca956x_clocks_init(ath79_pll_base);
-	else
-		BUG();
-
-	if (soc_is_ar71xx() || soc_is_ar724x() || soc_is_ar913x()) {
-		wdt = "ahb";
-		uart = "ahb";
-	} else if (soc_is_ar933x()) {
-		wdt = "ahb";
-		uart = "ref";
-	} else {
-		wdt = "ref";
-		uart = "ref";
-	}
-
-	clk_add_alias("wdt", NULL, wdt, NULL);
-	clk_add_alias("uart", NULL, uart, NULL);
-}
-
-unsigned long __init
-ath79_get_sys_clk_rate(const char *id)
-{
-	struct clk *clk;
-	unsigned long rate;
-
-	clk = clk_get(NULL, id);
-	if (IS_ERR(clk))
-		panic("unable to get %s clock, err=%d", id, (int) PTR_ERR(clk));
-
-	rate = clk_get_rate(clk);
-	clk_put(clk);
-
-	return rate;
-}
-
-#ifdef CONFIG_OF
 static void __init ath79_clocks_init_dt(struct device_node *np)
 {
 	struct clk *ref_clk;
@@ -727,5 +673,3 @@ CLK_OF_DECLARE(ar9340_clk, "qca,ar9340-pll", ath79_clocks_init_dt);
 CLK_OF_DECLARE(ar9530_clk, "qca,qca9530-pll", ath79_clocks_init_dt);
 CLK_OF_DECLARE(ar9550_clk, "qca,qca9550-pll", ath79_clocks_init_dt);
 CLK_OF_DECLARE(ar9560_clk, "qca,qca9560-pll", ath79_clocks_init_dt);
-
-#endif
