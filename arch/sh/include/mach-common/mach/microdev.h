@@ -1,12 +1,10 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * linux/include/asm-sh/microdev.h
  *
  * Copyright (C) 2003 Sean McGoogan (Sean.McGoogan@superh.com)
  *
  * Definitions for the SuperH SH4-202 MicroDev board.
- *
- * May be copied or modified under the terms of the GNU General Public
- * License.  See linux/COPYING for more information.
  */
 #ifndef __ASM_SH_MICRODEV_H
 #define __ASM_SH_MICRODEV_H

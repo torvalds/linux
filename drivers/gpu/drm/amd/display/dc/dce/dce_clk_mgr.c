@@ -94,7 +94,7 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
 
-static int dentist_get_divider_from_did(int did)
+int dentist_get_divider_from_did(int did)
 {
 	if (did < DENTIST_BASE_DID_1)
 		did = DENTIST_BASE_DID_1;
@@ -277,7 +277,8 @@ static int dce_set_clock(
 	if (requested_clk_khz == 0)
 		clk_mgr_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
-	dmcu->funcs->set_psr_wait_loop(dmcu, actual_clock / 1000 / 7);
+	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu))
+		dmcu->funcs->set_psr_wait_loop(dmcu, actual_clock / 1000 / 7);
 
 	return actual_clock;
 }
@@ -324,9 +325,11 @@ int dce112_set_clock(struct clk_mgr *clk_mgr, int requested_clk_khz)
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
-		if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
-			dmcu->funcs->set_psr_wait_loop(dmcu,
-					actual_clock / 1000 / 7);
+		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+			if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
+				dmcu->funcs->set_psr_wait_loop(dmcu,
+						actual_clock / 1000 / 7);
+		}
 	}
 
 	clk_mgr_dce->dfs_bypass_disp_clk = actual_clock;
@@ -588,6 +591,8 @@ static void dce11_pplib_apply_display_requirements(
 			dc,
 			context->bw.dce.sclk_khz);
 
+	pp_display_cfg->min_dcfclock_khz = pp_display_cfg->min_engine_clock_khz;
+
 	pp_display_cfg->min_engine_clock_deep_sleep_khz
 			= context->bw.dce.sclk_deep_sleep_khz;
 
@@ -671,6 +676,11 @@ static void dce112_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_power_level_change_request level_change_req;
+	int unpatched_disp_clk = context->bw.dce.dispclk_khz;
+
+	/*TODO: W/A for dal3 linux, investigate why this works */
+	if (!clk_mgr_dce->dfs_bypass_active)
+		context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
 
 	level_change_req.power_level = dce_get_required_clocks_state(clk_mgr, context);
 	/* get max clock state from PPLIB */
@@ -685,6 +695,8 @@ static void dce112_update_clocks(struct clk_mgr *clk_mgr,
 		clk_mgr->clks.dispclk_khz = context->bw.dce.dispclk_khz;
 	}
 	dce11_pplib_apply_display_requirements(clk_mgr->ctx->dc, context);
+
+	context->bw.dce.dispclk_khz = unpatched_disp_clk;
 }
 
 static void dce12_update_clocks(struct clk_mgr *clk_mgr,

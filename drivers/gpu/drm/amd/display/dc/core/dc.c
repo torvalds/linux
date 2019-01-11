@@ -62,6 +62,55 @@
 
 const static char DC_BUILD_ID[] = "production-build";
 
+/**
+ * DOC: Overview
+ *
+ * DC is the OS-agnostic component of the amdgpu DC driver.
+ *
+ * DC maintains and validates a set of structs representing the state of the
+ * driver and writes that state to AMD hardware
+ *
+ * Main DC HW structs:
+ *
+ * struct dc - The central struct.  One per driver.  Created on driver load,
+ * destroyed on driver unload.
+ *
+ * struct dc_context - One per driver.
+ * Used as a backpointer by most other structs in dc.
+ *
+ * struct dc_link - One per connector (the physical DP, HDMI, miniDP, or eDP
+ * plugpoints).  Created on driver load, destroyed on driver unload.
+ *
+ * struct dc_sink - One per display.  Created on boot or hotplug.
+ * Destroyed on shutdown or hotunplug.  A dc_link can have a local sink
+ * (the display directly attached).  It may also have one or more remote
+ * sinks (in the Multi-Stream Transport case)
+ *
+ * struct resource_pool - One per driver.  Represents the hw blocks not in the
+ * main pipeline.  Not directly accessible by dm.
+ *
+ * Main dc state structs:
+ *
+ * These structs can be created and destroyed as needed.  There is a full set of
+ * these structs in dc->current_state representing the currently programmed state.
+ *
+ * struct dc_state - The global DC state to track global state information,
+ * such as bandwidth values.
+ *
+ * struct dc_stream_state - Represents the hw configuration for the pipeline from
+ * a framebuffer to a display.  Maps one-to-one with dc_sink.
+ *
+ * struct dc_plane_state - Represents a framebuffer.  Each stream has at least one,
+ * and may have more in the Multi-Plane Overlay case.
+ *
+ * struct resource_context - Represents the programmable state of everything in
+ * the resource_pool.  Not directly accessible by dm.
+ *
+ * struct pipe_ctx - A member of struct resource_context.  Represents the
+ * internal hardware pipeline components.  Each dc_plane_state has either
+ * one or two (in the pipe-split case).
+ */
+
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
@@ -100,10 +149,6 @@ static bool create_links(
 			connectors_num,
 			ENUM_ID_COUNT);
 		return false;
-	}
-
-	if (connectors_num == 0 && num_virtual_links == 0) {
-		dm_error("DC: Number of connectors is zero!\n");
 	}
 
 	dm_output_to_console(
@@ -175,6 +220,17 @@ failed_alloc:
 	return false;
 }
 
+static struct dc_perf_trace *dc_perf_trace_create(void)
+{
+	return kzalloc(sizeof(struct dc_perf_trace), GFP_KERNEL);
+}
+
+static void dc_perf_trace_destroy(struct dc_perf_trace **perf_trace)
+{
+	kfree(*perf_trace);
+	*perf_trace = NULL;
+}
+
 /**
  *****************************************************************************
  *  Function: dc_stream_adjust_vmin_vmax
@@ -240,7 +296,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 }
 
 /**
- * dc_stream_configure_crc: Configure CRC capture for the given stream.
+ * dc_stream_configure_crc() - Configure CRC capture for the given stream.
  * @dc: DC Object
  * @stream: The stream to configure CRC on.
  * @enable: Enable CRC if true, disable otherwise.
@@ -292,7 +348,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 }
 
 /**
- * dc_stream_get_crc: Get CRC values for the given stream.
+ * dc_stream_get_crc() - Get CRC values for the given stream.
  * @dc: DC object
  * @stream: The DC stream state of the stream to get CRCs from.
  * @r_cr, g_y, b_cb: CRC values for the three channels are stored here.
@@ -328,7 +384,7 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
 	struct bit_depth_reduction_params params;
-	struct dc_link *link = stream->status.link;
+	struct dc_link *link = stream->sink->link;
 	struct pipe_ctx *pipes = NULL;
 	int i;
 
@@ -536,6 +592,8 @@ static void destruct(struct dc *dc)
 	if (dc->ctx->created_bios)
 		dal_bios_parser_destroy(&dc->ctx->dc_bios);
 
+	dc_perf_trace_destroy(&dc->ctx->perf_trace);
+
 	kfree(dc->ctx);
 	dc->ctx = NULL;
 
@@ -655,6 +713,12 @@ static bool construct(struct dc *dc,
 	dc_ctx->i2caux = dal_i2caux_create(dc_ctx);
 
 	if (!dc_ctx->i2caux) {
+		ASSERT_CRITICAL(false);
+		goto fail;
+	}
+
+	dc_ctx->perf_trace = dc_perf_trace_create();
+	if (!dc_ctx->perf_trace) {
 		ASSERT_CRITICAL(false);
 		goto fail;
 	}
@@ -1329,6 +1393,11 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	return overall_type;
 }
 
+/**
+ * dc_check_update_surfaces_for_stream() - Determine update type (fast, med, or full)
+ *
+ * See :c:type:`enum surface_update_type <surface_update_type>` for explanation of update types
+ */
 enum surface_update_type dc_check_update_surfaces_for_stream(
 		struct dc *dc,
 		struct dc_surface_update *updates,
@@ -1398,7 +1467,8 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||
-					stream_update->vsc_infopacket) {
+					stream_update->vsc_infopacket ||
+					stream_update->vsp_infopacket) {
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 			}
@@ -1408,6 +1478,14 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->output_csc_transform)
 				dc_stream_program_csc_matrix(dc, stream);
+
+			if (stream_update->dither_option) {
+				resource_build_bit_depth_reduction_params(pipe_ctx->stream,
+									&pipe_ctx->stream->bit_depth_params);
+				pipe_ctx->stream_res.opp->funcs->opp_program_fmt(pipe_ctx->stream_res.opp,
+						&stream->bit_depth_params,
+						&stream->clamping);
+			}
 
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
@@ -1491,9 +1569,6 @@ static void commit_planes_for_stream(struct dc *dc,
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 		}
 	}
-
-	if (update_type == UPDATE_TYPE_FULL)
-		context_timing_trace(dc, &context->res_ctx);
 
 	// Update Type FAST, Surface updates
 	if (update_type == UPDATE_TYPE_FAST) {
@@ -1631,6 +1706,9 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 	return dal_irq_service_to_irq_source(dc->res_pool->irqs, src_id, ext_id);
 }
 
+/**
+ * dc_interrupt_set() - Enable/disable an AMD hw interrupt source
+ */
 bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
 {
 
@@ -1686,6 +1764,15 @@ void dc_resume(struct dc *dc)
 		core_link_resume(dc->links[i]);
 }
 
+bool dc_is_dmcu_initialized(struct dc *dc)
+{
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+
+	if (dmcu)
+		return dmcu->funcs->is_dmcu_initialized(dmcu);
+	return false;
+}
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
@@ -1715,6 +1802,11 @@ static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink 
 	return true;
 }
 
+/**
+ * dc_link_add_remote_sink() - Create a sink and attach it to an existing link
+ *
+ * EDID length is in bytes
+ */
 struct dc_sink *dc_link_add_remote_sink(
 		struct dc_link *link,
 		const uint8_t *edid,
@@ -1773,6 +1865,12 @@ fail_add_sink:
 	return NULL;
 }
 
+/**
+ * dc_link_remove_remote_sink() - Remove a remote sink from a dc_link
+ *
+ * Note that this just removes the struct dc_sink - it doesn't
+ * program hardware or alter other members of dc_link
+ */
 void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 {
 	int i;

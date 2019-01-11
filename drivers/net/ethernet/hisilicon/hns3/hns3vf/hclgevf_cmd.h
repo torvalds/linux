@@ -87,6 +87,8 @@ enum hclgevf_opcode_type {
 	HCLGEVF_OPC_QUERY_TX_STATUS	= 0x0B03,
 	HCLGEVF_OPC_QUERY_RX_STATUS	= 0x0B13,
 	HCLGEVF_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
+	/* GRO command */
+	HCLGEVF_OPC_GRO_GENERIC_CONFIG  = 0x0C10,
 	/* RSS cmd */
 	HCLGEVF_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
 	HCLGEVF_OPC_RSS_INPUT_TUPLE     = 0x0D02,
@@ -147,6 +149,12 @@ struct hclgevf_query_res_cmd {
 	__le16 msixcap_localid_ba_rocee;
 	__le16 vf_intr_vector_number;
 	__le16 rsv[7];
+};
+
+#define HCLGEVF_GRO_EN_B               0
+struct hclgevf_cfg_gro_status_cmd {
+	__le16 gro_en;
+	u8 rsv[22];
 };
 
 #define HCLGEVF_RSS_DEFAULT_OUTPORT_B	4
@@ -256,6 +264,7 @@ static inline u32 hclgevf_read_reg(u8 __iomem *base, u32 reg)
 
 int hclgevf_cmd_init(struct hclgevf_dev *hdev);
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);
+int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev);
 
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num);
 void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,

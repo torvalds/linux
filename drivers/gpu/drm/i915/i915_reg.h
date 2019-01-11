@@ -4570,6 +4570,7 @@ enum {
  * of the infoframe structure specified by CEA-861. */
 #define   VIDEO_DIP_DATA_SIZE	32
 #define   VIDEO_DIP_VSC_DATA_SIZE	36
+#define   VIDEO_DIP_PPS_DATA_SIZE	132
 #define VIDEO_DIP_CTL		_MMIO(0x61170)
 /* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)
@@ -4617,6 +4618,17 @@ enum {
 #define _PP_STATUS			0x61200
 #define PP_STATUS(pps_idx)		_MMIO_PPS(pps_idx, _PP_STATUS)
 #define   PP_ON				(1 << 31)
+
+#define _PP_CONTROL_1			0xc7204
+#define _PP_CONTROL_2			0xc7304
+#define ICP_PP_CONTROL(x)		_MMIO(((x) == 1) ? _PP_CONTROL_1 : \
+					      _PP_CONTROL_2)
+#define  POWER_CYCLE_DELAY_MASK	(0x1f << 4)
+#define  POWER_CYCLE_DELAY_SHIFT	4
+#define  VDD_OVERRIDE_FORCE		(1 << 3)
+#define  BACKLIGHT_ENABLE		(1 << 2)
+#define  PWR_DOWN_ON_RESET		(1 << 1)
+#define  PWR_STATE_TARGET		(1 << 0)
 /*
  * Indicates that all dependencies of the panel are on:
  *
@@ -7750,6 +7762,7 @@ enum {
 #define   ICP_DDIB_HPD_LONG_DETECT		(2 << 4)
 #define   ICP_DDIB_HPD_SHORT_LONG_DETECT	(3 << 4)
 #define   ICP_DDIA_HPD_ENABLE			(1 << 3)
+#define   ICP_DDIA_HPD_OP_DRIVE_1		(1 << 2)
 #define   ICP_DDIA_HPD_STATUS_MASK		(3 << 0)
 #define   ICP_DDIA_HPD_NO_DETECT		(0 << 0)
 #define   ICP_DDIA_HPD_SHORT_DETECT		(1 << 0)
@@ -9197,6 +9210,7 @@ enum skl_power_gate {
 #define _DP_TP_CTL_B			0x64140
 #define DP_TP_CTL(port) _MMIO_PORT(port, _DP_TP_CTL_A, _DP_TP_CTL_B)
 #define  DP_TP_CTL_ENABLE			(1 << 31)
+#define  DP_TP_CTL_FEC_ENABLE			(1 << 30)
 #define  DP_TP_CTL_MODE_SST			(0 << 27)
 #define  DP_TP_CTL_MODE_MST			(1 << 27)
 #define  DP_TP_CTL_FORCE_ACT			(1 << 25)
@@ -9215,6 +9229,7 @@ enum skl_power_gate {
 #define _DP_TP_STATUS_A			0x64044
 #define _DP_TP_STATUS_B			0x64144
 #define DP_TP_STATUS(port) _MMIO_PORT(port, _DP_TP_STATUS_A, _DP_TP_STATUS_B)
+#define  DP_TP_STATUS_FEC_ENABLE_LIVE		(1 << 28)
 #define  DP_TP_STATUS_IDLE_DONE			(1 << 25)
 #define  DP_TP_STATUS_ACT_SENT			(1 << 24)
 #define  DP_TP_STATUS_MODE_STATUS_MST		(1 << 23)

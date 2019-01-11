@@ -29,45 +29,29 @@
 #include <nvif/class.h>
 
 u32
-nv50_lut_load(struct nv50_lut *lut, bool legacy, int buffer,
-	      struct drm_property_blob *blob)
+nv50_lut_load(struct nv50_lut *lut, int buffer, struct drm_property_blob *blob,
+	      void (*load)(struct drm_color_lut *, int, void __iomem *))
 {
-	struct drm_color_lut *in = (struct drm_color_lut *)blob->data;
+	struct drm_color_lut *in = blob ? blob->data : NULL;
 	void __iomem *mem = lut->mem[buffer].object.map.ptr;
-	const int size = blob->length / sizeof(*in);
-	int bits, shift, i;
-	u16 zero, r, g, b;
-	u32 addr = lut->mem[buffer].addr;
+	const u32 addr = lut->mem[buffer].addr;
+	int i;
 
-	/* This can't happen.. But it shuts the compiler up. */
-	if (WARN_ON(size != 256))
-		return 0;
-
-	if (legacy) {
-		bits = 11;
-		shift = 3;
-		zero = 0x0000;
+	if (!in) {
+		in = kvmalloc_array(1024, sizeof(*in), GFP_KERNEL);
+		if (!WARN_ON(!in)) {
+			for (i = 0; i < 1024; i++) {
+				in[i].red   =
+				in[i].green =
+				in[i].blue  = (i << 16) >> 10;
+			}
+			load(in, 1024, mem);
+			kvfree(in);
+		}
 	} else {
-		bits = 14;
-		shift = 0;
-		zero = 0x6000;
+		load(in, blob->length / sizeof(*in), mem);
 	}
 
-	for (i = 0; i < size; i++) {
-		r = (drm_color_lut_extract(in[i].  red, bits) + zero) << shift;
-		g = (drm_color_lut_extract(in[i].green, bits) + zero) << shift;
-		b = (drm_color_lut_extract(in[i]. blue, bits) + zero) << shift;
-		writew(r, mem + (i * 0x08) + 0);
-		writew(g, mem + (i * 0x08) + 2);
-		writew(b, mem + (i * 0x08) + 4);
-	}
-
-	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
-	 */
-	writew(r, mem + (i * 0x08) + 0);
-	writew(g, mem + (i * 0x08) + 2);
-	writew(b, mem + (i * 0x08) + 4);
 	return addr;
 }
 

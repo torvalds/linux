@@ -184,6 +184,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->fifo_changed = false;
 	crtc_state->wm.need_postvbl_update = false;
 	crtc_state->fb_bits = 0;
+	crtc_state->update_planes = 0;
 
 	return &crtc_state->base;
 }

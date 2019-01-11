@@ -44,7 +44,6 @@
 #include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_enum.h"
 #include "gca/gfx_8_0_sh_mask.h"
-#include "gca/gfx_8_0_enum.h"
 
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
@@ -1891,7 +1890,7 @@ static int gfx_v8_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
-	ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + ring_id;
+	ring->doorbell_index = adev->doorbell_index.mec_ring0 + ring_id;
 	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr
 				+ (ring_id * GFX8_MEC_HPD_SIZE);
 	sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
@@ -2002,7 +2001,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		/* no gfx doorbells on iceland */
 		if (adev->asic_type != CHIP_TOPAZ) {
 			ring->use_doorbell = true;
-			ring->doorbell_index = AMDGPU_DOORBELL_GFX_RING0;
+			ring->doorbell_index = adev->doorbell_index.gfx_ring0;
 		}
 
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
@@ -4069,6 +4068,11 @@ static void gfx_v8_0_rlc_start(struct amdgpu_device *adev)
 
 static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev)) {
+		gfx_v8_0_init_csb(adev);
+		return 0;
+	}
+
 	adev->gfx.rlc.funcs->stop(adev);
 	adev->gfx.rlc.funcs->reset(adev);
 	gfx_v8_0_init_pg(adev);
@@ -4216,7 +4220,7 @@ static void gfx_v8_0_set_cpg_door_bell(struct amdgpu_device *adev, struct amdgpu
 
 	tmp = REG_SET_FIELD(0, CP_RB_DOORBELL_RANGE_LOWER,
 					DOORBELL_RANGE_LOWER,
-					AMDGPU_DOORBELL_GFX_RING0);
+					adev->doorbell_index.gfx_ring0);
 	WREG32(mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
 
 	WREG32(mmCP_RB_DOORBELL_RANGE_UPPER,
@@ -4645,8 +4649,8 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 static void gfx_v8_0_set_mec_doorbell_range(struct amdgpu_device *adev)
 {
 	if (adev->asic_type > CHIP_TONGA) {
-		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, AMDGPU_DOORBELL_KIQ << 2);
-		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER, AMDGPU_DOORBELL_MEC_RING7 << 2);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, adev->doorbell_index.kiq << 2);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER, adev->doorbell_index.mec_ring7 << 2);
 	}
 	/* enable doorbells */
 	WREG32_FIELD(CP_PQ_STATUS, DOORBELL_ENABLE, 1);
@@ -4948,14 +4952,13 @@ static bool gfx_v8_0_check_soft_reset(void *handle)
 static int gfx_v8_0_pre_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+	u32 grbm_soft_reset = 0;
 
 	if ((!adev->gfx.grbm_soft_reset) &&
 	    (!adev->gfx.srbm_soft_reset))
 		return 0;
 
 	grbm_soft_reset = adev->gfx.grbm_soft_reset;
-	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
 	/* stop the rlc */
 	adev->gfx.rlc.funcs->stop(adev);
@@ -5052,14 +5055,13 @@ static int gfx_v8_0_soft_reset(void *handle)
 static int gfx_v8_0_post_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+	u32 grbm_soft_reset = 0;
 
 	if ((!adev->gfx.grbm_soft_reset) &&
 	    (!adev->gfx.srbm_soft_reset))
 		return 0;
 
 	grbm_soft_reset = adev->gfx.grbm_soft_reset;
-	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
 	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPF) ||

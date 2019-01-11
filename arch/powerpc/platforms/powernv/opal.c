@@ -877,7 +877,7 @@ static int __init opal_init(void)
 	consoles = of_find_node_by_path("/ibm,opal/consoles");
 	if (consoles) {
 		for_each_child_of_node(consoles, np) {
-			if (strcmp(np->name, "serial"))
+			if (!of_node_name_eq(np, "serial"))
 				continue;
 			of_platform_device_create(np, NULL, NULL);
 		}
@@ -959,6 +959,9 @@ static int __init opal_init(void)
 
 	/* Initialise OPAL sensor groups */
 	opal_sensor_groups_init();
+
+	/* Initialise OPAL Power control interface */
+	opal_power_control_init();
 
 	return 0;
 }

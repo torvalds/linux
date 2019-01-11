@@ -1,3 +1,6 @@
+
+.. _addsyscalls:
+
 Adding a New System Call
 ========================
 

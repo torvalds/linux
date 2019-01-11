@@ -327,8 +327,7 @@ static int isa_bridge_notify(struct notifier_block *nb, unsigned long action,
 		/* Check if we have no ISA device, and this happens to be one,
 		 * register it as such if it has an OF device
 		 */
-		if (!isa_bridge_devnode && devnode && devnode->type &&
-		    !strcmp(devnode->type, "isa"))
+		if (!isa_bridge_devnode && of_node_is_type(devnode, "isa"))
 			isa_bridge_find_late(pdev, devnode);
 
 		return 0;

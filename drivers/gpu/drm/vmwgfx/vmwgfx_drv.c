@@ -34,7 +34,7 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0
@@ -48,6 +48,8 @@
 #endif
 
 #define VMWGFX_REPO "In Tree"
+
+#define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
 
 
 /**
@@ -581,7 +583,7 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 
 	dev_priv->map_mode = vmw_dma_map_populate;
 
-	if (dma_ops->sync_single_for_cpu)
+	if (dma_ops && dma_ops->sync_single_for_cpu)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl() == 0)
@@ -665,7 +667,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
-	mutex_init(&dev_priv->requested_layout_mutex);
 	mutex_init(&dev_priv->global_kms_state_mutex);
 	ttm_lock_init(&dev_priv->reservation_sem);
 	spin_lock_init(&dev_priv->resource_lock);
@@ -912,7 +913,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		spin_unlock(&dev_priv->cap_lock);
 	}
 
-
+	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;

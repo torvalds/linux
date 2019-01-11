@@ -68,6 +68,19 @@ static void mt76x0e_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&dev->mt76.mutex);
 }
 
+static void
+mt76x0e_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	      u32 queues, bool drop)
+{
+}
+
+static int
+mt76x0e_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		bool set)
+{
+	return 0;
+}
+
 static const struct ieee80211_ops mt76x0e_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x0e_start,
@@ -76,15 +89,22 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,
-	.sta_add = mt76x02_sta_add,
-	.sta_remove = mt76x02_sta_remove,
+	.bss_info_changed = mt76x02_bss_info_changed,
+	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x0_sw_scan,
-	.sw_scan_complete = mt76x0_sw_scan_complete,
+	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.ampdu_action = mt76x02_ampdu_action,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.wake_tx_queue = mt76_wake_tx_queue,
+	.get_survey = mt76_get_survey,
+	.get_txpower = mt76x02_get_txpower,
+	.flush = mt76x0e_flush,
+	.set_tim = mt76x0e_set_tim,
+	.release_buffered_frames = mt76_release_buffered_frames,
+	.set_coverage_class = mt76x02_set_coverage_class,
+	.set_rts_threshold = mt76x02_set_rts_threshold,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)
@@ -135,10 +155,14 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
+		.update_survey = mt76x02_update_channel,
 		.tx_prepare_skb = mt76x02_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,
 		.rx_skb = mt76x02_queue_rx_skb,
 		.rx_poll_complete = mt76x02_rx_poll_complete,
+		.sta_ps = mt76x02_sta_ps,
+		.sta_add = mt76x02_sta_add,
+		.sta_remove = mt76x02_sta_remove,
 	};
 	struct mt76x02_dev *dev;
 	int ret;
@@ -185,6 +209,7 @@ error:
 static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	tasklet_disable(&dev->pre_tbtt_tasklet);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76x0e_stop_hw(dev);
 	mt76x02_dma_cleanup(dev);
@@ -209,6 +234,8 @@ static const struct pci_device_id mt76x0e_device_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, mt76x0e_device_table);
+MODULE_FIRMWARE(MT7610E_FIRMWARE);
+MODULE_FIRMWARE(MT7650E_FIRMWARE);
 MODULE_LICENSE("Dual BSD/GPL");
 
 static struct pci_driver mt76x0e_driver = {

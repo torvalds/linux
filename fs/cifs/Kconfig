@@ -133,7 +133,7 @@ config CIFS_XATTR
 
 config CIFS_POSIX
         bool "CIFS POSIX Extensions"
-        depends on CIFS_XATTR
+        depends on CIFS && CIFS_ALLOW_INSECURE_LEGACY && CIFS_XATTR
         help
           Enabling this option will cause the cifs client to attempt to
 	  negotiate a newer dialect with servers, such as Samba 3.0.5
@@ -190,8 +190,9 @@ config CIFS_DFS_UPCALL
 	    moves to a different server.  This feature also enables
 	    an upcall mechanism for CIFS which contacts userspace helper
 	    utilities to provide server name resolution (host names to
-	    IP addresses) which is needed for implicit mounts of DFS junction
-	    points. If unsure, say Y.
+	    IP addresses) which is needed in order to reconnect to
+	    servers if their addresses change or for implicit mounts of
+	    DFS junction points. If unsure, say Y.
 
 config CIFS_NFSD_EXPORT
 	  bool "Allow nfsd to export CIFS file system"

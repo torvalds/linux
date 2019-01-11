@@ -1838,7 +1838,7 @@ static struct scsi_host_template mesh_template = {
 	.this_id			= 7,
 	.sg_tablesize			= SG_ALL,
 	.cmd_per_lun			= 2,
-	.use_clustering			= DISABLE_CLUSTERING,
+	.max_segment_size		= 65535,
 };
 
 static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)

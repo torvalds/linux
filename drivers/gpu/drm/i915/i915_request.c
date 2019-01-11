@@ -136,6 +136,9 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 			  intel_engine_get_seqno(engine),
 			  seqno);
 
+		if (seqno == engine->timeline.seqno)
+			continue;
+
 		kthread_park(engine->breadcrumbs.signaler);
 
 		if (!i915_seqno_passed(seqno, engine->timeline.seqno)) {

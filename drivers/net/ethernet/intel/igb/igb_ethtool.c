@@ -2113,7 +2113,7 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE))
+	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE | WAKE_FILTER))
 		return -EOPNOTSUPP;
 
 	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
@@ -2295,7 +2295,7 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 	int i, j;
 	char *p;
 
-	spin_lock(&adapter->stats64_lock);
+	mutex_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter);
 
 	for (i = 0; i < IGB_GLOBAL_STATS_LEN; i++) {
@@ -2338,7 +2338,7 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 		} while (u64_stats_fetch_retry_irq(&ring->rx_syncp, start));
 		i += IGB_RX_QUEUE_STATS_LEN;
 	}
-	spin_unlock(&adapter->stats64_lock);
+	mutex_unlock(&adapter->stats64_lock);
 }
 
 static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)

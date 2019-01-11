@@ -60,7 +60,7 @@ scom_map_t scom_map_device(struct device_node *dev, int index)
 	parent = scom_find_parent(dev);
 
 	if (parent == NULL)
-		return 0;
+		return NULL;
 
 	/*
 	 * We support "scom-reg" properties for adding scom registers
@@ -83,7 +83,7 @@ scom_map_t scom_map_device(struct device_node *dev, int index)
 	size >>= 2;
 
 	if (index >= (size / (2*cells)))
-		return 0;
+		return NULL;
 
 	reg = of_read_number(&prop[index * cells * 2], cells);
 	cnt = of_read_number(&prop[index * cells * 2 + cells], cells);

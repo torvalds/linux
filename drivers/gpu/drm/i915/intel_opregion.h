@@ -87,12 +87,12 @@ static inline void intel_opregion_unregister(struct drm_i915_private *dev_priv)
 {
 }
 
-void intel_opregion_resume(struct drm_i915_private *dev_priv)
+static inline void intel_opregion_resume(struct drm_i915_private *dev_priv)
 {
 }
 
-void intel_opregion_suspend(struct drm_i915_private *dev_priv,
-			    pci_power_t state)
+static inline void intel_opregion_suspend(struct drm_i915_private *dev_priv,
+					  pci_power_t state)
 {
 }
 

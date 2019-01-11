@@ -1213,6 +1213,139 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 }
 EXPORT_SYMBOL(cnstr_shdsc_rfc4543_decap);
 
+/**
+ * cnstr_shdsc_chachapoly - Chacha20 + Poly1305 generic AEAD (rfc7539) and
+ *                          IPsec ESP (rfc7634, a.k.a. rfc7539esp) shared
+ *                          descriptor (non-protocol).
+ * @desc: pointer to buffer used for descriptor construction
+ * @cdata: pointer to block cipher transform definitions
+ *         Valid algorithm values - OP_ALG_ALGSEL_CHACHA20 ANDed with
+ *         OP_ALG_AAI_AEAD.
+ * @adata: pointer to authentication transform definitions
+ *         Valid algorithm values - OP_ALG_ALGSEL_POLY1305 ANDed with
+ *         OP_ALG_AAI_AEAD.
+ * @ivsize: initialization vector size
+ * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @encap: true if encapsulation, false if decapsulation
+ * @is_qi: true when called from caam/qi
+ */
+void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
+			    struct alginfo *adata, unsigned int ivsize,
+			    unsigned int icvsize, const bool encap,
+			    const bool is_qi)
+{
+	u32 *key_jump_cmd, *wait_cmd;
+	u32 nfifo;
+	const bool is_ipsec = (ivsize != CHACHAPOLY_IV_SIZE);
+
+	/* Note: Context registers are saved. */
+	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
+
+	/* skip key loading if they are loaded due to sharing */
+	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+				   JUMP_COND_SHRD);
+
+	append_key_as_imm(desc, cdata->key_virt, cdata->keylen, cdata->keylen,
+			  CLASS_1 | KEY_DEST_CLASS_REG);
+
+	/* For IPsec load the salt from keymat in the context register */
+	if (is_ipsec)
+		append_load_as_imm(desc, cdata->key_virt + cdata->keylen, 4,
+				   LDST_CLASS_1_CCB | LDST_SRCDST_BYTE_CONTEXT |
+				   4 << LDST_OFFSET_SHIFT);
+
+	set_jump_tgt_here(desc, key_jump_cmd);
+
+	/* Class 2 and 1 operations: Poly & ChaCha */
+	if (encap) {
+		append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
+				 OP_ALG_ENCRYPT);
+		append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
+				 OP_ALG_ENCRYPT);
+	} else {
+		append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
+				 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+		append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
+				 OP_ALG_DECRYPT);
+	}
+
+	if (is_qi) {
+		u32 *wait_load_cmd;
+		u32 ctx1_iv_off = is_ipsec ? 8 : 4;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				4 << LDST_OFFSET_SHIFT);
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		append_seq_load(desc, ivsize, LDST_CLASS_1_CCB |
+				LDST_SRCDST_BYTE_CONTEXT |
+				ctx1_iv_off << LDST_OFFSET_SHIFT);
+	}
+
+	/*
+	 * MAGIC with NFIFO
+	 * Read associated data from the input and send them to class1 and
+	 * class2 alignment blocks. From class1 send data to output fifo and
+	 * then write it to memory since we don't need to encrypt AD.
+	 */
+	nfifo = NFIFOENTRY_DEST_BOTH | NFIFOENTRY_FC1 | NFIFOENTRY_FC2 |
+		NFIFOENTRY_DTYPE_POLY | NFIFOENTRY_BND;
+	append_load_imm_u32(desc, nfifo, LDST_CLASS_IND_CCB |
+			    LDST_SRCDST_WORD_INFO_FIFO_SM | LDLEN_MATH3);
+
+	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
+	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
+	append_seq_fifo_load(desc, 0, FIFOLD_TYPE_NOINFOFIFO |
+			     FIFOLD_CLASS_CLASS1 | LDST_VLF);
+	append_move_len(desc, MOVE_AUX_LS | MOVE_SRC_AUX_ABLK |
+			MOVE_DEST_OUTFIFO | MOVELEN_MRSEL_MATH3);
+	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | LDST_VLF);
+
+	/* IPsec - copy IV at the output */
+	if (is_ipsec)
+		append_seq_fifo_store(desc, ivsize, FIFOST_TYPE_METADATA |
+				      0x2 << 25);
+
+	wait_cmd = append_jump(desc, JUMP_JSL | JUMP_TYPE_LOCAL |
+			       JUMP_COND_NOP | JUMP_TEST_ALL);
+	set_jump_tgt_here(desc, wait_cmd);
+
+	if (encap) {
+		/* Read and write cryptlen bytes */
+		append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+		append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0,
+				CAAM_CMD_SZ);
+		aead_append_src_dst(desc, FIFOLD_TYPE_MSG1OUT2);
+
+		/* Write ICV */
+		append_seq_store(desc, icvsize, LDST_CLASS_2_CCB |
+				 LDST_SRCDST_BYTE_CONTEXT);
+	} else {
+		/* Read and write cryptlen bytes */
+		append_math_add(desc, VARSEQINLEN, SEQOUTLEN, REG0,
+				CAAM_CMD_SZ);
+		append_math_add(desc, VARSEQOUTLEN, SEQOUTLEN, REG0,
+				CAAM_CMD_SZ);
+		aead_append_src_dst(desc, FIFOLD_TYPE_MSG);
+
+		/* Load ICV for verification */
+		append_seq_fifo_load(desc, icvsize, FIFOLD_CLASS_CLASS2 |
+				     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_ICV);
+	}
+
+	print_hex_dump_debug("chachapoly shdesc@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
+}
+EXPORT_SYMBOL(cnstr_shdsc_chachapoly);
+
 /* For skcipher encrypt and decrypt, read from req->src and write to req->dst */
 static inline void skcipher_append_src_dst(u32 *desc)
 {
@@ -1228,7 +1361,8 @@ static inline void skcipher_append_src_dst(u32 *desc)
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
- *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128.
+ *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128
+ *                                - OP_ALG_ALGSEL_CHACHA20
  * @ivsize: initialization vector size
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @ctx1_iv_off: IV offset in CONTEXT1 register
@@ -1293,7 +1427,8 @@ EXPORT_SYMBOL(cnstr_shdsc_skcipher_encap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
- *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128.
+ *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128
+ *                                - OP_ALG_ALGSEL_CHACHA20
  * @ivsize: initialization vector size
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @ctx1_iv_off: IV offset in CONTEXT1 register

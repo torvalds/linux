@@ -703,16 +703,19 @@ static int pvr2_try_ext_ctrls(struct file *file, void *priv,
 	return 0;
 }
 
-static int pvr2_cropcap(struct file *file, void *priv, struct v4l2_cropcap *cap)
+static int pvr2_g_pixelaspect(struct file *file, void *priv,
+			      int type, struct v4l2_fract *f)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
+	struct v4l2_cropcap cap = { .type = type };
 	int ret;
 
-	if (cap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	ret = pvr2_hdw_get_cropcap(hdw, cap);
-	cap->type = V4L2_BUF_TYPE_VIDEO_CAPTURE; /* paranoia */
+	ret = pvr2_hdw_get_cropcap(hdw, &cap);
+	if (!ret)
+		*f = cap.pixelaspect;
 	return ret;
 }
 
@@ -815,7 +818,7 @@ static const struct v4l2_ioctl_ops pvr2_ioctl_ops = {
 	.vidioc_g_audio			    = pvr2_g_audio,
 	.vidioc_enumaudio		    = pvr2_enumaudio,
 	.vidioc_enum_input		    = pvr2_enum_input,
-	.vidioc_cropcap			    = pvr2_cropcap,
+	.vidioc_g_pixelaspect		    = pvr2_g_pixelaspect,
 	.vidioc_s_selection		    = pvr2_s_selection,
 	.vidioc_g_selection		    = pvr2_g_selection,
 	.vidioc_g_input			    = pvr2_g_input,

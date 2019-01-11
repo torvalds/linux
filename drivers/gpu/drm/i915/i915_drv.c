@@ -53,6 +53,7 @@
 #include "i915_vgpu.h"
 #include "intel_drv.h"
 #include "intel_uc.h"
+#include "intel_workarounds.h"
 
 static struct drm_driver driver;
 
@@ -287,7 +288,7 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 	 * Use PCH_NOP (PCH but no South Display) for PCH platforms without
 	 * display.
 	 */
-	if (pch && INTEL_INFO(dev_priv)->num_pipes == 0) {
+	if (pch && !HAS_DISPLAY(dev_priv)) {
 		DRM_DEBUG_KMS("Display disabled, reverting to NOP PCH\n");
 		dev_priv->pch_type = PCH_NOP;
 		dev_priv->pch_id = 0;
@@ -645,7 +646,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	if (INTEL_INFO(dev_priv)->num_pipes) {
+	if (HAS_DISPLAY(dev_priv)) {
 		ret = drm_vblank_init(&dev_priv->drm,
 				      INTEL_INFO(dev_priv)->num_pipes);
 		if (ret)
@@ -696,7 +697,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_overlay_setup(dev_priv);
 
-	if (INTEL_INFO(dev_priv)->num_pipes == 0)
+	if (!HAS_DISPLAY(dev_priv))
 		return 0;
 
 	ret = intel_fbdev_init(dev);
@@ -868,6 +869,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 	pre |= IS_HSW_EARLY_SDV(dev_priv);
 	pre |= IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0);
 	pre |= IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST);
+	pre |= IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0);
 
 	if (pre) {
 		DRM_ERROR("This is a pre-production stepping. "
@@ -1383,6 +1385,20 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		}
 	}
 
+	if (HAS_EXECLISTS(dev_priv)) {
+		/*
+		 * Older GVT emulation depends upon intercepting CSB mmio,
+		 * which we no longer use, preferring to use the HWSP cache
+		 * instead.
+		 */
+		if (intel_vgpu_active(dev_priv) &&
+		    !intel_vgpu_has_hwsp_emulation(dev_priv)) {
+			i915_report_error(dev_priv,
+					  "old vGPU host found, support for HWSP emulation required\n");
+			return -ENXIO;
+		}
+	}
+
 	intel_sanitize_options(dev_priv);
 
 	i915_perf_init(dev_priv);
@@ -1452,6 +1468,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_uncore_sanitize(dev_priv);
 
+	intel_gt_init_workarounds(dev_priv);
 	i915_gem_load_init_fences(dev_priv);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -1551,7 +1568,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	} else
 		DRM_ERROR("Failed to register driver for userspace access!\n");
 
-	if (INTEL_INFO(dev_priv)->num_pipes) {
+	if (HAS_DISPLAY(dev_priv)) {
 		/* Must be done after probing outputs */
 		intel_opregion_register(dev_priv);
 		acpi_video_register();
@@ -1575,7 +1592,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 * We need to coordinate the hotplugs with the asynchronous fbdev
 	 * configuration, for which we use the fbdev->async_cookie.
 	 */
-	if (INTEL_INFO(dev_priv)->num_pipes)
+	if (HAS_DISPLAY(dev_priv))
 		drm_kms_helper_poll_init(dev);
 
 	intel_power_domains_enable(dev_priv);

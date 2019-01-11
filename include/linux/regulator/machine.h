@@ -158,6 +158,9 @@ struct regulation_constraints {
 	/* used for coupled regulators */
 	int max_spread;
 
+	/* used for changing voltage in steps */
+	int max_uV_step;
+
 	/* valid regulator operating modes for this machine */
 	unsigned int valid_modes_mask;
 

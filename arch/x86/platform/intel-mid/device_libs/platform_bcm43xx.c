@@ -1,5 +1,5 @@
 /*
- * platform_bcm43xx.c: bcm43xx platform data initilization file
+ * platform_bcm43xx.c: bcm43xx platform data initialization file
  *
  * (C) Copyright 2016 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>

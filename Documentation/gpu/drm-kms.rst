@@ -554,6 +554,18 @@ Plane Composition Properties
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :export:
 
+FB_DAMAGE_CLIPS
+~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_damage_helper.h
+   :internal:
+
 Color Management Properties
 ---------------------------
 
@@ -574,6 +586,13 @@ Explicit Fencing Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
    :doc: explicit fencing properties
+
+
+Variable Refresh Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: Variable refresh properties
 
 Existing KMS Properties
 -----------------------

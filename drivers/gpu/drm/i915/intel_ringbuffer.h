@@ -15,6 +15,7 @@
 #include "i915_selftest.h"
 #include "i915_timeline.h"
 #include "intel_gpu_commands.h"
+#include "intel_workarounds.h"
 
 struct drm_printer;
 struct i915_sched_attr;
@@ -313,13 +314,6 @@ struct intel_engine_execlists {
 	struct rb_root_cached queue;
 
 	/**
-	 * @csb_read: control register for Context Switch buffer
-	 *
-	 * Note this register is always in mmio.
-	 */
-	u32 __iomem *csb_read;
-
-	/**
 	 * @csb_write: control register for Context Switch buffer
 	 *
 	 * Note this register may be either mmio or HWSP shadow.
@@ -337,15 +331,6 @@ struct intel_engine_execlists {
 	 * @preempt_complete_status: expected CSB upon completing preemption
 	 */
 	u32 preempt_complete_status;
-
-	/**
-	 * @csb_write_reset: reset value for CSB write pointer
-	 *
-	 * As the CSB write pointer maybe either in HWSP or as a field
-	 * inside an mmio register, we want to reprogram it slightly
-	 * differently to avoid later confusion.
-	 */
-	u32 csb_write_reset;
 
 	/**
 	 * @csb_head: context status buffer head
@@ -451,7 +436,9 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
-	struct i915_vma *scratch;
+	struct i915_wa_list ctx_wa_list;
+	struct i915_wa_list wa_list;
+	struct i915_wa_list whitelist;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
@@ -907,10 +894,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
-
-int intel_engine_create_scratch(struct intel_engine_cs *engine,
-				unsigned int size);
-void intel_engine_cleanup_scratch(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);

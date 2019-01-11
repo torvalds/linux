@@ -531,6 +531,8 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 	struct drm_crtc *crtc = new_plane_state->crtc;
 	const struct drm_framebuffer *fb = new_plane_state->fb;
 	unsigned int fb_width, fb_height;
+	struct drm_mode_rect *clips;
+	uint32_t num_clips;
 	int ret;
 
 	/* either *both* CRTC and FB must be set, or neither */
@@ -602,6 +604,26 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 				 ((new_plane_state->src_y & 0xffff) * 15625) >> 10,
 				 fb->width, fb->height);
 		return -ENOSPC;
+	}
+
+	clips = drm_plane_get_damage_clips(new_plane_state);
+	num_clips = drm_plane_get_damage_clips_count(new_plane_state);
+
+	/* Make sure damage clips are valid and inside the fb. */
+	while (num_clips > 0) {
+		if (clips->x1 >= clips->x2 ||
+		    clips->y1 >= clips->y2 ||
+		    clips->x1 < 0 ||
+		    clips->y1 < 0 ||
+		    clips->x2 > fb_width ||
+		    clips->y2 > fb_height) {
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid damage clip %d %d %d %d\n",
+					 plane->base.id, plane->name, clips->x1,
+					 clips->y1, clips->x2, clips->y2);
+			return -EINVAL;
+		}
+		clips++;
+		num_clips--;
 	}
 
 	if (plane_switching_crtc(old_plane_state, new_plane_state)) {

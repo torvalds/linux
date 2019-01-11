@@ -157,16 +157,19 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		if (entry.schedule)
 			q->swq_queued--;
 
-		if (entry.skb)
+		q->tail = (q->tail + 1) % q->ndesc;
+		q->queued--;
+
+		if (entry.skb) {
+			spin_unlock_bh(&q->lock);
 			dev->drv->tx_complete_skb(dev, q, &entry, flush);
+			spin_lock_bh(&q->lock);
+		}
 
 		if (entry.txwi) {
 			mt76_put_txwi(dev, entry.txwi);
-			wake = true;
+			wake = !flush;
 		}
-
-		q->tail = (q->tail + 1) % q->ndesc;
-		q->queued--;
 
 		if (!flush && q->tail == last)
 			last = ioread32(&q->regs->dma_idx);
@@ -258,6 +261,7 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 		return -ENOMEM;
 	}
 
+	skb->prev = skb->next = NULL;
 	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
 				DMA_TO_DEVICE);
 	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, q, wcid, sta,

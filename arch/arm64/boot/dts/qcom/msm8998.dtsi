@@ -3,6 +3,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8998.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -53,10 +54,11 @@
 	};
 
 	clocks {
-		xo_board {
+		xo: xo-board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
+			clock-output-names = "xo_board";
 		};
 
 		sleep_clk {
@@ -239,7 +241,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-msm8998";
+			compatible = "qcom,scm-msm8998", "qcom,scm";
 		};
 	};
 
@@ -605,6 +607,23 @@
 			#mbox-cells = <1>;
 		};
 
+		sdhc2: sdhci@c0a4900 {
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0xc0a4900 0x314>, <0xc0a4000 0x800>;
+			reg-names = "hc_mem", "core_mem";
+
+			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hc_irq", "pwr_irq";
+
+			clock-names = "iface", "core", "xo";
+			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
+				 <&gcc GCC_SDCC2_APPS_CLK>,
+				 <&xo>;
+			bus-width = <4>;
+			status = "disabled";
+		};
+
 		blsp2_uart1: serial@c1b0000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xc1b0000 0x1000>;
@@ -688,3 +707,5 @@
 		};
 	};
 };
+
+#include "msm8998-pins.dtsi"

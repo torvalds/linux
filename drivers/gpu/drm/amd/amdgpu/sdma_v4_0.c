@@ -925,11 +925,9 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 					OFFSET, ring->doorbell_index);
 	WREG32_SDMA(i, mmSDMA0_PAGE_DOORBELL, doorbell);
 	WREG32_SDMA(i, mmSDMA0_PAGE_DOORBELL_OFFSET, doorbell_offset);
-	/* TODO: enable doorbell support */
-	/*adev->nbio_funcs->sdma_doorbell_range(adev, i, ring->use_doorbell,
-					      ring->doorbell_index);*/
 
-	sdma_v4_0_ring_set_wptr(ring);
+	/* paging queue doorbell range is setup at sdma_v4_0_gfx_resume */
+	sdma_v4_0_page_ring_set_wptr(ring);
 
 	/* set minor_ptr_update to 0 after wptr programed */
 	WREG32_SDMA(i, mmSDMA0_PAGE_MINOR_PTR_UPDATE, 0);
@@ -1449,22 +1447,44 @@ static void sdma_v4_0_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 	sdma_v4_0_wait_reg_mem(ring, 0, 0, reg, 0, val, mask, 10);
 }
 
+static bool sdma_v4_0_fw_support_paging_queue(struct amdgpu_device *adev)
+{
+	uint fw_version = adev->sdma.instance[0].fw_version;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		return fw_version >= 430;
+	case CHIP_VEGA12:
+		/*return fw_version >= 31;*/
+		return false;
+	case CHIP_VEGA20:
+		return fw_version >= 123;
+	default:
+		return false;
+	}
+}
+
 static int sdma_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
 
-	if (adev->asic_type == CHIP_RAVEN) {
+	if (adev->asic_type == CHIP_RAVEN)
 		adev->sdma.num_instances = 1;
-		adev->sdma.has_page_queue = false;
-	} else {
+	else
 		adev->sdma.num_instances = 2;
-		/* TODO: Page queue breaks driver reload under SRIOV */
-		if ((adev->asic_type == CHIP_VEGA10) && amdgpu_sriov_vf((adev)))
-			adev->sdma.has_page_queue = false;
-		else if (adev->asic_type != CHIP_VEGA20 &&
-				adev->asic_type != CHIP_VEGA12)
-			adev->sdma.has_page_queue = true;
+
+	r = sdma_v4_0_init_microcode(adev);
+	if (r) {
+		DRM_ERROR("Failed to load sdma firmware!\n");
+		return r;
 	}
+
+	/* TODO: Page queue breaks driver reload under SRIOV */
+	if ((adev->asic_type == CHIP_VEGA10) && amdgpu_sriov_vf((adev)))
+		adev->sdma.has_page_queue = false;
+	else if (sdma_v4_0_fw_support_paging_queue(adev))
+		adev->sdma.has_page_queue = true;
 
 	sdma_v4_0_set_ring_funcs(adev);
 	sdma_v4_0_set_buffer_funcs(adev);
@@ -1473,7 +1493,6 @@ static int sdma_v4_0_early_init(void *handle)
 
 	return 0;
 }
-
 
 static int sdma_v4_0_sw_init(void *handle)
 {
@@ -1493,12 +1512,6 @@ static int sdma_v4_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = sdma_v4_0_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
-		return r;
-	}
-
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
@@ -1507,15 +1520,10 @@ static int sdma_v4_0_sw_init(void *handle)
 		DRM_INFO("use_doorbell being set to: [%s]\n",
 				ring->use_doorbell?"true":"false");
 
-		if (adev->asic_type == CHIP_VEGA10)
-			ring->doorbell_index = (i == 0) ?
-				(AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 << 1) //get DWORD offset
-				: (AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 << 1); // get DWORD offset
-		else
-			ring->doorbell_index = (i == 0) ?
-				(AMDGPU_DOORBELL64_sDMA_ENGINE0 << 1) //get DWORD offset
-				: (AMDGPU_DOORBELL64_sDMA_ENGINE1 << 1); // get DWORD offset
-
+		/* doorbell size is 2 dwords, get DWORD offset */
+		ring->doorbell_index = (i == 0) ?
+			(adev->doorbell_index.sdma_engine0 << 1)
+			: (adev->doorbell_index.sdma_engine1 << 1);
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
@@ -1529,7 +1537,15 @@ static int sdma_v4_0_sw_init(void *handle)
 		if (adev->sdma.has_page_queue) {
 			ring = &adev->sdma.instance[i].page;
 			ring->ring_obj = NULL;
-			ring->use_doorbell = false;
+			ring->use_doorbell = true;
+
+			/* paging queue use same doorbell index/routing as gfx queue
+			 * with 0x400 (4096 dwords) offset on second doorbell page
+			 */
+			ring->doorbell_index = (i == 0) ?
+				(adev->doorbell_index.sdma_engine0 << 1)
+				: (adev->doorbell_index.sdma_engine1 << 1);
+			ring->doorbell_index += 0x400;
 
 			sprintf(ring->name, "page%d", i);
 			r = amdgpu_ring_init(adev, ring, 1024,
@@ -1689,13 +1705,15 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 		amdgpu_fence_process(&adev->sdma.instance[instance].ring);
 		break;
 	case 1:
-		/* XXX compute */
+		if (adev->asic_type == CHIP_VEGA20)
+			amdgpu_fence_process(&adev->sdma.instance[instance].page);
 		break;
 	case 2:
 		/* XXX compute */
 		break;
 	case 3:
-		amdgpu_fence_process(&adev->sdma.instance[instance].page);
+		if (adev->asic_type != CHIP_VEGA20)
+			amdgpu_fence_process(&adev->sdma.instance[instance].page);
 		break;
 	}
 	return 0;

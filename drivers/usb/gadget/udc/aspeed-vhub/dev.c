@@ -438,7 +438,7 @@ static int ast_vhub_udc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-static struct usb_gadget_ops ast_vhub_udc_ops = {
+static const struct usb_gadget_ops ast_vhub_udc_ops = {
 	.get_frame	= ast_vhub_udc_get_frame,
 	.wakeup		= ast_vhub_udc_wakeup,
 	.pullup		= ast_vhub_udc_pullup,

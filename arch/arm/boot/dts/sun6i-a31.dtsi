@@ -42,8 +42,6 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
 
@@ -52,6 +50,8 @@
 
 / {
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		ethernet0 = &gmac;
@@ -62,7 +62,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		simplefb_hdmi: framebuffer@0 {
+		simplefb_hdmi: framebuffer-lcd0-hdmi {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
@@ -73,7 +73,7 @@
 			status = "disabled";
 		};
 
-		simplefb_lcd: framebuffer@1 {
+		simplefb_lcd: framebuffer-lcd0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0";
@@ -115,7 +115,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
@@ -131,7 +131,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@2 {
+		cpu2: cpu@2 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <2>;
@@ -147,7 +147,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@3 {
+		cpu3: cpu@3 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <3>;
@@ -174,7 +174,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
@@ -196,12 +199,8 @@
 		};
 	};
 
-	memory {
-		reg = <0x40000000 0x80000000>;
-	};
-
 	pmu {
-		compatible = "arm,cortex-a7-pmu", "arm,cortex-a15-pmu";
+		compatible = "arm,cortex-a7-pmu";
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
@@ -213,13 +212,13 @@
 		#size-cells = <1>;
 		ranges;
 
-		osc24M: osc24M {
+		osc24M: clk-24M {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
 		};
 
-		osc32k: clk@0 {
+		osc32k: clk-32k {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32768>;
@@ -235,14 +234,14 @@
 		 * The actual TX clock rate is not controlled by the
 		 * gmac_tx clock.
 		 */
-		mii_phy_tx_clk: clk@1 {
+		mii_phy_tx_clk: clk-mii-phy-tx {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <25000000>;
 			clock-output-names = "mii_phy_tx";
 		};
 
-		gmac_int_tx_clk: clk@2 {
+		gmac_int_tx_clk: clk-gmac-int-tx {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <125000000>;
@@ -264,7 +263,7 @@
 		status = "disabled";
 	};
 
-	soc@1c00000 {
+	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -389,6 +388,8 @@
 			resets = <&ccu RST_AHB1_MMC0>;
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -408,6 +409,8 @@
 			resets = <&ccu RST_AHB1_MMC1>;
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc1_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -607,7 +610,7 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			gmac_pins_gmii_a: gmac_gmii@0 {
+			gmac_gmii_pins: gmac-gmii-pins {
 				pins = "PA0", "PA1", "PA2", "PA3",
 						"PA4", "PA5", "PA6", "PA7",
 						"PA8", "PA9", "PA10", "PA11",
@@ -623,7 +626,7 @@
 				drive-strength = <30>;
 			};
 
-			gmac_pins_mii_a: gmac_mii@0 {
+			gmac_mii_pins: gmac-mii-pins {
 				pins = "PA0", "PA1", "PA2", "PA3",
 						"PA8", "PA9", "PA11",
 						"PA12", "PA13", "PA14", "PA19",
@@ -632,7 +635,7 @@
 				function = "gmac";
 			};
 
-			gmac_pins_rgmii_a: gmac_rgmii@0 {
+			gmac_rgmii_pins: gmac-rgmii-pins {
 				pins = "PA0", "PA1", "PA2", "PA3",
 						"PA9", "PA10", "PA11",
 						"PA12", "PA13", "PA14", "PA19",
@@ -645,22 +648,22 @@
 				drive-strength = <40>;
 			};
 
-			i2c0_pins_a: i2c0@0 {
+			i2c0_pins: i2c0-pins {
 				pins = "PH14", "PH15";
 				function = "i2c0";
 			};
 
-			i2c1_pins_a: i2c1@0 {
+			i2c1_pins: i2c1-pins {
 				pins = "PH16", "PH17";
 				function = "i2c1";
 			};
 
-			i2c2_pins_a: i2c2@0 {
+			i2c2_pins: i2c2-pins {
 				pins = "PH18", "PH19";
 				function = "i2c2";
 			};
 
-			lcd0_rgb888_pins: lcd0_rgb888 {
+			lcd0_rgb888_pins: lcd0-rgb888-pins {
 				pins = "PD0", "PD1", "PD2", "PD3",
 						 "PD4", "PD5", "PD6", "PD7",
 						 "PD8", "PD9", "PD10", "PD11",
@@ -671,7 +674,7 @@
 				function = "lcd0";
 			};
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 						 "PF3", "PF4", "PF5";
 				function = "mmc0";
@@ -679,7 +682,7 @@
 				bias-pull-up;
 			};
 
-			mmc1_pins_a: mmc1@0 {
+			mmc1_pins: mmc1-pins {
 				pins = "PG0", "PG1", "PG2", "PG3",
 						 "PG4", "PG5";
 				function = "mmc1";
@@ -687,7 +690,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_pins_a: mmc2@0 {
+			mmc2_4bit_pins: mmc2-4bit-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11";
 				function = "mmc2";
@@ -695,7 +698,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_8bit_emmc_pins: mmc2@1 {
+			mmc2_8bit_emmc_pins: mmc2-8bit-emmc-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11", "PC12",
 						 "PC13", "PC14", "PC15",
@@ -705,7 +708,7 @@
 				bias-pull-up;
 			};
 
-			mmc3_8bit_emmc_pins: mmc3@1 {
+			mmc3_8bit_emmc_pins: mmc3-8bit-emmc-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11", "PC12",
 						 "PC13", "PC14", "PC15",
@@ -715,12 +718,12 @@
 				bias-pull-up;
 			};
 
-			spdif_pins_a: spdif@0 {
+			spdif_tx_pin: spdif-tx-pin {
 				pins = "PH28";
 				function = "spdif";
 			};
 
-			uart0_pins_a: uart0@0 {
+			uart0_ph_pins: uart0-ph-pins {
 				pins = "PH20", "PH21";
 				function = "uart0";
 			};
@@ -879,6 +882,8 @@
 			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_APB2_I2C0>;
 			resets = <&ccu RST_APB2_I2C0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -890,6 +895,8 @@
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_APB2_I2C1>;
 			resets = <&ccu RST_APB2_I2C1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -901,6 +908,8 @@
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_APB2_I2C2>;
 			resets = <&ccu RST_APB2_I2C2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1373,12 +1382,12 @@
 			#size-cells = <0>;
 			#gpio-cells = <3>;
 
-			ir_pins_a: ir@0 {
+			s_ir_rx_pin: s-ir-rx-pin {
 				pins = "PL4";
 				function = "s_ir";
 			};
 
-			p2wi_pins: p2wi {
+			s_p2wi_pins: s-p2wi-pins {
 				pins = "PL0", "PL1";
 				function = "s_p2wi";
 			};
@@ -1392,7 +1401,7 @@
 			clock-frequency = <100000>;
 			resets = <&apb0_rst 3>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&p2wi_pins>;
+			pinctrl-0 = <&s_p2wi_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;

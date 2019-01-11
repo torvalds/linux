@@ -345,66 +345,98 @@ enum iwl_rx_mpdu_mac_info {
 	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
 };
 
-/*
- * enum iwl_rx_he_phy - HE PHY data
- */
-enum iwl_rx_he_phy {
-	IWL_RX_HE_PHY_BEAM_CHNG			= BIT(0),
-	IWL_RX_HE_PHY_UPLINK			= BIT(1),
-	IWL_RX_HE_PHY_BSS_COLOR_MASK		= 0xfc,
-	IWL_RX_HE_PHY_SPATIAL_REUSE_MASK	= 0xf00,
-	IWL_RX_HE_PHY_SU_EXT_BW10		= BIT(12),
-	IWL_RX_HE_PHY_TXOP_DUR_MASK		= 0xfe000,
-	IWL_RX_HE_PHY_LDPC_EXT_SYM		= BIT(20),
-	IWL_RX_HE_PHY_PRE_FEC_PAD_MASK		= 0x600000,
-	IWL_RX_HE_PHY_PE_DISAMBIG		= BIT(23),
-	IWL_RX_HE_PHY_DOPPLER			= BIT(24),
+/* TSF overload low dword */
+enum iwl_rx_phy_data0 {
+	/* info type: HE any */
+	IWL_RX_PHY_DATA0_HE_BEAM_CHNG				= 0x00000001,
+	IWL_RX_PHY_DATA0_HE_UPLINK				= 0x00000002,
+	IWL_RX_PHY_DATA0_HE_BSS_COLOR_MASK			= 0x000000fc,
+	IWL_RX_PHY_DATA0_HE_SPATIAL_REUSE_MASK			= 0x00000f00,
+	/* 1 bit reserved */
+	IWL_RX_PHY_DATA0_HE_TXOP_DUR_MASK			= 0x000fe000,
+	IWL_RX_PHY_DATA0_HE_LDPC_EXT_SYM			= 0x00100000,
+	IWL_RX_PHY_DATA0_HE_PRE_FEC_PAD_MASK			= 0x00600000,
+	IWL_RX_PHY_DATA0_HE_PE_DISAMBIG				= 0x00800000,
+	IWL_RX_PHY_DATA0_HE_DOPPLER				= 0x01000000,
 	/* 6 bits reserved */
-	IWL_RX_HE_PHY_DELIM_EOF			= BIT(31),
+	IWL_RX_PHY_DATA0_HE_DELIM_EOF				= 0x80000000,
+};
 
-	/* second dword - common data */
-	IWL_RX_HE_PHY_HE_LTF_NUM_MASK		= 0xe000000000ULL,
-	IWL_RX_HE_PHY_RU_ALLOC_SEC80		= BIT_ULL(32 + 8),
+enum iwl_rx_phy_info_type {
+	IWL_RX_PHY_INFO_TYPE_NONE				= 0,
+	IWL_RX_PHY_INFO_TYPE_CCK				= 1,
+	IWL_RX_PHY_INFO_TYPE_OFDM_LGCY				= 2,
+	IWL_RX_PHY_INFO_TYPE_HT					= 3,
+	IWL_RX_PHY_INFO_TYPE_VHT_SU				= 4,
+	IWL_RX_PHY_INFO_TYPE_VHT_MU				= 5,
+	IWL_RX_PHY_INFO_TYPE_HE_SU				= 6,
+	IWL_RX_PHY_INFO_TYPE_HE_MU				= 7,
+	IWL_RX_PHY_INFO_TYPE_HE_TB				= 8,
+	IWL_RX_PHY_INFO_TYPE_HE_MU_EXT				= 9,
+	IWL_RX_PHY_INFO_TYPE_HE_TB_EXT				= 10,
+};
+
+/* TSF overload high dword */
+enum iwl_rx_phy_data1 {
+	/*
+	 * check this first - if TSF overload is set,
+	 * see &enum iwl_rx_phy_info_type
+	 */
+	IWL_RX_PHY_DATA1_INFO_TYPE_MASK				= 0xf0000000,
+
+	/* info type: HT/VHT/HE any */
+	IWL_RX_PHY_DATA1_LSIG_LEN_MASK				= 0x0fff0000,
+
+	/* info type: HE MU/MU-EXT */
+	IWL_RX_PHY_DATA1_HE_MU_SIGB_COMPRESSION			= 0x00000001,
+	IWL_RX_PHY_DATA1_HE_MU_SIBG_SYM_OR_USER_NUM_MASK	= 0x0000001e,
+
+	/* info type: HE any */
+	IWL_RX_PHY_DATA1_HE_LTF_NUM_MASK			= 0x000000e0,
+	IWL_RX_PHY_DATA1_HE_RU_ALLOC_SEC80			= 0x00000100,
 	/* trigger encoded */
-	IWL_RX_HE_PHY_RU_ALLOC_MASK		= 0xfe0000000000ULL,
-	IWL_RX_HE_PHY_INFO_TYPE_MASK		= 0xf000000000000000ULL,
-	IWL_RX_HE_PHY_INFO_TYPE_SU		= 0x0, /* TSF low valid (first DW) */
-	IWL_RX_HE_PHY_INFO_TYPE_MU		= 0x1, /* TSF low/high valid (both DWs) */
-	IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO	= 0x2, /* same + SIGB-common0/1/2 valid */
-	IWL_RX_HE_PHY_INFO_TYPE_TB		= 0x3, /* TSF low/high valid (both DWs) */
+	IWL_RX_PHY_DATA1_HE_RU_ALLOC_MASK			= 0x0000fe00,
 
-	/* second dword - MU data */
-	IWL_RX_HE_PHY_MU_SIGB_COMPRESSION		= BIT_ULL(32 + 0),
-	IWL_RX_HE_PHY_MU_SIBG_SYM_OR_USER_NUM_MASK	= 0x1e00000000ULL,
-	IWL_RX_HE_PHY_MU_SIGB_MCS_MASK			= 0xf000000000000ULL,
-	IWL_RX_HE_PHY_MU_SIGB_DCM			= BIT_ULL(32 + 21),
-	IWL_RX_HE_PHY_MU_PREAMBLE_PUNC_TYPE_MASK	= 0xc0000000000000ULL,
-
-	/* second dword - TB data */
-	IWL_RX_HE_PHY_TB_PILOT_TYPE			= BIT_ULL(32 + 0),
-	IWL_RX_HE_PHY_TB_LOW_SS_MASK			= 0xe00000000ULL
+	/* info type: HE TB/TX-EXT */
+	IWL_RX_PHY_DATA1_HE_TB_PILOT_TYPE			= 0x00000001,
+	IWL_RX_PHY_DATA1_HE_TB_LOW_SS_MASK			= 0x0000000e,
 };
 
-enum iwl_rx_he_sigb_common0 {
+/* goes into Metadata DW 7 */
+enum iwl_rx_phy_data2 {
+	/* info type: HE MU-EXT */
 	/* the a1/a2/... is what the PHY/firmware calls the values */
-	IWL_RX_HE_SIGB_COMMON0_CH1_RU0		= 0x000000ff, /* a1 */
-	IWL_RX_HE_SIGB_COMMON0_CH1_RU2		= 0x0000ff00, /* a2 */
-	IWL_RX_HE_SIGB_COMMON0_CH2_RU0		= 0x00ff0000, /* b1 */
-	IWL_RX_HE_SIGB_COMMON0_CH2_RU2		= 0xff000000, /* b2 */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH1_RU0		= 0x000000ff, /* a1 */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH1_RU2		= 0x0000ff00, /* a2 */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH2_RU0		= 0x00ff0000, /* b1 */
+	IWL_RX_PHY_DATA2_HE_MU_EXT_CH2_RU2		= 0xff000000, /* b2 */
+
+	/* info type: HE TB-EXT */
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE1		= 0x0000000f,
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE2		= 0x000000f0,
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE3		= 0x00000f00,
+	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE4		= 0x0000f000,
 };
 
-enum iwl_rx_he_sigb_common1 {
-	IWL_RX_HE_SIGB_COMMON1_CH1_RU1		= 0x000000ff, /* c1 */
-	IWL_RX_HE_SIGB_COMMON1_CH1_RU3		= 0x0000ff00, /* c2 */
-	IWL_RX_HE_SIGB_COMMON1_CH2_RU1		= 0x00ff0000, /* d1 */
-	IWL_RX_HE_SIGB_COMMON1_CH2_RU3		= 0xff000000, /* d2 */
+/* goes into Metadata DW 8 */
+enum iwl_rx_phy_data3 {
+	/* info type: HE MU-EXT */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH1_RU1		= 0x000000ff, /* c1 */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH1_RU3		= 0x0000ff00, /* c2 */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH2_RU1		= 0x00ff0000, /* d1 */
+	IWL_RX_PHY_DATA3_HE_MU_EXT_CH2_RU3		= 0xff000000, /* d2 */
 };
 
-enum iwl_rx_he_sigb_common2 {
-	IWL_RX_HE_SIGB_COMMON2_CH1_CTR_RU	= 0x0001,
-	IWL_RX_HE_SIGB_COMMON2_CH2_CTR_RU	= 0x0002,
-	IWL_RX_HE_SIGB_COMMON2_CH1_CRC_OK	= 0x0004,
-	IWL_RX_HE_SIGB_COMMON2_CH2_CRC_OK	= 0x0008,
+/* goes into Metadata DW 4 high 16 bits */
+enum iwl_rx_phy_data4 {
+	/* info type: HE MU-EXT */
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH1_CTR_RU			= 0x0001,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH2_CTR_RU			= 0x0002,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH1_CRC_OK			= 0x0004,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_CH2_CRC_OK			= 0x0008,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_SIGB_MCS_MASK		= 0x00f0,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_SIGB_DCM			= 0x0100,
+	IWL_RX_PHY_DATA4_HE_MU_EXT_PREAMBLE_PUNC_TYPE_MASK	= 0x0600,
 };
 
 /**
@@ -419,9 +451,9 @@ struct iwl_rx_mpdu_desc_v1 {
 		__le32 rss_hash;
 
 		/**
-		 * @sigb_common0: for HE sniffer, HE-SIG-B common part 0
+		 * @phy_data2: depends on info type (see @phy_data1)
 		 */
-		__le32 sigb_common0;
+		__le32 phy_data2;
 	};
 
 	/* DW8 - carries filter_match only when rpa_en == 1 */
@@ -432,9 +464,9 @@ struct iwl_rx_mpdu_desc_v1 {
 		__le32 filter_match;
 
 		/**
-		 * @sigb_common1: for HE sniffer, HE-SIG-B common part 1
+		 * @phy_data3: depends on info type (see @phy_data1)
 		 */
-		__le32 sigb_common1;
+		__le32 phy_data3;
 	};
 
 	/* DW9 */
@@ -472,12 +504,19 @@ struct iwl_rx_mpdu_desc_v1 {
 		 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
 		 */
 		__le64 tsf_on_air_rise;
-		/**
-		 * @he_phy_data:
-		 * HE PHY data, see &enum iwl_rx_he_phy, valid
-		 * only if %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set
-		 */
-		__le64 he_phy_data;
+
+		struct {
+			/**
+			 * @phy_data0: depends on info_type, see @phy_data1
+			 */
+			__le32 phy_data0;
+			/**
+			 * @phy_data1: valid only if
+			 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set,
+			 * see &enum iwl_rx_phy_data1.
+			 */
+			__le32 phy_data1;
+		};
 	};
 } __packed;
 
@@ -493,9 +532,9 @@ struct iwl_rx_mpdu_desc_v3 {
 		__le32 filter_match;
 
 		/**
-		 * @sigb_common0: for HE sniffer, HE-SIG-B common part 0
+		 * @phy_data2: depends on info type (see @phy_data1)
 		 */
-		__le32 sigb_common0;
+		__le32 phy_data2;
 	};
 
 	/* DW8 - carries rss_hash only when rpa_en == 1 */
@@ -506,9 +545,9 @@ struct iwl_rx_mpdu_desc_v3 {
 		__le32 rss_hash;
 
 		/**
-		 * @sigb_common1: for HE sniffer, HE-SIG-B common part 1
+		 * @phy_data3: depends on info type (see @phy_data1)
 		 */
-		__le32 sigb_common1;
+		__le32 phy_data3;
 	};
 	/* DW9 */
 	/**
@@ -556,12 +595,19 @@ struct iwl_rx_mpdu_desc_v3 {
 		 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
 		 */
 		__le64 tsf_on_air_rise;
-		/**
-		 * @he_phy_data:
-		 * HE PHY data, see &enum iwl_rx_he_phy, valid
-		 * only if %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set
-		 */
-		__le64 he_phy_data;
+
+		struct {
+			/**
+			 * @phy_data0: depends on info_type, see @phy_data1
+			 */
+			__le32 phy_data0;
+			/**
+			 * @phy_data1: valid only if
+			 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set,
+			 * see &enum iwl_rx_phy_data1.
+			 */
+			__le32 phy_data1;
+		};
 	};
 	/* DW16 & DW17 */
 	/**
@@ -613,9 +659,9 @@ struct iwl_rx_mpdu_desc {
 		__le16 l3l4_flags;
 
 		/**
-		 * @sigb_common2: for HE sniffer, HE-SIG-B common part 2
+		 * @phy_data4: depends on info type, see phy_data1
 		 */
-		__le16 sigb_common2;
+		__le16 phy_data4;
 	};
 	/* DW5 */
 	/**
@@ -650,6 +696,55 @@ struct iwl_rx_mpdu_desc {
 #define IWL_CD_STTS_TRANSFER_STATUS_MSK	0x0E
 #define IWL_CD_STTS_WIFI_STATUS_POS	4
 #define IWL_CD_STTS_WIFI_STATUS_MSK	0xF0
+
+#define RX_NO_DATA_CHAIN_A_POS		0
+#define RX_NO_DATA_CHAIN_A_MSK		(0xff << RX_NO_DATA_CHAIN_A_POS)
+#define RX_NO_DATA_CHAIN_B_POS		8
+#define RX_NO_DATA_CHAIN_B_MSK		(0xff << RX_NO_DATA_CHAIN_B_POS)
+#define RX_NO_DATA_CHANNEL_POS		16
+#define RX_NO_DATA_CHANNEL_MSK		(0xff << RX_NO_DATA_CHANNEL_POS)
+
+#define RX_NO_DATA_INFO_TYPE_POS	0
+#define RX_NO_DATA_INFO_TYPE_MSK	(0xff << RX_NO_DATA_INFO_TYPE_POS)
+#define RX_NO_DATA_INFO_TYPE_NONE	0
+#define RX_NO_DATA_INFO_TYPE_RX_ERR	1
+#define RX_NO_DATA_INFO_TYPE_NDP	2
+#define RX_NO_DATA_INFO_TYPE_MU_UNMATCHED	3
+#define RX_NO_DATA_INFO_TYPE_HE_TB_UNMATCHED	4
+
+#define RX_NO_DATA_INFO_ERR_POS		8
+#define RX_NO_DATA_INFO_ERR_MSK		(0xff << RX_NO_DATA_INFO_ERR_POS)
+#define RX_NO_DATA_INFO_ERR_NONE	0
+#define RX_NO_DATA_INFO_ERR_BAD_PLCP	1
+#define RX_NO_DATA_INFO_ERR_UNSUPPORTED_RATE	2
+#define RX_NO_DATA_INFO_ERR_NO_DELIM		3
+#define RX_NO_DATA_INFO_ERR_BAD_MAC_HDR	4
+
+#define RX_NO_DATA_FRAME_TIME_POS	0
+#define RX_NO_DATA_FRAME_TIME_MSK	(0xfffff << RX_NO_DATA_FRAME_TIME_POS)
+
+/**
+ * struct iwl_rx_no_data - RX no data descriptor
+ * @info: 7:0 frame type, 15:8 RX error type
+ * @rssi: 7:0 energy chain-A,
+ *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
+ * @on_air_rise_time: GP2 during on air rise
+ * @fr_time: frame time
+ * @rate: rate/mcs of frame
+ * @phy_info: &enum iwl_rx_phy_data0 and &enum iwl_rx_phy_info_type
+ * @rx_vec: DW-12:9 raw RX vectors from DSP according to modulation type.
+ *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
+ *	for HE: OFDM_RX_VECTOR_HE_SIGA1_OUT, OFDM_RX_VECTOR_HE_SIGA2_OUT
+ */
+struct iwl_rx_no_data {
+	__le32 info;
+	__le32 rssi;
+	__le32 on_air_rise_time;
+	__le32 fr_time;
+	__le32 rate;
+	__le32 phy_info[2];
+	__le32 rx_vec[3];
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1 */
 
 /**
  * enum iwl_completion_desc_transfer_status -  transfer status (bits 1-3)

@@ -146,6 +146,11 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 	return intel_dsi->operation_mode == INTEL_DSI_COMMAND_MODE;
 }
 
+static inline u16 intel_dsi_encoder_ports(struct intel_encoder *encoder)
+{
+	return enc_to_intel_dsi(&encoder->base)->ports;
+}
+
 /* intel_dsi.c */
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
 int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);

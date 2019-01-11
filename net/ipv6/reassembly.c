@@ -210,7 +210,7 @@ found:
 	if (next && next->ip_defrag_offset < end)
 		goto discard_fq;
 
-	/* Note : skb->ip_defrag_offset and skb->dev share the same location */
+	/* Note : skb->ip_defrag_offset and skb->sk share the same location */
 	dev = skb->dev;
 	if (dev)
 		fq->iif = dev->ifindex;
@@ -281,7 +281,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 {
 	struct net *net = container_of(fq->q.net, struct net, ipv6.frags);
 	struct sk_buff *fp, *head = fq->q.fragments;
-	int    payload_len;
+	int    payload_len, delta;
 	unsigned int nhoff;
 	int sum_truesize;
 	u8 ecn;
@@ -322,9 +322,15 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	if (payload_len > IPV6_MAXPLEN)
 		goto out_oversize;
 
+	delta = - head->truesize;
+
 	/* Head of list must not be cloned. */
 	if (skb_unclone(head, GFP_ATOMIC))
 		goto out_oom;
+
+	delta += head->truesize;
+	if (delta)
+		add_frag_mem_limit(fq->q.net, delta);
 
 	/* If the first fragment is fragmented itself, we split
 	 * it to two chunks: the first with data and paged part
@@ -378,6 +384,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		if (skb_try_coalesce(head, fp, &headstolen, &delta)) {
 			kfree_skb_partial(fp, headstolen);
 		} else {
+			fp->sk = NULL;
 			if (!skb_shinfo(head)->frag_list)
 				skb_shinfo(head)->frag_list = fp;
 			head->data_len += fp->len;

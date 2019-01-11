@@ -29,7 +29,8 @@
 # include "asm-offsets_64.c"
 #endif
 
-void common(void) {
+static void __used common(void)
+{
 	BLANK();
 	OFFSET(TASK_threadsp, task_struct, thread.sp);
 #ifdef CONFIG_STACKPROTECTOR

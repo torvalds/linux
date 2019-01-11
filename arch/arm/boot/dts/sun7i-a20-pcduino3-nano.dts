@@ -71,8 +71,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_pcduino3_nano>;
 
 		/* Marked "LED3" on the PCB. */
 		usr1 {
@@ -115,7 +113,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	status = "okay";
@@ -136,8 +134,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -149,13 +145,11 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
@@ -175,30 +169,14 @@
 };
 
 &pio {
-	ahci_pwr_pin_pcduino3_nano: ahci_pwr_pin@0 {
-		pins = "PH2";
-		function = "gpio_out";
-	};
-
-	led_pins_pcduino3_nano: led_pins@0 {
-		pins = "PH16", "PH15";
-		function = "gpio_out";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
 	};
-
-	usb1_vbus_pin_pcduino3_nano: usb1_vbus_pin@0 {
-		pins = "PD2";
-		function = "gpio_out";
-	};
 };
 
 &reg_ahci_5v {
-	pinctrl-0 = <&ahci_pwr_pin_pcduino3_nano>;
 	gpio = <&pio 7 2 GPIO_ACTIVE_HIGH>; /* PH2 */
 	status = "okay";
 };
@@ -232,14 +210,13 @@
 
 /* A single regulator (U24) powers both USB host ports. */
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_pcduino3_nano>;
 	gpio = <&pio 3 2 GPIO_ACTIVE_HIGH>; /* PD2 */
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

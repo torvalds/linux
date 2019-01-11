@@ -3,6 +3,36 @@
 # PCI configuration
 #
 
+# select this to offer the PCI prompt
+config HAVE_PCI
+	bool
+
+# select this to unconditionally force on PCI support
+config FORCE_PCI
+	bool
+	select HAVE_PCI
+	select PCI
+
+menuconfig PCI
+	bool "PCI support"
+	depends on HAVE_PCI
+	help
+	  This option enables support for the PCI local bus, including
+	  support for PCI-X and the foundations for PCI Express support.
+	  Say 'Y' here unless you know what you are doing.
+
+config PCI_DOMAINS
+	bool
+	depends on PCI
+
+config PCI_DOMAINS_GENERIC
+	bool
+	depends on PCI
+	select PCI_DOMAINS
+
+config PCI_SYSCALL
+	bool
+
 source "drivers/pci/pcie/Kconfig"
 
 config PCI_MSI
@@ -73,9 +103,9 @@ config PCI_PF_STUB
 	depends on PCI_IOV
 	help
 	  Say Y or M here if you want to enable support for devices that
-	  require SR-IOV support, while at the same time the PF itself is
-	  not providing any actual services on the host itself such as
-	  storage or networking.
+	  require SR-IOV support, while at the same time the PF (Physical
+	  Function) itself is not providing any actual services on the
+	  host itself such as storage or networking.
 
 	  When in doubt, say N.
 

@@ -33,6 +33,7 @@
 #include <linux/mount.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
+#include <linux/mm.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -1103,10 +1104,10 @@ try_again:
 	rc = posix_lock_file(file, flock, NULL);
 	up_write(&cinode->lock_sem);
 	if (rc == FILE_LOCK_DEFERRED) {
-		rc = wait_event_interruptible(flock->fl_wait, !flock->fl_next);
+		rc = wait_event_interruptible(flock->fl_wait, !flock->fl_blocker);
 		if (!rc)
 			goto try_again;
-		posix_unblock_lock(flock);
+		locks_delete_block(flock);
 	}
 	return rc;
 }
@@ -2541,14 +2542,13 @@ static int
 cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 	struct cifs_aio_ctx *ctx)
 {
-	int wait_retry = 0;
 	unsigned int wsize, credits;
 	int rc;
 	struct TCP_Server_Info *server =
 		tlink_tcon(wdata->cfile->tlink)->ses->server;
 
 	/*
-	 * Try to resend this wdata, waiting for credits up to 3 seconds.
+	 * Wait for credits to resend this wdata.
 	 * Note: we are attempting to resend the whole wdata not in segments
 	 */
 	do {
@@ -2556,19 +2556,13 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 			server, wdata->bytes, &wsize, &credits);
 
 		if (rc)
-			break;
+			goto out;
 
 		if (wsize < wdata->bytes) {
 			add_credits_and_wake_if(server, credits, 0);
 			msleep(1000);
-			wait_retry++;
 		}
-	} while (wsize < wdata->bytes && wait_retry < 3);
-
-	if (wsize < wdata->bytes) {
-		rc = -EBUSY;
-		goto out;
-	}
+	} while (wsize < wdata->bytes);
 
 	rc = -EAGAIN;
 	while (rc == -EAGAIN) {
@@ -2624,11 +2618,13 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		if (rc)
 			break;
 
+		cur_len = min_t(const size_t, len, wsize);
+
 		if (ctx->direct_io) {
 			ssize_t result;
 
 			result = iov_iter_get_pages_alloc(
-				from, &pagevec, wsize, &start);
+				from, &pagevec, cur_len, &start);
 			if (result < 0) {
 				cifs_dbg(VFS,
 					"direct_writev couldn't get user pages "
@@ -2637,6 +2633,9 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 					result, from->type,
 					from->iov_offset, from->count);
 				dump_stack();
+
+				rc = result;
+				add_credits_and_wake_if(server, credits, 0);
 				break;
 			}
 			cur_len = (size_t)result;
@@ -3234,14 +3233,13 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 			struct list_head *rdata_list,
 			struct cifs_aio_ctx *ctx)
 {
-	int wait_retry = 0;
 	unsigned int rsize, credits;
 	int rc;
 	struct TCP_Server_Info *server =
 		tlink_tcon(rdata->cfile->tlink)->ses->server;
 
 	/*
-	 * Try to resend this rdata, waiting for credits up to 3 seconds.
+	 * Wait for credits to resend this rdata.
 	 * Note: we are attempting to resend the whole rdata not in segments
 	 */
 	do {
@@ -3249,24 +3247,13 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 						&rsize, &credits);
 
 		if (rc)
-			break;
+			goto out;
 
 		if (rsize < rdata->bytes) {
 			add_credits_and_wake_if(server, credits, 0);
 			msleep(1000);
-			wait_retry++;
 		}
-	} while (rsize < rdata->bytes && wait_retry < 3);
-
-	/*
-	 * If we can't find enough credits to send this rdata
-	 * release the rdata and return failure, this will pass
-	 * whatever I/O amount we have finished to VFS.
-	 */
-	if (rsize < rdata->bytes) {
-		rc = -EBUSY;
-		goto out;
-	}
+	} while (rsize < rdata->bytes);
 
 	rc = -EAGAIN;
 	while (rc == -EAGAIN) {
@@ -3332,13 +3319,16 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 					cur_len, &start);
 			if (result < 0) {
 				cifs_dbg(VFS,
-					"couldn't get user pages (cur_len=%zd)"
+					"couldn't get user pages (rc=%zd)"
 					" iter type %d"
 					" iov_offset %zd count %zd\n",
 					result, direct_iov.type,
 					direct_iov.iov_offset,
 					direct_iov.count);
 				dump_stack();
+
+				rc = result;
+				add_credits_and_wake_if(server, credits, 0);
 				break;
 			}
 			cur_len = (size_t)result;
@@ -3975,7 +3965,7 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 
 	INIT_LIST_HEAD(tmplist);
 
-	page = list_entry(page_list->prev, struct page, lru);
+	page = lru_to_page(page_list);
 
 	/*
 	 * Lock the page and put it in the cache. Since no one else

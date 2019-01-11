@@ -952,17 +952,18 @@ static int inet_abc_len(__be32 addr)
 {
 	int rc = -1;	/* Something else, probably a multicast. */
 
-	if (ipv4_is_zeronet(addr))
+	if (ipv4_is_zeronet(addr) || ipv4_is_lbcast(addr))
 		rc = 0;
 	else {
 		__u32 haddr = ntohl(addr);
-
 		if (IN_CLASSA(haddr))
 			rc = 8;
 		else if (IN_CLASSB(haddr))
 			rc = 16;
 		else if (IN_CLASSC(haddr))
 			rc = 24;
+		else if (IN_CLASSE(haddr))
+			rc = 32;
 	}
 
 	return rc;
@@ -1100,7 +1101,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr)
 				inet_del_ifa(in_dev, ifap, 1);
 			break;
 		}
-		ret = dev_change_flags(dev, ifr->ifr_flags);
+		ret = dev_change_flags(dev, ifr->ifr_flags, NULL);
 		break;
 
 	case SIOCSIFADDR:	/* Set interface address (and family) */

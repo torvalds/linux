@@ -5,7 +5,7 @@
  *  CPUs and later.
  *
  *  Copyright (C) 2008-2011 Advanced Micro Devices Inc.
- *	          2013-2016 Borislav Petkov <bp@alien8.de>
+ *	          2013-2018 Borislav Petkov <bp@alien8.de>
  *
  *  Author: Peter Oruba <peter.oruba@amd.com>
  *
@@ -38,7 +38,10 @@
 #include <asm/cpu.h>
 #include <asm/msr.h>
 
-static struct equiv_cpu_entry *equiv_cpu_table;
+static struct equiv_cpu_table {
+	unsigned int num_entries;
+	struct equiv_cpu_entry *entry;
+} equiv_table;
 
 /*
  * This points to the current valid container of microcode patches which we will
@@ -63,12 +66,224 @@ static u8 amd_ucode_patch[PATCH_MAX_SIZE];
 static const char
 ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";
 
-static u16 find_equiv_id(struct equiv_cpu_entry *equiv_table, u32 sig)
+static u16 find_equiv_id(struct equiv_cpu_table *et, u32 sig)
 {
-	for (; equiv_table && equiv_table->installed_cpu; equiv_table++) {
-		if (sig == equiv_table->installed_cpu)
-			return equiv_table->equiv_cpu;
+	unsigned int i;
+
+	if (!et || !et->num_entries)
+		return 0;
+
+	for (i = 0; i < et->num_entries; i++) {
+		struct equiv_cpu_entry *e = &et->entry[i];
+
+		if (sig == e->installed_cpu)
+			return e->equiv_cpu;
+
+		e++;
 	}
+	return 0;
+}
+
+/*
+ * Check whether there is a valid microcode container file at the beginning
+ * of @buf of size @buf_size. Set @early to use this function in the early path.
+ */
+static bool verify_container(const u8 *buf, size_t buf_size, bool early)
+{
+	u32 cont_magic;
+
+	if (buf_size <= CONTAINER_HDR_SZ) {
+		if (!early)
+			pr_debug("Truncated microcode container header.\n");
+
+		return false;
+	}
+
+	cont_magic = *(const u32 *)buf;
+	if (cont_magic != UCODE_MAGIC) {
+		if (!early)
+			pr_debug("Invalid magic value (0x%08x).\n", cont_magic);
+
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * Check whether there is a valid, non-truncated CPU equivalence table at the
+ * beginning of @buf of size @buf_size. Set @early to use this function in the
+ * early path.
+ */
+static bool verify_equivalence_table(const u8 *buf, size_t buf_size, bool early)
+{
+	const u32 *hdr = (const u32 *)buf;
+	u32 cont_type, equiv_tbl_len;
+
+	if (!verify_container(buf, buf_size, early))
+		return false;
+
+	cont_type = hdr[1];
+	if (cont_type != UCODE_EQUIV_CPU_TABLE_TYPE) {
+		if (!early)
+			pr_debug("Wrong microcode container equivalence table type: %u.\n",
+			       cont_type);
+
+		return false;
+	}
+
+	buf_size -= CONTAINER_HDR_SZ;
+
+	equiv_tbl_len = hdr[2];
+	if (equiv_tbl_len < sizeof(struct equiv_cpu_entry) ||
+	    buf_size < equiv_tbl_len) {
+		if (!early)
+			pr_debug("Truncated equivalence table.\n");
+
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * Check whether there is a valid, non-truncated microcode patch section at the
+ * beginning of @buf of size @buf_size. Set @early to use this function in the
+ * early path.
+ *
+ * On success, @sh_psize returns the patch size according to the section header,
+ * to the caller.
+ */
+static bool
+__verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize, bool early)
+{
+	u32 p_type, p_size;
+	const u32 *hdr;
+
+	if (buf_size < SECTION_HDR_SIZE) {
+		if (!early)
+			pr_debug("Truncated patch section.\n");
+
+		return false;
+	}
+
+	hdr = (const u32 *)buf;
+	p_type = hdr[0];
+	p_size = hdr[1];
+
+	if (p_type != UCODE_UCODE_TYPE) {
+		if (!early)
+			pr_debug("Invalid type field (0x%x) in container file section header.\n",
+				p_type);
+
+		return false;
+	}
+
+	if (p_size < sizeof(struct microcode_header_amd)) {
+		if (!early)
+			pr_debug("Patch of size %u too short.\n", p_size);
+
+		return false;
+	}
+
+	*sh_psize = p_size;
+
+	return true;
+}
+
+/*
+ * Check whether the passed remaining file @buf_size is large enough to contain
+ * a patch of the indicated @sh_psize (and also whether this size does not
+ * exceed the per-family maximum). @sh_psize is the size read from the section
+ * header.
+ */
+static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size)
+{
+	u32 max_size;
+
+	if (family >= 0x15)
+		return min_t(u32, sh_psize, buf_size);
+
+#define F1XH_MPB_MAX_SIZE 2048
+#define F14H_MPB_MAX_SIZE 1824
+
+	switch (family) {
+	case 0x10 ... 0x12:
+		max_size = F1XH_MPB_MAX_SIZE;
+		break;
+	case 0x14:
+		max_size = F14H_MPB_MAX_SIZE;
+		break;
+	default:
+		WARN(1, "%s: WTF family: 0x%x\n", __func__, family);
+		return 0;
+		break;
+	}
+
+	if (sh_psize > min_t(u32, buf_size, max_size))
+		return 0;
+
+	return sh_psize;
+}
+
+/*
+ * Verify the patch in @buf.
+ *
+ * Returns:
+ * negative: on error
+ * positive: patch is not for this family, skip it
+ * 0: success
+ */
+static int
+verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool early)
+{
+	struct microcode_header_amd *mc_hdr;
+	unsigned int ret;
+	u32 sh_psize;
+	u16 proc_id;
+	u8 patch_fam;
+
+	if (!__verify_patch_section(buf, buf_size, &sh_psize, early))
+		return -1;
+
+	/*
+	 * The section header length is not included in this indicated size
+	 * but is present in the leftover file length so we need to subtract
+	 * it before passing this value to the function below.
+	 */
+	buf_size -= SECTION_HDR_SIZE;
+
+	/*
+	 * Check if the remaining buffer is big enough to contain a patch of
+	 * size sh_psize, as the section claims.
+	 */
+	if (buf_size < sh_psize) {
+		if (!early)
+			pr_debug("Patch of size %u truncated.\n", sh_psize);
+
+		return -1;
+	}
+
+	ret = __verify_patch_size(family, sh_psize, buf_size);
+	if (!ret) {
+		if (!early)
+			pr_debug("Per-family patch size mismatch.\n");
+		return -1;
+	}
+
+	*patch_size = sh_psize;
+
+	mc_hdr	= (struct microcode_header_amd *)(buf + SECTION_HDR_SIZE);
+	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
+		if (!early)
+			pr_err("Patch-ID 0x%08x: chipset-specific code unsupported.\n", mc_hdr->patch_id);
+		return -1;
+	}
+
+	proc_id	= mc_hdr->processor_rev_id;
+	patch_fam = 0xf + (proc_id >> 12);
+	if (patch_fam != family)
+		return 1;
 
 	return 0;
 }
@@ -80,26 +295,28 @@ static u16 find_equiv_id(struct equiv_cpu_entry *equiv_table, u32 sig)
  * Returns the amount of bytes consumed while scanning. @desc contains all the
  * data we're going to use in later stages of the application.
  */
-static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
+static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 {
-	struct equiv_cpu_entry *eq;
-	ssize_t orig_size = size;
+	struct equiv_cpu_table table;
+	size_t orig_size = size;
 	u32 *hdr = (u32 *)ucode;
 	u16 eq_id;
 	u8 *buf;
 
-	/* Am I looking at an equivalence table header? */
-	if (hdr[0] != UCODE_MAGIC ||
-	    hdr[1] != UCODE_EQUIV_CPU_TABLE_TYPE ||
-	    hdr[2] == 0)
-		return CONTAINER_HDR_SZ;
+	if (!verify_equivalence_table(ucode, size, true))
+		return 0;
 
 	buf = ucode;
 
-	eq = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
+	table.entry = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
+	table.num_entries = hdr[2] / sizeof(struct equiv_cpu_entry);
 
-	/* Find the equivalence ID of our CPU in this table: */
-	eq_id = find_equiv_id(eq, desc->cpuid_1_eax);
+	/*
+	 * Find the equivalence ID of our CPU in this table. Even if this table
+	 * doesn't contain a patch for the CPU, scan through the whole container
+	 * so that it can be skipped in case there are other containers appended.
+	 */
+	eq_id = find_equiv_id(&table, desc->cpuid_1_eax);
 
 	buf  += hdr[2] + CONTAINER_HDR_SZ;
 	size -= hdr[2] + CONTAINER_HDR_SZ;
@@ -111,29 +328,29 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 	while (size > 0) {
 		struct microcode_amd *mc;
 		u32 patch_size;
+		int ret;
 
-		hdr = (u32 *)buf;
+		ret = verify_patch(x86_family(desc->cpuid_1_eax), buf, size, &patch_size, true);
+		if (ret < 0) {
+			/*
+			 * Patch verification failed, skip to the next
+			 * container, if there's one:
+			 */
+			goto out;
+		} else if (ret > 0) {
+			goto skip;
+		}
 
-		if (hdr[0] != UCODE_UCODE_TYPE)
-			break;
-
-		/* Sanity-check patch size. */
-		patch_size = hdr[1];
-		if (patch_size > PATCH_MAX_SIZE)
-			break;
-
-		/* Skip patch section header: */
-		buf  += SECTION_HDR_SIZE;
-		size -= SECTION_HDR_SIZE;
-
-		mc = (struct microcode_amd *)buf;
+		mc = (struct microcode_amd *)(buf + SECTION_HDR_SIZE);
 		if (eq_id == mc->hdr.processor_rev_id) {
 			desc->psize = patch_size;
 			desc->mc = mc;
 		}
 
-		buf  += patch_size;
-		size -= patch_size;
+skip:
+		/* Skip patch section header too: */
+		buf  += patch_size + SECTION_HDR_SIZE;
+		size -= patch_size + SECTION_HDR_SIZE;
 	}
 
 	/*
@@ -150,6 +367,7 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 		return 0;
 	}
 
+out:
 	return orig_size - size;
 }
 
@@ -159,15 +377,18 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
  */
 static void scan_containers(u8 *ucode, size_t size, struct cont_desc *desc)
 {
-	ssize_t rem = size;
-
-	while (rem >= 0) {
-		ssize_t s = parse_container(ucode, rem, desc);
+	while (size) {
+		size_t s = parse_container(ucode, size, desc);
 		if (!s)
 			return;
 
-		ucode += s;
-		rem   -= s;
+		/* catch wraparound */
+		if (size >= s) {
+			ucode += s;
+			size  -= s;
+		} else {
+			return;
+		}
 	}
 }
 
@@ -364,21 +585,7 @@ void reload_ucode_amd(void)
 static u16 __find_equiv_id(unsigned int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	return find_equiv_id(equiv_cpu_table, uci->cpu_sig.sig);
-}
-
-static u32 find_cpu_family_by_equiv_cpu(u16 equiv_cpu)
-{
-	int i = 0;
-
-	BUG_ON(!equiv_cpu_table);
-
-	while (equiv_cpu_table[i].equiv_cpu != 0) {
-		if (equiv_cpu == equiv_cpu_table[i].equiv_cpu)
-			return equiv_cpu_table[i].installed_cpu;
-		i++;
-	}
-	return 0;
+	return find_equiv_id(&equiv_table, uci->cpu_sig.sig);
 }
 
 /*
@@ -461,43 +668,6 @@ static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 	return 0;
 }
 
-static unsigned int verify_patch_size(u8 family, u32 patch_size,
-				      unsigned int size)
-{
-	u32 max_size;
-
-#define F1XH_MPB_MAX_SIZE 2048
-#define F14H_MPB_MAX_SIZE 1824
-#define F15H_MPB_MAX_SIZE 4096
-#define F16H_MPB_MAX_SIZE 3458
-#define F17H_MPB_MAX_SIZE 3200
-
-	switch (family) {
-	case 0x14:
-		max_size = F14H_MPB_MAX_SIZE;
-		break;
-	case 0x15:
-		max_size = F15H_MPB_MAX_SIZE;
-		break;
-	case 0x16:
-		max_size = F16H_MPB_MAX_SIZE;
-		break;
-	case 0x17:
-		max_size = F17H_MPB_MAX_SIZE;
-		break;
-	default:
-		max_size = F1XH_MPB_MAX_SIZE;
-		break;
-	}
-
-	if (patch_size > min_t(u32, size, max_size)) {
-		pr_err("patch size mismatch\n");
-		return 0;
-	}
-
-	return patch_size;
-}
-
 static enum ucode_state apply_microcode_amd(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
@@ -548,34 +718,34 @@ out:
 	return ret;
 }
 
-static int install_equiv_cpu_table(const u8 *buf)
+static size_t install_equiv_cpu_table(const u8 *buf, size_t buf_size)
 {
-	unsigned int *ibuf = (unsigned int *)buf;
-	unsigned int type = ibuf[1];
-	unsigned int size = ibuf[2];
+	u32 equiv_tbl_len;
+	const u32 *hdr;
 
-	if (type != UCODE_EQUIV_CPU_TABLE_TYPE || !size) {
-		pr_err("empty section/"
-		       "invalid type field in container file section header\n");
-		return -EINVAL;
-	}
+	if (!verify_equivalence_table(buf, buf_size, false))
+		return 0;
 
-	equiv_cpu_table = vmalloc(size);
-	if (!equiv_cpu_table) {
+	hdr = (const u32 *)buf;
+	equiv_tbl_len = hdr[2];
+
+	equiv_table.entry = vmalloc(equiv_tbl_len);
+	if (!equiv_table.entry) {
 		pr_err("failed to allocate equivalent CPU table\n");
-		return -ENOMEM;
+		return 0;
 	}
 
-	memcpy(equiv_cpu_table, buf + CONTAINER_HDR_SZ, size);
+	memcpy(equiv_table.entry, buf + CONTAINER_HDR_SZ, equiv_tbl_len);
+	equiv_table.num_entries = equiv_tbl_len / sizeof(struct equiv_cpu_entry);
 
 	/* add header length */
-	return size + CONTAINER_HDR_SZ;
+	return equiv_tbl_len + CONTAINER_HDR_SZ;
 }
 
 static void free_equiv_cpu_table(void)
 {
-	vfree(equiv_cpu_table);
-	equiv_cpu_table = NULL;
+	vfree(equiv_table.entry);
+	memset(&equiv_table, 0, sizeof(equiv_table));
 }
 
 static void cleanup(void)
@@ -585,47 +755,23 @@ static void cleanup(void)
 }
 
 /*
- * We return the current size even if some of the checks failed so that
+ * Return a non-negative value even if some of the checks failed so that
  * we can skip over the next patch. If we return a negative value, we
  * signal a grave error like a memory allocation has failed and the
  * driver cannot continue functioning normally. In such cases, we tear
  * down everything we've used up so far and exit.
  */
-static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
+static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
+				unsigned int *patch_size)
 {
 	struct microcode_header_amd *mc_hdr;
 	struct ucode_patch *patch;
-	unsigned int patch_size, crnt_size, ret;
-	u32 proc_fam;
 	u16 proc_id;
+	int ret;
 
-	patch_size  = *(u32 *)(fw + 4);
-	crnt_size   = patch_size + SECTION_HDR_SIZE;
-	mc_hdr	    = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
-	proc_id	    = mc_hdr->processor_rev_id;
-
-	proc_fam = find_cpu_family_by_equiv_cpu(proc_id);
-	if (!proc_fam) {
-		pr_err("No patch family for equiv ID: 0x%04x\n", proc_id);
-		return crnt_size;
-	}
-
-	/* check if patch is for the current family */
-	proc_fam = ((proc_fam >> 8) & 0xf) + ((proc_fam >> 20) & 0xff);
-	if (proc_fam != family)
-		return crnt_size;
-
-	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
-		pr_err("Patch-ID 0x%08x: chipset-specific code unsupported.\n",
-			mc_hdr->patch_id);
-		return crnt_size;
-	}
-
-	ret = verify_patch_size(family, patch_size, leftover);
-	if (!ret) {
-		pr_err("Patch-ID 0x%08x: size mismatch.\n", mc_hdr->patch_id);
-		return crnt_size;
-	}
+	ret = verify_patch(family, fw, leftover, patch_size, false);
+	if (ret)
+		return ret;
 
 	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
 	if (!patch) {
@@ -633,12 +779,15 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 		return -EINVAL;
 	}
 
-	patch->data = kmemdup(fw + SECTION_HDR_SIZE, patch_size, GFP_KERNEL);
+	patch->data = kmemdup(fw + SECTION_HDR_SIZE, *patch_size, GFP_KERNEL);
 	if (!patch->data) {
 		pr_err("Patch data allocation failure.\n");
 		kfree(patch);
 		return -EINVAL;
 	}
+
+	mc_hdr      = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
+	proc_id     = mc_hdr->processor_rev_id;
 
 	INIT_LIST_HEAD(&patch->plist);
 	patch->patch_id  = mc_hdr->patch_id;
@@ -650,39 +799,38 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	/* ... and add to cache. */
 	update_cache(patch);
 
-	return crnt_size;
+	return 0;
 }
 
 static enum ucode_state __load_microcode_amd(u8 family, const u8 *data,
 					     size_t size)
 {
-	enum ucode_state ret = UCODE_ERROR;
-	unsigned int leftover;
 	u8 *fw = (u8 *)data;
-	int crnt_size = 0;
-	int offset;
+	size_t offset;
 
-	offset = install_equiv_cpu_table(data);
-	if (offset < 0) {
-		pr_err("failed to create equivalent cpu table\n");
-		return ret;
-	}
-	fw += offset;
-	leftover = size - offset;
+	offset = install_equiv_cpu_table(data, size);
+	if (!offset)
+		return UCODE_ERROR;
+
+	fw   += offset;
+	size -= offset;
 
 	if (*(u32 *)fw != UCODE_UCODE_TYPE) {
 		pr_err("invalid type field in container file section header\n");
 		free_equiv_cpu_table();
-		return ret;
+		return UCODE_ERROR;
 	}
 
-	while (leftover) {
-		crnt_size = verify_and_add_patch(family, fw, leftover);
-		if (crnt_size < 0)
-			return ret;
+	while (size > 0) {
+		unsigned int crnt_size = 0;
+		int ret;
 
-		fw	 += crnt_size;
-		leftover -= crnt_size;
+		ret = verify_and_add_patch(family, fw, size, &crnt_size);
+		if (ret < 0)
+			return UCODE_ERROR;
+
+		fw   +=  crnt_size + SECTION_HDR_SIZE;
+		size -= (crnt_size + SECTION_HDR_SIZE);
 	}
 
 	return UCODE_OK;
@@ -761,10 +909,8 @@ static enum ucode_state request_microcode_amd(int cpu, struct device *device,
 	}
 
 	ret = UCODE_ERROR;
-	if (*(u32 *)fw->data != UCODE_MAGIC) {
-		pr_err("invalid magic value (0x%08x)\n", *(u32 *)fw->data);
+	if (!verify_container(fw->data, fw->size, false))
 		goto fw_release;
-	}
 
 	ret = load_microcode_amd(bsp, c->x86, fw->data, fw->size);
 

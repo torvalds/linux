@@ -117,6 +117,18 @@ void dce100_prepare_bandwidth(
 			false);
 }
 
+void dce100_optimize_bandwidth(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
+
+	dc->res_pool->clk_mgr->funcs->update_clocks(
+			dc->res_pool->clk_mgr,
+			context,
+			true);
+}
+
 /**************************************************************************/
 
 void dce100_hw_sequencer_construct(struct dc *dc)
@@ -125,6 +137,6 @@ void dce100_hw_sequencer_construct(struct dc *dc)
 
 	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
-	dc->hwss.optimize_bandwidth = dce100_prepare_bandwidth;
+	dc->hwss.optimize_bandwidth = dce100_optimize_bandwidth;
 }
 

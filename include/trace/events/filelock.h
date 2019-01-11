@@ -68,7 +68,7 @@ DECLARE_EVENT_CLASS(filelock_lock,
 		__field(struct file_lock *, fl)
 		__field(unsigned long, i_ino)
 		__field(dev_t, s_dev)
-		__field(struct file_lock *, fl_next)
+		__field(struct file_lock *, fl_blocker)
 		__field(fl_owner_t, fl_owner)
 		__field(unsigned int, fl_pid)
 		__field(unsigned int, fl_flags)
@@ -82,7 +82,7 @@ DECLARE_EVENT_CLASS(filelock_lock,
 		__entry->fl = fl ? fl : NULL;
 		__entry->s_dev = inode->i_sb->s_dev;
 		__entry->i_ino = inode->i_ino;
-		__entry->fl_next = fl ? fl->fl_next : NULL;
+		__entry->fl_blocker = fl ? fl->fl_blocker : NULL;
 		__entry->fl_owner = fl ? fl->fl_owner : NULL;
 		__entry->fl_pid = fl ? fl->fl_pid : 0;
 		__entry->fl_flags = fl ? fl->fl_flags : 0;
@@ -92,9 +92,9 @@ DECLARE_EVENT_CLASS(filelock_lock,
 		__entry->ret = ret;
 	),
 
-	TP_printk("fl=0x%p dev=0x%x:0x%x ino=0x%lx fl_next=0x%p fl_owner=0x%p fl_pid=%u fl_flags=%s fl_type=%s fl_start=%lld fl_end=%lld ret=%d",
+	TP_printk("fl=0x%p dev=0x%x:0x%x ino=0x%lx fl_blocker=0x%p fl_owner=0x%p fl_pid=%u fl_flags=%s fl_type=%s fl_start=%lld fl_end=%lld ret=%d",
 		__entry->fl, MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
-		__entry->i_ino, __entry->fl_next, __entry->fl_owner,
+		__entry->i_ino, __entry->fl_blocker, __entry->fl_owner,
 		__entry->fl_pid, show_fl_flags(__entry->fl_flags),
 		show_fl_type(__entry->fl_type),
 		__entry->fl_start, __entry->fl_end, __entry->ret)
@@ -125,7 +125,7 @@ DECLARE_EVENT_CLASS(filelock_lease,
 		__field(struct file_lock *, fl)
 		__field(unsigned long, i_ino)
 		__field(dev_t, s_dev)
-		__field(struct file_lock *, fl_next)
+		__field(struct file_lock *, fl_blocker)
 		__field(fl_owner_t, fl_owner)
 		__field(unsigned int, fl_flags)
 		__field(unsigned char, fl_type)
@@ -137,7 +137,7 @@ DECLARE_EVENT_CLASS(filelock_lease,
 		__entry->fl = fl ? fl : NULL;
 		__entry->s_dev = inode->i_sb->s_dev;
 		__entry->i_ino = inode->i_ino;
-		__entry->fl_next = fl ? fl->fl_next : NULL;
+		__entry->fl_blocker = fl ? fl->fl_blocker : NULL;
 		__entry->fl_owner = fl ? fl->fl_owner : NULL;
 		__entry->fl_flags = fl ? fl->fl_flags : 0;
 		__entry->fl_type = fl ? fl->fl_type : 0;
@@ -145,9 +145,9 @@ DECLARE_EVENT_CLASS(filelock_lease,
 		__entry->fl_downgrade_time = fl ? fl->fl_downgrade_time : 0;
 	),
 
-	TP_printk("fl=0x%p dev=0x%x:0x%x ino=0x%lx fl_next=0x%p fl_owner=0x%p fl_flags=%s fl_type=%s fl_break_time=%lu fl_downgrade_time=%lu",
+	TP_printk("fl=0x%p dev=0x%x:0x%x ino=0x%lx fl_blocker=0x%p fl_owner=0x%p fl_flags=%s fl_type=%s fl_break_time=%lu fl_downgrade_time=%lu",
 		__entry->fl, MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
-		__entry->i_ino, __entry->fl_next, __entry->fl_owner,
+		__entry->i_ino, __entry->fl_blocker, __entry->fl_owner,
 		show_fl_flags(__entry->fl_flags),
 		show_fl_type(__entry->fl_type),
 		__entry->fl_break_time, __entry->fl_downgrade_time)

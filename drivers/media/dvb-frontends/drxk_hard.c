@@ -1474,9 +1474,11 @@ static int scu_command(struct drxk_state *state,
 
 	/* assume that the command register is ready
 		since it is checked afterwards */
-	for (ii = parameter_len - 1; ii >= 0; ii -= 1) {
-		buffer[cnt++] = (parameter[ii] & 0xFF);
-		buffer[cnt++] = ((parameter[ii] >> 8) & 0xFF);
+	if (parameter) {
+		for (ii = parameter_len - 1; ii >= 0; ii -= 1) {
+			buffer[cnt++] = (parameter[ii] & 0xFF);
+			buffer[cnt++] = ((parameter[ii] >> 8) & 0xFF);
+		}
 	}
 	buffer[cnt++] = (cmd & 0xFF);
 	buffer[cnt++] = ((cmd >> 8) & 0xFF);

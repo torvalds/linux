@@ -382,7 +382,7 @@ void afs_zap_data(struct afs_vnode *vnode)
 int afs_validate(struct afs_vnode *vnode, struct key *key)
 {
 	time64_t now = ktime_get_real_seconds();
-	bool valid = false;
+	bool valid;
 	int ret;
 
 	_enter("{v={%llx:%llu} fl=%lx},%x",
@@ -402,15 +402,21 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 			vnode->cb_v_break = vnode->volume->cb_v_break;
 			valid = false;
 		} else if (vnode->status.type == AFS_FTYPE_DIR &&
-			   test_bit(AFS_VNODE_DIR_VALID, &vnode->flags) &&
-			   vnode->cb_expires_at - 10 > now) {
-			valid = true;
-		} else if (!test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags) &&
-			   vnode->cb_expires_at - 10 > now) {
+			   (!test_bit(AFS_VNODE_DIR_VALID, &vnode->flags) ||
+			    vnode->cb_expires_at - 10 <= now)) {
+			valid = false;
+		} else if (test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags) ||
+			   vnode->cb_expires_at - 10 <= now) {
+			valid = false;
+		} else {
 			valid = true;
 		}
 	} else if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
 		valid = true;
+	} else {
+		vnode->cb_s_break = vnode->cb_interest->server->cb_s_break;
+		vnode->cb_v_break = vnode->volume->cb_v_break;
+		valid = false;
 	}
 
 	read_sequnlock_excl(&vnode->cb_lock);

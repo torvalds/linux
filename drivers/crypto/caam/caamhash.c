@@ -3,6 +3,7 @@
  * caam - Freescale FSL CAAM support for ahash functions of crypto API
  *
  * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP
  *
  * Based on caamalg.c crypto API driver.
  *
@@ -1801,7 +1802,7 @@ static int __init caam_algapi_hash_init(void)
 	int i = 0, err = 0;
 	struct caam_drv_private *priv;
 	unsigned int md_limit = SHA512_DIGEST_SIZE;
-	u32 cha_inst, cha_vid;
+	u32 md_inst, md_vid;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node) {
@@ -1831,18 +1832,27 @@ static int __init caam_algapi_hash_init(void)
 	 * Register crypto algorithms the device supports.  First, identify
 	 * presence and attributes of MD block.
 	 */
-	cha_vid = rd_reg32(&priv->ctrl->perfmon.cha_id_ls);
-	cha_inst = rd_reg32(&priv->ctrl->perfmon.cha_num_ls);
+	if (priv->era < 10) {
+		md_vid = (rd_reg32(&priv->ctrl->perfmon.cha_id_ls) &
+			  CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
+		md_inst = (rd_reg32(&priv->ctrl->perfmon.cha_num_ls) &
+			   CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
+	} else {
+		u32 mdha = rd_reg32(&priv->ctrl->vreg.mdha);
+
+		md_vid = (mdha & CHA_VER_VID_MASK) >> CHA_VER_VID_SHIFT;
+		md_inst = mdha & CHA_VER_NUM_MASK;
+	}
 
 	/*
 	 * Skip registration of any hashing algorithms if MD block
 	 * is not present.
 	 */
-	if (!((cha_inst & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT))
+	if (!md_inst)
 		return -ENODEV;
 
 	/* Limit digest size based on LP256 */
-	if ((cha_vid & CHA_ID_LS_MD_MASK) == CHA_ID_LS_MD_LP256)
+	if (md_vid == CHA_VER_VID_MD_LP256)
 		md_limit = SHA256_DIGEST_SIZE;
 
 	INIT_LIST_HEAD(&hash_list);

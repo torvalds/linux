@@ -619,14 +619,10 @@ out:
 	return ret;
 }
 
-int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390x_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 {
 	int lane;
 	int err;
-
-	/* Only support ports 9 and 10 at the moment */
-	if (port < 9)
-		return 0;
 
 	lane = mv88e6390x_serdes_get_lane(chip, port);
 
@@ -663,11 +659,19 @@ int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6390_serdes_irq_enable(chip, port, lane);
 }
 
-void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
+{
+	if (port < 9)
+		return 0;
+
+	return mv88e6390_serdes_irq_setup(chip, port);
+}
+
+void mv88e6390x_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 {
 	int lane = mv88e6390x_serdes_get_lane(chip, port);
 
-	if (port < 9)
+	if (lane == -ENODEV)
 		return;
 
 	if (lane < 0)
@@ -683,6 +687,14 @@ void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 	mutex_lock(&chip->reg_lock);
 
 	chip->ports[port].serdes_irq = 0;
+}
+
+void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
+{
+	if (port < 9)
+		return;
+
+	mv88e6390x_serdes_irq_free(chip, port);
 }
 
 int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)

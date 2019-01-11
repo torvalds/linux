@@ -1,0 +1,137 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+
+#include "pxa300-raumfeld-common.dtsi"
+
+/ {
+	model = "Raumfeld Speaker One (PXA3xx)";
+	compatible = "raumfeld,raumfeld-speaker-one-pxa303", "marvell,pxa300";
+
+	wm8782: wm8782 {
+		compatible = "wm8782";
+		#sound-dai-cells = <0>;
+		Vdd-supply = <&reg_3v3>;
+		Vdda-supply = <&reg_va_5v0>;
+	};
+
+	xo_11mhz: oscillator-11mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <11289600>;
+		clock-accuracy = <100>;
+	};
+
+	xo_audio: clock-gate {
+		compatible = "gpio-gate-clock";
+		pinctrlnames = "default";
+		pinctrl-0 = <&xo_audio_pins>;
+		clocks = <&xo_11mhz>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio 111 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_va_30v0: regulator-va-30v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "va-30v0-fixed-supply";
+		regulator-min-microvolt = <30000000>;
+		regulator-max-microvolt = <30000000>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Raumfeld Speaker";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			format = "i2s";
+			bitclock-master = <&dailink_master_analog_out>;
+			frame-master = <&dailink_master_analog_out>;
+			mclk-fs = <256>;
+
+			dailink_master_analog_out: cpu {
+				sound-dai = <&ssp_dai0>;
+			};
+
+			codec {
+				sound-dai = <&sta320>;
+			};
+		};
+
+		simple-audio-card,dai-link@1 {
+			reg = <1>;
+			format = "i2s";
+			bitclock-master = <&dailink_master_analog_in>;
+			frame-master = <&dailink_master_analog_in>;
+			mclk-fs = <256>;
+
+			dailink_master_analog_in: cpu {
+				sound-dai = <&ssp_dai0>;
+			};
+
+			codec {
+				sound-dai = <&wm8782>;
+			};
+		};
+	};
+};
+
+&ssp_dai0 {
+	clocks = <&xo_audio>;
+};
+
+&spi {
+	dac@2 {
+		compatible = "ti,dac7512";
+		reg = <2>;
+		spi-max-frequency = <1000000>;
+		vcc-supply = <&reg_3v3>;
+	};
+};
+
+&rotary {
+	status = "okay";
+};
+
+&pxai2c1 {
+	sta320: codec@1a {
+		compatible = "st,sta32x";
+		reg = <0x1a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sta320_pins>;
+		clocks = <&xo_audio>;
+		clock-names = "xti";
+		reset-gpios = <&gpio 120 GPIO_ACTIVE_HIGH>;
+		Vdda-supply = <&reg_3v3>;
+		Vdd3-supply = <&reg_3v3>;
+		Vcc-supply = <&reg_va_30v0>;
+		#sound-dai-cells = <0>;
+		st,thermal-warning-adjustment;
+		st,thermal-warning-recovery;
+		st,fault-detect-recovery;
+		st,drop-compensation-ns = <80>;
+		st,max-power-use-mpcc;
+		st,invalid-input-detect-mute;
+		/* 2 (half-bridge) and 1 (full-bridge) on-board power */
+		st,output-conf = /bits/ 8 <0x1>;
+		st,needs_esd_watchdog;
+	};
+};
+
+&pinctrl {
+	xo_audio_pins: xo-audio-pins {
+		pinctrl-single,pins = <
+			MFP_PIN_PXA300(111) MFP_AF0	/* ENABLE */
+		>;
+		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_LOW);
+	};
+
+	sta320_pins: sta320-pins {
+		pinctrl-single,pins = <
+			MFP_PIN_PXA300(120) MFP_AF0	/* CODEC_RESET	*/
+		>;
+		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_FLOAT);
+	};
+};

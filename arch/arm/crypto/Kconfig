@@ -69,6 +69,15 @@ config CRYPTO_AES_ARM
 	help
 	  Use optimized AES assembler routines for ARM platforms.
 
+	  On ARM processors without the Crypto Extensions, this is the
+	  fastest AES implementation for single blocks.  For multiple
+	  blocks, the NEON bit-sliced implementation is usually faster.
+
+	  This implementation may be vulnerable to cache timing attacks,
+	  since it uses lookup tables.  However, as countermeasures it
+	  disables IRQs and preloads the tables; it is hoped this makes
+	  such attacks very difficult.
+
 config CRYPTO_AES_ARM_BS
 	tristate "Bit sliced AES using NEON instructions"
 	depends on KERNEL_MODE_NEON
@@ -117,9 +126,14 @@ config CRYPTO_CRC32_ARM_CE
 	select CRYPTO_HASH
 
 config CRYPTO_CHACHA20_NEON
-	tristate "NEON accelerated ChaCha20 symmetric cipher"
+	tristate "NEON accelerated ChaCha stream cipher algorithms"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_CHACHA20
+
+config CRYPTO_NHPOLY1305_NEON
+	tristate "NEON accelerated NHPoly1305 hash function (for Adiantum)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_NHPOLY1305
 
 endif

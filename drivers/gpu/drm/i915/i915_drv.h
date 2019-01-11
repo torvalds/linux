@@ -53,6 +53,7 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_cache.h>
 #include <drm/drm_util.h>
+#include <drm/drm_dsc.h>
 
 #include "i915_fixed.h"
 #include "i915_params.h"
@@ -68,6 +69,7 @@
 #include "intel_ringbuffer.h"
 #include "intel_uncore.h"
 #include "intel_wopcm.h"
+#include "intel_workarounds.h"
 #include "intel_uc.h"
 
 #include "i915_gem.h"
@@ -88,8 +90,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20181122"
-#define DRIVER_TIMESTAMP	1542898187
+#define DRIVER_DATE		"20181204"
+#define DRIVER_TIMESTAMP	1543944377
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -494,6 +496,7 @@ struct i915_psr {
 	bool sink_support;
 	bool prepared, enabled;
 	struct intel_dp *dp;
+	enum pipe pipe;
 	bool active;
 	struct work_struct work;
 	unsigned busy_frontbuffer_bits;
@@ -504,6 +507,8 @@ struct i915_psr {
 	u8 sink_sync_latency;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
+	bool sink_not_reliable;
+	bool irq_aux_error;
 };
 
 enum intel_pch {
@@ -1093,9 +1098,6 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 }
 
 struct skl_ddb_allocation {
-	/* packed/y */
-	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES];
-	struct skl_ddb_entry uv_plane[I915_MAX_PIPES][I915_MAX_PLANES];
 	u8 enabled_slices; /* GEN11 has configurable 2 slices */
 };
 
@@ -1186,20 +1188,6 @@ struct i915_frontbuffer_tracking {
 	 */
 	unsigned busy_bits;
 	unsigned flip_bits;
-};
-
-struct i915_wa_reg {
-	u32 addr;
-	u32 value;
-	/* bitmask representing WA bits */
-	u32 mask;
-};
-
-#define I915_MAX_WA_REGS 16
-
-struct i915_workarounds {
-	struct i915_wa_reg reg[I915_MAX_WA_REGS];
-	u32 count;
 };
 
 struct i915_virtual_gpu {
@@ -1651,7 +1639,7 @@ struct drm_i915_private {
 
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
-	struct i915_workarounds workarounds;
+	struct i915_wa_list gt_wa_list;
 
 	struct i915_frontbuffer_tracking fb_tracking;
 
@@ -1995,6 +1983,8 @@ struct drm_i915_private {
 		struct delayed_work idle_work;
 
 		ktime_t last_init_time;
+
+		struct i915_vma *scratch;
 	} gt;
 
 	/* perform PHY state sanity checks? */
@@ -2448,9 +2438,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 	((sizes) & ~(dev_priv)->info.page_sizes) == 0; \
 })
 
-#define HAS_OVERLAY(dev_priv)		 ((dev_priv)->info.has_overlay)
+#define HAS_OVERLAY(dev_priv)		 ((dev_priv)->info.display.has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev_priv) \
-		((dev_priv)->info.overlay_needs_physical)
+		((dev_priv)->info.display.overlay_needs_physical)
 
 /* Early gen2 have a totally busted CS tlb and require pinned batches. */
 #define HAS_BROKEN_CS_TLB(dev_priv)	(IS_I830(dev_priv) || IS_I845G(dev_priv))
@@ -2471,31 +2461,31 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_128_BYTE_Y_TILING(dev_priv) (!IS_GEN2(dev_priv) && \
 					 !(IS_I915G(dev_priv) || \
 					 IS_I915GM(dev_priv)))
-#define SUPPORTS_TV(dev_priv)		((dev_priv)->info.supports_tv)
-#define I915_HAS_HOTPLUG(dev_priv)	((dev_priv)->info.has_hotplug)
+#define SUPPORTS_TV(dev_priv)		((dev_priv)->info.display.supports_tv)
+#define I915_HAS_HOTPLUG(dev_priv)	((dev_priv)->info.display.has_hotplug)
 
 #define HAS_FW_BLC(dev_priv) 	(INTEL_GEN(dev_priv) > 2)
-#define HAS_FBC(dev_priv)	((dev_priv)->info.has_fbc)
+#define HAS_FBC(dev_priv)	((dev_priv)->info.display.has_fbc)
 #define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 7)
 
 #define HAS_IPS(dev_priv)	(IS_HSW_ULT(dev_priv) || IS_BROADWELL(dev_priv))
 
-#define HAS_DP_MST(dev_priv)	((dev_priv)->info.has_dp_mst)
+#define HAS_DP_MST(dev_priv)	((dev_priv)->info.display.has_dp_mst)
 
-#define HAS_DDI(dev_priv)		 ((dev_priv)->info.has_ddi)
+#define HAS_DDI(dev_priv)		 ((dev_priv)->info.display.has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev_priv) ((dev_priv)->info.has_fpga_dbg)
-#define HAS_PSR(dev_priv)		 ((dev_priv)->info.has_psr)
+#define HAS_PSR(dev_priv)		 ((dev_priv)->info.display.has_psr)
 
 #define HAS_RC6(dev_priv)		 ((dev_priv)->info.has_rc6)
 #define HAS_RC6p(dev_priv)		 ((dev_priv)->info.has_rc6p)
 #define HAS_RC6pp(dev_priv)		 (false) /* HW was never validated */
 
-#define HAS_CSR(dev_priv)	((dev_priv)->info.has_csr)
+#define HAS_CSR(dev_priv)	((dev_priv)->info.display.has_csr)
 
 #define HAS_RUNTIME_PM(dev_priv) ((dev_priv)->info.has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) ((dev_priv)->info.has_64bit_reloc)
 
-#define HAS_IPC(dev_priv)		 ((dev_priv)->info.has_ipc)
+#define HAS_IPC(dev_priv)		 ((dev_priv)->info.display.has_ipc)
 
 /*
  * For now, anything with a GuC requires uCode loading, and then supports
@@ -2556,7 +2546,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_PCH_NOP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_NOP)
 #define HAS_PCH_SPLIT(dev_priv) (INTEL_PCH_TYPE(dev_priv) != PCH_NONE)
 
-#define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.has_gmch_display)
+#define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.display.has_gmch_display)
 
 #define HAS_LSPCON(dev_priv) (INTEL_GEN(dev_priv) >= 9)
 
@@ -2567,6 +2557,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define GT_FREQUENCY_MULTIPLIER 50
 #define GEN9_FREQ_SCALER 3
+
+#define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->num_pipes > 0)
 
 #include "i915_trace.h"
 
@@ -3340,6 +3332,9 @@ extern void intel_rps_mark_interactive(struct drm_i915_private *i915,
 				       bool interactive);
 extern bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);
+void intel_dsc_enable(struct intel_encoder *encoder,
+		      const struct intel_crtc_state *crtc_state);
+void intel_dsc_disable(const struct intel_crtc_state *crtc_state);
 
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
@@ -3718,6 +3713,11 @@ static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
 		return CNL_HWS_CSB_WRITE_INDEX;
 	else
 		return I915_HWS_CSB_WRITE_INDEX;
+}
+
+static inline u32 i915_scratch_offset(const struct drm_i915_private *i915)
+{
+	return i915_ggtt_offset(i915->gt.scratch);
 }
 
 #endif

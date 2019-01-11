@@ -79,6 +79,9 @@
 
 struct kmem_cache *skbuff_head_cache __ro_after_init;
 static struct kmem_cache *skbuff_fclone_cache __ro_after_init;
+#ifdef CONFIG_SKB_EXTENSIONS
+static struct kmem_cache *skbuff_ext_cache __ro_after_init;
+#endif
 int sysctl_max_skb_frags __read_mostly = MAX_SKB_FRAGS;
 EXPORT_SYMBOL(sysctl_max_skb_frags);
 
@@ -606,7 +609,6 @@ fastpath:
 void skb_release_head_state(struct sk_buff *skb)
 {
 	skb_dst_drop(skb);
-	secpath_reset(skb);
 	if (skb->destructor) {
 		WARN_ON(in_irq());
 		skb->destructor(skb);
@@ -614,9 +616,7 @@ void skb_release_head_state(struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	nf_conntrack_put(skb_nfct(skb));
 #endif
-#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	nf_bridge_put(skb->nf_bridge);
-#endif
+	skb_ext_put(skb);
 }
 
 /* Free everything but the sk_buff shell. */
@@ -796,9 +796,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->dev		= old->dev;
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	skb_dst_copy(new, old);
-#ifdef CONFIG_XFRM
-	new->sp			= secpath_get(old->sp);
-#endif
+	__skb_ext_copy(new, old);
 	__nf_copy(new, old, false);
 
 	/* Note : this field could be in headers_start/headers_end section
@@ -1089,7 +1087,7 @@ void sock_zerocopy_put(struct ubuf_info *uarg)
 }
 EXPORT_SYMBOL_GPL(sock_zerocopy_put);
 
-void sock_zerocopy_put_abort(struct ubuf_info *uarg)
+void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
 	if (uarg) {
 		struct sock *sk = skb_from_uarg(uarg)->sk;
@@ -1097,13 +1095,20 @@ void sock_zerocopy_put_abort(struct ubuf_info *uarg)
 		atomic_dec(&sk->sk_zckey);
 		uarg->len--;
 
-		sock_zerocopy_put(uarg);
+		if (have_uref)
+			sock_zerocopy_put(uarg);
 	}
 }
 EXPORT_SYMBOL_GPL(sock_zerocopy_put_abort);
 
 extern int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 				   struct iov_iter *from, size_t length);
+
+int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len)
+{
+	return __zerocopy_sg_from_iter(skb->sk, skb, &msg->msg_iter, len);
+}
+EXPORT_SYMBOL_GPL(skb_zerocopy_iter_dgram);
 
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 			     struct msghdr *msg, int len,
@@ -1131,7 +1136,7 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 		return err;
 	}
 
-	skb_zcopy_set(skb, uarg);
+	skb_zcopy_set(skb, uarg, NULL);
 	return skb->len - orig_len;
 }
 EXPORT_SYMBOL_GPL(skb_zerocopy_iter_stream);
@@ -1151,7 +1156,7 @@ static int skb_zerocopy_clone(struct sk_buff *nskb, struct sk_buff *orig,
 			if (skb_copy_ubufs(nskb, GFP_ATOMIC))
 				return -EIO;
 		}
-		skb_zcopy_set(nskb, skb_uarg(orig));
+		skb_zcopy_set(nskb, skb_uarg(orig), NULL);
 	}
 	return 0;
 }
@@ -1925,8 +1930,6 @@ void *__pskb_pull_tail(struct sk_buff *skb, int delta)
 		struct sk_buff *insp = NULL;
 
 		do {
-			BUG_ON(!list);
-
 			if (list->len <= eat) {
 				/* Eaten as whole. */
 				eat -= list->len;
@@ -2366,19 +2369,6 @@ error:
 }
 EXPORT_SYMBOL_GPL(skb_send_sock_locked);
 
-/* Send skb data on a socket. */
-int skb_send_sock(struct sock *sk, struct sk_buff *skb, int offset, int len)
-{
-	int ret = 0;
-
-	lock_sock(sk);
-	ret = skb_send_sock_locked(sk, skb, offset, len);
-	release_sock(sk);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(skb_send_sock);
-
 /**
  *	skb_store_bits - store bits from kernel buffer to skb
  *	@skb: destination buffer
@@ -2644,6 +2634,65 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 	return csum;
 }
 EXPORT_SYMBOL(skb_copy_and_csum_bits);
+
+__sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
+{
+	__sum16 sum;
+
+	sum = csum_fold(skb_checksum(skb, 0, len, skb->csum));
+	/* See comments in __skb_checksum_complete(). */
+	if (likely(!sum)) {
+		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
+		    !skb->csum_complete_sw)
+			netdev_rx_csum_fault(skb->dev, skb);
+	}
+	if (!skb_shared(skb))
+		skb->csum_valid = !sum;
+	return sum;
+}
+EXPORT_SYMBOL(__skb_checksum_complete_head);
+
+/* This function assumes skb->csum already holds pseudo header's checksum,
+ * which has been changed from the hardware checksum, for example, by
+ * __skb_checksum_validate_complete(). And, the original skb->csum must
+ * have been validated unsuccessfully for CHECKSUM_COMPLETE case.
+ *
+ * It returns non-zero if the recomputed checksum is still invalid, otherwise
+ * zero. The new checksum is stored back into skb->csum unless the skb is
+ * shared.
+ */
+__sum16 __skb_checksum_complete(struct sk_buff *skb)
+{
+	__wsum csum;
+	__sum16 sum;
+
+	csum = skb_checksum(skb, 0, skb->len, 0);
+
+	sum = csum_fold(csum_add(skb->csum, csum));
+	/* This check is inverted, because we already knew the hardware
+	 * checksum is invalid before calling this function. So, if the
+	 * re-computed checksum is valid instead, then we have a mismatch
+	 * between the original skb->csum and skb_checksum(). This means either
+	 * the original hardware checksum is incorrect or we screw up skb->csum
+	 * when moving skb->data around.
+	 */
+	if (likely(!sum)) {
+		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
+		    !skb->csum_complete_sw)
+			netdev_rx_csum_fault(skb->dev, skb);
+	}
+
+	if (!skb_shared(skb)) {
+		/* Save full packet checksum */
+		skb->csum = csum;
+		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum_complete_sw = 1;
+		skb->csum_valid = !sum;
+	}
+
+	return sum;
+}
+EXPORT_SYMBOL(__skb_checksum_complete);
 
 static __wsum warn_crc32c_csum_update(const void *buff, int len, __wsum sum)
 {
@@ -2961,28 +3010,6 @@ void skb_append(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head 
 	spin_unlock_irqrestore(&list->lock, flags);
 }
 EXPORT_SYMBOL(skb_append);
-
-/**
- *	skb_insert	-	insert a buffer
- *	@old: buffer to insert before
- *	@newsk: buffer to insert
- *	@list: list to use
- *
- *	Place a packet before a given packet in a list. The list locks are
- * 	taken and this function is atomic with respect to other list locked
- *	calls.
- *
- *	A buffer cannot be placed on two lists at the same time.
- */
-void skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&list->lock, flags);
-	__skb_insert(newsk, old->prev, old, list);
-	spin_unlock_irqrestore(&list->lock, flags);
-}
-EXPORT_SYMBOL(skb_insert);
 
 static inline void skb_split_inside_header(struct sk_buff *skb,
 					   struct sk_buff* skb1,
@@ -3873,6 +3900,46 @@ done:
 }
 EXPORT_SYMBOL_GPL(skb_gro_receive);
 
+#ifdef CONFIG_SKB_EXTENSIONS
+#define SKB_EXT_ALIGN_VALUE	8
+#define SKB_EXT_CHUNKSIZEOF(x)	(ALIGN((sizeof(x)), SKB_EXT_ALIGN_VALUE) / SKB_EXT_ALIGN_VALUE)
+
+static const u8 skb_ext_type_len[] = {
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	[SKB_EXT_BRIDGE_NF] = SKB_EXT_CHUNKSIZEOF(struct nf_bridge_info),
+#endif
+#ifdef CONFIG_XFRM
+	[SKB_EXT_SEC_PATH] = SKB_EXT_CHUNKSIZEOF(struct sec_path),
+#endif
+};
+
+static __always_inline unsigned int skb_ext_total_length(void)
+{
+	return SKB_EXT_CHUNKSIZEOF(struct skb_ext) +
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+		skb_ext_type_len[SKB_EXT_BRIDGE_NF] +
+#endif
+#ifdef CONFIG_XFRM
+		skb_ext_type_len[SKB_EXT_SEC_PATH] +
+#endif
+		0;
+}
+
+static void skb_extensions_init(void)
+{
+	BUILD_BUG_ON(SKB_EXT_NUM >= 8);
+	BUILD_BUG_ON(skb_ext_total_length() > 255);
+
+	skbuff_ext_cache = kmem_cache_create("skbuff_ext_cache",
+					     SKB_EXT_ALIGN_VALUE * skb_ext_total_length(),
+					     0,
+					     SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+					     NULL);
+}
+#else
+static void skb_extensions_init(void) {}
+#endif
+
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create_usercopy("skbuff_head_cache",
@@ -3887,6 +3954,7 @@ void __init skb_init(void)
 						0,
 						SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 						NULL);
+	skb_extensions_init();
 }
 
 static int
@@ -4856,7 +4924,7 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 
 #ifdef CONFIG_NET_SWITCHDEV
 	skb->offload_fwd_mark = 0;
-	skb->offload_mr_fwd_mark = 0;
+	skb->offload_l3_fwd_mark = 0;
 #endif
 
 	if (!xnet)
@@ -5128,7 +5196,7 @@ int skb_vlan_pop(struct sk_buff *skb)
 	int err;
 
 	if (likely(skb_vlan_tag_present(skb))) {
-		skb->vlan_tci = 0;
+		__vlan_hwaccel_clear_tag(skb);
 	} else {
 		if (unlikely(!eth_type_vlan(skb->protocol)))
 			return 0;
@@ -5525,3 +5593,148 @@ void skb_condense(struct sk_buff *skb)
 	 */
 	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 }
+
+#ifdef CONFIG_SKB_EXTENSIONS
+static void *skb_ext_get_ptr(struct skb_ext *ext, enum skb_ext_id id)
+{
+	return (void *)ext + (ext->offset[id] * SKB_EXT_ALIGN_VALUE);
+}
+
+static struct skb_ext *skb_ext_alloc(void)
+{
+	struct skb_ext *new = kmem_cache_alloc(skbuff_ext_cache, GFP_ATOMIC);
+
+	if (new) {
+		memset(new->offset, 0, sizeof(new->offset));
+		refcount_set(&new->refcnt, 1);
+	}
+
+	return new;
+}
+
+static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old,
+					 unsigned int old_active)
+{
+	struct skb_ext *new;
+
+	if (refcount_read(&old->refcnt) == 1)
+		return old;
+
+	new = kmem_cache_alloc(skbuff_ext_cache, GFP_ATOMIC);
+	if (!new)
+		return NULL;
+
+	memcpy(new, old, old->chunks * SKB_EXT_ALIGN_VALUE);
+	refcount_set(&new->refcnt, 1);
+
+#ifdef CONFIG_XFRM
+	if (old_active & (1 << SKB_EXT_SEC_PATH)) {
+		struct sec_path *sp = skb_ext_get_ptr(old, SKB_EXT_SEC_PATH);
+		unsigned int i;
+
+		for (i = 0; i < sp->len; i++)
+			xfrm_state_hold(sp->xvec[i]);
+	}
+#endif
+	__skb_ext_put(old);
+	return new;
+}
+
+/**
+ * skb_ext_add - allocate space for given extension, COW if needed
+ * @skb: buffer
+ * @id: extension to allocate space for
+ *
+ * Allocates enough space for the given extension.
+ * If the extension is already present, a pointer to that extension
+ * is returned.
+ *
+ * If the skb was cloned, COW applies and the returned memory can be
+ * modified without changing the extension space of clones buffers.
+ *
+ * Returns pointer to the extension or NULL on allocation failure.
+ */
+void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id)
+{
+	struct skb_ext *new, *old = NULL;
+	unsigned int newlen, newoff;
+
+	if (skb->active_extensions) {
+		old = skb->extensions;
+
+		new = skb_ext_maybe_cow(old, skb->active_extensions);
+		if (!new)
+			return NULL;
+
+		if (__skb_ext_exist(new, id))
+			goto set_active;
+
+		newoff = new->chunks;
+	} else {
+		newoff = SKB_EXT_CHUNKSIZEOF(*new);
+
+		new = skb_ext_alloc();
+		if (!new)
+			return NULL;
+	}
+
+	newlen = newoff + skb_ext_type_len[id];
+	new->chunks = newlen;
+	new->offset[id] = newoff;
+set_active:
+	skb->extensions = new;
+	skb->active_extensions |= 1 << id;
+	return skb_ext_get_ptr(new, id);
+}
+EXPORT_SYMBOL(skb_ext_add);
+
+#ifdef CONFIG_XFRM
+static void skb_ext_put_sp(struct sec_path *sp)
+{
+	unsigned int i;
+
+	for (i = 0; i < sp->len; i++)
+		xfrm_state_put(sp->xvec[i]);
+}
+#endif
+
+void __skb_ext_del(struct sk_buff *skb, enum skb_ext_id id)
+{
+	struct skb_ext *ext = skb->extensions;
+
+	skb->active_extensions &= ~(1 << id);
+	if (skb->active_extensions == 0) {
+		skb->extensions = NULL;
+		__skb_ext_put(ext);
+#ifdef CONFIG_XFRM
+	} else if (id == SKB_EXT_SEC_PATH &&
+		   refcount_read(&ext->refcnt) == 1) {
+		struct sec_path *sp = skb_ext_get_ptr(ext, SKB_EXT_SEC_PATH);
+
+		skb_ext_put_sp(sp);
+		sp->len = 0;
+#endif
+	}
+}
+EXPORT_SYMBOL(__skb_ext_del);
+
+void __skb_ext_put(struct skb_ext *ext)
+{
+	/* If this is last clone, nothing can increment
+	 * it after check passes.  Avoids one atomic op.
+	 */
+	if (refcount_read(&ext->refcnt) == 1)
+		goto free_now;
+
+	if (!refcount_dec_and_test(&ext->refcnt))
+		return;
+free_now:
+#ifdef CONFIG_XFRM
+	if (__skb_ext_exist(ext, SKB_EXT_SEC_PATH))
+		skb_ext_put_sp(skb_ext_get_ptr(ext, SKB_EXT_SEC_PATH));
+#endif
+
+	kmem_cache_free(skbuff_ext_cache, ext);
+}
+EXPORT_SYMBOL(__skb_ext_put);
+#endif /* CONFIG_SKB_EXTENSIONS */

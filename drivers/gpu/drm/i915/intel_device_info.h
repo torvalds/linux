@@ -89,35 +89,38 @@ enum intel_ppgtt {
 	func(is_alpha_support); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
-	func(has_csr); \
-	func(has_ddi); \
-	func(has_dp_mst); \
 	func(has_reset_engine); \
-	func(has_fbc); \
 	func(has_fpga_dbg); \
-	func(has_gmch_display); \
 	func(has_guc); \
 	func(has_guc_ct); \
-	func(has_hotplug); \
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_elsq); \
 	func(has_logical_ring_preemption); \
-	func(has_overlay); \
 	func(has_pooled_eu); \
-	func(has_psr); \
 	func(has_rc6); \
 	func(has_rc6p); \
 	func(has_runtime_pm); \
 	func(has_snoop); \
 	func(has_coherent_ggtt); \
 	func(unfenced_needs_alignment); \
+	func(hws_needs_physical);
+
+#define DEV_INFO_DISPLAY_FOR_EACH_FLAG(func) \
+	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
-	func(hws_needs_physical); \
+	func(has_csr); \
+	func(has_ddi); \
+	func(has_dp_mst); \
+	func(has_fbc); \
+	func(has_gmch_display); \
+	func(has_hotplug); \
+	func(has_ipc); \
+	func(has_overlay); \
+	func(has_psr); \
 	func(overlay_needs_physical); \
-	func(supports_tv); \
-	func(has_ipc);
+	func(supports_tv);
 
 #define GEN_MAX_SLICES		(6) /* CNL upper bound */
 #define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
@@ -172,6 +175,13 @@ struct intel_device_info {
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
+
+	struct {
+#define DEFINE_FLAG(name) u8 name:1
+		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
+#undef DEFINE_FLAG
+	} display;
+
 	u16 ddb_size; /* in blocks */
 
 	/* Register offsets for the various display pipes and transcoders */

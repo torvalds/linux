@@ -41,3 +41,4 @@ WEAK(strrchr)
 2:	mov	x0, x3
 	ret
 ENDPIPROC(strrchr)
+EXPORT_SYMBOL_NOKASAN(strrchr)

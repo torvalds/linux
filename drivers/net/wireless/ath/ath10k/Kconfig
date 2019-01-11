@@ -47,8 +47,7 @@ config ATH10K_SNOC
 	select QCOM_QMI_HELPERS
 	---help---
 	  This module adds support for integrated WCN3990 chip connected
-	  to system NOC(SNOC). Currently work in progress and will not
-	  fully work.
+	  to system NOC(SNOC).
 
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"

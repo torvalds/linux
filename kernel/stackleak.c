@@ -11,6 +11,7 @@
  */
 
 #include <linux/stackleak.h>
+#include <linux/kprobes.h>
 
 #ifdef CONFIG_STACKLEAK_RUNTIME_DISABLE
 #include <linux/jump_label.h>
@@ -47,7 +48,7 @@ int stack_erasing_sysctl(struct ctl_table *table, int write,
 #define skip_erasing()	false
 #endif /* CONFIG_STACKLEAK_RUNTIME_DISABLE */
 
-asmlinkage void stackleak_erase(void)
+asmlinkage void notrace stackleak_erase(void)
 {
 	/* It would be nice not to have 'kstack_ptr' and 'boundary' on stack */
 	unsigned long kstack_ptr = current->lowest_stack;
@@ -101,8 +102,9 @@ asmlinkage void stackleak_erase(void)
 	/* Reset the 'lowest_stack' value for the next syscall */
 	current->lowest_stack = current_top_of_stack() - THREAD_SIZE/64;
 }
+NOKPROBE_SYMBOL(stackleak_erase);
 
-void __used stackleak_track_stack(void)
+void __used notrace stackleak_track_stack(void)
 {
 	/*
 	 * N.B. stackleak_erase() fills the kernel stack with the poison value,

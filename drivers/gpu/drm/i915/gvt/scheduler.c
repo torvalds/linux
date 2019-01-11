@@ -1079,6 +1079,21 @@ err:
 	return ret;
 }
 
+static void
+i915_context_ppgtt_root_restore(struct intel_vgpu_submission *s)
+{
+	struct i915_hw_ppgtt *i915_ppgtt = s->shadow_ctx->ppgtt;
+	int i;
+
+	if (i915_vm_is_48bit(&i915_ppgtt->vm))
+		px_dma(&i915_ppgtt->pml4) = s->i915_context_pml4;
+	else {
+		for (i = 0; i < GEN8_3LVL_PDPES; i++)
+			px_dma(i915_ppgtt->pdp.page_directory[i]) =
+						s->i915_context_pdps[i];
+	}
+}
+
 /**
  * intel_vgpu_clean_submission - free submission-related resource for vGPU
  * @vgpu: a vGPU
@@ -1091,6 +1106,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 	struct intel_vgpu_submission *s = &vgpu->submission;
 
 	intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
+	i915_context_ppgtt_root_restore(s);
 	i915_gem_context_put(s->shadow_ctx);
 	kmem_cache_destroy(s->workloads);
 }
@@ -1116,6 +1132,21 @@ void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
 	s->ops->reset(vgpu, engine_mask);
 }
 
+static void
+i915_context_ppgtt_root_save(struct intel_vgpu_submission *s)
+{
+	struct i915_hw_ppgtt *i915_ppgtt = s->shadow_ctx->ppgtt;
+	int i;
+
+	if (i915_vm_is_48bit(&i915_ppgtt->vm))
+		s->i915_context_pml4 = px_dma(&i915_ppgtt->pml4);
+	else {
+		for (i = 0; i < GEN8_3LVL_PDPES; i++)
+			s->i915_context_pdps[i] =
+				px_dma(i915_ppgtt->pdp.page_directory[i]);
+	}
+}
+
 /**
  * intel_vgpu_setup_submission - setup submission-related resource for vGPU
  * @vgpu: a vGPU
@@ -1137,6 +1168,8 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 			&vgpu->gvt->dev_priv->drm);
 	if (IS_ERR(s->shadow_ctx))
 		return PTR_ERR(s->shadow_ctx);
+
+	i915_context_ppgtt_root_save(s);
 
 	bitmap_zero(s->shadow_ctx_desc_updated, I915_NUM_ENGINES);
 

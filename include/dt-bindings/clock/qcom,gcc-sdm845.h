@@ -197,6 +197,8 @@
 #define GCC_QSPI_CORE_CLK_SRC					187
 #define GCC_QSPI_CORE_CLK					188
 #define GCC_QSPI_CNOC_PERIPH_AHB_CLK				189
+#define GCC_LPASS_Q6_AXI_CLK					190
+#define GCC_LPASS_SWAY_CLK					191
 
 /* GCC Resets */
 #define GCC_MMSS_BCR						0

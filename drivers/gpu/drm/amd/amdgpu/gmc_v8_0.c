@@ -56,6 +56,9 @@ MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_k_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_k_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_k_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -224,13 +227,39 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "tonga";
 		break;
 	case CHIP_POLARIS11:
-		chip_name = "polaris11";
+		if (((adev->pdev->device == 0x67ef) &&
+		     ((adev->pdev->revision == 0xe0) ||
+		      (adev->pdev->revision == 0xe5))) ||
+		    ((adev->pdev->device == 0x67ff) &&
+		     ((adev->pdev->revision == 0xcf) ||
+		      (adev->pdev->revision == 0xef) ||
+		      (adev->pdev->revision == 0xff))))
+			chip_name = "polaris11_k";
+		else if ((adev->pdev->device == 0x67ef) &&
+			 (adev->pdev->revision == 0xe2))
+			chip_name = "polaris11_k";
+		else
+			chip_name = "polaris11";
 		break;
 	case CHIP_POLARIS10:
-		chip_name = "polaris10";
+		if ((adev->pdev->device == 0x67df) &&
+		    ((adev->pdev->revision == 0xe1) ||
+		     (adev->pdev->revision == 0xf7)))
+			chip_name = "polaris10_k";
+		else
+			chip_name = "polaris10";
 		break;
 	case CHIP_POLARIS12:
-		chip_name = "polaris12";
+		if (((adev->pdev->device == 0x6987) &&
+		     ((adev->pdev->revision == 0xc0) ||
+		      (adev->pdev->revision == 0xc3))) ||
+		    ((adev->pdev->device == 0x6981) &&
+		     ((adev->pdev->revision == 0x00) ||
+		      (adev->pdev->revision == 0x01) ||
+		      (adev->pdev->revision == 0x10))))
+			chip_name = "polaris12_k";
+		else
+			chip_name = "polaris12";
 		break;
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:
@@ -337,7 +366,7 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 	const struct mc_firmware_header_v1_0 *hdr;
 	const __le32 *fw_data = NULL;
 	const __le32 *io_mc_regs = NULL;
-	u32 data, vbios_version;
+	u32 data;
 	int i, ucode_size, regs_size;
 
 	/* Skip MC ucode loading on SR-IOV capable boards.
@@ -346,13 +375,6 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 	 * for this adaptor.
 	 */
 	if (amdgpu_sriov_bios(adev))
-		return 0;
-
-	WREG32(mmMC_SEQ_IO_DEBUG_INDEX, 0x9F);
-	data = RREG32(mmMC_SEQ_IO_DEBUG_DATA);
-	vbios_version = data & 0xf;
-
-	if (vbios_version == 0)
 		return 0;
 
 	if (!adev->gmc.fw)

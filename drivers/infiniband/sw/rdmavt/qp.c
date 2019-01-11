@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016, 2017 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -1094,6 +1094,13 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		qp->ibqp.qp_num = err;
 		qp->port_num = init_attr->port_num;
 		rvt_init_qp(rdi, qp, init_attr->qp_type);
+		if (rdi->driver_f.qp_priv_init) {
+			err = rdi->driver_f.qp_priv_init(rdi, qp, init_attr);
+			if (err) {
+				ret = ERR_PTR(err);
+				goto bail_rq_wq;
+			}
+		}
 		break;
 
 	default:

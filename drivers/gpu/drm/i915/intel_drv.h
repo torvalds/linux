@@ -706,6 +706,8 @@ struct intel_crtc_wm_state {
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
+			struct skl_ddb_entry plane_ddb_y[I915_MAX_PLANES];
+			struct skl_ddb_entry plane_ddb_uv[I915_MAX_PLANES];
 		} skl;
 
 		struct {
@@ -926,6 +928,9 @@ struct intel_crtc_state {
 	u8 active_planes;
 	u8 nv12_planes;
 
+	/* bitmask of planes that will be updated during the commit */
+	u8 update_planes;
+
 	/* HDMI scrambling status */
 	bool hdmi_scrambling;
 
@@ -937,6 +942,18 @@ struct intel_crtc_state {
 
 	/* Output down scaling is done in LSPCON device */
 	bool lspcon_downsampling;
+
+	/* Display Stream compression state */
+	struct {
+		bool compression_enable;
+		bool dsc_split;
+		u16 compressed_bpp;
+		u8 slice_count;
+	} dsc_params;
+	struct drm_dsc_config dp_dsc_cfg;
+
+	/* Forward Error correction State */
+	bool fec_enable;
 };
 
 struct intel_crtc {
@@ -1013,7 +1030,7 @@ struct intel_plane {
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
 	void (*disable_plane)(struct intel_plane *plane,
-			      struct intel_crtc *crtc);
+			      const struct intel_crtc_state *crtc_state);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
@@ -1516,13 +1533,9 @@ u8 intel_ddi_dp_pre_emphasis_max(struct intel_encoder *encoder,
 				 u8 voltage_swing);
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 				     bool enable);
-void icl_map_plls_to_ports(struct drm_crtc *crtc,
-			   struct intel_crtc_state *crtc_state,
-			   struct drm_atomic_state *old_state);
-void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
-			     struct intel_crtc_state *crtc_state,
-			     struct drm_atomic_state *old_state);
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
+int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
+			enum intel_dpll_id pll_id);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int color_plane, unsigned int height);
@@ -1787,6 +1800,9 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 int intel_dp_retrain_link(struct intel_encoder *encoder,
 			  struct drm_modeset_acquire_ctx *ctx);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
+void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state,
+					   bool enable);
 void intel_dp_encoder_reset(struct drm_encoder *encoder);
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
 void intel_dp_encoder_destroy(struct drm_encoder *encoder);
@@ -1841,6 +1857,12 @@ uint16_t intel_dp_dsc_get_output_bpp(int link_clock, uint8_t lane_count,
 				     int mode_clock, int mode_hdisplay);
 uint8_t intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
 				     int mode_hdisplay);
+
+/* intel_vdsc.c */
+int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
+				struct intel_crtc_state *pipe_config);
+enum intel_display_power_domain
+intel_dsc_power_domain(const struct intel_crtc_state *crtc_state);
 
 static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 {
@@ -2046,6 +2068,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
 void intel_psr_short_pulse(struct intel_dp *intel_dp);
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 			    u32 *out_value);
+bool intel_psr_enabled(struct intel_dp *intel_dp);
 
 /* intel_quirks.c */
 void intel_init_quirks(struct drm_i915_private *dev_priv);
@@ -2180,6 +2203,9 @@ void g4x_wm_get_hw_state(struct drm_device *dev);
 void vlv_wm_get_hw_state(struct drm_device *dev);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
+void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
+			       struct skl_ddb_entry *ddb_y,
+			       struct skl_ddb_entry *ddb_uv);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
 void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
@@ -2194,6 +2220,10 @@ bool skl_wm_level_equals(const struct skl_wm_level *l1,
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry entries[],
 				 int num_entries, int ignore_idx);
+void skl_write_plane_wm(struct intel_plane *plane,
+			const struct intel_crtc_state *crtc_state);
+void skl_write_cursor_wm(struct intel_plane *plane,
+			 const struct intel_crtc_state *crtc_state);
 bool ilk_disable_lp_wm(struct drm_device *dev);
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);
@@ -2286,10 +2316,10 @@ struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);
 extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
-void intel_update_planes_on_crtc(struct intel_atomic_state *old_state,
-				 struct intel_crtc *crtc,
-				 struct intel_crtc_state *old_crtc_state,
-				 struct intel_crtc_state *new_crtc_state);
+void skl_update_planes_on_crtc(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc);
+void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
+				struct intel_crtc *crtc);
 int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
 					struct intel_crtc_state *crtc_state,
 					const struct intel_plane_state *old_plane_state,

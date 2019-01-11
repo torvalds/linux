@@ -92,22 +92,22 @@ struct kernel_symbol {
  */
 #define __EXPORT_SYMBOL(sym, sec)
 
-#elif defined(__KSYM_DEPS__)
-
-/*
- * For fine grained build dependencies, we want to tell the build system
- * about each possible exported symbol even if they're not actually exported.
- * We use a string pattern that is unlikely to be valid code that the build
- * system filters out from the preprocessor output (see ksym_dep_filter
- * in scripts/Kbuild.include).
- */
-#define __EXPORT_SYMBOL(sym, sec)	=== __KSYM_##sym ===
-
 #elif defined(CONFIG_TRIM_UNUSED_KSYMS)
 
 #include <generated/autoksyms.h>
 
+/*
+ * For fine grained build dependencies, we want to tell the build system
+ * about each possible exported symbol even if they're not actually exported.
+ * We use a symbol pattern __ksym_marker_<symbol> that the build system filters
+ * from the $(NM) output (see scripts/gen_ksymdeps.sh). These symbols are
+ * discarded in the final link stage.
+ */
+#define __ksym_marker(sym)	\
+	static int __ksym_marker_##sym[0] __section(".discard.ksym") __used
+
 #define __EXPORT_SYMBOL(sym, sec)				\
+	__ksym_marker(sym);					\
 	__cond_export_sym(sym, sec, __is_defined(__KSYM_##sym))
 #define __cond_export_sym(sym, sec, conf)			\
 	___cond_export_sym(sym, sec, conf)

@@ -33,7 +33,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	 */
 	BUG_ON(gfp & __GFP_HIGHMEM);
 
-	page = alloc_pages(gfp, order);
+	page = alloc_pages(gfp | __GFP_ZERO, order);
 	if (!page)
 		return NULL;
 

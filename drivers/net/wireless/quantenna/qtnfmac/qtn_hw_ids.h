@@ -23,7 +23,7 @@
 
 /* PCIE Device IDs */
 
-#define	PCIE_DEVICE_ID_QTN_PEARL	(0x0008)
+#define	PCIE_DEVICE_ID_QSR		(0x0008)
 
 #define QTN_REG_SYS_CTRL_CSR		0x14
 #define QTN_CHIP_ID_MASK		0xF0
@@ -35,6 +35,8 @@
 /* FW names */
 
 #define QTN_PCI_PEARL_FW_NAME		"qtn/fmac_qsr10g.img"
+#define QTN_PCI_TOPAZ_FW_NAME		"qtn/fmac_qsr1000.img"
+#define QTN_PCI_TOPAZ_BOOTLD_NAME	"qtn/uboot_qsr1000.img"
 
 static inline unsigned int qtnf_chip_id_get(const void __iomem *regs_base)
 {

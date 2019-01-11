@@ -190,4 +190,8 @@ config STACKLEAK_RUNTIME_DISABLE
 	  runtime to control kernel stack erasing for kernels built with
 	  CONFIG_GCC_PLUGIN_STACKLEAK.
 
+config GCC_PLUGIN_ARM_SSP_PER_TASK
+	bool
+	depends on GCC_PLUGINS && ARM
+
 endif

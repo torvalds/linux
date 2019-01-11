@@ -466,15 +466,6 @@ struct vmw_private {
 	uint32_t num_displays;
 
 	/*
-	 * Currently requested_layout_mutex is used to protect the gui
-	 * positionig state in display unit. With that use case currently this
-	 * mutex is only taken during layout ioctl and atomic check_modeset.
-	 * Other display unit state can be protected with this mutex but that
-	 * needs careful consideration.
-	 */
-	struct mutex requested_layout_mutex;
-
-	/*
 	 * Framebuffer info.
 	 */
 
@@ -484,8 +475,6 @@ struct vmw_private {
 	struct vmw_overlay *overlay_priv;
 	struct drm_property *hotplug_mode_update_property;
 	struct drm_property *implicit_placement_property;
-	unsigned num_implicit;
-	struct vmw_framebuffer *implicit_fb;
 	struct mutex global_kms_state_mutex;
 	spinlock_t cursor_lock;
 	struct drm_atomic_state *suspend_state;
@@ -604,6 +593,9 @@ struct vmw_private {
 
 	struct vmw_cmdbuf_man *cman;
 	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
+
+	/* Validation memory reservation */
+	struct vmw_validation_mem vvm;
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -842,6 +834,8 @@ extern int vmw_fifo_flush(struct vmw_private *dev_priv,
 
 extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
+extern void vmw_validation_mem_init_ttm(struct vmw_private *dev_priv,
+					size_t gran);
 /**
  * TTM buffer object driver - vmwgfx_ttm_buffer.c
  */

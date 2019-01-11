@@ -72,6 +72,7 @@
 #include "file.h"
 #include "error-dump.h"
 #include "api/commands.h"
+#include "api/dbg-tlv.h"
 
 /**
  * struct iwl_fw_dump_desc - describes the dump
@@ -101,17 +102,19 @@ static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
 	if (fwrt->dump.desc != &iwl_dump_desc_assert)
 		kfree(fwrt->dump.desc);
 	fwrt->dump.desc = NULL;
-	fwrt->dump.trig = NULL;
+	fwrt->dump.rt_status = 0;
 }
 
 void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt);
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
-			    void *trigger, unsigned int delay);
+			    bool monitor_only, unsigned int delay);
+int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+			enum iwl_fw_dbg_trigger trig,
+			const char *str, size_t len,
+			struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-		       enum iwl_fw_dbg_trigger trig,
-		       const char *str, size_t len,
-		       struct iwl_fw_dbg_trigger_tlv *trigger);
+		       u32 id, const char *str, size_t len);
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...) __printf(3, 4);
@@ -193,6 +196,9 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 
+	if (fwrt->trans->ini_valid)
+		return NULL;
+
 	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
 		return NULL;
 
@@ -208,6 +214,37 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 	BUILD_BUG_ON(!__builtin_constant_p(id));		\
 	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
 	_iwl_fw_dbg_trigger_on((fwrt), (wdev), (id));		\
+})
+
+static inline bool
+_iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
+		       const enum iwl_fw_dbg_trigger id)
+{
+	struct iwl_fw_ini_active_triggers *trig = &fwrt->dump.active_trigs[id];
+	u32 ms;
+
+	if (!fwrt->trans->ini_valid)
+		return false;
+
+	if (!trig || !trig->active)
+		return false;
+
+	ms = le32_to_cpu(trig->conf->ignore_consec);
+	if (ms)
+		ms /= USEC_PER_MSEC;
+
+	if (iwl_fw_dbg_no_trig_window(fwrt, id, ms)) {
+		IWL_WARN(fwrt, "Trigger %d fired in no-collect window\n", id);
+		return false;
+	}
+
+	return true;
+}
+
+#define iwl_fw_ini_trigger_on(fwrt, wdev, id) ({		\
+	BUILD_BUG_ON(!__builtin_constant_p(id));		\
+	BUILD_BUG_ON((id) >= IWL_FW_TRIGGER_ID_NUM);		\
+	_iwl_fw_ini_trigger_on((fwrt), (wdev), (id));		\
 })
 
 static inline void
@@ -263,6 +300,9 @@ _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 	iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
 	udelay(100);
 	iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	trans->dbg_rec_on = false;
+#endif
 }
 
 static inline void
@@ -293,6 +333,14 @@ _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 	}
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
+{
+	if (fwrt->fw->dbg.dest_tlv && fwrt->cur_fw_img == IWL_UCODE_REGULAR)
+		fwrt->trans->dbg_rec_on = true;
+}
+#endif
+
 static inline void
 iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
 			     struct iwl_fw_dbg_params *params)
@@ -301,6 +349,9 @@ iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
 		_iwl_fw_dbg_restart_recording(fwrt->trans, params);
 	else
 		iwl_fw_dbg_start_stop_hcmd(fwrt, true);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_fw_set_dbg_rec_on(fwrt);
+#endif
 }
 
 static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
@@ -310,12 +361,25 @@ static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
 
 void iwl_fw_error_dump_wk(struct work_struct *work);
 
+static inline bool iwl_fw_dbg_type_on(struct iwl_fw_runtime *fwrt, u32 type)
+{
+	return (fwrt->fw->dbg.dump_mask & BIT(type) || fwrt->trans->ini_valid);
+}
+
 static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
 {
 	return fw_has_capa(&fwrt->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_D3_DEBUG) &&
 		fwrt->trans->cfg->d3_debug_data_length &&
-		fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+		iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+}
+
+static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
+{
+	return iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PAGING) &&
+		!fwrt->trans->cfg->gen2 &&
+		fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
+		fwrt->fw_paging_db[0].fw_paging_block;
 }
 
 void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
@@ -366,6 +430,10 @@ static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
+void iwl_fw_assert_error_dump(struct iwl_fw_runtime *fwrt);
 void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt);
 void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
+			    enum iwl_fw_ini_apply_point apply_point);
+
 #endif  /* __iwl_fw_dbg_h__ */

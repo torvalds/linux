@@ -2447,10 +2447,11 @@ static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 
 static void intel_vgpu_destroy_ggtt_mm(struct intel_vgpu *vgpu)
 {
-	struct intel_gvt_partial_pte *pos;
+	struct intel_gvt_partial_pte *pos, *next;
 
-	list_for_each_entry(pos,
-			&vgpu->gtt.ggtt_mm->ggtt_mm.partial_pte_list, list) {
+	list_for_each_entry_safe(pos, next,
+				 &vgpu->gtt.ggtt_mm->ggtt_mm.partial_pte_list,
+				 list) {
 		gvt_dbg_mm("partial PTE update on hold 0x%lx : 0x%llx\n",
 			pos->offset, pos->data);
 		kfree(pos);

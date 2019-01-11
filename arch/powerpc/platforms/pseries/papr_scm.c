@@ -55,7 +55,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 	do {
 		rc = plpar_hcall(H_SCM_BIND_MEM, ret, p->drc_index, 0,
 				p->blocks, BIND_ANY_ADDR, token);
-		token = be64_to_cpu(ret[0]);
+		token = ret[0];
 		cond_resched();
 	} while (rc == H_BUSY);
 
@@ -64,7 +64,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 		return -ENXIO;
 	}
 
-	p->bound_addr = be64_to_cpu(ret[1]);
+	p->bound_addr = ret[1];
 
 	dev_dbg(&p->pdev->dev, "bound drc %x to %pR\n", p->drc_index, &p->res);
 
@@ -82,7 +82,7 @@ static int drc_pmem_unbind(struct papr_scm_priv *p)
 	do {
 		rc = plpar_hcall(H_SCM_UNBIND_MEM, ret, p->drc_index,
 				p->bound_addr, p->blocks, token);
-		token = be64_to_cpu(ret);
+		token = ret[0];
 		cond_resched();
 	} while (rc == H_BUSY);
 
@@ -223,6 +223,9 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 		goto err;
 	}
 
+	if (nvdimm_bus_check_dimm_count(p->bus, 1))
+		goto err;
+
 	/* now add the region */
 
 	memset(&mapping, 0, sizeof(mapping));
@@ -257,9 +260,12 @@ err:	nvdimm_bus_unregister(p->bus);
 
 static int papr_scm_probe(struct platform_device *pdev)
 {
-	uint32_t drc_index, metadata_size, unit_cap[2];
 	struct device_node *dn = pdev->dev.of_node;
+	u32 drc_index, metadata_size;
+	u64 blocks, block_size;
 	struct papr_scm_priv *p;
+	const char *uuid_str;
+	u64 uuid[2];
 	int rc;
 
 	/* check we have all the required DT properties */
@@ -268,8 +274,18 @@ static int papr_scm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (of_property_read_u32_array(dn, "ibm,unit-capacity", unit_cap, 2)) {
-		dev_err(&pdev->dev, "%pOF: missing unit-capacity!\n", dn);
+	if (of_property_read_u64(dn, "ibm,block-size", &block_size)) {
+		dev_err(&pdev->dev, "%pOF: missing block-size!\n", dn);
+		return -ENODEV;
+	}
+
+	if (of_property_read_u64(dn, "ibm,number-of-blocks", &blocks)) {
+		dev_err(&pdev->dev, "%pOF: missing number-of-blocks!\n", dn);
+		return -ENODEV;
+	}
+
+	if (of_property_read_string(dn, "ibm,unit-guid", &uuid_str)) {
+		dev_err(&pdev->dev, "%pOF: missing unit-guid!\n", dn);
 		return -ENODEV;
 	}
 
@@ -282,8 +298,13 @@ static int papr_scm_probe(struct platform_device *pdev)
 
 	p->dn = dn;
 	p->drc_index = drc_index;
-	p->block_size = unit_cap[0];
-	p->blocks     = unit_cap[1];
+	p->block_size = block_size;
+	p->blocks = blocks;
+
+	/* We just need to ensure that set cookies are unique across */
+	uuid_parse(uuid_str, (uuid_t *) uuid);
+	p->nd_set.cookie1 = uuid[0];
+	p->nd_set.cookie2 = uuid[1];
 
 	/* might be zero */
 	p->metadata_size = metadata_size;
@@ -296,7 +317,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 
 	/* setup the resource for the newly bound range */
 	p->res.start = p->bound_addr;
-	p->res.end   = p->bound_addr + p->blocks * p->block_size;
+	p->res.end   = p->bound_addr + p->blocks * p->block_size - 1;
 	p->res.name  = pdev->name;
 	p->res.flags = IORESOURCE_MEM;
 

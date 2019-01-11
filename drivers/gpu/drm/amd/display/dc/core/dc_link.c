@@ -198,6 +198,13 @@ static bool program_hpd_filter(
 	return result;
 }
 
+/**
+ * dc_link_detect_sink() - Determine if there is a sink connected
+ *
+ * @type: Returned connection type
+ * Does not detect downstream devices, such as MST sinks
+ * or display connected through active dongles
+ */
 bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 {
 	uint32_t is_hpd_high = 0;
@@ -207,6 +214,9 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		*type = dc_connection_single;
 		return true;
 	}
+
+	if (link->connector_signal == SIGNAL_TYPE_EDP)
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 
 	/* todo: may need to lock gpio access */
 	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
@@ -324,15 +334,15 @@ static enum signal_type get_basic_signal_type(
 	return SIGNAL_TYPE_NONE;
 }
 
-/*
- * @brief
- * Check whether there is a dongle on DP connector
+/**
+ * dc_link_is_dp_sink_present() - Check if there is a native DP
+ * or passive DP-HDMI dongle connected
  */
 bool dc_link_is_dp_sink_present(struct dc_link *link)
 {
 	enum gpio_result gpio_result;
 	uint32_t clock_pin = 0;
-
+	uint8_t retry = 0;
 	struct ddc *ddc;
 
 	enum connector_id connector_id =
@@ -361,11 +371,22 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 		return present;
 	}
 
-	/* Read GPIO: DP sink is present if both clock and data pins are zero */
-	/* [anaumov] in DAL2, there was no check for GPIO failure */
-
-	gpio_result = dal_gpio_get_value(ddc->pin_clock, &clock_pin);
-	ASSERT(gpio_result == GPIO_RESULT_OK);
+	/*
+	 * Read GPIO: DP sink is present if both clock and data pins are zero
+	 *
+	 * [W/A] plug-unplug DP cable, sometimes customer board has
+	 * one short pulse on clk_pin(1V, < 1ms). DP will be config to HDMI/DVI
+	 * then monitor can't br light up. Add retry 3 times
+	 * But in real passive dongle, it need additional 3ms to detect
+	 */
+	do {
+		gpio_result = dal_gpio_get_value(ddc->pin_clock, &clock_pin);
+		ASSERT(gpio_result == GPIO_RESULT_OK);
+		if (clock_pin)
+			udelay(1000);
+		else
+			break;
+	} while (retry++ < 3);
 
 	present = (gpio_result == GPIO_RESULT_OK) && !clock_pin;
 
@@ -593,6 +614,14 @@ static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 	return (memcmp(old_edid->raw_edid, new_edid->raw_edid, new_edid->length) == 0);
 }
 
+/**
+ * dc_link_detect() - Detect if a sink is attached to a given link
+ *
+ * link->local_sink is created or destroyed as needed.
+ *
+ * This does not create remote sinks but will trigger DM
+ * to start MST detection if a branch is detected.
+ */
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
@@ -688,12 +717,26 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps, sizeof(struct dpcd_caps)))
 					same_dpcd = false;
 			}
-			/* Active dongle downstream unplug */
+			/* Active dongle plug in without display or downstream unplug*/
 			if (link->type == dc_connection_active_dongle
 					&& link->dpcd_caps.sink_count.
 					bits.SINK_COUNT == 0) {
-				if (prev_sink != NULL)
+				if (prev_sink != NULL) {
+					/* Downstream unplug */
 					dc_sink_release(prev_sink);
+				} else {
+					/* Empty dongle plug in */
+					for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
+						int fail_count = 0;
+
+						dp_verify_link_cap(link,
+								  &link->reported_link_cap,
+								  &fail_count);
+
+						if (fail_count == 0)
+							break;
+					}
+				}
 				return true;
 			}
 
@@ -1395,8 +1438,6 @@ static enum dc_status enable_link_dp(
 	}
 	else
 		status = DC_FAIL_DP_LINK_TRAINING;
-
-	enable_stream_features(pipe_ctx);
 
 	return status;
 }
@@ -2175,11 +2216,11 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
-		if (stream != NULL) {
-			for (i = 0; i < MAX_PIPES; i++) {
+		for (i = 0; i < MAX_PIPES; i++) {
+			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
-						pipe_ctx[i].stream
-						== stream)
+						pipe_ctx[i].stream->sink->link
+						== link)
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
@@ -2218,7 +2259,7 @@ bool dc_link_set_psr_enable(const struct dc_link *link, bool enable, bool wait)
 	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
-	if (dmcu != NULL && link->psr_enabled)
+	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, enable, wait);
 
 	return true;
@@ -2594,6 +2635,9 @@ void core_link_enable_stream(
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->sink->link->cur_link_settings);
 
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			enable_stream_features(pipe_ctx);
+
 		dc_link_set_backlight_level(pipe_ctx->stream->sink->link,
 				pipe_ctx->stream->bl_pwm_level,
 				0,
@@ -2606,10 +2650,10 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
+	core_dc->hwss.blank_stream(pipe_ctx);
+
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
-
-	core_dc->hwss.blank_stream(pipe_ctx);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 

@@ -1050,33 +1050,10 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
 	.switchdev_port_attr_get	= dsa_slave_port_attr_get,
 	.switchdev_port_attr_set	= dsa_slave_port_attr_set,
-	.switchdev_port_obj_add		= dsa_slave_port_obj_add,
-	.switchdev_port_obj_del		= dsa_slave_port_obj_del,
 };
 
 static struct device_type dsa_type = {
 	.name	= "dsa",
-};
-
-static ssize_t tagging_show(struct device *d, struct device_attribute *attr,
-			    char *buf)
-{
-	struct net_device *dev = to_net_dev(d);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
-
-	return sprintf(buf, "%s\n",
-		       dsa_tag_protocol_to_str(dp->cpu_dp->tag_ops));
-}
-static DEVICE_ATTR_RO(tagging);
-
-static struct attribute *dsa_slave_attrs[] = {
-	&dev_attr_tagging.attr,
-	NULL
-};
-
-static const struct attribute_group dsa_group = {
-	.name	= "dsa",
-	.attrs	= dsa_slave_attrs,
 };
 
 static void dsa_slave_phylink_validate(struct net_device *dev,
@@ -1374,14 +1351,8 @@ int dsa_slave_create(struct dsa_port *port)
 		goto out_phy;
 	}
 
-	ret = sysfs_create_group(&slave_dev->dev.kobj, &dsa_group);
-	if (ret)
-		goto out_unreg;
-
 	return 0;
 
-out_unreg:
-	unregister_netdev(slave_dev);
 out_phy:
 	rtnl_lock();
 	phylink_disconnect_phy(p->dp->pl);
@@ -1405,7 +1376,6 @@ void dsa_slave_destroy(struct net_device *slave_dev)
 	rtnl_unlock();
 
 	dsa_slave_notify(slave_dev, DSA_PORT_UNREGISTER);
-	sysfs_remove_group(&slave_dev->dev.kobj, &dsa_group);
 	unregister_netdev(slave_dev);
 	phylink_destroy(dp->pl);
 	free_percpu(p->stats64);
@@ -1557,6 +1527,44 @@ err_fdb_work_init:
 	return NOTIFY_BAD;
 }
 
+static int
+dsa_slave_switchdev_port_obj_event(unsigned long event,
+			struct net_device *netdev,
+			struct switchdev_notifier_port_obj_info *port_obj_info)
+{
+	int err = -EOPNOTSUPP;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = dsa_slave_port_obj_add(netdev, port_obj_info->obj,
+					     port_obj_info->trans);
+		break;
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = dsa_slave_port_obj_del(netdev, port_obj_info->obj);
+		break;
+	}
+
+	port_obj_info->handled = true;
+	return notifier_from_errno(err);
+}
+
+static int dsa_slave_switchdev_blocking_event(struct notifier_block *unused,
+					      unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+
+	if (!dsa_slave_dev_check(dev))
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD: /* fall through */
+	case SWITCHDEV_PORT_OBJ_DEL:
+		return dsa_slave_switchdev_port_obj_event(event, dev, ptr);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block dsa_slave_nb __read_mostly = {
 	.notifier_call  = dsa_slave_netdevice_event,
 };
@@ -1565,8 +1573,13 @@ static struct notifier_block dsa_slave_switchdev_notifier = {
 	.notifier_call = dsa_slave_switchdev_event,
 };
 
+static struct notifier_block dsa_slave_switchdev_blocking_notifier = {
+	.notifier_call = dsa_slave_switchdev_blocking_event,
+};
+
 int dsa_slave_register_notifier(void)
 {
+	struct notifier_block *nb;
 	int err;
 
 	err = register_netdevice_notifier(&dsa_slave_nb);
@@ -1577,8 +1590,15 @@ int dsa_slave_register_notifier(void)
 	if (err)
 		goto err_switchdev_nb;
 
+	nb = &dsa_slave_switchdev_blocking_notifier;
+	err = register_switchdev_blocking_notifier(nb);
+	if (err)
+		goto err_switchdev_blocking_nb;
+
 	return 0;
 
+err_switchdev_blocking_nb:
+	unregister_switchdev_notifier(&dsa_slave_switchdev_notifier);
 err_switchdev_nb:
 	unregister_netdevice_notifier(&dsa_slave_nb);
 	return err;
@@ -1586,7 +1606,13 @@ err_switchdev_nb:
 
 void dsa_slave_unregister_notifier(void)
 {
+	struct notifier_block *nb;
 	int err;
+
+	nb = &dsa_slave_switchdev_blocking_notifier;
+	err = unregister_switchdev_blocking_notifier(nb);
+	if (err)
+		pr_err("DSA: failed to unregister switchdev blocking notifier (%d)\n", err);
 
 	err = unregister_switchdev_notifier(&dsa_slave_switchdev_notifier);
 	if (err)

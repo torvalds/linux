@@ -49,7 +49,6 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server = ses->server;
 	int num_rqst = 0;
 	struct smb_rqst rqst[3];
 	int resp_buftype[3];
@@ -97,7 +96,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		goto finished;
 
-	smb2_set_next_command(server, &rqst[num_rqst++]);
+	smb2_set_next_command(tcon, &rqst[num_rqst++]);
 
 	/* Operation */
 	switch (command) {
@@ -111,7 +110,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 				SMB2_O_INFO_FILE, 0,
 				sizeof(struct smb2_file_all_info) +
 					  PATH_MAX * 2, 0, NULL);
-		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
 	case SMB2_OP_DELETE:
@@ -127,14 +126,14 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		rqst[num_rqst].rq_iov = si_iov;
 		rqst[num_rqst].rq_nvec = 1;
 
-		size[0] = 8;
+		size[0] = 1; /* sizeof __u8 See MS-FSCC section 2.4.11 */
 		data[0] = &delete_pending[0];
 
 		rc = SMB2_set_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
 					COMPOUND_FID, current->tgid,
 					FILE_DISPOSITION_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
 	case SMB2_OP_SET_EOF:
@@ -149,7 +148,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_END_OF_FILE_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
 	case SMB2_OP_SET_INFO:
@@ -165,7 +164,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_BASIC_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
 	case SMB2_OP_RENAME:
@@ -189,7 +188,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_RENAME_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
 	case SMB2_OP_HARDLINK:
@@ -213,7 +212,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_LINK_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
 	default:
@@ -388,7 +387,6 @@ smb2_set_path_attr(const unsigned int xid, struct cifs_tcon *tcon,
 		rc = -ENOMEM;
 		goto smb2_rename_path;
 	}
-
 	rc = smb2_compound_op(xid, tcon, cifs_sb, from_name, access,
 			      FILE_OPEN, 0, smb2_to_name, command);
 smb2_rename_path:

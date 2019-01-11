@@ -417,7 +417,6 @@ static struct platform_driver ti_opp_supply_driver = {
 	.probe = ti_opp_supply_probe,
 	.driver = {
 		   .name = "ti_opp_supply",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(ti_opp_supply_of_match),
 		   },
 };

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/i2c/busses/i2c-tegra.c
  *
  * Copyright (C) 2010 Google, Inc.
  * Author: Colin Cross <ccross@android.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -145,8 +136,8 @@ enum msg_end_type {
  * @has_continue_xfer_support: Continue transfer supports.
  * @has_per_pkt_xfer_complete_irq: Has enable/disable capability for transfer
  *		complete interrupt per packet basis.
- * @has_single_clk_source: The i2c controller has single clock source. Tegra30
- *		and earlier Socs has two clock sources i.e. div-clk and
+ * @has_single_clk_source: The I2C controller has single clock source. Tegra30
+ *		and earlier SoCs have two clock sources i.e. div-clk and
  *		fast-clk.
  * @has_config_load_reg: Has the config load register to load the new
  *		configuration.
@@ -154,8 +145,17 @@ enum msg_end_type {
  * @clk_divisor_std_fast_mode: Clock divisor in standard/fast mode. It is
  *		applicable if there is no fast clock source i.e. single clock
  *		source.
+ * @clk_divisor_fast_plus_mode: Clock divisor in fast mode plus. It is
+ *		applicable if there is no fast clock source (i.e. single
+ *		clock source).
+ * @has_multi_master_mode: The I2C controller supports running in single-master
+ *		or multi-master mode.
+ * @has_slcg_override_reg: The I2C controller supports a register that
+ *		overrides the second level clock gating.
+ * @has_mst_fifo: The I2C controller contains the new MST FIFO interface that
+ *		provides additional features and allows for longer messages to
+ *		be transferred in one go.
  */
-
 struct tegra_i2c_hw_feature {
 	bool has_continue_xfer_support;
 	bool has_per_pkt_xfer_complete_irq;
@@ -170,22 +170,27 @@ struct tegra_i2c_hw_feature {
 };
 
 /**
- * struct tegra_i2c_dev	- per device i2c context
+ * struct tegra_i2c_dev - per device I2C context
  * @dev: device reference for power management
- * @hw: Tegra i2c hw feature.
- * @adapter: core i2c layer adapter information
- * @div_clk: clock reference for div clock of i2c controller.
- * @fast_clk: clock reference for fast clock of i2c controller.
+ * @hw: Tegra I2C HW feature
+ * @adapter: core I2C layer adapter information
+ * @div_clk: clock reference for div clock of I2C controller
+ * @fast_clk: clock reference for fast clock of I2C controller
+ * @rst: reset control for the I2C controller
  * @base: ioremapped registers cookie
- * @cont_id: i2c controller id, used for for packet header
- * @irq: irq number of transfer complete interrupt
- * @is_dvc: identifies the DVC i2c controller, has a different register layout
+ * @cont_id: I2C controller ID, used for packet header
+ * @irq: IRQ number of transfer complete interrupt
+ * @irq_disabled: used to track whether or not the interrupt is enabled
+ * @is_dvc: identifies the DVC I2C controller, has a different register layout
  * @msg_complete: transfer completion notifier
  * @msg_err: error code for completed message
  * @msg_buf: pointer to current message data
  * @msg_buf_remaining: size of unsent data in the message buffer
  * @msg_read: identifies read transfers
- * @bus_clk_rate: current i2c bus clock rate
+ * @bus_clk_rate: current I2C bus clock rate
+ * @clk_divisor_non_hs_mode: clock divider for non-high-speed modes
+ * @is_multimaster_mode: track if I2C controller is in multi-master mode
+ * @xfer_lock: lock to serialize transfer submission and processing
  */
 struct tegra_i2c_dev {
 	struct device *dev;
@@ -608,11 +613,10 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	u32 status;
 	const u32 status_err = I2C_INT_NO_ACK | I2C_INT_ARBITRATION_LOST;
 	struct tegra_i2c_dev *i2c_dev = dev_id;
-	unsigned long flags;
 
 	status = i2c_readl(i2c_dev, I2C_INT_STATUS);
 
-	spin_lock_irqsave(&i2c_dev->xfer_lock, flags);
+	spin_lock(&i2c_dev->xfer_lock);
 	if (status == 0) {
 		dev_warn(i2c_dev->dev, "irq status 0 %08x %08x %08x\n",
 			 i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS),
@@ -670,7 +674,7 @@ err:
 
 	complete(&i2c_dev->msg_complete);
 done:
-	spin_unlock_irqrestore(&i2c_dev->xfer_lock, flags);
+	spin_unlock(&i2c_dev->xfer_lock);
 	return IRQ_HANDLED;
 }
 

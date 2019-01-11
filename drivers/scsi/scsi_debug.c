@@ -3973,7 +3973,6 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 			return 1;  /* no resources, will be marked offline */
 	}
 	sdp->hostdata = devip;
-	blk_queue_max_segment_size(sdp->request_queue, -1U);
 	if (sdebug_no_uld)
 		sdp->no_uld_attach = 1;
 	config_cdb_len(sdp);
@@ -5851,7 +5850,7 @@ static struct scsi_host_template sdebug_driver_template = {
 	.sg_tablesize =		SG_MAX_SEGMENTS,
 	.cmd_per_lun =		DEF_CMD_PER_LUN,
 	.max_sectors =		-1U,
-	.use_clustering = 	DISABLE_CLUSTERING,
+	.max_segment_size =	-1U,
 	.module =		THIS_MODULE,
 	.track_queue_depth =	1,
 };
@@ -5866,8 +5865,9 @@ static int sdebug_driver_probe(struct device *dev)
 	sdbg_host = to_sdebug_host(dev);
 
 	sdebug_driver_template.can_queue = sdebug_max_queue;
-	if (sdebug_clustering)
-		sdebug_driver_template.use_clustering = ENABLE_CLUSTERING;
+	if (!sdebug_clustering)
+		sdebug_driver_template.dma_boundary = PAGE_SIZE - 1;
+
 	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
 	if (NULL == hpnt) {
 		pr_err("scsi_host_alloc failed\n");
@@ -5881,8 +5881,7 @@ static int sdebug_driver_probe(struct device *dev)
 	}
 	/* Decide whether to tell scsi subsystem that we want mq */
 	/* Following should give the same answer for each host */
-	if (shost_use_blk_mq(hpnt))
-		hpnt->nr_hw_queues = submit_queues;
+	hpnt->nr_hw_queues = submit_queues;
 
 	sdbg_host->shost = hpnt;
 	*((struct sdebug_host_info **)hpnt->hostdata) = sdbg_host;

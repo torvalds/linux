@@ -3,10 +3,12 @@
 
 static size_t syscall_arg__scnprintf_signum(char *bf, size_t size, struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "SIG";
 	int sig = arg->val;
 
 	switch (sig) {
-#define	P_SIGNUM(n) case SIG##n: return scnprintf(bf, size, #n)
+#define	P_SIGNUM(n) case SIG##n: return scnprintf(bf, size, "%s%s", show_prefix ? prefix : "", #n)
 	P_SIGNUM(HUP);
 	P_SIGNUM(INT);
 	P_SIGNUM(QUIT);

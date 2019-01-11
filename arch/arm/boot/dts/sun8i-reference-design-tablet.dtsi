@@ -73,8 +73,6 @@
 		reg = <0x40>;
 		interrupt-parent = <&pio>;
 		interrupts = <1 5 IRQ_TYPE_EDGE_FALLING>; /* PB5 */
-		pinctrl-names = "default";
-		pinctrl-0 = <&ts_power_pin>;
 		power-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 		/* Tablet dts must provide reg and compatible */
 		status = "disabled";
@@ -82,8 +80,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 1 4 GPIO_ACTIVE_LOW>; /* PB4 */
@@ -91,18 +87,7 @@
 };
 
 &pio {
-	mmc0_cd_pin: mmc0_cd_pin@0 {
-		pins = "PB4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	ts_power_pin: ts_power_pin@0 {
-		pins = "PH1";
-		function = "gpio_out";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH8";
 		function = "gpio_in";
 		bias-pull-up;

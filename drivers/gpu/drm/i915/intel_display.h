@@ -242,6 +242,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_TRANSCODER_B,
 	POWER_DOMAIN_TRANSCODER_C,
 	POWER_DOMAIN_TRANSCODER_EDP,
+	POWER_DOMAIN_TRANSCODER_EDP_VDSC,
 	POWER_DOMAIN_TRANSCODER_DSI_A,
 	POWER_DOMAIN_TRANSCODER_DSI_C,
 	POWER_DOMAIN_PORT_DDI_A_LANES,
@@ -398,6 +399,14 @@ struct intel_link_m_n {
 	for_each_power_well_reverse(__dev_priv, __power_well)		        \
 		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
+#define for_each_old_intel_plane_in_state(__state, plane, old_plane_state, __i) \
+	for ((__i) = 0; \
+	     (__i) < (__state)->base.dev->mode_config.num_total_plane && \
+		     ((plane) = to_intel_plane((__state)->base.planes[__i].ptr), \
+		      (old_plane_state) = to_intel_plane_state((__state)->base.planes[__i].old_state), 1); \
+	     (__i)++) \
+		for_each_if(plane)
+
 #define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0; \
 	     (__i) < (__state)->base.dev->mode_config.num_total_plane && \
@@ -423,10 +432,18 @@ struct intel_link_m_n {
 	     (__i)++) \
 		for_each_if(plane)
 
-void intel_link_compute_m_n(int bpp, int nlanes,
+#define for_each_oldnew_intel_crtc_in_state(__state, crtc, old_crtc_state, new_crtc_state, __i) \
+	for ((__i) = 0; \
+	     (__i) < (__state)->base.dev->mode_config.num_crtc && \
+		     ((crtc) = to_intel_crtc((__state)->base.crtcs[__i].ptr), \
+		      (old_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].old_state), \
+		      (new_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].new_state), 1); \
+	     (__i)++) \
+		for_each_if(crtc)
+
+void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
 			    bool constant_n);
-
 bool is_ccs_modifier(u64 modifier);
 #endif

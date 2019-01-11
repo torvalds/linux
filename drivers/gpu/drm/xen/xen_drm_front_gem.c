@@ -22,7 +22,6 @@
 #include <xen/balloon.h>
 
 #include "xen_drm_front.h"
-#include "xen_drm_front_shbuf.h"
 
 struct xen_gem_object {
 	struct drm_gem_object base;

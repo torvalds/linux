@@ -90,8 +90,9 @@ config EROFS_FS_IO_MAX_RETRIES
 config EROFS_FS_ZIP
 	bool "EROFS Data Compresssion Support"
 	depends on EROFS_FS
+	select LZ4_DECOMPRESS
 	help
-	  Currently we support VLE Compression only.
+	  Currently we support LZ4 VLE Compression only.
 	  Play at your own risk.
 
 	  If you don't want to use compression feature, say N.

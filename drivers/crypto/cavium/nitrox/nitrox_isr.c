@@ -7,12 +7,14 @@
 #include "nitrox_csr.h"
 #include "nitrox_common.h"
 #include "nitrox_hal.h"
+#include "nitrox_mbx.h"
 
 /**
  * One vector for each type of ring
  *  - NPS packet ring, AQMQ ring and ZQMQ ring
  */
 #define NR_RING_VECTORS 3
+#define NR_NON_RING_VECTORS 1
 /* base entry for packet ring/port */
 #define PKT_RING_MSIX_BASE 0
 #define NON_RING_MSIX_BASE 192
@@ -219,7 +221,8 @@ static void nps_core_int_tasklet(unsigned long data)
  */
 static irqreturn_t nps_core_int_isr(int irq, void *data)
 {
-	struct nitrox_device *ndev = data;
+	struct nitrox_q_vector *qvec = data;
+	struct nitrox_device *ndev = qvec->ndev;
 	union nps_core_int_active core_int;
 
 	core_int.value = nitrox_read_csr(ndev, NPS_CORE_INT_ACTIVE);
@@ -244,6 +247,10 @@ static irqreturn_t nps_core_int_isr(int irq, void *data)
 
 	if (core_int.s.bmi)
 		clear_bmi_err_intr(ndev);
+
+	/* Mailbox interrupt */
+	if (core_int.s.mbox)
+		nitrox_pf2vf_mbox_handler(ndev);
 
 	/* If more work callback the ISR, set resend */
 	core_int.s.resend = 1;
@@ -275,6 +282,7 @@ void nitrox_unregister_interrupts(struct nitrox_device *ndev)
 		qvec->valid = false;
 	}
 	kfree(ndev->qvec);
+	ndev->qvec = NULL;
 	pci_free_irq_vectors(pdev);
 }
 
@@ -321,6 +329,7 @@ int nitrox_register_interrupts(struct nitrox_device *ndev)
 		if (qvec->ring >= ndev->nr_queues)
 			break;
 
+		qvec->cmdq = &ndev->pkt_inq[qvec->ring];
 		snprintf(qvec->name, IRQ_NAMESZ, "nitrox-pkt%d", qvec->ring);
 		/* get the vector number */
 		vec = pci_irq_vector(pdev, i);
@@ -335,13 +344,13 @@ int nitrox_register_interrupts(struct nitrox_device *ndev)
 
 		tasklet_init(&qvec->resp_tasklet, pkt_slc_resp_tasklet,
 			     (unsigned long)qvec);
-		qvec->cmdq = &ndev->pkt_inq[qvec->ring];
 		qvec->valid = true;
 	}
 
 	/* request irqs for non ring vectors */
 	i = NON_RING_MSIX_BASE;
 	qvec = &ndev->qvec[i];
+	qvec->ndev = ndev;
 
 	snprintf(qvec->name, IRQ_NAMESZ, "nitrox-core-int%d", i);
 	/* get the vector number */
@@ -356,12 +365,89 @@ int nitrox_register_interrupts(struct nitrox_device *ndev)
 
 	tasklet_init(&qvec->resp_tasklet, nps_core_int_tasklet,
 		     (unsigned long)qvec);
-	qvec->ndev = ndev;
 	qvec->valid = true;
 
 	return 0;
 
 irq_fail:
 	nitrox_unregister_interrupts(ndev);
+	return ret;
+}
+
+void nitrox_sriov_unregister_interrupts(struct nitrox_device *ndev)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	int i;
+
+	for (i = 0; i < ndev->num_vecs; i++) {
+		struct nitrox_q_vector *qvec;
+		int vec;
+
+		qvec = ndev->qvec + i;
+		if (!qvec->valid)
+			continue;
+
+		vec = ndev->iov.msix.vector;
+		irq_set_affinity_hint(vec, NULL);
+		free_irq(vec, qvec);
+
+		tasklet_disable(&qvec->resp_tasklet);
+		tasklet_kill(&qvec->resp_tasklet);
+		qvec->valid = false;
+	}
+	kfree(ndev->qvec);
+	ndev->qvec = NULL;
+	pci_disable_msix(pdev);
+}
+
+int nitrox_sriov_register_interupts(struct nitrox_device *ndev)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	struct nitrox_q_vector *qvec;
+	int vec, cpu;
+	int ret;
+
+	/**
+	 * only non ring vectors i.e Entry 192 is available
+	 * for PF in SR-IOV mode.
+	 */
+	ndev->iov.msix.entry = NON_RING_MSIX_BASE;
+	ret = pci_enable_msix_exact(pdev, &ndev->iov.msix, NR_NON_RING_VECTORS);
+	if (ret) {
+		dev_err(DEV(ndev), "failed to allocate nps-core-int%d\n",
+			NON_RING_MSIX_BASE);
+		return ret;
+	}
+
+	qvec = kcalloc(NR_NON_RING_VECTORS, sizeof(*qvec), GFP_KERNEL);
+	if (!qvec) {
+		pci_disable_msix(pdev);
+		return -ENOMEM;
+	}
+	qvec->ndev = ndev;
+
+	ndev->qvec = qvec;
+	ndev->num_vecs = NR_NON_RING_VECTORS;
+	snprintf(qvec->name, IRQ_NAMESZ, "nitrox-core-int%d",
+		 NON_RING_MSIX_BASE);
+
+	vec = ndev->iov.msix.vector;
+	ret = request_irq(vec, nps_core_int_isr, 0, qvec->name, qvec);
+	if (ret) {
+		dev_err(DEV(ndev), "irq failed for nitrox-core-int%d\n",
+			NON_RING_MSIX_BASE);
+		goto iov_irq_fail;
+	}
+	cpu = num_online_cpus();
+	irq_set_affinity_hint(vec, get_cpu_mask(cpu));
+
+	tasklet_init(&qvec->resp_tasklet, nps_core_int_tasklet,
+		     (unsigned long)qvec);
+	qvec->valid = true;
+
+	return 0;
+
+iov_irq_fail:
+	nitrox_sriov_unregister_interrupts(ndev);
 	return ret;
 }

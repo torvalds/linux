@@ -128,8 +128,10 @@ struct dc_link {
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
 
-/*
- * Return an enumerated dc_link.  dc_link order is constant and determined at
+/**
+ * dc_get_link_at_index() - Return an enumerated dc_link.
+ *
+ * dc_link order is constant and determined at
  * boot time.  They cannot be created or destroyed.
  * Use dc_get_caps() to get number of links.
  */

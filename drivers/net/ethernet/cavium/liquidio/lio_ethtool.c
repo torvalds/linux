@@ -111,7 +111,7 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"mac_tx_one_collision",
 	"mac_tx_multi_collision",
 	"mac_tx_max_collision_fail",
-	"mac_tx_max_deferal_fail",
+	"mac_tx_max_deferral_fail",
 	"mac_tx_fifo_err",
 	"mac_tx_runts",
 

@@ -31,6 +31,7 @@ Contents:
    net_failover
    alias
    bridge
+   snmp_counter
 
 .. only::  subproject
 

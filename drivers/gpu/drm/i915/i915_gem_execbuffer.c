@@ -26,7 +26,7 @@
  *
  */
 
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/reservation.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
@@ -1268,7 +1268,7 @@ relocate_entry(struct i915_vma *vma,
 		else if (gen >= 4)
 			len = 4;
 		else
-			len = 6;
+			len = 3;
 
 		batch = reloc_gpu(eb, vma, len);
 		if (IS_ERR(batch))
@@ -1306,11 +1306,6 @@ relocate_entry(struct i915_vma *vma,
 			*batch++ = addr;
 			*batch++ = target_offset;
 		} else {
-			*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
-			*batch++ = addr;
-			*batch++ = target_offset;
-
-			/* And again for good measure (blb/pnv) */
 			*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 			*batch++ = addr;
 			*batch++ = target_offset;
@@ -1452,7 +1447,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 	 * to read. However, if the array is not writable the user loses
 	 * the updated relocation values.
 	 */
-	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(*urelocs))))
+	if (unlikely(!access_ok(urelocs, remain*sizeof(*urelocs))))
 		return -EFAULT;
 
 	do {
@@ -1559,7 +1554,7 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 
 	addr = u64_to_user_ptr(entry->relocs_ptr);
 	size *= sizeof(struct drm_i915_gem_relocation_entry);
-	if (!access_ok(VERIFY_READ, addr, size))
+	if (!access_ok(addr, size))
 		return -EFAULT;
 
 	end = addr + size;
@@ -1610,6 +1605,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 					     (char __user *)urelocs + copied,
 					     len)) {
 end_user:
+				user_access_end();
 				kvfree(relocs);
 				err = -EFAULT;
 				goto err;
@@ -1628,7 +1624,9 @@ end_user:
 		 * happened we would make the mistake of assuming that the
 		 * relocations were valid.
 		 */
-		user_access_begin();
+		if (!user_access_begin(urelocs, size))
+			goto end_user;
+
 		for (copied = 0; copied < nreloc; copied++)
 			unsafe_put_user(-1,
 					&urelocs[copied].presumed_offset,
@@ -2095,7 +2093,7 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 		return ERR_PTR(-EINVAL);
 
 	user = u64_to_user_ptr(args->cliprects_ptr);
-	if (!access_ok(VERIFY_READ, user, nfences * sizeof(*user)))
+	if (!access_ok(user, nfences * sizeof(*user)))
 		return ERR_PTR(-EFAULT);
 
 	fences = kvmalloc_array(nfences, sizeof(*fences),
@@ -2610,7 +2608,16 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 		unsigned int i;
 
 		/* Copy the new buffer offsets back to the user's exec list. */
-		user_access_begin();
+		/*
+		 * Note: count * sizeof(*user_exec_list) does not overflow,
+		 * because we checked 'count' in check_buffer_count().
+		 *
+		 * And this range already got effectively checked earlier
+		 * when we did the "copy_from_user()" above.
+		 */
+		if (!user_access_begin(user_exec_list, count * sizeof(*user_exec_list)))
+			goto end_user;
+
 		for (i = 0; i < args->buffer_count; i++) {
 			if (!(exec2_list[i].offset & UPDATE))
 				continue;

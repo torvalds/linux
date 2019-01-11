@@ -121,7 +121,8 @@ config TLAN
 
 	  Devices currently supported by this driver are Compaq Netelligent,
 	  Compaq NetFlex and Olicom cards.  Please read the file
-	  <file:Documentation/networking/tlan.txt> for more details.
+	  <file:Documentation/networking/device_drivers/ti/tlan.txt>
+	  for more details.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called tlan.

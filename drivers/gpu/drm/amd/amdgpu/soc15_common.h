@@ -49,14 +49,19 @@
 
 #define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask, ret) \
 	do {							\
+		uint32_t old_ = 0;	\
 		uint32_t tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 		uint32_t loop = adev->usec_timeout;		\
 		while ((tmp_ & (mask)) != (expected_value)) {	\
-			udelay(2);				\
+			if (old_ != tmp_) {			\
+				loop = adev->usec_timeout;	\
+				old_ = tmp_;				\
+			} else						\
+				udelay(1);				\
 			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 			loop--;					\
 			if (!loop) {				\
-				DRM_ERROR("Register(%d) [%s] failed to reach value 0x%08x != 0x%08x\n", \
+				DRM_WARN("Register(%d) [%s] failed to reach value 0x%08x != 0x%08x\n", \
 					  inst, #reg, (unsigned)expected_value, (unsigned)(tmp_ & (mask))); \
 				ret = -ETIMEDOUT;		\
 				break;				\

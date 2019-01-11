@@ -36,7 +36,6 @@
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 void mlx5_init_clock(struct mlx5_core_dev *mdev);
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev);
-void mlx5_pps_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 
 static inline int mlx5_clock_get_ptp_index(struct mlx5_core_dev *mdev)
 {
@@ -60,8 +59,6 @@ static inline ktime_t mlx5_timecounter_cyc2time(struct mlx5_clock *clock,
 #else
 static inline void mlx5_init_clock(struct mlx5_core_dev *mdev) {}
 static inline void mlx5_cleanup_clock(struct mlx5_core_dev *mdev) {}
-static inline void mlx5_pps_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe) {}
-
 static inline int mlx5_clock_get_ptp_index(struct mlx5_core_dev *mdev)
 {
 	return -1;
