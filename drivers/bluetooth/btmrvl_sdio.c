@@ -88,7 +88,7 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 
 	if (!dev->of_node ||
 	    !of_match_node(btmrvl_sdio_of_match_table, dev->of_node)) {
-		dev_err(dev, "sdio platform data not available\n");
+		dev_info(dev, "sdio device tree data not available\n");
 		return -1;
 	}
 
