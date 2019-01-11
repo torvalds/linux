@@ -205,10 +205,6 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
-int ion_alloc(size_t len,
-	      unsigned int heap_id_mask,
-	      unsigned int flags);
-
 /**
  * ion_heap_init_shrinker
  * @heap:		the heap
@@ -329,9 +325,5 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
  */
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 			 int nr_to_scan);
-
-long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-
-int ion_query_heaps(struct ion_heap_query *query);
 
 #endif /* _ION_H */
