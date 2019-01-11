@@ -669,16 +669,6 @@ ath79_get_sys_clk_rate(const char *id)
 #ifdef CONFIG_OF
 static void __init ath79_clocks_init_dt(struct device_node *np)
 {
-	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-}
-
-CLK_OF_DECLARE(ar7100, "qca,ar7100-pll", ath79_clocks_init_dt);
-CLK_OF_DECLARE(ar7240, "qca,ar7240-pll", ath79_clocks_init_dt);
-CLK_OF_DECLARE(ar9340, "qca,ar9340-pll", ath79_clocks_init_dt);
-CLK_OF_DECLARE(ar9550, "qca,qca9550-pll", ath79_clocks_init_dt);
-
-static void __init ath79_clocks_init_dt_ng(struct device_node *np)
-{
 	struct clk *ref_clk;
 	void __iomem *pll_base;
 
@@ -692,14 +682,21 @@ static void __init ath79_clocks_init_dt_ng(struct device_node *np)
 		goto err_clk;
 	}
 
-	if (of_device_is_compatible(np, "qca,ar9130-pll"))
+	if (of_device_is_compatible(np, "qca,ar7100-pll"))
+		ar71xx_clocks_init(pll_base);
+	else if (of_device_is_compatible(np, "qca,ar7240-pll") ||
+		 of_device_is_compatible(np, "qca,ar9130-pll"))
 		ar724x_clocks_init(pll_base);
 	else if (of_device_is_compatible(np, "qca,ar9330-pll"))
 		ar933x_clocks_init(pll_base);
-	else {
-		pr_err("%pOF: could not find any appropriate clk_init()\n", np);
-		goto err_iounmap;
-	}
+	else if (of_device_is_compatible(np, "qca,ar9340-pll"))
+		ar934x_clocks_init(pll_base);
+	else if (of_device_is_compatible(np, "qca,qca9530-pll"))
+		qca953x_clocks_init(pll_base);
+	else if (of_device_is_compatible(np, "qca,qca9550-pll"))
+		qca955x_clocks_init(pll_base);
+	else if (of_device_is_compatible(np, "qca,qca9560-pll"))
+		qca956x_clocks_init(pll_base);
 
 	if (of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data)) {
 		pr_err("%pOF: could not register clk provider\n", np);
@@ -714,6 +711,14 @@ err_iounmap:
 err_clk:
 	clk_put(ref_clk);
 }
-CLK_OF_DECLARE(ar9130_clk, "qca,ar9130-pll", ath79_clocks_init_dt_ng);
-CLK_OF_DECLARE(ar9330_clk, "qca,ar9330-pll", ath79_clocks_init_dt_ng);
+
+CLK_OF_DECLARE(ar7100_clk, "qca,ar7100-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar7240_clk, "qca,ar7240-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9130_clk, "qca,ar9130-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9330_clk, "qca,ar9330-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9340_clk, "qca,ar9340-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9530_clk, "qca,qca9530-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9550_clk, "qca,qca9550-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9560_clk, "qca,qca9560-pll", ath79_clocks_init_dt);
+
 #endif
