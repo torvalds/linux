@@ -151,6 +151,12 @@ properties:
           - const: compulab,cl-som-imx7
           - const: fsl,imx7d
 
+      - description: i.MX8QXP based Boards
+        items:
+          - enum:
+              - fsl,imx8qxp-mek           # i.MX8QXP MEK Board
+          - const: fsl,imx8qxp
+
       - description:
           Freescale Vybrid Platform Device Tree Bindings
 
