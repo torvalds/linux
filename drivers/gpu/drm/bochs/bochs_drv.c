@@ -103,11 +103,8 @@ static int bochs_pm_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	struct bochs_device *bochs = drm_dev->dev_private;
 
-	drm_kms_helper_poll_disable(drm_dev);
-
 	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 1);
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm_dev);
 }
 
 static int bochs_pm_resume(struct device *dev)
@@ -116,12 +113,8 @@ static int bochs_pm_resume(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	struct bochs_device *bochs = drm_dev->dev_private;
 
-	drm_helper_resume_force_mode(drm_dev);
-
 	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 0);
-
-	drm_kms_helper_poll_enable(drm_dev);
-	return 0;
+	return drm_mode_config_helper_resume(drm_dev);
 }
 #endif
 
