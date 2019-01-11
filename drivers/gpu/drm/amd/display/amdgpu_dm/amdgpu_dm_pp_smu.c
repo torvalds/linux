@@ -313,6 +313,12 @@ bool dm_pp_get_clock_levels_by_type(
 		if (adev->powerplay.pp_funcs->get_clock_by_type(pp_handle,
 			dc_to_pp_clock_type(clk_type), &pp_clks)) {
 		/* Error in pplib. Provide default values. */
+			return true;
+		}
+	} else if (adev->smu.funcs && adev->smu.funcs->get_clock_by_type) {
+		if (smu_get_clock_by_type(&adev->smu,
+					  dc_to_pp_clock_type(clk_type),
+					  &pp_clks)) {
 			get_default_clock_levels(clk_type, dc_clks);
 			return true;
 		}

@@ -269,6 +269,9 @@ struct smu_funcs
 	int (*store_cc6_data)(struct smu_context *smu, uint32_t separation_time,
 			      bool cc6_disable, bool pstate_disable,
 			      bool pstate_switch_disable);
+	int (*get_clock_by_type)(struct smu_context *smu,
+				 enum amd_pp_clock_type type,
+				 struct amd_pp_clocks *clocks);
 };
 
 #define smu_init_microcode(smu) \
@@ -370,6 +373,8 @@ struct smu_funcs
 	((smu)->funcs->set_active_display_count ? (smu)->funcs->set_active_display_count((smu), (count)) : 0)
 #define smu_store_cc6_data(smu, st, cc6_dis, pst_dis, pst_sw_dis) \
 	((smu)->funcs->store_cc6_data ? (smu)->funcs->store_cc6_data((smu), (st), (cc6_dis), (pst_dis), (pst_sw_dis)) : 0)
+#define smu_get_clock_by_type(smu, type, clocks) \
+	((smu)->funcs->get_clock_by_type ? (smu)->funcs->get_clock_by_type((smu), (type), (clocks)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
