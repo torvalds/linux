@@ -956,7 +956,11 @@ static void
 nv50_mstc_destroy(struct drm_connector *connector)
 {
 	struct nv50_mstc *mstc = nv50_mstc(connector);
+
 	drm_connector_cleanup(&mstc->connector);
+	if (mstc->port)
+		drm_dp_mst_put_port_malloc(mstc->port);
+
 	kfree(mstc);
 }
 
@@ -1004,6 +1008,7 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.tile_property, 0);
 	drm_connector_set_path_property(&mstc->connector, path);
+	drm_dp_mst_get_port_malloc(port);
 	return 0;
 }
 
@@ -1069,6 +1074,7 @@ nv50_mstm_destroy_connector(struct drm_dp_mst_topology_mgr *mgr,
 	drm_fb_helper_remove_one_connector(&drm->fbcon->helper, &mstc->connector);
 
 	drm_modeset_lock(&drm->dev->mode_config.connection_mutex, NULL);
+	drm_dp_mst_put_port_malloc(mstc->port);
 	mstc->port = NULL;
 	drm_modeset_unlock(&drm->dev->mode_config.connection_mutex);
 
