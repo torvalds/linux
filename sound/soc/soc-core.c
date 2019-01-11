@@ -1131,11 +1131,13 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	}
 
 	/*
-	 * Defer card registartion if platform dai component is not added to
+	 * Defer card registration if platform dai component is not added to
 	 * component list.
 	 */
-	if (!soc_find_component(link->platform->of_node, link->platform->name))
-		return -EPROBE_DEFER;
+	if (link->platform->of_node || link->platform->name)
+		if (!soc_find_component(link->platform->of_node,
+					link->platform->name))
+			return -EPROBE_DEFER;
 
 	/*
 	 * CPU device may be specified by either name or OF node, but
@@ -1150,11 +1152,12 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	}
 
 	/*
-	 * Defer card registartion if cpu dai component is not added to
+	 * Defer card registration if cpu dai component is not added to
 	 * component list.
 	 */
-	if (!soc_find_component(link->cpu_of_node, link->cpu_name))
-		return -EPROBE_DEFER;
+	if (link->cpu_of_node || link->cpu_name)
+		if (!soc_find_component(link->cpu_of_node, link->cpu_name))
+			return -EPROBE_DEFER;
 
 	/*
 	 * At least one of CPU DAI name or CPU device name/node must be
