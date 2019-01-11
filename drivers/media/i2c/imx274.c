@@ -617,24 +617,6 @@ static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
 	return 0;
 }
 
-static inline int imx274_read_reg(struct stimx274 *priv, u16 addr, u8 *val)
-{
-	unsigned int uint_val;
-	int err;
-
-	err = regmap_read(priv->regmap, addr, &uint_val);
-	if (err)
-		dev_err(&priv->client->dev,
-			"%s : i2c read failed, addr = %x\n", __func__, addr);
-	else
-		dev_dbg(&priv->client->dev,
-			"%s : addr 0x%x, val=0x%x\n", __func__,
-			addr, uint_val);
-
-	*val = uint_val;
-	return err;
-}
-
 static inline int imx274_write_reg(struct stimx274 *priv, u16 addr, u8 val)
 {
 	int err;
