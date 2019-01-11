@@ -787,6 +787,9 @@ enum {
 	 * main phase. The fs_info::balance_ctl is initialized.
 	 */
 	BTRFS_FS_BALANCE_RUNNING,
+
+	/* Indicate that the cleaner thread is awake and doing something. */
+	BTRFS_FS_CLEANER_RUNNING,
 };
 
 struct btrfs_fs_info {
