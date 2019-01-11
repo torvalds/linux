@@ -264,6 +264,10 @@ struct smu_funcs
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 	int (*set_deep_sleep_dcefclk)(struct smu_context *smu, uint32_t clk);
+	int (*set_active_display_count)(struct smu_context *smu, uint32_t count);
+	int (*store_cc6_data)(struct smu_context *smu, uint32_t separation_time,
+			      bool cc6_disable, bool pstate_disable,
+			      bool pstate_switch_disable);
 };
 
 #define smu_init_microcode(smu) \
@@ -361,6 +365,10 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_unallowed_feature_mask? (smu)->ppt_funcs->get_unallowed_feature_mask((smu), (feature_mask), (num)) : 0) : 0)
 #define smu_set_deep_sleep_dcefclk(smu, clk) \
 	((smu)->funcs->set_deep_sleep_dcefclk ? (smu)->funcs->set_deep_sleep_dcefclk((smu), (clk)) : 0)
+#define smu_set_active_display_count(smu, count) \
+	((smu)->funcs->set_active_display_count ? (smu)->funcs->set_active_display_count((smu), (count)) : 0)
+#define smu_store_cc6_data(smu, st, cc6_dis, pst_dis, pst_sw_dis) \
+	((smu)->funcs->store_cc6_data ? (smu)->funcs->store_cc6_data((smu), (st), (cc6_dis), (pst_dis), (pst_sw_dis)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
