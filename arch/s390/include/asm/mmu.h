@@ -21,7 +21,7 @@ typedef struct {
 	/* The mmu context uses extended page tables. */
 	unsigned int has_pgste:1;
 	/* The mmu context uses storage keys. */
-	unsigned int use_skey:1;
+	unsigned int uses_skeys:1;
 	/* The mmu context uses CMM. */
 	unsigned int uses_cmm:1;
 } mm_context_t;

@@ -191,10 +191,10 @@ static int init_pmu(void);
 static void pmu_start(void);
 static irqreturn_t via_pmu_interrupt(int irq, void *arg);
 static irqreturn_t gpio1_interrupt(int irq, void *arg);
-static const struct file_operations pmu_info_proc_fops;
-static const struct file_operations pmu_irqstats_proc_fops;
+static int pmu_info_proc_show(struct seq_file *m, void *v);
+static int pmu_irqstats_proc_show(struct seq_file *m, void *v);
+static int pmu_battery_proc_show(struct seq_file *m, void *v);
 static void pmu_pass_intr(unsigned char *data, int len);
-static const struct file_operations pmu_battery_proc_fops;
 static const struct file_operations pmu_options_proc_fops;
 
 #ifdef CONFIG_ADB
@@ -274,7 +274,7 @@ int __init find_via_pmu(void)
 	u64 taddr;
 	const u32 *reg;
 
-	if (via != 0)
+	if (via)
 		return 1;
 	vias = of_find_node_by_name(NULL, "via-pmu");
 	if (vias == NULL)
@@ -511,13 +511,15 @@ static int __init via_pmu_dev_init(void)
 		for (i=0; i<pmu_battery_count; i++) {
 			char title[16];
 			sprintf(title, "battery_%ld", i);
-			proc_pmu_batt[i] = proc_create_data(title, 0, proc_pmu_root,
-					&pmu_battery_proc_fops, (void *)i);
+			proc_pmu_batt[i] = proc_create_single_data(title, 0,
+					proc_pmu_root, pmu_battery_proc_show,
+					(void *)i);
 		}
 
-		proc_pmu_info = proc_create("info", 0, proc_pmu_root, &pmu_info_proc_fops);
-		proc_pmu_irqstats = proc_create("interrupts", 0, proc_pmu_root,
-						&pmu_irqstats_proc_fops);
+		proc_pmu_info = proc_create_single("info", 0, proc_pmu_root,
+				pmu_info_proc_show);
+		proc_pmu_irqstats = proc_create_single("interrupts", 0,
+				proc_pmu_root, pmu_irqstats_proc_show);
 		proc_pmu_options = proc_create("options", 0600, proc_pmu_root,
 						&pmu_options_proc_fops);
 	}
@@ -811,19 +813,6 @@ static int pmu_info_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int pmu_info_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmu_info_proc_show, NULL);
-}
-
-static const struct file_operations pmu_info_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pmu_info_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int pmu_irqstats_proc_show(struct seq_file *m, void *v)
 {
 	int i;
@@ -848,19 +837,6 @@ static int pmu_irqstats_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int pmu_irqstats_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmu_irqstats_proc_show, NULL);
-}
-
-static const struct file_operations pmu_irqstats_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pmu_irqstats_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int pmu_battery_proc_show(struct seq_file *m, void *v)
 {
 	long batnum = (long)m->private;
@@ -874,19 +850,6 @@ static int pmu_battery_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "time rem.  : %d\n", pmu_batteries[batnum].time_remaining);
 	return 0;
 }
-
-static int pmu_battery_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmu_battery_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations pmu_battery_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pmu_battery_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int pmu_options_proc_show(struct seq_file *m, void *v)
 {
@@ -1152,7 +1115,7 @@ pmu_queue_request(struct adb_request *req)
 	req->complete = 0;
 
 	spin_lock_irqsave(&pmu_lock, flags);
-	if (current_req != 0) {
+	if (current_req) {
 		last_req->next = req;
 		last_req = req;
 	} else {
@@ -1227,7 +1190,7 @@ pmu_start(void)
 	/* assert pmu_state == idle */
 	/* get the packet to send */
 	req = current_req;
-	if (req == 0 || pmu_state != idle
+	if (!req || pmu_state != idle
 	    || (/*req->reply_expected && */req_awaiting_reply))
 		return;
 
@@ -1382,7 +1345,7 @@ next:
 	if ((1 << pirq) & PMU_INT_ADB) {
 		if ((data[0] & PMU_INT_ADB_AUTO) == 0) {
 			struct adb_request *req = req_awaiting_reply;
-			if (req == 0) {
+			if (!req) {
 				printk(KERN_ERR "PMU: extra ADB reply\n");
 				return;
 			}
@@ -1749,7 +1712,7 @@ pmu_shutdown(void)
 int
 pmu_present(void)
 {
-	return via != 0;
+	return via != NULL;
 }
 
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
@@ -2081,7 +2044,7 @@ pmu_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 
 	pp = kmalloc(sizeof(struct pmu_private), GFP_KERNEL);
-	if (pp == 0)
+	if (!pp)
 		return -ENOMEM;
 	pp->rb_get = pp->rb_put = 0;
 	spin_lock_init(&pp->lock);
@@ -2107,7 +2070,7 @@ pmu_read(struct file *file, char __user *buf,
 	unsigned long flags;
 	int ret = 0;
 
-	if (count < 1 || pp == 0)
+	if (count < 1 || !pp)
 		return -EINVAL;
 	if (!access_ok(VERIFY_WRITE, buf, count))
 		return -EFAULT;
@@ -2164,7 +2127,7 @@ pmu_fpoll(struct file *filp, poll_table *wait)
 	__poll_t mask = 0;
 	unsigned long flags;
 	
-	if (pp == 0)
+	if (!pp)
 		return 0;
 	poll_wait(filp, &pp->wait, wait);
 	spin_lock_irqsave(&pp->lock, flags);
@@ -2180,7 +2143,7 @@ pmu_release(struct inode *inode, struct file *file)
 	struct pmu_private *pp = file->private_data;
 	unsigned long flags;
 
-	if (pp != 0) {
+	if (pp) {
 		file->private_data = NULL;
 		spin_lock_irqsave(&all_pvt_lock, flags);
 		list_del(&pp->list);

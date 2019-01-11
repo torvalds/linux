@@ -31,10 +31,10 @@ void __init init_IRQ(void)
 	/* a SMP H/w block could do IPI IRQ request here */
 	if (plat_smp_ops.init_per_cpu)
 		plat_smp_ops.init_per_cpu(smp_processor_id());
+#endif
 
 	if (machine_desc->init_per_cpu)
 		machine_desc->init_per_cpu(smp_processor_id());
-#endif
 }
 
 /*

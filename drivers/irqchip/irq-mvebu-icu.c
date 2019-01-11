@@ -21,8 +21,6 @@
 
 #include <dt-bindings/interrupt-controller/mvebu-icu.h>
 
-#include "irq-mvebu-gicp.h"
-
 /* ICU registers */
 #define ICU_SETSPI_NSR_AL	0x10
 #define ICU_SETSPI_NSR_AH	0x14
@@ -43,6 +41,7 @@ struct mvebu_icu {
 	void __iomem *base;
 	struct irq_domain *domain;
 	struct device *dev;
+	atomic_t initialized;
 };
 
 struct mvebu_icu_irq_data {
@@ -50,6 +49,18 @@ struct mvebu_icu_irq_data {
 	unsigned int icu_group;
 	unsigned int type;
 };
+
+static void mvebu_icu_init(struct mvebu_icu *icu, struct msi_msg *msg)
+{
+	if (atomic_cmpxchg(&icu->initialized, false, true))
+		return;
+
+	/* Set Clear/Set ICU SPI message address in AP */
+	writel_relaxed(msg[0].address_hi, icu->base + ICU_SETSPI_NSR_AH);
+	writel_relaxed(msg[0].address_lo, icu->base + ICU_SETSPI_NSR_AL);
+	writel_relaxed(msg[1].address_hi, icu->base + ICU_CLRSPI_NSR_AH);
+	writel_relaxed(msg[1].address_lo, icu->base + ICU_CLRSPI_NSR_AL);
+}
 
 static void mvebu_icu_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 {
@@ -59,6 +70,8 @@ static void mvebu_icu_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 	unsigned int icu_int;
 
 	if (msg->address_lo || msg->address_hi) {
+		/* One off initialization */
+		mvebu_icu_init(icu, msg);
 		/* Configure the ICU with irq number & type */
 		icu_int = msg->data | ICU_INT_ENABLE;
 		if (icu_irqd->type & IRQ_TYPE_EDGE_RISING)
@@ -197,9 +210,7 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *gicp_dn;
 	struct resource *res;
-	phys_addr_t setspi, clrspi;
-	u32 i, icu_int;
-	int ret;
+	int i;
 
 	icu = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_icu),
 			   GFP_KERNEL);
@@ -242,22 +253,12 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 	if (!gicp_dn)
 		return -ENODEV;
 
-	ret = mvebu_gicp_get_doorbells(gicp_dn, &setspi, &clrspi);
-	if (ret)
-		return ret;
-
-	/* Set Clear/Set ICU SPI message address in AP */
-	writel_relaxed(upper_32_bits(setspi), icu->base + ICU_SETSPI_NSR_AH);
-	writel_relaxed(lower_32_bits(setspi), icu->base + ICU_SETSPI_NSR_AL);
-	writel_relaxed(upper_32_bits(clrspi), icu->base + ICU_CLRSPI_NSR_AH);
-	writel_relaxed(lower_32_bits(clrspi), icu->base + ICU_CLRSPI_NSR_AL);
-
 	/*
 	 * Clean all ICU interrupts with type SPI_NSR, required to
 	 * avoid unpredictable SPI assignments done by firmware.
 	 */
 	for (i = 0 ; i < ICU_MAX_IRQS ; i++) {
-		icu_int = readl(icu->base + ICU_INT_CFG(i));
+		u32 icu_int = readl_relaxed(icu->base + ICU_INT_CFG(i));
 		if ((icu_int >> ICU_GROUP_SHIFT) == ICU_GRP_NSR)
 			writel_relaxed(0x0, icu->base + ICU_INT_CFG(i));
 	}

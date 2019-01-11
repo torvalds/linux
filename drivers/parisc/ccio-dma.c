@@ -1108,19 +1108,6 @@ static int ccio_proc_info(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int ccio_proc_info_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, &ccio_proc_info, NULL);
-}
-
-static const struct file_operations ccio_proc_info_fops = {
-	.owner = THIS_MODULE,
-	.open = ccio_proc_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static int ccio_proc_bitmap_info(struct seq_file *m, void *p)
 {
 	struct ioc *ioc = ioc_list;
@@ -1135,19 +1122,6 @@ static int ccio_proc_bitmap_info(struct seq_file *m, void *p)
 
 	return 0;
 }
-
-static int ccio_proc_bitmap_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, &ccio_proc_bitmap_info, NULL);
-}
-
-static const struct file_operations ccio_proc_bitmap_fops = {
-	.owner = THIS_MODULE,
-	.open = ccio_proc_bitmap_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 #endif /* CONFIG_PROC_FS */
 
 /**
@@ -1589,15 +1563,13 @@ static int __init ccio_probe(struct parisc_device *dev)
 
 #ifdef CONFIG_PROC_FS
 	if (ioc_count == 0) {
-		proc_create(MODULE_NAME, 0, proc_runway_root,
-			    &ccio_proc_info_fops);
-		proc_create(MODULE_NAME"-bitmap", 0, proc_runway_root,
-			    &ccio_proc_bitmap_fops);
+		proc_create_single(MODULE_NAME, 0, proc_runway_root,
+				ccio_proc_info);
+		proc_create_single(MODULE_NAME"-bitmap", 0, proc_runway_root,
+				ccio_proc_bitmap_info);
 	}
 #endif
 	ioc_count++;
-
-	parisc_has_iommu();
 	return 0;
 }
 

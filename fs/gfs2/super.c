@@ -1097,7 +1097,7 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
 	int error = 0, err;
 
 	memset(sc, 0, sizeof(struct gfs2_statfs_change_host));
-	gha = kmalloc(slots * sizeof(struct gfs2_holder), GFP_KERNEL);
+	gha = kmalloc_array(slots, sizeof(struct gfs2_holder), GFP_KERNEL);
 	if (!gha)
 		return -ENOMEM;
 	for (x = 0; x < slots; x++)

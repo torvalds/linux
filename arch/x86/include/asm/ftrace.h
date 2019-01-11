@@ -63,7 +63,7 @@ static inline bool arch_syscall_match_sym_name(const char *sym, const char *name
 #ifndef COMPILE_OFFSETS
 
 #if defined(CONFIG_FTRACE_SYSCALLS) && defined(CONFIG_IA32_EMULATION)
-#include <asm/compat.h>
+#include <linux/compat.h>
 
 /*
  * Because ia32 syscalls do not map to x86_64 syscall numbers

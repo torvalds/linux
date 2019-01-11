@@ -29,7 +29,10 @@ config NF_SOCKET_IPV6
 	tristate "IPv6 socket lookup support"
 	help
 	  This option enables the IPv6 socket lookup infrastructure. This
-	  is used by the ip6tables socket match.
+	  is used by the {ip6,nf}tables socket match.
+
+config NF_TPROXY_IPV6
+	tristate "IPv6 tproxy support"
 
 if NF_TABLES
 
@@ -136,10 +139,7 @@ config NF_NAT_IPV6
 if NF_NAT_IPV6
 
 config NF_NAT_MASQUERADE_IPV6
-	tristate "IPv6 masquerade support"
-	help
-	  This is the kernel functionality to provide NAT in the masquerade
-	  flavour (automatic source address selection) for IPv6.
+	bool
 
 endif # NF_NAT_IPV6
 

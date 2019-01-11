@@ -33,17 +33,6 @@
 #include "../pinctrl-utils.h"
 #include "pinctrl-tegra.h"
 
-struct tegra_pmx {
-	struct device *dev;
-	struct pinctrl_dev *pctl;
-
-	const struct tegra_pinctrl_soc_data *soc;
-	const char **group_pins;
-
-	int nbanks;
-	void __iomem **regs;
-};
-
 static inline u32 pmx_readl(struct tegra_pmx *pmx, u32 bank, u32 reg)
 {
 	return readl(pmx->regs[bank] + reg);
@@ -676,8 +665,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	 * Each mux group will appear in 4 functions' list of groups.
 	 * This over-allocates slightly, since not all groups are mux groups.
 	 */
-	pmx->group_pins = devm_kzalloc(&pdev->dev,
-		soc_data->ngroups * 4 * sizeof(*pmx->group_pins),
+	pmx->group_pins = devm_kcalloc(&pdev->dev,
+		soc_data->ngroups * 4, sizeof(*pmx->group_pins),
 		GFP_KERNEL);
 	if (!pmx->group_pins)
 		return -ENOMEM;
@@ -719,7 +708,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	}
 	pmx->nbanks = i;
 
-	pmx->regs = devm_kzalloc(&pdev->dev, pmx->nbanks * sizeof(*pmx->regs),
+	pmx->regs = devm_kcalloc(&pdev->dev, pmx->nbanks, sizeof(*pmx->regs),
 				 GFP_KERNEL);
 	if (!pmx->regs)
 		return -ENOMEM;

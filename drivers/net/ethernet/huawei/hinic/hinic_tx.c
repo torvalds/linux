@@ -229,6 +229,7 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		txq->txq_stats.tx_busy++;
 		u64_stats_update_end(&txq->txq_stats.syncp);
 		err = NETDEV_TX_BUSY;
+		wqe_size = 0;
 		goto flush_skbs;
 	}
 

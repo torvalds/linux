@@ -73,10 +73,12 @@ bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
 int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man);
 
+u64 amdgpu_vram_mgr_bo_invisible_size(struct amdgpu_bo *bo);
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man);
 
 int amdgpu_ttm_init(struct amdgpu_device *adev);
+void amdgpu_ttm_late_init(struct amdgpu_device *adev);
 void amdgpu_ttm_fini(struct amdgpu_device *adev);
 void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev,
 					bool enable);

@@ -771,7 +771,7 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	hcp->hcd = *hcd;
 	mutex_init(&hcp->current_stream_lock);
 
-	hcp->daidrv = devm_kzalloc(dev, dai_count * sizeof(*hcp->daidrv),
+	hcp->daidrv = devm_kcalloc(dev, dai_count, sizeof(*hcp->daidrv),
 				   GFP_KERNEL);
 	if (!hcp->daidrv)
 		return -ENOMEM;

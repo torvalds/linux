@@ -336,8 +336,8 @@ static int read_port_immutable(struct ib_device *device)
 	 * Therefore port_immutable is declared as a 1 based array with
 	 * potential empty slots at the beginning.
 	 */
-	device->port_immutable = kzalloc(sizeof(*device->port_immutable)
-					 * (end_port + 1),
+	device->port_immutable = kcalloc(end_port + 1,
+					 sizeof(*device->port_immutable),
 					 GFP_KERNEL);
 	if (!device->port_immutable)
 		return -ENOMEM;
@@ -1225,7 +1225,7 @@ static int __init ib_core_init(void)
 
 	nldev_init();
 	rdma_nl_register(RDMA_NL_LS, ibnl_ls_cb_table);
-	ib_cache_setup();
+	roce_gid_mgmt_init();
 
 	return 0;
 
@@ -1248,7 +1248,7 @@ err:
 
 static void __exit ib_core_cleanup(void)
 {
-	ib_cache_cleanup();
+	roce_gid_mgmt_cleanup();
 	nldev_exit();
 	rdma_nl_unregister(RDMA_NL_LS);
 	unregister_lsm_notifier(&ibdev_lsm_nb);

@@ -117,8 +117,8 @@ static int owl_sps_probe(struct platform_device *pdev)
 
 	sps_info = match->data;
 
-	sps = devm_kzalloc(&pdev->dev, sizeof(*sps) +
-			   sps_info->num_domains * sizeof(sps->domains[0]),
+	sps = devm_kzalloc(&pdev->dev,
+			   struct_size(sps, domains, sps_info->num_domains),
 			   GFP_KERNEL);
 	if (!sps)
 		return -ENOMEM;

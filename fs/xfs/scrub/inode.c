@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -55,7 +41,6 @@ xfs_scrub_setup_inode(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	struct xfs_mount		*mp = sc->mp;
 	int				error;
 
 	/*
@@ -68,7 +53,7 @@ xfs_scrub_setup_inode(
 		break;
 	case -EFSCORRUPTED:
 	case -EFSBADCRC:
-		return xfs_scrub_trans_alloc(sc->sm, mp, &sc->tp);
+		return xfs_scrub_trans_alloc(sc, 0);
 	default:
 		return error;
 	}
@@ -76,7 +61,7 @@ xfs_scrub_setup_inode(
 	/* Got the inode, lock it and we're ready to go. */
 	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
-	error = xfs_scrub_trans_alloc(sc->sm, mp, &sc->tp);
+	error = xfs_scrub_trans_alloc(sc, 0);
 	if (error)
 		goto out;
 	sc->ilock_flags |= XFS_ILOCK_EXCL;
@@ -449,7 +434,7 @@ xfs_scrub_inode_xref_finobt(
 	int				has_record;
 	int				error;
 
-	if (!sc->sa.fino_cur)
+	if (!sc->sa.fino_cur || xfs_scrub_skip_xref(sc->sm))
 		return;
 
 	agino = XFS_INO_TO_AGINO(sc->mp, ino);
@@ -491,6 +476,9 @@ xfs_scrub_inode_xref_bmap(
 	xfs_filblks_t			count;
 	xfs_filblks_t			acount;
 	int				error;
+
+	if (xfs_scrub_skip_xref(sc->sm))
+		return;
 
 	/* Walk all the extents to check nextents/naextents/nblocks. */
 	error = xfs_bmap_count_blocks(sc->tp, sc->ip, XFS_DATA_FORK,

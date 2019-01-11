@@ -38,6 +38,7 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <dt-bindings/sound/fsl-imx-audmux.h>
 
 / {
 	/* Will be filled by the bootloader */
@@ -110,17 +111,27 @@
 		vin-supply = <&v_5v0>;
 	};
 
-	sound-sgtl5000 {
-		audio-codec = <&sgtl5000>;
-		audio-routing =
-			"MIC_IN", "Mic Jack",
-			"Mic Jack", "Mic Bias",
+	audio: sound-sgtl5000 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board Codec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_codec>;
+		simple-audio-card,frame-master = <&sound_codec>;
+		simple-audio-card,widgets =
+			"Microphone", "Headphone Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC_IN", "Headphone Jack",
+			"Headphone Jack", "Mic Bias",
 			"Headphone Jack", "HP_OUT";
-		compatible = "fsl,imx-audio-sgtl5000";
-		model = "On-board Codec";
-		mux-ext-port = <5>;
-		mux-int-port = <1>;
-		ssi-controller = <&ssi1>;
+
+		sound_cpu: simple-audio-card,cpu {
+			sound-dai = <&ssi1>;
+		};
+
+		sound_codec: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
 	};
 
 	sound-spdif {
@@ -134,6 +145,26 @@
 
 &audmux {
 	status = "okay";
+
+	ssi1 {
+		fsl,audmux-port = <0>;
+		fsl,port-config = <
+			(IMX_AUDMUX_V2_PTCR_SYN |
+			 IMX_AUDMUX_V2_PTCR_TFSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TCSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TFSDIR |
+			 IMX_AUDMUX_V2_PTCR_TCLKDIR)
+			 IMX_AUDMUX_V2_PDCR_RXDSEL(4)
+		>;
+	};
+
+	pins5 {
+		fsl,audmux-port = <4>;
+		fsl,port-config = <
+			IMX_AUDMUX_V2_PTCR_SYN
+			IMX_AUDMUX_V2_PDCR_RXDSEL(0)
+		>;
+	};
 };
 
 &can1 {
@@ -166,6 +197,7 @@
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard_sgtl5000>;
+		#sound-dai-cells = <0>;
 		reg = <0x0a>;
 		VDDA-supply = <&v_3v2>;
 		VDDIO-supply = <&v_3v2>;

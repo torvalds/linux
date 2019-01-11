@@ -691,7 +691,7 @@ static int amdgpu_connector_lvds_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static int amdgpu_connector_lvds_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status amdgpu_connector_lvds_mode_valid(struct drm_connector *connector,
 					     struct drm_display_mode *mode)
 {
 	struct drm_encoder *encoder = amdgpu_connector_best_single_encoder(connector);
@@ -843,7 +843,7 @@ static int amdgpu_connector_vga_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static int amdgpu_connector_vga_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status amdgpu_connector_vga_mode_valid(struct drm_connector *connector,
 					    struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
@@ -1172,7 +1172,7 @@ static void amdgpu_connector_dvi_force(struct drm_connector *connector)
 		amdgpu_connector->use_digital = true;
 }
 
-static int amdgpu_connector_dvi_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status amdgpu_connector_dvi_mode_valid(struct drm_connector *connector,
 					    struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
@@ -1448,7 +1448,7 @@ out:
 	return ret;
 }
 
-static int amdgpu_connector_dp_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status amdgpu_connector_dp_mode_valid(struct drm_connector *connector,
 					   struct drm_display_mode *mode)
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);

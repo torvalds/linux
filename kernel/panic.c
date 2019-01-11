@@ -623,7 +623,7 @@ static __init int register_warn_debugfs(void)
 device_initcall(register_warn_debugfs);
 #endif
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 
 /*
  * Called when gcc's -fstack-protector feature is used, and

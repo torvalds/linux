@@ -449,4 +449,6 @@ static inline void fib_proc_exit(struct net *net)
 }
 #endif
 
+u32 ip_mtu_from_fib_result(struct fib_result *res, __be32 daddr);
+
 #endif  /* _NET_FIB_H */

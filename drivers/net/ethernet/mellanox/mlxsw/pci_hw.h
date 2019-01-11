@@ -82,10 +82,12 @@
 #define MLXSW_PCI_AQ_PAGES	8
 #define MLXSW_PCI_AQ_SIZE	(MLXSW_PCI_PAGE_SIZE * MLXSW_PCI_AQ_PAGES)
 #define MLXSW_PCI_WQE_SIZE	32 /* 32 bytes per element */
-#define MLXSW_PCI_CQE_SIZE	16 /* 16 bytes per element */
+#define MLXSW_PCI_CQE01_SIZE	16 /* 16 bytes per element */
+#define MLXSW_PCI_CQE2_SIZE	32 /* 32 bytes per element */
 #define MLXSW_PCI_EQE_SIZE	16 /* 16 bytes per element */
 #define MLXSW_PCI_WQE_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_WQE_SIZE)
-#define MLXSW_PCI_CQE_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_CQE_SIZE)
+#define MLXSW_PCI_CQE01_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_CQE01_SIZE)
+#define MLXSW_PCI_CQE2_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_CQE2_SIZE)
 #define MLXSW_PCI_EQE_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_EQE_SIZE)
 #define MLXSW_PCI_EQE_UPDATE_COUNT	0x80
 
@@ -126,10 +128,48 @@ MLXSW_ITEM16_INDEXED(pci, wqe, byte_count, 0x02, 0, 14, 0x02, 0x00, false);
  */
 MLXSW_ITEM64_INDEXED(pci, wqe, address, 0x08, 0, 64, 0x8, 0x0, false);
 
+enum mlxsw_pci_cqe_v {
+	MLXSW_PCI_CQE_V0,
+	MLXSW_PCI_CQE_V1,
+	MLXSW_PCI_CQE_V2,
+};
+
+#define mlxsw_pci_cqe_item_helpers(name, v0, v1, v2)				\
+static inline u32 mlxsw_pci_cqe_##name##_get(enum mlxsw_pci_cqe_v v, char *cqe)	\
+{										\
+	switch (v) {								\
+	default:								\
+	case MLXSW_PCI_CQE_V0:							\
+		return mlxsw_pci_cqe##v0##_##name##_get(cqe);			\
+	case MLXSW_PCI_CQE_V1:							\
+		return mlxsw_pci_cqe##v1##_##name##_get(cqe);			\
+	case MLXSW_PCI_CQE_V2:							\
+		return mlxsw_pci_cqe##v2##_##name##_get(cqe);			\
+	}									\
+}										\
+static inline void mlxsw_pci_cqe_##name##_set(enum mlxsw_pci_cqe_v v,		\
+					      char *cqe, u32 val)		\
+{										\
+	switch (v) {								\
+	default:								\
+	case MLXSW_PCI_CQE_V0:							\
+		mlxsw_pci_cqe##v0##_##name##_set(cqe, val);			\
+		break;								\
+	case MLXSW_PCI_CQE_V1:							\
+		mlxsw_pci_cqe##v1##_##name##_set(cqe, val);			\
+		break;								\
+	case MLXSW_PCI_CQE_V2:							\
+		mlxsw_pci_cqe##v2##_##name##_set(cqe, val);			\
+		break;								\
+	}									\
+}
+
 /* pci_cqe_lag
  * Packet arrives from a port which is a LAG
  */
-MLXSW_ITEM32(pci, cqe, lag, 0x00, 23, 1);
+MLXSW_ITEM32(pci, cqe0, lag, 0x00, 23, 1);
+MLXSW_ITEM32(pci, cqe12, lag, 0x00, 24, 1);
+mlxsw_pci_cqe_item_helpers(lag, 0, 12, 12);
 
 /* pci_cqe_system_port/lag_id
  * When lag=0: System port on which the packet was received
@@ -138,8 +178,12 @@ MLXSW_ITEM32(pci, cqe, lag, 0x00, 23, 1);
  * bits [3:0] sub_port on which the packet was received
  */
 MLXSW_ITEM32(pci, cqe, system_port, 0x00, 0, 16);
-MLXSW_ITEM32(pci, cqe, lag_id, 0x00, 4, 12);
-MLXSW_ITEM32(pci, cqe, lag_port_index, 0x00, 0, 4);
+MLXSW_ITEM32(pci, cqe0, lag_id, 0x00, 4, 12);
+MLXSW_ITEM32(pci, cqe12, lag_id, 0x00, 0, 16);
+mlxsw_pci_cqe_item_helpers(lag_id, 0, 12, 12);
+MLXSW_ITEM32(pci, cqe0, lag_subport, 0x00, 0, 4);
+MLXSW_ITEM32(pci, cqe12, lag_subport, 0x00, 16, 8);
+mlxsw_pci_cqe_item_helpers(lag_subport, 0, 12, 12);
 
 /* pci_cqe_wqe_counter
  * WQE count of the WQEs completed on the associated dqn
@@ -162,28 +206,38 @@ MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 9);
  * Length include CRC. Indicates the length field includes
  * the packet's CRC.
  */
-MLXSW_ITEM32(pci, cqe, crc, 0x0C, 8, 1);
+MLXSW_ITEM32(pci, cqe0, crc, 0x0C, 8, 1);
+MLXSW_ITEM32(pci, cqe12, crc, 0x0C, 9, 1);
+mlxsw_pci_cqe_item_helpers(crc, 0, 12, 12);
 
 /* pci_cqe_e
  * CQE with Error.
  */
-MLXSW_ITEM32(pci, cqe, e, 0x0C, 7, 1);
+MLXSW_ITEM32(pci, cqe0, e, 0x0C, 7, 1);
+MLXSW_ITEM32(pci, cqe12, e, 0x00, 27, 1);
+mlxsw_pci_cqe_item_helpers(e, 0, 12, 12);
 
 /* pci_cqe_sr
  * 1 - Send Queue
  * 0 - Receive Queue
  */
-MLXSW_ITEM32(pci, cqe, sr, 0x0C, 6, 1);
+MLXSW_ITEM32(pci, cqe0, sr, 0x0C, 6, 1);
+MLXSW_ITEM32(pci, cqe12, sr, 0x00, 26, 1);
+mlxsw_pci_cqe_item_helpers(sr, 0, 12, 12);
 
 /* pci_cqe_dqn
  * Descriptor Queue (DQ) Number.
  */
-MLXSW_ITEM32(pci, cqe, dqn, 0x0C, 1, 5);
+MLXSW_ITEM32(pci, cqe0, dqn, 0x0C, 1, 5);
+MLXSW_ITEM32(pci, cqe12, dqn, 0x0C, 1, 6);
+mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
 
 /* pci_cqe_owner
  * Ownership bit.
  */
-MLXSW_ITEM32(pci, cqe, owner, 0x0C, 0, 1);
+MLXSW_ITEM32(pci, cqe01, owner, 0x0C, 0, 1);
+MLXSW_ITEM32(pci, cqe2, owner, 0x1C, 0, 1);
+mlxsw_pci_cqe_item_helpers(owner, 01, 01, 2);
 
 /* pci_eqe_event_type
  * Event type.

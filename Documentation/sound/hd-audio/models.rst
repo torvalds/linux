@@ -263,6 +263,8 @@ hp-dock
     HP dock support
 mute-led-gpio
     Mute LED control via GPIO
+hp-mic-fix
+    Fix for headset mic pin on HP boxes
 
 STAC9200
 ========

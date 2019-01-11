@@ -339,9 +339,6 @@ static int aemif_probe(struct platform_device *pdev)
 	struct aemif_platform_data *pdata;
 	struct of_dev_auxdata *dev_lookup;
 
-	if (np == NULL)
-		return 0;
-
 	aemif = devm_kzalloc(dev, sizeof(*aemif), GFP_KERNEL);
 	if (!aemif)
 		return -ENOMEM;
@@ -363,8 +360,10 @@ static int aemif_probe(struct platform_device *pdev)
 
 	aemif->clk_rate = clk_get_rate(aemif->clk) / MSEC_PER_SEC;
 
-	if (of_device_is_compatible(np, "ti,da850-aemif"))
+	if (np && of_device_is_compatible(np, "ti,da850-aemif"))
 		aemif->cs_offset = 2;
+	else if (pdata)
+		aemif->cs_offset = pdata->cs_offset;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	aemif->base = devm_ioremap_resource(dev, res);
@@ -373,15 +372,23 @@ static int aemif_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	/*
-	 * For every controller device node, there is a cs device node that
-	 * describe the bus configuration parameters. This functions iterate
-	 * over these nodes and update the cs data array.
-	 */
-	for_each_available_child_of_node(np, child_np) {
-		ret = of_aemif_parse_abus_config(pdev, child_np);
-		if (ret < 0)
-			goto error;
+	if (np) {
+		/*
+		 * For every controller device node, there is a cs device node
+		 * that describe the bus configuration parameters. This
+		 * functions iterate over these nodes and update the cs data
+		 * array.
+		 */
+		for_each_available_child_of_node(np, child_np) {
+			ret = of_aemif_parse_abus_config(pdev, child_np);
+			if (ret < 0)
+				goto error;
+		}
+	} else if (pdata && pdata->num_abus_data > 0) {
+		for (i = 0; i < pdata->num_abus_data; i++, aemif->num_cs++) {
+			aemif->cs_data[i].cs = pdata->abus_data[i].cs;
+			aemif_get_hw_params(pdev, i);
+		}
 	}
 
 	for (i = 0; i < aemif->num_cs; i++) {
@@ -394,14 +401,25 @@ static int aemif_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Create a child devices explicitly from here to
-	 * guarantee that the child will be probed after the AEMIF timing
-	 * parameters are set.
+	 * Create a child devices explicitly from here to guarantee that the
+	 * child will be probed after the AEMIF timing parameters are set.
 	 */
-	for_each_available_child_of_node(np, child_np) {
-		ret = of_platform_populate(child_np, NULL, dev_lookup, dev);
-		if (ret < 0)
-			goto error;
+	if (np) {
+		for_each_available_child_of_node(np, child_np) {
+			ret = of_platform_populate(child_np, NULL,
+						   dev_lookup, dev);
+			if (ret < 0)
+				goto error;
+		}
+	} else {
+		for (i = 0; i < pdata->num_sub_devices; i++) {
+			pdata->sub_devices[i].dev.parent = dev;
+			ret = platform_device_register(&pdata->sub_devices[i]);
+			if (ret) {
+				dev_warn(dev, "Error register sub device %s\n",
+					 pdata->sub_devices[i].name);
+			}
+		}
 	}
 
 	return 0;
@@ -422,7 +440,7 @@ static struct platform_driver aemif_driver = {
 	.probe = aemif_probe,
 	.remove = aemif_remove,
 	.driver = {
-		.name = KBUILD_MODNAME,
+		.name = "ti-aemif",
 		.of_match_table = of_match_ptr(aemif_of_match),
 	},
 };

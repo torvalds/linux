@@ -3607,7 +3607,7 @@ int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	default:
 		PM8001_MSG_DBG(pm8001_ha,
-		 pm8001_printk("DEVREG_FAILURE_DEVICE_TYPE_NOT_UNSORPORTED\n"));
+			pm8001_printk("DEVREG_FAILURE_DEVICE_TYPE_NOT_SUPPORTED\n"));
 		break;
 	}
 	complete(pm8001_dev->dcompletion);

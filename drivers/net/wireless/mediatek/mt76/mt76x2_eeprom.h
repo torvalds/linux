@@ -159,6 +159,12 @@ void mt76x2_read_rx_gain(struct mt76x2_dev *dev);
 static inline bool
 mt76x2_temp_tx_alc_enabled(struct mt76x2_dev *dev)
 {
+	u16 val;
+
+	val = mt76x2_eeprom_get(dev, MT_EE_TX_POWER_EXT_PA_5G);
+	if (!(val & BIT(15)))
+		return false;
+
 	return mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_1) &
 	       MT_EE_NIC_CONF_1_TEMP_TX_ALC;
 }

@@ -30,7 +30,6 @@ struct qdisc_rate_table {
 enum qdisc_state_t {
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
-	__QDISC_STATE_RUNNING,
 };
 
 struct qdisc_size_table {
@@ -86,6 +85,8 @@ struct Qdisc {
 	struct net_rate_estimator __rcu *rate_est;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue	__percpu *cpu_qstats;
+	int			padded;
+	refcount_t		refcnt;
 
 	/*
 	 * For performance sake on SMP, we put highly modified fields at the end
@@ -98,10 +99,9 @@ struct Qdisc {
 	unsigned long		state;
 	struct Qdisc            *next_sched;
 	struct sk_buff_head	skb_bad_txq;
-	int			padded;
-	refcount_t		refcnt;
 
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
+	spinlock_t		seqlock;
 };
 
 static inline void qdisc_refcount_inc(struct Qdisc *qdisc)
@@ -111,15 +111,21 @@ static inline void qdisc_refcount_inc(struct Qdisc *qdisc)
 	refcount_inc(&qdisc->refcnt);
 }
 
-static inline bool qdisc_is_running(const struct Qdisc *qdisc)
+static inline bool qdisc_is_running(struct Qdisc *qdisc)
 {
+	if (qdisc->flags & TCQ_F_NOLOCK)
+		return spin_is_locked(&qdisc->seqlock);
 	return (raw_read_seqcount(&qdisc->running) & 1) ? true : false;
 }
 
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
-	if (qdisc_is_running(qdisc))
+	if (qdisc->flags & TCQ_F_NOLOCK) {
+		if (!spin_trylock(&qdisc->seqlock))
+			return false;
+	} else if (qdisc_is_running(qdisc)) {
 		return false;
+	}
 	/* Variant of write_seqcount_begin() telling lockdep a trylock
 	 * was attempted.
 	 */
@@ -131,6 +137,8 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 static inline void qdisc_run_end(struct Qdisc *qdisc)
 {
 	write_seqcount_end(&qdisc->running);
+	if (qdisc->flags & TCQ_F_NOLOCK)
+		spin_unlock(&qdisc->seqlock);
 }
 
 static inline bool qdisc_may_bulk(const struct Qdisc *qdisc)
@@ -342,14 +350,14 @@ static inline int qdisc_qlen(const struct Qdisc *q)
 
 static inline int qdisc_qlen_sum(const struct Qdisc *q)
 {
-	__u32 qlen = 0;
+	__u32 qlen = q->qstats.qlen;
 	int i;
 
 	if (q->flags & TCQ_F_NOLOCK) {
 		for_each_possible_cpu(i)
 			qlen += per_cpu_ptr(q->cpu_qstats, i)->qlen;
 	} else {
-		qlen = q->q.qlen;
+		qlen += q->q.qlen;
 	}
 
 	return qlen;

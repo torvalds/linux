@@ -36,7 +36,7 @@ static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
 
 	tcf_lastuse_update(&t->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(t->common.cpu_bstats), skb);
-	action = params->action;
+	action = READ_ONCE(t->tcf_action);
 
 	switch (params->tcft_action) {
 	case TCA_TUNNEL_KEY_ACT_RELEASE:
@@ -182,7 +182,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 	params_old = rtnl_dereference(t->params);
 
-	params_new->action = parm->action;
+	t->tcf_action = parm->action;
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
 
@@ -254,13 +254,13 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		.index    = t->tcf_index,
 		.refcnt   = t->tcf_refcnt - ref,
 		.bindcnt  = t->tcf_bindcnt - bind,
+		.action   = t->tcf_action,
 	};
 	struct tcf_t tm;
 
 	params = rtnl_dereference(t->params);
 
 	opt.t_action = params->tcft_action;
-	opt.action = params->action;
 
 	if (nla_put(skb, TCA_TUNNEL_KEY_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;

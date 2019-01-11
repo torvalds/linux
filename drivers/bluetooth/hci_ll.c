@@ -141,7 +141,6 @@ static int ll_open(struct hci_uart *hu)
 
 	if (hu->serdev) {
 		struct ll_device *lldev = serdev_device_get_drvdata(hu->serdev);
-		serdev_device_open(hu->serdev);
 		if (!IS_ERR(lldev->ext_clk))
 			clk_prepare_enable(lldev->ext_clk);
 	}
@@ -179,8 +178,6 @@ static int ll_close(struct hci_uart *hu)
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
 
 		clk_disable_unprepare(lldev->ext_clk);
-
-		serdev_device_close(hu->serdev);
 	}
 
 	hu->priv = NULL;

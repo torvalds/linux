@@ -87,6 +87,21 @@ static const struct em28xx_reg_seq default_digital[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+/* Board :Zolid Hybrid Tv Stick */
+static struct em28xx_reg_seq zolid_tuner[] = {
+	{EM2820_R08_GPIO_CTRL,		0xfd,		0xff,	100},
+	{EM2820_R08_GPIO_CTRL,		0xfe,		0xff,	100},
+	{		-1,					-1,			-1,		 -1},
+};
+
+static struct em28xx_reg_seq zolid_digital[] = {
+	{EM2820_R08_GPIO_CTRL,		0x6a,		0xff,	100},
+	{EM2820_R08_GPIO_CTRL,		0x7a,		0xff,	100},
+	{EM2880_R04_GPO,			0x04,		0xff,	100},
+	{EM2880_R04_GPO,			0x0c,		0xff,	100},
+	{	-1,						-1,			-1,		 -1},
+};
+
 /* Board Hauppauge WinTV HVR 900 analog */
 static const struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
 	{EM2820_R08_GPIO_CTRL,	0x2d,	~EM_GPIO_4,	10},
@@ -665,6 +680,16 @@ const struct em28xx_board em28xx_boards[] = {
 		.name          = "Unknown EM2750/28xx video grabber",
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,	/* To enable sensor probe */
+	},
+	[EM2882_BOARD_ZOLID_HYBRID_TV_STICK] = {
+		.name			= ":ZOLID HYBRID TV STICK",
+		.tuner_type		= TUNER_XC2028,
+		.tuner_gpio		= zolid_tuner,
+		.decoder		= EM28XX_TVP5150,
+		.xclk			= EM28XX_XCLK_FREQUENCY_12MHZ,
+		.mts_firmware	= 1,
+		.has_dvb		= 1,
+		.dvb_gpio		= zolid_digital,
 	},
 	[EM2750_BOARD_DLCW_130] = {
 		/* Beijing Huaqi Information Digital Technology Co., Ltd */
@@ -2493,7 +2518,7 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2881),
 			.driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2883),
+	{ USB_DEVICE(0xeb1a, 0x2883), /* used by :Zolid Hybrid Tv Stick */
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2868),
 			.driver_info = EM2820_BOARD_UNKNOWN },
@@ -2663,6 +2688,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_PCTV_292E },
 	{ USB_DEVICE(0x2040, 0x8268), /* Hauppauge Retail WinTV-soloHD Bulk */
 			.driver_info = EM28178_BOARD_PCTV_292E },
+	{ USB_DEVICE(0x2040, 0x8268), /* Hauppauge WinTV-soloHD alt. PID */
+			.driver_info = EM28178_BOARD_PCTV_292E },
 	{ USB_DEVICE(0x0413, 0x6f07),
 			.driver_info = EM2861_BOARD_LEADTEK_VC100 },
 	{ USB_DEVICE(0xeb1a, 0x8179),
@@ -2688,6 +2715,7 @@ static const struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0xb8846b20, EM2881_BOARD_PINNACLE_HYBRID_PRO, TUNER_XC2028},
 	{0x63f653bd, EM2870_BOARD_REDDO_DVB_C_USB_BOX, TUNER_ABSENT},
 	{0x4e913442, EM2882_BOARD_DIKOM_DK300, TUNER_XC2028},
+	{0x85dd871e, EM2882_BOARD_ZOLID_HYBRID_TV_STICK, TUNER_XC2028},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -2699,6 +2727,7 @@ static const struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0xc51200e3, EM2820_BOARD_GADMEI_TVR200, TUNER_LG_PAL_NEW_TAPC},
 	{0x4ba50080, EM2861_BOARD_GADMEI_UTV330PLUS, TUNER_TNF_5335MF},
 	{0x6b800080, EM2874_BOARD_LEADERSHIP_ISDBT, TUNER_ABSENT},
+	{0x27e10080, EM2882_BOARD_ZOLID_HYBRID_TV_STICK, TUNER_XC2028},
 };
 
 /* NOTE: introduce a separate hash table for devices with 16 bit eeproms */
@@ -3182,11 +3211,10 @@ void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2882_BOARD_TERRATEC_HYBRID_XS:
-		ctl->demod = XC3028_FE_ZARLINK456;
-		break;
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
 	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
+	case EM2882_BOARD_ZOLID_HYBRID_TV_STICK:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
@@ -3674,7 +3702,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 
 	/* Don't register audio interfaces */
 	if (intf->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
-		dev_err(&intf->dev,
+		dev_info(&intf->dev,
 			"audio device (%04x:%04x): interface %i, class %i\n",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct),
@@ -3736,7 +3764,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 		speed = "unknown";
 	}
 
-	dev_err(&intf->dev,
+	dev_info(&intf->dev,
 		"New device %s %s @ %s Mbps (%04x:%04x, interface %d, class %d)\n",
 		udev->manufacturer ? udev->manufacturer : "",
 		udev->product ? udev->product : "",
@@ -3771,7 +3799,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	dev->dev_next = NULL;
 
 	if (has_vendor_audio) {
-		dev_err(&intf->dev,
+		dev_info(&intf->dev,
 			"Audio interface %i found (Vendor Class)\n", ifnum);
 		dev->usb_audio_type = EM28XX_USB_AUDIO_VENDOR;
 	}
@@ -3790,12 +3818,12 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	}
 
 	if (has_video)
-		dev_err(&intf->dev, "Video interface %i found:%s%s\n",
+		dev_info(&intf->dev, "Video interface %i found:%s%s\n",
 			ifnum,
 			dev->analog_ep_bulk ? " bulk" : "",
 			dev->analog_ep_isoc ? " isoc" : "");
 	if (has_dvb)
-		dev_err(&intf->dev, "DVB interface %i found:%s%s\n",
+		dev_info(&intf->dev, "DVB interface %i found:%s%s\n",
 			ifnum,
 			dev->dvb_ep_bulk ? " bulk" : "",
 			dev->dvb_ep_isoc ? " isoc" : "");
@@ -3837,13 +3865,13 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	if (has_video) {
 		if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
 			dev->analog_xfer_bulk = 1;
-		dev_err(&intf->dev, "analog set to %s mode.\n",
+		dev_info(&intf->dev, "analog set to %s mode.\n",
 			dev->analog_xfer_bulk ? "bulk" : "isoc");
 	}
 	if (has_dvb) {
 		if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
 			dev->dvb_xfer_bulk = 1;
-		dev_err(&intf->dev, "dvb set to %s mode.\n",
+		dev_info(&intf->dev, "dvb set to %s mode.\n",
 			dev->dvb_xfer_bulk ? "bulk" : "isoc");
 	}
 
@@ -3957,7 +3985,7 @@ static void em28xx_usb_disconnect(struct usb_interface *intf)
 
 	dev->disconnected = 1;
 
-	dev_err(&dev->intf->dev, "Disconnecting %s\n", dev->name);
+	dev_info(&dev->intf->dev, "Disconnecting %s\n", dev->name);
 
 	flush_request_modules(dev);
 

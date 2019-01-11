@@ -440,7 +440,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs)
 
 	for (; page < page_end; page++) {
 		res = chip->ecc.read_oob(mtd, chip, page);
-		if (res)
+		if (res < 0)
 			return res;
 
 		bad = chip->oob_poi[chip->badblockpos];
@@ -2174,7 +2174,6 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	const u8 *params = data;
 	int i, ret;
-	u8 status;
 
 	if (chip->exec_op) {
 		const struct nand_sdr_timings *sdr =
@@ -2188,26 +2187,18 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 		};
 		struct nand_operation op = NAND_OPERATION(instrs);
 
-		ret = nand_exec_op(chip, &op);
-		if (ret)
-			return ret;
-
-		ret = nand_status_op(chip, &status);
-		if (ret)
-			return ret;
-	} else {
-		chip->cmdfunc(mtd, NAND_CMD_SET_FEATURES, feature, -1);
-		for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-			chip->write_byte(mtd, params[i]);
-
-		ret = chip->waitfunc(mtd, chip);
-		if (ret < 0)
-			return ret;
-
-		status = ret;
+		return nand_exec_op(chip, &op);
 	}
 
-	if (status & NAND_STATUS_FAIL)
+	chip->cmdfunc(mtd, NAND_CMD_SET_FEATURES, feature, -1);
+	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
+		chip->write_byte(mtd, params[i]);
+
+	ret = chip->waitfunc(mtd, chip);
+	if (ret < 0)
+		return ret;
+
+	if (ret & NAND_STATUS_FAIL)
 		return -EIO;
 
 	return 0;
@@ -5092,6 +5083,37 @@ ext_out:
 }
 
 /*
+ * Recover data with bit-wise majority
+ */
+static void nand_bit_wise_majority(const void **srcbufs,
+				   unsigned int nsrcbufs,
+				   void *dstbuf,
+				   unsigned int bufsize)
+{
+	int i, j, k;
+
+	for (i = 0; i < bufsize; i++) {
+		u8 val = 0;
+
+		for (j = 0; j < 8; j++) {
+			unsigned int cnt = 0;
+
+			for (k = 0; k < nsrcbufs; k++) {
+				const u8 *srcbuf = srcbufs[k];
+
+				if (srcbuf[i] & BIT(j))
+					cnt++;
+			}
+
+			if (cnt > nsrcbufs / 2)
+				val |= BIT(j);
+		}
+
+		((u8 *)dstbuf)[i] = val;
+	}
+}
+
+/*
  * Check if the NAND chip is ONFI compliant, returns 1 if it is, 0 otherwise.
  */
 static int nand_flash_detect_onfi(struct nand_chip *chip)
@@ -5107,7 +5129,7 @@ static int nand_flash_detect_onfi(struct nand_chip *chip)
 		return 0;
 
 	/* ONFI chip: allocate a buffer to hold its parameter page */
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc((sizeof(*p) * 3), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -5118,21 +5140,32 @@ static int nand_flash_detect_onfi(struct nand_chip *chip)
 	}
 
 	for (i = 0; i < 3; i++) {
-		ret = nand_read_data_op(chip, p, sizeof(*p), true);
+		ret = nand_read_data_op(chip, &p[i], sizeof(*p), true);
 		if (ret) {
 			ret = 0;
 			goto free_onfi_param_page;
 		}
 
-		if (onfi_crc16(ONFI_CRC_BASE, (uint8_t *)p, 254) ==
+		if (onfi_crc16(ONFI_CRC_BASE, (u8 *)&p[i], 254) ==
 				le16_to_cpu(p->crc)) {
+			if (i)
+				memcpy(p, &p[i], sizeof(*p));
 			break;
 		}
 	}
 
 	if (i == 3) {
-		pr_err("Could not find valid ONFI parameter page; aborting\n");
-		goto free_onfi_param_page;
+		const void *srcbufs[3] = {p, p + 1, p + 2};
+
+		pr_warn("Could not find a valid ONFI parameter page, trying bit-wise majority to recover it\n");
+		nand_bit_wise_majority(srcbufs, ARRAY_SIZE(srcbufs), p,
+				       sizeof(*p));
+
+		if (onfi_crc16(ONFI_CRC_BASE, (u8 *)p, 254) !=
+				le16_to_cpu(p->crc)) {
+			pr_err("ONFI parameter recovery failed, aborting\n");
+			goto free_onfi_param_page;
+		}
 	}
 
 	/* Check version */
@@ -6635,24 +6668,26 @@ EXPORT_SYMBOL(nand_scan_tail);
 #endif
 
 /**
- * nand_scan - [NAND Interface] Scan for the NAND device
+ * nand_scan_with_ids - [NAND Interface] Scan for the NAND device
  * @mtd: MTD device structure
  * @maxchips: number of chips to scan for
+ * @ids: optional flash IDs table
  *
  * This fills out all the uninitialized function pointers with the defaults.
  * The flash ID is read and the mtd/chip structures are filled with the
  * appropriate values.
  */
-int nand_scan(struct mtd_info *mtd, int maxchips)
+int nand_scan_with_ids(struct mtd_info *mtd, int maxchips,
+		       struct nand_flash_dev *ids)
 {
 	int ret;
 
-	ret = nand_scan_ident(mtd, maxchips, NULL);
+	ret = nand_scan_ident(mtd, maxchips, ids);
 	if (!ret)
 		ret = nand_scan_tail(mtd);
 	return ret;
 }
-EXPORT_SYMBOL(nand_scan);
+EXPORT_SYMBOL(nand_scan_with_ids);
 
 /**
  * nand_cleanup - [NAND Interface] Free resources held by the NAND device

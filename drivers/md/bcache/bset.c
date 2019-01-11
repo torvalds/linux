@@ -1118,8 +1118,7 @@ struct bkey *bch_btree_iter_next_filter(struct btree_iter *iter,
 
 void bch_bset_sort_state_free(struct bset_sort_state *state)
 {
-	if (state->pool)
-		mempool_destroy(state->pool);
+	mempool_exit(&state->pool);
 }
 
 int bch_bset_sort_state_init(struct bset_sort_state *state, unsigned page_order)
@@ -1129,11 +1128,7 @@ int bch_bset_sort_state_init(struct bset_sort_state *state, unsigned page_order)
 	state->page_order = page_order;
 	state->crit_factor = int_sqrt(1 << page_order);
 
-	state->pool = mempool_create_page_pool(1, page_order);
-	if (!state->pool)
-		return -ENOMEM;
-
-	return 0;
+	return mempool_init_page_pool(&state->pool, 1, page_order);
 }
 EXPORT_SYMBOL(bch_bset_sort_state_init);
 
@@ -1191,7 +1186,7 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 
 		BUG_ON(order > state->page_order);
 
-		outp = mempool_alloc(state->pool, GFP_NOIO);
+		outp = mempool_alloc(&state->pool, GFP_NOIO);
 		out = page_address(outp);
 		used_mempool = true;
 		order = state->page_order;
@@ -1220,7 +1215,7 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 	}
 
 	if (used_mempool)
-		mempool_free(virt_to_page(out), state->pool);
+		mempool_free(virt_to_page(out), &state->pool);
 	else
 		free_pages((unsigned long) out, order);
 

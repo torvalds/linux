@@ -61,8 +61,6 @@
 
 	encoder {
 		compatible = "ti,tfp410";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		ports {
 			#address-cells = <1>;

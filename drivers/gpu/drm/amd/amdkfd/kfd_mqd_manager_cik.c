@@ -79,10 +79,6 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	m->cp_mqd_base_addr_lo        = lower_32_bits(addr);
 	m->cp_mqd_base_addr_hi        = upper_32_bits(addr);
 
-	m->cp_hqd_ib_control = DEFAULT_MIN_IB_AVAIL_SIZE | IB_ATC_EN;
-	/* Although WinKFD writes this, I suspect it should not be necessary */
-	m->cp_hqd_ib_control = IB_ATC_EN | DEFAULT_MIN_IB_AVAIL_SIZE;
-
 	m->cp_hqd_quantum = QUANTUM_EN | QUANTUM_SCALE_1MS |
 				QUANTUM_DURATION(10);
 
@@ -412,7 +408,7 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
 		return NULL;
 
-	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
+	mqd = kzalloc(sizeof(*mqd), GFP_NOIO);
 	if (!mqd)
 		return NULL;
 

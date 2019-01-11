@@ -312,6 +312,9 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	by kernel. Returns a negative error code or zero.
  * @get_fecparam: Get the network device Forward Error Correction parameters.
  * @set_fecparam: Set the network device Forward Error Correction parameters.
+ * @get_ethtool_phy_stats: Return extended statistics about the PHY device.
+ *	This is only useful if the device maintains PHY statistics and
+ *	cannot use the standard PHY library helpers.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -407,5 +410,7 @@ struct ethtool_ops {
 				      struct ethtool_fecparam *);
 	int	(*set_fecparam)(struct net_device *,
 				      struct ethtool_fecparam *);
+	void	(*get_ethtool_phy_stats)(struct net_device *,
+					 struct ethtool_stats *, u64 *);
 };
 #endif /* _LINUX_ETHTOOL_H */

@@ -1,29 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include <linux/prefetch.h>
 #include <net/busy_poll.h>
@@ -129,7 +105,7 @@ void i40evf_free_tx_resources(struct i40e_ring *tx_ring)
 
 /**
  * i40evf_get_tx_pending - how many Tx descriptors not processed
- * @tx_ring: the ring of descriptors
+ * @ring: the ring of descriptors
  * @in_sw: is tx_pending being checked in SW or HW
  *
  * Since there is no access to the ring head register
@@ -1070,6 +1046,8 @@ static inline int i40e_ptype_to_htype(u8 ptype)
  * i40e_rx_hash - set the hash value in the skb
  * @ring: descriptor ring
  * @rx_desc: specific descriptor
+ * @skb: skb currently being received and modified
+ * @rx_ptype: Rx packet type
  **/
 static inline void i40e_rx_hash(struct i40e_ring *ring,
 				union i40e_rx_desc *rx_desc,

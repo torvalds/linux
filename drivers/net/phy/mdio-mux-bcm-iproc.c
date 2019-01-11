@@ -218,7 +218,7 @@ out:
 
 static int mdio_mux_iproc_remove(struct platform_device *pdev)
 {
-	struct iproc_mdiomux_desc *md = dev_get_platdata(&pdev->dev);
+	struct iproc_mdiomux_desc *md = platform_get_drvdata(pdev);
 
 	mdio_mux_uninit(md->mux_handle);
 	mdiobus_unregister(md->mii_bus);

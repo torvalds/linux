@@ -23,7 +23,8 @@ IRIW+mbonceonces+OnceOnce.litmus
 	between each pairs of reads.  In other words, is smp_mb()
 	sufficient to cause two different reading processes to agree on
 	the order of a pair of writes, where each write is to a different
-	variable by a different process?
+	variable by a different process?  This litmus test is forbidden
+	by LKMM's propagation rule.
 
 IRIW+poonceonces+OnceOnce.litmus
 	Test of independent reads from independent writes with nothing
@@ -62,6 +63,16 @@ LB+poonceonces.litmus
 
 MP+onceassign+derefonce.litmus
 	As below, but with rcu_assign_pointer() and an rcu_dereference().
+
+MP+polockmbonce+poacquiresilsil.litmus
+	Protect the access with a lock and an smp_mb__after_spinlock()
+	in one process, and use an acquire load followed by a pair of
+	spin_is_locked() calls in the other process.
+
+MP+polockonce+poacquiresilsil.litmus
+	Protect the access with a lock in one process, and use an
+	acquire load followed by a pair of spin_is_locked() calls
+	in the other process.
 
 MP+polocks.litmus
 	As below, but with the second access of the writer process
@@ -109,8 +120,10 @@ S+wmbonceonce+poacquireonce.litmus
 
 WRC+poonceonces+Once.litmus
 WRC+pooncerelease+rmbonceonce+Once.litmus
-	These two are members of an extension of the MP litmus-test class
-	in which the first write is moved to a separate process.
+	These two are members of an extension of the MP litmus-test
+	class in which the first write is moved to a separate process.
+	The second is forbidden because smp_store_release() is
+	A-cumulative in LKMM.
 
 Z6.0+pooncelock+pooncelock+pombonce.litmus
 	Is the ordering provided by a spin_unlock() and a subsequent

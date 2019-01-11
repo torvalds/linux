@@ -322,9 +322,9 @@ static int caam_remove(struct platform_device *pdev)
 
 	/*
 	 * De-initialize RNG state handles initialized by this driver.
-	 * In case of DPAA 2.x, RNG is managed by MC firmware.
+	 * In case of SoCs with Management Complex, RNG is managed by MC f/w.
 	 */
-	if (!caam_dpaa2 && ctrlpriv->rng4_sh_init)
+	if (!ctrlpriv->mc_en && ctrlpriv->rng4_sh_init)
 		deinstantiate_rng(ctrldev, ctrlpriv->rng4_sh_init);
 
 	/* Shut down debug views */
@@ -396,11 +396,56 @@ start_rng:
 	clrsetbits_32(&r4tst->rtmctl, RTMCTL_PRGM, RTMCTL_SAMP_MODE_RAW_ES_SC);
 }
 
+static int caam_get_era_from_hw(struct caam_ctrl __iomem *ctrl)
+{
+	static const struct {
+		u16 ip_id;
+		u8 maj_rev;
+		u8 era;
+	} id[] = {
+		{0x0A10, 1, 1},
+		{0x0A10, 2, 2},
+		{0x0A12, 1, 3},
+		{0x0A14, 1, 3},
+		{0x0A14, 2, 4},
+		{0x0A16, 1, 4},
+		{0x0A10, 3, 4},
+		{0x0A11, 1, 4},
+		{0x0A18, 1, 4},
+		{0x0A11, 2, 5},
+		{0x0A12, 2, 5},
+		{0x0A13, 1, 5},
+		{0x0A1C, 1, 5}
+	};
+	u32 ccbvid, id_ms;
+	u8 maj_rev, era;
+	u16 ip_id;
+	int i;
+
+	ccbvid = rd_reg32(&ctrl->perfmon.ccb_id);
+	era = (ccbvid & CCBVID_ERA_MASK) >> CCBVID_ERA_SHIFT;
+	if (era)	/* This is '0' prior to CAAM ERA-6 */
+		return era;
+
+	id_ms = rd_reg32(&ctrl->perfmon.caam_id_ms);
+	ip_id = (id_ms & SECVID_MS_IPID_MASK) >> SECVID_MS_IPID_SHIFT;
+	maj_rev = (id_ms & SECVID_MS_MAJ_REV_MASK) >> SECVID_MS_MAJ_REV_SHIFT;
+
+	for (i = 0; i < ARRAY_SIZE(id); i++)
+		if (id[i].ip_id == ip_id && id[i].maj_rev == maj_rev)
+			return id[i].era;
+
+	return -ENOTSUPP;
+}
+
 /**
  * caam_get_era() - Return the ERA of the SEC on SoC, based
- * on "sec-era" propery in the DTS. This property is updated by u-boot.
+ * on "sec-era" optional property in the DTS. This property is updated
+ * by u-boot.
+ * In case this property is not passed an attempt to retrieve the CAAM
+ * era via register reads will be made.
  **/
-int caam_get_era(void)
+static int caam_get_era(struct caam_ctrl __iomem *ctrl)
 {
 	struct device_node *caam_node;
 	int ret;
@@ -410,9 +455,11 @@ int caam_get_era(void)
 	ret = of_property_read_u32(caam_node, "fsl,sec-era", &prop);
 	of_node_put(caam_node);
 
-	return ret ? -ENOTSUPP : prop;
+	if (!ret)
+		return prop;
+	else
+		return caam_get_era_from_hw(ctrl);
 }
-EXPORT_SYMBOL(caam_get_era);
 
 static const struct of_device_id caam_match[] = {
 	{
@@ -571,11 +618,15 @@ static int caam_probe(struct platform_device *pdev)
 	/*
 	 * Enable DECO watchdogs and, if this is a PHYS_ADDR_T_64BIT kernel,
 	 * long pointers in master configuration register.
-	 * In case of DPAA 2.x, Management Complex firmware performs
+	 * In case of SoCs with Management Complex, MC f/w performs
 	 * the configuration.
 	 */
 	caam_dpaa2 = !!(comp_params & CTPR_MS_DPAA2);
-	if (!caam_dpaa2)
+	np = of_find_compatible_node(NULL, NULL, "fsl,qoriq-mc");
+	ctrlpriv->mc_en = !!np;
+	of_node_put(np);
+
+	if (!ctrlpriv->mc_en)
 		clrsetbits_32(&ctrl->mcr, MCFGR_AWCACHE_MASK | MCFGR_LONG_PTR,
 			      MCFGR_AWCACHE_CACH | MCFGR_AWCACHE_BUFF |
 			      MCFGR_WDENABLE | MCFGR_LARGE_BURST |
@@ -623,7 +674,7 @@ static int caam_probe(struct platform_device *pdev)
 		goto iounmap_ctrl;
 	}
 
-	ctrlpriv->era = caam_get_era();
+	ctrlpriv->era = caam_get_era(ctrl);
 
 	ret = of_platform_populate(nprop, caam_match, NULL, dev);
 	if (ret) {
@@ -686,9 +737,9 @@ static int caam_probe(struct platform_device *pdev)
 	/*
 	 * If SEC has RNG version >= 4 and RNG state handle has not been
 	 * already instantiated, do RNG instantiation
-	 * In case of DPAA 2.x, RNG is managed by MC firmware.
+	 * In case of SoCs with Management Complex, RNG is managed by MC f/w.
 	 */
-	if (!caam_dpaa2 &&
+	if (!ctrlpriv->mc_en &&
 	    (cha_vid_ls & CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT >= 4) {
 		ctrlpriv->rng4_sh_init =
 			rd_reg32(&ctrl->r4tst[0].rdsta);
@@ -757,9 +808,8 @@ static int caam_probe(struct platform_device *pdev)
 	/* Report "alive" for developer to see */
 	dev_info(dev, "device ID = 0x%016llx (Era %d)\n", caam_id,
 		 ctrlpriv->era);
-	dev_info(dev, "job rings = %d, qi = %d, dpaa2 = %s\n",
-		 ctrlpriv->total_jobrs, ctrlpriv->qi_present,
-		 caam_dpaa2 ? "yes" : "no");
+	dev_info(dev, "job rings = %d, qi = %d\n",
+		 ctrlpriv->total_jobrs, ctrlpriv->qi_present);
 
 #ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("rq_dequeued", S_IRUSR | S_IRGRP | S_IROTH,

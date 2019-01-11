@@ -73,7 +73,8 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 	}
 
 	iccsense->nr_entry = cnt;
-	iccsense->rail = kmalloc(sizeof(struct pwr_rail_t) * cnt, GFP_KERNEL);
+	iccsense->rail = kmalloc_array(cnt, sizeof(struct pwr_rail_t),
+				       GFP_KERNEL);
 	if (!iccsense->rail)
 		return -ENOMEM;
 

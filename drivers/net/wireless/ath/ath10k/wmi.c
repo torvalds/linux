@@ -34,6 +34,7 @@
 
 #define ATH10K_WMI_BARRIER_ECHO_ID 0xBA991E9
 #define ATH10K_WMI_BARRIER_TIMEOUT_HZ (3 * HZ)
+#define ATH10K_WMI_DFS_CONF_TIMEOUT_HZ (HZ / 6)
 
 /* MAIN WMI cmd track */
 static struct wmi_cmd_map wmi_cmd_map = {
@@ -42,6 +43,7 @@ static struct wmi_cmd_map wmi_cmd_map = {
 	.stop_scan_cmdid = WMI_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_SCAN_SCH_PRIO_TBL_CMDID,
+	.scan_prob_req_oui_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_set_regdomain_cmdid = WMI_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_PDEV_SET_PARAM_CMDID,
@@ -198,6 +200,7 @@ static struct wmi_cmd_map wmi_cmd_map = {
 	.set_cca_params_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_bss_chan_info_request_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.radar_found_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.X WMI cmd track */
@@ -207,6 +210,7 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.stop_scan_cmdid = WMI_10X_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_10X_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_CMD_UNSUPPORTED,
+	.scan_prob_req_oui_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_set_regdomain_cmdid = WMI_10X_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_10X_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_10X_PDEV_SET_PARAM_CMDID,
@@ -365,6 +369,7 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.set_cca_params_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_bss_chan_info_request_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.radar_found_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.2.4 WMI cmd track */
@@ -374,6 +379,7 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 	.stop_scan_cmdid = WMI_10_2_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_10_2_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_CMD_UNSUPPORTED,
+	.scan_prob_req_oui_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_set_regdomain_cmdid = WMI_10_2_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_10_2_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_10_2_PDEV_SET_PARAM_CMDID,
@@ -532,6 +538,7 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 	.pdev_bss_chan_info_request_cmdid =
 		WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.radar_found_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.4 WMI cmd track */
@@ -541,6 +548,7 @@ static struct wmi_cmd_map wmi_10_4_cmd_map = {
 	.stop_scan_cmdid = WMI_10_4_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_10_4_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_10_4_SCAN_SCH_PRIO_TBL_CMDID,
+	.scan_prob_req_oui_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_set_regdomain_cmdid = WMI_10_4_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_10_4_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_10_4_PDEV_SET_PARAM_CMDID,
@@ -741,6 +749,7 @@ static struct wmi_cmd_map wmi_10_4_cmd_map = {
 	.tdls_set_state_cmdid = WMI_10_4_TDLS_SET_STATE_CMDID,
 	.tdls_peer_update_cmdid = WMI_10_4_TDLS_PEER_UPDATE_CMDID,
 	.tdls_set_offchan_mode_cmdid = WMI_10_4_TDLS_SET_OFFCHAN_MODE_CMDID,
+	.radar_found_cmdid = WMI_10_4_RADAR_FOUND_CMDID,
 };
 
 /* MAIN WMI VDEV param map */
@@ -1338,6 +1347,7 @@ static struct wmi_cmd_map wmi_10_2_cmd_map = {
 	.stop_scan_cmdid = WMI_10_2_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_10_2_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_CMD_UNSUPPORTED,
+	.scan_prob_req_oui_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_set_regdomain_cmdid = WMI_10_2_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_10_2_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_10_2_PDEV_SET_PARAM_CMDID,
@@ -1485,6 +1495,7 @@ static struct wmi_cmd_map wmi_10_2_cmd_map = {
 	.pdev_get_ani_ofdm_config_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_reserve_ast_entry_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.radar_found_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 static struct wmi_pdev_param_map wmi_10_4_pdev_param_map = {
@@ -2313,7 +2324,6 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	u32 phy_mode;
 	u32 snr;
 	u32 rate;
-	u32 buf_len;
 	u16 fc;
 	int ret;
 
@@ -2325,7 +2335,6 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	}
 
 	channel = __le32_to_cpu(arg.channel);
-	buf_len = __le32_to_cpu(arg.buf_len);
 	rx_status = __le32_to_cpu(arg.status);
 	snr = __le32_to_cpu(arg.snr);
 	phy_mode = __le32_to_cpu(arg.phy_mode);
@@ -2735,14 +2744,13 @@ static int ath10k_wmi_main_op_pull_fw_stats(struct ath10k *ar,
 					    struct ath10k_fw_stats *stats)
 {
 	const struct wmi_stats_event *ev = (void *)skb->data;
-	u32 num_pdev_stats, num_vdev_stats, num_peer_stats;
+	u32 num_pdev_stats, num_peer_stats;
 	int i;
 
 	if (!skb_pull(skb, sizeof(*ev)))
 		return -EPROTO;
 
 	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats);
-	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
 
 	for (i = 0; i < num_pdev_stats; i++) {
@@ -2790,14 +2798,13 @@ static int ath10k_wmi_10x_op_pull_fw_stats(struct ath10k *ar,
 					   struct ath10k_fw_stats *stats)
 {
 	const struct wmi_stats_event *ev = (void *)skb->data;
-	u32 num_pdev_stats, num_vdev_stats, num_peer_stats;
+	u32 num_pdev_stats, num_peer_stats;
 	int i;
 
 	if (!skb_pull(skb, sizeof(*ev)))
 		return -EPROTO;
 
 	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats);
-	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
 
 	for (i = 0; i < num_pdev_stats; i++) {
@@ -2851,7 +2858,6 @@ static int ath10k_wmi_10_2_op_pull_fw_stats(struct ath10k *ar,
 	const struct wmi_10_2_stats_event *ev = (void *)skb->data;
 	u32 num_pdev_stats;
 	u32 num_pdev_ext_stats;
-	u32 num_vdev_stats;
 	u32 num_peer_stats;
 	int i;
 
@@ -2860,7 +2866,6 @@ static int ath10k_wmi_10_2_op_pull_fw_stats(struct ath10k *ar,
 
 	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats);
 	num_pdev_ext_stats = __le32_to_cpu(ev->num_pdev_ext_stats);
-	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
 
 	for (i = 0; i < num_pdev_stats; i++) {
@@ -2930,7 +2935,6 @@ static int ath10k_wmi_10_2_4_op_pull_fw_stats(struct ath10k *ar,
 	const struct wmi_10_2_stats_event *ev = (void *)skb->data;
 	u32 num_pdev_stats;
 	u32 num_pdev_ext_stats;
-	u32 num_vdev_stats;
 	u32 num_peer_stats;
 	int i;
 
@@ -2939,7 +2943,6 @@ static int ath10k_wmi_10_2_4_op_pull_fw_stats(struct ath10k *ar,
 
 	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats);
 	num_pdev_ext_stats = __le32_to_cpu(ev->num_pdev_ext_stats);
-	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
 
 	for (i = 0; i < num_pdev_stats; i++) {
@@ -3686,6 +3689,68 @@ void ath10k_wmi_event_tbttoffset_update(struct ath10k *ar, struct sk_buff *skb)
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_TBTTOFFSET_UPDATE_EVENTID\n");
 }
 
+static void ath10k_radar_detected(struct ath10k *ar)
+{
+	ath10k_dbg(ar, ATH10K_DBG_REGULATORY, "dfs radar detected\n");
+	ATH10K_DFS_STAT_INC(ar, radar_detected);
+
+	/* Control radar events reporting in debugfs file
+	 * dfs_block_radar_events
+	 */
+	if (ar->dfs_block_radar_events)
+		ath10k_info(ar, "DFS Radar detected, but ignored as requested\n");
+	else
+		ieee80211_radar_detected(ar->hw);
+}
+
+static void ath10k_radar_confirmation_work(struct work_struct *work)
+{
+	struct ath10k *ar = container_of(work, struct ath10k,
+					 radar_confirmation_work);
+	struct ath10k_radar_found_info radar_info;
+	int ret, time_left;
+
+	reinit_completion(&ar->wmi.radar_confirm);
+
+	spin_lock_bh(&ar->data_lock);
+	memcpy(&radar_info, &ar->last_radar_info, sizeof(radar_info));
+	spin_unlock_bh(&ar->data_lock);
+
+	ret = ath10k_wmi_report_radar_found(ar, &radar_info);
+	if (ret) {
+		ath10k_warn(ar, "failed to send radar found %d\n", ret);
+		goto wait_complete;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->wmi.radar_confirm,
+						ATH10K_WMI_DFS_CONF_TIMEOUT_HZ);
+	if (time_left) {
+		/* DFS Confirmation status event received and
+		 * necessary action completed.
+		 */
+		goto wait_complete;
+	} else {
+		/* DFS Confirmation event not received from FW.Considering this
+		 * as real radar.
+		 */
+		ath10k_dbg(ar, ATH10K_DBG_REGULATORY,
+			   "dfs confirmation not received from fw, considering as radar\n");
+		goto radar_detected;
+	}
+
+radar_detected:
+	ath10k_radar_detected(ar);
+
+	/* Reset state to allow sending confirmation on consecutive radar
+	 * detections, unless radar confirmation is disabled/stopped.
+	 */
+wait_complete:
+	spin_lock_bh(&ar->data_lock);
+	if (ar->radar_conf_state != ATH10K_RADAR_CONFIRMATION_STOPPED)
+		ar->radar_conf_state = ATH10K_RADAR_CONFIRMATION_IDLE;
+	spin_unlock_bh(&ar->data_lock);
+}
+
 static void ath10k_dfs_radar_report(struct ath10k *ar,
 				    struct wmi_phyerr_ev_arg *phyerr,
 				    const struct phyerr_radar_report *rr,
@@ -3694,8 +3759,10 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 	u32 reg0, reg1, tsf32l;
 	struct ieee80211_channel *ch;
 	struct pulse_event pe;
+	struct radar_detector_specs rs;
 	u64 tsf64;
 	u8 rssi, width;
+	struct ath10k_radar_found_info *radar_info;
 
 	reg0 = __le32_to_cpu(rr->reg0);
 	reg1 = __le32_to_cpu(rr->reg1);
@@ -3760,25 +3827,46 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 
 	ATH10K_DFS_STAT_INC(ar, pulses_detected);
 
-	if (!ar->dfs_detector->add_pulse(ar->dfs_detector, &pe)) {
+	if (!ar->dfs_detector->add_pulse(ar->dfs_detector, &pe, &rs)) {
 		ath10k_dbg(ar, ATH10K_DBG_REGULATORY,
 			   "dfs no pulse pattern detected, yet\n");
 		return;
 	}
 
-radar_detected:
-	ath10k_dbg(ar, ATH10K_DBG_REGULATORY, "dfs radar detected\n");
-	ATH10K_DFS_STAT_INC(ar, radar_detected);
+	if ((test_bit(WMI_SERVICE_HOST_DFS_CHECK_SUPPORT, ar->wmi.svc_map)) &&
+	    ar->dfs_detector->region == NL80211_DFS_FCC) {
+		/* Consecutive radar indications need not be
+		 * sent to the firmware until we get confirmation
+		 * for the previous detected radar.
+		 */
+		spin_lock_bh(&ar->data_lock);
+		if (ar->radar_conf_state != ATH10K_RADAR_CONFIRMATION_IDLE) {
+			spin_unlock_bh(&ar->data_lock);
+			return;
+		}
+		ar->radar_conf_state = ATH10K_RADAR_CONFIRMATION_INPROGRESS;
+		radar_info = &ar->last_radar_info;
 
-	/* Control radar events reporting in debugfs file
-	 * dfs_block_radar_events
-	 */
-	if (ar->dfs_block_radar_events) {
-		ath10k_info(ar, "DFS Radar detected, but ignored as requested\n");
+		radar_info->pri_min = rs.pri_min;
+		radar_info->pri_max = rs.pri_max;
+		radar_info->width_min = rs.width_min;
+		radar_info->width_max = rs.width_max;
+		/*TODO Find sidx_min and sidx_max */
+		radar_info->sidx_min = MS(reg0, RADAR_REPORT_REG0_PULSE_SIDX);
+		radar_info->sidx_max = MS(reg0, RADAR_REPORT_REG0_PULSE_SIDX);
+
+		ath10k_dbg(ar, ATH10K_DBG_REGULATORY,
+			   "sending wmi radar found cmd pri_min %d pri_max %d width_min %d width_max %d sidx_min %d sidx_max %d\n",
+			   radar_info->pri_min, radar_info->pri_max,
+			   radar_info->width_min, radar_info->width_max,
+			   radar_info->sidx_min, radar_info->sidx_max);
+		ieee80211_queue_work(ar->hw, &ar->radar_confirmation_work);
+		spin_unlock_bh(&ar->data_lock);
 		return;
 	}
 
-	ieee80211_radar_detected(ar->hw);
+radar_detected:
+	ath10k_radar_detected(ar);
 }
 
 static int ath10k_dfs_fft_report(struct ath10k *ar,
@@ -4128,6 +4216,47 @@ void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb)
 	}
 }
 
+static int
+ath10k_wmi_10_4_op_pull_dfs_status_ev(struct ath10k *ar, struct sk_buff *skb,
+				      struct wmi_dfs_status_ev_arg *arg)
+{
+	struct wmi_dfs_status_ev_arg *ev = (void *)skb->data;
+
+	if (skb->len < sizeof(*ev))
+		return -EPROTO;
+
+	arg->status = ev->status;
+
+	return 0;
+}
+
+static void
+ath10k_wmi_event_dfs_status_check(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct wmi_dfs_status_ev_arg status_arg = {};
+	int ret;
+
+	ret = ath10k_wmi_pull_dfs_status(ar, skb, &status_arg);
+
+	if (ret) {
+		ath10k_warn(ar, "failed to parse dfs status event: %d\n", ret);
+		return;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_REGULATORY,
+		   "dfs status event received from fw: %d\n",
+		   status_arg.status);
+
+	/* Even in case of radar detection failure we follow the same
+	 * behaviour as if radar is detected i.e to switch to a different
+	 * channel.
+	 */
+	if (status_arg.status == WMI_HW_RADAR_DETECTED ||
+	    status_arg.status == WMI_RADAR_DETECTION_FAIL)
+		ath10k_radar_detected(ar);
+	complete(&ar->wmi.radar_confirm);
+}
+
 void ath10k_wmi_event_roam(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_roam_ev_arg arg = {};
@@ -4357,7 +4486,7 @@ static void ath10k_tpc_config_disp_tables(struct ath10k *ar,
 							    rate_code[i],
 							    type);
 			snprintf(buff, sizeof(buff), "%8d ", tpc[j]);
-			strncat(tpc_value, buff, strlen(buff));
+			strlcat(tpc_value, buff, sizeof(tpc_value));
 		}
 		tpc_stats->tpc_table[type].pream_idx[i] = pream_idx;
 		tpc_stats->tpc_table[type].rate_code[i] = rate_code[i];
@@ -4478,6 +4607,12 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 		return;
 
 	num_tx_chain = __le32_to_cpu(ev->num_tx_chain);
+
+	if (num_tx_chain > WMI_TPC_TX_N_CHAIN) {
+		ath10k_warn(ar, "number of tx chain is %d greater than TPC configured tx chain %d\n",
+			    num_tx_chain, WMI_TPC_TX_N_CHAIN);
+		return;
+	}
 
 	ath10k_wmi_tpc_config_get_rate_code(rate_code, pream_table,
 					    num_tx_chain);
@@ -4694,7 +4829,7 @@ ath10k_wmi_tpc_stats_final_disp_tables(struct ath10k *ar,
 							       rate_code[i],
 							       type, pream_idx);
 			snprintf(buff, sizeof(buff), "%8d ", tpc[j]);
-			strncat(tpc_value, buff, strlen(buff));
+			strlcat(tpc_value, buff, sizeof(tpc_value));
 		}
 		tpc_stats->tpc_table_final[type].pream_idx[i] = pream_idx;
 		tpc_stats->tpc_table_final[type].rate_code[i] = rate_code[i];
@@ -5059,7 +5194,6 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 		return;
 	}
 
-	memset(&ar->wmi.svc_map, 0, sizeof(ar->wmi.svc_map));
 	ath10k_wmi_map_svc(ar, arg.service_map, ar->wmi.svc_map,
 			   arg.service_map_len);
 
@@ -5269,6 +5403,21 @@ int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
+void ath10k_wmi_event_service_available(struct ath10k *ar, struct sk_buff *skb)
+{
+	int ret;
+	struct wmi_svc_avail_ev_arg arg = {};
+
+	ret = ath10k_wmi_pull_svc_avail(ar, skb, &arg);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse service available event: %d\n",
+			    ret);
+	}
+
+	ath10k_wmi_map_svc_ext(ar, arg.service_map_ext, ar->wmi.svc_map,
+			       __le32_to_cpu(arg.service_map_ext_len));
+}
+
 static int ath10k_wmi_event_temperature(struct ath10k *ar, struct sk_buff *skb)
 {
 	const struct wmi_pdev_temperature_event *ev;
@@ -5464,6 +5613,9 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
+		break;
+	case WMI_SERVICE_AVAILABLE_EVENTID:
+		ath10k_wmi_event_service_available(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -5856,6 +6008,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_4_PDEV_TPC_TABLE_EVENTID:
 		ath10k_wmi_event_tpc_final_table(ar, skb);
 		break;
+	case WMI_10_4_DFS_STATUS_CHECK_EVENTID:
+		ath10k_wmi_event_dfs_status_check(ar, skb);
+		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
 		break;
@@ -5879,6 +6034,8 @@ int ath10k_wmi_connect(struct ath10k *ar)
 	int status;
 	struct ath10k_htc_svc_conn_req conn_req;
 	struct ath10k_htc_svc_conn_resp conn_resp;
+
+	memset(&ar->wmi.svc_map, 0, sizeof(ar->wmi.svc_map));
 
 	memset(&conn_req, 0, sizeof(conn_req));
 	memset(&conn_resp, 0, sizeof(conn_resp));
@@ -7648,7 +7805,7 @@ ath10k_wmi_10_2_4_op_gen_pdev_get_tpc_config(struct ath10k *ar, u32 param)
 	cmd->param = __cpu_to_le32(param);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "wmi pdev get tcp config param:%d\n", param);
+		   "wmi pdev get tpc config param %d\n", param);
 	return skb;
 }
 
@@ -7768,7 +7925,7 @@ ath10k_wmi_fw_pdev_tx_stats_fill(const struct ath10k_fw_stats_pdev *pdev,
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "HW rate", pdev->data_rc);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Sched self tiggers", pdev->self_triggers);
+			 "Sched self triggers", pdev->self_triggers);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "Dropped due to SW retries",
 			 pdev->sw_retry_failure);
@@ -8440,6 +8597,32 @@ ath10k_wmi_10_4_gen_tdls_peer_update(struct ath10k *ar,
 }
 
 static struct sk_buff *
+ath10k_wmi_10_4_gen_radar_found(struct ath10k *ar,
+				const struct ath10k_radar_found_info *arg)
+{
+	struct wmi_radar_found_info *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_radar_found_info *)skb->data;
+	cmd->pri_min   = __cpu_to_le32(arg->pri_min);
+	cmd->pri_max   = __cpu_to_le32(arg->pri_max);
+	cmd->width_min = __cpu_to_le32(arg->width_min);
+	cmd->width_max = __cpu_to_le32(arg->width_max);
+	cmd->sidx_min  = __cpu_to_le32(arg->sidx_min);
+	cmd->sidx_max  = __cpu_to_le32(arg->sidx_max);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi radar found pri_min %d pri_max %d width_min %d width_max %d sidx_min %d sidx_max %d\n",
+		   arg->pri_min, arg->pri_max, arg->width_min,
+		   arg->width_max, arg->sidx_min, arg->sidx_max);
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_op_gen_echo(struct ath10k *ar, u32 value)
 {
 	struct wmi_echo_cmd *cmd;
@@ -8776,6 +8959,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.pull_svc_rdy = ath10k_wmi_main_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
+	.pull_dfs_status_ev = ath10k_wmi_10_4_op_pull_dfs_status_ev,
 	.get_txbf_conf_scheme = ath10k_wmi_10_4_txbf_conf_scheme,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
@@ -8822,6 +9006,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_tdls_peer_update = ath10k_wmi_10_4_gen_tdls_peer_update,
 	.gen_pdev_get_tpc_table_cmdid =
 			ath10k_wmi_10_4_op_gen_pdev_get_tpc_table_cmdid,
+	.gen_radar_found = ath10k_wmi_10_4_gen_radar_found,
 
 	/* shared with 10.2 */
 	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,
@@ -8884,8 +9069,11 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
 	init_completion(&ar->wmi.barrier);
+	init_completion(&ar->wmi.radar_confirm);
 
 	INIT_WORK(&ar->svc_rdy_work, ath10k_wmi_event_service_ready_work);
+	INIT_WORK(&ar->radar_confirmation_work,
+		  ath10k_radar_confirmation_work);
 
 	return 0;
 }

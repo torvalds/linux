@@ -838,8 +838,8 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 		return;
 	}
 
-	strings_buf = devm_kzalloc(&adapter->pdev->dev,
-				   strings_num * ETH_GSTRING_LEN,
+	strings_buf = devm_kcalloc(&adapter->pdev->dev,
+				   ETH_GSTRING_LEN, strings_num,
 				   GFP_ATOMIC);
 	if (!strings_buf) {
 		netif_err(adapter, drv, netdev,
@@ -847,8 +847,8 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 		return;
 	}
 
-	data_buf = devm_kzalloc(&adapter->pdev->dev,
-				strings_num * sizeof(u64),
+	data_buf = devm_kcalloc(&adapter->pdev->dev,
+				strings_num, sizeof(u64),
 				GFP_ATOMIC);
 	if (!data_buf) {
 		netif_err(adapter, drv, netdev,

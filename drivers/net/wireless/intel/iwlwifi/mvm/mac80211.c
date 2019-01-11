@@ -953,6 +953,16 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
+		if (iwl_mvm_vif_from_mac80211(vif)->ap_sta_id ==
+				iwl_mvm_sta_from_mac80211(sta)->sta_id) {
+			struct iwl_mvm_vif *mvmvif;
+			u16 macid = iwl_mvm_vif_from_mac80211(vif)->id;
+			struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[macid];
+
+			mdata->opened_rx_ba_sessions = true;
+			mvmvif = iwl_mvm_vif_from_mac80211(vif);
+			cancel_delayed_work(&mvmvif->uapsd_nonagg_detected_wk);
+		}
 		if (!iwl_enable_rx_ampdu(mvm->cfg)) {
 			ret = -EINVAL;
 			break;
@@ -1436,6 +1446,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = vif;
 	}
 
+	iwl_mvm_tcm_add_vif(mvm, vif);
+
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		mvm->monitor_on = true;
 
@@ -1486,6 +1498,10 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	iwl_mvm_prepare_mac_removal(mvm, vif);
+
+	if (!(vif->type == NL80211_IFTYPE_AP ||
+	      vif->type == NL80211_IFTYPE_ADHOC))
+		iwl_mvm_tcm_rm_vif(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
 
@@ -2536,6 +2552,16 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 static void iwl_mvm_check_uapsd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				const u8 *bssid)
 {
+	int i;
+
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		struct iwl_mvm_tcm_mac *mdata;
+
+		mdata = &mvm->tcm.data[iwl_mvm_vif_from_mac80211(vif)->id];
+		ewma_rate_init(&mdata->uapsd_nonagg_detect.rate);
+		mdata->opened_rx_ba_sessions = false;
+	}
+
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT))
 		return;
 
@@ -2548,6 +2574,13 @@ static void iwl_mvm_check_uapsd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	    (iwlwifi_mod_params.uapsd_disable & IWL_DISABLE_UAPSD_BSS)) {
 		vif->driver_flags &= ~IEEE80211_VIF_SUPPORTS_UAPSD;
 		return;
+	}
+
+	for (i = 0; i < IWL_MVM_UAPSD_NOAGG_LIST_LEN; i++) {
+		if (ether_addr_equal(mvm->uapsd_noagg_bssids[i].addr, bssid)) {
+			vif->driver_flags &= ~IEEE80211_VIF_SUPPORTS_UAPSD;
+			return;
+		}
 	}
 
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
@@ -2652,7 +2685,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 	/* track whether or not the station is associated */
-	mvm_sta->associated = new_state >= IEEE80211_STA_ASSOC;
+	mvm_sta->sta_state = new_state;
 
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
@@ -2704,8 +2737,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 		}
 
-		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
-				     true);
+		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band);
 		ret = iwl_mvm_update_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
@@ -2721,8 +2753,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		/* enable beacon filtering */
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 
-		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
-				     false);
+		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band);
 
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
@@ -2811,7 +2842,8 @@ static int iwl_mvm_mac_conf_tx(struct ieee80211_hw *hw,
 }
 
 static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif)
+				       struct ieee80211_vif *vif,
+				       u16 req_duration)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u32 duration = IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
@@ -2823,6 +2855,9 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 	 */
 	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PREPARE_TX))
 		return;
+
+	if (req_duration > duration)
+		duration = req_duration;
 
 	mutex_lock(&mvm->mutex);
 	/* Try really hard to protect the session and hear a beacon */
@@ -2987,9 +3022,8 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 			mvmsta = iwl_mvm_sta_from_mac80211(sta);
 			WARN_ON(rcu_access_pointer(mvmsta->ptk_pn[keyidx]));
-			ptk_pn = kzalloc(sizeof(*ptk_pn) +
-					 mvm->trans->num_rx_queues *
-						sizeof(ptk_pn->q[0]),
+			ptk_pn = kzalloc(struct_size(ptk_pn, q,
+						     mvm->trans->num_rx_queues),
 					 GFP_KERNEL);
 			if (!ptk_pn) {
 				ret = -ENOMEM;

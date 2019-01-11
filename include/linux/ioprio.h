@@ -77,4 +77,13 @@ extern int ioprio_best(unsigned short aprio, unsigned short bprio);
 
 extern int set_task_ioprio(struct task_struct *task, int ioprio);
 
+#ifdef CONFIG_BLOCK
+extern int ioprio_check_cap(int ioprio);
+#else
+static inline int ioprio_check_cap(int ioprio)
+{
+	return -ENOTBLK;
+}
+#endif /* CONFIG_BLOCK */
+
 #endif

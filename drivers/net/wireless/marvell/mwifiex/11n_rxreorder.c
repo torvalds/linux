@@ -399,8 +399,8 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 
 	new_node->win_size = win_size;
 
-	new_node->rx_reorder_ptr = kzalloc(sizeof(void *) * win_size,
-					GFP_KERNEL);
+	new_node->rx_reorder_ptr = kcalloc(win_size, sizeof(void *),
+					   GFP_KERNEL);
 	if (!new_node->rx_reorder_ptr) {
 		kfree((u8 *) new_node);
 		mwifiex_dbg(priv->adapter, ERROR,

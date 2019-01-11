@@ -55,5 +55,6 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 array_size);
 
 int vega10_reg_base_init(struct amdgpu_device *adev);
+int vega20_reg_base_init(struct amdgpu_device *adev);
 
 #endif

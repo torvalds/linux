@@ -249,7 +249,7 @@ static int __init sh_clk_div_register_ops(struct clk *clks, int nr,
 	int k;
 
 	freq_table_size *= (nr_divs + 1);
-	freq_table = kzalloc(freq_table_size * nr, GFP_KERNEL);
+	freq_table = kcalloc(nr, freq_table_size, GFP_KERNEL);
 	if (!freq_table) {
 		pr_err("%s: unable to alloc memory\n", __func__);
 		return -ENOMEM;

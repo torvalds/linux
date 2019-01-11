@@ -128,11 +128,12 @@ void cxl_context_set_mapping(struct cxl_context *ctx,
 	mutex_unlock(&ctx->mapping_lock);
 }
 
-static int cxl_mmap_fault(struct vm_fault *vmf)
+static vm_fault_t cxl_mmap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct cxl_context *ctx = vma->vm_file->private_data;
 	u64 area, offset;
+	vm_fault_t ret;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
 
@@ -169,11 +170,11 @@ static int cxl_mmap_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	vm_insert_pfn(vma, vmf->address, (area + offset) >> PAGE_SHIFT);
+	ret = vmf_insert_pfn(vma, vmf->address, (area + offset) >> PAGE_SHIFT);
 
 	mutex_unlock(&ctx->status_mutex);
 
-	return VM_FAULT_NOPAGE;
+	return ret;
 }
 
 static const struct vm_operations_struct cxl_mmap_vmops = {

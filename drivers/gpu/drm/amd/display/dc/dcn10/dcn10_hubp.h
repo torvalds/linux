@@ -30,6 +30,7 @@
 #define TO_DCN10_HUBP(hubp)\
 	container_of(hubp, struct dcn10_hubp, base)
 
+/* Register address initialization macro for all ASICs (including those with reduced functionality) */
 #define HUBP_REG_LIST_DCN(id)\
 	SRI(DCHUBP_CNTL, HUBP, id),\
 	SRI(HUBPREQ_DEBUG_DB, HUBP, id),\
@@ -78,16 +79,12 @@
 	SRI(REF_FREQ_TO_PIX_FREQ, HUBPREQ, id),\
 	SRI(VBLANK_PARAMETERS_1, HUBPREQ, id),\
 	SRI(VBLANK_PARAMETERS_3, HUBPREQ, id),\
-	SRI(NOM_PARAMETERS_0, HUBPREQ, id),\
-	SRI(NOM_PARAMETERS_1, HUBPREQ, id),\
 	SRI(NOM_PARAMETERS_4, HUBPREQ, id),\
 	SRI(NOM_PARAMETERS_5, HUBPREQ, id),\
 	SRI(PER_LINE_DELIVERY_PRE, HUBPREQ, id),\
 	SRI(PER_LINE_DELIVERY, HUBPREQ, id),\
 	SRI(VBLANK_PARAMETERS_2, HUBPREQ, id),\
 	SRI(VBLANK_PARAMETERS_4, HUBPREQ, id),\
-	SRI(NOM_PARAMETERS_2, HUBPREQ, id),\
-	SRI(NOM_PARAMETERS_3, HUBPREQ, id),\
 	SRI(NOM_PARAMETERS_6, HUBPREQ, id),\
 	SRI(NOM_PARAMETERS_7, HUBPREQ, id),\
 	SRI(DCN_TTU_QOS_WM, HUBPREQ, id),\
@@ -96,11 +93,21 @@
 	SRI(DCN_SURF0_TTU_CNTL1, HUBPREQ, id),\
 	SRI(DCN_SURF1_TTU_CNTL0, HUBPREQ, id),\
 	SRI(DCN_SURF1_TTU_CNTL1, HUBPREQ, id),\
-	SRI(DCN_VM_MX_L1_TLB_CNTL, HUBPREQ, id),\
+	SRI(DCN_CUR0_TTU_CNTL0, HUBPREQ, id),\
+	SRI(DCN_CUR0_TTU_CNTL1, HUBPREQ, id),\
 	SRI(HUBP_CLK_CNTL, HUBP, id)
+
+/* Register address initialization macro for ASICs with VM */
+#define HUBP_REG_LIST_DCN_VM(id)\
+	SRI(NOM_PARAMETERS_0, HUBPREQ, id),\
+	SRI(NOM_PARAMETERS_1, HUBPREQ, id),\
+	SRI(NOM_PARAMETERS_2, HUBPREQ, id),\
+	SRI(NOM_PARAMETERS_3, HUBPREQ, id),\
+	SRI(DCN_VM_MX_L1_TLB_CNTL, HUBPREQ, id)
 
 #define HUBP_REG_LIST_DCN10(id)\
 	HUBP_REG_LIST_DCN(id),\
+	HUBP_REG_LIST_DCN_VM(id),\
 	SRI(PREFETCH_SETTINS, HUBPREQ, id),\
 	SRI(PREFETCH_SETTINS_C, HUBPREQ, id),\
 	SRI(DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_MSB, HUBPREQ, id),\
@@ -198,6 +205,8 @@
 	uint32_t DCN_SURF0_TTU_CNTL1; \
 	uint32_t DCN_SURF1_TTU_CNTL0; \
 	uint32_t DCN_SURF1_TTU_CNTL1; \
+	uint32_t DCN_CUR0_TTU_CNTL0; \
+	uint32_t DCN_CUR0_TTU_CNTL1; \
 	uint32_t DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_MSB; \
 	uint32_t DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LSB; \
 	uint32_t DCN_VM_CONTEXT0_PAGE_TABLE_START_ADDR_MSB; \
@@ -237,12 +246,14 @@
 #define HUBP_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
+/* Mask/shift struct generation macro for all ASICs (including those with reduced functionality) */
 #define HUBP_MASK_SH_LIST_DCN(mask_sh)\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_VTG_SEL, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_PIPES, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_BANKS, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, PIPE_INTERLEAVE, mask_sh),\
@@ -301,6 +312,12 @@
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, PRIMARY_META_SURFACE_TMZ_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, PRIMARY_SURFACE_DCC_EN, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, PRIMARY_SURFACE_DCC_IND_64B_BLK, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, SECONDARY_SURFACE_TMZ, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, SECONDARY_SURFACE_TMZ_C, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, SECONDARY_META_SURFACE_TMZ, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, SECONDARY_META_SURFACE_TMZ_C, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, SECONDARY_SURFACE_DCC_EN, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_CONTROL, SECONDARY_SURFACE_DCC_IND_64B_BLK, mask_sh),\
 	HUBP_SF(HUBPRET0_HUBPRET_CONTROL, DET_BUF_PLANE1_BASE_ADDRESS, mask_sh),\
 	HUBP_SF(HUBPRET0_HUBPRET_CONTROL, CROSSBAR_SRC_CB_B, mask_sh),\
 	HUBP_SF(HUBPRET0_HUBPRET_CONTROL, CROSSBAR_SRC_CR_R, mask_sh),\
@@ -335,8 +352,6 @@
 	HUBP_SF(HUBPREQ0_REF_FREQ_TO_PIX_FREQ, REF_FREQ_TO_PIX_FREQ, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_1, REFCYC_PER_PTE_GROUP_VBLANK_L, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_3, REFCYC_PER_META_CHUNK_VBLANK_L, mask_sh),\
-	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_0, DST_Y_PER_PTE_ROW_NOM_L, mask_sh),\
-	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_1, REFCYC_PER_PTE_GROUP_NOM_L, mask_sh),\
 	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_4, DST_Y_PER_META_ROW_NOM_L, mask_sh),\
 	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_5, REFCYC_PER_META_CHUNK_NOM_L, mask_sh),\
 	HUBP_SF(HUBPREQ0_PER_LINE_DELIVERY_PRE, REFCYC_PER_LINE_DELIVERY_PRE_L, mask_sh),\
@@ -345,8 +360,6 @@
 	HUBP_SF(HUBPREQ0_PER_LINE_DELIVERY, REFCYC_PER_LINE_DELIVERY_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_2, REFCYC_PER_PTE_GROUP_VBLANK_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_4, REFCYC_PER_META_CHUNK_VBLANK_C, mask_sh),\
-	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_2, DST_Y_PER_PTE_ROW_NOM_C, mask_sh),\
-	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_3, REFCYC_PER_PTE_GROUP_NOM_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_6, DST_Y_PER_META_ROW_NOM_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_7, REFCYC_PER_META_CHUNK_NOM_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_TTU_QOS_WM, QoS_LEVEL_LOW_WM, mask_sh),\
@@ -357,12 +370,24 @@
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL0, QoS_LEVEL_FIXED, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL0, QoS_RAMP_DISABLE, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL1, REFCYC_PER_REQ_DELIVERY_PRE, mask_sh),\
+	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, mask_sh)
+
+/* Mask/shift struct generation macro for ASICs with VM */
+#define HUBP_MASK_SH_LIST_DCN_VM(mask_sh)\
+	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_0, DST_Y_PER_PTE_ROW_NOM_L, mask_sh),\
+	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_1, REFCYC_PER_PTE_GROUP_NOM_L, mask_sh),\
+	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_2, DST_Y_PER_PTE_ROW_NOM_C, mask_sh),\
+	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_3, REFCYC_PER_PTE_GROUP_NOM_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_MX_L1_TLB_CNTL, SYSTEM_ACCESS_MODE, mask_sh),\
-	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, mask_sh)
+	HUBP_SF(HUBPREQ0_DCN_CUR0_TTU_CNTL0, REFCYC_PER_REQ_DELIVERY, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCN_CUR0_TTU_CNTL0, QoS_LEVEL_FIXED, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCN_CUR0_TTU_CNTL0, QoS_RAMP_DISABLE, mask_sh),\
+	HUBP_SF(HUBPREQ0_DCN_CUR0_TTU_CNTL1, REFCYC_PER_REQ_DELIVERY_PRE, mask_sh)
 
 #define HUBP_MASK_SH_LIST_DCN10(mask_sh)\
 	HUBP_MASK_SH_LIST_DCN(mask_sh),\
+	HUBP_MASK_SH_LIST_DCN_VM(mask_sh),\
 	HUBP_SF(HUBPREQ0_PREFETCH_SETTINS, DST_Y_PREFETCH, mask_sh),\
 	HUBP_SF(HUBPREQ0_PREFETCH_SETTINS, VRATIO_PREFETCH, mask_sh),\
 	HUBP_SF(HUBPREQ0_PREFETCH_SETTINS_C, VRATIO_PREFETCH_C, mask_sh),\
@@ -403,6 +428,7 @@
 
 #define DCN_HUBP_REG_FIELD_LIST(type) \
 	type HUBP_BLANK_EN;\
+	type HUBP_DISABLE;\
 	type HUBP_TTU_DISABLE;\
 	type HUBP_NO_OUTSTANDING_REQ;\
 	type HUBP_VTG_SEL;\
@@ -469,6 +495,8 @@
 	type SECONDARY_META_SURFACE_TMZ_C;\
 	type PRIMARY_SURFACE_DCC_EN;\
 	type PRIMARY_SURFACE_DCC_IND_64B_BLK;\
+	type SECONDARY_SURFACE_DCC_EN;\
+	type SECONDARY_SURFACE_DCC_IND_64B_BLK;\
 	type DET_BUF_PLANE1_BASE_ADDRESS;\
 	type CROSSBAR_SRC_CB_B;\
 	type CROSSBAR_SRC_CR_R;\
@@ -601,8 +629,29 @@ struct dcn_mi_mask {
 	DCN_HUBP_REG_FIELD_LIST(uint32_t);
 };
 
+struct dcn_hubp_state {
+	struct _vcs_dpi_display_dlg_regs_st dlg_attr;
+	struct _vcs_dpi_display_ttu_regs_st ttu_attr;
+	struct _vcs_dpi_display_rq_regs_st rq_regs;
+	uint32_t pixel_format;
+	uint32_t inuse_addr_hi;
+	uint32_t viewport_width;
+	uint32_t viewport_height;
+	uint32_t rotation_angle;
+	uint32_t h_mirror_en;
+	uint32_t sw_mode;
+	uint32_t dcc_en;
+	uint32_t blank_en;
+	uint32_t underflow_status;
+	uint32_t ttu_disable;
+	uint32_t min_ttu_vblank;
+	uint32_t qos_level_low_wm;
+	uint32_t qos_level_high_wm;
+};
+
 struct dcn10_hubp {
 	struct hubp base;
+	struct dcn_hubp_state state;
 	const struct dcn_mi_registers *hubp_regs;
 	const struct dcn_mi_shift *hubp_shift;
 	const struct dcn_mi_mask *hubp_mask;
@@ -680,26 +729,9 @@ void dcn10_hubp_construct(
 	const struct dcn_mi_shift *hubp_shift,
 	const struct dcn_mi_mask *hubp_mask);
 
-
-struct dcn_hubp_state {
-	uint32_t pixel_format;
-	uint32_t inuse_addr_hi;
-	uint32_t viewport_width;
-	uint32_t viewport_height;
-	uint32_t rotation_angle;
-	uint32_t h_mirror_en;
-	uint32_t sw_mode;
-	uint32_t dcc_en;
-	uint32_t blank_en;
-	uint32_t underflow_status;
-	uint32_t ttu_disable;
-	uint32_t min_ttu_vblank;
-	uint32_t qos_level_low_wm;
-	uint32_t qos_level_high_wm;
-};
-void hubp1_read_state(struct dcn10_hubp *hubp1,
-		struct dcn_hubp_state *s);
+void hubp1_read_state(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
+
 
 #endif

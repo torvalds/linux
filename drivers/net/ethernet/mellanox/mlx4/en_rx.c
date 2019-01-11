@@ -474,10 +474,10 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 {
 	const struct mlx4_en_frag_info *frag_info = priv->frag_info;
 	unsigned int truesize = 0;
+	bool release = true;
 	int nr, frag_size;
 	struct page *page;
 	dma_addr_t dma;
-	bool release;
 
 	/* Collect used fragments while replacing them in the HW descriptors */
 	for (nr = 0;; frags++) {
@@ -500,7 +500,11 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 			release = page_count(page) != 1 ||
 				  page_is_pfmemalloc(page) ||
 				  page_to_nid(page) != numa_mem_id();
-		} else {
+		} else if (!priv->rx_headroom) {
+			/* rx_headroom for non XDP setup is always 0.
+			 * When XDP is set, the above condition will
+			 * guarantee page is always released.
+			 */
 			u32 sz_align = ALIGN(frag_size, SMP_CACHE_BYTES);
 
 			frags->page_offset += sz_align;
@@ -593,30 +597,25 @@ static int get_fixed_ipv4_csum(__wsum hw_checksum, struct sk_buff *skb,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-/* In IPv6 packets, besides subtracting the pseudo header checksum,
- * we also compute/add the IP header checksum which
- * is not added by the HW.
+/* In IPv6 packets, hw_checksum lacks 6 bytes from IPv6 header:
+ * 4 first bytes : priority, version, flow_lbl
+ * and 2 additional bytes : nexthdr, hop_limit.
  */
 static int get_fixed_ipv6_csum(__wsum hw_checksum, struct sk_buff *skb,
 			       struct ipv6hdr *ipv6h)
 {
 	__u8 nexthdr = ipv6h->nexthdr;
-	__wsum csum_pseudo_hdr = 0;
+	__wsum temp;
 
 	if (unlikely(nexthdr == IPPROTO_FRAGMENT ||
 		     nexthdr == IPPROTO_HOPOPTS ||
 		     nexthdr == IPPROTO_SCTP))
 		return -1;
-	hw_checksum = csum_add(hw_checksum, (__force __wsum)htons(nexthdr));
 
-	csum_pseudo_hdr = csum_partial(&ipv6h->saddr,
-				       sizeof(ipv6h->saddr) + sizeof(ipv6h->daddr), 0);
-	csum_pseudo_hdr = csum_add(csum_pseudo_hdr, (__force __wsum)ipv6h->payload_len);
-	csum_pseudo_hdr = csum_add(csum_pseudo_hdr,
-				   (__force __wsum)htons(nexthdr));
-
-	skb->csum = csum_sub(hw_checksum, csum_pseudo_hdr);
-	skb->csum = csum_add(skb->csum, csum_partial(ipv6h, sizeof(struct ipv6hdr), 0));
+	/* priority, version, flow_lbl */
+	temp = csum_add(hw_checksum, *(__wsum *)ipv6h);
+	/* nexthdr and hop_limit */
+	skb->csum = csum_add(temp, (__force __wsum)*(__be16 *)&ipv6h->nexthdr);
 	return 0;
 }
 #endif
@@ -775,8 +774,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 			act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
+			length = xdp.data_end - xdp.data;
 			if (xdp.data != orig_data) {
-				length = xdp.data_end - xdp.data;
 				frags[0].page_offset = xdp.data -
 					xdp.data_hard_start;
 				va = xdp.data;

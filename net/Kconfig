@@ -59,6 +59,7 @@ source "net/tls/Kconfig"
 source "net/xfrm/Kconfig"
 source "net/iucv/Kconfig"
 source "net/smc/Kconfig"
+source "net/xdp/Kconfig"
 
 config INET
 	bool "TCP/IP networking"
@@ -200,6 +201,8 @@ source "net/decnet/netfilter/Kconfig"
 source "net/bridge/netfilter/Kconfig"
 
 endif
+
+source "net/bpfilter/Kconfig"
 
 source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
@@ -407,6 +410,9 @@ config GRO_CELLS
 	bool
 	default n
 
+config SOCK_VALIDATE_XMIT
+	bool
+
 config NET_DEVLINK
 	tristate "Network physical/parent device Netlink interface"
 	help
@@ -422,6 +428,22 @@ config MAY_USE_DEVLINK
 	  Drivers using the devlink infrastructure should have a dependency
 	  on MAY_USE_DEVLINK to ensure they do not cause link errors when
 	  devlink is a loadable module and the driver using it is built-in.
+
+config PAGE_POOL
+       bool
+
+config FAILOVER
+	tristate "Generic failover module"
+	help
+	  The failover module provides a generic interface for paravirtual
+	  drivers to register a netdev and a set of ops with a failover
+	  instance. The ops are used as event handlers that get called to
+	  handle netdev register/unregister/link change/name change events
+	  on slave pci ethernet devices with the same mac address as the
+	  failover netdev. This enables paravirtual drivers to use a
+	  VF as an accelerated low latency datapath. It also allows live
+	  migration of VMs with direct attached VFs by failing over to the
+	  paravirtual datapath when the VF is unplugged.
 
 endif   # if NET
 

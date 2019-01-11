@@ -49,7 +49,7 @@ struct fakelb_phy {
 
 static int fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	BUG_ON(!level);
+	WARN_ON(!level);
 	*level = 0xbe;
 
 	return 0;

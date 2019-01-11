@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * Copyright (c) 2012 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -92,6 +80,7 @@ xfs_bmap_rtalloc(
 	int		error;		/* error return value */
 	xfs_mount_t	*mp;		/* mount point structure */
 	xfs_extlen_t	prod = 0;	/* product factor for allocators */
+	xfs_extlen_t	mod = 0;	/* product factor for allocators */
 	xfs_extlen_t	ralen = 0;	/* realtime allocation length */
 	xfs_extlen_t	align;		/* minimum allocation alignment */
 	xfs_rtblock_t	rtb;
@@ -111,7 +100,8 @@ xfs_bmap_rtalloc(
 	 * If the offset & length are not perfectly aligned
 	 * then kill prod, it will just get us in trouble.
 	 */
-	if (do_mod(ap->offset, align) || ap->length % align)
+	div_u64_rem(ap->offset, align, &mod);
+	if (mod || ap->length % align)
 		prod = 1;
 	/*
 	 * Set ralen to be the actual requested length in rtextents.
@@ -695,12 +685,10 @@ out_unlock_iolock:
 }
 
 /*
- * dead simple method of punching delalyed allocation blocks from a range in
- * the inode. Walks a block at a time so will be slow, but is only executed in
- * rare error cases so the overhead is not critical. This will always punch out
- * both the start and end blocks, even if the ranges only partially overlap
- * them, so it is up to the caller to ensure that partial blocks are not
- * passed in.
+ * Dead simple method of punching delalyed allocation blocks from a range in
+ * the inode.  This will always punch out both the start and end blocks, even
+ * if the ranges only partially overlap them, so it is up to the caller to
+ * ensure that partial blocks are not passed in.
  */
 int
 xfs_bmap_punch_delalloc_range(
@@ -708,63 +696,44 @@ xfs_bmap_punch_delalloc_range(
 	xfs_fileoff_t		start_fsb,
 	xfs_fileoff_t		length)
 {
-	xfs_fileoff_t		remaining = length;
+	struct xfs_ifork	*ifp = &ip->i_df;
+	xfs_fileoff_t		end_fsb = start_fsb + length;
+	struct xfs_bmbt_irec	got, del;
+	struct xfs_iext_cursor	icur;
 	int			error = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	do {
-		int		done;
-		xfs_bmbt_irec_t	imap;
-		int		nimaps = 1;
-		xfs_fsblock_t	firstblock;
-		struct xfs_defer_ops dfops;
-
-		/*
-		 * Map the range first and check that it is a delalloc extent
-		 * before trying to unmap the range. Otherwise we will be
-		 * trying to remove a real extent (which requires a
-		 * transaction) or a hole, which is probably a bad idea...
-		 */
-		error = xfs_bmapi_read(ip, start_fsb, 1, &imap, &nimaps,
-				       XFS_BMAPI_ENTIRE);
-
-		if (error) {
-			/* something screwed, just bail */
-			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_alert(ip->i_mount,
-			"Failed delalloc mapping lookup ino %lld fsb %lld.",
-						ip->i_ino, start_fsb);
-			}
-			break;
-		}
-		if (!nimaps) {
-			/* nothing there */
-			goto next_block;
-		}
-		if (imap.br_startblock != DELAYSTARTBLOCK) {
-			/* been converted, ignore */
-			goto next_block;
-		}
-		WARN_ON(imap.br_blockcount == 0);
-
-		/*
-		 * Note: while we initialise the firstblock/dfops pair, they
-		 * should never be used because blocks should never be
-		 * allocated or freed for a delalloc extent and hence we need
-		 * don't cancel or finish them after the xfs_bunmapi() call.
-		 */
-		xfs_defer_init(&dfops, &firstblock);
-		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
-					&dfops, &done);
+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
+		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
 		if (error)
-			break;
+			return error;
+	}
 
-		ASSERT(!xfs_defer_has_unfinished_work(&dfops));
-next_block:
-		start_fsb++;
-		remaining--;
-	} while(remaining > 0);
+	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
+		return 0;
+
+	while (got.br_startoff + got.br_blockcount > start_fsb) {
+		del = got;
+		xfs_trim_extent(&del, start_fsb, length);
+
+		/*
+		 * A delete can push the cursor forward. Step back to the
+		 * previous extent on non-delalloc or extents outside the
+		 * target range.
+		 */
+		if (!del.br_blockcount ||
+		    !isnullstartblock(del.br_startblock)) {
+			if (!xfs_iext_prev_extent(ifp, &icur, &got))
+				break;
+			continue;
+		}
+
+		error = xfs_bmap_del_extent_delay(ip, XFS_DATA_FORK, &icur,
+						  &got, &del);
+		if (error || !xfs_iext_get_extent(ifp, &icur, &got))
+			break;
+	}
 
 	return error;
 }
@@ -848,7 +817,7 @@ xfs_free_eofblocks(
 		/*
 		 * Attach the dquots to the inode up front.
 		 */
-		error = xfs_qm_dqattach(ip, 0);
+		error = xfs_qm_dqattach(ip);
 		if (error)
 			return error;
 
@@ -871,8 +840,8 @@ xfs_free_eofblocks(
 		 * contents of the file are flushed to disk then the files
 		 * may be full of holes (ie NULL files bug).
 		 */
-		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK,
-					      XFS_ISIZE(ip));
+		error = xfs_itruncate_extents_flags(&tp, ip, XFS_DATA_FORK,
+					XFS_ISIZE(ip), XFS_BMAPI_NODISCARD);
 		if (error) {
 			/*
 			 * If we get an error at this point we simply don't
@@ -918,7 +887,7 @@ xfs_alloc_file_space(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 
@@ -948,9 +917,11 @@ xfs_alloc_file_space(
 			do_div(s, extsz);
 			s *= extsz;
 			e = startoffset_fsb + allocatesize_fsb;
-			if ((temp = do_mod(startoffset_fsb, extsz)))
+			div_u64_rem(startoffset_fsb, extsz, &temp);
+			if (temp)
 				e += temp;
-			if ((temp = do_mod(e, extsz)))
+			div_u64_rem(e, extsz, &temp);
+			if (temp)
 				e += extsz - temp;
 		} else {
 			s = 0;
@@ -1111,7 +1082,7 @@ xfs_adjust_extent_unmap_boundaries(
 
 	if (nimap && imap.br_startblock != HOLESTARTBLOCK) {
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-		mod = do_mod(imap.br_startblock, mp->m_sb.sb_rextsize);
+		div_u64_rem(imap.br_startblock, mp->m_sb.sb_rextsize, &mod);
 		if (mod)
 			*startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 	}
@@ -1169,7 +1140,7 @@ xfs_free_file_space(
 
 	trace_xfs_free_file_space(ip);
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 
@@ -1216,7 +1187,22 @@ xfs_free_file_space(
 		return 0;
 	if (offset + len > XFS_ISIZE(ip))
 		len = XFS_ISIZE(ip) - offset;
-	return iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
+	error = iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
+	if (error)
+		return error;
+
+	/*
+	 * If we zeroed right up to EOF and EOF straddles a page boundary we
+	 * must make sure that the post-EOF area is also zeroed because the
+	 * page could be mmap'd and iomap_zero_range doesn't do that for us.
+	 * Writeback of the eof page will do this, albeit clumsily.
+	 */
+	if (offset + len >= XFS_ISIZE(ip) && ((offset + len) & PAGE_MASK)) {
+		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+				(offset + len) & ~PAGE_MASK, LLONG_MAX);
+	}
+
+	return error;
 }
 
 /*
@@ -1411,6 +1397,10 @@ xfs_insert_file_space(
 	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
 
 	trace_xfs_insert_file_space(ip);
+
+	error = xfs_bmap_can_insert_extents(ip, stop_fsb, shift_fsb);
+	if (error)
+		return error;
 
 	error = xfs_prepare_shift(ip, offset);
 	if (error)

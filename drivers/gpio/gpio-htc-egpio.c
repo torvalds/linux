@@ -321,8 +321,8 @@ static int __init egpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ei);
 
 	ei->nchips = pdata->num_chips;
-	ei->chip = devm_kzalloc(&pdev->dev,
-				sizeof(struct egpio_chip) * ei->nchips,
+	ei->chip = devm_kcalloc(&pdev->dev,
+				ei->nchips, sizeof(struct egpio_chip),
 				GFP_KERNEL);
 	if (!ei->chip) {
 		ret = -ENOMEM;

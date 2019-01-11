@@ -91,7 +91,7 @@
 &pfc {
 	avb0_pins: avb {
 		mux {
-			groups = "avb0_link", "avb0_mdc", "avb0_mii";
+			groups = "avb0_link", "avb0_mdio", "avb0_mii";
 			function = "avb0";
 		};
 	};

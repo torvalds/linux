@@ -145,11 +145,6 @@ static inline void *irq_desc_get_handler_data(struct irq_desc *desc)
 	return desc->irq_common_data.handler_data;
 }
 
-static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
-{
-	return desc->irq_common_data.msi_desc;
-}
-
 /*
  * Architectures call this to let the generic IRQ layer
  * handle an interrupt.

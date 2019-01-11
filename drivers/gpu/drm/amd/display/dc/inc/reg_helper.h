@@ -183,6 +183,36 @@
 				FN(reg_name, f4), v4, \
 				FN(reg_name, f5), v5)
 
+#define REG_GET_6(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6)	\
+		generic_reg_get6(CTX, REG(reg_name), \
+				FN(reg_name, f1), v1, \
+				FN(reg_name, f2), v2, \
+				FN(reg_name, f3), v3, \
+				FN(reg_name, f4), v4, \
+				FN(reg_name, f5), v5, \
+				FN(reg_name, f6), v6)
+
+#define REG_GET_7(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7)	\
+		generic_reg_get7(CTX, REG(reg_name), \
+				FN(reg_name, f1), v1, \
+				FN(reg_name, f2), v2, \
+				FN(reg_name, f3), v3, \
+				FN(reg_name, f4), v4, \
+				FN(reg_name, f5), v5, \
+				FN(reg_name, f6), v6, \
+				FN(reg_name, f7), v7)
+
+#define REG_GET_8(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7, f8, v8)	\
+		generic_reg_get8(CTX, REG(reg_name), \
+				FN(reg_name, f1), v1, \
+				FN(reg_name, f2), v2, \
+				FN(reg_name, f3), v3, \
+				FN(reg_name, f4), v4, \
+				FN(reg_name, f5), v5, \
+				FN(reg_name, f6), v6, \
+				FN(reg_name, f7), v7, \
+				FN(reg_name, f8), v8)
+
 /* macro to poll and wait for a register field to read back given value */
 
 #define REG_WAIT(reg_name, field, val, delay_between_poll_us, max_try)	\
@@ -389,4 +419,30 @@ uint32_t generic_reg_get5(const struct dc_context *ctx, uint32_t addr,
 		uint8_t shift4, uint32_t mask4, uint32_t *field_value4,
 		uint8_t shift5, uint32_t mask5, uint32_t *field_value5);
 
+uint32_t generic_reg_get6(const struct dc_context *ctx, uint32_t addr,
+		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
+		uint8_t shift2, uint32_t mask2, uint32_t *field_value2,
+		uint8_t shift3, uint32_t mask3, uint32_t *field_value3,
+		uint8_t shift4, uint32_t mask4, uint32_t *field_value4,
+		uint8_t shift5, uint32_t mask5, uint32_t *field_value5,
+		uint8_t shift6, uint32_t mask6, uint32_t *field_value6);
+
+uint32_t generic_reg_get7(const struct dc_context *ctx, uint32_t addr,
+		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
+		uint8_t shift2, uint32_t mask2, uint32_t *field_value2,
+		uint8_t shift3, uint32_t mask3, uint32_t *field_value3,
+		uint8_t shift4, uint32_t mask4, uint32_t *field_value4,
+		uint8_t shift5, uint32_t mask5, uint32_t *field_value5,
+		uint8_t shift6, uint32_t mask6, uint32_t *field_value6,
+		uint8_t shift7, uint32_t mask7, uint32_t *field_value7);
+
+uint32_t generic_reg_get8(const struct dc_context *ctx, uint32_t addr,
+		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
+		uint8_t shift2, uint32_t mask2, uint32_t *field_value2,
+		uint8_t shift3, uint32_t mask3, uint32_t *field_value3,
+		uint8_t shift4, uint32_t mask4, uint32_t *field_value4,
+		uint8_t shift5, uint32_t mask5, uint32_t *field_value5,
+		uint8_t shift6, uint32_t mask6, uint32_t *field_value6,
+		uint8_t shift7, uint32_t mask7, uint32_t *field_value7,
+		uint8_t shift8, uint32_t mask8, uint32_t *field_value8);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_REG_HELPER_H_ */

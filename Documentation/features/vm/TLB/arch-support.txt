@@ -17,10 +17,12 @@
     |        m68k: |  ..  |
     |  microblaze: |  ..  |
     |        mips: | TODO |
+    |       nds32: | TODO |
     |       nios2: |  ..  |
     |    openrisc: |  ..  |
     |      parisc: | TODO |
     |     powerpc: | TODO |
+    |       riscv: | TODO |
     |        s390: | TODO |
     |          sh: | TODO |
     |       sparc: | TODO |

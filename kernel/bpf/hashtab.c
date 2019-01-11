@@ -503,7 +503,9 @@ static u32 htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 	struct bpf_insn *insn = insn_buf;
 	const int ret = BPF_REG_0;
 
-	*insn++ = BPF_EMIT_CALL((u64 (*)(u64, u64, u64, u64, u64))__htab_map_lookup_elem);
+	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+		     (void *(*)(struct bpf_map *map, void *key))NULL));
+	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 1);
 	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
 				offsetof(struct htab_elem, key) +
@@ -530,7 +532,9 @@ static u32 htab_lru_map_gen_lookup(struct bpf_map *map,
 	const int ret = BPF_REG_0;
 	const int ref_reg = BPF_REG_1;
 
-	*insn++ = BPF_EMIT_CALL((u64 (*)(u64, u64, u64, u64, u64))__htab_map_lookup_elem);
+	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+		     (void *(*)(struct bpf_map *map, void *key))NULL));
+	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 4);
 	*insn++ = BPF_LDX_MEM(BPF_B, ref_reg, ret,
 			      offsetof(struct htab_elem, lru_node) +
@@ -743,13 +747,15 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 				 * old element will be freed immediately.
 				 * Otherwise return an error
 				 */
-				atomic_dec(&htab->count);
-				return ERR_PTR(-E2BIG);
+				l_new = ERR_PTR(-E2BIG);
+				goto dec_count;
 			}
 		l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
 				     htab->map.numa_node);
-		if (!l_new)
-			return ERR_PTR(-ENOMEM);
+		if (!l_new) {
+			l_new = ERR_PTR(-ENOMEM);
+			goto dec_count;
+		}
 	}
 
 	memcpy(l_new->key, key, key_size);
@@ -762,7 +768,8 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 						  GFP_ATOMIC | __GFP_NOWARN);
 			if (!pptr) {
 				kfree(l_new);
-				return ERR_PTR(-ENOMEM);
+				l_new = ERR_PTR(-ENOMEM);
+				goto dec_count;
 			}
 		}
 
@@ -775,6 +782,9 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 	}
 
 	l_new->hash = hash;
+	return l_new;
+dec_count:
+	atomic_dec(&htab->count);
 	return l_new;
 }
 
@@ -1369,7 +1379,9 @@ static u32 htab_of_map_gen_lookup(struct bpf_map *map,
 	struct bpf_insn *insn = insn_buf;
 	const int ret = BPF_REG_0;
 
-	*insn++ = BPF_EMIT_CALL((u64 (*)(u64, u64, u64, u64, u64))__htab_map_lookup_elem);
+	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+		     (void *(*)(struct bpf_map *map, void *key))NULL));
+	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 2);
 	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
 				offsetof(struct htab_elem, key) +

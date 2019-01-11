@@ -35,10 +35,7 @@ struct basic_filter {
 	struct tcf_result	res;
 	struct tcf_proto	*tp;
 	struct list_head	link;
-	union {
-		struct work_struct	work;
-		struct rcu_head		rcu;
-	};
+	struct rcu_work		rwork;
 };
 
 static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
@@ -97,19 +94,12 @@ static void __basic_delete_filter(struct basic_filter *f)
 
 static void basic_delete_filter_work(struct work_struct *work)
 {
-	struct basic_filter *f = container_of(work, struct basic_filter, work);
-
+	struct basic_filter *f = container_of(to_rcu_work(work),
+					      struct basic_filter,
+					      rwork);
 	rtnl_lock();
 	__basic_delete_filter(f);
 	rtnl_unlock();
-}
-
-static void basic_delete_filter(struct rcu_head *head)
-{
-	struct basic_filter *f = container_of(head, struct basic_filter, rcu);
-
-	INIT_WORK(&f->work, basic_delete_filter_work);
-	tcf_queue_work(&f->work);
 }
 
 static void basic_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
@@ -122,7 +112,7 @@ static void basic_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 		tcf_unbind_filter(tp, &f->res);
 		idr_remove(&head->handle_idr, f->handle);
 		if (tcf_exts_get_net(&f->exts))
-			call_rcu(&f->rcu, basic_delete_filter);
+			tcf_queue_work(&f->rwork, basic_delete_filter_work);
 		else
 			__basic_delete_filter(f);
 	}
@@ -140,7 +130,7 @@ static int basic_delete(struct tcf_proto *tp, void *arg, bool *last,
 	tcf_unbind_filter(tp, &f->res);
 	idr_remove(&head->handle_idr, f->handle);
 	tcf_exts_get_net(&f->exts);
-	call_rcu(&f->rcu, basic_delete_filter);
+	tcf_queue_work(&f->rwork, basic_delete_filter_work);
 	*last = list_empty(&head->flist);
 	return 0;
 }
@@ -234,7 +224,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 		list_replace_rcu(&fold->link, &fnew->link);
 		tcf_unbind_filter(tp, &fold->res);
 		tcf_exts_get_net(&fold->exts);
-		call_rcu(&fold->rcu, basic_delete_filter);
+		tcf_queue_work(&fold->rwork, basic_delete_filter_work);
 	} else {
 		list_add_rcu(&fnew->link, &head->flist);
 	}

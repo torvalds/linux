@@ -1,9 +1,11 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
+#
 # (c) 2001, Dave Jones. (the file handling bit)
 # (c) 2005, Joel Schopp <jschopp@austin.ibm.com> (the ugly bit)
 # (c) 2007,2008, Andy Whitcroft <apw@uk.ibm.com> (new conditions, test suite)
 # (c) 2008-2010 Andy Whitcroft <apw@canonical.com>
-# Licensed under the terms of the GNU GPL License version 2
+# (c) 2010-2018 Joe Perches <joe@perches.com>
 
 use strict;
 use warnings;
@@ -2375,6 +2377,14 @@ sub process {
 
 		my $rawline = $rawlines[$linenr - 1];
 
+# check if it's a mode change, rename or start of a patch
+		if (!$in_commit_log &&
+		    ($line =~ /^ mode change [0-7]+ => [0-7]+ \S+\s*$/ ||
+		    ($line =~ /^rename (?:from|to) \S+\s*$/ ||
+		     $line =~ /^diff --git a\/[\w\/\.\_\-]+ b\/\S+\s*$/))) {
+			$is_patch = 1;
+		}
+
 #extract the line range in the file after the patch is applied
 		if (!$in_commit_log &&
 		    $line =~ /^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@(.*)/) {
@@ -2594,12 +2604,6 @@ sub process {
 		    $line =~ /^Subject:.*\b(?:checkpatch|sparse|smatch)\b[^:]/i) {
 			WARN("EMAIL_SUBJECT",
 			     "A patch subject line should describe the change not the tool that found it\n" . $herecurr);
-		}
-
-# Check for old stable address
-		if ($line =~ /^\s*cc:\s*.*<?\bstable\@kernel\.org\b>?.*$/i) {
-			ERROR("STABLE_ADDRESS",
-			      "The 'stable' address should be 'stable\@vger.kernel.org'\n" . $herecurr);
 		}
 
 # Check for unwanted Gerrit info
@@ -5121,16 +5125,6 @@ sub process {
 			}
 		}
 
-# make sure symbols are always wrapped with VMLINUX_SYMBOL() ...
-# all assignments may have only one of the following with an assignment:
-#	.
-#	ALIGN(...)
-#	VMLINUX_SYMBOL(...)
-		if ($realfile eq 'vmlinux.lds.h' && $line =~ /(?:(?:^|\s)$Ident\s*=|=\s*$Ident(?:\s|$))/) {
-			WARN("MISSING_VMLINUX_SYMBOL",
-			     "vmlinux.lds.h needs VMLINUX_SYMBOL() around C-visible symbols\n" . $herecurr);
-		}
-
 # check for redundant bracing round if etc
 		if ($line =~ /(^.*)\bif\b/ && $1 !~ /else\s*$/) {
 			my ($level, $endln, @chunks) =
@@ -5819,14 +5813,14 @@ sub process {
 		    defined $stat &&
 		    $stat =~ /^\+(?![^\{]*\{\s*).*\b(\w+)\s*\(.*$String\s*,/s &&
 		    $1 !~ /^_*volatile_*$/) {
-			my $specifier;
-			my $extension;
-			my $bad_specifier = "";
 			my $stat_real;
 
 			my $lc = $stat =~ tr@\n@@;
 			$lc = $lc + $linenr;
 		        for (my $count = $linenr; $count <= $lc; $count++) {
+				my $specifier;
+				my $extension;
+				my $bad_specifier = "";
 				my $fmt = get_quoted_string($lines[$count - 1], raw_line($count, 0));
 				$fmt =~ s/%%//g;
 

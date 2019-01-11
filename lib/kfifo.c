@@ -54,7 +54,7 @@ int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
 		return -EINVAL;
 	}
 
-	fifo->data = kmalloc(size * esize, gfp_mask);
+	fifo->data = kmalloc_array(esize, size, gfp_mask);
 
 	if (!fifo->data) {
 		fifo->mask = 0;

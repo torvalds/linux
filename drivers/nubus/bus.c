@@ -63,20 +63,15 @@ static struct device nubus_parent = {
 	.init_name	= "nubus",
 };
 
-int __init nubus_bus_register(void)
+static int __init nubus_bus_register(void)
 {
-	int err;
+	return bus_register(&nubus_bus_type);
+}
+postcore_initcall(nubus_bus_register);
 
-	err = device_register(&nubus_parent);
-	if (err)
-		return err;
-
-	err = bus_register(&nubus_bus_type);
-	if (!err)
-		return 0;
-
-	device_unregister(&nubus_parent);
-	return err;
+int __init nubus_parent_device_register(void)
+{
+	return device_register(&nubus_parent);
 }
 
 static void nubus_device_release(struct device *dev)

@@ -197,9 +197,9 @@ static int	mpt_host_page_access_control(MPT_ADAPTER *ioc, u8 access_control_valu
 static int	mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations mpt_summary_proc_fops;
-static const struct file_operations mpt_version_proc_fops;
-static const struct file_operations mpt_iocinfo_proc_fops;
+static int mpt_summary_proc_show(struct seq_file *m, void *v);
+static int mpt_version_proc_show(struct seq_file *m, void *v);
+static int mpt_iocinfo_proc_show(struct seq_file *m, void *v);
 #endif
 static void	mpt_get_fw_exp_ver(char *buf, MPT_ADAPTER *ioc);
 
@@ -2040,8 +2040,10 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	dent = proc_mkdir(ioc->name, mpt_proc_root_dir);
 	if (dent) {
-		proc_create_data("info", S_IRUGO, dent, &mpt_iocinfo_proc_fops, ioc);
-		proc_create_data("summary", S_IRUGO, dent, &mpt_summary_proc_fops, ioc);
+		proc_create_single_data("info", S_IRUGO, dent,
+				mpt_iocinfo_proc_show, ioc);
+		proc_create_single_data("summary", S_IRUGO, dent,
+				mpt_summary_proc_show, ioc);
 	}
 #endif
 
@@ -6606,8 +6608,10 @@ procmpt_create(void)
 	if (mpt_proc_root_dir == NULL)
 		return -ENOTDIR;
 
-	proc_create("summary", S_IRUGO, mpt_proc_root_dir, &mpt_summary_proc_fops);
-	proc_create("version", S_IRUGO, mpt_proc_root_dir, &mpt_version_proc_fops);
+	proc_create_single("summary", S_IRUGO, mpt_proc_root_dir,
+			mpt_summary_proc_show);
+	proc_create_single("version", S_IRUGO, mpt_proc_root_dir,
+			mpt_version_proc_show);
 	return 0;
 }
 
@@ -6645,19 +6649,6 @@ static int mpt_summary_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int mpt_summary_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mpt_summary_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations mpt_summary_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mpt_summary_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int mpt_version_proc_show(struct seq_file *m, void *v)
 {
@@ -6700,19 +6691,6 @@ static int mpt_version_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int mpt_version_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mpt_version_proc_show, NULL);
-}
-
-static const struct file_operations mpt_version_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mpt_version_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int mpt_iocinfo_proc_show(struct seq_file *m, void *v)
 {
@@ -6793,19 +6771,6 @@ static int mpt_iocinfo_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int mpt_iocinfo_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mpt_iocinfo_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations mpt_iocinfo_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mpt_iocinfo_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif		/* CONFIG_PROC_FS } */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -7635,7 +7600,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 
 		snprintf(evStr, EVENT_DESCR_STR_SZ,
 		    "SAS Initiator Device Table Overflow: max initiators=%02d "
-		    "current initators=%02d",
+		    "current initiators=%02d",
 		    max_init, current_init);
 		break;
 	}

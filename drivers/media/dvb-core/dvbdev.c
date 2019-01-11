@@ -859,6 +859,10 @@ int dvb_register_adapter(struct dvb_adapter *adap, const char *name,
 	adap->mfe_dvbdev = NULL;
 	mutex_init (&adap->mfe_lock);
 
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	mutex_init(&adap->mdev_lock);
+#endif
+
 	list_add_tail (&adap->list_head, &dvb_adapter_list);
 
 	mutex_unlock(&dvbdev_register_lock);

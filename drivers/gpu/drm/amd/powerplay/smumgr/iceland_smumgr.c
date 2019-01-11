@@ -60,10 +60,7 @@
 
 #define ICELAND_SMC_SIZE               0x20000
 
-#define VOLTAGE_SCALE 4
 #define POWERTUNE_DEFAULT_SET_MAX    1
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define MC_CG_ARB_FREQ_F1           0x0b
 #define VDDC_VDDCI_DELTA            200
 
@@ -932,7 +929,7 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	graphic_level->PowerThrottle = 0;
 
 	data->display_timing.min_clock_in_sr =
-			hwmgr->display_config.min_core_set_clock_in_sr;
+			hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep))
@@ -1236,7 +1233,6 @@ static int iceland_populate_single_memory_level(
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int result = 0;
 	bool dll_state_on;
-	struct cgs_display_info info = {0};
 	uint32_t mclk_edc_wr_enable_threshold = 40000;
 	uint32_t mclk_edc_enable_threshold = 40000;
 	uint32_t mclk_strobe_mode_threshold = 40000;
@@ -1283,8 +1279,7 @@ static int iceland_populate_single_memory_level(
 	/* default set to low watermark. Highest level will be set to high later.*/
 	memory_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	data->display_timing.num_existing_displays = info.display_count;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
 
 	/* stutter mode not support on iceland */
 

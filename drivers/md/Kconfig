@@ -334,6 +334,17 @@ config DM_CACHE_SMQ
          of less memory utilization, improved performance and increased
          adaptability in the face of changing workloads.
 
+config DM_WRITECACHE
+	tristate "Writecache target"
+	depends on BLK_DEV_DM
+	---help---
+	   The writecache target caches writes on persistent memory or SSD.
+	   It is intended for databases or other programs that need extremely
+	   low commit latency.
+
+	   The writecache target doesn't cache reads because reads are supposed
+	   to be cached in standard RAM.
+
 config DM_ERA
        tristate "Era target (EXPERIMENTAL)"
        depends on BLK_DEV_DM

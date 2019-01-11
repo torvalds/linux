@@ -161,7 +161,7 @@ struct paca_struct {
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
 	u64 stab_rr;			/* stab/slb round-robin counter */
-	u64 saved_r1;			/* r1 save for RTAS calls or PM */
+	u64 saved_r1;			/* r1 save for RTAS calls or PM or EE=0 */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u16 trap_save;			/* Used when bad stack is encountered */
 	u8 irq_soft_mask;		/* mask for irq soft masking */
@@ -222,6 +222,7 @@ struct paca_struct {
 	u8 hmi_event_available;		/* HMI event is available */
 	u8 hmi_p9_special_emu;		/* HMI P9 special emulation */
 #endif
+	u8 ftrace_enabled;		/* Hard disable ftrace */
 
 	/* Stuff for accurate time accounting */
 	struct cpu_accounting_data accounting;

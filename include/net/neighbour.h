@@ -246,6 +246,7 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_OVERRIDE			0x00000001
 #define NEIGH_UPDATE_F_WEAK_OVERRIDE		0x00000002
 #define NEIGH_UPDATE_F_OVERRIDE_ISROUTER	0x00000004
+#define NEIGH_UPDATE_F_EXT_LEARNED		0x20000000
 #define NEIGH_UPDATE_F_ISROUTER			0x40000000
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
 
@@ -526,5 +527,21 @@ static inline void neigh_ha_snapshot(char *dst, const struct neighbour *n,
 	} while (read_seqretry(&n->ha_lock, seq));
 }
 
+static inline void neigh_update_ext_learned(struct neighbour *neigh, u32 flags,
+					    int *notify)
+{
+	u8 ndm_flags = 0;
 
+	if (!(flags & NEIGH_UPDATE_F_ADMIN))
+		return;
+
+	ndm_flags |= (flags & NEIGH_UPDATE_F_EXT_LEARNED) ? NTF_EXT_LEARNED : 0;
+	if ((neigh->flags ^ ndm_flags) & NTF_EXT_LEARNED) {
+		if (ndm_flags & NTF_EXT_LEARNED)
+			neigh->flags |= NTF_EXT_LEARNED;
+		else
+			neigh->flags &= ~NTF_EXT_LEARNED;
+		*notify = 1;
+	}
+}
 #endif

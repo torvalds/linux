@@ -72,8 +72,21 @@
 #define OP_BR_ADDR_LO		0x007ffc00000ULL
 #define OP_BR_ADDR_HI		0x10000000000ULL
 
-#define nfp_is_br(_insn)				\
-	(((_insn) & OP_BR_BASE_MASK) == OP_BR_BASE)
+#define OP_BR_BIT_BASE		0x0d000000000ULL
+#define OP_BR_BIT_BASE_MASK	0x0f800080300ULL
+#define OP_BR_BIT_A_SRC		0x000000000ffULL
+#define OP_BR_BIT_B_SRC		0x0000003fc00ULL
+#define OP_BR_BIT_BV		0x00000040000ULL
+#define OP_BR_BIT_SRC_LMEXTN	0x40000000000ULL
+#define OP_BR_BIT_DEFBR		OP_BR_DEFBR
+#define OP_BR_BIT_ADDR_LO	OP_BR_ADDR_LO
+#define OP_BR_BIT_ADDR_HI	OP_BR_ADDR_HI
+
+static inline bool nfp_is_br(u64 insn)
+{
+	return (insn & OP_BR_BASE_MASK) == OP_BR_BASE ||
+	       (insn & OP_BR_BIT_BASE_MASK) == OP_BR_BIT_BASE;
+}
 
 enum br_mask {
 	BR_BEQ = 0x00,
@@ -161,6 +174,7 @@ enum shf_op {
 	SHF_OP_NONE = 0,
 	SHF_OP_AND = 2,
 	SHF_OP_OR = 5,
+	SHF_OP_ASHR = 6,
 };
 
 enum shf_sc {
@@ -183,16 +197,18 @@ enum shf_sc {
 #define OP_ALU_DST_LMEXTN	0x80000000000ULL
 
 enum alu_op {
-	ALU_OP_NONE	= 0x00,
-	ALU_OP_ADD	= 0x01,
-	ALU_OP_NOT	= 0x04,
-	ALU_OP_ADD_2B	= 0x05,
-	ALU_OP_AND	= 0x08,
-	ALU_OP_SUB_C	= 0x0d,
-	ALU_OP_ADD_C	= 0x11,
-	ALU_OP_OR	= 0x14,
-	ALU_OP_SUB	= 0x15,
-	ALU_OP_XOR	= 0x18,
+	ALU_OP_NONE		= 0x00,
+	ALU_OP_ADD		= 0x01,
+	ALU_OP_NOT		= 0x04,
+	ALU_OP_ADD_2B		= 0x05,
+	ALU_OP_AND		= 0x08,
+	ALU_OP_AND_NOT_A	= 0x0c,
+	ALU_OP_SUB_C		= 0x0d,
+	ALU_OP_AND_NOT_B	= 0x10,
+	ALU_OP_ADD_C		= 0x11,
+	ALU_OP_OR		= 0x14,
+	ALU_OP_SUB		= 0x15,
+	ALU_OP_XOR		= 0x18,
 };
 
 enum alu_dst_ab {

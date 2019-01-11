@@ -38,8 +38,6 @@
 #include <linux/ppp-ioctl.h>
 #include <linux/if_pppox.h>
 #include <linux/mtio.h>
-#include <linux/auto_fs.h>
-#include <linux/auto_fs4.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/fb.h>

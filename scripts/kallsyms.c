@@ -60,11 +60,11 @@ static struct addr_range percpu_range = {
 
 static struct sym_entry *table;
 static unsigned int table_size, table_cnt;
-static int all_symbols;
-static int use_data_section;
-static int absolute_percpu;
+static int all_symbols = 0;
+static int use_data_section = 0;
+static int absolute_percpu = 0;
 static char symbol_prefix_char = '\0';
-static int base_relative;
+static int base_relative = 0;
 
 int token_profit[0x10000];
 
@@ -429,7 +429,7 @@ static void write_src(void)
 	}
 
 	output_label("kallsyms_num_syms");
-	printf("\tPTR\t%d\n", table_cnt);
+	printf("\tPTR\t%u\n", table_cnt);
 	printf("\n");
 
 	/* table of offset markers, that give the offset in the compressed stream

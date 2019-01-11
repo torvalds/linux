@@ -233,7 +233,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	pr_debug("Queue Size: 0x%llX, %u\n",
 			q_properties->queue_size, args->ring_size);
 
-	pr_debug("Queue r/w Pointers: %p, %p\n",
+	pr_debug("Queue r/w Pointers: %px, %px\n",
 			q_properties->read_ptr,
 			q_properties->write_ptr);
 
@@ -292,8 +292,16 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 
 	/* Return gpu_id as doorbell offset for mmap usage */
-	args->doorbell_offset = (KFD_MMAP_DOORBELL_MASK | args->gpu_id);
+	args->doorbell_offset = KFD_MMAP_TYPE_DOORBELL;
+	args->doorbell_offset |= KFD_MMAP_GPU_ID(args->gpu_id);
 	args->doorbell_offset <<= PAGE_SHIFT;
+	if (KFD_IS_SOC15(dev->device_info->asic_family))
+		/* On SOC15 ASICs, doorbell allocation must be
+		 * per-device, and independent from the per-process
+		 * queue_id. Return the doorbell offset within the
+		 * doorbell aperture to user mode.
+		 */
+		args->doorbell_offset |= q_properties.doorbell_off;
 
 	mutex_unlock(&p->mutex);
 
@@ -1296,8 +1304,8 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
-	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-			      GFP_KERNEL);
+	devices_arr = kmalloc_array(args->n_devices, sizeof(*devices_arr),
+				    GFP_KERNEL);
 	if (!devices_arr)
 		return -ENOMEM;
 
@@ -1405,8 +1413,8 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
-	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-			      GFP_KERNEL);
+	devices_arr = kmalloc_array(args->n_devices, sizeof(*devices_arr),
+				    GFP_KERNEL);
 	if (!devices_arr)
 		return -ENOMEM;
 
@@ -1645,23 +1653,33 @@ err_i1:
 static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct kfd_process *process;
+	struct kfd_dev *dev = NULL;
+	unsigned long vm_pgoff;
+	unsigned int gpu_id;
 
 	process = kfd_get_process(current);
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	if ((vma->vm_pgoff & KFD_MMAP_DOORBELL_MASK) ==
-			KFD_MMAP_DOORBELL_MASK) {
-		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_DOORBELL_MASK;
-		return kfd_doorbell_mmap(process, vma);
-	} else if ((vma->vm_pgoff & KFD_MMAP_EVENTS_MASK) ==
-			KFD_MMAP_EVENTS_MASK) {
-		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_EVENTS_MASK;
+	vm_pgoff = vma->vm_pgoff;
+	vma->vm_pgoff = KFD_MMAP_OFFSET_VALUE_GET(vm_pgoff);
+	gpu_id = KFD_MMAP_GPU_ID_GET(vm_pgoff);
+	if (gpu_id)
+		dev = kfd_device_by_id(gpu_id);
+
+	switch (vm_pgoff & KFD_MMAP_TYPE_MASK) {
+	case KFD_MMAP_TYPE_DOORBELL:
+		if (!dev)
+			return -ENODEV;
+		return kfd_doorbell_mmap(dev, process, vma);
+
+	case KFD_MMAP_TYPE_EVENTS:
 		return kfd_event_mmap(process, vma);
-	} else if ((vma->vm_pgoff & KFD_MMAP_RESERVED_MEM_MASK) ==
-			KFD_MMAP_RESERVED_MEM_MASK) {
-		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_RESERVED_MEM_MASK;
-		return kfd_reserved_mem_mmap(process, vma);
+
+	case KFD_MMAP_TYPE_RESERVED_MEM:
+		if (!dev)
+			return -ENODEV;
+		return kfd_reserved_mem_mmap(dev, process, vma);
 	}
 
 	return -EFAULT;

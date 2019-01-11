@@ -6112,10 +6112,6 @@ ahd_alloc(void *platform_arg, char *name)
 	ahd->int_coalescing_stop_threshold =
 	    AHD_INT_COALESCING_STOP_THRESHOLD_DEFAULT;
 
-	if (ahd_platform_alloc(ahd, platform_arg) != 0) {
-		ahd_free(ahd);
-		ahd = NULL;
-	}
 #ifdef AHD_DEBUG
 	if ((ahd_debug & AHD_SHOW_MEMORY) != 0) {
 		printk("%s: scb size = 0x%x, hscb size = 0x%x\n",
@@ -6123,6 +6119,10 @@ ahd_alloc(void *platform_arg, char *name)
 		       (u_int)sizeof(struct hardware_scb));
 	}
 #endif
+	if (ahd_platform_alloc(ahd, platform_arg) != 0) {
+		ahd_free(ahd);
+		ahd = NULL;
+	}
 	return (ahd);
 }
 
@@ -7063,7 +7063,8 @@ ahd_init(struct ahd_softc *ahd)
 	AHD_ASSERT_MODES(ahd, AHD_MODE_SCSI_MSK, AHD_MODE_SCSI_MSK);
 
 	ahd->stack_size = ahd_probe_stack_size(ahd);
-	ahd->saved_stack = kmalloc(ahd->stack_size * sizeof(uint16_t), GFP_ATOMIC);
+	ahd->saved_stack = kmalloc_array(ahd->stack_size, sizeof(uint16_t),
+					 GFP_ATOMIC);
 	if (ahd->saved_stack == NULL)
 		return (ENOMEM);
 

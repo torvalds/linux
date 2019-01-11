@@ -58,11 +58,6 @@ struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
 struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
 struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
 
-#if !defined(CONFIG_PA20) && (defined(CONFIG_IOMMU_CCIO) || defined(CONFIG_IOMMU_SBA))
-int parisc_bus_is_phys __read_mostly = 1;	/* Assume no IOMMU is present */
-EXPORT_SYMBOL(parisc_bus_is_phys);
-#endif
-
 void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];

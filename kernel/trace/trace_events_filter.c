@@ -78,7 +78,8 @@ static const char * ops[] = { OPS };
 	C(TOO_MANY_PREDS,	"Too many terms in predicate expression"), \
 	C(INVALID_FILTER,	"Meaningless filter expression"),	\
 	C(IP_FIELD_ONLY,	"Only 'ip' field is supported for function trace"), \
-	C(INVALID_VALUE,	"Invalid value (did you forget quotes)?"),
+	C(INVALID_VALUE,	"Invalid value (did you forget quotes)?"), \
+	C(NO_FILTER,		"No filter found"),
 
 #undef C
 #define C(a, b)		FILT_ERR_##a
@@ -436,15 +437,15 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 
 	nr_preds += 2; /* For TRUE and FALSE */
 
-	op_stack = kmalloc(sizeof(*op_stack) * nr_parens, GFP_KERNEL);
+	op_stack = kmalloc_array(nr_parens, sizeof(*op_stack), GFP_KERNEL);
 	if (!op_stack)
 		return ERR_PTR(-ENOMEM);
-	prog_stack = kmalloc(sizeof(*prog_stack) * nr_preds, GFP_KERNEL);
+	prog_stack = kmalloc_array(nr_preds, sizeof(*prog_stack), GFP_KERNEL);
 	if (!prog_stack) {
 		parse_error(pe, -ENOMEM, 0);
 		goto out_free;
 	}
-	inverts = kmalloc(sizeof(*inverts) * nr_preds, GFP_KERNEL);
+	inverts = kmalloc_array(nr_preds, sizeof(*inverts), GFP_KERNEL);
 	if (!inverts) {
 		parse_error(pe, -ENOMEM, 0);
 		goto out_free;
@@ -547,6 +548,13 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 	if (top != op_stack) {
 		/* Too many '(' */
 		parse_error(pe, FILT_ERR_TOO_MANY_OPEN, ptr - str);
+		goto out_free;
+	}
+
+	if (!N) {
+		/* No program? */
+		ret = -EINVAL;
+		parse_error(pe, FILT_ERR_NO_FILTER, ptr - str);
 		goto out_free;
 	}
 
@@ -750,31 +758,32 @@ static int filter_pred_none(struct filter_pred *pred, void *event)
  *
  * Note:
  * - @str might not be NULL-terminated if it's of type DYN_STRING
- *   or STATIC_STRING
+ *   or STATIC_STRING, unless @len is zero.
  */
 
 static int regex_match_full(char *str, struct regex *r, int len)
 {
-	if (strncmp(str, r->pattern, len) == 0)
-		return 1;
-	return 0;
+	/* len of zero means str is dynamic and ends with '\0' */
+	if (!len)
+		return strcmp(str, r->pattern) == 0;
+
+	return strncmp(str, r->pattern, len) == 0;
 }
 
 static int regex_match_front(char *str, struct regex *r, int len)
 {
-	if (len < r->len)
+	if (len && len < r->len)
 		return 0;
 
-	if (strncmp(str, r->pattern, r->len) == 0)
-		return 1;
-	return 0;
+	return strncmp(str, r->pattern, r->len) == 0;
 }
 
 static int regex_match_middle(char *str, struct regex *r, int len)
 {
-	if (strnstr(str, r->pattern, len))
-		return 1;
-	return 0;
+	if (!len)
+		return strstr(str, r->pattern) != NULL;
+
+	return strnstr(str, r->pattern, len) != NULL;
 }
 
 static int regex_match_end(char *str, struct regex *r, int len)
@@ -1692,6 +1701,7 @@ static void create_filter_finish(struct filter_parse_error *pe)
  * @filter_str: filter string
  * @set_str: remember @filter_str and enable detailed error in filter
  * @filterp: out param for created filter (always updated on return)
+ *           Must be a pointer that references a NULL pointer.
  *
  * Creates a filter for @call with @filter_str.  If @set_str is %true,
  * @filter_str is copied and recorded in the new filter.
@@ -1708,6 +1718,10 @@ static int create_filter(struct trace_event_call *call,
 {
 	struct filter_parse_error *pe = NULL;
 	int err;
+
+	/* filterp must point to NULL */
+	if (WARN_ON(*filterp))
+		*filterp = NULL;
 
 	err = create_filter_start(filter_string, set_str, &pe, filterp);
 	if (err)

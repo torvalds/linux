@@ -38,7 +38,7 @@
  * Each device has a channels list, which runs unlocked but is never modified
  * once the device is registered, it's just setup by the driver.
  *
- * See Documentation/dmaengine.txt for more details
+ * See Documentation/driver-api/dmaengine for more details
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

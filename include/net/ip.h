@@ -76,6 +76,7 @@ struct ipcm_cookie {
 	__u8			ttl;
 	__s16			tos;
 	char			priority;
+	__u16			gso_size;
 };
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
@@ -171,7 +172,7 @@ struct sk_buff *ip_make_skb(struct sock *sk, struct flowi4 *fl4,
 					int len, int odd, struct sk_buff *skb),
 			    void *from, int length, int transhdrlen,
 			    struct ipcm_cookie *ipc, struct rtable **rtp,
-			    unsigned int flags);
+			    struct inet_cork *cork, unsigned int flags);
 
 static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 {
@@ -395,6 +396,9 @@ static inline unsigned int ip_skb_dst_mtu(struct sock *sk,
 
 	return min(READ_ONCE(skb_dst(skb)->dev->mtu), IP_MAX_MTU);
 }
+
+int ip_metrics_convert(struct net *net, struct nlattr *fc_mx, int fc_mx_len,
+		       u32 *metrics);
 
 u32 ip_idents_reserve(u32 hash, int segs);
 void __ip_select_ident(struct net *net, struct iphdr *iph, int segs);
@@ -659,5 +663,8 @@ extern int sysctl_icmp_msgs_burst;
 #ifdef CONFIG_PROC_FS
 int ip_misc_proc_init(void);
 #endif
+
+int rtm_getroute_parse_ip_proto(struct nlattr *attr, u8 *ip_proto,
+				struct netlink_ext_ack *extack);
 
 #endif	/* _IP_H */

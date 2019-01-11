@@ -1095,14 +1095,16 @@ enum personality_type {
 struct pf_start_tunnel_config {
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
+	u8 set_no_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
 	u8 tunnel_clss_l2gre;
 	u8 tunnel_clss_ipgre;
-	u8 reserved;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
+	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 reserved[3];
 };
 
 /* Ramrod data for PF start ramrod */
@@ -1145,14 +1147,17 @@ struct pf_update_tunnel_config {
 	u8 update_rx_def_non_ucast_clss;
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
+	u8 set_no_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
 	u8 tunnel_clss_l2gre;
 	u8 tunnel_clss_ipgre;
+	u8 reserved;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
-	__le16 reserved;
+	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 reserved1[3];
 };
 
 /* Data for port update ramrod */
@@ -2535,7 +2540,14 @@ struct idle_chk_data {
 	u16 reserved2;
 };
 
-/* Debug Tools data (per HW function) */
+struct pretend_params {
+	u8 split_type;
+	u8 reserved;
+	u16 split_id;
+};
+
+/* Debug Tools data (per HW function)
+ */
 struct dbg_tools_data {
 	struct dbg_grc_data grc;
 	struct dbg_bus_data bus;
@@ -2544,8 +2556,13 @@ struct dbg_tools_data {
 	u8 block_in_reset[88];
 	u8 chip_id;
 	u8 platform_id;
+	u8 num_ports;
+	u8 num_pfs_per_port;
+	u8 num_vfs;
 	u8 initialized;
 	u8 use_dmae;
+	u8 reserved;
+	struct pretend_params pretend;
 	u32 num_regs_read;
 };
 
@@ -2973,6 +2990,24 @@ enum dbg_status qed_dbg_set_bin_ptr(const u8 * const bin_ptr);
  */
 void qed_read_regs(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt, u32 *buf, u32 addr, u32 len);
+
+/**
+ * @brief qed_read_fw_info - Reads FW info from the chip.
+ *
+ * The FW info contains FW-related information, such as the FW version,
+ * FW image (main/L2B/kuku), FW timestamp, etc.
+ * The FW info is read from the internal RAM of the first Storm that is not in
+ * reset.
+ *
+ * @param p_hwfn -	    HW device data
+ * @param p_ptt -	    Ptt window used for writing the registers.
+ * @param fw_info -	Out: a pointer to write the FW info into.
+ *
+ * @return true if the FW info was read successfully from one of the Storms,
+ * or false if all Storms are in reset.
+ */
+bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt, struct fw_info *fw_info);
 
 /**
  * @brief qed_dbg_grc_set_params_default - Reverts all GRC parameters to their
@@ -4110,6 +4145,21 @@ void qed_memset_session_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
  */
 void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
 
+#define NUM_STORMS 6
+
+/**
+ * @brief qed_set_rdma_error_level - Sets the RDMA assert level.
+ *                                   If the severity of the error will be
+ *                                   above the level, the FW will assert.
+ * @param p_hwfn - HW device data
+ * @param p_ptt - ptt window used for writing the registers
+ * @param assert_level - An array of assert levels for each storm.
+ *
+ */
+void qed_set_rdma_error_level(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      u8 assert_level[NUM_STORMS]);
+
 /* Ystorm flow control mode. Use enum fw_flow_ctrl_mode */
 #define YSTORM_FLOW_CONTROL_MODE_OFFSET			(IRO[0].base)
 #define YSTORM_FLOW_CONTROL_MODE_SIZE			(IRO[0].size)
@@ -4340,27 +4390,67 @@ void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
 	(IRO[46].base + ((rdma_stat_counter_id) * IRO[46].m1))
 #define TSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[46].size)
 
+/* Xstorm error level for assert */
+#define XSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[47].base +	((pf_id) * IRO[47].m1))
+#define XSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[47].size)
+
+/* Ystorm error level for assert */
+#define YSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[48].base + ((pf_id) * IRO[48].m1))
+#define YSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[48].size)
+
+/* Pstorm error level for assert */
+#define PSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[49].base +	((pf_id) * IRO[49].m1))
+#define PSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[49].size)
+
+/* Tstorm error level for assert */
+#define TSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[50].base +	((pf_id) * IRO[50].m1))
+#define TSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[50].size)
+
+/* Mstorm error level for assert */
+#define MSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[51].base + ((pf_id) * IRO[51].m1))
+#define MSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[51].size)
+
+/* Ustorm error level for assert */
+#define USTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[52].base + ((pf_id) * IRO[52].m1))
+#define USTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[52].size)
+
 /* Xstorm iWARP rxmit stats */
 #define XSTORM_IWARP_RXMIT_STATS_OFFSET(pf_id) \
-	(IRO[47].base + ((pf_id) * IRO[47].m1))
-#define XSTORM_IWARP_RXMIT_STATS_SIZE			(IRO[47].size)
+	(IRO[53].base +	((pf_id) * IRO[53].m1))
+#define XSTORM_IWARP_RXMIT_STATS_SIZE			(IRO[53].size)
 
 /* Tstorm RoCE Event Statistics */
 #define TSTORM_ROCE_EVENTS_STAT_OFFSET(roce_pf_id) \
-	(IRO[48].base + ((roce_pf_id) * IRO[48].m1))
-#define TSTORM_ROCE_EVENTS_STAT_SIZE			(IRO[48].size)
+	(IRO[54].base + ((roce_pf_id) * IRO[54].m1))
+#define TSTORM_ROCE_EVENTS_STAT_SIZE			(IRO[54].size)
 
 /* DCQCN Received Statistics */
 #define YSTORM_ROCE_DCQCN_RECEIVED_STATS_OFFSET(roce_pf_id) \
-	(IRO[49].base + ((roce_pf_id) * IRO[49].m1))
-#define YSTORM_ROCE_DCQCN_RECEIVED_STATS_SIZE		(IRO[49].size)
+	(IRO[55].base + ((roce_pf_id) * IRO[55].m1))
+#define YSTORM_ROCE_DCQCN_RECEIVED_STATS_SIZE		(IRO[55].size)
+
+/* RoCE Error Statistics */
+#define YSTORM_ROCE_ERROR_STATS_OFFSET(roce_pf_id) \
+	(IRO[56].base + ((roce_pf_id) * IRO[56].m1))
+#define YSTORM_ROCE_ERROR_STATS_SIZE			(IRO[56].size)
 
 /* DCQCN Sent Statistics */
 #define PSTORM_ROCE_DCQCN_SENT_STATS_OFFSET(roce_pf_id) \
-	(IRO[50].base + ((roce_pf_id) * IRO[50].m1))
-#define PSTORM_ROCE_DCQCN_SENT_STATS_SIZE		(IRO[50].size)
+	(IRO[57].base + ((roce_pf_id) * IRO[57].m1))
+#define PSTORM_ROCE_DCQCN_SENT_STATS_SIZE		(IRO[57].size)
 
-static const struct iro iro_arr[51] = {
+/* RoCE CQEs Statistics */
+#define USTORM_ROCE_CQE_STATS_OFFSET(roce_pf_id) \
+	(IRO[58].base + ((roce_pf_id) * IRO[58].m1))
+#define USTORM_ROCE_CQE_STATS_SIZE			(IRO[58].size)
+
+static const struct iro iro_arr[59] = {
 	{0x0, 0x0, 0x0, 0x0, 0x8},
 	{0x4cb8, 0x88, 0x0, 0x0, 0x88},
 	{0x6530, 0x20, 0x0, 0x0, 0x20},
@@ -4408,10 +4498,18 @@ static const struct iro iro_arr[51] = {
 	{0x10768, 0x20, 0x0, 0x0, 0x20},
 	{0x2d48, 0x80, 0x0, 0x0, 0x10},
 	{0x5048, 0x10, 0x0, 0x0, 0x10},
+	{0xc748, 0x8, 0x0, 0x0, 0x1},
+	{0xa128, 0x8, 0x0, 0x0, 0x1},
+	{0x10f00, 0x8, 0x0, 0x0, 0x1},
+	{0xf030, 0x8, 0x0, 0x0, 0x1},
+	{0x13028, 0x8, 0x0, 0x0, 0x1},
+	{0x12c58, 0x8, 0x0, 0x0, 0x1},
 	{0xc9b8, 0x30, 0x0, 0x0, 0x10},
-	{0xed90, 0x10, 0x0, 0x0, 0x10},
-	{0xa3a0, 0x10, 0x0, 0x0, 0x10},
+	{0xed90, 0x28, 0x0, 0x0, 0x28},
+	{0xa520, 0x18, 0x0, 0x0, 0x18},
+	{0xa6a0, 0x8, 0x0, 0x0, 0x8},
 	{0x13108, 0x8, 0x0, 0x0, 0x8},
+	{0x13c50, 0x18, 0x0, 0x0, 0x18},
 };
 
 /* Runtime array offsets */
@@ -4797,147 +4895,147 @@ static const struct iro iro_arr[51] = {
 #define NIG_REG_LLH_FUNC_FILTER_HDR_SEL_RT_OFFSET		39769
 #define NIG_REG_LLH_FUNC_FILTER_HDR_SEL_RT_SIZE			16
 #define NIG_REG_TX_EDPM_CTRL_RT_OFFSET				39785
-#define NIG_REG_ROCE_DUPLICATE_TO_HOST_RT_OFFSET		39786
-#define NIG_REG_PPF_TO_ENGINE_SEL_RT_OFFSET			39787
-#define NIG_REG_PPF_TO_ENGINE_SEL_RT_SIZE			8
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_OFFSET		39795
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_SIZE		1024
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_OFFSET		40819
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_SIZE		512
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_OFFSET		41331
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_SIZE		512
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_OFFSET	41843
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_SIZE	512
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_OFFSET	42355
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_SIZE		512
-#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_OFFSET		42867
-#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_SIZE			32
-#define CDU_REG_CID_ADDR_PARAMS_RT_OFFSET			42899
-#define CDU_REG_SEGMENT0_PARAMS_RT_OFFSET			42900
-#define CDU_REG_SEGMENT1_PARAMS_RT_OFFSET			42901
-#define CDU_REG_PF_SEG0_TYPE_OFFSET_RT_OFFSET			42902
-#define CDU_REG_PF_SEG1_TYPE_OFFSET_RT_OFFSET			42903
-#define CDU_REG_PF_SEG2_TYPE_OFFSET_RT_OFFSET			42904
-#define CDU_REG_PF_SEG3_TYPE_OFFSET_RT_OFFSET			42905
-#define CDU_REG_PF_FL_SEG0_TYPE_OFFSET_RT_OFFSET		42906
-#define CDU_REG_PF_FL_SEG1_TYPE_OFFSET_RT_OFFSET		42907
-#define CDU_REG_PF_FL_SEG2_TYPE_OFFSET_RT_OFFSET		42908
-#define CDU_REG_PF_FL_SEG3_TYPE_OFFSET_RT_OFFSET		42909
-#define CDU_REG_VF_SEG_TYPE_OFFSET_RT_OFFSET			42910
-#define CDU_REG_VF_FL_SEG_TYPE_OFFSET_RT_OFFSET			42911
-#define PBF_REG_TAG_ETHERTYPE_0_RT_OFFSET			42912
-#define PBF_REG_BTB_SHARED_AREA_SIZE_RT_OFFSET			42913
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET		42914
-#define PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET			42915
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ0_RT_OFFSET		42916
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET		42917
-#define PBF_REG_BTB_GUARANTEED_VOQ1_RT_OFFSET			42918
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ1_RT_OFFSET		42919
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ2_RT_OFFSET		42920
-#define PBF_REG_BTB_GUARANTEED_VOQ2_RT_OFFSET			42921
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ2_RT_OFFSET		42922
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ3_RT_OFFSET		42923
-#define PBF_REG_BTB_GUARANTEED_VOQ3_RT_OFFSET			42924
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ3_RT_OFFSET		42925
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ4_RT_OFFSET		42926
-#define PBF_REG_BTB_GUARANTEED_VOQ4_RT_OFFSET			42927
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ4_RT_OFFSET		42928
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ5_RT_OFFSET		42929
-#define PBF_REG_BTB_GUARANTEED_VOQ5_RT_OFFSET			42930
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ5_RT_OFFSET		42931
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ6_RT_OFFSET		42932
-#define PBF_REG_BTB_GUARANTEED_VOQ6_RT_OFFSET			42933
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ6_RT_OFFSET		42934
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ7_RT_OFFSET		42935
-#define PBF_REG_BTB_GUARANTEED_VOQ7_RT_OFFSET			42936
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ7_RT_OFFSET		42937
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ8_RT_OFFSET		42938
-#define PBF_REG_BTB_GUARANTEED_VOQ8_RT_OFFSET			42939
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ8_RT_OFFSET		42940
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ9_RT_OFFSET		42941
-#define PBF_REG_BTB_GUARANTEED_VOQ9_RT_OFFSET			42942
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ9_RT_OFFSET		42943
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ10_RT_OFFSET		42944
-#define PBF_REG_BTB_GUARANTEED_VOQ10_RT_OFFSET			42945
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ10_RT_OFFSET		42946
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ11_RT_OFFSET		42947
-#define PBF_REG_BTB_GUARANTEED_VOQ11_RT_OFFSET			42948
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ11_RT_OFFSET		42949
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ12_RT_OFFSET		42950
-#define PBF_REG_BTB_GUARANTEED_VOQ12_RT_OFFSET			42951
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ12_RT_OFFSET		42952
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ13_RT_OFFSET		42953
-#define PBF_REG_BTB_GUARANTEED_VOQ13_RT_OFFSET			42954
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ13_RT_OFFSET		42955
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ14_RT_OFFSET		42956
-#define PBF_REG_BTB_GUARANTEED_VOQ14_RT_OFFSET			42957
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ14_RT_OFFSET		42958
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ15_RT_OFFSET		42959
-#define PBF_REG_BTB_GUARANTEED_VOQ15_RT_OFFSET			42960
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ15_RT_OFFSET		42961
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ16_RT_OFFSET		42962
-#define PBF_REG_BTB_GUARANTEED_VOQ16_RT_OFFSET			42963
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ16_RT_OFFSET		42964
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ17_RT_OFFSET		42965
-#define PBF_REG_BTB_GUARANTEED_VOQ17_RT_OFFSET			42966
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ17_RT_OFFSET		42967
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ18_RT_OFFSET		42968
-#define PBF_REG_BTB_GUARANTEED_VOQ18_RT_OFFSET			42969
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ18_RT_OFFSET		42970
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ19_RT_OFFSET		42971
-#define PBF_REG_BTB_GUARANTEED_VOQ19_RT_OFFSET			42972
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ19_RT_OFFSET		42973
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ20_RT_OFFSET		42974
-#define PBF_REG_BTB_GUARANTEED_VOQ20_RT_OFFSET			42975
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ20_RT_OFFSET		42976
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ21_RT_OFFSET		42977
-#define PBF_REG_BTB_GUARANTEED_VOQ21_RT_OFFSET			42978
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ21_RT_OFFSET		42979
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ22_RT_OFFSET		42980
-#define PBF_REG_BTB_GUARANTEED_VOQ22_RT_OFFSET			42981
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ22_RT_OFFSET		42982
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ23_RT_OFFSET		42983
-#define PBF_REG_BTB_GUARANTEED_VOQ23_RT_OFFSET			42984
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ23_RT_OFFSET		42985
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ24_RT_OFFSET		42986
-#define PBF_REG_BTB_GUARANTEED_VOQ24_RT_OFFSET			42987
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ24_RT_OFFSET		42988
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ25_RT_OFFSET		42989
-#define PBF_REG_BTB_GUARANTEED_VOQ25_RT_OFFSET			42990
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ25_RT_OFFSET		42991
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ26_RT_OFFSET		42992
-#define PBF_REG_BTB_GUARANTEED_VOQ26_RT_OFFSET			42993
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ26_RT_OFFSET		42994
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ27_RT_OFFSET		42995
-#define PBF_REG_BTB_GUARANTEED_VOQ27_RT_OFFSET			42996
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ27_RT_OFFSET		42997
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ28_RT_OFFSET		42998
-#define PBF_REG_BTB_GUARANTEED_VOQ28_RT_OFFSET			42999
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ28_RT_OFFSET		43000
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ29_RT_OFFSET		43001
-#define PBF_REG_BTB_GUARANTEED_VOQ29_RT_OFFSET			43002
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ29_RT_OFFSET		43003
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ30_RT_OFFSET		43004
-#define PBF_REG_BTB_GUARANTEED_VOQ30_RT_OFFSET			43005
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ30_RT_OFFSET		43006
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ31_RT_OFFSET		43007
-#define PBF_REG_BTB_GUARANTEED_VOQ31_RT_OFFSET			43008
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ31_RT_OFFSET		43009
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ32_RT_OFFSET		43010
-#define PBF_REG_BTB_GUARANTEED_VOQ32_RT_OFFSET			43011
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ32_RT_OFFSET		43012
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ33_RT_OFFSET		43013
-#define PBF_REG_BTB_GUARANTEED_VOQ33_RT_OFFSET			43014
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ33_RT_OFFSET		43015
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ34_RT_OFFSET		43016
-#define PBF_REG_BTB_GUARANTEED_VOQ34_RT_OFFSET			43017
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ34_RT_OFFSET		43018
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ35_RT_OFFSET		43019
-#define PBF_REG_BTB_GUARANTEED_VOQ35_RT_OFFSET			43020
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ35_RT_OFFSET		43021
-#define XCM_REG_CON_PHY_Q3_RT_OFFSET				43022
+#define NIG_REG_PPF_TO_ENGINE_SEL_RT_OFFSET                             39786
+#define NIG_REG_PPF_TO_ENGINE_SEL_RT_SIZE                               8
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_OFFSET                  39794
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_SIZE                    1024
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_OFFSET                     40818
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_SIZE                       512
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_OFFSET                   41330
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_SIZE                     512
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_OFFSET          41842
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_SIZE            512
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_OFFSET                42354
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_SIZE                  512
+#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_OFFSET                        42866
+#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_SIZE                          32
+#define CDU_REG_CID_ADDR_PARAMS_RT_OFFSET                               42898
+#define CDU_REG_SEGMENT0_PARAMS_RT_OFFSET                               42899
+#define CDU_REG_SEGMENT1_PARAMS_RT_OFFSET                               42900
+#define CDU_REG_PF_SEG0_TYPE_OFFSET_RT_OFFSET                           42901
+#define CDU_REG_PF_SEG1_TYPE_OFFSET_RT_OFFSET                           42902
+#define CDU_REG_PF_SEG2_TYPE_OFFSET_RT_OFFSET                           42903
+#define CDU_REG_PF_SEG3_TYPE_OFFSET_RT_OFFSET                           42904
+#define CDU_REG_PF_FL_SEG0_TYPE_OFFSET_RT_OFFSET                        42905
+#define CDU_REG_PF_FL_SEG1_TYPE_OFFSET_RT_OFFSET                        42906
+#define CDU_REG_PF_FL_SEG2_TYPE_OFFSET_RT_OFFSET                        42907
+#define CDU_REG_PF_FL_SEG3_TYPE_OFFSET_RT_OFFSET                        42908
+#define CDU_REG_VF_SEG_TYPE_OFFSET_RT_OFFSET                            42909
+#define CDU_REG_VF_FL_SEG_TYPE_OFFSET_RT_OFFSET                         42910
+#define PBF_REG_TAG_ETHERTYPE_0_RT_OFFSET                               42911
+#define PBF_REG_BTB_SHARED_AREA_SIZE_RT_OFFSET                          42912
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET                        42913
+#define PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET                           42914
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ0_RT_OFFSET                    42915
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET                        42916
+#define PBF_REG_BTB_GUARANTEED_VOQ1_RT_OFFSET                           42917
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ1_RT_OFFSET                    42918
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ2_RT_OFFSET                        42919
+#define PBF_REG_BTB_GUARANTEED_VOQ2_RT_OFFSET                           42920
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ2_RT_OFFSET                    42921
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ3_RT_OFFSET                        42922
+#define PBF_REG_BTB_GUARANTEED_VOQ3_RT_OFFSET                           42923
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ3_RT_OFFSET                    42924
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ4_RT_OFFSET                        42925
+#define PBF_REG_BTB_GUARANTEED_VOQ4_RT_OFFSET                           42926
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ4_RT_OFFSET                    42927
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ5_RT_OFFSET                        42928
+#define PBF_REG_BTB_GUARANTEED_VOQ5_RT_OFFSET                           42929
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ5_RT_OFFSET                    42930
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ6_RT_OFFSET                        42931
+#define PBF_REG_BTB_GUARANTEED_VOQ6_RT_OFFSET                           42932
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ6_RT_OFFSET                    42933
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ7_RT_OFFSET                        42934
+#define PBF_REG_BTB_GUARANTEED_VOQ7_RT_OFFSET                           42935
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ7_RT_OFFSET                    42936
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ8_RT_OFFSET                        42937
+#define PBF_REG_BTB_GUARANTEED_VOQ8_RT_OFFSET                           42938
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ8_RT_OFFSET                    42939
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ9_RT_OFFSET                        42940
+#define PBF_REG_BTB_GUARANTEED_VOQ9_RT_OFFSET                           42941
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ9_RT_OFFSET                    42942
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ10_RT_OFFSET                       42943
+#define PBF_REG_BTB_GUARANTEED_VOQ10_RT_OFFSET                          42944
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ10_RT_OFFSET                   42945
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ11_RT_OFFSET                       42946
+#define PBF_REG_BTB_GUARANTEED_VOQ11_RT_OFFSET                          42947
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ11_RT_OFFSET                   42948
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ12_RT_OFFSET                       42949
+#define PBF_REG_BTB_GUARANTEED_VOQ12_RT_OFFSET                          42950
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ12_RT_OFFSET                   42951
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ13_RT_OFFSET                       42952
+#define PBF_REG_BTB_GUARANTEED_VOQ13_RT_OFFSET                          42953
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ13_RT_OFFSET                   42954
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ14_RT_OFFSET                       42955
+#define PBF_REG_BTB_GUARANTEED_VOQ14_RT_OFFSET                          42956
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ14_RT_OFFSET                   42957
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ15_RT_OFFSET                       42958
+#define PBF_REG_BTB_GUARANTEED_VOQ15_RT_OFFSET                          42959
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ15_RT_OFFSET                   42960
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ16_RT_OFFSET                       42961
+#define PBF_REG_BTB_GUARANTEED_VOQ16_RT_OFFSET                          42962
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ16_RT_OFFSET                   42963
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ17_RT_OFFSET                       42964
+#define PBF_REG_BTB_GUARANTEED_VOQ17_RT_OFFSET                          42965
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ17_RT_OFFSET                   42966
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ18_RT_OFFSET                       42967
+#define PBF_REG_BTB_GUARANTEED_VOQ18_RT_OFFSET                          42968
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ18_RT_OFFSET                   42969
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ19_RT_OFFSET                       42970
+#define PBF_REG_BTB_GUARANTEED_VOQ19_RT_OFFSET                          42971
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ19_RT_OFFSET                   42972
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ20_RT_OFFSET                       42973
+#define PBF_REG_BTB_GUARANTEED_VOQ20_RT_OFFSET                          42974
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ20_RT_OFFSET                   42975
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ21_RT_OFFSET                       42976
+#define PBF_REG_BTB_GUARANTEED_VOQ21_RT_OFFSET                          42977
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ21_RT_OFFSET                   42978
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ22_RT_OFFSET                       42979
+#define PBF_REG_BTB_GUARANTEED_VOQ22_RT_OFFSET                          42980
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ22_RT_OFFSET                   42981
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ23_RT_OFFSET                       42982
+#define PBF_REG_BTB_GUARANTEED_VOQ23_RT_OFFSET                          42983
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ23_RT_OFFSET                   42984
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ24_RT_OFFSET                       42985
+#define PBF_REG_BTB_GUARANTEED_VOQ24_RT_OFFSET                          42986
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ24_RT_OFFSET                   42987
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ25_RT_OFFSET                       42988
+#define PBF_REG_BTB_GUARANTEED_VOQ25_RT_OFFSET                          42989
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ25_RT_OFFSET                   42990
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ26_RT_OFFSET                       42991
+#define PBF_REG_BTB_GUARANTEED_VOQ26_RT_OFFSET                          42992
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ26_RT_OFFSET                   42993
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ27_RT_OFFSET                       42994
+#define PBF_REG_BTB_GUARANTEED_VOQ27_RT_OFFSET                          42995
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ27_RT_OFFSET                   42996
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ28_RT_OFFSET                       42997
+#define PBF_REG_BTB_GUARANTEED_VOQ28_RT_OFFSET                          42998
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ28_RT_OFFSET                   42999
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ29_RT_OFFSET                       43000
+#define PBF_REG_BTB_GUARANTEED_VOQ29_RT_OFFSET                          43001
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ29_RT_OFFSET                   43002
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ30_RT_OFFSET                       43003
+#define PBF_REG_BTB_GUARANTEED_VOQ30_RT_OFFSET                          43004
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ30_RT_OFFSET                   43005
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ31_RT_OFFSET                       43006
+#define PBF_REG_BTB_GUARANTEED_VOQ31_RT_OFFSET                          43007
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ31_RT_OFFSET                   43008
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ32_RT_OFFSET                       43009
+#define PBF_REG_BTB_GUARANTEED_VOQ32_RT_OFFSET                          43010
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ32_RT_OFFSET                   43011
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ33_RT_OFFSET                       43012
+#define PBF_REG_BTB_GUARANTEED_VOQ33_RT_OFFSET                          43013
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ33_RT_OFFSET                   43014
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ34_RT_OFFSET                       43015
+#define PBF_REG_BTB_GUARANTEED_VOQ34_RT_OFFSET                          43016
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ34_RT_OFFSET                   43017
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ35_RT_OFFSET                       43018
+#define PBF_REG_BTB_GUARANTEED_VOQ35_RT_OFFSET                          43019
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ35_RT_OFFSET                   43020
+#define XCM_REG_CON_PHY_Q3_RT_OFFSET                                    43021
 
-#define RUNTIME_ARRAY_SIZE	43023
+#define RUNTIME_ARRAY_SIZE 43022
+
 
 /* Init Callbacks */
 #define DMAE_READY_CB	0
@@ -5694,8 +5792,10 @@ struct eth_vport_rx_mode {
 #define ETH_VPORT_RX_MODE_MCAST_ACCEPT_ALL_SHIFT	4
 #define ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL_MASK		0x1
 #define ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL_SHIFT	5
-#define ETH_VPORT_RX_MODE_RESERVED1_MASK		0x3FF
-#define ETH_VPORT_RX_MODE_RESERVED1_SHIFT		6
+#define ETH_VPORT_RX_MODE_ACCEPT_ANY_VNI_MASK		0x1
+#define ETH_VPORT_RX_MODE_ACCEPT_ANY_VNI_SHIFT		6
+#define ETH_VPORT_RX_MODE_RESERVED1_MASK		0x1FF
+#define ETH_VPORT_RX_MODE_RESERVED1_SHIFT		7
 };
 
 /* Command for setting tpa parameters */
@@ -6756,7 +6856,7 @@ struct e4_ystorm_rdma_task_ag_ctx {
 #define E4_YSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK		0x1
 #define E4_YSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT	7
 	u8 key;
-	__le32 mw_cnt;
+	__le32 mw_cnt_or_qp_id;
 	u8 ref_cnt_seq;
 	u8 ctx_upd_seq;
 	__le16 dif_flags;
@@ -6812,7 +6912,7 @@ struct e4_mstorm_rdma_task_ag_ctx {
 #define E4_MSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK		0x1
 #define E4_MSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT	7
 	u8 key;
-	__le32 mw_cnt;
+	__le32 mw_cnt_or_qp_id;
 	u8 ref_cnt_seq;
 	u8 ctx_upd_seq;
 	__le16 dif_flags;
@@ -7075,8 +7175,7 @@ struct rdma_register_tid_ramrod_data {
 	struct regpair va;
 	struct regpair pbl_base;
 	struct regpair dif_error_addr;
-	struct regpair dif_runt_addr;
-	__le32 reserved4[2];
+	__le32 reserved4[4];
 };
 
 /* rdma resize cq output params */
@@ -7144,8 +7243,7 @@ struct rdma_srq_modify_ramrod_data {
 enum rdma_tid_type {
 	RDMA_TID_REGISTERED_MR,
 	RDMA_TID_FMR,
-	RDMA_TID_MW_TYPE1,
-	RDMA_TID_MW_TYPE2A,
+	RDMA_TID_MW,
 	MAX_RDMA_TID_TYPE
 };
 
@@ -7681,6 +7779,16 @@ struct e4_roce_conn_context {
 	struct ustorm_roce_conn_st_ctx ustorm_st_context;
 };
 
+/* roce cqes statistics */
+struct roce_cqe_stats {
+	__le32 req_cqe_error;
+	__le32 req_remote_access_errors;
+	__le32 req_remote_invalid_request;
+	__le32 resp_cqe_error;
+	__le32 resp_local_length_error;
+	__le32 reserved;
+};
+
 /* roce create qp requester ramrod data */
 struct roce_create_qp_req_ramrod_data {
 	__le16 flags;
@@ -7798,8 +7906,8 @@ struct roce_dcqcn_sent_stats {
 
 /* RoCE destroy qp requester output params */
 struct roce_destroy_qp_req_output_params {
-	__le32 num_bound_mw;
 	__le32 cq_prod;
+	__le32 reserved;
 };
 
 /* RoCE destroy qp requester ramrod data */
@@ -7809,8 +7917,8 @@ struct roce_destroy_qp_req_ramrod_data {
 
 /* RoCE destroy qp responder output params */
 struct roce_destroy_qp_resp_output_params {
-	__le32 num_invalidated_mw;
 	__le32 cq_prod;
+	__le32 reserved;
 };
 
 /* RoCE destroy qp responder ramrod data */
@@ -7818,16 +7926,27 @@ struct roce_destroy_qp_resp_ramrod_data {
 	struct regpair output_params_addr;
 };
 
-/* roce special events statistics */
-struct roce_events_stats {
-	__le16 silent_drops;
-	__le16 rnr_naks_sent;
-	__le32 retransmit_count;
-	__le32 icrc_error_count;
+/* roce error statistics */
+struct roce_error_stats {
+	__le32 resp_remote_access_errors;
 	__le32 reserved;
 };
 
-/* ROCE slow path EQ cmd IDs */
+/* roce special events statistics */
+struct roce_events_stats {
+	__le32 silent_drops;
+	__le32 rnr_naks_sent;
+	__le32 retransmit_count;
+	__le32 icrc_error_count;
+	__le32 implied_nak_seq_err;
+	__le32 duplicate_request;
+	__le32 local_ack_timeout_err;
+	__le32 out_of_sequence;
+	__le32 packet_seq_err;
+	__le32 rnr_nak_retry_err;
+};
+
+/* roce slow path EQ cmd IDs */
 enum roce_event_opcode {
 	ROCE_EVENT_CREATE_QP = 11,
 	ROCE_EVENT_MODIFY_QP,
@@ -7845,6 +7964,9 @@ struct roce_init_func_params {
 	u8 cnp_dscp;
 	u8 reserved;
 	__le32 cnp_send_timeout;
+	__le16 rl_offset;
+	u8 rl_count_log;
+	u8 reserved1[5];
 };
 
 /* roce func init ramrod data */
@@ -8532,7 +8654,7 @@ struct e4_tstorm_roce_resp_conn_ag_ctx {
 	__le16 rq_prod;
 	__le16 conn_dpi;
 	__le16 irq_cons;
-	__le32 num_invlidated_mw;
+	__le32 reg9;
 	__le32 reg10;
 };
 
@@ -9725,6 +9847,8 @@ enum iwarp_eqe_async_opcode {
 	IWARP_EVENT_TYPE_ASYNC_EXCEPTION_DETECTED,
 	IWARP_EVENT_TYPE_ASYNC_QP_IN_ERROR_STATE,
 	IWARP_EVENT_TYPE_ASYNC_CQ_OVERFLOW,
+	IWARP_EVENT_TYPE_ASYNC_SRQ_EMPTY,
+	IWARP_EVENT_TYPE_ASYNC_SRQ_LIMIT,
 	MAX_IWARP_EQE_ASYNC_OPCODE
 };
 
@@ -11863,6 +11987,8 @@ struct public_global {
 	u32 running_bundle_id;
 	s32 external_temperature;
 	u32 mdump_reason;
+	u32 data_ptr;
+	u32 data_size;
 };
 
 struct fw_flr_mb {
@@ -11993,6 +12119,17 @@ struct public_port {
 #define EEE_REMOTE_TW_TX_OFFSET 0
 #define EEE_REMOTE_TW_RX_MASK   0xffff0000
 #define EEE_REMOTE_TW_RX_OFFSET 16
+
+	u32 reserved1;
+	u32 oem_cfg_port;
+#define OEM_CFG_CHANNEL_TYPE_MASK                       0x00000003
+#define OEM_CFG_CHANNEL_TYPE_OFFSET                     0
+#define OEM_CFG_CHANNEL_TYPE_VLAN_PARTITION             0x1
+#define OEM_CFG_CHANNEL_TYPE_STAGGED                    0x2
+#define OEM_CFG_SCHED_TYPE_MASK                         0x0000000C
+#define OEM_CFG_SCHED_TYPE_OFFSET                       2
+#define OEM_CFG_SCHED_TYPE_ETS                          0x1
+#define OEM_CFG_SCHED_TYPE_VNIC_BW                      0x2
 };
 
 struct public_func {
@@ -12069,6 +12206,23 @@ struct public_func {
 #define DRV_ID_DRV_INIT_HW_MASK		0x80000000
 #define DRV_ID_DRV_INIT_HW_SHIFT	31
 #define DRV_ID_DRV_INIT_HW_FLAG		(1 << DRV_ID_DRV_INIT_HW_SHIFT)
+
+	u32 oem_cfg_func;
+#define OEM_CFG_FUNC_TC_MASK                    0x0000000F
+#define OEM_CFG_FUNC_TC_OFFSET                  0
+#define OEM_CFG_FUNC_TC_0                       0x0
+#define OEM_CFG_FUNC_TC_1                       0x1
+#define OEM_CFG_FUNC_TC_2                       0x2
+#define OEM_CFG_FUNC_TC_3                       0x3
+#define OEM_CFG_FUNC_TC_4                       0x4
+#define OEM_CFG_FUNC_TC_5                       0x5
+#define OEM_CFG_FUNC_TC_6                       0x6
+#define OEM_CFG_FUNC_TC_7                       0x7
+
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_MASK         0x00000030
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OFFSET       4
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_VNIC         0x1
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OS           0x2
 };
 
 struct mcp_mac {
@@ -12295,6 +12449,7 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_BIST_TEST			0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE		0x00200000
 #define DRV_MSG_CODE_RESOURCE_CMD	0x00230000
+#define DRV_MSG_CODE_GET_TLV_DONE		0x002f0000
 
 #define RESOURCE_CMD_REQ_RESC_MASK		0x0000001F
 #define RESOURCE_CMD_REQ_RESC_SHIFT		0
@@ -12495,6 +12650,8 @@ enum MFW_DRV_MSG_TYPE {
 	MFW_DRV_MSG_BW_UPDATE10,
 	MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE,
 	MFW_DRV_MSG_BW_UPDATE11,
+	MFW_DRV_MSG_OEM_CFG_UPDATE,
+	MFW_DRV_MSG_GET_TLV_REQ,
 	MFW_DRV_MSG_MAX
 };
 
@@ -12528,6 +12685,233 @@ struct mcp_public_data {
 	struct public_path path[MCP_GLOB_PATH_MAX];
 	struct public_port port[MCP_GLOB_PORT_MAX];
 	struct public_func func[MCP_GLOB_FUNC_MAX];
+};
+
+/* OCBB definitions */
+enum tlvs {
+	/* Category 1: Device Properties */
+	DRV_TLV_CLP_STR,
+	DRV_TLV_CLP_STR_CTD,
+	/* Category 6: Device Configuration */
+	DRV_TLV_SCSI_TO,
+	DRV_TLV_R_T_TOV,
+	DRV_TLV_R_A_TOV,
+	DRV_TLV_E_D_TOV,
+	DRV_TLV_CR_TOV,
+	DRV_TLV_BOOT_TYPE,
+	/* Category 8: Port Configuration */
+	DRV_TLV_NPIV_ENABLED,
+	/* Category 10: Function Configuration */
+	DRV_TLV_FEATURE_FLAGS,
+	DRV_TLV_LOCAL_ADMIN_ADDR,
+	DRV_TLV_ADDITIONAL_MAC_ADDR_1,
+	DRV_TLV_ADDITIONAL_MAC_ADDR_2,
+	DRV_TLV_LSO_MAX_OFFLOAD_SIZE,
+	DRV_TLV_LSO_MIN_SEGMENT_COUNT,
+	DRV_TLV_PROMISCUOUS_MODE,
+	DRV_TLV_TX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_RX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_NUM_OF_NET_QUEUE_VMQ_CFG,
+	DRV_TLV_FLEX_NIC_OUTER_VLAN_ID,
+	DRV_TLV_OS_DRIVER_STATES,
+	DRV_TLV_PXE_BOOT_PROGRESS,
+	/* Category 12: FC/FCoE Configuration */
+	DRV_TLV_NPIV_STATE,
+	DRV_TLV_NUM_OF_NPIV_IDS,
+	DRV_TLV_SWITCH_NAME,
+	DRV_TLV_SWITCH_PORT_NUM,
+	DRV_TLV_SWITCH_PORT_ID,
+	DRV_TLV_VENDOR_NAME,
+	DRV_TLV_SWITCH_MODEL,
+	DRV_TLV_SWITCH_FW_VER,
+	DRV_TLV_QOS_PRIORITY_PER_802_1P,
+	DRV_TLV_PORT_ALIAS,
+	DRV_TLV_PORT_STATE,
+	DRV_TLV_FIP_TX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_FCOE_RX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_LINK_FAILURE_COUNT,
+	DRV_TLV_FCOE_BOOT_PROGRESS,
+	/* Category 13: iSCSI Configuration */
+	DRV_TLV_TARGET_LLMNR_ENABLED,
+	DRV_TLV_HEADER_DIGEST_FLAG_ENABLED,
+	DRV_TLV_DATA_DIGEST_FLAG_ENABLED,
+	DRV_TLV_AUTHENTICATION_METHOD,
+	DRV_TLV_ISCSI_BOOT_TARGET_PORTAL,
+	DRV_TLV_MAX_FRAME_SIZE,
+	DRV_TLV_PDU_TX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_ISCSI_BOOT_PROGRESS,
+	/* Category 20: Device Data */
+	DRV_TLV_PCIE_BUS_RX_UTILIZATION,
+	DRV_TLV_PCIE_BUS_TX_UTILIZATION,
+	DRV_TLV_DEVICE_CPU_CORES_UTILIZATION,
+	DRV_TLV_LAST_VALID_DCC_TLV_RECEIVED,
+	DRV_TLV_NCSI_RX_BYTES_RECEIVED,
+	DRV_TLV_NCSI_TX_BYTES_SENT,
+	/* Category 22: Base Port Data */
+	DRV_TLV_RX_DISCARDS,
+	DRV_TLV_RX_ERRORS,
+	DRV_TLV_TX_ERRORS,
+	DRV_TLV_TX_DISCARDS,
+	DRV_TLV_RX_FRAMES_RECEIVED,
+	DRV_TLV_TX_FRAMES_SENT,
+	/* Category 23: FC/FCoE Port Data */
+	DRV_TLV_RX_BROADCAST_PACKETS,
+	DRV_TLV_TX_BROADCAST_PACKETS,
+	/* Category 28: Base Function Data */
+	DRV_TLV_NUM_OFFLOADED_CONNECTIONS_TCP_IPV4,
+	DRV_TLV_NUM_OFFLOADED_CONNECTIONS_TCP_IPV6,
+	DRV_TLV_TX_DESCRIPTOR_QUEUE_AVG_DEPTH,
+	DRV_TLV_RX_DESCRIPTORS_QUEUE_AVG_DEPTH,
+	DRV_TLV_PF_RX_FRAMES_RECEIVED,
+	DRV_TLV_RX_BYTES_RECEIVED,
+	DRV_TLV_PF_TX_FRAMES_SENT,
+	DRV_TLV_TX_BYTES_SENT,
+	DRV_TLV_IOV_OFFLOAD,
+	DRV_TLV_PCI_ERRORS_CAP_ID,
+	DRV_TLV_UNCORRECTABLE_ERROR_STATUS,
+	DRV_TLV_UNCORRECTABLE_ERROR_MASK,
+	DRV_TLV_CORRECTABLE_ERROR_STATUS,
+	DRV_TLV_CORRECTABLE_ERROR_MASK,
+	DRV_TLV_PCI_ERRORS_AECC_REGISTER,
+	DRV_TLV_TX_QUEUES_EMPTY,
+	DRV_TLV_RX_QUEUES_EMPTY,
+	DRV_TLV_TX_QUEUES_FULL,
+	DRV_TLV_RX_QUEUES_FULL,
+	/* Category 29: FC/FCoE Function Data */
+	DRV_TLV_FCOE_TX_DESCRIPTOR_QUEUE_AVG_DEPTH,
+	DRV_TLV_FCOE_RX_DESCRIPTORS_QUEUE_AVG_DEPTH,
+	DRV_TLV_FCOE_RX_FRAMES_RECEIVED,
+	DRV_TLV_FCOE_RX_BYTES_RECEIVED,
+	DRV_TLV_FCOE_TX_FRAMES_SENT,
+	DRV_TLV_FCOE_TX_BYTES_SENT,
+	DRV_TLV_CRC_ERROR_COUNT,
+	DRV_TLV_CRC_ERROR_1_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_1_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_2_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_2_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_3_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_3_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_4_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_4_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_5_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_5_TIMESTAMP,
+	DRV_TLV_LOSS_OF_SYNC_ERROR_COUNT,
+	DRV_TLV_LOSS_OF_SIGNAL_ERRORS,
+	DRV_TLV_PRIMITIVE_SEQUENCE_PROTOCOL_ERROR_COUNT,
+	DRV_TLV_DISPARITY_ERROR_COUNT,
+	DRV_TLV_CODE_VIOLATION_ERROR_COUNT,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_1,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_2,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_3,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_4,
+	DRV_TLV_LAST_FLOGI_TIMESTAMP,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_1,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_2,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_3,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_4,
+	DRV_TLV_LAST_FLOGI_ACC_TIMESTAMP,
+	DRV_TLV_LAST_FLOGI_RJT,
+	DRV_TLV_LAST_FLOGI_RJT_TIMESTAMP,
+	DRV_TLV_FDISCS_SENT_COUNT,
+	DRV_TLV_FDISC_ACCS_RECEIVED,
+	DRV_TLV_FDISC_RJTS_RECEIVED,
+	DRV_TLV_PLOGI_SENT_COUNT,
+	DRV_TLV_PLOGI_ACCS_RECEIVED,
+	DRV_TLV_PLOGI_RJTS_RECEIVED,
+	DRV_TLV_PLOGI_1_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_1_TIMESTAMP,
+	DRV_TLV_PLOGI_2_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_2_TIMESTAMP,
+	DRV_TLV_PLOGI_3_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_3_TIMESTAMP,
+	DRV_TLV_PLOGI_4_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_4_TIMESTAMP,
+	DRV_TLV_PLOGI_5_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_5_TIMESTAMP,
+	DRV_TLV_PLOGI_1_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_1_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_2_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_2_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_3_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_3_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_4_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_4_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_5_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_5_ACC_TIMESTAMP,
+	DRV_TLV_LOGOS_ISSUED,
+	DRV_TLV_LOGO_ACCS_RECEIVED,
+	DRV_TLV_LOGO_RJTS_RECEIVED,
+	DRV_TLV_LOGO_1_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_1_TIMESTAMP,
+	DRV_TLV_LOGO_2_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_2_TIMESTAMP,
+	DRV_TLV_LOGO_3_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_3_TIMESTAMP,
+	DRV_TLV_LOGO_4_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_4_TIMESTAMP,
+	DRV_TLV_LOGO_5_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_5_TIMESTAMP,
+	DRV_TLV_LOGOS_RECEIVED,
+	DRV_TLV_ACCS_ISSUED,
+	DRV_TLV_PRLIS_ISSUED,
+	DRV_TLV_ACCS_RECEIVED,
+	DRV_TLV_ABTS_SENT_COUNT,
+	DRV_TLV_ABTS_ACCS_RECEIVED,
+	DRV_TLV_ABTS_RJTS_RECEIVED,
+	DRV_TLV_ABTS_1_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_1_TIMESTAMP,
+	DRV_TLV_ABTS_2_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_2_TIMESTAMP,
+	DRV_TLV_ABTS_3_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_3_TIMESTAMP,
+	DRV_TLV_ABTS_4_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_4_TIMESTAMP,
+	DRV_TLV_ABTS_5_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_5_TIMESTAMP,
+	DRV_TLV_RSCNS_RECEIVED,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_1,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_2,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_3,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_4,
+	DRV_TLV_LUN_RESETS_ISSUED,
+	DRV_TLV_ABORT_TASK_SETS_ISSUED,
+	DRV_TLV_TPRLOS_SENT,
+	DRV_TLV_NOS_SENT_COUNT,
+	DRV_TLV_NOS_RECEIVED_COUNT,
+	DRV_TLV_OLS_COUNT,
+	DRV_TLV_LR_COUNT,
+	DRV_TLV_LRR_COUNT,
+	DRV_TLV_LIP_SENT_COUNT,
+	DRV_TLV_LIP_RECEIVED_COUNT,
+	DRV_TLV_EOFA_COUNT,
+	DRV_TLV_EOFNI_COUNT,
+	DRV_TLV_SCSI_STATUS_CHECK_CONDITION_COUNT,
+	DRV_TLV_SCSI_STATUS_CONDITION_MET_COUNT,
+	DRV_TLV_SCSI_STATUS_BUSY_COUNT,
+	DRV_TLV_SCSI_STATUS_INTERMEDIATE_COUNT,
+	DRV_TLV_SCSI_STATUS_INTERMEDIATE_CONDITION_MET_COUNT,
+	DRV_TLV_SCSI_STATUS_RESERVATION_CONFLICT_COUNT,
+	DRV_TLV_SCSI_STATUS_TASK_SET_FULL_COUNT,
+	DRV_TLV_SCSI_STATUS_ACA_ACTIVE_COUNT,
+	DRV_TLV_SCSI_STATUS_TASK_ABORTED_COUNT,
+	DRV_TLV_SCSI_CHECK_CONDITION_1_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_1_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_2_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_2_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_3_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_3_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_4_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_4_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_5_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_5_TIMESTAMP,
+	/* Category 30: iSCSI Function Data */
+	DRV_TLV_PDU_TX_DESCRIPTOR_QUEUE_AVG_DEPTH,
+	DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_AVG_DEPTH,
+	DRV_TLV_ISCSI_PDU_RX_FRAMES_RECEIVED,
+	DRV_TLV_ISCSI_PDU_RX_BYTES_RECEIVED,
+	DRV_TLV_ISCSI_PDU_TX_FRAMES_SENT,
+	DRV_TLV_ISCSI_PDU_TX_BYTES_SENT
 };
 
 struct nvm_cfg_mac_address {

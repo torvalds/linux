@@ -53,7 +53,8 @@ static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 		return false;
 	}
 
-	if (bw < r->membw.min_bw || bw > r->default_ctrl) {
+	if ((bw < r->membw.min_bw || bw > r->default_ctrl) &&
+	    !is_mba_sc(r)) {
 		rdt_last_cmd_printf("MB value %ld out of range [%d,%d]\n", bw,
 				    r->membw.min_bw, r->default_ctrl);
 		return false;
@@ -179,6 +180,8 @@ static int update_domains(struct rdt_resource *r, int closid)
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
+	bool mba_sc;
+	u32 *dc;
 	int cpu;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
@@ -188,13 +191,20 @@ static int update_domains(struct rdt_resource *r, int closid)
 	msr_param.high = msr_param.low + 1;
 	msr_param.res = r;
 
+	mba_sc = is_mba_sc(r);
 	list_for_each_entry(d, &r->domains, list) {
-		if (d->have_new_ctrl && d->new_ctrl != d->ctrl_val[closid]) {
+		dc = !mba_sc ? d->ctrl_val : d->mbps_val;
+		if (d->have_new_ctrl && d->new_ctrl != dc[closid]) {
 			cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
-			d->ctrl_val[closid] = d->new_ctrl;
+			dc[closid] = d->new_ctrl;
 		}
 	}
-	if (cpumask_empty(cpu_mask))
+
+	/*
+	 * Avoid writing the control msr with control values when
+	 * MBA software controller is enabled
+	 */
+	if (cpumask_empty(cpu_mask) || mba_sc)
 		goto done;
 	cpu = get_cpu();
 	/* Update CBM on this cpu if it's in cpu_mask. */
@@ -282,13 +292,17 @@ static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 {
 	struct rdt_domain *dom;
 	bool sep = false;
+	u32 ctrl_val;
 
 	seq_printf(s, "%*s:", max_name_width, r->name);
 	list_for_each_entry(dom, &r->domains, list) {
 		if (sep)
 			seq_puts(s, ";");
+
+		ctrl_val = (!is_mba_sc(r) ? dom->ctrl_val[closid] :
+			    dom->mbps_val[closid]);
 		seq_printf(s, r->format_str, dom->id, max_data_width,
-			   dom->ctrl_val[closid]);
+			   ctrl_val);
 		sep = true;
 	}
 	seq_puts(s, "\n");

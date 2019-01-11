@@ -799,7 +799,7 @@ static int ast_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static int ast_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 			  struct drm_display_mode *mode)
 {
 	struct ast_private *ast = connector->dev->dev_private;

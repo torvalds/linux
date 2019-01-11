@@ -162,13 +162,9 @@ static void show_segv_info(struct uml_pt_regs *regs)
 
 static void bad_segv(struct faultinfo fi, unsigned long ip)
 {
-	struct siginfo si;
-
-	si.si_signo = SIGSEGV;
-	si.si_code = SEGV_ACCERR;
-	si.si_addr = (void __user *) FAULT_ADDRESS(fi);
 	current->thread.arch.faultinfo = fi;
-	force_sig_info(SIGSEGV, &si, current);
+	force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *) FAULT_ADDRESS(fi),
+			current);
 }
 
 void fatal_sigsegv(void)
@@ -214,8 +210,8 @@ void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		   struct uml_pt_regs *regs)
 {
-	struct siginfo si;
 	jmp_buf *catcher;
+	int si_code;
 	int err;
 	int is_write = FAULT_WRITE(fi);
 	unsigned long address = FAULT_ADDRESS(fi);
@@ -239,7 +235,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 
 	if (SEGV_IS_FIXABLE(&fi))
 		err = handle_page_fault(address, ip, is_write, is_user,
-					&si.si_code);
+					&si_code);
 	else {
 		err = -EFAULT;
 		/*
@@ -271,18 +267,14 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	show_segv_info(regs);
 
 	if (err == -EACCES) {
-		si.si_signo = SIGBUS;
-		si.si_errno = 0;
-		si.si_code = BUS_ADRERR;
-		si.si_addr = (void __user *)address;
 		current->thread.arch.faultinfo = fi;
-		force_sig_info(SIGBUS, &si, current);
+		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address,
+				current);
 	} else {
 		BUG_ON(err != -EFAULT);
-		si.si_signo = SIGSEGV;
-		si.si_addr = (void __user *) address;
 		current->thread.arch.faultinfo = fi;
-		force_sig_info(SIGSEGV, &si, current);
+		force_sig_fault(SIGSEGV, si_code, (void __user *) address,
+				current);
 	}
 
 out:
@@ -294,9 +286,7 @@ out:
 
 void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 {
-	struct faultinfo *fi;
-	struct siginfo clean_si;
-
+	int code, err;
 	if (!UPT_IS_USER(regs)) {
 		if (sig == SIGBUS)
 			printk(KERN_ERR "Bus error - the host /dev/shm or /tmp "
@@ -306,29 +296,21 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 
 	arch_examine_signal(sig, regs);
 
-	clear_siginfo(&clean_si);
-	clean_si.si_signo = si->si_signo;
-	clean_si.si_errno = si->si_errno;
-	clean_si.si_code = si->si_code;
-	switch (sig) {
-	case SIGILL:
-	case SIGFPE:
-	case SIGSEGV:
-	case SIGBUS:
-	case SIGTRAP:
-		fi = UPT_FAULTINFO(regs);
-		clean_si.si_addr = (void __user *) FAULT_ADDRESS(*fi);
+	/* Is the signal layout for the signal known?
+	 * Signal data must be scrubbed to prevent information leaks.
+	 */
+	code = si->si_code;
+	err = si->si_errno;
+	if ((err == 0) && (siginfo_layout(sig, code) == SIL_FAULT)) {
+		struct faultinfo *fi = UPT_FAULTINFO(regs);
 		current->thread.arch.faultinfo = *fi;
-#ifdef __ARCH_SI_TRAPNO
-		clean_si.si_trapno = si->si_trapno;
-#endif
-		break;
-	default:
-		printk(KERN_ERR "Attempted to relay unknown signal %d (si_code = %d)\n",
-			sig, si->si_code);
+		force_sig_fault(sig, code, (void __user *)FAULT_ADDRESS(*fi),
+				current);
+	} else {
+		printk(KERN_ERR "Attempted to relay unknown signal %d (si_code = %d) with errno %d\n",
+		       sig, code, err);
+		force_sig(sig, current);
 	}
-
-	force_sig_info(sig, &clean_si, current);
 }
 
 void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs)

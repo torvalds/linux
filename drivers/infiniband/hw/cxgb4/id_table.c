@@ -92,8 +92,8 @@ int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
 		alloc->last = 0;
 	alloc->max  = num;
 	spin_lock_init(&alloc->lock);
-	alloc->table = kmalloc(BITS_TO_LONGS(num) * sizeof(long),
-				GFP_KERNEL);
+	alloc->table = kmalloc_array(BITS_TO_LONGS(num), sizeof(long),
+				     GFP_KERNEL);
 	if (!alloc->table)
 		return -ENOMEM;
 

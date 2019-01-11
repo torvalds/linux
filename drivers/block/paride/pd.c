@@ -740,7 +740,7 @@ static int pd_special_command(struct pd_unit *disk,
 {
 	struct request *rq;
 
-	rq = blk_get_request(disk->gd->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	rq = blk_get_request(disk->gd->queue, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 

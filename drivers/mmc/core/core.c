@@ -50,9 +50,6 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
-/* If the device is not responding */
-#define MMC_CORE_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
-
 /* The max erase timeout, used when host->max_busy_timeout isn't specified */
 #define MMC_ERASE_TIMEOUT_MS	(60 * 1000) /* 60 s */
 
@@ -1484,6 +1481,17 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
 
 }
 
+void mmc_set_initial_signal_voltage(struct mmc_host *host)
+{
+	/* Try to set signal voltage to 3.3V but fall back to 1.8v or 1.2v */
+	if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330))
+		dev_dbg(mmc_dev(host), "Initial signal voltage of 3.3v\n");
+	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180))
+		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.8v\n");
+	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120))
+		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.2v\n");
+}
+
 int mmc_host_set_uhs_voltage(struct mmc_host *host)
 {
 	u32 clock;
@@ -1646,19 +1654,13 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	/* Set initial state and call mmc_set_ios */
 	mmc_set_initial_state(host);
 
-	/* Try to set signal voltage to 3.3V but fall back to 1.8v or 1.2v */
-	if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330))
-		dev_dbg(mmc_dev(host), "Initial signal voltage of 3.3v\n");
-	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180))
-		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.8v\n");
-	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120))
-		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.2v\n");
+	mmc_set_initial_signal_voltage(host);
 
 	/*
 	 * This delay should be sufficient to allow the power supply
 	 * to reach the minimum voltage.
 	 */
-	mmc_delay(10);
+	mmc_delay(host->ios.power_delay_ms);
 
 	mmc_pwrseq_post_power_on(host);
 
@@ -1671,7 +1673,7 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
 	 * time required to reach a stable voltage.
 	 */
-	mmc_delay(10);
+	mmc_delay(host->ios.power_delay_ms);
 }
 
 void mmc_power_off(struct mmc_host *host)
@@ -1967,6 +1969,7 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	unsigned int qty = 0, busy_timeout = 0;
 	bool use_r1b_resp = false;
 	unsigned long timeout;
+	int loop_udelay=64, udelay_max=32768;
 	int err;
 
 	mmc_retune_hold(card->host);
@@ -2091,9 +2094,15 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 			err =  -EIO;
 			goto out;
 		}
+		if ((cmd.resp[0] & R1_READY_FOR_DATA) &&
+		    R1_CURRENT_STATE(cmd.resp[0]) != R1_STATE_PRG)
+			break;
 
-	} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
-		 (R1_CURRENT_STATE(cmd.resp[0]) == R1_STATE_PRG));
+		usleep_range(loop_udelay, loop_udelay*2);
+		if (loop_udelay < udelay_max)
+			loop_udelay *= 2;
+	} while (1);
+
 out:
 	mmc_retune_release(card->host);
 	return err;
@@ -2435,21 +2444,45 @@ int mmc_hw_reset(struct mmc_host *host)
 		return -EINVAL;
 
 	mmc_bus_get(host);
-	if (!host->bus_ops || host->bus_dead || !host->bus_ops->reset) {
+	if (!host->bus_ops || host->bus_dead || !host->bus_ops->hw_reset) {
 		mmc_bus_put(host);
 		return -EOPNOTSUPP;
 	}
 
-	ret = host->bus_ops->reset(host);
+	ret = host->bus_ops->hw_reset(host);
 	mmc_bus_put(host);
 
 	if (ret)
-		pr_warn("%s: tried to reset card, got error %d\n",
+		pr_warn("%s: tried to HW reset card, got error %d\n",
 			mmc_hostname(host), ret);
 
 	return ret;
 }
 EXPORT_SYMBOL(mmc_hw_reset);
+
+int mmc_sw_reset(struct mmc_host *host)
+{
+	int ret;
+
+	if (!host->card)
+		return -EINVAL;
+
+	mmc_bus_get(host);
+	if (!host->bus_ops || host->bus_dead || !host->bus_ops->sw_reset) {
+		mmc_bus_put(host);
+		return -EOPNOTSUPP;
+	}
+
+	ret = host->bus_ops->sw_reset(host);
+	mmc_bus_put(host);
+
+	if (ret)
+		pr_warn("%s: tried to SW reset card, got error %d\n",
+			mmc_hostname(host), ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(mmc_sw_reset);
 
 static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {

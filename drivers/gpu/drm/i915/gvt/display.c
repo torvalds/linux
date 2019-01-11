@@ -196,7 +196,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
 			TRANS_DDI_PORT_MASK);
 		vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
-			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DVI |
 			(PORT_B << TRANS_DDI_PORT_SHIFT) |
 			TRANS_DDI_FUNC_ENABLE);
 		if (IS_BROADWELL(dev_priv)) {
@@ -216,7 +216,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
 			TRANS_DDI_PORT_MASK);
 		vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
-			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DVI |
 			(PORT_C << TRANS_DDI_PORT_SHIFT) |
 			TRANS_DDI_FUNC_ENABLE);
 		if (IS_BROADWELL(dev_priv)) {
@@ -236,7 +236,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
 			TRANS_DDI_PORT_MASK);
 		vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
-			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DVI |
 			(PORT_D << TRANS_DDI_PORT_SHIFT) |
 			TRANS_DDI_FUNC_ENABLE);
 		if (IS_BROADWELL(dev_priv)) {

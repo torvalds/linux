@@ -708,11 +708,36 @@ out:
 	sock_put(sk);
 }
 
+static enum hrtimer_restart tcp_compressed_ack_kick(struct hrtimer *timer)
+{
+	struct tcp_sock *tp = container_of(timer, struct tcp_sock, compressed_ack_timer);
+	struct sock *sk = (struct sock *)tp;
+
+	bh_lock_sock(sk);
+	if (!sock_owned_by_user(sk)) {
+		if (tp->compressed_ack)
+			tcp_send_ack(sk);
+	} else {
+		if (!test_and_set_bit(TCP_DELACK_TIMER_DEFERRED,
+				      &sk->sk_tsq_flags))
+			sock_hold(sk);
+	}
+	bh_unlock_sock(sk);
+
+	sock_put(sk);
+
+	return HRTIMER_NORESTART;
+}
+
 void tcp_init_xmit_timers(struct sock *sk)
 {
 	inet_csk_init_xmit_timers(sk, &tcp_write_timer, &tcp_delack_timer,
 				  &tcp_keepalive_timer);
 	hrtimer_init(&tcp_sk(sk)->pacing_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_ABS_PINNED);
+		     HRTIMER_MODE_ABS_PINNED_SOFT);
 	tcp_sk(sk)->pacing_timer.function = tcp_pace_kick;
+
+	hrtimer_init(&tcp_sk(sk)->compressed_ack_timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL_PINNED_SOFT);
+	tcp_sk(sk)->compressed_ack_timer.function = tcp_compressed_ack_kick;
 }

@@ -18,7 +18,6 @@
 #include <linux/timer.h>
 #include <linux/completion.h>
 #include <linux/platform_device.h>
-#include <linux/i2c-pnx.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -28,6 +27,26 @@
 #define I2C_PNX_TIMEOUT_DEFAULT		10 /* msec */
 #define I2C_PNX_SPEED_KHZ_DEFAULT	100
 #define I2C_PNX_REGION_SIZE		0x100
+
+struct i2c_pnx_mif {
+	int			ret;		/* Return value */
+	int			mode;		/* Interface mode */
+	struct completion	complete;	/* I/O completion */
+	struct timer_list	timer;		/* Timeout */
+	u8 *			buf;		/* Data buffer */
+	int			len;		/* Length of data buffer */
+	int			order;		/* RX Bytes to order via TX */
+};
+
+struct i2c_pnx_algo_data {
+	void __iomem		*ioaddr;
+	struct i2c_pnx_mif	mif;
+	int			last;
+	struct clk		*clk;
+	struct i2c_adapter	adapter;
+	int			irq;
+	u32			timeout;
+};
 
 enum {
 	mstatus_tdi = 0x00000001,

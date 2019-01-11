@@ -299,8 +299,6 @@ static int mtk_ir_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node;
-	const struct of_device_id *of_id =
-		of_match_device(mtk_ir_match, &pdev->dev);
 	struct resource *res;
 	struct mtk_ir *ir;
 	u32 val;
@@ -312,7 +310,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ir->dev = dev;
-	ir->data = of_id->data;
+	ir->data = of_device_get_match_data(dev);
 
 	ir->clk = devm_clk_get(dev, "clk");
 	if (IS_ERR(ir->clk)) {

@@ -779,7 +779,7 @@ int kernfs_add_one(struct kernfs_node *kn)
 	ps_iattr = parent->iattr;
 	if (ps_iattr) {
 		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
-		ktime_get_real_ts(&ps_iattrs->ia_ctime);
+		ktime_get_real_ts64(&ps_iattrs->ia_ctime);
 		ps_iattrs->ia_mtime = ps_iattrs->ia_ctime;
 	}
 
@@ -1306,7 +1306,7 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 			/* update timestamps on the parent */
 			if (ps_iattr) {
-				ktime_get_real_ts(&ps_iattr->ia_iattr.ia_ctime);
+				ktime_get_real_ts64(&ps_iattr->ia_iattr.ia_ctime);
 				ps_iattr->ia_iattr.ia_mtime =
 					ps_iattr->ia_iattr.ia_ctime;
 			}

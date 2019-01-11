@@ -125,6 +125,7 @@ struct intel_vgpu_shadow_bb {
 	unsigned int clflush;
 	bool accessing;
 	unsigned long bb_offset;
+	bool ppgtt;
 };
 
 #define workload_q_head(vgpu, ring_id) \

@@ -109,7 +109,7 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			return 0;
 
 		/* Call application helper if needed */
-		ret = ip_vs_app_pkt_out(cp, skb);
+		ret = ip_vs_app_pkt_out(cp, skb, iph);
 		if (ret == 0)
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */
@@ -156,7 +156,7 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			return 0;
 
 		/* Call application helper if needed */
-		ret = ip_vs_app_pkt_in(cp, skb);
+		ret = ip_vs_app_pkt_in(cp, skb, iph);
 		if (ret == 0)
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */

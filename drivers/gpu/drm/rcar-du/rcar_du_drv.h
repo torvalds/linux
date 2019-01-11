@@ -52,7 +52,7 @@ struct rcar_du_output_routing {
  * @gen: device generation (2 or 3)
  * @features: device features (RCAR_DU_FEATURE_*)
  * @quirks: device quirks (RCAR_DU_QUIRK_*)
- * @num_crtcs: total number of CRTCs
+ * @channels_mask: bit mask of available DU channels
  * @routes: array of CRTC to output routes, indexed by output (RCAR_DU_OUTPUT_*)
  * @num_lvds: number of internal LVDS encoders
  */
@@ -60,7 +60,7 @@ struct rcar_du_device_info {
 	unsigned int gen;
 	unsigned int features;
 	unsigned int quirks;
-	unsigned int num_crtcs;
+	unsigned int channels_mask;
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 	unsigned int num_lvds;
 	unsigned int dpll_ch;
@@ -87,7 +87,6 @@ struct rcar_du_device {
 	struct rcar_du_vsp vsps[RCAR_DU_MAX_VSPS];
 
 	struct {
-		struct drm_property *alpha;
 		struct drm_property *colorkey;
 	} props;
 

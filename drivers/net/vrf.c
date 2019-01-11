@@ -48,6 +48,9 @@ static unsigned int vrf_net_id;
 struct net_vrf {
 	struct rtable __rcu	*rth;
 	struct rt6_info	__rcu	*rt6;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct fib6_table	*fib6_table;
+#endif
 	u32                     tb_id;
 };
 
@@ -496,7 +499,6 @@ static int vrf_rt6_create(struct net_device *dev)
 	int flags = DST_HOST | DST_NOPOLICY | DST_NOXFRM;
 	struct net_vrf *vrf = netdev_priv(dev);
 	struct net *net = dev_net(dev);
-	struct fib6_table *rt6i_table;
 	struct rt6_info *rt6;
 	int rc = -ENOMEM;
 
@@ -504,8 +506,8 @@ static int vrf_rt6_create(struct net_device *dev)
 	if (!ipv6_mod_enabled())
 		return 0;
 
-	rt6i_table = fib6_new_table(net, vrf->tb_id);
-	if (!rt6i_table)
+	vrf->fib6_table = fib6_new_table(net, vrf->tb_id);
+	if (!vrf->fib6_table)
 		goto out;
 
 	/* create a dst for routing packets out a VRF device */
@@ -513,7 +515,6 @@ static int vrf_rt6_create(struct net_device *dev)
 	if (!rt6)
 		goto out;
 
-	rt6->rt6i_table = rt6i_table;
 	rt6->dst.output	= vrf_output6;
 
 	rcu_assign_pointer(vrf->rt6, rt6);
@@ -946,22 +947,8 @@ static struct rt6_info *vrf_ip6_route_lookup(struct net *net,
 					     int flags)
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-	struct fib6_table *table = NULL;
-	struct rt6_info *rt6;
 
-	rcu_read_lock();
-
-	/* fib6_table does not have a refcnt and can not be freed */
-	rt6 = rcu_dereference(vrf->rt6);
-	if (likely(rt6))
-		table = rt6->rt6i_table;
-
-	rcu_read_unlock();
-
-	if (!table)
-		return NULL;
-
-	return ip6_pol_route(net, table, ifindex, fl6, skb, flags);
+	return ip6_pol_route(net, vrf->fib6_table, ifindex, fl6, skb, flags);
 }
 
 static void vrf_ip6_input_dst(struct sk_buff *skb, struct net_device *vrf_dev,
@@ -1267,7 +1254,7 @@ static void vrf_setup(struct net_device *dev)
 
 	/* enable offload features */
 	dev->features   |= NETIF_F_GSO_SOFTWARE;
-	dev->features   |= NETIF_F_RXCSUM | NETIF_F_HW_CSUM;
+	dev->features   |= NETIF_F_RXCSUM | NETIF_F_HW_CSUM | NETIF_F_SCTP_CRC;
 	dev->features   |= NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA;
 
 	dev->hw_features = dev->features;

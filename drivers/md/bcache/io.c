@@ -17,12 +17,12 @@
 void bch_bbio_free(struct bio *bio, struct cache_set *c)
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
-	mempool_free(b, c->bio_meta);
+	mempool_free(b, &c->bio_meta);
 }
 
 struct bio *bch_bbio_alloc(struct cache_set *c)
 {
-	struct bbio *b = mempool_alloc(c->bio_meta, GFP_NOIO);
+	struct bbio *b = mempool_alloc(&c->bio_meta, GFP_NOIO);
 	struct bio *bio = &b->bio;
 
 	bio_init(bio, bio->bi_inline_vecs, bucket_pages(c));

@@ -264,21 +264,12 @@ static const struct file_operations vgic_debug_fops = {
 	.release = seq_release
 };
 
-int vgic_debug_init(struct kvm *kvm)
+void vgic_debug_init(struct kvm *kvm)
 {
-	if (!kvm->debugfs_dentry)
-		return -ENOENT;
-
-	if (!debugfs_create_file("vgic-state", 0444,
-				 kvm->debugfs_dentry,
-				 kvm,
-				 &vgic_debug_fops))
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_file("vgic-state", 0444, kvm->debugfs_dentry, kvm,
+			    &vgic_debug_fops);
 }
 
-int vgic_debug_destroy(struct kvm *kvm)
+void vgic_debug_destroy(struct kvm *kvm)
 {
-	return 0;
 }

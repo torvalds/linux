@@ -682,7 +682,7 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 
 	nr_pages = (count + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
 

@@ -2130,34 +2130,11 @@ __qla2x00_alloc_iocbs(struct qla_qpair *qpair, srb_t *sp)
 	req_cnt = 1;
 	handle = 0;
 
-	if (!sp)
-		goto skip_cmd_array;
-
-	/* Check for room in outstanding command list. */
-	handle = req->current_outstanding_cmd;
-	for (index = 1; index < req->num_outstanding_cmds; index++) {
-		handle++;
-		if (handle == req->num_outstanding_cmds)
-			handle = 1;
-		if (!req->outstanding_cmds[handle])
-			break;
-	}
-	if (index == req->num_outstanding_cmds) {
-		ql_log(ql_log_warn, vha, 0x700b,
-		    "No room on outstanding cmd array.\n");
-		goto queuing_error;
-	}
-
-	/* Prep command array. */
-	req->current_outstanding_cmd = handle;
-	req->outstanding_cmds[handle] = sp;
-	sp->handle = handle;
-
-	/* Adjust entry-counts as needed. */
-	if (sp->type != SRB_SCSI_CMD)
+	if (sp && (sp->type != SRB_SCSI_CMD)) {
+		/* Adjust entry-counts as needed. */
 		req_cnt = sp->iocbs;
+	}
 
-skip_cmd_array:
 	/* Check for room on request queue. */
 	if (req->cnt < req_cnt + 2) {
 		if (qpair->use_shadow_reg)
@@ -2183,6 +2160,28 @@ skip_cmd_array:
 	if (req->cnt < req_cnt + 2)
 		goto queuing_error;
 
+	if (sp) {
+		/* Check for room in outstanding command list. */
+		handle = req->current_outstanding_cmd;
+		for (index = 1; index < req->num_outstanding_cmds; index++) {
+			handle++;
+			if (handle == req->num_outstanding_cmds)
+				handle = 1;
+			if (!req->outstanding_cmds[handle])
+				break;
+		}
+		if (index == req->num_outstanding_cmds) {
+			ql_log(ql_log_warn, vha, 0x700b,
+			    "No room on outstanding cmd array.\n");
+			goto queuing_error;
+		}
+
+		/* Prep command array. */
+		req->current_outstanding_cmd = handle;
+		req->outstanding_cmds[handle] = sp;
+		sp->handle = handle;
+	}
+
 	/* Prep packet */
 	req->cnt -= req_cnt;
 	pkt = req->ring_ptr;
@@ -2194,6 +2193,8 @@ skip_cmd_array:
 		pkt->entry_count = req_cnt;
 		pkt->handle = handle;
 	}
+
+	return pkt;
 
 queuing_error:
 	qpair->tgt_counters.num_alloc_iocb_failed++;

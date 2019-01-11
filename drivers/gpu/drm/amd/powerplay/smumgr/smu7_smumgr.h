@@ -67,7 +67,6 @@ int smu7_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr, uint16_t msg,
 int smu7_send_msg_to_smc_with_parameter_without_waiting(struct pp_hwmgr *hwmgr,
 						uint16_t msg, uint32_t parameter);
 int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr);
-int smu7_wait_for_smc_inactive(struct pp_hwmgr *hwmgr);
 
 enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type);
 int smu7_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr,

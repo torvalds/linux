@@ -36,7 +36,7 @@ LEAF(resume)
 	cpu_save_nonscratch a0
 	sw	ra, THREAD_REG31(a0)
 
-#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	PTR_LA	t8, __stack_chk_guard
 	LONG_L	t9, TASK_STACK_CANARY(a1)
 	LONG_S	t9, 0(t8)

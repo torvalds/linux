@@ -159,6 +159,7 @@
 #define		EOP_TC_WB_ACTION_EN                     (1 << 15) /* L2 */
 #define		EOP_TCL1_ACTION_EN                      (1 << 16)
 #define		EOP_TC_ACTION_EN                        (1 << 17) /* L2 */
+#define		EOP_TC_NC_ACTION_EN			(1 << 19)
 #define		EOP_TC_MD_ACTION_EN			(1 << 21) /* L2 metadata */
 
 #define		DATA_SEL(x)                             ((x) << 29)
@@ -268,6 +269,11 @@
 			 * x=1: tmz_end
 			 */
 
+#define	PACKET3_INVALIDATE_TLBS				0x98
+#              define PACKET3_INVALIDATE_TLBS_DST_SEL(x)     ((x) << 0)
+#              define PACKET3_INVALIDATE_TLBS_ALL_HUB(x)     ((x) << 4)
+#              define PACKET3_INVALIDATE_TLBS_PASID(x)       ((x) << 5)
+#              define PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(x)  ((x) << 29)
 #define PACKET3_SET_RESOURCES				0xA0
 /* 1. header
  * 2. CONTROL

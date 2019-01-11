@@ -15,6 +15,7 @@
 #include <linux/bitfield.h>
 #include <linux/if_bridge.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 
 #include "chip.h"
 #include "port.h"
@@ -374,6 +375,44 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 		return err;
 
 	*cmode = reg & MV88E6XXX_PORT_STS_CMODE_MASK;
+
+	return 0;
+}
+
+int mv88e6xxx_port_link_state(struct mv88e6xxx_chip *chip, int port,
+			      struct phylink_link_state *state)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
+	if (err)
+		return err;
+
+	switch (reg & MV88E6XXX_PORT_STS_SPEED_MASK) {
+	case MV88E6XXX_PORT_STS_SPEED_10:
+		state->speed = SPEED_10;
+		break;
+	case MV88E6XXX_PORT_STS_SPEED_100:
+		state->speed = SPEED_100;
+		break;
+	case MV88E6XXX_PORT_STS_SPEED_1000:
+		state->speed = SPEED_1000;
+		break;
+	case MV88E6XXX_PORT_STS_SPEED_10000:
+		if ((reg &MV88E6XXX_PORT_STS_CMODE_MASK) ==
+		    MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+			state->speed = SPEED_2500;
+		else
+			state->speed = SPEED_10000;
+		break;
+	}
+
+	state->duplex = reg & MV88E6XXX_PORT_STS_DUPLEX ?
+			DUPLEX_FULL : DUPLEX_HALF;
+	state->link = !!(reg & MV88E6XXX_PORT_STS_LINK);
+	state->an_enabled = 1;
+	state->an_complete = state->link;
 
 	return 0;
 }

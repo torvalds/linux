@@ -744,8 +744,7 @@ void iproc_pll_clk_setup(struct device_node *node,
 	if (WARN_ON(!pll))
 		return;
 
-	clk_data = kzalloc(sizeof(*clk_data->hws) * num_clks +
-				sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, num_clks), GFP_KERNEL);
 	if (WARN_ON(!clk_data))
 		goto err_clk_data;
 	clk_data->num = num_clks;

@@ -51,16 +51,23 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state)
 		return_ACPI_STATUS(status);
 	}
 
-	/*
-	 * 1) Disable all GPEs
-	 * 2) Enable all wakeup GPEs
-	 */
+	/* Disable all GPEs */
 	status = acpi_hw_disable_all_gpes();
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
+	/*
+	 * If the target sleep state is S5, clear all GPEs and fixed events too
+	 */
+	if (sleep_state == ACPI_STATE_S5) {
+		status = acpi_hw_clear_acpi_status();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	}
 	acpi_gbl_system_awake_and_running = FALSE;
 
+	 /* Enable all wakeup GPEs */
 	status = acpi_hw_enable_all_wakeup_gpes();
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);

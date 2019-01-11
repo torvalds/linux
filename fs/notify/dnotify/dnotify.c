@@ -79,12 +79,11 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  */
 static int dnotify_handle_event(struct fsnotify_group *group,
 				struct inode *inode,
-				struct fsnotify_mark *inode_mark,
-				struct fsnotify_mark *vfsmount_mark,
 				u32 mask, const void *data, int data_type,
 				const unsigned char *file_name, u32 cookie,
 				struct fsnotify_iter_info *iter_info)
 {
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct dnotify_mark *dn_mark;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
@@ -95,7 +94,8 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	if (!S_ISDIR(inode->i_mode))
 		return 0;
 
-	BUG_ON(vfsmount_mark);
+	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+		return 0;
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
 
@@ -319,7 +319,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 		spin_lock(&fsn_mark->lock);
 	} else {
-		error = fsnotify_add_mark_locked(new_fsn_mark, inode, NULL, 0);
+		error = fsnotify_add_inode_mark_locked(new_fsn_mark, inode, 0);
 		if (error) {
 			mutex_unlock(&dnotify_group->mark_mutex);
 			goto out_err;

@@ -129,8 +129,8 @@ static void cifs_fscache_acquire_inode_cookie(struct cifsInodeInfo *cifsi,
 
 	memset(&auxdata, 0, sizeof(auxdata));
 	auxdata.eof = cifsi->server_eof;
-	auxdata.last_write_time = cifsi->vfs_inode.i_mtime;
-	auxdata.last_change_time = cifsi->vfs_inode.i_ctime;
+	auxdata.last_write_time = timespec64_to_timespec(cifsi->vfs_inode.i_mtime);
+	auxdata.last_change_time = timespec64_to_timespec(cifsi->vfs_inode.i_ctime);
 
 	cifsi->fscache =
 		fscache_acquire_cookie(tcon->fscache,
@@ -166,8 +166,8 @@ void cifs_fscache_release_inode_cookie(struct inode *inode)
 	if (cifsi->fscache) {
 		memset(&auxdata, 0, sizeof(auxdata));
 		auxdata.eof = cifsi->server_eof;
-		auxdata.last_write_time = cifsi->vfs_inode.i_mtime;
-		auxdata.last_change_time = cifsi->vfs_inode.i_ctime;
+		auxdata.last_write_time = timespec64_to_timespec(cifsi->vfs_inode.i_mtime);
+		auxdata.last_change_time = timespec64_to_timespec(cifsi->vfs_inode.i_ctime);
 
 		cifs_dbg(FYI, "%s: (0x%p)\n", __func__, cifsi->fscache);
 		fscache_relinquish_cookie(cifsi->fscache, &auxdata, false);

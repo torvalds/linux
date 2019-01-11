@@ -232,12 +232,24 @@ extern void __audit_file(const struct file *);
 extern void __audit_inode_child(struct inode *parent,
 				const struct dentry *dentry,
 				const unsigned char type);
-extern void __audit_seccomp(unsigned long syscall, long signr, int code);
+extern void audit_seccomp(unsigned long syscall, long signr, int code);
+extern void audit_seccomp_actions_logged(const char *names,
+					 const char *old_names, int res);
 extern void __audit_ptrace(struct task_struct *t);
+
+static inline void audit_set_context(struct task_struct *task, struct audit_context *ctx)
+{
+	task->audit_context = ctx;
+}
+
+static inline struct audit_context *audit_context(void)
+{
+	return current->audit_context;
+}
 
 static inline bool audit_dummy_context(void)
 {
-	void *p = current->audit_context;
+	void *p = audit_context();
 	return !p || *(int *)p;
 }
 static inline void audit_free(struct task_struct *task)
@@ -249,12 +261,12 @@ static inline void audit_syscall_entry(int major, unsigned long a0,
 				       unsigned long a1, unsigned long a2,
 				       unsigned long a3)
 {
-	if (unlikely(current->audit_context))
+	if (unlikely(audit_context()))
 		__audit_syscall_entry(major, a0, a1, a2, a3);
 }
 static inline void audit_syscall_exit(void *pt_regs)
 {
-	if (unlikely(current->audit_context)) {
+	if (unlikely(audit_context())) {
 		int success = is_syscall_success(pt_regs);
 		long return_code = regs_return_value(pt_regs);
 
@@ -301,12 +313,6 @@ static inline void audit_inode_child(struct inode *parent,
 		__audit_inode_child(parent, dentry, type);
 }
 void audit_core_dumps(long signr);
-
-static inline void audit_seccomp(unsigned long syscall, long signr, int code)
-{
-	if (audit_enabled && unlikely(!audit_dummy_context()))
-		__audit_seccomp(syscall, signr, code);
-}
 
 static inline void audit_ptrace(struct task_struct *t)
 {
@@ -468,6 +474,12 @@ static inline bool audit_dummy_context(void)
 {
 	return true;
 }
+static inline void audit_set_context(struct task_struct *task, struct audit_context *ctx)
+{ }
+static inline struct audit_context *audit_context(void)
+{
+	return NULL;
+}
 static inline struct filename *audit_reusename(const __user char *name)
 {
 	return NULL;
@@ -498,9 +510,10 @@ static inline void audit_inode_child(struct inode *parent,
 { }
 static inline void audit_core_dumps(long signr)
 { }
-static inline void __audit_seccomp(unsigned long syscall, long signr, int code)
-{ }
 static inline void audit_seccomp(unsigned long syscall, long signr, int code)
+{ }
+static inline void audit_seccomp_actions_logged(const char *names,
+						const char *old_names, int res)
 { }
 static inline int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec64 *t, unsigned int *serial)
@@ -513,7 +526,7 @@ static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
 }
 static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
-	return -1;
+	return AUDIT_SID_UNSET;
 }
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }

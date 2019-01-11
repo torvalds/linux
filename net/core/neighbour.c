@@ -59,7 +59,7 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
 				    struct net_device *dev);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations neigh_stat_seq_fops;
+static const struct seq_operations neigh_stat_seq_ops;
 #endif
 
 /*
@@ -119,13 +119,14 @@ unsigned long neigh_rand_reach_time(unsigned long base)
 EXPORT_SYMBOL(neigh_rand_reach_time);
 
 
-static bool neigh_del(struct neighbour *n, __u8 state,
+static bool neigh_del(struct neighbour *n, __u8 state, __u8 flags,
 		      struct neighbour __rcu **np, struct neigh_table *tbl)
 {
 	bool retval = false;
 
 	write_lock(&n->lock);
-	if (refcount_read(&n->refcnt) == 1 && !(n->nud_state & state)) {
+	if (refcount_read(&n->refcnt) == 1 && !(n->nud_state & state) &&
+	    !(n->flags & flags)) {
 		struct neighbour *neigh;
 
 		neigh = rcu_dereference_protected(n->next,
@@ -157,7 +158,7 @@ bool neigh_remove_one(struct neighbour *ndel, struct neigh_table *tbl)
 	while ((n = rcu_dereference_protected(*np,
 					      lockdep_is_held(&tbl->lock)))) {
 		if (n == ndel)
-			return neigh_del(n, 0, np, tbl);
+			return neigh_del(n, 0, 0, np, tbl);
 		np = &n->next;
 	}
 	return false;
@@ -185,7 +186,8 @@ static int neigh_forced_gc(struct neigh_table *tbl)
 			 * - nobody refers to it.
 			 * - it is not permanent
 			 */
-			if (neigh_del(n, NUD_PERMANENT, np, tbl)) {
+			if (neigh_del(n, NUD_PERMANENT, NTF_EXT_LEARNED, np,
+				      tbl)) {
 				shrunk = 1;
 				continue;
 			}
@@ -820,7 +822,8 @@ static void neigh_periodic_work(struct work_struct *work)
 			write_lock(&n->lock);
 
 			state = n->nud_state;
-			if (state & (NUD_PERMANENT | NUD_IN_TIMER)) {
+			if ((state & (NUD_PERMANENT | NUD_IN_TIMER)) ||
+			    (n->flags & NTF_EXT_LEARNED)) {
 				write_unlock(&n->lock);
 				goto next_elt;
 			}
@@ -1135,6 +1138,8 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		goto out;
 	if (neigh->dead)
 		goto out;
+
+	neigh_update_ext_learned(neigh, flags, &notify);
 
 	if (!(new & NUD_VALID)) {
 		neigh_del_timer(neigh);
@@ -1558,8 +1563,8 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 		panic("cannot create neighbour cache statistics");
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create_data(tbl->id, 0, init_net.proc_net_stat,
-			      &neigh_stat_seq_fops, tbl))
+	if (!proc_create_seq_data(tbl->id, 0, init_net.proc_net_stat,
+			      &neigh_stat_seq_ops, tbl))
 		panic("cannot create neighbour proc dir entry");
 #endif
 
@@ -1780,6 +1785,9 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (!(nlh->nlmsg_flags & NLM_F_REPLACE))
 			flags &= ~NEIGH_UPDATE_F_OVERRIDE;
 	}
+
+	if (ndm->ndm_flags & NTF_EXT_LEARNED)
+		flags |= NEIGH_UPDATE_F_EXT_LEARNED;
 
 	if (ndm->ndm_flags & NTF_USE) {
 		neigh_event_send(neigh, NULL);
@@ -2786,7 +2794,7 @@ EXPORT_SYMBOL(neigh_seq_stop);
 
 static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct neigh_table *tbl = seq->private;
+	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
 	int cpu;
 
 	if (*pos == 0)
@@ -2803,7 +2811,7 @@ static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *neigh_stat_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct neigh_table *tbl = seq->private;
+	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
 	int cpu;
 
 	for (cpu = *pos; cpu < nr_cpu_ids; ++cpu) {
@@ -2822,7 +2830,7 @@ static void neigh_stat_seq_stop(struct seq_file *seq, void *v)
 
 static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 {
-	struct neigh_table *tbl = seq->private;
+	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
@@ -2861,25 +2869,6 @@ static const struct seq_operations neigh_stat_seq_ops = {
 	.stop	= neigh_stat_seq_stop,
 	.show	= neigh_stat_seq_show,
 };
-
-static int neigh_stat_seq_open(struct inode *inode, struct file *file)
-{
-	int ret = seq_open(file, &neigh_stat_seq_ops);
-
-	if (!ret) {
-		struct seq_file *sf = file->private_data;
-		sf->private = PDE_DATA(inode);
-	}
-	return ret;
-};
-
-static const struct file_operations neigh_stat_seq_fops = {
-	.open 	 = neigh_stat_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
-};
-
 #endif /* CONFIG_PROC_FS */
 
 static inline size_t neigh_nlmsg_size(void)

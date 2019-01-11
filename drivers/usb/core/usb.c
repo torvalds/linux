@@ -1167,30 +1167,16 @@ static struct notifier_block usb_bus_nb = {
 struct dentry *usb_debug_root;
 EXPORT_SYMBOL_GPL(usb_debug_root);
 
-static struct dentry *usb_debug_devices;
-
-static int usb_debugfs_init(void)
+static void usb_debugfs_init(void)
 {
 	usb_debug_root = debugfs_create_dir("usb", NULL);
-	if (!usb_debug_root)
-		return -ENOENT;
-
-	usb_debug_devices = debugfs_create_file("devices", 0444,
-						usb_debug_root, NULL,
-						&usbfs_devices_fops);
-	if (!usb_debug_devices) {
-		debugfs_remove(usb_debug_root);
-		usb_debug_root = NULL;
-		return -ENOENT;
-	}
-
-	return 0;
+	debugfs_create_file("devices", 0444, usb_debug_root, NULL,
+			    &usbfs_devices_fops);
 }
 
 static void usb_debugfs_cleanup(void)
 {
-	debugfs_remove(usb_debug_devices);
-	debugfs_remove(usb_debug_root);
+	debugfs_remove_recursive(usb_debug_root);
 }
 
 /*
@@ -1205,9 +1191,7 @@ static int __init usb_init(void)
 	}
 	usb_init_pool_max();
 
-	retval = usb_debugfs_init();
-	if (retval)
-		goto out;
+	usb_debugfs_init();
 
 	usb_acpi_register();
 	retval = bus_register(&usb_bus_type);

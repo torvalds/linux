@@ -19,6 +19,7 @@
 
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 #include <video/mipi_display.h>
@@ -49,7 +50,8 @@
 #define ILI9341_MADCTL_MY	BIT(7)
 
 static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
-			    struct drm_crtc_state *crtc_state)
+			    struct drm_crtc_state *crtc_state,
+			    struct drm_plane_state *plane_state)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
@@ -83,24 +85,6 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 	/* Memory Access Control */
 	mipi_dbi_command(mipi, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT);
 
-	switch (mipi->rotation) {
-	default:
-		addr_mode = ILI9341_MADCTL_MV | ILI9341_MADCTL_MY |
-			    ILI9341_MADCTL_MX;
-		break;
-	case 90:
-		addr_mode = ILI9341_MADCTL_MY;
-		break;
-	case 180:
-		addr_mode = ILI9341_MADCTL_MV;
-		break;
-	case 270:
-		addr_mode = ILI9341_MADCTL_MX;
-		break;
-	}
-	addr_mode |= ILI9341_MADCTL_BGR;
-	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-
 	/* Frame Rate */
 	mipi_dbi_command(mipi, ILI9341_FRMCTR1, 0x00, 0x1b);
 
@@ -126,14 +110,37 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 	msleep(100);
 
 out_enable:
-	mipi_dbi_enable_flush(mipi);
+	/* The PiTFT (ili9340) has a hardware reset circuit that
+	 * resets only on power-on and not on each reboot through
+	 * a gpio like the rpi-display does.
+	 * As a result, we need to always apply the rotation value
+	 * regardless of the display "on/off" state.
+	 */
+	switch (mipi->rotation) {
+	default:
+		addr_mode = ILI9341_MADCTL_MV | ILI9341_MADCTL_MY |
+			    ILI9341_MADCTL_MX;
+		break;
+	case 90:
+		addr_mode = ILI9341_MADCTL_MY;
+		break;
+	case 180:
+		addr_mode = ILI9341_MADCTL_MV;
+		break;
+	case 270:
+		addr_mode = ILI9341_MADCTL_MX;
+		break;
+	}
+	addr_mode |= ILI9341_MADCTL_BGR;
+	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
+	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 }
 
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
 	.enable = mi0283qt_enable,
 	.disable = mipi_dbi_pipe_disable,
 	.update = tinydrm_display_pipe_update,
-	.prepare_fb = tinydrm_display_pipe_prepare_fb,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static const struct drm_display_mode mi0283qt_mode = {

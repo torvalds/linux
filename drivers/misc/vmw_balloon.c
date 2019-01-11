@@ -467,7 +467,7 @@ static int vmballoon_send_batched_lock(struct vmballoon *b,
 		unsigned int num_pages, bool is_2m_pages, unsigned int *target)
 {
 	unsigned long status;
-	unsigned long pfn = page_to_pfn(b->page);
+	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
 
 	STATS_INC(b->stats.lock[is_2m_pages]);
 
@@ -515,7 +515,7 @@ static bool vmballoon_send_batched_unlock(struct vmballoon *b,
 		unsigned int num_pages, bool is_2m_pages, unsigned int *target)
 {
 	unsigned long status;
-	unsigned long pfn = page_to_pfn(b->page);
+	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
 
 	STATS_INC(b->stats.unlock[is_2m_pages]);
 
@@ -576,15 +576,9 @@ static void vmballoon_pop(struct vmballoon *b)
 		}
 	}
 
-	if (b->batch_page) {
-		vunmap(b->batch_page);
-		b->batch_page = NULL;
-	}
-
-	if (b->page) {
-		__free_page(b->page);
-		b->page = NULL;
-	}
+	/* Clearing the batch_page unconditionally has no adverse effect */
+	free_page((unsigned long)b->batch_page);
+	b->batch_page = NULL;
 }
 
 /*
@@ -991,16 +985,13 @@ static const struct vmballoon_ops vmballoon_batched_ops = {
 
 static bool vmballoon_init_batching(struct vmballoon *b)
 {
-	b->page = alloc_page(VMW_PAGE_ALLOC_NOSLEEP);
-	if (!b->page)
+	struct page *page;
+
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page)
 		return false;
 
-	b->batch_page = vmap(&b->page, 1, VM_MAP, PAGE_KERNEL);
-	if (!b->batch_page) {
-		__free_page(b->page);
-		return false;
-	}
-
+	b->batch_page = page_address(page);
 	return true;
 }
 

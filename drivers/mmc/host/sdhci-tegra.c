@@ -231,7 +231,7 @@ static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
 	if (timing == MMC_TIMING_UHS_DDR50)
 		tegra_host->ddr_signaling = true;
 
-	return sdhci_set_uhs_signaling(host, timing);
+	sdhci_set_uhs_signaling(host, timing);
 }
 
 static unsigned int tegra_sdhci_get_max_clock(struct sdhci_host *host)

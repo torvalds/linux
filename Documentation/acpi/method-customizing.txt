@@ -16,7 +16,8 @@ control method rather than override the entire DSDT, because kernel
 rebuild/reboot is not needed and test result can be got in minutes.
 
 Note: Only ACPI METHOD can be overridden, any other object types like
-      "Device", "OperationRegion", are not recognized.
+      "Device", "OperationRegion", are not recognized. Methods
+      declared inside scope operators are also not supported.
 Note: The same ACPI control method can be overridden for many times,
       and it's always the latest one that used by Linux/kernel.
 Note: To get the ACPI debug object output (Store (AAAA, Debug)),
@@ -32,8 +33,6 @@ Note: To get the ACPI debug object output (Store (AAAA, Debug)),
 
       DefinitionBlock ("", "SSDT", 1, "", "", 0x20080715)
       {
-	External (ACON)
-
 	Method (\_SB_.AC._PSR, 0, NotSerialized)
 	{
 		Store ("In AC _PSR", Debug)
@@ -42,9 +41,10 @@ Note: To get the ACPI debug object output (Store (AAAA, Debug)),
       }
       Note that the full pathname of the method in ACPI namespace
       should be used.
-      And remember to use "External" to declare external objects.
    e) assemble the file to generate the AML code of the method.
-      e.g. "iasl psr.asl" (psr.aml is generated as a result)
+      e.g. "iasl -vw 6084 psr.asl" (psr.aml is generated as a result)
+      If parameter "-vw 6084" is not supported by your iASL compiler,
+      please try a newer version.
    f) mount debugfs by "mount -t debugfs none /sys/kernel/debug"
    g) override the old method via the debugfs by running
       "cat /tmp/psr.aml > /sys/kernel/debug/acpi/custom_method"

@@ -296,8 +296,8 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	if (num == 0)
 		return -EINVAL;
 
-	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
-	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
+	dai_props = devm_kcalloc(dev, num, sizeof(*dai_props), GFP_KERNEL);
+	dai_link  = devm_kcalloc(dev, num, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
 

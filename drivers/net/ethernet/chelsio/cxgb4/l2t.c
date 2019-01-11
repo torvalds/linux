@@ -491,7 +491,7 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 	if (tp->protocol_shift >= 0)
 		ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
 
-	if (tp->vnic_shift >= 0) {
+	if (tp->vnic_shift >= 0 && (tp->ingress_config & VNIC_F)) {
 		u32 viid = cxgb4_port_viid(dev);
 		u32 vf = FW_VIID_VIN_G(viid);
 		u32 pf = FW_VIID_PFN_G(viid);

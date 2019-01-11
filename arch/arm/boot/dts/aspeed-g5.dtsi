@@ -143,6 +143,31 @@
 			status = "disabled";
 		};
 
+		ehci0: usb@1e6a1000 {
+			compatible = "aspeed,ast2500-ehci", "generic-ehci";
+			reg = <0x1e6a1000 0x100>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			status = "disabled";
+		};
+
+		ehci1: usb@1e6a3000 {
+			compatible = "aspeed,ast2500-ehci", "generic-ehci";
+			reg = <0x1e6a3000 0x100>;
+			interrupts = <13>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT2CLK>;
+			status = "disabled";
+		};
+
+		uhci: usb@1e6b0000 {
+			compatible = "aspeed,ast2500-uhci", "generic-uhci";
+			reg = <0x1e6b0000 0x100>;
+			interrupts = <14>;
+			#ports = <2>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+			status = "disabled";
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -162,6 +187,13 @@
 					aspeed,external-nodes = <&gfx &lhc>;
 
 				};
+			};
+
+			rng: hwrng@1e6e2078 {
+				compatible = "timeriomem_rng";
+				reg = <0x1e6e2078 0x4>;
+				period = <1>;
+				quality = <100>;
 			};
 
 			gfx: display@1e6e6000 {
@@ -1378,6 +1410,21 @@
 	pinctrl_usbcki_default: usbcki_default {
 		function = "USBCKI";
 		groups = "USBCKI";
+	};
+
+	pinctrl_usb2ah_default: usb2ah_default {
+		function = "USB2AH";
+		groups = "USB2AH";
+	};
+
+	pinctrl_usb11bhid_default: usb11bhid_default {
+		function = "USB11BHID";
+		groups = "USB11BHID";
+	};
+
+	pinctrl_usb2bh_default: usb2bh_default {
+		function = "USB2BH";
+		groups = "USB2BH";
 	};
 
 	pinctrl_vgabiosrom_default: vgabiosrom_default {

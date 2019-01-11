@@ -1323,8 +1323,8 @@ static int build_dma_sg(const struct sk_buff *skb, struct urb *urb)
 		return 0;
 
 	/* reserve one for zero packet */
-	urb->sg = kmalloc((num_sgs + 1) * sizeof(struct scatterlist),
-			  GFP_ATOMIC);
+	urb->sg = kmalloc_array(num_sgs + 1, sizeof(struct scatterlist),
+				GFP_ATOMIC);
 	if (!urb->sg)
 		return -ENOMEM;
 

@@ -195,6 +195,27 @@ int tipc_node_get_mtu(struct net *net, u32 addr, u32 sel)
 	return mtu;
 }
 
+bool tipc_node_get_id(struct net *net, u32 addr, u8 *id)
+{
+	u8 *own_id = tipc_own_id(net);
+	struct tipc_node *n;
+
+	if (!own_id)
+		return true;
+
+	if (addr == tipc_own_addr(net)) {
+		memcpy(id, own_id, TIPC_NODEID_LEN);
+		return true;
+	}
+	n = tipc_node_find(net, addr);
+	if (!n)
+		return false;
+
+	memcpy(id, &n->peer_id, TIPC_NODEID_LEN);
+	tipc_node_put(n);
+	return true;
+}
+
 u16 tipc_node_get_capabilities(struct net *net, u32 addr)
 {
 	struct tipc_node *n;
@@ -776,6 +797,7 @@ static u32 tipc_node_suggest_addr(struct net *net, u32 addr)
 }
 
 /* tipc_node_try_addr(): Check if addr can be used by peer, suggest other if not
+ * Returns suggested address if any, otherwise 0
  */
 u32 tipc_node_try_addr(struct net *net, u8 *id, u32 addr)
 {
@@ -798,12 +820,14 @@ u32 tipc_node_try_addr(struct net *net, u8 *id, u32 addr)
 	if (n) {
 		addr = n->addr;
 		tipc_node_put(n);
+		return addr;
 	}
-	/* Even this node may be in trial phase */
+
+	/* Even this node may be in conflict */
 	if (tn->trial_addr == addr)
 		return tipc_node_suggest_addr(net, addr);
 
-	return addr;
+	return 0;
 }
 
 void tipc_node_check_dest(struct net *net, u32 addr,
@@ -1681,7 +1705,8 @@ discard:
 	kfree_skb(skb);
 }
 
-void tipc_node_apply_tolerance(struct net *net, struct tipc_bearer *b)
+void tipc_node_apply_property(struct net *net, struct tipc_bearer *b,
+			      int prop)
 {
 	struct tipc_net *tn = tipc_net(net);
 	int bearer_id = b->identity;
@@ -1696,8 +1721,13 @@ void tipc_node_apply_tolerance(struct net *net, struct tipc_bearer *b)
 	list_for_each_entry_rcu(n, &tn->node_list, list) {
 		tipc_node_write_lock(n);
 		e = &n->links[bearer_id];
-		if (e->link)
-			tipc_link_set_tolerance(e->link, b->tolerance, &xmitq);
+		if (e->link) {
+			if (prop == TIPC_NLA_PROP_TOL)
+				tipc_link_set_tolerance(e->link, b->tolerance,
+							&xmitq);
+			else if (prop == TIPC_NLA_PROP_MTU)
+				tipc_link_set_mtu(e->link, b->mtu);
+		}
 		tipc_node_write_unlock(n);
 		tipc_bearer_xmit(net, bearer_id, &xmitq, &e->maddr);
 	}

@@ -88,14 +88,8 @@ static int ili9225_fb_dirty(struct drm_framebuffer *fb,
 	bool full;
 	void *tr;
 
-	mutex_lock(&tdev->dirty_lock);
-
 	if (!mipi->enabled)
-		goto out_unlock;
-
-	/* fbdev can flush even when we're not interested */
-	if (tdev->pipe.plane.fb != fb)
-		goto out_unlock;
+		return 0;
 
 	full = tinydrm_merge_clips(&clip, clips, num_clips, flags,
 				   fb->width, fb->height);
@@ -108,7 +102,7 @@ static int ili9225_fb_dirty(struct drm_framebuffer *fb,
 		tr = mipi->tx_buf;
 		ret = mipi_dbi_buf_copy(mipi->tx_buf, fb, &clip, swap);
 		if (ret)
-			goto out_unlock;
+			return ret;
 	} else {
 		tr = cma_obj->vaddr;
 	}
@@ -159,24 +153,18 @@ static int ili9225_fb_dirty(struct drm_framebuffer *fb,
 	ret = mipi_dbi_command_buf(mipi, ILI9225_WRITE_DATA_TO_GRAM, tr,
 				(clip.x2 - clip.x1) * (clip.y2 - clip.y1) * 2);
 
-out_unlock:
-	mutex_unlock(&tdev->dirty_lock);
-
-	if (ret)
-		dev_err_once(fb->dev->dev, "Failed to update display %d\n",
-			     ret);
-
 	return ret;
 }
 
 static const struct drm_framebuffer_funcs ili9225_fb_funcs = {
 	.destroy	= drm_gem_fb_destroy,
 	.create_handle	= drm_gem_fb_create_handle,
-	.dirty		= ili9225_fb_dirty,
+	.dirty		= tinydrm_fb_dirty,
 };
 
 static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
-				struct drm_crtc_state *crtc_state)
+				struct drm_crtc_state *crtc_state,
+				struct drm_plane_state *plane_state)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
@@ -268,7 +256,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(mipi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	mipi_dbi_enable_flush(mipi);
+	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 }
 
 static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -341,6 +329,8 @@ static int ili9225_init(struct device *dev, struct mipi_dbi *mipi,
 	if (ret)
 		return ret;
 
+	tdev->fb_dirty = ili9225_fb_dirty;
+
 	ret = tinydrm_display_pipe_init(tdev, pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					ili9225_formats,
@@ -364,7 +354,7 @@ static const struct drm_simple_display_pipe_funcs ili9225_pipe_funcs = {
 	.enable		= ili9225_pipe_enable,
 	.disable	= ili9225_pipe_disable,
 	.update		= tinydrm_display_pipe_update,
-	.prepare_fb	= tinydrm_display_pipe_prepare_fb,
+	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static const struct drm_display_mode ili9225_mode = {

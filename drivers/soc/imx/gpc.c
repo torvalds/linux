@@ -27,9 +27,16 @@
 #define GPC_PGC_SW2ISO_SHIFT	0x8
 #define GPC_PGC_SW_SHIFT	0x0
 
+#define GPC_PGC_PCI_PDN		0x200
+#define GPC_PGC_PCI_SR		0x20c
+
 #define GPC_PGC_GPU_PDN		0x260
 #define GPC_PGC_GPU_PUPSCR	0x264
 #define GPC_PGC_GPU_PDNSCR	0x268
+#define GPC_PGC_GPU_SR		0x26c
+
+#define GPC_PGC_DISP_PDN	0x240
+#define GPC_PGC_DISP_SR		0x24c
 
 #define GPU_VPU_PUP_REQ		BIT(1)
 #define GPU_VPU_PDN_REQ		BIT(0)
@@ -318,10 +325,24 @@ static const struct of_device_id imx_gpc_dt_ids[] = {
 	{ }
 };
 
+static const struct regmap_range yes_ranges[] = {
+	regmap_reg_range(GPC_CNTR, GPC_CNTR),
+	regmap_reg_range(GPC_PGC_PCI_PDN, GPC_PGC_PCI_SR),
+	regmap_reg_range(GPC_PGC_GPU_PDN, GPC_PGC_GPU_SR),
+	regmap_reg_range(GPC_PGC_DISP_PDN, GPC_PGC_DISP_SR),
+};
+
+static const struct regmap_access_table access_table = {
+	.yes_ranges	= yes_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(yes_ranges),
+};
+
 static const struct regmap_config imx_gpc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
+	.rd_table = &access_table,
+	.wr_table = &access_table,
 	.max_register = 0x2ac,
 };
 
@@ -443,17 +464,25 @@ static int imx_gpc_probe(struct platform_device *pdev)
 			if (domain_index >= of_id_data->num_domains)
 				continue;
 
-			domain = &imx_gpc_domains[domain_index];
-			domain->regmap = regmap;
-			domain->ipg_rate_mhz = ipg_rate_mhz;
-
 			pd_pdev = platform_device_alloc("imx-pgc-power-domain",
 							domain_index);
 			if (!pd_pdev) {
 				of_node_put(np);
 				return -ENOMEM;
 			}
-			pd_pdev->dev.platform_data = domain;
+
+			ret = platform_device_add_data(pd_pdev,
+						       &imx_gpc_domains[domain_index],
+						       sizeof(imx_gpc_domains[domain_index]));
+			if (ret) {
+				platform_device_put(pd_pdev);
+				of_node_put(np);
+				return ret;
+			}
+			domain = pd_pdev->dev.platform_data;
+			domain->regmap = regmap;
+			domain->ipg_rate_mhz = ipg_rate_mhz;
+
 			pd_pdev->dev.parent = &pdev->dev;
 			pd_pdev->dev.of_node = np;
 

@@ -1397,7 +1397,7 @@ static struct bnx2fc_hba *bnx2fc_hba_create(struct cnic_dev *cnic)
 	hba->next_conn_id = 0;
 
 	hba->tgt_ofld_list =
-		kzalloc(sizeof(struct bnx2fc_rport *) * BNX2FC_NUM_MAX_SESS,
+		kcalloc(BNX2FC_NUM_MAX_SESS, sizeof(struct bnx2fc_rport *),
 			GFP_KERNEL);
 	if (!hba->tgt_ofld_list) {
 		printk(KERN_ERR PFX "Unable to allocate tgt offload list\n");

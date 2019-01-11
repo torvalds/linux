@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -43,6 +43,7 @@
 #include "nfp_main.h"
 #include "nfp_net.h"
 #include "nfp_net_repr.h"
+#include "nfp_port.h"
 
 static const struct nfp_app_type *apps[] = {
 	[NFP_APP_CORE_NIC]	= &app_nic,
@@ -53,6 +54,9 @@ static const struct nfp_app_type *apps[] = {
 #endif
 #ifdef CONFIG_NFP_APP_FLOWER
 	[NFP_APP_FLOWER_NIC]	= &app_flower,
+#endif
+#ifdef CONFIG_NFP_APP_ABM_NIC
+	[NFP_APP_ACTIVE_BUFFER_MGMT_NIC] = &app_abm,
 #endif
 };
 
@@ -80,6 +84,27 @@ const char *nfp_app_mip_name(struct nfp_app *app)
 	if (!app || !app->pf->mip)
 		return "";
 	return nfp_mip_name(app->pf->mip);
+}
+
+u64 *nfp_app_port_get_stats(struct nfp_port *port, u64 *data)
+{
+	if (!port || !port->app || !port->app->type->port_get_stats)
+		return data;
+	return port->app->type->port_get_stats(port->app, port, data);
+}
+
+int nfp_app_port_get_stats_count(struct nfp_port *port)
+{
+	if (!port || !port->app || !port->app->type->port_get_stats_count)
+		return 0;
+	return port->app->type->port_get_stats_count(port->app, port);
+}
+
+u8 *nfp_app_port_get_stats_strings(struct nfp_port *port, u8 *data)
+{
+	if (!port || !port->app || !port->app->type->port_get_stats_strings)
+		return data;
+	return port->app->type->port_get_stats_strings(port->app, port, data);
 }
 
 struct sk_buff *

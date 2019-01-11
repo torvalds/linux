@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include "xfs.h"
@@ -63,7 +51,7 @@
 #include <linux/parser.h>
 
 static const struct super_operations xfs_super_operations;
-struct bio_set *xfs_ioend_bioset;
+struct bio_set xfs_ioend_bioset;
 
 static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
 #ifdef DEBUG
@@ -1148,7 +1136,7 @@ xfs_fs_statfs(
 	statp->f_bavail = statp->f_bfree;
 
 	fakeinos = statp->f_bfree << sbp->sb_inopblog;
-	statp->f_files = MIN(icount + fakeinos, (uint64_t)XFS_MAXINUMBER);
+	statp->f_files = min(icount + fakeinos, (uint64_t)XFS_MAXINUMBER);
 	if (mp->m_maxicount)
 		statp->f_files = min_t(typeof(statp->f_files),
 					statp->f_files,
@@ -1372,7 +1360,6 @@ xfs_fs_remount(
 		 */
 		xfs_restore_resvblks(mp);
 		xfs_log_work_queue(mp);
-		xfs_queue_eofblocks(mp);
 
 		/* Recover any CoW blocks that never got remapped. */
 		error = xfs_reflink_recover_cow(mp);
@@ -1382,7 +1369,7 @@ xfs_fs_remount(
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 			return error;
 		}
-		xfs_queue_cowblocks(mp);
+		xfs_icache_enable_reclaim(mp);
 
 		/* Create the per-AG metadata reservation pool .*/
 		error = xfs_fs_reserve_ag_blocks(mp);
@@ -1392,8 +1379,13 @@ xfs_fs_remount(
 
 	/* rw -> ro */
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & SB_RDONLY)) {
+		/*
+		 * Cancel background eofb scanning so it cannot race with the
+		 * final log force+buftarg wait and deadlock the remount.
+		 */
+		xfs_icache_disable_reclaim(mp);
+
 		/* Get rid of any leftover CoW reservations... */
-		cancel_delayed_work_sync(&mp->m_cowblocks_work);
 		error = xfs_icache_free_cowblocks(mp, NULL);
 		if (error) {
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
@@ -1416,12 +1408,6 @@ xfs_fs_remount(
 		 */
 		xfs_save_resvblks(mp);
 
-		/*
-		 * Cancel background eofb scanning so it cannot race with the
-		 * final log force+buftarg wait and deadlock the remount.
-		 */
-		cancel_delayed_work_sync(&mp->m_eofblocks_work);
-
 		xfs_quiesce_attr(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	}
@@ -1441,6 +1427,7 @@ xfs_fs_freeze(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
+	xfs_icache_disable_reclaim(mp);
 	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
 	return xfs_sync_sb(mp, true);
@@ -1454,6 +1441,7 @@ xfs_fs_unfreeze(
 
 	xfs_restore_resvblks(mp);
 	xfs_log_work_queue(mp);
+	xfs_icache_enable_reclaim(mp);
 	return 0;
 }
 
@@ -1635,6 +1623,17 @@ xfs_fs_fill_super(
 #endif
 	sb->s_op = &xfs_super_operations;
 
+	/*
+	 * Delay mount work if the debug hook is set. This is debug
+	 * instrumention to coordinate simulation of xfs mount failures with
+	 * VFS superblock operations
+	 */
+	if (xfs_globals.mount_delay) {
+		xfs_notice(mp, "Delaying mount for %d seconds.",
+			xfs_globals.mount_delay);
+		msleep(xfs_globals.mount_delay * 1000);
+	}
+
 	if (silent)
 		flags |= XFS_MFSI_QUIET;
 
@@ -1690,11 +1689,17 @@ xfs_fs_fill_super(
 		sb->s_flags |= SB_I_VERSION;
 
 	if (mp->m_flags & XFS_MOUNT_DAX) {
+		bool rtdev_is_dax = false, datadev_is_dax;
+
 		xfs_warn(mp,
 		"DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
 
-		error = bdev_dax_supported(sb, sb->s_blocksize);
-		if (error) {
+		datadev_is_dax = bdev_dax_supported(mp->m_ddev_targp->bt_bdev,
+			sb->s_blocksize);
+		if (mp->m_rtdev_targp)
+			rtdev_is_dax = bdev_dax_supported(
+				mp->m_rtdev_targp->bt_bdev, sb->s_blocksize);
+		if (!rtdev_is_dax && !datadev_is_dax) {
 			xfs_alert(mp,
 			"DAX unsupported by block device. Turning off DAX.");
 			mp->m_flags &= ~XFS_MOUNT_DAX;
@@ -1761,6 +1766,7 @@ xfs_fs_fill_super(
  out_close_devices:
 	xfs_close_devices(mp);
  out_free_fsname:
+	sb->s_fs_info = NULL;
 	xfs_free_fsname(mp);
 	kfree(mp);
  out:
@@ -1778,6 +1784,10 @@ xfs_fs_put_super(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
+	/* if ->fill_super failed, we have no mount to tear down */
+	if (!sb->s_fs_info)
+		return;
+
 	xfs_notice(mp, "Unmounting Filesystem");
 	xfs_filestream_unmount(mp);
 	xfs_unmountfs(mp);
@@ -1787,6 +1797,8 @@ xfs_fs_put_super(
 	xfs_destroy_percpu_counters(mp);
 	xfs_destroy_mount_workqueues(mp);
 	xfs_close_devices(mp);
+
+	sb->s_fs_info = NULL;
 	xfs_free_fsname(mp);
 	kfree(mp);
 }
@@ -1806,6 +1818,9 @@ xfs_fs_nr_cached_objects(
 	struct super_block	*sb,
 	struct shrink_control	*sc)
 {
+	/* Paranoia: catch incorrect calls during mount setup or teardown */
+	if (WARN_ON_ONCE(!sb->s_fs_info))
+		return 0;
 	return xfs_reclaim_inodes_count(XFS_M(sb));
 }
 
@@ -1845,10 +1860,9 @@ MODULE_ALIAS_FS("xfs");
 STATIC int __init
 xfs_init_zones(void)
 {
-	xfs_ioend_bioset = bioset_create(4 * MAX_BUF_PER_PAGE,
+	if (bioset_init(&xfs_ioend_bioset, 4 * MAX_BUF_PER_PAGE,
 			offsetof(struct xfs_ioend, io_inline_bio),
-			BIOSET_NEED_BVECS);
-	if (!xfs_ioend_bioset)
+			BIOSET_NEED_BVECS))
 		goto out;
 
 	xfs_log_ticket_zone = kmem_zone_init(sizeof(xlog_ticket_t),
@@ -1880,11 +1894,6 @@ xfs_init_zones(void)
 	if (!xfs_trans_zone)
 		goto out_destroy_ifork_zone;
 
-	xfs_log_item_desc_zone =
-		kmem_zone_init(sizeof(struct xfs_log_item_desc),
-			       "xfs_log_item_desc");
-	if (!xfs_log_item_desc_zone)
-		goto out_destroy_trans_zone;
 
 	/*
 	 * The size of the zone allocated buf log item is the maximum
@@ -1894,7 +1903,7 @@ xfs_init_zones(void)
 	xfs_buf_item_zone = kmem_zone_init(sizeof(struct xfs_buf_log_item),
 					   "xfs_buf_item");
 	if (!xfs_buf_item_zone)
-		goto out_destroy_log_item_desc_zone;
+		goto out_destroy_trans_zone;
 
 	xfs_efd_zone = kmem_zone_init((sizeof(xfs_efd_log_item_t) +
 			((XFS_EFD_MAX_FAST_EXTENTS - 1) *
@@ -1982,8 +1991,6 @@ xfs_init_zones(void)
 	kmem_zone_destroy(xfs_efd_zone);
  out_destroy_buf_item_zone:
 	kmem_zone_destroy(xfs_buf_item_zone);
- out_destroy_log_item_desc_zone:
-	kmem_zone_destroy(xfs_log_item_desc_zone);
  out_destroy_trans_zone:
 	kmem_zone_destroy(xfs_trans_zone);
  out_destroy_ifork_zone:
@@ -1997,7 +2004,7 @@ xfs_init_zones(void)
  out_destroy_log_ticket_zone:
 	kmem_zone_destroy(xfs_log_ticket_zone);
  out_free_ioend_bioset:
-	bioset_free(xfs_ioend_bioset);
+	bioset_exit(&xfs_ioend_bioset);
  out:
 	return -ENOMEM;
 }
@@ -2022,14 +2029,13 @@ xfs_destroy_zones(void)
 	kmem_zone_destroy(xfs_efi_zone);
 	kmem_zone_destroy(xfs_efd_zone);
 	kmem_zone_destroy(xfs_buf_item_zone);
-	kmem_zone_destroy(xfs_log_item_desc_zone);
 	kmem_zone_destroy(xfs_trans_zone);
 	kmem_zone_destroy(xfs_ifork_zone);
 	kmem_zone_destroy(xfs_da_state_zone);
 	kmem_zone_destroy(xfs_btree_cur_zone);
 	kmem_zone_destroy(xfs_bmap_free_item_zone);
 	kmem_zone_destroy(xfs_log_ticket_zone);
-	bioset_free(xfs_ioend_bioset);
+	bioset_exit(&xfs_ioend_bioset);
 }
 
 STATIC int __init

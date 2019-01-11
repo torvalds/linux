@@ -26,7 +26,7 @@ interrupt-controller:
 	see binding for interrupt-controller/arm,gic.txt
 
 timer:
-	see binding for arm/twd.txt
+	see binding for timer/arm,twd.txt
 
 clocks:
 	see binding for clocks/ux500.txt

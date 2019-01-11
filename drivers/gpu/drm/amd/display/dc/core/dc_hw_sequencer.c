@@ -208,6 +208,7 @@ void color_space_to_black_color(
 	case COLOR_SPACE_YCBCR709:
 	case COLOR_SPACE_YCBCR601_LIMITED:
 	case COLOR_SPACE_YCBCR709_LIMITED:
+	case COLOR_SPACE_2020_YCBCR:
 		*black_color = black_color_format[BLACK_COLOR_FORMAT_YUV_CV];
 		break;
 
@@ -216,7 +217,25 @@ void color_space_to_black_color(
 			black_color_format[BLACK_COLOR_FORMAT_RGB_LIMITED];
 		break;
 
-	default:
+	/**
+	 * Remove default and add case for all color space
+	 * so when we forget to add new color space
+	 * compiler will give a warning
+	 */
+	case COLOR_SPACE_UNKNOWN:
+	case COLOR_SPACE_SRGB:
+	case COLOR_SPACE_XR_RGB:
+	case COLOR_SPACE_MSREF_SCRGB:
+	case COLOR_SPACE_XV_YCC_709:
+	case COLOR_SPACE_XV_YCC_601:
+	case COLOR_SPACE_2020_RGB_FULLRANGE:
+	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
+	case COLOR_SPACE_ADOBERGB:
+	case COLOR_SPACE_DCIP3:
+	case COLOR_SPACE_DISPLAYNATIVE:
+	case COLOR_SPACE_DOLBYVISION:
+	case COLOR_SPACE_APPCTRL:
+	case COLOR_SPACE_CUSTOMPOINTS:
 		/* fefault is sRGB black (full range). */
 		*black_color =
 			black_color_format[BLACK_COLOR_FORMAT_RGB_FULLRANGE];
@@ -230,6 +249,9 @@ bool hwss_wait_for_blank_complete(
 {
 	int counter;
 
+	/* Not applicable if the pipe is not primary, save 300ms of boot time */
+	if (!tg->funcs->is_blanked)
+		return true;
 	for (counter = 0; counter < 100; counter++) {
 		if (tg->funcs->is_blanked(tg))
 			break;

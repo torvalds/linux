@@ -70,7 +70,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	iov[2].iov_len	= sizeof(ack_info);
 
 	pkt.whdr.epoch		= htonl(conn->proto.epoch);
-	pkt.whdr.cid		= htonl(conn->proto.cid);
+	pkt.whdr.cid		= htonl(conn->proto.cid | channel);
 	pkt.whdr.callNumber	= htonl(call_id);
 	pkt.whdr.seq		= 0;
 	pkt.whdr.type		= chan->last_type;
@@ -136,7 +136,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	}
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, ioc, len);
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
 				    rxrpc_tx_fail_call_final_resend);
@@ -245,7 +245,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 		return -EAGAIN;
 	}
 
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 
 	_leave(" = 0");
 	return 0;

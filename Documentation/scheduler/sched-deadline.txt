@@ -49,7 +49,7 @@ CONTENTS
 2.1 Main algorithm
 ------------------
 
- SCHED_DEADLINE uses three parameters, named "runtime", "period", and
+ SCHED_DEADLINE [18] uses three parameters, named "runtime", "period", and
  "deadline", to schedule tasks. A SCHED_DEADLINE task should receive
  "runtime" microseconds of execution time every "period" microseconds, and
  these "runtime" microseconds are available within "deadline" microseconds
@@ -116,6 +116,10 @@ CONTENTS
 
          scheduling deadline = scheduling deadline + period
          remaining runtime = remaining runtime + runtime
+
+ The SCHED_FLAG_DL_OVERRUN flag in sched_attr's sched_flags field allows a task
+ to get informed about runtime overruns through the delivery of SIGXCPU
+ signals.
 
 
 2.2 Bandwidth reclaiming
@@ -277,6 +281,19 @@ CONTENTS
 
     Task T1 wakes up. It enters the ActiveContending state again, and the
     running_bw is incremented.
+
+
+2.3 Energy-aware scheduling
+------------------------
+
+ When cpufreq's schedutil governor is selected, SCHED_DEADLINE implements the
+ GRUB-PA [19] algorithm, reducing the CPU operating frequency to the minimum
+ value that still allows to meet the deadlines. This behavior is currently
+ implemented only for ARM architectures.
+
+ A particular care must be taken in case the time needed for changing frequency
+ is of the same order of magnitude of the reservation period. In such cases,
+ setting a fixed CPU frequency results in a lower amount of deadline misses.
 
 
 3. Scheduling Real-Time Tasks
@@ -505,6 +522,12 @@ CONTENTS
   17 - L. Abeni, G. Lipari, A. Parri, Y. Sun, Multicore CPU reclaiming: parallel
        or sequential?. In Proceedings of the 31st Annual ACM Symposium on Applied
        Computing, 2016.
+  18 - J. Lelli, C. Scordino, L. Abeni, D. Faggioli, Deadline scheduling in the
+       Linux kernel, Software: Practice and Experience, 46(6): 821-839, June
+       2016.
+  19 - C. Scordino, L. Abeni, J. Lelli, Energy-Aware Real-Time Scheduling in
+       the Linux Kernel, 33rd ACM/SIGAPP Symposium On Applied Computing (SAC
+       2018), Pau, France, April 2018.
 
 
 4. Bandwidth management

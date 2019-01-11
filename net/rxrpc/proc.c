@@ -115,24 +115,11 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations rxrpc_call_seq_ops = {
+const struct seq_operations rxrpc_call_seq_ops = {
 	.start  = rxrpc_call_seq_start,
 	.next   = rxrpc_call_seq_next,
 	.stop   = rxrpc_call_seq_stop,
 	.show   = rxrpc_call_seq_show,
-};
-
-static int rxrpc_call_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &rxrpc_call_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-const struct file_operations rxrpc_call_seq_fops = {
-	.open		= rxrpc_call_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };
 
 /*
@@ -207,23 +194,9 @@ print:
 	return 0;
 }
 
-static const struct seq_operations rxrpc_connection_seq_ops = {
+const struct seq_operations rxrpc_connection_seq_ops = {
 	.start  = rxrpc_connection_seq_start,
 	.next   = rxrpc_connection_seq_next,
 	.stop   = rxrpc_connection_seq_stop,
 	.show   = rxrpc_connection_seq_show,
-};
-
-
-static int rxrpc_connection_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &rxrpc_connection_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-const struct file_operations rxrpc_connection_seq_fops = {
-	.open		= rxrpc_connection_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };

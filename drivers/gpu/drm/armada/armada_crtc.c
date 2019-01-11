@@ -519,8 +519,9 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 	u32 v, stat = readl_relaxed(dcrtc->base + LCD_SPU_IRQ_ISR);
 
 	/*
-	 * This is rediculous - rather than writing bits to clear, we
-	 * have to set the actual status register value.  This is racy.
+	 * Reading the ISR appears to clear bits provided CLEAN_SPU_IRQ_ISR
+	 * is set.  Writing has some other effect to acknowledge the IRQ -
+	 * without this, we only get a single IRQ.
 	 */
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
 
@@ -1116,16 +1117,22 @@ armada_drm_crtc_set_property(struct drm_crtc *crtc,
 static int armada_drm_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	unsigned long flags;
 
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 	armada_drm_crtc_enable_irq(dcrtc, VSYNC_IRQ_ENA);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 	return 0;
 }
 
 static void armada_drm_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	unsigned long flags;
 
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 	armada_drm_crtc_disable_irq(dcrtc, VSYNC_IRQ_ENA);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 }
 
 static const struct drm_crtc_funcs armada_crtc_funcs = {
@@ -1415,6 +1422,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 		       CFG_PDWN64x66, dcrtc->base + LCD_SPU_SRAM_PARA1);
 	writel_relaxed(0x2032ff81, dcrtc->base + LCD_SPU_DMA_CTRL1);
 	writel_relaxed(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
+	readl_relaxed(dcrtc->base + LCD_SPU_IRQ_ISR);
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
 
 	ret = devm_request_irq(dev, irq, armada_drm_irq, 0, "armada_drm_crtc",

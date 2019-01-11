@@ -3882,7 +3882,7 @@ static enum blk_eh_timer_return gdth_timed_out(struct scsi_cmnd *scp)
 	struct gdth_cmndinfo *cmndinfo = gdth_cmnd_priv(scp);
 	u8 b, t;
 	unsigned long flags;
-	enum blk_eh_timer_return retval = BLK_EH_NOT_HANDLED;
+	enum blk_eh_timer_return retval = BLK_EH_DONE;
 
 	TRACE(("%s() cmd 0x%x\n", scp->cmnd[0], __func__));
 	b = scp->device->channel;

@@ -36,8 +36,7 @@ void kexec_copy_flush(struct kimage *image);
 /* pseries hcall tracing */
 extern struct static_key hcall_tracepoint_key;
 void __trace_hcall_entry(unsigned long opcode, unsigned long *args);
-void __trace_hcall_exit(long opcode, unsigned long retval,
-			unsigned long *retbuf);
+void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf);
 /* OPAL tracing */
 #ifdef HAVE_JUMP_LABEL
 extern struct static_key opal_tracepoint_key;
@@ -81,18 +80,12 @@ void machine_check_exception(struct pt_regs *regs);
 void emulation_assist_interrupt(struct pt_regs *regs);
 
 /* signals, syscalls and interrupts */
-#ifdef CONFIG_PPC64
-int sys_swapcontext(struct ucontext __user *old_ctx,
-		    struct ucontext __user *new_ctx,
-		    long ctx_size, long r6, long r7, long r8, struct pt_regs *regs);
-#else
 long sys_swapcontext(struct ucontext __user *old_ctx,
 		    struct ucontext __user *new_ctx,
-		    int ctx_size, int r6, int r7, int r8, struct pt_regs *regs);
-int sys_debug_setcontext(struct ucontext __user *ctx,
-			 int ndbg, struct sig_dbg_op __user *dbg,
-			 int r6, int r7, int r8,
-			 struct pt_regs *regs);
+		    long ctx_size);
+#ifdef CONFIG_PPC32
+long sys_debug_setcontext(struct ucontext __user *ctx,
+			  int ndbg, struct sig_dbg_op __user *dbg);
 int
 ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp);
 unsigned long __init early_init(unsigned long dt_ptr);
@@ -140,5 +133,14 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
 
 void pnv_power9_force_smt4_catch(void);
 void pnv_power9_force_smt4_release(void);
+
+/* Transaction memory related */
+void tm_enable(void);
+void tm_disable(void);
+void tm_abort(uint8_t cause);
+
+struct kvm_vcpu;
+void _kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
+void _kvmppc_save_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
 
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */

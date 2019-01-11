@@ -3812,24 +3812,12 @@ static const struct seq_operations pfkey_seq_ops = {
 	.show	= pfkey_seq_show,
 };
 
-static int pfkey_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &pfkey_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations pfkey_proc_ops = {
-	.open	 = pfkey_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 static int __net_init pfkey_init_proc(struct net *net)
 {
 	struct proc_dir_entry *e;
 
-	e = proc_create("pfkey", 0, net->proc_net, &pfkey_proc_ops);
+	e = proc_create_net("pfkey", 0, net->proc_net, &pfkey_seq_ops,
+			sizeof(struct seq_net_private));
 	if (e == NULL)
 		return -ENOMEM;
 

@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/pagemap.h>
 #include <linux/ptrace.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
@@ -66,37 +67,33 @@ static inline bool notify_page_fault(struct pt_regs *regs)
 }
 
 /*
- * Check whether the instruction at regs->nip is a store using
+ * Check whether the instruction inst is a store using
  * an update addressing form which will update r1.
  */
-static bool store_updates_sp(struct pt_regs *regs)
+static bool store_updates_sp(unsigned int inst)
 {
-	unsigned int inst;
-
-	if (get_user(inst, (unsigned int __user *)regs->nip))
-		return false;
 	/* check for 1 in the rA field */
 	if (((inst >> 16) & 0x1f) != 1)
 		return false;
 	/* check major opcode */
 	switch (inst >> 26) {
-	case 37:	/* stwu */
-	case 39:	/* stbu */
-	case 45:	/* sthu */
-	case 53:	/* stfsu */
-	case 55:	/* stfdu */
+	case OP_STWU:
+	case OP_STBU:
+	case OP_STHU:
+	case OP_STFSU:
+	case OP_STFDU:
 		return true;
-	case 62:	/* std or stdu */
+	case OP_STD:	/* std or stdu */
 		return (inst & 3) == 1;
-	case 31:
+	case OP_31:
 		/* check minor opcode */
 		switch ((inst >> 1) & 0x3ff) {
-		case 181:	/* stdux */
-		case 183:	/* stwux */
-		case 247:	/* stbux */
-		case 439:	/* sthux */
-		case 695:	/* stfsux */
-		case 759:	/* stfdux */
+		case OP_31_XOP_STDUX:
+		case OP_31_XOP_STWUX:
+		case OP_31_XOP_STBUX:
+		case OP_31_XOP_STHUX:
+		case OP_31_XOP_STFSUX:
+		case OP_31_XOP_STFDUX:
 			return true;
 		}
 	}
@@ -168,6 +165,7 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 		return SIGBUS;
 
 	current->thread.trap_nr = BUS_ADRERR;
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;
@@ -234,8 +232,8 @@ static bool bad_kernel_fault(bool is_exec, unsigned long error_code,
 }
 
 static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
-				struct vm_area_struct *vma,
-				bool store_update_sp)
+				struct vm_area_struct *vma, unsigned int flags,
+				bool *must_retry)
 {
 	/*
 	 * N.B. The POWER/Open ABI allows programs to access up to
@@ -247,6 +245,7 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
 	 * expand to 1MB without further checks.
 	 */
 	if (address + 0x100000 < vma->vm_end) {
+		unsigned int __user *nip = (unsigned int __user *)regs->nip;
 		/* get user regs even if this fault is in kernel mode */
 		struct pt_regs *uregs = current->thread.regs;
 		if (uregs == NULL)
@@ -264,8 +263,22 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
 		 * between the last mapped region and the stack will
 		 * expand the stack rather than segfaulting.
 		 */
-		if (address + 2048 < uregs->gpr[1] && !store_update_sp)
-			return true;
+		if (address + 2048 >= uregs->gpr[1])
+			return false;
+
+		if ((flags & FAULT_FLAG_WRITE) && (flags & FAULT_FLAG_USER) &&
+		    access_ok(VERIFY_READ, nip, sizeof(*nip))) {
+			unsigned int inst;
+			int res;
+
+			pagefault_disable();
+			res = __get_user_inatomic(inst, nip);
+			pagefault_enable();
+			if (!res)
+				return !store_updates_sp(inst);
+			*must_retry = true;
+		}
+		return true;
 	}
 	return false;
 }
@@ -403,7 +416,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	int is_user = user_mode(regs);
 	int is_write = page_fault_is_write(error_code);
 	int fault, major = 0;
-	bool store_update_sp = false;
+	bool must_retry = false;
 
 	if (notify_page_fault(regs))
 		return 0;
@@ -454,9 +467,6 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * can result in fault, which will cause a deadlock when called with
 	 * mmap_sem held
 	 */
-	if (is_write && is_user)
-		store_update_sp = store_updates_sp(regs);
-
 	if (is_user)
 		flags |= FAULT_FLAG_USER;
 	if (is_write)
@@ -503,8 +513,17 @@ retry:
 		return bad_area(regs, address);
 
 	/* The stack is being expanded, check if it's valid */
-	if (unlikely(bad_stack_expansion(regs, address, vma, store_update_sp)))
-		return bad_area(regs, address);
+	if (unlikely(bad_stack_expansion(regs, address, vma, flags,
+					 &must_retry))) {
+		if (!must_retry)
+			return bad_area(regs, address);
+
+		up_read(&mm->mmap_sem);
+		if (fault_in_pages_readable((const char __user *)regs->nip,
+					    sizeof(unsigned int)))
+			return bad_area_nosemaphore(regs, address);
+		goto retry;
+	}
 
 	/* Try to expand it */
 	if (unlikely(expand_stack(vma, address)))

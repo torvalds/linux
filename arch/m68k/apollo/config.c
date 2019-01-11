@@ -221,8 +221,10 @@ int dn_dummy_hwclk(int op, struct rtc_time *t) {
     t->tm_hour=rtc->hours;
     t->tm_mday=rtc->day_of_month;
     t->tm_wday=rtc->day_of_week;
-    t->tm_mon=rtc->month;
+    t->tm_mon = rtc->month - 1;
     t->tm_year=rtc->year;
+    if (t->tm_year < 70)
+	t->tm_year += 100;
   } else {
     rtc->second=t->tm_sec;
     rtc->minute=t->tm_min;
@@ -230,8 +232,8 @@ int dn_dummy_hwclk(int op, struct rtc_time *t) {
     rtc->day_of_month=t->tm_mday;
     if(t->tm_wday!=-1)
       rtc->day_of_week=t->tm_wday;
-    rtc->month=t->tm_mon;
-    rtc->year=t->tm_year;
+    rtc->month = t->tm_mon + 1;
+    rtc->year = t->tm_year % 100;
   }
 
   return 0;

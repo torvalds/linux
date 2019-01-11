@@ -925,7 +925,7 @@ int ar9003_paprd_create_curve(struct ath_hw *ah,
 
 	memset(caldata->pa_table[chain], 0, sizeof(caldata->pa_table[chain]));
 
-	buf = kmalloc(2 * 48 * sizeof(u32), GFP_KERNEL);
+	buf = kmalloc_array(2 * 48, sizeof(u32), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

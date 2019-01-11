@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -438,7 +426,7 @@ xfs_buf_item_unpin(
 			 * xfs_trans_uncommit() will try to reference the
 			 * buffer which we no longer have a hold on.
 			 */
-			if (lip->li_desc)
+			if (!list_empty(&lip->li_trans))
 				xfs_trans_del_item(lip);
 
 			/*
@@ -568,12 +556,14 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
-	bool			aborted = !!(lip->li_flags & XFS_LI_ABORTED);
+	bool			aborted;
 	bool			hold = !!(bip->bli_flags & XFS_BLI_HOLD);
 	bool			dirty = !!(bip->bli_flags & XFS_BLI_DIRTY);
 #if defined(DEBUG) || defined(XFS_WARN)
 	bool			ordered = !!(bip->bli_flags & XFS_BLI_ORDERED);
 #endif
+
+	aborted = test_bit(XFS_LI_ABORTED, &lip->li_flags);
 
 	/* Clear the buffer's association with this transaction. */
 	bp->b_transp = NULL;
@@ -743,8 +733,10 @@ xfs_buf_item_init(
 	 * nothing to do here so return.
 	 */
 	ASSERT(bp->b_target->bt_mount == mp);
-	if (bip != NULL) {
+	if (bip) {
 		ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
+		ASSERT(!bp->b_transp);
+		ASSERT(bip->bli_buf == bp);
 		return 0;
 	}
 
@@ -838,7 +830,7 @@ xfs_buf_item_log_segment(
 	 * of the last bit to be set in this word plus one.
 	 */
 	if (bit) {
-		end_bit = MIN(bit + bits_to_set, (uint)NBWORD);
+		end_bit = min(bit + bits_to_set, (uint)NBWORD);
 		mask = ((1U << (end_bit - bit)) - 1) << bit;
 		*wordp |= mask;
 		wordp++;

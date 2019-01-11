@@ -1460,6 +1460,24 @@ void ieee80211_txq_purge(struct ieee80211_local *local,
 	ieee80211_purge_tx_queue(&local->hw, &txqi->frags);
 }
 
+void ieee80211_txq_set_params(struct ieee80211_local *local)
+{
+	if (local->hw.wiphy->txq_limit)
+		local->fq.limit = local->hw.wiphy->txq_limit;
+	else
+		local->hw.wiphy->txq_limit = local->fq.limit;
+
+	if (local->hw.wiphy->txq_memory_limit)
+		local->fq.memory_limit = local->hw.wiphy->txq_memory_limit;
+	else
+		local->hw.wiphy->txq_memory_limit = local->fq.memory_limit;
+
+	if (local->hw.wiphy->txq_quantum)
+		local->fq.quantum = local->hw.wiphy->txq_quantum;
+	else
+		local->hw.wiphy->txq_quantum = local->fq.quantum;
+}
+
 int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 {
 	struct fq *fq = &local->fq;
@@ -1508,6 +1526,8 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 
 	for (i = 0; i < fq->flows_cnt; i++)
 		codel_vars_init(&local->cvars[i]);
+
+	ieee80211_txq_set_params(local);
 
 	return 0;
 }
@@ -4085,6 +4105,31 @@ unlock:
 }
 EXPORT_SYMBOL(ieee80211_csa_update_counter);
 
+void ieee80211_csa_set_counter(struct ieee80211_vif *vif, u8 counter)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct beacon_data *beacon = NULL;
+
+	rcu_read_lock();
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		beacon = rcu_dereference(sdata->u.ap.beacon);
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		beacon = rcu_dereference(sdata->u.ibss.presp);
+	else if (ieee80211_vif_is_mesh(&sdata->vif))
+		beacon = rcu_dereference(sdata->u.mesh.beacon);
+
+	if (!beacon)
+		goto unlock;
+
+	if (counter < beacon->csa_current_counter)
+		beacon->csa_current_counter = counter;
+
+unlock:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(ieee80211_csa_set_counter);
+
 bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
@@ -4800,7 +4845,9 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	skb_reset_network_header(skb);
 	skb_reset_mac_header(skb);
 
+	local_bh_disable();
 	__ieee80211_subif_start_xmit(skb, skb->dev, flags);
+	local_bh_enable();
 
 	return 0;
 }

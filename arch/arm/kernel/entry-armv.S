@@ -791,7 +791,7 @@ ENTRY(__switch_to)
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
 	switch_tls r1, r4, r5, r3, r7
-#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	ldr	r7, [r2, #TI_TASK]
 	ldr	r8, =__stack_chk_guard
 	.if (TSK_STACK_CANARY > IMM12_MASK)
@@ -807,7 +807,7 @@ ENTRY(__switch_to)
 	ldr	r0, =thread_notify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
 	bl	atomic_notifier_call_chain
-#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	str	r7, [r8]
 #endif
  THUMB(	mov	ip, r4			   )

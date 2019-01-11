@@ -151,13 +151,6 @@ config DMA_JZ4780
 	  If you have a board based on such a SoC and wish to use DMA for
 	  devices which can use the DMA controller, say Y or M here.
 
-config DMA_OMAP
-	tristate "OMAP DMA support"
-	depends on ARCH_OMAP || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if (SOC_DRA7XX || COMPILE_TEST)
-
 config DMA_SA11X0
 	tristate "SA-11x0 DMA support"
 	depends on ARCH_SA1100 || COMPILE_TEST
@@ -574,28 +567,6 @@ config TIMB_DMA
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
 
-config TI_CPPI41
-	tristate "CPPI 4.1 DMA support"
-	depends on (ARCH_OMAP || ARCH_DAVINCI_DA8XX)
-	select DMA_ENGINE
-	help
-	  The Communications Port Programming Interface (CPPI) 4.1 DMA engine
-	  is currently used by the USB driver on AM335x and DA8xx platforms.
-
-config TI_DMA_CROSSBAR
-	bool
-
-config TI_EDMA
-	bool "TI EDMA support"
-	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if (ARCH_OMAP || COMPILE_TEST)
-	default n
-	help
-	  Enable support for the TI EDMA controller. This DMA
-	  engine is found on TI DaVinci and AM33xx parts.
-
 config XGENE_DMA
 	tristate "APM X-Gene DMA support"
 	depends on ARCH_XGENE || COMPILE_TEST
@@ -652,6 +623,8 @@ source "drivers/dma/dw/Kconfig"
 source "drivers/dma/hsu/Kconfig"
 
 source "drivers/dma/sh/Kconfig"
+
+source "drivers/dma/ti/Kconfig"
 
 # clients
 comment "DMA Clients"

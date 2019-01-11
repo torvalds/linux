@@ -751,8 +751,16 @@ tx_done:
 static int qtnf_pcie_control_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 {
 	struct qtnf_pcie_bus_priv *priv = (void *)get_bus_priv(bus);
+	int ret;
 
-	return qtnf_shm_ipc_send(&priv->shm_ipc_ep_in, skb->data, skb->len);
+	ret = qtnf_shm_ipc_send(&priv->shm_ipc_ep_in, skb->data, skb->len);
+
+	if (ret == -ETIMEDOUT) {
+		pr_err("EP firmware is dead\n");
+		bus->fw_state = QTNF_FW_STATE_EP_DEAD;
+	}
+
+	return ret;
 }
 
 static irqreturn_t qtnf_interrupt(int irq, void *data)
@@ -1185,6 +1193,10 @@ static void qtnf_fw_work_handler(struct work_struct *work)
 	if (qtnf_poll_state(&priv->bda->bda_ep_state, QTN_EP_FW_LOADRDY,
 			    QTN_FW_DL_TIMEOUT_MS)) {
 		pr_err("card is not ready\n");
+
+		if (!flashboot)
+			release_firmware(fw);
+
 		goto fw_load_fail;
 	}
 
@@ -1234,7 +1246,7 @@ static void qtnf_fw_work_handler(struct work_struct *work)
 	goto fw_load_exit;
 
 fw_load_fail:
-	bus->fw_state = QTNF_FW_STATE_DEAD;
+	bus->fw_state = QTNF_FW_STATE_DETACHED;
 
 fw_load_exit:
 	complete(&bus->firmware_init_complete);
@@ -1404,7 +1416,8 @@ static void qtnf_pcie_remove(struct pci_dev *pdev)
 
 	wait_for_completion(&bus->firmware_init_complete);
 
-	if (bus->fw_state == QTNF_FW_STATE_ACTIVE)
+	if (bus->fw_state == QTNF_FW_STATE_ACTIVE ||
+	    bus->fw_state == QTNF_FW_STATE_EP_DEAD)
 		qtnf_core_detach(bus);
 
 	priv = get_bus_priv(bus);

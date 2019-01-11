@@ -217,7 +217,7 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	opp_data = kzalloc(sizeof(*opp_data), GFP_KERNEL);
+	opp_data = devm_kzalloc(&pdev->dev, sizeof(*opp_data), GFP_KERNEL);
 	if (!opp_data)
 		return -ENOMEM;
 
@@ -226,8 +226,7 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 	opp_data->cpu_dev = get_cpu_device(0);
 	if (!opp_data->cpu_dev) {
 		pr_err("%s: Failed to get device for CPU0\n", __func__);
-		ret = ENODEV;
-		goto free_opp_data;
+		return -ENODEV;
 	}
 
 	opp_data->opp_node = dev_pm_opp_of_get_opp_desc_node(opp_data->cpu_dev);
@@ -285,8 +284,6 @@ register_cpufreq_dt:
 
 fail_put_node:
 	of_node_put(opp_data->opp_node);
-free_opp_data:
-	kfree(opp_data);
 
 	return ret;
 }

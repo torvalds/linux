@@ -439,14 +439,21 @@ static void ksz_disable_port(struct dsa_switch *ds, int port,
 	ksz_port_cfg(dev, port, REG_PORT_CTRL_0, PORT_MAC_LOOPBACK, true);
 }
 
-static int ksz_sset_count(struct dsa_switch *ds, int port)
+static int ksz_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS)
+		return 0;
+
 	return TOTAL_SWITCH_COUNTER_NUM;
 }
 
-static void ksz_get_strings(struct dsa_switch *ds, int port, uint8_t *buf)
+static void ksz_get_strings(struct dsa_switch *ds, int port,
+			    u32 stringset, uint8_t *buf)
 {
 	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (i = 0; i < TOTAL_SWITCH_COUNTER_NUM; i++) {
 		memcpy(buf + i * ETH_GSTRING_LEN, mib_names[i].string,

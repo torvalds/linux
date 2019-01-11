@@ -75,11 +75,12 @@ struct amdgpu_bo_list_entry;
 /* PDE Block Fragment Size for VEGA10 */
 #define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
 
-/* VEGA10 only */
+
+/* For GFX9 */
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
 #define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
 
-/* For Raven */
+#define AMDGPU_MTYPE_NC 0
 #define AMDGPU_MTYPE_CC 2
 
 #define AMDGPU_PTE_DEFAULT_ATC  (AMDGPU_PTE_SYSTEM      \
@@ -167,9 +168,6 @@ struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
 
-	/* protecting invalidated */
-	spinlock_t		status_lock;
-
 	/* BOs who needs a validation */
 	struct list_head	evicted;
 
@@ -178,6 +176,10 @@ struct amdgpu_vm {
 
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
+	spinlock_t		moved_lock;
+
+	/* All BOs of this VM not currently in the state machine */
+	struct list_head	idle;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
@@ -185,9 +187,6 @@ struct amdgpu_vm {
 	/* contains the page directory */
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;
-
-	/* protecting freed */
-	spinlock_t		freed_lock;
 
 	/* Scheduler entity for page table updates */
 	struct drm_sched_entity	entity;

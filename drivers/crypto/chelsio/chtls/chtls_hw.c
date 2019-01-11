@@ -213,7 +213,7 @@ static int chtls_key_info(struct chtls_sock *csk,
 			  struct _key_ctx *kctx,
 			  u32 keylen, u32 optname)
 {
-	unsigned char key[CHCR_KEYCTX_CIPHER_KEY_SIZE_256];
+	unsigned char key[AES_KEYSIZE_128];
 	struct tls12_crypto_info_aes_gcm_128 *gcm_ctx;
 	unsigned char ghash_h[AEAD_H_SIZE];
 	struct crypto_cipher *cipher;
@@ -228,10 +228,6 @@ static int chtls_key_info(struct chtls_sock *csk,
 
 	if (keylen == AES_KEYSIZE_128) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
-	} else if (keylen == AES_KEYSIZE_192) {
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_192;
-	} else if (keylen == AES_KEYSIZE_256) {
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
 	} else {
 		pr_err("GCM: Invalid key length %d\n", keylen);
 		return -EINVAL;

@@ -116,6 +116,22 @@ Do not aggregate counts across all monitored CPUs.
 print counts using a CSV-style output to make it easy to import directly into
 spreadsheets. Columns are separated by the string specified in SEP.
 
+--table:: Display time for each run (-r option), in a table format, e.g.:
+
+  $ perf stat --null -r 5 --table perf bench sched pipe
+
+   Performance counter stats for 'perf bench sched pipe' (5 runs):
+
+             # Table of individual measurements:
+             5.189 (-0.293) #
+             5.189 (-0.294) #
+             5.186 (-0.296) #
+             5.663 (+0.181) ##
+             6.186 (+0.703) ####
+
+             # Final result:
+             5.483 +- 0.198 seconds time elapsed  ( +-  3.62% )
+
 -G name::
 --cgroup name::
 monitor only in the container (cgroup) called "name". This option is available only
@@ -161,6 +177,9 @@ The overhead percentage could be high in some cases, for instance with small, su
 Print count deltas for fixed number of times.
 This option should be used together with "-I" option.
 	example: 'perf stat -I 1000 --interval-count 2 -e cycles -a'
+
+--interval-clear::
+Clear the screen before next interval.
 
 --timeout msecs::
 Stop the 'perf stat' session and print count deltas after N milliseconds (minimum: 10 ms).
@@ -294,20 +313,38 @@ Users who wants to get the actual value can apply --no-metric-only.
 EXAMPLES
 --------
 
-$ perf stat -- make -j
+$ perf stat -- make
 
- Performance counter stats for 'make -j':
+   Performance counter stats for 'make':
 
-    8117.370256  task clock ticks     #      11.281 CPU utilization factor
-            678  context switches     #       0.000 M/sec
-            133  CPU migrations       #       0.000 M/sec
-         235724  pagefaults           #       0.029 M/sec
-    24821162526  CPU cycles           #    3057.784 M/sec
-    18687303457  instructions         #    2302.138 M/sec
-      172158895  cache references     #      21.209 M/sec
-       27075259  cache misses         #       3.335 M/sec
+        83723.452481      task-clock:u (msec)       #    1.004 CPUs utilized
+                   0      context-switches:u        #    0.000 K/sec
+                   0      cpu-migrations:u          #    0.000 K/sec
+           3,228,188      page-faults:u             #    0.039 M/sec
+     229,570,665,834      cycles:u                  #    2.742 GHz
+     313,163,853,778      instructions:u            #    1.36  insn per cycle
+      69,704,684,856      branches:u                #  832.559 M/sec
+       2,078,861,393      branch-misses:u           #    2.98% of all branches
 
- Wall-clock time elapsed:   719.554352 msecs
+        83.409183620 seconds time elapsed
+
+        74.684747000 seconds user
+         8.739217000 seconds sys
+
+TIMINGS
+-------
+As displayed in the example above we can display 3 types of timings.
+We always display the time the counters were enabled/alive:
+
+        83.409183620 seconds time elapsed
+
+For workload sessions we also display time the workloads spent in
+user/system lands:
+
+        74.684747000 seconds user
+         8.739217000 seconds sys
+
+Those times are the very same as displayed by the 'time' tool.
 
 CSV FORMAT
 ----------

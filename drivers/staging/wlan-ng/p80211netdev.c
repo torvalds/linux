@@ -95,8 +95,8 @@
 static int p80211knetdev_init(struct net_device *netdev);
 static int p80211knetdev_open(struct net_device *netdev);
 static int p80211knetdev_stop(struct net_device *netdev);
-static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
-					 struct net_device *netdev);
+static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
+						 struct net_device *netdev);
 static void p80211knetdev_set_multicast_list(struct net_device *dev);
 static int p80211knetdev_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 				  int cmd);
@@ -321,8 +321,8 @@ static void p80211netdev_rx_bh(unsigned long arg)
  *	zero on success, non-zero on failure.
  *----------------------------------------------------------------
  */
-static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
-					 struct net_device *netdev)
+static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
+						 struct net_device *netdev)
 {
 	int result = 0;
 	int txresult = -1;

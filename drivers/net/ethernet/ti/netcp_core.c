@@ -1509,6 +1509,24 @@ static void netcp_addr_sweep_add(struct netcp_intf *netcp)
 	}
 }
 
+static int netcp_set_promiscuous(struct netcp_intf *netcp, bool promisc)
+{
+	struct netcp_intf_modpriv *priv;
+	struct netcp_module *module;
+	int error;
+
+	for_each_module(netcp, priv) {
+		module = priv->netcp_module;
+		if (!module->set_rx_mode)
+			continue;
+
+		error = module->set_rx_mode(priv->module_priv, promisc);
+		if (error)
+			return error;
+	}
+	return 0;
+}
+
 static void netcp_set_rx_mode(struct net_device *ndev)
 {
 	struct netcp_intf *netcp = netdev_priv(ndev);
@@ -1538,6 +1556,7 @@ static void netcp_set_rx_mode(struct net_device *ndev)
 	/* finally sweep and callout into modules */
 	netcp_addr_sweep_del(netcp);
 	netcp_addr_sweep_add(netcp);
+	netcp_set_promiscuous(netcp, promisc);
 	spin_unlock(&netcp->lock);
 }
 
@@ -2155,7 +2174,12 @@ static int netcp_probe(struct platform_device *pdev)
 	struct device_node *child, *interfaces;
 	struct netcp_device *netcp_device;
 	struct device *dev = &pdev->dev;
+	struct netcp_module *module;
 	int ret;
+
+	if (!knav_dma_device_ready() ||
+	    !knav_qmss_device_ready())
+		return -EPROBE_DEFER;
 
 	if (!node) {
 		dev_err(dev, "could not find device info\n");
@@ -2203,6 +2227,14 @@ static int netcp_probe(struct platform_device *pdev)
 	/* Add the device instance to the list */
 	list_add_tail(&netcp_device->device_list, &netcp_devices);
 
+	/* Probe & attach any modules already registered */
+	mutex_lock(&netcp_modules_lock);
+	for_each_netcp_module(module) {
+		ret = netcp_module_probe(netcp_device, module);
+		if (ret < 0)
+			dev_err(dev, "module(%s) probe failed\n", module->name);
+	}
+	mutex_unlock(&netcp_modules_lock);
 	return 0;
 
 probe_quit_interface:

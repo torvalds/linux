@@ -69,8 +69,6 @@
 				compatible = "marvell,mv88e6190";
 				pinctrl-0 = <&pinctrl_gpio_switch0>;
 				pinctrl-names = "default";
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 0>;
 				eeprom-length = <65536>;
@@ -166,8 +164,6 @@
 				compatible = "marvell,mv88e6190";
 				pinctrl-0 = <&pinctrl_gpio_switch1>;
 				pinctrl-names = "default";
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 1>;
 				eeprom-length = <65536>;

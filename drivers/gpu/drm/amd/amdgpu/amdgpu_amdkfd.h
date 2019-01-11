@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/mmu_context.h>
+#include <linux/workqueue.h>
 #include <kgd_kfd_interface.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 #include "amdgpu_sync.h"
@@ -59,7 +60,9 @@ struct kgd_mem {
 
 	uint32_t mapping_flags;
 
+	atomic_t invalid;
 	struct amdkfd_process_info *process_info;
+	struct page **user_pages;
 
 	struct amdgpu_sync sync;
 
@@ -84,6 +87,9 @@ struct amdkfd_process_info {
 	struct list_head vm_list_head;
 	/* List head for all KFD BOs that belong to a KFD process. */
 	struct list_head kfd_bo_list;
+	/* List of userptr BOs that are valid or invalid */
+	struct list_head userptr_valid_list;
+	struct list_head userptr_inval_list;
 	/* Lock to protect kfd_bo_list */
 	struct mutex lock;
 
@@ -91,6 +97,11 @@ struct amdkfd_process_info {
 	unsigned int n_vms;
 	/* Eviction Fence */
 	struct amdgpu_amdkfd_fence *eviction_fence;
+
+	/* MMU-notifier related fields */
+	atomic_t evicted_bos;
+	struct delayed_work restore_userptr_work;
+	struct pid *pid;
 };
 
 int amdgpu_amdkfd_init(void);
@@ -104,12 +115,14 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_fini(struct amdgpu_device *adev);
 
+int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem, struct mm_struct *mm);
 int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
 				uint32_t *ib_cmd, uint32_t ib_len);
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
 
@@ -143,14 +156,14 @@ uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
 
 /* GPUVM API */
 int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
-					  void **process_info,
-					  struct dma_fence **ef);
+					void **process_info,
+					struct dma_fence **ef);
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
-					   struct file *filp,
-					   void **vm, void **process_info,
-					   struct dma_fence **ef);
+					struct file *filp,
+					void **vm, void **process_info,
+					struct dma_fence **ef);
 void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
-				    struct amdgpu_vm *vm);
+				struct amdgpu_vm *vm);
 void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm);
 uint32_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm);
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(

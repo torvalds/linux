@@ -2115,12 +2115,10 @@ static int of_get_pxafb_display(struct device *dev, struct device_node *disp,
 	if (ret)
 		s = "color-tft";
 
-	for (i = 0; lcd_types[i]; i++)
-		if (!strcmp(s, lcd_types[i]))
-			break;
-	if (!i || !lcd_types[i]) {
+	i = match_string(lcd_types, -1, s);
+	if (i < 0) {
 		dev_err(dev, "lcd-type %s is unknown\n", s);
-		return -EINVAL;
+		return i;
 	}
 	info->lcd_conn |= LCD_CONN_TYPE(i);
 	info->lcd_conn |= LCD_CONN_WIDTH(bus_width);

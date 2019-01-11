@@ -151,6 +151,11 @@ Contributing new tests (details)
    TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
    test.
 
+ * First use the headers inside the kernel source and/or git repo, and then the
+   system headers.  Headers for the kernel release as opposed to headers
+   installed by the distro on the system should be the primary focus to be able
+   to find regressions.
+
 Test Harness
 ============
 

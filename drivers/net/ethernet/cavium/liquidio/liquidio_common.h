@@ -28,7 +28,7 @@
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
 #define LIQUIDIO_BASE_MINOR_VERSION 7
-#define LIQUIDIO_BASE_MICRO_VERSION 0
+#define LIQUIDIO_BASE_MICRO_VERSION 2
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
 #define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
@@ -84,6 +84,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_QCOUNT_UPDATE       0x12
 #define OPCODE_NIC_SET_TRUSTED_VF	0x13
 #define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
 #define VF_DRV_LOADED                  1
@@ -92,6 +93,7 @@ enum octeon_tag_type {
 
 #define OPCODE_NIC_VF_REP_PKT          0x15
 #define OPCODE_NIC_VF_REP_CMD          0x16
+#define OPCODE_NIC_UBOOT_CTL           0x17
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
@@ -247,6 +249,9 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
 #define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
+
+#define   SEAPI_CMD_SPEED_SET           0x2
+#define   SEAPI_CMD_SPEED_GET           0x3
 
 #define   LIO_CMD_WAIT_TM 100
 
@@ -779,23 +784,32 @@ struct liquidio_if_cfg_info {
 /** Stats for each NIC port in RX direction. */
 struct nic_rx_stats {
 	/* link-level stats */
-	u64 total_rcvd;
-	u64 bytes_rcvd;
-	u64 total_bcst;
-	u64 total_mcst;
-	u64 runts;
-	u64 ctl_rcvd;
-	u64 fifo_err;      /* Accounts for over/under-run of buffers */
-	u64 dmac_drop;
-	u64 fcs_err;
-	u64 jabber_err;
-	u64 l2_err;
-	u64 frame_err;
+	u64 total_rcvd;		/* Received packets */
+	u64 bytes_rcvd;		/* Octets of received packets */
+	u64 total_bcst;		/* Number of non-dropped L2 broadcast packets */
+	u64 total_mcst;		/* Number of non-dropped L2 multicast packets */
+	u64 runts;		/* Packets shorter than allowed */
+	u64 ctl_rcvd;		/* Received PAUSE packets */
+	u64 fifo_err;		/* Packets dropped due to RX FIFO full */
+	u64 dmac_drop;		/* Packets dropped by the DMAC filter */
+	u64 fcs_err;		/* Sum of fragment, overrun, and FCS errors */
+	u64 jabber_err;		/* Packets larger than allowed */
+	u64 l2_err;		/* Sum of DMA, parity, PCAM access, no memory,
+				 * buffer overflow, malformed L2 header or
+				 * length, oversize errors
+				 **/
+	u64 frame_err;		/* Sum of IPv4 and L4 checksum errors */
+	u64 red_drops;		/* Packets dropped by RED due to buffer
+				 * exhaustion
+				 **/
 
 	/* firmware stats */
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
 	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast;
+	u64 fw_total_bcast;
+
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -806,11 +820,11 @@ struct nic_rx_stats {
 	u64 fw_lro_pkts;   /* Number of packets that are LROed      */
 	u64 fw_lro_octs;   /* Number of octets that are LROed       */
 	u64 fw_total_lro;  /* Number of LRO packets formed          */
-	u64 fw_lro_aborts; /* Number of times lRO of packet aborted */
+	u64 fw_lro_aborts; /* Number of times LRO of packet aborted */
 	u64 fw_lro_aborts_port;
 	u64 fw_lro_aborts_seq;
 	u64 fw_lro_aborts_tsval;
-	u64 fw_lro_aborts_timer;
+	u64 fw_lro_aborts_timer;	/* Timer setting error */
 	/* intrmod: packet forward rate */
 	u64 fwd_rate;
 };
@@ -818,23 +832,42 @@ struct nic_rx_stats {
 /** Stats for each NIC port in RX direction. */
 struct nic_tx_stats {
 	/* link-level stats */
-	u64 total_pkts_sent;
-	u64 total_bytes_sent;
-	u64 mcast_pkts_sent;
-	u64 bcast_pkts_sent;
-	u64 ctl_sent;
-	u64 one_collision_sent;   /* Packets sent after one collision*/
-	u64 multi_collision_sent; /* Packets sent after multiple collision*/
-	u64 max_collision_fail;   /* Packets not sent due to max collisions */
-	u64 max_deferral_fail;   /* Packets not sent due to max deferrals */
-	u64 fifo_err;       /* Accounts for over/under-run of buffers */
-	u64 runts;
-	u64 total_collisions; /* Total number of collisions detected */
+	u64 total_pkts_sent;		/* Total frames sent on the interface */
+	u64 total_bytes_sent;		/* Total octets sent on the interface */
+	u64 mcast_pkts_sent;		/* Packets sent to the multicast DMAC */
+	u64 bcast_pkts_sent;		/* Packets sent to a broadcast DMAC */
+	u64 ctl_sent;			/* Control/PAUSE packets sent */
+	u64 one_collision_sent;		/* Packets sent that experienced a
+					 * single collision before successful
+					 * transmission
+					 **/
+	u64 multi_collision_sent;	/* Packets sent that experienced
+					 * multiple collisions before successful
+					 * transmission
+					 **/
+	u64 max_collision_fail;		/* Packets dropped due to excessive
+					 * collisions
+					 **/
+	u64 max_deferral_fail;		/* Packets not sent due to max
+					 * deferrals
+					 **/
+	u64 fifo_err;			/* Packets sent that experienced a
+					 * transmit underflow and were
+					 * truncated
+					 **/
+	u64 runts;			/* Packets sent with an octet count
+					 * lessthan 64
+					 **/
+	u64 total_collisions;		/* Packets dropped due to excessive
+					 * collisions
+					 **/
 
 	/* firmware stats */
 	u64 fw_total_sent;
 	u64 fw_total_fwd;
 	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast_sent;
+	u64 fw_total_bcast_sent;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;

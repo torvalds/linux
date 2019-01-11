@@ -33,29 +33,27 @@ struct hmm;
  * it to keep track of whatever it is we are using the page for at the
  * moment. Note that we have no way to track which tasks are using
  * a page, though if it is a pagecache page, rmap structures can tell us
- * who is mapping it. If you allocate the page using alloc_pages(), you
- * can use some of the space in struct page for your own purposes.
+ * who is mapping it.
  *
- * Pages that were once in the page cache may be found under the RCU lock
- * even after they have been recycled to a different purpose.  The page
- * cache reads and writes some of the fields in struct page to pin the
- * page before checking that it's still in the page cache.  It is vital
- * that all users of struct page:
- * 1. Use the first word as PageFlags.
- * 2. Clear or preserve bit 0 of page->compound_head.  It is used as
- *    PageTail for compound pages, and the page cache must not see false
- *    positives.  Some users put a pointer here (guaranteed to be at least
- *    4-byte aligned), other users avoid using the field altogether.
- * 3. page->_refcount must either not be used, or must be used in such a
- *    way that other CPUs temporarily incrementing and then decrementing the
- *    refcount does not cause problems.  On receiving the page from
- *    alloc_pages(), the refcount will be positive.
- * 4. Either preserve page->_mapcount or restore it to -1 before freeing it.
+ * If you allocate the page using alloc_pages(), you can use some of the
+ * space in struct page for your own purposes.  The five words in the main
+ * union are available, except for bit 0 of the first word which must be
+ * kept clear.  Many users use this word to store a pointer to an object
+ * which is guaranteed to be aligned.  If you use the same storage as
+ * page->mapping, you must restore it to NULL before freeing the page.
  *
- * If you allocate pages of order > 0, you can use the fields in the struct
- * page associated with each page, but bear in mind that the pages may have
- * been inserted individually into the page cache, so you must use the above
- * four fields in a compatible way for each struct page.
+ * If your page will not be mapped to userspace, you can also use the four
+ * bytes in the mapcount union, but you must call page_mapcount_reset()
+ * before freeing it.
+ *
+ * If you want to use the refcount field, it must be used in such a way
+ * that other CPUs temporarily incrementing and then decrementing the
+ * refcount does not cause problems.  On receiving the page from
+ * alloc_pages(), the refcount will be positive.
+ *
+ * If you allocate pages of order > 0, you can use some of the fields
+ * in each subpage, but you may need to restore some of their values
+ * afterwards.
  *
  * SLUB uses cmpxchg_double() to atomically update its freelist and
  * counters.  That requires that freelist & counters be adjacent and
@@ -65,134 +63,121 @@ struct hmm;
  */
 #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
 #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)
-#define _slub_counter_t		unsigned long
 #else
-#define _slub_counter_t		unsigned int
-#endif
-#else /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
 #define _struct_page_alignment
-#define _slub_counter_t		unsigned int
-#endif /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
+#endif
 
 struct page {
-	/* First double word block */
 	unsigned long flags;		/* Atomic flags, some possibly
 					 * updated asynchronously */
-	union {
-		/* See page-flags.h for the definition of PAGE_MAPPING_FLAGS */
-		struct address_space *mapping;
-
-		void *s_mem;			/* slab first object */
-		atomic_t compound_mapcount;	/* first tail page */
-		/* page_deferred_list().next	 -- second tail page */
-	};
-
-	/* Second double word */
-	union {
-		pgoff_t index;		/* Our offset within mapping. */
-		void *freelist;		/* sl[aou]b first free object */
-		/* page_deferred_list().prev	-- second tail page */
-	};
-
-	union {
-		_slub_counter_t counters;
-		unsigned int active;		/* SLAB */
-		struct {			/* SLUB */
-			unsigned inuse:16;
-			unsigned objects:15;
-			unsigned frozen:1;
-		};
-		int units;			/* SLOB */
-
-		struct {			/* Page cache */
-			/*
-			 * Count of ptes mapped in mms, to show when
-			 * page is mapped & limit reverse map searches.
-			 *
-			 * Extra information about page type may be
-			 * stored here for pages that are never mapped,
-			 * in which case the value MUST BE <= -2.
-			 * See page-flags.h for more details.
-			 */
-			atomic_t _mapcount;
-
-			/*
-			 * Usage count, *USE WRAPPER FUNCTION* when manual
-			 * accounting. See page_ref.h
-			 */
-			atomic_t _refcount;
-		};
-	};
-
 	/*
-	 * WARNING: bit 0 of the first word encode PageTail(). That means
-	 * the rest users of the storage space MUST NOT use the bit to
+	 * Five words (20/40 bytes) are available in this union.
+	 * WARNING: bit 0 of the first word is used for PageTail(). That
+	 * means the other users of this union MUST NOT use the bit to
 	 * avoid collision and false-positive PageTail().
 	 */
 	union {
-		struct list_head lru;	/* Pageout list, eg. active_list
-					 * protected by zone_lru_lock !
-					 * Can be used as a generic list
-					 * by the page owner.
-					 */
-		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
-					    * lru or handled by a slab
-					    * allocator, this points to the
-					    * hosting device page map.
-					    */
-		struct {		/* slub per cpu partial pages */
-			struct page *next;	/* Next partial slab */
-#ifdef CONFIG_64BIT
-			int pages;	/* Nr of partial slabs left */
-			int pobjects;	/* Approximate # of objects */
-#else
-			short int pages;
-			short int pobjects;
-#endif
+		struct {	/* Page cache and anonymous pages */
+			/**
+			 * @lru: Pageout list, eg. active_list protected by
+			 * zone_lru_lock.  Sometimes used as a generic list
+			 * by the page owner.
+			 */
+			struct list_head lru;
+			/* See page-flags.h for PAGE_MAPPING_FLAGS */
+			struct address_space *mapping;
+			pgoff_t index;		/* Our offset within mapping. */
+			/**
+			 * @private: Mapping-private opaque data.
+			 * Usually used for buffer_heads if PagePrivate.
+			 * Used for swp_entry_t if PageSwapCache.
+			 * Indicates order in the buddy system if PageBuddy.
+			 */
+			unsigned long private;
 		};
-
-		struct rcu_head rcu_head;	/* Used by SLAB
-						 * when destroying via RCU
-						 */
-		/* Tail pages of compound page */
-		struct {
-			unsigned long compound_head; /* If bit zero is set */
+		struct {	/* slab, slob and slub */
+			union {
+				struct list_head slab_list;	/* uses lru */
+				struct {	/* Partial pages */
+					struct page *next;
+#ifdef CONFIG_64BIT
+					int pages;	/* Nr of pages left */
+					int pobjects;	/* Approximate count */
+#else
+					short int pages;
+					short int pobjects;
+#endif
+				};
+			};
+			struct kmem_cache *slab_cache; /* not slob */
+			/* Double-word boundary */
+			void *freelist;		/* first free object */
+			union {
+				void *s_mem;	/* slab: first object */
+				unsigned long counters;		/* SLUB */
+				struct {			/* SLUB */
+					unsigned inuse:16;
+					unsigned objects:15;
+					unsigned frozen:1;
+				};
+			};
+		};
+		struct {	/* Tail pages of compound page */
+			unsigned long compound_head;	/* Bit zero is set */
 
 			/* First tail page only */
 			unsigned char compound_dtor;
 			unsigned char compound_order;
-			/* two/six bytes available here */
+			atomic_t compound_mapcount;
 		};
-
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
-		struct {
-			unsigned long __pad;	/* do not overlay pmd_huge_pte
-						 * with compound_head to avoid
-						 * possible bit 0 collision.
-						 */
+		struct {	/* Second tail page of compound page */
+			unsigned long _compound_pad_1;	/* compound_head */
+			unsigned long _compound_pad_2;
+			struct list_head deferred_list;
+		};
+		struct {	/* Page table pages */
+			unsigned long _pt_pad_1;	/* compound_head */
 			pgtable_t pmd_huge_pte; /* protected by page->ptl */
-		};
+			unsigned long _pt_pad_2;	/* mapping */
+			struct mm_struct *pt_mm;	/* x86 pgds only */
+#if ALLOC_SPLIT_PTLOCKS
+			spinlock_t *ptl;
+#else
+			spinlock_t ptl;
 #endif
+		};
+		struct {	/* ZONE_DEVICE pages */
+			/** @pgmap: Points to the hosting device page map. */
+			struct dev_pagemap *pgmap;
+			unsigned long hmm_data;
+			unsigned long _zd_pad_1;	/* uses mapping */
+		};
+
+		/** @rcu_head: You can use this to free a page by RCU. */
+		struct rcu_head rcu_head;
 	};
 
-	union {
+	union {		/* This union is 4 bytes in size. */
 		/*
-		 * Mapping-private opaque data:
-		 * Usually used for buffer_heads if PagePrivate
-		 * Used for swp_entry_t if PageSwapCache
-		 * Indicates order in the buddy system if PageBuddy
+		 * If the page can be mapped to userspace, encodes the number
+		 * of times this page is referenced by a page table.
 		 */
-		unsigned long private;
-#if USE_SPLIT_PTE_PTLOCKS
-#if ALLOC_SPLIT_PTLOCKS
-		spinlock_t *ptl;
-#else
-		spinlock_t ptl;
-#endif
-#endif
-		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
+		atomic_t _mapcount;
+
+		/*
+		 * If the page is neither PageSlab nor mappable to userspace,
+		 * the value stored here may help determine what this page
+		 * is used for.  See page-flags.h for a list of page types
+		 * which are currently stored here.
+		 */
+		unsigned int page_type;
+
+		unsigned int active;		/* SLAB */
+		int units;			/* SLOB */
 	};
+
+	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
+	atomic_t _refcount;
 
 #ifdef CONFIG_MEMCG
 	struct mem_cgroup *mem_cgroup;
@@ -413,6 +398,8 @@ struct mm_struct {
 	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE & ~VM_STACK */
 	unsigned long stack_vm;		/* VM_STACK */
 	unsigned long def_flags;
+
+	spinlock_t arg_lock; /* protect the below fields */
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long start_brk, brk, start_stack;
 	unsigned long arg_start, arg_end, env_start, env_end;
@@ -627,9 +614,9 @@ struct vm_special_mapping {
 	 * If non-NULL, then this is called to resolve page faults
 	 * on the special mapping.  If used, .pages is not checked.
 	 */
-	int (*fault)(const struct vm_special_mapping *sm,
-		     struct vm_area_struct *vma,
-		     struct vm_fault *vmf);
+	vm_fault_t (*fault)(const struct vm_special_mapping *sm,
+				struct vm_area_struct *vma,
+				struct vm_fault *vmf);
 
 	int (*mremap)(const struct vm_special_mapping *sm,
 		     struct vm_area_struct *new_vma);

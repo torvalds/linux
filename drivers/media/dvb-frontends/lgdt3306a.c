@@ -1784,7 +1784,7 @@ static int lgdt3306a_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int lgdt3306a_search(struct dvb_frontend *fe)
+static enum dvbfe_search lgdt3306a_search(struct dvb_frontend *fe)
 {
 	enum fe_status status = 0;
 	int ret;

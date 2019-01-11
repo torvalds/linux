@@ -619,7 +619,7 @@ static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
 /**
  * pnode_lookup - lookup a pnode in the LPT.
  * @c: UBIFS file-system description object
- * @i: pnode number (0 to main_lebs - 1)
+ * @i: pnode number (0 to (main_lebs - 1) / UBIFS_LPT_FANOUT))
  *
  * This function returns a pointer to the pnode on success or a negative
  * error code on failure.

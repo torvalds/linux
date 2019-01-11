@@ -259,15 +259,29 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 		goto free_cid_map;
 	}
 
+	/* Allocate bitmap for srqs */
+	p_rdma_info->num_srqs = qed_cxt_get_srq_count(p_hwfn);
+	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->srq_map,
+				 p_rdma_info->num_srqs, "SRQ");
+	if (rc) {
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "Failed to allocate srq bitmap, rc = %d\n", rc);
+		goto free_real_cid_map;
+	}
+
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
 		rc = qed_iwarp_alloc(p_hwfn);
 
 	if (rc)
-		goto free_cid_map;
+		goto free_srq_map;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocation successful\n");
 	return 0;
 
+free_srq_map:
+	kfree(p_rdma_info->srq_map.bitmap);
+free_real_cid_map:
+	kfree(p_rdma_info->real_cid_map.bitmap);
 free_cid_map:
 	kfree(p_rdma_info->cid_map.bitmap);
 free_tid_map:
@@ -351,6 +365,8 @@ static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->cq_map, 1);
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->toggle_bits, 0);
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->tid_map, 1);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->srq_map, 1);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->real_cid_map, 1);
 
 	kfree(p_rdma_info->port);
 	kfree(p_rdma_info->dev);
@@ -431,6 +447,12 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	if (cdev->rdma_max_sge)
 		dev->max_sge = min_t(u32, cdev->rdma_max_sge, dev->max_sge);
 
+	dev->max_srq_sge = QED_RDMA_MAX_SGE_PER_SRQ_WQE;
+	if (p_hwfn->cdev->rdma_max_srq_sge) {
+		dev->max_srq_sge = min_t(u32,
+					 p_hwfn->cdev->rdma_max_srq_sge,
+					 dev->max_srq_sge);
+	}
 	dev->max_inline = ROCE_REQ_MAX_INLINE_DATA_SIZE;
 
 	dev->max_inline = (cdev->rdma_max_inline) ?
@@ -474,6 +496,8 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	dev->max_mr_mw_fmr_size = dev->max_mr_mw_fmr_pbl * PAGE_SIZE;
 	dev->max_pkey = QED_RDMA_MAX_P_KEY;
 
+	dev->max_srq = p_hwfn->p_rdma_info->num_srqs;
+	dev->max_srq_wr = QED_RDMA_MAX_SRQ_WQE_ELEM;
 	dev->max_qp_resp_rd_atomic_resc = RDMA_RING_PAGE_SIZE /
 					  (RDMA_RESP_RD_ATOMIC_ELM_SIZE * 2);
 	dev->max_qp_req_rd_atomic_resc = RDMA_RING_PAGE_SIZE /
@@ -1484,11 +1508,8 @@ qed_rdma_register_tid(void *rdma_cxt,
 	case QED_RDMA_TID_FMR:
 		tid_type = RDMA_TID_FMR;
 		break;
-	case QED_RDMA_TID_MW_TYPE1:
-		tid_type = RDMA_TID_MW_TYPE1;
-		break;
-	case QED_RDMA_TID_MW_TYPE2A:
-		tid_type = RDMA_TID_MW_TYPE2A;
+	case QED_RDMA_TID_MW:
+		tid_type = RDMA_TID_MW;
 		break;
 	default:
 		rc = -EINVAL;
@@ -1520,7 +1541,6 @@ qed_rdma_register_tid(void *rdma_cxt,
 			  RDMA_REGISTER_TID_RAMROD_DATA_DIF_ON_HOST_FLG, 1);
 		DMA_REGPAIR_LE(p_ramrod->dif_error_addr,
 			       params->dif_error_addr);
-		DMA_REGPAIR_LE(p_ramrod->dif_runt_addr, params->dif_runt_addr);
 	}
 
 	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
@@ -1626,6 +1646,155 @@ static int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
 static void *qed_rdma_get_rdma_ctx(struct qed_dev *cdev)
 {
 	return QED_LEADING_HWFN(cdev);
+}
+
+static int qed_rdma_modify_srq(void *rdma_cxt,
+			       struct qed_rdma_modify_srq_in_params *in_params)
+{
+	struct rdma_srq_modify_ramrod_data *p_ramrod;
+	struct qed_sp_init_data init_data = {};
+	struct qed_hwfn *p_hwfn = rdma_cxt;
+	struct qed_spq_entry *p_ent;
+	u16 opaque_fid;
+	int rc;
+
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 RDMA_RAMROD_MODIFY_SRQ,
+				 p_hwfn->p_rdma_info->proto, &init_data);
+	if (rc)
+		return rc;
+
+	p_ramrod = &p_ent->ramrod.rdma_modify_srq;
+	p_ramrod->srq_id.srq_idx = cpu_to_le16(in_params->srq_id);
+	opaque_fid = p_hwfn->hw_info.opaque_fid;
+	p_ramrod->srq_id.opaque_fid = cpu_to_le16(opaque_fid);
+	p_ramrod->wqe_limit = cpu_to_le32(in_params->wqe_limit);
+
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc)
+		return rc;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "modified SRQ id = %x",
+		   in_params->srq_id);
+
+	return rc;
+}
+
+static int
+qed_rdma_destroy_srq(void *rdma_cxt,
+		     struct qed_rdma_destroy_srq_in_params *in_params)
+{
+	struct rdma_srq_destroy_ramrod_data *p_ramrod;
+	struct qed_sp_init_data init_data = {};
+	struct qed_hwfn *p_hwfn = rdma_cxt;
+	struct qed_spq_entry *p_ent;
+	struct qed_bmap *bmap;
+	u16 opaque_fid;
+	int rc;
+
+	opaque_fid = p_hwfn->hw_info.opaque_fid;
+
+	init_data.opaque_fid = opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 RDMA_RAMROD_DESTROY_SRQ,
+				 p_hwfn->p_rdma_info->proto, &init_data);
+	if (rc)
+		return rc;
+
+	p_ramrod = &p_ent->ramrod.rdma_destroy_srq;
+	p_ramrod->srq_id.srq_idx = cpu_to_le16(in_params->srq_id);
+	p_ramrod->srq_id.opaque_fid = cpu_to_le16(opaque_fid);
+
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc)
+		return rc;
+
+	bmap = &p_hwfn->p_rdma_info->srq_map;
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	qed_bmap_release_id(p_hwfn, bmap, in_params->srq_id);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "SRQ destroyed Id = %x",
+		   in_params->srq_id);
+
+	return rc;
+}
+
+static int
+qed_rdma_create_srq(void *rdma_cxt,
+		    struct qed_rdma_create_srq_in_params *in_params,
+		    struct qed_rdma_create_srq_out_params *out_params)
+{
+	struct rdma_srq_create_ramrod_data *p_ramrod;
+	struct qed_sp_init_data init_data = {};
+	struct qed_hwfn *p_hwfn = rdma_cxt;
+	enum qed_cxt_elem_type elem_type;
+	struct qed_spq_entry *p_ent;
+	u16 opaque_fid, srq_id;
+	struct qed_bmap *bmap;
+	u32 returned_id;
+	int rc;
+
+	bmap = &p_hwfn->p_rdma_info->srq_map;
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	rc = qed_rdma_bmap_alloc_id(p_hwfn, bmap, &returned_id);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+
+	if (rc) {
+		DP_NOTICE(p_hwfn, "failed to allocate srq id\n");
+		return rc;
+	}
+
+	elem_type = QED_ELEM_SRQ;
+	rc = qed_cxt_dynamic_ilt_alloc(p_hwfn, elem_type, returned_id);
+	if (rc)
+		goto err;
+	/* returned id is no greater than u16 */
+	srq_id = (u16)returned_id;
+	opaque_fid = p_hwfn->hw_info.opaque_fid;
+
+	opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.opaque_fid = opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 RDMA_RAMROD_CREATE_SRQ,
+				 p_hwfn->p_rdma_info->proto, &init_data);
+	if (rc)
+		goto err;
+
+	p_ramrod = &p_ent->ramrod.rdma_create_srq;
+	DMA_REGPAIR_LE(p_ramrod->pbl_base_addr, in_params->pbl_base_addr);
+	p_ramrod->pages_in_srq_pbl = cpu_to_le16(in_params->num_pages);
+	p_ramrod->pd_id = cpu_to_le16(in_params->pd_id);
+	p_ramrod->srq_id.srq_idx = cpu_to_le16(srq_id);
+	p_ramrod->srq_id.opaque_fid = cpu_to_le16(opaque_fid);
+	p_ramrod->page_size = cpu_to_le16(in_params->page_size);
+	DMA_REGPAIR_LE(p_ramrod->producers_addr, in_params->prod_pair_addr);
+
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc)
+		goto err;
+
+	out_params->srq_id = srq_id;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+		   "SRQ created Id = %x\n", out_params->srq_id);
+
+	return rc;
+
+err:
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	qed_bmap_release_id(p_hwfn, bmap, returned_id);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+
+	return rc;
 }
 
 bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn)
@@ -1773,6 +1942,9 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.rdma_free_tid = &qed_rdma_free_tid,
 	.rdma_register_tid = &qed_rdma_register_tid,
 	.rdma_deregister_tid = &qed_rdma_deregister_tid,
+	.rdma_create_srq = &qed_rdma_create_srq,
+	.rdma_modify_srq = &qed_rdma_modify_srq,
+	.rdma_destroy_srq = &qed_rdma_destroy_srq,
 	.ll2_acquire_connection = &qed_ll2_acquire_connection,
 	.ll2_establish_connection = &qed_ll2_establish_connection,
 	.ll2_terminate_connection = &qed_ll2_terminate_connection,

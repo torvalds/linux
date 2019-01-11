@@ -516,6 +516,7 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 		goto error;
 	}
 
+	ASSERTCMP(object->cookie, ==, cookie);
 	fscache_stat(&fscache_n_object_alloc);
 
 	object->debug_id = atomic_inc_return(&fscache_object_debug_id);
@@ -571,6 +572,8 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 
 	_enter("{%s},{OBJ%x}", cookie->def->name, object->debug_id);
 
+	ASSERTCMP(object->cookie, ==, cookie);
+
 	spin_lock(&cookie->lock);
 
 	/* there may be multiple initial creations of this object, but we only
@@ -610,9 +613,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 		spin_unlock(&cache->object_list_lock);
 	}
 
-	/* attach to the cookie */
-	object->cookie = cookie;
-	fscache_cookie_get(cookie, fscache_cookie_get_attach_object);
+	/* Attach to the cookie.  The object already has a ref on it. */
 	hlist_add_head(&object->cookie_link, &cookie->backing_objects);
 
 	fscache_objlist_add(object);

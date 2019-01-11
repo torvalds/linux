@@ -93,20 +93,17 @@ static int open_cgroup(const char *name)
 static struct cgroup *evlist__find_cgroup(struct perf_evlist *evlist, const char *str)
 {
 	struct perf_evsel *counter;
-	struct cgroup *cgrp = NULL;
 	/*
 	 * check if cgrp is already defined, if so we reuse it
 	 */
 	evlist__for_each_entry(evlist, counter) {
 		if (!counter->cgrp)
 			continue;
-		if (!strcmp(counter->cgrp->name, str)) {
-			cgrp = cgroup__get(counter->cgrp);
-			break;
-		}
+		if (!strcmp(counter->cgrp->name, str))
+			return cgroup__get(counter->cgrp);
 	}
 
-	return cgrp;
+	return NULL;
 }
 
 static struct cgroup *cgroup__new(const char *name)

@@ -2735,7 +2735,7 @@ int musb_host_alloc(struct musb *musb)
 
 void musb_host_cleanup(struct musb *musb)
 {
-	if (musb->port_mode == MUSB_PORT_MODE_GADGET)
+	if (musb->port_mode == MUSB_PERIPHERAL)
 		return;
 	usb_remove_hcd(musb->hcd);
 }
@@ -2750,13 +2750,13 @@ int musb_host_setup(struct musb *musb, int power_budget)
 	int ret;
 	struct usb_hcd *hcd = musb->hcd;
 
-	if (musb->port_mode == MUSB_PORT_MODE_HOST) {
+	if (musb->port_mode == MUSB_HOST) {
 		MUSB_HST_MODE(musb);
-		musb->xceiv->otg->default_a = 1;
 		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 	}
 	otg_set_host(musb->xceiv->otg, &hcd->self);
-	hcd->self.otg_port = 1;
+	/* don't support otg protocols */
+	hcd->self.otg_port = 0;
 	musb->xceiv->otg->host = &hcd->self;
 	hcd->power_budget = 2 * (power_budget ? : 250);
 	hcd->skip_phy_initialization = 1;

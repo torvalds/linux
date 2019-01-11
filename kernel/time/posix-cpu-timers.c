@@ -604,7 +604,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	/*
 	 * Disarm any old timer after extracting its expiry time.
 	 */
-	lockdep_assert_irqs_disabled();
 
 	ret = 0;
 	old_incr = timer->it.cpu.incr;
@@ -1049,7 +1048,6 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 	/*
 	 * Now re-arm for the new expiry time.
 	 */
-	lockdep_assert_irqs_disabled();
 	arm_timer(timer);
 unlock:
 	unlock_task_sighand(p, &flags);

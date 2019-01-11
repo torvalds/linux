@@ -2,7 +2,7 @@
 #include <linux/tcp.h>
 #include <net/tcp.h>
 
-static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
+void tcp_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -19,6 +19,38 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 {
 	return t1 > t2 || (t1 == t2 && after(seq1, seq2));
+}
+
+static u32 tcp_rack_reo_wnd(const struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (!tp->rack.reord) {
+		/* If reordering has not been observed, be aggressive during
+		 * the recovery or starting the recovery by DUPACK threshold.
+		 */
+		if (inet_csk(sk)->icsk_ca_state >= TCP_CA_Recovery)
+			return 0;
+
+		if (tp->sacked_out >= tp->reordering &&
+		    !(sock_net(sk)->ipv4.sysctl_tcp_recovery & TCP_RACK_NO_DUPTHRESH))
+			return 0;
+	}
+
+	/* To be more reordering resilient, allow min_rtt/4 settling delay.
+	 * Use min_rtt instead of the smoothed RTT because reordering is
+	 * often a path property and less related to queuing or delayed ACKs.
+	 * Upon receiving DSACKs, linearly increase the window up to the
+	 * smoothed RTT.
+	 */
+	return min((tcp_min_rtt(tp) >> 2) * tp->rack.reo_wnd_steps,
+		   tp->srtt_us >> 3);
+}
+
+s32 tcp_rack_skb_timeout(struct tcp_sock *tp, struct sk_buff *skb, u32 reo_wnd)
+{
+	return tp->rack.rtt_us + reo_wnd -
+	       tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
 }
 
 /* RACK loss detection (IETF draft draft-ietf-tcpm-rack-01):
@@ -44,23 +76,11 @@ static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	u32 min_rtt = tcp_min_rtt(tp);
 	struct sk_buff *skb, *n;
 	u32 reo_wnd;
 
 	*reo_timeout = 0;
-	/* To be more reordering resilient, allow min_rtt/4 settling delay
-	 * (lower-bounded to 1000uS). We use min_rtt instead of the smoothed
-	 * RTT because reordering is often a path property and less related
-	 * to queuing or delayed ACKs.
-	 */
-	reo_wnd = 1000;
-	if ((tp->rack.reord || inet_csk(sk)->icsk_ca_state < TCP_CA_Recovery) &&
-	    min_rtt != ~0U) {
-		reo_wnd = max((min_rtt >> 2) * tp->rack.reo_wnd_steps, reo_wnd);
-		reo_wnd = min(reo_wnd, tp->srtt_us >> 3);
-	}
-
+	reo_wnd = tcp_rack_reo_wnd(sk);
 	list_for_each_entry_safe(skb, n, &tp->tsorted_sent_queue,
 				 tcp_tsorted_anchor) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
@@ -78,10 +98,9 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 		/* A packet is lost if it has not been s/acked beyond
 		 * the recent RTT plus the reordering window.
 		 */
-		remaining = tp->rack.rtt_us + reo_wnd -
-			    tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
+		remaining = tcp_rack_skb_timeout(tp, skb, reo_wnd);
 		if (remaining <= 0) {
-			tcp_rack_mark_skb_lost(sk, skb);
+			tcp_mark_skb_lost(sk, skb);
 			list_del_init(&skb->tcp_tsorted_anchor);
 		} else {
 			/* Record maximum wait time */
@@ -200,5 +219,32 @@ void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
 		tp->rack.reo_wnd_persist = TCP_RACK_RECOVERY_THRESH;
 	} else if (!tp->rack.reo_wnd_persist) {
 		tp->rack.reo_wnd_steps = 1;
+	}
+}
+
+/* RFC6582 NewReno recovery for non-SACK connection. It simply retransmits
+ * the next unacked packet upon receiving
+ * a) three or more DUPACKs to start the fast recovery
+ * b) an ACK acknowledging new data during the fast recovery.
+ */
+void tcp_newreno_mark_lost(struct sock *sk, bool snd_una_advanced)
+{
+	const u8 state = inet_csk(sk)->icsk_ca_state;
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if ((state < TCP_CA_Recovery && tp->sacked_out >= tp->reordering) ||
+	    (state == TCP_CA_Recovery && snd_una_advanced)) {
+		struct sk_buff *skb = tcp_rtx_queue_head(sk);
+		u32 mss;
+
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
+			return;
+
+		mss = tcp_skb_mss(skb);
+		if (tcp_skb_pcount(skb) > 1 && skb->len > mss)
+			tcp_fragment(sk, TCP_FRAG_IN_RTX_QUEUE, skb,
+				     mss, mss, GFP_ATOMIC);
+
+		tcp_skb_mark_lost_uncond_verify(tp, skb);
 	}
 }

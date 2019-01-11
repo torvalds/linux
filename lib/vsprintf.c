@@ -703,6 +703,22 @@ char *symbol_string(char *buf, char *end, void *ptr,
 #endif
 }
 
+static const struct printf_spec default_str_spec = {
+	.field_width = -1,
+	.precision = -1,
+};
+
+static const struct printf_spec default_flag_spec = {
+	.base = 16,
+	.precision = -1,
+	.flags = SPECIAL | SMALL,
+};
+
+static const struct printf_spec default_dec_spec = {
+	.base = 10,
+	.precision = -1,
+};
+
 static noinline_for_stack
 char *resource_string(char *buf, char *end, struct resource *res,
 		      struct printf_spec spec, const char *fmt)
@@ -732,20 +748,10 @@ char *resource_string(char *buf, char *end, struct resource *res,
 		.precision = -1,
 		.flags = SMALL | ZEROPAD,
 	};
-	static const struct printf_spec dec_spec = {
-		.base = 10,
-		.precision = -1,
-		.flags = 0,
-	};
 	static const struct printf_spec str_spec = {
 		.field_width = -1,
 		.precision = 10,
 		.flags = LEFT,
-	};
-	static const struct printf_spec flag_spec = {
-		.base = 16,
-		.precision = -1,
-		.flags = SPECIAL | SMALL,
 	};
 
 	/* 32-bit res (sizeof==4): 10 chars in dec, 10 in hex ("0x" + 8)
@@ -770,10 +776,10 @@ char *resource_string(char *buf, char *end, struct resource *res,
 		specp = &mem_spec;
 	} else if (res->flags & IORESOURCE_IRQ) {
 		p = string(p, pend, "irq ", str_spec);
-		specp = &dec_spec;
+		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_DMA) {
 		p = string(p, pend, "dma ", str_spec);
-		specp = &dec_spec;
+		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_BUS) {
 		p = string(p, pend, "bus ", str_spec);
 		specp = &bus_spec;
@@ -803,7 +809,7 @@ char *resource_string(char *buf, char *end, struct resource *res,
 			p = string(p, pend, " disabled", str_spec);
 	} else {
 		p = string(p, pend, " flags ", str_spec);
-		p = number(p, pend, res->flags, flag_spec);
+		p = number(p, pend, res->flags, default_flag_spec);
 	}
 	*p++ = ']';
 	*p = '\0';
@@ -913,9 +919,6 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 	int cur, rbot, rtop;
 	bool first = true;
 
-	/* reused to print numbers */
-	spec = (struct printf_spec){ .base = 10 };
-
 	rbot = cur = find_first_bit(bitmap, nr_bits);
 	while (cur < nr_bits) {
 		rtop = cur;
@@ -930,13 +933,13 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 		}
 		first = false;
 
-		buf = number(buf, end, rbot, spec);
+		buf = number(buf, end, rbot, default_dec_spec);
 		if (rbot < rtop) {
 			if (buf < end)
 				*buf = '-';
 			buf++;
 
-			buf = number(buf, end, rtop, spec);
+			buf = number(buf, end, rtop, default_dec_spec);
 		}
 
 		rbot = cur;
@@ -1354,11 +1357,9 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, uuid, spec);
 }
 
-int kptr_restrict __read_mostly;
-
 static noinline_for_stack
-char *restricted_pointer(char *buf, char *end, const void *ptr,
-			 struct printf_spec spec)
+char *pointer_string(char *buf, char *end, const void *ptr,
+		     struct printf_spec spec)
 {
 	spec.base = 16;
 	spec.flags |= SMALL;
@@ -1367,6 +1368,15 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 		spec.flags |= ZEROPAD;
 	}
 
+	return number(buf, end, (unsigned long int)ptr, spec);
+}
+
+int kptr_restrict __read_mostly;
+
+static noinline_for_stack
+char *restricted_pointer(char *buf, char *end, const void *ptr,
+			 struct printf_spec spec)
+{
 	switch (kptr_restrict) {
 	case 0:
 		/* Always print %pK values */
@@ -1378,8 +1388,11 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 		 * kptr_restrict==1 cannot be used in IRQ context
 		 * because its test for CAP_SYSLOG would be meaningless.
 		 */
-		if (in_irq() || in_serving_softirq() || in_nmi())
+		if (in_irq() || in_serving_softirq() || in_nmi()) {
+			if (spec.field_width == -1)
+				spec.field_width = 2 * sizeof(ptr);
 			return string(buf, end, "pK-error", spec);
+		}
 
 		/*
 		 * Only print the real pointer value if the current
@@ -1404,7 +1417,7 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 		break;
 	}
 
-	return number(buf, end, (unsigned long)ptr, spec);
+	return pointer_string(buf, end, ptr, spec);
 }
 
 static noinline_for_stack
@@ -1456,9 +1469,6 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 		return string(buf, end, NULL, spec);
 
 	switch (fmt[1]) {
-	case 'r':
-		return number(buf, end, clk_get_rate(clk), spec);
-
 	case 'n':
 	default:
 #ifdef CONFIG_COMMON_CLK
@@ -1474,23 +1484,13 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 					const struct trace_print_flags *names)
 {
 	unsigned long mask;
-	const struct printf_spec strspec = {
-		.field_width = -1,
-		.precision = -1,
-	};
-	const struct printf_spec numspec = {
-		.flags = SPECIAL|SMALL,
-		.field_width = -1,
-		.precision = -1,
-		.base = 16,
-	};
 
 	for ( ; flags && names->name; names++) {
 		mask = names->mask;
 		if ((flags & mask) != mask)
 			continue;
 
-		buf = string(buf, end, names->name, strspec);
+		buf = string(buf, end, names->name, default_str_spec);
 
 		flags &= ~mask;
 		if (flags) {
@@ -1501,7 +1501,7 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 	}
 
 	if (flags)
-		buf = number(buf, end, flags, numspec);
+		buf = number(buf, end, flags, default_flag_spec);
 
 	return buf;
 }
@@ -1548,22 +1548,18 @@ char *device_node_gen_full_name(const struct device_node *np, char *buf, char *e
 {
 	int depth;
 	const struct device_node *parent = np->parent;
-	static const struct printf_spec strspec = {
-		.field_width = -1,
-		.precision = -1,
-	};
 
 	/* special case for root node */
 	if (!parent)
-		return string(buf, end, "/", strspec);
+		return string(buf, end, "/", default_str_spec);
 
 	for (depth = 0; parent->parent; depth++)
 		parent = parent->parent;
 
 	for ( ; depth >= 0; depth--) {
-		buf = string(buf, end, "/", strspec);
+		buf = string(buf, end, "/", default_str_spec);
 		buf = string(buf, end, device_node_name_for_depth(np, depth),
-			     strspec);
+			     default_str_spec);
 	}
 	return buf;
 }
@@ -1655,20 +1651,6 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 	return widen_string(buf, buf - buf_start, end, spec);
 }
 
-static noinline_for_stack
-char *pointer_string(char *buf, char *end, const void *ptr,
-		     struct printf_spec spec)
-{
-	spec.base = 16;
-	spec.flags |= SMALL;
-	if (spec.field_width == -1) {
-		spec.field_width = 2 * sizeof(ptr);
-		spec.flags |= ZEROPAD;
-	}
-
-	return number(buf, end, (unsigned long int)ptr, spec);
-}
-
 static DEFINE_STATIC_KEY_TRUE(not_filled_random_ptr_key);
 static siphash_key_t ptr_key __read_mostly;
 
@@ -1710,13 +1692,13 @@ early_initcall(initialize_ptr_random);
 /* Maps a pointer to a 32 bit unique identifier. */
 static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
 {
+	const char *str = sizeof(ptr) == 8 ? "(____ptrval____)" : "(ptrval)";
 	unsigned long hashval;
-	const int default_width = 2 * sizeof(ptr);
 
 	if (static_branch_unlikely(&not_filled_random_ptr_key)) {
-		spec.field_width = default_width;
+		spec.field_width = 2 * sizeof(ptr);
 		/* string length must be less than default_width */
-		return string(buf, end, "(ptrval)", spec);
+		return string(buf, end, str, spec);
 	}
 
 #ifdef CONFIG_64BIT
@@ -1729,15 +1711,7 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
 #else
 	hashval = (unsigned long)siphash_1u32((u32)ptr, &ptr_key);
 #endif
-
-	spec.flags |= SMALL;
-	if (spec.field_width == -1) {
-		spec.field_width = default_width;
-		spec.flags |= ZEROPAD;
-	}
-	spec.base = 16;
-
-	return number(buf, end, hashval, spec);
+	return pointer_string(buf, end, (const void *)hashval, spec);
 }
 
 /*
@@ -1750,10 +1724,10 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
  *
  * Right now we handle:
  *
- * - 'F' For symbolic function descriptor pointers with offset
- * - 'f' For simple symbolic function names without offset
- * - 'S' For symbolic direct pointers with offset
- * - 's' For symbolic direct pointers without offset
+ * - 'S' For symbolic direct pointers (or function descriptors) with offset
+ * - 's' For symbolic direct pointers (or function descriptors) without offset
+ * - 'F' Same as 'S'
+ * - 'f' Same as 's'
  * - '[FfSs]R' as above with __builtin_extract_return_addr() translation
  * - 'B' For backtraced symbolic direct pointers with offset
  * - 'R' For decoded struct resource, e.g., [mem 0x0-0x1f 64bit pref]
@@ -1849,10 +1823,6 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
  *
  * ** When making changes please also update:
  *	Documentation/core-api/printk-formats.rst
- *
- * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
- * function pointers are really function descriptors, which contain a
- * pointer to the real address.
  *
  * Note: The default behaviour (unadorned %p) is to hash the address,
  * rendering it useful as a unique identifier.
@@ -2129,6 +2099,7 @@ qualifier:
 
 	case 'x':
 		spec->flags |= SMALL;
+		/* fall through */
 
 	case 'X':
 		spec->base = 16;
@@ -3087,8 +3058,10 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			break;
 		case 'i':
 			base = 0;
+			/* fall through */
 		case 'd':
 			is_sign = true;
+			/* fall through */
 		case 'u':
 			break;
 		case '%':

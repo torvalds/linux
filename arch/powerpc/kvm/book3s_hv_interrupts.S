@@ -137,7 +137,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 /*
  * We return here in virtual mode after the guest exits
  * with something that we can't handle in real mode.
- * Interrupts are enabled again at this point.
+ * Interrupts are still hard-disabled.
  */
 
 	/*

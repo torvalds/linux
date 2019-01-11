@@ -43,6 +43,8 @@ static const struct kgd2kfd_calls kgd2kfd = {
 	.interrupt	= kgd2kfd_interrupt,
 	.suspend	= kgd2kfd_suspend,
 	.resume		= kgd2kfd_resume,
+	.quiesce_mm	= kgd2kfd_quiesce_mm,
+	.resume_mm	= kgd2kfd_resume_mm,
 	.schedule_evict_and_restore_process =
 			  kgd2kfd_schedule_evict_and_restore_process,
 };
@@ -80,6 +82,11 @@ int ignore_crat;
 module_param(ignore_crat, int, 0444);
 MODULE_PARM_DESC(ignore_crat,
 	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
+
+int vega10_noretry;
+module_param_named(noretry, vega10_noretry, int, 0644);
+MODULE_PARM_DESC(noretry,
+	"Set sh_mem_config.retry_disable on Vega10 (0 = retry enabled (default), 1 = retry disabled)");
 
 static int amdkfd_init_completed;
 

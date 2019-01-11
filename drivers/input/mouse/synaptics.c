@@ -1754,7 +1754,7 @@ static int synaptics_create_intertouch(struct psmouse *psmouse,
 	};
 
 	return psmouse_smbus_init(psmouse, &intertouch_board,
-				  &pdata, sizeof(pdata),
+				  &pdata, sizeof(pdata), true,
 				  leave_breadcrumbs);
 }
 

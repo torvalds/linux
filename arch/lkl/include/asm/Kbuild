@@ -8,6 +8,7 @@ generic-y += cacheflush.h
 generic-y += checksum.h
 generic-y += cmpxchg-local.h
 generic-y += cmpxchg.h
+generic-y += compat.h
 generic-y += cputime.h
 generic-y += current.h
 generic-y += delay.h

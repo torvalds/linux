@@ -1128,11 +1128,11 @@
    </text>
   </g>
   <text transform="matrix(.96106 0 0 1.0405 48.571 195.53)" x="2438.062" y="1368.429" enable-background="new" font-size="50" style="line-height:125%">
-   <tspan x="2438.062" y="1368.429">COMPOSE_BONDS</tspan>
+   <tspan x="2438.062" y="1368.429">COMPOSE_BOUNDS</tspan>
   </text>
   <g font-size="40">
    <text transform="translate(48.571 195.53)" x="8.082" y="1438.896" enable-background="new" style="line-height:125%">
-    <tspan x="8.082" y="1438.896" font-size="50">CROP_BONDS</tspan>
+    <tspan x="8.082" y="1438.896" font-size="50">CROP_BOUNDS</tspan>
    </text>
    <text transform="translate(48.571 195.53)" x="1455.443" y="-26.808" enable-background="new" style="line-height:125%">
     <tspan x="1455.443" y="-26.808" font-size="50">overscan area</tspan>

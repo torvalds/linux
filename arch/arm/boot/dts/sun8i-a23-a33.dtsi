@@ -198,6 +198,8 @@
 			clock-names = "ahb", "mod";
 			resets = <&ccu RST_BUS_NAND>;
 			reset-names = "ahb";
+			pinctrl-names = "default";
+			pinctrl-0 = <&nand_pins &nand_pins_cs0 &nand_pins_rb0>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -312,6 +314,37 @@
 				       "PC15", "PC16";
 				function = "mmc2";
 				drive-strength = <30>;
+				bias-pull-up;
+			};
+
+			nand_pins: nand-pins {
+				pins = "PC0", "PC1", "PC2", "PC5",
+				       "PC8", "PC9", "PC10", "PC11",
+				       "PC12", "PC13", "PC14", "PC15";
+				function = "nand0";
+			};
+
+			nand_pins_cs0: nand-pins-cs0 {
+				pins = "PC4";
+				function = "nand0";
+				bias-pull-up;
+			};
+
+			nand_pins_cs1: nand-pins-cs1 {
+				pins = "PC3";
+				function = "nand0";
+				bias-pull-up;
+			};
+
+			nand_pins_rb0: nand-pins-rb0 {
+				pins = "PC6";
+				function = "nand0";
+				bias-pull-up;
+			};
+
+			nand_pins_rb1: nand-pins-rb1 {
+				pins = "PC7";
+				function = "nand0";
 				bias-pull-up;
 			};
 

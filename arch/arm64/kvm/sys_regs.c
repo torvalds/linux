@@ -31,7 +31,6 @@
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_host.h>
@@ -338,7 +337,7 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 {
 	if (p->is_write) {
 		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
-		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 	} else {
 		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
 	}
@@ -369,7 +368,7 @@ static void reg_to_dbg(struct kvm_vcpu *vcpu,
 	}
 
 	*dbg_reg = val;
-	vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+	vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
@@ -1441,7 +1440,7 @@ static bool trap_debug32(struct kvm_vcpu *vcpu,
 {
 	if (p->is_write) {
 		vcpu_cp14(vcpu, r->reg) = p->regval;
-		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 	} else {
 		p->regval = vcpu_cp14(vcpu, r->reg);
 	}
@@ -1473,7 +1472,7 @@ static bool trap_xvr(struct kvm_vcpu *vcpu,
 		val |= p->regval << 32;
 		*dbg_reg = val;
 
-		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 	} else {
 		p->regval = *dbg_reg >> 32;
 	}

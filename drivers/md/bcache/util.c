@@ -120,41 +120,6 @@ ssize_t bch_hprint(char *buf, int64_t v)
 		return sprintf(buf, "%llu.%i%c", q, t * 10 / 1024, units[u]);
 }
 
-ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
-			    size_t selected)
-{
-	char *out = buf;
-	size_t i;
-
-	for (i = 0; list[i]; i++)
-		out += snprintf(out, buf + size - out,
-				i == selected ? "[%s] " : "%s ", list[i]);
-
-	out[-1] = '\n';
-	return out - buf;
-}
-
-ssize_t bch_read_string_list(const char *buf, const char * const list[])
-{
-	size_t i;
-	char *s, *d = kstrndup(buf, PAGE_SIZE - 1, GFP_KERNEL);
-	if (!d)
-		return -ENOMEM;
-
-	s = strim(d);
-
-	for (i = 0; list[i]; i++)
-		if (!strcmp(list[i], s))
-			break;
-
-	kfree(d);
-
-	if (!list[i])
-		return -EINVAL;
-
-	return i;
-}
-
 bool bch_is_zero(const char *p, size_t n)
 {
 	size_t i;

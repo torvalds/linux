@@ -25,6 +25,8 @@
 #include <linux/regulator/driver.h>
 #include <linux/regmap.h>
 #include <linux/list.h>
+#include <linux/mfd/syscon.h>
+#include <linux/io.h>
 
 /* Pin control enable input pins. */
 #define SPMI_REGULATOR_PIN_CTRL_ENABLE_NONE		0x00
@@ -179,6 +181,23 @@ enum spmi_boost_registers {
 
 enum spmi_boost_byp_registers {
 	SPMI_BOOST_BYP_REG_CURRENT_LIMIT	= 0x4b,
+};
+
+enum spmi_saw3_registers {
+	SAW3_SECURE				= 0x00,
+	SAW3_ID					= 0x04,
+	SAW3_SPM_STS				= 0x0C,
+	SAW3_AVS_STS				= 0x10,
+	SAW3_PMIC_STS				= 0x14,
+	SAW3_RST				= 0x18,
+	SAW3_VCTL				= 0x1C,
+	SAW3_AVS_CTL				= 0x20,
+	SAW3_AVS_LIMIT				= 0x24,
+	SAW3_AVS_DLY				= 0x28,
+	SAW3_AVS_HYSTERESIS			= 0x2C,
+	SAW3_SPM_STS2				= 0x38,
+	SAW3_SPM_PMIC_DATA_3			= 0x4C,
+	SAW3_VERSION				= 0xFD0,
 };
 
 /* Used for indexing into ctrl_reg.  These are offets from 0x40 */
@@ -1035,6 +1054,89 @@ static irqreturn_t spmi_regulator_vs_ocp_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#define SAW3_VCTL_DATA_MASK	0xFF
+#define SAW3_VCTL_CLEAR_MASK	0x700FF
+#define SAW3_AVS_CTL_EN_MASK	0x1
+#define SAW3_AVS_CTL_TGGL_MASK	0x8000000
+#define SAW3_AVS_CTL_CLEAR_MASK	0x7efc00
+
+static struct regmap *saw_regmap = NULL;
+
+static void spmi_saw_set_vdd(void *data)
+{
+	u32 vctl, data3, avs_ctl, pmic_sts;
+	bool avs_enabled = false;
+	unsigned long timeout;
+	u8 voltage_sel = *(u8 *)data;
+
+	regmap_read(saw_regmap, SAW3_AVS_CTL, &avs_ctl);
+	regmap_read(saw_regmap, SAW3_VCTL, &vctl);
+	regmap_read(saw_regmap, SAW3_SPM_PMIC_DATA_3, &data3);
+
+	/* select the band */
+	vctl &= ~SAW3_VCTL_CLEAR_MASK;
+	vctl |= (u32)voltage_sel;
+
+	data3 &= ~SAW3_VCTL_CLEAR_MASK;
+	data3 |= (u32)voltage_sel;
+
+	/* If AVS is enabled, switch it off during the voltage change */
+	avs_enabled = SAW3_AVS_CTL_EN_MASK & avs_ctl;
+	if (avs_enabled) {
+		avs_ctl &= ~SAW3_AVS_CTL_TGGL_MASK;
+		regmap_write(saw_regmap, SAW3_AVS_CTL, avs_ctl);
+	}
+
+	regmap_write(saw_regmap, SAW3_RST, 1);
+	regmap_write(saw_regmap, SAW3_VCTL, vctl);
+	regmap_write(saw_regmap, SAW3_SPM_PMIC_DATA_3, data3);
+
+	timeout = jiffies + usecs_to_jiffies(100);
+	do {
+		regmap_read(saw_regmap, SAW3_PMIC_STS, &pmic_sts);
+		pmic_sts &= SAW3_VCTL_DATA_MASK;
+		if (pmic_sts == (u32)voltage_sel)
+			break;
+
+		cpu_relax();
+
+	} while (time_before(jiffies, timeout));
+
+	/* After successful voltage change, switch the AVS back on */
+	if (avs_enabled) {
+		pmic_sts &= 0x3f;
+		avs_ctl &= ~SAW3_AVS_CTL_CLEAR_MASK;
+		avs_ctl |= ((pmic_sts - 4) << 10);
+		avs_ctl |= (pmic_sts << 17);
+		avs_ctl |= SAW3_AVS_CTL_TGGL_MASK;
+		regmap_write(saw_regmap, SAW3_AVS_CTL, avs_ctl);
+	}
+}
+
+static int
+spmi_regulator_saw_set_voltage(struct regulator_dev *rdev, unsigned selector)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+	int ret;
+	u8 range_sel, voltage_sel;
+
+	ret = spmi_sw_selector_to_hw(vreg, selector, &range_sel, &voltage_sel);
+	if (ret)
+		return ret;
+
+	if (0 != range_sel) {
+		dev_dbg(&rdev->dev, "range_sel = %02X voltage_sel = %02X", \
+			range_sel, voltage_sel);
+		return -EINVAL;
+	}
+
+	/* Always do the SAW register writes on the first CPU */
+	return smp_call_function_single(0, spmi_saw_set_vdd, \
+					&voltage_sel, true);
+}
+
+static struct regulator_ops spmi_saw_ops = {};
+
 static struct regulator_ops spmi_smps_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -1250,6 +1352,7 @@ static int spmi_regulator_match(struct spmi_regulator *vreg, u16 force_type)
 	}
 	dig_major_rev	= version[SPMI_COMMON_REG_DIG_MAJOR_REV
 					- SPMI_COMMON_REG_DIG_MAJOR_REV];
+
 	if (!force_type) {
 		type		= version[SPMI_COMMON_REG_TYPE -
 					  SPMI_COMMON_REG_DIG_MAJOR_REV];
@@ -1648,7 +1751,9 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	const char *name;
 	struct device *dev = &pdev->dev;
-	int ret;
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *syscon;
+	int ret, lenp;
 	struct list_head *vreg_list;
 
 	vreg_list = devm_kzalloc(dev, sizeof(*vreg_list), GFP_KERNEL);
@@ -1665,7 +1770,22 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
+	if (of_find_property(node, "qcom,saw-reg", &lenp)) {
+		syscon = of_parse_phandle(node, "qcom,saw-reg", 0);
+		saw_regmap = syscon_node_to_regmap(syscon);
+		of_node_put(syscon);
+		if (IS_ERR(regmap))
+			dev_err(dev, "ERROR reading SAW regmap\n");
+	}
+
 	for (reg = match->data; reg->name; reg++) {
+
+		if (saw_regmap && \
+		    of_find_property(of_find_node_by_name(node, reg->name), \
+				     "qcom,saw-slave", &lenp)) {
+			continue;
+		}
+
 		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)
 			return -ENOMEM;
@@ -1673,7 +1793,6 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 		vreg->dev = dev;
 		vreg->base = reg->base;
 		vreg->regmap = regmap;
-
 		if (reg->ocp) {
 			vreg->ocp_irq = platform_get_irq_byname(pdev, reg->ocp);
 			if (vreg->ocp_irq < 0) {
@@ -1681,7 +1800,6 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 				goto err;
 			}
 		}
-
 		vreg->desc.id = -1;
 		vreg->desc.owner = THIS_MODULE;
 		vreg->desc.type = REGULATOR_VOLTAGE;
@@ -1697,6 +1815,15 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 		ret = spmi_regulator_match(vreg, reg->force_type);
 		if (ret)
 			continue;
+
+		if (saw_regmap && \
+		    of_find_property(of_find_node_by_name(node, reg->name), \
+				     "qcom,saw-leader", &lenp)) {
+			spmi_saw_ops = *(vreg->desc.ops);
+			spmi_saw_ops.set_voltage_sel = \
+				spmi_regulator_saw_set_voltage;
+			vreg->desc.ops = &spmi_saw_ops;
+		}
 
 		config.dev = dev;
 		config.driver_data = vreg;

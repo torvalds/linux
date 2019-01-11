@@ -41,7 +41,7 @@ named ``char-misc-next``, you would be using the following command::
 
 that will create a signed tag called ``char-misc-4.15-rc1`` based on the
 last commit in the ``char-misc-next`` branch, and sign it with your gpg key
-(see :ref:`Documentation/maintainer/configure_git.rst <configuregit>`).
+(see :ref:`Documentation/maintainer/configure-git.rst <configuregit>`).
 
 Linus will only accept pull requests based on a signed tag. Other
 maintainers may differ.

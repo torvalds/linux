@@ -2093,7 +2093,7 @@ static void isp1760_stop(struct usb_hcd *hcd)
 
 	isp1760_hub_control(hcd, ClearPortFeature, USB_PORT_FEAT_POWER,	1,
 			NULL, 0);
-	mdelay(20);
+	msleep(20);
 
 	spin_lock_irq(&priv->lock);
 	ehci_reset(hcd);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -33,6 +33,7 @@
 
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
@@ -216,6 +217,14 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 	int err;
 	int fd;
 
+	if (argc < 3) {
+		p_err("too few arguments, id ID and FILE path is required");
+		return -1;
+	} else if (argc > 3) {
+		p_err("too many arguments");
+		return -1;
+	}
+
 	if (!is_prefix(*argv, "id")) {
 		p_err("expected 'id' got %s", *argv);
 		return -1;
@@ -228,9 +237,6 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 		return -1;
 	}
 	NEXT_ARG();
-
-	if (argc != 1)
-		usage();
 
 	fd = get_fd_by_id(id);
 	if (fd < 0) {
@@ -330,6 +336,16 @@ char *get_fdinfo(int fd, const char *key)
 	return NULL;
 }
 
+void print_data_json(uint8_t *data, size_t len)
+{
+	unsigned int i;
+
+	jsonw_start_array(json_wtr);
+	for (i = 0; i < len; i++)
+		jsonw_printf(json_wtr, "%d", data[i]);
+	jsonw_end_array(json_wtr);
+}
+
 void print_hex_data_json(uint8_t *data, size_t len)
 {
 	unsigned int i;
@@ -418,6 +434,70 @@ void delete_pinned_obj_table(struct pinned_obj_table *tab)
 		free(obj->path);
 		free(obj);
 	}
+}
+
+unsigned int get_page_size(void)
+{
+	static int result;
+
+	if (!result)
+		result = getpagesize();
+	return result;
+}
+
+unsigned int get_possible_cpus(void)
+{
+	static unsigned int result;
+	char buf[128];
+	long int n;
+	char *ptr;
+	int fd;
+
+	if (result)
+		return result;
+
+	fd = open("/sys/devices/system/cpu/possible", O_RDONLY);
+	if (fd < 0) {
+		p_err("can't open sysfs possible cpus");
+		exit(-1);
+	}
+
+	n = read(fd, buf, sizeof(buf));
+	if (n < 2) {
+		p_err("can't read sysfs possible cpus");
+		exit(-1);
+	}
+	close(fd);
+
+	if (n == sizeof(buf)) {
+		p_err("read sysfs possible cpus overflow");
+		exit(-1);
+	}
+
+	ptr = buf;
+	n = 0;
+	while (*ptr && *ptr != '\n') {
+		unsigned int a, b;
+
+		if (sscanf(ptr, "%u-%u", &a, &b) == 2) {
+			n += b - a + 1;
+
+			ptr = strchr(ptr, '-') + 1;
+		} else if (sscanf(ptr, "%u", &a) == 1) {
+			n++;
+		} else {
+			assert(0);
+		}
+
+		while (isdigit(*ptr))
+			ptr++;
+		if (*ptr == ',')
+			ptr++;
+	}
+
+	result = n;
+
+	return result;
 }
 
 static char *

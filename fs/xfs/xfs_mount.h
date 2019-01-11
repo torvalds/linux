@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_MOUNT_H__
 #define	__XFS_MOUNT_H__
@@ -283,7 +271,7 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 	return (mp->m_swidth ?
 		(mp->m_swidth << mp->m_sb.sb_blocklog) :
 		((mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) ?
-			(1 << (int)MAX(mp->m_readio_log, mp->m_writeio_log)) :
+			(1 << (int)max(mp->m_readio_log, mp->m_writeio_log)) :
 			PAGE_SIZE));
 }
 

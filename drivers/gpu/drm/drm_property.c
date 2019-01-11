@@ -169,9 +169,9 @@ struct drm_property *drm_property_create_enum(struct drm_device *dev,
 		return NULL;
 
 	for (i = 0; i < num_values; i++) {
-		ret = drm_property_add_enum(property, i,
-				      props[i].type,
-				      props[i].name);
+		ret = drm_property_add_enum(property,
+					    props[i].type,
+					    props[i].name);
 		if (ret) {
 			drm_property_destroy(dev, property);
 			return NULL;
@@ -209,7 +209,7 @@ struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
 						 uint64_t supported_bits)
 {
 	struct drm_property *property;
-	int i, ret, index = 0;
+	int i, ret;
 	int num_values = hweight64(supported_bits);
 
 	flags |= DRM_MODE_PROP_BITMASK;
@@ -221,14 +221,9 @@ struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
 		if (!(supported_bits & (1ULL << props[i].type)))
 			continue;
 
-		if (WARN_ON(index >= num_values)) {
-			drm_property_destroy(dev, property);
-			return NULL;
-		}
-
-		ret = drm_property_add_enum(property, index++,
-				      props[i].type,
-				      props[i].name);
+		ret = drm_property_add_enum(property,
+					    props[i].type,
+					    props[i].name);
 		if (ret) {
 			drm_property_destroy(dev, property);
 			return NULL;
@@ -376,7 +371,6 @@ EXPORT_SYMBOL(drm_property_create_bool);
 /**
  * drm_property_add_enum - add a possible value to an enumeration property
  * @property: enumeration property to change
- * @index: index of the new enumeration
  * @value: value of the new enumeration
  * @name: symbolic name of the new enumeration
  *
@@ -388,10 +382,11 @@ EXPORT_SYMBOL(drm_property_create_bool);
  * Returns:
  * Zero on success, error code on failure.
  */
-int drm_property_add_enum(struct drm_property *property, int index,
+int drm_property_add_enum(struct drm_property *property,
 			  uint64_t value, const char *name)
 {
 	struct drm_property_enum *prop_enum;
+	int index = 0;
 
 	if (WARN_ON(strlen(name) >= DRM_PROP_NAME_LEN))
 		return -EINVAL;
@@ -411,7 +406,11 @@ int drm_property_add_enum(struct drm_property *property, int index,
 	list_for_each_entry(prop_enum, &property->enum_list, head) {
 		if (WARN_ON(prop_enum->value == value))
 			return -EINVAL;
+		index++;
 	}
+
+	if (WARN_ON(index >= property->num_values))
+		return -EINVAL;
 
 	prop_enum = kzalloc(sizeof(struct drm_property_enum), GFP_KERNEL);
 	if (!prop_enum)
@@ -533,7 +532,7 @@ static void drm_property_free_blob(struct kref *kref)
 
 	drm_mode_object_unregister(blob->dev, &blob->base);
 
-	kfree(blob);
+	kvfree(blob);
 }
 
 /**
@@ -560,7 +559,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	if (!length || length > ULONG_MAX - sizeof(struct drm_property_blob))
 		return ERR_PTR(-EINVAL);
 
-	blob = kzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
+	blob = kvzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
 	if (!blob)
 		return ERR_PTR(-ENOMEM);
 
@@ -577,7 +576,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	ret = __drm_mode_object_add(dev, &blob->base, DRM_MODE_OBJECT_BLOB,
 				    true, drm_property_free_blob);
 	if (ret) {
-		kfree(blob);
+		kvfree(blob);
 		return ERR_PTR(-EINVAL);
 	}
 

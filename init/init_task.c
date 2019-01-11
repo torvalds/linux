@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/audit.h>
 
 #include <asm/pgtable.h>
 #include <linux/uaccess.h>
@@ -119,7 +120,7 @@ struct task_struct init_task
 	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
 #ifdef CONFIG_AUDITSYSCALL
 	.loginuid	= INVALID_UID,
-	.sessionid	= (unsigned int)-1,
+	.sessionid	= AUDIT_SID_UNSET,
 #endif
 #ifdef CONFIG_PERF_EVENTS
 	.perf_event_mutex = __MUTEX_INITIALIZER(init_task.perf_event_mutex),

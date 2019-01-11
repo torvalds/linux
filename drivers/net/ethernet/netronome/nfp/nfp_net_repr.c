@@ -277,6 +277,7 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_get_vf_config	= nfp_app_get_vf_config,
 	.ndo_set_vf_link_state	= nfp_app_set_vf_link_state,
 	.ndo_set_features	= nfp_port_set_features,
+	.ndo_set_mac_address    = eth_mac_addr,
 };
 
 static void nfp_repr_clean(struct nfp_repr *repr)
@@ -348,18 +349,24 @@ err_clean:
 	return err;
 }
 
-static void nfp_repr_free(struct nfp_repr *repr)
+static void __nfp_repr_free(struct nfp_repr *repr)
 {
 	free_percpu(repr->stats);
 	free_netdev(repr->netdev);
 }
 
-struct net_device *nfp_repr_alloc(struct nfp_app *app)
+void nfp_repr_free(struct net_device *netdev)
+{
+	__nfp_repr_free(netdev_priv(netdev));
+}
+
+struct net_device *
+nfp_repr_alloc_mqs(struct nfp_app *app, unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *netdev;
 	struct nfp_repr *repr;
 
-	netdev = alloc_etherdev(sizeof(*repr));
+	netdev = alloc_etherdev_mqs(sizeof(*repr), txqs, rxqs);
 	if (!netdev)
 		return NULL;
 
@@ -380,12 +387,12 @@ err_free_netdev:
 	return NULL;
 }
 
-static void nfp_repr_clean_and_free(struct nfp_repr *repr)
+void nfp_repr_clean_and_free(struct nfp_repr *repr)
 {
 	nfp_info(repr->app->cpp, "Destroying Representor(%s)\n",
 		 repr->netdev->name);
 	nfp_repr_clean(repr);
-	nfp_repr_free(repr);
+	__nfp_repr_free(repr);
 }
 
 void nfp_reprs_clean_and_free(struct nfp_app *app, struct nfp_reprs *reprs)

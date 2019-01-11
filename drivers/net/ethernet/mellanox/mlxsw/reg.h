@@ -6833,6 +6833,12 @@ enum mlxsw_reg_mpat_span_type {
 	 */
 	MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH = 0x0,
 
+	/* Remote SPAN Ethernet VLAN.
+	 * The packet is forwarded to the monitoring port on the monitoring
+	 * VLAN.
+	 */
+	MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH = 0x1,
+
 	/* Encapsulated Remote SPAN Ethernet L3 GRE.
 	 * The packet is encapsulated with GRE header.
 	 */
@@ -7026,6 +7032,30 @@ static inline void mlxsw_reg_mpar_pack(char *payload, u8 local_port,
 	mlxsw_reg_mpar_enable_set(payload, enable);
 	mlxsw_reg_mpar_i_e_set(payload, i_e);
 	mlxsw_reg_mpar_pa_id_set(payload, pa_id);
+}
+
+/* MRSR - Management Reset and Shutdown Register
+ * ---------------------------------------------
+ * MRSR register is used to reset or shutdown the switch or
+ * the entire system (when applicable).
+ */
+#define MLXSW_REG_MRSR_ID 0x9023
+#define MLXSW_REG_MRSR_LEN 0x08
+
+MLXSW_REG_DEFINE(mrsr, MLXSW_REG_MRSR_ID, MLXSW_REG_MRSR_LEN);
+
+/* reg_mrsr_command
+ * Reset/shutdown command
+ * 0 - do nothing
+ * 1 - software reset
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mrsr, command, 0x00, 0, 4);
+
+static inline void mlxsw_reg_mrsr_pack(char *payload)
+{
+	MLXSW_REG_ZERO(mrsr, payload);
+	mlxsw_reg_mrsr_command_set(payload, 1);
 }
 
 /* MLCR - Management LED Control Register
@@ -7892,6 +7922,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcia),
 	MLXSW_REG(mpat),
 	MLXSW_REG(mpar),
+	MLXSW_REG(mrsr),
 	MLXSW_REG(mlcr),
 	MLXSW_REG(mpsc),
 	MLXSW_REG(mcqi),

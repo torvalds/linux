@@ -251,7 +251,6 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 num_bytes,
 				struct btrfs_delayed_extent_op *extent_op);
 void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *fs_info,
 			      struct btrfs_delayed_ref_root *delayed_refs,
 			      struct btrfs_delayed_ref_head *head);
 
@@ -269,9 +268,7 @@ static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
 struct btrfs_delayed_ref_head *
 btrfs_select_ref_head(struct btrfs_trans_handle *trans);
 
-int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
-			    struct btrfs_delayed_ref_root *delayed_refs,
-			    u64 seq);
+int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq);
 
 /*
  * helper functions to cast a node into its container

@@ -568,12 +568,12 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	}
 	inst->num_valid_queues = queue_count;
 
-	qinst = devm_kzalloc(dev, sizeof(*qinst) * queue_count, GFP_KERNEL);
+	qinst = devm_kcalloc(dev, queue_count, sizeof(*qinst), GFP_KERNEL);
 	if (!qinst)
 		return -ENOMEM;
 	inst->qinsts = qinst;
 
-	chans = devm_kzalloc(dev, sizeof(*chans) * queue_count, GFP_KERNEL);
+	chans = devm_kcalloc(dev, queue_count, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
 		return -ENOMEM;
 	inst->chans = chans;

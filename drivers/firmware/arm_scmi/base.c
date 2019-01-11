@@ -26,7 +26,7 @@ struct scmi_msg_resp_base_attributes {
  * scmi_base_attributes_get() - gets the implementation details
  *	that are associated with the base protocol.
  *
- * @handle - SCMI entity handle
+ * @handle: SCMI entity handle
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -37,7 +37,7 @@ static int scmi_base_attributes_get(const struct scmi_handle *handle)
 	struct scmi_msg_resp_base_attributes *attr_info;
 	struct scmi_revision_info *rev = handle->version;
 
-	ret = scmi_one_xfer_init(handle, PROTOCOL_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
 				 SCMI_PROTOCOL_BASE, 0, sizeof(*attr_info), &t);
 	if (ret)
 		return ret;
@@ -49,15 +49,16 @@ static int scmi_base_attributes_get(const struct scmi_handle *handle)
 		rev->num_agents = attr_info->num_agents;
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
+
 	return ret;
 }
 
 /**
  * scmi_base_vendor_id_get() - gets vendor/subvendor identifier ASCII string.
  *
- * @handle - SCMI entity handle
- * @sub_vendor - specify true if sub-vendor ID is needed
+ * @handle: SCMI entity handle
+ * @sub_vendor: specify true if sub-vendor ID is needed
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -80,7 +81,7 @@ scmi_base_vendor_id_get(const struct scmi_handle *handle, bool sub_vendor)
 		size = ARRAY_SIZE(rev->vendor_id);
 	}
 
-	ret = scmi_one_xfer_init(handle, cmd, SCMI_PROTOCOL_BASE, 0, size, &t);
+	ret = scmi_xfer_get_init(handle, cmd, SCMI_PROTOCOL_BASE, 0, size, &t);
 	if (ret)
 		return ret;
 
@@ -88,7 +89,8 @@ scmi_base_vendor_id_get(const struct scmi_handle *handle, bool sub_vendor)
 	if (!ret)
 		memcpy(vendor_id, t->rx.buf, size);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
+
 	return ret;
 }
 
@@ -97,7 +99,7 @@ scmi_base_vendor_id_get(const struct scmi_handle *handle, bool sub_vendor)
  *	implementation 32-bit version. The format of the version number is
  *	vendor-specific
  *
- * @handle - SCMI entity handle
+ * @handle: SCMI entity handle
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -109,7 +111,7 @@ scmi_base_implementation_version_get(const struct scmi_handle *handle)
 	struct scmi_xfer *t;
 	struct scmi_revision_info *rev = handle->version;
 
-	ret = scmi_one_xfer_init(handle, BASE_DISCOVER_IMPLEMENT_VERSION,
+	ret = scmi_xfer_get_init(handle, BASE_DISCOVER_IMPLEMENT_VERSION,
 				 SCMI_PROTOCOL_BASE, 0, sizeof(*impl_ver), &t);
 	if (ret)
 		return ret;
@@ -120,7 +122,8 @@ scmi_base_implementation_version_get(const struct scmi_handle *handle)
 		rev->impl_ver = le32_to_cpu(*impl_ver);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
+
 	return ret;
 }
 
@@ -128,8 +131,8 @@ scmi_base_implementation_version_get(const struct scmi_handle *handle)
  * scmi_base_implementation_list_get() - gets the list of protocols it is
  *	OSPM is allowed to access
  *
- * @handle - SCMI entity handle
- * @protocols_imp - pointer to hold the list of protocol identifiers
+ * @handle: SCMI entity handle
+ * @protocols_imp: pointer to hold the list of protocol identifiers
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -143,7 +146,7 @@ static int scmi_base_implementation_list_get(const struct scmi_handle *handle,
 	u32 tot_num_ret = 0, loop_num_ret;
 	struct device *dev = handle->dev;
 
-	ret = scmi_one_xfer_init(handle, BASE_DISCOVER_LIST_PROTOCOLS,
+	ret = scmi_xfer_get_init(handle, BASE_DISCOVER_LIST_PROTOCOLS,
 				 SCMI_PROTOCOL_BASE, sizeof(*num_skip), 0, &t);
 	if (ret)
 		return ret;
@@ -172,16 +175,17 @@ static int scmi_base_implementation_list_get(const struct scmi_handle *handle,
 		tot_num_ret += loop_num_ret;
 	} while (loop_num_ret);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
+
 	return ret;
 }
 
 /**
  * scmi_base_discover_agent_get() - discover the name of an agent
  *
- * @handle - SCMI entity handle
- * @id - Agent identifier
- * @name - Agent identifier ASCII string
+ * @handle: SCMI entity handle
+ * @id: Agent identifier
+ * @name: Agent identifier ASCII string
  *
  * An agent id of 0 is reserved to identify the platform itself.
  * Generally operating system is represented as "OSPM"
@@ -194,7 +198,7 @@ static int scmi_base_discover_agent_get(const struct scmi_handle *handle,
 	int ret;
 	struct scmi_xfer *t;
 
-	ret = scmi_one_xfer_init(handle, BASE_DISCOVER_AGENT,
+	ret = scmi_xfer_get_init(handle, BASE_DISCOVER_AGENT,
 				 SCMI_PROTOCOL_BASE, sizeof(__le32),
 				 SCMI_MAX_STR_SIZE, &t);
 	if (ret)
@@ -206,7 +210,8 @@ static int scmi_base_discover_agent_get(const struct scmi_handle *handle,
 	if (!ret)
 		memcpy(name, t->rx.buf, SCMI_MAX_STR_SIZE);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
+
 	return ret;
 }
 

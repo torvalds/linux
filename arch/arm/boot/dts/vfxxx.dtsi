@@ -84,7 +84,7 @@
 		mask = <0x1000>;
 	};
 
-	iio-hwmon {
+	tempsensor: iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc0 16>, <&adc1 16>;
 	};

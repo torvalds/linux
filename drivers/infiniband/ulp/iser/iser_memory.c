@@ -362,9 +362,9 @@ iser_set_prot_checks(struct scsi_cmnd *sc, u8 *mask)
 {
 	*mask = 0;
 	if (sc->prot_flags & SCSI_PROT_REF_CHECK)
-		*mask |= ISER_CHECK_REFTAG;
+		*mask |= IB_SIG_CHECK_REFTAG;
 	if (sc->prot_flags & SCSI_PROT_GUARD_CHECK)
-		*mask |= ISER_CHECK_GUARD;
+		*mask |= IB_SIG_CHECK_GUARD;
 }
 
 static inline void

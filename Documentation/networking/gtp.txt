@@ -67,7 +67,7 @@ Don't be confused by terminology:  The GTP User Plane goes through
 kernel accelerated path, while the GTP Control Plane goes to
 Userspace :)
 
-The official homepge of the module is at
+The official homepage of the module is at
 https://osmocom.org/projects/linux-kernel-gtp-u/wiki
 
 == Userspace Programs with Linux Kernel GTP-U support ==
@@ -120,7 +120,7 @@ If yo have questions regarding how to use the Kernel GTP module from
 your own software, or want to contribute to the code, please use the
 osmocom-net-grps mailing list for related discussion. The list can be
 reached at osmocom-net-gprs@lists.osmocom.org and the mailman
-interface for managign your subscription is at
+interface for managing your subscription is at
 https://lists.osmocom.org/mailman/listinfo/osmocom-net-gprs
 
 == Issue Tracker ==

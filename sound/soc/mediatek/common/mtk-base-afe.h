@@ -1,21 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mtk-base-afe.h  --  Mediatek base afe structure
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _MTK_BASE_AFE_H_
 #define _MTK_BASE_AFE_H_
+
+#define MTK_STREAM_NUM (SNDRV_PCM_STREAM_LAST + 1)
 
 struct mtk_base_memif_data {
 	int id;
@@ -54,6 +48,7 @@ struct mtk_base_irq_data {
 struct device;
 struct mtk_base_afe_memif;
 struct mtk_base_afe_irq;
+struct mtk_base_afe_dai;
 struct regmap;
 struct snd_pcm_substream;
 struct snd_soc_dai;
@@ -77,6 +72,11 @@ struct mtk_base_afe {
 	struct mtk_base_afe_irq *irqs;
 	int irqs_size;
 
+	struct mtk_base_afe_dai *sub_dais;
+	int num_sub_dais;
+	struct snd_soc_dai_driver *dai_drivers;
+	unsigned int num_dai_drivers;
+
 	const struct snd_pcm_hardware *mtk_afe_hardware;
 	int (*memif_fs)(struct snd_pcm_substream *substream,
 			unsigned int rate);
@@ -98,6 +98,18 @@ struct mtk_base_afe_memif {
 struct mtk_base_afe_irq {
 	const struct mtk_base_irq_data *irq_data;
 	int irq_occupyed;
+};
+
+struct mtk_base_afe_dai {
+	struct snd_soc_dai_driver *dai_drivers;
+	unsigned int num_dai_drivers;
+
+	const struct snd_kcontrol_new *controls;
+	unsigned int num_controls;
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	unsigned int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	unsigned int num_dapm_routes;
 };
 
 #endif

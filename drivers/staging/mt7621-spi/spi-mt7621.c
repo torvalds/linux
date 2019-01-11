@@ -65,7 +65,6 @@ struct mt7621_spi {
 	unsigned int		sys_freq;
 	unsigned int		speed;
 	struct clk		*clk;
-	spinlock_t		lock;
 
 	struct mt7621_spi_ops	*ops;
 };
@@ -395,7 +394,6 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct spi_master *master;
 	struct mt7621_spi *rs;
-	unsigned long flags;
 	void __iomem *base;
 	struct resource *r;
 	int status = 0;
@@ -447,7 +445,6 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	rs->sys_freq = clk_get_rate(rs->clk);
 	rs->ops = ops;
 	dev_info(&pdev->dev, "sys_freq: %u\n", rs->sys_freq);
-	spin_lock_irqsave(&rs->lock, flags);
 
 	device_reset(&pdev->dev);
 
@@ -475,7 +472,6 @@ MODULE_ALIAS("platform:" DRIVER_NAME);
 static struct platform_driver mt7621_spi_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mt7621_spi_match,
 	},
 	.probe = mt7621_spi_probe,

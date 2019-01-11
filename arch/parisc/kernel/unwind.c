@@ -25,7 +25,7 @@
 
 /* #define DEBUG 1 */
 #ifdef DEBUG
-#define dbg(x...) printk(x)
+#define dbg(x...) pr_debug(x)
 #else
 #define dbg(x...)
 #endif
@@ -182,7 +182,7 @@ int __init unwind_init(void)
 	start = (long)&__start___unwind[0];
 	stop = (long)&__stop___unwind[0];
 
-	printk("unwind_init: start = 0x%lx, end = 0x%lx, entries = %lu\n", 
+	dbg("unwind_init: start = 0x%lx, end = 0x%lx, entries = %lu\n",
 	    start, stop,
 	    (stop - start) / sizeof(struct unwind_table_entry));
 

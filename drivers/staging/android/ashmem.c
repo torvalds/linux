@@ -402,6 +402,8 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 			fput(asma->file);
 			goto out;
 		}
+	} else {
+		vma_set_anonymous(vma);
 	}
 
 	if (vma->vm_file)

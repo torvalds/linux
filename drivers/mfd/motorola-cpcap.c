@@ -173,9 +173,9 @@ static int cpcap_init_irq(struct cpcap_ddata *cpcap)
 	int ret;
 
 	cpcap->irqs = devm_kzalloc(&cpcap->spi->dev,
-				   sizeof(*cpcap->irqs) *
-				   CPCAP_NR_IRQ_REG_BANKS *
-				   cpcap->regmap_conf->val_bits,
+				   array3_size(sizeof(*cpcap->irqs),
+					       CPCAP_NR_IRQ_REG_BANKS,
+					       cpcap->regmap_conf->val_bits),
 				   GFP_KERNEL);
 	if (!cpcap->irqs)
 		return -ENOMEM;

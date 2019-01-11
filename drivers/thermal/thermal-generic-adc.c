@@ -87,8 +87,9 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 		return -EINVAL;
 	}
 
-	gti->lookup_table = devm_kzalloc(dev, sizeof(*gti->lookup_table) *
-					 ntable, GFP_KERNEL);
+	gti->lookup_table = devm_kcalloc(dev,
+					 ntable, sizeof(*gti->lookup_table),
+					 GFP_KERNEL);
 	if (!gti->lookup_table)
 		return -ENOMEM;
 

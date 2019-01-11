@@ -40,9 +40,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
-#include <sound/omap-pcm.h>
 
 #include "omap-dmic.h"
+#include "sdma-pcm.h"
 
 struct omap_dmic {
 	struct device *dev;
@@ -501,7 +501,7 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = omap_pcm_platform_register(&pdev->dev);
+	ret = sdma_pcm_platform_register(&pdev->dev, NULL, "up_link");
 	if (ret)
 		return ret;
 

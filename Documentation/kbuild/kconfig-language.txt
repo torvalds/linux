@@ -198,14 +198,6 @@ applicable everywhere (see syntax).
     enables the third modular state for all config symbols.
     At most one symbol may have the "modules" option set.
 
-  - "env"=<value>
-    This imports the environment variable into Kconfig. It behaves like
-    a default, except that the value comes from the environment, this
-    also means that the behaviour when mixing it with normal defaults is
-    undefined at this point. The symbol is currently not exported back
-    to the build environment (if this is desired, it can be done via
-    another symbol).
-
   - "allnoconfig_y"
     This declares the symbol as one that should have the value y when
     using "allnoconfig". Used for symbols that hide other symbols.
@@ -438,6 +430,12 @@ This sets the config program's title bar if the config program chooses
 to use it. It should be placed at the top of the configuration, before any
 other statement.
 
+'#' Kconfig source file comment:
+
+An unquoted '#' character anywhere in a source file line indicates
+the beginning of a source file comment.  The remainder of that line
+is a comment.
+
 
 Kconfig hints
 -------------
@@ -480,6 +478,24 @@ introduced to overcome the limitation of select which will force a
 config option to 'y' no matter the dependencies.
 The dependencies are moved to the symbol GENERIC_IOMAP and we avoid the
 situation where select forces a symbol equals to 'y'.
+
+Adding features that need compiler support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are several features that need compiler support. The recommended way
+to describe the dependency on the compiler feature is to use "depends on"
+followed by a test macro.
+
+config STACKPROTECTOR
+	bool "Stack Protector buffer overflow detection"
+	depends on $(cc-option,-fstack-protector)
+	...
+
+If you need to expose a compiler capability to makefiles and/or C source files,
+CC_HAS_ is the recommended prefix for the config option.
+
+config CC_HAS_STACKPROTECTOR_NONE
+	def_bool $(cc-option,-fno-stack-protector)
 
 Build as module only
 ~~~~~~~~~~~~~~~~~~~~

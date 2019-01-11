@@ -193,7 +193,7 @@ unsigned long hash__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr
 
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(!hash__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 #endif
 
 	__asm__ __volatile__(
@@ -265,7 +265,8 @@ void hash__pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 				  pgtable_t pgtable)
 {
 	pgtable_t *pgtable_slot;
-	assert_spin_locked(&mm->page_table_lock);
+
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 	/*
 	 * we store the pgtable in the second half of PMD
 	 */
@@ -285,7 +286,8 @@ pgtable_t hash__pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 	pgtable_t pgtable;
 	pgtable_t *pgtable_slot;
 
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
+
 	pgtable_slot = (pgtable_t *)pmdp + PTRS_PER_PMD;
 	pgtable = *pgtable_slot;
 	/*

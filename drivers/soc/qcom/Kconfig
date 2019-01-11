@@ -3,6 +3,25 @@
 #
 menu "Qualcomm SoC drivers"
 
+config QCOM_COMMAND_DB
+	bool "Qualcomm Command DB"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on OF_RESERVED_MEM
+	help
+	  Command DB queries shared memory by key string for shared system
+	  resources. Platform drivers that require to set state of a shared
+	  resource on a RPM-hardened platform must use this database to get
+	  SoC specific identifier and information for the shared resources.
+
+config QCOM_GENI_SE
+	tristate "QCOM GENI Serial Engine Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  This driver is used to manage Generic Interface (GENI) firmware based
+	  Qualcomm Technologies, Inc. Universal Peripheral (QUP) Wrapper. This
+	  driver is also used to manage the common aspects of multiple Serial
+	  Engines present in the QUP.
+
 config QCOM_GLINK_SSR
 	tristate "Qualcomm Glink SSR driver"
 	depends on RPMSG
@@ -108,4 +127,13 @@ config QCOM_WCNSS_CTRL
 	  Client driver for the WCNSS_CTRL SMD channel, used to download nv
 	  firmware to a newly booted WCNSS chip.
 
+config QCOM_APR
+	tristate "Qualcomm APR Bus (Asynchronous Packet Router)"
+	depends on ARCH_QCOM
+	depends on RPMSG
+	help
+          Enable APR IPC protocol support between
+          application processor and QDSP6. APR is
+          used by audio driver to configure QDSP6
+          ASM, ADM and AFE modules.
 endmenu

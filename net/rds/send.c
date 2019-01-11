@@ -1169,6 +1169,13 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		rs->rs_conn = conn;
 	}
 
+	if (conn->c_trans->t_mp_capable)
+		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn)];
+	else
+		cpath = &conn->c_path[0];
+
+	rm->m_conn_path = cpath;
+
 	/* Parse any control messages the user may have included. */
 	ret = rds_cmsg_send(rs, rm, msg, &allocated_mr);
 	if (ret) {
@@ -1191,11 +1198,6 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
-
-	if (conn->c_trans->t_mp_capable)
-		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn)];
-	else
-		cpath = &conn->c_path[0];
 
 	if (rds_destroy_pending(conn)) {
 		ret = -EAGAIN;

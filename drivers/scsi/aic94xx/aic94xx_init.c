@@ -350,7 +350,7 @@ static ssize_t asd_store_update_bios(struct device *dev,
 	int flash_command = FLASH_CMD_NONE;
 	int err = 0;
 
-	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
+	cmd_ptr = kcalloc(count, 2, GFP_KERNEL);
 
 	if (!cmd_ptr) {
 		err = FAIL_OUT_MEMORY;

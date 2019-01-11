@@ -413,8 +413,7 @@ static int s3c_adc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int s3c_adc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct adc_device *adc = platform_get_drvdata(pdev);
+	struct adc_device *adc = dev_get_drvdata(dev);
 	unsigned long flags;
 	u32 con;
 

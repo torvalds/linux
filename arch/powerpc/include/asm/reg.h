@@ -146,6 +146,12 @@
 #define MSR_64BIT	0
 #endif
 
+/* Condition Register related */
+#define CR0_SHIFT	28
+#define CR0_MASK	0xF
+#define CR0_TBEGIN_FAILURE	(0x2 << 28) /* 0b0010 */
+
+
 /* Power Management - Processor Stop Status and Control Register Fields */
 #define PSSCR_RL_MASK		0x0000000F /* Requested Level */
 #define PSSCR_MTL_MASK		0x000000F0 /* Maximum Transition Level */
@@ -239,13 +245,27 @@
 #define SPRN_TFIAR	0x81	/* Transaction Failure Inst Addr   */
 #define SPRN_TEXASR	0x82	/* Transaction EXception & Summary */
 #define SPRN_TEXASRU	0x83	/* ''	   ''	   ''	 Upper 32  */
-#define   TEXASR_ABORT	__MASK(63-31) /* terminated by tabort or treclaim */
-#define   TEXASR_SUSP	__MASK(63-32) /* tx failed in suspended state */
-#define   TEXASR_HV	__MASK(63-34) /* MSR[HV] when failure occurred */
-#define   TEXASR_PR	__MASK(63-35) /* MSR[PR] when failure occurred */
-#define   TEXASR_FS	__MASK(63-36) /* TEXASR Failure Summary */
-#define   TEXASR_EXACT	__MASK(63-37) /* TFIAR value is exact */
+
+#define TEXASR_FC_LG	(63 - 7)	/* Failure Code */
+#define TEXASR_AB_LG	(63 - 31)	/* Abort */
+#define TEXASR_SU_LG	(63 - 32)	/* Suspend */
+#define TEXASR_HV_LG	(63 - 34)	/* Hypervisor state*/
+#define TEXASR_PR_LG	(63 - 35)	/* Privilege level */
+#define TEXASR_FS_LG	(63 - 36)	/* failure summary */
+#define TEXASR_EX_LG	(63 - 37)	/* TFIAR exact bit */
+#define TEXASR_ROT_LG	(63 - 38)	/* ROT bit */
+
+#define   TEXASR_ABORT	__MASK(TEXASR_AB_LG) /* terminated by tabort or treclaim */
+#define   TEXASR_SUSP	__MASK(TEXASR_SU_LG) /* tx failed in suspended state */
+#define   TEXASR_HV	__MASK(TEXASR_HV_LG) /* MSR[HV] when failure occurred */
+#define   TEXASR_PR	__MASK(TEXASR_PR_LG) /* MSR[PR] when failure occurred */
+#define   TEXASR_FS	__MASK(TEXASR_FS_LG) /* TEXASR Failure Summary */
+#define   TEXASR_EXACT	__MASK(TEXASR_EX_LG) /* TFIAR value is exact */
+#define   TEXASR_ROT	__MASK(TEXASR_ROT_LG)
+#define   TEXASR_FC	(ASM_CONST(0xFF) << TEXASR_FC_LG)
+
 #define SPRN_TFHAR	0x80	/* Transaction Failure Handler Addr */
+
 #define SPRN_TIDR	144	/* Thread ID register */
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
@@ -365,6 +385,7 @@
 #define SPRN_PSSCR	0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define SPRN_PSSCR_PR	0x337	/* PSSCR ISA 3.0, privileged mode access */
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
+#define SPRN_RWMR	0x375	/* Region-Weighting Mode Register */
 
 /* HFSCR and FSCR bit numbers are the same */
 #define FSCR_SCV_LG	12	/* Enable System Call Vectored */

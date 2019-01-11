@@ -1458,7 +1458,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 	qi->desc = page_address(desc_page);
 
-	qi->desc_status = kzalloc(QI_LENGTH * sizeof(int), GFP_ATOMIC);
+	qi->desc_status = kcalloc(QI_LENGTH, sizeof(int), GFP_ATOMIC);
 	if (!qi->desc_status) {
 		free_page((unsigned long) qi->desc);
 		kfree(qi);
@@ -1618,17 +1618,13 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 	int reg, fault_index;
 	u32 fault_status;
 	unsigned long flag;
-	bool ratelimited;
 	static DEFINE_RATELIMIT_STATE(rs,
 				      DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
-	/* Disable printing, simply clear the fault when ratelimited */
-	ratelimited = !__ratelimit(&rs);
-
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	fault_status = readl(iommu->reg + DMAR_FSTS_REG);
-	if (fault_status && !ratelimited)
+	if (fault_status && __ratelimit(&rs))
 		pr_err("DRHD: handling fault status reg %x\n", fault_status);
 
 	/* TBD: ignore advanced fault log currently */
@@ -1638,6 +1634,8 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 	fault_index = dma_fsts_fault_record_index(fault_status);
 	reg = cap_fault_reg_offset(iommu->cap);
 	while (1) {
+		/* Disable printing, simply clear the fault when ratelimited */
+		bool ratelimited = !__ratelimit(&rs);
 		u8 fault_reason;
 		u16 source_id;
 		u64 guest_addr;

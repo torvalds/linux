@@ -241,6 +241,7 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			affs_set_opt(*mount_opts, SF_NO_TRUNCATE);
 			break;
 		case Opt_prefix:
+			kfree(*prefix);
 			*prefix = match_strdup(&args[0]);
 			if (!*prefix)
 				return 0;

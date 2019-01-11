@@ -75,7 +75,7 @@ struct aq_nic_s {
 	struct aq_hw_link_status_s link_status;
 	struct {
 		u32 count;
-		u8 ar[AQ_CFG_MULTICAST_ADDRESS_MAX][ETH_ALEN];
+		u8 ar[AQ_HW_MULTICAST_ADDRESS_MAX][ETH_ALEN];
 	} mc_list;
 
 	struct pci_dev *pdev;

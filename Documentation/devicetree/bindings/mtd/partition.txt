@@ -14,7 +14,7 @@ method is used for a given flash device. To describe the method there should be
 a subnode of the flash device that is named 'partitions'. It must have a
 'compatible' property, which is used to identify the method to use.
 
-We currently only document a binding for fixed layouts.
+Available bindings are listed in the "partitions" subdirectory.
 
 
 Fixed Partitions

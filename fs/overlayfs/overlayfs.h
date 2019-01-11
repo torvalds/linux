@@ -86,6 +86,7 @@ struct ovl_fh {
 static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int err = vfs_rmdir(dir, dentry);
+
 	pr_debug("rmdir(%pd2) = %i\n", dentry, err);
 	return err;
 }
@@ -93,56 +94,52 @@ static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 static inline int ovl_do_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int err = vfs_unlink(dir, dentry, NULL);
+
 	pr_debug("unlink(%pd2) = %i\n", dentry, err);
 	return err;
 }
 
 static inline int ovl_do_link(struct dentry *old_dentry, struct inode *dir,
-			      struct dentry *new_dentry, bool debug)
+			      struct dentry *new_dentry)
 {
 	int err = vfs_link(old_dentry, dir, new_dentry, NULL);
-	if (debug) {
-		pr_debug("link(%pd2, %pd2) = %i\n",
-			 old_dentry, new_dentry, err);
-	}
+
+	pr_debug("link(%pd2, %pd2) = %i\n", old_dentry, new_dentry, err);
 	return err;
 }
 
 static inline int ovl_do_create(struct inode *dir, struct dentry *dentry,
-			     umode_t mode, bool debug)
+				umode_t mode)
 {
 	int err = vfs_create(dir, dentry, mode, true);
-	if (debug)
-		pr_debug("create(%pd2, 0%o) = %i\n", dentry, mode, err);
+
+	pr_debug("create(%pd2, 0%o) = %i\n", dentry, mode, err);
 	return err;
 }
 
 static inline int ovl_do_mkdir(struct inode *dir, struct dentry *dentry,
-			       umode_t mode, bool debug)
+			       umode_t mode)
 {
 	int err = vfs_mkdir(dir, dentry, mode);
-	if (debug)
-		pr_debug("mkdir(%pd2, 0%o) = %i\n", dentry, mode, err);
+	pr_debug("mkdir(%pd2, 0%o) = %i\n", dentry, mode, err);
 	return err;
 }
 
 static inline int ovl_do_mknod(struct inode *dir, struct dentry *dentry,
-			       umode_t mode, dev_t dev, bool debug)
+			       umode_t mode, dev_t dev)
 {
 	int err = vfs_mknod(dir, dentry, mode, dev);
-	if (debug) {
-		pr_debug("mknod(%pd2, 0%o, 0%o) = %i\n",
-			 dentry, mode, dev, err);
-	}
+
+	pr_debug("mknod(%pd2, 0%o, 0%o) = %i\n", dentry, mode, dev, err);
 	return err;
 }
 
 static inline int ovl_do_symlink(struct inode *dir, struct dentry *dentry,
-				 const char *oldname, bool debug)
+				 const char *oldname)
 {
 	int err = vfs_symlink(dir, dentry, oldname);
-	if (debug)
-		pr_debug("symlink(\"%s\", %pd2) = %i\n", oldname, dentry, err);
+
+	pr_debug("symlink(\"%s\", %pd2) = %i\n", oldname, dentry, err);
 	return err;
 }
 
@@ -168,11 +165,8 @@ static inline int ovl_do_rename(struct inode *olddir, struct dentry *olddentry,
 {
 	int err;
 
-	pr_debug("rename(%pd2, %pd2, 0x%x)\n",
-		 olddentry, newdentry, flags);
-
+	pr_debug("rename(%pd2, %pd2, 0x%x)\n", olddentry, newdentry, flags);
 	err = vfs_rename(olddir, olddentry, newdir, newdentry, NULL, flags);
-
 	if (err) {
 		pr_debug("...rename(%pd2, %pd2, ...) = %i\n",
 			 olddentry, newdentry, err);
@@ -331,15 +325,21 @@ int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
 struct posix_acl *ovl_get_acl(struct inode *inode, int type);
 int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags);
-int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
+int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags);
 bool ovl_is_private_xattr(const char *name);
 
+struct ovl_inode_params {
+	struct inode *newinode;
+	struct dentry *upperdentry;
+	struct ovl_path *lowerpath;
+	struct dentry *index;
+	unsigned int numlower;
+};
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
 struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *real,
 			       bool is_upper);
-struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
-			    struct ovl_path *lowerpath, struct dentry *index,
-			    unsigned int numlower);
+struct inode *ovl_get_inode(struct super_block *sb,
+			    struct ovl_inode_params *oip);
 static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
 	to->i_uid = from->i_uid;
@@ -352,18 +352,21 @@ static inline void ovl_copyattr(struct inode *from, struct inode *to)
 
 /* dir.c */
 extern const struct inode_operations ovl_dir_inode_operations;
-struct dentry *ovl_lookup_temp(struct dentry *workdir);
 int ovl_cleanup_and_whiteout(struct dentry *workdir, struct inode *dir,
 			     struct dentry *dentry);
-struct cattr {
+struct ovl_cattr {
 	dev_t rdev;
 	umode_t mode;
 	const char *link;
+	struct dentry *hardlink;
 };
-int ovl_create_real(struct inode *dir, struct dentry *newdentry,
-		    struct cattr *attr,
-		    struct dentry *hardlink, bool debug);
+
+#define OVL_CATTR(m) (&(struct ovl_cattr) { .mode = (m) })
+
+struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
+			       struct ovl_cattr *attr);
 int ovl_cleanup(struct inode *dir, struct dentry *dentry);
+struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr);
 
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);

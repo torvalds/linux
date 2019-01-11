@@ -777,8 +777,15 @@ static int ceu_try_fmt(struct ceu_device *ceudev, struct v4l2_format *v4l2_fmt)
 	const struct ceu_fmt *ceu_fmt;
 	int ret;
 
+	/*
+	 * Set format on sensor sub device: bus format used to produce memory
+	 * format is selected at initialization time.
+	 */
 	struct v4l2_subdev_format sd_format = {
-		.which = V4L2_SUBDEV_FORMAT_TRY,
+		.which	= V4L2_SUBDEV_FORMAT_TRY,
+		.format	= {
+			.code = ceu_sd->mbus_fmt.mbus_code,
+		},
 	};
 
 	switch (pix->pixelformat) {
@@ -800,10 +807,6 @@ static int ceu_try_fmt(struct ceu_device *ceudev, struct v4l2_format *v4l2_fmt)
 	v4l_bound_align_image(&pix->width, 2, CEU_MAX_WIDTH, 4,
 			      &pix->height, 4, CEU_MAX_HEIGHT, 4, 0);
 
-	/*
-	 * Set format on sensor sub device: bus format used to produce memory
-	 * format is selected at initialization time.
-	 */
 	v4l2_fill_mbus_format_mplane(&sd_format.format, pix);
 	ret = v4l2_subdev_call(v4l2_sd, pad, set_fmt, &pad_cfg, &sd_format);
 	if (ret)
@@ -827,8 +830,15 @@ static int ceu_set_fmt(struct ceu_device *ceudev, struct v4l2_format *v4l2_fmt)
 	struct v4l2_subdev *v4l2_sd = ceu_sd->v4l2_sd;
 	int ret;
 
+	/*
+	 * Set format on sensor sub device: bus format used to produce memory
+	 * format is selected at initialization time.
+	 */
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.format	= {
+			.code = ceu_sd->mbus_fmt.mbus_code,
+		},
 	};
 
 	ret = ceu_try_fmt(ceudev, v4l2_fmt);
@@ -1365,7 +1375,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 
 	/* Register the video device. */
-	strncpy(vdev->name, DRIVER_NAME, strlen(DRIVER_NAME));
+	strlcpy(vdev->name, DRIVER_NAME, sizeof(vdev->name));
 	vdev->v4l2_dev		= v4l2_dev;
 	vdev->lock		= &ceudev->mlock;
 	vdev->queue		= &ceudev->vb2_vq;
@@ -1545,6 +1555,7 @@ static const struct ceu_data ceu_data_sh4 = {
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id ceu_of_match[] = {
 	{ .compatible = "renesas,r7s72100-ceu", .data = &ceu_data_rz },
+	{ .compatible = "renesas,r8a7740-ceu", .data = &ceu_data_rz },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ceu_of_match);

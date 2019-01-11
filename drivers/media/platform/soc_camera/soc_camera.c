@@ -481,7 +481,8 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 		return -ENXIO;
 
 	icd->user_formats =
-		vmalloc(fmts * sizeof(struct soc_camera_format_xlate));
+		vmalloc(array_size(fmts,
+				   sizeof(struct soc_camera_format_xlate)));
 	if (!icd->user_formats)
 		return -ENOMEM;
 

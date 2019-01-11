@@ -1,29 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 /* ethtool support for i40evf */
 #include "i40evf.h"
@@ -226,7 +202,7 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 
 /**
  * i40evf_get_priv_flags - report device private flags
- * @dev: network interface device structure
+ * @netdev: network interface device structure
  *
  * The get string set count and the string set should be matched for each
  * flag returned.  Add new strings for each flag to the i40e_gstrings_priv_flags
@@ -253,7 +229,7 @@ static u32 i40evf_get_priv_flags(struct net_device *netdev)
 
 /**
  * i40evf_set_priv_flags - set private flags
- * @dev: network interface device structure
+ * @netdev: network interface device structure
  * @flags: bit flags to be set
  **/
 static int i40evf_set_priv_flags(struct net_device *netdev, u32 flags)
@@ -627,6 +603,7 @@ static int i40evf_set_per_queue_coalesce(struct net_device *netdev,
  * i40evf_get_rxnfc - command to get RX flow classification rules
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
+ * @rule_locs: pointer to store rule locations
  *
  * Returns Success if the command is supported.
  **/
@@ -746,6 +723,7 @@ static u32 i40evf_get_rxfh_indir_size(struct net_device *netdev)
  * @netdev: network interface device structure
  * @indir: indirection table
  * @key: hash key
+ * @hfunc: hash function in use
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  **/
@@ -774,6 +752,7 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
  * @netdev: network interface device structure
  * @indir: indirection table
  * @key: hash key
+ * @hfunc: hash function to use
  *
  * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
  * returns 0 after programming the table.

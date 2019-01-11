@@ -908,10 +908,10 @@ static int sta2x11_vip_init_controls(struct sta2x11_vip *vip)
 static int vip_gpio_reserve(struct device *dev, int pin, int dir,
 			    const char *name)
 {
-	int ret;
+	int ret = -ENODEV;
 
-	if (pin == -1)
-		return 0;
+	if (!gpio_is_valid(pin))
+		return ret;
 
 	ret = gpio_request(pin, name);
 	if (ret) {
@@ -946,7 +946,7 @@ static int vip_gpio_reserve(struct device *dev, int pin, int dir,
  */
 static void vip_gpio_release(struct device *dev, int pin, const char *name)
 {
-	if (pin != -1) {
+	if (gpio_is_valid(pin)) {
 		dev_dbg(dev, "releasing pin %d (%s)\n",	pin, name);
 		gpio_unexport(pin);
 		gpio_free(pin);
@@ -1003,25 +1003,24 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	if (ret)
 		goto disable;
 
-	if (config->reset_pin >= 0) {
-		ret = vip_gpio_reserve(&pdev->dev, config->reset_pin, 0,
-				       config->reset_name);
-		if (ret) {
-			vip_gpio_release(&pdev->dev, config->pwr_pin,
-					 config->pwr_name);
-			goto disable;
-		}
-	}
-	if (config->pwr_pin != -1) {
-		/* Datasheet says 5ms between PWR and RST */
-		usleep_range(5000, 25000);
-		ret = gpio_direction_output(config->pwr_pin, 1);
+	ret = vip_gpio_reserve(&pdev->dev, config->reset_pin, 0,
+			       config->reset_name);
+	if (ret) {
+		vip_gpio_release(&pdev->dev, config->pwr_pin,
+				 config->pwr_name);
+		goto disable;
 	}
 
-	if (config->reset_pin != -1) {
+	if (gpio_is_valid(config->pwr_pin)) {
 		/* Datasheet says 5ms between PWR and RST */
 		usleep_range(5000, 25000);
-		ret = gpio_direction_output(config->reset_pin, 1);
+		gpio_direction_output(config->pwr_pin, 1);
+	}
+
+	if (gpio_is_valid(config->reset_pin)) {
+		/* Datasheet says 5ms between PWR and RST */
+		usleep_range(5000, 25000);
+		gpio_direction_output(config->reset_pin, 1);
 	}
 	usleep_range(5000, 25000);
 

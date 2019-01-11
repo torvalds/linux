@@ -361,7 +361,7 @@ extern int rtas_offline_cpus_mask(cpumask_var_t cpus);
 extern int rtas_ibm_suspend_me(u64 handle);
 
 struct rtc_time;
-extern unsigned long rtas_get_boot_time(void);
+extern time64_t rtas_get_boot_time(void);
 extern void rtas_get_rtc_time(struct rtc_time *rtc_time);
 extern int rtas_set_rtc_time(struct rtc_time *rtc_time);
 

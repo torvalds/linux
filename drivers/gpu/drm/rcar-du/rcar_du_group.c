@@ -46,10 +46,13 @@ void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 
 static void rcar_du_group_setup_pins(struct rcar_du_group *rgrp)
 {
-	u32 defr6 = DEFR6_CODE | DEFR6_ODPM12_DISP;
+	u32 defr6 = DEFR6_CODE;
 
-	if (rgrp->num_crtcs > 1)
-		defr6 |= DEFR6_ODPM22_DISP;
+	if (rgrp->channels_mask & BIT(0))
+		defr6 |= DEFR6_ODPM02_DISP;
+
+	if (rgrp->channels_mask & BIT(1))
+		defr6 |= DEFR6_ODPM12_DISP;
 
 	rcar_du_group_write(rgrp, DEFR6, defr6);
 }
@@ -80,10 +83,11 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 		 * On Gen3 VSPD routing can't be configured, but DPAD routing
 		 * needs to be set despite having a single option available.
 		 */
-		u32 crtc = ffs(possible_crtcs) - 1;
+		unsigned int rgb_crtc = ffs(possible_crtcs) - 1;
+		struct rcar_du_crtc *crtc = &rcdu->crtcs[rgb_crtc];
 
-		if (crtc / 2 == rgrp->index)
-			defr8 |= DEFR8_DRGBS_DU(crtc);
+		if (crtc->index / 2 == rgrp->index)
+			defr8 |= DEFR8_DRGBS_DU(crtc->index);
 	}
 
 	rcar_du_group_write(rgrp, DEFR8, defr8);

@@ -47,10 +47,13 @@ config KVM_GENERIC_DIRTYLOG_READ_PROTECT
 
 config KVM_COMPAT
        def_bool y
-       depends on KVM && COMPAT && !S390
+       depends on KVM && COMPAT && !(S390 || ARM64)
 
 config HAVE_KVM_IRQ_BYPASS
        bool
 
 config HAVE_KVM_VCPU_ASYNC_IOCTL
+       bool
+
+config HAVE_KVM_VCPU_RUN_PID_CHANGE
        bool

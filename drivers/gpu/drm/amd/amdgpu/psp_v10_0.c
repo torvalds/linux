@@ -70,6 +70,15 @@ psp_v10_0_get_fw_type(struct amdgpu_firmware_info *ucode, enum psp_gfx_fw_type *
 	case AMDGPU_UCODE_ID_RLC_G:
 		*type = GFX_FW_TYPE_RLC_G;
 		break;
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL:
+		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_CNTL;
+		break;
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM:
+		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_GPM_MEM;
+		break;
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM:
+		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM;
+		break;
 	case AMDGPU_UCODE_ID_SMC:
 		*type = GFX_FW_TYPE_SMU;
 		break;

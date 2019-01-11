@@ -36,6 +36,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>	/* For ETH_ALEN. */
+#include <rdma/ib_user_ioctl_verbs.h>
 
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
@@ -163,7 +164,7 @@ struct mlx5_ib_rss_caps {
 enum mlx5_ib_cqe_comp_res_format {
 	MLX5_IB_CQE_RES_FORMAT_HASH	= 1 << 0,
 	MLX5_IB_CQE_RES_FORMAT_CSUM	= 1 << 1,
-	MLX5_IB_CQE_RES_RESERVED	= 1 << 2,
+	MLX5_IB_CQE_RES_FORMAT_CSUM_STRIDX = 1 << 2,
 };
 
 struct mlx5_ib_cqe_comp_caps {
@@ -233,7 +234,9 @@ enum mlx5_ib_query_dev_resp_flags {
 enum mlx5_ib_tunnel_offloads {
 	MLX5_IB_TUNNELED_OFFLOADS_VXLAN  = 1 << 0,
 	MLX5_IB_TUNNELED_OFFLOADS_GRE    = 1 << 1,
-	MLX5_IB_TUNNELED_OFFLOADS_GENEVE = 1 << 2
+	MLX5_IB_TUNNELED_OFFLOADS_GENEVE = 1 << 2,
+	MLX5_IB_TUNNELED_OFFLOADS_MPLS_GRE = 1 << 3,
+	MLX5_IB_TUNNELED_OFFLOADS_MPLS_UDP = 1 << 4,
 };
 
 struct mlx5_ib_query_device_resp {
@@ -441,4 +444,27 @@ enum {
 enum {
 	MLX5_IB_CLOCK_INFO_V1              = 0,
 };
+
+struct mlx5_ib_flow_counters_desc {
+	__u32	description;
+	__u32	index;
+};
+
+struct mlx5_ib_flow_counters_data {
+	RDMA_UAPI_PTR(struct mlx5_ib_flow_counters_desc *, counters_data);
+	__u32   ncounters;
+	__u32   reserved;
+};
+
+struct mlx5_ib_create_flow {
+	__u32   ncounters_data;
+	__u32   reserved;
+	/*
+	 * Following are counters data based on ncounters_data, each
+	 * entry in the data[] should match a corresponding counter object
+	 * that was pointed by a counters spec upon the flow creation
+	 */
+	struct mlx5_ib_flow_counters_data data[];
+};
+
 #endif /* MLX5_ABI_USER_H */

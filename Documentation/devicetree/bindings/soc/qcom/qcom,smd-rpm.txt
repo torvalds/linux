@@ -22,6 +22,7 @@ resources.
 		    "qcom,rpm-apq8084"
 		    "qcom,rpm-msm8916"
 		    "qcom,rpm-msm8974"
+		    "qcom,rpm-msm8998"
 
 - qcom,smd-channels:
 	Usage: required

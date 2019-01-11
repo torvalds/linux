@@ -1005,6 +1005,11 @@ static void l2_qos_cfg_update(void *arg)
 	wrmsrl(IA32_L2_QOS_CFG, *enable ? L2_QOS_CDP_ENABLE : 0ULL);
 }
 
+static inline bool is_mba_linear(void)
+{
+	return rdt_resources_all[RDT_RESOURCE_MBA].membw.delay_linear;
+}
+
 static int set_cache_qos_cfg(int level, bool enable)
 {
 	void (*update)(void *arg);
@@ -1037,6 +1042,28 @@ static int set_cache_qos_cfg(int level, bool enable)
 	put_cpu();
 
 	free_cpumask_var(cpu_mask);
+
+	return 0;
+}
+
+/*
+ * Enable or disable the MBA software controller
+ * which helps user specify bandwidth in MBps.
+ * MBA software controller is supported only if
+ * MBM is supported and MBA is in linear scale.
+ */
+static int set_mba_sc(bool mba_sc)
+{
+	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_MBA];
+	struct rdt_domain *d;
+
+	if (!is_mbm_enabled() || !is_mba_linear() ||
+	    mba_sc == is_mba_sc(r))
+		return -EINVAL;
+
+	r->membw.mba_sc = mba_sc;
+	list_for_each_entry(d, &r->domains, list)
+		setup_default_ctrlval(r, d->ctrl_val, d->mbps_val);
 
 	return 0;
 }
@@ -1121,6 +1148,10 @@ static int parse_rdtgroupfs_options(char *data)
 				goto out;
 		} else if (!strcmp(token, "cdpl2")) {
 			ret = cdpl2_enable();
+			if (ret)
+				goto out;
+		} else if (!strcmp(token, "mba_MBps")) {
+			ret = set_mba_sc(true);
 			if (ret)
 				goto out;
 		} else {
@@ -1444,6 +1475,8 @@ static void rdt_kill_sb(struct super_block *sb)
 
 	cpus_read_lock();
 	mutex_lock(&rdtgroup_mutex);
+
+	set_mba_sc(false);
 
 	/*Put everything back to default values. */
 	for_each_alloc_enabled_rdt_resource(r)

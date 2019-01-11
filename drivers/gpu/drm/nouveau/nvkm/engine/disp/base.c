@@ -220,6 +220,9 @@ nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
 	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
 
+	if (disp->func->fini)
+		disp->func->fini(disp);
+
 	list_for_each_entry(outp, &disp->outp, head) {
 		nvkm_outp_fini(outp);
 	}
@@ -237,6 +240,7 @@ nvkm_disp_init(struct nvkm_engine *engine)
 	struct nvkm_disp *disp = nvkm_disp(engine);
 	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
+	struct nvkm_ior *ior;
 
 	list_for_each_entry(conn, &disp->conn, head) {
 		nvkm_conn_init(conn);
@@ -244,6 +248,19 @@ nvkm_disp_init(struct nvkm_engine *engine)
 
 	list_for_each_entry(outp, &disp->outp, head) {
 		nvkm_outp_init(outp);
+	}
+
+	if (disp->func->init) {
+		int ret = disp->func->init(disp);
+		if (ret)
+			return ret;
+	}
+
+	/* Set 'normal' (ie. when it's attached to a head) state for
+	 * each output resource to 'fully enabled'.
+	 */
+	list_for_each_entry(ior, &disp->ior, head) {
+		ior->func->power(ior, true, true, true, true, true);
 	}
 
 	return 0;
@@ -375,6 +392,12 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	ret = nvkm_event_init(&nvkm_disp_hpd_func, 3, hpd, &disp->hpd);
 	if (ret)
 		return ret;
+
+	if (disp->func->oneinit) {
+		ret = disp->func->oneinit(disp);
+		if (ret)
+			return ret;
+	}
 
 	i = 0;
 	list_for_each_entry(head, &disp->head, head)

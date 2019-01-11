@@ -71,7 +71,7 @@ static const struct regmap_range_cfg rt5670_ranges[] = {
 
 static const struct reg_sequence init_list[] = {
 	{ RT5670_PR_BASE + 0x14, 0x9a8a },
-	{ RT5670_PR_BASE + 0x38, 0x3ba1 },
+	{ RT5670_PR_BASE + 0x38, 0x1fe1 },
 	{ RT5670_PR_BASE + 0x3d, 0x3640 },
 	{ 0x8a, 0x0123 },
 };

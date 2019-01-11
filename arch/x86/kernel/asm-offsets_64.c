@@ -69,7 +69,7 @@ int main(void)
 	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
 	BLANK();
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 	DEFINE(stack_canary_offset, offsetof(union irq_stack_union, stack_canary));
 	BLANK();
 #endif

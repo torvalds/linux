@@ -5,4 +5,4 @@ dtb-$(CONFIG_DT_XLP_FVP)	+= xlp_fvp.dtb
 dtb-$(CONFIG_DT_XLP_GVP)	+= xlp_gvp.dtb
 dtb-$(CONFIG_DT_XLP_RVP)	+= xlp_rvp.dtb
 
-obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
+obj-$(CONFIG_BUILTIN_DTB)	+= $(addsuffix .o, $(dtb-y))

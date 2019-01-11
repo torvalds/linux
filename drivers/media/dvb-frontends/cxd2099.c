@@ -1,5 +1,5 @@
 /*
- * cxd2099.c: Driver for the CXD2099AR Common Interface Controller
+ * cxd2099.c: Driver for the Sony CXD2099AR Common Interface Controller
  *
  * Copyright (C) 2010-2013 Digital Devices GmbH
  *
@@ -699,6 +699,6 @@ static struct i2c_driver cxd2099_driver = {
 
 module_i2c_driver(cxd2099_driver);
 
-MODULE_DESCRIPTION("CXD2099AR Common Interface controller driver");
+MODULE_DESCRIPTION("Sony CXD2099AR Common Interface controller driver");
 MODULE_AUTHOR("Ralph Metzler");
 MODULE_LICENSE("GPL");

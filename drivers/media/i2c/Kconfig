@@ -575,6 +575,17 @@ config VIDEO_APTINA_PLL
 config VIDEO_SMIAPP_PLL
 	tristate
 
+config VIDEO_IMX258
+	tristate "Sony IMX258 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Sony
+	  IMX258 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx258.
+
 config VIDEO_IMX274
 	tristate "Sony IMX274 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -687,6 +698,18 @@ config VIDEO_OV5695
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5695.
+
+config VIDEO_OV7251
+	tristate "OmniVision OV7251 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7251 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov7251.
 
 config VIDEO_OV772X
 	tristate "OmniVision OV772x sensor support"
@@ -974,6 +997,19 @@ config VIDEO_M52790
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called m52790.
+
+config VIDEO_I2C
+	tristate "I2C transport video support"
+	depends on VIDEO_V4L2 && I2C
+	select VIDEOBUF2_VMALLOC
+	---help---
+	  Enable the I2C transport video support which supports the
+	  following:
+	   * Panasonic AMG88xx Grid-Eye Sensors
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called video-i2c
+
 endmenu
 
 menu "Sensors used on soc_camera driver"

@@ -222,11 +222,8 @@ int btrfs_pin_log_trans(struct btrfs_root *root)
 void btrfs_end_log_trans(struct btrfs_root *root)
 {
 	if (atomic_dec_and_test(&root->log_writers)) {
-		/*
-		 * Implicit memory barrier after atomic_dec_and_test
-		 */
-		if (waitqueue_active(&root->log_writer_wait))
-			wake_up(&root->log_writer_wait);
+		/* atomic_dec_and_test implies a barrier */
+		cond_wake_up_nomb(&root->log_writer_wait);
 	}
 }
 
@@ -2988,11 +2985,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&log_root_tree->log_mutex);
 	if (atomic_dec_and_test(&log_root_tree->log_writers)) {
-		/*
-		 * Implicit memory barrier after atomic_dec_and_test
-		 */
-		if (waitqueue_active(&log_root_tree->log_writer_wait))
-			wake_up(&log_root_tree->log_writer_wait);
+		/* atomic_dec_and_test implies a barrier */
+		cond_wake_up_nomb(&log_root_tree->log_writer_wait);
 	}
 
 	if (ret) {
@@ -3116,10 +3110,11 @@ out_wake_log_root:
 	mutex_unlock(&log_root_tree->log_mutex);
 
 	/*
-	 * The barrier before waitqueue_active is implied by mutex_unlock
+	 * The barrier before waitqueue_active (in cond_wake_up) is needed so
+	 * all the updates above are seen by the woken threads. It might not be
+	 * necessary, but proving that seems to be hard.
 	 */
-	if (waitqueue_active(&log_root_tree->log_commit_wait[index2]))
-		wake_up(&log_root_tree->log_commit_wait[index2]);
+	cond_wake_up(&log_root_tree->log_commit_wait[index2]);
 out:
 	mutex_lock(&root->log_mutex);
 	btrfs_remove_all_log_ctxs(root, index1, ret);
@@ -3128,10 +3123,11 @@ out:
 	mutex_unlock(&root->log_mutex);
 
 	/*
-	 * The barrier before waitqueue_active is implied by mutex_unlock
+	 * The barrier before waitqueue_active (in cond_wake_up) is needed so
+	 * all the updates above are seen by the woken threads. It might not be
+	 * necessary, but proving that seems to be hard.
 	 */
-	if (waitqueue_active(&root->log_commit_wait[index1]))
-		wake_up(&root->log_commit_wait[index1]);
+	cond_wake_up(&root->log_commit_wait[index1]);
 	return ret;
 }
 

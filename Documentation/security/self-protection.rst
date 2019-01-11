@@ -156,7 +156,7 @@ The classic stack buffer overflow involves writing past the expected end
 of a variable stored on the stack, ultimately writing a controlled value
 to the stack frame's stored return address. The most widely used defense
 is the presence of a stack canary between the stack variables and the
-return address (``CONFIG_CC_STACKPROTECTOR``), which is verified just before
+return address (``CONFIG_STACKPROTECTOR``), which is verified just before
 the function returns. Other defenses include things like shadow stacks.
 
 Stack depth overflow

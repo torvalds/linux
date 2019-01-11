@@ -1269,12 +1269,18 @@ struct kvm_cpuid_entry2 {
 	__u32 padding[3];
 };
 
-This ioctl returns x86 cpuid features which are supported by both the hardware
-and kvm.  Userspace can use the information returned by this ioctl to
-construct cpuid information (for KVM_SET_CPUID2) that is consistent with
-hardware, kernel, and userspace capabilities, and with user requirements (for
-example, the user may wish to constrain cpuid to emulate older hardware,
-or for feature consistency across a cluster).
+This ioctl returns x86 cpuid features which are supported by both the
+hardware and kvm in its default configuration.  Userspace can use the
+information returned by this ioctl to construct cpuid information (for
+KVM_SET_CPUID2) that is consistent with hardware, kernel, and
+userspace capabilities, and with user requirements (for example, the
+user may wish to constrain cpuid to emulate older hardware, or for
+feature consistency across a cluster).
+
+Note that certain capabilities, such as KVM_CAP_X86_DISABLE_EXITS, may
+expose cpuid features (e.g. MONITOR) which are not supported by kvm in
+its default configuration. If userspace enables such capabilities, it
+is responsible for modifying the results of this ioctl appropriately.
 
 Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
 with the 'nent' field indicating the number of entries in the variable-size
@@ -4603,3 +4609,12 @@ Architectures: s390
 This capability indicates that kvm will implement the interfaces to handle
 reset, migration and nested KVM for branch prediction blocking. The stfle
 facility 82 should not be provided to the guest without this capability.
+
+8.18 KVM_CAP_HYPERV_TLBFLUSH
+
+Architectures: x86
+
+This capability indicates that KVM supports paravirtualized Hyper-V TLB Flush
+hypercalls:
+HvFlushVirtualAddressSpace, HvFlushVirtualAddressSpaceEx,
+HvFlushVirtualAddressList, HvFlushVirtualAddressListEx.

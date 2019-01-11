@@ -25,4 +25,7 @@ int crypto_sm4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 int crypto_sm4_expand_key(struct crypto_sm4_ctx *ctx, const u8 *in_key,
 			  unsigned int key_len);
 
+void crypto_sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in);
+void crypto_sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in);
+
 #endif

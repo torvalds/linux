@@ -27,6 +27,15 @@
 #define BNXT_FID_INVALID			0xffff
 #define VLAN_TCI(vid, prio)	((vid) | ((prio) << VLAN_PRIO_SHIFT))
 
+#define is_vlan_pcp_wildcarded(vlan_tci_mask)	\
+	((ntohs(vlan_tci_mask) & VLAN_PRIO_MASK) == 0x0000)
+#define is_vlan_pcp_exactmatch(vlan_tci_mask)	\
+	((ntohs(vlan_tci_mask) & VLAN_PRIO_MASK) == VLAN_PRIO_MASK)
+#define is_vlan_pcp_zero(vlan_tci)	\
+	((ntohs(vlan_tci) & VLAN_PRIO_MASK) == 0x0000)
+#define is_vid_exactmatch(vlan_tci_mask)	\
+	((ntohs(vlan_tci_mask) & VLAN_VID_MASK) == VLAN_VID_MASK)
+
 /* Return the dst fid of the func for flow forwarding
  * For PFs: src_fid is the fid of the PF
  * For VF-reps: src_fid the fid of the VF
@@ -387,6 +396,21 @@ static bool is_exactmatch(void *mask, int len)
 			return false;
 
 	return true;
+}
+
+static bool is_vlan_tci_allowed(__be16  vlan_tci_mask,
+				__be16  vlan_tci)
+{
+	/* VLAN priority must be either exactly zero or fully wildcarded and
+	 * VLAN id must be exact match.
+	 */
+	if (is_vid_exactmatch(vlan_tci_mask) &&
+	    ((is_vlan_pcp_exactmatch(vlan_tci_mask) &&
+	      is_vlan_pcp_zero(vlan_tci)) ||
+	     is_vlan_pcp_wildcarded(vlan_tci_mask)))
+		return true;
+
+	return false;
 }
 
 static bool bits_set(void *key, int len)
@@ -803,9 +827,9 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 	/* Currently VLAN fields cannot be partial wildcard */
 	if (bits_set(&flow->l2_key.inner_vlan_tci,
 		     sizeof(flow->l2_key.inner_vlan_tci)) &&
-	    !is_exactmatch(&flow->l2_mask.inner_vlan_tci,
-			   sizeof(flow->l2_mask.inner_vlan_tci))) {
-		netdev_info(bp->dev, "Wildcard match unsupported for VLAN TCI\n");
+	    !is_vlan_tci_allowed(flow->l2_mask.inner_vlan_tci,
+				 flow->l2_key.inner_vlan_tci)) {
+		netdev_info(bp->dev, "Unsupported VLAN TCI\n");
 		return false;
 	}
 	if (bits_set(&flow->l2_key.inner_vlan_tpid,

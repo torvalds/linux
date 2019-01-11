@@ -53,7 +53,6 @@ struct vgpu_sched_data {
 	bool active;
 
 	ktime_t sched_in_time;
-	ktime_t sched_out_time;
 	ktime_t sched_time;
 	ktime_t left_ts;
 	ktime_t allocated_ts;
@@ -66,17 +65,22 @@ struct gvt_sched_data {
 	struct hrtimer timer;
 	unsigned long period;
 	struct list_head lru_runq_head;
+	ktime_t expire_time;
 };
 
-static void vgpu_update_timeslice(struct intel_vgpu *pre_vgpu)
+static void vgpu_update_timeslice(struct intel_vgpu *vgpu, ktime_t cur_time)
 {
 	ktime_t delta_ts;
-	struct vgpu_sched_data *vgpu_data = pre_vgpu->sched_data;
+	struct vgpu_sched_data *vgpu_data;
 
-	delta_ts = vgpu_data->sched_out_time - vgpu_data->sched_in_time;
+	if (!vgpu || vgpu == vgpu->gvt->idle_vgpu)
+		return;
 
-	vgpu_data->sched_time += delta_ts;
-	vgpu_data->left_ts -= delta_ts;
+	vgpu_data = vgpu->sched_data;
+	delta_ts = ktime_sub(cur_time, vgpu_data->sched_in_time);
+	vgpu_data->sched_time = ktime_add(vgpu_data->sched_time, delta_ts);
+	vgpu_data->left_ts = ktime_sub(vgpu_data->left_ts, delta_ts);
+	vgpu_data->sched_in_time = cur_time;
 }
 
 #define GVT_TS_BALANCE_PERIOD_MS 100
@@ -150,11 +154,7 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	}
 
 	cur_time = ktime_get();
-	if (scheduler->current_vgpu) {
-		vgpu_data = scheduler->current_vgpu->sched_data;
-		vgpu_data->sched_out_time = cur_time;
-		vgpu_update_timeslice(scheduler->current_vgpu);
-	}
+	vgpu_update_timeslice(scheduler->current_vgpu, cur_time);
 	vgpu_data = scheduler->next_vgpu->sched_data;
 	vgpu_data->sched_in_time = cur_time;
 
@@ -226,17 +226,22 @@ out:
 void intel_gvt_schedule(struct intel_gvt *gvt)
 {
 	struct gvt_sched_data *sched_data = gvt->scheduler.sched_data;
-	static uint64_t timer_check;
+	ktime_t cur_time;
 
 	mutex_lock(&gvt->lock);
+	cur_time = ktime_get();
 
 	if (test_and_clear_bit(INTEL_GVT_REQUEST_SCHED,
 				(void *)&gvt->service_request)) {
-		if (!(timer_check++ % GVT_TS_BALANCE_PERIOD_MS))
+		if (cur_time >= sched_data->expire_time) {
 			gvt_balance_timeslice(sched_data);
+			sched_data->expire_time = ktime_add_ms(
+				cur_time, GVT_TS_BALANCE_PERIOD_MS);
+		}
 	}
 	clear_bit(INTEL_GVT_REQUEST_EVENT_SCHED, (void *)&gvt->service_request);
 
+	vgpu_update_timeslice(gvt->scheduler.current_vgpu, cur_time);
 	tbs_sched_func(sched_data);
 
 	mutex_unlock(&gvt->lock);

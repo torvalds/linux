@@ -222,7 +222,7 @@ static unsigned int cpcap_map_mode(unsigned int mode)
 	case CPCAP_BIT_AUDIO_LOW_PWR:
 		return REGULATOR_MODE_STANDBY;
 	default:
-		return -EINVAL;
+		return REGULATOR_MODE_INVALID;
 	}
 }
 

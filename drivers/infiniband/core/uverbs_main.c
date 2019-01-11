@@ -41,6 +41,8 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/file.h>
 #include <linux/cdev.h>
 #include <linux/anon_inodes.h>
@@ -734,10 +736,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (ret)
 		return ret;
 
-	if (!file->ucontext &&
-	    (command != IB_USER_VERBS_CMD_GET_CONTEXT || extended))
-		return -EINVAL;
-
 	if (extended) {
 		if (count < (sizeof(hdr) + sizeof(ex_hdr)))
 			return -EINVAL;
@@ -754,6 +752,16 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 				  &file->device->disassociate_srcu);
 	if (!ib_dev) {
 		ret = -EIO;
+		goto out;
+	}
+
+	/*
+	 * Must be after the ib_dev check, as once the RCU clears ib_dev ==
+	 * NULL means ucontext == NULL
+	 */
+	if (!file->ucontext &&
+	    (command != IB_USER_VERBS_CMD_GET_CONTEXT || extended)) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1090,6 +1098,44 @@ err:
 	return;
 }
 
+static void ib_uverbs_disassociate_ucontext(struct ib_ucontext *ibcontext)
+{
+	struct ib_device *ib_dev = ibcontext->device;
+	struct task_struct *owning_process  = NULL;
+	struct mm_struct   *owning_mm       = NULL;
+
+	owning_process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
+	if (!owning_process)
+		return;
+
+	owning_mm = get_task_mm(owning_process);
+	if (!owning_mm) {
+		pr_info("no mm, disassociate ucontext is pending task termination\n");
+		while (1) {
+			put_task_struct(owning_process);
+			usleep_range(1000, 2000);
+			owning_process = get_pid_task(ibcontext->tgid,
+						      PIDTYPE_PID);
+			if (!owning_process ||
+			    owning_process->state == TASK_DEAD) {
+				pr_info("disassociate ucontext done, task was terminated\n");
+				/* in case task was dead need to release the
+				 * task struct.
+				 */
+				if (owning_process)
+					put_task_struct(owning_process);
+				return;
+			}
+		}
+	}
+
+	down_write(&owning_mm->mmap_sem);
+	ib_dev->disassociate_ucontext(ibcontext);
+	up_write(&owning_mm->mmap_sem);
+	mmput(owning_mm);
+	put_task_struct(owning_process);
+}
+
 static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 					struct ib_device *ib_dev)
 {
@@ -1130,7 +1176,7 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 			 * (e.g mmput).
 			 */
 			ib_uverbs_event_handler(&file->event_handler, &event);
-			ib_dev->disassociate_ucontext(ucontext);
+			ib_uverbs_disassociate_ucontext(ucontext);
 			mutex_lock(&file->cleanup_mutex);
 			ib_uverbs_cleanup_ucontext(file, ucontext, true);
 			mutex_unlock(&file->cleanup_mutex);

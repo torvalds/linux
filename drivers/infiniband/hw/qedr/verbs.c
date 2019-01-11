@@ -414,7 +414,7 @@ int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	if ((vma->vm_start & (PAGE_SIZE - 1)) || (len & (PAGE_SIZE - 1))) {
 		DP_ERR(dev,
-		       "failed mmap, adrresses must be page aligned: start=0x%pK, end=0x%pK\n",
+		       "failed mmap, addresses must be page aligned: start=0x%pK, end=0x%pK\n",
 		       (void *)vma->vm_start, (void *)vma->vm_end);
 		return -EINVAL;
 	}
@@ -1614,7 +1614,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 	qp->sq.max_wr = min_t(u32, attrs->cap.max_send_wr * dev->wq_multiplier,
 			      dev->attr.max_sqe);
 
-	qp->wqe_wr_id = kzalloc(qp->sq.max_wr * sizeof(*qp->wqe_wr_id),
+	qp->wqe_wr_id = kcalloc(qp->sq.max_wr, sizeof(*qp->wqe_wr_id),
 				GFP_KERNEL);
 	if (!qp->wqe_wr_id) {
 		DP_ERR(dev, "create qp: failed SQ shadow memory allocation\n");
@@ -1632,7 +1632,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 	qp->rq.max_wr = (u16) max_t(u32, attrs->cap.max_recv_wr, 1);
 
 	/* Allocate driver internal RQ array */
-	qp->rqe_wr_id = kzalloc(qp->rq.max_wr * sizeof(*qp->rqe_wr_id),
+	qp->rqe_wr_id = kcalloc(qp->rq.max_wr, sizeof(*qp->rqe_wr_id),
 				GFP_KERNEL);
 	if (!qp->rqe_wr_id) {
 		DP_ERR(dev,
@@ -1957,6 +1957,9 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	if (attr_mask & (IB_QP_AV | IB_QP_PATH_MTU)) {
+		if (rdma_protocol_iwarp(&dev->ibdev, 1))
+			return -EINVAL;
+
 		if (attr_mask & IB_QP_PATH_MTU) {
 			if (attr->path_mtu < IB_MTU_256 ||
 			    attr->path_mtu > IB_MTU_4096) {
@@ -2577,7 +2580,7 @@ static int qedr_set_page(struct ib_mr *ibmr, u64 addr)
 	u32 pbes_in_page;
 
 	if (unlikely(mr->npages == mr->info.pbl_info.num_pbes)) {
-		DP_ERR(mr->dev, "qedr_set_page failes when %d\n", mr->npages);
+		DP_ERR(mr->dev, "qedr_set_page fails when %d\n", mr->npages);
 		return -ENOMEM;
 	}
 
@@ -3276,7 +3279,7 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 				SET_FIELD(flags, RDMA_RQ_SGE_NUM_SGES,
 					  wr->num_sge);
 
-			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY,
+			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY_LO,
 				  wr->sg_list[i].lkey);
 
 			RQ_SGE_SET(rqe, wr->sg_list[i].addr,
@@ -3295,7 +3298,7 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			/* First one must include the number
 			 * of SGE in the list
 			 */
-			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY, 0);
+			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY_LO, 0);
 			SET_FIELD(flags, RDMA_RQ_SGE_NUM_SGES, 1);
 
 			RQ_SGE_SET(rqe, 0, 0, flags);

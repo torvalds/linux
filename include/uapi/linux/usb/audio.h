@@ -230,6 +230,14 @@ struct uac1_output_terminal_descriptor {
 #define UAC_OUTPUT_TERMINAL_COMMUNICATION_SPEAKER	0x306
 #define UAC_OUTPUT_TERMINAL_LOW_FREQ_EFFECTS_SPEAKER	0x307
 
+/* Terminals - 2.4 Bi-directional Terminal Types */
+#define UAC_BIDIR_TERMINAL_UNDEFINED			0x400
+#define UAC_BIDIR_TERMINAL_HANDSET			0x401
+#define UAC_BIDIR_TERMINAL_HEADSET			0x402
+#define UAC_BIDIR_TERMINAL_SPEAKER_PHONE		0x403
+#define UAC_BIDIR_TERMINAL_ECHO_SUPPRESSING		0x404
+#define UAC_BIDIR_TERMINAL_ECHO_CANCELING		0x405
+
 /* Set bControlSize = 2 as default setting */
 #define UAC_DT_FEATURE_UNIT_SIZE(ch)		(7 + ((ch) + 1) * 2)
 
@@ -285,9 +293,22 @@ static inline __u8 uac_mixer_unit_iChannelNames(struct uac_mixer_unit_descriptor
 static inline __u8 *uac_mixer_unit_bmControls(struct uac_mixer_unit_descriptor *desc,
 					      int protocol)
 {
-	return (protocol == UAC_VERSION_1) ?
-		&desc->baSourceID[desc->bNrInPins + 4] :
-		&desc->baSourceID[desc->bNrInPins + 6];
+	switch (protocol) {
+	case UAC_VERSION_1:
+		return &desc->baSourceID[desc->bNrInPins + 4];
+	case UAC_VERSION_2:
+		return &desc->baSourceID[desc->bNrInPins + 6];
+	case UAC_VERSION_3:
+		return &desc->baSourceID[desc->bNrInPins + 2];
+	default:
+		return NULL;
+	}
+}
+
+static inline __u16 uac3_mixer_unit_wClusterDescrID(struct uac_mixer_unit_descriptor *desc)
+{
+	return (desc->baSourceID[desc->bNrInPins + 1] << 8) |
+		desc->baSourceID[desc->bNrInPins];
 }
 
 static inline __u8 uac_mixer_unit_iMixer(struct uac_mixer_unit_descriptor *desc)

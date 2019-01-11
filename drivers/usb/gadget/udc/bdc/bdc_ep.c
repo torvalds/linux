@@ -138,9 +138,9 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
 		__func__, ep, num_tabs);
 
 	/* Allocate memory for table array */
-	ep->bd_list.bd_table_array = kzalloc(
-					num_tabs * sizeof(struct bd_table *),
-					GFP_ATOMIC);
+	ep->bd_list.bd_table_array = kcalloc(num_tabs,
+					     sizeof(struct bd_table *),
+					     GFP_ATOMIC);
 	if (!ep->bd_list.bd_table_array)
 		return -ENOMEM;
 

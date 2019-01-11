@@ -51,13 +51,14 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 	if (result)
 		goto reset_fifo_fail;
 	/* disable fifo reading */
-	result = regmap_write(st->map, st->reg->user_ctrl, 0);
+	result = regmap_write(st->map, st->reg->user_ctrl,
+			      st->chip_config.user_ctrl);
 	if (result)
 		goto reset_fifo_fail;
 
 	/* reset FIFO*/
-	result = regmap_write(st->map, st->reg->user_ctrl,
-			      INV_MPU6050_BIT_FIFO_RST);
+	d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_RST;
+	result = regmap_write(st->map, st->reg->user_ctrl, d);
 	if (result)
 		goto reset_fifo_fail;
 
@@ -72,9 +73,9 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 		if (result)
 			return result;
 	}
-	/* enable FIFO reading and I2C master interface*/
-	result = regmap_write(st->map, st->reg->user_ctrl,
-			      INV_MPU6050_BIT_FIFO_EN);
+	/* enable FIFO reading */
+	d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_EN;
+	result = regmap_write(st->map, st->reg->user_ctrl, d);
 	if (result)
 		goto reset_fifo_fail;
 	/* enable sensor output to FIFO */
@@ -127,8 +128,23 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	u8 data[INV_MPU6050_OUTPUT_DATA_SIZE];
 	u16 fifo_count;
 	s64 timestamp;
+	int int_status;
 
 	mutex_lock(&st->lock);
+
+	/* ack interrupt and check status */
+	result = regmap_read(st->map, st->reg->int_status, &int_status);
+	if (result) {
+		dev_err(regmap_get_device(st->map),
+			"failed to ack interrupt\n");
+		goto flush_fifo;
+	}
+	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT)) {
+		dev_warn(regmap_get_device(st->map),
+			"spurious interrupt with status 0x%x\n", int_status);
+		goto end_session;
+	}
+
 	if (!(st->chip_config.accl_fifo_enable |
 		st->chip_config.gyro_fifo_enable))
 		goto end_session;
@@ -140,7 +156,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		bytes_per_datum += INV_MPU6050_BYTES_PER_3AXIS_SENSOR;
 
 	/*
-	 * read fifo_count register to know how many bytes inside FIFO
+	 * read fifo_count register to know how many bytes are inside the FIFO
 	 * right now
 	 */
 	result = regmap_bulk_read(st->map, st->reg->fifo_count_h, data,
@@ -150,7 +166,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	fifo_count = be16_to_cpup((__be16 *)(&data[0]));
 	if (fifo_count < bytes_per_datum)
 		goto end_session;
-	/* fifo count can't be odd number, if it is odd, reset fifo*/
+	/* fifo count can't be an odd number. If it is odd, reset the FIFO. */
 	if (fifo_count & 1)
 		goto flush_fifo;
 	if (fifo_count >  INV_MPU6050_FIFO_THRESHOLD)
@@ -159,7 +175,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	if (kfifo_len(&st->timestamps) >
 	    fifo_count / bytes_per_datum + INV_MPU6050_TIME_STAMP_TOR)
 		goto flush_fifo;
-	while (fifo_count >= bytes_per_datum) {
+	do {
 		result = regmap_bulk_read(st->map, st->reg->fifo_r_w,
 					  data, bytes_per_datum);
 		if (result)
@@ -170,12 +186,15 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		if (result == 0)
 			timestamp = 0;
 
-		result = iio_push_to_buffers_with_timestamp(indio_dev, data,
-							    timestamp);
-		if (result)
-			goto flush_fifo;
+		/* skip first samples if needed */
+		if (st->skip_samples)
+			st->skip_samples--;
+		else
+			iio_push_to_buffers_with_timestamp(indio_dev, data,
+							   timestamp);
+
 		fifo_count -= bytes_per_datum;
-	}
+	} while (fifo_count >= bytes_per_datum);
 
 end_session:
 	mutex_unlock(&st->lock);

@@ -3,19 +3,6 @@
  * Socionext UniPhier AIO ALSA driver.
  *
  * Copyright (c) 2016-2018 Socionext Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef SND_UNIPHIER_AIO_H__
@@ -143,6 +130,10 @@ enum IEC61937_PC {
 #define AUD_PLLDIV_1_1    2
 #define AUD_PLLDIV_2_3    3
 
+#define AUD_VOL_INIT         0x4000 /* +0dB */
+#define AUD_VOL_MAX          0xffff /* +6dB */
+#define AUD_VOL_FADE_TIME    20 /* 20ms */
+
 #define AUD_RING_SIZE            (128 * 1024)
 
 #define AUD_MIN_FRAGMENT         4
@@ -244,6 +235,7 @@ struct uniphier_aio_sub {
 	/* For PCM audio */
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_hw_params params;
+	int vol;
 
 	/* For compress audio */
 	struct snd_compr_stream *cstream;
@@ -336,6 +328,8 @@ int aio_port_set_clk(struct uniphier_aio_sub *sub);
 int aio_port_set_param(struct uniphier_aio_sub *sub, int pass_through,
 		       const struct snd_pcm_hw_params *params);
 void aio_port_set_enable(struct uniphier_aio_sub *sub, int enable);
+int aio_port_get_volume(struct uniphier_aio_sub *sub);
+void aio_port_set_volume(struct uniphier_aio_sub *sub, int vol);
 int aio_if_set_param(struct uniphier_aio_sub *sub, int pass_through);
 int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
 			      enum IEC61937_PC pc);

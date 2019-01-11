@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
+#include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
 #include <linux/uaccess.h>
@@ -185,7 +186,8 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
  * in a 2-bit field won't allow writes to a page that is otherwise
  * write-protected.
  */
-long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
+SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
+		unsigned long, len, u32 __user *, map)
 {
 	struct mm_struct *mm = current->mm;
 	struct subpage_prot_table *spt = &mm->context.spt;

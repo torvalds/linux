@@ -22,7 +22,6 @@
 
 /* ---- Include Files -------------------------------------------------------- */
 
-#include "interface/vchi/vchi.h"
 #include "vc_vchi_audioserv_defs.h"
 
 /* ---- Private Constants and Types ------------------------------------------ */
@@ -360,14 +359,46 @@ static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 	return 0;
 }
 
+int bcm2835_new_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx)
+{
+	int ret;
+
+	/* Initialize and create a VCHI connection */
+	ret = vchi_initialise(&vchi_ctx->vchi_instance);
+	if (ret) {
+		LOG_ERR("%s: failed to initialise VCHI instance (ret=%d)\n",
+			__func__, ret);
+
+		return -EIO;
+	}
+
+	ret = vchi_connect(NULL, 0, vchi_ctx->vchi_instance);
+	if (ret) {
+		LOG_ERR("%s: failed to connect VCHI instance (ret=%d)\n",
+			__func__, ret);
+
+		kfree(vchi_ctx->vchi_instance);
+		vchi_ctx->vchi_instance = NULL;
+
+		return -EIO;
+	}
+
+	return 0;
+}
+
+void bcm2835_free_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx)
+{
+	/* Close the VCHI connection - it will also free vchi_instance */
+	WARN_ON(vchi_disconnect(vchi_ctx->vchi_instance));
+
+	vchi_ctx->vchi_instance = NULL;
+}
+
 static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream)
 {
-	static VCHI_INSTANCE_T vchi_instance;
-	static VCHI_CONNECTION_T *vchi_connection;
-	static int initted;
 	struct bcm2835_audio_instance *instance =
 		(struct bcm2835_audio_instance *)alsa_stream->instance;
-	int ret;
+	struct bcm2835_vchi_ctx *vhci_ctx = alsa_stream->chip->vchi_ctx;
 
 	LOG_INFO("%s: start\n", __func__);
 	BUG_ON(instance);
@@ -379,28 +410,9 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 		return 0;
 	}
 
-	/* Initialize and create a VCHI connection */
-	if (!initted) {
-		ret = vchi_initialise(&vchi_instance);
-		if (ret) {
-			LOG_ERR("%s: failed to initialise VCHI instance (ret=%d)\n",
-				__func__, ret);
-
-			return -EIO;
-		}
-		ret = vchi_connect(NULL, 0, vchi_instance);
-		if (ret) {
-			LOG_ERR("%s: failed to connect VCHI instance (ret=%d)\n",
-				__func__, ret);
-
-			kfree(vchi_instance);
-			return -EIO;
-		}
-		initted = 1;
-	}
-
 	/* Initialize an instance of the audio service */
-	instance = vc_vchi_audio_init(vchi_instance, &vchi_connection, 1);
+	instance = vc_vchi_audio_init(vhci_ctx->vchi_instance,
+				      &vhci_ctx->vchi_connection, 1);
 
 	if (IS_ERR(instance)) {
 		LOG_ERR("%s: failed to initialize audio service\n", __func__);

@@ -40,8 +40,12 @@ ENTRY(startup_continue)
 	stg	%r15,__LC_KERNEL_STACK	# set end of kernel stack
 	aghi	%r15,-160
 #
-# Save ipl parameters, clear bss memory, initialize storage key for kernel pages,
-# and create a kernel NSS if the SAVESYS= parm is defined
+# Early setup functions that may not rely on an initialized bss section,
+# like moving the initrd. Returns with an initialized bss section.
+#
+	brasl	%r14,startup_init_nobss
+#
+# Early machine initialization and detection functions.
 #
 	brasl	%r14,startup_init
 	lpswe	.Lentry-.LPG1(13)	# jump to _stext in primary-space,

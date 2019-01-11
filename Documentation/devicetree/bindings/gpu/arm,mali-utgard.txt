@@ -44,7 +44,7 @@ Optional properties:
 
   - memory-region:
     Memory region to allocate from, as defined in
-    Documentation/devicetree/bindi/reserved-memory/reserved-memory.txt
+    Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
 
   - mali-supply:
     Phandle to regulator for the Mali device, as defined in

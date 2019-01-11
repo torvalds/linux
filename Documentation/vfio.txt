@@ -252,15 +252,14 @@ into VFIO core.  When devices are bound and unbound to the driver,
 the driver should call vfio_add_group_dev() and vfio_del_group_dev()
 respectively::
 
-	extern int vfio_add_group_dev(struct iommu_group *iommu_group,
-	                              struct device *dev,
+	extern int vfio_add_group_dev(struct device *dev,
 				      const struct vfio_device_ops *ops,
 				      void *device_data);
 
 	extern void *vfio_del_group_dev(struct device *dev);
 
 vfio_add_group_dev() indicates to the core to begin tracking the
-specified iommu_group and register the specified dev as owned by
+iommu_group of the specified dev and register the dev as owned by
 a VFIO bus driver.  The driver provides an ops structure for callbacks
 similar to a file operations structure::
 

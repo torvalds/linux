@@ -131,15 +131,30 @@ config LTC2632
 	  module will be called ltc2632.
 
 config AD5686
-	tristate "Analog Devices AD5686R/AD5685R/AD5684R DAC SPI driver"
+	tristate
+
+config AD5686_SPI
+	tristate "Analog Devices AD5686 and similar multi-channel DACs (SPI)"
 	depends on SPI
+	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5686R, AD5685R,
-	  AD5684R, AD5791 Voltage Output Digital to
-	  Analog Converter.
+	  Say yes here to build support for Analog Devices AD5672R, AD5676,
+	  AD5676R, AD5684, AD5684R, AD5684R, AD5685R, AD5686, AD5686R.
+	  Voltage Output Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5686.
+
+config AD5696_I2C
+	tristate "Analog Devices AD5696 and similar multi-channel DACs (I2C)"
+	depends on I2C
+	select AD5686
+	help
+	  Say yes here to build support for Analog Devices AD5671R, AD5675R,
+	  AD5694, AD5694R, AD5695R, AD5696, AD5696R Voltage Output Digital to
+	  Analog Converter.
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad5696.
 
 config AD5755
 	tristate "Analog Devices AD5755/AD5755-1/AD5757/AD5735/AD5737 DAC driver"
@@ -320,6 +335,16 @@ config TI_DAC082S085
 	  DAC124S085.
 
 	  If compiled as a module, it will be called ti-dac082s085.
+
+config TI_DAC5571
+	tristate "Texas Instruments 8/10/12/16-bit 1/2/4-channel DAC driver"
+	depends on I2C
+	help
+	  Driver for the Texas Instruments
+	  DAC5571, DAC6571, DAC7571, DAC5574, DAC6574, DAC7574, DAC5573,
+	  DAC6573, DAC7573, DAC8571, DAC8574.
+
+	  If compiled as a module, it will be called ti-dac5571.
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"

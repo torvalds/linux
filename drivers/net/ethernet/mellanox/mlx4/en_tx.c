@@ -694,7 +694,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 	u16 rings_p_up = priv->num_tx_rings_p_up;
 
 	if (netdev_get_num_tc(dev))
-		return skb_tx_hash(dev, skb);
+		return fallback(dev, skb);
 
 	return fallback(dev, skb) % rings_p_up;
 }

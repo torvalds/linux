@@ -375,7 +375,7 @@ static void release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }

@@ -1851,7 +1851,7 @@ static void ioapic_ir_ack_level(struct irq_data *irq_data)
 	 * intr-remapping table entry. Hence for the io-apic
 	 * EOI we use the pin number.
 	 */
-	ack_APIC_irq();
+	apic_ack_irq(irq_data);
 	eoi_ioapic_pin(data->entry.vector, data);
 }
 

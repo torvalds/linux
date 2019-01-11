@@ -1645,7 +1645,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 		goto cleanup;
 	}
 
-	fbdev = kzalloc(sizeof(struct omapfb_device), GFP_KERNEL);
+	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (fbdev == NULL) {
 		dev_err(&pdev->dev,
 			"unable to allocate memory for device info\n");

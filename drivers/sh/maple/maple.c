@@ -161,7 +161,7 @@ int maple_add_packet(struct maple_device *mdev, u32 function, u32 command,
 	void *sendbuf = NULL;
 
 	if (length) {
-		sendbuf = kzalloc(length * 4, GFP_KERNEL);
+		sendbuf = kcalloc(length, 4, GFP_KERNEL);
 		if (!sendbuf) {
 			ret = -ENOMEM;
 			goto out;

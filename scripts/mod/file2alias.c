@@ -944,6 +944,17 @@ static int do_vmbus_entry(const char *filename, void *symval,
 }
 ADD_TO_DEVTABLE("vmbus", hv_vmbus_device_id, do_vmbus_entry);
 
+/* Looks like: rpmsg:S */
+static int do_rpmsg_entry(const char *filename, void *symval,
+			  char *alias)
+{
+	DEF_FIELD_ADDR(symval, rpmsg_device_id, name);
+	sprintf(alias, RPMSG_DEVICE_MODALIAS_FMT, *name);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("rpmsg", rpmsg_device_id, do_rpmsg_entry);
+
 /* Looks like: i2c:S */
 static int do_i2c_entry(const char *filename, void *symval,
 			char *alias)

@@ -121,9 +121,9 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 			}
 			client_data->hid_dev_count = (unsigned int)*payload;
 			if (!client_data->hid_devices)
-				client_data->hid_devices = devm_kzalloc(
+				client_data->hid_devices = devm_kcalloc(
 						&client_data->cl_device->dev,
-						client_data->hid_dev_count *
+						client_data->hid_dev_count,
 						sizeof(struct device_info),
 						GFP_KERNEL);
 			if (!client_data->hid_devices) {

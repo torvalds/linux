@@ -159,7 +159,7 @@ static int psw_interrupts_disabled(struct kvm_vcpu *vcpu)
 static int ckc_interrupts_enabled(struct kvm_vcpu *vcpu)
 {
 	if (psw_extint_disabled(vcpu) ||
-	    !(vcpu->arch.sie_block->gcr[0] & 0x800ul))
+	    !(vcpu->arch.sie_block->gcr[0] & CR0_CLOCK_COMPARATOR_SUBMASK))
 		return 0;
 	if (guestdbg_enabled(vcpu) && guestdbg_sstep_enabled(vcpu))
 		/* No timer interrupts when single stepping */
@@ -172,7 +172,7 @@ static int ckc_irq_pending(struct kvm_vcpu *vcpu)
 	const u64 now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
 	const u64 ckc = vcpu->arch.sie_block->ckc;
 
-	if (vcpu->arch.sie_block->gcr[0] & 0x0020000000000000ul) {
+	if (vcpu->arch.sie_block->gcr[0] & CR0_CLOCK_COMPARATOR_SIGN) {
 		if ((s64)ckc >= (s64)now)
 			return 0;
 	} else if (ckc >= now) {
@@ -184,7 +184,7 @@ static int ckc_irq_pending(struct kvm_vcpu *vcpu)
 static int cpu_timer_interrupts_enabled(struct kvm_vcpu *vcpu)
 {
 	return !psw_extint_disabled(vcpu) &&
-	       (vcpu->arch.sie_block->gcr[0] & 0x400ul);
+	       (vcpu->arch.sie_block->gcr[0] & CR0_CPU_TIMER_SUBMASK);
 }
 
 static int cpu_timer_irq_pending(struct kvm_vcpu *vcpu)
@@ -285,15 +285,15 @@ static unsigned long deliverable_irqs(struct kvm_vcpu *vcpu)
 		active_mask &= ~IRQ_PEND_IO_MASK;
 	else
 		active_mask = disable_iscs(vcpu, active_mask);
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x2000ul))
+	if (!(vcpu->arch.sie_block->gcr[0] & CR0_EXTERNAL_CALL_SUBMASK))
 		__clear_bit(IRQ_PEND_EXT_EXTERNAL, &active_mask);
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x4000ul))
+	if (!(vcpu->arch.sie_block->gcr[0] & CR0_EMERGENCY_SIGNAL_SUBMASK))
 		__clear_bit(IRQ_PEND_EXT_EMERGENCY, &active_mask);
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x800ul))
+	if (!(vcpu->arch.sie_block->gcr[0] & CR0_CLOCK_COMPARATOR_SUBMASK))
 		__clear_bit(IRQ_PEND_EXT_CLOCK_COMP, &active_mask);
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x400ul))
+	if (!(vcpu->arch.sie_block->gcr[0] & CR0_CPU_TIMER_SUBMASK))
 		__clear_bit(IRQ_PEND_EXT_CPU_TIMER, &active_mask);
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x200ul))
+	if (!(vcpu->arch.sie_block->gcr[0] & CR0_SERVICE_SIGNAL_SUBMASK))
 		__clear_bit(IRQ_PEND_EXT_SERVICE, &active_mask);
 	if (psw_mchk_disabled(vcpu))
 		active_mask &= ~IRQ_PEND_MCHK_MASK;
@@ -1042,7 +1042,7 @@ int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop)
 	/* external call pending and deliverable */
 	if (kvm_s390_ext_call_pending(vcpu) &&
 	    !psw_extint_disabled(vcpu) &&
-	    (vcpu->arch.sie_block->gcr[0] & 0x2000ul))
+	    (vcpu->arch.sie_block->gcr[0] & CR0_EXTERNAL_CALL_SUBMASK))
 		return 1;
 
 	if (!exclude_stop && kvm_s390_is_stop_irq_pending(vcpu))
@@ -1062,7 +1062,7 @@ static u64 __calculate_sltime(struct kvm_vcpu *vcpu)
 	u64 cputm, sltime = 0;
 
 	if (ckc_interrupts_enabled(vcpu)) {
-		if (vcpu->arch.sie_block->gcr[0] & 0x0020000000000000ul) {
+		if (vcpu->arch.sie_block->gcr[0] & CR0_CLOCK_COMPARATOR_SIGN) {
 			if ((s64)now < (s64)ckc)
 				sltime = tod_to_ns((s64)ckc - (s64)now);
 		} else if (now < ckc) {

@@ -75,8 +75,7 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
-	int ret = 1;
-	bool enabled;
+	int ret = -EINVAL;;
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (smum_is_dpm_running(hwmgr)) {
@@ -87,17 +86,12 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 
-	enabled = ret == 0;
-
-	cgs_notify_dpm_enabled(hwmgr->device, enabled);
-
 	return ret;
 }
 
 int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
-	int ret = -1;
-	bool enabled;
+	int ret = -EINVAL;
 
 	PHM_FUNC_CHECK(hwmgr);
 
@@ -108,10 +102,6 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 	if (hwmgr->hwmgr_func->dynamic_state_management_disable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
-
-	enabled = ret == 0 ? false : true;
-
-	cgs_notify_dpm_enabled(hwmgr->device, enabled);
 
 	return ret;
 }
@@ -139,6 +129,15 @@ int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 									hwmgr,
 								 adjusted_ps,
 								 current_ps);
+	return 0;
+}
+
+int phm_apply_clock_adjust_rules(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->apply_clocks_adjust_rules != NULL)
+		return hwmgr->hwmgr_func->apply_clocks_adjust_rules(hwmgr);
 	return 0;
 }
 
@@ -171,6 +170,16 @@ int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+int phm_pre_display_configuration_changed(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (NULL != hwmgr->hwmgr_func->pre_display_config_changed)
+		hwmgr->hwmgr_func->pre_display_config_changed(hwmgr);
+
+	return 0;
+
+}
 
 int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
@@ -275,13 +284,11 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 	if (display_config == NULL)
 		return -EINVAL;
 
-	hwmgr->display_config = *display_config;
-
 	if (NULL != hwmgr->hwmgr_func->set_deep_sleep_dcefclk)
-		hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, hwmgr->display_config.min_dcef_deep_sleep_set_clk);
+		hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, display_config->min_dcef_deep_sleep_set_clk);
 
-	for (index = 0; index < hwmgr->display_config.num_path_including_non_display; index++) {
-		if (hwmgr->display_config.displays[index].controller_id != 0)
+	for (index = 0; index < display_config->num_path_including_non_display; index++) {
+		if (display_config->displays[index].controller_id != 0)
 			number_of_active_display++;
 	}
 

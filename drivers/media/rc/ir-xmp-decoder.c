@@ -199,6 +199,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 static struct ir_raw_handler xmp_handler = {
 	.protocols	= RC_PROTO_BIT_XMP,
 	.decode		= ir_xmp_decode,
+	.min_timeout	= XMP_TRAILER_SPACE,
 };
 
 static int __init ir_xmp_decode_init(void)

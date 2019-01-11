@@ -86,6 +86,7 @@
 
 			pwm {
 				compatible = "st,stm32-pwm-lp";
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -128,6 +129,42 @@
 			interrupts = <38>;
 			status = "disabled";
 			clocks = <&rcc USART2_CK>;
+		};
+
+		i2c1: i2c@40005400 {
+			compatible = "st,stm32f7-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x40005400 0x400>;
+			interrupts = <31>,
+				     <32>;
+			resets = <&rcc STM32H7_APB1L_RESET(I2C1)>;
+			clocks = <&rcc I2C1_CK>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@40005800 {
+			compatible = "st,stm32f7-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x40005800 0x400>;
+			interrupts = <33>,
+				     <34>;
+			resets = <&rcc STM32H7_APB1L_RESET(I2C2)>;
+			clocks = <&rcc I2C2_CK>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@40005C00 {
+			compatible = "st,stm32f7-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x40005C00 0x400>;
+			interrupts = <72>,
+				     <73>;
+			resets = <&rcc STM32H7_APB1L_RESET(I2C3)>;
+			clocks = <&rcc I2C3_CK>;
+			status = "disabled";
 		};
 
 		dac: dac@40007400 {
@@ -323,6 +360,18 @@
 			status = "disabled";
 		};
 
+		i2c4: i2c@58001C00 {
+			compatible = "st,stm32f7-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x58001C00 0x400>;
+			interrupts = <95>,
+				     <96>;
+			resets = <&rcc STM32H7_APB4_RESET(I2C4)>;
+			clocks = <&rcc I2C4_CK>;
+			status = "disabled";
+		};
+
 		lptimer2: timer@58002400 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -334,6 +383,7 @@
 
 			pwm {
 				compatible = "st,stm32-pwm-lp";
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -360,6 +410,7 @@
 
 			pwm {
 				compatible = "st,stm32-pwm-lp";
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -381,6 +432,7 @@
 
 			pwm {
 				compatible = "st,stm32-pwm-lp";
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 		};
@@ -396,6 +448,7 @@
 
 			pwm {
 				compatible = "st,stm32-pwm-lp";
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 		};

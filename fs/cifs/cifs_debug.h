@@ -23,7 +23,7 @@
 #define _H_CIFS_DEBUG
 
 void cifs_dump_mem(char *label, void *data, int length);
-void cifs_dump_detail(void *);
+void cifs_dump_detail(void *buf, struct TCP_Server_Info *ptcp_info);
 void cifs_dump_mids(struct TCP_Server_Info *);
 extern bool traceSMB;		/* flag which enables the function below */
 void dump_smb(void *, int);

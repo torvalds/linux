@@ -188,7 +188,7 @@ static int bochs_connector_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static int bochs_connector_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status bochs_connector_mode_valid(struct drm_connector *connector,
 				      struct drm_display_mode *mode)
 {
 	struct bochs_device *bochs =

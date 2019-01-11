@@ -411,7 +411,7 @@ config INPUT_YEALINK
 	  usb sound driver, so you might want to enable that as well.
 
 	  For information about how to use these additional functions, see
-	  <file:Documentation/input/yealink.txt>.
+	  <file:Documentation/input/devices/yealink.rst>.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called yealink.
@@ -595,7 +595,7 @@ config INPUT_GPIO_ROTARY_ENCODER
 	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to add support for rotary encoders connected to GPIO lines.
-	  Check file:Documentation/input/rotary-encoder.txt for more
+	  Check file:Documentation/input/devices/rotary-encoder.rst for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the
@@ -840,5 +840,15 @@ config INPUT_RAVE_SP_PWRBUTTON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rave-sp-pwrbutton.
+
+config INPUT_SC27XX_VIBRA
+	tristate "Spreadtrum sc27xx vibrator support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for Spreadtrum sc27xx vibrator driver.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called sc27xx_vibra.
 
 endif

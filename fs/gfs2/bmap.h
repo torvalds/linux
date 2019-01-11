@@ -46,11 +46,13 @@ static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
 	}
 }
 
+extern const struct iomap_ops gfs2_iomap_ops;
+
 extern int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page);
 extern int gfs2_block_map(struct inode *inode, sector_t lblock,
 			  struct buffer_head *bh, int create);
-extern int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
-			    unsigned flags, struct iomap *iomap);
+extern int gfs2_iomap_get_alloc(struct inode *inode, loff_t pos, loff_t length,
+				struct iomap *iomap);
 extern int gfs2_extent_map(struct inode *inode, u64 lblock, int *new,
 			   u64 *dblock, unsigned *extlen);
 extern int gfs2_setattr_size(struct inode *inode, u64 size);

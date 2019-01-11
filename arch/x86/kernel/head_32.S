@@ -375,7 +375,7 @@ ENDPROC(startup_32_smp)
  */
 __INIT
 setup_once:
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 	/*
 	 * Configure the stack canary. The linker can't handle this by
 	 * relocation.  Manually set base address in stack canary

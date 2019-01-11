@@ -30,6 +30,7 @@
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
+#include <asm/thread_info.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
@@ -216,8 +217,11 @@ struct kvm_vcpu_arch {
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
-	/* Guest debug state */
-	u64 debug_flags;
+	/* State of various workarounds, see kvm_asm.h for bit assignment */
+	u64 workaround_flags;
+
+	/* Miscellaneous vcpu state flags */
+	u64 flags;
 
 	/*
 	 * We maintain more than a single set of debug registers to support
@@ -238,6 +242,10 @@ struct kvm_vcpu_arch {
 
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
+
+	struct thread_info *host_thread_info;	/* hyp VA */
+	struct user_fpsimd_state *host_fpsimd_state;	/* hyp VA */
+
 	struct {
 		/* {Break,watch}point registers */
 		struct kvm_guest_debug_arch regs;
@@ -292,6 +300,13 @@ struct kvm_vcpu_arch {
 	 * see kvm_vcpu_load_sysregs and kvm_vcpu_put_sysregs. */
 	bool sysregs_loaded_on_cpu;
 };
+
+/* vcpu_arch flags field values: */
+#define KVM_ARM64_DEBUG_DIRTY		(1 << 0)
+#define KVM_ARM64_FP_ENABLED		(1 << 1) /* guest FP regs loaded */
+#define KVM_ARM64_FP_HOST		(1 << 2) /* host FP regs loaded */
+#define KVM_ARM64_HOST_SVE_IN_USE	(1 << 3) /* backup for host TIF_SVE */
+#define KVM_ARM64_HOST_SVE_ENABLED	(1 << 4) /* SVE enabled for EL0 */
 
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
 
@@ -394,6 +409,19 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	kvm_call_hyp(__kvm_set_tpidr_el2, tpidr_el2);
 }
 
+static inline bool kvm_arch_check_sve_has_vhe(void)
+{
+	/*
+	 * The Arm architecture specifies that implementation of SVE
+	 * requires VHE also to be implemented.  The KVM code for arm64
+	 * relies on this when SVE is present:
+	 */
+	if (system_supports_sve())
+		return has_vhe();
+	else
+		return true;
+}
+
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
@@ -420,15 +448,18 @@ static inline void __cpu_init_stage2(void)
 		  "PARange is %d bits, unsupported configuration!", parange);
 }
 
-/*
- * All host FP/SIMD state is restored on guest exit, so nothing needs
- * doing here except in the SVE case:
-*/
-static inline void kvm_fpsimd_flush_cpu_state(void)
+/* Guest/host FPSIMD coordination helpers */
+int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu);
+
+#ifdef CONFIG_KVM /* Avoid conflicts with core headers if CONFIG_KVM=n */
+static inline int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 {
-	if (system_supports_sve())
-		sve_flush_cpu_state();
+	return kvm_arch_vcpu_run_map_fp(vcpu);
 }
+#endif
 
 static inline void kvm_arm_vhe_guest_enter(void)
 {
@@ -452,7 +483,34 @@ static inline bool kvm_arm_harden_branch_predictor(void)
 	return cpus_have_const_cap(ARM64_HARDEN_BRANCH_PREDICTOR);
 }
 
+#define KVM_SSBD_UNKNOWN		-1
+#define KVM_SSBD_FORCE_DISABLE		0
+#define KVM_SSBD_KERNEL		1
+#define KVM_SSBD_FORCE_ENABLE		2
+#define KVM_SSBD_MITIGATED		3
+
+static inline int kvm_arm_have_ssbd(void)
+{
+	switch (arm64_get_ssbd_state()) {
+	case ARM64_SSBD_FORCE_DISABLE:
+		return KVM_SSBD_FORCE_DISABLE;
+	case ARM64_SSBD_KERNEL:
+		return KVM_SSBD_KERNEL;
+	case ARM64_SSBD_FORCE_ENABLE:
+		return KVM_SSBD_FORCE_ENABLE;
+	case ARM64_SSBD_MITIGATED:
+		return KVM_SSBD_MITIGATED;
+	case ARM64_SSBD_UNKNOWN:
+	default:
+		return KVM_SSBD_UNKNOWN;
+	}
+}
+
 void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu);
 void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu);
+
+#define __KVM_HAVE_ARCH_VM_ALLOC
+struct kvm *kvm_arch_alloc_vm(void);
+void kvm_arch_free_vm(struct kvm *kvm);
 
 #endif /* __ARM64_KVM_HOST_H__ */

@@ -57,7 +57,9 @@ MODULE_PARM_DESC(ignore_special_drivers, "Ignore any special drivers and handle 
  * Register a new report for a device.
  */
 
-struct hid_report *hid_register_report(struct hid_device *device, unsigned type, unsigned id)
+struct hid_report *hid_register_report(struct hid_device *device,
+				       unsigned int type, unsigned int id,
+				       unsigned int application)
 {
 	struct hid_report_enum *report_enum = device->report_enum + type;
 	struct hid_report *report;
@@ -78,6 +80,7 @@ struct hid_report *hid_register_report(struct hid_device *device, unsigned type,
 	report->type = type;
 	report->size = 0;
 	report->device = device;
+	report->application = application;
 	report_enum->report_id_hash[id] = report;
 
 	list_add_tail(&report->list, &report_enum->report_list);
@@ -131,8 +134,11 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 	}
 
 	if (parser->device->maxcollection == parser->device->collection_size) {
-		collection = kmalloc(sizeof(struct hid_collection) *
-				parser->device->collection_size * 2, GFP_KERNEL);
+		collection = kmalloc(
+				array3_size(sizeof(struct hid_collection),
+					    parser->device->collection_size,
+					    2),
+				GFP_KERNEL);
 		if (collection == NULL) {
 			hid_err(parser->device, "failed to reallocate collection array\n");
 			return -ENOMEM;
@@ -221,11 +227,15 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 {
 	struct hid_report *report;
 	struct hid_field *field;
-	unsigned usages;
-	unsigned offset;
-	unsigned i;
+	unsigned int usages;
+	unsigned int offset;
+	unsigned int i;
+	unsigned int application;
 
-	report = hid_register_report(parser->device, report_type, parser->global.report_id);
+	application = hid_lookup_collection(parser, HID_COLLECTION_APPLICATION);
+
+	report = hid_register_report(parser->device, report_type,
+				     parser->global.report_id, application);
 	if (!report) {
 		hid_err(parser->device, "hid_register_report failed\n");
 		return -1;
@@ -259,7 +269,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 
 	field->physical = hid_lookup_collection(parser, HID_COLLECTION_PHYSICAL);
 	field->logical = hid_lookup_collection(parser, HID_COLLECTION_LOGICAL);
-	field->application = hid_lookup_collection(parser, HID_COLLECTION_APPLICATION);
+	field->application = application;
 
 	for (i = 0; i < usages; i++) {
 		unsigned j = i;
@@ -1271,7 +1281,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	__s32 max = field->logical_maximum;
 	__s32 *value;
 
-	value = kmalloc(sizeof(__s32) * count, GFP_ATOMIC);
+	value = kmalloc_array(count, sizeof(__s32), GFP_ATOMIC);
 	if (!value)
 		return;
 
@@ -1798,7 +1808,7 @@ EXPORT_SYMBOL_GPL(hid_hw_stop);
  *
  * Tell underlying HW to start delivering events from the device.
  * This function should be called sometime after successful call
- * to hid_hiw_start().
+ * to hid_hw_start().
  */
 int hid_hw_open(struct hid_device *hdev)
 {
@@ -1941,6 +1951,8 @@ static int hid_device_probe(struct device *dev)
 		goto end;
 	}
 	hdev->io_started = false;
+
+	clear_bit(ffs(HID_STAT_REPROBED), &hdev->status);
 
 	if (!hdev->driver) {
 		id = hid_match_device(hdev, hdrv);
@@ -2205,7 +2217,8 @@ static int __hid_bus_reprobe_drivers(struct device *dev, void *data)
 	struct hid_device *hdev = to_hid_device(dev);
 
 	if (hdev->driver == hdrv &&
-	    !hdrv->match(hdev, hid_ignore_special_drivers))
+	    !hdrv->match(hdev, hid_ignore_special_drivers) &&
+	    !test_and_set_bit(ffs(HID_STAT_REPROBED), &hdev->status))
 		return device_reprobe(dev);
 
 	return 0;

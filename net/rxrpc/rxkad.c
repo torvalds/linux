@@ -432,7 +432,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 
 	sg = _sg;
 	if (unlikely(nsg > 4)) {
-		sg = kmalloc(sizeof(*sg) * nsg, GFP_NOIO);
+		sg = kmalloc_array(nsg, sizeof(*sg), GFP_NOIO);
 		if (!sg)
 			goto nomem;
 	}
@@ -669,7 +669,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 		return -EAGAIN;
 	}
 
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	_leave(" = 0");
 	return 0;
 }
@@ -725,7 +725,7 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 		return -EAGAIN;
 	}
 
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	_leave(" = 0");
 	return 0;
 }

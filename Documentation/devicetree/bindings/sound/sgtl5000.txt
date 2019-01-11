@@ -39,7 +39,7 @@ VDDIO		1.8V		2.5V		3.3V
 
 Example:
 
-codec: sgtl5000@a {
+sgtl5000: codec@a {
 	compatible = "fsl,sgtl5000";
 	reg = <0x0a>;
 	#sound-dai-cells = <0>;

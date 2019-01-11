@@ -298,7 +298,7 @@
 			status = "disabled";
 		};
 
-		sysmmu_g2d: sysmmu@10A40000{
+		sysmmu_g2d: sysmmu@10a40000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x10A40000 0x1000>;
 			interrupt-parent = <&combiner>;

@@ -483,6 +483,12 @@ Example output from dmesg:
 [ 3389.935851] JIT code: 00000030: 00 e8 28 94 ff e0 83 f8 01 75 07 b8 ff ff 00 00
 [ 3389.935852] JIT code: 00000040: eb 02 31 c0 c9 c3
 
+When CONFIG_BPF_JIT_ALWAYS_ON is enabled, bpf_jit_enable is permanently set to 1 and
+setting any other value than that will return in failure. This is even the case for
+setting bpf_jit_enable to 2, since dumping the final JIT image into the kernel log
+is discouraged and introspection through bpftool (under tools/bpf/bpftool/) is the
+generally recommended approach instead.
+
 In the kernel source tree under tools/bpf/, there's bpf_jit_disasm for
 generating disassembly out of the kernel log's hexdump:
 
@@ -1136,6 +1142,7 @@ into a register from memory, the register's top 56 bits are known zero, while
 the low 8 are unknown - which is represented as the tnum (0x0; 0xff).  If we
 then OR this with 0x40, we get (0x40; 0xbf), then if we add 1 we get (0x0;
 0x1ff), because of potential carries.
+
 Besides arithmetic, the register state can also be updated by conditional
 branches.  For instance, if a SCALAR_VALUE is compared > 8, in the 'true' branch
 it will have a umin_value (unsigned minimum value) of 9, whereas in the 'false'
@@ -1144,14 +1151,16 @@ BPF_JSGE) would instead update the signed minimum/maximum values.  Information
 from the signed and unsigned bounds can be combined; for instance if a value is
 first tested < 8 and then tested s> 4, the verifier will conclude that the value
 is also > 4 and s< 8, since the bounds prevent crossing the sign boundary.
+
 PTR_TO_PACKETs with a variable offset part have an 'id', which is common to all
 pointers sharing that same variable offset.  This is important for packet range
-checks: after adding some variable to a packet pointer, if you then copy it to
-another register and (say) add a constant 4, both registers will share the same
-'id' but one will have a fixed offset of +4.  Then if it is bounds-checked and
-found to be less than a PTR_TO_PACKET_END, the other register is now known to
-have a safe range of at least 4 bytes.  See 'Direct packet access', below, for
-more on PTR_TO_PACKET ranges.
+checks: after adding a variable to a packet pointer register A, if you then copy
+it to another register B and then add a constant 4 to A, both registers will
+share the same 'id' but the A will have a fixed offset of +4.  Then if A is
+bounds-checked and found to be less than a PTR_TO_PACKET_END, the register B is
+now known to have a safe range of at least 4 bytes.  See 'Direct packet access',
+below, for more on PTR_TO_PACKET ranges.
+
 The 'id' field is also used on PTR_TO_MAP_VALUE_OR_NULL, common to all copies of
 the pointer returned from a map lookup.  This means that when one copy is
 checked and found to be non-NULL, all copies can become PTR_TO_MAP_VALUEs.

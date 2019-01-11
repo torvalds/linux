@@ -424,7 +424,7 @@ static struct workqueue_struct *rbd_wq;
  * single-major requires >= 0.75 version of userspace rbd utility.
  */
 static bool single_major = true;
-module_param(single_major, bool, S_IRUGO);
+module_param(single_major, bool, 0444);
 MODULE_PARM_DESC(single_major, "Use a single major number for all rbd devices (default: true)");
 
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
@@ -468,11 +468,11 @@ static ssize_t rbd_supported_features_show(struct bus_type *bus, char *buf)
 	return sprintf(buf, "0x%llx\n", RBD_FEATURES_SUPPORTED);
 }
 
-static BUS_ATTR(add, S_IWUSR, NULL, rbd_add);
-static BUS_ATTR(remove, S_IWUSR, NULL, rbd_remove);
-static BUS_ATTR(add_single_major, S_IWUSR, NULL, rbd_add_single_major);
-static BUS_ATTR(remove_single_major, S_IWUSR, NULL, rbd_remove_single_major);
-static BUS_ATTR(supported_features, S_IRUGO, rbd_supported_features_show, NULL);
+static BUS_ATTR(add, 0200, NULL, rbd_add);
+static BUS_ATTR(remove, 0200, NULL, rbd_remove);
+static BUS_ATTR(add_single_major, 0200, NULL, rbd_add_single_major);
+static BUS_ATTR(remove_single_major, 0200, NULL, rbd_remove_single_major);
+static BUS_ATTR(supported_features, 0444, rbd_supported_features_show, NULL);
 
 static struct attribute *rbd_bus_attrs[] = {
 	&bus_attr_add.attr,
@@ -2339,6 +2339,7 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
 static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 {
 	unsigned int num_osd_ops = obj_req->osd_req->r_num_ops;
+	int ret;
 
 	dout("%s obj_req %p bytes %u\n", __func__, obj_req, bytes);
 	rbd_assert(obj_req->osd_req->r_ops[0].op == CEPH_OSD_OP_STAT);
@@ -2353,6 +2354,11 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
+	ret = osd_req_op_cls_init(obj_req->osd_req, 0, CEPH_OSD_OP_CALL, "rbd",
+				  "copyup");
+	if (ret)
+		return ret;
+
 	/*
 	 * Only send non-zero copyup data to save some I/O and network
 	 * bandwidth -- zero copyup data is equivalent to the object not
@@ -2362,9 +2368,6 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 		dout("%s obj_req %p detected zeroes\n", __func__, obj_req);
 		bytes = 0;
 	}
-
-	osd_req_op_cls_init(obj_req->osd_req, 0, CEPH_OSD_OP_CALL, "rbd",
-			    "copyup");
 	osd_req_op_cls_request_data_bvecs(obj_req->osd_req, 0,
 					  obj_req->copyup_bvecs,
 					  obj_req->copyup_bvec_count,
@@ -3397,7 +3400,6 @@ static void cancel_tasks_sync(struct rbd_device *rbd_dev)
 {
 	dout("%s rbd_dev %p\n", __func__, rbd_dev);
 
-	cancel_delayed_work_sync(&rbd_dev->watch_dwork);
 	cancel_work_sync(&rbd_dev->acquired_lock_work);
 	cancel_work_sync(&rbd_dev->released_lock_work);
 	cancel_delayed_work_sync(&rbd_dev->lock_dwork);
@@ -3415,6 +3417,7 @@ static void rbd_unregister_watch(struct rbd_device *rbd_dev)
 	rbd_dev->watch_state = RBD_WATCH_STATE_UNREGISTERED;
 	mutex_unlock(&rbd_dev->watch_mutex);
 
+	cancel_delayed_work_sync(&rbd_dev->watch_dwork);
 	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
 }
 
@@ -4204,22 +4207,22 @@ static ssize_t rbd_image_refresh(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(size, S_IRUGO, rbd_size_show, NULL);
-static DEVICE_ATTR(features, S_IRUGO, rbd_features_show, NULL);
-static DEVICE_ATTR(major, S_IRUGO, rbd_major_show, NULL);
-static DEVICE_ATTR(minor, S_IRUGO, rbd_minor_show, NULL);
-static DEVICE_ATTR(client_addr, S_IRUGO, rbd_client_addr_show, NULL);
-static DEVICE_ATTR(client_id, S_IRUGO, rbd_client_id_show, NULL);
-static DEVICE_ATTR(cluster_fsid, S_IRUGO, rbd_cluster_fsid_show, NULL);
-static DEVICE_ATTR(config_info, S_IRUSR, rbd_config_info_show, NULL);
-static DEVICE_ATTR(pool, S_IRUGO, rbd_pool_show, NULL);
-static DEVICE_ATTR(pool_id, S_IRUGO, rbd_pool_id_show, NULL);
-static DEVICE_ATTR(name, S_IRUGO, rbd_name_show, NULL);
-static DEVICE_ATTR(image_id, S_IRUGO, rbd_image_id_show, NULL);
-static DEVICE_ATTR(refresh, S_IWUSR, NULL, rbd_image_refresh);
-static DEVICE_ATTR(current_snap, S_IRUGO, rbd_snap_show, NULL);
-static DEVICE_ATTR(snap_id, S_IRUGO, rbd_snap_id_show, NULL);
-static DEVICE_ATTR(parent, S_IRUGO, rbd_parent_show, NULL);
+static DEVICE_ATTR(size, 0444, rbd_size_show, NULL);
+static DEVICE_ATTR(features, 0444, rbd_features_show, NULL);
+static DEVICE_ATTR(major, 0444, rbd_major_show, NULL);
+static DEVICE_ATTR(minor, 0444, rbd_minor_show, NULL);
+static DEVICE_ATTR(client_addr, 0444, rbd_client_addr_show, NULL);
+static DEVICE_ATTR(client_id, 0444, rbd_client_id_show, NULL);
+static DEVICE_ATTR(cluster_fsid, 0444, rbd_cluster_fsid_show, NULL);
+static DEVICE_ATTR(config_info, 0400, rbd_config_info_show, NULL);
+static DEVICE_ATTR(pool, 0444, rbd_pool_show, NULL);
+static DEVICE_ATTR(pool_id, 0444, rbd_pool_id_show, NULL);
+static DEVICE_ATTR(name, 0444, rbd_name_show, NULL);
+static DEVICE_ATTR(image_id, 0444, rbd_image_id_show, NULL);
+static DEVICE_ATTR(refresh, 0200, NULL, rbd_image_refresh);
+static DEVICE_ATTR(current_snap, 0444, rbd_snap_show, NULL);
+static DEVICE_ATTR(snap_id, 0444, rbd_snap_id_show, NULL);
+static DEVICE_ATTR(parent, 0444, rbd_parent_show, NULL);
 
 static struct attribute *rbd_attrs[] = {
 	&dev_attr_size.attr,

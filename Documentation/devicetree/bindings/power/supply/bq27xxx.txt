@@ -25,6 +25,7 @@ Required properties:
  * "ti,bq27545" - BQ27545
  * "ti,bq27421" - BQ27421
  * "ti,bq27425" - BQ27425
+ * "ti,bq27426" - BQ27426
  * "ti,bq27441" - BQ27441
  * "ti,bq27621" - BQ27621
 - reg: integer, I2C address of the fuel gauge.

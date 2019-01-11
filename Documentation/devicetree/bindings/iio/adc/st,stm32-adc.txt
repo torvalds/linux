@@ -24,8 +24,11 @@ Required properties:
 - compatible: Should be one of:
   "st,stm32f4-adc-core"
   "st,stm32h7-adc-core"
+  "st,stm32mp1-adc-core"
 - reg: Offset and length of the ADC block register set.
-- interrupts: Must contain the interrupt for ADC block.
+- interrupts: One or more interrupts for ADC block. Some parts like stm32f4
+  and stm32h7 share a common ADC interrupt line. stm32mp1 has two separate
+  interrupt lines, one for each ADC within ADC block.
 - clocks: Core can use up to two clocks, depending on part used:
   - "adc" clock: for the analog circuitry, common to all ADCs.
     It's required on stm32f4.
@@ -53,6 +56,7 @@ Required properties:
 - compatible: Should be one of:
   "st,stm32f4-adc"
   "st,stm32h7-adc"
+  "st,stm32mp1-adc"
 - reg: Offset of ADC instance in ADC block (e.g. may be 0x0, 0x100, 0x200).
 - clocks: Input clock private to this ADC instance. It's required only on
   stm32f4, that has per instance clock input for registers access.

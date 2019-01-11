@@ -482,6 +482,8 @@
 	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
 	or,COND(=)	%r0,\spc,%r0
+	sync
+	or,COND(=)	%r0,\spc,%r0
 	stw             \spc,0(\tmp)
 #endif
 	.endm

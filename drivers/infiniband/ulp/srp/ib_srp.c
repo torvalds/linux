@@ -1035,16 +1035,17 @@ static int srp_alloc_req_data(struct srp_rdma_ch *ch)
 
 	for (i = 0; i < target->req_ring_size; ++i) {
 		req = &ch->req_ring[i];
-		mr_list = kmalloc(target->mr_per_cmd * sizeof(void *),
-				  GFP_KERNEL);
+		mr_list = kmalloc_array(target->mr_per_cmd, sizeof(void *),
+					GFP_KERNEL);
 		if (!mr_list)
 			goto out;
 		if (srp_dev->use_fast_reg) {
 			req->fr_list = mr_list;
 		} else {
 			req->fmr_list = mr_list;
-			req->map_page = kmalloc(srp_dev->max_pages_per_mr *
-						sizeof(void *), GFP_KERNEL);
+			req->map_page = kmalloc_array(srp_dev->max_pages_per_mr,
+						      sizeof(void *),
+						      GFP_KERNEL);
 			if (!req->map_page)
 				goto out;
 		}

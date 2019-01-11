@@ -1253,14 +1253,11 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	struct sg_mapping_iter *sg_miter = &host->sg_miter;
 	struct variant_data *variant = host->variant;
 	void __iomem *base = host->base;
-	unsigned long flags;
 	u32 status;
 
 	status = readl(base + MMCISTATUS);
 
 	dev_dbg(mmc_dev(host->mmc), "irq1 (pio) %08x\n", status);
-
-	local_irq_save(flags);
 
 	do {
 		unsigned int remain, len;
@@ -1300,8 +1297,6 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	} while (1);
 
 	sg_miter_stop(sg_miter);
-
-	local_irq_restore(flags);
 
 	/*
 	 * If we have less than the fifo 'half-full' threshold to transfer,

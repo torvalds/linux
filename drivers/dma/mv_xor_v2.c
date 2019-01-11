@@ -809,8 +809,9 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	}
 
 	/* alloc memory for the SW descriptors */
-	xor_dev->sw_desq = devm_kzalloc(&pdev->dev, sizeof(*sw_desc) *
-					MV_XOR_V2_DESC_NUM, GFP_KERNEL);
+	xor_dev->sw_desq = devm_kcalloc(&pdev->dev,
+					MV_XOR_V2_DESC_NUM, sizeof(*sw_desc),
+					GFP_KERNEL);
 	if (!xor_dev->sw_desq) {
 		ret = -ENOMEM;
 		goto free_hw_desq;

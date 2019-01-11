@@ -25,12 +25,16 @@ extern bool xen_pvh;
 #define xen_hvm_domain()	(xen_domain_type == XEN_HVM_DOMAIN)
 #define xen_pvh_domain()	(xen_pvh)
 
+#include <linux/types.h>
+
+extern uint32_t xen_start_flags;
+
 #ifdef CONFIG_XEN_DOM0
 #include <xen/interface/xen.h>
 #include <asm/xen/hypervisor.h>
 
 #define xen_initial_domain()	(xen_domain() && \
-				 xen_start_info && xen_start_info->flags & SIF_INITDOMAIN)
+				 (xen_start_flags & SIF_INITDOMAIN))
 #else  /* !CONFIG_XEN_DOM0 */
 #define xen_initial_domain()	(0)
 #endif	/* CONFIG_XEN_DOM0 */

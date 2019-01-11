@@ -1,23 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * lib/reed_solomon/encode_rs.c
- *
- * Overview:
- *   Generic Reed Solomon encoder / decoder library
+ * Generic Reed Solomon encoder / decoder library
  *
  * Copyright 2002, Phil Karn, KA9Q
  * May be used under the terms of the GNU General Public License (GPL)
  *
  * Adaption to the kernel by Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: encode_rs.c,v 1.5 2005/11/07 11:14:59 gleixner Exp $
- *
- */
-
-/* Generic data width independent code which is included by the
- * wrappers.
- * int encode_rsX (struct rs_control *rs, uintX_t *data, int len, uintY_t *par)
+ * Generic data width independent code which is included by the wrappers.
  */
 {
+	struct rs_codec *rs = rsc->codec;
 	int i, j, pad;
 	int nn = rs->nn;
 	int nroots = rs->nroots;

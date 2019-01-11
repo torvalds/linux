@@ -12,6 +12,7 @@
 #include <asm/ptrace.h>
 #include <asm/reg.h>
 #include <asm/bug.h>
+#include <asm/export.h>
 
 #ifdef CONFIG_VSX
 /* See fpu.S, this is borrowed from there */
@@ -55,6 +56,16 @@ _GLOBAL(tm_enable)
 	or	r4, r4, r3
 	mtmsrd	r4
 1:	blr
+EXPORT_SYMBOL_GPL(tm_enable);
+
+_GLOBAL(tm_disable)
+	mfmsr	r4
+	li	r3, MSR_TM >> 32
+	sldi	r3, r3, 32
+	andc	r4, r4, r3
+	mtmsrd	r4
+	blr
+EXPORT_SYMBOL_GPL(tm_disable);
 
 _GLOBAL(tm_save_sprs)
 	mfspr	r0, SPRN_TFHAR
@@ -78,6 +89,7 @@ _GLOBAL(tm_restore_sprs)
 _GLOBAL(tm_abort)
 	TABORT(R3)
 	blr
+EXPORT_SYMBOL_GPL(tm_abort);
 
 /* void tm_reclaim(struct thread_struct *thread,
  *		   uint8_t cause)

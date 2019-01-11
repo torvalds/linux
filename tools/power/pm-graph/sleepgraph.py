@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 #
 # Tool for analyzing suspend/resume timing
 # Copyright (c) 2013, Intel Corporation.
@@ -69,7 +69,7 @@ from subprocess import call, Popen, PIPE
 #	 store system values and test parameters
 class SystemValues:
 	title = 'SleepGraph'
-	version = '5.0'
+	version = '5.1'
 	ansi = False
 	rs = 0
 	display = 0
@@ -240,7 +240,7 @@ class SystemValues:
 	kprobes = dict()
 	timeformat = '%.3f'
 	cmdline = '%s %s' % \
-			(os.path.basename(sys.argv[0]), string.join(sys.argv[1:], ' '))
+			(os.path.basename(sys.argv[0]), ' '.join(sys.argv[1:]))
 	def __init__(self):
 		self.archargs = 'args_'+platform.machine()
 		self.hostname = platform.node()
@@ -917,12 +917,18 @@ class Data:
 			self.devicegroups.append([phase])
 		self.errorinfo = {'suspend':[],'resume':[]}
 	def extractErrorInfo(self):
+		elist = {
+			'HWERROR' : '.*\[ *Hardware Error *\].*',
+			'FWBUG'   : '.*\[ *Firmware Bug *\].*',
+			'BUG'     : '.*BUG.*',
+			'ERROR'   : '.*ERROR.*',
+			'WARNING' : '.*WARNING.*',
+			'IRQ'     : '.*genirq: .*',
+			'TASKFAIL': '.*Freezing of tasks failed.*',
+		}
 		lf = sysvals.openlog(sysvals.dmesgfile, 'r')
 		i = 0
 		list = []
-		# sl = start line, et = error time, el = error line
-		type = 'ERROR'
-		sl = et = el = -1
 		for line in lf:
 			i += 1
 			m = re.match('[ \t]*(\[ *)(?P<ktime>[0-9\.]*)(\]) (?P<msg>.*)', line)
@@ -931,43 +937,13 @@ class Data:
 			t = float(m.group('ktime'))
 			if t < self.start or t > self.end:
 				continue
-			if t < self.tSuspended:
-				dir = 'suspend'
-			else:
-				dir = 'resume'
+			dir = 'suspend' if t < self.tSuspended else 'resume'
 			msg = m.group('msg')
-			if re.match('-*\[ *cut here *\]-*', msg):
-				type = 'WARNING'
-				sl = i
-			elif re.match('genirq: .*', msg):
-				type = 'IRQ'
-				sl = i
-			elif re.match('BUG: .*', msg) or re.match('kernel BUG .*', msg):
-				type = 'BUG'
-				sl = i
-			elif re.match('-*\[ *end trace .*\]-*', msg) or \
-				re.match('R13: .*', msg):
-				if et >= 0 and sl >= 0:
-					list.append((type, dir, et, sl, i))
+			for err in elist:
+				if re.match(elist[err], msg):
+					list.append((err, dir, t, i, i))
 					self.kerror = True
-					sl = et = el = -1
-					type = 'ERROR'
-			elif 'Call Trace:' in msg:
-				if el >= 0 and et >= 0:
-					list.append((type, dir, et, el, el))
-					self.kerror = True
-				et, el = t, i
-				if sl < 0 or type == 'BUG':
-					slval = i
-					if sl >= 0:
-						slval = sl
-					list.append((type, dir, et, slval, i))
-					self.kerror = True
-					sl = et = el = -1
-					type = 'ERROR'
-		if el >= 0 and et >= 0:
-			list.append((type, dir, et, el, el))
-			self.kerror = True
+					break
 		for e in list:
 			type, dir, t, idx1, idx2 = e
 			sysvals.vprint('kernel %s found in %s at %f' % (type, dir, t))
@@ -2331,12 +2307,14 @@ class TestProps:
 		sv.suspendmode = data.stamp['mode']
 		if sv.suspendmode == 'command' and sv.ftracefile != '':
 			modes = ['on', 'freeze', 'standby', 'mem', 'disk']
-			out = Popen(['grep', 'machine_suspend', sv.ftracefile],
-				stderr=PIPE, stdout=PIPE).stdout.read()
-			m = re.match('.* machine_suspend\[(?P<mode>.*)\]', out)
-			if m and m.group('mode') in ['1', '2', '3', '4']:
-				sv.suspendmode = modes[int(m.group('mode'))]
-				data.stamp['mode'] = sv.suspendmode
+			fp = sysvals.openlog(sv.ftracefile, 'r')
+			for line in fp:
+				m = re.match('.* machine_suspend\[(?P<mode>.*)\]', line)
+				if m and m.group('mode') in ['1', '2', '3', '4']:
+					sv.suspendmode = modes[int(m.group('mode'))]
+					data.stamp['mode'] = sv.suspendmode
+					break
+			fp.close()
 		m = re.match(self.cmdlinefmt, self.cmdline)
 		if m:
 			sv.cmdline = m.group('cmd')
@@ -2413,7 +2391,7 @@ class ProcessMonitor:
 #	 markers, and/or kprobes required for primary parsing.
 def doesTraceLogHaveTraceEvents():
 	kpcheck = ['_cal: (', '_cpu_down()']
-	techeck = sysvals.traceevents[:]
+	techeck = ['suspend_resume']
 	tmcheck = ['SUSPEND START', 'RESUME COMPLETE']
 	sysvals.usekprobes = False
 	fp = sysvals.openlog(sysvals.ftracefile, 'r')
@@ -2808,7 +2786,7 @@ def parseTraceLog(live=False):
 				# -- phase changes --
 				# start of kernel suspend
 				if(re.match('suspend_enter\[.*', t.name)):
-					if(isbegin):
+					if(isbegin and data.start == data.tKernSus):
 						data.dmesg[phase]['start'] = t.time
 						data.tKernSus = t.time
 					continue
@@ -3072,13 +3050,20 @@ def parseTraceLog(live=False):
 					sysvals.vprint('Callgraph found for task %d: %.3fms, %s' % (cg.pid, (cg.end - cg.start)*1000, name))
 					cg.newActionFromFunction(data)
 	if sysvals.suspendmode == 'command':
-		return testdata
+		return (testdata, '')
 
 	# fill in any missing phases
+	error = []
 	for data in testdata:
+		tn = '' if len(testdata) == 1 else ('%d' % (data.testnumber + 1))
+		terr = ''
 		lp = data.phases[0]
 		for p in data.phases:
 			if(data.dmesg[p]['start'] < 0 and data.dmesg[p]['end'] < 0):
+				if not terr:
+					print 'TEST%s FAILED: %s failed in %s phase' % (tn, sysvals.suspendmode, lp)
+					terr = '%s%s failed in %s phase' % (sysvals.suspendmode, tn, lp)
+					error.append(terr)
 				sysvals.vprint('WARNING: phase "%s" is missing!' % p)
 			if(data.dmesg[p]['start'] < 0):
 				data.dmesg[p]['start'] = data.dmesg[lp]['end']
@@ -3106,7 +3091,7 @@ def parseTraceLog(live=False):
 			for j in range(i + 1, tc):
 				testdata[j].mergeOverlapDevices(devlist)
 		testdata[0].stitchTouchingThreads(testdata[1:])
-	return testdata
+	return (testdata, ', '.join(error))
 
 # Function: loadKernelLog
 # Description:
@@ -3173,7 +3158,7 @@ def loadKernelLog():
 	if data:
 		testruns.append(data)
 	if len(testruns) < 1:
-		doError(' dmesg log has no suspend/resume data: %s' \
+		print('ERROR: dmesg log has no suspend/resume data: %s' \
 			% sysvals.dmesgfile)
 
 	# fix lines with same timestamp/function with the call and return swapped
@@ -3521,68 +3506,144 @@ def createHTMLSummarySimple(testruns, htmlfile, folder):
 		.summary {border:1px solid;}\n\
 		th {border: 1px solid black;background:#222;color:white;}\n\
 		td {font: 16px "Times New Roman";text-align: center;}\n\
-		tr.alt td {background:#ddd;}\n\
-		tr.avg td {background:#aaa;}\n\
+		tr.head td {border: 1px solid black;background:#aaa;}\n\
+		tr.alt {background-color:#ddd;}\n\
+		tr.notice {color:red;}\n\
+		.minval {background-color:#BBFFBB;}\n\
+		.medval {background-color:#BBBBFF;}\n\
+		.maxval {background-color:#FFBBBB;}\n\
+		.head a {color:#000;text-decoration: none;}\n\
 	</style>\n</head>\n<body>\n'
 
+	# extract the test data into list
+	list = dict()
+	tAvg, tMin, tMax, tMed = [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [[], []]
+	iMin, iMed, iMax = [0, 0], [0, 0], [0, 0]
+	num = 0
+	lastmode = ''
+	cnt = {'pass':0, 'fail':0, 'hang':0}
+	for data in sorted(testruns, key=lambda v:(v['mode'], v['host'], v['kernel'], v['time'])):
+		mode = data['mode']
+		if mode not in list:
+			list[mode] = {'data': [], 'avg': [0,0], 'min': [0,0], 'max': [0,0], 'med': [0,0]}
+		if lastmode and lastmode != mode and num > 0:
+			for i in range(2):
+				s = sorted(tMed[i])
+				list[lastmode]['med'][i] = s[int(len(s)/2)]
+				iMed[i] = tMed[i].index(list[lastmode]['med'][i])
+			list[lastmode]['avg'] = [tAvg[0] / num, tAvg[1] / num]
+			list[lastmode]['min'] = tMin
+			list[lastmode]['max'] = tMax
+			list[lastmode]['idx'] = (iMin, iMed, iMax)
+			tAvg, tMin, tMax, tMed = [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [[], []]
+			iMin, iMed, iMax = [0, 0], [0, 0], [0, 0]
+			num = 0
+		tVal = [float(data['suspend']), float(data['resume'])]
+		list[mode]['data'].append([data['host'], data['kernel'],
+			data['time'], tVal[0], tVal[1], data['url'], data['result'],
+			data['issues']])
+		idx = len(list[mode]['data']) - 1
+		if data['result'] == 'pass':
+			cnt['pass'] += 1
+			for i in range(2):
+				tMed[i].append(tVal[i])
+				tAvg[i] += tVal[i]
+				if tMin[i] == 0 or tVal[i] < tMin[i]:
+					iMin[i] = idx
+					tMin[i] = tVal[i]
+				if tMax[i] == 0 or tVal[i] > tMax[i]:
+					iMax[i] = idx
+					tMax[i] = tVal[i]
+			num += 1
+		elif data['result'] == 'hang':
+			cnt['hang'] += 1
+		elif data['result'] == 'fail':
+			cnt['fail'] += 1
+		lastmode = mode
+	if lastmode and num > 0:
+		for i in range(2):
+			s = sorted(tMed[i])
+			list[lastmode]['med'][i] = s[int(len(s)/2)]
+			iMed[i] = tMed[i].index(list[lastmode]['med'][i])
+		list[lastmode]['avg'] = [tAvg[0] / num, tAvg[1] / num]
+		list[lastmode]['min'] = tMin
+		list[lastmode]['max'] = tMax
+		list[lastmode]['idx'] = (iMin, iMed, iMax)
+
 	# group test header
-	html += '<div class="stamp">%s (%d tests)</div>\n' % (folder, len(testruns))
+	desc = []
+	for ilk in sorted(cnt, reverse=True):
+		if cnt[ilk] > 0:
+			desc.append('%d %s' % (cnt[ilk], ilk))
+	html += '<div class="stamp">%s (%d tests: %s)</div>\n' % (folder, len(testruns), ', '.join(desc))
 	th = '\t<th>{0}</th>\n'
 	td = '\t<td>{0}</td>\n'
+	tdh = '\t<td{1}>{0}</td>\n'
 	tdlink = '\t<td><a href="{0}">html</a></td>\n'
 
 	# table header
 	html += '<table class="summary">\n<tr>\n' + th.format('#') +\
 		th.format('Mode') + th.format('Host') + th.format('Kernel') +\
-		th.format('Test Time') + th.format('Suspend') + th.format('Resume') +\
-		th.format('Detail') + '</tr>\n'
+		th.format('Test Time') + th.format('Result') + th.format('Issues') +\
+		th.format('Suspend') + th.format('Resume') + th.format('Detail') + '</tr>\n'
 
-	# test data, 1 row per test
-	avg = '<tr class="avg"><td></td><td></td><td></td><td></td>'+\
-		'<td>Average of {0} {1} tests</td><td>{2}</td><td>{3}</td><td></td></tr>\n'
-	sTimeAvg = rTimeAvg = 0.0
-	mode = ''
-	num = 0
-	for data in sorted(testruns, key=lambda v:(v['mode'], v['host'], v['kernel'], v['time'])):
-		if mode != data['mode']:
-			# test average line
-			if(num > 0):
-				sTimeAvg /= (num - 1)
-				rTimeAvg /= (num - 1)
-				html += avg.format('%d' % (num - 1), mode,
-					'%3.3f ms' % sTimeAvg, '%3.3f ms' % rTimeAvg)
-			sTimeAvg = rTimeAvg = 0.0
-			mode = data['mode']
-			num = 1
-		# alternate row color
-		if num % 2 == 1:
-			html += '<tr class="alt">\n'
+	# export list into html
+	head = '<tr class="head"><td>{0}</td><td>{1}</td>'+\
+		'<td colspan=8 class="sus">Suspend Avg={2} '+\
+		'<span class=minval><a href="#s{10}min">Min={3}</a></span> '+\
+		'<span class=medval><a href="#s{10}med">Med={4}</a></span> '+\
+		'<span class=maxval><a href="#s{10}max">Max={5}</a></span> '+\
+		'Resume Avg={6} '+\
+		'<span class=minval><a href="#r{10}min">Min={7}</a></span> '+\
+		'<span class=medval><a href="#r{10}med">Med={8}</a></span> '+\
+		'<span class=maxval><a href="#r{10}max">Max={9}</a></span></td>'+\
+		'</tr>\n'
+	headnone = '<tr class="head"><td>{0}</td><td>{1}</td><td colspan=8></td></tr>\n'
+	for mode in list:
+		# header line for each suspend mode
+		num = 0
+		tAvg, tMin, tMax, tMed = list[mode]['avg'], list[mode]['min'],\
+			list[mode]['max'], list[mode]['med']
+		count = len(list[mode]['data'])
+		if 'idx' in list[mode]:
+			iMin, iMed, iMax = list[mode]['idx']
+			html += head.format('%d' % count, mode.upper(),
+				'%.3f' % tAvg[0], '%.3f' % tMin[0], '%.3f' % tMed[0], '%.3f' % tMax[0],
+				'%.3f' % tAvg[1], '%.3f' % tMin[1], '%.3f' % tMed[1], '%.3f' % tMax[1],
+				mode.lower()
+			)
 		else:
-			html += '<tr>\n'
-		html += td.format("%d" % num)
-		num += 1
-		# basic info
-		for item in ['mode', 'host', 'kernel', 'time']:
-			val = "unknown"
-			if(item in data):
-				val = data[item]
-			html += td.format(val)
-		# suspend time
-		sTime = float(data['suspend'])
-		sTimeAvg += sTime
-		html += td.format('%.3f ms' % sTime)
-		# resume time
-		rTime = float(data['resume'])
-		rTimeAvg += rTime
-		html += td.format('%.3f ms' % rTime)
-		# link to the output html
-		html += tdlink.format(data['url']) + '</tr>\n'
-	# last test average line
-	if(num > 0):
-		sTimeAvg /= (num - 1)
-		rTimeAvg /= (num - 1)
-		html += avg.format('%d' % (num - 1), mode,
-			'%3.3f ms' % sTimeAvg, '%3.3f ms' % rTimeAvg)
+			iMin = iMed = iMax = [-1, -1, -1]
+			html += headnone.format('%d' % count, mode.upper())
+		for d in list[mode]['data']:
+			# row classes - alternate row color
+			rcls = ['alt'] if num % 2 == 1 else []
+			if d[6] != 'pass':
+				rcls.append('notice')
+			html += '<tr class="'+(' '.join(rcls))+'">\n' if len(rcls) > 0 else '<tr>\n'
+			# figure out if the line has sus or res highlighted
+			idx = list[mode]['data'].index(d)
+			tHigh = ['', '']
+			for i in range(2):
+				tag = 's%s' % mode if i == 0 else 'r%s' % mode
+				if idx == iMin[i]:
+					tHigh[i] = ' id="%smin" class=minval title="Minimum"' % tag
+				elif idx == iMax[i]:
+					tHigh[i] = ' id="%smax" class=maxval title="Maximum"' % tag
+				elif idx == iMed[i]:
+					tHigh[i] = ' id="%smed" class=medval title="Median"' % tag
+			html += td.format("%d" % (list[mode]['data'].index(d) + 1)) # row
+			html += td.format(mode)										# mode
+			html += td.format(d[0])										# host
+			html += td.format(d[1])										# kernel
+			html += td.format(d[2])										# time
+			html += td.format(d[6])										# result
+			html += td.format(d[7])										# issues
+			html += tdh.format('%.3f ms' % d[3], tHigh[0]) if d[3] else td.format('')	# suspend
+			html += tdh.format('%.3f ms' % d[4], tHigh[1]) if d[4] else td.format('')	# resume
+			html += tdlink.format(d[5]) if d[5] else td.format('')		# url
+			html += '</tr>\n'
+			num += 1
 
 	# flush the data to file
 	hf = open(htmlfile, 'w')
@@ -3607,7 +3668,7 @@ def ordinal(value):
 #	 testruns: array of Data objects from parseKernelLog or parseTraceLog
 # Output:
 #	 True if the html file was created, false if it failed
-def createHTML(testruns):
+def createHTML(testruns, testfail):
 	if len(testruns) < 1:
 		print('ERROR: Not enough test data to build a timeline')
 		return
@@ -3641,6 +3702,7 @@ def createHTML(testruns):
 		'<td class="purple">{4}Firmware Resume: {2} ms</td>'\
 		'<td class="yellow" title="time from firmware mode to return from kernel enter_state({5}) [kernel time only]">{4}Kernel Resume: {3} ms</td>'\
 		'</tr>\n</table>\n'
+	html_fail = '<table class="testfail"><tr><td>{0}</td></tr></table>\n'
 
 	# html format variables
 	scaleH = 20
@@ -3707,6 +3769,9 @@ def createHTML(testruns):
 				thtml = html_timetotal2.format(suspend_time, low_time, \
 					resume_time, testdesc, stitle, rtitle)
 			devtl.html += thtml
+
+	if testfail:
+		devtl.html += html_fail.format(testfail)
 
 	# time scale for potentially multiple datasets
 	t0 = testruns[0].start
@@ -4006,6 +4071,7 @@ def addCSS(hf, sv, testcount=1, kerror=False, extra=''):
 		.blue {background:rgba(169,208,245,0.4);}\n\
 		.time1 {font:22px Arial;border:1px solid;}\n\
 		.time2 {font:15px Arial;border-bottom:1px solid;border-left:1px solid;border-right:1px solid;}\n\
+		.testfail {font:bold 22px Arial;color:red;border:1px dashed;}\n\
 		td {text-align:center;}\n\
 		r {color:#500000;font:15px Tahoma;}\n\
 		n {color:#505050;font:15px Tahoma;}\n\
@@ -4927,6 +4993,25 @@ def dmidecode(mempath, fatal=False):
 		count += 1
 	return out
 
+def getBattery():
+	p = '/sys/class/power_supply'
+	bat = dict()
+	for d in os.listdir(p):
+		type = sysvals.getVal(os.path.join(p, d, 'type')).strip().lower()
+		if type != 'battery':
+			continue
+		for v in ['status', 'energy_now', 'capacity_now']:
+			bat[v] = sysvals.getVal(os.path.join(p, d, v)).strip().lower()
+		break
+	ac = True
+	if 'status' in bat and 'discharging' in bat['status']:
+		ac = False
+	charge = 0
+	for v in ['energy_now', 'capacity_now']:
+		if v in bat and bat[v]:
+			charge = int(bat[v])
+	return (ac, charge)
+
 # Function: getFPDT
 # Description:
 #	 Read the acpi bios tables and pull out FPDT, the firmware data
@@ -5202,8 +5287,9 @@ def getArgFloat(name, args, min, max, main=True):
 
 def processData(live=False):
 	print('PROCESSING DATA')
+	error = ''
 	if(sysvals.usetraceevents):
-		testruns = parseTraceLog(live)
+		testruns, error = parseTraceLog(live)
 		if sysvals.dmesgfile:
 			for data in testruns:
 				data.extractErrorInfo()
@@ -5220,15 +5306,18 @@ def processData(live=False):
 		for data in testruns:
 			data.debugPrint()
 		sys.exit()
-
+	if len(testruns) < 1:
+		return (testruns, {'error': 'timeline generation failed'})
 	sysvals.vprint('Creating the html timeline (%s)...' % sysvals.htmlfile)
-	createHTML(testruns)
+	createHTML(testruns, error)
 	print('DONE')
 	data = testruns[0]
 	stamp = data.stamp
 	stamp['suspend'], stamp['resume'] = data.getTimeValues()
 	if data.fwValid:
 		stamp['fwsuspend'], stamp['fwresume'] = data.fwSuspend, data.fwResume
+	if error:
+		stamp['error'] = error
 	return (testruns, stamp)
 
 # Function: rerunTest
@@ -5268,58 +5357,88 @@ def runTest(n=0):
 	sysvals.sudouser(sysvals.testdir)
 	sysvals.outputResult(stamp, n)
 
-def find_in_html(html, strs, div=False):
-	for str in strs:
-		l = len(str)
-		i = html.find(str)
-		if i >= 0:
+def find_in_html(html, start, end, firstonly=True):
+	n, out = 0, []
+	while n < len(html):
+		m = re.search(start, html[n:])
+		if not m:
 			break
-	if i < 0:
+		i = m.end()
+		m = re.search(end, html[n+i:])
+		if not m:
+			break
+		j = m.start()
+		str = html[n+i:n+i+j]
+		if end == 'ms':
+			num = re.search(r'[-+]?\d*\.\d+|\d+', str)
+			str = num.group() if num else 'NaN'
+		if firstonly:
+			return str
+		out.append(str)
+		n += i+j
+	if firstonly:
 		return ''
-	if not div:
-		return re.search(r'[-+]?\d*\.\d+|\d+', html[i+l:i+l+50]).group()
-	n = html[i+l:].find('</div>')
-	if n < 0:
-		return ''
-	return html[i+l:i+l+n]
+	return out
 
 # Function: runSummary
 # Description:
 #	 create a summary of tests in a sub-directory
-def runSummary(subdir, local=True):
+def runSummary(subdir, local=True, genhtml=False):
 	inpath = os.path.abspath(subdir)
 	outpath = inpath
 	if local:
 		outpath = os.path.abspath('.')
 	print('Generating a summary of folder "%s"' % inpath)
+	if genhtml:
+		for dirname, dirnames, filenames in os.walk(subdir):
+			sysvals.dmesgfile = sysvals.ftracefile = sysvals.htmlfile = ''
+			for filename in filenames:
+				if(re.match('.*_dmesg.txt', filename)):
+					sysvals.dmesgfile = os.path.join(dirname, filename)
+				elif(re.match('.*_ftrace.txt', filename)):
+					sysvals.ftracefile = os.path.join(dirname, filename)
+			sysvals.setOutputFile()
+			if sysvals.ftracefile and sysvals.htmlfile and \
+				not os.path.exists(sysvals.htmlfile):
+				print('FTRACE: %s' % sysvals.ftracefile)
+				if sysvals.dmesgfile:
+					print('DMESG : %s' % sysvals.dmesgfile)
+				rerunTest()
 	testruns = []
 	for dirname, dirnames, filenames in os.walk(subdir):
 		for filename in filenames:
 			if(not re.match('.*.html', filename)):
 				continue
 			file = os.path.join(dirname, filename)
-			html = open(file, 'r').read(10000)
-			suspend = find_in_html(html,
-				['Kernel Suspend: ', 'Kernel Suspend Time: '])
-			resume = find_in_html(html,
-				['Kernel Resume: ', 'Kernel Resume Time: '])
-			line = find_in_html(html, ['<div class="stamp">'], True)
+			html = open(file, 'r').read()
+			suspend = find_in_html(html, 'Kernel Suspend', 'ms')
+			resume = find_in_html(html, 'Kernel Resume', 'ms')
+			line = find_in_html(html, '<div class="stamp">', '</div>')
 			stmp = line.split()
-			if not suspend or not resume or len(stmp) < 4:
+			if not suspend or not resume or len(stmp) != 8:
 				continue
+			try:
+				dt = datetime.strptime(' '.join(stmp[3:]), '%B %d %Y, %I:%M:%S %p')
+			except:
+				continue
+			tstr = dt.strftime('%Y/%m/%d %H:%M:%S')
+			error = find_in_html(html, '<table class="testfail"><tr><td>', '</td>')
+			result = 'fail' if error else 'pass'
+			ilist = []
+			e = find_in_html(html, 'class="err"[\w=":;\.%\- ]*>', '&rarr;</div>', False)
+			for i in list(set(e)):
+				ilist.append('%sx%d' % (i, e.count(i)) if e.count(i) > 1 else i)
 			data = {
+				'mode': stmp[2],
 				'host': stmp[0],
 				'kernel': stmp[1],
-				'mode': stmp[2],
-				'time': string.join(stmp[3:], ' '),
+				'time': tstr,
+				'result': result,
+				'issues': ','.join(ilist),
 				'suspend': suspend,
 				'resume': resume,
 				'url': os.path.relpath(file, outpath),
 			}
-			if len(stmp) == 7:
-				data['kernel'] = 'unknown'
-				data['mode'] = stmp[1]
-				data['time'] = string.join(stmp[2:], ' ')
 			testruns.append(data)
 	outfile = os.path.join(outpath, 'summary.html')
 	print('Summary file: %s' % outfile)
@@ -5609,11 +5728,12 @@ def printHelp():
 	print('   -modes       List available suspend modes')
 	print('   -status      Test to see if the system is enabled to run this tool')
 	print('   -fpdt        Print out the contents of the ACPI Firmware Performance Data Table')
+	print('   -battery     Print out battery info (if available)')
 	print('   -sysinfo     Print out system info extracted from BIOS')
 	print('   -devinfo     Print out the pm settings of all devices which support runtime suspend')
 	print('   -flist       Print the list of functions currently being captured in ftrace')
 	print('   -flistall    Print all functions capable of being captured in ftrace')
-	print('   -summary directory  Create a summary of all test in this dir')
+	print('   -summary dir Create a summary of tests in this dir [-genhtml builds missing html]')
 	print('  [redo]')
 	print('   -ftrace ftracefile  Create HTML output using ftrace input (used with -dmesg)')
 	print('   -dmesg dmesgfile    Create HTML output using dmesg (used with -ftrace)')
@@ -5623,8 +5743,9 @@ def printHelp():
 # ----------------- MAIN --------------------
 # exec start (skipped if script is loaded as library)
 if __name__ == '__main__':
+	genhtml = False
 	cmd = ''
-	simplecmds = ['-sysinfo', '-modes', '-fpdt', '-flist', '-flistall', '-devinfo', '-status']
+	simplecmds = ['-sysinfo', '-modes', '-fpdt', '-flist', '-flistall', '-devinfo', '-status', '-battery']
 	if '-f' in sys.argv:
 		sysvals.cgskip = sysvals.configFile('cgskip.txt')
 	# loop through the command line arguments
@@ -5660,6 +5781,8 @@ if __name__ == '__main__':
 			sysvals.skiphtml = True
 		elif(arg == '-cgdump'):
 			sysvals.cgdump = True
+		elif(arg == '-genhtml'):
+			genhtml = True
 		elif(arg == '-addlogs'):
 			sysvals.dmesglog = sysvals.ftracelog = True
 		elif(arg == '-verbose'):
@@ -5856,6 +5979,8 @@ if __name__ == '__main__':
 			statusCheck(True)
 		elif(cmd == 'fpdt'):
 			getFPDT(True)
+		elif(cmd == 'battery'):
+			print 'AC Connect: %s\nCharge: %d' % getBattery()
 		elif(cmd == 'sysinfo'):
 			sysvals.printSystemInfo(True)
 		elif(cmd == 'devinfo'):
@@ -5867,7 +5992,7 @@ if __name__ == '__main__':
 		elif(cmd == 'flistall'):
 			sysvals.getFtraceFilterFunctions(False)
 		elif(cmd == 'summary'):
-			runSummary(sysvals.outdir, True)
+			runSummary(sysvals.outdir, True, genhtml)
 		sys.exit()
 
 	# if instructed, re-analyze existing data files
@@ -5920,7 +6045,7 @@ if __name__ == '__main__':
 			print('TEST (%d/%d) COMPLETE' % (i+1, sysvals.multitest['count']))
 			sysvals.logmsg = ''
 		if not sysvals.skiphtml:
-			runSummary(sysvals.outdir, False)
+			runSummary(sysvals.outdir, False, False)
 		sysvals.sudouser(sysvals.outdir)
 	else:
 		if sysvals.outdir:

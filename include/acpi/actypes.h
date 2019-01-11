@@ -245,6 +245,10 @@ typedef u64 acpi_physical_address;
 #define acpi_spinlock                   void *
 #endif
 
+#ifndef acpi_raw_spinlock
+#define acpi_raw_spinlock		acpi_spinlock
+#endif
+
 #ifndef acpi_semaphore
 #define acpi_semaphore                  void *
 #endif
@@ -1268,6 +1272,7 @@ typedef enum {
 #define ACPI_OSI_WIN_10                 0x0D
 #define ACPI_OSI_WIN_10_RS1             0x0E
 #define ACPI_OSI_WIN_10_RS2             0x0F
+#define ACPI_OSI_WIN_10_RS3             0x10
 
 /* Definitions of getopt */
 

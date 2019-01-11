@@ -192,34 +192,31 @@ void device_pm_move_last(struct device *dev)
 	list_move_tail(&dev->power.entry, &dpm_list);
 }
 
-static ktime_t initcall_debug_start(struct device *dev)
+static ktime_t initcall_debug_start(struct device *dev, void *cb)
 {
-	ktime_t calltime = 0;
+	if (!pm_print_times_enabled)
+		return 0;
 
-	if (pm_print_times_enabled) {
-		pr_info("calling  %s+ @ %i, parent: %s\n",
-			dev_name(dev), task_pid_nr(current),
-			dev->parent ? dev_name(dev->parent) : "none");
-		calltime = ktime_get();
-	}
-
-	return calltime;
+	dev_info(dev, "calling %pF @ %i, parent: %s\n", cb,
+		 task_pid_nr(current),
+		 dev->parent ? dev_name(dev->parent) : "none");
+	return ktime_get();
 }
 
 static void initcall_debug_report(struct device *dev, ktime_t calltime,
-				  int error, pm_message_t state,
-				  const char *info)
+				  void *cb, int error)
 {
 	ktime_t rettime;
 	s64 nsecs;
 
+	if (!pm_print_times_enabled)
+		return;
+
 	rettime = ktime_get();
 	nsecs = (s64) ktime_to_ns(ktime_sub(rettime, calltime));
 
-	if (pm_print_times_enabled) {
-		pr_info("call %s+ returned %d after %Ld usecs\n", dev_name(dev),
-			error, (unsigned long long)nsecs >> 10);
-	}
+	dev_info(dev, "%pF returned %d after %Ld usecs\n", cb, error,
+		 (unsigned long long)nsecs >> 10);
 }
 
 /**
@@ -446,7 +443,7 @@ static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 	if (!cb)
 		return 0;
 
-	calltime = initcall_debug_start(dev);
+	calltime = initcall_debug_start(dev, cb);
 
 	pm_dev_dbg(dev, state, info);
 	trace_device_pm_callback_start(dev, info, state.event);
@@ -454,7 +451,7 @@ static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 	trace_device_pm_callback_end(dev, error);
 	suspend_report_result(cb, error);
 
-	initcall_debug_report(dev, calltime, error, state, info);
+	initcall_debug_report(dev, calltime, cb, error);
 
 	return error;
 }
@@ -1664,14 +1661,14 @@ static int legacy_suspend(struct device *dev, pm_message_t state,
 	int error;
 	ktime_t calltime;
 
-	calltime = initcall_debug_start(dev);
+	calltime = initcall_debug_start(dev, cb);
 
 	trace_device_pm_callback_start(dev, info, state.event);
 	error = cb(dev, state);
 	trace_device_pm_callback_end(dev, error);
 	suspend_report_result(cb, error);
 
-	initcall_debug_report(dev, calltime, error, state, info);
+	initcall_debug_report(dev, calltime, cb, error);
 
 	return error;
 }

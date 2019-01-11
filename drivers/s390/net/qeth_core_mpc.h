@@ -246,6 +246,8 @@ enum qeth_ipa_funcs {
 	IPA_QUERY_ARP_ASSIST	= 0x00040000L,
 	IPA_INBOUND_TSO         = 0x00080000L,
 	IPA_OUTBOUND_TSO        = 0x00100000L,
+	IPA_INBOUND_CHECKSUM_V6 = 0x00400000L,
+	IPA_OUTBOUND_CHECKSUM_V6 = 0x00800000L,
 };
 
 /* SETIP/DELIP IPA Command: ***************************************************/

@@ -34,11 +34,9 @@ struct snd_dma_device {
 	struct device *dev;		/* generic device */
 };
 
-#ifndef snd_dma_pci_data
 #define snd_dma_pci_data(pci)	(&(pci)->dev)
 #define snd_dma_isa_data()	NULL
 #define snd_dma_continuous_data(x)	((struct device *)(__force unsigned long)(x))
-#endif
 
 
 /*

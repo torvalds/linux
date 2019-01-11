@@ -367,19 +367,6 @@ static int proc_pcxl_dma_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_pcxl_dma_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_pcxl_dma_show, NULL);
-}
-
-static const struct file_operations proc_pcxl_dma_ops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_pcxl_dma_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init
 pcxl_dma_init(void)
 {
@@ -397,8 +384,8 @@ pcxl_dma_init(void)
 			"pcxl_dma_init: Unable to create gsc /proc dir entry\n");
 	else {
 		struct proc_dir_entry* ent;
-		ent = proc_create("pcxl_dma", 0, proc_gsc_root,
-				  &proc_pcxl_dma_ops);
+		ent = proc_create_single("pcxl_dma", 0, proc_gsc_root,
+				proc_pcxl_dma_show);
 		if (!ent)
 			printk(KERN_WARNING
 				"pci-dma.c: Unable to create pcxl_dma /proc entry.\n");

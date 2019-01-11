@@ -66,8 +66,6 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "renesas,r8a7792", },
 	{ .compatible = "renesas,r8a7793", },
 	{ .compatible = "renesas,r8a7794", },
-	{ .compatible = "renesas,r8a7795", },
-	{ .compatible = "renesas,r8a7796", },
 	{ .compatible = "renesas,sh73a0", },
 
 	{ .compatible = "rockchip,rk2928", },
@@ -117,6 +115,9 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "mediatek,mt8176", },
 
 	{ .compatible = "nvidia,tegra124", },
+
+	{ .compatible = "qcom,apq8096", },
+	{ .compatible = "qcom,msm8996", },
 
 	{ .compatible = "st,stih407", },
 	{ .compatible = "st,stih410", },

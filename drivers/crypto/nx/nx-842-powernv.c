@@ -334,7 +334,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		return -EPROTO;
 	case CSB_CC_SEQUENCE:
 		/* should not happen, we don't use chained CRBs */
-		CSB_ERR(csb, "CRB seqeunce number error");
+		CSB_ERR(csb, "CRB sequence number error");
 		return -EPROTO;
 	case CSB_CC_UNKNOWN_CODE:
 		CSB_ERR(csb, "Unknown subfunction code");

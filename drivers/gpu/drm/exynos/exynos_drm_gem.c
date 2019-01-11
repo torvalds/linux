@@ -143,7 +143,7 @@ static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 	DRM_DEBUG_KMS("gem handle = 0x%x\n", *handle);
 
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 }
@@ -186,7 +186,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 
 	exynos_gem = to_exynos_gem(obj);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return exynos_gem->size;
 }
@@ -329,13 +329,13 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 		return;
 	}
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	/*
 	 * decrease obj->refcount one more time because we has already
 	 * increased it at exynos_drm_gem_get_dma_addr().
 	 */
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 }
 
 static int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem *exynos_gem,
@@ -383,7 +383,7 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	args->flags = exynos_gem->flags;
 	args->size = exynos_gem->size;
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 }
@@ -431,37 +431,24 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
-int exynos_drm_gem_fault(struct vm_fault *vmf)
+vm_fault_t exynos_drm_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
 	unsigned long pfn;
 	pgoff_t page_offset;
-	int ret;
 
 	page_offset = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	if (page_offset >= (exynos_gem->size >> PAGE_SHIFT)) {
 		DRM_ERROR("invalid page offset\n");
-		ret = -EINVAL;
-		goto out;
+		return VM_FAULT_SIGBUS;
 	}
 
 	pfn = page_to_pfn(exynos_gem->pages[page_offset]);
-	ret = vm_insert_mixed(vma, vmf->address, __pfn_to_pfn_t(pfn, PFN_DEV));
-
-out:
-	switch (ret) {
-	case 0:
-	case -ERESTARTSYS:
-	case -EINTR:
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	return vmf_insert_mixed(vma, vmf->address,
+			__pfn_to_pfn_t(pfn, PFN_DEV));
 }
 
 static int exynos_drm_gem_mmap_obj(struct drm_gem_object *obj,

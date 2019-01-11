@@ -417,7 +417,7 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 	}
 
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
-	clks = kzalloc(num_clks * sizeof(*clks), GFP_KERNEL);
+	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
 	if (cpg == NULL || clks == NULL) {
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.

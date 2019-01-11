@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mfd/palmas.h>
@@ -159,13 +159,9 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	struct palmas_platform_data *palmas_pdata;
 	struct palmas_gpio *palmas_gpio;
 	int ret;
-	const struct of_device_id *match;
 	const struct palmas_device_data *dev_data;
 
-	match = of_match_device(of_palmas_gpio_match, &pdev->dev);
-	if (!match)
-		return -ENODEV;
-	dev_data = match->data;
+	dev_data = of_device_get_match_data(&pdev->dev);
 	if (!dev_data)
 		dev_data = &palmas_dev_data;
 

@@ -867,7 +867,7 @@ static u32 rr_handle_event(struct net_device *dev, u32 prodidx, u32 eidx)
 			       dev->name);
 			goto drop;
 		case E_FRM_ERR:
-			printk(KERN_WARNING "%s: Framming Error\n",
+			printk(KERN_WARNING "%s: Framing Error\n",
 			       dev->name);
 			goto drop;
 		case E_FLG_SYN_ERR:
@@ -1583,7 +1583,7 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			return -EPERM;
 		}
 
-		image = kmalloc(EEPROM_WORDS * sizeof(u32), GFP_KERNEL);
+		image = kmalloc_array(EEPROM_WORDS, sizeof(u32), GFP_KERNEL);
 		if (!image)
 			return -ENOMEM;
 

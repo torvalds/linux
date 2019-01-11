@@ -102,8 +102,8 @@ void kernel_syms_destroy(struct dump_data *dd)
 	free(dd->sym_mapping);
 }
 
-static struct kernel_sym *kernel_syms_search(struct dump_data *dd,
-					     unsigned long key)
+struct kernel_sym *kernel_syms_search(struct dump_data *dd,
+				      unsigned long key)
 {
 	struct kernel_sym sym = {
 		.address = key,
@@ -174,7 +174,11 @@ static const char *print_call_pcrel(struct dump_data *dd,
 				    unsigned long address,
 				    const struct bpf_insn *insn)
 {
-	if (sym)
+	if (!dd->nr_jited_ksyms)
+		/* Do not show address for interpreted programs */
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			"%+d", insn->off);
+	else if (sym)
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
 			 "%+d#%s", insn->off, sym->name);
 	else
@@ -202,6 +206,10 @@ static const char *print_call(void *private_data,
 	struct dump_data *dd = private_data;
 	unsigned long address = dd->address_call_base + insn->imm;
 	struct kernel_sym *sym;
+
+	if (insn->src_reg == BPF_PSEUDO_CALL &&
+	    (__u32) insn->imm < dd->nr_jited_ksyms)
+		address = dd->jited_ksyms[insn->imm];
 
 	sym = kernel_syms_search(dd, address);
 	if (insn->src_reg == BPF_PSEUDO_CALL)

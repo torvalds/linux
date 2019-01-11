@@ -34,7 +34,7 @@ struct posix_acl *fuse_get_acl(struct inode *inode, int type)
 		return ERR_PTR(-ENOMEM);
 	size = fuse_getxattr(inode, name, value, PAGE_SIZE);
 	if (size > 0)
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
+		acl = posix_acl_from_xattr(fc->user_ns, value, size);
 	else if ((size == 0) || (size == -ENODATA) ||
 		 (size == -EOPNOTSUPP && fc->no_getxattr))
 		acl = NULL;
@@ -81,7 +81,7 @@ int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		if (!value)
 			return -ENOMEM;
 
-		ret = posix_acl_to_xattr(&init_user_ns, acl, value, size);
+		ret = posix_acl_to_xattr(fc->user_ns, acl, value, size);
 		if (ret < 0) {
 			kfree(value);
 			return ret;

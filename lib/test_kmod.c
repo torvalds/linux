@@ -779,8 +779,9 @@ static int kmod_config_sync_info(struct kmod_test_device *test_dev)
 	struct test_config *config = &test_dev->config;
 
 	free_test_dev_info(test_dev);
-	test_dev->info = vzalloc(config->num_threads *
-				 sizeof(struct kmod_test_device_info));
+	test_dev->info =
+		vzalloc(array_size(sizeof(struct kmod_test_device_info),
+				   config->num_threads));
 	if (!test_dev->info)
 		return -ENOMEM;
 

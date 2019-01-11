@@ -170,7 +170,7 @@ static char *audigy_outs[32] = {
 	/* 0x0f */ "Rear Right",
 	/* 0x10 */ "AC97 Front Left",
 	/* 0x11 */ "AC97 Front Right",
-	/* 0x12 */ "ADC Caputre Left",
+	/* 0x12 */ "ADC Capture Left",
 	/* 0x13 */ "ADC Capture Right",
 	/* 0x14 */ NULL,
 	/* 0x15 */ NULL,
@@ -421,14 +421,10 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 					    snd_fx8010_irq_handler_t *handler,
 					    unsigned char gpr_running,
 					    void *private_data,
-					    struct snd_emu10k1_fx8010_irq **r_irq)
+					    struct snd_emu10k1_fx8010_irq *irq)
 {
-	struct snd_emu10k1_fx8010_irq *irq;
 	unsigned long flags;
 	
-	irq = kmalloc(sizeof(*irq), GFP_ATOMIC);
-	if (irq == NULL)
-		return -ENOMEM;
 	irq->handler = handler;
 	irq->gpr_running = gpr_running;
 	irq->private_data = private_data;
@@ -443,8 +439,6 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 		emu->fx8010.irq_handlers = irq;
 	}
 	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
-	if (r_irq)
-		*r_irq = irq;
 	return 0;
 }
 
@@ -468,7 +462,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 			tmp->next = tmp->next->next;
 	}
 	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
-	kfree(irq);
 	return 0;
 }
 
@@ -2690,16 +2683,16 @@ int snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu)
 	int len;
 
 	len = emu->audigy ? 0x200 : 0x100;
-	emu->saved_gpr = kmalloc(len * 4, GFP_KERNEL);
+	emu->saved_gpr = kmalloc_array(len, 4, GFP_KERNEL);
 	if (! emu->saved_gpr)
 		return -ENOMEM;
 	len = emu->audigy ? 0x100 : 0xa0;
-	emu->tram_val_saved = kmalloc(len * 4, GFP_KERNEL);
-	emu->tram_addr_saved = kmalloc(len * 4, GFP_KERNEL);
+	emu->tram_val_saved = kmalloc_array(len, 4, GFP_KERNEL);
+	emu->tram_addr_saved = kmalloc_array(len, 4, GFP_KERNEL);
 	if (! emu->tram_val_saved || ! emu->tram_addr_saved)
 		return -ENOMEM;
 	len = emu->audigy ? 2 * 1024 : 2 * 512;
-	emu->saved_icode = vmalloc(len * 4);
+	emu->saved_icode = vmalloc(array_size(len, 4));
 	if (! emu->saved_icode)
 		return -ENOMEM;
 	return 0;

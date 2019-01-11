@@ -140,8 +140,11 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 	struct mii_bus *mdio_bus;
 	int ret;
 
-	if (hdev->hw.mac.phy_addr >= PHY_MAX_ADDR)
-		return 0;
+	if (hdev->hw.mac.phy_addr >= PHY_MAX_ADDR) {
+		dev_err(&hdev->pdev->dev, "phy_addr(%d) is too large.\n",
+			hdev->hw.mac.phy_addr);
+		return -EINVAL;
+	}
 
 	mdio_bus = devm_mdiobus_alloc(&hdev->pdev->dev);
 	if (!mdio_bus)

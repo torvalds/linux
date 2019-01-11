@@ -104,7 +104,7 @@ static struct sk_buff *nsh_gso_segment(struct sk_buff *skb,
 	__skb_pull(skb, nsh_len);
 
 	skb_reset_mac_header(skb);
-	skb_reset_mac_len(skb);
+	skb->mac_len = proto == htons(ETH_P_TEB) ? ETH_HLEN : 0;
 	skb->protocol = proto;
 
 	features &= NETIF_F_SG;

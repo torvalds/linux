@@ -41,6 +41,12 @@
 #define  ESDHC_VENDOR_SPEC_FRC_SDCLK_ON	(1 << 8)
 #define ESDHC_WTMK_LVL			0x44
 #define  ESDHC_WTMK_DEFAULT_VAL		0x10401040
+#define  ESDHC_WTMK_LVL_RD_WML_MASK	0x000000FF
+#define  ESDHC_WTMK_LVL_RD_WML_SHIFT	0
+#define  ESDHC_WTMK_LVL_WR_WML_MASK	0x00FF0000
+#define  ESDHC_WTMK_LVL_WR_WML_SHIFT	16
+#define  ESDHC_WTMK_LVL_WML_VAL_DEF	64
+#define  ESDHC_WTMK_LVL_WML_VAL_MAX	128
 #define ESDHC_MIX_CTRL			0x48
 #define  ESDHC_MIX_CTRL_DDREN		(1 << 3)
 #define  ESDHC_MIX_CTRL_AC23EN		(1 << 7)
@@ -306,6 +312,15 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 
 			if (imx_data->socdata->flags & ESDHC_FLAG_HS400)
 				val |= SDHCI_SUPPORT_HS400;
+
+			/*
+			 * Do not advertise faster UHS modes if there are no
+			 * pinctrl states for 100MHz/200MHz.
+			 */
+			if (IS_ERR_OR_NULL(imx_data->pins_100mhz) ||
+			    IS_ERR_OR_NULL(imx_data->pins_200mhz))
+				val &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50
+					 | SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_HS400);
 		}
 	}
 
@@ -516,6 +531,7 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		}
 
 		if (esdhc_is_usdhc(imx_data)) {
+			u32 wml;
 			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
 			/* Swap AC23 bit */
 			if (val & SDHCI_TRNS_AUTO_CMD23) {
@@ -524,6 +540,21 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 			}
 			m = val | (m & ~ESDHC_MIX_CTRL_SDHCI_MASK);
 			writel(m, host->ioaddr + ESDHC_MIX_CTRL);
+
+			/* Set watermark levels for PIO access to maximum value
+			 * (128 words) to accommodate full 512 bytes buffer.
+			 * For DMA access restore the levels to default value.
+			 */
+			m = readl(host->ioaddr + ESDHC_WTMK_LVL);
+			if (val & SDHCI_TRNS_DMA)
+				wml = ESDHC_WTMK_LVL_WML_VAL_DEF;
+			else
+				wml = ESDHC_WTMK_LVL_WML_VAL_MAX;
+			m &= ~(ESDHC_WTMK_LVL_RD_WML_MASK |
+			       ESDHC_WTMK_LVL_WR_WML_MASK);
+			m |= (wml << ESDHC_WTMK_LVL_RD_WML_SHIFT) |
+			     (wml << ESDHC_WTMK_LVL_WR_WML_SHIFT);
+			writel(m, host->ioaddr + ESDHC_WTMK_LVL);
 		} else {
 			/*
 			 * Postpone this write, we must do it together with a
@@ -1136,18 +1167,6 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 						ESDHC_PINCTRL_STATE_100MHZ);
 		imx_data->pins_200mhz = pinctrl_lookup_state(imx_data->pinctrl,
 						ESDHC_PINCTRL_STATE_200MHZ);
-		if (IS_ERR(imx_data->pins_100mhz) ||
-				IS_ERR(imx_data->pins_200mhz)) {
-			dev_warn(mmc_dev(host->mmc),
-				"could not get ultra high speed state, work on normal mode\n");
-			/*
-			 * fall back to not supporting uhs by specifying no
-			 * 1.8v quirk
-			 */
-			host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
-		}
-	} else {
-		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 	}
 
 	/* call to generic mmc_of_parse to support additional capabilities */

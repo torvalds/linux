@@ -57,7 +57,7 @@ device that displays digits), an additional index argument can be specified::
 					  enum gpiod_flags flags)
 
 For a more detailed description of the con_id parameter in the DeviceTree case
-see Documentation/gpio/board.txt
+see Documentation/driver-api/gpio/board.rst
 
 The flags parameter is used to optionally specify a direction and initial value
 for the GPIO. Values can be:

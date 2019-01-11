@@ -1401,7 +1401,7 @@ static int idt_ntb_peer_mw_clear_trans(struct ntb_dev *ntb, int pidx,
  *                          5. Doorbell operations
  *
  *    Doorbell functionality of IDT PCIe-switches is pretty unusual. First of
- * all there is global doorbell register which state can by changed by any
+ * all there is global doorbell register which state can be changed by any
  * NT-function of the IDT device in accordance with global permissions. These
  * permissions configs are not supported by NTB API, so it must be done by
  * either BIOS or EEPROM settings. In the same way the state of the global

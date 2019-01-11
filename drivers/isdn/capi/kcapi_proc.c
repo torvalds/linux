@@ -108,32 +108,6 @@ static const struct seq_operations seq_contrstats_ops = {
 	.show	= contrstats_show,
 };
 
-static int seq_controller_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &seq_controller_ops);
-}
-
-static int seq_contrstats_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &seq_contrstats_ops);
-}
-
-static const struct file_operations proc_controller_ops = {
-	.owner		= THIS_MODULE,
-	.open		= seq_controller_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static const struct file_operations proc_contrstats_ops = {
-	.owner		= THIS_MODULE,
-	.open		= seq_contrstats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 // /proc/capi/applications:
 //      applid l3cnt dblkcnt dblklen #ncci recvqueuelen
 // /proc/capi/applstats:
@@ -216,34 +190,6 @@ static const struct seq_operations seq_applstats_ops = {
 	.show	= applstats_show,
 };
 
-static int
-seq_applications_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &seq_applications_ops);
-}
-
-static int
-seq_applstats_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &seq_applstats_ops);
-}
-
-static const struct file_operations proc_applications_ops = {
-	.owner		= THIS_MODULE,
-	.open		= seq_applications_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static const struct file_operations proc_applstats_ops = {
-	.owner		= THIS_MODULE,
-	.open		= seq_applstats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 // ---------------------------------------------------------------------------
 
 static void *capi_driver_start(struct seq_file *seq, loff_t *pos)
@@ -279,22 +225,6 @@ static const struct seq_operations seq_capi_driver_ops = {
 	.show	= capi_driver_show,
 };
 
-static int
-seq_capi_driver_open(struct inode *inode, struct file *file)
-{
-	int err;
-	err = seq_open(file, &seq_capi_driver_ops);
-	return err;
-}
-
-static const struct file_operations proc_driver_ops = {
-	.owner		= THIS_MODULE,
-	.open		= seq_capi_driver_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 // ---------------------------------------------------------------------------
 
 void __init
@@ -302,11 +232,11 @@ kcapi_proc_init(void)
 {
 	proc_mkdir("capi",             NULL);
 	proc_mkdir("capi/controllers", NULL);
-	proc_create("capi/controller",   0, NULL, &proc_controller_ops);
-	proc_create("capi/contrstats",   0, NULL, &proc_contrstats_ops);
-	proc_create("capi/applications", 0, NULL, &proc_applications_ops);
-	proc_create("capi/applstats",    0, NULL, &proc_applstats_ops);
-	proc_create("capi/driver",       0, NULL, &proc_driver_ops);
+	proc_create_seq("capi/controller",   0, NULL, &seq_controller_ops);
+	proc_create_seq("capi/contrstats",   0, NULL, &seq_contrstats_ops);
+	proc_create_seq("capi/applications", 0, NULL, &seq_applications_ops);
+	proc_create_seq("capi/applstats",    0, NULL, &seq_applstats_ops);
+	proc_create_seq("capi/driver",       0, NULL, &seq_capi_driver_ops);
 }
 
 void __exit

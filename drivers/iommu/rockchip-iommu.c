@@ -1135,7 +1135,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	iommu->dev = dev;
 	iommu->num_mmu = 0;
 
-	iommu->bases = devm_kzalloc(dev, sizeof(*iommu->bases) * num_res,
+	iommu->bases = devm_kcalloc(dev, num_res, sizeof(*iommu->bases),
 				    GFP_KERNEL);
 	if (!iommu->bases)
 		return -ENOMEM;

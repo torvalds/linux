@@ -83,11 +83,11 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 {
 	int s;
 
-	drm_printf(p, "slice mask: %04x\n", sseu->slice_mask);
-	drm_printf(p, "slice total: %u\n", hweight8(sseu->slice_mask));
+	drm_printf(p, "slice total: %u, mask=%04x\n",
+		   hweight8(sseu->slice_mask), sseu->slice_mask);
 	drm_printf(p, "subslice total: %u\n", sseu_subslice_total(sseu));
-	for (s = 0; s < ARRAY_SIZE(sseu->subslice_mask); s++) {
-		drm_printf(p, "slice%d %u subslices mask=%04x\n",
+	for (s = 0; s < sseu->max_slices; s++) {
+		drm_printf(p, "slice%d: %u subslices, mask=%04x\n",
 			   s, hweight8(sseu->subslice_mask[s]),
 			   sseu->subslice_mask[s]);
 	}
@@ -156,6 +156,45 @@ static u16 compute_eu_total(const struct sseu_dev_info *sseu)
 		total += hweight8(sseu->eu_mask[i]);
 
 	return total;
+}
+
+static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
+{
+	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
+	u8 s_en;
+	u32 ss_en, ss_en_mask;
+	u8 eu_en;
+	int s;
+
+	sseu->max_slices = 1;
+	sseu->max_subslices = 8;
+	sseu->max_eus_per_subslice = 8;
+
+	s_en = I915_READ(GEN11_GT_SLICE_ENABLE) & GEN11_GT_S_ENA_MASK;
+	ss_en = ~I915_READ(GEN11_GT_SUBSLICE_DISABLE);
+	ss_en_mask = BIT(sseu->max_subslices) - 1;
+	eu_en = ~(I915_READ(GEN11_EU_DISABLE) & GEN11_EU_DIS_MASK);
+
+	for (s = 0; s < sseu->max_slices; s++) {
+		if (s_en & BIT(s)) {
+			int ss_idx = sseu->max_subslices * s;
+			int ss;
+
+			sseu->slice_mask |= BIT(s);
+			sseu->subslice_mask[s] = (ss_en >> ss_idx) & ss_en_mask;
+			for (ss = 0; ss < sseu->max_subslices; ss++) {
+				if (sseu->subslice_mask[s] & BIT(ss))
+					sseu_set_eus(sseu, s, ss, eu_en);
+			}
+		}
+	}
+	sseu->eu_per_subslice = hweight8(eu_en);
+	sseu->eu_total = compute_eu_total(sseu);
+
+	/* ICL has no power gating restrictions. */
+	sseu->has_slice_pg = 1;
+	sseu->has_subslice_pg = 1;
+	sseu->has_eu_pg = 1;
 }
 
 static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
@@ -557,6 +596,52 @@ static u32 read_reference_ts_freq(struct drm_i915_private *dev_priv)
 	return base_freq + frac_freq;
 }
 
+static u32 gen10_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
+					u32 rpm_config_reg)
+{
+	u32 f19_2_mhz = 19200;
+	u32 f24_mhz = 24000;
+	u32 crystal_clock = (rpm_config_reg &
+			     GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
+			    GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
+
+	switch (crystal_clock) {
+	case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
+		return f19_2_mhz;
+	case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
+		return f24_mhz;
+	default:
+		MISSING_CASE(crystal_clock);
+		return 0;
+	}
+}
+
+static u32 gen11_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
+					u32 rpm_config_reg)
+{
+	u32 f19_2_mhz = 19200;
+	u32 f24_mhz = 24000;
+	u32 f25_mhz = 25000;
+	u32 f38_4_mhz = 38400;
+	u32 crystal_clock = (rpm_config_reg &
+			     GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
+			    GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
+
+	switch (crystal_clock) {
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
+		return f24_mhz;
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
+		return f19_2_mhz;
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_38_4_MHZ:
+		return f38_4_mhz;
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_25_MHZ:
+		return f25_mhz;
+	default:
+		MISSING_CASE(crystal_clock);
+		return 0;
+	}
+}
+
 static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 {
 	u32 f12_5_mhz = 12500;
@@ -597,10 +682,9 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		}
 
 		return freq;
-	} else if (INTEL_GEN(dev_priv) <= 10) {
+	} else if (INTEL_GEN(dev_priv) <= 11) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
 		u32 freq = 0;
-		u32 rpm_config_reg = 0;
 
 		/* First figure out the reference frequency. There are 2 ways
 		 * we can compute the frequency, either through the
@@ -610,20 +694,14 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
 			freq = read_reference_ts_freq(dev_priv);
 		} else {
-			u32 crystal_clock;
+			u32 rpm_config_reg = I915_READ(RPM_CONFIG0);
 
-			rpm_config_reg = I915_READ(RPM_CONFIG0);
-			crystal_clock = (rpm_config_reg &
-					 GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
-				GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
-			switch (crystal_clock) {
-			case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
-				freq = f19_2_mhz;
-				break;
-			case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
-				freq = f24_mhz;
-				break;
-			}
+			if (INTEL_GEN(dev_priv) <= 10)
+				freq = gen10_get_crystal_clock_freq(dev_priv,
+								rpm_config_reg);
+			else
+				freq = gen11_get_crystal_clock_freq(dev_priv,
+								rpm_config_reg);
 
 			/* Now figure out how the command stream's timestamp
 			 * register increments from this frequency (it might
@@ -768,8 +846,10 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		broadwell_sseu_info_init(dev_priv);
 	else if (INTEL_GEN(dev_priv) == 9)
 		gen9_sseu_info_init(dev_priv);
-	else if (INTEL_GEN(dev_priv) >= 10)
+	else if (INTEL_GEN(dev_priv) == 10)
 		gen10_sseu_info_init(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 11)
+		gen11_sseu_info_init(dev_priv);
 
 	/* Initialize command stream timestamp frequency */
 	info->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
@@ -779,4 +859,51 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p)
 {
 	drm_printf(p, "scheduler: %x\n", caps->scheduler);
+}
+
+/*
+ * Determine which engines are fused off in our particular hardware. Since the
+ * fuse register is in the blitter powerwell, we need forcewake to be ready at
+ * this point (but later we need to prune the forcewake domains for engines that
+ * are indeed fused off).
+ */
+void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
+{
+	struct intel_device_info *info = mkwrite_device_info(dev_priv);
+	u8 vdbox_disable, vebox_disable;
+	u32 media_fuse;
+	int i;
+
+	if (INTEL_GEN(dev_priv) < 11)
+		return;
+
+	media_fuse = I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
+
+	vdbox_disable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	vebox_disable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+			GEN11_GT_VEBOX_DISABLE_SHIFT;
+
+	DRM_DEBUG_DRIVER("vdbox disable: %04x\n", vdbox_disable);
+	for (i = 0; i < I915_MAX_VCS; i++) {
+		if (!HAS_ENGINE(dev_priv, _VCS(i)))
+			continue;
+
+		if (!(BIT(i) & vdbox_disable))
+			continue;
+
+		info->ring_mask &= ~ENGINE_MASK(_VCS(i));
+		DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+	}
+
+	DRM_DEBUG_DRIVER("vebox disable: %04x\n", vebox_disable);
+	for (i = 0; i < I915_MAX_VECS; i++) {
+		if (!HAS_ENGINE(dev_priv, _VECS(i)))
+			continue;
+
+		if (!(BIT(i) & vebox_disable))
+			continue;
+
+		info->ring_mask &= ~ENGINE_MASK(_VECS(i));
+		DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+	}
 }

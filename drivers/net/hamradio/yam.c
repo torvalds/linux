@@ -841,20 +841,6 @@ static const struct seq_operations yam_seqops = {
 	.stop = yam_seq_stop,
 	.show = yam_seq_show,
 };
-
-static int yam_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &yam_seqops);
-}
-
-static const struct file_operations yam_info_fops = {
-	.owner = THIS_MODULE,
-	.open = yam_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 #endif
 
 
@@ -1168,7 +1154,7 @@ static int __init yam_init_driver(void)
 	yam_timer.expires = jiffies + HZ / 100;
 	add_timer(&yam_timer);
 
-	proc_create("yam", 0444, init_net.proc_net, &yam_info_fops);
+	proc_create_seq("yam", 0444, init_net.proc_net, &yam_seqops);
 	return 0;
  error:
 	while (--i >= 0) {

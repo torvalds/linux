@@ -634,7 +634,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	if (inp->index >= go->board_info->num_inputs)
 		return -EINVAL;
 
-	strncpy(inp->name, go->board_info->inputs[inp->index].name,
+	strlcpy(inp->name, go->board_info->inputs[inp->index].name,
 			sizeof(inp->name));
 
 	/* If this board has a tuner, it will be the first input */

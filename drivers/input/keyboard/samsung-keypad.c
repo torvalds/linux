@@ -281,7 +281,7 @@ samsung_keypad_parse_dt(struct device *dev)
 
 	key_count = of_get_child_count(np);
 	keymap_data->keymap_size = key_count;
-	keymap = devm_kzalloc(dev, sizeof(uint32_t) * key_count, GFP_KERNEL);
+	keymap = devm_kcalloc(dev, key_count, sizeof(uint32_t), GFP_KERNEL);
 	if (!keymap) {
 		dev_err(dev, "could not allocate memory for keymap\n");
 		return ERR_PTR(-ENOMEM);

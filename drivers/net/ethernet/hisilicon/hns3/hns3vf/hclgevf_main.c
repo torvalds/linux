@@ -654,7 +654,8 @@ static int hclgevf_put_vector(struct hnae3_handle *handle, int vector)
 	return 0;
 }
 
-static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev, u32 en)
+static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
+					bool en_uc_pmc, bool en_mc_pmc)
 {
 	struct hclge_mbx_vf_to_pf_cmd *req;
 	struct hclgevf_desc desc;
@@ -664,7 +665,8 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev, u32 en)
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
 	req->msg[0] = HCLGE_MBX_SET_PROMISC_MODE;
-	req->msg[1] = en;
+	req->msg[1] = en_uc_pmc ? 1 : 0;
+	req->msg[2] = en_mc_pmc ? 1 : 0;
 
 	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
@@ -674,11 +676,12 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev, u32 en)
 	return status;
 }
 
-static void hclgevf_set_promisc_mode(struct hnae3_handle *handle, u32 en)
+static void hclgevf_set_promisc_mode(struct hnae3_handle *handle,
+				     bool en_uc_pmc, bool en_mc_pmc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
-	hclgevf_cmd_set_promisc_mode(hdev, en);
+	hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc);
 }
 
 static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
@@ -725,15 +728,124 @@ static void hclgevf_reset_tqp_stats(struct hnae3_handle *handle)
 	}
 }
 
-static int hclgevf_cfg_func_mta_filter(struct hnae3_handle *handle, bool en)
+static int hclgevf_cfg_func_mta_type(struct hclgevf_dev *hdev)
 {
-	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	u8 msg[2] = {0};
+	u8 resp_msg = HCLGEVF_MTA_TYPE_SEL_MAX;
+	int ret;
 
-	msg[0] = en;
-	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_MULTICAST,
-				    HCLGE_MBX_MAC_VLAN_MC_FUNC_MTA_ENABLE,
-				    msg, 1, false, NULL, 0);
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_MULTICAST,
+				   HCLGE_MBX_MAC_VLAN_MTA_TYPE_READ,
+				   NULL, 0, true, &resp_msg, sizeof(u8));
+
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Read mta type fail, ret=%d.\n", ret);
+		return ret;
+	}
+
+	if (resp_msg > HCLGEVF_MTA_TYPE_SEL_MAX) {
+		dev_err(&hdev->pdev->dev,
+			"Read mta type invalid, resp=%d.\n", resp_msg);
+		return -EINVAL;
+	}
+
+	hdev->mta_mac_sel_type = resp_msg;
+
+	return 0;
+}
+
+static u16 hclgevf_get_mac_addr_to_mta_index(struct hclgevf_dev *hdev,
+					     const u8 *addr)
+{
+	u32 rsh = HCLGEVF_MTA_TYPE_SEL_MAX - hdev->mta_mac_sel_type;
+	u16 high_val = addr[1] | (addr[0] << 8);
+
+	return (high_val >> rsh) & 0xfff;
+}
+
+static int hclgevf_do_update_mta_status(struct hclgevf_dev *hdev,
+					unsigned long *status)
+{
+#define HCLGEVF_MTA_STATUS_MSG_SIZE 13
+#define HCLGEVF_MTA_STATUS_MSG_BITS \
+			(HCLGEVF_MTA_STATUS_MSG_SIZE * BITS_PER_BYTE)
+#define HCLGEVF_MTA_STATUS_MSG_END_BITS \
+			(HCLGEVF_MTA_TBL_SIZE % HCLGEVF_MTA_STATUS_MSG_BITS)
+	u16 tbl_cnt;
+	u16 tbl_idx;
+	u8 msg_cnt;
+	u8 msg_idx;
+	int ret;
+
+	msg_cnt = DIV_ROUND_UP(HCLGEVF_MTA_TBL_SIZE,
+			       HCLGEVF_MTA_STATUS_MSG_BITS);
+	tbl_idx = 0;
+	msg_idx = 0;
+	while (msg_cnt--) {
+		u8 msg[HCLGEVF_MTA_STATUS_MSG_SIZE + 1];
+		u8 *p = &msg[1];
+		u8 msg_ofs;
+		u8 msg_bit;
+
+		memset(msg, 0, sizeof(msg));
+
+		/* set index field */
+		msg[0] = 0x7F & msg_idx;
+
+		/* set end flag field */
+		if (msg_cnt == 0) {
+			msg[0] |= 0x80;
+			tbl_cnt = HCLGEVF_MTA_STATUS_MSG_END_BITS;
+		} else {
+			tbl_cnt = HCLGEVF_MTA_STATUS_MSG_BITS;
+		}
+
+		/* set status field */
+		msg_ofs = 0;
+		msg_bit = 0;
+		while (tbl_cnt--) {
+			if (test_bit(tbl_idx, status))
+				p[msg_ofs] |= BIT(msg_bit);
+
+			tbl_idx++;
+
+			msg_bit++;
+			if (msg_bit == BITS_PER_BYTE) {
+				msg_bit = 0;
+				msg_ofs++;
+			}
+		}
+
+		ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_MULTICAST,
+					   HCLGE_MBX_MAC_VLAN_MTA_STATUS_UPDATE,
+					   msg, sizeof(msg), false, NULL, 0);
+		if (ret)
+			break;
+
+		msg_idx++;
+	}
+
+	return ret;
+}
+
+static int hclgevf_update_mta_status(struct hnae3_handle *handle)
+{
+	unsigned long mta_status[BITS_TO_LONGS(HCLGEVF_MTA_TBL_SIZE)];
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct net_device *netdev = hdev->nic.kinfo.netdev;
+	struct netdev_hw_addr *ha;
+	u16 tbl_idx;
+
+	/* clear status */
+	memset(mta_status, 0, sizeof(mta_status));
+
+	/* update status from mc addr list */
+	netdev_for_each_mc_addr(ha, netdev) {
+		tbl_idx = hclgevf_get_mac_addr_to_mta_index(hdev, ha->addr);
+		set_bit(tbl_idx, mta_status);
+	}
+
+	return hclgevf_do_update_mta_status(hdev, mta_status);
 }
 
 static void hclgevf_get_mac_addr(struct hnae3_handle *handle, u8 *p)
@@ -828,6 +940,17 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
 				    HCLGE_MBX_VLAN_FILTER, msg_data,
 				    HCLGEVF_VLAN_MBX_MSG_LEN, false, NULL, 0);
+}
+
+static int hclgevf_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	u8 msg_data;
+
+	msg_data = enable ? 1 : 0;
+	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
+				    HCLGE_MBX_VLAN_RX_OFF_CFG, &msg_data,
+				    1, false, NULL, 0);
 }
 
 static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
@@ -1323,6 +1446,7 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 	hclgevf_reset_tqp_stats(handle);
 	del_timer_sync(&hdev->service_timer);
 	cancel_work_sync(&hdev->service_task);
+	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 	hclgevf_update_link_status(hdev, 0);
 }
 
@@ -1441,6 +1565,8 @@ static int hclgevf_misc_irq_init(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
+	hclgevf_clear_event_cause(hdev, 0);
+
 	/* enable misc. vector(vector 0) */
 	hclgevf_enable_vector(&hdev->misc_vector, true);
 
@@ -1451,6 +1577,7 @@ static void hclgevf_misc_irq_uninit(struct hclgevf_dev *hdev)
 {
 	/* disable misc vector(vector 0) */
 	hclgevf_enable_vector(&hdev->misc_vector, false);
+	synchronize_irq(hdev->misc_vector.vector_irq);
 	free_irq(hdev->misc_vector.vector_irq, hdev);
 	hclgevf_free_vector(hdev, 0);
 }
@@ -1489,10 +1616,12 @@ static int hclgevf_init_instance(struct hclgevf_dev *hdev,
 			return ret;
 		break;
 	case HNAE3_CLIENT_ROCE:
-		hdev->roce_client = client;
-		hdev->roce.client = client;
+		if (hnae3_dev_roce_supported(hdev)) {
+			hdev->roce_client = client;
+			hdev->roce.client = client;
+		}
 
-		if (hdev->roce_client && hnae3_dev_roce_supported(hdev)) {
+		if (hdev->roce_client && hdev->nic_client) {
 			ret = hclgevf_init_roce_base_info(hdev);
 			if (ret)
 				return ret;
@@ -1552,7 +1681,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable PCI device\n");
-		goto err_no_drvdata;
+		return ret;
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -1584,8 +1713,7 @@ err_clr_master:
 	pci_release_regions(pdev);
 err_disable_device:
 	pci_disable_device(pdev);
-err_no_drvdata:
-	pci_set_drvdata(pdev, NULL);
+
 	return ret;
 }
 
@@ -1597,7 +1725,6 @@ static void hclgevf_pci_uninit(struct hclgevf_dev *hdev)
 	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
@@ -1625,16 +1752,16 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 
 	hclgevf_state_init(hdev);
 
+	ret = hclgevf_cmd_init(hdev);
+	if (ret)
+		goto err_cmd_init;
+
 	ret = hclgevf_misc_irq_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed(%d) to init Misc IRQ(vector0)\n",
 			ret);
 		goto err_misc_irq_init;
 	}
-
-	ret = hclgevf_cmd_init(hdev);
-	if (ret)
-		goto err_cmd_init;
 
 	ret = hclgevf_configure(hdev);
 	if (ret) {
@@ -1654,12 +1781,11 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
-	/* Initialize VF's MTA */
-	hdev->accept_mta_mc = true;
-	ret = hclgevf_cfg_func_mta_filter(&hdev->nic, hdev->accept_mta_mc);
+	/* Initialize mta type for this VF */
+	ret = hclgevf_cfg_func_mta_type(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed(%d) to set mta filter mode\n", ret);
+			"failed(%d) to initialize MTA type\n", ret);
 		goto err_config;
 	}
 
@@ -1683,10 +1809,10 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	return 0;
 
 err_config:
-	hclgevf_cmd_uninit(hdev);
-err_cmd_init:
 	hclgevf_misc_irq_uninit(hdev);
 err_misc_irq_init:
+	hclgevf_cmd_uninit(hdev);
+err_cmd_init:
 	hclgevf_state_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
 err_irq_init:
@@ -1696,9 +1822,9 @@ err_irq_init:
 
 static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 {
-	hclgevf_cmd_uninit(hdev);
-	hclgevf_misc_irq_uninit(hdev);
 	hclgevf_state_uninit(hdev);
+	hclgevf_misc_irq_uninit(hdev);
+	hclgevf_cmd_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
 	hclgevf_pci_uninit(hdev);
 }
@@ -1814,6 +1940,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.rm_uc_addr = hclgevf_rm_uc_addr,
 	.add_mc_addr = hclgevf_add_mc_addr,
 	.rm_mc_addr = hclgevf_rm_mc_addr,
+	.update_mta_status = hclgevf_update_mta_status,
 	.get_stats = hclgevf_get_stats,
 	.update_stats = hclgevf_update_stats,
 	.get_strings = hclgevf_get_strings,
@@ -1825,6 +1952,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_tc_size = hclgevf_get_tc_size,
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
+	.enable_hw_strip_rxvtag = hclgevf_en_hw_strip_rxvtag,
 	.reset_event = hclgevf_reset_event,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
@@ -1842,7 +1970,9 @@ static int hclgevf_init(void)
 {
 	pr_info("%s is initializing\n", HCLGEVF_NAME);
 
-	return hnae3_register_ae_algo(&ae_algovf);
+	hnae3_register_ae_algo(&ae_algovf);
+
+	return 0;
 }
 
 static void hclgevf_exit(void)

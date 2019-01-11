@@ -1,5 +1,6 @@
 generic-y += atomic.h
 generic-y += bugs.h
+generic-y += compat.h
 generic-y += current.h
 generic-y += device.h
 generic-y += div64.h

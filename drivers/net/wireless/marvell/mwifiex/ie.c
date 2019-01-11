@@ -349,6 +349,7 @@ static int mwifiex_uap_parse_tail_ies(struct mwifiex_private *priv,
 		case WLAN_EID_SUPP_RATES:
 		case WLAN_EID_COUNTRY:
 		case WLAN_EID_PWR_CONSTRAINT:
+		case WLAN_EID_ERP_INFO:
 		case WLAN_EID_EXT_SUPP_RATES:
 		case WLAN_EID_HT_CAPABILITY:
 		case WLAN_EID_HT_OPERATION:

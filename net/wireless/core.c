@@ -725,6 +725,10 @@ int wiphy_register(struct wiphy *wiphy)
 		    (!rdev->ops->set_pmk || !rdev->ops->del_pmk)))
 		return -EINVAL;
 
+	if (WARN_ON(!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_FW_ROAM) &&
+		    rdev->ops->update_connect_params))
+		return -EINVAL;
+
 	if (wiphy->addresses)
 		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
 
@@ -1008,6 +1012,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
 	list_del_rcu(&wdev->list);
+	synchronize_rcu();
 	rdev->devlist_generation++;
 
 	switch (wdev->iftype) {

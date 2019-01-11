@@ -326,7 +326,7 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 		hex_byte_pack(hash + (i * 2), iint->ima_hash->digest[i]);
 	hash[i * 2] = '\0';
 
-	ab = audit_log_start(current->audit_context, GFP_KERNEL,
+	ab = audit_log_start(audit_context(), GFP_KERNEL,
 			     AUDIT_INTEGRITY_RULE);
 	if (!ab)
 		goto out;

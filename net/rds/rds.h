@@ -464,6 +464,8 @@ struct rds_message {
 			struct scatterlist	*op_sg;
 		} data;
 	};
+
+	struct rds_conn_path *m_conn_path;
 };
 
 /*
@@ -478,6 +480,11 @@ struct rds_notifier {
 	uint64_t		n_user_token;
 	int			n_status;
 };
+
+/* Available as part of RDS core, so doesn't need to participate
+ * in get_preferred transport etc
+ */
+#define	RDS_TRANS_LOOP	3
 
 /**
  * struct rds_transport -  transport specific behavioural hooks
@@ -539,7 +546,8 @@ struct rds_transport {
 					unsigned int avail);
 	void (*exit)(void);
 	void *(*get_mr)(struct scatterlist *sg, unsigned long nr_sg,
-			struct rds_sock *rs, u32 *key_ret);
+			struct rds_sock *rs, u32 *key_ret,
+			struct rds_connection *conn);
 	void (*sync_mr)(void *trans_private, int direction);
 	void (*free_mr)(void *trans_private, int invalidate);
 	void (*flush_mrs)(void);

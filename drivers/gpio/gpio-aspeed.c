@@ -54,6 +54,8 @@ struct aspeed_gpio {
 	u8 *offset_timer;
 	unsigned int timer_users[4];
 	struct clk *clk;
+
+	u32 *dcache;
 };
 
 struct aspeed_gpio_bank {
@@ -231,12 +233,13 @@ static void __aspeed_gpio_set(struct gpio_chip *gc, unsigned int offset,
 	u32 reg;
 
 	addr = bank_val_reg(gpio, bank, GPIO_DATA);
-	reg = ioread32(addr);
+	reg = gpio->dcache[GPIO_BANK(offset)];
 
 	if (val)
 		reg |= GPIO_BIT(offset);
 	else
 		reg &= ~GPIO_BIT(offset);
+	gpio->dcache[GPIO_BANK(offset)] = reg;
 
 	iowrite32(reg, addr);
 }
@@ -287,10 +290,9 @@ static int aspeed_gpio_dir_out(struct gpio_chip *gc,
 
 	spin_lock_irqsave(&gpio->lock, flags);
 
+	__aspeed_gpio_set(gc, offset, val);
 	reg = ioread32(bank_val_reg(gpio, bank, GPIO_DIR));
 	iowrite32(reg | GPIO_BIT(offset), bank_val_reg(gpio, bank, GPIO_DIR));
-
-	__aspeed_gpio_set(gc, offset, val);
 
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
@@ -852,7 +854,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	const struct of_device_id *gpio_id;
 	struct aspeed_gpio *gpio;
 	struct resource *res;
-	int rc;
+	int rc, i, banks;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -892,6 +894,20 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
 	gpio->chip.irq.need_valid_mask = true;
+
+	/* Allocate a cache of the output registers */
+	banks = gpio->config->nr_gpios >> 5;
+	gpio->dcache = devm_kcalloc(&pdev->dev,
+				    banks, sizeof(u32), GFP_KERNEL);
+	if (!gpio->dcache)
+		return -ENOMEM;
+
+	/* Populate it with initial values read from the HW */
+	for (i = 0; i < banks; i++) {
+		const struct aspeed_gpio_bank *bank = &aspeed_gpio_banks[i];
+		gpio->dcache[i] = ioread32(gpio->base + bank->val_regs +
+					   GPIO_DATA);
+	}
 
 	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (rc < 0)

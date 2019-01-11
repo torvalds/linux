@@ -501,7 +501,7 @@ static void security_dump_masked_av(struct policydb *policydb,
 		goto out;
 
 	/* audit a message */
-	ab = audit_log_start(current->audit_context,
+	ab = audit_log_start(audit_context(),
 			     GFP_ATOMIC, AUDIT_SELINUX_ERR);
 	if (!ab)
 		goto out;
@@ -743,7 +743,7 @@ static int security_validtrans_handle_fail(struct selinux_state *state,
 		goto out;
 	if (context_struct_to_string(p, tcontext, &t, &tlen))
 		goto out;
-	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
+	audit_log(audit_context(), GFP_ATOMIC, AUDIT_SELINUX_ERR,
 		  "op=security_validate_transition seresult=denied"
 		  " oldcontext=%s newcontext=%s taskcontext=%s tclass=%s",
 		  o, n, t, sym_name(p, SYM_CLASSES, tclass-1));
@@ -929,7 +929,7 @@ int security_bounded_transition(struct selinux_state *state,
 					      &old_name, &length) &&
 		    !context_struct_to_string(policydb, new_context,
 					      &new_name, &length)) {
-			audit_log(current->audit_context,
+			audit_log(audit_context(),
 				  GFP_ATOMIC, AUDIT_SELINUX_ERR,
 				  "op=security_bounded_transition "
 				  "seresult=denied "
@@ -1586,7 +1586,7 @@ static int compute_sid_handle_invalid_context(
 		goto out;
 	if (context_struct_to_string(policydb, newcontext, &n, &nlen))
 		goto out;
-	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
+	audit_log(audit_context(), GFP_ATOMIC, AUDIT_SELINUX_ERR,
 		  "op=security_compute_sid invalid_context=%s"
 		  " scontext=%s"
 		  " tcontext=%s"
@@ -2118,7 +2118,7 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
 	int rc = 0;
 	struct policy_file file = { data, len }, *fp = &file;
 
-	oldpolicydb = kzalloc(2 * sizeof(*oldpolicydb), GFP_KERNEL);
+	oldpolicydb = kcalloc(2, sizeof(*oldpolicydb), GFP_KERNEL);
 	if (!oldpolicydb) {
 		rc = -ENOMEM;
 		goto out;
@@ -2882,7 +2882,7 @@ int security_set_bools(struct selinux_state *state, int len, int *values)
 
 	for (i = 0; i < len; i++) {
 		if (!!values[i] != policydb->bool_val_to_struct[i]->state) {
-			audit_log(current->audit_context, GFP_ATOMIC,
+			audit_log(audit_context(), GFP_ATOMIC,
 				AUDIT_MAC_CONFIG_CHANGE,
 				"bool=%s val=%d old_val=%d auid=%u ses=%u",
 				sym_name(policydb, SYM_BOOLS, i),
@@ -3025,7 +3025,7 @@ int security_sid_mls_copy(struct selinux_state *state,
 		if (rc) {
 			if (!context_struct_to_string(policydb, &newcon, &s,
 						      &len)) {
-				audit_log(current->audit_context,
+				audit_log(audit_context(),
 					  GFP_ATOMIC, AUDIT_SELINUX_ERR,
 					  "op=security_sid_mls_copy "
 					  "invalid_context=%s", s);

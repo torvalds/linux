@@ -164,6 +164,11 @@
  */
 #define HV_X64_DEPRECATING_AEOI_RECOMMENDED	(1 << 9)
 
+/*
+ * Recommend using cluster IPI hypercalls.
+ */
+#define HV_X64_CLUSTER_IPI_RECOMMENDED         (1 << 10)
+
 /* Recommend using the newer ExProcessorMasks interface */
 #define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
 
@@ -303,6 +308,9 @@ struct ms_hyperv_tsc_page {
 /* TSC emulation after migration */
 #define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
 
+/* Nested features (CPUID 0x4000000A) EAX */
+#define HV_X64_NESTED_MSR_BITMAP		BIT(19)
+
 struct hv_reenlightenment_control {
 	__u64 vector:8;
 	__u64 reserved1:8;
@@ -329,12 +337,17 @@ struct hv_tsc_emulation_status {
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_MASK	\
 		(~((1ull << HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT) - 1))
 
+#define HV_IPI_LOW_VECTOR	0x10
+#define HV_IPI_HIGH_VECTOR	0xff
+
 /* Declare the various hypercall operations. */
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE	0x0002
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST	0x0003
 #define HVCALL_NOTIFY_LONG_SPIN_WAIT		0x0008
+#define HVCALL_SEND_IPI				0x000b
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX  0x0013
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX   0x0014
+#define HVCALL_SEND_IPI_EX			0x0015
 #define HVCALL_POST_MESSAGE			0x005c
 #define HVCALL_SIGNAL_EVENT			0x005d
 
@@ -360,7 +373,7 @@ struct hv_tsc_emulation_status {
 #define HV_FLUSH_USE_EXTENDED_RANGE_FORMAT	BIT(3)
 
 enum HV_GENERIC_SET_FORMAT {
-	HV_GENERIC_SET_SPARCE_4K,
+	HV_GENERIC_SET_SPARSE_4K,
 	HV_GENERIC_SET_ALL,
 };
 
@@ -668,7 +681,11 @@ struct hv_enlightened_vmcs {
 	u32 hv_clean_fields;
 	u32 hv_padding_32;
 	u32 hv_synthetic_controls;
-	u32 hv_enlightenments_control;
+	struct {
+		u32 nested_flush_hypercall:1;
+		u32 msr_bitmap:1;
+		u32 reserved:30;
+	} hv_enlightenments_control;
 	u32 hv_vp_id;
 
 	u64 hv_vm_id;
@@ -705,5 +722,39 @@ struct hv_enlightened_vmcs {
 #define HV_STIMER_LAZY			(1ULL << 2)
 #define HV_STIMER_AUTOENABLE		(1ULL << 3)
 #define HV_STIMER_SINT(config)		(__u8)(((config) >> 16) & 0x0F)
+
+struct ipi_arg_non_ex {
+	u32 vector;
+	u32 reserved;
+	u64 cpu_mask;
+};
+
+struct hv_vpset {
+	u64 format;
+	u64 valid_bank_mask;
+	u64 bank_contents[];
+};
+
+struct ipi_arg_ex {
+	u32 vector;
+	u32 reserved;
+	struct hv_vpset vp_set;
+};
+
+/* HvFlushVirtualAddressSpace, HvFlushVirtualAddressList hypercalls */
+struct hv_tlb_flush {
+	u64 address_space;
+	u64 flags;
+	u64 processor_mask;
+	u64 gva_list[];
+};
+
+/* HvFlushVirtualAddressSpaceEx, HvFlushVirtualAddressListEx hypercalls */
+struct hv_tlb_flush_ex {
+	u64 address_space;
+	u64 flags;
+	struct hv_vpset hv_vp_set;
+	u64 gva_list[];
+};
 
 #endif

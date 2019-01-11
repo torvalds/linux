@@ -112,6 +112,14 @@ unsigned int pcibios_max_latency = 255;
 /* If set, the PCIe ARI capability will not be used. */
 static bool pcie_ari_disabled;
 
+/* If set, the PCIe ATS capability will not be used. */
+static bool pcie_ats_disabled;
+
+bool pci_ats_disabled(void)
+{
+	return pcie_ats_disabled;
+}
+
 /* Disable bridge_d3 for all PCIe ports */
 static bool pci_bridge_d3_disable;
 /* Force bridge_d3 for all PCIe ports */
@@ -2025,8 +2033,7 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 
 	if (platform_pci_power_manageable(dev)) {
 		/*
-		 * Call the platform to choose the target state of the device
-		 * and enable wake-up from this state if supported.
+		 * Call the platform to find the target state for the device.
 		 */
 		pci_power_t state = platform_pci_choose_state(dev);
 
@@ -2059,8 +2066,7 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 	if (wakeup) {
 		/*
 		 * Find the deepest state from which the device can generate
-		 * wake-up events, make it the target state and enable device
-		 * to generate PME#.
+		 * PME#.
 		 */
 		if (dev->pme_support) {
 			while (target_state
@@ -3573,6 +3579,44 @@ void pci_unmap_iospace(struct resource *res)
 }
 EXPORT_SYMBOL(pci_unmap_iospace);
 
+static void devm_pci_unmap_iospace(struct device *dev, void *ptr)
+{
+	struct resource **res = ptr;
+
+	pci_unmap_iospace(*res);
+}
+
+/**
+ * devm_pci_remap_iospace - Managed pci_remap_iospace()
+ * @dev: Generic device to remap IO address for
+ * @res: Resource describing the I/O space
+ * @phys_addr: physical address of range to be mapped
+ *
+ * Managed pci_remap_iospace().  Map is automatically unmapped on driver
+ * detach.
+ */
+int devm_pci_remap_iospace(struct device *dev, const struct resource *res,
+			   phys_addr_t phys_addr)
+{
+	const struct resource **ptr;
+	int error;
+
+	ptr = devres_alloc(devm_pci_unmap_iospace, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	error = pci_remap_iospace(res, phys_addr);
+	if (error) {
+		devres_free(ptr);
+	} else	{
+		*ptr = res;
+		devres_add(dev, ptr);
+	}
+
+	return error;
+}
+EXPORT_SYMBOL(devm_pci_remap_iospace);
+
 /**
  * devm_pci_remap_cfgspace - Managed pci_remap_cfgspace()
  * @dev: Generic device to remap IO address for
@@ -4154,6 +4198,35 @@ static int pci_pm_reset(struct pci_dev *dev, int probe)
 	pci_dev_d3_sleep(dev);
 
 	return pci_dev_wait(dev, "PM D3->D0", PCIE_RESET_READY_POLL_MS);
+}
+/**
+ * pcie_wait_for_link - Wait until link is active or inactive
+ * @pdev: Bridge device
+ * @active: waiting for active or inactive?
+ *
+ * Use this to wait till link becomes active or inactive.
+ */
+bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
+{
+	int timeout = 1000;
+	bool ret;
+	u16 lnk_status;
+
+	for (;;) {
+		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
+		ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
+		if (ret == active)
+			return true;
+		if (timeout <= 0)
+			break;
+		msleep(10);
+		timeout -= 10;
+	}
+
+	pci_info(pdev, "Data Link Layer Link Active not %s in 1000 msec\n",
+		 active ? "set" : "cleared");
+
+	return false;
 }
 
 void pci_reset_secondary_bus(struct pci_dev *dev)
@@ -5087,49 +5160,6 @@ int pcie_set_mps(struct pci_dev *dev, int mps)
 EXPORT_SYMBOL(pcie_set_mps);
 
 /**
- * pcie_get_minimum_link - determine minimum link settings of a PCI device
- * @dev: PCI device to query
- * @speed: storage for minimum speed
- * @width: storage for minimum width
- *
- * This function will walk up the PCI device chain and determine the minimum
- * link width and speed of the device.
- */
-int pcie_get_minimum_link(struct pci_dev *dev, enum pci_bus_speed *speed,
-			  enum pcie_link_width *width)
-{
-	int ret;
-
-	*speed = PCI_SPEED_UNKNOWN;
-	*width = PCIE_LNK_WIDTH_UNKNOWN;
-
-	while (dev) {
-		u16 lnksta;
-		enum pci_bus_speed next_speed;
-		enum pcie_link_width next_width;
-
-		ret = pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &lnksta);
-		if (ret)
-			return ret;
-
-		next_speed = pcie_link_speed[lnksta & PCI_EXP_LNKSTA_CLS];
-		next_width = (lnksta & PCI_EXP_LNKSTA_NLW) >>
-			PCI_EXP_LNKSTA_NLW_SHIFT;
-
-		if (next_speed < *speed)
-			*speed = next_speed;
-
-		if (next_width < *width)
-			*width = next_width;
-
-		dev = dev->bus->self;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(pcie_get_minimum_link);
-
-/**
  * pcie_bandwidth_available - determine minimum link settings of a PCIe
  *			      device and its bandwidth limitation
  * @dev: PCI device to query
@@ -5719,15 +5749,14 @@ static void pci_no_domains(void)
 #endif
 }
 
-#ifdef CONFIG_PCI_DOMAINS
+#ifdef CONFIG_PCI_DOMAINS_GENERIC
 static atomic_t __domain_nr = ATOMIC_INIT(-1);
 
-int pci_get_new_domain_nr(void)
+static int pci_get_new_domain_nr(void)
 {
 	return atomic_inc_return(&__domain_nr);
 }
 
-#ifdef CONFIG_PCI_DOMAINS_GENERIC
 static int of_pci_bus_find_domain_nr(struct device *parent)
 {
 	static int use_dt_domains = -1;
@@ -5782,7 +5811,6 @@ int pci_bus_find_domain_nr(struct pci_bus *bus, struct device *parent)
 			       acpi_pci_bus_find_domain_nr(bus);
 }
 #endif
-#endif
 
 /**
  * pci_ext_cfg_avail - can we access extended PCI config space?
@@ -5810,6 +5838,9 @@ static int __init pci_setup(char *str)
 		if (*str && (str = pcibios_setup(str)) && *str) {
 			if (!strcmp(str, "nomsi")) {
 				pci_no_msi();
+			} else if (!strncmp(str, "noats", 5)) {
+				pr_info("PCIe: ATS is disabled\n");
+				pcie_ats_disabled = true;
 			} else if (!strcmp(str, "noaer")) {
 				pci_no_aer();
 			} else if (!strncmp(str, "realloc=", 8)) {

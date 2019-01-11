@@ -122,7 +122,6 @@ void hci_req_sync_cancel(struct hci_dev *hdev, int err)
 struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 				  const void *param, u8 event, u32 timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct hci_request req;
 	struct sk_buff *skb;
 	int err = 0;
@@ -135,21 +134,14 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	hdev->req_status = HCI_REQ_PEND;
 
-	add_wait_queue(&hdev->req_wait_q, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	err = hci_req_run_skb(&req, hci_req_sync_complete);
-	if (err < 0) {
-		remove_wait_queue(&hdev->req_wait_q, &wait);
-		set_current_state(TASK_RUNNING);
+	if (err < 0)
 		return ERR_PTR(err);
-	}
 
-	schedule_timeout(timeout);
+	err = wait_event_interruptible_timeout(hdev->req_wait_q,
+			hdev->req_status != HCI_REQ_PEND, timeout);
 
-	remove_wait_queue(&hdev->req_wait_q, &wait);
-
-	if (signal_pending(current))
+	if (err == -ERESTARTSYS)
 		return ERR_PTR(-EINTR);
 
 	switch (hdev->req_status) {
@@ -197,7 +189,6 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		   unsigned long opt, u32 timeout, u8 *hci_status)
 {
 	struct hci_request req;
-	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
 
 	BT_DBG("%s start", hdev->name);
@@ -213,15 +204,9 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		return err;
 	}
 
-	add_wait_queue(&hdev->req_wait_q, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	err = hci_req_run_skb(&req, hci_req_sync_complete);
 	if (err < 0) {
 		hdev->req_status = 0;
-
-		remove_wait_queue(&hdev->req_wait_q, &wait);
-		set_current_state(TASK_RUNNING);
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
@@ -240,11 +225,10 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		return err;
 	}
 
-	schedule_timeout(timeout);
+	err = wait_event_interruptible_timeout(hdev->req_wait_q,
+			hdev->req_status != HCI_REQ_PEND, timeout);
 
-	remove_wait_queue(&hdev->req_wait_q, &wait);
-
-	if (signal_pending(current))
+	if (err == -ERESTARTSYS)
 		return -EINTR;
 
 	switch (hdev->req_status) {

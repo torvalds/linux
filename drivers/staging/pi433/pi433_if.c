@@ -87,7 +87,7 @@ struct pi433_device {
 
 	/* tx related values */
 	STRUCT_KFIFO_REC_1(MSG_FIFO_SIZE) tx_fifo;
-	struct mutex		tx_fifo_lock; // TODO: check, whether necessary or obsolete
+	struct mutex		tx_fifo_lock; /* serialize userspace writers */
 	struct task_struct	*tx_task_struct;
 	wait_queue_head_t	tx_wait_queue;
 	u8			free_in_fifo;
@@ -589,19 +589,19 @@ pi433_tx_thread(void *data)
 		 * - size of message
 		 * - message
 		 */
-		mutex_lock(&device->tx_fifo_lock);
-
 		retval = kfifo_out(&device->tx_fifo, &tx_cfg, sizeof(tx_cfg));
 		if (retval != sizeof(tx_cfg)) {
-			dev_dbg(device->dev, "reading tx_cfg from fifo failed: got %d byte(s), expected %d", retval, (unsigned int)sizeof(tx_cfg));
-			mutex_unlock(&device->tx_fifo_lock);
+			dev_dbg(device->dev,
+				"reading tx_cfg from fifo failed: got %d byte(s), expected %d",
+				retval, (unsigned int)sizeof(tx_cfg));
 			continue;
 		}
 
 		retval = kfifo_out(&device->tx_fifo, &size, sizeof(size_t));
 		if (retval != sizeof(size_t)) {
-			dev_dbg(device->dev, "reading msg size from fifo failed: got %d, expected %d", retval, (unsigned int)sizeof(size_t));
-			mutex_unlock(&device->tx_fifo_lock);
+			dev_dbg(device->dev,
+				"reading msg size from fifo failed: got %d, expected %d",
+				retval, (unsigned int)sizeof(size_t));
 			continue;
 		}
 
@@ -623,7 +623,11 @@ pi433_tx_thread(void *data)
 
 		/* add length byte, if requested */
 		if (tx_cfg.enable_length_byte  == OPTION_ON)
-			device->buffer[position++] = size - 1; /* according to spec length byte itself must be excluded from the length calculation */
+			/*
+			 * according to spec, length byte itself must be
+			 * excluded from the length calculation
+			 */
+			device->buffer[position++] = size - 1;
 
 		/* add adr byte, if requested */
 		if (tx_cfg.enable_address_byte == OPTION_ON)
@@ -634,7 +638,6 @@ pi433_tx_thread(void *data)
 				   sizeof(device->buffer) - position);
 		dev_dbg(device->dev,
 			"read %d message byte(s) from fifo queue.", retval);
-		mutex_unlock(&device->tx_fifo_lock);
 
 		/* if rx is active, we need to interrupt the waiting for
 		 * incoming telegrams, to be able to send something.
@@ -818,7 +821,7 @@ pi433_write(struct file *filp, const char __user *buf,
 	struct pi433_instance	*instance;
 	struct pi433_device	*device;
 	int                     retval;
-	unsigned int		copied;
+	unsigned int		required, available, copied;
 
 	instance = filp->private_data;
 	device = instance->device;
@@ -833,6 +836,16 @@ pi433_write(struct file *filp, const char __user *buf,
 	 * - message
 	 */
 	mutex_lock(&device->tx_fifo_lock);
+
+	required = sizeof(instance->tx_cfg) + sizeof(size_t) + count;
+	available = kfifo_avail(&device->tx_fifo);
+	if (required > available) {
+		dev_dbg(device->dev, "write to fifo failed: %d bytes required but %d available",
+			required, available);
+		mutex_unlock(&device->tx_fifo_lock);
+		return -EAGAIN;
+	}
+
 	retval = kfifo_in(&device->tx_fifo, &instance->tx_cfg,
 			  sizeof(instance->tx_cfg));
 	if (retval != sizeof(instance->tx_cfg))
@@ -855,8 +868,8 @@ pi433_write(struct file *filp, const char __user *buf,
 	return copied;
 
 abort:
-	dev_dbg(device->dev, "write to fifo failed: 0x%x", retval);
-	kfifo_reset(&device->tx_fifo); // TODO: maybe find a solution, not to discard already stored, valid entries
+	dev_warn(device->dev,
+		 "write to fifo failed, non recoverable: 0x%x", retval);
 	mutex_unlock(&device->tx_fifo_lock);
 	return -EAGAIN;
 }
@@ -1042,7 +1055,7 @@ static int setup_gpio(struct pi433_device *device)
 		/* configure irq */
 		device->irq_num[i] = gpiod_to_irq(device->gpiod[i]);
 		if (device->irq_num[i] < 0) {
-			device->gpiod[i] = ERR_PTR(-EINVAL);//(struct gpio_desc *)device->irq_num[i];
+			device->gpiod[i] = ERR_PTR(-EINVAL);
 			return device->irq_num[i];
 		}
 		retval = request_irq(device->irq_num[i],

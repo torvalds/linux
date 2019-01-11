@@ -221,13 +221,54 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 	entry = set_access_flags_filter(entry, vma, dirty);
 	changed = !pte_same(*(ptep), entry);
 	if (changed) {
-		if (!is_vm_hugetlb_page(vma))
-			assert_pte_locked(vma->vm_mm, address);
-		__ptep_set_access_flags(vma->vm_mm, ptep, entry, address);
-		flush_tlb_page(vma, address);
+		assert_pte_locked(vma->vm_mm, address);
+		__ptep_set_access_flags(vma, ptep, entry,
+					address, mmu_virtual_psize);
 	}
 	return changed;
 }
+
+#ifdef CONFIG_HUGETLB_PAGE
+extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+				      unsigned long addr, pte_t *ptep,
+				      pte_t pte, int dirty)
+{
+#ifdef HUGETLB_NEED_PRELOAD
+	/*
+	 * The "return 1" forces a call of update_mmu_cache, which will write a
+	 * TLB entry.  Without this, platforms that don't do a write of the TLB
+	 * entry in the TLB miss handler asm will fault ad infinitum.
+	 */
+	ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+	return 1;
+#else
+	int changed, psize;
+
+	pte = set_access_flags_filter(pte, vma, dirty);
+	changed = !pte_same(*(ptep), pte);
+	if (changed) {
+
+#ifdef CONFIG_PPC_BOOK3S_64
+		struct hstate *h = hstate_vma(vma);
+
+		psize = hstate_get_psize(h);
+#ifdef CONFIG_DEBUG_VM
+		assert_spin_locked(huge_pte_lockptr(h, vma->vm_mm, ptep));
+#endif
+
+#else
+		/*
+		 * Not used on non book3s64 platforms. But 8xx
+		 * can possibly use tsize derived from hstate.
+		 */
+		psize = 0;
+#endif
+		__ptep_set_access_flags(vma, ptep, pte, addr, psize);
+	}
+	return changed;
+#endif
+}
+#endif /* CONFIG_HUGETLB_PAGE */
 
 #ifdef CONFIG_DEBUG_VM
 void assert_pte_locked(struct mm_struct *mm, unsigned long addr)

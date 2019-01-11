@@ -34,10 +34,12 @@ ifdef CONFIG_CPU_LITTLE_ENDIAN
 KBUILD_CFLAGS   += $(call cc-option, -EL)
 KBUILD_AFLAGS   += $(call cc-option, -EL)
 LDFLAGS         += $(call cc-option, -EL)
+CHECKFLAGS      += -D__NDS32_EL__
 else
 KBUILD_CFLAGS   += $(call cc-option, -EB)
 KBUILD_AFLAGS   += $(call cc-option, -EB)
 LDFLAGS         += $(call cc-option, -EB)
+CHECKFLAGS      += -D__NDS32_EB__
 endif
 
 boot := arch/nds32/boot

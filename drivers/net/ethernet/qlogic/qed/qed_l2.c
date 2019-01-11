@@ -98,7 +98,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 		p_l2_info->queues = max_t(u8, rx, tx);
 	}
 
-	pp_qids = kzalloc(sizeof(unsigned long *) * p_l2_info->queues,
+	pp_qids = kcalloc(p_l2_info->queues, sizeof(unsigned long *),
 			  GFP_KERNEL);
 	if (!pp_qids)
 		return -ENOMEM;
@@ -586,6 +586,9 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 		SET_FIELD(state, ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL,
 			  !!(accept_filter & QED_ACCEPT_BCAST));
 
+		SET_FIELD(state, ETH_VPORT_RX_MODE_ACCEPT_ANY_VNI,
+			  !!(accept_filter & QED_ACCEPT_ANY_VNI));
+
 		p_ramrod->rx_mode.state = cpu_to_le16(state);
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "p_ramrod->rx_mode.state = 0x%x\n", state);
@@ -662,7 +665,7 @@ qed_sp_update_mcast_bin(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->common.update_approx_mcast_flg = 1;
 	for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
-		u32 *p_bins = (u32 *)p_params->bins;
+		u32 *p_bins = p_params->bins;
 
 		p_ramrod->approx_mcast.bins[i] = cpu_to_le32(p_bins[i]);
 	}
@@ -1473,8 +1476,8 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 			enum spq_mode comp_mode,
 			struct qed_spq_comp_cb *p_comp_data)
 {
-	unsigned long bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	struct vport_update_ramrod_data *p_ramrod = NULL;
+	u32 bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	u8 abs_vport_id = 0;
@@ -1510,26 +1513,25 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 	/* explicitly clear out the entire vector */
 	memset(&p_ramrod->approx_mcast.bins, 0,
 	       sizeof(p_ramrod->approx_mcast.bins));
-	memset(bins, 0, sizeof(unsigned long) *
-	       ETH_MULTICAST_MAC_BINS_IN_REGS);
+	memset(bins, 0, sizeof(bins));
 	/* filter ADD op is explicit set op and it removes
 	 *  any existing filters for the vport
 	 */
 	if (p_filter_cmd->opcode == QED_FILTER_ADD) {
 		for (i = 0; i < p_filter_cmd->num_mc_addrs; i++) {
-			u32 bit;
+			u32 bit, nbits;
 
 			bit = qed_mcast_bin_from_mac(p_filter_cmd->mac[i]);
-			__set_bit(bit, bins);
+			nbits = sizeof(u32) * BITS_PER_BYTE;
+			bins[bit / nbits] |= 1 << (bit % nbits);
 		}
 
 		/* Convert to correct endianity */
 		for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
 			struct vport_update_ramrod_mcast *p_ramrod_bins;
-			u32 *p_bins = (u32 *)bins;
 
 			p_ramrod_bins = &p_ramrod->approx_mcast;
-			p_ramrod_bins->bins[i] = cpu_to_le32(p_bins[i]);
+			p_ramrod_bins->bins[i] = cpu_to_le32(bins[i]);
 		}
 	}
 
@@ -1677,6 +1679,8 @@ static void __qed_get_vport_tstats(struct qed_hwfn *p_hwfn,
 	    HILO_64_REGPAIR(tstats.mftag_filter_discard);
 	p_stats->common.mac_filter_discards +=
 	    HILO_64_REGPAIR(tstats.eth_mac_filter_discard);
+	p_stats->common.gft_filter_drop +=
+		HILO_64_REGPAIR(tstats.eth_gft_drop_pkt);
 }
 
 static void __qed_get_vport_ustats_addrlen(struct qed_hwfn *p_hwfn,
@@ -1852,6 +1856,11 @@ static void __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn,
 		p_ah->tx_1519_to_max_byte_packets =
 		    port_stats.eth.u1.ah1.t1519_to_max;
 	}
+
+	p_common->link_change_count = qed_rd(p_hwfn, p_ptt,
+					     p_hwfn->mcp_info->port_addr +
+					     offsetof(struct public_port,
+						      link_change_count));
 }
 
 static void __qed_get_vport_stats(struct qed_hwfn *p_hwfn,
@@ -1959,11 +1968,14 @@ void qed_reset_vport_stats(struct qed_dev *cdev)
 
 	/* PORT statistics are not necessarily reset, so we need to
 	 * read and create a baseline for future statistics.
+	 * Link change stat is maintained by MFW, return its value as is.
 	 */
-	if (!cdev->reset_stats)
+	if (!cdev->reset_stats) {
 		DP_INFO(cdev, "Reset stats not allocated\n");
-	else
+	} else {
 		_qed_get_vport_stats(cdev, cdev->reset_stats);
+		cdev->reset_stats->common.link_change_count = 0;
+	}
 }
 
 static enum gft_profile_type
@@ -1973,6 +1985,8 @@ qed_arfs_mode_to_hsi(enum qed_filter_config_mode mode)
 		return GFT_PROFILE_TYPE_4_TUPLE;
 	if (mode == QED_FILTER_CONFIG_MODE_IP_DEST)
 		return GFT_PROFILE_TYPE_IP_DST_ADDR;
+	if (mode == QED_FILTER_CONFIG_MODE_IP_SRC)
+		return GFT_PROFILE_TYPE_IP_SRC_ADDR;
 	return GFT_PROFILE_TYPE_L4_DST_PORT;
 }
 
@@ -2013,16 +2027,6 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 	u8 abs_vport_id = 0;
 	int rc = -EINVAL;
 
-	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
-	if (rc)
-		return rc;
-
-	if (p_params->qid != QED_RFS_NTUPLE_QID_RSS) {
-		rc = qed_fw_l2_queue(p_hwfn, p_params->qid, &abs_rx_q_id);
-		if (rc)
-			return rc;
-	}
-
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
 	init_data.cid = qed_spq_get_cid(p_hwfn);
@@ -2047,15 +2051,28 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(p_ramrod->pkt_hdr_addr, p_params->addr);
 	p_ramrod->pkt_hdr_length = cpu_to_le16(p_params->length);
 
-	if (p_params->qid != QED_RFS_NTUPLE_QID_RSS) {
-		p_ramrod->rx_qid_valid = 1;
-		p_ramrod->rx_qid = cpu_to_le16(abs_rx_q_id);
+	if (p_params->b_is_drop) {
+		p_ramrod->vport_id = cpu_to_le16(ETH_GFT_TRASHCAN_VPORT);
+	} else {
+		rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
+		if (rc)
+			return rc;
+
+		if (p_params->qid != QED_RFS_NTUPLE_QID_RSS) {
+			rc = qed_fw_l2_queue(p_hwfn, p_params->qid,
+					     &abs_rx_q_id);
+			if (rc)
+				return rc;
+
+			p_ramrod->rx_qid_valid = 1;
+			p_ramrod->rx_qid = cpu_to_le16(abs_rx_q_id);
+		}
+
+		p_ramrod->vport_id = cpu_to_le16((u16)abs_vport_id);
 	}
 
 	p_ramrod->flow_id_valid = 0;
 	p_ramrod->flow_id = 0;
-
-	p_ramrod->vport_id = cpu_to_le16((u16)abs_vport_id);
 	p_ramrod->filter_action = p_params->b_is_add ? GFT_ADD_FILTER
 	    : GFT_DELETE_FILTER;
 
@@ -2417,7 +2434,7 @@ static int qed_update_vport(struct qed_dev *cdev,
 	if (!cdev)
 		return -ENODEV;
 
-	rss = vzalloc(sizeof(*rss) * cdev->num_hwfns);
+	rss = vzalloc(array_size(sizeof(*rss), cdev->num_hwfns));
 	if (!rss)
 		return -ENOMEM;
 
@@ -2848,6 +2865,24 @@ static int qed_fp_cqe_completion(struct qed_dev *dev,
 				      cqe);
 }
 
+static int qed_req_bulletin_update_mac(struct qed_dev *cdev, u8 *mac)
+{
+	int i, ret;
+
+	if (IS_PF(cdev))
+		return 0;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		ret = qed_vf_pf_bulletin_update_mac(p_hwfn, mac);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_QED_SRIOV
 extern const struct qed_iov_hv_ops qed_iov_ops_pass;
 #endif
@@ -2885,6 +2920,7 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 	.ntuple_filter_config = &qed_ntuple_arfs_filter_config,
 	.configure_arfs_searcher = &qed_configure_arfs_searcher,
 	.get_coalesce = &qed_get_coalesce,
+	.req_bulletin_update_mac = &qed_req_bulletin_update_mac,
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void)

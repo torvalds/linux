@@ -280,7 +280,7 @@ static int merge_cluster_tables(void)
 	for (i = 0; i < MAX_CLUSTERS; i++)
 		count += get_table_count(freq_table[i]);
 
-	table = kzalloc(sizeof(*table) * count, GFP_KERNEL);
+	table = kcalloc(count, sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 

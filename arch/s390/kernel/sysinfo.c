@@ -294,21 +294,9 @@ static int sysinfo_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sysinfo_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sysinfo_show, NULL);
-}
-
-static const struct file_operations sysinfo_fops = {
-	.open		= sysinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init sysinfo_create_proc(void)
 {
-	proc_create("sysinfo", 0444, NULL, &sysinfo_fops);
+	proc_create_single("sysinfo", 0444, NULL, sysinfo_show);
 	return 0;
 }
 device_initcall(sysinfo_create_proc);
@@ -386,18 +374,6 @@ static const struct seq_operations service_level_seq_ops = {
 	.show		= service_level_show
 };
 
-static int service_level_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &service_level_seq_ops);
-}
-
-static const struct file_operations service_level_ops = {
-	.open		= service_level_open,
-	.read		= seq_read,
-	.llseek 	= seq_lseek,
-	.release	= seq_release
-};
-
 static void service_level_vm_print(struct seq_file *m,
 				   struct service_level *slr)
 {
@@ -420,7 +396,7 @@ static struct service_level service_level_vm = {
 
 static __init int create_proc_service_level(void)
 {
-	proc_create("service_levels", 0, NULL, &service_level_ops);
+	proc_create_seq("service_levels", 0, NULL, &service_level_seq_ops);
 	if (MACHINE_IS_VM)
 		register_service_level(&service_level_vm);
 	return 0;

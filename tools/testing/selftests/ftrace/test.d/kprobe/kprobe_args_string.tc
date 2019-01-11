@@ -24,6 +24,14 @@ arm*)
   ARG2=%r1
   OFFS=4
 ;;
+ppc64*)
+  ARG2=%r4
+  OFFS=8
+;;
+ppc*)
+  ARG2=%r4
+  OFFS=4
+;;
 *)
   echo "Please implement other architecture here"
   exit_untested

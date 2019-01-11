@@ -493,38 +493,28 @@ struct pci_dev;
  * struct tid_ampdu_rx - TID aggregation information (Rx).
  *
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs
- * @reorder_time: jiffies when skb was added
- * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
- * @reorder_timer: releases expired frames from the reorder buffer.
  * @last_rx: jiffies of last rx activity
  * @head_seq_num: head sequence number in reordering buffer.
  * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
- * @timeout: reset timer value (in TUs).
  * @ssn_last_drop: SSN of the last dropped frame
  * @total: total number of processed incoming frames
  * @drop_dup: duplicate frames dropped for this reorder buffer
  * @drop_old: old frames dropped for this reorder buffer
- * @dialog_token: dialog token for aggregation session
  * @first_time: true when this buffer used 1-st time
  */
 struct wil_tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
-	unsigned long *reorder_time;
-	struct timer_list session_timer;
-	struct timer_list reorder_timer;
 	unsigned long last_rx;
 	u16 head_seq_num;
 	u16 stored_mpdu_num;
 	u16 ssn;
 	u16 buf_size;
-	u16 timeout;
 	u16 ssn_last_drop;
 	unsigned long long total; /* frames processed */
 	unsigned long long drop_dup;
 	unsigned long long drop_old;
-	u8 dialog_token;
 	bool first_time; /* is it 1-st time this buffer used? */
 };
 
@@ -986,7 +976,7 @@ int wmi_read_hdr(struct wil6210_priv *wil, __le32 ptr,
 int wmi_send(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len);
 void wmi_recv_cmd(struct wil6210_priv *wil);
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
-	     u16 reply_id, void *reply, u8 reply_size, int to_msec);
+	     u16 reply_id, void *reply, u16 reply_size, int to_msec);
 void wmi_event_worker(struct work_struct *work);
 void wmi_event_flush(struct wil6210_priv *wil);
 int wmi_set_ssid(struct wil6210_vif *vif, u8 ssid_len, const void *ssid);
@@ -1150,5 +1140,6 @@ void wil6210_clear_halp(struct wil6210_priv *wil);
 int wmi_start_sched_scan(struct wil6210_priv *wil,
 			 struct cfg80211_sched_scan_request *request);
 int wmi_stop_sched_scan(struct wil6210_priv *wil);
+int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
 
 #endif /* __WIL6210_H__ */

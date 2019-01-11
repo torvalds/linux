@@ -239,8 +239,10 @@ nfp_flower_cmsg_portreify_rx(struct nfp_app *app, struct sk_buff *skb)
 static void
 nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 {
+	struct nfp_flower_priv *app_priv = app->priv;
 	struct nfp_flower_cmsg_hdr *cmsg_hdr;
 	enum nfp_flower_cmsg_type_port type;
+	bool skb_stored = false;
 
 	cmsg_hdr = nfp_flower_cmsg_get_hdr(skb);
 
@@ -258,13 +260,20 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 	case NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS:
 		nfp_tunnel_keep_alive(app, skb);
 		break;
+	case NFP_FLOWER_CMSG_TYPE_LAG_CONFIG:
+		if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+			skb_stored = nfp_flower_lag_unprocessed_msg(app, skb);
+			break;
+		}
+		/* fall through */
 	default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",
 				     type);
 		goto out;
 	}
 
-	dev_consume_skb_any(skb);
+	if (!skb_stored)
+		dev_consume_skb_any(skb);
 	return;
 out:
 	dev_kfree_skb_any(skb);

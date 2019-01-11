@@ -15,12 +15,10 @@
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
 
-static int forbid_dac __read_mostly;
+static bool disable_dac_quirk __read_mostly;
 
 const struct dma_map_ops *dma_ops = &dma_direct_ops;
 EXPORT_SYMBOL(dma_ops);
-
-static int iommu_sac_force __read_mostly;
 
 #ifdef CONFIG_IOMMU_DEBUG
 int panic_on_overflow __read_mostly = 1;
@@ -55,9 +53,6 @@ struct device x86_dma_fallback_dev = {
 };
 EXPORT_SYMBOL(x86_dma_fallback_dev);
 
-/* Number of entries preallocated for DMA-API debugging */
-#define PREALLOC_DMA_DEBUG_ENTRIES       65536
-
 void __init pci_iommu_alloc(void)
 {
 	struct iommu_table_entry *p;
@@ -76,7 +71,7 @@ void __init pci_iommu_alloc(void)
 	}
 }
 
-bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp)
+bool arch_dma_alloc_attrs(struct device **dev)
 {
 	if (!*dev)
 		*dev = &x86_dma_fallback_dev;
@@ -125,13 +120,13 @@ static __init int iommu_setup(char *p)
 		if (!strncmp(p, "nomerge", 7))
 			iommu_merge = 0;
 		if (!strncmp(p, "forcesac", 8))
-			iommu_sac_force = 1;
+			pr_warn("forcesac option ignored.\n");
 		if (!strncmp(p, "allowdac", 8))
-			forbid_dac = 0;
+			pr_warn("allowdac option ignored.\n");
 		if (!strncmp(p, "nodac", 5))
-			forbid_dac = 1;
+			pr_warn("nodac option ignored.\n");
 		if (!strncmp(p, "usedac", 6)) {
-			forbid_dac = -1;
+			disable_dac_quirk = true;
 			return 1;
 		}
 #ifdef CONFIG_SWIOTLB
@@ -156,40 +151,9 @@ static __init int iommu_setup(char *p)
 }
 early_param("iommu", iommu_setup);
 
-int arch_dma_supported(struct device *dev, u64 mask)
-{
-#ifdef CONFIG_PCI
-	if (mask > 0xffffffff && forbid_dac > 0) {
-		dev_info(dev, "PCI: Disallowing DAC for device\n");
-		return 0;
-	}
-#endif
-
-	/* Tell the device to use SAC when IOMMU force is on.  This
-	   allows the driver to use cheaper accesses in some cases.
-
-	   Problem with this is that if we overflow the IOMMU area and
-	   return DAC as fallback address the device may not handle it
-	   correctly.
-
-	   As a special case some controllers have a 39bit address
-	   mode that is as efficient as 32bit (aic79xx). Don't force
-	   SAC for these.  Assume all masks <= 40 bits are of this
-	   type. Normally this doesn't make any difference, but gives
-	   more gentle handling of IOMMU overflow. */
-	if (iommu_sac_force && (mask >= DMA_BIT_MASK(40))) {
-		dev_info(dev, "Force SAC with mask %Lx\n", mask);
-		return 0;
-	}
-
-	return 1;
-}
-EXPORT_SYMBOL(arch_dma_supported);
-
 static int __init pci_iommu_init(void)
 {
 	struct iommu_table_entry *p;
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
 
 #ifdef CONFIG_PCI
 	dma_debug_add_bus(&pci_bus_type);
@@ -209,11 +173,17 @@ rootfs_initcall(pci_iommu_init);
 #ifdef CONFIG_PCI
 /* Many VIA bridges seem to corrupt data for DAC. Disable it here */
 
+static int via_no_dac_cb(struct pci_dev *pdev, void *data)
+{
+	pdev->dev.dma_32bit_limit = true;
+	return 0;
+}
+
 static void via_no_dac(struct pci_dev *dev)
 {
-	if (forbid_dac == 0) {
+	if (!disable_dac_quirk) {
 		dev_info(&dev->dev, "disabling DAC on VIA PCI bridge\n");
-		forbid_dac = 1;
+		pci_walk_bus(dev->subordinate, via_no_dac_cb, NULL);
 	}
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID,

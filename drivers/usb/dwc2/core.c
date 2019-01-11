@@ -419,6 +419,8 @@ static void dwc2_wait_for_mode(struct dwc2_hsotg *hsotg,
 /**
  * dwc2_iddig_filter_enabled() - Returns true if the IDDIG debounce
  * filter is enabled.
+ *
+ * @hsotg: Programming view of DWC_otg controller
  */
 static bool dwc2_iddig_filter_enabled(struct dwc2_hsotg *hsotg)
 {
@@ -564,6 +566,9 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
  * If a force is done, it requires a IDDIG debounce filter delay if
  * the filter is configured and enabled. We poll the current mode of
  * the controller to account for this delay.
+ *
+ * @hsotg: Programming view of DWC_otg controller
+ * @host: Host mode flag
  */
 void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
 {
@@ -610,6 +615,8 @@ void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
  * or not because the value of the connector ID status is affected by
  * the force mode. We only need to call this once during probe if
  * dr_mode == OTG.
+ *
+ * @hsotg: Programming view of DWC_otg controller
  */
 static void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
 {

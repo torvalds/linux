@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+PLUGINCC := $(CONFIG_PLUGIN_HOSTCC:"%"=%)
 GCC_PLUGINS_DIR := $(shell $(CC) -print-file-name=plugin)
 
 ifeq ($(PLUGINCC),$(HOSTCC))
@@ -11,10 +12,6 @@ else
   HOST_EXTRACXXFLAGS += -fno-exceptions -fasynchronous-unwind-tables -ggdb
   HOST_EXTRACXXFLAGS += -Wno-narrowing -Wno-unused-variable
   export HOST_EXTRACXXFLAGS
-endif
-
-ifneq ($(CFLAGS_KCOV), $(SANCOV_PLUGIN))
-  GCC_PLUGIN := $(filter-out $(SANCOV_PLUGIN), $(GCC_PLUGIN))
 endif
 
 export HOSTLIBS

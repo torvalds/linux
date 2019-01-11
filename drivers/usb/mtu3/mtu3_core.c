@@ -176,7 +176,7 @@ static void mtu3_intr_enable(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_LV1IESR, value);
 
 	/* Enable U2 common USB interrupts */
-	value = SUSPEND_INTR | RESUME_INTR | RESET_INTR;
+	value = SUSPEND_INTR | RESUME_INTR | RESET_INTR | LPM_RESUME_INTR;
 	mtu3_writel(mbase, U3D_COMMON_USB_INTR_ENABLE, value);
 
 	if (mtu->is_u3_ip) {
@@ -193,6 +193,16 @@ static void mtu3_intr_enable(struct mtu3 *mtu)
 
 	/* Enable speed change interrupt */
 	mtu3_writel(mbase, U3D_DEV_LINK_INTR_ENABLE, SSUSB_DEV_SPEED_CHG_INTR);
+}
+
+/* reset: u2 - data toggle, u3 - SeqN, flow control status etc */
+static void mtu3_ep_reset(struct mtu3_ep *mep)
+{
+	struct mtu3 *mtu = mep->mtu;
+	u32 rst_bit = EP_RST(mep->is_in, mep->epnum);
+
+	mtu3_setbits(mtu->mac_base, U3D_EP_RST, rst_bit);
+	mtu3_clrbits(mtu->mac_base, U3D_EP_RST, rst_bit);
 }
 
 /* set/clear the stall and toggle bits for non-ep0 */
@@ -220,8 +230,7 @@ void mtu3_ep_stall_set(struct mtu3_ep *mep, bool set)
 	}
 
 	if (!set) {
-		mtu3_setbits(mbase, U3D_EP_RST, EP_RST(mep->is_in, epnum));
-		mtu3_clrbits(mbase, U3D_EP_RST, EP_RST(mep->is_in, epnum));
+		mtu3_ep_reset(mep);
 		mep->flags &= ~MTU3_EP_STALL;
 	} else {
 		mep->flags |= MTU3_EP_STALL;
@@ -400,6 +409,7 @@ void mtu3_deconfig_ep(struct mtu3 *mtu, struct mtu3_ep *mep)
 		mtu3_setbits(mbase, U3D_QIECR0, QMU_RX_DONE_INT(epnum));
 	}
 
+	mtu3_ep_reset(mep);
 	ep_fifo_free(mep);
 
 	dev_dbg(mtu->dev, "%s: %s\n", __func__, mep->name);
@@ -658,8 +668,10 @@ static irqreturn_t mtu3_u3_ltssm_isr(struct mtu3 *mtu)
 	if (ltssm & (HOT_RST_INTR | WARM_RST_INTR))
 		mtu3_gadget_reset(mtu);
 
-	if (ltssm & VBUS_FALL_INTR)
+	if (ltssm & VBUS_FALL_INTR) {
 		mtu3_ss_func_set(mtu, false);
+		mtu3_gadget_reset(mtu);
+	}
 
 	if (ltssm & VBUS_RISE_INTR)
 		mtu3_ss_func_set(mtu, true);
@@ -691,6 +703,12 @@ static irqreturn_t mtu3_u2_common_isr(struct mtu3 *mtu)
 
 	if (u2comm & RESET_INTR)
 		mtu3_gadget_reset(mtu);
+
+	if (u2comm & LPM_RESUME_INTR) {
+		if (!(mtu3_readl(mbase, U3D_POWER_MANAGEMENT) & LPM_HRWE))
+			mtu3_setbits(mbase, U3D_USB20_MISC_CONTROL,
+				     LPM_U3_ACK_EN);
+	}
 
 	return IRQ_HANDLED;
 }

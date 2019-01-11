@@ -514,6 +514,7 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	const struct macvlan_port *port = vlan->port;
 	const struct macvlan_dev *dest;
+	void *accel_priv = NULL;
 
 	if (vlan->mode == MACVLAN_MODE_BRIDGE) {
 		const struct ethhdr *eth = (void *)skb->data;
@@ -533,9 +534,14 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	/* For packets that are non-multicast and not bridged we will pass
+	 * the necessary information so that the lowerdev can distinguish
+	 * the source of the packets via the accel_priv value.
+	 */
+	accel_priv = vlan->accel_priv;
 xmit_world:
 	skb->dev = vlan->lowerdev;
-	return dev_queue_xmit(skb);
+	return dev_queue_xmit_accel(skb, accel_priv);
 }
 
 static inline netdev_tx_t macvlan_netpoll_send_skb(struct macvlan_dev *vlan, struct sk_buff *skb)
@@ -552,19 +558,14 @@ static inline netdev_tx_t macvlan_netpoll_send_skb(struct macvlan_dev *vlan, str
 static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
+	struct macvlan_dev *vlan = netdev_priv(dev);
 	unsigned int len = skb->len;
 	int ret;
-	struct macvlan_dev *vlan = netdev_priv(dev);
 
 	if (unlikely(netpoll_tx_running(dev)))
 		return macvlan_netpoll_send_skb(vlan, skb);
 
-	if (vlan->fwd_priv) {
-		skb->dev = vlan->lowerdev;
-		ret = dev_queue_xmit_accel(skb, vlan->fwd_priv);
-	} else {
-		ret = macvlan_queue_xmit(skb, dev);
-	}
+	ret = macvlan_queue_xmit(skb, dev);
 
 	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		struct vlan_pcpu_stats *pcpu_stats;
@@ -613,26 +614,27 @@ static int macvlan_open(struct net_device *dev)
 		goto hash_add;
 	}
 
-	if (lowerdev->features & NETIF_F_HW_L2FW_DOFFLOAD) {
-		vlan->fwd_priv =
-		      lowerdev->netdev_ops->ndo_dfwd_add_station(lowerdev, dev);
-
-		/* If we get a NULL pointer back, or if we get an error
-		 * then we should just fall through to the non accelerated path
-		 */
-		if (IS_ERR_OR_NULL(vlan->fwd_priv)) {
-			vlan->fwd_priv = NULL;
-		} else
-			return 0;
-	}
-
 	err = -EBUSY;
 	if (macvlan_addr_busy(vlan->port, dev->dev_addr))
 		goto out;
 
-	err = dev_uc_add(lowerdev, dev->dev_addr);
-	if (err < 0)
-		goto out;
+	/* Attempt to populate accel_priv which is used to offload the L2
+	 * forwarding requests for unicast packets.
+	 */
+	if (lowerdev->features & NETIF_F_HW_L2FW_DOFFLOAD)
+		vlan->accel_priv =
+		      lowerdev->netdev_ops->ndo_dfwd_add_station(lowerdev, dev);
+
+	/* If earlier attempt to offload failed, or accel_priv is not
+	 * populated we must add the unicast address to the lower device.
+	 */
+	if (IS_ERR_OR_NULL(vlan->accel_priv)) {
+		vlan->accel_priv = NULL;
+		err = dev_uc_add(lowerdev, dev->dev_addr);
+		if (err < 0)
+			goto out;
+	}
+
 	if (dev->flags & IFF_ALLMULTI) {
 		err = dev_set_allmulti(lowerdev, 1);
 		if (err < 0)
@@ -653,13 +655,14 @@ clear_multi:
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(lowerdev, -1);
 del_unicast:
-	dev_uc_del(lowerdev, dev->dev_addr);
-out:
-	if (vlan->fwd_priv) {
+	if (vlan->accel_priv) {
 		lowerdev->netdev_ops->ndo_dfwd_del_station(lowerdev,
-							   vlan->fwd_priv);
-		vlan->fwd_priv = NULL;
+							   vlan->accel_priv);
+		vlan->accel_priv = NULL;
+	} else {
+		dev_uc_del(lowerdev, dev->dev_addr);
 	}
+out:
 	return err;
 }
 
@@ -668,11 +671,10 @@ static int macvlan_stop(struct net_device *dev)
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	if (vlan->fwd_priv) {
+	if (vlan->accel_priv) {
 		lowerdev->netdev_ops->ndo_dfwd_del_station(lowerdev,
-							   vlan->fwd_priv);
-		vlan->fwd_priv = NULL;
-		return 0;
+							   vlan->accel_priv);
+		vlan->accel_priv = NULL;
 	}
 
 	dev_uc_unsync(lowerdev, dev);

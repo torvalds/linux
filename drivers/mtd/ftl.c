@@ -201,15 +201,16 @@ static int build_maps(partition_t *part)
     /* Set up erase unit maps */
     part->DataUnits = le16_to_cpu(part->header.NumEraseUnits) -
 	part->header.NumTransferUnits;
-    part->EUNInfo = kmalloc(part->DataUnits * sizeof(struct eun_info_t),
-			    GFP_KERNEL);
+    part->EUNInfo = kmalloc_array(part->DataUnits, sizeof(struct eun_info_t),
+                                  GFP_KERNEL);
     if (!part->EUNInfo)
 	    goto out;
     for (i = 0; i < part->DataUnits; i++)
 	part->EUNInfo[i].Offset = 0xffffffff;
     part->XferInfo =
-	kmalloc(part->header.NumTransferUnits * sizeof(struct xfer_info_t),
-		GFP_KERNEL);
+	kmalloc_array(part->header.NumTransferUnits,
+                      sizeof(struct xfer_info_t),
+                      GFP_KERNEL);
     if (!part->XferInfo)
 	    goto out_EUNInfo;
 
@@ -262,15 +263,15 @@ static int build_maps(partition_t *part)
 
     /* Set up virtual page map */
     blocks = le32_to_cpu(header.FormattedSize) >> header.BlockSize;
-    part->VirtualBlockMap = vmalloc(blocks * sizeof(uint32_t));
+    part->VirtualBlockMap = vmalloc(array_size(blocks, sizeof(uint32_t)));
     if (!part->VirtualBlockMap)
 	    goto out_XferInfo;
 
     memset(part->VirtualBlockMap, 0xff, blocks * sizeof(uint32_t));
     part->BlocksPerUnit = (1 << header.EraseUnitSize) >> header.BlockSize;
 
-    part->bam_cache = kmalloc(part->BlocksPerUnit * sizeof(uint32_t),
-			      GFP_KERNEL);
+    part->bam_cache = kmalloc_array(part->BlocksPerUnit, sizeof(uint32_t),
+                                    GFP_KERNEL);
     if (!part->bam_cache)
 	    goto out_VirtualBlockMap;
 

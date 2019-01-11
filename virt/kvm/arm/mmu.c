@@ -297,6 +297,8 @@ static void unmap_stage2_range(struct kvm *kvm, phys_addr_t start, u64 size)
 	phys_addr_t next;
 
 	assert_spin_locked(&kvm->mmu_lock);
+	WARN_ON(size & ~PAGE_MASK);
+
 	pgd = kvm->arch.pgd + stage2_pgd_index(addr);
 	do {
 		/*
@@ -1401,6 +1403,7 @@ static void kvm_send_hwpoison_signal(unsigned long address,
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo   = SIGBUS;
 	info.si_errno   = 0;
 	info.si_code    = BUS_MCEERR_AR;

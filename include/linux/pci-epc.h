@@ -90,7 +90,15 @@ struct pci_epc {
 	struct config_group		*group;
 	/* spinlock to protect against concurrent access of EP controller */
 	spinlock_t			lock;
+	unsigned int			features;
 };
+
+#define EPC_FEATURE_NO_LINKUP_NOTIFIER		BIT(0)
+#define EPC_FEATURE_BAR_MASK			(BIT(1) | BIT(2) | BIT(3))
+#define EPC_FEATURE_SET_BAR(features, bar)	\
+		(features |= (EPC_FEATURE_BAR_MASK & (bar << 1)))
+#define EPC_FEATURE_GET_BAR(features)		\
+		((features & EPC_FEATURE_BAR_MASK) >> 1)
 
 #define to_pci_epc(device) container_of((device), struct pci_epc, dev)
 

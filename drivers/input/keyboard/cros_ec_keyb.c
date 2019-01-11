@@ -244,24 +244,35 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 
 	switch (ckdev->ec->event_data.event_type) {
 	case EC_MKBP_EVENT_KEY_MATRIX:
-		/*
-		 * If EC is not the wake source, discard key state changes
-		 * during suspend.
-		 */
-		if (queued_during_suspend)
-			return NOTIFY_OK;
+		if (device_may_wakeup(ckdev->dev)) {
+			pm_wakeup_event(ckdev->dev, 0);
+		} else {
+			/*
+			 * If keyboard is not wake enabled, discard key state
+			 * changes during suspend. Switches will be re-checked
+			 * in cros_ec_keyb_resume() to be sure nothing is lost.
+			 */
+			if (queued_during_suspend)
+				return NOTIFY_OK;
+		}
 
 		if (ckdev->ec->event_size != ckdev->cols) {
 			dev_err(ckdev->dev,
 				"Discarded incomplete key matrix event.\n");
 			return NOTIFY_OK;
 		}
+
 		cros_ec_keyb_process(ckdev,
 				     ckdev->ec->event_data.data.key_matrix,
 				     ckdev->ec->event_size);
 		break;
 
 	case EC_MKBP_EVENT_SYSRQ:
+		if (device_may_wakeup(ckdev->dev))
+			pm_wakeup_event(ckdev->dev, 0);
+		else if (queued_during_suspend)
+			return NOTIFY_OK;
+
 		val = get_unaligned_le32(&ckdev->ec->event_data.data.sysrq);
 		dev_dbg(ckdev->dev, "sysrq code from EC: %#x\n", val);
 		handle_sysrq(val);
@@ -269,12 +280,9 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 
 	case EC_MKBP_EVENT_BUTTON:
 	case EC_MKBP_EVENT_SWITCH:
-		/*
-		 * If EC is not the wake source, discard key state
-		 * changes during suspend. Switches will be re-checked in
-		 * cros_ec_keyb_resume() to be sure nothing is lost.
-		 */
-		if (queued_during_suspend)
+		if (device_may_wakeup(ckdev->dev))
+			pm_wakeup_event(ckdev->dev, 0);
+		else if (queued_during_suspend)
 			return NOTIFY_OK;
 
 		if (ckdev->ec->event_data.event_type == EC_MKBP_EVENT_BUTTON) {
@@ -639,6 +647,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	device_init_wakeup(ckdev->dev, true);
 	return 0;
 }
 

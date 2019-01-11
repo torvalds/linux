@@ -71,6 +71,7 @@
 #include <asm/security_features.h>
 
 #include "pseries.h"
+#include "../../../../drivers/pci/pci.h"
 
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
@@ -534,6 +535,7 @@ void pseries_setup_rfi_flush(void)
 		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR);
 
 	setup_rfi_flush(types, enable);
+	setup_barrier_nospec();
 }
 
 #ifdef CONFIG_PCI_IOV
@@ -663,7 +665,7 @@ static void pseries_pci_fixup_iov_resources(struct pci_dev *pdev)
 	const int *indexes;
 	struct device_node *dn = pci_device_to_OF_node(pdev);
 
-	if (!pdev->is_physfn || pdev->is_added)
+	if (!pdev->is_physfn || pci_dev_is_added(pdev))
 		return;
 	/*Firmware must support open sriov otherwise dont configure*/
 	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);

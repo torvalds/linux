@@ -42,6 +42,8 @@
 #include <asm/ppc-pci.h>
 #include <asm/eeh.h>
 
+#include "../../../drivers/pci/pci.h"
+
 /* hose_spinlock protects accesses to the the phb_bitmap. */
 static DEFINE_SPINLOCK(hose_spinlock);
 LIST_HEAD(hose_list);
@@ -1014,7 +1016,7 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 		/* Cardbus can call us to add new devices to a bus, so ignore
 		 * those who are already fully discovered
 		 */
-		if (dev->is_added)
+		if (pci_dev_is_added(dev))
 			continue;
 
 		pcibios_setup_device(dev);

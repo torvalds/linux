@@ -13,5 +13,6 @@ int create_and_get_cgroup(char *path);
 int join_cgroup(char *path);
 int setup_cgroup_environment(void);
 void cleanup_cgroup_environment(void);
+unsigned long long get_cgroup_id(char *path);
 
 #endif

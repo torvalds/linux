@@ -62,8 +62,11 @@ int of_fpga_bridge_get_to_list(struct device_node *np,
 			       struct fpga_image_info *info,
 			       struct list_head *bridge_list);
 
-int fpga_bridge_register(struct device *dev, const char *name,
-			 const struct fpga_bridge_ops *br_ops, void *priv);
-void fpga_bridge_unregister(struct device *dev);
+struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
+				       const struct fpga_bridge_ops *br_ops,
+				       void *priv);
+void fpga_bridge_free(struct fpga_bridge *br);
+int fpga_bridge_register(struct fpga_bridge *br);
+void fpga_bridge_unregister(struct fpga_bridge *br);
 
 #endif /* _LINUX_FPGA_BRIDGE_H */
