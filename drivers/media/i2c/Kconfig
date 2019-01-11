@@ -5,7 +5,7 @@
 if VIDEO_V4L2
 
 config VIDEO_IR_I2C
-	tristate "I2C module for IR" if !MEDIA_SUBDRV_AUTOSELECT
+	tristate "I2C module for IR" if !MEDIA_SUBDRV_AUTOSELECT || EXPERT
 	depends on I2C && RC_CORE
 	default y
 	help
@@ -22,7 +22,7 @@ config VIDEO_IR_I2C
 #
 
 menu "I2C Encoders, decoders, sensors and other helper chips"
-	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
+	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST || EXPERT
 
 comment "Audio decoders, processors and mixers"
 

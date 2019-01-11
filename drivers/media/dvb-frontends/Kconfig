@@ -1,5 +1,5 @@
 menu "Customise DVB Frontends"
-	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
+	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST || EXPERT
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
