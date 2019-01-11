@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/staging/android/ion/ion_carveout_heap.c
+ * ION Memory Allocator carveout heap helper
  *
  * Copyright (C) 2011 Google, Inc.
  */
