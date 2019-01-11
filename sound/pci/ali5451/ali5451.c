@@ -1882,10 +1882,8 @@ static int ali_suspend(struct device *dev)
 		return 0;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < chip->num_of_codecs; i++) {
-		snd_pcm_suspend_all(chip->pcm[i]);
+	for (i = 0; i < chip->num_of_codecs; i++)
 		snd_ac97_suspend(chip->ac97[i]);
-	}
 
 	spin_lock_irq(&chip->reg_lock);
 	

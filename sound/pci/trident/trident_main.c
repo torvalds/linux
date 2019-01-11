@@ -3915,10 +3915,6 @@ static int snd_trident_suspend(struct device *dev)
 
 	trident->in_suspend = 1;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(trident->pcm);
-	snd_pcm_suspend_all(trident->foldback);
-	snd_pcm_suspend_all(trident->spdif);
-
 	snd_ac97_suspend(trident->ac97);
 	snd_ac97_suspend(trident->ac97_sec);
 	return 0;
