@@ -5104,8 +5104,6 @@ static void dsi_unbind(struct device *dev, struct device *master, void *data)
 	dss_debugfs_remove_file(dsi->debugfs.irqs);
 	dss_debugfs_remove_file(dsi->debugfs.regs);
 
-	of_platform_depopulate(dev);
-
 	WARN_ON(dsi->scp_clk_refcount > 0);
 
 	dss_pll_unregister(&dsi->pll);
@@ -5456,6 +5454,8 @@ static int dsi_remove(struct platform_device *pdev)
 	component_del(&pdev->dev, &dsi_component_ops);
 
 	dsi_uninit_output(dsi);
+
+	of_platform_depopulate(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 
