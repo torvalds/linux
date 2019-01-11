@@ -11,21 +11,21 @@
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
+#include <linux/dma-mapping.h>
+#include <linux/idr.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/of_device.h>
+#include <linux/rpmsg.h>
+#include <linux/scatterlist.h>
+#include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/virtio.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
-#include <linux/scatterlist.h>
-#include <linux/dma-mapping.h>
-#include <linux/slab.h>
-#include <linux/idr.h>
-#include <linux/jiffies.h>
-#include <linux/sched.h>
 #include <linux/wait.h>
-#include <linux/rpmsg.h>
-#include <linux/mutex.h>
-#include <linux/of_device.h>
 
 #include "rpmsg_internal.h"
 
