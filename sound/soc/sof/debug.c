@@ -48,7 +48,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	/* copy from DSP MMIO */
 	pm_runtime_get_noresume(sdev->dev);
 
-	memcpy_fromio(buf,  dfse->buf + pos, size);
+	memcpy_fromio(buf, dfse->buf + pos, size);
 
 	/*
 	 * TODO: revisit to check if we need mark_last_busy, or if we
