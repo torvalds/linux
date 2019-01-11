@@ -11,7 +11,6 @@
 obj-y	:= prom.o setup.o common.o clock.o
 
 obj-$(CONFIG_EARLY_PRINTK)		+= early_printk.o
-obj-$(CONFIG_PCI)			+= pci.o
 
 #
 # Devices
