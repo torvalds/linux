@@ -706,6 +706,7 @@ config SND_SOC_MSM8916_WCD_ANALOG
 
 config SND_SOC_MSM8916_WCD_DIGITAL
 	tristate "Qualcomm MSM8916 WCD DIGITAL Codec"
+	select REGMAP_MMIO
 
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
