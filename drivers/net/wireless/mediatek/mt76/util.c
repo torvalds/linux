@@ -100,7 +100,7 @@ int mt76_get_min_avg_rssi(struct mt76_dev *dev)
 
 			spin_lock(&dev->rx_lock);
 			if (wcid->inactive_count++ < 5)
-				cur_rssi = ewma_signal_read(&wcid->rssi);
+				cur_rssi = -ewma_signal_read(&wcid->rssi);
 			else
 				cur_rssi = 0;
 			spin_unlock(&dev->rx_lock);

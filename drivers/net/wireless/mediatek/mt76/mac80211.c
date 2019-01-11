@@ -567,7 +567,9 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 
 	sta = container_of((void *) wcid, struct ieee80211_sta, drv_priv);
 
-	ewma_signal_add(&wcid->rssi, status->signal);
+	if (status->signal <= 0)
+		ewma_signal_add(&wcid->rssi, -status->signal);
+
 	wcid->inactive_count = 0;
 
 	if (!test_bit(MT_WCID_FLAG_CHECK_PS, &wcid->flags))
