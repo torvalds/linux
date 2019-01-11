@@ -335,6 +335,13 @@ bool dm_pp_get_clock_levels_by_type(
 			validation_clks.memory_max_clock = 80000;
 			validation_clks.level = 0;
 		}
+	} else if (adev->smu.funcs && adev->smu.funcs->get_max_high_clocks) {
+		if (smu_get_max_high_clocks(&adev->smu, &validation_clks)) {
+			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
+			validation_clks.engine_max_clock = 72000;
+			validation_clks.memory_max_clock = 80000;
+			validation_clks.level = 0;
+		}
 	}
 
 	DRM_INFO("DM_PPLIB: Validation clocks:\n");

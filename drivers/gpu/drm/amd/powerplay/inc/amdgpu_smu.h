@@ -272,6 +272,8 @@ struct smu_funcs
 	int (*get_clock_by_type)(struct smu_context *smu,
 				 enum amd_pp_clock_type type,
 				 struct amd_pp_clocks *clocks);
+	int (*get_max_high_clocks)(struct smu_context *smu,
+				   struct amd_pp_simple_clock_info *clocks);
 };
 
 #define smu_init_microcode(smu) \
@@ -375,6 +377,8 @@ struct smu_funcs
 	((smu)->funcs->store_cc6_data ? (smu)->funcs->store_cc6_data((smu), (st), (cc6_dis), (pst_dis), (pst_sw_dis)) : 0)
 #define smu_get_clock_by_type(smu, type, clocks) \
 	((smu)->funcs->get_clock_by_type ? (smu)->funcs->get_clock_by_type((smu), (type), (clocks)) : 0)
+#define smu_get_max_high_clocks(smu, clocks) \
+	((smu)->funcs->get_max_high_clocks ? (smu)->funcs->get_max_high_clocks((smu), (clocks)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
