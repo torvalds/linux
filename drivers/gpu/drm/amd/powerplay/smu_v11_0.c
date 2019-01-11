@@ -272,7 +272,9 @@ static int smu_v11_0_fini_dpm_context(struct smu_context *smu)
 		return -EINVAL;
 
 	kfree(smu_dpm->dpm_context);
+	kfree(smu_dpm->golden_dpm_context);
 	smu_dpm->dpm_context = NULL;
+	smu_dpm->golden_dpm_context = NULL;
 	smu_dpm->dpm_context_size = 0;
 
 	return 0;

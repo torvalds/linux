@@ -136,9 +136,20 @@ static int vega20_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
+	if (smu_dpm->dpm_context)
+		return -EINVAL;
+
 	smu_dpm->dpm_context = kzalloc(sizeof(struct vega20_dpm_table),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
+		return -ENOMEM;
+
+	if (smu_dpm->golden_dpm_context)
+		return -EINVAL;
+
+	smu_dpm->golden_dpm_context = kzalloc(sizeof(struct vega20_dpm_table),
+					      GFP_KERNEL);
+	if (!smu_dpm->golden_dpm_context)
 		return -ENOMEM;
 
 	smu_dpm->dpm_context_size = sizeof(struct vega20_dpm_table);
@@ -609,6 +620,9 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 		single_dpm_table->count = 0;
 	}
 	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
+
+	memcpy(smu_dpm->golden_dpm_context, dpm_table,
+	       sizeof(struct vega20_dpm_table));
 
 	return 0;
 }

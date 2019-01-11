@@ -201,8 +201,9 @@ struct smu_table_context
 };
 
 struct smu_dpm_context {
-	void *dpm_context;
 	uint32_t dpm_context_size;
+	void *dpm_context;
+	void *golden_dpm_context;
 };
 
 struct smu_power_context {
