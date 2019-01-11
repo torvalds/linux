@@ -52,6 +52,7 @@ struct clk_rpmh {
 	struct clk_hw hw;
 	const char *res_name;
 	u8 div;
+	bool optional;
 	u32 res_addr;
 	u32 res_on_val;
 	u32 state;
@@ -71,13 +72,14 @@ struct clk_rpmh_desc {
 static DEFINE_MUTEX(rpmh_clk_lock);
 
 #define __DEFINE_CLK_RPMH(_platform, _name, _name_active, _res_name,	\
-			  _res_en_offset, _res_on, _div)		\
+			  _res_en_offset, _res_on, _div, _optional)	\
 	static struct clk_rpmh _platform##_##_name_active;		\
 	static struct clk_rpmh _platform##_##_name = {			\
 		.res_name = _res_name,					\
 		.res_addr = _res_en_offset,				\
 		.res_on_val = _res_on,					\
 		.div = _div,						\
+		.optional = _optional,					\
 		.peer = &_platform##_##_name_active,			\
 		.valid_state_mask = (BIT(RPMH_WAKE_ONLY_STATE) |	\
 				      BIT(RPMH_ACTIVE_ONLY_STATE) |	\
@@ -97,6 +99,7 @@ static DEFINE_MUTEX(rpmh_clk_lock);
 		.res_addr = _res_en_offset,				\
 		.res_on_val = _res_on,					\
 		.div = _div,						\
+		.optional = _optional,					\
 		.peer = &_platform##_##_name,				\
 		.valid_state_mask = (BIT(RPMH_WAKE_ONLY_STATE) |	\
 					BIT(RPMH_ACTIVE_ONLY_STATE)),	\
@@ -114,12 +117,19 @@ static DEFINE_MUTEX(rpmh_clk_lock);
 #define DEFINE_CLK_RPMH_ARC(_platform, _name, _name_active, _res_name,	\
 			    _res_on, _div)				\
 	__DEFINE_CLK_RPMH(_platform, _name, _name_active, _res_name,	\
-			  CLK_RPMH_ARC_EN_OFFSET, _res_on, _div)
+			  CLK_RPMH_ARC_EN_OFFSET, _res_on, _div, false)
 
 #define DEFINE_CLK_RPMH_VRM(_platform, _name, _name_active, _res_name,	\
 				_div)					\
 	__DEFINE_CLK_RPMH(_platform, _name, _name_active, _res_name,	\
-			  CLK_RPMH_VRM_EN_OFFSET, 1, _div)
+			  CLK_RPMH_VRM_EN_OFFSET, 1, _div, false)
+
+#define DEFINE_CLK_RPMH_VRM_OPT(_platform, _name, _name_active,		\
+			_res_name, _div)				\
+	__DEFINE_CLK_RPMH(_platform, _name, _name_active, _res_name,	\
+			  CLK_RPMH_VRM_EN_OFFSET, 1, _div, true)
+
+
 
 #define DEFINE_CLK_RPMH_BCM(_platform, _name, _res_name)		\
 	static struct clk_rpmh _platform##_##_name = {			\
@@ -561,11 +571,19 @@ static struct clk_hw *of_clk_rpmh_hw_get(struct of_phandle_args *clkspec,
 {
 	struct clk_rpmh_desc *rpmh = data;
 	unsigned int idx = clkspec->args[0];
+	struct clk_rpmh *c;
 
 	if (idx >= rpmh->num_clks) {
 		pr_err("%s: invalid index %u\n", __func__, idx);
 		return ERR_PTR(-EINVAL);
 	}
+
+	if (!rpmh->clks[idx])
+		return ERR_PTR(-ENOENT);
+
+	c = to_clk_rpmh(rpmh->clks[idx]);
+	if (!c->res_addr)
+		return ERR_PTR(-ENODEV);
 
 	return rpmh->clks[idx];
 }
@@ -597,6 +615,8 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 		rpmh_clk = to_clk_rpmh(hw_clks[i]);
 		res_addr = cmd_db_read_addr(rpmh_clk->res_name);
 		if (!res_addr) {
+			if (rpmh_clk->optional)
+				continue;
 			dev_err(&pdev->dev, "missing RPMh resource address for %s\n",
 				rpmh_clk->res_name);
 			return -ENODEV;
