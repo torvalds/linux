@@ -24,6 +24,7 @@
  * data that the application could potentially modify, it remains stable.
  *
  * Copyright (C) 2018-2019 Jens Axboe
+ * Copyright (c) 2018-2019 Christoph Hellwig
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -557,6 +558,56 @@ static int io_nop(struct io_kiocb *req, u64 user_data)
 	return 0;
 }
 
+static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int fd;
+
+	/* Prep already done */
+	if (req->rw.ki_filp)
+		return 0;
+
+	if (unlikely(sqe->addr || sqe->ioprio))
+		return -EINVAL;
+
+	fd = READ_ONCE(sqe->fd);
+	req->rw.ki_filp = fget(fd);
+	if (unlikely(!req->rw.ki_filp))
+		return -EBADF;
+
+	return 0;
+}
+
+static int io_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+		    bool force_nonblock)
+{
+	loff_t sqe_off = READ_ONCE(sqe->off);
+	loff_t sqe_len = READ_ONCE(sqe->len);
+	loff_t end = sqe_off + sqe_len;
+	unsigned fsync_flags;
+	int ret;
+
+	fsync_flags = READ_ONCE(sqe->fsync_flags);
+	if (unlikely(fsync_flags & ~IORING_FSYNC_DATASYNC))
+		return -EINVAL;
+
+	ret = io_prep_fsync(req, sqe);
+	if (ret)
+		return ret;
+
+	/* fsync always requires a blocking context */
+	if (force_nonblock)
+		return -EAGAIN;
+
+	ret = vfs_fsync_range(req->rw.ki_filp, sqe_off,
+				end > 0 ? end : LLONG_MAX,
+				fsync_flags & IORING_FSYNC_DATASYNC);
+
+	fput(req->rw.ki_filp);
+	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
+	io_free_req(req);
+	return 0;
+}
+
 static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			   const struct sqe_submit *s, bool force_nonblock)
 {
@@ -577,6 +628,9 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		break;
 	case IORING_OP_WRITEV:
 		ret = io_write(req, s, force_nonblock);
+		break;
+	case IORING_OP_FSYNC:
+		ret = io_fsync(req, s->sqe, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
