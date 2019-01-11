@@ -44,7 +44,6 @@ struct drm_dp_vcpi {
 
 /**
  * struct drm_dp_mst_port - MST port
- * @kref: reference count for this port.
  * @port_num: port number
  * @input: if this port is an input port.
  * @mcs: message capability status - DP 1.2 spec.
@@ -67,7 +66,18 @@ struct drm_dp_vcpi {
  * in the MST topology.
  */
 struct drm_dp_mst_port {
-	struct kref kref;
+	/**
+	 * @topology_kref: refcount for this port's lifetime in the topology,
+	 * only the DP MST helpers should need to touch this
+	 */
+	struct kref topology_kref;
+
+	/**
+	 * @malloc_kref: refcount for the memory allocation containing this
+	 * structure. See drm_dp_mst_get_port_malloc() and
+	 * drm_dp_mst_put_port_malloc().
+	 */
+	struct kref malloc_kref;
 
 	u8 port_num;
 	bool input;
@@ -102,7 +112,6 @@ struct drm_dp_mst_port {
 
 /**
  * struct drm_dp_mst_branch - MST branch device.
- * @kref: reference count for this port.
  * @rad: Relative Address to talk to this branch device.
  * @lct: Link count total to talk to this branch device.
  * @num_ports: number of ports on the branch.
@@ -121,7 +130,19 @@ struct drm_dp_mst_port {
  * to downstream port of parent branches.
  */
 struct drm_dp_mst_branch {
-	struct kref kref;
+	/**
+	 * @topology_kref: refcount for this branch device's lifetime in the
+	 * topology, only the DP MST helpers should need to touch this
+	 */
+	struct kref topology_kref;
+
+	/**
+	 * @malloc_kref: refcount for the memory allocation containing this
+	 * structure. See drm_dp_mst_get_mstb_malloc() and
+	 * drm_dp_mst_put_mstb_malloc().
+	 */
+	struct kref malloc_kref;
+
 	u8 rad[8];
 	u8 lct;
 	int num_ports;
@@ -625,5 +646,8 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 				     int slots);
 int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port, bool power_up);
+
+void drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port);
+void drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port);
 
 #endif

@@ -850,46 +850,212 @@ static struct drm_dp_mst_branch *drm_dp_add_mst_branch_device(u8 lct, u8 *rad)
 	if (lct > 1)
 		memcpy(mstb->rad, rad, lct / 2);
 	INIT_LIST_HEAD(&mstb->ports);
-	kref_init(&mstb->kref);
+	kref_init(&mstb->topology_kref);
+	kref_init(&mstb->malloc_kref);
 	return mstb;
 }
 
-static void drm_dp_free_mst_port(struct kref *kref);
-
 static void drm_dp_free_mst_branch_device(struct kref *kref)
 {
-	struct drm_dp_mst_branch *mstb = container_of(kref, struct drm_dp_mst_branch, kref);
-	if (mstb->port_parent) {
-		if (list_empty(&mstb->port_parent->next))
-			kref_put(&mstb->port_parent->kref, drm_dp_free_mst_port);
-	}
+	struct drm_dp_mst_branch *mstb =
+		container_of(kref, struct drm_dp_mst_branch, malloc_kref);
+
+	if (mstb->port_parent)
+		drm_dp_mst_put_port_malloc(mstb->port_parent);
+
 	kfree(mstb);
 }
 
+/**
+ * DOC: Branch device and port refcounting
+ *
+ * Topology refcount overview
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * The refcounting schemes for &struct drm_dp_mst_branch and &struct
+ * drm_dp_mst_port are somewhat unusual. Both ports and branch devices have
+ * two different kinds of refcounts: topology refcounts, and malloc refcounts.
+ *
+ * Topology refcounts are not exposed to drivers, and are handled internally
+ * by the DP MST helpers. The helpers use them in order to prevent the
+ * in-memory topology state from being changed in the middle of critical
+ * operations like changing the internal state of payload allocations. This
+ * means each branch and port will be considered to be connected to the rest
+ * of the topology until it's topology refcount reaches zero. Additionally,
+ * for ports this means that their associated &struct drm_connector will stay
+ * registered with userspace until the port's refcount reaches 0.
+ *
+ * Malloc refcount overview
+ * ~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * Malloc references are used to keep a &struct drm_dp_mst_port or &struct
+ * drm_dp_mst_branch allocated even after all of its topology references have
+ * been dropped, so that the driver or MST helpers can safely access each
+ * branch's last known state before it was disconnected from the topology.
+ * When the malloc refcount of a port or branch reaches 0, the memory
+ * allocation containing the &struct drm_dp_mst_branch or &struct
+ * drm_dp_mst_port respectively will be freed.
+ *
+ * For &struct drm_dp_mst_branch, malloc refcounts are not currently exposed
+ * to drivers. As of writing this documentation, there are no drivers that
+ * have a usecase for accessing &struct drm_dp_mst_branch outside of the MST
+ * helpers. Exposing this API to drivers in a race-free manner would take more
+ * tweaking of the refcounting scheme, however patches are welcome provided
+ * there is a legitimate driver usecase for this.
+ *
+ * Refcount relationships in a topology
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * Let's take a look at why the relationship between topology and malloc
+ * refcounts is designed the way it is.
+ *
+ * .. kernel-figure:: dp-mst/topology-figure-1.dot
+ *
+ *    An example of topology and malloc refs in a DP MST topology with two
+ *    active payloads. Topology refcount increments are indicated by solid
+ *    lines, and malloc refcount increments are indicated by dashed lines.
+ *    Each starts from the branch which incremented the refcount, and ends at
+ *    the branch to which the refcount belongs to, i.e. the arrow points the
+ *    same way as the C pointers used to reference a structure.
+ *
+ * As you can see in the above figure, every branch increments the topology
+ * refcount of it's children, and increments the malloc refcount of it's
+ * parent. Additionally, every payload increments the malloc refcount of it's
+ * assigned port by 1.
+ *
+ * So, what would happen if MSTB #3 from the above figure was unplugged from
+ * the system, but the driver hadn't yet removed payload #2 from port #3? The
+ * topology would start to look like the figure below.
+ *
+ * .. kernel-figure:: dp-mst/topology-figure-2.dot
+ *
+ *    Ports and branch devices which have been released from memory are
+ *    colored grey, and references which have been removed are colored red.
+ *
+ * Whenever a port or branch device's topology refcount reaches zero, it will
+ * decrement the topology refcounts of all its children, the malloc refcount
+ * of its parent, and finally its own malloc refcount. For MSTB #4 and port
+ * #4, this means they both have been disconnected from the topology and freed
+ * from memory. But, because payload #2 is still holding a reference to port
+ * #3, port #3 is removed from the topology but it's &struct drm_dp_mst_port
+ * is still accessible from memory. This also means port #3 has not yet
+ * decremented the malloc refcount of MSTB #3, so it's &struct
+ * drm_dp_mst_branch will also stay allocated in memory until port #3's
+ * malloc refcount reaches 0.
+ *
+ * This relationship is necessary because in order to release payload #2, we
+ * need to be able to figure out the last relative of port #3 that's still
+ * connected to the topology. In this case, we would travel up the topology as
+ * shown below.
+ *
+ * .. kernel-figure:: dp-mst/topology-figure-3.dot
+ *
+ * And finally, remove payload #2 by communicating with port #2 through
+ * sideband transactions.
+ */
+
+/**
+ * drm_dp_mst_get_mstb_malloc() - Increment the malloc refcount of a branch
+ * device
+ * @mstb: The &struct drm_dp_mst_branch to increment the malloc refcount of
+ *
+ * Increments &drm_dp_mst_branch.malloc_kref. When
+ * &drm_dp_mst_branch.malloc_kref reaches 0, the memory allocation for @mstb
+ * will be released and @mstb may no longer be used.
+ *
+ * See also: drm_dp_mst_put_mstb_malloc()
+ */
+static void
+drm_dp_mst_get_mstb_malloc(struct drm_dp_mst_branch *mstb)
+{
+	kref_get(&mstb->malloc_kref);
+	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref));
+}
+
+/**
+ * drm_dp_mst_put_mstb_malloc() - Decrement the malloc refcount of a branch
+ * device
+ * @mstb: The &struct drm_dp_mst_branch to decrement the malloc refcount of
+ *
+ * Decrements &drm_dp_mst_branch.malloc_kref. When
+ * &drm_dp_mst_branch.malloc_kref reaches 0, the memory allocation for @mstb
+ * will be released and @mstb may no longer be used.
+ *
+ * See also: drm_dp_mst_get_mstb_malloc()
+ */
+static void
+drm_dp_mst_put_mstb_malloc(struct drm_dp_mst_branch *mstb)
+{
+	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref) - 1);
+	kref_put(&mstb->malloc_kref, drm_dp_free_mst_branch_device);
+}
+
+static void drm_dp_free_mst_port(struct kref *kref)
+{
+	struct drm_dp_mst_port *port =
+		container_of(kref, struct drm_dp_mst_port, malloc_kref);
+
+	drm_dp_mst_put_mstb_malloc(port->parent);
+	kfree(port);
+}
+
+/**
+ * drm_dp_mst_get_port_malloc() - Increment the malloc refcount of an MST port
+ * @port: The &struct drm_dp_mst_port to increment the malloc refcount of
+ *
+ * Increments &drm_dp_mst_port.malloc_kref. When &drm_dp_mst_port.malloc_kref
+ * reaches 0, the memory allocation for @port will be released and @port may
+ * no longer be used.
+ *
+ * Because @port could potentially be freed at any time by the DP MST helpers
+ * if &drm_dp_mst_port.malloc_kref reaches 0, including during a call to this
+ * function, drivers that which to make use of &struct drm_dp_mst_port should
+ * ensure that they grab at least one main malloc reference to their MST ports
+ * in &drm_dp_mst_topology_cbs.add_connector. This callback is called before
+ * there is any chance for &drm_dp_mst_port.malloc_kref to reach 0.
+ *
+ * See also: drm_dp_mst_put_port_malloc()
+ */
+void
+drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port)
+{
+	kref_get(&port->malloc_kref);
+	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->malloc_kref));
+}
+EXPORT_SYMBOL(drm_dp_mst_get_port_malloc);
+
+/**
+ * drm_dp_mst_put_port_malloc() - Decrement the malloc refcount of an MST port
+ * @port: The &struct drm_dp_mst_port to decrement the malloc refcount of
+ *
+ * Decrements &drm_dp_mst_port.malloc_kref. When &drm_dp_mst_port.malloc_kref
+ * reaches 0, the memory allocation for @port will be released and @port may
+ * no longer be used.
+ *
+ * See also: drm_dp_mst_get_port_malloc()
+ */
+void
+drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port)
+{
+	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->malloc_kref) - 1);
+	kref_put(&port->malloc_kref, drm_dp_free_mst_port);
+}
+EXPORT_SYMBOL(drm_dp_mst_put_port_malloc);
+
 static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 {
-	struct drm_dp_mst_branch *mstb = container_of(kref, struct drm_dp_mst_branch, kref);
+	struct drm_dp_mst_branch *mstb =
+		container_of(kref, struct drm_dp_mst_branch, topology_kref);
+	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port, *tmp;
 	bool wake_tx = false;
 
-	/*
-	 * init kref again to be used by ports to remove mst branch when it is
-	 * not needed anymore
-	 */
-	kref_init(kref);
-
-	if (mstb->port_parent && list_empty(&mstb->port_parent->next))
-		kref_get(&mstb->port_parent->kref);
-
-	/*
-	 * destroy all ports - don't need lock
-	 * as there are no more references to the mst branch
-	 * device at this point.
-	 */
+	mutex_lock(&mgr->lock);
 	list_for_each_entry_safe(port, tmp, &mstb->ports, next) {
 		list_del(&port->next);
 		drm_dp_mst_topology_put_port(port);
 	}
+	mutex_unlock(&mgr->lock);
 
 	/* drop any tx slots msg */
 	mutex_lock(&mstb->mgr->qlock);
@@ -908,14 +1074,83 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 	if (wake_tx)
 		wake_up_all(&mstb->mgr->tx_waitq);
 
-	kref_put(kref, drm_dp_free_mst_branch_device);
+	drm_dp_mst_put_mstb_malloc(mstb);
 }
 
-static void drm_dp_mst_topology_put_mstb(struct drm_dp_mst_branch *mstb)
+/**
+ * drm_dp_mst_topology_try_get_mstb() - Increment the topology refcount of a
+ * branch device unless its zero
+ * @mstb: &struct drm_dp_mst_branch to increment the topology refcount of
+ *
+ * Attempts to grab a topology reference to @mstb, if it hasn't yet been
+ * removed from the topology (e.g. &drm_dp_mst_branch.topology_kref has
+ * reached 0). Holding a topology reference implies that a malloc reference
+ * will be held to @mstb as long as the user holds the topology reference.
+ *
+ * Care should be taken to ensure that the user has at least one malloc
+ * reference to @mstb. If you already have a topology reference to @mstb, you
+ * should use drm_dp_mst_topology_get_mstb() instead.
+ *
+ * See also:
+ * drm_dp_mst_topology_get_mstb()
+ * drm_dp_mst_topology_put_mstb()
+ *
+ * Returns:
+ * * 1: A topology reference was grabbed successfully
+ * * 0: @port is no longer in the topology, no reference was grabbed
+ */
+static int __must_check
+drm_dp_mst_topology_try_get_mstb(struct drm_dp_mst_branch *mstb)
 {
-	kref_put(&mstb->kref, drm_dp_destroy_mst_branch_device);
+	int ret = kref_get_unless_zero(&mstb->topology_kref);
+
+	if (ret)
+		DRM_DEBUG("mstb %p (%d)\n", mstb,
+			  kref_read(&mstb->topology_kref));
+
+	return ret;
 }
 
+/**
+ * drm_dp_mst_topology_get_mstb() - Increment the topology refcount of a
+ * branch device
+ * @mstb: The &struct drm_dp_mst_branch to increment the topology refcount of
+ *
+ * Increments &drm_dp_mst_branch.topology_refcount without checking whether or
+ * not it's already reached 0. This is only valid to use in scenarios where
+ * you are already guaranteed to have at least one active topology reference
+ * to @mstb. Otherwise, drm_dp_mst_topology_try_get_mstb() must be used.
+ *
+ * See also:
+ * drm_dp_mst_topology_try_get_mstb()
+ * drm_dp_mst_topology_put_mstb()
+ */
+static void drm_dp_mst_topology_get_mstb(struct drm_dp_mst_branch *mstb)
+{
+	WARN_ON(kref_read(&mstb->topology_kref) == 0);
+	kref_get(&mstb->topology_kref);
+	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref));
+}
+
+/**
+ * drm_dp_mst_topology_put_mstb() - release a topology reference to a branch
+ * device
+ * @mstb: The &struct drm_dp_mst_branch to release the topology reference from
+ *
+ * Releases a topology reference from @mstb by decrementing
+ * &drm_dp_mst_branch.topology_kref.
+ *
+ * See also:
+ * drm_dp_mst_topology_try_get_mstb()
+ * drm_dp_mst_topology_get_mstb()
+ */
+static void
+drm_dp_mst_topology_put_mstb(struct drm_dp_mst_branch *mstb)
+{
+	DRM_DEBUG("mstb %p (%d)\n",
+		  mstb, kref_read(&mstb->topology_kref) - 1);
+	kref_put(&mstb->topology_kref, drm_dp_destroy_mst_branch_device);
+}
 
 static void drm_dp_port_teardown_pdt(struct drm_dp_mst_port *port, int old_pdt)
 {
@@ -937,7 +1172,8 @@ static void drm_dp_port_teardown_pdt(struct drm_dp_mst_port *port, int old_pdt)
 
 static void drm_dp_destroy_port(struct kref *kref)
 {
-	struct drm_dp_mst_port *port = container_of(kref, struct drm_dp_mst_port, kref);
+	struct drm_dp_mst_port *port =
+		container_of(kref, struct drm_dp_mst_port, topology_kref);
 	struct drm_dp_mst_topology_mgr *mgr = port->mgr;
 
 	if (!port->input) {
@@ -956,7 +1192,6 @@ static void drm_dp_destroy_port(struct kref *kref)
 			 * from an EDID retrieval */
 
 			mutex_lock(&mgr->destroy_connector_lock);
-			kref_get(&port->parent->kref);
 			list_add(&port->next, &mgr->destroy_connector_list);
 			mutex_unlock(&mgr->destroy_connector_lock);
 			schedule_work(&mgr->destroy_connector_work);
@@ -967,12 +1202,79 @@ static void drm_dp_destroy_port(struct kref *kref)
 		drm_dp_port_teardown_pdt(port, port->pdt);
 		port->pdt = DP_PEER_DEVICE_NONE;
 	}
-	kfree(port);
+	drm_dp_mst_put_port_malloc(port);
 }
 
+/**
+ * drm_dp_mst_topology_try_get_port() - Increment the topology refcount of a
+ * port unless its zero
+ * @port: &struct drm_dp_mst_port to increment the topology refcount of
+ *
+ * Attempts to grab a topology reference to @port, if it hasn't yet been
+ * removed from the topology (e.g. &drm_dp_mst_port.topology_kref has reached
+ * 0). Holding a topology reference implies that a malloc reference will be
+ * held to @port as long as the user holds the topology reference.
+ *
+ * Care should be taken to ensure that the user has at least one malloc
+ * reference to @port. If you already have a topology reference to @port, you
+ * should use drm_dp_mst_topology_get_port() instead.
+ *
+ * See also:
+ * drm_dp_mst_topology_get_port()
+ * drm_dp_mst_topology_put_port()
+ *
+ * Returns:
+ * * 1: A topology reference was grabbed successfully
+ * * 0: @port is no longer in the topology, no reference was grabbed
+ */
+static int __must_check
+drm_dp_mst_topology_try_get_port(struct drm_dp_mst_port *port)
+{
+	int ret = kref_get_unless_zero(&port->topology_kref);
+
+	if (ret)
+		DRM_DEBUG("port %p (%d)\n", port,
+			  kref_read(&port->topology_kref));
+
+	return ret;
+}
+
+/**
+ * drm_dp_mst_topology_get_port() - Increment the topology refcount of a port
+ * @port: The &struct drm_dp_mst_port to increment the topology refcount of
+ *
+ * Increments &drm_dp_mst_port.topology_refcount without checking whether or
+ * not it's already reached 0. This is only valid to use in scenarios where
+ * you are already guaranteed to have at least one active topology reference
+ * to @port. Otherwise, drm_dp_mst_topology_try_get_port() must be used.
+ *
+ * See also:
+ * drm_dp_mst_topology_try_get_port()
+ * drm_dp_mst_topology_put_port()
+ */
+static void drm_dp_mst_topology_get_port(struct drm_dp_mst_port *port)
+{
+	WARN_ON(kref_read(&port->topology_kref) == 0);
+	kref_get(&port->topology_kref);
+	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->topology_kref));
+}
+
+/**
+ * drm_dp_mst_topology_put_port() - release a topology reference to a port
+ * @port: The &struct drm_dp_mst_port to release the topology reference from
+ *
+ * Releases a topology reference from @port by decrementing
+ * &drm_dp_mst_port.topology_kref.
+ *
+ * See also:
+ * drm_dp_mst_topology_try_get_port()
+ * drm_dp_mst_topology_get_port()
+ */
 static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port)
 {
-	kref_put(&port->kref, drm_dp_destroy_port);
+	DRM_DEBUG("port %p (%d)\n",
+		  port, kref_read(&port->topology_kref) - 1);
+	kref_put(&port->topology_kref, drm_dp_destroy_port);
 }
 
 static struct drm_dp_mst_branch *
@@ -981,10 +1283,10 @@ drm_dp_mst_topology_get_mstb_validated_locked(struct drm_dp_mst_branch *mstb,
 {
 	struct drm_dp_mst_port *port;
 	struct drm_dp_mst_branch *rmstb;
-	if (to_find == mstb) {
-		kref_get(&mstb->kref);
+
+	if (to_find == mstb)
 		return mstb;
-	}
+
 	list_for_each_entry(port, &mstb->ports, next) {
 		if (port->mstb) {
 			rmstb = drm_dp_mst_topology_get_mstb_validated_locked(
@@ -1001,25 +1303,32 @@ drm_dp_mst_topology_get_mstb_validated(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_mst_branch *mstb)
 {
 	struct drm_dp_mst_branch *rmstb = NULL;
+
 	mutex_lock(&mgr->lock);
-	if (mgr->mst_primary)
+	if (mgr->mst_primary) {
 		rmstb = drm_dp_mst_topology_get_mstb_validated_locked(
 		    mgr->mst_primary, mstb);
+
+		if (rmstb && !drm_dp_mst_topology_try_get_mstb(rmstb))
+			rmstb = NULL;
+	}
 	mutex_unlock(&mgr->lock);
 	return rmstb;
 }
 
-static struct drm_dp_mst_port *drm_dp_mst_get_port_ref_locked(struct drm_dp_mst_branch *mstb, struct drm_dp_mst_port *to_find)
+static struct drm_dp_mst_port *
+drm_dp_mst_topology_get_port_validated_locked(struct drm_dp_mst_branch *mstb,
+					      struct drm_dp_mst_port *to_find)
 {
 	struct drm_dp_mst_port *port, *mport;
 
 	list_for_each_entry(port, &mstb->ports, next) {
-		if (port == to_find) {
-			kref_get(&port->kref);
+		if (port == to_find)
 			return port;
-		}
+
 		if (port->mstb) {
-			mport = drm_dp_mst_get_port_ref_locked(port->mstb, to_find);
+			mport = drm_dp_mst_topology_get_port_validated_locked(
+			    port->mstb, to_find);
 			if (mport)
 				return mport;
 		}
@@ -1032,9 +1341,15 @@ drm_dp_mst_topology_get_port_validated(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_mst_port *port)
 {
 	struct drm_dp_mst_port *rport = NULL;
+
 	mutex_lock(&mgr->lock);
-	if (mgr->mst_primary)
-		rport = drm_dp_mst_get_port_ref_locked(mgr->mst_primary, port);
+	if (mgr->mst_primary) {
+		rport = drm_dp_mst_topology_get_port_validated_locked(
+		    mgr->mst_primary, port);
+
+		if (rport && !drm_dp_mst_topology_try_get_port(rport))
+			rport = NULL;
+	}
 	mutex_unlock(&mgr->lock);
 	return rport;
 }
@@ -1042,11 +1357,12 @@ drm_dp_mst_topology_get_port_validated(struct drm_dp_mst_topology_mgr *mgr,
 static struct drm_dp_mst_port *drm_dp_get_port(struct drm_dp_mst_branch *mstb, u8 port_num)
 {
 	struct drm_dp_mst_port *port;
+	int ret;
 
 	list_for_each_entry(port, &mstb->ports, next) {
 		if (port->port_num == port_num) {
-			kref_get(&port->kref);
-			return port;
+			ret = drm_dp_mst_topology_try_get_port(port);
+			return ret ? port : NULL;
 		}
 	}
 
@@ -1095,6 +1411,11 @@ static bool drm_dp_port_setup_pdt(struct drm_dp_mst_port *port)
 		if (port->mstb) {
 			port->mstb->mgr = port->mgr;
 			port->mstb->port_parent = port;
+			/*
+			 * Make sure this port's memory allocation stays
+			 * around until it's child MSTB releases it
+			 */
+			drm_dp_mst_get_port_malloc(port);
 
 			send_link = true;
 		}
@@ -1155,17 +1476,26 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 	bool created = false;
 	int old_pdt = 0;
 	int old_ddps = 0;
+
 	port = drm_dp_get_port(mstb, port_msg->port_number);
 	if (!port) {
 		port = kzalloc(sizeof(*port), GFP_KERNEL);
 		if (!port)
 			return;
-		kref_init(&port->kref);
+		kref_init(&port->topology_kref);
+		kref_init(&port->malloc_kref);
 		port->parent = mstb;
 		port->port_num = port_msg->port_number;
 		port->mgr = mstb->mgr;
 		port->aux.name = "DPMST";
 		port->aux.dev = dev->dev;
+
+		/*
+		 * Make sure the memory allocation for our parent branch stays
+		 * around until our own memory allocation is released
+		 */
+		drm_dp_mst_get_mstb_malloc(mstb);
+
 		created = true;
 	} else {
 		old_pdt = port->pdt;
@@ -1185,7 +1515,7 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 	   for this list */
 	if (created) {
 		mutex_lock(&mstb->mgr->lock);
-		kref_get(&port->kref);
+		drm_dp_mst_topology_get_port(port);
 		list_add(&port->next, &mstb->ports);
 		mutex_unlock(&mstb->mgr->lock);
 	}
@@ -1284,7 +1614,7 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 {
 	struct drm_dp_mst_branch *mstb;
 	struct drm_dp_mst_port *port;
-	int i;
+	int i, ret;
 	/* find the port by iterating down */
 
 	mutex_lock(&mgr->lock);
@@ -1309,7 +1639,9 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 			}
 		}
 	}
-	kref_get(&mstb->kref);
+	ret = drm_dp_mst_topology_try_get_mstb(mstb);
+	if (!ret)
+		mstb = NULL;
 out:
 	mutex_unlock(&mgr->lock);
 	return mstb;
@@ -1344,14 +1676,17 @@ drm_dp_get_mst_branch_device_by_guid(struct drm_dp_mst_topology_mgr *mgr,
 				     uint8_t *guid)
 {
 	struct drm_dp_mst_branch *mstb;
+	int ret;
 
 	/* find the port by iterating down */
 	mutex_lock(&mgr->lock);
 
 	mstb = get_mst_branch_device_by_guid_helper(mgr->mst_primary, guid);
-
-	if (mstb)
-		kref_get(&mstb->kref);
+	if (mstb) {
+		ret = drm_dp_mst_topology_try_get_mstb(mstb);
+		if (!ret)
+			mstb = NULL;
+	}
 
 	mutex_unlock(&mgr->lock);
 	return mstb;
@@ -1390,11 +1725,14 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 {
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, work);
 	struct drm_dp_mst_branch *mstb;
+	int ret;
 
 	mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
 	if (mstb) {
-		kref_get(&mstb->kref);
+		ret = drm_dp_mst_topology_try_get_mstb(mstb);
+		if (!ret)
+			mstb = NULL;
 	}
 	mutex_unlock(&mgr->lock);
 	if (mstb) {
@@ -1722,8 +2060,10 @@ static struct drm_dp_mst_branch *drm_dp_get_last_connected_port_and_mstb(struct 
 
 		if (found_port) {
 			rmstb = found_port->parent;
-			kref_get(&rmstb->kref);
-			*port_num = found_port->port_num;
+			if (drm_dp_mst_topology_try_get_mstb(rmstb))
+				*port_num = found_port->port_num;
+			else
+				rmstb = NULL;
 		}
 	}
 	mutex_unlock(&mgr->lock);
@@ -2176,7 +2516,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 
 		/* give this the main reference */
 		mgr->mst_primary = mstb;
-		kref_get(&mgr->mst_primary->kref);
+		drm_dp_mst_topology_get_mstb(mgr->mst_primary);
 
 		ret = drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
 							 DP_MST_EN | DP_UP_REQ_EN | DP_UPSTREAM_IS_SRC);
@@ -3096,13 +3436,6 @@ static void drm_dp_tx_work(struct work_struct *work)
 	mutex_unlock(&mgr->qlock);
 }
 
-static void drm_dp_free_mst_port(struct kref *kref)
-{
-	struct drm_dp_mst_port *port = container_of(kref, struct drm_dp_mst_port, kref);
-	kref_put(&port->parent->kref, drm_dp_free_mst_branch_device);
-	kfree(port);
-}
-
 static void drm_dp_destroy_connector_work(struct work_struct *work)
 {
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, destroy_connector_work);
@@ -3123,7 +3456,6 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		list_del(&port->next);
 		mutex_unlock(&mgr->destroy_connector_lock);
 
-		kref_init(&port->kref);
 		INIT_LIST_HEAD(&port->next);
 
 		mgr->cbs->destroy_connector(mgr, port->connector);
@@ -3137,7 +3469,7 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 		}
 
-		kref_put(&port->kref, drm_dp_free_mst_port);
+		drm_dp_mst_put_port_malloc(port);
 		send_hotplug = true;
 	}
 	if (send_hotplug)
