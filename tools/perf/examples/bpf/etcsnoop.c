@@ -49,11 +49,11 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 						      args->filename_ptr); 			\
 	if (__builtin_memcmp(augmented_args.filename.value, etc, 4) != 0)			\
 		return 0;									\
-	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 			\
-			  &augmented_args, 							\
-			  (sizeof(augmented_args) - sizeof(augmented_args.filename.value) +	\
-			   augmented_args.filename.size));					\
-	return 0;										\
+	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */	\
+	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 		\
+				 &augmented_args,						\
+				 (sizeof(augmented_args) - sizeof(augmented_args.filename.value) + \
+				 augmented_args.filename.size));				\
 }
 
 struct syscall_enter_openat_args {
