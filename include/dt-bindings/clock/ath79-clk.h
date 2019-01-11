@@ -13,7 +13,8 @@
 #define ATH79_CLK_CPU		0
 #define ATH79_CLK_DDR		1
 #define ATH79_CLK_AHB		2
+#define ATH79_CLK_REF		3
 
-#define ATH79_CLK_END		3
+#define ATH79_CLK_END		4
 
 #endif /* __DT_BINDINGS_ATH79_CLK_H */
