@@ -2041,9 +2041,8 @@ static int hns3_alloc_desc(struct hns3_enet_ring *ring)
 {
 	int size = ring->desc_num * sizeof(ring->desc[0]);
 
-	ring->desc = dma_zalloc_coherent(ring_to_dev(ring), size,
-					 &ring->desc_dma_addr,
-					 GFP_KERNEL);
+	ring->desc = dma_alloc_coherent(ring_to_dev(ring), size,
+					&ring->desc_dma_addr, GFP_KERNEL);
 	if (!ring->desc)
 		return -ENOMEM;
 

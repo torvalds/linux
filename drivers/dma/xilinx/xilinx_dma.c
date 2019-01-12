@@ -879,10 +879,9 @@ static int xilinx_dma_alloc_chan_resources(struct dma_chan *dchan)
 	 */
 	if (chan->xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		/* Allocate the buffer descriptors. */
-		chan->seg_v = dma_zalloc_coherent(chan->dev,
-						  sizeof(*chan->seg_v) *
-						  XILINX_DMA_NUM_DESCS,
-						  &chan->seg_p, GFP_KERNEL);
+		chan->seg_v = dma_alloc_coherent(chan->dev,
+						 sizeof(*chan->seg_v) * XILINX_DMA_NUM_DESCS,
+						 &chan->seg_p, GFP_KERNEL);
 		if (!chan->seg_v) {
 			dev_err(chan->dev,
 				"unable to allocate channel %d descriptors\n",
@@ -895,9 +894,10 @@ static int xilinx_dma_alloc_chan_resources(struct dma_chan *dchan)
 		 * so allocating a desc segment during channel allocation for
 		 * programming tail descriptor.
 		 */
-		chan->cyclic_seg_v = dma_zalloc_coherent(chan->dev,
-					sizeof(*chan->cyclic_seg_v),
-					&chan->cyclic_seg_p, GFP_KERNEL);
+		chan->cyclic_seg_v = dma_alloc_coherent(chan->dev,
+							sizeof(*chan->cyclic_seg_v),
+							&chan->cyclic_seg_p,
+							GFP_KERNEL);
 		if (!chan->cyclic_seg_v) {
 			dev_err(chan->dev,
 				"unable to allocate desc segment for cyclic DMA\n");
