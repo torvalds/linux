@@ -1550,12 +1550,6 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 
 #endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
 
-/* Initiate the stall-info list. */
-static void print_cpu_stall_info_begin(void)
-{
-	pr_cont("\n");
-}
-
 /*
  * Print out diagnostic information for the specified stalled CPU.
  *
@@ -1604,12 +1598,6 @@ static void print_cpu_stall_info(int cpu)
 	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
 	       READ_ONCE(rcu_state.n_force_qs) - rcu_state.n_force_qs_gpstart,
 	       fast_no_hz);
-}
-
-/* Terminate the stall-info list. */
-static void print_cpu_stall_info_end(void)
-{
-	pr_err("\t");
 }
 
 /* Zero ->ticks_this_gp and snapshot the number of RCU softirq handlers. */
