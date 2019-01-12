@@ -223,6 +223,86 @@ static void panic_on_rcu_stall(void)
 		panic("RCU Stall\n");
 }
 
+#ifdef CONFIG_RCU_FAST_NO_HZ
+
+static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
+{
+	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
+
+	sprintf(cp, "last_accelerate: %04lx/%04lx, Nonlazy posted: %c%c%c",
+		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
+		".l"[rdp->all_lazy],
+		".L"[!rcu_segcblist_n_nonlazy_cbs(&rdp->cblist)],
+		".D"[!rdp->tick_nohz_enabled_snap]);
+}
+
+#else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
+{
+	*cp = '\0';
+}
+
+#endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+/*
+ * Print out diagnostic information for the specified stalled CPU.
+ *
+ * If the specified CPU is aware of the current RCU grace period, then
+ * print the number of scheduling clock interrupts the CPU has taken
+ * during the time that it has been aware.  Otherwise, print the number
+ * of RCU grace periods that this CPU is ignorant of, for example, "1"
+ * if the CPU was aware of the previous grace period.
+ *
+ * Also print out idle and (if CONFIG_RCU_FAST_NO_HZ) idle-entry info.
+ */
+static void print_cpu_stall_info(int cpu)
+{
+	unsigned long delta;
+	char fast_no_hz[72];
+	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+	char *ticks_title;
+	unsigned long ticks_value;
+
+	/*
+	 * We could be printing a lot while holding a spinlock.  Avoid
+	 * triggering hard lockup.
+	 */
+	touch_nmi_watchdog();
+
+	ticks_value = rcu_seq_ctr(rcu_state.gp_seq - rdp->gp_seq);
+	if (ticks_value) {
+		ticks_title = "GPs behind";
+	} else {
+		ticks_title = "ticks this GP";
+		ticks_value = rdp->ticks_this_gp;
+	}
+	print_cpu_stall_fast_no_hz(fast_no_hz, cpu);
+	delta = rcu_seq_ctr(rdp->mynode->gp_seq - rdp->rcu_iw_gp_seq);
+	pr_err("\t%d-%c%c%c%c: (%lu %s) idle=%03x/%ld/%#lx softirq=%u/%u fqs=%ld %s\n",
+	       cpu,
+	       "O."[!!cpu_online(cpu)],
+	       "o."[!!(rdp->grpmask & rdp->mynode->qsmaskinit)],
+	       "N."[!!(rdp->grpmask & rdp->mynode->qsmaskinitnext)],
+	       !IS_ENABLED(CONFIG_IRQ_WORK) ? '?' :
+			rdp->rcu_iw_pending ? (int)min(delta, 9UL) + '0' :
+				"!."[!delta],
+	       ticks_value, ticks_title,
+	       rcu_dynticks_snap(rdp) & 0xfff,
+	       rdp->dynticks_nesting, rdp->dynticks_nmi_nesting,
+	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
+	       READ_ONCE(rcu_state.n_force_qs) - rcu_state.n_force_qs_gpstart,
+	       fast_no_hz);
+}
+
+/* Zero ->ticks_this_gp and snapshot the number of RCU softirq handlers. */
+static void zero_cpu_stall_ticks(struct rcu_data *rdp)
+{
+	rdp->ticks_this_gp = 0;
+	rdp->softirq_snap = kstat_softirqs_cpu(RCU_SOFTIRQ, smp_processor_id());
+	WRITE_ONCE(rdp->last_fqs_resched, jiffies);
+}
+
 static void print_other_cpu_stall(unsigned long gp_seq)
 {
 	int cpu;
