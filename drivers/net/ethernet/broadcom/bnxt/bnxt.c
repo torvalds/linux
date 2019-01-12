@@ -6222,9 +6222,12 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 			rmem->pg_tbl_map = ctx_pg->ctx_dma_arr[i];
 			rmem->depth = 1;
 			rmem->nr_pages = MAX_CTX_PAGES;
-			if (i == (nr_tbls - 1))
-				rmem->nr_pages = ctx_pg->nr_pages %
-						 MAX_CTX_PAGES;
+			if (i == (nr_tbls - 1)) {
+				int rem = ctx_pg->nr_pages % MAX_CTX_PAGES;
+
+				if (rem)
+					rmem->nr_pages = rem;
+			}
 			rc = bnxt_alloc_ctx_mem_blk(bp, pg_tbl);
 			if (rc)
 				break;
