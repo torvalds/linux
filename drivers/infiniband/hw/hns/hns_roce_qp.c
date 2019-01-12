@@ -675,6 +675,10 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				dev_err(dev, "rq record doorbell map failed!\n");
 				goto err_sq_dbmap;
 			}
+
+			/* indicate kernel supports rq record db */
+			resp.cap_flags |= HNS_ROCE_SUPPORT_RQ_RECORD_DB;
+			hr_qp->rdb_en = 1;
 		}
 	} else {
 		if (init_attr->create_flags &
@@ -783,16 +787,11 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->doorbell_qpn = cpu_to_le64(hr_qp->qpn);
 
-	if (udata && (udata->outlen >= sizeof(resp)) &&
-		(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)) {
-
-		/* indicate kernel supports rq record db */
-		resp.cap_flags |= HNS_ROCE_SUPPORT_RQ_RECORD_DB;
-		ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
+	if (udata) {
+		ret = ib_copy_to_udata(udata, &resp,
+				       min(udata->outlen, sizeof(resp)));
 		if (ret)
 			goto err_qp;
-
-		hr_qp->rdb_en = 1;
 	}
 	hr_qp->event = hns_roce_ib_qp_event;
 
@@ -969,7 +968,9 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	    (attr_mask & IB_QP_STATE) && new_state == IB_QPS_ERR) {
 		if (hr_qp->sdb_en == 1) {
 			hr_qp->sq.head = *(int *)(hr_qp->sdb.virt_addr);
-			hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
+
+			if (hr_qp->rdb_en == 1)
+				hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
 		} else {
 			dev_warn(dev, "flush cqe is not supported in userspace!\n");
 			goto out;
