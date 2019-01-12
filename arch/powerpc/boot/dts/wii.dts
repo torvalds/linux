@@ -187,6 +187,11 @@
 				"DEBUG0", "DEBUG1", "DEBUG2", "DEBUG3",
 				"DEBUG4", "DEBUG5", "DEBUG6", "DEBUG7";
 
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <10>;
+			interrupt-parent = <&PIC1>;
+
 			/*
 			 * This is commented out while a standard binding
 			 * for i2c over gpio is defined.
