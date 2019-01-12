@@ -233,6 +233,15 @@ Printer
 .. kernel-doc:: drivers/gpu/drm/drm_print.c
    :export:
 
+Utilities
+---------
+
+.. kernel-doc:: include/drm/drm_util.h
+   :doc: drm utils
+
+.. kernel-doc:: include/drm/drm_util.h
+   :internal:
+
 
 Legacy Support Code
 ===================

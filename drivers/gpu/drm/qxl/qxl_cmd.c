@@ -25,6 +25,8 @@
 
 /* QXL cmd/ring handling */
 
+#include <drm/drm_util.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
