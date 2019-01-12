@@ -95,30 +95,6 @@ static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
 }
 
 /*
- * Dump detailed information for all tasks blocking the current RCU
- * grace period.
- */
-static void rcu_print_detail_task_stall(void)
-{
-	struct rcu_node *rnp = rcu_get_root();
-
-	rcu_print_detail_task_stall_rnp(rnp);
-	rcu_for_each_leaf_node(rnp)
-		rcu_print_detail_task_stall_rnp(rnp);
-}
-
-static void rcu_print_task_stall_begin(struct rcu_node *rnp)
-{
-	pr_err("\tTasks blocked on level-%d rcu_node (CPUs %d-%d):",
-	       rnp->level, rnp->grplo, rnp->grphi);
-}
-
-static void rcu_print_task_stall_end(void)
-{
-	pr_cont("\n");
-}
-
-/*
  * Scan the current list of tasks blocked within RCU read-side critical
  * sections, printing out the tid of each.
  */
@@ -129,14 +105,15 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 
 	if (!rcu_preempt_blocked_readers_cgp(rnp))
 		return 0;
-	rcu_print_task_stall_begin(rnp);
+	pr_err("\tTasks blocked on level-%d rcu_node (CPUs %d-%d):",
+	       rnp->level, rnp->grplo, rnp->grphi);
 	t = list_entry(rnp->gp_tasks->prev,
 		       struct task_struct, rcu_node_entry);
 	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
 		pr_cont(" P%d", t->pid);
 		ndetected++;
 	}
-	rcu_print_task_stall_end();
+	pr_cont("\n");
 	return ndetected;
 }
 
@@ -146,7 +123,7 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
  * Because preemptible RCU does not exist, we never have to check for
  * tasks blocked within RCU read-side critical sections.
  */
-static void rcu_print_detail_task_stall(void)
+static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
 {
 }
 
@@ -253,7 +230,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 	unsigned long gpa;
 	unsigned long j;
 	int ndetected = 0;
-	struct rcu_node *rnp = rcu_get_root();
+	struct rcu_node *rnp;
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
@@ -291,7 +268,8 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 		rcu_dump_cpu_stacks();
 
 		/* Complain about tasks blocking the grace period. */
-		rcu_print_detail_task_stall();
+		rcu_for_each_leaf_node(rnp)
+			rcu_print_detail_task_stall_rnp(rnp);
 	} else {
 		if (rcu_seq_current(&rcu_state.gp_seq) != gp_seq) {
 			pr_err("INFO: Stall ended before state dump start\n");
