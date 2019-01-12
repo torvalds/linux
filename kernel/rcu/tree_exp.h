@@ -10,6 +10,7 @@
 #include <linux/lockdep.h>
 
 static void rcu_exp_handler(void *unused);
+static int rcu_print_task_exp_stall(struct rcu_node *rnp);
 
 /*
  * Record the start of an expedited grace period.
@@ -670,6 +671,27 @@ static void sync_sched_exp_online_cleanup(int cpu)
 {
 }
 
+/*
+ * Scan the current list of tasks blocked within RCU read-side critical
+ * sections, printing out the tid of each that is blocking the current
+ * expedited grace period.
+ */
+static int rcu_print_task_exp_stall(struct rcu_node *rnp)
+{
+	struct task_struct *t;
+	int ndetected = 0;
+
+	if (!rnp->exp_tasks)
+		return 0;
+	t = list_entry(rnp->exp_tasks->prev,
+		       struct task_struct, rcu_node_entry);
+	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
+		pr_cont(" P%d", t->pid);
+		ndetected++;
+	}
+	return ndetected;
+}
+
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
@@ -707,6 +729,16 @@ static void sync_sched_exp_online_cleanup(int cpu)
 		return;
 	ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
 	WARN_ON_ONCE(ret);
+}
+
+/*
+ * Because preemptible RCU does not exist, we never have to check for
+ * tasks blocked within RCU read-side critical sections that are
+ * blocking the current expedited grace period.
+ */
+static int rcu_print_task_exp_stall(struct rcu_node *rnp)
+{
+	return 0;
 }
 
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
