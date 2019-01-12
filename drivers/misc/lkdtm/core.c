@@ -340,9 +340,9 @@ static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	n = snprintf(buf, PAGE_SIZE, "Available crash types:\n");
+	n = scnprintf(buf, PAGE_SIZE, "Available crash types:\n");
 	for (i = 0; i < ARRAY_SIZE(crashtypes); i++) {
-		n += snprintf(buf + n, PAGE_SIZE - n, "%s\n",
+		n += scnprintf(buf + n, PAGE_SIZE - n, "%s\n",
 			      crashtypes[i].name);
 	}
 	buf[n] = '\0';
