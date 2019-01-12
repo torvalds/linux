@@ -129,7 +129,11 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	struct inode *inode = NULL;
 	struct super_block *sb = ref_inode->i_sb;
 	struct binderfs_info *info = sb->s_fs_info;
+#if defined(CONFIG_IPC_NS)
 	bool use_reserve = (info->ipc_ns == &init_ipc_ns);
+#else
+	bool use_reserve = true;
+#endif
 
 	/* Reserve new minor number for the new device. */
 	mutex_lock(&binderfs_minors_mutex);
