@@ -671,21 +671,18 @@ __init void e820__reallocate_tables(void)
 	int size;
 
 	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry)*e820_table->nr_entries;
-	n = kmalloc(size, GFP_KERNEL);
+	n = kmemdup(e820_table, size, GFP_KERNEL);
 	BUG_ON(!n);
-	memcpy(n, e820_table, size);
 	e820_table = n;
 
 	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry)*e820_table_kexec->nr_entries;
-	n = kmalloc(size, GFP_KERNEL);
+	n = kmemdup(e820_table_kexec, size, GFP_KERNEL);
 	BUG_ON(!n);
-	memcpy(n, e820_table_kexec, size);
 	e820_table_kexec = n;
 
 	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry)*e820_table_firmware->nr_entries;
-	n = kmalloc(size, GFP_KERNEL);
+	n = kmemdup(e820_table_firmware, size, GFP_KERNEL);
 	BUG_ON(!n);
-	memcpy(n, e820_table_firmware, size);
 	e820_table_firmware = n;
 }
 
