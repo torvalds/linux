@@ -7,6 +7,9 @@
  * Author: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
+//////////////////////////////////////////////////////////////////////////////
+//
+// Controlling CPU stall warnings, including delay calculation.
 
 /* panic() on RCU Stall sysctl. */
 int sysctl_panic_on_rcu_stall __read_mostly;
@@ -17,6 +20,7 @@ int sysctl_panic_on_rcu_stall __read_mostly;
 #define RCU_STALL_DELAY_DELTA	       0
 #endif
 
+/* Limit-check stall timeouts specified at boottime and runtime. */
 int rcu_jiffies_till_stall_check(void)
 {
 	int till_stall_check = READ_ONCE(rcu_cpu_stall_timeout);
@@ -36,6 +40,7 @@ int rcu_jiffies_till_stall_check(void)
 }
 EXPORT_SYMBOL_GPL(rcu_jiffies_till_stall_check);
 
+/* Don't do RCU CPU stall warnings during long sysrq printouts. */
 void rcu_sysrq_start(void)
 {
 	if (!rcu_cpu_stall_suppress)
@@ -48,6 +53,7 @@ void rcu_sysrq_end(void)
 		rcu_cpu_stall_suppress = 0;
 }
 
+/* Don't print RCU CPU stall warnings during a kernel panic. */
 static int rcu_panic(struct notifier_block *this, unsigned long ev, void *ptr)
 {
 	rcu_cpu_stall_suppress = 1;
@@ -64,6 +70,78 @@ static int __init check_cpu_stall_init(void)
 	return 0;
 }
 early_initcall(check_cpu_stall_init);
+
+/* If so specified via sysctl, panic, yielding cleaner stall-warning output. */
+static void panic_on_rcu_stall(void)
+{
+	if (sysctl_panic_on_rcu_stall)
+		panic("RCU Stall\n");
+}
+
+/**
+ * rcu_cpu_stall_reset - prevent further stall warnings in current grace period
+ *
+ * Set the stall-warning timeout way off into the future, thus preventing
+ * any RCU CPU stall-warning messages from appearing in the current set of
+ * RCU grace periods.
+ *
+ * The caller must disable hard irqs.
+ */
+void rcu_cpu_stall_reset(void)
+{
+	WRITE_ONCE(rcu_state.jiffies_stall, jiffies + ULONG_MAX / 2);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Interaction with RCU grace periods
+
+/* Start of new grace period, so record stall time (and forcing times). */
+static void record_gp_stall_check_time(void)
+{
+	unsigned long j = jiffies;
+	unsigned long j1;
+
+	rcu_state.gp_start = j;
+	j1 = rcu_jiffies_till_stall_check();
+	/* Record ->gp_start before ->jiffies_stall. */
+	smp_store_release(&rcu_state.jiffies_stall, j + j1); /* ^^^ */
+	rcu_state.jiffies_resched = j + j1 / 2;
+	rcu_state.n_force_qs_gpstart = READ_ONCE(rcu_state.n_force_qs);
+}
+
+/* Zero ->ticks_this_gp and snapshot the number of RCU softirq handlers. */
+static void zero_cpu_stall_ticks(struct rcu_data *rdp)
+{
+	rdp->ticks_this_gp = 0;
+	rdp->softirq_snap = kstat_softirqs_cpu(RCU_SOFTIRQ, smp_processor_id());
+	WRITE_ONCE(rdp->last_fqs_resched, jiffies);
+}
+
+/*
+ * If too much time has passed in the current grace period, and if
+ * so configured, go kick the relevant kthreads.
+ */
+static void rcu_stall_kick_kthreads(void)
+{
+	unsigned long j;
+
+	if (!rcu_kick_kthreads)
+		return;
+	j = READ_ONCE(rcu_state.jiffies_kick_kthreads);
+	if (time_after(jiffies, j) && rcu_state.gp_kthread &&
+	    (rcu_gp_in_progress() || READ_ONCE(rcu_state.gp_flags))) {
+		WARN_ONCE(1, "Kicking %s grace-period kthread\n",
+			  rcu_state.name);
+		rcu_ftrace_dump(DUMP_ALL);
+		wake_up_process(rcu_state.gp_kthread);
+		WRITE_ONCE(rcu_state.jiffies_kick_kthreads, j + HZ);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Printing RCU CPU stall warnings
 
 #ifdef CONFIG_PREEMPT
 
@@ -137,43 +215,6 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 }
 #endif /* #else #ifdef CONFIG_PREEMPT */
 
-static void record_gp_stall_check_time(void)
-{
-	unsigned long j = jiffies;
-	unsigned long j1;
-
-	rcu_state.gp_start = j;
-	j1 = rcu_jiffies_till_stall_check();
-	/* Record ->gp_start before ->jiffies_stall. */
-	smp_store_release(&rcu_state.jiffies_stall, j + j1); /* ^^^ */
-	rcu_state.jiffies_resched = j + j1 / 2;
-	rcu_state.n_force_qs_gpstart = READ_ONCE(rcu_state.n_force_qs);
-}
-
-/*
- * Complain about starvation of grace-period kthread.
- */
-static void rcu_check_gp_kthread_starvation(void)
-{
-	struct task_struct *gpk = rcu_state.gp_kthread;
-	unsigned long j;
-
-	j = jiffies - READ_ONCE(rcu_state.gp_activity);
-	if (j > 2 * HZ) {
-		pr_err("%s kthread starved for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx ->cpu=%d\n",
-		       rcu_state.name, j,
-		       (long)rcu_seq_current(&rcu_state.gp_seq),
-		       READ_ONCE(rcu_state.gp_flags),
-		       gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
-		       gpk ? gpk->state : ~0, gpk ? task_cpu(gpk) : -1);
-		if (gpk) {
-			pr_err("RCU grace-period kthread stack dump:\n");
-			sched_show_task(gpk);
-			wake_up_process(gpk);
-		}
-	}
-}
-
 /*
  * Dump stacks of all tasks running on stalled CPUs.  First try using
  * NMIs, but fall back to manual remote stack tracing on architectures
@@ -194,33 +235,6 @@ static void rcu_dump_cpu_stacks(void)
 					dump_cpu_task(cpu);
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
-}
-
-/*
- * If too much time has passed in the current grace period, and if
- * so configured, go kick the relevant kthreads.
- */
-static void rcu_stall_kick_kthreads(void)
-{
-	unsigned long j;
-
-	if (!rcu_kick_kthreads)
-		return;
-	j = READ_ONCE(rcu_state.jiffies_kick_kthreads);
-	if (time_after(jiffies, j) && rcu_state.gp_kthread &&
-	    (rcu_gp_in_progress() || READ_ONCE(rcu_state.gp_flags))) {
-		WARN_ONCE(1, "Kicking %s grace-period kthread\n",
-			  rcu_state.name);
-		rcu_ftrace_dump(DUMP_ALL);
-		wake_up_process(rcu_state.gp_kthread);
-		WRITE_ONCE(rcu_state.jiffies_kick_kthreads, j + HZ);
-	}
-}
-
-static void panic_on_rcu_stall(void)
-{
-	if (sysctl_panic_on_rcu_stall)
-		panic("RCU Stall\n");
 }
 
 #ifdef CONFIG_RCU_FAST_NO_HZ
@@ -295,12 +309,26 @@ static void print_cpu_stall_info(int cpu)
 	       fast_no_hz);
 }
 
-/* Zero ->ticks_this_gp and snapshot the number of RCU softirq handlers. */
-static void zero_cpu_stall_ticks(struct rcu_data *rdp)
+/* Complain about starvation of grace-period kthread.  */
+static void rcu_check_gp_kthread_starvation(void)
 {
-	rdp->ticks_this_gp = 0;
-	rdp->softirq_snap = kstat_softirqs_cpu(RCU_SOFTIRQ, smp_processor_id());
-	WRITE_ONCE(rdp->last_fqs_resched, jiffies);
+	struct task_struct *gpk = rcu_state.gp_kthread;
+	unsigned long j;
+
+	j = jiffies - READ_ONCE(rcu_state.gp_activity);
+	if (j > 2 * HZ) {
+		pr_err("%s kthread starved for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx ->cpu=%d\n",
+		       rcu_state.name, j,
+		       (long)rcu_seq_current(&rcu_state.gp_seq),
+		       READ_ONCE(rcu_state.gp_flags),
+		       gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
+		       gpk ? gpk->state : ~0, gpk ? task_cpu(gpk) : -1);
+		if (gpk) {
+			pr_err("RCU grace-period kthread stack dump:\n");
+			sched_show_task(gpk);
+			wake_up_process(gpk);
+		}
+	}
 }
 
 static void print_other_cpu_stall(unsigned long gp_seq)
@@ -487,18 +515,4 @@ static void check_cpu_stall(struct rcu_data *rdp)
 		/* They had a few time units to dump stack, so complain. */
 		print_other_cpu_stall(gs2);
 	}
-}
-
-/**
- * rcu_cpu_stall_reset - prevent further stall warnings in current grace period
- *
- * Set the stall-warning timeout way off into the future, thus preventing
- * any RCU CPU stall-warning messages from appearing in the current set of
- * RCU grace periods.
- *
- * The caller must disable hard irqs.
- */
-void rcu_cpu_stall_reset(void)
-{
-	WRITE_ONCE(rcu_state.jiffies_stall, jiffies + ULONG_MAX / 2);
 }

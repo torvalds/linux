@@ -442,6 +442,5 @@ static void rcu_dynticks_task_enter(void);
 static void rcu_dynticks_task_exit(void);
 
 /* Forward declarations for tree_stall.h */
-static int rcu_print_task_stall(struct rcu_node *rnp);
 static void record_gp_stall_check_time(void);
 static void check_cpu_stall(struct rcu_data *rdp);
