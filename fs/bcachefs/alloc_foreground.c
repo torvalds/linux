@@ -289,6 +289,7 @@ out:
 	ob->valid	= true;
 	ob->sectors_free = ca->mi.bucket_size;
 	ob->ptr		= (struct bch_extent_ptr) {
+		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
 		.gen	= buckets->b[bucket].mark.gen,
 		.offset	= bucket_to_sector(ca, bucket),
 		.dev	= ca->dev_idx,
