@@ -2026,7 +2026,6 @@ static void relink_to_local(struct snd_pcm_substream *substream)
 
 static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_substream *s;
 	struct snd_pcm_group *group;
 	int res = 0;
 
@@ -2043,10 +2042,9 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 
 	/* detach the last stream, too */
 	if (list_is_singular(&group->substreams)) {
-		snd_pcm_group_for_each_entry(s, substream) {
-			relink_to_local(s);
-			break;
-		}
+		relink_to_local(list_first_entry(&group->substreams,
+						 struct snd_pcm_substream,
+						 link_list));
 		kfree(group);
 	}
 
