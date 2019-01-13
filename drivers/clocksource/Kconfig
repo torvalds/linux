@@ -360,6 +360,16 @@ config ARM64_ERRATUM_858921
 	  The workaround will be dynamically enabled when an affected
 	  core is detected.
 
+config SUN50I_ERRATUM_UNKNOWN1
+	bool "Workaround for Allwinner A64 erratum UNKNOWN1"
+	default y
+	depends on ARM_ARCH_TIMER && ARM64 && ARCH_SUNXI
+	select ARM_ARCH_TIMER_OOL_WORKAROUND
+	help
+	  This option enables a workaround for instability in the timer on
+	  the Allwinner A64 SoC. The workaround will only be active if the
+	  allwinner,erratum-unknown1 property is found in the timer node.
+
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST
 	select TIMER_OF if OF
