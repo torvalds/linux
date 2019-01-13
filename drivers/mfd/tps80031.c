@@ -30,7 +30,6 @@
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps80031.h>
-#include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -516,40 +515,18 @@ fail_client_reg:
 	return ret;
 }
 
-static int tps80031_remove(struct i2c_client *client)
-{
-	struct tps80031 *tps80031 = i2c_get_clientdata(client);
-	int i;
-
-	if (tps80031_power_off_dev == tps80031) {
-		tps80031_power_off_dev = NULL;
-		pm_power_off = NULL;
-	}
-
-	mfd_remove_devices(tps80031->dev);
-
-	regmap_del_irq_chip(client->irq, tps80031->irq_data);
-
-	for (i = 0; i < TPS80031_NUM_SLAVES; i++) {
-		if (tps80031->clients[i] != client)
-			i2c_unregister_device(tps80031->clients[i]);
-	}
-	return 0;
-}
-
 static const struct i2c_device_id tps80031_id_table[] = {
 	{ "tps80031", TPS80031 },
 	{ "tps80032", TPS80032 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, tps80031_id_table);
 
 static struct i2c_driver tps80031_driver = {
 	.driver	= {
-		.name	= "tps80031",
+		.name			= "tps80031",
+		.suppress_bind_attrs	= true,
 	},
 	.probe		= tps80031_probe,
-	.remove		= tps80031_remove,
 	.id_table	= tps80031_id_table,
 };
 
@@ -558,13 +535,3 @@ static int __init tps80031_init(void)
 	return i2c_add_driver(&tps80031_driver);
 }
 subsys_initcall(tps80031_init);
-
-static void __exit tps80031_exit(void)
-{
-	i2c_del_driver(&tps80031_driver);
-}
-module_exit(tps80031_exit);
-
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("TPS80031 core driver");
-MODULE_LICENSE("GPL v2");
