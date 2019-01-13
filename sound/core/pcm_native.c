@@ -1938,13 +1938,19 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream)
 static bool is_pcm_file(struct file *file)
 {
 	struct inode *inode = file_inode(file);
+	struct snd_pcm *pcm;
 	unsigned int minor;
 
 	if (!S_ISCHR(inode->i_mode) || imajor(inode) != snd_major)
 		return false;
 	minor = iminor(inode);
-	return snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_PLAYBACK) ||
-		snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_CAPTURE);
+	pcm = snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
+	if (!pcm)
+		pcm = snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_CAPTURE);
+	if (!pcm)
+		return false;
+	snd_card_unref(pcm->card);
+	return true;
 }
 
 /*
@@ -1999,7 +2005,6 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	write_unlock_irq(&snd_pcm_link_rwlock);
 	up_write(&snd_pcm_link_rwsem);
  _nolock:
-	snd_card_unref(substream1->pcm->card);
 	kfree(group);
  _badf:
 	fdput(f);
