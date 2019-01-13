@@ -671,6 +671,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	for (i = 0, j = 0; i < tcount; i++) {
 		if (template[i].np)
 			continue;
+		if (enc && template[i].novrfy)
+			continue;
 
 		j++;
 
@@ -785,6 +787,9 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			break;
 
 		if (!template[i].np)
+			continue;
+
+		if (enc && template[i].novrfy)
 			continue;
 
 		j++;
