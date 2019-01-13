@@ -439,7 +439,6 @@ struct snd_pcm_group {		/* keep linked substreams */
 	spinlock_t lock;
 	struct mutex mutex;
 	struct list_head substreams;
-	int count;
 };
 
 struct pid;
