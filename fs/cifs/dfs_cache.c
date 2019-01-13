@@ -776,6 +776,7 @@ static int get_tgt_list(const struct dfs_cache_entry *ce,
 		it->it_name = kstrndup(t->t_name, strlen(t->t_name),
 				       GFP_KERNEL);
 		if (!it->it_name) {
+			kfree(it);
 			rc = -ENOMEM;
 			goto err_free_it;
 		}
