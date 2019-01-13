@@ -367,6 +367,7 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 
 	set_btree_node_accessed(b);
 	set_btree_node_dirty(b);
+	set_btree_node_need_write(b);
 
 	bch2_bset_init_first(b, &b->data->keys);
 	memset(&b->nr, 0, sizeof(b->nr));
@@ -655,6 +656,12 @@ retry:
 		closure_wait(&btree_current_write(b)->wait, cl);
 
 		list_del(&as->write_blocked_list);
+
+		/*
+		 * for flush_held_btree_writes() waiting on updates to flush or
+		 * nodes to be writeable:
+		 */
+		closure_wake_up(&c->btree_interior_update_wait);
 		mutex_unlock(&c->btree_interior_update_lock);
 
 		/*
@@ -958,6 +965,12 @@ void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 	list_for_each_entry_safe(p, n, &b->write_blocked, write_blocked_list) {
 		list_del(&p->write_blocked_list);
 		btree_update_reparent(as, p);
+
+		/*
+		 * for flush_held_btree_writes() waiting on updates to flush or
+		 * nodes to be writeable:
+		 */
+		closure_wake_up(&c->btree_interior_update_wait);
 	}
 
 	clear_btree_node_dirty(b);

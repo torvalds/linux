@@ -11,7 +11,6 @@
  */
 
 #include "btree_iter.h"
-#include "btree_io.h"
 #include "six.h"
 
 /* matches six lock types */

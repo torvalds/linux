@@ -1330,8 +1330,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		if (!(old & (1 << BTREE_NODE_dirty)))
 			return;
 
-		if (b->written &&
-		    !btree_node_may_write(b))
+		if (!btree_node_may_write(b))
 			return;
 
 		if (old & (1 << BTREE_NODE_write_in_flight)) {
@@ -1347,7 +1346,6 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	} while (cmpxchg_acquire(&b->flags, old, new) != old);
 
 	BUG_ON(btree_node_fake(b));
-	BUG_ON(!list_empty(&b->write_blocked));
 	BUG_ON((b->will_make_reachable != 0) != !b->written);
 
 	BUG_ON(b->written >= c->opts.btree_node_size);
@@ -1685,15 +1683,13 @@ ssize_t bch2_dirty_btree_nodes_print(struct bch_fs *c, char *buf)
 		unsigned long flags = READ_ONCE(b->flags);
 		unsigned idx = (flags & (1 << BTREE_NODE_write_idx)) != 0;
 
-		if (//!(flags & (1 << BTREE_NODE_dirty)) &&
-		    !b->writes[0].wait.list.first &&
-		    !b->writes[1].wait.list.first &&
-		    !(b->will_make_reachable & 1))
+		if (!(flags & (1 << BTREE_NODE_dirty)))
 			continue;
 
-		pr_buf(&out, "%p d %u l %u w %u b %u r %u:%lu c %u p %u\n",
+		pr_buf(&out, "%p d %u n %u l %u w %u b %u r %u:%lu c %u p %u\n",
 		       b,
 		       (flags & (1 << BTREE_NODE_dirty)) != 0,
+		       (flags & (1 << BTREE_NODE_need_write)) != 0,
 		       b->level,
 		       b->written,
 		       !list_empty_careful(&b->write_blocked),

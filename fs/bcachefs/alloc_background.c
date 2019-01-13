@@ -347,11 +347,13 @@ err:
 	return ret;
 }
 
-int bch2_alloc_write(struct bch_fs *c)
+int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
 {
 	struct bch_dev *ca;
 	unsigned i;
 	int ret = 0;
+
+	*wrote = false;
 
 	for_each_rw_member(ca, c, i) {
 		struct btree_iter iter;
@@ -370,9 +372,14 @@ int bch2_alloc_write(struct bch_fs *c)
 			if (!buckets->b[b].mark.dirty)
 				continue;
 
-			ret = __bch2_alloc_write_key(c, ca, b, &iter, NULL, 0);
+			ret = __bch2_alloc_write_key(c, ca, b, &iter, NULL,
+						     nowait
+						     ? BTREE_INSERT_NOWAIT
+						     : 0);
 			if (ret)
 				break;
+
+			*wrote = true;
 		}
 		up_read(&ca->bucket_lock);
 		bch2_btree_iter_unlock(&iter);
@@ -1270,20 +1277,23 @@ static void flush_held_btree_writes(struct bch_fs *c)
 	struct bucket_table *tbl;
 	struct rhash_head *pos;
 	struct btree *b;
-	bool flush_updates;
-	size_t i, nr_pending_updates;
+	bool nodes_blocked;
+	size_t i;
+	struct closure cl;
+
+	closure_init_stack(&cl);
 
 	clear_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
 again:
 	pr_debug("flushing dirty btree nodes");
 	cond_resched();
+	closure_wait(&c->btree_interior_update_wait, &cl);
 
-	flush_updates = false;
-	nr_pending_updates = bch2_btree_interior_updates_nr_pending(c);
+	nodes_blocked = false;
 
 	rcu_read_lock();
 	for_each_cached_btree(b, c, tbl, i, pos)
-		if (btree_node_dirty(b) && (!b->written || b->level)) {
+		if (btree_node_need_write(b)) {
 			if (btree_node_may_write(b)) {
 				rcu_read_unlock();
 				btree_node_lock_type(c, b, SIX_LOCK_read);
@@ -1291,7 +1301,7 @@ again:
 				six_unlock_read(&b->lock);
 				goto again;
 			} else {
-				flush_updates = true;
+				nodes_blocked = true;
 			}
 		}
 	rcu_read_unlock();
@@ -1299,17 +1309,16 @@ again:
 	if (c->btree_roots_dirty)
 		bch2_journal_meta(&c->journal);
 
-	/*
-	 * This is ugly, but it's needed to flush btree node writes
-	 * without spinning...
-	 */
-	if (flush_updates) {
-		closure_wait_event(&c->btree_interior_update_wait,
-				   bch2_btree_interior_updates_nr_pending(c) <
-				   nr_pending_updates);
+	if (nodes_blocked) {
+		closure_sync(&cl);
 		goto again;
 	}
 
+	closure_wake_up(&c->btree_interior_update_wait);
+	closure_sync(&cl);
+
+	closure_wait_event(&c->btree_interior_update_wait,
+			   !bch2_btree_interior_updates_nr_pending(c));
 }
 
 static void allocator_start_issue_discards(struct bch_fs *c)
@@ -1331,13 +1340,10 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 	unsigned dev_iter;
 	u64 journal_seq = 0;
 	long bu;
-	bool invalidating_data = false;
 	int ret = 0;
 
-	if (test_alloc_startup(c)) {
-		invalidating_data = true;
+	if (test_alloc_startup(c))
 		goto not_enough;
-	}
 
 	/* Scan for buckets that are already invalidated: */
 	for_each_rw_member(ca, c, dev_iter) {
@@ -1384,21 +1390,6 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 not_enough:
 	pr_debug("not enough empty buckets; scanning for reclaimable buckets");
 
-	for_each_rw_member(ca, c, dev_iter) {
-		find_reclaimable_buckets(c, ca);
-
-		while (!fifo_full(&ca->free[RESERVE_BTREE]) &&
-		       (bu = next_alloc_bucket(ca)) >= 0) {
-			invalidating_data |=
-				bch2_invalidate_one_bucket(c, ca, bu, &journal_seq);
-
-			fifo_push(&ca->free[RESERVE_BTREE], bu);
-			bucket_set_dirty(ca, bu);
-		}
-	}
-
-	pr_debug("done scanning for reclaimable buckets");
-
 	/*
 	 * We're moving buckets to freelists _before_ they've been marked as
 	 * invalidated on disk - we have to so that we can allocate new btree
@@ -1408,38 +1399,59 @@ not_enough:
 	 * have cached data in them, which is live until they're marked as
 	 * invalidated on disk:
 	 */
-	if (invalidating_data) {
-		pr_debug("invalidating existing data");
-		set_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
-	} else {
-		pr_debug("issuing discards");
-		allocator_start_issue_discards(c);
+	set_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
+
+	while (1) {
+		bool wrote = false;
+
+		for_each_rw_member(ca, c, dev_iter) {
+			find_reclaimable_buckets(c, ca);
+
+			while (!fifo_full(&ca->free[RESERVE_BTREE]) &&
+			       (bu = next_alloc_bucket(ca)) >= 0) {
+				bch2_invalidate_one_bucket(c, ca, bu,
+							   &journal_seq);
+
+				fifo_push(&ca->free[RESERVE_BTREE], bu);
+				bucket_set_dirty(ca, bu);
+			}
+		}
+
+		pr_debug("done scanning for reclaimable buckets");
+
+		/*
+		 * XXX: it's possible for this to deadlock waiting on journal reclaim,
+		 * since we're holding btree writes. What then?
+		 */
+		ret = bch2_alloc_write(c, true, &wrote);
+
+		/*
+		 * If bch2_alloc_write() did anything, it may have used some
+		 * buckets, and we need the RESERVE_BTREE freelist full - so we
+		 * need to loop and scan again.
+		 * And if it errored, it may have been because there weren't
+		 * enough buckets, so just scan and loop again as long as it
+		 * made some progress:
+		 */
+		if (!wrote && ret)
+			return ret;
+		if (!wrote && !ret)
+			break;
 	}
 
-	/*
-	 * XXX: it's possible for this to deadlock waiting on journal reclaim,
-	 * since we're holding btree writes. What then?
-	 */
-	ret = bch2_alloc_write(c);
+	pr_debug("flushing journal");
+
+	ret = bch2_journal_flush(&c->journal);
 	if (ret)
 		return ret;
 
-	if (invalidating_data) {
-		pr_debug("flushing journal");
-
-		ret = bch2_journal_flush_seq(&c->journal, journal_seq);
-		if (ret)
-			return ret;
-
-		pr_debug("issuing discards");
-		allocator_start_issue_discards(c);
-	}
+	pr_debug("issuing discards");
+	allocator_start_issue_discards(c);
 
 	set_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags);
 
 	/* now flush dirty btree nodes: */
-	if (invalidating_data)
-		flush_held_btree_writes(c);
+	flush_held_btree_writes(c);
 
 	return 0;
 }
@@ -1448,6 +1460,7 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned i;
+	bool wrote;
 	int ret;
 
 	down_read(&c->gc_lock);
@@ -1465,7 +1478,7 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 		}
 	}
 
-	return bch2_alloc_write(c);
+	return bch2_alloc_write(c, false, &wrote);
 }
 
 void bch2_fs_allocator_background_init(struct bch_fs *c)

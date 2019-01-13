@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_BTREE_ITER_H
 #define _BCACHEFS_BTREE_ITER_H
 
+#include "bset.h"
 #include "btree_types.h"
 
 static inline void btree_iter_set_dirty(struct btree_iter *iter,

@@ -25,9 +25,6 @@
 #include "eytzinger.h"
 #include "util.h"
 
-#define simple_strtoint(c, end, base)	simple_strtol(c, end, base)
-#define simple_strtouint(c, end, base)	simple_strtoul(c, end, base)
-
 static const char si_units[] = "?kMGTPEZY";
 
 static int __bch2_strtoh(const char *cp, u64 *res,

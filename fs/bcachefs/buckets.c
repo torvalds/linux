@@ -1038,7 +1038,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	size_t reserve_none	= max_t(size_t, 1, nbuckets >> 9);
 	size_t copygc_reserve	= max_t(size_t, 2, nbuckets >> 7);
 	size_t free_inc_nr	= max(max_t(size_t, 1, nbuckets >> 12),
-				      btree_reserve);
+				      btree_reserve * 2);
 	bool resize = ca->buckets[0] != NULL,
 	     start_copygc = ca->copygc_thread != NULL;
 	int ret = -ENOMEM;

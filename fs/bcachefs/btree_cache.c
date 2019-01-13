@@ -171,6 +171,10 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 	if (!btree_node_may_write(b))
 		goto out_unlock;
 
+	if (btree_node_dirty(b) &&
+	    test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
+		goto out_unlock;
+
 	if (btree_node_dirty(b) ||
 	    btree_node_write_in_flight(b) ||
 	    btree_node_read_in_flight(b)) {
