@@ -16,7 +16,7 @@
 
 struct channel_list {
 	u8      channel[32];
-	u8      Len;
+	u8      len;
 };
 
 static struct channel_list channel_array[] = {
@@ -62,10 +62,10 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
 
 	ieee->bGlobalDomain = false;
 
-	if (channel_array[channel_plan].Len != 0) {
+	if (channel_array[channel_plan].len != 0) {
 		memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
 		       sizeof(GET_DOT11D_INFO(ieee)->channel_map));
-		for (i = 0; i < channel_array[channel_plan].Len; i++) {
+		for (i = 0; i < channel_array[channel_plan].len; i++) {
 			if (channel_array[channel_plan].channel[i] < min_chan ||
 			    channel_array[channel_plan].channel[i] > max_chan)
 				break;
