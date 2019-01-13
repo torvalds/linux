@@ -1,5 +1,5 @@
 /*
- * tps65910.c  --  TI TPS6591x
+ * tps65910.c  --  TI TPS6591x chip family multi-function driver
  *
  * Copyright 2010 Texas Instruments Inc.
  *
@@ -13,8 +13,6 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -374,7 +372,6 @@ static const struct of_device_id tps65910_of_match[] = {
 	{ .compatible = "ti,tps65911", .data = (void *)TPS65911},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, tps65910_of_match);
 
 static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 						unsigned long *chip_id)
@@ -527,8 +524,6 @@ static const struct i2c_device_id tps65910_i2c_id[] = {
        { "tps65911", TPS65911 },
        { }
 };
-MODULE_DEVICE_TABLE(i2c, tps65910_i2c_id);
-
 
 static struct i2c_driver tps65910_i2c_driver = {
 	.driver = {
@@ -545,14 +540,3 @@ static int __init tps65910_i2c_init(void)
 }
 /* init early so consumer devices can complete system boot */
 subsys_initcall(tps65910_i2c_init);
-
-static void __exit tps65910_i2c_exit(void)
-{
-	i2c_del_driver(&tps65910_i2c_driver);
-}
-module_exit(tps65910_i2c_exit);
-
-MODULE_AUTHOR("Graeme Gregory <gg@slimlogic.co.uk>");
-MODULE_AUTHOR("Jorge Eduardo Candelaria <jedu@slimlogic.co.uk>");
-MODULE_DESCRIPTION("TPS6591x chip family multi-function driver");
-MODULE_LICENSE("GPL");
