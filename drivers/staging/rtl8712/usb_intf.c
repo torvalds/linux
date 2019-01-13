@@ -232,13 +232,6 @@ static int r871x_resume(struct usb_interface *pusb_intf)
 	rtl871x_intf_resume(padapter);
 	return 0;
 }
-
-static int r871x_reset_resume(struct usb_interface *pusb_intf)
-{
-	/* dummy routine */
-	return 0;
-}
-
 #endif
 
 static struct drv_priv drvpriv = {
@@ -249,7 +242,6 @@ static struct drv_priv drvpriv = {
 #ifdef CONFIG_PM
 	.r871xu_drv.suspend = r871x_suspend,
 	.r871xu_drv.resume = r871x_resume,
-	.r871xu_drv.reset_resume = r871x_reset_resume,
 #endif
 };
 
