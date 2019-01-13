@@ -143,9 +143,12 @@ int usb_choose_configuration(struct usb_device *udev)
 			continue;
 		}
 
-		if (i > 0 && desc && is_audio(desc) && is_uac3_config(desc)) {
-			best = c;
-			break;
+		if (i > 0 && desc && is_audio(desc)) {
+			if (is_uac3_config(desc)) {
+				best = c;
+				break;
+			}
+			continue;
 		}
 
 		/* From the remaining configs, choose the first one whose
