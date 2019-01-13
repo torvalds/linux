@@ -1199,7 +1199,8 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 		if (nla_put_string(skb, NFTA_CHAIN_TYPE, basechain->type->name))
 			goto nla_put_failure;
 
-		if (basechain->stats && nft_dump_stats(skb, basechain->stats))
+		if (rcu_access_pointer(basechain->stats) &&
+		    nft_dump_stats(skb, rcu_dereference(basechain->stats)))
 			goto nla_put_failure;
 	}
 
@@ -1375,7 +1376,8 @@ static struct nft_stats __percpu *nft_stats_alloc(const struct nlattr *attr)
 	return newstats;
 }
 
-static void nft_chain_stats_replace(struct nft_base_chain *chain,
+static void nft_chain_stats_replace(struct net *net,
+				    struct nft_base_chain *chain,
 				    struct nft_stats __percpu *newstats)
 {
 	struct nft_stats __percpu *oldstats;
@@ -1383,8 +1385,9 @@ static void nft_chain_stats_replace(struct nft_base_chain *chain,
 	if (newstats == NULL)
 		return;
 
-	if (chain->stats) {
-		oldstats = nfnl_dereference(chain->stats, NFNL_SUBSYS_NFTABLES);
+	if (rcu_access_pointer(chain->stats)) {
+		oldstats = rcu_dereference_protected(chain->stats,
+					lockdep_commit_lock_is_held(net));
 		rcu_assign_pointer(chain->stats, newstats);
 		synchronize_rcu();
 		free_percpu(oldstats);
@@ -1421,9 +1424,10 @@ static void nf_tables_chain_destroy(struct nft_ctx *ctx)
 		struct nft_base_chain *basechain = nft_base_chain(chain);
 
 		module_put(basechain->type->owner);
-		free_percpu(basechain->stats);
-		if (basechain->stats)
+		if (rcu_access_pointer(basechain->stats)) {
 			static_branch_dec(&nft_counters_enabled);
+			free_percpu(rcu_dereference_raw(basechain->stats));
+		}
 		kfree(chain->name);
 		kfree(basechain);
 	} else {
@@ -1572,7 +1576,7 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 				kfree(basechain);
 				return PTR_ERR(stats);
 			}
-			basechain->stats = stats;
+			rcu_assign_pointer(basechain->stats, stats);
 			static_branch_inc(&nft_counters_enabled);
 		}
 
@@ -6145,7 +6149,8 @@ static void nft_chain_commit_update(struct nft_trans *trans)
 		return;
 
 	basechain = nft_base_chain(trans->ctx.chain);
-	nft_chain_stats_replace(basechain, nft_trans_chain_stats(trans));
+	nft_chain_stats_replace(trans->ctx.net, basechain,
+				nft_trans_chain_stats(trans));
 
 	switch (nft_trans_chain_policy(trans)) {
 	case NF_DROP:
