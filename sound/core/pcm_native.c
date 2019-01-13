@@ -1131,6 +1131,13 @@ static int snd_pcm_action_single(const struct action_ops *ops,
 	return res;
 }
 
+static void snd_pcm_group_assign(struct snd_pcm_substream *substream,
+				 struct snd_pcm_group *new_group)
+{
+	substream->group = new_group;
+	list_move(&substream->link_list, &new_group->substreams);
+}
+
 /*
  *  Note: call with stream lock
  */
@@ -1998,14 +2005,10 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 		goto _end;
 	}
 	if (!snd_pcm_stream_linked(substream)) {
-		substream->group = group;
+		snd_pcm_group_assign(substream, group);
 		group = NULL;
-		list_add_tail(&substream->link_list, &substream->group->substreams);
-		substream->group->count = 1;
 	}
-	list_add_tail(&substream1->link_list, &substream->group->substreams);
-	substream->group->count++;
-	substream1->group = substream->group;
+	snd_pcm_group_assign(substream1, substream->group);
  _end:
 	write_unlock_irq(&snd_pcm_link_rwlock);
 	up_write(&snd_pcm_link_rwsem);
@@ -2018,14 +2021,13 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 
 static void relink_to_local(struct snd_pcm_substream *substream)
 {
-	substream->group = &substream->self_group;
-	INIT_LIST_HEAD(&substream->self_group.substreams);
-	list_add_tail(&substream->link_list, &substream->self_group.substreams);
+	snd_pcm_group_assign(substream, &substream->self_group);
 }
 
 static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_substream *s;
+	struct snd_pcm_group *group;
 	int res = 0;
 
 	down_write_nonfifo(&snd_pcm_link_rwsem);
@@ -2034,16 +2036,20 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 		res = -EALREADY;
 		goto _end;
 	}
-	list_del(&substream->link_list);
-	substream->group->count--;
-	if (substream->group->count == 1) {	/* detach the last stream, too */
+
+	group = substream->group;
+
+	relink_to_local(substream);
+
+	/* detach the last stream, too */
+	if (list_is_singular(&group->substreams)) {
 		snd_pcm_group_for_each_entry(s, substream) {
 			relink_to_local(s);
 			break;
 		}
-		kfree(substream->group);
+		kfree(group);
 	}
-	relink_to_local(substream);
+
        _end:
 	write_unlock_irq(&snd_pcm_link_rwlock);
 	up_write(&snd_pcm_link_rwsem);
