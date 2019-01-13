@@ -100,6 +100,13 @@ static inline void down_write_nonfifo(struct rw_semaphore *lock)
 		msleep(1);
 }
 
+void snd_pcm_group_init(struct snd_pcm_group *group)
+{
+	spin_lock_init(&group->lock);
+	mutex_init(&group->mutex);
+	INIT_LIST_HEAD(&group->substreams);
+}
+
 #define PCM_LOCK_DEFAULT	0
 #define PCM_LOCK_IRQ	1
 #define PCM_LOCK_IRQSAVE	2
@@ -1972,11 +1979,12 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	}
 	pcm_file = f.file->private_data;
 	substream1 = pcm_file->substream;
-	group = kmalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group) {
 		res = -ENOMEM;
 		goto _nolock;
 	}
+	snd_pcm_group_init(group);
 	down_write_nonfifo(&snd_pcm_link_rwsem);
 	write_lock_irq(&snd_pcm_link_rwlock);
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN ||
@@ -1992,9 +2000,6 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	if (!snd_pcm_stream_linked(substream)) {
 		substream->group = group;
 		group = NULL;
-		spin_lock_init(&substream->group->lock);
-		mutex_init(&substream->group->mutex);
-		INIT_LIST_HEAD(&substream->group->substreams);
 		list_add_tail(&substream->link_list, &substream->group->substreams);
 		substream->group->count = 1;
 	}
