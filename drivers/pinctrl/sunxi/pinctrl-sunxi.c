@@ -698,7 +698,9 @@ static int sunxi_pmx_request(struct pinctrl_dev *pctldev, unsigned offset)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned short bank = offset / PINS_PER_BANK;
-	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank];
+	unsigned short bank_offset = bank - pctl->desc->pin_base /
+					    PINS_PER_BANK;
+	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank_offset];
 	struct regulator *reg = s_reg->regulator;
 	char supply[16];
 	int ret;
@@ -738,7 +740,9 @@ static int sunxi_pmx_free(struct pinctrl_dev *pctldev, unsigned offset)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned short bank = offset / PINS_PER_BANK;
-	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank];
+	unsigned short bank_offset = bank - pctl->desc->pin_base /
+					    PINS_PER_BANK;
+	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank_offset];
 
 	if (!refcount_dec_and_test(&s_reg->refcount))
 		return 0;
