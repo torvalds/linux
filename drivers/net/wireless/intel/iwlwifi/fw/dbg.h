@@ -162,9 +162,9 @@ iwl_fw_dbg_trigger_stop_conf_match(struct iwl_fw_runtime *fwrt,
 }
 
 static inline bool
-iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt, u32 id, u32 dis_ms)
+iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt, u32 id, u32 dis_usec)
 {
-	unsigned long wind_jiff = msecs_to_jiffies(dis_ms);
+	unsigned long wind_jiff = usecs_to_jiffies(dis_usec);
 
 	/* If this is the first event checked, jump to update start ts */
 	if (fwrt->dump.non_collect_ts_start[id] &&
@@ -181,11 +181,12 @@ iwl_fw_dbg_trigger_check_stop(struct iwl_fw_runtime *fwrt,
 			      struct wireless_dev *wdev,
 			      struct iwl_fw_dbg_trigger_tlv *trig)
 {
+	u32 usec = le16_to_cpu(trig->trig_dis_ms) * USEC_PER_MSEC;
+
 	if (wdev && !iwl_fw_dbg_trigger_vif_match(trig, wdev))
 		return false;
 
-	if (iwl_fw_dbg_no_trig_window(fwrt, le32_to_cpu(trig->id),
-				      le16_to_cpu(trig->trig_dis_ms))) {
+	if (iwl_fw_dbg_no_trig_window(fwrt, le32_to_cpu(trig->id), usec)) {
 		IWL_WARN(fwrt, "Trigger %d occurred while no-collect window.\n",
 			 trig->id);
 		return false;
@@ -222,36 +223,28 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 })
 
 static inline bool
-_iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
-		       const enum iwl_fw_dbg_trigger id)
+iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
+		      enum iwl_fw_ini_trigger_id id)
 {
-	struct iwl_fw_ini_active_triggers *active =
-		&fwrt->dump.active_trigs[id];
-	u32 ms;
+	struct iwl_fw_ini_trigger *trig;
+	u32 usec;
 
-	if (!fwrt->trans->ini_valid)
+
+
+	if (!fwrt->trans->ini_valid || id >= IWL_FW_TRIGGER_ID_NUM ||
+	    !fwrt->dump.active_trigs[id].active)
 		return false;
 
-	if (!active->active)
-		return false;
+	trig = fwrt->dump.active_trigs[id].trig;
+	usec = le32_to_cpu(trig->ignore_consec);
 
-	ms = le32_to_cpu(active->trig->ignore_consec);
-	if (ms)
-		ms /= USEC_PER_MSEC;
-
-	if (iwl_fw_dbg_no_trig_window(fwrt, id, ms)) {
+	if (iwl_fw_dbg_no_trig_window(fwrt, id, usec)) {
 		IWL_WARN(fwrt, "Trigger %d fired in no-collect window\n", id);
 		return false;
 	}
 
 	return true;
 }
-
-#define iwl_fw_ini_trigger_on(fwrt, wdev, id) ({		\
-	BUILD_BUG_ON(!__builtin_constant_p(id));		\
-	BUILD_BUG_ON((id) >= IWL_FW_TRIGGER_ID_NUM);		\
-	_iwl_fw_ini_trigger_on((fwrt), (wdev), (id));		\
-})
 
 static inline void
 _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
