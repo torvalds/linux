@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
@@ -68,15 +68,6 @@ static int wm831x_i2c_probe(struct i2c_client *i2c,
 	return wm831x_device_init(wm831x, i2c->irq);
 }
 
-static int wm831x_i2c_remove(struct i2c_client *i2c)
-{
-	struct wm831x *wm831x = i2c_get_clientdata(i2c);
-
-	wm831x_device_exit(wm831x);
-
-	return 0;
-}
-
 static int wm831x_i2c_suspend(struct device *dev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(dev);
@@ -103,7 +94,6 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8326", WM8326 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);
 
 static const struct dev_pm_ops wm831x_pm_ops = {
 	.suspend = wm831x_i2c_suspend,
@@ -115,9 +105,9 @@ static struct i2c_driver wm831x_i2c_driver = {
 		.name = "wm831x",
 		.pm = &wm831x_pm_ops,
 		.of_match_table = of_match_ptr(wm831x_of_match),
+		.suppress_bind_attrs = true,
 	},
 	.probe = wm831x_i2c_probe,
-	.remove = wm831x_i2c_remove,
 	.id_table = wm831x_i2c_id,
 };
 
@@ -132,9 +122,3 @@ static int __init wm831x_i2c_init(void)
 	return ret;
 }
 subsys_initcall(wm831x_i2c_init);
-
-static void __exit wm831x_i2c_exit(void)
-{
-	i2c_del_driver(&wm831x_i2c_driver);
-}
-module_exit(wm831x_i2c_exit);
