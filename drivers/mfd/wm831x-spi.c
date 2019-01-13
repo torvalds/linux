@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm.h>
@@ -67,15 +67,6 @@ static int wm831x_spi_probe(struct spi_device *spi)
 	return wm831x_device_init(wm831x, spi->irq);
 }
 
-static int wm831x_spi_remove(struct spi_device *spi)
-{
-	struct wm831x *wm831x = spi_get_drvdata(spi);
-
-	wm831x_device_exit(wm831x);
-
-	return 0;
-}
-
 static int wm831x_spi_suspend(struct device *dev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(dev);
@@ -108,17 +99,16 @@ static const struct spi_device_id wm831x_spi_ids[] = {
 	{ "wm8326", WM8326 },
 	{ },
 };
-MODULE_DEVICE_TABLE(spi, wm831x_spi_ids);
 
 static struct spi_driver wm831x_spi_driver = {
 	.driver = {
 		.name	= "wm831x",
 		.pm	= &wm831x_spi_pm,
 		.of_match_table = of_match_ptr(wm831x_of_match),
+		.suppress_bind_attrs = true,
 	},
 	.id_table	= wm831x_spi_ids,
 	.probe		= wm831x_spi_probe,
-	.remove		= wm831x_spi_remove,
 };
 
 static int __init wm831x_spi_init(void)
@@ -132,13 +122,3 @@ static int __init wm831x_spi_init(void)
 	return 0;
 }
 subsys_initcall(wm831x_spi_init);
-
-static void __exit wm831x_spi_exit(void)
-{
-	spi_unregister_driver(&wm831x_spi_driver);
-}
-module_exit(wm831x_spi_exit);
-
-MODULE_DESCRIPTION("SPI support for WM831x/2x AudioPlus PMICs");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mark Brown");
