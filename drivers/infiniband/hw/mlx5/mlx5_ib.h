@@ -602,6 +602,12 @@ struct mlx5_ib_mw {
 	int			ndescs;
 };
 
+struct mlx5_ib_devx_mr {
+	struct mlx5_core_mkey	mmkey;
+	int			ndescs;
+	struct rcu_head		rcu;
+};
+
 struct mlx5_ib_umr_context {
 	struct ib_cqe		cqe;
 	enum ib_wc_status	status;
