@@ -90,6 +90,9 @@
 #define SOF_TKN_INTEL_DMIC_PDM_CLK_EDGE		705
 #define SOF_TKN_INTEL_DMIC_PDM_SKEW		706
 
+/* Tone */
+#define SOF_TKN_TONE_SAMPLE_RATE		800
+
 #define SOF_TKN_EFFECT_TYPE                     900
 
 #endif
