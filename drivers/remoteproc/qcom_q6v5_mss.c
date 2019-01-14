@@ -188,6 +188,7 @@ struct q6v5 {
 	bool has_alt_reset;
 	int mpss_perm;
 	int mba_perm;
+	const char *hexagon_mdt_image;
 	int version;
 };
 
@@ -860,17 +861,26 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	phys_addr_t min_addr = PHYS_ADDR_MAX;
 	phys_addr_t max_addr = 0;
 	bool relocate = false;
-	char seg_name[10];
+	char *fw_name;
+	size_t fw_name_len;
 	ssize_t offset;
 	size_t size = 0;
 	void *ptr;
 	int ret;
 	int i;
 
-	ret = request_firmware(&fw, "modem.mdt", qproc->dev);
+	fw_name_len = strlen(qproc->hexagon_mdt_image);
+	if (fw_name_len <= 4)
+		return -EINVAL;
+
+	fw_name = kstrdup(qproc->hexagon_mdt_image, GFP_KERNEL);
+	if (!fw_name)
+		return -ENOMEM;
+
+	ret = request_firmware(&fw, fw_name, qproc->dev);
 	if (ret < 0) {
-		dev_err(qproc->dev, "unable to load modem.mdt\n");
-		return ret;
+		dev_err(qproc->dev, "unable to load %s\n", fw_name);
+		goto out;
 	}
 
 	/* Initialize the RMB validator */
@@ -918,10 +928,11 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 		ptr = qproc->mpss_region + offset;
 
 		if (phdr->p_filesz) {
-			snprintf(seg_name, sizeof(seg_name), "modem.b%02d", i);
-			ret = request_firmware(&seg_fw, seg_name, qproc->dev);
+			/* Replace "xxx.xxx" with "xxx.bxx" */
+			sprintf(fw_name + fw_name_len - 3, "b%02d", i);
+			ret = request_firmware(&seg_fw, fw_name, qproc->dev);
 			if (ret) {
-				dev_err(qproc->dev, "failed to load %s\n", seg_name);
+				dev_err(qproc->dev, "failed to load %s\n", fw_name);
 				goto release_firmware;
 			}
 
@@ -960,6 +971,8 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 
 release_firmware:
 	release_firmware(fw);
+out:
+	kfree(fw_name);
 
 	return ret < 0 ? ret : 0;
 }
@@ -1075,9 +1088,10 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 	unsigned long i;
 	int ret;
 
-	ret = request_firmware(&fw, "modem.mdt", qproc->dev);
+	ret = request_firmware(&fw, qproc->hexagon_mdt_image, qproc->dev);
 	if (ret < 0) {
-		dev_err(qproc->dev, "unable to load modem.mdt\n");
+		dev_err(qproc->dev, "unable to load %s\n",
+			qproc->hexagon_mdt_image);
 		return ret;
 	}
 
@@ -1253,6 +1267,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	const struct rproc_hexagon_res *desc;
 	struct q6v5 *qproc;
 	struct rproc *rproc;
+	const char *mba_image;
 	int ret;
 
 	desc = of_device_get_match_data(&pdev->dev);
@@ -1262,8 +1277,14 @@ static int q6v5_probe(struct platform_device *pdev)
 	if (desc->need_mem_protection && !qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
+	mba_image = desc->hexagon_mba_image;
+	ret = of_property_read_string_index(pdev->dev.of_node, "firmware-name",
+					    0, &mba_image);
+	if (ret < 0 && ret != -EINVAL)
+		return ret;
+
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_ops,
-			    desc->hexagon_mba_image, sizeof(*qproc));
+			    mba_image, sizeof(*qproc));
 	if (!rproc) {
 		dev_err(&pdev->dev, "failed to allocate rproc\n");
 		return -ENOMEM;
@@ -1274,6 +1295,12 @@ static int q6v5_probe(struct platform_device *pdev)
 	qproc = (struct q6v5 *)rproc->priv;
 	qproc->dev = &pdev->dev;
 	qproc->rproc = rproc;
+	qproc->hexagon_mdt_image = "modem.mdt";
+	ret = of_property_read_string_index(pdev->dev.of_node, "firmware-name",
+					    1, &qproc->hexagon_mdt_image);
+	if (ret < 0 && ret != -EINVAL)
+		return ret;
+
 	platform_set_drvdata(pdev, qproc);
 
 	ret = q6v5_init_mem(qproc, pdev);
