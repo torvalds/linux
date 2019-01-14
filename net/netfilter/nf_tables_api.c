@@ -2610,6 +2610,9 @@ static int nft_table_validate(struct net *net, const struct nft_table *table)
 	return 0;
 }
 
+static struct nft_rule *nft_rule_lookup_byid(const struct net *net,
+					     const struct nlattr *nla);
+
 #define NFT_RULE_MAXEXPRS	128
 
 static int nf_tables_newrule(struct net *net, struct sock *nlsk,
@@ -2677,6 +2680,12 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 			old_rule = __nft_rule_lookup(chain, pos_handle);
 			if (IS_ERR(old_rule)) {
 				NL_SET_BAD_ATTR(extack, nla[NFTA_RULE_POSITION]);
+				return PTR_ERR(old_rule);
+			}
+		} else if (nla[NFTA_RULE_POSITION_ID]) {
+			old_rule = nft_rule_lookup_byid(net, nla[NFTA_RULE_POSITION_ID]);
+			if (IS_ERR(old_rule)) {
+				NL_SET_BAD_ATTR(extack, nla[NFTA_RULE_POSITION_ID]);
 				return PTR_ERR(old_rule);
 			}
 		}
