@@ -882,7 +882,7 @@ static int stop_nocpsch(struct device_queue_manager *dqm)
 }
 
 static int allocate_sdma_queue(struct device_queue_manager *dqm,
-				unsigned int *sdma_id)
+				struct queue *q)
 {
 	int bit;
 
@@ -891,7 +891,14 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 
 	bit = __ffs64(dqm->sdma_bitmap);
 	dqm->sdma_bitmap &= ~(1ULL << bit);
-	*sdma_id = bit;
+	q->sdma_id = bit;
+
+	q->properties.sdma_engine_id = q->sdma_id % get_num_sdma_engines(dqm);
+	q->properties.sdma_queue_id = q->sdma_id / get_num_sdma_engines(dqm);
+
+	pr_debug("SDMA id is:    %d\n", q->sdma_id);
+	pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);
+	pr_debug("SDMA queue id: %d\n", q->properties.sdma_queue_id);
 
 	return 0;
 }
@@ -913,20 +920,13 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 
 	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA];
 
-	retval = allocate_sdma_queue(dqm, &q->sdma_id);
+	retval = allocate_sdma_queue(dqm, q);
 	if (retval)
 		return retval;
-
-	q->properties.sdma_queue_id = q->sdma_id / get_num_sdma_engines(dqm);
-	q->properties.sdma_engine_id = q->sdma_id % get_num_sdma_engines(dqm);
 
 	retval = allocate_doorbell(qpd, q);
 	if (retval)
 		goto out_deallocate_sdma_queue;
-
-	pr_debug("SDMA id is:    %d\n", q->sdma_id);
-	pr_debug("SDMA queue id: %d\n", q->properties.sdma_queue_id);
-	pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);
 
 	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	retval = mqd_mgr->init_mqd(mqd_mgr, &q->mqd, &q->mqd_mem_obj,
@@ -1128,16 +1128,9 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	}
 
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
-		retval = allocate_sdma_queue(dqm, &q->sdma_id);
+		retval = allocate_sdma_queue(dqm, q);
 		if (retval)
 			goto out;
-		q->properties.sdma_queue_id =
-			q->sdma_id / get_num_sdma_engines(dqm);
-		q->properties.sdma_engine_id =
-			q->sdma_id % get_num_sdma_engines(dqm);
-		pr_debug("SDMA id is:    %d\n", q->sdma_id);
-		pr_debug("SDMA queue id: %d\n", q->properties.sdma_queue_id);
-		pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);
 	}
 
 	retval = allocate_doorbell(qpd, q);
