@@ -300,6 +300,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 
 	case '+':	/* deref memory */
 		arg++;	/* Skip '+', because kstrtol() rejects it. */
+		/* fall through */
 	case '-':
 		tmp = strchr(arg, '(');
 		if (!tmp)
