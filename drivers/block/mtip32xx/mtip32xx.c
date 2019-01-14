@@ -1415,7 +1415,7 @@ static blk_status_t mtip_send_trim(struct driver_data *dd, unsigned int lba,
 	WARN_ON(sizeof(struct mtip_trim) > ATA_SECT_SIZE);
 
 	/* Allocate a DMA buffer for the trim structure */
-	buf = dmam_alloc_coherent(&dd->pdev->dev, ATA_SECT_SIZE, &dma_addr,
+	buf = dma_alloc_coherent(&dd->pdev->dev, ATA_SECT_SIZE, &dma_addr,
 								GFP_KERNEL);
 	if (!buf)
 		return BLK_STS_RESOURCE;
@@ -1452,7 +1452,7 @@ static blk_status_t mtip_send_trim(struct driver_data *dd, unsigned int lba,
 					MTIP_TRIM_TIMEOUT_MS) < 0)
 		ret = BLK_STS_IOERR;
 
-	dmam_free_coherent(&dd->pdev->dev, ATA_SECT_SIZE, buf, dma_addr);
+	dma_free_coherent(&dd->pdev->dev, ATA_SECT_SIZE, buf, dma_addr);
 	return ret;
 }
 
@@ -1655,7 +1655,7 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 		if (!user_buffer)
 			return -EFAULT;
 
-		buf = dmam_alloc_coherent(&port->dd->pdev->dev,
+		buf = dma_alloc_coherent(&port->dd->pdev->dev,
 				ATA_SECT_SIZE * xfer_sz,
 				&dma_addr,
 				GFP_KERNEL);
@@ -1733,7 +1733,7 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 	}
 exit_drive_command:
 	if (buf)
-		dmam_free_coherent(&port->dd->pdev->dev,
+		dma_free_coherent(&port->dd->pdev->dev,
 				ATA_SECT_SIZE * xfer_sz, buf, dma_addr);
 	return rv;
 }
@@ -2837,11 +2837,11 @@ static void mtip_dma_free(struct driver_data *dd)
 	struct mtip_port *port = dd->port;
 
 	if (port->block1)
-		dmam_free_coherent(&dd->pdev->dev, BLOCK_DMA_ALLOC_SZ,
+		dma_free_coherent(&dd->pdev->dev, BLOCK_DMA_ALLOC_SZ,
 					port->block1, port->block1_dma);
 
 	if (port->command_list) {
-		dmam_free_coherent(&dd->pdev->dev, AHCI_CMD_TBL_SZ,
+		dma_free_coherent(&dd->pdev->dev, AHCI_CMD_TBL_SZ,
 				port->command_list, port->command_list_dma);
 	}
 }
@@ -2860,7 +2860,7 @@ static int mtip_dma_alloc(struct driver_data *dd)
 
 	/* Allocate dma memory for RX Fis, Identify, and Sector Bufffer */
 	port->block1 =
-		dmam_alloc_coherent(&dd->pdev->dev, BLOCK_DMA_ALLOC_SZ,
+		dma_alloc_coherent(&dd->pdev->dev, BLOCK_DMA_ALLOC_SZ,
 					&port->block1_dma, GFP_KERNEL);
 	if (!port->block1)
 		return -ENOMEM;
@@ -2868,10 +2868,10 @@ static int mtip_dma_alloc(struct driver_data *dd)
 
 	/* Allocate dma memory for command list */
 	port->command_list =
-		dmam_alloc_coherent(&dd->pdev->dev, AHCI_CMD_TBL_SZ,
+		dma_alloc_coherent(&dd->pdev->dev, AHCI_CMD_TBL_SZ,
 					&port->command_list_dma, GFP_KERNEL);
 	if (!port->command_list) {
-		dmam_free_coherent(&dd->pdev->dev, BLOCK_DMA_ALLOC_SZ,
+		dma_free_coherent(&dd->pdev->dev, BLOCK_DMA_ALLOC_SZ,
 					port->block1, port->block1_dma);
 		port->block1 = NULL;
 		port->block1_dma = 0;
@@ -3056,13 +3056,8 @@ static int mtip_hw_init(struct driver_data *dd)
 	mtip_start_port(dd->port);
 
 	/* Setup the ISR and enable interrupts. */
-	rv = devm_request_irq(&dd->pdev->dev,
-				dd->pdev->irq,
-				mtip_irq_handler,
-				IRQF_SHARED,
-				dev_driver_string(&dd->pdev->dev),
-				dd);
-
+	rv = request_irq(dd->pdev->irq, mtip_irq_handler, IRQF_SHARED,
+			 dev_driver_string(&dd->pdev->dev), dd);
 	if (rv) {
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate IRQ %d\n", dd->pdev->irq);
@@ -3090,7 +3085,7 @@ out3:
 
 	/* Release the IRQ. */
 	irq_set_affinity_hint(dd->pdev->irq, NULL);
-	devm_free_irq(&dd->pdev->dev, dd->pdev->irq, dd);
+	free_irq(dd->pdev->irq, dd);
 
 out2:
 	mtip_deinit_port(dd->port);
@@ -3145,7 +3140,7 @@ static int mtip_hw_exit(struct driver_data *dd)
 
 	/* Release the IRQ. */
 	irq_set_affinity_hint(dd->pdev->irq, NULL);
-	devm_free_irq(&dd->pdev->dev, dd->pdev->irq, dd);
+	free_irq(dd->pdev->irq, dd);
 	msleep(1000);
 
 	/* Free dma regions */
@@ -3609,8 +3604,8 @@ static void mtip_free_cmd(struct blk_mq_tag_set *set, struct request *rq,
 	if (!cmd->command)
 		return;
 
-	dmam_free_coherent(&dd->pdev->dev, CMD_DMA_ALLOC_SZ,
-				cmd->command, cmd->command_dma);
+	dma_free_coherent(&dd->pdev->dev, CMD_DMA_ALLOC_SZ, cmd->command,
+			  cmd->command_dma);
 }
 
 static int mtip_init_cmd(struct blk_mq_tag_set *set, struct request *rq,
@@ -3619,7 +3614,7 @@ static int mtip_init_cmd(struct blk_mq_tag_set *set, struct request *rq,
 	struct driver_data *dd = set->driver_data;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
-	cmd->command = dmam_alloc_coherent(&dd->pdev->dev, CMD_DMA_ALLOC_SZ,
+	cmd->command = dma_alloc_coherent(&dd->pdev->dev, CMD_DMA_ALLOC_SZ,
 			&cmd->command_dma, GFP_KERNEL);
 	if (!cmd->command)
 		return -ENOMEM;
