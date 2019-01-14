@@ -155,6 +155,11 @@ struct snd_sof_dsp_ops {
 	int (*load_firmware)(struct snd_sof_dev *sof_dev);
 	int (*load_module)(struct snd_sof_dev *sof_dev,
 			   struct snd_sof_mod_hdr *hdr);
+
+	/*
+	 * FW ready checks for ABI compatibility and creates
+	 * memory windows at first boot
+	 */
 	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id);
 
 	/* host DMA trace initialization */

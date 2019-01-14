@@ -381,7 +381,7 @@ static void ipc_msgs_rx(struct work_struct *work)
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct sof_ipc_cmd_hdr hdr;
 	u32 cmd, type;
-	int err = -EINVAL;
+	int err = 0;
 
 	/* read back header */
 	snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &hdr, sizeof(hdr));
@@ -398,17 +398,21 @@ static void ipc_msgs_rx(struct work_struct *work)
 	case SOF_IPC_FW_READY:
 		/* check for FW boot completion */
 		if (!sdev->boot_complete) {
-			if (sof_ops(sdev)->fw_ready)
-				err = sof_ops(sdev)->fw_ready(sdev, cmd);
+			err = sof_ops(sdev)->fw_ready(sdev, cmd);
 			if (err < 0) {
-				dev_err(sdev->dev, "error: DSP firmware boot timeout %d\n",
+				/*
+				 * this indicates a mismatch in ABI
+				 * between the driver and fw
+				 */
+				dev_err(sdev->dev, "error: ABI mismatch %d\n",
 					err);
 			} else {
 				/* firmware boot completed OK */
 				sdev->boot_complete = true;
-				dev_dbg(sdev->dev, "booting DSP firmware completed\n");
-				wake_up(&sdev->boot_wait);
 			}
+
+			/* wake up firmware loader */
+			wake_up(&sdev->boot_wait);
 		}
 		break;
 	case SOF_IPC_GLB_COMPOUND:

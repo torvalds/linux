@@ -320,7 +320,7 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	ret = wait_event_timeout(sdev->boot_wait, sdev->boot_complete,
 				 msecs_to_jiffies(sdev->boot_timeout));
 	if (ret == 0) {
-		dev_err(sdev->dev, "error: firmware boot timeout\n");
+		dev_err(sdev->dev, "error: firmware boot failure\n");
 		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX |
 			SOF_DBG_TEXT | SOF_DBG_PCI);
 		return -EIO;

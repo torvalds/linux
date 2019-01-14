@@ -353,6 +353,7 @@ static void ipc_get_windows(struct snd_sof_dev *sdev)
 		stream_offset, stream_size);
 }
 
+/* check for ABI compatibility and create memory windows on first boot */
 int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	struct sof_ipc_fw_ready *fw_ready = &sdev->fw_ready;

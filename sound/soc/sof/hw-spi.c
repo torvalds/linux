@@ -98,6 +98,7 @@ free:
 
 /*
  * IPC Firmware ready.
+ * TODO: check for ABI compatibility
  */
 static int spi_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 {
