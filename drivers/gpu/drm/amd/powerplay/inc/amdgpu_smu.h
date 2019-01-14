@@ -229,6 +229,11 @@ struct pptable_funcs {
 					      struct
 					      pp_clock_levels_with_latency
 					      *clocks);
+	int (*get_clock_by_type_with_voltage)(struct smu_context *smu,
+					      enum amd_pp_clock_type type,
+					      struct
+					      pp_clock_levels_with_voltage
+					      *clocks);
 };
 
 struct smu_funcs
@@ -386,6 +391,8 @@ struct smu_funcs
 	((smu)->funcs->get_max_high_clocks ? (smu)->funcs->get_max_high_clocks((smu), (clocks)) : 0)
 #define smu_get_clock_by_type_with_latency(smu, type, clocks) \
 	((smu)->ppt_funcs->get_clock_by_type_with_latency ? (smu)->ppt_funcs->get_clock_by_type_with_latency((smu), (type), (clocks)) : 0)
+#define smu_get_clock_by_type_with_voltage(smu, type, clocks) \
+	((smu)->ppt_funcs->get_clock_by_type_with_voltage ? (smu)->ppt_funcs->get_clock_by_type_with_voltage((smu), (type), (clocks)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,

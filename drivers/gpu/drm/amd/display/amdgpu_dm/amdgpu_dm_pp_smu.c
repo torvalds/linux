@@ -422,14 +422,20 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 	void *pp_handle = adev->powerplay.pp_handle;
 	struct pp_clock_levels_with_voltage pp_clk_info = {0};
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret;
 
-	if (!pp_funcs || !pp_funcs->get_clock_by_type_with_voltage)
-		return false;
-
-	if (pp_funcs->get_clock_by_type_with_voltage(pp_handle,
-						     dc_to_pp_clock_type(clk_type),
-						     &pp_clk_info))
-		return false;
+	if (pp_funcs && pp_funcs->get_clock_by_type_with_voltage) {
+		ret = pp_funcs->get_clock_by_type_with_voltage(pp_handle,
+						dc_to_pp_clock_type(clk_type),
+						&pp_clk_info);
+		if (ret)
+			return false;
+	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type_with_voltage) {
+		if (smu_get_clock_by_type_with_voltage(&adev->smu,
+						       dc_to_pp_clock_type(clk_type),
+						       &pp_clk_info))
+			return false;
+	}
 
 	pp_to_dc_clock_levels_with_voltage(&pp_clk_info, clk_level_info, clk_type);
 
