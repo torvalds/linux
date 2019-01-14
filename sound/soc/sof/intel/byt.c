@@ -333,7 +333,7 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-static int byt_is_ready(struct snd_sof_dev *sdev)
+static int byt_is_ipc_ready(struct snd_sof_dev *sdev)
 {
 	u64 ipcx;
 
@@ -615,7 +615,7 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.send_msg	= byt_send_msg,
 	.get_reply	= byt_get_reply,
 	.fw_ready	= byt_fw_ready,
-	.is_ready	= byt_is_ready,
+	.is_ipc_ready	= byt_is_ipc_ready,
 	.cmd_done	= byt_cmd_done,
 
 	/* debug */
@@ -777,7 +777,7 @@ const struct snd_sof_dsp_ops sof_byt_ops = {
 	.send_msg	= byt_send_msg,
 	.get_reply	= byt_get_reply,
 	.fw_ready	= byt_fw_ready,
-	.is_ready	= byt_is_ready,
+	.is_ipc_ready	= byt_is_ipc_ready,
 	.cmd_done	= byt_cmd_done,
 
 	/* debug */
@@ -834,7 +834,7 @@ const struct snd_sof_dsp_ops sof_cht_ops = {
 	.send_msg	= byt_send_msg,
 	.get_reply	= byt_get_reply,
 	.fw_ready	= byt_fw_ready,
-	.is_ready	= byt_is_ready,
+	.is_ipc_ready	= byt_is_ipc_ready,
 	.cmd_done	= byt_cmd_done,
 
 	/* debug */

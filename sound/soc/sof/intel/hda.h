@@ -466,7 +466,7 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 /*
  * DSP IPC Operations.
  */
-int hda_dsp_ipc_is_ready(struct snd_sof_dev *sdev);
+int hda_dsp_is_ipc_ready(struct snd_sof_dev *sdev);
 int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev,
 			 struct snd_sof_ipc_msg *msg);
 int hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev,

@@ -55,7 +55,7 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
 	return 0;
 }
 
-int hda_dsp_ipc_is_ready(struct snd_sof_dev *sdev)
+int hda_dsp_is_ipc_ready(struct snd_sof_dev *sdev)
 {
 	u64 busy, done;
 

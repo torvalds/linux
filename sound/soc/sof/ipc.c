@@ -271,7 +271,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	list_add_tail(&msg->list, &ipc->tx_list);
 
 	/* schedule the message if not busy */
-	if (snd_sof_dsp_is_ready(sdev))
+	if (snd_sof_dsp_is_ipc_ready(sdev))
 		snd_sof_ipc_msgs_tx(sdev);
 
 	spin_unlock_irq(&sdev->ipc_lock);
@@ -292,7 +292,7 @@ static void ipc_tx_next_msg(struct work_struct *work)
 	spin_lock_irq(&sdev->ipc_lock);
 
 	/* send message if HW ready and message in TX list */
-	if (!list_empty(&ipc->tx_list) && snd_sof_dsp_is_ready(sdev)) {
+	if (!list_empty(&ipc->tx_list) && snd_sof_dsp_is_ipc_ready(sdev)) {
 		/* send first message in TX list */
 		msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg,
 				       list);

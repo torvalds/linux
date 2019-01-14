@@ -147,7 +147,7 @@ static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
 	return 0;
 }
 
-static int cnl_ipc_is_ready(struct snd_sof_dev *sdev)
+static int cnl_is_ipc_ready(struct snd_sof_dev *sdev)
 {
 	u64 busy, done;
 
@@ -202,7 +202,7 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.send_msg	= cnl_ipc_send_msg,
 	.get_reply	= hda_dsp_ipc_get_reply,
 	.fw_ready	= hda_dsp_ipc_fw_ready,
-	.is_ready	= cnl_ipc_is_ready,
+	.is_ipc_ready	= cnl_is_ipc_ready,
 	.cmd_done	= cnl_ipc_cmd_done,
 
 	/* debug */

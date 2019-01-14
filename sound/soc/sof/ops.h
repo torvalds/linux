@@ -232,10 +232,10 @@ static inline int snd_sof_dsp_get_reply(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-static inline int snd_sof_dsp_is_ready(struct snd_sof_dev *sdev)
+static inline int snd_sof_dsp_is_ipc_ready(struct snd_sof_dev *sdev)
 {
-	if (sof_ops(sdev)->is_ready)
-		return sof_ops(sdev)->is_ready(sdev);
+	if (sof_ops(sdev)->is_ipc_ready)
+		return sof_ops(sdev)->is_ipc_ready(sdev);
 
 	return 0;
 }

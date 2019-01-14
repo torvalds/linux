@@ -52,7 +52,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.send_msg	= hda_dsp_ipc_send_msg,
 	.get_reply	= hda_dsp_ipc_get_reply,
 	.fw_ready	= hda_dsp_ipc_fw_ready,
-	.is_ready	= hda_dsp_ipc_is_ready,
+	.is_ipc_ready	= hda_dsp_is_ipc_ready,
 	.cmd_done	= hda_dsp_ipc_cmd_done,
 
 	/* debug */

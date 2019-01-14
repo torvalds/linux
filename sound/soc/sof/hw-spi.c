@@ -181,7 +181,7 @@ static irqreturn_t spi_irq_thread(int irq __maybe_unused, void *context __maybe_
 	return IRQ_HANDLED;
 }
 
-static int spi_is_ready(struct snd_sof_dev *sdev __maybe_unused)
+static int spi_is_ipc_ready(struct snd_sof_dev *sdev __maybe_unused)
 {
 	// use local variable to store DSP command state. either DSP is ready
 	// for new cmd or still processing current cmd.
@@ -300,7 +300,7 @@ const struct snd_sof_dsp_ops snd_sof_spi_ops = {
 	.send_msg	= spi_send_msg,
 	.get_reply	= spi_get_reply,
 	.fw_ready	= spi_fw_ready,
-	.is_ready	= spi_is_ready,
+	.is_ipc_ready	= spi_is_ipc_ready,
 	.cmd_done	= spi_cmd_done,
 
 	/* debug */
