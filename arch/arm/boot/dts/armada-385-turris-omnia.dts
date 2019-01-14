@@ -151,6 +151,80 @@
 				 * 	};
 				 */
 			};
+			
+		        /* Additional device: STM-32, address 0x2a, INT on 43. */
+			leds@2b {
+				compatible = "turris-leds,omnia";
+				reg = <0x2b>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led0 {
+					label = "user2";
+					reg = <0x0>;
+				};
+
+				led1 {
+					label = "user1";
+					reg = <0x1>;
+				};
+
+				led2 {
+					label = "pci3";
+					reg = <0x2>;
+				};
+
+				led3 {
+					label = "pci2";
+					reg = <0x3>;
+				};
+
+				led4 {
+					label = "pci1";
+					reg = <0x4>;
+				};
+
+				led5 {
+					label = "wan";
+					reg = <0x5>;
+				};
+
+				led6 {
+					label = "lan4";
+					reg = <0x6>;
+				};
+
+				led7 {
+					label = "lan3";
+					reg = <0x7>;
+				};
+
+				led8 {
+					label = "lan2";
+					reg = <0x8>;
+				};
+
+				led9 {
+					label = "lan1";
+					reg = <0x9>;
+				};
+
+				led10 {
+					label = "lan0";
+					reg = <0xa>;
+				};
+
+				led11 {
+					label = "power";
+					reg = <0xb>;
+				};
+
+				led12 {
+						label = "all";
+						reg = <0xc>;
+				};
+			};
+
 		};
 
 		i2c@1 {

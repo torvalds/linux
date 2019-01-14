@@ -601,6 +601,12 @@ config LEDS_LM355x
 	  This option enables support for LEDs connected to LM3554
 	  and LM3556. It includes Torch, Flash and Indicator functions.
 
+config LEDS_OMNIA
+        tristate "LED support for the Turris Omnia"
+        depends on LEDS_CLASS
+        help
+          This option enables support for the LEDs on the Turis Omnia.
+
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
 	depends on LEDS_CLASS && HAS_IOMEM && (X86_32 || COMPILE_TEST)
