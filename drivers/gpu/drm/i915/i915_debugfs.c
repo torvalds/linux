@@ -2699,6 +2699,9 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	if (!HAS_RUNTIME_PM(dev_priv))
 		seq_puts(m, "Runtime power management not supported\n");
 
+	seq_printf(m, "Runtime power status: %s\n",
+		   enableddisabled(!dev_priv->power_domains.wakeref));
+
 	seq_printf(m, "GPU idle: %s (epoch %u)\n",
 		   yesno(!dev_priv->gt.awake), dev_priv->gt.epoch);
 	seq_printf(m, "IRQs disabled: %s\n",
