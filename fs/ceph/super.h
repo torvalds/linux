@@ -107,10 +107,12 @@ struct ceph_fs_client {
 
 	/* writeback */
 	mempool_t *wb_pagevec_pool;
+	atomic_long_t writeback_count;
+
 	struct workqueue_struct *wb_wq;
 	struct workqueue_struct *pg_inv_wq;
 	struct workqueue_struct *trunc_wq;
-	atomic_long_t writeback_count;
+	struct workqueue_struct *cap_wq;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dentry_lru, *debugfs_caps;
@@ -988,11 +990,11 @@ extern void ceph_add_cap(struct inode *inode,
 			 unsigned cap, unsigned seq, u64 realmino, int flags,
 			 struct ceph_cap **new_cap);
 extern void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release);
+extern void __ceph_remove_caps(struct inode* inode);
 extern void ceph_put_cap(struct ceph_mds_client *mdsc,
 			 struct ceph_cap *cap);
 extern int ceph_is_any_caps(struct inode *inode);
 
-extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
 extern int ceph_fsync(struct file *file, loff_t start, loff_t end,
 		      int datasync);

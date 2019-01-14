@@ -537,7 +537,7 @@ void ceph_destroy_inode(struct inode *inode)
 
 	ceph_fscache_unregister_inode_cookie(ci);
 
-	ceph_queue_caps_release(inode);
+	__ceph_remove_caps(inode);
 
 	if (__ceph_has_any_quota(ci))
 		ceph_adjust_quota_realms_count(inode, false);
