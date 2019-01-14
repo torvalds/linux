@@ -93,6 +93,7 @@ enum pp_clock_type {
 	PP_MCLK,
 	PP_PCIE,
 	PP_SOCCLK,
+	PP_FCLK,
 	OD_SCLK,
 	OD_MCLK,
 	OD_VDDC_CURVE,
