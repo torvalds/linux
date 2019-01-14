@@ -226,9 +226,10 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		container_of(work, typeof(*dev_priv),
 			     hotplug.reenable_work.work);
 	struct drm_device *dev = &dev_priv->drm;
+	intel_wakeref_t wakeref;
 	enum hpd_pin pin;
 
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	for_each_hpd_pin(pin) {
@@ -261,7 +262,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 }
 
 bool intel_encoder_hotplug(struct intel_encoder *encoder,
