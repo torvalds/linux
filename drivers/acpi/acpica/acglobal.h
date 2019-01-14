@@ -164,6 +164,7 @@ ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_global_list);
 ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_ns_node_list);
 ACPI_GLOBAL(u8, acpi_gbl_display_final_mem_stats);
 ACPI_GLOBAL(u8, acpi_gbl_disable_mem_tracking);
+ACPI_GLOBAL(u8, acpi_gbl_verbose_leak_dump);
 #endif
 
 /*****************************************************************************

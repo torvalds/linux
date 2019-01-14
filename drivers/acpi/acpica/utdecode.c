@@ -284,7 +284,7 @@ const char *acpi_ut_get_node_name(void *object)
 
 static const char *acpi_gbl_desc_type_names[] = {
 	/* 00 */ "Not a Descriptor",
-	/* 01 */ "Cached",
+	/* 01 */ "Cached Object",
 	/* 02 */ "State-Generic",
 	/* 03 */ "State-Update",
 	/* 04 */ "State-Package",
@@ -295,10 +295,10 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 09 */ "State-Result",
 	/* 10 */ "State-Notify",
 	/* 11 */ "State-Thread",
-	/* 12 */ "Walk",
-	/* 13 */ "Parser",
-	/* 14 */ "Operand",
-	/* 15 */ "Node"
+	/* 12 */ "Tree Walk State",
+	/* 13 */ "Parse Tree Op",
+	/* 14 */ "Operand Object",
+	/* 15 */ "Namespace Node"
 };
 
 const char *acpi_ut_get_descriptor_name(void *object)
