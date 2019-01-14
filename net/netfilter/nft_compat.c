@@ -26,7 +26,7 @@
 struct nft_xt {
 	struct list_head	head;
 	struct nft_expr_ops	ops;
-	unsigned int		refcnt;
+	refcount_t		refcnt;
 
 	/* Unlike other expressions, ops doesn't have static storage duration.
 	 * nft core assumes they do.  We use kfree_rcu so that nft core can
@@ -45,7 +45,7 @@ struct nft_xt_match_priv {
 
 static bool nft_xt_put(struct nft_xt *xt)
 {
-	if (--xt->refcnt == 0) {
+	if (refcount_dec_and_test(&xt->refcnt)) {
 		list_del(&xt->head);
 		kfree_rcu(xt, rcu_head);
 		return true;
@@ -273,7 +273,7 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return -EINVAL;
 
 	nft_xt = container_of(expr->ops, struct nft_xt, ops);
-	nft_xt->refcnt++;
+	refcount_inc(&nft_xt->refcnt);
 	return 0;
 }
 
@@ -486,7 +486,7 @@ __nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return ret;
 
 	nft_xt = container_of(expr->ops, struct nft_xt, ops);
-	nft_xt->refcnt++;
+	refcount_inc(&nft_xt->refcnt);
 	return 0;
 }
 
@@ -789,7 +789,7 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nft_match->refcnt = 0;
+	refcount_set(&nft_match->refcnt, 0);
 	nft_match->ops.type = &nft_match_type;
 	nft_match->ops.eval = nft_match_eval;
 	nft_match->ops.init = nft_match_init;
@@ -893,7 +893,7 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nft_target->refcnt = 0;
+	refcount_set(&nft_target->refcnt, 0);
 	nft_target->ops.type = &nft_target_type;
 	nft_target->ops.size = NFT_EXPR_SIZE(XT_ALIGN(target->targetsize));
 	nft_target->ops.init = nft_target_init;
@@ -964,7 +964,7 @@ static void __exit nft_compat_module_exit(void)
 	list_for_each_entry_safe(xt, next, &nft_target_list, head) {
 		struct xt_target *target = xt->ops.data;
 
-		if (WARN_ON_ONCE(xt->refcnt))
+		if (WARN_ON_ONCE(refcount_read(&xt->refcnt)))
 			continue;
 		module_put(target->me);
 		kfree(xt);
@@ -973,7 +973,7 @@ static void __exit nft_compat_module_exit(void)
 	list_for_each_entry_safe(xt, next, &nft_match_list, head) {
 		struct xt_match *match = xt->ops.data;
 
-		if (WARN_ON_ONCE(xt->refcnt))
+		if (WARN_ON_ONCE(refcount_read(&xt->refcnt)))
 			continue;
 		module_put(match->me);
 		kfree(xt);
