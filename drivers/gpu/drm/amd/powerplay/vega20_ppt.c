@@ -782,6 +782,44 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 	return 0;
 }
 
+static int vega20_get_clock_by_type_with_latency(struct smu_context *smu,
+						 enum amd_pp_clock_type type,
+						 struct pp_clock_levels_with_latency *clocks)
+{
+	int ret;
+	struct vega20_single_dpm_table *single_dpm_table;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct vega20_dpm_table *dpm_table = NULL;
+
+	dpm_table = smu_dpm->dpm_context;
+
+	mutex_lock(&smu->mutex);
+
+	switch (type) {
+	case amd_pp_sys_clock:
+		single_dpm_table = &(dpm_table->gfx_table);
+		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
+		break;
+	case amd_pp_mem_clock:
+		single_dpm_table = &(dpm_table->mem_table);
+		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
+		break;
+	case amd_pp_dcef_clock:
+		single_dpm_table = &(dpm_table->dcef_table);
+		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
+		break;
+	case amd_pp_soc_clock:
+		single_dpm_table = &(dpm_table->soc_table);
+		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	mutex_unlock(&smu->mutex);
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -794,7 +832,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.populate_umd_state_clk = vega20_populate_umd_state_clk,
 	.print_clk_levels = vega20_print_clk_levels,
 	.force_clk_levels = vega20_force_clk_levels,
-
+	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

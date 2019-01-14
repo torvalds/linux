@@ -224,6 +224,11 @@ struct pptable_funcs {
 	int (*populate_umd_state_clk)(struct smu_context *smu);
 	int (*print_clk_levels)(struct smu_context *smu, enum pp_clock_type type, char *buf);
 	int (*force_clk_levels)(struct smu_context *smu, enum pp_clock_type type, uint32_t mask);
+	int (*get_clock_by_type_with_latency)(struct smu_context *smu,
+					      enum amd_pp_clock_type type,
+					      struct
+					      pp_clock_levels_with_latency
+					      *clocks);
 };
 
 struct smu_funcs
@@ -379,6 +384,9 @@ struct smu_funcs
 	((smu)->funcs->get_clock_by_type ? (smu)->funcs->get_clock_by_type((smu), (type), (clocks)) : 0)
 #define smu_get_max_high_clocks(smu, clocks) \
 	((smu)->funcs->get_max_high_clocks ? (smu)->funcs->get_max_high_clocks((smu), (clocks)) : 0)
+#define smu_get_clock_by_type_with_latency(smu, type, clocks) \
+	((smu)->ppt_funcs->get_clock_by_type_with_latency ? (smu)->ppt_funcs->get_clock_by_type_with_latency((smu), (type), (clocks)) : 0)
+
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

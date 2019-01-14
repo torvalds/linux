@@ -392,14 +392,21 @@ bool dm_pp_get_clock_levels_by_type_with_latency(
 	void *pp_handle = adev->powerplay.pp_handle;
 	struct pp_clock_levels_with_latency pp_clks = { 0 };
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret;
 
-	if (!pp_funcs || !pp_funcs->get_clock_by_type_with_latency)
-		return false;
+	if (pp_funcs && pp_funcs->get_clock_by_type_with_latency) {
+		ret = pp_funcs->get_clock_by_type_with_latency(pp_handle,
+						dc_to_pp_clock_type(clk_type),
+						&pp_clks);
+		if (ret)
+			return false;
+	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type_with_latency) {
+		if (smu_get_clock_by_type_with_latency(&adev->smu,
+						       dc_to_pp_clock_type(clk_type),
+						       &pp_clks))
+			return false;
+	}
 
-	if (pp_funcs->get_clock_by_type_with_latency(pp_handle,
-						     dc_to_pp_clock_type(clk_type),
-						     &pp_clks))
-		return false;
 
 	pp_to_dc_clock_levels_with_latency(&pp_clks, clk_level_info, clk_type);
 
