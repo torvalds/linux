@@ -179,6 +179,19 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	u32 div;
 
 	p_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
+
+	if (strstr(clk_hw_get_name(hw), "uart")) {
+		if (rate <= 24000000) {
+			*parent_rate = 24000000;
+		} else {
+			if (fd->max_prate)
+				*parent_rate = fd->max_prate;
+			else
+				*parent_rate = 480000000;
+		}
+		goto frac_ration;
+	}
+
 	if (((rate * 20 > p_rate) && (p_rate % rate != 0)) ||
 	    (fd->max_prate && fd->max_prate < p_rate)) {
 		p_parent = clk_hw_get_parent(clk_hw_get_parent(hw));
@@ -203,6 +216,7 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 		}
 	}
 
+frac_ration:
 	/*
 	 * Get rate closer to *parent_rate to guarantee there is no overflow
 	 * for m and n. In the result it will be the nearest rate left shifted
