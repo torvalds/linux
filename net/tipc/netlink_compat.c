@@ -762,8 +762,13 @@ static int tipc_nl_compat_link_set(struct tipc_nl_compat_cmd_doit *cmd,
 	struct tipc_link_config *lc;
 	struct tipc_bearer *bearer;
 	struct tipc_media *media;
+	int len;
 
 	lc = (struct tipc_link_config *)TLV_DATA(msg->req);
+
+	len = min_t(int, TLV_GET_DATA_LEN(msg->req), TIPC_MAX_LINK_NAME);
+	if (!string_is_valid(lc->name, len))
+		return -EINVAL;
 
 	media = tipc_media_find(lc->name);
 	if (media) {
