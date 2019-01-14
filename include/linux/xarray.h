@@ -496,7 +496,7 @@ static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
 }
 
 /**
- * xa_store_irq() - Erase this entry from the XArray.
+ * xa_store_irq() - Store this entry in the XArray.
  * @xa: XArray.
  * @index: Index into array.
  * @entry: New entry.
