@@ -88,6 +88,14 @@ enum flat_binder_object_flags {
 	 * scheduling policy from the caller (for synchronous transactions).
 	 */
 	FLAT_BINDER_FLAG_INHERIT_RT = 0x800,
+
+	/**
+	 * @FLAT_BINDER_FLAG_TXN_SECURITY_CTX: request security contexts
+	 *
+	 * Only when set, causes senders to include their security
+	 * context
+	 */
+	FLAT_BINDER_FLAG_TXN_SECURITY_CTX = 0x1000,
 };
 
 #ifdef BINDER_IPC_32BIT
@@ -265,6 +273,7 @@ struct binder_node_info_for_ref {
 #define BINDER_VERSION			_IOWR('b', 9, struct binder_version)
 #define BINDER_GET_NODE_DEBUG_INFO	_IOWR('b', 11, struct binder_node_debug_info)
 #define BINDER_GET_NODE_INFO_FOR_REF	_IOWR('b', 12, struct binder_node_info_for_ref)
+#define BINDER_SET_CONTEXT_MGR_EXT	_IOW('b', 13, struct flat_binder_object)
 
 /*
  * NOTE: Two special error codes you should check for when calling
@@ -323,6 +332,11 @@ struct binder_transaction_data {
 	} data;
 };
 
+struct binder_transaction_data_secctx {
+	struct binder_transaction_data transaction_data;
+	binder_uintptr_t secctx;
+};
+
 struct binder_transaction_data_sg {
 	struct binder_transaction_data transaction_data;
 	binder_size_t buffers_size;
@@ -358,6 +372,11 @@ enum binder_driver_return_protocol {
 	BR_OK = _IO('r', 1),
 	/* No parameters! */
 
+	BR_TRANSACTION_SEC_CTX = _IOR('r', 2,
+				      struct binder_transaction_data_secctx),
+	/*
+	 * binder_transaction_data_secctx: the received command.
+	 */
 	BR_TRANSACTION = _IOR('r', 2, struct binder_transaction_data),
 	BR_REPLY = _IOR('r', 3, struct binder_transaction_data),
 	/*
