@@ -3187,10 +3187,15 @@ static void nop_submit_request(struct i915_request *request)
 
 void i915_gem_set_wedged(struct drm_i915_private *i915)
 {
+	struct i915_gpu_error *error = &i915->gpu_error;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	GEM_TRACE("start\n");
+	mutex_lock(&error->wedge_mutex);
+	if (test_bit(I915_WEDGED, &error->flags)) {
+		mutex_unlock(&error->wedge_mutex);
+		return;
+	}
 
 	if (GEM_SHOW_DEBUG() && !intel_engines_are_idle(i915)) {
 		struct drm_printer p = drm_debug_printer(__func__);
@@ -3199,8 +3204,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 	}
 
-	if (test_and_set_bit(I915_WEDGED, &i915->gpu_error.flags))
-		goto out;
+	GEM_TRACE("start\n");
 
 	/*
 	 * First, stop submission to hw, but do not yet complete requests by
@@ -3236,22 +3240,30 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		intel_engine_wakeup(engine);
 	}
 
-out:
-	GEM_TRACE("end\n");
+	smp_mb__before_atomic();
+	set_bit(I915_WEDGED, &error->flags);
 
-	wake_up_all(&i915->gpu_error.reset_queue);
+	GEM_TRACE("end\n");
+	mutex_unlock(&error->wedge_mutex);
+
+	wake_up_all(&error->reset_queue);
 }
 
 bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 {
+	struct i915_gpu_error *error = &i915->gpu_error;
 	struct i915_timeline *tl;
+	bool ret = false;
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
-	if (!test_bit(I915_WEDGED, &i915->gpu_error.flags))
+
+	if (!test_bit(I915_WEDGED, &error->flags))
 		return true;
 
 	if (!i915->gt.scratch) /* Never full initialised, recovery impossible */
 		return false;
+
+	mutex_lock(&error->wedge_mutex);
 
 	GEM_TRACE("start\n");
 
@@ -3286,7 +3298,7 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 		 */
 		if (dma_fence_default_wait(&rq->fence, true,
 					   MAX_SCHEDULE_TIMEOUT) < 0)
-			return false;
+			goto unlock;
 	}
 	i915_retire_requests(i915);
 	GEM_BUG_ON(i915->gt.active_requests);
@@ -3309,8 +3321,11 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 
 	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
 	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
+	ret = true;
+unlock:
+	mutex_unlock(&i915->gpu_error.wedge_mutex);
 
-	return true;
+	return ret;
 }
 
 static void
@@ -5706,6 +5721,7 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 			  i915_gem_idle_work_handler);
 	init_waitqueue_head(&dev_priv->gpu_error.wait_queue);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
+	mutex_init(&dev_priv->gpu_error.wedge_mutex);
 
 	atomic_set(&dev_priv->mm.bsd_engine_dispatch_index, 0);
 

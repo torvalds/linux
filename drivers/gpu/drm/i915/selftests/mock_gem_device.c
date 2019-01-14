@@ -188,6 +188,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	init_waitqueue_head(&i915->gpu_error.wait_queue);
 	init_waitqueue_head(&i915->gpu_error.reset_queue);
+	mutex_init(&i915->gpu_error.wedge_mutex);
 
 	i915->wq = alloc_ordered_workqueue("mock", 0);
 	if (!i915->wq)
