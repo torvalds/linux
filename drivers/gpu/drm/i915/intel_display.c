@@ -9569,6 +9569,8 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
+
+	WARN_ON(*power_domain_mask & BIT_ULL(power_domain));
 	*power_domain_mask |= BIT_ULL(power_domain);
 
 	tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
@@ -9596,6 +9598,8 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 			continue;
+
+		WARN_ON(*power_domain_mask & BIT_ULL(power_domain));
 		*power_domain_mask |= BIT_ULL(power_domain);
 
 		/*
@@ -9712,7 +9716,9 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
 	if (intel_display_power_get_if_enabled(dev_priv, power_domain)) {
+		WARN_ON(power_domain_mask & BIT_ULL(power_domain));
 		power_domain_mask |= BIT_ULL(power_domain);
+
 		if (INTEL_GEN(dev_priv) >= 9)
 			skylake_get_pfit_config(crtc, pipe_config);
 		else
