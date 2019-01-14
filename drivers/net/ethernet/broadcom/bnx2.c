@@ -8793,13 +8793,6 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 	if (!(bp->flags & BNX2_FLAG_AER_ENABLED))
 		return result;
 
-	err = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (err) {
-		dev_err(&pdev->dev,
-			"pci_cleanup_aer_uncorrect_error_status failed 0x%0x\n",
-			 err); /* non-fatal, continue */
-	}
-
 	return result;
 }
 

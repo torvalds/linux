@@ -1904,13 +1904,13 @@ sub process_name($$) {
 	    ++$warnings;
 	}
 
-	if ($identifier =~ m/^struct/) {
+	if ($identifier =~ m/^struct\b/) {
 	    $decl_type = 'struct';
-	} elsif ($identifier =~ m/^union/) {
+	} elsif ($identifier =~ m/^union\b/) {
 	    $decl_type = 'union';
-	} elsif ($identifier =~ m/^enum/) {
+	} elsif ($identifier =~ m/^enum\b/) {
 	    $decl_type = 'enum';
-	} elsif ($identifier =~ m/^typedef/) {
+	} elsif ($identifier =~ m/^typedef\b/) {
 	    $decl_type = 'typedef';
 	} else {
 	    $decl_type = 'function';

@@ -3,7 +3,7 @@
 #include <linux/dma-debug.h>
 #include <linux/dmar.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
 

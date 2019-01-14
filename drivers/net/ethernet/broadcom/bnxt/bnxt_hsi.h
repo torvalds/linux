@@ -37,6 +37,8 @@ struct hwrm_resp_hdr {
 #define TLV_TYPE_HWRM_REQUEST                    0x1UL
 #define TLV_TYPE_HWRM_RESPONSE                   0x2UL
 #define TLV_TYPE_ROCE_SP_COMMAND                 0x3UL
+#define TLV_TYPE_QUERY_ROCE_CC_GEN1              0x4UL
+#define TLV_TYPE_MODIFY_ROCE_CC_GEN1             0x5UL
 #define TLV_TYPE_ENGINE_CKV_DEVICE_SERIAL_NUMBER 0x8001UL
 #define TLV_TYPE_ENGINE_CKV_NONCE                0x8002UL
 #define TLV_TYPE_ENGINE_CKV_IV                   0x8003UL
@@ -186,6 +188,7 @@ struct cmd_nums {
 	#define HWRM_TUNNEL_DST_PORT_QUERY                0xa0UL
 	#define HWRM_TUNNEL_DST_PORT_ALLOC                0xa1UL
 	#define HWRM_TUNNEL_DST_PORT_FREE                 0xa2UL
+	#define HWRM_STAT_CTX_ENG_QUERY                   0xafUL
 	#define HWRM_STAT_CTX_ALLOC                       0xb0UL
 	#define HWRM_STAT_CTX_FREE                        0xb1UL
 	#define HWRM_STAT_CTX_QUERY                       0xb2UL
@@ -235,6 +238,7 @@ struct cmd_nums {
 	#define HWRM_CFA_PAIR_INFO                        0x10fUL
 	#define HWRM_FW_IPC_MSG                           0x110UL
 	#define HWRM_CFA_REDIRECT_TUNNEL_TYPE_INFO        0x111UL
+	#define HWRM_CFA_REDIRECT_QUERY_TUNNEL_TYPE       0x112UL
 	#define HWRM_ENGINE_CKV_HELLO                     0x12dUL
 	#define HWRM_ENGINE_CKV_STATUS                    0x12eUL
 	#define HWRM_ENGINE_CKV_CKEK_ADD                  0x12fUL
@@ -295,6 +299,7 @@ struct cmd_nums {
 	#define HWRM_DBG_COREDUMP_RETRIEVE                0xff19UL
 	#define HWRM_DBG_FW_CLI                           0xff1aUL
 	#define HWRM_DBG_I2C_CMD                          0xff1bUL
+	#define HWRM_DBG_RING_INFO_GET                    0xff1cUL
 	#define HWRM_NVM_FACTORY_DEFAULTS                 0xffeeUL
 	#define HWRM_NVM_VALIDATE_OPTION                  0xffefUL
 	#define HWRM_NVM_FLUSH                            0xfff0UL
@@ -320,20 +325,21 @@ struct cmd_nums {
 /* ret_codes (size:64b/8B) */
 struct ret_codes {
 	__le16	error_code;
-	#define HWRM_ERR_CODE_SUCCESS                0x0UL
-	#define HWRM_ERR_CODE_FAIL                   0x1UL
-	#define HWRM_ERR_CODE_INVALID_PARAMS         0x2UL
-	#define HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED 0x3UL
-	#define HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR   0x4UL
-	#define HWRM_ERR_CODE_INVALID_FLAGS          0x5UL
-	#define HWRM_ERR_CODE_INVALID_ENABLES        0x6UL
-	#define HWRM_ERR_CODE_UNSUPPORTED_TLV        0x7UL
-	#define HWRM_ERR_CODE_NO_BUFFER              0x8UL
-	#define HWRM_ERR_CODE_UNSUPPORTED_OPTION_ERR 0x9UL
-	#define HWRM_ERR_CODE_HWRM_ERROR             0xfUL
-	#define HWRM_ERR_CODE_UNKNOWN_ERR            0xfffeUL
-	#define HWRM_ERR_CODE_CMD_NOT_SUPPORTED      0xffffUL
-	#define HWRM_ERR_CODE_LAST                  HWRM_ERR_CODE_CMD_NOT_SUPPORTED
+	#define HWRM_ERR_CODE_SUCCESS                   0x0UL
+	#define HWRM_ERR_CODE_FAIL                      0x1UL
+	#define HWRM_ERR_CODE_INVALID_PARAMS            0x2UL
+	#define HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED    0x3UL
+	#define HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR      0x4UL
+	#define HWRM_ERR_CODE_INVALID_FLAGS             0x5UL
+	#define HWRM_ERR_CODE_INVALID_ENABLES           0x6UL
+	#define HWRM_ERR_CODE_UNSUPPORTED_TLV           0x7UL
+	#define HWRM_ERR_CODE_NO_BUFFER                 0x8UL
+	#define HWRM_ERR_CODE_UNSUPPORTED_OPTION_ERR    0x9UL
+	#define HWRM_ERR_CODE_HWRM_ERROR                0xfUL
+	#define HWRM_ERR_CODE_TLV_ENCAPSULATED_RESPONSE 0x8000UL
+	#define HWRM_ERR_CODE_UNKNOWN_ERR               0xfffeUL
+	#define HWRM_ERR_CODE_CMD_NOT_SUPPORTED         0xffffUL
+	#define HWRM_ERR_CODE_LAST                     HWRM_ERR_CODE_CMD_NOT_SUPPORTED
 	__le16	unused_0[3];
 };
 
@@ -355,10 +361,10 @@ struct hwrm_err_output {
 #define HW_HASH_KEY_SIZE 40
 #define HWRM_RESP_VALID_KEY 1
 #define HWRM_VERSION_MAJOR 1
-#define HWRM_VERSION_MINOR 9
-#define HWRM_VERSION_UPDATE 2
-#define HWRM_VERSION_RSVD 25
-#define HWRM_VERSION_STR "1.9.2.25"
+#define HWRM_VERSION_MINOR 10
+#define HWRM_VERSION_UPDATE 0
+#define HWRM_VERSION_RSVD 3
+#define HWRM_VERSION_STR "1.10.0.3"
 
 /* hwrm_ver_get_input (size:192b/24B) */
 struct hwrm_ver_get_input {
@@ -396,10 +402,15 @@ struct hwrm_ver_get_output {
 	u8	netctrl_fw_bld_8b;
 	u8	netctrl_fw_rsvd_8b;
 	__le32	dev_caps_cfg;
-	#define VER_GET_RESP_DEV_CAPS_CFG_SECURE_FW_UPD_SUPPORTED     0x1UL
-	#define VER_GET_RESP_DEV_CAPS_CFG_FW_DCBX_AGENT_SUPPORTED     0x2UL
-	#define VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED         0x4UL
-	#define VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_REQUIRED          0x8UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_SECURE_FW_UPD_SUPPORTED                  0x1UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_FW_DCBX_AGENT_SUPPORTED                  0x2UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED                      0x4UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_REQUIRED                       0x8UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_KONG_MB_CHNL_SUPPORTED                   0x10UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_FLOW_HANDLE_64BIT_SUPPORTED              0x20UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_L2_FILTER_TYPES_ROCE_OR_L2_SUPPORTED     0x40UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_VIRTIO_VSWITCH_OFFLOAD_SUPPORTED         0x80UL
+	#define VER_GET_RESP_DEV_CAPS_CFG_TRUSTED_VF_SUPPORTED                     0x100UL
 	u8	roce_fw_maj_8b;
 	u8	roce_fw_min_8b;
 	u8	roce_fw_bld_8b;
@@ -528,6 +539,7 @@ struct hwrm_async_event_cmpl {
 	#define ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_NOT_ALLOWED 0x5UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE      0x6UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE        0x7UL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY               0x8UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_FUNC_DRVR_UNLOAD           0x10UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_FUNC_DRVR_LOAD             0x11UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_FUNC_FLR_PROC_CMPLT        0x12UL
@@ -539,6 +551,7 @@ struct hwrm_async_event_cmpl {
 	#define ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE              0x33UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_LLFC_PFC_CHANGE            0x34UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_DEFAULT_VNIC_CHANGE        0x35UL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_HW_FLOW_AGED               0x36UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR                 0xffUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_LAST                      ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR
 	__le32	event_data2;
@@ -652,10 +665,11 @@ struct hwrm_async_event_cmpl_vf_cfg_change {
 	u8	timestamp_lo;
 	__le16	timestamp_hi;
 	__le32	event_data1;
-	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_MTU_CHANGE               0x1UL
-	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_MRU_CHANGE               0x2UL
-	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_DFLT_MAC_ADDR_CHANGE     0x4UL
-	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_DFLT_VLAN_CHANGE         0x8UL
+	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_MTU_CHANGE                0x1UL
+	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_MRU_CHANGE                0x2UL
+	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_DFLT_MAC_ADDR_CHANGE      0x4UL
+	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_DFLT_VLAN_CHANGE          0x8UL
+	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_TRUSTED_VF_CFG_CHANGE     0x10UL
 };
 
 /* hwrm_func_reset_input (size:192b/24B) */
@@ -852,6 +866,7 @@ struct hwrm_func_qcaps_output {
 	#define FUNC_QCAPS_RESP_FLAGS_ADOPTED_PF_SUPPORTED            0x20000UL
 	#define FUNC_QCAPS_RESP_FLAGS_ADMIN_PF_SUPPORTED              0x40000UL
 	#define FUNC_QCAPS_RESP_FLAGS_LINK_ADMIN_STATUS_SUPPORTED     0x80000UL
+	#define FUNC_QCAPS_RESP_FLAGS_WCB_PUSH_MODE                   0x100000UL
 	u8	mac_address[6];
 	__le16	max_rsscos_ctx;
 	__le16	max_cmpl_rings;
@@ -903,6 +918,7 @@ struct hwrm_func_qcfg_output {
 	#define FUNC_QCFG_RESP_FLAGS_STD_TX_RING_MODE_ENABLED     0x8UL
 	#define FUNC_QCFG_RESP_FLAGS_FW_LLDP_AGENT_ENABLED        0x10UL
 	#define FUNC_QCFG_RESP_FLAGS_MULTI_HOST                   0x20UL
+	#define FUNC_QCFG_RESP_FLAGS_TRUSTED_VF                   0x40UL
 	u8	mac_address[6];
 	__le16	pci_id;
 	__le16	alloc_rsscos_ctx;
@@ -1014,6 +1030,7 @@ struct hwrm_func_cfg_input {
 	#define FUNC_CFG_REQ_FLAGS_STAT_CTX_ASSETS_TEST           0x40000UL
 	#define FUNC_CFG_REQ_FLAGS_VNIC_ASSETS_TEST               0x80000UL
 	#define FUNC_CFG_REQ_FLAGS_L2_CTX_ASSETS_TEST             0x100000UL
+	#define FUNC_CFG_REQ_FLAGS_TRUSTED_VF_ENABLE              0x200000UL
 	__le32	enables;
 	#define FUNC_CFG_REQ_ENABLES_MTU                     0x1UL
 	#define FUNC_CFG_REQ_ENABLES_MRU                     0x2UL
@@ -1214,9 +1231,10 @@ struct hwrm_func_drv_rgtr_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	flags;
-	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_ALL_MODE       0x1UL
-	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_NONE_MODE      0x2UL
-	#define FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE     0x4UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_ALL_MODE               0x1UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_NONE_MODE              0x2UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE             0x4UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_FLOW_HANDLE_64BIT_MODE     0x8UL
 	__le32	enables;
 	#define FUNC_DRV_RGTR_REQ_ENABLES_OS_TYPE             0x1UL
 	#define FUNC_DRV_RGTR_REQ_ENABLES_VER                 0x2UL
@@ -1416,7 +1434,9 @@ struct hwrm_func_resource_qcaps_output {
 	__le16	min_hw_ring_grps;
 	__le16	max_hw_ring_grps;
 	__le16	max_tx_scheduler_inputs;
-	u8	unused_0[7];
+	__le16	flags;
+	#define FUNC_RESOURCE_QCAPS_RESP_FLAGS_MIN_GUARANTEED     0x1UL
+	u8	unused_0[5];
 	u8	valid;
 };
 
@@ -1445,7 +1465,9 @@ struct hwrm_func_vf_resource_cfg_input {
 	__le16	max_stat_ctx;
 	__le16	min_hw_ring_grps;
 	__le16	max_hw_ring_grps;
-	u8	unused_0[4];
+	__le16	flags;
+	#define FUNC_VF_RESOURCE_CFG_REQ_FLAGS_MIN_GUARANTEED     0x1UL
+	u8	unused_0[2];
 };
 
 /* hwrm_func_vf_resource_cfg_output (size:256b/32B) */
@@ -1503,7 +1525,8 @@ struct hwrm_func_backing_store_qcaps_output {
 	__le16	mrav_entry_size;
 	__le16	tim_entry_size;
 	__le32	tim_max_entries;
-	u8	unused_0[3];
+	u8	unused_0[2];
+	u8	tqm_entries_multiple;
 	u8	valid;
 };
 
@@ -1917,6 +1940,7 @@ struct hwrm_port_phy_cfg_input {
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100GB 0x3e8UL
+	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_LAST PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10MB
 	u8	auto_mode;
@@ -1947,6 +1971,7 @@ struct hwrm_port_phy_cfg_input {
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_100GB 0x3e8UL
+	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_LAST PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_10MB
 	__le16	auto_link_speed_mask;
@@ -1964,6 +1989,7 @@ struct hwrm_port_phy_cfg_input {
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_100GB       0x800UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_10MBHD      0x1000UL
 	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_10MB        0x2000UL
+	#define PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_MASK_200GB       0x4000UL
 	u8	wirespeed;
 	#define PORT_PHY_CFG_REQ_WIRESPEED_OFF 0x0UL
 	#define PORT_PHY_CFG_REQ_WIRESPEED_ON  0x1UL
@@ -2048,6 +2074,7 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_QCFG_RESP_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_QCFG_RESP_LINK_SPEED_100GB 0x3e8UL
+	#define PORT_PHY_QCFG_RESP_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_QCFG_RESP_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_QCFG_RESP_LINK_SPEED_LAST PORT_PHY_QCFG_RESP_LINK_SPEED_10MB
 	u8	duplex_cfg;
@@ -2072,6 +2099,7 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_100GB       0x800UL
 	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_10MBHD      0x1000UL
 	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_10MB        0x2000UL
+	#define PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_200GB       0x4000UL
 	__le16	force_link_speed;
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_100MB 0x1UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_1GB   0xaUL
@@ -2083,6 +2111,7 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_100GB 0x3e8UL
+	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_LAST PORT_PHY_QCFG_RESP_FORCE_LINK_SPEED_10MB
 	u8	auto_mode;
@@ -2107,6 +2136,7 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_40GB  0x190UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_50GB  0x1f4UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_100GB 0x3e8UL
+	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_200GB 0x7d0UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_10MB  0xffffUL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_LAST PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_10MB
 	__le16	auto_link_speed_mask;
@@ -2124,6 +2154,7 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_100GB       0x800UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_10MBHD      0x1000UL
 	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_10MB        0x2000UL
+	#define PORT_PHY_QCFG_RESP_AUTO_LINK_SPEED_MASK_200GB       0x4000UL
 	u8	wirespeed;
 	#define PORT_PHY_QCFG_RESP_WIRESPEED_OFF 0x0UL
 	#define PORT_PHY_QCFG_RESP_WIRESPEED_ON  0x1UL
@@ -2178,7 +2209,11 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_PHY_TYPE_1G_BASET         0x19UL
 	#define PORT_PHY_QCFG_RESP_PHY_TYPE_1G_BASESX        0x1aUL
 	#define PORT_PHY_QCFG_RESP_PHY_TYPE_1G_BASECX        0x1bUL
-	#define PORT_PHY_QCFG_RESP_PHY_TYPE_LAST            PORT_PHY_QCFG_RESP_PHY_TYPE_1G_BASECX
+	#define PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASECR4     0x1cUL
+	#define PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASESR4     0x1dUL
+	#define PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASELR4     0x1eUL
+	#define PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASEER4     0x1fUL
+	#define PORT_PHY_QCFG_RESP_PHY_TYPE_LAST            PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASEER4
 	u8	media_type;
 	#define PORT_PHY_QCFG_RESP_MEDIA_TYPE_UNKNOWN 0x0UL
 	#define PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP      0x1UL
@@ -2644,7 +2679,8 @@ struct hwrm_port_qstats_ext_output {
 	__le16	tx_stat_size;
 	__le16	rx_stat_size;
 	__le16	total_active_cos_queues;
-	u8	unused_0;
+	u8	flags;
+	#define PORT_QSTATS_EXT_RESP_FLAGS_CLEAR_ROCE_COUNTERS_SUPPORTED     0x1UL
 	u8	valid;
 };
 
@@ -2685,7 +2721,9 @@ struct hwrm_port_clr_stats_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le16	port_id;
-	u8	unused_0[6];
+	u8	flags;
+	#define PORT_CLR_STATS_REQ_FLAGS_ROCE_COUNTERS     0x1UL
+	u8	unused_0[5];
 };
 
 /* hwrm_port_clr_stats_output (size:128b/16B) */
@@ -4574,7 +4612,9 @@ struct hwrm_ring_alloc_input {
 	#define RING_ALLOC_REQ_RING_TYPE_RX_AGG    0x4UL
 	#define RING_ALLOC_REQ_RING_TYPE_NQ        0x5UL
 	#define RING_ALLOC_REQ_RING_TYPE_LAST     RING_ALLOC_REQ_RING_TYPE_NQ
-	u8	unused_0[3];
+	u8	unused_0;
+	__le16	flags;
+	#define RING_ALLOC_REQ_FLAGS_RX_SOP_PAD     0x1UL
 	__le64	page_tbl_addr;
 	__le32	fbo;
 	u8	page_size;
@@ -4838,13 +4878,19 @@ struct hwrm_cfa_l2_filter_alloc_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	flags;
-	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH          0x1UL
-	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_TX         0x0UL
-	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_RX         0x1UL
-	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_LAST      CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_RX
-	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_LOOPBACK      0x2UL
-	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_DROP          0x4UL
-	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_OUTERMOST     0x8UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH              0x1UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_TX             0x0UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_RX             0x1UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_LAST          CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_RX
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_LOOPBACK          0x2UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_DROP              0x4UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_OUTERMOST         0x8UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_TRAFFIC_MASK      0x30UL
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_TRAFFIC_SFT       4
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_TRAFFIC_NO_ROCE_L2  (0x0UL << 4)
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_TRAFFIC_L2          (0x1UL << 4)
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_TRAFFIC_ROCE        (0x2UL << 4)
+	#define CFA_L2_FILTER_ALLOC_REQ_FLAGS_TRAFFIC_LAST       CFA_L2_FILTER_ALLOC_REQ_FLAGS_TRAFFIC_ROCE
 	__le32	enables;
 	#define CFA_L2_FILTER_ALLOC_REQ_ENABLES_L2_ADDR             0x1UL
 	#define CFA_L2_FILTER_ALLOC_REQ_ENABLES_L2_ADDR_MASK        0x2UL
@@ -4901,6 +4947,8 @@ struct hwrm_cfa_l2_filter_alloc_input {
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT       0x7UL
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE     0x8UL
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4  0x9UL
+	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE_V1  0xaUL
+	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_L2_ETYPE  0xbUL
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL 0xffUL
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_LAST     CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL
 	u8	unused_4;
@@ -4958,11 +5006,17 @@ struct hwrm_cfa_l2_filter_cfg_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	flags;
-	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH     0x1UL
-	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_TX    0x0UL
-	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_RX    0x1UL
-	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_LAST CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_RX
-	#define CFA_L2_FILTER_CFG_REQ_FLAGS_DROP     0x2UL
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH              0x1UL
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_TX             0x0UL
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_RX             0x1UL
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_LAST          CFA_L2_FILTER_CFG_REQ_FLAGS_PATH_RX
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_DROP              0x2UL
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_TRAFFIC_MASK      0xcUL
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_TRAFFIC_SFT       2
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_TRAFFIC_NO_ROCE_L2  (0x0UL << 2)
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_TRAFFIC_L2          (0x1UL << 2)
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_TRAFFIC_ROCE        (0x2UL << 2)
+	#define CFA_L2_FILTER_CFG_REQ_FLAGS_TRAFFIC_LAST       CFA_L2_FILTER_CFG_REQ_FLAGS_TRAFFIC_ROCE
 	__le32	enables;
 	#define CFA_L2_FILTER_CFG_REQ_ENABLES_DST_ID                 0x1UL
 	#define CFA_L2_FILTER_CFG_REQ_ENABLES_NEW_MIRROR_VNIC_ID     0x2UL
@@ -5064,6 +5118,8 @@ struct hwrm_cfa_tunnel_filter_alloc_input {
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT       0x7UL
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE     0x8UL
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4  0x9UL
+	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE_V1  0xaUL
+	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_L2_ETYPE  0xbUL
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL 0xffUL
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_LAST     CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL
 	u8	tunnel_flags;
@@ -5140,7 +5196,7 @@ struct hwrm_vxlan_ipv6_hdr {
 	__be32	dest_ip_addr[4];
 };
 
-/* hwrm_cfa_encap_data_vxlan (size:576b/72B) */
+/* hwrm_cfa_encap_data_vxlan (size:640b/80B) */
 struct hwrm_cfa_encap_data_vxlan {
 	u8	src_mac_addr[6];
 	__le16	unused_0;
@@ -5159,6 +5215,10 @@ struct hwrm_cfa_encap_data_vxlan {
 	__be16	src_port;
 	__be16	dst_port;
 	__be32	vni;
+	u8	hdr_rsvd0[3];
+	u8	hdr_rsvd1;
+	u8	hdr_flags;
+	u8	unused[3];
 };
 
 /* hwrm_cfa_encap_record_alloc_input (size:832b/104B) */
@@ -5171,15 +5231,18 @@ struct hwrm_cfa_encap_record_alloc_input {
 	__le32	flags;
 	#define CFA_ENCAP_RECORD_ALLOC_REQ_FLAGS_LOOPBACK     0x1UL
 	u8	encap_type;
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_VXLAN  0x1UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_NVGRE  0x2UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_L2GRE  0x3UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_IPIP   0x4UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_GENEVE 0x5UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_MPLS   0x6UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_VLAN   0x7UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_IPGRE  0x8UL
-	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_LAST  CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_IPGRE
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_VXLAN    0x1UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_NVGRE    0x2UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_L2GRE    0x3UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_IPIP     0x4UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_GENEVE   0x5UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_MPLS     0x6UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_VLAN     0x7UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_IPGRE    0x8UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_VXLAN_V4 0x9UL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_IPGRE_V1 0xaUL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_L2_ETYPE 0xbUL
+	#define CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_LAST    CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_L2_ETYPE
 	u8	unused_0[3];
 	__le32	encap_data[20];
 };
@@ -5273,6 +5336,8 @@ struct hwrm_cfa_ntuple_filter_alloc_input {
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT       0x7UL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE     0x8UL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4  0x9UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE_V1  0xaUL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_L2_ETYPE  0xbUL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL 0xffUL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_LAST     CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL
 	u8	pri_hint;
@@ -5404,6 +5469,8 @@ struct hwrm_cfa_decap_filter_alloc_input {
 	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT       0x7UL
 	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE     0x8UL
 	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4  0x9UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE_V1  0xaUL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_L2_ETYPE  0xbUL
 	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL 0xffUL
 	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_LAST     CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL
 	u8	unused_0;
@@ -5476,19 +5543,22 @@ struct hwrm_cfa_flow_alloc_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le16	flags;
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_TUNNEL       0x1UL
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_MASK 0x6UL
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_SFT 1
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_NONE  (0x0UL << 1)
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_ONE   (0x1UL << 1)
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_TWO   (0x2UL << 1)
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_LAST CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_TWO
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_MASK 0x38UL
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_SFT 3
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_L2    (0x0UL << 3)
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_IPV4  (0x1UL << 3)
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_IPV6  (0x2UL << 3)
-	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_LAST CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_IPV6
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_TUNNEL                 0x1UL
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_MASK          0x6UL
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_SFT           1
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_NONE            (0x0UL << 1)
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_ONE             (0x1UL << 1)
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_TWO             (0x2UL << 1)
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_LAST           CFA_FLOW_ALLOC_REQ_FLAGS_NUM_VLAN_TWO
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_MASK          0x38UL
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_SFT           3
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_L2              (0x0UL << 3)
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_IPV4            (0x1UL << 3)
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_IPV6            (0x2UL << 3)
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_LAST           CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_IPV6
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_PATH_TX                0x40UL
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_PATH_RX                0x80UL
+	#define CFA_FLOW_ALLOC_REQ_FLAGS_MATCH_VXLAN_IP_VNI     0x100UL
 	__le16	src_fid;
 	__le32	tunnel_handle;
 	__le16	action_flags;
@@ -5502,6 +5572,7 @@ struct hwrm_cfa_flow_alloc_input {
 	#define CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_IPV4_ADDRESS      0x80UL
 	#define CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_L2_HEADER_REWRITE     0x100UL
 	#define CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_TTL_DECREMENT         0x200UL
+	#define CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_TUNNEL_IP             0x400UL
 	__le16	dst_fid;
 	__be16	l2_rewrite_vlan_tpid;
 	__be16	l2_rewrite_vlan_tci;
@@ -5525,21 +5596,38 @@ struct hwrm_cfa_flow_alloc_input {
 	__be16	nat_port;
 	__be16	l2_rewrite_smac[3];
 	u8	ip_proto;
-	u8	unused_0;
+	u8	tunnel_type;
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_NONTUNNEL 0x0UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_VXLAN     0x1UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_NVGRE     0x2UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_L2GRE     0x3UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_IPIP      0x4UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_GENEVE    0x5UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_MPLS      0x6UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_STT       0x7UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_IPGRE     0x8UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4  0x9UL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_IPGRE_V1  0xaUL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_L2_ETYPE  0xbUL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL 0xffUL
+	#define CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_LAST     CFA_FLOW_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL
 };
 
-/* hwrm_cfa_flow_alloc_output (size:128b/16B) */
+/* hwrm_cfa_flow_alloc_output (size:256b/32B) */
 struct hwrm_cfa_flow_alloc_output {
 	__le16	error_code;
 	__le16	req_type;
 	__le16	seq_id;
 	__le16	resp_len;
 	__le16	flow_handle;
-	u8	unused_0[5];
+	u8	unused_0[2];
+	__le32	flow_id;
+	__le64	ext_flow_handle;
+	u8	unused_1[7];
 	u8	valid;
 };
 
-/* hwrm_cfa_flow_free_input (size:192b/24B) */
+/* hwrm_cfa_flow_free_input (size:256b/32B) */
 struct hwrm_cfa_flow_free_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -5548,6 +5636,7 @@ struct hwrm_cfa_flow_free_input {
 	__le64	resp_addr;
 	__le16	flow_handle;
 	u8	unused_0[6];
+	__le64	ext_flow_handle;
 };
 
 /* hwrm_cfa_flow_free_output (size:256b/32B) */
@@ -5562,7 +5651,7 @@ struct hwrm_cfa_flow_free_output {
 	u8	valid;
 };
 
-/* hwrm_cfa_flow_stats_input (size:320b/40B) */
+/* hwrm_cfa_flow_stats_input (size:640b/80B) */
 struct hwrm_cfa_flow_stats_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -5581,6 +5670,16 @@ struct hwrm_cfa_flow_stats_input {
 	__le16	flow_handle_8;
 	__le16	flow_handle_9;
 	u8	unused_0[2];
+	__le32	flow_id_0;
+	__le32	flow_id_1;
+	__le32	flow_id_2;
+	__le32	flow_id_3;
+	__le32	flow_id_4;
+	__le32	flow_id_5;
+	__le32	flow_id_6;
+	__le32	flow_id_7;
+	__le32	flow_id_8;
+	__le32	flow_id_9;
 };
 
 /* hwrm_cfa_flow_stats_output (size:1408b/176B) */
@@ -5670,7 +5769,8 @@ struct hwrm_tunnel_dst_port_query_input {
 	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_GENEVE   0x5UL
 	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_VXLAN_V4 0x9UL
 	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_IPGRE_V1 0xaUL
-	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_LAST    TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_IPGRE_V1
+	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_L2_ETYPE 0xbUL
+	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_LAST    TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_L2_ETYPE
 	u8	unused_0[7];
 };
 
@@ -5698,7 +5798,8 @@ struct hwrm_tunnel_dst_port_alloc_input {
 	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE   0x5UL
 	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4 0x9UL
 	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_IPGRE_V1 0xaUL
-	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_LAST    TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_IPGRE_V1
+	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_L2_ETYPE 0xbUL
+	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_LAST    TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_L2_ETYPE
 	u8	unused_0;
 	__be16	tunnel_dst_port_val;
 	u8	unused_1[4];
@@ -5727,7 +5828,8 @@ struct hwrm_tunnel_dst_port_free_input {
 	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE   0x5UL
 	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN_V4 0x9UL
 	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_IPGRE_V1 0xaUL
-	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_LAST    TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_IPGRE_V1
+	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_L2_ETYPE 0xbUL
+	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_LAST    TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_L2_ETYPE
 	u8	unused_0;
 	__le16	tunnel_dst_port_id;
 	u8	unused_1[4];
@@ -5932,10 +6034,11 @@ struct hwrm_fw_reset_input {
 	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST_RESOURCE_REINIT 0x7UL
 	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_LAST                FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST_RESOURCE_REINIT
 	u8	selfrst_status;
-	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE    0x0UL
-	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP    0x1UL
-	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST 0x2UL
-	#define FW_RESET_REQ_SELFRST_STATUS_LAST          FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST
+	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE      0x0UL
+	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP      0x1UL
+	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST   0x2UL
+	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTIMMEDIATE 0x3UL
+	#define FW_RESET_REQ_SELFRST_STATUS_LAST            FW_RESET_REQ_SELFRST_STATUS_SELFRSTIMMEDIATE
 	u8	host_idx;
 	u8	unused_0[5];
 };
@@ -5947,10 +6050,11 @@ struct hwrm_fw_reset_output {
 	__le16	seq_id;
 	__le16	resp_len;
 	u8	selfrst_status;
-	#define FW_RESET_RESP_SELFRST_STATUS_SELFRSTNONE    0x0UL
-	#define FW_RESET_RESP_SELFRST_STATUS_SELFRSTASAP    0x1UL
-	#define FW_RESET_RESP_SELFRST_STATUS_SELFRSTPCIERST 0x2UL
-	#define FW_RESET_RESP_SELFRST_STATUS_LAST          FW_RESET_RESP_SELFRST_STATUS_SELFRSTPCIERST
+	#define FW_RESET_RESP_SELFRST_STATUS_SELFRSTNONE      0x0UL
+	#define FW_RESET_RESP_SELFRST_STATUS_SELFRSTASAP      0x1UL
+	#define FW_RESET_RESP_SELFRST_STATUS_SELFRSTPCIERST   0x2UL
+	#define FW_RESET_RESP_SELFRST_STATUS_SELFRSTIMMEDIATE 0x3UL
+	#define FW_RESET_RESP_SELFRST_STATUS_LAST            FW_RESET_RESP_SELFRST_STATUS_SELFRSTIMMEDIATE
 	u8	unused_0[6];
 	u8	valid;
 };
@@ -6495,6 +6599,34 @@ struct hwrm_dbg_coredump_retrieve_output {
 	u8	unused_0;
 	__le16	data_len;
 	u8	unused_1[3];
+	u8	valid;
+};
+
+/* hwrm_dbg_ring_info_get_input (size:192b/24B) */
+struct hwrm_dbg_ring_info_get_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	u8	ring_type;
+	#define DBG_RING_INFO_GET_REQ_RING_TYPE_L2_CMPL 0x0UL
+	#define DBG_RING_INFO_GET_REQ_RING_TYPE_TX      0x1UL
+	#define DBG_RING_INFO_GET_REQ_RING_TYPE_RX      0x2UL
+	#define DBG_RING_INFO_GET_REQ_RING_TYPE_LAST   DBG_RING_INFO_GET_REQ_RING_TYPE_RX
+	u8	unused_0[3];
+	__le32	fw_ring_id;
+};
+
+/* hwrm_dbg_ring_info_get_output (size:192b/24B) */
+struct hwrm_dbg_ring_info_get_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le32	producer_index;
+	__le32	consumer_index;
+	u8	unused_0[7];
 	u8	valid;
 };
 

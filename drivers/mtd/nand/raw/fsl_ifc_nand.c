@@ -30,6 +30,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/fsl_ifc.h>
+#include <linux/iopoll.h>
 
 #define ERR_BYTE		0xFF /* Value returned for read
 					bytes when read failed	*/
@@ -300,9 +301,9 @@ static void fsl_ifc_do_read(struct nand_chip *chip,
 }
 
 /* cmdfunc send commands to the IFC NAND Machine */
-static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
-			     int column, int page_addr) {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
+			    int column, int page_addr) {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_runtime __iomem *ifc = ctrl->rregs;
@@ -508,7 +509,7 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 	}
 }
 
-static void fsl_ifc_select_chip(struct mtd_info *mtd, int chip)
+static void fsl_ifc_select_chip(struct nand_chip *chip, int cs)
 {
 	/* The hardware does not seem to support multiple
 	 * chips per bank.
@@ -518,9 +519,9 @@ static void fsl_ifc_select_chip(struct mtd_info *mtd, int chip)
 /*
  * Write buf to the IFC NAND Controller Data Buffer
  */
-static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void fsl_ifc_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	unsigned int bufsize = mtd->writesize + mtd->oobsize;
 
@@ -544,9 +545,8 @@ static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
  * Read a byte from either the IFC hardware buffer
  * read function for 8-bit buswidth
  */
-static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
+static uint8_t fsl_ifc_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	unsigned int offset;
 
@@ -567,9 +567,8 @@ static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
  * Read two bytes from the IFC hardware buffer
  * read function for 16-bit buswith
  */
-static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
+static uint8_t fsl_ifc_read_byte16(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	uint16_t data;
 
@@ -590,9 +589,8 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 /*
  * Read from the IFC Controller Data Buffer
  */
-static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void fsl_ifc_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	int avail;
 
@@ -616,8 +614,9 @@ static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
  * This function is called after Program and Erase Operations to
  * check for success or failure.
  */
-static int fsl_ifc_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int fsl_ifc_wait(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_runtime __iomem *ifc = ctrl->rregs;
@@ -678,20 +677,21 @@ static int check_erased_page(struct nand_chip *chip, u8 *buf)
 	return bitflips;
 }
 
-static int fsl_ifc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			     uint8_t *buf, int oob_required, int page)
+static int fsl_ifc_read_page(struct nand_chip *chip, uint8_t *buf,
+			     int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+		fsl_ifc_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_ECCER) {
 		if (!oob_required)
-			fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+			fsl_ifc_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 		return check_erased_page(chip, buf);
 	}
@@ -705,11 +705,13 @@ static int fsl_ifc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 /* ECC will be calculated automatically, and errors will be detected in
  * waitfunc.
  */
-static int fsl_ifc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       const uint8_t *buf, int oob_required, int page)
+static int fsl_ifc_write_page(struct nand_chip *chip, const uint8_t *buf,
+			      int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	fsl_ifc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	fsl_ifc_write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -725,8 +727,8 @@ static int fsl_ifc_attach_chip(struct nand_chip *chip)
 							chip->chipsize);
 	dev_dbg(priv->dev, "%s: nand->pagemask = %8x\n", __func__,
 							chip->pagemask);
-	dev_dbg(priv->dev, "%s: nand->chip_delay = %d\n", __func__,
-							chip->chip_delay);
+	dev_dbg(priv->dev, "%s: nand->legacy.chip_delay = %d\n", __func__,
+		chip->legacy.chip_delay);
 	dev_dbg(priv->dev, "%s: nand->badblockpos = %d\n", __func__,
 							chip->badblockpos);
 	dev_dbg(priv->dev, "%s: nand->chip_shift = %d\n", __func__,
@@ -761,13 +763,34 @@ static const struct nand_controller_ops fsl_ifc_controller_ops = {
 	.attach_chip = fsl_ifc_attach_chip,
 };
 
-static void fsl_ifc_sram_init(struct fsl_ifc_mtd *priv)
+static int fsl_ifc_sram_init(struct fsl_ifc_mtd *priv)
 {
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_runtime __iomem *ifc_runtime = ctrl->rregs;
 	struct fsl_ifc_global __iomem *ifc_global = ctrl->gregs;
 	uint32_t csor = 0, csor_8k = 0, csor_ext = 0;
 	uint32_t cs = priv->bank;
+
+	if (ctrl->version < FSL_IFC_VERSION_1_1_0)
+		return 0;
+
+	if (ctrl->version > FSL_IFC_VERSION_1_1_0) {
+		u32 ncfgr, status;
+		int ret;
+
+		/* Trigger auto initialization */
+		ncfgr = ifc_in32(&ifc_runtime->ifc_nand.ncfgr);
+		ifc_out32(ncfgr | IFC_NAND_NCFGR_SRAM_INIT_EN, &ifc_runtime->ifc_nand.ncfgr);
+
+		/* Wait until done */
+		ret = readx_poll_timeout(ifc_in32, &ifc_runtime->ifc_nand.ncfgr,
+					 status, !(status & IFC_NAND_NCFGR_SRAM_INIT_EN),
+					 10, IFC_TIMEOUT_MSECS * 1000);
+		if (ret)
+			dev_err(priv->dev, "Failed to initialize SRAM!\n");
+
+		return ret;
+	}
 
 	/* Save CSOR and CSOR_ext */
 	csor = ifc_in32(&ifc_global->csor_cs[cs].csor);
@@ -805,12 +828,16 @@ static void fsl_ifc_sram_init(struct fsl_ifc_mtd *priv)
 	wait_event_timeout(ctrl->nand_wait, ctrl->nand_stat,
 			   msecs_to_jiffies(IFC_TIMEOUT_MSECS));
 
-	if (ctrl->nand_stat != IFC_NAND_EVTER_STAT_OPC)
+	if (ctrl->nand_stat != IFC_NAND_EVTER_STAT_OPC) {
 		pr_err("fsl-ifc: Failed to Initialise SRAM\n");
+		return -ETIMEDOUT;
+	}
 
 	/* Restore CSOR and CSOR_ext */
 	ifc_out32(csor, &ifc_global->csor_cs[cs].csor);
 	ifc_out32(csor_ext, &ifc_global->csor_cs[cs].csor_ext);
+
+	return 0;
 }
 
 static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
@@ -821,6 +848,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	struct nand_chip *chip = &priv->chip;
 	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 	u32 csor;
+	int ret;
 
 	/* Fill in fsl_ifc_mtd structure */
 	mtd->dev.parent = priv->dev;
@@ -830,17 +858,17 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	/* set up function call table */
 	if ((ifc_in32(&ifc_global->cspr_cs[priv->bank].cspr))
 		& CSPR_PORT_SIZE_16)
-		chip->read_byte = fsl_ifc_read_byte16;
+		chip->legacy.read_byte = fsl_ifc_read_byte16;
 	else
-		chip->read_byte = fsl_ifc_read_byte;
+		chip->legacy.read_byte = fsl_ifc_read_byte;
 
-	chip->write_buf = fsl_ifc_write_buf;
-	chip->read_buf = fsl_ifc_read_buf;
+	chip->legacy.write_buf = fsl_ifc_write_buf;
+	chip->legacy.read_buf = fsl_ifc_read_buf;
 	chip->select_chip = fsl_ifc_select_chip;
-	chip->cmdfunc = fsl_ifc_cmdfunc;
-	chip->waitfunc = fsl_ifc_wait;
-	chip->set_features = nand_get_set_features_notsupp;
-	chip->get_features = nand_get_set_features_notsupp;
+	chip->legacy.cmdfunc = fsl_ifc_cmdfunc;
+	chip->legacy.waitfunc = fsl_ifc_wait;
+	chip->legacy.set_features = nand_get_set_features_notsupp;
+	chip->legacy.get_features = nand_get_set_features_notsupp;
 
 	chip->bbt_td = &bbt_main_descr;
 	chip->bbt_md = &bbt_mirror_descr;
@@ -853,10 +881,10 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	if (ifc_in32(&ifc_global->cspr_cs[priv->bank].cspr)
 		& CSPR_PORT_SIZE_16) {
-		chip->read_byte = fsl_ifc_read_byte16;
+		chip->legacy.read_byte = fsl_ifc_read_byte16;
 		chip->options |= NAND_BUSWIDTH_16;
 	} else {
-		chip->read_byte = fsl_ifc_read_byte;
+		chip->legacy.read_byte = fsl_ifc_read_byte;
 	}
 
 	chip->controller = &ifc_nand_ctrl->controller;
@@ -914,8 +942,9 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 		chip->ecc.algo = NAND_ECC_HAMMING;
 	}
 
-	if (ctrl->version >= FSL_IFC_VERSION_1_1_0)
-		fsl_ifc_sram_init(priv);
+	ret = fsl_ifc_sram_init(priv);
+	if (ret)
+		return ret;
 
 	/*
 	 * As IFC version 2.0.0 has 16KB of internal SRAM as compared to older
@@ -1051,7 +1080,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		goto err;
 
 	priv->chip.controller->ops = &fsl_ifc_controller_ops;
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(&priv->chip, 1);
 	if (ret)
 		goto err;
 
@@ -1077,9 +1106,8 @@ err:
 static int fsl_ifc_nand_remove(struct platform_device *dev)
 {
 	struct fsl_ifc_mtd *priv = dev_get_drvdata(&dev->dev);
-	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 
-	nand_release(mtd);
+	nand_release(&priv->chip);
 	fsl_ifc_chip_remove(priv);
 
 	mutex_lock(&fsl_ifc_nand_mutex);

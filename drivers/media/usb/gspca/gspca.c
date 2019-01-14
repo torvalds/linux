@@ -426,10 +426,10 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 
 	/* append the packet to the frame buffer */
 	if (len > 0) {
-		if (gspca_dev->image_len + len > gspca_dev->pixfmt.sizeimage) {
+		if (gspca_dev->image_len + len > PAGE_ALIGN(gspca_dev->pixfmt.sizeimage)) {
 			gspca_err(gspca_dev, "frame overflow %d > %d\n",
 				  gspca_dev->image_len + len,
-				  gspca_dev->pixfmt.sizeimage);
+				  PAGE_ALIGN(gspca_dev->pixfmt.sizeimage));
 			packet_type = DISCARD_PACKET;
 		} else {
 /* !! image is NULL only when last pkt is LAST or DISCARD
@@ -1193,11 +1193,11 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
-	strlcpy((char *) cap->driver, gspca_dev->sd_desc->name,
-			sizeof cap->driver);
+	strscpy((char *)cap->driver, gspca_dev->sd_desc->name,
+		sizeof(cap->driver));
 	if (gspca_dev->dev->product != NULL) {
-		strlcpy((char *) cap->card, gspca_dev->dev->product,
-			sizeof cap->card);
+		strscpy((char *)cap->card, gspca_dev->dev->product,
+			sizeof(cap->card));
 	} else {
 		snprintf((char *) cap->card, sizeof cap->card,
 			"USB Camera (%04x:%04x)",
@@ -1222,7 +1222,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->status = gspca_dev->cam.input_flags;
-	strlcpy(input->name, gspca_dev->sd_desc->name,
+	strscpy(input->name, gspca_dev->sd_desc->name,
 		sizeof input->name);
 	return 0;
 }
@@ -1297,18 +1297,19 @@ static int gspca_queue_setup(struct vb2_queue *vq,
 			     unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct gspca_dev *gspca_dev = vb2_get_drv_priv(vq);
+	unsigned int size = PAGE_ALIGN(gspca_dev->pixfmt.sizeimage);
 
 	if (*nplanes)
-		return sizes[0] < gspca_dev->pixfmt.sizeimage ? -EINVAL : 0;
+		return sizes[0] < size ? -EINVAL : 0;
 	*nplanes = 1;
-	sizes[0] = gspca_dev->pixfmt.sizeimage;
+	sizes[0] = size;
 	return 0;
 }
 
 static int gspca_buffer_prepare(struct vb2_buffer *vb)
 {
 	struct gspca_dev *gspca_dev = vb2_get_drv_priv(vb->vb2_queue);
-	unsigned long size = gspca_dev->pixfmt.sizeimage;
+	unsigned long size = PAGE_ALIGN(gspca_dev->pixfmt.sizeimage);
 
 	if (vb2_plane_size(vb, 0) < size) {
 		gspca_err(gspca_dev, "buffer too small (%lu < %lu)\n",

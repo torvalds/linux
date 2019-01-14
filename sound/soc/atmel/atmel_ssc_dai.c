@@ -1005,11 +1005,11 @@ static int asoc_ssc_init(struct device *dev)
 	struct ssc_device *ssc = dev_get_drvdata(dev);
 	int ret;
 
-	ret = snd_soc_register_component(dev, &atmel_ssc_component,
+	ret = devm_snd_soc_register_component(dev, &atmel_ssc_component,
 					 &atmel_ssc_dai, 1);
 	if (ret) {
 		dev_err(dev, "Could not register DAI: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	if (ssc->pdata->use_dma)
@@ -1019,15 +1019,10 @@ static int asoc_ssc_init(struct device *dev)
 
 	if (ret) {
 		dev_err(dev, "Could not register PCM: %d\n", ret);
-		goto err_unregister_dai;
+		return ret;
 	}
 
 	return 0;
-
-err_unregister_dai:
-	snd_soc_unregister_component(dev);
-err:
-	return ret;
 }
 
 static void asoc_ssc_exit(struct device *dev)
@@ -1038,8 +1033,6 @@ static void asoc_ssc_exit(struct device *dev)
 		atmel_pcm_dma_platform_unregister(dev);
 	else
 		atmel_pcm_pdc_platform_unregister(dev);
-
-	snd_soc_unregister_component(dev);
 }
 
 /**

@@ -40,6 +40,14 @@ static inline void qtnf_cmd_skb_put_tlv_arr(struct sk_buff *skb,
 	memcpy(hdr->val, arr, arr_len);
 }
 
+static inline void qtnf_cmd_skb_put_tlv_tag(struct sk_buff *skb, u16 tlv_id)
+{
+	struct qlink_tlv_hdr *hdr = skb_put(skb, sizeof(*hdr));
+
+	hdr->type = cpu_to_le16(tlv_id);
+	hdr->len = cpu_to_le16(0);
+}
+
 static inline void qtnf_cmd_skb_put_tlv_u8(struct sk_buff *skb, u16 tlv_id,
 					   u8 value)
 {

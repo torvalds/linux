@@ -43,6 +43,9 @@ static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
 	if (ulp_id == BNXT_ROCE_ULP) {
 		unsigned int max_stat_ctxs;
 
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			return -EOPNOTSUPP;
+
 		max_stat_ctxs = bnxt_get_max_func_stat_ctxs(bp);
 		if (max_stat_ctxs <= BNXT_MIN_ROCE_STAT_CTXS ||
 		    bp->num_stat_ctxs == max_stat_ctxs)
@@ -165,7 +168,7 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 	if (BNXT_NEW_RM(bp)) {
 		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
-		avail_msix = hw_resc->resv_cp_rings - bp->cp_nr_rings;
+		avail_msix = hw_resc->resv_irqs - bp->cp_nr_rings;
 		edev->ulp_tbl[ulp_id].msix_requested = avail_msix;
 	}
 	bnxt_fill_msix_vecs(bp, ent);

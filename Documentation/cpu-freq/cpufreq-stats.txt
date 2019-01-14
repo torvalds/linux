@@ -86,9 +86,11 @@ transitions.
 This will give a fine grained information about all the CPU frequency
 transitions. The cat output here is a two dimensional matrix, where an entry
 <i,j> (row i, column j) represents the count of number of transitions from 
-Freq_i to Freq_j. Freq_i is in descending order with increasing rows and 
-Freq_j is in descending order with increasing columns. The output here also 
-contains the actual freq values for each row and column for better readability.
+Freq_i to Freq_j. Freq_i rows and Freq_j columns follow the sorting order in
+which the driver has provided the frequency table initially to the cpufreq core
+and so can be sorted (ascending or descending) or unsorted.  The output here
+also contains the actual freq values for each row and column for better
+readability.
 
 If the transition table is bigger than PAGE_SIZE, reading this will
 return an -EFBIG error.

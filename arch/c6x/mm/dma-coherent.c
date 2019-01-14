@@ -135,8 +135,8 @@ void __init coherent_mem_init(phys_addr_t start, u32 size)
 	if (dma_size & (PAGE_SIZE - 1))
 		++dma_pages;
 
-	bitmap_phys = memblock_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
-				     sizeof(long));
+	bitmap_phys = memblock_phys_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
+					  sizeof(long));
 
 	dma_bitmap = phys_to_virt(bitmap_phys);
 	memset(dma_bitmap, 0, dma_pages * PAGE_SIZE);

@@ -32,8 +32,7 @@
  * secids - do not pin labels with a refcount. They rely on the label
  * properly updating/freeing them
  */
-
-#define AA_FIRST_SECID 1
+#define AA_FIRST_SECID 2
 
 static DEFINE_IDR(aa_secids);
 static DEFINE_SPINLOCK(secid_lock);

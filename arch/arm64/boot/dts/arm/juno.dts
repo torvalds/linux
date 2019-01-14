@@ -257,14 +257,11 @@
 	remote-endpoint = <&main_funnel_in_port2>;
 };
 
-&main_funnel {
-	ports {
-		port@3 {
-			reg = <2>;
-			main_funnel_in_port2: endpoint {
-				slave-mode;
-				remote-endpoint = <&stm_out_port>;
-			};
+&main_funnel_in_ports {
+	port@2 {
+		reg = <2>;
+		main_funnel_in_port2: endpoint {
+			remote-endpoint = <&stm_out_port>;
 		};
 	};
 };

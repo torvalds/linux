@@ -46,7 +46,8 @@ static int da9052_spi_probe(struct spi_device *spi)
 	config.reg_bits = 7;
 	config.pad_bits = 1;
 	config.val_bits = 8;
-	config.use_single_rw = 1;
+	config.use_single_read = true;
+	config.use_single_write = true;
 
 	da9052->regmap = devm_regmap_init_spi(spi, &config);
 	if (IS_ERR(da9052->regmap)) {

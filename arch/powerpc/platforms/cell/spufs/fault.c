@@ -36,42 +36,32 @@
 static void spufs_handle_event(struct spu_context *ctx,
 				unsigned long ea, int type)
 {
-	siginfo_t info;
-
 	if (ctx->flags & SPU_CREATE_EVENTS_ENABLED) {
 		ctx->event_return |= type;
 		wake_up_all(&ctx->stop_wq);
 		return;
 	}
 
-	clear_siginfo(&info);
-
 	switch (type) {
 	case SPE_EVENT_INVALID_DMA:
-		info.si_signo = SIGBUS;
-		info.si_code = BUS_OBJERR;
+		force_sig_fault(SIGBUS, BUS_OBJERR, NULL, current);
 		break;
 	case SPE_EVENT_SPE_DATA_STORAGE:
-		info.si_signo = SIGSEGV;
-		info.si_addr = (void __user *)ea;
-		info.si_code = SEGV_ACCERR;
 		ctx->ops->restart_dma(ctx);
+		force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *)ea,
+				current);
 		break;
 	case SPE_EVENT_DMA_ALIGNMENT:
-		info.si_signo = SIGBUS;
 		/* DAR isn't set for an alignment fault :( */
-		info.si_code = BUS_ADRALN;
+		force_sig_fault(SIGBUS, BUS_ADRALN, NULL, current);
 		break;
 	case SPE_EVENT_SPE_ERROR:
-		info.si_signo = SIGILL;
-		info.si_addr = (void __user *)(unsigned long)
-			ctx->ops->npc_read(ctx) - 4;
-		info.si_code = ILL_ILLOPC;
+		force_sig_fault(
+			SIGILL, ILL_ILLOPC,
+			(void __user *)(unsigned long)
+			ctx->ops->npc_read(ctx) - 4, current);
 		break;
 	}
-
-	if (info.si_signo)
-		force_sig_info(info.si_signo, &info, current);
 }
 
 int spufs_handle_class0(struct spu_context *ctx)

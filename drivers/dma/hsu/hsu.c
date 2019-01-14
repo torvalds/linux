@@ -348,10 +348,6 @@ static int hsu_dma_slave_config(struct dma_chan *chan,
 {
 	struct hsu_dma_chan *hsuc = to_hsu_dma_chan(chan);
 
-	/* Check if chan will be configured for slave transfers */
-	if (!is_slave_direction(config->direction))
-		return -EINVAL;
-
 	memcpy(&hsuc->config, config, sizeof(hsuc->config));
 
 	return 0;

@@ -158,7 +158,7 @@ static int rsnd_src_hw_params(struct rsnd_mod *mod,
 		struct snd_soc_dpcm *dpcm;
 		struct snd_pcm_hw_params *be_params;
 
-		list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be) {
+		for_each_dpcm_be(fe, stream, dpcm) {
 			be_params = &dpcm->hw_params;
 
 			if (params_rate(fe_params) != params_rate(be_params))

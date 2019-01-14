@@ -33,6 +33,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "cikd.h"
+#include "amdgpu_gem.h"
 
 #include <drm/drm_fb_helper.h>
 

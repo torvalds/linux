@@ -53,8 +53,6 @@
 
 DEFINE_SPINLOCK(rtc_lock);
 
-unsigned int __read_mostly vdso_fix_stick;
-
 #ifdef CONFIG_SMP
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -838,7 +836,6 @@ void __init time_init_early(void)
 		} else {
 			init_tick_ops(&tick_operations);
 			clocksource_tick.archdata.vclock_mode = VCLOCK_TICK;
-			vdso_fix_stick = 1;
 		}
 	} else {
 		init_tick_ops(&stick_operations);

@@ -61,6 +61,7 @@ struct ib_client_data {
 };
 
 struct workqueue_struct *ib_comp_wq;
+struct workqueue_struct *ib_comp_unbound_wq;
 struct workqueue_struct *ib_wq;
 EXPORT_SYMBOL_GPL(ib_wq);
 
@@ -122,8 +123,9 @@ static int ib_device_check_mandatory(struct ib_device *device)
 
 	for (i = 0; i < ARRAY_SIZE(mandatory_table); ++i) {
 		if (!*(void **) ((void *) device + mandatory_table[i].offset)) {
-			pr_warn("Device %s is missing mandatory function %s\n",
-				device->name, mandatory_table[i].name);
+			dev_warn(&device->dev,
+				 "Device is missing mandatory function %s\n",
+				 mandatory_table[i].name);
 			return -EINVAL;
 		}
 	}
@@ -163,16 +165,40 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 	struct ib_device *device;
 
 	list_for_each_entry(device, &device_list, core_list)
-		if (!strncmp(name, device->name, IB_DEVICE_NAME_MAX))
+		if (!strcmp(name, dev_name(&device->dev)))
 			return device;
 
 	return NULL;
 }
 
-static int alloc_name(char *name)
+int ib_device_rename(struct ib_device *ibdev, const char *name)
+{
+	struct ib_device *device;
+	int ret = 0;
+
+	if (!strcmp(name, dev_name(&ibdev->dev)))
+		return ret;
+
+	mutex_lock(&device_mutex);
+	list_for_each_entry(device, &device_list, core_list) {
+		if (!strcmp(name, dev_name(&device->dev))) {
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+
+	ret = device_rename(&ibdev->dev, name);
+	if (ret)
+		goto out;
+	strlcpy(ibdev->name, name, IB_DEVICE_NAME_MAX);
+out:
+	mutex_unlock(&device_mutex);
+	return ret;
+}
+
+static int alloc_name(struct ib_device *ibdev, const char *name)
 {
 	unsigned long *inuse;
-	char buf[IB_DEVICE_NAME_MAX];
 	struct ib_device *device;
 	int i;
 
@@ -181,24 +207,21 @@ static int alloc_name(char *name)
 		return -ENOMEM;
 
 	list_for_each_entry(device, &device_list, core_list) {
-		if (!sscanf(device->name, name, &i))
+		char buf[IB_DEVICE_NAME_MAX];
+
+		if (sscanf(dev_name(&device->dev), name, &i) != 1)
 			continue;
 		if (i < 0 || i >= PAGE_SIZE * 8)
 			continue;
 		snprintf(buf, sizeof buf, name, i);
-		if (!strncmp(buf, device->name, IB_DEVICE_NAME_MAX))
+		if (!strcmp(buf, dev_name(&device->dev)))
 			set_bit(i, inuse);
 	}
 
 	i = find_first_zero_bit(inuse, PAGE_SIZE * 8);
 	free_page((unsigned long) inuse);
-	snprintf(buf, sizeof buf, name, i);
 
-	if (__ib_device_get_by_name(buf))
-		return -ENFILE;
-
-	strlcpy(name, buf, IB_DEVICE_NAME_MAX);
-	return 0;
+	return dev_set_name(&ibdev->dev, name, i);
 }
 
 static void ib_device_release(struct device *device)
@@ -221,9 +244,7 @@ static void ib_device_release(struct device *device)
 static int ib_device_uevent(struct device *device,
 			    struct kobj_uevent_env *env)
 {
-	struct ib_device *dev = container_of(device, struct ib_device, dev);
-
-	if (add_uevent_var(env, "NAME=%s", dev->name))
+	if (add_uevent_var(env, "NAME=%s", dev_name(device)))
 		return -ENOMEM;
 
 	/*
@@ -269,7 +290,7 @@ struct ib_device *ib_alloc_device(size_t size)
 
 	INIT_LIST_HEAD(&device->event_handler_list);
 	spin_lock_init(&device->event_handler_lock);
-	spin_lock_init(&device->client_data_lock);
+	rwlock_init(&device->client_data_lock);
 	INIT_LIST_HEAD(&device->client_data_list);
 	INIT_LIST_HEAD(&device->port_list);
 
@@ -285,6 +306,7 @@ EXPORT_SYMBOL(ib_alloc_device);
  */
 void ib_dealloc_device(struct ib_device *device)
 {
+	WARN_ON(!list_empty(&device->client_data_list));
 	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
 		device->reg_state != IB_DEV_UNINITIALIZED);
 	rdma_restrack_clean(&device->res);
@@ -295,9 +317,8 @@ EXPORT_SYMBOL(ib_dealloc_device);
 static int add_client_context(struct ib_device *device, struct ib_client *client)
 {
 	struct ib_client_data *context;
-	unsigned long flags;
 
-	context = kmalloc(sizeof *context, GFP_KERNEL);
+	context = kmalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return -ENOMEM;
 
@@ -306,9 +327,9 @@ static int add_client_context(struct ib_device *device, struct ib_client *client
 	context->going_down = false;
 
 	down_write(&lists_rwsem);
-	spin_lock_irqsave(&device->client_data_lock, flags);
+	write_lock_irq(&device->client_data_lock);
 	list_add(&context->list, &device->client_data_list);
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	write_unlock_irq(&device->client_data_lock);
 	up_write(&lists_rwsem);
 
 	return 0;
@@ -444,22 +465,8 @@ static u32 __dev_new_index(void)
 	}
 }
 
-/**
- * ib_register_device - Register an IB device with IB core
- * @device:Device to register
- *
- * Low-level drivers use ib_register_device() to register their
- * devices with the IB core.  All registered clients will receive a
- * callback for each device that is added. @device must be allocated
- * with ib_alloc_device().
- */
-int ib_register_device(struct ib_device *device,
-		       int (*port_callback)(struct ib_device *,
-					    u8, struct kobject *))
+static void setup_dma_device(struct ib_device *device)
 {
-	int ret;
-	struct ib_client *client;
-	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 	struct device *parent = device->dev.parent;
 
 	WARN_ON_ONCE(device->dma_device);
@@ -491,56 +498,113 @@ int ib_register_device(struct ib_device *device,
 		WARN_ON_ONCE(!parent);
 		device->dma_device = parent;
 	}
+}
 
-	mutex_lock(&device_mutex);
+static void cleanup_device(struct ib_device *device)
+{
+	ib_cache_cleanup_one(device);
+	ib_cache_release_one(device);
+	kfree(device->port_pkey_list);
+	kfree(device->port_immutable);
+}
 
-	if (strchr(device->name, '%')) {
-		ret = alloc_name(device->name);
-		if (ret)
-			goto out;
-	}
+static int setup_device(struct ib_device *device)
+{
+	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
+	int ret;
 
-	if (ib_device_check_mandatory(device)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	ret = ib_device_check_mandatory(device);
+	if (ret)
+		return ret;
 
 	ret = read_port_immutable(device);
 	if (ret) {
-		pr_warn("Couldn't create per port immutable data %s\n",
-			device->name);
-		goto out;
-	}
-
-	ret = setup_port_pkey_list(device);
-	if (ret) {
-		pr_warn("Couldn't create per port_pkey_list\n");
-		goto out;
-	}
-
-	ret = ib_cache_setup_one(device);
-	if (ret) {
-		pr_warn("Couldn't set up InfiniBand P_Key/GID cache\n");
-		goto port_cleanup;
-	}
-
-	ret = ib_device_register_rdmacg(device);
-	if (ret) {
-		pr_warn("Couldn't register device with rdma cgroup\n");
-		goto cache_cleanup;
+		dev_warn(&device->dev,
+			 "Couldn't create per port immutable data\n");
+		return ret;
 	}
 
 	memset(&device->attrs, 0, sizeof(device->attrs));
 	ret = device->query_device(device, &device->attrs, &uhw);
 	if (ret) {
-		pr_warn("Couldn't query the device attributes\n");
-		goto cg_cleanup;
+		dev_warn(&device->dev,
+			 "Couldn't query the device attributes\n");
+		goto port_cleanup;
+	}
+
+	ret = setup_port_pkey_list(device);
+	if (ret) {
+		dev_warn(&device->dev, "Couldn't create per port_pkey_list\n");
+		goto port_cleanup;
+	}
+
+	ret = ib_cache_setup_one(device);
+	if (ret) {
+		dev_warn(&device->dev,
+			 "Couldn't set up InfiniBand P_Key/GID cache\n");
+		goto pkey_cleanup;
+	}
+	return 0;
+
+pkey_cleanup:
+	kfree(device->port_pkey_list);
+port_cleanup:
+	kfree(device->port_immutable);
+	return ret;
+}
+
+/**
+ * ib_register_device - Register an IB device with IB core
+ * @device:Device to register
+ *
+ * Low-level drivers use ib_register_device() to register their
+ * devices with the IB core.  All registered clients will receive a
+ * callback for each device that is added. @device must be allocated
+ * with ib_alloc_device().
+ */
+int ib_register_device(struct ib_device *device, const char *name,
+		       int (*port_callback)(struct ib_device *, u8,
+					    struct kobject *))
+{
+	int ret;
+	struct ib_client *client;
+
+	setup_dma_device(device);
+
+	mutex_lock(&device_mutex);
+
+	if (strchr(name, '%')) {
+		ret = alloc_name(device, name);
+		if (ret)
+			goto out;
+	} else {
+		ret = dev_set_name(&device->dev, name);
+		if (ret)
+			goto out;
+	}
+	if (__ib_device_get_by_name(dev_name(&device->dev))) {
+		ret = -ENFILE;
+		goto out;
+	}
+	strlcpy(device->name, dev_name(&device->dev), IB_DEVICE_NAME_MAX);
+
+	ret = setup_device(device);
+	if (ret)
+		goto out;
+
+	device->index = __dev_new_index();
+
+	ret = ib_device_register_rdmacg(device);
+	if (ret) {
+		dev_warn(&device->dev,
+			 "Couldn't register device with rdma cgroup\n");
+		goto dev_cleanup;
 	}
 
 	ret = ib_device_register_sysfs(device, port_callback);
 	if (ret) {
-		pr_warn("Couldn't register device %s with driver model\n",
-			device->name);
+		dev_warn(&device->dev,
+			 "Couldn't register device with driver model\n");
 		goto cg_cleanup;
 	}
 
@@ -550,7 +614,6 @@ int ib_register_device(struct ib_device *device,
 		if (!add_client_context(device, client) && client->add)
 			client->add(device);
 
-	device->index = __dev_new_index();
 	down_write(&lists_rwsem);
 	list_add_tail(&device->core_list, &device_list);
 	up_write(&lists_rwsem);
@@ -559,11 +622,8 @@ int ib_register_device(struct ib_device *device,
 
 cg_cleanup:
 	ib_device_unregister_rdmacg(device);
-cache_cleanup:
-	ib_cache_cleanup_one(device);
-	ib_cache_release_one(device);
-port_cleanup:
-	kfree(device->port_immutable);
+dev_cleanup:
+	cleanup_device(device);
 out:
 	mutex_unlock(&device_mutex);
 	return ret;
@@ -585,21 +645,20 @@ void ib_unregister_device(struct ib_device *device)
 
 	down_write(&lists_rwsem);
 	list_del(&device->core_list);
-	spin_lock_irqsave(&device->client_data_lock, flags);
-	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+	write_lock_irq(&device->client_data_lock);
+	list_for_each_entry(context, &device->client_data_list, list)
 		context->going_down = true;
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	write_unlock_irq(&device->client_data_lock);
 	downgrade_write(&lists_rwsem);
 
-	list_for_each_entry_safe(context, tmp, &device->client_data_list,
-				 list) {
+	list_for_each_entry(context, &device->client_data_list, list) {
 		if (context->client->remove)
 			context->client->remove(device, context->data);
 	}
 	up_read(&lists_rwsem);
 
-	ib_device_unregister_rdmacg(device);
 	ib_device_unregister_sysfs(device);
+	ib_device_unregister_rdmacg(device);
 
 	mutex_unlock(&device_mutex);
 
@@ -609,10 +668,13 @@ void ib_unregister_device(struct ib_device *device)
 	kfree(device->port_pkey_list);
 
 	down_write(&lists_rwsem);
-	spin_lock_irqsave(&device->client_data_lock, flags);
-	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+	write_lock_irqsave(&device->client_data_lock, flags);
+	list_for_each_entry_safe(context, tmp, &device->client_data_list,
+				 list) {
+		list_del(&context->list);
 		kfree(context);
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	}
+	write_unlock_irqrestore(&device->client_data_lock, flags);
 	up_write(&lists_rwsem);
 
 	device->reg_state = IB_DEV_UNREGISTERED;
@@ -662,9 +724,8 @@ EXPORT_SYMBOL(ib_register_client);
  */
 void ib_unregister_client(struct ib_client *client)
 {
-	struct ib_client_data *context, *tmp;
+	struct ib_client_data *context;
 	struct ib_device *device;
-	unsigned long flags;
 
 	mutex_lock(&device_mutex);
 
@@ -676,14 +737,14 @@ void ib_unregister_client(struct ib_client *client)
 		struct ib_client_data *found_context = NULL;
 
 		down_write(&lists_rwsem);
-		spin_lock_irqsave(&device->client_data_lock, flags);
-		list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+		write_lock_irq(&device->client_data_lock);
+		list_for_each_entry(context, &device->client_data_list, list)
 			if (context->client == client) {
 				context->going_down = true;
 				found_context = context;
 				break;
 			}
-		spin_unlock_irqrestore(&device->client_data_lock, flags);
+		write_unlock_irq(&device->client_data_lock);
 		up_write(&lists_rwsem);
 
 		if (client->remove)
@@ -691,17 +752,18 @@ void ib_unregister_client(struct ib_client *client)
 					       found_context->data : NULL);
 
 		if (!found_context) {
-			pr_warn("No client context found for %s/%s\n",
-				device->name, client->name);
+			dev_warn(&device->dev,
+				 "No client context found for %s\n",
+				 client->name);
 			continue;
 		}
 
 		down_write(&lists_rwsem);
-		spin_lock_irqsave(&device->client_data_lock, flags);
+		write_lock_irq(&device->client_data_lock);
 		list_del(&found_context->list);
-		kfree(found_context);
-		spin_unlock_irqrestore(&device->client_data_lock, flags);
+		write_unlock_irq(&device->client_data_lock);
 		up_write(&lists_rwsem);
+		kfree(found_context);
 	}
 
 	mutex_unlock(&device_mutex);
@@ -722,13 +784,13 @@ void *ib_get_client_data(struct ib_device *device, struct ib_client *client)
 	void *ret = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&device->client_data_lock, flags);
+	read_lock_irqsave(&device->client_data_lock, flags);
 	list_for_each_entry(context, &device->client_data_list, list)
 		if (context->client == client) {
 			ret = context->data;
 			break;
 		}
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	read_unlock_irqrestore(&device->client_data_lock, flags);
 
 	return ret;
 }
@@ -749,18 +811,18 @@ void ib_set_client_data(struct ib_device *device, struct ib_client *client,
 	struct ib_client_data *context;
 	unsigned long flags;
 
-	spin_lock_irqsave(&device->client_data_lock, flags);
+	write_lock_irqsave(&device->client_data_lock, flags);
 	list_for_each_entry(context, &device->client_data_list, list)
 		if (context->client == client) {
 			context->data = data;
 			goto out;
 		}
 
-	pr_warn("No client context found for %s/%s\n",
-		device->name, client->name);
+	dev_warn(&device->dev, "No client context found for %s\n",
+		 client->name);
 
 out:
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	write_unlock_irqrestore(&device->client_data_lock, flags);
 }
 EXPORT_SYMBOL(ib_set_client_data);
 
@@ -1166,10 +1228,19 @@ static int __init ib_core_init(void)
 		goto err;
 	}
 
+	ib_comp_unbound_wq =
+		alloc_workqueue("ib-comp-unb-wq",
+				WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM |
+				WQ_SYSFS, WQ_UNBOUND_MAX_ACTIVE);
+	if (!ib_comp_unbound_wq) {
+		ret = -ENOMEM;
+		goto err_comp;
+	}
+
 	ret = class_register(&ib_class);
 	if (ret) {
 		pr_warn("Couldn't create InfiniBand device class\n");
-		goto err_comp;
+		goto err_comp_unbound;
 	}
 
 	ret = rdma_nl_init();
@@ -1218,6 +1289,8 @@ err_ibnl:
 	rdma_nl_exit();
 err_sysfs:
 	class_unregister(&ib_class);
+err_comp_unbound:
+	destroy_workqueue(ib_comp_unbound_wq);
 err_comp:
 	destroy_workqueue(ib_comp_wq);
 err:
@@ -1236,6 +1309,7 @@ static void __exit ib_core_cleanup(void)
 	addr_cleanup();
 	rdma_nl_exit();
 	class_unregister(&ib_class);
+	destroy_workqueue(ib_comp_unbound_wq);
 	destroy_workqueue(ib_comp_wq);
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);

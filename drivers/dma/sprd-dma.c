@@ -68,6 +68,7 @@
 
 /* SPRD_DMA_CHN_CFG register definition */
 #define SPRD_DMA_CHN_EN			BIT(0)
+#define SPRD_DMA_LINKLIST_EN		BIT(4)
 #define SPRD_DMA_WAIT_BDONE_OFFSET	24
 #define SPRD_DMA_DONOT_WAIT_BDONE	1
 
@@ -103,7 +104,7 @@
 #define SPRD_DMA_REQ_MODE_MASK		GENMASK(1, 0)
 #define SPRD_DMA_FIX_SEL_OFFSET		21
 #define SPRD_DMA_FIX_EN_OFFSET		20
-#define SPRD_DMA_LLIST_END_OFFSET	19
+#define SPRD_DMA_LLIST_END		BIT(19)
 #define SPRD_DMA_FRG_LEN_MASK		GENMASK(16, 0)
 
 /* SPRD_DMA_CHN_BLK_LEN register definition */
@@ -164,6 +165,7 @@ struct sprd_dma_desc {
 struct sprd_dma_chn {
 	struct virt_dma_chan	vc;
 	void __iomem		*chn_base;
+	struct sprd_dma_linklist	linklist;
 	struct dma_slave_config	slave_cfg;
 	u32			chn_num;
 	u32			dev_id;
@@ -582,7 +584,8 @@ static int sprd_dma_get_step(enum dma_slave_buswidth buswidth)
 }
 
 static int sprd_dma_fill_desc(struct dma_chan *chan,
-			      struct sprd_dma_desc *sdesc,
+			      struct sprd_dma_chn_hw *hw,
+			      unsigned int sglen, int sg_index,
 			      dma_addr_t src, dma_addr_t dst, u32 len,
 			      enum dma_transfer_direction dir,
 			      unsigned long flags,
@@ -590,7 +593,6 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 {
 	struct sprd_dma_dev *sdev = to_sprd_dma_dev(chan);
 	struct sprd_dma_chn *schan = to_sprd_dma_chan(chan);
-	struct sprd_dma_chn_hw *hw = &sdesc->chn_hw;
 	u32 req_mode = (flags >> SPRD_DMA_REQ_SHIFT) & SPRD_DMA_REQ_MODE_MASK;
 	u32 int_mode = flags & SPRD_DMA_INT_MASK;
 	int src_datawidth, dst_datawidth, src_step, dst_step;
@@ -670,10 +672,50 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 	temp |= (src_step & SPRD_DMA_TRSF_STEP_MASK) << SPRD_DMA_SRC_TRSF_STEP_OFFSET;
 	hw->trsf_step = temp;
 
+	/* link-list configuration */
+	if (schan->linklist.phy_addr) {
+		if (sg_index == sglen - 1)
+			hw->frg_len |= SPRD_DMA_LLIST_END;
+
+		hw->cfg |= SPRD_DMA_LINKLIST_EN;
+
+		/* link-list index */
+		temp = (sg_index + 1) % sglen;
+		/* Next link-list configuration's physical address offset */
+		temp = temp * sizeof(*hw) + SPRD_DMA_CHN_SRC_ADDR;
+		/*
+		 * Set the link-list pointer point to next link-list
+		 * configuration's physical address.
+		 */
+		hw->llist_ptr = schan->linklist.phy_addr + temp;
+	} else {
+		hw->llist_ptr = 0;
+	}
+
 	hw->frg_step = 0;
 	hw->src_blk_step = 0;
 	hw->des_blk_step = 0;
 	return 0;
+}
+
+static int sprd_dma_fill_linklist_desc(struct dma_chan *chan,
+				       unsigned int sglen, int sg_index,
+				       dma_addr_t src, dma_addr_t dst, u32 len,
+				       enum dma_transfer_direction dir,
+				       unsigned long flags,
+				       struct dma_slave_config *slave_cfg)
+{
+	struct sprd_dma_chn *schan = to_sprd_dma_chan(chan);
+	struct sprd_dma_chn_hw *hw;
+
+	if (!schan->linklist.virt_addr)
+		return -EINVAL;
+
+	hw = (struct sprd_dma_chn_hw *)(schan->linklist.virt_addr +
+					sg_index * sizeof(*hw));
+
+	return sprd_dma_fill_desc(chan, hw, sglen, sg_index, src, dst, len,
+				  dir, flags, slave_cfg);
 }
 
 static struct dma_async_tx_descriptor *
@@ -744,9 +786,19 @@ sprd_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	u32 len = 0;
 	int ret, i;
 
-	/* TODO: now we only support one sg for each DMA configuration. */
-	if (!is_slave_direction(dir) || sglen > 1)
+	if (!is_slave_direction(dir))
 		return NULL;
+
+	if (context) {
+		struct sprd_dma_linklist *ll_cfg =
+			(struct sprd_dma_linklist *)context;
+
+		schan->linklist.phy_addr = ll_cfg->phy_addr;
+		schan->linklist.virt_addr = ll_cfg->virt_addr;
+	} else {
+		schan->linklist.phy_addr = 0;
+		schan->linklist.virt_addr = 0;
+	}
 
 	sdesc = kzalloc(sizeof(*sdesc), GFP_NOWAIT);
 	if (!sdesc)
@@ -762,10 +814,25 @@ sprd_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			src = slave_cfg->src_addr;
 			dst = sg_dma_address(sg);
 		}
+
+		/*
+		 * The link-list mode needs at least 2 link-list
+		 * configurations. If there is only one sg, it doesn't
+		 * need to fill the link-list configuration.
+		 */
+		if (sglen < 2)
+			break;
+
+		ret = sprd_dma_fill_linklist_desc(chan, sglen, i, src, dst, len,
+						  dir, flags, slave_cfg);
+		if (ret) {
+			kfree(sdesc);
+			return NULL;
+		}
 	}
 
-	ret = sprd_dma_fill_desc(chan, sdesc, src, dst, len, dir, flags,
-				 slave_cfg);
+	ret = sprd_dma_fill_desc(chan, &sdesc->chn_hw, 0, 0, src, dst, len,
+				 dir, flags, slave_cfg);
 	if (ret) {
 		kfree(sdesc);
 		return NULL;

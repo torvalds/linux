@@ -210,15 +210,15 @@ static void node_irq_request(const char *compat, irq_handler_t errirq_handler)
 	for_each_compatible_node(np, NULL, compat) {
 		irq = irq_of_parse_and_map(np, 0);
 		if (irq == NO_IRQ) {
-			pr_err("device tree node %s is missing a interrupt",
-			      np->name);
+			pr_err("device tree node %pOFn is missing a interrupt",
+			      np);
 			return;
 		}
 
 		rc = request_irq(irq, errirq_handler, 0, np->name, np);
 		if (rc) {
-			pr_err("fsp_of_probe: request_irq failed: np=%s rc=%d",
-			      np->full_name, rc);
+			pr_err("fsp_of_probe: request_irq failed: np=%pOF rc=%d",
+			      np, rc);
 			return;
 		}
 	}

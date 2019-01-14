@@ -18,9 +18,6 @@
 struct seq_file;
 
 struct nf_conntrack_l4proto {
-	/* L3 Protocol number. */
-	u_int16_t l3proto;
-
 	/* L4 Protocol number. */
 	u_int8_t l4proto;
 
@@ -43,21 +40,13 @@ struct nf_conntrack_l4proto {
 
 	/* Returns verdict for packet, or -1 for invalid. */
 	int (*packet)(struct nf_conn *ct,
-		      const struct sk_buff *skb,
+		      struct sk_buff *skb,
 		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo);
-
-	/* Called when a new connection for this protocol found;
-	 * returns TRUE if it's OK.  If so, packet() called next. */
-	bool (*new)(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff);
+		      enum ip_conntrack_info ctinfo,
+		      const struct nf_hook_state *state);
 
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
-
-	int (*error)(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
-		     unsigned int dataoff,
-		     u_int8_t pf, unsigned int hooknum);
 
 	/* called by gc worker if table is full */
 	bool (*can_early_drop)(const struct nf_conn *ct);
@@ -92,7 +81,7 @@ struct nf_conntrack_l4proto {
 #endif
 	unsigned int	*net_id;
 	/* Init l4proto pernet data */
-	int (*init_net)(struct net *net, u_int16_t proto);
+	int (*init_net)(struct net *net);
 
 	/* Return the per-net protocol part. */
 	struct nf_proto_net *(*get_net_proto)(struct net *net);
@@ -101,16 +90,23 @@ struct nf_conntrack_l4proto {
 	struct module *me;
 };
 
+int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb,
+			      unsigned int dataoff,
+			      const struct nf_hook_state *state);
+
+int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb,
+			      unsigned int dataoff,
+			      const struct nf_hook_state *state);
 /* Existing built-in generic protocol */
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
-#define MAX_NF_CT_PROTO 256
+#define MAX_NF_CT_PROTO IPPROTO_UDPLITE
 
-const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u_int16_t l3proto,
-						  u_int8_t l4proto);
+const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto);
 
-const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u_int16_t l3proto,
-						    u_int8_t l4proto);
+const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4proto);
 void nf_ct_l4proto_put(const struct nf_conntrack_l4proto *p);
 
 /* Protocol pernet registration. */
@@ -156,5 +152,44 @@ void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const struct nf_conn *ct,
 			       const char *fmt, ...) { }
 #endif /* CONFIG_SYSCTL */
+
+static inline struct nf_generic_net *nf_generic_pernet(struct net *net)
+{
+       return &net->ct.nf_ct_proto.generic;
+}
+
+static inline struct nf_tcp_net *nf_tcp_pernet(struct net *net)
+{
+       return &net->ct.nf_ct_proto.tcp;
+}
+
+static inline struct nf_udp_net *nf_udp_pernet(struct net *net)
+{
+       return &net->ct.nf_ct_proto.udp;
+}
+
+static inline struct nf_icmp_net *nf_icmp_pernet(struct net *net)
+{
+       return &net->ct.nf_ct_proto.icmp;
+}
+
+static inline struct nf_icmp_net *nf_icmpv6_pernet(struct net *net)
+{
+       return &net->ct.nf_ct_proto.icmpv6;
+}
+
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+static inline struct nf_dccp_net *nf_dccp_pernet(struct net *net)
+{
+       return &net->ct.nf_ct_proto.dccp;
+}
+#endif
+
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+static inline struct nf_sctp_net *nf_sctp_pernet(struct net *net)
+{
+       return &net->ct.nf_ct_proto.sctp;
+}
+#endif
 
 #endif /*_NF_CONNTRACK_PROTOCOL_H*/

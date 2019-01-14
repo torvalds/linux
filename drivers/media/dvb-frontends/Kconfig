@@ -791,6 +791,16 @@ config DVB_LNBH25
 	  An SEC control chip.
 	  Say Y when you want to support this chip.
 
+config DVB_LNBH29
+	tristate "LNBH29 SEC controller"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  LNB power supply and control voltage
+	  regulator chip with step-up converter
+	  and I2C interface for STMicroelectronics LNBH29.
+	  Say Y when you want to support this chip.
+
 config DVB_LNBP21
 	tristate "LNBP21/LNBH24 SEC controllers"
 	depends on DVB_CORE && I2C

@@ -162,6 +162,34 @@ __gnet_stats_copy_basic(const seqcount_t *running,
 }
 EXPORT_SYMBOL(__gnet_stats_copy_basic);
 
+static int
+___gnet_stats_copy_basic(const seqcount_t *running,
+			 struct gnet_dump *d,
+			 struct gnet_stats_basic_cpu __percpu *cpu,
+			 struct gnet_stats_basic_packed *b,
+			 int type)
+{
+	struct gnet_stats_basic_packed bstats = {0};
+
+	__gnet_stats_copy_basic(running, &bstats, cpu, b);
+
+	if (d->compat_tc_stats && type == TCA_STATS_BASIC) {
+		d->tc_stats.bytes = bstats.bytes;
+		d->tc_stats.packets = bstats.packets;
+	}
+
+	if (d->tail) {
+		struct gnet_stats_basic sb;
+
+		memset(&sb, 0, sizeof(sb));
+		sb.bytes = bstats.bytes;
+		sb.packets = bstats.packets;
+		return gnet_stats_copy(d, type, &sb, sizeof(sb),
+				       TCA_STATS_PAD);
+	}
+	return 0;
+}
+
 /**
  * gnet_stats_copy_basic - copy basic statistics into statistic TLV
  * @running: seqcount_t pointer
@@ -181,27 +209,34 @@ gnet_stats_copy_basic(const seqcount_t *running,
 		      struct gnet_stats_basic_cpu __percpu *cpu,
 		      struct gnet_stats_basic_packed *b)
 {
-	struct gnet_stats_basic_packed bstats = {0};
-
-	__gnet_stats_copy_basic(running, &bstats, cpu, b);
-
-	if (d->compat_tc_stats) {
-		d->tc_stats.bytes = bstats.bytes;
-		d->tc_stats.packets = bstats.packets;
-	}
-
-	if (d->tail) {
-		struct gnet_stats_basic sb;
-
-		memset(&sb, 0, sizeof(sb));
-		sb.bytes = bstats.bytes;
-		sb.packets = bstats.packets;
-		return gnet_stats_copy(d, TCA_STATS_BASIC, &sb, sizeof(sb),
-				       TCA_STATS_PAD);
-	}
-	return 0;
+	return ___gnet_stats_copy_basic(running, d, cpu, b,
+					TCA_STATS_BASIC);
 }
 EXPORT_SYMBOL(gnet_stats_copy_basic);
+
+/**
+ * gnet_stats_copy_basic_hw - copy basic hw statistics into statistic TLV
+ * @running: seqcount_t pointer
+ * @d: dumping handle
+ * @cpu: copy statistic per cpu
+ * @b: basic statistics
+ *
+ * Appends the basic statistics to the top level TLV created by
+ * gnet_stats_start_copy().
+ *
+ * Returns 0 on success or -1 with the statistic lock released
+ * if the room in the socket buffer was not sufficient.
+ */
+int
+gnet_stats_copy_basic_hw(const seqcount_t *running,
+			 struct gnet_dump *d,
+			 struct gnet_stats_basic_cpu __percpu *cpu,
+			 struct gnet_stats_basic_packed *b)
+{
+	return ___gnet_stats_copy_basic(running, d, cpu, b,
+					TCA_STATS_BASIC_HW);
+}
+EXPORT_SYMBOL(gnet_stats_copy_basic_hw);
 
 /**
  * gnet_stats_copy_rate_est - copy rate estimator statistics into statistics TLV

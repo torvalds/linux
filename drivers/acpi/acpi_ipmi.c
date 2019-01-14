@@ -46,7 +46,7 @@ struct acpi_ipmi_device {
 	spinlock_t tx_msg_lock;
 	acpi_handle handle;
 	struct device *dev;
-	ipmi_user_t user_interface;
+	struct ipmi_user *user_interface;
 	int ipmi_ifnum; /* IPMI interface number */
 	long curr_msgid;
 	bool dead;
@@ -125,7 +125,7 @@ ipmi_dev_alloc(int iface, struct device *dev, acpi_handle handle)
 {
 	struct acpi_ipmi_device *ipmi_device;
 	int err;
-	ipmi_user_t user;
+	struct ipmi_user *user;
 
 	ipmi_device = kzalloc(sizeof(*ipmi_device), GFP_KERNEL);
 	if (!ipmi_device)

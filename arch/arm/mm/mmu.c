@@ -721,7 +721,7 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 
 static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
 {
-	void *ptr = __va(memblock_alloc(sz, align));
+	void *ptr = __va(memblock_phys_alloc(sz, align));
 	memset(ptr, 0, sz);
 	return ptr;
 }

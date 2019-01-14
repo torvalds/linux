@@ -99,50 +99,6 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 	return 0;
 }
 
-static int copy_clock_limits_array(
-	struct pp_hwmgr *hwmgr,
-	uint32_t **pptable_info_array,
-	const uint32_t *pptable_array)
-{
-	uint32_t array_size, i;
-	uint32_t *table;
-
-	array_size = sizeof(uint32_t) * ATOM_VEGA12_PPCLOCK_COUNT;
-
-	table = kzalloc(array_size, GFP_KERNEL);
-	if (NULL == table)
-		return -ENOMEM;
-
-	for (i = 0; i < ATOM_VEGA12_PPCLOCK_COUNT; i++)
-		table[i] = pptable_array[i];
-
-	*pptable_info_array = table;
-
-	return 0;
-}
-
-static int copy_overdrive_settings_limits_array(
-		struct pp_hwmgr *hwmgr,
-		uint32_t **pptable_info_array,
-		const uint32_t *pptable_array)
-{
-	uint32_t array_size, i;
-	uint32_t *table;
-
-	array_size = sizeof(uint32_t) * ATOM_VEGA12_ODSETTING_COUNT;
-
-	table = kzalloc(array_size, GFP_KERNEL);
-	if (NULL == table)
-		return -ENOMEM;
-
-	for (i = 0; i < ATOM_VEGA12_ODSETTING_COUNT; i++)
-		table[i] = pptable_array[i];
-
-	*pptable_info_array = table;
-
-	return 0;
-}
-
 static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable)
 {
 	struct pp_atomfwctrl_smc_dpm_parameters smc_dpm_table;
@@ -250,14 +206,22 @@ static int init_powerplay_table_information(
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 
-	if (powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_GFXCLKFMAX] > VEGA12_ENGINECLOCK_HARDMAX)
+	if (le32_to_cpu(powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_GFXCLKFMAX]) > VEGA12_ENGINECLOCK_HARDMAX)
 		hwmgr->platform_descriptor.overdriveLimit.engineClock = VEGA12_ENGINECLOCK_HARDMAX;
 	else
-		hwmgr->platform_descriptor.overdriveLimit.engineClock = powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_GFXCLKFMAX];
-	hwmgr->platform_descriptor.overdriveLimit.memoryClock = powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_UCLKFMAX];
+		hwmgr->platform_descriptor.overdriveLimit.engineClock =
+			le32_to_cpu(powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_GFXCLKFMAX]);
+	hwmgr->platform_descriptor.overdriveLimit.memoryClock =
+		le32_to_cpu(powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_UCLKFMAX]);
 
-	copy_overdrive_settings_limits_array(hwmgr, &pptable_information->od_settings_max, powerplay_table->ODSettingsMax);
-	copy_overdrive_settings_limits_array(hwmgr, &pptable_information->od_settings_min, powerplay_table->ODSettingsMin);
+	phm_copy_overdrive_settings_limits_array(hwmgr,
+						 &pptable_information->od_settings_max,
+						 powerplay_table->ODSettingsMax,
+						 ATOM_VEGA12_ODSETTING_COUNT);
+	phm_copy_overdrive_settings_limits_array(hwmgr,
+						 &pptable_information->od_settings_min,
+						 powerplay_table->ODSettingsMin,
+						 ATOM_VEGA12_ODSETTING_COUNT);
 
 	/* hwmgr->platformDescriptor.minOverdriveVDDC = 0;
 	hwmgr->platformDescriptor.maxOverdriveVDDC = 0;
@@ -267,15 +231,15 @@ static int init_powerplay_table_information(
 		&& hwmgr->platform_descriptor.overdriveLimit.memoryClock > 0)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_ACOverdriveSupport);
 
-	pptable_information->us_small_power_limit1 = powerplay_table->usSmallPowerLimit1;
-	pptable_information->us_small_power_limit2 = powerplay_table->usSmallPowerLimit2;
-	pptable_information->us_boost_power_limit = powerplay_table->usBoostPowerLimit;
-	pptable_information->us_od_turbo_power_limit = powerplay_table->usODTurboPowerLimit;
-	pptable_information->us_od_powersave_power_limit = powerplay_table->usODPowerSavePowerLimit;
+	pptable_information->us_small_power_limit1 = le16_to_cpu(powerplay_table->usSmallPowerLimit1);
+	pptable_information->us_small_power_limit2 = le16_to_cpu(powerplay_table->usSmallPowerLimit2);
+	pptable_information->us_boost_power_limit = le16_to_cpu(powerplay_table->usBoostPowerLimit);
+	pptable_information->us_od_turbo_power_limit = le16_to_cpu(powerplay_table->usODTurboPowerLimit);
+	pptable_information->us_od_powersave_power_limit = le16_to_cpu(powerplay_table->usODPowerSavePowerLimit);
 
-	pptable_information->us_software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
+	pptable_information->us_software_shutdown_temp = le16_to_cpu(powerplay_table->usSoftwareShutdownTemp);
 
-	hwmgr->platform_descriptor.TDPODLimit = (uint16_t)powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_POWERPERCENTAGE];
+	hwmgr->platform_descriptor.TDPODLimit = le32_to_cpu(powerplay_table->ODSettingsMax[ATOM_VEGA12_ODSETTING_POWERPERCENTAGE]);
 
 	disable_power_control = 0;
 	if (!disable_power_control) {
@@ -285,8 +249,8 @@ static int init_powerplay_table_information(
 				PHM_PlatformCaps_PowerControl);
 	}
 
-	copy_clock_limits_array(hwmgr, &pptable_information->power_saving_clock_max, powerplay_table->PowerSavingClockMax);
-	copy_clock_limits_array(hwmgr, &pptable_information->power_saving_clock_min, powerplay_table->PowerSavingClockMin);
+	phm_copy_clock_limits_array(hwmgr, &pptable_information->power_saving_clock_max, powerplay_table->PowerSavingClockMax, ATOM_VEGA12_PPCLOCK_COUNT);
+	phm_copy_clock_limits_array(hwmgr, &pptable_information->power_saving_clock_min, powerplay_table->PowerSavingClockMin, ATOM_VEGA12_PPCLOCK_COUNT);
 
 	pptable_information->smc_pptable = (PPTable_t *)kmalloc(sizeof(PPTable_t), GFP_KERNEL);
 	if (pptable_information->smc_pptable == NULL)

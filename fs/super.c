@@ -442,7 +442,7 @@ void generic_shutdown_super(struct super_block *sb)
 		sync_filesystem(sb);
 		sb->s_flags &= ~SB_ACTIVE;
 
-		fsnotify_unmount_inodes(sb);
+		fsnotify_sb_delete(sb);
 		cgroup_writeback_umount();
 
 		evict_inodes(sb);

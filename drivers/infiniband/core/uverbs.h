@@ -100,13 +100,14 @@ struct ib_uverbs_device {
 	atomic_t				refcount;
 	int					num_comp_vectors;
 	struct completion			comp;
-	struct device			       *dev;
+	struct device				dev;
+	/* First group for device attributes, NULL terminated array */
+	const struct attribute_group		*groups[2];
 	struct ib_device	__rcu	       *ib_dev;
 	int					devnum;
 	struct cdev			        cdev;
 	struct rb_root				xrcd_tree;
 	struct mutex				xrcd_tree_mutex;
-	struct kobject				kobj;
 	struct srcu_struct			disassociate_srcu;
 	struct mutex				lists_mutex; /* protect lists */
 	struct list_head			uverbs_file_list;
@@ -146,7 +147,6 @@ struct ib_uverbs_file {
 	struct ib_event_handler			event_handler;
 	struct ib_uverbs_async_event_file       *async_file;
 	struct list_head			list;
-	int					is_closed;
 
 	/*
 	 * To access the uobjects list hw_destroy_rwsem must be held for write
@@ -157,6 +157,9 @@ struct ib_uverbs_file {
 	struct rw_semaphore	hw_destroy_rwsem;
 	spinlock_t		uobjects_lock;
 	struct list_head	uobjects;
+
+	struct mutex umap_lock;
+	struct list_head umaps;
 
 	u64 uverbs_cmd_mask;
 	u64 uverbs_ex_cmd_mask;
@@ -216,12 +219,6 @@ struct ib_ucq_object {
 	struct list_head	async_list;
 	u32			comp_events_reported;
 	u32			async_events_reported;
-};
-
-struct ib_uflow_resources;
-struct ib_uflow_object {
-	struct ib_uobject		uobject;
-	struct ib_uflow_resources	*resources;
 };
 
 extern const struct file_operations uverbs_event_fops;

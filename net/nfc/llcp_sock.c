@@ -556,7 +556,7 @@ static __poll_t llcp_sock_poll(struct file *file, struct socket *sock,
 
 	pr_debug("%p\n", sk);
 
-	sock_poll_wait(file, wait);
+	sock_poll_wait(file, sock, wait);
 
 	if (sk->sk_state == LLCP_LISTEN)
 		return llcp_accept_poll(sk);

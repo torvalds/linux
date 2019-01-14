@@ -87,18 +87,30 @@ static struct notifier_block masq_dev_notifier = {
 struct masq_dev_work {
 	struct work_struct work;
 	struct net *net;
+	struct in6_addr addr;
 	int ifindex;
 };
+
+static int inet_cmp(struct nf_conn *ct, void *work)
+{
+	struct masq_dev_work *w = (struct masq_dev_work *)work;
+	struct nf_conntrack_tuple *tuple;
+
+	if (!device_cmp(ct, (void *)(long)w->ifindex))
+		return 0;
+
+	tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+
+	return ipv6_addr_equal(&w->addr, &tuple->dst.u3.in6);
+}
 
 static void iterate_cleanup_work(struct work_struct *work)
 {
 	struct masq_dev_work *w;
-	long index;
 
 	w = container_of(work, struct masq_dev_work, work);
 
-	index = w->ifindex;
-	nf_ct_iterate_cleanup_net(w->net, device_cmp, (void *)index, 0, 0);
+	nf_ct_iterate_cleanup_net(w->net, inet_cmp, (void *)w, 0, 0);
 
 	put_net(w->net);
 	kfree(w);
@@ -120,8 +132,8 @@ static void iterate_cleanup_work(struct work_struct *work)
  * of ipv6 addresses being deleted), we also need to add an upper
  * limit to the number of queued work items.
  */
-static int masq_inet_event(struct notifier_block *this,
-			   unsigned long event, void *ptr)
+static int masq_inet6_event(struct notifier_block *this,
+			    unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = ptr;
 	const struct net_device *dev;
@@ -147,6 +159,7 @@ static int masq_inet_event(struct notifier_block *this,
 		INIT_WORK(&w->work, iterate_cleanup_work);
 		w->ifindex = dev->ifindex;
 		w->net = net;
+		w->addr = ifa->addr;
 		schedule_work(&w->work);
 
 		return NOTIFY_DONE;
@@ -158,30 +171,53 @@ static int masq_inet_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block masq_inet_notifier = {
-	.notifier_call	= masq_inet_event,
+static struct notifier_block masq_inet6_notifier = {
+	.notifier_call	= masq_inet6_event,
 };
 
-static atomic_t masquerade_notifier_refcount = ATOMIC_INIT(0);
+static int masq_refcnt;
+static DEFINE_MUTEX(masq_mutex);
 
-void nf_nat_masquerade_ipv6_register_notifier(void)
+int nf_nat_masquerade_ipv6_register_notifier(void)
 {
-	/* check if the notifier is already set */
-	if (atomic_inc_return(&masquerade_notifier_refcount) > 1)
-		return;
+	int ret = 0;
 
-	register_netdevice_notifier(&masq_dev_notifier);
-	register_inet6addr_notifier(&masq_inet_notifier);
+	mutex_lock(&masq_mutex);
+	/* check if the notifier is already set */
+	if (++masq_refcnt > 1)
+		goto out_unlock;
+
+	ret = register_netdevice_notifier(&masq_dev_notifier);
+	if (ret)
+		goto err_dec;
+
+	ret = register_inet6addr_notifier(&masq_inet6_notifier);
+	if (ret)
+		goto err_unregister;
+
+	mutex_unlock(&masq_mutex);
+	return ret;
+
+err_unregister:
+	unregister_netdevice_notifier(&masq_dev_notifier);
+err_dec:
+	masq_refcnt--;
+out_unlock:
+	mutex_unlock(&masq_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv6_register_notifier);
 
 void nf_nat_masquerade_ipv6_unregister_notifier(void)
 {
+	mutex_lock(&masq_mutex);
 	/* check if the notifier still has clients */
-	if (atomic_dec_return(&masquerade_notifier_refcount) > 0)
-		return;
+	if (--masq_refcnt > 0)
+		goto out_unlock;
 
-	unregister_inet6addr_notifier(&masq_inet_notifier);
+	unregister_inet6addr_notifier(&masq_inet6_notifier);
 	unregister_netdevice_notifier(&masq_dev_notifier);
+out_unlock:
+	mutex_unlock(&masq_mutex);
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv6_unregister_notifier);

@@ -156,6 +156,34 @@ TRACE_EVENT(nvme_complete_rq,
 
 );
 
+#define aer_name(aer) { aer, #aer }
+
+TRACE_EVENT(nvme_async_event,
+	TP_PROTO(struct nvme_ctrl *ctrl, u32 result),
+	TP_ARGS(ctrl, result),
+	TP_STRUCT__entry(
+		__field(int, ctrl_id)
+		__field(u32, result)
+	),
+	TP_fast_assign(
+		__entry->ctrl_id = ctrl->instance;
+		__entry->result = result;
+	),
+	TP_printk("nvme%d: NVME_AEN=%#08x [%s]",
+		__entry->ctrl_id, __entry->result,
+		__print_symbolic(__entry->result,
+		aer_name(NVME_AER_NOTICE_NS_CHANGED),
+		aer_name(NVME_AER_NOTICE_ANA),
+		aer_name(NVME_AER_NOTICE_FW_ACT_STARTING),
+		aer_name(NVME_AER_ERROR),
+		aer_name(NVME_AER_SMART),
+		aer_name(NVME_AER_CSS),
+		aer_name(NVME_AER_VS))
+	)
+);
+
+#undef aer_name
+
 #endif /* _TRACE_NVME_H */
 
 #undef TRACE_INCLUDE_PATH

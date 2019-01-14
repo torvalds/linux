@@ -17,8 +17,8 @@ Supported chips:
     Addresses scanned: none
     Datasheet: Publicly available at the Maxim website
                http://www.maximintegrated.com/
-  * Maxim MAX6625, MAX6626
-    Prefixes: 'max6625', 'max6626'
+  * Maxim MAX6625, MAX6626, MAX31725, MAX31726
+    Prefixes: 'max6625', 'max6626', 'max31725', 'max31726'
     Addresses scanned: none
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/
@@ -86,7 +86,7 @@ The LM75 is essentially an industry standard; there may be other
 LM75 clones not listed here, with or without various enhancements,
 that are supported. The clones are not detected by the driver, unless
 they reproduce the exact register tricks of the original LM75, and must
-therefore be instantiated explicitly. Higher resolution up to 12-bit
+therefore be instantiated explicitly. Higher resolution up to 16-bit
 is supported by this driver, other specific enhancements are not.
 
 The LM77 is not supported, contrary to what we pretended for a long time.

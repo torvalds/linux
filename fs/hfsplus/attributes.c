@@ -217,6 +217,11 @@ int hfsplus_create_attr(struct inode *inode,
 	if (err)
 		goto failed_init_create_attr;
 
+	/* Fail early and avoid ENOSPC during the btree operation */
+	err = hfs_bmap_reserve(fd.tree, fd.tree->depth + 1);
+	if (err)
+		goto failed_create_attr;
+
 	if (name) {
 		err = hfsplus_attr_build_key(sb, fd.search_key,
 						inode->i_ino, name);
@@ -312,6 +317,11 @@ int hfsplus_delete_attr(struct inode *inode, const char *name)
 	err = hfs_find_init(HFSPLUS_SB(sb)->attr_tree, &fd);
 	if (err)
 		return err;
+
+	/* Fail early and avoid ENOSPC during the btree operation */
+	err = hfs_bmap_reserve(fd.tree, fd.tree->depth);
+	if (err)
+		goto out;
 
 	if (name) {
 		err = hfsplus_attr_build_key(sb, fd.search_key,

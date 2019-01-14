@@ -391,15 +391,15 @@ int __attribute_const__ kvm_target_cpu(void)
 			return KVM_ARM_TARGET_CORTEX_A53;
 		case ARM_CPU_PART_CORTEX_A57:
 			return KVM_ARM_TARGET_CORTEX_A57;
-		};
+		}
 		break;
 	case ARM_CPU_IMP_APM:
 		switch (part_number) {
 		case APM_CPU_PART_POTENZA:
 			return KVM_ARM_TARGET_XGENE_POTENZA;
-		};
+		}
 		break;
-	};
+	}
 
 	/* Return a default generic target */
 	return KVM_ARM_TARGET_GENERIC_V8;

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -61,19 +61,12 @@
  */
 
 /*
- * Code to adjust PCIe capabilities.
- */
-static void tune_pcie_caps(struct hfi1_devdata *);
-
-/*
  * Do all the common PCIe setup and initialization.
- * devdata is not yet allocated, and is not allocated until after this
- * routine returns success.  Therefore dd_dev_err() can't be used for error
- * printing.
  */
-int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
+int hfi1_pcie_init(struct hfi1_devdata *dd)
 {
 	int ret;
+	struct pci_dev *pdev = dd->pcidev;
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -89,15 +82,13 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 * about that, it appears.  If the original BAR was retained
 		 * in the kernel data structures, this may be OK.
 		 */
-		hfi1_early_err(&pdev->dev, "pci enable failed: error %d\n",
-			       -ret);
-		goto done;
+		dd_dev_err(dd, "pci enable failed: error %d\n", -ret);
+		return ret;
 	}
 
 	ret = pci_request_regions(pdev, DRIVER_NAME);
 	if (ret) {
-		hfi1_early_err(&pdev->dev,
-			       "pci_request_regions fails: err %d\n", -ret);
+		dd_dev_err(dd, "pci_request_regions fails: err %d\n", -ret);
 		goto bail;
 	}
 
@@ -110,8 +101,7 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 */
 		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (ret) {
-			hfi1_early_err(&pdev->dev,
-				       "Unable to set DMA mask: %d\n", ret);
+			dd_dev_err(dd, "Unable to set DMA mask: %d\n", ret);
 			goto bail;
 		}
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
@@ -119,18 +109,16 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	}
 	if (ret) {
-		hfi1_early_err(&pdev->dev,
-			       "Unable to set DMA consistent mask: %d\n", ret);
+		dd_dev_err(dd, "Unable to set DMA consistent mask: %d\n", ret);
 		goto bail;
 	}
 
 	pci_set_master(pdev);
 	(void)pci_enable_pcie_error_reporting(pdev);
-	goto done;
+	return 0;
 
 bail:
 	hfi1_pcie_cleanup(pdev);
-done:
 	return ret;
 }
 
@@ -206,7 +194,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 		dd_dev_err(dd, "WC mapping of send buffers failed\n");
 		goto nomem;
 	}
-	dd_dev_info(dd, "WC piobase: %p\n for %x", dd->piobase, TXE_PIO_SIZE);
+	dd_dev_info(dd, "WC piobase: %p for %x\n", dd->piobase, TXE_PIO_SIZE);
 
 	dd->physaddr = addr;        /* used for io_remap, etc. */
 
@@ -344,26 +332,6 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	return 0;
 }
 
-/*
- * Returns:
- *	- actual number of interrupts allocated or
- *      - error
- */
-int request_msix(struct hfi1_devdata *dd, u32 msireq)
-{
-	int nvec;
-
-	nvec = pci_alloc_irq_vectors(dd->pcidev, msireq, msireq, PCI_IRQ_MSIX);
-	if (nvec < 0) {
-		dd_dev_err(dd, "pci_alloc_irq_vectors() failed: %d\n", nvec);
-		return nvec;
-	}
-
-	tune_pcie_caps(dd);
-
-	return nvec;
-}
-
 /* restore command and BARs after a reset has wiped them out */
 int restore_pci_variables(struct hfi1_devdata *dd)
 {
@@ -479,14 +447,19 @@ error:
  * Check and optionally adjust them to maximize our throughput.
  */
 static int hfi1_pcie_caps;
-module_param_named(pcie_caps, hfi1_pcie_caps, int, S_IRUGO);
+module_param_named(pcie_caps, hfi1_pcie_caps, int, 0444);
 MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
 
 uint aspm_mode = ASPM_MODE_DISABLED;
-module_param_named(aspm, aspm_mode, uint, S_IRUGO);
+module_param_named(aspm, aspm_mode, uint, 0444);
 MODULE_PARM_DESC(aspm, "PCIe ASPM: 0: disable, 1: enable, 2: dynamic");
 
-static void tune_pcie_caps(struct hfi1_devdata *dd)
+/**
+ * tune_pcie_caps() - Code to adjust PCIe capabilities.
+ * @dd: Valid device data structure
+ *
+ */
+void tune_pcie_caps(struct hfi1_devdata *dd)
 {
 	struct pci_dev *parent;
 	u16 rc_mpss, rc_mps, ep_mpss, ep_mps;
@@ -650,7 +623,6 @@ pci_resume(struct pci_dev *pdev)
 	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
 
 	dd_dev_info(dd, "HFI1 resume function called\n");
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	/*
 	 * Running jobs will fail, since it's asynchronous
 	 * unlike sysfs-requested reset.   Better than
@@ -1029,6 +1001,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	const u8 (*ctle_tunings)[4];
 	uint static_ctle_mode;
 	int return_error = 0;
+	u32 target_width;
 
 	/* PCIe Gen3 is for the ASIC only */
 	if (dd->icode != ICODE_RTL_SILICON)
@@ -1067,6 +1040,9 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 			    __func__);
 		return 0;
 	}
+
+	/* Previous Gen1/Gen2 bus width */
+	target_width = dd->lbus_width;
 
 	/*
 	 * Do the Gen3 transition.  Steps are those of the PCIe Gen3
@@ -1436,11 +1412,12 @@ retry:
 	dd_dev_info(dd, "%s: new speed and width: %s\n", __func__,
 		    dd->lbus_info);
 
-	if (dd->lbus_speed != target_speed) { /* not target */
+	if (dd->lbus_speed != target_speed ||
+	    dd->lbus_width < target_width) { /* not target */
 		/* maybe retry */
 		do_retry = retry_count < pcie_retry;
-		dd_dev_err(dd, "PCIe link speed did not switch to Gen%d%s\n",
-			   pcie_target, do_retry ? ", retrying" : "");
+		dd_dev_err(dd, "PCIe link speed or width did not match target%s\n",
+			   do_retry ? ", retrying" : "");
 		retry_count++;
 		if (do_retry) {
 			msleep(100); /* allow time to settle */

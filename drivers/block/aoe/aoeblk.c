@@ -6,7 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/hdreg.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
@@ -177,8 +177,13 @@ static struct attribute *aoe_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group attr_group = {
+static const struct attribute_group aoe_attr_group = {
 	.attrs = aoe_attrs,
+};
+
+static const struct attribute_group *aoe_attr_groups[] = {
+	&aoe_attr_group,
+	NULL,
 };
 
 static const struct file_operations aoe_debugfs_fops = {
@@ -217,17 +222,6 @@ aoedisk_rm_debugfs(struct aoedev *d)
 {
 	debugfs_remove(d->debugfs);
 	d->debugfs = NULL;
-}
-
-static int
-aoedisk_add_sysfs(struct aoedev *d)
-{
-	return sysfs_create_group(&disk_to_dev(d->gd)->kobj, &attr_group);
-}
-void
-aoedisk_rm_sysfs(struct aoedev *d)
-{
-	sysfs_remove_group(&disk_to_dev(d->gd)->kobj, &attr_group);
 }
 
 static int
@@ -274,23 +268,25 @@ aoeblk_release(struct gendisk *disk, fmode_t mode)
 	spin_unlock_irqrestore(&d->lock, flags);
 }
 
-static void
-aoeblk_request(struct request_queue *q)
+static blk_status_t aoeblk_queue_rq(struct blk_mq_hw_ctx *hctx,
+				    const struct blk_mq_queue_data *bd)
 {
-	struct aoedev *d;
-	struct request *rq;
+	struct aoedev *d = hctx->queue->queuedata;
 
-	d = q->queuedata;
+	spin_lock_irq(&d->lock);
+
 	if ((d->flags & DEVFL_UP) == 0) {
 		pr_info_ratelimited("aoe: device %ld.%d is not up\n",
 			d->aoemajor, d->aoeminor);
-		while ((rq = blk_peek_request(q))) {
-			blk_start_request(rq);
-			aoe_end_request(d, rq, 1);
-		}
-		return;
+		spin_unlock_irq(&d->lock);
+		blk_mq_start_request(bd->rq);
+		return BLK_STS_IOERR;
 	}
+
+	list_add_tail(&bd->rq->queuelist, &d->rq_list);
 	aoecmd_work(d);
+	spin_unlock_irq(&d->lock);
+	return BLK_STS_OK;
 }
 
 static int
@@ -345,6 +341,10 @@ static const struct block_device_operations aoe_bdops = {
 	.owner = THIS_MODULE,
 };
 
+static const struct blk_mq_ops aoeblk_mq_ops = {
+	.queue_rq	= aoeblk_queue_rq,
+};
+
 /* alloc_disk and add_disk can sleep */
 void
 aoeblk_gdalloc(void *vp)
@@ -353,9 +353,11 @@ aoeblk_gdalloc(void *vp)
 	struct gendisk *gd;
 	mempool_t *mp;
 	struct request_queue *q;
+	struct blk_mq_tag_set *set;
 	enum { KB = 1024, MB = KB * KB, READ_AHEAD = 2 * MB, };
 	ulong flags;
 	int late = 0;
+	int err;
 
 	spin_lock_irqsave(&d->lock, flags);
 	if (d->flags & DEVFL_GDALLOC
@@ -382,10 +384,25 @@ aoeblk_gdalloc(void *vp)
 			d->aoemajor, d->aoeminor);
 		goto err_disk;
 	}
-	q = blk_init_queue(aoeblk_request, &d->lock);
-	if (q == NULL) {
+
+	set = &d->tag_set;
+	set->ops = &aoeblk_mq_ops;
+	set->nr_hw_queues = 1;
+	set->queue_depth = 128;
+	set->numa_node = NUMA_NO_NODE;
+	set->flags = BLK_MQ_F_SHOULD_MERGE;
+	err = blk_mq_alloc_tag_set(set);
+	if (err) {
+		pr_err("aoe: cannot allocate tag set for %ld.%d\n",
+			d->aoemajor, d->aoeminor);
+		goto err_mempool;
+	}
+
+	q = blk_mq_init_queue(set);
+	if (IS_ERR(q)) {
 		pr_err("aoe: cannot allocate block queue for %ld.%d\n",
 			d->aoemajor, d->aoeminor);
+		blk_mq_free_tag_set(set);
 		goto err_mempool;
 	}
 
@@ -417,8 +434,7 @@ aoeblk_gdalloc(void *vp)
 
 	spin_unlock_irqrestore(&d->lock, flags);
 
-	add_disk(gd);
-	aoedisk_add_sysfs(d);
+	device_add_disk(NULL, gd, aoe_attr_groups);
 	aoedisk_add_debugfs(d);
 
 	spin_lock_irqsave(&d->lock, flags);

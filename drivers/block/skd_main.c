@@ -632,7 +632,7 @@ static bool skd_preop_sg_list(struct skd_device *skdev,
 	 * Map scatterlist to PCI bus addresses.
 	 * Note PCI might change the number of entries.
 	 */
-	n_sg = pci_map_sg(skdev->pdev, sgl, n_sg, skreq->data_dir);
+	n_sg = dma_map_sg(&skdev->pdev->dev, sgl, n_sg, skreq->data_dir);
 	if (n_sg <= 0)
 		return false;
 
@@ -682,7 +682,8 @@ static void skd_postop_sg_list(struct skd_device *skdev,
 	skreq->sksg_list[skreq->n_sg - 1].next_desc_ptr =
 		skreq->sksg_dma_address +
 		((skreq->n_sg) * sizeof(struct fit_sg_descriptor));
-	pci_unmap_sg(skdev->pdev, &skreq->sg[0], skreq->n_sg, skreq->data_dir);
+	dma_unmap_sg(&skdev->pdev->dev, &skreq->sg[0], skreq->n_sg,
+		     skreq->data_dir);
 }
 
 /*
@@ -1416,7 +1417,7 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 
 	case SKD_CHECK_STATUS_BUSY_IMMINENT:
 		skd_log_skreq(skdev, skreq, "retry(busy)");
-		blk_requeue_request(skdev->queue, req);
+		blk_mq_requeue_request(req, true);
 		dev_info(&skdev->pdev->dev, "drive BUSY imminent\n");
 		skdev->state = SKD_DRVR_STATE_BUSY_IMMINENT;
 		skdev->timer_countdown = SKD_TIMER_MINUTES(20);
@@ -1426,7 +1427,7 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 	case SKD_CHECK_STATUS_REQUEUE_REQUEST:
 		if ((unsigned long) ++req->special < SKD_MAX_RETRIES) {
 			skd_log_skreq(skdev, skreq, "retry");
-			blk_requeue_request(skdev->queue, req);
+			blk_mq_requeue_request(req, true);
 			break;
 		}
 		/* fall through */
@@ -2632,8 +2633,8 @@ static int skd_cons_skcomp(struct skd_device *skdev)
 		"comp pci_alloc, total bytes %zd entries %d\n",
 		SKD_SKCOMP_SIZE, SKD_N_COMPLETION_ENTRY);
 
-	skcomp = pci_zalloc_consistent(skdev->pdev, SKD_SKCOMP_SIZE,
-				       &skdev->cq_dma_address);
+	skcomp = dma_zalloc_coherent(&skdev->pdev->dev, SKD_SKCOMP_SIZE,
+				     &skdev->cq_dma_address, GFP_KERNEL);
 
 	if (skcomp == NULL) {
 		rc = -ENOMEM;
@@ -2674,10 +2675,10 @@ static int skd_cons_skmsg(struct skd_device *skdev)
 
 		skmsg->id = i + SKD_ID_FIT_MSG;
 
-		skmsg->msg_buf = pci_alloc_consistent(skdev->pdev,
-						      SKD_N_FITMSG_BYTES,
-						      &skmsg->mb_dma_address);
-
+		skmsg->msg_buf = dma_alloc_coherent(&skdev->pdev->dev,
+						    SKD_N_FITMSG_BYTES,
+						    &skmsg->mb_dma_address,
+						    GFP_KERNEL);
 		if (skmsg->msg_buf == NULL) {
 			rc = -ENOMEM;
 			goto err_out;
@@ -2971,8 +2972,8 @@ err_out:
 static void skd_free_skcomp(struct skd_device *skdev)
 {
 	if (skdev->skcomp_table)
-		pci_free_consistent(skdev->pdev, SKD_SKCOMP_SIZE,
-				    skdev->skcomp_table, skdev->cq_dma_address);
+		dma_free_coherent(&skdev->pdev->dev, SKD_SKCOMP_SIZE,
+				  skdev->skcomp_table, skdev->cq_dma_address);
 
 	skdev->skcomp_table = NULL;
 	skdev->cq_dma_address = 0;
@@ -2991,8 +2992,8 @@ static void skd_free_skmsg(struct skd_device *skdev)
 		skmsg = &skdev->skmsg_table[i];
 
 		if (skmsg->msg_buf != NULL) {
-			pci_free_consistent(skdev->pdev, SKD_N_FITMSG_BYTES,
-					    skmsg->msg_buf,
+			dma_free_coherent(&skdev->pdev->dev, SKD_N_FITMSG_BYTES,
+					  skmsg->msg_buf,
 					    skmsg->mb_dma_address);
 		}
 		skmsg->msg_buf = NULL;
@@ -3104,7 +3105,7 @@ static int skd_bdev_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 static int skd_bdev_attach(struct device *parent, struct skd_device *skdev)
 {
 	dev_dbg(&skdev->pdev->dev, "add_disk\n");
-	device_add_disk(parent, skdev->disk);
+	device_add_disk(parent, skdev->disk, NULL);
 	return 0;
 }
 
@@ -3172,18 +3173,12 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)
 		goto err_out;
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (!rc) {
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-			dev_err(&pdev->dev, "consistent DMA mask error %d\n",
-				rc);
-		}
-	} else {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(&pdev->dev, "DMA mask error %d\n", rc);
-			goto err_out_regions;
-		}
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (rc) {
+		dev_err(&pdev->dev, "DMA mask error %d\n", rc);
+		goto err_out_regions;
 	}
 
 	if (!skd_major) {
@@ -3367,20 +3362,12 @@ static int skd_pci_resume(struct pci_dev *pdev)
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)
 		goto err_out;
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (!rc) {
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-
-			dev_err(&pdev->dev, "consistent DMA mask error %d\n",
-				rc);
-		}
-	} else {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
-
-			dev_err(&pdev->dev, "DMA mask error %d\n", rc);
-			goto err_out_regions;
-		}
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (rc) {
+		dev_err(&pdev->dev, "DMA mask error %d\n", rc);
+		goto err_out_regions;
 	}
 
 	pci_set_master(pdev);

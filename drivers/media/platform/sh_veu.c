@@ -345,9 +345,9 @@ static int sh_veu_context_init(struct sh_veu_dev *veu)
 static int sh_veu_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, "sh-veu", sizeof(cap->driver));
-	strlcpy(cap->card, "sh-mobile VEU", sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:sh-veu", sizeof(cap->bus_info));
+	strscpy(cap->driver, "sh-veu", sizeof(cap->driver));
+	strscpy(cap->card, "sh-mobile VEU", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:sh-veu", sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
@@ -359,7 +359,8 @@ static int sh_veu_enum_fmt(struct v4l2_fmtdesc *f, const int *fmt, int fmt_num)
 	if (f->index >= fmt_num)
 		return -EINVAL;
 
-	strlcpy(f->description, sh_veu_fmt[fmt[f->index]].name, sizeof(f->description));
+	strscpy(f->description, sh_veu_fmt[fmt[f->index]].name,
+		sizeof(f->description));
 	f->pixelformat = sh_veu_fmt[fmt[f->index]].fourcc;
 	return 0;
 }

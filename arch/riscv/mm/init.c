@@ -13,9 +13,8 @@
 
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
-#include <linux/initrd.h>
 #include <linux/memblock.h>
+#include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/sizes.h>
 
@@ -55,7 +54,7 @@ void __init mem_init(void)
 #endif /* CONFIG_FLATMEM */
 
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
 }

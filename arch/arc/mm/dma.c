@@ -84,29 +84,10 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	__free_pages(page, get_order(size));
 }
 
-int arch_dma_mmap(struct device *dev, struct vm_area_struct *vma,
-		void *cpu_addr, dma_addr_t dma_addr, size_t size,
-		unsigned long attrs)
+long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
+		dma_addr_t dma_addr)
 {
-	unsigned long user_count = vma_pages(vma);
-	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	unsigned long pfn = __phys_to_pfn(dma_addr);
-	unsigned long off = vma->vm_pgoff;
-	int ret = -ENXIO;
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
-		return ret;
-
-	if (off < count && user_count <= (count - off)) {
-		ret = remap_pfn_range(vma, vma->vm_start,
-				      pfn + off,
-				      user_count << PAGE_SHIFT,
-				      vma->vm_page_prot);
-	}
-
-	return ret;
+	return __phys_to_pfn(dma_addr);
 }
 
 /*
@@ -167,7 +148,7 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 }
 
 /*
- * Plug in coherent or noncoherent dma ops
+ * Plug in direct dma map ops.
  */
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			const struct iommu_ops *iommu, bool coherent)
@@ -175,13 +156,11 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	/*
 	 * IOC hardware snoops all DMA traffic keeping the caches consistent
 	 * with memory - eliding need for any explicit cache maintenance of
-	 * DMA buffers - so we can use dma_direct cache ops.
+	 * DMA buffers.
 	 */
-	if (is_isa_arcv2() && ioc_enable && coherent) {
-		set_dma_ops(dev, &dma_direct_ops);
-		dev_info(dev, "use dma_direct_ops cache ops\n");
-	} else {
-		set_dma_ops(dev, &dma_noncoherent_ops);
-		dev_info(dev, "use dma_noncoherent_ops cache ops\n");
-	}
+	if (is_isa_arcv2() && ioc_enable && coherent)
+		dev->dma_coherent = true;
+
+	dev_info(dev, "use %sncoherent DMA ops\n",
+		 dev->dma_coherent ? "" : "non");
 }

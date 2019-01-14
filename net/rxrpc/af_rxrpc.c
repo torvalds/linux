@@ -97,7 +97,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	    srx->transport_len > len)
 		return -EINVAL;
 
-	if (srx->transport.family != rx->family)
+	if (srx->transport.family != rx->family &&
+	    srx->transport.family == AF_INET && rx->family != AF_INET6)
 		return -EAFNOSUPPORT;
 
 	switch (srx->transport.family) {
@@ -374,15 +375,48 @@ EXPORT_SYMBOL(rxrpc_kernel_end_call);
  * getting ACKs from the server.  Returns a number representing the life state
  * which can be compared to that returned by a previous call.
  *
- * If this is a client call, ping ACKs will be sent to the server to find out
- * whether it's still responsive and whether the call is still alive on the
- * server.
+ * If the life state stalls, rxrpc_kernel_probe_life() should be called and
+ * then 2RTT waited.
  */
-u32 rxrpc_kernel_check_life(struct socket *sock, struct rxrpc_call *call)
+u32 rxrpc_kernel_check_life(const struct socket *sock,
+			    const struct rxrpc_call *call)
 {
 	return call->acks_latest;
 }
 EXPORT_SYMBOL(rxrpc_kernel_check_life);
+
+/**
+ * rxrpc_kernel_probe_life - Poke the peer to see if it's still alive
+ * @sock: The socket the call is on
+ * @call: The call to check
+ *
+ * In conjunction with rxrpc_kernel_check_life(), allow a kernel service to
+ * find out whether a call is still alive by pinging it.  This should cause the
+ * life state to be bumped in about 2*RTT.
+ *
+ * The must be called in TASK_RUNNING state on pain of might_sleep() objecting.
+ */
+void rxrpc_kernel_probe_life(struct socket *sock, struct rxrpc_call *call)
+{
+	rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+			  rxrpc_propose_ack_ping_for_check_life);
+	rxrpc_send_ack_packet(call, true, NULL);
+}
+EXPORT_SYMBOL(rxrpc_kernel_probe_life);
+
+/**
+ * rxrpc_kernel_get_epoch - Retrieve the epoch value from a call.
+ * @sock: The socket the call is on
+ * @call: The call to query
+ *
+ * Allow a kernel service to retrieve the epoch value from a service call to
+ * see if the client at the other end rebooted.
+ */
+u32 rxrpc_kernel_get_epoch(struct socket *sock, struct rxrpc_call *call)
+{
+	return call->conn->proto.epoch;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_epoch);
 
 /**
  * rxrpc_kernel_check_call - Check a call's state
@@ -741,7 +775,7 @@ static __poll_t rxrpc_poll(struct file *file, struct socket *sock,
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
 	__poll_t mask;
 
-	sock_poll_wait(file, wait);
+	sock_poll_wait(file, sock, wait);
 	mask = 0;
 
 	/* the socket is readable if there are any messages waiting on the Rx

@@ -2784,6 +2784,7 @@ do { \
 		RL("LROmerged:", stats.lro_merged);
 		RL("LROpackets:", stats.lro_pkts);
 		RL("RxDrops:", stats.rx_drops);
+		RL("RxBadPkts:", stats.bad_rx_pkts);
 		TL("TSO:", tso);
 		TL("TxCSO:", tx_cso);
 		TL("VLANins:", vlan_ins);

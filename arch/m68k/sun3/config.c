@@ -15,7 +15,7 @@
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/platform_device.h>
 
 #include <asm/oplib.h>

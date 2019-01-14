@@ -51,12 +51,4 @@ typedef enum {
 
 extern void vr41xx_set_irq_level(unsigned int pin, irq_level_t level);
 
-typedef enum {
-	GPIO_PULL_DOWN,
-	GPIO_PULL_UP,
-	GPIO_PULL_DISABLE,
-} gpio_pull_t;
-
-extern int vr41xx_gpio_pullupdown(unsigned int pin, gpio_pull_t pull);
-
 #endif /* __NEC_VR41XX_GIU_H */

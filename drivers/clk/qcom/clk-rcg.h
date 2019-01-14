@@ -163,4 +163,15 @@ extern const struct clk_ops clk_pixel_ops;
 extern const struct clk_ops clk_gfx3d_ops;
 extern const struct clk_ops clk_rcg2_shared_ops;
 
+struct clk_rcg_dfs_data {
+	struct clk_rcg2 *rcg;
+	struct clk_init_data *init;
+};
+
+#define DEFINE_RCG_DFS(r) \
+	{ .rcg = &r##_src, .init = &r##_init }
+
+extern int qcom_cc_register_rcg_dfs(struct regmap *regmap,
+				    const struct clk_rcg_dfs_data *rcgs,
+				    size_t len);
 #endif

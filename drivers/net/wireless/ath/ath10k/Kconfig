@@ -42,7 +42,9 @@ config ATH10K_USB
 
 config ATH10K_SNOC
 	tristate "Qualcomm ath10k SNOC support (EXPERIMENTAL)"
-	depends on ATH10K && ARCH_QCOM
+	depends on ATH10K
+	depends on ARCH_QCOM || COMPILE_TEST
+	select QCOM_QMI_HELPERS
 	---help---
 	  This module adds support for integrated WCN3990 chip connected
 	  to system NOC(SNOC). Currently work in progress and will not

@@ -175,20 +175,21 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_VLAN_REMOVE	    = 0x1001,
 	HCLGE_OPC_MAC_VLAN_TYPE_ID	    = 0x1002,
 	HCLGE_OPC_MAC_VLAN_INSERT	    = 0x1003,
+	HCLGE_OPC_MAC_VLAN_ALLOCATE	    = 0x1004,
 	HCLGE_OPC_MAC_ETHTYPE_ADD	    = 0x1010,
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
-	HCLGE_OPC_MAC_VLAN_MASK_SET	= 0x1012,
-
-	/* Multicast linear table commands */
-	HCLGE_OPC_MTA_MAC_MODE_CFG	    = 0x1020,
-	HCLGE_OPC_MTA_MAC_FUNC_CFG	    = 0x1021,
-	HCLGE_OPC_MTA_TBL_ITEM_CFG	    = 0x1022,
-	HCLGE_OPC_MTA_TBL_ITEM_QUERY	= 0x1023,
 
 	/* VLAN commands */
 	HCLGE_OPC_VLAN_FILTER_CTRL	    = 0x1100,
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
 	HCLGE_OPC_VLAN_FILTER_VF_CFG	= 0x1102,
+
+	/* Flow Director commands */
+	HCLGE_OPC_FD_MODE_CTRL		= 0x1200,
+	HCLGE_OPC_FD_GET_ALLOCATION	= 0x1201,
+	HCLGE_OPC_FD_KEY_CONFIG		= 0x1202,
+	HCLGE_OPC_FD_TCAM_OP		= 0x1203,
+	HCLGE_OPC_FD_AD_OP		= 0x1204,
 
 	/* MDIO command */
 	HCLGE_OPC_MDIO_CONFIG		= 0x1900,
@@ -208,6 +209,28 @@ enum hclge_opcode_type {
 
 	/* Led command */
 	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
+
+	/* Error INT commands */
+	HCLGE_TM_SCH_ECC_INT_EN		= 0x0829,
+	HCLGE_TM_SCH_ECC_ERR_RINT_CMD	= 0x082d,
+	HCLGE_TM_SCH_ECC_ERR_RINT_CE	= 0x082f,
+	HCLGE_TM_SCH_ECC_ERR_RINT_NFE	= 0x0830,
+	HCLGE_TM_SCH_ECC_ERR_RINT_FE	= 0x0831,
+	HCLGE_TM_SCH_MBIT_ECC_INFO_CMD	= 0x0833,
+	HCLGE_COMMON_ECC_INT_CFG	= 0x1505,
+	HCLGE_IGU_EGU_TNL_INT_QUERY	= 0x1802,
+	HCLGE_IGU_EGU_TNL_INT_EN	= 0x1803,
+	HCLGE_IGU_EGU_TNL_INT_CLR	= 0x1804,
+	HCLGE_IGU_COMMON_INT_QUERY	= 0x1805,
+	HCLGE_IGU_COMMON_INT_EN		= 0x1806,
+	HCLGE_IGU_COMMON_INT_CLR	= 0x1807,
+	HCLGE_TM_QCN_MEM_INT_CFG	= 0x1A14,
+	HCLGE_TM_QCN_MEM_INT_INFO_CMD	= 0x1A17,
+	HCLGE_PPP_CMD0_INT_CMD		= 0x2100,
+	HCLGE_PPP_CMD1_INT_CMD		= 0x2101,
+	HCLGE_NCSI_INT_QUERY		= 0x2400,
+	HCLGE_NCSI_INT_EN		= 0x2401,
+	HCLGE_NCSI_INT_CLR		= 0x2402,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000
@@ -395,6 +418,8 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_RSS_SIZE_M	GENMASK(31, 24)
 #define HCLGE_CFG_SPEED_ABILITY_S	0
 #define HCLGE_CFG_SPEED_ABILITY_M	GENMASK(7, 0)
+#define HCLGE_CFG_UMV_TBL_SPACE_S	16
+#define HCLGE_CFG_UMV_TBL_SPACE_M	GENMASK(31, 16)
 
 struct hclge_cfg_param_cmd {
 	__le32 offset;
@@ -584,13 +609,12 @@ struct hclge_mac_vlan_tbl_entry_cmd {
 	u8      rsv2[6];
 };
 
-#define HCLGE_VLAN_MASK_EN_B		0
-struct hclge_mac_vlan_mask_entry_cmd {
-	u8 rsv0[2];
-	u8 vlan_mask;
-	u8 rsv1;
-	u8 mac_mask[6];
-	u8 rsv2[14];
+#define HCLGE_UMV_SPC_ALC_B	0
+struct hclge_umv_spc_alc_cmd {
+	u8 allocate;
+	u8 rsv1[3];
+	__le32 space_size;
+	u8 rsv2[16];
 };
 
 #define HCLGE_MAC_MGR_MASK_VLAN_B		BIT(0)
@@ -613,30 +637,6 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      i_port_bitmap;
 	u8      i_port_direction;
 	u8      rsv3[2];
-};
-
-#define HCLGE_CFG_MTA_MAC_SEL_S		0
-#define HCLGE_CFG_MTA_MAC_SEL_M		GENMASK(1, 0)
-#define HCLGE_CFG_MTA_MAC_EN_B		7
-struct hclge_mta_filter_mode_cmd {
-	u8	dmac_sel_en; /* Use lowest 2 bit as sel_mode, bit 7 as enable */
-	u8      rsv[23];
-};
-
-#define HCLGE_CFG_FUNC_MTA_ACCEPT_B	0
-struct hclge_cfg_func_mta_filter_cmd {
-	u8	accept; /* Only used lowest 1 bit */
-	u8      function_id;
-	u8      rsv[22];
-};
-
-#define HCLGE_CFG_MTA_ITEM_ACCEPT_B	0
-#define HCLGE_CFG_MTA_ITEM_IDX_S	0
-#define HCLGE_CFG_MTA_ITEM_IDX_M	GENMASK(11, 0)
-struct hclge_cfg_func_mta_item_cmd {
-	__le16	item_idx; /* Only used lowest 12 bit */
-	u8      accept;   /* Only used lowest 1 bit */
-	u8      rsv[21];
 };
 
 struct hclge_mac_vlan_add_cmd {
@@ -778,6 +778,7 @@ struct hclge_reset_cmd {
 };
 
 #define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
+#define HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B	BIT(2)
 #define HCLGE_CMD_SERDES_DONE_B			BIT(0)
 #define HCLGE_CMD_SERDES_SUCCESS_B		BIT(1)
 struct hclge_serdes_lb_cmd {
@@ -816,6 +817,76 @@ struct hclge_set_led_state_cmd {
 	u8 rsv1[3];
 	u8 locate_led_config;
 	u8 rsv2[20];
+};
+
+struct hclge_get_fd_mode_cmd {
+	u8 mode;
+	u8 enable;
+	u8 rsv[22];
+};
+
+struct hclge_get_fd_allocation_cmd {
+	__le32 stage1_entry_num;
+	__le32 stage2_entry_num;
+	__le16 stage1_counter_num;
+	__le16 stage2_counter_num;
+	u8 rsv[12];
+};
+
+struct hclge_set_fd_key_config_cmd {
+	u8 stage;
+	u8 key_select;
+	u8 inner_sipv6_word_en;
+	u8 inner_dipv6_word_en;
+	u8 outer_sipv6_word_en;
+	u8 outer_dipv6_word_en;
+	u8 rsv1[2];
+	__le32 tuple_mask;
+	__le32 meta_data_mask;
+	u8 rsv2[8];
+};
+
+#define HCLGE_FD_EPORT_SW_EN_B		0
+struct hclge_fd_tcam_config_1_cmd {
+	u8 stage;
+	u8 xy_sel;
+	u8 port_info;
+	u8 rsv1[1];
+	__le32 index;
+	u8 entry_vld;
+	u8 rsv2[7];
+	u8 tcam_data[8];
+};
+
+struct hclge_fd_tcam_config_2_cmd {
+	u8 tcam_data[24];
+};
+
+struct hclge_fd_tcam_config_3_cmd {
+	u8 tcam_data[20];
+	u8 rsv[4];
+};
+
+#define HCLGE_FD_AD_DROP_B		0
+#define HCLGE_FD_AD_DIRECT_QID_B	1
+#define HCLGE_FD_AD_QID_S		2
+#define HCLGE_FD_AD_QID_M		GENMASK(12, 2)
+#define HCLGE_FD_AD_USE_COUNTER_B	12
+#define HCLGE_FD_AD_COUNTER_NUM_S	13
+#define HCLGE_FD_AD_COUNTER_NUM_M	GENMASK(20, 13)
+#define HCLGE_FD_AD_NXT_STEP_B		20
+#define HCLGE_FD_AD_NXT_KEY_S		21
+#define HCLGE_FD_AD_NXT_KEY_M		GENMASK(26, 21)
+#define HCLGE_FD_AD_WR_RULE_ID_B	0
+#define HCLGE_FD_AD_RULE_ID_S		1
+#define HCLGE_FD_AD_RULE_ID_M		GENMASK(13, 1)
+
+struct hclge_fd_ad_config_cmd {
+	u8 stage;
+	u8 rsv1[3];
+	__le32 index;
+	__le64 ad_data;
+	u8 rsv2[8];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

@@ -46,9 +46,13 @@
 #define HCLGEVF_RSS_HASH_ALGO_MASK	0xf
 #define HCLGEVF_RSS_CFG_TBL_NUM \
 	(HCLGEVF_RSS_IND_TBL_SIZE / HCLGEVF_RSS_CFG_TBL_SIZE)
-
-#define HCLGEVF_MTA_TBL_SIZE		4096
-#define HCLGEVF_MTA_TYPE_SEL_MAX	4
+#define HCLGEVF_RSS_INPUT_TUPLE_OTHER	GENMASK(3, 0)
+#define HCLGEVF_RSS_INPUT_TUPLE_SCTP	GENMASK(4, 0)
+#define HCLGEVF_D_PORT_BIT		BIT(0)
+#define HCLGEVF_S_PORT_BIT		BIT(1)
+#define HCLGEVF_D_IP_BIT		BIT(2)
+#define HCLGEVF_S_IP_BIT		BIT(3)
+#define HCLGEVF_V_TAG_BIT		BIT(4)
 
 /* states of hclgevf device & tasks */
 enum hclgevf_states {
@@ -66,6 +70,7 @@ enum hclgevf_states {
 #define HCLGEVF_MPF_ENBALE 1
 
 struct hclgevf_mac {
+	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
 	int link;
 	u8 duplex;
@@ -108,12 +113,24 @@ struct hclgevf_cfg {
 	u32 numa_node_map;
 };
 
+struct hclgevf_rss_tuple_cfg {
+	u8 ipv4_tcp_en;
+	u8 ipv4_udp_en;
+	u8 ipv4_sctp_en;
+	u8 ipv4_fragment_en;
+	u8 ipv6_tcp_en;
+	u8 ipv6_udp_en;
+	u8 ipv6_sctp_en;
+	u8 ipv6_fragment_en;
+};
+
 struct hclgevf_rss_cfg {
 	u8  rss_hash_key[HCLGEVF_RSS_KEY_SIZE]; /* user configured hash keys */
 	u32 hash_algo;
 	u32 rss_size;
 	u8 hw_tc_map;
 	u8  rss_indirection_tbl[HCLGEVF_RSS_IND_TBL_SIZE]; /* shadow table */
+	struct hclgevf_rss_tuple_cfg rss_tuple_sets;
 };
 
 struct hclgevf_misc_vector {
@@ -156,8 +173,6 @@ struct hclgevf_dev {
 	u16 *vector_status;
 	int *vector_irq;
 
-	bool accept_mta_mc; /* whether to accept mta filter multicast */
-	u8 mta_mac_sel_type;
 	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */

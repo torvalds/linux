@@ -233,7 +233,7 @@ int __init zynq_early_slcr_init(void)
 
 	register_restart_handler(&zynq_slcr_restart_nb);
 
-	pr_info("%s mapped to %p\n", np->name, zynq_slcr_base);
+	pr_info("%pOFn mapped to %p\n", np, zynq_slcr_base);
 
 	of_node_put(np);
 

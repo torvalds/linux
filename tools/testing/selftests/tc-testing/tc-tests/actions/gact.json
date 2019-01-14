@@ -536,5 +536,29 @@
         "matchPattern": "^[ \t]+index [0-9]+ ref",
         "matchCount": "0",
         "teardown": []
+    },
+    {
+        "id": "8e47",
+        "name": "Add gact action with random determ goto chain control action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pass random determ goto chain 1 2 index 90",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action pass random type determ goto chain 1 val 2.*index 90 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
     }
 ]

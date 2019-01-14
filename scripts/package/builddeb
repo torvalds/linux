@@ -81,11 +81,11 @@ else
 	cp System.map "$tmpdir/boot/System.map-$version"
 	cp $KCONFIG_CONFIG "$tmpdir/boot/config-$version"
 fi
-cp "$($MAKE -s image_name)" "$tmpdir/$installed_image_path"
+cp "$($MAKE -s -f $srctree/Makefile image_name)" "$tmpdir/$installed_image_path"
 
-if grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG ; then
+if grep -q "^CONFIG_OF_EARLY_FLATTREE=y" $KCONFIG_CONFIG ; then
 	# Only some architectures with OF support have this target
-	if grep -q dtbs_install "${srctree}/arch/$SRCARCH/Makefile"; then
+	if [ -d "${srctree}/arch/$SRCARCH/boot/dts" ]; then
 		$MAKE KBUILD_SRC= INSTALL_DTBS_PATH="$tmpdir/usr/lib/$packagename" dtbs_install
 	fi
 fi

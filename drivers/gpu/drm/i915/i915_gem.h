@@ -82,12 +82,6 @@ static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 		tasklet_unlock_wait(t);
 }
 
-static inline void __tasklet_enable_sync_once(struct tasklet_struct *t)
-{
-	if (atomic_dec_return(&t->count) == 0)
-		tasklet_kill(t);
-}
-
 static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
 {
 	return !atomic_read(&t->count);

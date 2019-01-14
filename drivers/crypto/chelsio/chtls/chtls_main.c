@@ -55,24 +55,19 @@ static void unregister_listen_notifier(struct notifier_block *nb)
 static int listen_notify_handler(struct notifier_block *this,
 				 unsigned long event, void *data)
 {
-	struct chtls_dev *cdev;
-	struct sock *sk;
-	int ret;
+	struct chtls_listen *clisten;
+	int ret = NOTIFY_DONE;
 
-	sk = data;
-	ret =  NOTIFY_DONE;
+	clisten = (struct chtls_listen *)data;
 
 	switch (event) {
 	case CHTLS_LISTEN_START:
+		ret = chtls_listen_start(clisten->cdev, clisten->sk);
+		kfree(clisten);
+		break;
 	case CHTLS_LISTEN_STOP:
-		mutex_lock(&cdev_list_lock);
-		list_for_each_entry(cdev, &cdev_list, list) {
-			if (event == CHTLS_LISTEN_START)
-				ret = chtls_listen_start(cdev, sk);
-			else
-				chtls_listen_stop(cdev, sk);
-		}
-		mutex_unlock(&cdev_list_lock);
+		chtls_listen_stop(clisten->cdev, clisten->sk);
+		kfree(clisten);
 		break;
 	}
 	return ret;
@@ -90,8 +85,9 @@ static int listen_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int chtls_start_listen(struct sock *sk)
+static int chtls_start_listen(struct chtls_dev *cdev, struct sock *sk)
 {
+	struct chtls_listen *clisten;
 	int err;
 
 	if (sk->sk_protocol != IPPROTO_TCP)
@@ -102,21 +98,33 @@ static int chtls_start_listen(struct sock *sk)
 		return -EADDRNOTAVAIL;
 
 	sk->sk_backlog_rcv = listen_backlog_rcv;
+	clisten = kmalloc(sizeof(*clisten), GFP_KERNEL);
+	if (!clisten)
+		return -ENOMEM;
+	clisten->cdev = cdev;
+	clisten->sk = sk;
 	mutex_lock(&notify_mutex);
 	err = raw_notifier_call_chain(&listen_notify_list,
-				      CHTLS_LISTEN_START, sk);
+				      CHTLS_LISTEN_START, clisten);
 	mutex_unlock(&notify_mutex);
 	return err;
 }
 
-static void chtls_stop_listen(struct sock *sk)
+static void chtls_stop_listen(struct chtls_dev *cdev, struct sock *sk)
 {
+	struct chtls_listen *clisten;
+
 	if (sk->sk_protocol != IPPROTO_TCP)
 		return;
 
+	clisten = kmalloc(sizeof(*clisten), GFP_KERNEL);
+	if (!clisten)
+		return;
+	clisten->cdev = cdev;
+	clisten->sk = sk;
 	mutex_lock(&notify_mutex);
 	raw_notifier_call_chain(&listen_notify_list,
-				CHTLS_LISTEN_STOP, sk);
+				CHTLS_LISTEN_STOP, clisten);
 	mutex_unlock(&notify_mutex);
 }
 
@@ -138,15 +146,43 @@ static int chtls_inline_feature(struct tls_device *dev)
 
 static int chtls_create_hash(struct tls_device *dev, struct sock *sk)
 {
+	struct chtls_dev *cdev = to_chtls_dev(dev);
+
 	if (sk->sk_state == TCP_LISTEN)
-		return chtls_start_listen(sk);
+		return chtls_start_listen(cdev, sk);
 	return 0;
 }
 
 static void chtls_destroy_hash(struct tls_device *dev, struct sock *sk)
 {
+	struct chtls_dev *cdev = to_chtls_dev(dev);
+
 	if (sk->sk_state == TCP_LISTEN)
-		chtls_stop_listen(sk);
+		chtls_stop_listen(cdev, sk);
+}
+
+static void chtls_free_uld(struct chtls_dev *cdev)
+{
+	int i;
+
+	tls_unregister_device(&cdev->tlsdev);
+	kvfree(cdev->kmap.addr);
+	idr_destroy(&cdev->hwtid_idr);
+	for (i = 0; i < (1 << RSPQ_HASH_BITS); i++)
+		kfree_skb(cdev->rspq_skb_cache[i]);
+	kfree(cdev->lldi);
+	kfree_skb(cdev->askb);
+	kfree(cdev);
+}
+
+static inline void chtls_dev_release(struct kref *kref)
+{
+	struct chtls_dev *cdev;
+	struct tls_device *dev;
+
+	dev = container_of(kref, struct tls_device, kref);
+	cdev = to_chtls_dev(dev);
+	chtls_free_uld(cdev);
 }
 
 static void chtls_register_dev(struct chtls_dev *cdev)
@@ -159,13 +195,10 @@ static void chtls_register_dev(struct chtls_dev *cdev)
 	tlsdev->feature = chtls_inline_feature;
 	tlsdev->hash = chtls_create_hash;
 	tlsdev->unhash = chtls_destroy_hash;
-	tls_register_device(&cdev->tlsdev);
+	tlsdev->release = chtls_dev_release;
+	kref_init(&tlsdev->kref);
+	tls_register_device(tlsdev);
 	cdev->cdev_state = CHTLS_CDEV_STATE_UP;
-}
-
-static void chtls_unregister_dev(struct chtls_dev *cdev)
-{
-	tls_unregister_device(&cdev->tlsdev);
 }
 
 static void process_deferq(struct work_struct *task_param)
@@ -262,29 +295,16 @@ out:
 	return NULL;
 }
 
-static void chtls_free_uld(struct chtls_dev *cdev)
-{
-	int i;
-
-	chtls_unregister_dev(cdev);
-	kvfree(cdev->kmap.addr);
-	idr_destroy(&cdev->hwtid_idr);
-	for (i = 0; i < (1 << RSPQ_HASH_BITS); i++)
-		kfree_skb(cdev->rspq_skb_cache[i]);
-	kfree(cdev->lldi);
-	if (cdev->askb)
-		kfree_skb(cdev->askb);
-	kfree(cdev);
-}
-
 static void chtls_free_all_uld(void)
 {
 	struct chtls_dev *cdev, *tmp;
 
 	mutex_lock(&cdev_mutex);
 	list_for_each_entry_safe(cdev, tmp, &cdev_list, list) {
-		if (cdev->cdev_state == CHTLS_CDEV_STATE_UP)
-			chtls_free_uld(cdev);
+		if (cdev->cdev_state == CHTLS_CDEV_STATE_UP) {
+			list_del(&cdev->list);
+			kref_put(&cdev->tlsdev.kref, cdev->tlsdev.release);
+		}
 	}
 	mutex_unlock(&cdev_mutex);
 }
@@ -305,7 +325,7 @@ static int chtls_uld_state_change(void *handle, enum cxgb4_state new_state)
 		mutex_lock(&cdev_mutex);
 		list_del(&cdev->list);
 		mutex_unlock(&cdev_mutex);
-		chtls_free_uld(cdev);
+		kref_put(&cdev->tlsdev.kref, cdev->tlsdev.release);
 		break;
 	default:
 		break;
