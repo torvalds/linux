@@ -1333,6 +1333,8 @@ struct i915_perf_stream {
 	 */
 	struct list_head link;
 
+	intel_wakeref_t wakeref;
+
 	/**
 	 * @sample_flags: Flags representing the `DRM_I915_PERF_PROP_SAMPLE_*`
 	 * properties given when opening a stream, representing the contents
