@@ -116,14 +116,13 @@ int intel_huc_check_status(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	intel_wakeref_t wakeref;
-	bool status;
+	bool status = false;
 
 	if (!HAS_HUC(dev_priv))
 		return -ENODEV;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
-	status = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
-	intel_runtime_pm_put(dev_priv, wakeref);
+	with_intel_runtime_pm(dev_priv, wakeref)
+		status = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
 
 	return status;
 }

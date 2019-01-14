@@ -2535,9 +2535,8 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
 
-	wakeref = intel_runtime_pm_get(i915);
-	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-	intel_runtime_pm_put(i915, wakeref);
+	with_intel_runtime_pm(i915, wakeref)
+		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
@@ -2556,9 +2555,8 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	struct drm_i915_private *i915 = vma->vm->i915;
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_runtime_pm_get(i915);
-	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-	intel_runtime_pm_put(i915, wakeref);
+	with_intel_runtime_pm(i915, wakeref)
+		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
 }
 
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
@@ -2592,9 +2590,10 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	if (flags & I915_VMA_GLOBAL_BIND) {
 		intel_wakeref_t wakeref;
 
-		wakeref = intel_runtime_pm_get(i915);
-		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-		intel_runtime_pm_put(i915, wakeref);
+		with_intel_runtime_pm(i915, wakeref) {
+			vma->vm->insert_entries(vma->vm, vma,
+						cache_level, pte_flags);
+		}
 	}
 
 	return 0;
@@ -2605,11 +2604,11 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 	struct drm_i915_private *i915 = vma->vm->i915;
 
 	if (vma->flags & I915_VMA_GLOBAL_BIND) {
+		struct i915_address_space *vm = vma->vm;
 		intel_wakeref_t wakeref;
 
-		wakeref = intel_runtime_pm_get(i915);
-		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-		intel_runtime_pm_put(i915, wakeref);
+		with_intel_runtime_pm(i915, wakeref)
+			vm->clear_range(vm, vma->node.start, vma->size);
 	}
 
 	if (vma->flags & I915_VMA_LOCAL_BIND) {

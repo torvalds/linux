@@ -230,14 +230,11 @@ frequency_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 
 		val = dev_priv->gt_pm.rps.cur_freq;
 		if (dev_priv->gt.awake) {
-			intel_wakeref_t wakeref =
-				intel_runtime_pm_get_if_in_use(dev_priv);
+			intel_wakeref_t wakeref;
 
-			if (wakeref) {
+			with_intel_runtime_pm_if_in_use(dev_priv, wakeref)
 				val = intel_get_cagf(dev_priv,
 						     I915_READ_NOTRACE(GEN6_RPSTAT1));
-				intel_runtime_pm_put(dev_priv, wakeref);
-			}
 		}
 
 		add_sample_mult(&dev_priv->pmu.sample[__I915_SAMPLE_FREQ_ACT],

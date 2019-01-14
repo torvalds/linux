@@ -256,17 +256,15 @@ int i915_request_mock_selftests(void)
 	};
 	struct drm_i915_private *i915;
 	intel_wakeref_t wakeref;
-	int err;
+	int err = 0;
 
 	i915 = mock_gem_device();
 	if (!i915)
 		return -ENOMEM;
 
-	wakeref = intel_runtime_pm_get(i915);
+	with_intel_runtime_pm(i915, wakeref)
+		err = i915_subtests(tests, i915);
 
-	err = i915_subtests(tests, i915);
-
-	intel_runtime_pm_put(i915, wakeref);
 	drm_dev_put(&i915->drm);
 
 	return err;

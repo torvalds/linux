@@ -813,13 +813,13 @@ void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 
 	i915_gem_chipset_flush(dev_priv);
 
-	wakeref = intel_runtime_pm_get(dev_priv);
-	spin_lock_irq(&dev_priv->uncore.lock);
+	with_intel_runtime_pm(dev_priv, wakeref) {
+		spin_lock_irq(&dev_priv->uncore.lock);
 
-	POSTING_READ_FW(RING_HEAD(RENDER_RING_BASE));
+		POSTING_READ_FW(RING_HEAD(RENDER_RING_BASE));
 
-	spin_unlock_irq(&dev_priv->uncore.lock);
-	intel_runtime_pm_put(dev_priv, wakeref);
+		spin_unlock_irq(&dev_priv->uncore.lock);
+	}
 }
 
 static void

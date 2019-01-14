@@ -93,9 +93,9 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	if (err)
 		goto err_obj;
 
-	wakeref = intel_runtime_pm_get(engine->i915);
-	rq = i915_request_alloc(engine, ctx);
-	intel_runtime_pm_put(engine->i915, wakeref);
+	rq = ERR_PTR(-ENODEV);
+	with_intel_runtime_pm(engine->i915, wakeref)
+		rq = i915_request_alloc(engine, ctx);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_pin;
@@ -236,14 +236,15 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	wakeref = intel_runtime_pm_get(engine->i915);
-
-	if (spin)
-		rq = igt_spinner_create_request(spin, ctx, engine, MI_NOOP);
-	else
-		rq = i915_request_alloc(engine, ctx);
-
-	intel_runtime_pm_put(engine->i915, wakeref);
+	rq = ERR_PTR(-ENODEV);
+	with_intel_runtime_pm(engine->i915, wakeref) {
+		if (spin)
+			rq = igt_spinner_create_request(spin,
+							ctx, engine,
+							MI_NOOP);
+		else
+			rq = i915_request_alloc(engine, ctx);
+	}
 
 	kernel_context_close(ctx);
 
@@ -301,9 +302,8 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	if (err)
 		goto out;
 
-	wakeref = intel_runtime_pm_get(i915);
-	err = reset(engine);
-	intel_runtime_pm_put(i915, wakeref);
+	with_intel_runtime_pm(i915, wakeref)
+		err = reset(engine);
 
 	if (want_spin) {
 		igt_spinner_end(&spin);

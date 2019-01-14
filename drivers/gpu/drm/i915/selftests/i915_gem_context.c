@@ -610,9 +610,9 @@ static int igt_ctx_exec(void *arg)
 				}
 			}
 
-			wakeref = intel_runtime_pm_get(i915);
-			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put(i915, wakeref);
+			err = 0;
+			with_intel_runtime_pm(i915, wakeref)
+				err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -718,9 +718,9 @@ static int igt_ctx_readonly(void *arg)
 					i915_gem_object_set_readonly(obj);
 			}
 
-			wakeref = intel_runtime_pm_get(i915);
-			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put(i915, wakeref);
+			err = 0;
+			with_intel_runtime_pm(i915, wakeref)
+				err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),

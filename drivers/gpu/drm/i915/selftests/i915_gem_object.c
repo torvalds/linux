@@ -509,9 +509,8 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 	if (!i915->gt.active_requests++) {
 		intel_wakeref_t wakeref;
 
-		wakeref = intel_runtime_pm_get(i915);
-		i915_gem_unpark(i915);
-		intel_runtime_pm_put(i915, wakeref);
+		with_intel_runtime_pm(i915, wakeref)
+			i915_gem_unpark(i915);
 	}
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -593,10 +592,10 @@ static int igt_mmap_offset_exhaustion(void *arg)
 			goto out;
 		}
 
+		err = 0;
 		mutex_lock(&i915->drm.struct_mutex);
-		wakeref = intel_runtime_pm_get(i915);
-		err = make_obj_busy(obj);
-		intel_runtime_pm_put(i915, wakeref);
+		with_intel_runtime_pm(i915, wakeref)
+			err = make_obj_busy(obj);
 		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("[loop %d] Failed to busy the object\n", loop);

@@ -1204,17 +1204,19 @@ static int intel_backlight_device_get_brightness(struct backlight_device *bd)
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	intel_wakeref_t wakeref;
-	u32 hw_level;
-	int ret;
+	int ret = 0;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	with_intel_runtime_pm(dev_priv, wakeref) {
+		u32 hw_level;
 
-	hw_level = intel_panel_get_backlight(connector);
-	ret = scale_hw_to_user(connector, hw_level, bd->props.max_brightness);
+		drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
-	intel_runtime_pm_put(dev_priv, wakeref);
+		hw_level = intel_panel_get_backlight(connector);
+		ret = scale_hw_to_user(connector,
+				       hw_level, bd->props.max_brightness);
+
+		drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	}
 
 	return ret;
 }

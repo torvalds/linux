@@ -1696,21 +1696,21 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	flags = reg->offset & (entry->size - 1);
 
-	wakeref = intel_runtime_pm_get(dev_priv);
-	if (entry->size == 8 && flags == I915_REG_READ_8B_WA)
-		reg->val = I915_READ64_2x32(entry->offset_ldw,
-					    entry->offset_udw);
-	else if (entry->size == 8 && flags == 0)
-		reg->val = I915_READ64(entry->offset_ldw);
-	else if (entry->size == 4 && flags == 0)
-		reg->val = I915_READ(entry->offset_ldw);
-	else if (entry->size == 2 && flags == 0)
-		reg->val = I915_READ16(entry->offset_ldw);
-	else if (entry->size == 1 && flags == 0)
-		reg->val = I915_READ8(entry->offset_ldw);
-	else
-		ret = -EINVAL;
-	intel_runtime_pm_put(dev_priv, wakeref);
+	with_intel_runtime_pm(dev_priv, wakeref) {
+		if (entry->size == 8 && flags == I915_REG_READ_8B_WA)
+			reg->val = I915_READ64_2x32(entry->offset_ldw,
+						    entry->offset_udw);
+		else if (entry->size == 8 && flags == 0)
+			reg->val = I915_READ64(entry->offset_ldw);
+		else if (entry->size == 4 && flags == 0)
+			reg->val = I915_READ(entry->offset_ldw);
+		else if (entry->size == 2 && flags == 0)
+			reg->val = I915_READ16(entry->offset_ldw);
+		else if (entry->size == 1 && flags == 0)
+			reg->val = I915_READ8(entry->offset_ldw);
+		else
+			ret = -EINVAL;
+	}
 
 	return ret;
 }

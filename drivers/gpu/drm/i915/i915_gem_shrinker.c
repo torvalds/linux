@@ -296,14 +296,14 @@ i915_gem_shrink(struct drm_i915_private *i915,
 unsigned long i915_gem_shrink_all(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref;
-	unsigned long freed;
+	unsigned long freed = 0;
 
-	wakeref = intel_runtime_pm_get(i915);
-	freed = i915_gem_shrink(i915, -1UL, NULL,
-				I915_SHRINK_BOUND |
-				I915_SHRINK_UNBOUND |
-				I915_SHRINK_ACTIVE);
-	intel_runtime_pm_put(i915, wakeref);
+	with_intel_runtime_pm(i915, wakeref) {
+		freed = i915_gem_shrink(i915, -1UL, NULL,
+					I915_SHRINK_BOUND |
+					I915_SHRINK_UNBOUND |
+					I915_SHRINK_ACTIVE);
+	}
 
 	return freed;
 }
@@ -376,14 +376,14 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	if (sc->nr_scanned < sc->nr_to_scan && current_is_kswapd()) {
 		intel_wakeref_t wakeref;
 
-		wakeref = intel_runtime_pm_get(i915);
-		freed += i915_gem_shrink(i915,
-					 sc->nr_to_scan - sc->nr_scanned,
-					 &sc->nr_scanned,
-					 I915_SHRINK_ACTIVE |
-					 I915_SHRINK_BOUND |
-					 I915_SHRINK_UNBOUND);
-		intel_runtime_pm_put(i915, wakeref);
+		with_intel_runtime_pm(i915, wakeref) {
+			freed += i915_gem_shrink(i915,
+						 sc->nr_to_scan - sc->nr_scanned,
+						 &sc->nr_scanned,
+						 I915_SHRINK_ACTIVE |
+						 I915_SHRINK_BOUND |
+						 I915_SHRINK_UNBOUND);
+		}
 	}
 
 	shrinker_unlock(i915, unlock);
@@ -400,11 +400,11 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	unsigned long unevictable, bound, unbound, freed_pages;
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_runtime_pm_get(i915);
-	freed_pages = i915_gem_shrink(i915, -1UL, NULL,
-				      I915_SHRINK_BOUND |
-				      I915_SHRINK_UNBOUND);
-	intel_runtime_pm_put(i915, wakeref);
+	freed_pages = 0;
+	with_intel_runtime_pm(i915, wakeref)
+		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
+					       I915_SHRINK_BOUND |
+					       I915_SHRINK_UNBOUND);
 
 	/* Because we may be allocating inside our own driver, we cannot
 	 * assert that there are no objects with pinned pages that are not
@@ -454,12 +454,11 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 				   MAX_SCHEDULE_TIMEOUT))
 		goto out;
 
-	wakeref = intel_runtime_pm_get(i915);
-	freed_pages += i915_gem_shrink(i915, -1UL, NULL,
-				       I915_SHRINK_BOUND |
-				       I915_SHRINK_UNBOUND |
-				       I915_SHRINK_VMAPS);
-	intel_runtime_pm_put(i915, wakeref);
+	with_intel_runtime_pm(i915, wakeref)
+		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
+					       I915_SHRINK_BOUND |
+					       I915_SHRINK_UNBOUND |
+					       I915_SHRINK_VMAPS);
 
 	/* We also want to clear any cached iomaps as they wrap vmap */
 	list_for_each_entry_safe(vma, next,
