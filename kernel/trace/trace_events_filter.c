@@ -491,6 +491,7 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 				break;
 			case '&':
 			case '|':
+				/* accepting only "&&" or "||" */
 				if (next[1] == next[0]) {
 					ptr++;
 					break;
