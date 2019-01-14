@@ -4251,17 +4251,6 @@ struct rt6_nh {
 	struct list_head next;
 };
 
-static void ip6_print_replace_route_err(struct list_head *rt6_nh_list)
-{
-	struct rt6_nh *nh;
-
-	list_for_each_entry(nh, rt6_nh_list, next) {
-		pr_warn("IPV6: multipath route replace failed (check consistency of installed routes): %pI6c nexthop %pI6c ifi %d\n",
-		        &nh->r_cfg.fc_dst, &nh->r_cfg.fc_gateway,
-		        nh->r_cfg.fc_ifindex);
-	}
-}
-
 static int ip6_route_info_append(struct net *net,
 				 struct list_head *rt6_nh_list,
 				 struct fib6_info *rt,
@@ -4407,7 +4396,8 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 		nh->fib6_info = NULL;
 		if (err) {
 			if (replace && nhn)
-				ip6_print_replace_route_err(&rt6_nh_list);
+				NL_SET_ERR_MSG_MOD(extack,
+						   "multipath route replace failed (check consistency of installed routes)");
 			err_nh = nh;
 			goto add_errout;
 		}
