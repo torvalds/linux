@@ -330,8 +330,10 @@ int drm_open(struct inode *inode, struct file *filp)
 		goto err_undo;
 	if (need_setup) {
 		retcode = drm_setup(dev);
-		if (retcode)
+		if (retcode) {
+			drm_close_helper(filp);
 			goto err_undo;
+		}
 	}
 	return 0;
 
