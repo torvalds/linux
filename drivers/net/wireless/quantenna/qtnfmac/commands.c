@@ -87,14 +87,12 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 	vif_id = cmd->vifid;
 	cmd->mhdr.len = cpu_to_le16(cmd_skb->len);
 
-	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id,
-		 le16_to_cpu(cmd->cmd_id));
+	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id, cmd_id);
 
 	if (bus->fw_state != QTNF_FW_STATE_ACTIVE &&
-	    le16_to_cpu(cmd->cmd_id) != QLINK_CMD_FW_INIT) {
+	    cmd_id != QLINK_CMD_FW_INIT) {
 		pr_warn("VIF%u.%u: drop cmd 0x%.4X in fw state %d\n",
-			mac_id, vif_id, le16_to_cpu(cmd->cmd_id),
-			bus->fw_state);
+			mac_id, vif_id, cmd_id, bus->fw_state);
 		dev_kfree_skb(cmd_skb);
 		return -ENODEV;
 	}
@@ -128,7 +126,7 @@ out:
 		return qtnf_cmd_resp_result_decode(le16_to_cpu(resp->result));
 
 	pr_warn("VIF%u.%u: cmd 0x%.4X failed: %d\n",
-		mac_id, vif_id, le16_to_cpu(cmd->cmd_id), ret);
+		mac_id, vif_id, cmd_id, ret);
 
 	return ret;
 }
