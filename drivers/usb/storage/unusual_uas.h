@@ -57,6 +57,12 @@ UNUSUAL_DEV(0x0bc2, 0x2312, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_ATA_1X),
 
+UNUSUAL_DEV(0x0bc2, 0x2321, 0x0000, 0x9999,
+		"Seagate",
+		"Expansion HDD",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_IGNORE_UAS),
+
 /* https://bbs.archlinux.org/viewtopic.php?id=183190 */
 UNUSUAL_DEV(0x0bc2, 0x3312, 0x0000, 0x9999,
 		"Seagate",
