@@ -42,6 +42,23 @@ static int slim_device_match(struct device *dev, struct device_driver *drv)
 	return !!slim_match(sbdrv->id_table, sbdev);
 }
 
+static void slim_device_update_status(struct slim_device *sbdev,
+				      enum slim_device_status status)
+{
+	struct slim_driver *sbdrv;
+
+	if (sbdev->status == status)
+		return;
+
+	sbdev->status = status;
+	if (!sbdev->dev.driver)
+		return;
+
+	sbdrv = to_slim_driver(sbdev->dev.driver);
+	if (sbdrv->device_status)
+		sbdrv->device_status(sbdev, sbdev->status);
+}
+
 static int slim_device_probe(struct device *dev)
 {
 	struct slim_device	*sbdev = to_slim_device(dev);
@@ -55,8 +72,7 @@ static int slim_device_probe(struct device *dev)
 	/* try getting the logical address after probe */
 	ret = slim_get_logical_addr(sbdev);
 	if (!ret) {
-		if (sbdrv->device_status)
-			sbdrv->device_status(sbdev, sbdev->status);
+		slim_device_update_status(sbdev, SLIM_DEVICE_STATUS_UP);
 	} else {
 		dev_err(&sbdev->dev, "Failed to get logical address\n");
 		ret = -EPROBE_DEFER;
@@ -296,23 +312,6 @@ int slim_unregister_controller(struct slim_controller *ctrl)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(slim_unregister_controller);
-
-static void slim_device_update_status(struct slim_device *sbdev,
-				      enum slim_device_status status)
-{
-	struct slim_driver *sbdrv;
-
-	if (sbdev->status == status)
-		return;
-
-	sbdev->status = status;
-	if (!sbdev->dev.driver)
-		return;
-
-	sbdrv = to_slim_driver(sbdev->dev.driver);
-	if (sbdrv->device_status)
-		sbdrv->device_status(sbdev, sbdev->status);
-}
 
 /**
  * slim_report_absent() - Controller calls this function when a device
