@@ -913,10 +913,12 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 static bool ring_is_idle(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	intel_wakeref_t wakeref;
 	bool idle = true;
 
 	/* If the whole device is asleep, the engine must be idle */
-	if (!intel_runtime_pm_get_if_in_use(dev_priv))
+	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	if (!wakeref)
 		return true;
 
 	/* First check that no commands are left in the ring */
@@ -928,7 +930,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
 		idle = false;
 
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 
 	return idle;
 }
@@ -1425,6 +1427,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
 	struct i915_request *rq, *last;
+	intel_wakeref_t wakeref;
 	unsigned long flags;
 	struct rb_node *rb;
 	int count;
@@ -1483,9 +1486,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	rcu_read_unlock();
 
-	if (intel_runtime_pm_get_if_in_use(engine->i915)) {
+	wakeref = intel_runtime_pm_get_if_in_use(engine->i915);
+	if (wakeref) {
 		intel_engine_print_registers(engine, m);
-		intel_runtime_pm_put_unchecked(engine->i915);
+		intel_runtime_pm_put(engine->i915, wakeref);
 	} else {
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}

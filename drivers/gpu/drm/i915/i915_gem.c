@@ -785,6 +785,8 @@ fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
 
 void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 {
+	intel_wakeref_t wakeref;
+
 	/*
 	 * No actual flushing is required for the GTT write domain for reads
 	 * from the GTT domain. Writes to it "immediately" go to main memory
@@ -811,13 +813,13 @@ void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 
 	i915_gem_chipset_flush(dev_priv);
 
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 	spin_lock_irq(&dev_priv->uncore.lock);
 
 	POSTING_READ_FW(RING_HEAD(RENDER_RING_BASE));
 
 	spin_unlock_irq(&dev_priv->uncore.lock);
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 }
 
 static void
@@ -1069,6 +1071,7 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_ggtt *ggtt = &i915->ggtt;
+	intel_wakeref_t wakeref;
 	struct drm_mm_node node;
 	struct i915_vma *vma;
 	void __user *user_data;
@@ -1079,7 +1082,7 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
 				       PIN_NONFAULT |
@@ -1152,7 +1155,7 @@ out_unpin:
 		i915_vma_unpin(vma);
 	}
 out_unlock:
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return ret;
@@ -1253,6 +1256,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_ggtt *ggtt = &i915->ggtt;
+	intel_wakeref_t wakeref;
 	struct drm_mm_node node;
 	struct i915_vma *vma;
 	u64 remain, offset;
@@ -1271,13 +1275,14 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		 * This easily dwarfs any performance advantage from
 		 * using the cache bypass of indirect GGTT access.
 		 */
-		if (!intel_runtime_pm_get_if_in_use(i915)) {
+		wakeref = intel_runtime_pm_get_if_in_use(i915);
+		if (!wakeref) {
 			ret = -EFAULT;
 			goto out_unlock;
 		}
 	} else {
 		/* No backing pages, no fallback, we must force GGTT access */
-		intel_runtime_pm_get(i915);
+		wakeref = intel_runtime_pm_get(i915);
 	}
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
@@ -1359,7 +1364,7 @@ out_unpin:
 		i915_vma_unpin(vma);
 	}
 out_rpm:
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	return ret;
@@ -1864,6 +1869,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	bool write = area->vm_flags & VM_WRITE;
+	intel_wakeref_t wakeref;
 	struct i915_vma *vma;
 	pgoff_t page_offset;
 	int ret;
@@ -1893,7 +1899,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	if (ret)
 		goto err;
 
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -1971,7 +1977,7 @@ err_unpin:
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	i915_gem_object_unpin_pages(obj);
 err:
 	switch (ret) {
@@ -2044,6 +2050,7 @@ void
 i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	intel_wakeref_t wakeref;
 
 	/* Serialisation between user GTT access and our code depends upon
 	 * revoking the CPU's PTE whilst the mutex is held. The next user
@@ -2054,7 +2061,7 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	 * wakeref.
 	 */
 	lockdep_assert_held(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (!obj->userfault_count)
 		goto out;
@@ -2071,7 +2078,7 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	wmb();
 
 out:
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 }
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
@@ -4706,8 +4713,9 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				    struct llist_node *freed)
 {
 	struct drm_i915_gem_object *obj, *on;
+	intel_wakeref_t wakeref;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	llist_for_each_entry_safe(obj, on, freed, freed) {
 		struct i915_vma *vma, *vn;
 
@@ -4768,7 +4776,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (on)
 			cond_resched();
 	}
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 }
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915)
@@ -4877,11 +4885,13 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 
 void i915_gem_sanitize(struct drm_i915_private *i915)
 {
+	intel_wakeref_t wakeref;
+
 	GEM_TRACE("\n");
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
 
 	/*
@@ -4904,7 +4914,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	intel_engines_sanitize(i915, false);
 
 	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 
 	i915_gem_contexts_lost(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -4912,11 +4922,12 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 
 int i915_gem_suspend(struct drm_i915_private *i915)
 {
+	intel_wakeref_t wakeref;
 	int ret;
 
 	GEM_TRACE("\n");
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	intel_suspend_gt_powersave(i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
@@ -4968,12 +4979,12 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 	if (WARN_ON(!intel_engines_are_idle(i915)))
 		i915_gem_set_wedged(i915); /* no hope, discard everything */
 
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	return 0;
 
 err_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	return ret;
 }
 

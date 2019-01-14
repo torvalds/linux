@@ -1670,6 +1670,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_reg_read *reg = data;
 	struct reg_whitelist const *entry;
+	intel_wakeref_t wakeref;
 	unsigned int flags;
 	int remain;
 	int ret = 0;
@@ -1695,7 +1696,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	flags = reg->offset & (entry->size - 1);
 
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 	if (entry->size == 8 && flags == I915_REG_READ_8B_WA)
 		reg->val = I915_READ64_2x32(entry->offset_ldw,
 					    entry->offset_udw);
@@ -1709,7 +1710,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 		reg->val = I915_READ8(entry->offset_ldw);
 	else
 		ret = -EINVAL;
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 
 	return ret;
 }

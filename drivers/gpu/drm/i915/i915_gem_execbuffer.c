@@ -2202,6 +2202,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	struct i915_execbuffer eb;
 	struct dma_fence *in_fence = NULL;
 	struct sync_file *out_fence = NULL;
+	intel_wakeref_t wakeref;
 	int out_fence_fd = -1;
 	int err;
 
@@ -2272,7 +2273,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	 * wakeref that we hold until the GPU has been idle for at least
 	 * 100ms.
 	 */
-	intel_runtime_pm_get(eb.i915);
+	wakeref = intel_runtime_pm_get(eb.i915);
 
 	err = i915_mutex_lock_interruptible(dev);
 	if (err)
@@ -2424,7 +2425,7 @@ err_vma:
 		eb_release_vmas(&eb);
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
-	intel_runtime_pm_put_unchecked(eb.i915);
+	intel_runtime_pm_put(eb.i915, wakeref);
 	i915_gem_context_put(eb.ctx);
 err_destroy:
 	eb_destroy(&eb);

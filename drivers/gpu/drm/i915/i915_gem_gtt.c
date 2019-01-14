@@ -2527,6 +2527,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
 	struct drm_i915_gem_object *obj = vma->obj;
+	intel_wakeref_t wakeref;
 	u32 pte_flags;
 
 	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
@@ -2534,9 +2535,9 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
@@ -2553,10 +2554,11 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 static void ggtt_unbind_vma(struct i915_vma *vma)
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
+	intel_wakeref_t wakeref;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 }
 
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
@@ -2588,9 +2590,11 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	}
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
-		intel_runtime_pm_get(i915);
+		intel_wakeref_t wakeref;
+
+		wakeref = intel_runtime_pm_get(i915);
 		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-		intel_runtime_pm_put_unchecked(i915);
+		intel_runtime_pm_put(i915, wakeref);
 	}
 
 	return 0;
@@ -2601,9 +2605,11 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 	struct drm_i915_private *i915 = vma->vm->i915;
 
 	if (vma->flags & I915_VMA_GLOBAL_BIND) {
-		intel_runtime_pm_get(i915);
+		intel_wakeref_t wakeref;
+
+		wakeref = intel_runtime_pm_get(i915);
 		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-		intel_runtime_pm_put_unchecked(i915);
+		intel_runtime_pm_put(i915, wakeref);
 	}
 
 	if (vma->flags & I915_VMA_LOCAL_BIND) {

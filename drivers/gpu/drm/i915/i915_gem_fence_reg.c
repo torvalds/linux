@@ -209,6 +209,7 @@ static void fence_write(struct drm_i915_fence_reg *fence,
 static int fence_update(struct drm_i915_fence_reg *fence,
 			struct i915_vma *vma)
 {
+	intel_wakeref_t wakeref;
 	int ret;
 
 	if (vma) {
@@ -256,9 +257,10 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 	 * If the device is currently powered down, we will defer the write
 	 * to the runtime resume, see i915_gem_restore_fences().
 	 */
-	if (intel_runtime_pm_get_if_in_use(fence->i915)) {
+	wakeref = intel_runtime_pm_get_if_in_use(fence->i915);
+	if (wakeref) {
 		fence_write(fence, vma);
-		intel_runtime_pm_put_unchecked(fence->i915);
+		intel_runtime_pm_put(fence->i915, wakeref);
 	}
 
 	if (vma) {
