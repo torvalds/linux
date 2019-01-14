@@ -2023,6 +2023,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	intel_wakeref_t wakeref;
 	struct i915_vma *vma;
 	unsigned int pinctl;
 	u32 alignment;
@@ -2046,7 +2047,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	 * intel_runtime_pm_put(), so it is correct to wrap only the
 	 * pin/unpin/fence and not more.
 	 */
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
@@ -2101,7 +2102,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 err:
 	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
 
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	return vma;
 }
 
