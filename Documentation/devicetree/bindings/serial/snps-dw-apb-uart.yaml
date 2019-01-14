@@ -17,6 +17,11 @@ properties:
     oneOf:
       - items:
           - enum:
+              - renesas,r9a06g032-uart
+              - renesas,r9a06g033-uart
+          - const: renesas,rzn1-uart
+      - items:
+          - enum:
               - rockchip,px30-uart
               - rockchip,rk3036-uart
               - rockchip,rk3066-uart
