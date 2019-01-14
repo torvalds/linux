@@ -51,6 +51,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 {
 	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
 	struct dc_stream_state *stream_state = crtc_state->stream;
+	bool enable;
 
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
 
@@ -65,28 +66,27 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 		return -EINVAL;
 	}
 
+	enable = (source == AMDGPU_DM_PIPE_CRC_SOURCE_AUTO);
+
+	if (!dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
+				     enable, enable))
+		return -EINVAL;
+
 	/* When enabling CRC, we should also disable dithering. */
-	if (source == AMDGPU_DM_PIPE_CRC_SOURCE_AUTO) {
-		if (dc_stream_configure_crc(stream_state->ctx->dc,
-					    stream_state,
-					    true, true)) {
-			crtc_state->crc_enabled = true;
-			dc_stream_set_dither_option(stream_state,
-						    DITHER_OPTION_TRUN8);
-		}
-		else
-			return -EINVAL;
-	} else {
-		if (dc_stream_configure_crc(stream_state->ctx->dc,
-					    stream_state,
-					    false, false)) {
-			crtc_state->crc_enabled = false;
-			dc_stream_set_dither_option(stream_state,
-						    DITHER_OPTION_DEFAULT);
-		}
-		else
-			return -EINVAL;
-	}
+	dc_stream_set_dither_option(stream_state,
+				    enable ? DITHER_OPTION_TRUN8
+					   : DITHER_OPTION_DEFAULT);
+
+	/*
+	 * Reading the CRC requires the vblank interrupt handler to be
+	 * enabled. Keep a reference until CRC capture stops.
+	 */
+	if (!crtc_state->crc_enabled && enable)
+		drm_crtc_vblank_get(crtc);
+	else if (crtc_state->crc_enabled && !enable)
+		drm_crtc_vblank_put(crtc);
+
+	crtc_state->crc_enabled = enable;
 
 	*values_cnt = 3;
 	/* Reset crc_skipped on dm state */
