@@ -1563,11 +1563,11 @@ static int qtnf_cmd_resp_proc_phy_params(struct qtnf_wmac *mac,
 		switch (tlv_type) {
 		case QTN_TLV_ID_FRAG_THRESH:
 			phy_thr = (void *)tlv;
-			mac_info->frag_thr = (u32)le16_to_cpu(phy_thr->thr);
+			mac_info->frag_thr = le32_to_cpu(phy_thr->thr);
 			break;
 		case QTN_TLV_ID_RTS_THRESH:
 			phy_thr = (void *)tlv;
-			mac_info->rts_thr = (u32)le16_to_cpu(phy_thr->thr);
+			mac_info->rts_thr = le32_to_cpu(phy_thr->thr);
 			break;
 		case QTN_TLV_ID_SRETRY_LIMIT:
 			limit = (void *)tlv;
@@ -1815,10 +1815,10 @@ int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed)
 	qtnf_bus_lock(mac->bus);
 
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
-		qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_FRAG_THRESH,
+		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_FRAG_THRESH,
 					 wiphy->frag_threshold);
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD)
-		qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_RTS_THRESH,
+		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_RTS_THRESH,
 					 wiphy->rts_threshold);
 	if (changed & WIPHY_PARAM_COVERAGE_CLASS)
 		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_COVERAGE_CLASS,

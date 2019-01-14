@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		11
+#define QLINK_PROTO_VER		12
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -1184,7 +1184,7 @@ struct qlink_iface_limit_record {
 
 struct qlink_tlv_frag_rts_thr {
 	struct qlink_tlv_hdr hdr;
-	__le16 thr;
+	__le32 thr;
 } __packed;
 
 struct qlink_tlv_rlimit {

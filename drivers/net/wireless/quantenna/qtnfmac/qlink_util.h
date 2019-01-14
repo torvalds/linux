@@ -69,6 +69,17 @@ static inline void qtnf_cmd_skb_put_tlv_u16(struct sk_buff *skb,
 	memcpy(hdr->val, &tmp, sizeof(tmp));
 }
 
+static inline void qtnf_cmd_skb_put_tlv_u32(struct sk_buff *skb,
+					    u16 tlv_id, u32 value)
+{
+	struct qlink_tlv_hdr *hdr = skb_put(skb, sizeof(*hdr) + sizeof(value));
+	__le32 tmp = cpu_to_le32(value);
+
+	hdr->type = cpu_to_le16(tlv_id);
+	hdr->len = cpu_to_le16(sizeof(value));
+	memcpy(hdr->val, &tmp, sizeof(tmp));
+}
+
 u16 qlink_iface_type_to_nl_mask(u16 qlink_type);
 u8 qlink_chan_width_mask_to_nl(u16 qlink_mask);
 void qlink_chandef_q2cfg(struct wiphy *wiphy,
