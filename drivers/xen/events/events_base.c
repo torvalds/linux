@@ -1650,7 +1650,7 @@ void xen_callback_vector(void)
 			xen_have_vector_callback = 0;
 			return;
 		}
-		pr_info("Xen HVM callback vector for event delivery is enabled\n");
+		pr_info_once("Xen HVM callback vector for event delivery is enabled\n");
 		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
 				xen_hvm_callback_vector);
 	}
