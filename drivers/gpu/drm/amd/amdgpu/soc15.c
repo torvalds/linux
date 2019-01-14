@@ -427,7 +427,7 @@ static int soc15_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap)
 
 	if (!pp_funcs || !pp_funcs->get_asic_baco_capability) {
 		*cap = false;
-		return -1;
+		return -ENOENT;
 	}
 
 	return pp_funcs->get_asic_baco_capability(pp_handle, cap);
@@ -439,15 +439,15 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
 	if (!pp_funcs ||!pp_funcs->get_asic_baco_state ||!pp_funcs->set_asic_baco_state)
-		return -1;
+		return -ENOENT;
 
 	/* enter BACO state */
 	if (pp_funcs->set_asic_baco_state(pp_handle, 1))
-		return -1;
+		return -EIO;
 
 	/* exit BACO state */
 	if (pp_funcs->set_asic_baco_state(pp_handle, 0))
-		return -1;
+		return -EIO;
 
 	dev_info(adev->dev, "GPU BACO reset\n");
 
