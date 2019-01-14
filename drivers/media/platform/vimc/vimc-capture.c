@@ -71,7 +71,7 @@ static int vimc_cap_querycap(struct file *file, void *priv,
 {
 	struct vimc_cap_device *vcap = video_drvdata(file);
 
-	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->driver, VIMC_PDEV_NAME, sizeof(cap->driver));
 	strscpy(cap->card, KBUILD_MODNAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", vcap->vdev.v4l2_dev->name);

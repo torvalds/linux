@@ -24,7 +24,6 @@
 
 #include "vimc-common.h"
 
-#define VIMC_PDEV_NAME "vimc"
 #define VIMC_MDEV_MODEL_NAME "VIMC MDEV"
 
 #define VIMC_ENT_LINK(src, srcpad, sink, sinkpad, link_flags) {	\
