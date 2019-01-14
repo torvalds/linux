@@ -122,7 +122,5 @@ static __always_inline void qtnf_bus_unlock(struct qtnf_bus *bus)
 
 int qtnf_core_attach(struct qtnf_bus *bus);
 void qtnf_core_detach(struct qtnf_bus *bus);
-void qtnf_txflowblock(struct device *dev, bool state);
-void qtnf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 
 #endif /* QTNFMAC_BUS_H */
