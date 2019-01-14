@@ -589,6 +589,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
+	intel_wakeref_t wakeref;
 	u32 val = 0; /* shut up gcc */
 	int ret = 0;
 
@@ -598,7 +599,8 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	}
 
 	power_domain = POWER_DOMAIN_PIPE(crtc->index);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain)) {
+	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wakeref) {
 		DRM_DEBUG_KMS("Trying to capture CRC while pipe is off\n");
 		return -EIO;
 	}
@@ -624,7 +626,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	pipe_crc->skipped = 0;
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, power_domain, wakeref);
 
 	return ret;
 }

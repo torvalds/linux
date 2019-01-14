@@ -1855,18 +1855,19 @@ __intel_display_power_get_domain(struct drm_i915_private *dev_priv,
  * Any power domain reference obtained by this function must have a symmetric
  * call to intel_display_power_put() to release the reference again.
  */
-void intel_display_power_get(struct drm_i915_private *dev_priv,
-			     enum intel_display_power_domain domain)
+intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,
+					enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-
-	intel_runtime_pm_get(dev_priv);
+	intel_wakeref_t wakeref = intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&power_domains->lock);
 
 	__intel_display_power_get_domain(dev_priv, domain);
 
 	mutex_unlock(&power_domains->lock);
+
+	return wakeref;
 }
 
 /**
@@ -1881,13 +1882,16 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
  * Any power domain reference obtained by this function must have a symmetric
  * call to intel_display_power_put() to release the reference again.
  */
-bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
-					enum intel_display_power_domain domain)
+intel_wakeref_t
+intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
+				   enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	intel_wakeref_t wakeref;
 	bool is_enabled;
 
-	if (!intel_runtime_pm_get_if_in_use(dev_priv))
+	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	if (!wakeref)
 		return false;
 
 	mutex_lock(&power_domains->lock);
@@ -1901,23 +1905,16 @@ bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 
 	mutex_unlock(&power_domains->lock);
 
-	if (!is_enabled)
-		intel_runtime_pm_put_unchecked(dev_priv);
+	if (!is_enabled) {
+		intel_runtime_pm_put(dev_priv, wakeref);
+		wakeref = 0;
+	}
 
-	return is_enabled;
+	return wakeref;
 }
 
-/**
- * intel_display_power_put - release a power domain reference
- * @dev_priv: i915 device instance
- * @domain: power domain to reference
- *
- * This function drops the power domain reference obtained by
- * intel_display_power_get() and might power down the corresponding hardware
- * block right away if this is the last reference.
- */
-void intel_display_power_put(struct drm_i915_private *dev_priv,
-			     enum intel_display_power_domain domain)
+static void __intel_display_power_put(struct drm_i915_private *dev_priv,
+				      enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
@@ -1935,9 +1932,33 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 		intel_power_well_put(dev_priv, power_well);
 
 	mutex_unlock(&power_domains->lock);
+}
 
+/**
+ * intel_display_power_put - release a power domain reference
+ * @dev_priv: i915 device instance
+ * @domain: power domain to reference
+ *
+ * This function drops the power domain reference obtained by
+ * intel_display_power_get() and might power down the corresponding hardware
+ * block right away if this is the last reference.
+ */
+void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
+				       enum intel_display_power_domain domain)
+{
+	__intel_display_power_put(dev_priv, domain);
 	intel_runtime_pm_put_unchecked(dev_priv);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+void intel_display_power_put(struct drm_i915_private *dev_priv,
+			     enum intel_display_power_domain domain,
+			     intel_wakeref_t wakeref)
+{
+	__intel_display_power_put(dev_priv, domain);
+	intel_runtime_pm_put(dev_priv, wakeref);
+}
+#endif
 
 #define I830_PIPES_POWER_DOMAINS (		\
 	BIT_ULL(POWER_DOMAIN_PIPE_A) |		\
@@ -4048,7 +4069,7 @@ void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
 
 	/* Remove the refcount we took to keep power well support disabled. */
 	if (!i915_modparams.disable_power_well)
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+		intel_display_power_put_unchecked(dev_priv, POWER_DOMAIN_INIT);
 
 	intel_power_domains_verify_state(dev_priv);
 }
@@ -4067,7 +4088,7 @@ void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_enable(struct drm_i915_private *dev_priv)
 {
-	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+	intel_display_power_put_unchecked(dev_priv, POWER_DOMAIN_INIT);
 
 	intel_power_domains_verify_state(dev_priv);
 }
@@ -4102,7 +4123,7 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+	intel_display_power_put_unchecked(dev_priv, POWER_DOMAIN_INIT);
 
 	/*
 	 * In case of suspend-to-idle (aka S0ix) on a DMC platform without DC9
@@ -4123,7 +4144,7 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
 	 * power wells if power domains must be deinitialized for suspend.
 	 */
 	if (!i915_modparams.disable_power_well) {
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+		intel_display_power_put_unchecked(dev_priv, POWER_DOMAIN_INIT);
 		intel_power_domains_verify_state(dev_priv);
 	}
 

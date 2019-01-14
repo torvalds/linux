@@ -2118,12 +2118,21 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain);
-void intel_display_power_get(struct drm_i915_private *dev_priv,
-			     enum intel_display_power_domain domain);
-bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
+intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,
 					enum intel_display_power_domain domain);
+intel_wakeref_t
+intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
+				   enum intel_display_power_domain domain);
+void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
+				       enum intel_display_power_domain domain);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 void intel_display_power_put(struct drm_i915_private *dev_priv,
-			     enum intel_display_power_domain domain);
+			     enum intel_display_power_domain domain,
+			     intel_wakeref_t wakeref);
+#else
+#define intel_display_power_put(i915, domain, wakeref) \
+	intel_display_power_put_unchecked(i915, domain)
+#endif
 void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices);
 

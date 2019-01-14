@@ -1860,12 +1860,14 @@ int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	intel_wakeref_t wakeref;
 	enum pipe pipe = 0;
 	int ret = 0;
 	uint32_t tmp;
 
-	if (WARN_ON(!intel_display_power_get_if_enabled(dev_priv,
-						intel_encoder->power_domain)))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     intel_encoder->power_domain);
+	if (WARN_ON(!wakeref))
 		return -ENXIO;
 
 	if (WARN_ON(!intel_encoder->get_hw_state(intel_encoder, &pipe))) {
@@ -1880,7 +1882,7 @@ int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 		tmp &= ~TRANS_DDI_HDCP_SIGNALLING;
 	I915_WRITE(TRANS_DDI_FUNC_CTL(pipe), tmp);
 out:
-	intel_display_power_put(dev_priv, intel_encoder->power_domain);
+	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
 	return ret;
 }
 
@@ -1891,13 +1893,15 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	struct intel_encoder *encoder = intel_connector->encoder;
 	int type = intel_connector->base.connector_type;
 	enum port port = encoder->port;
-	enum pipe pipe = 0;
 	enum transcoder cpu_transcoder;
+	intel_wakeref_t wakeref;
+	enum pipe pipe = 0;
 	uint32_t tmp;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	if (!encoder->get_hw_state(encoder, &pipe)) {
@@ -1939,7 +1943,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	}
 
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -1950,6 +1954,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = encoder->port;
+	intel_wakeref_t wakeref;
 	enum pipe p;
 	u32 tmp;
 	u8 mst_pipe_mask;
@@ -1957,8 +1962,9 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	*pipe_mask = 0;
 	*is_dp_mst = false;
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return;
 
 	tmp = I915_READ(DDI_BUF_CTL(port));
@@ -2029,7 +2035,7 @@ out:
 				  "(PHY_CTL %08x)\n", port_name(port), tmp);
 	}
 
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 }
 
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
@@ -3286,7 +3292,8 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	intel_edp_panel_vdd_on(intel_dp);
 	intel_edp_panel_off(intel_dp);
 
-	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
+	intel_display_power_put_unchecked(dev_priv,
+					  dig_port->ddi_io_power_domain);
 
 	intel_ddi_clk_disable(encoder);
 }
@@ -3306,7 +3313,8 @@ static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
 
 	intel_disable_ddi_buf(encoder, old_crtc_state);
 
-	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
+	intel_display_power_put_unchecked(dev_priv,
+					  dig_port->ddi_io_power_domain);
 
 	intel_ddi_clk_disable(encoder);
 
@@ -3626,8 +3634,8 @@ intel_ddi_post_pll_disable(struct intel_encoder *encoder,
 
 	if (intel_crtc_has_dp_encoder(crtc_state) ||
 	    intel_port_is_tc(dev_priv, encoder->port))
-		intel_display_power_put(dev_priv,
-					intel_ddi_main_link_aux_domain(dig_port));
+		intel_display_power_put_unchecked(dev_priv,
+						  intel_ddi_main_link_aux_domain(dig_port));
 }
 
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)

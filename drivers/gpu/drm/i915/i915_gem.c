@@ -176,7 +176,7 @@ static u32 __i915_gem_park(struct drm_i915_private *i915)
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_idle(i915);
 
-	intel_display_power_put(i915, POWER_DOMAIN_GT_IRQ);
+	intel_display_power_put(i915, POWER_DOMAIN_GT_IRQ, i915->gt.power);
 
 	intel_runtime_pm_put(i915, wakeref);
 
@@ -221,7 +221,7 @@ void i915_gem_unpark(struct drm_i915_private *i915)
 	 * Work around it by grabbing a GT IRQ power domain whilst there is any
 	 * GT activity, preventing any DC state transitions.
 	 */
-	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
+	i915->gt.power = intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
 
 	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
 		i915->gt.epoch = 1;

@@ -409,6 +409,21 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	return memcpy(dmc_payload, &fw->data[readcount], nbytes);
 }
 
+static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(dev_priv->csr.wakeref);
+	dev_priv->csr.wakeref =
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+}
+
+static void intel_csr_runtime_pm_put(struct drm_i915_private *dev_priv)
+{
+	intel_wakeref_t wakeref __maybe_unused =
+		fetch_and_zero(&dev_priv->csr.wakeref);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
+}
+
 static void csr_load_work_fn(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv;
@@ -424,8 +439,7 @@ static void csr_load_work_fn(struct work_struct *work)
 
 	if (dev_priv->csr.dmc_payload) {
 		intel_csr_load_program(dev_priv);
-
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+		intel_csr_runtime_pm_put(dev_priv);
 
 		DRM_INFO("Finished loading DMC firmware %s (v%u.%u)\n",
 			 dev_priv->csr.fw_path,
@@ -467,7 +481,7 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	 * suspend as runtime suspend *requires* a working CSR for whatever
 	 * reason.
 	 */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+	intel_csr_runtime_pm_get(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		/* Allow to load fw via parameter using the last known size */
@@ -538,7 +552,7 @@ void intel_csr_ucode_suspend(struct drm_i915_private *dev_priv)
 
 	/* Drop the reference held in case DMC isn't loaded. */
 	if (!dev_priv->csr.dmc_payload)
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+		intel_csr_runtime_pm_put(dev_priv);
 }
 
 /**
@@ -558,7 +572,7 @@ void intel_csr_ucode_resume(struct drm_i915_private *dev_priv)
 	 * loaded.
 	 */
 	if (!dev_priv->csr.dmc_payload)
-		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+		intel_csr_runtime_pm_get(dev_priv);
 }
 
 /**
@@ -574,6 +588,7 @@ void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_csr_ucode_suspend(dev_priv);
+	WARN_ON(dev_priv->csr.wakeref);
 
 	kfree(dev_priv->csr.dmc_payload);
 }

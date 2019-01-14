@@ -1190,15 +1190,17 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	intel_wakeref_t wakeref;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	ret = intel_sdvo_port_enabled(dev_priv, intel_hdmi->hdmi_reg, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -1895,11 +1897,12 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	intel_wakeref_t wakeref;
 	struct edid *edid;
 	bool connected = false;
 	struct i2c_adapter *i2c;
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
 	i2c = intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
 
@@ -1914,7 +1917,7 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 
 	intel_hdmi_dp_dual_mode_detect(connector, edid != NULL);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
 	to_intel_connector(connector)->detect_edid = edid;
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
@@ -1939,11 +1942,12 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct intel_encoder *encoder = &hdmi_to_dig_port(intel_hdmi)->base;
+	intel_wakeref_t wakeref;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
 	if (IS_ICELAKE(dev_priv) &&
 	    !intel_digital_port_connected(encoder))
@@ -1955,7 +1959,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 		status = connector_status_connected;
 
 out:
-	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
 	if (status != connector_status_connected)
 		cec_notifier_phys_addr_invalidate(intel_hdmi->cec_notifier);

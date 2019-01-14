@@ -3989,10 +3989,12 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum pipe pipe = crtc->pipe;
+	intel_wakeref_t wakeref;
 	enum plane_id plane_id;
 
 	power_domain = POWER_DOMAIN_PIPE(pipe);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wakeref)
 		return;
 
 	for_each_plane_id_on_crtc(crtc, plane_id)
@@ -4001,7 +4003,7 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 					   &ddb_y[plane_id],
 					   &ddb_uv[plane_id]);
 
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, power_domain, wakeref);
 }
 
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,

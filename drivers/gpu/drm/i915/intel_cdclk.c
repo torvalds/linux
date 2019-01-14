@@ -520,6 +520,7 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 {
 	int cdclk = cdclk_state->cdclk;
 	u32 val, cmd = cdclk_state->voltage_level;
+	intel_wakeref_t wakeref;
 
 	switch (cdclk) {
 	case 400000:
@@ -539,7 +540,7 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	 * a system suspend.  So grab the PIPE-A domain, which covers
 	 * the HW blocks needed for the following programming.
 	 */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	mutex_lock(&dev_priv->pcu_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
@@ -593,7 +594,7 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 
 	vlv_program_pfi_credits(dev_priv);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A, wakeref);
 }
 
 static void chv_set_cdclk(struct drm_i915_private *dev_priv,
@@ -601,6 +602,7 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 {
 	int cdclk = cdclk_state->cdclk;
 	u32 val, cmd = cdclk_state->voltage_level;
+	intel_wakeref_t wakeref;
 
 	switch (cdclk) {
 	case 333333:
@@ -619,7 +621,7 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	 * a system suspend.  So grab the PIPE-A domain, which covers
 	 * the HW blocks needed for the following programming.
 	 */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	mutex_lock(&dev_priv->pcu_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
@@ -637,7 +639,7 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 
 	vlv_program_pfi_credits(dev_priv);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A, wakeref);
 }
 
 static int bdw_calc_cdclk(int min_cdclk)

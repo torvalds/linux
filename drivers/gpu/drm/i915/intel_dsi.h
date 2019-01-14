@@ -39,6 +39,7 @@ struct intel_dsi {
 	struct intel_encoder base;
 
 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
+	intel_wakeref_t io_wakeref[I915_MAX_PORTS];
 
 	/* GPIO Desc for CRC based Panel control */
 	struct gpio_desc *gpio_panel;

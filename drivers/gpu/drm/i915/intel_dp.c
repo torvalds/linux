@@ -621,8 +621,8 @@ static void pps_unlock(struct intel_dp *intel_dp)
 
 	mutex_unlock(&dev_priv->pps_mutex);
 
-	intel_display_power_put(dev_priv,
-				intel_aux_power_domain(dp_to_dig_port(intel_dp)));
+	intel_display_power_put_unchecked(dev_priv,
+					  intel_aux_power_domain(dp_to_dig_port(intel_dp)));
 }
 
 static void
@@ -2511,8 +2511,8 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	if ((pp & PANEL_POWER_ON) == 0)
 		intel_dp->panel_power_off_time = ktime_get_boottime();
 
-	intel_display_power_put(dev_priv,
-				intel_aux_power_domain(intel_dig_port));
+	intel_display_power_put_unchecked(dev_priv,
+					  intel_aux_power_domain(intel_dig_port));
 }
 
 static void edp_panel_vdd_work(struct work_struct *__work)
@@ -2657,7 +2657,7 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	/* We got a reference when we enabled the VDD. */
-	intel_display_power_put(dev_priv, intel_aux_power_domain(dig_port));
+	intel_display_power_put_unchecked(dev_priv, intel_aux_power_domain(dig_port));
 }
 
 void intel_edp_panel_off(struct intel_dp *intel_dp)
@@ -2983,16 +2983,18 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	intel_wakeref_t wakeref;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	ret = intel_dp_port_enabled(dev_priv, intel_dp->output_reg,
 				    encoder->port, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -5365,12 +5367,13 @@ intel_dp_detect(struct drm_connector *connector,
 	enum drm_connector_status status;
 	enum intel_display_power_domain aux_domain =
 		intel_aux_power_domain(dig_port);
+	intel_wakeref_t wakeref;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
-	intel_display_power_get(dev_priv, aux_domain);
+	wakeref = intel_display_power_get(dev_priv, aux_domain);
 
 	/* Can't disconnect eDP */
 	if (intel_dp_is_edp(intel_dp))
@@ -5436,7 +5439,7 @@ intel_dp_detect(struct drm_connector *connector,
 
 		ret = intel_dp_retrain_link(encoder, ctx);
 		if (ret) {
-			intel_display_power_put(dev_priv, aux_domain);
+			intel_display_power_put(dev_priv, aux_domain, wakeref);
 			return ret;
 		}
 	}
@@ -5460,7 +5463,7 @@ out:
 	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
 
-	intel_display_power_put(dev_priv, aux_domain);
+	intel_display_power_put(dev_priv, aux_domain, wakeref);
 	return status;
 }
 
@@ -5473,6 +5476,7 @@ intel_dp_force(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	enum intel_display_power_domain aux_domain =
 		intel_aux_power_domain(dig_port);
+	intel_wakeref_t wakeref;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
@@ -5481,11 +5485,11 @@ intel_dp_force(struct drm_connector *connector)
 	if (connector->status != connector_status_connected)
 		return;
 
-	intel_display_power_get(dev_priv, aux_domain);
+	wakeref = intel_display_power_get(dev_priv, aux_domain);
 
 	intel_dp_set_edid(intel_dp);
 
-	intel_display_power_put(dev_priv, aux_domain);
+	intel_display_power_put(dev_priv, aux_domain, wakeref);
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
@@ -5931,6 +5935,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	enum irqreturn ret = IRQ_NONE;
+	intel_wakeref_t wakeref;
 
 	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {
 		/*
@@ -5953,8 +5958,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		return IRQ_NONE;
 	}
 
-	intel_display_power_get(dev_priv,
-				intel_aux_power_domain(intel_dig_port));
+	wakeref = intel_display_power_get(dev_priv,
+					  intel_aux_power_domain(intel_dig_port));
 
 	if (intel_dp->is_mst) {
 		if (intel_dp_check_mst_status(intel_dp) == -EINVAL) {
@@ -5984,7 +5989,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 put_power:
 	intel_display_power_put(dev_priv,
-				intel_aux_power_domain(intel_dig_port));
+				intel_aux_power_domain(intel_dig_port),
+				wakeref);
 
 	return ret;
 }

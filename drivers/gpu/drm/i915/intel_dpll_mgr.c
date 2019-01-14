@@ -345,9 +345,12 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 				      struct intel_dpll_hw_state *hw_state)
 {
 	const enum intel_dpll_id id = pll->info->id;
+	intel_wakeref_t wakeref;
 	uint32_t val;
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	val = I915_READ(PCH_DPLL(id));
@@ -355,7 +358,7 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 	hw_state->fp0 = I915_READ(PCH_FP0(id));
 	hw_state->fp1 = I915_READ(PCH_FP1(id));
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 
 	return val & DPLL_VCO_ENABLE;
 }
@@ -509,15 +512,18 @@ static bool hsw_ddi_wrpll_get_hw_state(struct drm_i915_private *dev_priv,
 				       struct intel_dpll_hw_state *hw_state)
 {
 	const enum intel_dpll_id id = pll->info->id;
+	intel_wakeref_t wakeref;
 	uint32_t val;
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	val = I915_READ(WRPLL_CTL(id));
 	hw_state->wrpll = val;
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 
 	return val & WRPLL_PLL_ENABLE;
 }
@@ -526,15 +532,18 @@ static bool hsw_ddi_spll_get_hw_state(struct drm_i915_private *dev_priv,
 				      struct intel_shared_dpll *pll,
 				      struct intel_dpll_hw_state *hw_state)
 {
+	intel_wakeref_t wakeref;
 	uint32_t val;
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	val = I915_READ(SPLL_CTL);
 	hw_state->spll = val;
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 
 	return val & SPLL_PLL_ENABLE;
 }
@@ -989,9 +998,12 @@ static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	uint32_t val;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
 	const enum intel_dpll_id id = pll->info->id;
+	intel_wakeref_t wakeref;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	ret = false;
@@ -1011,7 +1023,7 @@ static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 
 	return ret;
 }
@@ -1020,12 +1032,15 @@ static bool skl_ddi_dpll0_get_hw_state(struct drm_i915_private *dev_priv,
 				       struct intel_shared_dpll *pll,
 				       struct intel_dpll_hw_state *hw_state)
 {
-	uint32_t val;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
 	const enum intel_dpll_id id = pll->info->id;
+	intel_wakeref_t wakeref;
+	uint32_t val;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	ret = false;
@@ -1041,7 +1056,7 @@ static bool skl_ddi_dpll0_get_hw_state(struct drm_i915_private *dev_priv,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 
 	return ret;
 }
@@ -1579,14 +1594,17 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 					struct intel_dpll_hw_state *hw_state)
 {
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
-	uint32_t val;
-	bool ret;
+	intel_wakeref_t wakeref;
 	enum dpio_phy phy;
 	enum dpio_channel ch;
+	uint32_t val;
+	bool ret;
 
 	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	ret = false;
@@ -1643,7 +1661,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 
 	return ret;
 }
@@ -2091,10 +2109,13 @@ static bool cnl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				     struct intel_dpll_hw_state *hw_state)
 {
 	const enum intel_dpll_id id = pll->info->id;
+	intel_wakeref_t wakeref;
 	uint32_t val;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	ret = false;
@@ -2113,7 +2134,7 @@ static bool cnl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 
 	return ret;
 }
@@ -2950,11 +2971,14 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				 struct intel_dpll_hw_state *hw_state)
 {
 	const enum intel_dpll_id id = pll->info->id;
-	uint32_t val;
-	enum port port;
+	intel_wakeref_t wakeref;
 	bool ret = false;
+	enum port port;
+	uint32_t val;
 
-	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
 		return false;
 
 	val = I915_READ(icl_pll_id_to_enable_reg(id));
@@ -3007,7 +3031,7 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 
 	ret = true;
 out:
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
 	return ret;
 }
 

@@ -959,13 +959,15 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	intel_wakeref_t wakeref;
 	enum port port;
 	bool active = false;
 
 	DRM_DEBUG_KMS("\n");
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	/*
@@ -1021,7 +1023,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	}
 
 out_put_power:
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return active;
 }
@@ -1574,6 +1576,7 @@ vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 	enum drm_panel_orientation orientation;
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
+	intel_wakeref_t wakeref;
 	enum pipe pipe;
 	u32 val;
 
@@ -1584,7 +1587,8 @@ vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 	plane = to_intel_plane(crtc->base.primary);
 
 	power_domain = POWER_DOMAIN_PIPE(pipe);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wakeref)
 		return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
 	val = I915_READ(DSPCNTR(plane->i9xx_plane));
@@ -1596,7 +1600,7 @@ vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 	else
 		orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
 
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, power_domain, wakeref);
 
 	return orientation;
 }

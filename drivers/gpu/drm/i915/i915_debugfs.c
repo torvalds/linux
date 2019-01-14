@@ -626,10 +626,12 @@ static void gen8_display_interrupt_info(struct seq_file *m)
 
 	for_each_pipe(dev_priv, pipe) {
 		enum intel_display_power_domain power_domain;
+		intel_wakeref_t wakeref;
 
 		power_domain = POWER_DOMAIN_PIPE(pipe);
-		if (!intel_display_power_get_if_enabled(dev_priv,
-							power_domain)) {
+		wakeref = intel_display_power_get_if_enabled(dev_priv,
+							     power_domain);
+		if (!wakeref) {
 			seq_printf(m, "Pipe %c power disabled\n",
 				   pipe_name(pipe));
 			continue;
@@ -644,7 +646,7 @@ static void gen8_display_interrupt_info(struct seq_file *m)
 			   pipe_name(pipe),
 			   I915_READ(GEN8_DE_PIPE_IER(pipe)));
 
-		intel_display_power_put(dev_priv, power_domain);
+		intel_display_power_put(dev_priv, power_domain, wakeref);
 	}
 
 	seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
@@ -680,6 +682,8 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	wakeref = intel_runtime_pm_get(dev_priv);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
+		intel_wakeref_t pref;
+
 		seq_printf(m, "Master Interrupt Control:\t%08x\n",
 			   I915_READ(GEN8_MASTER_IRQ));
 
@@ -695,8 +699,9 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			enum intel_display_power_domain power_domain;
 
 			power_domain = POWER_DOMAIN_PIPE(pipe);
-			if (!intel_display_power_get_if_enabled(dev_priv,
-								power_domain)) {
+			pref = intel_display_power_get_if_enabled(dev_priv,
+								  power_domain);
+			if (!pref) {
 				seq_printf(m, "Pipe %c power disabled\n",
 					   pipe_name(pipe));
 				continue;
@@ -706,17 +711,17 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 				   pipe_name(pipe),
 				   I915_READ(PIPESTAT(pipe)));
 
-			intel_display_power_put(dev_priv, power_domain);
+			intel_display_power_put(dev_priv, power_domain, pref);
 		}
 
-		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+		pref = intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 		seq_printf(m, "Port hotplug:\t%08x\n",
 			   I915_READ(PORT_HOTPLUG_EN));
 		seq_printf(m, "DPFLIPSTAT:\t%08x\n",
 			   I915_READ(VLV_DPFLIPSTAT));
 		seq_printf(m, "DPINVGTT:\t%08x\n",
 			   I915_READ(DPINVGTT));
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, pref);
 
 		for (i = 0; i < 4; i++) {
 			seq_printf(m, "GT Interrupt IMR %d:\t%08x\n",
@@ -779,10 +784,12 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(VLV_IMR));
 		for_each_pipe(dev_priv, pipe) {
 			enum intel_display_power_domain power_domain;
+			intel_wakeref_t pref;
 
 			power_domain = POWER_DOMAIN_PIPE(pipe);
-			if (!intel_display_power_get_if_enabled(dev_priv,
-								power_domain)) {
+			pref = intel_display_power_get_if_enabled(dev_priv,
+								  power_domain);
+			if (!pref) {
 				seq_printf(m, "Pipe %c power disabled\n",
 					   pipe_name(pipe));
 				continue;
@@ -791,7 +798,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			seq_printf(m, "Pipe %c stat:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(PIPESTAT(pipe)));
-			intel_display_power_put(dev_priv, power_domain);
+			intel_display_power_put(dev_priv, power_domain, pref);
 		}
 
 		seq_printf(m, "Master IER:\t%08x\n",
@@ -1709,8 +1716,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	intel_wakeref_t wakeref;
 	bool sr_enabled = false;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
-	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		/* no global SR status; inspect per-plane WM */;
@@ -1726,8 +1732,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		sr_enabled = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
 
 	seq_printf(m, "self-refresh: %s\n", enableddisabled(sr_enabled));
 
