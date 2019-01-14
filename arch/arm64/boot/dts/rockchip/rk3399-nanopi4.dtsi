@@ -28,21 +28,6 @@
 		#clock-cells = <0>;
 	};
 
-	vdd_5v: vdd-5v {
-		compatible = "regulator-fixed";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-name = "vdd_5v";
-	};
-
-	vcc5v0_core: vcc5v0-core {
-		compatible = "regulator-fixed";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-name = "vcc5v0_core";
-		vin-supply = <&vdd_5v>;
-	};
-
 	vcc3v3_sys: vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-always-on;
@@ -50,7 +35,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-name = "vcc3v3_sys";
-		vin-supply = <&vcc5v0_core>;
 	};
 
 	vcc5v0_sys: vcc5v0-sys {
@@ -61,22 +45,6 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-name = "vcc5v0_sys";
 		vin-supply = <&vdd_5v>;
-	};
-
-	vcc5v0_usb1: vcc5v0-usb1 {
-		compatible = "regulator-fixed";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-name = "vcc5v0_usb1";
-		vin-supply = <&vcc5v0_sys>;
-	};
-
-	vcc5v0_usb2: vcc5v0-usb2 {
-		compatible = "regulator-fixed";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-name = "vcc5v0_usb2";
-		vin-supply = <&vcc5v0_sys>;
 	};
 
 	/* switched by pmic_sleep */
@@ -105,27 +73,9 @@
 
 	vbus_typec: vbus-typec {
 		compatible = "regulator-fixed";
-		enable-active-high;
-		gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-name = "vbus_typec";
-		vin-supply = <&vdd_5v>;
-	};
-
-	adc-keys {
-		compatible = "adc-keys";
-		io-channels = <&saradc 1>;
-		io-channel-names = "buttons";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
-
-		recovery {
-			label = "Recovery";
-			linux,code = <KEY_VENDOR>;
-			press-threshold-microvolt = <18000>;
-		};
 	};
 
 	gpio-keys {
@@ -590,8 +540,7 @@
 
 &sdhci {
 	bus-width = <8>;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
+	mmc-hs200-1_8v;
 	non-removable;
 	status = "okay";
 };
@@ -644,7 +593,6 @@
 };
 
 &u2phy0_host {
-	phy-supply = <&vcc5v0_usb1>;
 	status = "okay";
 };
 
@@ -657,7 +605,6 @@
 };
 
 &u2phy1_host {
-	phy-supply = <&vcc5v0_usb2>;
 	status = "okay";
 };
 
