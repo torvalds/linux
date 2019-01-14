@@ -341,6 +341,8 @@ struct pp_hwmgr_func {
 	int (*get_asic_baco_capability)(struct pp_hwmgr *hwmgr, bool *cap);
 	int (*get_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
 	int (*set_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
+	int (*get_ppfeature_status)(struct pp_hwmgr *hwmgr, char *buf);
+	int (*set_ppfeature_status)(struct pp_hwmgr *hwmgr, uint64_t ppfeature_masks);
 };
 
 struct pp_table_func {

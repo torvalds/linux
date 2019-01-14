@@ -284,6 +284,8 @@ struct amd_pm_funcs {
 	int (*get_asic_baco_capability)(void *handle, bool *cap);
 	int (*get_asic_baco_state)(void *handle, int *state);
 	int (*set_asic_baco_state)(void *handle, int state);
+	int (*get_ppfeature_status)(void *handle, char *buf);
+	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
 };
 
 #endif

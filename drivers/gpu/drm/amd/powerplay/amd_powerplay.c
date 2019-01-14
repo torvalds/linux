@@ -1455,6 +1455,46 @@ static int pp_set_asic_baco_state(void *handle, int state)
 	return 0;
 }
 
+static int pp_get_ppfeature_status(void *handle, char *buf)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en || !buf)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->get_ppfeature_status == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->get_ppfeature_status(hwmgr, buf);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
+static int pp_set_ppfeature_status(void *handle, uint64_t ppfeature_masks)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_ppfeature_status == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->set_ppfeature_status(hwmgr, ppfeature_masks);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1508,4 +1548,6 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_asic_baco_capability = pp_get_asic_baco_capability,
 	.get_asic_baco_state = pp_get_asic_baco_state,
 	.set_asic_baco_state = pp_set_asic_baco_state,
+	.get_ppfeature_status = pp_get_ppfeature_status,
+	.set_ppfeature_status = pp_set_ppfeature_status,
 };
