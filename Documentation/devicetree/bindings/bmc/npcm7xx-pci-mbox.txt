@@ -1,0 +1,19 @@
+Nuvoton NPCM7xx PCI mail box interface
+
+Nuvoton BMC NPCM7xx PCI mail box, The mailbox is a high-bandwidth
+communication module between the BMC CPU and host CPU.
+
+Required properties for lpc_bpc node
+- compatible	: "nuvoton,npcm750-pci-mbox" for Poleg NPCM7XX.
+- reg 			: specifies two address space
+					1. physical base address and size of the registers.
+					2. physical base address and size of the dual-ported RAM.
+- interrupts	: contain the PCI mail box interrupt with flags for falling edge.
+
+Example:
+	pcimbox: pcimbox@f0848000 {
+		compatible = "nuvoton,npcm750-pci-mbox", "simple-mfd", "syscon";
+		reg = <0xf084C000 0x8
+			0xf0848000 0x3F00>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+	};
