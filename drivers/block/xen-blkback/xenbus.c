@@ -1023,6 +1023,7 @@ fail:
 static int connect_ring(struct backend_info *be)
 {
 	struct xenbus_device *dev = be->dev;
+	struct xen_blkif *blkif = be->blkif;
 	unsigned int pers_grants;
 	char protocol[64] = "";
 	int err, i;
@@ -1033,25 +1034,25 @@ static int connect_ring(struct backend_info *be)
 
 	pr_debug("%s %s\n", __func__, dev->otherend);
 
-	be->blkif->blk_protocol = BLKIF_PROTOCOL_DEFAULT;
+	blkif->blk_protocol = BLKIF_PROTOCOL_DEFAULT;
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "protocol",
 			   "%63s", protocol);
 	if (err <= 0)
 		strcpy(protocol, "unspecified, assuming default");
 	else if (0 == strcmp(protocol, XEN_IO_PROTO_ABI_NATIVE))
-		be->blkif->blk_protocol = BLKIF_PROTOCOL_NATIVE;
+		blkif->blk_protocol = BLKIF_PROTOCOL_NATIVE;
 	else if (0 == strcmp(protocol, XEN_IO_PROTO_ABI_X86_32))
-		be->blkif->blk_protocol = BLKIF_PROTOCOL_X86_32;
+		blkif->blk_protocol = BLKIF_PROTOCOL_X86_32;
 	else if (0 == strcmp(protocol, XEN_IO_PROTO_ABI_X86_64))
-		be->blkif->blk_protocol = BLKIF_PROTOCOL_X86_64;
+		blkif->blk_protocol = BLKIF_PROTOCOL_X86_64;
 	else {
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
 		return -ENOSYS;
 	}
 	pers_grants = xenbus_read_unsigned(dev->otherend, "feature-persistent",
 					   0);
-	be->blkif->vbd.feature_gnt_persistent = pers_grants;
-	be->blkif->vbd.overflow_max_grants = 0;
+	blkif->vbd.feature_gnt_persistent = pers_grants;
+	blkif->vbd.overflow_max_grants = 0;
 
 	/*
 	 * Read the number of hardware queues from frontend.
@@ -1067,16 +1068,16 @@ static int connect_ring(struct backend_info *be)
 				requested_num_queues, xenblk_max_queues);
 		return -ENOSYS;
 	}
-	be->blkif->nr_rings = requested_num_queues;
-	if (xen_blkif_alloc_rings(be->blkif))
+	blkif->nr_rings = requested_num_queues;
+	if (xen_blkif_alloc_rings(blkif))
 		return -ENOMEM;
 
 	pr_info("%s: using %d queues, protocol %d (%s) %s\n", dev->nodename,
-		 be->blkif->nr_rings, be->blkif->blk_protocol, protocol,
+		 blkif->nr_rings, blkif->blk_protocol, protocol,
 		 pers_grants ? "persistent grants" : "");
 
-	if (be->blkif->nr_rings == 1)
-		return read_per_ring_refs(&be->blkif->rings[0], dev->otherend);
+	if (blkif->nr_rings == 1)
+		return read_per_ring_refs(&blkif->rings[0], dev->otherend);
 	else {
 		xspathsize = strlen(dev->otherend) + xenstore_path_ext_size;
 		xspath = kmalloc(xspathsize, GFP_KERNEL);
@@ -1085,10 +1086,10 @@ static int connect_ring(struct backend_info *be)
 			return -ENOMEM;
 		}
 
-		for (i = 0; i < be->blkif->nr_rings; i++) {
+		for (i = 0; i < blkif->nr_rings; i++) {
 			memset(xspath, 0, xspathsize);
 			snprintf(xspath, xspathsize, "%s/queue-%u", dev->otherend, i);
-			err = read_per_ring_refs(&be->blkif->rings[i], xspath);
+			err = read_per_ring_refs(&blkif->rings[i], xspath);
 			if (err) {
 				kfree(xspath);
 				return err;
