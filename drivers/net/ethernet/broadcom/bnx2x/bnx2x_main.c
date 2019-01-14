@@ -11298,7 +11298,7 @@ static void bnx2x_link_settings_supported(struct bnx2x *bp, u32 switch_cfg)
 			   dev_info.port_hw_config[port].external_phy_config),
 			   SHMEM_RD(bp,
 			   dev_info.port_hw_config[port].external_phy_config2));
-			return;
+		return;
 	}
 
 	if (CHIP_IS_E3(bp))
