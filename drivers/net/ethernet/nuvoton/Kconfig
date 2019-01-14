@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Nuvoton network device configuration
+#
+
+config NET_VENDOR_NUVOTON
+	bool "Nuvoton devices"
+	default y
+	depends on ARM && (ARCH_W90X900 || ARCH_NPCM7XX)
+	help
+	   If you have a network (Ethernet) card belonging to this class, say Y.
+
+if NET_VENDOR_NUVOTON
+
+config NPCM7XX_EMC_ETH
+	bool "Nuvoton NPCM7XX Ethernet EMC"
+	depends on ARM && ARCH_NPCM7XX
+	select PHYLIB
+	select MII
+	help
+	  Say Y here if you want to use built-in Ethernet MAC
+	  on NPCM750 MCU.
+
+config NPCM7XX_EMC_ETH_DEBUG
+	bool "Nuvoton NPCM7XX Ethernet EMC debug"
+	depends on NPCM7XX_EMC_ETH
+	help
+	  Say Y here if you want debug info via /proc/driver/npcm7xx_emc.x
+
+endif # NET_VENDOR_NUVOTON
