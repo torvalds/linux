@@ -414,8 +414,6 @@ static inline bool is_inode_layout_inline(struct inode *inode)
 }
 
 extern const struct super_operations erofs_sops;
-extern const struct inode_operations erofs_dir_iops;
-extern const struct file_operations erofs_dir_fops;
 
 extern const struct address_space_operations erofs_raw_access_aops;
 #ifdef CONFIG_EROFS_FS_ZIP
@@ -559,37 +557,33 @@ static inline unsigned long erofs_inode_hash(erofs_nid_t nid)
 extern struct inode *erofs_iget(struct super_block *sb,
 	erofs_nid_t nid, bool dir);
 
-/* dir.c */
-int erofs_namei(struct inode *dir, struct qstr *name,
-	erofs_nid_t *nid, unsigned *d_type);
-
-#ifdef CONFIG_EROFS_FS_XATTR
-/* xattr.c */
-extern const struct xattr_handler *erofs_xattr_handlers[];
-
-/* symlink and special inode */
-extern const struct inode_operations erofs_symlink_xattr_iops;
-extern const struct inode_operations erofs_fast_symlink_xattr_iops;
-extern const struct inode_operations erofs_special_inode_operations;
-#endif
+extern const struct inode_operations erofs_generic_iops;
+extern const struct inode_operations erofs_symlink_iops;
+extern const struct inode_operations erofs_fast_symlink_iops;
 
 static inline void set_inode_fast_symlink(struct inode *inode)
 {
-#ifdef CONFIG_EROFS_FS_XATTR
-	inode->i_op = &erofs_fast_symlink_xattr_iops;
-#else
-	inode->i_op = &simple_symlink_inode_operations;
-#endif
+	inode->i_op = &erofs_fast_symlink_iops;
 }
 
 static inline bool is_inode_fast_symlink(struct inode *inode)
 {
-#ifdef CONFIG_EROFS_FS_XATTR
-	return inode->i_op == &erofs_fast_symlink_xattr_iops;
-#else
-	return inode->i_op == &simple_symlink_inode_operations;
-#endif
+	return inode->i_op == &erofs_fast_symlink_iops;
 }
+
+/* namei.c */
+extern const struct inode_operations erofs_dir_iops;
+
+int erofs_namei(struct inode *dir, struct qstr *name,
+		erofs_nid_t *nid, unsigned int *d_type);
+
+/* dir.c */
+extern const struct file_operations erofs_dir_fops;
+
+#ifdef CONFIG_EROFS_FS_XATTR
+/* xattr.c */
+extern const struct xattr_handler *erofs_xattr_handlers[];
+#endif
 
 static inline void *erofs_vmap(struct page **pages, unsigned int count)
 {
