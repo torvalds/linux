@@ -57,7 +57,7 @@ struct bch_writepage_io {
 struct dio_write {
 	struct closure			cl;
 	struct kiocb			*req;
-	struct task_struct		*task;
+	struct mm_struct		*mm;
 	unsigned			loop:1,
 					sync:1,
 					free_iov:1;
@@ -1775,6 +1775,7 @@ static void bch2_dio_write_loop_async(struct closure *);
 
 static long bch2_dio_write_loop(struct dio_write *dio)
 {
+	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	struct kiocb *req = dio->req;
 	struct address_space *mapping = req->ki_filp->f_mapping;
 	struct bch_inode_info *inode = dio->iop.inode;
@@ -1797,16 +1798,16 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		goto err;
 
 	while (1) {
-		if (current != dio->task)
-			kthread_use_mm(dio->task->mm);
+		if (kthread)
+			kthread_use_mm(dio->mm);
 		BUG_ON(current->faults_disabled_mapping);
 		current->faults_disabled_mapping = mapping;
 
 		ret = bio_iov_iter_get_pages(bio, &dio->iter);
 
 		current->faults_disabled_mapping = NULL;
-		if (current != dio->task)
-			kthread_unuse_mm(dio->task->mm);
+		if (kthread)
+			kthread_unuse_mm(dio->mm);
 
 		if (unlikely(ret < 0))
 			goto err;
@@ -1906,7 +1907,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio = container_of(bio, struct dio_write, iop.op.wbio.bio);
 	closure_init(&dio->cl, NULL);
 	dio->req		= req;
-	dio->task		= current;
+	dio->mm			= current->mm;
 	dio->loop		= false;
 	dio->sync		= is_sync_kiocb(req) ||
 		offset + iter->count > inode->v.i_size;
@@ -1914,7 +1915,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->quota_res.sectors	= 0;
 	dio->iter		= *iter;
 	bch2_fswrite_op_init(&dio->iop, c, inode, io_opts(c, inode), true);
-	dio->iop.op.write_point	= writepoint_hashed((unsigned long) dio->task);
+	dio->iop.op.write_point	= writepoint_hashed((unsigned long) current);
 	dio->iop.op.flags |= BCH_WRITE_NOPUT_RESERVATION;
 
 	if ((req->ki_flags & IOCB_DSYNC) &&
