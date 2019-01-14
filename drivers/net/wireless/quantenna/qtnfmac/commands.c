@@ -72,6 +72,8 @@ static int qtnf_cmd_resp_result_decode(enum qlink_cmd_result qcode)
 		return -EADDRINUSE;
 	case QLINK_CMD_RESULT_EADDRNOTAVAIL:
 		return -EADDRNOTAVAIL;
+	case QLINK_CMD_RESULT_EBUSY:
+		return -EBUSY;
 	default:
 		return -EFAULT;
 	}
