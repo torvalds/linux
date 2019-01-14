@@ -10,6 +10,7 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
+#include "cpuidle.h"
 #include "hardware.h"
 
 static void __init imx7ulp_init_machine(void)
@@ -25,7 +26,13 @@ static const char *const imx7ulp_dt_compat[] __initconst = {
 	NULL,
 };
 
+static void __init imx7ulp_init_late(void)
+{
+	imx7ulp_cpuidle_init();
+}
+
 DT_MACHINE_START(IMX7ulp, "Freescale i.MX7ULP (Device Tree)")
 	.init_machine	= imx7ulp_init_machine,
 	.dt_compat	= imx7ulp_dt_compat,
+	.init_late	= imx7ulp_init_late,
 MACHINE_END
