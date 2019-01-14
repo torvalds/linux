@@ -248,7 +248,7 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	struct dw8250_data *d = p->private_data;
 	unsigned int rate;
 #ifdef CONFIG_ARCH_ROCKCHIP
-	unsigned int div, rate_temp, diff;
+	unsigned int rate_temp, diff;
 #endif
 	int ret;
 
@@ -257,15 +257,14 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 
 	clk_disable_unprepare(d->clk);
 #ifdef CONFIG_ARCH_ROCKCHIP
-	if ((baud * 16) <= 4000000) {
-		/*
-		 * Make sure uart sclk is high enough
-		 */
-		div = 4000000 / baud / 16;
-		rate = baud * 16 * div;
-	} else {
+	if (baud <= 115200)
+		rate = 24000000;
+	else if (baud == 230400)
+		rate = baud * 16 * 2;
+	else if (baud == 1152000)
+		rate = baud * 16 * 2;
+	else
 		rate = baud * 16;
-	}
 
 	ret = clk_set_rate(d->clk, rate);
 	rate_temp = clk_get_rate(d->clk);
