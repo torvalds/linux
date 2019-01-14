@@ -36,11 +36,12 @@ struct snd_virmidi {
 	int seq_mode;
 	int client;
 	int port;
-	unsigned int trigger: 1;
+	bool trigger;
 	struct snd_midi_event *parser;
 	struct snd_seq_event event;
 	struct snd_virmidi_dev *rdev;
 	struct snd_rawmidi_substream *substream;
+	struct work_struct output_work;
 };
 
 #define SNDRV_VIRMIDI_SUBSCRIBE		(1<<0)

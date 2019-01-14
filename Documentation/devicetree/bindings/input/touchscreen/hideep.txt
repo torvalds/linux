@@ -3,7 +3,6 @@
 Required properties:
 - compatible		: must be "hideep,hideep-ts"
 - reg			: I2C slave address, (e.g. 0x6C).
-- interrupt-parent : Interrupt controller to which the chip is connected.
 - interrupts : Interrupt to which the chip is connected.
 
 Optional properties:

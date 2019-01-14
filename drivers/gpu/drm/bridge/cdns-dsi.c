@@ -1152,7 +1152,7 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 		np = of_node_get(dev->dev.of_node);
 
 	panel = of_drm_find_panel(np);
-	if (panel) {
+	if (!IS_ERR(panel)) {
 		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DSI);
 	} else {
 		bridge = of_drm_find_bridge(dev->dev.of_node);
@@ -1337,7 +1337,7 @@ static const struct mipi_dsi_host_ops cdns_dsi_ops = {
 	.transfer = cdns_dsi_transfer,
 };
 
-static int cdns_dsi_resume(struct device *dev)
+static int __maybe_unused cdns_dsi_resume(struct device *dev)
 {
 	struct cdns_dsi *dsi = dev_get_drvdata(dev);
 
@@ -1350,7 +1350,7 @@ static int cdns_dsi_resume(struct device *dev)
 	return 0;
 }
 
-static int cdns_dsi_suspend(struct device *dev)
+static int __maybe_unused cdns_dsi_suspend(struct device *dev)
 {
 	struct cdns_dsi *dsi = dev_get_drvdata(dev);
 

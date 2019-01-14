@@ -971,7 +971,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (dma && dma->buflist) {
-		if (cmdbuf->dma_idx > dma->buf_count) {
+		if (cmdbuf->dma_idx >= dma->buf_count) {
 			DRM_ERROR
 			    ("vertex buffer index %u out of range (0-%u)\n",
 			     cmdbuf->dma_idx, dma->buf_count - 1);

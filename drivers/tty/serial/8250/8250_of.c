@@ -124,7 +124,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 				dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
 					 prop);
 				ret = -EINVAL;
-				goto err_dispose;
+				goto err_unprepare;
 			}
 		}
 		port->flags |= UPF_IOREMAP;
@@ -144,6 +144,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->line = ret;
 
 	port->irq = irq_of_parse_and_map(np, 0);
+	if (!port->irq) {
+		ret = -EPROBE_DEFER;
+		goto err_unprepare;
+	}
 
 	info->rst = devm_reset_control_get_optional_shared(&ofdev->dev, NULL);
 	if (IS_ERR(info->rst)) {

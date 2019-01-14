@@ -193,41 +193,6 @@ struct iwl_fw_cscheme_list {
 } __packed;
 
 /**
- * struct iwl_gscan_capabilities - gscan capabilities supported by FW
- * @max_scan_cache_size: total space allocated for scan results (in bytes).
- * @max_scan_buckets: maximum number of channel buckets.
- * @max_ap_cache_per_scan: maximum number of APs that can be stored per scan.
- * @max_rssi_sample_size: number of RSSI samples used for averaging RSSI.
- * @max_scan_reporting_threshold: max possible report threshold. in percentage.
- * @max_hotlist_aps: maximum number of entries for hotlist APs.
- * @max_significant_change_aps: maximum number of entries for significant
- *	change APs.
- * @max_bssid_history_entries: number of BSSID/RSSI entries that the device can
- *	hold.
- * @max_hotlist_ssids: maximum number of entries for hotlist SSIDs.
- * @max_number_epno_networks: max number of epno entries.
- * @max_number_epno_networks_by_ssid: max number of epno entries if ssid is
- *	specified.
- * @max_number_of_white_listed_ssid: max number of white listed SSIDs.
- * @max_number_of_black_listed_ssid: max number of black listed SSIDs.
- */
-struct iwl_gscan_capabilities {
-	u32 max_scan_cache_size;
-	u32 max_scan_buckets;
-	u32 max_ap_cache_per_scan;
-	u32 max_rssi_sample_size;
-	u32 max_scan_reporting_threshold;
-	u32 max_hotlist_aps;
-	u32 max_significant_change_aps;
-	u32 max_bssid_history_entries;
-	u32 max_hotlist_ssids;
-	u32 max_number_epno_networks;
-	u32 max_number_epno_networks_by_ssid;
-	u32 max_number_of_white_listed_ssid;
-	u32 max_number_of_black_listed_ssid;
-};
-
-/**
  * enum iwl_fw_type - iwlwifi firmware type
  * @IWL_FW_DVM: DVM firmware
  * @IWL_FW_MVM: MVM firmware
@@ -298,7 +263,7 @@ struct iwl_fw {
 	size_t n_dbg_mem_tlv;
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 	u8 dbg_dest_reg_num;
-	struct iwl_gscan_capabilities gscan_capa;
+	u32 dbg_dump_mask;
 };
 
 static inline const char *get_fw_dbg_mode_string(int mode)

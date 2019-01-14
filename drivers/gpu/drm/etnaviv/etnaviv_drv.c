@@ -49,12 +49,12 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
+		struct drm_sched_rq *rq;
 
 		if (gpu) {
-			drm_sched_entity_init(&gpu->sched,
-				&ctx->sched_entity[i],
-				&gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
-				NULL);
+			rq = &gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+			drm_sched_entity_init(&ctx->sched_entity[i],
+					      &rq, 1, NULL);
 			}
 	}
 
@@ -78,8 +78,7 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 				gpu->lastctx = NULL;
 			mutex_unlock(&gpu->lock);
 
-			drm_sched_entity_fini(&gpu->sched,
-					      &ctx->sched_entity[i]);
+			drm_sched_entity_destroy(&ctx->sched_entity[i]);
 		}
 	}
 
@@ -593,8 +592,6 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct component_match *match = NULL;
 
-	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-
 	if (!dev->platform_data) {
 		struct device_node *core_node;
 
@@ -656,13 +653,30 @@ static int __init etnaviv_init(void)
 	for_each_compatible_node(np, NULL, "vivante,gc") {
 		if (!of_device_is_available(np))
 			continue;
-		pdev = platform_device_register_simple("etnaviv", -1,
-						       NULL, 0);
-		if (IS_ERR(pdev)) {
-			ret = PTR_ERR(pdev);
+
+		pdev = platform_device_alloc("etnaviv", -1);
+		if (!pdev) {
+			ret = -ENOMEM;
 			of_node_put(np);
 			goto unregister_platform_driver;
 		}
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(40);
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+
+		/*
+		 * Apply the same DMA configuration to the virtual etnaviv
+		 * device as the GPU we found. This assumes that all Vivante
+		 * GPUs in the system share the same DMA constraints.
+		 */
+		of_dma_configure(&pdev->dev, np, true);
+
+		ret = platform_device_add(pdev);
+		if (ret) {
+			platform_device_put(pdev);
+			of_node_put(np);
+			goto unregister_platform_driver;
+		}
+
 		etnaviv_drm = pdev;
 		of_node_put(np);
 		break;

@@ -1,7 +1,7 @@
 /*
  * i2c-ocores.h - definitions for the i2c-ocores interface
  *
- * Peter Korsgaard <jacmet@sunsite.dk>
+ * Peter Korsgaard <peter@korsgaard.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any

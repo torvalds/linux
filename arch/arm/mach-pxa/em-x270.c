@@ -346,7 +346,6 @@ struct platform_nand_data em_x270_nand_platdata = {
 		.chip_delay = 20,
 	},
 	.ctrl = {
-		.hwcontrol = 0,
 		.dev_ready = em_x270_nand_device_ready,
 		.select_chip = 0,
 		.cmd_ctrl = em_x270_nand_cmd_ctl,

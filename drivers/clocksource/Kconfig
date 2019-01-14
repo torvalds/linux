@@ -609,4 +609,15 @@ config ATCPIT100_TIMER
 	help
 	  This option enables support for the Andestech ATCPIT100 timers.
 
+config RISCV_TIMER
+	bool "Timer for the RISC-V platform"
+	depends on RISCV
+	default y
+	select TIMER_PROBE
+	select TIMER_OF
+	help
+	  This enables the per-hart timer built into all RISC-V systems, which
+	  is accessed via both the SBI and the rdcycle instruction.  This is
+	  required for all RISC-V systems.
+
 endmenu

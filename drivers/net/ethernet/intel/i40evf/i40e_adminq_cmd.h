@@ -2175,6 +2175,8 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_phy_register_access);
 struct i40e_aqc_nvm_update {
 	u8	command_flags;
 #define I40E_AQ_NVM_LAST_CMD			0x01
+#define I40E_AQ_NVM_REARRANGE_TO_FLAT		0x20
+#define I40E_AQ_NVM_REARRANGE_TO_STRUCT		0x40
 #define I40E_AQ_NVM_FLASH_ONLY			0x80
 #define I40E_AQ_NVM_PRESERVATION_FLAGS_SHIFT	1
 #define I40E_AQ_NVM_PRESERVATION_FLAGS_MASK	0x03

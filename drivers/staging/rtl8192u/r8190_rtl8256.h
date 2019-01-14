@@ -14,7 +14,7 @@
 #define RTL8225H
 
 #define RTL819X_TOTAL_RF_PATH 2 /* for 8192U */
-void PHY_SetRF8256Bandwidth(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth);
+void PHY_SetRF8256Bandwidth(struct net_device *dev, enum ht_channel_width Bandwidth);
 void PHY_RF8256_Config(struct net_device *dev);
 void phy_RF8256_Config_ParaFile(struct net_device *dev);
 void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8	powerlevel);

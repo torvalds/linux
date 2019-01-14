@@ -63,7 +63,7 @@ out_unlock:
 	return ret;
 }
 
-static int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
+int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 {
 	struct kernfs_iattrs *attrs;
 	struct iattr *iattrs;

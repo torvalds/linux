@@ -494,9 +494,6 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 	case 16384:
 		ret |= EMAC_MR1_RFS_16K;
 		break;
-	case 8192:
-		ret |= EMAC4_MR1_RFS_8K;
-		break;
 	case 4096:
 		ret |= EMAC_MR1_RFS_4K;
 		break;
@@ -536,6 +533,9 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 	switch(rx_size) {
 	case 16384:
 		ret |= EMAC4_MR1_RFS_16K;
+		break;
+	case 8192:
+		ret |= EMAC4_MR1_RFS_8K;
 		break;
 	case 4096:
 		ret |= EMAC4_MR1_RFS_4K;
@@ -2677,12 +2677,17 @@ static int emac_init_phy(struct emac_instance *dev)
 		if (of_phy_is_fixed_link(np)) {
 			int res = emac_dt_mdio_probe(dev);
 
-			if (!res) {
-				res = of_phy_register_fixed_link(np);
-				if (res)
-					mdiobus_unregister(dev->mii_bus);
+			if (res)
+				return res;
+
+			res = of_phy_register_fixed_link(np);
+			dev->phy_dev = of_phy_find_device(np);
+			if (res || !dev->phy_dev) {
+				mdiobus_unregister(dev->mii_bus);
+				return res ? res : -EINVAL;
 			}
-			return res;
+			emac_adjust_link(dev->ndev);
+			put_device(&dev->phy_dev->mdio.dev);
 		}
 		return 0;
 	}

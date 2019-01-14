@@ -295,7 +295,7 @@ static int vivid_user_vid_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
-		dev->gain->val = dev->jiffies_vid_cap & 0xff;
+		dev->gain->val = (jiffies_to_msecs(jiffies) / 1000) & 0xff;
 		break;
 	}
 	return 0;

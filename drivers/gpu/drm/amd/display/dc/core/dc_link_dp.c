@@ -3,6 +3,7 @@
 #include "dc.h"
 #include "dc_link_dp.h"
 #include "dm_helpers.h"
+#include "opp.h"
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
@@ -38,7 +39,7 @@ static bool decide_fallback_link_setting(
 		struct dc_link_settings initial_link_settings,
 		struct dc_link_settings *current_link_setting,
 		enum link_training_result training_result);
-static struct dc_link_settings get_common_supported_link_settings (
+static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b);
 
@@ -93,8 +94,8 @@ static void dpcd_set_link_settings(
 	uint8_t rate = (uint8_t)
 	(lt_settings->link_settings.link_rate);
 
-	union down_spread_ctrl downspread = {{0}};
-	union lane_count_set lane_count_set = {{0}};
+	union down_spread_ctrl downspread = { {0} };
+	union lane_count_set lane_count_set = { {0} };
 	uint8_t link_set_buffer[2];
 
 	downspread.raw = (uint8_t)
@@ -164,11 +165,11 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	const struct link_training_settings *lt_settings,
 	enum hw_dp_training_pattern pattern)
 {
-	union dpcd_training_lane dpcd_lane[LANE_COUNT_DP_MAX] = {{{0}}};
+	union dpcd_training_lane dpcd_lane[LANE_COUNT_DP_MAX] = { { {0} } };
 	const uint32_t dpcd_base_lt_offset =
 	DP_TRAINING_PATTERN_SET;
 	uint8_t dpcd_lt_buffer[5] = {0};
-	union dpcd_training_pattern dpcd_pattern = {{0}};
+	union dpcd_training_pattern dpcd_pattern = { {0} };
 	uint32_t lane;
 	uint32_t size_in_bytes;
 	bool edp_workaround = false; /* TODO link_prop.INTERNAL */
@@ -232,7 +233,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 			link,
 			DP_TRAINING_PATTERN_SET,
 			&dpcd_pattern.raw,
-			sizeof(dpcd_pattern.raw) );
+			sizeof(dpcd_pattern.raw));
 
 		core_link_write_dpcd(
 			link,
@@ -246,7 +247,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 				link,
 				dpcd_base_lt_offset,
 				dpcd_lt_buffer,
-				size_in_bytes + sizeof(dpcd_pattern.raw) );
+				size_in_bytes + sizeof(dpcd_pattern.raw));
 
 	link->cur_lane_setting = lt_settings->lane_settings[0];
 }
@@ -428,8 +429,8 @@ static void get_lane_status_and_drive_settings(
 	struct link_training_settings *req_settings)
 {
 	uint8_t dpcd_buf[6] = {0};
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {{{0}}};
-	struct link_training_settings request_settings = {{0}};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	struct link_training_settings request_settings = { {0} };
 	uint32_t lane;
 
 	memset(req_settings, '\0', sizeof(struct link_training_settings));
@@ -651,7 +652,7 @@ static bool perform_post_lt_adj_req_sequence(
 
 			if (req_drv_setting_changed) {
 				update_drive_settings(
-					lt_settings,req_settings);
+					lt_settings, req_settings);
 
 				dc_link_dp_set_drive_settings(link,
 						lt_settings);
@@ -724,8 +725,8 @@ static enum link_training_result perform_channel_equalization_sequence(
 	enum hw_dp_training_pattern hw_tr_pattern;
 	uint32_t retries_ch_eq;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
-	union lane_align_status_updated dpcd_lane_status_updated = {{0}};
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {{{0}}};
+	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
 
 	hw_tr_pattern = get_supported_tp(link);
 
@@ -952,7 +953,10 @@ enum link_training_result dc_link_dp_perform_link_training(
 	 * LINK_SPREAD_05_DOWNSPREAD_30KHZ :
 	 * LINK_SPREAD_DISABLED;
 	 */
-	lt_settings.link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
+	if (link->dp_ss_off)
+		lt_settings.link_settings.link_spread = LINK_SPREAD_DISABLED;
+	else
+		lt_settings.link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
 
 	/* 1. set link rate, lane count and spread*/
 	dpcd_set_link_settings(link, &lt_settings);
@@ -1027,6 +1031,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 			lt_settings.lane_settings[0].VOLTAGE_SWING,
 			lt_settings.lane_settings[0].PRE_EMPHASIS);
 
+	if (status != LINK_TRAINING_SUCCESS)
+		link->ctx->dc->debug_data.ltFailCount++;
+
 	return status;
 }
 
@@ -1082,9 +1089,10 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	return max_link_cap;
 }
 
-bool dp_hbr_verify_link_cap(
+bool dp_verify_link_cap(
 	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting)
+	struct dc_link_settings *known_limit_link_setting,
+	int *fail_count)
 {
 	struct dc_link_settings max_link_cap = {0};
 	struct dc_link_settings cur_link_setting = {0};
@@ -1096,6 +1104,11 @@ bool dp_hbr_verify_link_cap(
 	struct clock_source *dp_cs;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	enum link_training_result status;
+
+	if (link->dc->debug.skip_detection_link_training) {
+		link->verified_link_cap = *known_limit_link_setting;
+		return true;
+	}
 
 	success = false;
 	skip_link_training = false;
@@ -1151,6 +1164,8 @@ bool dp_hbr_verify_link_cap(
 							skip_video_pattern);
 			if (status == LINK_TRAINING_SUCCESS)
 				success = true;
+			else
+				(*fail_count)++;
 		}
 
 		if (success)
@@ -1182,7 +1197,7 @@ bool dp_hbr_verify_link_cap(
 	return success;
 }
 
-static struct dc_link_settings get_common_supported_link_settings (
+static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b)
 {
@@ -1428,6 +1443,7 @@ static uint32_t bandwidth_in_kbps_from_link_settings(
 
 	uint32_t lane_count  = link_setting->lane_count;
 	uint32_t kbps = link_rate_in_kbps;
+
 	kbps *= lane_count;
 	kbps *= 8;   /* 8 bits per byte*/
 
@@ -1445,9 +1461,9 @@ bool dp_validate_mode_timing(
 	const struct dc_link_settings *link_setting;
 
 	/*always DP fail safe mode*/
-	if (timing->pix_clk_khz == (uint32_t)25175 &&
-		timing->h_addressable == (uint32_t)640 &&
-		timing->v_addressable == (uint32_t)480)
+	if (timing->pix_clk_khz == (uint32_t) 25175 &&
+		timing->h_addressable == (uint32_t) 640 &&
+		timing->v_addressable == (uint32_t) 480)
 		return true;
 
 	/* We always use verified link settings */
@@ -1647,22 +1663,26 @@ static enum dc_status read_hpd_rx_irq_data(
 			irq_data->raw,
 			sizeof(union hpd_irq_data));
 	else {
-		/* Read 2 bytes at this location,... */
+		/* Read 14 bytes in a single read and then copy only the required fields.
+		 * This is more efficient than doing it in two separate AUX reads. */
+
+		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1];
+
 		retval = core_link_read_dpcd(
 			link,
 			DP_SINK_COUNT_ESI,
-			irq_data->raw,
-			2);
+			tmp,
+			sizeof(tmp));
 
 		if (retval != DC_OK)
 			return retval;
 
-		/* ... then read remaining 4 at the other location */
-		retval = core_link_read_dpcd(
-			link,
-			DP_LANE0_1_STATUS_ESI,
-			&irq_data->raw[2],
-			4);
+		irq_data->bytes.sink_cnt.raw = tmp[DP_SINK_COUNT_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.device_service_irq.raw = tmp[DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0 - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane01_status.raw = tmp[DP_LANE0_1_STATUS_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane23_status.raw = tmp[DP_LANE2_3_STATUS_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane_status_updated.raw = tmp[DP_LANE_ALIGN_STATUS_UPDATED_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.sink_status.raw = tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI];
 	}
 
 	return retval;
@@ -1989,12 +2009,16 @@ static void handle_automated_test(struct dc_link *link)
 			sizeof(test_response));
 }
 
-bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd_irq_dpcd_data)
+bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd_irq_dpcd_data, bool *out_link_loss)
 {
-	union hpd_irq_data hpd_irq_dpcd_data = {{{{0}}}};
+	union hpd_irq_data hpd_irq_dpcd_data = { { { {0} } } };
 	union device_service_irq device_service_clear = { { 0 } };
-	enum dc_status result = DDC_RESULT_UNKNOWN;
+	enum dc_status result;
+
 	bool status = false;
+
+	if (out_link_loss)
+		*out_link_loss = false;
 	/* For use cases related to down stream connection status change,
 	 * PSR and device auto test, refer to function handle_sst_hpd_irq
 	 * in DAL2.1*/
@@ -2069,6 +2093,8 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 			true, LINK_TRAINING_ATTEMPTS);
 
 		status = false;
+		if (out_link_loss)
+			*out_link_loss = true;
 	}
 
 	if (link->type == dc_connection_active_dongle &&
@@ -2255,6 +2281,11 @@ static void get_active_converter_info(
 
 		link->dpcd_caps.branch_hw_revision =
 			dp_hw_fw_revision.ieee_hw_rev;
+
+		memmove(
+			link->dpcd_caps.branch_fw_revision,
+			dp_hw_fw_revision.ieee_fw_rev,
+			sizeof(dp_hw_fw_revision.ieee_fw_rev));
 	}
 }
 
@@ -2303,12 +2334,14 @@ static bool retrieve_link_cap(struct dc_link *link)
 {
 	uint8_t dpcd_data[DP_ADAPTER_CAP - DP_DPCD_REV + 1];
 
+	struct dp_device_vendor_id sink_id;
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
 	union dp_downstream_port_present ds_port = { 0 };
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	uint32_t read_dpcd_retry_cnt = 3;
 	int i;
+	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -2388,6 +2421,36 @@ static bool retrieve_link_cap(struct dc_link *link)
 			DP_SINK_COUNT,
 			&link->dpcd_caps.sink_count.raw,
 			sizeof(link->dpcd_caps.sink_count.raw));
+
+	/* read sink ieee oui */
+	core_link_read_dpcd(link,
+			DP_SINK_OUI,
+			(uint8_t *)(&sink_id),
+			sizeof(sink_id));
+
+	link->dpcd_caps.sink_dev_id =
+			(sink_id.ieee_oui[0] << 16) +
+			(sink_id.ieee_oui[1] << 8) +
+			(sink_id.ieee_oui[2]);
+
+	memmove(
+		link->dpcd_caps.sink_dev_id_str,
+		sink_id.ieee_device_id,
+		sizeof(sink_id.ieee_device_id));
+
+	core_link_read_dpcd(
+		link,
+		DP_SINK_HW_REVISION_START,
+		(uint8_t *)&dp_hw_fw_revision,
+		sizeof(dp_hw_fw_revision));
+
+	link->dpcd_caps.sink_hw_revision =
+		dp_hw_fw_revision.ieee_hw_rev;
+
+	memmove(
+		link->dpcd_caps.sink_fw_revision,
+		dp_hw_fw_revision.ieee_fw_rev,
+		sizeof(dp_hw_fw_revision.ieee_fw_rev));
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
@@ -2493,8 +2556,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream->bit_depth_params = params;
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
-
-		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
 	}
 	break;
@@ -2506,8 +2569,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream->bit_depth_params = params;
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
-
-		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				color_depth);
 	}

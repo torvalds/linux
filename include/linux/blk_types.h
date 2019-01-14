@@ -179,10 +179,8 @@ struct bio {
 	 */
 	struct io_context	*bi_ioc;
 	struct cgroup_subsys_state *bi_css;
-#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	void			*bi_cg_private;
+	struct blkcg_gq		*bi_blkg;
 	struct bio_issue	bi_issue;
-#endif
 #endif
 	union {
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
@@ -329,7 +327,7 @@ enum req_flag_bits {
 
 	/* for driver use */
 	__REQ_DRV,
-
+	__REQ_SWAP,		/* swapping request. */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -351,12 +349,21 @@ enum req_flag_bits {
 #define REQ_NOUNMAP		(1ULL << __REQ_NOUNMAP)
 
 #define REQ_DRV			(1ULL << __REQ_DRV)
+#define REQ_SWAP		(1ULL << __REQ_SWAP)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 
 #define REQ_NOMERGE_FLAGS \
 	(REQ_NOMERGE | REQ_PREFLUSH | REQ_FUA)
+
+enum stat_group {
+	STAT_READ,
+	STAT_WRITE,
+	STAT_DISCARD,
+
+	NR_STAT_GROUPS
+};
 
 #define bio_op(bio) \
 	((bio)->bi_opf & REQ_OP_MASK)
@@ -393,6 +400,18 @@ static inline bool op_is_sync(unsigned int op)
 {
 	return (op & REQ_OP_MASK) == REQ_OP_READ ||
 		(op & (REQ_SYNC | REQ_FUA | REQ_PREFLUSH));
+}
+
+static inline bool op_is_discard(unsigned int op)
+{
+	return (op & REQ_OP_MASK) == REQ_OP_DISCARD;
+}
+
+static inline int op_stat_group(unsigned int op)
+{
+	if (op_is_discard(op))
+		return STAT_DISCARD;
+	return op_is_write(op);
 }
 
 typedef unsigned int blk_qc_t;

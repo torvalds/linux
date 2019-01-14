@@ -14,8 +14,7 @@
 #include <linux/skbuff.h>
 #include <linux/icmp.h>
 #include <linux/sysctl.h>
-#include <net/ipv6.h>
-#include <net/inet_frag.h>
+#include <net/ipv6_frag.h>
 
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_bridge.h>
@@ -23,7 +22,6 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
-#include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 #endif

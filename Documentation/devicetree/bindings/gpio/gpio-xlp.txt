@@ -30,7 +30,6 @@ Required properties:
 	4 = active high level-sensitive.
 	8 = active low level-sensitive.
 - interrupts: Interrupt number for this device.
-- interrupt-parent: phandle of the parent interrupt controller.
 - interrupt-controller: Identifies the node as an interrupt controller.
 
 Example:

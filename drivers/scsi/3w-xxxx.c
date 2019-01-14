@@ -1925,7 +1925,7 @@ static int tw_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_c
 	if (test_bit(TW_IN_RESET, &tw_dev->flags))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	/* Save done function into Scsi_Cmnd struct */
+	/* Save done function into struct scsi_cmnd */
 	SCpnt->scsi_done = done;
 		 
 	/* Queue the command and get a request id */
@@ -2280,6 +2280,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	if (tw_initialize_device_extension(tw_dev)) {
 		printk(KERN_WARNING "3w-xxxx: Failed to initialize device extension.");
+		retval = -ENOMEM;
 		goto out_free_device_extension;
 	}
 
@@ -2294,6 +2295,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	tw_dev->base_addr = pci_resource_start(pdev, 0);
 	if (!tw_dev->base_addr) {
 		printk(KERN_WARNING "3w-xxxx: Failed to get io address.");
+		retval = -ENOMEM;
 		goto out_release_mem_region;
 	}
 

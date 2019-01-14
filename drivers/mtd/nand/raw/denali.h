@@ -300,6 +300,7 @@
 
 struct denali_nand_info {
 	struct nand_chip nand;
+	unsigned long clk_rate;		/* core clock rate */
 	unsigned long clk_x_rate;	/* bus interface clock rate */
 	int active_bank;		/* currently selected bank */
 	struct device *dev;

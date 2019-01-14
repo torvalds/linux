@@ -81,7 +81,6 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
-	hwmgr->power_source = PP_PowerSource_AC;
 	hwmgr->pp_table_version = PP_TABLE_V1;
 	hwmgr->dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	hwmgr->request_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
@@ -148,10 +147,10 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		smu7_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_AI:
-		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
 		case CHIP_VEGA20:
+			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
 			break;
@@ -236,6 +235,11 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 	if (ret)
 		goto err1;
+ /* make sure dc limits are valid */
+	if ((hwmgr->dyn_state.max_clock_voltage_on_dc.sclk == 0) ||
+			(hwmgr->dyn_state.max_clock_voltage_on_dc.mclk == 0))
+			hwmgr->dyn_state.max_clock_voltage_on_dc =
+					hwmgr->dyn_state.max_clock_voltage_on_ac;
 
 	ret = psm_init_power_state_table(hwmgr);
 	if (ret)

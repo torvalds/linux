@@ -303,7 +303,7 @@ static void stmmac_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int stmmac_pci_suspend(struct device *dev)
+static int __maybe_unused stmmac_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
@@ -321,7 +321,7 @@ static int stmmac_pci_suspend(struct device *dev)
 	return 0;
 }
 
-static int stmmac_pci_resume(struct device *dev)
+static int __maybe_unused stmmac_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;

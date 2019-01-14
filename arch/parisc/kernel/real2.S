@@ -35,12 +35,6 @@ real32_stack:
 real64_stack:
 	.block	8192
 
-#ifdef CONFIG_64BIT
-#  define REG_SZ 8
-#else
-#  define REG_SZ 4
-#endif
-
 #define N_SAVED_REGS 9
 
 save_cr_space:

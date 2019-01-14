@@ -753,7 +753,7 @@ int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
  * notification that a previously read-only page is about to become writable
  * - if it returns an error, the caller will deliver a bus error signal
  */
-int afs_page_mkwrite(struct vm_fault *vmf)
+vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct inode *inode = file_inode(file);

@@ -110,7 +110,7 @@ void __srcu_read_unlock(struct srcu_struct *sp, int idx)
 
 	WRITE_ONCE(sp->srcu_lock_nesting[idx], newval);
 	if (!newval && READ_ONCE(sp->srcu_gp_waiting))
-		swake_up(&sp->srcu_wq);
+		swake_up_one(&sp->srcu_wq);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_unlock);
 
@@ -140,7 +140,7 @@ void srcu_drive_gp(struct work_struct *wp)
 	idx = sp->srcu_idx;
 	WRITE_ONCE(sp->srcu_idx, !sp->srcu_idx);
 	WRITE_ONCE(sp->srcu_gp_waiting, true);  /* srcu_read_unlock() wakes! */
-	swait_event(sp->srcu_wq, !READ_ONCE(sp->srcu_lock_nesting[idx]));
+	swait_event_exclusive(sp->srcu_wq, !READ_ONCE(sp->srcu_lock_nesting[idx]));
 	WRITE_ONCE(sp->srcu_gp_waiting, false); /* srcu_read_unlock() cheap. */
 
 	/* Invoke the callbacks we removed above. */

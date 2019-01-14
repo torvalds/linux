@@ -107,6 +107,15 @@ bool inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
 }
 EXPORT_SYMBOL(inet_rcv_saddr_equal);
 
+bool inet_rcv_saddr_any(const struct sock *sk)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		return ipv6_addr_any(&sk->sk_v6_rcv_saddr);
+#endif
+	return !sk->sk_rcv_saddr;
+}
+
 void inet_get_local_port_range(struct net *net, int *low, int *high)
 {
 	unsigned int seq;
@@ -535,7 +544,8 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 	struct ip_options_rcu *opt;
 	struct rtable *rt;
 
-	opt = ireq_opt_deref(ireq);
+	rcu_read_lock();
+	opt = rcu_dereference(ireq->ireq_opt);
 
 	flowi4_init_output(fl4, ireq->ir_iif, ireq->ir_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
@@ -549,11 +559,13 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 		goto no_route;
 	if (opt && opt->opt.is_strictroute && rt->rt_uses_gateway)
 		goto route_err;
+	rcu_read_unlock();
 	return &rt->dst;
 
 route_err:
 	ip_rt_put(rt);
 no_route:
+	rcu_read_unlock();
 	__IP_INC_STATS(net, IPSTATS_MIB_OUTNOROUTES);
 	return NULL;
 }

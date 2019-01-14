@@ -224,7 +224,7 @@ static int sti_bind(struct device *dev)
 
 	ret = sti_init(ddev);
 	if (ret)
-		goto err_drm_dev_unref;
+		goto err_drm_dev_put;
 
 	ret = component_bind_all(ddev->dev, ddev);
 	if (ret)
@@ -248,8 +248,8 @@ err_register:
 	drm_mode_config_cleanup(ddev);
 err_cleanup:
 	sti_cleanup(ddev);
-err_drm_dev_unref:
-	drm_dev_unref(ddev);
+err_drm_dev_put:
+	drm_dev_put(ddev);
 	return ret;
 }
 
@@ -259,7 +259,7 @@ static void sti_unbind(struct device *dev)
 
 	drm_dev_unregister(ddev);
 	sti_cleanup(ddev);
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 }
 
 static const struct component_master_ops sti_ops = {

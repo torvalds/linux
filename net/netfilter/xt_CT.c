@@ -93,7 +93,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 		return -ENOENT;
 	}
 
-	help = nf_ct_helper_ext_add(ct, helper, GFP_KERNEL);
+	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 	if (help == NULL) {
 		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
@@ -104,7 +104,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-static void __xt_ct_tg_timeout_put(struct ctnl_timeout *timeout)
+static void __xt_ct_tg_timeout_put(struct nf_ct_timeout *timeout)
 {
 	typeof(nf_ct_timeout_put_hook) timeout_put;
 
@@ -121,7 +121,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
 	const struct nf_conntrack_l4proto *l4proto;
-	struct ctnl_timeout *timeout;
+	struct nf_ct_timeout *timeout;
 	struct nf_conn_timeout *timeout_ext;
 	const char *errmsg = NULL;
 	int ret = 0;

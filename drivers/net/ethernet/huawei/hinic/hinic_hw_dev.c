@@ -264,7 +264,6 @@ static int init_fw_ctxt(struct hinic_hwdev *hwdev)
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_cmd_fw_ctxt fw_ctxt;
-	struct hinic_pfhwdev *pfhwdev;
 	u16 out_size;
 	int err;
 
@@ -275,8 +274,6 @@ static int init_fw_ctxt(struct hinic_hwdev *hwdev)
 
 	fw_ctxt.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
 	fw_ctxt.rx_buf_sz = HINIC_RX_BUF_SZ;
-
-	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
 
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_FWCTXT_INIT,
 				 &fw_ctxt, sizeof(fw_ctxt),

@@ -163,20 +163,3 @@ int snd_emux_free(struct snd_emux *emu)
 }
 
 EXPORT_SYMBOL(snd_emux_free);
-
-
-/*
- *  INIT part
- */
-
-static int __init alsa_emux_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_emux_exit(void)
-{
-}
-
-module_init(alsa_emux_init)
-module_exit(alsa_emux_exit)

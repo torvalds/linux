@@ -271,7 +271,7 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 	if (debounce) {
 		ret = gpiod_set_debounce(desc, debounce);
 		if (ret < 0)
-			ctx->cd_debounce_delay_ms = debounce;
+			ctx->cd_debounce_delay_ms = debounce / 1000;
 	}
 
 	if (gpio_invert)

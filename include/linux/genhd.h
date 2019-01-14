@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/percpu-refcount.h>
 #include <linux/uuid.h>
+#include <linux/blk_types.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -82,10 +83,10 @@ struct partition {
 } __attribute__((packed));
 
 struct disk_stats {
-	unsigned long sectors[2];	/* READs and WRITEs */
-	unsigned long ios[2];
-	unsigned long merges[2];
-	unsigned long ticks[2];
+	u64 nsecs[NR_STAT_GROUPS];
+	unsigned long sectors[NR_STAT_GROUPS];
+	unsigned long ios[NR_STAT_GROUPS];
+	unsigned long merges[NR_STAT_GROUPS];
 	unsigned long io_ticks;
 	unsigned long time_in_queue;
 };
@@ -352,6 +353,14 @@ static inline void free_part_stats(struct hd_struct *part)
 }
 
 #endif /* CONFIG_SMP */
+
+#define part_stat_read_msecs(part, which)				\
+	div_u64(part_stat_read(part, nsecs[which]), NSEC_PER_MSEC)
+
+#define part_stat_read_accum(part, field)				\
+	(part_stat_read(part, field[STAT_READ]) +			\
+	 part_stat_read(part, field[STAT_WRITE]) +			\
+	 part_stat_read(part, field[STAT_DISCARD]))
 
 #define part_stat_add(cpu, part, field, addnd)	do {			\
 	__part_stat_add((cpu), (part), field, addnd);			\

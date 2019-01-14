@@ -969,8 +969,8 @@ static int anx78xx_get_modes(struct drm_connector *connector)
 		goto unlock;
 	}
 
-	err = drm_mode_connector_update_edid_property(connector,
-						      anx78xx->edid);
+	err = drm_connector_update_edid_property(connector,
+						 anx78xx->edid);
 	if (err) {
 		DRM_ERROR("Failed to update EDID property: %d\n", err);
 		goto unlock;
@@ -1048,8 +1048,8 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge)
 
 	anx78xx->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
-	err = drm_mode_connector_attach_encoder(&anx78xx->connector,
-						bridge->encoder);
+	err = drm_connector_attach_encoder(&anx78xx->connector,
+					   bridge->encoder);
 	if (err) {
 		DRM_ERROR("Failed to link up connector to encoder: %d\n", err);
 		return err;

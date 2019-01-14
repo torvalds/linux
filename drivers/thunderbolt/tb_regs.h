@@ -202,7 +202,7 @@ struct tb_regs_port_header {
 	/* DWORD 5 */
 	u32 max_in_hop_id:11;
 	u32 max_out_hop_id:11;
-	u32 __unkown4:10;
+	u32 __unknown4:10;
 	/* DWORD 6 */
 	u32 __unknown5;
 	/* DWORD 7 */

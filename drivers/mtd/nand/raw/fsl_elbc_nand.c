@@ -61,7 +61,7 @@ struct fsl_elbc_mtd {
 /* Freescale eLBC FCM controller information */
 
 struct fsl_elbc_fcm_ctrl {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct fsl_elbc_mtd *chips[MAX_BANKS];
 
 	u8 __iomem *addr;        /* Address of assigned FCM buffer        */
@@ -637,9 +637,9 @@ static int fsl_elbc_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	return (elbc_fcm_ctrl->mdr & 0xff) | NAND_STATUS_WP;
 }
 
-static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
+static int fsl_elbc_attach_chip(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_elbc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
@@ -700,11 +700,15 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 		dev_err(priv->dev,
 		        "fsl_elbc_init: page size %d is not supported\n",
 		        mtd->writesize);
-		return -1;
+		return -ENOTSUPP;
 	}
 
 	return 0;
 }
+
+static const struct nand_controller_ops fsl_elbc_controller_ops = {
+	.attach_chip = fsl_elbc_attach_chip,
+};
 
 static int fsl_elbc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			      uint8_t *buf, int oob_required, int page)
@@ -879,7 +883,7 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 		}
 		elbc_fcm_ctrl->counter++;
 
-		nand_hw_control_init(&elbc_fcm_ctrl->controller);
+		nand_controller_init(&elbc_fcm_ctrl->controller);
 		fsl_lbc_ctrl_dev->nand = elbc_fcm_ctrl;
 	} else {
 		elbc_fcm_ctrl = fsl_lbc_ctrl_dev->nand;
@@ -910,15 +914,8 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	ret = nand_scan_ident(mtd, 1, NULL);
-	if (ret)
-		goto err;
-
-	ret = fsl_elbc_chip_init_tail(mtd);
-	if (ret)
-		goto err;
-
-	ret = nand_scan_tail(mtd);
+	priv->chip.controller->ops = &fsl_elbc_controller_ops;
+	ret = nand_scan(mtd, 1);
 	if (ret)
 		goto err;
 

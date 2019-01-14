@@ -1,12 +1,20 @@
 #!/usr/bin/python
 
 from os import getenv
+from subprocess import Popen, PIPE
+from re import sub
+
+def clang_has_option(option):
+    return [o for o in Popen(['clang', option], stderr=PIPE).stderr.readlines() if "unknown argument" in o] == [ ]
 
 cc = getenv("CC")
 if cc == "clang":
     from _sysconfigdata import build_time_vars
-    from re import sub
     build_time_vars["CFLAGS"] = sub("-specs=[^ ]+", "", build_time_vars["CFLAGS"])
+    if not clang_has_option("-mcet"):
+        build_time_vars["CFLAGS"] = sub("-mcet", "", build_time_vars["CFLAGS"])
+    if not clang_has_option("-fcf-protection"):
+        build_time_vars["CFLAGS"] = sub("-fcf-protection", "", build_time_vars["CFLAGS"])
 
 from distutils.core import setup, Extension
 
@@ -27,7 +35,7 @@ class install_lib(_install_lib):
 
 cflags = getenv('CFLAGS', '').split()
 # switch off several checks (need to be at the end of cflags list)
-cflags += ['-fno-strict-aliasing', '-Wno-write-strings', '-Wno-unused-parameter' ]
+cflags += ['-fno-strict-aliasing', '-Wno-write-strings', '-Wno-unused-parameter', '-Wno-redundant-decls' ]
 if cc != "clang":
     cflags += ['-Wno-cast-function-type' ]
 

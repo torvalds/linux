@@ -41,6 +41,31 @@ static inline struct v9_sdma_mqd *get_sdma_mqd(void *mqd)
 	return (struct v9_sdma_mqd *)mqd;
 }
 
+static void update_cu_mask(struct mqd_manager *mm, void *mqd,
+			struct queue_properties *q)
+{
+	struct v9_mqd *m;
+	uint32_t se_mask[4] = {0}; /* 4 is the max # of SEs */
+
+	if (q->cu_mask_count == 0)
+		return;
+
+	mqd_symmetrically_map_cu_mask(mm,
+		q->cu_mask, q->cu_mask_count, se_mask);
+
+	m = get_mqd(mqd);
+	m->compute_static_thread_mgmt_se0 = se_mask[0];
+	m->compute_static_thread_mgmt_se1 = se_mask[1];
+	m->compute_static_thread_mgmt_se2 = se_mask[2];
+	m->compute_static_thread_mgmt_se3 = se_mask[3];
+
+	pr_debug("update cu mask to %#x %#x %#x %#x\n",
+		m->compute_static_thread_mgmt_se0,
+		m->compute_static_thread_mgmt_se1,
+		m->compute_static_thread_mgmt_se2,
+		m->compute_static_thread_mgmt_se3);
+}
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
@@ -55,7 +80,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	 * instead of sub-allocation function.
 	 */
 	if (kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
-		*mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_NOIO);
+		*mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 		if (!*mqd_mem_obj)
 			return -ENOMEM;
 		retval = kfd->kfd2kgd->init_gtt_mem_allocation(kfd->kgd,
@@ -63,7 +88,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
 			&((*mqd_mem_obj)->gtt_mem),
 			&((*mqd_mem_obj)->gpu_addr),
-			(void *)&((*mqd_mem_obj)->cpu_ptr));
+			(void *)&((*mqd_mem_obj)->cpu_ptr), true);
 	} else
 		retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct v9_mqd),
 				mqd_mem_obj);
@@ -197,6 +222,8 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	}
 	if (mm->dev->cwsr_enabled && q->ctx_save_restore_area_address)
 		m->cp_hqd_ctx_save_control = 0;
+
+	update_cu_mask(mm, mqd, q);
 
 	q->is_active = (q->queue_size > 0 &&
 			q->queue_address != 0 &&
@@ -393,7 +420,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
 		return NULL;
 
-	mqd = kzalloc(sizeof(*mqd), GFP_NOIO);
+	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
 	if (!mqd)
 		return NULL;
 

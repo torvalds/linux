@@ -214,9 +214,9 @@ struct detailed_timing {
 #define DRM_EDID_HDMI_DC_Y444             (1 << 3)
 
 /* YCBCR 420 deep color modes */
-#define DRM_EDID_YCBCR420_DC_48		  (1 << 6)
-#define DRM_EDID_YCBCR420_DC_36		  (1 << 5)
-#define DRM_EDID_YCBCR420_DC_30		  (1 << 4)
+#define DRM_EDID_YCBCR420_DC_48		  (1 << 2)
+#define DRM_EDID_YCBCR420_DC_36		  (1 << 1)
+#define DRM_EDID_YCBCR420_DC_30		  (1 << 0)
 #define DRM_EDID_YCBCR420_DC_MASK (DRM_EDID_YCBCR420_DC_48 | \
 				    DRM_EDID_YCBCR420_DC_36 | \
 				    DRM_EDID_YCBCR420_DC_30)

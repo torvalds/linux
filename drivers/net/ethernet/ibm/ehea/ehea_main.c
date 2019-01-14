@@ -921,17 +921,6 @@ static int ehea_poll(struct napi_struct *napi, int budget)
 	return rx;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void ehea_netpoll(struct net_device *dev)
-{
-	struct ehea_port *port = netdev_priv(dev);
-	int i;
-
-	for (i = 0; i < port->num_def_qps; i++)
-		napi_schedule(&port->port_res[i].napi);
-}
-#endif
-
 static irqreturn_t ehea_recv_irq_handler(int irq, void *param)
 {
 	struct ehea_port_res *pr = param;
@@ -2953,9 +2942,6 @@ static const struct net_device_ops ehea_netdev_ops = {
 	.ndo_open		= ehea_open,
 	.ndo_stop		= ehea_stop,
 	.ndo_start_xmit		= ehea_start_xmit,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= ehea_netpoll,
-#endif
 	.ndo_get_stats64	= ehea_get_stats64,
 	.ndo_set_mac_address	= ehea_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,

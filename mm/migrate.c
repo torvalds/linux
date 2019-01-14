@@ -275,6 +275,9 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
 			mlock_vma_page(new);
 
+		if (PageTransHuge(page) && PageMlocked(page))
+			clear_page_mlock(page);
+
 		/* No need to invalidate - it was non-present before */
 		update_mmu_cache(vma, pvmw.address, pvmw.pte);
 	}
@@ -1131,7 +1134,8 @@ out:
  * gcc 4.7 and 4.8 on arm get an ICEs when inlining unmap_and_move().  Work
  * around it.
  */
-#if (GCC_VERSION >= 40700 && GCC_VERSION < 40900) && defined(CONFIG_ARM)
+#if defined(CONFIG_ARM) && \
+	defined(GCC_VERSION) && GCC_VERSION < 40900 && GCC_VERSION >= 40700
 #define ICE_noinline noinline
 #else
 #define ICE_noinline
@@ -1211,7 +1215,7 @@ out:
 			 * intentionally. Although it's rather weird,
 			 * it's how HWPoison flag works at the moment.
 			 */
-			if (!test_set_page_hwpoison(page))
+			if (set_hwpoison_free_buddy_page(page))
 				num_poisoned_pages_inc();
 		}
 	} else {
@@ -1330,8 +1334,6 @@ put_anon:
 out:
 	if (rc != -EAGAIN)
 		putback_active_hugepage(hpage);
-	if (reason == MR_MEMORY_FAILURE && !test_set_page_hwpoison(hpage))
-		num_poisoned_pages_inc();
 
 	/*
 	 * If migration was not successful and there's a freeing callback, use
@@ -1412,7 +1414,7 @@ retry:
 				 * we encounter them after the rest of the list
 				 * is processed.
 				 */
-				if (PageTransHuge(page)) {
+				if (PageTransHuge(page) && !PageHuge(page)) {
 					lock_page(page);
 					rc = split_huge_page_to_list(page, from);
 					unlock_page(page);
@@ -1856,46 +1858,6 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
 	return newpage;
 }
 
-/*
- * page migration rate limiting control.
- * Do not migrate more than @pages_to_migrate in a @migrate_interval_millisecs
- * window of time. Default here says do not migrate more than 1280M per second.
- */
-static unsigned int migrate_interval_millisecs __read_mostly = 100;
-static unsigned int ratelimit_pages __read_mostly = 128 << (20 - PAGE_SHIFT);
-
-/* Returns true if the node is migrate rate-limited after the update */
-static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
-					unsigned long nr_pages)
-{
-	/*
-	 * Rate-limit the amount of data that is being migrated to a node.
-	 * Optimal placement is no good if the memory bus is saturated and
-	 * all the time is being spent migrating!
-	 */
-	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window)) {
-		spin_lock(&pgdat->numabalancing_migrate_lock);
-		pgdat->numabalancing_migrate_nr_pages = 0;
-		pgdat->numabalancing_migrate_next_window = jiffies +
-			msecs_to_jiffies(migrate_interval_millisecs);
-		spin_unlock(&pgdat->numabalancing_migrate_lock);
-	}
-	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages) {
-		trace_mm_numa_migrate_ratelimit(current, pgdat->node_id,
-								nr_pages);
-		return true;
-	}
-
-	/*
-	 * This is an unlocked non-atomic update so errors are possible.
-	 * The consequences are failing to migrate when we potentiall should
-	 * have which is not severe enough to warrant locking. If it is ever
-	 * a problem, it can be converted to a per-cpu counter.
-	 */
-	pgdat->numabalancing_migrate_nr_pages += nr_pages;
-	return false;
-}
-
 static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
 {
 	int page_lru;
@@ -1968,14 +1930,6 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
 	if (page_is_file_cache(page) && PageDirty(page))
 		goto out;
 
-	/*
-	 * Rate-limit the amount of data that is being migrated to a node.
-	 * Optimal placement is no good if the memory bus is saturated and
-	 * all the time is being spent migrating!
-	 */
-	if (numamigrate_update_ratelimit(pgdat, 1))
-		goto out;
-
 	isolated = numamigrate_isolate_page(pgdat, page);
 	if (!isolated)
 		goto out;
@@ -2021,14 +1975,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	int page_lru = page_is_file_cache(page);
 	unsigned long mmun_start = address & HPAGE_PMD_MASK;
 	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
-
-	/*
-	 * Rate-limit the amount of data that is being migrated to a node.
-	 * Optimal placement is no good if the memory bus is saturated and
-	 * all the time is being spent migrating!
-	 */
-	if (numamigrate_update_ratelimit(pgdat, HPAGE_PMD_NR))
-		goto out_dropref;
 
 	new_page = alloc_pages_node(node,
 		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
@@ -2126,7 +2072,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 
 out_fail:
 	count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
-out_dropref:
 	ptl = pmd_lock(mm, pmd);
 	if (pmd_same(*pmd, entry)) {
 		entry = pmd_modify(entry, vma->vm_page_prot);
@@ -2951,7 +2896,8 @@ int migrate_vma(const struct migrate_vma_ops *ops,
 	/* Sanity check the arguments */
 	start &= PAGE_MASK;
 	end &= PAGE_MASK;
-	if (!vma || is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
+	if (!vma || is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL) ||
+			vma_is_dax(vma))
 		return -EINVAL;
 	if (start < vma->vm_start || start >= vma->vm_end)
 		return -EINVAL;

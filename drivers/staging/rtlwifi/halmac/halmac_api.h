@@ -29,7 +29,6 @@
 
 #include "halmac_usb_reg.h"
 #include "halmac_sdio_reg.h"
-#include "halmac_pcie_reg.h"
 
 #include "halmac_bit2.h"
 #include "halmac_reg2.h"

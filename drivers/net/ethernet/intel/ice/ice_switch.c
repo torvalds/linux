@@ -645,14 +645,14 @@ ice_add_marker_act(struct ice_hw *hw, struct ice_fltr_mgmt_list_entry *m_ent,
 	act |= (1 << ICE_LG_ACT_GENERIC_VALUE_S) & ICE_LG_ACT_GENERIC_VALUE_M;
 	lg_act->pdata.lg_act.act[1] = cpu_to_le32(act);
 
-	act = (7 << ICE_LG_ACT_GENERIC_OFFSET_S) & ICE_LG_ACT_GENERIC_VALUE_M;
+	act = (ICE_LG_ACT_GENERIC_OFF_RX_DESC_PROF_IDX <<
+	       ICE_LG_ACT_GENERIC_OFFSET_S) & ICE_LG_ACT_GENERIC_OFFSET_M;
 
 	/* Third action Marker value */
 	act |= ICE_LG_ACT_GENERIC;
 	act |= (sw_marker << ICE_LG_ACT_GENERIC_VALUE_S) &
 		ICE_LG_ACT_GENERIC_VALUE_M;
 
-	act |= (0 << ICE_LG_ACT_GENERIC_OFFSET_S) & ICE_LG_ACT_GENERIC_VALUE_M;
 	lg_act->pdata.lg_act.act[2] = cpu_to_le32(act);
 
 	/* call the fill switch rule to fill the lookup tx rx structure */

@@ -91,6 +91,17 @@
 			status = "disabled";
 		};
 
+		spi: spi@101000 {
+			compatible = "mscc,ocelot-spi", "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x101000 0x100>, <0x3c 0x18>;
+			interrupts = <9>;
+			clocks = <&ahb_clk>;
+
+			status = "disabled";
+		};
+
 		switch@1010000 {
 			compatible = "mscc,vsc7514-switch";
 			reg = <0x1010000 0x10000>,
@@ -168,6 +179,9 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&gpio 0 0 22>;
+			interrupt-controller;
+			interrupts = <13>;
+			#interrupt-cells = <2>;
 
 			uart_pins: uart-pins {
 				pins = "GPIO_6", "GPIO_7";
@@ -178,13 +192,18 @@
 				pins = "GPIO_12", "GPIO_13";
 				function = "uart2";
 			};
+
+			miim1: miim1 {
+				pins = "GPIO_14", "GPIO_15";
+				function = "miim1";
+			};
 		};
 
 		mdio0: mdio@107009c {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "mscc,ocelot-miim";
-			reg = <0x107009c 0x36>, <0x10700f0 0x8>;
+			reg = <0x107009c 0x24>, <0x10700f0 0x8>;
 			interrupts = <14>;
 			status = "disabled";
 
@@ -200,6 +219,17 @@
 			phy3: ethernet-phy@3 {
 				reg = <3>;
 			};
+		};
+
+		mdio1: mdio@10700c0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "mscc,ocelot-miim";
+			reg = <0x10700c0 0x24>;
+			interrupts = <15>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&miim1>;
+			status = "disabled";
 		};
 	};
 };

@@ -787,7 +787,7 @@ isdn_tty_suspend(char *id, modem_info *info, atemu *m)
 		cmd.parm.cmsg.para[3] = 4; /* 16 bit 0x0004 Suspend */
 		cmd.parm.cmsg.para[4] = 0;
 		cmd.parm.cmsg.para[5] = l;
-		strncpy(&cmd.parm.cmsg.para[6], id, l);
+		memcpy(&cmd.parm.cmsg.para[6], id, l);
 		cmd.command = CAPI_PUT_MESSAGE;
 		cmd.driver = info->isdn_driver;
 		cmd.arg = info->isdn_channel;
@@ -877,7 +877,7 @@ isdn_tty_resume(char *id, modem_info *info, atemu *m)
 		cmd.parm.cmsg.para[3] = 5; /* 16 bit 0x0005 Resume */
 		cmd.parm.cmsg.para[4] = 0;
 		cmd.parm.cmsg.para[5] = l;
-		strncpy(&cmd.parm.cmsg.para[6], id, l);
+		memcpy(&cmd.parm.cmsg.para[6], id, l);
 		cmd.command = CAPI_PUT_MESSAGE;
 		info->dialing = 1;
 //		strcpy(dev->num[i], n);

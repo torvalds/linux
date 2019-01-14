@@ -1071,7 +1071,7 @@ __poll_t af_alg_poll(struct file *file, struct socket *sock,
 	struct af_alg_ctx *ctx = ask->private;
 	__poll_t mask;
 
-	sock_poll_wait(file, sk_sleep(sk), wait);
+	sock_poll_wait(file, wait);
 	mask = 0;
 
 	if (!ctx->more || ctx->used)

@@ -93,6 +93,7 @@ static void tscm_free(struct snd_tscm *tscm)
 	fw_unit_put(tscm->unit);
 
 	mutex_destroy(&tscm->mutex);
+	kfree(tscm);
 }
 
 static void tscm_card_free(struct snd_card *card)

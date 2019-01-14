@@ -99,10 +99,26 @@ static int verity_hash_update(struct dm_verity *v, struct ahash_request *req,
 {
 	struct scatterlist sg;
 
-	sg_init_one(&sg, data, len);
-	ahash_request_set_crypt(req, &sg, NULL, len);
-
-	return crypto_wait_req(crypto_ahash_update(req), wait);
+	if (likely(!is_vmalloc_addr(data))) {
+		sg_init_one(&sg, data, len);
+		ahash_request_set_crypt(req, &sg, NULL, len);
+		return crypto_wait_req(crypto_ahash_update(req), wait);
+	} else {
+		do {
+			int r;
+			size_t this_step = min_t(size_t, len, PAGE_SIZE - offset_in_page(data));
+			flush_kernel_vmap_range((void *)data, this_step);
+			sg_init_table(&sg, 1);
+			sg_set_page(&sg, vmalloc_to_page(data), this_step, offset_in_page(data));
+			ahash_request_set_crypt(req, &sg, NULL, this_step);
+			r = crypto_wait_req(crypto_ahash_update(req), wait);
+			if (unlikely(r))
+				return r;
+			data += this_step;
+			len -= this_step;
+		} while (len);
+		return 0;
+	}
 }
 
 /*

@@ -305,6 +305,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 	struct cx231xx_video_mode *vmode =
 	    container_of(dma_q, struct cx231xx_video_mode, vidq);
 	struct cx231xx *dev = container_of(vmode, struct cx231xx, vbi_mode);
+	unsigned long flags;
 
 	switch (urb->status) {
 	case 0:		/* success */
@@ -316,14 +317,14 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 		return;
 	default:		/* error */
 		dev_err(dev->dev,
-			"urb completition error %d.\n",	urb->status);
+			"urb completion error %d.\n", urb->status);
 		break;
 	}
 
 	/* Copy data from URB */
-	spin_lock(&dev->vbi_mode.slock);
+	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
 	dev->vbi_mode.bulk_ctl.bulk_copy(dev, urb);
-	spin_unlock(&dev->vbi_mode.slock);
+	spin_unlock_irqrestore(&dev->vbi_mode.slock, flags);
 
 	/* Reset status */
 	urb->status = 0;

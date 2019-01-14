@@ -5,7 +5,7 @@ Required properties:
 	- reg: i2c address of the bridge
 	- cvcc10-supply: Digital Core Supply Voltage (1.0V)
 	- iovcc18-supply: I/O Supply Voltage (1.8V)
-	- interrupts, interrupt-parent: interrupt specifier of INT pin
+	- interrupts: interrupt specifier of INT pin
 	- reset-gpios: gpio specifier of RESET pin
 	- clocks, clock-names: specification and name of "xtal" clock
 	- video interfaces: Device node can contain video interface port

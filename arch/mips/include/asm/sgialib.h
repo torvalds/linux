@@ -31,7 +31,6 @@ extern int prom_flags;
 #define PROM_FLAG_DONT_FREE_TEMP	4
 
 /* Simple char-by-char console I/O. */
-extern void prom_putchar(char c);
 extern char prom_getchar(void);
 
 /* Get next memory descriptor after CURR, returns first descriptor

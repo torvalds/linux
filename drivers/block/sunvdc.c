@@ -36,6 +36,10 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 #define VDC_TX_RING_SIZE	512
 #define VDC_DEFAULT_BLK_SIZE	512
 
+#define MAX_XFER_BLKS		(128 * 1024)
+#define MAX_XFER_SIZE		(MAX_XFER_BLKS / VDC_DEFAULT_BLK_SIZE)
+#define MAX_RING_COOKIES	((MAX_XFER_BLKS / PAGE_SIZE) + 2)
+
 #define WAITING_FOR_LINK_UP	0x01
 #define WAITING_FOR_TX_SPACE	0x02
 #define WAITING_FOR_GEN_CMD	0x04
@@ -450,13 +454,16 @@ static int __send_request(struct request *req)
 {
 	struct vdc_port *port = req->rq_disk->private_data;
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
-	struct scatterlist sg[port->ring_cookies];
+	struct scatterlist sg[MAX_RING_COOKIES];
 	struct vdc_req_entry *rqe;
 	struct vio_disk_desc *desc;
 	unsigned int map_perm;
 	int nsg, err, i;
 	u64 len;
 	u8 op;
+
+	if (WARN_ON(port->ring_cookies > MAX_RING_COOKIES))
+		return -EINVAL;
 
 	map_perm = LDC_MAP_SHADOW | LDC_MAP_DIRECT | LDC_MAP_IO;
 
@@ -984,9 +991,8 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		goto err_out_free_port;
 
 	port->vdisk_block_size = VDC_DEFAULT_BLK_SIZE;
-	port->max_xfer_size = ((128 * 1024) / port->vdisk_block_size);
-	port->ring_cookies = ((port->max_xfer_size *
-			       port->vdisk_block_size) / PAGE_SIZE) + 2;
+	port->max_xfer_size = MAX_XFER_SIZE;
+	port->ring_cookies = MAX_RING_COOKIES;
 
 	err = vio_ldc_alloc(&port->vio, &vdc_ldc_cfg, port);
 	if (err)

@@ -3,7 +3,6 @@ Motorola CPCAP PMIC device tree binding
 Required properties:
 - compatible		: One or both of "motorola,cpcap" or "ste,6556002"
 - reg			: SPI chip select
-- interrupt-parent	: The parent interrupt controller
 - interrupts		: The interrupt line the device is connected to
 - interrupt-controller	: Marks the device node as an interrupt controller
 - #interrupt-cells	: The number of cells to describe an IRQ, should be 2

@@ -320,8 +320,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		if (addr->sin_addr.s_addr == htonl(INADDR_ANY))
 			chk_addr_ret = RTN_LOCAL;
 
-		if ((net->ipv4.sysctl_ip_nonlocal_bind == 0 &&
-		    isk->freebind == 0 && isk->transparent == 0 &&
+		if ((!inet_can_nonlocal_bind(net, isk) &&
 		     chk_addr_ret != RTN_LOCAL) ||
 		    chk_addr_ret == RTN_MULTICAST ||
 		    chk_addr_ret == RTN_BROADCAST)
@@ -361,8 +360,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 						    scoped);
 		rcu_read_unlock();
 
-		if (!(net->ipv6.sysctl.ip_nonlocal_bind ||
-		      isk->freebind || isk->transparent || has_addr ||
+		if (!(ipv6_can_nonlocal_bind(net, isk) || has_addr ||
 		      addr_type == IPV6_ADDR_ANY))
 			return -EADDRNOTAVAIL;
 
@@ -739,13 +737,7 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		/* no remote port */
 	}
 
-	ipc.sockc.tsflags = sk->sk_tsflags;
-	ipc.addr = inet->inet_saddr;
-	ipc.opt = NULL;
-	ipc.oif = sk->sk_bound_dev_if;
-	ipc.tx_flags = 0;
-	ipc.ttl = 0;
-	ipc.tos = -1;
+	ipcm_init_sk(&ipc, inet);
 
 	if (msg->msg_controllen) {
 		err = ip_cmsg_send(sk, msg, &ipc, false);
@@ -768,8 +760,6 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		}
 		rcu_read_unlock();
 	}
-
-	sock_tx_timestamp(sk, ipc.sockc.tsflags, &ipc.tx_flags);
 
 	saddr = ipc.addr;
 	ipc.addr = faddr = daddr;

@@ -19,6 +19,10 @@ Required Properties:
                     defines the interrupt number, the second encodes
                     the trigger flags described in
                     bindings/interrupt-controller/interrupts.txt
+- interrupts: The interrupt outputs from the controller. There is one GPIO
+              interrupt per GPIO bank. The number of interrupts listed depends
+              on the number of GPIO banks on the SoC. The interrupts must be
+              ordered by bank, starting with bank 0.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
@@ -180,6 +184,12 @@ Example:
                   #gpio-cells = <2>;
                   interrupt-controller;
                   #interrupt-cells = <2>;
+                  interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+                               <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+                               <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+                               <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
+                               <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+                               <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 
                   uart2-default: uart2-default {
                           pinmux {

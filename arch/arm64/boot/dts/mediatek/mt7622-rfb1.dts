@@ -18,7 +18,7 @@
 	compatible = "mediatek,mt7622-rfb1", "mediatek,mt7622";
 
 	chosen {
-		bootargs = "console=ttyS0,115200n1 swiotlb=512";
+		bootargs = "earlycon=uart8250,mmio32,0x11002000 console=ttyS0,115200n1 swiotlb=512";
 	};
 
 	cpus {
@@ -34,7 +34,7 @@
 	};
 
 	gpio-keys {
-		compatible = "gpio-keys-polled";
+		compatible = "gpio-keys";
 		poll-interval = <100>;
 
 		factory {

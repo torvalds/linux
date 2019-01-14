@@ -231,7 +231,7 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 			}
 			break;
 		default:
-			seq_printf(seq, "Unknown resource type found: %d [hdr: %p]\n",
+			seq_printf(seq, "Unknown resource type found: %d [hdr: %pK]\n",
 				   hdr->type, hdr);
 			break;
 		}
@@ -260,7 +260,7 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 
 	list_for_each_entry(carveout, &rproc->carveouts, node) {
 		seq_puts(seq, "Carveout memory entry:\n");
-		seq_printf(seq, "\tVirtual address: %p\n", carveout->va);
+		seq_printf(seq, "\tVirtual address: %pK\n", carveout->va);
 		seq_printf(seq, "\tDMA address: %pad\n", &carveout->dma);
 		seq_printf(seq, "\tDevice address: 0x%x\n", carveout->da);
 		seq_printf(seq, "\tLength: 0x%x Bytes\n\n", carveout->len);

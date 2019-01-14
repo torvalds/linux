@@ -166,6 +166,11 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	reg &= ~P_TXQ_PSM_VDD(port);
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
 
+	/* Enable learning */
+	reg = core_readl(priv, CORE_DIS_LEARN);
+	reg &= ~BIT(port);
+	core_writel(priv, reg, CORE_DIS_LEARN);
+
 	/* Enable Broadcom tags for that port if requested */
 	if (priv->brcm_tag_mask & BIT(port))
 		b53_brcm_hdr_setup(ds, port);
@@ -220,21 +225,21 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 				 struct phy_device *phy)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 off, reg;
+	u32 reg;
 
-	if (priv->wol_ports_mask & (1 << port))
+	/* Disable learning while in WoL mode */
+	if (priv->wol_ports_mask & (1 << port)) {
+		reg = core_readl(priv, CORE_DIS_LEARN);
+		reg |= BIT(port);
+		core_writel(priv, reg, CORE_DIS_LEARN);
 		return;
+	}
 
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_disable(priv, port);
 
 	if (priv->int_phy_mask & 1 << port && priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, false);
-
-	if (dsa_is_cpu_port(ds, port))
-		off = CORE_IMP_CTL;
-	else
-		off = CORE_G_PCTL_PORT(port);
 
 	b53_disable_port(ds, port, phy);
 
@@ -698,7 +703,6 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	unsigned int port;
 	int ret;
 
 	ret = bcm_sf2_sw_rst(priv);
@@ -710,14 +714,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, true);
 
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if (dsa_is_user_port(ds, port))
-			bcm_sf2_port_setup(ds, port, NULL);
-		else if (dsa_is_cpu_port(ds, port))
-			bcm_sf2_imp_setup(ds, port);
-	}
-
-	bcm_sf2_enable_acb(ds);
+	ds->ops->setup(ds);
 
 	return 0;
 }
@@ -1168,10 +1165,10 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 {
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
 
-	/* Disable all ports and interrupts */
 	priv->wol_ports_mask = 0;
-	bcm_sf2_sw_suspend(priv->dev->ds);
 	dsa_unregister_switch(priv->dev->ds);
+	/* Disable all ports and interrupts */
+	bcm_sf2_sw_suspend(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
 
 	return 0;

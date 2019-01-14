@@ -31,6 +31,8 @@ Arnaud Patard <arnaud.patard@rtp-net.org>
 Arnd Bergmann <arnd@arndb.de>
 Axel Dyks <xl@xlsigned.net>
 Axel Lin <axel.lin@gmail.com>
+Bart Van Assche <bvanassche@acm.org> <bart.vanassche@wdc.com>
+Bart Van Assche <bvanassche@acm.org> <bart.vanassche@sandisk.com>
 Ben Gardner <bgardner@wabtec.com>
 Ben M Cahill <ben.m.cahill@intel.com>
 Björn Steinbrink <B.Steinbrink@gmx.de>
@@ -81,6 +83,9 @@ Javi Merino <javi.merino@kernel.org> <javi.merino@arm.com>
 <javier@osg.samsung.com> <javier.martinez@collabora.co.uk>
 Jean Tourrilhes <jt@hpl.hp.com>
 Jeff Garzik <jgarzik@pretzel.yyz.us>
+Jeff Layton <jlayton@kernel.org> <jlayton@redhat.com>
+Jeff Layton <jlayton@kernel.org> <jlayton@poochiereds.net>
+Jeff Layton <jlayton@kernel.org> <jlayton@primarydata.com>
 Jens Axboe <axboe@suse.de>
 Jens Osterkamp <Jens.Osterkamp@de.ibm.com>
 Johan Hovold <johan@kernel.org> <jhovold@gmail.com>
@@ -154,6 +159,7 @@ Ralf Wildenhues <Ralf.Wildenhues@gmx.de>
 Randy Dunlap <rdunlap@infradead.org> <rdunlap@xenotime.net>
 Rémi Denis-Courmont <rdenis@simphalempin.com>
 Ricardo Ribalda Delgado <ricardo.ribalda@gmail.com>
+Ross Zwisler <zwisler@kernel.org> <ross.zwisler@linux.intel.com>
 Rudolf Marek <R.Marek@sh.cvut.cz>
 Rui Saraiva <rmps@joel.ist.utl.pt>
 Sachin P Sant <ssant@in.ibm.com>

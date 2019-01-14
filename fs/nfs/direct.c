@@ -758,7 +758,7 @@ static void nfs_direct_write_schedule_work(struct work_struct *work)
 
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq)
 {
-	schedule_work(&dreq->work); /* Calls nfs_direct_write_schedule_work */
+	queue_work(nfsiod_workqueue, &dreq->work); /* Calls nfs_direct_write_schedule_work */
 }
 
 static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)

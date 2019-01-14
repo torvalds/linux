@@ -411,7 +411,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 
 void cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused)
 {
-	config_sctlr_el1(SCTLR_EL1_UCI, 0);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCI, 0);
 }
 
 #define __user_cache_maint(insn, address, res)			\
@@ -545,22 +545,6 @@ asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
 	 * these consistently.
 	 */
 	do_undefinstr(regs);
-}
-
-long compat_arm_syscall(struct pt_regs *regs);
-
-asmlinkage long do_ni_syscall(struct pt_regs *regs)
-{
-#ifdef CONFIG_COMPAT
-	long ret;
-	if (is_compat_task()) {
-		ret = compat_arm_syscall(regs);
-		if (ret != -ENOSYS)
-			return ret;
-	}
-#endif
-
-	return sys_ni_syscall();
 }
 
 static const char *esr_class_str[] = {

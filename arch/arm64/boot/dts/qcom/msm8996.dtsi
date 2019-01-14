@@ -377,6 +377,22 @@
 			reg = <0x740000 0x20000>;
 		};
 
+		tsens0: thermal-sensor@4a9000 {
+			compatible = "qcom,msm8996-tsens";
+			reg = <0x4a9000 0x1000>, /* TM */
+			      <0x4a8000 0x1000>; /* SROT */
+			#qcom,sensors = <13>;
+			#thermal-sensor-cells = <1>;
+		};
+
+		tsens1: thermal-sensor@4ad000 {
+			compatible = "qcom,msm8996-tsens";
+			reg = <0x4ad000 0x1000>, /* TM */
+			      <0x4ac000 0x1000>; /* SROT */
+			#qcom,sensors = <8>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		tcsr: syscon@7a0000 {
 			compatible = "qcom,tcsr-msm8996", "syscon";
 			reg = <0x7a0000 0x18000>;
@@ -457,12 +473,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-		};
-
-		tsens0: thermal-sensor@4a8000 {
-			compatible = "qcom,msm8996-tsens";
-			reg = <0x4a8000 0x2000>;
-			#thermal-sensor-cells = <1>;
 		};
 
 		blsp2_uart1: serial@75b0000 {

@@ -131,8 +131,8 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 
 	if (irr) {
-		dev_dbg(dev, "IRR includes unknown cause bits (0x%08X)\n",
-			irr);
+		dev_dbg_ratelimited(dev, "IRR includes unknown cause bits (0x%08X)\n",
+				    irr);
 		/* Just warning */
 	}
 

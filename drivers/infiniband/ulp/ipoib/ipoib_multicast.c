@@ -140,7 +140,7 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 {
 	struct ipoib_mcast *mcast;
 
-	mcast = kzalloc(sizeof *mcast, can_sleep ? GFP_KERNEL : GFP_ATOMIC);
+	mcast = kzalloc(sizeof(*mcast), can_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!mcast)
 		return NULL;
 
@@ -822,6 +822,7 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 			if (neigh && list_empty(&neigh->list)) {
 				kref_get(&mcast->ah->ref);
 				neigh->ah	= mcast->ah;
+				neigh->ah->valid = 1;
 				list_add_tail(&neigh->list, &mcast->neigh_list);
 			}
 		}
@@ -917,7 +918,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		if (!ipoib_mcast_addr_is_valid(ha->addr, dev->broadcast))
 			continue;
 
-		memcpy(mgid.raw, ha->addr + 4, sizeof mgid);
+		memcpy(mgid.raw, ha->addr + 4, sizeof(mgid));
 
 		mcast = __ipoib_mcast_find(dev, &mgid);
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
@@ -997,7 +998,7 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 {
 	struct ipoib_mcast_iter *iter;
 
-	iter = kmalloc(sizeof *iter, GFP_KERNEL);
+	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter)
 		return NULL;
 

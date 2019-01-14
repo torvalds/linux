@@ -178,7 +178,7 @@ struct btrfs_inode {
 	struct btrfs_delayed_node *delayed_node;
 
 	/* File creation time. */
-	struct timespec i_otime;
+	struct timespec64 i_otime;
 
 	/* Hook into fs_info->delayed_iputs */
 	struct list_head delayed_iput;

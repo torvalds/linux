@@ -255,6 +255,8 @@ struct chcr_context {
 	struct chcr_dev *dev;
 	unsigned char tx_qidx;
 	unsigned char rx_qidx;
+	unsigned char tx_chan_id;
+	unsigned char pci_chan_id;
 	struct __crypto_ctx crypto_ctx[0];
 };
 

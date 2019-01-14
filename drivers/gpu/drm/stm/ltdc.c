@@ -457,6 +457,14 @@ ltdc_crtc_mode_valid(struct drm_crtc *crtc,
 	int target_max = target + CLK_TOLERANCE_HZ;
 	int result;
 
+	result = clk_round_rate(ldev->pixel_clk, target);
+
+	DRM_DEBUG_DRIVER("clk rate target %d, available %d\n", target, result);
+
+	/* Filter modes according to the max frequency supported by the pads */
+	if (result > ldev->caps.pad_max_freq_hz)
+		return MODE_CLOCK_HIGH;
+
 	/*
 	 * Accept all "preferred" modes:
 	 * - this is important for panels because panel clock tolerances are
@@ -467,10 +475,6 @@ ltdc_crtc_mode_valid(struct drm_crtc *crtc,
 	 */
 	if (mode->type & DRM_MODE_TYPE_PREFERRED)
 		return MODE_OK;
-
-	result = clk_round_rate(ldev->pixel_clk, target);
-
-	DRM_DEBUG_DRIVER("clk rate target %d, available %d\n", target, result);
 
 	/*
 	 * Filter modes according to the clock value, particularly useful for
@@ -991,11 +995,15 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		 * does not work on 2nd layer.
 		 */
 		ldev->caps.non_alpha_only_l1 = true;
+		ldev->caps.pad_max_freq_hz = 90000000;
+		if (ldev->caps.hw_version == HWVER_10200)
+			ldev->caps.pad_max_freq_hz = 65000000;
 		break;
 	case HWVER_20101:
 		ldev->caps.reg_ofs = REG_OFS_4;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a1;
 		ldev->caps.non_alpha_only_l1 = false;
+		ldev->caps.pad_max_freq_hz = 150000000;
 		break;
 	default:
 		return -ENODEV;
@@ -1074,8 +1082,11 @@ int ltdc_load(struct drm_device *ddev)
 		}
 	}
 
-	if (!IS_ERR(rstc))
+	if (!IS_ERR(rstc)) {
+		reset_control_assert(rstc);
+		usleep_range(10, 20);
 		reset_control_deassert(rstc);
+	}
 
 	/* Disable interrupts */
 	reg_clear(ldev->regs, LTDC_IER,

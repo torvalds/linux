@@ -141,8 +141,10 @@ static int pcan_msg_add_rec(struct pcan_usb_pro_msg *pm, u8 id, ...)
 	switch (id) {
 	case PCAN_USBPRO_TXMSG8:
 		i += 4;
+		/* fall through */
 	case PCAN_USBPRO_TXMSG4:
 		i += 4;
+		/* fall through */
 	case PCAN_USBPRO_TXMSG0:
 		*pc++ = va_arg(ap, int);
 		*pc++ = va_arg(ap, int);

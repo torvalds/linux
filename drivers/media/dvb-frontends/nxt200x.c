@@ -1212,9 +1212,9 @@ static const struct dvb_frontend_ops nxt200x_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "Nextwave NXT200X VSB/QAM frontend",
-		.frequency_min =  54000000,
-		.frequency_max = 860000000,
-		.frequency_stepsize = 166666,	/* stepsize is just a guess */
+		.frequency_min_hz =  54 * MHz,
+		.frequency_max_hz = 860 * MHz,
+		.frequency_stepsize_hz = 166666,	/* stepsize is just a guess */
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_8VSB | FE_CAN_QAM_64 | FE_CAN_QAM_256

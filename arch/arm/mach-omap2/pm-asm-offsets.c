@@ -27,6 +27,8 @@ int main(void)
 	       offsetof(struct am33xx_pm_ro_sram_data, amx3_pm_sram_data_virt));
 	DEFINE(AMX3_PM_RO_SRAM_DATA_PHYS_OFFSET,
 	       offsetof(struct am33xx_pm_ro_sram_data, amx3_pm_sram_data_phys));
+	DEFINE(AMX3_PM_RTC_BASE_VIRT_OFFSET,
+	       offsetof(struct am33xx_pm_ro_sram_data, rtc_base_virt));
 	DEFINE(AMX3_PM_RO_SRAM_DATA_SIZE,
 	       sizeof(struct am33xx_pm_ro_sram_data));
 

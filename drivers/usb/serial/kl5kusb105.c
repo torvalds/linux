@@ -67,7 +67,6 @@ static int klsi_105_prepare_write_buffer(struct usb_serial_port *port,
  */
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PALMCONNECT_VID, PALMCONNECT_PID) },
-	{ USB_DEVICE(KLSI_VID, KLSI_KL5KUSB105D_PID) },
 	{ }		/* Terminating entry */
 };
 

@@ -13,6 +13,43 @@
 		reg = <0x40000000 0x08000000>;
 	};
 
+	reg_vddio_sd0: regulator-vddio-sd0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vddio-sd0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 29 0>;
+	};
+
+	reg_lcd_3v3: regulator-lcd-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 18 0>;
+		enable-active-high;
+	};
+
+	reg_lcd_5v: regulator-lcd-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd-5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	panel {
+		compatible = "sii,43wvf1g";
+		backlight = <&backlight_display>;
+		dvdd-supply = <&reg_lcd_3v3>;
+		avdd-supply = <&reg_lcd_5v>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&display_out>;
+			};
+		};
+	};
+
 	apb@80000000 {
 		apbh@80000000 {
 			gpmi-nand@8000c000 {
@@ -52,31 +89,11 @@
 			lcdif@80030000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a>;
-				lcd-supply = <&reg_lcd_3v3>;
-				display = <&display0>;
 				status = "okay";
 
-				display0: display0 {
-					bits-per-pixel = <32>;
-					bus-width = <24>;
-
-					display-timings {
-						native-mode = <&timing0>;
-						timing0: timing0 {
-							clock-frequency = <9200000>;
-							hactive = <480>;
-							vactive = <272>;
-							hback-porch = <15>;
-							hfront-porch = <8>;
-							vback-porch = <12>;
-							vfront-porch = <4>;
-							hsync-len = <1>;
-							vsync-len = <1>;
-							hsync-active = <0>;
-							vsync-active = <0>;
-							de-active = <1>;
-							pixelclk-active = <0>;
-						};
+				port {
+					display_out: endpoint {
+						remote-endpoint = <&panel_in>;
 					};
 				};
 			};
@@ -118,32 +135,7 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_vddio_sd0: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "vddio-sd0";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio1 29 0>;
-		};
-
-		reg_lcd_3v3: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "lcd-3v3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio1 18 0>;
-			enable-active-high;
-		};
-	};
-
-	backlight {
+	backlight_display: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm 2 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;

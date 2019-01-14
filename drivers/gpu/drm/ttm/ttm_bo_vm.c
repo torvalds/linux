@@ -44,10 +44,11 @@
 
 #define TTM_BO_VM_NUM_PREFAULT 16
 
-static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
+static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_fault *vmf)
 {
-	int ret = 0;
+	vm_fault_t ret = 0;
+	int err = 0;
 
 	if (likely(!bo->moving))
 		goto out_unlock;
@@ -67,20 +68,20 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
 			goto out_unlock;
 
-		ttm_bo_reference(bo);
+		ttm_bo_get(bo);
 		up_read(&vmf->vma->vm_mm->mmap_sem);
 		(void) dma_fence_wait(bo->moving, true);
 		ttm_bo_unreserve(bo);
-		ttm_bo_unref(&bo);
+		ttm_bo_put(bo);
 		goto out_unlock;
 	}
 
 	/*
 	 * Ordinary wait.
 	 */
-	ret = dma_fence_wait(bo->moving, true);
-	if (unlikely(ret != 0)) {
-		ret = (ret != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
+	err = dma_fence_wait(bo->moving, true);
+	if (unlikely(err != 0)) {
+		ret = (err != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
 			VM_FAULT_NOPAGE;
 		goto out_unlock;
 	}
@@ -105,7 +106,7 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
 		+ page_offset;
 }
 
-static int ttm_bo_vm_fault(struct vm_fault *vmf)
+static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)
@@ -116,8 +117,9 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 	unsigned long pfn;
 	struct ttm_tt *ttm = NULL;
 	struct page *page;
-	int ret;
+	int err;
 	int i;
+	vm_fault_t ret = VM_FAULT_NOPAGE;
 	unsigned long address = vmf->address;
 	struct ttm_mem_type_manager *man =
 		&bdev->man[bo->mem.mem_type];
@@ -129,17 +131,17 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 	 * for reserve, and if it fails, retry the fault after waiting
 	 * for the buffer to become unreserved.
 	 */
-	ret = ttm_bo_reserve(bo, true, true, NULL);
-	if (unlikely(ret != 0)) {
-		if (ret != -EBUSY)
+	err = ttm_bo_reserve(bo, true, true, NULL);
+	if (unlikely(err != 0)) {
+		if (err != -EBUSY)
 			return VM_FAULT_NOPAGE;
 
 		if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
 			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
-				ttm_bo_reference(bo);
+				ttm_bo_get(bo);
 				up_read(&vmf->vma->vm_mm->mmap_sem);
 				(void) ttm_bo_wait_unreserved(bo);
-				ttm_bo_unref(&bo);
+				ttm_bo_put(bo);
 			}
 
 			return VM_FAULT_RETRY;
@@ -163,8 +165,8 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 	}
 
 	if (bdev->driver->fault_reserve_notify) {
-		ret = bdev->driver->fault_reserve_notify(bo);
-		switch (ret) {
+		err = bdev->driver->fault_reserve_notify(bo);
+		switch (err) {
 		case 0:
 			break;
 		case -EBUSY:
@@ -192,13 +194,13 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 		goto out_unlock;
 	}
 
-	ret = ttm_mem_io_lock(man, true);
-	if (unlikely(ret != 0)) {
+	err = ttm_mem_io_lock(man, true);
+	if (unlikely(err != 0)) {
 		ret = VM_FAULT_NOPAGE;
 		goto out_unlock;
 	}
-	ret = ttm_mem_io_reserve_vm(bo);
-	if (unlikely(ret != 0)) {
+	err = ttm_mem_io_reserve_vm(bo);
+	if (unlikely(err != 0)) {
 		ret = VM_FAULT_SIGBUS;
 		goto out_io_unlock;
 	}
@@ -266,23 +268,20 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 		}
 
 		if (vma->vm_flags & VM_MIXEDMAP)
-			ret = vm_insert_mixed(&cvma, address,
+			ret = vmf_insert_mixed(&cvma, address,
 					__pfn_to_pfn_t(pfn, PFN_DEV));
 		else
-			ret = vm_insert_pfn(&cvma, address, pfn);
+			ret = vmf_insert_pfn(&cvma, address, pfn);
 
 		/*
 		 * Somebody beat us to this PTE or prefaulting to
 		 * an already populated PTE, or prefaulting error.
 		 */
 
-		if (unlikely((ret == -EBUSY) || (ret != 0 && i > 0)))
+		if (unlikely((ret == VM_FAULT_NOPAGE && i > 0)))
 			break;
-		else if (unlikely(ret != 0)) {
-			ret =
-			    (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
+		else if (unlikely(ret & VM_FAULT_ERROR))
 			goto out_io_unlock;
-		}
 
 		address += PAGE_SIZE;
 		if (unlikely(++page_offset >= page_last))
@@ -303,14 +302,14 @@ static void ttm_bo_vm_open(struct vm_area_struct *vma)
 
 	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
 
-	(void)ttm_bo_reference(bo);
+	ttm_bo_get(bo);
 }
 
 static void ttm_bo_vm_close(struct vm_area_struct *vma)
 {
 	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)vma->vm_private_data;
 
-	ttm_bo_unref(&bo);
+	ttm_bo_put(bo);
 	vma->vm_private_data = NULL;
 }
 
@@ -462,7 +461,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 out_unref:
-	ttm_bo_unref(&bo);
+	ttm_bo_put(bo);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_mmap);
@@ -472,8 +471,10 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 	if (vma->vm_pgoff != 0)
 		return -EACCES;
 
+	ttm_bo_get(bo);
+
 	vma->vm_ops = &ttm_bo_vm_ops;
-	vma->vm_private_data = ttm_bo_reference(bo);
+	vma->vm_private_data = bo;
 	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND;
 	return 0;

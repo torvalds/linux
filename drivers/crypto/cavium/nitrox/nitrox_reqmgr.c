@@ -42,6 +42,16 @@
  *   Invalid flag options in AES-CCM IV.
  */
 
+static inline int incr_index(int index, int count, int max)
+{
+	if ((index + count) >= max)
+		index = index + count - max;
+	else
+		index += count;
+
+	return index;
+}
+
 /**
  * dma_free_sglist - unmap and free the sg lists.
  * @ndev: N5 device
@@ -426,29 +436,28 @@ static void post_se_instr(struct nitrox_softreq *sr,
 			  struct nitrox_cmdq *cmdq)
 {
 	struct nitrox_device *ndev = sr->ndev;
-	union nps_pkt_in_instr_baoff_dbell pkt_in_baoff_dbell;
-	u64 offset;
+	int idx;
 	u8 *ent;
 
 	spin_lock_bh(&cmdq->cmdq_lock);
 
-	/* get the next write offset */
-	offset = NPS_PKT_IN_INSTR_BAOFF_DBELLX(cmdq->qno);
-	pkt_in_baoff_dbell.value = nitrox_read_csr(ndev, offset);
+	idx = cmdq->write_idx;
 	/* copy the instruction */
-	ent = cmdq->head + pkt_in_baoff_dbell.s.aoff;
+	ent = cmdq->head + (idx * cmdq->instr_size);
 	memcpy(ent, &sr->instr, cmdq->instr_size);
-	/* flush the command queue updates */
-	dma_wmb();
 
-	sr->tstamp = jiffies;
 	atomic_set(&sr->status, REQ_POSTED);
 	response_list_add(sr, cmdq);
+	sr->tstamp = jiffies;
+	/* flush the command queue updates */
+	dma_wmb();
 
 	/* Ring doorbell with count 1 */
 	writeq(1, cmdq->dbell_csr_addr);
 	/* orders the doorbell rings */
 	mmiowb();
+
+	cmdq->write_idx = incr_index(idx, 1, ndev->qlen);
 
 	spin_unlock_bh(&cmdq->cmdq_lock);
 }
@@ -459,6 +468,9 @@ static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
 	struct nitrox_softreq *sr, *tmp;
 	int ret = 0;
 
+	if (!atomic_read(&cmdq->backlog_count))
+		return 0;
+
 	spin_lock_bh(&cmdq->backlog_lock);
 
 	list_for_each_entry_safe(sr, tmp, &cmdq->backlog_head, backlog) {
@@ -466,7 +478,7 @@ static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
 
 		/* submit until space available */
 		if (unlikely(cmdq_full(cmdq, ndev->qlen))) {
-			ret = -EBUSY;
+			ret = -ENOSPC;
 			break;
 		}
 		/* delete from backlog list */
@@ -491,23 +503,20 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
 {
 	struct nitrox_cmdq *cmdq = sr->cmdq;
 	struct nitrox_device *ndev = sr->ndev;
-	int ret = -EBUSY;
+
+	/* try to post backlog requests */
+	post_backlog_cmds(cmdq);
 
 	if (unlikely(cmdq_full(cmdq, ndev->qlen))) {
 		if (!(sr->flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EAGAIN;
-
+			return -ENOSPC;
+		/* add to backlog list */
 		backlog_list_add(sr, cmdq);
-	} else {
-		ret = post_backlog_cmds(cmdq);
-		if (ret) {
-			backlog_list_add(sr, cmdq);
-			return ret;
-		}
-		post_se_instr(sr, cmdq);
-		ret = -EINPROGRESS;
+		return -EBUSY;
 	}
-	return ret;
+	post_se_instr(sr, cmdq);
+
+	return -EINPROGRESS;
 }
 
 /**
@@ -624,11 +633,9 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	 */
 	sr->instr.fdata[0] = *((u64 *)&req->gph);
 	sr->instr.fdata[1] = 0;
-	/* flush the soft_req changes before posting the cmd */
-	wmb();
 
 	ret = nitrox_enqueue_request(sr);
-	if (ret == -EAGAIN)
+	if (ret == -ENOSPC)
 		goto send_fail;
 
 	return ret;

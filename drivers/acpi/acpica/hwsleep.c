@@ -56,14 +56,9 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state)
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
-	/*
-	 * If the target sleep state is S5, clear all GPEs and fixed events too
-	 */
-	if (sleep_state == ACPI_STATE_S5) {
-		status = acpi_hw_clear_acpi_status();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+	status = acpi_hw_clear_acpi_status();
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 	acpi_gbl_system_awake_and_running = FALSE;
 

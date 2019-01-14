@@ -105,8 +105,6 @@ static int ib_device_check_mandatory(struct ib_device *device)
 		IB_MANDATORY_FUNC(query_pkey),
 		IB_MANDATORY_FUNC(alloc_pd),
 		IB_MANDATORY_FUNC(dealloc_pd),
-		IB_MANDATORY_FUNC(create_ah),
-		IB_MANDATORY_FUNC(destroy_ah),
 		IB_MANDATORY_FUNC(create_qp),
 		IB_MANDATORY_FUNC(modify_qp),
 		IB_MANDATORY_FUNC(destroy_qp),
@@ -862,25 +860,6 @@ int ib_query_port(struct ib_device *device,
 EXPORT_SYMBOL(ib_query_port);
 
 /**
- * ib_query_gid - Get GID table entry
- * @device:Device to query
- * @port_num:Port number to query
- * @index:GID table index to query
- * @gid:Returned GID
- * @attr: Returned GID attributes related to this GID index (only in RoCE).
- *   NULL means ignore.
- *
- * ib_query_gid() fetches the specified GID table entry from the cache.
- */
-int ib_query_gid(struct ib_device *device,
-		 u8 port_num, int index, union ib_gid *gid,
-		 struct ib_gid_attr *attr)
-{
-	return ib_get_cached_gid(device, port_num, index, gid, attr);
-}
-EXPORT_SYMBOL(ib_query_gid);
-
-/**
  * ib_enum_roce_netdev - enumerate all RoCE ports
  * @ib_dev : IB device we want to query
  * @filter: Should we call the callback?
@@ -1057,7 +1036,7 @@ int ib_find_gid(struct ib_device *device, union ib_gid *gid,
 			continue;
 
 		for (i = 0; i < device->port_immutable[port].gid_tbl_len; ++i) {
-			ret = ib_query_gid(device, port, i, &tmp_gid, NULL);
+			ret = rdma_query_gid(device, port, i, &tmp_gid);
 			if (ret)
 				return ret;
 			if (!memcmp(&tmp_gid, gid, sizeof *gid)) {

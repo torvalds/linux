@@ -580,7 +580,7 @@ static int gfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 			     struct file *file,
 			     umode_t mode, dev_t dev, const char *symname,
-			     unsigned int size, int excl, int *opened)
+			     unsigned int size, int excl)
 {
 	const struct qstr *name = &dentry->d_name;
 	struct posix_acl *default_acl, *acl;
@@ -626,7 +626,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		error = 0;
 		if (file) {
 			if (S_ISREG(inode->i_mode))
-				error = finish_open(file, dentry, gfs2_open_common, opened);
+				error = finish_open(file, dentry, gfs2_open_common);
 			else
 				error = finish_no_open(file, NULL);
 		}
@@ -767,8 +767,8 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	mark_inode_dirty(inode);
 	d_instantiate(dentry, inode);
 	if (file) {
-		*opened |= FILE_CREATED;
-		error = finish_open(file, dentry, gfs2_open_common, opened);
+		file->f_mode |= FMODE_CREATED;
+		error = finish_open(file, dentry, gfs2_open_common);
 	}
 	gfs2_glock_dq_uninit(ghs);
 	gfs2_glock_dq_uninit(ghs + 1);
@@ -822,7 +822,7 @@ fail:
 static int gfs2_create(struct inode *dir, struct dentry *dentry,
 		       umode_t mode, bool excl)
 {
-	return gfs2_create_inode(dir, dentry, NULL, S_IFREG | mode, 0, NULL, 0, excl, NULL);
+	return gfs2_create_inode(dir, dentry, NULL, S_IFREG | mode, 0, NULL, 0, excl);
 }
 
 /**
@@ -830,14 +830,13 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
  * @dir: The directory inode
  * @dentry: The dentry of the new inode
  * @file: File to be opened
- * @opened: atomic_open flags
  *
  *
  * Returns: errno
  */
 
 static struct dentry *__gfs2_lookup(struct inode *dir, struct dentry *dentry,
-				    struct file *file, int *opened)
+				    struct file *file)
 {
 	struct inode *inode;
 	struct dentry *d;
@@ -866,7 +865,7 @@ static struct dentry *__gfs2_lookup(struct inode *dir, struct dentry *dentry,
 		return d;
 	}
 	if (file && S_ISREG(inode->i_mode))
-		error = finish_open(file, dentry, gfs2_open_common, opened);
+		error = finish_open(file, dentry, gfs2_open_common);
 
 	gfs2_glock_dq_uninit(&gh);
 	if (error) {
@@ -879,7 +878,7 @@ static struct dentry *__gfs2_lookup(struct inode *dir, struct dentry *dentry,
 static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 				  unsigned flags)
 {
-	return __gfs2_lookup(dir, dentry, NULL, NULL);
+	return __gfs2_lookup(dir, dentry, NULL);
 }
 
 /**
@@ -1189,7 +1188,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	if (size >= gfs2_max_stuffed_size(GFS2_I(dir)))
 		return -ENAMETOOLONG;
 
-	return gfs2_create_inode(dir, dentry, NULL, S_IFLNK | S_IRWXUGO, 0, symname, size, 0, NULL);
+	return gfs2_create_inode(dir, dentry, NULL, S_IFLNK | S_IRWXUGO, 0, symname, size, 0);
 }
 
 /**
@@ -1204,7 +1203,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	unsigned dsize = gfs2_max_stuffed_size(GFS2_I(dir));
-	return gfs2_create_inode(dir, dentry, NULL, S_IFDIR | mode, 0, NULL, dsize, 0, NULL);
+	return gfs2_create_inode(dir, dentry, NULL, S_IFDIR | mode, 0, NULL, dsize, 0);
 }
 
 /**
@@ -1219,7 +1218,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 static int gfs2_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 		      dev_t dev)
 {
-	return gfs2_create_inode(dir, dentry, NULL, mode, dev, NULL, 0, 0, NULL);
+	return gfs2_create_inode(dir, dentry, NULL, mode, dev, NULL, 0, 0);
 }
 
 /**
@@ -1229,14 +1228,13 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
  * @file: The proposed new struct file
  * @flags: open flags
  * @mode: File mode
- * @opened: Flag to say whether the file has been opened or not
  *
  * Returns: error code or 0 for success
  */
 
 static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 			    struct file *file, unsigned flags,
-			    umode_t mode, int *opened)
+			    umode_t mode)
 {
 	struct dentry *d;
 	bool excl = !!(flags & O_EXCL);
@@ -1244,13 +1242,13 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (!d_in_lookup(dentry))
 		goto skip_lookup;
 
-	d = __gfs2_lookup(dir, dentry, file, opened);
+	d = __gfs2_lookup(dir, dentry, file);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 	if (d != NULL)
 		dentry = d;
 	if (d_really_is_positive(dentry)) {
-		if (!(*opened & FILE_OPENED))
+		if (!(file->f_mode & FMODE_OPENED))
 			return finish_no_open(file, d);
 		dput(d);
 		return 0;
@@ -1262,7 +1260,7 @@ skip_lookup:
 	if (!(flags & O_CREAT))
 		return -ENOENT;
 
-	return gfs2_create_inode(dir, dentry, file, S_IFREG | mode, 0, NULL, 0, excl, opened);
+	return gfs2_create_inode(dir, dentry, file, S_IFREG | mode, 0, NULL, 0, excl);
 }
 
 /*

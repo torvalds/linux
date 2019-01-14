@@ -14,6 +14,7 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <linux/kernel.h>
 
 #define KVM_DEV_PATH "/dev/kvm"
 
@@ -62,6 +63,41 @@ int kvm_check_cap(long cap)
 	return ret;
 }
 
+/* VM Enable Capability
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   cap - Capability
+ *
+ * Output Args: None
+ *
+ * Return: On success, 0. On failure a TEST_ASSERT failure is produced.
+ *
+ * Enables a capability (KVM_CAP_*) on the VM.
+ */
+int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
+{
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_ENABLE_CAP, cap);
+	TEST_ASSERT(ret == 0, "KVM_ENABLE_CAP IOCTL failed,\n"
+		"  rc: %i errno: %i", ret, errno);
+
+	return ret;
+}
+
+static void vm_open(struct kvm_vm *vm, int perm)
+{
+	vm->kvm_fd = open(KVM_DEV_PATH, perm);
+	if (vm->kvm_fd < 0)
+		exit(KSFT_SKIP);
+
+	/* Create VM. */
+	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, NULL);
+	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
+		"rc: %i errno: %i", vm->fd, errno);
+}
+
 /* VM Create
  *
  * Input Args:
@@ -90,16 +126,7 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	TEST_ASSERT(vm != NULL, "Insufficent Memory");
 
 	vm->mode = mode;
-	kvm_fd = open(KVM_DEV_PATH, perm);
-	if (kvm_fd < 0)
-		exit(KSFT_SKIP);
-
-	/* Create VM. */
-	vm->fd = ioctl(kvm_fd, KVM_CREATE_VM, NULL);
-	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
-		"rc: %i errno: %i", vm->fd, errno);
-
-	close(kvm_fd);
+	vm_open(vm, perm);
 
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
@@ -130,6 +157,49 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 					    0, 0, phy_pages, 0);
 
 	return vm;
+}
+
+/* VM Restart
+ *
+ * Input Args:
+ *   vm - VM that has been released before
+ *   perm - permission
+ *
+ * Output Args: None
+ *
+ * Reopens the file descriptors associated to the VM and reinstates the
+ * global state, such as the irqchip and the memory regions that are mapped
+ * into the guest.
+ */
+void kvm_vm_restart(struct kvm_vm *vmp, int perm)
+{
+	struct userspace_mem_region *region;
+
+	vm_open(vmp, perm);
+	if (vmp->has_irqchip)
+		vm_create_irqchip(vmp);
+
+	for (region = vmp->userspace_mem_region_head; region;
+		region = region->next) {
+		int ret = ioctl(vmp->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
+		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
+			    "  rc: %i errno: %i\n"
+			    "  slot: %u flags: 0x%x\n"
+			    "  guest_phys_addr: 0x%lx size: 0x%lx",
+			    ret, errno, region->region.slot, region->region.flags,
+			    region->region.guest_phys_addr,
+			    region->region.memory_size);
+	}
+}
+
+void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
+{
+	struct kvm_dirty_log args = { .dirty_bitmap = log, .slot = slot };
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_GET_DIRTY_LOG, &args);
+	TEST_ASSERT(ret == 0, "%s: KVM_GET_DIRTY_LOG failed: %s",
+		    strerror(-ret));
 }
 
 /* Userspace Memory Region Find
@@ -238,8 +308,12 @@ struct vcpu *vcpu_find(struct kvm_vm *vm,
 static void vm_vcpu_rm(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
 
-	int ret = close(vcpu->fd);
+	ret = munmap(vcpu->state, sizeof(*vcpu->state));
+	TEST_ASSERT(ret == 0, "munmap of VCPU fd failed, rc: %i "
+		"errno: %i", ret, errno);
+	close(vcpu->fd);
 	TEST_ASSERT(ret == 0, "Close of VCPU fd failed, rc: %i "
 		"errno: %i", ret, errno);
 
@@ -252,6 +326,23 @@ static void vm_vcpu_rm(struct kvm_vm *vm, uint32_t vcpuid)
 	free(vcpu);
 }
 
+void kvm_vm_release(struct kvm_vm *vmp)
+{
+	int ret;
+
+	/* Free VCPUs. */
+	while (vmp->vcpu_head)
+		vm_vcpu_rm(vmp, vmp->vcpu_head->id);
+
+	/* Close file descriptor for the VM. */
+	ret = close(vmp->fd);
+	TEST_ASSERT(ret == 0, "Close of vm fd failed,\n"
+		"  vmp->fd: %i rc: %i errno: %i", vmp->fd, ret, errno);
+
+	close(vmp->kvm_fd);
+	TEST_ASSERT(ret == 0, "Close of /dev/kvm fd failed,\n"
+		"  vmp->kvm_fd: %i rc: %i errno: %i", vmp->kvm_fd, ret, errno);
+}
 
 /* Destroys and frees the VM pointed to by vmp.
  */
@@ -282,18 +373,11 @@ void kvm_vm_free(struct kvm_vm *vmp)
 		free(region);
 	}
 
-	/* Free VCPUs. */
-	while (vmp->vcpu_head)
-		vm_vcpu_rm(vmp, vmp->vcpu_head->id);
-
 	/* Free sparsebit arrays. */
 	sparsebit_free(&vmp->vpages_valid);
 	sparsebit_free(&vmp->vpages_mapped);
 
-	/* Close file descriptor for the VM. */
-	ret = close(vmp->fd);
-	TEST_ASSERT(ret == 0, "Close of vm fd failed,\n"
-		"  vmp->fd: %i rc: %i errno: %i", vmp->fd, ret, errno);
+	kvm_vm_release(vmp);
 
 	/* Free the structure describing the VM. */
 	free(vmp);
@@ -701,7 +785,7 @@ static int vcpu_mmap_sz(void)
  * Creates and adds to the VM specified by vm and virtual CPU with
  * the ID given by vcpuid.
  */
-void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
+void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, int pgd_memslot, int gdt_memslot)
 {
 	struct vcpu *vcpu;
 
@@ -736,7 +820,7 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 	vcpu->next = vm->vcpu_head;
 	vm->vcpu_head = vcpu;
 
-	vcpu_setup(vm, vcpuid);
+	vcpu_setup(vm, vcpuid, pgd_memslot, gdt_memslot);
 }
 
 /* VM Virtual Address Unused Gap
@@ -873,6 +957,39 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 	return vaddr_start;
 }
 
+/*
+ * Map a range of VM virtual address to the VM's physical address
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vaddr - Virtuall address to map
+ *   paddr - VM Physical Address
+ *   size - The size of the range to map
+ *   pgd_memslot - Memory region slot for new virtual translation tables
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Within the VM given by vm, creates a virtual translation for the
+ * page range starting at vaddr to the page range starting at paddr.
+ */
+void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+	      size_t size, uint32_t pgd_memslot)
+{
+	size_t page_size = vm->page_size;
+	size_t npages = size / page_size;
+
+	TEST_ASSERT(vaddr + size > vaddr, "Vaddr overflow");
+	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
+
+	while (npages--) {
+		virt_pg_map(vm, vaddr, paddr, pgd_memslot);
+		vaddr += page_size;
+		paddr += page_size;
+	}
+}
+
 /* Address VM Physical to Host Virtual
  *
  * Input Args:
@@ -957,6 +1074,8 @@ void vm_create_irqchip(struct kvm_vm *vm)
 	ret = ioctl(vm->fd, KVM_CREATE_IRQCHIP, 0);
 	TEST_ASSERT(ret == 0, "KVM_CREATE_IRQCHIP IOCTL failed, "
 		"rc: %i errno: %i", ret, errno);
+
+	vm->has_irqchip = true;
 }
 
 /* VM VCPU State
@@ -1122,6 +1241,72 @@ void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
 	ret = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, events);
 	TEST_ASSERT(ret == 0, "KVM_SET_VCPU_EVENTS, failed, rc: %i errno: %i",
 		ret, errno);
+}
+
+/* VCPU Get MSR
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   msr_index - Index of MSR
+ *
+ * Output Args: None
+ *
+ * Return: On success, value of the MSR. On failure a TEST_ASSERT is produced.
+ *
+ * Get value of MSR for VCPU.
+ */
+uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	struct {
+		struct kvm_msrs header;
+		struct kvm_msr_entry entry;
+	} buffer = {};
+	int r;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	buffer.header.nmsrs = 1;
+	buffer.entry.index = msr_index;
+	r = ioctl(vcpu->fd, KVM_GET_MSRS, &buffer.header);
+	TEST_ASSERT(r == 1, "KVM_GET_MSRS IOCTL failed,\n"
+		"  rc: %i errno: %i", r, errno);
+
+	return buffer.entry.data;
+}
+
+/* VCPU Set MSR
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   msr_index - Index of MSR
+ *   msr_value - New value of MSR
+ *
+ * Output Args: None
+ *
+ * Return: On success, nothing. On failure a TEST_ASSERT is produced.
+ *
+ * Set value of MSR for VCPU.
+ */
+void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
+	uint64_t msr_value)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	struct {
+		struct kvm_msrs header;
+		struct kvm_msr_entry entry;
+	} buffer = {};
+	int r;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	memset(&buffer, 0, sizeof(buffer));
+	buffer.header.nmsrs = 1;
+	buffer.entry.index = msr_index;
+	buffer.entry.data = msr_value;
+	r = ioctl(vcpu->fd, KVM_SET_MSRS, &buffer.header);
+	TEST_ASSERT(r == 1, "KVM_SET_MSRS IOCTL failed,\n"
+		"  rc: %i errno: %i", r, errno);
 }
 
 /* VM VCPU Args Set
@@ -1483,4 +1668,18 @@ vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm,
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	return addr_gpa2hva(vm, addr_gva2gpa(vm, gva));
+}
+
+void guest_args_read(struct kvm_vm *vm, uint32_t vcpu_id,
+		     struct guest_args *args)
+{
+	struct kvm_run *run = vcpu_state(vm, vcpu_id);
+	struct kvm_regs regs;
+
+	memset(&regs, 0, sizeof(regs));
+	vcpu_regs_get(vm, vcpu_id, &regs);
+
+	args->port = run->io.port;
+	args->arg0 = regs.rdi;
+	args->arg1 = regs.rsi;
 }

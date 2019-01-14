@@ -240,6 +240,9 @@ const char *parse_fs_dst(struct trace_seq *p,
 	case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 		trace_seq_printf(p, "ft=%p\n", dst->ft);
 		break;
+	case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
+		trace_seq_printf(p, "ft_num=%u\n", dst->ft_num);
+		break;
 	case MLX5_FLOW_DESTINATION_TYPE_TIR:
 		trace_seq_printf(p, "tir=%u\n", dst->tir_num);
 		break;

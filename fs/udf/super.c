@@ -764,9 +764,7 @@ static int udf_find_fileset(struct super_block *sb,
 			    struct kernel_lb_addr *root)
 {
 	struct buffer_head *bh = NULL;
-	long lastblock;
 	uint16_t ident;
-	struct udf_sb_info *sbi;
 
 	if (fileset->logicalBlockNum != 0xFFFFFFFF ||
 	    fileset->partitionReferenceNum != 0xFFFF) {
@@ -779,69 +777,11 @@ static int udf_find_fileset(struct super_block *sb,
 			return 1;
 		}
 
-	}
-
-	sbi = UDF_SB(sb);
-	if (!bh) {
-		/* Search backwards through the partitions */
-		struct kernel_lb_addr newfileset;
-
-/* --> cvg: FIXME - is it reasonable? */
-		return 1;
-
-		for (newfileset.partitionReferenceNum = sbi->s_partitions - 1;
-		     (newfileset.partitionReferenceNum != 0xFFFF &&
-		      fileset->logicalBlockNum == 0xFFFFFFFF &&
-		      fileset->partitionReferenceNum == 0xFFFF);
-		     newfileset.partitionReferenceNum--) {
-			lastblock = sbi->s_partmaps
-					[newfileset.partitionReferenceNum]
-						.s_partition_len;
-			newfileset.logicalBlockNum = 0;
-
-			do {
-				bh = udf_read_ptagged(sb, &newfileset, 0,
-						      &ident);
-				if (!bh) {
-					newfileset.logicalBlockNum++;
-					continue;
-				}
-
-				switch (ident) {
-				case TAG_IDENT_SBD:
-				{
-					struct spaceBitmapDesc *sp;
-					sp = (struct spaceBitmapDesc *)
-								bh->b_data;
-					newfileset.logicalBlockNum += 1 +
-						((le32_to_cpu(sp->numOfBytes) +
-						  sizeof(struct spaceBitmapDesc)
-						  - 1) >> sb->s_blocksize_bits);
-					brelse(bh);
-					break;
-				}
-				case TAG_IDENT_FSD:
-					*fileset = newfileset;
-					break;
-				default:
-					newfileset.logicalBlockNum++;
-					brelse(bh);
-					bh = NULL;
-					break;
-				}
-			} while (newfileset.logicalBlockNum < lastblock &&
-				 fileset->logicalBlockNum == 0xFFFFFFFF &&
-				 fileset->partitionReferenceNum == 0xFFFF);
-		}
-	}
-
-	if ((fileset->logicalBlockNum != 0xFFFFFFFF ||
-	     fileset->partitionReferenceNum != 0xFFFF) && bh) {
 		udf_debug("Fileset at block=%u, partition=%u\n",
 			  fileset->logicalBlockNum,
 			  fileset->partitionReferenceNum);
 
-		sbi->s_partition = fileset->partitionReferenceNum;
+		UDF_SB(sb)->s_partition = fileset->partitionReferenceNum;
 		udf_load_fileset(sb, bh, root);
 		brelse(bh);
 		return 0;
@@ -1570,10 +1510,16 @@ static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_
  */
 #define PART_DESC_ALLOC_STEP 32
 
+struct part_desc_seq_scan_data {
+	struct udf_vds_record rec;
+	u32 partnum;
+};
+
 struct desc_seq_scan_data {
 	struct udf_vds_record vds[VDS_POS_LENGTH];
 	unsigned int size_part_descs;
-	struct udf_vds_record *part_descs_loc;
+	unsigned int num_part_descs;
+	struct part_desc_seq_scan_data *part_descs_loc;
 };
 
 static struct udf_vds_record *handle_partition_descriptor(
@@ -1582,10 +1528,14 @@ static struct udf_vds_record *handle_partition_descriptor(
 {
 	struct partitionDesc *desc = (struct partitionDesc *)bh->b_data;
 	int partnum;
+	int i;
 
 	partnum = le16_to_cpu(desc->partitionNumber);
-	if (partnum >= data->size_part_descs) {
-		struct udf_vds_record *new_loc;
+	for (i = 0; i < data->num_part_descs; i++)
+		if (partnum == data->part_descs_loc[i].partnum)
+			return &(data->part_descs_loc[i].rec);
+	if (data->num_part_descs >= data->size_part_descs) {
+		struct part_desc_seq_scan_data *new_loc;
 		unsigned int new_size = ALIGN(partnum, PART_DESC_ALLOC_STEP);
 
 		new_loc = kcalloc(new_size, sizeof(*new_loc), GFP_KERNEL);
@@ -1597,7 +1547,7 @@ static struct udf_vds_record *handle_partition_descriptor(
 		data->part_descs_loc = new_loc;
 		data->size_part_descs = new_size;
 	}
-	return &(data->part_descs_loc[partnum]);
+	return &(data->part_descs_loc[data->num_part_descs++].rec);
 }
 
 
@@ -1647,6 +1597,7 @@ static noinline int udf_process_sequence(
 
 	memset(data.vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
 	data.size_part_descs = PART_DESC_ALLOC_STEP;
+	data.num_part_descs = 0;
 	data.part_descs_loc = kcalloc(data.size_part_descs,
 				      sizeof(*data.part_descs_loc),
 				      GFP_KERNEL);
@@ -1658,7 +1609,6 @@ static noinline int udf_process_sequence(
 	 * are in it.
 	 */
 	for (; (!done && block <= lastblock); block++) {
-
 		bh = udf_read_tagged(sb, block, block, &ident);
 		if (!bh)
 			break;
@@ -1730,13 +1680,10 @@ static noinline int udf_process_sequence(
 	}
 
 	/* Now handle prevailing Partition Descriptors */
-	for (i = 0; i < data.size_part_descs; i++) {
-		if (data.part_descs_loc[i].block) {
-			ret = udf_load_partdesc(sb,
-						data.part_descs_loc[i].block);
-			if (ret < 0)
-				return ret;
-		}
+	for (i = 0; i < data.num_part_descs; i++) {
+		ret = udf_load_partdesc(sb, data.part_descs_loc[i].rec.block);
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -1980,7 +1927,7 @@ static void udf_open_lvid(struct super_block *sb)
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	struct logicalVolIntegrityDesc *lvid;
 	struct logicalVolIntegrityDescImpUse *lvidiu;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	if (!bh)
 		return;
@@ -1992,7 +1939,7 @@ static void udf_open_lvid(struct super_block *sb)
 	mutex_lock(&sbi->s_alloc_mutex);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
-	ktime_get_real_ts(&ts);
+	ktime_get_real_ts64(&ts);
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, ts);
 	if (le32_to_cpu(lvid->integrityType) == LVID_INTEGRITY_TYPE_CLOSE)
 		lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN);
@@ -2017,7 +1964,7 @@ static void udf_close_lvid(struct super_block *sb)
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	struct logicalVolIntegrityDesc *lvid;
 	struct logicalVolIntegrityDescImpUse *lvidiu;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	if (!bh)
 		return;
@@ -2029,7 +1976,7 @@ static void udf_close_lvid(struct super_block *sb)
 	mutex_lock(&sbi->s_alloc_mutex);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
-	ktime_get_real_ts(&ts);
+	ktime_get_real_ts64(&ts);
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, ts);
 	if (UDF_MAX_WRITE_VERSION > le16_to_cpu(lvidiu->maxUDFWriteRev))
 		lvidiu->maxUDFWriteRev = cpu_to_le16(UDF_MAX_WRITE_VERSION);

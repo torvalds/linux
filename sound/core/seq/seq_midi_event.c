@@ -175,14 +175,6 @@ void snd_midi_event_reset_decode(struct snd_midi_event *dev)
 }
 EXPORT_SYMBOL(snd_midi_event_reset_decode);
 
-#if 0
-void snd_midi_event_init(struct snd_midi_event *dev)
-{
-	snd_midi_event_reset_encode(dev);
-	snd_midi_event_reset_decode(dev);
-}
-#endif  /*  0  */
-
 void snd_midi_event_no_status(struct snd_midi_event *dev, int on)
 {
 	dev->nostat = on ? 1 : 0;
@@ -190,68 +182,15 @@ void snd_midi_event_no_status(struct snd_midi_event *dev, int on)
 EXPORT_SYMBOL(snd_midi_event_no_status);
 
 /*
- * resize buffer
- */
-#if 0
-int snd_midi_event_resize_buffer(struct snd_midi_event *dev, int bufsize)
-{
-	unsigned char *new_buf, *old_buf;
-	unsigned long flags;
-
-	if (bufsize == dev->bufsize)
-		return 0;
-	new_buf = kmalloc(bufsize, GFP_KERNEL);
-	if (new_buf == NULL)
-		return -ENOMEM;
-	spin_lock_irqsave(&dev->lock, flags);
-	old_buf = dev->buf;
-	dev->buf = new_buf;
-	dev->bufsize = bufsize;
-	reset_encode(dev);
-	spin_unlock_irqrestore(&dev->lock, flags);
-	kfree(old_buf);
-	return 0;
-}
-#endif  /*  0  */
-
-/*
- *  read bytes and encode to sequencer event if finished
- *  return the size of encoded bytes
- */
-long snd_midi_event_encode(struct snd_midi_event *dev, unsigned char *buf, long count,
-			   struct snd_seq_event *ev)
-{
-	long result = 0;
-	int rc;
-
-	ev->type = SNDRV_SEQ_EVENT_NONE;
-
-	while (count-- > 0) {
-		rc = snd_midi_event_encode_byte(dev, *buf++, ev);
-		result++;
-		if (rc < 0)
-			return rc;
-		else if (rc > 0)
-			return result;
-	}
-
-	return result;
-}
-EXPORT_SYMBOL(snd_midi_event_encode);
-
-/*
  *  read one byte and encode to sequencer event:
- *  return 1 if MIDI bytes are encoded to an event
- *         0 data is not finished
- *         negative for error
+ *  return true if MIDI bytes are encoded to an event
+ *         false data is not finished
  */
-int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
-			       struct snd_seq_event *ev)
+bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
+				struct snd_seq_event *ev)
 {
-	int rc = 0;
+	bool rc = false;
 	unsigned long flags;
-
-	c &= 0xff;
 
 	if (c >= MIDI_CMD_COMMON_CLOCK) {
 		/* real-time event */
@@ -293,7 +232,7 @@ int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
 			status_event[dev->type].encode(dev, ev);
 		if (dev->type >= ST_SPECIAL)
 			dev->type = ST_INVALID;
-		rc = 1;
+		rc = true;
 	} else 	if (dev->type == ST_SYSEX) {
 		if (c == MIDI_CMD_COMMON_SYSEX_END ||
 		    dev->read >= dev->bufsize) {
@@ -306,7 +245,7 @@ int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
 				dev->read = 0; /* continue to parse */
 			else
 				reset_encode(dev); /* all parsed */
-			rc = 1;
+			rc = true;
 		}
 	}
 
@@ -531,15 +470,3 @@ static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
 	}
 	return idx;
 }
-
-static int __init alsa_seq_midi_event_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_seq_midi_event_exit(void)
-{
-}
-
-module_init(alsa_seq_midi_event_init)
-module_exit(alsa_seq_midi_event_exit)

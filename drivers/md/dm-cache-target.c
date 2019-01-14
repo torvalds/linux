@@ -1188,9 +1188,8 @@ static void copy_complete(int read_err, unsigned long write_err, void *context)
 	queue_continuation(mg->cache->wq, &mg->k);
 }
 
-static int copy(struct dm_cache_migration *mg, bool promote)
+static void copy(struct dm_cache_migration *mg, bool promote)
 {
-	int r;
 	struct dm_io_region o_region, c_region;
 	struct cache *cache = mg->cache;
 
@@ -1203,11 +1202,9 @@ static int copy(struct dm_cache_migration *mg, bool promote)
 	c_region.count = cache->sectors_per_block;
 
 	if (promote)
-		r = dm_kcopyd_copy(cache->copier, &o_region, 1, &c_region, 0, copy_complete, &mg->k);
+		dm_kcopyd_copy(cache->copier, &o_region, 1, &c_region, 0, copy_complete, &mg->k);
 	else
-		r = dm_kcopyd_copy(cache->copier, &c_region, 1, &o_region, 0, copy_complete, &mg->k);
-
-	return r;
+		dm_kcopyd_copy(cache->copier, &c_region, 1, &o_region, 0, copy_complete, &mg->k);
 }
 
 static void bio_drop_shared_lock(struct cache *cache, struct bio *bio)
@@ -1449,12 +1446,7 @@ static void mg_full_copy(struct work_struct *ws)
 	}
 
 	init_continuation(&mg->k, mg_upgrade_lock);
-
-	if (copy(mg, is_policy_promote)) {
-		DMERR_LIMIT("%s: migration copy failed", cache_device_name(cache));
-		mg->k.input = BLK_STS_IOERR;
-		mg_complete(mg, false);
-	}
+	copy(mg, is_policy_promote);
 }
 
 static void mg_copy(struct work_struct *ws)
@@ -2250,7 +2242,7 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 		{0, 2, "Invalid number of cache feature arguments"},
 	};
 
-	int r;
+	int r, mode_ctr = 0;
 	unsigned argc;
 	const char *arg;
 	struct cache_features *cf = &ca->features;
@@ -2264,14 +2256,20 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 	while (argc--) {
 		arg = dm_shift_arg(as);
 
-		if (!strcasecmp(arg, "writeback"))
+		if (!strcasecmp(arg, "writeback")) {
 			cf->io_mode = CM_IO_WRITEBACK;
+			mode_ctr++;
+		}
 
-		else if (!strcasecmp(arg, "writethrough"))
+		else if (!strcasecmp(arg, "writethrough")) {
 			cf->io_mode = CM_IO_WRITETHROUGH;
+			mode_ctr++;
+		}
 
-		else if (!strcasecmp(arg, "passthrough"))
+		else if (!strcasecmp(arg, "passthrough")) {
 			cf->io_mode = CM_IO_PASSTHROUGH;
+			mode_ctr++;
+		}
 
 		else if (!strcasecmp(arg, "metadata2"))
 			cf->metadata_version = 2;
@@ -2280,6 +2278,11 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 			*error = "Unrecognised cache feature requested";
 			return -EINVAL;
 		}
+	}
+
+	if (mode_ctr > 1) {
+		*error = "Duplicate cache io_mode features requested";
+		return -EINVAL;
 	}
 
 	return 0;
@@ -3006,8 +3009,13 @@ static dm_cblock_t get_cache_dev_size(struct cache *cache)
 
 static bool can_resize(struct cache *cache, dm_cblock_t new_size)
 {
-	if (from_cblock(new_size) > from_cblock(cache->cache_size))
-		return true;
+	if (from_cblock(new_size) > from_cblock(cache->cache_size)) {
+		if (cache->sized) {
+			DMERR("%s: unable to extend cache due to missing cache table reload",
+			      cache_device_name(cache));
+			return false;
+		}
+	}
 
 	/*
 	 * We can't drop a dirty block when shrinking the cache.
@@ -3476,14 +3484,13 @@ static int __init dm_cache_init(void)
 	int r;
 
 	migration_cache = KMEM_CACHE(dm_cache_migration, 0);
-	if (!migration_cache) {
-		dm_unregister_target(&cache_target);
+	if (!migration_cache)
 		return -ENOMEM;
-	}
 
 	r = dm_register_target(&cache_target);
 	if (r) {
 		DMERR("cache target registration failed: %d", r);
+		kmem_cache_destroy(migration_cache);
 		return r;
 	}
 

@@ -139,7 +139,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* ring tests don't use a job */
 	if (job) {
 		vm = job->vm;
-		fence_ctx = job->fence_ctx;
+		fence_ctx = job->base.s_fence->scheduled.context;
 	} else {
 		vm = NULL;
 		fence_ctx = 0;
@@ -164,8 +164,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
+	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (ring->funcs->emit_pipeline_sync && job &&
 	    ((tmp = amdgpu_sync_get_fence(&job->sched_sync, NULL)) ||
+	     (amdgpu_sriov_vf(adev) && need_ctx_switch) ||
 	     amdgpu_vm_need_pipeline_sync(ring, job))) {
 		need_pipe_sync = true;
 		dma_fence_put(tmp);
@@ -196,7 +198,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	skip_preamble = ring->current_ctx == fence_ctx;
-	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (job && ring->funcs->emit_cntxcntl) {
 		if (need_ctx_switch)
 			status |= AMDGPU_HAVE_CTX_SWITCH;
@@ -353,7 +354,8 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
 			ring->funcs->type == AMDGPU_RING_TYPE_UVD_ENC ||
 			ring->funcs->type == AMDGPU_RING_TYPE_VCN_DEC ||
-			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			tmo = tmo_mm;
 		else
 			tmo = tmo_gfx;

@@ -1191,6 +1191,13 @@ static const struct lnbh25_config lnbh25_cfg = {
 	.data2_config = LNBH25_TEN
 };
 
+static int has_lnbh25(struct i2c_adapter *i2c, u8 adr)
+{
+	u8 val;
+
+	return i2c_read_reg(i2c, adr, 0, &val) ? 0 : 1;
+}
+
 static int demod_attach_stv0910(struct ddb_input *input, int type, int tsfast)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
@@ -1224,14 +1231,15 @@ static int demod_attach_stv0910(struct ddb_input *input, int type, int tsfast)
 	/* attach lnbh25 - leftshift by one as the lnbh25 driver expects 8bit
 	 * i2c addresses
 	 */
-	lnbcfg.i2c_address = (((input->nr & 1) ? 0x0d : 0x0c) << 1);
-	if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
+	if (has_lnbh25(i2c, 0x0d))
+		lnbcfg.i2c_address = (((input->nr & 1) ? 0x0d : 0x0c) << 1);
+	else
 		lnbcfg.i2c_address = (((input->nr & 1) ? 0x09 : 0x08) << 1);
-		if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
-			dev_err(dev, "No LNBH25 found!\n");
-			dvb_frontend_detach(dvb->fe);
-			return -ENODEV;
-		}
+
+	if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
+		dev_err(dev, "No LNBH25 found!\n");
+		dvb_frontend_detach(dvb->fe);
+		return -ENODEV;
 	}
 
 	return 0;
@@ -1584,8 +1592,8 @@ static int dvb_input_attach(struct ddb_input *input)
 		if (demod_attach_dummy(input) < 0)
 			goto err_detach;
 		break;
-	case DDB_TUNER_MCI:
-		if (ddb_fe_attach_mci(input) < 0)
+	case DDB_TUNER_MCI_SX8:
+		if (ddb_fe_attach_mci(input, port->type) < 0)
 			goto err_detach;
 		break;
 	default:
@@ -1842,6 +1850,7 @@ static void ddb_port_probe(struct ddb_port *port)
 {
 	struct ddb *dev = port->dev;
 	u32 l = port->lnr;
+	struct ddb_link *link = &dev->link[l];
 	u8 id, type;
 
 	port->name = "NO MODULE";
@@ -1851,7 +1860,7 @@ static void ddb_port_probe(struct ddb_port *port)
 	/* Handle missing ports and ports without I2C */
 
 	if (dummy_tuner && !port->nr &&
-	    dev->link[0].ids.device == 0x0005) {
+	    link->ids.device == 0x0005) {
 		port->name = "DUMMY";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DUMMY;
@@ -1865,14 +1874,14 @@ static void ddb_port_probe(struct ddb_port *port)
 		return;
 	}
 
-	if (port->nr == 1 && dev->link[l].info->type == DDB_OCTOPUS_CI &&
-	    dev->link[l].info->i2c_mask == 1) {
+	if (port->nr == 1 && link->info->type == DDB_OCTOPUS_CI &&
+	    link->info->i2c_mask == 1) {
 		port->name = "NO TAB";
 		port->class = DDB_PORT_NONE;
 		return;
 	}
 
-	if (dev->link[l].info->type == DDB_OCTOPUS_MAX) {
+	if (link->info->type == DDB_OCTOPUS_MAX) {
 		port->name = "DUAL DVB-S2 MAX";
 		port->type_name = "MXL5XX";
 		port->class = DDB_PORT_TUNER;
@@ -1883,17 +1892,17 @@ static void ddb_port_probe(struct ddb_port *port)
 		return;
 	}
 
-	if (dev->link[l].info->type == DDB_OCTOPUS_MCI) {
-		if (port->nr >= dev->link[l].info->mci)
+	if (link->info->type == DDB_OCTOPUS_MCI) {
+		if (port->nr >= link->info->mci_ports)
 			return;
 		port->name = "DUAL MCI";
 		port->type_name = "MCI";
 		port->class = DDB_PORT_TUNER;
-		port->type = DDB_TUNER_MCI;
+		port->type = DDB_TUNER_MCI + link->info->mci_type;
 		return;
 	}
 
-	if (port->nr > 1 && dev->link[l].info->type == DDB_OCTOPUS_CI) {
+	if (port->nr > 1 && link->info->type == DDB_OCTOPUS_CI) {
 		port->name = "CI internal";
 		port->type_name = "INTERNAL";
 		port->class = DDB_PORT_CI;
@@ -1978,7 +1987,7 @@ static void ddb_port_probe(struct ddb_port *port)
 		port->class = DDB_PORT_TUNER;
 		if (id == 0x51) {
 			if (port->nr == 0 &&
-			    dev->link[l].info->ts_quirks & TS_QUIRK_REVERSED)
+			    link->info->ts_quirks & TS_QUIRK_REVERSED)
 				port->type = DDB_TUNER_DVBS_STV0910_PR;
 			else
 				port->type = DDB_TUNER_DVBS_STV0910_P;

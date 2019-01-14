@@ -1584,10 +1584,8 @@ static const struct dvb_frontend_ops stb0899_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "STB0899 Multistandard",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 0,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
 		.symbol_rate_min	=  5000000,
 		.symbol_rate_max	= 45000000,
 

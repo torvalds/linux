@@ -30,9 +30,9 @@ HOSTCFLAGS_bpf-direct.o += $(MFLAG)
 HOSTCFLAGS_dropper.o += $(MFLAG)
 HOSTCFLAGS_bpf-helper.o += $(MFLAG)
 HOSTCFLAGS_bpf-fancy.o += $(MFLAG)
-HOSTLOADLIBES_bpf-direct += $(MFLAG)
-HOSTLOADLIBES_bpf-fancy += $(MFLAG)
-HOSTLOADLIBES_dropper += $(MFLAG)
+HOSTLDLIBS_bpf-direct += $(MFLAG)
+HOSTLDLIBS_bpf-fancy += $(MFLAG)
+HOSTLDLIBS_dropper += $(MFLAG)
 endif
 always := $(hostprogs-m)
 endif

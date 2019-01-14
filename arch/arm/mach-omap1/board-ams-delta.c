@@ -41,10 +41,10 @@
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include <mach/ams-delta-fiq.h>
 #include "camera.h"
 #include <mach/usb.h>
 
+#include "ams-delta-fiq.h"
 #include "iomap.h"
 #include "common.h"
 
@@ -179,7 +179,10 @@ static struct resource latch1_resources[] = {
 	},
 };
 
+#define LATCH1_LABEL	"latch1"
+
 static struct bgpio_pdata latch1_pdata = {
+	.label	= LATCH1_LABEL,
 	.base	= LATCH1_GPIO_BASE,
 	.ngpio	= LATCH1_NGPIO,
 };
@@ -193,6 +196,15 @@ static struct platform_device latch1_gpio_device = {
 		.platform_data	= &latch1_pdata,
 	},
 };
+
+#define LATCH1_PIN_LED_CAMERA		0
+#define LATCH1_PIN_LED_ADVERT		1
+#define LATCH1_PIN_LED_MAIL		2
+#define LATCH1_PIN_LED_HANDSFREE	3
+#define LATCH1_PIN_LED_VOICEMAIL	4
+#define LATCH1_PIN_LED_VOICE		5
+#define LATCH1_PIN_DOCKIT1		6
+#define LATCH1_PIN_DOCKIT2		7
 
 static struct resource latch2_resources[] = {
 	[0] = {
@@ -398,38 +410,43 @@ static struct gpiod_lookup_table ams_delta_lcd_gpio_table = {
 	},
 };
 
-static const struct gpio_led gpio_leds[] __initconst = {
-	{
+/*
+ * Dynamically allocated GPIO numbers must be obtained fromm GPIO device
+ * before they can be put in the gpio_led table.  Before that happens,
+ * initialize the table with invalid GPIO numbers, not 0.
+ */
+static struct gpio_led gpio_leds[] __initdata = {
+	[LATCH1_PIN_LED_CAMERA] = {
 		.name		 = "camera",
-		.gpio		 = LATCH1_GPIO_BASE + 0,
+		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 #ifdef CONFIG_LEDS_TRIGGERS
 		.default_trigger = "ams_delta_camera",
 #endif
 	},
-	{
+	[LATCH1_PIN_LED_ADVERT] = {
 		.name		 = "advert",
-		.gpio		 = LATCH1_GPIO_BASE + 1,
+		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
-	{
+	[LATCH1_PIN_LED_MAIL] = {
 		.name		 = "email",
-		.gpio		 = LATCH1_GPIO_BASE + 2,
+		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
-	{
+	[LATCH1_PIN_LED_HANDSFREE] = {
 		.name		 = "handsfree",
-		.gpio		 = LATCH1_GPIO_BASE + 3,
+		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
-	{
+	[LATCH1_PIN_LED_VOICEMAIL] = {
 		.name		 = "voicemail",
-		.gpio		 = LATCH1_GPIO_BASE + 4,
+		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
-	{
+	[LATCH1_PIN_LED_VOICE] = {
 		.name		 = "voice",
-		.gpio		 = LATCH1_GPIO_BASE + 5,
+		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
 };
@@ -504,16 +521,70 @@ static struct platform_device cx20442_codec_device = {
 	.id     = -1,
 };
 
-static struct gpiod_lookup_table ams_delta_serio_gpio_table = {
+static struct resource ams_delta_serio_resources[] = {
+	{
+		.flags	= IORESOURCE_IRQ,
+		/*
+		 * Initialize IRQ resource with invalid IRQ number.
+		 * It will be replaced with dynamically allocated GPIO IRQ
+		 * obtained from GPIO chip as soon as the chip is available.
+		 */
+		.start	= -EINVAL,
+		.end	= -EINVAL,
+	},
+};
+
+static struct platform_device ams_delta_serio_device = {
+	.name		= "ams-delta-serio",
+	.id		= PLATFORM_DEVID_NONE,
+	.dev		= {
+		/*
+		 * Initialize .platform_data explicitly with NULL to
+		 * indicate it is going to be used.  It will be replaced
+		 * with FIQ buffer address as soon as FIQ is initialized.
+		 */
+		.platform_data = NULL,
+	},
+	.num_resources	= ARRAY_SIZE(ams_delta_serio_resources),
+	.resource	= ams_delta_serio_resources,
+};
+
+static struct regulator_consumer_supply keybrd_pwr_consumers[] = {
+	/*
+	 * Initialize supply .dev_name with NULL.  It will be replaced
+	 * with serio dev_name() as soon as the serio device is registered.
+	 */
+	REGULATOR_SUPPLY("vcc", NULL),
+};
+
+static struct regulator_init_data keybrd_pwr_initdata = {
+	.constraints		= {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(keybrd_pwr_consumers),
+	.consumer_supplies	= keybrd_pwr_consumers,
+};
+
+static struct fixed_voltage_config keybrd_pwr_config = {
+	.supply_name		= "keybrd_pwr",
+	.microvolts		= 5000000,
+	.gpio			= AMS_DELTA_GPIO_PIN_KEYBRD_PWR,
+	.enable_high		= 1,
+	.init_data		= &keybrd_pwr_initdata,
+};
+
+static struct platform_device keybrd_pwr_device = {
+	.name	= "reg-fixed-voltage",
+	.id	= PLATFORM_DEVID_AUTO,
+	.dev	= {
+		.platform_data	= &keybrd_pwr_config,
+	},
+};
+
+static struct gpiod_lookup_table keybrd_pwr_gpio_table = {
 	.table = {
-		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_KEYBRD_DATA,
-			    "data", 0),
-		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_KEYBRD_CLK,
-			    "clock", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_KEYBRD_PWR,
-			    "power", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_KEYBRD_DATAOUT,
-			    "dataout", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_KEYBRD_PWR, NULL,
+			    GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };
@@ -524,9 +595,7 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 	&ams_delta_kp_device,
 	&ams_delta_camera_device,
 	&ams_delta_audio_device,
-};
-
-static struct platform_device *late_devices[] __initdata = {
+	&ams_delta_serio_device,
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
 	&cx20442_codec_device,
@@ -534,13 +603,54 @@ static struct platform_device *late_devices[] __initdata = {
 
 static struct gpiod_lookup_table *ams_delta_gpio_tables[] __initdata = {
 	&ams_delta_audio_gpio_table,
-	&ams_delta_serio_gpio_table,
-};
-
-static struct gpiod_lookup_table *late_gpio_tables[] __initdata = {
+	&keybrd_pwr_gpio_table,
 	&ams_delta_lcd_gpio_table,
 	&ams_delta_nand_gpio_table,
 };
+
+/*
+ * Some drivers may not use GPIO lookup tables but need to be provided
+ * with GPIO numbers.  The same applies to GPIO based IRQ lines - some
+ * drivers may even not use GPIO layer but expect just IRQ numbers.
+ * We could either define GPIO lookup tables then use them on behalf
+ * of those devices, or we can use GPIO driver level methods for
+ * identification of GPIO and IRQ numbers. For the purpose of the latter,
+ * defina a helper function which identifies GPIO chips by their labels.
+ */
+static int gpiochip_match_by_label(struct gpio_chip *chip, void *data)
+{
+	char *label = data;
+
+	return !strcmp(label, chip->label);
+}
+
+static struct gpiod_hog ams_delta_gpio_hogs[] = {
+	GPIO_HOG(LATCH2_LABEL, LATCH2_PIN_KEYBRD_DATAOUT, "keybrd_dataout",
+		 GPIO_ACTIVE_HIGH, GPIOD_OUT_LOW),
+	{},
+};
+
+/*
+ * The purpose of this function is to take care of proper initialization of
+ * devices and data structures which depend on GPIO lines provided by OMAP GPIO
+ * banks but their drivers don't use GPIO lookup tables or GPIO layer at all.
+ * The function may be called as soon as OMAP GPIO devices are probed.
+ * Since that happens at postcore_initcall, it can be called successfully
+ * from init_machine or later.
+ * Dependent devices may be registered from within this function or later.
+ */
+static void __init omap_gpio_deps_init(void)
+{
+	struct gpio_chip *chip;
+
+	chip = gpiochip_find(OMAP_GPIO_LABEL, gpiochip_match_by_label);
+	if (!chip) {
+		pr_err("%s: OMAP GPIO chip not found\n", __func__);
+		return;
+	}
+
+	ams_delta_init_fiq(chip, &ams_delta_serio_device);
+}
 
 static void __init ams_delta_init(void)
 {
@@ -562,6 +672,9 @@ static void __init ams_delta_init(void)
 	omap_cfg_reg(J19_1610_CAM_D6);
 	omap_cfg_reg(J18_1610_CAM_D7);
 
+	omap_gpio_deps_init();
+	gpiod_add_hogs(ams_delta_gpio_hogs);
+
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
@@ -571,24 +684,37 @@ static void __init ams_delta_init(void)
 	led_trigger_register_simple("ams_delta_camera",
 			&ams_delta_camera_led_trigger);
 #endif
-	gpio_led_register_device(-1, &leds_pdata);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 
 	/*
-	 * As soon as devices have been registered, assign their dev_names
-	 * to respective GPIO lookup tables before they are added.
+	 * As soon as regulator consumers have been registered, assign their
+	 * dev_names to consumer supply entries of respective regulators.
+	 */
+	keybrd_pwr_consumers[0].dev_name =
+			dev_name(&ams_delta_serio_device.dev);
+
+	/*
+	 * Once consumer supply entries are populated with dev_names,
+	 * register regulator devices.  At this stage only the keyboard
+	 * power regulator has its consumer supply table fully populated.
+	 */
+	platform_device_register(&keybrd_pwr_device);
+
+	/*
+	 * As soon as GPIO consumers have been registered, assign
+	 * their dev_names to respective GPIO lookup tables.
 	 */
 	ams_delta_audio_gpio_table.dev_id =
 			dev_name(&ams_delta_audio_device.dev);
-	/*
-	 * No device name is assigned to GPIO lookup table for serio device
-	 * as long as serio driver is not converted to platform device driver.
-	 */
+	keybrd_pwr_gpio_table.dev_id = dev_name(&keybrd_pwr_device.dev);
+	ams_delta_nand_gpio_table.dev_id = dev_name(&ams_delta_nand_device.dev);
+	ams_delta_lcd_gpio_table.dev_id = dev_name(&ams_delta_lcd_device.dev);
 
+	/*
+	 * Once GPIO lookup tables are populated with dev_names, register them.
+	 */
 	gpiod_add_lookup_tables(ams_delta_gpio_tables,
 				ARRAY_SIZE(ams_delta_gpio_tables));
-
-	ams_delta_init_fiq();
 
 	omap_writew(omap_readw(ARM_RSTCT1) | 0x0004, ARM_RSTCT1);
 
@@ -643,35 +769,84 @@ static struct platform_device ams_delta_modem_device = {
 	},
 };
 
-static int __init late_init(void)
+/*
+ * leds-gpio driver doesn't make use of GPIO lookup tables,
+ * it has to be provided with GPIO numbers over platform data
+ * if GPIO descriptor info can't be obtained from device tree.
+ * We could either define GPIO lookup tables and use them on behalf
+ * of the leds-gpio device, or we can use GPIO driver level methods
+ * for identification of GPIO numbers as long as we don't support
+ * device tree.  Let's do the latter.
+ */
+static void __init ams_delta_led_init(struct gpio_chip *chip)
 {
+	struct gpio_desc *gpiod;
+	int i;
+
+	for (i = LATCH1_PIN_LED_CAMERA; i < LATCH1_PIN_DOCKIT1; i++) {
+		gpiod = gpiochip_request_own_desc(chip, i, NULL);
+		if (IS_ERR(gpiod)) {
+			pr_warn("%s: %s GPIO %d request failed (%ld)\n",
+				__func__, LATCH1_LABEL, i, PTR_ERR(gpiod));
+			continue;
+		}
+
+		/* Assign GPIO numbers to LED device. */
+		gpio_leds[i].gpio = desc_to_gpio(gpiod);
+
+		gpiochip_free_own_desc(gpiod);
+	}
+
+	gpio_led_register_device(PLATFORM_DEVID_NONE, &leds_pdata);
+}
+
+/*
+ * The purpose of this function is to take care of assignment of GPIO numbers
+ * to platform devices which depend on GPIO lines provided by Amstrad Delta
+ * latch1 and/or latch2 GPIO devices but don't use GPIO lookup tables.
+ * The function may be called as soon as latch1/latch2 GPIO devices are
+ * initilized.  Since basic-mmio-gpio driver is not registered before
+ * device_initcall, this may happen at erliest during device_initcall_sync.
+ * Dependent devices shouldn't be registered before that, their
+ * registration may be performed from within this function or later.
+ */
+static int __init ams_delta_gpio_init(void)
+{
+	struct gpio_chip *chip;
 	int err;
 
 	if (!machine_is_ams_delta())
 		return -ENODEV;
 
+	chip = gpiochip_find(LATCH1_LABEL, gpiochip_match_by_label);
+	if (!chip)
+		pr_err("%s: latch1 GPIO chip not found\n", __func__);
+	else
+		ams_delta_led_init(chip);
+
 	err = gpio_request_array(latch_gpios, ARRAY_SIZE(latch_gpios));
-	if (err) {
+	if (err)
 		pr_err("Couldn't take over latch1/latch2 GPIO pins\n");
-		return err;
-	}
 
-	platform_add_devices(late_devices, ARRAY_SIZE(late_devices));
+	return err;
+}
+device_initcall_sync(ams_delta_gpio_init);
 
-	/*
-	 * As soon as devices have been registered, assign their dev_names
-	 * to respective GPIO lookup tables before they are added.
-	 */
-	ams_delta_lcd_gpio_table.dev_id = dev_name(&ams_delta_lcd_device.dev);
-	ams_delta_nand_gpio_table.dev_id = dev_name(&ams_delta_nand_device.dev);
-
-	gpiod_add_lookup_tables(late_gpio_tables, ARRAY_SIZE(late_gpio_tables));
+static int __init modem_nreset_init(void)
+{
+	int err;
 
 	err = platform_device_register(&modem_nreset_device);
-	if (err) {
+	if (err)
 		pr_err("Couldn't register the modem regulator device\n");
-		return err;
-	}
+
+	return err;
+}
+
+
+static int __init ams_delta_modem_init(void)
+{
+	int err;
 
 	omap_cfg_reg(M14_1510_GPIO2);
 	ams_delta_modem_ports[0].irq =
@@ -692,7 +867,22 @@ static int __init late_init(void)
 
 	err = platform_device_register(&ams_delta_modem_device);
 	if (err)
-		goto gpio_free;
+		gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+
+	return err;
+}
+
+static int __init late_init(void)
+{
+	int err;
+
+	err = modem_nreset_init();
+	if (err)
+		return err;
+
+	err = ams_delta_modem_init();
+	if (err)
+		return err;
 
 	/*
 	 * Once the modem device is registered, the modem_nreset
@@ -708,7 +898,6 @@ static int __init late_init(void)
 
 unregister:
 	platform_device_unregister(&ams_delta_modem_device);
-gpio_free:
 	gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 	return err;
 }

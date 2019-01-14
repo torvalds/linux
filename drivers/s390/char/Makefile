@@ -12,11 +12,6 @@ GCOV_PROFILE_sclp_early_core.o		:= n
 KCOV_INSTRUMENT_sclp_early_core.o	:= n
 UBSAN_SANITIZE_sclp_early_core.o	:= n
 
-ifneq ($(CC_FLAGS_MARCH),-march=z900)
-CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_MARCH)
-CFLAGS_sclp_early_core.o		+= -march=z900
-endif
-
 CFLAGS_sclp_early_core.o		+= -D__NO_FORTIFY
 
 CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_EXPOLINE)

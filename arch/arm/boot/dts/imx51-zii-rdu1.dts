@@ -476,6 +476,17 @@
 	status = "okay";
 };
 
+&gpio1 {
+	unused-sd3-wp-gpio {
+		/*
+		 * See pinctrl_esdhc1 below for more details on this
+		 */
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+};
+
 &i2c2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
@@ -542,7 +553,7 @@
 
 		rmi4-f11@11 {
 			reg = <0x11>;
-			touchscreen-inverted-y;
+			touchscreen-inverted-x;
 			touchscreen-swapped-x-y;
 			syna,sensor-type = <1>;
 		};
@@ -552,6 +563,10 @@
 
 &ipu_di0_disp1 {
 	remote-endpoint = <&display_in>;
+};
+
+&pmu {
+	secure-reg-access;
 };
 
 &ssi2 {
@@ -578,9 +593,46 @@
 	rave-sp {
 		compatible = "zii,rave-sp-rdu1";
 		current-speed = <38400>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		watchdog {
 			compatible = "zii,rave-sp-watchdog";
+		};
+
+		backlight {
+			compatible = "zii,rave-sp-backlight";
+		};
+
+		pwrbutton {
+			compatible = "zii,rave-sp-pwrbutton";
+		};
+
+		eeprom@a3 {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xa3 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			zii,eeprom-name = "dds-eeprom";
+		};
+
+		eeprom@a4 {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xa4 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			zii,eeprom-name = "main-eeprom";
+		};
+
+		eeprom@ae {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xae 0x200>;
+			zii,eeprom-name = "switch-eeprom";
+			/*
+			 * Not all RDU1s have this functionality, so we
+			 * rely on the bootloader to enable this
+			 */
+			status = "disabled";
 		};
 	};
 };
@@ -618,6 +670,10 @@
 	phy_type = "utmi_wide";
 	vbus-supply = <&reg_5p0v_main>;
 	status = "okay";
+};
+
+&wdog1 {
+	status = "disabled";
 };
 
 &iomuxc {
@@ -660,6 +716,23 @@
 			MX51_PAD_SD1_DATA1__SD1_DATA1		0x20d5
 			MX51_PAD_SD1_DATA2__SD1_DATA2		0x20d5
 			MX51_PAD_SD1_DATA3__SD1_DATA3		0x20d5
+			/*
+			 * GPIO1_1 is not directly used by eSDHC1 in
+			 * any capacity, but earlier versions of RDU1
+			 * used that pin as WP GPIO for eSDHC3 and
+			 * because of that that pad has an external
+			 * pull-up resistor. This is problematic
+			 * because out of reset the pad is configured
+			 * as ALT0 which serves as SD1_WP, which, when
+			 * pulled high by and external pull-up, will
+			 * inhibit execution of any write request to
+			 * attached eMMC device.
+			 *
+			 * To avoid this problem we configure the pad
+			 * to ALT1/GPIO and avoid driving SD1_WP
+			 * signal high.
+			 */
+			MX51_PAD_GPIO1_1__GPIO1_1		0x0000
 		>;
 	};
 

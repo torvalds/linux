@@ -46,6 +46,8 @@
 #define STM32_GPIO_PINS_PER_BANK 16
 #define STM32_GPIO_IRQ_LINE	 16
 
+#define SYSCFG_IRQMUX_MASK GENMASK(3, 0)
+
 #define gpio_range_to_bank(chip) \
 		container_of(chip, struct stm32_gpio_bank, range)
 
@@ -73,6 +75,7 @@ struct stm32_gpio_bank {
 	struct fwnode_handle *fwnode;
 	struct irq_domain *domain;
 	u32 bank_nr;
+	u32 bank_ioport_nr;
 };
 
 struct stm32_pinctrl {
@@ -298,7 +301,7 @@ static int stm32_gpio_domain_activate(struct irq_domain *d,
 	struct stm32_gpio_bank *bank = d->host_data;
 	struct stm32_pinctrl *pctl = dev_get_drvdata(bank->gpio_chip.parent);
 
-	regmap_field_write(pctl->irqmux[irq_data->hwirq], bank->bank_nr);
+	regmap_field_write(pctl->irqmux[irq_data->hwirq], bank->bank_ioport_nr);
 	return 0;
 }
 
@@ -638,6 +641,11 @@ static int stm32_pmx_set_mux(struct pinctrl_dev *pctldev,
 	}
 
 	range = pinctrl_find_gpio_range_from_pin(pctldev, g->pin);
+	if (!range) {
+		dev_err(pctl->dev, "No gpio range defined.\n");
+		return -EINVAL;
+	}
+
 	bank = gpiochip_get_data(range->gc);
 	pin = stm32_gpio_pin(g->pin);
 
@@ -806,11 +814,17 @@ static int stm32_pconf_parse_conf(struct pinctrl_dev *pctldev,
 		unsigned int pin, enum pin_config_param param,
 		enum pin_config_param arg)
 {
+	struct stm32_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct pinctrl_gpio_range *range;
 	struct stm32_gpio_bank *bank;
 	int offset, ret = 0;
 
 	range = pinctrl_find_gpio_range_from_pin(pctldev, pin);
+	if (!range) {
+		dev_err(pctl->dev, "No gpio range defined.\n");
+		return -EINVAL;
+	}
+
 	bank = gpiochip_get_data(range->gc);
 	offset = stm32_gpio_pin(pin);
 
@@ -892,6 +906,9 @@ static void stm32_pconf_dbg_show(struct pinctrl_dev *pctldev,
 	bool val;
 
 	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	if (!range)
+		return;
+
 	bank = gpiochip_get_data(range->gc);
 	offset = stm32_gpio_pin(pin);
 
@@ -948,6 +965,7 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	struct device_node *np)
 {
 	struct stm32_gpio_bank *bank = &pctl->banks[pctl->nbanks];
+	int bank_ioport_nr;
 	struct pinctrl_gpio_range *range = &bank->range;
 	struct of_phandle_args args;
 	struct device *dev = pctl->dev;
@@ -998,12 +1016,17 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 		pinctrl_add_gpio_range(pctl->pctl_dev,
 				       &pctl->banks[bank_nr].range);
 	}
+
+	if (of_property_read_u32(np, "st,bank-ioport", &bank_ioport_nr))
+		bank_ioport_nr = bank_nr;
+
 	bank->gpio_chip.base = bank_nr * STM32_GPIO_PINS_PER_BANK;
 
 	bank->gpio_chip.ngpio = npins;
 	bank->gpio_chip.of_node = np;
 	bank->gpio_chip.parent = dev;
 	bank->bank_nr = bank_nr;
+	bank->bank_ioport_nr = bank_ioport_nr;
 	spin_lock_init(&bank->lock);
 
 	/* create irq hierarchical domain */
@@ -1033,6 +1056,7 @@ static int stm32_pctrl_dt_setup_irq(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct regmap *rm;
 	int offset, ret, i;
+	int mask, mask_width;
 
 	parent = of_irq_find_parent(np);
 	if (!parent)
@@ -1052,12 +1076,21 @@ static int stm32_pctrl_dt_setup_irq(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
+	ret = of_property_read_u32_index(np, "st,syscfg", 2, &mask);
+	if (ret)
+		mask = SYSCFG_IRQMUX_MASK;
+
+	mask_width = fls(mask);
+
 	for (i = 0; i < STM32_GPIO_PINS_PER_BANK; i++) {
 		struct reg_field mux;
 
 		mux.reg = offset + (i / 4) * 4;
-		mux.lsb = (i % 4) * 4;
-		mux.msb = mux.lsb + 3;
+		mux.lsb = (i % 4) * mask_width;
+		mux.msb = mux.lsb + mask_width - 1;
+
+		dev_dbg(dev, "irqmux%d: reg:%#x, lsb:%d, msb:%d\n",
+			i, mux.reg, mux.lsb, mux.msb);
 
 		pctl->irqmux[i] = devm_regmap_field_alloc(dev, rm, mux);
 		if (IS_ERR(pctl->irqmux[i]))
@@ -1166,7 +1199,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 		return PTR_ERR(pctl->pctl_dev);
 	}
 
-	for_each_child_of_node(np, child)
+	for_each_available_child_of_node(np, child)
 		if (of_property_read_bool(child, "gpio-controller"))
 			banks++;
 
@@ -1179,7 +1212,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 	if (!pctl->banks)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {
 			ret = stm32_gpiolib_register_bank(pctl, child);
 			if (ret)

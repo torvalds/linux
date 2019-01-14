@@ -1745,6 +1745,7 @@ static int dib809x_tuner_attach(struct dvb_usb_adapter *adap)
 		if (dvb_attach(dib0090_register, adap->fe_adap[0].fe, tun_i2c, &dib809x_dib0090_config) == NULL)
 			return -ENODEV;
 	} else {
+		/* FIXME: check if it is fe_adap[1] */
 		if (dvb_attach(dib0090_register, adap->fe_adap[0].fe, tun_i2c, &dib809x_dib0090_config) == NULL)
 			return -ENODEV;
 	}

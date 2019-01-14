@@ -541,7 +541,7 @@ static struct dentry *hfs_file_lookup(struct inode *dir, struct dentry *dentry,
 	HFS_I(inode)->rsrc_inode = dir;
 	HFS_I(dir)->rsrc_inode = inode;
 	igrab(dir);
-	hlist_add_fake(&inode->i_hash);
+	inode_fake_hash(inode);
 	mark_inode_dirty(inode);
 	dont_mount(dentry);
 out:

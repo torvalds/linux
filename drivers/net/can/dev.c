@@ -649,8 +649,7 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 	can_skb_prv(skb)->ifindex = dev->ifindex;
 	can_skb_prv(skb)->skbcnt = 0;
 
-	*cf = skb_put(skb, sizeof(struct can_frame));
-	memset(*cf, 0, sizeof(struct can_frame));
+	*cf = skb_put_zero(skb, sizeof(struct can_frame));
 
 	return skb;
 }
@@ -678,8 +677,7 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 	can_skb_prv(skb)->ifindex = dev->ifindex;
 	can_skb_prv(skb)->skbcnt = 0;
 
-	*cfd = skb_put(skb, sizeof(struct canfd_frame));
-	memset(*cfd, 0, sizeof(struct canfd_frame));
+	*cfd = skb_put_zero(skb, sizeof(struct canfd_frame));
 
 	return skb;
 }
@@ -703,7 +701,8 @@ EXPORT_SYMBOL_GPL(alloc_can_err_skb);
 /*
  * Allocate and setup space for the CAN network device
  */
-struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
+struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
+				    unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *dev;
 	struct can_priv *priv;
@@ -715,7 +714,8 @@ struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 	else
 		size = sizeof_priv;
 
-	dev = alloc_netdev(size, "can%d", NET_NAME_UNKNOWN, can_setup);
+	dev = alloc_netdev_mqs(size, "can%d", NET_NAME_UNKNOWN, can_setup,
+			       txqs, rxqs);
 	if (!dev)
 		return NULL;
 
@@ -734,7 +734,7 @@ struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 
 	return dev;
 }
-EXPORT_SYMBOL_GPL(alloc_candev);
+EXPORT_SYMBOL_GPL(alloc_candev_mqs);
 
 /*
  * Free space of the CAN network device

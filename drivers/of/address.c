@@ -846,7 +846,7 @@ EXPORT_SYMBOL(of_iomap);
  *			   for a given device_node
  * @device:	the device whose io range will be mapped
  * @index:	index of the io range
- * @name:	name of the resource
+ * @name:	name "override" for the memory region request or NULL
  *
  * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
  * error code on failure. Usage example:
@@ -856,7 +856,7 @@ EXPORT_SYMBOL(of_iomap);
  *		return PTR_ERR(base);
  */
 void __iomem *of_io_request_and_map(struct device_node *np, int index,
-					const char *name)
+				    const char *name)
 {
 	struct resource res;
 	void __iomem *mem;
@@ -864,6 +864,8 @@ void __iomem *of_io_request_and_map(struct device_node *np, int index,
 	if (of_address_to_resource(np, index, &res))
 		return IOMEM_ERR_PTR(-EINVAL);
 
+	if (!name)
+		name = res.name;
 	if (!request_mem_region(res.start, resource_size(&res), name))
 		return IOMEM_ERR_PTR(-EBUSY);
 

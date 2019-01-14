@@ -29,11 +29,25 @@
 #include <linux/hyperv.h>
 #include <linux/uio.h>
 #include <linux/interrupt.h>
+#include <asm/page.h>
 
 #include "hyperv_vmbus.h"
 
 #define NUM_PAGES_SPANNED(addr, len) \
 ((PAGE_ALIGN(addr + len) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT))
+
+static unsigned long virt_to_hvpfn(void *addr)
+{
+	unsigned long paddr;
+
+	if (is_vmalloc_addr(addr))
+		paddr = page_to_phys(vmalloc_to_page(addr)) +
+					 offset_in_page(addr);
+	else
+		paddr = __pa(addr);
+
+	return  paddr >> PAGE_SHIFT;
+}
 
 /*
  * vmbus_setevent- Trigger an event notification on the specified
@@ -298,8 +312,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 		gpadl_header->range[0].byte_offset = 0;
 		gpadl_header->range[0].byte_count = size;
 		for (i = 0; i < pfncount; i++)
-			gpadl_header->range[0].pfn_array[i] = slow_virt_to_phys(
-				kbuffer + PAGE_SIZE * i) >> PAGE_SHIFT;
+			gpadl_header->range[0].pfn_array[i] = virt_to_hvpfn(
+				kbuffer + PAGE_SIZE * i);
 		*msginfo = msgheader;
 
 		pfnsum = pfncount;
@@ -350,9 +364,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 			 * so the hypervisor guarantees that this is ok.
 			 */
 			for (i = 0; i < pfncurr; i++)
-				gpadl_body->pfn[i] = slow_virt_to_phys(
-					kbuffer + PAGE_SIZE * (pfnsum + i)) >>
-					PAGE_SHIFT;
+				gpadl_body->pfn[i] = virt_to_hvpfn(
+					kbuffer + PAGE_SIZE * (pfnsum + i));
 
 			/* add to msg header */
 			list_add_tail(&msgbody->msglistentry,
@@ -380,8 +393,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 		gpadl_header->range[0].byte_offset = 0;
 		gpadl_header->range[0].byte_count = size;
 		for (i = 0; i < pagecount; i++)
-			gpadl_header->range[0].pfn_array[i] = slow_virt_to_phys(
-				kbuffer + PAGE_SIZE * i) >> PAGE_SHIFT;
+			gpadl_header->range[0].pfn_array[i] = virt_to_hvpfn(
+				kbuffer + PAGE_SIZE * i);
 
 		*msginfo = msgheader;
 	}
@@ -558,11 +571,8 @@ static void reset_channel_cb(void *arg)
 	channel->onchannel_callback = NULL;
 }
 
-static int vmbus_close_internal(struct vmbus_channel *channel)
+void vmbus_reset_channel_cb(struct vmbus_channel *channel)
 {
-	struct vmbus_channel_close_channel *msg;
-	int ret;
-
 	/*
 	 * vmbus_on_event(), running in the per-channel tasklet, can race
 	 * with vmbus_close_internal() in the case of SMP guest, e.g., when
@@ -571,6 +581,29 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	 * first.
 	 */
 	tasklet_disable(&channel->callback_event);
+
+	channel->sc_creation_callback = NULL;
+
+	/* Stop the callback asap */
+	if (channel->target_cpu != get_cpu()) {
+		put_cpu();
+		smp_call_function_single(channel->target_cpu, reset_channel_cb,
+					 channel, true);
+	} else {
+		reset_channel_cb(channel);
+		put_cpu();
+	}
+
+	/* Re-enable tasklet for use on re-open */
+	tasklet_enable(&channel->callback_event);
+}
+
+static int vmbus_close_internal(struct vmbus_channel *channel)
+{
+	struct vmbus_channel_close_channel *msg;
+	int ret;
+
+	vmbus_reset_channel_cb(channel);
 
 	/*
 	 * In case a device driver's probe() fails (e.g.,
@@ -585,16 +618,6 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	}
 
 	channel->state = CHANNEL_OPEN_STATE;
-	channel->sc_creation_callback = NULL;
-	/* Stop callback and cancel the timer asap */
-	if (channel->target_cpu != get_cpu()) {
-		put_cpu();
-		smp_call_function_single(channel->target_cpu, reset_channel_cb,
-					 channel, true);
-	} else {
-		reset_channel_cb(channel);
-		put_cpu();
-	}
 
 	/* Send a closing message */
 
@@ -639,8 +662,6 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
 out:
-	/* re-enable tasklet for use on re-open */
-	tasklet_enable(&channel->callback_event);
 	return ret;
 }
 

@@ -29,7 +29,7 @@ static int ocelot_parse_ifh(u32 *ifh, struct frame_info *info)
 	info->port = (ifh[2] & GENMASK(14, 11)) >> 11;
 
 	info->cpuq = (ifh[3] & GENMASK(27, 20)) >> 20;
-	info->tag_type = (ifh[3] & GENMASK(16, 16)) >> 16;
+	info->tag_type = (ifh[3] & BIT(16)) >> 16;
 	info->vid = ifh[3] & GENMASK(11, 0);
 
 	return 0;
@@ -91,7 +91,7 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 		struct sk_buff *skb;
 		struct net_device *dev;
 		u32 *buf;
-		int sz, len;
+		int sz, len, buf_len;
 		u32 ifh[4];
 		u32 val;
 		struct frame_info info;
@@ -116,14 +116,20 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 			err = -ENOMEM;
 			break;
 		}
-		buf = (u32 *)skb_put(skb, info.len);
+		buf_len = info.len - ETH_FCS_LEN;
+		buf = (u32 *)skb_put(skb, buf_len);
 
 		len = 0;
 		do {
 			sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
 			*buf++ = val;
 			len += sz;
-		} while ((sz == 4) && (len < info.len));
+		} while (len < buf_len);
+
+		/* Read the FCS and discard it */
+		sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
+		/* Update the statistics if part of the FCS was read before */
+		len -= ETH_FCS_LEN - sz;
 
 		if (sz < 0) {
 			err = sz;

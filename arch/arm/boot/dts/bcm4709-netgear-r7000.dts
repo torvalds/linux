@@ -101,3 +101,7 @@
 &usb3 {
 	vcc-gpio = <&chipcommon 0 GPIO_ACTIVE_HIGH>;
 };
+
+&usb3_phy {
+	status = "okay";
+};

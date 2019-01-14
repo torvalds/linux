@@ -3096,6 +3096,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	ugeth_vdbg("%s: IN", __func__);
 
+	netdev_sent_queue(dev, skb->len);
 	spin_lock_irqsave(&ugeth->lock, flags);
 
 	dev->stats.tx_bytes += skb->len;
@@ -3240,6 +3241,8 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 {
 	/* Start from the next BD that should be filled */
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	unsigned int bytes_sent = 0;
+	int howmany = 0;
 	u8 __iomem *bd;		/* BD pointer */
 	u32 bd_status;
 
@@ -3257,7 +3260,8 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 		skb = ugeth->tx_skbuff[txQ][ugeth->skb_dirtytx[txQ]];
 		if (!skb)
 			break;
-
+		howmany++;
+		bytes_sent += skb->len;
 		dev->stats.tx_packets++;
 
 		dev_consume_skb_any(skb);
@@ -3279,6 +3283,7 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 		bd_status = in_be32((u32 __iomem *)bd);
 	}
 	ugeth->confBd[txQ] = bd;
+	netdev_completed_queue(dev, howmany, bytes_sent);
 	return 0;
 }
 
@@ -3479,6 +3484,7 @@ static int ucc_geth_open(struct net_device *dev)
 
 	phy_start(ugeth->phydev);
 	napi_enable(&ugeth->napi);
+	netdev_reset_queue(dev);
 	netif_start_queue(dev);
 
 	device_set_wakeup_capable(&dev->dev,
@@ -3509,6 +3515,7 @@ static int ucc_geth_close(struct net_device *dev)
 	free_irq(ugeth->ug_info->uf_info.irq, ugeth->ndev);
 
 	netif_stop_queue(dev);
+	netdev_reset_queue(dev);
 
 	return 0;
 }

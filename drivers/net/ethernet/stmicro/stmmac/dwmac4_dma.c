@@ -407,6 +407,19 @@ static void dwmac4_enable_tso(void __iomem *ioaddr, bool en, u32 chan)
 	}
 }
 
+static void dwmac4_qmode(void __iomem *ioaddr, u32 channel, u8 qmode)
+{
+	u32 mtl_tx_op = readl(ioaddr + MTL_CHAN_TX_OP_MODE(channel));
+
+	mtl_tx_op &= ~MTL_OP_MODE_TXQEN_MASK;
+	if (qmode != MTL_QUEUE_AVB)
+		mtl_tx_op |= MTL_OP_MODE_TXQEN;
+	else
+		mtl_tx_op |= MTL_OP_MODE_TXQEN_AV;
+
+	writel(mtl_tx_op, ioaddr +  MTL_CHAN_TX_OP_MODE(channel));
+}
+
 static void dwmac4_set_bfsize(void __iomem *ioaddr, int bfsize, u32 chan)
 {
 	u32 value = readl(ioaddr + DMA_CHAN_RX_CONTROL(chan));
@@ -441,6 +454,7 @@ const struct stmmac_dma_ops dwmac4_dma_ops = {
 	.set_rx_tail_ptr = dwmac4_set_rx_tail_ptr,
 	.set_tx_tail_ptr = dwmac4_set_tx_tail_ptr,
 	.enable_tso = dwmac4_enable_tso,
+	.qmode = dwmac4_qmode,
 	.set_bfsize = dwmac4_set_bfsize,
 };
 
@@ -468,5 +482,6 @@ const struct stmmac_dma_ops dwmac410_dma_ops = {
 	.set_rx_tail_ptr = dwmac4_set_rx_tail_ptr,
 	.set_tx_tail_ptr = dwmac4_set_tx_tail_ptr,
 	.enable_tso = dwmac4_enable_tso,
+	.qmode = dwmac4_qmode,
 	.set_bfsize = dwmac4_set_bfsize,
 };

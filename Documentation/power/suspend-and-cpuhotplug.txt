@@ -32,7 +32,7 @@ More details follow:
                                     sysfs file
                                         |
                                         v
-                               Acquire pm_mutex lock
+                               Acquire system_transition_mutex lock
                                         |
                                         v
                              Send PM_SUSPEND_PREPARE
@@ -96,10 +96,10 @@ execution during resume):
 
 * thaw tasks
 * send PM_POST_SUSPEND notifications
-* Release pm_mutex lock.
+* Release system_transition_mutex lock.
 
 
-It is to be noted here that the pm_mutex lock is acquired at the very
+It is to be noted here that the system_transition_mutex lock is acquired at the very
 beginning, when we are just starting out to suspend, and then released only
 after the entire cycle is complete (i.e., suspend + resume).
 

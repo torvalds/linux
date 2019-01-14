@@ -888,11 +888,7 @@ int btrfs_block_can_be_shared(struct btrfs_root *root,
 	     btrfs_root_last_snapshot(&root->root_item) ||
 	     btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC)))
 		return 1;
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
-	    btrfs_header_backref_rev(buf) < BTRFS_MIXED_BACKREF_REV)
-		return 1;
-#endif
+
 	return 0;
 }
 
@@ -3128,8 +3124,7 @@ again:
  * higher levels
  *
  */
-static void fixup_low_keys(struct btrfs_fs_info *fs_info,
-			   struct btrfs_path *path,
+static void fixup_low_keys(struct btrfs_path *path,
 			   struct btrfs_disk_key *key, int level)
 {
 	int i;
@@ -3181,7 +3176,7 @@ void btrfs_set_item_key_safe(struct btrfs_fs_info *fs_info,
 	btrfs_set_item_key(eb, &disk_key, slot);
 	btrfs_mark_buffer_dirty(eb);
 	if (slot == 0)
-		fixup_low_keys(fs_info, path, &disk_key, 1);
+		fixup_low_keys(path, &disk_key, 1);
 }
 
 /*
@@ -3359,17 +3354,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	root_add_used(root, fs_info->nodesize);
 
-	memzero_extent_buffer(c, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_nritems(c, 1);
-	btrfs_set_header_level(c, level);
-	btrfs_set_header_bytenr(c, c->start);
-	btrfs_set_header_generation(c, trans->transid);
-	btrfs_set_header_backref_rev(c, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(c, root->root_key.objectid);
-
-	write_extent_buffer_fsid(c, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(c, fs_info->chunk_tree_uuid);
-
 	btrfs_set_node_key(c, &lower_key, 0);
 	btrfs_set_node_blockptr(c, 0, lower->start);
 	lower_gen = btrfs_header_generation(lower);
@@ -3498,15 +3483,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 		return PTR_ERR(split);
 
 	root_add_used(root, fs_info->nodesize);
-
-	memzero_extent_buffer(split, 0, sizeof(struct btrfs_header));
-	btrfs_set_header_level(split, btrfs_header_level(c));
-	btrfs_set_header_bytenr(split, split->start);
-	btrfs_set_header_generation(split, trans->transid);
-	btrfs_set_header_backref_rev(split, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(split, root->root_key.objectid);
-	write_extent_buffer_fsid(split, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(split, fs_info->chunk_tree_uuid);
+	ASSERT(btrfs_header_level(c) == level);
 
 	ret = tree_mod_log_eb_copy(fs_info, split, c, 0, mid, c_nritems - mid);
 	if (ret) {
@@ -3945,7 +3922,7 @@ static noinline int __push_leaf_left(struct btrfs_fs_info *fs_info,
 		clean_tree_block(fs_info, right);
 
 	btrfs_item_key(right, &disk_key, 0);
-	fixup_low_keys(fs_info, path, &disk_key, 1);
+	fixup_low_keys(path, &disk_key, 1);
 
 	/* then fixup the leaf pointer in the path */
 	if (path->slots[0] < push_items) {
@@ -4292,15 +4269,6 @@ again:
 
 	root_add_used(root, fs_info->nodesize);
 
-	memzero_extent_buffer(right, 0, sizeof(struct btrfs_header));
-	btrfs_set_header_bytenr(right, right->start);
-	btrfs_set_header_generation(right, trans->transid);
-	btrfs_set_header_backref_rev(right, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(right, root->root_key.objectid);
-	btrfs_set_header_level(right, 0);
-	write_extent_buffer_fsid(right, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(right, fs_info->chunk_tree_uuid);
-
 	if (split == 0) {
 		if (mid <= slot) {
 			btrfs_set_header_nritems(right, 0);
@@ -4320,7 +4288,7 @@ again:
 			path->nodes[0] = right;
 			path->slots[0] = 0;
 			if (path->slots[1] == 0)
-				fixup_low_keys(fs_info, path, &disk_key, 1);
+				fixup_low_keys(path, &disk_key, 1);
 		}
 		/*
 		 * We create a new leaf 'right' for the required ins_len and
@@ -4642,7 +4610,7 @@ void btrfs_truncate_item(struct btrfs_fs_info *fs_info,
 		btrfs_set_disk_key_offset(&disk_key, offset + size_diff);
 		btrfs_set_item_key(leaf, &disk_key, slot);
 		if (slot == 0)
-			fixup_low_keys(fs_info, path, &disk_key, 1);
+			fixup_low_keys(path, &disk_key, 1);
 	}
 
 	item = btrfs_item_nr(slot);
@@ -4744,7 +4712,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 
 	if (path->slots[0] == 0) {
 		btrfs_cpu_key_to_disk(&disk_key, cpu_key);
-		fixup_low_keys(fs_info, path, &disk_key, 1);
+		fixup_low_keys(path, &disk_key, 1);
 	}
 	btrfs_unlock_up_safe(path, 1);
 
@@ -4886,7 +4854,6 @@ int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 		    int level, int slot)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *parent = path->nodes[level];
 	u32 nritems;
 	int ret;
@@ -4919,7 +4886,7 @@ static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 		struct btrfs_disk_key disk_key;
 
 		btrfs_node_key(parent, &disk_key, 0);
-		fixup_low_keys(fs_info, path, &disk_key, level + 1);
+		fixup_low_keys(path, &disk_key, level + 1);
 	}
 	btrfs_mark_buffer_dirty(parent);
 }
@@ -5022,7 +4989,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			struct btrfs_disk_key disk_key;
 
 			btrfs_item_key(leaf, &disk_key, 0);
-			fixup_low_keys(fs_info, path, &disk_key, 1);
+			fixup_low_keys(path, &disk_key, 1);
 		}
 
 		/* delete the leaf if it is mostly empty */

@@ -23,8 +23,7 @@ ifdef CONFIG_CPU_BIG_ENDIAN
 KBUILD_CFLAGS   += -mbig-endian
 KBUILD_AFLAGS   += -mbig-endian
 LINKFLAGS       += -mbig-endian
-KBUILD_LDFLAGS  += -mbig-endian
-LDFLAGS += -EB
+KBUILD_LDFLAGS  += -mbig-endian -EB
 CHECKFLAGS	+= -D_BIG_ENDIAN
 endif
 

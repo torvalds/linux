@@ -13,6 +13,8 @@
  * Interrupt control:
  */
 
+/* Declaration required for gcc < 4.9 to prevent -Werror=missing-prototypes */
+extern inline unsigned long native_save_fl(void);
 extern inline unsigned long native_save_fl(void)
 {
 	unsigned long flags;
@@ -31,7 +33,8 @@ extern inline unsigned long native_save_fl(void)
 	return flags;
 }
 
-static inline void native_restore_fl(unsigned long flags)
+extern inline void native_restore_fl(unsigned long flags);
+extern inline void native_restore_fl(unsigned long flags)
 {
 	asm volatile("push %0 ; popf"
 		     : /* no output */

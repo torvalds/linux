@@ -411,7 +411,7 @@ static int aemif_probe(struct platform_device *pdev)
 			if (ret < 0)
 				goto error;
 		}
-	} else {
+	} else if (pdata) {
 		for (i = 0; i < pdata->num_sub_devices; i++) {
 			pdata->sub_devices[i].dev.parent = dev;
 			ret = platform_device_register(&pdata->sub_devices[i]);

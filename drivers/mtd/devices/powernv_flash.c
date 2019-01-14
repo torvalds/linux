@@ -223,6 +223,7 @@ static int powernv_flash_set_driver_info(struct device *dev,
 	mtd->_read = powernv_flash_read;
 	mtd->_write = powernv_flash_write;
 	mtd->dev.parent = dev;
+	mtd_set_of_node(mtd, dev->of_node);
 	return 0;
 }
 

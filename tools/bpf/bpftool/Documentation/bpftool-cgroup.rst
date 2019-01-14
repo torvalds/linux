@@ -15,12 +15,13 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **attach** | **detach** | **help** }
+	{ **show** | **list** | **tree** | **attach** | **detach** | **help** }
 
 MAP COMMANDS
 =============
 
 |	**bpftool** **cgroup { show | list }** *CGROUP*
+|	**bpftool** **cgroup tree** [*CGROUP_ROOT*]
 |	**bpftool** **cgroup attach** *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
 |	**bpftool** **cgroup detach** *CGROUP* *ATTACH_TYPE* *PROG*
 |	**bpftool** **cgroup help**
@@ -38,6 +39,15 @@ DESCRIPTION
 
 		  Output will start with program ID followed by attach type,
 		  attach flags and program name.
+
+	**bpftool cgroup tree** [*CGROUP_ROOT*]
+		  Iterate over all cgroups in *CGROUP_ROOT* and list all
+		  attached programs. If *CGROUP_ROOT* is not specified,
+		  bpftool uses cgroup v2 mountpoint.
+
+		  The output is similar to the output of cgroup show/list
+		  commands: it starts with absolute cgroup path, followed by
+		  program ID, attach type, attach flags and program name.
 
 	**bpftool cgroup attach** *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
 		  Attach program *PROG* to the cgroup *CGROUP* with attach type

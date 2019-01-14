@@ -2,19 +2,18 @@
 // Copyright (C) 2018 ROHM Semiconductors
 // bd71837-regulator.c ROHM BD71837MWV regulator driver
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/mfd/rohm-bd718x7.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/gpio.h>
-#include <linux/mfd/bd71837.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/slab.h>
 
 struct bd71837_pmic {
 	struct regulator_desc descs[BD71837_REGULATOR_CNT];
@@ -39,7 +38,7 @@ static int bd71837_buck1234_set_ramp_delay(struct regulator_dev *rdev,
 	int id = rdev->desc->id;
 	unsigned int ramp_value = BUCK_RAMPRATE_10P00MV;
 
-	dev_dbg(&(pmic->pdev->dev), "Buck[%d] Set Ramp = %d\n", id + 1,
+	dev_dbg(&pmic->pdev->dev, "Buck[%d] Set Ramp = %d\n", id + 1,
 		ramp_delay);
 	switch (ramp_delay) {
 	case 1 ... 1250:
@@ -73,14 +72,10 @@ static int bd71837_buck1234_set_ramp_delay(struct regulator_dev *rdev,
 static int bd71837_set_voltage_sel_restricted(struct regulator_dev *rdev,
 						    unsigned int sel)
 {
-	int ret;
+	if (regulator_is_enabled_regmap(rdev))
+		return -EBUSY;
 
-	ret = regulator_is_enabled_regmap(rdev);
-	if (!ret)
-		ret = regulator_set_voltage_sel_regmap(rdev, sel);
-	else if (ret == 1)
-		ret = -EBUSY;
-	return ret;
+	return regulator_set_voltage_sel_regmap(rdev, sel);
 }
 
 static struct regulator_ops bd71837_ldo_regulator_ops = {
@@ -195,7 +190,7 @@ static const struct regulator_linear_range bd71837_ldo1_voltage_ranges[] = {
  * LDO2
  * 0.8 or 0.9V
  */
-const unsigned int ldo_2_volts[] = {
+static const unsigned int ldo_2_volts[] = {
 	900000, 800000
 };
 
@@ -495,7 +490,6 @@ struct reg_init {
 static int bd71837_probe(struct platform_device *pdev)
 {
 	struct bd71837_pmic *pmic;
-	struct bd71837_board *pdata;
 	struct regulator_config config = { 0 };
 	struct reg_init pmic_regulator_inits[] = {
 		{
@@ -548,8 +542,7 @@ static int bd71837_probe(struct platform_device *pdev)
 
 	int i, err;
 
-	pmic = devm_kzalloc(&pdev->dev, sizeof(struct bd71837_pmic),
-			    GFP_KERNEL);
+	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -564,7 +557,6 @@ static int bd71837_probe(struct platform_device *pdev)
 		goto err;
 	}
 	platform_set_drvdata(pdev, pmic);
-	pdata = dev_get_platdata(pmic->mfd->dev);
 
 	/* Register LOCK release */
 	err = regmap_update_bits(pmic->mfd->regmap, BD71837_REG_REGLOCK,
@@ -573,8 +565,27 @@ static int bd71837_probe(struct platform_device *pdev)
 		dev_err(&pmic->pdev->dev, "Failed to unlock PMIC (%d)\n", err);
 		goto err;
 	} else {
-		dev_dbg(&pmic->pdev->dev, "%s: Unlocked lock register 0x%x\n",
-			__func__, BD71837_REG_REGLOCK);
+		dev_dbg(&pmic->pdev->dev, "Unlocked lock register 0x%x\n",
+			BD71837_REG_REGLOCK);
+	}
+
+	/*
+	 * There is a HW quirk in BD71837. The shutdown sequence timings for
+	 * bucks/LDOs which are controlled via register interface are changed.
+	 * At PMIC poweroff the voltage for BUCK6/7 is cut immediately at the
+	 * beginning of shut-down sequence. As bucks 6 and 7 are parent
+	 * supplies for LDO5 and LDO6 - this causes LDO5/6 voltage
+	 * monitoring to errorneously detect under voltage and force PMIC to
+	 * emergency state instead of poweroff. In order to avoid this we
+	 * disable voltage monitoring for LDO5 and LDO6
+	 */
+	err = regmap_update_bits(pmic->mfd->regmap, BD718XX_REG_MVRFLTMASK2,
+				 BD718XX_LDO5_VRMON80 | BD718XX_LDO6_VRMON80,
+				 BD718XX_LDO5_VRMON80 | BD718XX_LDO6_VRMON80);
+	if (err) {
+		dev_err(&pmic->pdev->dev,
+			"Failed to disable voltage monitoring\n");
+		goto err;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(pmic_regulator_inits); i++) {
@@ -583,9 +594,6 @@ static int bd71837_probe(struct platform_device *pdev)
 		struct regulator_dev *rdev;
 
 		desc = &pmic->descs[i];
-
-		if (pdata)
-			config.init_data = pdata->init_data[i];
 
 		config.dev = pdev->dev.parent;
 		config.driver_data = pmic;
@@ -619,8 +627,6 @@ static int bd71837_probe(struct platform_device *pdev)
 		pmic->rdev[i] = rdev;
 	}
 
-	return 0;
-
 err:
 	return err;
 }
@@ -628,7 +634,6 @@ err:
 static struct platform_driver bd71837_regulator = {
 	.driver = {
 		.name = "bd71837-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = bd71837_probe,
 };

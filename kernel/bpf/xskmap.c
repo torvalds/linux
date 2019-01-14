@@ -75,6 +75,7 @@ static void xsk_map_free(struct bpf_map *map)
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
 	int i;
 
+	bpf_clear_redirect_map(map);
 	synchronize_net();
 
 	for (i = 0; i < map->max_entries; i++) {
@@ -191,11 +192,8 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 	sock_hold(sock->sk);
 
 	old_xs = xchg(&m->xsk_map[i], xs);
-	if (old_xs) {
-		/* Make sure we've flushed everything. */
-		synchronize_net();
+	if (old_xs)
 		sock_put((struct sock *)old_xs);
-	}
 
 	sockfd_put(sock);
 	return 0;
@@ -211,11 +209,8 @@ static int xsk_map_delete_elem(struct bpf_map *map, void *key)
 		return -EINVAL;
 
 	old_xs = xchg(&m->xsk_map[k], NULL);
-	if (old_xs) {
-		/* Make sure we've flushed everything. */
-		synchronize_net();
+	if (old_xs)
 		sock_put((struct sock *)old_xs);
-	}
 
 	return 0;
 }
@@ -227,6 +222,5 @@ const struct bpf_map_ops xsk_map_ops = {
 	.map_lookup_elem = xsk_map_lookup_elem,
 	.map_update_elem = xsk_map_update_elem,
 	.map_delete_elem = xsk_map_delete_elem,
+	.map_check_btf = map_check_no_btf,
 };
-
-

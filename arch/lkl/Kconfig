@@ -51,6 +51,9 @@ config ARCH_DMA_ADDR_T_64BIT
 config 64BIT
        def_bool n
 
+config COREDUMP
+       def_bool n
+
 config BIG_ENDIAN
        def_bool n
 
@@ -73,27 +76,19 @@ config HAVE_UNDERSCORE_SYMBOL_PREFIX
          Some architectures generate an _ in front of C symbols; things like
          module loading and assembly files need to know about this.
 
-source init/Kconfig
+config HZ
+        int
+        default 100
 
-source net/Kconfig
+config CONSOLE_LOGLEVEL_QUIET
+	int "quiet console loglevel (1-15)"
+	range 1 15
+	default "4"
+	help
+	  loglevel to use when "quiet" is passed on the kernel commandline.
 
-source drivers/Kconfig
+	  When "quiet" is passed on the kernel commandline this loglevel
+	  will be used as the loglevel. IOW passing "quiet" will be the
+	  equivalent of passing "loglevel=<CONSOLE_LOGLEVEL_QUIET>"
 
-source fs/Kconfig
-
-source mm/Kconfig
-
-source kernel/Kconfig.preempt
-
-source kernel/Kconfig.locks
-
-source kernel/Kconfig.hz
-
-source security/Kconfig
-
-source crypto/Kconfig
-
-source lib/Kconfig
-
-source lib/Kconfig.debug
 

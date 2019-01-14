@@ -370,9 +370,6 @@ static int si4713_transfer(struct i2c_adapter *i2c_adapter,
 	int retval = -EINVAL;
 	int i;
 
-	if (num <= 0)
-		return 0;
-
 	for (i = 0; i < num; i++) {
 		if (msgs[i].flags & I2C_M_RD)
 			retval = si4713_i2c_read(radio, msgs[i].buf, msgs[i].len);

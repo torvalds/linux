@@ -25,34 +25,19 @@
 
 #define OVL_COPY_UP_CHUNK_SIZE (1 << 20)
 
-static bool __read_mostly ovl_check_copy_up;
-module_param_named(check_copy_up, ovl_check_copy_up, bool,
-		   S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(ovl_check_copy_up,
-		 "Warn on copy-up when causing process also has a R/O fd open");
-
-static int ovl_check_fd(const void *data, struct file *f, unsigned int fd)
+static int ovl_ccup_set(const char *buf, const struct kernel_param *param)
 {
-	const struct dentry *dentry = data;
-
-	if (file_inode(f) == d_inode(dentry))
-		pr_warn_ratelimited("overlayfs: Warning: Copying up %pD, but open R/O on fd %u which will cease to be coherent [pid=%d %s]\n",
-				    f, fd, current->pid, current->comm);
+	pr_warn("overlayfs: \"check_copy_up\" module option is obsolete\n");
 	return 0;
 }
 
-/*
- * Check the fds open by this process and warn if something like the following
- * scenario is about to occur:
- *
- *	fd1 = open("foo", O_RDONLY);
- *	fd2 = open("foo", O_RDWR);
- */
-static void ovl_do_check_copy_up(struct dentry *dentry)
+static int ovl_ccup_get(char *buf, const struct kernel_param *param)
 {
-	if (ovl_check_copy_up)
-		iterate_fd(current->files, 0, ovl_check_fd, dentry);
+	return sprintf(buf, "N\n");
 }
+
+module_param_call(check_copy_up, ovl_ccup_set, ovl_ccup_get, NULL, 0644);
+MODULE_PARM_DESC(ovl_check_copy_up, "Obsolete; does nothing");
 
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
@@ -156,7 +141,7 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 	}
 
 	/* Try to use clone_file_range to clone up within the same fs */
-	error = vfs_clone_file_range(old_file, 0, new_file, 0, len);
+	error = do_clone_file_range(old_file, 0, new_file, 0, len);
 	if (!error)
 		goto out;
 	/* Couldn't clone, so now we try to copy the data */
@@ -193,6 +178,16 @@ out:
 out_fput:
 	fput(old_file);
 	return error;
+}
+
+static int ovl_set_size(struct dentry *upperdentry, struct kstat *stat)
+{
+	struct iattr attr = {
+		.ia_valid = ATTR_SIZE,
+		.ia_size = stat->size,
+	};
+
+	return notify_change(upperdentry, &attr, NULL);
 }
 
 static int ovl_set_timestamps(struct dentry *upperdentry, struct kstat *stat)
@@ -403,6 +398,7 @@ struct ovl_copy_up_ctx {
 	bool tmpfile;
 	bool origin;
 	bool indexed;
+	bool metacopy;
 };
 
 static int ovl_link_up(struct ovl_copy_up_ctx *c)
@@ -505,25 +501,7 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 {
 	int err;
 
-	if (S_ISREG(c->stat.mode)) {
-		struct path upperpath;
-
-		ovl_path_upper(c->dentry, &upperpath);
-		BUG_ON(upperpath.dentry != NULL);
-		upperpath.dentry = temp;
-
-		err = ovl_copy_up_data(&c->lowerpath, &upperpath, c->stat.size);
-		if (err)
-			return err;
-	}
-
 	err = ovl_copy_xattr(c->lowerpath.dentry, temp);
-	if (err)
-		return err;
-
-	inode_lock(temp->d_inode);
-	err = ovl_set_attr(temp, &c->stat);
-	inode_unlock(temp->d_inode);
 	if (err)
 		return err;
 
@@ -540,7 +518,34 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 			return err;
 	}
 
-	return 0;
+	if (S_ISREG(c->stat.mode) && !c->metacopy) {
+		struct path upperpath, datapath;
+
+		ovl_path_upper(c->dentry, &upperpath);
+		BUG_ON(upperpath.dentry != NULL);
+		upperpath.dentry = temp;
+
+		ovl_path_lowerdata(c->dentry, &datapath);
+		err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
+		if (err)
+			return err;
+	}
+
+	if (c->metacopy) {
+		err = ovl_check_setxattr(c->dentry, temp, OVL_XATTR_METACOPY,
+					 NULL, 0, -EOPNOTSUPP);
+		if (err)
+			return err;
+	}
+
+	inode_lock(temp->d_inode);
+	if (c->metacopy)
+		err = ovl_set_size(temp, &c->stat);
+	if (!err)
+		err = ovl_set_attr(temp, &c->stat);
+	inode_unlock(temp->d_inode);
+
+	return err;
 }
 
 static int ovl_copy_up_locked(struct ovl_copy_up_ctx *c)
@@ -575,6 +580,8 @@ static int ovl_copy_up_locked(struct ovl_copy_up_ctx *c)
 	if (err)
 		goto out;
 
+	if (!c->metacopy)
+		ovl_set_upperdata(d_inode(c->dentry));
 	inode = d_inode(c->dentry);
 	ovl_inode_update(inode, newdentry);
 	if (S_ISDIR(inode->i_mode))
@@ -677,6 +684,49 @@ out:
 	return err;
 }
 
+static bool ovl_need_meta_copy_up(struct dentry *dentry, umode_t mode,
+				  int flags)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+
+	if (!ofs->config.metacopy)
+		return false;
+
+	if (!S_ISREG(mode))
+		return false;
+
+	if (flags && ((OPEN_FMODE(flags) & FMODE_WRITE) || (flags & O_TRUNC)))
+		return false;
+
+	return true;
+}
+
+/* Copy up data of an inode which was copied up metadata only in the past. */
+static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
+{
+	struct path upperpath, datapath;
+	int err;
+
+	ovl_path_upper(c->dentry, &upperpath);
+	if (WARN_ON(upperpath.dentry == NULL))
+		return -EIO;
+
+	ovl_path_lowerdata(c->dentry, &datapath);
+	if (WARN_ON(datapath.dentry == NULL))
+		return -EIO;
+
+	err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
+	if (err)
+		return err;
+
+	err = vfs_removexattr(upperpath.dentry, OVL_XATTR_METACOPY);
+	if (err)
+		return err;
+
+	ovl_set_upperdata(d_inode(c->dentry));
+	return err;
+}
+
 static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 			   int flags)
 {
@@ -697,6 +747,8 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 			  STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
 	if (err)
 		return err;
+
+	ctx.metacopy = ovl_need_meta_copy_up(dentry, ctx.stat.mode, flags);
 
 	if (parent) {
 		ovl_path_upper(parent, &parentpath);
@@ -719,9 +771,8 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		if (IS_ERR(ctx.link))
 			return PTR_ERR(ctx.link);
 	}
-	ovl_do_check_copy_up(ctx.lowerpath.dentry);
 
-	err = ovl_copy_up_start(dentry);
+	err = ovl_copy_up_start(dentry, flags);
 	/* err < 0: interrupted, err > 0: raced with another copy-up */
 	if (unlikely(err)) {
 		if (err > 0)
@@ -731,6 +782,8 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 			err = ovl_do_copy_up(&ctx);
 		if (!err && parent && !ovl_dentry_has_upper_alias(dentry))
 			err = ovl_link_up(&ctx);
+		if (!err && ovl_dentry_needs_data_copy_up_locked(dentry, flags))
+			err = ovl_copy_up_meta_inode_data(&ctx);
 		ovl_copy_up_end(dentry);
 	}
 	do_delayed_call(&done);
@@ -756,21 +809,7 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 		struct dentry *next;
 		struct dentry *parent = NULL;
 
-		/*
-		 * Check if copy-up has happened as well as for upper alias (in
-		 * case of hard links) is there.
-		 *
-		 * Both checks are lockless:
-		 *  - false negatives: will recheck under oi->lock
-		 *  - false positives:
-		 *    + ovl_dentry_upper() uses memory barriers to ensure the
-		 *      upper dentry is up-to-date
-		 *    + ovl_dentry_has_upper_alias() relies on locking of
-		 *      upper parent i_rwsem to prevent reordering copy-up
-		 *      with rename.
-		 */
-		if (ovl_dentry_upper(dentry) &&
-		    (ovl_dentry_has_upper_alias(dentry) || disconnected))
+		if (ovl_already_copied_up(dentry, flags))
 			break;
 
 		next = dget(dentry);
@@ -793,6 +832,41 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 	revert_creds(old_cred);
 
 	return err;
+}
+
+static bool ovl_open_need_copy_up(struct dentry *dentry, int flags)
+{
+	/* Copy up of disconnected dentry does not set upper alias */
+	if (ovl_already_copied_up(dentry, flags))
+		return false;
+
+	if (special_file(d_inode(dentry)->i_mode))
+		return false;
+
+	if (!ovl_open_flags_need_copy_up(flags))
+		return false;
+
+	return true;
+}
+
+int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
+{
+	int err = 0;
+
+	if (ovl_open_need_copy_up(dentry, file_flags)) {
+		err = ovl_want_write(dentry);
+		if (!err) {
+			err = ovl_copy_up_flags(dentry, file_flags);
+			ovl_drop_write(dentry);
+		}
+	}
+
+	return err;
+}
+
+int ovl_copy_up_with_data(struct dentry *dentry)
+{
+	return ovl_copy_up_flags(dentry, O_WRONLY);
 }
 
 int ovl_copy_up(struct dentry *dentry)

@@ -78,6 +78,7 @@
 #include <linux/errqueue.h>
 #include <trace/events/tcp.h>
 #include <linux/static_key.h>
+#include <net/busy_poll.h>
 
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 
@@ -244,16 +245,16 @@ static void tcp_ecn_queue_cwr(struct tcp_sock *tp)
 		tp->ecn_flags |= TCP_ECN_QUEUE_CWR;
 }
 
-static void tcp_ecn_accept_cwr(struct tcp_sock *tp, const struct sk_buff *skb)
+static void tcp_ecn_accept_cwr(struct sock *sk, const struct sk_buff *skb)
 {
 	if (tcp_hdr(skb)->cwr) {
-		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
+		tcp_sk(sk)->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
 
 		/* If the sender is telling us it has entered CWR, then its
 		 * cwnd may be very low (even just 1 packet), so we should ACK
 		 * immediately.
 		 */
-		tcp_enter_quickack_mode((struct sock *)tp, 2);
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 	}
 }
 
@@ -590,9 +591,12 @@ static inline void tcp_rcv_rtt_measure_ts(struct sock *sk,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (tp->rx_opt.rcv_tsecr &&
-	    (TCP_SKB_CB(skb)->end_seq -
-	     TCP_SKB_CB(skb)->seq >= inet_csk(sk)->icsk_ack.rcv_mss)) {
+	if (tp->rx_opt.rcv_tsecr == tp->rcv_rtt_last_tsecr)
+		return;
+	tp->rcv_rtt_last_tsecr = tp->rx_opt.rcv_tsecr;
+
+	if (TCP_SKB_CB(skb)->end_seq -
+	    TCP_SKB_CB(skb)->seq >= inet_csk(sk)->icsk_ack.rcv_mss) {
 		u32 delta = tcp_time_stamp(tp) - tp->rx_opt.rcv_tsecr;
 		u32 delta_us;
 
@@ -877,6 +881,7 @@ static void tcp_dsack_seen(struct tcp_sock *tp)
 {
 	tp->rx_opt.sack_ok |= TCP_DSACK_SEEN;
 	tp->rack.dsack_seen = 1;
+	tp->dsack_dups++;
 }
 
 /* It's reordering when higher sequence was delivered (i.e. sacked) before
@@ -908,8 +913,8 @@ static void tcp_check_sack_reordering(struct sock *sk, const u32 low_seq,
 				       sock_net(sk)->ipv4.sysctl_tcp_max_reordering);
 	}
 
-	tp->rack.reord = 1;
 	/* This exciting event is worth to be remembered. 8) */
+	tp->reord_seen++;
 	NET_INC_STATS(sock_net(sk),
 		      ts ? LINUX_MIB_TCPTSREORDER : LINUX_MIB_TCPSACKREORDER);
 }
@@ -1873,6 +1878,7 @@ static void tcp_check_reno_reordering(struct sock *sk, const int addend)
 
 	tp->reordering = min_t(u32, tp->packets_out + addend,
 			       sock_net(sk)->ipv4.sysctl_tcp_max_reordering);
+	tp->reord_seen++;
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRENOREORDER);
 }
 
@@ -3466,7 +3472,7 @@ static void tcp_send_challenge_ack(struct sock *sk, const struct sk_buff *skb)
 static void tcp_store_ts_recent(struct tcp_sock *tp)
 {
 	tp->rx_opt.ts_recent = tp->rx_opt.rcv_tsval;
-	tp->rx_opt.ts_recent_stamp = get_seconds();
+	tp->rx_opt.ts_recent_stamp = ktime_get_seconds();
 }
 
 static void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
@@ -4347,6 +4353,11 @@ static bool tcp_try_coalesce(struct sock *sk,
 	if (TCP_SKB_CB(from)->seq != TCP_SKB_CB(to)->end_seq)
 		return false;
 
+#ifdef CONFIG_TLS_DEVICE
+	if (from->decrypted != to->decrypted)
+		return false;
+#endif
+
 	if (!skb_try_coalesce(to, from, fragstolen, &delta))
 		return false;
 
@@ -4642,8 +4653,10 @@ int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size)
 	skb->data_len = data_len;
 	skb->len = size;
 
-	if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
+	if (tcp_try_rmem_schedule(sk, skb, skb->truesize)) {
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRCVQDROP);
 		goto err_free;
+	}
 
 	err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, size);
 	if (err)
@@ -4690,7 +4703,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	skb_dst_drop(skb);
 	__skb_pull(skb, tcp_hdr(skb)->doff * 4);
 
-	tcp_ecn_accept_cwr(tp, skb);
+	tcp_ecn_accept_cwr(sk, skb);
 
 	tp->rx_opt.dsack = 0;
 
@@ -4699,18 +4712,21 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	 *  Out of sequence packets to the out_of_order_queue.
 	 */
 	if (TCP_SKB_CB(skb)->seq == tp->rcv_nxt) {
-		if (tcp_receive_window(tp) == 0)
+		if (tcp_receive_window(tp) == 0) {
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPZEROWINDOWDROP);
 			goto out_of_window;
+		}
 
 		/* Ok. In sequence. In window. */
 queue_and_out:
 		if (skb_queue_len(&sk->sk_receive_queue) == 0)
 			sk_forced_mem_schedule(sk, skb->truesize);
-		else if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
+		else if (tcp_try_rmem_schedule(sk, skb, skb->truesize)) {
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRCVQDROP);
 			goto drop;
+		}
 
 		eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
-		tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
 		if (skb->len)
 			tcp_event_data_recv(sk, skb);
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
@@ -4719,11 +4735,11 @@ queue_and_out:
 		if (!RB_EMPTY_ROOT(&tp->out_of_order_queue)) {
 			tcp_ofo_queue(sk);
 
-			/* RFC2581. 4.2. SHOULD send immediate ACK, when
+			/* RFC5681. 4.2. SHOULD send immediate ACK, when
 			 * gap in queue is filled.
 			 */
 			if (RB_EMPTY_ROOT(&tp->out_of_order_queue))
-				inet_csk(sk)->icsk_ack.pingpong = 0;
+				inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 		}
 
 		if (tp->rx_opt.num_sacks)
@@ -4766,8 +4782,10 @@ drop:
 		/* If window is closed, drop tail of packet. But after
 		 * remembering D-SACK for its head made in previous line.
 		 */
-		if (!tcp_receive_window(tp))
+		if (!tcp_receive_window(tp)) {
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPZEROWINDOWDROP);
 			goto out_of_window;
+		}
 		goto queue_and_out;
 	}
 
@@ -4885,6 +4903,9 @@ restart:
 			break;
 
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
+#ifdef CONFIG_TLS_DEVICE
+		nskb->decrypted = skb->decrypted;
+#endif
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
 		if (list)
 			__skb_queue_before(list, skb, nskb);
@@ -4912,6 +4933,10 @@ restart:
 				    skb == tail ||
 				    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
 					goto end;
+#ifdef CONFIG_TLS_DEVICE
+				if (skb->decrypted != nskb->decrypted)
+					goto end;
+#endif
 			}
 		}
 	}
@@ -5154,7 +5179,9 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 	    (tp->rcv_nxt - tp->copied_seq < sk->sk_rcvlowat ||
 	     __tcp_select_window(sk) >= tp->rcv_wnd)) ||
 	    /* We ACK each frame or... */
-	    tcp_in_quickack_mode(sk)) {
+	    tcp_in_quickack_mode(sk) ||
+	    /* Protocol state mandates a one-time immediate ACK */
+	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_NOW) {
 send_now:
 		tcp_send_ack(sk);
 		return;
@@ -5530,6 +5557,11 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb)
 				tcp_ack(sk, skb, 0);
 				__kfree_skb(skb);
 				tcp_data_snd_check(sk);
+				/* When receiving pure ack in fast path, update
+				 * last ts ecr directly instead of calling
+				 * tcp_rcv_rtt_measure_ts()
+				 */
+				tp->rcv_rtt_last_tsecr = tp->rx_opt.rcv_tsecr;
 				return;
 			} else { /* Header too small */
 				TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
@@ -5631,6 +5663,7 @@ void tcp_finish_connect(struct sock *sk, struct sk_buff *skb)
 	if (skb) {
 		icsk->icsk_af_ops->sk_rx_dst_set(sk, skb);
 		security_inet_conn_established(sk, skb);
+		sk_mark_napi_id(sk, skb);
 	}
 
 	tcp_init_transfer(sk, BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB);
@@ -5976,11 +6009,13 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 			if (th->fin)
 				goto discard;
 			/* It is possible that we process SYN packets from backlog,
-			 * so we need to make sure to disable BH right there.
+			 * so we need to make sure to disable BH and RCU right there.
 			 */
+			rcu_read_lock();
 			local_bh_disable();
 			acceptable = icsk->icsk_af_ops->conn_request(sk, skb) >= 0;
 			local_bh_enable();
+			rcu_read_unlock();
 
 			if (!acceptable)
 				return 1;
@@ -6334,8 +6369,8 @@ static bool tcp_syn_flood_action(const struct sock *sk,
 	if (!queue->synflood_warned &&
 	    net->ipv4.sysctl_tcp_syncookies != 2 &&
 	    xchg(&queue->synflood_warned, 1) == 0)
-		pr_info("%s: Possible SYN flooding on port %d. %s.  Check SNMP counters.\n",
-			proto, ntohs(tcp_hdr(skb)->dest), msg);
+		net_info_ratelimited("%s: Possible SYN flooding on port %d. %s.  Check SNMP counters.\n",
+				     proto, ntohs(tcp_hdr(skb)->dest), msg);
 
 	return want_cookie;
 }
@@ -6459,6 +6494,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	tcp_rsk(req)->snt_isn = isn;
 	tcp_rsk(req)->txhash = net_tx_rndhash();
 	tcp_openreq_init_rwin(req, sk, dst);
+	sk_rx_queue_set(req_to_sk(req), skb);
 	if (!want_cookie) {
 		tcp_reqsk_record_syn(sk, req, skb);
 		fastopen_sk = tcp_try_fastopen(sk, skb, req, &foc, dst);

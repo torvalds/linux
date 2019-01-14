@@ -530,24 +530,19 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 SYSCALL_DEFINE1(osf_utsname, char __user *, name)
 {
 	int error;
+	char tmp[5 * 32];
 
 	down_read(&uts_sem);
-	error = -EFAULT;
-	if (copy_to_user(name + 0, utsname()->sysname, 32))
-		goto out;
-	if (copy_to_user(name + 32, utsname()->nodename, 32))
-		goto out;
-	if (copy_to_user(name + 64, utsname()->release, 32))
-		goto out;
-	if (copy_to_user(name + 96, utsname()->version, 32))
-		goto out;
-	if (copy_to_user(name + 128, utsname()->machine, 32))
-		goto out;
+	memcpy(tmp + 0 * 32, utsname()->sysname, 32);
+	memcpy(tmp + 1 * 32, utsname()->nodename, 32);
+	memcpy(tmp + 2 * 32, utsname()->release, 32);
+	memcpy(tmp + 3 * 32, utsname()->version, 32);
+	memcpy(tmp + 4 * 32, utsname()->machine, 32);
+	up_read(&uts_sem);
 
-	error = 0;
- out:
-	up_read(&uts_sem);	
-	return error;
+	if (copy_to_user(name, tmp, sizeof(tmp)))
+		return -EFAULT;
+	return 0;
 }
 
 SYSCALL_DEFINE0(getpagesize)
@@ -567,18 +562,21 @@ SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 {
 	int len, err = 0;
 	char *kname;
+	char tmp[32];
 
-	if (namelen > 32)
+	if (namelen < 0 || namelen > 32)
 		namelen = 32;
 
 	down_read(&uts_sem);
 	kname = utsname()->domainname;
 	len = strnlen(kname, namelen);
-	if (copy_to_user(name, kname, min(len + 1, namelen)))
-		err = -EFAULT;
+	len = min(len + 1, namelen);
+	memcpy(tmp, kname, len);
 	up_read(&uts_sem);
 
-	return err;
+	if (copy_to_user(name, tmp, len))
+		return -EFAULT;
+	return 0;
 }
 
 /*
@@ -739,13 +737,14 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 	};
 	unsigned long offset;
 	const char *res;
-	long len, err = -EINVAL;
+	long len;
+	char tmp[__NEW_UTS_LEN + 1];
 
 	offset = command-1;
 	if (offset >= ARRAY_SIZE(sysinfo_table)) {
 		/* Digital UNIX has a few unpublished interfaces here */
 		printk("sysinfo(%d)", command);
-		goto out;
+		return -EINVAL;
 	}
 
 	down_read(&uts_sem);
@@ -753,13 +752,11 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 	len = strlen(res)+1;
 	if ((unsigned long)len > (unsigned long)count)
 		len = count;
-	if (copy_to_user(buf, res, len))
-		err = -EFAULT;
-	else
-		err = 0;
+	memcpy(tmp, res, len);
 	up_read(&uts_sem);
- out:
-	return err;
+	if (copy_to_user(buf, tmp, len))
+		return -EFAULT;
+	return 0;
 }
 
 SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,

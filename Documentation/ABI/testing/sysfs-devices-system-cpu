@@ -476,6 +476,7 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/spectre_v1
 		/sys/devices/system/cpu/vulnerabilities/spectre_v2
 		/sys/devices/system/cpu/vulnerabilities/spec_store_bypass
+		/sys/devices/system/cpu/vulnerabilities/l1tf
 Date:		January 2018
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Information about CPU vulnerabilities
@@ -487,3 +488,26 @@ Description:	Information about CPU vulnerabilities
 		"Not affected"	  CPU is not affected by the vulnerability
 		"Vulnerable"	  CPU is affected and no mitigation in effect
 		"Mitigation: $M"  CPU is affected and mitigation $M is in effect
+
+		Details about the l1tf file can be found in
+		Documentation/admin-guide/l1tf.rst
+
+What:		/sys/devices/system/cpu/smt
+		/sys/devices/system/cpu/smt/active
+		/sys/devices/system/cpu/smt/control
+Date:		June 2018
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Control Symetric Multi Threading (SMT)
+
+		active:  Tells whether SMT is active (enabled and siblings online)
+
+		control: Read/write interface to control SMT. Possible
+			 values:
+
+			 "on"		SMT is enabled
+			 "off"		SMT is disabled
+			 "forceoff"	SMT is force disabled. Cannot be changed.
+			 "notsupported" SMT is not supported by the CPU
+
+			 If control status is "forceoff" or "notsupported" writes
+			 are rejected.

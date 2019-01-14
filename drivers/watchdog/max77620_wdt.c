@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mfd/max77620.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>

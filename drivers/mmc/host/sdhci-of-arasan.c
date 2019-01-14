@@ -102,6 +102,9 @@ struct sdhci_arasan_data {
 
 /* Controller does not have CD wired and will not function normally without */
 #define SDHCI_ARASAN_QUIRK_FORCE_CDTEST	BIT(0)
+/* Controller immediately reports SDHCI_CLOCK_INT_STABLE after enabling the
+ * internal clock even when the clock isn't stable */
+#define SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE BIT(1)
 };
 
 static const struct sdhci_arasan_soc_ctl_map rk3399_soc_ctl_map = {
@@ -206,6 +209,16 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 	sdhci_set_clock(host, clock);
+
+	if (sdhci_arasan->quirks & SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE)
+		/*
+		 * Some controllers immediately report SDHCI_CLOCK_INT_STABLE
+		 * after enabling the clock even though the clock is not
+		 * stable. Trying to use a clock without waiting here results
+		 * in EILSEQ while detecting some older/slower cards. The
+		 * chosen delay is the maximum delay from sdhci_set_clock.
+		 */
+		msleep(20);
 
 	if (ctrl_phy) {
 		phy_power_on(sdhci_arasan->phy);
@@ -757,6 +770,9 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(np, "xlnx,fails-without-test-cd"))
 		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_FORCE_CDTEST;
+
+	if (of_property_read_bool(np, "xlnx,int-clock-stable-broken"))
+		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE;
 
 	pltfm_host->clk = clk_xin;
 

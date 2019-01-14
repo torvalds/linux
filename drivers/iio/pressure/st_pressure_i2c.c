@@ -94,9 +94,8 @@ static int st_press_i2c_probe(struct i2c_client *client,
 		if ((ret < 0) || (ret >= ST_PRESS_MAX))
 			return -ENODEV;
 
-		strncpy(client->name, st_press_id_table[ret].name,
+		strlcpy(client->name, st_press_id_table[ret].name,
 				sizeof(client->name));
-		client->name[sizeof(client->name) - 1] = '\0';
 	} else if (!id)
 		return -ENODEV;
 

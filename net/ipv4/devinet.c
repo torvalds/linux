@@ -1827,6 +1827,8 @@ static int inet_netconf_msgsize_devconf(int type)
 		size += nla_total_size(4);
 	if (all || type == NETCONFA_MC_FORWARDING)
 		size += nla_total_size(4);
+	if (all || type == NETCONFA_BC_FORWARDING)
+		size += nla_total_size(4);
 	if (all || type == NETCONFA_PROXY_NEIGH)
 		size += nla_total_size(4);
 	if (all || type == NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN)
@@ -1872,6 +1874,10 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	if ((all || type == NETCONFA_MC_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
 			IPV4_DEVCONF(*devconf, MC_FORWARDING)) < 0)
+		goto nla_put_failure;
+	if ((all || type == NETCONFA_BC_FORWARDING) &&
+	    nla_put_s32(skb, NETCONFA_BC_FORWARDING,
+			IPV4_DEVCONF(*devconf, BC_FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_PROXY_NEIGH) &&
 	    nla_put_s32(skb, NETCONFA_PROXY_NEIGH,
@@ -2143,6 +2149,10 @@ static int devinet_conf_proc(struct ctl_table *ctl, int write,
 			if ((new_value == 0) && (old_value != 0))
 				rt_cache_flush(net);
 
+		if (i == IPV4_DEVCONF_BC_FORWARDING - 1 &&
+		    new_value != old_value)
+			rt_cache_flush(net);
+
 		if (i == IPV4_DEVCONF_RP_FILTER - 1 &&
 		    new_value != old_value) {
 			ifindex = devinet_conf_ifindex(net, cnf);
@@ -2259,6 +2269,7 @@ static struct devinet_sysctl_table {
 		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
 					     devinet_sysctl_forward),
 		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
+		DEVINET_SYSCTL_RW_ENTRY(BC_FORWARDING, "bc_forwarding"),
 
 		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
 		DEVINET_SYSCTL_RW_ENTRY(SECURE_REDIRECTS, "secure_redirects"),

@@ -60,7 +60,6 @@ Required properties:
 - reg: Offset of ADC instance in ADC block (e.g. may be 0x0, 0x100, 0x200).
 - clocks: Input clock private to this ADC instance. It's required only on
   stm32f4, that has per instance clock input for registers access.
-- interrupt-parent: Phandle to the parent interrupt controller.
 - interrupts: IRQ Line for the ADC (e.g. may be 0 for adc@0, 1 for adc@100 or
   2 for adc@200).
 - st,adc-channels: List of single-ended channels muxed for this ADC.

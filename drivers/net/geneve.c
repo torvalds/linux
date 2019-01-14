@@ -236,7 +236,8 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		}
 		/* Update tunnel dst according to Geneve options. */
 		ip_tunnel_info_opts_set(&tun_dst->u.tun_info,
-					gnvh->options, gnvh->opt_len * 4);
+					gnvh->options, gnvh->opt_len * 4,
+					TUNNEL_GENEVE_OPT);
 	} else {
 		/* Drop packets w/ critical options,
 		 * since we don't support any...
@@ -418,11 +419,12 @@ static int geneve_hlen(struct genevehdr *gh)
 	return sizeof(*gh) + gh->opt_len * 4;
 }
 
-static struct sk_buff **geneve_gro_receive(struct sock *sk,
-					   struct sk_buff **head,
-					   struct sk_buff *skb)
+static struct sk_buff *geneve_gro_receive(struct sock *sk,
+					  struct list_head *head,
+					  struct sk_buff *skb)
 {
-	struct sk_buff *p, **pp = NULL;
+	struct sk_buff *pp = NULL;
+	struct sk_buff *p;
 	struct genevehdr *gh, *gh2;
 	unsigned int hlen, gh_len, off_gnv;
 	const struct packet_offload *ptype;
@@ -449,7 +451,7 @@ static struct sk_buff **geneve_gro_receive(struct sock *sk,
 			goto out;
 	}
 
-	for (p = *head; p; p = p->next) {
+	list_for_each_entry(p, head, list) {
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
 
@@ -674,7 +676,8 @@ static void geneve_build_header(struct genevehdr *geneveh,
 	geneveh->proto_type = htons(ETH_P_TEB);
 	geneveh->rsvd2 = 0;
 
-	ip_tunnel_info_opts_get(geneveh->options, info);
+	if (info->key.tun_flags & TUNNEL_GENEVE_OPT)
+		ip_tunnel_info_opts_get(geneveh->options, info);
 }
 
 static int geneve_build_skb(struct dst_entry *dst, struct sk_buff *skb,
@@ -827,12 +830,8 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
-	if (skb_dst(skb)) {
-		int mtu = dst_mtu(&rt->dst) - GENEVE_IPV4_HLEN -
-			  info->options_len;
-
-		skb_dst_update_pmtu(skb, mtu);
-	}
+	skb_tunnel_check_pmtu(skb, &rt->dst,
+			      GENEVE_IPV4_HLEN + info->options_len);
 
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
 	if (geneve->collect_md) {
@@ -873,11 +872,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
 
-	if (skb_dst(skb)) {
-		int mtu = dst_mtu(dst) - GENEVE_IPV6_HLEN - info->options_len;
-
-		skb_dst_update_pmtu(skb, mtu);
-	}
+	skb_tunnel_check_pmtu(skb, dst, GENEVE_IPV6_HLEN + info->options_len);
 
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
 	if (geneve->collect_md) {

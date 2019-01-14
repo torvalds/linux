@@ -25,15 +25,15 @@ _dummy := $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)') \
 	  $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)')
 
 define filechk_syshdr
-	$(CONFIG_SHELL) '$(systbl)' -H -a $(syshdr_abi_$(basetarget)) -f "$2"
+	$(CONFIG_SHELL) '$(systbl)' -H -a $(syshdr_abi_$(basetarget)) -f "$2" < $<
 endef
 
 define filechk_sysnr
-	$(CONFIG_SHELL) '$(systbl)' -N -a $(sysnr_abi_$(basetarget))
+	$(CONFIG_SHELL) '$(systbl)' -N -a $(sysnr_abi_$(basetarget)) < $<
 endef
 
 define filechk_syscalls
-	$(CONFIG_SHELL) '$(systbl)' -S
+	$(CONFIG_SHELL) '$(systbl)' -S < $<
 endef
 
 syshdr_abi_unistd_32 := common,32

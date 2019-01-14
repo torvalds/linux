@@ -322,49 +322,38 @@ xfs_trans_read_buf_map(
 }
 
 /*
- * Release the buffer bp which was previously acquired with one of the
- * xfs_trans_... buffer allocation routines if the buffer has not
- * been modified within this transaction.  If the buffer is modified
- * within this transaction, do decrement the recursion count but do
- * not release the buffer even if the count goes to 0.  If the buffer is not
- * modified within the transaction, decrement the recursion count and
- * release the buffer if the recursion count goes to 0.
+ * Release a buffer previously joined to the transaction. If the buffer is
+ * modified within this transaction, decrement the recursion count but do not
+ * release the buffer even if the count goes to 0. If the buffer is not modified
+ * within the transaction, decrement the recursion count and release the buffer
+ * if the recursion count goes to 0.
  *
- * If the buffer is to be released and it was not modified before
- * this transaction began, then free the buf_log_item associated with it.
+ * If the buffer is to be released and it was not already dirty before this
+ * transaction began, then also free the buf_log_item associated with it.
  *
- * If the transaction pointer is NULL, make this just a normal
- * brelse() call.
+ * If the transaction pointer is NULL, this is a normal xfs_buf_relse() call.
  */
 void
 xfs_trans_brelse(
-	xfs_trans_t		*tp,
-	xfs_buf_t		*bp)
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp)
 {
-	struct xfs_buf_log_item	*bip;
-	int			freed;
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
 
-	/*
-	 * Default to a normal brelse() call if the tp is NULL.
-	 */
-	if (tp == NULL) {
-		ASSERT(bp->b_transp == NULL);
+	ASSERT(bp->b_transp == tp);
+
+	if (!tp) {
 		xfs_buf_relse(bp);
 		return;
 	}
 
-	ASSERT(bp->b_transp == tp);
-	bip = bp->b_log_item;
+	trace_xfs_trans_brelse(bip);
 	ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
-	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_CANCEL));
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
-	trace_xfs_trans_brelse(bip);
-
 	/*
-	 * If the release is just for a recursive lock,
-	 * then decrement the count and return.
+	 * If the release is for a recursive lookup, then decrement the count
+	 * and return.
 	 */
 	if (bip->bli_recur > 0) {
 		bip->bli_recur--;
@@ -372,64 +361,24 @@ xfs_trans_brelse(
 	}
 
 	/*
-	 * If the buffer is dirty within this transaction, we can't
+	 * If the buffer is invalidated or dirty in this transaction, we can't
 	 * release it until we commit.
 	 */
 	if (test_bit(XFS_LI_DIRTY, &bip->bli_item.li_flags))
 		return;
-
-	/*
-	 * If the buffer has been invalidated, then we can't release
-	 * it until the transaction commits to disk unless it is re-dirtied
-	 * as part of this transaction.  This prevents us from pulling
-	 * the item from the AIL before we should.
-	 */
 	if (bip->bli_flags & XFS_BLI_STALE)
 		return;
 
+	/*
+	 * Unlink the log item from the transaction and clear the hold flag, if
+	 * set. We wouldn't want the next user of the buffer to get confused.
+	 */
 	ASSERT(!(bip->bli_flags & XFS_BLI_LOGGED));
-
-	/*
-	 * Free up the log item descriptor tracking the released item.
-	 */
 	xfs_trans_del_item(&bip->bli_item);
+	bip->bli_flags &= ~XFS_BLI_HOLD;
 
-	/*
-	 * Clear the hold flag in the buf log item if it is set.
-	 * We wouldn't want the next user of the buffer to
-	 * get confused.
-	 */
-	if (bip->bli_flags & XFS_BLI_HOLD) {
-		bip->bli_flags &= ~XFS_BLI_HOLD;
-	}
-
-	/*
-	 * Drop our reference to the buf log item.
-	 */
-	freed = atomic_dec_and_test(&bip->bli_refcount);
-
-	/*
-	 * If the buf item is not tracking data in the log, then we must free it
-	 * before releasing the buffer back to the free pool.
-	 *
-	 * If the fs has shutdown and we dropped the last reference, it may fall
-	 * on us to release a (possibly dirty) bli if it never made it to the
-	 * AIL (e.g., the aborted unpin already happened and didn't release it
-	 * due to our reference). Since we're already shutdown and need
-	 * ail_lock, just force remove from the AIL and release the bli here.
-	 */
-	if (XFS_FORCED_SHUTDOWN(tp->t_mountp) && freed) {
-		xfs_trans_ail_remove(&bip->bli_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_buf_item_relse(bp);
-	} else if (!(bip->bli_flags & XFS_BLI_DIRTY)) {
-/***
-		ASSERT(bp->b_pincount == 0);
-***/
-		ASSERT(atomic_read(&bip->bli_refcount) == 0);
-		ASSERT(!test_bit(XFS_LI_IN_AIL, &bip->bli_item.li_flags));
-		ASSERT(!(bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF));
-		xfs_buf_item_relse(bp);
-	}
+	/* drop the reference to the bli */
+	xfs_buf_item_put(bip);
 
 	bp->b_transp = NULL;
 	xfs_buf_relse(bp);

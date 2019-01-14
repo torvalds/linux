@@ -28,6 +28,7 @@
 #include "amdgpu_i2c.h"
 #include "amdgpu_dpm.h"
 #include "atom.h"
+#include "amd_pcie.h"
 
 void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 {
@@ -936,9 +937,11 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 	case AMDGPU_PCIE_GEN3:
 		return AMDGPU_PCIE_GEN3;
 	default:
-		if ((sys_mask & DRM_PCIE_SPEED_80) && (default_gen == AMDGPU_PCIE_GEN3))
+		if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) &&
+		    (default_gen == AMDGPU_PCIE_GEN3))
 			return AMDGPU_PCIE_GEN3;
-		else if ((sys_mask & DRM_PCIE_SPEED_50) && (default_gen == AMDGPU_PCIE_GEN2))
+		else if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) &&
+			 (default_gen == AMDGPU_PCIE_GEN2))
 			return AMDGPU_PCIE_GEN2;
 		else
 			return AMDGPU_PCIE_GEN1;

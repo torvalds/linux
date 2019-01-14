@@ -10,6 +10,7 @@
 
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
+#include <linux/interrupt.h>
 
 #define RISCV_BASE_COUNTERS	2
 

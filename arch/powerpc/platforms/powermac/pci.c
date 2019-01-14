@@ -781,12 +781,12 @@ static int __init pmac_add_bridge(struct device_node *dev)
 	struct resource rsrc;
 	char *disp_name;
 	const int *bus_range;
-	int primary = 1, has_address = 0;
+	int primary = 1;
 
 	DBG("Adding PCI host bridge %pOF\n", dev);
 
 	/* Fetch host bridge registers address */
-	has_address = (of_address_to_resource(dev, 0, &rsrc) == 0);
+	of_address_to_resource(dev, 0, &rsrc);
 
 	/* Get bus range if any */
 	bus_range = of_get_property(dev, "bus-range", &len);
@@ -904,7 +904,7 @@ static int pmac_pci_root_bridge_prepare(struct pci_host_bridge *bridge)
 void __init pmac_pci_init(void)
 {
 	struct device_node *np, *root;
-	struct device_node *ht = NULL;
+	struct device_node *ht __maybe_unused = NULL;
 
 	pci_set_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
@@ -1019,7 +1019,7 @@ static bool pmac_pci_enable_device_hook(struct pci_dev *dev)
 	return true;
 }
 
-void pmac_pci_fixup_ohci(struct pci_dev *dev)
+static void pmac_pci_fixup_ohci(struct pci_dev *dev)
 {
 	struct device_node *node = pci_device_to_OF_node(dev);
 
@@ -1054,7 +1054,7 @@ void __init pmac_pcibios_after_init(void)
 	}
 }
 
-void pmac_pci_fixup_cardbus(struct pci_dev* dev)
+static void pmac_pci_fixup_cardbus(struct pci_dev *dev)
 {
 	if (!machine_is(powermac))
 		return;
@@ -1091,7 +1091,7 @@ void pmac_pci_fixup_cardbus(struct pci_dev* dev)
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_TI, PCI_ANY_ID, pmac_pci_fixup_cardbus);
 
-void pmac_pci_fixup_pciata(struct pci_dev* dev)
+static void pmac_pci_fixup_pciata(struct pci_dev *dev)
 {
        u8 progif = 0;
 

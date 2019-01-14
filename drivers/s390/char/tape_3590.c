@@ -113,16 +113,16 @@ static int crypt_enabled(struct tape_device *device)
 static void ext_to_int_kekl(struct tape390_kekl *in,
 			    struct tape3592_kekl *out)
 {
-	int i;
+	int len;
 
 	memset(out, 0, sizeof(*out));
 	if (in->type == TAPE390_KEKL_TYPE_HASH)
 		out->flags |= 0x40;
 	if (in->type_on_tape == TAPE390_KEKL_TYPE_HASH)
 		out->flags |= 0x80;
-	strncpy(out->label, in->label, 64);
-	for (i = strlen(in->label); i < sizeof(out->label); i++)
-		out->label[i] = ' ';
+	len = min(sizeof(out->label), strlen(in->label));
+	memcpy(out->label, in->label, len);
+	memset(out->label + len, ' ', sizeof(out->label) - len);
 	ASCEBC(out->label, sizeof(out->label));
 }
 

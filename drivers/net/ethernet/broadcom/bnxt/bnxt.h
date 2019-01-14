@@ -12,11 +12,11 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.9.1"
+#define DRV_MODULE_VERSION	"1.9.2"
 
 #define DRV_VER_MAJ	1
 #define DRV_VER_MIN	9
-#define DRV_VER_UPD	1
+#define DRV_VER_UPD	2
 
 #include <linux/interrupt.h>
 #include <linux/rhashtable.h>
@@ -325,6 +325,10 @@ struct rx_tpa_start_cmp_ext {
 #define TPA_START_CFA_CODE(rx_tpa_start)				\
 	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
 	 RX_TPA_START_CMP_CFA_CODE) >> RX_TPA_START_CMPL_CFA_CODE_SHIFT)
+
+#define TPA_START_IS_IPV6(rx_tpa_start)				\
+	(!!((rx_tpa_start)->rx_tpa_start_cmp_flags2 &		\
+	    cpu_to_le32(RX_TPA_START_CMP_FLAGS2_IP_TYPE)))
 
 struct rx_tpa_end_cmp {
 	__le32 rx_tpa_end_cmp_len_flags_type;
@@ -862,6 +866,7 @@ struct bnxt_pf_info {
 	u8	vf_resv_strategy;
 #define BNXT_VF_RESV_STRATEGY_MAXIMAL	0
 #define BNXT_VF_RESV_STRATEGY_MINIMAL	1
+#define BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC	2
 	void			*hwrm_cmd_req_addr[4];
 	dma_addr_t		hwrm_cmd_req_dma_addr[4];
 	struct bnxt_vf_info	*vf;
@@ -959,6 +964,9 @@ struct bnxt_link_info {
 	u16			advertising;	/* user adv setting */
 	bool			force_link_chng;
 
+	bool			phy_retry;
+	unsigned long		phy_retry_expires;
+
 	/* a copy of phy_qcfg output used to report link
 	 * info to VF
 	 */
@@ -990,6 +998,8 @@ struct bnxt_led_info {
 
 struct bnxt_test_info {
 	u8 offline_mask;
+	u8 flags;
+#define BNXT_TEST_FL_EXT_LPBK	0x1
 	u16 timeout;
 	char string[BNXT_MAX_TEST][ETH_GSTRING_LEN];
 };
@@ -1134,7 +1144,6 @@ struct bnxt {
 	atomic_t		intr_sem;
 
 	u32			flags;
-	#define BNXT_FLAG_DCB_ENABLED	0x1
 	#define BNXT_FLAG_VF		0x2
 	#define BNXT_FLAG_LRO		0x4
 #ifdef CONFIG_INET
@@ -1163,15 +1172,11 @@ struct bnxt {
 					 BNXT_FLAG_ROCEV2_CAP)
 	#define BNXT_FLAG_NO_AGG_RINGS	0x20000
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
-	#define BNXT_FLAG_FW_LLDP_AGENT	0x80000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
-	#define BNXT_FLAG_SHORT_CMD	0x200000
 	#define BNXT_FLAG_DOUBLE_DB	0x400000
-	#define BNXT_FLAG_FW_DCBX_AGENT	0x800000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 	#define BNXT_FLAG_DIM		0x2000000
 	#define BNXT_FLAG_ROCE_MIRROR_CAP	0x4000000
-	#define BNXT_FLAG_NEW_RM	0x8000000
 	#define BNXT_FLAG_PORT_STATS_EXT	0x10000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -1276,10 +1281,19 @@ struct bnxt {
 	struct ieee_ets		*ieee_ets;
 	u8			dcbx_cap;
 	u8			default_pri;
+	u8			max_dscp_value;
 #endif /* CONFIG_BNXT_DCB */
 
 	u32			msg_enable;
 
+	u32			fw_cap;
+	#define BNXT_FW_CAP_SHORT_CMD	0x00000001
+	#define BNXT_FW_CAP_LLDP_AGENT	0x00000002
+	#define BNXT_FW_CAP_DCBX_AGENT	0x00000004
+	#define BNXT_FW_CAP_NEW_RM	0x00000008
+	#define BNXT_FW_CAP_IF_CHANGE	0x00000010
+
+#define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u32			hwrm_intr_seq_id;
@@ -1287,9 +1301,6 @@ struct bnxt {
 	dma_addr_t		hwrm_short_cmd_req_dma_addr;
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
-	void			*hwrm_dbg_resp_addr;
-	dma_addr_t		hwrm_dbg_resp_dma_addr;
-#define HWRM_DBG_REG_BUF_SIZE	128
 
 	struct rx_port_stats	*hw_rx_port_stats;
 	struct tx_port_stats	*hw_tx_port_stats;
@@ -1345,6 +1356,7 @@ struct bnxt {
 #define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
 #define BNXT_FLOW_STATS_SP_EVENT	15
+#define BNXT_UPDATE_PHY_SP_EVENT	16
 
 	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
@@ -1400,6 +1412,7 @@ struct bnxt {
 	struct bnxt_tc_info	*tc_info;
 	struct dentry		*debugfs_pdev;
 	struct dentry		*debugfs_dim;
+	struct device		*hwmon_dev;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
@@ -1468,8 +1481,7 @@ int bnxt_hwrm_set_coal(struct bnxt *);
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp);
 void bnxt_set_max_func_stat_ctxs(struct bnxt *bp, unsigned int max);
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp);
-void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max);
-unsigned int bnxt_get_max_func_irqs(struct bnxt *bp);
+unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp);
 int bnxt_get_avail_msix(struct bnxt *bp, int num);
 int bnxt_reserve_rings(struct bnxt *bp);
 void bnxt_tx_disable(struct bnxt *bp);

@@ -41,6 +41,14 @@ Boards with the Amlogic Meson GXL S905D SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,s905d", "amlogic,meson-gxl";
 
+Boards with the Amlogic Meson GXL S805X SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s805x", "amlogic,meson-gxl";
+
+Boards with the Amlogic Meson GXL S905W SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s905w", "amlogic,meson-gxl";
+
 Boards with the Amlogic Meson GXM S912 SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,s912", "amlogic,meson-gxm";
@@ -78,6 +86,11 @@ Board compatible values (alphabetically, grouped by SoC):
 
   - "amlogic,p230" (Meson gxl s905d)
   - "amlogic,p231" (Meson gxl s905d)
+
+  - "amlogic,p241" (Meson gxl s805x)
+
+  - "amlogic,p281" (Meson gxl s905w)
+  - "oranth,tx3-mini" (Meson gxl s905w)
 
   - "amlogic,q200" (Meson gxm s912)
   - "amlogic,q201" (Meson gxm s912)

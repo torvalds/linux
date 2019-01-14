@@ -552,6 +552,7 @@ xfs_inobt_max_size(
 static int
 xfs_inobt_count_blocks(
 	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_btnum_t		btnum,
 	xfs_extlen_t		*tree_blocks)
@@ -560,14 +561,14 @@ xfs_inobt_count_blocks(
 	struct xfs_btree_cur	*cur;
 	int			error;
 
-	error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
+	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
 	if (error)
 		return error;
 
-	cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno, btnum);
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno, btnum);
 	error = xfs_btree_count_blocks(cur, tree_blocks);
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
-	xfs_buf_relse(agbp);
+	xfs_btree_del_cursor(cur, error);
+	xfs_trans_brelse(tp, agbp);
 
 	return error;
 }
@@ -578,6 +579,7 @@ xfs_inobt_count_blocks(
 int
 xfs_finobt_calc_reserves(
 	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_extlen_t		*ask,
 	xfs_extlen_t		*used)
@@ -588,7 +590,7 @@ xfs_finobt_calc_reserves(
 	if (!xfs_sb_version_hasfinobt(&mp->m_sb))
 		return 0;
 
-	error = xfs_inobt_count_blocks(mp, agno, XFS_BTNUM_FINO, &tree_len);
+	error = xfs_inobt_count_blocks(mp, tp, agno, XFS_BTNUM_FINO, &tree_len);
 	if (error)
 		return error;
 

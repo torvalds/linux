@@ -64,7 +64,7 @@ struct kmem_cache *t10_alua_lba_map_cache;
 struct kmem_cache *t10_alua_lba_map_mem_cache;
 
 static void transport_complete_task_attr(struct se_cmd *cmd);
-static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason);
+static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev, int err, bool write_pending);
 static void target_complete_ok_work(struct work_struct *work);
@@ -224,7 +224,27 @@ void transport_subsystem_check_init(void)
 	sub_api_initialized = 1;
 }
 
-struct se_session *transport_init_session(enum target_prot_op sup_prot_ops)
+/**
+ * transport_init_session - initialize a session object
+ * @se_sess: Session object pointer.
+ *
+ * The caller must have zero-initialized @se_sess before calling this function.
+ */
+void transport_init_session(struct se_session *se_sess)
+{
+	INIT_LIST_HEAD(&se_sess->sess_list);
+	INIT_LIST_HEAD(&se_sess->sess_acl_list);
+	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
+	spin_lock_init(&se_sess->sess_cmd_lock);
+	init_waitqueue_head(&se_sess->cmd_list_wq);
+}
+EXPORT_SYMBOL(transport_init_session);
+
+/**
+ * transport_alloc_session - allocate a session object and initialize it
+ * @sup_prot_ops: bitmask that defines which T10-PI modes are supported.
+ */
+struct se_session *transport_alloc_session(enum target_prot_op sup_prot_ops)
 {
 	struct se_session *se_sess;
 
@@ -234,17 +254,20 @@ struct se_session *transport_init_session(enum target_prot_op sup_prot_ops)
 				" se_sess_cache\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	INIT_LIST_HEAD(&se_sess->sess_list);
-	INIT_LIST_HEAD(&se_sess->sess_acl_list);
-	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
-	INIT_LIST_HEAD(&se_sess->sess_wait_list);
-	spin_lock_init(&se_sess->sess_cmd_lock);
+	transport_init_session(se_sess);
 	se_sess->sup_prot_ops = sup_prot_ops;
 
 	return se_sess;
 }
-EXPORT_SYMBOL(transport_init_session);
+EXPORT_SYMBOL(transport_alloc_session);
 
+/**
+ * transport_alloc_session_tags - allocate target driver private data
+ * @se_sess:  Session pointer.
+ * @tag_num:  Maximum number of in-flight commands between initiator and target.
+ * @tag_size: Size in bytes of the private data a target driver associates with
+ *	      each command.
+ */
 int transport_alloc_session_tags(struct se_session *se_sess,
 			         unsigned int tag_num, unsigned int tag_size)
 {
@@ -260,7 +283,8 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 		}
 	}
 
-	rc = percpu_ida_init(&se_sess->sess_tag_pool, tag_num);
+	rc = sbitmap_queue_init_node(&se_sess->sess_tag_pool, tag_num, -1,
+			false, GFP_KERNEL, NUMA_NO_NODE);
 	if (rc < 0) {
 		pr_err("Unable to init se_sess->sess_tag_pool,"
 			" tag_num: %u\n", tag_num);
@@ -273,9 +297,16 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 }
 EXPORT_SYMBOL(transport_alloc_session_tags);
 
-struct se_session *transport_init_session_tags(unsigned int tag_num,
-					       unsigned int tag_size,
-					       enum target_prot_op sup_prot_ops)
+/**
+ * transport_init_session_tags - allocate a session and target driver private data
+ * @tag_num:  Maximum number of in-flight commands between initiator and target.
+ * @tag_size: Size in bytes of the private data a target driver associates with
+ *	      each command.
+ * @sup_prot_ops: bitmask that defines which T10-PI modes are supported.
+ */
+static struct se_session *
+transport_init_session_tags(unsigned int tag_num, unsigned int tag_size,
+			    enum target_prot_op sup_prot_ops)
 {
 	struct se_session *se_sess;
 	int rc;
@@ -291,7 +322,7 @@ struct se_session *transport_init_session_tags(unsigned int tag_num,
 		return ERR_PTR(-EINVAL);
 	}
 
-	se_sess = transport_init_session(sup_prot_ops);
+	se_sess = transport_alloc_session(sup_prot_ops);
 	if (IS_ERR(se_sess))
 		return se_sess;
 
@@ -303,7 +334,6 @@ struct se_session *transport_init_session_tags(unsigned int tag_num,
 
 	return se_sess;
 }
-EXPORT_SYMBOL(transport_init_session_tags);
 
 /*
  * Called with spin_lock_irqsave(&struct se_portal_group->session_lock called.
@@ -316,6 +346,7 @@ void __transport_register_session(
 {
 	const struct target_core_fabric_ops *tfo = se_tpg->se_tpg_tfo;
 	unsigned char buf[PR_REG_ISID_LEN];
+	unsigned long flags;
 
 	se_sess->se_tpg = se_tpg;
 	se_sess->fabric_sess_ptr = fabric_sess_ptr;
@@ -352,7 +383,7 @@ void __transport_register_session(
 			se_sess->sess_bin_isid = get_unaligned_be64(&buf[0]);
 		}
 
-		spin_lock_irq(&se_nacl->nacl_sess_lock);
+		spin_lock_irqsave(&se_nacl->nacl_sess_lock, flags);
 		/*
 		 * The se_nacl->nacl_sess pointer will be set to the
 		 * last active I_T Nexus for each struct se_node_acl.
@@ -361,7 +392,7 @@ void __transport_register_session(
 
 		list_add_tail(&se_sess->sess_acl_list,
 			      &se_nacl->acl_sess_list);
-		spin_unlock_irq(&se_nacl->nacl_sess_lock);
+		spin_unlock_irqrestore(&se_nacl->nacl_sess_lock, flags);
 	}
 	list_add_tail(&se_sess->sess_list, &se_tpg->tpg_sess_list);
 
@@ -385,7 +416,7 @@ void transport_register_session(
 EXPORT_SYMBOL(transport_register_session);
 
 struct se_session *
-target_alloc_session(struct se_portal_group *tpg,
+target_setup_session(struct se_portal_group *tpg,
 		     unsigned int tag_num, unsigned int tag_size,
 		     enum target_prot_op prot_op,
 		     const char *initiatorname, void *private,
@@ -401,7 +432,7 @@ target_alloc_session(struct se_portal_group *tpg,
 	if (tag_num != 0)
 		sess = transport_init_session_tags(tag_num, tag_size, prot_op);
 	else
-		sess = transport_init_session(prot_op);
+		sess = transport_alloc_session(prot_op);
 
 	if (IS_ERR(sess))
 		return sess;
@@ -427,7 +458,7 @@ target_alloc_session(struct se_portal_group *tpg,
 	transport_register_session(tpg, sess->se_node_acl, sess, private);
 	return sess;
 }
-EXPORT_SYMBOL(target_alloc_session);
+EXPORT_SYMBOL(target_setup_session);
 
 ssize_t target_show_dynamic_sessions(struct se_portal_group *se_tpg, char *page)
 {
@@ -547,7 +578,7 @@ void transport_free_session(struct se_session *se_sess)
 		target_put_nacl(se_nacl);
 	}
 	if (se_sess->sess_cmd_map) {
-		percpu_ida_destroy(&se_sess->sess_tag_pool);
+		sbitmap_queue_free(&se_sess->sess_tag_pool);
 		kvfree(se_sess->sess_cmd_map);
 	}
 	kmem_cache_free(se_sess_cache, se_sess);
@@ -585,6 +616,13 @@ void transport_deregister_session(struct se_session *se_sess)
 }
 EXPORT_SYMBOL(transport_deregister_session);
 
+void target_remove_session(struct se_session *se_sess)
+{
+	transport_deregister_session_configfs(se_sess);
+	transport_deregister_session(se_sess);
+}
+EXPORT_SYMBOL(target_remove_session);
+
 static void target_remove_from_state_list(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -601,6 +639,13 @@ static void target_remove_from_state_list(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
+/*
+ * This function is called by the target core after the target core has
+ * finished processing a SCSI command or SCSI TMF. Both the regular command
+ * processing code and the code for aborting commands can call this
+ * function. CMD_T_STOP is set if and only if another thread is waiting
+ * inside transport_wait_for_tasks() for t_transport_stop_comp.
+ */
 static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 {
 	unsigned long flags;
@@ -650,10 +695,14 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 		percpu_ref_put(&lun->lun_ref);
 }
 
-int transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
+int transport_cmd_finish_abort(struct se_cmd *cmd)
 {
+	bool send_tas = cmd->transport_state & CMD_T_TAS;
 	bool ack_kref = (cmd->se_cmd_flags & SCF_ACK_KREF);
 	int ret = 0;
+
+	if (send_tas)
+		transport_send_task_abort(cmd);
 
 	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD)
 		transport_lun_remove_cmd(cmd);
@@ -661,12 +710,12 @@ int transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 	 * Allow the fabric driver to unmap any resources before
 	 * releasing the descriptor via TFO->release_cmd()
 	 */
-	if (remove)
+	if (!send_tas)
 		cmd->se_tfo->aborted_task(cmd);
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return 1;
-	if (remove && ack_kref)
+	if (!send_tas && ack_kref)
 		ret = target_put_sess_cmd(cmd);
 
 	return ret;
@@ -1267,7 +1316,7 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
 	INIT_LIST_HEAD(&cmd->state_list);
 	init_completion(&cmd->t_transport_stop_comp);
-	init_completion(&cmd->cmd_wait_comp);
+	cmd->compl = NULL;
 	spin_lock_init(&cmd->t_state_lock);
 	INIT_WORK(&cmd->work, NULL);
 	kref_init(&cmd->cmd_kref);
@@ -2079,9 +2128,6 @@ static void transport_complete_qf(struct se_cmd *cmd)
 		if (cmd->scsi_status)
 			goto queue_status;
 
-		cmd->se_cmd_flags |= SCF_EMULATED_TASK_SENSE;
-		cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
-		cmd->scsi_sense_length  = TRANSPORT_SENSE_BUFFER;
 		translate_sense_reason(cmd, TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE);
 		goto queue_status;
 	}
@@ -2593,20 +2639,37 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 }
 
+/*
+ * This function is called by frontend drivers after processing of a command
+ * has finished.
+ *
+ * The protocol for ensuring that either the regular flow or the TMF
+ * code drops one reference is as follows:
+ * - Calling .queue_data_in(), .queue_status() or queue_tm_rsp() will cause
+ *   the frontend driver to drop one reference, synchronously or asynchronously.
+ * - During regular command processing the target core sets CMD_T_COMPLETE
+ *   before invoking one of the .queue_*() functions.
+ * - The code that aborts commands skips commands and TMFs for which
+ *   CMD_T_COMPLETE has been set.
+ * - CMD_T_ABORTED is set atomically after the CMD_T_COMPLETE check for
+ *   commands that will be aborted.
+ * - If the CMD_T_ABORTED flag is set but CMD_T_TAS has not been set
+ *   transport_generic_free_cmd() skips its call to target_put_sess_cmd().
+ * - For aborted commands for which CMD_T_TAS has been set .queue_status() will
+ *   be called and will drop a reference.
+ * - For aborted commands for which CMD_T_TAS has not been set .aborted_task()
+ *   will be called. transport_cmd_finish_abort() will drop the final reference.
+ */
 int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
+	DECLARE_COMPLETION_ONSTACK(compl);
 	int ret = 0;
 	bool aborted = false, tas = false;
 
-	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
-		if (wait_for_tasks && (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
-			target_wait_free_cmd(cmd, &aborted, &tas);
+	if (wait_for_tasks)
+		target_wait_free_cmd(cmd, &aborted, &tas);
 
-		if (!aborted || tas)
-			ret = target_put_sess_cmd(cmd);
-	} else {
-		if (wait_for_tasks)
-			target_wait_free_cmd(cmd, &aborted, &tas);
+	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD) {
 		/*
 		 * Handle WRITE failure case where transport_generic_new_cmd()
 		 * has already added se_cmd to state_list, but fabric has
@@ -2617,20 +2680,14 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
-
-		if (!aborted || tas)
-			ret = target_put_sess_cmd(cmd);
 	}
-	/*
-	 * If the task has been internally aborted due to TMR ABORT_TASK
-	 * or LUN_RESET, target_core_tmr.c is responsible for performing
-	 * the remaining calls to target_put_sess_cmd(), and not the
-	 * callers of this function.
-	 */
+	if (aborted)
+		cmd->compl = &compl;
+	if (!aborted || tas)
+		ret = target_put_sess_cmd(cmd);
 	if (aborted) {
 		pr_debug("Detected CMD_T_ABORTED for ITT: %llu\n", cmd->tag);
-		wait_for_completion(&cmd->cmd_wait_comp);
-		cmd->se_tfo->release_cmd(cmd);
+		wait_for_completion(&compl);
 		ret = 1;
 	}
 	return ret;
@@ -2691,30 +2748,21 @@ static void target_release_cmd_kref(struct kref *kref)
 {
 	struct se_cmd *se_cmd = container_of(kref, struct se_cmd, cmd_kref);
 	struct se_session *se_sess = se_cmd->se_sess;
+	struct completion *compl = se_cmd->compl;
 	unsigned long flags;
-	bool fabric_stop;
 
 	if (se_sess) {
 		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-
-		spin_lock(&se_cmd->t_state_lock);
-		fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
-			      (se_cmd->transport_state & CMD_T_ABORTED);
-		spin_unlock(&se_cmd->t_state_lock);
-
-		if (se_cmd->cmd_wait_set || fabric_stop) {
-			list_del_init(&se_cmd->se_cmd_list);
-			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-			target_free_cmd_mem(se_cmd);
-			complete(&se_cmd->cmd_wait_comp);
-			return;
-		}
 		list_del_init(&se_cmd->se_cmd_list);
+		if (list_empty(&se_sess->sess_cmd_list))
+			wake_up(&se_sess->cmd_list_wq);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 	}
 
 	target_free_cmd_mem(se_cmd);
 	se_cmd->se_tfo->release_cmd(se_cmd);
+	if (compl)
+		complete(compl);
 }
 
 /**
@@ -2833,78 +2881,41 @@ void target_show_cmd(const char *pfx, struct se_cmd *cmd)
 EXPORT_SYMBOL(target_show_cmd);
 
 /**
- * target_sess_cmd_list_set_waiting - Flag all commands in
- *         sess_cmd_list to complete cmd_wait_comp.  Set
- *         sess_tearing_down so no more commands are queued.
+ * target_sess_cmd_list_set_waiting - Set sess_tearing_down so no new commands are queued.
  * @se_sess:	session to flag
  */
 void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd, *tmp_cmd;
 	unsigned long flags;
-	int rc;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	if (se_sess->sess_tearing_down) {
-		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-		return;
-	}
 	se_sess->sess_tearing_down = 1;
-	list_splice_init(&se_sess->sess_cmd_list, &se_sess->sess_wait_list);
-
-	list_for_each_entry_safe(se_cmd, tmp_cmd,
-				 &se_sess->sess_wait_list, se_cmd_list) {
-		rc = kref_get_unless_zero(&se_cmd->cmd_kref);
-		if (rc) {
-			se_cmd->cmd_wait_set = 1;
-			spin_lock(&se_cmd->t_state_lock);
-			se_cmd->transport_state |= CMD_T_FABRIC_STOP;
-			spin_unlock(&se_cmd->t_state_lock);
-		} else
-			list_del_init(&se_cmd->se_cmd_list);
-	}
-
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 }
 EXPORT_SYMBOL(target_sess_cmd_list_set_waiting);
 
 /**
- * target_wait_for_sess_cmds - Wait for outstanding descriptors
+ * target_wait_for_sess_cmds - Wait for outstanding commands
  * @se_sess:    session to wait for active I/O
  */
 void target_wait_for_sess_cmds(struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd, *tmp_cmd;
-	unsigned long flags;
-	bool tas;
+	struct se_cmd *cmd;
+	int ret;
 
-	list_for_each_entry_safe(se_cmd, tmp_cmd,
-				&se_sess->sess_wait_list, se_cmd_list) {
-		pr_debug("Waiting for se_cmd: %p t_state: %d, fabric state:"
-			" %d\n", se_cmd, se_cmd->t_state,
-			se_cmd->se_tfo->get_cmd_state(se_cmd));
+	WARN_ON_ONCE(!se_sess->sess_tearing_down);
 
-		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-		tas = (se_cmd->transport_state & CMD_T_TAS);
-		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-
-		if (!target_put_sess_cmd(se_cmd)) {
-			if (tas)
-				target_put_sess_cmd(se_cmd);
-		}
-
-		wait_for_completion(&se_cmd->cmd_wait_comp);
-		pr_debug("After cmd_wait_comp: se_cmd: %p t_state: %d"
-			" fabric state: %d\n", se_cmd, se_cmd->t_state,
-			se_cmd->se_tfo->get_cmd_state(se_cmd));
-
-		se_cmd->se_tfo->release_cmd(se_cmd);
-	}
-
-	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	WARN_ON(!list_empty(&se_sess->sess_cmd_list));
-	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-
+	spin_lock_irq(&se_sess->sess_cmd_lock);
+	do {
+		ret = wait_event_interruptible_lock_irq_timeout(
+				se_sess->cmd_list_wq,
+				list_empty(&se_sess->sess_cmd_list),
+				se_sess->sess_cmd_lock, 180 * HZ);
+		list_for_each_entry(cmd, &se_sess->sess_cmd_list, se_cmd_list)
+			target_show_cmd("session shutdown: still waiting for ",
+					cmd);
+	} while (ret <= 0);
+	spin_unlock_irq(&se_sess->sess_cmd_lock);
 }
 EXPORT_SYMBOL(target_wait_for_sess_cmds);
 
@@ -3166,12 +3177,23 @@ static const struct sense_info sense_info_table[] = {
 	},
 };
 
-static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
+/**
+ * translate_sense_reason - translate a sense reason into T10 key, asc and ascq
+ * @cmd: SCSI command in which the resulting sense buffer or SCSI status will
+ *   be stored.
+ * @reason: LIO sense reason code. If this argument has the value
+ *   TCM_CHECK_CONDITION_UNIT_ATTENTION, try to dequeue a unit attention. If
+ *   dequeuing a unit attention fails due to multiple commands being processed
+ *   concurrently, set the command status to BUSY.
+ *
+ * Return: 0 upon success or -EINVAL if the sense buffer is too small.
+ */
+static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 {
 	const struct sense_info *si;
 	u8 *buffer = cmd->sense_buffer;
 	int r = (__force int)reason;
-	u8 asc, ascq;
+	u8 key, asc, ascq;
 	bool desc_format = target_sense_desc_format(cmd->se_dev);
 
 	if (r < ARRAY_SIZE(sense_info_table) && sense_info_table[r].key)
@@ -3180,9 +3202,13 @@ static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 		si = &sense_info_table[(__force int)
 				       TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE];
 
+	key = si->key;
 	if (reason == TCM_CHECK_CONDITION_UNIT_ATTENTION) {
-		core_scsi3_ua_for_check_condition(cmd, &asc, &ascq);
-		WARN_ON_ONCE(asc == 0);
+		if (!core_scsi3_ua_for_check_condition(cmd, &key, &asc,
+						       &ascq)) {
+			cmd->scsi_status = SAM_STAT_BUSY;
+			return;
+		}
 	} else if (si->asc == 0) {
 		WARN_ON_ONCE(cmd->scsi_asc == 0);
 		asc = cmd->scsi_asc;
@@ -3192,13 +3218,14 @@ static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 		ascq = si->ascq;
 	}
 
-	scsi_build_sense_buffer(desc_format, buffer, si->key, asc, ascq);
+	cmd->se_cmd_flags |= SCF_EMULATED_TASK_SENSE;
+	cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
+	cmd->scsi_sense_length  = TRANSPORT_SENSE_BUFFER;
+	scsi_build_sense_buffer(desc_format, buffer, key, asc, ascq);
 	if (si->add_sector_info)
-		return scsi_set_sense_information(buffer,
-						  cmd->scsi_sense_length,
-						  cmd->bad_sector);
-
-	return 0;
+		WARN_ON_ONCE(scsi_set_sense_information(buffer,
+							cmd->scsi_sense_length,
+							cmd->bad_sector) < 0);
 }
 
 int
@@ -3215,16 +3242,8 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 	cmd->se_cmd_flags |= SCF_SENT_CHECK_CONDITION;
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	if (!from_transport) {
-		int rc;
-
-		cmd->se_cmd_flags |= SCF_EMULATED_TASK_SENSE;
-		cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
-		cmd->scsi_sense_length  = TRANSPORT_SENSE_BUFFER;
-		rc = translate_sense_reason(cmd, reason);
-		if (rc)
-			return rc;
-	}
+	if (!from_transport)
+		translate_sense_reason(cmd, reason);
 
 	trace_target_cmd_complete(cmd);
 	return cmd->se_tfo->queue_status(cmd);

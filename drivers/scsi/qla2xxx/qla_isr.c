@@ -911,7 +911,8 @@ skip_rio:
 			if (!atomic_read(&vha->loop_down_timer))
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			if (!N2N_TOPO(ha))
+				qla2x00_mark_all_devices_lost(vha, 1);
 		}
 
 		if (vha->vp_idx) {

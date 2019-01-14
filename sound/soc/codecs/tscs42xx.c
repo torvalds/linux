@@ -625,24 +625,33 @@ static int bytes_info_ext(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 	/* Volumes */
-	SOC_DOUBLE_R_TLV("Headphone Playback Volume", R_HPVOLL, R_HPVOLR,
+	SOC_DOUBLE_R_TLV("Headphone Volume", R_HPVOLL, R_HPVOLR,
 			FB_HPVOLL, 0x7F, 0, hpvol_scale),
-	SOC_DOUBLE_R_TLV("Speaker Playback Volume", R_SPKVOLL, R_SPKVOLR,
+	SOC_DOUBLE_R_TLV("Speaker Volume", R_SPKVOLL, R_SPKVOLR,
 			FB_SPKVOLL, 0x7F, 0, spkvol_scale),
-	SOC_DOUBLE_R_TLV("Master Playback Volume", R_DACVOLL, R_DACVOLR,
+	SOC_DOUBLE_R_TLV("Master Volume", R_DACVOLL, R_DACVOLR,
 			FB_DACVOLL, 0xFF, 0, dacvol_scale),
-	SOC_DOUBLE_R_TLV("PCM Capture Volume", R_ADCVOLL, R_ADCVOLR,
+	SOC_DOUBLE_R_TLV("PCM Volume", R_ADCVOLL, R_ADCVOLR,
 			FB_ADCVOLL, 0xFF, 0, adcvol_scale),
-	SOC_DOUBLE_R_TLV("Master Capture Volume", R_INVOLL, R_INVOLR,
+	SOC_DOUBLE_R_TLV("Input Volume", R_INVOLL, R_INVOLR,
 			FB_INVOLL, 0x3F, 0, invol_scale),
 
 	/* INSEL */
-	SOC_DOUBLE_R_TLV("Mic Boost Capture Volume", R_INSELL, R_INSELR,
+	SOC_DOUBLE_R_TLV("Mic Boost Volume", R_INSELL, R_INSELR,
 			FB_INSELL_MICBSTL, FV_INSELL_MICBSTL_30DB,
 			0, mic_boost_scale),
 
 	/* Input Channel Map */
 	SOC_ENUM("Input Channel Map", ch_map_select_enum),
+
+	/* Mic Bias */
+	SOC_SINGLE("Mic Bias Boost Switch", 0x71, 0x07, 1, 0),
+
+	/* Headphone Auto Switching */
+	SOC_SINGLE("Headphone Auto Switching Switch",
+			R_CTL, FB_CTL_HPSWEN, 1, 0),
+	SOC_SINGLE("Headphone Detect Polarity Toggle Switch",
+			R_CTL, FB_CTL_HPSWPOL, 1, 0),
 
 	/* Coefficient Ram */
 	COEFF_RAM_CTL("Cascade1L BiQuad1", BIQUAD_SIZE, 0x00),
@@ -733,9 +742,9 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 		R_CLECTL, FB_CLECTL_LIMIT_EN, 1, 0),
 	SOC_SINGLE("Comp Switch",
 		R_CLECTL, FB_CLECTL_COMP_EN, 1, 0),
-	SOC_SINGLE_TLV("CLE Make-Up Gain Playback Volume",
+	SOC_SINGLE_TLV("CLE Make-Up Gain Volume",
 		R_MUGAIN, FB_MUGAIN_CLEMUG, 0x1f, 0, mugain_scale),
-	SOC_SINGLE_TLV("Comp Thresh Playback Volume",
+	SOC_SINGLE_TLV("Comp Thresh Volume",
 		R_COMPTH, FB_COMPTH, 0xff, 0, compth_scale),
 	SOC_ENUM("Comp Ratio", compressor_ratio_enum),
 	SND_SOC_BYTES("Comp Atk Time", R_CATKTCL, 2),
@@ -766,9 +775,9 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 
 	SOC_SINGLE("MBC1 Phase Invert Switch",
 		R_DACMBCMUG1, FB_DACMBCMUG1_PHASE, 1, 0),
-	SOC_SINGLE_TLV("DAC MBC1 Make-Up Gain Playback Volume",
+	SOC_SINGLE_TLV("DAC MBC1 Make-Up Gain Volume",
 		R_DACMBCMUG1, FB_DACMBCMUG1_MUGAIN, 0x1f, 0, mugain_scale),
-	SOC_SINGLE_TLV("DAC MBC1 Comp Thresh Playback Volume",
+	SOC_SINGLE_TLV("DAC MBC1 Comp Thresh Volume",
 		R_DACMBCTHR1, FB_DACMBCTHR1_THRESH, 0xff, 0, compth_scale),
 	SOC_ENUM("DAC MBC1 Comp Ratio",
 		dac_mbc1_compressor_ratio_enum),
@@ -778,9 +787,9 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 
 	SOC_SINGLE("MBC2 Phase Invert Switch",
 		R_DACMBCMUG2, FB_DACMBCMUG2_PHASE, 1, 0),
-	SOC_SINGLE_TLV("DAC MBC2 Make-Up Gain Playback Volume",
+	SOC_SINGLE_TLV("DAC MBC2 Make-Up Gain Volume",
 		R_DACMBCMUG2, FB_DACMBCMUG2_MUGAIN, 0x1f, 0, mugain_scale),
-	SOC_SINGLE_TLV("DAC MBC2 Comp Thresh Playback Volume",
+	SOC_SINGLE_TLV("DAC MBC2 Comp Thresh Volume",
 		R_DACMBCTHR2, FB_DACMBCTHR2_THRESH, 0xff, 0, compth_scale),
 	SOC_ENUM("DAC MBC2 Comp Ratio",
 		dac_mbc2_compressor_ratio_enum),
@@ -790,9 +799,9 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 
 	SOC_SINGLE("MBC3 Phase Invert Switch",
 		R_DACMBCMUG3, FB_DACMBCMUG3_PHASE, 1, 0),
-	SOC_SINGLE_TLV("DAC MBC3 Make-Up Gain Playback Volume",
+	SOC_SINGLE_TLV("DAC MBC3 Make-Up Gain Volume",
 		R_DACMBCMUG3, FB_DACMBCMUG3_MUGAIN, 0x1f, 0, mugain_scale),
-	SOC_SINGLE_TLV("DAC MBC3 Comp Thresh Playback Volume",
+	SOC_SINGLE_TLV("DAC MBC3 Comp Thresh Volume",
 		R_DACMBCTHR3, FB_DACMBCTHR3_THRESH, 0xff, 0, compth_scale),
 	SOC_ENUM("DAC MBC3 Comp Ratio",
 		dac_mbc3_compressor_ratio_enum),

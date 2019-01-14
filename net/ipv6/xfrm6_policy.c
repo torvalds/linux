@@ -146,8 +146,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	fl6->daddr = reverse ? hdr->saddr : hdr->daddr;
 	fl6->saddr = reverse ? hdr->daddr : hdr->saddr;
 
-	while (nh + offset + 1 < skb->data ||
-	       pskb_may_pull(skb, nh + offset + 1 - skb->data)) {
+	while (nh + offset + sizeof(*exthdr) < skb->data ||
+	       pskb_may_pull(skb, nh + offset + sizeof(*exthdr) - skb->data)) {
 		nh = skb_network_header(skb);
 		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
 

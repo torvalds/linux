@@ -104,7 +104,6 @@ static struct shash_alg digest_null = {
 	.final  		=	null_final,
 	.base			=	{
 		.cra_name		=	"digest_null",
-		.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize		=	NULL_BLOCK_SIZE,
 		.cra_module		=	THIS_MODULE,
 	}

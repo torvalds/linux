@@ -66,6 +66,12 @@ do {									\
 		__func__, __LINE__, current->pid,	\
 	       ##__VA_ARGS__)
 
+#define mlx5_core_err_rl(__dev, format, ...)				\
+	dev_err_ratelimited(&(__dev)->pdev->dev,			\
+			   "%s:%d:(pid %d): " format,			\
+			   __func__, __LINE__, current->pid,		\
+			   ##__VA_ARGS__)
+
 #define mlx5_core_warn(__dev, format, ...)				\
 	dev_warn(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
 		 __func__, __LINE__, current->pid,			\
@@ -93,7 +99,6 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
 void mlx5_core_page_fault(struct mlx5_core_dev *dev,
 			  struct mlx5_pagefault *pfault);
-void mlx5_pps_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 void mlx5_port_module_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
 void mlx5_disable_device(struct mlx5_core_dev *dev);

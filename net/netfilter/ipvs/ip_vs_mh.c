@@ -5,10 +5,10 @@
  *
  */
 
-/* The mh algorithm is to assign a preference list of all the lookup
+/* The mh algorithm is to assignÂ a preference list of all the lookup
  * table positions to each destination and populate the table with
  * the most-preferred position of destinations. Then it is to select
- * destination with the hash key of source IP address through looking
+ * destination with the hash key of source IP addressÂ through looking
  * up a the lookup table.
  *
  * The algorithm is detailed in:

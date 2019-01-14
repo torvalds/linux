@@ -35,9 +35,9 @@
 /* VP Runtime (HV_X64_MSR_VP_RUNTIME) available */
 #define HV_X64_MSR_VP_RUNTIME_AVAILABLE		(1 << 0)
 /* Partition Reference Counter (HV_X64_MSR_TIME_REF_COUNT) available*/
-#define HV_X64_MSR_TIME_REF_COUNT_AVAILABLE	(1 << 1)
+#define HV_MSR_TIME_REF_COUNT_AVAILABLE		(1 << 1)
 /* Partition reference TSC MSR is available */
-#define HV_X64_MSR_REFERENCE_TSC_AVAILABLE              (1 << 9)
+#define HV_MSR_REFERENCE_TSC_AVAILABLE		(1 << 9)
 
 /* A partition's reference time stamp counter (TSC) page */
 #define HV_X64_MSR_REFERENCE_TSC		0x40000021
@@ -60,7 +60,7 @@
  * Synthetic Timer MSRs (HV_X64_MSR_STIMER0_CONFIG through
  * HV_X64_MSR_STIMER3_COUNT) available
  */
-#define HV_X64_MSR_SYNTIMER_AVAILABLE		(1 << 3)
+#define HV_MSR_SYNTIMER_AVAILABLE		(1 << 3)
 /*
  * APIC access MSRs (HV_X64_MSR_EOI, HV_X64_MSR_ICR and HV_X64_MSR_TPR)
  * are available
@@ -86,7 +86,7 @@
 #define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
 
 /* stimer Direct Mode is available */
-#define HV_X64_STIMER_DIRECT_MODE_AVAILABLE	(1 << 19)
+#define HV_STIMER_DIRECT_MODE_AVAILABLE		(1 << 19)
 
 /*
  * Feature identification: EBX indicates which flags were specified at
@@ -160,9 +160,9 @@
 #define HV_X64_RELAXED_TIMING_RECOMMENDED	(1 << 5)
 
 /*
- * Virtual APIC support
+ * Recommend not using Auto End-Of-Interrupt feature
  */
-#define HV_X64_DEPRECATING_AEOI_RECOMMENDED	(1 << 9)
+#define HV_DEPRECATING_AEOI_RECOMMENDED		(1 << 9)
 
 /*
  * Recommend using cluster IPI hypercalls.
@@ -176,9 +176,10 @@
 #define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED    (1 << 14)
 
 /*
- * Crash notification flag.
+ * Crash notification flags.
  */
-#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
+#define HV_CRASH_CTL_CRASH_NOTIFY_MSG	BIT_ULL(62)
+#define HV_CRASH_CTL_CRASH_NOTIFY	BIT_ULL(63)
 
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000
@@ -309,6 +310,7 @@ struct ms_hyperv_tsc_page {
 #define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
 
 /* Nested features (CPUID 0x4000000A) EAX */
+#define HV_X64_NESTED_GUEST_MAPPING_FLUSH	BIT(18)
 #define HV_X64_NESTED_MSR_BITMAP		BIT(19)
 
 struct hv_reenlightenment_control {
@@ -350,6 +352,7 @@ struct hv_tsc_emulation_status {
 #define HVCALL_SEND_IPI_EX			0x0015
 #define HVCALL_POST_MESSAGE			0x005c
 #define HVCALL_SIGNAL_EVENT			0x005d
+#define HVCALL_FLUSH_GUEST_PHYSICAL_ADDRESS_SPACE 0x00af
 
 #define HV_X64_MSR_VP_ASSIST_PAGE_ENABLE	0x00000001
 #define HV_X64_MSR_VP_ASSIST_PAGE_ADDRESS_SHIFT	12
@@ -723,22 +726,30 @@ struct hv_enlightened_vmcs {
 #define HV_STIMER_AUTOENABLE		(1ULL << 3)
 #define HV_STIMER_SINT(config)		(__u8)(((config) >> 16) & 0x0F)
 
-struct ipi_arg_non_ex {
-	u32 vector;
-	u32 reserved;
-	u64 cpu_mask;
-};
-
 struct hv_vpset {
 	u64 format;
 	u64 valid_bank_mask;
 	u64 bank_contents[];
 };
 
-struct ipi_arg_ex {
+/* HvCallSendSyntheticClusterIpi hypercall */
+struct hv_send_ipi {
+	u32 vector;
+	u32 reserved;
+	u64 cpu_mask;
+};
+
+/* HvCallSendSyntheticClusterIpiEx hypercall */
+struct hv_send_ipi_ex {
 	u32 vector;
 	u32 reserved;
 	struct hv_vpset vp_set;
+};
+
+/* HvFlushGuestPhysicalAddressSpace hypercalls */
+struct hv_guest_mapping_flush {
+	u64 address_space;
+	u64 flags;
 };
 
 /* HvFlushVirtualAddressSpace, HvFlushVirtualAddressList hypercalls */

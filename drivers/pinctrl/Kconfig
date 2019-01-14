@@ -161,10 +161,10 @@ config PINCTRL_MCP23S08
 	select REGMAP_SPI if SPI_MASTER
 	select GENERIC_PINCONF
 	help
-	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
-	  I/O expanders.
-	  This provides a GPIO interface supporting inputs and outputs.
-	  The I2C versions of the chips can be used as interrupt-controller.
+	  SPI/I2C driver for Microchip MCP23S08 / MCP23S17 / MCP23S18 /
+	  MCP23008 / MCP23017 / MCP23018 I/O expanders.
+	  This provides a GPIO interface supporting inputs and outputs and a
+	  corresponding interrupt-controller.
 
 config PINCTRL_OXNAS
 	bool
@@ -332,6 +332,7 @@ config PINCTRL_OCELOT
 	depends on OF
 	depends on MSCC_OCELOT || COMPILE_TEST
 	select GPIOLIB
+	select GPIOLIB_IRQCHIP
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
@@ -360,6 +361,7 @@ source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"
 source "drivers/pinctrl/zte/Kconfig"
 source "drivers/pinctrl/meson/Kconfig"
+source "drivers/pinctrl/cirrus/Kconfig"
 
 config PINCTRL_XWAY
 	bool

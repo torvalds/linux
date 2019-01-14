@@ -688,6 +688,19 @@ config SPI_TXX9
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 
+config SPI_UNIPHIER
+	tristate "Socionext UniPhier SPI Controller"
+	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	help
+	  This enables a driver for the Socionext UniPhier SoC SCSSI SPI controller.
+
+	  UniPhier SoCs have SCSSI and MCSSI SPI controllers.
+	  Every UniPhier SoC has SCSSI which supports single channel.
+	  Older UniPhier Pro4/Pro5 also has MCSSI which support multiple channels.
+	  This driver supports SCSSI only.
+
+	  If your SoC supports SCSSI, say Y here.
+
 config SPI_XCOMM
 	tristate "Analog Devices AD-FMCOMMS1-EBZ SPI-I2C-bridge driver"
 	depends on I2C

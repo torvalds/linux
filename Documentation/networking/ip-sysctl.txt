@@ -81,6 +81,15 @@ fib_multipath_hash_policy - INTEGER
 	0 - Layer 3
 	1 - Layer 4
 
+ip_forward_update_priority - INTEGER
+	Whether to update SKB priority from "TOS" field in IPv4 header after it
+	is forwarded. The new SKB priority is mapped from TOS field value
+	according to an rt_tos2priority table (see e.g. man tc-prio).
+	Default: 1 (Update priority.)
+	Possible values:
+	0 - Do not update priority.
+	1 - Update priority.
+
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
@@ -416,7 +425,7 @@ tcp_mtu_probing - INTEGER
 	  1 - Disabled by default, enabled when an ICMP black hole detected
 	  2 - Always enabled, use initial MSS of tcp_base_mss.
 
-tcp_probe_interval - INTEGER
+tcp_probe_interval - UNSIGNED INTEGER
 	Controls how often to start TCP Packetization-Layer Path MTU
 	Discovery reprobe. The default is reprobing every 10 minutes as
 	per RFC4821.
@@ -733,11 +742,11 @@ tcp_limit_output_bytes - INTEGER
 	Controls TCP Small Queue limit per tcp socket.
 	TCP bulk sender tends to increase packets in flight until it
 	gets losses notifications. With SNDBUF autotuning, this can
-	result in a large amount of packets queued in qdisc/device
-	on the local machine, hurting latency of other flows, for
-	typical pfifo_fast qdiscs.
-	tcp_limit_output_bytes limits the number of bytes on qdisc
-	or device to reduce artificial RTT/cwnd and reduce bufferbloat.
+	result in a large amount of packets queued on the local machine
+	(e.g.: qdiscs, CPU backlog, or device) hurting latency of other
+	flows, for typical pfifo_fast qdiscs.  tcp_limit_output_bytes
+	limits the number of bytes on qdisc or device to reduce artificial
+	RTT/cwnd and reduce bufferbloat.
 	Default: 262144
 
 tcp_challenge_ack_limit - INTEGER
@@ -1834,6 +1843,16 @@ stable_secret - IPv6 address
 
 	By default the stable secret is unset.
 
+addr_gen_mode - INTEGER
+	Defines how link-local and autoconf addresses are generated.
+
+	0: generate address based on EUI64 (default)
+	1: do no generate a link-local address, use EUI64 for addresses generated
+	   from autoconf
+	2: generate stable privacy addresses, using the secret from
+	   stable_secret (RFC7217)
+	3: generate stable privacy addresses, using a random secret if unset
+
 drop_unicast_in_l2_multicast - BOOLEAN
 	Drop any unicast IPv6 packets that are received in link-layer
 	multicast (or broadcast) frames.
@@ -1862,6 +1881,11 @@ ratelimit - INTEGER
 	0 to disable any limiting,
 	otherwise the minimal space between responses in milliseconds.
 	Default: 1000
+
+echo_ignore_all - BOOLEAN
+	If set non-zero, then the kernel will ignore all ICMP ECHO
+	requests sent to it over the IPv6 protocol.
+	Default: 0
 
 xfrm6_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv6

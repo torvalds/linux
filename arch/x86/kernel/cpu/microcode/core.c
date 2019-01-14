@@ -509,12 +509,20 @@ static struct platform_device	*microcode_pdev;
 
 static int check_online_cpus(void)
 {
-	if (num_online_cpus() == num_present_cpus())
-		return 0;
+	unsigned int cpu;
 
-	pr_err("Not all CPUs online, aborting microcode update.\n");
+	/*
+	 * Make sure all CPUs are online.  It's fine for SMT to be disabled if
+	 * all the primary threads are still online.
+	 */
+	for_each_present_cpu(cpu) {
+		if (topology_is_primary_thread(cpu) && !cpu_online(cpu)) {
+			pr_err("Not all CPUs online, aborting microcode update.\n");
+			return -EINVAL;
+		}
+	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static atomic_t late_cpus_in;

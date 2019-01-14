@@ -177,16 +177,16 @@ static void print_pstate(struct pt_regs *regs)
 	if (compat_user_mode(regs)) {
 		printk("pstate: %08llx (%c%c%c%c %c %s %s %c%c%c)\n",
 			pstate,
-			pstate & COMPAT_PSR_N_BIT ? 'N' : 'n',
-			pstate & COMPAT_PSR_Z_BIT ? 'Z' : 'z',
-			pstate & COMPAT_PSR_C_BIT ? 'C' : 'c',
-			pstate & COMPAT_PSR_V_BIT ? 'V' : 'v',
-			pstate & COMPAT_PSR_Q_BIT ? 'Q' : 'q',
-			pstate & COMPAT_PSR_T_BIT ? "T32" : "A32",
-			pstate & COMPAT_PSR_E_BIT ? "BE" : "LE",
-			pstate & COMPAT_PSR_A_BIT ? 'A' : 'a',
-			pstate & COMPAT_PSR_I_BIT ? 'I' : 'i',
-			pstate & COMPAT_PSR_F_BIT ? 'F' : 'f');
+			pstate & PSR_AA32_N_BIT ? 'N' : 'n',
+			pstate & PSR_AA32_Z_BIT ? 'Z' : 'z',
+			pstate & PSR_AA32_C_BIT ? 'C' : 'c',
+			pstate & PSR_AA32_V_BIT ? 'V' : 'v',
+			pstate & PSR_AA32_Q_BIT ? 'Q' : 'q',
+			pstate & PSR_AA32_T_BIT ? "T32" : "A32",
+			pstate & PSR_AA32_E_BIT ? "BE" : "LE",
+			pstate & PSR_AA32_A_BIT ? 'A' : 'a',
+			pstate & PSR_AA32_I_BIT ? 'I' : 'i',
+			pstate & PSR_AA32_F_BIT ? 'F' : 'f');
 	} else {
 		printk("pstate: %08llx (%c%c%c%c %c%c%c%c %cPAN %cUAO)\n",
 			pstate,
@@ -493,3 +493,25 @@ void arch_setup_new_exec(void)
 {
 	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
 }
+
+#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+void __used stackleak_check_alloca(unsigned long size)
+{
+	unsigned long stack_left;
+	unsigned long current_sp = current_stack_pointer;
+	struct stack_info info;
+
+	BUG_ON(!on_accessible_stack(current, current_sp, &info));
+
+	stack_left = current_sp - info.low;
+
+	/*
+	 * There's a good chance we're almost out of stack space if this
+	 * is true. Using panic() over BUG() is more likely to give
+	 * reliable debugging output.
+	 */
+	if (size >= stack_left)
+		panic("alloca() over the kernel stack boundary\n");
+}
+EXPORT_SYMBOL(stackleak_check_alloca);
+#endif

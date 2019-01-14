@@ -150,6 +150,9 @@ static bool bad_spectre_microcode(struct cpuinfo_x86 *c)
 	if (cpu_has(c, X86_FEATURE_HYPERVISOR))
 		return false;
 
+	if (c->x86 != 6)
+		return false;
+
 	for (i = 0; i < ARRAY_SIZE(spectre_bad_microcodes); i++) {
 		if (c->x86_model == spectre_bad_microcodes[i].model &&
 		    c->x86_stepping == spectre_bad_microcodes[i].stepping)
@@ -301,6 +304,13 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	}
 
 	check_mpx_erratum(c);
+
+	/*
+	 * Get the number of SMT siblings early from the extended topology
+	 * leaf, if available. Otherwise try the legacy SMT detection.
+	 */
+	if (detect_extended_topology_early(c) < 0)
+		detect_ht_early(c);
 }
 
 #ifdef CONFIG_X86_32
@@ -465,14 +475,17 @@ static void detect_vmx_virtcap(struct cpuinfo_x86 *c)
 #define X86_VMX_FEATURE_PROC_CTLS2_VIRT_APIC	0x00000001
 #define X86_VMX_FEATURE_PROC_CTLS2_EPT		0x00000002
 #define X86_VMX_FEATURE_PROC_CTLS2_VPID		0x00000020
+#define x86_VMX_FEATURE_EPT_CAP_AD		0x00200000
 
 	u32 vmx_msr_low, vmx_msr_high, msr_ctl, msr_ctl2;
+	u32 msr_vpid_cap, msr_ept_cap;
 
 	clear_cpu_cap(c, X86_FEATURE_TPR_SHADOW);
 	clear_cpu_cap(c, X86_FEATURE_VNMI);
 	clear_cpu_cap(c, X86_FEATURE_FLEXPRIORITY);
 	clear_cpu_cap(c, X86_FEATURE_EPT);
 	clear_cpu_cap(c, X86_FEATURE_VPID);
+	clear_cpu_cap(c, X86_FEATURE_EPT_AD);
 
 	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS, vmx_msr_low, vmx_msr_high);
 	msr_ctl = vmx_msr_high | vmx_msr_low;
@@ -487,8 +500,13 @@ static void detect_vmx_virtcap(struct cpuinfo_x86 *c)
 		if ((msr_ctl2 & X86_VMX_FEATURE_PROC_CTLS2_VIRT_APIC) &&
 		    (msr_ctl & X86_VMX_FEATURE_PROC_CTLS_TPR_SHADOW))
 			set_cpu_cap(c, X86_FEATURE_FLEXPRIORITY);
-		if (msr_ctl2 & X86_VMX_FEATURE_PROC_CTLS2_EPT)
+		if (msr_ctl2 & X86_VMX_FEATURE_PROC_CTLS2_EPT) {
 			set_cpu_cap(c, X86_FEATURE_EPT);
+			rdmsr(MSR_IA32_VMX_EPT_VPID_CAP,
+			      msr_ept_cap, msr_vpid_cap);
+			if (msr_ept_cap & x86_VMX_FEATURE_EPT_CAP_AD)
+				set_cpu_cap(c, X86_FEATURE_EPT_AD);
+		}
 		if (msr_ctl2 & X86_VMX_FEATURE_PROC_CTLS2_VPID)
 			set_cpu_cap(c, X86_FEATURE_VPID);
 	}

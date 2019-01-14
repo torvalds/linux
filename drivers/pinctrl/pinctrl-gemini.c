@@ -1696,6 +1696,7 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 		.name = "gmii_gmac0_grp",
 		.pins = gmii_gmac0_3516_pins,
 		.num_pins = ARRAY_SIZE(gmii_gmac0_3516_pins),
+		.mask = GEMINI_GMAC_IOSEL_MASK,
 		.driving_mask = GENMASK(17, 16),
 	},
 	{
@@ -1703,6 +1704,7 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 		.pins = gmii_gmac1_3516_pins,
 		.num_pins = ARRAY_SIZE(gmii_gmac1_3516_pins),
 		/* Bring out RGMII on the GMAC1 pins */
+		.mask = GEMINI_GMAC_IOSEL_MASK,
 		.value = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 		.driving_mask = GENMASK(19, 18),
 	},

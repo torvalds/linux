@@ -49,9 +49,9 @@ static int rxe_qp_chk_cap(struct rxe_dev *rxe, struct ib_qp_cap *cap,
 		goto err1;
 	}
 
-	if (cap->max_send_sge > rxe->attr.max_sge) {
+	if (cap->max_send_sge > rxe->attr.max_send_sge) {
 		pr_warn("invalid send sge = %d > %d\n",
-			cap->max_send_sge, rxe->attr.max_sge);
+			cap->max_send_sge, rxe->attr.max_send_sge);
 		goto err1;
 	}
 
@@ -62,9 +62,9 @@ static int rxe_qp_chk_cap(struct rxe_dev *rxe, struct ib_qp_cap *cap,
 			goto err1;
 		}
 
-		if (cap->max_recv_sge > rxe->attr.max_sge) {
+		if (cap->max_recv_sge > rxe->attr.max_recv_sge) {
 			pr_warn("invalid recv sge = %d > %d\n",
-				cap->max_recv_sge, rxe->attr.max_sge);
+				cap->max_recv_sge, rxe->attr.max_recv_sge);
 			goto err1;
 		}
 	}
@@ -580,9 +580,6 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		     struct ib_udata *udata)
 {
 	int err;
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	union ib_gid sgid;
-	struct ib_gid_attr sgid_attr;
 
 	if (mask & IB_QP_MAX_QP_RD_ATOMIC) {
 		int max_rd_atomic = __roundup_pow_of_two(attr->max_rd_atomic);
@@ -623,30 +620,14 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.qkey = attr->qkey;
 
 	if (mask & IB_QP_AV) {
-		ib_get_cached_gid(&rxe->ib_dev, 1,
-				  rdma_ah_read_grh(&attr->ah_attr)->sgid_index,
-				  &sgid, &sgid_attr);
 		rxe_av_from_attr(attr->port_num, &qp->pri_av, &attr->ah_attr);
-		rxe_av_fill_ip_info(&qp->pri_av, &attr->ah_attr,
-				    &sgid_attr, &sgid);
-		if (sgid_attr.ndev)
-			dev_put(sgid_attr.ndev);
+		rxe_av_fill_ip_info(&qp->pri_av, &attr->ah_attr);
 	}
 
 	if (mask & IB_QP_ALT_PATH) {
-		u8 sgid_index =
-			rdma_ah_read_grh(&attr->alt_ah_attr)->sgid_index;
-
-		ib_get_cached_gid(&rxe->ib_dev, 1, sgid_index,
-				  &sgid, &sgid_attr);
-
 		rxe_av_from_attr(attr->alt_port_num, &qp->alt_av,
 				 &attr->alt_ah_attr);
-		rxe_av_fill_ip_info(&qp->alt_av, &attr->alt_ah_attr,
-				    &sgid_attr, &sgid);
-		if (sgid_attr.ndev)
-			dev_put(sgid_attr.ndev);
-
+		rxe_av_fill_ip_info(&qp->alt_av, &attr->alt_ah_attr);
 		qp->attr.alt_port_num = attr->alt_port_num;
 		qp->attr.alt_pkey_index = attr->alt_pkey_index;
 		qp->attr.alt_timeout = attr->alt_timeout;

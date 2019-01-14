@@ -150,22 +150,13 @@ static ssize_t average_read(struct file *filp, char __user *buf, size_t count,
 	int ret;
 	char tbuf[22];
 
-	if (*pos)
-		return 0;
-
 	stats = filp->private_data;
 	spin_lock_irq(&stats->lock);
 	if (stats->n)
 		field = div64_u64(stats->sum, stats->n);
 	spin_unlock_irq(&stats->lock);
 	ret = snprintf(tbuf, sizeof(tbuf), "%llu\n", field);
-	if (ret > 0) {
-		if (copy_to_user(buf, tbuf, ret))
-			return -EFAULT;
-	}
-
-	*pos += ret;
-	return ret;
+	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
 }
 
 static ssize_t average_write(struct file *filp, const char __user *buf,
@@ -442,9 +433,6 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 	u64 field;
 	int ret;
 
-	if (*pos)
-		return 0;
-
 	desc = filp->private_data;
 	d = (void *)(desc - desc->i) - sizeof(*d);
 	switch (d->type) {
@@ -470,13 +458,7 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 	else
 		ret = snprintf(tbuf, sizeof(tbuf), "0x%llx\n", field);
 
-	if (ret > 0) {
-		if (copy_to_user(buf, tbuf, ret))
-			return -EFAULT;
-	}
-
-	*pos += ret;
-	return ret;
+	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
 }
 
 static const struct file_operations fops = {

@@ -5,7 +5,6 @@
 
 #include <linux/kernel.h>
 #include <linux/bio.h>
-#include <linux/buffer_head.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -14,10 +13,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/backing-dev.h>
-#include <linux/mpage.h>
-#include <linux/swap.h>
 #include <linux/writeback.h>
-#include <linux/bit_spinlock.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
 #include <linux/log2.h>
@@ -303,7 +299,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	struct bio *bio = NULL;
 	struct compressed_bio *cb;
 	unsigned long bytes_left;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	int pg_index = 0;
 	struct page *page;
 	u64 first_byte = disk_start;
@@ -342,9 +337,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		page = compressed_pages[pg_index];
 		page->mapping = inode->i_mapping;
 		if (bio->bi_iter.bi_size)
-			submit = io_tree->ops->merge_bio_hook(page, 0,
-							   PAGE_SIZE,
-							   bio, 0);
+			submit = btrfs_merge_bio_hook(page, 0, PAGE_SIZE, bio, 0);
 
 		page->mapping = NULL;
 		if (submit || bio_add_page(bio, page, PAGE_SIZE, 0) <
@@ -613,7 +606,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->len = bio->bi_iter.bi_size;
 
 	comp_bio = btrfs_bio_alloc(bdev, cur_disk_byte);
-	bio_set_op_attrs (comp_bio, REQ_OP_READ, 0);
+	comp_bio->bi_opf = REQ_OP_READ;
 	comp_bio->bi_private = cb;
 	comp_bio->bi_end_io = end_compressed_bio_read;
 	refcount_set(&cb->pending_bios, 1);
@@ -626,9 +619,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		page->index = em_start >> PAGE_SHIFT;
 
 		if (comp_bio->bi_iter.bi_size)
-			submit = tree->ops->merge_bio_hook(page, 0,
-							PAGE_SIZE,
-							comp_bio, 0);
+			submit = btrfs_merge_bio_hook(page, 0, PAGE_SIZE,
+					comp_bio, 0);
 
 		page->mapping = NULL;
 		if (submit || bio_add_page(comp_bio, page, PAGE_SIZE, 0) <
@@ -660,7 +652,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			}
 
 			comp_bio = btrfs_bio_alloc(bdev, cur_disk_byte);
-			bio_set_op_attrs(comp_bio, REQ_OP_READ, 0);
+			comp_bio->bi_opf = REQ_OP_READ;
 			comp_bio->bi_private = cb;
 			comp_bio->bi_end_io = end_compressed_bio_read;
 

@@ -211,7 +211,8 @@ void amdgpu_ring_priority_get(struct amdgpu_ring *ring,
 	if (!ring->funcs->set_priority)
 		return;
 
-	atomic_inc(&ring->num_jobs[priority]);
+	if (atomic_inc_return(&ring->num_jobs[priority]) <= 0)
+		return;
 
 	mutex_lock(&ring->priority_mutex);
 	if (priority <= ring->priority)
@@ -304,7 +305,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		0xffffffffffffffff : ring->buf_mask;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
-		r = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
+		r = amdgpu_bo_create_kernel(adev, ring->ring_size + ring->funcs->extra_dw, PAGE_SIZE,
 					    AMDGPU_GEM_DOMAIN_GTT,
 					    &ring->ring_obj,
 					    &ring->gpu_addr,

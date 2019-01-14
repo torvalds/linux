@@ -111,7 +111,7 @@ static int reserve_space(struct ubifs_info *c, int jhead, int len)
 	 * better to try to allocate space at the ends of eraseblocks. This is
 	 * what the squeeze parameter does.
 	 */
-	ubifs_assert(!c->ro_media && !c->ro_mount);
+	ubifs_assert(c, !c->ro_media && !c->ro_mount);
 	squeeze = (jhead == BASEHD);
 again:
 	mutex_lock_nested(&wbuf->io_mutex, wbuf->jhead);
@@ -215,7 +215,7 @@ out_unlock:
 
 out_return:
 	/* An error occurred and the LEB has to be returned to lprops */
-	ubifs_assert(err < 0);
+	ubifs_assert(c, err < 0);
 	err1 = ubifs_return_leb(c, lnum);
 	if (err1 && err == -EAGAIN)
 		/*
@@ -246,7 +246,7 @@ static int write_node(struct ubifs_info *c, int jhead, void *node, int len,
 {
 	struct ubifs_wbuf *wbuf = &c->jheads[jhead].wbuf;
 
-	ubifs_assert(jhead != GCHD);
+	ubifs_assert(c, jhead != GCHD);
 
 	*lnum = c->jheads[jhead].wbuf.lnum;
 	*offs = c->jheads[jhead].wbuf.offs + c->jheads[jhead].wbuf.used;
@@ -278,7 +278,7 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 	int err;
 	struct ubifs_wbuf *wbuf = &c->jheads[jhead].wbuf;
 
-	ubifs_assert(jhead != GCHD);
+	ubifs_assert(c, jhead != GCHD);
 
 	*lnum = c->jheads[jhead].wbuf.lnum;
 	*offs = c->jheads[jhead].wbuf.offs + c->jheads[jhead].wbuf.used;
@@ -317,6 +317,7 @@ again:
 	down_read(&c->commit_sem);
 	err = reserve_space(c, jhead, len);
 	if (!err)
+		/* c->commit_sem will get released via finish_reservation(). */
 		return 0;
 	up_read(&c->commit_sem);
 
@@ -548,7 +549,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	struct ubifs_ino_node *ino;
 	union ubifs_key dent_key, ino_key;
 
-	ubifs_assert(mutex_is_locked(&host_ui->ui_mutex));
+	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 
 	dlen = UBIFS_DENT_NODE_SZ + fname_len(nm) + 1;
 	ilen = UBIFS_INO_NODE_SZ;
@@ -664,6 +665,11 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	spin_lock(&ui->ui_lock);
 	ui->synced_i_size = ui->ui_size;
 	spin_unlock(&ui->ui_lock);
+	if (xent) {
+		spin_lock(&host_ui->ui_lock);
+		host_ui->synced_i_size = host_ui->ui_size;
+		spin_unlock(&host_ui->ui_lock);
+	}
 	mark_inode_clean(c, ui);
 	mark_inode_clean(c, host_ui);
 	return 0;
@@ -707,7 +713,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 
 	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
 		(unsigned long)key_inum(c, key), key_block(c, key), len);
-	ubifs_assert(len <= UBIFS_BLOCK_SIZE);
+	ubifs_assert(c, len <= UBIFS_BLOCK_SIZE);
 
 	if (encrypted)
 		dlen += UBIFS_CIPHER_BLOCK_SIZE;
@@ -738,7 +744,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 
 	out_len = compr_len = dlen - UBIFS_DATA_NODE_SZ;
 	ubifs_compress(c, buf, len, &data->data, &compr_len, &compr_type);
-	ubifs_assert(compr_len <= UBIFS_BLOCK_SIZE);
+	ubifs_assert(c, compr_len <= UBIFS_BLOCK_SIZE);
 
 	if (encrypted) {
 		err = ubifs_encrypt(inode, data, compr_len, &out_len, key_block(c, key));
@@ -898,7 +904,7 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
 	int err;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	ubifs_assert(inode->i_nlink == 0);
+	ubifs_assert(c, inode->i_nlink == 0);
 
 	if (ui->del_cmtno != c->cmt_no)
 		/* A commit happened for sure */
@@ -953,10 +959,10 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	int twoparents = (fst_dir != snd_dir);
 	void *p;
 
-	ubifs_assert(ubifs_inode(fst_dir)->data_len == 0);
-	ubifs_assert(ubifs_inode(snd_dir)->data_len == 0);
-	ubifs_assert(mutex_is_locked(&ubifs_inode(fst_dir)->ui_mutex));
-	ubifs_assert(mutex_is_locked(&ubifs_inode(snd_dir)->ui_mutex));
+	ubifs_assert(c, ubifs_inode(fst_dir)->data_len == 0);
+	ubifs_assert(c, ubifs_inode(snd_dir)->data_len == 0);
+	ubifs_assert(c, mutex_is_locked(&ubifs_inode(fst_dir)->ui_mutex));
+	ubifs_assert(c, mutex_is_locked(&ubifs_inode(snd_dir)->ui_mutex));
 
 	dlen1 = UBIFS_DENT_NODE_SZ + fname_len(snd_nm) + 1;
 	dlen2 = UBIFS_DENT_NODE_SZ + fname_len(fst_nm) + 1;
@@ -1096,16 +1102,16 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	int move = (old_dir != new_dir);
 	struct ubifs_inode *uninitialized_var(new_ui);
 
-	ubifs_assert(ubifs_inode(old_dir)->data_len == 0);
-	ubifs_assert(ubifs_inode(new_dir)->data_len == 0);
-	ubifs_assert(mutex_is_locked(&ubifs_inode(old_dir)->ui_mutex));
-	ubifs_assert(mutex_is_locked(&ubifs_inode(new_dir)->ui_mutex));
+	ubifs_assert(c, ubifs_inode(old_dir)->data_len == 0);
+	ubifs_assert(c, ubifs_inode(new_dir)->data_len == 0);
+	ubifs_assert(c, mutex_is_locked(&ubifs_inode(old_dir)->ui_mutex));
+	ubifs_assert(c, mutex_is_locked(&ubifs_inode(new_dir)->ui_mutex));
 
 	dlen1 = UBIFS_DENT_NODE_SZ + fname_len(new_nm) + 1;
 	dlen2 = UBIFS_DENT_NODE_SZ + fname_len(old_nm) + 1;
 	if (new_inode) {
 		new_ui = ubifs_inode(new_inode);
-		ubifs_assert(mutex_is_locked(&new_ui->ui_mutex));
+		ubifs_assert(c, mutex_is_locked(&new_ui->ui_mutex));
 		ilen = UBIFS_INO_NODE_SZ;
 		if (!last_reference)
 			ilen += new_ui->data_len;
@@ -1282,8 +1288,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 			      int *new_len)
 {
 	void *buf;
-	int err, compr_type;
-	u32 dlen, out_len, old_dlen;
+	int err, dlen, compr_type, out_len, old_dlen;
 
 	out_len = le32_to_cpu(dn->size);
 	buf = kmalloc_array(out_len, WORST_COMPR_FACTOR, GFP_NOFS);
@@ -1319,7 +1324,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 		dn->compr_size = 0;
 	}
 
-	ubifs_assert(out_len <= UBIFS_BLOCK_SIZE);
+	ubifs_assert(c, out_len <= UBIFS_BLOCK_SIZE);
 	dn->compr_type = cpu_to_le16(compr_type);
 	dn->size = cpu_to_le32(*new_len);
 	*new_len = UBIFS_DATA_NODE_SZ + out_len;
@@ -1358,9 +1363,9 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 
 	dbg_jnl("ino %lu, size %lld -> %lld",
 		(unsigned long)inum, old_size, new_size);
-	ubifs_assert(!ui->data_len);
-	ubifs_assert(S_ISREG(inode->i_mode));
-	ubifs_assert(mutex_is_locked(&ui->ui_mutex));
+	ubifs_assert(c, !ui->data_len);
+	ubifs_assert(c, S_ISREG(inode->i_mode));
+	ubifs_assert(c, mutex_is_locked(&ui->ui_mutex));
 
 	sz = UBIFS_TRUN_NODE_SZ + UBIFS_INO_NODE_SZ +
 	     UBIFS_MAX_DATA_NODE_SZ * WORST_COMPR_FACTOR;
@@ -1388,7 +1393,16 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 		else if (err)
 			goto out_free;
 		else {
-			if (le32_to_cpu(dn->size) <= dlen)
+			int dn_len = le32_to_cpu(dn->size);
+
+			if (dn_len <= 0 || dn_len > UBIFS_BLOCK_SIZE) {
+				ubifs_err(c, "bad data node (block %u, inode %lu)",
+					  blk, inode->i_ino);
+				ubifs_dump_node(c, dn);
+				goto out_free;
+			}
+
+			if (dn_len <= dlen)
 				dlen = 0; /* Nothing to do */
 			else {
 				err = truncate_data_node(c, inode, blk, dn, &dlen);
@@ -1488,8 +1502,8 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	int sync = IS_DIRSYNC(host);
 	struct ubifs_inode *host_ui = ubifs_inode(host);
 
-	ubifs_assert(inode->i_nlink == 0);
-	ubifs_assert(mutex_is_locked(&host_ui->ui_mutex));
+	ubifs_assert(c, inode->i_nlink == 0);
+	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 
 	/*
 	 * Since we are deleting the inode, we do not bother to attach any data
@@ -1598,9 +1612,9 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	int sync = IS_DIRSYNC(host);
 
 	dbg_jnl("ino %lu, ino %lu", host->i_ino, inode->i_ino);
-	ubifs_assert(host->i_nlink > 0);
-	ubifs_assert(inode->i_nlink > 0);
-	ubifs_assert(mutex_is_locked(&host_ui->ui_mutex));
+	ubifs_assert(c, host->i_nlink > 0);
+	ubifs_assert(c, inode->i_nlink > 0);
+	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 
 	len1 = UBIFS_INO_NODE_SZ + host_ui->data_len;
 	len2 = UBIFS_INO_NODE_SZ + ubifs_inode(inode)->data_len;

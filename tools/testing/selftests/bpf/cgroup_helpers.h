@@ -9,10 +9,10 @@
 	__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
 
 
-int create_and_get_cgroup(char *path);
-int join_cgroup(char *path);
+int create_and_get_cgroup(const char *path);
+int join_cgroup(const char *path);
 int setup_cgroup_environment(void);
 void cleanup_cgroup_environment(void);
-unsigned long long get_cgroup_id(char *path);
+unsigned long long get_cgroup_id(const char *path);
 
 #endif

@@ -440,10 +440,10 @@ static void raid10_end_read_request(struct bio *bio)
 static void close_write(struct r10bio *r10_bio)
 {
 	/* clear the bitmap if all writes complete successfully */
-	bitmap_endwrite(r10_bio->mddev->bitmap, r10_bio->sector,
-			r10_bio->sectors,
-			!test_bit(R10BIO_Degraded, &r10_bio->state),
-			0);
+	md_bitmap_endwrite(r10_bio->mddev->bitmap, r10_bio->sector,
+			   r10_bio->sectors,
+			   !test_bit(R10BIO_Degraded, &r10_bio->state),
+			   0);
 	md_write_end(r10_bio->mddev);
 }
 
@@ -917,7 +917,7 @@ static void flush_pending_writes(struct r10conf *conf)
 		blk_start_plug(&plug);
 		/* flush any pending bitmap writes to disk
 		 * before proceeding w/ I/O */
-		bitmap_unplug(conf->mddev->bitmap);
+		md_bitmap_unplug(conf->mddev->bitmap);
 		wake_up(&conf->wait_barrier);
 
 		while (bio) { /* submit pending writes */
@@ -1102,7 +1102,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 	/* we aren't scheduling, so we can do the write-out directly. */
 	bio = bio_list_get(&plug->pending);
-	bitmap_unplug(mddev->bitmap);
+	md_bitmap_unplug(mddev->bitmap);
 	wake_up(&conf->wait_barrier);
 
 	while (bio) { /* submit pending writes */
@@ -1519,7 +1519,7 @@ retry_write:
 	}
 
 	atomic_set(&r10_bio->remaining, 1);
-	bitmap_startwrite(mddev->bitmap, r10_bio->sector, r10_bio->sectors, 0);
+	md_bitmap_startwrite(mddev->bitmap, r10_bio->sector, r10_bio->sectors, 0);
 
 	for (i = 0; i < conf->copies; i++) {
 		if (r10_bio->devs[i].bio)
@@ -2991,13 +2991,13 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 		if (mddev->curr_resync < max_sector) { /* aborted */
 			if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
-				bitmap_end_sync(mddev->bitmap, mddev->curr_resync,
-						&sync_blocks, 1);
+				md_bitmap_end_sync(mddev->bitmap, mddev->curr_resync,
+						   &sync_blocks, 1);
 			else for (i = 0; i < conf->geo.raid_disks; i++) {
 				sector_t sect =
 					raid10_find_virt(conf, mddev->curr_resync, i);
-				bitmap_end_sync(mddev->bitmap, sect,
-						&sync_blocks, 1);
+				md_bitmap_end_sync(mddev->bitmap, sect,
+						   &sync_blocks, 1);
 			}
 		} else {
 			/* completed sync */
@@ -3018,7 +3018,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			}
 			conf->fullsync = 0;
 		}
-		bitmap_close_sync(mddev->bitmap);
+		md_bitmap_close_sync(mddev->bitmap);
 		close_sync(conf);
 		*skipped = 1;
 		return sectors_skipped;
@@ -3112,8 +3112,8 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			 * we only need to recover the block if it is set in
 			 * the bitmap
 			 */
-			must_sync = bitmap_start_sync(mddev->bitmap, sect,
-						      &sync_blocks, 1);
+			must_sync = md_bitmap_start_sync(mddev->bitmap, sect,
+							 &sync_blocks, 1);
 			if (sync_blocks < max_sync)
 				max_sync = sync_blocks;
 			if (!must_sync &&
@@ -3158,8 +3158,8 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				}
 			}
 
-			must_sync = bitmap_start_sync(mddev->bitmap, sect,
-						      &sync_blocks, still_degraded);
+			must_sync = md_bitmap_start_sync(mddev->bitmap, sect,
+							 &sync_blocks, still_degraded);
 
 			any_working = 0;
 			for (j=0; j<conf->copies;j++) {
@@ -3335,13 +3335,12 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		 * safety reason, which ensures curr_resync_completed is
 		 * updated in bitmap_cond_end_sync.
 		 */
-		bitmap_cond_end_sync(mddev->bitmap, sector_nr,
-				     mddev_is_clustered(mddev) &&
-				     (sector_nr + 2 * RESYNC_SECTORS >
-				      conf->cluster_sync_high));
+		md_bitmap_cond_end_sync(mddev->bitmap, sector_nr,
+					mddev_is_clustered(mddev) &&
+					(sector_nr + 2 * RESYNC_SECTORS > conf->cluster_sync_high));
 
-		if (!bitmap_start_sync(mddev->bitmap, sector_nr,
-				       &sync_blocks, mddev->degraded) &&
+		if (!md_bitmap_start_sync(mddev->bitmap, sector_nr,
+					  &sync_blocks, mddev->degraded) &&
 		    !conf->fullsync && !test_bit(MD_RECOVERY_REQUESTED,
 						 &mddev->recovery)) {
 			/* We can skip this block */
@@ -4022,7 +4021,7 @@ static int raid10_resize(struct mddev *mddev, sector_t sectors)
 	    mddev->array_sectors > size)
 		return -EINVAL;
 	if (mddev->bitmap) {
-		int ret = bitmap_resize(mddev->bitmap, size, 0, 0);
+		int ret = md_bitmap_resize(mddev->bitmap, size, 0, 0);
 		if (ret)
 			return ret;
 	}
@@ -4287,10 +4286,9 @@ static int raid10_start_reshape(struct mddev *mddev)
 	spin_unlock_irq(&conf->device_lock);
 
 	if (mddev->delta_disks && mddev->bitmap) {
-		ret = bitmap_resize(mddev->bitmap,
-				    raid10_size(mddev, 0,
-						conf->geo.raid_disks),
-				    0, 0);
+		ret = md_bitmap_resize(mddev->bitmap,
+				       raid10_size(mddev, 0, conf->geo.raid_disks),
+				       0, 0);
 		if (ret)
 			goto abort;
 	}
@@ -4531,11 +4529,12 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 		allow_barrier(conf);
 	}
 
+	raise_barrier(conf, 0);
 read_more:
 	/* Now schedule reads for blocks from sector_nr to last */
 	r10_bio = raid10_alloc_init_r10buf(conf);
 	r10_bio->state = 0;
-	raise_barrier(conf, sectors_done != 0);
+	raise_barrier(conf, 1);
 	atomic_set(&r10_bio->remaining, 0);
 	r10_bio->mddev = mddev;
 	r10_bio->sector = sector_nr;
@@ -4630,6 +4629,8 @@ read_more:
 	sectors_done += nr_sectors;
 	if (sector_nr <= last)
 		goto read_more;
+
+	lower_barrier(conf);
 
 	/* Now that we have done the whole section we can
 	 * update reshape_progress

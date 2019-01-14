@@ -91,7 +91,7 @@ static size_t pblk_trans_map_size(struct pblk *pblk)
 	return entry_size * pblk->rl.nr_secs;
 }
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 static u32 pblk_l2p_crc(struct pblk *pblk)
 {
 	size_t map_size;
@@ -117,13 +117,13 @@ static int pblk_l2p_recover(struct pblk *pblk, bool factory_init)
 	} else {
 		line = pblk_recov_l2p(pblk);
 		if (IS_ERR(line)) {
-			pr_err("pblk: could not recover l2p table\n");
+			pblk_err(pblk, "could not recover l2p table\n");
 			return -EFAULT;
 		}
 	}
 
-#ifdef CONFIG_NVM_DEBUG
-	pr_info("pblk init: L2P CRC: %x\n", pblk_l2p_crc(pblk));
+#ifdef CONFIG_NVM_PBLK_DEBUG
+	pblk_info(pblk, "init: L2P CRC: %x\n", pblk_l2p_crc(pblk));
 #endif
 
 	/* Free full lines directly as GC has not been started yet */
@@ -166,7 +166,7 @@ static int pblk_l2p_init(struct pblk *pblk, bool factory_init)
 static void pblk_rwb_free(struct pblk *pblk)
 {
 	if (pblk_rb_tear_down_check(&pblk->rwb))
-		pr_err("pblk: write buffer error on tear down\n");
+		pblk_err(pblk, "write buffer error on tear down\n");
 
 	pblk_rb_data_free(&pblk->rwb);
 	vfree(pblk_rb_entries_ref(&pblk->rwb));
@@ -179,11 +179,14 @@ static int pblk_rwb_init(struct pblk *pblk)
 	struct pblk_rb_entry *entries;
 	unsigned long nr_entries, buffer_size;
 	unsigned int power_size, power_seg_sz;
+	int pgs_in_buffer;
 
-	if (write_buffer_size && (write_buffer_size > pblk->pgs_in_buffer))
+	pgs_in_buffer = max(geo->mw_cunits, geo->ws_opt) * geo->all_luns;
+
+	if (write_buffer_size && (write_buffer_size > pgs_in_buffer))
 		buffer_size = write_buffer_size;
 	else
-		buffer_size = pblk->pgs_in_buffer;
+		buffer_size = pgs_in_buffer;
 
 	nr_entries = pblk_rb_calculate_size(buffer_size);
 
@@ -200,7 +203,8 @@ static int pblk_rwb_init(struct pblk *pblk)
 /* Minimum pages needed within a lun */
 #define ADDR_POOL_SIZE 64
 
-static int pblk_set_addrf_12(struct nvm_geo *geo, struct nvm_addrf_12 *dst)
+static int pblk_set_addrf_12(struct pblk *pblk, struct nvm_geo *geo,
+			     struct nvm_addrf_12 *dst)
 {
 	struct nvm_addrf_12 *src = (struct nvm_addrf_12 *)&geo->addrf;
 	int power_len;
@@ -208,14 +212,14 @@ static int pblk_set_addrf_12(struct nvm_geo *geo, struct nvm_addrf_12 *dst)
 	/* Re-calculate channel and lun format to adapt to configuration */
 	power_len = get_count_order(geo->num_ch);
 	if (1 << power_len != geo->num_ch) {
-		pr_err("pblk: supports only power-of-two channel config.\n");
+		pblk_err(pblk, "supports only power-of-two channel config.\n");
 		return -EINVAL;
 	}
 	dst->ch_len = power_len;
 
 	power_len = get_count_order(geo->num_lun);
 	if (1 << power_len != geo->num_lun) {
-		pr_err("pblk: supports only power-of-two LUN config.\n");
+		pblk_err(pblk, "supports only power-of-two LUN config.\n");
 		return -EINVAL;
 	}
 	dst->lun_len = power_len;
@@ -282,18 +286,19 @@ static int pblk_set_addrf(struct pblk *pblk)
 	case NVM_OCSSD_SPEC_12:
 		div_u64_rem(geo->clba, pblk->min_write_pgs, &mod);
 		if (mod) {
-			pr_err("pblk: bad configuration of sectors/pages\n");
+			pblk_err(pblk, "bad configuration of sectors/pages\n");
 			return -EINVAL;
 		}
 
-		pblk->addrf_len = pblk_set_addrf_12(geo, (void *)&pblk->addrf);
+		pblk->addrf_len = pblk_set_addrf_12(pblk, geo,
+							(void *)&pblk->addrf);
 		break;
 	case NVM_OCSSD_SPEC_20:
 		pblk->addrf_len = pblk_set_addrf_20(geo, (void *)&pblk->addrf,
-								&pblk->uaddrf);
+							&pblk->uaddrf);
 		break;
 	default:
-		pr_err("pblk: OCSSD revision not supported (%d)\n",
+		pblk_err(pblk, "OCSSD revision not supported (%d)\n",
 								geo->version);
 		return -EINVAL;
 	}
@@ -366,15 +371,13 @@ static int pblk_core_init(struct pblk *pblk)
 	atomic64_set(&pblk->nr_flush, 0);
 	pblk->nr_flush_rst = 0;
 
-	pblk->pgs_in_buffer = geo->mw_cunits * geo->all_luns;
-
 	pblk->min_write_pgs = geo->ws_opt * (geo->csecs / PAGE_SIZE);
 	max_write_ppas = pblk->min_write_pgs * geo->all_luns;
 	pblk->max_write_pgs = min_t(int, max_write_ppas, NVM_MAX_VLBA);
 	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
 
 	if (pblk->max_write_pgs > PBLK_MAX_REQ_ADDRS) {
-		pr_err("pblk: vector list too big(%u > %u)\n",
+		pblk_err(pblk, "vector list too big(%u > %u)\n",
 				pblk->max_write_pgs, PBLK_MAX_REQ_ADDRS);
 		return -EINVAL;
 	}
@@ -607,7 +610,7 @@ static int pblk_luns_init(struct pblk *pblk)
 
 	/* TODO: Implement unbalanced LUN support */
 	if (geo->num_lun < 0) {
-		pr_err("pblk: unbalanced LUN config.\n");
+		pblk_err(pblk, "unbalanced LUN config.\n");
 		return -EINVAL;
 	}
 
@@ -716,10 +719,11 @@ static int pblk_setup_line_meta_12(struct pblk *pblk, struct pblk_line *line,
 
 		/*
 		 * In 1.2 spec. chunk state is not persisted by the device. Thus
-		 * some of the values are reset each time pblk is instantiated.
+		 * some of the values are reset each time pblk is instantiated,
+		 * so we have to assume that the block is closed.
 		 */
 		if (lun_bb_meta[line->id] == NVM_BLK_T_FREE)
-			chunk->state =  NVM_CHK_ST_FREE;
+			chunk->state =  NVM_CHK_ST_CLOSED;
 		else
 			chunk->state = NVM_CHK_ST_OFFLINE;
 
@@ -1026,7 +1030,7 @@ add_emeta_page:
 					lm->emeta_sec[0], geo->clba);
 
 	if (lm->min_blk_line > lm->blk_per_line) {
-		pr_err("pblk: config. not supported. Min. LUN in line:%d\n",
+		pblk_err(pblk, "config. not supported. Min. LUN in line:%d\n",
 							lm->blk_per_line);
 		return -EINVAL;
 	}
@@ -1078,7 +1082,7 @@ static int pblk_lines_init(struct pblk *pblk)
 	}
 
 	if (!nr_free_chks) {
-		pr_err("pblk: too many bad blocks prevent for sane instance\n");
+		pblk_err(pblk, "too many bad blocks prevent for sane instance\n");
 		return -EINTR;
 	}
 
@@ -1108,7 +1112,7 @@ static int pblk_writer_init(struct pblk *pblk)
 		int err = PTR_ERR(pblk->writer_ts);
 
 		if (err != -EINTR)
-			pr_err("pblk: could not allocate writer kthread (%d)\n",
+			pblk_err(pblk, "could not allocate writer kthread (%d)\n",
 					err);
 		return err;
 	}
@@ -1154,7 +1158,7 @@ static void pblk_tear_down(struct pblk *pblk, bool graceful)
 	pblk_rb_sync_l2p(&pblk->rwb);
 	pblk_rl_free(&pblk->rl);
 
-	pr_debug("pblk: consistent tear down (graceful:%d)\n", graceful);
+	pblk_debug(pblk, "consistent tear down (graceful:%d)\n", graceful);
 }
 
 static void pblk_exit(void *private, bool graceful)
@@ -1165,8 +1169,8 @@ static void pblk_exit(void *private, bool graceful)
 	pblk_gc_exit(pblk, graceful);
 	pblk_tear_down(pblk, graceful);
 
-#ifdef CONFIG_NVM_DEBUG
-	pr_info("pblk exit: L2P CRC: %x\n", pblk_l2p_crc(pblk));
+#ifdef CONFIG_NVM_PBLK_DEBUG
+	pblk_info(pblk, "exit: L2P CRC: %x\n", pblk_l2p_crc(pblk));
 #endif
 
 	pblk_free(pblk);
@@ -1189,20 +1193,6 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	struct pblk *pblk;
 	int ret;
 
-	/* pblk supports 1.2 and 2.0 versions */
-	if (!(geo->version == NVM_OCSSD_SPEC_12 ||
-					geo->version == NVM_OCSSD_SPEC_20)) {
-		pr_err("pblk: OCSSD version not supported (%u)\n",
-							geo->version);
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (geo->version == NVM_OCSSD_SPEC_12 && geo->dom & NVM_RSP_L2P) {
-		pr_err("pblk: host-side L2P table not supported. (%x)\n",
-							geo->dom);
-		return ERR_PTR(-EINVAL);
-	}
-
 	pblk = kzalloc(sizeof(struct pblk), GFP_KERNEL);
 	if (!pblk)
 		return ERR_PTR(-ENOMEM);
@@ -1212,11 +1202,26 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	pblk->state = PBLK_STATE_RUNNING;
 	pblk->gc.gc_enabled = 0;
 
+	if (!(geo->version == NVM_OCSSD_SPEC_12 ||
+					geo->version == NVM_OCSSD_SPEC_20)) {
+		pblk_err(pblk, "OCSSD version not supported (%u)\n",
+							geo->version);
+		kfree(pblk);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (geo->version == NVM_OCSSD_SPEC_12 && geo->dom & NVM_RSP_L2P) {
+		pblk_err(pblk, "host-side L2P table not supported. (%x)\n",
+							geo->dom);
+		kfree(pblk);
+		return ERR_PTR(-EINVAL);
+	}
+
 	spin_lock_init(&pblk->resubmit_lock);
 	spin_lock_init(&pblk->trans_lock);
 	spin_lock_init(&pblk->lock);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_set(&pblk->inflight_writes, 0);
 	atomic_long_set(&pblk->padded_writes, 0);
 	atomic_long_set(&pblk->padded_wb, 0);
@@ -1241,38 +1246,38 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	ret = pblk_core_init(pblk);
 	if (ret) {
-		pr_err("pblk: could not initialize core\n");
+		pblk_err(pblk, "could not initialize core\n");
 		goto fail;
 	}
 
 	ret = pblk_lines_init(pblk);
 	if (ret) {
-		pr_err("pblk: could not initialize lines\n");
+		pblk_err(pblk, "could not initialize lines\n");
 		goto fail_free_core;
 	}
 
 	ret = pblk_rwb_init(pblk);
 	if (ret) {
-		pr_err("pblk: could not initialize write buffer\n");
+		pblk_err(pblk, "could not initialize write buffer\n");
 		goto fail_free_lines;
 	}
 
 	ret = pblk_l2p_init(pblk, flags & NVM_TARGET_FACTORY);
 	if (ret) {
-		pr_err("pblk: could not initialize maps\n");
+		pblk_err(pblk, "could not initialize maps\n");
 		goto fail_free_rwb;
 	}
 
 	ret = pblk_writer_init(pblk);
 	if (ret) {
 		if (ret != -EINTR)
-			pr_err("pblk: could not initialize write thread\n");
+			pblk_err(pblk, "could not initialize write thread\n");
 		goto fail_free_l2p;
 	}
 
 	ret = pblk_gc_init(pblk);
 	if (ret) {
-		pr_err("pblk: could not initialize gc\n");
+		pblk_err(pblk, "could not initialize gc\n");
 		goto fail_stop_writer;
 	}
 
@@ -1287,8 +1292,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	blk_queue_max_discard_sectors(tqueue, UINT_MAX >> 9);
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, tqueue);
 
-	pr_info("pblk(%s): luns:%u, lines:%d, secs:%llu, buf entries:%u\n",
-			tdisk->disk_name,
+	pblk_info(pblk, "luns:%u, lines:%d, secs:%llu, buf entries:%u\n",
 			geo->all_luns, pblk->l_mg.nr_lines,
 			(unsigned long long)pblk->rl.nr_secs,
 			pblk->rwb.nr_entries);

@@ -1,5 +1,7 @@
+#include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/hwmon.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
@@ -58,6 +60,69 @@ enum {
 	SFP_S_TX_DISABLE,
 };
 
+static const char  * const mod_state_strings[] = {
+	[SFP_MOD_EMPTY] = "empty",
+	[SFP_MOD_PROBE] = "probe",
+	[SFP_MOD_HPOWER] = "hpower",
+	[SFP_MOD_PRESENT] = "present",
+	[SFP_MOD_ERROR] = "error",
+};
+
+static const char *mod_state_to_str(unsigned short mod_state)
+{
+	if (mod_state >= ARRAY_SIZE(mod_state_strings))
+		return "Unknown module state";
+	return mod_state_strings[mod_state];
+}
+
+static const char * const dev_state_strings[] = {
+	[SFP_DEV_DOWN] = "down",
+	[SFP_DEV_UP] = "up",
+};
+
+static const char *dev_state_to_str(unsigned short dev_state)
+{
+	if (dev_state >= ARRAY_SIZE(dev_state_strings))
+		return "Unknown device state";
+	return dev_state_strings[dev_state];
+}
+
+static const char * const event_strings[] = {
+	[SFP_E_INSERT] = "insert",
+	[SFP_E_REMOVE] = "remove",
+	[SFP_E_DEV_DOWN] = "dev_down",
+	[SFP_E_DEV_UP] = "dev_up",
+	[SFP_E_TX_FAULT] = "tx_fault",
+	[SFP_E_TX_CLEAR] = "tx_clear",
+	[SFP_E_LOS_HIGH] = "los_high",
+	[SFP_E_LOS_LOW] = "los_low",
+	[SFP_E_TIMEOUT] = "timeout",
+};
+
+static const char *event_to_str(unsigned short event)
+{
+	if (event >= ARRAY_SIZE(event_strings))
+		return "Unknown event";
+	return event_strings[event];
+}
+
+static const char * const sm_state_strings[] = {
+	[SFP_S_DOWN] = "down",
+	[SFP_S_INIT] = "init",
+	[SFP_S_WAIT_LOS] = "wait_los",
+	[SFP_S_LINK_UP] = "link_up",
+	[SFP_S_TX_FAULT] = "tx_fault",
+	[SFP_S_REINIT] = "reinit",
+	[SFP_S_TX_DISABLE] = "rx_disable",
+};
+
+static const char *sm_state_to_str(unsigned short sm_state)
+{
+	if (sm_state >= ARRAY_SIZE(sm_state_strings))
+		return "Unknown state";
+	return sm_state_strings[sm_state];
+}
+
 static const char *gpio_of_names[] = {
 	"mod-def0",
 	"los",
@@ -98,8 +163,6 @@ static const enum gpiod_flags gpio_flags[] = {
 /* Give this long for the PHY to reset. */
 #define T_PHY_RESET_MS	50
 
-static DEFINE_MUTEX(sfp_mutex);
-
 struct sff_data {
 	unsigned int gpios;
 	bool (*module_supported)(const struct sfp_eeprom_id *id);
@@ -131,6 +194,12 @@ struct sfp {
 	unsigned int sm_retries;
 
 	struct sfp_eeprom_id id;
+#if IS_ENABLED(CONFIG_HWMON)
+	struct sfp_diag diag;
+	struct device *hwmon_dev;
+	char *hwmon_name;
+#endif
+
 };
 
 static bool sff_module_supported(const struct sfp_eeprom_id *id)
@@ -315,6 +384,734 @@ static unsigned int sfp_check(void *buf, size_t len)
 
 	return check;
 }
+
+/* hwmon */
+#if IS_ENABLED(CONFIG_HWMON)
+static umode_t sfp_hwmon_is_visible(const void *data,
+				    enum hwmon_sensor_types type,
+				    u32 attr, int channel)
+{
+	const struct sfp *sfp = data;
+
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_min_alarm:
+		case hwmon_temp_max_alarm:
+		case hwmon_temp_lcrit_alarm:
+		case hwmon_temp_crit_alarm:
+		case hwmon_temp_min:
+		case hwmon_temp_max:
+		case hwmon_temp_lcrit:
+		case hwmon_temp_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_temp_input:
+			return 0444;
+		default:
+			return 0;
+		}
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_min_alarm:
+		case hwmon_in_max_alarm:
+		case hwmon_in_lcrit_alarm:
+		case hwmon_in_crit_alarm:
+		case hwmon_in_min:
+		case hwmon_in_max:
+		case hwmon_in_lcrit:
+		case hwmon_in_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_in_input:
+			return 0444;
+		default:
+			return 0;
+		}
+	case hwmon_curr:
+		switch (attr) {
+		case hwmon_curr_min_alarm:
+		case hwmon_curr_max_alarm:
+		case hwmon_curr_lcrit_alarm:
+		case hwmon_curr_crit_alarm:
+		case hwmon_curr_min:
+		case hwmon_curr_max:
+		case hwmon_curr_lcrit:
+		case hwmon_curr_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_curr_input:
+			return 0444;
+		default:
+			return 0;
+		}
+	case hwmon_power:
+		/* External calibration of receive power requires
+		 * floating point arithmetic. Doing that in the kernel
+		 * is not easy, so just skip it. If the module does
+		 * not require external calibration, we can however
+		 * show receiver power, since FP is then not needed.
+		 */
+		if (sfp->id.ext.diagmon & SFP_DIAGMON_EXT_CAL &&
+		    channel == 1)
+			return 0;
+		switch (attr) {
+		case hwmon_power_min_alarm:
+		case hwmon_power_max_alarm:
+		case hwmon_power_lcrit_alarm:
+		case hwmon_power_crit_alarm:
+		case hwmon_power_min:
+		case hwmon_power_max:
+		case hwmon_power_lcrit:
+		case hwmon_power_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_power_input:
+			return 0444;
+		default:
+			return 0;
+		}
+	default:
+		return 0;
+	}
+}
+
+static int sfp_hwmon_read_sensor(struct sfp *sfp, int reg, long *value)
+{
+	__be16 val;
+	int err;
+
+	err = sfp_read(sfp, true, reg, &val, sizeof(val));
+	if (err < 0)
+		return err;
+
+	*value = be16_to_cpu(val);
+
+	return 0;
+}
+
+static void sfp_hwmon_to_rx_power(long *value)
+{
+	*value = DIV_ROUND_CLOSEST(*value, 100);
+}
+
+static void sfp_hwmon_calibrate(struct sfp *sfp, unsigned int slope, int offset,
+				long *value)
+{
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_EXT_CAL)
+		*value = DIV_ROUND_CLOSEST(*value * slope, 256) + offset;
+}
+
+static void sfp_hwmon_calibrate_temp(struct sfp *sfp, long *value)
+{
+	sfp_hwmon_calibrate(sfp, be16_to_cpu(sfp->diag.cal_t_slope),
+			    be16_to_cpu(sfp->diag.cal_t_offset), value);
+
+	if (*value >= 0x8000)
+		*value -= 0x10000;
+
+	*value = DIV_ROUND_CLOSEST(*value * 1000, 256);
+}
+
+static void sfp_hwmon_calibrate_vcc(struct sfp *sfp, long *value)
+{
+	sfp_hwmon_calibrate(sfp, be16_to_cpu(sfp->diag.cal_v_slope),
+			    be16_to_cpu(sfp->diag.cal_v_offset), value);
+
+	*value = DIV_ROUND_CLOSEST(*value, 10);
+}
+
+static void sfp_hwmon_calibrate_bias(struct sfp *sfp, long *value)
+{
+	sfp_hwmon_calibrate(sfp, be16_to_cpu(sfp->diag.cal_txi_slope),
+			    be16_to_cpu(sfp->diag.cal_txi_offset), value);
+
+	*value = DIV_ROUND_CLOSEST(*value, 500);
+}
+
+static void sfp_hwmon_calibrate_tx_power(struct sfp *sfp, long *value)
+{
+	sfp_hwmon_calibrate(sfp, be16_to_cpu(sfp->diag.cal_txpwr_slope),
+			    be16_to_cpu(sfp->diag.cal_txpwr_offset), value);
+
+	*value = DIV_ROUND_CLOSEST(*value, 10);
+}
+
+static int sfp_hwmon_read_temp(struct sfp *sfp, int reg, long *value)
+{
+	int err;
+
+	err = sfp_hwmon_read_sensor(sfp, reg, value);
+	if (err < 0)
+		return err;
+
+	sfp_hwmon_calibrate_temp(sfp, value);
+
+	return 0;
+}
+
+static int sfp_hwmon_read_vcc(struct sfp *sfp, int reg, long *value)
+{
+	int err;
+
+	err = sfp_hwmon_read_sensor(sfp, reg, value);
+	if (err < 0)
+		return err;
+
+	sfp_hwmon_calibrate_vcc(sfp, value);
+
+	return 0;
+}
+
+static int sfp_hwmon_read_bias(struct sfp *sfp, int reg, long *value)
+{
+	int err;
+
+	err = sfp_hwmon_read_sensor(sfp, reg, value);
+	if (err < 0)
+		return err;
+
+	sfp_hwmon_calibrate_bias(sfp, value);
+
+	return 0;
+}
+
+static int sfp_hwmon_read_tx_power(struct sfp *sfp, int reg, long *value)
+{
+	int err;
+
+	err = sfp_hwmon_read_sensor(sfp, reg, value);
+	if (err < 0)
+		return err;
+
+	sfp_hwmon_calibrate_tx_power(sfp, value);
+
+	return 0;
+}
+
+static int sfp_hwmon_read_rx_power(struct sfp *sfp, int reg, long *value)
+{
+	int err;
+
+	err = sfp_hwmon_read_sensor(sfp, reg, value);
+	if (err < 0)
+		return err;
+
+	sfp_hwmon_to_rx_power(value);
+
+	return 0;
+}
+
+static int sfp_hwmon_temp(struct sfp *sfp, u32 attr, long *value)
+{
+	u8 status;
+	int err;
+
+	switch (attr) {
+	case hwmon_temp_input:
+		return sfp_hwmon_read_temp(sfp, SFP_TEMP, value);
+
+	case hwmon_temp_lcrit:
+		*value = be16_to_cpu(sfp->diag.temp_low_alarm);
+		sfp_hwmon_calibrate_temp(sfp, value);
+		return 0;
+
+	case hwmon_temp_min:
+		*value = be16_to_cpu(sfp->diag.temp_low_warn);
+		sfp_hwmon_calibrate_temp(sfp, value);
+		return 0;
+	case hwmon_temp_max:
+		*value = be16_to_cpu(sfp->diag.temp_high_warn);
+		sfp_hwmon_calibrate_temp(sfp, value);
+		return 0;
+
+	case hwmon_temp_crit:
+		*value = be16_to_cpu(sfp->diag.temp_high_alarm);
+		sfp_hwmon_calibrate_temp(sfp, value);
+		return 0;
+
+	case hwmon_temp_lcrit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_TEMP_LOW);
+		return 0;
+
+	case hwmon_temp_min_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_TEMP_LOW);
+		return 0;
+
+	case hwmon_temp_max_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_TEMP_HIGH);
+		return 0;
+
+	case hwmon_temp_crit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_TEMP_HIGH);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int sfp_hwmon_vcc(struct sfp *sfp, u32 attr, long *value)
+{
+	u8 status;
+	int err;
+
+	switch (attr) {
+	case hwmon_in_input:
+		return sfp_hwmon_read_vcc(sfp, SFP_VCC, value);
+
+	case hwmon_in_lcrit:
+		*value = be16_to_cpu(sfp->diag.volt_low_alarm);
+		sfp_hwmon_calibrate_vcc(sfp, value);
+		return 0;
+
+	case hwmon_in_min:
+		*value = be16_to_cpu(sfp->diag.volt_low_warn);
+		sfp_hwmon_calibrate_vcc(sfp, value);
+		return 0;
+
+	case hwmon_in_max:
+		*value = be16_to_cpu(sfp->diag.volt_high_warn);
+		sfp_hwmon_calibrate_vcc(sfp, value);
+		return 0;
+
+	case hwmon_in_crit:
+		*value = be16_to_cpu(sfp->diag.volt_high_alarm);
+		sfp_hwmon_calibrate_vcc(sfp, value);
+		return 0;
+
+	case hwmon_in_lcrit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_VCC_LOW);
+		return 0;
+
+	case hwmon_in_min_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_VCC_LOW);
+		return 0;
+
+	case hwmon_in_max_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_VCC_HIGH);
+		return 0;
+
+	case hwmon_in_crit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_VCC_HIGH);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int sfp_hwmon_bias(struct sfp *sfp, u32 attr, long *value)
+{
+	u8 status;
+	int err;
+
+	switch (attr) {
+	case hwmon_curr_input:
+		return sfp_hwmon_read_bias(sfp, SFP_TX_BIAS, value);
+
+	case hwmon_curr_lcrit:
+		*value = be16_to_cpu(sfp->diag.bias_low_alarm);
+		sfp_hwmon_calibrate_bias(sfp, value);
+		return 0;
+
+	case hwmon_curr_min:
+		*value = be16_to_cpu(sfp->diag.bias_low_warn);
+		sfp_hwmon_calibrate_bias(sfp, value);
+		return 0;
+
+	case hwmon_curr_max:
+		*value = be16_to_cpu(sfp->diag.bias_high_warn);
+		sfp_hwmon_calibrate_bias(sfp, value);
+		return 0;
+
+	case hwmon_curr_crit:
+		*value = be16_to_cpu(sfp->diag.bias_high_alarm);
+		sfp_hwmon_calibrate_bias(sfp, value);
+		return 0;
+
+	case hwmon_curr_lcrit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_TX_BIAS_LOW);
+		return 0;
+
+	case hwmon_curr_min_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_TX_BIAS_LOW);
+		return 0;
+
+	case hwmon_curr_max_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_TX_BIAS_HIGH);
+		return 0;
+
+	case hwmon_curr_crit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_TX_BIAS_HIGH);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int sfp_hwmon_tx_power(struct sfp *sfp, u32 attr, long *value)
+{
+	u8 status;
+	int err;
+
+	switch (attr) {
+	case hwmon_power_input:
+		return sfp_hwmon_read_tx_power(sfp, SFP_TX_POWER, value);
+
+	case hwmon_power_lcrit:
+		*value = be16_to_cpu(sfp->diag.txpwr_low_alarm);
+		sfp_hwmon_calibrate_tx_power(sfp, value);
+		return 0;
+
+	case hwmon_power_min:
+		*value = be16_to_cpu(sfp->diag.txpwr_low_warn);
+		sfp_hwmon_calibrate_tx_power(sfp, value);
+		return 0;
+
+	case hwmon_power_max:
+		*value = be16_to_cpu(sfp->diag.txpwr_high_warn);
+		sfp_hwmon_calibrate_tx_power(sfp, value);
+		return 0;
+
+	case hwmon_power_crit:
+		*value = be16_to_cpu(sfp->diag.txpwr_high_alarm);
+		sfp_hwmon_calibrate_tx_power(sfp, value);
+		return 0;
+
+	case hwmon_power_lcrit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_TXPWR_LOW);
+		return 0;
+
+	case hwmon_power_min_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_TXPWR_LOW);
+		return 0;
+
+	case hwmon_power_max_alarm:
+		err = sfp_read(sfp, true, SFP_WARN0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN0_TXPWR_HIGH);
+		return 0;
+
+	case hwmon_power_crit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM0, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM0_TXPWR_HIGH);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int sfp_hwmon_rx_power(struct sfp *sfp, u32 attr, long *value)
+{
+	u8 status;
+	int err;
+
+	switch (attr) {
+	case hwmon_power_input:
+		return sfp_hwmon_read_rx_power(sfp, SFP_RX_POWER, value);
+
+	case hwmon_power_lcrit:
+		*value = be16_to_cpu(sfp->diag.rxpwr_low_alarm);
+		sfp_hwmon_to_rx_power(value);
+		return 0;
+
+	case hwmon_power_min:
+		*value = be16_to_cpu(sfp->diag.rxpwr_low_warn);
+		sfp_hwmon_to_rx_power(value);
+		return 0;
+
+	case hwmon_power_max:
+		*value = be16_to_cpu(sfp->diag.rxpwr_high_warn);
+		sfp_hwmon_to_rx_power(value);
+		return 0;
+
+	case hwmon_power_crit:
+		*value = be16_to_cpu(sfp->diag.rxpwr_high_alarm);
+		sfp_hwmon_to_rx_power(value);
+		return 0;
+
+	case hwmon_power_lcrit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM1, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM1_RXPWR_LOW);
+		return 0;
+
+	case hwmon_power_min_alarm:
+		err = sfp_read(sfp, true, SFP_WARN1, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN1_RXPWR_LOW);
+		return 0;
+
+	case hwmon_power_max_alarm:
+		err = sfp_read(sfp, true, SFP_WARN1, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_WARN1_RXPWR_HIGH);
+		return 0;
+
+	case hwmon_power_crit_alarm:
+		err = sfp_read(sfp, true, SFP_ALARM1, &status, sizeof(status));
+		if (err < 0)
+			return err;
+
+		*value = !!(status & SFP_ALARM1_RXPWR_HIGH);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int sfp_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
+			  u32 attr, int channel, long *value)
+{
+	struct sfp *sfp = dev_get_drvdata(dev);
+
+	switch (type) {
+	case hwmon_temp:
+		return sfp_hwmon_temp(sfp, attr, value);
+	case hwmon_in:
+		return sfp_hwmon_vcc(sfp, attr, value);
+	case hwmon_curr:
+		return sfp_hwmon_bias(sfp, attr, value);
+	case hwmon_power:
+		switch (channel) {
+		case 0:
+			return sfp_hwmon_tx_power(sfp, attr, value);
+		case 1:
+			return sfp_hwmon_rx_power(sfp, attr, value);
+		default:
+			return -EOPNOTSUPP;
+		}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static const struct hwmon_ops sfp_hwmon_ops = {
+	.is_visible = sfp_hwmon_is_visible,
+	.read = sfp_hwmon_read,
+};
+
+static u32 sfp_hwmon_chip_config[] = {
+	HWMON_C_REGISTER_TZ,
+	0,
+};
+
+static const struct hwmon_channel_info sfp_hwmon_chip = {
+	.type = hwmon_chip,
+	.config = sfp_hwmon_chip_config,
+};
+
+static u32 sfp_hwmon_temp_config[] = {
+	HWMON_T_INPUT |
+	HWMON_T_MAX | HWMON_T_MIN |
+	HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
+	HWMON_T_CRIT | HWMON_T_LCRIT |
+	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM,
+	0,
+};
+
+static const struct hwmon_channel_info sfp_hwmon_temp_channel_info = {
+	.type = hwmon_temp,
+	.config = sfp_hwmon_temp_config,
+};
+
+static u32 sfp_hwmon_vcc_config[] = {
+	HWMON_I_INPUT |
+	HWMON_I_MAX | HWMON_I_MIN |
+	HWMON_I_MAX_ALARM | HWMON_I_MIN_ALARM |
+	HWMON_I_CRIT | HWMON_I_LCRIT |
+	HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM,
+	0,
+};
+
+static const struct hwmon_channel_info sfp_hwmon_vcc_channel_info = {
+	.type = hwmon_in,
+	.config = sfp_hwmon_vcc_config,
+};
+
+static u32 sfp_hwmon_bias_config[] = {
+	HWMON_C_INPUT |
+	HWMON_C_MAX | HWMON_C_MIN |
+	HWMON_C_MAX_ALARM | HWMON_C_MIN_ALARM |
+	HWMON_C_CRIT | HWMON_C_LCRIT |
+	HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM,
+	0,
+};
+
+static const struct hwmon_channel_info sfp_hwmon_bias_channel_info = {
+	.type = hwmon_curr,
+	.config = sfp_hwmon_bias_config,
+};
+
+static u32 sfp_hwmon_power_config[] = {
+	/* Transmit power */
+	HWMON_P_INPUT |
+	HWMON_P_MAX | HWMON_P_MIN |
+	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
+	HWMON_P_CRIT | HWMON_P_LCRIT |
+	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM,
+	/* Receive power */
+	HWMON_P_INPUT |
+	HWMON_P_MAX | HWMON_P_MIN |
+	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
+	HWMON_P_CRIT | HWMON_P_LCRIT |
+	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM,
+	0,
+};
+
+static const struct hwmon_channel_info sfp_hwmon_power_channel_info = {
+	.type = hwmon_power,
+	.config = sfp_hwmon_power_config,
+};
+
+static const struct hwmon_channel_info *sfp_hwmon_info[] = {
+	&sfp_hwmon_chip,
+	&sfp_hwmon_vcc_channel_info,
+	&sfp_hwmon_temp_channel_info,
+	&sfp_hwmon_bias_channel_info,
+	&sfp_hwmon_power_channel_info,
+	NULL,
+};
+
+static const struct hwmon_chip_info sfp_hwmon_chip_info = {
+	.ops = &sfp_hwmon_ops,
+	.info = sfp_hwmon_info,
+};
+
+static int sfp_hwmon_insert(struct sfp *sfp)
+{
+	int err, i;
+
+	if (sfp->id.ext.sff8472_compliance == SFP_SFF8472_COMPLIANCE_NONE)
+		return 0;
+
+	if (!(sfp->id.ext.diagmon & SFP_DIAGMON_DDM))
+		return 0;
+
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
+		/* This driver in general does not support address
+		 * change.
+		 */
+		return 0;
+
+	err = sfp_read(sfp, true, 0, &sfp->diag, sizeof(sfp->diag));
+	if (err < 0)
+		return err;
+
+	sfp->hwmon_name = kstrdup(dev_name(sfp->dev), GFP_KERNEL);
+	if (!sfp->hwmon_name)
+		return -ENODEV;
+
+	for (i = 0; sfp->hwmon_name[i]; i++)
+		if (hwmon_is_bad_char(sfp->hwmon_name[i]))
+			sfp->hwmon_name[i] = '_';
+
+	sfp->hwmon_dev = hwmon_device_register_with_info(sfp->dev,
+							 sfp->hwmon_name, sfp,
+							 &sfp_hwmon_chip_info,
+							 NULL);
+
+	return PTR_ERR_OR_ZERO(sfp->hwmon_dev);
+}
+
+static void sfp_hwmon_remove(struct sfp *sfp)
+{
+	if (!IS_ERR_OR_NULL(sfp->hwmon_dev)) {
+		hwmon_device_unregister(sfp->hwmon_dev);
+		sfp->hwmon_dev = NULL;
+		kfree(sfp->hwmon_name);
+	}
+}
+#else
+static int sfp_hwmon_insert(struct sfp *sfp)
+{
+	return 0;
+}
+
+static void sfp_hwmon_remove(struct sfp *sfp)
+{
+}
+#endif
 
 /* Helpers */
 static void sfp_module_tx_disable(struct sfp *sfp)
@@ -636,6 +1433,10 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 		dev_warn(sfp->dev,
 			 "module address swap to access page 0xA2 is not supported.\n");
 
+	ret = sfp_hwmon_insert(sfp);
+	if (ret < 0)
+		return ret;
+
 	ret = sfp_module_insert(sfp->sfp_bus, &sfp->id);
 	if (ret < 0)
 		return ret;
@@ -646,6 +1447,8 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 static void sfp_sm_mod_remove(struct sfp *sfp)
 {
 	sfp_module_remove(sfp->sfp_bus);
+
+	sfp_hwmon_remove(sfp);
 
 	if (sfp->mod_phy)
 		sfp_sm_phy_detach(sfp);
@@ -661,8 +1464,11 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 {
 	mutex_lock(&sfp->sm_mutex);
 
-	dev_dbg(sfp->dev, "SM: enter %u:%u:%u event %u\n",
-		sfp->sm_mod_state, sfp->sm_dev_state, sfp->sm_state, event);
+	dev_dbg(sfp->dev, "SM: enter %s:%s:%s event %s\n",
+		mod_state_to_str(sfp->sm_mod_state),
+		dev_state_to_str(sfp->sm_dev_state),
+		sm_state_to_str(sfp->sm_state),
+		event_to_str(event));
 
 	/* This state machine tracks the insert/remove state of
 	 * the module, and handles probing the on-board EEPROM.
@@ -793,8 +1599,10 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		break;
 	}
 
-	dev_dbg(sfp->dev, "SM: exit %u:%u:%u\n",
-		sfp->sm_mod_state, sfp->sm_dev_state, sfp->sm_state);
+	dev_dbg(sfp->dev, "SM: exit %s:%s:%s\n",
+		mod_state_to_str(sfp->sm_mod_state),
+		dev_state_to_str(sfp->sm_dev_state),
+		sm_state_to_str(sfp->sm_state));
 
 	mutex_unlock(&sfp->sm_mutex);
 }

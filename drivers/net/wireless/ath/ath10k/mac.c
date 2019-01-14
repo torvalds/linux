@@ -101,6 +101,8 @@ static struct ieee80211_rate ath10k_rates_rev2[] = {
 #define ath10k_g_rates_rev2 (ath10k_rates_rev2 + 0)
 #define ath10k_g_rates_rev2_size (ARRAY_SIZE(ath10k_rates_rev2))
 
+#define ath10k_wmi_legacy_rates ath10k_rates
+
 static bool ath10k_mac_bitrate_is_cck(int bitrate)
 {
 	switch (bitrate) {
@@ -3085,6 +3087,13 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 			passive = channel->flags & IEEE80211_CHAN_NO_IR;
 			ch->passive = passive;
 
+			/* the firmware is ignoring the "radar" flag of the
+			 * channel and is scanning actively using Probe Requests
+			 * on "Radar detection"/DFS channels which are not
+			 * marked as "available"
+			 */
+			ch->passive |= ch->chan_radar;
+
 			ch->freq = channel->center_freq;
 			ch->band_center_freq1 = channel->center_freq;
 			ch->min_power = 0;
@@ -4026,7 +4035,7 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 				   drv_priv);
 
 		/* Prevent aggressive sta/tid taking over tx queue */
-		max = 16;
+		max = HTC_HOST_MAX_MSG_PER_TX_BUNDLE;
 		ret = 0;
 		while (ath10k_mac_tx_can_push(hw, txq) && max--) {
 			ret = ath10k_mac_tx_push_txq(hw, txq);
@@ -4047,6 +4056,7 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 	rcu_read_unlock();
 	spin_unlock_bh(&ar->txqs_lock);
 }
+EXPORT_SYMBOL(ath10k_mac_tx_push_pending);
 
 /************/
 /* Scanning */
@@ -4287,7 +4297,7 @@ static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
 	struct ieee80211_txq *f_txq;
 	struct ath10k_txq *f_artxq;
 	int ret = 0;
-	int max = 16;
+	int max = HTC_HOST_MAX_MSG_PER_TX_BUNDLE;
 
 	spin_lock_bh(&ar->txqs_lock);
 	if (list_empty(&artxq->list))
@@ -5438,8 +5448,12 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
-	int ret = 0;
+	struct cfg80211_chan_def def;
 	u32 vdev_param, pdev_param, slottime, preamble;
+	u16 bitrate, hw_value;
+	u8 rate;
+	int rateidx, ret = 0;
+	enum nl80211_band band;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -5605,6 +5619,44 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret)
 			ath10k_warn(ar, "failed to setup ps on vdev %i: %d\n",
 				    arvif->vdev_id, ret);
+	}
+
+	if (changed & BSS_CHANGED_MCAST_RATE &&
+	    !WARN_ON(ath10k_mac_vif_chan(arvif->vif, &def))) {
+		band = def.chan->band;
+		rateidx = vif->bss_conf.mcast_rate[band] - 1;
+
+		if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY)
+			rateidx += ATH10K_MAC_FIRST_OFDM_RATE_IDX;
+
+		bitrate = ath10k_wmi_legacy_rates[rateidx].bitrate;
+		hw_value = ath10k_wmi_legacy_rates[rateidx].hw_value;
+		if (ath10k_mac_bitrate_is_cck(bitrate))
+			preamble = WMI_RATE_PREAMBLE_CCK;
+		else
+			preamble = WMI_RATE_PREAMBLE_OFDM;
+
+		rate = ATH10K_HW_RATECODE(hw_value, 0, preamble);
+
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac vdev %d mcast_rate %x\n",
+			   arvif->vdev_id, rate);
+
+		vdev_param = ar->wmi.vdev_param->mcast_data_rate;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
+						vdev_param, rate);
+		if (ret)
+			ath10k_warn(ar,
+				    "failed to set mcast rate on vdev %i: %d\n",
+				    arvif->vdev_id,  ret);
+
+		vdev_param = ar->wmi.vdev_param->bcast_data_rate;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
+						vdev_param, rate);
+		if (ret)
+			ath10k_warn(ar,
+				    "failed to set bcast rate on vdev %i: %d\n",
+				    arvif->vdev_id,  ret);
 	}
 
 	mutex_unlock(&ar->conf_mutex);
@@ -6062,13 +6114,13 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 
 		mode = chan_to_phymode(&def);
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac update sta %pM peer bw %d phymode %d\n",
-				sta->addr, bw, mode);
+			   sta->addr, bw, mode);
 
 		err = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, sta->addr,
-				WMI_PEER_PHYMODE, mode);
+						WMI_PEER_PHYMODE, mode);
 		if (err) {
 			ath10k_warn(ar, "failed to update STA %pM peer phymode %d: %d\n",
-					sta->addr, mode, err);
+				    sta->addr, mode, err);
 			goto exit;
 		}
 
@@ -6934,7 +6986,6 @@ ath10k_mac_bitrate_mask_get_single_rate(struct ath10k *ar,
 					const struct cfg80211_bitrate_mask *mask,
 					u8 *rate, u8 *nss)
 {
-	struct ieee80211_supported_band *sband = &ar->mac.sbands[band];
 	int rate_idx;
 	int i;
 	u16 bitrate;
@@ -6944,8 +6995,11 @@ ath10k_mac_bitrate_mask_get_single_rate(struct ath10k *ar,
 	if (hweight32(mask->control[band].legacy) == 1) {
 		rate_idx = ffs(mask->control[band].legacy) - 1;
 
-		hw_rate = sband->bitrates[rate_idx].hw_value;
-		bitrate = sband->bitrates[rate_idx].bitrate;
+		if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY)
+			rate_idx += ATH10K_MAC_FIRST_OFDM_RATE_IDX;
+
+		hw_rate = ath10k_wmi_legacy_rates[rate_idx].hw_value;
+		bitrate = ath10k_wmi_legacy_rates[rate_idx].bitrate;
 
 		if (ath10k_mac_bitrate_is_cck(bitrate))
 			preamble = WMI_RATE_PREAMBLE_CCK;
@@ -7737,7 +7791,7 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 		return;
 
 	sinfo->rx_duration = arsta->rx_duration;
-	sinfo->filled |= 1ULL << NL80211_STA_INFO_RX_DURATION;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
 
 	if (!arsta->txrate.legacy && !arsta->txrate.nss)
 		return;
@@ -7750,7 +7804,7 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 		sinfo->txrate.bw = arsta->txrate.bw;
 	}
 	sinfo->txrate.flags = arsta->txrate.flags;
-	sinfo->filled |= 1ULL << NL80211_STA_INFO_TX_BITRATE;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 }
 
 static const struct ieee80211_ops ath10k_ops = {
@@ -7870,6 +7924,9 @@ static const struct ieee80211_channel ath10k_5ghz_channels[] = {
 	CHAN5G(161, 5805, 0),
 	CHAN5G(165, 5825, 0),
 	CHAN5G(169, 5845, 0),
+	CHAN5G(173, 5865, 0),
+	/* If you add more, you may need to change ATH10K_MAX_5G_CHAN */
+	/* And you will definitely need to change ATH10K_NUM_CHANS in core.h */
 };
 
 struct ath10k *ath10k_mac_create(size_t priv_size)

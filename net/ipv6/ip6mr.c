@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/compat.h>
+#include <linux/rhashtable.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
 #include <net/raw.h>

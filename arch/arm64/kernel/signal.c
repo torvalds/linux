@@ -539,8 +539,9 @@ static int restore_sigframe(struct pt_regs *regs,
 	return err;
 }
 
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
+SYSCALL_DEFINE0(rt_sigreturn)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -802,6 +803,8 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	int usig = ksig->sig;
 	int ret;
 
+	rseq_signal_deliver(ksig, regs);
+
 	/*
 	 * Set up the stack frame
 	 */
@@ -910,7 +913,7 @@ static void do_signal(struct pt_regs *regs)
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs,
-				 unsigned int thread_flags)
+				 unsigned long thread_flags)
 {
 	/*
 	 * The assembly code enters us with IRQs off, but it hasn't
@@ -940,6 +943,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 			if (thread_flags & _TIF_NOTIFY_RESUME) {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
+				rseq_handle_notify_resume(NULL, regs);
 			}
 
 			if (thread_flags & _TIF_FOREIGN_FPSTATE)

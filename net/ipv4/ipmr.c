@@ -60,6 +60,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/compat.h>
 #include <linux/export.h>
+#include <linux/rhashtable.h>
 #include <net/ip_tunnels.h>
 #include <net/checksum.h>
 #include <net/netlink.h>
@@ -1051,7 +1052,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 	struct sk_buff *skb;
 	int ret;
 
-	if (assert == IGMPMSG_WHOLEPKT)
+	if (assert == IGMPMSG_WHOLEPKT || assert == IGMPMSG_WRVIFWHOLE)
 		skb = skb_realloc_headroom(pkt, sizeof(struct iphdr));
 	else
 		skb = alloc_skb(128, GFP_ATOMIC);
@@ -1059,7 +1060,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (assert == IGMPMSG_WHOLEPKT) {
+	if (assert == IGMPMSG_WHOLEPKT || assert == IGMPMSG_WRVIFWHOLE) {
 		/* Ugly, but we have no choice with this interface.
 		 * Duplicate old header, fix ihl, length etc.
 		 * And all this only to mangle msg->im_msgtype and
@@ -1070,9 +1071,12 @@ static int ipmr_cache_report(struct mr_table *mrt,
 		skb_reset_transport_header(skb);
 		msg = (struct igmpmsg *)skb_network_header(skb);
 		memcpy(msg, skb_network_header(pkt), sizeof(struct iphdr));
-		msg->im_msgtype = IGMPMSG_WHOLEPKT;
+		msg->im_msgtype = assert;
 		msg->im_mbz = 0;
-		msg->im_vif = mrt->mroute_reg_vif_num;
+		if (assert == IGMPMSG_WRVIFWHOLE)
+			msg->im_vif = vifi;
+		else
+			msg->im_vif = mrt->mroute_reg_vif_num;
 		ip_hdr(skb)->ihl = sizeof(struct iphdr) >> 2;
 		ip_hdr(skb)->tot_len = htons(ntohs(ip_hdr(pkt)->tot_len) +
 					     sizeof(struct iphdr));
@@ -1371,6 +1375,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 	struct mr_table *mrt;
 	struct vifctl vif;
 	struct mfcctl mfc;
+	bool do_wrvifwhole;
 	u32 uval;
 
 	/* There's one exception to the lock - MRT_DONE which needs to unlock */
@@ -1501,10 +1506,12 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			break;
 		}
 
+		do_wrvifwhole = (val == IGMPMSG_WRVIFWHOLE);
 		val = !!val;
 		if (val != mrt->mroute_do_pim) {
 			mrt->mroute_do_pim = val;
 			mrt->mroute_do_assert = val;
+			mrt->mroute_do_wrvifwhole = do_wrvifwhole;
 		}
 		break;
 	case MRT_TABLE:
@@ -1982,6 +1989,9 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 			       MFC_ASSERT_THRESH)) {
 			c->_c.mfc_un.res.last_assert = jiffies;
 			ipmr_cache_report(mrt, skb, true_vifi, IGMPMSG_WRONGVIF);
+			if (mrt->mroute_do_wrvifwhole)
+				ipmr_cache_report(mrt, skb, true_vifi,
+						  IGMPMSG_WRVIFWHOLE);
 		}
 		goto dont_forward;
 	}
@@ -2658,7 +2668,9 @@ static bool ipmr_fill_table(struct mr_table *mrt, struct sk_buff *skb)
 			mrt->mroute_reg_vif_num) ||
 	    nla_put_u8(skb, IPMRA_TABLE_MROUTE_DO_ASSERT,
 		       mrt->mroute_do_assert) ||
-	    nla_put_u8(skb, IPMRA_TABLE_MROUTE_DO_PIM, mrt->mroute_do_pim))
+	    nla_put_u8(skb, IPMRA_TABLE_MROUTE_DO_PIM, mrt->mroute_do_pim) ||
+	    nla_put_u8(skb, IPMRA_TABLE_MROUTE_DO_WRVIFWHOLE,
+		       mrt->mroute_do_wrvifwhole))
 		return false;
 
 	return true;

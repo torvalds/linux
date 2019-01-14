@@ -621,6 +621,10 @@ static void dpp1_dscl_set_manual_ratio_init(
 static void dpp1_dscl_set_recout(
 			struct dcn10_dpp *dpp, const struct rect *recout)
 {
+	int visual_confirm_on = 0;
+	if (dpp->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
+		visual_confirm_on = 1;
+
 	REG_SET_2(RECOUT_START, 0,
 		/* First pixel of RECOUT */
 			 RECOUT_START_X, recout->x,
@@ -632,8 +636,7 @@ static void dpp1_dscl_set_recout(
 			 RECOUT_WIDTH, recout->width,
 		/* Number of RECOUT vertical lines */
 			 RECOUT_HEIGHT, recout->height
-			 - dpp->base.ctx->dc->debug.surface_visual_confirm * 4 *
-			 (dpp->base.inst + 1));
+			 - visual_confirm_on * 4 * (dpp->base.inst + 1));
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */
@@ -654,6 +657,12 @@ void dpp1_dscl_set_scaler_manual_scale(
 	PERF_TRACE();
 
 	dpp->scl_data = *scl_data;
+
+	/* Autocal off */
+	REG_SET_3(DSCL_AUTOCAL, 0,
+		AUTOCAL_MODE, AUTOCAL_MODE_OFF,
+		AUTOCAL_NUM_PIPE, 0,
+		AUTOCAL_PIPE_ID, 0);
 
 	/* Recout */
 	dpp1_dscl_set_recout(dpp, &scl_data->recout);
@@ -677,12 +686,6 @@ void dpp1_dscl_set_scaler_manual_scale(
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
-
-	/* Autocal off */
-	REG_SET_3(DSCL_AUTOCAL, 0,
-		AUTOCAL_MODE, AUTOCAL_MODE_OFF,
-		AUTOCAL_NUM_PIPE, 0,
-		AUTOCAL_PIPE_ID, 0);
 
 	/* Black offsets */
 	if (ycbcr)

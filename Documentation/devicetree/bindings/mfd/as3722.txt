@@ -20,6 +20,8 @@ Optional properties:
 - ams,enable-internal-i2c-pullup: Boolean property, to enable internal pullup on
 	i2c scl/sda pins. Missing this will disable internal pullup on i2c
 	scl/sda lines.
+- ams,enable-ac-ok-power-on: Boolean property, to enable exit out of power off
+	mode with AC_OK pin (pin enabled in power off mode).
 
 Optional submodule and their properties:
 =======================================

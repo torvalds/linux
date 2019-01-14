@@ -45,6 +45,9 @@ struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
 					struct mlx5e_tx_wqe **wqe,
 					u16 *pi);
 
+void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
+			     u32 *cqe_bcnt);
+
 #endif /* CONFIG_MLX5_EN_TLS */
 
 #endif /* __MLX5E_TLS_RXTX_H__ */

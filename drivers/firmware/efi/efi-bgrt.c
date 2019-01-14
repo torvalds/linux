@@ -20,7 +20,7 @@
 #include <linux/efi-bgrt.h>
 
 struct acpi_table_bgrt bgrt_tab;
-size_t __initdata bgrt_image_size;
+size_t bgrt_image_size;
 
 struct bmp_header {
 	u16 id;

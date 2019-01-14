@@ -6,6 +6,7 @@
 
 #include "../i915_selftest.h"
 
+#include "igt_wedge_me.h"
 #include "mock_context.h"
 
 static struct drm_i915_gem_object *
@@ -33,7 +34,7 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	memset(cs, 0xc5, PAGE_SIZE);
 	i915_gem_object_unpin_map(result);
 
-	vma = i915_vma_instance(result, &engine->i915->ggtt.base, NULL);
+	vma = i915_vma_instance(result, &engine->i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err_obj;
@@ -48,6 +49,10 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 		err = PTR_ERR(rq);
 		goto err_pin;
 	}
+
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto err_req;
 
 	srm = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	if (INTEL_GEN(ctx->i915) >= 8)
@@ -67,15 +72,10 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	}
 	intel_ring_advance(rq, cs);
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	reservation_object_lock(vma->resv, NULL);
-	reservation_object_add_excl_fence(vma->resv, &rq->fence);
-	reservation_object_unlock(vma->resv);
-
 	i915_gem_object_get(result);
 	i915_gem_object_set_active_reference(result);
 
-	__i915_request_add(rq, true);
+	i915_request_add(rq);
 	i915_vma_unpin(vma);
 
 	return result;
@@ -112,6 +112,7 @@ static int check_whitelist(const struct whitelist *w,
 			   struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *results;
+	struct igt_wedge_me wedge;
 	u32 *vaddr;
 	int err;
 	int i;
@@ -120,7 +121,11 @@ static int check_whitelist(const struct whitelist *w,
 	if (IS_ERR(results))
 		return PTR_ERR(results);
 
-	err = i915_gem_object_set_to_cpu_domain(results, false);
+	err = 0;
+	igt_wedge_on_timeout(&wedge, ctx->i915, HZ / 5) /* a safety net! */
+		err = i915_gem_object_set_to_cpu_domain(results, false);
+	if (i915_terminally_wedged(&ctx->i915->gpu_error))
+		err = -EIO;
 	if (err)
 		goto out_put;
 
@@ -282,6 +287,9 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_reset_whitelist),
 	};
 	int err;
+
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
 	err = i915_subtests(tests, i915);

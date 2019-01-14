@@ -181,6 +181,8 @@ struct ssif_addr_info {
 	struct device *dev;
 	struct i2c_client *client;
 
+	struct i2c_client *added_client;
+
 	struct mutex clients_mutex;
 	struct list_head clients;
 
@@ -1214,18 +1216,11 @@ static void shutdown_ssif(void *send_info)
 		complete(&ssif_info->wake_thread);
 		kthread_stop(ssif_info->thread);
 	}
-
-	/*
-	 * No message can be outstanding now, we have removed the
-	 * upper layer and it permitted us to do so.
-	 */
-	kfree(ssif_info);
 }
 
 static int ssif_remove(struct i2c_client *client)
 {
 	struct ssif_info *ssif_info = i2c_get_clientdata(client);
-	struct ipmi_smi *intf;
 	struct ssif_addr_info *addr_info;
 
 	if (!ssif_info)
@@ -1235,9 +1230,7 @@ static int ssif_remove(struct i2c_client *client)
 	 * After this point, we won't deliver anything asychronously
 	 * to the message handler.  We can unregister ourself.
 	 */
-	intf = ssif_info->intf;
-	ssif_info->intf = NULL;
-	ipmi_unregister_smi(intf);
+	ipmi_unregister_smi(ssif_info->intf);
 
 	list_for_each_entry(addr_info, &ssif_infos, link) {
 		if (addr_info->client == client) {
@@ -1245,6 +1238,8 @@ static int ssif_remove(struct i2c_client *client)
 			break;
 		}
 	}
+
+	kfree(ssif_info);
 
 	return 0;
 }
@@ -1648,15 +1643,9 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
  out:
 	if (rv) {
-		/*
-		 * Note that if addr_info->client is assigned, we
-		 * leave it.  The i2c client hangs around even if we
-		 * return a failure here, and the failure here is not
-		 * propagated back to the i2c code.  This seems to be
-		 * design intent, strange as it may be.  But if we
-		 * don't leave it, ssif_platform_remove will not remove
-		 * the client like it should.
-		 */
+		if (addr_info)
+			addr_info->client = NULL;
+
 		dev_err(&client->dev, "Unable to start IPMI SSIF: %d\n", rv);
 		kfree(ssif_info);
 	}
@@ -1676,7 +1665,8 @@ static int ssif_adapter_handler(struct device *adev, void *opaque)
 	if (adev->type != &i2c_adapter_type)
 		return 0;
 
-	i2c_new_device(to_i2c_adapter(adev), &addr_info->binfo);
+	addr_info->added_client = i2c_new_device(to_i2c_adapter(adev),
+						 &addr_info->binfo);
 
 	if (!addr_info->adapter_name)
 		return 1; /* Only try the first I2C adapter by default. */
@@ -1849,7 +1839,7 @@ static int ssif_platform_remove(struct platform_device *dev)
 		return 0;
 
 	mutex_lock(&ssif_infos_mutex);
-	i2c_unregister_device(addr_info->client);
+	i2c_unregister_device(addr_info->added_client);
 
 	list_del(&addr_info->link);
 	kfree(addr_info);

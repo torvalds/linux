@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, NULL);
+	vm = vm_create_default(VCPU_ID, 0, NULL);
 
 	vcpu_sregs_get(vm, VCPU_ID, &sregs);
 	sregs.apic_base = 1 << 10;

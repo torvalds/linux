@@ -33,6 +33,8 @@ static inline void __tlb_remove_table(void *_table)
 #define tlb_remove_entry(tlb, entry)	tlb_remove_page(tlb, entry)
 #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
 
+static void tlb_flush(struct mmu_gather *tlb);
+
 #include <asm-generic/tlb.h>
 
 static inline void tlb_flush(struct mmu_gather *tlb)

@@ -98,6 +98,17 @@ static inline void idr_set_cursor(struct idr *idr, unsigned int val)
  * period).
  */
 
+#define idr_lock(idr)		xa_lock(&(idr)->idr_rt)
+#define idr_unlock(idr)		xa_unlock(&(idr)->idr_rt)
+#define idr_lock_bh(idr)	xa_lock_bh(&(idr)->idr_rt)
+#define idr_unlock_bh(idr)	xa_unlock_bh(&(idr)->idr_rt)
+#define idr_lock_irq(idr)	xa_lock_irq(&(idr)->idr_rt)
+#define idr_unlock_irq(idr)	xa_unlock_irq(&(idr)->idr_rt)
+#define idr_lock_irqsave(idr, flags) \
+				xa_lock_irqsave(&(idr)->idr_rt, flags)
+#define idr_unlock_irqrestore(idr, flags) \
+				xa_unlock_irqrestore(&(idr)->idr_rt, flags)
+
 void idr_preload(gfp_t gfp_mask);
 
 int idr_alloc(struct idr *, void *ptr, int start, int end, gfp_t);
@@ -225,34 +236,74 @@ struct ida {
 }
 #define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
 
-int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
-int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
-void ida_remove(struct ida *ida, int id);
+int ida_alloc_range(struct ida *, unsigned int min, unsigned int max, gfp_t);
+void ida_free(struct ida *, unsigned int id);
 void ida_destroy(struct ida *ida);
 
-int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
-		   gfp_t gfp_mask);
-void ida_simple_remove(struct ida *ida, unsigned int id);
+/**
+ * ida_alloc() - Allocate an unused ID.
+ * @ida: IDA handle.
+ * @gfp: Memory allocation flags.
+ *
+ * Allocate an ID between 0 and %INT_MAX, inclusive.
+ *
+ * Context: Any context.
+ * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
+ * or %-ENOSPC if there are no free IDs.
+ */
+static inline int ida_alloc(struct ida *ida, gfp_t gfp)
+{
+	return ida_alloc_range(ida, 0, ~0, gfp);
+}
+
+/**
+ * ida_alloc_min() - Allocate an unused ID.
+ * @ida: IDA handle.
+ * @min: Lowest ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Allocate an ID between @min and %INT_MAX, inclusive.
+ *
+ * Context: Any context.
+ * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
+ * or %-ENOSPC if there are no free IDs.
+ */
+static inline int ida_alloc_min(struct ida *ida, unsigned int min, gfp_t gfp)
+{
+	return ida_alloc_range(ida, min, ~0, gfp);
+}
+
+/**
+ * ida_alloc_max() - Allocate an unused ID.
+ * @ida: IDA handle.
+ * @max: Highest ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Allocate an ID between 0 and @max, inclusive.
+ *
+ * Context: Any context.
+ * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
+ * or %-ENOSPC if there are no free IDs.
+ */
+static inline int ida_alloc_max(struct ida *ida, unsigned int max, gfp_t gfp)
+{
+	return ida_alloc_range(ida, 0, max, gfp);
+}
 
 static inline void ida_init(struct ida *ida)
 {
 	INIT_RADIX_TREE(&ida->ida_rt, IDR_RT_MARKER | GFP_NOWAIT);
 }
 
-/**
- * ida_get_new - allocate new ID
- * @ida:	idr handle
- * @p_id:	pointer to the allocated handle
- *
- * Simple wrapper around ida_get_new_above() w/ @starting_id of zero.
- */
-static inline int ida_get_new(struct ida *ida, int *p_id)
-{
-	return ida_get_new_above(ida, 0, p_id);
-}
+#define ida_simple_get(ida, start, end, gfp)	\
+			ida_alloc_range(ida, start, (end) - 1, gfp)
+#define ida_simple_remove(ida, id)	ida_free(ida, id)
 
 static inline bool ida_is_empty(const struct ida *ida)
 {
 	return radix_tree_empty(&ida->ida_rt);
 }
+
+/* in lib/radix-tree.c */
+int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
 #endif /* __IDR_H__ */

@@ -268,7 +268,6 @@ static const struct snd_pcm_ops rt5514_spi_pcm_ops = {
 	.hw_params	= rt5514_spi_hw_params,
 	.hw_free	= rt5514_spi_hw_free,
 	.pointer	= rt5514_spi_pcm_pointer,
-	.mmap		= snd_pcm_lib_mmap_vmalloc,
 	.page		= snd_pcm_lib_get_vmalloc_page,
 };
 

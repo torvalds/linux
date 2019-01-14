@@ -820,10 +820,9 @@ static void igmp_timer_expire(struct timer_list *t)
 	spin_lock(&im->lock);
 	im->tm_running = 0;
 
-	if (im->unsolicit_count) {
-		im->unsolicit_count--;
+	if (im->unsolicit_count && --im->unsolicit_count)
 		igmp_start_timer(im, unsolicited_report_interval(in_dev));
-	}
+
 	im->reporter = 1;
 	spin_unlock(&im->lock);
 
@@ -1288,7 +1287,7 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 #endif
 }
 
-static void igmp_group_added(struct ip_mc_list *im, unsigned int mode)
+static void igmp_group_added(struct ip_mc_list *im)
 {
 	struct in_device *in_dev = im->interface;
 #ifdef CONFIG_IP_MULTICAST
@@ -1308,6 +1307,8 @@ static void igmp_group_added(struct ip_mc_list *im, unsigned int mode)
 
 	if (in_dev->dead)
 		return;
+
+	im->unsolicit_count = net->ipv4.sysctl_igmp_qrv;
 	if (IGMP_V1_SEEN(in_dev) || IGMP_V2_SEEN(in_dev)) {
 		spin_lock_bh(&im->lock);
 		igmp_start_timer(im, IGMP_INITIAL_REPORT_DELAY);
@@ -1320,7 +1321,7 @@ static void igmp_group_added(struct ip_mc_list *im, unsigned int mode)
 	 * not send filter-mode change record as the mode should be from
 	 * IN() to IN(A).
 	 */
-	if (mode == MCAST_EXCLUDE)
+	if (im->sfmode == MCAST_EXCLUDE)
 		im->crcount = in_dev->mr_qrv ?: net->ipv4.sysctl_igmp_qrv;
 
 	igmp_ifc_event(in_dev);
@@ -1391,9 +1392,6 @@ static void __ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
 			      unsigned int mode)
 {
 	struct ip_mc_list *im;
-#ifdef CONFIG_IP_MULTICAST
-	struct net *net = dev_net(in_dev->dev);
-#endif
 
 	ASSERT_RTNL();
 
@@ -1420,7 +1418,6 @@ static void __ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
 	spin_lock_init(&im->lock);
 #ifdef CONFIG_IP_MULTICAST
 	timer_setup(&im->timer, igmp_timer_expire, 0);
-	im->unsolicit_count = net->ipv4.sysctl_igmp_qrv;
 #endif
 
 	im->next_rcu = in_dev->mc_list;
@@ -1432,7 +1429,7 @@ static void __ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
 #ifdef CONFIG_IP_MULTICAST
 	igmpv3_del_delrec(in_dev, im);
 #endif
-	igmp_group_added(im, mode);
+	igmp_group_added(im);
 	if (!in_dev->dead)
 		ip_rt_multicast_event(in_dev);
 out:
@@ -1699,7 +1696,7 @@ void ip_mc_remap(struct in_device *in_dev)
 #ifdef CONFIG_IP_MULTICAST
 		igmpv3_del_delrec(in_dev, pmc);
 #endif
-		igmp_group_added(pmc, pmc->sfmode);
+		igmp_group_added(pmc);
 	}
 }
 
@@ -1762,7 +1759,7 @@ void ip_mc_up(struct in_device *in_dev)
 #ifdef CONFIG_IP_MULTICAST
 		igmpv3_del_delrec(in_dev, pmc);
 #endif
-		igmp_group_added(pmc, pmc->sfmode);
+		igmp_group_added(pmc);
 	}
 }
 

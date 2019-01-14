@@ -420,7 +420,6 @@ static int histb_pcie_probe(struct platform_device *pdev)
 		phy_init(hipcie->phy);
 	}
 
-	pp->root_bus_nr = -1;
 	pp->ops = &histb_pcie_host_ops;
 
 	platform_set_drvdata(pdev, hipcie);

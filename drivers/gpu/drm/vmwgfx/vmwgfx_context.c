@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -38,7 +38,7 @@ struct vmw_user_context {
 	struct vmw_cmdbuf_res_manager *man;
 	struct vmw_resource *cotables[SVGA_COTABLE_DX10_MAX];
 	spinlock_t cotable_lock;
-	struct vmw_dma_buffer *dx_query_mob;
+	struct vmw_buffer_object *dx_query_mob;
 };
 
 static void vmw_user_context_free(struct vmw_resource *res);
@@ -424,7 +424,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -648,7 +648,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -900,7 +900,7 @@ vmw_context_binding_state(struct vmw_resource *ctx)
  * specified in the parameter.  0 otherwise.
  */
 int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
-			      struct vmw_dma_buffer *mob)
+			      struct vmw_buffer_object *mob)
 {
 	struct vmw_user_context *uctx =
 		container_of(ctx_res, struct vmw_user_context, res);
@@ -908,7 +908,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
 	if (mob == NULL) {
 		if (uctx->dx_query_mob) {
 			uctx->dx_query_mob->dx_query_ctx = NULL;
-			vmw_dmabuf_unreference(&uctx->dx_query_mob);
+			vmw_bo_unreference(&uctx->dx_query_mob);
 			uctx->dx_query_mob = NULL;
 		}
 
@@ -922,7 +922,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
 	mob->dx_query_ctx  = ctx_res;
 
 	if (!uctx->dx_query_mob)
-		uctx->dx_query_mob = vmw_dmabuf_reference(mob);
+		uctx->dx_query_mob = vmw_bo_reference(mob);
 
 	return 0;
 }
@@ -932,7 +932,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
  *
  * @ctx_res: The context resource
  */
-struct vmw_dma_buffer *
+struct vmw_buffer_object *
 vmw_context_get_dx_query_mob(struct vmw_resource *ctx_res)
 {
 	struct vmw_user_context *uctx =

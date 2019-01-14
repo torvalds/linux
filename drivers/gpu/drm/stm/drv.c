@@ -148,16 +148,16 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 
 	ret = drv_load(ddev);
 	if (ret)
-		goto err_unref;
+		goto err_put;
 
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
-		goto err_unref;
+		goto err_put;
 
 	return 0;
 
-err_unref:
-	drm_dev_unref(ddev);
+err_put:
+	drm_dev_put(ddev);
 
 	return ret;
 }
@@ -170,7 +170,7 @@ static int stm_drm_platform_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(ddev);
 	drv_unload(ddev);
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 
 	return 0;
 }

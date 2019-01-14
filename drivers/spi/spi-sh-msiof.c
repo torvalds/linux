@@ -49,6 +49,7 @@ struct sh_msiof_spi_priv {
 	struct platform_device *pdev;
 	struct sh_msiof_spi_info *info;
 	struct completion done;
+	struct completion done_txdma;
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
 	unsigned int min_div_pow;
@@ -396,7 +397,8 @@ static void sh_msiof_spi_set_mode_regs(struct sh_msiof_spi_priv *p,
 
 static void sh_msiof_reset_str(struct sh_msiof_spi_priv *p)
 {
-	sh_msiof_write(p, STR, sh_msiof_read(p, STR));
+	sh_msiof_write(p, STR,
+		       sh_msiof_read(p, STR) & ~(STR_TDREQ | STR_RDREQ));
 }
 
 static void sh_msiof_spi_write_fifo_8(struct sh_msiof_spi_priv *p,
@@ -649,19 +651,21 @@ static int sh_msiof_slave_abort(struct spi_master *master)
 
 	p->slave_aborted = true;
 	complete(&p->done);
+	complete(&p->done_txdma);
 	return 0;
 }
 
-static int sh_msiof_wait_for_completion(struct sh_msiof_spi_priv *p)
+static int sh_msiof_wait_for_completion(struct sh_msiof_spi_priv *p,
+					struct completion *x)
 {
 	if (spi_controller_is_slave(p->master)) {
-		if (wait_for_completion_interruptible(&p->done) ||
+		if (wait_for_completion_interruptible(x) ||
 		    p->slave_aborted) {
 			dev_dbg(&p->pdev->dev, "interrupted\n");
 			return -EINTR;
 		}
 	} else {
-		if (!wait_for_completion_timeout(&p->done, HZ)) {
+		if (!wait_for_completion_timeout(x, HZ)) {
 			dev_err(&p->pdev->dev, "timeout\n");
 			return -ETIMEDOUT;
 		}
@@ -711,7 +715,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	ret = sh_msiof_wait_for_completion(p);
+	ret = sh_msiof_wait_for_completion(p, &p->done);
 	if (ret)
 		goto stop_reset;
 
@@ -740,10 +744,7 @@ stop_ier:
 
 static void sh_msiof_dma_complete(void *arg)
 {
-	struct sh_msiof_spi_priv *p = arg;
-
-	sh_msiof_write(p, IER, 0);
-	complete(&p->done);
+	complete(arg);
 }
 
 static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
@@ -764,7 +765,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 			return -EAGAIN;
 
 		desc_rx->callback = sh_msiof_dma_complete;
-		desc_rx->callback_param = p;
+		desc_rx->callback_param = &p->done;
 		cookie = dmaengine_submit(desc_rx);
 		if (dma_submit_error(cookie))
 			return cookie;
@@ -782,13 +783,8 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 			goto no_dma_tx;
 		}
 
-		if (rx) {
-			/* No callback */
-			desc_tx->callback = NULL;
-		} else {
-			desc_tx->callback = sh_msiof_dma_complete;
-			desc_tx->callback_param = p;
-		}
+		desc_tx->callback = sh_msiof_dma_complete;
+		desc_tx->callback_param = &p->done_txdma;
 		cookie = dmaengine_submit(desc_tx);
 		if (dma_submit_error(cookie)) {
 			ret = cookie;
@@ -805,6 +801,8 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	sh_msiof_write(p, IER, ier_bits);
 
 	reinit_completion(&p->done);
+	if (tx)
+		reinit_completion(&p->done_txdma);
 	p->slave_aborted = false;
 
 	/* Now start DMA */
@@ -819,17 +817,24 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 		goto stop_dma;
 	}
 
-	/* wait for tx/rx DMA completion */
-	ret = sh_msiof_wait_for_completion(p);
-	if (ret)
-		goto stop_reset;
+	if (tx) {
+		/* wait for tx DMA completion */
+		ret = sh_msiof_wait_for_completion(p, &p->done_txdma);
+		if (ret)
+			goto stop_reset;
+	}
 
-	if (!rx) {
-		reinit_completion(&p->done);
-		sh_msiof_write(p, IER, IER_TEOFE);
+	if (rx) {
+		/* wait for rx DMA completion */
+		ret = sh_msiof_wait_for_completion(p, &p->done);
+		if (ret)
+			goto stop_reset;
 
+		sh_msiof_write(p, IER, 0);
+	} else {
 		/* wait for tx fifo to be emptied */
-		ret = sh_msiof_wait_for_completion(p);
+		sh_msiof_write(p, IER, IER_TEOFE);
+		ret = sh_msiof_wait_for_completion(p, &p->done);
 		if (ret)
 			goto stop_reset;
 	}
@@ -1327,6 +1332,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	p->min_div_pow = chipdata->min_div_pow;
 
 	init_completion(&p->done);
+	init_completion(&p->done_txdma);
 
 	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
@@ -1421,12 +1427,37 @@ static const struct platform_device_id spi_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, spi_driver_ids);
 
+#ifdef CONFIG_PM_SLEEP
+static int sh_msiof_spi_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
+
+	return spi_master_suspend(p->master);
+}
+
+static int sh_msiof_spi_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
+
+	return spi_master_resume(p->master);
+}
+
+static SIMPLE_DEV_PM_OPS(sh_msiof_spi_pm_ops, sh_msiof_spi_suspend,
+			 sh_msiof_spi_resume);
+#define DEV_PM_OPS	&sh_msiof_spi_pm_ops
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static struct platform_driver sh_msiof_spi_drv = {
 	.probe		= sh_msiof_spi_probe,
 	.remove		= sh_msiof_spi_remove,
 	.id_table	= spi_driver_ids,
 	.driver		= {
 		.name		= "spi_sh_msiof",
+		.pm		= DEV_PM_OPS,
 		.of_match_table = of_match_ptr(sh_msiof_match),
 	},
 };

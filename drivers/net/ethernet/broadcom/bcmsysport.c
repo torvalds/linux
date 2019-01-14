@@ -521,7 +521,7 @@ static void bcm_sysport_get_wol(struct net_device *dev,
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	u32 reg;
 
-	wol->supported = WAKE_MAGIC | WAKE_MAGICSECURE;
+	wol->supported = WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER;
 	wol->wolopts = priv->wolopts;
 
 	if (!(priv->wolopts & WAKE_MAGICSECURE))
@@ -539,7 +539,7 @@ static int bcm_sysport_set_wol(struct net_device *dev,
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
-	u32 supported = WAKE_MAGIC | WAKE_MAGICSECURE;
+	u32 supported = WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER;
 
 	if (!device_can_wakeup(kdev))
 		return -ENOTSUPP;
@@ -1041,17 +1041,53 @@ static int bcm_sysport_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
+static void mpd_enable_set(struct bcm_sysport_priv *priv, bool enable)
+{
+	u32 reg, bit;
+
+	reg = umac_readl(priv, UMAC_MPD_CTRL);
+	if (enable)
+		reg |= MPD_EN;
+	else
+		reg &= ~MPD_EN;
+	umac_writel(priv, reg, UMAC_MPD_CTRL);
+
+	if (priv->is_lite)
+		bit = RBUF_ACPI_EN_LITE;
+	else
+		bit = RBUF_ACPI_EN;
+
+	reg = rbuf_readl(priv, RBUF_CONTROL);
+	if (enable)
+		reg |= bit;
+	else
+		reg &= ~bit;
+	rbuf_writel(priv, reg, RBUF_CONTROL);
+}
+
 static void bcm_sysport_resume_from_wol(struct bcm_sysport_priv *priv)
 {
 	u32 reg;
 
-	/* Stop monitoring MPD interrupt */
-	intrl2_0_mask_set(priv, INTRL2_0_MPD);
+	/* Disable RXCHK, active filters and Broadcom tag matching */
+	reg = rxchk_readl(priv, RXCHK_CONTROL);
+	reg &= ~(RXCHK_BRCM_TAG_MATCH_MASK <<
+		 RXCHK_BRCM_TAG_MATCH_SHIFT | RXCHK_EN | RXCHK_BRCM_TAG_EN);
+	rxchk_writel(priv, reg, RXCHK_CONTROL);
 
 	/* Clear the MagicPacket detection logic */
-	reg = umac_readl(priv, UMAC_MPD_CTRL);
-	reg &= ~MPD_EN;
-	umac_writel(priv, reg, UMAC_MPD_CTRL);
+	mpd_enable_set(priv, false);
+
+	reg = intrl2_0_readl(priv, INTRL2_CPU_STATUS);
+	if (reg & INTRL2_0_MPD)
+		netdev_info(priv->netdev, "Wake-on-LAN (MPD) interrupt!\n");
+
+	if (reg & INTRL2_0_BRCM_MATCH_TAG) {
+		reg = rxchk_readl(priv, RXCHK_BRCM_TAG_MATCH_STATUS) &
+				  RXCHK_BRCM_TAG_MATCH_MASK;
+		netdev_info(priv->netdev,
+			    "Wake-on-LAN (filters 0x%02x) interrupt!\n", reg);
+	}
 
 	netif_dbg(priv, wol, priv->netdev, "resumed from WOL\n");
 }
@@ -1101,11 +1137,6 @@ static irqreturn_t bcm_sysport_rx_isr(int irq, void *dev_id)
 	 */
 	if (priv->irq0_stat & INTRL2_0_TX_RING_FULL)
 		bcm_sysport_tx_reclaim_all(priv);
-
-	if (priv->irq0_stat & INTRL2_0_MPD) {
-		netdev_info(priv->netdev, "Wake-on-LAN interrupt!\n");
-		bcm_sysport_resume_from_wol(priv);
-	}
 
 	if (!priv->is_lite)
 		goto out;
@@ -2090,6 +2121,132 @@ static int bcm_sysport_stop(struct net_device *dev)
 	return 0;
 }
 
+static int bcm_sysport_rule_find(struct bcm_sysport_priv *priv,
+				 u64 location)
+{
+	unsigned int index;
+	u32 reg;
+
+	for_each_set_bit(index, priv->filters, RXCHK_BRCM_TAG_MAX) {
+		reg = rxchk_readl(priv, RXCHK_BRCM_TAG(index));
+		reg >>= RXCHK_BRCM_TAG_CID_SHIFT;
+		reg &= RXCHK_BRCM_TAG_CID_MASK;
+		if (reg == location)
+			return index;
+	}
+
+	return -EINVAL;
+}
+
+static int bcm_sysport_rule_get(struct bcm_sysport_priv *priv,
+				struct ethtool_rxnfc *nfc)
+{
+	int index;
+
+	/* This is not a rule that we know about */
+	index = bcm_sysport_rule_find(priv, nfc->fs.location);
+	if (index < 0)
+		return -EOPNOTSUPP;
+
+	nfc->fs.ring_cookie = RX_CLS_FLOW_WAKE;
+
+	return 0;
+}
+
+static int bcm_sysport_rule_set(struct bcm_sysport_priv *priv,
+				struct ethtool_rxnfc *nfc)
+{
+	unsigned int index;
+	u32 reg;
+
+	/* We cannot match locations greater than what the classification ID
+	 * permits (256 entries)
+	 */
+	if (nfc->fs.location > RXCHK_BRCM_TAG_CID_MASK)
+		return -E2BIG;
+
+	/* We cannot support flows that are not destined for a wake-up */
+	if (nfc->fs.ring_cookie != RX_CLS_FLOW_WAKE)
+		return -EOPNOTSUPP;
+
+	/* All filters are already in use, we cannot match more rules */
+	if (bitmap_weight(priv->filters, RXCHK_BRCM_TAG_MAX) ==
+	    RXCHK_BRCM_TAG_MAX)
+		return -ENOSPC;
+
+	index = find_first_zero_bit(priv->filters, RXCHK_BRCM_TAG_MAX);
+	if (index > RXCHK_BRCM_TAG_MAX)
+		return -ENOSPC;
+
+	/* Location is the classification ID, and index is the position
+	 * within one of our 8 possible filters to be programmed
+	 */
+	reg = rxchk_readl(priv, RXCHK_BRCM_TAG(index));
+	reg &= ~(RXCHK_BRCM_TAG_CID_MASK << RXCHK_BRCM_TAG_CID_SHIFT);
+	reg |= nfc->fs.location << RXCHK_BRCM_TAG_CID_SHIFT;
+	rxchk_writel(priv, reg, RXCHK_BRCM_TAG(index));
+	rxchk_writel(priv, 0xff00ffff, RXCHK_BRCM_TAG_MASK(index));
+
+	set_bit(index, priv->filters);
+
+	return 0;
+}
+
+static int bcm_sysport_rule_del(struct bcm_sysport_priv *priv,
+				u64 location)
+{
+	int index;
+
+	/* This is not a rule that we know about */
+	index = bcm_sysport_rule_find(priv, location);
+	if (index < 0)
+		return -EOPNOTSUPP;
+
+	/* No need to disable this filter if it was enabled, this will
+	 * be taken care of during suspend time by bcm_sysport_suspend_to_wol
+	 */
+	clear_bit(index, priv->filters);
+
+	return 0;
+}
+
+static int bcm_sysport_get_rxnfc(struct net_device *dev,
+				 struct ethtool_rxnfc *nfc, u32 *rule_locs)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	switch (nfc->cmd) {
+	case ETHTOOL_GRXCLSRULE:
+		ret = bcm_sysport_rule_get(priv, nfc);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int bcm_sysport_set_rxnfc(struct net_device *dev,
+				 struct ethtool_rxnfc *nfc)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	switch (nfc->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		ret = bcm_sysport_rule_set(priv, nfc);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = bcm_sysport_rule_del(priv, nfc->fs.location);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static const struct ethtool_ops bcm_sysport_ethtool_ops = {
 	.get_drvinfo		= bcm_sysport_get_drvinfo,
 	.get_msglevel		= bcm_sysport_get_msglvl,
@@ -2104,10 +2261,12 @@ static const struct ethtool_ops bcm_sysport_ethtool_ops = {
 	.set_coalesce		= bcm_sysport_set_coalesce,
 	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
+	.get_rxnfc		= bcm_sysport_get_rxnfc,
+	.set_rxnfc		= bcm_sysport_set_rxnfc,
 };
 
 static u16 bcm_sysport_select_queue(struct net_device *dev, struct sk_buff *skb,
-				    void *accel_priv,
+				    struct net_device *sb_dev,
 				    select_queue_fallback_t fallback)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -2116,7 +2275,7 @@ static u16 bcm_sysport_select_queue(struct net_device *dev, struct sk_buff *skb,
 	unsigned int q, port;
 
 	if (!netdev_uses_dsa(dev))
-		return fallback(dev, skb);
+		return fallback(dev, skb, NULL);
 
 	/* DSA tagging layer will have configured the correct queue */
 	q = BRCM_TAG_GET_QUEUE(queue);
@@ -2124,7 +2283,7 @@ static u16 bcm_sysport_select_queue(struct net_device *dev, struct sk_buff *skb,
 	tx_ring = priv->ring_map[q + port * priv->per_port_num_tx_queues];
 
 	if (unlikely(!tx_ring))
-		return fallback(dev, skb);
+		return fallback(dev, skb, NULL);
 
 	return tx_ring->index;
 }
@@ -2423,20 +2582,42 @@ static int bcm_sysport_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
 {
 	struct net_device *ndev = priv->netdev;
 	unsigned int timeout = 1000;
+	unsigned int index, i = 0;
 	u32 reg;
 
 	/* Password has already been programmed */
 	reg = umac_readl(priv, UMAC_MPD_CTRL);
-	reg |= MPD_EN;
+	if (priv->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE))
+		reg |= MPD_EN;
 	reg &= ~PSW_EN;
 	if (priv->wolopts & WAKE_MAGICSECURE)
 		reg |= PSW_EN;
 	umac_writel(priv, reg, UMAC_MPD_CTRL);
+
+	if (priv->wolopts & WAKE_FILTER) {
+		/* Turn on ACPI matching to steal packets from RBUF */
+		reg = rbuf_readl(priv, RBUF_CONTROL);
+		if (priv->is_lite)
+			reg |= RBUF_ACPI_EN_LITE;
+		else
+			reg |= RBUF_ACPI_EN;
+		rbuf_writel(priv, reg, RBUF_CONTROL);
+
+		/* Enable RXCHK, active filters and Broadcom tag matching */
+		reg = rxchk_readl(priv, RXCHK_CONTROL);
+		reg &= ~(RXCHK_BRCM_TAG_MATCH_MASK <<
+			 RXCHK_BRCM_TAG_MATCH_SHIFT);
+		for_each_set_bit(index, priv->filters, RXCHK_BRCM_TAG_MAX) {
+			reg |= BIT(RXCHK_BRCM_TAG_MATCH_SHIFT + i);
+			i++;
+		}
+		reg |= RXCHK_EN | RXCHK_BRCM_TAG_EN;
+		rxchk_writel(priv, reg, RXCHK_CONTROL);
+	}
 
 	/* Make sure RBUF entered WoL mode as result */
 	do {
@@ -2449,9 +2630,7 @@ static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
 
 	/* Do not leave the UniMAC RBUF matching only MPD packets */
 	if (!timeout) {
-		reg = umac_readl(priv, UMAC_MPD_CTRL);
-		reg &= ~MPD_EN;
-		umac_writel(priv, reg, UMAC_MPD_CTRL);
+		mpd_enable_set(priv, false);
 		netif_err(priv, wol, ndev, "failed to enter WOL mode\n");
 		return -ETIMEDOUT;
 	}
@@ -2459,15 +2638,12 @@ static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
 	/* UniMAC receive needs to be turned on */
 	umac_enable_set(priv, CMD_RX_EN, 1);
 
-	/* Enable the interrupt wake-up source */
-	intrl2_0_mask_clear(priv, INTRL2_0_MPD);
-
 	netif_dbg(priv, wol, ndev, "entered WOL mode\n");
 
 	return 0;
 }
 
-static int bcm_sysport_suspend(struct device *d)
+static int __maybe_unused bcm_sysport_suspend(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -2529,7 +2705,7 @@ static int bcm_sysport_suspend(struct device *d)
 	return ret;
 }
 
-static int bcm_sysport_resume(struct device *d)
+static int __maybe_unused bcm_sysport_resume(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -2622,7 +2798,6 @@ out_free_tx_rings:
 		bcm_sysport_fini_tx_ring(priv, i);
 	return ret;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(bcm_sysport_pm_ops,
 		bcm_sysport_suspend, bcm_sysport_resume);

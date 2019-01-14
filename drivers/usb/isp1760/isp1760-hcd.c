@@ -1817,7 +1817,6 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 	u32 temp, status;
 	unsigned long flags;
 	int retval = 0;
-	unsigned selector;
 
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
@@ -2010,7 +2009,6 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		}
 		break;
 	case SetPortFeature:
-		selector = wIndex >> 8;
 		wIndex &= 0xff;
 		if (!wIndex || wIndex > ports)
 			goto error;

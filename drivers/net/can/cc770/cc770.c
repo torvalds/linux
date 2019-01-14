@@ -73,7 +73,7 @@ MODULE_PARM_DESC(msgobj15_eff, "Extended 29-bit frames for message object 15 "
 
 static int i82527_compat;
 module_param(i82527_compat, int, 0444);
-MODULE_PARM_DESC(i82527_compat, "Strict Intel 82527 comptibility mode "
+MODULE_PARM_DESC(i82527_compat, "Strict Intel 82527 compatibility mode "
 		 "without using additional functions");
 
 /*

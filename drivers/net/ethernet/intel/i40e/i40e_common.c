@@ -3541,6 +3541,41 @@ i40e_aq_update_nvm_exit:
 }
 
 /**
+ * i40e_aq_rearrange_nvm
+ * @hw: pointer to the hw struct
+ * @rearrange_nvm: defines direction of rearrangement
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Rearrange NVM structure, available only for transition FW
+ **/
+i40e_status i40e_aq_rearrange_nvm(struct i40e_hw *hw,
+				  u8 rearrange_nvm,
+				  struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aqc_nvm_update *cmd;
+	i40e_status status;
+	struct i40e_aq_desc desc;
+
+	cmd = (struct i40e_aqc_nvm_update *)&desc.params.raw;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_nvm_update);
+
+	rearrange_nvm &= (I40E_AQ_NVM_REARRANGE_TO_FLAT |
+			 I40E_AQ_NVM_REARRANGE_TO_STRUCT);
+
+	if (!rearrange_nvm) {
+		status = I40E_ERR_PARAM;
+		goto i40e_aq_rearrange_nvm_exit;
+	}
+
+	cmd->command_flags |= rearrange_nvm;
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+i40e_aq_rearrange_nvm_exit:
+	return status;
+}
+
+/**
  * i40e_aq_get_lldp_mib
  * @hw: pointer to the hw struct
  * @bridge_type: type of bridge requested

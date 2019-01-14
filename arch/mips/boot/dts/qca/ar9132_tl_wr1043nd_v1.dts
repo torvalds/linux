@@ -22,11 +22,10 @@
 	};
 
 	gpio-keys {
-		compatible = "gpio-keys-polled";
+		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		poll-interval = <20>;
 		button@0 {
 			label = "reset";
 			linux,code = <KEY_RESTART>;

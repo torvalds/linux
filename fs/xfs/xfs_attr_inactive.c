@@ -26,6 +26,7 @@
 #include "xfs_quota.h"
 #include "xfs_trace.h"
 #include "xfs_dir2.h"
+#include "xfs_defer.h"
 
 /*
  * Look at all the extents for this logical region,

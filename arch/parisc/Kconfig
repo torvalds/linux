@@ -45,6 +45,7 @@ config PARISC
 	select HAVE_ARCH_HASH
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select GENERIC_SCHED_CLOCK
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select GENERIC_CLOCKEVENTS
@@ -128,10 +129,6 @@ config PGTABLE_LEVELS
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y if PA20
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 
 menu "Processor type and features"
 
@@ -187,6 +184,10 @@ config PA20
 config PA11
 	def_bool y
 	depends on PA7000 || PA7100LC || PA7200 || PA7300LC
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select DMA_NONCOHERENT_OPS
+	select DMA_NONCOHERENT_CACHE_SYNC
 
 config PREFETCH
 	def_bool y
@@ -326,9 +327,7 @@ config NODES_SHIFT
 	default "3"
 	depends on NEED_MULTIPLE_NODES
 
-source "kernel/Kconfig.preempt"
 source "kernel/Kconfig.hz"
-source "mm/Kconfig"
 
 config COMPAT
 	def_bool y
@@ -353,21 +352,6 @@ endmenu
 
 source "drivers/parisc/Kconfig"
 
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/parisc/Kconfig.debug"
-
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
@@ -383,9 +367,3 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

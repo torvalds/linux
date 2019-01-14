@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Synopsys DesignWare I2C adapter driver.
  *
@@ -6,20 +7,6 @@
  * Copyright (C) 2006 Texas Instruments.
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
- *
- * ----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * ----------------------------------------------------------------------------
- *
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -31,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/swab.h>
 
 #include "i2c-designware-core.h"
 
@@ -94,6 +82,40 @@ void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 	}
 }
 
+/**
+ * i2c_dw_set_reg_access() - Set register access flags
+ * @dev: device private data
+ *
+ * Autodetects needed register access mode and sets access flags accordingly.
+ * This must be called before doing any other register access.
+ */
+int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
+{
+	u32 reg;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	reg = dw_readl(dev, DW_IC_COMP_TYPE);
+	i2c_dw_release_lock(dev);
+
+	if (reg == swab32(DW_IC_COMP_TYPE_VALUE)) {
+		/* Configure register endianess access */
+		dev->flags |= ACCESS_SWAP;
+	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
+		/* Configure register access mode 16bit */
+		dev->flags |= ACCESS_16BIT;
+	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
+		dev_err(dev->dev,
+			"Unknown Synopsys component type: 0x%08x\n", reg);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset)
 {
 	/*
@@ -147,6 +169,47 @@ u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset)
 	 * should be 0.3 us, for safety.
 	 */
 	return ((ic_clk * (tLOW + tf) + 500000) / 1000000) - 1 + offset;
+}
+
+int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
+{
+	u32 reg;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	/* Configure SDA Hold Time if required */
+	reg = dw_readl(dev, DW_IC_COMP_VERSION);
+	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
+		if (!dev->sda_hold_time) {
+			/* Keep previous hold time setting if no one set it */
+			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
+		}
+
+		/*
+		 * Workaround for avoiding TX arbitration lost in case I2C
+		 * slave pulls SDA down "too quickly" after falling egde of
+		 * SCL by enabling non-zero SDA RX hold. Specification says it
+		 * extends incoming SDA low to high transition while SCL is
+		 * high but it apprears to help also above issue.
+		 */
+		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
+			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
+
+		dev_dbg(dev->dev, "SDA Hold Time TX:RX = %d:%d\n",
+			dev->sda_hold_time & ~(u32)DW_IC_SDA_HOLD_RX_MASK,
+			dev->sda_hold_time >> DW_IC_SDA_HOLD_RX_SHIFT);
+	} else if (dev->sda_hold_time) {
+		dev_warn(dev->dev,
+			"Hardware too old to adjust SDA hold time.\n");
+		dev->sda_hold_time = 0;
+	}
+
+	i2c_dw_release_lock(dev);
+
+	return 0;
 }
 
 void __i2c_dw_disable(struct dw_i2c_dev *dev)

@@ -76,6 +76,7 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 					__u32 version)
 {
 	int ret = 0;
+	unsigned int cur_cpu;
 	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
 
@@ -118,9 +119,10 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	 * the CPU attempting to connect may not be CPU 0.
 	 */
 	if (version >= VERSION_WIN8_1) {
-		msg->target_vcpu =
-			hv_cpu_number_to_vp_number(smp_processor_id());
-		vmbus_connection.connect_cpu = smp_processor_id();
+		cur_cpu = get_cpu();
+		msg->target_vcpu = hv_cpu_number_to_vp_number(cur_cpu);
+		vmbus_connection.connect_cpu = cur_cpu;
+		put_cpu();
 	} else {
 		msg->target_vcpu = 0;
 		vmbus_connection.connect_cpu = 0;

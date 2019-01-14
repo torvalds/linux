@@ -75,10 +75,12 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = NULL;
 	int ret = -EINVAL;;
 	PHM_FUNC_CHECK(hwmgr);
+	adev = hwmgr->adev;
 
-	if (smum_is_dpm_running(hwmgr)) {
+	if (smum_is_dpm_running(hwmgr) && !amdgpu_passthrough(adev)) {
 		pr_info("dpm has been enabled\n");
 		return 0;
 	}
@@ -435,7 +437,7 @@ int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 }
 
 int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+					void *clock_ranges)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
@@ -443,7 +445,7 @@ int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr,
-			wm_with_clock_ranges);
+								clock_ranges);
 }
 
 int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,

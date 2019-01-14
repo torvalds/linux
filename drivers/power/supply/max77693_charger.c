@@ -567,6 +567,7 @@ static int max77693_set_charge_input_threshold_volt(struct max77693_charger *chg
 	case 4800000:
 	case 4900000:
 		data = (uvolt - 4700000) / 100000;
+		break;
 	default:
 		dev_err(chg->dev, "Wrong value for charge input voltage regulation threshold\n");
 		return -EINVAL;

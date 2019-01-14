@@ -717,6 +717,30 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	return 0;
 }
 
+static int __phylink_connect_phy(struct phylink *pl, struct phy_device *phy,
+		phy_interface_t interface)
+{
+	int ret;
+
+	if (WARN_ON(pl->link_an_mode == MLO_AN_FIXED ||
+		    (pl->link_an_mode == MLO_AN_INBAND &&
+		     phy_interface_mode_is_8023z(interface))))
+		return -EINVAL;
+
+	if (pl->phydev)
+		return -EBUSY;
+
+	ret = phy_attach_direct(pl->netdev, phy, 0, interface);
+	if (ret)
+		return ret;
+
+	ret = phylink_bringup_phy(pl, phy);
+	if (ret)
+		phy_detach(phy);
+
+	return ret;
+}
+
 /**
  * phylink_connect_phy() - connect a PHY to the phylink instance
  * @pl: a pointer to a &struct phylink returned from phylink_create()
@@ -734,31 +758,13 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
  */
 int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 {
-	int ret;
-
-	if (WARN_ON(pl->link_an_mode == MLO_AN_FIXED ||
-		    (pl->link_an_mode == MLO_AN_INBAND &&
-		     phy_interface_mode_is_8023z(pl->link_interface))))
-		return -EINVAL;
-
-	if (pl->phydev)
-		return -EBUSY;
-
 	/* Use PHY device/driver interface */
 	if (pl->link_interface == PHY_INTERFACE_MODE_NA) {
 		pl->link_interface = phy->interface;
 		pl->link_config.interface = pl->link_interface;
 	}
 
-	ret = phy_attach_direct(pl->netdev, phy, 0, pl->link_interface);
-	if (ret)
-		return ret;
-
-	ret = phylink_bringup_phy(pl, phy);
-	if (ret)
-		phy_detach(phy);
-
-	return ret;
+	return __phylink_connect_phy(pl, phy, pl->link_interface);
 }
 EXPORT_SYMBOL_GPL(phylink_connect_phy);
 
@@ -1672,7 +1678,9 @@ static void phylink_sfp_link_up(void *upstream)
 
 static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 {
-	return phylink_connect_phy(upstream, phy);
+	struct phylink *pl = upstream;
+
+	return __phylink_connect_phy(upstream, phy, pl->link_config.interface);
 }
 
 static void phylink_sfp_disconnect_phy(void *upstream)
@@ -1687,5 +1695,35 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 	.connect_phy = phylink_sfp_connect_phy,
 	.disconnect_phy = phylink_sfp_disconnect_phy,
 };
+
+/* Helpers for MAC drivers */
+
+/**
+ * phylink_helper_basex_speed() - 1000BaseX/2500BaseX helper
+ * @state: a pointer to a &struct phylink_link_state
+ *
+ * Inspect the interface mode, advertising mask or forced speed and
+ * decide whether to run at 2.5Gbit or 1Gbit appropriately, switching
+ * the interface mode to suit.  @state->interface is appropriately
+ * updated, and the advertising mask has the "other" baseX_Full flag
+ * cleared.
+ */
+void phylink_helper_basex_speed(struct phylink_link_state *state)
+{
+	if (phy_interface_mode_is_8023z(state->interface)) {
+		bool want_2500 = state->an_enabled ?
+			phylink_test(state->advertising, 2500baseX_Full) :
+			state->speed == SPEED_2500;
+
+		if (want_2500) {
+			phylink_clear(state->advertising, 1000baseX_Full);
+			state->interface = PHY_INTERFACE_MODE_2500BASEX;
+		} else {
+			phylink_clear(state->advertising, 2500baseX_Full);
+			state->interface = PHY_INTERFACE_MODE_1000BASEX;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
 
 MODULE_LICENSE("GPL");

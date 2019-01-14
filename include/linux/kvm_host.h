@@ -130,7 +130,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQUEST_ARCH_BASE     8
 
 #define KVM_ARCH_REQ_FLAGS(nr, flags) ({ \
-	BUILD_BUG_ON((unsigned)(nr) >= 32 - KVM_REQUEST_ARCH_BASE); \
+	BUILD_BUG_ON((unsigned)(nr) >= (FIELD_SIZEOF(struct kvm_vcpu, requests) * 8) - KVM_REQUEST_ARCH_BASE); \
 	(unsigned)(((nr) + KVM_REQUEST_ARCH_BASE) | (flags)); \
 })
 #define KVM_ARCH_REQ(nr)           KVM_ARCH_REQ_FLAGS(nr, 0)
@@ -224,7 +224,7 @@ struct kvm_vcpu {
 	int vcpu_id;
 	int srcu_idx;
 	int mode;
-	unsigned long requests;
+	u64 requests;
 	unsigned long guest_debug;
 
 	int pre_pcpu;
@@ -307,6 +307,13 @@ struct kvm_memory_slot {
 static inline unsigned long kvm_dirty_bitmap_bytes(struct kvm_memory_slot *memslot)
 {
 	return ALIGN(memslot->npages, BITS_PER_LONG) / 8;
+}
+
+static inline unsigned long *kvm_second_dirty_bitmap(struct kvm_memory_slot *memslot)
+{
+	unsigned long len = kvm_dirty_bitmap_bytes(memslot);
+
+	return memslot->dirty_bitmap + len / sizeof(*memslot->dirty_bitmap);
 }
 
 struct kvm_s390_adapter_int {
@@ -726,8 +733,6 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 int kvm_vcpu_yield_to(struct kvm_vcpu *target);
 void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu, bool usermode_vcpu_not_eligible);
-void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
-void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
@@ -824,6 +829,13 @@ static inline struct kvm *kvm_arch_alloc_vm(void)
 static inline void kvm_arch_free_vm(struct kvm *kvm)
 {
 	kfree(kvm);
+}
+#endif
+
+#ifndef __KVM_HAVE_ARCH_FLUSH_REMOTE_TLB
+static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)
+{
+	return -ENOTSUPP;
 }
 #endif
 
@@ -1124,7 +1136,7 @@ static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 	 * caller.  Paired with the smp_mb__after_atomic in kvm_check_request.
 	 */
 	smp_wmb();
-	set_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
+	set_bit(req & KVM_REQUEST_MASK, (void *)&vcpu->requests);
 }
 
 static inline bool kvm_request_pending(struct kvm_vcpu *vcpu)
@@ -1134,12 +1146,12 @@ static inline bool kvm_request_pending(struct kvm_vcpu *vcpu)
 
 static inline bool kvm_test_request(int req, struct kvm_vcpu *vcpu)
 {
-	return test_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
+	return test_bit(req & KVM_REQUEST_MASK, (void *)&vcpu->requests);
 }
 
 static inline void kvm_clear_request(int req, struct kvm_vcpu *vcpu)
 {
-	clear_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
+	clear_bit(req & KVM_REQUEST_MASK, (void *)&vcpu->requests);
 }
 
 static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
@@ -1275,8 +1287,8 @@ static inline long kvm_arch_vcpu_async_ioctl(struct file *filp,
 }
 #endif /* CONFIG_HAVE_KVM_VCPU_ASYNC_IOCTL */
 
-void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-		unsigned long start, unsigned long end);
+int kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+		unsigned long start, unsigned long end, bool blockable);
 
 #ifdef CONFIG_HAVE_KVM_VCPU_RUN_PID_CHANGE
 int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu);

@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
 #include <linux/leds.h>
+#include <linux/usb.h>
 #include <net/mac80211.h>
 #include "util.h"
 
@@ -30,6 +31,7 @@
 #define MT_RX_BUF_SIZE      2048
 
 struct mt76_dev;
+struct mt76_wcid;
 
 struct mt76_bus_ops {
 	u32 (*rr)(struct mt76_dev *dev, u32 offset);
@@ -62,12 +64,22 @@ struct mt76_queue_buf {
 	int len;
 };
 
+struct mt76u_buf {
+	struct mt76_dev *dev;
+	struct urb *urb;
+	size_t len;
+	bool done;
+};
+
 struct mt76_queue_entry {
 	union {
 		void *buf;
 		struct sk_buff *skb;
 	};
-	struct mt76_txwi_cache *txwi;
+	union {
+		struct mt76_txwi_cache *txwi;
+		struct mt76u_buf ubuf;
+	};
 	bool schedule;
 };
 
@@ -88,6 +100,7 @@ struct mt76_queue {
 	struct list_head swq;
 	int swq_queued;
 
+	u16 first;
 	u16 head;
 	u16 tail;
 	int ndesc;
@@ -109,6 +122,10 @@ struct mt76_queue_ops {
 	int (*add_buf)(struct mt76_dev *dev, struct mt76_queue *q,
 		       struct mt76_queue_buf *buf, int nbufs, u32 info,
 		       struct sk_buff *skb, void *txwi);
+
+	int (*tx_queue_skb)(struct mt76_dev *dev, struct mt76_queue *q,
+			    struct sk_buff *skb, struct mt76_wcid *wcid,
+			    struct ieee80211_sta *sta);
 
 	void *(*dequeue)(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
 			 int *len, u32 *info, bool *more);
@@ -187,9 +204,13 @@ struct mt76_rx_tid {
 enum {
 	MT76_STATE_INITIALIZED,
 	MT76_STATE_RUNNING,
+	MT76_STATE_MCU_RUNNING,
 	MT76_SCANNING,
 	MT76_RESET,
 	MT76_OFFCHANNEL,
+	MT76_REMOVED,
+	MT76_READING_STATS,
+	MT76_MORE_STATS,
 };
 
 struct mt76_hw_cap {
@@ -210,6 +231,8 @@ struct mt76_driver_ops {
 	void (*tx_complete_skb)(struct mt76_dev *dev, struct mt76_queue *q,
 				struct mt76_queue_entry *e, bool flush);
 
+	bool (*tx_status_data)(struct mt76_dev *dev, u8 *update);
+
 	void (*rx_skb)(struct mt76_dev *dev, enum mt76_rxq_id q,
 		       struct sk_buff *skb);
 
@@ -227,6 +250,64 @@ struct mt76_channel_state {
 struct mt76_sband {
 	struct ieee80211_supported_band sband;
 	struct mt76_channel_state *chan;
+};
+
+/* addr req mask */
+#define MT_VEND_TYPE_EEPROM	BIT(31)
+#define MT_VEND_TYPE_CFG	BIT(30)
+#define MT_VEND_TYPE_MASK	(MT_VEND_TYPE_EEPROM | MT_VEND_TYPE_CFG)
+
+#define MT_VEND_ADDR(type, n)	(MT_VEND_TYPE_##type | (n))
+enum mt_vendor_req {
+	MT_VEND_DEV_MODE =	0x1,
+	MT_VEND_WRITE =		0x2,
+	MT_VEND_MULTI_WRITE =	0x6,
+	MT_VEND_MULTI_READ =	0x7,
+	MT_VEND_READ_EEPROM =	0x9,
+	MT_VEND_WRITE_FCE =	0x42,
+	MT_VEND_WRITE_CFG =	0x46,
+	MT_VEND_READ_CFG =	0x47,
+};
+
+enum mt76u_in_ep {
+	MT_EP_IN_PKT_RX,
+	MT_EP_IN_CMD_RESP,
+	__MT_EP_IN_MAX,
+};
+
+enum mt76u_out_ep {
+	MT_EP_OUT_INBAND_CMD,
+	MT_EP_OUT_AC_BK,
+	MT_EP_OUT_AC_BE,
+	MT_EP_OUT_AC_VI,
+	MT_EP_OUT_AC_VO,
+	MT_EP_OUT_HCCA,
+	__MT_EP_OUT_MAX,
+};
+
+#define MT_SG_MAX_SIZE		8
+#define MT_NUM_TX_ENTRIES	256
+#define MT_NUM_RX_ENTRIES	128
+#define MCU_RESP_URB_SIZE	1024
+struct mt76_usb {
+	struct mutex usb_ctrl_mtx;
+	u8 data[32];
+
+	struct tasklet_struct rx_tasklet;
+	struct tasklet_struct tx_tasklet;
+	struct delayed_work stat_work;
+
+	u8 out_ep[__MT_EP_OUT_MAX];
+	u16 out_max_packet;
+	u8 in_ep[__MT_EP_IN_MAX];
+	u16 in_max_packet;
+
+	struct mt76u_mcu {
+		struct mutex mutex;
+		struct completion cmpl;
+		struct mt76u_buf res;
+		u32 msg_seq;
+	} mcu;
 };
 
 struct mt76_dev {
@@ -271,6 +352,8 @@ struct mt76_dev {
 	char led_name[32];
 	bool led_al;
 	u8 led_pin;
+
+	struct mt76_usb usb;
 };
 
 enum mt76_phy_type {
@@ -390,6 +473,26 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev);
 int mt76_eeprom_init(struct mt76_dev *dev, int len);
 void mt76_eeprom_override(struct mt76_dev *dev);
 
+/* increment with wrap-around */
+static inline int mt76_incr(int val, int size)
+{
+	return (val + 1) & (size - 1);
+}
+
+/* decrement with wrap-around */
+static inline int mt76_decr(int val, int size)
+{
+	return (val - 1) & (size - 1);
+}
+
+/* Hardware uses mirrored order of queues with Q3
+ * having the highest priority
+ */
+static inline u8 q2hwq(u8 q)
+{
+	return q ^ 0x3;
+}
+
 static inline struct ieee80211_txq *
 mtxq_to_txq(struct mt76_txq *mtxq)
 {
@@ -409,9 +512,9 @@ wcid_to_sta(struct mt76_wcid *wcid)
 	return container_of(ptr, struct ieee80211_sta, drv_priv);
 }
 
-int mt76_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
-		      struct sk_buff *skb, struct mt76_wcid *wcid,
-		      struct ieee80211_sta *sta);
+int mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+			  struct sk_buff *skb, struct mt76_wcid *wcid,
+			  struct ieee80211_sta *sta);
 
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb);
 void mt76_tx(struct mt76_dev *dev, struct ieee80211_sta *sta,
@@ -442,10 +545,69 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 
 /* internal */
 void mt76_tx_free(struct mt76_dev *dev);
+struct mt76_txwi_cache *mt76_get_txwi(struct mt76_dev *dev);
 void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
 void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
-		      int queue);
-void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q);
+		      struct napi_struct *napi);
+void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
+			   struct napi_struct *napi);
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames);
+
+/* usb */
+static inline bool mt76u_urb_error(struct urb *urb)
+{
+	return urb->status &&
+	       urb->status != -ECONNRESET &&
+	       urb->status != -ESHUTDOWN &&
+	       urb->status != -ENOENT;
+}
+
+/* Map hardware queues to usb endpoints */
+static inline u8 q2ep(u8 qid)
+{
+	/* TODO: take management packets to queue 5 */
+	return qid + 1;
+}
+
+static inline bool mt76u_check_sg(struct mt76_dev *dev)
+{
+	struct usb_interface *intf = to_usb_interface(dev->dev);
+	struct usb_device *udev = interface_to_usbdev(intf);
+
+	return (udev->bus->sg_tablesize > 0 &&
+		(udev->bus->no_sg_constraint ||
+		 udev->speed == USB_SPEED_WIRELESS));
+}
+
+int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
+			 u8 req_type, u16 val, u16 offset,
+			 void *buf, size_t len);
+void mt76u_single_wr(struct mt76_dev *dev, const u8 req,
+		     const u16 offset, const u32 val);
+u32 mt76u_rr(struct mt76_dev *dev, u32 addr);
+void mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val);
+int mt76u_init(struct mt76_dev *dev, struct usb_interface *intf);
+void mt76u_deinit(struct mt76_dev *dev);
+int mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf,
+		    int nsgs, int len, int sglen, gfp_t gfp);
+void mt76u_buf_free(struct mt76u_buf *buf);
+int mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
+		     struct mt76u_buf *buf, gfp_t gfp,
+		     usb_complete_t complete_fn, void *context);
+int mt76u_submit_rx_buffers(struct mt76_dev *dev);
+int mt76u_alloc_queues(struct mt76_dev *dev);
+void mt76u_stop_queues(struct mt76_dev *dev);
+void mt76u_stop_stat_wk(struct mt76_dev *dev);
+void mt76u_queues_deinit(struct mt76_dev *dev);
+int mt76u_skb_dma_info(struct sk_buff *skb, int port, u32 flags);
+
+int mt76u_mcu_fw_send_data(struct mt76_dev *dev, const void *data,
+			   int data_len, u32 max_payload, u32 offset);
+void mt76u_mcu_complete_urb(struct urb *urb);
+struct sk_buff *mt76u_mcu_msg_alloc(const void *data, int len);
+int mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
+		       int cmd, bool wait_resp);
+void mt76u_mcu_fw_reset(struct mt76_dev *dev);
+int mt76u_mcu_init_rx(struct mt76_dev *dev);
 
 #endif

@@ -84,8 +84,9 @@ __handle_signal:
 		ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 		sethi			%hi(0xf << 20), %l4
 		and			%l1, %l4, %l4
+		andn			%l1, %l4, %l1
 		ba,pt			%xcc, __handle_preemption_continue
-		 andn			%l1, %l4, %l1
+		 srl			%l4, 20, %l4
 
 		/* When returning from a NMI (%pil==15) interrupt we want to
 		 * avoid running softirqs, doing IRQ tracing, preempting, etc.

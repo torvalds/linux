@@ -797,6 +797,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		cmd_completed = true;
 		if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_OK)
 			status = 0;
+		else if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_EBUSY)
+			status = I40E_ERR_NOT_READY;
 		else
 			status = I40E_ERR_ADMIN_QUEUE_ERROR;
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;

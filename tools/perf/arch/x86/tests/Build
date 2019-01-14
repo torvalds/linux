@@ -5,3 +5,4 @@ libperf-y += arch-tests.o
 libperf-y += rdpmc.o
 libperf-y += perf-time-to-tsc.o
 libperf-$(CONFIG_AUXTRACE) += insn-x86.o
+libperf-$(CONFIG_X86_64) += bp-modify.o

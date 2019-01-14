@@ -538,7 +538,7 @@ static int read_file_interrupt(struct seq_file *file, void *data)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		PR_IS("RXLP", rxlp);
 		PR_IS("RXHP", rxhp);
-		PR_IS("WATHDOG", bb_watchdog);
+		PR_IS("WATCHDOG", bb_watchdog);
 	} else {
 		PR_IS("RX", rxok);
 	}

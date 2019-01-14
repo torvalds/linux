@@ -291,6 +291,7 @@ static void destroy_inodecache(void)
 static const struct super_operations adfs_sops = {
 	.alloc_inode	= adfs_alloc_inode,
 	.destroy_inode	= adfs_destroy_inode,
+	.drop_inode	= generic_delete_inode,
 	.write_inode	= adfs_write_inode,
 	.put_super	= adfs_put_super,
 	.statfs		= adfs_statfs,

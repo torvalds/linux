@@ -134,7 +134,7 @@ static bool qed_bmap_is_empty(struct qed_bmap *bmap)
 	return bmap->max_count == find_first_bit(bmap->bitmap, bmap->max_count);
 }
 
-u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
+static u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
 {
 	/* First sb id for RoCE is after all the l2 sb */
 	return FEAT_NUM((struct qed_hwfn *)p_hwfn, QED_PF_L2_QUE) + rel_sb_id;
@@ -228,7 +228,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 				 num_cons, "Toggle");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
-			   "Failed to allocate toogle bits, rc = %d\n", rc);
+			   "Failed to allocate toggle bits, rc = %d\n", rc);
 		goto free_cq_map;
 	}
 
@@ -706,7 +706,7 @@ static int qed_rdma_setup(struct qed_hwfn *p_hwfn,
 	return qed_rdma_start_fw(p_hwfn, params, p_ptt);
 }
 
-int qed_rdma_stop(void *rdma_cxt)
+static int qed_rdma_stop(void *rdma_cxt)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct rdma_close_func_ramrod_data *p_ramrod;

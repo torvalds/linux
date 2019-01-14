@@ -14,19 +14,20 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/module.h>
+#include <linux/clk.h>
 #include <linux/kernel.h>
-#include "debug.h"
-#include "hif.h"
-#include "htc.h"
-#include "ce.h"
-#include "snoc.h"
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/clk.h>
-#define  WCN3990_CE_ATTR_FLAGS 0
+
+#include "ce.h"
+#include "debug.h"
+#include "hif.h"
+#include "htc.h"
+#include "snoc.h"
+
 #define ATH10K_SNOC_RX_POST_RETRY_MS 50
 #define CE_POLL_PIPE 4
 
@@ -449,7 +450,7 @@ static void ath10k_snoc_htt_rx_cb(struct ath10k_ce_pipe *ce_state)
 
 static void ath10k_snoc_rx_replenish_retry(struct timer_list *t)
 {
-	struct ath10k_pci *ar_snoc = from_timer(ar_snoc, t, rx_post_retry);
+	struct ath10k_snoc *ar_snoc = from_timer(ar_snoc, t, rx_post_retry);
 	struct ath10k *ar = ar_snoc->ar;
 
 	ath10k_snoc_rx_post(ar);
@@ -820,7 +821,7 @@ static const struct ath10k_bus_ops ath10k_snoc_bus_ops = {
 	.write32	= ath10k_snoc_write32,
 };
 
-int ath10k_snoc_get_ce_id_from_irq(struct ath10k *ar, int irq)
+static int ath10k_snoc_get_ce_id_from_irq(struct ath10k *ar, int irq)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	int i;
@@ -868,7 +869,7 @@ static int ath10k_snoc_napi_poll(struct napi_struct *ctx, int budget)
 	return done;
 }
 
-void ath10k_snoc_init_napi(struct ath10k *ar)
+static void ath10k_snoc_init_napi(struct ath10k *ar)
 {
 	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_snoc_napi_poll,
 		       ATH10K_NAPI_BUDGET);
@@ -1303,13 +1304,13 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	ar_snoc->ce.bus_ops = &ath10k_snoc_bus_ops;
 	ar->ce_priv = &ar_snoc->ce;
 
-	ath10k_snoc_resource_init(ar);
+	ret = ath10k_snoc_resource_init(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to initialize resource: %d\n", ret);
 		goto err_core_destroy;
 	}
 
-	ath10k_snoc_setup_resource(ar);
+	ret = ath10k_snoc_setup_resource(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to setup resource: %d\n", ret);
 		goto err_core_destroy;
@@ -1388,25 +1389,7 @@ static struct platform_driver ath10k_snoc_driver = {
 			.of_match_table = ath10k_snoc_dt_match,
 		},
 };
-
-static int __init ath10k_snoc_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&ath10k_snoc_driver);
-	if (ret)
-		pr_err("failed to register ath10k snoc driver: %d\n",
-		       ret);
-
-	return ret;
-}
-module_init(ath10k_snoc_init);
-
-static void __exit ath10k_snoc_exit(void)
-{
-	platform_driver_unregister(&ath10k_snoc_driver);
-}
-module_exit(ath10k_snoc_exit);
+module_platform_driver(ath10k_snoc_driver);
 
 MODULE_AUTHOR("Qualcomm");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -153,7 +153,8 @@ EXPORT_SYMBOL(snd_pcm_debug_name);
 			dump_stack();				\
 	} while (0)
 
-static void xrun(struct snd_pcm_substream *substream)
+/* call with stream lock held */
+void __snd_pcm_xrun(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -201,7 +202,7 @@ int snd_pcm_update_state(struct snd_pcm_substream *substream,
 		}
 	} else {
 		if (avail >= runtime->stop_threshold) {
-			xrun(substream);
+			__snd_pcm_xrun(substream);
 			return -EPIPE;
 		}
 	}
@@ -297,7 +298,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	}
 
 	if (pos == SNDRV_PCM_POS_XRUN) {
-		xrun(substream);
+		__snd_pcm_xrun(substream);
 		return -EPIPE;
 	}
 	if (pos >= runtime->buffer_size) {
@@ -626,27 +627,33 @@ EXPORT_SYMBOL(snd_interval_refine);
 
 static int snd_interval_refine_first(struct snd_interval *i)
 {
+	const unsigned int last_max = i->max;
+
 	if (snd_BUG_ON(snd_interval_empty(i)))
 		return -EINVAL;
 	if (snd_interval_single(i))
 		return 0;
 	i->max = i->min;
-	i->openmax = i->openmin;
-	if (i->openmax)
+	if (i->openmin)
 		i->max++;
+	/* only exclude max value if also excluded before refine */
+	i->openmax = (i->openmax && i->max >= last_max);
 	return 1;
 }
 
 static int snd_interval_refine_last(struct snd_interval *i)
 {
+	const unsigned int last_min = i->min;
+
 	if (snd_BUG_ON(snd_interval_empty(i)))
 		return -EINVAL;
 	if (snd_interval_single(i))
 		return 0;
 	i->min = i->max;
-	i->openmin = i->openmax;
-	if (i->openmin)
+	if (i->openmax)
 		i->min--;
+	/* only exclude min value if also excluded before refine */
+	i->openmin = (i->openmin && i->min <= last_min);
 	return 1;
 }
 
@@ -1832,12 +1839,19 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 	if (runtime->no_period_wakeup)
 		wait_time = MAX_SCHEDULE_TIMEOUT;
 	else {
-		wait_time = 10;
-		if (runtime->rate) {
-			long t = runtime->period_size * 2 / runtime->rate;
-			wait_time = max(t, wait_time);
+		/* use wait time from substream if available */
+		if (substream->wait_time) {
+			wait_time = substream->wait_time;
+		} else {
+			wait_time = 10;
+
+			if (runtime->rate) {
+				long t = runtime->period_size * 2 /
+					 runtime->rate;
+				wait_time = max(t, wait_time);
+			}
+			wait_time = msecs_to_jiffies(wait_time * 1000);
 		}
-		wait_time = msecs_to_jiffies(wait_time * 1000);
 	}
 
 	for (;;) {

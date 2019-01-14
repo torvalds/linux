@@ -785,7 +785,7 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This function should fill in all modes currently valid for the sink
 	 * into the &drm_connector.probed_modes list. It should also update the
-	 * EDID property by calling drm_mode_connector_update_edid_property().
+	 * EDID property by calling drm_connector_update_edid_property().
 	 *
 	 * The usual way to implement this is to cache the EDID retrieved in the
 	 * probe callback somewhere in the driver-private connector structure.
@@ -974,6 +974,21 @@ struct drm_connector_helper_funcs {
 	 */
 	int (*atomic_check)(struct drm_connector *connector,
 			    struct drm_connector_state *state);
+
+	/**
+	 * @atomic_commit:
+	 *
+	 * This hook is to be used by drivers implementing writeback connectors
+	 * that need a point when to commit the writeback job to the hardware.
+	 * The writeback_job to commit is available in
+	 * &drm_connector_state.writeback_job.
+	 *
+	 * This hook is optional.
+	 *
+	 * This callback is used by the atomic modeset helpers.
+	 */
+	void (*atomic_commit)(struct drm_connector *connector,
+			      struct drm_connector_state *state);
 };
 
 /**

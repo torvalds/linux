@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/reboot.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/clock.h>
@@ -383,8 +384,16 @@ reserve_memory (void)
 
 	sort_regions(rsvd_region, num_rsvd_regions);
 	num_rsvd_regions = merge_regions(rsvd_region, num_rsvd_regions);
-}
 
+	/* reserve all regions except the end of memory marker with memblock */
+	for (n = 0; n < num_rsvd_regions - 1; n++) {
+		struct rsvd_region *region = &rsvd_region[n];
+		phys_addr_t addr = __pa(region->start);
+		phys_addr_t size = region->end - region->start;
+
+		memblock_reserve(addr, size);
+	}
+}
 
 /**
  * find_initrd - get initrd parameters from the boot parameter structure

@@ -115,7 +115,7 @@ struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 	struct sk_buff *buf;
 	struct distr_item *item;
 
-	list_del(&publ->binding_node);
+	list_del_rcu(&publ->binding_node);
 
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
@@ -147,7 +147,7 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 			ITEM_SIZE) * ITEM_SIZE;
 	u32 msg_rem = msg_dsz;
 
-	list_for_each_entry(publ, pls, binding_node) {
+	list_for_each_entry_rcu(publ, pls, binding_node) {
 		/* Prepare next buffer: */
 		if (!skb) {
 			skb = named_prepare_buf(net, PUBLICATION, msg_rem,

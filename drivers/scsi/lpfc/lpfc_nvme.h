@@ -86,6 +86,7 @@ struct lpfc_nvme_buf {
 
 	uint16_t flags;  /* TBD convert exch_busy to flags */
 #define LPFC_SBUF_XBUSY         0x1     /* SLI4 hba reported XB on WCQE cmpl */
+#define LPFC_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
 	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint16_t cpu;

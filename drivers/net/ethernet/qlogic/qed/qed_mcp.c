@@ -48,7 +48,7 @@
 #include "qed_reg_addr.h"
 #include "qed_sriov.h"
 
-#define CHIP_MCP_RESP_ITER_US 10
+#define QED_MCP_RESP_ITER_US	10
 
 #define QED_DRV_MB_MAX_RETRIES	(500 * 1000)	/* Account for 5 sec */
 #define QED_MCP_RESET_RETRIES	(50 * 1000)	/* Account for 500 msec */
@@ -183,17 +183,56 @@ int qed_mcp_free(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
+/* Maximum of 1 sec to wait for the SHMEM ready indication */
+#define QED_MCP_SHMEM_RDY_MAX_RETRIES	20
+#define QED_MCP_SHMEM_RDY_ITER_MS	50
+
 static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_mcp_info *p_info = p_hwfn->mcp_info;
+	u8 cnt = QED_MCP_SHMEM_RDY_MAX_RETRIES;
+	u8 msec = QED_MCP_SHMEM_RDY_ITER_MS;
 	u32 drv_mb_offsize, mfw_mb_offsize;
 	u32 mcp_pf_id = MCP_PF_ID(p_hwfn);
 
 	p_info->public_base = qed_rd(p_hwfn, p_ptt, MISC_REG_SHARED_MEM_ADDR);
-	if (!p_info->public_base)
-		return 0;
+	if (!p_info->public_base) {
+		DP_NOTICE(p_hwfn,
+			  "The address of the MCP scratch-pad is not configured\n");
+		return -EINVAL;
+	}
 
 	p_info->public_base |= GRCBASE_MCP;
+
+	/* Get the MFW MB address and number of supported messages */
+	mfw_mb_offsize = qed_rd(p_hwfn, p_ptt,
+				SECTION_OFFSIZE_ADDR(p_info->public_base,
+						     PUBLIC_MFW_MB));
+	p_info->mfw_mb_addr = SECTION_ADDR(mfw_mb_offsize, mcp_pf_id);
+	p_info->mfw_mb_length = (u16)qed_rd(p_hwfn, p_ptt,
+					    p_info->mfw_mb_addr +
+					    offsetof(struct public_mfw_mb,
+						     sup_msgs));
+
+	/* The driver can notify that there was an MCP reset, and might read the
+	 * SHMEM values before the MFW has completed initializing them.
+	 * To avoid this, the "sup_msgs" field in the MFW mailbox is used as a
+	 * data ready indication.
+	 */
+	while (!p_info->mfw_mb_length && --cnt) {
+		msleep(msec);
+		p_info->mfw_mb_length =
+			(u16)qed_rd(p_hwfn, p_ptt,
+				    p_info->mfw_mb_addr +
+				    offsetof(struct public_mfw_mb, sup_msgs));
+	}
+
+	if (!cnt) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to get the SHMEM ready notification after %d msec\n",
+			  QED_MCP_SHMEM_RDY_MAX_RETRIES * msec);
+		return -EBUSY;
+	}
 
 	/* Calculate the driver and MFW mailbox address */
 	drv_mb_offsize = qed_rd(p_hwfn, p_ptt,
@@ -203,13 +242,6 @@ static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	DP_VERBOSE(p_hwfn, QED_MSG_SP,
 		   "drv_mb_offsiz = 0x%x, drv_mb_addr = 0x%x mcp_pf_id = 0x%x\n",
 		   drv_mb_offsize, p_info->drv_mb_addr, mcp_pf_id);
-
-	/* Set the MFW MB address */
-	mfw_mb_offsize = qed_rd(p_hwfn, p_ptt,
-				SECTION_OFFSIZE_ADDR(p_info->public_base,
-						     PUBLIC_MFW_MB));
-	p_info->mfw_mb_addr = SECTION_ADDR(mfw_mb_offsize, mcp_pf_id);
-	p_info->mfw_mb_length =	(u16)qed_rd(p_hwfn, p_ptt, p_info->mfw_mb_addr);
 
 	/* Get the current driver mailbox sequence before sending
 	 * the first command
@@ -285,8 +317,14 @@ static void qed_mcp_reread_offsets(struct qed_hwfn *p_hwfn,
 
 int qed_mcp_reset(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 org_mcp_reset_seq, seq, delay = CHIP_MCP_RESP_ITER_US, cnt = 0;
+	u32 org_mcp_reset_seq, seq, delay = QED_MCP_RESP_ITER_US, cnt = 0;
 	int rc = 0;
+
+	if (p_hwfn->mcp_info->b_block_cmd) {
+		DP_NOTICE(p_hwfn,
+			  "The MFW is not responsive. Avoid sending MCP_RESET mailbox command.\n");
+		return -EBUSY;
+	}
 
 	/* Ensure that only a single thread is accessing the mailbox */
 	spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
@@ -413,14 +451,41 @@ static void __qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		   (p_mb_params->cmd | seq_num), p_mb_params->param);
 }
 
+static void qed_mcp_cmd_set_blocking(struct qed_hwfn *p_hwfn, bool block_cmd)
+{
+	p_hwfn->mcp_info->b_block_cmd = block_cmd;
+
+	DP_INFO(p_hwfn, "%s sending of mailbox commands to the MFW\n",
+		block_cmd ? "Block" : "Unblock");
+}
+
+static void qed_mcp_print_cpu_info(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt)
+{
+	u32 cpu_mode, cpu_state, cpu_pc_0, cpu_pc_1, cpu_pc_2;
+	u32 delay = QED_MCP_RESP_ITER_US;
+
+	cpu_mode = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
+	cpu_state = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_STATE);
+	cpu_pc_0 = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_PROGRAM_COUNTER);
+	udelay(delay);
+	cpu_pc_1 = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_PROGRAM_COUNTER);
+	udelay(delay);
+	cpu_pc_2 = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_PROGRAM_COUNTER);
+
+	DP_NOTICE(p_hwfn,
+		  "MCP CPU info: mode 0x%08x, state 0x%08x, pc {0x%08x, 0x%08x, 0x%08x}\n",
+		  cpu_mode, cpu_state, cpu_pc_0, cpu_pc_1, cpu_pc_2);
+}
+
 static int
 _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		       struct qed_ptt *p_ptt,
 		       struct qed_mcp_mb_params *p_mb_params,
-		       u32 max_retries, u32 delay)
+		       u32 max_retries, u32 usecs)
 {
+	u32 cnt = 0, msecs = DIV_ROUND_UP(usecs, 1000);
 	struct qed_mcp_cmd_elem *p_cmd_elem;
-	u32 cnt = 0;
 	u16 seq_num;
 	int rc = 0;
 
@@ -443,7 +508,11 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 			goto err;
 
 		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
-		udelay(delay);
+
+		if (QED_MB_FLAGS_IS_SET(p_mb_params, CAN_SLEEP))
+			msleep(msecs);
+		else
+			udelay(usecs);
 	} while (++cnt < max_retries);
 
 	if (cnt >= max_retries) {
@@ -472,7 +541,11 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		 * The spinlock stays locked until the list element is removed.
 		 */
 
-		udelay(delay);
+		if (QED_MB_FLAGS_IS_SET(p_mb_params, CAN_SLEEP))
+			msleep(msecs);
+		else
+			udelay(usecs);
+
 		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
 
 		if (p_cmd_elem->b_is_completed)
@@ -491,10 +564,14 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn,
 			  "The MFW failed to respond to command 0x%08x [param 0x%08x].\n",
 			  p_mb_params->cmd, p_mb_params->param);
+		qed_mcp_print_cpu_info(p_hwfn, p_ptt);
 
 		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
 		qed_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
 		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+		if (!QED_MB_FLAGS_IS_SET(p_mb_params, AVOID_BLOCK))
+			qed_mcp_cmd_set_blocking(p_hwfn, true);
 
 		return -EAGAIN;
 	}
@@ -507,7 +584,7 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		   "MFW mailbox: response 0x%08x param 0x%08x [after %d.%03d ms]\n",
 		   p_mb_params->mcp_resp,
 		   p_mb_params->mcp_param,
-		   (cnt * delay) / 1000, (cnt * delay) % 1000);
+		   (cnt * usecs) / 1000, (cnt * usecs) % 1000);
 
 	/* Clear the sequence number from the MFW response */
 	p_mb_params->mcp_resp &= FW_MSG_CODE_MASK;
@@ -525,11 +602,18 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 {
 	size_t union_data_size = sizeof(union drv_union_data);
 	u32 max_retries = QED_DRV_MB_MAX_RETRIES;
-	u32 delay = CHIP_MCP_RESP_ITER_US;
+	u32 usecs = QED_MCP_RESP_ITER_US;
 
 	/* MCP not initialized */
 	if (!qed_mcp_is_init(p_hwfn)) {
 		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
+		return -EBUSY;
+	}
+
+	if (p_hwfn->mcp_info->b_block_cmd) {
+		DP_NOTICE(p_hwfn,
+			  "The MFW is not responsive. Avoid sending mailbox command 0x%08x [param 0x%08x].\n",
+			  p_mb_params->cmd, p_mb_params->param);
 		return -EBUSY;
 	}
 
@@ -542,8 +626,13 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
+	if (QED_MB_FLAGS_IS_SET(p_mb_params, CAN_SLEEP)) {
+		max_retries = DIV_ROUND_UP(max_retries, 1000);
+		usecs *= 1000;
+	}
+
 	return _qed_mcp_cmd_and_union(p_hwfn, p_ptt, p_mb_params, max_retries,
-				      delay);
+				      usecs);
 }
 
 int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
@@ -570,12 +659,13 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_nvm_wr_cmd(struct qed_hwfn *p_hwfn,
-		       struct qed_ptt *p_ptt,
-		       u32 cmd,
-		       u32 param,
-		       u32 *o_mcp_resp,
-		       u32 *o_mcp_param, u32 i_txn_size, u32 *i_buf)
+static int
+qed_mcp_nvm_wr_cmd(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt,
+		   u32 cmd,
+		   u32 param,
+		   u32 *o_mcp_resp,
+		   u32 *o_mcp_param, u32 i_txn_size, u32 *i_buf)
 {
 	struct qed_mcp_mb_params mb_params;
 	int rc;
@@ -760,6 +850,7 @@ __qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	mb_params.data_src_size = sizeof(load_req);
 	mb_params.p_data_dst = &load_rsp;
 	mb_params.data_dst_size = sizeof(load_rsp);
+	mb_params.flags = QED_MB_FLAG_CAN_SLEEP | QED_MB_FLAG_AVOID_BLOCK;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SP,
 		   "Load Request: param 0x%08x [init_hw %d, drv_type %d, hsi_ver %d, pda 0x%04x]\n",
@@ -981,7 +1072,8 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 
 int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 wol_param, mcp_resp, mcp_param;
+	struct qed_mcp_mb_params mb_params;
+	u32 wol_param;
 
 	switch (p_hwfn->cdev->wol_config) {
 	case QED_OV_WOL_DISABLED:
@@ -999,8 +1091,12 @@ int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		wol_param = DRV_MB_PARAM_UNLOAD_WOL_MCP;
 	}
 
-	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_UNLOAD_REQ, wol_param,
-			   &mcp_resp, &mcp_param);
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_UNLOAD_REQ;
+	mb_params.param = wol_param;
+	mb_params.flags = QED_MB_FLAG_CAN_SLEEP | QED_MB_FLAG_AVOID_BLOCK;
+
+	return qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 }
 
 int qed_mcp_unload_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -1485,12 +1581,28 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_hwfn->mcp_info->func_info.ovlan = (u16)shmem_info.ovlan_stag &
 						 FUNC_MF_CFG_OV_STAG_MASK;
 	p_hwfn->hw_info.ovlan = p_hwfn->mcp_info->func_info.ovlan;
-	if ((p_hwfn->hw_info.hw_mode & BIT(MODE_MF_SD)) &&
-	    (p_hwfn->hw_info.ovlan != QED_MCP_VLAN_UNSET)) {
-		qed_wr(p_hwfn, p_ptt,
-		       NIG_REG_LLH_FUNC_TAG_VALUE, p_hwfn->hw_info.ovlan);
+	if (test_bit(QED_MF_OVLAN_CLSS, &p_hwfn->cdev->mf_bits)) {
+		if (p_hwfn->hw_info.ovlan != QED_MCP_VLAN_UNSET) {
+			qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_FUNC_TAG_VALUE,
+			       p_hwfn->hw_info.ovlan);
+			qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_FUNC_TAG_EN, 1);
+
+			/* Configure DB to add external vlan to EDPM packets */
+			qed_wr(p_hwfn, p_ptt, DORQ_REG_TAG1_OVRD_MODE, 1);
+			qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_EXT_VID_BB_K2,
+			       p_hwfn->hw_info.ovlan);
+		} else {
+			qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_FUNC_TAG_EN, 0);
+			qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_FUNC_TAG_VALUE, 0);
+			qed_wr(p_hwfn, p_ptt, DORQ_REG_TAG1_OVRD_MODE, 0);
+			qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_EXT_VID_BB_K2, 0);
+		}
+
 		qed_sp_pf_update_stag(p_hwfn);
 	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP, "ovlan  = %d hw_mode = 0x%x\n",
+		   p_hwfn->mcp_info->func_info.ovlan, p_hwfn->hw_info.hw_mode);
 
 	/* Acknowledge the MFW */
 	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
@@ -1551,7 +1663,8 @@ qed_mcp_handle_ufp_event(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	if (p_hwfn->ufp_info.mode == QED_UFP_MODE_VNIC_BW) {
 		p_hwfn->qm_info.ooo_tc = p_hwfn->ufp_info.tc;
-		p_hwfn->hw_info.offload_tc = p_hwfn->ufp_info.tc;
+		qed_hw_info_set_offload_tc(&p_hwfn->hw_info,
+					   p_hwfn->ufp_info.tc);
 
 		qed_qm_reconf(p_hwfn, p_ptt);
 	} else if (p_hwfn->ufp_info.mode == QED_UFP_MODE_ETS) {
@@ -2075,31 +2188,65 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+/* A maximal 100 msec waiting time for the MCP to halt */
+#define QED_MCP_HALT_SLEEP_MS		10
+#define QED_MCP_HALT_MAX_RETRIES	10
+
 int qed_mcp_halt(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 resp = 0, param = 0;
+	u32 resp = 0, param = 0, cpu_state, cnt = 0;
 	int rc;
 
 	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_MCP_HALT, 0, &resp,
 			 &param);
-	if (rc)
+	if (rc) {
 		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+		return rc;
+	}
 
-	return rc;
+	do {
+		msleep(QED_MCP_HALT_SLEEP_MS);
+		cpu_state = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_STATE);
+		if (cpu_state & MCP_REG_CPU_STATE_SOFT_HALTED)
+			break;
+	} while (++cnt < QED_MCP_HALT_MAX_RETRIES);
+
+	if (cnt == QED_MCP_HALT_MAX_RETRIES) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to halt the MCP [CPU_MODE = 0x%08x, CPU_STATE = 0x%08x]\n",
+			  qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE), cpu_state);
+		return -EBUSY;
+	}
+
+	qed_mcp_cmd_set_blocking(p_hwfn, true);
+
+	return 0;
 }
+
+#define QED_MCP_RESUME_SLEEP_MS	10
 
 int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 value, cpu_mode;
+	u32 cpu_mode, cpu_state;
 
 	qed_wr(p_hwfn, p_ptt, MCP_REG_CPU_STATE, 0xffffffff);
 
-	value = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
-	value &= ~MCP_REG_CPU_MODE_SOFT_HALT;
-	qed_wr(p_hwfn, p_ptt, MCP_REG_CPU_MODE, value);
 	cpu_mode = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
+	cpu_mode &= ~MCP_REG_CPU_MODE_SOFT_HALT;
+	qed_wr(p_hwfn, p_ptt, MCP_REG_CPU_MODE, cpu_mode);
+	msleep(QED_MCP_RESUME_SLEEP_MS);
+	cpu_state = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_STATE);
 
-	return (cpu_mode & MCP_REG_CPU_MODE_SOFT_HALT) ? -EAGAIN : 0;
+	if (cpu_state & MCP_REG_CPU_STATE_SOFT_HALTED) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to resume the MCP [CPU_MODE = 0x%08x, CPU_STATE = 0x%08x]\n",
+			  cpu_mode, cpu_state);
+		return -EBUSY;
+	}
+
+	qed_mcp_cmd_set_blocking(p_hwfn, false);
+
+	return 0;
 }
 
 int qed_mcp_ov_update_current_config(struct qed_hwfn *p_hwfn,
@@ -2471,6 +2618,55 @@ out:
 	qed_ptt_release(p_hwfn, p_ptt);
 
 	return rc;
+}
+
+int qed_mcp_phy_sfp_read(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u32 port, u32 addr, u32 offset, u32 len, u8 *p_buf)
+{
+	u32 bytes_left, bytes_to_copy, buf_size, nvm_offset = 0;
+	u32 resp, param;
+	int rc;
+
+	nvm_offset |= (port << DRV_MB_PARAM_TRANSCEIVER_PORT_OFFSET) &
+		       DRV_MB_PARAM_TRANSCEIVER_PORT_MASK;
+	nvm_offset |= (addr << DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_OFFSET) &
+		       DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_MASK;
+
+	addr = offset;
+	offset = 0;
+	bytes_left = len;
+	while (bytes_left > 0) {
+		bytes_to_copy = min_t(u32, bytes_left,
+				      MAX_I2C_TRANSACTION_SIZE);
+		nvm_offset &= (DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_MASK |
+			       DRV_MB_PARAM_TRANSCEIVER_PORT_MASK);
+		nvm_offset |= ((addr + offset) <<
+			       DRV_MB_PARAM_TRANSCEIVER_OFFSET_OFFSET) &
+			       DRV_MB_PARAM_TRANSCEIVER_OFFSET_MASK;
+		nvm_offset |= (bytes_to_copy <<
+			       DRV_MB_PARAM_TRANSCEIVER_SIZE_OFFSET) &
+			       DRV_MB_PARAM_TRANSCEIVER_SIZE_MASK;
+		rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
+					DRV_MSG_CODE_TRANSCEIVER_READ,
+					nvm_offset, &resp, &param, &buf_size,
+					(u32 *)(p_buf + offset));
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to send a transceiver read command to the MFW. rc = %d.\n",
+				  rc);
+			return rc;
+		}
+
+		if (resp == FW_MSG_CODE_TRANSCEIVER_NOT_PRESENT)
+			return -ENODEV;
+		else if (resp != FW_MSG_CODE_TRANSCEIVER_DIAG_OK)
+			return -EINVAL;
+
+		offset += buf_size;
+		bytes_left -= buf_size;
+	}
+
+	return 0;
 }
 
 int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -2959,7 +3155,7 @@ static int qed_mcp_resource_cmd(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int
+static int
 __qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    struct qed_resc_lock_params *p_params)

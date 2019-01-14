@@ -584,6 +584,22 @@ static int mlx5i_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	return 0;
 }
 
+static void mlx5_rdma_netdev_free(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5i_priv *ipriv = priv->ppriv;
+	const struct mlx5e_profile *profile = priv->profile;
+
+	mlx5e_detach_netdev(priv);
+	profile->cleanup(priv);
+	destroy_workqueue(priv->wq);
+
+	if (!ipriv->sub_interface) {
+		mlx5i_pkey_qpn_ht_cleanup(netdev);
+		mlx5e_destroy_mdev_resources(priv->mdev);
+	}
+}
+
 struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 					  struct ib_device *ibdev,
 					  const char *name,
@@ -657,6 +673,9 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 	rn->detach_mcast = mlx5i_detach_mcast;
 	rn->set_id = mlx5i_set_pkey_index;
 
+	netdev->priv_destructor = mlx5_rdma_netdev_free;
+	netdev->needs_free_netdev = 1;
+
 	return netdev;
 
 destroy_ht:
@@ -669,21 +688,3 @@ err_free_netdev:
 	return NULL;
 }
 EXPORT_SYMBOL(mlx5_rdma_netdev_alloc);
-
-void mlx5_rdma_netdev_free(struct net_device *netdev)
-{
-	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
-	struct mlx5i_priv *ipriv = priv->ppriv;
-	const struct mlx5e_profile *profile = priv->profile;
-
-	mlx5e_detach_netdev(priv);
-	profile->cleanup(priv);
-	destroy_workqueue(priv->wq);
-
-	if (!ipriv->sub_interface) {
-		mlx5i_pkey_qpn_ht_cleanup(netdev);
-		mlx5e_destroy_mdev_resources(priv->mdev);
-	}
-	free_netdev(netdev);
-}
-EXPORT_SYMBOL(mlx5_rdma_netdev_free);

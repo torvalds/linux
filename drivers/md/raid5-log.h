@@ -46,6 +46,11 @@ extern int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add);
 extern void ppl_quiesce(struct r5conf *conf, int quiesce);
 extern int ppl_handle_flush_request(struct r5l_log *log, struct bio *bio);
 
+static inline bool raid5_has_log(struct r5conf *conf)
+{
+	return test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
+}
+
 static inline bool raid5_has_ppl(struct r5conf *conf)
 {
 	return test_bit(MD_HAS_PPL, &conf->mddev->flags);

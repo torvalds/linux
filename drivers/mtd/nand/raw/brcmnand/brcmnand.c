@@ -114,7 +114,7 @@ enum {
 
 struct brcmnand_controller {
 	struct device		*dev;
-	struct nand_hw_control	controller;
+	struct nand_controller	controller;
 	void __iomem		*nand_base;
 	void __iomem		*nand_fc; /* flash cache */
 	void __iomem		*flash_dma_base;
@@ -2208,6 +2208,40 @@ static int brcmnand_setup_dev(struct brcmnand_host *host)
 	return 0;
 }
 
+static int brcmnand_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct brcmnand_host *host = nand_get_controller_data(chip);
+	int ret;
+
+	chip->options |= NAND_NO_SUBPAGE_WRITE;
+	/*
+	 * Avoid (for instance) kmap()'d buffers from JFFS2, which we can't DMA
+	 * to/from, and have nand_base pass us a bounce buffer instead, as
+	 * needed.
+	 */
+	chip->options |= NAND_USE_BOUNCE_BUFFER;
+
+	if (chip->bbt_options & NAND_BBT_USE_FLASH)
+		chip->bbt_options |= NAND_BBT_NO_OOB;
+
+	if (brcmnand_setup_dev(host))
+		return -ENXIO;
+
+	chip->ecc.size = host->hwcfg.sector_size_1k ? 1024 : 512;
+
+	/* only use our internal HW threshold */
+	mtd->bitflip_threshold = 1;
+
+	ret = brcmstb_choose_ecc_layout(host);
+
+	return ret;
+}
+
+static const struct nand_controller_ops brcmnand_controller_ops = {
+	.attach_chip = brcmnand_attach_chip,
+};
+
 static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 {
 	struct brcmnand_controller *ctrl = host->ctrl;
@@ -2267,33 +2301,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	nand_writereg(ctrl, cfg_offs,
 		      nand_readreg(ctrl, cfg_offs) & ~CFG_BUS_WIDTH);
 
-	ret = nand_scan_ident(mtd, 1, NULL);
-	if (ret)
-		return ret;
-
-	chip->options |= NAND_NO_SUBPAGE_WRITE;
-	/*
-	 * Avoid (for instance) kmap()'d buffers from JFFS2, which we can't DMA
-	 * to/from, and have nand_base pass us a bounce buffer instead, as
-	 * needed.
-	 */
-	chip->options |= NAND_USE_BOUNCE_BUFFER;
-
-	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
-
-	if (brcmnand_setup_dev(host))
-		return -ENXIO;
-
-	chip->ecc.size = host->hwcfg.sector_size_1k ? 1024 : 512;
-	/* only use our internal HW threshold */
-	mtd->bitflip_threshold = 1;
-
-	ret = brcmstb_choose_ecc_layout(host);
-	if (ret)
-		return ret;
-
-	ret = nand_scan_tail(mtd);
+	ret = nand_scan(mtd, 1);
 	if (ret)
 		return ret;
 
@@ -2433,7 +2441,8 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 
 	init_completion(&ctrl->done);
 	init_completion(&ctrl->dma_done);
-	nand_hw_control_init(&ctrl->controller);
+	nand_controller_init(&ctrl->controller);
+	ctrl->controller.ops = &brcmnand_controller_ops;
 	INIT_LIST_HEAD(&ctrl->host_list);
 
 	/* NAND register range */

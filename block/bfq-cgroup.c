@@ -275,9 +275,9 @@ static void bfqg_and_blkg_get(struct bfq_group *bfqg)
 
 void bfqg_and_blkg_put(struct bfq_group *bfqg)
 {
-	bfqg_put(bfqg);
-
 	blkg_put(bfqg_to_blkg(bfqg));
+
+	bfqg_put(bfqg);
 }
 
 /* @stats = 0 */
@@ -913,7 +913,8 @@ static ssize_t bfq_io_set_weight(struct kernfs_open_file *of,
 	if (ret)
 		return ret;
 
-	return bfq_io_set_weight_legacy(of_css(of), NULL, weight);
+	ret = bfq_io_set_weight_legacy(of_css(of), NULL, weight);
+	return ret ?: nbytes;
 }
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP

@@ -39,7 +39,7 @@ struct ndfc_controller {
 	void __iomem *ndfcbase;
 	struct nand_chip chip;
 	int chip_select;
-	struct nand_hw_control ndfc_control;
+	struct nand_controller ndfc_control;
 };
 
 static struct ndfc_controller ndfc_ctrl[NDFC_MAX_CS];
@@ -218,7 +218,7 @@ static int ndfc_probe(struct platform_device *ofdev)
 	ndfc = &ndfc_ctrl[cs];
 	ndfc->chip_select = cs;
 
-	nand_hw_control_init(&ndfc->ndfc_control);
+	nand_controller_init(&ndfc->ndfc_control);
 	ndfc->ofdev = ofdev;
 	dev_set_drvdata(&ofdev->dev, ndfc);
 

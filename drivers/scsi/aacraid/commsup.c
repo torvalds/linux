@@ -514,7 +514,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	 *	The only invalid cases are if the caller requests to wait and
 	 *	does not request a response and if the caller does not want a
 	 *	response and the Fib is not allocated from pool. If a response
-	 *	is not requesed the Fib will just be deallocaed by the DPC
+	 *	is not requested the Fib will just be deallocaed by the DPC
 	 *	routine when the response comes back from the adapter. No
 	 *	further processing will be done besides deleting the Fib. We
 	 *	will have a debug mode where the adapter can notify the host

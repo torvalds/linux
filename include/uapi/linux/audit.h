@@ -148,6 +148,7 @@
 #define AUDIT_INTEGRITY_PCR	    1804 /* PCR invalidation msgs */
 #define AUDIT_INTEGRITY_RULE	    1805 /* policy rule */
 #define AUDIT_INTEGRITY_EVM_XATTR   1806 /* New EVM-covered xattr */
+#define AUDIT_INTEGRITY_POLICY_RULE 1807 /* IMA policy rules */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
@@ -157,7 +158,8 @@
 #define AUDIT_FILTER_ENTRY	0x02	/* Apply rule at syscall entry */
 #define AUDIT_FILTER_WATCH	0x03	/* Apply rule to file system watches */
 #define AUDIT_FILTER_EXIT	0x04	/* Apply rule at syscall exit */
-#define AUDIT_FILTER_TYPE	0x05	/* Apply rule at audit_log_start */
+#define AUDIT_FILTER_EXCLUDE	0x05	/* Apply rule before record creation */
+#define AUDIT_FILTER_TYPE	AUDIT_FILTER_EXCLUDE /* obsolete misleading naming */
 #define AUDIT_FILTER_FS		0x06	/* Apply rule at __audit_inode_child */
 
 #define AUDIT_NR_FILTERS	7

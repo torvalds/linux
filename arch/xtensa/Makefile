@@ -49,7 +49,7 @@ KBUILD_CFLAGS += $(call cc-option,-mno-serialize-volatile,)
 KBUILD_AFLAGS += -mlongcalls -mtext-section-literals
 
 ifneq ($(CONFIG_LD_NO_RELAX),)
-LDFLAGS := --no-relax
+KBUILD_LDFLAGS := --no-relax
 endif
 
 ifeq ($(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#"),1)
@@ -64,11 +64,7 @@ endif
 vardirs := $(patsubst %,arch/xtensa/variants/%/,$(variant-y))
 plfdirs := $(patsubst %,arch/xtensa/platforms/%/,$(platform-y))
 
-ifeq ($(KBUILD_SRC),)
-KBUILD_CPPFLAGS += $(patsubst %,-I%include,$(vardirs) $(plfdirs))
-else
 KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(vardirs) $(plfdirs))
-endif
 
 KBUILD_DEFCONFIG := iss_defconfig
 

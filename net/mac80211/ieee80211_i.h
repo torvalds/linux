@@ -165,6 +165,7 @@ typedef unsigned __bitwise ieee80211_tx_result;
 #define TX_DROP		((__force ieee80211_tx_result) 1u)
 #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
 
+#define IEEE80211_TX_NO_SEQNO		BIT(0)
 #define IEEE80211_TX_UNICAST		BIT(1)
 #define IEEE80211_TX_PS_BUFFERED	BIT(2)
 
@@ -364,6 +365,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_DISABLE_160MHZ	= BIT(13),
 	IEEE80211_STA_DISABLE_WMM	= BIT(14),
 	IEEE80211_STA_ENABLE_RRM	= BIT(15),
+	IEEE80211_STA_DISABLE_HE	= BIT(16),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -1453,6 +1455,10 @@ struct ieee802_11_elems {
 	const struct ieee80211_vht_cap *vht_cap_elem;
 	const struct ieee80211_vht_operation *vht_operation;
 	const struct ieee80211_meshconf_ie *mesh_config;
+	const u8 *he_cap;
+	const struct ieee80211_he_operation *he_operation;
+	const struct ieee80211_mu_edca_param_set *mu_edca_param_set;
+	const u8 *uora_element;
 	const u8 *mesh_id;
 	const u8 *peering;
 	const __le16 *awake_window;
@@ -1482,6 +1488,7 @@ struct ieee802_11_elems {
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
+	u8 he_cap_len;
 	u8 mesh_id_len;
 	u8 peering_len;
 	u8 preq_len;
@@ -1824,6 +1831,13 @@ void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
 enum nl80211_chan_width
 ieee80211_sta_rx_bw_to_chan_width(struct sta_info *sta);
 
+/* HE */
+void
+ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
+				  struct ieee80211_supported_band *sband,
+				  const u8 *he_cap_ie, u8 he_cap_len,
+				  struct sta_info *sta);
+
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,
@@ -1880,19 +1894,20 @@ void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 			       bool bss_notify, bool enable_qos);
 void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
-		    struct sta_info *sta, struct sk_buff *skb);
+		    struct sta_info *sta, struct sk_buff *skb,
+		    u32 txdata_flags);
 
 void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
-				 enum nl80211_band band);
+				 enum nl80211_band band, u32 txdata_flags);
 
 static inline void
 ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 			  struct sk_buff *skb, int tid,
-			  enum nl80211_band band)
+			  enum nl80211_band band, u32 txdata_flags)
 {
 	rcu_read_lock();
-	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band);
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band, txdata_flags);
 	rcu_read_unlock();
 }
 
@@ -1910,7 +1925,7 @@ static inline void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 	}
 
 	__ieee80211_tx_skb_tid_band(sdata, skb, tid,
-				    chanctx_conf->def.chan->band);
+				    chanctx_conf->def.chan->band, 0);
 	rcu_read_unlock();
 }
 
@@ -2031,26 +2046,27 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 				    const u8 *bssid, u16 stype, u16 reason,
 				    bool send_frame, u8 *frame_buf);
+
+enum {
+	IEEE80211_PROBE_FLAG_DIRECTED		= BIT(0),
+	IEEE80211_PROBE_FLAG_MIN_CONTENT	= BIT(1),
+	IEEE80211_PROBE_FLAG_RANDOM_SN		= BIT(2),
+};
+
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     size_t buffer_len,
 			     struct ieee80211_scan_ies *ie_desc,
 			     const u8 *ie, size_t ie_len,
 			     u8 bands_used, u32 *rate_masks,
-			     struct cfg80211_chan_def *chandef);
+			     struct cfg80211_chan_def *chandef,
+			     u32 flags);
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  const u8 *src, const u8 *dst,
 					  u32 ratemask,
 					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
-					  bool directed);
-void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
-			      const u8 *src, const u8 *dst,
-			      const u8 *ssid, size_t ssid_len,
-			      const u8 *ie, size_t ie_len,
-			      u32 ratemask, bool directed, u32 tx_flags,
-			      struct ieee80211_channel *channel, bool scan);
-
+					  u32 flags);
 u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    struct ieee802_11_elems *elems,
 			    enum nl80211_band band, u32 *basic_rates);
@@ -2073,6 +2089,9 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 				const struct cfg80211_chan_def *chandef);
+u8 *ieee80211_ie_build_he_cap(u8 *pos,
+			      const struct ieee80211_sta_he_cap *he_cap,
+			      u8 *end);
 int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates);

@@ -350,13 +350,13 @@ static int exynos_drm_ipp_task_setup_buffer(struct exynos_drm_ipp_buffer *buf,
 		unsigned int height = (i == 0) ? buf->buf.height :
 			     DIV_ROUND_UP(buf->buf.height, buf->format->vsub);
 		unsigned long size = height * buf->buf.pitch[i];
-		struct drm_gem_object *obj = drm_gem_object_lookup(filp,
+		struct exynos_drm_gem *gem = exynos_drm_gem_get(filp,
 							    buf->buf.gem_id[i]);
-		if (!obj) {
+		if (!gem) {
 			ret = -ENOENT;
 			goto gem_free;
 		}
-		buf->exynos_gem[i] = to_exynos_gem(obj);
+		buf->exynos_gem[i] = gem;
 
 		if (size + buf->buf.offset[i] > buf->exynos_gem[i]->size) {
 			i++;
@@ -370,7 +370,7 @@ static int exynos_drm_ipp_task_setup_buffer(struct exynos_drm_ipp_buffer *buf,
 	return 0;
 gem_free:
 	while (i--) {
-		drm_gem_object_put_unlocked(&buf->exynos_gem[i]->base);
+		exynos_drm_gem_put(buf->exynos_gem[i]);
 		buf->exynos_gem[i] = NULL;
 	}
 	return ret;
@@ -383,7 +383,7 @@ static void exynos_drm_ipp_task_release_buf(struct exynos_drm_ipp_buffer *buf)
 	if (!buf->exynos_gem[0])
 		return;
 	for (i = 0; i < buf->format->num_planes; i++)
-		drm_gem_object_put_unlocked(&buf->exynos_gem[i]->base);
+		exynos_drm_gem_put(buf->exynos_gem[i]);
 }
 
 static void exynos_drm_ipp_task_free(struct exynos_drm_ipp *ipp,

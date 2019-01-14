@@ -7,9 +7,6 @@
 #define PALMCONNECT_VID		0x0830
 #define PALMCONNECT_PID		0x0080
 
-#define KLSI_VID		0x05e9
-#define KLSI_KL5KUSB105D_PID	0x00c0
-
 /* Vendor commands: */
 
 
