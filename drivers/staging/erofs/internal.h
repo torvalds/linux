@@ -580,11 +580,6 @@ int erofs_namei(struct inode *dir, struct qstr *name,
 /* dir.c */
 extern const struct file_operations erofs_dir_fops;
 
-#ifdef CONFIG_EROFS_FS_XATTR
-/* xattr.c */
-extern const struct xattr_handler *erofs_xattr_handlers[];
-#endif
-
 static inline void *erofs_vmap(struct page **pages, unsigned int count)
 {
 #ifdef CONFIG_EROFS_FS_USE_VM_MAP_RAM

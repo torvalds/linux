@@ -16,6 +16,7 @@
 #include <linux/parser.h>
 #include <linux/seq_file.h>
 #include "internal.h"
+#include "xattr.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/erofs.h>
