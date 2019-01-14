@@ -140,8 +140,6 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 						 ENABLE, 0);
 	}
 	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR, ih_doorbell_rtpr);
-	adev->nbio_funcs->ih_doorbell_range(adev, adev->irq.ih.use_doorbell,
-					    adev->irq.ih.doorbell_index);
 
 	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL);
 	tmp = REG_SET_FIELD(tmp, IH_STORM_CLIENT_LIST_CNTL,
