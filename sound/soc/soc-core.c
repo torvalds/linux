@@ -742,7 +742,7 @@ static struct snd_soc_component *soc_find_component(
 		if (of_node) {
 			if (component->dev->of_node == of_node)
 				return component;
-		} else if (strcmp(component->name, name) == 0) {
+		} else if (name && strcmp(component->name, name) == 0) {
 			return component;
 		}
 	}
