@@ -2296,6 +2296,34 @@ static int vega20_force_clock_level(struct pp_hwmgr *hwmgr,
 
 		break;
 
+	case PP_SOCCLK:
+		soft_min_level = mask ? (ffs(mask) - 1) : 0;
+		soft_max_level = mask ? (fls(mask) - 1) : 0;
+
+		if (soft_max_level >= data->dpm_table.soc_table.count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level,
+					data->dpm_table.soc_table.count - 1);
+			return -EINVAL;
+		}
+
+		data->dpm_table.soc_table.dpm_state.soft_min_level =
+			data->dpm_table.soc_table.dpm_levels[soft_min_level].value;
+		data->dpm_table.soc_table.dpm_state.soft_max_level =
+			data->dpm_table.soc_table.dpm_levels[soft_max_level].value;
+
+		ret = vega20_upload_dpm_min_level(hwmgr, FEATURE_DPM_SOCCLK_MASK);
+		PP_ASSERT_WITH_CODE(!ret,
+			"Failed to upload boot level to lowest!",
+			return ret);
+
+		ret = vega20_upload_dpm_max_level(hwmgr, FEATURE_DPM_SOCCLK_MASK);
+		PP_ASSERT_WITH_CODE(!ret,
+			"Failed to upload dpm max level to highest!",
+			return ret);
+
+		break;
+
 	case PP_PCIE:
 		soft_min_level = mask ? (ffs(mask) - 1) : 0;
 		soft_max_level = mask ? (fls(mask) - 1) : 0;
@@ -2923,6 +2951,23 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		ret = vega20_get_memclocks(hwmgr, &clocks);
 		PP_ASSERT_WITH_CODE(!ret,
 				"Attempt to get memory clk levels Failed!",
+				return ret);
+
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
+		break;
+
+	case PP_SOCCLK:
+		ret = vega20_get_current_clk_freq(hwmgr, PPCLK_SOCCLK, &now);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Attempt to get current socclk freq Failed!",
+				return ret);
+
+		ret = vega20_get_socclocks(hwmgr, &clocks);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Attempt to get soc clk levels Failed!",
 				return ret);
 
 		for (i = 0; i < clocks.num_levels; i++)

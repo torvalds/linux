@@ -680,11 +680,13 @@ static ssize_t amdgpu_get_ppfeature_status(struct device *dev,
 }
 
 /**
- * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_pcie
+ * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_socclk pp_dpm_pcie
  *
  * The amdgpu driver provides a sysfs API for adjusting what power levels
  * are enabled for a given power state.  The files pp_dpm_sclk, pp_dpm_mclk,
- * and pp_dpm_pcie are used for this.
+ * pp_dpm_socclk and pp_dpm_pcie are used for this.
+ *
+ * pp_dpm_socclk interface is only available for Vega10 and later ASICs.
  *
  * Reading back the files will show you the available power levels within
  * the power state and the clock information for those levels.
@@ -797,6 +799,42 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
+
+	if (ret)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t amdgpu_get_pp_dpm_socclk(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	if (adev->powerplay.pp_funcs->print_clock_levels)
+		return amdgpu_dpm_print_clock_levels(adev, PP_SOCCLK, buf);
+	else
+		return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static ssize_t amdgpu_set_pp_dpm_socclk(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int ret;
+	uint32_t mask = 0;
+
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
+
+	if (adev->powerplay.pp_funcs->force_clock_level)
+		ret = amdgpu_dpm_force_clock_level(adev, PP_SOCCLK, mask);
 
 	if (ret)
 		return -EINVAL;
@@ -1087,6 +1125,9 @@ static DEVICE_ATTR(pp_dpm_sclk, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(pp_dpm_mclk, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_dpm_mclk,
 		amdgpu_set_pp_dpm_mclk);
+static DEVICE_ATTR(pp_dpm_socclk, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_dpm_socclk,
+		amdgpu_set_pp_dpm_socclk);
 static DEVICE_ATTR(pp_dpm_pcie, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_dpm_pcie,
 		amdgpu_set_pp_dpm_pcie);
@@ -2246,6 +2287,13 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed to create device file pp_dpm_mclk\n");
 		return ret;
 	}
+	if (adev->asic_type >= CHIP_VEGA10) {
+		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_socclk);
+		if (ret) {
+			DRM_ERROR("failed to create device file pp_dpm_socclk\n");
+			return ret;
+		}
+	}
 	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
 	if (ret) {
 		DRM_ERROR("failed to create device file pp_dpm_pcie\n");
@@ -2333,6 +2381,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_sclk);
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
+	if (adev->asic_type >= CHIP_VEGA10)
+		device_remove_file(adev->dev, &dev_attr_pp_dpm_socclk);
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
 	device_remove_file(adev->dev, &dev_attr_pp_sclk_od);
 	device_remove_file(adev->dev, &dev_attr_pp_mclk_od);
