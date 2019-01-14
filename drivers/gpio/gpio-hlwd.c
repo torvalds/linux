@@ -51,6 +51,8 @@ struct hlwd_gpio {
 	struct irq_chip irqc;
 	void __iomem *regs;
 	int irq;
+	u32 edge_emulation;
+	u32 rising_edge, falling_edge;
 };
 
 static void hlwd_gpio_irqhandler(struct irq_desc *desc)
@@ -61,10 +63,36 @@ static void hlwd_gpio_irqhandler(struct irq_desc *desc)
 	unsigned long flags;
 	unsigned long pending;
 	int hwirq;
+	u32 emulated_pending;
 
 	spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
 	pending = ioread32be(hlwd->regs + HW_GPIOB_INTFLAG);
 	pending &= ioread32be(hlwd->regs + HW_GPIOB_INTMASK);
+
+	/* Treat interrupts due to edge trigger emulation separately */
+	emulated_pending = hlwd->edge_emulation & pending;
+	pending &= ~emulated_pending;
+	if (emulated_pending) {
+		u32 level, rising, falling;
+
+		level = ioread32be(hlwd->regs + HW_GPIOB_INTLVL);
+		rising = level & emulated_pending;
+		falling = ~level & emulated_pending;
+
+		/* Invert the levels */
+		iowrite32be(level ^ emulated_pending,
+			    hlwd->regs + HW_GPIOB_INTLVL);
+
+		/* Ack all emulated-edge interrupts */
+		iowrite32be(emulated_pending, hlwd->regs + HW_GPIOB_INTFLAG);
+
+		/* Signal interrupts only on the correct edge */
+		rising &= hlwd->rising_edge;
+		falling &= hlwd->falling_edge;
+
+		/* Mark emulated interrupts as pending */
+		pending |= rising | falling;
+	}
 	spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
 
 	chained_irq_enter(chip, desc);
@@ -120,6 +148,27 @@ static void hlwd_gpio_irq_enable(struct irq_data *data)
 	hlwd_gpio_irq_unmask(data);
 }
 
+static void hlwd_gpio_irq_setup_emulation(struct hlwd_gpio *hlwd, int hwirq,
+					  unsigned int flow_type)
+{
+	u32 level, state;
+
+	/* Set the trigger level to the inactive level */
+	level = ioread32be(hlwd->regs + HW_GPIOB_INTLVL);
+	state = ioread32be(hlwd->regs + HW_GPIOB_IN) & BIT(hwirq);
+	level &= ~BIT(hwirq);
+	level |= state ^ BIT(hwirq);
+	iowrite32be(level, hlwd->regs + HW_GPIOB_INTLVL);
+
+	hlwd->edge_emulation |= BIT(hwirq);
+	hlwd->rising_edge &= ~BIT(hwirq);
+	hlwd->falling_edge &= ~BIT(hwirq);
+	if (flow_type & IRQ_TYPE_EDGE_RISING)
+		hlwd->rising_edge |= BIT(hwirq);
+	if (flow_type & IRQ_TYPE_EDGE_FALLING)
+		hlwd->falling_edge |= BIT(hwirq);
+}
+
 static int hlwd_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 {
 	struct hlwd_gpio *hlwd =
@@ -128,6 +177,8 @@ static int hlwd_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	u32 level;
 
 	spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
+
+	hlwd->edge_emulation &= ~BIT(data->hwirq);
 
 	switch (flow_type) {
 	case IRQ_TYPE_LEVEL_HIGH:
@@ -139,6 +190,11 @@ static int hlwd_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		level = ioread32be(hlwd->regs + HW_GPIOB_INTLVL);
 		level &= ~BIT(data->hwirq);
 		iowrite32be(level, hlwd->regs + HW_GPIOB_INTLVL);
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+	case IRQ_TYPE_EDGE_FALLING:
+	case IRQ_TYPE_EDGE_BOTH:
+		hlwd_gpio_irq_setup_emulation(hlwd, data->hwirq, flow_type);
 		break;
 	default:
 		spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
