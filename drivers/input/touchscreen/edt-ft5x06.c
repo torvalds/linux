@@ -353,9 +353,10 @@ struct edt_ft5x06_attribute {
 	u8 limit_high;
 	u8 addr_m06;
 	u8 addr_m09;
+	u8 addr_ev;
 };
 
-#define EDT_ATTR(_field, _mode, _addr_m06, _addr_m09,			\
+#define EDT_ATTR(_field, _mode, _addr_m06, _addr_m09, _addr_ev,		\
 		_limit_low, _limit_high)				\
 	struct edt_ft5x06_attribute edt_ft5x06_attr_##_field = {	\
 		.dattr = __ATTR(_field, _mode,				\
@@ -364,6 +365,7 @@ struct edt_ft5x06_attribute {
 		.field_offset = offsetof(struct edt_ft5x06_ts_data, _field), \
 		.addr_m06 = _addr_m06,					\
 		.addr_m09 = _addr_m09,					\
+		.addr_ev  = _addr_ev,					\
 		.limit_low = _limit_low,				\
 		.limit_high = _limit_high,				\
 	}
@@ -398,6 +400,10 @@ static ssize_t edt_ft5x06_setting_show(struct device *dev,
 	case EDT_M12:
 	case GENERIC_FT:
 		addr = attr->addr_m09;
+		break;
+
+	case EV_FT:
+		addr = attr->addr_ev;
 		break;
 
 	default:
@@ -471,6 +477,10 @@ static ssize_t edt_ft5x06_setting_store(struct device *dev,
 		addr = attr->addr_m09;
 		break;
 
+	case EV_FT:
+		addr = attr->addr_ev;
+		break;
+
 	default:
 		error = -ENODEV;
 		goto out;
@@ -494,16 +504,16 @@ out:
 
 /* m06, m09: range 0-31, m12: range 0-5 */
 static EDT_ATTR(gain, S_IWUSR | S_IRUGO, WORK_REGISTER_GAIN,
-		M09_REGISTER_GAIN, 0, 31);
+		M09_REGISTER_GAIN, EV_REGISTER_GAIN, 0, 31);
 /* m06, m09: range 0-31, m12: range 0-16 */
 static EDT_ATTR(offset, S_IWUSR | S_IRUGO, WORK_REGISTER_OFFSET,
-		M09_REGISTER_OFFSET, 0, 31);
+		M09_REGISTER_OFFSET, NO_REGISTER, 0, 31);
 /* m06: range 20 to 80, m09: range 0 to 30, m12: range 1 to 255... */
 static EDT_ATTR(threshold, S_IWUSR | S_IRUGO, WORK_REGISTER_THRESHOLD,
-		M09_REGISTER_THRESHOLD, 0, 255);
+		M09_REGISTER_THRESHOLD, EV_REGISTER_THRESHOLD, 0, 255);
 /* m06: range 3 to 14, m12: (0x64: 100Hz) */
 static EDT_ATTR(report_rate, S_IWUSR | S_IRUGO, WORK_REGISTER_REPORT_RATE,
-		NO_REGISTER, 0, 255);
+		NO_REGISTER, NO_REGISTER, 0, 255);
 
 static struct attribute *edt_ft5x06_attrs[] = {
 	&edt_ft5x06_attr_gain.dattr.attr,
