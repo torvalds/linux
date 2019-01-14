@@ -1865,7 +1865,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	hda_nid_t pin_nid;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	bool non_pcm;
-	int pinctl;
+	int pinctl, stripe;
 	int err = 0;
 
 	mutex_lock(&spec->pcm_lock);
@@ -1908,6 +1908,14 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	mutex_lock(&per_pin->lock);
 	per_pin->channels = substream->runtime->channels;
 	per_pin->setup = true;
+
+	if (get_wcaps(codec, cvt_nid) & AC_WCAP_STRIPE) {
+		stripe = snd_hdac_get_stream_stripe_ctl(&codec->bus->core,
+							substream);
+		snd_hda_codec_write(codec, cvt_nid, 0,
+				    AC_VERB_SET_STRIPE_CONTROL,
+				    stripe);
+	}
 
 	hdmi_setup_audio_infoframe(codec, per_pin, non_pcm);
 	mutex_unlock(&per_pin->lock);
