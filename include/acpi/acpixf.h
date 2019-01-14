@@ -903,6 +903,12 @@ ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				acpi_bios_error(const char *module_name,
 						u32 line_number,
 						const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(4)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_bios_exception(const char *module_name,
+						    u32 line_number,
+						    acpi_status status,
+						    const char *format, ...))
 ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				void ACPI_INTERNAL_VAR_XFACE
 				acpi_bios_warning(const char *module_name,
