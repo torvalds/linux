@@ -52,7 +52,7 @@
 			st,syscfg = <&syscfg_sbc>;
 			reg = <0x0961f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 188 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09610000 0x6000>;
 
@@ -376,7 +376,7 @@
 			st,syscfg = <&syscfg_front>;
 			reg = <0x0920f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 189 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09200000 0x10000>;
 
@@ -936,7 +936,7 @@
 			st,syscfg = <&syscfg_front>;
 			reg = <0x0921f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09210000 0x10000>;
 
@@ -969,7 +969,7 @@
 			st,syscfg = <&syscfg_rear>;
 			reg = <0x0922f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 191 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09220000 0x6000>;
 
@@ -1164,7 +1164,7 @@
 			st,syscfg = <&syscfg_flash>;
 			reg = <0x0923f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 192 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09230000 0x3000>;
 

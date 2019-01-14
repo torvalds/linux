@@ -102,6 +102,7 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.enable_tmds_output = dce110_link_encoder_enable_tmds_output,
 	.enable_dp_output = dce110_link_encoder_enable_dp_output,
 	.enable_dp_mst_output = dce110_link_encoder_enable_dp_mst_output,
+	.enable_lvds_output = dce110_link_encoder_enable_lvds_output,
 	.disable_output = dce110_link_encoder_disable_output,
 	.dp_set_lane_settings = dce110_link_encoder_dp_set_lane_settings,
 	.dp_set_phy_pattern = dce110_link_encoder_dp_set_phy_pattern,
@@ -113,6 +114,7 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.connect_dig_be_to_fe = dce110_link_encoder_connect_dig_be_to_fe,
 	.enable_hpd = dce110_link_encoder_enable_hpd,
 	.disable_hpd = dce110_link_encoder_disable_hpd,
+	.is_dig_enabled = dce110_is_dig_enabled,
 	.destroy = dce110_link_encoder_destroy
 };
 
@@ -255,6 +257,11 @@ static void setup_panel_mode(
 	enum dp_panel_mode panel_mode)
 {
 	uint32_t value;
+	struct dc_context *ctx = enc110->base.ctx;
+
+	/* if psp set panel mode, dal should be program it */
+	if (ctx->dc->caps.psp_setup_panel_mode)
+		return;
 
 	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
 	value = REG_READ(DP_DPHY_INTERNAL_CTRL);
@@ -535,8 +542,9 @@ void dce110_psr_program_secondary_packet(struct link_encoder *enc,
 		DP_SEC_GSP0_PRIORITY, 1);
 }
 
-static bool is_dig_enabled(const struct dce110_link_encoder *enc110)
+bool dce110_is_dig_enabled(struct link_encoder *enc)
 {
+	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	uint32_t value;
 
 	REG_GET(DIG_BE_EN_CNTL, DIG_ENABLE, &value);
@@ -644,6 +652,9 @@ static bool dce110_link_encoder_validate_hdmi_output(
 	if (!enc110->base.features.flags.bits.HDMI_6GB_EN &&
 		adjusted_pix_clk_khz >= 300000)
 		return false;
+	if (enc110->base.ctx->dc->debug.hdmi20_disable &&
+		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		return false;
 	return true;
 }
 
@@ -651,21 +662,10 @@ bool dce110_link_encoder_validate_dp_output(
 	const struct dce110_link_encoder *enc110,
 	const struct dc_crtc_timing *crtc_timing)
 {
-	/* default RGB only */
-	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB)
-		return true;
+	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		return false;
 
-	if (enc110->base.features.flags.bits.IS_YCBCR_CAPABLE)
-		return true;
-
-	/* for DCE 8.x or later DP Y-only feature,
-	 * we need ASIC cap + FeatureSupportDPYonly, not support 666 */
-	if (crtc_timing->flags.Y_ONLY &&
-		enc110->base.features.flags.bits.IS_YCBCR_CAPABLE &&
-		crtc_timing->display_color_depth != COLOR_DEPTH_666)
-		return true;
-
-	return false;
+	return true;
 }
 
 void dce110_link_encoder_construct(
@@ -771,6 +771,9 @@ void dce110_link_encoder_construct(
 				__func__,
 				result);
 	}
+	if (enc110->base.ctx->dc->debug.hdmi20_disable) {
+		enc110->base.features.flags.bits.HDMI_6GB_EN = 0;
+	}
 }
 
 bool dce110_link_encoder_validate_output_with_stream(
@@ -801,6 +804,7 @@ bool dce110_link_encoder_validate_output_with_stream(
 					enc110, &stream->timing);
 	break;
 	case SIGNAL_TYPE_EDP:
+	case SIGNAL_TYPE_LVDS:
 		is_valid =
 			(stream->timing.
 				pixel_encoding == PIXEL_ENCODING_RGB) ? true : false;
@@ -917,7 +921,7 @@ void dce110_link_encoder_enable_tmds_output(
 	enum bp_result result;
 
 	/* Enable the PHY */
-
+	cntl.connector_obj_id = enc110->base.connector;
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
@@ -932,6 +936,38 @@ void dce110_link_encoder_enable_tmds_output(
 
 	cntl.pixel_clock = pixel_clock;
 	cntl.color_depth = color_depth;
+
+	result = link_transmitter_control(enc110, &cntl);
+
+	if (result != BP_RESULT_OK) {
+		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
+			__func__);
+		BREAK_TO_DEBUGGER();
+	}
+}
+
+/* TODO: still need depth or just pass in adjusted pixel clock? */
+void dce110_link_encoder_enable_lvds_output(
+	struct link_encoder *enc,
+	enum clock_source_id clock_source,
+	uint32_t pixel_clock)
+{
+	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
+	struct bp_transmitter_control cntl = { 0 };
+	enum bp_result result;
+
+	/* Enable the PHY */
+	cntl.connector_obj_id = enc110->base.connector;
+	cntl.action = TRANSMITTER_CONTROL_ENABLE;
+	cntl.engine_id = enc->preferred_engine;
+	cntl.transmitter = enc110->base.transmitter;
+	cntl.pll_id = clock_source;
+	cntl.signal = SIGNAL_TYPE_LVDS;
+	cntl.lanes_number = 4;
+
+	cntl.hpd_sel = enc110->base.hpd_source;
+
+	cntl.pixel_clock = pixel_clock;
 
 	result = link_transmitter_control(enc110, &cntl);
 
@@ -959,7 +995,7 @@ void dce110_link_encoder_enable_dp_output(
 	 * We need to set number of lanes manually.
 	 */
 	configure_encoder(enc110, link_settings);
-
+	cntl.connector_obj_id = enc110->base.connector;
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
@@ -1031,7 +1067,7 @@ void dce110_link_encoder_disable_output(
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
-	if (!is_dig_enabled(enc110)) {
+	if (!dce110_is_dig_enabled(enc)) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
 		return;
 	}

@@ -13,6 +13,7 @@ Required properties:
 	"maxim,ds3231",
 	"st,m41t0",
 	"st,m41t00",
+	"st,m41t11",
 	"microchip,mcp7940x",
 	"microchip,mcp7941x",
 	"pericom,pt7c4338",
@@ -21,7 +22,6 @@ Required properties:
 - reg: I2C bus address of the device
 
 Optional properties:
-- interrupt-parent: phandle for the interrupt controller.
 - interrupts: rtc alarm interrupt.
 - clock-output-names: From common clock binding to override the default output
                       clock name

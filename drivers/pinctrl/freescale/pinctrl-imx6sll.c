@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP.
- *
- */
+//
+// Copyright (C) 2016 Freescale Semiconductor, Inc.
+// Copyright 2017-2018 NXP.
 
 #include <linux/err.h>
 #include <linux/init.h>

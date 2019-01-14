@@ -1,10 +1,6 @@
-/*
- * Copyright 2014 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2014 Freescale Semiconductor, Inc.
 
 #include <dt-bindings/clock/imx6sx-clock.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -83,6 +79,7 @@
 				198000	    1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
+			#cooling-cells = <2>;
 			clocks = <&clks IMX6SX_CLK_ARM>,
 				 <&clks IMX6SX_CLK_PLL2_PFD2>,
 				 <&clks IMX6SX_CLK_STEP>,
@@ -104,41 +101,46 @@
 		interrupt-parent = <&intc>;
 	};
 
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	ckil: clock-ckil {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "ckil";
+	};
 
-		ckil: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-			clock-output-names = "ckil";
-		};
+	osc: clock-osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "osc";
+	};
 
-		osc: clock@1 {
-			compatible = "fixed-clock";
-			reg = <1>;
-			#clock-cells = <0>;
-			clock-frequency = <24000000>;
-			clock-output-names = "osc";
-		};
+	ipp_di0: clock-ipp-di0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "ipp_di0";
+	};
 
-		ipp_di0: clock@2 {
-			compatible = "fixed-clock";
-			reg = <2>;
-			#clock-cells = <0>;
-			clock-frequency = <0>;
-			clock-output-names = "ipp_di0";
-		};
+	ipp_di1: clock-ipp-di1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "ipp_di1";
+	};
 
-		ipp_di1: clock@3 {
-			compatible = "fixed-clock";
-			reg = <3>;
-			#clock-cells = <0>;
-			clock-frequency = <0>;
-			clock-output-names = "ipp_di1";
-		};
+	anaclk1: clock-anaclk1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "anaclk1";
+	};
+
+	anaclk2: clock-anaclk2 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "anaclk2";
 	};
 
 	tempmon: tempmon {
@@ -163,6 +165,12 @@
 		compatible = "simple-bus";
 		interrupt-parent = <&gpc>;
 		ranges;
+
+		ocram_s: sram@8f8000 {
+			compatible = "mmio-sram";
+			reg = <0x008f8000 0x4000>;
+			clocks = <&clks IMX6SX_CLK_OCRAM_S>;
+		};
 
 		ocram: sram@900000 {
 			compatible = "mmio-sram";
@@ -260,7 +268,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@2008000 {
+				ecspi1: spi@2008000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -272,7 +280,7 @@
 					status = "disabled";
 				};
 
-				ecspi2: ecspi@200c000 {
+				ecspi2: spi@200c000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -284,7 +292,7 @@
 					status = "disabled";
 				};
 
-				ecspi3: ecspi@2010000 {
+				ecspi3: spi@2010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -296,7 +304,7 @@
 					status = "disabled";
 				};
 
-				ecspi4: ecspi@2014000 {
+				ecspi4: spi@2014000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -575,8 +583,8 @@
 				interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 				#clock-cells = <1>;
-				clocks = <&ckil>, <&osc>, <&ipp_di0>, <&ipp_di1>;
-				clock-names = "ckil", "osc", "ipp_di0", "ipp_di1";
+				clocks = <&ckil>, <&osc>, <&ipp_di0>, <&ipp_di1>, <&anaclk1>, <&anaclk2>;
+				clock-names = "ckil", "osc", "ipp_di0", "ipp_di1", "anaclk1", "anaclk2";
 			};
 
 			anatop: anatop@20c8000 {
@@ -586,15 +594,12 @@
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				regulator-1p1@20c8110 {
-					reg = <0x20c8110>;
+				regulator-1p1 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p1";
-					regulator-min-microvolt = <800000>;
-					regulator-max-microvolt = <1375000>;
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x110>;
 					anatop-vol-bit-shift = <8>;
@@ -605,8 +610,7 @@
 					anatop-enable-bit = <0>;
 				};
 
-				regulator-3p0@20c8120 {
-					reg = <0x20c8120>;
+				regulator-3p0 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd3p0";
 					regulator-min-microvolt = <2800000>;
@@ -621,12 +625,11 @@
 					anatop-enable-bit = <0>;
 				};
 
-				regulator-2p5@20c8130 {
-					reg = <0x20c8130>;
+				regulator-2p5 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd2p5";
-					regulator-min-microvolt = <2100000>;
-					regulator-max-microvolt = <2875000>;
+					regulator-min-microvolt = <2250000>;
+					regulator-max-microvolt = <2750000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x130>;
 					anatop-vol-bit-shift = <8>;
@@ -637,8 +640,7 @@
 					anatop-enable-bit = <0>;
 				};
 
-				reg_arm: regulator-vddcore@20c8140 {
-					reg = <0x20c8140>;
+				reg_arm: regulator-vddcore {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vddarm";
 					regulator-min-microvolt = <725000>;
@@ -655,8 +657,7 @@
 					anatop-max-voltage = <1450000>;
 				};
 
-				reg_pcie: regulator-vddpcie@20c8140 {
-					reg = <0x20c8140>;
+				reg_pcie: regulator-vddpcie {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vddpcie";
 					regulator-min-microvolt = <725000>;
@@ -672,8 +673,7 @@
 					anatop-max-voltage = <1450000>;
 				};
 
-				reg_soc: regulator-vddsoc@20c8140 {
-					reg = <0x20c8140>;
+				reg_soc: regulator-vddsoc {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vddsoc";
 					regulator-min-microvolt = <725000>;
@@ -821,7 +821,6 @@
 
 			crypto: caam@2100000 {
 				compatible = "fsl,sec-v4.0";
-				fsl,sec-era = <4>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0x2100000 0x10000>;
@@ -1080,7 +1079,7 @@
 				status = "disabled";
 			};
 
-			qspi1: qspi@21e0000 {
+			qspi1: spi@21e0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-qspi";
@@ -1093,7 +1092,7 @@
 				status = "disabled";
 			};
 
-			qspi2: qspi@21e4000 {
+			qspi2: spi@21e4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-qspi";
@@ -1274,7 +1273,7 @@
 				status = "disabled";
 			};
 
-			ecspi5: ecspi@228c000 {
+			ecspi5: spi@228c000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -1351,7 +1350,7 @@
 			ranges = <0x81000000 0 0          0x08f80000 0 0x00010000 /* downstream I/O */
 				  0x82000000 0 0x08000000 0x08000000 0 0x00f00000>; /* non-prefetchable memory */
 			num-lanes = <1>;
-			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;

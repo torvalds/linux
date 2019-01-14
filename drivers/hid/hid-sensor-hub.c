@@ -299,7 +299,8 @@ EXPORT_SYMBOL_GPL(sensor_hub_get_feature);
 int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
 					u32 attr_usage_id, u32 report_id,
-					enum sensor_hub_read_flags flag)
+					enum sensor_hub_read_flags flag,
+					bool is_signed)
 {
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
 	unsigned long flags;
@@ -331,10 +332,16 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 						&hsdev->pending.ready, HZ*5);
 		switch (hsdev->pending.raw_size) {
 		case 1:
-			ret_val = *(u8 *)hsdev->pending.raw_data;
+			if (is_signed)
+				ret_val = *(s8 *)hsdev->pending.raw_data;
+			else
+				ret_val = *(u8 *)hsdev->pending.raw_data;
 			break;
 		case 2:
-			ret_val = *(u16 *)hsdev->pending.raw_data;
+			if (is_signed)
+				ret_val = *(s16 *)hsdev->pending.raw_data;
+			else
+				ret_val = *(u16 *)hsdev->pending.raw_data;
 			break;
 		case 4:
 			ret_val = *(u32 *)hsdev->pending.raw_data;
@@ -579,6 +586,28 @@ void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev)
 }
 EXPORT_SYMBOL_GPL(sensor_hub_device_close);
 
+static __u8 *sensor_hub_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
+{
+	/*
+	 * Checks if the report descriptor of Thinkpad Helix 2 has a logical
+	 * minimum for magnetic flux axis greater than the maximum.
+	 */
+	if (hdev->product == USB_DEVICE_ID_TEXAS_INSTRUMENTS_LENOVO_YOGA &&
+		*rsize == 2558 && rdesc[913] == 0x17 && rdesc[914] == 0x40 &&
+		rdesc[915] == 0x81 && rdesc[916] == 0x08 &&
+		rdesc[917] == 0x00 && rdesc[918] == 0x27 &&
+		rdesc[921] == 0x07 && rdesc[922] == 0x00) {
+		/* Sets negative logical minimum for mag x, y and z */
+		rdesc[914] = rdesc[935] = rdesc[956] = 0xc0;
+		rdesc[915] = rdesc[936] = rdesc[957] = 0x7e;
+		rdesc[916] = rdesc[937] = rdesc[958] = 0xf7;
+		rdesc[917] = rdesc[938] = rdesc[959] = 0xff;
+	}
+
+	return rdesc;
+}
+
 static int sensor_hub_probe(struct hid_device *hdev,
 				const struct hid_device_id *id)
 {
@@ -624,7 +653,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		ret = -EINVAL;
 		goto err_stop_hw;
 	}
-	sd->hid_sensor_hub_client_devs = devm_kzalloc(&hdev->dev, dev_cnt *
+	sd->hid_sensor_hub_client_devs = devm_kcalloc(&hdev->dev,
+						      dev_cnt,
 						      sizeof(struct mfd_cell),
 						      GFP_KERNEL);
 	if (sd->hid_sensor_hub_client_devs == NULL) {
@@ -742,6 +772,7 @@ static struct hid_driver sensor_hub_driver = {
 	.probe = sensor_hub_probe,
 	.remove = sensor_hub_remove,
 	.raw_event = sensor_hub_raw_event,
+	.report_fixup = sensor_hub_report_fixup,
 #ifdef CONFIG_PM
 	.suspend = sensor_hub_suspend,
 	.resume = sensor_hub_resume,

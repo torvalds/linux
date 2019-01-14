@@ -1,3 +1,5 @@
+menu "Kernel hacking"
+
 menu "printk and dmesg options"
 
 config PRINTK_TIME
@@ -29,6 +31,17 @@ config CONSOLE_LOGLEVEL_DEFAULT
 	  Note: This does not affect the log level of un-prefixed printk()
 	  usage in the kernel. That is controlled by the MESSAGE_LOGLEVEL_DEFAULT
 	  option.
+
+config CONSOLE_LOGLEVEL_QUIET
+	int "quiet console loglevel (1-15)"
+	range 1 15
+	default "4"
+	help
+	  loglevel to use when "quiet" is passed on the kernel commandline.
+
+	  When "quiet" is passed on the kernel commandline this loglevel
+	  will be used as the loglevel. IOW passing "quiet" will be the
+	  equivalent of passing "loglevel=<CONSOLE_LOGLEVEL_QUIET>"
 
 config MESSAGE_LOGLEVEL_DEFAULT
 	int "Default message log level (1-7)"
@@ -197,14 +210,6 @@ config GDB_SCRIPTS
 	  additional functions are available to analyze a Linux kernel
 	  instance. See Documentation/dev-tools/gdb-kernel-debugging.rst
 	  for further details.
-
-config ENABLE_WARN_DEPRECATED
-	bool "Enable __deprecated logic"
-	default y
-	help
-	  Enable the __deprecated logic in the kernel build.
-	  Disable this to suppress the "warning: 'foo' is deprecated
-	  (declared at kernel/power/somefile.c:1234)" messages.
 
 config ENABLE_MUST_CHECK
 	bool "Enable __must_check logic"
@@ -736,12 +741,15 @@ config ARCH_HAS_KCOV
 	  only for x86_64. KCOV requires testing on other archs, and most likely
 	  disabling of instrumentation for some early boot code.
 
+config CC_HAS_SANCOV_TRACE_PC
+	def_bool $(cc-option,-fsanitize-coverage=trace-pc)
+
 config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
+	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
 	select DEBUG_FS
-	select GCC_PLUGINS if !COMPILE_TEST
-	select GCC_PLUGIN_SANCOV if !COMPILE_TEST
+	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
@@ -755,7 +763,7 @@ config KCOV
 config KCOV_ENABLE_COMPARISONS
 	bool "Enable comparison operands collection by KCOV"
 	depends on KCOV
-	default n
+	depends on $(cc-option,-fsanitize-coverage=trace-cmp)
 	help
 	  KCOV also exposes operands of every comparison in the instrumented
 	  code along with operand sizes and PCs of the comparison instructions.
@@ -765,7 +773,7 @@ config KCOV_ENABLE_COMPARISONS
 config KCOV_INSTRUMENT_ALL
 	bool "Instrument all code by default"
 	depends on KCOV
-	default y if KCOV
+	default y
 	help
 	  If you are doing generic system call fuzzing (like e.g. syzkaller),
 	  then you will want to instrument the whole kernel and you should
@@ -1171,7 +1179,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && LOCK_DEBUGGING_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC && !X86
+	select FRAME_POINTER if !MIPS && !PPC && !ARM && !S390 && !MICROBLAZE && !ARC && !X86
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -1190,6 +1198,7 @@ config DEBUG_ATOMIC_SLEEP
 	bool "Sleep inside atomic section checking"
 	select PREEMPT_COUNT
 	depends on DEBUG_KERNEL
+	depends on !ARCH_NO_PREEMPT
 	help
 	  If you say Y here, various routines which may sleep will become very
 	  noisy if they are called inside atomic sections: when a spinlock is
@@ -1211,7 +1220,6 @@ config LOCK_TORTURE_TEST
 	tristate "torture tests for locking"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
-	default n
 	help
 	  This option provides a kernel module that runs torture tests
 	  on kernel locking primitives.  The kernel module may be built
@@ -1269,13 +1277,13 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  time.  This is really bad from a security perspective, and
 	  so architecture maintainers really need to do what they can
 	  to get the CRNG seeded sooner after the system is booted.
-	  However, since users can not do anything actionble to
+	  However, since users cannot do anything actionable to
 	  address this, by default the kernel will issue only a single
 	  warning for the first use of unseeded randomness.
 
 	  Say Y here if you want to receive warnings for all uses of
 	  unseeded randomness.  This will be of use primarily for
-	  those developers interersted in improving the security of
+	  those developers interested in improving the security of
 	  Linux kernels running on their architecture (or
 	  subarchitecture).
 
@@ -1284,7 +1292,7 @@ config DEBUG_KOBJECT
 	depends on DEBUG_KERNEL
 	help
 	  If you say Y here, some extra kobject debugging messages will be sent
-	  to the syslog. 
+	  to the syslog.
 
 config DEBUG_KOBJECT_RELEASE
 	bool "kobject release debugging"
@@ -1503,16 +1511,16 @@ config NETDEV_NOTIFIER_ERROR_INJECT
 
 	  If unsure, say N.
 
+config FUNCTION_ERROR_INJECTION
+	def_bool y
+	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
+
 config FAULT_INJECTION
 	bool "Fault-injection framework"
 	depends on DEBUG_KERNEL
 	help
 	  Provide fault-injection framework.
 	  For more details, see Documentation/fault-injection/.
-
-config FUNCTION_ERROR_INJECTION
-	def_bool y
-	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
 
 config FAILSLAB
 	bool "Fault-injection capability for kmalloc"
@@ -1544,22 +1552,18 @@ config FAIL_IO_TIMEOUT
 	  Only works with drivers that use the generic timeout handling,
 	  for others it wont do anything.
 
-config FAIL_MMC_REQUEST
-	bool "Fault-injection capability for MMC IO"
-	depends on FAULT_INJECTION_DEBUG_FS && MMC
-	help
-	  Provide fault-injection capability for MMC IO.
-	  This will make the mmc core return data errors. This is
-	  useful to test the error handling in the mmc block device
-	  and to test how the mmc host driver handles retries from
-	  the block device.
-
 config FAIL_FUTEX
 	bool "Fault-injection capability for futexes"
 	select DEBUG_FS
 	depends on FAULT_INJECTION && FUTEX
 	help
 	  Provide fault-injection capability for futexes.
+
+config FAULT_INJECTION_DEBUG_FS
+	bool "Debugfs entries for fault-injection capabilities"
+	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
+	help
+	  Enable configuration of fault-injection capabilities via debugfs.
 
 config FAIL_FUNCTION
 	bool "Fault-injection capability for functions"
@@ -1571,18 +1575,22 @@ config FAIL_FUNCTION
 	  an error value and have to handle it. This is useful to test the
 	  error handling in various subsystems.
 
-config FAULT_INJECTION_DEBUG_FS
-	bool "Debugfs entries for fault-injection capabilities"
-	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
+config FAIL_MMC_REQUEST
+	bool "Fault-injection capability for MMC IO"
+	depends on FAULT_INJECTION_DEBUG_FS && MMC
 	help
-	  Enable configuration of fault-injection capabilities via debugfs.
+	  Provide fault-injection capability for MMC IO.
+	  This will make the mmc core return data errors. This is
+	  useful to test the error handling in the mmc block device
+	  and to test how the mmc host driver handles retries from
+	  the block device.
 
 config FAULT_INJECTION_STACKTRACE_FILTER
 	bool "stacktrace filter for fault-injection capabilities"
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC && !X86
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM && !ARC && !X86
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
@@ -1591,7 +1599,7 @@ config LATENCYTOP
 	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 	depends on PROC_FS
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC && !X86
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM && !ARC && !X86
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE
@@ -1634,7 +1642,7 @@ config PROVIDE_OHCI1394_DMA_INIT
 
 config DMA_API_DEBUG
 	bool "Enable debugging of DMA-API usage"
-	depends on HAVE_DMA_API_DEBUG
+	select NEED_DMA_MAP_STATE
 	help
 	  Enable this option to debug the use of the DMA API by device drivers.
 	  With this option you will be able to detect common bugs in device
@@ -1651,6 +1659,23 @@ config DMA_API_DEBUG
 
 	  If unsure, say N.
 
+config DMA_API_DEBUG_SG
+	bool "Debug DMA scatter-gather usage"
+	default y
+	depends on DMA_API_DEBUG
+	help
+	  Perform extra checking that callers of dma_map_sg() have respected the
+	  appropriate segment length/boundary limits for the given device when
+	  preparing DMA scatterlists.
+
+	  This is particularly likely to have been overlooked in cases where the
+	  dma_map_sg() API is used for general bulk mapping of pages rather than
+	  preparing literal scatter-gather descriptors, where there is a risk of
+	  unexpected behaviour from DMA API implementations if the scatterlist
+	  is technically out-of-spec.
+
+	  If unsure, say N.
+
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
 	def_bool y
@@ -1661,7 +1686,6 @@ config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
 	depends on DEBUG_FS
 	depends on BLOCK
-	default n
 	help
 	This module enables testing of the different dumping mechanisms by
 	inducing system failures at predefined crash points.
@@ -1695,10 +1719,9 @@ config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
 	depends on DEBUG_KERNEL
 	depends on KPROBES
-	default n
 	help
 	  This option provides for testing basic kprobes functionality on
-	  boot. A sample kprobe, jprobe and kretprobe are inserted and
+	  boot. Samples of kprobe and kretprobe are inserted and
 	  verified for functionality.
 
 	  Say N if you are unsure.
@@ -1706,7 +1729,6 @@ config KPROBES_SANITY_TEST
 config BACKTRACE_SELF_TEST
 	tristate "Self test for the backtrace code"
 	depends on DEBUG_KERNEL
-	default n
 	help
 	  This option provides a kernel module that can be used to test
 	  the kernel stack backtrace code. This option is not useful
@@ -1776,18 +1798,29 @@ config TEST_PRINTF
 
 config TEST_BITMAP
 	tristate "Test bitmap_*() family of functions at runtime"
-	default n
 	help
 	  Enable this option to test the bitmap functions at boot.
+
+	  If unsure, say N.
+
+config TEST_BITFIELD
+	tristate "Test bitfield functions at runtime"
+	help
+	  Enable this option to test the bitfield functions at boot.
 
 	  If unsure, say N.
 
 config TEST_UUID
 	tristate "Test functions located in the uuid module at runtime"
 
+config TEST_XARRAY
+	tristate "Test the XArray code at runtime"
+
+config TEST_OVERFLOW
+	tristate "Test check_*_overflow() functions at runtime"
+
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
-	default n
 	help
 	  Enable this option to test the rhashtable functions at boot.
 
@@ -1795,7 +1828,6 @@ config TEST_RHASHTABLE
 
 config TEST_HASH
 	tristate "Perform selftest on hash functions"
-	default n
 	help
 	  Enable this option to test the kernel's integer (<linux/hash.h>),
 	  string (<linux/stringhash.h>), and siphash (<linux/siphash.h>)
@@ -1804,9 +1836,11 @@ config TEST_HASH
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
 
+config TEST_IDA
+	tristate "Perform selftest on IDA functions"
+
 config TEST_PARMAN
 	tristate "Perform selftest on priority array manager"
-	default n
 	depends on PARMAN
 	help
 	  Enable this option to test priority array manager on boot
@@ -1816,7 +1850,6 @@ config TEST_PARMAN
 
 config TEST_LKM
 	tristate "Test module loading with 'hello world' module"
-	default n
 	depends on m
 	help
 	  This builds the "test_module" module that emits "Hello, world"
@@ -1830,7 +1863,6 @@ config TEST_LKM
 
 config TEST_USER_COPY
 	tristate "Test user/kernel boundary protections"
-	default n
 	depends on m
 	help
 	  This builds the "test_user_copy" module that runs sanity checks
@@ -1843,7 +1875,6 @@ config TEST_USER_COPY
 
 config TEST_BPF
 	tristate "Test BPF filter functionality"
-	default n
 	depends on m && NET
 	help
 	  This builds the "test_bpf" module that runs various test vectors
@@ -1857,7 +1888,6 @@ config TEST_BPF
 
 config FIND_BIT_BENCHMARK
 	tristate "Test find_bit functions"
-	default n
 	help
 	  This builds the "test_find_bit" module that measure find_*_bit()
 	  functions performance.
@@ -1866,7 +1896,6 @@ config FIND_BIT_BENCHMARK
 
 config TEST_FIRMWARE
 	tristate "Test firmware loading via userspace interface"
-	default n
 	depends on FW_LOADER
 	help
 	  This builds the "test_firmware" module that creates a userspace
@@ -1879,7 +1908,6 @@ config TEST_FIRMWARE
 
 config TEST_SYSCTL
 	tristate "sysctl test driver"
-	default n
 	depends on PROC_SYSCTL
 	help
 	  This builds the "test_sysctl" module. This driver enables to test the
@@ -1890,7 +1918,6 @@ config TEST_SYSCTL
 
 config TEST_UDELAY
 	tristate "udelay test driver"
-	default n
 	help
 	  This builds the "udelay_test" module that helps to make sure
 	  that udelay() is working properly.
@@ -1899,7 +1926,6 @@ config TEST_UDELAY
 
 config TEST_STATIC_KEYS
 	tristate "Test static keys"
-	default n
 	depends on m
 	help
 	  Test the static key interfaces.
@@ -1908,7 +1934,6 @@ config TEST_STATIC_KEYS
 
 config TEST_KMOD
 	tristate "kmod stress tester"
-	default n
 	depends on m
 	depends on BLOCK && (64BIT || LBDAF)	  # for XFS, BTRFS
 	depends on NETDEVICES && NET_CORE && INET # for TUN
@@ -1943,11 +1968,18 @@ config TEST_DEBUG_VIRTUAL
 
 	  If unsure, say N.
 
+config TEST_MEMCAT_P
+	tristate "Test memcat_p() helper function"
+	help
+	  Test the memcat_p() helper for correctly merging two
+	  pointer arrays together.
+
+	  If unsure, say N.
+
 endif # RUNTIME_TESTING_MENU
 
 config MEMTEST
 	bool "Memtest"
-	depends on HAVE_MEMBLOCK
 	---help---
 	  This option adds a kernel parameter 'memtest', which allows memtest
 	  to be set.
@@ -2011,3 +2043,7 @@ config IO_STRICT_DEVMEM
 	  if the driver using a given range cannot be disabled.
 
 	  If in doubt, say Y.
+
+source "arch/$(SRCARCH)/Kconfig.debug"
+
+endmenu # Kernel hacking

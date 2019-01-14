@@ -223,6 +223,12 @@ struct qedi_work_map {
 	struct work_struct *ptr_tmf_work;
 };
 
+struct qedi_boot_target {
+	char ip_addr[64];
+	char iscsi_name[255];
+	u32 ipv6_en;
+};
+
 #define qedi_set_itt(task_id, itt) ((u32)(((task_id) & 0xffff) | ((itt) << 16)))
 #define qedi_get_itt(cqe) (cqe.iscsi_hdr.cmd.itt >> 16)
 

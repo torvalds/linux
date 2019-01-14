@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/err.h>
@@ -72,6 +63,9 @@ static const struct of_device_id tsens_table[] = {
 	}, {
 		.compatible = "qcom,msm8996-tsens",
 		.data = &data_8996,
+	}, {
+		.compatible = "qcom,tsens-v2",
+		.data = &data_tsens_v2,
 	},
 	{}
 };
@@ -86,11 +80,6 @@ static int tsens_register(struct tsens_device *tmdev)
 {
 	int i;
 	struct thermal_zone_device *tzd;
-	u32 *hw_id, n = tmdev->num_sensors;
-
-	hw_id = devm_kcalloc(tmdev->dev, n, sizeof(u32), GFP_KERNEL);
-	if (!hw_id)
-		return -ENOMEM;
 
 	for (i = 0;  i < tmdev->num_sensors; i++) {
 		tmdev->sensor[i].tmdev = tmdev;
@@ -112,10 +101,10 @@ static int tsens_probe(struct platform_device *pdev)
 	int ret, i;
 	struct device *dev;
 	struct device_node *np;
-	struct tsens_sensor *s;
 	struct tsens_device *tmdev;
 	const struct tsens_data *data;
 	const struct of_device_id *id;
+	u32 num_sensors;
 
 	if (pdev->dev.of_node)
 		dev = &pdev->dev;
@@ -130,24 +119,33 @@ static int tsens_probe(struct platform_device *pdev)
 	else
 		data = &data_8960;
 
-	if (data->num_sensors <= 0) {
+	num_sensors = data->num_sensors;
+
+	if (np)
+		of_property_read_u32(np, "#qcom,sensors", &num_sensors);
+
+	if (num_sensors <= 0) {
 		dev_err(dev, "invalid number of sensors\n");
 		return -EINVAL;
 	}
 
-	tmdev = devm_kzalloc(dev, sizeof(*tmdev) +
-			     data->num_sensors * sizeof(*s), GFP_KERNEL);
+	tmdev = devm_kzalloc(dev,
+			     struct_size(tmdev, sensor, num_sensors),
+			     GFP_KERNEL);
 	if (!tmdev)
 		return -ENOMEM;
 
 	tmdev->dev = dev;
-	tmdev->num_sensors = data->num_sensors;
+	tmdev->num_sensors = num_sensors;
 	tmdev->ops = data->ops;
 	for (i = 0;  i < tmdev->num_sensors; i++) {
 		if (data->hw_ids)
 			tmdev->sensor[i].hw_id = data->hw_ids[i];
 		else
 			tmdev->sensor[i].hw_id = i;
+	}
+	for (i = 0; i < REG_ARRAY_SIZE; i++) {
+		tmdev->reg_offsets[i] = data->reg_offsets[i];
 	}
 
 	if (!tmdev->ops || !tmdev->ops->init || !tmdev->ops->get_temp)

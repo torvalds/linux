@@ -19,6 +19,7 @@
 #include <linux/phylink.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
+#include <linux/timer.h>
 #include <linux/workqueue.h>
 
 #include "sfp.h"
@@ -54,6 +55,7 @@ struct phylink {
 	/* The link configuration settings */
 	struct phylink_link_state link_config;
 	struct gpio_desc *link_gpio;
+	struct timer_list link_poll;
 	void (*get_fixed_state)(struct net_device *dev,
 				struct phylink_link_state *s);
 
@@ -65,33 +67,6 @@ struct phylink {
 
 	struct sfp_bus *sfp_bus;
 };
-
-static inline void linkmode_zero(unsigned long *dst)
-{
-	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline void linkmode_copy(unsigned long *dst, const unsigned long *src)
-{
-	bitmap_copy(dst, src, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline void linkmode_and(unsigned long *dst, const unsigned long *a,
-				const unsigned long *b)
-{
-	bitmap_and(dst, a, b, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline void linkmode_or(unsigned long *dst, const unsigned long *a,
-				const unsigned long *b)
-{
-	bitmap_or(dst, a, b, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline bool linkmode_empty(const unsigned long *src)
-{
-	return bitmap_empty(src, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
 
 /**
  * phylink_set_port_modes() - set the port type modes in the ethtool mask
@@ -360,7 +335,7 @@ static void phylink_get_fixed_state(struct phylink *pl, struct phylink_link_stat
 	if (pl->get_fixed_state)
 		pl->get_fixed_state(pl->netdev, state);
 	else if (pl->link_gpio)
-		state->link = !!gpiod_get_value(pl->link_gpio);
+		state->link = !!gpiod_get_value_cansleep(pl->link_gpio);
 }
 
 /* Flow control is resolved according to our and the link partners
@@ -500,6 +475,15 @@ static void phylink_run_resolve(struct phylink *pl)
 		queue_work(system_power_efficient_wq, &pl->resolve);
 }
 
+static void phylink_fixed_poll(struct timer_list *t)
+{
+	struct phylink *pl = container_of(t, struct phylink, link_poll);
+
+	mod_timer(t, jiffies + HZ);
+
+	phylink_run_resolve(pl);
+}
+
 static const struct sfp_upstream_ops sfp_phylink_ops;
 
 static int phylink_register_sfp(struct phylink *pl,
@@ -572,6 +556,7 @@ struct phylink *phylink_create(struct net_device *ndev,
 	pl->link_config.an_enabled = true;
 	pl->ops = ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
+	timer_setup(&pl->link_poll, phylink_fixed_poll, 0);
 
 	bitmap_fill(pl->supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 	linkmode_copy(pl->link_config.advertising, pl->supported);
@@ -612,6 +597,8 @@ void phylink_destroy(struct phylink *pl)
 {
 	if (pl->sfp_bus)
 		sfp_unregister_upstream(pl->sfp_bus);
+	if (!IS_ERR_OR_NULL(pl->link_gpio))
+		gpiod_put(pl->link_gpio);
 
 	cancel_work_sync(&pl->resolve);
 	kfree(pl);
@@ -703,6 +690,30 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	return 0;
 }
 
+static int __phylink_connect_phy(struct phylink *pl, struct phy_device *phy,
+		phy_interface_t interface)
+{
+	int ret;
+
+	if (WARN_ON(pl->link_an_mode == MLO_AN_FIXED ||
+		    (pl->link_an_mode == MLO_AN_INBAND &&
+		     phy_interface_mode_is_8023z(interface))))
+		return -EINVAL;
+
+	if (pl->phydev)
+		return -EBUSY;
+
+	ret = phy_attach_direct(pl->netdev, phy, 0, interface);
+	if (ret)
+		return ret;
+
+	ret = phylink_bringup_phy(pl, phy);
+	if (ret)
+		phy_detach(phy);
+
+	return ret;
+}
+
 /**
  * phylink_connect_phy() - connect a PHY to the phylink instance
  * @pl: a pointer to a &struct phylink returned from phylink_create()
@@ -720,31 +731,13 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
  */
 int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 {
-	int ret;
-
-	if (WARN_ON(pl->link_an_mode == MLO_AN_FIXED ||
-		    (pl->link_an_mode == MLO_AN_INBAND &&
-		     phy_interface_mode_is_8023z(pl->link_interface))))
-		return -EINVAL;
-
-	if (pl->phydev)
-		return -EBUSY;
-
 	/* Use PHY device/driver interface */
 	if (pl->link_interface == PHY_INTERFACE_MODE_NA) {
 		pl->link_interface = phy->interface;
 		pl->link_config.interface = pl->link_interface;
 	}
 
-	ret = phy_attach_direct(pl->netdev, phy, 0, pl->link_interface);
-	if (ret)
-		return ret;
-
-	ret = phylink_bringup_phy(pl, phy);
-	if (ret)
-		phy_detach(phy);
-
-	return ret;
+	return __phylink_connect_phy(pl, phy, pl->link_interface);
 }
 EXPORT_SYMBOL_GPL(phylink_connect_phy);
 
@@ -887,6 +880,9 @@ void phylink_start(struct phylink *pl)
 		    phylink_an_mode_str(pl->link_an_mode),
 		    phy_modes(pl->link_config.interface));
 
+	/* Always set the carrier off */
+	netif_carrier_off(pl->netdev);
+
 	/* Apply the link configuration to the MAC when starting. This allows
 	 * a fixed-link to start with the correct parameters, and also
 	 * ensures that we set the appropriate advertisement for Serdes links.
@@ -903,6 +899,8 @@ void phylink_start(struct phylink *pl)
 	clear_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	phylink_run_resolve(pl);
 
+	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
+		mod_timer(&pl->link_poll, jiffies + HZ);
 	if (pl->sfp_bus)
 		sfp_upstream_start(pl->sfp_bus);
 	if (pl->phydev)
@@ -927,6 +925,8 @@ void phylink_stop(struct phylink *pl)
 		phy_stop(pl->phydev);
 	if (pl->sfp_bus)
 		sfp_upstream_stop(pl->sfp_bus);
+	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
+		del_timer_sync(&pl->link_poll);
 
 	set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	queue_work(system_power_efficient_wq, &pl->resolve);
@@ -1654,7 +1654,9 @@ static void phylink_sfp_link_up(void *upstream)
 
 static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 {
-	return phylink_connect_phy(upstream, phy);
+	struct phylink *pl = upstream;
+
+	return __phylink_connect_phy(upstream, phy, pl->link_config.interface);
 }
 
 static void phylink_sfp_disconnect_phy(void *upstream)
@@ -1669,5 +1671,35 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 	.connect_phy = phylink_sfp_connect_phy,
 	.disconnect_phy = phylink_sfp_disconnect_phy,
 };
+
+/* Helpers for MAC drivers */
+
+/**
+ * phylink_helper_basex_speed() - 1000BaseX/2500BaseX helper
+ * @state: a pointer to a &struct phylink_link_state
+ *
+ * Inspect the interface mode, advertising mask or forced speed and
+ * decide whether to run at 2.5Gbit or 1Gbit appropriately, switching
+ * the interface mode to suit.  @state->interface is appropriately
+ * updated, and the advertising mask has the "other" baseX_Full flag
+ * cleared.
+ */
+void phylink_helper_basex_speed(struct phylink_link_state *state)
+{
+	if (phy_interface_mode_is_8023z(state->interface)) {
+		bool want_2500 = state->an_enabled ?
+			phylink_test(state->advertising, 2500baseX_Full) :
+			state->speed == SPEED_2500;
+
+		if (want_2500) {
+			phylink_clear(state->advertising, 1000baseX_Full);
+			state->interface = PHY_INTERFACE_MODE_2500BASEX;
+		} else {
+			phylink_clear(state->advertising, 2500baseX_Full);
+			state->interface = PHY_INTERFACE_MODE_1000BASEX;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
 
 MODULE_LICENSE("GPL");

@@ -144,13 +144,11 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
-#if 0 // TODO: May want to transmit final ACK under some circumstances anyway
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
-		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
+		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, false, true,
 				  rxrpc_propose_ack_terminal_ack);
-		rxrpc_send_ack_packet(call, false, NULL);
+		//rxrpc_send_ack_packet(call, false, NULL);
 	}
-#endif
 
 	write_lock_bh(&call->state_lock);
 
@@ -315,6 +313,10 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	unsigned int rx_pkt_offset, rx_pkt_len;
 	int ix, copy, ret = -EAGAIN, ret2;
 
+	if (test_and_clear_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags) &&
+	    call->ackr_reason)
+		rxrpc_send_ack_packet(call, false, NULL);
+
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
 
@@ -414,6 +416,8 @@ out:
 done:
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_data_return, seq,
 			    rx_pkt_offset, rx_pkt_len, ret);
+	if (ret == -EAGAIN)
+		set_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags);
 	return ret;
 }
 
@@ -607,9 +611,7 @@ wait_error:
  * rxrpc_kernel_recv_data - Allow a kernel service to receive data/info
  * @sock: The socket that the call exists on
  * @call: The call to send data through
- * @buf: The buffer to receive into
- * @size: The size of the buffer, including data already read
- * @_offset: The running offset into the buffer.
+ * @iter: The buffer to receive into
  * @want_more: True if more data is expected to be read
  * @_abort: Where the abort code is stored if -ECONNABORTED is returned
  * @_service: Where to store the actual service ID (may be upgraded)
@@ -622,30 +624,20 @@ wait_error:
  * Note that we may return -EAGAIN to drain empty packets at the end of the
  * data, even if we've already copied over the requested data.
  *
- * This function adds the amount it transfers to *_offset, so this should be
- * precleared as appropriate.  Note that the amount remaining in the buffer is
- * taken to be size - *_offset.
- *
  * *_abort should also be initialised to 0.
  */
 int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
-			   void *buf, size_t size, size_t *_offset,
+			   struct iov_iter *iter,
 			   bool want_more, u32 *_abort, u16 *_service)
 {
-	struct iov_iter iter;
-	struct kvec iov;
+	size_t offset = 0;
 	int ret;
 
-	_enter("{%d,%s},%zu/%zu,%d",
+	_enter("{%d,%s},%zu,%d",
 	       call->debug_id, rxrpc_call_states[call->state],
-	       *_offset, size, want_more);
+	       iov_iter_count(iter), want_more);
 
-	ASSERTCMP(*_offset, <=, size);
 	ASSERTCMP(call->state, !=, RXRPC_CALL_SERVER_ACCEPTING);
-
-	iov.iov_base = buf + *_offset;
-	iov.iov_len = size - *_offset;
-	iov_iter_kvec(&iter, ITER_KVEC | READ, &iov, 1, size - *_offset);
 
 	mutex_lock(&call->user_mutex);
 
@@ -653,8 +645,9 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
-		ret = rxrpc_recvmsg_data(sock, call, NULL, &iter, size, 0,
-					 _offset);
+		ret = rxrpc_recvmsg_data(sock, call, NULL, iter,
+					 iov_iter_count(iter), 0,
+					 &offset);
 		if (ret < 0)
 			goto out;
 
@@ -663,7 +656,7 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 		 * full buffer or have been given -EAGAIN.
 		 */
 		if (ret == 1) {
-			if (*_offset < size)
+			if (iov_iter_count(iter) > 0)
 				goto short_data;
 			if (!want_more)
 				goto read_phase_complete;
@@ -686,10 +679,21 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 read_phase_complete:
 	ret = 1;
 out:
+	switch (call->ackr_reason) {
+	case RXRPC_ACK_IDLE:
+		break;
+	case RXRPC_ACK_DELAY:
+		if (ret != -EAGAIN)
+			break;
+		/* Fall through */
+	default:
+		rxrpc_send_ack_packet(call, false, NULL);
+	}
+
 	if (_service)
 		*_service = call->service_id;
 	mutex_unlock(&call->user_mutex);
-	_leave(" = %d [%zu,%d]", ret, *_offset, *_abort);
+	_leave(" = %d [%zu,%d]", ret, iov_iter_count(iter), *_abort);
 	return ret;
 
 short_data:
@@ -705,9 +709,52 @@ call_complete:
 	ret = call->error;
 	if (call->completion == RXRPC_CALL_SUCCEEDED) {
 		ret = 1;
-		if (size > 0)
+		if (iov_iter_count(iter) > 0)
 			ret = -ECONNRESET;
 	}
 	goto out;
 }
 EXPORT_SYMBOL(rxrpc_kernel_recv_data);
+
+/**
+ * rxrpc_kernel_get_reply_time - Get timestamp on first reply packet
+ * @sock: The socket that the call exists on
+ * @call: The call to query
+ * @_ts: Where to put the timestamp
+ *
+ * Retrieve the timestamp from the first DATA packet of the reply if it is
+ * in the ring.  Returns true if successful, false if not.
+ */
+bool rxrpc_kernel_get_reply_time(struct socket *sock, struct rxrpc_call *call,
+				 ktime_t *_ts)
+{
+	struct sk_buff *skb;
+	rxrpc_seq_t hard_ack, top, seq;
+	bool success = false;
+
+	mutex_lock(&call->user_mutex);
+
+	if (READ_ONCE(call->state) != RXRPC_CALL_CLIENT_RECV_REPLY)
+		goto out;
+
+	hard_ack = call->rx_hard_ack;
+	if (hard_ack != 0)
+		goto out;
+
+	seq = hard_ack + 1;
+	top = smp_load_acquire(&call->rx_top);
+	if (after(seq, top))
+		goto out;
+
+	skb = call->rxtx_buffer[seq & RXRPC_RXTX_BUFF_MASK];
+	if (!skb)
+		goto out;
+
+	*_ts = skb_get_ktime(skb);
+	success = true;
+
+out:
+	mutex_unlock(&call->user_mutex);
+	return success;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_reply_time);

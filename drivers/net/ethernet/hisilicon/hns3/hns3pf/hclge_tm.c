@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/etherdevice.h>
 
@@ -134,11 +128,8 @@ static int hclge_pfc_stats_get(struct hclge_dev *hdev,
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_TM_PFC_PKT_GET_CMD_NUM);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Get pfc pause stats fail, ret = %d.\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	for (i = 0; i < HCLGE_TM_PFC_PKT_GET_CMD_NUM; i++) {
 		struct hclge_pfc_stats_cmd *pfc_stats =
@@ -181,7 +172,7 @@ static int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
 				  u8 pfc_bitmap)
 {
 	struct hclge_desc desc;
-	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)&desc.data;
+	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PFC_PAUSE_EN, false);
 
@@ -197,11 +188,12 @@ static int hclge_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
 	struct hclge_cfg_pause_param_cmd *pause_param;
 	struct hclge_desc desc;
 
-	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, false);
 
 	ether_addr_copy(pause_param->mac_addr, addr);
+	ether_addr_copy(pause_param->mac_addr_extra, addr);
 	pause_param->pause_trans_gap = pause_trans_gap;
 	pause_param->pause_trans_time = cpu_to_le16(pause_trans_time);
 
@@ -216,7 +208,7 @@ int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
 	u8 trans_gap;
 	int ret;
 
-	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, true);
 
@@ -306,7 +298,7 @@ static int hclge_tm_qs_to_pri_map_cfg(struct hclge_dev *hdev,
 }
 
 static int hclge_tm_q_to_qs_map_cfg(struct hclge_dev *hdev,
-				    u8 q_id, u16 qs_id)
+				    u16 q_id, u16 qs_id)
 {
 	struct hclge_nq_to_qs_link_cmd *map;
 	struct hclge_desc desc;
@@ -503,7 +495,8 @@ static int hclge_tm_qs_schd_mode_cfg(struct hclge_dev *hdev, u16 qs_id, u8 mode)
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-static int hclge_tm_qs_bp_cfg(struct hclge_dev *hdev, u8 tc)
+static int hclge_tm_qs_bp_cfg(struct hclge_dev *hdev, u8 tc, u8 grp_id,
+			      u32 bit_map)
 {
 	struct hclge_bp_to_qs_map_cmd *bp_to_qs_map_cmd;
 	struct hclge_desc desc;
@@ -514,9 +507,8 @@ static int hclge_tm_qs_bp_cfg(struct hclge_dev *hdev, u8 tc)
 	bp_to_qs_map_cmd = (struct hclge_bp_to_qs_map_cmd *)desc.data;
 
 	bp_to_qs_map_cmd->tc_id = tc;
-
-	/* Qset and tc is one by one mapping */
-	bp_to_qs_map_cmd->qs_bit_map = cpu_to_le32(1 << tc);
+	bp_to_qs_map_cmd->qs_group_id = grp_id;
+	bp_to_qs_map_cmd->qs_bit_map = cpu_to_le32(bit_map);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -1170,6 +1162,39 @@ static int hclge_pfc_setup_hw(struct hclge_dev *hdev)
 				      hdev->tm_info.hw_pfc_map);
 }
 
+/* Each Tc has a 1024 queue sets to backpress, it divides to
+ * 32 group, each group contains 32 queue sets, which can be
+ * represented by u32 bitmap.
+ */
+static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
+{
+	int i;
+
+	for (i = 0; i < HCLGE_BP_GRP_NUM; i++) {
+		u32 qs_bitmap = 0;
+		int k, ret;
+
+		for (k = 0; k < hdev->num_alloc_vport; k++) {
+			struct hclge_vport *vport = &hdev->vport[k];
+			u16 qs_id = vport->qs_offset + tc;
+			u8 grp, sub_grp;
+
+			grp = hnae3_get_field(qs_id, HCLGE_BP_GRP_ID_M,
+					      HCLGE_BP_GRP_ID_S);
+			sub_grp = hnae3_get_field(qs_id, HCLGE_BP_SUB_GRP_ID_M,
+						  HCLGE_BP_SUB_GRP_ID_S);
+			if (i == grp)
+				qs_bitmap |= (1 << sub_grp);
+		}
+
+		ret = hclge_tm_qs_bp_cfg(hdev, tc, i, qs_bitmap);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 {
 	bool tx_en, rx_en;
@@ -1191,6 +1216,10 @@ static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 		tx_en = true;
 		rx_en = true;
 		break;
+	case HCLGE_FC_PFC:
+		tx_en = false;
+		rx_en = false;
+		break;
 	default:
 		tx_en = true;
 		rx_en = true;
@@ -1208,8 +1237,9 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC)
-		return hclge_mac_pause_setup_hw(hdev);
+	ret = hclge_mac_pause_setup_hw(hdev);
+	if (ret)
+		return ret;
 
 	/* Only DCB-supported dev supports qset back pressure and pfc cmd */
 	if (!hnae3_dev_dcb_supported(hdev))
@@ -1221,7 +1251,7 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 		dev_warn(&hdev->pdev->dev, "set pfc pause failed:%d\n", ret);
 
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {
-		ret = hclge_tm_qs_bp_cfg(hdev, i);
+		ret = hclge_bp_setup_hw(hdev, i);
 		if (ret)
 			return ret;
 	}
@@ -1248,9 +1278,14 @@ int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
 	return 0;
 }
 
-void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
+int hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 {
 	u8 i, bit_map = 0;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		if (num_tc > hdev->vport[i].alloc_tqps)
+			return -EINVAL;
+	}
 
 	hdev->tm_info.num_tc = num_tc;
 
@@ -1265,6 +1300,8 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 	hdev->hw_tc_map = bit_map;
 
 	hclge_tm_schd_info_init(hdev);
+
+	return 0;
 }
 
 int hclge_tm_init_hw(struct hclge_dev *hdev)

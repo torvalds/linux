@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC64
 	bool "64-bit kernel"
-	default n
 	select ZLIB_DEFLATE
 	help
 	  This option selects whether a 32-bit or a 64-bit kernel
@@ -72,9 +71,9 @@ config PPC_BOOK3S_64
 	select PPC_HAVE_PMU_SUPPORT
 	select SYS_SUPPORTS_HUGETLBFS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select IRQ_WORK
-	select HAVE_KERNEL_XZ
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -86,7 +85,6 @@ endchoice
 
 choice
 	prompt "CPU selection"
-	depends on PPC64
 	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
@@ -96,12 +94,16 @@ choice
 
 config GENERIC_CPU
 	bool "Generic (POWER4 and above)"
-	depends on !CPU_LITTLE_ENDIAN
+	depends on PPC64 && !CPU_LITTLE_ENDIAN
 
 config GENERIC_CPU
 	bool "Generic (POWER8 and above)"
-	depends on CPU_LITTLE_ENDIAN
+	depends on PPC64 && CPU_LITTLE_ENDIAN
 	select ARCH_HAS_FAST_MULTIPLIER
+
+config GENERIC_CPU
+	bool "Generic 32 bits powerpc"
+	depends on PPC32 && !PPC_8xx
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
@@ -138,7 +140,36 @@ config E6500_CPU
 	bool "Freescale e6500"
 	depends on E500
 
+config 860_CPU
+	bool "8xx family"
+	depends on PPC_8xx
+
+config E300C2_CPU
+	bool "e300c2 (832x)"
+	depends on PPC_BOOK3S_32
+
+config E300C3_CPU
+	bool "e300c3 (831x)"
+	depends on PPC_BOOK3S_32
+
 endchoice
+
+config TARGET_CPU_BOOL
+	bool
+	default !GENERIC_CPU
+
+config TARGET_CPU
+	string
+	depends on TARGET_CPU_BOOL
+	default "cell" if CELL_CPU
+	default "power5" if POWER5_CPU
+	default "power6" if POWER6_CPU
+	default "power7" if POWER7_CPU
+	default "power8" if POWER8_CPU
+	default "power9" if POWER9_CPU
+	default "860" if 860_CPU
+	default "e300c2" if E300C2_CPU
+	default "e300c3" if E300C3_CPU
 
 config PPC_BOOK3S
 	def_bool y
@@ -222,6 +253,7 @@ config PTE_64BIT
 config PHYS_64BIT
 	bool 'Large physical address support' if E500 || PPC_86xx
 	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
+	select PHYS_ADDR_T_64BIT
 	---help---
 	  This option enables kernel support for larger than 32-bit physical
 	  addresses.  This feature may not be available on all cores.
@@ -292,6 +324,10 @@ config PPC_STD_MMU_32
 	def_bool y
 	depends on PPC_STD_MMU && PPC32
 
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	def_bool y
+	depends on PPC_BOOK3S_64
+
 config PPC_RADIX_MMU
 	bool "Radix MMU Support"
 	depends on PPC_BOOK3S_64
@@ -332,7 +368,6 @@ config PPC_MM_SLICES
 	bool
 	default y if PPC_BOOK3S_64
 	default y if PPC_8xx && HUGETLB_PAGE
-	default n
 
 config PPC_HAVE_PMU_SUPPORT
        bool
@@ -346,7 +381,6 @@ config PPC_PERF_CTRS
 config FORCE_SMP
 	# Allow platforms to force SMP=y by selecting this
 	bool
-	default n
 	select SMP
 
 config SMP
@@ -387,7 +421,6 @@ config CHECK_CACHE_COHERENCY
 
 config PPC_DOORBELL
 	bool
-	default n
 
 endmenu
 

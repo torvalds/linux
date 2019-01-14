@@ -1005,7 +1005,7 @@ static int cx24123_tune(struct dvb_frontend *fe,
 	return retval;
 }
 
-static int cx24123_get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo cx24123_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }
@@ -1087,7 +1087,7 @@ struct dvb_frontend *cx24123_attach(const struct cx24123_config *config,
 	if (config->dont_use_pll)
 		cx24123_repeater_mode(state, 1, 0);
 
-	strlcpy(state->tuner_i2c_adapter.name, "CX24123 tuner I2C bus",
+	strscpy(state->tuner_i2c_adapter.name, "CX24123 tuner I2C bus",
 		sizeof(state->tuner_i2c_adapter.name));
 	state->tuner_i2c_adapter.algo      = &cx24123_tuner_i2c_algo;
 	state->tuner_i2c_adapter.algo_data = NULL;
@@ -1111,10 +1111,10 @@ static const struct dvb_frontend_ops cx24123_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24123/CX24109",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_stepsize = 1011, /* kHz for QPSK frontends */
-		.frequency_tolerance = 5000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
+		.frequency_stepsize_hz = 1011 * kHz,
+		.frequency_tolerance_hz = 5 * MHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |

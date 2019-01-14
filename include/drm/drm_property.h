@@ -27,6 +27,8 @@
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
 
+#include <uapi/drm/drm_mode.h>
+
 /**
  * struct drm_property_enum - symbolic values for enumerations
  * @value: numeric property value for this enum entry
@@ -147,10 +149,10 @@ struct drm_property {
 	 *     properties are not exposed to legacy userspace.
 	 *
 	 * DRM_MODE_PROP_IMMUTABLE
-	 *     Set for properties where userspace cannot be changed by
+	 *     Set for properties whose values cannot be changed by
 	 *     userspace. The kernel is allowed to update the value of these
 	 *     properties. This is generally used to expose probe state to
-	 *     usersapce, e.g. the EDID, or the connector path property on DP
+	 *     userspace, e.g. the EDID, or the connector path property on DP
 	 *     MST sinks.
 	 */
 	uint32_t flags;
@@ -260,7 +262,7 @@ struct drm_property *drm_property_create_object(struct drm_device *dev,
 						uint32_t type);
 struct drm_property *drm_property_create_bool(struct drm_device *dev,
 					      u32 flags, const char *name);
-int drm_property_add_enum(struct drm_property *property, int index,
+int drm_property_add_enum(struct drm_property *property,
 			  uint64_t value, const char *name);
 void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 
@@ -279,32 +281,6 @@ bool drm_property_replace_blob(struct drm_property_blob **blob,
 			       struct drm_property_blob *new_blob);
 struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob);
 void drm_property_blob_put(struct drm_property_blob *blob);
-
-/**
- * drm_property_reference_blob - acquire a blob property reference
- * @blob: DRM blob property
- *
- * This is a compatibility alias for drm_property_blob_get() and should not be
- * used by new code.
- */
-static inline struct drm_property_blob *
-drm_property_reference_blob(struct drm_property_blob *blob)
-{
-	return drm_property_blob_get(blob);
-}
-
-/**
- * drm_property_unreference_blob - release a blob property reference
- * @blob: DRM blob property
- *
- * This is a compatibility alias for drm_property_blob_put() and should not be
- * used by new code.
- */
-static inline void
-drm_property_unreference_blob(struct drm_property_blob *blob)
-{
-	drm_property_blob_put(blob);
-}
 
 /**
  * drm_property_find - find property object

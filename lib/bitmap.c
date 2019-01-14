@@ -13,6 +13,7 @@
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
@@ -35,11 +36,6 @@
  * for example) or scalar (bitmap_weight, for example) results
  * carefully filter out these unused bits from impacting their
  * results.
- *
- * These operations actually hold to a slightly stronger rule:
- * if you don't input any bitmaps to these ops that have some
- * unused bits set, then they won't output any set unused bits
- * in output bitmaps.
  *
  * The byte ordering of bitmaps is more natural on little
  * endian architectures.  See the big-endian headers
@@ -65,11 +61,8 @@ EXPORT_SYMBOL(__bitmap_equal);
 
 void __bitmap_complement(unsigned long *dst, const unsigned long *src, unsigned int bits)
 {
-	unsigned int k, lim = bits/BITS_PER_LONG;
+	unsigned int k, lim = BITS_TO_LONGS(bits);
 	for (k = 0; k < lim; ++k)
-		dst[k] = ~src[k];
-
-	if (bits % BITS_PER_LONG)
 		dst[k] = ~src[k];
 }
 EXPORT_SYMBOL(__bitmap_complement);
@@ -469,20 +462,18 @@ EXPORT_SYMBOL(bitmap_parse_user);
  * ranges if list is specified or hex digits grouped into comma-separated
  * sets of 8 digits/set. Returns the number of characters written to buf.
  *
- * It is assumed that @buf is a pointer into a PAGE_SIZE area and that
- * sufficient storage remains at @buf to accommodate the
- * bitmap_print_to_pagebuf() output.
+ * It is assumed that @buf is a pointer into a PAGE_SIZE, page-aligned
+ * area and that sufficient storage remains at @buf to accommodate the
+ * bitmap_print_to_pagebuf() output. Returns the number of characters
+ * actually printed to @buf, excluding terminating '\0'.
  */
 int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
 			    int nmaskbits)
 {
-	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
-	int n = 0;
+	ptrdiff_t len = PAGE_SIZE - offset_in_page(buf);
 
-	if (len > 1)
-		n = list ? scnprintf(buf, len, "%*pbl\n", nmaskbits, maskp) :
-			   scnprintf(buf, len, "%*pb\n", nmaskbits, maskp);
-	return n;
+	return list ? scnprintf(buf, len, "%*pbl\n", nmaskbits, maskp) :
+		      scnprintf(buf, len, "%*pb\n", nmaskbits, maskp);
 }
 EXPORT_SYMBOL(bitmap_print_to_pagebuf);
 
@@ -1155,13 +1146,9 @@ EXPORT_SYMBOL(bitmap_free);
  *	@buf: array of u32 (in host byte order), the source bitmap
  *	@nbits: number of bits in @bitmap
  */
-void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
-						unsigned int nbits)
+void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf, unsigned int nbits)
 {
 	unsigned int i, halfwords;
-
-	if (!nbits)
-		return;
 
 	halfwords = DIV_ROUND_UP(nbits, 32);
 	for (i = 0; i < halfwords; i++) {
@@ -1185,9 +1172,6 @@ EXPORT_SYMBOL(bitmap_from_arr32);
 void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap, unsigned int nbits)
 {
 	unsigned int i, halfwords;
-
-	if (!nbits)
-		return;
 
 	halfwords = DIV_ROUND_UP(nbits, 32);
 	for (i = 0; i < halfwords; i++) {

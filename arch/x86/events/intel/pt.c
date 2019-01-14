@@ -95,7 +95,7 @@ static ssize_t pt_cap_show(struct device *cdev,
 	return snprintf(buf, PAGE_SIZE, "%x\n", pt_cap_get(cap));
 }
 
-static struct attribute_group pt_cap_group = {
+static struct attribute_group pt_cap_group __ro_after_init = {
 	.name	= "caps",
 };
 
@@ -1194,7 +1194,7 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 		    filter->action == PERF_ADDR_FILTER_ACTION_START)
 			return -EOPNOTSUPP;
 
-		if (!filter->inode) {
+		if (!filter->path.dentry) {
 			if (!valid_kernel_ip(filter->offset))
 				return -EINVAL;
 
@@ -1221,7 +1221,7 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 		return;
 
 	list_for_each_entry(filter, &head->list, entry) {
-		if (filter->inode && !offs[range]) {
+		if (filter->path.dentry && !offs[range]) {
 			msr_a = msr_b = 0;
 		} else {
 			/* apply the offset */

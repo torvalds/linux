@@ -95,7 +95,7 @@ static inline u8 *skcipher_get_spot(u8 *start, unsigned int len)
 	return max(start, end_page);
 }
 
-static int skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
+static void skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
 {
 	u8 *addr;
 
@@ -103,23 +103,24 @@ static int skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
 	addr = skcipher_get_spot(addr, bsize);
 	scatterwalk_copychunks(addr, &walk->out, bsize,
 			       (walk->flags & SKCIPHER_WALK_PHYS) ? 2 : 1);
-	return 0;
 }
 
 int skcipher_walk_done(struct skcipher_walk *walk, int err)
 {
-	unsigned int n = walk->nbytes - err;
-	unsigned int nbytes;
+	unsigned int n; /* bytes processed */
+	bool more;
 
-	nbytes = walk->total - n;
+	if (unlikely(err < 0))
+		goto finish;
 
-	if (unlikely(err < 0)) {
-		nbytes = 0;
-		n = 0;
-	} else if (likely(!(walk->flags & (SKCIPHER_WALK_PHYS |
-					   SKCIPHER_WALK_SLOW |
-					   SKCIPHER_WALK_COPY |
-					   SKCIPHER_WALK_DIFF)))) {
+	n = walk->nbytes - err;
+	walk->total -= n;
+	more = (walk->total != 0);
+
+	if (likely(!(walk->flags & (SKCIPHER_WALK_PHYS |
+				    SKCIPHER_WALK_SLOW |
+				    SKCIPHER_WALK_COPY |
+				    SKCIPHER_WALK_DIFF)))) {
 unmap_src:
 		skcipher_unmap_src(walk);
 	} else if (walk->flags & SKCIPHER_WALK_DIFF) {
@@ -131,28 +132,28 @@ unmap_src:
 		skcipher_unmap_dst(walk);
 	} else if (unlikely(walk->flags & SKCIPHER_WALK_SLOW)) {
 		if (WARN_ON(err)) {
+			/* unexpected case; didn't process all bytes */
 			err = -EINVAL;
-			nbytes = 0;
-		} else
-			n = skcipher_done_slow(walk, n);
+			goto finish;
+		}
+		skcipher_done_slow(walk, n);
+		goto already_advanced;
 	}
-
-	if (err > 0)
-		err = 0;
-
-	walk->total = nbytes;
-	walk->nbytes = nbytes;
 
 	scatterwalk_advance(&walk->in, n);
 	scatterwalk_advance(&walk->out, n);
-	scatterwalk_done(&walk->in, 0, nbytes);
-	scatterwalk_done(&walk->out, 1, nbytes);
+already_advanced:
+	scatterwalk_done(&walk->in, 0, more);
+	scatterwalk_done(&walk->out, 1, more);
 
-	if (nbytes) {
+	if (more) {
 		crypto_yield(walk->flags & SKCIPHER_WALK_SLEEP ?
 			     CRYPTO_TFM_REQ_MAY_SLEEP : 0);
 		return skcipher_walk_next(walk);
 	}
+	err = 0;
+finish:
+	walk->nbytes = 0;
 
 	/* Short-circuit for the common/fast path. */
 	if (!((unsigned long)walk->buffer | (unsigned long)walk->page))
@@ -387,7 +388,6 @@ set_phys_lowmem:
 	}
 	return err;
 }
-EXPORT_SYMBOL_GPL(skcipher_walk_next);
 
 static int skcipher_copy_iv(struct skcipher_walk *walk)
 {
@@ -399,7 +399,7 @@ static int skcipher_copy_iv(struct skcipher_walk *walk)
 	unsigned size;
 	u8 *iv;
 
-	aligned_bs = ALIGN(bs, alignmask);
+	aligned_bs = ALIGN(bs, alignmask + 1);
 
 	/* Minimum size to align buffer by alignmask. */
 	size = alignmask & ~a;
@@ -437,7 +437,6 @@ static int skcipher_walk_first(struct skcipher_walk *walk)
 	}
 
 	walk->page = NULL;
-	walk->nbytes = walk->total;
 
 	return skcipher_walk_next(walk);
 }
@@ -949,6 +948,30 @@ struct crypto_skcipher *crypto_alloc_skcipher(const char *alg_name,
 	return crypto_alloc_tfm(alg_name, &crypto_skcipher_type2, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_skcipher);
+
+struct crypto_sync_skcipher *crypto_alloc_sync_skcipher(
+				const char *alg_name, u32 type, u32 mask)
+{
+	struct crypto_skcipher *tfm;
+
+	/* Only sync algorithms allowed. */
+	mask |= CRYPTO_ALG_ASYNC;
+
+	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type2, type, mask);
+
+	/*
+	 * Make sure we do not allocate something that might get used with
+	 * an on-stack request: check the request size.
+	 */
+	if (!IS_ERR(tfm) && WARN_ON(crypto_skcipher_reqsize(tfm) >
+				    MAX_SYNC_SKCIPHER_REQSIZE)) {
+		crypto_free_skcipher(tfm);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return (struct crypto_sync_skcipher *)tfm;
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_sync_skcipher);
 
 int crypto_has_skcipher2(const char *alg_name, u32 type, u32 mask)
 {

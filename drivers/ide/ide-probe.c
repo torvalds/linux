@@ -142,6 +142,7 @@ static void ide_classify_atapi_dev(ide_drive_t *drive)
 		}
 		/* Early cdrom models used zero */
 		type = ide_cdrom;
+		/* fall through */
 	case ide_cdrom:
 		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 #ifdef CONFIG_PPC
@@ -796,17 +797,13 @@ static int ide_init_queue(ide_drive_t *drive)
 	 * This will be fixed once we teach pci_map_sg() about our boundary
 	 * requirements, hopefully soon. *FIXME*
 	 */
-	if (!PCI_DMA_BUS_IS_PHYS)
-		max_sg_entries >>= 1;
+	max_sg_entries >>= 1;
 #endif /* CONFIG_PCI */
 
 	blk_queue_max_segments(q, max_sg_entries);
 
 	/* assign drive queue */
 	drive->queue = q;
-
-	/* needs drive->queue to be set */
-	ide_toggle_bounce(drive, 1);
 
 	return 0;
 }
@@ -989,8 +986,9 @@ static int hwif_init(ide_hwif_t *hwif)
 	if (!hwif->sg_max_nents)
 		hwif->sg_max_nents = PRD_ENTRIES;
 
-	hwif->sg_table = kmalloc(sizeof(struct scatterlist)*hwif->sg_max_nents,
-				 GFP_KERNEL);
+	hwif->sg_table = kmalloc_array(hwif->sg_max_nents,
+				       sizeof(struct scatterlist),
+				       GFP_KERNEL);
 	if (!hwif->sg_table) {
 		printk(KERN_ERR "%s: unable to allocate SG table.\n", hwif->name);
 		goto out;

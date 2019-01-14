@@ -112,7 +112,7 @@ static const struct block_device_operations rsxx_fops = {
 
 static void disk_stats_start(struct rsxx_cardinfo *card, struct bio *bio)
 {
-	generic_start_io_acct(card->queue, bio_data_dir(bio), bio_sectors(bio),
+	generic_start_io_acct(card->queue, bio_op(bio), bio_sectors(bio),
 			     &card->gendisk->part0);
 }
 
@@ -120,8 +120,8 @@ static void disk_stats_complete(struct rsxx_cardinfo *card,
 				struct bio *bio,
 				unsigned long start_time)
 {
-	generic_end_io_acct(card->queue, bio_data_dir(bio),
-				&card->gendisk->part0, start_time);
+	generic_end_io_acct(card->queue, bio_op(bio),
+			    &card->gendisk->part0, start_time);
 }
 
 static void bio_dma_done_cb(struct rsxx_cardinfo *card,
@@ -226,7 +226,7 @@ int rsxx_attach_dev(struct rsxx_cardinfo *card)
 			set_capacity(card->gendisk, card->size8 >> 9);
 		else
 			set_capacity(card->gendisk, 0);
-		device_add_disk(CARD_TO_DEV(card), card->gendisk);
+		device_add_disk(CARD_TO_DEV(card), card->gendisk, NULL);
 		card->bdev_attached = 1;
 	}
 

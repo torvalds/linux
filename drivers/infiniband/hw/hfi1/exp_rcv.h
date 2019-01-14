@@ -183,8 +183,30 @@ static inline u32 rcventry2tidinfo(u32 rcventry)
 		EXP_TID_SET(CTRL, 1 << (rcventry - pair));
 }
 
+/**
+ * hfi1_tid_group_to_idx - convert an index to a group
+ * @rcd - the receive context
+ * @grp - the group pointer
+ */
+static inline u16
+hfi1_tid_group_to_idx(struct hfi1_ctxtdata *rcd, struct tid_group *grp)
+{
+	return grp - &rcd->groups[0];
+}
+
+/**
+ * hfi1_idx_to_tid_group - convert a group to an index
+ * @rcd - the receive context
+ * @idx - the index
+ */
+static inline struct tid_group *
+hfi1_idx_to_tid_group(struct hfi1_ctxtdata *rcd, u16 idx)
+{
+	return &rcd->groups[idx];
+}
+
 int hfi1_alloc_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd);
 void hfi1_free_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd);
-void hfi1_exp_tid_group_init(struct exp_tid_set *set);
+void hfi1_exp_tid_group_init(struct hfi1_ctxtdata *rcd);
 
 #endif /* _HFI1_EXP_RCV_H */

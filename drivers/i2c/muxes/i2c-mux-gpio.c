@@ -10,7 +10,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/i2c-mux-gpio.h>
+#include <linux/platform_data/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -22,18 +22,16 @@ struct gpiomux {
 	struct i2c_mux_gpio_platform_data data;
 	unsigned gpio_base;
 	struct gpio_desc **gpios;
-	int *values;
 };
 
 static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned val)
 {
-	int i;
+	DECLARE_BITMAP(values, BITS_PER_TYPE(val));
 
-	for (i = 0; i < mux->data.n_gpios; i++)
-		mux->values[i] = (val >> i) & 1;
+	values[0] = val;
 
-	gpiod_set_array_value_cansleep(mux->data.n_gpios,
-				       mux->gpios, mux->values);
+	gpiod_set_array_value_cansleep(mux->data.n_gpios, mux->gpios, NULL,
+				       values);
 }
 
 static int i2c_mux_gpio_select(struct i2c_mux_core *muxc, u32 chan)
@@ -88,8 +86,8 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 
 	mux->data.n_values = of_get_child_count(np);
 
-	values = devm_kzalloc(&pdev->dev,
-			      sizeof(*mux->data.values) * mux->data.n_values,
+	values = devm_kcalloc(&pdev->dev,
+			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values) {
 		dev_err(&pdev->dev, "Cannot allocate values array");
@@ -111,8 +109,9 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 		return -EINVAL;
 	}
 
-	gpios = devm_kzalloc(&pdev->dev,
-			     sizeof(*mux->data.gpios) * mux->data.n_gpios, GFP_KERNEL);
+	gpios = devm_kcalloc(&pdev->dev,
+			     mux->data.n_gpios, sizeof(*mux->data.gpios),
+			     GFP_KERNEL);
 	if (!gpios) {
 		dev_err(&pdev->dev, "Cannot allocate gpios array");
 		return -ENOMEM;
@@ -181,15 +180,13 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	muxc = i2c_mux_alloc(parent, &pdev->dev, mux->data.n_values,
-			     mux->data.n_gpios * sizeof(*mux->gpios) +
-			     mux->data.n_gpios * sizeof(*mux->values), 0,
+			     mux->data.n_gpios * sizeof(*mux->gpios), 0,
 			     i2c_mux_gpio_select, NULL);
 	if (!muxc) {
 		ret = -ENOMEM;
 		goto alloc_failed;
 	}
 	mux->gpios = muxc->priv;
-	mux->values = (int *)(mux->gpios + mux->data.n_gpios);
 	muxc->priv = mux;
 
 	platform_set_drvdata(pdev, muxc);

@@ -31,34 +31,45 @@
 #define AMDGPU_UVD_SESSION_SIZE		(50*1024)
 #define AMDGPU_UVD_FIRMWARE_OFFSET	256
 
+#define AMDGPU_MAX_UVD_INSTANCES			2
+
 #define AMDGPU_UVD_FIRMWARE_SIZE(adev)    \
 	(AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(((const struct common_firmware_header *)(adev)->uvd.fw->data)->ucode_size_bytes) + \
 			       8) - AMDGPU_UVD_FIRMWARE_OFFSET)
 
-struct amdgpu_uvd {
+struct amdgpu_uvd_inst {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
-	unsigned		fw_version;
 	void			*saved_bo;
-	unsigned		max_handles;
-	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
-	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
-	struct delayed_work	idle_work;
-	const struct firmware	*fw;	/* UVD firmware */
 	struct amdgpu_ring	ring;
 	struct amdgpu_ring	ring_enc[AMDGPU_MAX_UVD_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
+	uint32_t                srbm_soft_reset;
+};
+
+#define AMDGPU_UVD_HARVEST_UVD0 (1 << 0)
+#define AMDGPU_UVD_HARVEST_UVD1 (1 << 1)
+
+struct amdgpu_uvd {
+	const struct firmware	*fw;	/* UVD firmware */
+	unsigned		fw_version;
+	unsigned		max_handles;
+	unsigned		num_enc_rings;
+	uint8_t			num_uvd_inst;
 	bool			address_64_bit;
 	bool			use_ctx_buf;
+	struct amdgpu_uvd_inst	inst[AMDGPU_MAX_UVD_INSTANCES];
+	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
+	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
 	struct drm_sched_entity entity;
-	struct drm_sched_entity entity_enc;
-	uint32_t                srbm_soft_reset;
-	unsigned		num_enc_rings;
+	struct delayed_work	idle_work;
+	unsigned		harvest_config;
 };
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev);
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev);
+int amdgpu_uvd_entity_init(struct amdgpu_device *adev);
 int amdgpu_uvd_suspend(struct amdgpu_device *adev);
 int amdgpu_uvd_resume(struct amdgpu_device *adev);
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,

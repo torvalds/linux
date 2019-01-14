@@ -1,0 +1,40 @@
+* Omnivision OV7720/OV7725 CMOS sensor
+
+The Omnivision OV7720/OV7725 sensor supports multiple resolutions output,
+such as VGA, QVGA, and any size scaling down from CIF to 40x30. It also can
+support the YUV422, RGB565/555/444, GRB422 or raw RGB output formats.
+
+Required Properties:
+- compatible: shall be one of
+	"ovti,ov7720"
+	"ovti,ov7725"
+- clocks: reference to the xclk input clock.
+
+Optional Properties:
+- reset-gpios: reference to the GPIO connected to the RSTB pin which is
+  active low, if any.
+- powerdown-gpios: reference to the GPIO connected to the PWDN pin which is
+  active high, if any.
+
+The device node shall contain one 'port' child node with one child 'endpoint'
+subnode for its digital output video port, in accordance with the video
+interface bindings defined in Documentation/devicetree/bindings/media/
+video-interfaces.txt.
+
+Example:
+
+&i2c0 {
+	ov772x: camera@21 {
+		compatible = "ovti,ov7725";
+		reg = <0x21>;
+		reset-gpios = <&axi_gpio_0 0 GPIO_ACTIVE_LOW>;
+		powerdown-gpios = <&axi_gpio_0 1 GPIO_ACTIVE_LOW>;
+		clocks = <&xclk>;
+
+		port {
+			ov772x_0: endpoint {
+				remote-endpoint = <&vcap1_in0>;
+			};
+		};
+	};
+};

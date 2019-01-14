@@ -1110,7 +1110,7 @@ static int ov5695_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	if (pm_runtime_get_if_in_use(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -1385,7 +1385,6 @@ MODULE_DEVICE_TABLE(of, ov5695_of_match);
 static struct i2c_driver ov5695_i2c_driver = {
 	.driver = {
 		.name = "ov5695",
-		.owner = THIS_MODULE,
 		.pm = &ov5695_pm_ops,
 		.of_match_table = of_match_ptr(ov5695_of_match),
 	},

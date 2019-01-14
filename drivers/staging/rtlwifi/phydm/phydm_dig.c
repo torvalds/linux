@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2016  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -824,7 +813,7 @@ void odm_DIG(void *dm_void)
 			dig_tab->rx_gain_range_min = 0x1c;
 			ODM_RT_TRACE(
 				dm, ODM_COMP_DIG,
-				"DIG: Abnrormal #beacon (%d) case in STA mode: Force lower bound to 0x%x\n",
+				"DIG: Abnormal #beacon (%d) case in STA mode: Force lower bound to 0x%x\n",
 				dm->phy_dbg_info.num_qry_beacon_pkt,
 				dig_tab->rx_gain_range_min);
 		}
@@ -835,7 +824,7 @@ void odm_DIG(void *dm_void)
 		dig_tab->rx_gain_range_min = dig_tab->rx_gain_range_max;
 		ODM_RT_TRACE(
 			dm, ODM_COMP_DIG,
-			"DIG: Abnrormal lower bound case: Force lower bound to 0x%x\n",
+			"DIG: Abnormal lower bound case: Force lower bound to 0x%x\n",
 			dig_tab->rx_gain_range_min);
 	}
 

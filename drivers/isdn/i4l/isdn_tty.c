@@ -787,7 +787,7 @@ isdn_tty_suspend(char *id, modem_info *info, atemu *m)
 		cmd.parm.cmsg.para[3] = 4; /* 16 bit 0x0004 Suspend */
 		cmd.parm.cmsg.para[4] = 0;
 		cmd.parm.cmsg.para[5] = l;
-		strncpy(&cmd.parm.cmsg.para[6], id, l);
+		memcpy(&cmd.parm.cmsg.para[6], id, l);
 		cmd.command = CAPI_PUT_MESSAGE;
 		cmd.driver = info->isdn_driver;
 		cmd.arg = info->isdn_channel;
@@ -877,7 +877,7 @@ isdn_tty_resume(char *id, modem_info *info, atemu *m)
 		cmd.parm.cmsg.para[3] = 5; /* 16 bit 0x0005 Resume */
 		cmd.parm.cmsg.para[4] = 0;
 		cmd.parm.cmsg.para[5] = l;
-		strncpy(&cmd.parm.cmsg.para[6], id, l);
+		memcpy(&cmd.parm.cmsg.para[6], id, l);
 		cmd.command = CAPI_PUT_MESSAGE;
 		info->dialing = 1;
 //		strcpy(dev->num[i], n);
@@ -1412,31 +1412,12 @@ static int
 isdn_tty_ioctl(struct tty_struct *tty, uint cmd, ulong arg)
 {
 	modem_info *info = (modem_info *) tty->driver_data;
-	int retval;
 
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_ioctl"))
 		return -ENODEV;
 	if (tty_io_error(tty))
 		return -EIO;
 	switch (cmd) {
-	case TCSBRK:   /* SVID version: non-zero arg --> no break */
-#ifdef ISDN_DEBUG_MODEM_IOCTL
-		printk(KERN_DEBUG "ttyI%d ioctl TCSBRK\n", info->line);
-#endif
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		return 0;
-	case TCSBRKP:  /* support for POSIX tcsendbreak() */
-#ifdef ISDN_DEBUG_MODEM_IOCTL
-		printk(KERN_DEBUG "ttyI%d ioctl TCSBRKP\n", info->line);
-#endif
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		return 0;
 	case TIOCSERGETLSR:	/* Get line status register */
 #ifdef ISDN_DEBUG_MODEM_IOCTL
 		printk(KERN_DEBUG "ttyI%d ioctl TIOCSERGETLSR\n", info->line);

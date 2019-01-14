@@ -82,7 +82,7 @@ static unsigned long wait_timeout(void)
 
 static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 {
-	if (drm_debug & DRM_UT_DRIVER) {
+	if (GEM_SHOW_DEBUG()) {
 		struct drm_printer p = drm_debug_printer(__func__);
 
 		intel_engine_dump(engine, &p,
@@ -98,12 +98,14 @@ static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 	struct intel_engine_cs *engine =
 		from_timer(engine, t, breadcrumbs.hangcheck);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	unsigned int irq_count;
 
 	if (!b->irq_armed)
 		return;
 
-	if (b->hangcheck_interrupts != atomic_read(&engine->irq_count)) {
-		b->hangcheck_interrupts = atomic_read(&engine->irq_count);
+	irq_count = READ_ONCE(b->irq_count);
+	if (b->hangcheck_interrupts != irq_count) {
+		b->hangcheck_interrupts = irq_count;
 		mod_timer(&b->hangcheck, wait_timeout());
 		return;
 	}
@@ -130,11 +132,12 @@ static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 
 static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 {
-	struct intel_engine_cs *engine = from_timer(engine, t,
-						    breadcrumbs.fake_irq);
+	struct intel_engine_cs *engine =
+		from_timer(engine, t, breadcrumbs.fake_irq);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	/* The timer persists in case we cannot enable interrupts,
+	/*
+	 * The timer persists in case we cannot enable interrupts,
 	 * or if we have previously seen seqno/interrupt incoherency
 	 * ("missed interrupt" syndrome, better known as a "missed breadcrumb").
 	 * Here the worker will wake up every jiffie in order to kick the
@@ -147,6 +150,12 @@ static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 	spin_unlock_irq(&b->irq_lock);
 	if (!b->irq_armed)
 		return;
+
+	/* If the user has disabled the fake-irq, restore the hangchecking */
+	if (!test_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings)) {
+		mod_timer(&b->hangcheck, wait_timeout());
+		return;
+	}
 
 	mod_timer(&b->fake_irq, jiffies + 1);
 }
@@ -247,8 +256,7 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	spin_unlock(&b->irq_lock);
 
 	rbtree_postorder_for_each_entry_safe(wait, n, &b->waiters, node) {
-		GEM_BUG_ON(!i915_seqno_passed(intel_engine_get_seqno(engine),
-					      wait->seqno));
+		GEM_BUG_ON(!intel_engine_signaled(engine, wait->seqno));
 		RB_CLEAR_NODE(&wait->node);
 		wake_up_process(wait->tsk);
 	}
@@ -265,13 +273,14 @@ static bool use_fake_irq(const struct intel_breadcrumbs *b)
 	if (!test_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings))
 		return false;
 
-	/* Only start with the heavy weight fake irq timer if we have not
+	/*
+	 * Only start with the heavy weight fake irq timer if we have not
 	 * seen any interrupts since enabling it the first time. If the
 	 * interrupts are still arriving, it means we made a mistake in our
 	 * engine->seqno_barrier(), a timing error that should be transient
 	 * and unlikely to reoccur.
 	 */
-	return atomic_read(&engine->irq_count) == b->hangcheck_interrupts;
+	return READ_ONCE(b->irq_count) == b->hangcheck_interrupts;
 }
 
 static void enable_fake_irq(struct intel_breadcrumbs *b)
@@ -498,8 +507,7 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 		return armed;
 
 	/* Make the caller recheck if its request has already started. */
-	return i915_seqno_passed(intel_engine_get_seqno(engine),
-				 wait->seqno - 1);
+	return intel_engine_has_started(engine, wait->seqno);
 }
 
 static inline bool chain_wakeup(struct rb_node *rb, int priority)
@@ -730,10 +738,11 @@ static void insert_signal(struct intel_breadcrumbs *b,
 	list_add(&request->signaling.link, &iter->signaling.link);
 }
 
-void intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
+bool intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct intel_wait *wait = &request->signaling.wait;
 	u32 seqno;
 
 	/*
@@ -750,12 +759,12 @@ void intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
 
 	seqno = i915_request_global_seqno(request);
 	if (!seqno) /* will be enabled later upon execution */
-		return;
+		return true;
 
-	GEM_BUG_ON(request->signaling.wait.seqno);
-	request->signaling.wait.tsk = b->signaler;
-	request->signaling.wait.request = request;
-	request->signaling.wait.seqno = seqno;
+	GEM_BUG_ON(wait->seqno);
+	wait->tsk = b->signaler;
+	wait->request = request;
+	wait->seqno = seqno;
 
 	/*
 	 * Add ourselves into the list of waiters, but registering our
@@ -768,11 +777,15 @@ void intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
 	 */
 	spin_lock(&b->rb_lock);
 	insert_signal(b, request, seqno);
-	wakeup &= __intel_engine_add_wait(engine, &request->signaling.wait);
+	wakeup &= __intel_engine_add_wait(engine, wait);
 	spin_unlock(&b->rb_lock);
 
-	if (wakeup)
+	if (wakeup) {
 		wake_up_process(b->signaler);
+		return !intel_wait_complete(wait);
+	}
+
+	return true;
 }
 
 void intel_engine_cancel_signaling(struct i915_request *request)
@@ -826,24 +839,32 @@ static void cancel_fake_irq(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
+	del_timer_sync(&b->fake_irq); /* may queue b->hangcheck */
 	del_timer_sync(&b->hangcheck);
-	del_timer_sync(&b->fake_irq);
 	clear_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 }
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	unsigned long flags;
 
-	cancel_fake_irq(engine);
-	spin_lock_irq(&b->irq_lock);
+	spin_lock_irqsave(&b->irq_lock, flags);
+
+	/*
+	 * Leave the fake_irq timer enabled (if it is running), but clear the
+	 * bit so that it turns itself off on its next wake up and goes back
+	 * to the long hangcheck interval if still required.
+	 */
+	clear_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 
 	if (b->irq_enabled)
 		irq_enable(engine);
 	else
 		irq_disable(engine);
 
-	/* We set the IRQ_BREADCRUMB bit when we enable the irq presuming the
+	/*
+	 * We set the IRQ_BREADCRUMB bit when we enable the irq presuming the
 	 * GPU is active and may have already executed the MI_USER_INTERRUPT
 	 * before the CPU is ready to receive. However, the engine is currently
 	 * idle (we haven't started it yet), there is no possibility for a
@@ -852,10 +873,7 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	 */
 	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
-	if (b->irq_armed)
-		enable_fake_irq(b);
-
-	spin_unlock_irq(&b->irq_lock);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)

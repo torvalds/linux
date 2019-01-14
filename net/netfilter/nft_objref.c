@@ -38,8 +38,8 @@ static int nft_objref_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 
 	objtype = ntohl(nla_get_be32(tb[NFTA_OBJREF_IMM_TYPE]));
-	obj = nf_tables_obj_lookup(ctx->table, tb[NFTA_OBJREF_IMM_NAME], objtype,
-				   genmask);
+	obj = nft_obj_lookup(ctx->table, tb[NFTA_OBJREF_IMM_NAME], objtype,
+			     genmask);
 	if (IS_ERR(obj))
 		return -ENOENT;
 
@@ -155,12 +155,28 @@ nla_put_failure:
 	return -1;
 }
 
+static void nft_objref_map_activate(const struct nft_ctx *ctx,
+				    const struct nft_expr *expr)
+{
+	struct nft_objref_map *priv = nft_expr_priv(expr);
+
+	nf_tables_rebind_set(ctx, priv->set, &priv->binding);
+}
+
+static void nft_objref_map_deactivate(const struct nft_ctx *ctx,
+				      const struct nft_expr *expr)
+{
+	struct nft_objref_map *priv = nft_expr_priv(expr);
+
+	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
+}
+
 static void nft_objref_map_destroy(const struct nft_ctx *ctx,
 				   const struct nft_expr *expr)
 {
 	struct nft_objref_map *priv = nft_expr_priv(expr);
 
-	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
+	nf_tables_destroy_set(ctx, priv->set);
 }
 
 static struct nft_expr_type nft_objref_type;
@@ -169,6 +185,8 @@ static const struct nft_expr_ops nft_objref_map_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_objref_map)),
 	.eval		= nft_objref_map_eval,
 	.init		= nft_objref_map_init,
+	.activate	= nft_objref_map_activate,
+	.deactivate	= nft_objref_map_deactivate,
 	.destroy	= nft_objref_map_destroy,
 	.dump		= nft_objref_map_dump,
 };

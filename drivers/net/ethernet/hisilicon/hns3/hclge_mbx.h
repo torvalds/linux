@@ -46,7 +46,6 @@ enum hclge_mbx_mac_vlan_subcode {
 	HCLGE_MBX_MAC_VLAN_MC_MODIFY,		/* modify MC mac addr */
 	HCLGE_MBX_MAC_VLAN_MC_ADD,		/* add new MC mac addr */
 	HCLGE_MBX_MAC_VLAN_MC_REMOVE,		/* remove MC mac addr */
-	HCLGE_MBX_MAC_VLAN_MC_FUNC_MTA_ENABLE,	/* config func MTA enable */
 };
 
 /* below are per-VF vlan cfg subcodes */

@@ -294,8 +294,8 @@ static int gsc_m2m_querycap(struct file *file, void *fh,
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 
-	strlcpy(cap->driver, GSC_MODULE_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
+	strscpy(cap->driver, GSC_MODULE_NAME, sizeof(cap->driver));
+	strscpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(&gsc->pdev->dev));
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
@@ -713,7 +713,7 @@ static __poll_t gsc_m2m_poll(struct file *file,
 	__poll_t ret;
 
 	if (mutex_lock_interruptible(&gsc->lock))
-		return -ERESTARTSYS;
+		return EPOLLERR;
 
 	ret = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
 	mutex_unlock(&gsc->lock);

@@ -1242,9 +1242,8 @@ static int ef4_init_io(struct ef4_nic *efx)
 
 	pci_set_master(pci_dev);
 
-	/* Set the PCI DMA mask.  Try all possibilities from our
-	 * genuine mask down to 32 bits, because some architectures
-	 * (e.g. x86_64 with iommu_sac_force set) will allow 40 bit
+	/* Set the PCI DMA mask.  Try all possibilities from our genuine mask
+	 * down to 32 bits, because some architectures will allow 40 bit
 	 * masks event though they reject 46 bit masks.
 	 */
 	while (dma_mask > 0x7fffffffUL) {
@@ -2055,29 +2054,6 @@ static void ef4_fini_napi(struct ef4_nic *efx)
 
 /**************************************************************************
  *
- * Kernel netpoll interface
- *
- *************************************************************************/
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-
-/* Although in the common case interrupts will be disabled, this is not
- * guaranteed. However, all our work happens inside the NAPI callback,
- * so no locking is required.
- */
-static void ef4_netpoll(struct net_device *net_dev)
-{
-	struct ef4_nic *efx = netdev_priv(net_dev);
-	struct ef4_channel *channel;
-
-	ef4_for_each_channel(channel, efx)
-		ef4_schedule_channel(channel);
-}
-
-#endif
-
-/**************************************************************************
- *
  * Kernel net device interface
  *
  *************************************************************************/
@@ -2251,9 +2227,6 @@ static const struct net_device_ops ef4_netdev_ops = {
 	.ndo_set_mac_address	= ef4_set_mac_address,
 	.ndo_set_rx_mode	= ef4_set_rx_mode,
 	.ndo_set_features	= ef4_set_features,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = ef4_netpoll,
-#endif
 	.ndo_setup_tc		= ef4_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= ef4_filter_rfs,
@@ -3187,19 +3160,11 @@ static pci_ers_result_t ef4_io_slot_reset(struct pci_dev *pdev)
 {
 	struct ef4_nic *efx = pci_get_drvdata(pdev);
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int rc;
 
 	if (pci_enable_device(pdev)) {
 		netif_err(efx, hw, efx->net_dev,
 			  "Cannot re-enable PCI device after reset.\n");
 		status =  PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	rc = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev,
-		"pci_cleanup_aer_uncorrect_error_status failed (%d)\n", rc);
-		/* Non-fatal error. Continue. */
 	}
 
 	return status;

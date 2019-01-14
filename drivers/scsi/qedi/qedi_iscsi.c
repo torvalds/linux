@@ -471,13 +471,7 @@ static u16 qedi_calc_mss(u16 pmtu, u8 is_ipv6, u8 tcp_ts_en, u8 vlan_en)
 	else
 		hdrs += IPV4_HDR_LEN;
 
-	if (vlan_en)
-		hdrs += VLAN_LEN;
-
 	mss = pmtu - hdrs;
-
-	if (tcp_ts_en)
-		mss -= TCP_OPTION_LEN;
 
 	if (!mss)
 		mss = DEF_MSS;
@@ -1150,7 +1144,7 @@ static int qedi_data_avail(struct qedi_ctx *qedi, u16 vlanid)
 	if (vlanid)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlanid);
 
-	rc = qedi_ops->ll2->start_xmit(cdev, skb);
+	rc = qedi_ops->ll2->start_xmit(cdev, skb, 0);
 	if (rc) {
 		QEDI_ERR(&qedi->dbg_ctx, "ll2 start_xmit returned %d\n",
 			 rc);

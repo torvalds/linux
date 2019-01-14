@@ -185,6 +185,10 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 		return -ENOMEM;
 
 	buf->sk = msg->dst_sk;
+	if (__tipc_dump_start(&cb, msg->net)) {
+		kfree_skb(buf);
+		return -ENOMEM;
+	}
 
 	do {
 		int rem;
@@ -216,6 +220,7 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 	err = 0;
 
 err_out:
+	tipc_dump_done(&cb);
 	kfree_skb(buf);
 
 	if (err == -EMSGSIZE) {
@@ -285,8 +290,9 @@ static int __tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
 	if (!trans_buf)
 		return -ENOMEM;
 
-	attrbuf = kmalloc((tipc_genl_family.maxattr + 1) *
-			sizeof(struct nlattr *), GFP_KERNEL);
+	attrbuf = kmalloc_array(tipc_genl_family.maxattr + 1,
+				sizeof(struct nlattr *),
+				GFP_KERNEL);
 	if (!attrbuf) {
 		err = -ENOMEM;
 		goto trans_out;

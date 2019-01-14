@@ -293,6 +293,13 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 		if (strcmp(basechain->dev_name, dev->name) != 0)
 			return;
 
+		/* UNREGISTER events are also happpening on netns exit.
+		 *
+		 * Altough nf_tables core releases all tables/chains, only
+		 * this event handler provides guarantee that
+		 * basechain.ops->dev is still accessible, so we cannot
+		 * skip exiting net namespaces.
+		 */
 		__nft_release_basechain(ctx);
 		break;
 	case NETDEV_CHANGENAME:
@@ -318,7 +325,7 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 	    event != NETDEV_CHANGENAME)
 		return NOTIFY_DONE;
 
-	nfnl_lock(NFNL_SUBSYS_NFTABLES);
+	mutex_lock(&ctx.net->nft.commit_mutex);
 	list_for_each_entry(table, &ctx.net->nft.tables, list) {
 		if (table->family != NFPROTO_NETDEV)
 			continue;
@@ -333,7 +340,7 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 			nft_netdev_event(event, dev, &ctx);
 		}
 	}
-	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
+	mutex_unlock(&ctx.net->nft.commit_mutex);
 
 	return NOTIFY_DONE;
 }
@@ -387,7 +394,7 @@ int __init nft_chain_filter_init(void)
 	return 0;
 }
 
-void __exit nft_chain_filter_fini(void)
+void nft_chain_filter_fini(void)
 {
 	nft_chain_filter_bridge_fini();
 	nft_chain_filter_inet_fini();

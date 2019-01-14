@@ -94,6 +94,8 @@ enum pp_clock_type {
 	PP_PCIE,
 	OD_SCLK,
 	OD_MCLK,
+	OD_VDDC_CURVE,
+	OD_RANGE,
 };
 
 enum amd_pp_sensors {
@@ -111,6 +113,9 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GPU_POWER,
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK,
+	AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK,
+	AMDGPU_PP_SENSOR_MIN_FAN_RPM,
+	AMDGPU_PP_SENSOR_MAX_FAN_RPM,
 };
 
 enum amd_pp_task {
@@ -140,6 +145,7 @@ enum {
 enum PP_OD_DPM_TABLE_COMMAND {
 	PP_OD_EDIT_SCLK_VDDC_TABLE,
 	PP_OD_EDIT_MCLK_VDDC_TABLE,
+	PP_OD_EDIT_VDDC_CURVE,
 	PP_OD_RESTORE_DEFAULT_TABLE,
 	PP_OD_COMMIT_DPM_TABLE
 };
@@ -147,13 +153,6 @@ enum PP_OD_DPM_TABLE_COMMAND {
 struct pp_states_info {
 	uint32_t nums;
 	uint32_t states[16];
-};
-
-struct pp_gpu_power {
-	uint32_t vddc_power;
-	uint32_t vddci_power;
-	uint32_t max_gpu_power;
-	uint32_t average_gpu_power;
 };
 
 #define PP_GROUP_MASK        0xF0000000
@@ -198,7 +197,6 @@ struct amd_pp_simple_clock_info;
 struct amd_pp_display_configuration;
 struct amd_pp_clock_info;
 struct pp_display_clock_request;
-struct pp_wm_sets_with_clock_ranges_soc15;
 struct pp_clock_levels_with_voltage;
 struct pp_clock_levels_with_latency;
 struct amd_pp_clocks;
@@ -232,27 +230,26 @@ struct amd_pm_funcs {
 	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
 	enum amd_pm_state_type (*get_current_power_state)(void *handle);
 	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
+	int (*set_fan_speed_rpm)(void *handle, uint32_t rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
 	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
 	int (*switch_power_profile)(void *handle, enum PP_SMC_POWER_PROFILE type, bool en);
 /* export to amdgpu */
-	void (*powergate_uvd)(void *handle, bool gate);
-	void (*powergate_vce)(void *handle, bool gate);
 	struct amd_vce_state *(*get_vce_clock_state)(void *handle, u32 idx);
 	int (*dispatch_tasks)(void *handle, enum amd_pp_task task_id,
 			enum amd_pm_state_type *user_state);
 	int (*load_firmware)(void *handle);
 	int (*wait_for_fw_loading_complete)(void *handle);
+	int (*set_powergating_by_smu)(void *handle,
+				uint32_t block_type, bool gate);
 	int (*set_clockgating_by_smu)(void *handle, uint32_t msg_id);
-	int (*notify_smu_memory_info)(void *handle, uint32_t virtual_addr_low,
-					uint32_t virtual_addr_hi,
-					uint32_t mc_addr_low,
-					uint32_t mc_addr_hi,
-					uint32_t size);
 	int (*set_power_limit)(void *handle, uint32_t n);
 	int (*get_power_limit)(void *handle, uint32_t *limit, bool default_limit);
+	int (*get_power_profile_mode)(void *handle, char *buf);
+	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
+	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
 /* export to DC */
 	u32 (*get_sclk)(void *handle, bool low);
 	u32 (*get_mclk)(void *handle, bool low);
@@ -272,15 +269,13 @@ struct amd_pm_funcs {
 		enum amd_pp_clock_type type,
 		struct pp_clock_levels_with_voltage *clocks);
 	int (*set_watermarks_for_clocks_ranges)(void *handle,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+						void *clock_ranges);
 	int (*display_clock_voltage_request)(void *handle,
 				struct pp_display_clock_request *clock);
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
-	int (*get_power_profile_mode)(void *handle, char *buf);
-	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
-	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
-	int (*set_mmhub_powergating_by_smu)(void *handle);
+	int (*notify_smu_enable_pwe)(void *handle);
+	int (*enable_mgpu_fan_boost)(void *handle);
 };
 
 #endif

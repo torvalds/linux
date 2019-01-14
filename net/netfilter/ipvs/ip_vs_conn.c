@@ -825,12 +825,23 @@ static void ip_vs_conn_expire(struct timer_list *t)
 
 	/* Unlink conn if not referenced anymore */
 	if (likely(ip_vs_conn_unlink(cp))) {
+		struct ip_vs_conn *ct = cp->control;
+
 		/* delete the timer if it is activated by other users */
 		del_timer(&cp->timer);
 
 		/* does anybody control me? */
-		if (cp->control)
+		if (ct) {
 			ip_vs_control_del(cp);
+			/* Drop CTL or non-assured TPL if not used anymore */
+			if (!cp->timeout && !atomic_read(&ct->n_control) &&
+			    (!(ct->flags & IP_VS_CONN_F_TEMPLATE) ||
+			     !(ct->state & IP_VS_CTPL_S_ASSURED))) {
+				IP_VS_DBG(4, "drop controlling connection\n");
+				ct->timeout = 0;
+				ip_vs_conn_expire_now(ct);
+			}
+		}
 
 		if ((cp->flags & IP_VS_CONN_F_NFCT) &&
 		    !(cp->flags & IP_VS_CONN_F_ONE_PACKET)) {
@@ -872,6 +883,10 @@ static void ip_vs_conn_expire(struct timer_list *t)
 
 /* Modify timer, so that it expires as soon as possible.
  * Can be called without reference only if under RCU lock.
+ * We can have such chain of conns linked with ->control: DATA->CTL->TPL
+ * - DATA (eg. FTP) and TPL (persistence) can be present depending on setup
+ * - cp->timeout=0 indicates all conns from chain should be dropped but
+ * TPL is not dropped if in assured state
  */
 void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
 {
@@ -1102,24 +1117,28 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 #ifdef CONFIG_IP_VS_IPV6
 		if (cp->af == AF_INET6)
 			seq_printf(seq, "%-3s %pI6 %04X %pI6 %04X "
-				"%s %04X %-11s %7lu%s\n",
+				"%s %04X %-11s %7u%s\n",
 				ip_vs_proto_name(cp->protocol),
 				&cp->caddr.in6, ntohs(cp->cport),
 				&cp->vaddr.in6, ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
-				(cp->timer.expires-jiffies)/HZ, pe_data);
+				ip_vs_state_name(cp),
+				jiffies_delta_to_msecs(cp->timer.expires -
+						       jiffies) / 1000,
+				pe_data);
 		else
 #endif
 			seq_printf(seq,
 				"%-3s %08X %04X %08X %04X"
-				" %s %04X %-11s %7lu%s\n",
+				" %s %04X %-11s %7u%s\n",
 				ip_vs_proto_name(cp->protocol),
 				ntohl(cp->caddr.ip), ntohs(cp->cport),
 				ntohl(cp->vaddr.ip), ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
-				(cp->timer.expires-jiffies)/HZ, pe_data);
+				ip_vs_state_name(cp),
+				jiffies_delta_to_msecs(cp->timer.expires -
+						       jiffies) / 1000,
+				pe_data);
 	}
 	return 0;
 }
@@ -1129,19 +1148,6 @@ static const struct seq_operations ip_vs_conn_seq_ops = {
 	.next  = ip_vs_conn_seq_next,
 	.stop  = ip_vs_conn_seq_stop,
 	.show  = ip_vs_conn_seq_show,
-};
-
-static int ip_vs_conn_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip_vs_conn_seq_ops,
-			    sizeof(struct ip_vs_iter_state));
-}
-
-static const struct file_operations ip_vs_conn_fops = {
-	.open    = ip_vs_conn_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
 };
 
 static const char *ip_vs_origin_name(unsigned int flags)
@@ -1177,26 +1183,28 @@ static int ip_vs_conn_sync_seq_show(struct seq_file *seq, void *v)
 #ifdef CONFIG_IP_VS_IPV6
 		if (cp->af == AF_INET6)
 			seq_printf(seq, "%-3s %pI6 %04X %pI6 %04X "
-				"%s %04X %-11s %-6s %7lu\n",
+				"%s %04X %-11s %-6s %7u\n",
 				ip_vs_proto_name(cp->protocol),
 				&cp->caddr.in6, ntohs(cp->cport),
 				&cp->vaddr.in6, ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_state_name(cp),
 				ip_vs_origin_name(cp->flags),
-				(cp->timer.expires-jiffies)/HZ);
+				jiffies_delta_to_msecs(cp->timer.expires -
+						       jiffies) / 1000);
 		else
 #endif
 			seq_printf(seq,
 				"%-3s %08X %04X %08X %04X "
-				"%s %04X %-11s %-6s %7lu\n",
+				"%s %04X %-11s %-6s %7u\n",
 				ip_vs_proto_name(cp->protocol),
 				ntohl(cp->caddr.ip), ntohs(cp->cport),
 				ntohl(cp->vaddr.ip), ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_state_name(cp),
 				ip_vs_origin_name(cp->flags),
-				(cp->timer.expires-jiffies)/HZ);
+				jiffies_delta_to_msecs(cp->timer.expires -
+						       jiffies) / 1000);
 	}
 	return 0;
 }
@@ -1207,25 +1215,14 @@ static const struct seq_operations ip_vs_conn_sync_seq_ops = {
 	.stop  = ip_vs_conn_seq_stop,
 	.show  = ip_vs_conn_sync_seq_show,
 };
-
-static int ip_vs_conn_sync_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip_vs_conn_sync_seq_ops,
-			    sizeof(struct ip_vs_iter_state));
-}
-
-static const struct file_operations ip_vs_conn_sync_fops = {
-	.open    = ip_vs_conn_sync_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif
 
 
-/*
- *      Randomly drop connection entries before running out of memory
+/* Randomly drop connection entries before running out of memory
+ * Can be used for DATA and CTL conns. For TPL conns there are exceptions:
+ * - traffic for services in OPS mode increases ct->in_pkts, so it is supported
+ * - traffic for services not in OPS mode does not increase ct->in_pkts in
+ * all cases, so it is not supported
  */
 static inline int todrop_entry(struct ip_vs_conn *cp)
 {
@@ -1269,7 +1266,7 @@ static inline bool ip_vs_conn_ops_mode(struct ip_vs_conn *cp)
 void ip_vs_random_dropentry(struct netns_ipvs *ipvs)
 {
 	int idx;
-	struct ip_vs_conn *cp, *cp_c;
+	struct ip_vs_conn *cp;
 
 	rcu_read_lock();
 	/*
@@ -1281,13 +1278,15 @@ void ip_vs_random_dropentry(struct netns_ipvs *ipvs)
 		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[hash], c_list) {
 			if (cp->ipvs != ipvs)
 				continue;
+			if (atomic_read(&cp->n_control))
+				continue;
 			if (cp->flags & IP_VS_CONN_F_TEMPLATE) {
-				if (atomic_read(&cp->n_control) ||
-				    !ip_vs_conn_ops_mode(cp))
-					continue;
-				else
-					/* connection template of OPS */
+				/* connection template of OPS */
+				if (ip_vs_conn_ops_mode(cp))
 					goto try_drop;
+				if (!(cp->state & IP_VS_CTPL_S_ASSURED))
+					goto drop;
+				continue;
 			}
 			if (cp->protocol == IPPROTO_TCP) {
 				switch(cp->state) {
@@ -1321,15 +1320,10 @@ try_drop:
 					continue;
 			}
 
-			IP_VS_DBG(4, "del connection\n");
+drop:
+			IP_VS_DBG(4, "drop connection\n");
+			cp->timeout = 0;
 			ip_vs_conn_expire_now(cp);
-			cp_c = cp->control;
-			/* cp->control is valid only with reference to cp */
-			if (cp_c && __ip_vs_conn_get(cp)) {
-				IP_VS_DBG(4, "del conn template\n");
-				ip_vs_conn_expire_now(cp_c);
-				__ip_vs_conn_put(cp);
-			}
 		}
 		cond_resched_rcu();
 	}
@@ -1352,15 +1346,19 @@ flush_again:
 		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[idx], c_list) {
 			if (cp->ipvs != ipvs)
 				continue;
-			IP_VS_DBG(4, "del connection\n");
-			ip_vs_conn_expire_now(cp);
+			/* As timers are expired in LIFO order, restart
+			 * the timer of controlling connection first, so
+			 * that it is expired after us.
+			 */
 			cp_c = cp->control;
 			/* cp->control is valid only with reference to cp */
 			if (cp_c && __ip_vs_conn_get(cp)) {
-				IP_VS_DBG(4, "del conn template\n");
+				IP_VS_DBG(4, "del controlling connection\n");
 				ip_vs_conn_expire_now(cp_c);
 				__ip_vs_conn_put(cp);
 			}
+			IP_VS_DBG(4, "del connection\n");
+			ip_vs_conn_expire_now(cp);
 		}
 		cond_resched_rcu();
 	}
@@ -1380,9 +1378,11 @@ int __net_init ip_vs_conn_net_init(struct netns_ipvs *ipvs)
 {
 	atomic_set(&ipvs->conn_count, 0);
 
-	proc_create("ip_vs_conn", 0, ipvs->net->proc_net, &ip_vs_conn_fops);
-	proc_create("ip_vs_conn_sync", 0, ipvs->net->proc_net,
-		    &ip_vs_conn_sync_fops);
+	proc_create_net("ip_vs_conn", 0, ipvs->net->proc_net,
+			&ip_vs_conn_seq_ops, sizeof(struct ip_vs_iter_state));
+	proc_create_net("ip_vs_conn_sync", 0, ipvs->net->proc_net,
+			&ip_vs_conn_sync_seq_ops,
+			sizeof(struct ip_vs_iter_state));
 	return 0;
 }
 
@@ -1405,7 +1405,8 @@ int __init ip_vs_conn_init(void)
 	/*
 	 * Allocate the connection hash table and initialize its list heads
 	 */
-	ip_vs_conn_tab = vmalloc(ip_vs_conn_tab_size * sizeof(*ip_vs_conn_tab));
+	ip_vs_conn_tab = vmalloc(array_size(ip_vs_conn_tab_size,
+					    sizeof(*ip_vs_conn_tab)));
 	if (!ip_vs_conn_tab)
 		return -ENOMEM;
 

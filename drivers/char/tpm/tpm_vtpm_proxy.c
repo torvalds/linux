@@ -418,7 +418,7 @@ static int vtpm_proxy_request_locality(struct tpm_chip *chip, int locality)
 	proxy_dev->state |= STATE_DRIVER_COMMAND;
 
 	rc = tpm_transmit_cmd(chip, NULL, buf.data, tpm_buf_length(&buf), 0,
-			      TPM_TRANSMIT_UNLOCKED | TPM_TRANSMIT_RAW,
+			      TPM_TRANSMIT_NESTED,
 			      "attempting to set locality");
 
 	proxy_dev->state &= ~STATE_DRIVER_COMMAND;

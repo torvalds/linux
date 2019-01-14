@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Infrastructure for profiling code inserted by 'gcc -pg'.
  *
@@ -157,30 +158,6 @@ static inline void ftrace_ops_init(struct ftrace_ops *ops)
 #endif
 }
 
-/**
- * ftrace_nr_registered_ops - return number of ops registered
- *
- * Returns the number of ftrace_ops registered and tracing functions
- */
-int ftrace_nr_registered_ops(void)
-{
-	struct ftrace_ops *ops;
-	int cnt = 0;
-
-	mutex_lock(&ftrace_lock);
-
-	for (ops = rcu_dereference_protected(ftrace_ops_list,
-					     lockdep_is_held(&ftrace_lock));
-	     ops != &ftrace_list_end;
-	     ops = rcu_dereference_protected(ops->next,
-					     lockdep_is_held(&ftrace_lock)))
-		cnt++;
-
-	mutex_unlock(&ftrace_lock);
-
-	return cnt;
-}
-
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
 			    struct ftrace_ops *op, struct pt_regs *regs)
 {
@@ -190,17 +167,6 @@ static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
 		return;
 
 	op->saved_func(ip, parent_ip, op, regs);
-}
-
-/**
- * clear_ftrace_function - reset the ftrace function
- *
- * This NULLs the ftrace function and in essence stops
- * tracing.  There may be lag
- */
-void clear_ftrace_function(void)
-{
-	ftrace_trace_function = ftrace_stub;
 }
 
 static void ftrace_sync(struct work_struct *work)
@@ -322,11 +288,6 @@ static void update_ftrace_function(void)
 #endif /* !CONFIG_DYNAMIC_FTRACE */
 
 	ftrace_trace_function = func;
-}
-
-int using_ftrace_ops_list_func(void)
-{
-	return ftrace_trace_function == ftrace_ops_list_func;
 }
 
 static void add_ftrace_ops(struct ftrace_ops __rcu **list,
@@ -728,7 +689,7 @@ static int ftrace_profile_init_cpu(int cpu)
 	 */
 	size = FTRACE_PROFILE_HASH_SIZE;
 
-	stat->hash = kzalloc(sizeof(struct hlist_head) * size, GFP_KERNEL);
+	stat->hash = kcalloc(size, sizeof(struct hlist_head), GFP_KERNEL);
 
 	if (!stat->hash)
 		return -ENOMEM;
@@ -856,7 +817,7 @@ function_profile_call(unsigned long ip, unsigned long parent_ip,
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int profile_graph_entry(struct ftrace_graph_ent *trace)
 {
-	int index = trace->depth;
+	int index = current->curr_ret_stack;
 
 	function_profile_call(trace->func, 0, NULL, NULL);
 
@@ -891,7 +852,7 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 	if (!fgraph_graph_time) {
 		int index;
 
-		index = trace->depth;
+		index = current->curr_ret_stack;
 
 		/* Append this call time to the parent time to subtract */
 		if (index)
@@ -1059,8 +1020,6 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 {
 }
 #endif /* CONFIG_FUNCTION_PROFILER */
-
-static struct pid * const ftrace_swapper_pid = &init_struct_pid;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int ftrace_graph_active;
@@ -2938,22 +2897,22 @@ ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 {
 	/* If ops isn't enabled, ignore it */
 	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
-		return 0;
+		return false;
 
 	/* If ops traces all then it includes this function */
 	if (ops_traces_mod(ops))
-		return 1;
+		return true;
 
 	/* The function must be in the filter */
 	if (!ftrace_hash_empty(ops->func_hash->filter_hash) &&
 	    !__ftrace_lookup_ip(ops->func_hash->filter_hash, rec->ip))
-		return 0;
+		return false;
 
 	/* If in notrace hash, we ignore it too */
 	if (ftrace_lookup_ip(ops->func_hash->notrace_hash, rec->ip))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
@@ -2992,12 +2951,14 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 			p = &pg->records[i];
 			p->flags = rec_flags;
 
+#ifndef CC_USING_NOP_MCOUNT
 			/*
 			 * Do the initial record conversion from mcount jump
 			 * to the NOP instructions.
 			 */
 			if (!ftrace_code_disable(mod, p))
 				break;
+#endif
 
 			update_cnt++;
 		}
@@ -5499,6 +5460,7 @@ void ftrace_destroy_filter_files(struct ftrace_ops *ops)
 	if (ops->flags & FTRACE_OPS_FL_ENABLED)
 		ftrace_shutdown(ops, 0);
 	ops->flags |= FTRACE_OPS_FL_DELETED;
+	ftrace_free_filter(ops);
 	mutex_unlock(&ftrace_lock);
 }
 
@@ -6689,7 +6651,7 @@ void ftrace_kill(void)
 {
 	ftrace_disabled = 1;
 	ftrace_enabled = 0;
-	clear_ftrace_function();
+	ftrace_trace_function = ftrace_stub;
 }
 
 /**
@@ -6830,9 +6792,10 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 	struct task_struct *g, *t;
 
 	for (i = 0; i < FTRACE_RETSTACK_ALLOC_SIZE; i++) {
-		ret_stack_list[i] = kmalloc(FTRACE_RETFUNC_DEPTH
-					* sizeof(struct ftrace_ret_stack),
-					GFP_KERNEL);
+		ret_stack_list[i] =
+			kmalloc_array(FTRACE_RETFUNC_DEPTH,
+				      sizeof(struct ftrace_ret_stack),
+				      GFP_KERNEL);
 		if (!ret_stack_list[i]) {
 			start = 0;
 			end = i;
@@ -6852,6 +6815,7 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 			atomic_set(&t->tracing_graph_pause, 0);
 			atomic_set(&t->trace_overrun, 0);
 			t->curr_ret_stack = -1;
+			t->curr_ret_depth = -1;
 			/* Make sure the tasks see the -1 first: */
 			smp_wmb();
 			t->ret_stack = ret_stack_list[start++];
@@ -6904,9 +6868,9 @@ static int start_graph_tracing(void)
 	struct ftrace_ret_stack **ret_stack_list;
 	int ret, cpu;
 
-	ret_stack_list = kmalloc(FTRACE_RETSTACK_ALLOC_SIZE *
-				sizeof(struct ftrace_ret_stack *),
-				GFP_KERNEL);
+	ret_stack_list = kmalloc_array(FTRACE_RETSTACK_ALLOC_SIZE,
+				       sizeof(struct ftrace_ret_stack *),
+				       GFP_KERNEL);
 
 	if (!ret_stack_list)
 		return -ENOMEM;
@@ -7076,6 +7040,7 @@ graph_init_task(struct task_struct *t, struct ftrace_ret_stack *ret_stack)
 void ftrace_graph_init_idle_task(struct task_struct *t, int cpu)
 {
 	t->curr_ret_stack = -1;
+	t->curr_ret_depth = -1;
 	/*
 	 * The idle task has no parent, it either has its own
 	 * stack or no stack at all.
@@ -7088,9 +7053,10 @@ void ftrace_graph_init_idle_task(struct task_struct *t, int cpu)
 
 		ret_stack = per_cpu(idle_ret_stack, cpu);
 		if (!ret_stack) {
-			ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
-					    * sizeof(struct ftrace_ret_stack),
-					    GFP_KERNEL);
+			ret_stack =
+				kmalloc_array(FTRACE_RETFUNC_DEPTH,
+					      sizeof(struct ftrace_ret_stack),
+					      GFP_KERNEL);
 			if (!ret_stack)
 				return;
 			per_cpu(idle_ret_stack, cpu) = ret_stack;
@@ -7105,13 +7071,14 @@ void ftrace_graph_init_task(struct task_struct *t)
 	/* Make sure we do not use the parent ret_stack */
 	t->ret_stack = NULL;
 	t->curr_ret_stack = -1;
+	t->curr_ret_depth = -1;
 
 	if (ftrace_graph_active) {
 		struct ftrace_ret_stack *ret_stack;
 
-		ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
-				* sizeof(struct ftrace_ret_stack),
-				GFP_KERNEL);
+		ret_stack = kmalloc_array(FTRACE_RETFUNC_DEPTH,
+					  sizeof(struct ftrace_ret_stack),
+					  GFP_KERNEL);
 		if (!ret_stack)
 			return;
 		graph_init_task(t, ret_stack);

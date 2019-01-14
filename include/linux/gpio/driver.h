@@ -66,9 +66,15 @@ struct gpio_irq_chip {
 	/**
 	 * @lock_key:
 	 *
-	 * Per GPIO IRQ chip lockdep classes.
+	 * Per GPIO IRQ chip lockdep class for IRQ lock.
 	 */
 	struct lock_class_key *lock_key;
+
+	/**
+	 * @request_key:
+	 *
+	 * Per GPIO IRQ chip lockdep class for IRQ request.
+	 */
 	struct lock_class_key *request_key;
 
 	/**
@@ -93,6 +99,13 @@ struct gpio_irq_chip {
 	 * The number of interrupt parents of a GPIO chip.
 	 */
 	unsigned int num_parents;
+
+	/**
+	 * @parent_irq:
+	 *
+	 * For use by gpiochip_set_cascaded_irqchip()
+	 */
+	unsigned int parent_irq;
 
 	/**
 	 * @parents:
@@ -138,6 +151,20 @@ struct gpio_irq_chip {
 	 * will allocate and map all IRQs during initialization.
 	 */
 	unsigned int first;
+
+	/**
+	 * @irq_enable:
+	 *
+	 * Store old irq_chip irq_enable callback
+	 */
+	void		(*irq_enable)(struct irq_data *data);
+
+	/**
+	 * @irq_disable:
+	 *
+	 * Store old irq_chip irq_disable callback
+	 */
+	void		(*irq_disable)(struct irq_data *data);
 };
 
 static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
@@ -158,9 +185,13 @@ static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
  * @free: optional hook for chip-specific deactivation, such as
  *	disabling module power and clock; may sleep
  * @get_direction: returns direction for signal "offset", 0=out, 1=in,
- *	(same as GPIOF_DIR_XXX), or negative error
+ *	(same as GPIOF_DIR_XXX), or negative error.
+ *	It is recommended to always implement this function, even on
+ *	input-only or output-only gpio chips.
  * @direction_input: configures signal "offset" as input, or returns error
+ *	This can be omitted on input-only or output-only gpio chips.
  * @direction_output: configures signal "offset" as output, or returns error
+ *	This can be omitted on input-only or output-only gpio chips.
  * @get: returns value for signal "offset", 0=low, 1=high, or negative error
  * @get_multiple: reads values for multiple signals defined by "mask" and
  *	stores them in "bits", returns 0 on success or negative error
@@ -201,6 +232,8 @@ static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
  * @reg_set: output set register (out=high) for generic GPIO
  * @reg_clr: output clear register (out=low) for generic GPIO
  * @reg_dir: direction setting register for generic GPIO
+ * @bgpio_dir_inverted: indicates that the direction register is inverted
+ *	(gpiolib private state variable)
  * @bgpio_bits: number of register bits used for a generic GPIO i.e.
  *	<register width> * 8
  * @bgpio_lock: used to lock chip->bgpio_data. Also, this is needed to keep
@@ -254,6 +287,9 @@ struct gpio_chip {
 
 	void			(*dbg_show)(struct seq_file *s,
 						struct gpio_chip *chip);
+
+	int			(*init_valid_mask)(struct gpio_chip *chip);
+
 	int			base;
 	u16			ngpio;
 	const char		*const *names;
@@ -267,6 +303,7 @@ struct gpio_chip {
 	void __iomem *reg_set;
 	void __iomem *reg_clr;
 	void __iomem *reg_dir;
+	bool bgpio_dir_inverted;
 	int bgpio_bits;
 	spinlock_t bgpio_lock;
 	unsigned long bgpio_data;
@@ -291,7 +328,9 @@ struct gpio_chip {
 	/**
 	 * @need_valid_mask:
 	 *
-	 * If set core allocates @valid_mask with all bits set to one.
+	 * If set core allocates @valid_mask with all its values initialized
+	 * with init_valid_mask() or set to one if init_valid_mask() is not
+	 * defined
 	 */
 	bool need_valid_mask;
 
@@ -392,6 +431,10 @@ extern struct gpio_chip *gpiochip_find(void *data,
 int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
 void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
 bool gpiochip_line_is_irq(struct gpio_chip *chip, unsigned int offset);
+int gpiochip_reqres_irq(struct gpio_chip *chip, unsigned int offset);
+void gpiochip_relres_irq(struct gpio_chip *chip, unsigned int offset);
+void gpiochip_disable_irq(struct gpio_chip *chip, unsigned int offset);
+void gpiochip_enable_irq(struct gpio_chip *chip, unsigned int offset);
 
 /* Line status inquiry for drivers */
 bool gpiochip_line_is_open_drain(struct gpio_chip *chip, unsigned int offset);

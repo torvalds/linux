@@ -108,15 +108,14 @@ struct bfq_sched_data {
 };
 
 /**
- * struct bfq_weight_counter - counter of the number of all active entities
+ * struct bfq_weight_counter - counter of the number of all active queues
  *                             with a given weight.
  */
 struct bfq_weight_counter {
-	unsigned int weight; /* weight of the entities this counter refers to */
-	unsigned int num_active; /* nr of active entities with this weight */
+	unsigned int weight; /* weight of the queues this counter refers to */
+	unsigned int num_active; /* nr of active queues with this weight */
 	/*
-	 * Weights tree member (see bfq_data's @queue_weights_tree and
-	 * @group_weights_tree)
+	 * Weights tree member (see bfq_data's @queue_weights_tree)
 	 */
 	struct rb_node weights_node;
 };
@@ -151,8 +150,6 @@ struct bfq_weight_counter {
 struct bfq_entity {
 	/* service_tree member */
 	struct rb_node rb_node;
-	/* pointer to the weight counter associated with this entity */
-	struct bfq_weight_counter *weight_counter;
 
 	/*
 	 * Flag, true if the entity is on a tree (either the active or
@@ -199,6 +196,9 @@ struct bfq_entity {
 
 	/* flag, set to request a weight, ioprio or ioprio_class change  */
 	int prio_changed;
+
+	/* flag, set if the entity is counted in groups_with_pending_reqs */
+	bool in_groups_with_pending_reqs;
 };
 
 struct bfq_group;
@@ -265,6 +265,9 @@ struct bfq_queue {
 
 	/* entity representing this queue in the scheduler */
 	struct bfq_entity entity;
+
+	/* pointer to the weight counter associated with this entity */
+	struct bfq_weight_counter *weight_counter;
 
 	/* maximum budget allowed from the feedback mechanism */
 	int max_budget;
@@ -351,6 +354,32 @@ struct bfq_queue {
 	unsigned long split_time; /* time of last split */
 
 	unsigned long first_IO_time; /* time of first I/O for this queue */
+
+	/* max service rate measured so far */
+	u32 max_service_rate;
+	/*
+	 * Ratio between the service received by bfqq while it is in
+	 * service, and the cumulative service (of requests of other
+	 * queues) that may be injected while bfqq is empty but still
+	 * in service. To increase precision, the coefficient is
+	 * measured in tenths of unit. Here are some example of (1)
+	 * ratios, (2) resulting percentages of service injected
+	 * w.r.t. to the total service dispatched while bfqq is in
+	 * service, and (3) corresponding values of the coefficient:
+	 * 1 (50%) -> 10
+	 * 2 (33%) -> 20
+	 * 10 (9%) -> 100
+	 * 9.9 (9%) -> 99
+	 * 1.5 (40%) -> 15
+	 * 0.5 (66%) -> 5
+	 * 0.1 (90%) -> 1
+	 *
+	 * So, if the coefficient is lower than 10, then
+	 * injected service is more than bfqq service.
+	 */
+	unsigned int inject_coeff;
+	/* amount of service injected in current service slot */
+	unsigned int injected_service;
 };
 
 /**
@@ -399,11 +428,6 @@ struct bfq_io_cq {
 	struct bfq_ttime saved_ttime;
 };
 
-enum bfq_device_speed {
-	BFQ_BFQD_FAST,
-	BFQ_BFQD_SLOW,
-};
-
 /**
  * struct bfq_data - per-device data structure.
  *
@@ -427,15 +451,54 @@ struct bfq_data {
 	 * bfq_weights_tree_[add|remove] for further details).
 	 */
 	struct rb_root queue_weights_tree;
+
 	/*
-	 * rbtree of non-queue @bfq_entity weight counters, sorted by
-	 * weight. Used to keep track of whether all @bfq_groups have
-	 * the same weight. The tree contains one counter for each
-	 * distinct weight associated to some active @bfq_group (see
-	 * the comments to the functions bfq_weights_tree_[add|remove]
-	 * for further details).
+	 * Number of groups with at least one descendant process that
+	 * has at least one request waiting for completion. Note that
+	 * this accounts for also requests already dispatched, but not
+	 * yet completed. Therefore this number of groups may differ
+	 * (be larger) than the number of active groups, as a group is
+	 * considered active only if its corresponding entity has
+	 * descendant queues with at least one request queued. This
+	 * number is used to decide whether a scenario is symmetric.
+	 * For a detailed explanation see comments on the computation
+	 * of the variable asymmetric_scenario in the function
+	 * bfq_better_to_idle().
+	 *
+	 * However, it is hard to compute this number exactly, for
+	 * groups with multiple descendant processes. Consider a group
+	 * that is inactive, i.e., that has no descendant process with
+	 * pending I/O inside BFQ queues. Then suppose that
+	 * num_groups_with_pending_reqs is still accounting for this
+	 * group, because the group has descendant processes with some
+	 * I/O request still in flight. num_groups_with_pending_reqs
+	 * should be decremented when the in-flight request of the
+	 * last descendant process is finally completed (assuming that
+	 * nothing else has changed for the group in the meantime, in
+	 * terms of composition of the group and active/inactive state of child
+	 * groups and processes). To accomplish this, an additional
+	 * pending-request counter must be added to entities, and must
+	 * be updated correctly. To avoid this additional field and operations,
+	 * we resort to the following tradeoff between simplicity and
+	 * accuracy: for an inactive group that is still counted in
+	 * num_groups_with_pending_reqs, we decrement
+	 * num_groups_with_pending_reqs when the first descendant
+	 * process of the group remains with no request waiting for
+	 * completion.
+	 *
+	 * Even this simpler decrement strategy requires a little
+	 * carefulness: to avoid multiple decrements, we flag a group,
+	 * more precisely an entity representing a group, as still
+	 * counted in num_groups_with_pending_reqs when it becomes
+	 * inactive. Then, when the first descendant queue of the
+	 * entity remains with no request waiting for completion,
+	 * num_groups_with_pending_reqs is decremented, and this flag
+	 * is reset. After this flag is reset for the entity,
+	 * num_groups_with_pending_reqs won't be decremented any
+	 * longer in case a new descendant queue of the entity remains
+	 * with no request waiting for completion.
 	 */
-	struct rb_root group_weights_tree;
+	unsigned int num_groups_with_pending_reqs;
 
 	/*
 	 * Number of bfq_queues containing requests (including the
@@ -611,12 +674,11 @@ struct bfq_data {
 	/* Max service-rate for a soft real-time queue, in sectors/sec */
 	unsigned int bfq_wr_max_softrt_rate;
 	/*
-	 * Cached value of the product R*T, used for computing the
-	 * maximum duration of weight raising automatically.
+	 * Cached value of the product ref_rate*ref_wr_duration, used
+	 * for computing the maximum duration of weight raising
+	 * automatically.
 	 */
-	u64 RT_prod;
-	/* device-speed class for the low-latency heuristic */
-	enum bfq_device_speed device_speed;
+	u64 rate_dur_prod;
 
 	/* fallback dummy bfqq for extreme OOM conditions */
 	struct bfq_queue oom_bfqq;
@@ -634,12 +696,6 @@ struct bfq_data {
 	struct bfq_io_cq *bio_bic;
 	/* bfqq associated with the task issuing current bio for merging */
 	struct bfq_queue *bio_bfqq;
-
-	/*
-	 * Cached sbitmap shift, used to compute depth limits in
-	 * bfq_update_depths.
-	 */
-	unsigned int sb_shift;
 
 	/*
 	 * Depth limits used in bfq_limit_depth (see comments on the
@@ -732,9 +788,9 @@ struct bfqg_stats {
 	/* total time with empty current active q with other requests queued */
 	struct blkg_stat		empty_time;
 	/* fields after this shouldn't be cleared on stat reset */
-	uint64_t			start_group_wait_time;
-	uint64_t			start_idle_time;
-	uint64_t			start_empty_time;
+	u64				start_group_wait_time;
+	u64				start_idle_time;
+	u64				start_empty_time;
 	uint16_t			flags;
 #endif	/* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
 };
@@ -837,10 +893,13 @@ struct bfq_queue *bic_to_bfqq(struct bfq_io_cq *bic, bool is_sync);
 void bic_set_bfqq(struct bfq_io_cq *bic, struct bfq_queue *bfqq, bool is_sync);
 struct bfq_data *bic_to_bfqd(struct bfq_io_cq *bic);
 void bfq_pos_tree_add_move(struct bfq_data *bfqd, struct bfq_queue *bfqq);
-void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_entity *entity,
+void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  struct rb_root *root);
-void bfq_weights_tree_remove(struct bfq_data *bfqd, struct bfq_entity *entity,
-			     struct rb_root *root);
+void __bfq_weights_tree_remove(struct bfq_data *bfqd,
+			       struct bfq_queue *bfqq,
+			       struct rb_root *root);
+void bfq_weights_tree_remove(struct bfq_data *bfqd,
+			     struct bfq_queue *bfqq);
 void bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		     bool compensate, enum bfqq_expiration reason);
 void bfq_put_queue(struct bfq_queue *bfqq);
@@ -856,8 +915,8 @@ void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
 			      unsigned int op);
 void bfqg_stats_update_io_remove(struct bfq_group *bfqg, unsigned int op);
 void bfqg_stats_update_io_merged(struct bfq_group *bfqg, unsigned int op);
-void bfqg_stats_update_completion(struct bfq_group *bfqg, uint64_t start_time,
-				  uint64_t io_start_time, unsigned int op);
+void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
+				  u64 io_start_time_ns, unsigned int op);
 void bfqg_stats_update_dequeue(struct bfq_group *bfqg);
 void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg);
 void bfqg_stats_update_idle_time(struct bfq_group *bfqg);

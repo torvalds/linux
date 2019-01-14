@@ -20,7 +20,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
@@ -88,7 +88,6 @@ void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
 int (*mach_hwclk) (int, struct rtc_time*);
 EXPORT_SYMBOL(mach_hwclk);
-int (*mach_set_clock_mmss) (unsigned long);
 unsigned int (*mach_get_ss)(void);
 int (*mach_get_rtc_pll)(struct rtc_pll_info *);
 int (*mach_set_rtc_pll)(struct rtc_pll_info *);
@@ -224,10 +223,6 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifndef CONFIG_SUN3
-	int i;
-#endif
-
 	/* The bootinfo is located right after the kernel */
 	if (!CPU_IS_COLDFIRE)
 		m68k_parse_bootinfo((const struct bi_record *)_end);
@@ -356,14 +351,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifndef CONFIG_SUN3
-	for (i = 1; i < m68k_num_memory; i++)
-		free_bootmem_node(NODE_DATA(i), m68k_memory[i].addr,
-				  m68k_memory[i].size);
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (m68k_ramdisk.size) {
-		reserve_bootmem_node(__virt_to_node(phys_to_virt(m68k_ramdisk.addr)),
-				     m68k_ramdisk.addr, m68k_ramdisk.size,
-				     BOOTMEM_DEFAULT);
+		memblock_reserve(m68k_ramdisk.addr, m68k_ramdisk.size);
 		initrd_start = (unsigned long)phys_to_virt(m68k_ramdisk.addr);
 		initrd_end = initrd_start + m68k_ramdisk.size;
 		pr_info("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
@@ -527,21 +517,9 @@ static int hardware_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int hardware_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hardware_proc_show, NULL);
-}
-
-static const struct file_operations hardware_proc_fops = {
-	.open		= hardware_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init proc_hardware_init(void)
 {
-	proc_create("hardware", 0, NULL, &hardware_proc_fops);
+	proc_create_single("hardware", 0, NULL, hardware_proc_show);
 	return 0;
 }
 module_init(proc_hardware_init);

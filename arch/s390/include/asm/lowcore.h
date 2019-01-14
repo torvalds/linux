@@ -102,9 +102,9 @@ struct lowcore {
 	__u64	current_task;			/* 0x0338 */
 	__u64	kernel_stack;			/* 0x0340 */
 
-	/* Interrupt, panic and restart stack. */
+	/* Interrupt, DAT-off and restartstack. */
 	__u64	async_stack;			/* 0x0348 */
-	__u64	panic_stack;			/* 0x0350 */
+	__u64	nodat_stack;			/* 0x0350 */
 	__u64	restart_stack;			/* 0x0358 */
 
 	/* Restart function and parameter. */
@@ -185,7 +185,7 @@ struct lowcore {
 	/* Transaction abort diagnostic block */
 	__u8	pgm_tdb[256];			/* 0x1800 */
 	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
-} __packed;
+} __packed __aligned(8192);
 
 #define S390_lowcore (*((struct lowcore *) 0))
 

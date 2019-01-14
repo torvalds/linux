@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -1062,6 +1062,9 @@ lpfc_rcv_logo_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
+	/* Retrieve RPI from LOGO IOCB. RPI is used for CMD_ABORT_XRI_CN */
+	if (vport->phba->sli_rev == LPFC_SLI_REV3)
+		ndlp->nlp_rpi = cmdiocb->iocb.ulpIoTag;
 				/* software abort outstanding PLOGI */
 	lpfc_els_abort(vport->phba, ndlp);
 
@@ -1936,31 +1939,14 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			goto out;
 		}
 
-		/* When the rport rejected the FCP PRLI as unsupported.
-		 * This should only happen in Pt2Pt so an NVME PRLI
-		 * should be outstanding still.
-		 */
-		if (npr && ndlp->nlp_flag & NLP_FCP_PRLI_RJT) {
+		/* Adjust the nlp_type accordingly if the PRLI failed */
+		if (npr)
 			ndlp->nlp_fc4_type &= ~NLP_FC4_FCP;
-			goto out_err;
-		}
+		if (nvpr)
+			ndlp->nlp_fc4_type &= ~NLP_FC4_NVME;
 
-		/* The LS Req had some error.  Don't let this be a
-		 * target.
-		 */
-		if ((ndlp->fc4_prli_sent == 1) &&
-		    (ndlp->nlp_state == NLP_STE_PRLI_ISSUE) &&
-		    (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_FCP_INITIATOR)))
-			/* The FCP PRLI completed successfully but
-			 * the NVME PRLI failed.  Since they are sent in
-			 * succession, allow the FCP to complete.
-			 */
-			goto out_err;
-
-		ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
-		ndlp->nlp_type |= NLP_FCP_INITIATOR;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
-		return ndlp->nlp_state;
+		/* We can't set the DSM state till BOTH PRLIs complete */
+		goto out_err;
 	}
 
 	if (npr && (npr->acceptRspCode == PRLI_REQ_EXECUTED) &&
@@ -2332,6 +2318,7 @@ lpfc_device_recov_unmap_node(struct lpfc_vport *vport,
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
+	ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 	spin_unlock_irq(shost->host_lock);
 	lpfc_disc_set_adisc(vport, ndlp);
 
@@ -2409,6 +2396,7 @@ lpfc_device_recov_mapped_node(struct lpfc_vport *vport,
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
+	ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 	spin_unlock_irq(shost->host_lock);
 	lpfc_disc_set_adisc(vport, ndlp);
 	return ndlp->nlp_state;
@@ -2666,6 +2654,7 @@ lpfc_device_recov_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
+	ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 	spin_unlock_irq(shost->host_lock);
 	return ndlp->nlp_state;
 }

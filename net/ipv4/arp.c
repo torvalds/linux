@@ -1255,6 +1255,8 @@ static int arp_netdev_event(struct notifier_block *this, unsigned long event,
 		change_info = ptr;
 		if (change_info->flags_changed & IFF_NOARP)
 			neigh_changeaddr(&arp_tbl, dev);
+		if (!netif_carrier_ok(dev))
+			neigh_carrier_down(&arp_tbl, dev);
 		break;
 	default:
 		break;
@@ -1418,23 +1420,12 @@ static const struct seq_operations arp_seq_ops = {
 	.show	= arp_seq_show,
 };
 
-static int arp_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &arp_seq_ops,
-			    sizeof(struct neigh_seq_state));
-}
-
-static const struct file_operations arp_seq_fops = {
-	.open           = arp_seq_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release	= seq_release_net,
-};
-
+/* ------------------------------------------------------------------------ */
 
 static int __net_init arp_net_init(struct net *net)
 {
-	if (!proc_create("arp", 0444, net->proc_net, &arp_seq_fops))
+	if (!proc_create_net("arp", 0444, net->proc_net, &arp_seq_ops,
+			sizeof(struct neigh_seq_state)))
 		return -ENOMEM;
 	return 0;
 }

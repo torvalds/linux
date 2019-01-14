@@ -67,16 +67,6 @@ void __init wii_memory_fixups(void)
 {
 	struct memblock_region *p = memblock.memory.regions;
 
-	/*
-	 * This is part of a workaround to allow the use of two
-	 * discontinuous RAM ranges on the Wii, even if this is
-	 * currently unsupported on 32-bit PowerPC Linux.
-	 *
-	 * We coalesce the two memory ranges of the Wii into a
-	 * single range, then create a reservation for the "hole"
-	 * between both ranges.
-	 */
-
 	BUG_ON(memblock.memory.cnt != 2);
 	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
 
@@ -122,7 +112,7 @@ static void __iomem *wii_ioremap_hw_regs(char *name, char *compatible)
 	}
 	error = of_address_to_resource(np, 0, &res);
 	if (error) {
-		pr_err("no valid reg found for %s\n", np->name);
+		pr_err("no valid reg found for %pOFn\n", np);
 		goto out_put;
 	}
 

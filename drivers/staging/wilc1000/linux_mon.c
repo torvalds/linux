@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-/*!
- *  @file	linux_mon.c
- *  @brief	File Operations OS wrapper functionality
- *  @author	mdaftedar
- *  @sa		wilc_wfi_netdevice.h
- *  @date	01 MAR 2012
- *  @version	1.0
+/*
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
  */
+
 #include "wilc_wfi_cfgoperations.h"
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
 
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;
@@ -27,22 +22,14 @@ static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 
 static u8 srcadd[6];
 static u8 bssid[6];
-static u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-/**
- *  @brief      WILC_WFI_monitor_rx
- *  @details
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
 
 #define IEEE80211_RADIOTAP_F_TX_RTS	0x0004  /* used rts/cts handshake */
 #define IEEE80211_RADIOTAP_F_TX_FAIL	0x0001  /* failed due to excessive*/
-#define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
-void WILC_WFI_monitor_rx(u8 *buff, u32 size)
+#define TX_RADIOTAP_PRESENT ((1 << IEEE80211_RADIOTAP_RATE) |	\
+			     (1 << IEEE80211_RADIOTAP_TX_FLAGS))
+
+void wilc_wfi_monitor_rx(u8 *buff, u32 size)
 {
 	u32 header, pkt_offset;
 	struct sk_buff *skb = NULL;
@@ -57,6 +44,7 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 
 	/* Get WILC header */
 	memcpy(&header, (buff - HOST_HDR_OFFSET), HOST_HDR_OFFSET);
+	le32_to_cpus(&header);
 	/*
 	 * The packet offset field contain info about what type of management
 	 * the frame we are dealing with and ack status
@@ -66,24 +54,22 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 	if (pkt_offset & IS_MANAGMEMENT_CALLBACK) {
 		/* hostapd callback mgmt frame */
 
-		skb = dev_alloc_skb(size + sizeof(struct wilc_wfi_radiotap_cb_hdr));
+		skb = dev_alloc_skb(size + sizeof(*cb_hdr));
 		if (!skb)
 			return;
 
 		skb_put_data(skb, buff, size);
 
 		cb_hdr = skb_push(skb, sizeof(*cb_hdr));
-		memset(cb_hdr, 0, sizeof(struct wilc_wfi_radiotap_cb_hdr));
+		memset(cb_hdr, 0, sizeof(*cb_hdr));
 
 		cb_hdr->hdr.it_version = 0; /* PKTHDR_RADIOTAP_VERSION; */
 
-		cb_hdr->hdr.it_len = cpu_to_le16(sizeof(struct wilc_wfi_radiotap_cb_hdr));
+		cb_hdr->hdr.it_len = cpu_to_le16(sizeof(*cb_hdr));
 
-		cb_hdr->hdr.it_present = cpu_to_le32(
-				(1 << IEEE80211_RADIOTAP_RATE) |
-				(1 << IEEE80211_RADIOTAP_TX_FLAGS));
+		cb_hdr->hdr.it_present = cpu_to_le32(TX_RADIOTAP_PRESENT);
 
-		cb_hdr->rate = 5; /* txrate->bitrate / 5; */
+		cb_hdr->rate = 5;
 
 		if (pkt_offset & IS_MGMT_STATUS_SUCCES)	{
 			/* success */
@@ -93,7 +79,7 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 		}
 
 	} else {
-		skb = dev_alloc_skb(size + sizeof(struct wilc_wfi_radiotap_hdr));
+		skb = dev_alloc_skb(size + sizeof(*hdr));
 
 		if (!skb)
 			return;
@@ -102,10 +88,10 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 		hdr = skb_push(skb, sizeof(*hdr));
 		memset(hdr, 0, sizeof(struct wilc_wfi_radiotap_hdr));
 		hdr->hdr.it_version = 0; /* PKTHDR_RADIOTAP_VERSION; */
-		hdr->hdr.it_len = cpu_to_le16(sizeof(struct wilc_wfi_radiotap_hdr));
+		hdr->hdr.it_len = cpu_to_le16(sizeof(*hdr));
 		hdr->hdr.it_present = cpu_to_le32
-				(1 << IEEE80211_RADIOTAP_RATE); /* | */
-		hdr->rate = 5; /* txrate->bitrate / 5; */
+				(1 << IEEE80211_RADIOTAP_RATE);
+		hdr->rate = 5;
 	}
 
 	skb->dev = wilc_wfi_mon;
@@ -162,21 +148,11 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 	return 0;
 }
 
-/**
- *  @brief      WILC_WFI_mon_xmit
- *  @details
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
-static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
+static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
 	u32 rtap_len, ret = 0;
-	struct WILC_WFI_mon_priv  *mon_priv;
-
+	struct wilc_wfi_mon_priv  *mon_priv;
 	struct sk_buff *skb2;
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
 
@@ -192,8 +168,8 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 
 	skb_pull(skb, rtap_len);
 
-	if (skb->data[0] == 0xc0 && (!(memcmp(broadcast, &skb->data[4], 6)))) {
-		skb2 = dev_alloc_skb(skb->len + sizeof(struct wilc_wfi_radiotap_cb_hdr));
+	if (skb->data[0] == 0xc0 && is_broadcast_ether_addr(&skb->data[4])) {
+		skb2 = dev_alloc_skb(skb->len + sizeof(*cb_hdr));
 		if (!skb2)
 			return -ENOMEM;
 
@@ -204,13 +180,11 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 
 		cb_hdr->hdr.it_version = 0; /* PKTHDR_RADIOTAP_VERSION; */
 
-		cb_hdr->hdr.it_len = cpu_to_le16(sizeof(struct wilc_wfi_radiotap_cb_hdr));
+		cb_hdr->hdr.it_len = cpu_to_le16(sizeof(*cb_hdr));
 
-		cb_hdr->hdr.it_present = cpu_to_le32(
-				(1 << IEEE80211_RADIOTAP_RATE) |
-				(1 << IEEE80211_RADIOTAP_TX_FLAGS));
+		cb_hdr->hdr.it_present = cpu_to_le32(TX_RADIOTAP_PRESENT);
 
-		cb_hdr->rate = 5; /* txrate->bitrate / 5; */
+		cb_hdr->rate = 5;
 		cb_hdr->tx_flags = 0x0004;
 
 		skb2->dev = wilc_wfi_mon;
@@ -226,11 +200,12 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	}
 	skb->dev = mon_priv->real_ndev;
 
-	/* Identify if Ethernet or MAC header (data or mgmt) */
 	memcpy(srcadd, &skb->data[10], 6);
 	memcpy(bssid, &skb->data[16], 6);
-	/* if source address and bssid fields are equal>>Mac header */
-	/*send it to mgmt frames handler */
+	/*
+	 * Identify if data or mgmt packet, if source address and bssid
+	 * fields are equal send it to mgmt frames handler
+	 */
 	if (!(memcmp(srcadd, bssid, 6))) {
 		ret = mon_mgmt_tx(mon_priv->real_ndev, skb->data, skb->len);
 		if (ret)
@@ -244,29 +219,20 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 }
 
 static const struct net_device_ops wilc_wfi_netdev_ops = {
-	.ndo_start_xmit         = WILC_WFI_mon_xmit,
+	.ndo_start_xmit         = wilc_wfi_mon_xmit,
 
 };
 
-/**
- *  @brief      WILC_WFI_init_mon_interface
- *  @details
- *  @param[in]
- *  @return     Pointer to net_device
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
-struct net_device *WILC_WFI_init_mon_interface(const char *name,
+struct net_device *wilc_wfi_init_mon_interface(const char *name,
 					       struct net_device *real_dev)
 {
-	struct WILC_WFI_mon_priv *priv;
+	struct wilc_wfi_mon_priv *priv;
 
 	/*If monitor interface is already initialized, return it*/
 	if (wilc_wfi_mon)
 		return wilc_wfi_mon;
 
-	wilc_wfi_mon = alloc_etherdev(sizeof(struct WILC_WFI_mon_priv));
+	wilc_wfi_mon = alloc_etherdev(sizeof(struct wilc_wfi_mon_priv));
 	if (!wilc_wfi_mon)
 		return NULL;
 	wilc_wfi_mon->type = ARPHRD_IEEE80211_RADIOTAP;
@@ -287,16 +253,7 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name,
 	return wilc_wfi_mon;
 }
 
-/**
- *  @brief      WILC_WFI_deinit_mon_interface
- *  @details
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
-int WILC_WFI_deinit_mon_interface(void)
+void wilc_wfi_deinit_mon_interface(void)
 {
 	bool rollback_lock = false;
 
@@ -313,5 +270,4 @@ int WILC_WFI_deinit_mon_interface(void)
 		}
 		wilc_wfi_mon = NULL;
 	}
-	return 0;
 }

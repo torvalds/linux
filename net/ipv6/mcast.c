@@ -95,6 +95,8 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 			  int delta);
 static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 			    struct inet6_dev *idev);
+static int __ipv6_dev_mc_inc(struct net_device *dev,
+			     const struct in6_addr *addr, unsigned int mode);
 
 #define MLD_QRV_DEFAULT		2
 /* RFC3810, 9.2. Query Interval */
@@ -132,7 +134,8 @@ static int unsolicited_report_interval(struct inet6_dev *idev)
 	return iv > 0 ? iv : 1;
 }
 
-int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
+static int __ipv6_sock_mc_join(struct sock *sk, int ifindex,
+			       const struct in6_addr *addr, unsigned int mode)
 {
 	struct net_device *dev = NULL;
 	struct ipv6_mc_socklist *mc_lst;
@@ -179,7 +182,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	}
 
 	mc_lst->ifindex = dev->ifindex;
-	mc_lst->sfmode = MCAST_EXCLUDE;
+	mc_lst->sfmode = mode;
 	rwlock_init(&mc_lst->sflock);
 	mc_lst->sflist = NULL;
 
@@ -187,7 +190,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	 *	now add/increase the group membership on the device
 	 */
 
-	err = ipv6_dev_mc_inc(dev, addr);
+	err = __ipv6_dev_mc_inc(dev, addr, mode);
 
 	if (err) {
 		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
@@ -199,7 +202,18 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 
 	return 0;
 }
+
+int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
+{
+	return __ipv6_sock_mc_join(sk, ifindex, addr, MCAST_EXCLUDE);
+}
 EXPORT_SYMBOL(ipv6_sock_mc_join);
+
+int ipv6_sock_mc_join_ssm(struct sock *sk, int ifindex,
+			  const struct in6_addr *addr, unsigned int mode)
+{
+	return __ipv6_sock_mc_join(sk, ifindex, addr, mode);
+}
 
 /*
  *	socket leave on multicast group
@@ -622,7 +636,7 @@ bool inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
 	}
 	if (!mc) {
 		rcu_read_unlock();
-		return true;
+		return np->mc_all;
 	}
 	read_lock(&mc->sflock);
 	psl = mc->sflist;
@@ -672,7 +686,13 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 	}
 	/* else v2 */
 
-	mc->mca_crcount = mc->idev->mc_qrv;
+	/* Based on RFC3810 6.1, for newly added INCLUDE SSM, we
+	 * should not send filter-mode change record as the mode
+	 * should be from IN() to IN(A).
+	 */
+	if (mc->mca_sfmode == MCAST_EXCLUDE)
+		mc->mca_crcount = mc->idev->mc_qrv;
+
 	mld_ifc_event(mc->idev);
 }
 
@@ -770,13 +790,13 @@ static void mld_del_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 	spin_lock_bh(&im->mca_lock);
 	if (pmc) {
 		im->idev = pmc->idev;
-		im->mca_crcount = idev->mc_qrv;
-		im->mca_sfmode = pmc->mca_sfmode;
-		if (pmc->mca_sfmode == MCAST_INCLUDE) {
+		if (im->mca_sfmode == MCAST_INCLUDE) {
 			im->mca_tomb = pmc->mca_tomb;
 			im->mca_sources = pmc->mca_sources;
 			for (psf = im->mca_sources; psf; psf = psf->sf_next)
-				psf->sf_crcount = im->mca_crcount;
+				psf->sf_crcount = idev->mc_qrv;
+		} else {
+			im->mca_crcount = idev->mc_qrv;
 		}
 		in6_dev_put(pmc->idev);
 		kfree(pmc);
@@ -831,7 +851,8 @@ static void ma_put(struct ifmcaddr6 *mc)
 }
 
 static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
-				   const struct in6_addr *addr)
+				   const struct in6_addr *addr,
+				   unsigned int mode)
 {
 	struct ifmcaddr6 *mc;
 
@@ -849,9 +870,8 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 	refcount_set(&mc->mca_refcnt, 1);
 	spin_lock_init(&mc->mca_lock);
 
-	/* initial mode is (EX, empty) */
-	mc->mca_sfmode = MCAST_EXCLUDE;
-	mc->mca_sfcount[MCAST_EXCLUDE] = 1;
+	mc->mca_sfmode = mode;
+	mc->mca_sfcount[mode] = 1;
 
 	if (ipv6_addr_is_ll_all_nodes(&mc->mca_addr) ||
 	    IPV6_ADDR_MC_SCOPE(&mc->mca_addr) < IPV6_ADDR_SCOPE_LINKLOCAL)
@@ -863,7 +883,8 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 /*
  *	device multicast group inc (add if not found)
  */
-int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
+static int __ipv6_dev_mc_inc(struct net_device *dev,
+			     const struct in6_addr *addr, unsigned int mode)
 {
 	struct ifmcaddr6 *mc;
 	struct inet6_dev *idev;
@@ -887,14 +908,13 @@ int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 		if (ipv6_addr_equal(&mc->mca_addr, addr)) {
 			mc->mca_users++;
 			write_unlock_bh(&idev->lock);
-			ip6_mc_add_src(idev, &mc->mca_addr, MCAST_EXCLUDE, 0,
-				NULL, 0);
+			ip6_mc_add_src(idev, &mc->mca_addr, mode, 0, NULL, 0);
 			in6_dev_put(idev);
 			return 0;
 		}
 	}
 
-	mc = mca_alloc(idev, addr);
+	mc = mca_alloc(idev, addr, mode);
 	if (!mc) {
 		write_unlock_bh(&idev->lock);
 		in6_dev_put(idev);
@@ -914,6 +934,11 @@ int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 	igmp6_group_added(mc);
 	ma_put(mc);
 	return 0;
+}
+
+int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
+{
+	return __ipv6_dev_mc_inc(dev, addr, MCAST_EXCLUDE);
 }
 
 /*
@@ -1751,7 +1776,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 
 		psf_next = psf->sf_next;
 
-		if (!is_in(pmc, psf, type, gdeleted, sdeleted)) {
+		if (!is_in(pmc, psf, type, gdeleted, sdeleted) && !crsend) {
 			psf_prev = psf;
 			continue;
 		}
@@ -2066,7 +2091,7 @@ static void mld_send_initial_cr(struct inet6_dev *idev)
 		if (pmc->mca_sfcount[MCAST_EXCLUDE])
 			type = MLD2_CHANGE_TO_EXCLUDE;
 		else
-			type = MLD2_CHANGE_TO_INCLUDE;
+			type = MLD2_ALLOW_NEW_SOURCES;
 		skb = add_grec(skb, pmc, type, 0, 0, 1);
 		spin_unlock_bh(&pmc->mca_lock);
 	}
@@ -2082,7 +2107,8 @@ void ipv6_mc_dad_complete(struct inet6_dev *idev)
 		mld_send_initial_cr(idev);
 		idev->mc_dad_count--;
 		if (idev->mc_dad_count)
-			mld_dad_start_timer(idev, idev->mc_maxdelay);
+			mld_dad_start_timer(idev,
+					    unsolicited_report_interval(idev));
 	}
 }
 
@@ -2094,7 +2120,8 @@ static void mld_dad_timer_expire(struct timer_list *t)
 	if (idev->mc_dad_count) {
 		idev->mc_dad_count--;
 		if (idev->mc_dad_count)
-			mld_dad_start_timer(idev, idev->mc_maxdelay);
+			mld_dad_start_timer(idev,
+					    unsolicited_report_interval(idev));
 	}
 	in6_dev_put(idev);
 }
@@ -2409,17 +2436,17 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 {
 	int err;
 
-	/* callers have the socket lock and rtnl lock
-	 * so no other readers or writers of iml or its sflist
-	 */
+	write_lock_bh(&iml->sflock);
 	if (!iml->sflist) {
 		/* any-source empty exclude case */
-		return ip6_mc_del_src(idev, &iml->addr, iml->sfmode, 0, NULL, 0);
+		err = ip6_mc_del_src(idev, &iml->addr, iml->sfmode, 0, NULL, 0);
+	} else {
+		err = ip6_mc_del_src(idev, &iml->addr, iml->sfmode,
+				iml->sflist->sl_count, iml->sflist->sl_addr, 0);
+		sock_kfree_s(sk, iml->sflist, IP6_SFLSIZE(iml->sflist->sl_max));
+		iml->sflist = NULL;
 	}
-	err = ip6_mc_del_src(idev, &iml->addr, iml->sfmode,
-		iml->sflist->sl_count, iml->sflist->sl_addr, 0);
-	sock_kfree_s(sk, iml->sflist, IP6_SFLSIZE(iml->sflist->sl_max));
-	iml->sflist = NULL;
+	write_unlock_bh(&iml->sflock);
 	return err;
 }
 
@@ -2452,7 +2479,8 @@ static void mld_ifc_timer_expire(struct timer_list *t)
 	if (idev->mc_ifc_count) {
 		idev->mc_ifc_count--;
 		if (idev->mc_ifc_count)
-			mld_ifc_start_timer(idev, idev->mc_maxdelay);
+			mld_ifc_start_timer(idev,
+					    unsolicited_report_interval(idev));
 	}
 	in6_dev_put(idev);
 }
@@ -2749,19 +2777,6 @@ static const struct seq_operations igmp6_mc_seq_ops = {
 	.show	=	igmp6_mc_seq_show,
 };
 
-static int igmp6_mc_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &igmp6_mc_seq_ops,
-			    sizeof(struct igmp6_mc_iter_state));
-}
-
-static const struct file_operations igmp6_mc_seq_fops = {
-	.open		=	igmp6_mc_seq_open,
-	.read		=	seq_read,
-	.llseek		=	seq_lseek,
-	.release	=	seq_release_net,
-};
-
 struct igmp6_mcf_iter_state {
 	struct seq_net_private p;
 	struct net_device *dev;
@@ -2903,28 +2918,17 @@ static const struct seq_operations igmp6_mcf_seq_ops = {
 	.show	=	igmp6_mcf_seq_show,
 };
 
-static int igmp6_mcf_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &igmp6_mcf_seq_ops,
-			    sizeof(struct igmp6_mcf_iter_state));
-}
-
-static const struct file_operations igmp6_mcf_seq_fops = {
-	.open		=	igmp6_mcf_seq_open,
-	.read		=	seq_read,
-	.llseek		=	seq_lseek,
-	.release	=	seq_release_net,
-};
-
 static int __net_init igmp6_proc_init(struct net *net)
 {
 	int err;
 
 	err = -ENOMEM;
-	if (!proc_create("igmp6", 0444, net->proc_net, &igmp6_mc_seq_fops))
+	if (!proc_create_net("igmp6", 0444, net->proc_net, &igmp6_mc_seq_ops,
+			sizeof(struct igmp6_mc_iter_state)))
 		goto out;
-	if (!proc_create("mcfilter6", 0444, net->proc_net,
-			 &igmp6_mcf_seq_fops))
+	if (!proc_create_net("mcfilter6", 0444, net->proc_net,
+			&igmp6_mcf_seq_ops,
+			sizeof(struct igmp6_mcf_iter_state)))
 		goto out_proc_net_igmp6;
 
 	err = 0;

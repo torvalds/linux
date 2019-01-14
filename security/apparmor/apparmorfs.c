@@ -603,7 +603,7 @@ static const struct file_operations aa_fs_ns_revision_fops = {
 static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 			     const char *match_str, size_t match_len)
 {
-	struct aa_perms tmp;
+	struct aa_perms tmp = { };
 	struct aa_dfa *dfa;
 	unsigned int state = 0;
 
@@ -613,7 +613,6 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 		dfa = profile->file.dfa;
 		state = aa_dfa_match_len(dfa, profile->file.start,
 					 match_str + 1, match_len - 1);
-		tmp = nullperms;
 		if (state) {
 			struct path_cond cond = { };
 
@@ -627,8 +626,6 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 					 match_str, match_len);
 		if (state)
 			aa_compute_perms(dfa, state, &tmp);
-		else
-			tmp = nullperms;
 	}
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum_raw(perms, &tmp);
@@ -1745,7 +1742,7 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 	if (error)
 		return error;
 
-	 parent = aa_get_ns(dir->i_private);
+	parent = aa_get_ns(dir->i_private);
 	/* rmdir calls the generic securityfs functions to remove files
 	 * from the apparmor dir. It is up to the apparmor ns locking
 	 * to avoid races.

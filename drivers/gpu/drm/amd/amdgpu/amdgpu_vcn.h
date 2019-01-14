@@ -24,9 +24,9 @@
 #ifndef __AMDGPU_VCN_H__
 #define __AMDGPU_VCN_H__
 
-#define AMDGPU_VCN_STACK_SIZE		(200*1024)
-#define AMDGPU_VCN_HEAP_SIZE		(256*1024)
-#define AMDGPU_VCN_SESSION_SIZE		(50*1024)
+#define AMDGPU_VCN_STACK_SIZE		(128*1024)
+#define AMDGPU_VCN_CONTEXT_SIZE	(512*1024)
+
 #define AMDGPU_VCN_FIRMWARE_OFFSET	256
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
 
@@ -45,6 +45,27 @@
 #define VCN_ENC_CMD_REG_WRITE		0x0000000b
 #define VCN_ENC_CMD_REG_WAIT		0x0000000c
 
+enum engine_status_constants {
+	UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON = 0x2AAAA0,
+	UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON = 0x00000002,
+	UVD_STATUS__UVD_BUSY = 0x00000004,
+	GB_ADDR_CONFIG_DEFAULT = 0x26010011,
+	UVD_STATUS__IDLE = 0x2,
+	UVD_STATUS__BUSY = 0x5,
+	UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF = 0x1,
+	UVD_STATUS__RBC_BUSY = 0x1,
+};
+
+enum internal_dpg_state {
+	VCN_DPG_STATE__UNPAUSE = 0,
+	VCN_DPG_STATE__PAUSE,
+};
+
+struct dpg_pause_state {
+	enum internal_dpg_state fw_based;
+	enum internal_dpg_state jpeg;
+};
+
 struct amdgpu_vcn {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
@@ -55,10 +76,11 @@ struct amdgpu_vcn {
 	const struct firmware	*fw;	/* VCN firmware */
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
+	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
-	struct drm_sched_entity entity_dec;
-	struct drm_sched_entity entity_enc;
 	unsigned		num_enc_rings;
+	enum amd_powergating_state cur_state;
+	struct dpg_pause_state pause_state;
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
@@ -73,5 +95,8 @@ int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);
+
+int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring);
+int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 #endif

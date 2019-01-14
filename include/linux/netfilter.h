@@ -67,7 +67,6 @@ struct nf_hook_ops {
 	struct net_device	*dev;
 	void			*priv;
 	u_int8_t		pf;
-	bool			nat_hook;
 	unsigned int		hooknum;
 	/* Hooks are ordered in ascending priority. */
 	int			priority;
@@ -216,6 +215,8 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 		break;
 	case NFPROTO_ARP:
 #ifdef CONFIG_NETFILTER_FAMILY_ARP
+		if (WARN_ON_ONCE(hook >= ARRAY_SIZE(net->nf.hooks_arp)))
+			break;
 		hook_head = rcu_dereference(net->nf.hooks_arp[hook]);
 #endif
 		break;
@@ -289,6 +290,24 @@ NF_HOOK(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk, struct 
 	return ret;
 }
 
+static inline void
+NF_HOOK_LIST(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
+	     struct list_head *head, struct net_device *in, struct net_device *out,
+	     int (*okfn)(struct net *, struct sock *, struct sk_buff *))
+{
+	struct sk_buff *skb, *next;
+	struct list_head sublist;
+
+	INIT_LIST_HEAD(&sublist);
+	list_for_each_entry_safe(skb, next, head, list) {
+		list_del(&skb->list);
+		if (nf_hook(pf, hook, net, sk, skb, in, out, okfn) == 1)
+			list_add_tail(&skb->list, &sublist);
+	}
+	/* Put passed packets back on main list */
+	list_splice(&sublist, head);
+}
+
 /* Call setsockopt() */
 int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  unsigned int len);
@@ -321,18 +340,33 @@ int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry);
 
 #include <net/flow.h>
-extern void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
+
+struct nf_conn;
+enum nf_nat_manip_type;
+struct nlattr;
+enum ip_conntrack_dir;
+
+struct nf_nat_hook {
+	int (*parse_nat_setup)(struct nf_conn *ct, enum nf_nat_manip_type manip,
+			       const struct nlattr *attr);
+	void (*decode_session)(struct sk_buff *skb, struct flowi *fl);
+	unsigned int (*manip_pkt)(struct sk_buff *skb, struct nf_conn *ct,
+				  enum nf_nat_manip_type mtype,
+				  enum ip_conntrack_dir dir);
+};
+
+extern struct nf_nat_hook __rcu *nf_nat_hook;
 
 static inline void
 nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 {
 #ifdef CONFIG_NF_NAT_NEEDED
-	void (*decodefn)(struct sk_buff *, struct flowi *);
+	struct nf_nat_hook *nat_hook;
 
 	rcu_read_lock();
-	decodefn = rcu_dereference(nf_nat_decode_session_hook);
-	if (decodefn)
-		decodefn(skb, fl);
+	nat_hook = rcu_dereference(nf_nat_hook);
+	if (nat_hook && nat_hook->decode_session)
+		nat_hook->decode_session(skb, fl);
 	rcu_read_unlock();
 #endif
 }
@@ -355,6 +389,14 @@ NF_HOOK(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	return okfn(net, sk, skb);
 }
 
+static inline void
+NF_HOOK_LIST(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
+	     struct list_head *head, struct net_device *in, struct net_device *out,
+	     int (*okfn)(struct net *, struct sock *, struct sk_buff *))
+{
+	/* nothing to do */
+}
+
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 			  struct sock *sk, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
@@ -374,13 +416,30 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 
 extern void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *) __rcu;
 void nf_ct_attach(struct sk_buff *, const struct sk_buff *);
-extern void (*nf_ct_destroy)(struct nf_conntrack *) __rcu;
+struct nf_conntrack_tuple;
+bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
+			 const struct sk_buff *skb);
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
+struct nf_conntrack_tuple;
+static inline bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
+				       const struct sk_buff *skb)
+{
+	return false;
+}
 #endif
 
 struct nf_conn;
 enum ip_conntrack_info;
+
+struct nf_ct_hook {
+	int (*update)(struct net *net, struct sk_buff *skb);
+	void (*destroy)(struct nf_conntrack *);
+	bool (*get_tuple_skb)(struct nf_conntrack_tuple *,
+			      const struct sk_buff *);
+};
+extern struct nf_ct_hook __rcu *nf_ct_hook;
+
 struct nlattr;
 
 struct nfnl_ct_hook {

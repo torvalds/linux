@@ -22,6 +22,7 @@
 #include <linux/srcu.h>
 #include <linux/rculist.h>
 #include <linux/wait.h>
+#include <linux/memcontrol.h>
 
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
@@ -35,6 +36,8 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
 {
 	if (group->ops->free_group_priv)
 		group->ops->free_group_priv(group);
+
+	mem_cgroup_put(group->memcg);
 
 	kfree(group);
 }
@@ -67,7 +70,7 @@ void fsnotify_destroy_group(struct fsnotify_group *group)
 	fsnotify_group_stop_queueing(group);
 
 	/* Clear all marks for this group and queue them for destruction */
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_ALL_TYPES);
+	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_ALL_TYPES_MASK);
 
 	/*
 	 * Some marks can still be pinned when waiting for response from

@@ -673,7 +673,7 @@ static void mlx4_ib_mcg_work_handler(struct work_struct *work)
 			if (!list_empty(&group->pending_list))
 				req = list_first_entry(&group->pending_list,
 						struct mcast_req, group_list);
-			if ((method == IB_MGMT_METHOD_GET_RESP)) {
+			if (method == IB_MGMT_METHOD_GET_RESP) {
 					if (req) {
 						send_reply_to_slave(req->func, group, &req->sa_mad, status);
 						--group->func[req->func].num_pend_reqs;

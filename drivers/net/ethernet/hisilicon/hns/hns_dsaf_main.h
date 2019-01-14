@@ -44,6 +44,8 @@ struct hns_mac_cb;
 #define DSAF_ROCE_CREDIT_CHN	8
 #define DSAF_ROCE_CHAN_MODE	3
 
+#define HNS_MAX_WAIT_CNT 10000
+
 enum dsaf_roce_port_mode {
 	DSAF_ROCE_6PORT_MODE,
 	DSAF_ROCE_4PORT_MODE,
@@ -463,5 +465,6 @@ int hns_dsaf_rm_mac_addr(
 
 int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     u8 mac_id, u8 port_num);
+int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port);
 
 #endif /* __HNS_DSAF_MAIN_H__ */

@@ -27,9 +27,8 @@
 #include <net/ip.h>
 
 static unsigned int nft_nat_do_chain(void *priv,
-				      struct sk_buff *skb,
-				      const struct nf_hook_state *state,
-				      struct nf_conn *ct)
+				     struct sk_buff *skb,
+				     const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 
@@ -39,42 +38,14 @@ static unsigned int nft_nat_do_chain(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static unsigned int nft_nat_ipv4_fn(void *priv,
-				    struct sk_buff *skb,
-				    const struct nf_hook_state *state)
+static int nft_nat_ipv4_reg(struct net *net, const struct nf_hook_ops *ops)
 {
-	return nf_nat_ipv4_fn(priv, skb, state, nft_nat_do_chain);
+	return nf_nat_l3proto_ipv4_register_fn(net, ops);
 }
 
-static unsigned int nft_nat_ipv4_in(void *priv,
-				    struct sk_buff *skb,
-				    const struct nf_hook_state *state)
+static void nft_nat_ipv4_unreg(struct net *net, const struct nf_hook_ops *ops)
 {
-	return nf_nat_ipv4_in(priv, skb, state, nft_nat_do_chain);
-}
-
-static unsigned int nft_nat_ipv4_out(void *priv,
-				     struct sk_buff *skb,
-				     const struct nf_hook_state *state)
-{
-	return nf_nat_ipv4_out(priv, skb, state, nft_nat_do_chain);
-}
-
-static unsigned int nft_nat_ipv4_local_fn(void *priv,
-					  struct sk_buff *skb,
-					  const struct nf_hook_state *state)
-{
-	return nf_nat_ipv4_local_fn(priv, skb, state, nft_nat_do_chain);
-}
-
-static int nft_nat_ipv4_init(struct nft_ctx *ctx)
-{
-	return nf_ct_netns_get(ctx->net, ctx->family);
-}
-
-static void nft_nat_ipv4_free(struct nft_ctx *ctx)
-{
-	nf_ct_netns_put(ctx->net, ctx->family);
+	nf_nat_l3proto_ipv4_unregister_fn(net, ops);
 }
 
 static const struct nft_chain_type nft_chain_nat_ipv4 = {
@@ -87,13 +58,13 @@ static const struct nft_chain_type nft_chain_nat_ipv4 = {
 			  (1 << NF_INET_LOCAL_OUT) |
 			  (1 << NF_INET_LOCAL_IN),
 	.hooks		= {
-		[NF_INET_PRE_ROUTING]	= nft_nat_ipv4_in,
-		[NF_INET_POST_ROUTING]	= nft_nat_ipv4_out,
-		[NF_INET_LOCAL_OUT]	= nft_nat_ipv4_local_fn,
-		[NF_INET_LOCAL_IN]	= nft_nat_ipv4_fn,
+		[NF_INET_PRE_ROUTING]	= nft_nat_do_chain,
+		[NF_INET_POST_ROUTING]	= nft_nat_do_chain,
+		[NF_INET_LOCAL_OUT]	= nft_nat_do_chain,
+		[NF_INET_LOCAL_IN]	= nft_nat_do_chain,
 	},
-	.init		= nft_nat_ipv4_init,
-	.free		= nft_nat_ipv4_free,
+	.ops_register = nft_nat_ipv4_reg,
+	.ops_unregister = nft_nat_ipv4_unreg,
 };
 
 static int __init nft_chain_nat_init(void)

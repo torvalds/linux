@@ -118,17 +118,21 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 }
 
 int vlan_check_real_dev(struct net_device *real_dev,
-			__be16 protocol, u16 vlan_id)
+			__be16 protocol, u16 vlan_id,
+			struct netlink_ext_ack *extack)
 {
 	const char *name = real_dev->name;
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
 		pr_info("VLANs not supported on %s\n", name);
+		NL_SET_ERR_MSG_MOD(extack, "VLANs not supported on device");
 		return -EOPNOTSUPP;
 	}
 
-	if (vlan_find_dev(real_dev, protocol, vlan_id) != NULL)
+	if (vlan_find_dev(real_dev, protocol, vlan_id) != NULL) {
+		NL_SET_ERR_MSG_MOD(extack, "VLAN device already exists");
 		return -EEXIST;
+	}
 
 	return 0;
 }
@@ -215,7 +219,8 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	if (vlan_id >= VLAN_VID_MASK)
 		return -ERANGE;
 
-	err = vlan_check_real_dev(real_dev, htons(ETH_P_8021Q), vlan_id);
+	err = vlan_check_real_dev(real_dev, htons(ETH_P_8021Q), vlan_id,
+				  NULL);
 	if (err < 0)
 		return err;
 
@@ -642,13 +647,14 @@ out:
 	return err;
 }
 
-static struct sk_buff **vlan_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+static struct sk_buff *vlan_gro_receive(struct list_head *head,
+					struct sk_buff *skb)
 {
-	struct sk_buff *p, **pp = NULL;
-	struct vlan_hdr *vhdr;
-	unsigned int hlen, off_vlan;
 	const struct packet_offload *ptype;
+	unsigned int hlen, off_vlan;
+	struct sk_buff *pp = NULL;
+	struct vlan_hdr *vhdr;
+	struct sk_buff *p;
 	__be16 type;
 	int flush = 1;
 
@@ -670,7 +676,7 @@ static struct sk_buff **vlan_gro_receive(struct sk_buff **head,
 
 	flush = 0;
 
-	for (p = *head; p; p = p->next) {
+	list_for_each_entry(p, head, list) {
 		struct vlan_hdr *vhdr2;
 
 		if (!NAPI_GRO_CB(p)->same_flow)
@@ -688,7 +694,7 @@ static struct sk_buff **vlan_gro_receive(struct sk_buff **head,
 out_unlock:
 	rcu_read_unlock();
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final(skb, pp, flush);
 
 	return pp;
 }

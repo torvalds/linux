@@ -269,7 +269,7 @@ static LIST_HEAD(aha152x_host_list);
 /* DEFINES */
 
 /* For PCMCIA cards, always use AUTOCONF */
-#if defined(PCMCIA) || defined(MODULE)
+#if defined(AHA152X_PCMCIA) || defined(MODULE)
 #if !defined(AUTOCONF)
 #define AUTOCONF
 #endif
@@ -297,7 +297,7 @@ CMD_INC_RESID(struct scsi_cmnd *cmd, int inc)
 
 #define DELAY_DEFAULT 1000
 
-#if defined(PCMCIA)
+#if defined(AHA152X_PCMCIA)
 #define IRQ_MIN 0
 #define IRQ_MAX 16
 #else
@@ -328,7 +328,7 @@ MODULE_AUTHOR("Jürgen Fischer");
 MODULE_DESCRIPTION(AHA152X_REVID);
 MODULE_LICENSE("GPL");
 
-#if !defined(PCMCIA)
+#if !defined(AHA152X_PCMCIA)
 #if defined(MODULE)
 static int io[] = {0, 0};
 module_param_hw_array(io, int, ioport, NULL, 0);
@@ -391,7 +391,7 @@ static struct isapnp_device_id id_table[] = {
 MODULE_DEVICE_TABLE(isapnp, id_table);
 #endif /* ISAPNP */
 
-#endif /* !PCMCIA */
+#endif /* !AHA152X_PCMCIA */
 
 static struct scsi_host_template aha152x_driver_template;
 
@@ -422,16 +422,16 @@ enum aha152x_state {
  *
  */
 struct aha152x_hostdata {
-	Scsi_Cmnd *issue_SC;
+	struct scsi_cmnd *issue_SC;
 		/* pending commands to issue */
 
-	Scsi_Cmnd *current_SC;
+	struct scsi_cmnd *current_SC;
 		/* current command on the bus */
 
-	Scsi_Cmnd *disconnected_SC;
+	struct scsi_cmnd *disconnected_SC;
 		/* commands that disconnected */
 
-	Scsi_Cmnd *done_SC;
+	struct scsi_cmnd *done_SC;
 		/* command that was completed */
 
 	spinlock_t lock;
@@ -510,7 +510,7 @@ struct aha152x_hostdata {
  *
  */
 struct aha152x_scdata {
-	Scsi_Cmnd *next;	/* next sc in queue */
+	struct scsi_cmnd *next;	/* next sc in queue */
 	struct completion *done;/* semaphore to block on */
 	struct scsi_eh_save ses;
 };
@@ -633,7 +633,7 @@ static void aha152x_error(struct Scsi_Host *shpnt, char *msg);
 static void done(struct Scsi_Host *shpnt, int error);
 
 /* diagnostics */
-static void show_command(Scsi_Cmnd * ptr);
+static void show_command(struct scsi_cmnd * ptr);
 static void show_queues(struct Scsi_Host *shpnt);
 static void disp_enintr(struct Scsi_Host *shpnt);
 
@@ -642,9 +642,9 @@ static void disp_enintr(struct Scsi_Host *shpnt);
  *  queue services:
  *
  */
-static inline void append_SC(Scsi_Cmnd **SC, Scsi_Cmnd *new_SC)
+static inline void append_SC(struct scsi_cmnd **SC, struct scsi_cmnd *new_SC)
 {
-	Scsi_Cmnd *end;
+	struct scsi_cmnd *end;
 
 	SCNEXT(new_SC) = NULL;
 	if (!*SC)
@@ -656,9 +656,9 @@ static inline void append_SC(Scsi_Cmnd **SC, Scsi_Cmnd *new_SC)
 	}
 }
 
-static inline Scsi_Cmnd *remove_first_SC(Scsi_Cmnd ** SC)
+static inline struct scsi_cmnd *remove_first_SC(struct scsi_cmnd ** SC)
 {
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 
 	ptr = *SC;
 	if (ptr) {
@@ -668,9 +668,10 @@ static inline Scsi_Cmnd *remove_first_SC(Scsi_Cmnd ** SC)
 	return ptr;
 }
 
-static inline Scsi_Cmnd *remove_lun_SC(Scsi_Cmnd ** SC, int target, int lun)
+static inline struct scsi_cmnd *remove_lun_SC(struct scsi_cmnd ** SC,
+					      int target, int lun)
 {
-	Scsi_Cmnd *ptr, *prev;
+	struct scsi_cmnd *ptr, *prev;
 
 	for (ptr = *SC, prev = NULL;
 	     ptr && ((ptr->device->id != target) || (ptr->device->lun != lun));
@@ -689,9 +690,10 @@ static inline Scsi_Cmnd *remove_lun_SC(Scsi_Cmnd ** SC, int target, int lun)
 	return ptr;
 }
 
-static inline Scsi_Cmnd *remove_SC(Scsi_Cmnd **SC, Scsi_Cmnd *SCp)
+static inline struct scsi_cmnd *remove_SC(struct scsi_cmnd **SC,
+					  struct scsi_cmnd *SCp)
 {
-	Scsi_Cmnd *ptr, *prev;
+	struct scsi_cmnd *ptr, *prev;
 
 	for (ptr = *SC, prev = NULL;
 	     ptr && SCp!=ptr;
@@ -861,7 +863,7 @@ void aha152x_release(struct Scsi_Host *shpnt)
 	if (shpnt->irq)
 		free_irq(shpnt->irq, shpnt);
 
-#if !defined(PCMCIA)
+#if !defined(AHA152X_PCMCIA)
 	if (shpnt->io_port)
 		release_region(shpnt->io_port, IO_RANGE);
 #endif
@@ -912,8 +914,9 @@ static int setup_expected_interrupts(struct Scsi_Host *shpnt)
 /*
  *  Queue a command and setup interrupts for a free bus.
  */
-static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
-		int phase, void (*done)(Scsi_Cmnd *))
+static int aha152x_internal_queue(struct scsi_cmnd *SCpnt,
+				  struct completion *complete,
+				  int phase, void (*done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *shpnt = SCpnt->device->host;
 	unsigned long flags;
@@ -987,7 +990,8 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
  *  queue a command
  *
  */
-static int aha152x_queue_lck(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
+static int aha152x_queue_lck(struct scsi_cmnd *SCpnt,
+			     void (*done)(struct scsi_cmnd *))
 {
 	return aha152x_internal_queue(SCpnt, NULL, 0, done);
 }
@@ -998,7 +1002,7 @@ static DEF_SCSI_QCMD(aha152x_queue)
 /*
  *
  */
-static void reset_done(Scsi_Cmnd *SCpnt)
+static void reset_done(struct scsi_cmnd *SCpnt)
 {
 	if(SCSEM(SCpnt)) {
 		complete(SCSEM(SCpnt));
@@ -1011,10 +1015,10 @@ static void reset_done(Scsi_Cmnd *SCpnt)
  *  Abort a command
  *
  */
-static int aha152x_abort(Scsi_Cmnd *SCpnt)
+static int aha152x_abort(struct scsi_cmnd *SCpnt)
 {
 	struct Scsi_Host *shpnt = SCpnt->device->host;
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 	unsigned long flags;
 
 	DO_LOCK(flags);
@@ -1052,7 +1056,7 @@ static int aha152x_abort(Scsi_Cmnd *SCpnt)
  * Reset a device
  *
  */
-static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
+static int aha152x_device_reset(struct scsi_cmnd * SCpnt)
 {
 	struct Scsi_Host *shpnt = SCpnt->device->host;
 	DECLARE_COMPLETION(done);
@@ -1110,13 +1114,14 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	return ret;
 }
 
-static void free_hard_reset_SCs(struct Scsi_Host *shpnt, Scsi_Cmnd **SCs)
+static void free_hard_reset_SCs(struct Scsi_Host *shpnt,
+				struct scsi_cmnd **SCs)
 {
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 
 	ptr=*SCs;
 	while(ptr) {
-		Scsi_Cmnd *next;
+		struct scsi_cmnd *next;
 
 		if(SCDATA(ptr)) {
 			next = SCNEXT(ptr);
@@ -1171,7 +1176,7 @@ static int aha152x_bus_reset_host(struct Scsi_Host *shpnt)
  * Reset the bus
  *
  */
-static int aha152x_bus_reset(Scsi_Cmnd *SCpnt)
+static int aha152x_bus_reset(struct scsi_cmnd *SCpnt)
 {
 	return aha152x_bus_reset_host(SCpnt->device->host);
 }
@@ -1436,7 +1441,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 
 			if(!(DONE_SC->SCp.phase & not_issued)) {
 				struct aha152x_scdata *sc;
-				Scsi_Cmnd *ptr = DONE_SC;
+				struct scsi_cmnd *ptr = DONE_SC;
 				DONE_SC=NULL;
 
 				sc = SCDATA(ptr);
@@ -1451,7 +1456,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 		}
 
 		if(DONE_SC && DONE_SC->scsi_done) {
-			Scsi_Cmnd *ptr = DONE_SC;
+			struct scsi_cmnd *ptr = DONE_SC;
 			DONE_SC=NULL;
 
 			/* turn led off, when no commands are in the driver */
@@ -2247,13 +2252,13 @@ static void parerr_run(struct Scsi_Host *shpnt)
  */
 static void rsti_run(struct Scsi_Host *shpnt)
 {
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 
 	shost_printk(KERN_NOTICE, shpnt, "scsi reset in\n");
 
 	ptr=DISCONNECTED_SC;
 	while(ptr) {
-		Scsi_Cmnd *next = SCNEXT(ptr);
+		struct scsi_cmnd *next = SCNEXT(ptr);
 
 		if (!ptr->device->soft_reset) {
 			remove_SC(&DISCONNECTED_SC, ptr);
@@ -2438,7 +2443,7 @@ static void disp_enintr(struct Scsi_Host *shpnt)
 /*
  * Show the command data of a command
  */
-static void show_command(Scsi_Cmnd *ptr)
+static void show_command(struct scsi_cmnd *ptr)
 {
 	scsi_print_command(ptr);
 	scmd_printk(KERN_DEBUG, ptr,
@@ -2462,7 +2467,7 @@ static void show_command(Scsi_Cmnd *ptr)
  */
 static void show_queues(struct Scsi_Host *shpnt)
 {
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 	unsigned long flags;
 
 	DO_LOCK(flags);
@@ -2484,7 +2489,7 @@ static void show_queues(struct Scsi_Host *shpnt)
 	disp_enintr(shpnt);
 }
 
-static void get_command(struct seq_file *m, Scsi_Cmnd * ptr)
+static void get_command(struct seq_file *m, struct scsi_cmnd * ptr)
 {
 	int i;
 
@@ -2813,7 +2818,7 @@ static int aha152x_set_info(struct Scsi_Host *shpnt, char *buffer, int length)
 static int aha152x_show_info(struct seq_file *m, struct Scsi_Host *shpnt)
 {
 	int i;
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 	unsigned long flags;
 
 	seq_puts(m, AHA152X_REVID "\n");
@@ -2919,7 +2924,7 @@ static struct scsi_host_template aha152x_driver_template = {
 	.slave_alloc			= aha152x_adjust_queue,
 };
 
-#if !defined(PCMCIA)
+#if !defined(AHA152X_PCMCIA)
 static int setup_count;
 static struct aha152x_setup setup[2];
 
@@ -3387,4 +3392,4 @@ static int __init aha152x_setup(char *str)
 __setup("aha152x=", aha152x_setup);
 #endif
 
-#endif /* !PCMCIA */
+#endif /* !AHA152X_PCMCIA */

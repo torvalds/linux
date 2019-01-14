@@ -54,16 +54,16 @@ static void cik_sdma_set_buffer_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev);
 static int cik_sdma_soft_reset(void *handle);
 
-MODULE_FIRMWARE("radeon/bonaire_sdma.bin");
-MODULE_FIRMWARE("radeon/bonaire_sdma1.bin");
-MODULE_FIRMWARE("radeon/hawaii_sdma.bin");
-MODULE_FIRMWARE("radeon/hawaii_sdma1.bin");
-MODULE_FIRMWARE("radeon/kaveri_sdma.bin");
-MODULE_FIRMWARE("radeon/kaveri_sdma1.bin");
-MODULE_FIRMWARE("radeon/kabini_sdma.bin");
-MODULE_FIRMWARE("radeon/kabini_sdma1.bin");
-MODULE_FIRMWARE("radeon/mullins_sdma.bin");
-MODULE_FIRMWARE("radeon/mullins_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_sdma.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_sdma.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_sdma.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/kabini_sdma.bin");
+MODULE_FIRMWARE("amdgpu/kabini_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/mullins_sdma.bin");
+MODULE_FIRMWARE("amdgpu/mullins_sdma1.bin");
 
 u32 amdgpu_cik_gpu_check_soft_reset(struct amdgpu_device *adev);
 
@@ -132,9 +132,9 @@ static int cik_sdma_init_microcode(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		if (i == 0)
-			snprintf(fw_name, sizeof(fw_name), "radeon/%s_sdma.bin", chip_name);
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma.bin", chip_name);
 		else
-			snprintf(fw_name, sizeof(fw_name), "radeon/%s_sdma1.bin", chip_name);
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma1.bin", chip_name);
 		err = request_firmware(&adev->sdma.instance[i].fw, fw_name, adev->dev);
 		if (err)
 			goto out;
@@ -177,9 +177,8 @@ static uint64_t cik_sdma_ring_get_rptr(struct amdgpu_ring *ring)
 static uint64_t cik_sdma_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	return (RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me]) & 0x3fffc) >> 2;
+	return (RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me]) & 0x3fffc) >> 2;
 }
 
 /**
@@ -192,9 +191,8 @@ static uint64_t cik_sdma_ring_get_wptr(struct amdgpu_ring *ring)
 static void cik_sdma_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me],
+	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me],
 		       	(lower_32_bits(ring->wptr) << 2) & 0x3fffc);
 }
 
@@ -248,7 +246,7 @@ static void cik_sdma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(3)); /* == */
 	u32 ref_and_mask;
 
-	if (ring == &ring->adev->sdma.instance[0].ring)
+	if (ring->me == 0)
 		ref_and_mask = GPU_HDP_FLUSH_DONE__SDMA0_MASK;
 	else
 		ref_and_mask = GPU_HDP_FLUSH_DONE__SDMA1_MASK;
@@ -972,19 +970,19 @@ static int cik_sdma_sw_init(void *handle)
 	}
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 224,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 224,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
 
 	/* SDMA Privileged inst */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 241,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 241,
 			      &adev->sdma.illegal_inst_irq);
 	if (r)
 		return r;
 
 	/* SDMA Privileged inst */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 247,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 247,
 			      &adev->sdma.illegal_inst_irq);
 	if (r)
 		return r;
@@ -1290,8 +1288,10 @@ static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->sdma.num_instances; i++)
+	for (i = 0; i < adev->sdma.num_instances; i++) {
 		adev->sdma.instance[i].ring.funcs = &cik_sdma_ring_funcs;
+		adev->sdma.instance[i].ring.me = i;
+	}
 }
 
 static const struct amdgpu_irq_src_funcs cik_sdma_trap_irq_funcs = {
@@ -1370,10 +1370,8 @@ static const struct amdgpu_buffer_funcs cik_sdma_buffer_funcs = {
 
 static void cik_sdma_set_buffer_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mman.buffer_funcs == NULL) {
-		adev->mman.buffer_funcs = &cik_sdma_buffer_funcs;
-		adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
-	}
+	adev->mman.buffer_funcs = &cik_sdma_buffer_funcs;
+	adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
 }
 
 static const struct amdgpu_vm_pte_funcs cik_sdma_vm_pte_funcs = {
@@ -1386,16 +1384,16 @@ static const struct amdgpu_vm_pte_funcs cik_sdma_vm_pte_funcs = {
 
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev)
 {
+	struct drm_gpu_scheduler *sched;
 	unsigned i;
 
-	if (adev->vm_manager.vm_pte_funcs == NULL) {
-		adev->vm_manager.vm_pte_funcs = &cik_sdma_vm_pte_funcs;
-		for (i = 0; i < adev->sdma.num_instances; i++)
-			adev->vm_manager.vm_pte_rings[i] =
-				&adev->sdma.instance[i].ring;
-
-		adev->vm_manager.vm_pte_num_rings = adev->sdma.num_instances;
+	adev->vm_manager.vm_pte_funcs = &cik_sdma_vm_pte_funcs;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		sched = &adev->sdma.instance[i].ring.sched;
+		adev->vm_manager.vm_pte_rqs[i] =
+			&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
 	}
+	adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
 }
 
 const struct amdgpu_ip_block_version cik_sdma_ip_block =

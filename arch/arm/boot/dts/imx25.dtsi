@@ -1,13 +1,6 @@
-/*
- * Copyright 2012 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
 
 #include <dt-bindings/gpio/gpio.h>
 #include "imx25-pinfunc.h"
@@ -70,9 +63,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		osc {
 			compatible = "fsl,imx-osc", "fixed-clock";
 			#clock-cells = <0>;
@@ -178,7 +168,7 @@
 				status = "disabled";
 			};
 
-			spi1: cspi@43fa4000 {
+			spi1: spi@43fa4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -219,7 +209,7 @@
 			reg = <0x50000000 0x40000>;
 			ranges;
 
-			spi3: cspi@50004000 {
+			spi3: spi@50004000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -248,7 +238,7 @@
 				status = "disabled";
 			};
 
-			spi2: cspi@50010000 {
+			spi2: spi@50010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";

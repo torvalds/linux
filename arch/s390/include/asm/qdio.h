@@ -252,17 +252,14 @@ struct slsb {
  *   (for communication with upper layer programs)
  *   (only required for use with completion queues)
  * @flags: flags indicating state of buffer
- * @aob: pointer to QAOB used for the particular SBAL
  * @user: pointer to upper layer program's state information related to SBAL
  *        (stored in user1 data of QAOB)
  */
 struct qdio_outbuf_state {
 	u8 flags;
-	struct qaob *aob;
 	void *user;
 };
 
-#define QDIO_OUTBUF_STATE_FLAG_NONE	0x00
 #define QDIO_OUTBUF_STATE_FLAG_PENDING	0x01
 
 #define CHSC_AC1_INITIATE_INPUTQ	0x80

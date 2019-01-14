@@ -101,7 +101,6 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 {
 	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
 	struct exynos_drm_gem *exynos_gem[MAX_FB_BUFFER];
-	struct drm_gem_object *obj;
 	struct drm_framebuffer *fb;
 	int i;
 	int ret;
@@ -112,14 +111,13 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		unsigned long size = height * mode_cmd->pitches[i] +
 				     mode_cmd->offsets[i];
 
-		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
-		if (!obj) {
+		exynos_gem[i] = exynos_drm_gem_get(file_priv,
+						   mode_cmd->handles[i]);
+		if (!exynos_gem[i]) {
 			DRM_ERROR("failed to lookup gem object\n");
 			ret = -ENOENT;
 			goto err;
 		}
-
-		exynos_gem[i] = to_exynos_gem(obj);
 
 		if (size > exynos_gem[i]->size) {
 			i++;
@@ -138,7 +136,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 err:
 	while (i--)
-		drm_gem_object_unreference_unlocked(&exynos_gem[i]->base);
+		exynos_drm_gem_put(exynos_gem[i]);
 
 	return ERR_PTR(ret);
 }
@@ -161,7 +159,7 @@ static struct drm_mode_config_helper_funcs exynos_drm_mode_config_helpers = {
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
 	.fb_create = exynos_user_fb_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
-	.atomic_check = exynos_atomic_check,
+	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
@@ -182,4 +180,6 @@ void exynos_drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.helper_private = &exynos_drm_mode_config_helpers;
 
 	dev->mode_config.allow_fb_modifiers = true;
+
+	dev->mode_config.normalize_zpos = true;
 }

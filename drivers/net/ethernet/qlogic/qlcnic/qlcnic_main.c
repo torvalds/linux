@@ -59,9 +59,6 @@ static int qlcnic_close(struct net_device *netdev);
 static void qlcnic_tx_timeout(struct net_device *netdev);
 static void qlcnic_attach_work(struct work_struct *work);
 static void qlcnic_fwinit_work(struct work_struct *work);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void qlcnic_poll_controller(struct net_device *netdev);
-#endif
 
 static void qlcnic_idc_debug_info(struct qlcnic_adapter *adapter, u8 encoding);
 static int qlcnic_can_start_firmware(struct qlcnic_adapter *adapter);
@@ -545,9 +542,6 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_udp_tunnel_add	= qlcnic_add_vxlan_port,
 	.ndo_udp_tunnel_del	= qlcnic_del_vxlan_port,
 	.ndo_features_check	= qlcnic_features_check,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = qlcnic_poll_controller,
-#endif
 #ifdef CONFIG_QLCNIC_SRIOV
 	.ndo_set_vf_mac		= qlcnic_sriov_set_vf_mac,
 	.ndo_set_vf_rate	= qlcnic_sriov_set_vf_tx_rate,
@@ -916,8 +910,9 @@ int qlcnic_82xx_mq_intrpt(struct qlcnic_adapter *adapter, int op_type)
 	if (qlcnic_check_multi_tx(adapter) &&
 	    !ahw->diag_test &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		ahw->intr_tbl = vzalloc(ahw->num_msix *
-					sizeof(struct qlcnic_intrpt_config));
+		ahw->intr_tbl =
+			vzalloc(array_size(sizeof(struct qlcnic_intrpt_config),
+					   ahw->num_msix));
 		if (!ahw->intr_tbl)
 			return -ENOMEM;
 
@@ -1025,15 +1020,17 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 
 	act_pci_func = ahw->total_nic_func;
 
-	adapter->npars = kzalloc(sizeof(struct qlcnic_npar_info) *
-				 act_pci_func, GFP_KERNEL);
+	adapter->npars = kcalloc(act_pci_func,
+				 sizeof(struct qlcnic_npar_info),
+				 GFP_KERNEL);
 	if (!adapter->npars) {
 		ret = -ENOMEM;
 		goto err_pci_info;
 	}
 
-	adapter->eswitch = kzalloc(sizeof(struct qlcnic_eswitch) *
-				QLCNIC_NIU_MAX_XG_PORTS, GFP_KERNEL);
+	adapter->eswitch = kcalloc(QLCNIC_NIU_MAX_XG_PORTS,
+				   sizeof(struct qlcnic_eswitch),
+				   GFP_KERNEL);
 	if (!adapter->eswitch) {
 		ret = -ENOMEM;
 		goto err_npars;
@@ -3197,45 +3194,6 @@ static irqreturn_t qlcnic_msix_tx_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void qlcnic_poll_controller(struct net_device *netdev)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_host_sds_ring *sds_ring;
-	struct qlcnic_recv_context *recv_ctx;
-	struct qlcnic_host_tx_ring *tx_ring;
-	int ring;
-
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
-		return;
-
-	recv_ctx = adapter->recv_ctx;
-
-	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
-		sds_ring = &recv_ctx->sds_rings[ring];
-		qlcnic_disable_sds_intr(adapter, sds_ring);
-		napi_schedule(&sds_ring->napi);
-	}
-
-	if (adapter->flags & QLCNIC_MSIX_ENABLED) {
-		/* Only Multi-Tx queue capable devices need to
-		 * schedule NAPI for TX rings
-		 */
-		if ((qlcnic_83xx_check(adapter) &&
-		     (adapter->flags & QLCNIC_TX_INTR_SHARED)) ||
-		    (qlcnic_82xx_check(adapter) &&
-		     !qlcnic_check_multi_tx(adapter)))
-			return;
-
-		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
-			tx_ring = &adapter->tx_ring[ring];
-			qlcnic_disable_tx_intr(adapter, tx_ring);
-			napi_schedule(&tx_ring->napi);
-		}
-	}
-}
-#endif
-
 static void
 qlcnic_idc_debug_info(struct qlcnic_adapter *adapter, u8 encoding)
 {
@@ -3972,7 +3930,6 @@ static void qlcnic_82xx_io_resume(struct pci_dev *pdev)
 	u32 state;
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
 	if (state == QLCNIC_DEV_READY && test_and_clear_bit(__QLCNIC_AER,
 							    &adapter->state))

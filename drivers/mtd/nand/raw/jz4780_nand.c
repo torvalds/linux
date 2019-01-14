@@ -44,7 +44,7 @@ struct jz4780_nand_cs {
 struct jz4780_nand_controller {
 	struct device *dev;
 	struct jz4780_bch *bch;
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	unsigned int num_banks;
 	struct list_head chips;
 	int selected;
@@ -65,14 +65,15 @@ static inline struct jz4780_nand_chip *to_jz4780_nand_chip(struct mtd_info *mtd)
 	return container_of(mtd_to_nand(mtd), struct jz4780_nand_chip, chip);
 }
 
-static inline struct jz4780_nand_controller *to_jz4780_nand_controller(struct nand_hw_control *ctrl)
+static inline struct jz4780_nand_controller
+*to_jz4780_nand_controller(struct nand_controller *ctrl)
 {
 	return container_of(ctrl, struct jz4780_nand_controller, controller);
 }
 
-static void jz4780_nand_select_chip(struct mtd_info *mtd, int chipnr)
+static void jz4780_nand_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_nand_cs *cs;
 
@@ -85,10 +86,10 @@ static void jz4780_nand_select_chip(struct mtd_info *mtd, int chipnr)
 	nfc->selected = chipnr;
 }
 
-static void jz4780_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void jz4780_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				 unsigned int ctrl)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_nand_cs *cs;
 
@@ -108,24 +109,24 @@ static void jz4780_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		writeb(cmd, cs->base + OFFSET_CMD);
 }
 
-static int jz4780_nand_dev_ready(struct mtd_info *mtd)
+static int jz4780_nand_dev_ready(struct nand_chip *chip)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 
 	return !gpiod_get_value_cansleep(nand->busy_gpio);
 }
 
-static void jz4780_nand_ecc_hwctl(struct mtd_info *mtd, int mode)
+static void jz4780_nand_ecc_hwctl(struct nand_chip *chip, int mode)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 
 	nand->reading = (mode == NAND_ECC_READ);
 }
 
-static int jz4780_nand_ecc_calculate(struct mtd_info *mtd, const u8 *dat,
+static int jz4780_nand_ecc_calculate(struct nand_chip *chip, const u8 *dat,
 				     u8 *ecc_code)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_bch_params params;
 
@@ -143,10 +144,10 @@ static int jz4780_nand_ecc_calculate(struct mtd_info *mtd, const u8 *dat,
 	return jz4780_bch_calculate(nfc->bch, &params, dat, ecc_code);
 }
 
-static int jz4780_nand_ecc_correct(struct mtd_info *mtd, u8 *dat,
+static int jz4780_nand_ecc_correct(struct nand_chip *chip, u8 *dat,
 				   u8 *read_ecc, u8 *calc_ecc)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_bch_params params;
 
@@ -157,9 +158,8 @@ static int jz4780_nand_ecc_correct(struct mtd_info *mtd, u8 *dat,
 	return jz4780_bch_correct(nfc->bch, &params, dat, read_ecc);
 }
 
-static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *dev)
+static int jz4780_nand_attach_chip(struct nand_chip *chip)
 {
-	struct nand_chip *chip = &nand->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(chip->controller);
 	int eccbytes;
@@ -170,7 +170,8 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 	switch (chip->ecc.mode) {
 	case NAND_ECC_HW:
 		if (!nfc->bch) {
-			dev_err(dev, "HW BCH selected, but BCH controller not found\n");
+			dev_err(nfc->dev,
+				"HW BCH selected, but BCH controller not found\n");
 			return -ENODEV;
 		}
 
@@ -179,15 +180,16 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 		chip->ecc.correct = jz4780_nand_ecc_correct;
 		/* fall through */
 	case NAND_ECC_SOFT:
-		dev_info(dev, "using %s (strength %d, size %d, bytes %d)\n",
-			(nfc->bch) ? "hardware BCH" : "software ECC",
-			chip->ecc.strength, chip->ecc.size, chip->ecc.bytes);
+		dev_info(nfc->dev, "using %s (strength %d, size %d, bytes %d)\n",
+			 (nfc->bch) ? "hardware BCH" : "software ECC",
+			 chip->ecc.strength, chip->ecc.size, chip->ecc.bytes);
 		break;
 	case NAND_ECC_NONE:
-		dev_info(dev, "not using ECC\n");
+		dev_info(nfc->dev, "not using ECC\n");
 		break;
 	default:
-		dev_err(dev, "ECC mode %d not supported\n", chip->ecc.mode);
+		dev_err(nfc->dev, "ECC mode %d not supported\n",
+			chip->ecc.mode);
 		return -EINVAL;
 	}
 
@@ -199,7 +201,7 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 	eccbytes = mtd->writesize / chip->ecc.size * chip->ecc.bytes;
 
 	if (eccbytes > mtd->oobsize - 2) {
-		dev_err(dev,
+		dev_err(nfc->dev,
 			"invalid ECC config: required %d ECC bytes, but only %d are available",
 			eccbytes, mtd->oobsize - 2);
 		return -EINVAL;
@@ -209,6 +211,10 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 
 	return 0;
 }
+
+static const struct nand_controller_ops jz4780_nand_controller_ops = {
+	.attach_chip = jz4780_nand_attach_chip,
+};
 
 static int jz4780_nand_init_chip(struct platform_device *pdev,
 				struct jz4780_nand_controller *nfc,
@@ -250,7 +256,7 @@ static int jz4780_nand_init_chip(struct platform_device *pdev,
 		dev_err(dev, "failed to request busy GPIO: %d\n", ret);
 		return ret;
 	} else if (nand->busy_gpio) {
-		nand->chip.dev_ready = jz4780_nand_dev_ready;
+		nand->chip.legacy.dev_ready = jz4780_nand_dev_ready;
 	}
 
 	nand->wp_gpio = devm_gpiod_get_optional(dev, "wp", GPIOD_OUT_LOW);
@@ -269,31 +275,24 @@ static int jz4780_nand_init_chip(struct platform_device *pdev,
 		return -ENOMEM;
 	mtd->dev.parent = dev;
 
-	chip->IO_ADDR_R = cs->base + OFFSET_DATA;
-	chip->IO_ADDR_W = cs->base + OFFSET_DATA;
-	chip->chip_delay = RB_DELAY_US;
+	chip->legacy.IO_ADDR_R = cs->base + OFFSET_DATA;
+	chip->legacy.IO_ADDR_W = cs->base + OFFSET_DATA;
+	chip->legacy.chip_delay = RB_DELAY_US;
 	chip->options = NAND_NO_SUBPAGE_WRITE;
 	chip->select_chip = jz4780_nand_select_chip;
-	chip->cmd_ctrl = jz4780_nand_cmd_ctrl;
+	chip->legacy.cmd_ctrl = jz4780_nand_cmd_ctrl;
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->controller = &nfc->controller;
 	nand_set_flash_node(chip, np);
 
-	ret = nand_scan_ident(mtd, 1, NULL);
-	if (ret)
-		return ret;
-
-	ret = jz4780_nand_init_ecc(nand, dev);
-	if (ret)
-		return ret;
-
-	ret = nand_scan_tail(mtd);
+	chip->controller->ops = &jz4780_nand_controller_ops;
+	ret = nand_scan(chip, 1);
 	if (ret)
 		return ret;
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
-		nand_release(mtd);
+		nand_release(chip);
 		return ret;
 	}
 
@@ -308,7 +307,7 @@ static void jz4780_nand_cleanup_chips(struct jz4780_nand_controller *nfc)
 
 	while (!list_empty(&nfc->chips)) {
 		chip = list_first_entry(&nfc->chips, struct jz4780_nand_chip, chip_list);
-		nand_release(nand_to_mtd(&chip->chip));
+		nand_release(&chip->chip);
 		list_del(&chip->chip_list);
 	}
 }
@@ -353,7 +352,7 @@ static int jz4780_nand_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	nfc = devm_kzalloc(dev, sizeof(*nfc) + (sizeof(nfc->cs[0]) * num_banks), GFP_KERNEL);
+	nfc = devm_kzalloc(dev, struct_size(nfc, cs, num_banks), GFP_KERNEL);
 	if (!nfc)
 		return -ENOMEM;
 
@@ -368,7 +367,7 @@ static int jz4780_nand_probe(struct platform_device *pdev)
 	nfc->dev = dev;
 	nfc->num_banks = num_banks;
 
-	nand_hw_control_init(&nfc->controller);
+	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
 
 	ret = jz4780_nand_init_chips(nfc, pdev);

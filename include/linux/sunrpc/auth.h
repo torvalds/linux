@@ -67,7 +67,7 @@ struct rpc_cred {
 	const struct rpc_credops *cr_ops;
 	unsigned long		cr_expire;	/* when to gc */
 	unsigned long		cr_flags;	/* various flags */
-	atomic_t		cr_count;	/* ref count */
+	refcount_t		cr_count;	/* ref count */
 
 	kuid_t			cr_uid;
 
@@ -100,7 +100,7 @@ struct rpc_auth {
 						 * differ from the flavor in
 						 * au_ops->au_flavor in gss
 						 * case) */
-	atomic_t		au_count;	/* Reference counter */
+	refcount_t		au_count;	/* Reference counter */
 
 	struct rpc_cred_cache *	au_credcache;
 	/* per-flavor data */
@@ -125,7 +125,8 @@ struct rpc_authops {
 	struct module		*owner;
 	rpc_authflavor_t	au_flavor;	/* flavor (RPC_AUTH_*) */
 	char *			au_name;
-	struct rpc_auth *	(*create)(struct rpc_auth_create_args *, struct rpc_clnt *);
+	struct rpc_auth *	(*create)(const struct rpc_auth_create_args *,
+					  struct rpc_clnt *);
 	void			(*destroy)(struct rpc_auth *);
 
 	int			(*hash_cred)(struct auth_cred *, unsigned int);
@@ -156,6 +157,7 @@ struct rpc_credops {
 	int			(*crkey_timeout)(struct rpc_cred *);
 	bool			(*crkey_to_expire)(struct rpc_cred *);
 	char *			(*crstringify_acceptor)(struct rpc_cred *);
+	bool			(*crneed_reencode)(struct rpc_task *);
 };
 
 extern const struct rpc_authops	authunix_ops;
@@ -174,7 +176,7 @@ struct rpc_cred *	rpc_lookup_generic_cred(struct auth_cred *, int, gfp_t);
 struct rpc_cred *	rpc_lookup_machine_cred(const char *service_name);
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
-struct rpc_auth *	rpcauth_create(struct rpc_auth_create_args *,
+struct rpc_auth *	rpcauth_create(const struct rpc_auth_create_args *,
 				struct rpc_clnt *);
 void			rpcauth_release(struct rpc_auth *);
 rpc_authflavor_t	rpcauth_get_pseudoflavor(rpc_authflavor_t,
@@ -191,6 +193,7 @@ __be32 *		rpcauth_marshcred(struct rpc_task *, __be32 *);
 __be32 *		rpcauth_checkverf(struct rpc_task *, __be32 *);
 int			rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp, __be32 *data, void *obj);
 int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp, __be32 *data, void *obj);
+bool			rpcauth_xmit_need_reencode(struct rpc_task *task);
 int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
 int			rpcauth_uptodatecred(struct rpc_task *);
@@ -203,11 +206,11 @@ bool			rpcauth_cred_key_to_expire(struct rpc_auth *, struct rpc_cred *);
 char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 
 static inline
-struct rpc_cred *	get_rpccred(struct rpc_cred *cred)
+struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 {
-	if (cred != NULL)
-		atomic_inc(&cred->cr_count);
-	return cred;
+	if (cred != NULL && refcount_inc_not_zero(&cred->cr_count))
+		return cred;
+	return NULL;
 }
 
 /**
@@ -223,9 +226,7 @@ struct rpc_cred *	get_rpccred(struct rpc_cred *cred)
 static inline struct rpc_cred *
 get_rpccred_rcu(struct rpc_cred *cred)
 {
-	if (atomic_inc_not_zero(&cred->cr_count))
-		return cred;
-	return NULL;
+	return get_rpccred(cred);
 }
 
 #endif /* __KERNEL__ */

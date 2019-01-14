@@ -240,10 +240,8 @@ struct ci_hdrc {
 
 	struct ci_hdrc_platform_data	*platdata;
 	int				vbus_active;
-#ifdef CONFIG_USB_CHIPIDEA_ULPI
 	struct ulpi			*ulpi;
 	struct ulpi_ops 		ulpi_ops;
-#endif
 	struct phy			*phy;
 	/* old usb_phy interface */
 	struct usb_phy			*usb_phy;
@@ -426,15 +424,9 @@ static inline bool ci_otg_is_fsm_mode(struct ci_hdrc *ci)
 #endif
 }
 
-#if IS_ENABLED(CONFIG_USB_CHIPIDEA_ULPI)
 int ci_ulpi_init(struct ci_hdrc *ci);
 void ci_ulpi_exit(struct ci_hdrc *ci);
 int ci_ulpi_resume(struct ci_hdrc *ci);
-#else
-static inline int ci_ulpi_init(struct ci_hdrc *ci) { return 0; }
-static inline void ci_ulpi_exit(struct ci_hdrc *ci) { }
-static inline int ci_ulpi_resume(struct ci_hdrc *ci) { return 0; }
-#endif
 
 u32 hw_read_intr_enable(struct ci_hdrc *ci);
 
@@ -450,7 +442,7 @@ void hw_phymode_configure(struct ci_hdrc *ci);
 
 void ci_platform_configure(struct ci_hdrc *ci);
 
-int dbg_create_files(struct ci_hdrc *ci);
+void dbg_create_files(struct ci_hdrc *ci);
 
 void dbg_remove_files(struct ci_hdrc *ci);
 #endif	/* __DRIVERS_USB_CHIPIDEA_CI_H */

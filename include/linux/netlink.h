@@ -170,15 +170,17 @@ netlink_skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 struct netlink_callback {
 	struct sk_buff		*skb;
 	const struct nlmsghdr	*nlh;
-	int			(*start)(struct netlink_callback *);
 	int			(*dump)(struct sk_buff * skb,
 					struct netlink_callback *cb);
 	int			(*done)(struct netlink_callback *cb);
 	void			*data;
 	/* the module that dump function belong to */
 	struct module		*module;
+	struct netlink_ext_ack	*extack;
 	u16			family;
 	u16			min_dump_alloc;
+	bool			strict_check;
+	u16			answer_flags;
 	unsigned int		prev_seq, seq;
 	long			args[6];
 };

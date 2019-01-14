@@ -440,8 +440,10 @@ static int dvb_register_media_device(struct dvb_device *dvbdev,
 	if (!dvbdev->entity)
 		return 0;
 
-	link = media_create_intf_link(dvbdev->entity, &dvbdev->intf_devnode->intf,
-				      MEDIA_LNK_FL_ENABLED);
+	link = media_create_intf_link(dvbdev->entity,
+				      &dvbdev->intf_devnode->intf,
+				      MEDIA_LNK_FL_ENABLED |
+				      MEDIA_LNK_FL_IMMUTABLE);
 	if (!link)
 		return -ENOMEM;
 #endif
@@ -599,7 +601,8 @@ static int dvb_create_io_intf_links(struct dvb_adapter *adap,
 			if (strncmp(entity->name, name, strlen(name)))
 				continue;
 			link = media_create_intf_link(entity, intf,
-						      MEDIA_LNK_FL_ENABLED);
+						      MEDIA_LNK_FL_ENABLED |
+						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
 				return -ENOMEM;
 		}
@@ -618,7 +621,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	unsigned demux_pad = 0;
 	unsigned dvr_pad = 0;
 	unsigned ntuner = 0, ndemod = 0;
-	int ret;
+	int ret, pad_source, pad_sink;
 	static const char *connector_name = "Television";
 
 	if (!mdev)
@@ -678,7 +681,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 		if (ret)
 			return ret;
 
-		if (!ntuner)
+		if (!ntuner) {
 			ret = media_create_pad_links(mdev,
 						     MEDIA_ENT_F_CONN_RF,
 						     conn, 0,
@@ -686,22 +689,31 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 						     demod, 0,
 						     MEDIA_LNK_FL_ENABLED,
 						     false);
-		else
+		} else {
+			pad_sink = media_get_pad_index(tuner, true,
+						       PAD_SIGNAL_ANALOG);
+			if (pad_sink < 0)
+				return -EINVAL;
 			ret = media_create_pad_links(mdev,
 						     MEDIA_ENT_F_CONN_RF,
 						     conn, 0,
 						     MEDIA_ENT_F_TUNER,
-						     tuner, TUNER_PAD_RF_INPUT,
+						     tuner, pad_sink,
 						     MEDIA_LNK_FL_ENABLED,
 						     false);
+		}
 		if (ret)
 			return ret;
 	}
 
 	if (ntuner && ndemod) {
+		pad_source = media_get_pad_index(tuner, true,
+						 PAD_SIGNAL_ANALOG);
+		if (pad_source)
+			return -EINVAL;
 		ret = media_create_pad_links(mdev,
 					     MEDIA_ENT_F_TUNER,
-					     tuner, TUNER_PAD_OUTPUT,
+					     tuner, pad_source,
 					     MEDIA_ENT_F_DTV_DEMOD,
 					     demod, 0, MEDIA_LNK_FL_ENABLED,
 					     false);
@@ -754,14 +766,16 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	media_device_for_each_intf(intf, mdev) {
 		if (intf->type == MEDIA_INTF_T_DVB_CA && ca) {
 			link = media_create_intf_link(ca, intf,
-						      MEDIA_LNK_FL_ENABLED);
+						      MEDIA_LNK_FL_ENABLED |
+						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
 				return -ENOMEM;
 		}
 
 		if (intf->type == MEDIA_INTF_T_DVB_FE && tuner) {
 			link = media_create_intf_link(tuner, intf,
-						      MEDIA_LNK_FL_ENABLED);
+						      MEDIA_LNK_FL_ENABLED |
+						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
 				return -ENOMEM;
 		}
@@ -773,7 +787,8 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 		 */
 		if (intf->type == MEDIA_INTF_T_DVB_DVR && demux) {
 			link = media_create_intf_link(demux, intf,
-						      MEDIA_LNK_FL_ENABLED);
+						      MEDIA_LNK_FL_ENABLED |
+						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
 				return -ENOMEM;
 		}
@@ -858,6 +873,10 @@ int dvb_register_adapter(struct dvb_adapter *adap, const char *name,
 	adap->mfe_shared = 0;
 	adap->mfe_dvbdev = NULL;
 	mutex_init (&adap->mfe_lock);
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	mutex_init(&adap->mdev_lock);
+#endif
 
 	list_add_tail (&adap->list_head, &dvb_adapter_list);
 
@@ -957,9 +976,9 @@ struct i2c_client *dvb_module_probe(const char *module_name,
 		return NULL;
 
 	if (name)
-		strlcpy(board_info->type, name, I2C_NAME_SIZE);
+		strscpy(board_info->type, name, I2C_NAME_SIZE);
 	else
-		strlcpy(board_info->type, module_name, I2C_NAME_SIZE);
+		strscpy(board_info->type, module_name, I2C_NAME_SIZE);
 
 	board_info->addr = addr;
 	board_info->platform_data = platform_data;

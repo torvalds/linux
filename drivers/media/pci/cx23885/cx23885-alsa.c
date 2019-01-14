@@ -95,7 +95,7 @@ static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
 	buf->nr_pages = nr_pages;
 
-	buf->sglist = vzalloc(buf->nr_pages * sizeof(*buf->sglist));
+	buf->sglist = vzalloc(array_size(sizeof(*buf->sglist), buf->nr_pages));
 	if (NULL == buf->sglist)
 		goto vzalloc_err;
 
@@ -526,7 +526,7 @@ static int snd_cx23885_pcm(struct cx23885_audio_dev *chip, int device,
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cx23885_pcm_ops);
 
 	return 0;
@@ -571,7 +571,7 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 	if (err < 0)
 		goto error;
 
-	strcpy(card->driver, "CX23885");
+	strscpy(card->driver, "CX23885", sizeof(card->driver));
 	sprintf(card->shortname, "Conexant CX23885");
 	sprintf(card->longname, "%s at %s", card->shortname, dev->name);
 

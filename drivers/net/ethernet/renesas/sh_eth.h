@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*  SuperH Ethernet device driver
  *
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2012 Renesas Solutions Corp.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  */
 
 #ifndef __SH_ETH_H__
@@ -184,6 +173,7 @@ enum GECMR_BIT {
 
 /* EDMR */
 enum DMAC_M_BIT {
+	EDMR_NBST = 0x80,
 	EDMR_EL = 0x40, /* Litte endian */
 	EDMR_DL1 = 0x20, EDMR_DL0 = 0x10,
 	EDMR_SRST_GETHER = 0x03,
@@ -242,7 +232,7 @@ enum EESR_BIT {
 	EESR_CND	= 0x00000800,
 	EESR_DLC	= 0x00000400,
 	EESR_CD		= 0x00000200,
-	EESR_RTO	= 0x00000100,
+	EESR_TRO	= 0x00000100,
 	EESR_RMAF	= 0x00000080,
 	EESR_CEEF	= 0x00000040,
 	EESR_CELF	= 0x00000020,
@@ -262,7 +252,7 @@ enum EESR_BIT {
 				 EESR_CERF)  /* Recv frame CRC error */
 
 #define DEFAULT_TX_CHECK	(EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | \
-				 EESR_RTO)
+				 EESR_TRO)
 #define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE | \
 				 EESR_RDE | EESR_RFRMER | EESR_ADE | \
 				 EESR_TFE | EESR_TDE)
@@ -382,12 +372,12 @@ enum ECSIPR_STATUS_MASK_BIT {
 
 /* APR */
 enum APR_BIT {
-	APR_AP = 0x00000001,
+	APR_AP = 0x0000ffff,
 };
 
 /* MPR */
 enum MPR_BIT {
-	MPR_MP = 0x00000001,
+	MPR_MP = 0x0000ffff,
 };
 
 /* TRSCER */
@@ -402,8 +392,7 @@ enum DESC_I_BIT {
 
 /* RPADIR */
 enum RPADIR_BIT {
-	RPADIR_PADS1 = 0x20000, RPADIR_PADS0 = 0x10000,
-	RPADIR_PADR = 0x0003f,
+	RPADIR_PADS = 0x1f0000, RPADIR_PADR = 0xffff,
 };
 
 /* FDR */
@@ -487,7 +476,6 @@ struct sh_eth_cpu_data {
 	u32 ecsipr_value;
 	u32 fdr_value;
 	u32 fcftr_value;
-	u32 rpadir_value;
 
 	/* interrupt checking mask */
 	u32 tx_check;
@@ -498,20 +486,21 @@ struct sh_eth_cpu_data {
 
 	/* hardware features */
 	unsigned long irq_flags; /* IRQ configuration flags */
-	unsigned no_psr:1;	/* EtherC DO NOT have PSR */
-	unsigned apr:1;		/* EtherC have APR */
-	unsigned mpr:1;		/* EtherC have MPR */
-	unsigned tpauser:1;	/* EtherC have TPAUSER */
-	unsigned bculr:1;	/* EtherC have BCULR */
-	unsigned tsu:1;		/* EtherC have TSU */
-	unsigned hw_swap:1;	/* E-DMAC have DE bit in EDMR */
-	unsigned rpadir:1;	/* E-DMAC have RPADIR */
-	unsigned no_trimd:1;	/* E-DMAC DO NOT have TRIMD */
-	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
+	unsigned no_psr:1;	/* EtherC DOES NOT have PSR */
+	unsigned apr:1;		/* EtherC has APR */
+	unsigned mpr:1;		/* EtherC has MPR */
+	unsigned tpauser:1;	/* EtherC has TPAUSER */
+	unsigned bculr:1;	/* EtherC has BCULR */
+	unsigned tsu:1;		/* EtherC has TSU */
+	unsigned hw_swap:1;	/* E-DMAC has DE bit in EDMR */
+	unsigned nbst:1;	/* E-DMAC has NBST bit in EDMR */
+	unsigned rpadir:1;	/* E-DMAC has RPADIR */
+	unsigned no_trimd:1;	/* E-DMAC DOES NOT have TRIMD */
+	unsigned no_ade:1;	/* E-DMAC DOES NOT have ADE bit in EESR */
 	unsigned no_xdfar:1;	/* E-DMAC DOES NOT have RDFAR/TDFAR */
 	unsigned xdfar_rw:1;	/* E-DMAC has writeable RDFAR/TDFAR */
 	unsigned hw_checksum:1;	/* E-DMAC has CSMR */
-	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
+	unsigned select_mii:1;	/* EtherC has RMII_MII (MII select register) */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
 	unsigned magic:1;	/* EtherC has ECMR.MPDE and ECSR.MPD */
@@ -557,23 +546,5 @@ struct sh_eth_private {
 	unsigned is_opened:1;
 	unsigned wol_enabled:1;
 };
-
-static inline void sh_eth_soft_swap(char *src, int len)
-{
-#ifdef __LITTLE_ENDIAN__
-	u32 *p = (u32 *)src;
-	u32 *maxp;
-	maxp = p + ((len + sizeof(u32) - 1) / sizeof(u32));
-
-	for (; p < maxp; p++)
-		*p = swab32(*p);
-#endif
-}
-
-static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
-					  int enum_index)
-{
-	return mdp->tsu_addr + mdp->reg_offset[enum_index];
-}
 
 #endif	/* #ifndef __SH_ETH_H__ */

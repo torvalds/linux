@@ -170,7 +170,7 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		goto entryfail;
 	}
 
-	pr_debug("%pOF: using %s as default timing\n", np, entry->name);
+	pr_debug("%pOF: using %pOFn as default timing\n", np, entry);
 
 	native_mode = entry;
 
@@ -181,8 +181,9 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		goto entryfail;
 	}
 
-	disp->timings = kzalloc(sizeof(struct display_timing *) *
-				disp->num_timings, GFP_KERNEL);
+	disp->timings = kcalloc(disp->num_timings,
+				sizeof(struct display_timing *),
+				GFP_KERNEL);
 	if (!disp->timings) {
 		pr_err("%pOF: could not allocate timings array\n", np);
 		goto entryfail;

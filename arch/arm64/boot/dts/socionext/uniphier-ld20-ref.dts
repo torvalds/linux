@@ -75,3 +75,7 @@
 		drive-strength = <9>;
 	};
 };
+
+&usb {
+	status = "okay";
+};

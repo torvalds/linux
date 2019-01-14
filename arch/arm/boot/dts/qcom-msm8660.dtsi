@@ -452,7 +452,7 @@
 			clock-names = "ram";
 
 			rpmcc: clock-controller {
-				compatible	= "qcom,rpmcc-apq8660", "qcom,rpmcc";
+				compatible	= "qcom,rpmcc-msm8660", "qcom,rpmcc";
 				#clock-cells = <1>;
 			};
 

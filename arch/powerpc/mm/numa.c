@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) "numa: " fmt
 
 #include <linux/threads.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
@@ -19,7 +19,6 @@
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
-#include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/pfn.h>
 #include <linux/cpuset.h>
@@ -788,7 +787,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	void *nd;
 	int tnid;
 
-	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	nd = __va(nd_pa);
 
 	/* report and initialize */
@@ -1078,7 +1077,6 @@ static int prrn_enabled;
 static void reset_topology_timer(void);
 static int topology_timer_secs = 1;
 static int topology_inited;
-static int topology_update_needed;
 
 /*
  * Change polling interval for associativity changes.
@@ -1180,7 +1178,7 @@ static long vphn_get_associativity(unsigned long cpu,
 
 	switch (rc) {
 	case H_FUNCTION:
-		printk(KERN_INFO
+		printk_once(KERN_INFO
 			"VPHN is not supported. Disabling polling...\n");
 		stop_topology_update();
 		break;
@@ -1205,7 +1203,9 @@ int find_and_online_cpu_nid(int cpu)
 	int new_nid;
 
 	/* Use associativity from first thread for all siblings */
-	vphn_get_associativity(cpu, associativity);
+	if (vphn_get_associativity(cpu, associativity))
+		return cpu_to_node(cpu);
+
 	new_nid = associativity_to_nid(associativity);
 	if (new_nid < 0 || !node_possible(new_nid))
 		new_nid = first_online_node;
@@ -1216,9 +1216,10 @@ int find_and_online_cpu_nid(int cpu)
 		 * Need to ensure that NODE_DATA is initialized for a node from
 		 * available memory (see memblock_alloc_try_nid). If unable to
 		 * init the node, then default to nearest node that has memory
-		 * installed.
+		 * installed. Skip onlining a node if the subsystems are not
+		 * yet initialized.
 		 */
-		if (try_online_node(new_nid))
+		if (!topology_inited || try_online_node(new_nid))
 			new_nid = first_online_node;
 #else
 		/*
@@ -1306,17 +1307,14 @@ int numa_update_cpu_topology(bool cpus_locked)
 	struct device *dev;
 	int weight, new_nid, i = 0;
 
-	if (!prrn_enabled && !vphn_enabled) {
-		if (!topology_inited)
-			topology_update_needed = 1;
+	if (!prrn_enabled && !vphn_enabled && topology_inited)
 		return 0;
-	}
 
 	weight = cpumask_weight(&cpu_associativity_changes_mask);
 	if (!weight)
 		return 0;
 
-	updates = kzalloc(weight * (sizeof(*updates)), GFP_KERNEL);
+	updates = kcalloc(weight, sizeof(*updates), GFP_KERNEL);
 	if (!updates)
 		return 0;
 
@@ -1423,7 +1421,6 @@ int numa_update_cpu_topology(bool cpus_locked)
 
 out:
 	kfree(updates);
-	topology_update_needed = 0;
 	return changed;
 }
 
@@ -1457,7 +1454,8 @@ static struct timer_list topology_timer;
 
 static void reset_topology_timer(void)
 {
-	mod_timer(&topology_timer, jiffies + topology_timer_secs * HZ);
+	if (vphn_enabled)
+		mod_timer(&topology_timer, jiffies + topology_timer_secs * HZ);
 }
 
 #ifdef CONFIG_SMP
@@ -1522,6 +1520,10 @@ int start_topology_update(void)
 		}
 	}
 
+	pr_info("Starting topology update%s%s\n",
+		(prrn_enabled ? " prrn_enabled" : ""),
+		(vphn_enabled ? " vphn_enabled" : ""));
+
 	return rc;
 }
 
@@ -1543,12 +1545,23 @@ int stop_topology_update(void)
 		rc = del_timer_sync(&topology_timer);
 	}
 
+	pr_info("Stopping topology update\n");
+
 	return rc;
 }
 
 int prrn_is_enabled(void)
 {
 	return prrn_enabled;
+}
+
+void __init shared_proc_topology_init(void)
+{
+	if (lppaca_shared_proc(get_lppaca())) {
+		bitmap_fill(cpumask_bits(&cpu_associativity_changes_mask),
+			    nr_cpumask_bits);
+		numa_update_cpu_topology(false);
+	}
 }
 
 static int topology_read(struct seq_file *file, void *v)
@@ -1608,10 +1621,6 @@ static int topology_update_init(void)
 		return -ENOMEM;
 
 	topology_inited = 1;
-	if (topology_update_needed)
-		bitmap_fill(cpumask_bits(&cpu_associativity_changes_mask),
-					nr_cpumask_bits);
-
 	return 0;
 }
 device_initcall(topology_update_init);

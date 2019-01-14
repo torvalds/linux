@@ -82,7 +82,7 @@ struct ib_srq *rvt_create_srq(struct ib_pd *ibpd,
 	struct ib_srq *ret;
 
 	if (srq_init_attr->srq_type != IB_SRQT_BASIC)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (srq_init_attr->attr.max_sge == 0 ||
 	    srq_init_attr->attr.max_sge > dev->dparms.props.max_srq_sge ||

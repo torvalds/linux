@@ -1,3 +1,7 @@
+config KRAIT_CLOCKS
+       bool
+       select KRAIT_L2_ACCESSORS
+
 config QCOM_GDSC
 	bool
 	select PM_GENERIC_DOMAINS if PM
@@ -58,6 +62,15 @@ config QCOM_CLK_SMD_RPM
 	  the clocks on/off or scales them on demand.
 	  Say Y if you want to support the clocks exposed by the RPM on
 	  platforms such as apq8016, apq8084, msm8974 etc.
+
+config QCOM_CLK_RPMH
+	tristate "RPMh Clock Driver"
+	depends on COMMON_CLK_QCOM && QCOM_RPMH
+	help
+	 RPMh manages shared resources on some Qualcomm Technologies, Inc.
+	 SoCs. It accepts requests from other hardware subsystems via RSC.
+	 Say Y if you want to support the clocks exposed by RPMh on
+	 platforms such as SDM845.
 
 config APQ_GCC_8084
 	tristate "APQ8084 Global Clock Controller"
@@ -218,6 +231,68 @@ config MSM_MMCC_8996
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config MSM_GCC_8998
+	tristate "MSM8998 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8998 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
+
+config QCS_GCC_404
+	tristate "QCS404 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on QCS404 devices.
+	  Say Y if you want to use multimedia devices or peripheral
+	  devices such as UART, SPI, I2C, USB, SD/eMMC, PCIe etc.
+
+config SDM_CAMCC_845
+	tristate "SDM845 Camera Clock Controller"
+	depends on COMMON_CLK_QCOM
+	select SDM_GCC_845
+	help
+	  Support for the camera clock controller on SDM845 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
+config SDM_GCC_660
+	tristate "SDM660 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SDM660 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2C, USB, UFS, SDDC, PCIe, etc.
+
+config SDM_GCC_845
+	tristate "SDM845 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SDM845 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2C, USB, UFS, SDDC, PCIe, etc.
+
+config SDM_VIDEOCC_845
+	tristate "SDM845 Video Clock Controller"
+	depends on COMMON_CLK_QCOM
+	select SDM_GCC_845
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SDM845 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
+config SDM_DISPCC_845
+	tristate "SDM845 Display Clock Controller"
+	select SDM_GCC_845
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SDM845 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"
 	depends on (COMMON_CLK_QCOM && SPMI) || COMPILE_TEST
@@ -226,3 +301,27 @@ config SPMI_PMIC_CLKDIV
 	  Technologies, Inc. SPMI PMIC. It configures the frequency of
 	  clkdiv outputs of the PMIC. These clocks are typically wired
 	  through alternate functions on GPIO pins.
+
+config QCOM_HFPLL
+	tristate "High-Frequency PLL (HFPLL) Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the high-frequency PLLs present on Qualcomm devices.
+	  Say Y if you want to support CPU frequency scaling on devices
+	  such as MSM8974, APQ8084, etc.
+
+config KPSS_XCC
+	tristate "KPSS Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the Krait ACC and GCC clock controllers. Say Y
+	  if you want to support CPU frequency scaling on devices such
+	  as MSM8960, APQ8064, etc.
+
+config KRAITCC
+	tristate "Krait Clock Controller"
+	depends on COMMON_CLK_QCOM && ARM
+	select KRAIT_CLOCKS
+	help
+	  Support for the Krait CPU clocks on Qualcomm devices.
+	  Say Y if you want to support CPU frequency scaling.

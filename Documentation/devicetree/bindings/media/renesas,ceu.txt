@@ -2,29 +2,34 @@ Renesas Capture Engine Unit (CEU)
 ----------------------------------------------
 
 The Capture Engine Unit is the image capture interface found in the Renesas
-SH Mobile and RZ SoCs.
+SH Mobile, R-Mobile and RZ SoCs.
 
 The interface supports a single parallel input with data bus width of 8 or 16
 bits.
 
 Required properties:
-- compatible: Shall be "renesas,r7s72100-ceu" for CEU units found in RZ/A1H
-  and RZ/A1M SoCs.
+- compatible: Shall be one of the following values:
+	"renesas,r7s72100-ceu" for CEU units found in RZ/A1H and RZ/A1M SoCs
+	"renesas,r8a7740-ceu" for CEU units found in R-Mobile A1 R8A7740 SoCs
 - reg: Registers address base and size.
 - interrupts: The interrupt specifier.
 
 The CEU supports a single parallel input and should contain a single 'port'
 subnode with a single 'endpoint'. Connection to input devices are modeled
 according to the video interfaces OF bindings specified in:
-Documentation/devicetree/bindings/media/video-interfaces.txt
+[1] Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Optional endpoint properties applicable to parallel input bus described in
 the above mentioned "video-interfaces.txt" file are supported.
 
-- hsync-active: Active state of the HSYNC signal, 0/1 for LOW/HIGH respectively.
-  If property is not present, default is active high.
-- vsync-active: Active state of the VSYNC signal, 0/1 for LOW/HIGH respectively.
-  If property is not present, default is active high.
+- hsync-active: See [1] for description. If property is not present,
+  default is active high.
+- vsync-active: See [1] for description. If property is not present,
+  default is active high.
+- bus-width: See [1] for description. Accepted values are '8' and '16'.
+  If property is not present, default is '8'.
+- field-even-active: See [1] for description. If property is not present,
+  an even field is identified by a logic 0 (active-low signal).
 
 Example:
 

@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #ifndef NFP_FLOWER_CMSG_H
 #define NFP_FLOWER_CMSG_H
@@ -37,6 +7,7 @@
 #include <linux/bitfield.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
+#include <net/geneve.h>
 
 #include "../nfp_app.h"
 #include "../nfpcore/nfp_cpp.h"
@@ -51,6 +22,7 @@
 #define NFP_FLOWER_LAYER_VXLAN		BIT(7)
 
 #define NFP_FLOWER_LAYER2_GENEVE	BIT(5)
+#define NFP_FLOWER_LAYER2_GENEVE_OP	BIT(6)
 
 #define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
@@ -81,6 +53,11 @@
 #define NFP_FL_MAX_A_SIZ		1216
 #define NFP_FL_LW_SIZ			2
 
+/* Maximum allowed geneve options */
+#define NFP_FL_MAX_GENEVE_OPT_ACT	32
+#define NFP_FL_MAX_GENEVE_OPT_CNT	64
+#define NFP_FL_MAX_GENEVE_OPT_KEY	32
+
 /* Action opcodes */
 #define NFP_FL_ACTION_OPCODE_OUTPUT		0
 #define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
@@ -92,7 +69,9 @@
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
 #define NFP_FL_ACTION_OPCODE_SET_UDP		14
 #define NFP_FL_ACTION_OPCODE_SET_TCP		15
+#define NFP_FL_ACTION_OPCODE_PRE_LAG		16
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
+#define NFP_FL_ACTION_OPCODE_PUSH_GENEVE	26
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
 #define NFP_FL_OUT_FLAGS_LAST		BIT(15)
@@ -102,6 +81,9 @@
 #define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
 #define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
+
+/* LAG ports */
+#define NFP_FL_LAG_OUT			0xC0DE0000
 
 /* Tunnel ports */
 #define NFP_FL_PORT_TYPE_TUN		0x50000000
@@ -177,6 +159,15 @@ struct nfp_fl_pop_vlan {
 	__be16 reserved;
 };
 
+struct nfp_fl_pre_lag {
+	struct nfp_fl_act_head head;
+	__be16 group_id;
+	u8 lag_version[3];
+	u8 instance;
+};
+
+#define NFP_FL_PRE_LAG_VER_OFF	8
+
 struct nfp_fl_pre_tunnel {
 	struct nfp_fl_act_head head;
 	__be16 reserved;
@@ -190,10 +181,22 @@ struct nfp_fl_set_ipv4_udp_tun {
 	__be16 reserved;
 	__be64 tun_id __packed;
 	__be32 tun_type_index;
-	__be16 reserved2;
+	__be16 tun_flags;
 	u8 ttl;
-	u8 reserved3;
-	__be32 extra[2];
+	u8 tos;
+	__be32 extra;
+	u8 tun_len;
+	u8 res2;
+	__be16 tun_proto;
+};
+
+struct nfp_fl_push_geneve {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be16 class;
+	u8 type;
+	u8 length;
+	u8 opt_data[];
 };
 
 /* Metadata with L2 (1W/4B)
@@ -333,7 +336,7 @@ struct nfp_flower_ipv6 {
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                         ipv4_addr_dst                         |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |                            Reserved                           |
+ * |           Reserved            |      tos      |      ttl      |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                            Reserved                           |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -343,8 +346,15 @@ struct nfp_flower_ipv6 {
 struct nfp_flower_ipv4_udp_tun {
 	__be32 ip_src;
 	__be32 ip_dst;
-	__be32 reserved[2];
+	__be16 reserved1;
+	u8 tos;
+	u8 ttl;
+	__be32 reserved2;
 	__be32 tun_id;
+};
+
+struct nfp_flower_geneve_options {
+	u8 data[NFP_FL_MAX_GENEVE_OPT_KEY];
 };
 
 #define NFP_FL_TUN_VNI_OFFSET 8
@@ -366,6 +376,7 @@ struct nfp_flower_cmsg_hdr {
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
+	NFP_FLOWER_CMSG_TYPE_LAG_CONFIG =	4,
 	NFP_FLOWER_CMSG_TYPE_PORT_REIFY =	6,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,

@@ -27,6 +27,7 @@
 
 struct msm_gem_submit;
 struct msm_gpu_perfcntr;
+struct msm_gpu_state;
 
 struct msm_gpu_config {
 	const char *ioname;
@@ -64,11 +65,16 @@ struct msm_gpu_funcs {
 	void (*destroy)(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 	/* show GPU status in debugfs: */
-	void (*show)(struct msm_gpu *gpu, struct seq_file *m);
+	void (*show)(struct msm_gpu *gpu, struct msm_gpu_state *state,
+			struct drm_printer *p);
 	/* for generation specific debugfs: */
 	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
-	int (*gpu_busy)(struct msm_gpu *gpu, uint64_t *value);
+	unsigned long (*gpu_busy)(struct msm_gpu *gpu);
+	struct msm_gpu_state *(*gpu_state_get)(struct msm_gpu *gpu);
+	int (*gpu_state_put)(struct msm_gpu_state *state);
+	unsigned long (*gpu_get_freq)(struct msm_gpu *gpu);
+	void (*gpu_set_freq)(struct msm_gpu *gpu, unsigned long freq);
 };
 
 struct msm_gpu {
@@ -108,7 +114,7 @@ struct msm_gpu {
 
 	/* Power Control: */
 	struct regulator *gpu_reg, *gpu_cx;
-	struct clk **grp_clks;
+	struct clk_bulk_data *grp_clks;
 	int nr_clocks;
 	struct clk *ebi1_clk, *core_clk, *rbbmtimer_clk;
 	uint32_t fast_rate;
@@ -129,6 +135,8 @@ struct msm_gpu {
 		u64 busy_cycles;
 		ktime_t time;
 	} devfreq;
+
+	struct msm_gpu_state *crashstate;
 };
 
 /* It turns out that all targets use the same ringbuffer size */
@@ -173,6 +181,38 @@ struct msm_gpu_submitqueue {
 	int faults;
 	struct list_head node;
 	struct kref ref;
+};
+
+struct msm_gpu_state_bo {
+	u64 iova;
+	size_t size;
+	void *data;
+};
+
+struct msm_gpu_state {
+	struct kref ref;
+	struct timespec64 time;
+
+	struct {
+		u64 iova;
+		u32 fence;
+		u32 seqno;
+		u32 rptr;
+		u32 wptr;
+		void *data;
+		int data_size;
+	} ring[MSM_GPU_MAX_RINGS];
+
+	int nr_registers;
+	u32 *registers;
+
+	u32 rbbm_status;
+
+	char *comm;
+	char *cmd;
+
+	int nr_bos;
+	struct msm_gpu_state_bo *bos;
 };
 
 static inline void gpu_write(struct msm_gpu *gpu, u32 reg, u32 data)
@@ -226,6 +266,7 @@ static inline void gpu_write64(struct msm_gpu *gpu, u32 lo, u32 hi, u64 val)
 
 int msm_gpu_pm_suspend(struct msm_gpu *gpu);
 int msm_gpu_pm_resume(struct msm_gpu *gpu);
+void msm_gpu_resume_devfreq(struct msm_gpu *gpu);
 
 int msm_gpu_hw_init(struct msm_gpu *gpu);
 
@@ -252,6 +293,34 @@ static inline void msm_submitqueue_put(struct msm_gpu_submitqueue *queue)
 {
 	if (queue)
 		kref_put(&queue->ref, msm_submitqueue_destroy);
+}
+
+static inline struct msm_gpu_state *msm_gpu_crashstate_get(struct msm_gpu *gpu)
+{
+	struct msm_gpu_state *state = NULL;
+
+	mutex_lock(&gpu->dev->struct_mutex);
+
+	if (gpu->crashstate) {
+		kref_get(&gpu->crashstate->ref);
+		state = gpu->crashstate;
+	}
+
+	mutex_unlock(&gpu->dev->struct_mutex);
+
+	return state;
+}
+
+static inline void msm_gpu_crashstate_put(struct msm_gpu *gpu)
+{
+	mutex_lock(&gpu->dev->struct_mutex);
+
+	if (gpu->crashstate) {
+		if (gpu->funcs->gpu_state_put(gpu->crashstate))
+			gpu->crashstate = NULL;
+	}
+
+	mutex_unlock(&gpu->dev->struct_mutex);
 }
 
 #endif /* __MSM_GPU_H__ */

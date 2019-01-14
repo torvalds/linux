@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas RIIC driver
  *
  * Copyright (C) 2013 Wolfram Sang <wsa@sang-engineering.com>
  * Copyright (C) 2013 Renesas Solutions Corp.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 /*
@@ -167,15 +164,14 @@ static irqreturn_t riic_tdre_isr(int irq, void *data)
 		return IRQ_NONE;
 
 	if (riic->bytes_left == RIIC_INIT_MSG) {
-		val = !!(riic->msg->flags & I2C_M_RD);
-		if (val)
+		if (riic->msg->flags & I2C_M_RD)
 			/* On read, switch over to receive interrupt */
 			riic_clear_set_bit(riic, ICIER_TIE, ICIER_RIE, RIIC_ICIER);
 		else
 			/* On write, initialize length */
 			riic->bytes_left = riic->msg->len;
 
-		val |= (riic->msg->addr << 1);
+		val = i2c_8bit_addr_from_msg(riic->msg);
 	} else {
 		val = *riic->buf;
 		riic->buf++;

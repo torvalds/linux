@@ -25,10 +25,12 @@ config DRM_I915_DEBUG
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
-	select DRM_DEBUG_MM_SELFTEST
+        select STACKDEPOT if DRM=y # for DRM_DEBUG_MM
+	select DRM_DEBUG_SELFTEST
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
+	select DRM_I915_DEBUG_RUNTIME_PM
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -49,6 +51,18 @@ config DRM_I915_DEBUG_GEM
           Recommended for driver developers only.
 
           If in doubt, say "N".
+
+config DRM_I915_ERRLOG_GEM
+	bool "Insert extra logging (very verbose) for common GEM errors"
+	default n
+	depends on DRM_I915_DEBUG_GEM
+	help
+	  Enable additional logging that may help track down the cause of
+	  principally userspace errors.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
 
 config DRM_I915_TRACE_GEM
 	bool "Insert extra ftrace output from the GEM internals"
@@ -84,6 +98,18 @@ config DRM_I915_SW_FENCE_CHECK_DAG
         help
           Choose this option to turn on extra driver debugging that may affect
           performance but will catch some internal issues.
+
+          Recommended for driver developers only.
+
+          If in doubt, say "N".
+
+config DRM_I915_DEBUG_GUC
+        bool "Enable additional driver debugging for GuC"
+        depends on DRM_I915
+        default n
+        help
+          Choose this option to turn on extra driver debugging that may affect
+          performance but will help resolve GuC related issues.
 
           Recommended for driver developers only.
 
@@ -142,3 +168,14 @@ config DRM_I915_DEBUG_VBLANK_EVADE
 	  the vblank.
 
 	  If in doubt, say "N".
+
+config DRM_I915_DEBUG_RUNTIME_PM
+	bool "Enable extra state checking for runtime PM"
+	depends on DRM_I915
+	default n
+	help
+	  Choose this option to turn on extra state checking for the
+	  runtime PM functionality. This may introduce overhead during
+	  driver loading, suspend and resume operations.
+
+	  If in doubt, say "N"

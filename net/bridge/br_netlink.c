@@ -139,6 +139,7 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(1)	/* IFLA_BRPORT_PROXYARP_WIFI */
 		+ nla_total_size(1)	/* IFLA_BRPORT_VLAN_TUNNEL */
 		+ nla_total_size(1)	/* IFLA_BRPORT_NEIGH_SUPPRESS */
+		+ nla_total_size(1)	/* IFLA_BRPORT_ISOLATED */
 		+ nla_total_size(sizeof(struct ifla_bridge_id))	/* IFLA_BRPORT_ROOT_ID */
 		+ nla_total_size(sizeof(struct ifla_bridge_id))	/* IFLA_BRPORT_BRIDGE_ID */
 		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_DESIGNATED_PORT */
@@ -168,13 +169,15 @@ static inline size_t br_nlmsg_size(struct net_device *dev, u32 filter_mask)
 		+ nla_total_size(1) /* IFLA_OPERSTATE */
 		+ nla_total_size(br_port_info_size()) /* IFLA_PROTINFO */
 		+ nla_total_size(br_get_link_af_size_filtered(dev,
-				 filter_mask)); /* IFLA_AF_SPEC */
+				 filter_mask)) /* IFLA_AF_SPEC */
+		+ nla_total_size(4); /* IFLA_BRPORT_BACKUP_PORT */
 }
 
 static int br_port_fill_attrs(struct sk_buff *skb,
 			      const struct net_bridge_port *p)
 {
 	u8 mode = !!(p->flags & BR_HAIRPIN_MODE);
+	struct net_bridge_port *backup_p;
 	u64 timerval;
 
 	if (nla_put_u8(skb, IFLA_BRPORT_STATE, p->state) ||
@@ -213,7 +216,8 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 							BR_VLAN_TUNNEL)) ||
 	    nla_put_u16(skb, IFLA_BRPORT_GROUP_FWD_MASK, p->group_fwd_mask) ||
 	    nla_put_u8(skb, IFLA_BRPORT_NEIGH_SUPPRESS,
-		       !!(p->flags & BR_NEIGH_SUPPRESS)))
+		       !!(p->flags & BR_NEIGH_SUPPRESS)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_ISOLATED, !!(p->flags & BR_ISOLATED)))
 		return -EMSGSIZE;
 
 	timerval = br_timer_value(&p->message_age_timer);
@@ -234,6 +238,14 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 		       p->multicast_router))
 		return -EMSGSIZE;
 #endif
+
+	/* we might be called only with br->lock */
+	rcu_read_lock();
+	backup_p = rcu_dereference(p->backup_port);
+	if (backup_p)
+		nla_put_u32(skb, IFLA_BRPORT_BACKUP_PORT,
+			    backup_p->dev->ifindex);
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -660,6 +672,8 @@ static const struct nla_policy br_port_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_VLAN_TUNNEL] = { .type = NLA_U8 },
 	[IFLA_BRPORT_GROUP_FWD_MASK] = { .type = NLA_U16 },
 	[IFLA_BRPORT_NEIGH_SUPPRESS] = { .type = NLA_U8 },
+	[IFLA_BRPORT_ISOLATED]	= { .type = NLA_U8 },
+	[IFLA_BRPORT_BACKUP_PORT] = { .type = NLA_U32 },
 };
 
 /* Change the state of the port and notify spanning tree */
@@ -809,6 +823,27 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 			       BR_NEIGH_SUPPRESS);
 	if (err)
 		return err;
+
+	err = br_set_port_flag(p, tb, IFLA_BRPORT_ISOLATED, BR_ISOLATED);
+	if (err)
+		return err;
+
+	if (tb[IFLA_BRPORT_BACKUP_PORT]) {
+		struct net_device *backup_dev = NULL;
+		u32 backup_ifindex;
+
+		backup_ifindex = nla_get_u32(tb[IFLA_BRPORT_BACKUP_PORT]);
+		if (backup_ifindex) {
+			backup_dev = __dev_get_by_index(dev_net(p->dev),
+							backup_ifindex);
+			if (!backup_dev)
+				return -ENOENT;
+		}
+
+		err = nbp_backup_change(p, backup_dev);
+		if (err)
+			return err;
+	}
 
 	br_port_flags_change(p, old_flags ^ p->flags);
 	return 0;
@@ -999,6 +1034,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_MCAST_STATS_ENABLED] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_IGMP_VERSION] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_MLD_VERSION] = { .type = NLA_U8 },
+	[IFLA_BR_VLAN_STATS_PER_PORT] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -1079,6 +1115,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		if (err)
 			return err;
 	}
+
+	if (data[IFLA_BR_VLAN_STATS_PER_PORT]) {
+		__u8 per_port = nla_get_u8(data[IFLA_BR_VLAN_STATS_PER_PORT]);
+
+		err = br_vlan_set_stats_per_port(br, per_port);
+		if (err)
+			return err;
+	}
 #endif
 
 	if (data[IFLA_BR_GROUP_FWD_MASK]) {
@@ -1104,7 +1148,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		spin_lock_bh(&br->lock);
 		memcpy(br->group_addr, new_addr, sizeof(br->group_addr));
 		spin_unlock_bh(&br->lock);
-		br->group_addr_set = true;
+		br_opt_toggle(br, BROPT_GROUP_ADDR_SET, true);
 		br_recalculate_fwd_mask(br);
 	}
 
@@ -1132,7 +1176,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		u8 val;
 
 		val = nla_get_u8(data[IFLA_BR_MCAST_QUERY_USE_IFADDR]);
-		br->multicast_query_use_ifaddr = !!val;
+		br_opt_toggle(br, BROPT_MULTICAST_QUERY_USE_IFADDR, !!val);
 	}
 
 	if (data[IFLA_BR_MCAST_QUERIER]) {
@@ -1209,7 +1253,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		__u8 mcast_stats;
 
 		mcast_stats = nla_get_u8(data[IFLA_BR_MCAST_STATS_ENABLED]);
-		br->multicast_stats_enabled = !!mcast_stats;
+		br_opt_toggle(br, BROPT_MULTICAST_STATS_ENABLED, !!mcast_stats);
 	}
 
 	if (data[IFLA_BR_MCAST_IGMP_VERSION]) {
@@ -1236,19 +1280,19 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	if (data[IFLA_BR_NF_CALL_IPTABLES]) {
 		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IPTABLES]);
 
-		br->nf_call_iptables = val ? true : false;
+		br_opt_toggle(br, BROPT_NF_CALL_IPTABLES, !!val);
 	}
 
 	if (data[IFLA_BR_NF_CALL_IP6TABLES]) {
 		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IP6TABLES]);
 
-		br->nf_call_ip6tables = val ? true : false;
+		br_opt_toggle(br, BROPT_NF_CALL_IP6TABLES, !!val);
 	}
 
 	if (data[IFLA_BR_NF_CALL_ARPTABLES]) {
 		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_ARPTABLES]);
 
-		br->nf_call_arptables = val ? true : false;
+		br_opt_toggle(br, BROPT_NF_CALL_ARPTABLES, !!val);
 	}
 #endif
 
@@ -1292,6 +1336,7 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_VLAN_DEFAULT_PVID */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_VLAN_STATS_ENABLED */
+	       nla_total_size(sizeof(u8)) +	/* IFLA_BR_VLAN_STATS_PER_PORT */
 #endif
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_GROUP_FWD_MASK */
 	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_ROOT_ID */
@@ -1381,17 +1426,22 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto) ||
 	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid) ||
-	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED, br->vlan_stats_enabled))
+	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED,
+		       br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) ||
+	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_PER_PORT,
+		       br_opt_get(br, IFLA_BR_VLAN_STATS_PER_PORT)))
 		return -EMSGSIZE;
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router) ||
-	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING, !br->multicast_disabled) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING,
+		       br_opt_get(br, BROPT_MULTICAST_ENABLED)) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_QUERY_USE_IFADDR,
-		       br->multicast_query_use_ifaddr) ||
-	    nla_put_u8(skb, IFLA_BR_MCAST_QUERIER, br->multicast_querier) ||
+		       br_opt_get(br, BROPT_MULTICAST_QUERY_USE_IFADDR)) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_QUERIER,
+		       br_opt_get(br, BROPT_MULTICAST_QUERIER)) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_STATS_ENABLED,
-		       br->multicast_stats_enabled) ||
+		       br_opt_get(br, BROPT_MULTICAST_STATS_ENABLED)) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_ELASTICITY,
 			br->hash_elasticity) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max) ||
@@ -1434,11 +1484,11 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (nla_put_u8(skb, IFLA_BR_NF_CALL_IPTABLES,
-		       br->nf_call_iptables ? 1 : 0) ||
+		       br_opt_get(br, BROPT_NF_CALL_IPTABLES) ? 1 : 0) ||
 	    nla_put_u8(skb, IFLA_BR_NF_CALL_IP6TABLES,
-		       br->nf_call_ip6tables ? 1 : 0) ||
+		       br_opt_get(br, BROPT_NF_CALL_IP6TABLES) ? 1 : 0) ||
 	    nla_put_u8(skb, IFLA_BR_NF_CALL_ARPTABLES,
-		       br->nf_call_arptables ? 1 : 0))
+		       br_opt_get(br, BROPT_NF_CALL_ARPTABLES) ? 1 : 0))
 		return -EMSGSIZE;
 #endif
 

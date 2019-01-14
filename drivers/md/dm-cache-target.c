@@ -371,7 +371,13 @@ struct cache_stats {
 
 struct cache {
 	struct dm_target *ti;
-	struct dm_target_callbacks callbacks;
+	spinlock_t lock;
+
+	/*
+	 * Fields for converting from sectors to blocks.
+	 */
+	int sectors_per_block_shift;
+	sector_t sectors_per_block;
 
 	struct dm_cache_metadata *cmd;
 
@@ -402,13 +408,11 @@ struct cache {
 	dm_cblock_t cache_size;
 
 	/*
-	 * Fields for converting from sectors to blocks.
+	 * Invalidation fields.
 	 */
-	sector_t sectors_per_block;
-	int sectors_per_block_shift;
+	spinlock_t invalidation_lock;
+	struct list_head invalidation_requests;
 
-	spinlock_t lock;
-	struct bio_list deferred_bios;
 	sector_t migration_threshold;
 	wait_queue_head_t migration_wait;
 	atomic_t nr_allocated_migrations;
@@ -419,13 +423,11 @@ struct cache {
 	 */
 	atomic_t nr_io_migrations;
 
+	struct bio_list deferred_bios;
+
 	struct rw_semaphore quiesce_lock;
 
-	/*
-	 * cache_size entries, dirty if set
-	 */
-	atomic_t nr_dirty;
-	unsigned long *dirty_bitset;
+	struct dm_target_callbacks callbacks;
 
 	/*
 	 * origin_blocks entries, discarded if set.
@@ -442,24 +444,20 @@ struct cache {
 	const char **ctr_args;
 
 	struct dm_kcopyd_client *copier;
-	struct workqueue_struct *wq;
 	struct work_struct deferred_bio_worker;
 	struct work_struct migration_worker;
+	struct workqueue_struct *wq;
 	struct delayed_work waker;
 	struct dm_bio_prison_v2 *prison;
-	struct bio_set *bs;
 
-	mempool_t *migration_pool;
+	/*
+	 * cache_size entries, dirty if set
+	 */
+	unsigned long *dirty_bitset;
+	atomic_t nr_dirty;
 
-	struct dm_cache_policy *policy;
 	unsigned policy_nr_args;
-
-	bool need_tick_bio:1;
-	bool sized:1;
-	bool invalidate:1;
-	bool commit_requested:1;
-	bool loaded_mappings:1;
-	bool loaded_discards:1;
+	struct dm_cache_policy *policy;
 
 	/*
 	 * Cache features such as write-through.
@@ -468,18 +466,23 @@ struct cache {
 
 	struct cache_stats stats;
 
-	/*
-	 * Invalidation fields.
-	 */
-	spinlock_t invalidation_lock;
-	struct list_head invalidation_requests;
+	bool need_tick_bio:1;
+	bool sized:1;
+	bool invalidate:1;
+	bool commit_requested:1;
+	bool loaded_mappings:1;
+	bool loaded_discards:1;
+
+	struct rw_semaphore background_work_lock;
+
+	struct batcher committer;
+	struct work_struct commit_ws;
 
 	struct io_tracker tracker;
 
-	struct work_struct commit_ws;
-	struct batcher committer;
+	mempool_t migration_pool;
 
-	struct rw_semaphore background_work_lock;
+	struct bio_set bs;
 };
 
 struct per_bio_data {
@@ -550,7 +553,7 @@ static struct dm_cache_migration *alloc_migration(struct cache *cache)
 {
 	struct dm_cache_migration *mg;
 
-	mg = mempool_alloc(cache->migration_pool, GFP_NOWAIT);
+	mg = mempool_alloc(&cache->migration_pool, GFP_NOWAIT);
 	if (!mg)
 		return NULL;
 
@@ -569,7 +572,7 @@ static void free_migration(struct dm_cache_migration *mg)
 	if (atomic_dec_and_test(&cache->nr_allocated_migrations))
 		wake_up(&cache->migration_wait);
 
-	mempool_free(mg, cache->migration_pool);
+	mempool_free(mg, &cache->migration_pool);
 }
 
 /*----------------------------------------------------------------*/
@@ -924,7 +927,7 @@ static void issue_op(struct bio *bio, void *context)
 static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
 				      dm_oblock_t oblock, dm_cblock_t cblock)
 {
-	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, cache->bs);
+	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, &cache->bs);
 
 	BUG_ON(!origin_bio);
 
@@ -1185,9 +1188,8 @@ static void copy_complete(int read_err, unsigned long write_err, void *context)
 	queue_continuation(mg->cache->wq, &mg->k);
 }
 
-static int copy(struct dm_cache_migration *mg, bool promote)
+static void copy(struct dm_cache_migration *mg, bool promote)
 {
-	int r;
 	struct dm_io_region o_region, c_region;
 	struct cache *cache = mg->cache;
 
@@ -1200,11 +1202,9 @@ static int copy(struct dm_cache_migration *mg, bool promote)
 	c_region.count = cache->sectors_per_block;
 
 	if (promote)
-		r = dm_kcopyd_copy(cache->copier, &o_region, 1, &c_region, 0, copy_complete, &mg->k);
+		dm_kcopyd_copy(cache->copier, &o_region, 1, &c_region, 0, copy_complete, &mg->k);
 	else
-		r = dm_kcopyd_copy(cache->copier, &c_region, 1, &o_region, 0, copy_complete, &mg->k);
-
-	return r;
+		dm_kcopyd_copy(cache->copier, &c_region, 1, &o_region, 0, copy_complete, &mg->k);
 }
 
 static void bio_drop_shared_lock(struct cache *cache, struct bio *bio)
@@ -1446,12 +1446,7 @@ static void mg_full_copy(struct work_struct *ws)
 	}
 
 	init_continuation(&mg->k, mg_upgrade_lock);
-
-	if (copy(mg, is_policy_promote)) {
-		DMERR_LIMIT("%s: migration copy failed", cache_device_name(cache));
-		mg->k.input = BLK_STS_IOERR;
-		mg_complete(mg, false);
-	}
+	copy(mg, is_policy_promote);
 }
 
 static void mg_copy(struct work_struct *ws)
@@ -2011,7 +2006,7 @@ static void destroy(struct cache *cache)
 {
 	unsigned i;
 
-	mempool_destroy(cache->migration_pool);
+	mempool_exit(&cache->migration_pool);
 
 	if (cache->prison)
 		dm_bio_prison_destroy_v2(cache->prison);
@@ -2047,8 +2042,7 @@ static void destroy(struct cache *cache)
 		kfree(cache->ctr_args[i]);
 	kfree(cache->ctr_args);
 
-	if (cache->bs)
-		bioset_free(cache->bs);
+	bioset_exit(&cache->bs);
 
 	kfree(cache);
 }
@@ -2248,7 +2242,7 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 		{0, 2, "Invalid number of cache feature arguments"},
 	};
 
-	int r;
+	int r, mode_ctr = 0;
 	unsigned argc;
 	const char *arg;
 	struct cache_features *cf = &ca->features;
@@ -2262,14 +2256,20 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 	while (argc--) {
 		arg = dm_shift_arg(as);
 
-		if (!strcasecmp(arg, "writeback"))
+		if (!strcasecmp(arg, "writeback")) {
 			cf->io_mode = CM_IO_WRITEBACK;
+			mode_ctr++;
+		}
 
-		else if (!strcasecmp(arg, "writethrough"))
+		else if (!strcasecmp(arg, "writethrough")) {
 			cf->io_mode = CM_IO_WRITETHROUGH;
+			mode_ctr++;
+		}
 
-		else if (!strcasecmp(arg, "passthrough"))
+		else if (!strcasecmp(arg, "passthrough")) {
 			cf->io_mode = CM_IO_PASSTHROUGH;
+			mode_ctr++;
+		}
 
 		else if (!strcasecmp(arg, "metadata2"))
 			cf->metadata_version = 2;
@@ -2278,6 +2278,11 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 			*error = "Unrecognised cache feature requested";
 			return -EINVAL;
 		}
+	}
+
+	if (mode_ctr > 1) {
+		*error = "Duplicate cache io_mode features requested";
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2498,8 +2503,8 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	cache->features = ca->features;
 	if (writethrough_mode(cache)) {
 		/* Create bioset for writethrough bios issued to origin */
-		cache->bs = bioset_create(BIO_POOL_SIZE, 0, 0);
-		if (!cache->bs)
+		r = bioset_init(&cache->bs, BIO_POOL_SIZE, 0, 0);
+		if (r)
 			goto bad;
 	}
 
@@ -2630,9 +2635,9 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		goto bad;
 	}
 
-	cache->migration_pool = mempool_create_slab_pool(MIGRATION_POOL_SIZE,
-							 migration_cache);
-	if (!cache->migration_pool) {
+	r = mempool_init_slab_pool(&cache->migration_pool, MIGRATION_POOL_SIZE,
+				   migration_cache);
+	if (r) {
 		*error = "Error creating cache's migration mempool";
 		goto bad;
 	}
@@ -3004,8 +3009,13 @@ static dm_cblock_t get_cache_dev_size(struct cache *cache)
 
 static bool can_resize(struct cache *cache, dm_cblock_t new_size)
 {
-	if (from_cblock(new_size) > from_cblock(cache->cache_size))
-		return true;
+	if (from_cblock(new_size) > from_cblock(cache->cache_size)) {
+		if (cache->sized) {
+			DMERR("%s: unable to extend cache due to missing cache table reload",
+			      cache_device_name(cache));
+			return false;
+		}
+	}
 
 	/*
 	 * We can't drop a dirty block when shrinking the cache.
@@ -3474,14 +3484,13 @@ static int __init dm_cache_init(void)
 	int r;
 
 	migration_cache = KMEM_CACHE(dm_cache_migration, 0);
-	if (!migration_cache) {
-		dm_unregister_target(&cache_target);
+	if (!migration_cache)
 		return -ENOMEM;
-	}
 
 	r = dm_register_target(&cache_target);
 	if (r) {
 		DMERR("cache target registration failed: %d", r);
+		kmem_cache_destroy(migration_cache);
 		return r;
 	}
 

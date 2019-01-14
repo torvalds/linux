@@ -252,8 +252,8 @@ struct mt7620_gsw {
 };
 
 /* switch register I/O wrappers */
-void mtk_switch_w32(struct mt7620_gsw *gsw, u32 val, unsigned reg);
-u32 mtk_switch_r32(struct mt7620_gsw *gsw, unsigned reg);
+void mtk_switch_w32(struct mt7620_gsw *gsw, u32 val, unsigned int reg);
+u32 mtk_switch_r32(struct mt7620_gsw *gsw, unsigned int reg);
 
 /* the callback used by the driver core to bringup the switch */
 int mtk_gsw_init(struct mtk_eth *eth);

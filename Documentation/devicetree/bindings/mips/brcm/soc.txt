@@ -152,7 +152,7 @@ Required properties:
 - compatible	: should contain one of:
 		  "brcm,bcm7425-timers"
 		  "brcm,bcm7429-timers"
-		  "brcm,bcm7435-timers and
+		  "brcm,bcm7435-timers" and
 		  "brcm,brcmstb-timers"
 - reg		: the timers register range
 - interrupts	: the interrupt line for this timer block

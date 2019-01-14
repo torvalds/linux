@@ -32,6 +32,17 @@
 #include "amdgpu.h"
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
+#define AMDGPU_BO_MAX_PLACEMENTS	3
+
+struct amdgpu_bo_param {
+	unsigned long			size;
+	int				byte_align;
+	u32				domain;
+	u32				preferred_domain;
+	u64				flags;
+	enum ttm_bo_type		type;
+	struct reservation_object	*resv;
+};
 
 /* bo virtual addresses in a vm */
 struct amdgpu_bo_va_mapping {
@@ -67,7 +78,7 @@ struct amdgpu_bo {
 	/* Protected by tbo.reserved */
 	u32				preferred_domains;
 	u32				allowed_domains;
-	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
+	struct ttm_place		placements[AMDGPU_BO_MAX_PLACEMENTS];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
@@ -78,8 +89,8 @@ struct amdgpu_bo {
 	void				*metadata;
 	u32				metadata_size;
 	unsigned			prime_shared_count;
-	/* list of all virtual address to which this bo is associated to */
-	struct list_head		va;
+	/* per VM structure for page tables and with virtual addresses */
+	struct amdgpu_vm_bo_base	*vm_bo;
 	/* Constant after initialization */
 	struct drm_gem_object		gem_base;
 	struct amdgpu_bo		*parent;
@@ -183,16 +194,24 @@ static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
 }
 
 /**
- * amdgpu_bo_gpu_accessible - return whether the bo is currently in memory that
- * is accessible to the GPU.
+ * amdgpu_bo_in_cpu_visible_vram - check if BO is (partly) in visible VRAM
  */
-static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
+static inline bool amdgpu_bo_in_cpu_visible_vram(struct amdgpu_bo *bo)
 {
-	switch (bo->tbo.mem.mem_type) {
-	case TTM_PL_TT: return amdgpu_gtt_mgr_has_gart_addr(&bo->tbo.mem);
-	case TTM_PL_VRAM: return true;
-	default: return false;
-	}
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	unsigned fpfn = adev->gmc.visible_vram_size >> PAGE_SHIFT;
+	struct drm_mm_node *node = bo->tbo.mem.mm_node;
+	unsigned long pages_left;
+
+	if (bo->tbo.mem.mem_type != TTM_PL_VRAM)
+		return false;
+
+	for (pages_left = bo->tbo.mem.num_pages; pages_left;
+	     pages_left -= node->size, node++)
+		if (node->start < fpfn)
+			return true;
+
+	return false;
 }
 
 /**
@@ -203,10 +222,11 @@ static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
 	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
 }
 
-int amdgpu_bo_create(struct amdgpu_device *adev, unsigned long size,
-		     int byte_align, u32 domain,
-		     u64 flags, enum ttm_bo_type type,
-		     struct reservation_object *resv,
+bool amdgpu_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
+void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
+
+int amdgpu_bo_create(struct amdgpu_device *adev,
+		     struct amdgpu_bo_param *bp,
 		     struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 			      unsigned long size, int align,
@@ -223,13 +243,13 @@ void *amdgpu_bo_kptr(struct amdgpu_bo *bo);
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo);
 struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo);
 void amdgpu_bo_unref(struct amdgpu_bo **bo);
-int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain, u64 *gpu_addr);
+int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain);
 int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
-			     u64 min_offset, u64 max_offset,
-			     u64 *gpu_addr);
+			     u64 min_offset, u64 max_offset);
 int amdgpu_bo_unpin(struct amdgpu_bo *bo);
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev);
 int amdgpu_bo_init(struct amdgpu_device *adev);
+int amdgpu_bo_late_init(struct amdgpu_device *adev);
 void amdgpu_bo_fini(struct amdgpu_device *adev);
 int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
 				struct vm_area_struct *vma);
@@ -253,13 +273,10 @@ int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct reservation_object *resv,
 			       struct dma_fence **fence, bool direct);
 int amdgpu_bo_validate(struct amdgpu_bo *bo);
-int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
-				  struct amdgpu_ring *ring,
-				  struct amdgpu_bo *bo,
-				  struct reservation_object *resv,
-				  struct dma_fence **fence,
-				  bool direct);
-
+int amdgpu_bo_restore_shadow(struct amdgpu_bo *shadow,
+			     struct dma_fence **fence);
+uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
+					    uint32_t domain);
 
 /*
  * sub allocation

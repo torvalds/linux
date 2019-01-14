@@ -5,6 +5,7 @@ Written 1996 by Gero Kuhlmann <gero@gkminix.han.de>
 Updated 1997 by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
 Updated 2006 by Nico Schottelius <nico-kernel-nfsroot@schottelius.org>
 Updated 2006 by Horms <horms@verge.net.au>
+Updated 2018 by Chris Novakovic <chris@chrisn.me.uk>
 
 
 
@@ -79,7 +80,7 @@ nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
 
 
 ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
-   <dns0-ip>:<dns1-ip>
+   <dns0-ip>:<dns1-ip>:<ntp0-ip>
 
   This parameter tells the kernel how to configure IP addresses of devices
   and also how to set up the IP routing table. It was originally called
@@ -110,6 +111,9 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
 		will not be triggered if it is missing and NFS root is not
 		in operation.
 
+		Value is exported to /proc/net/pnp with the prefix "bootserver "
+		(see below).
+
 		Default: Determined using autoconfiguration.
 		         The address of the autoconfiguration server is used.
 
@@ -123,10 +127,13 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
 
 		Default:  Determined using autoconfiguration.
 
-  <hostname>	Name of the client. May be supplied by autoconfiguration,
-  		but its absence will not trigger autoconfiguration.
-		If specified and DHCP is used, the user provided hostname will
-		be carried in the DHCP request to hopefully update DNS record.
+  <hostname>	Name of the client. If a '.' character is present, anything
+		before the first '.' is used as the client's hostname, and anything
+		after it is used as its NIS domain name. May be supplied by
+		autoconfiguration, but its absence will not trigger autoconfiguration.
+		If specified and DHCP is used, the user-provided hostname (and NIS
+		domain name, if present) will be carried in the DHCP request; this
+		may cause a DNS record to be created or updated for the client.
 
   		Default: Client IP address is used in ASCII notation.
 
@@ -162,12 +169,55 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
 
                 Default: any
 
-  <dns0-ip>	IP address of first nameserver.
-		Value gets exported by /proc/net/pnp which is often linked
-		on embedded systems by /etc/resolv.conf.
+  <dns0-ip>	IP address of primary nameserver.
+		Value is exported to /proc/net/pnp with the prefix "nameserver "
+		(see below).
 
-  <dns1-ip>	IP address of second nameserver.
-		Same as above.
+		Default: None if not using autoconfiguration; determined
+		automatically if using autoconfiguration.
+
+  <dns1-ip>	IP address of secondary nameserver.
+		See <dns0-ip>.
+
+  <ntp0-ip>	IP address of a Network Time Protocol (NTP) server.
+		Value is exported to /proc/net/ipconfig/ntp_servers, but is
+		otherwise unused (see below).
+
+		Default: None if not using autoconfiguration; determined
+		automatically if using autoconfiguration.
+
+  After configuration (whether manual or automatic) is complete, two files
+  are created in the following format; lines are omitted if their respective
+  value is empty following configuration:
+
+  - /proc/net/pnp:
+
+	#PROTO: <DHCP|BOOTP|RARP|MANUAL>	(depending on configuration method)
+	domain <dns-domain>			(if autoconfigured, the DNS domain)
+	nameserver <dns0-ip>			(primary name server IP)
+	nameserver <dns1-ip>			(secondary name server IP)
+	nameserver <dns2-ip>			(tertiary name server IP)
+	bootserver <server-ip>			(NFS server IP)
+
+  - /proc/net/ipconfig/ntp_servers:
+
+	<ntp0-ip>				(NTP server IP)
+	<ntp1-ip>				(NTP server IP)
+	<ntp2-ip>				(NTP server IP)
+
+  <dns-domain> and <dns2-ip> (in /proc/net/pnp) and <ntp1-ip> and <ntp2-ip>
+  (in /proc/net/ipconfig/ntp_servers) are requested during autoconfiguration;
+  they cannot be specified as part of the "ip=" kernel command line parameter.
+
+  Because the "domain" and "nameserver" options are recognised by DNS
+  resolvers, /etc/resolv.conf is often linked to /proc/net/pnp on systems
+  that use an NFS root filesystem.
+
+  Note that the kernel will not synchronise the system time with any NTP
+  servers it discovers; this is the responsibility of a user space process
+  (e.g. an initrd/initramfs script that passes the IP addresses listed in
+  /proc/net/ipconfig/ntp_servers to an NTP client before mounting the real
+  root filesystem if it is on NFS).
 
 
 nfsrootdebug

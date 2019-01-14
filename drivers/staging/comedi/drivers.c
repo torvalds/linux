@@ -211,6 +211,19 @@ static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
 	return -EINVAL;
 }
 
+static int insn_device_inval(struct comedi_device *dev,
+			     struct comedi_insn *insn, unsigned int *data)
+{
+	return -EINVAL;
+}
+
+static unsigned int get_zero_valid_routes(struct comedi_device *dev,
+					  unsigned int n_pairs,
+					  unsigned int *pair_data)
+{
+	return 0;
+}
+
 int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 	       struct comedi_insn *insn, unsigned int *data)
 {
@@ -473,21 +486,21 @@ unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned long long scans_left;
+	unsigned long long samples_left;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		unsigned int scans_left = __comedi_nscans_left(s, cmd->stop_arg);
-		unsigned int scan_pos =
-		    comedi_bytes_to_samples(s, async->scan_progress);
-		unsigned long long samples_left = 0;
+	if (cmd->stop_src != TRIG_COUNT)
+		return nsamples;
 
-		if (scans_left) {
-			samples_left = ((unsigned long long)scans_left *
-					cmd->scan_end_arg) - scan_pos;
-		}
+	scans_left = __comedi_nscans_left(s, cmd->stop_arg);
+	if (!scans_left)
+		return 0;
 
-		if (samples_left < nsamples)
-			nsamples = samples_left;
-	}
+	samples_left = scans_left * cmd->scan_end_arg -
+		comedi_bytes_to_samples(s, async->scan_progress);
+
+	if (samples_left < nsamples)
+		return samples_left;
 	return nsamples;
 }
 EXPORT_SYMBOL_GPL(comedi_nsamples_left);
@@ -651,6 +664,12 @@ static int __comedi_device_postconfig(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
+
+	if (!dev->insn_device_config)
+		dev->insn_device_config = insn_device_inval;
+
+	if (!dev->get_valid_routes)
+		dev->get_valid_routes = get_zero_valid_routes;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];

@@ -1092,7 +1092,7 @@ hfsc_destroy_class(struct Qdisc *sch, struct hfsc_class *cl)
 	struct hfsc_sched *q = qdisc_priv(sch);
 
 	tcf_block_put(cl->block);
-	qdisc_destroy(cl->qdisc);
+	qdisc_put(cl->qdisc);
 	gen_kill_estimator(&cl->rate_est);
 	if (cl != &q->root)
 		kfree(cl);
@@ -1385,8 +1385,8 @@ hfsc_schedule_watchdog(struct Qdisc *sch)
 		if (next_time == 0 || next_time > q->root.cl_cfmin)
 			next_time = q->root.cl_cfmin;
 	}
-	WARN_ON(next_time == 0);
-	qdisc_watchdog_schedule(&q->watchdog, next_time);
+	if (next_time)
+		qdisc_watchdog_schedule(&q->watchdog, next_time);
 }
 
 static int

@@ -1,12 +1,9 @@
-/*
- * ctu.c
- *
- * Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ctu.c
+//
+// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include "rsnd.h"
 
 #define CTU_NAME_SIZE	16
@@ -261,7 +258,7 @@ static int rsnd_ctu_hw_params(struct rsnd_mod *mod,
 		struct snd_pcm_hw_params *be_params;
 		int stream = substream->stream;
 
-		list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be) {
+		for_each_dpcm_be(fe, stream, dpcm) {
 			be_params = &dpcm->hw_params;
 			if (params_channels(fe_params) != params_channels(be_params))
 				ctu->channels = params_channels(be_params);
@@ -378,7 +375,7 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 		goto rsnd_ctu_probe_done;
 	}
 
-	ctu = devm_kzalloc(dev, sizeof(*ctu) * nr, GFP_KERNEL);
+	ctu = devm_kcalloc(dev, nr, sizeof(*ctu), GFP_KERNEL);
 	if (!ctu) {
 		ret = -ENOMEM;
 		goto rsnd_ctu_probe_done;

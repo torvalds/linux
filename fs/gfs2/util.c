@@ -19,6 +19,7 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "glock.h"
+#include "rgrp.h"
 #include "util.h"
 
 struct kmem_cache *gfs2_glock_cachep __read_mostly;
@@ -46,14 +47,16 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, const char *fmt, ...)
 	    test_and_set_bit(SDF_SHUTDOWN, &sdp->sd_flags))
 		return 0;
 
-	va_start(args, fmt);
+	if (fmt) {
+		va_start(args, fmt);
 
-	vaf.fmt = fmt;
-	vaf.va = &args;
+		vaf.fmt = fmt;
+		vaf.va = &args;
 
-	fs_err(sdp, "%pV", &vaf);
+		fs_err(sdp, "%pV", &vaf);
 
-	va_end(args);
+		va_end(args);
+	}
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW) {
 		fs_err(sdp, "about to withdraw this file system\n");
@@ -179,6 +182,8 @@ int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	int rv;
+
+	gfs2_rgrp_dump(NULL, rgd->rd_gl);
 	rv = gfs2_lm_withdraw(sdp,
 			      "fatal: filesystem consistency error\n"
 			      "  RG = %llu\n"
@@ -246,21 +251,22 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
 }
 
 /**
- * gfs2_io_error_bh_i - Flag a buffer I/O error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          0 if it was already withdrawn
+ * gfs2_io_error_bh_i - Flag a buffer I/O error
+ * @withdraw: withdraw the filesystem
  */
 
-int gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *function, char *file, unsigned int line)
+void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			const char *function, char *file, unsigned int line,
+			bool withdraw)
 {
-	int rv;
-	rv = gfs2_lm_withdraw(sdp,
-			      "fatal: I/O error\n"
-			      "  block = %llu\n"
-			      "  function = %s, file = %s, line = %u\n",
-			      (unsigned long long)bh->b_blocknr,
-			      function, file, line);
-	return rv;
+	if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+		fs_err(sdp,
+		       "fatal: I/O error\n"
+		       "  block = %llu\n"
+		       "  function = %s, file = %s, line = %u\n",
+		       (unsigned long long)bh->b_blocknr,
+		       function, file, line);
+	if (withdraw)
+		gfs2_lm_withdraw(sdp, NULL);
 }
 

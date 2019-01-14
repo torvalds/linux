@@ -23,7 +23,7 @@
 
 #include "smumgr.h"
 #include "smu10_inc.h"
-#include "pp_soc15.h"
+#include "soc15_common.h"
 #include "smu10_smumgr.h"
 #include "ppatomctrl.h"
 #include "rv_ppsmc.h"
@@ -32,8 +32,6 @@
 #include "ppatomctrl.h"
 #include "pp_debug.h"
 
-
-#define VOLTAGE_SCALE 4
 
 #define BUFFER_SIZE                 80000
 #define MAX_STRING_SIZE             15
@@ -49,48 +47,41 @@
 
 static uint32_t smu10_wait_for_response(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
+	reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
 
 	phm_wait_for_register_unequal(hwmgr, reg,
 			0, MP1_C2PMSG_90__CONTENT_MASK);
 
-	return cgs_read_register(hwmgr->device, reg);
+	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 }
 
 static int smu10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 		uint16_t msg)
 {
-	uint32_t reg;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_66_BASE_IDX, mmMP1_SMN_C2PMSG_66);
-	cgs_write_register(hwmgr->device, reg, msg);
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
 
 	return 0;
 }
 
-static int smu10_read_arg_from_smc(struct pp_hwmgr *hwmgr)
+static uint32_t smu10_read_arg_from_smc(struct pp_hwmgr *hwmgr)
 {
-	uint32_t reg;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
-
-	return cgs_read_register(hwmgr->device, reg);
+	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 }
 
 static int smu10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
-	uint32_t reg;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	smu10_wait_for_response(hwmgr);
 
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
-	cgs_write_register(hwmgr->device, reg, 0);
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
 	smu10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
@@ -104,17 +95,13 @@ static int smu10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 static int smu10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 		uint16_t msg, uint32_t parameter)
 {
-	uint32_t reg;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	smu10_wait_for_response(hwmgr);
 
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
-	cgs_write_register(hwmgr->device, reg, 0);
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
-	cgs_write_register(hwmgr->device, reg, parameter);
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, parameter);
 
 	smu10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
@@ -190,38 +177,13 @@ static int smu10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 			PPSMC_MSG_GetDriverIfVersion);
 	smc_driver_if_version = smu10_read_arg_from_smc(hwmgr);
 
-	if (smc_driver_if_version != SMU10_DRIVER_IF_VERSION) {
+	if ((smc_driver_if_version != SMU10_DRIVER_IF_VERSION) &&
+	    (smc_driver_if_version != SMU10_DRIVER_IF_VERSION + 1)) {
 		pr_err("Attempt to read SMC IF Version Number Failed!\n");
 		return -EINVAL;
 	}
 
 	return 0;
-}
-
-/* sdma is disabled by default in vbios, need to re-enable in driver */
-static void smu10_smc_enable_sdma(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerUpSdma);
-}
-
-static void smu10_smc_disable_sdma(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerDownSdma);
-}
-
-/* vcn is disabled by default in vbios, need to re-enable in driver */
-static void smu10_smc_enable_vcn(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_PowerUpVcn, 0);
-}
-
-static void smu10_smc_disable_vcn(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_PowerDownVcn, 0);
 }
 
 static int smu10_smu_fini(struct pp_hwmgr *hwmgr)
@@ -230,8 +192,6 @@ static int smu10_smu_fini(struct pp_hwmgr *hwmgr)
 			(struct smu10_smumgr *)(hwmgr->smu_backend);
 
 	if (priv) {
-		smu10_smc_disable_sdma(hwmgr);
-		smu10_smc_disable_vcn(hwmgr);
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_WMTABLE].handle,
 					&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
 					&priv->smu_tables.entry[SMU10_WMTABLE].table);
@@ -255,8 +215,7 @@ static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 
 	if (smu10_verify_smc_interface(hwmgr))
 		return -EINVAL;
-	smu10_smc_enable_sdma(hwmgr);
-	smu10_smc_enable_vcn(hwmgr);
+
 	return 0;
 }
 

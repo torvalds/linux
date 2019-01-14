@@ -38,7 +38,6 @@ struct drm_device {
 	struct device *dev;		/**< Device structure of bus-device */
 	struct drm_driver *driver;	/**< DRM driver managing the device */
 	void *dev_private;		/**< DRM driver private data */
-	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
 	bool registered;
@@ -46,7 +45,24 @@ struct drm_device {
 	/* currently active master for this device. Protected by master_mutex */
 	struct drm_master *master;
 
-	atomic_t unplugged;			/**< Flag whether dev is dead */
+	/**
+	 * @driver_features: per-device driver features
+	 *
+	 * Drivers can clear specific flags here to disallow
+	 * certain features on a per-device basis while still
+	 * sharing a single &struct drm_driver instance across
+	 * all devices.
+	 */
+	u32 driver_features;
+
+	/**
+	 * @unplugged:
+	 *
+	 * Flag to tell if the device has been unplugged.
+	 * See drm_dev_enter() and drm_dev_is_unplugged().
+	 */
+	bool unplugged;
+
 	struct inode *anon_inode;		/**< inode for private address-space */
 	char *unique;				/**< unique name of the device */
 	/*@} */
@@ -67,6 +83,27 @@ struct drm_device {
 
 	struct mutex filelist_mutex;
 	struct list_head filelist;
+
+	/**
+	 * @filelist_internal:
+	 *
+	 * List of open DRM files for in-kernel clients. Protected by @filelist_mutex.
+	 */
+	struct list_head filelist_internal;
+
+	/**
+	 * @clientlist_mutex:
+	 *
+	 * Protects @clientlist access.
+	 */
+	struct mutex clientlist_mutex;
+
+	/**
+	 * @clientlist:
+	 *
+	 * List of in-kernel clients. Protected by @clientlist_mutex.
+	 */
+	struct list_head clientlist;
 
 	/** \name Memory management */
 	/*@{ */

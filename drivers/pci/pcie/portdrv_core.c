@@ -19,6 +19,12 @@
 #include "../pci.h"
 #include "portdrv.h"
 
+struct portdrv_service_data {
+	struct pcie_port_service_driver *drv;
+	struct device *dev;
+	u32 service;
+};
+
 /**
  * release_pcie_device - free PCI Express port service device structure
  * @dev: Port service device to release
@@ -199,7 +205,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 	int services = 0;
 
 	if (dev->is_hotplug_bridge &&
-	    (pcie_ports_native || host->native_hotplug)) {
+	    (pcie_ports_native || host->native_pcie_hotplug)) {
 		services |= PCIE_PORT_SERVICE_HP;
 
 		/*
@@ -347,14 +353,19 @@ error_disable:
 }
 
 #ifdef CONFIG_PM
-static int suspend_iter(struct device *dev, void *data)
+typedef int (*pcie_pm_callback_t)(struct pcie_device *);
+
+static int pm_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
+	size_t offset = *(size_t *)data;
+	pcie_pm_callback_t cb;
 
 	if ((dev->bus == &pcie_port_bus_type) && dev->driver) {
 		service_driver = to_service_driver(dev->driver);
-		if (service_driver->suspend)
-			service_driver->suspend(to_pcie_device(dev));
+		cb = *(pcie_pm_callback_t *)((void *)service_driver + offset);
+		if (cb)
+			return cb(to_pcie_device(dev));
 	}
 	return 0;
 }
@@ -365,20 +376,14 @@ static int suspend_iter(struct device *dev, void *data)
  */
 int pcie_port_device_suspend(struct device *dev)
 {
-	return device_for_each_child(dev, NULL, suspend_iter);
+	size_t off = offsetof(struct pcie_port_service_driver, suspend);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 
-static int resume_iter(struct device *dev, void *data)
+int pcie_port_device_resume_noirq(struct device *dev)
 {
-	struct pcie_port_service_driver *service_driver;
-
-	if ((dev->bus == &pcie_port_bus_type) &&
-	    (dev->driver)) {
-		service_driver = to_service_driver(dev->driver);
-		if (service_driver->resume)
-			service_driver->resume(to_pcie_device(dev));
-	}
-	return 0;
+	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 
 /**
@@ -387,7 +392,28 @@ static int resume_iter(struct device *dev, void *data)
  */
 int pcie_port_device_resume(struct device *dev)
 {
-	return device_for_each_child(dev, NULL, resume_iter);
+	size_t off = offsetof(struct pcie_port_service_driver, resume);
+	return device_for_each_child(dev, &off, pm_iter);
+}
+
+/**
+ * pcie_port_device_runtime_suspend - runtime suspend port services
+ * @dev: PCI Express port to handle
+ */
+int pcie_port_device_runtime_suspend(struct device *dev)
+{
+	size_t off = offsetof(struct pcie_port_service_driver, runtime_suspend);
+	return device_for_each_child(dev, &off, pm_iter);
+}
+
+/**
+ * pcie_port_device_runtime_resume - runtime resume port services
+ * @dev: PCI Express port to handle
+ */
+int pcie_port_device_runtime_resume(struct device *dev)
+{
+	size_t off = offsetof(struct pcie_port_service_driver, runtime_resume);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 #endif /* PM */
 
@@ -397,6 +423,70 @@ static int remove_iter(struct device *dev, void *data)
 		device_unregister(dev);
 	return 0;
 }
+
+static int find_service_iter(struct device *device, void *data)
+{
+	struct pcie_port_service_driver *service_driver;
+	struct portdrv_service_data *pdrvs;
+	u32 service;
+
+	pdrvs = (struct portdrv_service_data *) data;
+	service = pdrvs->service;
+
+	if (device->bus == &pcie_port_bus_type && device->driver) {
+		service_driver = to_service_driver(device->driver);
+		if (service_driver->service == service) {
+			pdrvs->drv = service_driver;
+			pdrvs->dev = device;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * pcie_port_find_service - find the service driver
+ * @dev: PCI Express port the service is associated with
+ * @service: Service to find
+ *
+ * Find PCI Express port service driver associated with given service
+ */
+struct pcie_port_service_driver *pcie_port_find_service(struct pci_dev *dev,
+							u32 service)
+{
+	struct pcie_port_service_driver *drv;
+	struct portdrv_service_data pdrvs;
+
+	pdrvs.drv = NULL;
+	pdrvs.service = service;
+	device_for_each_child(&dev->dev, &pdrvs, find_service_iter);
+
+	drv = pdrvs.drv;
+	return drv;
+}
+
+/**
+ * pcie_port_find_device - find the struct device
+ * @dev: PCI Express port the service is associated with
+ * @service: For the service to find
+ *
+ * Find the struct device associated with given service on a pci_dev
+ */
+struct device *pcie_port_find_device(struct pci_dev *dev,
+				      u32 service)
+{
+	struct device *device;
+	struct portdrv_service_data pdrvs;
+
+	pdrvs.dev = NULL;
+	pdrvs.service = service;
+	device_for_each_child(&dev->dev, &pdrvs, find_service_iter);
+
+	device = pdrvs.dev;
+	return device;
+}
+EXPORT_SYMBOL_GPL(pcie_port_find_device);
 
 /**
  * pcie_port_device_remove - unregister PCI Express port service devices

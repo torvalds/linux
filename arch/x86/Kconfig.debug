@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
-
-source "lib/Kconfig.debug"
 
 config EARLY_PRINTK_USB
 	bool
@@ -71,6 +68,9 @@ config EARLY_PRINTK_USB_XDBC
 
 	  You should normally say N here, unless you want to debug early
 	  crashes or need a very simple printk logging facility.
+
+config MCSAFE_TEST
+	def_bool n
 
 config X86_PTDUMP_CORE
 	def_bool n
@@ -314,7 +314,6 @@ config DEBUG_NMI_SELFTEST
 
 config DEBUG_IMR_SELFTEST
 	bool "Isolated Memory Region self test"
-	default n
 	depends on INTEL_IMR
 	---help---
 	  This option enables automated sanity testing of the IMR code.
@@ -407,5 +406,3 @@ endchoice
 config FRAME_POINTER
 	depends on !UNWINDER_ORC && !UNWINDER_GUESS
 	bool
-
-endmenu

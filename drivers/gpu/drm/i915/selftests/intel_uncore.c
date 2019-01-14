@@ -137,7 +137,7 @@ static int intel_uncore_check_forcewake_domains(struct drm_i915_private *dev_pri
 	if (!IS_ENABLED(CONFIG_DRM_I915_SELFTEST_BROKEN))
 		return 0;
 
-	valid = kzalloc(BITS_TO_LONGS(FW_RANGE) * sizeof(*valid),
+	valid = kcalloc(BITS_TO_LONGS(FW_RANGE), sizeof(*valid),
 			GFP_KERNEL);
 	if (!valid)
 		return -ENOMEM;
@@ -160,7 +160,7 @@ static int intel_uncore_check_forcewake_domains(struct drm_i915_private *dev_pri
 		i915_reg_t reg = { offset };
 
 		iosf_mbi_punit_acquire();
-		intel_uncore_forcewake_reset(dev_priv, false);
+		intel_uncore_forcewake_reset(dev_priv);
 		iosf_mbi_punit_release();
 
 		check_for_unclaimed_mmio(dev_priv);

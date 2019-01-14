@@ -49,16 +49,17 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
-config DRM_DEBUG_MM_SELFTEST
-	tristate "kselftests for DRM range manager (struct drm_mm)"
+config DRM_DEBUG_SELFTEST
+	tristate "kselftests for DRM"
 	depends on DRM
 	depends on DEBUG_KERNEL
 	select PRIME_NUMBERS
 	select DRM_LIB_RANDOM
+	select DRM_KMS_HELPER
 	default n
 	help
-	  This option provides a kernel module that can be used to test
-	  the DRM range manager (drm_mm) and its API. This option is not
+	  This option provides kernel modules that can be used to run
+	  various selftests on parts of the DRM api. This option is not
 	  useful for distributions or general kernels, but only for kernel
 	  developers working on DRM and associated drivers.
 
@@ -109,6 +110,26 @@ config DRM_FBDEV_OVERALLOC
 	  is 100. Typical values for double buffering will be 200,
 	  triple buffering 300.
 
+config DRM_FBDEV_LEAK_PHYS_SMEM
+	bool "Shamelessly allow leaking of fbdev physical address (DANGEROUS)"
+	depends on DRM_FBDEV_EMULATION && EXPERT
+	default n
+	help
+	  In order to keep user-space compatibility, we want in certain
+	  use-cases to keep leaking the fbdev physical address to the
+	  user-space program handling the fbdev buffer.
+	  This affects, not only, Amlogic, Allwinner or Rockchip devices
+	  with ARM Mali GPUs using an userspace Blob.
+	  This option is not supported by upstream developers and should be
+	  removed as soon as possible and be considered as a broken and
+	  legacy behaviour from a modern fbdev device driver.
+
+	  Please send any bug reports when using this to your proprietary
+	  software vendor that requires this.
+
+	  If in doubt, say "N" or spread the word to your closed source
+	  library vendor.
+
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
 	depends on DRM
@@ -120,6 +141,16 @@ config DRM_LOAD_EDID_FIRMWARE
 	  feature is provided as a workaround for broken hardware, the
 	  default case is N. Details and instructions how to build your own
 	  EDID data are given in Documentation/EDID/HOWTO.txt.
+
+config DRM_DP_CEC
+	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
+	select CEC_CORE
+	help
+	  Choose this option if you want to enable HDMI CEC support for
+	  DisplayPort/USB-C to HDMI adapters.
+
+	  Note: not all adapters support this feature, and even for those
+	  that do support this they often do not hook up the CEC pin.
 
 config DRM_TTM
 	tristate
@@ -212,6 +243,17 @@ config DRM_VGEM
 	  as used by Mesa's software renderer for enhanced performance.
 	  If M is selected the module will be called vgem.
 
+config DRM_VKMS
+	tristate "Virtual KMS (EXPERIMENTAL)"
+	depends on DRM
+	select DRM_KMS_HELPER
+	default n
+	help
+	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
+	  running GPU in a headless machines. Choose this option to get
+	  a VKMS.
+
+	  If M is selected the module will be called vkms.
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
@@ -263,9 +305,9 @@ source "drivers/gpu/drm/bridge/Kconfig"
 
 source "drivers/gpu/drm/sti/Kconfig"
 
-source "drivers/gpu/drm/amd/amdkfd/Kconfig"
-
 source "drivers/gpu/drm/imx/Kconfig"
+
+source "drivers/gpu/drm/v3d/Kconfig"
 
 source "drivers/gpu/drm/vc4/Kconfig"
 
@@ -288,6 +330,8 @@ source "drivers/gpu/drm/tinydrm/Kconfig"
 source "drivers/gpu/drm/pl111/Kconfig"
 
 source "drivers/gpu/drm/tve200/Kconfig"
+
+source "drivers/gpu/drm/xen/Kconfig"
 
 # Keep legacy drivers last
 

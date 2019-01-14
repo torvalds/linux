@@ -1,0 +1,26 @@
+Current Sense Amplifier
+=======================
+
+When an io-channel measures the output voltage from a current sense
+amplifier, the interesting measurement is almost always the current
+through the sense resistor, not the voltage output. This binding
+describes such a current sense circuit.
+
+Required properties:
+- compatible : "current-sense-amplifier"
+- io-channels : Channel node of a voltage io-channel.
+- sense-resistor-micro-ohms : The sense resistance in microohms.
+
+Optional properties:
+- sense-gain-mult: Amplifier gain multiplier. The default is <1>.
+- sense-gain-div: Amplifier gain divider. The default is <1>.
+
+Example:
+
+sysi {
+	compatible = "current-sense-amplifier";
+	io-channels = <&tiadc 0>;
+
+	sense-resistor-micro-ohms = <20000>;
+	sense-gain-mul = <50>;
+};

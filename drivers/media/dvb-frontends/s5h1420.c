@@ -912,7 +912,7 @@ struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 	state->frontend.demodulator_priv = state;
 
 	/* create tuner i2c adapter */
-	strlcpy(state->tuner_i2c_adapter.name, "S5H1420-PN1010 tuner I2C bus",
+	strscpy(state->tuner_i2c_adapter.name, "S5H1420-PN1010 tuner I2C bus",
 		sizeof(state->tuner_i2c_adapter.name));
 	state->tuner_i2c_adapter.algo      = &s5h1420_tuner_i2c_algo;
 	state->tuner_i2c_adapter.algo_data = NULL;
@@ -934,10 +934,10 @@ static const struct dvb_frontend_ops s5h1420_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Samsung S5H1420/PnpNetwork PN1010 DVB-S",
-		.frequency_min    = 950000,
-		.frequency_max    = 2150000,
-		.frequency_stepsize = 125,     /* kHz for QPSK frontends */
-		.frequency_tolerance  = 29500,
+		.frequency_min_hz    =  950 * MHz,
+		.frequency_max_hz    = 2150 * MHz,
+		.frequency_stepsize_hz = 125 * kHz,
+		.frequency_tolerance_hz  = 29500 * kHz,
 		.symbol_rate_min  = 1000000,
 		.symbol_rate_max  = 45000000,
 		/*  .symbol_rate_tolerance  = ???,*/

@@ -7,13 +7,15 @@ config UBIFS_FS
 	select CRYPTO if UBIFS_FS_ZLIB
 	select CRYPTO_LZO if UBIFS_FS_LZO
 	select CRYPTO_DEFLATE if UBIFS_FS_ZLIB
+	select CRYPTO_HASH_INFO
 	depends on MTD_UBI
 	help
 	  UBIFS is a file system for flash devices which works on top of UBI.
 
+if UBIFS_FS
+
 config UBIFS_FS_ADVANCED_COMPR
 	bool "Advanced compression options"
-	depends on UBIFS_FS
 	help
 	  This option allows to explicitly choose which compressions, if any,
 	  are enabled in UBIFS. Removing compressors means inability to read
@@ -23,7 +25,6 @@ config UBIFS_FS_ADVANCED_COMPR
 
 config UBIFS_FS_LZO
 	bool "LZO compression support" if UBIFS_FS_ADVANCED_COMPR
-	depends on UBIFS_FS
 	default y
 	help
 	   LZO compressor is generally faster than zlib but compresses worse.
@@ -31,14 +32,12 @@ config UBIFS_FS_LZO
 
 config UBIFS_FS_ZLIB
 	bool "ZLIB compression support" if UBIFS_FS_ADVANCED_COMPR
-	depends on UBIFS_FS
 	default y
 	help
 	  Zlib compresses better than LZO but it is slower. Say 'Y' if unsure.
 
 config UBIFS_ATIME_SUPPORT
-	bool "Access time support" if UBIFS_FS
-	depends on UBIFS_FS
+	bool "Access time support"
 	default n
 	help
 	  Originally UBIFS did not support atime, because it looked like a bad idea due
@@ -51,9 +50,19 @@ config UBIFS_ATIME_SUPPORT
 
 	  If unsure, say 'N'
 
+config UBIFS_FS_XATTR
+	bool "UBIFS XATTR support"
+	default y
+	help
+	  Saying Y here includes support for extended attributes (xattrs).
+	  Xattrs are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page).
+
+	  If unsure, say Y.
+
 config UBIFS_FS_ENCRYPTION
 	bool "UBIFS Encryption"
-	depends on UBIFS_FS && BLOCK
+	depends on UBIFS_FS_XATTR && BLOCK
 	select FS_ENCRYPTION
 	default n
 	help
@@ -64,7 +73,7 @@ config UBIFS_FS_ENCRYPTION
 
 config UBIFS_FS_SECURITY
 	bool "UBIFS Security Labels"
-	depends on UBIFS_FS
+	depends on UBIFS_FS_XATTR
 	default y
 	help
 	  Security labels provide an access control facility to support Linux
@@ -74,3 +83,16 @@ config UBIFS_FS_SECURITY
 	  the extended attribute support in advance.
 
 	  If you are not using a security module, say N.
+
+config UBIFS_FS_AUTHENTICATION
+	bool "UBIFS authentication support"
+	depends on KEYS
+	select CRYPTO_HMAC
+	help
+	  Enable authentication support for UBIFS. This feature offers protection
+	  against offline changes for both data and metadata of the filesystem.
+	  If you say yes here you should also select a hashing algorithm such as
+	  sha256, these are not selected automatically since there are many
+	  different options.
+
+endif # UBIFS_FS

@@ -1272,7 +1272,6 @@ static void usbvision_isoc_irq(struct urb *urb)
 	int len;
 	struct usb_usbvision *usbvision = urb->context;
 	int i;
-	unsigned long start_time = jiffies;
 	struct usbvision_frame **f;
 
 	/* We don't want to do anything if we are about to be removed! */
@@ -1323,8 +1322,6 @@ static void usbvision_isoc_irq(struct urb *urb)
 		PDEBUG(DBG_IRQ, "received data, but no one needs it");
 		scratch_reset(usbvision);
 	}
-
-	usbvision->time_in_irq += jiffies - start_time;
 
 	for (i = 0; i < USBVISION_URB_FRAMES; i++) {
 		urb->iso_frame_desc[i].status = 0;
@@ -1857,7 +1854,7 @@ int usbvision_stream_interrupt(struct usb_usbvision *usbvision)
 
 static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 {
-	static const char proc[] = "usbvision_set_compresion_params: ";
+	static const char proc[] = "usbvision_set_compression_params: ";
 	int rc;
 	unsigned char *value = usbvision->ctrl_urb_buffer;
 

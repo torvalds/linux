@@ -1487,8 +1487,7 @@ static int __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "%s", tmpl->name);
 	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s-n2", tmpl->name);
 	base->cra_priority = N2_CRA_PRIORITY;
-	base->cra_flags = CRYPTO_ALG_TYPE_AHASH |
-			  CRYPTO_ALG_KERN_DRIVER_ONLY |
+	base->cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
 			  CRYPTO_ALG_NEED_FALLBACK;
 	base->cra_blocksize = tmpl->block_size;
 	base->cra_ctxsize = sizeof(struct n2_hash_ctx);
@@ -1919,12 +1918,12 @@ static int grab_global_resources(void)
 		goto out_hvapi_release;
 
 	err = -ENOMEM;
-	cpu_to_cwq = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
+	cpu_to_cwq = kcalloc(NR_CPUS, sizeof(struct spu_queue *),
 			     GFP_KERNEL);
 	if (!cpu_to_cwq)
 		goto out_queue_cache_destroy;
 
-	cpu_to_mau = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
+	cpu_to_mau = kcalloc(NR_CPUS, sizeof(struct spu_queue *),
 			     GFP_KERNEL);
 	if (!cpu_to_mau)
 		goto out_free_cwq_table;

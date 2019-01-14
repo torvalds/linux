@@ -96,7 +96,7 @@ static int serverworks_create_gatt_pages(int nr_tables)
 	int retval = 0;
 	int i;
 
-	tables = kzalloc((nr_tables + 1) * sizeof(struct serverworks_page_map *),
+	tables = kcalloc(nr_tables + 1, sizeof(struct serverworks_page_map *),
 			 GFP_KERNEL);
 	if (tables == NULL)
 		return -ENOMEM;

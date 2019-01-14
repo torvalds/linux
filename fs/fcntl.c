@@ -23,7 +23,7 @@
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
-#include <linux/shmem_fs.h>
+#include <linux/memfd.h>
 #include <linux/compat.h>
 
 #include <linux/poll.h>
@@ -116,7 +116,7 @@ int f_setown(struct file *filp, unsigned long arg, int force)
 	struct pid *pid = NULL;
 	int who = arg, ret = 0;
 
-	type = PIDTYPE_PID;
+	type = PIDTYPE_TGID;
 	if (who < 0) {
 		/* avoid overflow below */
 		if (who == INT_MIN)
@@ -143,7 +143,7 @@ EXPORT_SYMBOL(f_setown);
 
 void f_delown(struct file *filp)
 {
-	f_modown(filp, NULL, PIDTYPE_PID, 1);
+	f_modown(filp, NULL, PIDTYPE_TGID, 1);
 }
 
 pid_t f_getown(struct file *filp)
@@ -171,11 +171,11 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 
 	switch (owner.type) {
 	case F_OWNER_TID:
-		type = PIDTYPE_MAX;
+		type = PIDTYPE_PID;
 		break;
 
 	case F_OWNER_PID:
-		type = PIDTYPE_PID;
+		type = PIDTYPE_TGID;
 		break;
 
 	case F_OWNER_PGRP:
@@ -206,11 +206,11 @@ static int f_getown_ex(struct file *filp, unsigned long arg)
 	read_lock(&filp->f_owner.lock);
 	owner.pid = pid_vnr(filp->f_owner.pid);
 	switch (filp->f_owner.pid_type) {
-	case PIDTYPE_MAX:
+	case PIDTYPE_PID:
 		owner.type = F_OWNER_TID;
 		break;
 
-	case PIDTYPE_PID:
+	case PIDTYPE_TGID:
 		owner.type = F_OWNER_PID;
 		break;
 
@@ -723,7 +723,7 @@ static inline int sigio_perm(struct task_struct *p,
 
 static void send_sigio_to_task(struct task_struct *p,
 			       struct fown_struct *fown,
-			       int fd, int reason, int group)
+			       int fd, int reason, enum pid_type type)
 {
 	/*
 	 * F_SETSIG can change ->signum lockless in parallel, make
@@ -735,7 +735,7 @@ static void send_sigio_to_task(struct task_struct *p,
 		return;
 
 	switch (signum) {
-		siginfo_t si;
+		kernel_siginfo_t si;
 		default:
 			/* Queue a rt signal with the appropriate fd as its
 			   value.  We use SI_SIGIO as the source, not 
@@ -767,11 +767,11 @@ static void send_sigio_to_task(struct task_struct *p,
 			else
 				si.si_band = mangle_poll(band_table[reason - POLL_IN]);
 			si.si_fd    = fd;
-			if (!do_send_sig_info(signum, &si, p, group))
+			if (!do_send_sig_info(signum, &si, p, type))
 				break;
 		/* fall-through: fall back on the old plain SIGIO signal */
 		case 0:
-			do_send_sig_info(SIGIO, SEND_SIG_PRIV, p, group);
+			do_send_sig_info(SIGIO, SEND_SIG_PRIV, p, type);
 	}
 }
 
@@ -780,34 +780,36 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 	struct task_struct *p;
 	enum pid_type type;
 	struct pid *pid;
-	int group = 1;
 	
 	read_lock(&fown->lock);
 
 	type = fown->pid_type;
-	if (type == PIDTYPE_MAX) {
-		group = 0;
-		type = PIDTYPE_PID;
-	}
-
 	pid = fown->pid;
 	if (!pid)
 		goto out_unlock_fown;
-	
-	read_lock(&tasklist_lock);
-	do_each_pid_task(pid, type, p) {
-		send_sigio_to_task(p, fown, fd, band, group);
-	} while_each_pid_task(pid, type, p);
-	read_unlock(&tasklist_lock);
+
+	if (type <= PIDTYPE_TGID) {
+		rcu_read_lock();
+		p = pid_task(pid, PIDTYPE_PID);
+		if (p)
+			send_sigio_to_task(p, fown, fd, band, type);
+		rcu_read_unlock();
+	} else {
+		read_lock(&tasklist_lock);
+		do_each_pid_task(pid, type, p) {
+			send_sigio_to_task(p, fown, fd, band, type);
+		} while_each_pid_task(pid, type, p);
+		read_unlock(&tasklist_lock);
+	}
  out_unlock_fown:
 	read_unlock(&fown->lock);
 }
 
 static void send_sigurg_to_task(struct task_struct *p,
-				struct fown_struct *fown, int group)
+				struct fown_struct *fown, enum pid_type type)
 {
 	if (sigio_perm(p, fown, SIGURG))
-		do_send_sig_info(SIGURG, SEND_SIG_PRIV, p, group);
+		do_send_sig_info(SIGURG, SEND_SIG_PRIV, p, type);
 }
 
 int send_sigurg(struct fown_struct *fown)
@@ -815,28 +817,30 @@ int send_sigurg(struct fown_struct *fown)
 	struct task_struct *p;
 	enum pid_type type;
 	struct pid *pid;
-	int group = 1;
 	int ret = 0;
 	
 	read_lock(&fown->lock);
 
 	type = fown->pid_type;
-	if (type == PIDTYPE_MAX) {
-		group = 0;
-		type = PIDTYPE_PID;
-	}
-
 	pid = fown->pid;
 	if (!pid)
 		goto out_unlock_fown;
 
 	ret = 1;
-	
-	read_lock(&tasklist_lock);
-	do_each_pid_task(pid, type, p) {
-		send_sigurg_to_task(p, fown, group);
-	} while_each_pid_task(pid, type, p);
-	read_unlock(&tasklist_lock);
+
+	if (type <= PIDTYPE_TGID) {
+		rcu_read_lock();
+		p = pid_task(pid, PIDTYPE_PID);
+		if (p)
+			send_sigurg_to_task(p, fown, type);
+		rcu_read_unlock();
+	} else {
+		read_lock(&tasklist_lock);
+		do_each_pid_task(pid, type, p) {
+			send_sigurg_to_task(p, fown, type);
+		} while_each_pid_task(pid, type, p);
+		read_unlock(&tasklist_lock);
+	}
  out_unlock_fown:
 	read_unlock(&fown->lock);
 	return ret;
@@ -871,9 +875,9 @@ int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 		if (fa->fa_file != filp)
 			continue;
 
-		spin_lock_irq(&fa->fa_lock);
+		write_lock_irq(&fa->fa_lock);
 		fa->fa_file = NULL;
-		spin_unlock_irq(&fa->fa_lock);
+		write_unlock_irq(&fa->fa_lock);
 
 		*fp = fa->fa_next;
 		call_rcu(&fa->fa_rcu, fasync_free_rcu);
@@ -918,13 +922,13 @@ struct fasync_struct *fasync_insert_entry(int fd, struct file *filp, struct fasy
 		if (fa->fa_file != filp)
 			continue;
 
-		spin_lock_irq(&fa->fa_lock);
+		write_lock_irq(&fa->fa_lock);
 		fa->fa_fd = fd;
-		spin_unlock_irq(&fa->fa_lock);
+		write_unlock_irq(&fa->fa_lock);
 		goto out;
 	}
 
-	spin_lock_init(&new->fa_lock);
+	rwlock_init(&new->fa_lock);
 	new->magic = FASYNC_MAGIC;
 	new->fa_file = filp;
 	new->fa_fd = fd;
@@ -987,14 +991,13 @@ static void kill_fasync_rcu(struct fasync_struct *fa, int sig, int band)
 {
 	while (fa) {
 		struct fown_struct *fown;
-		unsigned long flags;
 
 		if (fa->magic != FASYNC_MAGIC) {
 			printk(KERN_ERR "kill_fasync: bad magic number in "
 			       "fasync_struct!\n");
 			return;
 		}
-		spin_lock_irqsave(&fa->fa_lock, flags);
+		read_lock(&fa->fa_lock);
 		if (fa->fa_file) {
 			fown = &fa->fa_file->f_owner;
 			/* Don't send SIGURG to processes which have not set a
@@ -1003,7 +1006,7 @@ static void kill_fasync_rcu(struct fasync_struct *fa, int sig, int band)
 			if (!(sig == SIGURG && fown->signum == 0))
 				send_sigio(fown, fa->fa_fd, band);
 		}
-		spin_unlock_irqrestore(&fa->fa_lock, flags);
+		read_unlock(&fa->fa_lock);
 		fa = rcu_dereference(fa->fa_next);
 	}
 }

@@ -210,9 +210,9 @@ struct cfqg_stats {
 	/* total time with empty current active q with other requests queued */
 	struct blkg_stat		empty_time;
 	/* fields after this shouldn't be cleared on stat reset */
-	uint64_t			start_group_wait_time;
-	uint64_t			start_idle_time;
-	uint64_t			start_empty_time;
+	u64				start_group_wait_time;
+	u64				start_idle_time;
+	u64				start_empty_time;
 	uint16_t			flags;
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
 #endif	/* CONFIG_CFQ_GROUP_IOSCHED */
@@ -491,13 +491,13 @@ CFQG_FLAG_FNS(empty)
 /* This should be called with the queue_lock held. */
 static void cfqg_stats_update_group_wait_time(struct cfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!cfqg_stats_waiting(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_group_wait_time))
+	now = ktime_get_ns();
+	if (now > stats->start_group_wait_time)
 		blkg_stat_add(&stats->group_wait_time,
 			      now - stats->start_group_wait_time);
 	cfqg_stats_clear_waiting(stats);
@@ -513,20 +513,20 @@ static void cfqg_stats_set_start_group_wait_time(struct cfq_group *cfqg,
 		return;
 	if (cfqg == curr_cfqg)
 		return;
-	stats->start_group_wait_time = sched_clock();
+	stats->start_group_wait_time = ktime_get_ns();
 	cfqg_stats_mark_waiting(stats);
 }
 
 /* This should be called with the queue_lock held. */
 static void cfqg_stats_end_empty_time(struct cfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!cfqg_stats_empty(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_empty_time))
+	now = ktime_get_ns();
+	if (now > stats->start_empty_time)
 		blkg_stat_add(&stats->empty_time,
 			      now - stats->start_empty_time);
 	cfqg_stats_clear_empty(stats);
@@ -552,7 +552,7 @@ static void cfqg_stats_set_start_empty_time(struct cfq_group *cfqg)
 	if (cfqg_stats_empty(stats))
 		return;
 
-	stats->start_empty_time = sched_clock();
+	stats->start_empty_time = ktime_get_ns();
 	cfqg_stats_mark_empty(stats);
 }
 
@@ -561,9 +561,9 @@ static void cfqg_stats_update_idle_time(struct cfq_group *cfqg)
 	struct cfqg_stats *stats = &cfqg->stats;
 
 	if (cfqg_stats_idling(stats)) {
-		unsigned long long now = sched_clock();
+		u64 now = ktime_get_ns();
 
-		if (time_after64(now, stats->start_idle_time))
+		if (now > stats->start_idle_time)
 			blkg_stat_add(&stats->idle_time,
 				      now - stats->start_idle_time);
 		cfqg_stats_clear_idling(stats);
@@ -576,7 +576,7 @@ static void cfqg_stats_set_start_idle_time(struct cfq_group *cfqg)
 
 	BUG_ON(cfqg_stats_idling(stats));
 
-	stats->start_idle_time = sched_clock();
+	stats->start_idle_time = ktime_get_ns();
 	cfqg_stats_mark_idling(stats);
 }
 
@@ -701,17 +701,19 @@ static inline void cfqg_stats_update_io_merged(struct cfq_group *cfqg,
 }
 
 static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
-			uint64_t start_time, uint64_t io_start_time,
-			unsigned int op)
+						u64 start_time_ns,
+						u64 io_start_time_ns,
+						unsigned int op)
 {
 	struct cfqg_stats *stats = &cfqg->stats;
-	unsigned long long now = sched_clock();
+	u64 now = ktime_get_ns();
 
-	if (time_after64(now, io_start_time))
-		blkg_rwstat_add(&stats->service_time, op, now - io_start_time);
-	if (time_after64(io_start_time, start_time))
+	if (now > io_start_time_ns)
+		blkg_rwstat_add(&stats->service_time, op,
+				now - io_start_time_ns);
+	if (io_start_time_ns > start_time_ns)
 		blkg_rwstat_add(&stats->wait_time, op,
-				io_start_time - start_time);
+				io_start_time_ns - start_time_ns);
 }
 
 /* @stats = 0 */
@@ -797,8 +799,9 @@ static inline void cfqg_stats_update_io_remove(struct cfq_group *cfqg,
 static inline void cfqg_stats_update_io_merged(struct cfq_group *cfqg,
 			unsigned int op) { }
 static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
-			uint64_t start_time, uint64_t io_start_time,
-			unsigned int op) { }
+						u64 start_time_ns,
+						u64 io_start_time_ns,
+						unsigned int op) { }
 
 #endif	/* CONFIG_CFQ_GROUP_IOSCHED */
 
@@ -1641,14 +1644,20 @@ static void cfq_pd_offline(struct blkg_policy_data *pd)
 	int i;
 
 	for (i = 0; i < IOPRIO_BE_NR; i++) {
-		if (cfqg->async_cfqq[0][i])
+		if (cfqg->async_cfqq[0][i]) {
 			cfq_put_queue(cfqg->async_cfqq[0][i]);
-		if (cfqg->async_cfqq[1][i])
+			cfqg->async_cfqq[0][i] = NULL;
+		}
+		if (cfqg->async_cfqq[1][i]) {
 			cfq_put_queue(cfqg->async_cfqq[1][i]);
+			cfqg->async_cfqq[1][i] = NULL;
+		}
 	}
 
-	if (cfqg->async_idle_cfqq)
+	if (cfqg->async_idle_cfqq) {
 		cfq_put_queue(cfqg->async_idle_cfqq);
+		cfqg->async_idle_cfqq = NULL;
+	}
 
 	/*
 	 * @blkg is going offline and will be ignored by
@@ -3663,6 +3672,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct cfq_io_cq *cic)
 	switch (ioprio_class) {
 	default:
 		printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
+		/* fall through */
 	case IOPRIO_CLASS_NONE:
 		/*
 		 * no prio set, inherit CPU scheduling settings
@@ -4225,8 +4235,8 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	cfqd->rq_in_driver--;
 	cfqq->dispatched--;
 	(RQ_CFQG(rq))->dispatched--;
-	cfqg_stats_update_completion(cfqq->cfqg, rq_start_time_ns(rq),
-				     rq_io_start_time_ns(rq), rq->cmd_flags);
+	cfqg_stats_update_completion(cfqq->cfqg, rq->start_time_ns,
+				     rq->io_start_time_ns, rq->cmd_flags);
 
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]--;
 
@@ -4242,16 +4252,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 					cfqq_type(cfqq));
 
 		st->ttime.last_end_request = now;
-		/*
-		 * We have to do this check in jiffies since start_time is in
-		 * jiffies and it is not trivial to convert to ns. If
-		 * cfq_fifo_expire[1] ever comes close to 1 jiffie, this test
-		 * will become problematic but so far we are fine (the default
-		 * is 128 ms).
-		 */
-		if (!time_after(rq->start_time +
-				  nsecs_to_jiffies(cfqd->cfq_fifo_expire[1]),
-				jiffies))
+		if (rq->start_time_ns + cfqd->cfq_fifo_expire[1] <= now)
 			cfqd->last_delayed_sync = now;
 	}
 
@@ -4741,12 +4742,13 @@ USEC_SHOW_FUNCTION(cfq_target_latency_us_show, cfqd->cfq_target_latency);
 static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 {									\
 	struct cfq_data *cfqd = e->elevator_data;			\
-	unsigned int __data;						\
+	unsigned int __data, __min = (MIN), __max = (MAX);		\
+									\
 	cfq_var_store(&__data, (page));					\
-	if (__data < (MIN))						\
-		__data = (MIN);						\
-	else if (__data > (MAX))					\
-		__data = (MAX);						\
+	if (__data < __min)						\
+		__data = __min;						\
+	else if (__data > __max)					\
+		__data = __max;						\
 	if (__CONV)							\
 		*(__PTR) = (u64)__data * NSEC_PER_MSEC;			\
 	else								\
@@ -4775,12 +4777,13 @@ STORE_FUNCTION(cfq_target_latency_store, &cfqd->cfq_target_latency, 1, UINT_MAX,
 static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 {									\
 	struct cfq_data *cfqd = e->elevator_data;			\
-	unsigned int __data;						\
+	unsigned int __data, __min = (MIN), __max = (MAX);		\
+									\
 	cfq_var_store(&__data, (page));					\
-	if (__data < (MIN))						\
-		__data = (MIN);						\
-	else if (__data > (MAX))					\
-		__data = (MAX);						\
+	if (__data < __min)						\
+		__data = __min;						\
+	else if (__data > __max)					\
+		__data = __max;						\
 	*(__PTR) = (u64)__data * NSEC_PER_USEC;				\
 	return count;							\
 }
@@ -4792,7 +4795,7 @@ USEC_STORE_FUNCTION(cfq_target_latency_us_store, &cfqd->cfq_target_latency, 1, U
 #undef USEC_STORE_FUNCTION
 
 #define CFQ_ATTR(name) \
-	__ATTR(name, S_IRUGO|S_IWUSR, cfq_##name##_show, cfq_##name##_store)
+	__ATTR(name, 0644, cfq_##name##_show, cfq_##name##_store)
 
 static struct elv_fs_entry cfq_attrs[] = {
 	CFQ_ATTR(quantum),

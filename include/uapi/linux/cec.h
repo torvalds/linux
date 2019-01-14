@@ -152,10 +152,13 @@ static inline void cec_msg_set_reply_to(struct cec_msg *msg,
 #define CEC_TX_STATUS_LOW_DRIVE		(1 << 3)
 #define CEC_TX_STATUS_ERROR		(1 << 4)
 #define CEC_TX_STATUS_MAX_RETRIES	(1 << 5)
+#define CEC_TX_STATUS_ABORTED		(1 << 6)
+#define CEC_TX_STATUS_TIMEOUT		(1 << 7)
 
 #define CEC_RX_STATUS_OK		(1 << 0)
 #define CEC_RX_STATUS_TIMEOUT		(1 << 1)
 #define CEC_RX_STATUS_FEATURE_ABORT	(1 << 2)
+#define CEC_RX_STATUS_ABORTED		(1 << 3)
 
 static inline int cec_msg_status_is_ok(const struct cec_msg *msg)
 {
@@ -384,6 +387,8 @@ struct cec_log_addrs {
 #define CEC_EVENT_PIN_CEC_HIGH		4
 #define CEC_EVENT_PIN_HPD_LOW		5
 #define CEC_EVENT_PIN_HPD_HIGH		6
+#define CEC_EVENT_PIN_5V_LOW		7
+#define CEC_EVENT_PIN_5V_HIGH		8
 
 #define CEC_EVENT_FL_INITIAL_STATE	(1 << 0)
 #define CEC_EVENT_FL_DROPPED_EVENTS	(1 << 1)

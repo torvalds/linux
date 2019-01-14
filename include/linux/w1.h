@@ -274,6 +274,8 @@ struct w1_family {
 
 	struct w1_family_ops	*fops;
 
+	const struct of_device_id *of_match_table;
+
 	atomic_t		refcnt;
 };
 

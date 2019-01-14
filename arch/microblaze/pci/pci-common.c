@@ -20,7 +20,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/shmem_fs.h>
 #include <linux/list.h>
@@ -597,19 +597,6 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_resources);
 
-/*
- * We need to avoid collisions with `mirrored' VGA ports
- * and other strange ISA hardware, so we always want the
- * addresses to be allocated in the 0x000-0x0ff region
- * modulo 0x400.
- *
- * Why? Because some silly external IO cards only decode
- * the low 10 bits of the IO address. The 0x00-0xff region
- * is reserved for motherboard devices that decode all 16
- * bits, so it's ok to allocate at, say, 0x2800-0x28ff,
- * but we want to try to avoid allocating at 0x2900-0x2bff
- * which might have be mirrored at 0x0100-0x03ff..
- */
 int pcibios_add_device(struct pci_dev *dev)
 {
 	dev->irq = of_irq_parse_and_map_pci(dev, 0, 0);
@@ -914,67 +901,6 @@ void __init pcibios_resource_survey(void)
 	pr_debug("PCI: Assigning unassigned resources...\n");
 	pci_assign_unassigned_resources();
 }
-
-/* This is used by the PCI hotplug driver to allocate resource
- * of newly plugged busses. We can try to consolidate with the
- * rest of the code later, for now, keep it as-is as our main
- * resource allocation function doesn't deal with sub-trees yet.
- */
-void pcibios_claim_one_bus(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-	struct pci_bus *child_bus;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		int i;
-
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *r = &dev->resource[i];
-
-			if (r->parent || !r->start || !r->flags)
-				continue;
-
-			pr_debug("PCI: Claiming %s: ", pci_name(dev));
-			pr_debug("Resource %d: %016llx..%016llx [%x]\n",
-				 i, (unsigned long long)r->start,
-				 (unsigned long long)r->end,
-				 (unsigned int)r->flags);
-
-			if (pci_claim_resource(dev, i) == 0)
-				continue;
-
-			pci_claim_bridge_resource(dev, i);
-		}
-	}
-
-	list_for_each_entry(child_bus, &bus->children, node)
-		pcibios_claim_one_bus(child_bus);
-}
-EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
-
-
-/* pcibios_finish_adding_to_bus
- *
- * This is to be called by the hotplug code after devices have been
- * added to a bus, this include calling it for a PHB that is just
- * being added
- */
-void pcibios_finish_adding_to_bus(struct pci_bus *bus)
-{
-	pr_debug("PCI: Finishing adding to hotplug bus %04x:%02x\n",
-		 pci_domain_nr(bus), bus->number);
-
-	/* Allocate bus and devices resources */
-	pcibios_allocate_bus_resources(bus);
-	pcibios_claim_one_bus(bus);
-
-	/* Add new devices to global lists.  Register in proc, sysfs. */
-	pci_bus_add_devices(bus);
-
-	/* Fixup EEH */
-	/* eeh_add_device_tree_late(bus); */
-}
-EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
 
 static void pcibios_setup_phb_resources(struct pci_controller *hose,
 					struct list_head *resources)

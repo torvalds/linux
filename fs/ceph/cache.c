@@ -25,8 +25,9 @@
 #include "cache.h"
 
 struct ceph_aux_inode {
-	u64 		version;
-	struct timespec	mtime;
+	u64 	version;
+	u64	mtime_sec;
+	u64	mtime_nsec;
 };
 
 struct fscache_netfs ceph_cache_netfs = {
@@ -130,7 +131,8 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 
 	memset(&aux, 0, sizeof(aux));
 	aux.version = ci->i_version;
-	aux.mtime = inode->i_mtime;
+	aux.mtime_sec = inode->i_mtime.tv_sec;
+	aux.mtime_nsec = inode->i_mtime.tv_nsec;
 
 	if (memcmp(data, &aux, sizeof(aux)) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
@@ -163,7 +165,8 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 	if (!ci->fscache) {
 		memset(&aux, 0, sizeof(aux));
 		aux.version = ci->i_version;
-		aux.mtime = inode->i_mtime;
+		aux.mtime_sec = inode->i_mtime.tv_sec;
+		aux.mtime_nsec = inode->i_mtime.tv_nsec;
 		ci->fscache = fscache_acquire_cookie(fsc->fscache,
 						     &ceph_fscache_inode_object_def,
 						     &ci->i_vino, sizeof(ci->i_vino),

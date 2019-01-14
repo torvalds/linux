@@ -482,7 +482,8 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16((u16) user_scan_in->
 					chan_list[0].scan_time);
-			else if (ch->flags & IEEE80211_CHAN_NO_IR)
+			else if ((ch->flags & IEEE80211_CHAN_NO_IR) ||
+				 (ch->flags & IEEE80211_CHAN_RADAR))
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16(adapter->passive_scan_time);
 			else
@@ -502,10 +503,12 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 			scan_chan_list[chan_idx].chan_scan_mode_bitmap
 					|= MWIFIEX_DISABLE_CHAN_FILT;
 
-			if (filtered_scan) {
+			if (filtered_scan &&
+			    !((ch->flags & IEEE80211_CHAN_NO_IR) ||
+			      (ch->flags & IEEE80211_CHAN_RADAR)))
 				scan_chan_list[chan_idx].max_scan_time =
 				cpu_to_le16(adapter->specific_scan_time);
-			}
+
 			chan_idx++;
 		}
 
@@ -1308,6 +1311,7 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 
 		case WLAN_EID_CHANNEL_SWITCH:
 			bss_entry->chan_sw_ie_present = true;
+			/* fall through */
 		case WLAN_EID_PWR_CAPABILITY:
 		case WLAN_EID_TPC_REPORT:
 		case WLAN_EID_QUIET:
@@ -1491,7 +1495,8 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 		return -EBUSY;
 	}
 
-	if (adapter->surprise_removed || adapter->is_cmd_timedout) {
+	if (test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags) ||
+	    test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "Ignore scan. Card removed or firmware in bad state\n");
 		return -EFAULT;

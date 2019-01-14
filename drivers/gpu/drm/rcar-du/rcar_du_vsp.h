@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * rcar_du_vsp.h  --  R-Car Display Unit VSP-Based Compositor
  *
  * Copyright (C) 2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __RCAR_DU_VSP_H__
@@ -44,15 +40,12 @@ static inline struct rcar_du_vsp_plane *to_rcar_vsp_plane(struct drm_plane *p)
  * @state: base DRM plane state
  * @format: information about the pixel format used by the plane
  * @sg_tables: scatter-gather tables for the frame buffer memory
- * @alpha: value of the plane alpha property
  */
 struct rcar_du_vsp_plane_state {
 	struct drm_plane_state state;
 
 	const struct rcar_du_format_info *format;
 	struct sg_table sg_tables[3];
-
-	unsigned int alpha;
 };
 
 static inline struct rcar_du_vsp_plane_state *

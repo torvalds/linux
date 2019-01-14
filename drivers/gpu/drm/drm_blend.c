@@ -88,11 +88,40 @@
  * On top of this basic transformation additional properties can be exposed by
  * the driver:
  *
+ * alpha:
+ * 	Alpha is setup with drm_plane_create_alpha_property(). It controls the
+ * 	plane-wide opacity, from transparent (0) to opaque (0xffff). It can be
+ * 	combined with pixel alpha.
+ *	The pixel values in the framebuffers are expected to not be
+ *	pre-multiplied by the global alpha associated to the plane.
+ *
  * rotation:
  *	Rotation is set up with drm_plane_create_rotation_property(). It adds a
  *	rotation and reflection step between the source and destination rectangles.
  *	Without this property the rectangle is only scaled, but not rotated or
  *	reflected.
+ *
+ *	Possbile values:
+ *
+ *	"rotate-<degrees>":
+ *		Signals that a drm plane is rotated <degrees> degrees in counter
+ *		clockwise direction.
+ *
+ *	"reflect-<axis>":
+ *		Signals that the contents of a drm plane is reflected along the
+ *		<axis> axis, in the same way as mirroring.
+ *
+ *	reflect-x::
+ *
+ *			|o |    | o|
+ *			|  | -> |  |
+ *			| v|    |v |
+ *
+ *	reflect-y::
+ *
+ *			|o |    | ^|
+ *			|  | -> |  |
+ *			| v|    |o |
  *
  * zpos:
  *	Z position is set up with drm_plane_create_zpos_immutable_property() and
@@ -100,10 +129,88 @@
  *	planes. Without this property the primary plane is always below the cursor
  *	plane, and ordering between all other planes is undefined.
  *
+ * pixel blend mode:
+ *	Pixel blend mode is set up with drm_plane_create_blend_mode_property().
+ *	It adds a blend mode for alpha blending equation selection, describing
+ *	how the pixels from the current plane are composited with the
+ *	background.
+ *
+ *	 Three alpha blending equations are defined:
+ *
+ *	 "None":
+ *		 Blend formula that ignores the pixel alpha::
+ *
+ *			 out.rgb = plane_alpha * fg.rgb +
+ *				 (1 - plane_alpha) * bg.rgb
+ *
+ *	 "Pre-multiplied":
+ *		 Blend formula that assumes the pixel color values
+ *		 have been already pre-multiplied with the alpha
+ *		 channel values::
+ *
+ *			 out.rgb = plane_alpha * fg.rgb +
+ *				 (1 - (plane_alpha * fg.alpha)) * bg.rgb
+ *
+ *	 "Coverage":
+ *		 Blend formula that assumes the pixel color values have not
+ *		 been pre-multiplied and will do so when blending them to the
+ *		 background color values::
+ *
+ *			 out.rgb = plane_alpha * fg.alpha * fg.rgb +
+ *				 (1 - (plane_alpha * fg.alpha)) * bg.rgb
+ *
+ *	 Using the following symbols:
+ *
+ *	 "fg.rgb":
+ *		 Each of the RGB component values from the plane's pixel
+ *	 "fg.alpha":
+ *		 Alpha component value from the plane's pixel. If the plane's
+ *		 pixel format has no alpha component, then this is assumed to be
+ *		 1.0. In these cases, this property has no effect, as all three
+ *		 equations become equivalent.
+ *	 "bg.rgb":
+ *		 Each of the RGB component values from the background
+ *	 "plane_alpha":
+ *		 Plane alpha value set by the plane "alpha" property. If the
+ *		 plane does not expose the "alpha" property, then this is
+ *		 assumed to be 1.0
+ *
  * Note that all the property extensions described here apply either to the
  * plane or the CRTC (e.g. for the background color, which currently is not
  * exposed and assumed to be black).
  */
+
+/**
+ * drm_plane_create_alpha_property - create a new alpha property
+ * @plane: drm plane
+ *
+ * This function creates a generic, mutable, alpha property and enables support
+ * for it in the DRM core. It is attached to @plane.
+ *
+ * The alpha property will be allowed to be within the bounds of 0
+ * (transparent) to 0xffff (opaque).
+ *
+ * Returns:
+ * 0 on success, negative error code on failure.
+ */
+int drm_plane_create_alpha_property(struct drm_plane *plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "alpha",
+					 0, DRM_BLEND_ALPHA_OPAQUE);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, DRM_BLEND_ALPHA_OPAQUE);
+	plane->alpha_property = prop;
+
+	if (plane->state)
+		plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_create_alpha_property);
 
 /**
  * drm_plane_create_rotation_property - create a new rotation property
@@ -409,3 +516,80 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_normalize_zpos);
+
+/**
+ * drm_plane_create_blend_mode_property - create a new blend mode property
+ * @plane: drm plane
+ * @supported_modes: bitmask of supported modes, must include
+ *		     BIT(DRM_MODE_BLEND_PREMULTI). Current DRM assumption is
+ *		     that alpha is premultiplied, and old userspace can break if
+ *		     the property defaults to anything else.
+ *
+ * This creates a new property describing the blend mode.
+ *
+ * The property exposed to userspace is an enumeration property (see
+ * drm_property_create_enum()) called "pixel blend mode" and has the
+ * following enumeration values:
+ *
+ * "None":
+ *	Blend formula that ignores the pixel alpha.
+ *
+ * "Pre-multiplied":
+ *	Blend formula that assumes the pixel color values have been already
+ *	pre-multiplied with the alpha channel values.
+ *
+ * "Coverage":
+ *	Blend formula that assumes the pixel color values have not been
+ *	pre-multiplied and will do so when blending them to the background color
+ *	values.
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
+int drm_plane_create_blend_mode_property(struct drm_plane *plane,
+					 unsigned int supported_modes)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_property *prop;
+	static const struct drm_prop_enum_list props[] = {
+		{ DRM_MODE_BLEND_PIXEL_NONE, "None" },
+		{ DRM_MODE_BLEND_PREMULTI, "Pre-multiplied" },
+		{ DRM_MODE_BLEND_COVERAGE, "Coverage" },
+	};
+	unsigned int valid_mode_mask = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				       BIT(DRM_MODE_BLEND_PREMULTI)   |
+				       BIT(DRM_MODE_BLEND_COVERAGE);
+	int i;
+
+	if (WARN_ON((supported_modes & ~valid_mode_mask) ||
+		    ((supported_modes & BIT(DRM_MODE_BLEND_PREMULTI)) == 0)))
+		return -EINVAL;
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+				   "pixel blend mode",
+				   hweight32(supported_modes));
+	if (!prop)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(props); i++) {
+		int ret;
+
+		if (!(BIT(props[i].type) & supported_modes))
+			continue;
+
+		ret = drm_property_add_enum(prop, props[i].type,
+					    props[i].name);
+
+		if (ret) {
+			drm_property_destroy(dev, prop);
+
+			return ret;
+		}
+	}
+
+	drm_object_attach_property(&plane->base, prop, DRM_MODE_BLEND_PREMULTI);
+	plane->blend_mode_property = prop;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_create_blend_mode_property);

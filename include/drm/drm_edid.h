@@ -214,9 +214,9 @@ struct detailed_timing {
 #define DRM_EDID_HDMI_DC_Y444             (1 << 3)
 
 /* YCBCR 420 deep color modes */
-#define DRM_EDID_YCBCR420_DC_48		  (1 << 6)
-#define DRM_EDID_YCBCR420_DC_36		  (1 << 5)
-#define DRM_EDID_YCBCR420_DC_30		  (1 << 4)
+#define DRM_EDID_YCBCR420_DC_48		  (1 << 2)
+#define DRM_EDID_YCBCR420_DC_36		  (1 << 1)
+#define DRM_EDID_YCBCR420_DC_30		  (1 << 0)
 #define DRM_EDID_YCBCR420_DC_MASK (DRM_EDID_YCBCR420_DC_48 | \
 				    DRM_EDID_YCBCR420_DC_36 | \
 				    DRM_EDID_YCBCR420_DC_30)
@@ -465,8 +465,6 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 				     struct i2c_adapter *adapter);
 struct edid *drm_edid_duplicate(const struct edid *edid);
-void drm_reset_display_info(struct drm_connector *connector);
-u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid);
 int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);

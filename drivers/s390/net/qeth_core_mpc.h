@@ -56,6 +56,21 @@ static inline bool qeth_intparm_is_iob(unsigned long intparm)
 #define IPA_CMD_INITIATOR_OSA_REPLY   0x81
 #define IPA_CMD_PRIM_VERSION_NO 0x01
 
+struct qeth_ipa_caps {
+	u32 supported;
+	u32 enabled;
+};
+
+static inline bool qeth_ipa_caps_supported(struct qeth_ipa_caps *caps, u32 mask)
+{
+	return (caps->supported & mask) == mask;
+}
+
+static inline bool qeth_ipa_caps_enabled(struct qeth_ipa_caps *caps, u32 mask)
+{
+	return (caps->enabled & mask) == mask;
+}
+
 enum qeth_card_types {
 	QETH_CARD_TYPE_OSD     = 1,
 	QETH_CARD_TYPE_IQD     = 5,
@@ -63,6 +78,9 @@ enum qeth_card_types {
 	QETH_CARD_TYPE_OSM     = 3,
 	QETH_CARD_TYPE_OSX     = 2,
 };
+
+#define IS_IQD(card)	((card)->info.type == QETH_CARD_TYPE_IQD)
+#define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
 /* only the first two bytes are looked at in qeth_get_cardname_short */
@@ -72,6 +90,7 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_GBIT_ETH     = 0x03,
 	QETH_LINK_TYPE_OSN          = 0x04,
 	QETH_LINK_TYPE_10GBIT_ETH   = 0x10,
+	QETH_LINK_TYPE_25GBIT_ETH   = 0x12,
 	QETH_LINK_TYPE_LANE_ETH100  = 0x81,
 	QETH_LINK_TYPE_LANE_TR      = 0x82,
 	QETH_LINK_TYPE_LANE_ETH1000 = 0x83,
@@ -246,6 +265,8 @@ enum qeth_ipa_funcs {
 	IPA_QUERY_ARP_ASSIST	= 0x00040000L,
 	IPA_INBOUND_TSO         = 0x00080000L,
 	IPA_OUTBOUND_TSO        = 0x00100000L,
+	IPA_INBOUND_CHECKSUM_V6 = 0x00400000L,
+	IPA_OUTBOUND_CHECKSUM_V6 = 0x00800000L,
 };
 
 /* SETIP/DELIP IPA Command: ***************************************************/
@@ -327,6 +348,7 @@ enum qeth_card_info_port_speed {
 	CARD_INFO_PORTS_100M		= 0x00000006,
 	CARD_INFO_PORTS_1G		= 0x00000007,
 	CARD_INFO_PORTS_10G		= 0x00000008,
+	CARD_INFO_PORTS_25G		= 0x0000000A,
 };
 
 /* (SET)DELIP(M) IPA stuff ***************************************************/
@@ -400,14 +422,25 @@ struct qeth_checksum_cmd {
 	__u32 enabled;
 } __packed;
 
+enum qeth_ipa_large_send_caps {
+	QETH_IPA_LARGE_SEND_TCP		= 0x00000001,
+};
+
+struct qeth_tso_start_data {
+	u32 mss;
+	u32 supported;
+};
+
 /* SETASSPARMS IPA Command: */
 struct qeth_ipacmd_setassparms {
 	struct qeth_ipacmd_setassparms_hdr hdr;
 	union {
 		__u32 flags_32bit;
+		struct qeth_ipa_caps caps;
 		struct qeth_checksum_cmd chksum;
-		struct qeth_arp_cache_entry add_arp_entry;
+		struct qeth_arp_cache_entry arp_entry;
 		struct qeth_arp_query_data query_arp;
+		struct qeth_tso_start_data tso;
 		__u8 ip[16];
 	} data;
 } __attribute__ ((packed));
@@ -792,8 +825,8 @@ enum qeth_ipa_arp_return_codes {
 	QETH_IPA_ARP_RC_Q_NO_DATA    = 0x0008,
 };
 
-extern char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
-extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
+extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
+extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
 #define QETH_SETASS_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
 			       sizeof(struct qeth_ipacmd_setassparms_hdr))
@@ -812,10 +845,6 @@ extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 /*****************************************************************************/
 /* END OF   IP Assist related definitions                                    */
 /*****************************************************************************/
-
-
-extern unsigned char WRITE_CCW[];
-extern unsigned char READ_CCW[];
 
 extern unsigned char CM_ENABLE[];
 #define CM_ENABLE_SIZE 0x63

@@ -20,7 +20,13 @@
 #include <linux/compat.h>
 #include <linux/err.h>
 
-extern const void *sys_call_table[];
+typedef long (*syscall_fn_t)(struct pt_regs *regs);
+
+extern const syscall_fn_t sys_call_table[];
+
+#ifdef CONFIG_COMPAT
+extern const syscall_fn_t compat_sys_call_table[];
+#endif
 
 static inline int syscall_get_nr(struct task_struct *task,
 				 struct pt_regs *regs)

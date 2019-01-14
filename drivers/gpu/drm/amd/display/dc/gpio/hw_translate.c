@@ -72,6 +72,7 @@ bool dal_hw_translate_init(
 	case DCE_VERSION_10_0:
 	case DCE_VERSION_11_0:
 	case DCE_VERSION_11_2:
+	case DCE_VERSION_11_22:
 		dal_hw_translate_dce110_init(translate);
 		return true;
 	case DCE_VERSION_12_0:
@@ -79,6 +80,11 @@ bool dal_hw_translate_init(
 		return true;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
+		dal_hw_translate_dcn10_init(translate);
+		return true;
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	case DCN_VERSION_1_01:
 		dal_hw_translate_dcn10_init(translate);
 		return true;
 #endif

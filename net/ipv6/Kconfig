@@ -15,7 +15,7 @@ menuconfig IPV6
 	  Documentation/networking/ipv6.txt and read the HOWTO at
 	  <http://www.tldp.org/HOWTO/Linux+IPv6-HOWTO/>
 
-	  To compile this protocol support as a module, choose M here: the 
+	  To compile this protocol support as a module, choose M here: the
 	  module will be called ipv6.
 
 if IPV6
@@ -108,6 +108,7 @@ config IPV6_MIP6
 config IPV6_ILA
 	tristate "IPv6: Identifier Locator Addressing (ILA)"
 	depends on NETFILTER
+	select DST_CACHE
 	select LWTUNNEL
 	---help---
 	  Support for IPv6 Identifier Locator Addressing (ILA).
@@ -328,5 +329,10 @@ config IPV6_SEG6_HMAC
 	  of SR-enabled packets.
 
 	  If unsure, say N.
+
+config IPV6_SEG6_BPF
+	def_bool y
+	depends on IPV6_SEG6_LWTUNNEL
+	depends on IPV6 = y
 
 endif # IPV6

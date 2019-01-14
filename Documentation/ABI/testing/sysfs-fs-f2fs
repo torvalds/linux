@@ -51,6 +51,14 @@ Description:
 		 Controls the dirty page count condition for the in-place-update
 		 policies.
 
+What:		/sys/fs/f2fs/<disk>/min_seq_blocks
+Date:		August 2018
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the dirty page count condition for batched sequential
+		 writes in ->writepages.
+
+
 What:		/sys/fs/f2fs/<disk>/min_hot_blocks
 Date:		March 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
@@ -101,6 +109,7 @@ Date:		February 2015
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:
 		 Controls the trimming rate in batch mode.
+		 <deprecated>
 
 What:		/sys/fs/f2fs/<disk>/cp_interval
 Date:		October 2015
@@ -112,7 +121,22 @@ What:		/sys/fs/f2fs/<disk>/idle_interval
 Date:		January 2016
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:
-		 Controls the idle timing.
+		 Controls the idle timing for all paths other than
+		 discard and gc path.
+
+What:		/sys/fs/f2fs/<disk>/discard_idle_interval
+Date:		September 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Description:
+		 Controls the idle timing for discard path.
+
+What:		/sys/fs/f2fs/<disk>/gc_idle_interval
+Date:		September 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Description:
+		 Controls the idle timing for gc path.
 
 What:		/sys/fs/f2fs/<disk>/iostat_enable
 Date:		August 2017
@@ -140,7 +164,7 @@ Contact:	"Shuoran Liu" <liushuoran@huawei.com>
 Description:
 		 Shows total written kbytes issued to disk.
 
-What:		/sys/fs/f2fs/<disk>/feature
+What:		/sys/fs/f2fs/<disk>/features
 Date:		July 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:

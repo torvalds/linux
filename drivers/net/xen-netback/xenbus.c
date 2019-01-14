@@ -254,8 +254,7 @@ static void xenvif_debugfs_delif(struct xenvif *vif)
 	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
 		return;
 
-	if (!IS_ERR_OR_NULL(vif->xenvif_dbg_root))
-		debugfs_remove_recursive(vif->xenvif_dbg_root);
+	debugfs_remove_recursive(vif->xenvif_dbg_root);
 	vif->xenvif_dbg_root = NULL;
 }
 #endif /* CONFIG_DEBUG_FS */
@@ -977,8 +976,8 @@ static void connect(struct backend_info *be)
 	}
 
 	/* Use the number of queues requested by the frontend */
-	be->vif->queues = vzalloc(requested_num_queues *
-				  sizeof(struct xenvif_queue));
+	be->vif->queues = vzalloc(array_size(requested_num_queues,
+					     sizeof(struct xenvif_queue)));
 	if (!be->vif->queues) {
 		xenbus_dev_fatal(dev, -ENOMEM,
 				 "allocating queues");

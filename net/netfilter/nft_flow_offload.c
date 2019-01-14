@@ -142,9 +142,8 @@ static int nft_flow_offload_init(const struct nft_ctx *ctx,
 	if (!tb[NFTA_FLOW_TABLE_NAME])
 		return -EINVAL;
 
-	flowtable = nf_tables_flowtable_lookup(ctx->table,
-					       tb[NFTA_FLOW_TABLE_NAME],
-					       genmask);
+	flowtable = nft_flowtable_lookup(ctx->table, tb[NFTA_FLOW_TABLE_NAME],
+					 genmask);
 	if (IS_ERR(flowtable))
 		return PTR_ERR(flowtable);
 
@@ -202,7 +201,7 @@ static int flow_offload_netdev_event(struct notifier_block *this,
 	if (event != NETDEV_DOWN)
 		return NOTIFY_DONE;
 
-	nf_flow_table_cleanup(dev_net(dev), dev);
+	nf_flow_table_cleanup(dev);
 
 	return NOTIFY_DONE;
 }
@@ -215,7 +214,9 @@ static int __init nft_flow_offload_module_init(void)
 {
 	int err;
 
-	register_netdevice_notifier(&flow_offload_netdev_notifier);
+	err = register_netdevice_notifier(&flow_offload_netdev_notifier);
+	if (err)
+		goto err;
 
 	err = nft_register_expr(&nft_flow_offload_type);
 	if (err < 0)
@@ -225,6 +226,7 @@ static int __init nft_flow_offload_module_init(void)
 
 register_expr:
 	unregister_netdevice_notifier(&flow_offload_netdev_notifier);
+err:
 	return err;
 }
 

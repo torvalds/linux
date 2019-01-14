@@ -428,7 +428,7 @@ asn1_oid_decode(struct asn1_ctx *ctx,
 	if (size < 2 || size > UINT_MAX/sizeof(unsigned long))
 		return 0;
 
-	*oid = kmalloc(size * sizeof(unsigned long), GFP_ATOMIC);
+	*oid = kmalloc_array(size, sizeof(unsigned long), GFP_ATOMIC);
 	if (*oid == NULL)
 		return 0;
 

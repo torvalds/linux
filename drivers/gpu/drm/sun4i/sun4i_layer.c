@@ -35,8 +35,7 @@ static void sun4i_backend_layer_reset(struct drm_plane *plane)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state) {
-		plane->state = &state->state;
-		plane->state->plane = plane;
+		__drm_atomic_helper_plane_reset(plane, &state->state);
 		plane->state->zpos = layer->id;
 	}
 }
@@ -167,6 +166,7 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 			     &sun4i_backend_layer_helper_funcs);
 	layer->backend = backend;
 
+	drm_plane_create_alpha_property(&layer->plane);
 	drm_plane_create_zpos_property(&layer->plane, 0, 0,
 				       SUN4I_BACKEND_NUM_LAYERS - 1);
 

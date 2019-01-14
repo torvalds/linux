@@ -33,7 +33,6 @@ config HISILICON_LPC
 	bool "Support for ISA I/O space on HiSilicon Hip06/7"
 	depends on ARM64 && (ARCH_HISI || COMPILE_TEST)
 	select INDIRECT_PIO
-	select MFD_CORE if ACPI
 	help
 	  Driver to enable I/O access to devices attached to the Low Pin
 	  Count bus on the HiSilicon Hip06/7 SoC.
@@ -103,6 +102,16 @@ config SIMPLE_PM_BUS
 	  An example of such a bus controller is the Renesas Bus State
 	  Controller (BSC, sometimes called "LBSC within Bus Bridge", or
 	  "External Bus Interface") as found on several Renesas ARM SoCs.
+
+config SUN50I_DE2_BUS
+	bool "Allwinner A64 DE2 Bus Driver"
+	  default ARM64
+	  depends on ARCH_SUNXI
+	  select SUNXI_SRAM
+	  help
+	  Say y here to enable support for Allwinner A64 DE2 bus driver. It's
+	  mostly transparent, but a SRAM region needs to be claimed in the SRAM
+	  controller to make the all blocks in the DE2 part accessible.
 
 config SUNXI_RSB
 	tristate "Allwinner sunXi Reduced Serial Bus Driver"

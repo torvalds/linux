@@ -228,7 +228,7 @@ static int qed_grc_attn_cb(struct qed_hwfn *p_hwfn)
 		attn_master_to_str(GET_FIELD(tmp, QED_GRC_ATTENTION_MASTER)),
 		GET_FIELD(tmp2, QED_GRC_ATTENTION_PF),
 		(GET_FIELD(tmp2, QED_GRC_ATTENTION_PRIV) ==
-		 QED_GRC_ATTENTION_PRIV_VF) ? "VF" : "(Ireelevant)",
+		 QED_GRC_ATTENTION_PRIV_VF) ? "VF" : "(Irrelevant)",
 		GET_FIELD(tmp2, QED_GRC_ATTENTION_VF));
 
 out:
@@ -992,6 +992,8 @@ static int qed_int_attentions(struct qed_hwfn *p_hwfn)
 	 */
 	do {
 		index = p_sb_attn->sb_index;
+		/* finish reading index before the loop condition */
+		dma_rmb();
 		attn_bits = le32_to_cpu(p_sb_attn->atten_bits);
 		attn_acks = le32_to_cpu(p_sb_attn->atten_ack);
 	} while (index != p_sb_attn->sb_index);

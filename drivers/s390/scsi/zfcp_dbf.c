@@ -285,6 +285,8 @@ void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
 	struct list_head *entry;
 	unsigned long flags;
 
+	lockdep_assert_held(&adapter->erp_lock);
+
 	if (unlikely(!debug_level_enabled(dbf->rec, level)))
 		return;
 
@@ -599,16 +601,18 @@ void zfcp_dbf_san_in_els(char *tag, struct zfcp_fsf_req *fsf)
 }
 
 /**
- * zfcp_dbf_scsi - trace event for scsi commands
- * @tag: identifier for event
- * @sc: pointer to struct scsi_cmnd
- * @fsf: pointer to struct zfcp_fsf_req
+ * zfcp_dbf_scsi_common() - Common trace event helper for scsi.
+ * @tag: Identifier for event.
+ * @level: trace level of event.
+ * @sdev: Pointer to SCSI device as context for this event.
+ * @sc: Pointer to SCSI command, or NULL with task management function (TMF).
+ * @fsf: Pointer to FSF request, or NULL.
  */
-void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
-		   struct zfcp_fsf_req *fsf)
+void zfcp_dbf_scsi_common(char *tag, int level, struct scsi_device *sdev,
+			  struct scsi_cmnd *sc, struct zfcp_fsf_req *fsf)
 {
 	struct zfcp_adapter *adapter =
-		(struct zfcp_adapter *) sc->device->host->hostdata[0];
+		(struct zfcp_adapter *) sdev->host->hostdata[0];
 	struct zfcp_dbf *dbf = adapter->dbf;
 	struct zfcp_dbf_scsi *rec = &dbf->scsi_buf;
 	struct fcp_resp_with_ext *fcp_rsp;
@@ -620,16 +624,28 @@ void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
 
 	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
 	rec->id = ZFCP_DBF_SCSI_CMND;
-	rec->scsi_result = sc->result;
-	rec->scsi_retries = sc->retries;
-	rec->scsi_allowed = sc->allowed;
-	rec->scsi_id = sc->device->id;
-	rec->scsi_lun = (u32)sc->device->lun;
-	rec->scsi_lun_64_hi = (u32)(sc->device->lun >> 32);
-	rec->host_scribble = (unsigned long)sc->host_scribble;
+	if (sc) {
+		rec->scsi_result = sc->result;
+		rec->scsi_retries = sc->retries;
+		rec->scsi_allowed = sc->allowed;
+		rec->scsi_id = sc->device->id;
+		rec->scsi_lun = (u32)sc->device->lun;
+		rec->scsi_lun_64_hi = (u32)(sc->device->lun >> 32);
+		rec->host_scribble = (unsigned long)sc->host_scribble;
 
-	memcpy(rec->scsi_opcode, sc->cmnd,
-	       min((int)sc->cmd_len, ZFCP_DBF_SCSI_OPCODE));
+		memcpy(rec->scsi_opcode, sc->cmnd,
+		       min_t(int, sc->cmd_len, ZFCP_DBF_SCSI_OPCODE));
+	} else {
+		rec->scsi_result = ~0;
+		rec->scsi_retries = ~0;
+		rec->scsi_allowed = ~0;
+		rec->scsi_id = sdev->id;
+		rec->scsi_lun = (u32)sdev->lun;
+		rec->scsi_lun_64_hi = (u32)(sdev->lun >> 32);
+		rec->host_scribble = ~0;
+
+		memset(rec->scsi_opcode, 0xff, ZFCP_DBF_SCSI_OPCODE);
+	}
 
 	if (fsf) {
 		rec->fsf_req_id = fsf->req_id;
@@ -659,6 +675,46 @@ void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
 				      FSF_FCP_RSP_SIZE),
 				"fcp_riu", fsf->req_id);
 	}
+
+	debug_event(dbf->scsi, level, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->scsi_lock, flags);
+}
+
+/**
+ * zfcp_dbf_scsi_eh() - Trace event for special cases of scsi_eh callbacks.
+ * @tag: Identifier for event.
+ * @adapter: Pointer to zfcp adapter as context for this event.
+ * @scsi_id: SCSI ID/target to indicate scope of task management function (TMF).
+ * @ret: Return value of calling function.
+ *
+ * This SCSI trace variant does not depend on any of:
+ * scsi_cmnd, zfcp_fsf_req, scsi_device.
+ */
+void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,
+		      unsigned int scsi_id, int ret)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_scsi *rec = &dbf->scsi_buf;
+	unsigned long flags;
+	static int const level = 1;
+
+	if (unlikely(!debug_level_enabled(adapter->dbf->scsi, level)))
+		return;
+
+	spin_lock_irqsave(&dbf->scsi_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_SCSI_CMND;
+	rec->scsi_result = ret; /* re-use field, int is 4 bytes and fits */
+	rec->scsi_retries = ~0;
+	rec->scsi_allowed = ~0;
+	rec->fcp_rsp_info = ~0;
+	rec->scsi_id = scsi_id;
+	rec->scsi_lun = (u32)ZFCP_DBF_INVALID_LUN;
+	rec->scsi_lun_64_hi = (u32)(ZFCP_DBF_INVALID_LUN >> 32);
+	rec->host_scribble = ~0;
+	memset(rec->scsi_opcode, 0xff, ZFCP_DBF_SCSI_OPCODE);
 
 	debug_event(dbf->scsi, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->scsi_lock, flags);

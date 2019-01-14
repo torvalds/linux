@@ -18,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/semaphore.h>
 #include <linux/sched/clock.h>
 
@@ -843,6 +844,23 @@ free_tx:
 	return err;
 }
 
+static int __maybe_unused tegra_bpmp_resume(struct device *dev)
+{
+	struct tegra_bpmp *bpmp = dev_get_drvdata(dev);
+	unsigned int i;
+
+	/* reset message channels */
+	tegra_bpmp_channel_reset(bpmp->tx_channel);
+	tegra_bpmp_channel_reset(bpmp->rx_channel);
+
+	for (i = 0; i < bpmp->threaded.count; i++)
+		tegra_bpmp_channel_reset(&bpmp->threaded_channels[i]);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(tegra_bpmp_pm_ops, NULL, tegra_bpmp_resume);
+
 static const struct tegra_bpmp_soc tegra186_soc = {
 	.channels = {
 		.cpu_tx = {
@@ -871,6 +889,7 @@ static struct platform_driver tegra_bpmp_driver = {
 	.driver = {
 		.name = "tegra-bpmp",
 		.of_match_table = tegra_bpmp_match,
+		.pm = &tegra_bpmp_pm_ops,
 	},
 	.probe = tegra_bpmp_probe,
 };

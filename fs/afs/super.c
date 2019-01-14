@@ -48,6 +48,8 @@ struct file_system_type afs_fs_type = {
 };
 MODULE_ALIAS_FS("afs");
 
+int afs_net_id;
+
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
@@ -117,7 +119,7 @@ int __init afs_fs_init(void)
 /*
  * clean up the filesystem
  */
-void __exit afs_fs_exit(void)
+void afs_fs_exit(void)
 {
 	_enter("");
 
@@ -351,14 +353,19 @@ static int afs_test_super(struct super_block *sb, void *data)
 	struct afs_super_info *as1 = data;
 	struct afs_super_info *as = AFS_FS_S(sb);
 
-	return (as->net == as1->net &&
+	return (as->net_ns == as1->net_ns &&
 		as->volume &&
-		as->volume->vid == as1->volume->vid);
+		as->volume->vid == as1->volume->vid &&
+		!as->dyn_root);
 }
 
 static int afs_dynroot_test_super(struct super_block *sb, void *data)
 {
-	return false;
+	struct afs_super_info *as1 = data;
+	struct afs_super_info *as = AFS_FS_S(sb);
+
+	return (as->net_ns == as1->net_ns &&
+		as->dyn_root);
 }
 
 static int afs_set_super(struct super_block *sb, void *data)
@@ -399,10 +406,11 @@ static int afs_fill_super(struct super_block *sb,
 		inode = afs_iget_pseudo_dir(sb, true);
 		sb->s_flags	|= SB_RDONLY;
 	} else {
-		sprintf(sb->s_id, "%u", as->volume->vid);
+		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
 		fid.vid		= as->volume->vid;
 		fid.vnode	= 1;
+		fid.vnode_hi	= 0;
 		fid.unique	= 1;
 		inode = afs_iget(sb, params->key, &fid, NULL, NULL, NULL);
 	}
@@ -418,10 +426,14 @@ static int afs_fill_super(struct super_block *sb,
 	if (!sb->s_root)
 		goto error;
 
-	if (params->dyn_root)
+	if (as->dyn_root) {
 		sb->s_d_op = &afs_dynroot_dentry_operations;
-	else
+		ret = afs_dynroot_populate(sb);
+		if (ret < 0)
+			goto error;
+	} else {
 		sb->s_d_op = &afs_fs_dentry_operations;
+	}
 
 	_leave(" = 0");
 	return 0;
@@ -437,7 +449,7 @@ static struct afs_super_info *afs_alloc_sbi(struct afs_mount_params *params)
 
 	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
 	if (as) {
-		as->net = afs_get_net(params->net);
+		as->net_ns = get_net(params->net_ns);
 		if (params->dyn_root)
 			as->dyn_root = true;
 		else
@@ -450,10 +462,29 @@ static void afs_destroy_sbi(struct afs_super_info *as)
 {
 	if (as) {
 		afs_put_volume(as->cell, as->volume);
-		afs_put_cell(as->net, as->cell);
-		afs_put_net(as->net);
+		afs_put_cell(afs_net(as->net_ns), as->cell);
+		put_net(as->net_ns);
 		kfree(as);
 	}
+}
+
+static void afs_kill_super(struct super_block *sb)
+{
+	struct afs_super_info *as = AFS_FS_S(sb);
+	struct afs_net *net = afs_net(as->net_ns);
+
+	if (as->dyn_root)
+		afs_dynroot_depopulate(sb);
+	
+	/* Clear the callback interests (which will do ilookup5) before
+	 * deactivating the superblock.
+	 */
+	if (as->volume)
+		afs_clear_callback_interests(net, as->volume->servers);
+	kill_anon_super(sb);
+	if (as->volume)
+		afs_deactivate_volume(as->volume);
+	afs_destroy_sbi(as);
 }
 
 /*
@@ -472,12 +503,13 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	_enter(",,%s,%p", dev_name, options);
 
 	memset(&params, 0, sizeof(params));
-	params.net = &__afs_net;
 
 	ret = -EINVAL;
 	if (current->nsproxy->net_ns != &init_net)
 		goto error;
-
+	params.net_ns = current->nsproxy->net_ns;
+	params.net = afs_net(params.net_ns);
+	
 	/* parse the options and device name */
 	if (options) {
 		ret = afs_parse_options(&params, options, &dev_name);
@@ -563,21 +595,6 @@ error:
 	return ERR_PTR(ret);
 }
 
-static void afs_kill_super(struct super_block *sb)
-{
-	struct afs_super_info *as = AFS_FS_S(sb);
-
-	/* Clear the callback interests (which will do ilookup5) before
-	 * deactivating the superblock.
-	 */
-	if (as->volume)
-		afs_clear_callback_interests(as->net, as->volume->servers);
-	kill_anon_super(sb);
-	if (as->volume)
-		afs_deactivate_volume(as->volume);
-	afs_destroy_sbi(as);
-}
-
 /*
  * Initialise an inode cache slab element prior to any use.  Note that
  * afs_alloc_inode() *must* reset anything that could incorrectly leak from one
@@ -647,7 +664,7 @@ static void afs_destroy_inode(struct inode *inode)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
-	_enter("%p{%x:%u}", inode, vnode->fid.vid, vnode->fid.vnode);
+	_enter("%p{%llx:%llu}", inode, vnode->fid.vid, vnode->fid.vnode);
 
 	_debug("DESTROY INODE %p", inode);
 

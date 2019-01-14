@@ -27,6 +27,14 @@ struct alias_prop {
 	char stem[0];
 };
 
+#if defined(CONFIG_SPARC)
+#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 2
+#else
+#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
+#endif
+
+#define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
+
 extern struct mutex of_mutex;
 extern struct list_head aliases_lookup;
 extern struct kset *of_kset;
@@ -79,6 +87,8 @@ int of_resolve_phandles(struct device_node *tree);
 #if defined(CONFIG_OF_OVERLAY)
 void of_overlay_mutex_lock(void);
 void of_overlay_mutex_unlock(void);
+int of_free_phandle_cache(void);
+void of_populate_phandle_cache(void);
 #else
 static inline void of_overlay_mutex_lock(void) {};
 static inline void of_overlay_mutex_unlock(void) {};

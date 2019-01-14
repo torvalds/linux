@@ -195,12 +195,18 @@ static void throttle_unlock(struct throttle *t)
 struct dm_thin_new_mapping;
 
 /*
- * The pool runs in 4 modes.  Ordered in degraded order for comparisons.
+ * The pool runs in various modes.  Ordered in degraded order for comparisons.
  */
 enum pool_mode {
 	PM_WRITE,		/* metadata may be changed */
 	PM_OUT_OF_DATA_SPACE,	/* metadata may be changed, though data may not be allocated */
+
+	/*
+	 * Like READ_ONLY, except may switch back to WRITE on metadata resize. Reported as READ_ONLY.
+	 */
+	PM_OUT_OF_METADATA_SPACE,
 	PM_READ_ONLY,		/* metadata may not be changed */
+
 	PM_FAIL,		/* all I/O fails */
 };
 
@@ -240,9 +246,9 @@ struct pool {
 	struct dm_bio_prison *prison;
 	struct dm_kcopyd_client *copier;
 
+	struct work_struct worker;
 	struct workqueue_struct *wq;
 	struct throttle throttle;
-	struct work_struct worker;
 	struct delayed_work waker;
 	struct delayed_work no_space_timeout;
 
@@ -260,7 +266,6 @@ struct pool {
 	struct dm_deferred_set *all_io_ds;
 
 	struct dm_thin_new_mapping *next_mapping;
-	mempool_t *mapping_pool;
 
 	process_bio_fn process_bio;
 	process_bio_fn process_discard;
@@ -273,10 +278,41 @@ struct pool {
 	process_mapping_fn process_prepared_discard_pt2;
 
 	struct dm_bio_prison_cell **cell_sort_array;
+
+	mempool_t mapping_pool;
 };
 
-static enum pool_mode get_pool_mode(struct pool *pool);
 static void metadata_operation_failed(struct pool *pool, const char *op, int r);
+
+static enum pool_mode get_pool_mode(struct pool *pool)
+{
+	return pool->pf.mode;
+}
+
+static void notify_of_pool_mode_change(struct pool *pool)
+{
+	const char *descs[] = {
+		"write",
+		"out-of-data-space",
+		"read-only",
+		"read-only",
+		"fail"
+	};
+	const char *extra_desc = NULL;
+	enum pool_mode mode = get_pool_mode(pool);
+
+	if (mode == PM_OUT_OF_DATA_SPACE) {
+		if (!pool->pf.error_if_no_space)
+			extra_desc = " (queue IO)";
+		else
+			extra_desc = " (error IO)";
+	}
+
+	dm_table_event(pool->ti->table);
+	DMINFO("%s: switching pool to %s%s mode",
+	       dm_device_name(pool->pool_md),
+	       descs[(int)mode], extra_desc ? : "");
+}
 
 /*
  * Target context for a pool.
@@ -318,7 +354,7 @@ struct thin_c {
 	 * Ensures the thin is not destroyed until the worker has finished
 	 * iterating the active_thins list.
 	 */
-	atomic_t refcount;
+	refcount_t refcount;
 	struct completion can_destroy;
 };
 
@@ -917,7 +953,7 @@ static void process_prepared_mapping_fail(struct dm_thin_new_mapping *m)
 {
 	cell_error(m->tc->pool, m->cell);
 	list_del(&m->list);
-	mempool_free(m, m->tc->pool->mapping_pool);
+	mempool_free(m, &m->tc->pool->mapping_pool);
 }
 
 static void process_prepared_mapping(struct dm_thin_new_mapping *m)
@@ -961,7 +997,7 @@ static void process_prepared_mapping(struct dm_thin_new_mapping *m)
 
 out:
 	list_del(&m->list);
-	mempool_free(m, pool->mapping_pool);
+	mempool_free(m, &pool->mapping_pool);
 }
 
 /*----------------------------------------------------------------*/
@@ -971,7 +1007,7 @@ static void free_discard_mapping(struct dm_thin_new_mapping *m)
 	struct thin_c *tc = m->tc;
 	if (m->cell)
 		cell_defer_no_holder(tc, m->cell);
-	mempool_free(m, tc->pool->mapping_pool);
+	mempool_free(m, &tc->pool->mapping_pool);
 }
 
 static void process_prepared_discard_fail(struct dm_thin_new_mapping *m)
@@ -999,7 +1035,7 @@ static void process_prepared_discard_no_passdown(struct dm_thin_new_mapping *m)
 		bio_endio(m->bio);
 
 	cell_defer_no_holder(tc, m->cell);
-	mempool_free(m, tc->pool->mapping_pool);
+	mempool_free(m, &tc->pool->mapping_pool);
 }
 
 /*----------------------------------------------------------------*/
@@ -1092,7 +1128,7 @@ static void process_prepared_discard_passdown_pt1(struct dm_thin_new_mapping *m)
 		metadata_operation_failed(pool, "dm_thin_remove_range", r);
 		bio_io_error(m->bio);
 		cell_defer_no_holder(tc, m->cell);
-		mempool_free(m, pool->mapping_pool);
+		mempool_free(m, &pool->mapping_pool);
 		return;
 	}
 
@@ -1105,7 +1141,7 @@ static void process_prepared_discard_passdown_pt1(struct dm_thin_new_mapping *m)
 		metadata_operation_failed(pool, "dm_pool_inc_data_range", r);
 		bio_io_error(m->bio);
 		cell_defer_no_holder(tc, m->cell);
-		mempool_free(m, pool->mapping_pool);
+		mempool_free(m, &pool->mapping_pool);
 		return;
 	}
 
@@ -1150,7 +1186,7 @@ static void process_prepared_discard_passdown_pt2(struct dm_thin_new_mapping *m)
 		bio_endio(m->bio);
 
 	cell_defer_no_holder(tc, m->cell);
-	mempool_free(m, pool->mapping_pool);
+	mempool_free(m, &pool->mapping_pool);
 }
 
 static void process_prepared(struct pool *pool, struct list_head *head,
@@ -1196,7 +1232,7 @@ static int ensure_next_mapping(struct pool *pool)
 	if (pool->next_mapping)
 		return 0;
 
-	pool->next_mapping = mempool_alloc(pool->mapping_pool, GFP_ATOMIC);
+	pool->next_mapping = mempool_alloc(&pool->mapping_pool, GFP_ATOMIC);
 
 	return pool->next_mapping ? 0 : -ENOMEM;
 }
@@ -1219,18 +1255,13 @@ static struct dm_thin_new_mapping *get_next_mapping(struct pool *pool)
 static void ll_zero(struct thin_c *tc, struct dm_thin_new_mapping *m,
 		    sector_t begin, sector_t end)
 {
-	int r;
 	struct dm_io_region to;
 
 	to.bdev = tc->pool_dev->bdev;
 	to.sector = begin;
 	to.count = end - begin;
 
-	r = dm_kcopyd_zero(tc->pool->copier, 1, &to, 0, copy_complete, m);
-	if (r < 0) {
-		DMERR_LIMIT("dm_kcopyd_zero() failed");
-		copy_complete(1, 1, m);
-	}
+	dm_kcopyd_zero(tc->pool->copier, 1, &to, 0, copy_complete, m);
 }
 
 static void remap_and_issue_overwrite(struct thin_c *tc, struct bio *bio,
@@ -1256,7 +1287,6 @@ static void schedule_copy(struct thin_c *tc, dm_block_t virt_block,
 			  struct dm_bio_prison_cell *cell, struct bio *bio,
 			  sector_t len)
 {
-	int r;
 	struct pool *pool = tc->pool;
 	struct dm_thin_new_mapping *m = get_next_mapping(pool);
 
@@ -1295,19 +1325,8 @@ static void schedule_copy(struct thin_c *tc, dm_block_t virt_block,
 		to.sector = data_dest * pool->sectors_per_block;
 		to.count = len;
 
-		r = dm_kcopyd_copy(pool->copier, &from, 1, &to,
-				   0, copy_complete, m);
-		if (r < 0) {
-			DMERR_LIMIT("dm_kcopyd_copy() failed");
-			copy_complete(1, 1, m);
-
-			/*
-			 * We allow the zero to be issued, to simplify the
-			 * error path.  Otherwise we'd need to start
-			 * worrying about decrementing the prepare_actions
-			 * counter.
-			 */
-		}
+		dm_kcopyd_copy(pool->copier, &from, 1, &to,
+			       0, copy_complete, m);
 
 		/*
 		 * Do we need to zero a tail region?
@@ -1385,7 +1404,37 @@ static void schedule_external_copy(struct thin_c *tc, dm_block_t virt_block,
 
 static void set_pool_mode(struct pool *pool, enum pool_mode new_mode);
 
-static void check_for_space(struct pool *pool)
+static void requeue_bios(struct pool *pool);
+
+static bool is_read_only_pool_mode(enum pool_mode mode)
+{
+	return (mode == PM_OUT_OF_METADATA_SPACE || mode == PM_READ_ONLY);
+}
+
+static bool is_read_only(struct pool *pool)
+{
+	return is_read_only_pool_mode(get_pool_mode(pool));
+}
+
+static void check_for_metadata_space(struct pool *pool)
+{
+	int r;
+	const char *ooms_reason = NULL;
+	dm_block_t nr_free;
+
+	r = dm_pool_get_free_metadata_block_count(pool->pmd, &nr_free);
+	if (r)
+		ooms_reason = "Could not get free metadata blocks";
+	else if (!nr_free)
+		ooms_reason = "No free metadata blocks";
+
+	if (ooms_reason && !is_read_only(pool)) {
+		DMERR("%s", ooms_reason);
+		set_pool_mode(pool, PM_OUT_OF_METADATA_SPACE);
+	}
+}
+
+static void check_for_data_space(struct pool *pool)
 {
 	int r;
 	dm_block_t nr_free;
@@ -1397,8 +1446,10 @@ static void check_for_space(struct pool *pool)
 	if (r)
 		return;
 
-	if (nr_free)
+	if (nr_free) {
 		set_pool_mode(pool, PM_WRITE);
+		requeue_bios(pool);
+	}
 }
 
 /*
@@ -1409,14 +1460,16 @@ static int commit(struct pool *pool)
 {
 	int r;
 
-	if (get_pool_mode(pool) >= PM_READ_ONLY)
+	if (get_pool_mode(pool) >= PM_OUT_OF_METADATA_SPACE)
 		return -EINVAL;
 
 	r = dm_pool_commit_metadata(pool->pmd);
 	if (r)
 		metadata_operation_failed(pool, "dm_pool_commit_metadata", r);
-	else
-		check_for_space(pool);
+	else {
+		check_for_metadata_space(pool);
+		check_for_data_space(pool);
+	}
 
 	return r;
 }
@@ -1475,8 +1528,24 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 
 	r = dm_pool_alloc_data_block(pool->pmd, result);
 	if (r) {
-		metadata_operation_failed(pool, "dm_pool_alloc_data_block", r);
+		if (r == -ENOSPC)
+			set_pool_mode(pool, PM_OUT_OF_DATA_SPACE);
+		else
+			metadata_operation_failed(pool, "dm_pool_alloc_data_block", r);
 		return r;
+	}
+
+	r = dm_pool_get_free_metadata_block_count(pool->pmd, &free_blocks);
+	if (r) {
+		metadata_operation_failed(pool, "dm_pool_get_free_metadata_block_count", r);
+		return r;
+	}
+
+	if (!free_blocks) {
+		/* Let's commit before we use up the metadata reserve. */
+		r = commit(pool);
+		if (r)
+			return r;
 	}
 
 	return 0;
@@ -1510,6 +1579,7 @@ static blk_status_t should_error_unserviceable_bio(struct pool *pool)
 	case PM_OUT_OF_DATA_SPACE:
 		return pool->pf.error_if_no_space ? BLK_STS_NOSPC : 0;
 
+	case PM_OUT_OF_METADATA_SPACE:
 	case PM_READ_ONLY:
 	case PM_FAIL:
 		return BLK_STS_IOERR;
@@ -2310,8 +2380,6 @@ static void do_waker(struct work_struct *ws)
 	queue_delayed_work(pool->wq, &pool->waker, COMMIT_PERIOD);
 }
 
-static void notify_of_pool_mode_change_to_oods(struct pool *pool);
-
 /*
  * We're holding onto IO to allow userland time to react.  After the
  * timeout either the pool will have been resized (and thus back in
@@ -2324,7 +2392,7 @@ static void do_no_space_timeout(struct work_struct *ws)
 
 	if (get_pool_mode(pool) == PM_OUT_OF_DATA_SPACE && !pool->pf.error_if_no_space) {
 		pool->pf.error_if_no_space = true;
-		notify_of_pool_mode_change_to_oods(pool);
+		notify_of_pool_mode_change(pool);
 		error_retry_list_with_code(pool, BLK_STS_NOSPC);
 	}
 }
@@ -2392,26 +2460,6 @@ static void noflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
 
 /*----------------------------------------------------------------*/
 
-static enum pool_mode get_pool_mode(struct pool *pool)
-{
-	return pool->pf.mode;
-}
-
-static void notify_of_pool_mode_change(struct pool *pool, const char *new_mode)
-{
-	dm_table_event(pool->ti->table);
-	DMINFO("%s: switching pool to %s mode",
-	       dm_device_name(pool->pool_md), new_mode);
-}
-
-static void notify_of_pool_mode_change_to_oods(struct pool *pool)
-{
-	if (!pool->pf.error_if_no_space)
-		notify_of_pool_mode_change(pool, "out-of-data-space (queue IO)");
-	else
-		notify_of_pool_mode_change(pool, "out-of-data-space (error IO)");
-}
-
 static bool passdown_enabled(struct pool_c *pt)
 {
 	return pt->adjusted_pf.discard_passdown;
@@ -2460,8 +2508,6 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 
 	switch (new_mode) {
 	case PM_FAIL:
-		if (old_mode != new_mode)
-			notify_of_pool_mode_change(pool, "failure");
 		dm_pool_metadata_read_only(pool->pmd);
 		pool->process_bio = process_bio_fail;
 		pool->process_discard = process_bio_fail;
@@ -2473,9 +2519,8 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 		error_retry_list(pool);
 		break;
 
+	case PM_OUT_OF_METADATA_SPACE:
 	case PM_READ_ONLY:
-		if (old_mode != new_mode)
-			notify_of_pool_mode_change(pool, "read-only");
 		dm_pool_metadata_read_only(pool->pmd);
 		pool->process_bio = process_bio_read_only;
 		pool->process_discard = process_bio_success;
@@ -2496,8 +2541,6 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 		 * alarming rate.  Adjust your low water mark if you're
 		 * frequently seeing this mode.
 		 */
-		if (old_mode != new_mode)
-			notify_of_pool_mode_change_to_oods(pool);
 		pool->out_of_data_space = true;
 		pool->process_bio = process_bio_read_only;
 		pool->process_discard = process_discard_bio;
@@ -2510,8 +2553,8 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 		break;
 
 	case PM_WRITE:
-		if (old_mode != new_mode)
-			notify_of_pool_mode_change(pool, "write");
+		if (old_mode == PM_OUT_OF_DATA_SPACE)
+			cancel_delayed_work_sync(&pool->no_space_timeout);
 		pool->out_of_data_space = false;
 		pool->pf.error_if_no_space = pt->requested_pf.error_if_no_space;
 		dm_pool_metadata_read_write(pool->pmd);
@@ -2529,6 +2572,9 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 	 * doesn't cause an unexpected mode transition on resume.
 	 */
 	pt->adjusted_pf.mode = new_mode;
+
+	if (old_mode != new_mode)
+		notify_of_pool_mode_change(pool);
 }
 
 static void abort_transaction(struct pool *pool)
@@ -2835,8 +2881,8 @@ static void __pool_destroy(struct pool *pool)
 		destroy_workqueue(pool->wq);
 
 	if (pool->next_mapping)
-		mempool_free(pool->next_mapping, pool->mapping_pool);
-	mempool_destroy(pool->mapping_pool);
+		mempool_free(pool->next_mapping, &pool->mapping_pool);
+	mempool_exit(&pool->mapping_pool);
 	dm_deferred_set_destroy(pool->shared_read_ds);
 	dm_deferred_set_destroy(pool->all_io_ds);
 	kfree(pool);
@@ -2861,7 +2907,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 		return (struct pool *)pmd;
 	}
 
-	pool = kmalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool) {
 		*error = "Error allocating memory for pool";
 		err_p = ERR_PTR(-ENOMEM);
@@ -2931,15 +2977,17 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	}
 
 	pool->next_mapping = NULL;
-	pool->mapping_pool = mempool_create_slab_pool(MAPPING_POOL_SIZE,
-						      _new_mapping_cache);
-	if (!pool->mapping_pool) {
+	r = mempool_init_slab_pool(&pool->mapping_pool, MAPPING_POOL_SIZE,
+				   _new_mapping_cache);
+	if (r) {
 		*error = "Error creating pool's mapping mempool";
-		err_p = ERR_PTR(-ENOMEM);
+		err_p = ERR_PTR(r);
 		goto bad_mapping_pool;
 	}
 
-	pool->cell_sort_array = vmalloc(sizeof(*pool->cell_sort_array) * CELL_SORT_ARRAY_SIZE);
+	pool->cell_sort_array =
+		vmalloc(array_size(CELL_SORT_ARRAY_SIZE,
+				   sizeof(*pool->cell_sort_array)));
 	if (!pool->cell_sort_array) {
 		*error = "Error allocating cell sort array";
 		err_p = ERR_PTR(-ENOMEM);
@@ -2955,7 +3003,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	return pool;
 
 bad_sort_array:
-	mempool_destroy(pool->mapping_pool);
+	mempool_exit(&pool->mapping_pool);
 bad_mapping_pool:
 	dm_deferred_set_destroy(pool->all_io_ds);
 bad_all_io_ds:
@@ -3408,6 +3456,10 @@ static int maybe_resize_metadata_dev(struct dm_target *ti, bool *need_commit)
 		DMINFO("%s: growing the metadata device from %llu to %llu blocks",
 		       dm_device_name(pool->pool_md),
 		       sb_metadata_dev_size, metadata_dev_size);
+
+		if (get_pool_mode(pool) == PM_OUT_OF_METADATA_SPACE)
+			set_pool_mode(pool, PM_WRITE);
+
 		r = dm_pool_resize_metadata_dev(pool->pmd, metadata_dev_size);
 		if (r) {
 			metadata_operation_failed(pool, "dm_pool_resize_metadata_dev", r);
@@ -3712,7 +3764,7 @@ static int pool_message(struct dm_target *ti, unsigned argc, char **argv,
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 
-	if (get_pool_mode(pool) >= PM_READ_ONLY) {
+	if (get_pool_mode(pool) >= PM_OUT_OF_METADATA_SPACE) {
 		DMERR("%s: unable to service pool target messages in READ_ONLY or FAIL mode",
 		      dm_device_name(pool->pool_md));
 		return -EOPNOTSUPP;
@@ -3786,6 +3838,7 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 	dm_block_t nr_blocks_data;
 	dm_block_t nr_blocks_metadata;
 	dm_block_t held_root;
+	enum pool_mode mode;
 	char buf[BDEVNAME_SIZE];
 	char buf2[BDEVNAME_SIZE];
 	struct pool_c *pt = ti->private;
@@ -3856,9 +3909,10 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 		else
 			DMEMIT("- ");
 
-		if (pool->pf.mode == PM_OUT_OF_DATA_SPACE)
+		mode = get_pool_mode(pool);
+		if (mode == PM_OUT_OF_DATA_SPACE)
 			DMEMIT("out_of_data_space ");
-		else if (pool->pf.mode == PM_READ_ONLY)
+		else if (is_read_only_pool_mode(mode))
 			DMEMIT("ro ");
 		else
 			DMEMIT("rw ");
@@ -3879,6 +3933,8 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("needs_check ");
 		else
 			DMEMIT("- ");
+
+		DMEMIT("%llu ", (unsigned long long)calc_metadata_threshold(pt));
 
 		break;
 
@@ -3969,7 +4025,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 19, 0},
+	.version = {1, 21, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -3990,12 +4046,12 @@ static struct target_type pool_target = {
  *--------------------------------------------------------------*/
 static void thin_get(struct thin_c *tc)
 {
-	atomic_inc(&tc->refcount);
+	refcount_inc(&tc->refcount);
 }
 
 static void thin_put(struct thin_c *tc)
 {
-	if (atomic_dec_and_test(&tc->refcount))
+	if (refcount_dec_and_test(&tc->refcount))
 		complete(&tc->can_destroy);
 }
 
@@ -4139,7 +4195,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		r = -EINVAL;
 		goto bad;
 	}
-	atomic_set(&tc->refcount, 1);
+	refcount_set(&tc->refcount, 1);
 	init_completion(&tc->can_destroy);
 	list_add_tail_rcu(&tc->list, &tc->pool->active_thins);
 	spin_unlock_irqrestore(&tc->pool->lock, flags);
@@ -4343,7 +4399,7 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 19, 0},
+	.version = {1, 21, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,

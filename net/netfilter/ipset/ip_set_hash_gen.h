@@ -15,7 +15,7 @@
 
 #define __ipset_dereference_protected(p, c)	rcu_dereference_protected(p, c)
 #define ipset_dereference_protected(p, set) \
-	__ipset_dereference_protected(p, spin_is_locked(&(set)->lock))
+	__ipset_dereference_protected(p, lockdep_is_held(&(set)->lock))
 
 #define rcu_dereference_bh_nfnl(p)	rcu_dereference_bh_check(p, 1)
 
@@ -1234,7 +1234,10 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	pr_debug("Create set %s with family %s\n",
 		 set->name, set->family == NFPROTO_IPV4 ? "inet" : "inet6");
 
-#ifndef IP_SET_PROTO_UNDEF
+#ifdef IP_SET_PROTO_UNDEF
+	if (set->family != NFPROTO_UNSPEC)
+		return -IPSET_ERR_INVALID_FAMILY;
+#else
 	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
 #endif

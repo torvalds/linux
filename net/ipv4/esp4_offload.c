@@ -28,8 +28,8 @@
 #include <linux/spinlock.h>
 #include <net/udp.h>
 
-static struct sk_buff **esp4_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+static struct sk_buff *esp4_gro_receive(struct list_head *head,
+					struct sk_buff *skb)
 {
 	int offset = skb_gro_offset(skb);
 	struct xfrm_offload *xo;
@@ -135,8 +135,7 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 
 	skb->encap_hdr_csum = 1;
 
-	if (!(features & NETIF_F_HW_ESP) || !x->xso.offload_handle ||
-	    (x->xso.dev != skb->dev))
+	if (!(features & NETIF_F_HW_ESP) || x->xso.dev != skb->dev)
 		esp_features = features & ~(NETIF_F_SG | NETIF_F_CSUM_MASK);
 	else if (!(features & NETIF_F_HW_ESP_TX_CSUM))
 		esp_features = features & ~NETIF_F_CSUM_MASK;
@@ -179,8 +178,7 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 	if (!xo)
 		return -EINVAL;
 
-	if (!(features & NETIF_F_HW_ESP) || !x->xso.offload_handle ||
-	    (x->xso.dev != skb->dev)) {
+	if (!(features & NETIF_F_HW_ESP) || x->xso.dev != skb->dev) {
 		xo->flags |= CRYPTO_FALLBACK;
 		hw_offload = false;
 	}

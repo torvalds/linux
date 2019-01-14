@@ -1,13 +1,6 @@
-/*
- * Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
 
 #include "imx1-pinfunc.h"
 
@@ -59,6 +52,14 @@
 			clock-latency = <62500>;
 			clocks = <&clks IMX1_CLK_MCU>;
 			voltage-tolerance = <5>;
+		};
+	};
+
+	clocks {
+		clk32 {
+			compatible = "fsl,imx-clk32", "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32000>;
 		};
 	};
 
@@ -163,7 +164,7 @@
 			reg = <0x00210000 0x10000>;
 			ranges;
 
-			cspi1: cspi@213000 {
+			cspi1: spi@213000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx1-cspi";
@@ -185,7 +186,7 @@
 				status = "disabled";
 			};
 
-			cspi2: cspi@219000 {
+			cspi2: spi@219000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx1-cspi";

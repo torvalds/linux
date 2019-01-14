@@ -1757,7 +1757,7 @@ static void i40iw_l2param_change(struct i40e_info *ldev, struct i40e_client *cli
 		return;
 
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
 		return;
 

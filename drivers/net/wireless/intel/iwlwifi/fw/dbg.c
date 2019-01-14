@@ -19,9 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program;
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -243,39 +240,47 @@ static void iwl_fw_dump_fifos(struct iwl_fw_runtime *fwrt,
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
 		return;
 
-	/* Pull RXF1 */
-	iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->lmac[0].rxfifo1_size, 0, 0);
-	/* Pull RXF2 */
-	iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->rxfifo2_size,
-			  RXF_DIFF_FROM_PREV, 1);
-	/* Pull LMAC2 RXF1 */
-	if (fwrt->smem_cfg.num_lmacs > 1)
-		iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->lmac[1].rxfifo1_size,
-				  LMAC2_PRPH_OFFSET, 2);
-
-	/* Pull TXF data from LMAC1 */
-	for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries; i++) {
-		/* Mark the number of TXF we're pulling now */
-		iwl_trans_write_prph(fwrt->trans, TXF_LARC_NUM, i);
-		iwl_fwrt_dump_txf(fwrt, dump_data, cfg->lmac[0].txfifo_size[i],
-				  0, i);
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RXF)) {
+		/* Pull RXF1 */
+		iwl_fwrt_dump_rxf(fwrt, dump_data,
+				  cfg->lmac[0].rxfifo1_size, 0, 0);
+		/* Pull RXF2 */
+		iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->rxfifo2_size,
+				  RXF_DIFF_FROM_PREV, 1);
+		/* Pull LMAC2 RXF1 */
+		if (fwrt->smem_cfg.num_lmacs > 1)
+			iwl_fwrt_dump_rxf(fwrt, dump_data,
+					  cfg->lmac[1].rxfifo1_size,
+					  LMAC2_PRPH_OFFSET, 2);
 	}
 
-	/* Pull TXF data from LMAC2 */
-	if (fwrt->smem_cfg.num_lmacs > 1) {
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_TXF)) {
+		/* Pull TXF data from LMAC1 */
 		for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries; i++) {
 			/* Mark the number of TXF we're pulling now */
-			iwl_trans_write_prph(fwrt->trans,
-					     TXF_LARC_NUM + LMAC2_PRPH_OFFSET,
-					     i);
+			iwl_trans_write_prph(fwrt->trans, TXF_LARC_NUM, i);
 			iwl_fwrt_dump_txf(fwrt, dump_data,
-					  cfg->lmac[1].txfifo_size[i],
-					  LMAC2_PRPH_OFFSET,
-					  i + cfg->num_txfifo_entries);
+					  cfg->lmac[0].txfifo_size[i], 0, i);
+		}
+
+		/* Pull TXF data from LMAC2 */
+		if (fwrt->smem_cfg.num_lmacs > 1) {
+			for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries;
+			     i++) {
+				/* Mark the number of TXF we're pulling now */
+				iwl_trans_write_prph(fwrt->trans,
+						     TXF_LARC_NUM +
+						     LMAC2_PRPH_OFFSET, i);
+				iwl_fwrt_dump_txf(fwrt, dump_data,
+						  cfg->lmac[1].txfifo_size[i],
+						  LMAC2_PRPH_OFFSET,
+						  i + cfg->num_txfifo_entries);
+			}
 		}
 	}
 
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_INTERNAL_TXF) &&
+	    fw_has_capa(&fwrt->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
 		/* Pull UMAC internal TXF data from all TXFs */
 		for (i = 0;
@@ -450,28 +455,13 @@ static const struct iwl_prph_range iwl_prph_dump_addr_9000[] = {
 	{ .start = 0x00a02400, .end = 0x00a02758 },
 };
 
-static void _iwl_read_prph_block(struct iwl_trans *trans, u32 start,
-				 u32 len_bytes, __le32 *data)
+static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
+				u32 len_bytes, __le32 *data)
 {
 	u32 i;
 
 	for (i = 0; i < len_bytes; i += 4)
 		*data++ = cpu_to_le32(iwl_read_prph_no_grab(trans, start + i));
-}
-
-static bool iwl_read_prph_block(struct iwl_trans *trans, u32 start,
-				u32 len_bytes, __le32 *data)
-{
-	unsigned long flags;
-	bool success = false;
-
-	if (iwl_trans_grab_nic_access(trans, &flags)) {
-		success = true;
-		_iwl_read_prph_block(trans, start, len_bytes, data);
-		iwl_trans_release_nic_access(trans, &flags);
-	}
-
-	return success;
 }
 
 static void iwl_dump_prph(struct iwl_trans *trans,
@@ -499,11 +489,11 @@ static void iwl_dump_prph(struct iwl_trans *trans,
 		prph = (void *)(*data)->data;
 		prph->prph_start = cpu_to_le32(iwl_prph_dump_addr[i].start);
 
-		_iwl_read_prph_block(trans, iwl_prph_dump_addr[i].start,
-				     /* our range is inclusive, hence + 4 */
-				     iwl_prph_dump_addr[i].end -
-				     iwl_prph_dump_addr[i].start + 4,
-				     (void *)prph->data);
+		iwl_read_prph_block(trans, iwl_prph_dump_addr[i].start,
+				    /* our range is inclusive, hence + 4 */
+				    iwl_prph_dump_addr[i].end -
+				    iwl_prph_dump_addr[i].start + 4,
+				    (void *)prph->data);
 
 		*data = iwl_fw_error_next_data(*data);
 	}
@@ -548,41 +538,129 @@ static struct scatterlist *alloc_sgtable(int size)
 	return table;
 }
 
-void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
+static int iwl_fw_get_prph_len(struct iwl_fw_runtime *fwrt)
+{
+	u32 prph_len = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr_comm);
+	     i++) {
+		/* The range includes both boundaries */
+		int num_bytes_in_chunk =
+			iwl_prph_dump_addr_comm[i].end -
+			iwl_prph_dump_addr_comm[i].start + 4;
+
+		prph_len += sizeof(struct iwl_fw_error_dump_data) +
+			sizeof(struct iwl_fw_error_dump_prph) +
+			num_bytes_in_chunk;
+	}
+
+	if (fwrt->trans->cfg->mq_rx_supported) {
+		for (i = 0; i <
+			ARRAY_SIZE(iwl_prph_dump_addr_9000); i++) {
+			/* The range includes both boundaries */
+			int num_bytes_in_chunk =
+				iwl_prph_dump_addr_9000[i].end -
+				iwl_prph_dump_addr_9000[i].start + 4;
+
+			prph_len += sizeof(struct iwl_fw_error_dump_data) +
+				sizeof(struct iwl_fw_error_dump_prph) +
+				num_bytes_in_chunk;
+		}
+	}
+	return prph_len;
+}
+
+static void iwl_fw_dump_mem(struct iwl_fw_runtime *fwrt,
+			    struct iwl_fw_error_dump_data **dump_data,
+			    u32 len, u32 ofs, u32 type)
+{
+	struct iwl_fw_error_dump_mem *dump_mem;
+
+	if (!len)
+		return;
+
+	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+	(*dump_data)->len = cpu_to_le32(len + sizeof(*dump_mem));
+	dump_mem = (void *)(*dump_data)->data;
+	dump_mem->type = cpu_to_le32(type);
+	dump_mem->offset = cpu_to_le32(ofs);
+	iwl_trans_read_mem_bytes(fwrt->trans, ofs, dump_mem->data, len);
+	*dump_data = iwl_fw_error_next_data(*dump_data);
+
+	IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n", dump_mem->type);
+}
+
+#define ADD_LEN(len, item_len, const_len) \
+	do {size_t item = item_len; len += (!!item) * const_len + item; } \
+	while (0)
+
+static int iwl_fw_fifo_len(struct iwl_fw_runtime *fwrt,
+			   struct iwl_fwrt_shared_mem_cfg *mem_cfg)
+{
+	size_t hdr_len = sizeof(struct iwl_fw_error_dump_data) +
+			 sizeof(struct iwl_fw_error_dump_fifo);
+	u32 fifo_len = 0;
+	int i;
+
+	if (!(fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RXF)))
+		goto dump_txf;
+
+	/* Count RXF2 size */
+	ADD_LEN(fifo_len, mem_cfg->rxfifo2_size, hdr_len);
+
+	/* Count RXF1 sizes */
+	for (i = 0; i < mem_cfg->num_lmacs; i++)
+		ADD_LEN(fifo_len, mem_cfg->lmac[i].rxfifo1_size, hdr_len);
+
+dump_txf:
+	if (!(fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_TXF)))
+		goto dump_internal_txf;
+
+	/* Count TXF sizes */
+	for (i = 0; i < mem_cfg->num_lmacs; i++) {
+		int j;
+
+		for (j = 0; j < mem_cfg->num_txfifo_entries; j++)
+			ADD_LEN(fifo_len, mem_cfg->lmac[i].txfifo_size[j],
+				hdr_len);
+	}
+
+dump_internal_txf:
+	if (!((fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_INTERNAL_TXF)) &&
+	      fw_has_capa(&fwrt->fw->ucode_capa,
+			  IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)))
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(mem_cfg->internal_txfifo_size); i++)
+		ADD_LEN(fifo_len, mem_cfg->internal_txfifo_size[i], hdr_len);
+
+out:
+	return fifo_len;
+}
+
+static struct iwl_fw_error_dump_file *
+_iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
+		   struct iwl_fw_dump_ptrs *fw_error_dump)
 {
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
-	struct iwl_fw_error_dump_mem *dump_mem;
 	struct iwl_fw_error_dump_smem_cfg *dump_smem_cfg;
 	struct iwl_fw_error_dump_trigger_desc *dump_trig;
-	struct iwl_fw_dump_ptrs *fw_error_dump;
-	struct scatterlist *sg_dump_data;
 	u32 sram_len, sram_ofs;
-	const struct iwl_fw_dbg_mem_seg_tlv *fw_dbg_mem = fwrt->fw->dbg_mem_tlv;
+	const struct iwl_fw_dbg_mem_seg_tlv *fw_mem = fwrt->fw->dbg.mem_tlv;
 	struct iwl_fwrt_shared_mem_cfg *mem_cfg = &fwrt->smem_cfg;
-	u32 file_len, fifo_data_len = 0, prph_len = 0, radio_len = 0;
-	u32 smem_len = fwrt->fw->n_dbg_mem_tlv ? 0 : fwrt->trans->cfg->smem_len;
-	u32 sram2_len = fwrt->fw->n_dbg_mem_tlv ?
+	u32 file_len, fifo_len = 0, prph_len = 0, radio_len = 0;
+	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->cfg->smem_len;
+	u32 sram2_len = fwrt->fw->dbg.n_mem_tlv ?
 				0 : fwrt->trans->cfg->dccm2_len;
 	bool monitor_dump_only = false;
 	int i;
 
-	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
-
-	/* there's no point in fw dump if the bus is dead */
-	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
-		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
-		goto out;
-	}
-
 	if (fwrt->dump.trig &&
 	    fwrt->dump.trig->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)
 		monitor_dump_only = true;
-
-	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
-	if (!fw_error_dump)
-		goto out;
 
 	/* SRAM - include stack CCM if driver knows the values for it */
 	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
@@ -598,117 +676,44 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 
 	/* reading RXF/TXF sizes */
 	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status)) {
-		fifo_data_len = 0;
-
-		/* Count RXF2 size */
-		if (mem_cfg->rxfifo2_size) {
-			/* Add header info */
-			fifo_data_len += mem_cfg->rxfifo2_size +
-					 sizeof(*dump_data) +
-					 sizeof(struct iwl_fw_error_dump_fifo);
-		}
-
-		/* Count RXF1 sizes */
-		for (i = 0; i < mem_cfg->num_lmacs; i++) {
-			if (!mem_cfg->lmac[i].rxfifo1_size)
-				continue;
-
-			/* Add header info */
-			fifo_data_len += mem_cfg->lmac[i].rxfifo1_size +
-					 sizeof(*dump_data) +
-					 sizeof(struct iwl_fw_error_dump_fifo);
-		}
-
-		/* Count TXF sizes */
-		for (i = 0; i < mem_cfg->num_lmacs; i++) {
-			int j;
-
-			for (j = 0; j < mem_cfg->num_txfifo_entries; j++) {
-				if (!mem_cfg->lmac[i].txfifo_size[j])
-					continue;
-
-				/* Add header info */
-				fifo_data_len +=
-					mem_cfg->lmac[i].txfifo_size[j] +
-					sizeof(*dump_data) +
-					sizeof(struct iwl_fw_error_dump_fifo);
-			}
-		}
-
-		if (fw_has_capa(&fwrt->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-			for (i = 0;
-			     i < ARRAY_SIZE(mem_cfg->internal_txfifo_size);
-			     i++) {
-				if (!mem_cfg->internal_txfifo_size[i])
-					continue;
-
-				/* Add header info */
-				fifo_data_len +=
-					mem_cfg->internal_txfifo_size[i] +
-					sizeof(*dump_data) +
-					sizeof(struct iwl_fw_error_dump_fifo);
-			}
-		}
+		fifo_len = iwl_fw_fifo_len(fwrt, mem_cfg);
 
 		/* Make room for PRPH registers */
-		if (!fwrt->trans->cfg->gen2) {
-			for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr_comm);
-			     i++) {
-				/* The range includes both boundaries */
-				int num_bytes_in_chunk =
-					iwl_prph_dump_addr_comm[i].end -
-					iwl_prph_dump_addr_comm[i].start + 4;
-
-				prph_len += sizeof(*dump_data) +
-					sizeof(struct iwl_fw_error_dump_prph) +
-					num_bytes_in_chunk;
-			}
-		}
-
 		if (!fwrt->trans->cfg->gen2 &&
-		    fwrt->trans->cfg->mq_rx_supported) {
-			for (i = 0; i <
-				ARRAY_SIZE(iwl_prph_dump_addr_9000); i++) {
-				/* The range includes both boundaries */
-				int num_bytes_in_chunk =
-					iwl_prph_dump_addr_9000[i].end -
-					iwl_prph_dump_addr_9000[i].start + 4;
+		    fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_PRPH))
+			prph_len += iwl_fw_get_prph_len(fwrt);
 
-				prph_len += sizeof(*dump_data) +
-					sizeof(struct iwl_fw_error_dump_prph) +
-					num_bytes_in_chunk;
-			}
-		}
-
-		if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000)
+		if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000 &&
+		    fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RADIO_REG))
 			radio_len = sizeof(*dump_data) + RADIO_REG_MAX_READ;
 	}
 
-	file_len = sizeof(*dump_file) +
-		   sizeof(*dump_data) * 3 +
-		   sizeof(*dump_smem_cfg) +
-		   fifo_data_len +
-		   prph_len +
-		   radio_len +
-		   sizeof(*dump_info);
+	file_len = sizeof(*dump_file) + fifo_len + prph_len + radio_len;
 
-	/* Make room for the SMEM, if it exists */
-	if (smem_len)
-		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + smem_len;
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_DEV_FW_INFO))
+		file_len += sizeof(*dump_data) + sizeof(*dump_info);
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM_CFG))
+		file_len += sizeof(*dump_data) + sizeof(*dump_smem_cfg);
 
-	/* Make room for the secondary SRAM, if it exists */
-	if (sram2_len)
-		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
+		size_t hdr_len = sizeof(*dump_data) +
+				 sizeof(struct iwl_fw_error_dump_mem);
 
-	/* Make room for MEM segments */
-	for (i = 0; i < fwrt->fw->n_dbg_mem_tlv; i++) {
-		file_len += sizeof(*dump_data) + sizeof(*dump_mem) +
-			    le32_to_cpu(fw_dbg_mem[i].len);
+		/* Dump SRAM only if no mem_tlvs */
+		if (!fwrt->fw->dbg.n_mem_tlv)
+			ADD_LEN(file_len, sram_len, hdr_len);
+
+		/* Make room for all mem types that exist */
+		ADD_LEN(file_len, smem_len, hdr_len);
+		ADD_LEN(file_len, sram2_len, hdr_len);
+
+		for (i = 0; i < fwrt->fw->dbg.n_mem_tlv; i++)
+			ADD_LEN(file_len, le32_to_cpu(fw_mem[i].len), hdr_len);
 	}
 
 	/* Make room for fw's virtual image pages, if it exists */
-	if (!fwrt->trans->cfg->gen2 &&
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_PAGING) &&
+	    !fwrt->trans->cfg->gen2 &&
 	    fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
 	    fwrt->fw_paging_db[0].fw_paging_block)
 		file_len += fwrt->num_of_paging_blk *
@@ -716,81 +721,91 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 			 sizeof(struct iwl_fw_error_dump_paging) +
 			 PAGING_BLOCK_SIZE);
 
+	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
+		file_len += sizeof(*dump_data) +
+			fwrt->trans->cfg->d3_debug_data_length * 2;
+	}
+
 	/* If we only want a monitor dump, reset the file length */
 	if (monitor_dump_only) {
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) * 2 +
 			   sizeof(*dump_info) + sizeof(*dump_smem_cfg);
 	}
 
-	if (fwrt->dump.desc)
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_ERROR_INFO) &&
+	    fwrt->dump.desc)
 		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
 			    fwrt->dump.desc->len;
 
-	if (!fwrt->fw->n_dbg_mem_tlv)
-		file_len += sram_len + sizeof(*dump_mem);
-
 	dump_file = vzalloc(file_len);
-	if (!dump_file) {
-		kfree(fw_error_dump);
-		goto out;
-	}
+	if (!dump_file)
+		return NULL;
 
 	fw_error_dump->fwrt_ptr = dump_file;
 
 	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
 	dump_data = (void *)dump_file->data;
 
-	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
-	dump_data->len = cpu_to_le32(sizeof(*dump_info));
-	dump_info = (void *)dump_data->data;
-	dump_info->device_family =
-		fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000 ?
-			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
-			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
-	dump_info->hw_step = cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
-	memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
-	       sizeof(dump_info->fw_human_readable));
-	strncpy(dump_info->dev_human_readable, fwrt->trans->cfg->name,
-		sizeof(dump_info->dev_human_readable));
-	strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
-		sizeof(dump_info->bus_human_readable));
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_DEV_FW_INFO)) {
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
+		dump_data->len = cpu_to_le32(sizeof(*dump_info));
+		dump_info = (void *)dump_data->data;
+		dump_info->device_family =
+			fwrt->trans->cfg->device_family ==
+			IWL_DEVICE_FAMILY_7000 ?
+				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
+				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
+		dump_info->hw_step =
+			cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
+		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
+		       sizeof(dump_info->fw_human_readable));
+		strncpy(dump_info->dev_human_readable, fwrt->trans->cfg->name,
+			sizeof(dump_info->dev_human_readable) - 1);
+		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
+			sizeof(dump_info->bus_human_readable) - 1);
 
-	dump_data = iwl_fw_error_next_data(dump_data);
-
-	/* Dump shared memory configuration */
-	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_CFG);
-	dump_data->len = cpu_to_le32(sizeof(*dump_smem_cfg));
-	dump_smem_cfg = (void *)dump_data->data;
-	dump_smem_cfg->num_lmacs = cpu_to_le32(mem_cfg->num_lmacs);
-	dump_smem_cfg->num_txfifo_entries =
-		cpu_to_le32(mem_cfg->num_txfifo_entries);
-	for (i = 0; i < MAX_NUM_LMAC; i++) {
-		int j;
-
-		for (j = 0; j < TX_FIFO_MAX_NUM; j++)
-			dump_smem_cfg->lmac[i].txfifo_size[j] =
-				cpu_to_le32(mem_cfg->lmac[i].txfifo_size[j]);
-		dump_smem_cfg->lmac[i].rxfifo1_size =
-			cpu_to_le32(mem_cfg->lmac[i].rxfifo1_size);
-	}
-	dump_smem_cfg->rxfifo2_size = cpu_to_le32(mem_cfg->rxfifo2_size);
-	dump_smem_cfg->internal_txfifo_addr =
-		cpu_to_le32(mem_cfg->internal_txfifo_addr);
-	for (i = 0; i < TX_FIFO_INTERNAL_MAX_NUM; i++) {
-		dump_smem_cfg->internal_txfifo_size[i] =
-			cpu_to_le32(mem_cfg->internal_txfifo_size[i]);
+		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
-	dump_data = iwl_fw_error_next_data(dump_data);
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM_CFG)) {
+		/* Dump shared memory configuration */
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_CFG);
+		dump_data->len = cpu_to_le32(sizeof(*dump_smem_cfg));
+		dump_smem_cfg = (void *)dump_data->data;
+		dump_smem_cfg->num_lmacs = cpu_to_le32(mem_cfg->num_lmacs);
+		dump_smem_cfg->num_txfifo_entries =
+			cpu_to_le32(mem_cfg->num_txfifo_entries);
+		for (i = 0; i < MAX_NUM_LMAC; i++) {
+			int j;
+			u32 *txf_size = mem_cfg->lmac[i].txfifo_size;
+
+			for (j = 0; j < TX_FIFO_MAX_NUM; j++)
+				dump_smem_cfg->lmac[i].txfifo_size[j] =
+					cpu_to_le32(txf_size[j]);
+			dump_smem_cfg->lmac[i].rxfifo1_size =
+				cpu_to_le32(mem_cfg->lmac[i].rxfifo1_size);
+		}
+		dump_smem_cfg->rxfifo2_size =
+			cpu_to_le32(mem_cfg->rxfifo2_size);
+		dump_smem_cfg->internal_txfifo_addr =
+			cpu_to_le32(mem_cfg->internal_txfifo_addr);
+		for (i = 0; i < TX_FIFO_INTERNAL_MAX_NUM; i++) {
+			dump_smem_cfg->internal_txfifo_size[i] =
+				cpu_to_le32(mem_cfg->internal_txfifo_size[i]);
+		}
+
+		dump_data = iwl_fw_error_next_data(dump_data);
+	}
 
 	/* We only dump the FIFOs if the FW is in error state */
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status)) {
+	if (fifo_len) {
 		iwl_fw_dump_fifos(fwrt, &dump_data);
 		if (radio_len)
 			iwl_read_radio_regs(fwrt, &dump_data);
 	}
 
-	if (fwrt->dump.desc) {
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_ERROR_INFO) &&
+	    fwrt->dump.desc) {
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_ERROR_INFO);
 		dump_data->len = cpu_to_le32(sizeof(*dump_trig) +
 					     fwrt->dump.desc->len);
@@ -803,85 +818,55 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 
 	/* In case we only want monitor dump, skip to dump trasport data */
 	if (monitor_dump_only)
-		goto dump_trans_data;
+		goto out;
 
-	if (!fwrt->fw->n_dbg_mem_tlv) {
-		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		dump_data->len = cpu_to_le32(sram_len + sizeof(*dump_mem));
-		dump_mem = (void *)dump_data->data;
-		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
-		dump_mem->offset = cpu_to_le32(sram_ofs);
-		iwl_trans_read_mem_bytes(fwrt->trans, sram_ofs, dump_mem->data,
-					 sram_len);
-		dump_data = iwl_fw_error_next_data(dump_data);
-	}
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
+		const struct iwl_fw_dbg_mem_seg_tlv *fw_dbg_mem =
+			fwrt->fw->dbg.mem_tlv;
 
-	for (i = 0; i < fwrt->fw->n_dbg_mem_tlv; i++) {
-		u32 len = le32_to_cpu(fw_dbg_mem[i].len);
-		u32 ofs = le32_to_cpu(fw_dbg_mem[i].ofs);
-		bool success;
+		if (!fwrt->fw->dbg.n_mem_tlv)
+			iwl_fw_dump_mem(fwrt, &dump_data, sram_len, sram_ofs,
+					IWL_FW_ERROR_DUMP_MEM_SRAM);
 
-		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		dump_data->len = cpu_to_le32(len + sizeof(*dump_mem));
-		dump_mem = (void *)dump_data->data;
-		dump_mem->type = fw_dbg_mem[i].data_type;
-		dump_mem->offset = cpu_to_le32(ofs);
+		for (i = 0; i < fwrt->fw->dbg.n_mem_tlv; i++) {
+			u32 len = le32_to_cpu(fw_dbg_mem[i].len);
+			u32 ofs = le32_to_cpu(fw_dbg_mem[i].ofs);
 
-		IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n",
-			       dump_mem->type);
-
-		switch (dump_mem->type & cpu_to_le32(FW_DBG_MEM_TYPE_MASK)) {
-		case cpu_to_le32(FW_DBG_MEM_TYPE_REGULAR):
-			iwl_trans_read_mem_bytes(fwrt->trans, ofs,
-						 dump_mem->data,
-						 len);
-			success = true;
-			break;
-		case cpu_to_le32(FW_DBG_MEM_TYPE_PRPH):
-			success = iwl_read_prph_block(fwrt->trans, ofs, len,
-						      (void *)dump_mem->data);
-			break;
-		default:
-			/*
-			 * shouldn't get here, we ignored this kind
-			 * of TLV earlier during the TLV parsing?!
-			 */
-			WARN_ON(1);
-			success = false;
+			iwl_fw_dump_mem(fwrt, &dump_data, len, ofs,
+					le32_to_cpu(fw_dbg_mem[i].data_type));
 		}
 
-		if (success)
-			dump_data = iwl_fw_error_next_data(dump_data);
+		iwl_fw_dump_mem(fwrt, &dump_data, smem_len,
+				fwrt->trans->cfg->smem_offset,
+				IWL_FW_ERROR_DUMP_MEM_SMEM);
+
+		iwl_fw_dump_mem(fwrt, &dump_data, sram2_len,
+				fwrt->trans->cfg->dccm2_offset,
+				IWL_FW_ERROR_DUMP_MEM_SRAM);
 	}
 
-	if (smem_len) {
-		IWL_DEBUG_INFO(fwrt, "WRT SMEM dump\n");
-		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		dump_data->len = cpu_to_le32(smem_len + sizeof(*dump_mem));
-		dump_mem = (void *)dump_data->data;
-		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SMEM);
-		dump_mem->offset = cpu_to_le32(fwrt->trans->cfg->smem_offset);
-		iwl_trans_read_mem_bytes(fwrt->trans,
-					 fwrt->trans->cfg->smem_offset,
-					 dump_mem->data, smem_len);
-		dump_data = iwl_fw_error_next_data(dump_data);
-	}
+	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
+		u32 addr = fwrt->trans->cfg->d3_debug_data_base_addr;
+		size_t data_size = fwrt->trans->cfg->d3_debug_data_length;
 
-	if (sram2_len) {
-		IWL_DEBUG_INFO(fwrt, "WRT SRAM dump\n");
-		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		dump_data->len = cpu_to_le32(sram2_len + sizeof(*dump_mem));
-		dump_mem = (void *)dump_data->data;
-		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
-		dump_mem->offset = cpu_to_le32(fwrt->trans->cfg->dccm2_offset);
-		iwl_trans_read_mem_bytes(fwrt->trans,
-					 fwrt->trans->cfg->dccm2_offset,
-					 dump_mem->data, sram2_len);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+		dump_data->len = cpu_to_le32(data_size * 2);
+
+		memcpy(dump_data->data, fwrt->dump.d3_debug_data, data_size);
+
+		kfree(fwrt->dump.d3_debug_data);
+		fwrt->dump.d3_debug_data = NULL;
+
+		iwl_trans_read_mem_bytes(fwrt->trans, addr,
+					 dump_data->data + data_size,
+					 data_size);
+
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
 	/* Dump fw's virtual image */
-	if (!fwrt->trans->cfg->gen2 &&
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_PAGING) &&
+	    !fwrt->trans->cfg->gen2 &&
 	    fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
 	    fwrt->fw_paging_db[0].fw_paging_block) {
 		IWL_DEBUG_INFO(fwrt, "WRT paging dump\n");
@@ -916,13 +901,44 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 				      ARRAY_SIZE(iwl_prph_dump_addr_9000));
 	}
 
-dump_trans_data:
+out:
+	dump_file->file_len = cpu_to_le32(file_len);
+	return dump_file;
+}
+
+void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_dump_ptrs *fw_error_dump;
+	struct iwl_fw_error_dump_file *dump_file;
+	struct scatterlist *sg_dump_data;
+	u32 file_len;
+
+	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
+
+	/* there's no point in fw dump if the bus is dead */
+	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
+		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
+		goto out;
+	}
+
+	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
+	if (!fw_error_dump)
+		goto out;
+
+	dump_file = _iwl_fw_error_dump(fwrt, fw_error_dump);
+	if (!dump_file) {
+		kfree(fw_error_dump);
+		goto out;
+	}
+
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(fwrt->trans,
 						       fwrt->dump.trig);
+	file_len = le32_to_cpu(dump_file->file_len);
 	fw_error_dump->fwrt_len = file_len;
-	if (fw_error_dump->trans_ptr)
+	if (fw_error_dump->trans_ptr) {
 		file_len += fw_error_dump->trans_ptr->len;
-	dump_file->file_len = cpu_to_le32(file_len);
+		dump_file->file_len = cpu_to_le32(file_len);
+	}
 
 	sg_dump_data = alloc_sgtable(file_len);
 	if (sg_dump_data) {
@@ -957,20 +973,39 @@ const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
 };
 IWL_EXPORT_SYMBOL(iwl_dump_desc_assert);
 
-int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
-			    const struct iwl_fw_dump_desc *desc,
-			    const struct iwl_fw_dbg_trigger_tlv *trigger)
+void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt)
 {
-	unsigned int delay = 0;
+	struct iwl_fw_dump_desc *iwl_dump_desc_no_alive =
+		kmalloc(sizeof(*iwl_dump_desc_no_alive), GFP_KERNEL);
 
-	if (trigger)
-		delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
+	if (!iwl_dump_desc_no_alive)
+		return;
 
+	iwl_dump_desc_no_alive->trig_desc.type =
+		cpu_to_le32(FW_DBG_TRIGGER_NO_ALIVE);
+	iwl_dump_desc_no_alive->len = 0;
+
+	if (WARN_ON(fwrt->dump.desc))
+		iwl_fw_free_dump_desc(fwrt);
+
+	IWL_WARN(fwrt, "Collecting data: trigger %d fired.\n",
+		 FW_DBG_TRIGGER_NO_ALIVE);
+
+	fwrt->dump.desc = iwl_dump_desc_no_alive;
+	iwl_fw_error_dump(fwrt);
+	clear_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &fwrt->status);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_alive_error_dump);
+
+int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
+			    const struct iwl_fw_dump_desc *desc, void *trigger,
+			    unsigned int delay)
+{
 	/*
 	 * If the loading of the FW completed successfully, the next step is to
 	 * get the SMEM config data. Thus, if fwrt->smem_cfg.num_lmacs is non
 	 * zero, the FW was already loaded successully. If the state is "NO_FW"
-	 * in such a case - WARN and exit, since FW may be dead. Otherwise, we
+	 * in such a case - exit, since FW may be dead. Otherwise, we
 	 * can try to collect the data, since FW might just not be fully
 	 * loaded (no "ALIVE" yet), and the debug data is accessible.
 	 *
@@ -978,12 +1013,12 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	 *	config. In such a case, due to HW access problems, we might
 	 *	collect garbage.
 	 */
-	if (WARN((fwrt->trans->state == IWL_TRANS_NO_FW) &&
-		 fwrt->smem_cfg.num_lmacs,
-		 "Can't collect dbg data when FW isn't alive\n"))
+	if (fwrt->trans->state == IWL_TRANS_NO_FW &&
+	    fwrt->smem_cfg.num_lmacs)
 		return -EIO;
 
-	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status) ||
+	    test_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &fwrt->status))
 		return -EBUSY;
 
 	if (WARN_ON(fwrt->dump.desc))
@@ -1004,25 +1039,38 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_desc);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       enum iwl_fw_dbg_trigger trig,
 		       const char *str, size_t len,
-		       const struct iwl_fw_dbg_trigger_tlv *trigger)
+		       struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_fw_dump_desc *desc;
+	unsigned int delay = 0;
 
-	if (trigger && trigger->flags & IWL_FW_DBG_FORCE_RESTART) {
-		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", trig);
-		iwl_force_nmi(fwrt->trans);
-		return 0;
+	if (trigger) {
+		u16 occurrences = le16_to_cpu(trigger->occurrences) - 1;
+
+		if (!le16_to_cpu(trigger->occurrences))
+			return 0;
+
+		if (trigger->flags & IWL_FW_DBG_FORCE_RESTART) {
+			IWL_WARN(fwrt, "Force restart: trigger %d fired.\n",
+				 trig);
+			iwl_force_nmi(fwrt->trans);
+			return 0;
+		}
+
+		trigger->occurrences = cpu_to_le16(occurrences);
+		delay = le16_to_cpu(trigger->trig_dis_ms);
 	}
 
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
 
+
 	desc->len = len;
 	desc->trig_desc.type = cpu_to_le32(trig);
 	memcpy(desc->trig_desc.data, str, len);
 
-	return iwl_fw_dbg_collect_desc(fwrt, desc, trigger);
+	return iwl_fw_dbg_collect_desc(fwrt, desc, trigger, delay);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 
@@ -1030,12 +1078,8 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...)
 {
-	u16 occurrences = le16_to_cpu(trigger->occurrences);
 	int ret, len = 0;
 	char buf[64];
-
-	if (!occurrences)
-		return 0;
 
 	if (fmt) {
 		va_list ap;
@@ -1059,7 +1103,6 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 	if (ret)
 		return ret;
 
-	trigger->occurrences = cpu_to_le16(occurrences - 1);
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_trig);
@@ -1070,29 +1113,26 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 	int ret;
 	int i;
 
-	if (WARN_ONCE(conf_id >= ARRAY_SIZE(fwrt->fw->dbg_conf_tlv),
+	if (WARN_ONCE(conf_id >= ARRAY_SIZE(fwrt->fw->dbg.conf_tlv),
 		      "Invalid configuration %d\n", conf_id))
 		return -EINVAL;
 
 	/* EARLY START - firmware's configuration is hard coded */
-	if ((!fwrt->fw->dbg_conf_tlv[conf_id] ||
-	     !fwrt->fw->dbg_conf_tlv[conf_id]->num_of_hcmds) &&
+	if ((!fwrt->fw->dbg.conf_tlv[conf_id] ||
+	     !fwrt->fw->dbg.conf_tlv[conf_id]->num_of_hcmds) &&
 	    conf_id == FW_DBG_START_FROM_ALIVE)
 		return 0;
 
-	if (!fwrt->fw->dbg_conf_tlv[conf_id])
+	if (!fwrt->fw->dbg.conf_tlv[conf_id])
 		return -EINVAL;
 
 	if (fwrt->dump.conf != FW_DBG_INVALID)
 		IWL_WARN(fwrt, "FW already configured (%d) - re-configuring\n",
 			 fwrt->dump.conf);
 
-	/* start default config marker cmd for syncing logs */
-	iwl_fw_trigger_timestamp(fwrt, 1);
-
 	/* Send all HCMDs for configuring the FW debug */
-	ptr = (void *)&fwrt->fw->dbg_conf_tlv[conf_id]->hcmd;
-	for (i = 0; i < fwrt->fw->dbg_conf_tlv[conf_id]->num_of_hcmds; i++) {
+	ptr = (void *)&fwrt->fw->dbg.conf_tlv[conf_id]->hcmd;
+	for (i = 0; i < fwrt->fw->dbg.conf_tlv[conf_id]->num_of_hcmds; i++) {
 		struct iwl_fw_dbg_conf_hcmd *cmd = (void *)ptr;
 		struct iwl_host_cmd hcmd = {
 			.id = cmd->id,
@@ -1114,6 +1154,38 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 }
 IWL_EXPORT_SYMBOL(iwl_fw_start_dbg_conf);
 
+/* this function assumes dump_start was called beforehand and dump_end will be
+ * called afterwards
+ */
+void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_dbg_params params = {0};
+
+	if (!test_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+		return;
+
+	if (fwrt->ops && fwrt->ops->fw_running &&
+	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
+		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
+		iwl_fw_free_dump_desc(fwrt);
+		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
+		return;
+	}
+
+	iwl_fw_dbg_stop_recording(fwrt, &params);
+
+	iwl_fw_error_dump(fwrt);
+
+	/* start recording again if the firmware is not crashed */
+	if (!test_bit(STATUS_FW_ERROR, &fwrt->trans->status) &&
+	    fwrt->fw->dbg.dest_tlv) {
+		/* wait before we collect the data till the DBGC stop */
+		udelay(500);
+		iwl_fw_dbg_restart_recording(fwrt, &params);
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_sync);
+
 void iwl_fw_error_dump_wk(struct work_struct *work)
 {
 	struct iwl_fw_runtime *fwrt =
@@ -1123,49 +1195,32 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 	    fwrt->ops->dump_start(fwrt->ops_ctx))
 		return;
 
-	if (fwrt->ops && fwrt->ops->fw_running &&
-	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
-		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
-		iwl_fw_free_dump_desc(fwrt);
-		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
-		goto out;
-	}
+	iwl_fw_dbg_collect_sync(fwrt);
 
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		/* stop recording */
-		iwl_fw_dbg_stop_recording(fwrt);
-
-		iwl_fw_error_dump(fwrt);
-
-		/* start recording again if the firmware is not crashed */
-		if (!test_bit(STATUS_FW_ERROR, &fwrt->trans->status) &&
-		    fwrt->fw->dbg_dest_tlv) {
-			iwl_clear_bits_prph(fwrt->trans,
-					    MON_BUFF_SAMPLE_CTL, 0x100);
-			iwl_clear_bits_prph(fwrt->trans,
-					    MON_BUFF_SAMPLE_CTL, 0x1);
-			iwl_set_bits_prph(fwrt->trans,
-					  MON_BUFF_SAMPLE_CTL, 0x1);
-		}
-	} else {
-		u32 in_sample = iwl_read_prph(fwrt->trans, DBGC_IN_SAMPLE);
-		u32 out_ctrl = iwl_read_prph(fwrt->trans, DBGC_OUT_CTRL);
-
-		iwl_fw_dbg_stop_recording(fwrt);
-		/* wait before we collect the data till the DBGC stop */
-		udelay(500);
-
-		iwl_fw_error_dump(fwrt);
-
-		/* start recording again if the firmware is not crashed */
-		if (!test_bit(STATUS_FW_ERROR, &fwrt->trans->status) &&
-		    fwrt->fw->dbg_dest_tlv) {
-			iwl_write_prph(fwrt->trans, DBGC_IN_SAMPLE, in_sample);
-			iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, out_ctrl);
-		}
-	}
-out:
 	if (fwrt->ops && fwrt->ops->dump_end)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }
 
+void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
+{
+	const struct iwl_cfg *cfg = fwrt->trans->cfg;
+
+	if (!iwl_fw_dbg_is_d3_debug_enabled(fwrt))
+		return;
+
+	if (!fwrt->dump.d3_debug_data) {
+		fwrt->dump.d3_debug_data = kmalloc(cfg->d3_debug_data_length,
+						   GFP_KERNEL);
+		if (!fwrt->dump.d3_debug_data) {
+			IWL_ERR(fwrt,
+				"failed to allocate memory for D3 debug data\n");
+			return;
+		}
+	}
+
+	/* if the buffer holds previous debug data it is overwritten */
+	iwl_trans_read_mem_bytes(fwrt->trans, cfg->d3_debug_data_base_addr,
+				 fwrt->dump.d3_debug_data,
+				 cfg->d3_debug_data_length);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);

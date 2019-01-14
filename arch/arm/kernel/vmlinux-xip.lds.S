@@ -13,6 +13,7 @@
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
+#include <asm/mpu.h>
 #include <asm/page.h>
 
 #include "vmlinux.lds.h"
@@ -95,7 +96,6 @@ SECTIONS
 		INIT_SETUP(16)
 		INIT_CALLS
 		CON_INITCALL
-		SECURITY_INITCALL
 		INIT_RAM_FS
 	}
 
@@ -148,6 +148,9 @@ SECTIONS
 	__init_end = .;
 
 	BSS_SECTION(0, 0, 8)
+#ifdef CONFIG_ARM_MPU
+	. = ALIGN(PMSAv8_MINALIGN);
+#endif
 	_end = .;
 
 	STABS_DEBUG

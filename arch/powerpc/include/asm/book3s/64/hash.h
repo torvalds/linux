@@ -3,6 +3,8 @@
 #define _ASM_POWERPC_BOOK3S_64_HASH_H
 #ifdef __KERNEL__
 
+#include <asm/asm-const.h>
+
 /*
  * Common bits between 4K and 64K pages in a linux-style PTE.
  * Additional bits may be defined in pgtable-hash64-*.h
@@ -16,6 +18,11 @@
 #include <asm/book3s/64/hash-4k.h>
 #endif
 
+/* Bits to set in a PMD/PUD/PGD entry valid bit*/
+#define HASH_PMD_VAL_BITS		(0x8000000000000000UL)
+#define HASH_PUD_VAL_BITS		(0x8000000000000000UL)
+#define HASH_PGD_VAL_BITS		(0x8000000000000000UL)
+
 /*
  * Size of EA range mapped by our pagetables.
  */
@@ -23,16 +30,6 @@
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
 
-#if (defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)) && \
-	defined(CONFIG_PPC_64K_PAGES)
-/*
- * only with hash 64k we need to use the second half of pmd page table
- * to store pointer to deposited pgtable_t
- */
-#define H_PMD_CACHE_INDEX	(H_PMD_INDEX_SIZE + 1)
-#else
-#define H_PMD_CACHE_INDEX	H_PMD_INDEX_SIZE
-#endif
 /*
  * We store the slot details in the second half of page table.
  * Increase the pud level table so that hugetlb ptes can be stored
@@ -204,8 +201,7 @@ static inline void hpte_do_hugepage_flush(struct mm_struct *mm,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 
-extern int hash__map_kernel_page(unsigned long ea, unsigned long pa,
-			     unsigned long flags);
+int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot);
 extern int __meminit hash__vmemmap_create_mapping(unsigned long start,
 					      unsigned long page_size,
 					      unsigned long phys);

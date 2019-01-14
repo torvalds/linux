@@ -99,8 +99,9 @@ static const struct mtd_ooblayout_ops oob_sm_small_ops = {
 	.free = oob_sm_small_ooblayout_free,
 };
 
-static int sm_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int sm_block_markbad(struct nand_chip *chip, loff_t ofs)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mtd_oob_ops ops;
 	struct sm_oob oob;
 	int ret;
@@ -160,24 +161,14 @@ static struct nand_flash_dev nand_xd_flash_ids[] = {
 	{NULL}
 };
 
-int sm_register_device(struct mtd_info *mtd, int smartmedia)
+static int sm_attach_chip(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	int ret;
-
-	chip->options |= NAND_SKIP_BBTSCAN;
-
-	/* Scan for card properties */
-	ret = nand_scan_ident(mtd, 1, smartmedia ?
-		nand_smartmedia_flash_ids : nand_xd_flash_ids);
-
-	if (ret)
-		return ret;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 
 	/* Bad block marker position */
 	chip->badblockpos = 0x05;
 	chip->badblockbits = 7;
-	chip->block_markbad = sm_block_markbad;
+	chip->legacy.block_markbad = sm_block_markbad;
 
 	/* ECC layout */
 	if (mtd->writesize == SM_SECTOR_SIZE)
@@ -187,12 +178,33 @@ int sm_register_device(struct mtd_info *mtd, int smartmedia)
 	else
 		return -ENODEV;
 
-	ret = nand_scan_tail(mtd);
+	return 0;
+}
 
+static const struct nand_controller_ops sm_controller_ops = {
+	.attach_chip = sm_attach_chip,
+};
+
+int sm_register_device(struct mtd_info *mtd, int smartmedia)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct nand_flash_dev *flash_ids;
+	int ret;
+
+	chip->options |= NAND_SKIP_BBTSCAN;
+
+	/* Scan for card properties */
+	chip->dummy_controller.ops = &sm_controller_ops;
+	flash_ids = smartmedia ? nand_smartmedia_flash_ids : nand_xd_flash_ids;
+	ret = nand_scan_with_ids(chip, 1, flash_ids);
 	if (ret)
 		return ret;
 
-	return mtd_device_register(mtd, NULL, 0);
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret)
+		nand_cleanup(chip);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sm_register_device);
 

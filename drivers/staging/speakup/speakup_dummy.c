@@ -21,6 +21,7 @@
 static struct var_t vars[] = {
 	{ CAPS_START, .u.s = {"CAPS_START\n" } },
 	{ CAPS_STOP, .u.s = {"CAPS_STOP\n" } },
+	{ PAUSE, .u.s = {"PAUSE\n"} },
 	{ RATE, .u.n = {"RATE %d\n", 8, 1, 16, 0, 0, NULL } },
 	{ PITCH, .u.n = {"PITCH %d\n", 8, 0, 16, 0, 0, NULL } },
 	{ VOL, .u.n = {"VOL %d\n", 8, 0, 16, 0, 0, NULL } },

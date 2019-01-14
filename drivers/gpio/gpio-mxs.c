@@ -1,24 +1,10 @@
-/*
- * MXC GPIO support. (c) 2008 Daniel Mack <daniel@caiaq.de>
- * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
- *
- * Based on code from Freescale,
- * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA  02110-1301, USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// MXC GPIO support. (c) 2008 Daniel Mack <daniel@caiaq.de>
+// Copyright 2008 Juergen Beisert, kernel@pengutronix.de
+//
+// Based on code from Freescale,
+// Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/err.h>
 #include <linux/init.h>
@@ -32,8 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
-/* FIXME: for gpio_get_value(), replace this by direct register read */
-#include <linux/gpio.h>
 #include <linux/module.h>
 
 #define MXS_SET		0x4
@@ -100,7 +84,7 @@ static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	port->both_edges &= ~pin_mask;
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
-		val = gpio_get_value(port->gc.base + d->hwirq);
+		val = port->gc.get(&port->gc, d->hwirq);
 		if (val)
 			edge = GPIO_INT_FALL_EDGE;
 		else
@@ -140,8 +124,7 @@ static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	else
 		writel(pin_mask, pin_addr + MXS_CLR);
 
-	writel(pin_mask,
-	       port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
+	writel(pin_mask, port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
 
 	return 0;
 }
@@ -290,8 +273,6 @@ MODULE_DEVICE_TABLE(of, mxs_gpio_dt_ids);
 
 static int mxs_gpio_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(mxs_gpio_dt_ids, &pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *parent;
 	static void __iomem *base;
@@ -306,7 +287,7 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	port->id = of_alias_get_id(np, "gpio");
 	if (port->id < 0)
 		return port->id;
-	port->devid = (enum mxs_gpio_id) of_id->data;
+	port->devid = (enum mxs_gpio_id)of_device_get_match_data(&pdev->dev);
 	port->dev = &pdev->dev;
 	port->irq = platform_get_irq(pdev, 0);
 	if (port->irq < 0)

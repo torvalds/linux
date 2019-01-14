@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 /*-------------------------------------------------------------------------------
@@ -389,7 +381,7 @@ struct debug_priv {
 	u32 dbg_enwow_dload_fw_fail_cnt;
 	u32 dbg_ips_drvopen_fail_cnt;
 	u32 dbg_poll_fail_cnt;
-	u32 dbg_rpwm_toogle_cnt;
+	u32 dbg_rpwm_toggle_cnt;
 	u32 dbg_rpwm_timeout_fail_cnt;
 	u64 dbg_rx_fifo_last_overflow;
 	u64 dbg_rx_fifo_curr_overflow;

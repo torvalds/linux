@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <linux/swap.h>
@@ -58,6 +59,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 	}
 
 	INIT_LIST_HEAD(&ff->write_entry);
+	mutex_init(&ff->readdir.lock);
 	refcount_set(&ff->count, 1);
 	RB_CLEAR_NODE(&ff->polled_node);
 	init_waitqueue_head(&ff->poll_wait);
@@ -72,6 +74,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 void fuse_file_free(struct fuse_file *ff)
 {
 	fuse_request_free(ff->reserved_req);
+	mutex_destroy(&ff->readdir.lock);
 	kfree(ff);
 }
 
@@ -86,12 +89,12 @@ static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 	iput(req->misc.release.inode);
 }
 
-static void fuse_file_put(struct fuse_file *ff, bool sync)
+static void fuse_file_put(struct fuse_file *ff, bool sync, bool isdir)
 {
 	if (refcount_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
 
-		if (ff->fc->no_open) {
+		if (ff->fc->no_open && !isdir) {
 			/*
 			 * Drop the release request when client does not
 			 * implement 'open'
@@ -244,10 +247,11 @@ static void fuse_prepare_release(struct fuse_file *ff, int flags, int opcode)
 	req->in.args[0].value = inarg;
 }
 
-void fuse_release_common(struct file *file, int opcode)
+void fuse_release_common(struct file *file, bool isdir)
 {
 	struct fuse_file *ff = file->private_data;
 	struct fuse_req *req = ff->reserved_req;
+	int opcode = isdir ? FUSE_RELEASEDIR : FUSE_RELEASE;
 
 	fuse_prepare_release(ff, file->f_flags, opcode);
 
@@ -269,7 +273,7 @@ void fuse_release_common(struct file *file, int opcode)
 	 * synchronous RELEASE is allowed (and desirable) in this case
 	 * because the server can be trusted not to screw up.
 	 */
-	fuse_file_put(ff, ff->fc->destroy_req != NULL);
+	fuse_file_put(ff, ff->fc->destroy_req != NULL, isdir);
 }
 
 static int fuse_open(struct inode *inode, struct file *file)
@@ -285,7 +289,7 @@ static int fuse_release(struct inode *inode, struct file *file)
 	if (fc->writeback_cache)
 		write_inode_now(inode, 1);
 
-	fuse_release_common(file, FUSE_RELEASE);
+	fuse_release_common(file, false);
 
 	/* return value is ignored by VFS */
 	return 0;
@@ -299,7 +303,7 @@ void fuse_sync_release(struct fuse_file *ff, int flags)
 	 * iput(NULL) is a no-op and since the refcount is 1 and everything's
 	 * synchronous, we are fine with not doing igrab() here"
 	 */
-	fuse_file_put(ff, true);
+	fuse_file_put(ff, true, false);
 }
 EXPORT_SYMBOL_GPL(fuse_sync_release);
 
@@ -438,13 +442,30 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 }
 
 int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
-		      int datasync, int isdir)
+		      int datasync, int opcode)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_file *ff = file->private_data;
 	FUSE_ARGS(args);
 	struct fuse_fsync_in inarg;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.fh = ff->fh;
+	inarg.fsync_flags = datasync ? 1 : 0;
+	args.in.h.opcode = opcode;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 1;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	return fuse_simple_request(fc, &args);
+}
+
+static int fuse_fsync(struct file *file, loff_t start, loff_t end,
+		      int datasync)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	int err;
 
 	if (is_bad_inode(inode))
@@ -476,34 +497,18 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 	if (err)
 		goto out;
 
-	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
+	if (fc->no_fsync)
 		goto out;
 
-	memset(&inarg, 0, sizeof(inarg));
-	inarg.fh = ff->fh;
-	inarg.fsync_flags = datasync ? 1 : 0;
-	args.in.h.opcode = isdir ? FUSE_FSYNCDIR : FUSE_FSYNC;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	err = fuse_simple_request(fc, &args);
+	err = fuse_fsync_common(file, start, end, datasync, FUSE_FSYNC);
 	if (err == -ENOSYS) {
-		if (isdir)
-			fc->no_fsyncdir = 1;
-		else
-			fc->no_fsync = 1;
+		fc->no_fsync = 1;
 		err = 0;
 	}
 out:
 	inode_unlock(inode);
-	return err;
-}
 
-static int fuse_fsync(struct file *file, loff_t start, loff_t end,
-		      int datasync)
-{
-	return fuse_fsync_common(file, start, end, datasync, 0);
+	return err;
 }
 
 void fuse_read_fill(struct fuse_req *req, struct file *file, loff_t pos,
@@ -804,7 +809,7 @@ static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 		put_page(page);
 	}
 	if (req->ff)
-		fuse_file_put(req->ff, false);
+		fuse_file_put(req->ff, false, false);
 }
 
 static void fuse_send_readpages(struct fuse_req *req, struct file *file)
@@ -847,11 +852,11 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 	fuse_wait_on_page_writeback(inode, page->index);
 
 	if (req->num_pages &&
-	    (req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
+	    (req->num_pages == fc->max_pages ||
 	     (req->num_pages + 1) * PAGE_SIZE > fc->max_read ||
 	     req->pages[req->num_pages - 1]->index + 1 != page->index)) {
-		int nr_alloc = min_t(unsigned, data->nr_pages,
-				     FUSE_MAX_PAGES_PER_REQ);
+		unsigned int nr_alloc = min_t(unsigned int, data->nr_pages,
+					      fc->max_pages);
 		fuse_send_readpages(req, data->file);
 		if (fc->async_read)
 			req = fuse_get_req_for_background(fc, nr_alloc);
@@ -866,6 +871,7 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 	}
 
 	if (WARN_ON(req->num_pages >= req->max_pages)) {
+		unlock_page(page);
 		fuse_put_request(fc, req);
 		return -EIO;
 	}
@@ -885,7 +891,7 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_fill_data data;
 	int err;
-	int nr_alloc = min_t(unsigned, nr_pages, FUSE_MAX_PAGES_PER_REQ);
+	unsigned int nr_alloc = min_t(unsigned int, nr_pages, fc->max_pages);
 
 	err = -EIO;
 	if (is_bad_inode(inode))
@@ -1100,12 +1106,13 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 	return count > 0 ? count : err;
 }
 
-static inline unsigned fuse_wr_pages(loff_t pos, size_t len)
+static inline unsigned int fuse_wr_pages(loff_t pos, size_t len,
+				     unsigned int max_pages)
 {
-	return min_t(unsigned,
+	return min_t(unsigned int,
 		     ((pos + len - 1) >> PAGE_SHIFT) -
 		     (pos >> PAGE_SHIFT) + 1,
-		     FUSE_MAX_PAGES_PER_REQ);
+		     max_pages);
 }
 
 static ssize_t fuse_perform_write(struct kiocb *iocb,
@@ -1127,7 +1134,8 @@ static ssize_t fuse_perform_write(struct kiocb *iocb,
 	do {
 		struct fuse_req *req;
 		ssize_t count;
-		unsigned nr_pages = fuse_wr_pages(pos, iov_iter_count(ii));
+		unsigned int nr_pages = fuse_wr_pages(pos, iov_iter_count(ii),
+						      fc->max_pages);
 
 		req = fuse_get_req(fc, nr_pages);
 		if (IS_ERR(req)) {
@@ -1269,7 +1277,7 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 	ssize_t ret = 0;
 
 	/* Special case for kernel I/O: can copy directly into the buffer */
-	if (ii->type & ITER_KVEC) {
+	if (iov_iter_is_kvec(ii)) {
 		unsigned long user_addr = fuse_get_user_addr(ii);
 		size_t frag_size = fuse_get_frag_size(ii, *nbytesp);
 
@@ -1317,11 +1325,6 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 	return ret < 0 ? ret : 0;
 }
 
-static inline int fuse_iter_npages(const struct iov_iter *ii_p)
-{
-	return iov_iter_npages(ii_p, FUSE_MAX_PAGES_PER_REQ);
-}
-
 ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		       loff_t *ppos, int flags)
 {
@@ -1341,9 +1344,10 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	int err = 0;
 
 	if (io->async)
-		req = fuse_get_req_for_background(fc, fuse_iter_npages(iter));
+		req = fuse_get_req_for_background(fc, iov_iter_npages(iter,
+								fc->max_pages));
 	else
-		req = fuse_get_req(fc, fuse_iter_npages(iter));
+		req = fuse_get_req(fc, iov_iter_npages(iter, fc->max_pages));
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1388,9 +1392,10 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 			fuse_put_request(fc, req);
 			if (io->async)
 				req = fuse_get_req_for_background(fc,
-					fuse_iter_npages(iter));
+					iov_iter_npages(iter, fc->max_pages));
 			else
-				req = fuse_get_req(fc, fuse_iter_npages(iter));
+				req = fuse_get_req(fc, iov_iter_npages(iter,
+								fc->max_pages));
 			if (IS_ERR(req))
 				break;
 		}
@@ -1416,7 +1421,7 @@ static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
 
 	res = fuse_direct_io(io, iter, ppos, 0);
 
-	fuse_invalidate_attr(inode);
+	fuse_invalidate_atime(inode);
 
 	return res;
 }
@@ -1457,7 +1462,7 @@ static void fuse_writepage_free(struct fuse_conn *fc, struct fuse_req *req)
 		__free_page(req->pages[i]);
 
 	if (req->ff)
-		fuse_file_put(req->ff, false);
+		fuse_file_put(req->ff, false, false);
 }
 
 static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
@@ -1485,6 +1490,7 @@ __acquires(fc->lock)
 	struct fuse_inode *fi = get_fuse_inode(req->inode);
 	struct fuse_write_in *inarg = &req->misc.write.in;
 	__u64 data_size = req->num_pages * PAGE_SIZE;
+	bool queued;
 
 	if (!fc->connected)
 		goto out_free;
@@ -1500,7 +1506,8 @@ __acquires(fc->lock)
 
 	req->in.args[1].size = inarg->size;
 	fi->writectr++;
-	fuse_request_send_background_locked(fc, req);
+	queued = fuse_request_queue_background(fc, req);
+	WARN_ON(!queued);
 	return;
 
  out_free:
@@ -1614,7 +1621,7 @@ int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
 	ff = __fuse_write_file_get(fc, fi);
 	err = fuse_flush_times(inode, ff);
 	if (ff)
-		fuse_file_put(ff, 0);
+		fuse_file_put(ff, false, false);
 
 	return err;
 }
@@ -1817,12 +1824,18 @@ static int fuse_writepages_fill(struct page *page,
 	is_writeback = fuse_page_is_writeback(inode, page->index);
 
 	if (req && req->num_pages &&
-	    (is_writeback || req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
+	    (is_writeback || req->num_pages == fc->max_pages ||
 	     (req->num_pages + 1) * PAGE_SIZE > fc->max_write ||
 	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
 		fuse_writepages_send(data);
 		data->req = NULL;
+	} else if (req && req->num_pages == req->max_pages) {
+		if (!fuse_req_realloc_pages(fc, req, GFP_NOFS)) {
+			fuse_writepages_send(data);
+			req = data->req = NULL;
+		}
 	}
+
 	err = -ENOMEM;
 	tmp_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
 	if (!tmp_page)
@@ -1845,7 +1858,7 @@ static int fuse_writepages_fill(struct page *page,
 		struct fuse_inode *fi = get_fuse_inode(inode);
 
 		err = -ENOMEM;
-		req = fuse_request_alloc_nofs(FUSE_MAX_PAGES_PER_REQ);
+		req = fuse_request_alloc_nofs(FUSE_REQ_INLINE_PAGES);
 		if (!req) {
 			__free_page(tmp_page);
 			goto out_unlock;
@@ -1902,6 +1915,7 @@ static int fuse_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_fill_wb_data data;
 	int err;
 
@@ -1914,7 +1928,7 @@ static int fuse_writepages(struct address_space *mapping,
 	data.ff = NULL;
 
 	err = -ENOMEM;
-	data.orig_pages = kcalloc(FUSE_MAX_PAGES_PER_REQ,
+	data.orig_pages = kcalloc(fc->max_pages,
 				  sizeof(struct page *),
 				  GFP_NOFS);
 	if (!data.orig_pages)
@@ -1928,7 +1942,7 @@ static int fuse_writepages(struct address_space *mapping,
 		err = 0;
 	}
 	if (data.ff)
-		fuse_file_put(data.ff, false);
+		fuse_file_put(data.ff, false, false);
 
 	kfree(data.orig_pages);
 out:
@@ -2048,7 +2062,7 @@ static void fuse_vma_close(struct vm_area_struct *vma)
  * - sync(2)
  * - try_to_free_pages() with order > PAGE_ALLOC_COSTLY_ORDER
  */
-static int fuse_page_mkwrite(struct vm_fault *vmf)
+static vm_fault_t fuse_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
@@ -2385,10 +2399,11 @@ static int fuse_copy_ioctl_iovec_old(struct iovec *dst, void *src,
 }
 
 /* Make sure iov_length() won't overflow */
-static int fuse_verify_ioctl_iov(struct iovec *iov, size_t count)
+static int fuse_verify_ioctl_iov(struct fuse_conn *fc, struct iovec *iov,
+				 size_t count)
 {
 	size_t n;
-	u32 max = FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT;
+	u32 max = fc->max_pages << PAGE_SHIFT;
 
 	for (n = 0; n < count; n++, iov++) {
 		if (iov->iov_len > (size_t) max)
@@ -2512,7 +2527,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	BUILD_BUG_ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
 
 	err = -ENOMEM;
-	pages = kcalloc(FUSE_MAX_PAGES_PER_REQ, sizeof(pages[0]), GFP_KERNEL);
+	pages = kcalloc(fc->max_pages, sizeof(pages[0]), GFP_KERNEL);
 	iov_page = (struct iovec *) __get_free_page(GFP_KERNEL);
 	if (!pages || !iov_page)
 		goto out;
@@ -2551,7 +2566,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 
 	/* make sure there are enough buffer pages and init request with them */
 	err = -ENOMEM;
-	if (max_pages > FUSE_MAX_PAGES_PER_REQ)
+	if (max_pages > fc->max_pages)
 		goto out;
 	while (num_pages < max_pages) {
 		pages[num_pages] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
@@ -2638,11 +2653,11 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		in_iov = iov_page;
 		out_iov = in_iov + in_iovs;
 
-		err = fuse_verify_ioctl_iov(in_iov, in_iovs);
+		err = fuse_verify_ioctl_iov(fc, in_iov, in_iovs);
 		if (err)
 			goto out;
 
-		err = fuse_verify_ioctl_iov(out_iov, out_iovs);
+		err = fuse_verify_ioctl_iov(fc, out_iov, out_iovs);
 		if (err)
 			goto out;
 
@@ -2833,9 +2848,9 @@ static void fuse_do_truncate(struct file *file)
 	fuse_do_setattr(file_dentry(file), &attr, file);
 }
 
-static inline loff_t fuse_round_up(loff_t off)
+static inline loff_t fuse_round_up(struct fuse_conn *fc, loff_t off)
 {
-	return round_up(off, FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT);
+	return round_up(off, fc->max_pages << PAGE_SHIFT);
 }
 
 static ssize_t
@@ -2864,7 +2879,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (async_dio && iov_iter_rw(iter) != WRITE && offset + count > i_size) {
 		if (offset >= i_size)
 			return 0;
-		iov_iter_truncate(iter, fuse_round_up(i_size - offset));
+		iov_iter_truncate(iter, fuse_round_up(ff->fc, i_size - offset));
 		count = iov_iter_count(iter);
 	}
 
@@ -2911,10 +2926,12 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	}
 
 	if (io->async) {
+		bool blocking = io->blocking;
+
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
 
 		/* we have a non-extending, async request, so return */
-		if (!io->blocking)
+		if (!blocking)
 			return -EIOCBQUEUED;
 
 		wait_for_completion(&wait);
@@ -3009,6 +3026,82 @@ out:
 	return err;
 }
 
+static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
+				    struct file *file_out, loff_t pos_out,
+				    size_t len, unsigned int flags)
+{
+	struct fuse_file *ff_in = file_in->private_data;
+	struct fuse_file *ff_out = file_out->private_data;
+	struct inode *inode_out = file_inode(file_out);
+	struct fuse_inode *fi_out = get_fuse_inode(inode_out);
+	struct fuse_conn *fc = ff_in->fc;
+	FUSE_ARGS(args);
+	struct fuse_copy_file_range_in inarg = {
+		.fh_in = ff_in->fh,
+		.off_in = pos_in,
+		.nodeid_out = ff_out->nodeid,
+		.fh_out = ff_out->fh,
+		.off_out = pos_out,
+		.len = len,
+		.flags = flags
+	};
+	struct fuse_write_out outarg;
+	ssize_t err;
+	/* mark unstable when write-back is not used, and file_out gets
+	 * extended */
+	bool is_unstable = (!fc->writeback_cache) &&
+			   ((pos_out + len) > inode_out->i_size);
+
+	if (fc->no_copy_file_range)
+		return -EOPNOTSUPP;
+
+	inode_lock(inode_out);
+
+	if (fc->writeback_cache) {
+		err = filemap_write_and_wait_range(inode_out->i_mapping,
+						   pos_out, pos_out + len);
+		if (err)
+			goto out;
+
+		fuse_sync_writes(inode_out);
+	}
+
+	if (is_unstable)
+		set_bit(FUSE_I_SIZE_UNSTABLE, &fi_out->state);
+
+	args.in.h.opcode = FUSE_COPY_FILE_RANGE;
+	args.in.h.nodeid = ff_in->nodeid;
+	args.in.numargs = 1;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	args.out.numargs = 1;
+	args.out.args[0].size = sizeof(outarg);
+	args.out.args[0].value = &outarg;
+	err = fuse_simple_request(fc, &args);
+	if (err == -ENOSYS) {
+		fc->no_copy_file_range = 1;
+		err = -EOPNOTSUPP;
+	}
+	if (err)
+		goto out;
+
+	if (fc->writeback_cache) {
+		fuse_write_update_size(inode_out, pos_out + outarg.size);
+		file_update_time(file_out);
+	}
+
+	fuse_invalidate_attr(inode_out);
+
+	err = outarg.size;
+out:
+	if (is_unstable)
+		clear_bit(FUSE_I_SIZE_UNSTABLE, &fi_out->state);
+
+	inode_unlock(inode_out);
+
+	return err;
+}
+
 static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
 	.read_iter	= fuse_file_read_iter,
@@ -3025,6 +3118,7 @@ static const struct file_operations fuse_file_operations = {
 	.compat_ioctl	= fuse_file_compat_ioctl,
 	.poll		= fuse_file_poll,
 	.fallocate	= fuse_file_fallocate,
+	.copy_file_range = fuse_copy_file_range,
 };
 
 static const struct file_operations fuse_direct_io_file_operations = {
@@ -3060,6 +3154,14 @@ static const struct address_space_operations fuse_file_aops  = {
 
 void fuse_init_file_inode(struct inode *inode)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
 	inode->i_fop = &fuse_file_operations;
 	inode->i_data.a_ops = &fuse_file_aops;
+
+	INIT_LIST_HEAD(&fi->write_files);
+	INIT_LIST_HEAD(&fi->queued_writes);
+	fi->writectr = 0;
+	init_waitqueue_head(&fi->page_waitq);
+	INIT_LIST_HEAD(&fi->writepages);
 }

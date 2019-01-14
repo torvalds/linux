@@ -18,6 +18,10 @@ various perf commands with the -e option.
 
 OPTIONS
 -------
+-d::
+--desc::
+Print extra event descriptions. (default)
+
 --no-desc::
 Don't print descriptions.
 
@@ -25,10 +29,12 @@ Don't print descriptions.
 --long-desc::
 Print longer event descriptions.
 
+--debug::
+Enable debugging output.
+
 --details::
 Print how named events are resolved internally into perf events, and also
 any extra expressions computed by perf stat.
-
 
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
@@ -49,7 +55,6 @@ counted. The following modifiers exist:
  S - read sample value (PERF_SAMPLE_READ)
  D - pin the event to the PMU
  W - group is weak and will fallback to non-group if not schedulable,
-     only supported in 'perf stat' for now.
 
 The 'p' modifier can be used for specifying how precise the instruction
 address should be. The 'p' modifier can be specified multiple times:
@@ -124,7 +129,11 @@ The available PMUs and their raw parameters can be listed with
 For example the raw event "LSD.UOPS" core pmu event above could
 be specified as
 
-  perf stat -e cpu/event=0xa8,umask=0x1,name=LSD.UOPS_CYCLES,cmask=1/ ...
+  perf stat -e cpu/event=0xa8,umask=0x1,name=LSD.UOPS_CYCLES,cmask=0x1/ ...
+
+  or using extended name syntax
+
+  perf stat -e cpu/event=0xa8,umask=0x1,cmask=0x1,name=\'LSD.UOPS_CYCLES:cmask=0x1\'/ ...
 
 PER SOCKET PMUS
 ---------------
@@ -230,7 +239,7 @@ perf also supports group leader sampling using the :S specifier.
   perf record -e '{cycles,instructions}:S' ...
   perf report --group
 
-Normally all events in a event group sample, but with :S only
+Normally all events in an event group sample, but with :S only
 the first event (the leader) samples, and it only reads the values of the
 other events in the group.
 

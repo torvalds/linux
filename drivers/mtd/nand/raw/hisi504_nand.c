@@ -353,9 +353,8 @@ static int hisi_nfc_send_cmd_reset(struct hinfc_host *host, int chipselect)
 	return 0;
 }
 
-static void hisi_nfc_select_chip(struct mtd_info *mtd, int chipselect)
+static void hisi_nfc_select_chip(struct nand_chip *chip, int chipselect)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	if (chipselect < 0)
@@ -364,9 +363,8 @@ static void hisi_nfc_select_chip(struct mtd_info *mtd, int chipselect)
 	host->chipselect = chipselect;
 }
 
-static uint8_t hisi_nfc_read_byte(struct mtd_info *mtd)
+static uint8_t hisi_nfc_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	if (host->command == NAND_CMD_STATUS)
@@ -380,28 +378,17 @@ static uint8_t hisi_nfc_read_byte(struct mtd_info *mtd)
 	return *(uint8_t *)(host->buffer + host->offset - 1);
 }
 
-static u16 hisi_nfc_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct hinfc_host *host = nand_get_controller_data(chip);
-
-	host->offset += 2;
-	return *(u16 *)(host->buffer + host->offset - 2);
-}
-
 static void
-hisi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+hisi_nfc_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	memcpy(host->buffer + host->offset, buf, len);
 	host->offset += len;
 }
 
-static void hisi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void hisi_nfc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	memcpy(buf, host->buffer + host->offset, len);
@@ -442,10 +429,10 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr)
 	}
 }
 
-static void hisi_nfc_cmdfunc(struct mtd_info *mtd, unsigned command, int column,
-		int page_addr)
+static void hisi_nfc_cmdfunc(struct nand_chip *chip, unsigned command,
+			     int column, int page_addr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 	int is_cache_invalid = 1;
 	unsigned int flag = 0;
@@ -537,15 +524,16 @@ static irqreturn_t hinfc_irq_handle(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int hisi_nand_read_page_hwecc(struct mtd_info *mtd,
-	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
+static int hisi_nand_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
+				     int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 	int max_bitflips = 0, stat = 0, stat_max = 0, status_ecc;
 	int stat_1, stat_2;
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* errors which can not be corrected by ECC */
 	if (host->irq_status & HINFC504_INTS_UE) {
@@ -569,9 +557,9 @@ static int hisi_nand_read_page_hwecc(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-static int hisi_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-				int page)
+static int hisi_nand_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
@@ -585,13 +573,15 @@ static int hisi_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
-static int hisi_nand_write_page_hwecc(struct mtd_info *mtd,
-		struct nand_chip *chip, const uint8_t *buf, int oob_required,
-		int page)
+static int hisi_nand_write_page_hwecc(struct nand_chip *chip,
+				      const uint8_t *buf, int oob_required,
+				      int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+		chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -709,9 +699,50 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 	return 0;
 }
 
+static int hisi_nfc_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct hinfc_host *host = nand_get_controller_data(chip);
+	int flag;
+
+	host->buffer = dmam_alloc_coherent(host->dev,
+					   mtd->writesize + mtd->oobsize,
+					   &host->dma_buffer, GFP_KERNEL);
+	if (!host->buffer)
+		return -ENOMEM;
+
+	host->dma_oob = host->dma_buffer + mtd->writesize;
+	memset(host->buffer, 0xff, mtd->writesize + mtd->oobsize);
+
+	flag = hinfc_read(host, HINFC504_CON);
+	flag &= ~(HINFC504_CON_PAGESIZE_MASK << HINFC504_CON_PAGEISZE_SHIFT);
+	switch (mtd->writesize) {
+	case 2048:
+		flag |= (0x001 << HINFC504_CON_PAGEISZE_SHIFT);
+		break;
+	/*
+	 * TODO: add more pagesize support,
+	 * default pagesize has been set in hisi_nfc_host_init
+	 */
+	default:
+		dev_err(host->dev, "NON-2KB page size nand flash\n");
+		return -EINVAL;
+	}
+	hinfc_write(host, flag, HINFC504_CON);
+
+	if (chip->ecc.mode == NAND_ECC_HW)
+		hisi_nfc_ecc_probe(host);
+
+	return 0;
+}
+
+static const struct nand_controller_ops hisi_nfc_controller_ops = {
+	.attach_chip = hisi_nfc_attach_chip,
+};
+
 static int hisi_nfc_probe(struct platform_device *pdev)
 {
-	int ret = 0, irq, flag, max_chips = HINFC504_MAX_CHIP;
+	int ret = 0, irq, max_chips = HINFC504_MAX_CHIP;
 	struct device *dev = &pdev->dev;
 	struct hinfc_host *host;
 	struct nand_chip  *chip;
@@ -731,23 +762,19 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "no IRQ resource defined\n");
-		ret = -ENXIO;
-		goto err_res;
+		return -ENXIO;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->iobase = devm_ioremap_resource(dev, res);
-	if (IS_ERR(host->iobase)) {
-		ret = PTR_ERR(host->iobase);
-		goto err_res;
-	}
+	if (IS_ERR(host->iobase))
+		return PTR_ERR(host->iobase);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	host->mmio = devm_ioremap_resource(dev, res);
 	if (IS_ERR(host->mmio)) {
-		ret = PTR_ERR(host->mmio);
 		dev_err(dev, "devm_ioremap_resource[1] fail\n");
-		goto err_res;
+		return PTR_ERR(host->mmio);
 	}
 
 	mtd->name		= "hisi_nand";
@@ -755,83 +782,43 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 
 	nand_set_controller_data(chip, host);
 	nand_set_flash_node(chip, np);
-	chip->cmdfunc		= hisi_nfc_cmdfunc;
+	chip->legacy.cmdfunc	= hisi_nfc_cmdfunc;
 	chip->select_chip	= hisi_nfc_select_chip;
-	chip->read_byte		= hisi_nfc_read_byte;
-	chip->read_word		= hisi_nfc_read_word;
-	chip->write_buf		= hisi_nfc_write_buf;
-	chip->read_buf		= hisi_nfc_read_buf;
-	chip->chip_delay	= HINFC504_CHIP_DELAY;
-	chip->set_features	= nand_get_set_features_notsupp;
-	chip->get_features	= nand_get_set_features_notsupp;
+	chip->legacy.read_byte	= hisi_nfc_read_byte;
+	chip->legacy.write_buf	= hisi_nfc_write_buf;
+	chip->legacy.read_buf	= hisi_nfc_read_buf;
+	chip->legacy.chip_delay	= HINFC504_CHIP_DELAY;
+	chip->legacy.set_features	= nand_get_set_features_notsupp;
+	chip->legacy.get_features	= nand_get_set_features_notsupp;
 
 	hisi_nfc_host_init(host);
 
 	ret = devm_request_irq(dev, irq, hinfc_irq_handle, 0x0, "nandc", host);
 	if (ret) {
 		dev_err(dev, "failed to request IRQ\n");
-		goto err_res;
+		return ret;
 	}
 
-	ret = nand_scan_ident(mtd, max_chips, NULL);
+	chip->dummy_controller.ops = &hisi_nfc_controller_ops;
+	ret = nand_scan(chip, max_chips);
 	if (ret)
-		goto err_res;
-
-	host->buffer = dmam_alloc_coherent(dev, mtd->writesize + mtd->oobsize,
-		&host->dma_buffer, GFP_KERNEL);
-	if (!host->buffer) {
-		ret = -ENOMEM;
-		goto err_res;
-	}
-
-	host->dma_oob = host->dma_buffer + mtd->writesize;
-	memset(host->buffer, 0xff, mtd->writesize + mtd->oobsize);
-
-	flag = hinfc_read(host, HINFC504_CON);
-	flag &= ~(HINFC504_CON_PAGESIZE_MASK << HINFC504_CON_PAGEISZE_SHIFT);
-	switch (mtd->writesize) {
-	case 2048:
-		flag |= (0x001 << HINFC504_CON_PAGEISZE_SHIFT); break;
-	/*
-	 * TODO: add more pagesize support,
-	 * default pagesize has been set in hisi_nfc_host_init
-	 */
-	default:
-		dev_err(dev, "NON-2KB page size nand flash\n");
-		ret = -EINVAL;
-		goto err_res;
-	}
-	hinfc_write(host, flag, HINFC504_CON);
-
-	if (chip->ecc.mode == NAND_ECC_HW)
-		hisi_nfc_ecc_probe(host);
-
-	ret = nand_scan_tail(mtd);
-	if (ret) {
-		dev_err(dev, "nand_scan_tail failed: %d\n", ret);
-		goto err_res;
-	}
+		return ret;
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "Err MTD partition=%d\n", ret);
-		goto err_mtd;
+		nand_cleanup(chip);
+		return ret;
 	}
 
 	return 0;
-
-err_mtd:
-	nand_release(mtd);
-err_res:
-	return ret;
 }
 
 static int hisi_nfc_remove(struct platform_device *pdev)
 {
 	struct hinfc_host *host = platform_get_drvdata(pdev);
-	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 
-	nand_release(mtd);
+	nand_release(&host->chip);
 
 	return 0;
 }

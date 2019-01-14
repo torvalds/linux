@@ -370,26 +370,40 @@ EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
  * pciehp_is_native - Check whether a hotplug port is handled by the OS
- * @pdev: Hotplug port to check
+ * @bridge: Hotplug port to check
  *
- * Walk up from @pdev to the host bridge, obtain its cached _OSC Control Field
- * and return the value of the "PCI Express Native Hot Plug control" bit.
- * On failure to obtain the _OSC Control Field return %false.
+ * Returns true if the given @bridge is handled by the native PCIe hotplug
+ * driver.
  */
-bool pciehp_is_native(struct pci_dev *pdev)
+bool pciehp_is_native(struct pci_dev *bridge)
 {
-	struct acpi_pci_root *root;
-	acpi_handle handle;
+	const struct pci_host_bridge *host;
+	u32 slot_cap;
 
-	handle = acpi_find_root_bridge_handle(pdev);
-	if (!handle)
+	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE))
 		return false;
 
-	root = acpi_pci_find_root(handle);
-	if (!root)
+	pcie_capability_read_dword(bridge, PCI_EXP_SLTCAP, &slot_cap);
+	if (!(slot_cap & PCI_EXP_SLTCAP_HPC))
 		return false;
 
-	return root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL;
+	if (pcie_ports_native)
+		return true;
+
+	host = pci_find_host_bridge(bridge->bus);
+	return host->native_pcie_hotplug;
+}
+
+/**
+ * shpchp_is_native - Check whether a hotplug port is handled by the OS
+ * @bridge: Hotplug port to check
+ *
+ * Returns true if the given @bridge is handled by the native SHPC hotplug
+ * driver.
+ */
+bool shpchp_is_native(struct pci_dev *bridge)
+{
+	return bridge->shpc_managed;
 }
 
 /**
@@ -505,6 +519,46 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 	return PCI_POWER_ERROR;
 }
 
+static struct acpi_device *acpi_pci_find_companion(struct device *dev);
+
+static bool acpi_pci_bridge_d3(struct pci_dev *dev)
+{
+	const struct fwnode_handle *fwnode;
+	struct acpi_device *adev;
+	struct pci_dev *root;
+	u8 val;
+
+	if (!dev->is_hotplug_bridge)
+		return false;
+
+	/*
+	 * Look for a special _DSD property for the root port and if it
+	 * is set we know the hierarchy behind it supports D3 just fine.
+	 */
+	root = pci_find_pcie_root_port(dev);
+	if (!root)
+		return false;
+
+	adev = ACPI_COMPANION(&root->dev);
+	if (root == dev) {
+		/*
+		 * It is possible that the ACPI companion is not yet bound
+		 * for the root port so look it up manually here.
+		 */
+		if (!adev && !pci_dev_is_added(root))
+			adev = acpi_pci_find_companion(&root->dev);
+	}
+
+	if (!adev)
+		return false;
+
+	fwnode = acpi_fwnode_handle(adev);
+	if (fwnode_property_read_u8(fwnode, "HotPlugSupportInD3", &val))
+		return false;
+
+	return val == 1;
+}
+
 static bool acpi_pci_power_manageable(struct pci_dev *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
@@ -534,6 +588,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 			error = -EBUSY;
 			break;
 		}
+		/* Fall through */
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:
@@ -598,6 +653,16 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
 
+	/*
+	 * In some cases (eg. Samsung 305V4A) leaving a bridge in suspend over
+	 * system-wide suspend/resume confuses the platform firmware, so avoid
+	 * doing that.  According to Section 16.1.6 of ACPI 6.2, endpoint
+	 * devices are expected to be in D3 before invoking the S3 entry path
+	 * from the firmware, so they should not be affected by this issue.
+	 */
+	if (pci_is_bridge(dev) && acpi_target_system_state() != ACPI_STATE_S0)
+		return true;
+
 	if (!adev || !acpi_device_power_manageable(adev))
 		return false;
 
@@ -611,6 +676,7 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 }
 
 static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
+	.bridge_d3 = acpi_pci_bridge_d3,
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.get_state = acpi_pci_get_power_state,
@@ -738,19 +804,33 @@ static void pci_acpi_setup(struct device *dev)
 		return;
 
 	device_set_wakeup_capable(dev, true);
+	/*
+	 * For bridges that can do D3 we enable wake automatically (as
+	 * we do for the power management itself in that case). The
+	 * reason is that the bridge may have additional methods such as
+	 * _DSW that need to be called.
+	 */
+	if (pci_dev->bridge_d3)
+		device_wakeup_enable(dev);
+
 	acpi_pci_wakeup(pci_dev, false);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct pci_dev *pci_dev = to_pci_dev(dev);
 
 	if (!adev)
 		return;
 
 	pci_acpi_remove_pm_notifier(adev);
-	if (adev->wakeup.flags.valid)
+	if (adev->wakeup.flags.valid) {
+		if (pci_dev->bridge_d3)
+			device_wakeup_disable(dev);
+
 		device_set_wakeup_capable(dev, false);
+	}
 }
 
 static bool pci_acpi_bus_match(struct device *dev)

@@ -416,7 +416,7 @@ static inline bool hibernation_available(void) { return false; }
 #define PM_RESTORE_PREPARE	0x0005 /* Going to restore a saved image */
 #define PM_POST_RESTORE		0x0006 /* Restore failed */
 
-extern struct mutex pm_mutex;
+extern struct mutex system_transition_mutex;
 
 #ifdef CONFIG_PM_SLEEP
 void save_processor_state(void);

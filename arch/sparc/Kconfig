@@ -1,6 +1,6 @@
 config 64BIT
-	bool "64-bit kernel" if ARCH = "sparc"
-	default ARCH = "sparc64"
+	bool "64-bit kernel" if "$(ARCH)" = "sparc"
+	default "$(ARCH)" = "sparc64"
 	help
 	  SPARC is a family of RISC microprocessors designed and marketed by
 	  Sun Microsystems, incorporated.  They are very widely found in Sun
@@ -25,7 +25,6 @@ config SPARC
 	select RTC_CLASS
 	select RTC_DRV_M48T59
 	select RTC_SYSTOHC
-	select HAVE_DMA_API_DEBUG
 	select HAVE_ARCH_JUMP_LABEL if SPARC64
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -44,9 +43,13 @@ config SPARC
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
 	select LOCKDEP_SMALL if LOCKDEP
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 
 config SPARC32
 	def_bool !64BIT
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select HAVE_UID16
@@ -59,7 +62,6 @@ config SPARC64
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
 	select HAVE_RCU_TABLE_FREE if SMP
-	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_DYNAMIC_FTRACE
@@ -67,6 +69,7 @@ config SPARC64
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_DEBUG_KMEMLEAK
+	select IOMMU_HELPER
 	select SPARSE_IRQ
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
@@ -77,7 +80,6 @@ config SPARC64
 	select IRQ_PREFLOW_FASTEOI
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select HAVE_C_RECORDMCOUNT
-	select NO_BOOTMEM
 	select HAVE_ARCH_AUDITSYSCALL
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select HAVE_NMI
@@ -86,6 +88,7 @@ config SPARC64
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select GENERIC_TIME_VSYSCALL
 	select ARCH_CLOCKSOURCE_DATA
+	select ARCH_HAS_PTE_SPECIAL
 
 config ARCH_DEFCONFIG
 	string
@@ -99,14 +102,6 @@ config CPU_BIG_ENDIAN
 	def_bool y
 
 config ARCH_ATU
-	bool
-	default y if SPARC64
-
-config ARCH_DMA_ADDR_T_64BIT
-	bool
-	default y if ARCH_ATU
-
-config IOMMU_HELPER
 	bool
 	default y if SPARC64
 
@@ -146,12 +141,6 @@ config ZONE_DMA
 	bool
 	default y if SPARC32
 
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
-
 config GENERIC_ISA_DMA
 	bool
 	default y if SPARC32
@@ -165,10 +154,6 @@ config PGTABLE_LEVELS
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y if SPARC64
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -189,7 +174,7 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
-	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
+	  See also <file:Documentation/lockup-watchdogs.txt> and the SMP-HOWTO
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
@@ -342,8 +327,6 @@ config FORCE_MAX_ZONEORDER
 	  This config option is actually maximum order plus one. For example,
 	  a value of 13 means that the largest free memory block is 2^12 pages.
 
-source "mm/Kconfig"
-
 if SPARC64
 source "kernel/power/Kconfig"
 endif
@@ -365,8 +348,6 @@ config SCHED_MC
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
-
-source "kernel/Kconfig.preempt"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -567,10 +548,6 @@ config SPARC64_PCI_MSI
 
 endmenu
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
 config COMPAT
 	bool
 	depends on SPARC64
@@ -585,20 +562,4 @@ config SYSVIPC_COMPAT
 	depends on COMPAT && SYSVIPC
 	default y
 
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
 source "drivers/sbus/char/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/sparc/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

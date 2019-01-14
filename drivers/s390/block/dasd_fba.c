@@ -356,7 +356,8 @@ static struct dasd_ccw_req *dasd_fba_build_cp_discard(
 	datasize = sizeof(struct DE_fba_data) +
 		nr_ccws * (sizeof(struct LO_fba_data) + sizeof(struct ccw1));
 
-	cqr = dasd_smalloc_request(DASD_FBA_MAGIC, cplength, datasize, memdev);
+	cqr = dasd_smalloc_request(DASD_FBA_MAGIC, cplength, datasize, memdev,
+				   blk_mq_rq_to_pdu(req));
 	if (IS_ERR(cqr))
 		return cqr;
 
@@ -490,7 +491,8 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 		datasize += (count - 1)*sizeof(struct LO_fba_data);
 	}
 	/* Allocate the ccw request. */
-	cqr = dasd_smalloc_request(DASD_FBA_MAGIC, cplength, datasize, memdev);
+	cqr = dasd_smalloc_request(DASD_FBA_MAGIC, cplength, datasize, memdev,
+				   blk_mq_rq_to_pdu(req));
 	if (IS_ERR(cqr))
 		return cqr;
 	ccw = cqr->cpaddr;

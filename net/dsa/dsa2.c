@@ -272,7 +272,28 @@ static int dsa_port_setup(struct dsa_port *dp)
 	case DSA_PORT_TYPE_UNUSED:
 		break;
 	case DSA_PORT_TYPE_CPU:
+		/* dp->index is used now as port_number. However
+		 * CPU ports should have separate numbering
+		 * independent from front panel port numbers.
+		 */
+		devlink_port_attrs_set(&dp->devlink_port,
+				       DEVLINK_PORT_FLAVOUR_CPU,
+				       dp->index, false, 0);
+		err = dsa_port_link_register_of(dp);
+		if (err) {
+			dev_err(ds->dev, "failed to setup link for port %d.%d\n",
+				ds->index, dp->index);
+			return err;
+		}
+		break;
 	case DSA_PORT_TYPE_DSA:
+		/* dp->index is used now as port_number. However
+		 * DSA ports should have separate numbering
+		 * independent from front panel port numbers.
+		 */
+		devlink_port_attrs_set(&dp->devlink_port,
+				       DEVLINK_PORT_FLAVOUR_DSA,
+				       dp->index, false, 0);
 		err = dsa_port_link_register_of(dp);
 		if (err) {
 			dev_err(ds->dev, "failed to setup link for port %d.%d\n",
@@ -281,6 +302,9 @@ static int dsa_port_setup(struct dsa_port *dp)
 		}
 		break;
 	case DSA_PORT_TYPE_USER:
+		devlink_port_attrs_set(&dp->devlink_port,
+				       DEVLINK_PORT_FLAVOUR_PHYSICAL,
+				       dp->index, false, 0);
 		err = dsa_slave_create(dp);
 		if (err)
 			dev_err(ds->dev, "failed to create slave for port %d.%d\n",
@@ -750,6 +774,20 @@ struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 	ds = devm_kzalloc(dev, size, GFP_KERNEL);
 	if (!ds)
 		return NULL;
+
+	/* We avoid allocating memory outside dsa_switch
+	 * if it is not needed.
+	 */
+	if (n <= sizeof(ds->_bitmap) * 8) {
+		ds->bitmap = &ds->_bitmap;
+	} else {
+		ds->bitmap = devm_kcalloc(dev,
+					  BITS_TO_LONGS(n),
+					  sizeof(unsigned long),
+					  GFP_KERNEL);
+		if (unlikely(!ds->bitmap))
+			return NULL;
+	}
 
 	ds->dev = dev;
 	ds->num_ports = n;

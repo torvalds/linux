@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/davinci_emac.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
@@ -26,14 +27,12 @@
 #include <linux/platform_data/iommu-omap.h>
 #include <linux/platform_data/ti-sysc.h>
 #include <linux/platform_data/wkup_m3.h>
-#include <linux/platform_data/media/ir-rx51.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "common.h"
 #include "common-board-devices.h"
 #include "control.h"
 #include "omap_device.h"
-#include "omap-pm.h"
 #include "omap-secure.h"
 #include "soc.h"
 #include "hsmmc.h"
@@ -330,7 +329,6 @@ static struct regulator_init_data pandora_vmmc3 = {
 static struct fixed_voltage_config pandora_vwlan = {
 	.supply_name		= "vwlan",
 	.microvolts		= 1800000, /* 1.8V */
-	.gpio			= PANDORA_WIFI_NRESET_GPIO,
 	.startup_delay		= 50000, /* 50ms */
 	.enable_high		= 1,
 	.init_data		= &pandora_vmmc3,
@@ -341,6 +339,19 @@ static struct platform_device pandora_vwlan_device = {
 	.id		= 1,
 	.dev = {
 		.platform_data = &pandora_vwlan,
+	},
+};
+
+static struct gpiod_lookup_table pandora_vwlan_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.1",
+	.table = {
+		/*
+		 * As this is a low GPIO number it should be at the first
+		 * GPIO bank.
+		 */
+		GPIO_LOOKUP("gpio-0-31", PANDORA_WIFI_NRESET_GPIO,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -365,8 +376,6 @@ static struct omap2_hsmmc_info pandora_mmc3[] = {
 	{
 		.mmc		= 3,
 		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD,
-		.gpio_cd	= -EINVAL,
-		.gpio_wp	= -EINVAL,
 		.init_card	= pandora_wl1251_init_card,
 	},
 	{}	/* Terminator */
@@ -405,6 +414,7 @@ fail:
 static void __init omap3_pandora_legacy_init(void)
 {
 	platform_device_register(&pandora_backlight);
+	gpiod_add_lookup_table(&pandora_vwlan_gpiod_table);
 	platform_device_register(&pandora_vwlan_device);
 	omap_hsmmc_init(pandora_mmc3);
 	omap_hsmmc_late_init(pandora_mmc3);
@@ -514,18 +524,6 @@ void omap_auxdata_legacy_init(struct device *dev)
 	dev->platform_data = &twl_gpio_auxdata;
 }
 
-static struct ir_rx51_platform_data __maybe_unused rx51_ir_data = {
-	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
-};
-
-static struct platform_device __maybe_unused rx51_ir_device = {
-	.name           = "ir_rx51",
-	.id             = -1,
-	.dev            = {
-		.platform_data = &rx51_ir_data,
-	},
-};
-
 #if IS_ENABLED(CONFIG_SND_OMAP_SOC_MCBSP)
 static struct omap_mcbsp_platform_data mcbsp_pdata;
 static void __init omap3_mcbsp_init(void)
@@ -569,7 +567,6 @@ static struct of_dev_auxdata omap_auxdata_lookup[] = {
 		       "480c9000.smartreflex", &omap_sr_pdata[OMAP_SR_MPU]),
 	OF_DEV_AUXDATA("ti,omap3-hsmmc", 0x4809c000, "4809c000.mmc", &mmc_pdata[0]),
 	OF_DEV_AUXDATA("ti,omap3-hsmmc", 0x480b4000, "480b4000.mmc", &mmc_pdata[1]),
-	OF_DEV_AUXDATA("nokia,n900-ir", 0, "n900-ir", &rx51_ir_data),
 	/* Only on am3517 */
 	OF_DEV_AUXDATA("ti,davinci_mdio", 0x5c030000, "davinci_mdio.0", NULL),
 	OF_DEV_AUXDATA("ti,am3517-emac", 0x5c000000, "davinci_emac.0",

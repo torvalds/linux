@@ -436,7 +436,8 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_mr_size = 0x80000000;
 	props->max_qp = nesibdev->max_qp;
 	props->max_qp_wr = nesdev->nesadapter->max_qp_wr - 2;
-	props->max_sge = nesdev->nesadapter->max_sge;
+	props->max_send_sge = nesdev->nesadapter->max_sge;
+	props->max_recv_sge = nesdev->nesadapter->max_sge;
 	props->max_cq = nesibdev->max_cq;
 	props->max_cqe = nesdev->nesadapter->max_cqe;
 	props->max_mr = nesibdev->max_mr;
@@ -686,7 +687,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 	}
 
 	nes_debug(NES_DBG_PD, "Allocating PD (%p) for ib device %s\n",
-			nespd, nesvnic->nesibdev->ibdev.name);
+			nespd, dev_name(&nesvnic->nesibdev->ibdev.dev));
 
 	nespd->pd_id = (pd_num << (PAGE_SHIFT-12)) + nesadapter->base_pd;
 
@@ -750,26 +751,6 @@ static int nes_dealloc_pd(struct ib_pd *ibpd)
 	kfree(nespd);
 
 	return 0;
-}
-
-
-/**
- * nes_create_ah
- */
-static struct ib_ah *nes_create_ah(struct ib_pd *pd,
-				   struct rdma_ah_attr *ah_attr,
-				   struct ib_udata *udata)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-
-/**
- * nes_destroy_ah
- */
-static int nes_destroy_ah(struct ib_ah *ah)
-{
-	return -ENOSYS;
 }
 
 
@@ -2254,8 +2235,9 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 								ibmr = ERR_PTR(-ENOMEM);
 								goto reg_user_mr_err;
 							}
-							root_vpbl.leaf_vpbl = kzalloc(sizeof(*root_vpbl.leaf_vpbl)*1024,
-									GFP_KERNEL);
+							root_vpbl.leaf_vpbl = kcalloc(1024,
+										      sizeof(*root_vpbl.leaf_vpbl),
+										      GFP_KERNEL);
 							if (!root_vpbl.leaf_vpbl) {
 								ib_umem_release(region);
 								pci_free_consistent(nesdev->pcidev, 8192, root_vpbl.pbl_vbase,
@@ -2574,8 +2556,8 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 /**
  * show_rev
  */
-static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct nes_ib_device *nesibdev =
 			container_of(dev, struct nes_ib_device, ibdev.dev);
@@ -2584,40 +2566,40 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%x\n", nesvnic->nesdev->nesadapter->hw_rev);
 }
-
+static DEVICE_ATTR_RO(hw_rev);
 
 /**
  * show_hca
  */
-static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
-		        char *buf)
+static ssize_t hca_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "NES020\n");
 }
-
+static DEVICE_ATTR_RO(hca_type);
 
 /**
  * show_board
  */
-static ssize_t show_board(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%.*s\n", 32, "NES020 Board ID");
 }
+static DEVICE_ATTR_RO(board_id);
 
-
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
-
-static struct device_attribute *nes_dev_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static struct attribute *nes_dev_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
 };
 
+static const struct attribute_group nes_attr_group = {
+	.attrs = nes_dev_attributes,
+};
 
 /**
  * nes_query_qp
@@ -3003,42 +2985,9 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return err;
 }
 
-
-/**
- * nes_muticast_attach
- */
-static int nes_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
-
-/**
- * nes_multicast_detach
- */
-static int nes_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
-
-/**
- * nes_process_mad
- */
-static int nes_process_mad(struct ib_device *ibdev, int mad_flags,
-		u8 port_num, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		const struct ib_mad_hdr *in, size_t in_mad_size,
-		struct ib_mad_hdr *out, size_t *out_mad_size,
-		u16 *out_mad_pkey_index)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
 static inline void
-fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, struct ib_send_wr *ib_wr, u32 uselkey)
+fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, const struct ib_send_wr *ib_wr,
+		 u32 uselkey)
 {
 	int sge_index;
 	int total_payload_length = 0;
@@ -3064,8 +3013,8 @@ fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, struct ib_send_wr *ib_wr, u32 uselke
 /**
  * nes_post_send
  */
-static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
-		struct ib_send_wr **bad_wr)
+static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
+			 const struct ib_send_wr **bad_wr)
 {
 	u64 u64temp;
 	unsigned long flags = 0;
@@ -3326,8 +3275,8 @@ out:
 /**
  * nes_post_recv
  */
-static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
-		struct ib_recv_wr **bad_wr)
+static int nes_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *ib_wr,
+			 const struct ib_recv_wr **bad_wr)
 {
 	u64 u64temp;
 	unsigned long flags = 0;
@@ -3691,7 +3640,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	if (nesibdev == NULL) {
 		return NULL;
 	}
-	strlcpy(nesibdev->ibdev.name, "nes%d", IB_DEVICE_NAME_MAX);
 	nesibdev->ibdev.owner = THIS_MODULE;
 
 	nesibdev->ibdev.node_type = RDMA_NODE_RNIC;
@@ -3734,8 +3682,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.mmap = nes_mmap;
 	nesibdev->ibdev.alloc_pd = nes_alloc_pd;
 	nesibdev->ibdev.dealloc_pd = nes_dealloc_pd;
-	nesibdev->ibdev.create_ah = nes_create_ah;
-	nesibdev->ibdev.destroy_ah = nes_destroy_ah;
 	nesibdev->ibdev.create_qp = nes_create_qp;
 	nesibdev->ibdev.modify_qp = nes_modify_qp;
 	nesibdev->ibdev.query_qp = nes_query_qp;
@@ -3751,10 +3697,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 
 	nesibdev->ibdev.alloc_mr = nes_alloc_mr;
 	nesibdev->ibdev.map_mr_sg = nes_map_mr_sg;
-
-	nesibdev->ibdev.attach_mcast = nes_multicast_attach;
-	nesibdev->ibdev.detach_mcast = nes_multicast_detach;
-	nesibdev->ibdev.process_mad = nes_process_mad;
 
 	nesibdev->ibdev.req_notify_cq = nes_req_notify_cq;
 	nesibdev->ibdev.post_send = nes_post_send;
@@ -3852,10 +3794,11 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
-	int i, ret;
+	int ret;
 
+	rdma_set_device_sysfs_group(&nesvnic->nesibdev->ibdev, &nes_attr_group);
 	nesvnic->nesibdev->ibdev.driver_id = RDMA_DRIVER_NES;
-	ret = ib_register_device(&nesvnic->nesibdev->ibdev, NULL);
+	ret = ib_register_device(&nesvnic->nesibdev->ibdev, "nes%d", NULL);
 	if (ret) {
 		return ret;
 	}
@@ -3865,19 +3808,6 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	nesibdev->max_mr = nesadapter->max_mr / nesadapter->port_count;
 	nesibdev->max_qp = (nesadapter->max_qp-NES_FIRST_QPN) / nesadapter->port_count;
 	nesibdev->max_pd = nesadapter->max_pd / nesadapter->port_count;
-
-	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
-		ret = device_create_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
-		if (ret) {
-			while (i > 0) {
-				i--;
-				device_remove_file(&nesibdev->ibdev.dev,
-						   nes_dev_attributes[i]);
-			}
-			ib_unregister_device(&nesibdev->ibdev);
-			return ret;
-		}
-	}
 
 	nesvnic->of_device_registered = 1;
 
@@ -3891,15 +3821,9 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
 {
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
-		device_remove_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
-	}
-
-	if (nesvnic->of_device_registered) {
+	if (nesvnic->of_device_registered)
 		ib_unregister_device(&nesibdev->ibdev);
-	}
 
 	nesvnic->of_device_registered = 0;
 }

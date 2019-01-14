@@ -260,7 +260,7 @@ static void sas_suspend_devices(struct work_struct *work)
 	 * phy_list is not being mutated
 	 */
 	list_for_each_entry(phy, &port->phy_list, port_phy_el) {
-		if (si->dft->lldd_port_formed)
+		if (si->dft->lldd_port_deformed)
 			si->dft->lldd_port_deformed(phy);
 		phy->suspended = 1;
 		port->suspended = 1;
@@ -314,7 +314,10 @@ void sas_free_device(struct kref *kref)
 		kfree(dev->ex_dev.ex_phy);
 
 	if (dev_is_sata(dev) && dev->sata_dev.ap) {
+		ata_sas_tport_delete(dev->sata_dev.ap);
 		ata_sas_port_destroy(dev->sata_dev.ap);
+		ata_host_put(dev->sata_dev.ata_host);
+		dev->sata_dev.ata_host = NULL;
 		dev->sata_dev.ap = NULL;
 	}
 

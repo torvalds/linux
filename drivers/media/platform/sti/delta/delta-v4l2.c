@@ -339,22 +339,6 @@ static void register_decoders(struct delta_dev *delta)
 	}
 }
 
-static void delta_lock(void *priv)
-{
-	struct delta_ctx *ctx = priv;
-	struct delta_dev *delta = ctx->dev;
-
-	mutex_lock(&delta->lock);
-}
-
-static void delta_unlock(void *priv)
-{
-	struct delta_ctx *ctx = priv;
-	struct delta_dev *delta = ctx->dev;
-
-	mutex_unlock(&delta->lock);
-}
-
 static int delta_open_decoder(struct delta_ctx *ctx, u32 streamformat,
 			      u32 pixelformat, const struct delta_dec **pdec)
 {
@@ -401,8 +385,8 @@ static int delta_querycap(struct file *file, void *priv,
 	struct delta_ctx *ctx = to_ctx(file->private_data);
 	struct delta_dev *delta = ctx->dev;
 
-	strlcpy(cap->driver, DELTA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, delta->vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, DELTA_NAME, sizeof(cap->driver));
+	strscpy(cap->card, delta->vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 delta->pdev->name);
 
@@ -1099,8 +1083,6 @@ static const struct v4l2_m2m_ops delta_m2m_ops = {
 	.device_run     = delta_device_run,
 	.job_ready	= delta_job_ready,
 	.job_abort      = delta_job_abort,
-	.lock		= delta_lock,
-	.unlock		= delta_unlock,
 };
 
 /*

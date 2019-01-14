@@ -3147,15 +3147,16 @@ static void init_7220_cntrnames(struct qib_devdata *dd)
 		dd->cspec->cntrnamelen = sizeof(cntr7220names) - 1;
 	else
 		dd->cspec->cntrnamelen = 1 + s - cntr7220names;
-	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
-		* sizeof(u64), GFP_KERNEL);
+	dd->cspec->cntrs = kmalloc_array(dd->cspec->ncntrs, sizeof(u64),
+					 GFP_KERNEL);
 
 	for (i = 0, s = (char *)portcntr7220names; s; i++)
 		s = strchr(s + 1, '\n');
 	dd->cspec->nportcntrs = i - 1;
 	dd->cspec->portcntrnamelen = sizeof(portcntr7220names) - 1;
-	dd->cspec->portcntrs = kmalloc(dd->cspec->nportcntrs
-		* sizeof(u64), GFP_KERNEL);
+	dd->cspec->portcntrs = kmalloc_array(dd->cspec->nportcntrs,
+					     sizeof(u64),
+					     GFP_KERNEL);
 }
 
 static u32 qib_read_7220cntrs(struct qib_devdata *dd, loff_t pos, char **namep,

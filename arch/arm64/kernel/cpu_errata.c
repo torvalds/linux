@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/arm-smccc.h>
+#include <linux/psci.h>
 #include <linux/types.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
@@ -63,19 +65,46 @@ is_kryo_midr(const struct arm64_cpu_capabilities *entry, int scope)
 }
 
 static bool
-has_mismatched_cache_line_size(const struct arm64_cpu_capabilities *entry,
-				int scope)
+has_mismatched_cache_type(const struct arm64_cpu_capabilities *entry,
+			  int scope)
 {
+	u64 mask = arm64_ftr_reg_ctrel0.strict_mask;
+	u64 sys = arm64_ftr_reg_ctrel0.sys_val & mask;
+	u64 ctr_raw, ctr_real;
+
 	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-	return (read_cpuid_cachetype() & arm64_ftr_reg_ctrel0.strict_mask) !=
-		(arm64_ftr_reg_ctrel0.sys_val & arm64_ftr_reg_ctrel0.strict_mask);
+
+	/*
+	 * We want to make sure that all the CPUs in the system expose
+	 * a consistent CTR_EL0 to make sure that applications behaves
+	 * correctly with migration.
+	 *
+	 * If a CPU has CTR_EL0.IDC but does not advertise it via CTR_EL0 :
+	 *
+	 * 1) It is safe if the system doesn't support IDC, as CPU anyway
+	 *    reports IDC = 0, consistent with the rest.
+	 *
+	 * 2) If the system has IDC, it is still safe as we trap CTR_EL0
+	 *    access on this CPU via the ARM64_HAS_CACHE_IDC capability.
+	 *
+	 * So, we need to make sure either the raw CTR_EL0 or the effective
+	 * CTR_EL0 matches the system's copy to allow a secondary CPU to boot.
+	 */
+	ctr_raw = read_cpuid_cachetype() & mask;
+	ctr_real = read_cpuid_effective_cachetype() & mask;
+
+	return (ctr_real != sys) && (ctr_raw != sys);
 }
 
 static void
 cpu_enable_trap_ctr_access(const struct arm64_cpu_capabilities *__unused)
 {
-	/* Clear SCTLR_EL1.UCT */
-	config_sctlr_el1(SCTLR_EL1_UCT, 0);
+	u64 mask = arm64_ftr_reg_ctrel0.strict_mask;
+
+	/* Trap CTR_EL0 access on this CPU, only if it has a mismatch */
+	if ((read_cpuid_cachetype() & mask) !=
+	    (arm64_ftr_reg_ctrel0.sys_val & mask))
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
 atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
@@ -99,7 +128,7 @@ static void __copy_hyp_vect_bpi(int slot, const char *hyp_vecs_start,
 	for (i = 0; i < SZ_2K; i += 0x80)
 		memcpy(dst + i, hyp_vecs_start, hyp_vecs_end - hyp_vecs_start);
 
-	flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
+	__flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
 }
 
 static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
@@ -108,6 +137,15 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 {
 	static DEFINE_SPINLOCK(bp_lock);
 	int cpu, slot = -1;
+
+	/*
+	 * enable_smccc_arch_workaround_1() passes NULL for the hyp_vecs
+	 * start/end if we're a guest. Skip the hyp-vectors work.
+	 */
+	if (!hyp_vecs_start) {
+		__this_cpu_write(bp_hardening_data.fn, fn);
+		return;
+	}
 
 	spin_lock(&bp_lock);
 	for_each_possible_cpu(cpu) {
@@ -232,6 +270,206 @@ enable_smccc_arch_workaround_1(const struct arm64_cpu_capabilities *entry)
 }
 #endif	/* CONFIG_HARDEN_BRANCH_PREDICTOR */
 
+#ifdef CONFIG_ARM64_SSBD
+DEFINE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
+
+int ssbd_state __read_mostly = ARM64_SSBD_KERNEL;
+
+static const struct ssbd_options {
+	const char	*str;
+	int		state;
+} ssbd_options[] = {
+	{ "force-on",	ARM64_SSBD_FORCE_ENABLE, },
+	{ "force-off",	ARM64_SSBD_FORCE_DISABLE, },
+	{ "kernel",	ARM64_SSBD_KERNEL, },
+};
+
+static int __init ssbd_cfg(char *buf)
+{
+	int i;
+
+	if (!buf || !buf[0])
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(ssbd_options); i++) {
+		int len = strlen(ssbd_options[i].str);
+
+		if (strncmp(buf, ssbd_options[i].str, len))
+			continue;
+
+		ssbd_state = ssbd_options[i].state;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+early_param("ssbd", ssbd_cfg);
+
+void __init arm64_update_smccc_conduit(struct alt_instr *alt,
+				       __le32 *origptr, __le32 *updptr,
+				       int nr_inst)
+{
+	u32 insn;
+
+	BUG_ON(nr_inst != 1);
+
+	switch (psci_ops.conduit) {
+	case PSCI_CONDUIT_HVC:
+		insn = aarch64_insn_get_hvc_value();
+		break;
+	case PSCI_CONDUIT_SMC:
+		insn = aarch64_insn_get_smc_value();
+		break;
+	default:
+		return;
+	}
+
+	*updptr = cpu_to_le32(insn);
+}
+
+void __init arm64_enable_wa2_handling(struct alt_instr *alt,
+				      __le32 *origptr, __le32 *updptr,
+				      int nr_inst)
+{
+	BUG_ON(nr_inst != 1);
+	/*
+	 * Only allow mitigation on EL1 entry/exit and guest
+	 * ARCH_WORKAROUND_2 handling if the SSBD state allows it to
+	 * be flipped.
+	 */
+	if (arm64_get_ssbd_state() == ARM64_SSBD_KERNEL)
+		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
+}
+
+void arm64_set_ssbd_mitigation(bool state)
+{
+	if (this_cpu_has_cap(ARM64_SSBS)) {
+		if (state)
+			asm volatile(SET_PSTATE_SSBS(0));
+		else
+			asm volatile(SET_PSTATE_SSBS(1));
+		return;
+	}
+
+	switch (psci_ops.conduit) {
+	case PSCI_CONDUIT_HVC:
+		arm_smccc_1_1_hvc(ARM_SMCCC_ARCH_WORKAROUND_2, state, NULL);
+		break;
+
+	case PSCI_CONDUIT_SMC:
+		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2, state, NULL);
+		break;
+
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+}
+
+static bool has_ssbd_mitigation(const struct arm64_cpu_capabilities *entry,
+				    int scope)
+{
+	struct arm_smccc_res res;
+	bool required = true;
+	s32 val;
+
+	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
+
+	if (this_cpu_has_cap(ARM64_SSBS)) {
+		required = false;
+		goto out_printmsg;
+	}
+
+	if (psci_ops.smccc_version == SMCCC_VERSION_1_0) {
+		ssbd_state = ARM64_SSBD_UNKNOWN;
+		return false;
+	}
+
+	switch (psci_ops.conduit) {
+	case PSCI_CONDUIT_HVC:
+		arm_smccc_1_1_hvc(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
+				  ARM_SMCCC_ARCH_WORKAROUND_2, &res);
+		break;
+
+	case PSCI_CONDUIT_SMC:
+		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
+				  ARM_SMCCC_ARCH_WORKAROUND_2, &res);
+		break;
+
+	default:
+		ssbd_state = ARM64_SSBD_UNKNOWN;
+		return false;
+	}
+
+	val = (s32)res.a0;
+
+	switch (val) {
+	case SMCCC_RET_NOT_SUPPORTED:
+		ssbd_state = ARM64_SSBD_UNKNOWN;
+		return false;
+
+	case SMCCC_RET_NOT_REQUIRED:
+		pr_info_once("%s mitigation not required\n", entry->desc);
+		ssbd_state = ARM64_SSBD_MITIGATED;
+		return false;
+
+	case SMCCC_RET_SUCCESS:
+		required = true;
+		break;
+
+	case 1:	/* Mitigation not required on this CPU */
+		required = false;
+		break;
+
+	default:
+		WARN_ON(1);
+		return false;
+	}
+
+	switch (ssbd_state) {
+	case ARM64_SSBD_FORCE_DISABLE:
+		arm64_set_ssbd_mitigation(false);
+		required = false;
+		break;
+
+	case ARM64_SSBD_KERNEL:
+		if (required) {
+			__this_cpu_write(arm64_ssbd_callback_required, 1);
+			arm64_set_ssbd_mitigation(true);
+		}
+		break;
+
+	case ARM64_SSBD_FORCE_ENABLE:
+		arm64_set_ssbd_mitigation(true);
+		required = true;
+		break;
+
+	default:
+		WARN_ON(1);
+		break;
+	}
+
+out_printmsg:
+	switch (ssbd_state) {
+	case ARM64_SSBD_FORCE_DISABLE:
+		pr_info_once("%s disabled from command-line\n", entry->desc);
+		break;
+
+	case ARM64_SSBD_FORCE_ENABLE:
+		pr_info_once("%s forced from command-line\n", entry->desc);
+		break;
+	}
+
+	return required;
+}
+#endif	/* CONFIG_ARM64_SSBD */
+
+static void __maybe_unused
+cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused)
+{
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCI, 0);
+}
+
 #define CAP_MIDR_RANGE(model, v_min, r_min, v_max, r_max)	\
 	.matches = is_affected_midr_range,			\
 	.midr_range = MIDR_RANGE(model, v_min, r_min, v_max, r_max)
@@ -327,6 +565,20 @@ static const struct midr_range arm64_bp_harden_smccc_cpus[] = {
 static const struct midr_range arm64_harden_el2_vectors[] = {
 	MIDR_ALL_VERSIONS(MIDR_CORTEX_A57),
 	MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+	{},
+};
+
+#endif
+
+#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
+
+static const struct midr_range arm64_repeat_tlbi_cpus[] = {
+#ifdef CONFIG_QCOM_FALKOR_ERRATUM_1009
+	MIDR_RANGE(MIDR_QCOM_FALKOR_V1, 0, 0, 0, 0),
+#endif
+#ifdef CONFIG_ARM64_ERRATUM_1286807
+	MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 3, 0),
+#endif
 	{},
 };
 
@@ -437,9 +689,9 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	},
 #endif
 	{
-		.desc = "Mismatched cache line size",
-		.capability = ARM64_MISMATCHED_CACHE_LINE_SIZE,
-		.matches = has_mismatched_cache_line_size,
+		.desc = "Mismatched cache type (CTR_EL0)",
+		.capability = ARM64_MISMATCHED_CACHE_TYPE,
+		.matches = has_mismatched_cache_type,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.cpu_enable = cpu_enable_trap_ctr_access,
 	},
@@ -457,11 +709,11 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.matches = is_kryo_midr,
 	},
 #endif
-#ifdef CONFIG_QCOM_FALKOR_ERRATUM_1009
+#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
 	{
-		.desc = "Qualcomm Technologies Falkor erratum 1009",
+		.desc = "Qualcomm erratum 1009, ARM erratum 1286807",
 		.capability = ARM64_WORKAROUND_REPEAT_TLBI,
-		ERRATA_MIDR_REV(MIDR_QCOM_FALKOR_V1, 0, 0),
+		ERRATA_MIDR_RANGE_LIST(arm64_repeat_tlbi_cpus),
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_858921
@@ -475,7 +727,6 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 	{
 		.capability = ARM64_HARDEN_BRANCH_PREDICTOR,
-		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.cpu_enable = enable_smccc_arch_workaround_1,
 		ERRATA_MIDR_RANGE_LIST(arm64_bp_harden_smccc_cpus),
 	},
@@ -484,8 +735,23 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	{
 		.desc = "EL2 vector hardening",
 		.capability = ARM64_HARDEN_EL2_VECTORS,
-		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		ERRATA_MIDR_RANGE_LIST(arm64_harden_el2_vectors),
+	},
+#endif
+#ifdef CONFIG_ARM64_SSBD
+	{
+		.desc = "Speculative Store Bypass Disable",
+		.capability = ARM64_SSBD,
+		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
+		.matches = has_ssbd_mitigation,
+	},
+#endif
+#ifdef CONFIG_ARM64_ERRATUM_1188873
+	{
+		/* Cortex-A76 r0p0 to r2p0 */
+		.desc = "ARM erratum 1188873",
+		.capability = ARM64_WORKAROUND_1188873,
+		ERRATA_MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 2, 0),
 	},
 #endif
 	{

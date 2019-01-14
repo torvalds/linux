@@ -228,6 +228,8 @@ struct usb_host_interface *usb_find_alt_setting(
 	struct usb_interface_cache *intf_cache = NULL;
 	int i;
 
+	if (!config)
+		return NULL;
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
 		if (config->intf_cache[i]->altsetting[0].desc.bInterfaceNumber
 				== iface_num) {
@@ -830,14 +832,14 @@ EXPORT_SYMBOL_GPL(usb_get_current_frame_number);
  */
 
 int __usb_get_extra_descriptor(char *buffer, unsigned size,
-			       unsigned char type, void **ptr)
+			       unsigned char type, void **ptr, size_t minsize)
 {
 	struct usb_descriptor_header *header;
 
 	while (size >= sizeof(struct usb_descriptor_header)) {
 		header = (struct usb_descriptor_header *)buffer;
 
-		if (header->bLength < 2) {
+		if (header->bLength < 2 || header->bLength > size) {
 			printk(KERN_ERR
 				"%s: bogus descriptor, type %d length %d\n",
 				usbcore_name,
@@ -846,7 +848,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 			return -1;
 		}
 
-		if (header->bDescriptorType == type) {
+		if (header->bDescriptorType == type && header->bLength >= minsize) {
 			*ptr = header;
 			return 0;
 		}
@@ -1167,30 +1169,16 @@ static struct notifier_block usb_bus_nb = {
 struct dentry *usb_debug_root;
 EXPORT_SYMBOL_GPL(usb_debug_root);
 
-static struct dentry *usb_debug_devices;
-
-static int usb_debugfs_init(void)
+static void usb_debugfs_init(void)
 {
 	usb_debug_root = debugfs_create_dir("usb", NULL);
-	if (!usb_debug_root)
-		return -ENOENT;
-
-	usb_debug_devices = debugfs_create_file("devices", 0444,
-						usb_debug_root, NULL,
-						&usbfs_devices_fops);
-	if (!usb_debug_devices) {
-		debugfs_remove(usb_debug_root);
-		usb_debug_root = NULL;
-		return -ENOENT;
-	}
-
-	return 0;
+	debugfs_create_file("devices", 0444, usb_debug_root, NULL,
+			    &usbfs_devices_fops);
 }
 
 static void usb_debugfs_cleanup(void)
 {
-	debugfs_remove(usb_debug_devices);
-	debugfs_remove(usb_debug_root);
+	debugfs_remove_recursive(usb_debug_root);
 }
 
 /*
@@ -1205,9 +1193,7 @@ static int __init usb_init(void)
 	}
 	usb_init_pool_max();
 
-	retval = usb_debugfs_init();
-	if (retval)
-		goto out;
+	usb_debugfs_init();
 
 	usb_acpi_register();
 	retval = bus_register(&usb_bus_type);

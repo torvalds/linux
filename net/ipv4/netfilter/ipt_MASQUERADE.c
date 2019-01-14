@@ -47,7 +47,7 @@ static int masquerade_tg_check(const struct xt_tgchk_param *par)
 static unsigned int
 masquerade_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 	const struct nf_nat_ipv4_multi_range_compat *mr;
 
 	mr = par->targinfo;
@@ -81,9 +81,12 @@ static int __init masquerade_tg_init(void)
 	int ret;
 
 	ret = xt_register_target(&masquerade_tg_reg);
+	if (ret)
+		return ret;
 
-	if (ret == 0)
-		nf_nat_masquerade_ipv4_register_notifier();
+	ret = nf_nat_masquerade_ipv4_register_notifier();
+	if (ret)
+		xt_unregister_target(&masquerade_tg_reg);
 
 	return ret;
 }

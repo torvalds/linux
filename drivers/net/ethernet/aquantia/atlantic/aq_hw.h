@@ -24,8 +24,10 @@ struct aq_hw_caps_s {
 	u64 link_speed_msk;
 	unsigned int hw_priv_flags;
 	u32 media_type;
-	u32 rxds;
-	u32 txds;
+	u32 rxds_max;
+	u32 txds_max;
+	u32 rxds_min;
+	u32 txds_min;
 	u32 txhwb_alignment;
 	u32 irq_mask;
 	u32 vecs;
@@ -98,6 +100,11 @@ struct aq_stats_s {
 #define AQ_HW_MEDIA_TYPE_TP    1U
 #define AQ_HW_MEDIA_TYPE_FIBRE 2U
 
+#define AQ_HW_TXD_MULTIPLE 8U
+#define AQ_HW_RXD_MULTIPLE 8U
+
+#define AQ_HW_MULTICAST_ADDRESS_MAX     32U
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
@@ -105,7 +112,7 @@ struct aq_hw_s {
 	const struct aq_fw_ops *aq_fw_ops;
 	void __iomem *mmio;
 	struct aq_hw_link_status_s aq_link_status;
-	struct hw_aq_atl_utils_mbox mbox;
+	struct hw_atl_utils_mbox mbox;
 	struct hw_atl_stats_s last_stats;
 	struct aq_stats_s curr_stats;
 	u64 speed;
@@ -117,7 +124,7 @@ struct aq_hw_s {
 	u32 mbox_addr;
 	u32 rpc_addr;
 	u32 rpc_tid;
-	struct hw_aq_atl_utils_fw_rpc rpc;
+	struct hw_atl_utils_fw_rpc rpc;
 };
 
 struct aq_ring_s;
@@ -177,7 +184,7 @@ struct aq_hw_ops {
 				    unsigned int packet_filter);
 
 	int (*hw_multicast_list_set)(struct aq_hw_s *self,
-				     u8 ar_mac[AQ_CFG_MULTICAST_ADDRESS_MAX]
+				     u8 ar_mac[AQ_HW_MULTICAST_ADDRESS_MAX]
 				     [ETH_ALEN],
 				     u32 count);
 
@@ -197,25 +204,43 @@ struct aq_hw_ops {
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
 
-	int (*hw_deinit)(struct aq_hw_s *self);
+	int (*hw_set_offload)(struct aq_hw_s *self,
+			      struct aq_nic_cfg_s *aq_nic_cfg);
 
-	int (*hw_set_power)(struct aq_hw_s *self, unsigned int power_state);
+	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
 };
 
 struct aq_fw_ops {
 	int (*init)(struct aq_hw_s *self);
 
+	int (*deinit)(struct aq_hw_s *self);
+
 	int (*reset)(struct aq_hw_s *self);
+
+	int (*renegotiate)(struct aq_hw_s *self);
 
 	int (*get_mac_permanent)(struct aq_hw_s *self, u8 *mac);
 
 	int (*set_link_speed)(struct aq_hw_s *self, u32 speed);
 
-	int (*set_state)(struct aq_hw_s *self, enum hal_atl_utils_fw_state_e state);
+	int (*set_state)(struct aq_hw_s *self,
+			 enum hal_atl_utils_fw_state_e state);
 
 	int (*update_link_status)(struct aq_hw_s *self);
 
 	int (*update_stats)(struct aq_hw_s *self);
+
+	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
+
+	int (*set_flow_control)(struct aq_hw_s *self);
+
+	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
+			 u8 *mac);
+
+	int (*set_eee_rate)(struct aq_hw_s *self, u32 speed);
+
+	int (*get_eee_rate)(struct aq_hw_s *self, u32 *rate,
+			    u32 *supported_rates);
 };
 
 #endif /* AQ_HW_H */

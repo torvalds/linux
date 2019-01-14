@@ -5,7 +5,7 @@ menu "Self-contained MTD device drivers"
 config MTD_PMC551
 	tristate "Ramix PMC551 PCI Mezzanine RAM card support"
 	depends on PCI
-	---help---
+	help
 	  This provides a MTD device driver for the Ramix PMC551 RAM PCI card
 	  from Ramix Inc. <http://www.ramix.com/products/memory/pmc551.html>.
 	  These devices come in memory configurations from 32M - 1G.  If you
@@ -81,6 +81,7 @@ config MTD_DATAFLASH_OTP
 config MTD_M25P80
 	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
 	depends on SPI_MASTER && MTD_SPI_NOR
+	select SPI_MEM
 	help
 	  This enables access to most modern SPI flash chips, used for
 	  program and data storage.   Series supported include Atmel AT26DF,
@@ -206,9 +207,9 @@ comment "Disk-On-Chip Device Drivers"
 config MTD_DOCG3
 	tristate "M-Systems Disk-On-Chip G3"
 	select BCH
-	select BCH_CONST_PARAMS
+	select BCH_CONST_PARAMS if !MTD_NAND_BCH
 	select BITREVERSE
-	---help---
+	help
 	  This provides an MTD device driver for the M-Systems DiskOnChip
 	  G3 devices.
 

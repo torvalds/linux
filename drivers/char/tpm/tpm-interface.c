@@ -29,7 +29,6 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
-#include <linux/pm_runtime.h>
 #include <linux/tpm_eventlog.h>
 
 #include "tpm.h"
@@ -369,9 +368,12 @@ err_len:
 	return -EINVAL;
 }
 
-static int tpm_request_locality(struct tpm_chip *chip)
+static int tpm_request_locality(struct tpm_chip *chip, unsigned int flags)
 {
 	int rc;
+
+	if (flags & TPM_TRANSMIT_NESTED)
+		return 0;
 
 	if (!chip->ops->request_locality)
 		return 0;
@@ -385,9 +387,12 @@ static int tpm_request_locality(struct tpm_chip *chip)
 	return 0;
 }
 
-static void tpm_relinquish_locality(struct tpm_chip *chip)
+static void tpm_relinquish_locality(struct tpm_chip *chip, unsigned int flags)
 {
 	int rc;
+
+	if (flags & TPM_TRANSMIT_NESTED)
+		return;
 
 	if (!chip->ops->relinquish_locality)
 		return;
@@ -397,6 +402,28 @@ static void tpm_relinquish_locality(struct tpm_chip *chip)
 		dev_err(&chip->dev, "%s: : error %d\n", __func__, rc);
 
 	chip->locality = -1;
+}
+
+static int tpm_cmd_ready(struct tpm_chip *chip, unsigned int flags)
+{
+	if (flags & TPM_TRANSMIT_NESTED)
+		return 0;
+
+	if (!chip->ops->cmd_ready)
+		return 0;
+
+	return chip->ops->cmd_ready(chip);
+}
+
+static int tpm_go_idle(struct tpm_chip *chip, unsigned int flags)
+{
+	if (flags & TPM_TRANSMIT_NESTED)
+		return 0;
+
+	if (!chip->ops->go_idle)
+		return 0;
+
+	return chip->ops->go_idle(chip);
 }
 
 static ssize_t tpm_try_transmit(struct tpm_chip *chip,
@@ -423,7 +450,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip,
 		header->tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
 		header->return_code = cpu_to_be32(TPM2_RC_COMMAND_CODE |
 						  TSS2_RESMGR_TPM_RC_LAYER);
-		return bufsiz;
+		return sizeof(*header);
 	}
 
 	if (bufsiz > TPM_BUFSIZE)
@@ -439,9 +466,8 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip,
 		return -E2BIG;
 	}
 
-	if (!(flags & TPM_TRANSMIT_UNLOCKED))
+	if (!(flags & TPM_TRANSMIT_UNLOCKED) && !(flags & TPM_TRANSMIT_NESTED))
 		mutex_lock(&chip->tpm_mutex);
-
 
 	if (chip->ops->clk_enable != NULL)
 		chip->ops->clk_enable(chip, true);
@@ -449,14 +475,15 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip,
 	/* Store the decision as chip->locality will be changed. */
 	need_locality = chip->locality == -1;
 
-	if (!(flags & TPM_TRANSMIT_RAW) && need_locality) {
-		rc = tpm_request_locality(chip);
+	if (need_locality) {
+		rc = tpm_request_locality(chip, flags);
 		if (rc < 0)
 			goto out_no_locality;
 	}
 
-	if (chip->dev.parent)
-		pm_runtime_get_sync(chip->dev.parent);
+	rc = tpm_cmd_ready(chip, flags);
+	if (rc)
+		goto out;
 
 	rc = tpm2_prepare_space(chip, space, ordinal, buf);
 	if (rc)
@@ -489,7 +516,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip,
 			goto out;
 		}
 
-		tpm_msleep(TPM_TIMEOUT);
+		tpm_msleep(TPM_TIMEOUT_POLL);
 		rmb();
 	} while (time_before(jiffies, stop));
 
@@ -516,19 +543,22 @@ out_recv:
 	}
 
 	rc = tpm2_commit_space(chip, space, ordinal, buf, &len);
+	if (rc)
+		dev_err(&chip->dev, "tpm2_commit_space: error %d\n", rc);
 
 out:
-	if (chip->dev.parent)
-		pm_runtime_put_sync(chip->dev.parent);
+	rc = tpm_go_idle(chip, flags);
+	if (rc)
+		goto out;
 
 	if (need_locality)
-		tpm_relinquish_locality(chip);
+		tpm_relinquish_locality(chip, flags);
 
 out_no_locality:
 	if (chip->ops->clk_enable != NULL)
 		chip->ops->clk_enable(chip, false);
 
-	if (!(flags & TPM_TRANSMIT_UNLOCKED))
+	if (!(flags & TPM_TRANSMIT_UNLOCKED) && !(flags & TPM_TRANSMIT_NESTED))
 		mutex_unlock(&chip->tpm_mutex);
 	return rc ? rc : len;
 }
@@ -587,7 +617,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		 */
 		if (rc == TPM2_RC_TESTING && cc == TPM2_CC_SELF_TEST)
 			break;
-		delay_msec *= 2;
+
 		if (delay_msec > TPM2_DURATION_LONG) {
 			if (rc == TPM2_RC_RETRY)
 				dev_err(&chip->dev, "in retry loop\n");
@@ -597,6 +627,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 			break;
 		}
 		tpm_msleep(delay_msec);
+		delay_msec *= 2;
 		memcpy(buf, save, save_size);
 	}
 	return ret;
@@ -632,7 +663,8 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
 		return len;
 
 	err = be32_to_cpu(header->return_code);
-	if (err != 0 && desc)
+	if (err != 0 && err != TPM_ERR_DISABLED && err != TPM_ERR_DEACTIVATED
+	    && desc)
 		dev_err(&chip->dev, "A TPM error (%d) occurred %s\n", err,
 			desc);
 	if (err)
@@ -929,7 +961,7 @@ int tpm_is_tpm2(struct tpm_chip *chip)
 {
 	int rc;
 
-	chip = tpm_chip_find_get(chip);
+	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
 
@@ -953,7 +985,7 @@ int tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 {
 	int rc;
 
-	chip = tpm_chip_find_get(chip);
+	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
@@ -1012,7 +1044,7 @@ int tpm_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash)
 	u32 count = 0;
 	int i;
 
-	chip = tpm_chip_find_get(chip);
+	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
 
@@ -1141,7 +1173,7 @@ int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen)
 {
 	int rc;
 
-	chip = tpm_chip_find_get(chip);
+	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
 
@@ -1261,7 +1293,7 @@ int tpm_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
 		return -EINVAL;
 
-	chip = tpm_chip_find_get(chip);
+	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
 
@@ -1290,7 +1322,8 @@ int tpm_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 		}
 
 		rlength = be32_to_cpu(tpm_cmd.header.out.length);
-		if (rlength < offsetof(struct tpm_getrandom_out, rng_data) +
+		if (rlength < TPM_HEADER_SIZE +
+			      offsetof(struct tpm_getrandom_out, rng_data) +
 			      recd) {
 			total = -EFAULT;
 			break;
@@ -1323,7 +1356,7 @@ int tpm_seal_trusted(struct tpm_chip *chip, struct trusted_key_payload *payload,
 {
 	int rc;
 
-	chip = tpm_chip_find_get(chip);
+	chip = tpm_find_get_ops(chip);
 	if (!chip || !(chip->flags & TPM_CHIP_FLAG_TPM2))
 		return -ENODEV;
 
@@ -1351,7 +1384,7 @@ int tpm_unseal_trusted(struct tpm_chip *chip,
 {
 	int rc;
 
-	chip = tpm_chip_find_get(chip);
+	chip = tpm_find_get_ops(chip);
 	if (!chip || !(chip->flags & TPM_CHIP_FLAG_TPM2))
 		return -ENODEV;
 
@@ -1376,19 +1409,32 @@ static int __init tpm_init(void)
 	tpmrm_class = class_create(THIS_MODULE, "tpmrm");
 	if (IS_ERR(tpmrm_class)) {
 		pr_err("couldn't create tpmrm class\n");
-		class_destroy(tpm_class);
-		return PTR_ERR(tpmrm_class);
+		rc = PTR_ERR(tpmrm_class);
+		goto out_destroy_tpm_class;
 	}
 
 	rc = alloc_chrdev_region(&tpm_devt, 0, 2*TPM_NUM_DEVICES, "tpm");
 	if (rc < 0) {
 		pr_err("tpm: failed to allocate char dev region\n");
-		class_destroy(tpmrm_class);
-		class_destroy(tpm_class);
-		return rc;
+		goto out_destroy_tpmrm_class;
+	}
+
+	rc = tpm_dev_common_init();
+	if (rc) {
+		pr_err("tpm: failed to allocate char dev region\n");
+		goto out_unreg_chrdev;
 	}
 
 	return 0;
+
+out_unreg_chrdev:
+	unregister_chrdev_region(tpm_devt, 2 * TPM_NUM_DEVICES);
+out_destroy_tpmrm_class:
+	class_destroy(tpmrm_class);
+out_destroy_tpm_class:
+	class_destroy(tpm_class);
+
+	return rc;
 }
 
 static void __exit tpm_exit(void)
@@ -1397,6 +1443,7 @@ static void __exit tpm_exit(void)
 	class_destroy(tpm_class);
 	class_destroy(tpmrm_class);
 	unregister_chrdev_region(tpm_devt, 2*TPM_NUM_DEVICES);
+	tpm_dev_common_exit();
 }
 
 subsys_initcall(tpm_init);

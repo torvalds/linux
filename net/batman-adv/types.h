@@ -43,12 +43,13 @@ struct seq_file;
 #ifdef CONFIG_BATMAN_ADV_DAT
 
 /**
- * batadv_dat_addr_t - it is the type used for all DHT addresses. If it is
- *  changed, BATADV_DAT_ADDR_MAX is changed as well.
+ * typedef batadv_dat_addr_t - type used for all DHT addresses
+ *
+ * If it is changed, BATADV_DAT_ADDR_MAX is changed as well.
  *
  * *Please be careful: batadv_dat_addr_t must be UNSIGNED*
  */
-#define batadv_dat_addr_t u16
+typedef u16 batadv_dat_addr_t;
 
 #endif /* CONFIG_BATMAN_ADV_DAT */
 
@@ -166,9 +167,6 @@ struct batadv_hard_iface {
 	/** @list: list node for batadv_hardif_list */
 	struct list_head list;
 
-	/** @if_num: identificator of the interface */
-	unsigned int if_num;
-
 	/** @if_status: status of the interface for batman-adv */
 	char if_status;
 
@@ -215,10 +213,12 @@ struct batadv_hard_iface {
 	struct batadv_hard_iface_bat_v bat_v;
 #endif
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/**
 	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
 	 */
 	struct dentry *debug_dir;
+#endif
 
 	/**
 	 * @neigh_list: list of unique single hop neighbors via this interface
@@ -227,6 +227,20 @@ struct batadv_hard_iface {
 
 	/** @neigh_list_lock: lock protecting neigh_list */
 	spinlock_t neigh_list_lock;
+};
+
+/**
+ * struct batadv_orig_ifinfo - B.A.T.M.A.N. IV private orig_ifinfo members
+ */
+struct batadv_orig_ifinfo_bat_iv {
+	/**
+	 * @bcast_own: bitfield which counts the number of our OGMs this
+	 * orig_node rebroadcasted "back" to us  (relative to last_real_seqno)
+	 */
+	DECLARE_BITMAP(bcast_own, BATADV_TQ_LOCAL_WINDOW_SIZE);
+
+	/** @bcast_own_sum: sum of bcast_own */
+	u8 bcast_own_sum;
 };
 
 /**
@@ -253,6 +267,9 @@ struct batadv_orig_ifinfo {
 
 	/** @batman_seqno_reset: time when the batman seqno window was reset */
 	unsigned long batman_seqno_reset;
+
+	/** @bat_iv: B.A.T.M.A.N. IV private structure */
+	struct batadv_orig_ifinfo_bat_iv bat_iv;
 
 	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
@@ -336,19 +353,10 @@ struct batadv_orig_node_vlan {
  */
 struct batadv_orig_bat_iv {
 	/**
-	 * @bcast_own: set of bitfields (one per hard-interface) where each one
-	 * counts the number of our OGMs this orig_node rebroadcasted "back" to
-	 * us  (relative to last_real_seqno). Every bitfield is
-	 * BATADV_TQ_LOCAL_WINDOW_SIZE bits long.
-	 */
-	unsigned long *bcast_own;
-
-	/** @bcast_own_sum: sum of bcast_own */
-	u8 *bcast_own_sum;
-
-	/**
-	 * @ogm_cnt_lock: lock protecting bcast_own, bcast_own_sum,
-	 * neigh_node->bat_iv.real_bits & neigh_node->bat_iv.real_packet_count
+	 * @ogm_cnt_lock: lock protecting &batadv_orig_ifinfo_bat_iv.bcast_own,
+	 * &batadv_orig_ifinfo_bat_iv.bcast_own_sum,
+	 * &batadv_neigh_ifinfo_bat_iv.bat_iv.real_bits and
+	 * &batadv_neigh_ifinfo_bat_iv.real_packet_count
 	 */
 	spinlock_t ogm_cnt_lock;
 };
@@ -1160,13 +1168,13 @@ struct batadv_priv_dat {
  */
 struct batadv_mcast_querier_state {
 	/** @exists: whether a querier exists in the mesh */
-	bool exists;
+	unsigned char exists:1;
 
 	/**
 	 * @shadowing: if a querier exists, whether it is potentially shadowing
 	 *  multicast listeners (i.e. querier is behind our own bridge segment)
 	 */
-	bool shadowing;
+	unsigned char shadowing:1;
 };
 
 /**
@@ -1207,13 +1215,10 @@ struct batadv_priv_mcast {
 	u8 flags;
 
 	/** @enabled: whether the multicast tvlv is currently enabled */
-	bool enabled;
+	unsigned char enabled:1;
 
 	/** @bridged: whether the soft interface has a bridge on top */
-	bool bridged;
-
-	/** @num_disabled: number of nodes that have no mcast tvlv */
-	atomic_t num_disabled;
+	unsigned char bridged:1;
 
 	/**
 	 * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP
@@ -1245,10 +1250,12 @@ struct batadv_priv_nc {
 	/** @work: work queue callback item for cleanup */
 	struct delayed_work work;
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/**
 	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
 	 */
 	struct dentry *debug_dir;
+#endif
 
 	/**
 	 * @min_tq: only consider neighbors for encoding if neigh_tq > min_tq
@@ -1392,7 +1399,7 @@ struct batadv_tp_vars {
 	atomic_t dup_acks;
 
 	/** @fast_recovery: true if in Fast Recovery mode */
-	bool fast_recovery;
+	unsigned char fast_recovery:1;
 
 	/** @recover: last sent seqno when entering Fast Recovery */
 	u32 recover;
@@ -1595,14 +1602,13 @@ struct batadv_priv {
 	/** @batman_queue_left: number of remaining OGM packet slots */
 	atomic_t batman_queue_left;
 
-	/** @num_ifaces: number of interfaces assigned to this mesh interface */
-	unsigned int num_ifaces;
-
 	/** @mesh_obj: kobject for sysfs mesh subdirectory */
 	struct kobject *mesh_obj;
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/** @debug_dir: dentry for debugfs batman-adv subdirectory */
 	struct dentry *debug_dir;
+#endif
 
 	/** @forw_bat_list: list of aggregated OGMs that will be forwarded */
 	struct hlist_head forw_bat_list;
@@ -2049,10 +2055,10 @@ struct batadv_skb_cb {
 	 * @decoded: Marks a skb as decoded, which is checked when searching for
 	 *  coding opportunities in network-coding.c
 	 */
-	bool decoded;
+	unsigned char decoded:1;
 
 	/** @num_bcasts: Counter for broadcast packet retransmissions */
-	unsigned int num_bcasts;
+	unsigned char num_bcasts;
 };
 
 /**
@@ -2175,28 +2181,6 @@ struct batadv_algo_neigh_ops {
  * struct batadv_algo_orig_ops - mesh algorithm callbacks (originator specific)
  */
 struct batadv_algo_orig_ops {
-	/**
-	 * @free: free the resources allocated by the routing algorithm for an
-	 *  orig_node object (optional)
-	 */
-	void (*free)(struct batadv_orig_node *orig_node);
-
-	/**
-	 * @add_if: ask the routing algorithm to apply the needed changes to the
-	 *  orig_node due to a new hard-interface being added into the mesh
-	 *  (optional)
-	 */
-	int (*add_if)(struct batadv_orig_node *orig_node,
-		      unsigned int max_if_num);
-
-	/**
-	 * @del_if: ask the routing algorithm to apply the needed changes to the
-	 *  orig_node due to an hard-interface being removed from the mesh
-	 *  (optional)
-	 */
-	int (*del_if)(struct batadv_orig_node *orig_node,
-		      unsigned int max_if_num, unsigned int del_if_num);
-
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/** @print: print the originator table (optional) */
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq,

@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
@@ -92,10 +62,11 @@ nfp_devlink_set_lanes(struct nfp_pf *pf, unsigned int idx, unsigned int lanes)
 
 static int
 nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
-		       unsigned int count)
+		       unsigned int count, struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
 	struct nfp_eth_table_port eth_port;
+	unsigned int lanes;
 	int ret;
 
 	if (count < 2)
@@ -114,8 +85,12 @@ nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
 		goto out;
 	}
 
-	ret = nfp_devlink_set_lanes(pf, eth_port.index,
-				    eth_port.port_lanes / count);
+	/* Special case the 100G CXP -> 2x40G split */
+	lanes = eth_port.port_lanes / count;
+	if (eth_port.lanes == 10 && count == 2)
+		lanes = 8 / count;
+
+	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 out:
 	mutex_unlock(&pf->lock);
 
@@ -123,10 +98,12 @@ out:
 }
 
 static int
-nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index)
+nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index,
+			 struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
 	struct nfp_eth_table_port eth_port;
+	unsigned int lanes;
 	int ret;
 
 	mutex_lock(&pf->lock);
@@ -142,11 +119,36 @@ nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index)
 		goto out;
 	}
 
-	ret = nfp_devlink_set_lanes(pf, eth_port.index, eth_port.port_lanes);
+	/* Special case the 100G CXP -> 2x40G unsplit */
+	lanes = eth_port.port_lanes;
+	if (eth_port.port_lanes == 8)
+		lanes = 10;
+
+	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 out:
 	mutex_unlock(&pf->lock);
 
 	return ret;
+}
+
+static int
+nfp_devlink_sb_pool_get(struct devlink *devlink, unsigned int sb_index,
+			u16 pool_index, struct devlink_sb_pool_info *pool_info)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+
+	return nfp_shared_buf_pool_get(pf, sb_index, pool_index, pool_info);
+}
+
+static int
+nfp_devlink_sb_pool_set(struct devlink *devlink, unsigned int sb_index,
+			u16 pool_index,
+			u32 size, enum devlink_sb_threshold_type threshold_type)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+
+	return nfp_shared_buf_pool_set(pf, sb_index, pool_index,
+				       size, threshold_type);
 }
 
 static int nfp_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
@@ -156,10 +158,26 @@ static int nfp_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return nfp_app_eswitch_mode_get(pf->app, mode);
 }
 
+static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
+					struct netlink_ext_ack *extack)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+	int ret;
+
+	mutex_lock(&pf->lock);
+	ret = nfp_app_eswitch_mode_set(pf->app, mode);
+	mutex_unlock(&pf->lock);
+
+	return ret;
+}
+
 const struct devlink_ops nfp_devlink_ops = {
 	.port_split		= nfp_devlink_port_split,
 	.port_unsplit		= nfp_devlink_port_unsplit,
+	.sb_pool_get		= nfp_devlink_sb_pool_get,
+	.sb_pool_set		= nfp_devlink_sb_pool_set,
 	.eswitch_mode_get	= nfp_devlink_eswitch_mode_get,
+	.eswitch_mode_set	= nfp_devlink_eswitch_mode_set,
 };
 
 int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
@@ -175,8 +193,9 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 		return ret;
 
 	devlink_port_type_eth_set(&port->dl_port, port->netdev);
-	if (eth_port.is_split)
-		devlink_port_split_set(&port->dl_port, eth_port.label_port);
+	devlink_port_attrs_set(&port->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
+			       eth_port.label_port, eth_port.is_split,
+			       eth_port.label_subport);
 
 	devlink = priv_to_devlink(app->pf);
 

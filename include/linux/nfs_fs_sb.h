@@ -121,6 +121,7 @@ struct nfs_client {
 #endif
 
 	struct net		*cl_net;
+	struct list_head	pending_cb_stateids;
 };
 
 /*
@@ -208,6 +209,7 @@ struct nfs_server {
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;
 	struct list_head	delegations;
+	struct list_head	ss_copies;
 
 	unsigned long		mig_gen;
 	unsigned long		mig_status;
@@ -226,6 +228,9 @@ struct nfs_server {
 	unsigned short		mountd_port;
 	unsigned short		mountd_protocol;
 	struct rpc_wait_queue	uoc_rpcwaitq;
+
+	/* XDR related information */
+	unsigned int		read_hdrsize;
 };
 
 /* Server capabilities */
@@ -235,6 +240,7 @@ struct nfs_server {
 #define NFS_CAP_ACLS		(1U << 3)
 #define NFS_CAP_ATOMIC_OPEN	(1U << 4)
 /* #define NFS_CAP_CHANGE_ATTR	(1U << 5) */
+#define NFS_CAP_LGOPEN		(1U << 5)
 #define NFS_CAP_FILEID		(1U << 6)
 #define NFS_CAP_MODE		(1U << 7)
 #define NFS_CAP_NLINK		(1U << 8)
@@ -254,5 +260,6 @@ struct nfs_server {
 #define NFS_CAP_LAYOUTSTATS	(1U << 22)
 #define NFS_CAP_CLONE		(1U << 23)
 #define NFS_CAP_COPY		(1U << 24)
+#define NFS_CAP_OFFLOAD_CANCEL	(1U << 25)
 
 #endif

@@ -158,11 +158,16 @@ def tool(name, args, flags, JSON=True, ns="", fail=True, include_stderr=False):
     else:
         return ret, out
 
-def bpftool(args, JSON=True, ns="", fail=True):
-    return tool("bpftool", args, {"json":"-p"}, JSON=JSON, ns=ns, fail=fail)
+def bpftool(args, JSON=True, ns="", fail=True, include_stderr=False):
+    return tool("bpftool", args, {"json":"-p"}, JSON=JSON, ns=ns,
+                fail=fail, include_stderr=include_stderr)
 
 def bpftool_prog_list(expected=None, ns=""):
     _, progs = bpftool("prog show", JSON=True, ns=ns, fail=True)
+    # Remove the base progs
+    for p in base_progs:
+        if p in progs:
+            progs.remove(p)
     if expected is not None:
         if len(progs) != expected:
             fail(True, "%d BPF programs loaded, expected %d" %
@@ -171,6 +176,10 @@ def bpftool_prog_list(expected=None, ns=""):
 
 def bpftool_map_list(expected=None, ns=""):
     _, maps = bpftool("map show", JSON=True, ns=ns, fail=True)
+    # Remove the base maps
+    for m in base_maps:
+        if m in maps:
+            maps.remove(m)
     if expected is not None:
         if len(maps) != expected:
             fail(True, "%d BPF maps loaded, expected %d" %
@@ -192,6 +201,21 @@ def bpftool_map_list_wait(expected=0, n_retry=20):
             return
         time.sleep(0.05)
     raise Exception("Time out waiting for map counts to stabilize want %d, have %d" % (expected, nmaps))
+
+def bpftool_prog_load(sample, file_name, maps=[], prog_type="xdp", dev=None,
+                      fail=True, include_stderr=False):
+    args = "prog load %s %s" % (os.path.join(bpf_test_dir, sample), file_name)
+    if prog_type is not None:
+        args += " type " + prog_type
+    if dev is not None:
+        args += " dev " + dev
+    if len(maps):
+        args += " map " + " map ".join(maps)
+
+    res = bpftool(args, fail=fail, include_stderr=include_stderr)
+    if res[0] == 0:
+        files.append(file_name)
+    return res
 
 def ip(args, force=False, JSON=True, ns="", fail=True, include_stderr=False):
     if force:
@@ -299,21 +323,25 @@ class NetdevSim:
     Class for netdevsim netdevice and its attributes.
     """
 
-    def __init__(self):
+    def __init__(self, link=None):
+        self.link = link
+
         self.dev = self._netdevsim_create()
         devs.append(self)
 
         self.ns = ""
 
         self.dfs_dir = '/sys/kernel/debug/netdevsim/%s' % (self.dev['ifname'])
+        self.sdev_dir = self.dfs_dir + '/sdev/'
         self.dfs_refresh()
 
     def __getitem__(self, key):
         return self.dev[key]
 
     def _netdevsim_create(self):
+        link = "" if self.link is None else "link " + self.link.dev['ifname']
         _, old  = ip("link show")
-        ip("link add sim%d type netdevsim")
+        ip("link add sim%d {link} type netdevsim".format(link=link))
         _, new  = ip("link show")
 
         for dev in new:
@@ -331,13 +359,18 @@ class NetdevSim:
         self.dfs = DebugfsDir(self.dfs_dir)
         return self.dfs
 
+    def dfs_read(self, f):
+        path = os.path.join(self.dfs_dir, f)
+        _, data = cmd('cat %s' % (path))
+        return data.strip()
+
     def dfs_num_bound_progs(self):
-        path = os.path.join(self.dfs_dir, "bpf_bound_progs")
+        path = os.path.join(self.sdev_dir, "bpf_bound_progs")
         _, progs = cmd('ls %s' % (path))
         return len(progs.split())
 
     def dfs_get_bound_progs(self, expected):
-        progs = DebugfsDir(os.path.join(self.dfs_dir, "bpf_bound_progs"))
+        progs = DebugfsDir(os.path.join(self.sdev_dir, "bpf_bound_progs"))
         if expected is not None:
             if len(progs) != expected:
                 fail(True, "%d BPF programs bound, expected %d" %
@@ -539,11 +572,11 @@ def check_extack(output, reference, args):
     if skip_extack:
         return
     lines = output.split("\n")
-    comp = len(lines) >= 2 and lines[1] == reference
+    comp = len(lines) >= 2 and lines[1] == 'Error: ' + reference
     fail(not comp, "Missing or incorrect netlink extack message")
 
 def check_extack_nsim(output, reference, args):
-    check_extack(output, "Error: netdevsim: " + reference, args)
+    check_extack(output, "netdevsim: " + reference, args)
 
 def check_no_extack(res, needle):
     fail((res[1] + res[2]).count(needle) or (res[1] + res[2]).count("Warning:"),
@@ -585,8 +618,8 @@ skip(os.getuid() != 0, "test must be run as root")
 # Check tools
 ret, progs = bpftool("prog", fail=False)
 skip(ret != 0, "bpftool not installed")
-# Check no BPF programs are loaded
-skip(len(progs) != 0, "BPF programs already loaded on the system")
+base_progs = progs
+_, base_maps = bpftool("map")
 
 # Check netdevsim
 ret, out = cmd("modprobe netdevsim", fail=False)
@@ -646,7 +679,7 @@ try:
     ret, _, err = sim.cls_bpf_add_filter(obj, skip_sw=True,
                                          fail=False, include_stderr=True)
     fail(ret == 0, "TC filter loaded without enabling TC offloads")
-    check_extack(err, "Error: TC offload is disabled on net device.", args)
+    check_extack(err, "TC offload is disabled on net device.", args)
     sim.wait_for_flush()
 
     sim.set_ethtool_tc_offloads(True)
@@ -686,7 +719,7 @@ try:
                                          skip_sw=True,
                                          fail=False, include_stderr=True)
     fail(ret == 0, "Offloaded a filter to chain other than 0")
-    check_extack(err, "Error: Driver supports only offload of chain 0.", args)
+    check_extack(err, "Driver supports only offload of chain 0.", args)
     sim.tc_flush_filters()
 
     start_test("Test TC replace...")
@@ -806,24 +839,20 @@ try:
          "Device parameters reported for non-offloaded program")
 
     start_test("Test XDP prog replace with bad flags...")
-    ret, _, err = sim.set_xdp(obj, "offload", force=True,
+    ret, _, err = sim.set_xdp(obj, "generic", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    fail(err.count("File exists") != 1, "Replaced driver XDP with generic")
     ret, _, err = sim.set_xdp(obj, "", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    check_extack(err, "program loaded with different flags.", args)
 
     start_test("Test XDP prog remove with bad flags...")
-    ret, _, err = sim.unset_xdp("offload", force=True,
-                                fail=False, include_stderr=True)
-    fail(ret == 0, "Removed program with a bad mode mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
     ret, _, err = sim.unset_xdp("", force=True,
                                 fail=False, include_stderr=True)
-    fail(ret == 0, "Removed program with a bad mode mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    fail(ret == 0, "Removed program with a bad mode")
+    check_extack(err, "program loaded with different flags.", args)
 
     start_test("Test MTU restrictions...")
     ret, _ = sim.set_mtu(9000, fail=False)
@@ -838,6 +867,25 @@ try:
     sim.set_mtu(1500)
 
     sim.wait_for_flush()
+    start_test("Test non-offload XDP attaching to HW...")
+    bpftool_prog_load("sample_ret0.o", "/sys/fs/bpf/nooffload")
+    nooffload = bpf_pinned("/sys/fs/bpf/nooffload")
+    ret, _, err = sim.set_xdp(nooffload, "offload",
+                              fail=False, include_stderr=True)
+    fail(ret == 0, "attached non-offloaded XDP program to HW")
+    check_extack_nsim(err, "xdpoffload of non-bound program.", args)
+    rm("/sys/fs/bpf/nooffload")
+
+    start_test("Test offload XDP attaching to drv...")
+    bpftool_prog_load("sample_ret0.o", "/sys/fs/bpf/offload",
+                      dev=sim['ifname'])
+    offload = bpf_pinned("/sys/fs/bpf/offload")
+    ret, _, err = sim.set_xdp(offload, "drv", fail=False, include_stderr=True)
+    fail(ret == 0, "attached offloaded XDP program to drv")
+    check_extack(err, "using device-bound program without HW_MODE flag is not supported.", args)
+    rm("/sys/fs/bpf/offload")
+    sim.wait_for_flush()
+
     start_test("Test XDP offload...")
     _, _, err = sim.set_xdp(obj, "offload", verbose=True, include_stderr=True)
     ipl = sim.ip_link_show(xdp=True)
@@ -882,6 +930,60 @@ try:
     check_extack_nsim(err, "xdpoffload of non-bound program.", args)
     rm(pin_file)
     bpftool_prog_list_wait(expected=0)
+
+    start_test("Test multi-attachment XDP - attach...")
+    sim.set_xdp(obj, "offload")
+    xdp = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded = sim.dfs_read("bpf_offloaded_id")
+    fail("prog" not in xdp, "Base program not reported in single program mode")
+    fail(len(ipl["xdp"]["attached"]) != 1,
+         "Wrong attached program count with one program")
+
+    sim.set_xdp(obj, "")
+    two_xdps = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded2 = sim.dfs_read("bpf_offloaded_id")
+
+    fail(two_xdps["mode"] != 4, "Bad mode reported with multiple programs")
+    fail("prog" in two_xdps, "Base program reported in multi program mode")
+    fail(xdp["attached"][0] not in two_xdps["attached"],
+         "Offload program not reported after driver activated")
+    fail(len(two_xdps["attached"]) != 2,
+         "Wrong attached program count with two programs")
+    fail(two_xdps["attached"][0]["prog"]["id"] ==
+         two_xdps["attached"][1]["prog"]["id"],
+         "offloaded and drv programs have the same id")
+    fail(offloaded != offloaded2,
+         "offload ID changed after loading driver program")
+
+    start_test("Test multi-attachment XDP - replace...")
+    ret, _, err = sim.set_xdp(obj, "offload", fail=False, include_stderr=True)
+    fail(err.count("busy") != 1, "Replaced one of programs without -force")
+
+    start_test("Test multi-attachment XDP - detach...")
+    ret, _, err = sim.unset_xdp("drv", force=True,
+                                fail=False, include_stderr=True)
+    fail(ret == 0, "Removed program with a bad mode")
+    check_extack(err, "program loaded with different flags.", args)
+
+    sim.unset_xdp("offload")
+    xdp = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded = sim.dfs_read("bpf_offloaded_id")
+
+    fail(xdp["mode"] != 1, "Bad mode reported after multiple programs")
+    fail("prog" not in xdp,
+         "Base program not reported after multi program mode")
+    fail(xdp["attached"][0] not in two_xdps["attached"],
+         "Offload program not reported after driver activated")
+    fail(len(ipl["xdp"]["attached"]) != 1,
+         "Wrong attached program count with remaining programs")
+    fail(offloaded != "0", "offload ID reported with only driver program left")
+
+    start_test("Test multi-attachment XDP - device remove...")
+    sim.set_xdp(obj, "offload")
+    sim.remove()
+
+    sim = NetdevSim()
+    sim.set_ethtool_tc_offloads(True)
 
     start_test("Test mixing of TC and XDP...")
     sim.tc_add_ingress()
@@ -1076,6 +1178,106 @@ try:
     ret, _ = sim.set_xdp(map_obj, "offload", JSON=False, fail=False)
     fail(ret == 0,
          "netdevsim didn't refuse to create a map with offload disabled")
+
+    sim.remove()
+
+    start_test("Test multi-dev ASIC program reuse...")
+    simA = NetdevSim()
+    simB1 = NetdevSim()
+    simB2 = NetdevSim(link=simB1)
+    simB3 = NetdevSim(link=simB1)
+    sims = (simA, simB1, simB2, simB3)
+    simB = (simB1, simB2, simB3)
+
+    bpftool_prog_load("sample_map_ret0.o", "/sys/fs/bpf/nsimA",
+                      dev=simA['ifname'])
+    progA = bpf_pinned("/sys/fs/bpf/nsimA")
+    bpftool_prog_load("sample_map_ret0.o", "/sys/fs/bpf/nsimB",
+                      dev=simB1['ifname'])
+    progB = bpf_pinned("/sys/fs/bpf/nsimB")
+
+    simA.set_xdp(progA, "offload", JSON=False)
+    for d in simB:
+        d.set_xdp(progB, "offload", JSON=False)
+
+    start_test("Test multi-dev ASIC cross-dev replace...")
+    ret, _ = simA.set_xdp(progB, "offload", force=True, JSON=False, fail=False)
+    fail(ret == 0, "cross-ASIC program allowed")
+    for d in simB:
+        ret, _ = d.set_xdp(progA, "offload", force=True, JSON=False, fail=False)
+        fail(ret == 0, "cross-ASIC program allowed")
+
+    start_test("Test multi-dev ASIC cross-dev install...")
+    for d in sims:
+        d.unset_xdp("offload")
+
+    ret, _, err = simA.set_xdp(progB, "offload", force=True, JSON=False,
+                               fail=False, include_stderr=True)
+    fail(ret == 0, "cross-ASIC program allowed")
+    check_extack_nsim(err, "program bound to different dev.", args)
+    for d in simB:
+        ret, _, err = d.set_xdp(progA, "offload", force=True, JSON=False,
+                                fail=False, include_stderr=True)
+        fail(ret == 0, "cross-ASIC program allowed")
+        check_extack_nsim(err, "program bound to different dev.", args)
+
+    start_test("Test multi-dev ASIC cross-dev map reuse...")
+
+    mapA = bpftool("prog show %s" % (progA))[1]["map_ids"][0]
+    mapB = bpftool("prog show %s" % (progB))[1]["map_ids"][0]
+
+    ret, _ = bpftool_prog_load("sample_map_ret0.o", "/sys/fs/bpf/nsimB_",
+                               dev=simB3['ifname'],
+                               maps=["idx 0 id %d" % (mapB)],
+                               fail=False)
+    fail(ret != 0, "couldn't reuse a map on the same ASIC")
+    rm("/sys/fs/bpf/nsimB_")
+
+    ret, _, err = bpftool_prog_load("sample_map_ret0.o", "/sys/fs/bpf/nsimA_",
+                                    dev=simA['ifname'],
+                                    maps=["idx 0 id %d" % (mapB)],
+                                    fail=False, include_stderr=True)
+    fail(ret == 0, "could reuse a map on a different ASIC")
+    fail(err.count("offload device mismatch between prog and map") == 0,
+         "error message missing for cross-ASIC map")
+
+    ret, _, err = bpftool_prog_load("sample_map_ret0.o", "/sys/fs/bpf/nsimB_",
+                                    dev=simB1['ifname'],
+                                    maps=["idx 0 id %d" % (mapA)],
+                                    fail=False, include_stderr=True)
+    fail(ret == 0, "could reuse a map on a different ASIC")
+    fail(err.count("offload device mismatch between prog and map") == 0,
+         "error message missing for cross-ASIC map")
+
+    start_test("Test multi-dev ASIC cross-dev destruction...")
+    bpftool_prog_list_wait(expected=2)
+
+    simA.remove()
+    bpftool_prog_list_wait(expected=1)
+
+    ifnameB = bpftool("prog show %s" % (progB))[1]["dev"]["ifname"]
+    fail(ifnameB != simB1['ifname'], "program not bound to originial device")
+    simB1.remove()
+    bpftool_prog_list_wait(expected=1)
+
+    start_test("Test multi-dev ASIC cross-dev destruction - move...")
+    ifnameB = bpftool("prog show %s" % (progB))[1]["dev"]["ifname"]
+    fail(ifnameB not in (simB2['ifname'], simB3['ifname']),
+         "program not bound to remaining devices")
+
+    simB2.remove()
+    ifnameB = bpftool("prog show %s" % (progB))[1]["dev"]["ifname"]
+    fail(ifnameB != simB3['ifname'], "program not bound to remaining device")
+
+    simB3.remove()
+    bpftool_prog_list_wait(expected=0)
+
+    start_test("Test multi-dev ASIC cross-dev destruction - orphaned...")
+    ret, out = bpftool("prog show %s" % (progB), fail=False)
+    fail(ret == 0, "got information about orphaned program")
+    fail("error" not in out, "no error reported for get info on orphaned")
+    fail(out["error"] != "can't get prog info: No such device",
+         "wrong error for get info on orphaned")
 
     print("%s: OK" % (os.path.basename(__file__)))
 

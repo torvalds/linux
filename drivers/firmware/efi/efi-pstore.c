@@ -28,10 +28,9 @@ static int efi_pstore_close(struct pstore_info *psi)
 	return 0;
 }
 
-static inline u64 generic_id(unsigned long timestamp,
-			     unsigned int part, int count)
+static inline u64 generic_id(u64 timestamp, unsigned int part, int count)
 {
-	return ((u64) timestamp * 100 + part) * 1000 + count;
+	return (timestamp * 100 + part) * 1000 + count;
 }
 
 static int efi_pstore_read_func(struct efivar_entry *entry,
@@ -42,7 +41,8 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 	int i;
 	int cnt;
 	unsigned int part;
-	unsigned long time, size;
+	unsigned long size;
+	u64 time;
 
 	if (efi_guidcmp(entry->var.VendorGuid, vendor))
 		return 0;
@@ -50,7 +50,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		name[i] = entry->var.VariableName[i];
 
-	if (sscanf(name, "dump-type%u-%u-%d-%lu-%c",
+	if (sscanf(name, "dump-type%u-%u-%d-%llu-%c",
 		   &record->type, &part, &cnt, &time, &data_type) == 5) {
 		record->id = generic_id(time, part, cnt);
 		record->part = part;
@@ -62,7 +62,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 		else
 			record->compressed = false;
 		record->ecc_notice_size = 0;
-	} else if (sscanf(name, "dump-type%u-%u-%d-%lu",
+	} else if (sscanf(name, "dump-type%u-%u-%d-%llu",
 		   &record->type, &part, &cnt, &time) == 4) {
 		record->id = generic_id(time, part, cnt);
 		record->part = part;
@@ -71,7 +71,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 		record->time.tv_nsec = 0;
 		record->compressed = false;
 		record->ecc_notice_size = 0;
-	} else if (sscanf(name, "dump-type%u-%u-%lu",
+	} else if (sscanf(name, "dump-type%u-%u-%llu",
 			  &record->type, &part, &time) == 3) {
 		/*
 		 * Check if an old format,
@@ -250,9 +250,10 @@ static int efi_pstore_write(struct pstore_record *record)
 	/* Since we copy the entire length of name, make sure it is wiped. */
 	memset(name, 0, sizeof(name));
 
-	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lu-%c",
+	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lld-%c",
 		 record->type, record->part, record->count,
-		 record->time.tv_sec, record->compressed ? 'C' : 'D');
+		 (long long)record->time.tv_sec,
+		 record->compressed ? 'C' : 'D');
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
@@ -327,15 +328,15 @@ static int efi_pstore_erase(struct pstore_record *record)
 	char name[DUMP_NAME_LEN];
 	int ret;
 
-	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lu",
+	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lld",
 		 record->type, record->part, record->count,
-		 record->time.tv_sec);
+		 (long long)record->time.tv_sec);
 	ret = efi_pstore_erase_name(name);
 	if (ret != -ENOENT)
 		return ret;
 
-	snprintf(name, sizeof(name), "dump-type%u-%u-%lu",
-		record->type, record->part, record->time.tv_sec);
+	snprintf(name, sizeof(name), "dump-type%u-%u-%lld",
+		record->type, record->part, (long long)record->time.tv_sec);
 	ret = efi_pstore_erase_name(name);
 
 	return ret;

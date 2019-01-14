@@ -13,18 +13,18 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
+#include <linux/ktime.h>
 #include <linux/platform_device.h>
 
 #include <linux/mfd/arizona/core.h>
@@ -52,8 +52,10 @@ int arizona_clk32k_enable(struct arizona *arizona)
 			if (ret != 0)
 				goto err_ref;
 			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK1]);
-			if (ret != 0)
-				goto err_pm;
+			if (ret != 0) {
+				pm_runtime_put_sync(arizona->dev);
+				goto err_ref;
+			}
 			break;
 		case ARIZONA_32KZ_MCLK2:
 			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK2]);
@@ -67,8 +69,6 @@ int arizona_clk32k_enable(struct arizona *arizona)
 					 ARIZONA_CLK_32K_ENA);
 	}
 
-err_pm:
-	pm_runtime_put_sync(arizona->dev);
 err_ref:
 	if (ret != 0)
 		arizona->clk32k_ref--;
@@ -237,22 +237,39 @@ static irqreturn_t arizona_overclocked(int irq, void *data)
 
 #define ARIZONA_REG_POLL_DELAY_US 7500
 
+static inline bool arizona_poll_reg_delay(ktime_t timeout)
+{
+	if (ktime_compare(ktime_get(), timeout) > 0)
+		return false;
+
+	usleep_range(ARIZONA_REG_POLL_DELAY_US / 2, ARIZONA_REG_POLL_DELAY_US);
+
+	return true;
+}
+
 static int arizona_poll_reg(struct arizona *arizona,
 			    int timeout_ms, unsigned int reg,
 			    unsigned int mask, unsigned int target)
 {
+	ktime_t timeout = ktime_add_us(ktime_get(), timeout_ms * USEC_PER_MSEC);
 	unsigned int val = 0;
 	int ret;
 
-	ret = regmap_read_poll_timeout(arizona->regmap,
-				       reg, val, ((val & mask) == target),
-				       ARIZONA_REG_POLL_DELAY_US,
-				       timeout_ms * 1000);
-	if (ret)
-		dev_err(arizona->dev, "Polling reg 0x%x timed out: %x\n",
-			reg, val);
+	do {
+		ret = regmap_read(arizona->regmap, reg, &val);
 
-	return ret;
+		if ((val & mask) == target)
+			return 0;
+	} while (arizona_poll_reg_delay(timeout));
+
+	if (ret) {
+		dev_err(arizona->dev, "Failed polling reg 0x%x: %d\n",
+			reg, ret);
+		return ret;
+	}
+
+	dev_err(arizona->dev, "Polling reg 0x%x timed out: %x\n", reg, val);
+	return -ETIMEDOUT;
 }
 
 static int arizona_wait_for_boot(struct arizona *arizona)
@@ -279,7 +296,7 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 static inline void arizona_enable_reset(struct arizona *arizona)
 {
 	if (arizona->pdata.reset)
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+		gpiod_set_raw_value_cansleep(arizona->pdata.reset, 0);
 }
 
 static void arizona_disable_reset(struct arizona *arizona)
@@ -295,7 +312,7 @@ static void arizona_disable_reset(struct arizona *arizona)
 			break;
 		}
 
-		gpio_set_value_cansleep(arizona->pdata.reset, 1);
+		gpiod_set_raw_value_cansleep(arizona->pdata.reset, 1);
 		usleep_range(1000, 5000);
 	}
 }
@@ -799,14 +816,27 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	struct arizona_pdata *pdata = &arizona->pdata;
 	int ret, i;
 
-	pdata->reset = of_get_named_gpio(arizona->dev->of_node, "wlf,reset", 0);
-	if (pdata->reset == -EPROBE_DEFER) {
-		return pdata->reset;
-	} else if (pdata->reset < 0) {
-		dev_err(arizona->dev, "Reset GPIO missing/malformed: %d\n",
-			pdata->reset);
+	/* Handle old non-standard DT binding */
+	pdata->reset = devm_gpiod_get_from_of_node(arizona->dev,
+						   arizona->dev->of_node,
+						   "wlf,reset", 0,
+						   GPIOD_OUT_LOW,
+						   "arizona /RESET");
+	if (IS_ERR(pdata->reset)) {
+		ret = PTR_ERR(pdata->reset);
 
-		pdata->reset = 0;
+		/*
+		 * Reset missing will be caught when other binding is read
+		 * but all other errors imply this binding is in use but has
+		 * encountered a problem so should be handled.
+		 */
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		else if (ret != -ENOENT && ret != -ENOSYS)
+			dev_err(arizona->dev, "Reset GPIO malformed: %d\n",
+				ret);
+
+		pdata->reset = NULL;
 	}
 
 	ret = of_property_read_u32_array(arizona->dev->of_node,
@@ -960,7 +990,7 @@ static const struct mfd_cell wm8998_devs[] = {
 
 int arizona_dev_init(struct arizona *arizona)
 {
-	const char * const mclk_name[] = { "mclk1", "mclk2" };
+	static const char * const mclk_name[] = { "mclk1", "mclk2" };
 	struct device *dev = arizona->dev;
 	const char *type_name = NULL;
 	unsigned int reg, val;
@@ -1050,14 +1080,19 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_early;
 	}
 
-	if (arizona->pdata.reset) {
+	if (!arizona->pdata.reset) {
 		/* Start out with /RESET low to put the chip into reset */
-		ret = devm_gpio_request_one(arizona->dev, arizona->pdata.reset,
-					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
-					    "arizona /RESET");
-		if (ret != 0) {
-			dev_err(dev, "Failed to request /RESET: %d\n", ret);
-			goto err_dcvdd;
+		arizona->pdata.reset = devm_gpiod_get(arizona->dev, "reset",
+						      GPIOD_OUT_LOW);
+		if (IS_ERR(arizona->pdata.reset)) {
+			ret = PTR_ERR(arizona->pdata.reset);
+			if (ret == -EPROBE_DEFER)
+				goto err_dcvdd;
+
+			dev_err(arizona->dev,
+				"Reset GPIO missing/malformed: %d\n", ret);
+
+			arizona->pdata.reset = NULL;
 		}
 	}
 

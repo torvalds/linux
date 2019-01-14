@@ -289,32 +289,6 @@ int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 		src_node->stats.rx_packets++;
 	}
 
-	skb->dev = priv->netdev;
-	skb->protocol = eth_type_trans(skb, priv->netdev);
-	skb->ip_summed = CHECKSUM_NONE;
-
-	/* This is required only in case of 11n and USB/PCIE as we alloc
-	 * a buffer of 4K only if its 11N (to be able to receive 4K
-	 * AMSDU packets). In case of SD we allocate buffers based
-	 * on the size of packet and hence this is not needed.
-	 *
-	 * Modifying the truesize here as our allocation for each
-	 * skb is 4K but we only receive 2K packets and this cause
-	 * the kernel to start dropping packets in case where
-	 * application has allocated buffer based on 2K size i.e.
-	 * if there a 64K packet received (in IP fragments and
-	 * application allocates 64K to receive this packet but
-	 * this packet would almost double up because we allocate
-	 * each 1.5K fragment in 4K and pass it up. As soon as the
-	 * 64K limit hits kernel will start to drop rest of the
-	 * fragments. Currently we fail the Filesndl-ht.scr script
-	 * for UDP, hence this fix
-	 */
-	if ((adapter->iface_type == MWIFIEX_USB ||
-	     adapter->iface_type == MWIFIEX_PCIE) &&
-	    (skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE))
-		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
-
 	if (is_multicast_ether_addr(p_ethhdr->h_dest) ||
 	    mwifiex_get_sta_entry(priv, p_ethhdr->h_dest)) {
 		if (skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN)
@@ -349,6 +323,32 @@ int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 		if (mwifiex_get_sta_entry(priv, p_ethhdr->h_dest))
 			return 0;
 	}
+
+	skb->dev = priv->netdev;
+	skb->protocol = eth_type_trans(skb, priv->netdev);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	/* This is required only in case of 11n and USB/PCIE as we alloc
+	 * a buffer of 4K only if its 11N (to be able to receive 4K
+	 * AMSDU packets). In case of SD we allocate buffers based
+	 * on the size of packet and hence this is not needed.
+	 *
+	 * Modifying the truesize here as our allocation for each
+	 * skb is 4K but we only receive 2K packets and this cause
+	 * the kernel to start dropping packets in case where
+	 * application has allocated buffer based on 2K size i.e.
+	 * if there a 64K packet received (in IP fragments and
+	 * application allocates 64K to receive this packet but
+	 * this packet would almost double up because we allocate
+	 * each 1.5K fragment in 4K and pass it up. As soon as the
+	 * 64K limit hits kernel will start to drop rest of the
+	 * fragments. Currently we fail the Filesndl-ht.scr script
+	 * for UDP, hence this fix
+	 */
+	if ((adapter->iface_type == MWIFIEX_USB ||
+	     adapter->iface_type == MWIFIEX_PCIE) &&
+	    skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE)
+		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
 
 	/* Forward multicast/broadcast packet to upper layer*/
 	if (in_interrupt())

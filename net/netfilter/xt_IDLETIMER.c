@@ -68,8 +68,6 @@ struct idletimer_tg *__idletimer_tg_find_by_label(const char *label)
 {
 	struct idletimer_tg *entry;
 
-	BUG_ON(!label);
-
 	list_for_each_entry(entry, &idletimer_tg_list, entry) {
 		if (!strcmp(label, entry->attr.attr.name))
 			return entry;
@@ -116,6 +114,22 @@ static void idletimer_tg_expired(struct timer_list *t)
 	schedule_work(&timer->work);
 }
 
+static int idletimer_check_sysfs_name(const char *name, unsigned int size)
+{
+	int ret;
+
+	ret = xt_check_proc_name(name, size);
+	if (ret < 0)
+		return ret;
+
+	if (!strcmp(name, "power") ||
+	    !strcmp(name, "subsystem") ||
+	    !strcmp(name, "uevent"))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int idletimer_tg_create(struct idletimer_tg_info *info)
 {
 	int ret;
@@ -125,6 +139,10 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	ret = idletimer_check_sysfs_name(info->label, sizeof(info->label));
+	if (ret < 0)
+		goto out_free_timer;
 
 	sysfs_attr_init(&info->timer->attr.attr);
 	info->timer->attr.attr.name = kstrdup(info->label, GFP_KERNEL);
@@ -171,8 +189,6 @@ static unsigned int idletimer_tg_target(struct sk_buff *skb,
 
 	pr_debug("resetting timer %s, timeout period %u\n",
 		 info->label, info->timeout);
-
-	BUG_ON(!info->timer);
 
 	mod_timer(&info->timer->timer,
 		  msecs_to_jiffies(info->timeout * 1000) + jiffies);

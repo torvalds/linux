@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/mfd/htc-pasic3.h>
@@ -696,7 +697,6 @@ static struct regulator_init_data vads7846_regulator = {
 static struct fixed_voltage_config vads7846 = {
 	.supply_name	= "vads7846",
 	.microvolts	= 3300000, /* probably */
-	.gpio		= -EINVAL,
 	.startup_delay	= 0,
 	.init_data	= &vads7846_regulator,
 };

@@ -42,11 +42,14 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		const struct ipv6hdr *ipv6h;
 		struct udphdr *uh;
 
-		if (!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP))
+		if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_UDP | SKB_GSO_UDP_L4)))
 			goto out;
 
 		if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 			goto out;
+
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+			return __udp_gso_segment(skb, features);
 
 		/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
 		 * do checksum of UDP packets sent as multiple IP fragments.
@@ -111,12 +114,12 @@ out:
 	return segs;
 }
 
-static struct sk_buff **udp6_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+static struct sk_buff *udp6_gro_receive(struct list_head *head,
+					struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
 
-	if (unlikely(!uh))
+	if (unlikely(!uh) || !static_branch_unlikely(&udpv6_encap_needed_key))
 		goto flush;
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */

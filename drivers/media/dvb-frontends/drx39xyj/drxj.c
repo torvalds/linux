@@ -2841,8 +2841,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			/* coef = 188/204                          */
 			max_bit_rate =
 			    (ext_attr->curr_symbol_rate / 8) * nr_bits * 188;
-			/* pass through as b/c Annex A/c need following settings */
-			/* fall-through */
+			/* fall-through - as b/c Annex A/C need following settings */
 		case DRX_STANDARD_ITU_B:
 			rc = drxj_dap_write_reg16(dev_addr, FEC_OC_FCT_USAGE__A, FEC_OC_FCT_USAGE__PRE, 0);
 			if (rc != 0) {
@@ -3556,8 +3555,8 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		if (!ext_attr->has_smatx)
 			return -EIO;
 		switch (uio_cfg->mode) {
-		case DRX_UIO_MODE_FIRMWARE_SMA:	/* falltrough */
-		case DRX_UIO_MODE_FIRMWARE_SAW:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE_SMA:	/* fall through */
+		case DRX_UIO_MODE_FIRMWARE_SAW:	/* fall through */
 		case DRX_UIO_MODE_READWRITE:
 			ext_attr->uio_sma_tx_mode = uio_cfg->mode;
 			break;
@@ -3580,7 +3579,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		if (!ext_attr->has_smarx)
 			return -EIO;
 		switch (uio_cfg->mode) {
-		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE0:	/* fall through */
 		case DRX_UIO_MODE_READWRITE:
 			ext_attr->uio_sma_rx_mode = uio_cfg->mode;
 			break;
@@ -3604,7 +3603,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		if (!ext_attr->has_gpio)
 			return -EIO;
 		switch (uio_cfg->mode) {
-		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE0:	/* fall through */
 		case DRX_UIO_MODE_READWRITE:
 			ext_attr->uio_gpio_mode = uio_cfg->mode;
 			break;
@@ -3640,7 +3639,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 			}
 			ext_attr->uio_irqn_mode = uio_cfg->mode;
 			break;
-		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE0:	/* fall through */
 		default:
 			return -EINVAL;
 			break;
@@ -11811,8 +11810,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 		block_hdr.CRC = be16_to_cpu(*(__be16 *)(mc_data));
 		mc_data += sizeof(u16);
 
-		pr_debug("%u: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
-			(unsigned)(mc_data - mc_data_init), block_hdr.addr,
+		pr_debug("%zd: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
+			(mc_data - mc_data_init), block_hdr.addr,
 			 block_hdr.size, block_hdr.flags, block_hdr.CRC);
 
 		/* Check block header on:
@@ -11842,8 +11841,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 							mc_block_nr_bytes,
 							mc_data, 0x0000)) {
 				rc = -EIO;
-				pr_err("error writing firmware at pos %u\n",
-				       (unsigned)(mc_data - mc_data_init));
+				pr_err("error writing firmware at pos %zd\n",
+				       mc_data - mc_data_init);
 				goto release;
 			}
 			break;
@@ -11866,8 +11865,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 						    (u16)bytes_to_comp,
 						    (u8 *)mc_data_buffer,
 						    0x0000)) {
-					pr_err("error reading firmware at pos %u\n",
-					       (unsigned)(mc_data - mc_data_init));
+					pr_err("error reading firmware at pos %zd\n",
+					       mc_data - mc_data_init);
 					return -EIO;
 				}
 
@@ -11875,8 +11874,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 						bytes_to_comp);
 
 				if (result) {
-					pr_err("error verifying firmware at pos %u\n",
-					       (unsigned)(mc_data - mc_data_init));
+					pr_err("error verifying firmware at pos %zd\n",
+					       mc_data - mc_data_init);
 					return -EIO;
 				}
 
@@ -12374,9 +12373,9 @@ static const struct dvb_frontend_ops drx39xxj_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		 .name = "Micronas DRX39xxj family Frontend",
-		 .frequency_stepsize = 62500,
-		 .frequency_min = 51000000,
-		 .frequency_max = 858000000,
+		 .frequency_min_hz =  51 * MHz,
+		 .frequency_max_hz = 858 * MHz,
+		 .frequency_stepsize_hz = 62500,
 		 .caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 

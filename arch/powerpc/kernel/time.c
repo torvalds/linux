@@ -111,6 +111,7 @@ struct clock_event_device decrementer_clockevent = {
 	.rating			= 200,
 	.irq			= 0,
 	.set_next_event		= decrementer_set_next_event,
+	.set_state_oneshot_stopped = decrementer_shutdown,
 	.set_state_shutdown	= decrementer_shutdown,
 	.tick_resume		= decrementer_shutdown,
 	.features		= CLOCK_EVT_FEAT_ONESHOT |
@@ -163,12 +164,6 @@ EXPORT_SYMBOL(__cputime_usec_factor);
 void (*dtl_consumer)(struct dtl_entry *, u64);
 #endif
 
-#ifdef CONFIG_PPC64
-#define get_accounting(tsk)	(&get_paca()->accounting)
-#else
-#define get_accounting(tsk)	(&task_thread_info(tsk)->accounting)
-#endif
-
 static void calc_cputime_factors(void)
 {
 	struct div_result res;
@@ -181,7 +176,7 @@ static void calc_cputime_factors(void)
  * Read the SPURR on systems that have it, otherwise the PURR,
  * or if that doesn't exist return the timebase value passed in.
  */
-static unsigned long read_spurr(unsigned long tb)
+static inline unsigned long read_spurr(unsigned long tb)
 {
 	if (cpu_has_feature(CPU_FTR_SPURR))
 		return mfspr(SPRN_SPURR);
@@ -287,26 +282,17 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * Account time for a transition between system, hard irq
  * or soft irq state.
  */
-static unsigned long vtime_delta(struct task_struct *tsk,
-				 unsigned long *stime_scaled,
-				 unsigned long *steal_time)
+static unsigned long vtime_delta_scaled(struct cpu_accounting_data *acct,
+					unsigned long now, unsigned long stime)
 {
-	unsigned long now, nowscaled, deltascaled;
-	unsigned long stime;
+	unsigned long stime_scaled = 0;
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
+	unsigned long nowscaled, deltascaled;
 	unsigned long utime, utime_scaled;
-	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	WARN_ON_ONCE(!irqs_disabled());
-
-	now = mftb();
 	nowscaled = read_spurr(now);
-	stime = now - acct->starttime;
-	acct->starttime = now;
 	deltascaled = nowscaled - acct->startspurr;
 	acct->startspurr = nowscaled;
-
-	*steal_time = calculate_stolen_time(now);
-
 	utime = acct->utime - acct->utime_sspurr;
 	acct->utime_sspurr = acct->utime;
 
@@ -320,17 +306,38 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 	 * the user ticks get saved up in paca->user_time_scaled to be
 	 * used by account_process_tick.
 	 */
-	*stime_scaled = stime;
+	stime_scaled = stime;
 	utime_scaled = utime;
 	if (deltascaled != stime + utime) {
 		if (utime) {
-			*stime_scaled = deltascaled * stime / (stime + utime);
-			utime_scaled = deltascaled - *stime_scaled;
+			stime_scaled = deltascaled * stime / (stime + utime);
+			utime_scaled = deltascaled - stime_scaled;
 		} else {
-			*stime_scaled = deltascaled;
+			stime_scaled = deltascaled;
 		}
 	}
 	acct->utime_scaled += utime_scaled;
+#endif
+
+	return stime_scaled;
+}
+
+static unsigned long vtime_delta(struct task_struct *tsk,
+				 unsigned long *stime_scaled,
+				 unsigned long *steal_time)
+{
+	unsigned long now, stime;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
+
+	WARN_ON_ONCE(!irqs_disabled());
+
+	now = mftb();
+	stime = now - acct->starttime;
+	acct->starttime = now;
+
+	*stime_scaled = vtime_delta_scaled(acct, now, stime);
+
+	*steal_time = calculate_stolen_time(now);
 
 	return stime;
 }
@@ -347,7 +354,9 @@ void vtime_account_system(struct task_struct *tsk)
 
 	if ((tsk->flags & PF_VCPU) && !irq_count()) {
 		acct->gtime += stime;
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 		acct->utime_scaled += stime_scaled;
+#endif
 	} else {
 		if (hardirq_count())
 			acct->hardirq_time += stime;
@@ -356,7 +365,9 @@ void vtime_account_system(struct task_struct *tsk)
 		else
 			acct->stime += stime;
 
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 		acct->stime_scaled += stime_scaled;
+#endif
 	}
 }
 EXPORT_SYMBOL_GPL(vtime_account_system);
@@ -368,6 +379,21 @@ void vtime_account_idle(struct task_struct *tsk)
 
 	stime = vtime_delta(tsk, &stime_scaled, &steal_time);
 	acct->idle_time += stime + steal_time;
+}
+
+static void vtime_flush_scaled(struct task_struct *tsk,
+			       struct cpu_accounting_data *acct)
+{
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
+	if (acct->utime_scaled)
+		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
+	if (acct->stime_scaled)
+		tsk->stimescaled += cputime_to_nsecs(acct->stime_scaled);
+
+	acct->utime_scaled = 0;
+	acct->utime_sspurr = 0;
+	acct->stime_scaled = 0;
+#endif
 }
 
 /*
@@ -384,14 +410,13 @@ void vtime_flush(struct task_struct *tsk)
 	if (acct->utime)
 		account_user_time(tsk, cputime_to_nsecs(acct->utime));
 
-	if (acct->utime_scaled)
-		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
-
 	if (acct->gtime)
 		account_guest_time(tsk, cputime_to_nsecs(acct->gtime));
 
-	if (acct->steal_time)
+	if (IS_ENABLED(CONFIG_PPC_SPLPAR) && acct->steal_time) {
 		account_steal_time(cputime_to_nsecs(acct->steal_time));
+		acct->steal_time = 0;
+	}
 
 	if (acct->idle_time)
 		account_idle_time(cputime_to_nsecs(acct->idle_time));
@@ -399,8 +424,6 @@ void vtime_flush(struct task_struct *tsk)
 	if (acct->stime)
 		account_system_index_time(tsk, cputime_to_nsecs(acct->stime),
 					  CPUTIME_SYSTEM);
-	if (acct->stime_scaled)
-		tsk->stimescaled += cputime_to_nsecs(acct->stime_scaled);
 
 	if (acct->hardirq_time)
 		account_system_index_time(tsk, cputime_to_nsecs(acct->hardirq_time),
@@ -409,32 +432,15 @@ void vtime_flush(struct task_struct *tsk)
 		account_system_index_time(tsk, cputime_to_nsecs(acct->softirq_time),
 					  CPUTIME_SOFTIRQ);
 
+	vtime_flush_scaled(tsk, acct);
+
 	acct->utime = 0;
-	acct->utime_scaled = 0;
-	acct->utime_sspurr = 0;
 	acct->gtime = 0;
-	acct->steal_time = 0;
 	acct->idle_time = 0;
 	acct->stime = 0;
-	acct->stime_scaled = 0;
 	acct->hardirq_time = 0;
 	acct->softirq_time = 0;
 }
-
-#ifdef CONFIG_PPC32
-/*
- * Called from the context switch with interrupts disabled, to charge all
- * accumulated times to the current process, and to prepare accounting on
- * the next process.
- */
-void arch_vtime_task_switch(struct task_struct *prev)
-{
-	struct cpu_accounting_data *acct = get_accounting(current);
-
-	acct->starttime = get_accounting(prev)->starttime;
-	acct->startspurr = get_accounting(prev)->startspurr;
-}
-#endif /* CONFIG_PPC32 */
 
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 #define calc_cputime_factors()
@@ -513,6 +519,35 @@ static inline void clear_irq_work_pending(void)
 		"i" (offsetof(struct paca_struct, irq_work_pending)));
 }
 
+void arch_irq_work_raise(void)
+{
+	preempt_disable();
+	set_irq_work_pending_flag();
+	/*
+	 * Non-nmi code running with interrupts disabled will replay
+	 * irq_happened before it re-enables interrupts, so setthe
+	 * decrementer there instead of causing a hardware exception
+	 * which would immediately hit the masked interrupt handler
+	 * and have the net effect of setting the decrementer in
+	 * irq_happened.
+	 *
+	 * NMI interrupts can not check this when they return, so the
+	 * decrementer hardware exception is raised, which will fire
+	 * when interrupts are next enabled.
+	 *
+	 * BookE does not support this yet, it must audit all NMI
+	 * interrupt handlers to ensure they call nmi_enter() so this
+	 * check would be correct.
+	 */
+	if (IS_ENABLED(CONFIG_BOOKE) || !irqs_disabled() || in_nmi()) {
+		set_dec(1);
+	} else {
+		hard_irq_disable();
+		local_paca->irq_happened |= PACA_IRQ_DEC;
+	}
+	preempt_enable();
+}
+
 #else /* 32-bit */
 
 DEFINE_PER_CPU(u8, irq_work_pending);
@@ -520,8 +555,6 @@ DEFINE_PER_CPU(u8, irq_work_pending);
 #define set_irq_work_pending_flag()	__this_cpu_write(irq_work_pending, 1)
 #define test_irq_work_pending()		__this_cpu_read(irq_work_pending)
 #define clear_irq_work_pending()	__this_cpu_write(irq_work_pending, 0)
-
-#endif /* 32 vs 64 bit */
 
 void arch_irq_work_raise(void)
 {
@@ -531,6 +564,8 @@ void arch_irq_work_raise(void)
 	preempt_enable();
 }
 
+#endif /* 32 vs 64 bit */
+
 #else  /* CONFIG_IRQ_WORK */
 
 #define test_irq_work_pending()	0
@@ -538,13 +573,53 @@ void arch_irq_work_raise(void)
 
 #endif /* CONFIG_IRQ_WORK */
 
-static void __timer_interrupt(void)
+/*
+ * timer_interrupt - gets called when the decrementer overflows,
+ * with interrupts disabled.
+ */
+void timer_interrupt(struct pt_regs *regs)
 {
-	struct pt_regs *regs = get_irq_regs();
-	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
 	struct clock_event_device *evt = this_cpu_ptr(&decrementers);
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
+	struct pt_regs *old_regs;
 	u64 now;
 
+	/* Some implementations of hotplug will get timer interrupts while
+	 * offline, just ignore these and we also need to set
+	 * decrementers_next_tb as MAX to make sure __check_irq_replay
+	 * don't replay timer interrupt when return, otherwise we'll trap
+	 * here infinitely :(
+	 */
+	if (unlikely(!cpu_online(smp_processor_id()))) {
+		*next_tb = ~(u64)0;
+		set_dec(decrementer_max);
+		return;
+	}
+
+	/* Ensure a positive value is written to the decrementer, or else
+	 * some CPUs will continue to take decrementer exceptions. When the
+	 * PPC_WATCHDOG (decrementer based) is configured, keep this at most
+	 * 31 bits, which is about 4 seconds on most systems, which gives
+	 * the watchdog a chance of catching timer interrupt hard lockups.
+	 */
+	if (IS_ENABLED(CONFIG_PPC_WATCHDOG))
+		set_dec(0x7fffffff);
+	else
+		set_dec(decrementer_max);
+
+	/* Conditionally hard-enable interrupts now that the DEC has been
+	 * bumped to its maximum value
+	 */
+	may_hard_irq_enable();
+
+
+#if defined(CONFIG_PPC32) && defined(CONFIG_PPC_PMAC)
+	if (atomic_read(&ppc_n_lost_interrupts) != 0)
+		do_IRQ(regs);
+#endif
+
+	old_regs = set_irq_regs(regs);
+	irq_enter();
 	trace_timer_interrupt_entry(regs);
 
 	if (test_irq_work_pending()) {
@@ -568,61 +643,22 @@ static void __timer_interrupt(void)
 		__this_cpu_inc(irq_stat.timer_irqs_others);
 	}
 
-#ifdef CONFIG_PPC64
-	/* collect purr register values often, for accurate calculations */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		struct cpu_usage *cu = this_cpu_ptr(&cpu_usage_array);
-		cu->current_tb = mfspr(SPRN_PURR);
-	}
-#endif
-
 	trace_timer_interrupt_exit(regs);
-}
-
-/*
- * timer_interrupt - gets called when the decrementer overflows,
- * with interrupts disabled.
- */
-void timer_interrupt(struct pt_regs * regs)
-{
-	struct pt_regs *old_regs;
-	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
-
-	/* Ensure a positive value is written to the decrementer, or else
-	 * some CPUs will continue to take decrementer exceptions.
-	 */
-	set_dec(decrementer_max);
-
-	/* Some implementations of hotplug will get timer interrupts while
-	 * offline, just ignore these and we also need to set
-	 * decrementers_next_tb as MAX to make sure __check_irq_replay
-	 * don't replay timer interrupt when return, otherwise we'll trap
-	 * here infinitely :(
-	 */
-	if (!cpu_online(smp_processor_id())) {
-		*next_tb = ~(u64)0;
-		return;
-	}
-
-	/* Conditionally hard-enable interrupts now that the DEC has been
-	 * bumped to its maximum value
-	 */
-	may_hard_irq_enable();
-
-
-#if defined(CONFIG_PPC32) && defined(CONFIG_PPC_PMAC)
-	if (atomic_read(&ppc_n_lost_interrupts) != 0)
-		do_IRQ(regs);
-#endif
-
-	old_regs = set_irq_regs(regs);
-	irq_enter();
-
-	__timer_interrupt();
 	irq_exit();
 	set_irq_regs(old_regs);
 }
 EXPORT_SYMBOL(timer_interrupt);
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+void timer_broadcast_interrupt(void)
+{
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
+
+	*next_tb = ~(u64)0;
+	tick_receive_broadcast();
+	__this_cpu_inc(irq_stat.broadcast_irqs_event);
+}
+#endif
 
 /*
  * Hypervisor decrementer interrupts shouldn't occur but are sometimes
@@ -781,21 +817,19 @@ void __init generic_calibrate_decr(void)
 	}
 }
 
-int update_persistent_clock(struct timespec now)
+int update_persistent_clock64(struct timespec64 now)
 {
 	struct rtc_time tm;
 
 	if (!ppc_md.set_rtc_time)
 		return -ENODEV;
 
-	to_tm(now.tv_sec + 1 + timezone_offset, &tm);
-	tm.tm_year -= 1900;
-	tm.tm_mon -= 1;
+	rtc_time64_to_tm(now.tv_sec + 1 + timezone_offset, &tm);
 
 	return ppc_md.set_rtc_time(&tm);
 }
 
-static void __read_persistent_clock(struct timespec *ts)
+static void __read_persistent_clock(struct timespec64 *ts)
 {
 	struct rtc_time tm;
 	static int first = 1;
@@ -819,11 +853,10 @@ static void __read_persistent_clock(struct timespec *ts)
 	}
 	ppc_md.get_rtc_time(&tm);
 
-	ts->tv_sec = mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
-			    tm.tm_hour, tm.tm_min, tm.tm_sec);
+	ts->tv_sec = rtc_tm_to_time64(&tm);
 }
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	__read_persistent_clock(ts);
 
@@ -971,15 +1004,6 @@ static int decrementer_shutdown(struct clock_event_device *dev)
 	return 0;
 }
 
-/* Interrupt handler for the timer broadcast IPI */
-void tick_broadcast_ipi_handler(void)
-{
-	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
-
-	*next_tb = get_tb_or_rtc();
-	__timer_interrupt();
-}
-
 static void register_decrementer_clockevent(int cpu)
 {
 	struct clock_event_device *dec = &per_cpu(decrementers, cpu);
@@ -987,10 +1011,14 @@ static void register_decrementer_clockevent(int cpu)
 	*dec = decrementer_clockevent;
 	dec->cpumask = cpumask_of(cpu);
 
+	clockevents_config_and_register(dec, ppc_tb_freq, 2, decrementer_max);
+
 	printk_once(KERN_DEBUG "clockevent: %s mult[%x] shift[%d] cpu[%d]\n",
 		    dec->name, dec->mult, dec->shift, cpu);
 
-	clockevents_register_device(dec);
+	/* Set values for KVM, see kvm_emulate_dec() */
+	decrementer_clockevent.mult = dec->mult;
+	decrementer_clockevent.shift = dec->shift;
 }
 
 static void enable_large_decrementer(void)
@@ -1038,18 +1066,7 @@ static void __init set_decrementer_max(void)
 
 static void __init init_decrementer_clockevent(void)
 {
-	int cpu = smp_processor_id();
-
-	clockevents_calc_mult_shift(&decrementer_clockevent, ppc_tb_freq, 4);
-
-	decrementer_clockevent.max_delta_ns =
-		clockevent_delta2ns(decrementer_max, &decrementer_clockevent);
-	decrementer_clockevent.max_delta_ticks = decrementer_max;
-	decrementer_clockevent.min_delta_ns =
-		clockevent_delta2ns(2, &decrementer_clockevent);
-	decrementer_clockevent.min_delta_ticks = 2;
-
-	register_decrementer_clockevent(cpu);
+	register_decrementer_clockevent(smp_processor_id());
 }
 
 void secondary_cpu_time_init(void)
@@ -1140,56 +1157,6 @@ void __init time_init(void)
 	of_clk_init(NULL);
 #endif
 }
-
-
-#define FEBRUARY	2
-#define	STARTOFTIME	1970
-#define SECDAY		86400L
-#define SECYR		(SECDAY * 365)
-#define	leapyear(year)		((year) % 4 == 0 && \
-				 ((year) % 100 != 0 || (year) % 400 == 0))
-#define	days_in_year(a) 	(leapyear(a) ? 366 : 365)
-#define	days_in_month(a) 	(month_days[(a) - 1])
-
-static int month_days[12] = {
-	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-};
-
-void to_tm(int tim, struct rtc_time * tm)
-{
-	register int    i;
-	register long   hms, day;
-
-	day = tim / SECDAY;
-	hms = tim % SECDAY;
-
-	/* Hours, minutes, seconds are easy */
-	tm->tm_hour = hms / 3600;
-	tm->tm_min = (hms % 3600) / 60;
-	tm->tm_sec = (hms % 3600) % 60;
-
-	/* Number of years in days */
-	for (i = STARTOFTIME; day >= days_in_year(i); i++)
-		day -= days_in_year(i);
-	tm->tm_year = i;
-
-	/* Number of months in days left */
-	if (leapyear(tm->tm_year))
-		days_in_month(FEBRUARY) = 29;
-	for (i = 1; day >= days_in_month(i); i++)
-		day -= days_in_month(i);
-	days_in_month(FEBRUARY) = 28;
-	tm->tm_mon = i;
-
-	/* Days are what is left over (+1) from all that. */
-	tm->tm_mday = day + 1;
-
-	/*
-	 * No-one uses the day of the week.
-	 */
-	tm->tm_wday = -1;
-}
-EXPORT_SYMBOL(to_tm);
 
 /*
  * Divide a 128-bit dividend by a 32-bit divisor, leaving a 128 bit

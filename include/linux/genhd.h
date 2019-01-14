@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/percpu-refcount.h>
 #include <linux/uuid.h>
+#include <linux/blk_types.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -82,10 +83,10 @@ struct partition {
 } __attribute__((packed));
 
 struct disk_stats {
-	unsigned long sectors[2];	/* READs and WRITEs */
-	unsigned long ios[2];
-	unsigned long merges[2];
-	unsigned long ticks[2];
+	u64 nsecs[NR_STAT_GROUPS];
+	unsigned long sectors[NR_STAT_GROUPS];
+	unsigned long ios[NR_STAT_GROUPS];
+	unsigned long merges[NR_STAT_GROUPS];
 	unsigned long io_ticks;
 	unsigned long time_in_queue;
 };
@@ -353,6 +354,14 @@ static inline void free_part_stats(struct hd_struct *part)
 
 #endif /* CONFIG_SMP */
 
+#define part_stat_read_msecs(part, which)				\
+	div_u64(part_stat_read(part, nsecs[which]), NSEC_PER_MSEC)
+
+#define part_stat_read_accum(part, field)				\
+	(part_stat_read(part, field[STAT_READ]) +			\
+	 part_stat_read(part, field[STAT_WRITE]) +			\
+	 part_stat_read(part, field[STAT_DISCARD]))
+
 #define part_stat_add(cpu, part, field, addnd)	do {			\
 	__part_stat_add((cpu), (part), field, addnd);			\
 	if ((part)->partno)						\
@@ -393,10 +402,11 @@ static inline void free_part_info(struct hd_struct *part)
 extern void part_round_stats(struct request_queue *q, int cpu, struct hd_struct *part);
 
 /* block/genhd.c */
-extern void device_add_disk(struct device *parent, struct gendisk *disk);
+extern void device_add_disk(struct device *parent, struct gendisk *disk,
+			    const struct attribute_group **groups);
 static inline void add_disk(struct gendisk *disk)
 {
-	device_add_disk(NULL, disk);
+	device_add_disk(NULL, disk, NULL);
 }
 extern void device_add_disk_no_queue_reg(struct device *parent, struct gendisk *disk);
 static inline void add_disk_no_queue_reg(struct gendisk *disk)

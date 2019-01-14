@@ -97,7 +97,6 @@ struct gb_loopback {
 	u32 timeout_min;
 	u32 timeout_max;
 	u32 outstanding_operations_max;
-	u32 lbid;
 	u64 elapsed_nsecs;
 	u32 apbridge_latency_ts;
 	u32 gbphy_latency_ts;
@@ -1014,16 +1013,9 @@ static int gb_loopback_bus_id_compare(void *priv, struct list_head *lha,
 
 static void gb_loopback_insert_id(struct gb_loopback *gb)
 {
-	struct gb_loopback *gb_list;
-	u32 new_lbid = 0;
-
 	/* perform an insertion sort */
 	list_add_tail(&gb->entry, &gb_dev.list);
 	list_sort(NULL, &gb_dev.list, gb_loopback_bus_id_compare);
-	list_for_each_entry(gb_list, &gb_dev.list, entry) {
-		gb_list->lbid = 1 << new_lbid;
-		new_lbid++;
-	}
 }
 
 #define DEBUGFS_NAMELEN 32

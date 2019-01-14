@@ -31,7 +31,6 @@
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_host.h>
@@ -195,7 +194,16 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p, r);
 
-	kvm_set_way_flush(vcpu);
+	/*
+	 * Only track S/W ops if we don't have FWB. It still indicates
+	 * that the guest is a bit broken (S/W operations should only
+	 * be done by firmware, knowing that there is only a single
+	 * CPU left in the system, and certainly not from non-secure
+	 * software).
+	 */
+	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
+		kvm_set_way_flush(vcpu);
+
 	return true;
 }
 
@@ -244,10 +252,43 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 			   struct sys_reg_params *p,
 			   const struct sys_reg_desc *r)
 {
+	bool g1;
+
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p, r);
 
-	vgic_v3_dispatch_sgi(vcpu, p->regval);
+	/*
+	 * In a system where GICD_CTLR.DS=1, a ICC_SGI0R_EL1 access generates
+	 * Group0 SGIs only, while ICC_SGI1R_EL1 can generate either group,
+	 * depending on the SGI configuration. ICC_ASGI1R_EL1 is effectively
+	 * equivalent to ICC_SGI0R_EL1, as there is no "alternative" secure
+	 * group.
+	 */
+	if (p->is_aarch32) {
+		switch (p->Op1) {
+		default:		/* Keep GCC quiet */
+		case 0:			/* ICC_SGI1R */
+			g1 = true;
+			break;
+		case 1:			/* ICC_ASGI1R */
+		case 2:			/* ICC_SGI0R */
+			g1 = false;
+			break;
+		}
+	} else {
+		switch (p->Op2) {
+		default:		/* Keep GCC quiet */
+		case 5:			/* ICC_SGI1R_EL1 */
+			g1 = true;
+			break;
+		case 6:			/* ICC_ASGI1R_EL1 */
+		case 7:			/* ICC_SGI0R_EL1 */
+			g1 = false;
+			break;
+		}
+	}
+
+	vgic_v3_dispatch_sgi(vcpu, p->regval, g1);
 
 	return true;
 }
@@ -338,7 +379,7 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 {
 	if (p->is_write) {
 		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
-		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 	} else {
 		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
 	}
@@ -369,7 +410,7 @@ static void reg_to_dbg(struct kvm_vcpu *vcpu,
 	}
 
 	*dbg_reg = val;
-	vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+	vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
@@ -1304,6 +1345,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_ICC_DIR_EL1), read_from_write_only },
 	{ SYS_DESC(SYS_ICC_RPR_EL1), write_to_read_only },
 	{ SYS_DESC(SYS_ICC_SGI1R_EL1), access_gic_sgi },
+	{ SYS_DESC(SYS_ICC_ASGI1R_EL1), access_gic_sgi },
+	{ SYS_DESC(SYS_ICC_SGI0R_EL1), access_gic_sgi },
 	{ SYS_DESC(SYS_ICC_IAR1_EL1), write_to_read_only },
 	{ SYS_DESC(SYS_ICC_EOIR1_EL1), read_from_write_only },
 	{ SYS_DESC(SYS_ICC_HPPIR1_EL1), write_to_read_only },
@@ -1441,7 +1484,7 @@ static bool trap_debug32(struct kvm_vcpu *vcpu,
 {
 	if (p->is_write) {
 		vcpu_cp14(vcpu, r->reg) = p->regval;
-		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 	} else {
 		p->regval = vcpu_cp14(vcpu, r->reg);
 	}
@@ -1473,7 +1516,7 @@ static bool trap_xvr(struct kvm_vcpu *vcpu,
 		val |= p->regval << 32;
 		*dbg_reg = val;
 
-		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 	} else {
 		p->regval = *dbg_reg >> 32;
 	}
@@ -1614,8 +1657,6 @@ static const struct sys_reg_desc cp14_64_regs[] = {
  * register).
  */
 static const struct sys_reg_desc cp15_regs[] = {
-	{ Op1( 0), CRn( 0), CRm(12), Op2( 0), access_gic_sgi },
-
 	{ Op1( 0), CRn( 1), CRm( 0), Op2( 0), access_vm_reg, NULL, c1_SCTLR },
 	{ Op1( 0), CRn( 2), CRm( 0), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
 	{ Op1( 0), CRn( 2), CRm( 0), Op2( 1), access_vm_reg, NULL, c2_TTBR1 },
@@ -1738,8 +1779,10 @@ static const struct sys_reg_desc cp15_regs[] = {
 static const struct sys_reg_desc cp15_64_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
 	{ Op1( 0), CRn( 0), CRm( 9), Op2( 0), access_pmu_evcntr },
-	{ Op1( 0), CRn( 0), CRm(12), Op2( 0), access_gic_sgi },
+	{ Op1( 0), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_SGI1R */
 	{ Op1( 1), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, c2_TTBR1 },
+	{ Op1( 1), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_ASGI1R */
+	{ Op1( 2), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_SGI0R */
 	{ Op1( 2), CRn( 0), CRm(14), Op2( 0), access_cntp_cval },
 };
 

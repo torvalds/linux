@@ -4,6 +4,8 @@ comment "Linux Kernel Configuration for Hexagon"
 
 config HEXAGON
 	def_bool y
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_NO_PREEMPT
 	select HAVE_OPROFILE
 	# Other pending projects/to-do items.
 	# select HAVE_REGS_AND_STACK_ACCESS_API
@@ -19,6 +21,8 @@ config HEXAGON
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
+	select ARCH_DISCARD_MEMBLOCK
+	select NEED_SG_DMA_LENGTH
 	select NO_IOPORT_MAP
 	select GENERIC_IOMAP
 	select GENERIC_SMP_IDLE_THREAD
@@ -27,6 +31,7 @@ config HEXAGON
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select MODULES_USE_ELF_RELA
 	select GENERIC_CPU_DEVICES
+	select DMA_DIRECT_OPS
 	---help---
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
@@ -61,9 +66,6 @@ config GENERIC_CSUM
 # Use the generic interrupt handling code in kernel/irq/:
 #
 config GENERIC_IRQ_PROBE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
 	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
@@ -148,26 +150,6 @@ config PAGE_SIZE_256KB
 
 endchoice
 
-source "mm/Kconfig"
-
 source "kernel/Kconfig.hz"
 
-endmenu
-
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
-source "drivers/Kconfig"
-source "fs/Kconfig"
-
-menu "Executable File Formats"
-source "fs/Kconfig.binfmt"
-endmenu
-
-source "net/Kconfig"
-source "security/Kconfig"
-source "crypto/Kconfig"
-source "lib/Kconfig"
-
-menu "Kernel hacking"
-source "lib/Kconfig.debug"
 endmenu

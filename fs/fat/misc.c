@@ -7,6 +7,7 @@
  */
 
 #include "fat.h"
+#include <linux/iversion.h>
 
 /*
  * fat_fs_error reports a file system problem that might indicate fa data
@@ -180,17 +181,25 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 #define IS_LEAP_YEAR(y)	(!((y) & 3) && (y) != YEAR_2100)
 
 /* Linear day numbers of the respective 1sts in non-leap years. */
-static time_t days_in_year[] = {
+static long days_in_year[] = {
 	/* Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sep  Oct  Nov  Dec */
 	0,   0,  31,  59,  90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0,
 };
 
+static inline int fat_tz_offset(struct msdos_sb_info *sbi)
+{
+	return (sbi->options.tz_set ?
+	       -sbi->options.time_offset :
+	       sys_tz.tz_minuteswest) * SECS_PER_MIN;
+}
+
 /* Convert a FAT time/date pair to a UNIX date (seconds since 1 1 70). */
-void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,
+void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec64 *ts,
 		       __le16 __time, __le16 __date, u8 time_cs)
 {
 	u16 time = le16_to_cpu(__time), date = le16_to_cpu(__date);
-	time_t second, day, leap_day, month, year;
+	time64_t second;
+	long day, leap_day, month, year;
 
 	year  = date >> 9;
 	month = max(1, (date >> 5) & 0xf);
@@ -205,14 +214,11 @@ void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,
 	second =  (time & 0x1f) << 1;
 	second += ((time >> 5) & 0x3f) * SECS_PER_MIN;
 	second += (time >> 11) * SECS_PER_HOUR;
-	second += (year * 365 + leap_day
+	second += (time64_t)(year * 365 + leap_day
 		   + days_in_year[month] + day
 		   + DAYS_DELTA) * SECS_PER_DAY;
 
-	if (!sbi->options.tz_set)
-		second += sys_tz.tz_minuteswest * SECS_PER_MIN;
-	else
-		second -= sbi->options.time_offset * SECS_PER_MIN;
+	second += fat_tz_offset(sbi);
 
 	if (time_cs) {
 		ts->tv_sec = second + (time_cs / 100);
@@ -224,13 +230,11 @@ void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,
 }
 
 /* Convert linear UNIX date to a FAT time/date pair. */
-void fat_time_unix2fat(struct msdos_sb_info *sbi, struct timespec *ts,
+void fat_time_unix2fat(struct msdos_sb_info *sbi, struct timespec64 *ts,
 		       __le16 *time, __le16 *date, u8 *time_cs)
 {
 	struct tm tm;
-	time_to_tm(ts->tv_sec,
-		   (sbi->options.tz_set ? sbi->options.time_offset :
-		   -sys_tz.tz_minuteswest) * SECS_PER_MIN, &tm);
+	time64_to_tm(ts->tv_sec, -fat_tz_offset(sbi), &tm);
 
 	/*  FAT can only support year between 1980 to 2107 */
 	if (tm.tm_year < 1980 - 1900) {
@@ -261,6 +265,80 @@ void fat_time_unix2fat(struct msdos_sb_info *sbi, struct timespec *ts,
 		*time_cs = (ts->tv_sec & 1) * 100 + ts->tv_nsec / 10000000;
 }
 EXPORT_SYMBOL_GPL(fat_time_unix2fat);
+
+static inline struct timespec64 fat_timespec64_trunc_2secs(struct timespec64 ts)
+{
+	return (struct timespec64){ ts.tv_sec & ~1ULL, 0 };
+}
+/*
+ * truncate the various times with appropriate granularity:
+ *   root inode:
+ *     all times always 0
+ *   all other inodes:
+ *     mtime - 2 seconds
+ *     ctime
+ *       msdos - 2 seconds
+ *       vfat  - 10 milliseconds
+ *     atime - 24 hours (00:00:00 in local timezone)
+ */
+int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct timespec64 ts;
+
+	if (inode->i_ino == MSDOS_ROOT_INO)
+		return 0;
+
+	if (now == NULL) {
+		now = &ts;
+		ts = current_time(inode);
+	}
+
+	if (flags & S_ATIME) {
+		/* to localtime */
+		time64_t seconds = now->tv_sec - fat_tz_offset(sbi);
+		s32 remainder;
+
+		div_s64_rem(seconds, SECS_PER_DAY, &remainder);
+		/* to day boundary, and back to unix time */
+		seconds = seconds + fat_tz_offset(sbi) - remainder;
+
+		inode->i_atime = (struct timespec64){ seconds, 0 };
+	}
+	if (flags & S_CTIME) {
+		if (sbi->options.isvfat)
+			inode->i_ctime = timespec64_trunc(*now, 10000000);
+		else
+			inode->i_ctime = fat_timespec64_trunc_2secs(*now);
+	}
+	if (flags & S_MTIME)
+		inode->i_mtime = fat_timespec64_trunc_2secs(*now);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fat_truncate_time);
+
+int fat_update_time(struct inode *inode, struct timespec64 *now, int flags)
+{
+	int iflags = I_DIRTY_TIME;
+	bool dirty = false;
+
+	if (inode->i_ino == MSDOS_ROOT_INO)
+		return 0;
+
+	fat_truncate_time(inode, now, flags);
+	if (flags & S_VERSION)
+		dirty = inode_maybe_inc_iversion(inode, false);
+	if ((flags & (S_ATIME | S_CTIME | S_MTIME)) &&
+	    !(inode->i_sb->s_flags & SB_LAZYTIME))
+		dirty = true;
+
+	if (dirty)
+		iflags |= I_DIRTY_SYNC;
+	__mark_inode_dirty(inode, iflags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fat_update_time);
 
 int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs)
 {

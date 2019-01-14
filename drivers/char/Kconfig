@@ -81,7 +81,7 @@ config PRINTER
 	  corresponding drivers into the kernel.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/parport.txt>.  The module will be called lp.
+	  <file:Documentation/admin-guide/parport.rst>.  The module will be called lp.
 
 	  If you have several parallel ports, you can specify which ports to
 	  use with the "lp" kernel command line option.  (Try "man bootparam"
@@ -268,7 +268,7 @@ if RTC_LIB=n
 
 config RTC
 	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
-	depends on ALPHA || (MIPS && MACH_LOONGSON64)
+	depends on ALPHA
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -540,5 +540,31 @@ source "drivers/s390/char/Kconfig"
 
 source "drivers/char/xillybus/Kconfig"
 
+config ADI
+	tristate "SPARC Privileged ADI driver"
+	depends on SPARC64
+	default m
+	help
+	  SPARC M7 and newer processors utilize ADI (Application Data
+	  Integrity) to version and protect memory.  This driver provides
+	  read/write access to the ADI versions for privileged processes.
+	  This feature is also known as MCD (Memory Corruption Detection)
+	  and SSM (Silicon Secured Memory).  Intended consumers of this
+	  driver include crash and makedumpfile.
+
 endmenu
 
+config RANDOM_TRUST_CPU
+	bool "Trust the CPU manufacturer to initialize Linux's CRNG"
+	depends on X86 || S390 || PPC
+	default n
+	help
+	Assume that CPU manufacturer (e.g., Intel or AMD for RDSEED or
+	RDRAND, IBM for the S390 and Power PC architectures) is trustworthy
+	for the purposes of initializing Linux's CRNG.  Since this is not
+	something that can be independently audited, this amounts to trusting
+	that CPU manufacturer (perhaps with the insistence or mandate
+	of a Nation State's intelligence or law enforcement agencies)
+	has not installed a hidden back door to compromise the CPU's
+	random number generation facilities. This can also be configured
+	at boot with "random.trust_cpu=on/off".

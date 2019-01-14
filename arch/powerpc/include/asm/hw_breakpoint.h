@@ -52,16 +52,20 @@ struct arch_hw_breakpoint {
 #include <asm/reg.h>
 #include <asm/debug.h>
 
+struct perf_event_attr;
 struct perf_event;
 struct pmu;
 struct perf_sample_data;
+struct task_struct;
 
 #define HW_BREAKPOINT_ALIGN 0x7
 
 extern int hw_breakpoint_slots(int type);
 extern int arch_bp_generic_fields(int type, int *gen_bp_type);
-extern int arch_check_bp_in_kernelspace(struct perf_event *bp);
-extern int arch_validate_hwbkpt_settings(struct perf_event *bp);
+extern int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
+extern int hw_breakpoint_arch_parse(struct perf_event *bp,
+				    const struct perf_event_attr *attr,
+				    struct arch_hw_breakpoint *hw);
 extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 						unsigned long val, void *data);
 int arch_install_hw_breakpoint(struct perf_event *bp);

@@ -1363,7 +1363,7 @@ static int dn_dev_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%-8s %1s     %04u %04u   %04lu %04lu"
 				"   %04hu    %03d %02x    %-10s %-7s %-7s\n",
-				dev->name ? dev->name : "???",
+				dev->name,
 				dn_type2asc(dn_db->parms.mode),
 				0, 0,
 				dn_db->t3, dn_db->parms.t3,
@@ -1382,19 +1382,6 @@ static const struct seq_operations dn_dev_seq_ops = {
 	.stop	= dn_dev_seq_stop,
 	.show	= dn_dev_seq_show,
 };
-
-static int dn_dev_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &dn_dev_seq_ops);
-}
-
-static const struct file_operations dn_dev_seq_fops = {
-	.open	 = dn_dev_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
-};
-
 #endif /* CONFIG_PROC_FS */
 
 static int addr[2];
@@ -1424,7 +1411,7 @@ void __init dn_dev_init(void)
 	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETADDR,
 			     NULL, dn_nl_dump_ifaddr, 0);
 
-	proc_create("decnet_dev", 0444, init_net.proc_net, &dn_dev_seq_fops);
+	proc_create_seq("decnet_dev", 0444, init_net.proc_net, &dn_dev_seq_ops);
 
 #ifdef CONFIG_SYSCTL
 	{

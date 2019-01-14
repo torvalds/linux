@@ -55,37 +55,12 @@ static inline void __exynos_iommu_detach(struct exynos_drm_private *priv,
 static inline int __exynos_iommu_create_mapping(struct exynos_drm_private *priv,
 					unsigned long start, unsigned long size)
 {
-	struct iommu_domain *domain;
-	int ret;
-
-	domain = iommu_domain_alloc(priv->dma_dev->bus);
-	if (!domain)
-		return -ENOMEM;
-
-	ret = iommu_get_dma_cookie(domain);
-	if (ret)
-		goto free_domain;
-
-	ret = iommu_dma_init_domain(domain, start, size, NULL);
-	if (ret)
-		goto put_cookie;
-
-	priv->mapping = domain;
+	priv->mapping = iommu_get_domain_for_dev(priv->dma_dev);
 	return 0;
-
-put_cookie:
-	iommu_put_dma_cookie(domain);
-free_domain:
-	iommu_domain_free(domain);
-	return ret;
 }
 
 static inline void __exynos_iommu_release_mapping(struct exynos_drm_private *priv)
 {
-	struct iommu_domain *domain = priv->mapping;
-
-	iommu_put_dma_cookie(domain);
-	iommu_domain_free(domain);
 	priv->mapping = NULL;
 }
 
@@ -94,7 +69,9 @@ static inline int __exynos_iommu_attach(struct exynos_drm_private *priv,
 {
 	struct iommu_domain *domain = priv->mapping;
 
-	return iommu_attach_device(domain, dev);
+	if (dev != priv->dma_dev)
+		return iommu_attach_device(domain, dev);
+	return 0;
 }
 
 static inline void __exynos_iommu_detach(struct exynos_drm_private *priv,
@@ -102,7 +79,8 @@ static inline void __exynos_iommu_detach(struct exynos_drm_private *priv,
 {
 	struct iommu_domain *domain = priv->mapping;
 
-	iommu_detach_device(domain, dev);
+	if (dev != priv->dma_dev)
+		iommu_detach_device(domain, dev);
 }
 #else
 #error Unsupported architecture and IOMMU/DMA-mapping glue code

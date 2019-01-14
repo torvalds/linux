@@ -72,7 +72,6 @@ static struct shash_alg sm3_alg = {
 	.descsize		= sizeof(struct sm3_state),
 	.base.cra_name		= "sm3",
 	.base.cra_driver_name	= "sm3-ce",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SM3_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,

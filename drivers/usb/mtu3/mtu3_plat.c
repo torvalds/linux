@@ -447,8 +447,7 @@ static int mtu3_remove(struct platform_device *pdev)
  */
 static int __maybe_unused mtu3_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ssusb_mtk *ssusb = platform_get_drvdata(pdev);
+	struct ssusb_mtk *ssusb = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -466,8 +465,7 @@ static int __maybe_unused mtu3_suspend(struct device *dev)
 
 static int __maybe_unused mtu3_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ssusb_mtk *ssusb = platform_get_drvdata(pdev);
+	struct ssusb_mtk *ssusb = dev_get_drvdata(dev);
 	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);

@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
@@ -115,7 +116,10 @@ static int hns_roce_reserve_range_qp(struct hns_roce_dev *hr_dev, int cnt,
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 
-	return hns_roce_bitmap_alloc_range(&qp_table->bitmap, cnt, align, base);
+	return hns_roce_bitmap_alloc_range(&qp_table->bitmap, cnt, align,
+					   base) ?
+		       -ENOMEM :
+		       0;
 }
 
 enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
@@ -340,6 +344,7 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 {
 	u32 roundup_sq_stride = roundup_pow_of_two(hr_dev->caps.max_sq_desc_sz);
 	u8 max_sq_stride = ilog2(roundup_sq_stride);
+	u32 ex_sge_num;
 	u32 page_size;
 	u32 max_cnt;
 
@@ -369,7 +374,18 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 	if (hr_qp->sq.max_gs > 2)
 		hr_qp->sge.sge_cnt = roundup_pow_of_two(hr_qp->sq.wqe_cnt *
 							(hr_qp->sq.max_gs - 2));
+
+	if ((hr_qp->sq.max_gs > 2) && (hr_dev->pci_dev->revision == 0x20)) {
+		if (hr_qp->sge.sge_cnt > hr_dev->caps.max_extend_sg) {
+			dev_err(hr_dev->dev,
+				"The extended sge cnt error! sge_cnt=%d\n",
+				hr_qp->sge.sge_cnt);
+			return -EINVAL;
+		}
+	}
+
 	hr_qp->sge.sge_shift = 4;
+	ex_sge_num = hr_qp->sge.sge_cnt;
 
 	/* Get buf size, SQ and RQ  are aligned to page_szie */
 	if (hr_dev->caps.max_sq_sg <= 2) {
@@ -383,6 +399,8 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 					     hr_qp->sq.wqe_shift), PAGE_SIZE);
 	} else {
 		page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
+		hr_qp->sge.sge_cnt =
+		       max(page_size / (1 << hr_qp->sge.sge_shift), ex_sge_num);
 		hr_qp->buff_size = HNS_ROCE_ALOGN_UP((hr_qp->rq.wqe_cnt <<
 					     hr_qp->rq.wqe_shift), page_size) +
 				   HNS_ROCE_ALOGN_UP((hr_qp->sge.sge_cnt <<
@@ -391,7 +409,7 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 					     hr_qp->sq.wqe_shift), page_size);
 
 		hr_qp->sq.offset = 0;
-		if (hr_qp->sge.sge_cnt) {
+		if (ex_sge_num) {
 			hr_qp->sge.offset = HNS_ROCE_ALOGN_UP(
 							(hr_qp->sq.wqe_cnt <<
 							hr_qp->sq.wqe_shift),
@@ -462,6 +480,14 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 		hr_qp->sge.sge_shift = 4;
 	}
 
+	if ((hr_qp->sq.max_gs > 2) && hr_dev->pci_dev->revision == 0x20) {
+		if (hr_qp->sge.sge_cnt > hr_dev->caps.max_extend_sg) {
+			dev_err(dev, "The extended sge cnt error! sge_cnt=%d\n",
+				hr_qp->sge.sge_cnt);
+			return -EINVAL;
+		}
+	}
+
 	/* Get buf size, SQ and RQ are aligned to PAGE_SIZE */
 	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
 	hr_qp->sq.offset = 0;
@@ -469,6 +495,8 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				 page_size);
 
 	if (hr_dev->caps.max_sq_sg > 2 && hr_qp->sge.sge_cnt) {
+		hr_qp->sge.sge_cnt = max(page_size/(1 << hr_qp->sge.sge_shift),
+					(u32)hr_qp->sge.sge_cnt);
 		hr_qp->sge.offset = size;
 		size += HNS_ROCE_ALOGN_UP(hr_qp->sge.sge_cnt <<
 					  hr_qp->sge.sge_shift, page_size);
@@ -487,6 +515,14 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	cap->max_inline_data = 0;
 
 	return 0;
+}
+
+static int hns_roce_qp_has_sq(struct ib_qp_init_attr *attr)
+{
+	if (attr->qp_type == IB_QPT_XRC_TGT)
+		return 0;
+
+	return 1;
 }
 
 static int hns_roce_qp_has_rq(struct ib_qp_init_attr *attr)
@@ -613,6 +649,23 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			goto err_mtt;
 		}
 
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
+		    (udata->inlen >= sizeof(ucmd)) &&
+		    (udata->outlen >= sizeof(resp)) &&
+		    hns_roce_qp_has_sq(init_attr)) {
+			ret = hns_roce_db_map_user(
+					to_hr_ucontext(ib_pd->uobject->context),
+					ucmd.sdb_addr, &hr_qp->sdb);
+			if (ret) {
+				dev_err(dev, "sq record doorbell map failed!\n");
+				goto err_mtt;
+			}
+
+			/* indicate kernel supports sq record db */
+			resp.cap_flags |= HNS_ROCE_SUPPORT_SQ_RECORD_DB;
+			hr_qp->sdb_en = 1;
+		}
+
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_rq(init_attr)) {
@@ -621,7 +674,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 					ucmd.db_addr, &hr_qp->rdb);
 			if (ret) {
 				dev_err(dev, "rq record doorbell map failed!\n");
-				goto err_mtt;
+				goto err_sq_dbmap;
 			}
 		}
 	} else {
@@ -734,7 +787,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	if (ib_pd->uobject && (udata->outlen >= sizeof(resp)) &&
 		(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)) {
 
-		/* indicate kernel supports record db */
+		/* indicate kernel supports rq record db */
 		resp.cap_flags |= HNS_ROCE_SUPPORT_RQ_RECORD_DB;
 		ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
 		if (ret)
@@ -769,6 +822,16 @@ err_wrid:
 		kfree(hr_qp->sq.wrid);
 		kfree(hr_qp->rq.wrid);
 	}
+
+err_sq_dbmap:
+	if (ib_pd->uobject)
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
+		    (udata->inlen >= sizeof(ucmd)) &&
+		    (udata->outlen >= sizeof(resp)) &&
+		    hns_roce_qp_has_sq(init_attr))
+			hns_roce_db_unmap_user(
+					to_hr_ucontext(ib_pd->uobject->context),
+					&hr_qp->sdb);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
@@ -903,8 +966,19 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	new_state = attr_mask & IB_QP_STATE ?
 		    attr->qp_state : cur_state;
 
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask,
-				IB_LINK_LAYER_ETHERNET)) {
+	if (ibqp->uobject &&
+	    (attr_mask & IB_QP_STATE) && new_state == IB_QPS_ERR) {
+		if (hr_qp->sdb_en == 1) {
+			hr_qp->sq.head = *(int *)(hr_qp->sdb.virt_addr);
+			hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
+		} else {
+			dev_warn(dev, "flush cqe is not supported in userspace!\n");
+			goto out;
+		}
+	}
+
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
+				attr_mask)) {
 		dev_err(dev, "ib_modify_qp_is_ok failed\n");
 		goto out;
 	}
@@ -1057,14 +1131,20 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 	int reserved_from_top = 0;
+	int reserved_from_bot;
 	int ret;
 
 	spin_lock_init(&qp_table->lock);
 	INIT_RADIX_TREE(&hr_dev->qp_table_tree, GFP_ATOMIC);
 
-	/* A port include two SQP, six port total 12 */
+	/* In hw v1, a port include two SQP, six ports total 12 */
+	if (hr_dev->caps.max_sq_sg <= 2)
+		reserved_from_bot = SQP_NUM;
+	else
+		reserved_from_bot = hr_dev->caps.reserved_qps;
+
 	ret = hns_roce_bitmap_init(&qp_table->bitmap, hr_dev->caps.num_qps,
-				   hr_dev->caps.num_qps - 1, SQP_NUM,
+				   hr_dev->caps.num_qps - 1, reserved_from_bot,
 				   reserved_from_top);
 	if (ret) {
 		dev_err(hr_dev->dev, "qp bitmap init failed!error=%d\n",

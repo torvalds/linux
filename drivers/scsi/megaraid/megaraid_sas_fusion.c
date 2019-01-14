@@ -487,7 +487,7 @@ megasas_alloc_cmdlist_fusion(struct megasas_instance *instance)
 	 * commands.
 	 */
 	fusion->cmd_list =
-		kzalloc(sizeof(struct megasas_cmd_fusion *) * max_mpt_cmd,
+		kcalloc(max_mpt_cmd, sizeof(struct megasas_cmd_fusion *),
 			GFP_KERNEL);
 	if (!fusion->cmd_list) {
 		dev_err(&instance->pdev->dev,
@@ -684,15 +684,14 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 	array_size = sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) *
 		     MAX_MSIX_QUEUES_FUSION;
 
-	fusion->rdpq_virt = pci_alloc_consistent(instance->pdev, array_size,
-						 &fusion->rdpq_phys);
+	fusion->rdpq_virt = dma_zalloc_coherent(&instance->pdev->dev,
+			array_size, &fusion->rdpq_phys, GFP_KERNEL);
 	if (!fusion->rdpq_virt) {
 		dev_err(&instance->pdev->dev,
 			"Failed from %s %d\n",  __func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	memset(fusion->rdpq_virt, 0, array_size);
 	msix_count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
 
 	fusion->reply_frames_desc_pool = dma_pool_create("mr_rdpq",
@@ -814,7 +813,7 @@ megasas_free_rdpq_fusion(struct megasas_instance *instance) {
 		dma_pool_destroy(fusion->reply_frames_desc_pool_align);
 
 	if (fusion->rdpq_virt)
-		pci_free_consistent(instance->pdev,
+		dma_free_coherent(&instance->pdev->dev,
 			sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) * MAX_MSIX_QUEUES_FUSION,
 			fusion->rdpq_virt, fusion->rdpq_phys);
 }
@@ -2210,7 +2209,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		cdb[0] =  MEGASAS_SCSI_VARIABLE_LENGTH_CMD;
 		cdb[7] =  MEGASAS_SCSI_ADDL_CDB_LEN;
 
-		if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
+		if (scp->sc_data_direction == DMA_FROM_DEVICE)
 			cdb[9] = MEGASAS_SCSI_SERVICE_ACTION_READ32;
 		else
 			cdb[9] = MEGASAS_SCSI_SERVICE_ACTION_WRITE32;
@@ -2239,7 +2238,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		cdb[31] = (u8)(num_blocks & 0xff);
 
 		/* set SCSI IO EEDPFlags */
-		if (scp->sc_data_direction == PCI_DMA_FROMDEVICE) {
+		if (scp->sc_data_direction == DMA_FROM_DEVICE) {
 			io_request->EEDPFlags = cpu_to_le16(
 				MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG  |
 				MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
@@ -2622,7 +2621,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	scsi_buff_len = scsi_bufflen(scp);
 	io_request->DataLength = cpu_to_le32(scsi_buff_len);
 
-	if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
+	if (scp->sc_data_direction == DMA_FROM_DEVICE)
 		io_info.isRead = 1;
 
 	local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
@@ -2981,6 +2980,9 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		pRAID_Context->timeout_value = cpu_to_le16(os_timeout_value);
 		pRAID_Context->virtual_disk_tgt_id = cpu_to_le16(device_id);
 	} else {
+		if (os_timeout_value)
+			os_timeout_value++;
+
 		/* system pd Fast Path */
 		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 		timeout_limit = (scmd->device->type == TYPE_DISK) ?
@@ -3086,9 +3088,9 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 
 	io_request->SGLFlags = cpu_to_le16(MPI2_SGE_FLAGS_64_BIT_ADDRESSING);
 
-	if (scp->sc_data_direction == PCI_DMA_TODEVICE)
+	if (scp->sc_data_direction == DMA_TO_DEVICE)
 		io_request->Control |= cpu_to_le32(MPI2_SCSIIO_CONTROL_WRITE);
-	else if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
+	else if (scp->sc_data_direction == DMA_FROM_DEVICE)
 		io_request->Control |= cpu_to_le32(MPI2_SCSIIO_CONTROL_READ);
 
 	io_request->SGLOffset0 =
@@ -4106,7 +4108,8 @@ megasas_tm_response_code(struct megasas_instance *instance,
  */
 static int
 megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
-	uint channel, uint id, u16 smid_task, u8 type)
+	uint channel, uint id, u16 smid_task, u8 type,
+	struct MR_PRIV_DEVICE *mr_device_priv_data)
 {
 	struct MR_TASK_MANAGE_REQUEST *mr_request;
 	struct MPI2_SCSI_TASK_MANAGE_REQUEST *mpi_request;
@@ -4117,6 +4120,7 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 	struct fusion_context *fusion = NULL;
 	struct megasas_cmd_fusion *scsi_lookup;
 	int rc;
+	int timeout = MEGASAS_DEFAULT_TM_TIMEOUT;
 	struct MPI2_SCSI_TASK_MANAGE_REPLY *mpi_reply;
 
 	fusion = instance->ctrl_context;
@@ -4168,7 +4172,16 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 	init_completion(&cmd_fusion->done);
 	megasas_fire_cmd_fusion(instance, req_desc);
 
-	timeleft = wait_for_completion_timeout(&cmd_fusion->done, 50 * HZ);
+	switch (type) {
+	case MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
+		timeout = mr_device_priv_data->task_abort_tmo;
+		break;
+	case MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET:
+		timeout = mr_device_priv_data->target_reset_tmo;
+		break;
+	}
+
+	timeleft = wait_for_completion_timeout(&cmd_fusion->done, timeout * HZ);
 
 	if (!timeleft) {
 		dev_err(&instance->pdev->dev,
@@ -4361,7 +4374,8 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 	mr_device_priv_data->tm_busy = 1;
 	ret = megasas_issue_tm(instance, devhandle,
 			scmd->device->channel, scmd->device->id, smid,
-			MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK);
+			MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
+			mr_device_priv_data);
 	mr_device_priv_data->tm_busy = 0;
 
 	mutex_unlock(&instance->reset_mutex);
@@ -4433,7 +4447,8 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 	mr_device_priv_data->tm_busy = 1;
 	ret = megasas_issue_tm(instance, devhandle,
 			scmd->device->channel, scmd->device->id, 0,
-			MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET);
+			MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
+			mr_device_priv_data);
 	mr_device_priv_data->tm_busy = 0;
 	mutex_unlock(&instance->reset_mutex);
 out:
@@ -4488,6 +4503,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 	u32 io_timeout_in_crash_mode = 0;
 	struct scsi_cmnd *scmd_local = NULL;
 	struct scsi_device *sdev;
+	int ret_target_prop = DCMD_FAILED;
+	bool is_target_prop = false;
 
 	instance = (struct megasas_instance *)shost->hostdata;
 	fusion = instance->ctrl_context;
@@ -4659,9 +4676,6 @@ transition_to_ready:
 
 			megasas_setup_jbod_map(instance);
 
-			shost_for_each_device(sdev, shost)
-				megasas_set_dynamic_target_properties(sdev);
-
 			/* reset stream detection array */
 			if (instance->adapter_type == VENTURA_SERIES) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
@@ -4675,6 +4689,16 @@ transition_to_ready:
 			clear_bit(MEGASAS_FUSION_IN_RESET,
 				  &instance->reset_flags);
 			instance->instancet->enable_intr(instance);
+
+			shost_for_each_device(sdev, shost) {
+				if ((instance->tgt_prop) &&
+				    (instance->nvme_page_size))
+					ret_target_prop = megasas_get_target_prop(instance, sdev);
+
+				is_target_prop = (ret_target_prop == DCMD_SUCCESS) ? true : false;
+				megasas_set_dynamic_target_properties(sdev, is_target_prop);
+			}
+
 			atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
 
 			dev_info(&instance->pdev->dev, "Interrupts are enabled and"
@@ -4827,8 +4851,9 @@ megasas_alloc_fusion_context(struct megasas_instance *instance)
 		(PLD_SPAN_INFO)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 						fusion->log_to_span_pages);
 	if (!fusion->log_to_span) {
-		fusion->log_to_span = vzalloc(MAX_LOGICAL_DRIVES_EXT *
-					      sizeof(LD_SPAN_INFO));
+		fusion->log_to_span =
+			vzalloc(array_size(MAX_LOGICAL_DRIVES_EXT,
+					   sizeof(LD_SPAN_INFO)));
 		if (!fusion->log_to_span) {
 			dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 				__func__, __LINE__);
@@ -4842,8 +4867,9 @@ megasas_alloc_fusion_context(struct megasas_instance *instance)
 		(struct LD_LOAD_BALANCE_INFO *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 		fusion->load_balance_info_pages);
 	if (!fusion->load_balance_info) {
-		fusion->load_balance_info = vzalloc(MAX_LOGICAL_DRIVES_EXT *
-			sizeof(struct LD_LOAD_BALANCE_INFO));
+		fusion->load_balance_info =
+			vzalloc(array_size(MAX_LOGICAL_DRIVES_EXT,
+					   sizeof(struct LD_LOAD_BALANCE_INFO)));
 		if (!fusion->load_balance_info)
 			dev_err(&instance->pdev->dev, "Failed to allocate load_balance_info, "
 				"continuing without Load Balance support\n");

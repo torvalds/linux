@@ -17,16 +17,38 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/of_device.h>
+#include <linux/pm_domain.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 
 #include "opp.h"
 
-static struct opp_table *_managed_opp(const struct device_node *np)
+/*
+ * Returns opp descriptor node for a device node, caller must
+ * do of_node_put().
+ */
+static struct device_node *_opp_of_get_opp_desc_node(struct device_node *np,
+						     int index)
+{
+	/* "operating-points-v2" can be an array for power domain providers */
+	return of_parse_phandle(np, "operating-points-v2", index);
+}
+
+/* Returns opp descriptor node for a device, caller must do of_node_put() */
+struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
+{
+	return _opp_of_get_opp_desc_node(dev->of_node, 0);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
+
+struct opp_table *_managed_opp(struct device *dev, int index)
 {
 	struct opp_table *opp_table, *managed_table = NULL;
+	struct device_node *np;
 
-	mutex_lock(&opp_table_lock);
+	np = _opp_of_get_opp_desc_node(dev->of_node, index);
+	if (!np)
+		return NULL;
 
 	list_for_each_entry(opp_table, &opp_tables, node) {
 		if (opp_table->np == np) {
@@ -46,29 +68,45 @@ static struct opp_table *_managed_opp(const struct device_node *np)
 		}
 	}
 
-	mutex_unlock(&opp_table_lock);
+	of_node_put(np);
 
 	return managed_table;
 }
 
-void _of_init_opp_table(struct opp_table *opp_table, struct device *dev)
+void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
+			int index)
 {
-	struct device_node *np;
+	struct device_node *np, *opp_np;
+	u32 val;
 
 	/*
 	 * Only required for backward compatibility with v1 bindings, but isn't
 	 * harmful for other cases. And so we do it unconditionally.
 	 */
 	np = of_node_get(dev->of_node);
-	if (np) {
-		u32 val;
+	if (!np)
+		return;
 
-		if (!of_property_read_u32(np, "clock-latency", &val))
-			opp_table->clock_latency_ns_max = val;
-		of_property_read_u32(np, "voltage-tolerance",
-				     &opp_table->voltage_tolerance_v1);
-		of_node_put(np);
-	}
+	if (!of_property_read_u32(np, "clock-latency", &val))
+		opp_table->clock_latency_ns_max = val;
+	of_property_read_u32(np, "voltage-tolerance",
+			     &opp_table->voltage_tolerance_v1);
+
+	/* Get OPP table node */
+	opp_np = _opp_of_get_opp_desc_node(np, index);
+	of_node_put(np);
+
+	if (!opp_np)
+		return;
+
+	if (of_property_read_bool(opp_np, "opp-shared"))
+		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
+	else
+		opp_table->shared_opp = OPP_TABLE_ACCESS_EXCLUSIVE;
+
+	opp_table->np = opp_np;
+
+	of_node_put(opp_np);
 }
 
 static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
@@ -244,28 +282,9 @@ free_microvolt:
  */
 void dev_pm_opp_of_remove_table(struct device *dev)
 {
-	_dev_pm_opp_find_and_remove_table(dev, false);
+	_dev_pm_opp_find_and_remove_table(dev);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
-
-/* Returns opp descriptor node for a device node, caller must
- * do of_node_put() */
-static struct device_node *_opp_of_get_opp_desc_node(struct device_node *np)
-{
-	/*
-	 * There should be only ONE phandle present in "operating-points-v2"
-	 * property.
-	 */
-
-	return of_parse_phandle(np, "operating-points-v2", 0);
-}
-
-/* Returns opp descriptor node for a device, caller must do of_node_put() */
-struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
-{
-	return _opp_of_get_opp_desc_node(dev->of_node);
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
 
 /**
  * _opp_add_static_v2() - Allocate static OPPs (As per 'v2' DT bindings)
@@ -278,29 +297,49 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
  * removed by dev_pm_opp_remove.
  *
  * Return:
- * 0		On success OR
+ * Valid OPP pointer:
+ *		On success
+ * NULL:
  *		Duplicate OPPs (both freq and volt are same) and opp->available
- * -EEXIST	Freq are same and volt are different OR
+ *		OR if the OPP is not supported by hardware.
+ * ERR_PTR(-EEXIST):
+ *		Freq are same and volt are different OR
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
- * -ENOMEM	Memory allocation failure
- * -EINVAL	Failed parsing the OPP node
+ * ERR_PTR(-ENOMEM):
+ *		Memory allocation failure
+ * ERR_PTR(-EINVAL):
+ *		Failed parsing the OPP node
  */
-static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
-			      struct device_node *np)
+static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
+		struct device *dev, struct device_node *np)
 {
 	struct dev_pm_opp *new_opp;
-	u64 rate;
+	u64 rate = 0;
 	u32 val;
 	int ret;
+	bool rate_not_available = false;
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	ret = of_property_read_u64(np, "opp-hz", &rate);
 	if (ret < 0) {
-		dev_err(dev, "%s: opp-hz not found\n", __func__);
-		goto free_opp;
+		/* "opp-hz" is optional for devices like power domains. */
+		if (!of_find_property(dev->of_node, "#power-domain-cells",
+				      NULL)) {
+			dev_err(dev, "%s: opp-hz not found\n", __func__);
+			goto free_opp;
+		}
+
+		rate_not_available = true;
+	} else {
+		/*
+		 * Rate is defined as an unsigned long in clk API, and so
+		 * casting explicitly to its type. Must be fixed once rate is 64
+		 * bit guaranteed in clk API.
+		 */
+		new_opp->rate = (unsigned long)rate;
 	}
 
 	/* Check if the OPP supports hardware's hierarchy of versions or not */
@@ -309,12 +348,6 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 		goto free_opp;
 	}
 
-	/*
-	 * Rate is defined as an unsigned long in clk API, and so casting
-	 * explicitly to its type. Must be fixed once rate is 64 bit
-	 * guaranteed in clk API.
-	 */
-	new_opp->rate = (unsigned long)rate;
 	new_opp->turbo = of_property_read_bool(np, "turbo-mode");
 
 	new_opp->np = np;
@@ -324,11 +357,13 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	if (!of_property_read_u32(np, "clock-latency-ns", &val))
 		new_opp->clock_latency_ns = val;
 
+	new_opp->pstate = of_genpd_opp_to_performance_state(dev, np);
+
 	ret = opp_parse_supplies(new_opp, dev, opp_table);
 	if (ret)
 		goto free_opp;
 
-	ret = _opp_add(dev, new_opp, opp_table);
+	ret = _opp_add(dev, new_opp, opp_table, rate_not_available);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)
@@ -361,69 +396,76 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	 * frequency/voltage list.
 	 */
 	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ADD, new_opp);
-	return 0;
+	return new_opp;
 
 free_opp:
 	_opp_free(new_opp);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /* Initializes OPP tables based on new bindings */
-static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
+static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 {
 	struct device_node *np;
-	struct opp_table *opp_table;
-	int ret = 0, count = 0;
+	int ret, count = 0, pstate_count = 0;
+	struct dev_pm_opp *opp;
 
-	opp_table = _managed_opp(opp_np);
-	if (opp_table) {
-		/* OPPs are already managed */
-		if (!_add_opp_dev(dev, opp_table))
-			ret = -ENOMEM;
-		goto put_opp_table;
+	/* OPP table is already initialized for the device */
+	if (opp_table->parsed_static_opps) {
+		kref_get(&opp_table->list_kref);
+		return 0;
 	}
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table)
-		return -ENOMEM;
+	kref_init(&opp_table->list_kref);
 
 	/* We have opp-table node now, iterate over it and add OPPs */
-	for_each_available_child_of_node(opp_np, np) {
-		count++;
-
-		ret = _opp_add_static_v2(opp_table, dev, np);
-		if (ret) {
+	for_each_available_child_of_node(opp_table->np, np) {
+		opp = _opp_add_static_v2(opp_table, dev, np);
+		if (IS_ERR(opp)) {
+			ret = PTR_ERR(opp);
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
-			_dev_pm_opp_remove_table(opp_table, dev, false);
 			of_node_put(np);
-			goto put_opp_table;
+			goto put_list_kref;
+		} else if (opp) {
+			count++;
 		}
 	}
 
 	/* There should be one of more OPP defined */
 	if (WARN_ON(!count)) {
 		ret = -ENOENT;
-		goto put_opp_table;
+		goto put_list_kref;
 	}
 
-	opp_table->np = opp_np;
-	if (of_property_read_bool(opp_np, "opp-shared"))
-		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
-	else
-		opp_table->shared_opp = OPP_TABLE_ACCESS_EXCLUSIVE;
+	list_for_each_entry(opp, &opp_table->opp_list, node)
+		pstate_count += !!opp->pstate;
 
-put_opp_table:
-	dev_pm_opp_put_opp_table(opp_table);
+	/* Either all or none of the nodes shall have performance state set */
+	if (pstate_count && pstate_count != count) {
+		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
+			count, pstate_count);
+		ret = -ENOENT;
+		goto put_list_kref;
+	}
+
+	if (pstate_count)
+		opp_table->genpd_performance_state = true;
+
+	opp_table->parsed_static_opps = true;
+
+	return 0;
+
+put_list_kref:
+	_put_opp_list_kref(opp_table);
 
 	return ret;
 }
 
 /* Initializes OPP tables based on old-deprecated bindings */
-static int _of_add_opp_table_v1(struct device *dev)
+static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 {
-	struct opp_table *opp_table;
 	const struct property *prop;
 	const __be32 *val;
 	int nr, ret = 0;
@@ -444,9 +486,7 @@ static int _of_add_opp_table_v1(struct device *dev)
 		return -EINVAL;
 	}
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table)
-		return -ENOMEM;
+	kref_init(&opp_table->list_kref);
 
 	val = prop->value;
 	while (nr) {
@@ -457,13 +497,12 @@ static int _of_add_opp_table_v1(struct device *dev)
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP %ld (%d)\n",
 				__func__, freq, ret);
-			_dev_pm_opp_remove_table(opp_table, dev, false);
-			break;
+			_put_opp_list_kref(opp_table);
+			return ret;
 		}
 		nr -= 2;
 	}
 
-	dev_pm_opp_put_opp_table(opp_table);
 	return ret;
 }
 
@@ -486,28 +525,75 @@ static int _of_add_opp_table_v1(struct device *dev)
  */
 int dev_pm_opp_of_add_table(struct device *dev)
 {
-	struct device_node *opp_np;
+	struct opp_table *opp_table;
 	int ret;
 
-	/*
-	 * OPPs have two version of bindings now. The older one is deprecated,
-	 * try for the new binding first.
-	 */
-	opp_np = dev_pm_opp_of_get_opp_desc_node(dev);
-	if (!opp_np) {
-		/*
-		 * Try old-deprecated bindings for backward compatibility with
-		 * older dtbs.
-		 */
-		return _of_add_opp_table_v1(dev);
-	}
+	opp_table = dev_pm_opp_get_opp_table_indexed(dev, 0);
+	if (!opp_table)
+		return -ENOMEM;
 
-	ret = _of_add_opp_table_v2(dev, opp_np);
-	of_node_put(opp_np);
+	/*
+	 * OPPs have two version of bindings now. Also try the old (v1)
+	 * bindings for backward compatibility with older dtbs.
+	 */
+	if (opp_table->np)
+		ret = _of_add_opp_table_v2(dev, opp_table);
+	else
+		ret = _of_add_opp_table_v1(dev, opp_table);
+
+	if (ret)
+		dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
+
+/**
+ * dev_pm_opp_of_add_table_indexed() - Initialize indexed opp table from device tree
+ * @dev:	device pointer used to lookup OPP table.
+ * @index:	Index number.
+ *
+ * Register the initial OPP table with the OPP library for given device only
+ * using the "operating-points-v2" property.
+ *
+ * Return:
+ * 0		On success OR
+ *		Duplicate OPPs (both freq and volt are same) and opp->available
+ * -EEXIST	Freq are same and volt are different OR
+ *		Duplicate OPPs (both freq and volt are same) and !opp->available
+ * -ENOMEM	Memory allocation failure
+ * -ENODEV	when 'operating-points' property is not found or is invalid data
+ *		in device node.
+ * -ENODATA	when empty 'operating-points' property is found
+ * -EINVAL	when invalid entries are found in opp-v2 table
+ */
+int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
+{
+	struct opp_table *opp_table;
+	int ret, count;
+
+	if (index) {
+		/*
+		 * If only one phandle is present, then the same OPP table
+		 * applies for all index requests.
+		 */
+		count = of_count_phandle_with_args(dev->of_node,
+						   "operating-points-v2", NULL);
+		if (count == 1)
+			index = 0;
+	}
+
+	opp_table = dev_pm_opp_get_opp_table_indexed(dev, index);
+	if (!opp_table)
+		return -ENOMEM;
+
+	ret = _of_add_opp_table_v2(dev, opp_table);
+	if (ret)
+		dev_pm_opp_put_opp_table(opp_table);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
 
 /* CPU device specific helpers */
 
@@ -520,7 +606,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
  */
 void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
 {
-	_dev_pm_opp_cpumask_remove_table(cpumask, true);
+	_dev_pm_opp_cpumask_remove_table(cpumask, -1);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
 
@@ -533,16 +619,18 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
 int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 {
 	struct device *cpu_dev;
-	int cpu, ret = 0;
+	int cpu, ret;
 
-	WARN_ON(cpumask_empty(cpumask));
+	if (WARN_ON(cpumask_empty(cpumask)))
+		return -ENODEV;
 
 	for_each_cpu(cpu, cpumask) {
 		cpu_dev = get_cpu_device(cpu);
 		if (!cpu_dev) {
 			pr_err("%s: failed to get cpu%d device\n", __func__,
 			       cpu);
-			continue;
+			ret = -ENODEV;
+			goto remove_table;
 		}
 
 		ret = dev_pm_opp_of_add_table(cpu_dev);
@@ -554,11 +642,15 @@ int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 			pr_debug("%s: couldn't find opp table for cpu:%d, %d\n",
 				 __func__, cpu, ret);
 
-			/* Free all other OPPs */
-			dev_pm_opp_of_cpumask_remove_table(cpumask);
-			break;
+			goto remove_table;
 		}
 	}
+
+	return 0;
+
+remove_table:
+	/* Free all other OPPs */
+	_dev_pm_opp_cpumask_remove_table(cpumask, cpu);
 
 	return ret;
 }
@@ -613,7 +705,7 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 		}
 
 		/* Get OPP descriptor node */
-		tmp_np = _opp_of_get_opp_desc_node(cpu_np);
+		tmp_np = _opp_of_get_opp_desc_node(cpu_np, 0);
 		of_node_put(cpu_np);
 		if (!tmp_np) {
 			pr_err("%pOF: Couldn't find opp node\n", cpu_np);
@@ -633,3 +725,76 @@ put_cpu_node:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
+
+/**
+ * of_dev_pm_opp_find_required_opp() - Search for required OPP.
+ * @dev: The device whose OPP node is referenced by the 'np' DT node.
+ * @np: Node that contains the "required-opps" property.
+ *
+ * Returns the OPP of the device 'dev', whose phandle is present in the "np"
+ * node. Although the "required-opps" property supports having multiple
+ * phandles, this helper routine only parses the very first phandle in the list.
+ *
+ * Return: Matching opp, else returns ERR_PTR in case of error and should be
+ * handled using IS_ERR.
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *of_dev_pm_opp_find_required_opp(struct device *dev,
+						   struct device_node *np)
+{
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ENODEV);
+	struct device_node *required_np;
+	struct opp_table *opp_table;
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return ERR_CAST(opp_table);
+
+	required_np = of_parse_phandle(np, "required-opps", 0);
+	if (unlikely(!required_np)) {
+		dev_err(dev, "Unable to parse required-opps\n");
+		goto put_opp_table;
+	}
+
+	mutex_lock(&opp_table->lock);
+
+	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+		if (temp_opp->available && temp_opp->np == required_np) {
+			opp = temp_opp;
+
+			/* Increment the reference count of OPP */
+			dev_pm_opp_get(opp);
+			break;
+		}
+	}
+
+	mutex_unlock(&opp_table->lock);
+
+	of_node_put(required_np);
+put_opp_table:
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return opp;
+}
+EXPORT_SYMBOL_GPL(of_dev_pm_opp_find_required_opp);
+
+/**
+ * dev_pm_opp_get_of_node() - Gets the DT node corresponding to an opp
+ * @opp:	opp for which DT node has to be returned for
+ *
+ * Return: DT node corresponding to the opp, else 0 on success.
+ *
+ * The caller needs to put the node with of_node_put() after using it.
+ */
+struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
+{
+	if (IS_ERR_OR_NULL(opp)) {
+		pr_err("%s: Invalid parameters\n", __func__);
+		return NULL;
+	}
+
+	return of_node_get(opp->np);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);

@@ -729,7 +729,7 @@ static char *compact_gfp_string(unsigned long gfp_flags)
 static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 			   unsigned int gfp_flags)
 {
-	struct pevent_record record = {
+	struct tep_record record = {
 		.cpu = sample->cpu,
 		.data = sample->raw_data,
 		.size = sample->raw_size,
@@ -747,7 +747,7 @@ static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 	}
 
 	trace_seq_init(&seq);
-	pevent_event_info(&seq, evsel->tp_format, &record);
+	tep_event_info(&seq, evsel->tp_format, &record);
 
 	str = strtok_r(seq.buffer, " ", &pos);
 	while (str) {
@@ -1004,7 +1004,7 @@ static void __print_slab_result(struct rb_root *root,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = machine__find_kernel_function(machine, addr, &map);
+				sym = machine__find_kernel_symbol(machine, addr, &map);
 		} else
 			addr = data->ptr;
 
@@ -1068,7 +1068,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite, &map);
+		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
 		else
@@ -1110,7 +1110,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite, &map);
+		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
 		else
@@ -1974,7 +1974,7 @@ int cmd_kmem(int argc, const char **argv)
 			goto out_delete;
 		}
 
-		kmem_page_size = pevent_get_page_size(evsel->tp_format->pevent);
+		kmem_page_size = tep_get_page_size(evsel->tp_format->pevent);
 		symbol_conf.use_callchain = true;
 	}
 

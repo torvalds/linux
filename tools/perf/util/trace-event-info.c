@@ -103,11 +103,10 @@ out:
 
 static int record_header_files(void)
 {
-	char *path;
+	char *path = get_events_file("header_page");
 	struct stat st;
 	int err = -EIO;
 
-	path = get_tracing_file("events/header_page");
 	if (!path) {
 		pr_debug("can't get tracing/events/header_page");
 		return -ENOMEM;
@@ -128,9 +127,9 @@ static int record_header_files(void)
 		goto out;
 	}
 
-	put_tracing_file(path);
+	put_events_file(path);
 
-	path = get_tracing_file("events/header_event");
+	path = get_events_file("header_event");
 	if (!path) {
 		pr_debug("can't get tracing/events/header_event");
 		err = -ENOMEM;
@@ -154,7 +153,7 @@ static int record_header_files(void)
 
 	err = 0;
 out:
-	put_tracing_file(path);
+	put_events_file(path);
 	return err;
 }
 
@@ -243,7 +242,7 @@ static int record_ftrace_files(struct tracepoint_path *tps)
 	char *path;
 	int ret;
 
-	path = get_tracing_file("events/ftrace");
+	path = get_events_file("ftrace");
 	if (!path) {
 		pr_debug("can't get tracing/events/ftrace");
 		return -ENOMEM;
@@ -378,7 +377,7 @@ out:
 
 static int record_saved_cmdline(void)
 {
-	unsigned int size;
+	unsigned long long size;
 	char *path;
 	struct stat st;
 	int ret, err = 0;
@@ -532,12 +531,14 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 			 "/tmp/perf-XXXXXX");
 		if (!mkstemp(tdata->temp_file)) {
 			pr_debug("Can't make temp file");
+			free(tdata);
 			return NULL;
 		}
 
 		temp_fd = open(tdata->temp_file, O_RDWR);
 		if (temp_fd < 0) {
 			pr_debug("Can't read '%s'", tdata->temp_file);
+			free(tdata);
 			return NULL;
 		}
 

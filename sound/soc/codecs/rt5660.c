@@ -1217,7 +1217,8 @@ static const struct snd_soc_component_driver soc_component_dev_rt5660 = {
 static const struct regmap_config rt5660_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 
 	.max_register = RT5660_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5660_ranges) *
 					       RT5660_PR_SPACING),

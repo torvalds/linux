@@ -357,8 +357,8 @@ err_free_rk_obj:
 }
 
 /*
- * rockchip_gem_free_object - (struct drm_driver)->gem_free_object callback
- * function
+ * rockchip_gem_free_object - (struct drm_driver)->gem_free_object_unlocked
+ * callback function
  */
 void rockchip_gem_free_object(struct drm_gem_object *obj)
 {

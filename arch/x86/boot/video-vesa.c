@@ -62,7 +62,7 @@ static int vesa_probe(void)
 		if (mode & ~0x1ff)
 			continue;
 
-		memset(&vminfo, 0, sizeof vminfo); /* Just in case... */
+		memset(&vminfo, 0, sizeof(vminfo)); /* Just in case... */
 
 		ireg.ax = 0x4f01;
 		ireg.cx = mode;
@@ -109,7 +109,7 @@ static int vesa_set_mode(struct mode_info *mode)
 	int is_graphic;
 	u16 vesa_mode = mode->mode - VIDEO_FIRST_VESA;
 
-	memset(&vminfo, 0, sizeof vminfo); /* Just in case... */
+	memset(&vminfo, 0, sizeof(vminfo)); /* Just in case... */
 
 	initregs(&ireg);
 	ireg.ax = 0x4f01;
@@ -241,7 +241,7 @@ void vesa_store_edid(void)
 	struct biosregs ireg, oreg;
 
 	/* Apparently used as a nonsense token... */
-	memset(&boot_params.edid_info, 0x13, sizeof boot_params.edid_info);
+	memset(&boot_params.edid_info, 0x13, sizeof(boot_params.edid_info));
 
 	if (vginfo.version < 0x0200)
 		return;		/* EDID requires VBE 2.0+ */

@@ -16,28 +16,58 @@ TEST_GEN_PROGS := $(patsubst %,$(OUTPUT)/%,$(TEST_GEN_PROGS))
 TEST_GEN_PROGS_EXTENDED := $(patsubst %,$(OUTPUT)/%,$(TEST_GEN_PROGS_EXTENDED))
 TEST_GEN_FILES := $(patsubst %,$(OUTPUT)/%,$(TEST_GEN_FILES))
 
+top_srcdir ?= ../../../..
+include $(top_srcdir)/scripts/subarch.include
+ARCH		?= $(SUBARCH)
+
 all: $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 
+.PHONY: khdr
+khdr:
+	make ARCH=$(ARCH) -C $(top_srcdir) headers_install
+
+ifdef KSFT_KHDR_INSTALL
+$(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES):| khdr
+endif
+
 .ONESHELL:
+define RUN_TEST_PRINT_RESULT
+	TEST_HDR_MSG="selftests: "`basename $$PWD`:" $$BASENAME_TEST";	\
+	echo $$TEST_HDR_MSG;					\
+	echo "========================================";	\
+	if [ ! -x $$TEST ]; then	\
+		echo "$$TEST_HDR_MSG: Warning: file $$BASENAME_TEST is not executable, correct this.";\
+		echo "not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]"; \
+	else					\
+		cd `dirname $$TEST` > /dev/null; \
+		if [ "X$(summary)" != "X" ]; then	\
+			(./$$BASENAME_TEST > /tmp/$$BASENAME_TEST 2>&1 && \
+			echo "ok 1..$$test_num $$TEST_HDR_MSG [PASS]") || \
+			(if [ $$? -eq $$skip ]; then	\
+				echo "not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]";				\
+			else echo "not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]";					\
+			fi;)			\
+		else				\
+			(./$$BASENAME_TEST &&	\
+			echo "ok 1..$$test_num $$TEST_HDR_MSG [PASS]") ||						\
+			(if [ $$? -eq $$skip ]; then \
+				echo "not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]"; \
+			else echo "not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]";				\
+			fi;)		\
+		fi;				\
+		cd - > /dev/null;		\
+	fi;
+endef
+
 define RUN_TESTS
 	@export KSFT_TAP_LEVEL=`echo 1`;		\
 	test_num=`echo 0`;				\
+	skip=`echo 4`;					\
 	echo "TAP version 13";				\
 	for TEST in $(1); do				\
 		BASENAME_TEST=`basename $$TEST`;	\
 		test_num=`echo $$test_num+1 | bc`;	\
-		echo "selftests: $$BASENAME_TEST";	\
-		echo "========================================";	\
-		if [ ! -x $$TEST ]; then	\
-			echo "selftests: Warning: file $$BASENAME_TEST is not executable, correct this.";\
-			echo "not ok 1..$$test_num selftests: $$BASENAME_TEST [FAIL]"; \
-		else					\
-		if [ "X$(summary)" != "X" ]; then		\
-				cd `dirname $$TEST` > /dev/null; (./$$BASENAME_TEST > /tmp/$$BASENAME_TEST 2>&1 && echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") || echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]"; cd - > /dev/null;\
-			else				\
-				cd `dirname $$TEST` > /dev/null; (./$$BASENAME_TEST && echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") || echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]"; cd - > /dev/null;\
-			fi;				\
-		fi;					\
+		$(call RUN_TEST_PRINT_RESULT,$(TEST),$(BASENAME_TEST),$(test_num),$(skip))						\
 	done;
 endef
 
@@ -76,9 +106,18 @@ else
 endif
 
 define EMIT_TESTS
-	@for TEST in $(TEST_GEN_PROGS) $(TEST_CUSTOM_PROGS) $(TEST_PROGS); do \
+	@test_num=`echo 0`;				\
+	for TEST in $(TEST_GEN_PROGS) $(TEST_CUSTOM_PROGS) $(TEST_PROGS); do \
 		BASENAME_TEST=`basename $$TEST`;	\
-		echo "(./$$BASENAME_TEST >> \$$OUTPUT 2>&1 && echo \"selftests: $$BASENAME_TEST [PASS]\") || echo \"selftests: $$BASENAME_TEST [FAIL]\""; \
+		test_num=`echo $$test_num+1 | bc`;	\
+		TEST_HDR_MSG="selftests: "`basename $$PWD`:" $$BASENAME_TEST";	\
+		echo "echo $$TEST_HDR_MSG";	\
+		if [ ! -x $$TEST ]; then	\
+			echo "echo \"$$TEST_HDR_MSG: Warning: file $$BASENAME_TEST is not executable, correct this.\"";		\
+			echo "echo \"not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]\""; \
+		else
+			echo "(./$$BASENAME_TEST >> \$$OUTPUT 2>&1 && echo \"ok 1..$$test_num $$TEST_HDR_MSG [PASS]\") || (if [ \$$? -eq \$$skip ]; then echo \"not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]\"; else echo \"not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]\"; fi;)"; \
+		fi;		\
 	done;
 endef
 
@@ -106,6 +145,9 @@ COMPILE.S = $(CC) $(ASFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 LINK.S = $(CC) $(ASFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH)
 endif
 
+# Selftest makefiles can override those targets by setting
+# OVERRIDE_TARGETS = 1.
+ifeq ($(OVERRIDE_TARGETS),)
 $(OUTPUT)/%:%.c
 	$(LINK.c) $^ $(LDLIBS) -o $@
 
@@ -114,5 +156,6 @@ $(OUTPUT)/%.o:%.S
 
 $(OUTPUT)/%:%.S
 	$(LINK.S) $^ $(LDLIBS) -o $@
+endif
 
 .PHONY: run_tests all clean install emit_tests

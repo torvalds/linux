@@ -102,22 +102,13 @@ bool dal_ddc_service_query_ddc_data(
 		uint8_t *read_buf,
 		uint32_t read_size);
 
-enum ddc_result dal_ddc_service_read_dpcd_data(
-		struct ddc_service *ddc,
-		bool i2c,
-		enum i2c_mot_mode mot,
-		uint32_t address,
-		uint8_t *data,
-		uint32_t len,
-		uint32_t *read);
-
-enum ddc_result dal_ddc_service_write_dpcd_data(
-		struct ddc_service *ddc,
-		bool i2c,
-		enum i2c_mot_mode mot,
-		uint32_t address,
-		const uint8_t *data,
-		uint32_t len);
+int dc_link_aux_transfer(struct ddc_service *ddc,
+			     unsigned int address,
+			     uint8_t *reply,
+			     void *buffer,
+			     unsigned int size,
+			     enum aux_transaction_type type,
+			     enum i2caux_transaction_action action);
 
 void dal_ddc_service_write_scdc_data(
 		struct ddc_service *ddc_service,

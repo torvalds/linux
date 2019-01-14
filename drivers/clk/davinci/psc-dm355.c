@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/init.h>
@@ -41,14 +42,14 @@ static const struct davinci_lpsc_clk_info dm355_psc_info[] = {
 	LPSC(5,  0, timer3,      pll1_auxclk,  NULL,               0),
 	LPSC(6,  0, spi1,        pll1_sysclk2, spi1_clkdev,        0),
 	LPSC(7,  0, mmcsd1,      pll1_sysclk2, mmcsd1_clkdev,      0),
-	LPSC(8,  0, asp1,        pll1_sysclk2, NULL,               0),
+	LPSC(8,  0, asp1,        pll1_sysclk2, mcbsp1_clkdev,      0),
 	LPSC(9,  0, usb,         pll1_sysclk2, usb_clkdev,         0),
 	LPSC(10, 0, pwm3,        pll1_auxclk,  NULL,               0),
 	LPSC(11, 0, spi2,        pll1_sysclk2, spi2_clkdev,        0),
 	LPSC(12, 0, rto,         pll1_auxclk,  NULL,               0),
 	LPSC(14, 0, aemif,       pll1_sysclk2, aemif_clkdev,       0),
 	LPSC(15, 0, mmcsd0,      pll1_sysclk2, mmcsd0_clkdev,      0),
-	LPSC(17, 0, asp0,        pll1_sysclk2, NULL,               0),
+	LPSC(17, 0, asp0,        pll1_sysclk2, mcbsp0_clkdev,      0),
 	LPSC(18, 0, i2c,         pll1_auxclk,  i2c_clkdev,         0),
 	LPSC(19, 0, uart0,       pll1_auxclk,  uart0_clkdev,       0),
 	LPSC(20, 0, uart1,       pll1_auxclk,  uart1_clkdev,       0),
@@ -68,7 +69,7 @@ static const struct davinci_lpsc_clk_info dm355_psc_info[] = {
 	{ }
 };
 
-static int dm355_psc_init(struct device *dev, void __iomem *base)
+int dm355_psc_init(struct device *dev, void __iomem *base)
 {
 	return davinci_psc_register_clocks(dev, dm355_psc_info, 42, base);
 }

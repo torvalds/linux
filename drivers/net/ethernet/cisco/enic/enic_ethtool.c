@@ -476,18 +476,28 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 
 static int enic_get_rx_flow_hash(struct enic *enic, struct ethtool_rxnfc *cmd)
 {
+	u8 rss_hash_type = 0;
 	cmd->data = 0;
 
+	spin_lock_bh(&enic->devcmd_lock);
+	(void)vnic_dev_capable_rss_hash_type(enic->vdev, &rss_hash_type);
+	spin_unlock_bh(&enic->devcmd_lock);
 	switch (cmd->flow_type) {
 	case TCP_V6_FLOW:
 	case TCP_V4_FLOW:
-		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3 |
+			     RXH_IP_SRC | RXH_IP_DST;
+		break;
 	case UDP_V6_FLOW:
-	case UDP_V4_FLOW:
-		if (vnic_dev_capable_udp_rss(enic->vdev))
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		if (rss_hash_type & NIC_CFG_RSS_HASH_TYPE_UDP_IPV6)
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		break;
+	case UDP_V4_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		if (rss_hash_type & NIC_CFG_RSS_HASH_TYPE_UDP_IPV4)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
 	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
 	case AH_V4_FLOW:

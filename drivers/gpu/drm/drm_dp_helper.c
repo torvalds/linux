@@ -119,18 +119,32 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
 void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
+	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+			  DP_TRAINING_AUX_RD_MASK;
+
+	if (rd_interval > 4)
+		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+			      rd_interval);
+
+	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
 		udelay(100);
 	else
-		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		mdelay(rd_interval * 4);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
+	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+			  DP_TRAINING_AUX_RD_MASK;
+
+	if (rd_interval > 4)
+		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+			      rd_interval);
+
+	if (rd_interval == 0)
 		udelay(400);
 	else
-		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		mdelay(rd_interval * 4);
 }
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
 
@@ -170,6 +184,20 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw)
 EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);
 
 #define AUX_RETRY_INTERVAL 500 /* us */
+
+static inline void
+drm_dp_dump_access(const struct drm_dp_aux *aux,
+		   u8 request, uint offset, void *buffer, int ret)
+{
+	const char *arrow = request == DP_AUX_NATIVE_READ ? "->" : "<-";
+
+	if (ret > 0)
+		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
+			aux->name, offset, arrow, ret, min(ret, 20), buffer);
+	else
+		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d)\n",
+			aux->name, offset, arrow, ret);
+}
 
 /**
  * DOC: dp helpers
@@ -274,10 +302,14 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
 				 1);
 	if (ret != 1)
-		return ret;
+		goto out;
 
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
-				  size);
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
+				 size);
+
+out:
+	drm_dp_dump_access(aux, DP_AUX_NATIVE_READ, offset, buffer, ret);
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read);
 
@@ -298,8 +330,12 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 			  void *buffer, size_t size)
 {
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
-				  size);
+	int ret;
+
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
+				 size);
+	drm_dp_dump_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer, ret);
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_write);
 
@@ -814,7 +850,8 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			return ret;
 
 		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu\n", ret, msg->size);
+			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu)\n",
+				      ret, msg->size);
 			aux->i2c_nack_count++;
 			return -EREMOTEIO;
 
@@ -1073,6 +1110,7 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 void drm_dp_aux_init(struct drm_dp_aux *aux)
 {
 	mutex_init(&aux->hw_mutex);
+	mutex_init(&aux->cec.lock);
 	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
 
 	aux->ddc.algo = &drm_dp_i2c_algo;
@@ -1219,15 +1257,22 @@ EXPORT_SYMBOL(drm_dp_stop_crc);
 
 struct dpcd_quirk {
 	u8 oui[3];
+	u8 device_id[6];
 	bool is_branch;
 	u32 quirks;
 };
 
 #define OUI(first, second, third) { (first), (second), (third) }
+#define DEVICE_ID(first, second, third, fourth, fifth, sixth) \
+	{ (first), (second), (third), (fourth), (fifth), (sixth) }
+
+#define DEVICE_ID_ANY	DEVICE_ID(0, 0, 0, 0, 0, 0)
 
 static const struct dpcd_quirk dpcd_quirk_list[] = {
 	/* Analogix 7737 needs reduced M and N at HBR2 link rates */
-	{ OUI(0x00, 0x22, 0xb9), true, BIT(DP_DPCD_QUIRK_LIMITED_M_N) },
+	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
+	/* LG LP140WF6-SPM1 eDP panel */
+	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID('s', 'i', 'v', 'a', 'r', 'T'), false, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
 };
 
 #undef OUI
@@ -1246,6 +1291,7 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
 	const struct dpcd_quirk *quirk;
 	u32 quirks = 0;
 	int i;
+	u8 any_device[] = DEVICE_ID_ANY;
 
 	for (i = 0; i < ARRAY_SIZE(dpcd_quirk_list); i++) {
 		quirk = &dpcd_quirk_list[i];
@@ -1256,11 +1302,18 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
 		if (memcmp(quirk->oui, ident->oui, sizeof(ident->oui)) != 0)
 			continue;
 
+		if (memcmp(quirk->device_id, any_device, sizeof(any_device)) != 0 &&
+		    memcmp(quirk->device_id, ident->device_id, sizeof(ident->device_id)) != 0)
+			continue;
+
 		quirks |= quirk->quirks;
 	}
 
 	return quirks;
 }
+
+#undef DEVICE_ID_ANY
+#undef DEVICE_ID
 
 /**
  * drm_dp_read_desc - read sink/branch descriptor from DPCD

@@ -123,8 +123,8 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
 	deleted_mkey = radix_tree_delete(&table->tree, mlx5_base_mkey(mkey->key));
 	write_unlock_irqrestore(&table->lock, flags);
 	if (!deleted_mkey) {
-		mlx5_core_warn(dev, "failed radix tree delete of mkey 0x%x\n",
-			       mlx5_base_mkey(mkey->key));
+		mlx5_core_dbg(dev, "failed radix tree delete of mkey 0x%x\n",
+			      mlx5_base_mkey(mkey->key));
 		return -ENOENT;
 	}
 
@@ -145,23 +145,6 @@ int mlx5_core_query_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *mkey,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
 EXPORT_SYMBOL(mlx5_core_query_mkey);
-
-int mlx5_core_dump_fill_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *_mkey,
-			     u32 *mkey)
-{
-	u32 out[MLX5_ST_SZ_DW(query_special_contexts_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(query_special_contexts_in)]   = {0};
-	int err;
-
-	MLX5_SET(query_special_contexts_in, in, opcode,
-		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	if (!err)
-		*mkey = MLX5_GET(query_special_contexts_out, out,
-				 dump_fill_mkey);
-	return err;
-}
-EXPORT_SYMBOL(mlx5_core_dump_fill_mkey);
 
 static inline u32 mlx5_get_psv(u32 *out, int psv_index)
 {

@@ -50,13 +50,22 @@ static int ethsw_add_vlan(struct ethsw_core *ethsw, u16 vid)
 	return 0;
 }
 
-static int ethsw_port_set_tci(struct ethsw_port_priv *port_priv,
-			      struct dpsw_tci_cfg *tci_cfg)
+static int ethsw_port_set_pvid(struct ethsw_port_priv *port_priv, u16 pvid)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct net_device *netdev = port_priv->netdev;
+	struct dpsw_tci_cfg tci_cfg = { 0 };
 	bool is_oper;
 	int err, ret;
+
+	err = dpsw_if_get_tci(ethsw->mc_io, 0, ethsw->dpsw_handle,
+			      port_priv->idx, &tci_cfg);
+	if (err) {
+		netdev_err(netdev, "dpsw_if_get_tci err %d\n", err);
+		return err;
+	}
+
+	tci_cfg.vlan_id = pvid;
 
 	/* Interface needs to be down to change PVID */
 	is_oper = netif_oper_up(netdev);
@@ -71,17 +80,16 @@ static int ethsw_port_set_tci(struct ethsw_port_priv *port_priv,
 	}
 
 	err = dpsw_if_set_tci(ethsw->mc_io, 0, ethsw->dpsw_handle,
-			      port_priv->idx, tci_cfg);
+			      port_priv->idx, &tci_cfg);
 	if (err) {
 		netdev_err(netdev, "dpsw_if_set_tci err %d\n", err);
 		goto set_tci_error;
 	}
 
 	/* Delete previous PVID info and mark the new one */
-	if (port_priv->pvid)
-		port_priv->vlans[port_priv->pvid] &= ~ETHSW_VLAN_PVID;
-	port_priv->vlans[tci_cfg->vlan_id] |= ETHSW_VLAN_PVID;
-	port_priv->pvid = tci_cfg->vlan_id;
+	port_priv->vlans[port_priv->pvid] &= ~ETHSW_VLAN_PVID;
+	port_priv->vlans[pvid] |= ETHSW_VLAN_PVID;
+	port_priv->pvid = pvid;
 
 set_tci_error:
 	if (is_oper) {
@@ -133,13 +141,7 @@ static int ethsw_port_add_vlan(struct ethsw_port_priv *port_priv,
 	}
 
 	if (flags & BRIDGE_VLAN_INFO_PVID) {
-		struct dpsw_tci_cfg tci_cfg = {
-			.pcp = 0,
-			.dei = 0,
-			.vlan_id = vid,
-		};
-
-		err = ethsw_port_set_tci(port_priv, &tci_cfg);
+		err = ethsw_port_set_pvid(port_priv, vid);
 		if (err)
 			return err;
 	}
@@ -177,7 +179,7 @@ static int ethsw_port_set_flood(struct ethsw_port_priv *port_priv, u8 flag)
 				   port_priv->idx, flag);
 	if (err) {
 		netdev_err(port_priv->netdev,
-			   "dpsw_fdb_set_learning_mode err %d\n", err);
+			   "dpsw_if_set_flooding err %d\n", err);
 		return err;
 	}
 	port_priv->flood = !!flag;
@@ -616,10 +618,8 @@ static void ethsw_teardown_irqs(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	struct fsl_mc_device_irq *irq;
 	int err;
 
-	irq = sw_dev->irqs[DPSW_IRQ_INDEX_IF];
 	err = dpsw_set_irq_enable(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, 0);
 	if (err)
@@ -717,7 +717,10 @@ static int port_vlans_add(struct net_device *netdev,
 			  struct switchdev_trans *trans)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err;
+	int vid, err = 0;
+
+	if (netif_is_bridge_master(vlan->obj.orig_dev))
+		return -EOPNOTSUPP;
 
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
@@ -819,9 +822,7 @@ static int ethsw_port_del_vlan(struct ethsw_port_priv *port_priv, u16 vid)
 		return -ENOENT;
 
 	if (port_priv->vlans[vid] & ETHSW_VLAN_PVID) {
-		struct dpsw_tci_cfg tci_cfg = { 0 };
-
-		err = ethsw_port_set_tci(port_priv, &tci_cfg);
+		err = ethsw_port_set_pvid(port_priv, 0);
 		if (err)
 			return err;
 	}
@@ -871,7 +872,10 @@ static int port_vlans_del(struct net_device *netdev,
 			  const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err;
+	int vid, err = 0;
+
+	if (netif_is_bridge_master(vlan->obj.orig_dev))
+		return -EOPNOTSUPP;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		err = ethsw_port_del_vlan(port_priv, vid);
@@ -1010,10 +1014,8 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 		container_of(work, struct ethsw_switchdev_event_work, work);
 	struct net_device *dev = switchdev_work->dev;
 	struct switchdev_notifier_fdb_info *fdb_info;
-	struct ethsw_port_priv *port_priv;
 
 	rtnl_lock();
-	port_priv = netdev_priv(dev);
 	fdb_info = &switchdev_work->fdb_info;
 
 	switch (switchdev_work->event) {
@@ -1254,7 +1256,6 @@ static int ethsw_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	const char def_mcast[ETH_ALEN] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x01};
 	struct net_device *netdev = port_priv->netdev;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
-	struct dpsw_tci_cfg tci_cfg = {0};
 	struct dpsw_vlan_if_cfg vcfg;
 	int err;
 
@@ -1272,7 +1273,7 @@ static int ethsw_port_init(struct ethsw_port_priv *port_priv, u16 port)
 		return err;
 	}
 
-	err = ethsw_port_set_tci(port_priv, &tci_cfg);
+	err = ethsw_port_set_pvid(port_priv, 0);
 	if (err)
 		return err;
 

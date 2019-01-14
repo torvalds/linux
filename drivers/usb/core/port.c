@@ -16,6 +16,15 @@ static int usb_port_block_power_off;
 
 static const struct attribute_group *port_dev_group[];
 
+static ssize_t location_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+
+	return sprintf(buf, "0x%08x\n", port_dev->location);
+}
+static DEVICE_ATTR_RO(location);
+
 static ssize_t connect_type_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -49,6 +58,28 @@ static ssize_t over_current_count_show(struct device *dev,
 	return sprintf(buf, "%u\n", port_dev->over_current_count);
 }
 static DEVICE_ATTR_RO(over_current_count);
+
+static ssize_t quirks_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+
+	return sprintf(buf, "%08x\n", port_dev->quirks);
+}
+
+static ssize_t quirks_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+	u32 value;
+
+	if (kstrtou32(buf, 16, &value))
+		return -EINVAL;
+
+	port_dev->quirks = value;
+	return count;
+}
+static DEVICE_ATTR_RW(quirks);
 
 static ssize_t usb3_lpm_permit_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -118,6 +149,8 @@ static DEVICE_ATTR_RW(usb3_lpm_permit);
 
 static struct attribute *port_dev_attrs[] = {
 	&dev_attr_connect_type.attr,
+	&dev_attr_location.attr,
+	&dev_attr_quirks.attr,
 	&dev_attr_over_current_count.attr,
 	NULL,
 };

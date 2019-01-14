@@ -68,7 +68,7 @@ static int rtc_suspend(struct device *dev)
 		return 0;
 	}
 
-	getnstimeofday64(&old_system);
+	ktime_get_real_ts64(&old_system);
 	old_rtc.tv_sec = rtc_tm_to_time64(&tm);
 
 
@@ -110,7 +110,7 @@ static int rtc_resume(struct device *dev)
 		return 0;
 
 	/* snapshot the current rtc and system time at resume */
-	getnstimeofday64(&new_system);
+	ktime_get_real_ts64(&new_system);
 	err = rtc_read_time(rtc, &tm);
 	if (err < 0) {
 		pr_debug("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
@@ -172,7 +172,6 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	mutex_init(&rtc->ops_lock);
 	spin_lock_init(&rtc->irq_lock);
-	spin_lock_init(&rtc->irq_task_lock);
 	init_waitqueue_head(&rtc->irq_queue);
 
 	/* Init timerqueue */
@@ -287,9 +286,10 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
  *
  * Returns the pointer to the new struct class device.
  */
-struct rtc_device *rtc_device_register(const char *name, struct device *dev,
-					const struct rtc_class_ops *ops,
-					struct module *owner)
+static struct rtc_device *rtc_device_register(const char *name,
+					      struct device *dev,
+					      const struct rtc_class_ops *ops,
+					      struct module *owner)
 {
 	struct rtc_device *rtc;
 	struct rtc_wkalrm alrm;
@@ -352,15 +352,13 @@ exit:
 			name, err);
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(rtc_device_register);
-
 
 /**
  * rtc_device_unregister - removes the previously registered RTC class device
  *
  * @rtc: the RTC class device to destroy
  */
-void rtc_device_unregister(struct rtc_device *rtc)
+static void rtc_device_unregister(struct rtc_device *rtc)
 {
 	mutex_lock(&rtc->ops_lock);
 	/*
@@ -373,7 +371,6 @@ void rtc_device_unregister(struct rtc_device *rtc)
 	mutex_unlock(&rtc->ops_lock);
 	put_device(&rtc->dev);
 }
-EXPORT_SYMBOL_GPL(rtc_device_unregister);
 
 static void devm_rtc_device_release(struct device *dev, void *res)
 {

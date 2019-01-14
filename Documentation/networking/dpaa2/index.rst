@@ -6,3 +6,5 @@ DPAA2 Documentation
    :maxdepth: 1
 
    overview
+   dpio-driver
+   ethernet-driver

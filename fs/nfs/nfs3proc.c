@@ -101,7 +101,8 @@ nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
  */
 static int
 nfs3_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fattr *fattr, struct nfs4_label *label)
+		struct nfs_fattr *fattr, struct nfs4_label *label,
+		struct inode *inode)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_GETATTR],
@@ -414,7 +415,9 @@ out:
 }
 
 static void
-nfs3_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
+nfs3_proc_unlink_setup(struct rpc_message *msg,
+		struct dentry *dentry,
+		struct inode *inode)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_REMOVE];
 }
@@ -783,12 +786,16 @@ nfs3_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs3_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 {
 	struct inode *inode = hdr->inode;
+	struct nfs_server *server = NFS_SERVER(inode);
 
 	if (hdr->pgio_done_cb != NULL)
 		return hdr->pgio_done_cb(task, hdr);
 
 	if (nfs3_async_handle_jukebox(task, inode))
 		return -EAGAIN;
+
+	if (task->tk_status >= 0 && !server->read_hdrsize)
+		cmpxchg(&server->read_hdrsize, 0, hdr->res.replen);
 
 	nfs_invalidate_atime(inode);
 	nfs_refresh_inode(inode, &hdr->fattr);
@@ -799,6 +806,7 @@ static void nfs3_proc_read_setup(struct nfs_pgio_header *hdr,
 				 struct rpc_message *msg)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_READ];
+	hdr->args.replen = NFS_SERVER(hdr->inode)->read_hdrsize;
 }
 
 static int nfs3_proc_pgio_rpc_prepare(struct rpc_task *task,
@@ -823,7 +831,8 @@ static int nfs3_write_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 }
 
 static void nfs3_proc_write_setup(struct nfs_pgio_header *hdr,
-				  struct rpc_message *msg)
+				  struct rpc_message *msg,
+				  struct rpc_clnt **clnt)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_WRITE];
 }
@@ -844,7 +853,8 @@ static int nfs3_commit_done(struct rpc_task *task, struct nfs_commit_data *data)
 	return 0;
 }
 
-static void nfs3_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
+static void nfs3_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
+				   struct rpc_clnt **clnt)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_COMMIT];
 }

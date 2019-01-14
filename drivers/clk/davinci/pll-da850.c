@@ -7,10 +7,14 @@
 
 #include <linux/bitops.h>
 #include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
 #include <linux/clkdev.h>
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mfd/da8xx-cfgchip.h>
+#include <linux/mfd/syscon.h>
+#include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/types.h>
 
@@ -81,11 +85,11 @@ static const struct davinci_pll_obsclk_info da850_pll0_obsclk_info = {
 	.ocsrc_mask = GENMASK(4, 0),
 };
 
-int da850_pll0_init(struct device *dev, void __iomem *base)
+int da850_pll0_init(struct device *dev, void __iomem *base, struct regmap *cfgchip)
 {
 	struct clk *clk;
 
-	davinci_pll_clk_register(dev, &da850_pll0_info, "ref_clk", base);
+	davinci_pll_clk_register(dev, &da850_pll0_info, "ref_clk", base, cfgchip);
 
 	clk = davinci_pll_sysclk_register(dev, &pll0_sysclk1, base);
 	clk_register_clkdev(clk, "pll0_sysclk1", "da850-psc0");
@@ -134,11 +138,22 @@ static const struct davinci_pll_sysclk_info *da850_pll0_sysclk_info[] = {
 	NULL
 };
 
-int of_da850_pll0_init(struct device *dev, void __iomem *base)
+void of_da850_pll0_init(struct device_node *node)
 {
-	return of_davinci_pll_init(dev, &da850_pll0_info,
-				   &da850_pll0_obsclk_info,
-				   da850_pll0_sysclk_info, 7, base);
+	void __iomem *base;
+	struct regmap *cfgchip;
+
+	base = of_iomap(node, 0);
+	if (!base) {
+		pr_err("%s: ioremap failed\n", __func__);
+		return;
+	}
+
+	cfgchip = syscon_regmap_lookup_by_compatible("ti,da830-cfgchip");
+
+	of_davinci_pll_init(NULL, node, &da850_pll0_info,
+			    &da850_pll0_obsclk_info,
+			    da850_pll0_sysclk_info, 7, base, cfgchip);
 }
 
 static const struct davinci_pll_clk_info da850_pll1_info = {
@@ -179,11 +194,11 @@ static const struct davinci_pll_obsclk_info da850_pll1_obsclk_info = {
 	.ocsrc_mask = GENMASK(4, 0),
 };
 
-int da850_pll1_init(struct device *dev, void __iomem *base)
+int da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip)
 {
 	struct clk *clk;
 
-	davinci_pll_clk_register(dev, &da850_pll1_info, "oscin", base);
+	davinci_pll_clk_register(dev, &da850_pll1_info, "oscin", base, cfgchip);
 
 	davinci_pll_sysclk_register(dev, &pll1_sysclk1, base);
 
@@ -204,9 +219,9 @@ static const struct davinci_pll_sysclk_info *da850_pll1_sysclk_info[] = {
 	NULL
 };
 
-int of_da850_pll1_init(struct device *dev, void __iomem *base)
+int of_da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip)
 {
-	return of_davinci_pll_init(dev, &da850_pll1_info,
+	return of_davinci_pll_init(dev, dev->of_node, &da850_pll1_info,
 				   &da850_pll1_obsclk_info,
-				   da850_pll1_sysclk_info, 3, base);
+				   da850_pll1_sysclk_info, 3, base, cfgchip);
 }

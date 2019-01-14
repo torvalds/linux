@@ -6,6 +6,7 @@ interface contains.
 Required properties:
 - compatible: Must contain one or more of the following:
       - "renesas,etheravb-r8a7743" for the R8A7743 SoC.
+      - "renesas,etheravb-r8a7744" for the R8A7744 SoC.
       - "renesas,etheravb-r8a7745" for the R8A7745 SoC.
       - "renesas,etheravb-r8a77470" for the R8A77470 SoC.
       - "renesas,etheravb-r8a7790" for the R8A7790 SoC.
@@ -16,14 +17,16 @@ Required properties:
       - "renesas,etheravb-rcar-gen2" as a fallback for the above
 		R-Car Gen2 and RZ/G1 devices.
 
+      - "renesas,etheravb-r8a774a1" for the R8A774A1 SoC.
       - "renesas,etheravb-r8a7795" for the R8A7795 SoC.
       - "renesas,etheravb-r8a7796" for the R8A7796 SoC.
       - "renesas,etheravb-r8a77965" for the R8A77965 SoC.
       - "renesas,etheravb-r8a77970" for the R8A77970 SoC.
       - "renesas,etheravb-r8a77980" for the R8A77980 SoC.
+      - "renesas,etheravb-r8a77990" for the R8A77990 SoC.
       - "renesas,etheravb-r8a77995" for the R8A77995 SoC.
       - "renesas,etheravb-rcar-gen3" as a fallback for the above
-		R-Car Gen3 devices.
+		R-Car Gen3 and RZ/G2 devices.
 
 	When compatible with the generic version, nodes must list the
 	SoC-specific version corresponding to the platform first followed by
@@ -46,8 +49,6 @@ Required properties:
 - pinctrl-0: phandle, referring to a default pin configuration node.
 
 Optional properties:
-- interrupt-parent: the phandle for the interrupt controller that services
-		    interrupts for this device.
 - interrupt-names: A list of interrupt names.
 		   For the R-Car Gen 3 SoCs this property is mandatory;
 		   it should include one entry per channel, named "ch%u",

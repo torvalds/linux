@@ -44,13 +44,17 @@
 #define WO(_f)      ((_f##_OFFSET) >> 2)
 
 #define ATH10K_SCAN_ID 0
+#define ATH10K_SCAN_CHANNEL_SWITCH_WMI_EVT_OVERHEAD 10 /* msec */
 #define WMI_READY_TIMEOUT (5 * HZ)
 #define ATH10K_FLUSH_TIMEOUT_HZ (5 * HZ)
 #define ATH10K_CONNECTION_LOSS_HZ (3 * HZ)
-#define ATH10K_NUM_CHANS 40
+#define ATH10K_NUM_CHANS 41
+#define ATH10K_MAX_5G_CHAN 173
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
+
+#define ATH10K_INVALID_RSSI 128
 
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
@@ -87,14 +91,6 @@
 #define ATH10K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 struct ath10k;
-
-enum ath10k_bus {
-	ATH10K_BUS_PCI,
-	ATH10K_BUS_AHB,
-	ATH10K_BUS_SDIO,
-	ATH10K_BUS_USB,
-	ATH10K_BUS_SNOC,
-};
 
 static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 {
@@ -173,6 +169,7 @@ struct ath10k_wmi {
 	struct completion service_ready;
 	struct completion unified_ready;
 	struct completion barrier;
+	struct completion radar_confirm;
 	wait_queue_head_t tx_credits_wq;
 	DECLARE_BITMAP(svc_map, WMI_SERVICE_MAX);
 	struct wmi_cmd_map *cmd;
@@ -180,6 +177,11 @@ struct ath10k_wmi {
 	struct wmi_pdev_param_map *pdev_param;
 	const struct wmi_ops *ops;
 	const struct wmi_peer_flags_map *peer_flags;
+
+	u32 mgmt_max_num_pending_tx;
+
+	/* Protected by data_lock */
+	struct idr mgmt_pending_tx;
 
 	u32 num_mem_chunks;
 	u32 rx_decap_mode;
@@ -375,6 +377,21 @@ struct ath10k_dfs_stats {
 	u32 radar_detected;
 };
 
+enum ath10k_radar_confirmation_state {
+	ATH10K_RADAR_CONFIRMATION_IDLE = 0,
+	ATH10K_RADAR_CONFIRMATION_INPROGRESS,
+	ATH10K_RADAR_CONFIRMATION_STOPPED,
+};
+
+struct ath10k_radar_found_info {
+	u32 pri_min;
+	u32 pri_max;
+	u32 width_min;
+	u32 width_max;
+	u32 sidx_min;
+	u32 sidx_max;
+};
+
 #define ATH10K_MAX_NUM_PEER_IDS (1 << 11) /* htt rx_desc limit */
 
 struct ath10k_peer {
@@ -436,6 +453,36 @@ struct ath10k_sta_tid_stats {
 	unsigned long int rx_pkt_amsdu[ATH10K_AMSDU_SUBFRM_NUM_MAX];
 };
 
+enum ath10k_counter_type {
+	ATH10K_COUNTER_TYPE_BYTES,
+	ATH10K_COUNTER_TYPE_PKTS,
+	ATH10K_COUNTER_TYPE_MAX,
+};
+
+enum ath10k_stats_type {
+	ATH10K_STATS_TYPE_SUCC,
+	ATH10K_STATS_TYPE_FAIL,
+	ATH10K_STATS_TYPE_RETRY,
+	ATH10K_STATS_TYPE_AMPDU,
+	ATH10K_STATS_TYPE_MAX,
+};
+
+struct ath10k_htt_data_stats {
+	u64 legacy[ATH10K_COUNTER_TYPE_MAX][ATH10K_LEGACY_NUM];
+	u64 ht[ATH10K_COUNTER_TYPE_MAX][ATH10K_HT_MCS_NUM];
+	u64 vht[ATH10K_COUNTER_TYPE_MAX][ATH10K_VHT_MCS_NUM];
+	u64 bw[ATH10K_COUNTER_TYPE_MAX][ATH10K_BW_NUM];
+	u64 nss[ATH10K_COUNTER_TYPE_MAX][ATH10K_NSS_NUM];
+	u64 gi[ATH10K_COUNTER_TYPE_MAX][ATH10K_GI_NUM];
+};
+
+struct ath10k_htt_tx_stats {
+	struct ath10k_htt_data_stats stats[ATH10K_STATS_TYPE_MAX];
+	u64 tx_duration;
+	u64 ba_fails;
+	u64 ack_fails;
+};
+
 struct ath10k_sta {
 	struct ath10k_vif *arvif;
 
@@ -449,6 +496,7 @@ struct ath10k_sta {
 
 	struct work_struct update_wk;
 	u64 rx_duration;
+	struct ath10k_htt_tx_stats *tx_stats;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* protected by conf_mutex */
@@ -457,6 +505,8 @@ struct ath10k_sta {
 	/* Protected with ar->data_lock */
 	struct ath10k_sta_tid_stats tid_stats[IEEE80211_NUM_TIDS + 1];
 #endif
+	/* Protected with ar->data_lock */
+	u32 peer_ps_state;
 };
 
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5 * HZ)
@@ -582,6 +632,7 @@ struct ath10k_debug {
 	u32 reg_addr;
 	u32 nf_cal_period;
 	void *cal_data;
+	u32 enable_extd_tx_stats;
 };
 
 enum ath10k_state {
@@ -836,6 +887,9 @@ struct ath10k_fw_components {
 	const struct firmware *board;
 	const void *board_data;
 	size_t board_len;
+	const struct firmware *ext_board;
+	const void *ext_board_data;
+	size_t ext_board_len;
 
 	struct ath10k_fw_file fw_file;
 };
@@ -855,6 +909,16 @@ struct ath10k_per_peer_tx_stats {
 	u32	reserved2;
 };
 
+enum ath10k_dev_type {
+	ATH10K_DEV_TYPE_LL,
+	ATH10K_DEV_TYPE_HL,
+};
+
+struct ath10k_bus_params {
+	u32 chip_id;
+	enum ath10k_dev_type dev_type;
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -865,6 +929,7 @@ struct ath10k {
 	enum ath10k_hw_rev hw_rev;
 	u16 dev_id;
 	u32 chip_id;
+	enum ath10k_dev_type dev_type;
 	u32 target_version;
 	u8 fw_version_major;
 	u32 fw_version_minor;
@@ -883,7 +948,10 @@ struct ath10k {
 	u32 low_5ghz_chan;
 	u32 high_5ghz_chan;
 	bool ani_enabled;
+	/* protected by conf_mutex */
+	u8 ps_state_enable;
 
+	bool nlo_enabled;
 	bool p2p;
 
 	struct {
@@ -921,8 +989,12 @@ struct ath10k {
 		u32 subsystem_device;
 
 		bool bmi_ids_valid;
+		bool qmi_ids_valid;
+		u32 qmi_board_id;
 		u8 bmi_board_id;
+		u8 bmi_eboard_id;
 		u8 bmi_chip_id;
+		bool ext_bid_supported;
 
 		char bdf_ext[ATH10K_SMBIOS_BDF_EXT_STR_LENGTH];
 	} id;
@@ -978,6 +1050,7 @@ struct ath10k {
 
 	struct completion install_key_done;
 
+	int last_wmi_vdev_start_status;
 	struct completion vdev_setup_done;
 
 	struct workqueue_struct *workqueue;
@@ -1107,6 +1180,11 @@ struct ath10k {
 
 	u32 sta_tid_stats_mask;
 
+	/* protected by data_lock */
+	enum ath10k_radar_confirmation_state radar_conf_state;
+	struct ath10k_radar_found_info last_radar_info;
+	struct work_struct radar_confirmation_work;
+
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
@@ -1137,7 +1215,10 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      const struct ath10k_fw_components *fw_components);
 int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt);
 void ath10k_core_stop(struct ath10k *ar);
-int ath10k_core_register(struct ath10k *ar, u32 chip_id);
+int ath10k_core_register(struct ath10k *ar,
+			 const struct ath10k_bus_params *bus_params);
 void ath10k_core_unregister(struct ath10k *ar);
+int ath10k_core_fetch_board_file(struct ath10k *ar, int bd_ie_type);
+void ath10k_core_free_board_files(struct ath10k *ar);
 
 #endif /* _CORE_H_ */

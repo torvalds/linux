@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Thunderbolt Cactus Ridge driver - switch/port utility functions
+ * Thunderbolt driver - switch/port utility functions
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/delay.h>
 #include <linux/idr.h>
 #include <linux/nvmem-provider.h>
+#include <linux/pm_runtime.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -236,8 +238,14 @@ static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
 	struct tb_switch *sw = priv;
+	int ret;
 
-	return dma_port_flash_read(sw->dma_port, offset, val, bytes);
+	pm_runtime_get_sync(&sw->dev);
+	ret = dma_port_flash_read(sw->dma_port, offset, val, bytes);
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
+
+	return ret;
 }
 
 static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
@@ -429,15 +437,15 @@ static const char *tb_port_type(struct tb_regs_port_header *port)
 
 static void tb_dump_port(struct tb *tb, struct tb_regs_port_header *port)
 {
-	tb_info(tb,
-		" Port %d: %x:%x (Revision: %d, TB Version: %d, Type: %s (%#x))\n",
-		port->port_number, port->vendor_id, port->device_id,
-		port->revision, port->thunderbolt_version, tb_port_type(port),
-		port->type);
-	tb_info(tb, "  Max hop id (in/out): %d/%d\n",
-		port->max_in_hop_id, port->max_out_hop_id);
-	tb_info(tb, "  Max counters: %d\n", port->max_counters);
-	tb_info(tb, "  NFC Credits: %#x\n", port->nfc_credits);
+	tb_dbg(tb,
+	       " Port %d: %x:%x (Revision: %d, TB Version: %d, Type: %s (%#x))\n",
+	       port->port_number, port->vendor_id, port->device_id,
+	       port->revision, port->thunderbolt_version, tb_port_type(port),
+	       port->type);
+	tb_dbg(tb, "  Max hop id (in/out): %d/%d\n",
+	       port->max_in_hop_id, port->max_out_hop_id);
+	tb_dbg(tb, "  Max counters: %d\n", port->max_counters);
+	tb_dbg(tb, "  NFC Credits: %#x\n", port->nfc_credits);
 }
 
 /**
@@ -598,20 +606,18 @@ static int tb_init_port(struct tb_port *port)
 
 static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)
 {
-	tb_info(tb,
-		" Switch: %x:%x (Revision: %d, TB Version: %d)\n",
-		sw->vendor_id, sw->device_id, sw->revision,
-		sw->thunderbolt_version);
-	tb_info(tb, "  Max Port Number: %d\n", sw->max_port_number);
-	tb_info(tb, "  Config:\n");
-	tb_info(tb,
+	tb_dbg(tb, " Switch: %x:%x (Revision: %d, TB Version: %d)\n",
+	       sw->vendor_id, sw->device_id, sw->revision,
+	       sw->thunderbolt_version);
+	tb_dbg(tb, "  Max Port Number: %d\n", sw->max_port_number);
+	tb_dbg(tb, "  Config:\n");
+	tb_dbg(tb,
 		"   Upstream Port Number: %d Depth: %d Route String: %#llx Enabled: %d, PlugEventsDelay: %dms\n",
-		sw->upstream_port_number, sw->depth,
-		(((u64) sw->route_hi) << 32) | sw->route_lo,
-		sw->enabled, sw->plug_events_delay);
-	tb_info(tb,
-		"   unknown1: %#x unknown4: %#x\n",
-		sw->__unknown1, sw->__unknown4);
+	       sw->upstream_port_number, sw->depth,
+	       (((u64) sw->route_hi) << 32) | sw->route_lo,
+	       sw->enabled, sw->plug_events_delay);
+	tb_dbg(tb, "   unknown1: %#x unknown4: %#x\n",
+	       sw->__unknown1, sw->__unknown4);
 }
 
 /**
@@ -627,7 +633,7 @@ int tb_switch_reset(struct tb *tb, u64 route)
 		header.route_lo = route,
 		header.enabled = true,
 	};
-	tb_info(tb, "resetting switch at %llx\n", route);
+	tb_dbg(tb, "resetting switch at %llx\n", route);
 	res.err = tb_cfg_write(tb->ctl, ((u32 *) &header) + 2, route,
 			0, 2, 2, 2);
 	if (res.err)
@@ -722,6 +728,7 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	 * the new tunnel too early.
 	 */
 	pci_lock_rescan_remove();
+	pm_runtime_get_sync(&sw->dev);
 
 	switch (val) {
 	/* Approve switch */
@@ -742,6 +749,8 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 		break;
 	}
 
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 	pci_unlock_rescan_remove();
 
 	if (!ret) {
@@ -854,6 +863,30 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(key, 0600, key_show, key_store);
 
+static void nvm_authenticate_start(struct tb_switch *sw)
+{
+	struct pci_dev *root_port;
+
+	/*
+	 * During host router NVM upgrade we should not allow root port to
+	 * go into D3cold because some root ports cannot trigger PME
+	 * itself. To be on the safe side keep the root port in D0 during
+	 * the whole upgrade process.
+	 */
+	root_port = pci_find_pcie_root_port(sw->tb->nhi->pdev);
+	if (root_port)
+		pm_runtime_get_noresume(&root_port->dev);
+}
+
+static void nvm_authenticate_complete(struct tb_switch *sw)
+{
+	struct pci_dev *root_port;
+
+	root_port = pci_find_pcie_root_port(sw->tb->nhi->pdev);
+	if (root_port)
+		pm_runtime_put(&root_port->dev);
+}
+
 static ssize_t nvm_authenticate_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -888,16 +921,35 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	nvm_clear_auth_status(sw);
 
 	if (val) {
-		ret = nvm_validate_and_write(sw);
-		if (ret)
+		if (!sw->nvm->buf) {
+			ret = -EINVAL;
 			goto exit_unlock;
+		}
+
+		pm_runtime_get_sync(&sw->dev);
+		ret = nvm_validate_and_write(sw);
+		if (ret) {
+			pm_runtime_mark_last_busy(&sw->dev);
+			pm_runtime_put_autosuspend(&sw->dev);
+			goto exit_unlock;
+		}
 
 		sw->nvm->authenticating = true;
 
-		if (!tb_route(sw))
+		if (!tb_route(sw)) {
+			/*
+			 * Keep root port from suspending as long as the
+			 * NVM upgrade process is running.
+			 */
+			nvm_authenticate_start(sw);
 			ret = nvm_authenticate_host(sw);
-		else
+			if (ret)
+				nvm_authenticate_complete(sw);
+		} else {
 			ret = nvm_authenticate_device(sw);
+		}
+		pm_runtime_mark_last_busy(&sw->dev);
+		pm_runtime_put_autosuspend(&sw->dev);
 	}
 
 exit_unlock:
@@ -1023,9 +1075,29 @@ static void tb_switch_release(struct device *dev)
 	kfree(sw);
 }
 
+/*
+ * Currently only need to provide the callbacks. Everything else is handled
+ * in the connection manager.
+ */
+static int __maybe_unused tb_switch_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int __maybe_unused tb_switch_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+
+static const struct dev_pm_ops tb_switch_pm_ops = {
+	SET_RUNTIME_PM_OPS(tb_switch_runtime_suspend, tb_switch_runtime_resume,
+			   NULL)
+};
+
 struct device_type tb_switch_type = {
 	.name = "thunderbolt_device",
 	.release = tb_switch_release,
+	.pm = &tb_switch_pm_ops,
 };
 
 static int tb_switch_get_generation(struct tb_switch *sw)
@@ -1098,7 +1170,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5))
 		goto err_free_sw_ports;
 
-	tb_info(tb, "current switch config:\n");
+	tb_dbg(tb, "current switch config:\n");
 	tb_dump_switch(tb, &sw->config);
 
 	/* configure switch */
@@ -1205,9 +1277,8 @@ int tb_switch_configure(struct tb_switch *sw)
 	int ret;
 
 	route = tb_route(sw);
-	tb_info(tb,
-		"initializing Switch at %#llx (depth: %d, up port: %d)\n",
-		route, tb_route_length(route), sw->config.upstream_port_number);
+	tb_dbg(tb, "initializing Switch at %#llx (depth: %d, up port: %d)\n",
+	       route, tb_route_length(route), sw->config.upstream_port_number);
 
 	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL)
 		tb_sw_warn(sw, "unknown switch vendor id %#x\n",
@@ -1295,6 +1366,10 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 	if (ret <= 0)
 		return ret;
 
+	/* Now we can allow root port to suspend again */
+	if (!tb_route(sw))
+		nvm_authenticate_complete(sw);
+
 	if (status) {
 		tb_sw_info(sw, "switch flash authentication failed\n");
 		tb_switch_set_uuid(sw);
@@ -1345,13 +1420,13 @@ int tb_switch_add(struct tb_switch *sw)
 			tb_sw_warn(sw, "tb_eeprom_read_rom failed\n");
 			return ret;
 		}
-		tb_sw_info(sw, "uid: %#llx\n", sw->uid);
+		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
 		tb_switch_set_uuid(sw);
 
 		for (i = 0; i <= sw->config.max_port_number; i++) {
 			if (sw->ports[i].disabled) {
-				tb_port_info(&sw->ports[i], "disabled by eeprom\n");
+				tb_port_dbg(&sw->ports[i], "disabled by eeprom\n");
 				continue;
 			}
 			ret = tb_init_port(&sw->ports[i]);
@@ -1364,11 +1439,30 @@ int tb_switch_add(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	ret = tb_switch_nvm_add(sw);
-	if (ret)
-		device_del(&sw->dev);
+	if (tb_route(sw)) {
+		dev_info(&sw->dev, "new device found, vendor=%#x device=%#x\n",
+			 sw->vendor, sw->device);
+		if (sw->vendor_name && sw->device_name)
+			dev_info(&sw->dev, "%s %s\n", sw->vendor_name,
+				 sw->device_name);
+	}
 
-	return ret;
+	ret = tb_switch_nvm_add(sw);
+	if (ret) {
+		device_del(&sw->dev);
+		return ret;
+	}
+
+	pm_runtime_set_active(&sw->dev);
+	if (sw->rpm) {
+		pm_runtime_set_autosuspend_delay(&sw->dev, TB_AUTOSUSPEND_DELAY);
+		pm_runtime_use_autosuspend(&sw->dev);
+		pm_runtime_mark_last_busy(&sw->dev);
+		pm_runtime_enable(&sw->dev);
+		pm_request_autosuspend(&sw->dev);
+	}
+
+	return 0;
 }
 
 /**
@@ -1382,6 +1476,11 @@ int tb_switch_add(struct tb_switch *sw)
 void tb_switch_remove(struct tb_switch *sw)
 {
 	int i;
+
+	if (sw->rpm) {
+		pm_runtime_get_sync(&sw->dev);
+		pm_runtime_disable(&sw->dev);
+	}
 
 	/* port 0 is the switch itself and never has a remote */
 	for (i = 1; i <= sw->config.max_port_number; i++) {
@@ -1399,6 +1498,9 @@ void tb_switch_remove(struct tb_switch *sw)
 		tb_plug_events_active(sw, false);
 
 	tb_switch_nvm_remove(sw);
+
+	if (tb_route(sw))
+		dev_info(&sw->dev, "device disconnected\n");
 	device_unregister(&sw->dev);
 }
 
@@ -1426,7 +1528,7 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 int tb_switch_resume(struct tb_switch *sw)
 {
 	int i, err;
-	tb_sw_info(sw, "resuming switch\n");
+	tb_sw_dbg(sw, "resuming switch\n");
 
 	/*
 	 * Check for UID of the connected switches except for root

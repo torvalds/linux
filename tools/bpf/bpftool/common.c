@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -31,8 +31,7 @@
  * SOFTWARE.
  */
 
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
-
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
@@ -131,16 +130,17 @@ static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
 	return 0;
 }
 
-int open_obj_pinned(char *path)
+int open_obj_pinned(char *path, bool quiet)
 {
 	int fd;
 
 	fd = bpf_obj_get(path);
 	if (fd < 0) {
-		p_err("bpf obj get (%s): %s", path,
-		      errno == EACCES && !is_bpffs(dirname(path)) ?
-		    "directory not in bpf file system (bpffs)" :
-		    strerror(errno));
+		if (!quiet)
+			p_err("bpf obj get (%s): %s", path,
+			      errno == EACCES && !is_bpffs(dirname(path)) ?
+			    "directory not in bpf file system (bpffs)" :
+			    strerror(errno));
 		return -1;
 	}
 
@@ -152,7 +152,7 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 	enum bpf_obj_type type;
 	int fd;
 
-	fd = open_obj_pinned(path);
+	fd = open_obj_pinned(path, false);
 	if (fd < 0)
 		return -1;
 
@@ -216,6 +216,14 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 	int err;
 	int fd;
 
+	if (argc < 3) {
+		p_err("too few arguments, id ID and FILE path is required");
+		return -1;
+	} else if (argc > 3) {
+		p_err("too many arguments");
+		return -1;
+	}
+
 	if (!is_prefix(*argv, "id")) {
 		p_err("expected 'id' got %s", *argv);
 		return -1;
@@ -228,9 +236,6 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 		return -1;
 	}
 	NEXT_ARG();
-
-	if (argc != 1)
-		usage();
 
 	fd = get_fd_by_id(id);
 	if (fd < 0) {
@@ -300,7 +305,7 @@ char *get_fdinfo(int fd, const char *key)
 		return NULL;
 	}
 
-	while ((n = getline(&line, &line_n, fdi))) {
+	while ((n = getline(&line, &line_n, fdi)) > 0) {
 		char *value;
 		int len;
 
@@ -328,6 +333,16 @@ char *get_fdinfo(int fd, const char *key)
 	free(line);
 	fclose(fdi);
 	return NULL;
+}
+
+void print_data_json(uint8_t *data, size_t len)
+{
+	unsigned int i;
+
+	jsonw_start_array(json_wtr);
+	for (i = 0; i < len; i++)
+		jsonw_printf(json_wtr, "%d", data[i]);
+	jsonw_end_array(json_wtr);
 }
 
 void print_hex_data_json(uint8_t *data, size_t len)
@@ -370,7 +385,7 @@ int build_pinned_obj_table(struct pinned_obj_table *tab,
 		while ((ftse = fts_read(fts))) {
 			if (!(ftse->fts_info & FTS_F))
 				continue;
-			fd = open_obj_pinned(ftse->fts_path);
+			fd = open_obj_pinned(ftse->fts_path, true);
 			if (fd < 0)
 				continue;
 
@@ -418,6 +433,70 @@ void delete_pinned_obj_table(struct pinned_obj_table *tab)
 		free(obj->path);
 		free(obj);
 	}
+}
+
+unsigned int get_page_size(void)
+{
+	static int result;
+
+	if (!result)
+		result = getpagesize();
+	return result;
+}
+
+unsigned int get_possible_cpus(void)
+{
+	static unsigned int result;
+	char buf[128];
+	long int n;
+	char *ptr;
+	int fd;
+
+	if (result)
+		return result;
+
+	fd = open("/sys/devices/system/cpu/possible", O_RDONLY);
+	if (fd < 0) {
+		p_err("can't open sysfs possible cpus");
+		exit(-1);
+	}
+
+	n = read(fd, buf, sizeof(buf));
+	if (n < 2) {
+		p_err("can't read sysfs possible cpus");
+		exit(-1);
+	}
+	close(fd);
+
+	if (n == sizeof(buf)) {
+		p_err("read sysfs possible cpus overflow");
+		exit(-1);
+	}
+
+	ptr = buf;
+	n = 0;
+	while (*ptr && *ptr != '\n') {
+		unsigned int a, b;
+
+		if (sscanf(ptr, "%u-%u", &a, &b) == 2) {
+			n += b - a + 1;
+
+			ptr = strchr(ptr, '-') + 1;
+		} else if (sscanf(ptr, "%u", &a) == 1) {
+			n++;
+		} else {
+			assert(0);
+		}
+
+		while (isdigit(*ptr))
+			ptr++;
+		if (*ptr == ',')
+			ptr++;
+	}
+
+	result = n;
+
+	return result;
 }
 
 static char *
@@ -476,7 +555,9 @@ static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
 	return read_sysfs_hex_int(full_path);
 }
 
-const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
+const char *
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+		      const char **opt)
 {
 	char devname[IF_NAMESIZE];
 	int vendor_id;
@@ -501,6 +582,7 @@ const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
 		    device_id != 0x6000 &&
 		    device_id != 0x6003)
 			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
+		*opt = "ctx4";
 		return "NFP-6xxx";
 	default:
 		p_err("Can't get bfd arch name for device vendor id 0x%04x",
@@ -539,4 +621,25 @@ void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
 		jsonw_string_field(json_wtr, "ifname", name);
 	jsonw_end_object(json_wtr);
+}
+
+int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what)
+{
+	char *endptr;
+
+	NEXT_ARGP();
+
+	if (*val) {
+		p_err("%s already specified", what);
+		return -1;
+	}
+
+	*val = strtoul(**argv, &endptr, 0);
+	if (*endptr) {
+		p_err("can't parse %s as %s", **argv, what);
+		return -1;
+	}
+	NEXT_ARGP();
+
+	return 0;
 }

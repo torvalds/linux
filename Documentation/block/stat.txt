@@ -31,28 +31,32 @@ write ticks     milliseconds  total wait time for write requests
 in_flight       requests      number of I/Os currently in flight
 io_ticks        milliseconds  total time this block device has been active
 time_in_queue   milliseconds  total wait time for all requests
+discard I/Os    requests      number of discard I/Os processed
+discard merges  requests      number of discard I/Os merged with in-queue I/O
+discard sectors sectors       number of sectors discarded
+discard ticks   milliseconds  total wait time for discard requests
 
-read I/Os, write I/Os
-=====================
+read I/Os, write I/Os, discard I/0s
+===================================
 
 These values increment when an I/O request completes.
 
-read merges, write merges
-=========================
+read merges, write merges, discard merges
+=========================================
 
 These values increment when an I/O request is merged with an
 already-queued I/O request.
 
-read sectors, write sectors
-===========================
+read sectors, write sectors, discard_sectors
+============================================
 
-These values count the number of sectors read from or written to this
-block device.  The "sectors" in question are the standard UNIX 512-byte
-sectors, not any device- or filesystem-specific block size.  The
-counters are incremented when the I/O completes.
+These values count the number of sectors read from, written to, or
+discarded from this block device.  The "sectors" in question are the
+standard UNIX 512-byte sectors, not any device- or filesystem-specific
+block size.  The counters are incremented when the I/O completes.
 
-read ticks, write ticks
-=======================
+read ticks, write ticks, discard ticks
+======================================
 
 These values count the number of milliseconds that I/O requests have
 waited on this block device.  If there are multiple I/O requests waiting,

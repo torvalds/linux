@@ -100,20 +100,13 @@ static bool write_ok_or_segv(unsigned long ptr, size_t size)
 	 */
 
 	if (!access_ok(VERIFY_WRITE, (void __user *)ptr, size)) {
-		siginfo_t info;
 		struct thread_struct *thread = &current->thread;
 
 		thread->error_code	= 6;  /* user fault, no page, write */
 		thread->cr2		= ptr;
 		thread->trap_nr		= X86_TRAP_PF;
 
-		memset(&info, 0, sizeof(info));
-		info.si_signo		= SIGSEGV;
-		info.si_errno		= 0;
-		info.si_code		= SEGV_MAPERR;
-		info.si_addr		= (void __user *)ptr;
-
-		force_sig_info(SIGSEGV, &info, current);
+		force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)ptr, current);
 		return false;
 	} else {
 		return true;
@@ -201,7 +194,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 
 	/*
 	 * Handle seccomp.  regs->ip must be the original value.
-	 * See seccomp_send_sigsys and Documentation/prctl/seccomp_filter.txt.
+	 * See seccomp_send_sigsys and Documentation/userspace-api/seccomp_filter.rst.
 	 *
 	 * We could optimize the seccomp disabled case, but performance
 	 * here doesn't matter.

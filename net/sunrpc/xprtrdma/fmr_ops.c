@@ -20,7 +20,10 @@
  * verb (fmr_op_unmap).
  */
 
+#include <linux/sunrpc/svc_rdma.h>
+
 #include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
@@ -44,6 +47,65 @@ fmr_is_supported(struct rpcrdma_ia *ia)
 		return false;
 	}
 	return true;
+}
+
+static void
+__fmr_unmap(struct rpcrdma_mr *mr)
+{
+	LIST_HEAD(l);
+	int rc;
+
+	list_add(&mr->fmr.fm_mr->list, &l);
+	rc = ib_unmap_fmr(&l);
+	list_del(&mr->fmr.fm_mr->list);
+	if (rc)
+		pr_err("rpcrdma: final ib_unmap_fmr for %p failed %i\n",
+		       mr, rc);
+}
+
+/* Release an MR.
+ */
+static void
+fmr_op_release_mr(struct rpcrdma_mr *mr)
+{
+	int rc;
+
+	kfree(mr->fmr.fm_physaddrs);
+	kfree(mr->mr_sg);
+
+	/* In case this one was left mapped, try to unmap it
+	 * to prevent dealloc_fmr from failing with EBUSY
+	 */
+	__fmr_unmap(mr);
+
+	rc = ib_dealloc_fmr(mr->fmr.fm_mr);
+	if (rc)
+		pr_err("rpcrdma: final ib_dealloc_fmr for %p returned %i\n",
+		       mr, rc);
+
+	kfree(mr);
+}
+
+/* MRs are dynamically allocated, so simply clean up and release the MR.
+ * A replacement MR will subsequently be allocated on demand.
+ */
+static void
+fmr_mr_recycle_worker(struct work_struct *work)
+{
+	struct rpcrdma_mr *mr = container_of(work, struct rpcrdma_mr, mr_recycle);
+	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
+
+	trace_xprtrdma_mr_recycle(mr);
+
+	trace_xprtrdma_mr_unmap(mr);
+	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+			mr->mr_sg, mr->mr_nents, mr->mr_dir);
+
+	spin_lock(&r_xprt->rx_buf.rb_mrlock);
+	list_del(&mr->mr_all);
+	r_xprt->rx_stats.mrs_recycled++;
+	spin_unlock(&r_xprt->rx_buf.rb_mrlock);
+	fmr_op_release_mr(mr);
 }
 
 static int
@@ -73,6 +135,7 @@ fmr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 		goto out_fmr_err;
 
 	INIT_LIST_HEAD(&mr->mr_list);
+	INIT_WORK(&mr->mr_recycle, fmr_mr_recycle_worker);
 	return 0;
 
 out_fmr_err:
@@ -85,83 +148,35 @@ out_free:
 	return -ENOMEM;
 }
 
-static int
-__fmr_unmap(struct rpcrdma_mr *mr)
-{
-	LIST_HEAD(l);
-	int rc;
-
-	list_add(&mr->fmr.fm_mr->list, &l);
-	rc = ib_unmap_fmr(&l);
-	list_del(&mr->fmr.fm_mr->list);
-	return rc;
-}
-
-static void
-fmr_op_release_mr(struct rpcrdma_mr *mr)
-{
-	LIST_HEAD(unmap_list);
-	int rc;
-
-	kfree(mr->fmr.fm_physaddrs);
-	kfree(mr->mr_sg);
-
-	/* In case this one was left mapped, try to unmap it
-	 * to prevent dealloc_fmr from failing with EBUSY
-	 */
-	rc = __fmr_unmap(mr);
-	if (rc)
-		pr_err("rpcrdma: final ib_unmap_fmr for %p failed %i\n",
-		       mr, rc);
-
-	rc = ib_dealloc_fmr(mr->fmr.fm_mr);
-	if (rc)
-		pr_err("rpcrdma: final ib_dealloc_fmr for %p returned %i\n",
-		       mr, rc);
-
-	kfree(mr);
-}
-
-/* Reset of a single FMR.
+/* On success, sets:
+ *	ep->rep_attr.cap.max_send_wr
+ *	ep->rep_attr.cap.max_recv_wr
+ *	cdata->max_requests
+ *	ia->ri_max_segs
  */
-static void
-fmr_op_recover_mr(struct rpcrdma_mr *mr)
-{
-	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
-	int rc;
-
-	/* ORDER: invalidate first */
-	rc = __fmr_unmap(mr);
-	if (rc)
-		goto out_release;
-
-	/* ORDER: then DMA unmap */
-	rpcrdma_mr_unmap_and_put(mr);
-
-	r_xprt->rx_stats.mrs_recovered++;
-	return;
-
-out_release:
-	pr_err("rpcrdma: FMR reset failed (%d), %p released\n", rc, mr);
-	r_xprt->rx_stats.mrs_orphaned++;
-
-	trace_xprtrdma_dma_unmap(mr);
-	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
-			mr->mr_sg, mr->mr_nents, mr->mr_dir);
-
-	spin_lock(&r_xprt->rx_buf.rb_mrlock);
-	list_del(&mr->mr_all);
-	spin_unlock(&r_xprt->rx_buf.rb_mrlock);
-
-	fmr_op_release_mr(mr);
-}
-
 static int
 fmr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	    struct rpcrdma_create_data_internal *cdata)
 {
+	int max_qp_wr;
+
+	max_qp_wr = ia->ri_device->attrs.max_qp_wr;
+	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
+	max_qp_wr -= 1;
+	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
+		return -ENOMEM;
+	if (cdata->max_requests > max_qp_wr)
+		cdata->max_requests = max_qp_wr;
+	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
+	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
+	ep->rep_attr.cap.max_send_wr += 1; /* for ib_drain_sq */
+	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
+	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
+	ep->rep_attr.cap.max_recv_wr += 1; /* for ib_drain_rq */
+
 	ia->ri_max_segs = max_t(unsigned int, 1, RPCRDMA_MAX_DATA_SEGS /
 				RPCRDMA_MAX_FMR_SGES);
+	ia->ri_max_segs += 2;	/* segments for head and tail buffers */
 	return 0;
 }
 
@@ -219,6 +234,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 				     mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
+	trace_xprtrdma_mr_map(mr);
 
 	for (i = 0, dma_pages = mr->fmr.fm_physaddrs; i < mr->mr_nents; i++)
 		dma_pages[i] = sg_dma_address(&mr->mr_sg[i]);
@@ -253,9 +269,7 @@ out_maperr:
 static int
 fmr_op_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 {
-	struct ib_send_wr *bad_wr;
-
-	return ib_post_send(ia->ri_id->qp, &req->rl_sendctx->sc_wr, &bad_wr);
+	return ib_post_send(ia->ri_id->qp, &req->rl_sendctx->sc_wr, NULL);
 }
 
 /* Invalidate all memory regions that were registered for "req".
@@ -281,13 +295,13 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list) {
 		dprintk("RPC:       %s: unmapping fmr %p\n",
 			__func__, &mr->fmr);
-		trace_xprtrdma_localinv(mr);
+		trace_xprtrdma_mr_localinv(mr);
 		list_add_tail(&mr->fmr.fm_mr->list, &unmap_list);
 	}
 	r_xprt->rx_stats.local_inv_needed++;
 	rc = ib_unmap_fmr(&unmap_list);
 	if (rc)
-		goto out_reset;
+		goto out_release;
 
 	/* ORDER: Now DMA unmap all of the req's MRs, and return
 	 * them to the free MW list.
@@ -300,13 +314,13 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 
 	return;
 
-out_reset:
+out_release:
 	pr_err("rpcrdma: ib_unmap_fmr failed (%i)\n", rc);
 
 	while (!list_empty(mrs)) {
 		mr = rpcrdma_mr_pop(mrs);
 		list_del(&mr->fmr.fm_mr->list);
-		fmr_op_recover_mr(mr);
+		rpcrdma_mr_recycle(mr);
 	}
 }
 
@@ -314,7 +328,6 @@ const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
 	.ro_send			= fmr_op_send,
 	.ro_unmap_sync			= fmr_op_unmap_sync,
-	.ro_recover_mr			= fmr_op_recover_mr,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,
 	.ro_init_mr			= fmr_op_init_mr,

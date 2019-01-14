@@ -450,8 +450,10 @@ config MTK_TIMER
 	  Support for Mediatek timer driver.
 
 config SPRD_TIMER
-	bool "Spreadtrum timer driver" if COMPILE_TEST
+	bool "Spreadtrum timer driver" if EXPERT
 	depends on HAS_IOMEM
+	depends on (ARCH_SPRD || COMPILE_TEST)
+	default ARCH_SPRD
 	select TIMER_OF
 	help
 	  Enables support for the Spreadtrum timer driver.
@@ -606,5 +608,34 @@ config ATCPIT100_TIMER
 	default NDS32
 	help
 	  This option enables support for the Andestech ATCPIT100 timers.
+
+config RISCV_TIMER
+	bool "Timer for the RISC-V platform"
+	depends on RISCV
+	default y
+	select TIMER_PROBE
+	select TIMER_OF
+	help
+	  This enables the per-hart timer built into all RISC-V systems, which
+	  is accessed via both the SBI and the rdcycle instruction.  This is
+	  required for all RISC-V systems.
+
+config CSKY_MP_TIMER
+	bool "SMP Timer for the C-SKY platform" if COMPILE_TEST
+	depends on CSKY
+	select TIMER_OF
+	help
+	  Say yes here to enable C-SKY SMP timer driver used for C-SKY SMP
+	  system.
+	  csky,mptimer is not only used in SMP system, it also could be used
+	  single core system. It's not a mmio reg and it use mtcr/mfcr instruction.
+
+config GX6605S_TIMER
+	bool "Gx6605s SOC system timer driver" if COMPILE_TEST
+	depends on CSKY
+	select CLKSRC_MMIO
+	select TIMER_OF
+	help
+	  This option enables support for gx6605s SOC's timer.
 
 endmenu

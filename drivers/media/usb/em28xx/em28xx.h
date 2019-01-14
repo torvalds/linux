@@ -148,6 +148,7 @@
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB  99
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 100
 #define EM2884_BOARD_TERRATEC_H6		  101
+#define EM2882_BOARD_ZOLID_HYBRID_TV_STICK		102
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -334,6 +335,9 @@ enum em28xx_usb_audio_type {
 /**
  * em28xx_amux - describes the type of audio input used by em28xx
  *
+ * @EM28XX_AMUX_UNUSED:
+ *	Used only on em28xx dev->map field, in order to mark an entry
+ *	as unused.
  * @EM28XX_AMUX_VIDEO:
  *	On devices without AC97, this is the only value that it is currently
  *	allowed.
@@ -368,7 +372,8 @@ enum em28xx_usb_audio_type {
  * same time, via the alsa mux.
  */
 enum em28xx_amux {
-	EM28XX_AMUX_VIDEO,
+	EM28XX_AMUX_UNUSED = -1,
+	EM28XX_AMUX_VIDEO = 0,
 	EM28XX_AMUX_LINE_IN,
 
 	/* Some less-common mixer setups */
@@ -691,6 +696,8 @@ struct em28xx {
 	unsigned int ctl_input;	// selected input
 	unsigned int ctl_ainput;// selected audio input
 	unsigned int ctl_aoutput;// selected audio output
+	enum em28xx_amux amux_map[MAX_EM28XX_INPUT];
+
 	int mute;
 	int volume;
 

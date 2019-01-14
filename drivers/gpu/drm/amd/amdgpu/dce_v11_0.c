@@ -31,6 +31,7 @@
 #include "atombios_encoders.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#include "amdgpu_display.h"
 #include "dce_v11_0.h"
 
 #include "dce/dce_11_0_d.h"
@@ -40,6 +41,8 @@
 #include "oss/oss_3_0_sh_mask.h"
 #include "gmc/gmc_8_1_d.h"
 #include "gmc/gmc_8_1_sh_mask.h"
+
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 static void dce_v11_0_set_display_funcs(struct amdgpu_device *adev);
 static void dce_v11_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -173,6 +176,7 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 							ARRAY_SIZE(polaris11_golden_settings_a11));
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		amdgpu_device_program_register_sequence(adev,
 							polaris10_golden_settings_a11,
 							ARRAY_SIZE(polaris10_golden_settings_a11));
@@ -473,6 +477,7 @@ static int dce_v11_0_get_num_crtc (struct amdgpu_device *adev)
 		num_crtc = 2;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		num_crtc = 6;
 		break;
 	case CHIP_POLARIS11:
@@ -1445,6 +1450,7 @@ static int dce_v11_0_audio_init(struct amdgpu_device *adev)
 		adev->mode_info.audio.num_pins = 7;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		adev->mode_info.audio.num_pins = 8;
 		break;
 	case CHIP_POLARIS11:
@@ -1862,7 +1868,6 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_framebuffer *amdgpu_fb;
 	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct amdgpu_bo *abo;
@@ -1881,32 +1886,28 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (atomic) {
-		amdgpu_fb = to_amdgpu_framebuffer(fb);
+	if (atomic)
 		target_fb = fb;
-	} else {
-		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
+	else
 		target_fb = crtc->primary->fb;
-	}
 
 	/* If atomic, assume fb object is pinned & idle & fenced and
 	 * just update base pointers
 	 */
-	obj = amdgpu_fb->obj;
+	obj = target_fb->obj[0];
 	abo = gem_to_amdgpu_bo(obj);
 	r = amdgpu_bo_reserve(abo, false);
 	if (unlikely(r != 0))
 		return r;
 
-	if (atomic) {
-		fb_location = amdgpu_bo_gpu_offset(abo);
-	} else {
-		r = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
+	if (!atomic) {
+		r = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM);
 		if (unlikely(r != 0)) {
 			amdgpu_bo_unreserve(abo);
 			return -EINVAL;
 		}
 	}
+	fb_location = amdgpu_bo_gpu_offset(abo);
 
 	amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 	amdgpu_bo_unreserve(abo);
@@ -1983,6 +1984,17 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		fb_format = REG_SET_FIELD(0, GRPH_CONTROL, GRPH_DEPTH, 2);
+		fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_FORMAT, 0);
+		fb_swap = REG_SET_FIELD(fb_swap, GRPH_SWAP_CNTL, GRPH_RED_CROSSBAR, 2);
+		fb_swap = REG_SET_FIELD(fb_swap, GRPH_SWAP_CNTL, GRPH_BLUE_CROSSBAR, 2);
+#ifdef __BIG_ENDIAN
+		fb_swap = REG_SET_FIELD(fb_swap, GRPH_SWAP_CNTL, GRPH_ENDIAN_SWAP,
+					ENDIAN_8IN32);
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
@@ -2082,8 +2094,7 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(mmCRTC_MASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 0);
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
-		amdgpu_fb = to_amdgpu_framebuffer(fb);
-		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		abo = gem_to_amdgpu_bo(fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r != 0))
 			return r;
@@ -2253,7 +2264,8 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
@@ -2450,13 +2462,14 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	ret = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM, &amdgpu_crtc->cursor_addr);
+	ret = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
 	amdgpu_bo_unreserve(aobj);
 	if (ret) {
 		DRM_ERROR("Failed to pin new cursor BO (%d)\n", ret);
 		drm_gem_object_put_unlocked(obj);
 		return ret;
 	}
+	amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
 
 	dce_v11_0_lock_cursor(crtc, true);
 
@@ -2601,11 +2614,9 @@ static void dce_v11_0_crtc_disable(struct drm_crtc *crtc)
 	dce_v11_0_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
 		int r;
-		struct amdgpu_framebuffer *amdgpu_fb;
 		struct amdgpu_bo *abo;
 
-		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
-		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		abo = gem_to_amdgpu_bo(crtc->primary->fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve abo before unpin\n");
@@ -2673,7 +2684,8 @@ static int dce_v11_0_crtc_mode_set(struct drm_crtc *crtc,
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		int encoder_mode =
@@ -2830,6 +2842,7 @@ static int dce_v11_0_early_init(void *handle)
 		adev->mode_info.num_dig = 9;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
 		break;
@@ -2854,19 +2867,19 @@ static int dce_v11_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i + 1, &adev->crtc_irq);
+		r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, i + 1, &adev->crtc_irq);
 		if (r)
 			return r;
 	}
 
-	for (i = 8; i < 20; i += 2) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i, &adev->pageflip_irq);
+	for (i = VISLANDS30_IV_SRCID_D1_GRPH_PFLIP; i < 20; i += 2) {
+		r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, i, &adev->pageflip_irq);
 		if (r)
 			return r;
 	}
 
 	/* HPD hotplug */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 42, &adev->hpd_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_HOTPLUG_DETECT_A, &adev->hpd_irq);
 	if (r)
 		return r;
 
@@ -2949,7 +2962,8 @@ static int dce_v11_0_hw_init(void *handle)
 	amdgpu_atombios_encoder_init_dig(adev);
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		amdgpu_atombios_crtc_set_dce_clock(adev, adev->clock.default_dispclk,
 						   DCE_CLOCK_TYPE_DISPCLK, ATOM_GCK_DFS);
 		amdgpu_atombios_crtc_set_dce_clock(adev, 0,
@@ -3688,8 +3702,7 @@ static const struct amdgpu_display_funcs dce_v11_0_display_funcs = {
 
 static void dce_v11_0_set_display_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.funcs == NULL)
-		adev->mode_info.funcs = &dce_v11_0_display_funcs;
+	adev->mode_info.funcs = &dce_v11_0_display_funcs;
 }
 
 static const struct amdgpu_irq_src_funcs dce_v11_0_crtc_irq_funcs = {

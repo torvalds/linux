@@ -91,7 +91,7 @@ struct chsc_ssd_area {
 	u16 sch;	  /* subchannel */
 	u8 chpid[8];	  /* chpids 0-7 */
 	u16 fla[8];	  /* full link addresses 0-7 */
-} __attribute__ ((packed));
+} __packed __aligned(PAGE_SIZE);
 
 int chsc_get_ssd_info(struct subchannel_id schid, struct chsc_ssd_info *ssd)
 {
@@ -319,7 +319,7 @@ struct chsc_sei {
 		struct chsc_sei_nt2_area nt2_area;
 		u8 nt_area[PAGE_SIZE - 24];
 	} u;
-} __packed;
+} __packed __aligned(PAGE_SIZE);
 
 /*
  * Node Descriptor as defined in SA22-7204, "Common I/O-Device Commands"
@@ -841,7 +841,7 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 		u32 : 4;
 		u32 fmt : 4;
 		u32 : 16;
-	} __attribute__ ((packed)) *secm_area;
+	} *secm_area;
 	unsigned long flags;
 	int ret, ccode;
 
@@ -1014,7 +1014,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 cmg : 8;
 		u32 zeroes3;
 		u32 data[NR_MEASUREMENT_CHARS];
-	} __attribute__ ((packed)) *scmc_area;
+	} *scmc_area;
 
 	chp->shared = -1;
 	chp->cmg = -1;
@@ -1142,7 +1142,7 @@ int __init chsc_get_cssid(int idx)
 			u8 cssid;
 			u32 : 24;
 		} list[0];
-	} __packed *sdcal_area;
+	} *sdcal_area;
 	int ret;
 
 	spin_lock_irq(&chsc_page_lock);
@@ -1192,7 +1192,7 @@ chsc_determine_css_characteristics(void)
 		u32 reserved4;
 		u32 general_char[510];
 		u32 chsc_char[508];
-	} __attribute__ ((packed)) *scsc_area;
+	} *scsc_area;
 
 	spin_lock_irqsave(&chsc_page_lock, flags);
 	memset(chsc_page, 0, PAGE_SIZE);
@@ -1236,7 +1236,7 @@ int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta)
 		unsigned int rsvd3[3];
 		u64 clock_delta;
 		unsigned int rsvd4[2];
-	} __attribute__ ((packed)) *rr;
+	} *rr;
 	int rc;
 
 	memset(page, 0, PAGE_SIZE);
@@ -1261,7 +1261,7 @@ int chsc_sstpi(void *page, void *result, size_t size)
 		unsigned int rsvd0[3];
 		struct chsc_header response;
 		char data[];
-	} __attribute__ ((packed)) *rr;
+	} *rr;
 	int rc;
 
 	memset(page, 0, PAGE_SIZE);
@@ -1284,7 +1284,7 @@ int chsc_siosl(struct subchannel_id schid)
 		u32 word3;
 		struct chsc_header response;
 		u32 word[11];
-	} __attribute__ ((packed)) *siosl_area;
+	} *siosl_area;
 	unsigned long flags;
 	int ccode;
 	int rc;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Synopsys DesignWare I2C adapter driver.
  *
@@ -6,20 +7,6 @@
  * Copyright (C) 2006 Texas Instruments.
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
- *
- * ----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * ----------------------------------------------------------------------------
- *
  */
 #include <linux/acpi.h>
 #include <linux/clk-provider.h>
@@ -96,11 +83,8 @@ static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
 static int dw_i2c_acpi_configure(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
+	struct i2c_timings *t = &dev->timings;
 	u32 ss_ht = 0, fp_ht = 0, hs_ht = 0, fs_ht = 0;
-	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
-	const struct acpi_device_id *id;
-	struct acpi_device *adev;
-	const char *uid;
 
 	dev->adapter.nr = -1;
 	dev->tx_fifo_depth = 32;
@@ -115,7 +99,7 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 	dw_i2c_acpi_params(pdev, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt, &hs_ht);
 	dw_i2c_acpi_params(pdev, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt, &fs_ht);
 
-	switch (dev->clk_freq) {
+	switch (t->bus_freq_hz) {
 	case 100000:
 		dev->sda_hold_time = ss_ht;
 		break;
@@ -131,22 +115,6 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 		break;
 	}
 
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (id && id->driver_data)
-		dev->flags |= (u32)id->driver_data;
-
-	if (acpi_bus_get_device(handle, &adev))
-		return -ENODEV;
-
-	/*
-	 * Cherrytrail I2C7 gets used for the PMIC which gets accessed
-	 * through ACPI opregions during late suspend / early resume
-	 * disable pm for it.
-	 */
-	uid = adev->pnp.unique_id;
-	if ((dev->flags & MODEL_CHERRYTRAIL) && !strcmp(uid, "7"))
-		dev->pm_disabled = true;
-
 	return 0;
 }
 
@@ -155,8 +123,8 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT33C3", 0 },
 	{ "INT3432", 0 },
 	{ "INT3433", 0 },
-	{ "80860F41", 0 },
-	{ "808622C1", MODEL_CHERRYTRAIL },
+	{ "80860F41", ACCESS_NO_IRQ_SUSPEND },
+	{ "808622C1", ACCESS_NO_IRQ_SUSPEND | MODEL_CHERRYTRAIL },
 	{ "AMD0010", ACCESS_INTR_MASK },
 	{ "AMDI0010", ACCESS_INTR_MASK },
 	{ "AMDI0510", 0 },
@@ -173,8 +141,55 @@ static inline int dw_i2c_acpi_configure(struct platform_device *pdev)
 }
 #endif
 
+#ifdef CONFIG_OF
+#define MSCC_ICPU_CFG_TWI_DELAY		0x0
+#define MSCC_ICPU_CFG_TWI_DELAY_ENABLE	BIT(0)
+#define MSCC_ICPU_CFG_TWI_SPIKE_FILTER	0x4
+
+static int mscc_twi_set_sda_hold_time(struct dw_i2c_dev *dev)
+{
+	writel((dev->sda_hold_time << 1) | MSCC_ICPU_CFG_TWI_DELAY_ENABLE,
+	       dev->ext + MSCC_ICPU_CFG_TWI_DELAY);
+
+	return 0;
+}
+
+static int dw_i2c_of_configure(struct platform_device *pdev)
+{
+	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
+	struct resource *mem;
+
+	switch (dev->flags & MODEL_MASK) {
+	case MODEL_MSCC_OCELOT:
+		mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		dev->ext = devm_ioremap_resource(&pdev->dev, mem);
+		if (!IS_ERR(dev->ext))
+			dev->set_sda_hold_time = mscc_twi_set_sda_hold_time;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static const struct of_device_id dw_i2c_of_match[] = {
+	{ .compatible = "snps,designware-i2c", },
+	{ .compatible = "mscc,ocelot-i2c", .data = (void *)MODEL_MSCC_OCELOT },
+	{},
+};
+MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
+#else
+static inline int dw_i2c_of_configure(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+#endif
+
 static void i2c_dw_configure_master(struct dw_i2c_dev *dev)
 {
+	struct i2c_timings *t = &dev->timings;
+
 	dev->functionality = I2C_FUNC_10BIT_ADDR | DW_IC_DEFAULT_FUNCTIONALITY;
 
 	dev->master_cfg = DW_IC_CON_MASTER | DW_IC_CON_SLAVE_DISABLE |
@@ -182,7 +197,7 @@ static void i2c_dw_configure_master(struct dw_i2c_dev *dev)
 
 	dev->mode = DW_IC_MASTER;
 
-	switch (dev->clk_freq) {
+	switch (t->bus_freq_hz) {
 	case 100000:
 		dev->master_cfg |= DW_IC_CON_SPEED_STD;
 		break;
@@ -231,7 +246,7 @@ static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
 {
 	pm_runtime_disable(dev->dev);
 
-	if (dev->pm_disabled)
+	if (dev->shared_with_punit)
 		pm_runtime_put_noidle(dev->dev);
 }
 
@@ -240,7 +255,8 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	struct dw_i2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct i2c_adapter *adap;
 	struct dw_i2c_dev *dev;
-	u32 acpi_speed, ht = 0;
+	struct i2c_timings *t;
+	u32 acpi_speed;
 	struct resource *mem;
 	int i, irq, ret;
 	static const int supported_speeds[] = {
@@ -272,18 +288,11 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		reset_control_deassert(dev->rst);
 	}
 
-	if (pdata) {
-		dev->clk_freq = pdata->i2c_scl_freq;
-	} else {
-		device_property_read_u32(&pdev->dev, "i2c-sda-hold-time-ns",
-					 &ht);
-		device_property_read_u32(&pdev->dev, "i2c-sda-falling-time-ns",
-					 &dev->sda_falling_time);
-		device_property_read_u32(&pdev->dev, "i2c-scl-falling-time-ns",
-					 &dev->scl_falling_time);
-		device_property_read_u32(&pdev->dev, "clock-frequency",
-					 &dev->clk_freq);
-	}
+	t = &dev->timings;
+	if (pdata)
+		t->bus_freq_hz = pdata->i2c_scl_freq;
+	else
+		i2c_parse_fw_timings(&pdev->dev, t, false);
 
 	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
 	/*
@@ -300,12 +309,17 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	 * Find bus speed from the "clock-frequency" device property, ACPI
 	 * or by using fast mode if neither is set.
 	 */
-	if (acpi_speed && dev->clk_freq)
-		dev->clk_freq = min(dev->clk_freq, acpi_speed);
-	else if (acpi_speed || dev->clk_freq)
-		dev->clk_freq = max(dev->clk_freq, acpi_speed);
+	if (acpi_speed && t->bus_freq_hz)
+		t->bus_freq_hz = min(t->bus_freq_hz, acpi_speed);
+	else if (acpi_speed || t->bus_freq_hz)
+		t->bus_freq_hz = max(t->bus_freq_hz, acpi_speed);
 	else
-		dev->clk_freq = 400000;
+		t->bus_freq_hz = 400000;
+
+	dev->flags |= (uintptr_t)device_get_match_data(&pdev->dev);
+
+	if (pdev->dev.of_node)
+		dw_i2c_of_configure(pdev);
 
 	if (has_acpi_companion(&pdev->dev))
 		dw_i2c_acpi_configure(pdev);
@@ -314,11 +328,11 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	 * Only standard mode at 100kHz, fast mode at 400kHz,
 	 * fast mode plus at 1MHz and high speed mode at 3.4MHz are supported.
 	 */
-	if (dev->clk_freq != 100000 && dev->clk_freq != 400000
-	    && dev->clk_freq != 1000000 && dev->clk_freq != 3400000) {
+	if (t->bus_freq_hz != 100000 && t->bus_freq_hz != 400000 &&
+	    t->bus_freq_hz != 1000000 && t->bus_freq_hz != 3400000) {
 		dev_err(&pdev->dev,
 			"%d Hz is unsupported, only 100kHz, 400kHz, 1MHz and 3.4MHz are supported\n",
-			dev->clk_freq);
+			t->bus_freq_hz);
 		ret = -EINVAL;
 		goto exit_reset;
 	}
@@ -334,12 +348,14 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!i2c_dw_prepare_clk(dev, true)) {
-		dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
+		u64 clk_khz;
 
-		if (!dev->sda_hold_time && ht)
-			dev->sda_hold_time = div_u64(
-				(u64)dev->get_clk_rate_khz(dev) * ht + 500000,
-				1000000);
+		dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
+		clk_khz = dev->get_clk_rate_khz(dev);
+
+		if (!dev->sda_hold_time && t->sda_hold_ns)
+			dev->sda_hold_time =
+				div_u64(clk_khz * t->sda_hold_ns + 500000, 1000000);
 	}
 
 	dw_i2c_set_fifo_size(dev, pdev->id);
@@ -362,7 +378,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 
-	if (dev->pm_disabled)
+	if (dev->shared_with_punit)
 		pm_runtime_get_noresume(&pdev->dev);
 
 	pm_runtime_enable(&pdev->dev);
@@ -402,18 +418,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
 
-	i2c_dw_remove_lock_support(dev);
-
 	return 0;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id dw_i2c_of_match[] = {
-	{ .compatible = "snps,designware-i2c", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int dw_i2c_plat_prepare(struct device *dev)
@@ -448,6 +454,9 @@ static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
+	if (i_dev->shared_with_punit)
+		return 0;
+
 	i_dev->disable(i_dev);
 	i2c_dw_prepare_clk(i_dev, false);
 
@@ -458,7 +467,9 @@ static int dw_i2c_plat_resume(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	i2c_dw_prepare_clk(i_dev, true);
+	if (!i_dev->shared_with_punit)
+		i2c_dw_prepare_clk(i_dev, true);
+
 	i_dev->init(i_dev);
 
 	return 0;

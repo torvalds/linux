@@ -14,11 +14,10 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#define KVM_DEV_PATH "/dev/kvm"
+#include <linux/kernel.h>
 
 #define KVM_UTIL_PGS_PER_HUGEPG 512
-#define KVM_UTIL_MIN_PADDR      0x2000
+#define KVM_UTIL_MIN_PFN	2
 
 /* Aligns x up to the next multiple of size. Size must be a power of 2. */
 static void *align(void *x, size_t size)
@@ -29,7 +28,8 @@ static void *align(void *x, size_t size)
 	return (void *) (((size_t) x + mask) & ~mask);
 }
 
-/* Capability
+/*
+ * Capability
  *
  * Input Args:
  *   cap - Capability
@@ -62,10 +62,52 @@ int kvm_check_cap(long cap)
 	return ret;
 }
 
-/* VM Create
+/* VM Enable Capability
  *
  * Input Args:
- *   mode - VM Mode (e.g. VM_MODE_FLAT48PG)
+ *   vm - Virtual Machine
+ *   cap - Capability
+ *
+ * Output Args: None
+ *
+ * Return: On success, 0. On failure a TEST_ASSERT failure is produced.
+ *
+ * Enables a capability (KVM_CAP_*) on the VM.
+ */
+int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
+{
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_ENABLE_CAP, cap);
+	TEST_ASSERT(ret == 0, "KVM_ENABLE_CAP IOCTL failed,\n"
+		"  rc: %i errno: %i", ret, errno);
+
+	return ret;
+}
+
+static void vm_open(struct kvm_vm *vm, int perm)
+{
+	vm->kvm_fd = open(KVM_DEV_PATH, perm);
+	if (vm->kvm_fd < 0)
+		exit(KSFT_SKIP);
+
+	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, NULL);
+	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
+		"rc: %i errno: %i", vm->fd, errno);
+}
+
+const char * const vm_guest_mode_string[] = {
+	"PA-bits:52, VA-bits:48, 4K pages",
+	"PA-bits:52, VA-bits:48, 64K pages",
+	"PA-bits:40, VA-bits:48, 4K pages",
+	"PA-bits:40, VA-bits:48, 64K pages",
+};
+
+/*
+ * VM Create
+ *
+ * Input Args:
+ *   mode - VM Mode (e.g. VM_MODE_P52V48_4K)
  *   phy_pages - Physical memory pages
  *   perm - permission
  *
@@ -74,7 +116,7 @@ int kvm_check_cap(long cap)
  * Return:
  *   Pointer to opaque structure that describes the created VM.
  *
- * Creates a VM with the mode specified by mode (e.g. VM_MODE_FLAT48PG).
+ * Creates a VM with the mode specified by mode (e.g. VM_MODE_P52V48_4K).
  * When phy_pages is non-zero, a memory region of phy_pages physical pages
  * is created and mapped starting at guest physical address 0.  The file
  * descriptor to control the created VM is created with the permissions
@@ -85,43 +127,55 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	struct kvm_vm *vm;
 	int kvm_fd;
 
-	/* Allocate memory. */
 	vm = calloc(1, sizeof(*vm));
-	TEST_ASSERT(vm != NULL, "Insufficent Memory");
+	TEST_ASSERT(vm != NULL, "Insufficient Memory");
 
 	vm->mode = mode;
-	kvm_fd = open(KVM_DEV_PATH, perm);
-	if (kvm_fd < 0)
-		exit(KSFT_SKIP);
-
-	/* Create VM. */
-	vm->fd = ioctl(kvm_fd, KVM_CREATE_VM, NULL);
-	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
-		"rc: %i errno: %i", vm->fd, errno);
-
-	close(kvm_fd);
+	vm_open(vm, perm);
 
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
-	case VM_MODE_FLAT48PG:
+	case VM_MODE_P52V48_4K:
+		vm->pgtable_levels = 4;
 		vm->page_size = 0x1000;
 		vm->page_shift = 12;
-
-		/* Limit to 48-bit canonical virtual addresses. */
-		vm->vpages_valid = sparsebit_alloc();
-		sparsebit_set_num(vm->vpages_valid,
-			0, (1ULL << (48 - 1)) >> vm->page_shift);
-		sparsebit_set_num(vm->vpages_valid,
-			(~((1ULL << (48 - 1)) - 1)) >> vm->page_shift,
-			(1ULL << (48 - 1)) >> vm->page_shift);
-
-		/* Limit physical addresses to 52-bits. */
-		vm->max_gfn = ((1ULL << 52) >> vm->page_shift) - 1;
+		vm->va_bits = 48;
 		break;
-
+	case VM_MODE_P52V48_64K:
+		vm->pgtable_levels = 3;
+		vm->pa_bits = 52;
+		vm->page_size = 0x10000;
+		vm->page_shift = 16;
+		vm->va_bits = 48;
+		break;
+	case VM_MODE_P40V48_4K:
+		vm->pgtable_levels = 4;
+		vm->pa_bits = 40;
+		vm->va_bits = 48;
+		vm->page_size = 0x1000;
+		vm->page_shift = 12;
+		break;
+	case VM_MODE_P40V48_64K:
+		vm->pgtable_levels = 3;
+		vm->pa_bits = 40;
+		vm->va_bits = 48;
+		vm->page_size = 0x10000;
+		vm->page_shift = 16;
+		break;
 	default:
 		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", mode);
 	}
+
+	/* Limit to VA-bit canonical virtual addresses. */
+	vm->vpages_valid = sparsebit_alloc();
+	sparsebit_set_num(vm->vpages_valid,
+		0, (1ULL << (vm->va_bits - 1)) >> vm->page_shift);
+	sparsebit_set_num(vm->vpages_valid,
+		(~((1ULL << (vm->va_bits - 1)) - 1)) >> vm->page_shift,
+		(1ULL << (vm->va_bits - 1)) >> vm->page_shift);
+
+	/* Limit physical addresses to PA-bits. */
+	vm->max_gfn = ((1ULL << vm->pa_bits) >> vm->page_shift) - 1;
 
 	/* Allocate and setup memory for guest. */
 	vm->vpages_mapped = sparsebit_alloc();
@@ -132,7 +186,53 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	return vm;
 }
 
-/* Userspace Memory Region Find
+/*
+ * VM Restart
+ *
+ * Input Args:
+ *   vm - VM that has been released before
+ *   perm - permission
+ *
+ * Output Args: None
+ *
+ * Reopens the file descriptors associated to the VM and reinstates the
+ * global state, such as the irqchip and the memory regions that are mapped
+ * into the guest.
+ */
+void kvm_vm_restart(struct kvm_vm *vmp, int perm)
+{
+	struct userspace_mem_region *region;
+
+	vm_open(vmp, perm);
+	if (vmp->has_irqchip)
+		vm_create_irqchip(vmp);
+
+	for (region = vmp->userspace_mem_region_head; region;
+		region = region->next) {
+		int ret = ioctl(vmp->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
+		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
+			    "  rc: %i errno: %i\n"
+			    "  slot: %u flags: 0x%x\n"
+			    "  guest_phys_addr: 0x%lx size: 0x%lx",
+			    ret, errno, region->region.slot,
+			    region->region.flags,
+			    region->region.guest_phys_addr,
+			    region->region.memory_size);
+	}
+}
+
+void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
+{
+	struct kvm_dirty_log args = { .dirty_bitmap = log, .slot = slot };
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_GET_DIRTY_LOG, &args);
+	TEST_ASSERT(ret == 0, "%s: KVM_GET_DIRTY_LOG failed: %s",
+		    strerror(-ret));
+}
+
+/*
+ * Userspace Memory Region Find
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -150,8 +250,8 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
  * of the regions is returned.  Null is returned only when no overlapping
  * region exists.
  */
-static struct userspace_mem_region *userspace_mem_region_find(
-	struct kvm_vm *vm, uint64_t start, uint64_t end)
+static struct userspace_mem_region *
+userspace_mem_region_find(struct kvm_vm *vm, uint64_t start, uint64_t end)
 {
 	struct userspace_mem_region *region;
 
@@ -167,7 +267,8 @@ static struct userspace_mem_region *userspace_mem_region_find(
 	return NULL;
 }
 
-/* KVM Userspace Memory Region Find
+/*
+ * KVM Userspace Memory Region Find
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -195,7 +296,8 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 	return &region->region;
 }
 
-/* VCPU Find
+/*
+ * VCPU Find
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -210,8 +312,7 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
  * returns a pointer to it.  Returns NULL if the VM doesn't contain a VCPU
  * for the specified vcpuid.
  */
-struct vcpu *vcpu_find(struct kvm_vm *vm,
-	uint32_t vcpuid)
+struct vcpu *vcpu_find(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	struct vcpu *vcpup;
 
@@ -223,7 +324,8 @@ struct vcpu *vcpu_find(struct kvm_vm *vm,
 	return NULL;
 }
 
-/* VM VCPU Remove
+/*
+ * VM VCPU Remove
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -238,8 +340,12 @@ struct vcpu *vcpu_find(struct kvm_vm *vm,
 static void vm_vcpu_rm(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
 
-	int ret = close(vcpu->fd);
+	ret = munmap(vcpu->state, sizeof(*vcpu->state));
+	TEST_ASSERT(ret == 0, "munmap of VCPU fd failed, rc: %i "
+		"errno: %i", ret, errno);
+	close(vcpu->fd);
 	TEST_ASSERT(ret == 0, "Close of VCPU fd failed, rc: %i "
 		"errno: %i", ret, errno);
 
@@ -252,8 +358,24 @@ static void vm_vcpu_rm(struct kvm_vm *vm, uint32_t vcpuid)
 	free(vcpu);
 }
 
+void kvm_vm_release(struct kvm_vm *vmp)
+{
+	int ret;
 
-/* Destroys and frees the VM pointed to by vmp.
+	while (vmp->vcpu_head)
+		vm_vcpu_rm(vmp, vmp->vcpu_head->id);
+
+	ret = close(vmp->fd);
+	TEST_ASSERT(ret == 0, "Close of vm fd failed,\n"
+		"  vmp->fd: %i rc: %i errno: %i", vmp->fd, ret, errno);
+
+	close(vmp->kvm_fd);
+	TEST_ASSERT(ret == 0, "Close of /dev/kvm fd failed,\n"
+		"  vmp->kvm_fd: %i rc: %i errno: %i", vmp->kvm_fd, ret, errno);
+}
+
+/*
+ * Destroys and frees the VM pointed to by vmp.
  */
 void kvm_vm_free(struct kvm_vm *vmp)
 {
@@ -282,24 +404,18 @@ void kvm_vm_free(struct kvm_vm *vmp)
 		free(region);
 	}
 
-	/* Free VCPUs. */
-	while (vmp->vcpu_head)
-		vm_vcpu_rm(vmp, vmp->vcpu_head->id);
-
 	/* Free sparsebit arrays. */
 	sparsebit_free(&vmp->vpages_valid);
 	sparsebit_free(&vmp->vpages_mapped);
 
-	/* Close file descriptor for the VM. */
-	ret = close(vmp->fd);
-	TEST_ASSERT(ret == 0, "Close of vm fd failed,\n"
-		"  vmp->fd: %i rc: %i errno: %i", vmp->fd, ret, errno);
+	kvm_vm_release(vmp);
 
 	/* Free the structure describing the VM. */
 	free(vmp);
 }
 
-/* Memory Compare, host virtual to guest virtual
+/*
+ * Memory Compare, host virtual to guest virtual
  *
  * Input Args:
  *   hva - Starting host virtual address
@@ -321,23 +437,25 @@ void kvm_vm_free(struct kvm_vm *vmp)
  * a length of len, to the guest bytes starting at the guest virtual
  * address given by gva.
  */
-int kvm_memcmp_hva_gva(void *hva,
-	struct kvm_vm *vm, vm_vaddr_t gva, size_t len)
+int kvm_memcmp_hva_gva(void *hva, struct kvm_vm *vm, vm_vaddr_t gva, size_t len)
 {
 	size_t amt;
 
-	/* Compare a batch of bytes until either a match is found
+	/*
+	 * Compare a batch of bytes until either a match is found
 	 * or all the bytes have been compared.
 	 */
 	for (uintptr_t offset = 0; offset < len; offset += amt) {
 		uintptr_t ptr1 = (uintptr_t)hva + offset;
 
-		/* Determine host address for guest virtual address
+		/*
+		 * Determine host address for guest virtual address
 		 * at offset.
 		 */
 		uintptr_t ptr2 = (uintptr_t)addr_gva2hva(vm, gva + offset);
 
-		/* Determine amount to compare on this pass.
+		/*
+		 * Determine amount to compare on this pass.
 		 * Don't allow the comparsion to cross a page boundary.
 		 */
 		amt = len - offset;
@@ -349,7 +467,8 @@ int kvm_memcmp_hva_gva(void *hva,
 		assert((ptr1 >> vm->page_shift) == ((ptr1 + amt - 1) >> vm->page_shift));
 		assert((ptr2 >> vm->page_shift) == ((ptr2 + amt - 1) >> vm->page_shift));
 
-		/* Perform the comparison.  If there is a difference
+		/*
+		 * Perform the comparison.  If there is a difference
 		 * return that result to the caller, otherwise need
 		 * to continue on looking for a mismatch.
 		 */
@@ -358,109 +477,15 @@ int kvm_memcmp_hva_gva(void *hva,
 			return ret;
 	}
 
-	/* No mismatch found.  Let the caller know the two memory
+	/*
+	 * No mismatch found.  Let the caller know the two memory
 	 * areas are equal.
 	 */
 	return 0;
 }
 
-/* Allocate an instance of struct kvm_cpuid2
- *
- * Input Args: None
- *
- * Output Args: None
- *
- * Return: A pointer to the allocated struct. The caller is responsible
- * for freeing this struct.
- *
- * Since kvm_cpuid2 uses a 0-length array to allow a the size of the
- * array to be decided at allocation time, allocation is slightly
- * complicated. This function uses a reasonable default length for
- * the array and performs the appropriate allocation.
- */
-static struct kvm_cpuid2 *allocate_kvm_cpuid2(void)
-{
-	struct kvm_cpuid2 *cpuid;
-	int nent = 100;
-	size_t size;
-
-	size = sizeof(*cpuid);
-	size += nent * sizeof(struct kvm_cpuid_entry2);
-	cpuid = malloc(size);
-	if (!cpuid) {
-		perror("malloc");
-		abort();
-	}
-
-	cpuid->nent = nent;
-
-	return cpuid;
-}
-
-/* KVM Supported CPUID Get
- *
- * Input Args: None
- *
- * Output Args:
- *
- * Return: The supported KVM CPUID
- *
- * Get the guest CPUID supported by KVM.
- */
-struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
-{
-	static struct kvm_cpuid2 *cpuid;
-	int ret;
-	int kvm_fd;
-
-	if (cpuid)
-		return cpuid;
-
-	cpuid = allocate_kvm_cpuid2();
-	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
-	if (kvm_fd < 0)
-		exit(KSFT_SKIP);
-
-	ret = ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
-	TEST_ASSERT(ret == 0, "KVM_GET_SUPPORTED_CPUID failed %d %d\n",
-		    ret, errno);
-
-	close(kvm_fd);
-	return cpuid;
-}
-
-/* Locate a cpuid entry.
- *
- * Input Args:
- *   cpuid: The cpuid.
- *   function: The function of the cpuid entry to find.
- *
- * Output Args: None
- *
- * Return: A pointer to the cpuid entry. Never returns NULL.
- */
-struct kvm_cpuid_entry2 *
-kvm_get_supported_cpuid_index(uint32_t function, uint32_t index)
-{
-	struct kvm_cpuid2 *cpuid;
-	struct kvm_cpuid_entry2 *entry = NULL;
-	int i;
-
-	cpuid = kvm_get_supported_cpuid();
-	for (i = 0; i < cpuid->nent; i++) {
-		if (cpuid->entries[i].function == function &&
-		    cpuid->entries[i].index == index) {
-			entry = &cpuid->entries[i];
-			break;
-		}
-	}
-
-	TEST_ASSERT(entry, "Guest CPUID entry not found: (EAX=%x, ECX=%x).",
-		    function, index);
-	return entry;
-}
-
-/* VM Userspace Memory Region Add
+/*
+ * VM Userspace Memory Region Add
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -502,7 +527,8 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 		"  vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		guest_paddr, npages, vm->max_gfn, vm->page_size);
 
-	/* Confirm a mem region with an overlapping address doesn't
+	/*
+	 * Confirm a mem region with an overlapping address doesn't
 	 * already exist.
 	 */
 	region = (struct userspace_mem_region *) userspace_mem_region_find(
@@ -593,7 +619,8 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	vm->userspace_mem_region_head = region;
 }
 
-/* Memslot to region
+/*
+ * Memslot to region
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -607,8 +634,8 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
  *   on error (e.g. currently no memory region using memslot as a KVM
  *   memory slot ID).
  */
-static struct userspace_mem_region *memslot2region(struct kvm_vm *vm,
-	uint32_t memslot)
+static struct userspace_mem_region *
+memslot2region(struct kvm_vm *vm, uint32_t memslot)
 {
 	struct userspace_mem_region *region;
 
@@ -628,7 +655,8 @@ static struct userspace_mem_region *memslot2region(struct kvm_vm *vm,
 	return region;
 }
 
-/* VM Memory Region Flags Set
+/*
+ * VM Memory Region Flags Set
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -646,7 +674,6 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags)
 	int ret;
 	struct userspace_mem_region *region;
 
-	/* Locate memory region. */
 	region = memslot2region(vm, slot);
 
 	region->region.flags = flags;
@@ -658,7 +685,8 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags)
 		ret, errno, slot, flags);
 }
 
-/* VCPU mmap Size
+/*
+ * VCPU mmap Size
  *
  * Input Args: None
  *
@@ -688,7 +716,8 @@ static int vcpu_mmap_sz(void)
 	return ret;
 }
 
-/* VM VCPU Add
+/*
+ * VM VCPU Add
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -701,7 +730,8 @@ static int vcpu_mmap_sz(void)
  * Creates and adds to the VM specified by vm and virtual CPU with
  * the ID given by vcpuid.
  */
-void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
+void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, int pgd_memslot,
+		 int gdt_memslot)
 {
 	struct vcpu *vcpu;
 
@@ -736,10 +766,11 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 	vcpu->next = vm->vcpu_head;
 	vm->vcpu_head = vcpu;
 
-	vcpu_setup(vm, vcpuid);
+	vcpu_setup(vm, vcpuid, pgd_memslot, gdt_memslot);
 }
 
-/* VM Virtual Address Unused Gap
+/*
+ * VM Virtual Address Unused Gap
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -759,14 +790,14 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
  * sz unallocated bytes >= vaddr_min is available.
  */
 static vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
-	vm_vaddr_t vaddr_min)
+				      vm_vaddr_t vaddr_min)
 {
 	uint64_t pages = (sz + vm->page_size - 1) >> vm->page_shift;
 
 	/* Determine lowest permitted virtual page index. */
 	uint64_t pgidx_start = (vaddr_min + vm->page_size - 1) >> vm->page_shift;
 	if ((pgidx_start * vm->page_size) < vaddr_min)
-			goto no_va_found;
+		goto no_va_found;
 
 	/* Loop over section with enough valid virtual page indexes. */
 	if (!sparsebit_is_set_num(vm->vpages_valid,
@@ -825,7 +856,8 @@ va_found:
 	return pgidx_start * vm->page_size;
 }
 
-/* VM Virtual Address Allocate
+/*
+ * VM Virtual Address Allocate
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -846,13 +878,14 @@ va_found:
  * a page.
  */
 vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
-	uint32_t data_memslot, uint32_t pgd_memslot)
+			  uint32_t data_memslot, uint32_t pgd_memslot)
 {
 	uint64_t pages = (sz >> vm->page_shift) + ((sz % vm->page_size) != 0);
 
 	virt_pgd_alloc(vm, pgd_memslot);
 
-	/* Find an unused range of virtual page addresses of at least
+	/*
+	 * Find an unused range of virtual page addresses of at least
 	 * pages in length.
 	 */
 	vm_vaddr_t vaddr_start = vm_vaddr_unused_gap(vm, sz, vaddr_min);
@@ -862,7 +895,8 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 		pages--, vaddr += vm->page_size) {
 		vm_paddr_t paddr;
 
-		paddr = vm_phy_page_alloc(vm, KVM_UTIL_MIN_PADDR, data_memslot);
+		paddr = vm_phy_page_alloc(vm,
+				KVM_UTIL_MIN_PFN * vm->page_size, data_memslot);
 
 		virt_pg_map(vm, vaddr, paddr, pgd_memslot);
 
@@ -873,7 +907,41 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 	return vaddr_start;
 }
 
-/* Address VM Physical to Host Virtual
+/*
+ * Map a range of VM virtual address to the VM's physical address
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vaddr - Virtuall address to map
+ *   paddr - VM Physical Address
+ *   size - The size of the range to map
+ *   pgd_memslot - Memory region slot for new virtual translation tables
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Within the VM given by vm, creates a virtual translation for the
+ * page range starting at vaddr to the page range starting at paddr.
+ */
+void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+	      size_t size, uint32_t pgd_memslot)
+{
+	size_t page_size = vm->page_size;
+	size_t npages = size / page_size;
+
+	TEST_ASSERT(vaddr + size > vaddr, "Vaddr overflow");
+	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
+
+	while (npages--) {
+		virt_pg_map(vm, vaddr, paddr, pgd_memslot);
+		vaddr += page_size;
+		paddr += page_size;
+	}
+}
+
+/*
+ * Address VM Physical to Host Virtual
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -905,7 +973,8 @@ void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa)
 	return NULL;
 }
 
-/* Address Host Virtual to VM Physical
+/*
+ * Address Host Virtual to VM Physical
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -939,7 +1008,8 @@ vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva)
 	return -1;
 }
 
-/* VM Create IRQ Chip
+/*
+ * VM Create IRQ Chip
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -957,9 +1027,12 @@ void vm_create_irqchip(struct kvm_vm *vm)
 	ret = ioctl(vm->fd, KVM_CREATE_IRQCHIP, 0);
 	TEST_ASSERT(ret == 0, "KVM_CREATE_IRQCHIP IOCTL failed, "
 		"rc: %i errno: %i", ret, errno);
+
+	vm->has_irqchip = true;
 }
 
-/* VM VCPU State
+/*
+ * VM VCPU State
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -981,7 +1054,8 @@ struct kvm_run *vcpu_state(struct kvm_vm *vm, uint32_t vcpuid)
 	return vcpu->state;
 }
 
-/* VM VCPU Run
+/*
+ * VM VCPU Run
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1007,13 +1081,14 @@ int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
 	int rc;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-        do {
+	do {
 		rc = ioctl(vcpu->fd, KVM_RUN, NULL);
 	} while (rc == -1 && errno == EINTR);
 	return rc;
 }
 
-/* VM VCPU Set MP State
+/*
+ * VM VCPU Set MP State
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1028,7 +1103,7 @@ int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
  * by mp_state.
  */
 void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
-	struct kvm_mp_state *mp_state)
+		       struct kvm_mp_state *mp_state)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
@@ -1040,7 +1115,8 @@ void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
 		"rc: %i errno: %i", ret, errno);
 }
 
-/* VM VCPU Regs Get
+/*
+ * VM VCPU Regs Get
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1054,21 +1130,20 @@ void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
  * Obtains the current register state for the VCPU specified by vcpuid
  * and stores it at the location given by regs.
  */
-void vcpu_regs_get(struct kvm_vm *vm,
-	uint32_t vcpuid, struct kvm_regs *regs)
+void vcpu_regs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
-	/* Get the regs. */
 	ret = ioctl(vcpu->fd, KVM_GET_REGS, regs);
 	TEST_ASSERT(ret == 0, "KVM_GET_REGS failed, rc: %i errno: %i",
 		ret, errno);
 }
 
-/* VM VCPU Regs Set
+/*
+ * VM VCPU Regs Set
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1082,99 +1157,46 @@ void vcpu_regs_get(struct kvm_vm *vm,
  * Sets the regs of the VCPU specified by vcpuid to the values
  * given by regs.
  */
-void vcpu_regs_set(struct kvm_vm *vm,
-	uint32_t vcpuid, struct kvm_regs *regs)
+void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
-	/* Set the regs. */
 	ret = ioctl(vcpu->fd, KVM_SET_REGS, regs);
 	TEST_ASSERT(ret == 0, "KVM_SET_REGS failed, rc: %i errno: %i",
 		ret, errno);
 }
 
 void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
-			  struct kvm_vcpu_events *events)
+		     struct kvm_vcpu_events *events)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
-	/* Get the regs. */
 	ret = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, events);
 	TEST_ASSERT(ret == 0, "KVM_GET_VCPU_EVENTS, failed, rc: %i errno: %i",
 		ret, errno);
 }
 
 void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
-			  struct kvm_vcpu_events *events)
+		     struct kvm_vcpu_events *events)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
-	/* Set the regs. */
 	ret = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, events);
 	TEST_ASSERT(ret == 0, "KVM_SET_VCPU_EVENTS, failed, rc: %i errno: %i",
 		ret, errno);
 }
 
-/* VM VCPU Args Set
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   num - number of arguments
- *   ... - arguments, each of type uint64_t
- *
- * Output Args: None
- *
- * Return: None
- *
- * Sets the first num function input arguments to the values
- * given as variable args.  Each of the variable args is expected to
- * be of type uint64_t.
- */
-void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
-{
-	va_list ap;
-	struct kvm_regs regs;
-
-	TEST_ASSERT(num >= 1 && num <= 6, "Unsupported number of args,\n"
-		    "  num: %u\n",
-		    num);
-
-	va_start(ap, num);
-	vcpu_regs_get(vm, vcpuid, &regs);
-
-	if (num >= 1)
-		regs.rdi = va_arg(ap, uint64_t);
-
-	if (num >= 2)
-		regs.rsi = va_arg(ap, uint64_t);
-
-	if (num >= 3)
-		regs.rdx = va_arg(ap, uint64_t);
-
-	if (num >= 4)
-		regs.rcx = va_arg(ap, uint64_t);
-
-	if (num >= 5)
-		regs.r8 = va_arg(ap, uint64_t);
-
-	if (num >= 6)
-		regs.r9 = va_arg(ap, uint64_t);
-
-	vcpu_regs_set(vm, vcpuid, &regs);
-	va_end(ap);
-}
-
-/* VM VCPU System Regs Get
+/*
+ * VM VCPU System Regs Get
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1188,22 +1210,20 @@ void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
  * Obtains the current system register state for the VCPU specified by
  * vcpuid and stores it at the location given by sregs.
  */
-void vcpu_sregs_get(struct kvm_vm *vm,
-	uint32_t vcpuid, struct kvm_sregs *sregs)
+void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
-	/* Get the regs. */
-	/* Get the regs. */
 	ret = ioctl(vcpu->fd, KVM_GET_SREGS, sregs);
 	TEST_ASSERT(ret == 0, "KVM_GET_SREGS failed, rc: %i errno: %i",
 		ret, errno);
 }
 
-/* VM VCPU System Regs Set
+/*
+ * VM VCPU System Regs Set
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1217,27 +1237,25 @@ void vcpu_sregs_get(struct kvm_vm *vm,
  * Sets the system regs of the VCPU specified by vcpuid to the values
  * given by sregs.
  */
-void vcpu_sregs_set(struct kvm_vm *vm,
-	uint32_t vcpuid, struct kvm_sregs *sregs)
+void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 {
 	int ret = _vcpu_sregs_set(vm, vcpuid, sregs);
 	TEST_ASSERT(ret == 0, "KVM_RUN IOCTL failed, "
 		"rc: %i errno: %i", ret, errno);
 }
 
-int _vcpu_sregs_set(struct kvm_vm *vm,
-	uint32_t vcpuid, struct kvm_sregs *sregs)
+int _vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
-	/* Get the regs. */
 	return ioctl(vcpu->fd, KVM_SET_SREGS, sregs);
 }
 
-/* VCPU Ioctl
+/*
+ * VCPU Ioctl
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1249,8 +1267,8 @@ int _vcpu_sregs_set(struct kvm_vm *vm,
  *
  * Issues an arbitrary ioctl on a VCPU fd.
  */
-void vcpu_ioctl(struct kvm_vm *vm,
-	uint32_t vcpuid, unsigned long cmd, void *arg)
+void vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
+		unsigned long cmd, void *arg)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
@@ -1262,7 +1280,8 @@ void vcpu_ioctl(struct kvm_vm *vm,
 		cmd, ret, errno, strerror(errno));
 }
 
-/* VM Ioctl
+/*
+ * VM Ioctl
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1282,7 +1301,8 @@ void vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 		cmd, ret, errno, strerror(errno));
 }
 
-/* VM Dump
+/*
+ * VM Dump
  *
  * Input Args:
  *   vm - Virtual Machine
@@ -1329,38 +1349,6 @@ void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		vcpu_dump(stream, vm, vcpu->id, indent + 2);
 }
 
-/* VM VCPU Dump
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   indent - Left margin indent amount
- *
- * Output Args:
- *   stream - Output FILE stream
- *
- * Return: None
- *
- * Dumps the current state of the VCPU specified by vcpuid, within the VM
- * given by vm, to the FILE stream given by stream.
- */
-void vcpu_dump(FILE *stream, struct kvm_vm *vm,
-	uint32_t vcpuid, uint8_t indent)
-{
-		struct kvm_regs regs;
-		struct kvm_sregs sregs;
-
-		fprintf(stream, "%*scpuid: %u\n", indent, "", vcpuid);
-
-		fprintf(stream, "%*sregs:\n", indent + 2, "");
-		vcpu_regs_get(vm, vcpuid, &regs);
-		regs_dump(stream, &regs, indent + 4);
-
-		fprintf(stream, "%*ssregs:\n", indent + 2, "");
-		vcpu_sregs_get(vm, vcpuid, &sregs);
-		sregs_dump(stream, &sregs, indent + 4);
-}
-
 /* Known KVM exit reasons */
 static struct exit_reason {
 	unsigned int reason;
@@ -1391,7 +1379,8 @@ static struct exit_reason {
 #endif
 };
 
-/* Exit Reason String
+/*
+ * Exit Reason String
  *
  * Input Args:
  *   exit_reason - Exit reason
@@ -1417,10 +1406,12 @@ const char *exit_reason_str(unsigned int exit_reason)
 	return "Unknown";
 }
 
-/* Physical Page Allocate
+/*
+ * Physical Contiguous Page Allocator
  *
  * Input Args:
  *   vm - Virtual Machine
+ *   num - number of pages
  *   paddr_min - Physical address minimum
  *   memslot - Memory region to allocate page from
  *
@@ -1429,47 +1420,59 @@ const char *exit_reason_str(unsigned int exit_reason)
  * Return:
  *   Starting physical address
  *
- * Within the VM specified by vm, locates an available physical page
- * at or above paddr_min.  If found, the page is marked as in use
- * and its address is returned.  A TEST_ASSERT failure occurs if no
- * page is available at or above paddr_min.
+ * Within the VM specified by vm, locates a range of available physical
+ * pages at or above paddr_min. If found, the pages are marked as in use
+ * and thier base address is returned. A TEST_ASSERT failure occurs if
+ * not enough pages are available at or above paddr_min.
  */
-vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm,
-	vm_paddr_t paddr_min, uint32_t memslot)
+vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
+			      vm_paddr_t paddr_min, uint32_t memslot)
 {
 	struct userspace_mem_region *region;
-	sparsebit_idx_t pg;
+	sparsebit_idx_t pg, base;
+
+	TEST_ASSERT(num > 0, "Must allocate at least one page");
 
 	TEST_ASSERT((paddr_min % vm->page_size) == 0, "Min physical address "
 		"not divisible by page size.\n"
 		"  paddr_min: 0x%lx page_size: 0x%x",
 		paddr_min, vm->page_size);
 
-	/* Locate memory region. */
 	region = memslot2region(vm, memslot);
+	base = pg = paddr_min >> vm->page_shift;
 
-	/* Locate next available physical page at or above paddr_min. */
-	pg = paddr_min >> vm->page_shift;
-
-	if (!sparsebit_is_set(region->unused_phy_pages, pg)) {
-		pg = sparsebit_next_set(region->unused_phy_pages, pg);
-		if (pg == 0) {
-			fprintf(stderr, "No guest physical page available, "
-				"paddr_min: 0x%lx page_size: 0x%x memslot: %u",
-				paddr_min, vm->page_size, memslot);
-			fputs("---- vm dump ----\n", stderr);
-			vm_dump(stderr, vm, 2);
-			abort();
+	do {
+		for (; pg < base + num; ++pg) {
+			if (!sparsebit_is_set(region->unused_phy_pages, pg)) {
+				base = pg = sparsebit_next_set(region->unused_phy_pages, pg);
+				break;
+			}
 		}
+	} while (pg && pg != base + num);
+
+	if (pg == 0) {
+		fprintf(stderr, "No guest physical page available, "
+			"paddr_min: 0x%lx page_size: 0x%x memslot: %u\n",
+			paddr_min, vm->page_size, memslot);
+		fputs("---- vm dump ----\n", stderr);
+		vm_dump(stderr, vm, 2);
+		abort();
 	}
 
-	/* Specify page as in use and return its address. */
-	sparsebit_clear(region->unused_phy_pages, pg);
+	for (pg = base; pg < base + num; ++pg)
+		sparsebit_clear(region->unused_phy_pages, pg);
 
-	return pg * vm->page_size;
+	return base * vm->page_size;
 }
 
-/* Address Guest Virtual to Host Virtual
+vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm, vm_paddr_t paddr_min,
+			     uint32_t memslot)
+{
+	return vm_phy_pages_alloc(vm, 1, paddr_min, memslot);
+}
+
+/*
+ * Address Guest Virtual to Host Virtual
  *
  * Input Args:
  *   vm - Virtual Machine

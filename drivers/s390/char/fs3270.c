@@ -8,7 +8,7 @@
  *     Copyright IBM Corp. 2003, 2009
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include <asm/compat.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>

@@ -1,0 +1,32 @@
+Bindings for Linear Technologies LT3593 LED controller
+
+Required properties:
+- compatible:		Should be "lltc,lt3593".
+- lltc,ctrl-gpios:	A handle to the GPIO that is connected to the 'CTRL'
+			pin of the chip.
+
+The hardware supports only one LED. The properties of this LED are
+configured in a sub-node in the device node.
+
+Optional sub-node properties:
+- label:	A label for the LED. If none is given, the LED will be
+		named "lt3595::".
+- linux,default-trigger: The default trigger for the LED.
+			See Documentation/devicetree/bindings/leds/common.txt
+- default-state:	The initial state of the LED.
+			See Documentation/devicetree/bindings/leds/common.txt
+
+If multiple chips of this type are found in a design, each one needs to
+be handled by its own device node.
+
+Example:
+
+led-controller {
+	compatible = "lltc,lt3593";
+	lltc,ctrl-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+
+	led {
+		label = "white:backlight";
+		default-state = "on";
+	};
+};

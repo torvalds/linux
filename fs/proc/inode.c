@@ -105,9 +105,10 @@ void __init proc_init_kmemcache(void)
 		kmem_cache_create("pde_opener", sizeof(struct pde_opener), 0,
 				  SLAB_ACCOUNT|SLAB_PANIC, NULL);
 	proc_dir_entry_cache = kmem_cache_create_usercopy(
-		"proc_dir_entry", sizeof(struct proc_dir_entry), 0, SLAB_PANIC,
+		"proc_dir_entry", SIZEOF_PDE, 0, SLAB_PANIC,
 		offsetof(struct proc_dir_entry, inline_name),
-		sizeof_field(struct proc_dir_entry, inline_name), NULL);
+		SIZEOF_PDE_INLINE_NAME, NULL);
+	BUILD_BUG_ON(sizeof(struct proc_dir_entry) >= SIZEOF_PDE);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
@@ -515,6 +516,9 @@ int proc_fill_super(struct super_block *s, void *data, int silent)
 	 */
 	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
 	
+	/* procfs dentries and inodes don't require IO to create */
+	s->s_shrink.seeks = 0;
+
 	pde_get(&proc_root);
 	root_inode = proc_get_inode(s, &proc_root);
 	if (!root_inode) {

@@ -8,6 +8,32 @@
 #include <linux/list.h>
 #include <linux/refcount.h>
 
+#define TRACE_CGROUP_PATH_LEN 1024
+extern spinlock_t trace_cgroup_path_lock;
+extern char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
+
+/*
+ * cgroup_path() takes a spin lock. It is good practice not to take
+ * spin locks within trace point handlers, as they are mostly hidden
+ * from normal view. As cgroup_path() can take the kernfs_rename_lock
+ * spin lock, it is best to not call that function from the trace event
+ * handler.
+ *
+ * Note: trace_cgroup_##type##_enabled() is a static branch that will only
+ *       be set when the trace event is enabled.
+ */
+#define TRACE_CGROUP_PATH(type, cgrp, ...)				\
+	do {								\
+		if (trace_cgroup_##type##_enabled()) {			\
+			spin_lock(&trace_cgroup_path_lock);		\
+			cgroup_path(cgrp, trace_cgroup_path,		\
+				    TRACE_CGROUP_PATH_LEN);		\
+			trace_cgroup_##type(cgrp, trace_cgroup_path,	\
+					    ##__VA_ARGS__);		\
+			spin_unlock(&trace_cgroup_path_lock);		\
+		}							\
+	} while (0)
+
 /*
  * A cgroup can be associated with multiple css_sets as different tasks may
  * belong to different cgroups on different hierarchies.  In the other
@@ -201,13 +227,12 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 int cgroup_task_count(const struct cgroup *cgrp);
 
 /*
- * stat.c
+ * rstat.c
  */
-void cgroup_stat_flush(struct cgroup *cgrp);
-int cgroup_stat_init(struct cgroup *cgrp);
-void cgroup_stat_exit(struct cgroup *cgrp);
-void cgroup_stat_show_cputime(struct seq_file *seq);
-void cgroup_stat_boot(void);
+int cgroup_rstat_init(struct cgroup *cgrp);
+void cgroup_rstat_exit(struct cgroup *cgrp);
+void cgroup_rstat_boot(void);
+void cgroup_base_stat_cputime_show(struct seq_file *seq);
 
 /*
  * namespace.c
@@ -218,9 +243,9 @@ extern const struct proc_ns_operations cgroupns_operations;
  * cgroup-v1.c
  */
 extern struct cftype cgroup1_base_files[];
-extern const struct file_operations proc_cgroupstats_operations;
 extern struct kernfs_syscall_ops cgroup1_kf_syscall_ops;
 
+int proc_cgroupstats_show(struct seq_file *m, void *v);
 bool cgroup1_ssid_disabled(int ssid);
 void cgroup1_pidlist_destroy_all(struct cgroup *cgrp);
 void cgroup1_release_agent(struct work_struct *work);

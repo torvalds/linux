@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -72,7 +72,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	int middle = 0;
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
-	if (IS_ERR(ps->s_txreq))
+	if (!ps->s_txreq)
 		goto bail_no_tx;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
@@ -88,7 +88,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		}
 		clear_ahg(qp);
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-		hfi1_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
+		rvt_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
 		goto done_free_tx;
 	}
 
@@ -140,7 +140,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 					qp, wqe->wr.ex.invalidate_rkey);
 				local_ops = 1;
 			}
-			hfi1_send_complete(qp, wqe, err ? IB_WC_LOC_PROT_ERR
+			rvt_send_complete(qp, wqe, err ? IB_WC_LOC_PROT_ERR
 							: IB_WC_SUCCESS);
 			if (local_ops)
 				atomic_dec(&qp->local_ops_pending);
@@ -397,7 +397,7 @@ send_first:
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
 			qp->r_sge = qp->s_rdma_read_sge;
 		} else {
-			ret = hfi1_rvt_get_rwqe(qp, 0);
+			ret = rvt_get_rwqe(qp, false);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -426,7 +426,7 @@ send_first:
 		qp->r_rcv_len += pmtu;
 		if (unlikely(qp->r_rcv_len > qp->r_len))
 			goto rewind;
-		hfi1_copy_sge(&qp->r_sge, data, pmtu, false, false);
+		rvt_copy_sge(qp, &qp->r_sge, data, pmtu, false, false);
 		break;
 
 	case OP(SEND_LAST_WITH_IMMEDIATE):
@@ -449,7 +449,7 @@ send_last:
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto rewind;
 		wc.opcode = IB_WC_RECV;
-		hfi1_copy_sge(&qp->r_sge, data, tlen, false, false);
+		rvt_copy_sge(qp, &qp->r_sge, data, tlen, false, false);
 		rvt_put_ss(&qp->s_rdma_read_sge);
 last_imm:
 		wc.wr_id = qp->r_wr_id;
@@ -523,7 +523,7 @@ rdma_first:
 		qp->r_rcv_len += pmtu;
 		if (unlikely(qp->r_rcv_len > qp->r_len))
 			goto drop;
-		hfi1_copy_sge(&qp->r_sge, data, pmtu, true, false);
+		rvt_copy_sge(qp, &qp->r_sge, data, pmtu, true, false);
 		break;
 
 	case OP(RDMA_WRITE_LAST_WITH_IMMEDIATE):
@@ -542,7 +542,7 @@ rdma_last_imm:
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
 			rvt_put_ss(&qp->s_rdma_read_sge);
 		} else {
-			ret = hfi1_rvt_get_rwqe(qp, 1);
+			ret = rvt_get_rwqe(qp, true);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -550,7 +550,7 @@ rdma_last_imm:
 		}
 		wc.byte_len = qp->r_len;
 		wc.opcode = IB_WC_RECV_RDMA_WITH_IMM;
-		hfi1_copy_sge(&qp->r_sge, data, tlen, true, false);
+		rvt_copy_sge(qp, &qp->r_sge, data, tlen, true, false);
 		rvt_put_ss(&qp->r_sge);
 		goto last_imm;
 
@@ -564,7 +564,7 @@ rdma_last:
 		tlen -= (hdrsize + extra_bytes);
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
-		hfi1_copy_sge(&qp->r_sge, data, tlen, true, false);
+		rvt_copy_sge(qp, &qp->r_sge, data, tlen, true, false);
 		rvt_put_ss(&qp->r_sge);
 		break;
 

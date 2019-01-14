@@ -274,7 +274,8 @@ struct core_rx_start_ramrod_data {
 	u8 mf_si_mcast_accept_all;
 	struct core_rx_action_on_error action_on_error;
 	u8 gsi_offload_flag;
-	u8 reserved[6];
+	u8 wipe_inner_vlan_pri_en;
+	u8 reserved[5];
 };
 
 /* Ramrod data for rx queue stop ramrod */
@@ -351,7 +352,8 @@ struct core_tx_start_ramrod_data {
 	__le16 pbl_size;
 	__le16 qm_pq_id;
 	u8 gsi_offload_flag;
-	u8 resrved[3];
+	u8 vport_id;
+	u8 resrved[2];
 };
 
 /* Ramrod data for tx queue stop ramrod */
@@ -914,6 +916,16 @@ struct eth_rx_rate_limit {
 	__le16 reserved1;
 };
 
+/* Update RSS indirection table entry command */
+struct eth_tstorm_rss_update_data {
+	u8 valid;
+	u8 vport_id;
+	u8 ind_table_index;
+	u8 reserved;
+	__le16 ind_table_value;
+	__le16 reserved1;
+};
+
 struct eth_ustorm_per_pf_stat {
 	struct regpair rcv_lb_ucast_bytes;
 	struct regpair rcv_lb_mcast_bytes;
@@ -1095,14 +1107,16 @@ enum personality_type {
 struct pf_start_tunnel_config {
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
+	u8 set_no_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
 	u8 tunnel_clss_l2gre;
 	u8 tunnel_clss_ipgre;
-	u8 reserved;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
+	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 reserved[3];
 };
 
 /* Ramrod data for PF start ramrod */
@@ -1145,14 +1159,17 @@ struct pf_update_tunnel_config {
 	u8 update_rx_def_non_ucast_clss;
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
+	u8 set_no_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
 	u8 tunnel_clss_l2gre;
 	u8 tunnel_clss_ipgre;
+	u8 reserved;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
-	__le16 reserved;
+	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 reserved1[3];
 };
 
 /* Data for port update ramrod */
@@ -1236,6 +1253,10 @@ struct rl_update_ramrod_data {
 	u8 rl_id_first;
 	u8 rl_id_last;
 	u8 rl_dc_qcn_flg;
+	u8 dcqcn_reset_alpha_on_idle;
+	u8 rl_bc_stage_th;
+	u8 rl_timer_stage_th;
+	u8 reserved1;
 	__le32 rl_bc_rate;
 	__le16 rl_max_rate;
 	__le16 rl_r_ai;
@@ -1244,7 +1265,7 @@ struct rl_update_ramrod_data {
 	__le32 dcqcn_k_us;
 	__le32 dcqcn_timeuot_us;
 	__le32 qcn_timeuot_us;
-	__le32 reserved[2];
+	__le32 reserved2;
 };
 
 /* Slowpath Element (SPQE) */
@@ -2535,7 +2556,14 @@ struct idle_chk_data {
 	u16 reserved2;
 };
 
-/* Debug Tools data (per HW function) */
+struct pretend_params {
+	u8 split_type;
+	u8 reserved;
+	u16 split_id;
+};
+
+/* Debug Tools data (per HW function)
+ */
 struct dbg_tools_data {
 	struct dbg_grc_data grc;
 	struct dbg_bus_data bus;
@@ -2544,8 +2572,13 @@ struct dbg_tools_data {
 	u8 block_in_reset[88];
 	u8 chip_id;
 	u8 platform_id;
+	u8 num_ports;
+	u8 num_pfs_per_port;
+	u8 num_vfs;
 	u8 initialized;
 	u8 use_dmae;
+	u8 reserved;
+	struct pretend_params pretend;
 	u32 num_regs_read;
 };
 
@@ -2975,6 +3008,24 @@ void qed_read_regs(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt, u32 *buf, u32 addr, u32 len);
 
 /**
+ * @brief qed_read_fw_info - Reads FW info from the chip.
+ *
+ * The FW info contains FW-related information, such as the FW version,
+ * FW image (main/L2B/kuku), FW timestamp, etc.
+ * The FW info is read from the internal RAM of the first Storm that is not in
+ * reset.
+ *
+ * @param p_hwfn -	    HW device data
+ * @param p_ptt -	    Ptt window used for writing the registers.
+ * @param fw_info -	Out: a pointer to write the FW info into.
+ *
+ * @return true if the FW info was read successfully from one of the Storms,
+ * or false if all Storms are in reset.
+ */
+bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt, struct fw_info *fw_info);
+
+/**
  * @brief qed_dbg_grc_set_params_default - Reverts all GRC parameters to their
  *	default value.
  *
@@ -3287,6 +3338,25 @@ enum dbg_status qed_dbg_read_attn(struct qed_hwfn *p_hwfn,
 enum dbg_status qed_dbg_print_attn(struct qed_hwfn *p_hwfn,
 				   struct dbg_attn_block_result *results);
 
+/******************************* Data Types **********************************/
+
+struct mcp_trace_format {
+	u32 data;
+#define MCP_TRACE_FORMAT_MODULE_MASK	0x0000ffff
+#define MCP_TRACE_FORMAT_MODULE_SHIFT	0
+#define MCP_TRACE_FORMAT_LEVEL_MASK	0x00030000
+#define MCP_TRACE_FORMAT_LEVEL_SHIFT	16
+#define MCP_TRACE_FORMAT_P1_SIZE_MASK	0x000c0000
+#define MCP_TRACE_FORMAT_P1_SIZE_SHIFT	18
+#define MCP_TRACE_FORMAT_P2_SIZE_MASK	0x00300000
+#define MCP_TRACE_FORMAT_P2_SIZE_SHIFT	20
+#define MCP_TRACE_FORMAT_P3_SIZE_MASK	0x00c00000
+#define MCP_TRACE_FORMAT_P3_SIZE_SHIFT	22
+#define MCP_TRACE_FORMAT_LEN_MASK	0xff000000
+#define MCP_TRACE_FORMAT_LEN_SHIFT	24
+	char *format_str;
+};
+
 /******************************** Constants **********************************/
 
 #define MAX_NAME_LEN	16
@@ -3300,6 +3370,13 @@ enum dbg_status qed_dbg_print_attn(struct qed_hwfn *p_hwfn,
  * @param bin_ptr - a pointer to the binary data with debug arrays.
  */
 enum dbg_status qed_dbg_user_set_bin_ptr(const u8 * const bin_ptr);
+
+/**
+ * @brief qed_dbg_alloc_user_data - Allocates user debug data.
+ *
+ * @param p_hwfn -		 HW device data
+ */
+enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_dbg_get_status_str - Returns a string for the specified status.
@@ -3346,8 +3423,7 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
 					   u32 *num_warnings);
 
 /**
- * @brief qed_dbg_mcp_trace_set_meta_data - Sets a pointer to the MCP Trace
- *	meta data.
+ * @brief qed_dbg_mcp_trace_set_meta_data - Sets the MCP Trace meta data.
  *
  * Needed in case the MCP Trace dump doesn't contain the meta data (e.g. due to
  * no NVRAM access).
@@ -3355,7 +3431,8 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
  * @param data - pointer to MCP Trace meta data
  * @param size - size of MCP Trace meta data in dwords
  */
-void qed_dbg_mcp_trace_set_meta_data(u32 *data, u32 size);
+void qed_dbg_mcp_trace_set_meta_data(struct qed_hwfn *p_hwfn,
+				     const u32 *meta_buf);
 
 /**
  * @brief qed_get_mcp_trace_results_buf_size - Returns the required buffer size
@@ -3390,17 +3467,43 @@ enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
 					    char *results_buf);
 
 /**
+ * @brief qed_print_mcp_trace_results_cont - Prints MCP Trace results, and
+ * keeps the MCP trace meta data allocated, to support continuous MCP Trace
+ * parsing. After the continuous parsing ends, mcp_trace_free_meta_data should
+ * be called to free the meta data.
+ *
+ * @param p_hwfn -	      HW device data
+ * @param dump_buf -	      mcp trace dump buffer, starting from the header.
+ * @param results_buf -	      buffer for printing the mcp trace results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_mcp_trace_results_cont(struct qed_hwfn *p_hwfn,
+						 u32 *dump_buf,
+						 char *results_buf);
+
+/**
  * @brief print_mcp_trace_line - Prints MCP Trace results for a single line
  *
+ * @param p_hwfn -	      HW device data
  * @param dump_buf -	      mcp trace dump buffer, starting from the header.
  * @param num_dumped_bytes -  number of bytes that were dumped.
  * @param results_buf -	      buffer for printing the mcp trace results.
  *
  * @return error if the parsing fails, ok otherwise.
  */
-enum dbg_status qed_print_mcp_trace_line(u8 *dump_buf,
+enum dbg_status qed_print_mcp_trace_line(struct qed_hwfn *p_hwfn,
+					 u8 *dump_buf,
 					 u32 num_dumped_bytes,
 					 char *results_buf);
+
+/**
+ * @brief mcp_trace_free_meta_data - Frees the MCP Trace meta data.
+ * Should be called after continuous MCP Trace parsing.
+ *
+ * @param p_hwfn - HW device data
+ */
+void qed_mcp_trace_free_meta_data(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_get_reg_fifo_results_buf_size - Returns the required buffer size
@@ -4110,6 +4213,21 @@ void qed_memset_session_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
  */
 void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
 
+#define NUM_STORMS 6
+
+/**
+ * @brief qed_set_rdma_error_level - Sets the RDMA assert level.
+ *                                   If the severity of the error will be
+ *                                   above the level, the FW will assert.
+ * @param p_hwfn - HW device data
+ * @param p_ptt - ptt window used for writing the registers
+ * @param assert_level - An array of assert levels for each storm.
+ *
+ */
+void qed_set_rdma_error_level(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      u8 assert_level[NUM_STORMS]);
+
 /* Ystorm flow control mode. Use enum fw_flow_ctrl_mode */
 #define YSTORM_FLOW_CONTROL_MODE_OFFSET			(IRO[0].base)
 #define YSTORM_FLOW_CONTROL_MODE_SIZE			(IRO[0].size)
@@ -4253,114 +4371,161 @@ void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
 	(IRO[29].base + ((pf_id) * IRO[29].m1))
 #define ETH_RX_RATE_LIMIT_SIZE				(IRO[29].size)
 
+/* RSS indirection table entry update command per PF offset in TSTORM PF BAR0.
+ * Use eth_tstorm_rss_update_data for update.
+ */
+#define TSTORM_ETH_RSS_UPDATE_OFFSET(pf_id) \
+	(IRO[30].base + ((pf_id) * IRO[30].m1))
+#define TSTORM_ETH_RSS_UPDATE_SIZE			(IRO[30].size)
+
 /* Xstorm queue zone */
 #define XSTORM_ETH_QUEUE_ZONE_OFFSET(queue_id) \
-	(IRO[30].base + ((queue_id) * IRO[30].m1))
-#define XSTORM_ETH_QUEUE_ZONE_SIZE			(IRO[30].size)
+	(IRO[31].base + ((queue_id) * IRO[31].m1))
+#define XSTORM_ETH_QUEUE_ZONE_SIZE			(IRO[31].size)
 
 /* Ystorm cqe producer */
 #define YSTORM_TOE_CQ_PROD_OFFSET(rss_id) \
-	(IRO[31].base + ((rss_id) * IRO[31].m1))
-#define YSTORM_TOE_CQ_PROD_SIZE				(IRO[31].size)
+	(IRO[32].base + ((rss_id) * IRO[32].m1))
+#define YSTORM_TOE_CQ_PROD_SIZE				(IRO[32].size)
 
 /* Ustorm cqe producer */
 #define USTORM_TOE_CQ_PROD_OFFSET(rss_id) \
-	(IRO[32].base + ((rss_id) * IRO[32].m1))
-#define USTORM_TOE_CQ_PROD_SIZE				(IRO[32].size)
+	(IRO[33].base + ((rss_id) * IRO[33].m1))
+#define USTORM_TOE_CQ_PROD_SIZE				(IRO[33].size)
 
 /* Ustorm grq producer */
 #define USTORM_TOE_GRQ_PROD_OFFSET(pf_id) \
-	(IRO[33].base + ((pf_id) * IRO[33].m1))
-#define USTORM_TOE_GRQ_PROD_SIZE			(IRO[33].size)
+	(IRO[34].base + ((pf_id) * IRO[34].m1))
+#define USTORM_TOE_GRQ_PROD_SIZE			(IRO[34].size)
 
 /* Tstorm cmdq-cons of given command queue-id */
 #define TSTORM_SCSI_CMDQ_CONS_OFFSET(cmdq_queue_id) \
-	(IRO[34].base + ((cmdq_queue_id) * IRO[34].m1))
-#define TSTORM_SCSI_CMDQ_CONS_SIZE			(IRO[34].size)
+	(IRO[35].base + ((cmdq_queue_id) * IRO[35].m1))
+#define TSTORM_SCSI_CMDQ_CONS_SIZE			(IRO[35].size)
 
 /* Tstorm (reflects M-Storm) bdq-external-producer of given function ID,
  * BDqueue-id.
  */
 #define TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id, bdq_id) \
-	(IRO[35].base + ((func_id) * IRO[35].m1) + ((bdq_id) * IRO[35].m2))
-#define TSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[35].size)
+	(IRO[36].base + ((func_id) * IRO[36].m1) + ((bdq_id) * IRO[36].m2))
+#define TSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[36].size)
 
 /* Mstorm bdq-external-producer of given BDQ resource ID, BDqueue-id */
 #define MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id, bdq_id) \
-	(IRO[36].base + ((func_id) * IRO[36].m1) + ((bdq_id) * IRO[36].m2))
-#define MSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[36].size)
+	(IRO[37].base + ((func_id) * IRO[37].m1) + ((bdq_id) * IRO[37].m2))
+#define MSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[37].size)
 
 /* Tstorm iSCSI RX stats */
 #define TSTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[37].base + ((pf_id) * IRO[37].m1))
-#define TSTORM_ISCSI_RX_STATS_SIZE			(IRO[37].size)
+	(IRO[38].base + ((pf_id) * IRO[38].m1))
+#define TSTORM_ISCSI_RX_STATS_SIZE			(IRO[38].size)
 
 /* Mstorm iSCSI RX stats */
 #define MSTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[38].base + ((pf_id) * IRO[38].m1))
-#define MSTORM_ISCSI_RX_STATS_SIZE			(IRO[38].size)
+	(IRO[39].base + ((pf_id) * IRO[39].m1))
+#define MSTORM_ISCSI_RX_STATS_SIZE			(IRO[39].size)
 
 /* Ustorm iSCSI RX stats */
 #define USTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[39].base + ((pf_id) * IRO[39].m1))
-#define USTORM_ISCSI_RX_STATS_SIZE			(IRO[39].size)
+	(IRO[40].base + ((pf_id) * IRO[40].m1))
+#define USTORM_ISCSI_RX_STATS_SIZE			(IRO[40].size)
 
 /* Xstorm iSCSI TX stats */
 #define XSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[40].base + ((pf_id) * IRO[40].m1))
-#define XSTORM_ISCSI_TX_STATS_SIZE			(IRO[40].size)
+	(IRO[41].base + ((pf_id) * IRO[41].m1))
+#define XSTORM_ISCSI_TX_STATS_SIZE			(IRO[41].size)
 
 /* Ystorm iSCSI TX stats */
 #define YSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[41].base + ((pf_id) * IRO[41].m1))
-#define YSTORM_ISCSI_TX_STATS_SIZE			(IRO[41].size)
+	(IRO[42].base + ((pf_id) * IRO[42].m1))
+#define YSTORM_ISCSI_TX_STATS_SIZE			(IRO[42].size)
 
 /* Pstorm iSCSI TX stats */
 #define PSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[42].base + ((pf_id) * IRO[42].m1))
-#define PSTORM_ISCSI_TX_STATS_SIZE			(IRO[42].size)
+	(IRO[43].base + ((pf_id) * IRO[43].m1))
+#define PSTORM_ISCSI_TX_STATS_SIZE			(IRO[43].size)
 
 /* Tstorm FCoE RX stats */
 #define TSTORM_FCOE_RX_STATS_OFFSET(pf_id) \
-	(IRO[43].base + ((pf_id) * IRO[43].m1))
-#define TSTORM_FCOE_RX_STATS_SIZE			(IRO[43].size)
+	(IRO[44].base + ((pf_id) * IRO[44].m1))
+#define TSTORM_FCOE_RX_STATS_SIZE			(IRO[44].size)
 
 /* Pstorm FCoE TX stats */
 #define PSTORM_FCOE_TX_STATS_OFFSET(pf_id) \
-	(IRO[44].base + ((pf_id) * IRO[44].m1))
-#define PSTORM_FCOE_TX_STATS_SIZE			(IRO[44].size)
+	(IRO[45].base + ((pf_id) * IRO[45].m1))
+#define PSTORM_FCOE_TX_STATS_SIZE			(IRO[45].size)
 
 /* Pstorm RDMA queue statistics */
 #define PSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
-	(IRO[45].base + ((rdma_stat_counter_id) * IRO[45].m1))
-#define PSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[45].size)
+	(IRO[46].base + ((rdma_stat_counter_id) * IRO[46].m1))
+#define PSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[46].size)
 
 /* Tstorm RDMA queue statistics */
 #define TSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
-	(IRO[46].base + ((rdma_stat_counter_id) * IRO[46].m1))
-#define TSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[46].size)
+	(IRO[47].base + ((rdma_stat_counter_id) * IRO[47].m1))
+#define TSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[47].size)
+
+/* Xstorm error level for assert */
+#define XSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[48].base +	((pf_id) * IRO[48].m1))
+#define XSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[48].size)
+
+/* Ystorm error level for assert */
+#define YSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[49].base + ((pf_id) * IRO[49].m1))
+#define YSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[49].size)
+
+/* Pstorm error level for assert */
+#define PSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[50].base +	((pf_id) * IRO[50].m1))
+#define PSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[50].size)
+
+/* Tstorm error level for assert */
+#define TSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[51].base +	((pf_id) * IRO[51].m1))
+#define TSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[51].size)
+
+/* Mstorm error level for assert */
+#define MSTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[52].base + ((pf_id) * IRO[52].m1))
+#define MSTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[52].size)
+
+/* Ustorm error level for assert */
+#define USTORM_RDMA_ASSERT_LEVEL_OFFSET(pf_id) \
+	(IRO[53].base + ((pf_id) * IRO[53].m1))
+#define USTORM_RDMA_ASSERT_LEVEL_SIZE			(IRO[53].size)
 
 /* Xstorm iWARP rxmit stats */
 #define XSTORM_IWARP_RXMIT_STATS_OFFSET(pf_id) \
-	(IRO[47].base + ((pf_id) * IRO[47].m1))
-#define XSTORM_IWARP_RXMIT_STATS_SIZE			(IRO[47].size)
+	(IRO[54].base +	((pf_id) * IRO[54].m1))
+#define XSTORM_IWARP_RXMIT_STATS_SIZE			(IRO[54].size)
 
 /* Tstorm RoCE Event Statistics */
 #define TSTORM_ROCE_EVENTS_STAT_OFFSET(roce_pf_id) \
-	(IRO[48].base + ((roce_pf_id) * IRO[48].m1))
-#define TSTORM_ROCE_EVENTS_STAT_SIZE			(IRO[48].size)
+	(IRO[55].base + ((roce_pf_id) * IRO[55].m1))
+#define TSTORM_ROCE_EVENTS_STAT_SIZE			(IRO[55].size)
 
 /* DCQCN Received Statistics */
 #define YSTORM_ROCE_DCQCN_RECEIVED_STATS_OFFSET(roce_pf_id) \
-	(IRO[49].base + ((roce_pf_id) * IRO[49].m1))
-#define YSTORM_ROCE_DCQCN_RECEIVED_STATS_SIZE		(IRO[49].size)
+	(IRO[56].base + ((roce_pf_id) * IRO[56].m1))
+#define YSTORM_ROCE_DCQCN_RECEIVED_STATS_SIZE		(IRO[56].size)
+
+/* RoCE Error Statistics */
+#define YSTORM_ROCE_ERROR_STATS_OFFSET(roce_pf_id) \
+	(IRO[57].base + ((roce_pf_id) * IRO[57].m1))
+#define YSTORM_ROCE_ERROR_STATS_SIZE			(IRO[57].size)
 
 /* DCQCN Sent Statistics */
 #define PSTORM_ROCE_DCQCN_SENT_STATS_OFFSET(roce_pf_id) \
-	(IRO[50].base + ((roce_pf_id) * IRO[50].m1))
-#define PSTORM_ROCE_DCQCN_SENT_STATS_SIZE		(IRO[50].size)
+	(IRO[58].base + ((roce_pf_id) * IRO[58].m1))
+#define PSTORM_ROCE_DCQCN_SENT_STATS_SIZE		(IRO[58].size)
 
-static const struct iro iro_arr[51] = {
+/* RoCE CQEs Statistics */
+#define USTORM_ROCE_CQE_STATS_OFFSET(roce_pf_id) \
+	(IRO[59].base + ((roce_pf_id) * IRO[59].m1))
+#define USTORM_ROCE_CQE_STATS_SIZE			(IRO[59].size)
+
+static const struct iro iro_arr[60] = {
 	{0x0, 0x0, 0x0, 0x0, 0x8},
 	{0x4cb8, 0x88, 0x0, 0x0, 0x88},
 	{0x6530, 0x20, 0x0, 0x0, 0x20},
@@ -4371,14 +4536,14 @@ static const struct iro iro_arr[51] = {
 	{0x84, 0x8, 0x0, 0x0, 0x2},
 	{0x4c48, 0x0, 0x0, 0x0, 0x78},
 	{0x3e38, 0x0, 0x0, 0x0, 0x78},
-	{0x2b78, 0x0, 0x0, 0x0, 0x78},
+	{0x3ef8, 0x0, 0x0, 0x0, 0x78},
 	{0x4c40, 0x0, 0x0, 0x0, 0x78},
 	{0x4998, 0x0, 0x0, 0x0, 0x78},
 	{0x7f50, 0x0, 0x0, 0x0, 0x78},
 	{0xa28, 0x8, 0x0, 0x0, 0x8},
 	{0x6210, 0x10, 0x0, 0x0, 0x10},
 	{0xb820, 0x30, 0x0, 0x0, 0x30},
-	{0x96c0, 0x30, 0x0, 0x0, 0x30},
+	{0xa990, 0x30, 0x0, 0x0, 0x30},
 	{0x4b68, 0x80, 0x0, 0x0, 0x40},
 	{0x1f8, 0x4, 0x0, 0x0, 0x4},
 	{0x53a8, 0x80, 0x4, 0x0, 0x4},
@@ -4386,11 +4551,12 @@ static const struct iro iro_arr[51] = {
 	{0x4ba8, 0x80, 0x0, 0x0, 0x20},
 	{0x8158, 0x40, 0x0, 0x0, 0x30},
 	{0xe770, 0x60, 0x0, 0x0, 0x60},
-	{0x2d10, 0x80, 0x0, 0x0, 0x38},
-	{0xf2b8, 0x78, 0x0, 0x0, 0x78},
+	{0x4090, 0x80, 0x0, 0x0, 0x38},
+	{0xfea8, 0x78, 0x0, 0x0, 0x78},
 	{0x1f8, 0x4, 0x0, 0x0, 0x4},
 	{0xaf20, 0x0, 0x0, 0x0, 0xf0},
 	{0xb010, 0x8, 0x0, 0x0, 0x8},
+	{0xc00, 0x8, 0x0, 0x0, 0x8},
 	{0x1f8, 0x8, 0x0, 0x0, 0x8},
 	{0xac0, 0x8, 0x0, 0x0, 0x8},
 	{0x2578, 0x8, 0x0, 0x0, 0x8},
@@ -4402,16 +4568,24 @@ static const struct iro iro_arr[51] = {
 	{0x12908, 0x18, 0x0, 0x0, 0x10},
 	{0x11aa8, 0x40, 0x0, 0x0, 0x18},
 	{0xa588, 0x50, 0x0, 0x0, 0x20},
-	{0x8700, 0x40, 0x0, 0x0, 0x28},
-	{0x10300, 0x18, 0x0, 0x0, 0x10},
+	{0x8f00, 0x40, 0x0, 0x0, 0x28},
+	{0x10e30, 0x18, 0x0, 0x0, 0x10},
 	{0xde48, 0x48, 0x0, 0x0, 0x38},
-	{0x10768, 0x20, 0x0, 0x0, 0x20},
-	{0x2d48, 0x80, 0x0, 0x0, 0x10},
+	{0x11298, 0x20, 0x0, 0x0, 0x20},
+	{0x40c8, 0x80, 0x0, 0x0, 0x10},
 	{0x5048, 0x10, 0x0, 0x0, 0x10},
+	{0xc748, 0x8, 0x0, 0x0, 0x1},
+	{0xa928, 0x8, 0x0, 0x0, 0x1},
+	{0x11a30, 0x8, 0x0, 0x0, 0x1},
+	{0xf030, 0x8, 0x0, 0x0, 0x1},
+	{0x13028, 0x8, 0x0, 0x0, 0x1},
+	{0x12c58, 0x8, 0x0, 0x0, 0x1},
 	{0xc9b8, 0x30, 0x0, 0x0, 0x10},
-	{0xed90, 0x10, 0x0, 0x0, 0x10},
-	{0xa3a0, 0x10, 0x0, 0x0, 0x10},
-	{0x13108, 0x8, 0x0, 0x0, 0x8},
+	{0xed90, 0x28, 0x0, 0x0, 0x28},
+	{0xad20, 0x18, 0x0, 0x0, 0x18},
+	{0xaea0, 0x8, 0x0, 0x0, 0x8},
+	{0x13c38, 0x8, 0x0, 0x0, 0x8},
+	{0x13c50, 0x18, 0x0, 0x0, 0x18},
 };
 
 /* Runtime array offsets */
@@ -4797,147 +4971,147 @@ static const struct iro iro_arr[51] = {
 #define NIG_REG_LLH_FUNC_FILTER_HDR_SEL_RT_OFFSET		39769
 #define NIG_REG_LLH_FUNC_FILTER_HDR_SEL_RT_SIZE			16
 #define NIG_REG_TX_EDPM_CTRL_RT_OFFSET				39785
-#define NIG_REG_ROCE_DUPLICATE_TO_HOST_RT_OFFSET		39786
-#define NIG_REG_PPF_TO_ENGINE_SEL_RT_OFFSET			39787
-#define NIG_REG_PPF_TO_ENGINE_SEL_RT_SIZE			8
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_OFFSET		39795
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_SIZE		1024
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_OFFSET		40819
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_SIZE		512
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_OFFSET		41331
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_SIZE		512
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_OFFSET	41843
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_SIZE	512
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_OFFSET	42355
-#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_SIZE		512
-#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_OFFSET		42867
-#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_SIZE			32
-#define CDU_REG_CID_ADDR_PARAMS_RT_OFFSET			42899
-#define CDU_REG_SEGMENT0_PARAMS_RT_OFFSET			42900
-#define CDU_REG_SEGMENT1_PARAMS_RT_OFFSET			42901
-#define CDU_REG_PF_SEG0_TYPE_OFFSET_RT_OFFSET			42902
-#define CDU_REG_PF_SEG1_TYPE_OFFSET_RT_OFFSET			42903
-#define CDU_REG_PF_SEG2_TYPE_OFFSET_RT_OFFSET			42904
-#define CDU_REG_PF_SEG3_TYPE_OFFSET_RT_OFFSET			42905
-#define CDU_REG_PF_FL_SEG0_TYPE_OFFSET_RT_OFFSET		42906
-#define CDU_REG_PF_FL_SEG1_TYPE_OFFSET_RT_OFFSET		42907
-#define CDU_REG_PF_FL_SEG2_TYPE_OFFSET_RT_OFFSET		42908
-#define CDU_REG_PF_FL_SEG3_TYPE_OFFSET_RT_OFFSET		42909
-#define CDU_REG_VF_SEG_TYPE_OFFSET_RT_OFFSET			42910
-#define CDU_REG_VF_FL_SEG_TYPE_OFFSET_RT_OFFSET			42911
-#define PBF_REG_TAG_ETHERTYPE_0_RT_OFFSET			42912
-#define PBF_REG_BTB_SHARED_AREA_SIZE_RT_OFFSET			42913
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET		42914
-#define PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET			42915
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ0_RT_OFFSET		42916
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET		42917
-#define PBF_REG_BTB_GUARANTEED_VOQ1_RT_OFFSET			42918
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ1_RT_OFFSET		42919
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ2_RT_OFFSET		42920
-#define PBF_REG_BTB_GUARANTEED_VOQ2_RT_OFFSET			42921
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ2_RT_OFFSET		42922
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ3_RT_OFFSET		42923
-#define PBF_REG_BTB_GUARANTEED_VOQ3_RT_OFFSET			42924
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ3_RT_OFFSET		42925
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ4_RT_OFFSET		42926
-#define PBF_REG_BTB_GUARANTEED_VOQ4_RT_OFFSET			42927
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ4_RT_OFFSET		42928
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ5_RT_OFFSET		42929
-#define PBF_REG_BTB_GUARANTEED_VOQ5_RT_OFFSET			42930
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ5_RT_OFFSET		42931
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ6_RT_OFFSET		42932
-#define PBF_REG_BTB_GUARANTEED_VOQ6_RT_OFFSET			42933
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ6_RT_OFFSET		42934
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ7_RT_OFFSET		42935
-#define PBF_REG_BTB_GUARANTEED_VOQ7_RT_OFFSET			42936
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ7_RT_OFFSET		42937
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ8_RT_OFFSET		42938
-#define PBF_REG_BTB_GUARANTEED_VOQ8_RT_OFFSET			42939
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ8_RT_OFFSET		42940
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ9_RT_OFFSET		42941
-#define PBF_REG_BTB_GUARANTEED_VOQ9_RT_OFFSET			42942
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ9_RT_OFFSET		42943
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ10_RT_OFFSET		42944
-#define PBF_REG_BTB_GUARANTEED_VOQ10_RT_OFFSET			42945
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ10_RT_OFFSET		42946
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ11_RT_OFFSET		42947
-#define PBF_REG_BTB_GUARANTEED_VOQ11_RT_OFFSET			42948
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ11_RT_OFFSET		42949
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ12_RT_OFFSET		42950
-#define PBF_REG_BTB_GUARANTEED_VOQ12_RT_OFFSET			42951
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ12_RT_OFFSET		42952
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ13_RT_OFFSET		42953
-#define PBF_REG_BTB_GUARANTEED_VOQ13_RT_OFFSET			42954
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ13_RT_OFFSET		42955
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ14_RT_OFFSET		42956
-#define PBF_REG_BTB_GUARANTEED_VOQ14_RT_OFFSET			42957
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ14_RT_OFFSET		42958
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ15_RT_OFFSET		42959
-#define PBF_REG_BTB_GUARANTEED_VOQ15_RT_OFFSET			42960
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ15_RT_OFFSET		42961
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ16_RT_OFFSET		42962
-#define PBF_REG_BTB_GUARANTEED_VOQ16_RT_OFFSET			42963
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ16_RT_OFFSET		42964
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ17_RT_OFFSET		42965
-#define PBF_REG_BTB_GUARANTEED_VOQ17_RT_OFFSET			42966
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ17_RT_OFFSET		42967
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ18_RT_OFFSET		42968
-#define PBF_REG_BTB_GUARANTEED_VOQ18_RT_OFFSET			42969
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ18_RT_OFFSET		42970
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ19_RT_OFFSET		42971
-#define PBF_REG_BTB_GUARANTEED_VOQ19_RT_OFFSET			42972
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ19_RT_OFFSET		42973
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ20_RT_OFFSET		42974
-#define PBF_REG_BTB_GUARANTEED_VOQ20_RT_OFFSET			42975
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ20_RT_OFFSET		42976
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ21_RT_OFFSET		42977
-#define PBF_REG_BTB_GUARANTEED_VOQ21_RT_OFFSET			42978
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ21_RT_OFFSET		42979
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ22_RT_OFFSET		42980
-#define PBF_REG_BTB_GUARANTEED_VOQ22_RT_OFFSET			42981
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ22_RT_OFFSET		42982
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ23_RT_OFFSET		42983
-#define PBF_REG_BTB_GUARANTEED_VOQ23_RT_OFFSET			42984
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ23_RT_OFFSET		42985
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ24_RT_OFFSET		42986
-#define PBF_REG_BTB_GUARANTEED_VOQ24_RT_OFFSET			42987
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ24_RT_OFFSET		42988
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ25_RT_OFFSET		42989
-#define PBF_REG_BTB_GUARANTEED_VOQ25_RT_OFFSET			42990
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ25_RT_OFFSET		42991
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ26_RT_OFFSET		42992
-#define PBF_REG_BTB_GUARANTEED_VOQ26_RT_OFFSET			42993
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ26_RT_OFFSET		42994
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ27_RT_OFFSET		42995
-#define PBF_REG_BTB_GUARANTEED_VOQ27_RT_OFFSET			42996
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ27_RT_OFFSET		42997
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ28_RT_OFFSET		42998
-#define PBF_REG_BTB_GUARANTEED_VOQ28_RT_OFFSET			42999
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ28_RT_OFFSET		43000
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ29_RT_OFFSET		43001
-#define PBF_REG_BTB_GUARANTEED_VOQ29_RT_OFFSET			43002
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ29_RT_OFFSET		43003
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ30_RT_OFFSET		43004
-#define PBF_REG_BTB_GUARANTEED_VOQ30_RT_OFFSET			43005
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ30_RT_OFFSET		43006
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ31_RT_OFFSET		43007
-#define PBF_REG_BTB_GUARANTEED_VOQ31_RT_OFFSET			43008
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ31_RT_OFFSET		43009
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ32_RT_OFFSET		43010
-#define PBF_REG_BTB_GUARANTEED_VOQ32_RT_OFFSET			43011
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ32_RT_OFFSET		43012
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ33_RT_OFFSET		43013
-#define PBF_REG_BTB_GUARANTEED_VOQ33_RT_OFFSET			43014
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ33_RT_OFFSET		43015
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ34_RT_OFFSET		43016
-#define PBF_REG_BTB_GUARANTEED_VOQ34_RT_OFFSET			43017
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ34_RT_OFFSET		43018
-#define PBF_REG_YCMD_QS_NUM_LINES_VOQ35_RT_OFFSET		43019
-#define PBF_REG_BTB_GUARANTEED_VOQ35_RT_OFFSET			43020
-#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ35_RT_OFFSET		43021
-#define XCM_REG_CON_PHY_Q3_RT_OFFSET				43022
+#define NIG_REG_PPF_TO_ENGINE_SEL_RT_OFFSET                             39786
+#define NIG_REG_PPF_TO_ENGINE_SEL_RT_SIZE                               8
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_OFFSET                  39794
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_VALUE_RT_SIZE                    1024
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_OFFSET                     40818
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_EN_RT_SIZE                       512
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_OFFSET                   41330
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_MODE_RT_SIZE                     512
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_OFFSET          41842
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_PROTOCOL_TYPE_RT_SIZE            512
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_OFFSET                42354
+#define NIG_REG_LLH_PF_CLS_FUNC_FILTER_HDR_SEL_RT_SIZE                  512
+#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_OFFSET                        42866
+#define NIG_REG_LLH_PF_CLS_FILTERS_MAP_RT_SIZE                          32
+#define CDU_REG_CID_ADDR_PARAMS_RT_OFFSET                               42898
+#define CDU_REG_SEGMENT0_PARAMS_RT_OFFSET                               42899
+#define CDU_REG_SEGMENT1_PARAMS_RT_OFFSET                               42900
+#define CDU_REG_PF_SEG0_TYPE_OFFSET_RT_OFFSET                           42901
+#define CDU_REG_PF_SEG1_TYPE_OFFSET_RT_OFFSET                           42902
+#define CDU_REG_PF_SEG2_TYPE_OFFSET_RT_OFFSET                           42903
+#define CDU_REG_PF_SEG3_TYPE_OFFSET_RT_OFFSET                           42904
+#define CDU_REG_PF_FL_SEG0_TYPE_OFFSET_RT_OFFSET                        42905
+#define CDU_REG_PF_FL_SEG1_TYPE_OFFSET_RT_OFFSET                        42906
+#define CDU_REG_PF_FL_SEG2_TYPE_OFFSET_RT_OFFSET                        42907
+#define CDU_REG_PF_FL_SEG3_TYPE_OFFSET_RT_OFFSET                        42908
+#define CDU_REG_VF_SEG_TYPE_OFFSET_RT_OFFSET                            42909
+#define CDU_REG_VF_FL_SEG_TYPE_OFFSET_RT_OFFSET                         42910
+#define PBF_REG_TAG_ETHERTYPE_0_RT_OFFSET                               42911
+#define PBF_REG_BTB_SHARED_AREA_SIZE_RT_OFFSET                          42912
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET                        42913
+#define PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET                           42914
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ0_RT_OFFSET                    42915
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET                        42916
+#define PBF_REG_BTB_GUARANTEED_VOQ1_RT_OFFSET                           42917
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ1_RT_OFFSET                    42918
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ2_RT_OFFSET                        42919
+#define PBF_REG_BTB_GUARANTEED_VOQ2_RT_OFFSET                           42920
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ2_RT_OFFSET                    42921
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ3_RT_OFFSET                        42922
+#define PBF_REG_BTB_GUARANTEED_VOQ3_RT_OFFSET                           42923
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ3_RT_OFFSET                    42924
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ4_RT_OFFSET                        42925
+#define PBF_REG_BTB_GUARANTEED_VOQ4_RT_OFFSET                           42926
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ4_RT_OFFSET                    42927
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ5_RT_OFFSET                        42928
+#define PBF_REG_BTB_GUARANTEED_VOQ5_RT_OFFSET                           42929
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ5_RT_OFFSET                    42930
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ6_RT_OFFSET                        42931
+#define PBF_REG_BTB_GUARANTEED_VOQ6_RT_OFFSET                           42932
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ6_RT_OFFSET                    42933
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ7_RT_OFFSET                        42934
+#define PBF_REG_BTB_GUARANTEED_VOQ7_RT_OFFSET                           42935
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ7_RT_OFFSET                    42936
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ8_RT_OFFSET                        42937
+#define PBF_REG_BTB_GUARANTEED_VOQ8_RT_OFFSET                           42938
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ8_RT_OFFSET                    42939
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ9_RT_OFFSET                        42940
+#define PBF_REG_BTB_GUARANTEED_VOQ9_RT_OFFSET                           42941
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ9_RT_OFFSET                    42942
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ10_RT_OFFSET                       42943
+#define PBF_REG_BTB_GUARANTEED_VOQ10_RT_OFFSET                          42944
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ10_RT_OFFSET                   42945
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ11_RT_OFFSET                       42946
+#define PBF_REG_BTB_GUARANTEED_VOQ11_RT_OFFSET                          42947
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ11_RT_OFFSET                   42948
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ12_RT_OFFSET                       42949
+#define PBF_REG_BTB_GUARANTEED_VOQ12_RT_OFFSET                          42950
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ12_RT_OFFSET                   42951
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ13_RT_OFFSET                       42952
+#define PBF_REG_BTB_GUARANTEED_VOQ13_RT_OFFSET                          42953
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ13_RT_OFFSET                   42954
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ14_RT_OFFSET                       42955
+#define PBF_REG_BTB_GUARANTEED_VOQ14_RT_OFFSET                          42956
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ14_RT_OFFSET                   42957
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ15_RT_OFFSET                       42958
+#define PBF_REG_BTB_GUARANTEED_VOQ15_RT_OFFSET                          42959
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ15_RT_OFFSET                   42960
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ16_RT_OFFSET                       42961
+#define PBF_REG_BTB_GUARANTEED_VOQ16_RT_OFFSET                          42962
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ16_RT_OFFSET                   42963
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ17_RT_OFFSET                       42964
+#define PBF_REG_BTB_GUARANTEED_VOQ17_RT_OFFSET                          42965
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ17_RT_OFFSET                   42966
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ18_RT_OFFSET                       42967
+#define PBF_REG_BTB_GUARANTEED_VOQ18_RT_OFFSET                          42968
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ18_RT_OFFSET                   42969
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ19_RT_OFFSET                       42970
+#define PBF_REG_BTB_GUARANTEED_VOQ19_RT_OFFSET                          42971
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ19_RT_OFFSET                   42972
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ20_RT_OFFSET                       42973
+#define PBF_REG_BTB_GUARANTEED_VOQ20_RT_OFFSET                          42974
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ20_RT_OFFSET                   42975
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ21_RT_OFFSET                       42976
+#define PBF_REG_BTB_GUARANTEED_VOQ21_RT_OFFSET                          42977
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ21_RT_OFFSET                   42978
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ22_RT_OFFSET                       42979
+#define PBF_REG_BTB_GUARANTEED_VOQ22_RT_OFFSET                          42980
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ22_RT_OFFSET                   42981
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ23_RT_OFFSET                       42982
+#define PBF_REG_BTB_GUARANTEED_VOQ23_RT_OFFSET                          42983
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ23_RT_OFFSET                   42984
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ24_RT_OFFSET                       42985
+#define PBF_REG_BTB_GUARANTEED_VOQ24_RT_OFFSET                          42986
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ24_RT_OFFSET                   42987
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ25_RT_OFFSET                       42988
+#define PBF_REG_BTB_GUARANTEED_VOQ25_RT_OFFSET                          42989
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ25_RT_OFFSET                   42990
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ26_RT_OFFSET                       42991
+#define PBF_REG_BTB_GUARANTEED_VOQ26_RT_OFFSET                          42992
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ26_RT_OFFSET                   42993
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ27_RT_OFFSET                       42994
+#define PBF_REG_BTB_GUARANTEED_VOQ27_RT_OFFSET                          42995
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ27_RT_OFFSET                   42996
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ28_RT_OFFSET                       42997
+#define PBF_REG_BTB_GUARANTEED_VOQ28_RT_OFFSET                          42998
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ28_RT_OFFSET                   42999
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ29_RT_OFFSET                       43000
+#define PBF_REG_BTB_GUARANTEED_VOQ29_RT_OFFSET                          43001
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ29_RT_OFFSET                   43002
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ30_RT_OFFSET                       43003
+#define PBF_REG_BTB_GUARANTEED_VOQ30_RT_OFFSET                          43004
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ30_RT_OFFSET                   43005
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ31_RT_OFFSET                       43006
+#define PBF_REG_BTB_GUARANTEED_VOQ31_RT_OFFSET                          43007
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ31_RT_OFFSET                   43008
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ32_RT_OFFSET                       43009
+#define PBF_REG_BTB_GUARANTEED_VOQ32_RT_OFFSET                          43010
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ32_RT_OFFSET                   43011
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ33_RT_OFFSET                       43012
+#define PBF_REG_BTB_GUARANTEED_VOQ33_RT_OFFSET                          43013
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ33_RT_OFFSET                   43014
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ34_RT_OFFSET                       43015
+#define PBF_REG_BTB_GUARANTEED_VOQ34_RT_OFFSET                          43016
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ34_RT_OFFSET                   43017
+#define PBF_REG_YCMD_QS_NUM_LINES_VOQ35_RT_OFFSET                       43018
+#define PBF_REG_BTB_GUARANTEED_VOQ35_RT_OFFSET                          43019
+#define PBF_REG_BTB_SHARED_AREA_SETUP_VOQ35_RT_OFFSET                   43020
+#define XCM_REG_CON_PHY_Q3_RT_OFFSET                                    43021
 
-#define RUNTIME_ARRAY_SIZE	43023
+#define RUNTIME_ARRAY_SIZE 43022
+
 
 /* Init Callbacks */
 #define DMAE_READY_CB	0
@@ -5563,6 +5737,14 @@ enum eth_filter_type {
 	MAX_ETH_FILTER_TYPE
 };
 
+/* inner to inner vlan priority translation configurations */
+struct eth_in_to_in_pri_map_cfg {
+	u8 inner_vlan_pri_remap_en;
+	u8 reserved[7];
+	u8 non_rdma_in_to_in_pri_map[8];
+	u8 rdma_in_to_in_pri_map[8];
+};
+
 /* Eth IPv4 Fragment Type */
 enum eth_ipv4_frag_type {
 	ETH_IPV4_NOT_FRAG,
@@ -5694,8 +5876,10 @@ struct eth_vport_rx_mode {
 #define ETH_VPORT_RX_MODE_MCAST_ACCEPT_ALL_SHIFT	4
 #define ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL_MASK		0x1
 #define ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL_SHIFT	5
-#define ETH_VPORT_RX_MODE_RESERVED1_MASK		0x3FF
-#define ETH_VPORT_RX_MODE_RESERVED1_SHIFT		6
+#define ETH_VPORT_RX_MODE_ACCEPT_ANY_VNI_MASK		0x1
+#define ETH_VPORT_RX_MODE_ACCEPT_ANY_VNI_SHIFT		6
+#define ETH_VPORT_RX_MODE_RESERVED1_MASK		0x1FF
+#define ETH_VPORT_RX_MODE_RESERVED1_SHIFT		7
 };
 
 /* Command for setting tpa parameters */
@@ -5918,6 +6102,14 @@ struct tx_queue_update_ramrod_data {
 	struct regpair reserved1[5];
 };
 
+/* Inner to Inner VLAN priority map update mode */
+enum update_in_to_in_pri_map_mode_enum {
+	ETH_IN_TO_IN_PRI_MAP_UPDATE_DISABLED,
+	ETH_IN_TO_IN_PRI_MAP_UPDATE_NON_RDMA_TBL,
+	ETH_IN_TO_IN_PRI_MAP_UPDATE_RDMA_TBL,
+	MAX_UPDATE_IN_TO_IN_PRI_MAP_MODE_ENUM
+};
+
 /* Ramrod data for vport update ramrod */
 struct vport_filter_update_ramrod_data {
 	struct eth_filter_cmd_header filter_cmd_hdr;
@@ -5948,7 +6140,8 @@ struct vport_start_ramrod_data {
 	u8 zero_placement_offset;
 	u8 ctl_frame_mac_check_en;
 	u8 ctl_frame_ethtype_check_en;
-	u8 reserved[1];
+	u8 wipe_inner_vlan_pri_en;
+	struct eth_in_to_in_pri_map_cfg in_to_in_vlan_pri_map_cfg;
 };
 
 /* Ramrod data for vport stop ramrod */
@@ -6000,7 +6193,9 @@ struct vport_update_ramrod_data_cmn {
 	u8 update_ctl_frame_checks_en_flg;
 	u8 ctl_frame_mac_check_en;
 	u8 ctl_frame_ethtype_check_en;
-	u8 reserved[15];
+	u8 update_in_to_in_pri_map_mode;
+	u8 in_to_in_pri_map[8];
+	u8 reserved[6];
 };
 
 struct vport_update_ramrod_mcast {
@@ -6756,7 +6951,7 @@ struct e4_ystorm_rdma_task_ag_ctx {
 #define E4_YSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK		0x1
 #define E4_YSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT	7
 	u8 key;
-	__le32 mw_cnt;
+	__le32 mw_cnt_or_qp_id;
 	u8 ref_cnt_seq;
 	u8 ctx_upd_seq;
 	__le16 dif_flags;
@@ -6812,7 +7007,7 @@ struct e4_mstorm_rdma_task_ag_ctx {
 #define E4_MSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK		0x1
 #define E4_MSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT	7
 	u8 key;
-	__le32 mw_cnt;
+	__le32 mw_cnt_or_qp_id;
 	u8 ref_cnt_seq;
 	u8 ctx_upd_seq;
 	__le16 dif_flags;
@@ -6827,11 +7022,6 @@ struct e4_mstorm_rdma_task_ag_ctx {
 /* The roce task context of Mstorm */
 struct mstorm_rdma_task_st_ctx {
 	struct regpair temp[4];
-};
-
-/* The roce task context of Ustorm */
-struct ustorm_rdma_task_st_ctx {
-	struct regpair temp[2];
 };
 
 struct e4_ustorm_rdma_task_ag_ctx {
@@ -6907,8 +7097,6 @@ struct e4_rdma_task_context {
 	struct e4_mstorm_rdma_task_ag_ctx mstorm_ag_context;
 	struct mstorm_rdma_task_st_ctx mstorm_st_context;
 	struct rdif_task_context rdif_context;
-	struct ustorm_rdma_task_st_ctx ustorm_st_context;
-	struct regpair ustorm_st_padding[2];
 	struct e4_ustorm_rdma_task_ag_ctx ustorm_ag_context;
 };
 
@@ -7075,8 +7263,7 @@ struct rdma_register_tid_ramrod_data {
 	struct regpair va;
 	struct regpair pbl_base;
 	struct regpair dif_error_addr;
-	struct regpair dif_runt_addr;
-	__le32 reserved4[2];
+	__le32 reserved4[4];
 };
 
 /* rdma resize cq output params */
@@ -7144,8 +7331,7 @@ struct rdma_srq_modify_ramrod_data {
 enum rdma_tid_type {
 	RDMA_TID_REGISTERED_MR,
 	RDMA_TID_FMR,
-	RDMA_TID_MW_TYPE1,
-	RDMA_TID_MW_TYPE2A,
+	RDMA_TID_MW,
 	MAX_RDMA_TID_TYPE
 };
 
@@ -7290,7 +7476,7 @@ struct e4_ustorm_rdma_conn_ag_ctx {
 #define E4_USTORM_RDMA_CONN_AG_CTX_RULE8EN_MASK		0x1
 #define E4_USTORM_RDMA_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
-	u8 byte3;
+	u8 nvmf_only;
 	__le16 conn_dpi;
 	__le16 word1;
 	__le32 cq_cons;
@@ -7681,6 +7867,16 @@ struct e4_roce_conn_context {
 	struct ustorm_roce_conn_st_ctx ustorm_st_context;
 };
 
+/* roce cqes statistics */
+struct roce_cqe_stats {
+	__le32 req_cqe_error;
+	__le32 req_remote_access_errors;
+	__le32 req_remote_invalid_request;
+	__le32 resp_cqe_error;
+	__le32 resp_local_length_error;
+	__le32 reserved;
+};
+
 /* roce create qp requester ramrod data */
 struct roce_create_qp_req_ramrod_data {
 	__le16 flags;
@@ -7723,7 +7919,12 @@ struct roce_create_qp_req_ramrod_data {
 	struct regpair qp_handle_for_cqe;
 	struct regpair qp_handle_for_async;
 	u8 stats_counter_id;
-	u8 reserved3[7];
+	u8 reserved3[6];
+	u8 flags2;
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE_MASK			0x1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE_SHIFT			0
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_MASK			0x7F
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_SHIFT			1
 	__le16 regular_latency_phy_queue;
 	__le16 dpi;
 };
@@ -7798,8 +7999,8 @@ struct roce_dcqcn_sent_stats {
 
 /* RoCE destroy qp requester output params */
 struct roce_destroy_qp_req_output_params {
-	__le32 num_bound_mw;
 	__le32 cq_prod;
+	__le32 reserved;
 };
 
 /* RoCE destroy qp requester ramrod data */
@@ -7809,8 +8010,8 @@ struct roce_destroy_qp_req_ramrod_data {
 
 /* RoCE destroy qp responder output params */
 struct roce_destroy_qp_resp_output_params {
-	__le32 num_invalidated_mw;
 	__le32 cq_prod;
+	__le32 reserved;
 };
 
 /* RoCE destroy qp responder ramrod data */
@@ -7818,16 +8019,27 @@ struct roce_destroy_qp_resp_ramrod_data {
 	struct regpair output_params_addr;
 };
 
-/* roce special events statistics */
-struct roce_events_stats {
-	__le16 silent_drops;
-	__le16 rnr_naks_sent;
-	__le32 retransmit_count;
-	__le32 icrc_error_count;
+/* roce error statistics */
+struct roce_error_stats {
+	__le32 resp_remote_access_errors;
 	__le32 reserved;
 };
 
-/* ROCE slow path EQ cmd IDs */
+/* roce special events statistics */
+struct roce_events_stats {
+	__le32 silent_drops;
+	__le32 rnr_naks_sent;
+	__le32 retransmit_count;
+	__le32 icrc_error_count;
+	__le32 implied_nak_seq_err;
+	__le32 duplicate_request;
+	__le32 local_ack_timeout_err;
+	__le32 out_of_sequence;
+	__le32 packet_seq_err;
+	__le32 rnr_nak_retry_err;
+};
+
+/* roce slow path EQ cmd IDs */
 enum roce_event_opcode {
 	ROCE_EVENT_CREATE_QP = 11,
 	ROCE_EVENT_MODIFY_QP,
@@ -7835,6 +8047,7 @@ enum roce_event_opcode {
 	ROCE_EVENT_DESTROY_QP,
 	ROCE_EVENT_CREATE_UD_QP,
 	ROCE_EVENT_DESTROY_UD_QP,
+	ROCE_EVENT_FUNC_UPDATE,
 	MAX_ROCE_EVENT_OPCODE
 };
 
@@ -7843,8 +8056,17 @@ struct roce_init_func_params {
 	u8 ll2_queue_id;
 	u8 cnp_vlan_priority;
 	u8 cnp_dscp;
-	u8 reserved;
+	u8 flags;
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_NP_EN_MASK		0x1
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_NP_EN_SHIFT		0
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_RP_EN_MASK		0x1
+#define ROCE_INIT_FUNC_PARAMS_DCQCN_RP_EN_SHIFT		1
+#define ROCE_INIT_FUNC_PARAMS_RESERVED0_MASK		0x3F
+#define ROCE_INIT_FUNC_PARAMS_RESERVED0_SHIFT		2
 	__le32 cnp_send_timeout;
+	__le16 rl_offset;
+	u8 rl_count_log;
+	u8 reserved1[5];
 };
 
 /* roce func init ramrod data */
@@ -7987,7 +8209,22 @@ enum roce_ramrod_cmd_id {
 	ROCE_RAMROD_DESTROY_QP,
 	ROCE_RAMROD_CREATE_UD_QP,
 	ROCE_RAMROD_DESTROY_UD_QP,
+	ROCE_RAMROD_FUNC_UPDATE,
 	MAX_ROCE_RAMROD_CMD_ID
+};
+
+/* RoCE func init ramrod data */
+struct roce_update_func_params {
+	u8 cnp_vlan_priority;
+	u8 cnp_dscp;
+	__le16 flags;
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_NP_EN_MASK	0x1
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_NP_EN_SHIFT	0
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_RP_EN_MASK	0x1
+#define ROCE_UPDATE_FUNC_PARAMS_DCQCN_RP_EN_SHIFT	1
+#define ROCE_UPDATE_FUNC_PARAMS_RESERVED0_MASK		0x3FFF
+#define ROCE_UPDATE_FUNC_PARAMS_RESERVED0_SHIFT		2
+	__le32 cnp_send_timeout;
 };
 
 struct e4_xstorm_roce_conn_ag_ctx_dq_ext_ld_part {
@@ -8532,7 +8769,7 @@ struct e4_tstorm_roce_resp_conn_ag_ctx {
 	__le16 rq_prod;
 	__le16 conn_dpi;
 	__le16 irq_cons;
-	__le32 num_invlidated_mw;
+	__le32 reg9;
 	__le32 reg10;
 };
 
@@ -9725,6 +9962,8 @@ enum iwarp_eqe_async_opcode {
 	IWARP_EVENT_TYPE_ASYNC_EXCEPTION_DETECTED,
 	IWARP_EVENT_TYPE_ASYNC_QP_IN_ERROR_STATE,
 	IWARP_EVENT_TYPE_ASYNC_CQ_OVERFLOW,
+	IWARP_EVENT_TYPE_ASYNC_SRQ_EMPTY,
+	IWARP_EVENT_TYPE_ASYNC_SRQ_LIMIT,
 	MAX_IWARP_EQE_ASYNC_OPCODE
 };
 
@@ -11863,6 +12102,9 @@ struct public_global {
 	u32 running_bundle_id;
 	s32 external_temperature;
 	u32 mdump_reason;
+	u64 reserved;
+	u32 data_ptr;
+	u32 data_size;
 };
 
 struct fw_flr_mb {
@@ -11965,11 +12207,56 @@ struct public_port {
 	u32 transceiver_data;
 #define ETH_TRANSCEIVER_STATE_MASK	0x000000FF
 #define ETH_TRANSCEIVER_STATE_SHIFT	0x00000000
+#define ETH_TRANSCEIVER_STATE_OFFSET	0x00000000
 #define ETH_TRANSCEIVER_STATE_UNPLUGGED	0x00000000
 #define ETH_TRANSCEIVER_STATE_PRESENT	0x00000001
 #define ETH_TRANSCEIVER_STATE_VALID	0x00000003
 #define ETH_TRANSCEIVER_STATE_UPDATING	0x00000008
-
+#define ETH_TRANSCEIVER_TYPE_MASK       0x0000FF00
+#define ETH_TRANSCEIVER_TYPE_OFFSET     0x8
+#define ETH_TRANSCEIVER_TYPE_NONE                       0x00
+#define ETH_TRANSCEIVER_TYPE_UNKNOWN                    0xFF
+#define ETH_TRANSCEIVER_TYPE_1G_PCC                     0x01
+#define ETH_TRANSCEIVER_TYPE_1G_ACC                     0x02
+#define ETH_TRANSCEIVER_TYPE_1G_LX                      0x03
+#define ETH_TRANSCEIVER_TYPE_1G_SX                      0x04
+#define ETH_TRANSCEIVER_TYPE_10G_SR                     0x05
+#define ETH_TRANSCEIVER_TYPE_10G_LR                     0x06
+#define ETH_TRANSCEIVER_TYPE_10G_LRM                    0x07
+#define ETH_TRANSCEIVER_TYPE_10G_ER                     0x08
+#define ETH_TRANSCEIVER_TYPE_10G_PCC                    0x09
+#define ETH_TRANSCEIVER_TYPE_10G_ACC                    0x0a
+#define ETH_TRANSCEIVER_TYPE_XLPPI                      0x0b
+#define ETH_TRANSCEIVER_TYPE_40G_LR4                    0x0c
+#define ETH_TRANSCEIVER_TYPE_40G_SR4                    0x0d
+#define ETH_TRANSCEIVER_TYPE_40G_CR4                    0x0e
+#define ETH_TRANSCEIVER_TYPE_100G_AOC                   0x0f
+#define ETH_TRANSCEIVER_TYPE_100G_SR4                   0x10
+#define ETH_TRANSCEIVER_TYPE_100G_LR4                   0x11
+#define ETH_TRANSCEIVER_TYPE_100G_ER4                   0x12
+#define ETH_TRANSCEIVER_TYPE_100G_ACC                   0x13
+#define ETH_TRANSCEIVER_TYPE_100G_CR4                   0x14
+#define ETH_TRANSCEIVER_TYPE_4x10G_SR                   0x15
+#define ETH_TRANSCEIVER_TYPE_25G_CA_N                   0x16
+#define ETH_TRANSCEIVER_TYPE_25G_ACC_S                  0x17
+#define ETH_TRANSCEIVER_TYPE_25G_CA_S                   0x18
+#define ETH_TRANSCEIVER_TYPE_25G_ACC_M                  0x19
+#define ETH_TRANSCEIVER_TYPE_25G_CA_L                   0x1a
+#define ETH_TRANSCEIVER_TYPE_25G_ACC_L                  0x1b
+#define ETH_TRANSCEIVER_TYPE_25G_SR                     0x1c
+#define ETH_TRANSCEIVER_TYPE_25G_LR                     0x1d
+#define ETH_TRANSCEIVER_TYPE_25G_AOC                    0x1e
+#define ETH_TRANSCEIVER_TYPE_4x10G                      0x1f
+#define ETH_TRANSCEIVER_TYPE_4x25G_CR                   0x20
+#define ETH_TRANSCEIVER_TYPE_1000BASET                  0x21
+#define ETH_TRANSCEIVER_TYPE_10G_BASET                  0x22
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR      0x30
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR      0x31
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR      0x32
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_SR     0x33
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_CR     0x34
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_LR     0x35
+#define ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_AOC    0x36
 	u32 wol_info;
 	u32 wol_pkt_len;
 	u32 wol_pkt_details;
@@ -11993,6 +12280,17 @@ struct public_port {
 #define EEE_REMOTE_TW_TX_OFFSET 0
 #define EEE_REMOTE_TW_RX_MASK   0xffff0000
 #define EEE_REMOTE_TW_RX_OFFSET 16
+
+	u32 reserved1;
+	u32 oem_cfg_port;
+#define OEM_CFG_CHANNEL_TYPE_MASK                       0x00000003
+#define OEM_CFG_CHANNEL_TYPE_OFFSET                     0
+#define OEM_CFG_CHANNEL_TYPE_VLAN_PARTITION             0x1
+#define OEM_CFG_CHANNEL_TYPE_STAGGED                    0x2
+#define OEM_CFG_SCHED_TYPE_MASK                         0x0000000C
+#define OEM_CFG_SCHED_TYPE_OFFSET                       2
+#define OEM_CFG_SCHED_TYPE_ETS                          0x1
+#define OEM_CFG_SCHED_TYPE_VNIC_BW                      0x2
 };
 
 struct public_func {
@@ -12023,7 +12321,7 @@ struct public_func {
 #define FUNC_MF_CFG_MAX_BW_DEFAULT	0x00640000
 
 	u32 status;
-#define FUNC_STATUS_VLINK_DOWN		0x00000001
+#define FUNC_STATUS_VIRTUAL_LINK_UP	0x00000001
 
 	u32 mac_upper;
 #define FUNC_MF_CFG_UPPERMAC_MASK	0x0000ffff
@@ -12069,6 +12367,23 @@ struct public_func {
 #define DRV_ID_DRV_INIT_HW_MASK		0x80000000
 #define DRV_ID_DRV_INIT_HW_SHIFT	31
 #define DRV_ID_DRV_INIT_HW_FLAG		(1 << DRV_ID_DRV_INIT_HW_SHIFT)
+
+	u32 oem_cfg_func;
+#define OEM_CFG_FUNC_TC_MASK                    0x0000000F
+#define OEM_CFG_FUNC_TC_OFFSET                  0
+#define OEM_CFG_FUNC_TC_0                       0x0
+#define OEM_CFG_FUNC_TC_1                       0x1
+#define OEM_CFG_FUNC_TC_2                       0x2
+#define OEM_CFG_FUNC_TC_3                       0x3
+#define OEM_CFG_FUNC_TC_4                       0x4
+#define OEM_CFG_FUNC_TC_5                       0x5
+#define OEM_CFG_FUNC_TC_6                       0x6
+#define OEM_CFG_FUNC_TC_7                       0x7
+
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_MASK         0x00000030
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OFFSET       4
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_VNIC         0x1
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OS           0x2
 };
 
 struct mcp_mac {
@@ -12260,6 +12575,7 @@ struct public_drv_mb {
 #define DRV_MSG_SET_RESOURCE_VALUE_MSG		0x35000000
 #define DRV_MSG_CODE_OV_UPDATE_WOL              0x38000000
 #define DRV_MSG_CODE_OV_UPDATE_ESWITCH_MODE     0x39000000
+#define DRV_MSG_CODE_GET_OEM_UPDATES            0x41000000
 
 #define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN			0x30000000
@@ -12290,11 +12606,14 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_STATS_TYPE_ISCSI           3
 #define DRV_MSG_CODE_STATS_TYPE_RDMA            4
 
+#define DRV_MSG_CODE_TRANSCEIVER_READ           0x00160000
+
 #define DRV_MSG_CODE_MASK_PARITIES              0x001a0000
 
 #define DRV_MSG_CODE_BIST_TEST			0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE		0x00200000
 #define DRV_MSG_CODE_RESOURCE_CMD	0x00230000
+#define DRV_MSG_CODE_GET_TLV_DONE		0x002f0000
 
 #define RESOURCE_CMD_REQ_RESC_MASK		0x0000001F
 #define RESOURCE_CMD_REQ_RESC_SHIFT		0
@@ -12384,9 +12703,21 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_ESWITCH_MODE_VEB	0x1
 #define DRV_MB_PARAM_ESWITCH_MODE_VEPA	0x2
 
+#define DRV_MB_PARAM_DUMMY_OEM_UPDATES_MASK	0x1
+#define DRV_MB_PARAM_DUMMY_OEM_UPDATES_OFFSET	0
+
 #define DRV_MB_PARAM_SET_LED_MODE_OPER		0x0
 #define DRV_MB_PARAM_SET_LED_MODE_ON		0x1
 #define DRV_MB_PARAM_SET_LED_MODE_OFF		0x2
+
+#define DRV_MB_PARAM_TRANSCEIVER_PORT_OFFSET		0
+#define DRV_MB_PARAM_TRANSCEIVER_PORT_MASK		0x00000003
+#define DRV_MB_PARAM_TRANSCEIVER_SIZE_OFFSET		2
+#define DRV_MB_PARAM_TRANSCEIVER_SIZE_MASK		0x000000FC
+#define DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_OFFSET	8
+#define DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_MASK	0x0000FF00
+#define DRV_MB_PARAM_TRANSCEIVER_OFFSET_OFFSET		16
+#define DRV_MB_PARAM_TRANSCEIVER_OFFSET_MASK		0xFFFF0000
 
 	/* Resource Allocation params - Driver version support */
 #define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_MASK	0xFFFF0000
@@ -12412,6 +12743,7 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_MASK		0x0000FFFF
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_OFFSET	0
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE		0x00000002
+#define DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK		0x00010000
 
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK			0xffff0000
@@ -12441,6 +12773,9 @@ struct public_drv_mb {
 #define FW_MSG_CODE_PHY_OK			0x00110000
 #define FW_MSG_CODE_OK				0x00160000
 #define FW_MSG_CODE_ERROR			0x00170000
+#define FW_MSG_CODE_TRANSCEIVER_DIAG_OK		0x00160000
+#define FW_MSG_CODE_TRANSCEIVER_DIAG_ERROR	0x00170000
+#define FW_MSG_CODE_TRANSCEIVER_NOT_PRESENT	0x00020000
 
 #define FW_MSG_CODE_OS_WOL_SUPPORTED            0x00800000
 #define FW_MSG_CODE_OS_WOL_NOT_SUPPORTED        0x00810000
@@ -12461,6 +12796,7 @@ struct public_drv_mb {
 
 /* get MFW feature support response */
 #define FW_MB_PARAM_FEATURE_SUPPORT_EEE		0x00000002
+#define FW_MB_PARAM_FEATURE_SUPPORT_VLINK	0x00010000
 
 #define FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR	(1 << 0)
 
@@ -12495,6 +12831,9 @@ enum MFW_DRV_MSG_TYPE {
 	MFW_DRV_MSG_BW_UPDATE10,
 	MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE,
 	MFW_DRV_MSG_BW_UPDATE11,
+	MFW_DRV_MSG_RESERVED,
+	MFW_DRV_MSG_GET_TLV_REQ,
+	MFW_DRV_MSG_OEM_CFG_UPDATE,
 	MFW_DRV_MSG_MAX
 };
 
@@ -12528,6 +12867,235 @@ struct mcp_public_data {
 	struct public_path path[MCP_GLOB_PATH_MAX];
 	struct public_port port[MCP_GLOB_PORT_MAX];
 	struct public_func func[MCP_GLOB_FUNC_MAX];
+};
+
+#define MAX_I2C_TRANSACTION_SIZE	16
+
+/* OCBB definitions */
+enum tlvs {
+	/* Category 1: Device Properties */
+	DRV_TLV_CLP_STR,
+	DRV_TLV_CLP_STR_CTD,
+	/* Category 6: Device Configuration */
+	DRV_TLV_SCSI_TO,
+	DRV_TLV_R_T_TOV,
+	DRV_TLV_R_A_TOV,
+	DRV_TLV_E_D_TOV,
+	DRV_TLV_CR_TOV,
+	DRV_TLV_BOOT_TYPE,
+	/* Category 8: Port Configuration */
+	DRV_TLV_NPIV_ENABLED,
+	/* Category 10: Function Configuration */
+	DRV_TLV_FEATURE_FLAGS,
+	DRV_TLV_LOCAL_ADMIN_ADDR,
+	DRV_TLV_ADDITIONAL_MAC_ADDR_1,
+	DRV_TLV_ADDITIONAL_MAC_ADDR_2,
+	DRV_TLV_LSO_MAX_OFFLOAD_SIZE,
+	DRV_TLV_LSO_MIN_SEGMENT_COUNT,
+	DRV_TLV_PROMISCUOUS_MODE,
+	DRV_TLV_TX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_RX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_NUM_OF_NET_QUEUE_VMQ_CFG,
+	DRV_TLV_FLEX_NIC_OUTER_VLAN_ID,
+	DRV_TLV_OS_DRIVER_STATES,
+	DRV_TLV_PXE_BOOT_PROGRESS,
+	/* Category 12: FC/FCoE Configuration */
+	DRV_TLV_NPIV_STATE,
+	DRV_TLV_NUM_OF_NPIV_IDS,
+	DRV_TLV_SWITCH_NAME,
+	DRV_TLV_SWITCH_PORT_NUM,
+	DRV_TLV_SWITCH_PORT_ID,
+	DRV_TLV_VENDOR_NAME,
+	DRV_TLV_SWITCH_MODEL,
+	DRV_TLV_SWITCH_FW_VER,
+	DRV_TLV_QOS_PRIORITY_PER_802_1P,
+	DRV_TLV_PORT_ALIAS,
+	DRV_TLV_PORT_STATE,
+	DRV_TLV_FIP_TX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_FCOE_RX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_LINK_FAILURE_COUNT,
+	DRV_TLV_FCOE_BOOT_PROGRESS,
+	/* Category 13: iSCSI Configuration */
+	DRV_TLV_TARGET_LLMNR_ENABLED,
+	DRV_TLV_HEADER_DIGEST_FLAG_ENABLED,
+	DRV_TLV_DATA_DIGEST_FLAG_ENABLED,
+	DRV_TLV_AUTHENTICATION_METHOD,
+	DRV_TLV_ISCSI_BOOT_TARGET_PORTAL,
+	DRV_TLV_MAX_FRAME_SIZE,
+	DRV_TLV_PDU_TX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_SIZE,
+	DRV_TLV_ISCSI_BOOT_PROGRESS,
+	/* Category 20: Device Data */
+	DRV_TLV_PCIE_BUS_RX_UTILIZATION,
+	DRV_TLV_PCIE_BUS_TX_UTILIZATION,
+	DRV_TLV_DEVICE_CPU_CORES_UTILIZATION,
+	DRV_TLV_LAST_VALID_DCC_TLV_RECEIVED,
+	DRV_TLV_NCSI_RX_BYTES_RECEIVED,
+	DRV_TLV_NCSI_TX_BYTES_SENT,
+	/* Category 22: Base Port Data */
+	DRV_TLV_RX_DISCARDS,
+	DRV_TLV_RX_ERRORS,
+	DRV_TLV_TX_ERRORS,
+	DRV_TLV_TX_DISCARDS,
+	DRV_TLV_RX_FRAMES_RECEIVED,
+	DRV_TLV_TX_FRAMES_SENT,
+	/* Category 23: FC/FCoE Port Data */
+	DRV_TLV_RX_BROADCAST_PACKETS,
+	DRV_TLV_TX_BROADCAST_PACKETS,
+	/* Category 28: Base Function Data */
+	DRV_TLV_NUM_OFFLOADED_CONNECTIONS_TCP_IPV4,
+	DRV_TLV_NUM_OFFLOADED_CONNECTIONS_TCP_IPV6,
+	DRV_TLV_TX_DESCRIPTOR_QUEUE_AVG_DEPTH,
+	DRV_TLV_RX_DESCRIPTORS_QUEUE_AVG_DEPTH,
+	DRV_TLV_PF_RX_FRAMES_RECEIVED,
+	DRV_TLV_RX_BYTES_RECEIVED,
+	DRV_TLV_PF_TX_FRAMES_SENT,
+	DRV_TLV_TX_BYTES_SENT,
+	DRV_TLV_IOV_OFFLOAD,
+	DRV_TLV_PCI_ERRORS_CAP_ID,
+	DRV_TLV_UNCORRECTABLE_ERROR_STATUS,
+	DRV_TLV_UNCORRECTABLE_ERROR_MASK,
+	DRV_TLV_CORRECTABLE_ERROR_STATUS,
+	DRV_TLV_CORRECTABLE_ERROR_MASK,
+	DRV_TLV_PCI_ERRORS_AECC_REGISTER,
+	DRV_TLV_TX_QUEUES_EMPTY,
+	DRV_TLV_RX_QUEUES_EMPTY,
+	DRV_TLV_TX_QUEUES_FULL,
+	DRV_TLV_RX_QUEUES_FULL,
+	/* Category 29: FC/FCoE Function Data */
+	DRV_TLV_FCOE_TX_DESCRIPTOR_QUEUE_AVG_DEPTH,
+	DRV_TLV_FCOE_RX_DESCRIPTORS_QUEUE_AVG_DEPTH,
+	DRV_TLV_FCOE_RX_FRAMES_RECEIVED,
+	DRV_TLV_FCOE_RX_BYTES_RECEIVED,
+	DRV_TLV_FCOE_TX_FRAMES_SENT,
+	DRV_TLV_FCOE_TX_BYTES_SENT,
+	DRV_TLV_CRC_ERROR_COUNT,
+	DRV_TLV_CRC_ERROR_1_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_1_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_2_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_2_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_3_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_3_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_4_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_4_TIMESTAMP,
+	DRV_TLV_CRC_ERROR_5_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_CRC_ERROR_5_TIMESTAMP,
+	DRV_TLV_LOSS_OF_SYNC_ERROR_COUNT,
+	DRV_TLV_LOSS_OF_SIGNAL_ERRORS,
+	DRV_TLV_PRIMITIVE_SEQUENCE_PROTOCOL_ERROR_COUNT,
+	DRV_TLV_DISPARITY_ERROR_COUNT,
+	DRV_TLV_CODE_VIOLATION_ERROR_COUNT,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_1,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_2,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_3,
+	DRV_TLV_LAST_FLOGI_ISSUED_COMMON_PARAMETERS_WORD_4,
+	DRV_TLV_LAST_FLOGI_TIMESTAMP,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_1,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_2,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_3,
+	DRV_TLV_LAST_FLOGI_ACC_COMMON_PARAMETERS_WORD_4,
+	DRV_TLV_LAST_FLOGI_ACC_TIMESTAMP,
+	DRV_TLV_LAST_FLOGI_RJT,
+	DRV_TLV_LAST_FLOGI_RJT_TIMESTAMP,
+	DRV_TLV_FDISCS_SENT_COUNT,
+	DRV_TLV_FDISC_ACCS_RECEIVED,
+	DRV_TLV_FDISC_RJTS_RECEIVED,
+	DRV_TLV_PLOGI_SENT_COUNT,
+	DRV_TLV_PLOGI_ACCS_RECEIVED,
+	DRV_TLV_PLOGI_RJTS_RECEIVED,
+	DRV_TLV_PLOGI_1_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_1_TIMESTAMP,
+	DRV_TLV_PLOGI_2_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_2_TIMESTAMP,
+	DRV_TLV_PLOGI_3_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_3_TIMESTAMP,
+	DRV_TLV_PLOGI_4_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_4_TIMESTAMP,
+	DRV_TLV_PLOGI_5_SENT_DESTINATION_FC_ID,
+	DRV_TLV_PLOGI_5_TIMESTAMP,
+	DRV_TLV_PLOGI_1_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_1_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_2_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_2_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_3_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_3_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_4_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_4_ACC_TIMESTAMP,
+	DRV_TLV_PLOGI_5_ACC_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_PLOGI_5_ACC_TIMESTAMP,
+	DRV_TLV_LOGOS_ISSUED,
+	DRV_TLV_LOGO_ACCS_RECEIVED,
+	DRV_TLV_LOGO_RJTS_RECEIVED,
+	DRV_TLV_LOGO_1_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_1_TIMESTAMP,
+	DRV_TLV_LOGO_2_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_2_TIMESTAMP,
+	DRV_TLV_LOGO_3_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_3_TIMESTAMP,
+	DRV_TLV_LOGO_4_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_4_TIMESTAMP,
+	DRV_TLV_LOGO_5_RECEIVED_SOURCE_FC_ID,
+	DRV_TLV_LOGO_5_TIMESTAMP,
+	DRV_TLV_LOGOS_RECEIVED,
+	DRV_TLV_ACCS_ISSUED,
+	DRV_TLV_PRLIS_ISSUED,
+	DRV_TLV_ACCS_RECEIVED,
+	DRV_TLV_ABTS_SENT_COUNT,
+	DRV_TLV_ABTS_ACCS_RECEIVED,
+	DRV_TLV_ABTS_RJTS_RECEIVED,
+	DRV_TLV_ABTS_1_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_1_TIMESTAMP,
+	DRV_TLV_ABTS_2_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_2_TIMESTAMP,
+	DRV_TLV_ABTS_3_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_3_TIMESTAMP,
+	DRV_TLV_ABTS_4_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_4_TIMESTAMP,
+	DRV_TLV_ABTS_5_SENT_DESTINATION_FC_ID,
+	DRV_TLV_ABTS_5_TIMESTAMP,
+	DRV_TLV_RSCNS_RECEIVED,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_1,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_2,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_3,
+	DRV_TLV_LAST_RSCN_RECEIVED_N_PORT_4,
+	DRV_TLV_LUN_RESETS_ISSUED,
+	DRV_TLV_ABORT_TASK_SETS_ISSUED,
+	DRV_TLV_TPRLOS_SENT,
+	DRV_TLV_NOS_SENT_COUNT,
+	DRV_TLV_NOS_RECEIVED_COUNT,
+	DRV_TLV_OLS_COUNT,
+	DRV_TLV_LR_COUNT,
+	DRV_TLV_LRR_COUNT,
+	DRV_TLV_LIP_SENT_COUNT,
+	DRV_TLV_LIP_RECEIVED_COUNT,
+	DRV_TLV_EOFA_COUNT,
+	DRV_TLV_EOFNI_COUNT,
+	DRV_TLV_SCSI_STATUS_CHECK_CONDITION_COUNT,
+	DRV_TLV_SCSI_STATUS_CONDITION_MET_COUNT,
+	DRV_TLV_SCSI_STATUS_BUSY_COUNT,
+	DRV_TLV_SCSI_STATUS_INTERMEDIATE_COUNT,
+	DRV_TLV_SCSI_STATUS_INTERMEDIATE_CONDITION_MET_COUNT,
+	DRV_TLV_SCSI_STATUS_RESERVATION_CONFLICT_COUNT,
+	DRV_TLV_SCSI_STATUS_TASK_SET_FULL_COUNT,
+	DRV_TLV_SCSI_STATUS_ACA_ACTIVE_COUNT,
+	DRV_TLV_SCSI_STATUS_TASK_ABORTED_COUNT,
+	DRV_TLV_SCSI_CHECK_CONDITION_1_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_1_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_2_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_2_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_3_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_3_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_4_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_4_TIMESTAMP,
+	DRV_TLV_SCSI_CHECK_CONDITION_5_RECEIVED_SK_ASC_ASCQ,
+	DRV_TLV_SCSI_CHECK_5_TIMESTAMP,
+	/* Category 30: iSCSI Function Data */
+	DRV_TLV_PDU_TX_DESCRIPTOR_QUEUE_AVG_DEPTH,
+	DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_AVG_DEPTH,
+	DRV_TLV_ISCSI_PDU_RX_FRAMES_RECEIVED,
+	DRV_TLV_ISCSI_PDU_RX_BYTES_RECEIVED,
+	DRV_TLV_ISCSI_PDU_TX_FRAMES_SENT,
+	DRV_TLV_ISCSI_PDU_TX_BYTES_SENT
 };
 
 struct nvm_cfg_mac_address {
@@ -12635,6 +13203,7 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_OFFSET		0
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G		0x1
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G		0x2
+#define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G             0x4
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G		0x8
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G		0x10
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G		0x20
@@ -12645,6 +13214,7 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_AUTONEG			0x0
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_1G				0x1
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_10G			0x2
+#define NVM_CFG1_PORT_DRV_LINK_SPEED_20G                        0x3
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_25G			0x4
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_40G			0x5
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_50G			0x6
@@ -12675,6 +13245,13 @@ struct nvm_cfg1_port {
 	u32 transceiver_00;
 	u32 device_ids;
 	u32 board_cfg;
+#define NVM_CFG1_PORT_PORT_TYPE_MASK                            0x000000FF
+#define NVM_CFG1_PORT_PORT_TYPE_OFFSET                          0
+#define NVM_CFG1_PORT_PORT_TYPE_UNDEFINED                       0x0
+#define NVM_CFG1_PORT_PORT_TYPE_MODULE                          0x1
+#define NVM_CFG1_PORT_PORT_TYPE_BACKPLANE                       0x2
+#define NVM_CFG1_PORT_PORT_TYPE_EXT_PHY                         0x3
+#define NVM_CFG1_PORT_PORT_TYPE_MODULE_SLAVE                    0x4
 	u32 mnm_10g_cap;
 	u32 mnm_10g_ctrl;
 	u32 mnm_10g_misc;

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTL8723BS_RECV_C_
@@ -117,12 +109,12 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	rx_bssid = get_hdr_bssid(wlanhdr);
 	pkt_info.bssid_match = ((!IsFrameTypeCtrl(wlanhdr)) &&
 				!pattrib->icv_err && !pattrib->crc_err &&
-				!ether_addr_equal(rx_bssid, my_bssid));
+				ether_addr_equal(rx_bssid, my_bssid));
 
 	rx_ra = get_ra(wlanhdr);
 	my_hwaddr = myid(&padapter->eeprompriv);
 	pkt_info.to_self = pkt_info.bssid_match &&
-		!ether_addr_equal(rx_ra, my_hwaddr);
+		ether_addr_equal(rx_ra, my_hwaddr);
 
 
 	pkt_info.is_beacon = pkt_info.bssid_match &&

@@ -146,7 +146,7 @@ int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
 			break;
 
 		type = (*r >> 24) & 0xff;
-		loc_orig = (void *)(kbase_old + ((*r & 0x00ffffff) << 2));
+		loc_orig = kbase_old + ((*r & 0x00ffffff) << 2);
 		loc_new = RELOCATED(loc_orig);
 
 		if (reloc_handlers_rel[type] == NULL) {

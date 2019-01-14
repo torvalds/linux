@@ -1130,6 +1130,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    ha->fw_dump);
 		goto qla24xx_fw_dump_failed;
 	}
+	QLA_FW_STOPPED(ha);
 	fw = &ha->fw_dump->isp.isp24;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
 
@@ -1384,6 +1385,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    ha->fw_dump);
 		goto qla25xx_fw_dump_failed;
 	}
+	QLA_FW_STOPPED(ha);
 	fw = &ha->fw_dump->isp.isp25;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
 	ha->fw_dump->version = htonl(2);
@@ -2036,6 +2038,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    "request...\n", ha->fw_dump);
 		goto qla83xx_fw_dump_failed;
 	}
+	QLA_FW_STOPPED(ha);
 	fw = &ha->fw_dump->isp.isp83;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
 

@@ -28,6 +28,7 @@
 #include <linux/platform_data/mtd-davinci-aemif.h>
 #include <linux/platform_data/spi-davinci.h>
 #include <linux/platform_data/usb-davinci.h>
+#include <linux/platform_data/ti-aemif.h>
 #include <linux/regulator/machine.h>
 
 #include <asm/mach-types.h>
@@ -110,15 +111,9 @@ static __init void da830_evm_usb_init(void)
 {
 	int ret;
 
-	/* USB_REFCLKIN is not used. */
-	ret = da8xx_register_usb20_phy_clk(false);
+	ret = da8xx_register_usb_phy_clocks();
 	if (ret)
-		pr_warn("%s: USB 2.0 PHY CLK registration failed: %d\n",
-			__func__, ret);
-
-	ret = da8xx_register_usb11_phy_clk(false);
-	if (ret)
-		pr_warn("%s: USB 1.1 PHY CLK registration failed: %d\n",
+		pr_warn("%s: USB PHY CLK registration failed: %d\n",
 			__func__, ret);
 
 	ret = da8xx_register_usb_phy();
@@ -315,6 +310,7 @@ static struct davinci_aemif_timing da830_evm_nandflash_timing = {
 };
 
 static struct davinci_nand_pdata da830_evm_nand_pdata = {
+	.core_chipsel	= 1,
 	.parts		= da830_evm_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(da830_evm_nand_partitions),
 	.ecc_mode	= NAND_ECC_HW,
@@ -338,14 +334,48 @@ static struct resource da830_evm_nand_resources[] = {
 	},
 };
 
-static struct platform_device da830_evm_nand_device = {
-	.name		= "davinci_nand",
-	.id		= 1,
-	.dev		= {
-		.platform_data	= &da830_evm_nand_pdata,
+static struct platform_device da830_evm_aemif_devices[] = {
+	{
+		.name		= "davinci_nand",
+		.id		= 1,
+		.dev		= {
+			.platform_data	= &da830_evm_nand_pdata,
+		},
+		.num_resources	= ARRAY_SIZE(da830_evm_nand_resources),
+		.resource	= da830_evm_nand_resources,
 	},
-	.num_resources	= ARRAY_SIZE(da830_evm_nand_resources),
-	.resource	= da830_evm_nand_resources,
+};
+
+static struct resource da830_evm_aemif_resource[] = {
+	{
+		.start	= DA8XX_AEMIF_CTL_BASE,
+		.end	= DA8XX_AEMIF_CTL_BASE + SZ_32K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct aemif_abus_data da830_evm_aemif_abus_data[] = {
+	{
+		.cs	= 3,
+	},
+};
+
+static struct aemif_platform_data da830_evm_aemif_pdata = {
+	.abus_data		= da830_evm_aemif_abus_data,
+	.num_abus_data		= ARRAY_SIZE(da830_evm_aemif_abus_data),
+	.sub_devices		= da830_evm_aemif_devices,
+	.num_sub_devices	= ARRAY_SIZE(da830_evm_aemif_devices),
+	.cs_offset		= 2,
+};
+
+static struct platform_device da830_evm_aemif_device = {
+	.name		= "ti-aemif",
+	.id		= -1,
+	.dev = {
+		.platform_data = &da830_evm_aemif_pdata,
+	},
+	.resource	= da830_evm_aemif_resource,
+	.num_resources	= ARRAY_SIZE(da830_evm_aemif_resource),
 };
 
 /*
@@ -376,12 +406,9 @@ static inline void da830_evm_init_nand(int mux_mode)
 	if (ret)
 		pr_warn("%s: emif25 mux setup failed: %d\n", __func__, ret);
 
-	ret = platform_device_register(&da830_evm_nand_device);
+	ret = platform_device_register(&da830_evm_aemif_device);
 	if (ret)
-		pr_warn("%s: NAND device not registered\n", __func__);
-
-	if (davinci_aemif_setup(&da830_evm_nand_device))
-		pr_warn("%s: Cannot configure AEMIF\n", __func__);
+		pr_warn("%s: AEMIF device not registered\n", __func__);
 
 	gpio_direction_output(mux_mode, 1);
 }
@@ -555,6 +582,8 @@ static __init void da830_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
+
+	da830_register_clocks();
 
 	ret = da830_register_gpio();
 	if (ret)

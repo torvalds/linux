@@ -621,9 +621,17 @@ static const struct dmi_system_id chromeos_laptop_dmi_table[] __initconst = {
 		.driver_data = (void *)&samus,
 	},
 	{
+		.ident = "Samsung Chromebook 3",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Celes"),
+		},
+		.driver_data = (void *)&samus,
+	},
+	{
 		/*
 		 * Other Chromebooks with Atmel touch controllers:
-		 * - Celes, Winky (touchpad)
+		 * - Winky (touchpad)
 		 * - Clapper, Expresso, Rambi, Glimmer (touchscreen)
 		 */
 		.ident = "Other Chromebook",

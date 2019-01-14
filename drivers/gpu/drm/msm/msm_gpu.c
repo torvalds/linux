@@ -20,10 +20,11 @@
 #include "msm_mmu.h"
 #include "msm_fence.h"
 
+#include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
 #include <linux/pm_opp.h>
 #include <linux/devfreq.h>
-
+#include <linux/devcoredump.h>
 
 /*
  * Power Management:
@@ -40,7 +41,11 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	clk_set_rate(gpu->core_clk, *freq);
+	if (gpu->funcs->gpu_set_freq)
+		gpu->funcs->gpu_set_freq(gpu, (u64)*freq);
+	else
+		clk_set_rate(gpu->core_clk, *freq);
+
 	dev_pm_opp_put(opp);
 
 	return 0;
@@ -50,16 +55,14 @@ static int msm_devfreq_get_dev_status(struct device *dev,
 		struct devfreq_dev_status *status)
 {
 	struct msm_gpu *gpu = platform_get_drvdata(to_platform_device(dev));
-	u64 cycles;
-	u32 freq = ((u32) status->current_frequency) / 1000000;
 	ktime_t time;
 
-	status->current_frequency = (unsigned long) clk_get_rate(gpu->core_clk);
-	gpu->funcs->gpu_busy(gpu, &cycles);
+	if (gpu->funcs->gpu_get_freq)
+		status->current_frequency = gpu->funcs->gpu_get_freq(gpu);
+	else
+		status->current_frequency = clk_get_rate(gpu->core_clk);
 
-	status->busy_time = ((u32) (cycles - gpu->devfreq.busy_cycles)) / freq;
-
-	gpu->devfreq.busy_cycles = cycles;
+	status->busy_time = gpu->funcs->gpu_busy(gpu);
 
 	time = ktime_get();
 	status->total_time = ktime_us_delta(time, gpu->devfreq.time);
@@ -72,7 +75,10 @@ static int msm_devfreq_get_cur_freq(struct device *dev, unsigned long *freq)
 {
 	struct msm_gpu *gpu = platform_get_drvdata(to_platform_device(dev));
 
-	*freq = (unsigned long) clk_get_rate(gpu->core_clk);
+	if (gpu->funcs->gpu_get_freq)
+		*freq = gpu->funcs->gpu_get_freq(gpu);
+	else
+		*freq = clk_get_rate(gpu->core_clk);
 
 	return 0;
 }
@@ -104,6 +110,8 @@ static void msm_devfreq_init(struct msm_gpu *gpu)
 		dev_err(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		gpu->devfreq.devfreq = NULL;
 	}
+
+	devfreq_suspend_device(gpu->devfreq.devfreq);
 }
 
 static int enable_pwrrail(struct msm_gpu *gpu)
@@ -141,8 +149,6 @@ static int disable_pwrrail(struct msm_gpu *gpu)
 
 static int enable_clk(struct msm_gpu *gpu)
 {
-	int i;
-
 	if (gpu->core_clk && gpu->fast_rate)
 		clk_set_rate(gpu->core_clk, gpu->fast_rate);
 
@@ -150,28 +156,12 @@ static int enable_clk(struct msm_gpu *gpu)
 	if (gpu->rbbmtimer_clk)
 		clk_set_rate(gpu->rbbmtimer_clk, 19200000);
 
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_prepare(gpu->grp_clks[i]);
-
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_enable(gpu->grp_clks[i]);
-
-	return 0;
+	return clk_bulk_prepare_enable(gpu->nr_clocks, gpu->grp_clks);
 }
 
 static int disable_clk(struct msm_gpu *gpu)
 {
-	int i;
-
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_disable(gpu->grp_clks[i]);
-
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_unprepare(gpu->grp_clks[i]);
+	clk_bulk_disable_unprepare(gpu->nr_clocks, gpu->grp_clks);
 
 	/*
 	 * Set the clock to a deliberately low rate. On older targets the clock
@@ -201,6 +191,14 @@ static int disable_axi(struct msm_gpu *gpu)
 	return 0;
 }
 
+void msm_gpu_resume_devfreq(struct msm_gpu *gpu)
+{
+	gpu->devfreq.busy_cycles = 0;
+	gpu->devfreq.time = ktime_get();
+
+	devfreq_resume_device(gpu->devfreq.devfreq);
+}
+
 int msm_gpu_pm_resume(struct msm_gpu *gpu)
 {
 	int ret;
@@ -219,12 +217,7 @@ int msm_gpu_pm_resume(struct msm_gpu *gpu)
 	if (ret)
 		return ret;
 
-	if (gpu->devfreq.devfreq) {
-		gpu->devfreq.busy_cycles = 0;
-		gpu->devfreq.time = ktime_get();
-
-		devfreq_resume_device(gpu->devfreq.devfreq);
-	}
+	msm_gpu_resume_devfreq(gpu);
 
 	gpu->needs_hw_init = true;
 
@@ -237,8 +230,7 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 
 	DBG("%s", gpu->name);
 
-	if (gpu->devfreq.devfreq)
-		devfreq_suspend_device(gpu->devfreq.devfreq);
+	devfreq_suspend_device(gpu->devfreq.devfreq);
 
 	ret = disable_axi(gpu);
 	if (ret)
@@ -272,6 +264,127 @@ int msm_gpu_hw_init(struct msm_gpu *gpu)
 
 	return ret;
 }
+
+#ifdef CONFIG_DEV_COREDUMP
+static ssize_t msm_gpu_devcoredump_read(char *buffer, loff_t offset,
+		size_t count, void *data, size_t datalen)
+{
+	struct msm_gpu *gpu = data;
+	struct drm_print_iterator iter;
+	struct drm_printer p;
+	struct msm_gpu_state *state;
+
+	state = msm_gpu_crashstate_get(gpu);
+	if (!state)
+		return 0;
+
+	iter.data = buffer;
+	iter.offset = 0;
+	iter.start = offset;
+	iter.remain = count;
+
+	p = drm_coredump_printer(&iter);
+
+	drm_printf(&p, "---\n");
+	drm_printf(&p, "kernel: " UTS_RELEASE "\n");
+	drm_printf(&p, "module: " KBUILD_MODNAME "\n");
+	drm_printf(&p, "time: %lld.%09ld\n",
+		state->time.tv_sec, state->time.tv_nsec);
+	if (state->comm)
+		drm_printf(&p, "comm: %s\n", state->comm);
+	if (state->cmd)
+		drm_printf(&p, "cmdline: %s\n", state->cmd);
+
+	gpu->funcs->show(gpu, state, &p);
+
+	msm_gpu_crashstate_put(gpu);
+
+	return count - iter.remain;
+}
+
+static void msm_gpu_devcoredump_free(void *data)
+{
+	struct msm_gpu *gpu = data;
+
+	msm_gpu_crashstate_put(gpu);
+}
+
+static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
+		struct msm_gem_object *obj, u64 iova, u32 flags)
+{
+	struct msm_gpu_state_bo *state_bo = &state->bos[state->nr_bos];
+
+	/* Don't record write only objects */
+
+	state_bo->size = obj->base.size;
+	state_bo->iova = iova;
+
+	/* Only store the data for buffer objects marked for read */
+	if ((flags & MSM_SUBMIT_BO_READ)) {
+		void *ptr;
+
+		state_bo->data = kvmalloc(obj->base.size, GFP_KERNEL);
+		if (!state_bo->data)
+			return;
+
+		ptr = msm_gem_get_vaddr_active(&obj->base);
+		if (IS_ERR(ptr)) {
+			kvfree(state_bo->data);
+			return;
+		}
+
+		memcpy(state_bo->data, ptr, obj->base.size);
+		msm_gem_put_vaddr(&obj->base);
+	}
+
+	state->nr_bos++;
+}
+
+static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
+		struct msm_gem_submit *submit, char *comm, char *cmd)
+{
+	struct msm_gpu_state *state;
+
+	/* Check if the target supports capturing crash state */
+	if (!gpu->funcs->gpu_state_get)
+		return;
+
+	/* Only save one crash state at a time */
+	if (gpu->crashstate)
+		return;
+
+	state = gpu->funcs->gpu_state_get(gpu);
+	if (IS_ERR_OR_NULL(state))
+		return;
+
+	/* Fill in the additional crash state information */
+	state->comm = kstrdup(comm, GFP_KERNEL);
+	state->cmd = kstrdup(cmd, GFP_KERNEL);
+
+	if (submit) {
+		int i;
+
+		state->bos = kcalloc(submit->nr_bos,
+			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
+
+		for (i = 0; state->bos && i < submit->nr_bos; i++)
+			msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
+				submit->bos[i].iova, submit->bos[i].flags);
+	}
+
+	/* Set the active crash state to be dumped on failure */
+	gpu->crashstate = state;
+
+	/* FIXME: Release the crashstate if this errors out? */
+	dev_coredumpm(gpu->dev->dev, THIS_MODULE, gpu, 0, GFP_KERNEL,
+		msm_gpu_devcoredump_read, msm_gpu_devcoredump_free);
+}
+#else
+static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
+		struct msm_gem_submit *submit, char *comm, char *cmd)
+{
+}
+#endif
 
 /*
  * Hangcheck detection for locked gpu:
@@ -314,6 +427,7 @@ static void recover_worker(struct work_struct *work)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
+	char *comm = NULL, *cmd = NULL;
 	int i;
 
 	mutex_lock(&dev->struct_mutex);
@@ -324,10 +438,9 @@ static void recover_worker(struct work_struct *work)
 	if (submit) {
 		struct task_struct *task;
 
-		rcu_read_lock();
-		task = pid_task(submit->pid, PIDTYPE_PID);
+		task = get_pid_task(submit->pid, PIDTYPE_PID);
 		if (task) {
-			char *cmd;
+			comm = kstrdup(task->comm, GFP_KERNEL);
 
 			/*
 			 * So slightly annoying, in other paths like
@@ -341,21 +454,27 @@ static void recover_worker(struct work_struct *work)
 			 */
 			mutex_unlock(&dev->struct_mutex);
 			cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
+			put_task_struct(task);
 			mutex_lock(&dev->struct_mutex);
+		}
 
+		if (comm && cmd) {
 			dev_err(dev->dev, "%s: offending task: %s (%s)\n",
-				gpu->name, task->comm, cmd);
+				gpu->name, comm, cmd);
 
 			msm_rd_dump_submit(priv->hangrd, submit,
-				"offending task: %s (%s)", task->comm, cmd);
-
-			kfree(cmd);
-		} else {
+				"offending task: %s (%s)", comm, cmd);
+		} else
 			msm_rd_dump_submit(priv->hangrd, submit, NULL);
-		}
-		rcu_read_unlock();
 	}
 
+	/* Record the crash state */
+	pm_runtime_get_sync(&gpu->pdev->dev);
+	msm_gpu_crashstate_capture(gpu, submit, comm, cmd);
+	pm_runtime_put_sync(&gpu->pdev->dev);
+
+	kfree(cmd);
+	kfree(comm);
 
 	/*
 	 * Update all the rings with the latest and greatest fence.. this
@@ -660,44 +779,22 @@ static irqreturn_t irq_handler(int irq, void *data)
 	return gpu->funcs->irq(gpu);
 }
 
-static struct clk *get_clock(struct device *dev, const char *name)
-{
-	struct clk *clk = devm_clk_get(dev, name);
-
-	return IS_ERR(clk) ? NULL : clk;
-}
-
 static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 {
-	struct device *dev = &pdev->dev;
-	struct property *prop;
-	const char *name;
-	int i = 0;
+	int ret = msm_clk_bulk_get(&pdev->dev, &gpu->grp_clks);
 
-	gpu->nr_clocks = of_property_count_strings(dev->of_node, "clock-names");
-	if (gpu->nr_clocks < 1) {
+	if (ret < 1) {
 		gpu->nr_clocks = 0;
-		return 0;
+		return ret;
 	}
 
-	gpu->grp_clks = devm_kcalloc(dev, sizeof(struct clk *), gpu->nr_clocks,
-		GFP_KERNEL);
-	if (!gpu->grp_clks) {
-		gpu->nr_clocks = 0;
-		return -ENOMEM;
-	}
+	gpu->nr_clocks = ret;
 
-	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
-		gpu->grp_clks[i] = get_clock(dev, name);
+	gpu->core_clk = msm_clk_bulk_get_clock(gpu->grp_clks,
+		gpu->nr_clocks, "core");
 
-		/* Remember the key clocks that we need to control later */
-		if (!strcmp(name, "core") || !strcmp(name, "core_clk"))
-			gpu->core_clk = gpu->grp_clks[i];
-		else if (!strcmp(name, "rbbmtimer") || !strcmp(name, "rbbmtimer_clk"))
-			gpu->rbbmtimer_clk = gpu->grp_clks[i];
-
-		++i;
-	}
+	gpu->rbbmtimer_clk = msm_clk_bulk_get_clock(gpu->grp_clks,
+		gpu->nr_clocks, "rbbmtimer");
 
 	return 0;
 }

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mt8173-rt5650-rt5514.c  --  MT8173 machine driver with RT5650/5514 codecs
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Koro Chen <koro.chen@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -52,11 +44,10 @@ static int mt8173_rt5650_rt5514_hw_params(struct snd_pcm_substream *substream,
 					  struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
-	for (i = 0; i < rtd->num_codecs; i++) {
-		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
-
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
 		/* pll from mclk 12.288M */
 		ret = snd_soc_dai_set_pll(codec_dai, 0, 0, MCLK_FOR_CODECS,
 					  params_rate(params) * 512);
@@ -187,6 +178,7 @@ static int mt8173_rt5650_rt5514_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8173_rt5650_rt5514_card;
 	struct device_node *platform_node;
+	struct snd_soc_dai_link *dai_link;
 	int i, ret;
 
 	platform_node = of_parse_phandle(pdev->dev.of_node,
@@ -196,10 +188,10 @@ static int mt8173_rt5650_rt5514_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < card->num_links; i++) {
-		if (mt8173_rt5650_rt5514_dais[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->platform_name)
 			continue;
-		mt8173_rt5650_rt5514_dais[i].platform_of_node = platform_node;
+		dai_link->platform_of_node = platform_node;
 	}
 
 	mt8173_rt5650_rt5514_codecs[0].of_node =

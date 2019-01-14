@@ -71,6 +71,7 @@ struct iwl_fw_runtime_ops {
 	int (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
 	bool (*fw_running)(void *ctx);
+	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);
 };
 
 #define MAX_NUM_LMAC 2
@@ -88,6 +89,7 @@ struct iwl_fwrt_shared_mem_cfg {
 
 enum iwl_fw_runtime_status {
 	IWL_FWRT_STATUS_DUMPING = 0,
+	IWL_FWRT_STATUS_WAIT_ALIVE,
 };
 
 /**
@@ -136,6 +138,7 @@ struct iwl_fw_runtime {
 
 		/* ts of the beginning of a non-collect fw dbg data period */
 		unsigned long non_collect_ts_start[FW_DBG_TRIGGER_MAX - 1];
+		u32 *d3_debug_data;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {
@@ -151,7 +154,11 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 			const struct iwl_fw_runtime_ops *ops, void *ops_ctx,
 			struct dentry *dbgfs_dir);
 
-void iwl_fw_runtime_exit(struct iwl_fw_runtime *fwrt);
+static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
+{
+	kfree(fwrt->dump.d3_debug_data);
+	fwrt->dump.d3_debug_data = NULL;
+}
 
 void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt);
 
@@ -167,9 +174,5 @@ int iwl_init_paging(struct iwl_fw_runtime *fwrt, enum iwl_ucode_type type);
 void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt);
 
 void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt);
-
-void iwl_fwrt_handle_notification(struct iwl_fw_runtime *fwrt,
-				  struct iwl_rx_cmd_buffer *rxb);
-struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt);
 
 #endif /* __iwl_fw_runtime_h__ */

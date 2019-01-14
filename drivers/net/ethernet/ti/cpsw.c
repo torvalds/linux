@@ -29,20 +29,24 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_device.h>
 #include <linux/if_vlan.h>
 #include <linux/kmemleak.h>
+#include <linux/sys_soc.h>
 
 #include <linux/pinctrl/consumer.h>
+#include <net/pkt_cls.h>
 
 #include "cpsw.h"
 #include "cpsw_ale.h"
 #include "cpts.h"
 #include "davinci_cpdma.h"
+
+#include <net/pkt_sched.h>
 
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
 			 NETIF_MSG_DRV		| NETIF_MSG_LINK	| \
@@ -152,6 +156,12 @@ do {								\
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
 #define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
+#define CPSW_FIFO_QUEUE_TYPE_SHIFT	16
+#define CPSW_FIFO_SHAPE_EN_SHIFT	16
+#define CPSW_FIFO_RATE_EN_SHIFT		20
+#define CPSW_TC_NUM			4
+#define CPSW_FIFO_SHAPERS_NUM		(CPSW_TC_NUM - 1)
+#define CPSW_PCT_MASK			0x7f
 
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_SHIFT	29
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_MSK		GENMASK(2, 0)
@@ -252,23 +262,24 @@ struct cpsw_ss_regs {
 #define RX_DSCP_PRI_MAP7    0x4c /* Rx DSCP Priority to Rx Packet Mapping */
 
 /* Bit definitions for the CPSW2_CONTROL register */
-#define PASS_PRI_TAGGED     (1<<24) /* Pass Priority Tagged */
-#define VLAN_LTYPE2_EN      (1<<21) /* VLAN LTYPE 2 enable */
-#define VLAN_LTYPE1_EN      (1<<20) /* VLAN LTYPE 1 enable */
-#define DSCP_PRI_EN         (1<<16) /* DSCP Priority Enable */
-#define TS_320              (1<<14) /* Time Sync Dest Port 320 enable */
-#define TS_319              (1<<13) /* Time Sync Dest Port 319 enable */
-#define TS_132              (1<<12) /* Time Sync Dest IP Addr 132 enable */
-#define TS_131              (1<<11) /* Time Sync Dest IP Addr 131 enable */
-#define TS_130              (1<<10) /* Time Sync Dest IP Addr 130 enable */
-#define TS_129              (1<<9)  /* Time Sync Dest IP Addr 129 enable */
-#define TS_TTL_NONZERO      (1<<8)  /* Time Sync Time To Live Non-zero enable */
-#define TS_ANNEX_F_EN       (1<<6)  /* Time Sync Annex F enable */
-#define TS_ANNEX_D_EN       (1<<4)  /* Time Sync Annex D enable */
-#define TS_LTYPE2_EN        (1<<3)  /* Time Sync LTYPE 2 enable */
-#define TS_LTYPE1_EN        (1<<2)  /* Time Sync LTYPE 1 enable */
-#define TS_TX_EN            (1<<1)  /* Time Sync Transmit Enable */
-#define TS_RX_EN            (1<<0)  /* Time Sync Receive Enable */
+#define PASS_PRI_TAGGED     BIT(24) /* Pass Priority Tagged */
+#define VLAN_LTYPE2_EN      BIT(21) /* VLAN LTYPE 2 enable */
+#define VLAN_LTYPE1_EN      BIT(20) /* VLAN LTYPE 1 enable */
+#define DSCP_PRI_EN         BIT(16) /* DSCP Priority Enable */
+#define TS_107              BIT(15) /* Tyme Sync Dest IP Address 107 */
+#define TS_320              BIT(14) /* Time Sync Dest Port 320 enable */
+#define TS_319              BIT(13) /* Time Sync Dest Port 319 enable */
+#define TS_132              BIT(12) /* Time Sync Dest IP Addr 132 enable */
+#define TS_131              BIT(11) /* Time Sync Dest IP Addr 131 enable */
+#define TS_130              BIT(10) /* Time Sync Dest IP Addr 130 enable */
+#define TS_129              BIT(9)  /* Time Sync Dest IP Addr 129 enable */
+#define TS_TTL_NONZERO      BIT(8)  /* Time Sync Time To Live Non-zero enable */
+#define TS_ANNEX_F_EN       BIT(6)  /* Time Sync Annex F enable */
+#define TS_ANNEX_D_EN       BIT(4)  /* Time Sync Annex D enable */
+#define TS_LTYPE2_EN        BIT(3)  /* Time Sync LTYPE 2 enable */
+#define TS_LTYPE1_EN        BIT(2)  /* Time Sync LTYPE 1 enable */
+#define TS_TX_EN            BIT(1)  /* Time Sync Transmit Enable */
+#define TS_RX_EN            BIT(0)  /* Time Sync Receive Enable */
 
 #define CTRL_V2_TS_BITS \
 	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
@@ -280,7 +291,7 @@ struct cpsw_ss_regs {
 
 
 #define CTRL_V3_TS_BITS \
-	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
+	(TS_107 | TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
 	 TS_TTL_NONZERO | TS_ANNEX_F_EN | TS_ANNEX_D_EN |\
 	 TS_LTYPE1_EN)
 
@@ -452,6 +463,9 @@ struct cpsw_priv {
 	u8				mac_addr[ETH_ALEN];
 	bool				rx_pause;
 	bool				tx_pause;
+	bool				mqprio_hw;
+	int				fifo_bw[CPSW_TC_NUM];
+	int				shp_cfg_speed;
 	u32 emac_port;
 	struct cpsw_common *cpsw;
 };
@@ -470,13 +484,13 @@ enum {
 };
 
 #define CPSW_STAT(m)		CPSW_STATS,				\
-				sizeof(((struct cpsw_hw_stats *)0)->m), \
+				FIELD_SIZEOF(struct cpsw_hw_stats, m), \
 				offsetof(struct cpsw_hw_stats, m)
 #define CPDMA_RX_STAT(m)	CPDMA_RX_STATS,				   \
-				sizeof(((struct cpdma_chan_stats *)0)->m), \
+				FIELD_SIZEOF(struct cpdma_chan_stats, m), \
 				offsetof(struct cpdma_chan_stats, m)
 #define CPDMA_TX_STAT(m)	CPDMA_TX_STATS,				   \
-				sizeof(((struct cpdma_chan_stats *)0)->m), \
+				FIELD_SIZEOF(struct cpdma_chan_stats, m), \
 				offsetof(struct cpdma_chan_stats, m)
 
 static const struct cpsw_stats cpsw_gstrings_stats[] = {
@@ -551,38 +565,24 @@ static const struct cpsw_stats cpsw_gstrings_ch_stats[] = {
 				(func)(slave++, ##arg);			\
 	} while (0)
 
-#define cpsw_dual_emac_src_port_detect(cpsw, status, ndev, skb)		\
-	do {								\
-		if (!cpsw->data.dual_emac)				\
-			break;						\
-		if (CPDMA_RX_SOURCE_PORT(status) == 1) {		\
-			ndev = cpsw->slaves[0].ndev;			\
-			skb->dev = ndev;				\
-		} else if (CPDMA_RX_SOURCE_PORT(status) == 2) {		\
-			ndev = cpsw->slaves[1].ndev;			\
-			skb->dev = ndev;				\
-		}							\
-	} while (0)
-#define cpsw_add_mcast(cpsw, priv, addr)				\
-	do {								\
-		if (cpsw->data.dual_emac) {				\
-			struct cpsw_slave *slave = cpsw->slaves +	\
-						priv->emac_port;	\
-			int slave_port = cpsw_get_slave_port(		\
-						slave->slave_num);	\
-			cpsw_ale_add_mcast(cpsw->ale, addr,		\
-				1 << slave_port | ALE_PORT_HOST,	\
-				ALE_VLAN, slave->port_vlan, 0);		\
-		} else {						\
-			cpsw_ale_add_mcast(cpsw->ale, addr,		\
-				ALE_ALL_PORTS,				\
-				0, 0, 0);				\
-		}							\
-	} while (0)
-
 static inline int cpsw_get_slave_port(u32 slave_num)
 {
 	return slave_num + 1;
+}
+
+static void cpsw_add_mcast(struct cpsw_priv *priv, const u8 *addr)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+
+	if (cpsw->data.dual_emac) {
+		struct cpsw_slave *slave = cpsw->slaves + priv->emac_port;
+
+		cpsw_ale_add_mcast(cpsw->ale, addr, ALE_PORT_HOST,
+				   ALE_VLAN, slave->port_vlan, 0);
+		return;
+	}
+
+	cpsw_ale_add_mcast(cpsw->ale, addr, ALE_ALL_PORTS, 0, 0, 0);
 }
 
 static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
@@ -640,6 +640,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 
 			/* Clear all mcast from ALE */
 			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS, -1);
+			__dev_mc_unsync(ndev, NULL);
 
 			/* Flood All Unicast Packets to Host port */
 			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 1);
@@ -660,16 +661,35 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 	}
 }
 
-static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
+static int cpsw_add_mc_addr(struct net_device *ndev, const u8 *addr)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	cpsw_add_mcast(priv, addr);
+	return 0;
+}
+
+static int cpsw_del_mc_addr(struct net_device *ndev, const u8 *addr)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int vid;
+	int vid, flags;
 
-	if (cpsw->data.dual_emac)
+	if (cpsw->data.dual_emac) {
 		vid = cpsw->slaves[priv->emac_port].port_vlan;
-	else
-		vid = cpsw->data.default_vlan;
+		flags = ALE_VLAN;
+	} else {
+		vid = 0;
+		flags = 0;
+	}
+
+	cpsw_ale_del_mcast(cpsw->ale, addr, 0, flags, vid);
+	return 0;
+}
+
+static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
+{
+	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
 	if (ndev->flags & IFF_PROMISC) {
 		/* Enable promiscuous mode */
@@ -682,19 +702,9 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 	}
 
 	/* Restore allmulti on vlans if necessary */
-	cpsw_ale_set_allmulti(cpsw->ale, priv->ndev->flags & IFF_ALLMULTI);
+	cpsw_ale_set_allmulti(cpsw->ale, ndev->flags & IFF_ALLMULTI);
 
-	/* Clear all mcast from ALE */
-	cpsw_ale_flush_multicast(cpsw->ale, ALE_ALL_PORTS, vid);
-
-	if (!netdev_mc_empty(ndev)) {
-		struct netdev_hw_addr *ha;
-
-		/* program multicast address list into ALE register */
-		netdev_for_each_mc_addr(ha, ndev) {
-			cpsw_add_mcast(cpsw, priv, (u8 *)ha->addr);
-		}
-	}
+	__dev_mc_sync(ndev, cpsw_add_mc_addr, cpsw_del_mc_addr);
 }
 
 static void cpsw_intr_enable(struct cpsw_common *cpsw)
@@ -784,10 +794,16 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	struct sk_buff		*skb = token;
 	struct sk_buff		*new_skb;
 	struct net_device	*ndev = skb->dev;
-	int			ret = 0;
+	int			ret = 0, port;
 	struct cpsw_common	*cpsw = ndev_to_cpsw(ndev);
 
-	cpsw_dual_emac_src_port_detect(cpsw, status, ndev, skb);
+	if (cpsw->data.dual_emac) {
+		port = CPDMA_RX_SOURCE_PORT(status);
+		if (port) {
+			ndev = cpsw->slaves[--port].ndev;
+			skb->dev = ndev;
+		}
+	}
 
 	if (unlikely(status < 0) || unlikely(!netif_running(ndev))) {
 		/* In dual emac mode check for all interfaces */
@@ -957,7 +973,7 @@ static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
+static int cpsw_tx_mq_poll(struct napi_struct *napi_tx, int budget)
 {
 	u32			ch_map;
 	int			num_tx, cur_budget, ch;
@@ -966,8 +982,8 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 
 	/* process every unprocessed channel */
 	ch_map = cpdma_ctrl_txchs_state(cpsw->dma);
-	for (ch = 0, num_tx = 0; ch_map; ch_map >>= 1, ch++) {
-		if (!(ch_map & 0x01))
+	for (ch = 0, num_tx = 0; ch_map & 0xff; ch_map <<= 1, ch++) {
+		if (!(ch_map & 0x80))
 			continue;
 
 		txv = &cpsw->txv[ch];
@@ -984,7 +1000,21 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 	if (num_tx < budget) {
 		napi_complete(napi_tx);
 		writel(0xff, &cpsw->wr_regs->tx_en);
-		if (cpsw->quirk_irq && cpsw->tx_irq_disabled) {
+	}
+
+	return num_tx;
+}
+
+static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
+{
+	struct cpsw_common *cpsw = napi_to_cpsw(napi_tx);
+	int num_tx;
+
+	num_tx = cpdma_chan_process(cpsw->txv[0].ch, budget);
+	if (num_tx < budget) {
+		napi_complete(napi_tx);
+		writel(0xff, &cpsw->wr_regs->tx_en);
+		if (cpsw->tx_irq_disabled) {
 			cpsw->tx_irq_disabled = false;
 			enable_irq(cpsw->irqs_table[1]);
 		}
@@ -993,7 +1023,7 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 	return num_tx;
 }
 
-static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
+static int cpsw_rx_mq_poll(struct napi_struct *napi_rx, int budget)
 {
 	u32			ch_map;
 	int			num_rx, cur_budget, ch;
@@ -1020,7 +1050,21 @@ static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 	if (num_rx < budget) {
 		napi_complete_done(napi_rx, num_rx);
 		writel(0xff, &cpsw->wr_regs->rx_en);
-		if (cpsw->quirk_irq && cpsw->rx_irq_disabled) {
+	}
+
+	return num_rx;
+}
+
+static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
+{
+	struct cpsw_common *cpsw = napi_to_cpsw(napi_rx);
+	int num_rx;
+
+	num_rx = cpdma_chan_process(cpsw->rxv[0].ch, budget);
+	if (num_rx < budget) {
+		napi_complete_done(napi_rx, num_rx);
+		writel(0xff, &cpsw->wr_regs->rx_en);
+		if (cpsw->rx_irq_disabled) {
 			cpsw->rx_irq_disabled = false;
 			enable_irq(cpsw->irqs_table[0]);
 		}
@@ -1046,6 +1090,38 @@ static void cpsw_set_slave_mac(struct cpsw_slave *slave,
 {
 	slave_write(slave, mac_hi(priv->mac_addr), SA_HI);
 	slave_write(slave, mac_lo(priv->mac_addr), SA_LO);
+}
+
+static bool cpsw_shp_is_off(struct cpsw_priv *priv)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 shift, mask, val;
+
+	val = readl_relaxed(&cpsw->regs->ptype);
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	shift = CPSW_FIFO_SHAPE_EN_SHIFT + 3 * slave->slave_num;
+	mask = 7 << shift;
+	val = val & mask;
+
+	return !val;
+}
+
+static void cpsw_fifo_shp_on(struct cpsw_priv *priv, int fifo, int on)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 shift, mask, val;
+
+	val = readl_relaxed(&cpsw->regs->ptype);
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	shift = CPSW_FIFO_SHAPE_EN_SHIFT + 3 * slave->slave_num;
+	mask = (1 << --fifo) << shift;
+	val = on ? val | mask : val & ~mask;
+
+	writel_relaxed(val, &cpsw->regs->ptype);
 }
 
 static void _cpsw_adjust_link(struct cpsw_slave *slave,
@@ -1087,6 +1163,12 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 			mac_control |= BIT(4);
 
 		*link = true;
+
+		if (priv->shp_cfg_speed &&
+		    priv->shp_cfg_speed != slave->phy->speed &&
+		    !cpsw_shp_is_off(priv))
+			dev_warn(priv->dev,
+				 "Speed was changed, CBS shaper speeds are changed!");
 	} else {
 		mac_control = 0;
 		/* disable forwarding */
@@ -1252,8 +1334,8 @@ static void cpsw_add_ch_strings(u8 **p, int ch_num, int rx_dir)
 	for (i = 0; i < ch_stats_len; i++) {
 		line = i % CPSW_STATS_CH_LEN;
 		snprintf(*p, ETH_GSTRING_LEN,
-			 "%s DMA chan %d: %s", rx_dir ? "Rx" : "Tx",
-			 i / CPSW_STATS_CH_LEN,
+			 "%s DMA chan %ld: %s", rx_dir ? "Rx" : "Tx",
+			 (long)(i / CPSW_STATS_CH_LEN),
 			 cpsw_gstrings_ch_stats[line].stat_string);
 		*p += ETH_GSTRING_LEN;
 	}
@@ -1336,7 +1418,7 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 	cpsw_ale_add_vlan(cpsw->ale, slave->port_vlan, port_mask,
 			  port_mask, port_mask, 0);
 	cpsw_ale_add_mcast(cpsw->ale, priv->ndev->broadcast,
-			   port_mask, ALE_VLAN, slave->port_vlan, 0);
+			   ALE_PORT_HOST, ALE_VLAN, slave->port_vlan, 0);
 	cpsw_ale_add_ucast(cpsw->ale, priv->mac_addr,
 			   HOST_PORT_NUM, ALE_VLAN |
 			   ALE_SECURE, slave->port_vlan);
@@ -1548,6 +1630,231 @@ static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_common *cpsw)
 	soft_reset_slave(slave);
 }
 
+static int cpsw_tc_to_fifo(int tc, int num_tc)
+{
+	if (tc == num_tc - 1)
+		return 0;
+
+	return CPSW_FIFO_SHAPERS_NUM - tc;
+}
+
+static int cpsw_set_fifo_bw(struct cpsw_priv *priv, int fifo, int bw)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	u32 val = 0, send_pct, shift;
+	struct cpsw_slave *slave;
+	int pct = 0, i;
+
+	if (bw > priv->shp_cfg_speed * 1000)
+		goto err;
+
+	/* shaping has to stay enabled for highest fifos linearly
+	 * and fifo bw no more then interface can allow
+	 */
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	send_pct = slave_read(slave, SEND_PERCENT);
+	for (i = CPSW_FIFO_SHAPERS_NUM; i > 0; i--) {
+		if (!bw) {
+			if (i >= fifo || !priv->fifo_bw[i])
+				continue;
+
+			dev_warn(priv->dev, "Prev FIFO%d is shaped", i);
+			continue;
+		}
+
+		if (!priv->fifo_bw[i] && i > fifo) {
+			dev_err(priv->dev, "Upper FIFO%d is not shaped", i);
+			return -EINVAL;
+		}
+
+		shift = (i - 1) * 8;
+		if (i == fifo) {
+			send_pct &= ~(CPSW_PCT_MASK << shift);
+			val = DIV_ROUND_UP(bw, priv->shp_cfg_speed * 10);
+			if (!val)
+				val = 1;
+
+			send_pct |= val << shift;
+			pct += val;
+			continue;
+		}
+
+		if (priv->fifo_bw[i])
+			pct += (send_pct >> shift) & CPSW_PCT_MASK;
+	}
+
+	if (pct >= 100)
+		goto err;
+
+	slave_write(slave, send_pct, SEND_PERCENT);
+	priv->fifo_bw[fifo] = bw;
+
+	dev_warn(priv->dev, "set FIFO%d bw = %d\n", fifo,
+		 DIV_ROUND_CLOSEST(val * priv->shp_cfg_speed, 100));
+
+	return 0;
+err:
+	dev_err(priv->dev, "Bandwidth doesn't fit in tc configuration");
+	return -EINVAL;
+}
+
+static int cpsw_set_fifo_rlimit(struct cpsw_priv *priv, int fifo, int bw)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 tx_in_ctl_rg, val;
+	int ret;
+
+	ret = cpsw_set_fifo_bw(priv, fifo, bw);
+	if (ret)
+		return ret;
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	tx_in_ctl_rg = cpsw->version == CPSW_VERSION_1 ?
+		       CPSW1_TX_IN_CTL : CPSW2_TX_IN_CTL;
+
+	if (!bw)
+		cpsw_fifo_shp_on(priv, fifo, bw);
+
+	val = slave_read(slave, tx_in_ctl_rg);
+	if (cpsw_shp_is_off(priv)) {
+		/* disable FIFOs rate limited queues */
+		val &= ~(0xf << CPSW_FIFO_RATE_EN_SHIFT);
+
+		/* set type of FIFO queues to normal priority mode */
+		val &= ~(3 << CPSW_FIFO_QUEUE_TYPE_SHIFT);
+
+		/* set type of FIFO queues to be rate limited */
+		if (bw)
+			val |= 2 << CPSW_FIFO_QUEUE_TYPE_SHIFT;
+		else
+			priv->shp_cfg_speed = 0;
+	}
+
+	/* toggle a FIFO rate limited queue */
+	if (bw)
+		val |= BIT(fifo + CPSW_FIFO_RATE_EN_SHIFT);
+	else
+		val &= ~BIT(fifo + CPSW_FIFO_RATE_EN_SHIFT);
+	slave_write(slave, val, tx_in_ctl_rg);
+
+	/* FIFO transmit shape enable */
+	cpsw_fifo_shp_on(priv, fifo, bw);
+	return 0;
+}
+
+/* Defaults:
+ * class A - prio 3
+ * class B - prio 2
+ * shaping for class A should be set first
+ */
+static int cpsw_set_cbs(struct net_device *ndev,
+			struct tc_cbs_qopt_offload *qopt)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	int prev_speed = 0;
+	int tc, ret, fifo;
+	u32 bw = 0;
+
+	tc = netdev_txq_to_tc(priv->ndev, qopt->queue);
+
+	/* enable channels in backward order, as highest FIFOs must be rate
+	 * limited first and for compliance with CPDMA rate limited channels
+	 * that also used in bacward order. FIFO0 cannot be rate limited.
+	 */
+	fifo = cpsw_tc_to_fifo(tc, ndev->num_tc);
+	if (!fifo) {
+		dev_err(priv->dev, "Last tc%d can't be rate limited", tc);
+		return -EINVAL;
+	}
+
+	/* do nothing, it's disabled anyway */
+	if (!qopt->enable && !priv->fifo_bw[fifo])
+		return 0;
+
+	/* shapers can be set if link speed is known */
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	if (slave->phy && slave->phy->link) {
+		if (priv->shp_cfg_speed &&
+		    priv->shp_cfg_speed != slave->phy->speed)
+			prev_speed = priv->shp_cfg_speed;
+
+		priv->shp_cfg_speed = slave->phy->speed;
+	}
+
+	if (!priv->shp_cfg_speed) {
+		dev_err(priv->dev, "Link speed is not known");
+		return -1;
+	}
+
+	ret = pm_runtime_get_sync(cpsw->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(cpsw->dev);
+		return ret;
+	}
+
+	bw = qopt->enable ? qopt->idleslope : 0;
+	ret = cpsw_set_fifo_rlimit(priv, fifo, bw);
+	if (ret) {
+		priv->shp_cfg_speed = prev_speed;
+		prev_speed = 0;
+	}
+
+	if (bw && prev_speed)
+		dev_warn(priv->dev,
+			 "Speed was changed, CBS shaper speeds are changed!");
+
+	pm_runtime_put_sync(cpsw->dev);
+	return ret;
+}
+
+static void cpsw_cbs_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
+{
+	int fifo, bw;
+
+	for (fifo = CPSW_FIFO_SHAPERS_NUM; fifo > 0; fifo--) {
+		bw = priv->fifo_bw[fifo];
+		if (!bw)
+			continue;
+
+		cpsw_set_fifo_rlimit(priv, fifo, bw);
+	}
+}
+
+static void cpsw_mqprio_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	u32 tx_prio_map = 0;
+	int i, tc, fifo;
+	u32 tx_prio_rg;
+
+	if (!priv->mqprio_hw)
+		return;
+
+	for (i = 0; i < 8; i++) {
+		tc = netdev_get_prio_tc_map(priv->ndev, i);
+		fifo = CPSW_FIFO_SHAPERS_NUM - tc;
+		tx_prio_map |= fifo << (4 * i);
+	}
+
+	tx_prio_rg = cpsw->version == CPSW_VERSION_1 ?
+		     CPSW1_TX_PRI_MAP : CPSW2_TX_PRI_MAP;
+
+	slave_write(slave, tx_prio_map, tx_prio_rg);
+}
+
+/* restore resources after port reset */
+static void cpsw_restore(struct cpsw_priv *priv)
+{
+	/* restore MQPRIO offload */
+	for_each_slave(priv, cpsw_mqprio_resume, priv);
+
+	/* restore CBS offload */
+	for_each_slave(priv, cpsw_cbs_resume, priv);
+}
+
 static int cpsw_ndo_open(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -1627,6 +1934,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 
 	}
 
+	cpsw_restore(priv);
+
 	/* Enable Interrupt pacing if configured */
 	if (cpsw->coal_intvl != 0) {
 		struct ethtool_coalesce coal;
@@ -1655,6 +1964,7 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	struct cpsw_common *cpsw = priv->cpsw;
 
 	cpsw_info(priv, ifdown, "shutting down cpsw device\n");
+	__dev_mc_unsync(priv->ndev, cpsw_del_mc_addr);
 	netif_tx_stop_all_queues(priv->ndev);
 	netif_carrier_off(priv->ndev);
 
@@ -1992,16 +2302,19 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 {
 	int ret;
 	int unreg_mcast_mask = 0;
+	int mcast_mask;
 	u32 port_mask;
 	struct cpsw_common *cpsw = priv->cpsw;
 
 	if (cpsw->data.dual_emac) {
 		port_mask = (1 << (priv->emac_port + 1)) | ALE_PORT_HOST;
 
+		mcast_mask = ALE_PORT_HOST;
 		if (priv->ndev->flags & IFF_ALLMULTI)
-			unreg_mcast_mask = port_mask;
+			unreg_mcast_mask = mcast_mask;
 	} else {
 		port_mask = ALE_ALL_PORTS;
+		mcast_mask = port_mask;
 
 		if (priv->ndev->flags & IFF_ALLMULTI)
 			unreg_mcast_mask = ALE_ALL_PORTS;
@@ -2020,7 +2333,7 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 		goto clean_vid;
 
 	ret = cpsw_ale_add_mcast(cpsw->ale, priv->ndev->broadcast,
-				 port_mask, ALE_VLAN, vid, 0);
+				 mcast_mask, ALE_VLAN, vid, 0);
 	if (ret != 0)
 		goto clean_vlan_ucast;
 	return 0;
@@ -2057,14 +2370,16 @@ static int cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 		int i;
 
 		for (i = 0; i < cpsw->data.slaves; i++) {
-			if (vid == cpsw->slaves[i].port_vlan)
-				return -EINVAL;
+			if (vid == cpsw->slaves[i].port_vlan) {
+				ret = -EINVAL;
+				goto err;
+			}
 		}
 	}
 
 	dev_info(priv->dev, "Adding vlanid %d to vlan filter\n", vid);
 	ret = cpsw_add_vlan_ale_entry(priv, vid);
-
+err:
 	pm_runtime_put(cpsw->dev);
 	return ret;
 }
@@ -2090,22 +2405,17 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 
 		for (i = 0; i < cpsw->data.slaves; i++) {
 			if (vid == cpsw->slaves[i].port_vlan)
-				return -EINVAL;
+				goto err;
 		}
 	}
 
 	dev_info(priv->dev, "removing vlanid %d from vlan filter\n", vid);
 	ret = cpsw_ale_del_vlan(cpsw->ale, vid, 0);
-	if (ret != 0)
-		return ret;
-
-	ret = cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr,
-				 HOST_PORT_NUM, ALE_VLAN, vid);
-	if (ret != 0)
-		return ret;
-
-	ret = cpsw_ale_del_mcast(cpsw->ale, priv->ndev->broadcast,
-				 0, ALE_VLAN, vid);
+	ret |= cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr,
+				  HOST_PORT_NUM, ALE_VLAN, vid);
+	ret |= cpsw_ale_del_mcast(cpsw->ale, priv->ndev->broadcast,
+				  0, ALE_VLAN, vid);
+err:
 	pm_runtime_put(cpsw->dev);
 	return ret;
 }
@@ -2161,6 +2471,78 @@ static int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 	return ret;
 }
 
+static int cpsw_set_mqprio(struct net_device *ndev, void *type_data)
+{
+	struct tc_mqprio_qopt_offload *mqprio = type_data;
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	int fifo, num_tc, count, offset;
+	struct cpsw_slave *slave;
+	u32 tx_prio_map = 0;
+	int i, tc, ret;
+
+	num_tc = mqprio->qopt.num_tc;
+	if (num_tc > CPSW_TC_NUM)
+		return -EINVAL;
+
+	if (mqprio->mode != TC_MQPRIO_MODE_DCB)
+		return -EINVAL;
+
+	ret = pm_runtime_get_sync(cpsw->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(cpsw->dev);
+		return ret;
+	}
+
+	if (num_tc) {
+		for (i = 0; i < 8; i++) {
+			tc = mqprio->qopt.prio_tc_map[i];
+			fifo = cpsw_tc_to_fifo(tc, num_tc);
+			tx_prio_map |= fifo << (4 * i);
+		}
+
+		netdev_set_num_tc(ndev, num_tc);
+		for (i = 0; i < num_tc; i++) {
+			count = mqprio->qopt.count[i];
+			offset = mqprio->qopt.offset[i];
+			netdev_set_tc_queue(ndev, i, count, offset);
+		}
+	}
+
+	if (!mqprio->qopt.hw) {
+		/* restore default configuration */
+		netdev_reset_tc(ndev);
+		tx_prio_map = TX_PRIORITY_MAPPING;
+	}
+
+	priv->mqprio_hw = mqprio->qopt.hw;
+
+	offset = cpsw->version == CPSW_VERSION_1 ?
+		 CPSW1_TX_PRI_MAP : CPSW2_TX_PRI_MAP;
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	slave_write(slave, tx_prio_map, offset);
+
+	pm_runtime_put_sync(cpsw->dev);
+
+	return 0;
+}
+
+static int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+			     void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_CBS:
+		return cpsw_set_cbs(ndev, type_data);
+
+	case TC_SETUP_QDISC_MQPRIO:
+		return cpsw_set_mqprio(ndev, type_data);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,
@@ -2176,6 +2558,7 @@ static const struct net_device_ops cpsw_netdev_ops = {
 #endif
 	.ndo_vlan_rx_add_vid	= cpsw_ndo_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= cpsw_ndo_vlan_rx_kill_vid,
+	.ndo_setup_tc           = cpsw_ndo_setup_tc,
 };
 
 static int cpsw_get_regs_len(struct net_device *ndev)
@@ -2364,9 +2747,9 @@ static void cpsw_get_channels(struct net_device *ndev,
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
+	ch->max_rx = cpsw->quirk_irq ? 1 : CPSW_MAX_QUEUES;
+	ch->max_tx = cpsw->quirk_irq ? 1 : CPSW_MAX_QUEUES;
 	ch->max_combined = 0;
-	ch->max_rx = CPSW_MAX_QUEUES;
-	ch->max_tx = CPSW_MAX_QUEUES;
 	ch->max_other = 0;
 	ch->other_count = 0;
 	ch->rx_count = cpsw->rx_ch_num;
@@ -2377,6 +2760,11 @@ static void cpsw_get_channels(struct net_device *ndev,
 static int cpsw_check_ch_settings(struct cpsw_common *cpsw,
 				  struct ethtool_channels *ch)
 {
+	if (cpsw->quirk_irq) {
+		dev_err(cpsw->dev, "Maximum one tx/rx queue is allowed");
+		return -EOPNOTSUPP;
+	}
+
 	if (ch->combined_count)
 		return -EINVAL;
 
@@ -2397,7 +2785,7 @@ static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 	void (*handler)(void *, int, int);
 	struct netdev_queue *queue;
 	struct cpsw_vector *vec;
-	int ret, *ch;
+	int ret, *ch, vch;
 
 	if (rx) {
 		ch = &cpsw->rx_ch_num;
@@ -2410,7 +2798,8 @@ static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 	}
 
 	while (*ch < ch_num) {
-		vec[*ch].ch = cpdma_chan_create(cpsw->dma, *ch, handler, rx);
+		vch = rx ? *ch : 7 - *ch;
+		vec[*ch].ch = cpdma_chan_create(cpsw->dma, vch, handler, rx);
 		queue = netdev_get_tx_queue(priv->ndev, *ch);
 		queue->tx_maxrate = 0;
 
@@ -2706,8 +3095,9 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->active_slave = prop;
 
-	data->slave_data = devm_kzalloc(&pdev->dev, data->slaves
-					* sizeof(struct cpsw_slave_data),
+	data->slave_data = devm_kcalloc(&pdev->dev,
+					data->slaves,
+					sizeof(struct cpsw_slave_data),
 					GFP_KERNEL);
 	if (!data->slave_data)
 		return -ENOMEM;
@@ -2892,7 +3282,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 		dev_info(cpsw->dev, "cpsw: Detected MACID = %pM\n",
 			 priv_sl2->mac_addr);
 	} else {
-		random_ether_addr(priv_sl2->mac_addr);
+		eth_random_addr(priv_sl2->mac_addr);
 		dev_info(cpsw->dev, "cpsw: Random MACID = %pM\n",
 			 priv_sl2->mac_addr);
 	}
@@ -2900,7 +3290,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 
 	priv_sl2->emac_port = 1;
 	cpsw->slaves[1].ndev = ndev;
-	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX;
 
 	ndev->netdev_ops = &cpsw_netdev_ops;
 	ndev->ethtool_ops = &cpsw_ethtool_ops;
@@ -2917,43 +3307,19 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 	return ret;
 }
 
-#define CPSW_QUIRK_IRQ		BIT(0)
-
-static const struct platform_device_id cpsw_devtype[] = {
-	{
-		/* keep it for existing comaptibles */
-		.name = "cpsw",
-		.driver_data = CPSW_QUIRK_IRQ,
-	}, {
-		.name = "am335x-cpsw",
-		.driver_data = CPSW_QUIRK_IRQ,
-	}, {
-		.name = "am4372-cpsw",
-		.driver_data = 0,
-	}, {
-		.name = "dra7-cpsw",
-		.driver_data = 0,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, cpsw_devtype);
-
-enum ti_cpsw_type {
-	CPSW = 0,
-	AM335X_CPSW,
-	AM4372_CPSW,
-	DRA7_CPSW,
-};
-
 static const struct of_device_id cpsw_of_mtable[] = {
-	{ .compatible = "ti,cpsw", .data = &cpsw_devtype[CPSW], },
-	{ .compatible = "ti,am335x-cpsw", .data = &cpsw_devtype[AM335X_CPSW], },
-	{ .compatible = "ti,am4372-cpsw", .data = &cpsw_devtype[AM4372_CPSW], },
-	{ .compatible = "ti,dra7-cpsw", .data = &cpsw_devtype[DRA7_CPSW], },
+	{ .compatible = "ti,cpsw"},
+	{ .compatible = "ti,am335x-cpsw"},
+	{ .compatible = "ti,am4372-cpsw"},
+	{ .compatible = "ti,dra7-cpsw"},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, cpsw_of_mtable);
+
+static const struct soc_device_attribute cpsw_soc_devices[] = {
+	{ .family = "AM33xx", .revision = "ES1.0"},
+	{ /* sentinel */ }
+};
 
 static int cpsw_probe(struct platform_device *pdev)
 {
@@ -2966,11 +3332,11 @@ static int cpsw_probe(struct platform_device *pdev)
 	void __iomem			*ss_regs;
 	void __iomem			*cpts_regs;
 	struct resource			*res, *ss_res;
-	const struct of_device_id	*of_id;
 	struct gpio_descs		*mode;
 	u32 slave_offset, sliver_offset, slave_size;
+	const struct soc_device_attribute *soc;
 	struct cpsw_common		*cpsw;
-	int ret = 0, i;
+	int ret = 0, i, ch;
 	int irq;
 
 	cpsw = devm_kzalloc(&pdev->dev, sizeof(struct cpsw_common), GFP_KERNEL);
@@ -3035,8 +3401,8 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
 
-	cpsw->slaves = devm_kzalloc(&pdev->dev,
-				    sizeof(struct cpsw_slave) * data->slaves,
+	cpsw->slaves = devm_kcalloc(&pdev->dev,
+				    data->slaves, sizeof(struct cpsw_slave),
 				    GFP_KERNEL);
 	if (!cpsw->slaves) {
 		ret = -ENOMEM;
@@ -3141,7 +3507,12 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_dt_ret;
 	}
 
-	cpsw->txv[0].ch = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
+	soc = soc_device_match(cpsw_soc_devices);
+	if (soc)
+		cpsw->quirk_irq = 1;
+
+	ch = cpsw->quirk_irq ? 0 : 7;
+	cpsw->txv[0].ch = cpdma_chan_create(cpsw->dma, ch, cpsw_tx_handler, 0);
 	if (IS_ERR(cpsw->txv[0].ch)) {
 		dev_err(priv->dev, "error initializing tx dma channel\n");
 		ret = PTR_ERR(cpsw->txv[0].ch);
@@ -3180,19 +3551,16 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_dma_ret;
 	}
 
-	of_id = of_match_device(cpsw_of_mtable, &pdev->dev);
-	if (of_id) {
-		pdev->id_entry = of_id->data;
-		if (pdev->id_entry->driver_data)
-			cpsw->quirk_irq = true;
-	}
-
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX;
 
 	ndev->netdev_ops = &cpsw_netdev_ops;
 	ndev->ethtool_ops = &cpsw_ethtool_ops;
-	netif_napi_add(ndev, &cpsw->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
-	netif_tx_napi_add(ndev, &cpsw->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
+	netif_napi_add(ndev, &cpsw->napi_rx,
+		       cpsw->quirk_irq ? cpsw_rx_poll : cpsw_rx_mq_poll,
+		       CPSW_POLL_WEIGHT);
+	netif_tx_napi_add(ndev, &cpsw->napi_tx,
+			  cpsw->quirk_irq ? cpsw_tx_poll : cpsw_tx_mq_poll,
+			  CPSW_POLL_WEIGHT);
 	cpsw_split_res(ndev);
 
 	/* register the network device */
@@ -3302,8 +3670,7 @@ static int cpsw_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int cpsw_suspend(struct device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct net_device	*ndev = platform_get_drvdata(pdev);
+	struct net_device	*ndev = dev_get_drvdata(dev);
 	struct cpsw_common	*cpsw = ndev_to_cpsw(ndev);
 
 	if (cpsw->data.dual_emac) {
@@ -3326,8 +3693,7 @@ static int cpsw_suspend(struct device *dev)
 
 static int cpsw_resume(struct device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct net_device	*ndev = platform_get_drvdata(pdev);
+	struct net_device	*ndev = dev_get_drvdata(dev);
 	struct cpsw_common	*cpsw = ndev_to_cpsw(ndev);
 
 	/* Select default pin state */

@@ -231,6 +231,7 @@ again:
 		if (e->state == L2T_STATE_STALE)
 			e->state = L2T_STATE_VALID;
 		spin_unlock_bh(&e->lock);
+		/* fall through */
 	case L2T_STATE_VALID:     /* fast-path, send the packet on */
 		return t4_ofld_send(adap, skb);
 	case L2T_STATE_RESOLVING:
@@ -432,10 +433,12 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 	else
 		lport = netdev2pinfo(physdev)->lport;
 
-	if (is_vlan_dev(neigh->dev))
+	if (is_vlan_dev(neigh->dev)) {
 		vlan = vlan_dev_vlan_id(neigh->dev);
-	else
+		vlan |= vlan_dev_get_egress_qos_mask(neigh->dev, priority);
+	} else {
 		vlan = VLAN_NONE;
+	}
 
 	write_lock_bh(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
@@ -491,7 +494,7 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 	if (tp->protocol_shift >= 0)
 		ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
 
-	if (tp->vnic_shift >= 0) {
+	if (tp->vnic_shift >= 0 && (tp->ingress_config & VNIC_F)) {
 		u32 viid = cxgb4_port_viid(dev);
 		u32 vf = FW_VIID_VIN_G(viid);
 		u32 pf = FW_VIID_PFN_G(viid);

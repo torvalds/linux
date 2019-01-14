@@ -3648,8 +3648,9 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 
 	if (msix_entries) {
 		/* can be up to 512 bytes, too big for stack */
-		msix_vecsave = kmalloc(2 * dd->cspec->num_msix_entries *
-			sizeof(u64), GFP_KERNEL);
+		msix_vecsave = kmalloc_array(2 * dd->cspec->num_msix_entries,
+					     sizeof(u64),
+					     GFP_KERNEL);
 	}
 
 	/*
@@ -5009,16 +5010,17 @@ static void init_7322_cntrnames(struct qib_devdata *dd)
 		dd->cspec->cntrnamelen = sizeof(cntr7322names) - 1;
 	else
 		dd->cspec->cntrnamelen = 1 + s - cntr7322names;
-	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
-		* sizeof(u64), GFP_KERNEL);
+	dd->cspec->cntrs = kmalloc_array(dd->cspec->ncntrs, sizeof(u64),
+					 GFP_KERNEL);
 
 	for (i = 0, s = (char *)portcntr7322names; s; i++)
 		s = strchr(s + 1, '\n');
 	dd->cspec->nportcntrs = i - 1;
 	dd->cspec->portcntrnamelen = sizeof(portcntr7322names) - 1;
 	for (i = 0; i < dd->num_pports; ++i) {
-		dd->pport[i].cpspec->portcntrs = kmalloc(dd->cspec->nportcntrs
-			* sizeof(u64), GFP_KERNEL);
+		dd->pport[i].cpspec->portcntrs =
+			kmalloc_array(dd->cspec->nportcntrs, sizeof(u64),
+				      GFP_KERNEL);
 	}
 }
 
@@ -6412,12 +6414,15 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	sbufcnt = dd->piobcnt2k + dd->piobcnt4k +
 		NUM_VL15_BUFS + BITS_PER_LONG - 1;
 	sbufcnt /= BITS_PER_LONG;
-	dd->cspec->sendchkenable = kmalloc(sbufcnt *
-		sizeof(*dd->cspec->sendchkenable), GFP_KERNEL);
-	dd->cspec->sendgrhchk = kmalloc(sbufcnt *
-		sizeof(*dd->cspec->sendgrhchk), GFP_KERNEL);
-	dd->cspec->sendibchk = kmalloc(sbufcnt *
-		sizeof(*dd->cspec->sendibchk), GFP_KERNEL);
+	dd->cspec->sendchkenable =
+		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendchkenable),
+			      GFP_KERNEL);
+	dd->cspec->sendgrhchk =
+		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendgrhchk),
+			      GFP_KERNEL);
+	dd->cspec->sendibchk =
+		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendibchk),
+			      GFP_KERNEL);
 	if (!dd->cspec->sendchkenable || !dd->cspec->sendgrhchk ||
 		!dd->cspec->sendibchk) {
 		ret = -ENOMEM;
@@ -7290,8 +7295,9 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 		actual_cnt -= dd->num_pports;
 
 	tabsize = actual_cnt;
-	dd->cspec->msix_entries = kzalloc(tabsize *
-			sizeof(struct qib_msix_entry), GFP_KERNEL);
+	dd->cspec->msix_entries = kcalloc(tabsize,
+					  sizeof(struct qib_msix_entry),
+					  GFP_KERNEL);
 	if (!dd->cspec->msix_entries)
 		tabsize = 0;
 

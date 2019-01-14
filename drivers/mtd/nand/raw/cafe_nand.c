@@ -67,6 +67,7 @@ struct cafe_priv {
 	int nr_data;
 	int data_pos;
 	int page_addr;
+	bool usedma;
 	dma_addr_t dmaaddr;
 	unsigned char *dmabuf;
 };
@@ -99,9 +100,8 @@ static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 #define cafe_readl(cafe, addr)			readl((cafe)->mmio + CAFE_##addr)
 #define cafe_writel(cafe, datum, addr)		writel(datum, (cafe)->mmio + CAFE_##addr)
 
-static int cafe_device_ready(struct mtd_info *mtd)
+static int cafe_device_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	int result = !!(cafe_readl(cafe, NAND_STATUS) & 0x40000000);
 	uint32_t irqs = cafe_readl(cafe, NAND_IRQ);
@@ -116,12 +116,11 @@ static int cafe_device_ready(struct mtd_info *mtd)
 }
 
 
-static void cafe_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void cafe_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
-	if (usedma)
+	if (cafe->usedma)
 		memcpy(cafe->dmabuf + cafe->datalen, buf, len);
 	else
 		memcpy_toio(cafe->mmio + CAFE_NAND_WRITE_DATA + cafe->datalen, buf, len);
@@ -132,12 +131,11 @@ static void cafe_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 		len, cafe->datalen);
 }
 
-static void cafe_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void cafe_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
-	if (usedma)
+	if (cafe->usedma)
 		memcpy(buf, cafe->dmabuf + cafe->datalen, len);
 	else
 		memcpy_fromio(buf, cafe->mmio + CAFE_NAND_READ_DATA + cafe->datalen, len);
@@ -147,22 +145,21 @@ static void cafe_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	cafe->datalen += len;
 }
 
-static uint8_t cafe_read_byte(struct mtd_info *mtd)
+static uint8_t cafe_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	uint8_t d;
 
-	cafe_read_buf(mtd, &d, 1);
+	cafe_read_buf(chip, &d, 1);
 	cafe_dev_dbg(&cafe->pdev->dev, "Read %02x\n", d);
 
 	return d;
 }
 
-static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
+static void cafe_nand_cmdfunc(struct nand_chip *chip, unsigned command,
 			      int column, int page_addr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	int adrbytes = 0;
 	uint32_t ctl1;
@@ -253,7 +250,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	/* NB: The datasheet lies -- we really should be subtracting 1 here */
 	cafe_writel(cafe, cafe->datalen, NAND_DATA_LEN);
 	cafe_writel(cafe, 0x90000000, NAND_IRQ);
-	if (usedma && (ctl1 & (3<<25))) {
+	if (cafe->usedma && (ctl1 & (3<<25))) {
 		uint32_t dmactl = 0xc0000000 + cafe->datalen;
 		/* If WR or RD bits set, set up DMA */
 		if (ctl1 & (1<<26)) {
@@ -312,13 +309,12 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 		return;
 	}
-	nand_wait_ready(mtd);
+	nand_wait_ready(chip);
 	cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 }
 
-static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
+static void cafe_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
@@ -345,22 +341,19 @@ static irqreturn_t cafe_nand_interrupt(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
-static void cafe_nand_bug(struct mtd_info *mtd)
+static int cafe_nand_write_oob(struct nand_chip *chip, int page)
 {
-	BUG();
-}
+	struct mtd_info *mtd = nand_to_mtd(chip);
 
-static int cafe_nand_write_oob(struct mtd_info *mtd,
-			       struct nand_chip *chip, int page)
-{
 	return nand_prog_page_op(chip, page, mtd->writesize, chip->oob_poi,
 				 mtd->oobsize);
 }
 
 /* Don't use -- use nand_read_oob_std for now */
-static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			      int page)
+static int cafe_nand_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 /**
@@ -373,9 +366,10 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
  * The hw generator calculates the error syndrome automatically. Therefore
  * we need a special oob layout and handling.
  */
-static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       uint8_t *buf, int oob_required, int page)
+static int cafe_nand_read_page(struct nand_chip *chip, uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	unsigned int max_bitflips = 0;
 
@@ -384,7 +378,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		     cafe_readl(cafe, NAND_ECC_SYN01));
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	if (checkecc && cafe_readl(cafe, NAND_ECC_RESULT) & (1<<18)) {
 		unsigned short syn[8], pat[4];
@@ -394,12 +388,13 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 		for (i=0; i<8; i+=2) {
 			uint32_t tmp = cafe_readl(cafe, NAND_ECC_SYN01 + (i*2));
-			syn[i] = cafe->rs->index_of[tmp & 0xfff];
-			syn[i+1] = cafe->rs->index_of[(tmp >> 16) & 0xfff];
+
+			syn[i] = cafe->rs->codec->index_of[tmp & 0xfff];
+			syn[i+1] = cafe->rs->codec->index_of[(tmp >> 16) & 0xfff];
 		}
 
 		n = decode_rs16(cafe->rs, NULL, NULL, 1367, syn, 0, pos, 0,
-		                pat);
+				pat);
 
 		for (i = 0; i < n; i++) {
 			int p = pos[i];
@@ -534,15 +529,15 @@ static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 };
 
 
-static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
-					  struct nand_chip *chip,
-					  const uint8_t *buf, int oob_required,
-					  int page)
+static int cafe_nand_write_page_lowlevel(struct nand_chip *chip,
+					 const uint8_t *buf, int oob_required,
+					 int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);
@@ -550,7 +545,7 @@ static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 }
 
-static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs)
+static int cafe_nand_block_bad(struct nand_chip *chip, loff_t ofs)
 {
 	return 0;
 }
@@ -597,6 +592,76 @@ static int cafe_mul(int x)
 	return gf4096_mul(x, 0xe01);
 }
 
+static int cafe_nand_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
+	int err = 0;
+
+	cafe->dmabuf = dma_alloc_coherent(&cafe->pdev->dev, 2112,
+					  &cafe->dmaaddr, GFP_KERNEL);
+	if (!cafe->dmabuf)
+		return -ENOMEM;
+
+	/* Set up DMA address */
+	cafe_writel(cafe, lower_32_bits(cafe->dmaaddr), NAND_DMA_ADDR0);
+	cafe_writel(cafe, upper_32_bits(cafe->dmaaddr), NAND_DMA_ADDR1);
+
+	cafe_dev_dbg(&cafe->pdev->dev, "Set DMA address to %x (virt %p)\n",
+		     cafe_readl(cafe, NAND_DMA_ADDR0), cafe->dmabuf);
+
+	/* Restore the DMA flag */
+	cafe->usedma = usedma;
+
+	cafe->ctl2 = BIT(27); /* Reed-Solomon ECC */
+	if (mtd->writesize == 2048)
+		cafe->ctl2 |= BIT(29); /* 2KiB page size */
+
+	/* Set up ECC according to the type of chip we found */
+	mtd_set_ooblayout(mtd, &cafe_ooblayout_ops);
+	if (mtd->writesize == 2048) {
+		cafe->nand.bbt_td = &cafe_bbt_main_descr_2048;
+		cafe->nand.bbt_md = &cafe_bbt_mirror_descr_2048;
+	} else if (mtd->writesize == 512) {
+		cafe->nand.bbt_td = &cafe_bbt_main_descr_512;
+		cafe->nand.bbt_md = &cafe_bbt_mirror_descr_512;
+	} else {
+		dev_warn(&cafe->pdev->dev,
+			 "Unexpected NAND flash writesize %d. Aborting\n",
+			 mtd->writesize);
+		err = -ENOTSUPP;
+		goto out_free_dma;
+	}
+
+	cafe->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
+	cafe->nand.ecc.size = mtd->writesize;
+	cafe->nand.ecc.bytes = 14;
+	cafe->nand.ecc.strength = 4;
+	cafe->nand.ecc.write_page = cafe_nand_write_page_lowlevel;
+	cafe->nand.ecc.write_oob = cafe_nand_write_oob;
+	cafe->nand.ecc.read_page = cafe_nand_read_page;
+	cafe->nand.ecc.read_oob = cafe_nand_read_oob;
+
+	return 0;
+
+ out_free_dma:
+	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
+
+	return err;
+}
+
+static void cafe_nand_detach_chip(struct nand_chip *chip)
+{
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
+
+	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
+}
+
+static const struct nand_controller_ops cafe_nand_controller_ops = {
+	.attach_chip = cafe_nand_attach_chip,
+	.detach_chip = cafe_nand_detach_chip,
+};
+
 static int cafe_nand_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
@@ -604,7 +669,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	struct cafe_priv *cafe;
 	uint32_t ctrl;
 	int err = 0;
-	int old_dma;
 
 	/* Very old versions shared the same PCI ident for all three
 	   functions on the chip. Verify the class too... */
@@ -639,23 +703,23 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 		goto out_ior;
 	}
 
-	cafe->nand.cmdfunc = cafe_nand_cmdfunc;
-	cafe->nand.dev_ready = cafe_device_ready;
-	cafe->nand.read_byte = cafe_read_byte;
-	cafe->nand.read_buf = cafe_read_buf;
-	cafe->nand.write_buf = cafe_write_buf;
+	cafe->nand.legacy.cmdfunc = cafe_nand_cmdfunc;
+	cafe->nand.legacy.dev_ready = cafe_device_ready;
+	cafe->nand.legacy.read_byte = cafe_read_byte;
+	cafe->nand.legacy.read_buf = cafe_read_buf;
+	cafe->nand.legacy.write_buf = cafe_write_buf;
 	cafe->nand.select_chip = cafe_select_chip;
-	cafe->nand.set_features = nand_get_set_features_notsupp;
-	cafe->nand.get_features = nand_get_set_features_notsupp;
+	cafe->nand.legacy.set_features = nand_get_set_features_notsupp;
+	cafe->nand.legacy.get_features = nand_get_set_features_notsupp;
 
-	cafe->nand.chip_delay = 0;
+	cafe->nand.legacy.chip_delay = 0;
 
 	/* Enable the following for a flash based bad block table */
 	cafe->nand.bbt_options = NAND_BBT_USE_FLASH;
 
 	if (skipbbt) {
 		cafe->nand.options |= NAND_SKIP_BBTSCAN;
-		cafe->nand.block_bad = cafe_nand_block_bad;
+		cafe->nand.legacy.block_bad = cafe_nand_block_bad;
 	}
 
 	if (numtimings && numtimings != 3) {
@@ -712,64 +776,14 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 		cafe_readl(cafe, GLOBAL_CTRL),
 		cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
-	/* Do not use the DMA for the nand_scan_ident() */
-	old_dma = usedma;
-	usedma = 0;
+	/* Do not use the DMA during the NAND identification */
+	cafe->usedma = 0;
 
 	/* Scan to find existence of the device */
-	err = nand_scan_ident(mtd, 2, NULL);
+	cafe->nand.dummy_controller.ops = &cafe_nand_controller_ops;
+	err = nand_scan(&cafe->nand, 2);
 	if (err)
 		goto out_irq;
-
-	cafe->dmabuf = dma_alloc_coherent(&cafe->pdev->dev, 2112,
-					  &cafe->dmaaddr, GFP_KERNEL);
-	if (!cafe->dmabuf) {
-		err = -ENOMEM;
-		goto out_irq;
-	}
-
-	/* Set up DMA address */
-	cafe_writel(cafe, lower_32_bits(cafe->dmaaddr), NAND_DMA_ADDR0);
-	cafe_writel(cafe, upper_32_bits(cafe->dmaaddr), NAND_DMA_ADDR1);
-
-	cafe_dev_dbg(&cafe->pdev->dev, "Set DMA address to %x (virt %p)\n",
-		cafe_readl(cafe, NAND_DMA_ADDR0), cafe->dmabuf);
-
-	/* Restore the DMA flag */
-	usedma = old_dma;
-
-	cafe->ctl2 = 1<<27; /* Reed-Solomon ECC */
-	if (mtd->writesize == 2048)
-		cafe->ctl2 |= 1<<29; /* 2KiB page size */
-
-	/* Set up ECC according to the type of chip we found */
-	mtd_set_ooblayout(mtd, &cafe_ooblayout_ops);
-	if (mtd->writesize == 2048) {
-		cafe->nand.bbt_td = &cafe_bbt_main_descr_2048;
-		cafe->nand.bbt_md = &cafe_bbt_mirror_descr_2048;
-	} else if (mtd->writesize == 512) {
-		cafe->nand.bbt_td = &cafe_bbt_main_descr_512;
-		cafe->nand.bbt_md = &cafe_bbt_mirror_descr_512;
-	} else {
-		pr_warn("Unexpected NAND flash writesize %d. Aborting\n",
-			mtd->writesize);
-		goto out_free_dma;
-	}
-	cafe->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
-	cafe->nand.ecc.size = mtd->writesize;
-	cafe->nand.ecc.bytes = 14;
-	cafe->nand.ecc.strength = 4;
-	cafe->nand.ecc.hwctl  = (void *)cafe_nand_bug;
-	cafe->nand.ecc.calculate = (void *)cafe_nand_bug;
-	cafe->nand.ecc.correct  = (void *)cafe_nand_bug;
-	cafe->nand.ecc.write_page = cafe_nand_write_page_lowlevel;
-	cafe->nand.ecc.write_oob = cafe_nand_write_oob;
-	cafe->nand.ecc.read_page = cafe_nand_read_page;
-	cafe->nand.ecc.read_oob = cafe_nand_read_oob;
-
-	err = nand_scan_tail(mtd);
-	if (err)
-		goto out_free_dma;
 
 	pci_set_drvdata(pdev, mtd);
 
@@ -782,8 +796,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
  out_cleanup_nand:
 	nand_cleanup(&cafe->nand);
- out_free_dma:
-	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
  out_irq:
 	/* Disable NAND IRQ in global IRQ mask register */
 	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
@@ -805,7 +817,7 @@ static void cafe_nand_remove(struct pci_dev *pdev)
 	/* Disable NAND IRQ in global IRQ mask register */
 	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
 	free_irq(pdev->irq, mtd);
-	nand_release(mtd);
+	nand_release(chip);
 	free_rs(cafe->rs);
 	pci_iounmap(pdev, cafe->mmio);
 	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);

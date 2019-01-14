@@ -30,8 +30,6 @@
  * SOFTWARE.
  */
 
-#ifdef CONFIG_SECURITY_INFINIBAND
-
 #include <linux/security.h>
 #include <linux/completion.h>
 #include <linux/list.h>
@@ -687,9 +685,8 @@ static int ib_mad_agent_security_change(struct notifier_block *nb,
 	if (event != LSM_POLICY_CHANGE)
 		return NOTIFY_DONE;
 
-	ag->smp_allowed = !security_ib_endport_manage_subnet(ag->security,
-							     ag->device->name,
-							     ag->port_num);
+	ag->smp_allowed = !security_ib_endport_manage_subnet(
+		ag->security, dev_name(&ag->device->dev), ag->port_num);
 
 	return NOTIFY_OK;
 }
@@ -710,7 +707,7 @@ int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
 		return 0;
 
 	ret = security_ib_endport_manage_subnet(agent->security,
-						agent->device->name,
+						dev_name(&agent->device->dev),
 						agent->port_num);
 	if (ret)
 		return ret;
@@ -751,5 +748,3 @@ int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index)
 				       pkey_index,
 				       map->agent.security);
 }
-
-#endif /* CONFIG_SECURITY_INFINIBAND */

@@ -133,6 +133,33 @@ static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+/* QEDR sysfs interface */
+static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
+			   char *buf)
+{
+	struct qedr_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->pdev->vendor);
+}
+static DEVICE_ATTR_RO(hw_rev);
+
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s\n", "HCA_TYPE_TO_SET");
+}
+static DEVICE_ATTR_RO(hca_type);
+
+static struct attribute *qedr_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	NULL
+};
+
+static const struct attribute_group qedr_attr_group = {
+	.attrs = qedr_attributes,
+};
+
 static int qedr_iw_register_device(struct qedr_dev *dev)
 {
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
@@ -170,8 +197,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 {
 	int rc;
 
-	strlcpy(dev->ibdev.name, "qedr%d", IB_DEVICE_NAME_MAX);
-
 	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 	dev->ibdev.owner = THIS_MODULE;
@@ -191,6 +216,11 @@ static int qedr_register_device(struct qedr_dev *dev)
 				     QEDR_UVERBS(MODIFY_QP) |
 				     QEDR_UVERBS(QUERY_QP) |
 				     QEDR_UVERBS(DESTROY_QP) |
+				     QEDR_UVERBS(CREATE_SRQ) |
+				     QEDR_UVERBS(DESTROY_SRQ) |
+				     QEDR_UVERBS(QUERY_SRQ) |
+				     QEDR_UVERBS(MODIFY_SRQ) |
+				     QEDR_UVERBS(POST_SRQ_RECV) |
 				     QEDR_UVERBS(REG_MR) |
 				     QEDR_UVERBS(DEREG_MR) |
 				     QEDR_UVERBS(POLL_CQ) |
@@ -229,6 +259,11 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.query_qp = qedr_query_qp;
 	dev->ibdev.destroy_qp = qedr_destroy_qp;
 
+	dev->ibdev.create_srq = qedr_create_srq;
+	dev->ibdev.destroy_srq = qedr_destroy_srq;
+	dev->ibdev.modify_srq = qedr_modify_srq;
+	dev->ibdev.query_srq = qedr_query_srq;
+	dev->ibdev.post_srq_recv = qedr_post_srq_recv;
 	dev->ibdev.query_pkey = qedr_query_pkey;
 
 	dev->ibdev.create_ah = qedr_create_ah;
@@ -252,9 +287,9 @@ static int qedr_register_device(struct qedr_dev *dev)
 
 	dev->ibdev.get_link_layer = qedr_link_layer;
 	dev->ibdev.get_dev_fw_str = qedr_get_dev_fw_str;
-
+	rdma_set_device_sysfs_group(&dev->ibdev, &qedr_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
-	return ib_register_device(&dev->ibdev, NULL);
+	return ib_register_device(&dev->ibdev, "qedr%d", NULL);
 }
 
 /* This function allocates fast-path status block memory */
@@ -317,16 +352,16 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	u16 n_entries;
 	int i, rc;
 
-	dev->sgid_tbl = kzalloc(sizeof(union ib_gid) *
-				QEDR_MAX_SGID, GFP_KERNEL);
+	dev->sgid_tbl = kcalloc(QEDR_MAX_SGID, sizeof(union ib_gid),
+				GFP_KERNEL);
 	if (!dev->sgid_tbl)
 		return -ENOMEM;
 
 	spin_lock_init(&dev->sgid_lock);
 
 	if (IS_IWARP(dev)) {
-		spin_lock_init(&dev->idr_lock);
-		idr_init(&dev->qpidr);
+		spin_lock_init(&dev->qpidr.idr_lock);
+		idr_init(&dev->qpidr.idr);
 		dev->iwarp_wq = create_singlethread_workqueue("qedr_iwarpq");
 	}
 
@@ -392,37 +427,6 @@ err2:
 err1:
 	kfree(dev->sgid_tbl);
 	return rc;
-}
-
-/* QEDR sysfs interface */
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct qedr_dev *dev = dev_get_drvdata(device);
-
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->pdev->vendor);
-}
-
-static ssize_t show_hca_type(struct device *device,
-			     struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%s\n", "HCA_TYPE_TO_SET");
-}
-
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca_type, NULL);
-
-static struct device_attribute *qedr_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type
-};
-
-static void qedr_remove_sysfiles(struct qedr_dev *dev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(qedr_attributes); i++)
-		device_remove_file(&dev->ibdev.dev, qedr_attributes[i]);
 }
 
 static void qedr_pci_set_atomic(struct qedr_dev *dev, struct pci_dev *pdev)
@@ -653,42 +657,70 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 #define EVENT_TYPE_NOT_DEFINED	0
 #define EVENT_TYPE_CQ		1
 #define EVENT_TYPE_QP		2
+#define EVENT_TYPE_SRQ		3
 	struct qedr_dev *dev = (struct qedr_dev *)context;
 	struct regpair *async_handle = (struct regpair *)fw_handle;
 	u64 roce_handle64 = ((u64) async_handle->hi << 32) + async_handle->lo;
 	u8 event_type = EVENT_TYPE_NOT_DEFINED;
 	struct ib_event event;
+	struct ib_srq *ibsrq;
+	struct qedr_srq *srq;
+	unsigned long flags;
 	struct ib_cq *ibcq;
 	struct ib_qp *ibqp;
 	struct qedr_cq *cq;
 	struct qedr_qp *qp;
+	u16 srq_id;
 
-	switch (e_code) {
-	case ROCE_ASYNC_EVENT_CQ_OVERFLOW_ERR:
-		event.event = IB_EVENT_CQ_ERR;
-		event_type = EVENT_TYPE_CQ;
-		break;
-	case ROCE_ASYNC_EVENT_SQ_DRAINED:
-		event.event = IB_EVENT_SQ_DRAINED;
-		event_type = EVENT_TYPE_QP;
-		break;
-	case ROCE_ASYNC_EVENT_QP_CATASTROPHIC_ERR:
-		event.event = IB_EVENT_QP_FATAL;
-		event_type = EVENT_TYPE_QP;
-		break;
-	case ROCE_ASYNC_EVENT_LOCAL_INVALID_REQUEST_ERR:
-		event.event = IB_EVENT_QP_REQ_ERR;
-		event_type = EVENT_TYPE_QP;
-		break;
-	case ROCE_ASYNC_EVENT_LOCAL_ACCESS_ERR:
-		event.event = IB_EVENT_QP_ACCESS_ERR;
-		event_type = EVENT_TYPE_QP;
-		break;
-	default:
+	if (IS_ROCE(dev)) {
+		switch (e_code) {
+		case ROCE_ASYNC_EVENT_CQ_OVERFLOW_ERR:
+			event.event = IB_EVENT_CQ_ERR;
+			event_type = EVENT_TYPE_CQ;
+			break;
+		case ROCE_ASYNC_EVENT_SQ_DRAINED:
+			event.event = IB_EVENT_SQ_DRAINED;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_QP_CATASTROPHIC_ERR:
+			event.event = IB_EVENT_QP_FATAL;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_LOCAL_INVALID_REQUEST_ERR:
+			event.event = IB_EVENT_QP_REQ_ERR;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_LOCAL_ACCESS_ERR:
+			event.event = IB_EVENT_QP_ACCESS_ERR;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_SRQ_LIMIT:
+			event.event = IB_EVENT_SRQ_LIMIT_REACHED;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		case ROCE_ASYNC_EVENT_SRQ_EMPTY:
+			event.event = IB_EVENT_SRQ_ERR;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		default:
+			DP_ERR(dev, "unsupported event %d on handle=%llx\n",
+			       e_code, roce_handle64);
+		}
+	} else {
+		switch (e_code) {
+		case QED_IWARP_EVENT_SRQ_LIMIT:
+			event.event = IB_EVENT_SRQ_LIMIT_REACHED;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		case QED_IWARP_EVENT_SRQ_EMPTY:
+			event.event = IB_EVENT_SRQ_ERR;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		default:
 		DP_ERR(dev, "unsupported event %d on handle=%llx\n", e_code,
 		       roce_handle64);
+		}
 	}
-
 	switch (event_type) {
 	case EVENT_TYPE_CQ:
 		cq = (struct qedr_cq *)(uintptr_t)roce_handle64;
@@ -722,6 +754,25 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		}
 		DP_ERR(dev, "QP event %d on handle %p\n", e_code, qp);
 		break;
+	case EVENT_TYPE_SRQ:
+		srq_id = (u16)roce_handle64;
+		spin_lock_irqsave(&dev->srqidr.idr_lock, flags);
+		srq = idr_find(&dev->srqidr.idr, srq_id);
+		if (srq) {
+			ibsrq = &srq->ibsrq;
+			if (ibsrq->event_handler) {
+				event.device = ibsrq->device;
+				event.element.srq = ibsrq;
+				ibsrq->event_handler(&event,
+						     ibsrq->srq_context);
+			}
+		} else {
+			DP_NOTICE(dev,
+				  "SRQ event with NULL pointer ibsrq. Handle=%llx\n",
+				  roce_handle64);
+		}
+		spin_unlock_irqrestore(&dev->srqidr.idr_lock, flags);
+		DP_NOTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
 	default:
 		break;
 	}
@@ -798,7 +849,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 {
 	struct qed_dev_rdma_info dev_info;
 	struct qedr_dev *dev;
-	int rc = 0, i;
+	int rc = 0;
 
 	dev = (struct qedr_dev *)ib_alloc_device(sizeof(*dev));
 	if (!dev) {
@@ -857,18 +908,12 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 		goto reg_err;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(qedr_attributes); i++)
-		if (device_create_file(&dev->ibdev.dev, qedr_attributes[i]))
-			goto sysfs_err;
-
 	if (!test_and_set_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
 		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ACTIVE);
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr driver loaded successfully\n");
 	return dev;
 
-sysfs_err:
-	ib_unregister_device(&dev->ibdev);
 reg_err:
 	qedr_sync_free_irqs(dev);
 irq_err:
@@ -887,7 +932,6 @@ static void qedr_remove(struct qedr_dev *dev)
 	/* First unregister with stack to stop all the active traffic
 	 * of the registered clients.
 	 */
-	qedr_remove_sysfiles(dev);
 	ib_unregister_device(&dev->ibdev);
 
 	qedr_stop_hw(dev);

@@ -217,7 +217,7 @@ static
 int uwb_est_grow(void)
 {
 	size_t actual_size = uwb_est_size * sizeof(uwb_est[0]);
-	void *new = kmalloc(2 * actual_size, GFP_ATOMIC);
+	void *new = kmalloc_array(2, actual_size, GFP_ATOMIC);
 	if (new == NULL)
 		return -ENOMEM;
 	memcpy(new, uwb_est, actual_size);

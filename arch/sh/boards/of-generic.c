@@ -56,15 +56,15 @@ const struct of_cpu_method __cpu_method_of_table_sentinel
 
 static void sh_of_smp_probe(void)
 {
-	struct device_node *np = 0;
-	const char *method = 0;
+	struct device_node *np;
+	const char *method = NULL;
 	const struct of_cpu_method *m = __cpu_method_of_table;
 
 	pr_info("SH generic board support: scanning for cpus\n");
 
 	init_cpu_possible(cpumask_of(0));
 
-	while ((np = of_find_node_by_type(np, "cpu"))) {
+	for_each_of_cpu_node(np) {
 		const __be32 *cell = of_get_property(np, "reg", NULL);
 		u64 id = -1;
 		if (cell) id = of_read_number(cell, of_n_addr_cells(np));
@@ -80,6 +80,7 @@ static void sh_of_smp_probe(void)
 	if (!method) {
 		np = of_find_node_by_name(NULL, "cpus");
 		of_property_read_string(np, "enable-method", &method);
+		of_node_put(np);
 	}
 
 	pr_info("CPU enable method: %s\n", method);

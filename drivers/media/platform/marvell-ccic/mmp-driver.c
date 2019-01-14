@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 static char *mcam_clks[] = {"CCICAXICLK", "CCICFUNCLK", "CCICPHYCLK"};
 
 struct mmp_camera {
-	void *power_regs;
+	void __iomem *power_regs;
 	struct platform_device *pdev;
 	struct mcam_camera mcam;
 	struct list_head devlist;
@@ -183,7 +183,7 @@ static void mmpcam_power_down(struct mcam_camera *mcam)
 	mcam_clk_disable(mcam);
 }
 
-void mcam_ctlr_reset(struct mcam_camera *mcam)
+static void mcam_ctlr_reset(struct mcam_camera *mcam)
 {
 	unsigned long val;
 	struct mmp_camera *cam = mcam_to_cam(mcam);
@@ -214,7 +214,7 @@ void mcam_ctlr_reset(struct mcam_camera *mcam)
  * CSI2_DPHY3 and CSI2_DPHY6 can be set with a default value
  * or be calculated dynamically
  */
-void mmpcam_calc_dphy(struct mcam_camera *mcam)
+static void mmpcam_calc_dphy(struct mcam_camera *mcam)
 {
 	struct mmp_camera *cam = mcam_to_cam(mcam);
 	struct mmp_camera_platform_data *pdata = cam->pdev->dev.platform_data;
@@ -362,7 +362,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->mclk_div = pdata->mclk_div;
 	mcam->bus_type = pdata->bus_type;
 	mcam->dphy = pdata->dphy;
-	if (mcam->bus_type == V4L2_MBUS_CSI2) {
+	if (mcam->bus_type == V4L2_MBUS_CSI2_DPHY) {
 		cam->mipi_clk = devm_clk_get(mcam->dev, "mipi");
 		if ((IS_ERR(cam->mipi_clk) && mcam->dphy[2] == 0))
 			return PTR_ERR(cam->mipi_clk);
@@ -371,7 +371,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->lane = pdata->lane;
 	mcam->chip_id = MCAM_ARMADA610;
 	mcam->buffer_mode = B_DMA_sg;
-	strlcpy(mcam->bus_info, "platform:mmp-camera", sizeof(mcam->bus_info));
+	strscpy(mcam->bus_info, "platform:mmp-camera", sizeof(mcam->bus_info));
 	spin_lock_init(&mcam->dev_lock);
 	/*
 	 * Get our I/O memory.

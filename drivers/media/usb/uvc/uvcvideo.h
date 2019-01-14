@@ -12,6 +12,7 @@
 #include <linux/usb/video.h>
 #include <linux/uvcvideo.h>
 #include <linux/videodev2.h>
+#include <linux/workqueue.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -157,6 +158,9 @@
 #define UVC_GUID_FORMAT_D3DFMT_L8 \
 	{0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_KSMEDIA_L8_IR \
+	{0x32, 0x00, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
 
 
 /* ------------------------------------------------------------------------
@@ -230,7 +234,7 @@ struct uvc_control_mapping {
 	enum v4l2_ctrl_type v4l2_type;
 	u32 data_type;
 
-	struct uvc_menu_info *menu_info;
+	const struct uvc_menu_info *menu_info;
 	u32 menu_count;
 
 	u32 master_id;
@@ -256,6 +260,8 @@ struct uvc_control {
 	   initialized:1;
 
 	u8 *uvc_data;
+
+	struct uvc_fh *handle;	/* File handle that last changed the control. */
 };
 
 struct uvc_format_desc {
@@ -566,14 +572,20 @@ struct uvc_streaming {
 	} clock;
 };
 
+struct uvc_device_info {
+	u32	quirks;
+	u32	meta_format;
+};
+
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
 	unsigned long warnings;
 	u32 quirks;
-	u32 meta_format;
 	int intfnum;
 	char name[32];
+
+	const struct uvc_device_info *info;
 
 	struct mutex lock;		/* Protects users */
 	unsigned int users;
@@ -600,6 +612,14 @@ struct uvc_device {
 	u8 *status;
 	struct input_dev *input;
 	char input_phys[64];
+
+	struct uvc_ctrl_work {
+		struct work_struct work;
+		struct urb *urb;
+		struct uvc_video_chain *chain;
+		struct uvc_control *ctrl;
+		const void *data;
+	} async_ctrl;
 };
 
 enum uvc_handle_state {
@@ -680,6 +700,7 @@ int uvc_query_buffer(struct uvc_video_queue *queue,
 int uvc_create_buffers(struct uvc_video_queue *queue,
 		       struct v4l2_create_buffers *v4l2_cb);
 int uvc_queue_buffer(struct uvc_video_queue *queue,
+		     struct media_device *mdev,
 		     struct v4l2_buffer *v4l2_buf);
 int uvc_export_buffer(struct uvc_video_queue *queue,
 		      struct v4l2_exportbuffer *exp);
@@ -753,6 +774,8 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 int uvc_ctrl_init_device(struct uvc_device *dev);
 void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 int uvc_ctrl_restore_values(struct uvc_device *dev);
+bool uvc_ctrl_status_event(struct urb *urb, struct uvc_video_chain *chain,
+			   struct uvc_control *ctrl, const u8 *data);
 
 int uvc_ctrl_begin(struct uvc_video_chain *chain);
 int __uvc_ctrl_commit(struct uvc_fh *handle, int rollback,
@@ -770,7 +793,7 @@ static inline int uvc_ctrl_rollback(struct uvc_fh *handle)
 }
 
 int uvc_ctrl_get(struct uvc_video_chain *chain, struct v4l2_ext_control *xctrl);
-int uvc_ctrl_set(struct uvc_video_chain *chain, struct v4l2_ext_control *xctrl);
+int uvc_ctrl_set(struct uvc_fh *handle, struct v4l2_ext_control *xctrl);
 
 int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		      struct uvc_xu_control_query *xqry);

@@ -243,7 +243,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		dev_kfree_skb(bcs->rx_skb);
 		gigaset_new_rx_skb(bcs);
 
-		commands = kzalloc(AT_NUM * (sizeof *commands), GFP_ATOMIC);
+		commands = kcalloc(AT_NUM, sizeof(*commands), GFP_ATOMIC);
 		if (!commands) {
 			gigaset_free_channel(bcs);
 			dev_err(cs->dev, "ISDN_CMD_DIAL: out of memory\n");

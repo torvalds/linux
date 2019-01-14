@@ -160,7 +160,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     독특한 행동에 관하여 흔히 있는 오해들과 혼란들을 해소하고 있기
     때문이다.
 
-  :ref:`Documentation/process/stable_kernel_rules.rst <stable_kernel_rules>`
+  :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
     이 문서는 안정적인 커널 배포가 이루어지는 규칙을 설명하고 있으며
     여러분들이 이러한 배포들 중 하나에 변경을 하길 원한다면
     무엇을 해야 하는지를 설명한다.

@@ -12,6 +12,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "sun8i_dw_hdmi.h"
+#include "sun8i_tcon_top.h"
 
 static void sun8i_dw_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 					   struct drm_display_mode *mode,
@@ -41,6 +42,44 @@ sun8i_dw_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static bool sun8i_dw_hdmi_node_is_tcon_top(struct device_node *node)
+{
+	return IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
+		!!of_match_node(sun8i_tcon_top_of_table, node);
+}
+
+static u32 sun8i_dw_hdmi_find_possible_crtcs(struct drm_device *drm,
+					     struct device_node *node)
+{
+	struct device_node *port, *ep, *remote, *remote_port;
+	u32 crtcs = 0;
+
+	remote = of_graph_get_remote_node(node, 0, -1);
+	if (!remote)
+		return 0;
+
+	if (sun8i_dw_hdmi_node_is_tcon_top(remote)) {
+		port = of_graph_get_port_by_id(remote, 4);
+		if (!port)
+			goto crtcs_exit;
+
+		for_each_child_of_node(port, ep) {
+			remote_port = of_graph_get_remote_port(ep);
+			if (remote_port) {
+				crtcs |= drm_of_crtc_port_mask(drm, remote_port);
+				of_node_put(remote_port);
+			}
+		}
+	} else {
+		crtcs = drm_of_find_possible_crtcs(drm, node);
+	}
+
+crtcs_exit:
+	of_node_put(remote);
+
+	return crtcs;
+}
+
 static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 			      void *data)
 {
@@ -63,7 +102,8 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->dev = &pdev->dev;
 	encoder = &hdmi->encoder;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	encoder->possible_crtcs =
+		sun8i_dw_hdmi_find_possible_crtcs(drm, dev->of_node);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
@@ -85,10 +125,22 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 		return PTR_ERR(hdmi->clk_tmds);
 	}
 
+	hdmi->regulator = devm_regulator_get(dev, "hvcc");
+	if (IS_ERR(hdmi->regulator)) {
+		dev_err(dev, "Couldn't get regulator\n");
+		return PTR_ERR(hdmi->regulator);
+	}
+
+	ret = regulator_enable(hdmi->regulator);
+	if (ret) {
+		dev_err(dev, "Failed to enable regulator\n");
+		return ret;
+	}
+
 	ret = reset_control_deassert(hdmi->rst_ctrl);
 	if (ret) {
 		dev_err(dev, "Could not deassert ctrl reset control\n");
-		return ret;
+		goto err_disable_regulator;
 	}
 
 	ret = clk_prepare_enable(hdmi->clk_tmds);
@@ -143,6 +195,8 @@ err_disable_clk_tmds:
 	clk_disable_unprepare(hdmi->clk_tmds);
 err_assert_ctrl_reset:
 	reset_control_assert(hdmi->rst_ctrl);
+err_disable_regulator:
+	regulator_disable(hdmi->regulator);
 
 	return ret;
 }
@@ -156,6 +210,7 @@ static void sun8i_dw_hdmi_unbind(struct device *dev, struct device *master,
 	sun8i_hdmi_phy_remove(hdmi);
 	clk_disable_unprepare(hdmi->clk_tmds);
 	reset_control_assert(hdmi->rst_ctrl);
+	regulator_disable(hdmi->regulator);
 }
 
 static const struct component_ops sun8i_dw_hdmi_ops = {
@@ -181,7 +236,7 @@ static const struct of_device_id sun8i_dw_hdmi_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, sun8i_dw_hdmi_dt_ids);
 
-struct platform_driver sun8i_dw_hdmi_pltfm_driver = {
+static struct platform_driver sun8i_dw_hdmi_pltfm_driver = {
 	.probe  = sun8i_dw_hdmi_probe,
 	.remove = sun8i_dw_hdmi_remove,
 	.driver = {

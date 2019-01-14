@@ -471,6 +471,17 @@ struct slim_device_id {
 	kernel_ulong_t driver_data;
 };
 
+#define APR_NAME_SIZE	32
+#define APR_MODULE_PREFIX "apr:"
+
+struct apr_device_id {
+	char name[APR_NAME_SIZE];
+	__u32 domain_id;
+	__u32 svc_id;
+	__u32 svc_version;
+	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
 #define SPMI_NAME_SIZE	32
 #define SPMI_MODULE_PREFIX "spmi:"
 
@@ -490,6 +501,7 @@ enum dmi_field {
 	DMI_PRODUCT_VERSION,
 	DMI_PRODUCT_SERIAL,
 	DMI_PRODUCT_UUID,
+	DMI_PRODUCT_SKU,
 	DMI_PRODUCT_FAMILY,
 	DMI_BOARD_VENDOR,
 	DMI_BOARD_NAME,
@@ -553,7 +565,7 @@ struct platform_device_id {
 /**
  * struct mdio_device_id - identifies PHY devices on an MDIO/MII bus
  * @phy_id: The result of
- *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&PHYSID2)) & @phy_id_mask
+ *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&MII_PHYSID2)) & @phy_id_mask
  *     for this PHY type
  * @phy_id_mask: Defines the significant bits of @phy_id.  A value of 0
  *     is used to terminate an array of struct mdio_device_id.
@@ -733,5 +745,21 @@ struct tb_service_id {
 #define TBSVC_MATCH_PROTOCOL_ID		0x0002
 #define TBSVC_MATCH_PROTOCOL_VERSION	0x0004
 #define TBSVC_MATCH_PROTOCOL_REVISION	0x0008
+
+/* USB Type-C Alternate Modes */
+
+#define TYPEC_ANY_MODE	0x7
+
+/**
+ * struct typec_device_id - USB Type-C alternate mode identifiers
+ * @svid: Standard or Vendor ID
+ * @mode: Mode index
+ * @driver_data: Driver specific data
+ */
+struct typec_device_id {
+	__u16 svid;
+	__u8 mode;
+	kernel_ulong_t driver_data;
+};
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

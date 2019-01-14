@@ -76,32 +76,24 @@ static int hclgevf_alloc_cmd_desc(struct hclgevf_cmq_ring *ring)
 {
 	int size = ring->desc_num * sizeof(struct hclgevf_desc);
 
-	ring->desc = kzalloc(size, GFP_KERNEL);
+	ring->desc = dma_zalloc_coherent(cmq_ring_to_dev(ring),
+					 size, &ring->desc_dma_addr,
+					 GFP_KERNEL);
 	if (!ring->desc)
 		return -ENOMEM;
-
-	ring->desc_dma_addr = dma_map_single(cmq_ring_to_dev(ring), ring->desc,
-					     size, DMA_BIDIRECTIONAL);
-
-	if (dma_mapping_error(cmq_ring_to_dev(ring), ring->desc_dma_addr)) {
-		ring->desc_dma_addr = 0;
-		kfree(ring->desc);
-		ring->desc = NULL;
-		return -ENOMEM;
-	}
 
 	return 0;
 }
 
 static void hclgevf_free_cmd_desc(struct hclgevf_cmq_ring *ring)
 {
-	dma_unmap_single(cmq_ring_to_dev(ring), ring->desc_dma_addr,
-			 ring->desc_num * sizeof(ring->desc[0]),
-			 hclgevf_ring_to_dma_dir(ring));
+	int size  = ring->desc_num * sizeof(struct hclgevf_desc);
 
-	ring->desc_dma_addr = 0;
-	kfree(ring->desc);
-	ring->desc = NULL;
+	if (ring->desc) {
+		dma_free_coherent(cmq_ring_to_dev(ring), size,
+				  ring->desc, ring->desc_dma_addr);
+		ring->desc = NULL;
+	}
 }
 
 static int hclgevf_init_cmd_queue(struct hclgevf_dev *hdev,
@@ -140,9 +132,9 @@ static int hclgevf_init_cmd_queue(struct hclgevf_dev *hdev,
 		reg_val |= HCLGEVF_NIC_CMQ_ENABLE;
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG, reg_val);
 
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
-		break;
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
+		return 0;
 	case HCLGEVF_TYPE_CRQ:
 		reg_val = (u32)ring->desc_dma_addr;
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_L_REG, reg_val);
@@ -153,12 +145,12 @@ static int hclgevf_init_cmd_queue(struct hclgevf_dev *hdev,
 		reg_val |= HCLGEVF_NIC_CMQ_ENABLE;
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_DEPTH_REG, reg_val);
 
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG, 0);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_HEAD_REG, 0);
-		break;
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG, 0);
+		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	return 0;
 }
 
 void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,

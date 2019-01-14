@@ -60,10 +60,7 @@
 
 #define ICELAND_SMC_SIZE               0x20000
 
-#define VOLTAGE_SCALE 4
 #define POWERTUNE_DEFAULT_SET_MAX    1
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define MC_CG_ARB_FREQ_F1           0x0b
 #define VDDC_VDDCI_DELTA            200
 
@@ -235,25 +232,24 @@ static int iceland_request_smu_load_specific_fw(struct pp_hwmgr *hwmgr,
 
 static int iceland_start_smu(struct pp_hwmgr *hwmgr)
 {
+	struct iceland_smumgr *priv = hwmgr->smu_backend;
 	int result;
 
-	result = iceland_smu_upload_firmware_image(hwmgr);
-	if (result)
-		return result;
-	result = iceland_smu_start_smc(hwmgr);
-	if (result)
-		return result;
-
 	if (!smu7_is_smc_ram_running(hwmgr)) {
-		pr_info("smu not running, upload firmware again \n");
 		result = iceland_smu_upload_firmware_image(hwmgr);
 		if (result)
 			return result;
 
-		result = iceland_smu_start_smc(hwmgr);
-		if (result)
-			return result;
+		iceland_smu_start_smc(hwmgr);
 	}
+
+	/* Setup SoftRegsStart here to visit the register UcodeLoadStatus
+	 * to check fw loading state
+	 */
+	smu7_read_smc_sram_dword(hwmgr,
+			SMU71_FIRMWARE_HEADER_LOCATION +
+			offsetof(SMU71_Firmware_Header, SoftRegisters),
+			&(priv->smu7_data.soft_regs_start), 0x40000);
 
 	result = smu7_request_smu_load_fw(hwmgr);
 
@@ -932,7 +928,7 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	graphic_level->PowerThrottle = 0;
 
 	data->display_timing.min_clock_in_sr =
-			hwmgr->display_config.min_core_set_clock_in_sr;
+			hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep))
@@ -1236,7 +1232,6 @@ static int iceland_populate_single_memory_level(
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int result = 0;
 	bool dll_state_on;
-	struct cgs_display_info info = {0};
 	uint32_t mclk_edc_wr_enable_threshold = 40000;
 	uint32_t mclk_edc_enable_threshold = 40000;
 	uint32_t mclk_strobe_mode_threshold = 40000;
@@ -1283,8 +1278,8 @@ static int iceland_populate_single_memory_level(
 	/* default set to low watermark. Highest level will be set to high later.*/
 	memory_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	data->display_timing.num_existing_displays = info.display_count;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	/* stutter mode not support on iceland */
 
@@ -1579,12 +1574,6 @@ static int iceland_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 
 static int iceland_populate_smc_acp_level(struct pp_hwmgr *hwmgr,
 		SMU71_Discrete_DpmTable *table)
-{
-	return 0;
-}
-
-static int iceland_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-	SMU71_Discrete_DpmTable *table)
 {
 	return 0;
 }
@@ -1997,10 +1986,6 @@ static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to initialize ACP Level!", return result;);
 
-	result = iceland_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(0 == result,
-		"Failed to initialize SAMU Level!", return result;);
-
 	/* Since only the initial state is completely set up at this point (the other states are just copies of the boot state) we only */
 	/* need to populate the  ARB settings for the initial state. */
 	result = iceland_program_memory_timing_parameters(hwmgr);
@@ -2251,11 +2236,13 @@ static uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU71_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
+		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
+		break;
 	}
 	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
@@ -2676,7 +2663,7 @@ const struct pp_smumgr_func iceland_smu_funcs = {
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &iceland_start_smu,
 	.check_fw_load_finish = &smu7_check_fw_load_finish,
-	.request_smu_load_fw = &smu7_reload_firmware,
+	.request_smu_load_fw = &smu7_request_smu_load_fw,
 	.request_smu_load_specific_fw = &iceland_request_smu_load_specific_fw,
 	.send_msg_to_smc = &smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = &smu7_send_msg_to_smc_with_parameter,

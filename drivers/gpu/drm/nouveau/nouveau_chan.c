@@ -163,12 +163,15 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			return ret;
 		}
 
+		chan->push.addr = chan->push.vma->addr;
+
+		if (device->info.family >= NV_DEVICE_INFO_V0_FERMI)
+			return 0;
+
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start = 0;
 		args.limit = cli->vmm.vmm.limit - 1;
-
-		chan->push.addr = chan->push.vma->addr;
 	} else
 	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
@@ -214,10 +217,11 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 
 static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 engine, struct nouveau_channel **pchan)
+		    u64 runlist, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
-	static const u16 oclasses[] = { PASCAL_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { VOLTA_CHANNEL_GPFIFO_A,
+					PASCAL_CHANNEL_GPFIFO_A,
 					MAXWELL_CHANNEL_GPFIFO_A,
 					KEPLER_CHANNEL_GPFIFO_B,
 					KEPLER_CHANNEL_GPFIFO_A,
@@ -245,9 +249,9 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 	do {
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
-			args.kepler.engines = engine;
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.addr;
+			args.kepler.runlist = runlist;
 			args.kepler.vmm = nvif_handle(&cli->vmm.vmm.object);
 			size = sizeof(args.kepler);
 		} else
@@ -473,4 +477,29 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 done:
 	cli->base.super = super;
 	return ret;
+}
+
+int
+nouveau_channels_init(struct nouveau_drm *drm)
+{
+	struct {
+		struct nv_device_info_v1 m;
+		struct {
+			struct nv_device_info_v1_data channels;
+		} v;
+	} args = {
+		.m.version = 1,
+		.m.count = sizeof(args.v) / sizeof(args.v.channels),
+		.v.channels.mthd = NV_DEVICE_FIFO_CHANNELS,
+	};
+	struct nvif_object *device = &drm->client.device.object;
+	int ret;
+
+	ret = nvif_object_mthd(device, NV_DEVICE_V0_INFO, &args, sizeof(args));
+	if (ret || args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
+		return -ENODEV;
+
+	drm->chan.nr = args.v.channels.data;
+	drm->chan.context_base = dma_fence_context_alloc(drm->chan.nr);
+	return 0;
 }

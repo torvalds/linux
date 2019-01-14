@@ -36,10 +36,23 @@
 #include <linux/refcount.h>
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
+#include <linux/llist.h>
+
+/* FS_TYPE_PRIO_CHAINS is a PRIO that will have namespaces only,
+ * and those are in parallel to one another when going over them to connect
+ * a new flow table. Meaning the last flow table in a TYPE_PRIO prio in one
+ * parallel namespace will not automatically connect to the first flow table
+ * found in any prio in any next namespace, but skip the entire containing
+ * TYPE_PRIO_CHAINS prio.
+ *
+ * This is used to implement tc chains, each chain of prios is a different
+ * namespace inside a containing TYPE_PRIO_CHAINS prio.
+ */
 
 enum fs_node_type {
 	FS_TYPE_NAMESPACE,
 	FS_TYPE_PRIO,
+	FS_TYPE_PRIO_CHAINS,
 	FS_TYPE_FLOW_TABLE,
 	FS_TYPE_FLOW_GROUP,
 	FS_TYPE_FLOW_ENTRY,
@@ -72,6 +85,7 @@ struct mlx5_flow_steering {
 	struct kmem_cache               *ftes_cache;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
+	struct mlx5_flow_namespace	**fdb_sub_ns;
 	struct mlx5_flow_root_namespace **esw_egress_root_ns;
 	struct mlx5_flow_root_namespace **esw_ingress_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_tx_root_ns;
@@ -138,8 +152,9 @@ struct mlx5_fc_cache {
 };
 
 struct mlx5_fc {
-	struct rb_node node;
 	struct list_head list;
+	struct llist_node addlist;
+	struct llist_node dellist;
 
 	/* last{packets,bytes} members are used when calculating the delta since
 	 * last reading
@@ -148,7 +163,6 @@ struct mlx5_fc {
 	u64 lastbytes;
 
 	u32 id;
-	bool deleted;
 	bool aging;
 
 	struct mlx5_fc_cache cache ____cacheline_aligned_in_smp;
@@ -159,7 +173,7 @@ struct mlx5_ft_underlay_qp {
 	u32 qpn;
 };
 
-#define MLX5_FTE_MATCH_PARAM_RESERVED	reserved_at_600
+#define MLX5_FTE_MATCH_PARAM_RESERVED	reserved_at_800
 /* Calculate the fte_match_param length and without the reserved length.
  * Make sure the reserved field is the last.
  */
@@ -233,8 +247,6 @@ void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
 			      unsigned long delay);
 void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
 				      unsigned long interval);
-int mlx5_fc_query(struct mlx5_core_dev *dev, u16 id,
-		  u64 *packets, u64 *bytes);
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);

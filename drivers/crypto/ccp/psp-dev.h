@@ -30,24 +30,7 @@
 
 #include "sp-dev.h"
 
-#define PSP_C2PMSG(_num)		((_num) << 2)
-#define PSP_CMDRESP			PSP_C2PMSG(32)
-#define PSP_CMDBUFF_ADDR_LO		PSP_C2PMSG(56)
-#define PSP_CMDBUFF_ADDR_HI             PSP_C2PMSG(57)
-#define PSP_FEATURE_REG			PSP_C2PMSG(63)
-
-#define PSP_P2CMSG(_num)		((_num) << 2)
-#define PSP_CMD_COMPLETE_REG		1
-#define PSP_CMD_COMPLETE		PSP_P2CMSG(PSP_CMD_COMPLETE_REG)
-
-#define PSP_P2CMSG_INTEN		0x0110
-#define PSP_P2CMSG_INTSTS		0x0114
-
-#define PSP_C2PMSG_ATTR_0		0x0118
-#define PSP_C2PMSG_ATTR_1		0x011c
-#define PSP_C2PMSG_ATTR_2		0x0120
-#define PSP_C2PMSG_ATTR_3		0x0124
-#define PSP_P2CMSG_ATTR_0		0x0128
+#define PSP_CMD_COMPLETE		BIT(1)
 
 #define PSP_CMDRESP_CMD_SHIFT		16
 #define PSP_CMDRESP_IOC			BIT(0)
@@ -78,6 +61,10 @@ struct psp_device {
 	struct sev_misc_dev *sev_misc;
 	struct sev_user_data_status status_cmd_buf;
 	struct sev_data_init init_cmd_buf;
+
+	u8 api_major;
+	u8 api_minor;
+	u8 build;
 };
 
 #endif /* __PSP_DEV_H */

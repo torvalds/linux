@@ -17,6 +17,7 @@
 				    : "memory")
 
 #define mb()		asm volatile("sync" : : : "memory");
+#define barrier()	asm volatile("" : : : "memory");
 
 #define SPRN_MMCR2     769
 #define SPRN_MMCRA     770
@@ -54,6 +55,7 @@
 #define SPRN_DSCR_PRIV 0x11	/* Privilege State DSCR */
 #define SPRN_DSCR      0x03	/* Data Stream Control Register */
 #define SPRN_PPR       896	/* Program Priority Register */
+#define SPRN_AMR       13	/* Authority Mask Register - problem state */
 
 /* TEXASR register bits */
 #define TEXASR_FC	0xFE00000000000000

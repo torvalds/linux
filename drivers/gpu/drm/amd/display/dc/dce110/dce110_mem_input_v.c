@@ -923,6 +923,7 @@ void dce_mem_input_v_program_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
+	struct dce_watermarks stutter_enter,
 	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns)
 {
@@ -1010,7 +1011,7 @@ void dce110_free_mem_input_v(
 {
 }
 
-static struct mem_input_funcs dce110_mem_input_v_funcs = {
+static const struct mem_input_funcs dce110_mem_input_v_funcs = {
 	.mem_input_program_display_marks =
 			dce_mem_input_v_program_display_marks,
 	.mem_input_program_chroma_display_marks =

@@ -57,10 +57,7 @@ struct flow_filter {
 	u32			divisor;
 	u32			baseclass;
 	u32			hashrnd;
-	union {
-		struct work_struct	work;
-		struct rcu_head		rcu;
-	};
+	struct rcu_work		rwork;
 };
 
 static inline u32 addr_fold(void *addr)
@@ -383,19 +380,12 @@ static void __flow_destroy_filter(struct flow_filter *f)
 
 static void flow_destroy_filter_work(struct work_struct *work)
 {
-	struct flow_filter *f = container_of(work, struct flow_filter, work);
-
+	struct flow_filter *f = container_of(to_rcu_work(work),
+					     struct flow_filter,
+					     rwork);
 	rtnl_lock();
 	__flow_destroy_filter(f);
 	rtnl_unlock();
-}
-
-static void flow_destroy_filter(struct rcu_head *head)
-{
-	struct flow_filter *f = container_of(head, struct flow_filter, rcu);
-
-	INIT_WORK(&f->work, flow_destroy_filter_work);
-	tcf_queue_work(&f->work);
 }
 
 static int flow_change(struct net *net, struct sk_buff *in_skb,
@@ -563,7 +553,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 
 	if (fold) {
 		tcf_exts_get_net(&fold->exts);
-		call_rcu(&fold->rcu, flow_destroy_filter);
+		tcf_queue_work(&fold->rwork, flow_destroy_filter_work);
 	}
 	return 0;
 
@@ -583,7 +573,7 @@ static int flow_delete(struct tcf_proto *tp, void *arg, bool *last,
 
 	list_del_rcu(&f->list);
 	tcf_exts_get_net(&f->exts);
-	call_rcu(&f->rcu, flow_destroy_filter);
+	tcf_queue_work(&f->rwork, flow_destroy_filter_work);
 	*last = list_empty(&head->filters);
 	return 0;
 }
@@ -608,7 +598,7 @@ static void flow_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 	list_for_each_entry_safe(f, next, &head->filters, list) {
 		list_del_rcu(&f->list);
 		if (tcf_exts_get_net(&f->exts))
-			call_rcu(&f->rcu, flow_destroy_filter);
+			tcf_queue_work(&f->rwork, flow_destroy_filter_work);
 		else
 			__flow_destroy_filter(f);
 	}

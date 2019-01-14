@@ -696,7 +696,7 @@ static void hists__process(struct hists *hists)
 	hists__output_resort(hists, NULL);
 
 	hists__fprintf(hists, !quiet, 0, 0, 0, stdout,
-		       symbol_conf.use_callchain);
+		       !symbol_conf.use_callchain);
 }
 
 static void data__fprintf(void)

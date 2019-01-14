@@ -1027,7 +1027,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	/* Init video_device structure */
 	pdev->vdev = pwc_template;
-	strcpy(pdev->vdev.name, name);
+	strscpy(pdev->vdev.name, name, sizeof(pdev->vdev.name));
 	pdev->vdev.queue = &pdev->vb_queue;
 	pdev->vdev.queue->lock = &pdev->vb_queue_lock;
 	video_set_drvdata(&pdev->vdev, pdev);

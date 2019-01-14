@@ -49,7 +49,6 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
 	 */
 	sb_start_write(sb);
 	ext4_mmp_csum_set(sb, mmp);
-	mark_buffer_dirty(bh);
 	lock_buffer(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
@@ -147,7 +146,7 @@ static int kmmpd(void *data)
 
 	mmp_block = le64_to_cpu(es->s_mmp_block);
 	mmp = (struct mmp_struct *)(bh->b_data);
-	mmp->mmp_time = cpu_to_le64(get_seconds());
+	mmp->mmp_time = cpu_to_le64(ktime_get_real_seconds());
 	/*
 	 * Start with the higher mmp_check_interval and reduce it if
 	 * the MMP block is being updated on time.
@@ -165,7 +164,7 @@ static int kmmpd(void *data)
 			seq = 1;
 
 		mmp->mmp_seq = cpu_to_le32(seq);
-		mmp->mmp_time = cpu_to_le64(get_seconds());
+		mmp->mmp_time = cpu_to_le64(ktime_get_real_seconds());
 		last_update_time = jiffies;
 
 		retval = write_mmp_block(sb, bh);
@@ -186,11 +185,8 @@ static int kmmpd(void *data)
 			goto exit_thread;
 		}
 
-		if (sb_rdonly(sb)) {
-			ext4_warning(sb, "kmmpd being stopped since filesystem "
-				     "has been remounted as readonly.");
-			goto exit_thread;
-		}
+		if (sb_rdonly(sb))
+			break;
 
 		diff = jiffies - last_update_time;
 		if (diff < mmp_update_interval * HZ)
@@ -244,7 +240,7 @@ static int kmmpd(void *data)
 	 * Unmount seems to be clean.
 	 */
 	mmp->mmp_seq = cpu_to_le32(EXT4_MMP_SEQ_CLEAN);
-	mmp->mmp_time = cpu_to_le64(get_seconds());
+	mmp->mmp_time = cpu_to_le64(ktime_get_real_seconds());
 
 	retval = write_mmp_block(sb, bh);
 

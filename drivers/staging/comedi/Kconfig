@@ -75,14 +75,6 @@ config COMEDI_PARPORT
 	  To compile this driver as a module, choose M here: the module will be
 	  called comedi_parport.
 
-config COMEDI_SERIAL2002
-	tristate "Driver for serial connected hardware"
-	---help---
-	  Enable support for serial connected hardware
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called serial2002.
-
 config COMEDI_SSV_DNP
 	tristate "SSV Embedded Systems DIL/Net-PC support"
 	depends on X86_32 || COMPILE_TEST
@@ -1320,6 +1312,10 @@ config COMEDI_NI_LABPC_ISADMA
 	select COMEDI_ISADMA
 
 config COMEDI_NI_TIO
+	tristate
+	select COMEDI_NI_ROUTING
+
+config COMEDI_NI_ROUTING
 	tristate
 
 endif # COMEDI

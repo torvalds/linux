@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MVEBU Core divider clock
  *
@@ -5,9 +6,6 @@
  *
  * Ezequiel Garcia <ezequiel.garcia@free-electrons.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -72,7 +70,7 @@ static const struct clk_corediv_desc mvebu_corediv_desc[] = {
 };
 
 static const struct clk_corediv_desc mv98dx3236_corediv_desc[] = {
-	{ .mask = 0x0f, .offset = 6, .fieldbit = 26 }, /* NAND clock */
+	{ .mask = 0x0f, .offset = 6, .fieldbit = 27 }, /* NAND clock */
 };
 
 #define to_corediv_clk(p) container_of(p, struct clk_corediv, hw)

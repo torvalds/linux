@@ -44,7 +44,13 @@ struct proc_dir_entry {
 	struct completion *pde_unload_completion;
 	const struct inode_operations *proc_iops;
 	const struct file_operations *proc_fops;
+	union {
+		const struct seq_operations *seq_ops;
+		int (*single_show)(struct seq_file *, void *);
+	};
+	proc_write_t write;
 	void *data;
+	unsigned int state_size;
 	unsigned int low_ino;
 	nlink_t nlink;
 	kuid_t uid;
@@ -56,13 +62,16 @@ struct proc_dir_entry {
 	char *name;
 	umode_t mode;
 	u8 namelen;
-#ifdef CONFIG_64BIT
-#define SIZEOF_PDE_INLINE_NAME	(192-139)
-#else
-#define SIZEOF_PDE_INLINE_NAME	(128-87)
-#endif
-	char inline_name[SIZEOF_PDE_INLINE_NAME];
+	char inline_name[];
 } __randomize_layout;
+
+#define SIZEOF_PDE	(				\
+	sizeof(struct proc_dir_entry) < 128 ? 128 :	\
+	sizeof(struct proc_dir_entry) < 192 ? 192 :	\
+	sizeof(struct proc_dir_entry) < 256 ? 256 :	\
+	sizeof(struct proc_dir_entry) < 512 ? 512 :	\
+	0)
+#define SIZEOF_PDE_INLINE_NAME (SIZEOF_PDE - sizeof(struct proc_dir_entry))
 
 extern struct kmem_cache *proc_dir_entry_cache;
 void pde_free(struct proc_dir_entry *pde);
@@ -104,12 +113,12 @@ static inline void *__PDE_DATA(const struct inode *inode)
 	return PDE(inode)->data;
 }
 
-static inline struct pid *proc_pid(struct inode *inode)
+static inline struct pid *proc_pid(const struct inode *inode)
 {
 	return PROC_I(inode)->pid;
 }
 
-static inline struct task_struct *get_proc_task(struct inode *inode)
+static inline struct task_struct *get_proc_task(const struct inode *inode)
 {
 	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
 }
@@ -131,6 +140,8 @@ unsigned name_to_int(const struct qstr *qstr);
  */
 extern const struct file_operations proc_tid_children_operations;
 
+extern void proc_task_name(struct seq_file *m, struct task_struct *p,
+			   bool escape);
 extern int proc_tid_stat(struct seq_file *, struct pid_namespace *,
 			 struct pid *, struct task_struct *);
 extern int proc_tgid_stat(struct seq_file *, struct pid_namespace *,
@@ -147,21 +158,25 @@ extern const struct dentry_operations pid_dentry_operations;
 extern int pid_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int proc_setattr(struct dentry *, struct iattr *);
 extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struct *, umode_t);
-extern int pid_revalidate(struct dentry *, unsigned int);
+extern void pid_update_inode(struct task_struct *, struct inode *);
 extern int pid_delete_dentry(const struct dentry *);
 extern int proc_pid_readdir(struct file *, struct dir_context *);
 extern struct dentry *proc_pid_lookup(struct inode *, struct dentry *, unsigned int);
 extern loff_t mem_lseek(struct file *, loff_t, int);
 
 /* Lookups */
-typedef int instantiate_t(struct inode *, struct dentry *,
+typedef struct dentry *instantiate_t(struct dentry *,
 				     struct task_struct *, const void *);
-extern bool proc_fill_cache(struct file *, struct dir_context *, const char *, int,
+bool proc_fill_cache(struct file *, struct dir_context *, const char *, unsigned int,
 			   instantiate_t, struct task_struct *, const void *);
 
 /*
  * generic.c
  */
+struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
+		struct proc_dir_entry **parent, void *data);
+struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
+		struct proc_dir_entry *dp);
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
 struct dentry *proc_lookup_de(struct inode *, struct dentry *, struct proc_dir_entry *);
 extern int proc_readdir(struct file *, struct dir_context *);
@@ -178,6 +193,7 @@ static inline bool is_empty_pde(const struct proc_dir_entry *pde)
 {
 	return S_ISDIR(pde->mode) && !pde->proc_iops;
 }
+extern ssize_t proc_simple_write(struct file *, const char __user *, size_t, loff_t *);
 
 /*
  * inode.c
@@ -266,7 +282,6 @@ struct proc_maps_private {
 	struct inode *inode;
 	struct task_struct *task;
 	struct mm_struct *mm;
-	struct mem_size_stats *rollup;
 #ifdef CONFIG_MMU
 	struct vm_area_struct *tail_vma;
 #endif
@@ -278,12 +293,9 @@ struct proc_maps_private {
 struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode);
 
 extern const struct file_operations proc_pid_maps_operations;
-extern const struct file_operations proc_tid_maps_operations;
 extern const struct file_operations proc_pid_numa_maps_operations;
-extern const struct file_operations proc_tid_numa_maps_operations;
 extern const struct file_operations proc_pid_smaps_operations;
 extern const struct file_operations proc_pid_smaps_rollup_operations;
-extern const struct file_operations proc_tid_smaps_operations;
 extern const struct file_operations proc_clear_refs_operations;
 extern const struct file_operations proc_pagemap_operations;
 

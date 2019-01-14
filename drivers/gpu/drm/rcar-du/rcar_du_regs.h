@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * rcar_du_regs.h  --  R-Car Display Unit Registers Definitions
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #ifndef __RCAR_DU_REGS_H__
@@ -187,14 +184,14 @@
 
 #define DEFR6			0x000e8
 #define DEFR6_CODE		(0x7778 << 16)
-#define DEFR6_ODPM22_DSMR	(0 << 10)
-#define DEFR6_ODPM22_DISP	(2 << 10)
-#define DEFR6_ODPM22_CDE	(3 << 10)
-#define DEFR6_ODPM22_MASK	(3 << 10)
-#define DEFR6_ODPM12_DSMR	(0 << 8)
-#define DEFR6_ODPM12_DISP	(2 << 8)
-#define DEFR6_ODPM12_CDE	(3 << 8)
-#define DEFR6_ODPM12_MASK	(3 << 8)
+#define DEFR6_ODPM12_DSMR	(0 << 10)
+#define DEFR6_ODPM12_DISP	(2 << 10)
+#define DEFR6_ODPM12_CDE	(3 << 10)
+#define DEFR6_ODPM12_MASK	(3 << 10)
+#define DEFR6_ODPM02_DSMR	(0 << 8)
+#define DEFR6_ODPM02_DISP	(2 << 8)
+#define DEFR6_ODPM02_CDE	(3 << 8)
+#define DEFR6_ODPM02_MASK	(3 << 8)
 #define DEFR6_TCNE1		(1 << 6)
 #define DEFR6_TCNE0		(1 << 4)
 #define DEFR6_MLOS1		(1 << 2)
@@ -492,8 +489,8 @@
  * External Synchronization Control Registers
  */
 
-#define ESCR			0x10000
-#define ESCR2			0x31000
+#define ESCR02			0x10000
+#define ESCR13			0x01000
 #define ESCR_DCLKOINV		(1 << 25)
 #define ESCR_DCLKSEL_DCLKIN	(0 << 20)
 #define ESCR_DCLKSEL_CLKS	(1 << 20)
@@ -504,8 +501,8 @@
 #define ESCR_SYNCSEL_EXHSYNC	(3 << 8)
 #define ESCR_FRQSEL_MASK	(0x3f << 0)
 
-#define OTAR			0x10004
-#define OTAR2			0x31004
+#define OTAR02			0x10004
+#define OTAR13			0x01004
 
 /* -----------------------------------------------------------------------------
  * Dual Display Output Control Registers

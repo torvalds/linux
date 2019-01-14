@@ -16,7 +16,7 @@
 #include <linux/iopoll.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -73,6 +73,7 @@ struct tegra_vde {
 	struct mutex lock;
 	struct miscdevice miscdev;
 	struct reset_control *rst;
+	struct reset_control *rst_mc;
 	struct gen_pool *iram_pool;
 	struct completion decode_completion;
 	struct clk *clk;
@@ -368,6 +369,11 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	tegra_vde_setup_iram_tables(vde, dpb_frames,
 				    ctx->dpb_frames_nb - 1,
 				    ctx->dpb_ref_frames_with_earlier_poc_nb);
+
+	/*
+	 * The IRAM mapping is write-combine, ensure that CPU buffers have
+	 * been flushed at this point.
+	 */
 	wmb();
 
 	VDE_WR(0x00000000, vde->bsev + 0x8C);
@@ -440,7 +446,7 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	VDE_WR(value, vde->sxe + 0x4C);
 
 	value = 0x03800000;
-	value |= min_t(size_t, bitstream_data_size, SZ_1M);
+	value |= bitstream_data_size & GENMASK(19, 15);
 
 	VDE_WR(value, vde->sxe + 0x68);
 
@@ -522,7 +528,8 @@ static void tegra_vde_detach_and_put_dmabuf(struct dma_buf_attachment *a,
 static int tegra_vde_attach_dmabuf(struct device *dev,
 				   int fd,
 				   unsigned long offset,
-				   unsigned int min_size,
+				   size_t min_size,
+				   size_t align_size,
 				   struct dma_buf_attachment **a,
 				   dma_addr_t *addr,
 				   struct sg_table **s,
@@ -540,9 +547,14 @@ static int tegra_vde_attach_dmabuf(struct device *dev,
 		return PTR_ERR(dmabuf);
 	}
 
+	if (dmabuf->size & (align_size - 1)) {
+		dev_err(dev, "Unaligned dmabuf 0x%zX, should be aligned to 0x%zX\n",
+			dmabuf->size, align_size);
+		return -EINVAL;
+	}
+
 	if ((u64)offset + min_size > dmabuf->size) {
-		dev_err(dev, "Too small dmabuf size %zu @0x%lX, "
-			     "should be at least %d\n",
+		dev_err(dev, "Too small dmabuf size %zu @0x%lX, should be at least %zu\n",
 			dmabuf->size, offset, min_size);
 		return -EINVAL;
 	}
@@ -591,12 +603,12 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 					     struct tegra_vde_h264_frame *src,
 					     enum dma_data_direction dma_dir,
 					     bool baseline_profile,
-					     size_t csize)
+					     size_t lsize, size_t csize)
 {
 	int err;
 
 	err = tegra_vde_attach_dmabuf(dev, src->y_fd,
-				      src->y_offset, csize * 4,
+				      src->y_offset, lsize, SZ_256,
 				      &frame->y_dmabuf_attachment,
 				      &frame->y_addr,
 				      &frame->y_sgt,
@@ -605,7 +617,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 		return err;
 
 	err = tegra_vde_attach_dmabuf(dev, src->cb_fd,
-				      src->cb_offset, csize,
+				      src->cb_offset, csize, SZ_256,
 				      &frame->cb_dmabuf_attachment,
 				      &frame->cb_addr,
 				      &frame->cb_sgt,
@@ -614,7 +626,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 		goto err_release_y;
 
 	err = tegra_vde_attach_dmabuf(dev, src->cr_fd,
-				      src->cr_offset, csize,
+				      src->cr_offset, csize, SZ_256,
 				      &frame->cr_dmabuf_attachment,
 				      &frame->cr_addr,
 				      &frame->cr_sgt,
@@ -628,7 +640,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 	}
 
 	err = tegra_vde_attach_dmabuf(dev, src->aux_fd,
-				      src->aux_offset, csize,
+				      src->aux_offset, csize, SZ_256,
 				      &frame->aux_dmabuf_attachment,
 				      &frame->aux_addr,
 				      &frame->aux_sgt,
@@ -674,21 +686,6 @@ static int tegra_vde_validate_frame(struct device *dev,
 {
 	if (frame->frame_num > 0x7FFFFF) {
 		dev_err(dev, "Bad frame_num %u\n", frame->frame_num);
-		return -EINVAL;
-	}
-
-	if (frame->y_offset & 0xFF) {
-		dev_err(dev, "Bad y_offset 0x%X\n", frame->y_offset);
-		return -EINVAL;
-	}
-
-	if (frame->cb_offset & 0xFF) {
-		dev_err(dev, "Bad cb_offset 0x%X\n", frame->cb_offset);
-		return -EINVAL;
-	}
-
-	if (frame->cr_offset & 0xFF) {
-		dev_err(dev, "Bad cr_offset 0x%X\n", frame->cr_offset);
 		return -EINVAL;
 	}
 
@@ -777,9 +774,11 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	enum dma_data_direction dma_dir;
 	dma_addr_t bitstream_data_addr;
 	dma_addr_t bsev_ptr;
+	size_t lsize, csize;
 	size_t bitstream_data_size;
 	unsigned int macroblocks_nb;
 	unsigned int read_bytes;
+	unsigned int cstride;
 	unsigned int i;
 	long timeout;
 	int ret, err;
@@ -792,7 +791,8 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		return ret;
 
 	ret = tegra_vde_attach_dmabuf(dev, ctx.bitstream_data_fd,
-				      ctx.bitstream_data_offset, 0,
+				      ctx.bitstream_data_offset,
+				      SZ_16K, SZ_16K,
 				      &bitstream_data_dmabuf_attachment,
 				      &bitstream_data_addr,
 				      &bitstream_sgt,
@@ -817,6 +817,10 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		goto free_dpb_frames;
 	}
 
+	cstride = ALIGN(ctx.pic_width_in_mbs * 8, 16);
+	csize = cstride * ctx.pic_height_in_mbs * 8;
+	lsize = macroblocks_nb * 256;
+
 	for (i = 0; i < ctx.dpb_frames_nb; i++) {
 		ret = tegra_vde_validate_frame(dev, &frames[i]);
 		if (ret)
@@ -830,7 +834,7 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		ret = tegra_vde_attach_dmabufs_to_frame(dev, &dpb_frames[i],
 							&frames[i], dma_dir,
 							ctx.baseline_profile,
-							macroblocks_nb * 64);
+							lsize, csize);
 		if (ret)
 			goto release_dpb_frames;
 	}
@@ -847,9 +851,23 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	 * We rely on the VDE registers reset value, otherwise VDE
 	 * causes bus lockup.
 	 */
+	ret = reset_control_assert(vde->rst_mc);
+	if (ret) {
+		dev_err(dev, "DEC start: Failed to assert MC reset: %d\n",
+			ret);
+		goto put_runtime_pm;
+	}
+
 	ret = reset_control_reset(vde->rst);
 	if (ret) {
-		dev_err(dev, "Failed to reset HW: %d\n", ret);
+		dev_err(dev, "DEC start: Failed to reset HW: %d\n", ret);
+		goto put_runtime_pm;
+	}
+
+	ret = reset_control_deassert(vde->rst_mc);
+	if (ret) {
+		dev_err(dev, "DEC start: Failed to deassert MC reset: %d\n",
+			ret);
 		goto put_runtime_pm;
 	}
 
@@ -869,8 +887,7 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		macroblocks_nb = readl_relaxed(vde->sxe + 0xC8) & 0x1FFF;
 		read_bytes = bsev_ptr ? bsev_ptr - bitstream_data_addr : 0;
 
-		dev_err(dev, "Decoding failed: "
-				"read 0x%X bytes, %u macroblocks parsed\n",
+		dev_err(dev, "Decoding failed: read 0x%X bytes, %u macroblocks parsed\n",
 			read_bytes, macroblocks_nb);
 
 		ret = -EIO;
@@ -878,9 +895,18 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		ret = timeout;
 	}
 
+	/*
+	 * At first reset memory client to avoid resetting VDE HW in the
+	 * middle of DMA which could result into memory corruption or hang
+	 * the whole system.
+	 */
+	err = reset_control_assert(vde->rst_mc);
+	if (err)
+		dev_err(dev, "DEC end: Failed to assert MC reset: %d\n", err);
+
 	err = reset_control_assert(vde->rst);
 	if (err)
-		dev_err(dev, "Failed to assert HW reset: %d\n", err);
+		dev_err(dev, "DEC end: Failed to assert HW reset: %d\n", err);
 
 put_runtime_pm:
 	pm_runtime_mark_last_busy(dev);
@@ -932,6 +958,9 @@ static const struct file_operations tegra_vde_fops = {
 static irqreturn_t tegra_vde_isr(int irq, void *data)
 {
 	struct tegra_vde *vde = data;
+
+	if (completion_done(&vde->decode_completion))
+		return IRQ_NONE;
 
 	tegra_vde_set_bits(vde, 0, vde->frameid + 0x208);
 	complete(&vde->decode_completion);
@@ -1066,6 +1095,13 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	if (IS_ERR(vde->rst)) {
 		err = PTR_ERR(vde->rst);
 		dev_err(dev, "Could not get VDE reset %d\n", err);
+		return err;
+	}
+
+	vde->rst_mc = devm_reset_control_get_optional(dev, "mc");
+	if (IS_ERR(vde->rst_mc)) {
+		err = PTR_ERR(vde->rst_mc);
+		dev_err(dev, "Could not get MC reset %d\n", err);
 		return err;
 	}
 

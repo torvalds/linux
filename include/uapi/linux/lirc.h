@@ -134,6 +134,12 @@
 #define LIRC_SET_WIDEBAND_RECEIVER     _IOW('i', 0x00000023, __u32)
 
 /*
+ * Return the recording timeout, which is either set by
+ * the ioctl LIRC_SET_REC_TIMEOUT or by the kernel after setting the protocols.
+ */
+#define LIRC_GET_REC_TIMEOUT	       _IOR('i', 0x00000024, __u32)
+
+/*
  * struct lirc_scancode - decoded scancode with protocol for use with
  *	LIRC_MODE_SCANCODE
  *

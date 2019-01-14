@@ -2,6 +2,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -14,10 +15,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -1200,16 +1197,16 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	if (!data->sku_cap_11n_enable && !data->sku_cap_band_24GHz_enable &&
-	    !data->sku_cap_band_52GHz_enable) {
+	if (!data->sku_cap_11n_enable && !data->sku_cap_band_24ghz_enable &&
+	    !data->sku_cap_band_52ghz_enable) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
 	IWL_DEBUG_INFO(priv,
 		       "Device SKU: 24GHz %s %s, 52GHz %s %s, 11.n %s %s\n",
-		       data->sku_cap_band_24GHz_enable ? "" : "NOT", "enabled",
-		       data->sku_cap_band_52GHz_enable ? "" : "NOT", "enabled",
+		       data->sku_cap_band_24ghz_enable ? "" : "NOT", "enabled",
+		       data->sku_cap_band_52ghz_enable ? "" : "NOT", "enabled",
 		       data->sku_cap_11n_enable ? "" : "NOT", "enabled");
 
 	priv->hw_params.tx_chains_num =
@@ -1651,7 +1648,6 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 			priv->status, table.valid);
 	}
 
-	trace_iwlwifi_dev_ucode_error(trans->dev, &table, 0, table.brd_ver);
 	IWL_ERR(priv, "0x%08X | %-28s\n", table.error_id,
 		desc_lookup(table.error_id));
 	IWL_ERR(priv, "0x%08X | uPc\n", table.pc);

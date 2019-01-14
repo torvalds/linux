@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -40,10 +41,9 @@ struct msm_kms_funcs {
 	irqreturn_t (*irq)(struct msm_kms *kms);
 	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
 	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-	/* swap global atomic state: */
-	void (*swap_state)(struct msm_kms *kms, struct drm_atomic_state *state);
 	/* modeset, bracketing atomic_commit(): */
 	void (*prepare_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
+	void (*commit)(struct msm_kms *kms, struct drm_atomic_state *state);
 	void (*complete_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
 	/* functions to wait for atomic commit completed on each CRTC */
 	void (*wait_for_crtc_commit_done)(struct msm_kms *kms,
@@ -52,6 +52,11 @@ struct msm_kms_funcs {
 	const struct msm_format *(*get_format)(struct msm_kms *kms,
 					const uint32_t format,
 					const uint64_t modifiers);
+	/* do format checking on format modified through fb_cmd2 modifiers */
+	int (*check_modified_format)(const struct msm_kms *kms,
+			const struct msm_format *msm_fmt,
+			const struct drm_mode_fb_cmd2 *cmd,
+			struct drm_gem_object **bos);
 	/* misc: */
 	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,
 			struct drm_encoder *encoder);
@@ -62,6 +67,9 @@ struct msm_kms_funcs {
 	void (*set_encoder_mode)(struct msm_kms *kms,
 				 struct drm_encoder *encoder,
 				 bool cmd_mode);
+	/* pm suspend/resume hooks */
+	int (*pm_suspend)(struct device *dev);
+	int (*pm_resume)(struct device *dev);
 	/* cleanup: */
 	void (*destroy)(struct msm_kms *kms);
 #ifdef CONFIG_DEBUG_FS
@@ -80,18 +88,6 @@ struct msm_kms {
 	struct msm_gem_address_space *aspace;
 };
 
-/**
- * Subclass of drm_atomic_state, to allow kms backend to have driver
- * private global state.  The kms backend can do whatever it wants
- * with the ->state ptr.  On ->atomic_state_clear() the ->state ptr
- * is kfree'd and set back to NULL.
- */
-struct msm_kms_state {
-	struct drm_atomic_state base;
-	void *state;
-};
-#define to_kms_state(x) container_of(x, struct msm_kms_state, base)
-
 static inline void msm_kms_init(struct msm_kms *kms,
 		const struct msm_kms_funcs *funcs)
 {
@@ -100,9 +96,20 @@ static inline void msm_kms_init(struct msm_kms *kms,
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
 struct msm_kms *mdp5_kms_init(struct drm_device *dev);
-int msm_mdss_init(struct drm_device *dev);
-void msm_mdss_destroy(struct drm_device *dev);
-int msm_mdss_enable(struct msm_mdss *mdss);
-int msm_mdss_disable(struct msm_mdss *mdss);
+struct msm_kms *dpu_kms_init(struct drm_device *dev);
+
+struct msm_mdss_funcs {
+	int (*enable)(struct msm_mdss *mdss);
+	int (*disable)(struct msm_mdss *mdss);
+	void (*destroy)(struct drm_device *dev);
+};
+
+struct msm_mdss {
+	struct drm_device *dev;
+	const struct msm_mdss_funcs *funcs;
+};
+
+int mdp5_mdss_init(struct drm_device *dev);
+int dpu_mdss_init(struct drm_device *dev);
 
 #endif /* __MSM_KMS_H__ */

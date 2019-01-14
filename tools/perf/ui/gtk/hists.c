@@ -382,7 +382,8 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 			gtk_tree_store_set(store, &iter, col_idx++, s, -1);
 		}
 
-		if (symbol_conf.use_callchain && hists__has(hists, sym)) {
+		if (hist_entry__has_callchains(h) &&
+		    symbol_conf.use_callchain && hists__has(hists, sym)) {
 			if (callchain_param.mode == CHAIN_GRAPH_REL)
 				total = symbol_conf.cumulate_callchain ?
 					h->stat_acc->period : h->stat.period;
@@ -479,7 +480,7 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 			}
 		}
 
-		if (symbol_conf.use_callchain && he->leaf) {
+		if (he->leaf && hist_entry__has_callchains(he) && symbol_conf.use_callchain) {
 			if (callchain_param.mode == CHAIN_GRAPH_REL)
 				total = symbol_conf.cumulate_callchain ?
 					he->stat_acc->period : he->stat.period;

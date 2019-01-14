@@ -1,13 +1,11 @@
-/*
- * Hitachi Audio Controller (AC97) support for SH7760/SH7780
- *
- * Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
- *  licensed under the terms outlined in the file COPYING at the root
- *  of the linux kernel sources.
- *
- * dont forget to set IPSEL/OMSEL register bits (in your board code) to
- * enable HAC output pins!
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Hitachi Audio Controller (AC97) support for SH7760/SH7780
+//
+// Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
+//
+// dont forget to set IPSEL/OMSEL register bits (in your board code) to
+// enable HAC output pins!
 
 /* BIG FAT FIXME: although the SH7760 has 2 independent AC97 units, only
  * the FIRST can be used since ASoC does not pass any information to the
@@ -321,13 +319,12 @@ static int hac_soc_platform_probe(struct platform_device *pdev)
 	if (ret != 0)
 		return ret;
 
-	return snd_soc_register_component(&pdev->dev, &sh4_hac_component,
+	return devm_snd_soc_register_component(&pdev->dev, &sh4_hac_component,
 					  sh4_hac_dai, ARRAY_SIZE(sh4_hac_dai));
 }
 
 static int hac_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_set_ac97_ops(NULL);
 	return 0;
 }
@@ -343,6 +340,6 @@ static struct platform_driver hac_pcm_driver = {
 
 module_platform_driver(hac_pcm_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SuperH onchip HAC (AC97) audio driver");
 MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");

@@ -1,19 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Sunrisepoint PCH pinctrl/GPIO driver
  *
  * Copyright (C) 2015, Intel Corporation
  * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
@@ -596,21 +593,10 @@ MODULE_DEVICE_TABLE(acpi, spt_pinctrl_acpi_match);
 
 static int spt_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct intel_pinctrl_soc_data *soc_data;
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(spt_pinctrl_acpi_match, &pdev->dev);
-	if (!id || !id->driver_data)
-		return -ENODEV;
-
-	soc_data = (const struct intel_pinctrl_soc_data *)id->driver_data;
-	return intel_pinctrl_probe(pdev, soc_data);
+	return intel_pinctrl_probe_by_hid(pdev);
 }
 
-static const struct dev_pm_ops spt_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(spt_pinctrl_pm_ops);
 
 static struct platform_driver spt_pinctrl_driver = {
 	.probe = spt_pinctrl_probe,

@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/stringify.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/bitops.h>
@@ -127,7 +126,7 @@ static void __init move_device_tree(void)
 	if ((memory_limit && (start + size) > PHYSICAL_START + memory_limit) ||
 			overlaps_crashkernel(start, size) ||
 			overlaps_initrd(start, size)) {
-		p = __va(memblock_alloc(size, PAGE_SIZE));
+		p = __va(memblock_phys_alloc(size, PAGE_SIZE));
 		memcpy(p, initial_boot_params, size);
 		initial_boot_params = p;
 		DBG("Moved device tree to 0x%p\n", p);
@@ -332,25 +331,10 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * NOTE: This must match the parsing done in smp_setup_cpu_maps.
 	 */
 	for (i = 0; i < nthreads; i++) {
-		/*
-		 * version 2 of the kexec param format adds the phys cpuid of
-		 * booted proc.
-		 */
-		if (fdt_version(initial_boot_params) >= 2) {
-			if (be32_to_cpu(intserv[i]) ==
-			    fdt_boot_cpuid_phys(initial_boot_params)) {
-				found = boot_cpu_count;
-				found_thread = i;
-			}
-		} else {
-			/*
-			 * Check if it's the boot-cpu, set it's hw index now,
-			 * unfortunately this format did not support booting
-			 * off secondary threads.
-			 */
-			if (of_get_flat_dt_prop(node,
-					"linux,boot-cpu", NULL) != NULL)
-				found = boot_cpu_count;
+		if (be32_to_cpu(intserv[i]) ==
+			fdt_boot_cpuid_phys(initial_boot_params)) {
+			found = boot_cpu_count;
+			found_thread = i;
 		}
 #ifdef CONFIG_SMP
 		/* logical cpu id is always 0 on UP kernels */
@@ -455,6 +439,29 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
 	return 1;
 }
 
+/*
+ * Compare the range against max mem limit and update
+ * size if it cross the limit.
+ */
+
+#ifdef CONFIG_SPARSEMEM
+static bool validate_mem_limit(u64 base, u64 *size)
+{
+	u64 max_mem = 1UL << (MAX_PHYSMEM_BITS);
+
+	if (base >= max_mem)
+		return false;
+	if ((base + *size) > max_mem)
+		*size = max_mem - base;
+	return true;
+}
+#else
+static bool validate_mem_limit(u64 base, u64 *size)
+{
+	return true;
+}
+#endif
+
 #ifdef CONFIG_PPC_PSERIES
 /*
  * Interpret the ibm dynamic reconfiguration memory LMBs.
@@ -509,7 +516,8 @@ static void __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 		}
 
 		DBG("Adding: %llx -> %llx\n", base, size);
-		memblock_add(base, size);
+		if (validate_mem_limit(base, &size))
+			memblock_add(base, size);
 	} while (--rngs);
 }
 #endif /* CONFIG_PPC_PSERIES */
@@ -563,8 +571,10 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	}
 
 	/* Add the chunk to the MEMBLOCK list */
-	if (add_mem_to_memblock)
-		memblock_add(base, size);
+	if (add_mem_to_memblock) {
+		if (validate_mem_limit(base, &size))
+			memblock_add(base, size);
+	}
 }
 
 static void __init early_reserve_mem_dt(void)

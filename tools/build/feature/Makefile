@@ -7,6 +7,7 @@ FILES=                                          \
          test-dwarf_getlocations.bin            \
          test-fortify-source.bin                \
          test-sync-compare-and-swap.bin         \
+         test-get_current_dir_name.bin          \
          test-glibc.bin                         \
          test-gtk2.bin                          \
          test-gtk2-infobar.bin                  \
@@ -14,6 +15,7 @@ FILES=                                          \
          test-libaudit.bin                      \
          test-libbfd.bin                        \
          test-disassembler-four-args.bin        \
+         test-reallocarray.bin			\
          test-liberty.bin                       \
          test-liberty-z.bin                     \
          test-cplus-demangle.bin                \
@@ -99,6 +101,9 @@ $(OUTPUT)test-bionic.bin:
 
 $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
+
+$(OUTPUT)test-get_current_dir_name.bin:
+	$(BUILD)
 
 $(OUTPUT)test-glibc.bin:
 	$(BUILD)
@@ -203,6 +208,9 @@ $(OUTPUT)test-libbfd.bin:
 
 $(OUTPUT)test-disassembler-four-args.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lopcodes
+
+$(OUTPUT)test-reallocarray.bin:
+	$(BUILD)
 
 $(OUTPUT)test-liberty.bin:
 	$(CC) $(CFLAGS) -Wall -Werror -o $@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty

@@ -12,7 +12,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20180313
+#define ACPI_CA_VERSION                 0x20181003
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -155,13 +155,6 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_copy_dsdt_locally, FALSE);
  * some machines. Default behavior is to use the XSDT if present.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
-
-/*
- * Optionally support group module level code.
- * NOTE, this is essentially obsolete and will be removed soon
- * (01/2018).
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_group_module_level_code, FALSE);
 
 /*
  * Optionally support module level code by parsing an entire table as
@@ -753,6 +746,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 						     u32 gpe_number,
 						     acpi_event_status
 						     *event_status))
+ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_dispatch_gpe(acpi_handle gpe_device, u32 gpe_number))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable_all_gpes(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_runtime_gpes(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_wakeup_gpes(void))

@@ -37,10 +37,11 @@ static int uverbs_free_flow_action(struct ib_uobject *uobject,
 				   enum rdma_remove_reason why)
 {
 	struct ib_flow_action *action = uobject->object;
+	int ret;
 
-	if (why == RDMA_REMOVE_DESTROY &&
-	    atomic_read(&action->usecnt))
-		return -EBUSY;
+	ret = ib_destroy_usecnt(&action->usecnt, why, uobject);
+	if (ret)
+		return ret;
 
 	return action->device->destroy_flow_action(action);
 }
@@ -303,12 +304,13 @@ static int parse_flow_action_esp(struct ib_device *ib_dev,
 	return 0;
 }
 
-static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(struct ib_device *ib_dev,
-								struct ib_uverbs_file *file,
-								struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE);
+	struct ib_device *ib_dev = uobj->context->device;
 	int				  ret;
-	struct ib_uobject		  *uobj;
 	struct ib_flow_action		  *action;
 	struct ib_flow_action_esp_attr	  esp_attr = {};
 
@@ -320,116 +322,119 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(struct ib_device
 		return ret;
 
 	/* No need to check as this attribute is marked as MANDATORY */
-	uobj = uverbs_attr_get(attrs, UVERBS_ATTR_FLOW_ACTION_ESP_HANDLE)->obj_attr.uobject;
 	action = ib_dev->create_flow_action_esp(ib_dev, &esp_attr.hdr, attrs);
 	if (IS_ERR(action))
 		return PTR_ERR(action);
 
-	atomic_set(&action->usecnt, 0);
-	action->device = ib_dev;
-	action->type = IB_FLOW_ACTION_ESP;
-	action->uobject = uobj;
-	uobj->object = action;
+	uverbs_flow_action_fill_action(action, uobj, ib_dev,
+				       IB_FLOW_ACTION_ESP);
 
 	return 0;
 }
 
-static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(struct ib_device *ib_dev,
-								struct ib_uverbs_file *file,
-								struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, UVERBS_ATTR_MODIFY_FLOW_ACTION_ESP_HANDLE);
+	struct ib_flow_action *action = uobj->object;
 	int				  ret;
-	struct ib_uobject		  *uobj;
-	struct ib_flow_action		  *action;
 	struct ib_flow_action_esp_attr	  esp_attr = {};
 
-	if (!ib_dev->modify_flow_action_esp)
+	if (!action->device->modify_flow_action_esp)
 		return -EOPNOTSUPP;
 
-	ret = parse_flow_action_esp(ib_dev, file, attrs, &esp_attr, true);
+	ret = parse_flow_action_esp(action->device, file, attrs, &esp_attr,
+				    true);
 	if (ret)
 		return ret;
-
-	uobj = uverbs_attr_get(attrs, UVERBS_ATTR_FLOW_ACTION_ESP_HANDLE)->obj_attr.uobject;
-	action = uobj->object;
 
 	if (action->type != IB_FLOW_ACTION_ESP)
 		return -EINVAL;
 
-	return ib_dev->modify_flow_action_esp(action,
-					      &esp_attr.hdr,
-					      attrs);
+	return action->device->modify_flow_action_esp(action, &esp_attr.hdr,
+						      attrs);
 }
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM] = {
-		{ .ptr = {
-			.type = UVERBS_ATTR_TYPE_PTR_IN,
-			UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_keymat_aes_gcm),
-			.flags = UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO,
-		} },
+		.type = UVERBS_ATTR_TYPE_PTR_IN,
+		UVERBS_ATTR_STRUCT(
+			struct ib_uverbs_flow_action_esp_keymat_aes_gcm,
+			aes_key),
 	},
 };
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_replay[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE] = {
-		{ .ptr = {
-			.type = UVERBS_ATTR_TYPE_PTR_IN,
-			/* No need to specify any data */
-			.len = 0,
-		} }
+		.type = UVERBS_ATTR_TYPE_PTR_IN,
+		UVERBS_ATTR_NO_DATA(),
 	},
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP] = {
-		{ .ptr = {
-			.type = UVERBS_ATTR_TYPE_PTR_IN,
-			UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp, size),
-			.flags = UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO,
-		} }
+		.type = UVERBS_ATTR_TYPE_PTR_IN,
+		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp,
+				   size),
 	},
 };
 
-static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_FLOW_ACTION_ESP_HANDLE, UVERBS_OBJECT_FLOW_ACTION,
-			 UVERBS_ACCESS_NEW,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
-			    UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp, hard_limit_pkts),
-			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY |
-				     UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN, UVERBS_ATTR_TYPE(__u32)),
-	&UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
-			     uverbs_flow_action_esp_keymat,
-			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
-			     uverbs_flow_action_esp_replay),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
-			    UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_encap, type)));
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_FLOW_ACTION_ESP_CREATE,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE,
+			UVERBS_OBJECT_FLOW_ACTION,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
+			   UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp,
+					      hard_limit_pkts),
+			   UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
+			   UVERBS_ATTR_TYPE(__u32),
+			   UA_OPTIONAL),
+	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
+			    uverbs_flow_action_esp_keymat,
+			    UA_MANDATORY),
+	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
+			    uverbs_flow_action_esp_replay,
+			    UA_OPTIONAL),
+	UVERBS_ATTR_PTR_IN(
+		UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
+		UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_encap),
+		UA_OPTIONAL));
 
-static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_FLOW_ACTION_ESP_HANDLE, UVERBS_OBJECT_FLOW_ACTION,
-			 UVERBS_ACCESS_WRITE,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
-			    UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp, hard_limit_pkts),
-			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN, UVERBS_ATTR_TYPE(__u32)),
-	&UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
-			     uverbs_flow_action_esp_keymat),
-	&UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
-			     uverbs_flow_action_esp_replay),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
-			    UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_encap, type)));
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_MODIFY_FLOW_ACTION_ESP_HANDLE,
+			UVERBS_OBJECT_FLOW_ACTION,
+			UVERBS_ACCESS_WRITE,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
+			   UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp,
+					      hard_limit_pkts),
+			   UA_OPTIONAL),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
+			   UVERBS_ATTR_TYPE(__u32),
+			   UA_OPTIONAL),
+	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
+			    uverbs_flow_action_esp_keymat,
+			    UA_OPTIONAL),
+	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
+			    uverbs_flow_action_esp_replay,
+			    UA_OPTIONAL),
+	UVERBS_ATTR_PTR_IN(
+		UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
+		UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_encap),
+		UA_OPTIONAL));
 
-static DECLARE_UVERBS_NAMED_METHOD_WITH_HANDLER(UVERBS_METHOD_FLOW_ACTION_DESTROY,
-	uverbs_destroy_def_handler,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_FLOW_ACTION_HANDLE,
-			 UVERBS_OBJECT_FLOW_ACTION,
-			 UVERBS_ACCESS_DESTROY,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	UVERBS_METHOD_FLOW_ACTION_DESTROY,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_FLOW_ACTION_HANDLE,
+			UVERBS_OBJECT_FLOW_ACTION,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
 
-DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_FLOW_ACTION,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_flow_action),
-			    &UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE),
-			    &UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_DESTROY),
-			    &UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY));
-
+DECLARE_UVERBS_NAMED_OBJECT(
+	UVERBS_OBJECT_FLOW_ACTION,
+	UVERBS_TYPE_ALLOC_IDR(uverbs_free_flow_action),
+	&UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE),
+	&UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_DESTROY),
+	&UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY));

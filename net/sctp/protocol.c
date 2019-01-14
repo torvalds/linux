@@ -46,7 +46,7 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/seq_file.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
@@ -426,13 +426,16 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	struct dst_entry *dst = NULL;
 	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
+	__u8 tos = inet_sk(sk)->tos;
 
+	if (t->dscp & SCTP_DSCP_SET_MASK)
+		tos = t->dscp & SCTP_DSCP_VAL_MASK;
 	memset(fl4, 0x0, sizeof(struct flowi4));
 	fl4->daddr  = daddr->v4.sin_addr.s_addr;
 	fl4->fl4_dport = daddr->v4.sin_port;
 	fl4->flowi4_proto = IPPROTO_SCTP;
 	if (asoc) {
-		fl4->flowi4_tos = RT_CONN_FLAGS(asoc->base.sk);
+		fl4->flowi4_tos = RT_CONN_FLAGS_TOS(asoc->base.sk, tos);
 		fl4->flowi4_oif = asoc->base.sk->sk_bound_dev_if;
 		fl4->fl4_sport = htons(asoc->base.bind_addr.port);
 	}
@@ -495,7 +498,7 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		fl4->fl4_sport = laddr->a.v4.sin_port;
 		flowi4_update_output(fl4,
 				     asoc->base.sk->sk_bound_dev_if,
-				     RT_CONN_FLAGS(asoc->base.sk),
+				     RT_CONN_FLAGS_TOS(asoc->base.sk, tos),
 				     daddr->v4.sin_addr.s_addr,
 				     laddr->a.v4.sin_addr.s_addr);
 
@@ -971,16 +974,21 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 			       struct sctp_transport *transport)
 {
 	struct inet_sock *inet = inet_sk(skb->sk);
+	__u8 dscp = inet->tos;
 
 	pr_debug("%s: skb:%p, len:%d, src:%pI4, dst:%pI4\n", __func__, skb,
-		 skb->len, &transport->fl.u.ip4.saddr, &transport->fl.u.ip4.daddr);
+		 skb->len, &transport->fl.u.ip4.saddr,
+		 &transport->fl.u.ip4.daddr);
+
+	if (transport->dscp & SCTP_DSCP_SET_MASK)
+		dscp = transport->dscp & SCTP_DSCP_VAL_MASK;
 
 	inet->pmtudisc = transport->param_flags & SPP_PMTUD_ENABLE ?
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
 
 	SCTP_INC_STATS(sock_net(&inet->sk), SCTP_MIB_OUTSCTPPACKS);
 
-	return ip_queue_xmit(&inet->sk, skb, &transport->fl);
+	return __ip_queue_xmit(&inet->sk, skb, &transport->fl, dscp);
 }
 
 static struct sctp_af sctp_af_inet;
@@ -1438,7 +1446,7 @@ static __init int sctp_init(void)
 	/* Allocate and initialize the endpoint hash table.  */
 	sctp_ep_hashsize = 64;
 	sctp_ep_hashtable =
-		kmalloc(64 * sizeof(struct sctp_hashbucket), GFP_KERNEL);
+		kmalloc_array(64, sizeof(struct sctp_hashbucket), GFP_KERNEL);
 	if (!sctp_ep_hashtable) {
 		pr_err("Failed endpoint_hash alloc\n");
 		status = -ENOMEM;

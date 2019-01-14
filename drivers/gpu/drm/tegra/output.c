@@ -37,7 +37,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 		edid = drm_get_edid(connector, output->ddc);
 
 	cec_notifier_set_phys_addr_from_edid(output->notifier, edid);
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
 	if (edid) {
 		err = drm_add_edid_modes(connector, edid);
@@ -110,8 +110,8 @@ int tegra_output_probe(struct tegra_output *output)
 	panel = of_parse_phandle(output->of_node, "nvidia,panel", 0);
 	if (panel) {
 		output->panel = of_drm_find_panel(panel);
-		if (!output->panel)
-			return -EPROBE_DEFER;
+		if (IS_ERR(output->panel))
+			return PTR_ERR(output->panel);
 
 		of_node_put(panel);
 	}

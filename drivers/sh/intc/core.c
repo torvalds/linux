@@ -203,7 +203,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 	if (desc->num_resources) {
 		d->nr_windows = desc->num_resources;
-		d->window = kzalloc(d->nr_windows * sizeof(*d->window),
+		d->window = kcalloc(d->nr_windows, sizeof(*d->window),
 				    GFP_NOWAIT);
 		if (!d->window)
 			goto err1;
@@ -230,12 +230,12 @@ int __init register_intc_controller(struct intc_desc *desc)
 	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
 	d->nr_reg += hw->subgroups ? hw->nr_subgroups : 0;
 
-	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
+	d->reg = kcalloc(d->nr_reg, sizeof(*d->reg), GFP_NOWAIT);
 	if (!d->reg)
 		goto err2;
 
 #ifdef CONFIG_SMP
-	d->smp = kzalloc(d->nr_reg * sizeof(*d->smp), GFP_NOWAIT);
+	d->smp = kcalloc(d->nr_reg, sizeof(*d->smp), GFP_NOWAIT);
 	if (!d->smp)
 		goto err3;
 #endif
@@ -253,7 +253,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	}
 
 	if (hw->prio_regs) {
-		d->prio = kzalloc(hw->nr_vectors * sizeof(*d->prio),
+		d->prio = kcalloc(hw->nr_vectors, sizeof(*d->prio),
 				  GFP_NOWAIT);
 		if (!d->prio)
 			goto err4;
@@ -269,7 +269,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	}
 
 	if (hw->sense_regs) {
-		d->sense = kzalloc(hw->nr_vectors * sizeof(*d->sense),
+		d->sense = kcalloc(hw->nr_vectors, sizeof(*d->sense),
 				   GFP_NOWAIT);
 		if (!d->sense)
 			goto err5;

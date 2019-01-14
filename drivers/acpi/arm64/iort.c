@@ -700,7 +700,7 @@ static void iort_set_device_domain(struct device *dev,
  */
 static struct irq_domain *iort_get_platform_device_domain(struct device *dev)
 {
-	struct acpi_iort_node *node, *msi_parent;
+	struct acpi_iort_node *node, *msi_parent = NULL;
 	struct fwnode_handle *iort_fwnode;
 	struct acpi_iort_its_group *its;
 	int i;
@@ -947,6 +947,24 @@ static int nc_dma_get_range(struct device *dev, u64 *size)
 	return 0;
 }
 
+static int rc_dma_get_range(struct device *dev, u64 *size)
+{
+	struct acpi_iort_node *node;
+	struct acpi_iort_root_complex *rc;
+
+	node = iort_scan_node(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
+			      iort_match_node_callback, dev);
+	if (!node || node->revision < 1)
+		return -ENODEV;
+
+	rc = (struct acpi_iort_root_complex *)node->node_data;
+
+	*size = rc->memory_address_limit >= 64 ? U64_MAX :
+			1ULL<<rc->memory_address_limit;
+
+	return 0;
+}
+
 /**
  * iort_dma_setup() - Set-up device DMA parameters.
  *
@@ -960,25 +978,28 @@ void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 	int ret, msb;
 
 	/*
-	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
-	 * setup the correct supported mask.
+	 * If @dev is expected to be DMA-capable then the bus code that created
+	 * it should have initialised its dma_mask pointer by this point. For
+	 * now, we'll continue the legacy behaviour of coercing it to the
+	 * coherent mask if not, but we'll no longer do so quietly.
 	 */
-	if (!dev->coherent_dma_mask)
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
-
-	/*
-	 * Set it to coherent_dma_mask by default if the architecture
-	 * code has not set it.
-	 */
-	if (!dev->dma_mask)
+	if (!dev->dma_mask) {
+		dev_warn(dev, "DMA mask not set\n");
 		dev->dma_mask = &dev->coherent_dma_mask;
+	}
 
-	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
-
-	if (dev_is_pci(dev))
-		ret = acpi_dma_get_range(dev, &dmaaddr, &offset, &size);
+	if (dev->coherent_dma_mask)
+		size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
 	else
+		size = 1ULL << 32;
+
+	if (dev_is_pci(dev)) {
+		ret = acpi_dma_get_range(dev, &dmaaddr, &offset, &size);
+		if (ret == -ENODEV)
+			ret = rc_dma_get_range(dev, &size);
+	} else {
 		ret = nc_dma_get_range(dev, &size);
+	}
 
 	if (!ret) {
 		msb = fls64(dmaaddr + size - 1);
@@ -993,6 +1014,7 @@ void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 		 * Limit coherent and dma mask based on size
 		 * retrieved from firmware.
 		 */
+		dev->bus_dma_mask = mask;
 		dev->coherent_dma_mask = mask;
 		*dev->dma_mask = mask;
 	}
@@ -1406,7 +1428,7 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 	return 0;
 
 dma_deconfigure:
-	acpi_dma_deconfigure(&pdev->dev);
+	arch_teardown_dma_ops(&pdev->dev);
 dev_put:
 	platform_device_put(pdev);
 

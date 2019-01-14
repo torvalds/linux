@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net_ctrl.h
@@ -127,6 +97,7 @@
 #define   NFP_NET_CFG_CTRL_GATHER	  (0x1 <<  9) /* Gather DMA */
 #define   NFP_NET_CFG_CTRL_LSO		  (0x1 << 10) /* LSO/TSO (version 1) */
 #define   NFP_NET_CFG_CTRL_CTAG_FILTER	  (0x1 << 11) /* VLAN CTAG filtering */
+#define   NFP_NET_CFG_CTRL_CMSG_DATA	  (0x1 << 12) /* RX cmsgs on data Qs */
 #define   NFP_NET_CFG_CTRL_RINGCFG	  (0x1 << 16) /* Ring runtime changes */
 #define   NFP_NET_CFG_CTRL_RSS		  (0x1 << 17) /* RSS (version 1) */
 #define   NFP_NET_CFG_CTRL_IRQMOD	  (0x1 << 18) /* Interrupt moderation */
@@ -263,7 +234,6 @@
  * %NFP_NET_CFG_BPF_ADDR:	DMA address of the buffer with JITed BPF code
  */
 #define NFP_NET_CFG_BPF_ABI		0x0080
-#define   NFP_NET_BPF_ABI		2
 #define NFP_NET_CFG_BPF_CAP		0x0081
 #define   NFP_NET_BPF_CAP_RELO		(1 << 0) /* seamless reload */
 #define NFP_NET_CFG_BPF_MAX_LEN		0x0082
@@ -488,12 +458,20 @@
  * %NFP_NET_CFG_TLV_TYPE_MBOX:
  * Variable, mailbox area.  Overwrites the default location which is
  * %NFP_NET_CFG_MBOX_BASE and length %NFP_NET_CFG_MBOX_VAL_MAX_SZ.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL0:
+ * %NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL1:
+ * Variable, experimental IDs.  IDs designated for internal development and
+ * experiments before a stable TLV ID has been allocated to a feature.  Should
+ * never be present in production firmware.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
 #define NFP_NET_CFG_TLV_TYPE_END		2
 #define NFP_NET_CFG_TLV_TYPE_ME_FREQ		3
 #define NFP_NET_CFG_TLV_TYPE_MBOX		4
+#define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL0	5
+#define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL1	6
 
 struct device;
 

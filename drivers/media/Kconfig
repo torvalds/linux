@@ -78,13 +78,13 @@ config MEDIA_SDR_SUPPORT
 	  Say Y when you have a software defined radio device.
 
 config MEDIA_CEC_SUPPORT
-       bool "HDMI CEC support"
-       ---help---
-	 Enable support for HDMI CEC (Consumer Electronics Control),
-	 which is an optional HDMI feature.
+	bool "HDMI CEC support"
+	---help---
+	  Enable support for HDMI CEC (Consumer Electronics Control),
+	  which is an optional HDMI feature.
 
-	 Say Y when you have an HDMI receiver, transmitter or a USB CEC
-	 adapter that supports HDMI CEC.
+	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
+	  adapter that supports HDMI CEC.
 
 source "drivers/media/cec/Kconfig"
 
@@ -109,6 +109,19 @@ config MEDIA_CONTROLLER_DVB
 	  Enable the media controller API support for DVB.
 
 	  This is currently experimental.
+
+config MEDIA_CONTROLLER_REQUEST_API
+	bool "Enable Media controller Request API (EXPERIMENTAL)"
+	depends on MEDIA_CONTROLLER && STAGING_MEDIA
+	default n
+	---help---
+	  DO NOT ENABLE THIS OPTION UNLESS YOU KNOW WHAT YOU'RE DOING.
+
+	  This option enables the Request API for the Media controller and V4L2
+	  interfaces. It is currently needed by a few stateless codec drivers.
+
+	  There is currently no intention to provide API or ABI stability for
+	  this new API as of yet.
 
 #
 # Video4Linux support

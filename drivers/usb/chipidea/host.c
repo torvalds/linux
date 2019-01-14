@@ -13,6 +13,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "../host/ehci.h"
 
@@ -124,8 +125,11 @@ static int host_start(struct ci_hdrc *ci)
 
 	hcd->power_budget = ci->platdata->power_budget;
 	hcd->tpl_support = ci->platdata->tpl_support;
-	if (ci->phy || ci->usb_phy)
+	if (ci->phy || ci->usb_phy) {
 		hcd->skip_phy_initialization = 1;
+		if (ci->usb_phy)
+			hcd->usb_phy = ci->usb_phy;
+	}
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;
@@ -149,6 +153,10 @@ static int host_start(struct ci_hdrc *ci)
 			priv->reg_vbus = ci->platdata->reg_vbus;
 		}
 	}
+
+	if (ci->platdata->pins_host)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_host);
 
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret) {
@@ -194,6 +202,10 @@ static void host_stop(struct ci_hdrc *ci)
 	}
 	ci->hcd = NULL;
 	ci->otg.host = NULL;
+
+	if (ci->platdata->pins_host && ci->platdata->pins_default)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_default);
 }
 
 

@@ -320,7 +320,7 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_file_open(struct file *f, const struct cred *cred)
+static int tomoyo_file_open(struct file *f)
 {
 	int flags = f->f_flags;
 	/* Don't check read permission here if called from do_execve(). */
@@ -550,4 +550,7 @@ static int __init tomoyo_init(void)
 	return 0;
 }
 
-security_initcall(tomoyo_init);
+DEFINE_LSM(tomoyo) = {
+	.name = "tomoyo",
+	.init = tomoyo_init,
+};

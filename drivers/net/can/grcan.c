@@ -1057,7 +1057,7 @@ static int grcan_open(struct net_device *dev)
 		return err;
 	}
 
-	priv->echo_skb = kzalloc(dma->tx.size * sizeof(*priv->echo_skb),
+	priv->echo_skb = kcalloc(dma->tx.size, sizeof(*priv->echo_skb),
 				 GFP_KERNEL);
 	if (!priv->echo_skb) {
 		err = -ENOMEM;
@@ -1066,7 +1066,7 @@ static int grcan_open(struct net_device *dev)
 	priv->can.echo_skb_max = dma->tx.size;
 	priv->can.echo_skb = priv->echo_skb;
 
-	priv->txdlc = kzalloc(dma->tx.size * sizeof(*priv->txdlc), GFP_KERNEL);
+	priv->txdlc = kcalloc(dma->tx.size, sizeof(*priv->txdlc), GFP_KERNEL);
 	if (!priv->txdlc) {
 		err = -ENOMEM;
 		goto exit_free_echo_skb;

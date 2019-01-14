@@ -532,10 +532,10 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NET_XMIT_SUCCESS;
 		}
 	}
-
 xmit_world:
 	skb->dev = vlan->lowerdev;
-	return dev_queue_xmit(skb);
+	return dev_queue_xmit_accel(skb,
+				    netdev_get_sb_channel(dev) ? dev : NULL);
 }
 
 static inline netdev_tx_t macvlan_netpoll_send_skb(struct macvlan_dev *vlan, struct sk_buff *skb)
@@ -552,19 +552,14 @@ static inline netdev_tx_t macvlan_netpoll_send_skb(struct macvlan_dev *vlan, str
 static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
+	struct macvlan_dev *vlan = netdev_priv(dev);
 	unsigned int len = skb->len;
 	int ret;
-	struct macvlan_dev *vlan = netdev_priv(dev);
 
 	if (unlikely(netpoll_tx_running(dev)))
 		return macvlan_netpoll_send_skb(vlan, skb);
 
-	if (vlan->fwd_priv) {
-		skb->dev = vlan->lowerdev;
-		ret = dev_queue_xmit_accel(skb, vlan->fwd_priv);
-	} else {
-		ret = macvlan_queue_xmit(skb, dev);
-	}
+	ret = macvlan_queue_xmit(skb, dev);
 
 	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		struct vlan_pcpu_stats *pcpu_stats;
@@ -613,26 +608,27 @@ static int macvlan_open(struct net_device *dev)
 		goto hash_add;
 	}
 
-	if (lowerdev->features & NETIF_F_HW_L2FW_DOFFLOAD) {
-		vlan->fwd_priv =
-		      lowerdev->netdev_ops->ndo_dfwd_add_station(lowerdev, dev);
-
-		/* If we get a NULL pointer back, or if we get an error
-		 * then we should just fall through to the non accelerated path
-		 */
-		if (IS_ERR_OR_NULL(vlan->fwd_priv)) {
-			vlan->fwd_priv = NULL;
-		} else
-			return 0;
-	}
-
-	err = -EBUSY;
+	err = -EADDRINUSE;
 	if (macvlan_addr_busy(vlan->port, dev->dev_addr))
 		goto out;
 
-	err = dev_uc_add(lowerdev, dev->dev_addr);
-	if (err < 0)
-		goto out;
+	/* Attempt to populate accel_priv which is used to offload the L2
+	 * forwarding requests for unicast packets.
+	 */
+	if (lowerdev->features & NETIF_F_HW_L2FW_DOFFLOAD)
+		vlan->accel_priv =
+		      lowerdev->netdev_ops->ndo_dfwd_add_station(lowerdev, dev);
+
+	/* If earlier attempt to offload failed, or accel_priv is not
+	 * populated we must add the unicast address to the lower device.
+	 */
+	if (IS_ERR_OR_NULL(vlan->accel_priv)) {
+		vlan->accel_priv = NULL;
+		err = dev_uc_add(lowerdev, dev->dev_addr);
+		if (err < 0)
+			goto out;
+	}
+
 	if (dev->flags & IFF_ALLMULTI) {
 		err = dev_set_allmulti(lowerdev, 1);
 		if (err < 0)
@@ -653,13 +649,14 @@ clear_multi:
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(lowerdev, -1);
 del_unicast:
-	dev_uc_del(lowerdev, dev->dev_addr);
-out:
-	if (vlan->fwd_priv) {
+	if (vlan->accel_priv) {
 		lowerdev->netdev_ops->ndo_dfwd_del_station(lowerdev,
-							   vlan->fwd_priv);
-		vlan->fwd_priv = NULL;
+							   vlan->accel_priv);
+		vlan->accel_priv = NULL;
+	} else {
+		dev_uc_del(lowerdev, dev->dev_addr);
 	}
+out:
 	return err;
 }
 
@@ -668,11 +665,10 @@ static int macvlan_stop(struct net_device *dev)
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	if (vlan->fwd_priv) {
+	if (vlan->accel_priv) {
 		lowerdev->netdev_ops->ndo_dfwd_del_station(lowerdev,
-							   vlan->fwd_priv);
-		vlan->fwd_priv = NULL;
-		return 0;
+							   vlan->accel_priv);
+		vlan->accel_priv = NULL;
 	}
 
 	dev_uc_unsync(lowerdev, dev);
@@ -710,7 +706,7 @@ static int macvlan_sync_address(struct net_device *dev, unsigned char *addr)
 	} else {
 		/* Rehash and update the device filters */
 		if (macvlan_addr_busy(vlan->port, addr))
-			return -EBUSY;
+			return -EADDRINUSE;
 
 		if (!macvlan_passthru(port)) {
 			err = dev_uc_add(lowerdev, addr);
@@ -750,6 +746,9 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 		macvlan_set_addr_change(vlan->port);
 		return dev_set_mac_address(vlan->lowerdev, addr);
 	}
+
+	if (macvlan_addr_busy(vlan->port, addr->sa_data))
+		return -EADDRINUSE;
 
 	return macvlan_sync_address(dev, addr->sa_data);
 }
@@ -1081,7 +1080,7 @@ static void macvlan_dev_netpoll_cleanup(struct net_device *dev)
 
 	vlan->netpoll = NULL;
 
-	__netpoll_free_async(netpoll);
+	__netpoll_free(netpoll);
 }
 #endif	/* CONFIG_NET_POLL_CONTROLLER */
 
@@ -1645,6 +1644,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETDEV_UP:
+	case NETDEV_DOWN:
 	case NETDEV_CHANGE:
 		list_for_each_entry(vlan, &port->vlans, list)
 			netif_stacked_transfer_operstate(vlan->lowerdev,

@@ -47,7 +47,7 @@
 
 static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 {
-	struct drm_i915_gem_object *obj = ifbdev->fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(&ifbdev->fb->base);
 	unsigned int origin =
 		ifbdev->vma_flags & PLANE_HAS_FENCE ? ORIGIN_GTT : ORIGIN_CPU;
 
@@ -175,6 +175,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	const struct i915_ggtt_view view = {
+		.type = I915_GGTT_VIEW_NORMAL,
+	};
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
@@ -193,7 +196,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		drm_framebuffer_put(&intel_fb->base);
 		intel_fb = ifbdev->fb = NULL;
 	}
-	if (!intel_fb || WARN_ON(!intel_fb->obj)) {
+	if (!intel_fb || WARN_ON(!intel_fb_obj(&intel_fb->base))) {
 		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
 		if (ret)
@@ -214,12 +217,14 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * BIOS is suitable for own access.
 	 */
 	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base,
-					 DRM_MODE_ROTATE_0,
-					 false, &flags);
+					 &view, false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;
 	}
+
+	fb = &ifbdev->fb->base;
+	intel_fb_obj_flush(intel_fb_obj(fb), ORIGIN_DIRTYFB);
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
@@ -229,8 +234,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 
 	info->par = helper;
-
-	fb = &ifbdev->fb->base;
 
 	ifbdev->helper.fb = fb;
 
@@ -264,7 +267,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * If the object is stolen however, it will be full of whatever
 	 * garbage was left in there.
 	 */
-	if (intel_fb->obj->stolen && !prealloc)
+	if (intel_fb_obj(fb)->stolen && !prealloc)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -640,7 +643,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		if (!crtc->state->active)
 			continue;
 
-		WARN(!crtc->primary->fb,
+		WARN(!crtc->primary->state->fb,
 		     "re-used BIOS config but lost an fb on crtc %d\n",
 		     crtc->base.id);
 	}
@@ -791,7 +794,8 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	 * been restored from swap. If the object is stolen however, it will be
 	 * full of whatever garbage was left in there.
 	 */
-	if (state == FBINFO_STATE_RUNNING && ifbdev->fb->obj->stolen)
+	if (state == FBINFO_STATE_RUNNING &&
+	    intel_fb_obj(&ifbdev->fb->base)->stolen)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	drm_fb_helper_set_suspend(&ifbdev->helper, state);

@@ -5,9 +5,9 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
-#include <linux/ssb/ssb.h>
-
 #include "ssb_private.h"
+
+#include <linux/ssb/ssb.h>
 
 static struct resource ssb_sflash_resource = {
 	.name	= "ssb_sflash",
@@ -80,7 +80,7 @@ static void ssb_sflash_cmd(struct ssb_chipcommon *cc, u32 opcode)
 			return;
 		cpu_relax();
 	}
-	pr_err("SFLASH control command failed (timeout)!\n");
+	dev_err(cc->dev->dev, "SFLASH control command failed (timeout)!\n");
 }
 
 /* Initialize serial flash access */

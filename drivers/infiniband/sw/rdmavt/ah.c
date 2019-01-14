@@ -91,13 +91,15 @@ EXPORT_SYMBOL(rvt_check_ah);
  * rvt_create_ah - create an address handle
  * @pd: the protection domain
  * @ah_attr: the attributes of the AH
+ * @udata: pointer to user's input output buffer information.
  *
  * This may be called from interrupt context.
  *
  * Return: newly allocated ah
  */
 struct ib_ah *rvt_create_ah(struct ib_pd *pd,
-			    struct rdma_ah_attr *ah_attr)
+			    struct rdma_ah_attr *ah_attr,
+			    struct ib_udata *udata)
 {
 	struct rvt_ah *ah;
 	struct rvt_dev_info *dev = ib_to_rvt(pd->device);
@@ -120,7 +122,8 @@ struct ib_ah *rvt_create_ah(struct ib_pd *pd,
 	dev->n_ahs_allocated++;
 	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 
-	ah->attr = *ah_attr;
+	rdma_copy_ah_attr(&ah->attr, ah_attr);
+
 	atomic_set(&ah->refcount, 0);
 
 	if (dev->driver_f.notify_new_ah)
@@ -148,6 +151,7 @@ int rvt_destroy_ah(struct ib_ah *ibah)
 	dev->n_ahs_allocated--;
 	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 
+	rdma_destroy_ah_attr(&ah->attr);
 	kfree(ah);
 
 	return 0;

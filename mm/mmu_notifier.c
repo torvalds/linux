@@ -174,18 +174,29 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 	srcu_read_unlock(&srcu, id);
 }
 
-void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
+int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+				  unsigned long start, unsigned long end,
+				  bool blockable)
 {
 	struct mmu_notifier *mn;
+	int ret = 0;
 	int id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (mn->ops->invalidate_range_start)
-			mn->ops->invalidate_range_start(mn, mm, start, end);
+		if (mn->ops->invalidate_range_start) {
+			int _ret = mn->ops->invalidate_range_start(mn, mm, start, end, blockable);
+			if (_ret) {
+				pr_info("%pS callback failed with %d in %sblockable context.\n",
+						mn->ops->invalidate_range_start, _ret,
+						!blockable ? "non-" : "");
+				ret = _ret;
+			}
+		}
 	}
 	srcu_read_unlock(&srcu, id);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
 
@@ -235,37 +246,6 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 	srcu_read_unlock(&srcu, id);
 }
 EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
-
-/*
- * Must be called while holding mm->mmap_sem for either read or write.
- * The result is guaranteed to be valid until mm->mmap_sem is dropped.
- */
-bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
-{
-	struct mmu_notifier *mn;
-	int id;
-	bool ret = false;
-
-	WARN_ON_ONCE(!rwsem_is_locked(&mm->mmap_sem));
-
-	if (!mm_has_notifiers(mm))
-		return ret;
-
-	id = srcu_read_lock(&srcu);
-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (!mn->ops->invalidate_range &&
-		    !mn->ops->invalidate_range_start &&
-		    !mn->ops->invalidate_range_end)
-				continue;
-
-		if (!(mn->ops->flags & MMU_INVALIDATE_DOES_NOT_BLOCK)) {
-			ret = true;
-			break;
-		}
-	}
-	srcu_read_unlock(&srcu, id);
-	return ret;
-}
 
 static int do_mmu_notifier_register(struct mmu_notifier *mn,
 				    struct mm_struct *mm,

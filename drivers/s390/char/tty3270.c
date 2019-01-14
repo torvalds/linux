@@ -19,7 +19,7 @@
 #include <linux/workqueue.h>
 
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/compat.h>
 
 #include <asm/ccwdev.h>
@@ -719,7 +719,8 @@ tty3270_alloc_view(void)
 	if (!tp)
 		goto out_err;
 	tp->freemem_pages =
-		kmalloc(sizeof(void *) * TTY3270_STRING_PAGES, GFP_KERNEL);
+		kmalloc_array(TTY3270_STRING_PAGES, sizeof(void *),
+			      GFP_KERNEL);
 	if (!tp->freemem_pages)
 		goto out_tp;
 	INIT_LIST_HEAD(&tp->freemem);

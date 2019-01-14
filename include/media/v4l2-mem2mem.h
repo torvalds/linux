@@ -32,7 +32,7 @@
  *		assumed that one source and one destination buffer are all
  *		that is required for the driver to perform one full transaction.
  *		This method may not sleep.
- * @job_abort:	required. Informs the driver that it has to abort the currently
+ * @job_abort:	optional. Informs the driver that it has to abort the currently
  *		running transaction as soon as possible (i.e. as soon as it can
  *		stop the device safely; e.g. in the next interrupt handler),
  *		even if the transaction would not have been finished by then.
@@ -40,19 +40,14 @@
  *		v4l2_m2m_job_finish() (as if the transaction ended normally).
  *		This function does not have to (and will usually not) wait
  *		until the device enters a state when it can be stopped.
- * @lock:	optional. Define a driver's own lock callback, instead of using
- *		&v4l2_m2m_ctx->q_lock.
- * @unlock:	optional. Define a driver's own unlock callback, instead of
- *		using &v4l2_m2m_ctx->q_lock.
  */
 struct v4l2_m2m_ops {
 	void (*device_run)(void *priv);
 	int (*job_ready)(void *priv);
 	void (*job_abort)(void *priv);
-	void (*lock)(void *priv);
-	void (*unlock)(void *priv);
 };
 
+struct video_device;
 struct v4l2_m2m_dev;
 
 /**
@@ -328,6 +323,24 @@ int v4l2_m2m_mmap(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  */
 struct v4l2_m2m_dev *v4l2_m2m_init(const struct v4l2_m2m_ops *m2m_ops);
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+void v4l2_m2m_unregister_media_controller(struct v4l2_m2m_dev *m2m_dev);
+int v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
+			struct video_device *vdev, int function);
+#else
+static inline void
+v4l2_m2m_unregister_media_controller(struct v4l2_m2m_dev *m2m_dev)
+{
+}
+
+static inline int
+v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
+		struct video_device *vdev, int function)
+{
+	return 0;
+}
+#endif
+
 /**
  * v4l2_m2m_release() - cleans up and frees a m2m_dev structure
  *
@@ -434,6 +447,35 @@ static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_next_buf(&m2m_ctx->cap_q_ctx);
+}
+
+/**
+ * v4l2_m2m_last_buf() - return last buffer from the list of ready buffers
+ *
+ * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
+ */
+void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
+
+/**
+ * v4l2_m2m_last_src_buf() - return last destination buffer from the list of
+ * ready buffers
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline void *v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	return v4l2_m2m_last_buf(&m2m_ctx->out_q_ctx);
+}
+
+/**
+ * v4l2_m2m_last_dst_buf() - return last destination buffer from the list of
+ * ready buffers
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline void *v4l2_m2m_last_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	return v4l2_m2m_last_buf(&m2m_ctx->cap_q_ctx);
 }
 
 /**
@@ -579,6 +621,10 @@ v4l2_m2m_dst_buf_remove_by_idx(struct v4l2_m2m_ctx *m2m_ctx, unsigned int idx)
 {
 	return v4l2_m2m_buf_remove_by_idx(&m2m_ctx->cap_q_ctx, idx);
 }
+
+/* v4l2 request helper */
+
+void v4l2_m2m_request_queue(struct media_request *req);
 
 /* v4l2 ioctl helpers */
 

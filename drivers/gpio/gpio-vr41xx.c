@@ -1,27 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for NEC VR4100 series General-purpose I/O Unit.
  *
  *  Copyright (C) 2002 MontaVista Software Inc.
  *	Author: Yoichi Yuasa <source@mvista.com>
  *  Copyright (C) 2003-2009  Yoichi Yuasa <yuasa@linux-mips.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -138,10 +125,16 @@ static void unmask_giuint_low(struct irq_data *d)
 
 static unsigned int startup_giuint(struct irq_data *data)
 {
-	if (gpiochip_lock_as_irq(&vr41xx_gpio_chip, data->hwirq))
+	int ret;
+
+	ret = gpiochip_lock_as_irq(&vr41xx_gpio_chip, irqd_to_hwirq(data));
+	if (ret) {
 		dev_err(vr41xx_gpio_chip.parent,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			data->hwirq);
+		return ret;
+	}
+
 	/* Satisfy the .enable semantics by unmasking the line */
 	unmask_giuint_low(data);
 	return 0;
@@ -377,44 +370,6 @@ static int giu_set_direction(struct gpio_chip *chip, unsigned pin, int dir)
 
 	return 0;
 }
-
-int vr41xx_gpio_pullupdown(unsigned int pin, gpio_pull_t pull)
-{
-	u16 reg, mask;
-	unsigned long flags;
-
-	if ((giu_flags & GPIO_HAS_PULLUPDOWN_IO) != GPIO_HAS_PULLUPDOWN_IO)
-		return -EPERM;
-
-	if (pin >= 15)
-		return -EINVAL;
-
-	mask = 1 << pin;
-
-	spin_lock_irqsave(&giu_lock, flags);
-
-	if (pull == GPIO_PULL_UP || pull == GPIO_PULL_DOWN) {
-		reg = giu_read(GIUTERMUPDN);
-		if (pull == GPIO_PULL_UP)
-			reg |= mask;
-		else
-			reg &= ~mask;
-		giu_write(GIUTERMUPDN, reg);
-
-		reg = giu_read(GIUUSEUPDN);
-		reg |= mask;
-		giu_write(GIUUSEUPDN, reg);
-	} else {
-		reg = giu_read(GIUUSEUPDN);
-		reg &= ~mask;
-		giu_write(GIUUSEUPDN, reg);
-	}
-
-	spin_unlock_irqrestore(&giu_lock, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(vr41xx_gpio_pullupdown);
 
 static int vr41xx_gpio_get(struct gpio_chip *chip, unsigned pin)
 {

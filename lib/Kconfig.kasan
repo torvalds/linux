@@ -5,7 +5,8 @@ if HAVE_ARCH_KASAN
 
 config KASAN
 	bool "KASan: runtime memory debugger"
-	depends on SLUB || (SLAB && !DEBUG_SLAB)
+	depends on (SLUB && SYSFS) || (SLAB && !DEBUG_SLAB)
+	select SLUB_DEBUG if SLUB
 	select CONSTRUCTORS
 	select STACKDEPOT
 	help
@@ -55,6 +56,15 @@ config KASAN_INLINE
 	  This requires a gcc version of 5.0 or later.
 
 endchoice
+
+config KASAN_S390_4_LEVEL_PAGING
+	bool "KASan: use 4-level paging"
+	depends on KASAN && S390
+	help
+	  Compiling the kernel with KASan disables automatic 3-level vs
+	  4-level paging selection. 3-level paging is used by default (up
+	  to 3TB of RAM with KASan enabled). This options allows to force
+	  4-level paging instead.
 
 config TEST_KASAN
 	tristate "Module for testing kasan for bug detection"

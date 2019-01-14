@@ -176,8 +176,8 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_GEM |
 			    DRIVER_HAVE_IRQ |
 			    DRIVER_RENDER |
-			    DRIVER_PRIME),
-	.lastclose = drm_fb_helper_lastclose,
+			    DRIVER_PRIME |
+			    DRIVER_SYNCOBJ),
 	.open = vc4_open,
 	.postclose = vc4_close,
 	.irq_handler = vc4_irq,
@@ -247,24 +247,6 @@ static void vc4_match_add_drivers(struct device *dev,
 	}
 }
 
-static void vc4_kick_out_firmware_fb(void)
-{
-	struct apertures_struct *ap;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return;
-
-	/* Since VC4 is a UMA device, the simplefb node may have been
-	 * located anywhere in memory.
-	 */
-	ap->ranges[0].base = 0;
-	ap->ranges[0].size = ~0;
-
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "vc4drmfb", false);
-	kfree(ap);
-}
-
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -287,7 +269,7 @@ static int vc4_drm_bind(struct device *dev)
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)
-		goto dev_unref;
+		goto dev_put;
 
 	drm_mode_config_init(drm);
 
@@ -297,13 +279,15 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto gem_destroy;
 
-	vc4_kick_out_firmware_fb();
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto unbind_all;
 
 	vc4_kms_load(drm);
+
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
@@ -312,23 +296,23 @@ unbind_all:
 gem_destroy:
 	vc4_gem_destroy(drm);
 	vc4_bo_cache_destroy(drm);
-dev_unref:
-	drm_dev_unref(drm);
+dev_put:
+	drm_dev_put(drm);
 	return ret;
 }
 
 static void vc4_drm_unbind(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm = platform_get_drvdata(pdev);
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
 
-	drm_fb_cma_fbdev_fini(drm);
-
 	drm_mode_config_cleanup(drm);
 
-	drm_dev_unref(drm);
+	drm_atomic_private_obj_fini(&vc4->ctm_manager);
+
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops vc4_drm_ops = {
@@ -341,6 +325,7 @@ static struct platform_driver *const component_drivers[] = {
 	&vc4_vec_driver,
 	&vc4_dpi_driver,
 	&vc4_dsi_driver,
+	&vc4_txp_driver,
 	&vc4_hvs_driver,
 	&vc4_crtc_driver,
 	&vc4_v3d_driver,

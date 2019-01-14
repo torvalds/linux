@@ -54,7 +54,7 @@ static const struct always_present_id always_present_ids[] = {
 	 * Bay / Cherry Trail PWM directly poked by GPU driver in win10,
 	 * but Linux uses a separate PWM driver, harmless if not used.
 	 */
-	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT1), {}),
+	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT), {}),
 	ENTRY("80862288", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 	/*
 	 * The INT0002 device is necessary to clear wakeup interrupt sources
@@ -62,14 +62,20 @@ static const struct always_present_id always_present_ids[] = {
 	 */
 	ENTRY("INT0002", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 	/*
-	 * On the Dell Venue 11 Pro 7130 the DSDT hides the touchscreen ACPI
-	 * device until a certain time after _SB.PCI0.GFX0.LCD.LCD1._ON gets
-	 * called has passed *and* _STA has been called at least 3 times since.
+	 * On the Dell Venue 11 Pro 7130 and 7139, the DSDT hides
+	 * the touchscreen ACPI device until a certain time
+	 * after _SB.PCI0.GFX0.LCD.LCD1._ON gets called has passed
+	 * *and* _STA has been called at least 3 times since.
 	 */
 	ENTRY("SYNA7500", "1", ICPU(INTEL_FAM6_HASWELL_ULT), {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Venue 11 Pro 7130"),
 	      }),
+	ENTRY("SYNA7500", "1", ICPU(INTEL_FAM6_HASWELL_ULT), {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Venue 11 Pro 7139"),
+	      }),
+
 	/*
 	 * The GPD win BIOS dated 20170221 has disabled the accelerometer, the
 	 * drivers sometimes cause crashes under Windows and this is how the
@@ -103,13 +109,9 @@ static const struct always_present_id always_present_ids[] = {
 
 bool acpi_device_always_present(struct acpi_device *adev)
 {
-	u32 *status = (u32 *)&adev->status;
-	u32 old_status = *status;
 	bool ret = false;
 	unsigned int i;
 
-	/* acpi_match_device_ids checks status, so set it to default */
-	*status = ACPI_STA_DEFAULT;
 	for (i = 0; i < ARRAY_SIZE(always_present_ids); i++) {
 		if (acpi_match_device_ids(adev, always_present_ids[i].hid))
 			continue;
@@ -125,15 +127,9 @@ bool acpi_device_always_present(struct acpi_device *adev)
 		    !dmi_check_system(always_present_ids[i].dmi_ids))
 			continue;
 
-		if (old_status != ACPI_STA_DEFAULT) /* Log only once */
-			dev_info(&adev->dev,
-				 "Device [%s] is in always present list\n",
-				 adev->pnp.bus_id);
-
 		ret = true;
 		break;
 	}
-	*status = old_status;
 
 	return ret;
 }

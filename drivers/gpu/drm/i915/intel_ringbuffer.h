@@ -2,16 +2,23 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+#include <drm/drm_util.h>
+
 #include <linux/hashtable.h>
+#include <linux/seqlock.h>
 
 #include "i915_gem_batch_pool.h"
-#include "i915_gem_timeline.h"
 
+#include "i915_reg.h"
 #include "i915_pmu.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
+#include "i915_timeline.h"
+#include "intel_gpu_commands.h"
+#include "intel_workarounds.h"
 
 struct drm_printer;
+struct i915_sched_attr;
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -84,7 +91,7 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 }
 
 #define I915_MAX_SLICES	3
-#define I915_MAX_SUBSLICES 3
+#define I915_MAX_SUBSLICES 8
 
 #define instdone_slice_mask(dev_priv__) \
 	(INTEL_GEN(dev_priv__) == 7 ? \
@@ -118,14 +125,17 @@ struct intel_engine_hangcheck {
 	int deadlock;
 	struct intel_instdone instdone;
 	struct i915_request *active_request;
-	bool stalled;
+	bool stalled:1;
+	bool wedged:1;
 };
 
 struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
+	struct i915_timeline *timeline;
 	struct list_head request_list;
+	struct list_head active_link;
 
 	u32 head;
 	u32 tail;
@@ -184,6 +194,11 @@ struct i915_priolist {
 	struct rb_node node;
 	struct list_head requests;
 	int priority;
+};
+
+struct st_preempt_hang {
+	struct completion completion;
+	bool inject_hang;
 };
 
 /**
@@ -285,32 +300,49 @@ struct intel_engine_execlists {
 	/**
 	 * @queue: queue of requests, in priority lists
 	 */
-	struct rb_root queue;
+	struct rb_root_cached queue;
 
 	/**
-	 * @first: leftmost level in priority @queue
+	 * @csb_read: control register for Context Switch buffer
+	 *
+	 * Note this register is always in mmio.
 	 */
-	struct rb_node *first;
+	u32 __iomem *csb_read;
 
 	/**
-	 * @fw_domains: forcewake domains for irq tasklet
+	 * @csb_write: control register for Context Switch buffer
+	 *
+	 * Note this register may be either mmio or HWSP shadow.
 	 */
-	unsigned int fw_domains;
+	u32 *csb_write;
 
 	/**
-	 * @csb_head: context status buffer head
+	 * @csb_status: status array for Context Switch buffer
+	 *
+	 * Note these register may be either mmio or HWSP shadow.
 	 */
-	unsigned int csb_head;
-
-	/**
-	 * @csb_use_mmio: access csb through mmio, instead of hwsp
-	 */
-	bool csb_use_mmio;
+	u32 *csb_status;
 
 	/**
 	 * @preempt_complete_status: expected CSB upon completing preemption
 	 */
 	u32 preempt_complete_status;
+
+	/**
+	 * @csb_write_reset: reset value for CSB write pointer
+	 *
+	 * As the CSB write pointer maybe either in HWSP or as a field
+	 * inside an mmio register, we want to reprogram it slightly
+	 * differently to avoid later confusion.
+	 */
+	u32 csb_write_reset;
+
+	/**
+	 * @csb_head: context status buffer head
+	 */
+	u8 csb_head;
+
+	I915_SELFTEST_DECLARE(struct st_preempt_hang preempt_hang;)
 };
 
 #define INTEL_ENGINE_CS_MAX_NAME 8
@@ -330,17 +362,16 @@ struct intel_engine_cs {
 	u8 instance;
 	u32 context_size;
 	u32 mmio_base;
-	unsigned int irq_shift;
 
 	struct intel_ring *buffer;
-	struct intel_timeline *timeline;
+
+	struct i915_timeline timeline;
 
 	struct drm_i915_gem_object *default_state;
+	void *pinned_default_state;
 
-	atomic_t irq_count;
 	unsigned long irq_posted;
 #define ENGINE_IRQ_BREADCRUMB 0
-#define ENGINE_IRQ_EXECLIST 1
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
@@ -372,6 +403,7 @@ struct intel_engine_cs {
 
 		unsigned int hangcheck_interrupts;
 		unsigned int irq_enabled;
+		unsigned int irq_count;
 
 		bool irq_armed : 1;
 		I915_SELFTEST_DECLARE(bool mock : 1);
@@ -409,7 +441,7 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
-	struct i915_vma *scratch;
+	struct i915_wa_list wa_list;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
@@ -417,18 +449,22 @@ struct intel_engine_cs {
 	void		(*irq_disable)(struct intel_engine_cs *engine);
 
 	int		(*init_hw)(struct intel_engine_cs *engine);
-	void		(*reset_hw)(struct intel_engine_cs *engine,
-				    struct i915_request *rq);
+
+	struct {
+		struct i915_request *(*prepare)(struct intel_engine_cs *engine);
+		void (*reset)(struct intel_engine_cs *engine,
+			      struct i915_request *rq);
+		void (*finish)(struct intel_engine_cs *engine);
+	} reset;
 
 	void		(*park)(struct intel_engine_cs *engine);
 	void		(*unpark)(struct intel_engine_cs *engine);
 
 	void		(*set_default_submission)(struct intel_engine_cs *engine);
 
-	struct intel_ring *(*context_pin)(struct intel_engine_cs *engine,
-					  struct i915_gem_context *ctx);
-	void		(*context_unpin)(struct intel_engine_cs *engine,
-					 struct i915_gem_context *ctx);
+	struct intel_context *(*context_pin)(struct intel_engine_cs *engine,
+					     struct i915_gem_context *ctx);
+
 	int		(*request_alloc)(struct i915_request *rq);
 	int		(*init_context)(struct i915_request *rq);
 
@@ -441,7 +477,6 @@ struct intel_engine_cs {
 					 unsigned int dispatch_flags);
 #define I915_DISPATCH_SECURE BIT(0)
 #define I915_DISPATCH_PINNED BIT(1)
-#define I915_DISPATCH_RS     BIT(2)
 	void		(*emit_breadcrumb)(struct i915_request *rq, u32 *cs);
 	int		emit_breadcrumb_sz;
 
@@ -459,7 +494,8 @@ struct intel_engine_cs {
 	 *
 	 * Called under the struct_mutex.
 	 */
-	void		(*schedule)(struct i915_request *request, int priority);
+	void		(*schedule)(struct i915_request *request,
+				    const struct i915_sched_attr *attr);
 
 	/*
 	 * Cancel all requests on the hardware, or queued for execution.
@@ -543,16 +579,7 @@ struct intel_engine_cs {
 	 * to the kernel context and trash it as the save may not happen
 	 * before the hardware is powered down.
 	 */
-	struct i915_gem_context *last_retired_context;
-
-	/* We track the current MI_SET_CONTEXT in order to eliminate
-	 * redudant context switches. This presumes that requests are not
-	 * reordered! Or when they are the tracking is updated along with
-	 * the emission of individual requests into the legacy command
-	 * stream (ring).
-	 */
-	struct i915_gem_context *legacy_active_context;
-	struct i915_hw_ppgtt *legacy_active_ppgtt;
+	struct intel_context *last_retired_context;
 
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;
@@ -561,6 +588,7 @@ struct intel_engine_cs {
 
 #define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
+#define I915_ENGINE_HAS_PREEMPTION   BIT(2)
 	unsigned int flags;
 
 	/*
@@ -591,7 +619,7 @@ struct intel_engine_cs {
 		/**
 		 * @lock: Lock protecting the below fields.
 		 */
-		spinlock_t lock;
+		seqlock_t lock;
 		/**
 		 * @enabled: Reference count indicating number of listeners.
 		 */
@@ -620,14 +648,27 @@ struct intel_engine_cs {
 	} stats;
 };
 
-static inline bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine)
+static inline bool
+intel_engine_needs_cmd_parser(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_NEEDS_CMD_PARSER;
 }
 
-static inline bool intel_engine_supports_stats(struct intel_engine_cs *engine)
+static inline bool
+intel_engine_supports_stats(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_SUPPORTS_STATS;
+}
+
+static inline bool
+intel_engine_has_preemption(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_HAS_PREEMPTION;
+}
+
+static inline bool __execlists_need_preempt(int prio, int last)
+{
+	return prio > max(0, last);
 }
 
 static inline void
@@ -637,11 +678,24 @@ execlists_set_active(struct intel_engine_execlists *execlists,
 	__set_bit(bit, (unsigned long *)&execlists->active);
 }
 
+static inline bool
+execlists_set_active_once(struct intel_engine_execlists *execlists,
+			  unsigned int bit)
+{
+	return !__test_and_set_bit(bit, (unsigned long *)&execlists->active);
+}
+
 static inline void
 execlists_clear_active(struct intel_engine_execlists *execlists,
 		       unsigned int bit)
 {
 	__clear_bit(bit, (unsigned long *)&execlists->active);
+}
+
+static inline void
+execlists_clear_all_active(struct intel_engine_execlists *execlists)
+{
+	execlists->active = 0;
 }
 
 static inline bool
@@ -650,6 +704,10 @@ execlists_is_active(const struct intel_engine_execlists *execlists,
 {
 	return test_bit(bit, (unsigned long *)&execlists->active);
 }
+
+void execlists_user_begin(struct intel_engine_execlists *execlists,
+			  const struct execlist_port *port);
+void execlists_user_end(struct intel_engine_execlists *execlists);
 
 void
 execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
@@ -663,7 +721,7 @@ execlists_num_ports(const struct intel_engine_execlists * const execlists)
 	return execlists->port_mask + 1;
 }
 
-static inline void
+static inline struct execlist_port *
 execlists_port_complete(struct intel_engine_execlists * const execlists,
 			struct execlist_port * const port)
 {
@@ -674,6 +732,8 @@ execlists_port_complete(struct intel_engine_execlists * const execlists,
 
 	memmove(port, port + 1, m * sizeof(struct execlist_port));
 	memset(port + m, 0, sizeof(struct execlist_port));
+
+	return port;
 }
 
 static inline unsigned int
@@ -736,10 +796,10 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define CNL_HWS_CSB_WRITE_INDEX		0x2f
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine, int size);
-int intel_ring_pin(struct intel_ring *ring,
-		   struct drm_i915_private *i915,
-		   unsigned int offset_bias);
+intel_engine_create_ring(struct intel_engine_cs *engine,
+			 struct i915_timeline *timeline,
+			 int size);
+int intel_ring_pin(struct intel_ring *ring);
 void intel_ring_reset(struct intel_ring *ring, u32 tail);
 unsigned int intel_ring_update_space(struct intel_ring *ring);
 void intel_ring_unpin(struct intel_ring *ring);
@@ -773,6 +833,19 @@ static inline u32 intel_ring_wrap(const struct intel_ring *ring, u32 pos)
 	return pos & (ring->size - 1);
 }
 
+static inline bool
+intel_ring_offset_valid(const struct intel_ring *ring,
+			unsigned int pos)
+{
+	if (pos & -ring->size) /* must be strictly within the ring */
+		return false;
+
+	if (!IS_ALIGNED(pos, 8)) /* must be qword aligned */
+		return false;
+
+	return true;
+}
+
 static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
 {
 	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
@@ -784,12 +857,7 @@ static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
 static inline void
 assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 {
-	/* We could combine these into a single tail operation, but keeping
-	 * them as seperate tests will help identify the cause should one
-	 * ever fire.
-	 */
-	GEM_BUG_ON(!IS_ALIGNED(tail, 8));
-	GEM_BUG_ON(tail >= ring->size);
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
 
 	/*
 	 * "Ring Buffer Use"
@@ -829,7 +897,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
-int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
@@ -837,28 +904,49 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
+int intel_engine_stop_cs(struct intel_engine_cs *engine);
+void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine);
+
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
-static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
-{
-	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
-}
-
 static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 {
-	/* We are only peeking at the tail of the submit queue (and not the
+	/*
+	 * We are only peeking at the tail of the submit queue (and not the
 	 * queue itself) in order to gain a hint as to the current active
 	 * state of the engine. Callers are not expected to be taking
 	 * engine->timeline->lock, nor are they expected to be concerned
 	 * wtih serialising this hint with anything, so document it as
 	 * a hint and nothing more.
 	 */
-	return READ_ONCE(engine->timeline->seqno);
+	return READ_ONCE(engine->timeline.seqno);
 }
 
-int init_workarounds_ring(struct intel_engine_cs *engine);
-int intel_ring_workarounds_emit(struct i915_request *rq);
+static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
+{
+	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
+}
+
+static inline bool intel_engine_signaled(struct intel_engine_cs *engine,
+					 u32 seqno)
+{
+	return i915_seqno_passed(intel_engine_get_seqno(engine), seqno);
+}
+
+static inline bool intel_engine_has_completed(struct intel_engine_cs *engine,
+					      u32 seqno)
+{
+	GEM_BUG_ON(!seqno);
+	return intel_engine_signaled(engine, seqno);
+}
+
+static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
+					    u32 seqno)
+{
+	GEM_BUG_ON(!seqno);
+	return intel_engine_signaled(engine, seqno - 1);
+}
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
@@ -885,11 +973,10 @@ static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
-static inline void intel_wait_init(struct intel_wait *wait,
-				   struct i915_request *rq)
+static inline void intel_wait_init(struct intel_wait *wait)
 {
 	wait->tsk = current;
-	wait->request = rq;
+	wait->request = NULL;
 }
 
 static inline void intel_wait_init_for_seqno(struct intel_wait *wait, u32 seqno)
@@ -939,7 +1026,7 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 			   struct intel_wait *wait);
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			      struct intel_wait *wait);
-void intel_engine_enable_signaling(struct i915_request *request, bool wakeup);
+bool intel_engine_enable_signaling(struct i915_request *request, bool wakeup);
 void intel_engine_cancel_signaling(struct i915_request *request);
 
 static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
@@ -1009,10 +1096,13 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
 	return cs;
 }
 
+void intel_engines_sanitize(struct drm_i915_private *i915);
+
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
 bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine);
+void intel_engine_lost_context(struct intel_engine_cs *engine);
 
 void intel_engines_park(struct drm_i915_private *i915);
 void intel_engines_unpark(struct drm_i915_private *i915);
@@ -1037,7 +1127,7 @@ static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->stats.enabled) == 0)
 		return;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (engine->stats.enabled > 0) {
 		if (engine->stats.active++ == 0)
@@ -1045,7 +1135,7 @@ static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 		GEM_BUG_ON(engine->stats.active == 0);
 	}
 
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 static inline void intel_engine_context_out(struct intel_engine_cs *engine)
@@ -1055,7 +1145,7 @@ static inline void intel_engine_context_out(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->stats.enabled) == 0)
 		return;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (engine->stats.enabled > 0) {
 		ktime_t last;
@@ -1082,12 +1172,32 @@ static inline void intel_engine_context_out(struct intel_engine_cs *engine)
 		}
 	}
 
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 int intel_enable_engine_stats(struct intel_engine_cs *engine);
 void intel_disable_engine_stats(struct intel_engine_cs *engine);
 
 ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+
+static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
+{
+	if (!execlists->preempt_hang.inject_hang)
+		return false;
+
+	complete(&execlists->preempt_hang.completion);
+	return true;
+}
+
+#else
+
+static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
+{
+	return false;
+}
+
+#endif
 
 #endif /* _INTEL_RINGBUFFER_H_ */

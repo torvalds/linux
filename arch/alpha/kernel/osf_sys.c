@@ -530,24 +530,19 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 SYSCALL_DEFINE1(osf_utsname, char __user *, name)
 {
 	int error;
+	char tmp[5 * 32];
 
 	down_read(&uts_sem);
-	error = -EFAULT;
-	if (copy_to_user(name + 0, utsname()->sysname, 32))
-		goto out;
-	if (copy_to_user(name + 32, utsname()->nodename, 32))
-		goto out;
-	if (copy_to_user(name + 64, utsname()->release, 32))
-		goto out;
-	if (copy_to_user(name + 96, utsname()->version, 32))
-		goto out;
-	if (copy_to_user(name + 128, utsname()->machine, 32))
-		goto out;
+	memcpy(tmp + 0 * 32, utsname()->sysname, 32);
+	memcpy(tmp + 1 * 32, utsname()->nodename, 32);
+	memcpy(tmp + 2 * 32, utsname()->release, 32);
+	memcpy(tmp + 3 * 32, utsname()->version, 32);
+	memcpy(tmp + 4 * 32, utsname()->machine, 32);
+	up_read(&uts_sem);
 
-	error = 0;
- out:
-	up_read(&uts_sem);	
-	return error;
+	if (copy_to_user(name, tmp, sizeof(tmp)))
+		return -EFAULT;
+	return 0;
 }
 
 SYSCALL_DEFINE0(getpagesize)
@@ -567,18 +562,21 @@ SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 {
 	int len, err = 0;
 	char *kname;
+	char tmp[32];
 
-	if (namelen > 32)
+	if (namelen < 0 || namelen > 32)
 		namelen = 32;
 
 	down_read(&uts_sem);
 	kname = utsname()->domainname;
 	len = strnlen(kname, namelen);
-	if (copy_to_user(name, kname, min(len + 1, namelen)))
-		err = -EFAULT;
+	len = min(len + 1, namelen);
+	memcpy(tmp, kname, len);
 	up_read(&uts_sem);
 
-	return err;
+	if (copy_to_user(name, tmp, len))
+		return -EFAULT;
+	return 0;
 }
 
 /*
@@ -739,13 +737,14 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 	};
 	unsigned long offset;
 	const char *res;
-	long len, err = -EINVAL;
+	long len;
+	char tmp[__NEW_UTS_LEN + 1];
 
 	offset = command-1;
 	if (offset >= ARRAY_SIZE(sysinfo_table)) {
 		/* Digital UNIX has a few unpublished interfaces here */
 		printk("sysinfo(%d)", command);
-		goto out;
+		return -EINVAL;
 	}
 
 	down_read(&uts_sem);
@@ -753,13 +752,11 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 	len = strlen(res)+1;
 	if ((unsigned long)len > (unsigned long)count)
 		len = count;
-	if (copy_to_user(buf, res, len))
-		err = -EFAULT;
-	else
-		err = 0;
+	memcpy(tmp, res, len);
 	up_read(&uts_sem);
- out:
-	return err;
+	if (copy_to_user(buf, tmp, len))
+		return -EFAULT;
+	return 0;
 }
 
 SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
@@ -871,8 +868,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 		   send a signal.  Old exceptions are not signaled.  */
 		fex = (exc >> IEEE_STATUS_TO_EXCSUM_SHIFT) & swcr;
  		if (fex) {
-			siginfo_t info;
-			int si_code = 0;
+			int si_code = FPE_FLTUNK;
 
 			if (fex & IEEE_TRAP_ENABLE_DNO) si_code = FPE_FLTUND;
 			if (fex & IEEE_TRAP_ENABLE_INE) si_code = FPE_FLTRES;
@@ -881,11 +877,9 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 			if (fex & IEEE_TRAP_ENABLE_DZE) si_code = FPE_FLTDIV;
 			if (fex & IEEE_TRAP_ENABLE_INV) si_code = FPE_FLTINV;
 
-			info.si_signo = SIGFPE;
-			info.si_errno = 0;
-			info.si_code = si_code;
-			info.si_addr = NULL;  /* FIXME */
- 			send_sig_info(SIGFPE, &info, current);
+			send_sig_fault(SIGFPE, si_code,
+				       (void __user *)NULL,  /* FIXME */
+				       0, current);
  		}
 		return 0;
 	}
@@ -1183,13 +1177,10 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
 		struct rusage32 __user *, ur)
 {
-	unsigned int status = 0;
 	struct rusage r;
-	long err = kernel_wait4(pid, &status, options, &r);
+	long err = kernel_wait4(pid, ustatus, options, &r);
 	if (err <= 0)
 		return err;
-	if (put_user(status, ustatus))
-		return -EFAULT;
 	if (!ur)
 		return err;
 	if (put_tv_to_tv32(&ur->ru_utime, &r.ru_utime))

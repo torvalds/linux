@@ -849,7 +849,7 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 	struct sil24_sge *sge;
 	u16 ctrl = 0;
 
-	cb = &pp->cmd_block[sil24_tag(qc->tag)];
+	cb = &pp->cmd_block[sil24_tag(qc->hw_tag)];
 
 	if (!ata_is_atapi(qc->tf.protocol)) {
 		prb = &cb->ata.prb;
@@ -891,7 +891,7 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct sil24_port_priv *pp = ap->private_data;
 	void __iomem *port = sil24_port_base(ap);
-	unsigned int tag = sil24_tag(qc->tag);
+	unsigned int tag = sil24_tag(qc->hw_tag);
 	dma_addr_t paddr;
 	void __iomem *activate;
 
@@ -911,7 +911,7 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 
 static bool sil24_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
-	sil24_read_tf(qc->ap, qc->tag, &qc->result_tf);
+	sil24_read_tf(qc->ap, qc->hw_tag, &qc->result_tf);
 	return true;
 }
 

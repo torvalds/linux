@@ -45,33 +45,7 @@ menuconfig TYPEC
 
 if TYPEC
 
-config TYPEC_TCPM
-	tristate "USB Type-C Port Controller Manager"
-	depends on USB
-	select USB_ROLE_SWITCH
-	help
-	  The Type-C Port Controller Manager provides a USB PD and USB Type-C
-	  state machine for use with Type-C Port Controllers.
-
-if TYPEC_TCPM
-
-source "drivers/usb/typec/fusb302/Kconfig"
-
-config TYPEC_WCOVE
-	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
-	depends on ACPI
-	depends on INTEL_SOC_PMIC
-	depends on INTEL_PMC_IPC
-	depends on BXT_WC_PMIC_OPREGION
-	help
-	  This driver adds support for USB Type-C detection on Intel Broxton
-	  platforms that have Intel Whiskey Cove PMIC. The driver can detect the
-	  role and cable orientation.
-
-	  To compile this driver as module, choose M here: the module will be
-	  called typec_wcove
-
-endif # TYPEC_TCPM
+source "drivers/usb/typec/tcpm/Kconfig"
 
 source "drivers/usb/typec/ucsi/Kconfig"
 
@@ -86,5 +60,7 @@ config TYPEC_TPS6598X
 	  module will be called tps6598x.ko.
 
 source "drivers/usb/typec/mux/Kconfig"
+
+source "drivers/usb/typec/altmodes/Kconfig"
 
 endif # TYPEC

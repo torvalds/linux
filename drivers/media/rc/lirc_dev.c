@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/file.h>
 #include <linux/idr.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
@@ -103,6 +104,12 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		dev_dbg(&dev->dev, "delivering %uus %s to lirc_dev\n",
 			TO_US(ev.duration), TO_STR(ev.pulse));
 	}
+
+	/*
+	 * bpf does not care about the gap generated above; that exists
+	 * for backwards compatibility
+	 */
+	lirc_bpf_run(dev, sample);
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 	list_for_each_entry(fh, &dev->lirc_fh, list) {
@@ -575,8 +582,15 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 		}
 		break;
 
-	case LIRC_SET_REC_TIMEOUT_REPORTS:
+	case LIRC_GET_REC_TIMEOUT:
 		if (!dev->timeout)
+			ret = -ENOTTY;
+		else
+			val = DIV_ROUND_UP(dev->timeout, 1000);
+		break;
+
+	case LIRC_SET_REC_TIMEOUT_REPORTS:
+		if (dev->driver_type != RC_DRIVER_IR_RAW)
 			ret = -ENOTTY;
 		else
 			fh->send_timeout_reports = !!val;
@@ -735,6 +749,7 @@ static void lirc_release_device(struct device *ld)
 
 int ir_lirc_register(struct rc_dev *dev)
 {
+	const char *rx_type, *tx_type;
 	int err, minor;
 
 	minor = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
@@ -759,8 +774,25 @@ int ir_lirc_register(struct rc_dev *dev)
 
 	get_device(&dev->dev);
 
-	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d",
-		 dev->driver_name, minor);
+	switch (dev->driver_type) {
+	case RC_DRIVER_SCANCODE:
+		rx_type = "scancode";
+		break;
+	case RC_DRIVER_IR_RAW:
+		rx_type = "raw IR";
+		break;
+	default:
+		rx_type = "no";
+		break;
+	}
+
+	if (dev->tx_ir)
+		tx_type = "raw IR";
+	else
+		tx_type = "no";
+
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d, %s receiver, %s transmitter",
+		 dev->driver_name, minor, rx_type, tx_type);
 
 	return 0;
 
@@ -814,6 +846,29 @@ void __exit lirc_dev_exit(void)
 {
 	class_destroy(lirc_class);
 	unregister_chrdev_region(lirc_base_dev, RC_DEV_MAX);
+}
+
+struct rc_dev *rc_dev_get_from_fd(int fd)
+{
+	struct fd f = fdget(fd);
+	struct lirc_fh *fh;
+	struct rc_dev *dev;
+
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	if (f.file->f_op != &lirc_fops) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	fh = f.file->private_data;
+	dev = fh->rc;
+
+	get_device(&dev->dev);
+	fdput(f);
+
+	return dev;
 }
 
 MODULE_ALIAS("lirc_dev");

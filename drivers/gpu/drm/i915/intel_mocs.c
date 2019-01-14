@@ -178,7 +178,8 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 {
 	bool result = false;
 
-	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv) ||
+	    IS_ICELAKE(dev_priv)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->table = skylake_mocs_table;
 		result = true;
@@ -217,6 +218,8 @@ static i915_reg_t mocs_register(enum intel_engine_id engine_id, int index)
 		return GEN9_VEBOX_MOCS(index);
 	case VCS2:
 		return GEN9_MFX1_MOCS(index);
+	case VCS3:
+		return GEN11_MFX2_MOCS(index);
 	default:
 		MISSING_CASE(engine_id);
 		return INVALID_MMIO_REG;
@@ -229,20 +232,17 @@ static i915_reg_t mocs_register(enum intel_engine_id engine_id, int index)
  *
  * This function simply emits a MI_LOAD_REGISTER_IMM command for the
  * given table starting at the given address.
- *
- * Return: 0 on success, otherwise the error status.
  */
-int intel_mocs_init_engine(struct intel_engine_cs *engine)
+void intel_mocs_init_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_mocs_table table;
 	unsigned int index;
 
 	if (!get_mocs_settings(dev_priv, &table))
-		return 0;
+		return;
 
-	if (WARN_ON(table.size > GEN9_NUM_MOCS_ENTRIES))
-		return -ENODEV;
+	GEM_BUG_ON(table.size > GEN9_NUM_MOCS_ENTRIES);
 
 	for (index = 0; index < table.size; index++)
 		I915_WRITE(mocs_register(engine->id, index),
@@ -259,8 +259,6 @@ int intel_mocs_init_engine(struct intel_engine_cs *engine)
 	for (; index < GEN9_NUM_MOCS_ENTRIES; index++)
 		I915_WRITE(mocs_register(engine->id, index),
 			   table.table[0].control_value);
-
-	return 0;
 }
 
 /**

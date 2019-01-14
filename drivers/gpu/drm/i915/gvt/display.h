@@ -67,7 +67,7 @@
 #define AUX_NATIVE_REPLY_NAK    (0x1 << 4)
 #define AUX_NATIVE_REPLY_DEFER  (0x2 << 4)
 
-#define AUX_BURST_SIZE          16
+#define AUX_BURST_SIZE          20
 
 /* DPCD addresses */
 #define DPCD_REV			0x000

@@ -97,14 +97,15 @@ enum {
 };
 
 enum {
-	MLX5_ATOMIC_MODE_IB_COMP	= 1 << 16,
-	MLX5_ATOMIC_MODE_CX		= 2 << 16,
-	MLX5_ATOMIC_MODE_8B		= 3 << 16,
-	MLX5_ATOMIC_MODE_16B		= 4 << 16,
-	MLX5_ATOMIC_MODE_32B		= 5 << 16,
-	MLX5_ATOMIC_MODE_64B		= 6 << 16,
-	MLX5_ATOMIC_MODE_128B		= 7 << 16,
-	MLX5_ATOMIC_MODE_256B		= 8 << 16,
+	MLX5_ATOMIC_MODE_OFFSET = 16,
+	MLX5_ATOMIC_MODE_IB_COMP = 1,
+	MLX5_ATOMIC_MODE_CX = 2,
+	MLX5_ATOMIC_MODE_8B = 3,
+	MLX5_ATOMIC_MODE_16B = 4,
+	MLX5_ATOMIC_MODE_32B = 5,
+	MLX5_ATOMIC_MODE_64B = 6,
+	MLX5_ATOMIC_MODE_128B = 7,
+	MLX5_ATOMIC_MODE_256B = 8,
 };
 
 enum {
@@ -124,6 +125,8 @@ enum {
 	MLX5_REG_PAOS		 = 0x5006,
 	MLX5_REG_PFCC            = 0x5007,
 	MLX5_REG_PPCNT		 = 0x5008,
+	MLX5_REG_PPTB            = 0x500b,
+	MLX5_REG_PBMC            = 0x500c,
 	MLX5_REG_PMAOS		 = 0x5012,
 	MLX5_REG_PUDE		 = 0x5009,
 	MLX5_REG_PMPE		 = 0x5010,
@@ -131,14 +134,20 @@ enum {
 	MLX5_REG_PVLC		 = 0x500f,
 	MLX5_REG_PCMR		 = 0x5041,
 	MLX5_REG_PMLP		 = 0x5002,
+	MLX5_REG_PPLM		 = 0x5023,
 	MLX5_REG_PCAM		 = 0x507f,
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
 	MLX5_REG_MCIA		 = 0x9014,
 	MLX5_REG_MLCR		 = 0x902b,
+	MLX5_REG_MTRC_CAP	 = 0x9040,
+	MLX5_REG_MTRC_CONF	 = 0x9041,
+	MLX5_REG_MTRC_STDB	 = 0x9042,
+	MLX5_REG_MTRC_CTRL	 = 0x9043,
 	MLX5_REG_MPCNT		 = 0x9051,
 	MLX5_REG_MTPPS		 = 0x9053,
 	MLX5_REG_MTPPSE		 = 0x9054,
+	MLX5_REG_MPEGC		 = 0x9056,
 	MLX5_REG_MCQI		 = 0x9061,
 	MLX5_REG_MCC		 = 0x9062,
 	MLX5_REG_MCDA		 = 0x9063,
@@ -155,16 +164,11 @@ enum mlx5_dcbx_oper_mode {
 	MLX5E_DCBX_PARAM_VER_OPER_AUTO  = 0x3,
 };
 
-enum mlx5_dct_atomic_mode {
-	MLX5_ATOMIC_MODE_DCT_OFF        = 20,
-	MLX5_ATOMIC_MODE_DCT_NONE       = 0 << MLX5_ATOMIC_MODE_DCT_OFF,
-	MLX5_ATOMIC_MODE_DCT_IB_COMP    = 1 << MLX5_ATOMIC_MODE_DCT_OFF,
-	MLX5_ATOMIC_MODE_DCT_CX         = 2 << MLX5_ATOMIC_MODE_DCT_OFF,
-};
-
 enum {
 	MLX5_ATOMIC_OPS_CMP_SWAP	= 1 << 0,
 	MLX5_ATOMIC_OPS_FETCH_ADD	= 1 << 1,
+	MLX5_ATOMIC_OPS_EXTENDED_CMP_SWAP = 1 << 2,
+	MLX5_ATOMIC_OPS_EXTENDED_FETCH_ADD = 1 << 3,
 };
 
 enum mlx5_page_fault_resume_flags {
@@ -353,9 +357,10 @@ struct mlx5_frag_buf {
 };
 
 struct mlx5_frag_buf_ctrl {
-	struct mlx5_frag_buf	frag_buf;
+	struct mlx5_buf_list   *frags;
 	u32			sz_m1;
-	u32			frag_sz_m1;
+	u16			frag_sz_m1;
+	u16			strides_offset;
 	u8			log_sz;
 	u8			log_stride;
 	u8			log_frag_strides;
@@ -469,6 +474,7 @@ struct mlx5_core_srq {
 
 	atomic_t		refcount;
 	struct completion	free;
+	u16		uid;
 };
 
 struct mlx5_eq_table {
@@ -575,10 +581,11 @@ struct mlx5_irq_info {
 };
 
 struct mlx5_fc_stats {
-	struct rb_root counters;
-	struct list_head addlist;
-	/* protect addlist add/splice operations */
-	spinlock_t addlist_lock;
+	spinlock_t counters_idr_lock; /* protects counters_idr */
+	struct idr counters_idr;
+	struct list_head counters;
+	struct llist_head addlist;
+	struct llist_head dellist;
 
 	struct workqueue_struct *wq;
 	struct delayed_work work;
@@ -796,7 +803,7 @@ struct mlx5_pps {
 };
 
 struct mlx5_clock {
-	rwlock_t                   lock;
+	seqlock_t                  lock;
 	struct cyclecounter        cycles;
 	struct timecounter         tc;
 	struct hwtstamp_config     hwtstamp_config;
@@ -808,6 +815,9 @@ struct mlx5_clock {
 	struct ptp_clock_info      ptp_info;
 	struct mlx5_pps            pps_info;
 };
+
+struct mlx5_fw_tracer;
+struct mlx5_vxlan;
 
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
@@ -826,6 +836,7 @@ struct mlx5_core_dev {
 		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
 		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
 	} caps;
+	u64			sys_image_guid;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
 	enum mlx5_device_state	state;
@@ -840,6 +851,7 @@ struct mlx5_core_dev {
 	atomic_t		num_qps;
 	u32			issi;
 	struct mlx5e_resources  mlx5e_res;
+	struct mlx5_vxlan       *vxlan;
 	struct {
 		struct mlx5_rsvd_gids	reserved_gids;
 		u32			roce_en;
@@ -853,6 +865,7 @@ struct mlx5_core_dev {
 	struct mlx5_clock        clock;
 	struct mlx5_ib_clock_info  *clock_info;
 	struct page             *clock_info_page;
+	struct mlx5_fw_tracer   *tracer;
 };
 
 struct mlx5_db {
@@ -981,23 +994,44 @@ static inline u32 mlx5_base_mkey(const u32 key)
 	return key & 0xffffff00u;
 }
 
-static inline void mlx5_core_init_cq_frag_buf(struct mlx5_frag_buf_ctrl *fbc,
-					      void *cqc)
+static inline void mlx5_init_fbc_offset(struct mlx5_buf_list *frags,
+					u8 log_stride, u8 log_sz,
+					u16 strides_offset,
+					struct mlx5_frag_buf_ctrl *fbc)
 {
-	fbc->log_stride	= 6 + MLX5_GET(cqc, cqc, cqe_sz);
-	fbc->log_sz	= MLX5_GET(cqc, cqc, log_cq_size);
+	fbc->frags      = frags;
+	fbc->log_stride = log_stride;
+	fbc->log_sz     = log_sz;
 	fbc->sz_m1	= (1 << fbc->log_sz) - 1;
 	fbc->log_frag_strides = PAGE_SHIFT - fbc->log_stride;
 	fbc->frag_sz_m1	= (1 << fbc->log_frag_strides) - 1;
+	fbc->strides_offset = strides_offset;
+}
+
+static inline void mlx5_init_fbc(struct mlx5_buf_list *frags,
+				 u8 log_stride, u8 log_sz,
+				 struct mlx5_frag_buf_ctrl *fbc)
+{
+	mlx5_init_fbc_offset(frags, log_stride, log_sz, 0, fbc);
 }
 
 static inline void *mlx5_frag_buf_get_wqe(struct mlx5_frag_buf_ctrl *fbc,
 					  u32 ix)
 {
-	unsigned int frag = (ix >> fbc->log_frag_strides);
+	unsigned int frag;
 
-	return fbc->frag_buf.frags[frag].buf +
-		((fbc->frag_sz_m1 & ix) << fbc->log_stride);
+	ix  += fbc->strides_offset;
+	frag = ix >> fbc->log_frag_strides;
+
+	return fbc->frags[frag].buf + ((fbc->frag_sz_m1 & ix) << fbc->log_stride);
+}
+
+static inline u32
+mlx5_frag_buf_get_idx_last_contig_stride(struct mlx5_frag_buf_ctrl *fbc, u32 ix)
+{
+	u32 last_frag_stride_idx = (ix + fbc->strides_offset) | fbc->frag_sz_m1;
+
+	return min_t(u32, last_frag_stride_idx - fbc->strides_offset, fbc->sz_m1);
 }
 
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
@@ -1020,7 +1054,7 @@ int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
 void mlx5_health_cleanup(struct mlx5_core_dev *dev);
 int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
-void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
+void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev);
@@ -1057,8 +1091,6 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
 			   struct mlx5_core_mkey *mkey);
 int mlx5_core_query_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *mkey,
 			 u32 *out, int outlen);
-int mlx5_core_dump_fill_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *_mkey,
-			     u32 *mkey);
 int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn);
 int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn);
 int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
@@ -1196,24 +1228,15 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 
-#ifndef CONFIG_MLX5_CORE_IPOIB
-static inline
-struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
-					  struct ib_device *ibdev,
-					  const char *name,
-					  void (*setup)(struct net_device *))
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void mlx5_rdma_netdev_free(struct net_device *netdev) {}
-#else
+#ifdef CONFIG_MLX5_CORE_IPOIB
 struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 					  struct ib_device *ibdev,
 					  const char *name,
 					  void (*setup)(struct net_device *));
-void mlx5_rdma_netdev_free(struct net_device *netdev);
 #endif /* CONFIG_MLX5_CORE_IPOIB */
+int mlx5_rdma_rn_get_params(struct mlx5_core_dev *mdev,
+			    struct ib_device *device,
+			    struct rdma_netdev_alloc_params *params);
 
 struct mlx5_profile {
 	u64	mask;

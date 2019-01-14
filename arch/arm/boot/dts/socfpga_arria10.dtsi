@@ -377,10 +377,25 @@
 						clk-gate = <0xC8 11>;
 					};
 
-					nand_clk: nand_clk {
+					nand_x_clk: nand_x_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-gate-clk";
 						clocks = <&l4_mp_clk>;
+						clk-gate = <0xC8 10>;
+					};
+
+					nand_ecc_clk: nand_ecc_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-a10-gate-clk";
+						clocks = <&nand_x_clk>;
+						clk-gate = <0xC8 10>;
+					};
+
+					nand_clk: nand_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-a10-gate-clk";
+						clocks = <&nand_x_clk>;
+						fixed-divider = <4>;
 						clk-gate = <0xC8 10>;
 					};
 
@@ -587,14 +602,25 @@
 			status = "disabled";
 		};
 
+		spi0: spi@ffda4000 {
+			compatible = "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xffda4000 0x100>;
+			interrupts = <0 101 4>;
+			num-cs = <4>;
+			/*32bit_access;*/
+			clocks = <&spi_m_clk>;
+			status = "disabled";
+		};
+
 		spi1: spi@ffda5000 {
 			compatible = "snps,dw-apb-ssi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xffda5000 0x100>;
 			interrupts = <0 102 4>;
-			num-chipselect = <4>;
-			bus-num = <0>;
+			num-cs = <4>;
 			/*32bit_access;*/
 			tx-dma-channel = <&pdma 16>;
 			rx-dma-channel = <&pdma 17>;
@@ -602,7 +628,7 @@
 			status = "disabled";
 		};
 
-		sdr: sdr@ffc25000 {
+		sdr: sdr@ffcfb100 {
 			compatible = "altr,sdr-ctl", "syscon";
 			reg = <0xffcfb100 0x80>;
 		};
@@ -633,13 +659,14 @@
 		nand: nand@ffb90000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "denali,denali-nand-dt", "altr,socfpga-denali-nand";
+			compatible = "altr,socfpga-denali-nand";
 			reg = <0xffb90000 0x72000>,
 			      <0xffb80000 0x10000>;
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0 99 4>;
 			dma-mask = <0xffffffff>;
-			clocks = <&nand_clk>;
+			clocks = <&nand_clk>, <&nand_x_clk>, <&nand_ecc_clk>;
+			clock-names = "nand", "nand_x", "ecc";
 			status = "disabled";
 		};
 
@@ -749,7 +776,7 @@
 		timer@ffffc600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xffffc600 0x100>;
-			interrupts = <1 13 0xf04>;
+			interrupts = <1 13 0xf01>;
 			clocks = <&mpu_periph_clk>;
 		};
 
@@ -759,6 +786,8 @@
 			reg = <0xffc02700 0x100>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer1: timer1@ffc02800 {
@@ -767,6 +796,8 @@
 			reg = <0xffc02800 0x100>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		timer2: timer2@ffd00000 {
@@ -775,6 +806,8 @@
 			reg = <0xffd00000 0x100>;
 			clocks = <&l4_sys_free_clk>;
 			clock-names = "timer";
+			resets = <&rst L4SYSTIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer3: timer3@ffd00100 {
@@ -783,6 +816,8 @@
 			reg = <0xffd01000 0x100>;
 			clocks = <&l4_sys_free_clk>;
 			clock-names = "timer";
+			resets = <&rst L4SYSTIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		uart0: serial0@ffc02000 {

@@ -55,6 +55,7 @@ enum uverbs_default_objects {
 	UVERBS_OBJECT_WQ,
 	UVERBS_OBJECT_FLOW_ACTION,
 	UVERBS_OBJECT_DM,
+	UVERBS_OBJECT_COUNTERS,
 };
 
 enum {
@@ -78,12 +79,17 @@ enum uverbs_attrs_destroy_cq_cmd_attr_ids {
 };
 
 enum uverbs_attrs_create_flow_action_esp {
-	UVERBS_ATTR_FLOW_ACTION_ESP_HANDLE,
+	UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE,
 	UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
 	UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
 	UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
 	UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
 	UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
+};
+
+enum uverbs_attrs_modify_flow_action_esp {
+	UVERBS_ATTR_MODIFY_FLOW_ACTION_ESP_HANDLE =
+		UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE,
 };
 
 enum uverbs_attrs_destroy_flow_action_esp {
@@ -129,6 +135,26 @@ enum uverbs_attrs_reg_dm_mr_cmd_attr_ids {
 
 enum uverbs_methods_mr {
 	UVERBS_METHOD_DM_MR_REG,
+};
+
+enum uverbs_attrs_create_counters_cmd_attr_ids {
+	UVERBS_ATTR_CREATE_COUNTERS_HANDLE,
+};
+
+enum uverbs_attrs_destroy_counters_cmd_attr_ids {
+	UVERBS_ATTR_DESTROY_COUNTERS_HANDLE,
+};
+
+enum uverbs_attrs_read_counters_cmd_attr_ids {
+	UVERBS_ATTR_READ_COUNTERS_HANDLE,
+	UVERBS_ATTR_READ_COUNTERS_BUFF,
+	UVERBS_ATTR_READ_COUNTERS_FLAGS,
+};
+
+enum uverbs_methods_actions_counters_ops {
+	UVERBS_METHOD_COUNTERS_CREATE,
+	UVERBS_METHOD_COUNTERS_DESTROY,
+	UVERBS_METHOD_COUNTERS_READ,
 };
 
 #endif

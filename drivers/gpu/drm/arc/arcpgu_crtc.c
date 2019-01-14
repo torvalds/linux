@@ -136,9 +136,6 @@ static void arc_pgu_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
-	if (!crtc->primary->fb)
-		return;
-
 	clk_disable_unprepare(arcpgu->clk);
 	arc_pgu_write(arcpgu, ARCPGU_REG_CTRL,
 			      arc_pgu_read(arcpgu, ARCPGU_REG_CTRL) &
@@ -189,7 +186,7 @@ static const struct drm_plane_helper_funcs arc_pgu_plane_helper_funcs = {
 
 static void arc_pgu_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane);
+	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 }
 

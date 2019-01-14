@@ -173,7 +173,7 @@ static int bnxt_vf_rep_setup_tc_block(struct net_device *dev,
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block,
 					     bnxt_vf_rep_setup_tc_block_cb,
-					     vf_rep, vf_rep);
+					     vf_rep, vf_rep, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block,
 					bnxt_vf_rep_setup_tc_block_cb, vf_rep);
@@ -209,9 +209,7 @@ struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
 void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(skb->dev);
-	struct bnxt_vf_rep_stats *rx_stats;
 
-	rx_stats = &vf_rep->rx_stats;
 	vf_rep->rx_stats.bytes += skb->len;
 	vf_rep->rx_stats.packets++;
 
@@ -444,8 +442,8 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		return -ENOMEM;
 
 	/* storage for cfa_code to vf-idx mapping */
-	cfa_code_map = kmalloc(sizeof(*bp->cfa_code_map) * MAX_CFA_CODE,
-			       GFP_KERNEL);
+	cfa_code_map = kmalloc_array(MAX_CFA_CODE, sizeof(*bp->cfa_code_map),
+				     GFP_KERNEL);
 	if (!cfa_code_map) {
 		rc = -ENOMEM;
 		goto err;
@@ -523,7 +521,8 @@ int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return 0;
 }
 
-int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
+int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
 	int rc = 0;
@@ -543,9 +542,14 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
 		break;
 
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
+		if (bp->hwrm_spec_code < 0x10803) {
+			netdev_warn(bp->dev, "FW does not support SRIOV E-Switch SWITCHDEV mode\n");
+			rc = -ENOTSUPP;
+			goto done;
+		}
+
 		if (pci_num_vf(bp->pdev) == 0) {
-			netdev_info(bp->dev,
-				    "Enable VFs before setting switchdev mode");
+			netdev_info(bp->dev, "Enable VFs before setting switchdev mode");
 			rc = -EPERM;
 			goto done;
 		}

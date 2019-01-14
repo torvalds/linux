@@ -26,6 +26,7 @@
 #include <net/sock.h>
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
+#include <net/net_namespace.h>
 
 #include "br_private.h"
 
@@ -64,7 +65,7 @@ static int port_cost(struct net_device *dev)
 
 
 /* Check for port carrier transitions. */
-void br_port_carrier_check(struct net_bridge_port *p)
+void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
 {
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
@@ -73,16 +74,21 @@ void br_port_carrier_check(struct net_bridge_port *p)
 	    netif_running(dev) && netif_oper_up(dev))
 		p->path_cost = port_cost(dev);
 
+	*notified = false;
 	if (!netif_running(br->dev))
 		return;
 
 	spin_lock_bh(&br->lock);
 	if (netif_running(dev) && netif_oper_up(dev)) {
-		if (p->state == BR_STATE_DISABLED)
+		if (p->state == BR_STATE_DISABLED) {
 			br_stp_enable_port(p);
+			*notified = true;
+		}
 	} else {
-		if (p->state != BR_STATE_DISABLED)
+		if (p->state != BR_STATE_DISABLED) {
 			br_stp_disable_port(p);
+			*notified = true;
+		}
 	}
 	spin_unlock_bh(&br->lock);
 }
@@ -164,6 +170,58 @@ void br_manage_promisc(struct net_bridge *br)
 	}
 }
 
+int nbp_backup_change(struct net_bridge_port *p,
+		      struct net_device *backup_dev)
+{
+	struct net_bridge_port *old_backup = rtnl_dereference(p->backup_port);
+	struct net_bridge_port *backup_p = NULL;
+
+	ASSERT_RTNL();
+
+	if (backup_dev) {
+		if (!br_port_exists(backup_dev))
+			return -ENOENT;
+
+		backup_p = br_port_get_rtnl(backup_dev);
+		if (backup_p->br != p->br)
+			return -EINVAL;
+	}
+
+	if (p == backup_p)
+		return -EINVAL;
+
+	if (old_backup == backup_p)
+		return 0;
+
+	/* if the backup link is already set, clear it */
+	if (old_backup)
+		old_backup->backup_redirected_cnt--;
+
+	if (backup_p)
+		backup_p->backup_redirected_cnt++;
+	rcu_assign_pointer(p->backup_port, backup_p);
+
+	return 0;
+}
+
+static void nbp_backup_clear(struct net_bridge_port *p)
+{
+	nbp_backup_change(p, NULL);
+	if (p->backup_redirected_cnt) {
+		struct net_bridge_port *cur_p;
+
+		list_for_each_entry(cur_p, &p->br->port_list, list) {
+			struct net_bridge_port *backup_p;
+
+			backup_p = rtnl_dereference(cur_p->backup_port);
+			if (backup_p == p)
+				nbp_backup_change(cur_p, NULL);
+		}
+	}
+
+	WARN_ON(rcu_access_pointer(p->backup_port) || p->backup_redirected_cnt);
+}
+
 static void nbp_update_port_count(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
@@ -199,11 +257,19 @@ static void release_nbp(struct kobject *kobj)
 	kfree(p);
 }
 
+static void brport_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
+{
+	struct net_bridge_port *p = kobj_to_brport(kobj);
+
+	net_ns_get_ownership(dev_net(p->dev), uid, gid);
+}
+
 static struct kobj_type brport_ktype = {
 #ifdef CONFIG_SYSFS
 	.sysfs_ops = &brport_sysfs_ops,
 #endif
 	.release = release_nbp,
+	.get_ownership = brport_get_ownership,
 };
 
 static void destroy_nbp(struct net_bridge_port *p)
@@ -281,6 +347,7 @@ static void del_nbp(struct net_bridge_port *p)
 	nbp_vlan_flush(p);
 	br_fdb_delete_by_port(br, p, 0, 1);
 	switchdev_deferred_process();
+	nbp_backup_clear(p);
 
 	nbp_update_port_count(br);
 
@@ -327,8 +394,7 @@ static int find_portno(struct net_bridge *br)
 	struct net_bridge_port *p;
 	unsigned long *inuse;
 
-	inuse = kcalloc(BITS_TO_LONGS(BR_MAX_PORTS), sizeof(unsigned long),
-			GFP_KERNEL);
+	inuse = bitmap_zalloc(BR_MAX_PORTS, GFP_KERNEL);
 	if (!inuse)
 		return -ENOMEM;
 
@@ -337,7 +403,7 @@ static int find_portno(struct net_bridge *br)
 		set_bit(p->port_no, inuse);
 	}
 	index = find_first_zero_bit(inuse, BR_MAX_PORTS);
-	kfree(inuse);
+	bitmap_free(inuse);
 
 	return (index >= BR_MAX_PORTS) ? -EXFULL : index;
 }
@@ -442,14 +508,14 @@ void br_mtu_auto_adjust(struct net_bridge *br)
 	ASSERT_RTNL();
 
 	/* if the bridge MTU was manually configured don't mess with it */
-	if (br->mtu_set_by_user)
+	if (br_opt_get(br, BROPT_MTU_SET_BY_USER))
 		return;
 
 	/* change to the minimum MTU and clear the flag which was set by
 	 * the bridge ndo_change_mtu callback
 	 */
 	dev_set_mtu(br->dev, br_mtu_min(br));
-	br->mtu_set_by_user = false;
+	br_opt_toggle(br, BROPT_MTU_SET_BY_USER, false);
 }
 
 static void br_set_gso_limits(struct net_bridge *br)

@@ -291,7 +291,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 	pdata.usb_phy = data->phy;
 
-	if (of_device_is_compatible(np, "fsl,imx53-usb") && pdata.usb_phy &&
+	if ((of_device_is_compatible(np, "fsl,imx53-usb") ||
+	     of_device_is_compatible(np, "fsl,imx51-usb")) && pdata.usb_phy &&
 	    of_usb_get_phy_mode(np) == USBPHY_INTERFACE_MODE_ULPI) {
 		pdata.flags |= CI_HDRC_OVERRIDE_PHY_CONTROL;
 		data->override_phy_control = true;
@@ -363,8 +364,7 @@ static void ci_hdrc_imx_shutdown(struct platform_device *pdev)
 	ci_hdrc_imx_remove(pdev);
 }
 
-#ifdef CONFIG_PM
-static int imx_controller_suspend(struct device *dev)
+static int __maybe_unused imx_controller_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 
@@ -376,7 +376,7 @@ static int imx_controller_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx_controller_resume(struct device *dev)
+static int __maybe_unused imx_controller_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret = 0;
@@ -407,8 +407,7 @@ clk_disable:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int ci_hdrc_imx_suspend(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_suspend(struct device *dev)
 {
 	int ret;
 
@@ -430,7 +429,7 @@ static int ci_hdrc_imx_suspend(struct device *dev)
 	return imx_controller_suspend(dev);
 }
 
-static int ci_hdrc_imx_resume(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -444,9 +443,8 @@ static int ci_hdrc_imx_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static int ci_hdrc_imx_runtime_suspend(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_runtime_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -465,12 +463,10 @@ static int ci_hdrc_imx_runtime_suspend(struct device *dev)
 	return imx_controller_suspend(dev);
 }
 
-static int ci_hdrc_imx_runtime_resume(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_runtime_resume(struct device *dev)
 {
 	return imx_controller_resume(dev);
 }
-
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
@@ -491,7 +487,7 @@ static struct platform_driver ci_hdrc_imx_driver = {
 module_platform_driver(ci_hdrc_imx_driver);
 
 MODULE_ALIAS("platform:imx-usb");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CI HDRC i.MX USB binding");
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");

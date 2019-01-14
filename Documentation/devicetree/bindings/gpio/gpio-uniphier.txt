@@ -6,7 +6,6 @@ Required properties:
 - gpio-controller: Marks the device node as a GPIO controller.
 - #gpio-cells: Should be 2.  The first cell is the pin number and the second
   cell is used to specify optional parameters.
-- interrupt-parent: Specifies the parent interrupt controller.
 - interrupt-controller: Marks the device node as an interrupt controller.
 - #interrupt-cells: Should be 2.  The first cell defines the interrupt number.
   The second cell bits[3:0] is used to specify trigger type as follows:

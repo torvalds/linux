@@ -4,7 +4,7 @@ config UNICORE32
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select HAVE_MEMBLOCK
+	select DMA_DIRECT_OPS
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
@@ -19,6 +19,7 @@ config UNICORE32
 	select ARCH_WANT_FRAME_POINTERS
 	select GENERIC_IOMAP
 	select MODULES_USE_ELF_REL
+	select NEED_DMA_MAP_STATE
 	help
 	  UniCore-32 is 32-bit Instruction Set Architecture,
 	  including a series of low-power-consumption RISC chip
@@ -60,13 +61,6 @@ config ARCH_MAY_HAVE_PC_FDC
 
 config ZONE_DMA
 	def_bool y
-
-config NEED_DMA_MAP_STATE
-       def_bool y
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 menu "System Type"
 
@@ -140,11 +134,7 @@ endmenu
 
 menu "Kernel Features"
 
-source "kernel/Kconfig.preempt"
-
 source "kernel/Kconfig.hz"
-
-source "mm/Kconfig"
 
 config LEDS
 	def_bool y
@@ -182,12 +172,6 @@ config CMDLINE_FORCE
 
 endmenu
 
-menu "Userspace binary formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
 menu "Power management options"
 
 source "kernel/power/Kconfig"
@@ -201,8 +185,6 @@ config ARCH_HIBERNATION_POSSIBLE
 	def_bool y if !ARCH_FPGA
 
 endmenu
-
-source "net/Kconfig"
 
 if ARCH_PUV3
 
@@ -237,15 +219,3 @@ endmenu
 endif
 
 endif
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/unicore32/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

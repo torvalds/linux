@@ -610,9 +610,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		   expect->tuple.src.l3num,
 		   expect->tuple.dst.protonum);
 	print_tuple(s, &expect->tuple,
-		    __nf_ct_l3proto_find(expect->tuple.src.l3num),
-		    __nf_ct_l4proto_find(expect->tuple.src.l3num,
-				       expect->tuple.dst.protonum));
+		    __nf_ct_l4proto_find(expect->tuple.dst.protonum));
 
 	if (expect->flags & NF_CT_EXPECT_PERMANENT) {
 		seq_puts(s, "PERMANENT");
@@ -644,19 +642,6 @@ static const struct seq_operations exp_seq_ops = {
 	.stop = exp_seq_stop,
 	.show = exp_seq_show
 };
-
-static int exp_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &exp_seq_ops,
-			sizeof(struct ct_expect_iter_state));
-}
-
-static const struct file_operations exp_file_ops = {
-	.open    = exp_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
 #endif /* CONFIG_NF_CONNTRACK_PROCFS */
 
 static int exp_proc_init(struct net *net)
@@ -666,8 +651,8 @@ static int exp_proc_init(struct net *net)
 	kuid_t root_uid;
 	kgid_t root_gid;
 
-	proc = proc_create("nf_conntrack_expect", 0440, net->proc_net,
-			   &exp_file_ops);
+	proc = proc_create_net("nf_conntrack_expect", 0440, net->proc_net,
+			&exp_seq_ops, sizeof(struct ct_expect_iter_state));
 	if (!proc)
 		return -ENOMEM;
 
@@ -726,5 +711,5 @@ void nf_conntrack_expect_fini(void)
 {
 	rcu_barrier(); /* Wait for call_rcu() before destroy */
 	kmem_cache_destroy(nf_ct_expect_cachep);
-	nf_ct_free_hashtable(nf_ct_expect_hash, nf_ct_expect_hsize);
+	kvfree(nf_ct_expect_hash);
 }

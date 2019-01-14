@@ -41,6 +41,8 @@ enum nfs4_client_state {
 	NFS4CLNT_MOVED,
 	NFS4CLNT_LEASE_MOVED,
 	NFS4CLNT_DELEGATION_EXPIRED,
+	NFS4CLNT_RUN_MANAGER,
+	NFS4CLNT_DELEGRETURN_RUNNING,
 };
 
 #define NFS4_RENEW_TIMEOUT		0x01
@@ -163,6 +165,9 @@ enum {
 	NFS_STATE_RECOVERY_FAILED,	/* OPEN stateid state recovery failed */
 	NFS_STATE_MAY_NOTIFY_LOCK,	/* server may CB_NOTIFY_LOCK */
 	NFS_STATE_CHANGE_WAIT,		/* A state changing operation is outstanding */
+#ifdef CONFIG_NFS_V4_2
+	NFS_CLNT_DST_SSC_COPY_STATE,    /* dst server open state on client*/
+#endif /* CONFIG_NFS_V4_2 */
 };
 
 struct nfs4_state {
@@ -185,9 +190,10 @@ struct nfs4_state {
 	unsigned int n_wronly;		/* Number of write-only references */
 	unsigned int n_rdwr;		/* Number of read/write references */
 	fmode_t state;			/* State on the server (R,W, or RW) */
-	atomic_t count;
+	refcount_t count;
 
 	wait_queue_head_t waitq;
+	struct rcu_head rcu_head;
 };
 
 
@@ -212,6 +218,31 @@ struct nfs4_state_recovery_ops {
 		struct rpc_cred *);
 };
 
+struct nfs4_opendata {
+	struct kref kref;
+	struct nfs_openargs o_arg;
+	struct nfs_openres o_res;
+	struct nfs_open_confirmargs c_arg;
+	struct nfs_open_confirmres c_res;
+	struct nfs4_string owner_name;
+	struct nfs4_string group_name;
+	struct nfs4_label *a_label;
+	struct nfs_fattr f_attr;
+	struct nfs4_label *f_label;
+	struct dentry *dir;
+	struct dentry *dentry;
+	struct nfs4_state_owner *owner;
+	struct nfs4_state *state;
+	struct iattr attrs;
+	struct nfs4_layoutget *lgp;
+	unsigned long timestamp;
+	bool rpc_done;
+	bool file_created;
+	bool is_recover;
+	bool cancelled;
+	int rpc_status;
+};
+
 struct nfs4_add_xprt_data {
 	struct nfs_client	*clp;
 	struct rpc_cred		*cred;
@@ -233,7 +264,7 @@ extern const struct dentry_operations nfs4_dentry_operations;
 
 /* dir.c */
 int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
-		    unsigned, umode_t, int *);
+		    unsigned, umode_t);
 
 /* super.c */
 extern struct file_system_type nfs4_fs_type;
@@ -248,10 +279,13 @@ int nfs4_replace_transport(struct nfs_server *server,
 
 /* nfs4proc.c */
 extern int nfs4_handle_exception(struct nfs_server *, int, struct nfs4_exception *);
+extern int nfs4_async_handle_error(struct rpc_task *task,
+				   struct nfs_server *server,
+				   struct nfs4_state *state, long *timeout);
 extern int nfs4_call_sync(struct rpc_clnt *, struct nfs_server *,
 			  struct rpc_message *, struct nfs4_sequence_args *,
 			  struct nfs4_sequence_res *, int);
-extern void nfs4_init_sequence(struct nfs4_sequence_args *, struct nfs4_sequence_res *, int);
+extern void nfs4_init_sequence(struct nfs4_sequence_args *, struct nfs4_sequence_res *, int, int);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, struct rpc_cred *);
 extern int nfs4_proc_get_rootfh(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *, bool);
@@ -480,7 +514,7 @@ extern int nfs4_sequence_done(struct rpc_task *task,
 			      struct nfs4_sequence_res *res);
 
 extern void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp);
-
+extern int nfs4_proc_commit(struct file *dst, __u64 offset, __u32 count, struct nfs_commitres *res);
 extern const nfs4_stateid zero_stateid;
 extern const nfs4_stateid invalid_stateid;
 

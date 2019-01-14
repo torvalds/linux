@@ -19,14 +19,21 @@ struct bpf_map_def SEC("maps") stackid_hmap = {
 	.type = BPF_MAP_TYPE_HASH,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(__u32),
-	.max_entries = 10000,
+	.max_entries = 16384,
 };
 
 struct bpf_map_def SEC("maps") stackmap = {
 	.type = BPF_MAP_TYPE_STACK_TRACE,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(__u64) * PERF_MAX_STACK_DEPTH,
-	.max_entries = 10000,
+	.max_entries = 16384,
+};
+
+struct bpf_map_def SEC("maps") stack_amap = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(__u32),
+	.value_size = sizeof(__u64) * PERF_MAX_STACK_DEPTH,
+	.max_entries = 16384,
 };
 
 /* taken from /sys/kernel/debug/tracing/events/sched/sched_switch/format */
@@ -44,7 +51,9 @@ struct sched_switch_args {
 SEC("tracepoint/sched/sched_switch")
 int oncpu(struct sched_switch_args *ctx)
 {
+	__u32 max_len = PERF_MAX_STACK_DEPTH * sizeof(__u64);
 	__u32 key = 0, val = 0, *value_p;
+	void *stack_p;
 
 	value_p = bpf_map_lookup_elem(&control_map, &key);
 	if (value_p && *value_p)
@@ -52,8 +61,12 @@ int oncpu(struct sched_switch_args *ctx)
 
 	/* The size of stackmap and stackid_hmap should be the same */
 	key = bpf_get_stackid(ctx, &stackmap, 0);
-	if ((int)key >= 0)
+	if ((int)key >= 0) {
 		bpf_map_update_elem(&stackid_hmap, &key, &val, 0);
+		stack_p = bpf_map_lookup_elem(&stack_amap, &key);
+		if (stack_p)
+			bpf_get_stack(ctx, stack_p, max_len, 0);
+	}
 
 	return 0;
 }

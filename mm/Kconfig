@@ -1,3 +1,6 @@
+
+menu "Memory Management options"
+
 config SELECT_MEMORY_MODEL
 	def_bool y
 	depends on ARCH_SELECT_MEMORY_MODEL
@@ -115,10 +118,6 @@ config SPARSEMEM_EXTREME
 config SPARSEMEM_VMEMMAP_ENABLE
 	bool
 
-config SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-	def_bool y
-	depends on SPARSEMEM && X86_64
-
 config SPARSEMEM_VMEMMAP
 	bool "Sparse Memory virtual memmap"
 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
@@ -127,9 +126,6 @@ config SPARSEMEM_VMEMMAP
 	 SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
 	 pfn_to_page and page_to_pfn operations.  This is the most
 	 efficient option when sufficient kernel resources are available.
-
-config HAVE_MEMBLOCK
-	bool
 
 config HAVE_MEMBLOCK_NODE_MAP
 	bool
@@ -141,9 +137,6 @@ config HAVE_GENERIC_GUP
 	bool
 
 config ARCH_DISCARD_MEMBLOCK
-	bool
-
-config NO_BOOTMEM
 	bool
 
 config MEMORY_ISOLATION
@@ -266,7 +259,7 @@ config ARCH_ENABLE_THP_MIGRATION
 	bool
 
 config PHYS_ADDR_T_64BIT
-	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+	def_bool 64BIT
 
 config BOUNCE
 	bool "Enable bounce buffers"
@@ -305,7 +298,7 @@ config KSM
 	  the many instances by a single page with that content, so
 	  saving memory until one or another app needs to modify the content.
 	  Recommended for use with KVM, or with other duplicative applications.
-	  See Documentation/vm/ksm.txt for more information: KSM is inactive
+	  See Documentation/vm/ksm.rst for more information: KSM is inactive
 	  until a program has madvised that an area is MADV_MERGEABLE, and
 	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
 
@@ -380,7 +373,7 @@ config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
 	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select COMPACTION
-	select RADIX_TREE_MULTIORDER
+	select XARRAY_MULTI
 	help
 	  Transparent Hugepages allows the kernel to use huge pages and
 	  huge tlb transparently to the applications whenever possible.
@@ -420,10 +413,11 @@ config ARCH_WANTS_THP_SWAP
 
 config THP_SWAP
 	def_bool y
-	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP
+	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
 	help
 	  Swap transparent huge pages in one piece, without splitting.
-	  XXX: For now this only does clustered swap space allocation.
+	  XXX: For now, swap cluster backing transparent huge page
+	  will be split after swapout.
 
 	  For selection by architectures with reasonable THP sizes.
 
@@ -481,7 +475,7 @@ config FRONTSWAP
 
 config CMA
 	bool "Contiguous Memory Allocator"
-	depends on HAVE_MEMBLOCK && MMU
+	depends on MMU
 	select MIGRATION
 	select MEMORY_ISOLATION
 	help
@@ -530,7 +524,7 @@ config MEM_SOFT_DIRTY
 	  into a page just as regular dirty bit, but unlike the latter
 	  it can be cleared by hands.
 
-	  See Documentation/vm/soft-dirty.txt for more details.
+	  See Documentation/admin-guide/mm/soft-dirty.rst for more details.
 
 config ZSWAP
 	bool "Compressed cache for swap pages (EXPERIMENTAL)"
@@ -634,9 +628,9 @@ config MAX_STACK_SIZE_MB
 config DEFERRED_STRUCT_PAGE_INIT
 	bool "Defer initialisation of struct pages to kthreads"
 	default n
-	depends on NO_BOOTMEM
-	depends on !FLATMEM
+	depends on SPARSEMEM
 	depends on !NEED_PER_CPU_KM
+	depends on 64BIT
 	help
 	  Ordinarily all struct pages are initialised during early boot in a
 	  single thread. On very large machines this can take a considerable
@@ -657,7 +651,8 @@ config IDLE_PAGE_TRACKING
 	  be useful to tune memory cgroup limits and/or for job placement
 	  within a compute cluster.
 
-	  See Documentation/vm/idle_page_tracking.txt for more details.
+	  See Documentation/admin-guide/mm/idle_page_tracking.rst for
+	  more details.
 
 # arch_add_memory() comprehends device memory
 config ARCH_HAS_ZONE_DEVICE
@@ -669,7 +664,7 @@ config ZONE_DEVICE
 	depends on MEMORY_HOTREMOVE
 	depends on SPARSEMEM_VMEMMAP
 	depends on ARCH_HAS_ZONE_DEVICE
-	select RADIX_TREE_MULTIORDER
+	select XARRAY_MULTI
 
 	help
 	  Device memory hotplug support allows for establishing pmem,
@@ -693,6 +688,9 @@ config ARCH_HAS_HMM
 config MIGRATE_VMA_HELPER
 	bool
 
+config DEV_PAGEMAP_OPS
+	bool
+
 config HMM
 	bool
 	select MIGRATE_VMA_HELPER
@@ -713,6 +711,7 @@ config DEVICE_PRIVATE
 	bool "Unaddressable device memory (GPU memory, ...)"
 	depends on ARCH_HAS_HMM
 	select HMM
+	select DEV_PAGEMAP_OPS
 
 	help
 	  Allows creation of struct pages to represent unaddressable device
@@ -723,6 +722,7 @@ config DEVICE_PUBLIC
 	bool "Addressable device memory (like GPU memory)"
 	depends on ARCH_HAS_HMM
 	select HMM
+	select DEV_PAGEMAP_OPS
 
 	help
 	  Allows creation of struct pages to represent addressable device
@@ -753,3 +753,8 @@ config GUP_BENCHMARK
 	  performance of get_user_pages_fast().
 
 	  See tools/testing/selftests/vm/gup_benchmark.c
+
+config ARCH_HAS_PTE_SPECIAL
+	bool
+
+endmenu

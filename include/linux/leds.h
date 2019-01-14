@@ -22,6 +22,7 @@
 #include <linux/workqueue.h>
 
 struct device;
+struct led_pattern;
 /*
  * LED Core
  */
@@ -87,6 +88,10 @@ struct led_classdev {
 	int		(*blink_set)(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,
 				     unsigned long *delay_off);
+
+	int (*pattern_set)(struct led_classdev *led_cdev,
+			   struct led_pattern *pattern, u32 len, int repeat);
+	int (*pattern_clear)(struct led_classdev *led_cdev);
 
 	struct device		*dev;
 	const struct attribute_group	**groups;
@@ -253,7 +258,7 @@ static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
 struct led_trigger {
 	/* Trigger Properties */
 	const char	 *name;
-	void		(*activate)(struct led_classdev *led_cdev);
+	int		(*activate)(struct led_classdev *led_cdev);
 	void		(*deactivate)(struct led_classdev *led_cdev);
 
 	/* LEDs under control by this trigger (for simple triggers) */
@@ -262,7 +267,18 @@ struct led_trigger {
 
 	/* Link to next registered trigger */
 	struct list_head  next_trig;
+
+	const struct attribute_group **groups;
 };
+
+/*
+ * Currently the attributes in struct led_trigger::groups are added directly to
+ * the LED device. As this might change in the future, the following
+ * macros abstract getting the LED device and its trigger_data from the dev
+ * parameter passed to the attribute accessor functions.
+ */
+#define led_trigger_get_led(dev)	((struct led_classdev *)dev_get_drvdata((dev)))
+#define led_trigger_get_drvdata(dev)	(led_get_trigger_data(led_trigger_get_led(dev)))
 
 ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count);
@@ -288,9 +304,15 @@ extern void led_trigger_blink_oneshot(struct led_trigger *trigger,
 				      unsigned long *delay_off,
 				      int invert);
 extern void led_trigger_set_default(struct led_classdev *led_cdev);
-extern void led_trigger_set(struct led_classdev *led_cdev,
-			struct led_trigger *trigger);
+extern int led_trigger_set(struct led_classdev *led_cdev,
+			   struct led_trigger *trigger);
 extern void led_trigger_remove(struct led_classdev *led_cdev);
+
+static inline void led_set_trigger_data(struct led_classdev *led_cdev,
+					void *trigger_data)
+{
+	led_cdev->trigger_data = trigger_data;
+}
 
 static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 {
@@ -315,6 +337,10 @@ static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 extern void led_trigger_rename_static(const char *name,
 				      struct led_trigger *trig);
 
+#define module_led_trigger(__led_trigger) \
+	module_driver(__led_trigger, led_trigger_register, \
+		      led_trigger_unregister)
+
 #else
 
 /* Trigger has no members */
@@ -334,9 +360,14 @@ static inline void led_trigger_blink_oneshot(struct led_trigger *trigger,
 				      unsigned long *delay_off,
 				      int invert) {}
 static inline void led_trigger_set_default(struct led_classdev *led_cdev) {}
-static inline void led_trigger_set(struct led_classdev *led_cdev,
-				struct led_trigger *trigger) {}
+static inline int led_trigger_set(struct led_classdev *led_cdev,
+				  struct led_trigger *trigger)
+{
+	return 0;
+}
+
 static inline void led_trigger_remove(struct led_classdev *led_cdev) {}
+static inline void led_set_trigger_data(struct led_classdev *led_cdev) {}
 static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 {
 	return NULL;
@@ -445,5 +476,15 @@ extern void led_classdev_notify_brightness_hw_changed(
 static inline void led_classdev_notify_brightness_hw_changed(
 	struct led_classdev *led_cdev, enum led_brightness brightness) { }
 #endif
+
+/**
+ * struct led_pattern - pattern interval settings
+ * @delta_t: pattern interval delay, in milliseconds
+ * @brightness: pattern interval brightness
+ */
+struct led_pattern {
+	u32 delta_t;
+	int brightness;
+};
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

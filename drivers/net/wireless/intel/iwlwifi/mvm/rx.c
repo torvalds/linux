@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -254,6 +249,74 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
+				  struct ieee80211_sta *sta,
+				  struct ieee80211_hdr *hdr, u32 len,
+				  struct iwl_rx_phy_info *phy_info,
+				  u32 rate_n_flags)
+{
+	struct iwl_mvm_sta *mvmsta;
+	struct iwl_mvm_tcm_mac *mdata;
+	int mac;
+	int ac = IEEE80211_AC_BE; /* treat non-QoS as BE */
+	struct iwl_mvm_vif *mvmvif;
+	/* expected throughput in 100Kbps, single stream, 20 MHz */
+	static const u8 thresh_tpt[] = {
+		9, 18, 30, 42, 60, 78, 90, 96, 120, 135,
+	};
+	u16 thr;
+
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		ac = tid_to_mac80211_ac[ieee80211_get_tid(hdr)];
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
+
+	if (time_after(jiffies, mvm->tcm.ts + MVM_TCM_PERIOD))
+		schedule_delayed_work(&mvm->tcm.work, 0);
+	mdata = &mvm->tcm.data[mac];
+	mdata->rx.pkts[ac]++;
+
+	/* count the airtime only once for each ampdu */
+	if (mdata->rx.last_ampdu_ref != mvm->ampdu_ref) {
+		mdata->rx.last_ampdu_ref = mvm->ampdu_ref;
+		mdata->rx.airtime += le16_to_cpu(phy_info->frame_time);
+	}
+
+	if (!(rate_n_flags & (RATE_MCS_HT_MSK | RATE_MCS_VHT_MSK)))
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+
+	if (mdata->opened_rx_ba_sessions ||
+	    mdata->uapsd_nonagg_detect.detected ||
+	    (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&
+	     !mvmvif->queue_params[IEEE80211_AC_VI].uapsd &&
+	     !mvmvif->queue_params[IEEE80211_AC_BE].uapsd &&
+	     !mvmvif->queue_params[IEEE80211_AC_BK].uapsd) ||
+	    mvmsta->sta_id != mvmvif->ap_sta_id)
+		return;
+
+	if (rate_n_flags & RATE_MCS_HT_MSK) {
+		thr = thresh_tpt[rate_n_flags & RATE_HT_MCS_RATE_CODE_MSK];
+		thr *= 1 + ((rate_n_flags & RATE_HT_MCS_NSS_MSK) >>
+					RATE_HT_MCS_NSS_POS);
+	} else {
+		if (WARN_ON((rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK) >=
+				ARRAY_SIZE(thresh_tpt)))
+			return;
+		thr = thresh_tpt[rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK];
+		thr *= 1 + ((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
+					RATE_VHT_MCS_NSS_POS);
+	}
+
+	thr <<= ((rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) >>
+				RATE_MCS_CHAN_WIDTH_POS);
+
+	mdata->uapsd_nonagg_detect.rx_bytes += len;
+	ewma_rate_add(&mdata->uapsd_nonagg_detect.rate, thr);
+}
+
 static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
 			    struct sk_buff *skb,
 			    u32 status)
@@ -370,13 +433,14 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		struct ieee80211_vif *tx_blocked_vif =
 			rcu_dereference(mvm->csa_tx_blocked_vif);
+		struct iwl_fw_dbg_trigger_tlv *trig;
+		struct ieee80211_vif *vif = mvmsta->vif;
 
 		/* We have tx blocked stations (with CS bit). If we heard
 		 * frames from a blocked station on a new channel we can
 		 * TX to it again.
 		 */
-		if (unlikely(tx_blocked_vif) &&
-		    mvmsta->vif == tx_blocked_vif) {
+		if (unlikely(tx_blocked_vif) && vif == tx_blocked_vif) {
 			struct iwl_mvm_vif *mvmvif =
 				iwl_mvm_vif_from_mac80211(tx_blocked_vif);
 
@@ -387,26 +451,27 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 		rs_update_last_rssi(mvm, mvmsta, rx_status);
 
-		if (iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_RSSI) &&
-		    ieee80211_is_beacon(hdr->frame_control)) {
-			struct iwl_fw_dbg_trigger_tlv *trig;
+		trig = iwl_fw_dbg_trigger_on(&mvm->fwrt,
+					     ieee80211_vif_to_wdev(vif),
+					     FW_DBG_TRIGGER_RSSI);
+
+		if (trig && ieee80211_is_beacon(hdr->frame_control)) {
 			struct iwl_fw_dbg_trigger_low_rssi *rssi_trig;
-			bool trig_check;
 			s32 rssi;
 
-			trig = iwl_fw_dbg_get_trigger(mvm->fw,
-						      FW_DBG_TRIGGER_RSSI);
 			rssi_trig = (void *)trig->data;
 			rssi = le32_to_cpu(rssi_trig->rssi);
 
-			trig_check =
-				iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-							      ieee80211_vif_to_wdev(mvmsta->vif),
-							      trig);
-			if (trig_check && rx_status->signal < rssi)
+			if (rx_status->signal < rssi)
 				iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
 							NULL);
 		}
+
+		if (!mvm->tcm.paused && len >= sizeof(*hdr) &&
+		    !is_multicast_ether_addr(hdr->addr1) &&
+		    ieee80211_is_data(hdr->frame_control))
+			iwl_mvm_rx_handle_tcm(mvm, sta, hdr, len, phy_info,
+					      rate_n_flags);
 
 		if (ieee80211_is_data(hdr->frame_control))
 			iwl_mvm_rx_csum(sta, skb, rx_pkt_status);
@@ -624,14 +689,11 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 	struct iwl_fw_dbg_trigger_stats *trig_stats;
 	u32 trig_offset, trig_thold;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_STATS))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt, NULL, FW_DBG_TRIGGER_STATS);
+	if (!trig)
 		return;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_STATS);
 	trig_stats = (void *)trig->data;
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
-		return;
 
 	trig_offset = le32_to_cpu(trig_stats->stop_offset);
 	trig_thold = le32_to_cpu(trig_stats->stop_threshold);
@@ -654,7 +716,8 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	int expected_size;
 	int i;
 	u8 *energy;
-	__le32 *bytes, *air_time;
+	__le32 *bytes;
+	__le32 *air_time;
 	__le32 flags;
 
 	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
@@ -752,6 +815,32 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		sta->avg_energy = energy[i];
 	}
 	rcu_read_unlock();
+
+	/*
+	 * Don't update in case the statistics are not cleared, since
+	 * we will end up counting twice the same airtime, once in TCM
+	 * request and once in statistics notification.
+	 */
+	if (!(le32_to_cpu(flags) & IWL_STATISTICS_REPLY_FLG_CLEAR))
+		return;
+
+	spin_lock(&mvm->tcm.lock);
+	for (i = 0; i < NUM_MAC_INDEX_DRIVER; i++) {
+		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[i];
+		u32 airtime = le32_to_cpu(air_time[i]);
+		u32 rx_bytes = le32_to_cpu(bytes[i]);
+
+		mdata->uapsd_nonagg_detect.rx_bytes += rx_bytes;
+		if (airtime) {
+			/* re-init every time to store rate from FW */
+			ewma_rate_init(&mdata->uapsd_nonagg_detect.rate);
+			ewma_rate_add(&mdata->uapsd_nonagg_detect.rate,
+				      rx_bytes * 8 / airtime);
+		}
+
+		mdata->rx.airtime += airtime;
+	}
+	spin_unlock(&mvm->tcm.lock);
 }
 
 void iwl_mvm_rx_statistics(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)

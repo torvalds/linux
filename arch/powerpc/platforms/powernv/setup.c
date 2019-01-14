@@ -78,6 +78,12 @@ static void init_fw_feat_flags(struct device_node *np)
 	if (fw_feature_is("enabled", "fw-count-cache-disabled", np))
 		security_ftr_set(SEC_FTR_COUNT_CACHE_DISABLED);
 
+	if (fw_feature_is("enabled", "fw-count-cache-flush-bcctr2,0,0", np))
+		security_ftr_set(SEC_FTR_BCCTR_FLUSH_ASSIST);
+
+	if (fw_feature_is("enabled", "needs-count-cache-flush-on-context-switch", np))
+		security_ftr_set(SEC_FTR_FLUSH_COUNT_CACHE);
+
 	/*
 	 * The features below are enabled by default, so we instead look to see
 	 * if firmware has *disabled* them, and clear them if so.
@@ -124,6 +130,7 @@ static void pnv_setup_rfi_flush(void)
 		  security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV));
 
 	setup_rfi_flush(type, enable);
+	setup_count_cache_flush();
 }
 
 static void __init pnv_setup_arch(void)
@@ -212,17 +219,41 @@ static void pnv_prepare_going_down(void)
 
 static void  __noreturn pnv_restart(char *cmd)
 {
-	long rc = OPAL_BUSY;
+	long rc;
 
 	pnv_prepare_going_down();
 
-	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		rc = opal_cec_reboot();
-		if (rc == OPAL_BUSY_EVENT)
-			opal_poll_events(NULL);
+	do {
+		if (!cmd)
+			rc = opal_cec_reboot();
+		else if (strcmp(cmd, "full") == 0)
+			rc = opal_cec_reboot2(OPAL_REBOOT_FULL_IPL, NULL);
 		else
+			rc = OPAL_UNSUPPORTED;
+
+		if (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+			/* Opal is busy wait for some time and retry */
+			opal_poll_events(NULL);
 			mdelay(10);
-	}
+
+		} else	if (cmd && rc) {
+			/* Unknown error while issuing reboot */
+			if (rc == OPAL_UNSUPPORTED)
+				pr_err("Unsupported '%s' reboot.\n", cmd);
+			else
+				pr_err("Unable to issue '%s' reboot. Err=%ld\n",
+				       cmd, rc);
+			pr_info("Forcing a cec-reboot\n");
+			cmd = NULL;
+			rc = OPAL_BUSY;
+
+		} else if (rc != OPAL_SUCCESS) {
+			/* Unknown error while issuing cec-reboot */
+			pr_err("Unable to reboot. Err=%ld\n", rc);
+		}
+
+	} while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT);
+
 	for (;;)
 		opal_poll_events(NULL);
 }
@@ -313,7 +344,7 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 	u64 reinit_flags;
 
 	if (xive_enabled())
-		xive_kexec_teardown_cpu(secondary);
+		xive_teardown_cpu();
 	else
 		xics_kexec_teardown_cpu(secondary);
 
@@ -357,15 +388,7 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 static unsigned long pnv_memory_block_size(void)
 {
-	/*
-	 * We map the kernel linear region with 1GB large pages on radix. For
-	 * memory hot unplug to work our memory block size must be at least
-	 * this size.
-	 */
-	if (radix_enabled())
-		return 1UL * 1024 * 1024 * 1024;
-	else
-		return 256UL * 1024 * 1024;
+	return 256UL * 1024 * 1024;
 }
 #endif
 
@@ -438,6 +461,16 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 	return ret_freq;
 }
 
+static long pnv_machine_check_early(struct pt_regs *regs)
+{
+	long handled = 0;
+
+	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
+		handled = cur_cpu_spec->machine_check_early(regs);
+
+	return handled;
+}
+
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
@@ -449,6 +482,7 @@ define_machine(powernv) {
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = NULL,
 	.calibrate_decr		= generic_calibrate_decr,
+	.machine_check_early	= pnv_machine_check_early,
 #ifdef CONFIG_KEXEC_CORE
 	.kexec_cpu_down		= pnv_kexec_cpu_down,
 #endif

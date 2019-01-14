@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2016 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2016 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -30,9 +30,9 @@
 #include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 #include "vmwgfx_binding.h"
+#include "ttm_object.h"
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_object.h>
 #include <drm/ttm/ttm_module.h>
 #include <linux/dma_remapping.h>
 
@@ -48,6 +48,8 @@
 #endif
 
 #define VMWGFX_REPO "In Tree"
+
+#define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
 
 
 /**
@@ -137,6 +139,12 @@
 #define DRM_IOCTL_VMW_CREATE_EXTENDED_CONTEXT			\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_CREATE_EXTENDED_CONTEXT,	\
 		struct drm_vmw_context_arg)
+#define DRM_IOCTL_VMW_GB_SURFACE_CREATE_EXT				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_GB_SURFACE_CREATE_EXT,	\
+		union drm_vmw_gb_surface_create_ext_arg)
+#define DRM_IOCTL_VMW_GB_SURFACE_REF_EXT				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_GB_SURFACE_REF_EXT,		\
+		union drm_vmw_gb_surface_reference_ext_arg)
 
 /**
  * The core DRM version of this macro doesn't account for
@@ -153,20 +161,20 @@
 static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_GET_PARAM, vmw_getparam_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
-	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
+	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_bo_alloc_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
-	VMW_IOCTL_DEF(VMW_UNREF_DMABUF, vmw_dmabuf_unref_ioctl,
+	VMW_IOCTL_DEF(VMW_UNREF_DMABUF, vmw_bo_unref_ioctl,
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_CURSOR_BYPASS,
 		      vmw_kms_cursor_bypass_ioctl,
-		      DRM_MASTER | DRM_CONTROL_ALLOW),
+		      DRM_MASTER),
 
 	VMW_IOCTL_DEF(VMW_CONTROL_STREAM, vmw_overlay_ioctl,
-		      DRM_MASTER | DRM_CONTROL_ALLOW),
+		      DRM_MASTER),
 	VMW_IOCTL_DEF(VMW_CLAIM_STREAM, vmw_stream_claim_ioctl,
-		      DRM_MASTER | DRM_CONTROL_ALLOW),
+		      DRM_MASTER),
 	VMW_IOCTL_DEF(VMW_UNREF_STREAM, vmw_stream_unref_ioctl,
-		      DRM_MASTER | DRM_CONTROL_ALLOW),
+		      DRM_MASTER),
 
 	VMW_IOCTL_DEF(VMW_CREATE_CONTEXT, vmw_context_define_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
@@ -219,10 +227,16 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      vmw_gb_surface_reference_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_SYNCCPU,
-		      vmw_user_dmabuf_synccpu_ioctl,
+		      vmw_user_bo_synccpu_ioctl,
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_CREATE_EXTENDED_CONTEXT,
 		      vmw_extended_context_define_ioctl,
+		      DRM_AUTH | DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_GB_SURFACE_CREATE_EXT,
+		      vmw_gb_surface_define_ext_ioctl,
+		      DRM_AUTH | DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_GB_SURFACE_REF_EXT,
+		      vmw_gb_surface_reference_ext_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
@@ -257,6 +271,15 @@ module_param_named(restrict_dma_mask, vmw_restrict_dma_mask, int, 0600);
 MODULE_PARM_DESC(assume_16bpp, "Assume 16-bpp when filtering modes");
 module_param_named(assume_16bpp, vmw_assume_16bpp, int, 0600);
 
+
+static void vmw_print_capabilities2(uint32_t capabilities2)
+{
+	DRM_INFO("Capabilities2:\n");
+	if (capabilities2 & SVGA_CAP2_GROW_OTABLE)
+		DRM_INFO("  Grow oTable.\n");
+	if (capabilities2 & SVGA_CAP2_INTRA_SURFACE_COPY)
+		DRM_INFO("  IntraSurface copy.\n");
+}
 
 static void vmw_print_capabilities(uint32_t capabilities)
 {
@@ -321,7 +344,7 @@ static void vmw_print_capabilities(uint32_t capabilities)
 static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 {
 	int ret;
-	struct vmw_dma_buffer *vbo;
+	struct vmw_buffer_object *vbo;
 	struct ttm_bo_kmap_obj map;
 	volatile SVGA3dQueryResult *result;
 	bool dummy;
@@ -335,9 +358,9 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	if (!vbo)
 		return -ENOMEM;
 
-	ret = vmw_dmabuf_init(dev_priv, vbo, PAGE_SIZE,
-			      &vmw_sys_ne_placement, false,
-			      &vmw_dmabuf_bo_free);
+	ret = vmw_bo_init(dev_priv, vbo, PAGE_SIZE,
+			  &vmw_sys_ne_placement, false,
+			  &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -358,7 +381,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Dummy query buffer map failed.\n");
-		vmw_dmabuf_unreference(&vbo);
+		vmw_bo_unreference(&vbo);
 	} else
 		dev_priv->dummy_query_bo = vbo;
 
@@ -460,7 +483,7 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 
 	BUG_ON(dev_priv->pinned_bo != NULL);
 
-	vmw_dmabuf_unreference(&dev_priv->dummy_query_bo);
+	vmw_bo_unreference(&dev_priv->dummy_query_bo);
 	if (dev_priv->cman)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 
@@ -644,9 +667,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
+	mutex_init(&dev_priv->requested_layout_mutex);
 	mutex_init(&dev_priv->global_kms_state_mutex);
-	rwlock_init(&dev_priv->resource_lock);
 	ttm_lock_init(&dev_priv->reservation_sem);
+	spin_lock_init(&dev_priv->resource_lock);
 	spin_lock_init(&dev_priv->hw_lock);
 	spin_lock_init(&dev_priv->waiter_lock);
 	spin_lock_init(&dev_priv->cap_lock);
@@ -683,6 +707,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
+
+	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER) {
+		dev_priv->capabilities2 = vmw_read(dev_priv, SVGA_REG_CAP2);
+	}
+
+
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
 		DRM_INFO("Restricting capabilities due to IOMMU setup.\n");
@@ -751,6 +781,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	vmw_print_capabilities(dev_priv->capabilities);
+	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER)
+		vmw_print_capabilities2(dev_priv->capabilities2);
 
 	ret = vmw_dma_masks(dev_priv);
 	if (unlikely(ret != 0))
@@ -883,12 +915,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (dev_priv->has_mob) {
 		spin_lock(&dev_priv->cap_lock);
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_DX);
+		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_DXCONTEXT);
 		dev_priv->has_dx = !!vmw_read(dev_priv, SVGA_REG_DEV_CAP);
 		spin_unlock(&dev_priv->cap_lock);
 	}
 
-
+	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;
@@ -898,9 +930,23 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (ret)
 		goto out_no_fifo;
 
+	if (dev_priv->has_dx) {
+		/*
+		 * SVGA_CAP2_DX2 (DefineGBSurface_v3) is needed for SM4_1
+		 * support
+		 */
+		if ((dev_priv->capabilities2 & SVGA_CAP2_DX2) != 0) {
+			vmw_write(dev_priv, SVGA_REG_DEV_CAP,
+					SVGA3D_DEVCAP_SM41);
+			dev_priv->has_sm4_1 = vmw_read(dev_priv,
+							SVGA_REG_DEV_CAP);
+		}
+	}
+
 	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
-	DRM_INFO("Atomic: %s\n",
-		 (dev->driver->driver_features & DRIVER_ATOMIC) ? "yes" : "no");
+	DRM_INFO("Atomic: %s\n", (dev->driver->driver_features & DRIVER_ATOMIC)
+		 ? "yes." : "no.");
+	DRM_INFO("SM4_1: %s\n", dev_priv->has_sm4_1 ? "yes." : "no.");
 
 	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
 		VMWGFX_REPO, VMWGFX_GIT_VERSION);

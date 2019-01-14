@@ -20,6 +20,9 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 
+#include "trans.h"
+#include "core.h"
+
 #define QTNF_MAX_MAC		3
 
 enum qtnf_fw_state {
@@ -27,7 +30,8 @@ enum qtnf_fw_state {
 	QTNF_FW_STATE_FW_DNLD_DONE,
 	QTNF_FW_STATE_BOOT_DONE,
 	QTNF_FW_STATE_ACTIVE,
-	QTNF_FW_STATE_DEAD,
+	QTNF_FW_STATE_DETACHED,
+	QTNF_FW_STATE_EP_DEAD,
 };
 
 struct qtnf_bus;
@@ -56,10 +60,8 @@ struct qtnf_bus {
 	struct qtnf_wmac *mac[QTNF_MAX_MAC];
 	struct qtnf_qlink_transport trans;
 	struct qtnf_hw_info hw_info;
-	char fwname[32];
 	struct napi_struct mux_napi;
 	struct net_device mux_dev;
-	struct completion firmware_init_complete;
 	struct workqueue_struct *workqueue;
 	struct work_struct fw_work;
 	struct work_struct event_work;

@@ -1640,13 +1640,7 @@ isdn_ioctl(struct file *file, uint cmd, ulong arg)
 			} else
 				return -EINVAL;
 		case IIOCDBGVAR:
-			if (arg) {
-				if (copy_to_user(argp, &dev, sizeof(ulong)))
-					return -EFAULT;
-				return 0;
-			} else
-				return -EINVAL;
-			break;
+			return -EINVAL;
 		default:
 			if ((cmd & IIOCDRVCTL) == IIOCDRVCTL)
 				cmd = ((cmd >> _IOC_NRSHIFT) & _IOC_NRMASK) & ISDN_DRVIOCTL_MASK;
@@ -2070,14 +2064,14 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
 
 	if ((adding) && (d->rcverr))
 		kfree(d->rcverr);
-	if (!(d->rcverr = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
+	if (!(d->rcverr = kcalloc(m, sizeof(int), GFP_ATOMIC))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcverr\n");
 		return -1;
 	}
 
 	if ((adding) && (d->rcvcount))
 		kfree(d->rcvcount);
-	if (!(d->rcvcount = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
+	if (!(d->rcvcount = kcalloc(m, sizeof(int), GFP_ATOMIC))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcvcount\n");
 		if (!adding)
 			kfree(d->rcverr);
@@ -2089,7 +2083,8 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
 			skb_queue_purge(&d->rpqueue[j]);
 		kfree(d->rpqueue);
 	}
-	if (!(d->rpqueue = kmalloc(sizeof(struct sk_buff_head) * m, GFP_ATOMIC))) {
+	d->rpqueue = kmalloc_array(m, sizeof(struct sk_buff_head), GFP_ATOMIC);
+	if (!d->rpqueue) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rpqueue\n");
 		if (!adding) {
 			kfree(d->rcvcount);
@@ -2103,7 +2098,8 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
 
 	if ((adding) && (d->rcv_waitq))
 		kfree(d->rcv_waitq);
-	d->rcv_waitq = kmalloc(sizeof(wait_queue_head_t) * 2 * m, GFP_ATOMIC);
+	d->rcv_waitq = kmalloc(array3_size(sizeof(wait_queue_head_t), 2, m),
+			       GFP_ATOMIC);
 	if (!d->rcv_waitq) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcv_waitq\n");
 		if (!adding) {

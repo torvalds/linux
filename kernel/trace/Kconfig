@@ -12,22 +12,22 @@ config NOP_TRACER
 config HAVE_FTRACE_NMI_ENTER
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_FUNCTION_TRACER
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_FUNCTION_GRAPH_TRACER
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_DYNAMIC_FTRACE
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_DYNAMIC_FTRACE_WITH_REGS
 	bool
@@ -35,17 +35,22 @@ config HAVE_DYNAMIC_FTRACE_WITH_REGS
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_SYSCALL_TRACEPOINTS
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_FENTRY
 	bool
 	help
 	  Arch supports the gcc options -pg with -mfentry
+
+config HAVE_NOP_MCOUNT
+	bool
+	help
+	  Arch supports the gcc options -pg with -mrecord-mcount and -nop-mcount
 
 config HAVE_C_RECORDMCOUNT
 	bool
@@ -82,6 +87,15 @@ config RING_BUFFER_ALLOW_SWAP
 	 Allow the use of ring_buffer_swap_cpu.
 	 Adds a very slight overhead to tracing when enabled.
 
+config PREEMPTIRQ_TRACEPOINTS
+	bool
+	depends on TRACE_PREEMPT_TOGGLE || TRACE_IRQFLAGS
+	select TRACING
+	default y
+	help
+	  Create preempt/irq toggle tracepoints if needed, so that other parts
+	  of the kernel can use them to generate or add hooks to them.
+
 # All tracer options should select GENERIC_TRACER. For those options that are
 # enabled by all tracers (context switch and event tracer) they select TRACING.
 # This allows those options to appear when no other tracer is selected. But the
@@ -110,11 +124,7 @@ config GENERIC_TRACER
 #
 config TRACING_SUPPORT
 	bool
-	# PPC32 has no irqflags tracing support, but it can use most of the
-	# tracers anyway, they were tested to build and work. Note that new
-	# exceptions to this list aren't welcomed, better implement the
-	# irqflags tracing for your architecture.
-	depends on TRACE_IRQFLAGS_SUPPORT || PPC32
+	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on STACKTRACE_SUPPORT
 	default y
 
@@ -159,18 +169,20 @@ config FUNCTION_GRAPH_TRACER
 	  the return value. This is done by setting the current return
 	  address on the current task structure into a stack of calls.
 
+config TRACE_PREEMPT_TOGGLE
+	bool
+	help
+	  Enables hooks which will be called when preemption is first disabled,
+	  and last enabled.
 
 config PREEMPTIRQ_EVENTS
 	bool "Enable trace events for preempt and irq disable/enable"
 	select TRACE_IRQFLAGS
-	depends on DEBUG_PREEMPT || !PROVE_LOCKING
-	depends on TRACING
+	select TRACE_PREEMPT_TOGGLE if PREEMPT
+	select GENERIC_TRACER
 	default n
 	help
 	  Enable tracing of disable and enable events for preemption and irqs.
-	  For tracing preempt disable/enable events, DEBUG_PREEMPT must be
-	  enabled. For tracing irq disable/enable events, PROVE_LOCKING must
-	  be disabled.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
@@ -207,6 +219,7 @@ config PREEMPT_TRACER
 	select RING_BUFFER_ALLOW_SWAP
 	select TRACER_SNAPSHOT
 	select TRACER_SNAPSHOT_PER_CPU_SWAP
+	select TRACE_PREEMPT_TOGGLE
 	help
 	  This option measures the time spent in preemption-off critical
 	  sections, with microsecond accuracy.
@@ -452,13 +465,33 @@ config KPROBE_EVENTS
 	help
 	  This allows the user to add tracing events (similar to tracepoints)
 	  on the fly via the ftrace interface. See
-	  Documentation/trace/kprobetrace.txt for more details.
+	  Documentation/trace/kprobetrace.rst for more details.
 
 	  Those events can be inserted wherever kprobes can probe, and record
 	  various register and memory values.
 
 	  This option is also required by perf-probe subcommand of perf tools.
 	  If you want to use perf tools, this option is strongly recommended.
+
+config KPROBE_EVENTS_ON_NOTRACE
+	bool "Do NOT protect notrace function from kprobe events"
+	depends on KPROBE_EVENTS
+	depends on KPROBES_ON_FTRACE
+	default n
+	help
+	  This is only for the developers who want to debug ftrace itself
+	  using kprobe events.
+
+	  If kprobes can use ftrace instead of breakpoint, ftrace related
+	  functions are protected from kprobe-events to prevent an infinit
+	  recursion or any unexpected execution path which leads to a kernel
+	  crash.
+
+	  This option disables such protection and allows you to put kprobe
+	  events on ftrace functions for debugging ftrace by itself.
+	  Note that this might let you shoot yourself in the foot.
+
+	  If unsure, say N.
 
 config UPROBE_EVENTS
 	bool "Enable uprobes-based dynamic events"
@@ -525,7 +558,7 @@ config FUNCTION_PROFILER
 	  in debugfs called function_profile_enabled which defaults to zero.
 	  When a 1 is echoed into this file profiling begins, and when a
 	  zero is entered, profiling stops. A "functions" file is created in
-	  the trace_stats directory; this file shows the list of functions that
+	  the trace_stat directory; this file shows the list of functions that
 	  have been hit and their counters.
 
 	  If in doubt, say N.
@@ -579,7 +612,7 @@ config MMIOTRACE
 	  implementation and works via page faults. Tracing is disabled by
 	  default and can be enabled at run-time.
 
-	  See Documentation/trace/mmiotrace.txt.
+	  See Documentation/trace/mmiotrace.rst.
 	  If you are not helping to develop drivers, say N.
 
 config TRACING_MAP
@@ -609,7 +642,7 @@ config HIST_TRIGGERS
 	  Inter-event tracing of quantities such as latencies is also
 	  supported using hist triggers under this option.
 
-	  See Documentation/trace/histogram.txt.
+	  See Documentation/trace/histogram.rst.
 	  If in doubt, say N.
 
 config MMIOTRACE_TEST
@@ -691,6 +724,21 @@ config RING_BUFFER_STARTUP_TEST
 
 	 If unsure, say N
 
+config PREEMPTIRQ_DELAY_TEST
+	tristate "Preempt / IRQ disable delay thread to test latency tracers"
+	depends on m
+	help
+	  Select this option to build a test module that can help test latency
+	  tracers by executing a preempt or irq disable section with a user
+	  configurable delay. The module busy waits for the duration of the
+	  critical section.
+
+	  For example, the following invocation forces a one-time irq-disabled
+	  critical section for 500us:
+	  modprobe preemptirq_delay_test test_mode=irq delay=500000
+
+	  If unsure, say N
+
 config TRACE_EVAL_MAP_FILE
        bool "Show eval mappings for trace events"
        depends on TRACING
@@ -725,6 +773,18 @@ config TRACING_EVENTS_GPIO
 	default y
 	help
 	  Enable tracing events for gpio subsystem
+
+config GCOV_PROFILE_FTRACE
+	bool "Enable GCOV profiling on ftrace subsystem"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling on ftrace subsystem for checking
+	  which functions/lines are tested.
+
+	  If unsure, say N.
+
+	  Note that on a kernel compiled with this config, ftrace will
+	  run significantly slower.
 
 endif # FTRACE
 

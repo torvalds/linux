@@ -479,8 +479,8 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 		return PTR_ERR(i2s->clk_ref);
 	}
 
-	i2s->suspend_ch_ctl = devm_kzalloc(dev,
-		sizeof(*i2s->suspend_ch_ctl) * i2s->max_i2s_chan, GFP_KERNEL);
+	i2s->suspend_ch_ctl = devm_kcalloc(dev,
+		i2s->max_i2s_chan, sizeof(*i2s->suspend_ch_ctl), GFP_KERNEL);
 	if (!i2s->suspend_ch_ctl)
 		return -ENOMEM;
 

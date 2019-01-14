@@ -1120,7 +1120,7 @@ static const struct dvb_frontend_ops si2165_ops = {
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 7200000,
 		/* For DVB-T */
-		.frequency_stepsize = 166667,
+		.frequency_stepsize_hz = 166667,
 		.caps = FE_CAN_FEC_1_2 |
 			FE_CAN_FEC_2_3 |
 			FE_CAN_FEC_3_4 |

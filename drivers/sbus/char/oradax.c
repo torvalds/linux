@@ -30,7 +30,7 @@
  * the recommended way for applications to use the coprocessor, and
  * the driver interface is not intended for general use.
  *
- * See Documentation/sparc/oradax/oracle_dax.txt for more details.
+ * See Documentation/sparc/oradax/oracle-dax.txt for more details.
  */
 
 #include <linux/uaccess.h>
@@ -689,8 +689,7 @@ static int dax_open(struct inode *inode, struct file *f)
 alloc_error:
 	kfree(ctx->ccb_buf);
 done:
-	if (ctx != NULL)
-		kfree(ctx);
+	kfree(ctx);
 	return -ENOMEM;
 }
 

@@ -2,55 +2,101 @@
 #ifndef _TSTYPE_H_
 #define _TSTYPE_H_
 #include "rtl819x_Qos.h"
-#define TS_SETUP_TIMEOUT	60  /*  In millisecond */
-#define TS_INACT_TIMEOUT	60
+
 #define TS_ADDBA_DELAY		60
 
 #define TOTAL_TS_NUM		16
 #define TCLAS_NUM		4
 
 /*  This define the Tx/Rx directions */
-typedef enum _TR_SELECT {
+enum tr_select {
 	TX_DIR = 0,
 	RX_DIR = 1,
-} TR_SELECT, *PTR_SELECT;
+};
 
-typedef struct _TS_COMMON_INFO {
-	struct list_head		List;
-	struct timer_list		SetupTimer;
-	struct timer_list		InactTimer;
-	u8				Addr[6];
-	TSPEC_BODY			TSpec;
-	QOS_TCLAS			TClass[TCLAS_NUM];
-	u8				TClasProc;
-	u8				TClasNum;
-} TS_COMMON_INFO, *PTS_COMMON_INFO;
+union qos_tclas {
+	struct type_general {
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+	} type_general;
 
-typedef struct _TX_TS_RECORD {
-	TS_COMMON_INFO		TsCommonInfo;
-	u16				TxCurSeq;
-	BA_RECORD			TxPendingBARecord;	/*  For BA Originator */
-	BA_RECORD			TxAdmittedBARecord;	/*  For BA Originator */
-/* 	QOS_DL_RECORD		DLRecord; */
-	u8				bAddBaReqInProgress;
-	u8				bAddBaReqDelayed;
-	u8				bUsingBa;
-	struct timer_list		TsAddBaTimer;
+	struct type0_eth {
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u8		src_addr[6];
+		u8		dst_addr[6];
+		u16		type;
+	} type0_eth;
+
+	struct type1_ipv4 {
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u8		version;
+		u8		src_ip[4];
+		u8		dst_ip[4];
+		u16		src_port;
+		u16		dst_port;
+		u8		dscp;
+		u8		protocol;
+		u8		reserved;
+	} type1_ipv4;
+
+	struct type1_ipv6 {
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u8		version;
+		u8		src_ip[16];
+		u8		dst_ip[16];
+		u16		src_port;
+		u16		dst_port;
+		u8		flow_label[3];
+	} type1_ipv6;
+
+	struct type2_8021q {
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u16		tag_type;
+	} type2_8021q;
+};
+
+struct ts_common_info {
+	struct list_head		list;
+	struct timer_list		setup_timer;
+	struct timer_list		inact_timer;
+	u8				addr[6];
+	struct tspec_body		t_spec;
+	union qos_tclas			t_class[TCLAS_NUM];
+	u8				t_clas_proc;
+	u8				t_clas_num;
+};
+
+struct tx_ts_record {
+	struct ts_common_info		ts_common_info;
+	u16				tx_cur_seq;
+	struct ba_record		tx_pending_ba_record;
+	struct ba_record		tx_admitted_ba_record;
+	u8				add_ba_req_in_progress;
+	u8				add_ba_req_delayed;
+	u8				using_ba;
+	struct timer_list		ts_add_ba_timer;
 	u8				num;
-} TX_TS_RECORD, *PTX_TS_RECORD;
+};
 
-typedef struct _RX_TS_RECORD {
-	TS_COMMON_INFO		TsCommonInfo;
-	u16				RxIndicateSeq;
-	u16				RxTimeoutIndicateSeq;
-	struct list_head		RxPendingPktList;
-	struct timer_list		RxPktPendingTimer;
-	BA_RECORD			RxAdmittedBARecord;	 /*  For BA Recipient */
-	u16				RxLastSeqNum;
-	u8				RxLastFragNum;
+struct rx_ts_record {
+	struct ts_common_info		ts_common_info;
+	u16				rx_indicate_seq;
+	u16				rx_timeout_indicate_seq;
+	struct list_head		rx_pending_pkt_list;
+	struct timer_list		rx_pkt_pending_timer;
+	struct ba_record		rx_admitted_ba_record;
+	u16				rx_last_seq_num;
+	u8				rx_last_frag_num;
 	u8				num;
-/* 	QOS_DL_RECORD		DLRecord; */
-} RX_TS_RECORD, *PRX_TS_RECORD;
-
+};
 
 #endif

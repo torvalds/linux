@@ -14,7 +14,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mfd/tmio.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 #include <linux/i2c.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -28,7 +28,6 @@
 #include <video/sh_mobile_lcdc.h>
 #include <media/drv-intf/renesas-ceu.h>
 #include <media/i2c/ov772x.h>
-#include <media/soc_camera.h>
 #include <media/i2c/tw9910.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
@@ -166,23 +165,21 @@ static struct mtd_partition migor_nand_flash_partitions[] = {
 	},
 };
 
-static void migor_nand_flash_cmd_ctl(struct mtd_info *mtd, int cmd,
+static void migor_nand_flash_cmd_ctl(struct nand_chip *chip, int cmd,
 				     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if (cmd == NAND_CMD_NONE)
 		return;
 
 	if (ctrl & NAND_CLE)
-		writeb(cmd, chip->IO_ADDR_W + 0x00400000);
+		writeb(cmd, chip->legacy.IO_ADDR_W + 0x00400000);
 	else if (ctrl & NAND_ALE)
-		writeb(cmd, chip->IO_ADDR_W + 0x00800000);
+		writeb(cmd, chip->legacy.IO_ADDR_W + 0x00800000);
 	else
-		writeb(cmd, chip->IO_ADDR_W);
+		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
-static int migor_nand_flash_ready(struct mtd_info *mtd)
+static int migor_nand_flash_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(GPIO_PTA1); /* NAND_RBn */
 }
@@ -351,15 +348,16 @@ static struct platform_device migor_ceu_device = {
 static struct gpiod_lookup_table ov7725_gpios = {
 	.dev_id		= "0-0021",
 	.table		= {
-		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT0, "pwdn", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT3, "rstb", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT0, "powerdown",
+			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT3, "reset", GPIO_ACTIVE_LOW),
 	},
 };
 
 static struct gpiod_lookup_table tw9910_gpios = {
 	.dev_id		= "0-0045",
 	.table		= {
-		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT2, "pdn", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT2, "pdn", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT3, "rstb", GPIO_ACTIVE_LOW),
 	},
 };
@@ -592,7 +590,7 @@ static int __init migor_devices_setup(void)
 	}
 
 	/* Add a clock alias for ov7725 xclk source. */
-	clk_add_alias("xclk", "0-0021", "video_clk", NULL);
+	clk_add_alias(NULL, "0-0021", "video_clk", NULL);
 
 	/* Register GPIOs for video sources. */
 	gpiod_add_lookup_table(&ov7725_gpios);

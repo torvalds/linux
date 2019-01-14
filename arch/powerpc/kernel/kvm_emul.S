@@ -23,6 +23,7 @@
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
+#include <asm/asm-compat.h>
 
 #define KVM_MAGIC_PAGE		(-4096)
 

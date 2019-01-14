@@ -203,11 +203,11 @@ opcodes as defined in linux/filter.h stand for:
 
   Instruction      Addressing mode      Description
 
-  ld               1, 2, 3, 4, 10       Load word into A
+  ld               1, 2, 3, 4, 12       Load word into A
   ldi              4                    Load word into A
   ldh              1, 2                 Load half-word into A
   ldb              1, 2                 Load byte into A
-  ldx              3, 4, 5, 10          Load word into X
+  ldx              3, 4, 5, 12          Load word into X
   ldxi             4                    Load word into X
   ldxb             5                    Load byte into X
 
@@ -216,14 +216,14 @@ opcodes as defined in linux/filter.h stand for:
 
   jmp              6                    Jump to label
   ja               6                    Jump to label
-  jeq              7, 8                 Jump on A == k
-  jneq             8                    Jump on A != k
-  jne              8                    Jump on A != k
-  jlt              8                    Jump on A <  k
-  jle              8                    Jump on A <= k
-  jgt              7, 8                 Jump on A >  k
-  jge              7, 8                 Jump on A >= k
-  jset             7, 8                 Jump on A &  k
+  jeq              7, 8, 9, 10          Jump on A == <x>
+  jneq             9, 10                Jump on A != <x>
+  jne              9, 10                Jump on A != <x>
+  jlt              9, 10                Jump on A <  <x>
+  jle              9, 10                Jump on A <= <x>
+  jgt              7, 8, 9, 10          Jump on A >  <x>
+  jge              7, 8, 9, 10          Jump on A >= <x>
+  jset             7, 8, 9, 10          Jump on A &  <x>
 
   add              0, 4                 A + <x>
   sub              0, 4                 A - <x>
@@ -240,7 +240,7 @@ opcodes as defined in linux/filter.h stand for:
   tax                                   Copy A into X
   txa                                   Copy X into A
 
-  ret              4, 9                 Return
+  ret              4, 11                Return
 
 The next table shows addressing formats from the 2nd column:
 
@@ -254,9 +254,11 @@ The next table shows addressing formats from the 2nd column:
    5               4*([k]&0xf)          Lower nibble * 4 at byte offset k in the packet
    6               L                    Jump label L
    7               #k,Lt,Lf             Jump to Lt if true, otherwise jump to Lf
-   8               #k,Lt                Jump to Lt if predicate is true
-   9               a/%a                 Accumulator A
-  10               extension            BPF extension
+   8               x/%x,Lt,Lf           Jump to Lt if true, otherwise jump to Lf
+   9               #k,Lt                Jump to Lt if predicate is true
+  10               x/%x,Lt              Jump to Lt if predicate is true
+  11               a/%a                 Accumulator A
+  12               extension            BPF extension
 
 The Linux kernel also has a couple of BPF extensions that are used along
 with the class of load instructions by "overloading" the k argument with
@@ -482,6 +484,12 @@ Example output from dmesg:
 [ 3389.935850] JIT code: 00000020: e8 1d 94 ff e0 3d 00 08 00 00 75 16 be 17 00 00
 [ 3389.935851] JIT code: 00000030: 00 e8 28 94 ff e0 83 f8 01 75 07 b8 ff ff 00 00
 [ 3389.935852] JIT code: 00000040: eb 02 31 c0 c9 c3
+
+When CONFIG_BPF_JIT_ALWAYS_ON is enabled, bpf_jit_enable is permanently set to 1 and
+setting any other value than that will return in failure. This is even the case for
+setting bpf_jit_enable to 2, since dumping the final JIT image into the kernel log
+is discouraged and introspection through bpftool (under tools/bpf/bpftool/) is the
+generally recommended approach instead.
 
 In the kernel source tree under tools/bpf/, there's bpf_jit_disasm for
 generating disassembly out of the kernel log's hexdump:
@@ -1119,6 +1127,14 @@ pointer type.  The types of pointers describe their base, as follows:
     PTR_TO_STACK        Frame pointer.
     PTR_TO_PACKET       skb->data.
     PTR_TO_PACKET_END   skb->data + headlen; arithmetic forbidden.
+    PTR_TO_SOCKET       Pointer to struct bpf_sock_ops, implicitly refcounted.
+    PTR_TO_SOCKET_OR_NULL
+                        Either a pointer to a socket, or NULL; socket lookup
+                        returns this type, which becomes a PTR_TO_SOCKET when
+                        checked != NULL. PTR_TO_SOCKET is reference-counted,
+                        so programs must release the reference through the
+                        socket release function before the end of the program.
+                        Arithmetic on these pointers is forbidden.
 However, a pointer may be offset from this base (as a result of pointer
 arithmetic), and this is tracked in two parts: the 'fixed offset' and 'variable
 offset'.  The former is used when an exactly-known value (e.g. an immediate
@@ -1136,6 +1152,7 @@ into a register from memory, the register's top 56 bits are known zero, while
 the low 8 are unknown - which is represented as the tnum (0x0; 0xff).  If we
 then OR this with 0x40, we get (0x40; 0xbf), then if we add 1 we get (0x0;
 0x1ff), because of potential carries.
+
 Besides arithmetic, the register state can also be updated by conditional
 branches.  For instance, if a SCALAR_VALUE is compared > 8, in the 'true' branch
 it will have a umin_value (unsigned minimum value) of 9, whereas in the 'false'
@@ -1144,14 +1161,16 @@ BPF_JSGE) would instead update the signed minimum/maximum values.  Information
 from the signed and unsigned bounds can be combined; for instance if a value is
 first tested < 8 and then tested s> 4, the verifier will conclude that the value
 is also > 4 and s< 8, since the bounds prevent crossing the sign boundary.
+
 PTR_TO_PACKETs with a variable offset part have an 'id', which is common to all
 pointers sharing that same variable offset.  This is important for packet range
-checks: after adding some variable to a packet pointer, if you then copy it to
-another register and (say) add a constant 4, both registers will share the same
-'id' but one will have a fixed offset of +4.  Then if it is bounds-checked and
-found to be less than a PTR_TO_PACKET_END, the other register is now known to
-have a safe range of at least 4 bytes.  See 'Direct packet access', below, for
-more on PTR_TO_PACKET ranges.
+checks: after adding a variable to a packet pointer register A, if you then copy
+it to another register B and then add a constant 4 to A, both registers will
+share the same 'id' but the A will have a fixed offset of +4.  Then if A is
+bounds-checked and found to be less than a PTR_TO_PACKET_END, the register B is
+now known to have a safe range of at least 4 bytes.  See 'Direct packet access',
+below, for more on PTR_TO_PACKET ranges.
+
 The 'id' field is also used on PTR_TO_MAP_VALUE_OR_NULL, common to all copies of
 the pointer returned from a map lookup.  This means that when one copy is
 checked and found to be non-NULL, all copies can become PTR_TO_MAP_VALUEs.
@@ -1162,6 +1181,13 @@ over the Ethernet header, then reads IHL and addes (IHL * 4), the resulting
 pointer will have a variable offset known to be 4n+2 for some n, so adding the 2
 bytes (NET_IP_ALIGN) gives a 4-byte alignment and so word-sized accesses through
 that pointer are safe.
+The 'id' field is also used on PTR_TO_SOCKET and PTR_TO_SOCKET_OR_NULL, common
+to all copies of the pointer returned from a socket lookup. This has similar
+behaviour to the handling for PTR_TO_MAP_VALUE_OR_NULL->PTR_TO_MAP_VALUE, but
+it also handles reference tracking for the pointer. PTR_TO_SOCKET implicitly
+represents a reference to the corresponding 'struct sock'. To ensure that the
+reference is not leaked, it is imperative to NULL-check the reference and in
+the non-NULL case, and pass the valid reference to the socket release function.
 
 Direct packet access
 --------------------
@@ -1434,6 +1460,55 @@ Error:
   from 5 to 8: R0=imm0 R10=fp
   8: (7a) *(u64 *)(r0 +0) = 1
   R0 invalid mem access 'imm'
+
+Program that performs a socket lookup then sets the pointer to NULL without
+checking it:
+value:
+  BPF_MOV64_IMM(BPF_REG_2, 0),
+  BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_2, -8),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_MOV64_IMM(BPF_REG_3, 4),
+  BPF_MOV64_IMM(BPF_REG_4, 0),
+  BPF_MOV64_IMM(BPF_REG_5, 0),
+  BPF_EMIT_CALL(BPF_FUNC_sk_lookup_tcp),
+  BPF_MOV64_IMM(BPF_REG_0, 0),
+  BPF_EXIT_INSN(),
+Error:
+  0: (b7) r2 = 0
+  1: (63) *(u32 *)(r10 -8) = r2
+  2: (bf) r2 = r10
+  3: (07) r2 += -8
+  4: (b7) r3 = 4
+  5: (b7) r4 = 0
+  6: (b7) r5 = 0
+  7: (85) call bpf_sk_lookup_tcp#65
+  8: (b7) r0 = 0
+  9: (95) exit
+  Unreleased reference id=1, alloc_insn=7
+
+Program that performs a socket lookup but does not NULL-check the returned
+value:
+  BPF_MOV64_IMM(BPF_REG_2, 0),
+  BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_2, -8),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_MOV64_IMM(BPF_REG_3, 4),
+  BPF_MOV64_IMM(BPF_REG_4, 0),
+  BPF_MOV64_IMM(BPF_REG_5, 0),
+  BPF_EMIT_CALL(BPF_FUNC_sk_lookup_tcp),
+  BPF_EXIT_INSN(),
+Error:
+  0: (b7) r2 = 0
+  1: (63) *(u32 *)(r10 -8) = r2
+  2: (bf) r2 = r10
+  3: (07) r2 += -8
+  4: (b7) r3 = 4
+  5: (b7) r4 = 0
+  6: (b7) r5 = 0
+  7: (85) call bpf_sk_lookup_tcp#65
+  8: (95) exit
+  Unreleased reference id=1, alloc_insn=7
 
 Testing
 -------

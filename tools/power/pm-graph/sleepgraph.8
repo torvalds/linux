@@ -65,9 +65,9 @@ During test, enable/disable runtime suspend for all devices. The test is delayed
 by 5 seconds to allow runtime suspend changes to occur. The settings are restored
 after the test is complete.
 .TP
-\fB-display \fIon/off\fR
-Turn the display on or off for the test using the xset command. This helps
-maintain the consistecy of test data for better comparison.
+\fB-display \fIon/off/standby/suspend\fR
+Switch the display to the requested mode for the test using the xset command.
+This helps maintain the consistency of test data for better comparison.
 .TP
 \fB-skiphtml\fR
 Run the test and capture the trace logs, but skip the timeline generation.
@@ -168,6 +168,7 @@ Create a summary page of all tests in \fIindir\fR. Creates summary.html
 in the current folder. The output page is a table of tests with
 suspend and resume values sorted by suspend mode, host, and kernel.
 Includes test averages by mode and links to the test html files.
+Use -genhtml to include tests with missing html.
 .TP
 \fB-modes\fR
 List available suspend modes.
@@ -178,6 +179,16 @@ with any options you intend to use to see if they will work.
 .TP
 \fB-fpdt\fR
 Print out the contents of the ACPI Firmware Performance Data Table.
+.TP
+\fB-battery\fR
+Print out battery status and current charge.
+.TP
+\fB-xon/-xoff/-xstandby/-xsuspend\fR
+Test xset by attempting to switch the display to the given mode. This
+is the same command which will be issued by \fB-display \fImode\fR.
+.TP
+\fB-xstat\fR
+Get the current DPMS display mode.
 .TP
 \fB-sysinfo\fR
 Print out system info extracted from BIOS. Reads /dev/mem directly instead of going through dmidecode.

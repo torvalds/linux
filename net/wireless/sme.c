@@ -642,11 +642,15 @@ static bool cfg80211_is_all_idle(void)
 	 * All devices must be idle as otherwise if you are actively
 	 * scanning some new beacon hints could be learned and would
 	 * count as new regulatory hints.
+	 * Also if there is any other active beaconing interface we
+	 * need not issue a disconnect hint and reset any info such
+	 * as chan dfs state, etc.
 	 */
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			wdev_lock(wdev);
-			if (wdev->conn || wdev->current_bss)
+			if (wdev->conn || wdev->current_bss ||
+			    cfg80211_beaconing_iface_active(wdev))
 				is_all_idle = false;
 			wdev_unlock(wdev);
 		}
@@ -803,8 +807,8 @@ void cfg80211_connect_done(struct net_device *dev,
 
 	ev = kzalloc(sizeof(*ev) + (params->bssid ? ETH_ALEN : 0) +
 		     params->req_ie_len + params->resp_ie_len +
-		     params->fils_kek_len + params->pmk_len +
-		     (params->pmkid ? WLAN_PMKID_LEN : 0), gfp);
+		     params->fils.kek_len + params->fils.pmk_len +
+		     (params->fils.pmkid ? WLAN_PMKID_LEN : 0), gfp);
 	if (!ev) {
 		cfg80211_put_bss(wdev->wiphy, params->bss);
 		return;
@@ -831,27 +835,29 @@ void cfg80211_connect_done(struct net_device *dev,
 		       params->resp_ie_len);
 		next += params->resp_ie_len;
 	}
-	if (params->fils_kek_len) {
-		ev->cr.fils_kek = next;
-		ev->cr.fils_kek_len = params->fils_kek_len;
-		memcpy((void *)ev->cr.fils_kek, params->fils_kek,
-		       params->fils_kek_len);
-		next += params->fils_kek_len;
+	if (params->fils.kek_len) {
+		ev->cr.fils.kek = next;
+		ev->cr.fils.kek_len = params->fils.kek_len;
+		memcpy((void *)ev->cr.fils.kek, params->fils.kek,
+		       params->fils.kek_len);
+		next += params->fils.kek_len;
 	}
-	if (params->pmk_len) {
-		ev->cr.pmk = next;
-		ev->cr.pmk_len = params->pmk_len;
-		memcpy((void *)ev->cr.pmk, params->pmk, params->pmk_len);
-		next += params->pmk_len;
+	if (params->fils.pmk_len) {
+		ev->cr.fils.pmk = next;
+		ev->cr.fils.pmk_len = params->fils.pmk_len;
+		memcpy((void *)ev->cr.fils.pmk, params->fils.pmk,
+		       params->fils.pmk_len);
+		next += params->fils.pmk_len;
 	}
-	if (params->pmkid) {
-		ev->cr.pmkid = next;
-		memcpy((void *)ev->cr.pmkid, params->pmkid, WLAN_PMKID_LEN);
+	if (params->fils.pmkid) {
+		ev->cr.fils.pmkid = next;
+		memcpy((void *)ev->cr.fils.pmkid, params->fils.pmkid,
+		       WLAN_PMKID_LEN);
 		next += WLAN_PMKID_LEN;
 	}
-	ev->cr.update_erp_next_seq_num = params->update_erp_next_seq_num;
-	if (params->update_erp_next_seq_num)
-		ev->cr.fils_erp_next_seq_num = params->fils_erp_next_seq_num;
+	ev->cr.fils.update_erp_next_seq_num = params->fils.update_erp_next_seq_num;
+	if (params->fils.update_erp_next_seq_num)
+		ev->cr.fils.erp_next_seq_num = params->fils.erp_next_seq_num;
 	if (params->bss)
 		cfg80211_hold_bss(bss_from_pub(params->bss));
 	ev->cr.bss = params->bss;
@@ -930,6 +936,7 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
+	u8 *next;
 
 	if (!info->bss) {
 		info->bss = cfg80211_get_bss(wdev->wiphy, info->channel,
@@ -942,19 +949,52 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	if (WARN_ON(!info->bss))
 		return;
 
-	ev = kzalloc(sizeof(*ev) + info->req_ie_len + info->resp_ie_len, gfp);
+	ev = kzalloc(sizeof(*ev) + info->req_ie_len + info->resp_ie_len +
+		     info->fils.kek_len + info->fils.pmk_len +
+		     (info->fils.pmkid ? WLAN_PMKID_LEN : 0), gfp);
 	if (!ev) {
 		cfg80211_put_bss(wdev->wiphy, info->bss);
 		return;
 	}
 
 	ev->type = EVENT_ROAMED;
-	ev->rm.req_ie = ((u8 *)ev) + sizeof(*ev);
-	ev->rm.req_ie_len = info->req_ie_len;
-	memcpy((void *)ev->rm.req_ie, info->req_ie, info->req_ie_len);
-	ev->rm.resp_ie = ((u8 *)ev) + sizeof(*ev) + info->req_ie_len;
-	ev->rm.resp_ie_len = info->resp_ie_len;
-	memcpy((void *)ev->rm.resp_ie, info->resp_ie, info->resp_ie_len);
+	next = ((u8 *)ev) + sizeof(*ev);
+	if (info->req_ie_len) {
+		ev->rm.req_ie = next;
+		ev->rm.req_ie_len = info->req_ie_len;
+		memcpy((void *)ev->rm.req_ie, info->req_ie, info->req_ie_len);
+		next += info->req_ie_len;
+	}
+	if (info->resp_ie_len) {
+		ev->rm.resp_ie = next;
+		ev->rm.resp_ie_len = info->resp_ie_len;
+		memcpy((void *)ev->rm.resp_ie, info->resp_ie,
+		       info->resp_ie_len);
+		next += info->resp_ie_len;
+	}
+	if (info->fils.kek_len) {
+		ev->rm.fils.kek = next;
+		ev->rm.fils.kek_len = info->fils.kek_len;
+		memcpy((void *)ev->rm.fils.kek, info->fils.kek,
+		       info->fils.kek_len);
+		next += info->fils.kek_len;
+	}
+	if (info->fils.pmk_len) {
+		ev->rm.fils.pmk = next;
+		ev->rm.fils.pmk_len = info->fils.pmk_len;
+		memcpy((void *)ev->rm.fils.pmk, info->fils.pmk,
+		       info->fils.pmk_len);
+		next += info->fils.pmk_len;
+	}
+	if (info->fils.pmkid) {
+		ev->rm.fils.pmkid = next;
+		memcpy((void *)ev->rm.fils.pmkid, info->fils.pmkid,
+		       WLAN_PMKID_LEN);
+		next += WLAN_PMKID_LEN;
+	}
+	ev->rm.fils.update_erp_next_seq_num = info->fils.update_erp_next_seq_num;
+	if (info->fils.update_erp_next_seq_num)
+		ev->rm.fils.erp_next_seq_num = info->fils.erp_next_seq_num;
 	ev->rm.bss = info->bss;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
@@ -1135,6 +1175,8 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	cfg80211_oper_and_ht_capa(&connect->ht_capa_mask,
 				  rdev->wiphy.ht_capa_mod_mask);
+	cfg80211_oper_and_vht_capa(&connect->vht_capa_mask,
+				   rdev->wiphy.vht_capa_mod_mask);
 
 	if (connkeys && connkeys->def >= 0) {
 		int idx;

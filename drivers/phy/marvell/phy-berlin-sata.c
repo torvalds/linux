@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell Berlin SATA PHY driver
  *
  * Copyright (C) 2014 Marvell Technology Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/clk.h>
@@ -234,14 +231,14 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 		struct phy_berlin_desc *phy_desc;
 
 		if (of_property_read_u32(child, "reg", &phy_id)) {
-			dev_err(dev, "missing reg property in node %s\n",
-				child->name);
+			dev_err(dev, "missing reg property in node %pOFn\n",
+				child);
 			ret = -EINVAL;
 			goto put_child;
 		}
 
 		if (phy_id >= ARRAY_SIZE(phy_berlin_power_down_bits)) {
-			dev_err(dev, "invalid reg in node %s\n", child->name);
+			dev_err(dev, "invalid reg in node %pOFn\n", child);
 			ret = -EINVAL;
 			goto put_child;
 		}

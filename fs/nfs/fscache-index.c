@@ -88,8 +88,8 @@ enum fscache_checkaux nfs_fscache_inode_check_aux(void *cookie_netfs_data,
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	memset(&auxdata, 0, sizeof(auxdata));
-	auxdata.mtime = nfsi->vfs_inode.i_mtime;
-	auxdata.ctime = nfsi->vfs_inode.i_ctime;
+	auxdata.mtime = timespec64_to_timespec(nfsi->vfs_inode.i_mtime);
+	auxdata.ctime = timespec64_to_timespec(nfsi->vfs_inode.i_ctime);
 
 	if (NFS_SERVER(&nfsi->vfs_inode)->nfs_client->rpc_ops->version == 4)
 		auxdata.change_attr = inode_peek_iversion_raw(&nfsi->vfs_inode);

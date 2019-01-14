@@ -136,7 +136,7 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.cap.max_send_wr = ISERT_QP_MAX_REQ_DTOS + 1;
 	attr.cap.max_recv_wr = ISERT_QP_MAX_RECV_DTOS + 1;
 	attr.cap.max_rdma_ctxs = ISCSI_DEF_XMIT_CMDS_MAX;
-	attr.cap.max_send_sge = device->ib_device->attrs.max_sge;
+	attr.cap.max_send_sge = device->ib_device->attrs.max_send_sge;
 	attr.cap.max_recv_sge = 1;
 	attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	attr.qp_type = IB_QPT_RC;
@@ -181,8 +181,9 @@ isert_alloc_rx_descriptors(struct isert_conn *isert_conn)
 	u64 dma_addr;
 	int i, j;
 
-	isert_conn->rx_descs = kzalloc(ISERT_QP_MAX_RECV_DTOS *
-				sizeof(struct iser_rx_desc), GFP_KERNEL);
+	isert_conn->rx_descs = kcalloc(ISERT_QP_MAX_RECV_DTOS,
+				       sizeof(struct iser_rx_desc),
+				       GFP_KERNEL);
 	if (!isert_conn->rx_descs)
 		return -ENOMEM;
 
@@ -261,7 +262,7 @@ isert_alloc_comps(struct isert_device *device)
 
 	isert_info("Using %d CQs, %s supports %d vectors support "
 		   "pi_capable %d\n",
-		   device->comps_used, device->ib_device->name,
+		   device->comps_used, dev_name(&device->ib_device->dev),
 		   device->ib_device->num_comp_vectors,
 		   device->pi_capable);
 
@@ -298,7 +299,8 @@ isert_create_device_ib_res(struct isert_device *device)
 	struct ib_device *ib_dev = device->ib_device;
 	int ret;
 
-	isert_dbg("devattr->max_sge: %d\n", ib_dev->attrs.max_sge);
+	isert_dbg("devattr->max_send_sge: %d devattr->max_recv_sge %d\n",
+		  ib_dev->attrs.max_send_sge, ib_dev->attrs.max_recv_sge);
 	isert_dbg("devattr->max_sge_rd: %d\n", ib_dev->attrs.max_sge_rd);
 
 	ret = isert_alloc_comps(device);
@@ -808,7 +810,7 @@ isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 static int
 isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 {
-	struct ib_recv_wr *rx_wr, *rx_wr_failed;
+	struct ib_recv_wr *rx_wr;
 	int i, ret;
 	struct iser_rx_desc *rx_desc;
 
@@ -824,8 +826,7 @@ isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 	rx_wr--;
 	rx_wr->next = NULL; /* mark end of work requests list */
 
-	ret = ib_post_recv(isert_conn->qp, isert_conn->rx_wr,
-			   &rx_wr_failed);
+	ret = ib_post_recv(isert_conn->qp, isert_conn->rx_wr, NULL);
 	if (ret)
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
 
@@ -835,7 +836,7 @@ isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 static int
 isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
 {
-	struct ib_recv_wr *rx_wr_failed, rx_wr;
+	struct ib_recv_wr rx_wr;
 	int ret;
 
 	if (!rx_desc->in_use) {
@@ -852,7 +853,7 @@ isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
 	rx_wr.num_sge = 1;
 	rx_wr.next = NULL;
 
-	ret = ib_post_recv(isert_conn->qp, &rx_wr, &rx_wr_failed);
+	ret = ib_post_recv(isert_conn->qp, &rx_wr, NULL);
 	if (ret)
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
 
@@ -863,7 +864,7 @@ static int
 isert_login_post_send(struct isert_conn *isert_conn, struct iser_tx_desc *tx_desc)
 {
 	struct ib_device *ib_dev = isert_conn->cm_id->device;
-	struct ib_send_wr send_wr, *send_wr_failed;
+	struct ib_send_wr send_wr;
 	int ret;
 
 	ib_dma_sync_single_for_device(ib_dev, tx_desc->dma_addr,
@@ -878,11 +879,27 @@ isert_login_post_send(struct isert_conn *isert_conn, struct iser_tx_desc *tx_des
 	send_wr.opcode	= IB_WR_SEND;
 	send_wr.send_flags = IB_SEND_SIGNALED;
 
-	ret = ib_post_send(isert_conn->qp, &send_wr, &send_wr_failed);
+	ret = ib_post_send(isert_conn->qp, &send_wr, NULL);
 	if (ret)
 		isert_err("ib_post_send() failed, ret: %d\n", ret);
 
 	return ret;
+}
+
+static void
+__isert_create_send_desc(struct isert_device *device,
+			 struct iser_tx_desc *tx_desc)
+{
+
+	memset(&tx_desc->iser_header, 0, sizeof(struct iser_ctrl));
+	tx_desc->iser_header.flags = ISCSI_CTRL;
+
+	tx_desc->num_sge = 1;
+
+	if (tx_desc->tx_sg[0].lkey != device->pd->local_dma_lkey) {
+		tx_desc->tx_sg[0].lkey = device->pd->local_dma_lkey;
+		isert_dbg("tx_desc %p lkey mismatch, fixing\n", tx_desc);
+	}
 }
 
 static void
@@ -896,15 +913,7 @@ isert_create_send_desc(struct isert_conn *isert_conn,
 	ib_dma_sync_single_for_cpu(ib_dev, tx_desc->dma_addr,
 				   ISER_HEADERS_LEN, DMA_TO_DEVICE);
 
-	memset(&tx_desc->iser_header, 0, sizeof(struct iser_ctrl));
-	tx_desc->iser_header.flags = ISCSI_CTRL;
-
-	tx_desc->num_sge = 1;
-
-	if (tx_desc->tx_sg[0].lkey != device->pd->local_dma_lkey) {
-		tx_desc->tx_sg[0].lkey = device->pd->local_dma_lkey;
-		isert_dbg("tx_desc %p lkey mismatch, fixing\n", tx_desc);
-	}
+	__isert_create_send_desc(device, tx_desc);
 }
 
 static int
@@ -958,7 +967,7 @@ isert_init_send_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 static int
 isert_login_post_recv(struct isert_conn *isert_conn)
 {
-	struct ib_recv_wr rx_wr, *rx_wr_fail;
+	struct ib_recv_wr rx_wr;
 	struct ib_sge sge;
 	int ret;
 
@@ -977,7 +986,7 @@ isert_login_post_recv(struct isert_conn *isert_conn)
 	rx_wr.sg_list = &sge;
 	rx_wr.num_sge = 1;
 
-	ret = ib_post_recv(isert_conn->qp, &rx_wr, &rx_wr_fail);
+	ret = ib_post_recv(isert_conn->qp, &rx_wr, NULL);
 	if (ret)
 		isert_err("ib_post_recv() failed: %d\n", ret);
 
@@ -994,7 +1003,7 @@ isert_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
 	struct iser_tx_desc *tx_desc = &isert_conn->login_tx_desc;
 	int ret;
 
-	isert_create_send_desc(isert_conn, NULL, tx_desc);
+	__isert_create_send_desc(device, tx_desc);
 
 	memcpy(&tx_desc->iscsi_header, &login->rsp[0],
 	       sizeof(struct iscsi_hdr));
@@ -1820,7 +1829,6 @@ isert_send_done(struct ib_cq *cq, struct ib_wc *wc)
 static int
 isert_post_response(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd)
 {
-	struct ib_send_wr *wr_failed;
 	int ret;
 
 	ret = isert_post_recv(isert_conn, isert_cmd->rx_desc);
@@ -1829,8 +1837,7 @@ isert_post_response(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd)
 		return ret;
 	}
 
-	ret = ib_post_send(isert_conn->qp, &isert_cmd->tx_desc.send_wr,
-			   &wr_failed);
+	ret = ib_post_send(isert_conn->qp, &isert_cmd->tx_desc.send_wr, NULL);
 	if (ret) {
 		isert_err("ib_post_send failed with %d\n", ret);
 		return ret;
@@ -2106,10 +2113,13 @@ isert_set_sig_attrs(struct se_cmd *se_cmd, struct ib_sig_attrs *sig_attrs)
 		return -EINVAL;
 	}
 
-	sig_attrs->check_mask =
-	       (se_cmd->prot_checks & TARGET_DIF_CHECK_GUARD  ? 0xc0 : 0) |
-	       (se_cmd->prot_checks & TARGET_DIF_CHECK_REFTAG ? 0x30 : 0) |
-	       (se_cmd->prot_checks & TARGET_DIF_CHECK_REFTAG ? 0x0f : 0);
+	if (se_cmd->prot_checks & TARGET_DIF_CHECK_GUARD)
+		sig_attrs->check_mask |= IB_SIG_CHECK_GUARD;
+	if (se_cmd->prot_checks & TARGET_DIF_CHECK_APPTAG)
+		sig_attrs->check_mask |= IB_SIG_CHECK_APPTAG;
+	if (se_cmd->prot_checks & TARGET_DIF_CHECK_REFTAG)
+		sig_attrs->check_mask |= IB_SIG_CHECK_REFTAG;
+
 	return 0;
 }
 

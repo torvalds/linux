@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTW_WLAN_UTIL_C_
@@ -50,13 +42,16 @@ extern unsigned char WPA_TKIP_CIPHER[4];
 #define DISCONNECT_BY_CHK_BCN_FAIL_THRESHOLD 3
 
 static u8 rtw_basic_rate_cck[4] = {
-	IEEE80211_CCK_RATE_1MB|IEEE80211_BASIC_RATE_MASK, IEEE80211_CCK_RATE_2MB|IEEE80211_BASIC_RATE_MASK,
-	IEEE80211_CCK_RATE_5MB|IEEE80211_BASIC_RATE_MASK, IEEE80211_CCK_RATE_11MB|IEEE80211_BASIC_RATE_MASK
+	IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK
 };
 
 static u8 rtw_basic_rate_ofdm[3] = {
-	IEEE80211_OFDM_RATE_6MB|IEEE80211_BASIC_RATE_MASK, IEEE80211_OFDM_RATE_12MB|IEEE80211_BASIC_RATE_MASK,
-	IEEE80211_OFDM_RATE_24MB|IEEE80211_BASIC_RATE_MASK
+	IEEE80211_OFDM_RATE_6MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_OFDM_RATE_12MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_OFDM_RATE_24MB | IEEE80211_BASIC_RATE_MASK
 };
 
 int cckrates_included(unsigned char *rate, int ratelen)
@@ -70,7 +65,6 @@ int cckrates_included(unsigned char *rate, int ratelen)
 	}
 
 	return false;
-
 }
 
 int cckratesonly_included(unsigned char *rate, int ratelen)
@@ -139,70 +133,41 @@ u8 networktype_to_raid_ex(struct adapter *adapter, struct sta_info *psta)
 	default:
 		raid = RATEID_IDX_BGN_40M_2SS;
 		break;
-
 	}
 	return raid;
-
 }
 
 unsigned char ratetbl_val_2wifirate(unsigned char rate);
 unsigned char ratetbl_val_2wifirate(unsigned char rate)
 {
-	unsigned char val = 0;
-
 	switch (rate & 0x7f) {
 	case 0:
-		val = IEEE80211_CCK_RATE_1MB;
-		break;
-
+		return IEEE80211_CCK_RATE_1MB;
 	case 1:
-		val = IEEE80211_CCK_RATE_2MB;
-		break;
-
+		return IEEE80211_CCK_RATE_2MB;
 	case 2:
-		val = IEEE80211_CCK_RATE_5MB;
-		break;
-
+		return IEEE80211_CCK_RATE_5MB;
 	case 3:
-		val = IEEE80211_CCK_RATE_11MB;
-		break;
-
+		return IEEE80211_CCK_RATE_11MB;
 	case 4:
-		val = IEEE80211_OFDM_RATE_6MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_6MB;
 	case 5:
-		val = IEEE80211_OFDM_RATE_9MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_9MB;
 	case 6:
-		val = IEEE80211_OFDM_RATE_12MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_12MB;
 	case 7:
-		val = IEEE80211_OFDM_RATE_18MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_18MB;
 	case 8:
-		val = IEEE80211_OFDM_RATE_24MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_24MB;
 	case 9:
-		val = IEEE80211_OFDM_RATE_36MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_36MB;
 	case 10:
-		val = IEEE80211_OFDM_RATE_48MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_48MB;
 	case 11:
-		val = IEEE80211_OFDM_RATE_54MB;
-		break;
-
+		return IEEE80211_OFDM_RATE_54MB;
+	default:
+		return 0;
 	}
-
-	return val;
-
 }
 
 int is_basicrate(struct adapter *padapter, unsigned char rate);
@@ -297,7 +262,6 @@ void UpdateBrateTbl(struct adapter *Adapter, u8 *mBratesOS)
 			break;
 		}
 	}
-
 }
 
 void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen)
@@ -316,7 +280,6 @@ void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen)
 			break;
 		}
 	}
-
 }
 
 void Save_DM_Func_Flag(struct adapter *padapter)
@@ -504,7 +467,6 @@ u16 get_beacon_interval(struct wlan_bssid_ex *bss)
 	memcpy((unsigned char *)&val, rtw_get_beacon_interval_from_ie(bss->IEs), 2);
 
 	return le16_to_cpu(val);
-
 }
 
 int is_client_associated_to_ap(struct adapter *padapter)
@@ -547,7 +509,6 @@ int is_IBSS_empty(struct adapter *padapter)
 	}
 
 	return true;
-
 }
 
 unsigned int decide_wait_for_beacon_timeout(unsigned int bcn_interval)
@@ -859,7 +820,6 @@ void flush_all_cam_entry(struct adapter *padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_SEC_DK_CFG, (u8 *)false);
 
 	memset((u8 *)(pmlmeinfo->FW_sta_info), 0, sizeof(pmlmeinfo->FW_sta_info));
-
 }
 
 int WMM_param_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
@@ -1073,7 +1033,6 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 		new_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 	}
 
-
 	if ((new_bwmode != pmlmeext->cur_bwmode) || (new_ch_offset != pmlmeext->cur_ch_offset)) {
 		pmlmeinfo->bwmode_updated = true;
 
@@ -1085,14 +1044,12 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 	} else
 		pmlmeinfo->bwmode_updated = false;
 
-
 	if (true == pmlmeinfo->bwmode_updated) {
 		struct sta_info *psta;
 		struct wlan_bssid_ex	*cur_network = &(pmlmeinfo->network);
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
 		/* set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode); */
-
 
 		/* update ap's stainfo */
 		psta = rtw_get_stainfo(pstapriv, cur_network->MacAddress);
@@ -1124,7 +1081,7 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv 		*phtpriv = &pmlmepriv->htpriv;
 
-	if (pIE == NULL)
+	if (!pIE)
 		return;
 
 	if (phtpriv->ht_option == false)
@@ -1207,12 +1164,11 @@ void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv 		*phtpriv = &pmlmepriv->htpriv;
 
-	if (pIE == NULL)
+	if (!pIE)
 		return;
 
 	if (phtpriv->ht_option == false)
 		return;
-
 
 	if (pIE->Length > sizeof(struct HT_info_element))
 		return;
@@ -1360,7 +1316,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	bssid = rtw_zmalloc(sizeof(struct wlan_bssid_ex));
-	if (bssid == NULL) {
+	if (!bssid) {
 		DBG_871X("%s rtw_zmalloc fail !!!\n", __func__);
 		return true;
 	}
@@ -1435,7 +1391,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 
 	/* checking SSID */
 	p = rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _SSID_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
-	if (p == NULL) {
+	if (!p) {
 		DBG_871X("%s marc: cannot find SSID for survey event\n", __func__);
 		hidden_ssid = true;
 	} else {
@@ -1625,7 +1581,6 @@ unsigned int is_ap_in_tkip(struct adapter *padapter)
 		return false;
 	} else
 		return false;
-
 }
 
 int support_short_GI(struct adapter *padapter, struct HT_caps_element *pHT_caps, u8 bwmode)
@@ -1777,7 +1732,6 @@ void update_IOT_info(struct adapter *padapter)
 		pmlmeinfo->turboMode_rtsen = 1;
 		break;
 	}
-
 }
 
 void update_capinfo(struct adapter *Adapter, u16 updateCap)
@@ -1790,7 +1744,6 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 	/*  Mark to update preamble value forever, 2008.03.18 by lanhsin */
 	/* if (pMgntInfo->RegPreambleMode == PREAMBLE_AUTO) */
 	{
-
 		if (updateCap & cShortPreamble) {
 			/*  Short Preamble */
 			if (pmlmeinfo->preamble_mode != PREAMBLE_SHORT) { /*  PREAMBLE_LONG or PREAMBLE_AUTO */
@@ -1828,7 +1781,6 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 	}
 
 	rtw_hal_set_hwreg(Adapter, HW_VAR_SLOT_TIME, &pmlmeinfo->slotTime);
-
 }
 
 void update_wireless_mode(struct adapter *padapter)
@@ -1902,7 +1854,7 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	pIE = (struct ndis_80211_var_ie *)rtw_get_ie(pvar_ie, _SUPPORTEDRATES_IE_, &ie_len, var_ie_len);
-	if (pIE == NULL)
+	if (!pIE)
 		return _FAIL;
 
 	memcpy(pmlmeinfo->FW_sta_info[cam_idx].SupportedRates, pIE->data, ie_len);
@@ -1913,7 +1865,6 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 		memcpy((pmlmeinfo->FW_sta_info[cam_idx].SupportedRates + supportRateNum), pIE->data, ie_len);
 
 	return _SUCCESS;
-
 }
 
 void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr)
@@ -1948,7 +1899,6 @@ void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr)
 
 		preorder_ctrl->enable = pmlmeinfo->accept_addba_req;
 	}
-
 }
 
 void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
@@ -1979,7 +1929,6 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 	u64 tsf = 0;
 	u32 delay_ms;
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-
 
 	pmlmeext->bcn_cnt++;
 
@@ -2030,7 +1979,6 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 		for (i = 0; i < 9; i++) {
 			pmlmeext->bcn_delay_ratio[i] = (pmlmeext->bcn_delay_cnt[i] * 100) / pmlmeext->bcn_cnt;
 
-
 			DBG_871X("%s():bcn_delay_cnt[%d]=%d,  bcn_delay_ratio[%d]=%d\n", __func__, i,
 				pmlmeext->bcn_delay_cnt[i], i, pmlmeext->bcn_delay_ratio[i]);
 
@@ -2057,9 +2005,7 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 
 		pmlmeext->bcn_cnt = 0;
 	}
-
 }
-
 
 void beacon_timing_control(struct adapter *padapter)
 {
@@ -2071,7 +2017,6 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 	int i;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
-
 
 	if (!memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
 		return;
@@ -2097,14 +2042,12 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 		psta->mac_id = i;
 		DBG_871X("%s = %d\n", __func__, psta->mac_id);
 	}
-
 }
 
 void rtw_release_macid(struct adapter *padapter, struct sta_info *psta)
 {
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
-
 
 	if (!memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
 		return;
@@ -2119,10 +2062,8 @@ void rtw_release_macid(struct adapter *padapter, struct sta_info *psta)
 			pdvobj->macid[psta->mac_id] = false;
 			psta->mac_id = NUM_STA;
 		}
-
 	}
 	spin_unlock_bh(&pdvobj->lock);
-
 }
 /* For 8188E RA */
 u8 rtw_search_max_mac_id(struct adapter *padapter)
@@ -2139,7 +2080,6 @@ u8 rtw_search_max_mac_id(struct adapter *padapter)
 	spin_unlock_bh(&pdvobj->lock);
 
 	return max_mac_id;
-
 }
 
 struct adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj)
@@ -2254,9 +2194,9 @@ void rtw_get_current_ip_address(struct adapter *padapter, u8 *pcurrentip)
 
 	if ((pmlmeinfo->state & WIFI_FW_LINKING_STATE) ||
 			pmlmeinfo->state & WIFI_FW_AP_STATE) {
-		if (my_ip_ptr != NULL) {
+		if (my_ip_ptr) {
 			struct in_ifaddr *my_ifa_list = my_ip_ptr->ifa_list;
-			if (my_ifa_list != NULL) {
+			if (my_ifa_list) {
 				ipaddress[0] = my_ifa_list->ifa_address & 0xFF;
 				ipaddress[1] = (my_ifa_list->ifa_address >> 8) & 0xFF;
 				ipaddress[2] = (my_ifa_list->ifa_address >> 16) & 0xFF;

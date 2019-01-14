@@ -17,6 +17,16 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 
+/*
+ * Maximum values for blocksize and alignmask, used to allocate
+ * static buffers that are big enough for any combination of
+ * algs and architectures. Ciphers have a lower maximum size.
+ */
+#define MAX_ALGAPI_BLOCKSIZE		160
+#define MAX_ALGAPI_ALIGNMASK		63
+#define MAX_CIPHER_BLOCKSIZE		16
+#define MAX_CIPHER_ALIGNMASK		15
+
 struct crypto_aead;
 struct crypto_instance;
 struct module;
@@ -416,5 +426,15 @@ static inline void crypto_yield(u32 flags)
 		cond_resched();
 #endif
 }
+
+int crypto_register_notifier(struct notifier_block *nb);
+int crypto_unregister_notifier(struct notifier_block *nb);
+
+/* Crypto notification events. */
+enum {
+	CRYPTO_MSG_ALG_REQUEST,
+	CRYPTO_MSG_ALG_REGISTER,
+	CRYPTO_MSG_ALG_LOADED,
+};
 
 #endif	/* _CRYPTO_ALGAPI_H */

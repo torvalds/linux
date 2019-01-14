@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -5640,8 +5640,9 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				" mbx status x%x\n",
 				shdr_status, shdr_add_status, mb->mbxStatus);
 
-	if (mb->mbxStatus && !(shdr_status &&
-		shdr_add_status == ADD_STATUS_OPERATION_ALREADY_ACTIVE)) {
+	if ((mb->mbxStatus != MBX_SUCCESS) || shdr_status ||
+	    (shdr_add_status == ADD_STATUS_OPERATION_ALREADY_ACTIVE) ||
+	    (shdr_add_status == ADD_STATUS_INVALID_REQUEST)) {
 		mempool_free(pmb, phba->mbox_mem_pool);
 		goto error;
 	}
@@ -5661,6 +5662,7 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lcb_res = (struct fc_lcb_res_frame *)
 		(((struct lpfc_dmabuf *)elsiocb->context2)->virt);
 
+	memset(lcb_res, 0, sizeof(struct fc_lcb_res_frame));
 	icmd = &elsiocb->iocb;
 	icmd->ulpContext = lcb_context->rx_id;
 	icmd->unsli3.rcvsli3.ox_id = lcb_context->ox_id;
@@ -5669,7 +5671,9 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	*((uint32_t *)(pcmd)) = ELS_CMD_ACC;
 	lcb_res->lcb_sub_command = lcb_context->sub_command;
 	lcb_res->lcb_type = lcb_context->type;
+	lcb_res->capability = lcb_context->capability;
 	lcb_res->lcb_frequency = lcb_context->frequency;
+	lcb_res->lcb_duration = lcb_context->duration;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 	phba->fc_stat.elsXmitACC++;
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
@@ -5712,6 +5716,7 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
 		     uint32_t beacon_state)
 {
 	struct lpfc_hba *phba = vport->phba;
+	union lpfc_sli4_cfg_shdr *cfg_shdr;
 	LPFC_MBOXQ_t *mbox = NULL;
 	uint32_t len;
 	int rc;
@@ -5720,6 +5725,7 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
 	if (!mbox)
 		return 1;
 
+	cfg_shdr = &mbox->u.mqe.un.sli4_config.header.cfg_shdr;
 	len = sizeof(struct lpfc_mbx_set_beacon_config) -
 		sizeof(struct lpfc_sli4_cfg_mhdr);
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
@@ -5732,8 +5738,40 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
 	       phba->sli4_hba.physical_port);
 	bf_set(lpfc_mbx_set_beacon_state, &mbox->u.mqe.un.beacon_config,
 	       beacon_state);
-	bf_set(lpfc_mbx_set_beacon_port_type, &mbox->u.mqe.un.beacon_config, 1);
-	bf_set(lpfc_mbx_set_beacon_duration, &mbox->u.mqe.un.beacon_config, 0);
+	mbox->u.mqe.un.beacon_config.word5 = 0;		/* Reserved */
+
+	/*
+	 *	Check bv1s bit before issuing the mailbox
+	 *	if bv1s == 1, LCB V1 supported
+	 *	else, LCB V0 supported
+	 */
+
+	if (phba->sli4_hba.pc_sli4_params.bv1s) {
+		/* COMMON_SET_BEACON_CONFIG_V1 */
+		cfg_shdr->request.word9 = BEACON_VERSION_V1;
+		lcb_context->capability |= LCB_CAPABILITY_DURATION;
+		bf_set(lpfc_mbx_set_beacon_port_type,
+		       &mbox->u.mqe.un.beacon_config, 0);
+		bf_set(lpfc_mbx_set_beacon_duration_v1,
+		       &mbox->u.mqe.un.beacon_config,
+		       be16_to_cpu(lcb_context->duration));
+	} else {
+		/* COMMON_SET_BEACON_CONFIG_V0 */
+		if (be16_to_cpu(lcb_context->duration) != 0) {
+			mempool_free(mbox, phba->mbox_mem_pool);
+			return 1;
+		}
+		cfg_shdr->request.word9 = BEACON_VERSION_V0;
+		lcb_context->capability &=  ~(LCB_CAPABILITY_DURATION);
+		bf_set(lpfc_mbx_set_beacon_state,
+		       &mbox->u.mqe.un.beacon_config, beacon_state);
+		bf_set(lpfc_mbx_set_beacon_port_type,
+		       &mbox->u.mqe.un.beacon_config, 1);
+		bf_set(lpfc_mbx_set_beacon_duration,
+		       &mbox->u.mqe.un.beacon_config,
+		       be16_to_cpu(lcb_context->duration));
+	}
+
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		mempool_free(mbox, phba->mbox_mem_pool);
@@ -5784,24 +5822,16 @@ lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			beacon->lcb_frequency,
 			be16_to_cpu(beacon->lcb_duration));
 
-	if (phba->sli_rev < LPFC_SLI_REV4 ||
-	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-	    LPFC_SLI_INTF_IF_TYPE_2)) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
-
-	if (phba->hba_flag & HBA_FCOE_MODE) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
 	if (beacon->lcb_sub_command != LPFC_LCB_ON &&
 	    beacon->lcb_sub_command != LPFC_LCB_OFF) {
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}
-	if (beacon->lcb_sub_command == LPFC_LCB_ON &&
-	    be16_to_cpu(beacon->lcb_duration) != 0) {
+
+	if (phba->sli_rev < LPFC_SLI_REV4  ||
+	    phba->hba_flag & HBA_FCOE_MODE ||
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
+	    LPFC_SLI_INTF_IF_TYPE_2)) {
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}
@@ -5814,8 +5844,10 @@ lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	state = (beacon->lcb_sub_command == LPFC_LCB_ON) ? 1 : 0;
 	lcb_context->sub_command = beacon->lcb_sub_command;
+	lcb_context->capability	= 0;
 	lcb_context->type = beacon->lcb_type;
 	lcb_context->frequency = beacon->lcb_frequency;
+	lcb_context->duration = beacon->lcb_duration;
 	lcb_context->ox_id = cmdiocb->iocb.unsli3.rcvsli3.ox_id;
 	lcb_context->rx_id = cmdiocb->iocb.ulpContext;
 	lcb_context->ndlp = lpfc_nlp_get(ndlp);
@@ -6268,7 +6300,6 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 		 * flush the RSCN.  Otherwise, the outstanding requests
 		 * need to complete.
 		 */
-		vport->gidft_inp = 0;
 		if (lpfc_issue_gidft(vport) > 0)
 			return 1;
 	} else {
@@ -7642,8 +7673,11 @@ void
 lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
 {
 	struct lpfc_vport *vport;
+
+	spin_lock_irq(&phba->port_list_lock);
 	list_for_each_entry(vport, &phba->port_list, listentry)
 		lpfc_els_flush_cmd(vport);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	return;
 }

@@ -42,6 +42,9 @@ config SCSI_DMA
 	bool
 	default n
 
+config SCSI_ESP_PIO
+	bool
+
 config SCSI_NETLINK
 	bool
 	default	n
@@ -49,14 +52,15 @@ config SCSI_NETLINK
 
 config SCSI_MQ_DEFAULT
 	bool "SCSI: use blk-mq I/O path by default"
+	default y
 	depends on SCSI
 	---help---
-	  This option enables the new blk-mq based I/O path for SCSI
-	  devices by default.  With the option the scsi_mod.use_blk_mq
-	  module/boot option defaults to Y, without it to N, but it can
-	  still be overridden either way.
+	  This option enables the blk-mq based I/O path for SCSI devices by
+	  default.  With this option the scsi_mod.use_blk_mq module/boot
+	  option defaults to Y, without it to N, but it can still be
+	  overridden either way.
 
-	  If unsure say N.
+	  If unsure say Y.
 
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
@@ -534,7 +538,7 @@ config SCSI_HPTIOP
 
 config SCSI_BUSLOGIC
 	tristate "BusLogic SCSI support"
-	depends on (PCI || ISA || MCA) && SCSI && ISA_DMA_API && VIRT_TO_BUS
+	depends on (PCI || ISA) && SCSI && ISA_DMA_API && VIRT_TO_BUS
 	---help---
 	  This is support for BusLogic MultiMaster and FlashPoint SCSI Host
 	  Adapters. Consult the SCSI-HOWTO, available from
@@ -555,6 +559,37 @@ config SCSI_FLASHPOINT
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
 	  substantial, so users of MultiMaster Host Adapters may not
 	  wish to include it.
+
+config SCSI_MYRB
+	tristate "Mylex DAC960/DAC1100 PCI RAID Controller (Block Interface)"
+	depends on PCI
+	select RAID_ATTRS
+	help
+	  This driver adds support for the Mylex DAC960, AcceleRAID, and
+	  eXtremeRAID PCI RAID controllers. This driver supports the
+	  older, block based interface.
+	  This driver is a reimplementation of the original DAC960
+	  driver. If you have used the DAC960 driver you should enable
+	  this module.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called myrb.
+
+config SCSI_MYRS
+	tristate "Mylex DAC960/DAC1100 PCI RAID Controller (SCSI Interface)"
+	depends on PCI
+	depends on !CPU_BIG_ENDIAN || COMPILE_TEST
+	select RAID_ATTRS
+	help
+	  This driver adds support for the Mylex DAC960, AcceleRAID, and
+	  eXtremeRAID PCI RAID controllers.  This driver supports the
+	  newer, SCSI-based interface only.
+	  This driver is a reimplementation of the original DAC960
+	  driver. If you have used the DAC960 driver you should enable
+	  this module.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called myrs.
 
 config VMWARE_PVSCSI
 	tristate "VMware PVSCSI driver support"
@@ -841,18 +876,6 @@ config SCSI_IZIP_SLOW_CTR
 
 	  Generally, saying N is fine.
 
-config SCSI_NCR_D700
-	tristate "NCR Dual 700 MCA SCSI support"
-	depends on MCA && SCSI
-	select SCSI_SPI_ATTRS
-	help
-	  This is a driver for the MicroChannel Dual 700 card produced by
-	  NCR and commonly used in 345x/35xx/4100 class machines.  It always
-	  tries to negotiate sync and uses tag command queueing.
-
-	  Unless you have an NCR manufactured machine, the chances are that
-	  you do not have this SCSI card, so say N.
-
 config SCSI_LASI700
 	tristate "HP Lasi SCSI support for 53c700/710"
 	depends on GSC && SCSI
@@ -1000,21 +1023,9 @@ config SCSI_ZALON
 	  used on the add-in Bluefish, Barracuda & Shrike SCSI cards.
 	  Say Y here if you have one of these machines or cards.
 
-config SCSI_NCR_Q720
-	tristate "NCR Quad 720 MCA SCSI support"
-	depends on MCA && SCSI
-	select SCSI_SPI_ATTRS
-	help
-	  This is a driver for the MicroChannel Quad 720 card produced by
-	  NCR and commonly used in 345x/35xx/4100 class machines.  It always
-	  tries to negotiate sync and uses tag command queueing.
-
-	  Unless you have an NCR manufactured machine, the chances are that
-	  you do not have this SCSI card, so say N.
-
 config SCSI_NCR53C8XX_DEFAULT_TAGS
 	int "default tagged command queue depth"
-	depends on SCSI_ZALON || SCSI_NCR_Q720
+	depends on SCSI_ZALON
 	default "8"
 	---help---
 	  "Tagged command queuing" is a feature of SCSI-2 which improves
@@ -1040,7 +1051,7 @@ config SCSI_NCR53C8XX_DEFAULT_TAGS
 
 config SCSI_NCR53C8XX_MAX_TAGS
 	int "maximum number of queued commands"
-	depends on SCSI_ZALON || SCSI_NCR_Q720
+	depends on SCSI_ZALON
 	default "32"
 	---help---
 	  This option allows you to specify the maximum number of commands
@@ -1057,7 +1068,7 @@ config SCSI_NCR53C8XX_MAX_TAGS
 
 config SCSI_NCR53C8XX_SYNC
 	int "synchronous transfers frequency in MHz"
-	depends on SCSI_ZALON || SCSI_NCR_Q720
+	depends on SCSI_ZALON
 	default "20"
 	---help---
 	  The SCSI Parallel Interface-2 Standard defines 5 classes of transfer
@@ -1091,7 +1102,7 @@ config SCSI_NCR53C8XX_SYNC
 
 config SCSI_NCR53C8XX_NO_DISCONNECT
 	bool "not allow targets to disconnect"
-	depends on (SCSI_ZALON || SCSI_NCR_Q720) && SCSI_NCR53C8XX_DEFAULT_TAGS=0
+	depends on SCSI_ZALON && SCSI_NCR53C8XX_DEFAULT_TAGS=0
 	help
 	  This option is only provided for safety if you suspect some SCSI
 	  device of yours to not support properly the target-disconnect
@@ -1165,12 +1176,12 @@ config SCSI_LPFC_DEBUG_FS
 
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"
-	depends on (EISA || MCA) && SCSI
+	depends on EISA && SCSI
 	select SCSI_SPI_ATTRS
 	---help---
 	  This driver is for NCR53c710 based SCSI host adapters.
 
-	  It currently supports Compaq EISA cards and NCR MCA cards
+	  It currently supports Compaq EISA cards.
 
 config SCSI_DC395x
 	tristate "Tekram DC395(U/UW/F) and DC315(U) SCSI support"
@@ -1351,6 +1362,21 @@ config SCSI_ZORRO7XX
 	      accelerator card for the Amiga 1200,
 	    - the SCSI controller on the GVP Turbo 040/060 accelerator.
 
+config SCSI_ZORRO_ESP
+	tristate "Zorro ESP SCSI support"
+	depends on ZORRO && SCSI
+	select SCSI_SPI_ATTRS
+	select SCSI_ESP_PIO
+	help
+	  Support for various NCR53C9x (ESP) based SCSI controllers on Zorro
+	  expansion boards for the Amiga.
+	  This includes:
+	    - the Phase5 Blizzard 1230 II and IV SCSI controllers,
+	    - the Phase5 Blizzard 2060 SCSI controller,
+	    - the Phase5 Blizzard Cyberstorm and Cyberstorm II SCSI
+	      controllers,
+	    - the Fastlane Zorro III SCSI controller.
+
 config ATARI_SCSI
 	tristate "Atari native SCSI support"
 	depends on ATARI && SCSI
@@ -1383,6 +1409,7 @@ config SCSI_MAC_ESP
 	tristate "Macintosh NCR53c9[46] SCSI"
 	depends on MAC && SCSI
 	select SCSI_SPI_ATTRS
+	select SCSI_ESP_PIO
 	help
 	  This is the NCR 53c9x SCSI controller found on most of the 68040
 	  based Macintoshes.

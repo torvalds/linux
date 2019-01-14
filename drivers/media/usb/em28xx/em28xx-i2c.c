@@ -559,10 +559,6 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		dev->cur_i2c_bus = bus;
 	}
 
-	if (num <= 0) {
-		rt_mutex_unlock(&dev->i2c_bus_lock);
-		return 0;
-	}
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
 		if (!msgs[i].len) {
@@ -989,7 +985,8 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned int bus,
 
 	dev->i2c_adap[bus] = em28xx_adap_template;
 	dev->i2c_adap[bus].dev.parent = &dev->intf->dev;
-	strcpy(dev->i2c_adap[bus].name, dev_name(&dev->intf->dev));
+	strscpy(dev->i2c_adap[bus].name, dev_name(&dev->intf->dev),
+		sizeof(dev->i2c_adap[bus].name));
 
 	dev->i2c_bus[bus].bus = bus;
 	dev->i2c_bus[bus].algo_type = algo_type;

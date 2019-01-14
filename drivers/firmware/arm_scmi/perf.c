@@ -115,7 +115,7 @@ static int scmi_perf_attributes_get(const struct scmi_handle *handle,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_perf_attributes *attr;
 
-	ret = scmi_one_xfer_init(handle, PROTOCOL_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
 				 SCMI_PROTOCOL_PERF, 0, sizeof(*attr), &t);
 	if (ret)
 		return ret;
@@ -133,7 +133,7 @@ static int scmi_perf_attributes_get(const struct scmi_handle *handle,
 		pi->stats_size = le32_to_cpu(attr->stats_size);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -145,7 +145,7 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_perf_domain_attributes *attr;
 
-	ret = scmi_one_xfer_init(handle, PERF_DOMAIN_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, PERF_DOMAIN_ATTRIBUTES,
 				 SCMI_PROTOCOL_PERF, sizeof(domain),
 				 sizeof(*attr), &t);
 	if (ret)
@@ -166,12 +166,18 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 					le32_to_cpu(attr->sustained_freq_khz);
 		dom_info->sustained_perf_level =
 					le32_to_cpu(attr->sustained_perf_level);
-		dom_info->mult_factor =	(dom_info->sustained_freq_khz * 1000) /
+		if (!dom_info->sustained_freq_khz ||
+		    !dom_info->sustained_perf_level)
+			/* CPUFreq converts to kHz, hence default 1000 */
+			dom_info->mult_factor =	1000;
+		else
+			dom_info->mult_factor =
+					(dom_info->sustained_freq_khz * 1000) /
 					dom_info->sustained_perf_level;
-		memcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
+		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -194,7 +200,7 @@ scmi_perf_describe_levels_get(const struct scmi_handle *handle, u32 domain,
 	struct scmi_msg_perf_describe_levels *dom_info;
 	struct scmi_msg_resp_perf_describe_levels *level_info;
 
-	ret = scmi_one_xfer_init(handle, PERF_DESCRIBE_LEVELS,
+	ret = scmi_xfer_get_init(handle, PERF_DESCRIBE_LEVELS,
 				 SCMI_PROTOCOL_PERF, sizeof(*dom_info), 0, &t);
 	if (ret)
 		return ret;
@@ -237,7 +243,7 @@ scmi_perf_describe_levels_get(const struct scmi_handle *handle, u32 domain,
 	} while (num_returned && num_remaining);
 
 	perf_dom->opp_count = tot_opp_cnt;
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 
 	sort(perf_dom->opp, tot_opp_cnt, sizeof(*opp), opp_cmp_func, NULL);
 	return ret;
@@ -250,7 +256,7 @@ static int scmi_perf_limits_set(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_perf_set_limits *limits;
 
-	ret = scmi_one_xfer_init(handle, PERF_LIMITS_SET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LIMITS_SET, SCMI_PROTOCOL_PERF,
 				 sizeof(*limits), 0, &t);
 	if (ret)
 		return ret;
@@ -262,7 +268,7 @@ static int scmi_perf_limits_set(const struct scmi_handle *handle, u32 domain,
 
 	ret = scmi_do_xfer(handle, t);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -273,7 +279,7 @@ static int scmi_perf_limits_get(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_perf_get_limits *limits;
 
-	ret = scmi_one_xfer_init(handle, PERF_LIMITS_GET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LIMITS_GET, SCMI_PROTOCOL_PERF,
 				 sizeof(__le32), 0, &t);
 	if (ret)
 		return ret;
@@ -288,7 +294,7 @@ static int scmi_perf_limits_get(const struct scmi_handle *handle, u32 domain,
 		*min_perf = le32_to_cpu(limits->min_level);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -299,7 +305,7 @@ static int scmi_perf_level_set(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_perf_set_level *lvl;
 
-	ret = scmi_one_xfer_init(handle, PERF_LEVEL_SET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LEVEL_SET, SCMI_PROTOCOL_PERF,
 				 sizeof(*lvl), 0, &t);
 	if (ret)
 		return ret;
@@ -311,7 +317,7 @@ static int scmi_perf_level_set(const struct scmi_handle *handle, u32 domain,
 
 	ret = scmi_do_xfer(handle, t);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -321,7 +327,7 @@ static int scmi_perf_level_get(const struct scmi_handle *handle, u32 domain,
 	int ret;
 	struct scmi_xfer *t;
 
-	ret = scmi_one_xfer_init(handle, PERF_LEVEL_GET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LEVEL_GET, SCMI_PROTOCOL_PERF,
 				 sizeof(u32), sizeof(u32), &t);
 	if (ret)
 		return ret;
@@ -333,7 +339,7 @@ static int scmi_perf_level_get(const struct scmi_handle *handle, u32 domain,
 	if (!ret)
 		*level = le32_to_cpu(*(__le32 *)t->rx.buf);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -349,8 +355,8 @@ static int scmi_dev_domain_id(struct device *dev)
 	return clkspec.args[0];
 }
 
-static int scmi_dvfs_add_opps_to_device(const struct scmi_handle *handle,
-					struct device *dev)
+static int scmi_dvfs_device_opps_add(const struct scmi_handle *handle,
+				     struct device *dev)
 {
 	int idx, ret, domain;
 	unsigned long freq;
@@ -363,8 +369,6 @@ static int scmi_dvfs_add_opps_to_device(const struct scmi_handle *handle,
 		return domain;
 
 	dom = pi->dom_info + domain;
-	if (!dom)
-		return -EIO;
 
 	for (opp = dom->opp, idx = 0; idx < dom->opp_count; idx++, opp++) {
 		freq = opp->perf * dom->mult_factor;
@@ -383,7 +387,7 @@ static int scmi_dvfs_add_opps_to_device(const struct scmi_handle *handle,
 	return 0;
 }
 
-static int scmi_dvfs_get_transition_latency(const struct scmi_handle *handle,
+static int scmi_dvfs_transition_latency_get(const struct scmi_handle *handle,
 					    struct device *dev)
 {
 	struct perf_dom_info *dom;
@@ -394,9 +398,6 @@ static int scmi_dvfs_get_transition_latency(const struct scmi_handle *handle,
 		return domain;
 
 	dom = pi->dom_info + domain;
-	if (!dom)
-		return -EIO;
-
 	/* uS to nS */
 	return dom->opp[dom->opp_count - 1].trans_latency_us * 1000;
 }
@@ -426,16 +427,44 @@ static int scmi_dvfs_freq_get(const struct scmi_handle *handle, u32 domain,
 	return ret;
 }
 
+static int scmi_dvfs_est_power_get(const struct scmi_handle *handle, u32 domain,
+				   unsigned long *freq, unsigned long *power)
+{
+	struct scmi_perf_info *pi = handle->perf_priv;
+	struct perf_dom_info *dom;
+	unsigned long opp_freq;
+	int idx, ret = -EINVAL;
+	struct scmi_opp *opp;
+
+	dom = pi->dom_info + domain;
+	if (!dom)
+		return -EIO;
+
+	for (opp = dom->opp, idx = 0; idx < dom->opp_count; idx++, opp++) {
+		opp_freq = opp->perf * dom->mult_factor;
+		if (opp_freq < *freq)
+			continue;
+
+		*freq = opp_freq;
+		*power = opp->power;
+		ret = 0;
+		break;
+	}
+
+	return ret;
+}
+
 static struct scmi_perf_ops perf_ops = {
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
 	.level_set = scmi_perf_level_set,
 	.level_get = scmi_perf_level_get,
 	.device_domain_id = scmi_dev_domain_id,
-	.get_transition_latency = scmi_dvfs_get_transition_latency,
-	.add_opps_to_device = scmi_dvfs_add_opps_to_device,
+	.transition_latency_get = scmi_dvfs_transition_latency_get,
+	.device_opps_add = scmi_dvfs_device_opps_add,
 	.freq_set = scmi_dvfs_freq_set,
 	.freq_get = scmi_dvfs_freq_get,
+	.est_power_get = scmi_dvfs_est_power_get,
 };
 
 static int scmi_perf_protocol_init(struct scmi_handle *handle)

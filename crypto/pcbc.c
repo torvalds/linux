@@ -14,6 +14,7 @@
  *
  */
 
+#include <crypto/algapi.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -72,7 +73,7 @@ static int crypto_pcbc_encrypt_inplace(struct skcipher_request *req,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 *iv = walk->iv;
-	u8 tmpbuf[bsize];
+	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE];
 
 	do {
 		memcpy(tmpbuf, src, bsize);
@@ -144,7 +145,7 @@ static int crypto_pcbc_decrypt_inplace(struct skcipher_request *req,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 *iv = walk->iv;
-	u8 tmpbuf[bsize] __aligned(__alignof__(u32));
+	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE] __aligned(__alignof__(u32));
 
 	do {
 		memcpy(tmpbuf, src, bsize);
@@ -243,9 +244,8 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	spawn = skcipher_instance_ctx(inst);
 	err = crypto_init_spawn(spawn, alg, skcipher_crypto_instance(inst),
 				CRYPTO_ALG_TYPE_MASK);
-	crypto_mod_put(alg);
 	if (err)
-		goto err_free_inst;
+		goto err_put_alg;
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), "pcbc", alg);
 	if (err)
@@ -274,12 +274,15 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	err = skcipher_register_instance(tmpl, inst);
 	if (err)
 		goto err_drop_spawn;
+	crypto_mod_put(alg);
 
 out:
 	return err;
 
 err_drop_spawn:
 	crypto_drop_spawn(spawn);
+err_put_alg:
+	crypto_mod_put(alg);
 err_free_inst:
 	kfree(inst);
 	goto out;

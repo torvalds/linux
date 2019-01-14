@@ -33,6 +33,28 @@ static inline void bnxt_link_bp_to_dl(struct bnxt *bp, struct devlink *dl)
 	}
 }
 
+#define NVM_OFF_MSIX_VEC_PER_PF_MAX	108
+#define NVM_OFF_MSIX_VEC_PER_PF_MIN	114
+#define NVM_OFF_IGNORE_ARI		164
+#define NVM_OFF_DIS_GRE_VER_CHECK	171
+#define NVM_OFF_ENABLE_SRIOV		401
+
+#define BNXT_MSIX_VEC_MAX	1280
+#define BNXT_MSIX_VEC_MIN_MAX	128
+
+enum bnxt_nvm_dir_type {
+	BNXT_NVM_SHARED_CFG = 40,
+	BNXT_NVM_PORT_CFG,
+	BNXT_NVM_FUNC_CFG,
+};
+
+struct bnxt_dl_nvm_param {
+	u16 id;
+	u16 offset;
+	u16 dir_type;
+	u16 num_bits;
+};
+
 int bnxt_dl_register(struct bnxt *bp);
 void bnxt_dl_unregister(struct bnxt *bp);
 

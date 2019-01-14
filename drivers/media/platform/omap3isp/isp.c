@@ -61,7 +61,9 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
 #include <asm/dma-iommu.h>
+#endif
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-fwnode.h>
@@ -284,13 +286,6 @@ static const struct clk_ops isp_xclk_ops = {
 
 static const char *isp_xclk_parent_name = "cam_mclk";
 
-static const struct clk_init_data isp_xclk_init_data = {
-	.name = "cam_xclk",
-	.ops = &isp_xclk_ops,
-	.parent_names = &isp_xclk_parent_name,
-	.num_parents = 1,
-};
-
 static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 {
 	unsigned int idx = clkspec->args[0];
@@ -305,7 +300,7 @@ static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 static int isp_xclk_init(struct isp_device *isp)
 {
 	struct device_node *np = isp->dev->of_node;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(isp->xclks); ++i)
@@ -976,7 +971,7 @@ static void isp_resume_module_pipeline(struct media_entity *me)
  * Returns 0 if suspend left in idle state all the submodules properly,
  * or returns 1 if a general Reset is required to suspend the submodules.
  */
-static int isp_suspend_modules(struct isp_device *isp)
+static int __maybe_unused isp_suspend_modules(struct isp_device *isp)
 {
 	unsigned long timeout;
 
@@ -1010,7 +1005,7 @@ static int isp_suspend_modules(struct isp_device *isp)
  * isp_resume_modules - Resume ISP submodules.
  * @isp: OMAP3 ISP device
  */
-static void isp_resume_modules(struct isp_device *isp)
+static void __maybe_unused isp_resume_modules(struct isp_device *isp)
 {
 	omap3isp_stat_resume(&isp->isp_aewb);
 	omap3isp_stat_resume(&isp->isp_af);
@@ -1592,6 +1587,8 @@ static void isp_pm_complete(struct device *dev)
 
 static void isp_unregister_entities(struct isp_device *isp)
 {
+	media_device_unregister(&isp->media_dev);
+
 	omap3isp_csi2_unregister_entities(&isp->isp_csi2a);
 	omap3isp_ccp2_unregister_entities(&isp->isp_ccp2);
 	omap3isp_ccdc_unregister_entities(&isp->isp_ccdc);
@@ -1602,7 +1599,6 @@ static void isp_unregister_entities(struct isp_device *isp)
 	omap3isp_stat_unregister_entities(&isp->isp_hist);
 
 	v4l2_device_unregister(&isp->v4l2_dev);
-	media_device_unregister(&isp->media_dev);
 	media_device_cleanup(&isp->media_dev);
 }
 
@@ -1682,7 +1678,7 @@ static int isp_register_entities(struct isp_device *isp)
 	int ret;
 
 	isp->media_dev.dev = isp->dev;
-	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
+	strscpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
 	isp->media_dev.hw_revision = isp->revision;
 	isp->media_dev.ops = &isp_media_ops;
@@ -1945,12 +1941,16 @@ error_csi2:
 
 static void isp_detach_iommu(struct isp_device *isp)
 {
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	arm_iommu_detach_device(isp->dev);
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
+#endif
 }
 
 static int isp_attach_iommu(struct isp_device *isp)
 {
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping *mapping;
 	int ret;
 
@@ -1961,8 +1961,7 @@ static int isp_attach_iommu(struct isp_device *isp)
 	mapping = arm_iommu_create_mapping(&platform_bus_type, SZ_1G, SZ_2G);
 	if (IS_ERR(mapping)) {
 		dev_err(isp->dev, "failed to create ARM IOMMU mapping\n");
-		ret = PTR_ERR(mapping);
-		goto error;
+		return PTR_ERR(mapping);
 	}
 
 	isp->mapping = mapping;
@@ -1977,8 +1976,12 @@ static int isp_attach_iommu(struct isp_device *isp)
 	return 0;
 
 error:
-	isp_detach_iommu(isp);
+	arm_iommu_release_mapping(isp->mapping);
+	isp->mapping = NULL;
 	return ret;
+#else
+	return -ENODEV;
+#endif
 }
 
 /*
@@ -2052,7 +2055,7 @@ static int isp_fwnode_parse(struct device *dev,
 			dev_dbg(dev, "CSI-1/CCP-2 configuration\n");
 			csi1 = true;
 			break;
-		case V4L2_MBUS_CSI2:
+		case V4L2_MBUS_CSI2_DPHY:
 			dev_dbg(dev, "CSI-2 configuration\n");
 			csi1 = false;
 			break;
@@ -2218,6 +2221,7 @@ static int isp_probe(struct platform_device *pdev)
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);
+	v4l2_async_notifier_init(&isp->notifier);
 
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		&pdev->dev, &isp->notifier, sizeof(struct isp_async_subdev),

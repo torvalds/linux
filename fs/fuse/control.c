@@ -35,7 +35,7 @@ static ssize_t fuse_conn_abort_write(struct file *file, const char __user *buf,
 {
 	struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 	if (fc) {
-		fuse_abort_conn(fc);
+		fuse_abort_conn(fc, true);
 		fuse_conn_put(fc);
 	}
 	return count;
@@ -107,7 +107,7 @@ static ssize_t fuse_conn_max_background_read(struct file *file,
 	if (!fc)
 		return 0;
 
-	val = fc->max_background;
+	val = READ_ONCE(fc->max_background);
 	fuse_conn_put(fc);
 
 	return fuse_conn_limit_read(file, buf, len, ppos, val);
@@ -125,7 +125,12 @@ static ssize_t fuse_conn_max_background_write(struct file *file,
 	if (ret > 0) {
 		struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 		if (fc) {
+			spin_lock(&fc->bg_lock);
 			fc->max_background = val;
+			fc->blocked = fc->num_background >= fc->max_background;
+			if (!fc->blocked)
+				wake_up(&fc->blocked_waitq);
+			spin_unlock(&fc->bg_lock);
 			fuse_conn_put(fc);
 		}
 	}
@@ -144,7 +149,7 @@ static ssize_t fuse_conn_congestion_threshold_read(struct file *file,
 	if (!fc)
 		return 0;
 
-	val = fc->congestion_threshold;
+	val = READ_ONCE(fc->congestion_threshold);
 	fuse_conn_put(fc);
 
 	return fuse_conn_limit_read(file, buf, len, ppos, val);
@@ -155,18 +160,31 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 						    size_t count, loff_t *ppos)
 {
 	unsigned uninitialized_var(val);
+	struct fuse_conn *fc;
 	ssize_t ret;
 
 	ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
 				    max_user_congthresh);
-	if (ret > 0) {
-		struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
-		if (fc) {
-			fc->congestion_threshold = val;
-			fuse_conn_put(fc);
+	if (ret <= 0)
+		goto out;
+	fc = fuse_ctl_file_conn_get(file);
+	if (!fc)
+		goto out;
+
+	spin_lock(&fc->bg_lock);
+	fc->congestion_threshold = val;
+	if (fc->sb) {
+		if (fc->num_background < fc->congestion_threshold) {
+			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
+			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
+		} else {
+			set_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
+			set_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
 		}
 	}
-
+	spin_unlock(&fc->bg_lock);
+	fuse_conn_put(fc);
+out:
 	return ret;
 }
 
@@ -211,10 +229,11 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	if (!dentry)
 		return NULL;
 
-	fc->ctl_dentry[fc->ctl_ndents++] = dentry;
 	inode = new_inode(fuse_control_sb);
-	if (!inode)
+	if (!inode) {
+		dput(dentry);
 		return NULL;
+	}
 
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
@@ -228,6 +247,9 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	set_nlink(inode, nlink);
 	inode->i_private = fc;
 	d_add(dentry, inode);
+
+	fc->ctl_dentry[fc->ctl_ndents++] = dentry;
+
 	return dentry;
 }
 
@@ -284,7 +306,10 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 	for (i = fc->ctl_ndents - 1; i >= 0; i--) {
 		struct dentry *dentry = fc->ctl_dentry[i];
 		d_inode(dentry)->i_private = NULL;
-		d_drop(dentry);
+		if (!i) {
+			/* Get rid of submounts: */
+			d_invalidate(dentry);
+		}
 		dput(dentry);
 	}
 	drop_nlink(d_inode(fuse_control_sb->s_root));

@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -160,7 +146,7 @@ STATIC void
 xfs_bui_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		xfs_bui_release(BUI_ITEM(lip));
 }
 
@@ -305,7 +291,7 @@ xfs_bud_item_unlock(
 {
 	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_bui_release(budp->bud_buip);
 		kmem_zone_free(xfs_bud_zone, budp);
 	}
@@ -389,9 +375,8 @@ xfs_bud_init(
  */
 int
 xfs_bui_recover(
-	struct xfs_mount		*mp,
-	struct xfs_bui_log_item		*buip,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_trans		*parent_tp,
+	struct xfs_bui_log_item		*buip)
 {
 	int				error = 0;
 	unsigned int			bui_type;
@@ -407,6 +392,7 @@ xfs_bui_recover(
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip = NULL;
 	struct xfs_bmbt_irec		irec;
+	struct xfs_mount		*mp = parent_tp->t_mountp;
 
 	ASSERT(!test_bit(XFS_BUI_RECOVERED, &buip->bui_flags));
 
@@ -455,6 +441,12 @@ xfs_bui_recover(
 			XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK), 0, 0, &tp);
 	if (error)
 		return error;
+	/*
+	 * Recovery stashes all deferred ops during intent processing and
+	 * finishes them on completion. Transfer current dfops state to this
+	 * transaction and transfer the result back before we return.
+	 */
+	xfs_defer_move(tp, parent_tp);
 	budp = xfs_trans_get_bud(tp, buip);
 
 	/* Grab the inode. */
@@ -483,9 +475,8 @@ xfs_bui_recover(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	count = bmap->me_len;
-	error = xfs_trans_log_finish_bmap_update(tp, budp, dfops, type,
-			ip, whichfork, bmap->me_startoff,
-			bmap->me_startblock, &count, state);
+	error = xfs_trans_log_finish_bmap_update(tp, budp, type, ip, whichfork,
+			bmap->me_startoff, bmap->me_startblock, &count, state);
 	if (error)
 		goto err_inode;
 
@@ -495,23 +486,25 @@ xfs_bui_recover(
 		irec.br_blockcount = count;
 		irec.br_startoff = bmap->me_startoff;
 		irec.br_state = state;
-		error = xfs_bmap_unmap_extent(tp->t_mountp, dfops, ip, &irec);
+		error = xfs_bmap_unmap_extent(tp, ip, &irec);
 		if (error)
 			goto err_inode;
 	}
 
 	set_bit(XFS_BUI_RECOVERED, &buip->bui_flags);
+	xfs_defer_move(parent_tp, tp);
 	error = xfs_trans_commit(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	IRELE(ip);
+	xfs_irele(ip);
 
 	return error;
 
 err_inode:
+	xfs_defer_move(parent_tp, tp);
 	xfs_trans_cancel(tp);
 	if (ip) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		IRELE(ip);
+		xfs_irele(ip);
 	}
 	return error;
 }

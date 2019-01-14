@@ -458,7 +458,6 @@ static int meson_pwm_init_channels(struct meson_pwm *meson,
 				   struct meson_pwm_channel *channels)
 {
 	struct device *dev = meson->chip.dev;
-	struct device_node *np = dev->of_node;
 	struct clk_init_data init;
 	unsigned int i;
 	char name[255];
@@ -467,7 +466,7 @@ static int meson_pwm_init_channels(struct meson_pwm *meson,
 	for (i = 0; i < meson->chip.npwm; i++) {
 		struct meson_pwm_channel *channel = &channels[i];
 
-		snprintf(name, sizeof(name), "%pOF#mux%u", np, i);
+		snprintf(name, sizeof(name), "%s#mux%u", dev_name(dev), i);
 
 		init.name = name;
 		init.ops = &clk_mux_ops;
@@ -541,8 +540,8 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	meson->data = of_device_get_match_data(&pdev->dev);
 	meson->inverter_mask = BIT(meson->chip.npwm) - 1;
 
-	channels = devm_kcalloc(&pdev->dev, meson->chip.npwm, sizeof(*meson),
-				GFP_KERNEL);
+	channels = devm_kcalloc(&pdev->dev, meson->chip.npwm,
+				sizeof(*channels), GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
 

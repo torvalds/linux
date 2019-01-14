@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/mmzone.h>
 #include <linux/cpumask.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/node.h>
@@ -54,6 +53,7 @@ int __node_distance(int a, int b)
 {
 	return mode->distance ? mode->distance(a, b) : 0;
 }
+EXPORT_SYMBOL(__node_distance);
 
 int numa_debug_enabled;
 
@@ -64,7 +64,7 @@ static __init pg_data_t *alloc_node_data(void)
 {
 	pg_data_t *res;
 
-	res = (pg_data_t *) memblock_alloc(sizeof(pg_data_t), 8);
+	res = (pg_data_t *) memblock_phys_alloc(sizeof(pg_data_t), 8);
 	memset(res, 0, sizeof(pg_data_t));
 	return res;
 }
@@ -134,25 +134,13 @@ void __init numa_setup(void)
 {
 	pr_info("NUMA mode: %s\n", mode->name);
 	nodes_clear(node_possible_map);
+	/* Initially attach all possible CPUs to node 0. */
+	cpumask_copy(&node_to_cpumask_map[0], cpu_possible_mask);
 	if (mode->setup)
 		mode->setup();
 	numa_setup_memory();
 	memblock_dump_all();
 }
-
-/*
- * numa_init_early() - Initialization initcall
- *
- * This runs when only one CPU is online and before the first
- * topology update is called for by the scheduler.
- */
-static int __init numa_init_early(void)
-{
-	/* Attach all possible CPUs to node 0 for now. */
-	cpumask_copy(&node_to_cpumask_map[0], cpu_possible_mask);
-	return 0;
-}
-early_initcall(numa_init_early);
 
 /*
  * numa_init_late() - Initialization initcall

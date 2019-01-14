@@ -93,7 +93,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 		return -ENOENT;
 	}
 
-	help = nf_ct_helper_ext_add(ct, helper, GFP_KERNEL);
+	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 	if (help == NULL) {
 		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
@@ -104,7 +104,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-static void __xt_ct_tg_timeout_put(struct ctnl_timeout *timeout)
+static void __xt_ct_tg_timeout_put(struct nf_ct_timeout *timeout)
 {
 	typeof(nf_ct_timeout_put_hook) timeout_put;
 
@@ -121,7 +121,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
 	const struct nf_conntrack_l4proto *l4proto;
-	struct ctnl_timeout *timeout;
+	struct nf_ct_timeout *timeout;
 	struct nf_conn_timeout *timeout_ext;
 	const char *errmsg = NULL;
 	int ret = 0;
@@ -159,7 +159,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 	/* Make sure the timeout policy matches any existing protocol tracker,
 	 * otherwise default to generic.
 	 */
-	l4proto = __nf_ct_l4proto_find(par->family, proto);
+	l4proto = __nf_ct_l4proto_find(proto);
 	if (timeout->l4proto->l4proto != l4proto->l4proto) {
 		ret = -EINVAL;
 		pr_info_ratelimited("Timeout policy `%s' can only be used by L%d protocol number %d\n",
@@ -245,12 +245,22 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	}
 
 	if (info->helper[0]) {
+		if (strnlen(info->helper, sizeof(info->helper)) == sizeof(info->helper)) {
+			ret = -ENAMETOOLONG;
+			goto err3;
+		}
+
 		ret = xt_ct_set_helper(ct, info->helper, par);
 		if (ret < 0)
 			goto err3;
 	}
 
 	if (info->timeout[0]) {
+		if (strnlen(info->timeout, sizeof(info->timeout)) == sizeof(info->timeout)) {
+			ret = -ENAMETOOLONG;
+			goto err4;
+		}
+
 		ret = xt_ct_set_timeout(ct, par, info->timeout);
 		if (ret < 0)
 			goto err4;

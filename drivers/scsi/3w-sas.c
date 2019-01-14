@@ -287,7 +287,9 @@ static int twl_post_command_packet(TW_Device_Extension *tw_dev, int request_id)
 } /* End twl_post_command_packet() */
 
 /* This function hands scsi cdb's to the firmware */
-static int twl_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, char *cdb, int use_sg, TW_SG_Entry_ISO *sglistarg)
+static int twl_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id,
+				   unsigned char *cdb, int use_sg,
+				   TW_SG_Entry_ISO *sglistarg)
 {
 	TW_Command_Full *full_command_packet;
 	TW_Command_Apache *command_packet;
@@ -372,7 +374,7 @@ out:
 /* This function will read the aen queue from the isr */
 static int twl_aen_read_queue(TW_Device_Extension *tw_dev, int request_id)
 {
-	char cdb[TW_MAX_CDB_LEN];
+	unsigned char cdb[TW_MAX_CDB_LEN];
 	TW_SG_Entry_ISO sglist[1];
 	TW_Command_Full *full_command_packet;
 	int retval = 1;
@@ -554,7 +556,7 @@ out:
 static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
 {
 	int request_id = 0;
-	char cdb[TW_MAX_CDB_LEN];
+	unsigned char cdb[TW_MAX_CDB_LEN];
 	TW_SG_Entry_ISO sglist[1];
 	int finished = 0, count = 0;
 	TW_Command_Full *full_command_packet;
@@ -644,8 +646,8 @@ static int twl_allocate_memory(TW_Device_Extension *tw_dev, int size, int which)
 	unsigned long *cpu_addr;
 	int retval = 1;
 
-	cpu_addr = pci_zalloc_consistent(tw_dev->tw_pci_dev, size * TW_Q_LENGTH,
-					 &dma_handle);
+	cpu_addr = dma_zalloc_coherent(&tw_dev->tw_pci_dev->dev,
+			size * TW_Q_LENGTH, &dma_handle, GFP_KERNEL);
 	if (!cpu_addr) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x5, "Memory allocation failed");
 		goto out;
@@ -899,19 +901,19 @@ out:
 static void twl_free_device_extension(TW_Device_Extension *tw_dev)
 {
 	if (tw_dev->command_packet_virt[0])
-		pci_free_consistent(tw_dev->tw_pci_dev,
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev,
 				    sizeof(TW_Command_Full)*TW_Q_LENGTH,
 				    tw_dev->command_packet_virt[0],
 				    tw_dev->command_packet_phys[0]);
 
 	if (tw_dev->generic_buffer_virt[0])
-		pci_free_consistent(tw_dev->tw_pci_dev,
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev,
 				    TW_SECTOR_SIZE*TW_Q_LENGTH,
 				    tw_dev->generic_buffer_virt[0],
 				    tw_dev->generic_buffer_phys[0]);
 
 	if (tw_dev->sense_buffer_virt[0])
-		pci_free_consistent(tw_dev->tw_pci_dev,
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev,
 				    sizeof(TW_Command_Apache_Header)*
 				    TW_Q_LENGTH,
 				    tw_dev->sense_buffer_virt[0],
@@ -1571,14 +1573,12 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
-	    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
-		    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
-			TW_PRINTK(host, TW_DRIVER, 0x18, "Failed to set dma mask");
-			retval = -ENODEV;
-			goto out_disable_device;
-		}
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) ||
+	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
+		TW_PRINTK(host, TW_DRIVER, 0x18, "Failed to set dma mask");
+		retval = -ENODEV;
+		goto out_disable_device;
+	}
 
 	host = scsi_host_alloc(&driver_template, sizeof(TW_Device_Extension));
 	if (!host) {
@@ -1594,6 +1594,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	if (twl_initialize_device_extension(tw_dev)) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1a, "Failed to initialize device extension");
+		retval = -ENOMEM;
 		goto out_free_device_extension;
 	}
 
@@ -1608,6 +1609,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	tw_dev->base_addr = pci_iomap(pdev, 1, 0);
 	if (!tw_dev->base_addr) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1c, "Failed to ioremap");
+		retval = -ENOMEM;
 		goto out_release_mem_region;
 	}
 
@@ -1617,6 +1619,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	/* Initialize the card */
 	if (twl_reset_sequence(tw_dev, 0)) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1d, "Controller reset failed during probe");
+		retval = -ENOMEM;
 		goto out_iounmap;
 	}
 
@@ -1802,14 +1805,12 @@ static int twl_resume(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
-	    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
-		    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
-			TW_PRINTK(host, TW_DRIVER, 0x25, "Failed to set dma mask during resume");
-			retval = -ENODEV;
-			goto out_disable_device;
-		}
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) ||
+	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
+		TW_PRINTK(host, TW_DRIVER, 0x25, "Failed to set dma mask during resume");
+		retval = -ENODEV;
+		goto out_disable_device;
+	}
 
 	/* Initialize the card */
 	if (twl_reset_sequence(tw_dev, 0)) {

@@ -20,7 +20,7 @@
 
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
@@ -66,7 +66,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	__vmsetvec(_K_VM_event_vector);
 
-	printk(KERN_INFO "PHYS_OFFSET=0x%08x\n", PHYS_OFFSET);
+	printk(KERN_INFO "PHYS_OFFSET=0x%08lx\n", PHYS_OFFSET);
 
 	/*
 	 * Simulator has a few differences from the hardware.

@@ -498,8 +498,8 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 static const struct dvb_tuner_ops ts2020_tuner_ops = {
 	.info = {
 		.name = "TS2020",
-		.frequency_min = 950000,
-		.frequency_max = 2150000
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz
 	},
 	.init = ts2020_init,
 	.release = ts2020_release,
@@ -525,7 +525,7 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 	pdata.attach_in_use = true;
 
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "ts2020", I2C_NAME_SIZE);
+	strscpy(board_info.type, "ts2020", I2C_NAME_SIZE);
 	board_info.addr = config->tuner_address;
 	board_info.platform_data = &pdata;
 	client = i2c_new_device(i2c, &board_info);

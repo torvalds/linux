@@ -30,7 +30,7 @@ static int ff400_get_clock(struct snd_ff *ff, unsigned int *rate,
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_QUADLET_REQUEST,
-				 FF400_SYNC_STATUS, &reg, sizeof(reg), 0);
+				 FF400_CLOCK_CONFIG, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return err;
 	data = le32_to_cpu(reg);
@@ -146,8 +146,9 @@ static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
 {
 	__le32 *reg;
 	int i;
+	int err;
 
-	reg = kzalloc(sizeof(__le32) * 18, GFP_KERNEL);
+	reg = kcalloc(18, sizeof(__le32), GFP_KERNEL);
 	if (reg == NULL)
 		return -ENOMEM;
 
@@ -163,9 +164,11 @@ static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
 			reg[i] = cpu_to_le32(0x00000001);
 	}
 
-	return snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
-				  FF400_FETCH_PCM_FRAMES, reg,
-				  sizeof(__le32) * 18, 0);
+	err = snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
+				 FF400_FETCH_PCM_FRAMES, reg,
+				 sizeof(__le32) * 18, 0);
+	kfree(reg);
+	return err;
 }
 
 static void ff400_dump_sync_status(struct snd_ff *ff,

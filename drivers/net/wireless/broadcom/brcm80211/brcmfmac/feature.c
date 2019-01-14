@@ -48,6 +48,8 @@ static const struct brcmf_feat_fwcap brcmf_fwcap_map[] = {
 	{ BRCMF_FEAT_MBSS, "mbss" },
 	{ BRCMF_FEAT_MCHAN, "mchan" },
 	{ BRCMF_FEAT_P2P, "p2p" },
+	{ BRCMF_FEAT_MONITOR, "monitor" },
+	{ BRCMF_FEAT_MONITOR_FMT_RADIOTAP, "rtap" },
 };
 
 #ifdef DEBUG
@@ -90,6 +92,42 @@ static int brcmf_feat_debugfs_read(struct seq_file *seq, void *data)
 	return 0;
 }
 #endif /* DEBUG */
+
+struct brcmf_feat_fwfeat {
+	const char * const fwid;
+	u32 feat_flags;
+};
+
+static const struct brcmf_feat_fwfeat brcmf_feat_fwfeat_map[] = {
+	/* brcmfmac43602-pcie.ap.bin from linux-firmware.git commit ea1178515b88 */
+	{ "01-6cb8e269", BIT(BRCMF_FEAT_MONITOR) },
+	/* brcmfmac4366b-pcie.bin from linux-firmware.git commit 52442afee990 */
+	{ "01-c47a91a4", BIT(BRCMF_FEAT_MONITOR) },
+};
+
+static void brcmf_feat_firmware_overrides(struct brcmf_pub *drv)
+{
+	const struct brcmf_feat_fwfeat *e;
+	u32 feat_flags = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(brcmf_feat_fwfeat_map); i++) {
+		e = &brcmf_feat_fwfeat_map[i];
+		if (!strcmp(e->fwid, drv->fwver)) {
+			feat_flags = e->feat_flags;
+			break;
+		}
+	}
+
+	if (!feat_flags)
+		return;
+
+	for (i = 0; i < BRCMF_FEAT_LAST; i++)
+		if (feat_flags & BIT(i))
+			brcmf_dbg(INFO, "enabling firmware feature: %s\n",
+				  brcmf_feat_names[i]);
+	drv->feat_flags |= feat_flags;
+}
 
 /**
  * brcmf_feat_iovar_int_get() - determine feature through iovar query.
@@ -140,7 +178,7 @@ static void brcmf_feat_iovar_data_set(struct brcmf_if *ifp,
 	ifp->fwil_fwerr = false;
 }
 
-#define MAX_CAPS_BUFFER_SIZE	512
+#define MAX_CAPS_BUFFER_SIZE	768
 static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 {
 	char caps[MAX_CAPS_BUFFER_SIZE];
@@ -163,6 +201,41 @@ static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 			ifp->drvr->feat_flags |= BIT(id);
 		}
 	}
+}
+
+/**
+ * brcmf_feat_fwcap_debugfs_read() - expose firmware capabilities to debugfs.
+ *
+ * @seq: sequence for debugfs entry.
+ * @data: raw data pointer.
+ */
+static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
+	struct brcmf_if *ifp = brcmf_get_ifp(bus_if->drvr, 0);
+	char caps[MAX_CAPS_BUFFER_SIZE + 1] = { };
+	char *tmp;
+	int err;
+
+	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
+	if (err) {
+		brcmf_err("could not get firmware cap (%d)\n", err);
+		return err;
+	}
+
+	/* Put every capability in a new line */
+	for (tmp = caps; *tmp; tmp++) {
+		if (*tmp == ' ')
+			*tmp = '\n';
+	}
+
+	/* Usually there is a space at the end of capabilities string */
+	seq_printf(seq, "%s", caps);
+	/* So make sure we don't print two line breaks */
+	if (tmp > caps && *(tmp - 1) != '\n')
+		seq_printf(seq, "\n");
+
+	return 0;
 }
 
 void brcmf_feat_attach(struct brcmf_pub *drvr)
@@ -216,6 +289,8 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	}
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_FWSUP, "sup_wpa");
 
+	brcmf_feat_firmware_overrides(drvr);
+
 	/* set chip related quirks */
 	switch (drvr->bus_if->chip) {
 	case BRCM_CC_43236_CHIP_ID:
@@ -233,6 +308,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 void brcmf_feat_debugfs_create(struct brcmf_pub *drvr)
 {
 	brcmf_debugfs_add_entry(drvr, "features", brcmf_feat_debugfs_read);
+	brcmf_debugfs_add_entry(drvr, "fwcap", brcmf_feat_fwcap_debugfs_read);
 }
 
 bool brcmf_feat_is_enabled(struct brcmf_if *ifp, enum brcmf_feat_id id)

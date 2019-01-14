@@ -322,11 +322,11 @@ wbcir_carrier_report(struct wbcir_data *data)
 			inb(data->ebase + WBCIR_REG_ECEIR_CNT_HI) << 8;
 
 	if (counter > 0 && counter < 0xffff) {
-		DEFINE_IR_RAW_EVENT(ev);
-
-		ev.carrier_report = 1;
-		ev.carrier = DIV_ROUND_CLOSEST(counter * 1000000u,
-						data->pulse_duration);
+		struct ir_raw_event ev = {
+			.carrier_report = 1,
+			.carrier = DIV_ROUND_CLOSEST(counter * 1000000u,
+						data->pulse_duration)
+		};
 
 		ir_raw_event_store(data->dev, &ev);
 	}
@@ -362,7 +362,7 @@ static void
 wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 {
 	u8 irdata;
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	unsigned duration;
 
 	/* Since RXHDLEV is set, at least 8 bytes are in the FIFO */
@@ -989,8 +989,7 @@ wbcir_init_hw(struct wbcir_data *data)
 
 	/* Clear RX state */
 	data->rxstate = WBCIR_RXSTATE_INACTIVE;
-	ir_raw_event_reset(data->dev);
-	ir_raw_event_set_idle(data->dev, true);
+	wbcir_idle_rx(data->dev, true);
 
 	/* Clear TX state */
 	if (data->txstate == WBCIR_TXSTATE_ACTIVE) {
@@ -1009,6 +1008,7 @@ wbcir_resume(struct pnp_dev *device)
 	struct wbcir_data *data = pnp_get_drvdata(device);
 
 	wbcir_init_hw(data);
+	ir_raw_event_reset(data->dev);
 	enable_irq(data->irq);
 	led_classdev_resume(&data->led);
 

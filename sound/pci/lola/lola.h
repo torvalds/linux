@@ -220,7 +220,7 @@ struct lola_bar {
 
 /* CORB/RIRB */
 struct lola_rb {
-	u32 *buf;		/* CORB/RIRB buffer, 8 byte per each entry */
+	__le32 *buf;		/* CORB/RIRB buffer, 8 byte per each entry */
 	dma_addr_t addr;	/* physical address of CORB/RIRB buffer */
 	unsigned short rp, wp;	/* read/write pointers */
 	int cmds;		/* number of pending requests */
@@ -275,7 +275,7 @@ struct lola_mixer_array {
 struct lola_mixer_widget {
 	unsigned int nid;
 	unsigned int caps;
-	struct lola_mixer_array __user *array;
+	struct lola_mixer_array __iomem *array;
 	struct lola_mixer_array *array_saved;
 	unsigned int src_stream_outs;
 	unsigned int src_phys_ins;

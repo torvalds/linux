@@ -40,6 +40,7 @@
 #include <asm/sclp.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
+#include <asm/ap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -172,6 +173,10 @@ static int nested;
 module_param(nested, int, S_IRUGO);
 MODULE_PARM_DESC(nested, "Nested virtualization support");
 
+/* allow 1m huge page guest backing, if !nested */
+static int hpage;
+module_param(hpage, int, 0444);
+MODULE_PARM_DESC(hpage, "1m huge page backing support");
 
 /*
  * For now we handle at most 16 double words as this is what the s390 base
@@ -475,6 +480,11 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_AIS_MIGRATION:
 		r = 1;
 		break;
+	case KVM_CAP_S390_HPAGE_1M:
+		r = 0;
+		if (hpage && !kvm_is_ucontrol(kvm))
+			r = 1;
+		break;
 	case KVM_CAP_S390_MEM_OP:
 		r = MEM_OP_MAX_SIZE;
 		break;
@@ -511,19 +521,30 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 }
 
 static void kvm_s390_sync_dirty_log(struct kvm *kvm,
-					struct kvm_memory_slot *memslot)
+				    struct kvm_memory_slot *memslot)
 {
+	int i;
 	gfn_t cur_gfn, last_gfn;
-	unsigned long address;
+	unsigned long gaddr, vmaddr;
 	struct gmap *gmap = kvm->arch.gmap;
+	DECLARE_BITMAP(bitmap, _PAGE_ENTRIES);
 
-	/* Loop over all guest pages */
+	/* Loop over all guest segments */
+	cur_gfn = memslot->base_gfn;
 	last_gfn = memslot->base_gfn + memslot->npages;
-	for (cur_gfn = memslot->base_gfn; cur_gfn <= last_gfn; cur_gfn++) {
-		address = gfn_to_hva_memslot(memslot, cur_gfn);
+	for (; cur_gfn <= last_gfn; cur_gfn += _PAGE_ENTRIES) {
+		gaddr = gfn_to_gpa(cur_gfn);
+		vmaddr = gfn_to_hva_memslot(memslot, cur_gfn);
+		if (kvm_is_error_hva(vmaddr))
+			continue;
 
-		if (test_and_clear_guest_dirty(gmap->mm, address))
-			mark_page_dirty(kvm, cur_gfn);
+		bitmap_zero(bitmap, _PAGE_ENTRIES);
+		gmap_sync_dirty_log_pmd(gmap, bitmap, gaddr, vmaddr);
+		for (i = 0; i < _PAGE_ENTRIES; i++) {
+			if (test_bit(i, bitmap))
+				mark_page_dirty(kvm, cur_gfn + i);
+		}
+
 		if (fatal_signal_pending(current))
 			return;
 		cond_resched();
@@ -667,6 +688,29 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_GS %s",
 			 r ? "(not available)" : "(success)");
 		break;
+	case KVM_CAP_S390_HPAGE_1M:
+		mutex_lock(&kvm->lock);
+		if (kvm->created_vcpus)
+			r = -EBUSY;
+		else if (!hpage || kvm->arch.use_cmma || kvm_is_ucontrol(kvm))
+			r = -EINVAL;
+		else {
+			r = 0;
+			down_write(&kvm->mm->mmap_sem);
+			kvm->mm->context.allow_gmap_hpage_1m = 1;
+			up_write(&kvm->mm->mmap_sem);
+			/*
+			 * We might have to create fake 4k page
+			 * tables. To avoid that the hardware works on
+			 * stale PGSTEs, we emulate these instructions.
+			 */
+			kvm->arch.use_skf = 0;
+			kvm->arch.use_pfmfi = 0;
+		}
+		mutex_unlock(&kvm->lock);
+		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_HPAGE %s",
+			 r ? "(not available)" : "(success)");
+		break;
 	case KVM_CAP_S390_USER_STSI:
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_STSI");
 		kvm->arch.user_stsi = 1;
@@ -714,10 +758,13 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		if (!sclp.has_cmma)
 			break;
 
-		ret = -EBUSY;
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CMMA support");
 		mutex_lock(&kvm->lock);
-		if (!kvm->created_vcpus) {
+		if (kvm->created_vcpus)
+			ret = -EBUSY;
+		else if (kvm->mm->context.allow_gmap_hpage_1m)
+			ret = -EINVAL;
+		else {
 			kvm->arch.use_cmma = 1;
 			/* Not compatible with cmma. */
 			kvm->arch.use_pfmfi = 0;
@@ -791,17 +838,31 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu);
 
-static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
+void kvm_s390_vcpu_crypto_reset_all(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
 	int i;
 
-	if (!test_kvm_facility(kvm, 76))
-		return -EINVAL;
+	kvm_s390_vcpu_block_all(kvm);
 
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		kvm_s390_vcpu_crypto_setup(vcpu);
+		/* recreate the shadow crycb by leaving the VSIE handler */
+		kvm_s390_sync_request(KVM_REQ_VSIE_RESTART, vcpu);
+	}
+
+	kvm_s390_vcpu_unblock_all(kvm);
+}
+
+static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
+{
 	mutex_lock(&kvm->lock);
 	switch (attr->attr) {
 	case KVM_S390_VM_CRYPTO_ENABLE_AES_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		get_random_bytes(
 			kvm->arch.crypto.crycb->aes_wrapping_key_mask,
 			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
@@ -809,6 +870,10 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 		VM_EVENT(kvm, 3, "%s", "ENABLE: AES keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_ENABLE_DEA_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		get_random_bytes(
 			kvm->arch.crypto.crycb->dea_wrapping_key_mask,
 			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
@@ -816,26 +881,45 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 		VM_EVENT(kvm, 3, "%s", "ENABLE: DEA keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_DISABLE_AES_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		kvm->arch.crypto.aes_kw = 0;
 		memset(kvm->arch.crypto.crycb->aes_wrapping_key_mask, 0,
 			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
 		VM_EVENT(kvm, 3, "%s", "DISABLE: AES keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_DISABLE_DEA_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		kvm->arch.crypto.dea_kw = 0;
 		memset(kvm->arch.crypto.crycb->dea_wrapping_key_mask, 0,
 			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
 		VM_EVENT(kvm, 3, "%s", "DISABLE: DEA keywrapping support");
+		break;
+	case KVM_S390_VM_CRYPTO_ENABLE_APIE:
+		if (!ap_instructions_available()) {
+			mutex_unlock(&kvm->lock);
+			return -EOPNOTSUPP;
+		}
+		kvm->arch.crypto.apie = 1;
+		break;
+	case KVM_S390_VM_CRYPTO_DISABLE_APIE:
+		if (!ap_instructions_available()) {
+			mutex_unlock(&kvm->lock);
+			return -EOPNOTSUPP;
+		}
+		kvm->arch.crypto.apie = 0;
 		break;
 	default:
 		mutex_unlock(&kvm->lock);
 		return -ENXIO;
 	}
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		kvm_s390_vcpu_crypto_setup(vcpu);
-		exit_sie(vcpu);
-	}
+	kvm_s390_vcpu_crypto_reset_all(kvm);
 	mutex_unlock(&kvm->lock);
 	return 0;
 }
@@ -855,54 +939,37 @@ static void kvm_s390_sync_request_broadcast(struct kvm *kvm, int req)
  */
 static int kvm_s390_vm_start_migration(struct kvm *kvm)
 {
-	struct kvm_s390_migration_state *mgs;
 	struct kvm_memory_slot *ms;
-	/* should be the only one */
 	struct kvm_memslots *slots;
-	unsigned long ram_pages;
+	unsigned long ram_pages = 0;
 	int slotnr;
 
 	/* migration mode already enabled */
-	if (kvm->arch.migration_state)
+	if (kvm->arch.migration_mode)
 		return 0;
-
 	slots = kvm_memslots(kvm);
 	if (!slots || !slots->used_slots)
 		return -EINVAL;
 
-	mgs = kzalloc(sizeof(*mgs), GFP_KERNEL);
-	if (!mgs)
-		return -ENOMEM;
-	kvm->arch.migration_state = mgs;
-
-	if (kvm->arch.use_cmma) {
-		/*
-		 * Get the first slot. They are reverse sorted by base_gfn, so
-		 * the first slot is also the one at the end of the address
-		 * space. We have verified above that at least one slot is
-		 * present.
-		 */
-		ms = slots->memslots;
-		/* round up so we only use full longs */
-		ram_pages = roundup(ms->base_gfn + ms->npages, BITS_PER_LONG);
-		/* allocate enough bytes to store all the bits */
-		mgs->pgste_bitmap = vmalloc(ram_pages / 8);
-		if (!mgs->pgste_bitmap) {
-			kfree(mgs);
-			kvm->arch.migration_state = NULL;
-			return -ENOMEM;
-		}
-
-		mgs->bitmap_size = ram_pages;
-		atomic64_set(&mgs->dirty_pages, ram_pages);
-		/* mark all the pages in active slots as dirty */
-		for (slotnr = 0; slotnr < slots->used_slots; slotnr++) {
-			ms = slots->memslots + slotnr;
-			bitmap_set(mgs->pgste_bitmap, ms->base_gfn, ms->npages);
-		}
-
-		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_START_MIGRATION);
+	if (!kvm->arch.use_cmma) {
+		kvm->arch.migration_mode = 1;
+		return 0;
 	}
+	/* mark all the pages in active slots as dirty */
+	for (slotnr = 0; slotnr < slots->used_slots; slotnr++) {
+		ms = slots->memslots + slotnr;
+		/*
+		 * The second half of the bitmap is only used on x86,
+		 * and would be wasted otherwise, so we put it to good
+		 * use here to keep track of the state of the storage
+		 * attributes.
+		 */
+		memset(kvm_second_dirty_bitmap(ms), 0xff, kvm_dirty_bitmap_bytes(ms));
+		ram_pages += ms->npages;
+	}
+	atomic64_set(&kvm->arch.cmma_dirty_pages, ram_pages);
+	kvm->arch.migration_mode = 1;
+	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_START_MIGRATION);
 	return 0;
 }
 
@@ -912,21 +979,12 @@ static int kvm_s390_vm_start_migration(struct kvm *kvm)
  */
 static int kvm_s390_vm_stop_migration(struct kvm *kvm)
 {
-	struct kvm_s390_migration_state *mgs;
-
 	/* migration mode already disabled */
-	if (!kvm->arch.migration_state)
+	if (!kvm->arch.migration_mode)
 		return 0;
-	mgs = kvm->arch.migration_state;
-	kvm->arch.migration_state = NULL;
-
-	if (kvm->arch.use_cmma) {
+	kvm->arch.migration_mode = 0;
+	if (kvm->arch.use_cmma)
 		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_STOP_MIGRATION);
-		/* We have to wait for the essa emulation to finish */
-		synchronize_srcu(&kvm->srcu);
-		vfree(mgs->pgste_bitmap);
-	}
-	kfree(mgs);
 	return 0;
 }
 
@@ -954,7 +1012,7 @@ static int kvm_s390_vm_set_migration(struct kvm *kvm,
 static int kvm_s390_vm_get_migration(struct kvm *kvm,
 				     struct kvm_device_attr *attr)
 {
-	u64 mig = (kvm->arch.migration_state != NULL);
+	u64 mig = kvm->arch.migration_mode;
 
 	if (attr->attr != KVM_S390_VM_MIGRATION_STATUS)
 		return -ENXIO;
@@ -1033,8 +1091,8 @@ static int kvm_s390_set_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 	return ret;
 }
 
-static void kvm_s390_get_tod_clock_ext(struct kvm *kvm,
-					struct kvm_s390_vm_tod_clock *gtod)
+static void kvm_s390_get_tod_clock(struct kvm *kvm,
+				   struct kvm_s390_vm_tod_clock *gtod)
 {
 	struct kvm_s390_tod_clock_ext htod;
 
@@ -1043,10 +1101,12 @@ static void kvm_s390_get_tod_clock_ext(struct kvm *kvm,
 	get_tod_clock_ext((char *)&htod);
 
 	gtod->tod = htod.tod + kvm->arch.epoch;
-	gtod->epoch_idx = htod.epoch_idx + kvm->arch.epdx;
-
-	if (gtod->tod < htod.tod)
-		gtod->epoch_idx += 1;
+	gtod->epoch_idx = 0;
+	if (test_kvm_facility(kvm, 139)) {
+		gtod->epoch_idx = htod.epoch_idx + kvm->arch.epdx;
+		if (gtod->tod < htod.tod)
+			gtod->epoch_idx += 1;
+	}
 
 	preempt_enable();
 }
@@ -1056,12 +1116,7 @@ static int kvm_s390_get_tod_ext(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_vm_tod_clock gtod;
 
 	memset(&gtod, 0, sizeof(gtod));
-
-	if (test_kvm_facility(kvm, 139))
-		kvm_s390_get_tod_clock_ext(kvm, &gtod);
-	else
-		gtod.tod = kvm_s390_get_tod_clock_fast(kvm);
-
+	kvm_s390_get_tod_clock(kvm, &gtod);
 	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
 		return -EFAULT;
 
@@ -1467,6 +1522,10 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		case KVM_S390_VM_CRYPTO_DISABLE_DEA_KW:
 			ret = 0;
 			break;
+		case KVM_S390_VM_CRYPTO_ENABLE_APIE:
+		case KVM_S390_VM_CRYPTO_DISABLE_APIE:
+			ret = ap_instructions_available() ? 0 : -ENXIO;
+			break;
 		default:
 			ret = -ENXIO;
 			break;
@@ -1493,7 +1552,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		return -EINVAL;
 
 	/* Is this guest using storage keys? */
-	if (!mm_use_skey(current->mm))
+	if (!mm_uses_skeys(current->mm))
 		return KVM_S390_GET_SKEYS_NONE;
 
 	/* Enforce sane limit on memory allocation */
@@ -1536,6 +1595,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	uint8_t *keys;
 	uint64_t hva;
 	int srcu_idx, i, r = 0;
+	bool unlocked;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -1560,9 +1620,11 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (r)
 		goto out;
 
+	i = 0;
 	down_read(&current->mm->mmap_sem);
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	for (i = 0; i < args->count; i++) {
+        while (i < args->count) {
+		unlocked = false;
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
 			r = -EFAULT;
@@ -1576,8 +1638,14 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		}
 
 		r = set_guest_storage_key(current->mm, hva, keys[i], 0);
-		if (r)
-			break;
+		if (r) {
+			r = fixup_user_fault(current, current->mm, hva,
+					     FAULT_FLAG_WRITE, &unlocked);
+			if (r)
+				break;
+		}
+		if (!r)
+			i++;
 	}
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&current->mm->mmap_sem);
@@ -1596,6 +1664,134 @@ out:
 #define KVM_S390_CMMA_SIZE_MAX ((u32)KVM_S390_SKEYS_MAX)
 
 /*
+ * Similar to gfn_to_memslot, but returns the index of a memslot also when the
+ * address falls in a hole. In that case the index of one of the memslots
+ * bordering the hole is returned.
+ */
+static int gfn_to_memslot_approx(struct kvm_memslots *slots, gfn_t gfn)
+{
+	int start = 0, end = slots->used_slots;
+	int slot = atomic_read(&slots->lru_slot);
+	struct kvm_memory_slot *memslots = slots->memslots;
+
+	if (gfn >= memslots[slot].base_gfn &&
+	    gfn < memslots[slot].base_gfn + memslots[slot].npages)
+		return slot;
+
+	while (start < end) {
+		slot = start + (end - start) / 2;
+
+		if (gfn >= memslots[slot].base_gfn)
+			end = slot;
+		else
+			start = slot + 1;
+	}
+
+	if (gfn >= memslots[start].base_gfn &&
+	    gfn < memslots[start].base_gfn + memslots[start].npages) {
+		atomic_set(&slots->lru_slot, start);
+	}
+
+	return start;
+}
+
+static int kvm_s390_peek_cmma(struct kvm *kvm, struct kvm_s390_cmma_log *args,
+			      u8 *res, unsigned long bufsize)
+{
+	unsigned long pgstev, hva, cur_gfn = args->start_gfn;
+
+	args->count = 0;
+	while (args->count < bufsize) {
+		hva = gfn_to_hva(kvm, cur_gfn);
+		/*
+		 * We return an error if the first value was invalid, but we
+		 * return successfully if at least one value was copied.
+		 */
+		if (kvm_is_error_hva(hva))
+			return args->count ? 0 : -EFAULT;
+		if (get_pgste(kvm->mm, hva, &pgstev) < 0)
+			pgstev = 0;
+		res[args->count++] = (pgstev >> 24) & 0x43;
+		cur_gfn++;
+	}
+
+	return 0;
+}
+
+static unsigned long kvm_s390_next_dirty_cmma(struct kvm_memslots *slots,
+					      unsigned long cur_gfn)
+{
+	int slotidx = gfn_to_memslot_approx(slots, cur_gfn);
+	struct kvm_memory_slot *ms = slots->memslots + slotidx;
+	unsigned long ofs = cur_gfn - ms->base_gfn;
+
+	if (ms->base_gfn + ms->npages <= cur_gfn) {
+		slotidx--;
+		/* If we are above the highest slot, wrap around */
+		if (slotidx < 0)
+			slotidx = slots->used_slots - 1;
+
+		ms = slots->memslots + slotidx;
+		ofs = 0;
+	}
+	ofs = find_next_bit(kvm_second_dirty_bitmap(ms), ms->npages, ofs);
+	while ((slotidx > 0) && (ofs >= ms->npages)) {
+		slotidx--;
+		ms = slots->memslots + slotidx;
+		ofs = find_next_bit(kvm_second_dirty_bitmap(ms), ms->npages, 0);
+	}
+	return ms->base_gfn + ofs;
+}
+
+static int kvm_s390_get_cmma(struct kvm *kvm, struct kvm_s390_cmma_log *args,
+			     u8 *res, unsigned long bufsize)
+{
+	unsigned long mem_end, cur_gfn, next_gfn, hva, pgstev;
+	struct kvm_memslots *slots = kvm_memslots(kvm);
+	struct kvm_memory_slot *ms;
+
+	cur_gfn = kvm_s390_next_dirty_cmma(slots, args->start_gfn);
+	ms = gfn_to_memslot(kvm, cur_gfn);
+	args->count = 0;
+	args->start_gfn = cur_gfn;
+	if (!ms)
+		return 0;
+	next_gfn = kvm_s390_next_dirty_cmma(slots, cur_gfn + 1);
+	mem_end = slots->memslots[0].base_gfn + slots->memslots[0].npages;
+
+	while (args->count < bufsize) {
+		hva = gfn_to_hva(kvm, cur_gfn);
+		if (kvm_is_error_hva(hva))
+			return 0;
+		/* Decrement only if we actually flipped the bit to 0 */
+		if (test_and_clear_bit(cur_gfn - ms->base_gfn, kvm_second_dirty_bitmap(ms)))
+			atomic64_dec(&kvm->arch.cmma_dirty_pages);
+		if (get_pgste(kvm->mm, hva, &pgstev) < 0)
+			pgstev = 0;
+		/* Save the value */
+		res[args->count++] = (pgstev >> 24) & 0x43;
+		/* If the next bit is too far away, stop. */
+		if (next_gfn > cur_gfn + KVM_S390_MAX_BIT_DISTANCE)
+			return 0;
+		/* If we reached the previous "next", find the next one */
+		if (cur_gfn == next_gfn)
+			next_gfn = kvm_s390_next_dirty_cmma(slots, cur_gfn + 1);
+		/* Reached the end of memory or of the buffer, stop */
+		if ((next_gfn >= mem_end) ||
+		    (next_gfn - args->start_gfn >= bufsize))
+			return 0;
+		cur_gfn++;
+		/* Reached the end of the current memslot, take the next one. */
+		if (cur_gfn - ms->base_gfn >= ms->npages) {
+			ms = gfn_to_memslot(kvm, cur_gfn);
+			if (!ms)
+				return 0;
+		}
+	}
+	return 0;
+}
+
+/*
  * This function searches for the next page with dirty CMMA attributes, and
  * saves the attributes in the buffer up to either the end of the buffer or
  * until a block of at least KVM_S390_MAX_BIT_DISTANCE clean bits is found;
@@ -1606,22 +1802,18 @@ out:
 static int kvm_s390_get_cmma_bits(struct kvm *kvm,
 				  struct kvm_s390_cmma_log *args)
 {
-	struct kvm_s390_migration_state *s = kvm->arch.migration_state;
-	unsigned long bufsize, hva, pgstev, i, next, cur;
-	int srcu_idx, peek, r = 0, rr;
-	u8 *res;
+	unsigned long bufsize;
+	int srcu_idx, peek, ret;
+	u8 *values;
 
-	cur = args->start_gfn;
-	i = next = pgstev = 0;
-
-	if (unlikely(!kvm->arch.use_cmma))
+	if (!kvm->arch.use_cmma)
 		return -ENXIO;
 	/* Invalid/unsupported flags were specified */
 	if (args->flags & ~KVM_S390_CMMA_PEEK)
 		return -EINVAL;
 	/* Migration mode query, and we are not doing a migration */
 	peek = !!(args->flags & KVM_S390_CMMA_PEEK);
-	if (!peek && !s)
+	if (!peek && !kvm->arch.migration_mode)
 		return -EINVAL;
 	/* CMMA is disabled or was not used, or the buffer has length zero */
 	bufsize = min(args->count, KVM_S390_CMMA_SIZE_MAX);
@@ -1629,74 +1821,35 @@ static int kvm_s390_get_cmma_bits(struct kvm *kvm,
 		memset(args, 0, sizeof(*args));
 		return 0;
 	}
-
-	if (!peek) {
-		/* We are not peeking, and there are no dirty pages */
-		if (!atomic64_read(&s->dirty_pages)) {
-			memset(args, 0, sizeof(*args));
-			return 0;
-		}
-		cur = find_next_bit(s->pgste_bitmap, s->bitmap_size,
-				    args->start_gfn);
-		if (cur >= s->bitmap_size)	/* nothing found, loop back */
-			cur = find_next_bit(s->pgste_bitmap, s->bitmap_size, 0);
-		if (cur >= s->bitmap_size) {	/* again! (very unlikely) */
-			memset(args, 0, sizeof(*args));
-			return 0;
-		}
-		next = find_next_bit(s->pgste_bitmap, s->bitmap_size, cur + 1);
+	/* We are not peeking, and there are no dirty pages */
+	if (!peek && !atomic64_read(&kvm->arch.cmma_dirty_pages)) {
+		memset(args, 0, sizeof(*args));
+		return 0;
 	}
 
-	res = vmalloc(bufsize);
-	if (!res)
+	values = vmalloc(bufsize);
+	if (!values)
 		return -ENOMEM;
-
-	args->start_gfn = cur;
 
 	down_read(&kvm->mm->mmap_sem);
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	while (i < bufsize) {
-		hva = gfn_to_hva(kvm, cur);
-		if (kvm_is_error_hva(hva)) {
-			r = -EFAULT;
-			break;
-		}
-		/* decrement only if we actually flipped the bit to 0 */
-		if (!peek && test_and_clear_bit(cur, s->pgste_bitmap))
-			atomic64_dec(&s->dirty_pages);
-		r = get_pgste(kvm->mm, hva, &pgstev);
-		if (r < 0)
-			pgstev = 0;
-		/* save the value */
-		res[i++] = (pgstev >> 24) & 0x43;
-		/*
-		 * if the next bit is too far away, stop.
-		 * if we reached the previous "next", find the next one
-		 */
-		if (!peek) {
-			if (next > cur + KVM_S390_MAX_BIT_DISTANCE)
-				break;
-			if (cur == next)
-				next = find_next_bit(s->pgste_bitmap,
-						     s->bitmap_size, cur + 1);
-		/* reached the end of the bitmap or of the buffer, stop */
-			if ((next >= s->bitmap_size) ||
-			    (next >= args->start_gfn + bufsize))
-				break;
-		}
-		cur++;
-	}
+	if (peek)
+		ret = kvm_s390_peek_cmma(kvm, args, values, bufsize);
+	else
+		ret = kvm_s390_get_cmma(kvm, args, values, bufsize);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&kvm->mm->mmap_sem);
-	args->count = i;
-	args->remaining = s ? atomic64_read(&s->dirty_pages) : 0;
 
-	rr = copy_to_user((void __user *)args->values, res, args->count);
-	if (rr)
-		r = -EFAULT;
+	if (kvm->arch.migration_mode)
+		args->remaining = atomic64_read(&kvm->arch.cmma_dirty_pages);
+	else
+		args->remaining = 0;
 
-	vfree(res);
-	return r;
+	if (copy_to_user((void __user *)args->values, values, args->count))
+		ret = -EFAULT;
+
+	vfree(values);
+	return ret;
 }
 
 /*
@@ -1725,7 +1878,7 @@ static int kvm_s390_set_cmma_bits(struct kvm *kvm,
 	if (args->count == 0)
 		return 0;
 
-	bits = vmalloc(sizeof(*bits) * args->count);
+	bits = vmalloc(array_size(sizeof(*bits), args->count));
 	if (!bits)
 		return -ENOMEM;
 
@@ -1874,54 +2027,100 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	return r;
 }
 
-static int kvm_s390_query_ap_config(u8 *config)
-{
-	u32 fcn_code = 0x04000000UL;
-	u32 cc = 0;
-
-	memset(config, 0, 128);
-	asm volatile(
-		"lgr 0,%1\n"
-		"lgr 2,%2\n"
-		".long 0xb2af0000\n"		/* PQAP(QCI) */
-		"0: ipm %0\n"
-		"srl %0,28\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: "+r" (cc)
-		: "r" (fcn_code), "r" (config)
-		: "cc", "0", "2", "memory"
-	);
-
-	return cc;
-}
-
 static int kvm_s390_apxa_installed(void)
 {
-	u8 config[128];
-	int cc;
+	struct ap_config_info info;
 
-	if (test_facility(12)) {
-		cc = kvm_s390_query_ap_config(config);
-
-		if (cc)
-			pr_err("PQAP(QCI) failed with cc=%d", cc);
-		else
-			return config[0] & 0x40;
+	if (ap_instructions_available()) {
+		if (ap_qci(&info) == 0)
+			return info.apxa;
 	}
 
 	return 0;
 }
 
+/*
+ * The format of the crypto control block (CRYCB) is specified in the 3 low
+ * order bits of the CRYCB designation (CRYCBD) field as follows:
+ * Format 0: Neither the message security assist extension 3 (MSAX3) nor the
+ *	     AP extended addressing (APXA) facility are installed.
+ * Format 1: The APXA facility is not installed but the MSAX3 facility is.
+ * Format 2: Both the APXA and MSAX3 facilities are installed
+ */
 static void kvm_s390_set_crycb_format(struct kvm *kvm)
 {
 	kvm->arch.crypto.crycbd = (__u32)(unsigned long) kvm->arch.crypto.crycb;
+
+	/* Clear the CRYCB format bits - i.e., set format 0 by default */
+	kvm->arch.crypto.crycbd &= ~(CRYCB_FORMAT_MASK);
+
+	/* Check whether MSAX3 is installed */
+	if (!test_kvm_facility(kvm, 76))
+		return;
 
 	if (kvm_s390_apxa_installed())
 		kvm->arch.crypto.crycbd |= CRYCB_FORMAT2;
 	else
 		kvm->arch.crypto.crycbd |= CRYCB_FORMAT1;
 }
+
+void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,
+			       unsigned long *aqm, unsigned long *adm)
+{
+	struct kvm_s390_crypto_cb *crycb = kvm->arch.crypto.crycb;
+
+	mutex_lock(&kvm->lock);
+	kvm_s390_vcpu_block_all(kvm);
+
+	switch (kvm->arch.crypto.crycbd & CRYCB_FORMAT_MASK) {
+	case CRYCB_FORMAT2: /* APCB1 use 256 bits */
+		memcpy(crycb->apcb1.apm, apm, 32);
+		VM_EVENT(kvm, 3, "SET CRYCB: apm %016lx %016lx %016lx %016lx",
+			 apm[0], apm[1], apm[2], apm[3]);
+		memcpy(crycb->apcb1.aqm, aqm, 32);
+		VM_EVENT(kvm, 3, "SET CRYCB: aqm %016lx %016lx %016lx %016lx",
+			 aqm[0], aqm[1], aqm[2], aqm[3]);
+		memcpy(crycb->apcb1.adm, adm, 32);
+		VM_EVENT(kvm, 3, "SET CRYCB: adm %016lx %016lx %016lx %016lx",
+			 adm[0], adm[1], adm[2], adm[3]);
+		break;
+	case CRYCB_FORMAT1:
+	case CRYCB_FORMAT0: /* Fall through both use APCB0 */
+		memcpy(crycb->apcb0.apm, apm, 8);
+		memcpy(crycb->apcb0.aqm, aqm, 2);
+		memcpy(crycb->apcb0.adm, adm, 2);
+		VM_EVENT(kvm, 3, "SET CRYCB: apm %016lx aqm %04x adm %04x",
+			 apm[0], *((unsigned short *)aqm),
+			 *((unsigned short *)adm));
+		break;
+	default:	/* Can not happen */
+		break;
+	}
+
+	/* recreate the shadow crycb for each vcpu */
+	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_VSIE_RESTART);
+	kvm_s390_vcpu_unblock_all(kvm);
+	mutex_unlock(&kvm->lock);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_crypto_set_masks);
+
+void kvm_arch_crypto_clear_masks(struct kvm *kvm)
+{
+	mutex_lock(&kvm->lock);
+	kvm_s390_vcpu_block_all(kvm);
+
+	memset(&kvm->arch.crypto.crycb->apcb0, 0,
+	       sizeof(kvm->arch.crypto.crycb->apcb0));
+	memset(&kvm->arch.crypto.crycb->apcb1, 0,
+	       sizeof(kvm->arch.crypto.crycb->apcb1));
+
+	VM_EVENT(kvm, 3, "%s", "CLR CRYCB:");
+	/* recreate the shadow crycb for each vcpu */
+	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_VSIE_RESTART);
+	kvm_s390_vcpu_unblock_all(kvm);
+	mutex_unlock(&kvm->lock);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_crypto_clear_masks);
 
 static u64 kvm_s390_get_initial_cpuid(void)
 {
@@ -1934,11 +2133,11 @@ static u64 kvm_s390_get_initial_cpuid(void)
 
 static void kvm_s390_crypto_init(struct kvm *kvm)
 {
-	if (!test_kvm_facility(kvm, 76))
-		return;
-
 	kvm->arch.crypto.crycb = &kvm->arch.sie_page2->crycb;
 	kvm_s390_set_crycb_format(kvm);
+
+	if (!test_kvm_facility(kvm, 76))
+		return;
 
 	/* Enable AES/DEA protected key functions by default */
 	kvm->arch.crypto.aes_kw = 1;
@@ -1982,10 +2181,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	rc = -ENOMEM;
 
-	kvm->arch.use_esca = 0; /* start with basic SCA */
 	if (!sclp.has_64bscao)
 		alloc_flags |= GFP_DMA;
 	rwlock_init(&kvm->arch.sca_lock);
+	/* start with basic SCA */
 	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(alloc_flags);
 	if (!kvm->arch.sca)
 		goto out_err;
@@ -2036,8 +2235,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm_s390_crypto_init(kvm);
 
 	mutex_init(&kvm->arch.float_int.ais_lock);
-	kvm->arch.float_int.simm = 0;
-	kvm->arch.float_int.nimm = 0;
 	spin_lock_init(&kvm->arch.float_int.lock);
 	for (i = 0; i < FIRQ_LIST_COUNT; i++)
 		INIT_LIST_HEAD(&kvm->arch.float_int.lists[i]);
@@ -2063,11 +2260,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		kvm->arch.gmap->pfault_enabled = 0;
 	}
 
-	kvm->arch.css_support = 0;
-	kvm->arch.use_irqchip = 0;
 	kvm->arch.use_pfmfi = sclp.has_pfmfi;
-	kvm->arch.epoch = 0;
-
+	kvm->arch.use_skf = sclp.has_skey;
 	spin_lock_init(&kvm->arch.start_stop_lock);
 	kvm_s390_vsie_init(kvm);
 	kvm_s390_gisa_init(kvm);
@@ -2140,10 +2334,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
 	kvm_s390_vsie_destroy(kvm);
-	if (kvm->arch.migration_state) {
-		vfree(kvm->arch.migration_state->pgste_bitmap);
-		kfree(kvm->arch.migration_state);
-	}
 	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
 }
 
@@ -2301,6 +2491,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_BPBC;
 	if (test_kvm_facility(vcpu->kvm, 133))
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_GSCB;
+	if (test_kvm_facility(vcpu->kvm, 156))
+		vcpu->run->kvm_valid_regs |= KVM_SYNC_ETOKEN;
 	/* fprs can be synchronized via vrs, even if the guest has no vx. With
 	 * MACHINE_HAS_VX, (load|store)_fpu_regs() will work with vrs format.
 	 */
@@ -2433,8 +2625,12 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->ckc       = 0UL;
 	vcpu->arch.sie_block->todpr     = 0;
 	memset(vcpu->arch.sie_block->gcr, 0, 16 * sizeof(__u64));
-	vcpu->arch.sie_block->gcr[0]  = 0xE0UL;
-	vcpu->arch.sie_block->gcr[14] = 0xC2000000UL;
+	vcpu->arch.sie_block->gcr[0]  = CR0_UNUSED_56 |
+					CR0_INTERRUPT_KEY_SUBMASK |
+					CR0_MEASUREMENT_ALERT_SUBMASK;
+	vcpu->arch.sie_block->gcr[14] = CR14_UNUSED_32 |
+					CR14_UNUSED_33 |
+					CR14_EXTERNAL_DAMAGE_SUBMASK;
 	/* make sure the new fpc will be lazily loaded */
 	save_fpu_regs();
 	current->thread.fpu.fpc = 0;
@@ -2468,17 +2664,25 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 {
-	if (!test_kvm_facility(vcpu->kvm, 76))
+	/*
+	 * If the AP instructions are not being interpreted and the MSAX3
+	 * facility is not configured for the guest, there is nothing to set up.
+	 */
+	if (!vcpu->kvm->arch.crypto.apie && !test_kvm_facility(vcpu->kvm, 76))
 		return;
 
+	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
 	vcpu->arch.sie_block->ecb3 &= ~(ECB3_AES | ECB3_DEA);
+	vcpu->arch.sie_block->eca &= ~ECA_APIE;
 
+	if (vcpu->kvm->arch.crypto.apie)
+		vcpu->arch.sie_block->eca |= ECA_APIE;
+
+	/* Set up protected key support */
 	if (vcpu->kvm->arch.crypto.aes_kw)
 		vcpu->arch.sie_block->ecb3 |= ECB3_AES;
 	if (vcpu->kvm->arch.crypto.dea_kw)
 		vcpu->arch.sie_block->ecb3 |= ECB3_DEA;
-
-	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
 }
 
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu)
@@ -2546,7 +2750,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	if (test_kvm_facility(vcpu->kvm, 139))
 		vcpu->arch.sie_block->ecd |= ECD_MEF;
-
+	if (test_kvm_facility(vcpu->kvm, 156))
+		vcpu->arch.sie_block->ecd |= ECD_ETOKENF;
 	if (vcpu->arch.sie_block->gd) {
 		vcpu->arch.sie_block->eca |= ECA_AIV;
 		VCPU_EVENT(vcpu, 3, "AIV gisa format-%u enabled for cpu %03u",
@@ -2568,6 +2773,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
+
+	vcpu->arch.sie_block->hpid = HPID_KVM;
 
 	kvm_s390_vcpu_crypto_setup(vcpu);
 
@@ -2652,18 +2859,25 @@ static void kvm_s390_vcpu_request(struct kvm_vcpu *vcpu)
 	exit_sie(vcpu);
 }
 
+bool kvm_s390_vcpu_sie_inhibited(struct kvm_vcpu *vcpu)
+{
+	return atomic_read(&vcpu->arch.sie_block->prog20) &
+	       (PROG_BLOCK_SIE | PROG_REQUEST);
+}
+
 static void kvm_s390_vcpu_request_handled(struct kvm_vcpu *vcpu)
 {
 	atomic_andnot(PROG_REQUEST, &vcpu->arch.sie_block->prog20);
 }
 
 /*
- * Kick a guest cpu out of SIE and wait until SIE is not running.
+ * Kick a guest cpu out of (v)SIE and wait until (v)SIE is not running.
  * If the CPU is not running (e.g. waiting as idle) the function will
  * return immediately. */
 void exit_sie(struct kvm_vcpu *vcpu)
 {
 	kvm_s390_set_cpuflags(vcpu, CPUSTAT_STOP_INT);
+	kvm_s390_vsie_kick(vcpu);
 	while (vcpu->arch.sie_block->prog0c & PROG_IN_SIE)
 		cpu_relax();
 }
@@ -3080,6 +3294,8 @@ retry:
 
 	/* nothing to do, just clear the request */
 	kvm_clear_request(KVM_REQ_UNHALT, vcpu);
+	/* we left the vsie handler, nothing to do, just clear the request */
+	kvm_clear_request(KVM_REQ_VSIE_RESTART, vcpu);
 
 	return 0;
 }
@@ -3192,7 +3408,7 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu)
 		return 0;
 	if (kvm_s390_vcpu_has_irq(vcpu, 0))
 		return 0;
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x200ul))
+	if (!(vcpu->arch.sie_block->gcr[0] & CR0_SERVICE_SIGNAL_SUBMASK))
 		return 0;
 	if (!vcpu->arch.gmap->pfault_enabled)
 		return 0;
@@ -3464,6 +3680,7 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 		preempt_enable();
 	}
+	/* SIE will load etoken directly from SDNX and therefore kvm_run */
 
 	kvm_run->kvm_dirty_regs = 0;
 }
@@ -3503,7 +3720,7 @@ static void store_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			__ctl_clear_bit(2, 4);
 		vcpu->arch.host_gscb = NULL;
 	}
-
+	/* SIE will save etoken directly into SDNX and therefore kvm_run */
 }
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -3990,7 +4207,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	return r;
 }
 
-int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
+vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 {
 #ifdef CONFIG_KVM_S390_UCONTROL
 	if ((vmf->pgoff == KVM_S390_SIE_PAGE_OFFSET)
@@ -4077,6 +4294,11 @@ static int __init kvm_s390_init(void)
 	if (!sclp.has_sief2) {
 		pr_info("SIE not available\n");
 		return -ENODEV;
+	}
+
+	if (nested && hpage) {
+		pr_info("nested (vSIE) and hpage (huge page backing) can currently not be activated concurrently");
+		return -EINVAL;
 	}
 
 	for (i = 0; i < 16; i++)

@@ -26,6 +26,7 @@
 #include "amdgpu.h"
 #include "gmc_v6_0.h"
 #include "amdgpu_ucode.h"
+#include "amdgpu_gem.h"
 
 #include "bif/bif_3_0_d.h"
 #include "bif/bif_3_0_sh_mask.h"
@@ -41,11 +42,12 @@ static void gmc_v6_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static int gmc_v6_0_wait_for_idle(void *handle);
 
-MODULE_FIRMWARE("radeon/tahiti_mc.bin");
-MODULE_FIRMWARE("radeon/pitcairn_mc.bin");
-MODULE_FIRMWARE("radeon/verde_mc.bin");
-MODULE_FIRMWARE("radeon/oland_mc.bin");
-MODULE_FIRMWARE("radeon/si58_mc.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_mc.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_mc.bin");
+MODULE_FIRMWARE("amdgpu/verde_mc.bin");
+MODULE_FIRMWARE("amdgpu/oland_mc.bin");
+MODULE_FIRMWARE("amdgpu/hainan_mc.bin");
+MODULE_FIRMWARE("amdgpu/si58_mc.bin");
 
 #define MC_SEQ_MISC0__MT__MASK   0xf0000000
 #define MC_SEQ_MISC0__MT__GDDR1  0x10000000
@@ -134,9 +136,9 @@ static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 		is_58_fw = true;
 
 	if (is_58_fw)
-		snprintf(fw_name, sizeof(fw_name), "radeon/si58_mc.bin");
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/si58_mc.bin");
 	else
-		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
 	err = request_firmware(&adev->gmc.fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -223,8 +225,8 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_device_vram_location(adev, &adev->gmc, base);
-	amdgpu_device_gart_location(adev, mc);
+	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_gart_location(adev, mc);
 }
 
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
@@ -493,16 +495,20 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 
 static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 {
+	uint64_t table_addr;
 	int r, i;
 	u32 field;
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
+
+	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+
 	/* Setup TLB control */
 	WREG32(mmMC_VM_MX_L1_TLB_CNTL,
 	       (0xA << 7) |
@@ -531,7 +537,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->gmc.gart_start >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->gmc.gart_end >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(adev->dummy_page_addr >> 12));
 	WREG32(mmVM_CONTEXT0_CNTL2, 0);
@@ -555,10 +561,10 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 		else
 			WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + i - 8,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 	}
 
 	/* enable context1-15 */
@@ -578,7 +584,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	gmc_v6_0_flush_gpu_tlb(adev, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)adev->gart.table_addr);
+		 (unsigned long long)table_addr);
 	adev->gart.ready = true;
 	return 0;
 }
@@ -587,7 +593,7 @@ static int gmc_v6_0_gart_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj) {
+	if (adev->gart.bo) {
 		dev_warn(adev->dev, "gmc_v6_0 PCIE GART already initialized\n");
 		return 0;
 	}
@@ -630,12 +636,6 @@ static void gmc_v6_0_gart_disable(struct amdgpu_device *adev)
 	       VM_L2_CNTL3__L2_CACHE_BIGK_ASSOCIATIVITY_MASK |
 	       (0UL << VM_L2_CNTL3__L2_CACHE_BIGK_FRAGMENT_SIZE__SHIFT));
 	amdgpu_gart_table_vram_unpin(adev);
-}
-
-static void gmc_v6_0_gart_fini(struct amdgpu_device *adev)
-{
-	amdgpu_gart_table_vram_free(adev);
-	amdgpu_gart_fini(adev);
 }
 
 static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
@@ -819,10 +819,31 @@ static int gmc_v6_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_bo_late_init(adev);
+
 	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
 		return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 	else
 		return 0;
+}
+
+static unsigned gmc_v6_0_get_vbios_fb_size(struct amdgpu_device *adev)
+{
+	u32 d1vga_control = RREG32(mmD1VGA_CONTROL);
+	unsigned size;
+
+	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
+		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+	} else {
+		u32 viewport = RREG32(mmVIEWPORT_SIZE);
+		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
+			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
+			4);
+	}
+	/* return 0 if the pre-OS buffer uses up most of vram */
+	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
+		return 0;
+	return size;
 }
 
 static int gmc_v6_0_sw_init(void *handle)
@@ -839,19 +860,17 @@ static int gmc_v6_0_sw_init(void *handle)
 		adev->gmc.vram_type = gmc_v6_0_convert_vram_type(tmp);
 	}
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 146, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 146, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 147, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 147, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
 	amdgpu_vm_adjust_size(adev, 64, 9, 1, 40);
 
 	adev->gmc.mc_mask = 0xffffffffffULL;
-
-	adev->gmc.stolen_size = 256 * 1024;
 
 	adev->need_dma32 = false;
 	dma_bits = adev->need_dma32 ? 32 : 40;
@@ -877,6 +896,8 @@ static int gmc_v6_0_sw_init(void *handle)
 	r = gmc_v6_0_mc_init(adev);
 	if (r)
 		return r;
+
+	adev->gmc.stolen_size = gmc_v6_0_get_vbios_fb_size(adev);
 
 	r = amdgpu_bo_init(adev);
 	if (r)
@@ -914,8 +935,9 @@ static int gmc_v6_0_sw_fini(void *handle)
 
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
-	gmc_v6_0_gart_fini(adev);
+	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
+	amdgpu_gart_fini(adev);
 	release_firmware(adev->gmc.fw);
 	adev->gmc.fw = NULL;
 
@@ -1159,8 +1181,7 @@ static const struct amdgpu_irq_src_funcs gmc_v6_0_irq_funcs = {
 
 static void gmc_v6_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gmc.gmc_funcs == NULL)
-		adev->gmc.gmc_funcs = &gmc_v6_0_gmc_funcs;
+	adev->gmc.gmc_funcs = &gmc_v6_0_gmc_funcs;
 }
 
 static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev)

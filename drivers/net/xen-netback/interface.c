@@ -148,24 +148,26 @@ void xenvif_wake_queue(struct xenvif_queue *queue)
 }
 
 static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
-			       void *accel_priv,
+			       struct net_device *sb_dev,
 			       select_queue_fallback_t fallback)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	unsigned int size = vif->hash.size;
 
 	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
-		return fallback(dev, skb) % dev->real_num_tx_queues;
+		return fallback(dev, skb, NULL) % dev->real_num_tx_queues;
 
 	xenvif_set_skb_hash(vif, skb);
 
 	if (size == 0)
 		return skb_get_hash_raw(skb) % dev->real_num_tx_queues;
 
-	return vif->hash.mapping[skb_get_hash_raw(skb) % size];
+	return vif->hash.mapping[vif->hash.mapping_sel]
+				[skb_get_hash_raw(skb) % size];
 }
 
-static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	struct xenvif_queue *queue = NULL;

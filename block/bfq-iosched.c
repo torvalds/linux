@@ -49,9 +49,39 @@
  *
  * In particular, to provide these low-latency guarantees, BFQ
  * explicitly privileges the I/O of two classes of time-sensitive
- * applications: interactive and soft real-time. This feature enables
- * BFQ to provide applications in these classes with a very low
- * latency. Finally, BFQ also features additional heuristics for
+ * applications: interactive and soft real-time. In more detail, BFQ
+ * behaves this way if the low_latency parameter is set (default
+ * configuration). This feature enables BFQ to provide applications in
+ * these classes with a very low latency.
+ *
+ * To implement this feature, BFQ constantly tries to detect whether
+ * the I/O requests in a bfq_queue come from an interactive or a soft
+ * real-time application. For brevity, in these cases, the queue is
+ * said to be interactive or soft real-time. In both cases, BFQ
+ * privileges the service of the queue, over that of non-interactive
+ * and non-soft-real-time queues. This privileging is performed,
+ * mainly, by raising the weight of the queue. So, for brevity, we
+ * call just weight-raising periods the time periods during which a
+ * queue is privileged, because deemed interactive or soft real-time.
+ *
+ * The detection of soft real-time queues/applications is described in
+ * detail in the comments on the function
+ * bfq_bfqq_softrt_next_start. On the other hand, the detection of an
+ * interactive queue works as follows: a queue is deemed interactive
+ * if it is constantly non empty only for a limited time interval,
+ * after which it does become empty. The queue may be deemed
+ * interactive again (for a limited time), if it restarts being
+ * constantly non empty, provided that this happens only after the
+ * queue has remained empty for a given minimum idle time.
+ *
+ * By default, BFQ computes automatically the above maximum time
+ * interval, i.e., the time interval after which a constantly
+ * non-empty queue stops being deemed interactive. Since a queue is
+ * weight-raised while it is deemed interactive, this maximum time
+ * interval happens to coincide with the (maximum) duration of the
+ * weight-raising for interactive queues.
+ *
+ * Finally, BFQ also features additional heuristics for
  * preserving both a low latency and a high throughput on NCQ-capable,
  * rotational or flash-based devices, and to get the job done quickly
  * for applications consisting in many I/O-bound processes.
@@ -61,14 +91,14 @@
  * all low-latency heuristics for that device, by setting low_latency
  * to 0.
  *
- * BFQ is described in [1], where also a reference to the initial, more
- * theoretical paper on BFQ can be found. The interested reader can find
- * in the latter paper full details on the main algorithm, as well as
- * formulas of the guarantees and formal proofs of all the properties.
- * With respect to the version of BFQ presented in these papers, this
- * implementation adds a few more heuristics, such as the one that
- * guarantees a low latency to soft real-time applications, and a
- * hierarchical extension based on H-WF2Q+.
+ * BFQ is described in [1], where also a reference to the initial,
+ * more theoretical paper on BFQ can be found. The interested reader
+ * can find in the latter paper full details on the main algorithm, as
+ * well as formulas of the guarantees and formal proofs of all the
+ * properties.  With respect to the version of BFQ presented in these
+ * papers, this implementation adds a few more heuristics, such as the
+ * ones that guarantee a low latency to interactive and soft real-time
+ * applications, and a hierarchical extension based on H-WF2Q+.
  *
  * B-WF2Q+ is based on WF2Q+, which is described in [2], together with
  * H-WF2Q+, while the augmented tree used here to implement B-WF2Q+
@@ -157,11 +187,25 @@ static const int bfq_stats_min_budgets = 194;
 static const int bfq_default_max_budget = 16 * 1024;
 
 /*
- * Async to sync throughput distribution is controlled as follows:
- * when an async request is served, the entity is charged the number
- * of sectors of the request, multiplied by the factor below
+ * When a sync request is dispatched, the queue that contains that
+ * request, and all the ancestor entities of that queue, are charged
+ * with the number of sectors of the request. In constrast, if the
+ * request is async, then the queue and its ancestor entities are
+ * charged with the number of sectors of the request, multiplied by
+ * the factor below. This throttles the bandwidth for async I/O,
+ * w.r.t. to sync I/O, and it is done to counter the tendency of async
+ * writes to steal I/O throughput to reads.
+ *
+ * The current value of this parameter is the result of a tuning with
+ * several hardware and software configurations. We tried to find the
+ * lowest value for which writes do not cause noticeable problems to
+ * reads. In fact, the lower this parameter, the stabler I/O control,
+ * in the following respect.  The lower this parameter is, the less
+ * the bandwidth enjoyed by a group decreases
+ * - when the group does writes, w.r.t. to when it does reads;
+ * - when other groups do reads, w.r.t. to when they do writes.
  */
-static const int bfq_async_charge_factor = 10;
+static const int bfq_async_charge_factor = 3;
 
 /* Default timeout values, in jiffies, approximating CFQ defaults. */
 const int bfq_timeout = HZ / 8;
@@ -218,56 +262,46 @@ static struct kmem_cache *bfq_pool;
 #define BFQ_RATE_SHIFT		16
 
 /*
- * By default, BFQ computes the duration of the weight raising for
- * interactive applications automatically, using the following formula:
- * duration = (R / r) * T, where r is the peak rate of the device, and
- * R and T are two reference parameters.
- * In particular, R is the peak rate of the reference device (see
- * below), and T is a reference time: given the systems that are
- * likely to be installed on the reference device according to its
- * speed class, T is about the maximum time needed, under BFQ and
- * while reading two files in parallel, to load typical large
- * applications on these systems (see the comments on
- * max_service_from_wr below, for more details on how T is obtained).
- * In practice, the slower/faster the device at hand is, the more/less
- * it takes to load applications with respect to the reference device.
- * Accordingly, the longer/shorter BFQ grants weight raising to
- * interactive applications.
+ * When configured for computing the duration of the weight-raising
+ * for interactive queues automatically (see the comments at the
+ * beginning of this file), BFQ does it using the following formula:
+ * duration = (ref_rate / r) * ref_wr_duration,
+ * where r is the peak rate of the device, and ref_rate and
+ * ref_wr_duration are two reference parameters.  In particular,
+ * ref_rate is the peak rate of the reference storage device (see
+ * below), and ref_wr_duration is about the maximum time needed, with
+ * BFQ and while reading two files in parallel, to load typical large
+ * applications on the reference device (see the comments on
+ * max_service_from_wr below, for more details on how ref_wr_duration
+ * is obtained).  In practice, the slower/faster the device at hand
+ * is, the more/less it takes to load applications with respect to the
+ * reference device.  Accordingly, the longer/shorter BFQ grants
+ * weight raising to interactive applications.
  *
- * BFQ uses four different reference pairs (R, T), depending on:
- * . whether the device is rotational or non-rotational;
- * . whether the device is slow, such as old or portable HDDs, as well as
- *   SD cards, or fast, such as newer HDDs and SSDs.
+ * BFQ uses two different reference pairs (ref_rate, ref_wr_duration),
+ * depending on whether the device is rotational or non-rotational.
  *
- * The device's speed class is dynamically (re)detected in
- * bfq_update_peak_rate() every time the estimated peak rate is updated.
+ * In the following definitions, ref_rate[0] and ref_wr_duration[0]
+ * are the reference values for a rotational device, whereas
+ * ref_rate[1] and ref_wr_duration[1] are the reference values for a
+ * non-rotational device. The reference rates are not the actual peak
+ * rates of the devices used as a reference, but slightly lower
+ * values. The reason for using slightly lower values is that the
+ * peak-rate estimator tends to yield slightly lower values than the
+ * actual peak rate (it can yield the actual peak rate only if there
+ * is only one process doing I/O, and the process does sequential
+ * I/O).
  *
- * In the following definitions, R_slow[0]/R_fast[0] and
- * T_slow[0]/T_fast[0] are the reference values for a slow/fast
- * rotational device, whereas R_slow[1]/R_fast[1] and
- * T_slow[1]/T_fast[1] are the reference values for a slow/fast
- * non-rotational device. Finally, device_speed_thresh are the
- * thresholds used to switch between speed classes. The reference
- * rates are not the actual peak rates of the devices used as a
- * reference, but slightly lower values. The reason for using these
- * slightly lower values is that the peak-rate estimator tends to
- * yield slightly lower values than the actual peak rate (it can yield
- * the actual peak rate only if there is only one process doing I/O,
- * and the process does sequential I/O).
- *
- * Both the reference peak rates and the thresholds are measured in
- * sectors/usec, left-shifted by BFQ_RATE_SHIFT.
+ * The reference peak rates are measured in sectors/usec, left-shifted
+ * by BFQ_RATE_SHIFT.
  */
-static int R_slow[2] = {1000, 10700};
-static int R_fast[2] = {14000, 33000};
+static int ref_rate[2] = {14000, 33000};
 /*
- * To improve readability, a conversion function is used to initialize the
- * following arrays, which entails that they can be initialized only in a
- * function.
+ * To improve readability, a conversion function is used to initialize
+ * the following array, which entails that the array can be
+ * initialized only in a function.
  */
-static int T_slow[2];
-static int T_fast[2];
-static int device_speed_thresh[2];
+static int ref_wr_duration[2];
 
 /*
  * BFQ uses the above-detailed, time-based weight-raising mechanism to
@@ -487,46 +521,6 @@ static struct request *bfq_choose_req(struct bfq_data *bfqd,
 }
 
 /*
- * See the comments on bfq_limit_depth for the purpose of
- * the depths set in the function.
- */
-static void bfq_update_depths(struct bfq_data *bfqd, struct sbitmap_queue *bt)
-{
-	bfqd->sb_shift = bt->sb.shift;
-
-	/*
-	 * In-word depths if no bfq_queue is being weight-raised:
-	 * leaving 25% of tags only for sync reads.
-	 *
-	 * In next formulas, right-shift the value
-	 * (1U<<bfqd->sb_shift), instead of computing directly
-	 * (1U<<(bfqd->sb_shift - something)), to be robust against
-	 * any possible value of bfqd->sb_shift, without having to
-	 * limit 'something'.
-	 */
-	/* no more than 50% of tags for async I/O */
-	bfqd->word_depths[0][0] = max((1U<<bfqd->sb_shift)>>1, 1U);
-	/*
-	 * no more than 75% of tags for sync writes (25% extra tags
-	 * w.r.t. async I/O, to prevent async I/O from starving sync
-	 * writes)
-	 */
-	bfqd->word_depths[0][1] = max(((1U<<bfqd->sb_shift) * 3)>>2, 1U);
-
-	/*
-	 * In-word depths in case some bfq_queue is being weight-
-	 * raised: leaving ~63% of tags for sync reads. This is the
-	 * highest percentage for which, in our tests, application
-	 * start-up times didn't suffer from any regression due to tag
-	 * shortage.
-	 */
-	/* no more than ~18% of tags for async I/O */
-	bfqd->word_depths[1][0] = max(((1U<<bfqd->sb_shift) * 3)>>4, 1U);
-	/* no more than ~37% of tags for sync writes (~20% extra tags) */
-	bfqd->word_depths[1][1] = max(((1U<<bfqd->sb_shift) * 6)>>4, 1U);
-}
-
-/*
  * Async I/O can easily starve sync I/O (both sync reads and sync
  * writes), by consuming all tags. Similarly, storms of sync writes,
  * such as those that sync(2) may trigger, can starve sync reads.
@@ -535,24 +529,10 @@ static void bfq_update_depths(struct bfq_data *bfqd, struct sbitmap_queue *bt)
  */
 static void bfq_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
 {
-	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
 	struct bfq_data *bfqd = data->q->elevator->elevator_data;
-	struct sbitmap_queue *bt;
 
 	if (op_is_sync(op) && !op_is_write(op))
 		return;
-
-	if (data->flags & BLK_MQ_REQ_RESERVED) {
-		if (unlikely(!tags->nr_reserved_tags)) {
-			WARN_ON_ONCE(1);
-			return;
-		}
-		bt = &tags->breserved_tags;
-	} else
-		bt = &tags->bitmap_tags;
-
-	if (unlikely(bfqd->sb_shift != bt->sb.shift))
-		bfq_update_depths(bfqd, bt);
 
 	data->shallow_depth =
 		bfqd->word_depths[!!bfqd->wr_busy_queues][op_is_sync(op)];
@@ -644,12 +624,13 @@ void bfq_pos_tree_add_move(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 }
 
 /*
- * Tell whether there are active queues or groups with differentiated weights.
+ * Tell whether there are active queues with different weights or
+ * active groups.
  */
-static bool bfq_differentiated_weights(struct bfq_data *bfqd)
+static bool bfq_varied_queue_weights_or_active_groups(struct bfq_data *bfqd)
 {
 	/*
-	 * For weights to differ, at least one of the trees must contain
+	 * For queue weights to differ, queue_weights_tree must contain
 	 * at least two nodes.
 	 */
 	return (!RB_EMPTY_ROOT(&bfqd->queue_weights_tree) &&
@@ -657,9 +638,7 @@ static bool bfq_differentiated_weights(struct bfq_data *bfqd)
 		 bfqd->queue_weights_tree.rb_node->rb_right)
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	       ) ||
-	       (!RB_EMPTY_ROOT(&bfqd->group_weights_tree) &&
-		(bfqd->group_weights_tree.rb_node->rb_left ||
-		 bfqd->group_weights_tree.rb_node->rb_right)
+		(bfqd->num_groups_with_pending_reqs > 0
 #endif
 	       );
 }
@@ -668,7 +647,7 @@ static bool bfq_differentiated_weights(struct bfq_data *bfqd)
  * The following function returns true if every queue must receive the
  * same share of the throughput (this condition is used when deciding
  * whether idling may be disabled, see the comments in the function
- * bfq_bfqq_may_idle()).
+ * bfq_better_to_idle()).
  *
  * Such a scenario occurs when:
  * 1) all active queues have the same weight,
@@ -677,26 +656,25 @@ static bool bfq_differentiated_weights(struct bfq_data *bfqd)
  * 3) all active groups at the same level in the groups tree have the same
  *    number of children.
  *
- * Unfortunately, keeping the necessary state for evaluating exactly the
- * above symmetry conditions would be quite complex and time-consuming.
- * Therefore this function evaluates, instead, the following stronger
- * sub-conditions, for which it is much easier to maintain the needed
- * state:
+ * Unfortunately, keeping the necessary state for evaluating exactly
+ * the last two symmetry sub-conditions above would be quite complex
+ * and time consuming.  Therefore this function evaluates, instead,
+ * only the following stronger two sub-conditions, for which it is
+ * much easier to maintain the needed state:
  * 1) all active queues have the same weight,
- * 2) all active groups have the same weight,
- * 3) all active groups have at most one active child each.
- * In particular, the last two conditions are always true if hierarchical
- * support and the cgroups interface are not enabled, thus no state needs
- * to be maintained in this case.
+ * 2) there are no active groups.
+ * In particular, the last condition is always true if hierarchical
+ * support or the cgroups interface are not enabled, thus no state
+ * needs to be maintained in this case.
  */
 static bool bfq_symmetric_scenario(struct bfq_data *bfqd)
 {
-	return !bfq_differentiated_weights(bfqd);
+	return !bfq_varied_queue_weights_or_active_groups(bfqd);
 }
 
 /*
  * If the weight-counter tree passed as input contains no counter for
- * the weight of the input entity, then add that counter; otherwise just
+ * the weight of the input queue, then add that counter; otherwise just
  * increment the existing counter.
  *
  * Note that weight-counter trees contain few nodes in mostly symmetric
@@ -707,25 +685,25 @@ static bool bfq_symmetric_scenario(struct bfq_data *bfqd)
  * In most scenarios, the rate at which nodes are created/destroyed
  * should be low too.
  */
-void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_entity *entity,
+void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  struct rb_root *root)
 {
+	struct bfq_entity *entity = &bfqq->entity;
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 
 	/*
-	 * Do not insert if the entity is already associated with a
+	 * Do not insert if the queue is already associated with a
 	 * counter, which happens if:
-	 *   1) the entity is associated with a queue,
-	 *   2) a request arrival has caused the queue to become both
+	 *   1) a request arrival has caused the queue to become both
 	 *      non-weight-raised, and hence change its weight, and
 	 *      backlogged; in this respect, each of the two events
 	 *      causes an invocation of this function,
-	 *   3) this is the invocation of this function caused by the
+	 *   2) this is the invocation of this function caused by the
 	 *      second event. This second invocation is actually useless,
 	 *      and we handle this fact by exiting immediately. More
 	 *      efficient or clearer solutions might possibly be adopted.
 	 */
-	if (entity->weight_counter)
+	if (bfqq->weight_counter)
 		return;
 
 	while (*new) {
@@ -735,7 +713,7 @@ void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_entity *entity,
 		parent = *new;
 
 		if (entity->weight == __counter->weight) {
-			entity->weight_counter = __counter;
+			bfqq->weight_counter = __counter;
 			goto inc_counter;
 		}
 		if (entity->weight < __counter->weight)
@@ -744,53 +722,102 @@ void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_entity *entity,
 			new = &((*new)->rb_right);
 	}
 
-	entity->weight_counter = kzalloc(sizeof(struct bfq_weight_counter),
-					 GFP_ATOMIC);
+	bfqq->weight_counter = kzalloc(sizeof(struct bfq_weight_counter),
+				       GFP_ATOMIC);
 
 	/*
 	 * In the unlucky event of an allocation failure, we just
-	 * exit. This will cause the weight of entity to not be
-	 * considered in bfq_differentiated_weights, which, in its
-	 * turn, causes the scenario to be deemed wrongly symmetric in
-	 * case entity's weight would have been the only weight making
-	 * the scenario asymmetric. On the bright side, no unbalance
-	 * will however occur when entity becomes inactive again (the
-	 * invocation of this function is triggered by an activation
-	 * of entity). In fact, bfq_weights_tree_remove does nothing
-	 * if !entity->weight_counter.
+	 * exit. This will cause the weight of queue to not be
+	 * considered in bfq_varied_queue_weights_or_active_groups,
+	 * which, in its turn, causes the scenario to be deemed
+	 * wrongly symmetric in case bfqq's weight would have been
+	 * the only weight making the scenario asymmetric.  On the
+	 * bright side, no unbalance will however occur when bfqq
+	 * becomes inactive again (the invocation of this function
+	 * is triggered by an activation of queue).  In fact,
+	 * bfq_weights_tree_remove does nothing if
+	 * !bfqq->weight_counter.
 	 */
-	if (unlikely(!entity->weight_counter))
+	if (unlikely(!bfqq->weight_counter))
 		return;
 
-	entity->weight_counter->weight = entity->weight;
-	rb_link_node(&entity->weight_counter->weights_node, parent, new);
-	rb_insert_color(&entity->weight_counter->weights_node, root);
+	bfqq->weight_counter->weight = entity->weight;
+	rb_link_node(&bfqq->weight_counter->weights_node, parent, new);
+	rb_insert_color(&bfqq->weight_counter->weights_node, root);
 
 inc_counter:
-	entity->weight_counter->num_active++;
+	bfqq->weight_counter->num_active++;
 }
 
 /*
- * Decrement the weight counter associated with the entity, and, if the
+ * Decrement the weight counter associated with the queue, and, if the
  * counter reaches 0, remove the counter from the tree.
  * See the comments to the function bfq_weights_tree_add() for considerations
  * about overhead.
  */
-void bfq_weights_tree_remove(struct bfq_data *bfqd, struct bfq_entity *entity,
-			     struct rb_root *root)
+void __bfq_weights_tree_remove(struct bfq_data *bfqd,
+			       struct bfq_queue *bfqq,
+			       struct rb_root *root)
 {
-	if (!entity->weight_counter)
+	if (!bfqq->weight_counter)
 		return;
 
-	entity->weight_counter->num_active--;
-	if (entity->weight_counter->num_active > 0)
+	bfqq->weight_counter->num_active--;
+	if (bfqq->weight_counter->num_active > 0)
 		goto reset_entity_pointer;
 
-	rb_erase(&entity->weight_counter->weights_node, root);
-	kfree(entity->weight_counter);
+	rb_erase(&bfqq->weight_counter->weights_node, root);
+	kfree(bfqq->weight_counter);
 
 reset_entity_pointer:
-	entity->weight_counter = NULL;
+	bfqq->weight_counter = NULL;
+}
+
+/*
+ * Invoke __bfq_weights_tree_remove on bfqq and decrement the number
+ * of active groups for each queue's inactive parent entity.
+ */
+void bfq_weights_tree_remove(struct bfq_data *bfqd,
+			     struct bfq_queue *bfqq)
+{
+	struct bfq_entity *entity = bfqq->entity.parent;
+
+	__bfq_weights_tree_remove(bfqd, bfqq,
+				  &bfqd->queue_weights_tree);
+
+	for_each_entity(entity) {
+		struct bfq_sched_data *sd = entity->my_sched_data;
+
+		if (sd->next_in_service || sd->in_service_entity) {
+			/*
+			 * entity is still active, because either
+			 * next_in_service or in_service_entity is not
+			 * NULL (see the comments on the definition of
+			 * next_in_service for details on why
+			 * in_service_entity must be checked too).
+			 *
+			 * As a consequence, its parent entities are
+			 * active as well, and thus this loop must
+			 * stop here.
+			 */
+			break;
+		}
+
+		/*
+		 * The decrement of num_groups_with_pending_reqs is
+		 * not performed immediately upon the deactivation of
+		 * entity, but it is delayed to when it also happens
+		 * that the first leaf descendant bfqq of entity gets
+		 * all its pending requests completed. The following
+		 * instructions perform this delayed decrement, if
+		 * needed. See the comments on
+		 * num_groups_with_pending_reqs for details.
+		 */
+		if (entity->in_groups_with_pending_reqs) {
+			entity->in_groups_with_pending_reqs = false;
+			bfqd->num_groups_with_pending_reqs--;
+		}
+	}
 }
 
 /*
@@ -849,16 +876,7 @@ static unsigned long bfq_serv_to_charge(struct request *rq,
 	if (bfq_bfqq_sync(bfqq) || bfqq->wr_coeff > 1)
 		return blk_rq_sectors(rq);
 
-	/*
-	 * If there are no weight-raised queues, then amplify service
-	 * by just the async charge factor; otherwise amplify service
-	 * by twice the async charge factor, to further reduce latency
-	 * for weight-raised queues.
-	 */
-	if (bfqq->bfqd->wr_busy_queues == 0)
-		return blk_rq_sectors(rq) * bfq_async_charge_factor;
-
-	return blk_rq_sectors(rq) * 2 * bfq_async_charge_factor;
+	return blk_rq_sectors(rq) * bfq_async_charge_factor;
 }
 
 /**
@@ -906,26 +924,30 @@ static unsigned int bfq_wr_duration(struct bfq_data *bfqd)
 	if (bfqd->bfq_wr_max_time > 0)
 		return bfqd->bfq_wr_max_time;
 
-	dur = bfqd->RT_prod;
+	dur = bfqd->rate_dur_prod;
 	do_div(dur, bfqd->peak_rate);
 
 	/*
-	 * Limit duration between 3 and 13 seconds. Tests show that
-	 * higher values than 13 seconds often yield the opposite of
-	 * the desired result, i.e., worsen responsiveness by letting
-	 * non-interactive and non-soft-real-time applications
-	 * preserve weight raising for a too long time interval.
+	 * Limit duration between 3 and 25 seconds. The upper limit
+	 * has been conservatively set after the following worst case:
+	 * on a QEMU/KVM virtual machine
+	 * - running in a slow PC
+	 * - with a virtual disk stacked on a slow low-end 5400rpm HDD
+	 * - serving a heavy I/O workload, such as the sequential reading
+	 *   of several files
+	 * mplayer took 23 seconds to start, if constantly weight-raised.
+	 *
+	 * As for higher values than that accomodating the above bad
+	 * scenario, tests show that higher values would often yield
+	 * the opposite of the desired result, i.e., would worsen
+	 * responsiveness by allowing non-interactive applications to
+	 * preserve weight raising for too long.
 	 *
 	 * On the other end, lower values than 3 seconds make it
 	 * difficult for most interactive tasks to complete their jobs
 	 * before weight-raising finishes.
 	 */
-	if (dur > msecs_to_jiffies(13000))
-		dur = msecs_to_jiffies(13000);
-	else if (dur < msecs_to_jiffies(3000))
-		dur = msecs_to_jiffies(3000);
-
-	return dur;
+	return clamp_val(dur, msecs_to_jiffies(3000), msecs_to_jiffies(25000));
 }
 
 /* switch back from soft real-time to interactive weight raising */
@@ -1374,31 +1396,34 @@ static bool bfq_bfqq_update_budg_for_activation(struct bfq_data *bfqd,
 		 * remain unchanged after such an expiration, and the
 		 * following statement therefore assigns to
 		 * entity->budget the remaining budget on such an
-		 * expiration. For clarity, entity->service is not
-		 * updated on expiration in any case, and, in normal
-		 * operation, is reset only when bfqq is selected for
-		 * service (see bfq_get_next_queue).
+		 * expiration.
 		 */
 		entity->budget = min_t(unsigned long,
 				       bfq_bfqq_budget_left(bfqq),
 				       bfqq->max_budget);
 
+		/*
+		 * At this point, we have used entity->service to get
+		 * the budget left (needed for updating
+		 * entity->budget). Thus we finally can, and have to,
+		 * reset entity->service. The latter must be reset
+		 * because bfqq would otherwise be charged again for
+		 * the service it has received during its previous
+		 * service slot(s).
+		 */
+		entity->service = 0;
+
 		return true;
 	}
 
+	/*
+	 * We can finally complete expiration, by setting service to 0.
+	 */
+	entity->service = 0;
 	entity->budget = max_t(unsigned long, bfqq->max_budget,
 			       bfq_serv_to_charge(bfqq->next_rq, bfqq));
 	bfq_clear_bfqq_non_blocking_wait_rq(bfqq);
 	return wr_or_deserves_wr;
-}
-
-/*
- * Return the farthest future time instant according to jiffies
- * macros.
- */
-static unsigned long bfq_greatest_from_now(void)
-{
-	return jiffies + MAX_JIFFY_OFFSET;
 }
 
 /*
@@ -1545,7 +1570,8 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 	in_burst = bfq_bfqq_in_large_burst(bfqq);
 	soft_rt = bfqd->bfq_wr_max_softrt_rate > 0 &&
 		!in_burst &&
-		time_is_before_jiffies(bfqq->soft_rt_next_start);
+		time_is_before_jiffies(bfqq->soft_rt_next_start) &&
+		bfqq->dispatched == 0;
 	*interactive = !in_burst && idle_for_long_time;
 	wr_or_deserves_wr = bfqd->low_latency &&
 		(bfqq->wr_coeff > 1 ||
@@ -1858,6 +1884,8 @@ static int bfq_request_merge(struct request_queue *q, struct request **req,
 	return ELEVATOR_NO_MERGE;
 }
 
+static struct bfq_queue *bfq_init_rq(struct request *rq);
+
 static void bfq_request_merged(struct request_queue *q, struct request *req,
 			       enum elv_merge type)
 {
@@ -1866,7 +1894,7 @@ static void bfq_request_merged(struct request_queue *q, struct request *req,
 	    blk_rq_pos(req) <
 	    blk_rq_pos(container_of(rb_prev(&req->rb_node),
 				    struct request, rb_node))) {
-		struct bfq_queue *bfqq = RQ_BFQQ(req);
+		struct bfq_queue *bfqq = bfq_init_rq(req);
 		struct bfq_data *bfqd = bfqq->bfqd;
 		struct request *prev, *next_rq;
 
@@ -1891,14 +1919,25 @@ static void bfq_request_merged(struct request_queue *q, struct request *req,
 	}
 }
 
+/*
+ * This function is called to notify the scheduler that the requests
+ * rq and 'next' have been merged, with 'next' going away.  BFQ
+ * exploits this hook to address the following issue: if 'next' has a
+ * fifo_time lower that rq, then the fifo_time of rq must be set to
+ * the value of 'next', to not forget the greater age of 'next'.
+ *
+ * NOTE: in this function we assume that rq is in a bfq_queue, basing
+ * on that rq is picked from the hash table q->elevator->hash, which,
+ * in its turn, is filled only with I/O requests present in
+ * bfq_queues, while BFQ is in use for the request queue q. In fact,
+ * the function that fills this hash table (elv_rqhash_add) is called
+ * only by bfq_insert_request.
+ */
 static void bfq_requests_merged(struct request_queue *q, struct request *rq,
 				struct request *next)
 {
-	struct bfq_queue *bfqq = RQ_BFQQ(rq), *next_bfqq = RQ_BFQQ(next);
-
-	if (!RB_EMPTY_NODE(&rq->rb_node))
-		goto end;
-	spin_lock_irq(&bfqq->bfqd->lock);
+	struct bfq_queue *bfqq = bfq_init_rq(rq),
+		*next_bfqq = bfq_init_rq(next);
 
 	/*
 	 * If next and rq belong to the same bfq_queue and next is older
@@ -1920,11 +1959,6 @@ static void bfq_requests_merged(struct request_queue *q, struct request *rq,
 	if (bfqq->next_rq == next)
 		bfqq->next_rq = rq;
 
-	bfq_remove_request(q, next);
-	bfqg_stats_update_io_remove(bfqq_group(bfqq), next->cmd_flags);
-
-	spin_unlock_irq(&bfqq->bfqd->lock);
-end:
 	bfqg_stats_update_io_merged(bfqq_group(bfqq), next->cmd_flags);
 }
 
@@ -2506,37 +2540,15 @@ static unsigned long bfq_calc_max_budget(struct bfq_data *bfqd)
 /*
  * Update parameters related to throughput and responsiveness, as a
  * function of the estimated peak rate. See comments on
- * bfq_calc_max_budget(), and on T_slow and T_fast arrays.
+ * bfq_calc_max_budget(), and on the ref_wr_duration array.
  */
 static void update_thr_responsiveness_params(struct bfq_data *bfqd)
 {
-	int dev_type = blk_queue_nonrot(bfqd->queue);
-
-	if (bfqd->bfq_user_max_budget == 0)
+	if (bfqd->bfq_user_max_budget == 0) {
 		bfqd->bfq_max_budget =
 			bfq_calc_max_budget(bfqd);
-
-	if (bfqd->device_speed == BFQ_BFQD_FAST &&
-	    bfqd->peak_rate < device_speed_thresh[dev_type]) {
-		bfqd->device_speed = BFQ_BFQD_SLOW;
-		bfqd->RT_prod = R_slow[dev_type] *
-			T_slow[dev_type];
-	} else if (bfqd->device_speed == BFQ_BFQD_SLOW &&
-		   bfqd->peak_rate > device_speed_thresh[dev_type]) {
-		bfqd->device_speed = BFQ_BFQD_FAST;
-		bfqd->RT_prod = R_fast[dev_type] *
-			T_fast[dev_type];
+		bfq_log(bfqd, "new max_budget = %d", bfqd->bfq_max_budget);
 	}
-
-	bfq_log(bfqd,
-"dev_type %s dev_speed_class = %s (%llu sects/sec), thresh %llu setcs/sec",
-		dev_type == 0 ? "ROT" : "NONROT",
-		bfqd->device_speed == BFQ_BFQD_FAST ? "FAST" : "SLOW",
-		bfqd->device_speed == BFQ_BFQD_FAST ?
-		(USEC_PER_SEC*(u64)R_fast[dev_type])>>BFQ_RATE_SHIFT :
-		(USEC_PER_SEC*(u64)R_slow[dev_type])>>BFQ_RATE_SHIFT,
-		(USEC_PER_SEC*(u64)device_speed_thresh[dev_type])>>
-		BFQ_RATE_SHIFT);
 }
 
 static void bfq_reset_rate_computation(struct bfq_data *bfqd,
@@ -3179,6 +3191,13 @@ static unsigned long bfq_bfqq_softrt_next_start(struct bfq_data *bfqd,
 		    jiffies + nsecs_to_jiffies(bfqq->bfqd->bfq_slice_idle) + 4);
 }
 
+static bool bfq_bfqq_injectable(struct bfq_queue *bfqq)
+{
+	return BFQQ_SEEKY(bfqq) && bfqq->wr_coeff == 1 &&
+		blk_queue_nonrot(bfqq->bfqd->queue) &&
+		bfqq->bfqd->hw_tag;
+}
+
 /**
  * bfq_bfqq_expire - expire a queue.
  * @bfqd: device owning the queue.
@@ -3266,23 +3285,6 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 				bfq_bfqq_softrt_next_start(bfqd, bfqq);
 		else {
 			/*
-			 * The application is still waiting for the
-			 * completion of one or more requests:
-			 * prevent it from possibly being incorrectly
-			 * deemed as soft real-time by setting its
-			 * soft_rt_next_start to infinity. In fact,
-			 * without this assignment, the application
-			 * would be incorrectly deemed as soft
-			 * real-time if:
-			 * 1) it issued a new request before the
-			 *    completion of all its in-flight
-			 *    requests, and
-			 * 2) at that time, its soft_rt_next_start
-			 *    happened to be in the past.
-			 */
-			bfqq->soft_rt_next_start =
-				bfq_greatest_from_now();
-			/*
 			 * Schedule an update of soft_rt_next_start to when
 			 * the task may be discovered to be isochronous.
 			 */
@@ -3302,11 +3304,44 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 	ref = bfqq->ref;
 	__bfq_bfqq_expire(bfqd, bfqq);
 
+	if (ref == 1) /* bfqq is gone, no more actions on it */
+		return;
+
+	bfqq->injected_service = 0;
+
 	/* mark bfqq as waiting a request only if a bic still points to it */
-	if (ref > 1 && !bfq_bfqq_busy(bfqq) &&
+	if (!bfq_bfqq_busy(bfqq) &&
 	    reason != BFQQE_BUDGET_TIMEOUT &&
-	    reason != BFQQE_BUDGET_EXHAUSTED)
+	    reason != BFQQE_BUDGET_EXHAUSTED) {
 		bfq_mark_bfqq_non_blocking_wait_rq(bfqq);
+		/*
+		 * Not setting service to 0, because, if the next rq
+		 * arrives in time, the queue will go on receiving
+		 * service with this same budget (as if it never expired)
+		 */
+	} else
+		entity->service = 0;
+
+	/*
+	 * Reset the received-service counter for every parent entity.
+	 * Differently from what happens with bfqq->entity.service,
+	 * the resetting of this counter never needs to be postponed
+	 * for parent entities. In fact, in case bfqq may have a
+	 * chance to go on being served using the last, partially
+	 * consumed budget, bfqq->entity.service needs to be kept,
+	 * because if bfqq then actually goes on being served using
+	 * the same budget, the last value of bfqq->entity.service is
+	 * needed to properly decrement bfqq->entity.budget by the
+	 * portion already consumed. In contrast, it is not necessary
+	 * to keep entity->service for parent entities too, because
+	 * the bubble up of the new value of bfqq->entity.budget will
+	 * make sure that the budgets of parent entities are correct,
+	 * even in case bfqq and thus parent entities go on receiving
+	 * service with the same budget.
+	 */
+	entity = entity->parent;
+	for_each_entity(entity)
+		entity->service = 0;
 }
 
 /*
@@ -3364,7 +3399,7 @@ static bool bfq_may_expire_for_budg_timeout(struct bfq_queue *bfqq)
  * issues taken into account are not trivial. We discuss these issues
  * individually while introducing the variables.
  */
-static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
+static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 {
 	struct bfq_data *bfqd = bfqq->bfqd;
 	bool rot_without_queueing =
@@ -3480,9 +3515,11 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 * symmetric scenario where:
 	 * (i)  each of these processes must get the same throughput as
 	 *      the others;
-	 * (ii) all these processes have the same I/O pattern
-		(either sequential or random).
-	 * In fact, in such a scenario, the drive will tend to treat
+	 * (ii) the I/O of each process has the same properties, in
+	 *      terms of locality (sequential or random), direction
+	 *      (reads or writes), request sizes, greediness
+	 *      (from I/O-bound to sporadic), and so on.
+	 * In fact, in such a scenario, the drive tends to treat
 	 * the requests of each of these processes in about the same
 	 * way as the requests of the others, and thus to provide
 	 * each of these processes with about the same throughput
@@ -3491,18 +3528,67 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 * certainly needed to guarantee that bfqq receives its
 	 * assigned fraction of the device throughput (see [1] for
 	 * details).
+	 * The problem is that idling may significantly reduce
+	 * throughput with certain combinations of types of I/O and
+	 * devices. An important example is sync random I/O, on flash
+	 * storage with command queueing. So, unless bfqq falls in the
+	 * above cases where idling also boosts throughput, it would
+	 * be important to check conditions (i) and (ii) accurately,
+	 * so as to avoid idling when not strictly needed for service
+	 * guarantees.
 	 *
-	 * We address this issue by controlling, actually, only the
-	 * symmetry sub-condition (i), i.e., provided that
-	 * sub-condition (i) holds, idling is not performed,
-	 * regardless of whether sub-condition (ii) holds. In other
-	 * words, only if sub-condition (i) holds, then idling is
-	 * allowed, and the device tends to be prevented from queueing
-	 * many requests, possibly of several processes. The reason
-	 * for not controlling also sub-condition (ii) is that we
-	 * exploit preemption to preserve guarantees in case of
-	 * symmetric scenarios, even if (ii) does not hold, as
-	 * explained in the next two paragraphs.
+	 * Unfortunately, it is extremely difficult to thoroughly
+	 * check condition (ii). And, in case there are active groups,
+	 * it becomes very difficult to check condition (i) too. In
+	 * fact, if there are active groups, then, for condition (i)
+	 * to become false, it is enough that an active group contains
+	 * more active processes or sub-groups than some other active
+	 * group. More precisely, for condition (i) to hold because of
+	 * such a group, it is not even necessary that the group is
+	 * (still) active: it is sufficient that, even if the group
+	 * has become inactive, some of its descendant processes still
+	 * have some request already dispatched but still waiting for
+	 * completion. In fact, requests have still to be guaranteed
+	 * their share of the throughput even after being
+	 * dispatched. In this respect, it is easy to show that, if a
+	 * group frequently becomes inactive while still having
+	 * in-flight requests, and if, when this happens, the group is
+	 * not considered in the calculation of whether the scenario
+	 * is asymmetric, then the group may fail to be guaranteed its
+	 * fair share of the throughput (basically because idling may
+	 * not be performed for the descendant processes of the group,
+	 * but it had to be).  We address this issue with the
+	 * following bi-modal behavior, implemented in the function
+	 * bfq_symmetric_scenario().
+	 *
+	 * If there are groups with requests waiting for completion
+	 * (as commented above, some of these groups may even be
+	 * already inactive), then the scenario is tagged as
+	 * asymmetric, conservatively, without checking any of the
+	 * conditions (i) and (ii). So the device is idled for bfqq.
+	 * This behavior matches also the fact that groups are created
+	 * exactly if controlling I/O is a primary concern (to
+	 * preserve bandwidth and latency guarantees).
+	 *
+	 * On the opposite end, if there are no groups with requests
+	 * waiting for completion, then only condition (i) is actually
+	 * controlled, i.e., provided that condition (i) holds, idling
+	 * is not performed, regardless of whether condition (ii)
+	 * holds. In other words, only if condition (i) does not hold,
+	 * then idling is allowed, and the device tends to be
+	 * prevented from queueing many requests, possibly of several
+	 * processes. Since there are no groups with requests waiting
+	 * for completion, then, to control condition (i) it is enough
+	 * to check just whether all the queues with requests waiting
+	 * for completion also have the same weight.
+	 *
+	 * Not checking condition (ii) evidently exposes bfqq to the
+	 * risk of getting less throughput than its fair share.
+	 * However, for queues with the same weight, a further
+	 * mechanism, preemption, mitigates or even eliminates this
+	 * problem. And it does so without consequences on overall
+	 * throughput. This mechanism and its benefits are explained
+	 * in the next three paragraphs.
 	 *
 	 * Even if a queue, say Q, is expired when it remains idle, Q
 	 * can still preempt the new in-service queue if the next
@@ -3516,11 +3602,7 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 * idling allows the internal queues of the device to contain
 	 * many requests, and thus to reorder requests, we can rather
 	 * safely assume that the internal scheduler still preserves a
-	 * minimum of mid-term fairness. The motivation for using
-	 * preemption instead of idling is that, by not idling,
-	 * service guarantees are preserved without minimally
-	 * sacrificing throughput. In other words, both a high
-	 * throughput and its desired distribution are obtained.
+	 * minimum of mid-term fairness.
 	 *
 	 * More precisely, this preemption-based, idleless approach
 	 * provides fairness in terms of IOPS, and not sectors per
@@ -3539,22 +3621,28 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 * 1024/8 times as high as the service received by the other
 	 * queue.
 	 *
-	 * On the other hand, device idling is performed, and thus
-	 * pure sector-domain guarantees are provided, for the
-	 * following queues, which are likely to need stronger
-	 * throughput guarantees: weight-raised queues, and queues
-	 * with a higher weight than other queues. When such queues
-	 * are active, sub-condition (i) is false, which triggers
-	 * device idling.
+	 * The motivation for using preemption instead of idling (for
+	 * queues with the same weight) is that, by not idling,
+	 * service guarantees are preserved (completely or at least in
+	 * part) without minimally sacrificing throughput. And, if
+	 * there is no active group, then the primary expectation for
+	 * this device is probably a high throughput.
 	 *
-	 * According to the above considerations, the next variable is
-	 * true (only) if sub-condition (i) holds. To compute the
-	 * value of this variable, we not only use the return value of
-	 * the function bfq_symmetric_scenario(), but also check
-	 * whether bfqq is being weight-raised, because
-	 * bfq_symmetric_scenario() does not take into account also
-	 * weight-raised queues (see comments on
-	 * bfq_weights_tree_add()).
+	 * We are now left only with explaining the additional
+	 * compound condition that is checked below for deciding
+	 * whether the scenario is asymmetric. To explain this
+	 * compound condition, we need to add that the function
+	 * bfq_symmetric_scenario checks the weights of only
+	 * non-weight-raised queues, for efficiency reasons (see
+	 * comments on bfq_weights_tree_add()). Then the fact that
+	 * bfqq is weight-raised is checked explicitly here. More
+	 * precisely, the compound condition below takes into account
+	 * also the fact that, even if bfqq is being weight-raised,
+	 * the scenario is still symmetric if all queues with requests
+	 * waiting for completion happen to be
+	 * weight-raised. Actually, we should be even more precise
+	 * here, and differentiate between interactive weight raising
+	 * and soft real-time weight raising.
 	 *
 	 * As a side note, it is worth considering that the above
 	 * device-idling countermeasures may however fail in the
@@ -3566,7 +3654,8 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 * to let requests be served in the desired order until all
 	 * the requests already queued in the device have been served.
 	 */
-	asymmetric_scenario = bfqq->wr_coeff > 1 ||
+	asymmetric_scenario = (bfqq->wr_coeff > 1 &&
+			       bfqd->wr_busy_queues < bfqd->busy_queues) ||
 		!bfq_symmetric_scenario(bfqd);
 
 	/*
@@ -3597,19 +3686,43 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 }
 
 /*
- * If the in-service queue is empty but the function bfq_bfqq_may_idle
+ * If the in-service queue is empty but the function bfq_better_to_idle
  * returns true, then:
  * 1) the queue must remain in service and cannot be expired, and
  * 2) the device must be idled to wait for the possible arrival of a new
  *    request for the queue.
- * See the comments on the function bfq_bfqq_may_idle for the reasons
+ * See the comments on the function bfq_better_to_idle for the reasons
  * why performing device idling is the best choice to boost the throughput
- * and preserve service guarantees when bfq_bfqq_may_idle itself
+ * and preserve service guarantees when bfq_better_to_idle itself
  * returns true.
  */
 static bool bfq_bfqq_must_idle(struct bfq_queue *bfqq)
 {
-	return RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_bfqq_may_idle(bfqq);
+	return RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_better_to_idle(bfqq);
+}
+
+static struct bfq_queue *bfq_choose_bfqq_for_injection(struct bfq_data *bfqd)
+{
+	struct bfq_queue *bfqq;
+
+	/*
+	 * A linear search; but, with a high probability, very few
+	 * steps are needed to find a candidate queue, i.e., a queue
+	 * with enough budget left for its next request. In fact:
+	 * - BFQ dynamically updates the budget of every queue so as
+	 *   to accommodate the expected backlog of the queue;
+	 * - if a queue gets all its requests dispatched as injected
+	 *   service, then the queue is removed from the active list
+	 *   (and re-added only if it gets new requests, but with
+	 *   enough budget for its new backlog).
+	 */
+	list_for_each_entry(bfqq, &bfqd->active_list, bfqq_list)
+		if (!RB_EMPTY_ROOT(&bfqq->sort_list) &&
+		    bfq_serv_to_charge(bfqq->next_rq, bfqq) <=
+		    bfq_bfqq_budget_left(bfqq))
+			return bfqq;
+
+	return NULL;
 }
 
 /*
@@ -3628,8 +3741,14 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 
 	bfq_log_bfqq(bfqd, bfqq, "select_queue: already in-service queue");
 
+	/*
+	 * Do not expire bfqq for budget timeout if bfqq may be about
+	 * to enjoy device idling. The reason why, in this case, we
+	 * prevent bfqq from expiring is the same as in the comments
+	 * on the case where bfq_bfqq_must_idle() returns true, in
+	 * bfq_completed_request().
+	 */
 	if (bfq_may_expire_for_budg_timeout(bfqq) &&
-	    !bfq_bfqq_wait_request(bfqq) &&
 	    !bfq_bfqq_must_idle(bfqq))
 		goto expire;
 
@@ -3687,10 +3806,19 @@ check_queue:
 	 * No requests pending. However, if the in-service queue is idling
 	 * for a new request, or has requests waiting for a completion and
 	 * may idle after their completion, then keep it anyway.
+	 *
+	 * Yet, to boost throughput, inject service from other queues if
+	 * possible.
 	 */
 	if (bfq_bfqq_wait_request(bfqq) ||
-	    (bfqq->dispatched != 0 && bfq_bfqq_may_idle(bfqq))) {
-		bfqq = NULL;
+	    (bfqq->dispatched != 0 && bfq_better_to_idle(bfqq))) {
+		if (bfq_bfqq_injectable(bfqq) &&
+		    bfqq->injected_service * bfqq->inject_coeff <
+		    bfqq->entity.service * 10)
+			bfqq = bfq_choose_bfqq_for_injection(bfqd);
+		else
+			bfqq = NULL;
+
 		goto keep_queue;
 	}
 
@@ -3780,6 +3908,14 @@ static struct request *bfq_dispatch_rq_from_bfqq(struct bfq_data *bfqd,
 
 	bfq_dispatch_remove(bfqd->queue, rq);
 
+	if (bfqq != bfqd->in_service_queue) {
+		if (likely(bfqd->in_service_queue))
+			bfqd->in_service_queue->injected_service +=
+				bfq_serv_to_charge(rq, bfqq);
+
+		goto return_rq;
+	}
+
 	/*
 	 * If weight raising has to terminate for bfqq, then next
 	 * function causes an immediate update of bfqq's weight,
@@ -3798,13 +3934,12 @@ static struct request *bfq_dispatch_rq_from_bfqq(struct bfq_data *bfqd,
 	 * belongs to CLASS_IDLE and other queues are waiting for
 	 * service.
 	 */
-	if (bfqd->busy_queues > 1 && bfq_class_idle(bfqq))
-		goto expire;
+	if (!(bfqd->busy_queues > 1 && bfq_class_idle(bfqq)))
+		goto return_rq;
 
-	return rq;
-
-expire:
 	bfq_bfqq_expire(bfqd, bfqq, false, BFQQE_BUDGET_EXHAUSTED);
+
+return_rq:
 	return rq;
 }
 
@@ -4209,6 +4344,13 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			bfq_mark_bfqq_has_short_ttime(bfqq);
 		bfq_mark_bfqq_sync(bfqq);
 		bfq_mark_bfqq_just_created(bfqq);
+		/*
+		 * Aggressively inject a lot of service: up to 90%.
+		 * This coefficient remains constant during bfqq life,
+		 * but this behavior might be changed, after enough
+		 * testing and tuning.
+		 */
+		bfqq->inject_coeff = 1;
 	} else
 		bfq_clear_bfqq_sync(bfqq);
 
@@ -4540,14 +4682,12 @@ static inline void bfq_update_insert_stats(struct request_queue *q,
 					   unsigned int cmd_flags) {}
 #endif
 
-static void bfq_prepare_request(struct request *rq, struct bio *bio);
-
 static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 			       bool at_head)
 {
 	struct request_queue *q = hctx->queue;
 	struct bfq_data *bfqd = q->elevator->elevator_data;
-	struct bfq_queue *bfqq = RQ_BFQQ(rq);
+	struct bfq_queue *bfqq;
 	bool idle_timer_disabled = false;
 	unsigned int cmd_flags;
 
@@ -4562,24 +4702,13 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	blk_mq_sched_request_inserted(rq);
 
 	spin_lock_irq(&bfqd->lock);
+	bfqq = bfq_init_rq(rq);
 	if (at_head || blk_rq_is_passthrough(rq)) {
 		if (at_head)
 			list_add(&rq->queuelist, &bfqd->dispatch);
 		else
 			list_add_tail(&rq->queuelist, &bfqd->dispatch);
-	} else {
-		if (WARN_ON_ONCE(!bfqq)) {
-			/*
-			 * This should never happen. Most likely rq is
-			 * a requeued regular request, being
-			 * re-inserted without being first
-			 * re-prepared. Do a prepare, to avoid
-			 * failure.
-			 */
-			bfq_prepare_request(rq, rq->bio);
-			bfqq = RQ_BFQQ(rq);
-		}
-
+	} else { /* bfqq is assumed to be non null here */
 		idle_timer_disabled = __bfq_insert_request(bfqd, rq);
 		/*
 		 * Update bfqq, because, if a queue merge has occurred
@@ -4664,8 +4793,7 @@ static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
 		 */
 		bfqq->budget_timeout = jiffies;
 
-		bfq_weights_tree_remove(bfqd, &bfqq->entity,
-					&bfqd->queue_weights_tree);
+		bfq_weights_tree_remove(bfqd, bfqq);
 	}
 
 	now_ns = ktime_get_ns();
@@ -4719,15 +4847,39 @@ static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
 	 * or if we want to idle in case it has no pending requests.
 	 */
 	if (bfqd->in_service_queue == bfqq) {
-		if (bfqq->dispatched == 0 && bfq_bfqq_must_idle(bfqq)) {
-			bfq_arm_slice_timer(bfqd);
+		if (bfq_bfqq_must_idle(bfqq)) {
+			if (bfqq->dispatched == 0)
+				bfq_arm_slice_timer(bfqd);
+			/*
+			 * If we get here, we do not expire bfqq, even
+			 * if bfqq was in budget timeout or had no
+			 * more requests (as controlled in the next
+			 * conditional instructions). The reason for
+			 * not expiring bfqq is as follows.
+			 *
+			 * Here bfqq->dispatched > 0 holds, but
+			 * bfq_bfqq_must_idle() returned true. This
+			 * implies that, even if no request arrives
+			 * for bfqq before bfqq->dispatched reaches 0,
+			 * bfqq will, however, not be expired on the
+			 * completion event that causes bfqq->dispatch
+			 * to reach zero. In contrast, on this event,
+			 * bfqq will start enjoying device idling
+			 * (I/O-dispatch plugging).
+			 *
+			 * But, if we expired bfqq here, bfqq would
+			 * not have the chance to enjoy device idling
+			 * when bfqq->dispatched finally reaches
+			 * zero. This would expose bfqq to violation
+			 * of its reserved service guarantees.
+			 */
 			return;
 		} else if (bfq_may_expire_for_budg_timeout(bfqq))
 			bfq_bfqq_expire(bfqd, bfqq, false,
 					BFQQE_BUDGET_TIMEOUT);
 		else if (RB_EMPTY_ROOT(&bfqq->sort_list) &&
 			 (bfqq->dispatched == 0 ||
-			  !bfq_bfqq_may_idle(bfqq)))
+			  !bfq_better_to_idle(bfqq)))
 			bfq_bfqq_expire(bfqd, bfqq, false,
 					BFQQE_NO_MORE_REQUESTS);
 	}
@@ -4778,8 +4930,8 @@ static void bfq_finish_requeue_request(struct request *rq)
 
 	if (rq->rq_flags & RQF_STARTED)
 		bfqg_stats_update_completion(bfqq_group(bfqq),
-					     rq_start_time_ns(rq),
-					     rq_io_start_time_ns(rq),
+					     rq->start_time_ns,
+					     rq->io_start_time_ns,
 					     rq->cmd_flags);
 
 	if (likely(rq->rq_flags & RQF_STARTED)) {
@@ -4922,11 +5074,48 @@ static struct bfq_queue *bfq_get_bfqq_handle_split(struct bfq_data *bfqd,
 }
 
 /*
- * Allocate bfq data structures associated with this request.
+ * Only reset private fields. The actual request preparation will be
+ * performed by bfq_init_rq, when rq is either inserted or merged. See
+ * comments on bfq_init_rq for the reason behind this delayed
+ * preparation.
  */
 static void bfq_prepare_request(struct request *rq, struct bio *bio)
 {
+	/*
+	 * Regardless of whether we have an icq attached, we have to
+	 * clear the scheduler pointers, as they might point to
+	 * previously allocated bic/bfqq structs.
+	 */
+	rq->elv.priv[0] = rq->elv.priv[1] = NULL;
+}
+
+/*
+ * If needed, init rq, allocate bfq data structures associated with
+ * rq, and increment reference counters in the destination bfq_queue
+ * for rq. Return the destination bfq_queue for rq, or NULL is rq is
+ * not associated with any bfq_queue.
+ *
+ * This function is invoked by the functions that perform rq insertion
+ * or merging. One may have expected the above preparation operations
+ * to be performed in bfq_prepare_request, and not delayed to when rq
+ * is inserted or merged. The rationale behind this delayed
+ * preparation is that, after the prepare_request hook is invoked for
+ * rq, rq may still be transformed into a request with no icq, i.e., a
+ * request not associated with any queue. No bfq hook is invoked to
+ * signal this tranformation. As a consequence, should these
+ * preparation operations be performed when the prepare_request hook
+ * is invoked, and should rq be transformed one moment later, bfq
+ * would end up in an inconsistent state, because it would have
+ * incremented some queue counters for an rq destined to
+ * transformation, without any chance to correctly lower these
+ * counters back. In contrast, no transformation can still happen for
+ * rq after rq has been inserted or merged. So, it is safe to execute
+ * these preparation operations when rq is finally inserted or merged.
+ */
+static struct bfq_queue *bfq_init_rq(struct request *rq)
+{
 	struct request_queue *q = rq->q;
+	struct bio *bio = rq->bio;
 	struct bfq_data *bfqd = q->elevator->elevator_data;
 	struct bfq_io_cq *bic;
 	const int is_sync = rq_is_sync(rq);
@@ -4934,19 +5123,20 @@ static void bfq_prepare_request(struct request *rq, struct bio *bio)
 	bool new_queue = false;
 	bool bfqq_already_existing = false, split = false;
 
+	if (unlikely(!rq->elv.icq))
+		return NULL;
+
 	/*
-	 * Even if we don't have an icq attached, we should still clear
-	 * the scheduler pointers, as they might point to previously
-	 * allocated bic/bfqq structs.
+	 * Assuming that elv.priv[1] is set only if everything is set
+	 * for this rq. This holds true, because this function is
+	 * invoked only for insertion or merging, and, after such
+	 * events, a request cannot be manipulated any longer before
+	 * being removed from bfq.
 	 */
-	if (!rq->elv.icq) {
-		rq->elv.priv[0] = rq->elv.priv[1] = NULL;
-		return;
-	}
+	if (rq->elv.priv[1])
+		return rq->elv.priv[1];
 
 	bic = icq_to_bic(rq->elv.icq);
-
-	spin_lock_irq(&bfqd->lock);
 
 	bfq_check_ioprio_change(bic, bio);
 
@@ -5006,7 +5196,7 @@ static void bfq_prepare_request(struct request *rq, struct bio *bio)
 	if (unlikely(bfq_bfqq_just_created(bfqq)))
 		bfq_handle_burst(bfqd, bfqq);
 
-	spin_unlock_irq(&bfqd->lock);
+	return bfqq;
 }
 
 static void bfq_idle_slice_timer_body(struct bfq_queue *bfqq)
@@ -5105,6 +5295,64 @@ void bfq_put_async_queues(struct bfq_data *bfqd, struct bfq_group *bfqg)
 	__bfq_put_async_bfqq(bfqd, &bfqg->async_idle_bfqq);
 }
 
+/*
+ * See the comments on bfq_limit_depth for the purpose of
+ * the depths set in the function. Return minimum shallow depth we'll use.
+ */
+static unsigned int bfq_update_depths(struct bfq_data *bfqd,
+				      struct sbitmap_queue *bt)
+{
+	unsigned int i, j, min_shallow = UINT_MAX;
+
+	/*
+	 * In-word depths if no bfq_queue is being weight-raised:
+	 * leaving 25% of tags only for sync reads.
+	 *
+	 * In next formulas, right-shift the value
+	 * (1U<<bt->sb.shift), instead of computing directly
+	 * (1U<<(bt->sb.shift - something)), to be robust against
+	 * any possible value of bt->sb.shift, without having to
+	 * limit 'something'.
+	 */
+	/* no more than 50% of tags for async I/O */
+	bfqd->word_depths[0][0] = max((1U << bt->sb.shift) >> 1, 1U);
+	/*
+	 * no more than 75% of tags for sync writes (25% extra tags
+	 * w.r.t. async I/O, to prevent async I/O from starving sync
+	 * writes)
+	 */
+	bfqd->word_depths[0][1] = max(((1U << bt->sb.shift) * 3) >> 2, 1U);
+
+	/*
+	 * In-word depths in case some bfq_queue is being weight-
+	 * raised: leaving ~63% of tags for sync reads. This is the
+	 * highest percentage for which, in our tests, application
+	 * start-up times didn't suffer from any regression due to tag
+	 * shortage.
+	 */
+	/* no more than ~18% of tags for async I/O */
+	bfqd->word_depths[1][0] = max(((1U << bt->sb.shift) * 3) >> 4, 1U);
+	/* no more than ~37% of tags for sync writes (~20% extra tags) */
+	bfqd->word_depths[1][1] = max(((1U << bt->sb.shift) * 6) >> 4, 1U);
+
+	for (i = 0; i < 2; i++)
+		for (j = 0; j < 2; j++)
+			min_shallow = min(min_shallow, bfqd->word_depths[i][j]);
+
+	return min_shallow;
+}
+
+static int bfq_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int index)
+{
+	struct bfq_data *bfqd = hctx->queue->elevator->elevator_data;
+	struct blk_mq_tags *tags = hctx->sched_tags;
+	unsigned int min_shallow;
+
+	min_shallow = bfq_update_depths(bfqd, &tags->bitmap_tags);
+	sbitmap_queue_min_shallow_depth(&tags->bitmap_tags, min_shallow);
+	return 0;
+}
+
 static void bfq_exit_queue(struct elevator_queue *e)
 {
 	struct bfq_data *bfqd = e->elevator_data;
@@ -5201,7 +5449,7 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 	bfqd->idle_slice_timer.function = bfq_idle_slice_timer;
 
 	bfqd->queue_weights_tree = RB_ROOT;
-	bfqd->group_weights_tree = RB_ROOT;
+	bfqd->num_groups_with_pending_reqs = 0;
 
 	INIT_LIST_HEAD(&bfqd->active_list);
 	INIT_LIST_HEAD(&bfqd->idle_list);
@@ -5242,14 +5490,12 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 	bfqd->wr_busy_queues = 0;
 
 	/*
-	 * Begin by assuming, optimistically, that the device is a
-	 * high-speed one, and that its peak rate is equal to 2/3 of
-	 * the highest reference rate.
+	 * Begin by assuming, optimistically, that the device peak
+	 * rate is equal to 2/3 of the highest reference rate.
 	 */
-	bfqd->RT_prod = R_fast[blk_queue_nonrot(bfqd->queue)] *
-			T_fast[blk_queue_nonrot(bfqd->queue)];
-	bfqd->peak_rate = R_fast[blk_queue_nonrot(bfqd->queue)] * 2 / 3;
-	bfqd->device_speed = BFQ_BFQD_FAST;
+	bfqd->rate_dur_prod = ref_rate[blk_queue_nonrot(bfqd->queue)] *
+		ref_wr_duration[blk_queue_nonrot(bfqd->queue)];
+	bfqd->peak_rate = ref_rate[blk_queue_nonrot(bfqd->queue)] * 2 / 3;
 
 	spin_lock_init(&bfqd->lock);
 
@@ -5526,6 +5772,7 @@ static struct elevator_type iosched_bfq_mq = {
 		.requests_merged	= bfq_requests_merged,
 		.request_merged		= bfq_request_merged,
 		.has_work		= bfq_has_work,
+		.init_hctx		= bfq_init_hctx,
 		.init_sched		= bfq_init_queue,
 		.exit_sched		= bfq_exit_queue,
 	},
@@ -5556,8 +5803,8 @@ static int __init bfq_init(void)
 	/*
 	 * Times to load large popular applications for the typical
 	 * systems installed on the reference devices (see the
-	 * comments before the definitions of the next two
-	 * arrays). Actually, we use slightly slower values, as the
+	 * comments before the definition of the next
+	 * array). Actually, we use slightly lower values, as the
 	 * estimated peak rate tends to be smaller than the actual
 	 * peak rate.  The reason for this last fact is that estimates
 	 * are computed over much shorter time intervals than the long
@@ -5566,25 +5813,8 @@ static int __init bfq_init(void)
 	 * scheduler cannot rely on a peak-rate-evaluation workload to
 	 * be run for a long time.
 	 */
-	T_slow[0] = msecs_to_jiffies(3500); /* actually 4 sec */
-	T_slow[1] = msecs_to_jiffies(6000); /* actually 6.5 sec */
-	T_fast[0] = msecs_to_jiffies(7000); /* actually 8 sec */
-	T_fast[1] = msecs_to_jiffies(2500); /* actually 3 sec */
-
-	/*
-	 * Thresholds that determine the switch between speed classes
-	 * (see the comments before the definition of the array
-	 * device_speed_thresh). These thresholds are biased towards
-	 * transitions to the fast class. This is safer than the
-	 * opposite bias. In fact, a wrong transition to the slow
-	 * class results in short weight-raising periods, because the
-	 * speed of the device then tends to be higher that the
-	 * reference peak rate. On the opposite end, a wrong
-	 * transition to the fast class tends to increase
-	 * weight-raising periods, because of the opposite reason.
-	 */
-	device_speed_thresh[0] = (4 * R_slow[0]) / 3;
-	device_speed_thresh[1] = (4 * R_slow[1]) / 3;
+	ref_wr_duration[0] = msecs_to_jiffies(7000); /* actually 8 sec */
+	ref_wr_duration[1] = msecs_to_jiffies(2500); /* actually 3 sec */
 
 	ret = elv_register(&iosched_bfq_mq);
 	if (ret)

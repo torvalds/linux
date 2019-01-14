@@ -16,8 +16,6 @@
 #include <dt-bindings/clock/qcom,rpmcc.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM8996";
-
 	interrupt-parent = <&intc>;
 
 	#address-cells = <2>;
@@ -377,6 +375,22 @@
 			reg = <0x740000 0x20000>;
 		};
 
+		tsens0: thermal-sensor@4a9000 {
+			compatible = "qcom,msm8996-tsens";
+			reg = <0x4a9000 0x1000>, /* TM */
+			      <0x4a8000 0x1000>; /* SROT */
+			#qcom,sensors = <13>;
+			#thermal-sensor-cells = <1>;
+		};
+
+		tsens1: thermal-sensor@4ad000 {
+			compatible = "qcom,msm8996-tsens";
+			reg = <0x4ad000 0x1000>, /* TM */
+			      <0x4ac000 0x1000>; /* SROT */
+			#qcom,sensors = <8>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		tcsr: syscon@7a0000 {
 			compatible = "qcom,tcsr-msm8996", "syscon";
 			reg = <0x7a0000 0x18000>;
@@ -391,11 +405,6 @@
 			reg = <0x09bc0000 0x10000>,
 			      <0x09c00000 0x100000>;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		};
-
-		apcs: syscon@9820000 {
-			compatible = "syscon";
-			reg = <0x9820000 0x1000>;
 		};
 
 		apcs_glb: mailbox@9820000 {
@@ -419,6 +428,16 @@
 			#clock-cells = <1>;
 		};
 
+		blsp1_uart1: serial@7570000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x07570000 0x1000>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
 		blsp1_spi0: spi@7575000 {
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x07575000 0x600>;
@@ -437,7 +456,7 @@
 		blsp2_i2c0: i2c@75b5000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b5000 0x1000>;
-			interrupts = <GIC_SPI 101 0>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_AHB_CLK>,
 				<&gcc GCC_BLSP2_QUP1_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
@@ -447,12 +466,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-		};
-
-		tsens0: thermal-sensor@4a8000 {
-			compatible = "qcom,msm8996-tsens";
-			reg = <0x4a8000 0x2000>;
-			#thermal-sensor-cells = <1>;
 		};
 
 		blsp2_uart1: serial@75b0000 {
@@ -468,7 +481,7 @@
 		blsp2_i2c1: i2c@75b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b6000 0x1000>;
-			interrupts = <GIC_SPI 102 0>;
+			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_AHB_CLK>,
 				<&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
@@ -493,7 +506,7 @@
 		blsp1_i2c2: i2c@7577000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x07577000 0x1000>;
-			interrupts = <GIC_SPI 97 0>;
+			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
 				<&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
@@ -526,7 +539,8 @@
 			 reg = <0x74a4900 0x314>, <0x74a4000 0x800>;
 			 reg-names = "hc_mem", "core_mem";
 
-			 interrupts = <0 125 0>, <0 221 0>;
+			 interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>,
+				      <0 221 IRQ_TYPE_LEVEL_HIGH>;
 			 interrupt-names = "hc_irq", "pwr_irq";
 
 			 clock-names = "iface", "core", "xo";
@@ -621,6 +635,91 @@
 			#size-cells = <0>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
+		};
+
+		ufsphy: phy@627000 {
+			compatible = "qcom,msm8996-ufs-phy-qmp-14nm";
+			reg = <0x627000 0xda8>;
+			reg-names = "phy_mem";
+			#phy-cells = <0>;
+
+			vdda-phy-supply = <&pm8994_l28>;
+			vdda-pll-supply = <&pm8994_l12>;
+
+			vdda-phy-max-microamp = <18380>;
+			vdda-pll-max-microamp = <9440>;
+
+			vddp-ref-clk-supply = <&pm8994_l25>;
+			vddp-ref-clk-max-microamp = <100>;
+			vddp-ref-clk-always-on;
+
+			clock-names = "ref_clk_src", "ref_clk";
+			clocks = <&rpmcc RPM_SMD_LN_BB_CLK>,
+				 <&gcc GCC_UFS_CLKREF_CLK>;
+			status = "disabled";
+		};
+
+		ufshc@624000 {
+			compatible = "qcom,ufshc";
+			reg = <0x624000 0x2500>;
+			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>;
+
+			phys = <&ufsphy>;
+			phy-names = "ufsphy";
+
+			vcc-supply = <&pm8994_l20>;
+			vccq-supply = <&pm8994_l25>;
+			vccq2-supply = <&pm8994_s4>;
+
+			vcc-max-microamp = <600000>;
+			vccq-max-microamp = <450000>;
+			vccq2-max-microamp = <450000>;
+
+			power-domains = <&gcc UFS_GDSC>;
+
+			clock-names =
+				"core_clk_src",
+				"core_clk",
+				"bus_clk",
+				"bus_aggr_clk",
+				"iface_clk",
+				"core_clk_unipro_src",
+				"core_clk_unipro",
+				"core_clk_ice",
+				"ref_clk",
+				"tx_lane0_sync_clk",
+				"rx_lane0_sync_clk";
+			clocks =
+				<&gcc UFS_AXI_CLK_SRC>,
+				<&gcc GCC_UFS_AXI_CLK>,
+				<&gcc GCC_SYS_NOC_UFS_AXI_CLK>,
+				<&gcc GCC_AGGRE2_UFS_AXI_CLK>,
+				<&gcc GCC_UFS_AHB_CLK>,
+				<&gcc UFS_ICE_CORE_CLK_SRC>,
+				<&gcc GCC_UFS_UNIPRO_CORE_CLK>,
+				<&gcc GCC_UFS_ICE_CORE_CLK>,
+				<&rpmcc RPM_SMD_LN_BB_CLK>,
+				<&gcc GCC_UFS_TX_SYMBOL_0_CLK>,
+				<&gcc GCC_UFS_RX_SYMBOL_0_CLK>;
+			freq-table-hz =
+				<100000000 200000000>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<150000000 300000000>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<0 0>;
+
+			lanes-per-direction = <1>;
+			status = "disabled";
+
+			ufs_variant {
+				compatible = "qcom,ufs_variant";
+			};
 		};
 
 		mmcc: clock-controller@8c0000 {
@@ -809,7 +908,7 @@
 			dwc3@7600000 {
 				compatible = "snps,dwc3";
 				reg = <0x7600000 0xcc00>;
-				interrupts = <0 138 0>;
+				interrupts = <0 138 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy2>;
 				phy-names = "usb2-phy";
 			};
@@ -838,7 +937,7 @@
 			dwc3@6a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x6a00000 0xcc00>;
-				interrupts = <0 131 0>;
+				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy1>, <&ssusb_phy_0>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
@@ -851,7 +950,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			pcie0: qcom,pcie@600000 {
+			pcie0: pcie@600000 {
 				compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
 				status = "disabled";
 				power-domains = <&gcc PCIE0_GDSC>;
@@ -872,7 +971,7 @@
 				ranges = <0x01000000 0x0 0x0c200000 0x0c200000 0x0 0x100000>,
 					<0x02000000 0x0 0x0c300000 0x0c300000 0x0 0xd00000>;
 
-				interrupts = <GIC_SPI 405 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
@@ -904,7 +1003,7 @@
 
 			};
 
-			pcie1: qcom,pcie@608000 {
+			pcie1: pcie@608000 {
 				compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
 				power-domains = <&gcc PCIE1_GDSC>;
 				bus-range = <0x00 0xff>;
@@ -927,7 +1026,7 @@
 				ranges = <0x01000000 0x0 0x0d200000 0x0d200000 0x0 0x100000>,
 					<0x02000000 0x0 0x0d300000 0x0d300000 0x0 0xd00000>;
 
-				interrupts = <GIC_SPI 413 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
@@ -957,7 +1056,7 @@
 						"bus_slave";
 			};
 
-			pcie2: qcom,pcie@610000 {
+			pcie2: pcie@610000 {
 				compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
 				power-domains = <&gcc PCIE2_GDSC>;
 				bus-range = <0x00 0xff>;
@@ -980,7 +1079,7 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 421 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
@@ -1034,7 +1133,7 @@
 			interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
 
 			label = "lpass";
-			qcom,ipc = <&apcs 16 8>;
+			mboxes = <&apcs_glb 8>;
 			qcom,smd-edge = <1>;
 			qcom,remote-pid = <2>;
 		};
@@ -1046,7 +1145,7 @@
 
 		interrupts = <0 158 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 16 10>;
+		mboxes = <&apcs_glb 10>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <2>;
@@ -1070,7 +1169,7 @@
 
 		interrupts = <GIC_SPI 451 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 16 14>;
+		mboxes = <&apcs_glb 14>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <1>;
@@ -1094,7 +1193,7 @@
 
 		interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 16 26>;
+		mboxes = <&apcs_glb 26>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <3>;

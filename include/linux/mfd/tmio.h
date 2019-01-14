@@ -62,13 +62,6 @@
 #define TMIO_MMC_USE_GPIO_CD		BIT(5)
 
 /*
- * Some controllers doesn't have over 0x100 register.
- * it is used to checking accessibility of
- * CTL_SD_CARD_CLK_CTL / CTL_CLK_AND_WAIT_CTL
- */
-#define TMIO_MMC_HAVE_HIGH_REG		BIT(6)
-
-/*
  * Some controllers have CMD12 automatically
  * issue/non-issue register
  */
@@ -89,6 +82,9 @@
 
 /* Some controllers have a CBSY bit */
 #define TMIO_MMC_HAVE_CBSY		BIT(11)
+
+/* Some controllers that support HS400 use use 4 taps while others use 8. */
+#define TMIO_MMC_HAVE_4TAP_HS400	BIT(13)
 
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);

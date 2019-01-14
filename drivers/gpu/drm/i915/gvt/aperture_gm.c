@@ -61,10 +61,12 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 	}
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	ret = i915_gem_gtt_insert(&dev_priv->ggtt.base, node,
+	mmio_hw_access_pre(dev_priv);
+	ret = i915_gem_gtt_insert(&dev_priv->ggtt.vm, node,
 				  size, I915_GTT_PAGE_SIZE,
 				  I915_COLOR_UNEVICTABLE,
 				  start, end, flags);
+	mmio_hw_access_post(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (ret)
 		gvt_err("fail to alloc %s gm space from host\n",
@@ -131,7 +133,7 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 
 	assert_rpm_wakelock_held(dev_priv);
 
-	if (WARN_ON(fence > vgpu_fence_sz(vgpu)))
+	if (WARN_ON(fence >= vgpu_fence_sz(vgpu)))
 		return;
 
 	reg = vgpu->fence.regs[fence];

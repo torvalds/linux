@@ -20,6 +20,7 @@
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <linux/rhashtable.h>
 
 #include <net/sock.h>
 #include <net/inet_frag.h>
@@ -90,7 +91,7 @@ static void inet_frags_free_cb(void *ptr, void *arg)
 
 void inet_frags_exit_net(struct netns_frags *nf)
 {
-	nf->low_thresh = 0; /* prevent creation of new frags */
+	nf->high_thresh = 0; /* prevent creation of new frags */
 
 	rhashtable_free_and_destroy(&nf->rhashtable, inet_frags_free_cb, NULL);
 }
@@ -136,12 +137,16 @@ void inet_frag_destroy(struct inet_frag_queue *q)
 	fp = q->fragments;
 	nf = q->net;
 	f = nf->f;
-	while (fp) {
-		struct sk_buff *xp = fp->next;
+	if (fp) {
+		do {
+			struct sk_buff *xp = fp->next;
 
-		sum_truesize += fp->truesize;
-		kfree_skb(fp);
-		fp = xp;
+			sum_truesize += fp->truesize;
+			kfree_skb(fp);
+			fp = xp;
+		} while (fp);
+	} else {
+		sum_truesize = inet_frag_rbtree_purge(&q->rb_fragments);
 	}
 	sum = sum_truesize + f->qsize;
 
@@ -156,9 +161,6 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 					       void *arg)
 {
 	struct inet_frag_queue *q;
-
-	if (!nf->high_thresh || frag_mem_limit(nf) > nf->high_thresh)
-		return NULL;
 
 	q = kmem_cache_zalloc(f->frags_cachep, GFP_ATOMIC);
 	if (!q)
@@ -176,21 +178,22 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 }
 
 static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
-						void *arg)
+						void *arg,
+						struct inet_frag_queue **prev)
 {
 	struct inet_frags *f = nf->f;
 	struct inet_frag_queue *q;
-	int err;
 
 	q = inet_frag_alloc(nf, f, arg);
-	if (!q)
+	if (!q) {
+		*prev = ERR_PTR(-ENOMEM);
 		return NULL;
-
+	}
 	mod_timer(&q->timer, jiffies + nf->timeout);
 
-	err = rhashtable_insert_fast(&nf->rhashtable, &q->node,
-				     f->rhash_params);
-	if (err < 0) {
+	*prev = rhashtable_lookup_get_insert_key(&nf->rhashtable, &q->key,
+						 &q->node, f->rhash_params);
+	if (*prev) {
 		q->flags |= INET_FRAG_COMPLETE;
 		inet_frag_kill(q);
 		inet_frag_destroy(q);
@@ -202,19 +205,22 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 /* TODO : call from rcu_read_lock() and no longer use refcount_inc_not_zero() */
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf, void *key)
 {
-	struct inet_frag_queue *fq;
+	struct inet_frag_queue *fq = NULL, *prev;
+
+	if (!nf->high_thresh || frag_mem_limit(nf) > nf->high_thresh)
+		return NULL;
 
 	rcu_read_lock();
 
-	fq = rhashtable_lookup(&nf->rhashtable, key, nf->f->rhash_params);
-	if (fq) {
+	prev = rhashtable_lookup(&nf->rhashtable, key, nf->f->rhash_params);
+	if (!prev)
+		fq = inet_frag_create(nf, key, &prev);
+	if (prev && !IS_ERR(prev)) {
+		fq = prev;
 		if (!refcount_inc_not_zero(&fq->refcnt))
 			fq = NULL;
-		rcu_read_unlock();
-		return fq;
 	}
 	rcu_read_unlock();
-
-	return inet_frag_create(nf, key);
+	return fq;
 }
 EXPORT_SYMBOL(inet_frag_find);

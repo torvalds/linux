@@ -45,9 +45,9 @@ The PCI endpoint framework populates the directory with the following
 configurable fields.
 
 	# ls functions/pci_epf_test/func1
-	  baseclass_code	interrupt_pin	revid		subsys_vendor_id
-	  cache_line_size	msi_interrupts	subclass_code	vendorid
-	  deviceid          	progif_code	subsys_id
+	  baseclass_code	interrupt_pin	progif_code	subsys_id
+	  cache_line_size	msi_interrupts	revid		subsys_vendorid
+	  deviceid          	msix_interrupts	subclass_code	vendorid
 
 The PCI endpoint function driver populates these entries with default values
 when the device is bound to the driver. The pci-epf-test driver populates
@@ -67,6 +67,7 @@ device, the following commands can be used.
 	# echo 0x104c > functions/pci_epf_test/func1/vendorid
 	# echo 0xb500 > functions/pci_epf_test/func1/deviceid
 	# echo 16 > functions/pci_epf_test/func1/msi_interrupts
+	# echo 8 > functions/pci_epf_test/func1/msix_interrupts
 
 1.5 Binding pci-epf-test Device to EP Controller
 
@@ -98,17 +99,20 @@ Note that the devices listed here correspond to the value populated in 1.4 above
 2.2 Using Endpoint Test function Device
 
 pcitest.sh added in tools/pci/ can be used to run all the default PCI endpoint
-tests. Before pcitest.sh can be used pcitest.c should be compiled using the
-following commands.
+tests. To compile this tool the following commands should be used:
 
-	cd <kernel-dir>
-	make headers_install ARCH=arm
-	arm-linux-gnueabihf-gcc -Iusr/include tools/pci/pcitest.c -o pcitest
-	cp pcitest  <rootfs>/usr/sbin/
-	cp tools/pci/pcitest.sh <rootfs>
+	# cd <kernel-dir>
+	# make -C tools/pci
+
+or if you desire to compile and install in your system:
+
+	# cd <kernel-dir>
+	# make -C tools/pci install
+
+The tool and script will be located in <rootfs>/usr/bin/
 
 2.2.1 pcitest.sh Output
-	# ./pcitest.sh
+	# pcitest.sh
 	BAR tests
 
 	BAR0:           OKAY
@@ -120,7 +124,9 @@ following commands.
 
 	Interrupt tests
 
+	SET IRQ TYPE TO LEGACY:         OKAY
 	LEGACY IRQ:     NOT OKAY
+	SET IRQ TYPE TO MSI:            OKAY
 	MSI1:           OKAY
 	MSI2:           OKAY
 	MSI3:           OKAY
@@ -153,9 +159,30 @@ following commands.
 	MSI30:          NOT OKAY
 	MSI31:          NOT OKAY
 	MSI32:          NOT OKAY
+	SET IRQ TYPE TO MSI-X:          OKAY
+	MSI-X1:         OKAY
+	MSI-X2:         OKAY
+	MSI-X3:         OKAY
+	MSI-X4:         OKAY
+	MSI-X5:         OKAY
+	MSI-X6:         OKAY
+	MSI-X7:         OKAY
+	MSI-X8:         OKAY
+	MSI-X9:         NOT OKAY
+	MSI-X10:        NOT OKAY
+	MSI-X11:        NOT OKAY
+	MSI-X12:        NOT OKAY
+	MSI-X13:        NOT OKAY
+	MSI-X14:        NOT OKAY
+	MSI-X15:        NOT OKAY
+	MSI-X16:        NOT OKAY
+	[...]
+	MSI-X2047:      NOT OKAY
+	MSI-X2048:      NOT OKAY
 
 	Read Tests
 
+	SET IRQ TYPE TO MSI:            OKAY
 	READ (      1 bytes):           OKAY
 	READ (   1024 bytes):           OKAY
 	READ (   1025 bytes):           OKAY
