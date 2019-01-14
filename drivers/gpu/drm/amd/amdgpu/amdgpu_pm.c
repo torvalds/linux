@@ -1135,7 +1135,9 @@ static ssize_t amdgpu_get_pp_power_profile_mode(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->get_power_profile_mode)
+	if (is_support_sw_smu(adev))
+		return smu_get_power_profile_mode(&adev->smu, buf);
+	else if (adev->powerplay.pp_funcs->get_power_profile_mode)
 		return amdgpu_dpm_get_power_profile_mode(adev, buf);
 
 	return snprintf(buf, PAGE_SIZE, "\n");
@@ -1185,9 +1187,10 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 		}
 	}
 	parameter[parameter_size] = profile_mode;
-	if (adev->powerplay.pp_funcs->set_power_profile_mode)
+	if (is_support_sw_smu(adev))
+		ret = smu_set_power_profile_mode(&adev->smu, parameter, parameter_size);
+	else if (adev->powerplay.pp_funcs->set_power_profile_mode)
 		ret = amdgpu_dpm_set_power_profile_mode(adev, parameter, parameter_size);
-
 	if (!ret)
 		return count;
 fail:

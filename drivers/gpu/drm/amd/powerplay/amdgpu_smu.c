@@ -330,6 +330,25 @@ static int smu_sw_init(void *handle)
 	bitmap_zero(smu->smu_feature.enabled, SMU_FEATURE_MAX);
 	bitmap_zero(smu->smu_feature.allowed, SMU_FEATURE_MAX);
 	smu->watermarks_bitmap = 0;
+	smu->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	smu->default_power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+
+	smu->workload_mask = 1 << smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
+	smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT] = 0;
+	smu->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 1;
+	smu->workload_prority[PP_SMC_POWER_PROFILE_POWERSAVING] = 2;
+	smu->workload_prority[PP_SMC_POWER_PROFILE_VIDEO] = 3;
+	smu->workload_prority[PP_SMC_POWER_PROFILE_VR] = 4;
+	smu->workload_prority[PP_SMC_POWER_PROFILE_COMPUTE] = 5;
+	smu->workload_prority[PP_SMC_POWER_PROFILE_CUSTOM] = 6;
+
+	smu->workload_setting[0] = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	smu->workload_setting[1] = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	smu->workload_setting[2] = PP_SMC_POWER_PROFILE_POWERSAVING;
+	smu->workload_setting[3] = PP_SMC_POWER_PROFILE_VIDEO;
+	smu->workload_setting[4] = PP_SMC_POWER_PROFILE_VR;
+	smu->workload_setting[5] = PP_SMC_POWER_PROFILE_COMPUTE;
+	smu->workload_setting[6] = PP_SMC_POWER_PROFILE_CUSTOM;
 
 	ret = smu_init_microcode(smu);
 	if (ret) {

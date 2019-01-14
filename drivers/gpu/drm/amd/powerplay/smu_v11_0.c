@@ -310,6 +310,10 @@ static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, TABLE_PMSTATUSLOG, SMU11_TOOL_SIZE, PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, TABLE_ACTIVITY_MONITOR_COEFF,
+		       sizeof(DpmActivityMonitorCoeffInt_t),
+		       PAGE_SIZE,
+		       AMDGPU_GEM_DOMAIN_VRAM);
 
 	ret = smu_v11_0_init_dpm_context(smu);
 	if (ret)
@@ -1239,6 +1243,290 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_set_activity_monitor_coeff(struct smu_context *smu,
+				      uint8_t *table, uint16_t workload_type)
+{
+	int ret = 0;
+	memcpy(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].cpu_addr,
+	       table, smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].size);
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrHigh,
+					  upper_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
+	if (ret) {
+		pr_err("[%s] Attempt to Set Dram Addr High Failed!", __func__);
+		return ret;
+	}
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrLow,
+					  lower_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
+	if (ret) {
+		pr_err("[%s] Attempt to Set Dram Addr Low Failed!", __func__);
+		return ret;
+	}
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_TransferTableSmu2Dram,
+					  TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16));
+	if (ret) {
+		pr_err("[%s] Attempt to Transfer Table From SMU Failed!", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int smu_v11_0_get_activity_monitor_coeff(struct smu_context *smu,
+				      uint8_t *table, uint16_t workload_type)
+{
+	int ret = 0;
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrHigh,
+					  upper_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
+	if (ret) {
+		pr_err("[%s] Attempt to Set Dram Addr High Failed!", __func__);
+		return ret;
+	}
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrLow,
+					  lower_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
+	if (ret) {
+		pr_err("[%s] Attempt to Set Dram Addr Low Failed!", __func__);
+		return ret;
+	}
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_TransferTableSmu2Dram,
+					  TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16));
+	if (ret) {
+		pr_err("[%s] Attempt to Transfer Table From SMU Failed!", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int smu_v11_0_conv_power_profile_to_pplib_workload(int power_profile)
+{
+	int pplib_workload = 0;
+
+	switch (power_profile) {
+	case PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT:
+	     pplib_workload = WORKLOAD_DEFAULT_BIT;
+	     break;
+	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
+	     pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
+	     break;
+	case PP_SMC_POWER_PROFILE_POWERSAVING:
+	     pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
+	     break;
+	case PP_SMC_POWER_PROFILE_VIDEO:
+	     pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
+	     break;
+	case PP_SMC_POWER_PROFILE_VR:
+	     pplib_workload = WORKLOAD_PPLIB_VR_BIT;
+	     break;
+	case PP_SMC_POWER_PROFILE_COMPUTE:
+	     pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
+	     break;
+	case PP_SMC_POWER_PROFILE_CUSTOM:
+		pplib_workload = WORKLOAD_PPLIB_CUSTOM_BIT;
+		break;
+	}
+
+	return pplib_workload;
+}
+
+static int smu_v11_0_get_power_profile_mode(struct smu_context *smu, char *buf)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	uint32_t i, size = 0;
+	uint16_t workload_type = 0;
+	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	static const char *title[] = {
+			"PROFILE_INDEX(NAME)",
+			"CLOCK_TYPE(NAME)",
+			"FPS",
+			"UseRlcBusy",
+			"MinActiveFreqType",
+			"MinActiveFreq",
+			"BoosterFreqType",
+			"BoosterFreq",
+			"PD_Data_limit_c",
+			"PD_Data_error_coeff",
+			"PD_Data_error_rate_coeff"};
+	int result = 0;
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
+			title[0], title[1], title[2], title[3], title[4], title[5],
+			title[6], title[7], title[8], title[9], title[10]);
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+		workload_type = smu_v11_0_conv_power_profile_to_pplib_workload(i);
+		result = smu_v11_0_get_activity_monitor_coeff(smu,
+							      (uint8_t *)(&activity_monitor),
+							      workload_type);
+		if (result) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return result;
+		}
+
+		size += sprintf(buf + size, "%2d %14s%s:\n",
+			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			0,
+			"GFXCLK",
+			activity_monitor.Gfx_FPS,
+			activity_monitor.Gfx_UseRlcBusy,
+			activity_monitor.Gfx_MinActiveFreqType,
+			activity_monitor.Gfx_MinActiveFreq,
+			activity_monitor.Gfx_BoosterFreqType,
+			activity_monitor.Gfx_BoosterFreq,
+			activity_monitor.Gfx_PD_Data_limit_c,
+			activity_monitor.Gfx_PD_Data_error_coeff,
+			activity_monitor.Gfx_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			1,
+			"SOCCLK",
+			activity_monitor.Soc_FPS,
+			activity_monitor.Soc_UseRlcBusy,
+			activity_monitor.Soc_MinActiveFreqType,
+			activity_monitor.Soc_MinActiveFreq,
+			activity_monitor.Soc_BoosterFreqType,
+			activity_monitor.Soc_BoosterFreq,
+			activity_monitor.Soc_PD_Data_limit_c,
+			activity_monitor.Soc_PD_Data_error_coeff,
+			activity_monitor.Soc_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			2,
+			"UCLK",
+			activity_monitor.Mem_FPS,
+			activity_monitor.Mem_UseRlcBusy,
+			activity_monitor.Mem_MinActiveFreqType,
+			activity_monitor.Mem_MinActiveFreq,
+			activity_monitor.Mem_BoosterFreqType,
+			activity_monitor.Mem_BoosterFreq,
+			activity_monitor.Mem_PD_Data_limit_c,
+			activity_monitor.Mem_PD_Data_error_coeff,
+			activity_monitor.Mem_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			3,
+			"FCLK",
+			activity_monitor.Fclk_FPS,
+			activity_monitor.Fclk_UseRlcBusy,
+			activity_monitor.Fclk_MinActiveFreqType,
+			activity_monitor.Fclk_MinActiveFreq,
+			activity_monitor.Fclk_BoosterFreqType,
+			activity_monitor.Fclk_BoosterFreq,
+			activity_monitor.Fclk_PD_Data_limit_c,
+			activity_monitor.Fclk_PD_Data_error_coeff,
+			activity_monitor.Fclk_PD_Data_error_rate_coeff);
+	}
+
+	return size;
+}
+
+static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	int workload_type, ret = 0;
+
+	smu->power_profile_mode = input[size];
+
+	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		if (size < 0)
+			return -EINVAL;
+
+		ret = smu_v11_0_get_activity_monitor_coeff(smu,
+							   (uint8_t *)(&activity_monitor),
+							   WORKLOAD_PPLIB_CUSTOM_BIT);
+		if (ret) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return ret;
+		}
+
+		switch (input[0]) {
+		case 0: /* Gfxclk */
+			activity_monitor.Gfx_FPS = input[1];
+			activity_monitor.Gfx_UseRlcBusy = input[2];
+			activity_monitor.Gfx_MinActiveFreqType = input[3];
+			activity_monitor.Gfx_MinActiveFreq = input[4];
+			activity_monitor.Gfx_BoosterFreqType = input[5];
+			activity_monitor.Gfx_BoosterFreq = input[6];
+			activity_monitor.Gfx_PD_Data_limit_c = input[7];
+			activity_monitor.Gfx_PD_Data_error_coeff = input[8];
+			activity_monitor.Gfx_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 1: /* Socclk */
+			activity_monitor.Soc_FPS = input[1];
+			activity_monitor.Soc_UseRlcBusy = input[2];
+			activity_monitor.Soc_MinActiveFreqType = input[3];
+			activity_monitor.Soc_MinActiveFreq = input[4];
+			activity_monitor.Soc_BoosterFreqType = input[5];
+			activity_monitor.Soc_BoosterFreq = input[6];
+			activity_monitor.Soc_PD_Data_limit_c = input[7];
+			activity_monitor.Soc_PD_Data_error_coeff = input[8];
+			activity_monitor.Soc_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 2: /* Uclk */
+			activity_monitor.Mem_FPS = input[1];
+			activity_monitor.Mem_UseRlcBusy = input[2];
+			activity_monitor.Mem_MinActiveFreqType = input[3];
+			activity_monitor.Mem_MinActiveFreq = input[4];
+			activity_monitor.Mem_BoosterFreqType = input[5];
+			activity_monitor.Mem_BoosterFreq = input[6];
+			activity_monitor.Mem_PD_Data_limit_c = input[7];
+			activity_monitor.Mem_PD_Data_error_coeff = input[8];
+			activity_monitor.Mem_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 3: /* Fclk */
+			activity_monitor.Fclk_FPS = input[1];
+			activity_monitor.Fclk_UseRlcBusy = input[2];
+			activity_monitor.Fclk_MinActiveFreqType = input[3];
+			activity_monitor.Fclk_MinActiveFreq = input[4];
+			activity_monitor.Fclk_BoosterFreqType = input[5];
+			activity_monitor.Fclk_BoosterFreq = input[6];
+			activity_monitor.Fclk_PD_Data_limit_c = input[7];
+			activity_monitor.Fclk_PD_Data_error_coeff = input[8];
+			activity_monitor.Fclk_PD_Data_error_rate_coeff = input[9];
+			break;
+		}
+
+		ret = smu_v11_0_set_activity_monitor_coeff(smu,
+							   (uint8_t *)(&activity_monitor),
+							   WORKLOAD_PPLIB_CUSTOM_BIT);
+		if (ret) {
+			pr_err("[%s] Failed to set activity monitor!", __func__);
+			return ret;
+		}
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type =
+		smu_v11_0_conv_power_profile_to_pplib_workload(smu->power_profile_mode);
+	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+				    1 << workload_type);
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1277,6 +1565,11 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.set_watermarks_for_clock_ranges = smu_v11_0_set_watermarks_for_clock_ranges,
 	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
+	.get_activity_monitor_coeff = smu_v11_0_get_activity_monitor_coeff,
+	.set_activity_monitor_coeff = smu_v11_0_set_activity_monitor_coeff,
+	.conv_power_profile_to_pplib_workload = smu_v11_0_conv_power_profile_to_pplib_workload,
+	.get_power_profile_mode = smu_v11_0_get_power_profile_mode,
+	.set_power_profile_mode = smu_v11_0_set_power_profile_mode,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

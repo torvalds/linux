@@ -335,6 +335,7 @@ struct smu_feature
 	DECLARE_BITMAP(enabled, SMU_FEATURE_MAX);
 };
 
+#define WORKLOAD_POLICY_MAX 7
 struct smu_context
 {
 	struct amdgpu_device            *adev;
@@ -361,6 +362,12 @@ struct smu_context
 #define WATERMARKS_EXIST	(1 << 0)
 #define WATERMARKS_LOADED	(1 << 1)
 	uint32_t watermarks_bitmap;
+
+	uint32_t workload_mask;
+	uint32_t workload_prority[WORKLOAD_POLICY_MAX];
+	uint32_t workload_setting[WORKLOAD_POLICY_MAX];
+	uint32_t power_profile_mode;
+	uint32_t default_power_profile_mode;
 };
 
 struct pptable_funcs {
@@ -389,6 +396,8 @@ struct pptable_funcs {
 					      struct
 					      pp_clock_levels_with_voltage
 					      *clocks);
+	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
+	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
 };
 
 struct smu_funcs
@@ -453,6 +462,15 @@ struct smu_funcs
 	int (*set_watermarks_for_clock_ranges)(struct smu_context *smu,
 					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*set_od8_default_settings)(struct smu_context *smu);
+	int (*get_activity_monitor_coeff)(struct smu_context *smu,
+				      uint8_t *table,
+				      uint16_t workload_type);
+	int (*set_activity_monitor_coeff)(struct smu_context *smu,
+				      uint8_t *table,
+				      uint16_t workload_type);
+	int (*conv_power_profile_to_pplib_workload)(int power_profile);
+	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
+	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
 };
 
 #define smu_init_microcode(smu) \
@@ -547,6 +565,10 @@ struct smu_funcs
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \
 	((smu)->funcs->read_sensor? (smu)->funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
+#define smu_get_power_profile_mode(smu, buf) \
+	((smu)->funcs->get_power_profile_mode ? (smu)->funcs->get_power_profile_mode((smu), buf) : 0)
+#define smu_set_power_profile_mode(smu, param, param_size) \
+	((smu)->funcs->set_power_profile_mode ? (smu)->funcs->set_power_profile_mode((smu), (param), (param_size)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
