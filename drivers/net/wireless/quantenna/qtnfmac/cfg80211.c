@@ -363,11 +363,6 @@ static int qtnf_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		return -EFAULT;
 	}
 
-	if (changed & (WIPHY_PARAM_RETRY_LONG | WIPHY_PARAM_RETRY_SHORT)) {
-		pr_err("MAC%u: can't modify retry params\n", mac->macid);
-		return -EOPNOTSUPP;
-	}
-
 	ret = qtnf_cmd_send_update_phy_params(mac, changed);
 	if (ret)
 		pr_err("MAC%u: failed to update PHY params\n", mac->macid);
