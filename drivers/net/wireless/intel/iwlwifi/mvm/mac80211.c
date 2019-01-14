@@ -3207,6 +3207,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			mvm_sta->wep_key = NULL;
 		}
 
+		if (unlikely(ret &&
+			     test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
+				      &mvm->status)))
+			ret = 0;
 	} else {
 		ret = -EIO;
 	}
