@@ -26,7 +26,8 @@
 
 uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev)
 {
-	uint64_t addr = adev->vm_manager.max_pfn << AMDGPU_GPU_PAGE_SHIFT;
+	uint64_t addr = min(adev->vm_manager.max_pfn << AMDGPU_GPU_PAGE_SHIFT,
+				AMDGPU_GMC_HOLE_START);
 
 	addr -= AMDGPU_VA_RESERVED_SIZE;
 	addr = amdgpu_gmc_sign_extend(addr);
