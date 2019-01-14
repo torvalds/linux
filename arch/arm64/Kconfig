@@ -792,8 +792,7 @@ config SCHED_SMT
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	# These have to remain sorted largest to smallest
-	default "64"
+	default "256"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
