@@ -26,9 +26,11 @@ void qtnf_cmd_send_deinit_fw(struct qtnf_bus *bus);
 int qtnf_cmd_get_hw_info(struct qtnf_bus *bus);
 int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac);
 int qtnf_cmd_send_add_intf(struct qtnf_vif *vif, enum nl80211_iftype iftype,
-			   u8 *mac_addr);
+			   int use4addr, u8 *mac_addr);
 int qtnf_cmd_send_change_intf_type(struct qtnf_vif *vif,
-				   enum nl80211_iftype iftype, u8 *mac_addr);
+				   enum nl80211_iftype iftype,
+				   int use4addr,
+				   u8 *mac_addr);
 int qtnf_cmd_send_del_intf(struct qtnf_vif *vif);
 int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
 			   struct ieee80211_supported_band *band);

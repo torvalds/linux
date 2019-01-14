@@ -734,6 +734,7 @@ out:
 
 static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 					 enum nl80211_iftype iftype,
+					 int use4addr,
 					 u8 *mac_addr,
 					 enum qlink_cmd_type cmd_type)
 {
@@ -751,6 +752,7 @@ static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 	qtnf_bus_lock(vif->mac->bus);
 
 	cmd = (struct qlink_cmd_manage_intf *)cmd_skb->data;
+	cmd->intf_info.use4addr = use4addr;
 
 	switch (iftype) {
 	case NL80211_IFTYPE_AP:
@@ -786,17 +788,19 @@ out:
 	return ret;
 }
 
-int qtnf_cmd_send_add_intf(struct qtnf_vif *vif,
-			   enum nl80211_iftype iftype, u8 *mac_addr)
+int qtnf_cmd_send_add_intf(struct qtnf_vif *vif, enum nl80211_iftype iftype,
+			   int use4addr, u8 *mac_addr)
 {
-	return qtnf_cmd_send_add_change_intf(vif, iftype, mac_addr,
+	return qtnf_cmd_send_add_change_intf(vif, iftype, use4addr, mac_addr,
 			QLINK_CMD_ADD_INTF);
 }
 
 int qtnf_cmd_send_change_intf_type(struct qtnf_vif *vif,
-				   enum nl80211_iftype iftype, u8 *mac_addr)
+				   enum nl80211_iftype iftype,
+				   int use4addr,
+				   u8 *mac_addr)
 {
-	return qtnf_cmd_send_add_change_intf(vif, iftype, mac_addr,
+	return qtnf_cmd_send_add_change_intf(vif, iftype, use4addr, mac_addr,
 					     QLINK_CMD_CHANGE_INTF);
 }
 

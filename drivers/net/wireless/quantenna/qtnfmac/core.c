@@ -195,6 +195,7 @@ static int qtnf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 	qtnf_scan_done(vif->mac, true);
 
 	ret = qtnf_cmd_send_change_intf_type(vif, vif->wdev.iftype,
+					     vif->wdev.use_4addr,
 					     sa->sa_data);
 
 	if (ret)
@@ -545,7 +546,8 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error;
 	}
 
-	ret = qtnf_cmd_send_add_intf(vif, vif->wdev.iftype, vif->mac_addr);
+	ret = qtnf_cmd_send_add_intf(vif, vif->wdev.iftype,
+				     vif->wdev.use_4addr, vif->mac_addr);
 	if (ret) {
 		pr_err("MAC%u: failed to add VIF\n", macid);
 		goto error;

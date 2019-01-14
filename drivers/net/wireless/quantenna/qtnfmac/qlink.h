@@ -105,7 +105,8 @@ struct qlink_intf_info {
 	__le16 if_type;
 	__le16 vlanid;
 	u8 mac_addr[ETH_ALEN];
-	u8 rsvd[2];
+	u8 use4addr;
+	u8 rsvd[1];
 } __packed;
 
 enum qlink_sta_flags {
