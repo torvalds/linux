@@ -42,7 +42,7 @@
 		#size-cells = <0>;
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0>;
 			clocks = <&nb_periph_clk 16>;
 			enable-method = "psci";

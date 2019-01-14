@@ -43,7 +43,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72", "arm,armv8";
+			compatible = "arm,cortex-a72";
 			reg = <0 0x000>;
 			clocks = <&sys_clk 32>;
 			enable-method = "psci";
@@ -53,7 +53,7 @@
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72", "arm,armv8";
+			compatible = "arm,cortex-a72";
 			reg = <0 0x001>;
 			clocks = <&sys_clk 32>;
 			enable-method = "psci";
@@ -63,7 +63,7 @@
 
 		cpu2: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x100>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -73,7 +73,7 @@
 
 		cpu3: cpu@101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x101>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
