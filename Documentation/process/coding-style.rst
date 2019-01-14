@@ -443,7 +443,7 @@ In function prototypes, include parameter names with their data types.
 Although this is not required by the C language, it is preferred in Linux
 because it is a simple way to add valuable information for the reader.
 
-Do not use the `extern' keyword with function prototypes as this makes
+Do not use the ``extern`` keyword with function prototypes as this makes
 lines longer and isn't strictly necessary.
 
 
