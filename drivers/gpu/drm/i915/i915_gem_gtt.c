@@ -3232,7 +3232,8 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.insert_entries = gen8_ggtt_insert_entries;
 
 	/* Serialize GTT updates with aperture access on BXT if VT-d is on. */
-	if (intel_ggtt_update_needs_vtd_wa(dev_priv)) {
+	if (intel_ggtt_update_needs_vtd_wa(dev_priv) ||
+	    IS_CHERRYVIEW(dev_priv) /* fails with concurrent use/update */) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
 		if (ggtt->vm.clear_range != nop_clear_range)
