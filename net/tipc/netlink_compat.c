@@ -87,6 +87,11 @@ static int tipc_skb_tailroom(struct sk_buff *skb)
 	return limit;
 }
 
+static inline int TLV_GET_DATA_LEN(struct tlv_desc *tlv)
+{
+	return TLV_GET_LEN(tlv) - TLV_SPACE(0);
+}
+
 static int tipc_add_tlv(struct sk_buff *skb, u16 type, void *data, u16 len)
 {
 	struct tlv_desc *tlv = (struct tlv_desc *)skb_tail_pointer(skb);
@@ -164,6 +169,11 @@ static struct sk_buff *tipc_get_err_tlv(char *str)
 		tipc_add_tlv(buf, TIPC_TLV_ERROR_STRING, str, str_len);
 
 	return buf;
+}
+
+static inline bool string_is_valid(char *s, int len)
+{
+	return memchr(s, '\0', len) ? true : false;
 }
 
 static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
@@ -750,12 +760,17 @@ static int tipc_nl_compat_link_reset_stats(struct tipc_nl_compat_cmd_doit *cmd,
 {
 	char *name;
 	struct nlattr *link;
+	int len;
 
 	name = (char *)TLV_DATA(msg->req);
 
 	link = nla_nest_start(skb, TIPC_NLA_LINK);
 	if (!link)
 		return -EMSGSIZE;
+
+	len = min_t(int, TLV_GET_DATA_LEN(msg->req), TIPC_MAX_LINK_NAME);
+	if (!string_is_valid(name, len))
+		return -EINVAL;
 
 	if (nla_put_string(skb, TIPC_NLA_LINK_NAME, name))
 		return -EMSGSIZE;
