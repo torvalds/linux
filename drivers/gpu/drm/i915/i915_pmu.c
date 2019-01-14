@@ -167,6 +167,7 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	bool fw = false;
 
 	if ((dev_priv->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
@@ -175,7 +176,8 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 	if (!dev_priv->gt.awake)
 		return;
 
-	if (!intel_runtime_pm_get_if_in_use(dev_priv))
+	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	if (!wakeref)
 		return;
 
 	for_each_engine(engine, dev_priv, id) {
@@ -210,7 +212,7 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 	if (fw)
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 }
 
 static void
@@ -227,11 +229,15 @@ frequency_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 		u32 val;
 
 		val = dev_priv->gt_pm.rps.cur_freq;
-		if (dev_priv->gt.awake &&
-		    intel_runtime_pm_get_if_in_use(dev_priv)) {
-			val = intel_get_cagf(dev_priv,
-					     I915_READ_NOTRACE(GEN6_RPSTAT1));
-			intel_runtime_pm_put_unchecked(dev_priv);
+		if (dev_priv->gt.awake) {
+			intel_wakeref_t wakeref =
+				intel_runtime_pm_get_if_in_use(dev_priv);
+
+			if (wakeref) {
+				val = intel_get_cagf(dev_priv,
+						     I915_READ_NOTRACE(GEN6_RPSTAT1));
+				intel_runtime_pm_put(dev_priv, wakeref);
+			}
 		}
 
 		add_sample_mult(&dev_priv->pmu.sample[__I915_SAMPLE_FREQ_ACT],
@@ -443,12 +449,14 @@ static u64 __get_rc6(struct drm_i915_private *i915)
 static u64 get_rc6(struct drm_i915_private *i915)
 {
 #if IS_ENABLED(CONFIG_PM)
+	intel_wakeref_t wakeref;
 	unsigned long flags;
 	u64 val;
 
-	if (intel_runtime_pm_get_if_in_use(i915)) {
+	wakeref = intel_runtime_pm_get_if_in_use(i915);
+	if (wakeref) {
 		val = __get_rc6(i915);
-		intel_runtime_pm_put_unchecked(i915);
+		intel_runtime_pm_put(i915, wakeref);
 
 		/*
 		 * If we are coming back from being runtime suspended we must
