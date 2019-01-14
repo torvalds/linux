@@ -1741,32 +1741,24 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 
 static int i915_emon_status(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	unsigned long temp, chipset, gfx;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
 	intel_wakeref_t wakeref;
-	int ret;
 
-	if (!IS_GEN(dev_priv, 5))
+	if (!IS_GEN(i915, 5))
 		return -ENODEV;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
+	with_intel_runtime_pm(i915, wakeref) {
+		unsigned long temp, chipset, gfx;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+		temp = i915_mch_val(i915);
+		chipset = i915_chipset_val(i915);
+		gfx = i915_gfx_val(i915);
 
-	temp = i915_mch_val(dev_priv);
-	chipset = i915_chipset_val(dev_priv);
-	gfx = i915_gfx_val(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-
-	intel_runtime_pm_put(dev_priv, wakeref);
-
-	seq_printf(m, "GMCH temp: %ld\n", temp);
-	seq_printf(m, "Chipset power: %ld\n", chipset);
-	seq_printf(m, "GFX power: %ld\n", gfx);
-	seq_printf(m, "Total power: %ld\n", chipset + gfx);
+		seq_printf(m, "GMCH temp: %ld\n", temp);
+		seq_printf(m, "Chipset power: %ld\n", chipset);
+		seq_printf(m, "GFX power: %ld\n", gfx);
+		seq_printf(m, "Total power: %ld\n", chipset + gfx);
+	}
 
 	return 0;
 }

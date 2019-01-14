@@ -6203,10 +6203,6 @@ void intel_init_ipc(struct drm_i915_private *dev_priv)
  */
 DEFINE_SPINLOCK(mchdev_lock);
 
-/* Global for IPS driver to get at the current i915 device. Protected by
- * mchdev_lock. */
-static struct drm_i915_private *i915_mch_dev;
-
 bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val)
 {
 	u16 rgvswctl;
@@ -7849,16 +7845,17 @@ static unsigned long __i915_chipset_val(struct drm_i915_private *dev_priv)
 
 unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 {
-	unsigned long val;
+	intel_wakeref_t wakeref;
+	unsigned long val = 0;
 
 	if (!IS_GEN(dev_priv, 5))
 		return 0;
 
-	spin_lock_irq(&mchdev_lock);
-
-	val = __i915_chipset_val(dev_priv);
-
-	spin_unlock_irq(&mchdev_lock);
+	with_intel_runtime_pm(dev_priv, wakeref) {
+		spin_lock_irq(&mchdev_lock);
+		val = __i915_chipset_val(dev_priv);
+		spin_unlock_irq(&mchdev_lock);
+	}
 
 	return val;
 }
@@ -7935,14 +7932,16 @@ static void __i915_update_gfx_val(struct drm_i915_private *dev_priv)
 
 void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 {
+	intel_wakeref_t wakeref;
+
 	if (!IS_GEN(dev_priv, 5))
 		return;
 
-	spin_lock_irq(&mchdev_lock);
-
-	__i915_update_gfx_val(dev_priv);
-
-	spin_unlock_irq(&mchdev_lock);
+	with_intel_runtime_pm(dev_priv, wakeref) {
+		spin_lock_irq(&mchdev_lock);
+		__i915_update_gfx_val(dev_priv);
+		spin_unlock_irq(&mchdev_lock);
+	}
 }
 
 static unsigned long __i915_gfx_val(struct drm_i915_private *dev_priv)
@@ -7984,18 +7983,34 @@ static unsigned long __i915_gfx_val(struct drm_i915_private *dev_priv)
 
 unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 {
-	unsigned long val;
+	intel_wakeref_t wakeref;
+	unsigned long val = 0;
 
 	if (!IS_GEN(dev_priv, 5))
 		return 0;
 
-	spin_lock_irq(&mchdev_lock);
-
-	val = __i915_gfx_val(dev_priv);
-
-	spin_unlock_irq(&mchdev_lock);
+	with_intel_runtime_pm(dev_priv, wakeref) {
+		spin_lock_irq(&mchdev_lock);
+		val = __i915_gfx_val(dev_priv);
+		spin_unlock_irq(&mchdev_lock);
+	}
 
 	return val;
+}
+
+static struct drm_i915_private *i915_mch_dev;
+
+static struct drm_i915_private *mchdev_get(void)
+{
+	struct drm_i915_private *i915;
+
+	rcu_read_lock();
+	i915 = i915_mch_dev;
+	if (!kref_get_unless_zero(&i915->drm.ref))
+		i915 = NULL;
+	rcu_read_unlock();
+
+	return i915;
 }
 
 /**
@@ -8006,23 +8021,24 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
  */
 unsigned long i915_read_mch_val(void)
 {
-	struct drm_i915_private *dev_priv;
-	unsigned long chipset_val, graphics_val, ret = 0;
+	struct drm_i915_private *i915;
+	unsigned long chipset_val = 0;
+	unsigned long graphics_val = 0;
+	intel_wakeref_t wakeref;
 
-	spin_lock_irq(&mchdev_lock);
-	if (!i915_mch_dev)
-		goto out_unlock;
-	dev_priv = i915_mch_dev;
+	i915 = mchdev_get();
+	if (!i915)
+		return 0;
 
-	chipset_val = __i915_chipset_val(dev_priv);
-	graphics_val = __i915_gfx_val(dev_priv);
+	with_intel_runtime_pm(i915, wakeref) {
+		spin_lock_irq(&mchdev_lock);
+		chipset_val = __i915_chipset_val(i915);
+		graphics_val = __i915_gfx_val(i915);
+		spin_unlock_irq(&mchdev_lock);
+	}
 
-	ret = chipset_val + graphics_val;
-
-out_unlock:
-	spin_unlock_irq(&mchdev_lock);
-
-	return ret;
+	drm_dev_put(&i915->drm);
+	return chipset_val + graphics_val;
 }
 EXPORT_SYMBOL_GPL(i915_read_mch_val);
 
@@ -8033,23 +8049,19 @@ EXPORT_SYMBOL_GPL(i915_read_mch_val);
  */
 bool i915_gpu_raise(void)
 {
-	struct drm_i915_private *dev_priv;
-	bool ret = true;
+	struct drm_i915_private *i915;
+
+	i915 = mchdev_get();
+	if (!i915)
+		return false;
 
 	spin_lock_irq(&mchdev_lock);
-	if (!i915_mch_dev) {
-		ret = false;
-		goto out_unlock;
-	}
-	dev_priv = i915_mch_dev;
-
-	if (dev_priv->ips.max_delay > dev_priv->ips.fmax)
-		dev_priv->ips.max_delay--;
-
-out_unlock:
+	if (i915->ips.max_delay > i915->ips.fmax)
+		i915->ips.max_delay--;
 	spin_unlock_irq(&mchdev_lock);
 
-	return ret;
+	drm_dev_put(&i915->drm);
+	return true;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_raise);
 
@@ -8061,23 +8073,19 @@ EXPORT_SYMBOL_GPL(i915_gpu_raise);
  */
 bool i915_gpu_lower(void)
 {
-	struct drm_i915_private *dev_priv;
-	bool ret = true;
+	struct drm_i915_private *i915;
+
+	i915 = mchdev_get();
+	if (!i915)
+		return false;
 
 	spin_lock_irq(&mchdev_lock);
-	if (!i915_mch_dev) {
-		ret = false;
-		goto out_unlock;
-	}
-	dev_priv = i915_mch_dev;
-
-	if (dev_priv->ips.max_delay < dev_priv->ips.min_delay)
-		dev_priv->ips.max_delay++;
-
-out_unlock:
+	if (i915->ips.max_delay < i915->ips.min_delay)
+		i915->ips.max_delay++;
 	spin_unlock_irq(&mchdev_lock);
 
-	return ret;
+	drm_dev_put(&i915->drm);
+	return true;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_lower);
 
@@ -8088,13 +8096,16 @@ EXPORT_SYMBOL_GPL(i915_gpu_lower);
  */
 bool i915_gpu_busy(void)
 {
-	bool ret = false;
+	struct drm_i915_private *i915;
+	bool ret;
 
-	spin_lock_irq(&mchdev_lock);
-	if (i915_mch_dev)
-		ret = i915_mch_dev->gt.awake;
-	spin_unlock_irq(&mchdev_lock);
+	i915 = mchdev_get();
+	if (!i915)
+		return false;
 
+	ret = i915->gt.awake;
+
+	drm_dev_put(&i915->drm);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_busy);
@@ -8107,24 +8118,19 @@ EXPORT_SYMBOL_GPL(i915_gpu_busy);
  */
 bool i915_gpu_turbo_disable(void)
 {
-	struct drm_i915_private *dev_priv;
-	bool ret = true;
+	struct drm_i915_private *i915;
+	bool ret;
+
+	i915 = mchdev_get();
+	if (!i915)
+		return false;
 
 	spin_lock_irq(&mchdev_lock);
-	if (!i915_mch_dev) {
-		ret = false;
-		goto out_unlock;
-	}
-	dev_priv = i915_mch_dev;
-
-	dev_priv->ips.max_delay = dev_priv->ips.fstart;
-
-	if (!ironlake_set_drps(dev_priv, dev_priv->ips.fstart))
-		ret = false;
-
-out_unlock:
+	i915->ips.max_delay = i915->ips.fstart;
+	ret = ironlake_set_drps(i915, i915->ips.fstart);
 	spin_unlock_irq(&mchdev_lock);
 
+	drm_dev_put(&i915->drm);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
@@ -8153,18 +8159,14 @@ void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
 {
 	/* We only register the i915 ips part with intel-ips once everything is
 	 * set up, to avoid intel-ips sneaking in and reading bogus values. */
-	spin_lock_irq(&mchdev_lock);
-	i915_mch_dev = dev_priv;
-	spin_unlock_irq(&mchdev_lock);
+	rcu_assign_pointer(i915_mch_dev, dev_priv);
 
 	ips_ping_for_i915_load();
 }
 
 void intel_gpu_ips_teardown(void)
 {
-	spin_lock_irq(&mchdev_lock);
-	i915_mch_dev = NULL;
-	spin_unlock_irq(&mchdev_lock);
+	rcu_assign_pointer(i915_mch_dev, NULL);
 }
 
 static void intel_init_emon(struct drm_i915_private *dev_priv)

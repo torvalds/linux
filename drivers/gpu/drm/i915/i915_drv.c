@@ -1780,6 +1780,9 @@ void i915_driver_unload(struct drm_device *dev)
 
 	i915_driver_unregister(dev_priv);
 
+	/* Flush any external code that still may be under the RCU lock */
+	synchronize_rcu();
+
 	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 
