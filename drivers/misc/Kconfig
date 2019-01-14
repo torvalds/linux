@@ -478,6 +478,13 @@ config NPCM7XX_LPC_BPC
 	  interface which allows the BMC to monitoring and save
 	  the data written by the host to an arbitrary LPC I/O port.
 
+config NPCM7XX_PCI_MBOX
+	tristate "NPCM7xx PCI Mailbox Controller"
+	depends on (ARCH_NPCM7XX || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	help
+	  Expose the NPCM750/730/715/705 PCI MBOX registers found on
+	  Nuvoton SOCs to userspace.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
