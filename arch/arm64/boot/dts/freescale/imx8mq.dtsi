@@ -259,6 +259,50 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x30400000 0x30400000 0x400000>;
+
+			pwm1: pwm@30660000 {
+				compatible = "fsl,imx8mq-pwm", "fsl,imx27-pwm";
+				reg = <0x30660000 0x10000>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MQ_CLK_PWM1_ROOT>,
+				         <&clk IMX8MQ_CLK_PWM1_ROOT>;
+				clock-names = "ipg", "per";
+				#pwm-cells = <2>;
+				status = "disabled";
+			};
+
+			pwm2: pwm@30670000 {
+				compatible = "fsl,imx8mq-pwm", "fsl,imx27-pwm";
+				reg = <0x30670000 0x10000>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MQ_CLK_PWM2_ROOT>,
+				         <&clk IMX8MQ_CLK_PWM2_ROOT>;
+				clock-names = "ipg", "per";
+				#pwm-cells = <2>;
+				status = "disabled";
+			};
+
+			pwm3: pwm@30680000 {
+				compatible = "fsl,imx8mq-pwm", "fsl,imx27-pwm";
+				reg = <0x30680000 0x10000>;
+				interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MQ_CLK_PWM3_ROOT>,
+				         <&clk IMX8MQ_CLK_PWM3_ROOT>;
+				clock-names = "ipg", "per";
+				#pwm-cells = <2>;
+				status = "disabled";
+			};
+
+			pwm4: pwm@30690000 {
+				compatible = "fsl,imx8mq-pwm", "fsl,imx27-pwm";
+				reg = <0x30690000 0x10000>;
+				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MQ_CLK_PWM4_ROOT>,
+				         <&clk IMX8MQ_CLK_PWM4_ROOT>;
+				clock-names = "ipg", "per";
+				#pwm-cells = <2>;
+				status = "disabled";
+			};
 		};
 
 		bus@30800000 { /* AIPS3 */
