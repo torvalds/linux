@@ -254,7 +254,7 @@ struct discard_entry {
 /* max discard pend list number */
 #define MAX_PLIST_NUM		512
 #define plist_idx(blk_num)	((blk_num) >= MAX_PLIST_NUM ?		\
-					(MAX_PLIST_NUM - 1) : (blk_num - 1))
+					(MAX_PLIST_NUM - 1) : ((blk_num) - 1))
 
 enum {
 	D_PREP,			/* initial */
@@ -2763,9 +2763,9 @@ static inline int get_inline_xattr_addrs(struct inode *inode)
 
 #define F2FS_OLD_ATTRIBUTE_SIZE	(offsetof(struct f2fs_inode, i_addr))
 #define F2FS_FITS_IN_INODE(f2fs_inode, extra_isize, field)		\
-		((offsetof(typeof(*f2fs_inode), field) +	\
+		((offsetof(typeof(*(f2fs_inode)), field) +	\
 		sizeof((f2fs_inode)->field))			\
-		<= (F2FS_OLD_ATTRIBUTE_SIZE + extra_isize))	\
+		<= (F2FS_OLD_ATTRIBUTE_SIZE + (extra_isize)))	\
 
 static inline void f2fs_reset_iostat(struct f2fs_sb_info *sbi)
 {
@@ -2794,8 +2794,8 @@ static inline void f2fs_update_iostat(struct f2fs_sb_info *sbi,
 
 #define __is_large_section(sbi)		((sbi)->segs_per_sec > 1)
 
-#define __is_meta_io(fio) (PAGE_TYPE_OF_BIO(fio->type) == META &&	\
-				(!is_read_io(fio->op) || fio->is_meta))
+#define __is_meta_io(fio) (PAGE_TYPE_OF_BIO((fio)->type) == META &&	\
+				(!is_read_io((fio)->op) || (fio)->is_meta))
 
 bool f2fs_is_valid_blkaddr(struct f2fs_sb_info *sbi,
 					block_t blkaddr, int type);
