@@ -11,6 +11,7 @@
 #include <linux/sched/clock.h>
 #include <linux/llist.h>
 #include <linux/log2.h>
+#include <linux/percpu.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>

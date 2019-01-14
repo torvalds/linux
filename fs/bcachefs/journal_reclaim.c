@@ -65,6 +65,9 @@ static inline void __journal_pin_drop(struct journal *j,
 	if (atomic_dec_and_test(&pin_list->count) &&
 	    pin_list == &fifo_peek_front(&j->pin))
 		bch2_journal_reclaim_fast(j);
+	else if (fifo_used(&j->pin) == 1 &&
+		 atomic_read(&pin_list->count) == 1)
+		journal_wake(j);
 }
 
 void bch2_journal_pin_drop(struct journal *j,
@@ -337,56 +340,48 @@ void bch2_journal_reclaim_work(struct work_struct *work)
 				   msecs_to_jiffies(j->reclaim_delay_ms));
 }
 
-static int journal_flush_done(struct journal *j, u64 seq_to_flush,
-			      struct journal_entry_pin **pin,
-			      u64 *pin_seq)
+static int journal_flush_done(struct journal *j, u64 seq_to_flush)
 {
+	struct journal_entry_pin *pin;
+	u64 pin_seq;
 	int ret;
-
-	*pin = NULL;
 
 	ret = bch2_journal_error(j);
 	if (ret)
 		return ret;
 
+	mutex_lock(&j->reclaim_lock);
 	spin_lock(&j->lock);
+
+	while ((pin = journal_get_next_pin(j, seq_to_flush, &pin_seq))) {
+		journal_pin_mark_flushing(j, pin, pin_seq);
+		spin_unlock(&j->lock);
+
+		journal_pin_flush(j, pin, pin_seq);
+
+		spin_lock(&j->lock);
+	}
 	/*
 	 * If journal replay hasn't completed, the unreplayed journal entries
 	 * hold refs on their corresponding sequence numbers
 	 */
-	ret = (*pin = journal_get_next_pin(j, seq_to_flush, pin_seq)) != NULL ||
-		!test_bit(JOURNAL_REPLAY_DONE, &j->flags) ||
+	ret = !test_bit(JOURNAL_REPLAY_DONE, &j->flags) ||
 		journal_last_seq(j) > seq_to_flush ||
 		(fifo_used(&j->pin) == 1 &&
 		 atomic_read(&fifo_peek_front(&j->pin).count) == 1);
-	if (*pin)
-		journal_pin_mark_flushing(j, *pin, *pin_seq);
 
 	spin_unlock(&j->lock);
+	mutex_unlock(&j->reclaim_lock);
 
 	return ret;
 }
 
 void bch2_journal_flush_pins(struct journal *j, u64 seq_to_flush)
 {
-	struct journal_entry_pin *pin;
-	u64 pin_seq;
-
 	if (!test_bit(JOURNAL_STARTED, &j->flags))
 		return;
 
-	mutex_lock(&j->reclaim_lock);
-
-	while (1) {
-		wait_event(j->wait, journal_flush_done(j, seq_to_flush,
-						       &pin, &pin_seq));
-		if (!pin)
-			break;
-
-		journal_pin_flush(j, pin, pin_seq);
-	}
-
-	mutex_unlock(&j->reclaim_lock);
+	closure_wait_event(&j->async_wait, journal_flush_done(j, seq_to_flush));
 }
 
 int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
