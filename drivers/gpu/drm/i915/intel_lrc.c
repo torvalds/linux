@@ -1045,7 +1045,7 @@ static void execlists_submission_tasklet(unsigned long data)
 
 	GEM_TRACE("%s awake?=%d, active=%x\n",
 		  engine->name,
-		  engine->i915->gt.awake,
+		  !!engine->i915->gt.awake,
 		  engine->execlists.active);
 
 	spin_lock_irqsave(&engine->timeline.lock, flags);
