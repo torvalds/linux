@@ -199,7 +199,7 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 		XA_BUG_ON(xa, xa_store_index(xa, index + 1, GFP_KERNEL));
 		xa_set_mark(xa, index + 1, XA_MARK_0);
 		XA_BUG_ON(xa, xa_store_index(xa, index + 2, GFP_KERNEL));
-		xa_set_mark(xa, index + 2, XA_MARK_1);
+		xa_set_mark(xa, index + 2, XA_MARK_2);
 		XA_BUG_ON(xa, xa_store_index(xa, next, GFP_KERNEL));
 		xa_store_order(xa, index, order, xa_mk_index(index),
 				GFP_KERNEL);
@@ -209,8 +209,8 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 			void *entry;
 
 			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_0));
-			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_1));
-			XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_2));
+			XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_1));
+			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_2));
 
 			/* We should see two elements in the array */
 			rcu_read_lock();
