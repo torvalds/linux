@@ -666,7 +666,7 @@ static inline bool drm_dev_is_unplugged(struct drm_device *dev)
  *
  * Returns true if the @feature is supported, false otherwise.
  */
-static inline bool drm_core_check_feature(struct drm_device *dev, u32 feature)
+static inline bool drm_core_check_feature(const struct drm_device *dev, u32 feature)
 {
 	return dev->driver->driver_features & dev->driver_features & feature;
 }
