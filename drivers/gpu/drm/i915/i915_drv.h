@@ -1979,7 +1979,7 @@ struct drm_i915_private {
 		 * In order to reduce the effect on performance, there
 		 * is a slight delay before we do so.
 		 */
-		bool awake;
+		intel_wakeref_t awake;
 
 		/**
 		 * The number of times we have woken up.
