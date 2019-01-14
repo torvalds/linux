@@ -546,7 +546,7 @@ config SND_SOC_CS43130
 
 config SND_SOC_CS4341
 	tristate "Cirrus Logic CS4341 CODEC"
-	depends on I2C || SPI_MASTER
+	depends on SND_SOC_I2C_AND_SPI
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
 

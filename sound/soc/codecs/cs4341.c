@@ -223,7 +223,7 @@ static int cs4341_probe(struct device *dev)
 					       &cs4341_dai, 1);
 }
 
-#if defined(CONFIG_I2C)
+#if IS_ENABLED(CONFIG_I2C)
 static int cs4341_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -317,7 +317,7 @@ static int __init cs4341_init(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_I2C)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&cs4341_i2c_driver);
 	if (ret)
 		return ret;
@@ -332,7 +332,7 @@ module_init(cs4341_init);
 
 static void __exit cs4341_exit(void)
 {
-#if defined(CONFIG_I2C)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&cs4341_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)
