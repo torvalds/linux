@@ -123,7 +123,8 @@ static inline void dim_park_tired(struct net_dim *dim)
 }
 
 static inline void
-net_dim_sample(u16 event_ctr, u64 packets, u64 bytes, struct net_dim_sample *s)
+net_dim_update_sample(u16 event_ctr, u64 packets, u64 bytes,
+		      struct net_dim_sample *s)
 {
 	s->time	     = ktime_get();
 	s->pkt_ctr   = packets;
