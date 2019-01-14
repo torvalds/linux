@@ -220,8 +220,6 @@ static const char *const dec_mux_text[] = {
 };
 
 static const char *const cic_mux_text[] = { "AMIC", "DMIC" };
-static const char *const rx_mix2_text[] = { "ZERO", "IIR1", "IIR2" };
-static const char *const adc2_mux_text[] = { "ZERO", "INP2", "INP3" };
 
 /* RX1 MIX1 */
 static const struct soc_enum rx_mix1_inp_enum[] = {
@@ -230,20 +228,12 @@ static const struct soc_enum rx_mix1_inp_enum[] = {
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX1_B2_CTL, 0, 6, rx_mix1_text),
 };
 
-/* RX1 MIX2 */
-static const struct soc_enum rx_mix2_inp1_chain_enum = SOC_ENUM_SINGLE(
-				LPASS_CDC_CONN_RX1_B3_CTL, 0, 3, rx_mix2_text);
-
 /* RX2 MIX1 */
 static const struct soc_enum rx2_mix1_inp_enum[] = {
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B1_CTL, 0, 6, rx_mix1_text),
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B1_CTL, 3, 6, rx_mix1_text),
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B2_CTL, 0, 6, rx_mix1_text),
 };
-
-/* RX2 MIX2 */
-static const struct soc_enum rx2_mix2_inp1_chain_enum = SOC_ENUM_SINGLE(
-				LPASS_CDC_CONN_RX2_B3_CTL, 0, 3, rx_mix2_text);
 
 /* RX3 MIX1 */
 static const struct soc_enum rx3_mix1_inp_enum[] = {
