@@ -28,11 +28,12 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 	const struct vivid_fmt *vfmt = dev->fmt_out;
 	unsigned planes = vfmt->buffers;
 	unsigned h = dev->fmt_out_rect.height;
-	unsigned size = dev->bytesperline_out[0] * h;
+	unsigned int size = dev->bytesperline_out[0] * h + vfmt->data_offset[0];
 	unsigned p;
 
 	for (p = vfmt->buffers; p < vfmt->planes; p++)
-		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p];
+		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p] +
+			vfmt->data_offset[p];
 
 	if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 		/*
@@ -62,12 +63,14 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 		if (sizes[0] < size)
 			return -EINVAL;
 		for (p = 1; p < planes; p++) {
-			if (sizes[p] < dev->bytesperline_out[p] * h)
+			if (sizes[p] < dev->bytesperline_out[p] * h +
+				       vfmt->data_offset[p])
 				return -EINVAL;
 		}
 	} else {
 		for (p = 0; p < planes; p++)
-			sizes[p] = p ? dev->bytesperline_out[p] * h : size;
+			sizes[p] = p ? dev->bytesperline_out[p] * h +
+				       vfmt->data_offset[p] : size;
 	}
 
 	if (vq->num_buffers + *nbuffers < 2)
@@ -321,7 +324,8 @@ int vivid_g_fmt_vid_out(struct file *file, void *priv,
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = dev->bytesperline_out[p];
 		mp->plane_fmt[p].sizeimage =
-			mp->plane_fmt[p].bytesperline * mp->height;
+			mp->plane_fmt[p].bytesperline * mp->height +
+			fmt->data_offset[p];
 	}
 	for (p = fmt->buffers; p < fmt->planes; p++) {
 		unsigned stride = dev->bytesperline_out[p];
@@ -399,7 +403,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 			pfmt[p].bytesperline = bytesperline;
 
 		pfmt[p].sizeimage = (pfmt[p].bytesperline * mp->height) /
-					fmt->vdownsampling[p];
+				fmt->vdownsampling[p] + fmt->data_offset[p];
 
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
