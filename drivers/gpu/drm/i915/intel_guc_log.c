@@ -436,6 +436,7 @@ static void guc_log_capture_logs(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	intel_wakeref_t wakeref;
 
 	guc_read_update_log_buffer(log);
 
@@ -443,9 +444,9 @@ static void guc_log_capture_logs(struct intel_guc_log *log)
 	 * Generally device is expected to be active only at this
 	 * time, so get/put should be really quick.
 	 */
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 	guc_action_flush_log_complete(guc);
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 }
 
 int intel_guc_log_create(struct intel_guc_log *log)
@@ -505,6 +506,7 @@ int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	intel_wakeref_t wakeref;
 	int ret;
 
 	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN != 0);
@@ -524,11 +526,11 @@ int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 		goto out_unlock;
 	}
 
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 	ret = guc_action_control_log(guc, GUC_LOG_LEVEL_IS_VERBOSE(level),
 				     GUC_LOG_LEVEL_IS_ENABLED(level),
 				     GUC_LOG_LEVEL_TO_VERBOSITY(level));
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	if (ret) {
 		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
 		goto out_unlock;
@@ -601,6 +603,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct drm_i915_private *i915 = guc_to_i915(guc);
+	intel_wakeref_t wakeref;
 
 	/*
 	 * Before initiating the forceful flush, wait for any pending/ongoing
@@ -608,9 +611,9 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 	 */
 	flush_work(&log->relay.flush_work);
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	guc_action_flush_log(guc);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 
 	/* GuC would have updated log buffer by now, so capture it */
 	guc_log_capture_logs(log);
