@@ -1709,7 +1709,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 		reg->val = I915_READ8(entry->offset_ldw);
 	else
 		ret = -EINVAL;
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return ret;
 }

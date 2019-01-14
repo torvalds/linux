@@ -1785,7 +1785,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 	err = i915_subtests(tests, ctx);
 
 out_unlock:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	mock_file_free(dev_priv, file);

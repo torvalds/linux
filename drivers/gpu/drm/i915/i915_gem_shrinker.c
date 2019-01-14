@@ -265,7 +265,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	}
 
 	if (flags & I915_SHRINK_BOUND)
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put_unchecked(i915);
 
 	i915_retire_requests(i915);
 
@@ -299,7 +299,7 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *i915)
 				I915_SHRINK_BOUND |
 				I915_SHRINK_UNBOUND |
 				I915_SHRINK_ACTIVE);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	return freed;
 }
@@ -377,7 +377,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 					 I915_SHRINK_ACTIVE |
 					 I915_SHRINK_BOUND |
 					 I915_SHRINK_UNBOUND);
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put_unchecked(i915);
 	}
 
 	shrinker_unlock(i915, unlock);
@@ -397,7 +397,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	freed_pages = i915_gem_shrink(i915, -1UL, NULL,
 				      I915_SHRINK_BOUND |
 				      I915_SHRINK_UNBOUND);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	/* Because we may be allocating inside our own driver, we cannot
 	 * assert that there are no objects with pinned pages that are not
@@ -451,7 +451,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 				       I915_SHRINK_BOUND |
 				       I915_SHRINK_UNBOUND |
 				       I915_SHRINK_VMAPS);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	/* We also want to clear any cached iomaps as they wrap vmap */
 	list_for_each_entry_safe(vma, next,

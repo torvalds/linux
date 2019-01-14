@@ -243,7 +243,7 @@ static int live_nop_switch(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
 	return err;
@@ -609,7 +609,7 @@ static int igt_ctx_exec(void *arg)
 
 			intel_runtime_pm_get(i915);
 			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put(i915);
+			intel_runtime_pm_put_unchecked(i915);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -715,7 +715,7 @@ static int igt_ctx_readonly(void *arg)
 
 			intel_runtime_pm_get(i915);
 			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put(i915);
+			intel_runtime_pm_put_unchecked(i915);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -1067,7 +1067,7 @@ static int igt_vm_isolation(void *arg)
 		count, RUNTIME_INFO(i915)->num_rings);
 
 out_rpm:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 out_unlock:
 	if (end_live_test(&t))
 		err = -EIO;
@@ -1200,7 +1200,7 @@ out_unlock:
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	kernel_context_close(ctx);

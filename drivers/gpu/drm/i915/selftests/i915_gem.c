@@ -32,7 +32,7 @@ static int switch_to_context(struct drm_i915_private *i915,
 		i915_request_add(rq);
 	}
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	return err;
 }
@@ -76,7 +76,7 @@ static void simulate_hibernate(struct drm_i915_private *i915)
 	 */
 	trash_stolen(i915);
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 }
 
 static int pm_prepare(struct drm_i915_private *i915)
@@ -98,7 +98,7 @@ static void pm_suspend(struct drm_i915_private *i915)
 	i915_gem_suspend_gtt_mappings(i915);
 	i915_gem_suspend_late(i915);
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 }
 
 static void pm_hibernate(struct drm_i915_private *i915)
@@ -110,7 +110,7 @@ static void pm_hibernate(struct drm_i915_private *i915)
 	i915_gem_freeze(i915);
 	i915_gem_freeze_late(i915);
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 }
 
 static void pm_resume(struct drm_i915_private *i915)
@@ -125,7 +125,7 @@ static void pm_resume(struct drm_i915_private *i915)
 	i915_gem_sanitize(i915);
 	i915_gem_resume(i915);
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 }
 
 static int igt_gem_suspend(void *arg)

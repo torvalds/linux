@@ -225,7 +225,7 @@ out:
 	guc_clients_create(guc);
 	guc_clients_enable(guc);
 unlock:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }
@@ -337,7 +337,7 @@ out:
 			guc_client_free(clients[i]);
 		}
 unlock:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }

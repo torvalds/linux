@@ -1213,7 +1213,7 @@ static int intel_backlight_device_get_brightness(struct backlight_device *bd)
 	ret = scale_hw_to_user(connector, hw_level, bd->props.max_brightness);
 
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return ret;
 }

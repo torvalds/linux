@@ -928,7 +928,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
 		idle = false;
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return idle;
 }
@@ -1485,7 +1485,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	if (intel_runtime_pm_get_if_in_use(engine->i915)) {
 		intel_engine_print_registers(engine, m);
-		intel_runtime_pm_put(engine->i915);
+		intel_runtime_pm_put_unchecked(engine->i915);
 	} else {
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}

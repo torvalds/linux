@@ -295,7 +295,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 
 			intel_runtime_pm_get(i915);
 			vm->insert_entries(vm, &mock_vma, I915_CACHE_NONE, 0);
-			intel_runtime_pm_put(i915);
+			intel_runtime_pm_put_unchecked(i915);
 		}
 		count = n;
 
@@ -1216,7 +1216,7 @@ static int igt_ggtt_page(void *arg)
 	kfree(order);
 out_remove:
 	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	drm_mm_remove_node(&tmp);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);

@@ -3374,7 +3374,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	wake_up_all(&dev_priv->gpu_error.reset_queue);
 
 out:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 /* Called from drm generic code, passed 'crtc' which

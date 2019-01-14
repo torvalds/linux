@@ -997,7 +997,7 @@ complete:
 			intel_uncore_forcewake_put(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
-		intel_runtime_pm_put(gvt->dev_priv);
+		intel_runtime_pm_put_unchecked(gvt->dev_priv);
 		if (ret && (vgpu_is_vm_unhealthy(ret)))
 			enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
 	}
@@ -1451,7 +1451,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 		mutex_lock(&dev_priv->drm.struct_mutex);
 		ret = intel_gvt_scan_and_shadow_workload(workload);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
-		intel_runtime_pm_put(dev_priv);
+		intel_runtime_pm_put_unchecked(dev_priv);
 	}
 
 	if (ret && (vgpu_is_vm_unhealthy(ret))) {

@@ -175,7 +175,7 @@ static u32 __i915_gem_park(struct drm_i915_private *i915)
 
 	intel_display_power_put(i915, POWER_DOMAIN_GT_IRQ);
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	return i915->gt.epoch;
 }
@@ -814,7 +814,7 @@ void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 	POSTING_READ_FW(RING_HEAD(RENDER_RING_BASE));
 
 	spin_unlock_irq(&dev_priv->uncore.lock);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 static void
@@ -1149,7 +1149,7 @@ out_unpin:
 		i915_vma_unpin(vma);
 	}
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return ret;
@@ -1356,7 +1356,7 @@ out_unpin:
 		i915_vma_unpin(vma);
 	}
 out_rpm:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	return ret;
@@ -1968,7 +1968,7 @@ err_unpin:
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	i915_gem_object_unpin_pages(obj);
 err:
 	switch (ret) {
@@ -2068,7 +2068,7 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	wmb();
 
 out:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 }
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
@@ -4765,7 +4765,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (on)
 			cond_resched();
 	}
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 }
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915)
@@ -4901,7 +4901,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	intel_engines_sanitize(i915, false);
 
 	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	i915_gem_contexts_lost(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -4965,12 +4965,12 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 	if (WARN_ON(!intel_engines_are_idle(i915)))
 		i915_gem_set_wedged(i915); /* no hope, discard everything */
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	return 0;
 
 err_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	return ret;
 }
 

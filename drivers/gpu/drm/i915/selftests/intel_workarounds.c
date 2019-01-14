@@ -94,7 +94,7 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 
 	intel_runtime_pm_get(engine->i915);
 	rq = i915_request_alloc(engine, ctx);
-	intel_runtime_pm_put(engine->i915);
+	intel_runtime_pm_put_unchecked(engine->i915);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_pin;
@@ -241,7 +241,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	else
 		rq = i915_request_alloc(engine, ctx);
 
-	intel_runtime_pm_put(engine->i915);
+	intel_runtime_pm_put_unchecked(engine->i915);
 
 	kernel_context_close(ctx);
 
@@ -300,7 +300,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 
 	intel_runtime_pm_get(i915);
 	err = reset(engine);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	if (want_spin) {
 		igt_spinner_end(&spin);
@@ -414,7 +414,7 @@ live_gpu_reset_gt_engine_workarounds(void *arg)
 
 out:
 	reference_lists_fini(i915, &lists);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	igt_global_reset_unlock(i915);
 
 	return ok ? 0 : -ESRCH;
@@ -496,7 +496,7 @@ live_engine_reset_gt_engine_workarounds(void *arg)
 
 err:
 	reference_lists_fini(i915, &lists);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	igt_global_reset_unlock(i915);
 	kernel_context_close(ctx);
 

@@ -261,7 +261,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 bool intel_encoder_hotplug(struct intel_encoder *encoder,

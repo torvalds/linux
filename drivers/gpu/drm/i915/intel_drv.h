@@ -29,6 +29,7 @@
 #include <linux/i2c.h>
 #include <linux/hdmi.h>
 #include <linux/sched/clock.h>
+#include <linux/stackdepot.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include <drm/drm_crtc.h>
@@ -2182,10 +2183,16 @@ enable_rpm_wakeref_asserts(struct drm_i915_private *i915)
 	atomic_dec(&i915->runtime_pm.wakeref_count);
 }
 
-void intel_runtime_pm_get(struct drm_i915_private *i915);
-bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915);
-void intel_runtime_pm_get_noresume(struct drm_i915_private *i915);
-void intel_runtime_pm_put(struct drm_i915_private *i915);
+intel_wakeref_t intel_runtime_pm_get(struct drm_i915_private *i915);
+intel_wakeref_t intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915);
+intel_wakeref_t intel_runtime_pm_get_noresume(struct drm_i915_private *i915);
+
+void intel_runtime_pm_put_unchecked(struct drm_i915_private *i915);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref);
+#else
+#define intel_runtime_pm_put(i915, wref) intel_runtime_pm_put_unchecked(i915)
+#endif
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 void print_intel_runtime_pm_wakeref(struct drm_i915_private *i915,

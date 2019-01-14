@@ -122,7 +122,7 @@ int intel_huc_check_status(struct intel_huc *huc)
 
 	intel_runtime_pm_get(dev_priv);
 	status = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return status;
 }

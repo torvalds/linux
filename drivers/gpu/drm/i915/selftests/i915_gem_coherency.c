@@ -376,7 +376,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	kfree(offsets);
 	return err;

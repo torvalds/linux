@@ -258,7 +258,7 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 	 */
 	if (intel_runtime_pm_get_if_in_use(fence->i915)) {
 		fence_write(fence, vma);
-		intel_runtime_pm_put(fence->i915);
+		intel_runtime_pm_put_unchecked(fence->i915);
 	}
 
 	if (vma) {

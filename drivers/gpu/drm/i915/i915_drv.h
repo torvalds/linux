@@ -131,6 +131,8 @@ bool i915_error_injected(void);
 	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
 
+typedef depot_stack_handle_t intel_wakeref_t;
+
 enum hpd_pin {
 	HPD_NONE = 0,
 	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */

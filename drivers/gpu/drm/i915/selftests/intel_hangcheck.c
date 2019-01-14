@@ -402,7 +402,7 @@ static int igt_wedged_reset(void *arg)
 	i915_reset(i915, ALL_ENGINES, NULL);
 	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	igt_global_reset_unlock(i915);
 
@@ -1636,7 +1636,7 @@ out:
 	force_reset(i915);
 
 unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	igt_global_reset_unlock(i915);
 
@@ -1679,7 +1679,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	return err;
 }

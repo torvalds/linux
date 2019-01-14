@@ -65,7 +65,7 @@ err_spin:
 	igt_spinner_fini(&spin);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -158,7 +158,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -251,7 +251,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 
@@ -374,7 +374,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -627,7 +627,7 @@ err_ctx:
 err_batch:
 	i915_gem_object_put(smoke.batch);
 err_unlock:
-	intel_runtime_pm_put(smoke.i915);
+	intel_runtime_pm_put_unchecked(smoke.i915);
 	mutex_unlock(&smoke.i915->drm.struct_mutex);
 	kfree(smoke.contexts);
 

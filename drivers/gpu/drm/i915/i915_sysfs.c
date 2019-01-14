@@ -46,7 +46,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 
 	intel_runtime_pm_get(dev_priv);
 	res = intel_rc6_residency_us(dev_priv, reg);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
@@ -274,7 +274,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 	}
 	mutex_unlock(&dev_priv->pcu_lock);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
@@ -371,7 +371,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	    val > rps->max_freq ||
 	    val < rps->min_freq_softlimit) {
 		mutex_unlock(&dev_priv->pcu_lock);
-		intel_runtime_pm_put(dev_priv);
+		intel_runtime_pm_put_unchecked(dev_priv);
 		return -EINVAL;
 	}
 
@@ -392,7 +392,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	mutex_unlock(&dev_priv->pcu_lock);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return ret ?: count;
 }
@@ -429,7 +429,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	    val > rps->max_freq ||
 	    val > rps->max_freq_softlimit) {
 		mutex_unlock(&dev_priv->pcu_lock);
-		intel_runtime_pm_put(dev_priv);
+		intel_runtime_pm_put_unchecked(dev_priv);
 		return -EINVAL;
 	}
 
@@ -446,7 +446,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	mutex_unlock(&dev_priv->pcu_lock);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return ret ?: count;
 }

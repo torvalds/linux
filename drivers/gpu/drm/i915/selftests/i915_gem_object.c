@@ -444,7 +444,7 @@ next_tiling: ;
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 out:
@@ -508,7 +508,7 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 	if (!i915->gt.active_requests++) {
 		intel_runtime_pm_get(i915);
 		i915_gem_unpark(i915);
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put_unchecked(i915);
 	}
 	mutex_unlock(&i915->drm.struct_mutex);
 	cancel_delayed_work_sync(&i915->gt.retire_work);
@@ -590,7 +590,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		mutex_lock(&i915->drm.struct_mutex);
 		intel_runtime_pm_get(i915);
 		err = make_obj_busy(obj);
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put_unchecked(i915);
 		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("[loop %d] Failed to busy the object\n", loop);

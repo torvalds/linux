@@ -403,7 +403,7 @@ static int live_nop_request(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -553,7 +553,7 @@ out_batch:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -731,7 +731,7 @@ out_request:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -860,7 +860,7 @@ out_request:
 		i915_request_put(request[id]);
 	}
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }

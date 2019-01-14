@@ -210,7 +210,7 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 	if (fw)
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 static void
@@ -231,7 +231,7 @@ frequency_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 		    intel_runtime_pm_get_if_in_use(dev_priv)) {
 			val = intel_get_cagf(dev_priv,
 					     I915_READ_NOTRACE(GEN6_RPSTAT1));
-			intel_runtime_pm_put(dev_priv);
+			intel_runtime_pm_put_unchecked(dev_priv);
 		}
 
 		add_sample_mult(&dev_priv->pmu.sample[__I915_SAMPLE_FREQ_ACT],
@@ -448,7 +448,7 @@ static u64 get_rc6(struct drm_i915_private *i915)
 
 	if (intel_runtime_pm_get_if_in_use(i915)) {
 		val = __get_rc6(i915);
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put_unchecked(i915);
 
 		/*
 		 * If we are coming back from being runtime suspended we must

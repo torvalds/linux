@@ -2536,7 +2536,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 
 	intel_runtime_pm_get(i915);
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
@@ -2556,7 +2556,7 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 
 	intel_runtime_pm_get(i915);
 	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 }
 
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
@@ -2590,7 +2590,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	if (flags & I915_VMA_GLOBAL_BIND) {
 		intel_runtime_pm_get(i915);
 		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put_unchecked(i915);
 	}
 
 	return 0;
@@ -2603,7 +2603,7 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 	if (vma->flags & I915_VMA_GLOBAL_BIND) {
 		intel_runtime_pm_get(i915);
 		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put_unchecked(i915);
 	}
 
 	if (vma->flags & I915_VMA_LOCAL_BIND) {

@@ -445,7 +445,7 @@ static void guc_log_capture_logs(struct intel_guc_log *log)
 	 */
 	intel_runtime_pm_get(dev_priv);
 	guc_action_flush_log_complete(guc);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 int intel_guc_log_create(struct intel_guc_log *log)
@@ -528,7 +528,7 @@ int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 	ret = guc_action_control_log(guc, GUC_LOG_LEVEL_IS_VERBOSE(level),
 				     GUC_LOG_LEVEL_IS_ENABLED(level),
 				     GUC_LOG_LEVEL_TO_VERBOSITY(level));
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	if (ret) {
 		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
 		goto out_unlock;
@@ -610,7 +610,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 
 	intel_runtime_pm_get(i915);
 	guc_action_flush_log(guc);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	/* GuC would have updated log buffer by now, so capture it */
 	guc_log_capture_logs(log);

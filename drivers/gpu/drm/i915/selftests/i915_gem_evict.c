@@ -464,7 +464,7 @@ out_locked:
 	}
 	if (drm_mm_node_allocated(&hole))
 		drm_mm_remove_node(&hole);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;

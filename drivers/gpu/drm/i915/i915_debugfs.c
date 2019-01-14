@@ -877,7 +877,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		}
 	}
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -953,7 +953,7 @@ static int i915_gpu_info_open(struct inode *inode, struct file *file)
 
 	intel_runtime_pm_get(i915);
 	gpu = i915_capture_gpu_state(i915);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
 
@@ -1226,7 +1226,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	seq_printf(m, "Max CD clock frequency: %d kHz\n", dev_priv->max_cdclk_freq);
 	seq_printf(m, "Max pixel clock frequency: %d kHz\n", dev_priv->max_dotclk_freq);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	return ret;
 }
 
@@ -1292,7 +1292,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 	intel_engine_get_instdone(dev_priv->engine[RCS], &instdone);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	if (timer_pending(&dev_priv->gpu_error.hangcheck_work.timer))
 		seq_printf(m, "Hangcheck active, timer fires in %dms\n",
@@ -1579,7 +1579,7 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	else
 		err = ironlake_drpc_info(m);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return err;
 }
@@ -1632,7 +1632,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	}
 
 	mutex_unlock(&fbc->lock);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -1695,7 +1695,7 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 			seq_puts(m, "Currently: disabled\n");
 	}
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -1723,7 +1723,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 		sr_enabled = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	seq_printf(m, "self-refresh: %s\n", enableddisabled(sr_enabled));
 
@@ -1756,7 +1756,7 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 	seq_printf(m, "GFX power: %ld\n", gfx);
 	seq_printf(m, "Total power: %ld\n", chipset + gfx);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -1805,7 +1805,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	mutex_unlock(&dev_priv->pcu_lock);
 
 out:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	return ret;
 }
 
@@ -2017,7 +2017,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -2067,7 +2067,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 			act_freq = intel_get_cagf(dev_priv,
 						  I915_READ(GEN6_RPSTAT1));
 		}
-		intel_runtime_pm_put(dev_priv);
+		intel_runtime_pm_put_unchecked(dev_priv);
 	}
 
 	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
@@ -2160,7 +2160,7 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 
 	intel_runtime_pm_get(dev_priv);
 	seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -2192,7 +2192,7 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	for (i = 0; i < 16; i++)
 		seq_printf(m, "\t%2d: \t0x%x\n", i, I915_READ(SOFT_SCRATCH(i)));
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -2601,7 +2601,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 			   dev_priv->psr.last_exit);
 	}
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	return 0;
 }
 
@@ -2632,7 +2632,7 @@ retry:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return ret;
 }
@@ -2665,7 +2665,7 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 	intel_runtime_pm_get(dev_priv);
 
 	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &power)) {
-		intel_runtime_pm_put(dev_priv);
+		intel_runtime_pm_put_unchecked(dev_priv);
 		return -ENODEV;
 	}
 
@@ -2673,7 +2673,7 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 	power = I915_READ(MCH_SECP_NRG_STTS);
 	power = (1000000 * power) >> units; /* convert to uJ */
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	seq_printf(m, "%llu", power);
 
@@ -2775,7 +2775,7 @@ out:
 	seq_printf(m, "ssp base: 0x%08x\n", I915_READ(CSR_SSP_BASE));
 	seq_printf(m, "htp: 0x%08x\n", I915_READ(CSR_HTP_SKL));
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -3114,7 +3114,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -3139,7 +3139,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	for_each_engine(engine, dev_priv, id)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return 0;
 }
@@ -3265,7 +3265,7 @@ static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
 	dev_priv->wm.distrust_bios_wm = true;
 	dev_priv->ipc_enabled = enable;
 	intel_enable_ipc(dev_priv);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	return len;
 }
@@ -4090,7 +4090,7 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_gem_drain_freed_objects(i915);
 
 out:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	return ret;
 }
@@ -4112,7 +4112,7 @@ i915_cache_sharing_get(void *data, u64 *val)
 
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	*val = (snpcr & GEN6_MBC_SNPCR_MASK) >> GEN6_MBC_SNPCR_SHIFT;
 
@@ -4140,7 +4140,7 @@ i915_cache_sharing_set(void *data, u64 val)
 	snpcr |= (val << GEN6_MBC_SNPCR_SHIFT);
 	I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	return 0;
 }
 
@@ -4388,7 +4388,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		gen10_sseu_device_status(dev_priv, &sseu);
 	}
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 
 	i915_print_sseu_info(m, false, &sseu);
 
@@ -4416,7 +4416,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 		return 0;
 
 	intel_uncore_forcewake_user_put(i915);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put_unchecked(i915);
 
 	return 0;
 }
