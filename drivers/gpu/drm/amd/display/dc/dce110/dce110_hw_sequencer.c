@@ -1032,8 +1032,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	struct dc_link *link = stream->link;
 
 	/* only 3 items below are used by unblank */
-	params.pixel_clk_khz =
-		pipe_ctx->stream->timing.pix_clk_100hz / 10;
+	params.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
 	params.link_settings.link_rate = link_settings->link_rate;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1043,6 +1042,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		link->dc->hwss.edp_backlight_control(link, true);
 	}
 }
+
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;

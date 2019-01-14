@@ -435,7 +435,7 @@ struct optc {
 	const struct dcn_optc_shift *tg_shift;
 	const struct dcn_optc_mask *tg_mask;
 
-	enum controller_id controller_id;
+	int comb_opp_id;
 
 	uint32_t max_h_total;
 	uint32_t max_v_total;
