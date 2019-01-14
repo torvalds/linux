@@ -224,7 +224,35 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 /*
  * SOF Driver enumeration.
  */
+static int sof_machine_check(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 
+	if (!plat_data->machine) {
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
+		struct snd_soc_acpi_mach *machine;
+		int ret;
+
+		/* fallback to nocodec mode */
+		dev_warn(sdev->dev, "No ASoC machine driver found - using nocodec\n");
+		machine = devm_kzalloc(sdev->dev, sizeof(*machine), GFP_KERNEL);
+		if (!machine)
+			return -ENOMEM;
+
+		ret = sof_nocodec_setup(sdev->dev, plat_data, machine,
+					plat_data->desc, plat_data->desc->ops);
+		if (ret < 0)
+			return ret;
+
+		plat_data->machine = machine;
+#else
+		dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+		return -ENODEV;
+#endif
+	}
+
+	return 0;
+}
 static int sof_probe(struct platform_device *pdev)
 {
 	struct snd_sof_pdata *plat_data = dev_get_platdata(&pdev->dev);
@@ -257,9 +285,6 @@ static int sof_probe(struct platform_device *pdev)
 	spin_lock_init(&sdev->ipc_lock);
 	spin_lock_init(&sdev->hw_lock);
 
-	/* set up platform component driver */
-	snd_sof_new_platform_drv(sdev);
-
 	/* set default timeouts if none provided */
 	if (plat_data->desc->ipc_timeout == 0)
 		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC_MS;
@@ -276,6 +301,17 @@ static int sof_probe(struct platform_device *pdev)
 		dev_err(sdev->dev, "error: failed to probe DSP %d\n", ret);
 		return ret;
 	}
+
+	/* check machine info */
+	ret = sof_machine_check(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to get machine info %d\n",
+			ret);
+		goto dbg_err;
+	}
+
+	/* set up platform component driver */
+	snd_sof_new_platform_drv(sdev);
 
 	/* register any debug/trace capabilities */
 	ret = snd_sof_dbg_init(sdev);

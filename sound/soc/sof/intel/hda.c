@@ -25,6 +25,10 @@
 #include "../../codecs/hdac_hda.h"
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+#include <sound/soc-acpi-intel-match.h>
+#endif
+
 /* platform specific devices */
 #include "shim.h"
 
@@ -226,7 +230,12 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	struct pci_dev *pci = sdev->pci;
 	struct hdac_ext_link *hlink = NULL;
 	struct snd_soc_acpi_mach_params *mach_params;
+	struct snd_soc_acpi_mach *hda_mach = NULL;
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	struct snd_soc_acpi_mach *mach;
+	int codec_num = 0;
 	int ret = 0;
+	int i;
 
 	device_disable_async_suspend(bus->dev);
 
@@ -252,15 +261,50 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	}
 
 	/* codec detection */
-	if (!bus->codec_mask)
+	if (!bus->codec_mask) {
 		dev_info(bus->dev, "no hda codecs found!\n");
-	else
-		dev_info(bus->dev, "hda codecs found, mask %lx!\n", bus->codec_mask);
+	} else {
+		dev_info(bus->dev, "hda codecs found, mask %lx\n",
+			 bus->codec_mask);
+
+		for (i = 0; i < HDA_MAX_CODECS; i++) {
+			if (bus->codec_mask & (1 << i))
+				codec_num++;
+		}
+
+		/*
+		 * If no machine driver is found, then:
+		 *
+		 * hda machine driver is used if :
+		 * 1. there are HDMI codec and one external HDAudio codec
+		 * 2. only HDMI codec and NOCODEC is not enabled
+		 *
+		 * nocodec machine driver would be used if:
+		 * 1. only HDMI codec and but NOCODEC is enabled
+		 * 2. there is no codec found
+		 */
+		if (!pdata->machine && codec_num <= 2 &&
+		    HDA_IDISP_CODEC(bus->codec_mask)) {
+			if (codec_num == 2 ||
+			    !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
+				hda_mach = snd_soc_acpi_intel_hda_machines;
+				mach = pdata->desc->machines;
+				hda_mach->sof_fw_filename =
+					mach->sof_fw_filename;
+				pdata->machine = hda_mach;
+
+				dev_info(bus->dev, "using HDA machine driver %s now\n",
+					 hda_mach->drv_name);
+			}
+		}
+	}
 
 	/* used by hda machine driver to create dai links */
-	mach_params = (struct snd_soc_acpi_mach_params *)
-		&sdev->pdata->machine->mach_params;
-	mach_params->codec_mask = bus->codec_mask;
+	if (pdata->machine) {
+		mach_params = (struct snd_soc_acpi_mach_params *)
+			&pdata->machine->mach_params;
+		mach_params->codec_mask = bus->codec_mask;
+	}
 
 	/* create codec instances */
 	hda_codec_probe_bus(sdev);

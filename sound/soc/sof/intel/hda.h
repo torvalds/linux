@@ -338,6 +338,8 @@
 #define HDA_ADSP_FW_STATUS_SKL		HDA_ADSP_SRAM0_BASE_SKL
 #define HDA_ADSP_ERROR_CODE_SKL		(HDA_ADSP_FW_STATUS_SKL + 0x4)
 
+#define HDA_IDISP_CODEC(x) ((x) & BIT(2))
+
 struct sof_intel_dsp_bdl {
 	__le32 addr_l;
 	__le32 addr_h;
