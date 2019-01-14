@@ -678,8 +678,13 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 	int ret = 0;
 	struct pp_clock_levels_with_latency clocks;
 	struct vega20_single_dpm_table *single_dpm_table;
+	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct vega20_dpm_table *dpm_table = NULL;
+	struct vega20_od8_settings *od8_settings =
+		(struct vega20_od8_settings *)table_context->od8_settings;
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)(table_context->overdrive_table);
 
 	dpm_table = smu_dpm->dpm_context;
 
@@ -725,6 +730,100 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				(clocks.data[i].clocks_in_khz == now * 10)
 				? "*" : "");
 		break;
+
+	case OD_SCLK:
+		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id) {
+			size = sprintf(buf, "%s:\n", "OD_SCLK");
+			size += sprintf(buf + size, "0: %10uMhz\n",
+					od_table->GfxclkFmin);
+			size += sprintf(buf + size, "1: %10uMhz\n",
+					od_table->GfxclkFmax);
+		}
+
+		break;
+
+	case OD_MCLK:
+		if (od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id) {
+			size = sprintf(buf, "%s:\n", "OD_MCLK");
+			size += sprintf(buf + size, "1: %10uMhz\n",
+					 od_table->UclkFmax);
+		}
+
+		break;
+
+	case OD_VDDC_CURVE:
+		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id) {
+			size = sprintf(buf, "%s:\n", "OD_VDDC_CURVE");
+			size += sprintf(buf + size, "0: %10uMhz %10dmV\n",
+					od_table->GfxclkFreq1,
+					od_table->GfxclkVolt1 / VOLTAGE_SCALE);
+			size += sprintf(buf + size, "1: %10uMhz %10dmV\n",
+					od_table->GfxclkFreq2,
+					od_table->GfxclkVolt2 / VOLTAGE_SCALE);
+			size += sprintf(buf + size, "2: %10uMhz %10dmV\n",
+					od_table->GfxclkFreq3,
+					od_table->GfxclkVolt3 / VOLTAGE_SCALE);
+		}
+
+		break;
+
+	case OD_RANGE:
+		size = sprintf(buf, "%s:\n", "OD_RANGE");
+
+		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id) {
+			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].min_value,
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].max_value);
+		}
+
+		if (od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id) {
+			single_dpm_table = &(dpm_table->mem_table);
+			ret = vega20_get_clk_table(smu, &clocks, single_dpm_table);
+			if (ret) {
+				pr_err("Attempt to get memory clk levels Failed!");
+				return ret;
+			}
+
+			size += sprintf(buf + size, "MCLK: %7uMhz %10uMhz\n",
+					clocks.data[0].clocks_in_khz / 1000,
+					od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].max_value);
+		}
+
+		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id &&
+		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id) {
+			size += sprintf(buf + size, "VDDC_CURVE_SCLK[0]: %7uMhz %10uMhz\n",
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].min_value,
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_VOLT[0]: %7dmV %11dmV\n",
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].min_value,
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_SCLK[1]: %7uMhz %10uMhz\n",
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].min_value,
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_VOLT[1]: %7dmV %11dmV\n",
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].min_value,
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_SCLK[2]: %7uMhz %10uMhz\n",
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].min_value,
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_VOLT[2]: %7dmV %11dmV\n",
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].min_value,
+					od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].max_value);
+		}
+
+		break;
+
 	default:
 		break;
 	}

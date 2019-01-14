@@ -657,7 +657,13 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	uint32_t size = 0;
 
-	if (adev->powerplay.pp_funcs->print_clock_levels) {
+	if (is_support_sw_smu(adev)) {
+		size = smu_print_clk_levels(&adev->smu, OD_SCLK, buf);
+		size += smu_print_clk_levels(&adev->smu, OD_MCLK, buf+size);
+		size += smu_print_clk_levels(&adev->smu, OD_VDDC_CURVE, buf+size);
+		size += smu_print_clk_levels(&adev->smu, OD_RANGE, buf+size);
+		return size;
+	} else if (adev->powerplay.pp_funcs->print_clock_levels) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf+size);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf+size);
