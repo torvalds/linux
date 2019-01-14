@@ -28,10 +28,6 @@
  */
 static DEFINE_SPINLOCK(npu_context_lock);
 
-/*
- * Other types of TCE cache invalidation are not functional in the
- * hardware.
- */
 static struct pci_dev *get_pci_dev(struct device_node *dn)
 {
 	struct pci_dn *pdn = PCI_DN(dn);
