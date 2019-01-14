@@ -41,6 +41,8 @@
 #include <drm/drm_atomic.h>
 #include <media/cec-notifier.h>
 
+struct drm_printer;
+
 /**
  * __wait_for - magic wait macro
  *
@@ -2084,6 +2086,7 @@ bool intel_psr_enabled(struct intel_dp *intel_dp);
 void intel_init_quirks(struct drm_i915_private *dev_priv);
 
 /* intel_runtime_pm.c */
+void intel_runtime_pm_init_early(struct drm_i915_private *dev_priv);
 int intel_power_domains_init(struct drm_i915_private *);
 void intel_power_domains_cleanup(struct drm_i915_private *dev_priv);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume);
@@ -2106,6 +2109,7 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume);
 void bxt_display_core_uninit(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_disable(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_cleanup(struct drm_i915_private *dev_priv);
 const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain);
 
@@ -2123,23 +2127,23 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices);
 
 static inline void
-assert_rpm_device_not_suspended(struct drm_i915_private *dev_priv)
+assert_rpm_device_not_suspended(struct drm_i915_private *i915)
 {
-	WARN_ONCE(dev_priv->runtime_pm.suspended,
+	WARN_ONCE(i915->runtime_pm.suspended,
 		  "Device suspended during HW access\n");
 }
 
 static inline void
-assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
+assert_rpm_wakelock_held(struct drm_i915_private *i915)
 {
-	assert_rpm_device_not_suspended(dev_priv);
-	WARN_ONCE(!atomic_read(&dev_priv->runtime_pm.wakeref_count),
+	assert_rpm_device_not_suspended(i915);
+	WARN_ONCE(!atomic_read(&i915->runtime_pm.wakeref_count),
 		  "RPM wakelock ref not held during HW access");
 }
 
 /**
  * disable_rpm_wakeref_asserts - disable the RPM assert checks
- * @dev_priv: i915 device instance
+ * @i915: i915 device instance
  *
  * This function disable asserts that check if we hold an RPM wakelock
  * reference, while keeping the device-not-suspended checks still enabled.
@@ -2156,14 +2160,14 @@ assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
  * enable_rpm_wakeref_asserts().
  */
 static inline void
-disable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
+disable_rpm_wakeref_asserts(struct drm_i915_private *i915)
 {
-	atomic_inc(&dev_priv->runtime_pm.wakeref_count);
+	atomic_inc(&i915->runtime_pm.wakeref_count);
 }
 
 /**
  * enable_rpm_wakeref_asserts - re-enable the RPM assert checks
- * @dev_priv: i915 device instance
+ * @i915: i915 device instance
  *
  * This function re-enables the RPM assert checks after disabling them with
  * disable_rpm_wakeref_asserts. It's meant to be used only in special
@@ -2173,15 +2177,25 @@ disable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
  * disable_rpm_wakeref_asserts().
  */
 static inline void
-enable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
+enable_rpm_wakeref_asserts(struct drm_i915_private *i915)
 {
-	atomic_dec(&dev_priv->runtime_pm.wakeref_count);
+	atomic_dec(&i915->runtime_pm.wakeref_count);
 }
 
-void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
-bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get(struct drm_i915_private *i915);
+bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915);
+void intel_runtime_pm_get_noresume(struct drm_i915_private *i915);
+void intel_runtime_pm_put(struct drm_i915_private *i915);
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+void print_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
+				    struct drm_printer *p);
+#else
+static inline void print_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
+						  struct drm_printer *p)
+{
+}
+#endif
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask);

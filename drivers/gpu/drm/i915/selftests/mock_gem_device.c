@@ -154,14 +154,16 @@ struct drm_i915_private *mock_gem_device(void)
 	pdev->dev.archdata.iommu = (void *)-1;
 #endif
 
+	i915 = (struct drm_i915_private *)(pdev + 1);
+	pci_set_drvdata(pdev, i915);
+
+	intel_runtime_pm_init_early(i915);
+
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	if (pm_runtime_enabled(&pdev->dev))
 		WARN_ON(pm_runtime_get_sync(&pdev->dev));
-
-	i915 = (struct drm_i915_private *)(pdev + 1);
-	pci_set_drvdata(pdev, i915);
 
 	err = drm_dev_init(&i915->drm, &mock_driver, &pdev->dev);
 	if (err) {

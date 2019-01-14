@@ -905,6 +905,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->pps_mutex);
 
 	i915_memcpy_init_early(dev_priv);
+	intel_runtime_pm_init_early(dev_priv);
 
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
@@ -1807,8 +1808,7 @@ void i915_driver_unload(struct drm_device *dev)
 	i915_driver_cleanup_mmio(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
-
-	WARN_ON(atomic_read(&dev_priv->runtime_pm.wakeref_count));
+	intel_runtime_pm_cleanup(dev_priv);
 }
 
 static void i915_driver_release(struct drm_device *dev)
@@ -2010,6 +2010,8 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 out:
 	enable_rpm_wakeref_asserts(dev_priv);
+	if (!dev_priv->uncore.user_forcewake.count)
+		intel_runtime_pm_cleanup(dev_priv);
 
 	return ret;
 }
@@ -2965,7 +2967,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	}
 
 	enable_rpm_wakeref_asserts(dev_priv);
-	WARN_ON_ONCE(atomic_read(&dev_priv->runtime_pm.wakeref_count));
+	intel_runtime_pm_cleanup(dev_priv);
 
 	if (intel_uncore_arm_unclaimed_mmio_detection(dev_priv))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");
