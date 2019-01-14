@@ -336,6 +336,7 @@ static int igt_evict_contexts(void *arg)
 		struct drm_mm_node node;
 		struct reserved *next;
 	} *reserved = NULL;
+	intel_wakeref_t wakeref;
 	struct drm_mm_node hole;
 	unsigned long count;
 	int err;
@@ -355,7 +356,7 @@ static int igt_evict_contexts(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	/* Reserve a block so that we know we have enough to fit a few rq */
 	memset(&hole, 0, sizeof(hole));
@@ -400,8 +401,10 @@ static int igt_evict_contexts(void *arg)
 		struct drm_file *file;
 
 		file = mock_file(i915);
-		if (IS_ERR(file))
-			return PTR_ERR(file);
+		if (IS_ERR(file)) {
+			err = PTR_ERR(file);
+			break;
+		}
 
 		count = 0;
 		mutex_lock(&i915->drm.struct_mutex);
@@ -464,7 +467,7 @@ out_locked:
 	}
 	if (drm_mm_node_allocated(&hole))
 		drm_mm_remove_node(&hole);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
@@ -480,6 +483,7 @@ int i915_gem_evict_mock_selftests(void)
 		SUBTEST(igt_overcommit),
 	};
 	struct drm_i915_private *i915;
+	intel_wakeref_t wakeref;
 	int err;
 
 	i915 = mock_gem_device();
@@ -487,7 +491,11 @@ int i915_gem_evict_mock_selftests(void)
 		return -ENOMEM;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
+
 	err = i915_subtests(tests, i915);
+
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	drm_dev_put(&i915->drm);

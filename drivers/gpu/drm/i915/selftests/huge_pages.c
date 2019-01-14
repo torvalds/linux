@@ -1756,6 +1756,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 	};
 	struct drm_file *file;
 	struct i915_gem_context *ctx;
+	intel_wakeref_t wakeref;
 	int err;
 
 	if (!HAS_PPGTT(dev_priv)) {
@@ -1771,7 +1772,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 		return PTR_ERR(file);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 
 	ctx = live_context(dev_priv, file);
 	if (IS_ERR(ctx)) {
@@ -1785,7 +1786,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 	err = i915_subtests(tests, ctx);
 
 out_unlock:
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	mock_file_free(dev_priv, file);

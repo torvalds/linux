@@ -308,6 +308,7 @@ static int igt_partial_tiling(void *arg)
 	const unsigned int nreal = 1 << 12; /* largest tile row x2 */
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
+	intel_wakeref_t wakeref;
 	int tiling;
 	int err;
 
@@ -333,7 +334,7 @@ static int igt_partial_tiling(void *arg)
 	}
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (1) {
 		IGT_TIMEOUT(end);
@@ -444,7 +445,7 @@ next_tiling: ;
 	}
 
 out_unlock:
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 out:
@@ -506,11 +507,14 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	if (!i915->gt.active_requests++) {
-		intel_runtime_pm_get(i915);
+		intel_wakeref_t wakeref;
+
+		wakeref = intel_runtime_pm_get(i915);
 		i915_gem_unpark(i915);
-		intel_runtime_pm_put_unchecked(i915);
+		intel_runtime_pm_put(i915, wakeref);
 	}
 	mutex_unlock(&i915->drm.struct_mutex);
+
 	cancel_delayed_work_sync(&i915->gt.retire_work);
 	cancel_delayed_work_sync(&i915->gt.idle_work);
 }
@@ -578,6 +582,8 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 	/* Now fill with busy dead objects that we expect to reap */
 	for (loop = 0; loop < 3; loop++) {
+		intel_wakeref_t wakeref;
+
 		if (i915_terminally_wedged(&i915->gpu_error))
 			break;
 
@@ -588,9 +594,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		}
 
 		mutex_lock(&i915->drm.struct_mutex);
-		intel_runtime_pm_get(i915);
+		wakeref = intel_runtime_pm_get(i915);
 		err = make_obj_busy(obj);
-		intel_runtime_pm_put_unchecked(i915);
+		intel_runtime_pm_put(i915, wakeref);
 		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("[loop %d] Failed to busy the object\n", loop);

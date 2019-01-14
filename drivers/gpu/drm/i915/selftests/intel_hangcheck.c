@@ -388,12 +388,13 @@ static int igt_global_reset(void *arg)
 static int igt_wedged_reset(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
+	intel_wakeref_t wakeref;
 
 	/* Check that we can recover a wedged device with a GPU reset */
 
 	igt_global_reset_lock(i915);
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	i915_gem_set_wedged(i915);
 	GEM_BUG_ON(!i915_terminally_wedged(&i915->gpu_error));
@@ -402,7 +403,7 @@ static int igt_wedged_reset(void *arg)
 	i915_reset(i915, ALL_ENGINES, NULL);
 	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
 
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	igt_global_reset_unlock(i915);
 
@@ -1600,6 +1601,7 @@ static int igt_atomic_reset(void *arg)
 		{ }
 	};
 	struct drm_i915_private *i915 = arg;
+	intel_wakeref_t wakeref;
 	int err = 0;
 
 	/* Check that the resets are usable from atomic context */
@@ -1609,7 +1611,7 @@ static int igt_atomic_reset(void *arg)
 
 	igt_global_reset_lock(i915);
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	/* Flush any requests before we get started and check basics */
 	force_reset(i915);
@@ -1636,7 +1638,7 @@ out:
 	force_reset(i915);
 
 unlock:
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	igt_global_reset_unlock(i915);
 
@@ -1660,6 +1662,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_handle_error),
 		SUBTEST(igt_atomic_reset),
 	};
+	intel_wakeref_t wakeref;
 	bool saved_hangcheck;
 	int err;
 
@@ -1669,7 +1672,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(&i915->gpu_error))
 		return -EIO; /* we're long past hope of a successful reset */
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
 
 	err = i915_subtests(tests, i915);
@@ -1679,7 +1682,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 
 	return err;
 }

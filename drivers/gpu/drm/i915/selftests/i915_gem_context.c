@@ -119,6 +119,7 @@ static int live_nop_switch(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context **ctx;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	struct drm_file *file;
 	struct live_test t;
 	unsigned long n;
@@ -140,7 +141,7 @@ static int live_nop_switch(void *arg)
 		return PTR_ERR(file);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
@@ -243,7 +244,7 @@ static int live_nop_switch(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
 	return err;
@@ -593,6 +594,8 @@ static int igt_ctx_exec(void *arg)
 		}
 
 		for_each_engine(engine, i915, id) {
+			intel_wakeref_t wakeref;
+
 			if (!engine->context_size)
 				continue; /* No logical context support in HW */
 
@@ -607,9 +610,9 @@ static int igt_ctx_exec(void *arg)
 				}
 			}
 
-			intel_runtime_pm_get(i915);
+			wakeref = intel_runtime_pm_get(i915);
 			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put_unchecked(i915);
+			intel_runtime_pm_put(i915, wakeref);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -699,6 +702,8 @@ static int igt_ctx_readonly(void *arg)
 		unsigned int id;
 
 		for_each_engine(engine, i915, id) {
+			intel_wakeref_t wakeref;
+
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
@@ -713,9 +718,9 @@ static int igt_ctx_readonly(void *arg)
 					i915_gem_object_set_readonly(obj);
 			}
 
-			intel_runtime_pm_get(i915);
+			wakeref = intel_runtime_pm_get(i915);
 			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put_unchecked(i915);
+			intel_runtime_pm_put(i915, wakeref);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -976,6 +981,7 @@ static int igt_vm_isolation(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx_a, *ctx_b;
 	struct intel_engine_cs *engine;
+	intel_wakeref_t wakeref;
 	struct drm_file *file;
 	I915_RND_STATE(prng);
 	unsigned long count;
@@ -1022,7 +1028,7 @@ static int igt_vm_isolation(void *arg)
 	GEM_BUG_ON(ctx_b->ppgtt->vm.total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	count = 0;
 	for_each_engine(engine, i915, id) {
@@ -1067,7 +1073,7 @@ static int igt_vm_isolation(void *arg)
 		count, RUNTIME_INFO(i915)->num_rings);
 
 out_rpm:
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 out_unlock:
 	if (end_live_test(&t))
 		err = -EIO;
@@ -1165,6 +1171,7 @@ static int igt_switch_to_kernel_context(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err;
 
 	/*
@@ -1175,7 +1182,7 @@ static int igt_switch_to_kernel_context(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx)) {
@@ -1200,7 +1207,7 @@ out_unlock:
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
 
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	kernel_context_close(ctx);

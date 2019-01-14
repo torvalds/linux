@@ -275,6 +275,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 
 		for (n = 0; n < count; n++) {
 			u64 addr = hole_start + order[n] * BIT_ULL(size);
+			intel_wakeref_t wakeref;
 
 			GEM_BUG_ON(addr + BIT_ULL(size) > vm->total);
 
@@ -293,9 +294,9 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			mock_vma.node.size = BIT_ULL(size);
 			mock_vma.node.start = addr;
 
-			intel_runtime_pm_get(i915);
+			wakeref = intel_runtime_pm_get(i915);
 			vm->insert_entries(vm, &mock_vma, I915_CACHE_NONE, 0);
-			intel_runtime_pm_put_unchecked(i915);
+			intel_runtime_pm_put(i915, wakeref);
 		}
 		count = n;
 
@@ -1144,6 +1145,7 @@ static int igt_ggtt_page(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct drm_i915_gem_object *obj;
+	intel_wakeref_t wakeref;
 	struct drm_mm_node tmp;
 	unsigned int *order, n;
 	int err;
@@ -1169,7 +1171,7 @@ static int igt_ggtt_page(void *arg)
 	if (err)
 		goto out_unpin;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	for (n = 0; n < count; n++) {
 		u64 offset = tmp.start + n * PAGE_SIZE;
@@ -1216,7 +1218,7 @@ static int igt_ggtt_page(void *arg)
 	kfree(order);
 out_remove:
 	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	drm_mm_remove_node(&tmp);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
