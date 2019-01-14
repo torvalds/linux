@@ -470,6 +470,14 @@ config HISI_HIKEY_USB
 	  switching between the dual-role USB-C port and the USB-A host ports
 	  using only one USB controller.
 
+config NPCM7XX_LPC_BPC
+	tristate "NPCM7xx LPC BIOS Post Code support"
+	depends on (ARCH_NPCM7XX || COMPILE_TEST)
+	help
+	  Provides a NPCM7xx driver to control the LPC BIOS Post Code
+	  interface which allows the BMC to monitoring and save
+	  the data written by the host to an arbitrary LPC I/O port.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
