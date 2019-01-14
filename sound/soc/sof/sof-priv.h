@@ -67,105 +67,114 @@ struct snd_sof_pdata;
  * and DSP device(s).
  */
 struct snd_sof_dsp_ops {
+
 	/* probe and remove */
-	int (*remove)(struct snd_sof_dev *sof_dev);
-	int (*probe)(struct snd_sof_dev *sof_dev);
+	int (*probe)(struct snd_sof_dev *sof_dev); /* mandatory */
+	int (*remove)(struct snd_sof_dev *sof_dev); /* optional */
 
 	/* DSP core boot / reset */
-	int (*run)(struct snd_sof_dev *sof_dev);
-	int (*stall)(struct snd_sof_dev *sof_dev);
-	int (*reset)(struct snd_sof_dev *sof_dev);
+	int (*run)(struct snd_sof_dev *sof_dev); /* mandatory */
+	int (*stall)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*reset)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*core_power_up)(struct snd_sof_dev *sof_dev,
-			     unsigned int core_mask);
+			     unsigned int core_mask); /* optional */
 	int (*core_power_down)(struct snd_sof_dev *sof_dev,
-			       unsigned int core_mask);
-
-	/* pre/post firmware run */
-	int (*pre_fw_run)(struct snd_sof_dev *sof_dev);
-	int (*post_fw_run)(struct snd_sof_dev *sof_dev);
-
-	/* DSP PM */
-	int (*suspend)(struct snd_sof_dev *sof_dev, int state);
-	int (*resume)(struct snd_sof_dev *sof_dev);
-	int (*runtime_suspend)(struct snd_sof_dev *sof_dev, int state);
-	int (*runtime_resume)(struct snd_sof_dev *sof_dev);
-
-	/* DSP clocking */
-	int (*set_clk)(struct snd_sof_dev *sof_dev, u32 freq);
+			       unsigned int core_mask); /* optional */
 
 	/* Register IO */
 	void (*write)(struct snd_sof_dev *sof_dev, void __iomem *addr,
-		      u32 value);
-	u32 (*read)(struct snd_sof_dev *sof_dev, void __iomem *addr);
+		      u32 value); /* mandatory */
+	u32 (*read)(struct snd_sof_dev *sof_dev,
+		    void __iomem *addr); /* mandatory */
 	void (*write64)(struct snd_sof_dev *sof_dev, void __iomem *addr,
-			u64 value);
-	u64 (*read64)(struct snd_sof_dev *sof_dev, void __iomem *addr);
+			u64 value); /* mandatory */
+	u64 (*read64)(struct snd_sof_dev *sof_dev,
+		      void __iomem *addr); /* mandatory */
 
 	/* memcpy IO */
 	void (*block_read)(struct snd_sof_dev *sof_dev, u32 bar,
-			   u32 offset, void *dest, size_t size);
+			   u32 offset, void *dest,
+			   size_t size); /* mandatory */
 	void (*block_write)(struct snd_sof_dev *sof_dev, u32 bar,
-			    u32 offset, void *src, size_t size);
+			    u32 offset, void *src,
+			    size_t size); /* mandatory */
 
 	/* doorbell */
-	irqreturn_t (*irq_handler)(int irq, void *context);
-	irqreturn_t (*irq_thread)(int irq, void *context);
+	irqreturn_t (*irq_handler)(int irq, void *context); /* mandatory */
+	irqreturn_t (*irq_thread)(int irq, void *context); /* mandatory */
 
 	/* mailbox */
 	void (*mailbox_read)(struct snd_sof_dev *sof_dev, u32 offset,
-			     void *addr, size_t bytes);
+			     void *addr, size_t bytes); /* mandatory */
 	void (*mailbox_write)(struct snd_sof_dev *sof_dev, u32 offset,
-			      void *addr, size_t bytes);
+			      void *addr, size_t bytes); /* mandatory */
 
 	/* ipc */
 	int (*send_msg)(struct snd_sof_dev *sof_dev,
-			struct snd_sof_ipc_msg *msg);
+			struct snd_sof_ipc_msg *msg); /* mandatory */
 	int (*get_reply)(struct snd_sof_dev *sof_dev,
-			 struct snd_sof_ipc_msg *msg);
-	int (*is_ipc_ready)(struct snd_sof_dev *sof_dev);
-	int (*cmd_done)(struct snd_sof_dev *sof_dev, int dir);
+			 struct snd_sof_ipc_msg *msg); /* mandatory */
+	int (*is_ipc_ready)(struct snd_sof_dev *sof_dev); /* mandatory */
+	int (*cmd_done)(struct snd_sof_dev *sof_dev, int dir); /* mandatory */
 
-	/* debug */
-	const struct snd_sof_debugfs_map *debug_map;
-	int debug_map_count;
-	void (*dbg_dump)(struct snd_sof_dev *sof_dev, u32 flags);
+	/* FW loading */
+	int (*load_firmware)(struct snd_sof_dev *sof_dev); /* mandatory */
+	int (*load_module)(struct snd_sof_dev *sof_dev,
+			   struct snd_sof_mod_hdr *hdr); /* optional */
+	/*
+	 * FW ready checks for ABI compatibility and creates
+	 * memory windows at first boot
+	 */
+	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id); /* mandatory */
 
 	/* connect pcm substream to a host stream */
 	int (*pcm_open)(struct snd_sof_dev *sdev,
-			struct snd_pcm_substream *substream);
+			struct snd_pcm_substream *substream); /* optional */
 	/* disconnect pcm substream to a host stream */
 	int (*pcm_close)(struct snd_sof_dev *sdev,
-			 struct snd_pcm_substream *substream);
+			 struct snd_pcm_substream *substream); /* optional */
 
 	/* host stream hw params */
 	int (*pcm_hw_params)(struct snd_sof_dev *sdev,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
-			     struct sof_ipc_stream_params *ipc_params);
+			     struct sof_ipc_stream_params *ipc_params); /* optional */
 
 	/* host stream trigger */
 	int (*pcm_trigger)(struct snd_sof_dev *sdev,
-			   struct snd_pcm_substream *substream, int cmd);
+			   struct snd_pcm_substream *substream,
+			   int cmd); /* optional */
 
 	/* host stream pointer */
 	snd_pcm_uframes_t (*pcm_pointer)(struct snd_sof_dev *sdev,
-					 struct snd_pcm_substream *substream);
+					 struct snd_pcm_substream *substream); /* optional */
 
-	/* FW loading */
-	int (*load_firmware)(struct snd_sof_dev *sof_dev);
-	int (*load_module)(struct snd_sof_dev *sof_dev,
-			   struct snd_sof_mod_hdr *hdr);
+	/* pre/post firmware run */
+	int (*pre_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*post_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
 
-	/*
-	 * FW ready checks for ABI compatibility and creates
-	 * memory windows at first boot
-	 */
-	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id);
+	/* DSP PM */
+	int (*suspend)(struct snd_sof_dev *sof_dev, int state); /* optional */
+	int (*resume)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*runtime_suspend)(struct snd_sof_dev *sof_dev,
+			       int state); /* optional */
+	int (*runtime_resume)(struct snd_sof_dev *sof_dev); /* optional */
+
+	/* DSP clocking */
+	int (*set_clk)(struct snd_sof_dev *sof_dev, u32 freq); /* optional */
+
+	/* debug */
+	const struct snd_sof_debugfs_map *debug_map; /* optional */
+	int debug_map_count; /* optional */
+	void (*dbg_dump)(struct snd_sof_dev *sof_dev,
+			 u32 flags); /* optional */
 
 	/* host DMA trace initialization */
-	int (*trace_init)(struct snd_sof_dev *sdev, u32 *stream_tag);
-	int (*trace_release)(struct snd_sof_dev *sdev);
-	int (*trace_trigger)(struct snd_sof_dev *sdev, int cmd);
+	int (*trace_init)(struct snd_sof_dev *sdev,
+			  u32 *stream_tag); /* optional */
+	int (*trace_release)(struct snd_sof_dev *sdev); /* optional */
+	int (*trace_trigger)(struct snd_sof_dev *sdev,
+			     int cmd); /* optional */
 
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
