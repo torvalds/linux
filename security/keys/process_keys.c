@@ -379,6 +379,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
+			/* fall through */
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
@@ -403,6 +404,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
+			/* fall through */
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
@@ -423,6 +425,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
+			/* fall through */
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
